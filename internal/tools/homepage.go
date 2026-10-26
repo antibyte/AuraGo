@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 
 // HomepageConfig holds the configuration for the homepage dev environment.
 type HomepageConfig struct {
+	ManagedProjectDir     string          // Execution working directory supplied by the managed operation boundary.
 	Context               context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
 	DockerHost            string
 	WorkspacePath         string // host path mounted as /workspace in the container
@@ -550,22 +552,22 @@ func homepageEnsureProjectWritable(dockerCfg DockerConfig, projectDir string, lo
 }
 
 func homepageProjectWritableCheckCommand(projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; touch %s/.aurago-project-write-test && rm -f %s/.aurago-project-write-test", projectPath, projectPath, projectPath)
 }
 
 func homepageProjectWritableRepairCommand(uidGid, projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; chown -R %s %s; chmod -R u+rwX,g+rwX %s", projectPath, uidGid, projectPath, projectPath)
 }
 
 func homepageProjectNodeArtifactsCheckCommand(projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; if [ ! -d node_modules ]; then exit 0; fi; touch node_modules/.aurago-write-test && rm -f node_modules/.aurago-write-test; mkdir -p node_modules/.vite-temp; touch node_modules/.vite-temp/.aurago-write-test && rm -f node_modules/.vite-temp/.aurago-write-test", projectPath, projectPath)
 }
 
 func homepageProjectNodeArtifactsRepairCommand(uidGid, projectDir string) string {
-	projectPath := homepageContainerProjectPath(projectDir)
+	projectPath := shellSingleQuote(homepageContainerProjectPath(projectDir))
 	return fmt.Sprintf("set -eu; if [ ! -d %s ]; then exit 0; fi; cd %s; for path in node_modules .vite .next dist build out package-lock.json npm-shrinkwrap.json yarn.lock pnpm-lock.yaml; do if [ -e \"$path\" ]; then chown -R %s \"$path\"; chmod -R u+rwX,g+rwX \"$path\"; fi; done", projectPath, projectPath, uidGid)
 }
 
@@ -728,7 +730,13 @@ func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog
 	if err := validateHomepageExecCommand(command); err != nil {
 		return errJSON("%v", err)
 	}
-	logger.Info("[Homepage] Exec", "cmd", command)
+	if cfg.ManagedProjectDir != "" {
+		if err := sanitizeProjectDir(cfg.ManagedProjectDir); err != nil {
+			return ErrorJSON(err.Error())
+		}
+		command = "cd " + shellQuote("/workspace/"+cfg.ManagedProjectDir) + " && (" + command + ")"
+	}
+	logger.Info("[Homepage] Exec", "cmd", security.RedactSensitiveInfo(command))
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
@@ -1146,13 +1154,18 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 	}
 	cmd := "npm install"
 	if len(packages) > 0 {
-		// Validate package names to prevent injection
+		// Accept package requirements only: every name is validated against the
+		// dependency allowlist and quoted before it reaches the container shell.
 		for _, p := range packages {
-			if strings.ContainsAny(p, ";|&`$(){}") {
-				return errJSON("Invalid package name: %s", p)
+			if err := validateHomepagePackageName(p); err != nil {
+				return errJSON("%v", err)
 			}
 		}
-		cmd += " " + strings.Join(packages, " ")
+		quoted := make([]string, 0, len(packages))
+		for _, p := range packages {
+			quoted = append(quoted, shellSingleQuote(p))
+		}
+		cmd += " " + strings.Join(quoted, " ")
 	}
 	logger.Info("[Homepage] Install deps", "project_dir", projectDir, "packages", packages)
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}

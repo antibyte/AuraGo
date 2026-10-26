@@ -182,6 +182,10 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		logger.Error("[RocketChat] Resolve conversation", "error", err)
 		return
 	}
+	humanInput := memory.NewHumanInputEvent(routingText, sessionID, "rocketchat:"+msg.ID, time.Time{})
+	if msg.Timestamp.Date > 0 {
+		humanInput.OccurredAt = time.UnixMilli(msg.Timestamp.Date).UTC()
+	}
 	ctx, releaseSession, err := shortTermMem.BeginSessionTurn(ctx, sessionID)
 	if err != nil {
 		return
@@ -234,6 +238,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
 		TaskRoutingText:    &routingText,
+		HumanInput:         humanInput,
 		Config:             cfg,
 		Logger:             logger,
 		LLMClient:          client,

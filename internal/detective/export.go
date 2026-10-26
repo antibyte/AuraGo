@@ -45,7 +45,7 @@ func ExportContext(ctx context.Context, r Report, format string) (Artifact, erro
 		a.MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 		a.Data, err = reportDOCX(ctx, r)
 	default:
-		err = fmt.Errorf("unsupported export format %q", format)
+		err = fmt.Errorf("%w %q", ErrExportFormat, format)
 	}
 	if err == nil {
 		err = ctx.Err()
@@ -64,7 +64,7 @@ func (w *exportWriter) Write(b []byte) (int, error) {
 		return 0, err
 	}
 	if w.bytes+len(b) > 32<<20 {
-		return 0, fmt.Errorf("export exceeds 32 MiB")
+		return 0, ErrExportTooLarge
 	}
 	n, err := w.w.Write(b)
 	w.bytes += n
@@ -180,7 +180,7 @@ func reportPDF(ctx context.Context, r Report) ([]byte, error) {
 		}
 		glyph, err := font.GlyphIndex(nil, char)
 		if err != nil || glyph == 0 || char > 0xffff || unicode.In(char, unicode.Arabic, unicode.Devanagari, unicode.Hebrew) {
-			return nil, fmt.Errorf("built-in PDF font cannot render U+%04X reliably; use Word/Markdown or configure Document Creator with Gotenberg for this script", char)
+			return nil, fmt.Errorf("%w U+%04X reliably; use Word/Markdown or configure Document Creator with Gotenberg for this script", ErrPDFFont, char)
 		}
 	}
 	p := gofpdf.New("P", "mm", "A4", "")

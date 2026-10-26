@@ -150,3 +150,160 @@ func TestReadOnlyStopsRemainNarrowAndTimedRecordingIsRejected(t *testing.T) {
 		t.Fatalf("unexpected upstream mutations: %d", calls)
 	}
 }
+
+func TestRuViewTestKeepsLifecycleError(t *testing.T) {
+	for _, code := range []string{"stop_failed", "process_exited"} {
+		for _, probeFails := range []bool{false, true} {
+			t.Run(code+map[bool]string{false: "/probe-ok", true: "/probe-fails"}[probeFails], func(t *testing.T) {
+				m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
+					if probeFails {
+						http.Error(w, "down", http.StatusServiceUnavailable)
+						return
+					}
+					io.WriteString(w, `{"status":"ready","source":"esp32","source_state":"live_unverified","last_frame_age_ms":5,"waiting_for_frames":false}`)
+				})
+				c.Directories.DataDir = t.TempDir()
+				m.mu.Lock()
+				m.status = Status{DataState: "disconnected", Error: code}
+				if code == "stop_failed" {
+					// The runtime is still owned, so the health loop would normally keep probing it.
+					m.managed, m.runningConfig = true, c
+				}
+				m.mu.Unlock()
+				for range 2 {
+					s, err := m.Test(context.Background())
+					if (err != nil) != probeFails || s.Error != code || s.Ready == probeFails {
+						t.Fatalf("probe replaced the lifecycle error: %+v %v", s, err)
+					}
+					if !probeFails && (!s.Fresh || s.DataState != "live_unverified" || s.ObservedAt == nil) {
+						t.Fatalf("fresh probe data was not stored: %+v", s)
+					}
+				}
+				if code == "stop_failed" && m.watch(context.Background()) != nil {
+					t.Fatal("the stop_failed guard was bypassed after a probe")
+				}
+				// An explicit stop replaces the status, so the next probe reports plainly.
+				if err := m.Stop(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+				if s := m.Status(); s.Error != "" || s.DataState != "stopped" {
+					t.Fatalf("explicit stop did not clear the lifecycle error: %+v", s)
+				}
+				if s, err := m.Test(context.Background()); (err != nil) != probeFails || lifecycleError(s.Error) {
+					t.Fatalf("lifecycle error survived an explicit stop: %+v %v", s, err)
+				}
+			})
+		}
+	}
+}
+
+func TestRuViewConfigureKeepsLifecycleError(t *testing.T) {
+	m, _ := nativeFixture(t)
+	c := m.config()
+	m.mu.Lock()
+	m.status = Status{Error: "stop_failed", ErrorCode: CodeStopFailed, ErrorDetail: "kill denied", DataState: "disconnected"}
+	m.mu.Unlock()
+	m.Configure() // the baseline configuration is recorded
+	c.RuView.Source = "wifi"
+	m.Configure()
+	if s := m.Status(); s.Error != "stop_failed" || s.ErrorCode != CodeStopFailed || s.ErrorDetail != "kill denied" {
+		t.Fatalf("configuration change cleared the unconfirmed stop: %+v", s)
+	}
+	if m.watch(context.Background()) != nil {
+		t.Fatal("configuration change re-enabled health probing of an unconfirmed runtime")
+	}
+	// A change of agent access neither resets the probe data nor revokes anything (M27)...
+	m.mu.Lock()
+	m.status = Status{Ready: true, DataState: "live_unverified"}
+	m.mu.Unlock()
+	c.RuView.AgentAccess = !c.RuView.AgentAccess
+	m.Configure()
+	if s := m.Status(); !s.Ready {
+		t.Fatalf("an agent-access change reset the probe data: %+v", s)
+	}
+	// ...a runtime-relevant one still does.
+	c.RuView.Source = "esp32"
+	m.Configure()
+	if s := m.Status(); s.Ready || s.Error != "" {
+		t.Fatalf("configuration change kept probe data: %+v", s)
+	}
+}
+
+// A change that is reverted before the next tick leaves the runtime running, so
+// the stop reason Configure recorded must not outlive it.
+func TestRuViewRevertedConfigureLeavesNoStopReason(t *testing.T) {
+	m, _ := nativeFixture(t)
+	original := m.config()
+	changed := *original
+	changed.RuView = original.RuView
+	changed.RuView.Source = "wifi"
+	m.config = func() *config.Config { return &changed }
+	m.Configure()
+	m.config = func() *config.Config { return original }
+	m.Configure()
+	if m.watch(context.Background()) == nil {
+		t.Fatal("a reverted change stopped the runtime")
+	}
+	if s := m.Status(); s.Runtime != RuntimeRunning || s.StopReason != "" || s.StoppedAt != nil {
+		t.Fatalf("a running runtime must not report a stop reason: %+v", s)
+	}
+}
+
+func TestRuViewConfigureCancelsOnlyRuntimeChanges(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		change  func(*config.Config)
+		runtime bool
+	}{
+		{"agent_access", func(c *config.Config) { c.RuView.AgentAccess = !c.RuView.AgentAccess }, false},
+		{"readonly", func(c *config.Config) { c.RuView.ReadOnly = !c.RuView.ReadOnly }, false},
+		{"storage_mb", func(c *config.Config) { c.RuView.StorageMB += 512 }, false},
+		{"source", func(c *config.Config) { c.RuView.Source = "wifi" }, true},
+		{"http_port", func(c *config.Config) { c.RuView.HTTPPort++ }, true},
+		// Outside the RuView section, but part of what the runtime is created with.
+		{"docker_host", func(c *config.Config) { c.Docker.Host = "tcp://127.0.0.1:1" }, true},
+		{"docker_enabled", func(c *config.Config) { c.Docker.Enabled = !c.Docker.Enabled }, true},
+		{"docker_readonly", func(c *config.Config) { c.Docker.ReadOnly = !c.Docker.ReadOnly }, true},
+		{"data_dir", func(c *config.Config) { c.Directories.DataDir += "-moved" }, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, p := nativeFixture(t)
+			p.kill = func() error { close(p.done); return nil }
+			c := m.config()
+			m.Configure() // baseline
+			// runningConfig aliases c, so the change must arrive as a new snapshot.
+			next := *c
+			next.RuView = c.RuView
+			tc.change(&next)
+			m.config = func() *config.Config { return &next }
+			// ctx stands for a pull, a probe or a stream admitted before the change.
+			ctx, done := m.bound(context.Background())
+			defer done()
+			m.Configure()
+			if !tc.runtime {
+				if ctx.Err() != nil || !m.Status().Ready {
+					t.Fatalf("a %s change revoked work in flight or reset the status: %+v", tc.name, m.Status())
+				}
+				if m.watch(context.Background()) == nil {
+					t.Fatalf("a %s change stopped the runtime", tc.name)
+				}
+				return
+			}
+			select {
+			case <-ctx.Done(): // revoked through context.AfterFunc, which runs asynchronously
+			case <-time.After(time.Second):
+				t.Fatalf("a %s change left work in flight alive", tc.name)
+			}
+			if m.Status().Ready {
+				t.Fatalf("a %s change kept probe data", tc.name)
+			}
+			if m.watch(context.Background()) != nil {
+				t.Fatalf("a %s change kept the old runtime scheduled", tc.name)
+			}
+			s := m.Status()
+			if s.Runtime != RuntimeStopped || s.StopReason != StopConfigChanged || s.StoppedAt == nil {
+				t.Fatalf("runtime change did not end as stopped/config_changed: %+v", s)
+			}
+		})
+	}
+}

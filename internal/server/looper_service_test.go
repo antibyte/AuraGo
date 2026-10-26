@@ -2,10 +2,12 @@ package server
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/desktop"
 
 	"github.com/sashabaranov/go-openai"
@@ -242,5 +244,22 @@ func TestEstimateLooperCostUSDPositive(t *testing.T) {
 	cost := estimateLooperCostUSD(1_000_000, 1_000_000)
 	if cost <= 0 {
 		t.Fatalf("cost = %v, want > 0", cost)
+	}
+}
+
+func TestLooperSystemPromptCarriesTheDiscoverHintOnlyWithDiscoverTools(t *testing.T) {
+	t.Parallel()
+	cfg := &config.Config{}
+	offersDiscovery := slices.ContainsFunc(agent.GetLooperToolSchemas(cfg), func(tool openai.Tool) bool {
+		return tool.Function != nil && tool.Function.Name == "discover_tools"
+	})
+	if !offersDiscovery {
+		t.Fatal("the Looper tool set must offer discover_tools")
+	}
+	if got := looperSystemPrompt(cfg); !strings.Contains(got, "\n- "+agent.MinimalLoopDiscoverHint) {
+		t.Fatalf("the Looper prompt must carry the discover hint as a rule:\n%s", got)
+	}
+	if got := looperSystemPrompt(nil); strings.Contains(got, agent.MinimalLoopDiscoverHint) {
+		t.Fatalf("a prompt without a config offers no tools and must not carry the hint:\n%s", got)
 	}
 }

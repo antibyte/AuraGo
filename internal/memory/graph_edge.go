@@ -112,6 +112,9 @@ func (kg *KnowledgeGraph) deleteEdgesBySourceRelationTargets(source, relation st
 		n, _ := res.RowsAffected()
 		removed += n
 	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return 0, fmt.Errorf("cleanup orphan KG evidence after batch edge delete: %w", err)
+	}
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit batch edge delete: %w", err)
@@ -139,6 +142,9 @@ func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
 		source, target, relation); err != nil {
 		return fmt.Errorf("delete edge: %w", err)
+	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return fmt.Errorf("cleanup orphan KG evidence after edge delete: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return err
@@ -208,6 +214,11 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 			retracted_at = NULL
 	`, source, target, newRelation, string(propsJSON), string(KGClaimAccepted)); err != nil {
 		return nil, fmt.Errorf("upsert updated edge: %w", err)
+	}
+	if relation != newRelation {
+		if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return nil, fmt.Errorf("cleanup orphan KG evidence after edge update: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -377,6 +388,9 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 		return 0, fmt.Errorf("delete edges by source file: %w", err)
 	}
 	n, _ := res.RowsAffected()
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return 0, fmt.Errorf("cleanup orphan KG evidence after source-file edge delete: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit delete edges by source file: %w", err)
 	}

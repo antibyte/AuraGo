@@ -1,5 +1,9 @@
 # Third-Party Libraries and Assets
 
+Gradium Phonon `ptts` 0.4.0 (MIT/Apache-2.0), its Apache-2.0 voice catalog and
+the CC BY-NC 4.0, noncommercial-only Phonon 40m multilingual weights are delivered
+as separate local speech resources. See [provenance and attribution](documentation/phonon.md).
+
 Inventory of external libraries, runtimes, fonts, icons, and other third-party assets used by **AuraGo**.
 
 The German compact listing and the license texts that must travel with a redistribution are in [`licences/UEBERSICHT.md`](licences/UEBERSICHT.md).
@@ -42,6 +46,10 @@ original/adapted checksums and local adaptation script are recorded in
 ---
 
 ## 1. Go — direct dependencies
+
+Shared QR generation/scanning adds `github.com/makiuchi-d/gozxing` v0.1.1 ([upstream](https://github.com/makiuchi-d/gozxing), MIT plus ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 ([upstream](https://github.com/go-text/typesetting), Unlicense OR BSD-3-Clause, HarfBuzz translation MIT). Copyright notices are in `THIRD_PARTY_NOTICES.md`; the corresponding licence families are in `licences/texts/`.
+
+QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji and Liberation Serif (OFL-1.1). Exact upstream revisions, URLs, hashes and sizes are in `ui/fonts/qr/manifest.json`; original OFL texts accompany the fonts. Go Sans/Mono come from the existing `golang.org/x/image/font/gofont` module. `jsqr` 1.4.0 ([upstream](https://github.com/cozmo/jsQR), Apache-2.0) is a pinned development-only independent decoder fixture and is not shipped in production UI. Mini QR is a functional reference only; no upstream code/assets are copied.
 
 | Package | Version (from `go.mod`) | License | Project |
 |---|---|---|---|
@@ -135,7 +143,7 @@ Browser packages and SHA-256 checksums are recorded in `ui/js/vendor/manifest.js
 | Asset / component | Path | License | Project |
 |---|---|---|---|
 | Chart.js v4.5.1 | `ui/chart.min.js` | MIT | https://www.chartjs.org / https://github.com/chartjs/Chart.js |
-| markdown-it 15.0.2 | `ui/js/vendor/markdown-it.min.js` | MIT | https://github.com/markdown-it/markdown-it |
+| markdown-it 15.0.3 | `ui/js/vendor/markdown-it.min.js` | MIT | https://github.com/markdown-it/markdown-it |
 | marked | `ui/js/vendor/marked.min.js` | MIT | https://github.com/markedjs/marked |
 | highlight.js | `ui/js/vendor/highlight.min.js` | BSD-3-Clause | https://github.com/highlightjs/highlight.js |
 | highlight.js GitHub themes | `ui/css/hljs-github.min.css`, `ui/css/hljs-github-dark.min.css` | BSD-3-Clause (theme lineage) | https://github.com/highlightjs/highlight.js |
@@ -273,7 +281,7 @@ Not third-party, listed for completeness:
 
 ## 8. On-demand / optional runtimes
 
-Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source tree/binary. The embedding runtime is downloaded when `embeddings.provider` is `local-granite`; a Wikipedia edition is downloaded only when an administrator installs one under Local Wikipedia; the Network Cameras person detector downloads its D-FINE model and its ONNX Runtime when a detector starts for the first time. All are verified by size + SHA-256.
+Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source tree/binary. The embedding runtime is downloaded when `embeddings.provider` is `local-granite`; a Wikipedia edition is downloaded only when an administrator installs one under Local Wikipedia; the Network Cameras person detector downloads its D-FINE model and its ONNX Runtime when a detector starts for the first time; the Pixel image editor downloads its two AI background-removal models (ISNet general-use and BiRefNet general lite) only when a user clicks "Download model" in the Cutout panel. All are verified by size + SHA-256.
 
 | Component | Use | License | Project |
 |---|---|---|---|
@@ -283,6 +291,8 @@ Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source t
 | DirectX Shader Compiler `dxcompiler.dll` 1.9.0.1 / `dxil.dll` 1.8.2502.11 (Windows wheel only) | Shader compilation of the WebGPU provider (Direct3D 12) | University of Illinois/NCSA (upstream project); Microsoft-signed binaries, extracted unmodified from the wheel and not redistributed by AuraGo | https://github.com/microsoft/DirectXShaderCompiler |
 | D-FINE-N ONNX (AnnotateIt export of `ustc-community/dfine-nano-coco`, revision 571d3971bfb4) | Person detection, "standard" model | Apache-2.0 | https://huggingface.co/AnnotateIt/dfine-nano-coco-onnx |
 | D-FINE-S ONNX (onnx-community conversion of `ustc-community/dfine-small-coco`, revision a3cf03147a9b) | Person detection, "accurate" model | Apache-2.0 (original weights; the conversion repository declares no license) | https://huggingface.co/onnx-community/dfine_s_coco-ONNX |
+| ISNet general-use ONNX (`isnet-general-use.onnx`, rembg release `v0.0.0`) | Pixel background removal, "AI standard" engine (on demand) | Apache-2.0 | https://github.com/xuebinqin/DIS (files: https://github.com/danielgatis/rembg/releases/tag/v0.0.0) |
+| BiRefNet general lite ONNX (`BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx`, rembg release `v0.0.0`) | Pixel background removal, "AI precise" engine (on demand) | MIT | https://github.com/ZhengPeng7/BiRefNet (files: https://github.com/danielgatis/rembg/releases/tag/v0.0.0) |
 | llama.cpp (pinned build) | GGUF embedding server / sidecars | MIT | https://github.com/ggml-org/llama.cpp |
 | Ebitengine PureGo | CGO-free native calls | Apache-2.0 | https://github.com/ebitengine/purego |
 | dlclark/regexp2 | Tokenizer regex | MIT | https://github.com/dlclark/regexp2 |
@@ -372,3 +382,11 @@ Related docs:
 ## Disclaimer
 
 License classifications above are based on license files in the module cache, package metadata, and file headers at generation time. Always verify against the license file shipped with the exact version you distribute. This is not legal advice.
+
+### Additional Desktop icon artwork
+
+Tela, Candy and Fluent (GPL-3.0) and Buuf For Many Desktops (CC BY-NC-SA 2.5,
+noncommercial) are pinned local asset selections. See `THIRD_PARTY_NOTICES.md`,
+`documentation/desktop-icon-themes.md` and the packaged per-file provenance and
+license texts under `ui/img/{tela,candy,fluent,buuf-nestort}/`. Original AuraGo
+supplements are identified separately as MIT.

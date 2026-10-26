@@ -11,6 +11,7 @@ const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
 const BEST_KEY = 'aurago.desktop.minigolf.best.v2';
 const LEGACY_KEYS = ['aurago.desktop.minigolf.round.v1', 'aurago.desktop.minigolf.best.v1'];
 const QUALITIES = ['auto', 'low', 'medium', 'high'];
+const MECHANIC_EVENTS = new Set(['boost', 'teleport', 'cannon', 'bumper']);
 const finiteUnit = (v, fallback) => Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 const plain = value => !!value && typeof value === 'object' && !Array.isArray(value);
 
@@ -205,11 +206,14 @@ export function mountGame(host, context = {}) {
                 onShot: shoot, onAim(dir, amount, info) { angle = Math.atan2(dir[0], -dir[1]); strength = amount; dragActive = info?.phase === 'drag'; markStrength(); showStrength(); tutorialEvent(info?.phase === 'cancel' ? { type: 'cancel' } : { type: 'drag', strength: amount }); },
                 onError() { view.loading(false); setPanel('error'); view.error('webgl_error'); }, onQuality() { message('quality_changed'); }
             });
-            if (!await scene.load(next) || disposed || version !== generation) return;
-            const nextPhysics = await createPhysics(next, { onEvent: event => events.push(event) });
+            const loaded = await scene.load(next);
+            if (!loaded || disposed || version !== generation) return;
+            // v2 courses read their collision meshes from the GLB; physics and the lane map share this one object.
+            const playable = { ...next, colliders: loaded.colliders };
+            const nextPhysics = await createPhysics(playable, { onEvent: event => events.push(event) });
             if (disposed || version !== generation) { nextPhysics.dispose(); return; }
             physics = nextPhysics; loading = false;
-            view.hud.map.setCourse(next);
+            view.hud.map.setCourse(playable);
             scene.setFollow?.(settings.follow); scene.setAimCamera?.(settings.aimCamera);
             syncAmbient();
             if (!preview && round) { setTurn(); holeBanner(); }
@@ -255,18 +259,31 @@ export function mountGame(host, context = {}) {
         meterLeft = 0; sessionShots++; tutorialEvent({ type: 'shot' });
         const ballPosition = physics.getBall();
         audio.effect('strike', { speed: amount * 12, pan: scene?.panAt?.(ballPosition) ?? 0 });
-        scene.burst('strike', ballPosition, amount * 2);
+        scene.burst('strike', ballPosition, amount * 2, { surface: lastSurface });
         scene.setRestMark?.(null);
         view.update(round, course, busy); updateAim();
     }
+    // Mechanic events never end the shot: sound and sparks only.
+    function mechanicEvent(event) {
+        if (!busy) return;
+        const pan = scene?.panAt?.(event.position) ?? 0;
+        if (event.type === 'boost') { audio.effect('boost', { speed: event.speed, pan }); scene.burst('spark', event.position); }
+        else if (event.type === 'teleport') {
+            audio.effect('teleport', { pan });
+            scene.burst('spark', event.position); scene.burst('spark', event.exit);
+            scene.resetTrail?.();
+        } else if (event.type === 'cannon') { audio.effect('cannon', { pan }); scene.burst('spark', event.position, 2); }
+        else if (event.type === 'bumper') scene.burst('impact', event.position, 1, { surface: lastSurface });
+    }
     function handleEvents() {
         for (const event of events.splice(0)) {
+            if (MECHANIC_EVENTS.has(event.type)) { mechanicEvent(event); continue; }
             if (event.type === 'impact') {
                 lastSurface = event.surface || 'grass';
                 if (busy && event.speed > .25 && performance.now() - soundTime > 65) {
                     soundTime = performance.now();
                     audio.effect('impact', { speed: event.speed, surface: lastSurface, pan: scene?.panAt?.(event.position) ?? 0 });
-                    scene.burst('impact', event.position, event.speed * .25);
+                    scene.burst('impact', event.position, event.speed * .25, { surface: lastSurface });
                 }
                 continue;
             }
@@ -288,7 +305,11 @@ export function mountGame(host, context = {}) {
                 view.update(round, course, false);
                 if (round.mode === 'practice') nextHole().catch(fail); else showScore(true);
             }
-            else { setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner(); if (!reduced) scene.focusBall(); }
+            else {
+                setTurn(); if (round.players.length > 1 && round.turnIndex !== before) turnBanner();
+                // focusBall cancels the turn tween setTurn just started; re-issue it (a no-op while the aim camera is off).
+                if (!reduced) { scene.focusBall(); scene.frameTurn?.(angle, round.players[round.turnIndex].position); }
+            }
         }
     }
     function showScore(animate = false, focus) {
@@ -390,6 +411,7 @@ export function mountGame(host, context = {}) {
     const heldMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
     function key(event) {
         if (context.isActive?.() === false || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.type === 'keydown') scene?.skipIntro?.();
         const name = heldMap[event.key];
         if (event.key === 'Shift') { held.fine = event.type === 'keydown'; return; }
         if (name && event.type === 'keyup') { held[name] = false; return; }
@@ -444,7 +466,7 @@ export function mountGame(host, context = {}) {
         let snapshot = physics?.getSnapshot();
         if (physics && !loading && panelKind === '' && !round?.completed) { snapshot = physics.step(dt); handleEvents(); }
         if (scene) {
-            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.players[round.turnIndex]?.color || DEFAULT_COLORS[0] };
+            snapshot = { ...(physics?.getSnapshot() || snapshot), obstacles: physics?.getObstacles() || [], color: round?.players[round.turnIndex]?.color || DEFAULT_COLORS[0], surface: lastSurface };
             scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
         }
         if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface, scene?.panAt?.(snapshot.position) ?? 0);
@@ -477,7 +499,8 @@ export function mountGame(host, context = {}) {
             if (!response.ok) throw Error('manifest');
             const data = await response.json();
             if (disposed) return;
-            if (data.version !== 1 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model))) throw Error('manifest');
+            // Manifest version 2: the collision meshes come from the GLB (the asset test checks the digest in the manifest).
+            if (data.version !== 2 || !Array.isArray(data.courses) || data.courses.length !== 18 || data.courses.some(c => !/^course-\d{2}\.glb$/.test(c.model) || typeof c.collision?.digest !== 'string')) throw Error('manifest');
             manifest = data;
             const legacyReset = migrateLegacy();
             worlds = worldIds(manifest.courses);

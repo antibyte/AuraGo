@@ -105,6 +105,9 @@
         const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
         if (isText) {
             apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
+        } else if (/\.ora$/i.test(name)) {
+            // OpenRaster projects are Pixel documents: Gallery and Viewer cannot draw them.
+            apps.push({ label: t('desktop.app_pixel'), appId: 'pixel' });
         } else if (isImage) {
             apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         } else if (isMedia) {
@@ -133,6 +136,7 @@
         } else {
             apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
         }
+        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
         if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
         const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
         if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
@@ -288,7 +292,9 @@
             ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
             ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'],
             ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'],
-            ['paper_waves', 'desktop.settings_wallpaper_paper_waves']
+            ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
+            ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
+            ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
         ];
         const animated = [
             ['silk_flow', 'desktop.settings_wallpaper_silk_flow'],
@@ -1637,7 +1643,7 @@
         }
         if (appId === 'infra' && window.InfraApp) {
             return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc, t, api, openApp, setWindowMenus, clearWindowMenus, confirmDialog, readonly: desktopReadonly(),
+                esc, t, api, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, confirmDialog, readonly: desktopReadonly(),
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 showConfirmModal: (title, message, confirmLabel) => confirmLabel
                     ? modalDialog({ title, message, choices: [{ value: 'discard', label: confirmLabel }] }).then(value => value === 'discard')
@@ -1645,7 +1651,12 @@
                 showNotify: message => showDesktopNotification({ title: 'Infra', message })
             }));
         }
-        if (appId === 'ruview' && window.RuViewApp) { return window.RuViewApp.render(contentEl(id), id, {esc,t,api}); }
+        if (appId === 'ruview' && window.RuViewApp) {
+            return window.RuViewApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, openApp, confirmDialog, modalDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+            }));
+        }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }

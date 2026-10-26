@@ -9,6 +9,30 @@
 .pw-page[data-workspace-page="config"] .field-grid.two-cols { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 .pw-page[data-workspace-page="config"] .field-grid.two-cols > .cfg-toggle-row-compact { min-width:0; }
 .pw-page[data-workspace-page="config"] .cfg-actions-row { display:flex; flex-wrap:wrap; gap:var(--space-3); align-items:center; }
+.pw-page[data-workspace-page="config"] #newspaper-overview-sources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 10px;
+    margin: 12px 0 16px;
+}
+.pw-page[data-workspace-page="config"] .np-source-choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid var(--pw-line);
+    border-radius: 8px;
+    color: var(--pw-text);
+    background: var(--input-bg);
+    line-height: 1.45;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.pw-page[data-workspace-page="config"] .np-source-choice:has(input:checked) { border-color: var(--pw-accent); }
+.pw-page[data-workspace-page="config"] .np-source-choice:focus-within { outline: 2px solid var(--pw-accent); outline-offset: 2px; }
+.pw-page[data-workspace-page="config"] .np-source-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: var(--pw-accent); }
 .pw-page[data-workspace-page="config"] .secrets-modal-card { max-width:min(480px,90vw); width:100%; max-height:85vh; overflow-y:auto; }
 .pw-page[data-workspace-page="config"] .email-modal-card { max-width:min(560px,92vw); width:100%; max-height:85vh; overflow-y:auto; }
 .pw-page[data-workspace-page="config"] .field-input.is-readonly { opacity:0.55; cursor:not-allowed; }
@@ -4131,6 +4155,9 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] .tts-voice-item-name { font-weight: 600; font-size: 0.9rem; }
 .pw-page[data-workspace-page="config"] .tts-voice-item-desc { font-size: 0.8rem; color: var(--text-secondary); }
 .pw-page[data-workspace-page="config"] .tts-voice-item-lang { font-size: 0.78rem; color: var(--text-tertiary); }
+.pw-page[data-workspace-page="config"] #phonon-voice-list { max-height: 24rem; overflow-y: auto; margin-top: 0.5rem; }
+.pw-page[data-workspace-page="config"] .tts-phonon-voice-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; cursor: default; flex-wrap: wrap; }
+.pw-page[data-workspace-page="config"] .tts-phonon-voice-item .tts-voice-item-name { min-width: 0; overflow-wrap: anywhere; }
 .pw-page[data-workspace-page="config"] .tts-voice-loading,
 .pw-page[data-workspace-page="config"] .tts-voice-empty { text-align: center; padding: 1rem; color: var(--text-secondary); }
 .pw-page[data-workspace-page="config"] .tts-voice-error { color: var(--danger); padding: 1rem; }
@@ -4872,6 +4899,7 @@ transform:none; filter:none;
 
 .pw-page[data-workspace-page="config"] .idx-dir-item {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
     padding: 0.55rem 0.8rem;
@@ -4886,7 +4914,8 @@ transform:none; filter:none;
 }
 
 .pw-page[data-workspace-page="config"] .idx-dir-path {
-    flex: 1;
+    flex: 1 1 10rem;
+    min-width: 0;
     font-size: 0.8rem;
     color: var(--text-primary);
     font-family: monospace;
@@ -4902,6 +4931,103 @@ transform:none; filter:none;
     cursor: pointer;
     font-size: 0.9rem;
     padding: 0.2rem 0.4rem;
+}
+
+.pw-page[data-workspace-page="config"] .idx-media-hint {
+    margin-bottom: 0.6rem;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.pw-page[data-workspace-page="config"] .idx-media-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.pw-page[data-workspace-page="config"] .idx-media-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Accessible per-folder switch (button role="switch") with the look of div.toggle.
+   The extra .idx-dir-item in the selector beats the generic 44px button minimum. */
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 48px;
+    height: 26px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 1px solid var(--pw-line-strong, var(--border-subtle));
+    border-radius: 26px;
+    background: var(--pw-surface-elevated, var(--bg-secondary));
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    transition: transform 160ms ease;
+}
+
+/* Larger hit area (about 44px high) without growing the visible switch. */
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch::after {
+    content: "";
+    position: absolute;
+    inset: -10px 0;
+}
+
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch[aria-checked="true"] {
+    background: var(--pw-accent, var(--success));
+    border-color: var(--pw-accent, var(--success));
+}
+
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch[aria-checked="true"]::before {
+    transform: translateX(22px);
+}
+
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch:focus-visible {
+    outline: 2px solid var(--pw-accent, var(--success));
+    outline-offset: 3px;
+}
+
+.pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch,
+    .pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch::before {
+        transition: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch {
+        border-color: ButtonText;
+    }
+
+    .pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch[aria-checked="true"] {
+        background: Highlight;
+    }
+
+    .pw-page[data-workspace-page="config"] .idx-dir-item .idx-media-switch::before {
+        background: ButtonText;
+    }
 }
 
 .pw-page[data-workspace-page="config"] .idx-add-row {

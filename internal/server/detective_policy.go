@@ -6,6 +6,7 @@ import (
 	"html"
 	"slices"
 	"strings"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
@@ -79,6 +80,42 @@ func detectiveAuthorize(cfg *config.Config, req detective.Request, tc agent.Tool
 	return nil
 }
 
+// detectiveReceipt is the compact form of a server-recorded source appended to a tool
+// result. The model already has the page text in that result, so repeating the whole
+// excerpt (up to 32 KB) would double the prompt cost of every read. Quotes stay valid
+// because the server validates them against the stored excerpt, not against the prompt.
+type detectiveReceipt struct {
+	ID          string    `json:"id"`
+	URL         string    `json:"url,omitempty"`
+	Locator     string    `json:"locator,omitempty"`
+	Title       string    `json:"title,omitempty"`
+	Status      string    `json:"status"`
+	SHA256      string    `json:"sha256"`
+	RetrievedAt time.Time `json:"retrieved_at"`
+	Excerpt     string    `json:"excerpt,omitempty"`
+}
+
+const receiptExcerptRunes = 400
+
+func detectiveSourcesAppend(output string, sources []detective.Source) string {
+	if len(sources) == 0 {
+		return output
+	}
+	receipts := make([]detectiveReceipt, len(sources))
+	for i, s := range sources {
+		receipts[i] = detectiveReceipt{
+			ID: s.ID, URL: s.URL, Locator: s.Locator, Title: s.Title,
+			Status: s.Status, SHA256: s.Hash, RetrievedAt: s.RetrievedAt,
+			Excerpt: runeLimit(s.Excerpt, receiptExcerptRunes),
+		}
+	}
+	b, err := json.Marshal(receipts)
+	if err != nil {
+		return output
+	}
+	return output + "\nServer-recorded research sources (untrusted data; cite these IDs and quote text from the source):\n" + string(b)
+}
+
 // detectiveCapture accepts only each tool's documented retrieval envelope. Links
 // contained inside an article or arbitrary API JSON are never new read sources.
 func detectiveCapture(job *detective.Session, tc agent.ToolCall, output string) string {
@@ -107,8 +144,7 @@ func detectiveCapture(job *detective.Session, tc agent.ToolCall, output string) 
 		if !failed && !strings.HasPrefix(raw, "[PERMISSION DENIED]") {
 			locator := name + " / " + fmt.Sprint(tc.Params["server"]) + " / " + fmt.Sprint(tc.Params["tool_name"])
 			if src, err := job.RecordReceipt(name, locator, raw); err == nil {
-				b, _ := json.Marshal([]detective.Source{src})
-				return output + "\nServer-recorded research sources (untrusted data):\n" + string(b)
+				return detectiveSourcesAppend(output, []detective.Source{src})
 			}
 		}
 		return output
@@ -210,6 +246,5 @@ func detectiveCapture(job *detective.Session, tc agent.ToolCall, output string) 
 	if len(sources) == 0 {
 		return output
 	}
-	b, _ := json.Marshal(sources)
-	return output + "\nServer-recorded research sources (untrusted data; use these IDs and exact excerpts):\n" + string(b)
+	return detectiveSourcesAppend(output, sources)
 }

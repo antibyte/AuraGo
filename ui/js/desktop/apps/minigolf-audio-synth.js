@@ -158,6 +158,17 @@ function lfo(ctx, hz, depth, param) {
   return [osc, amount];
 }
 
+// The cicada noise is generated once per context and shared by every burst.
+const cicadaBuffers = new WeakMap();
+function cicadaNoise(ctx) {
+  let buffer = cicadaBuffers.get(ctx);
+  if (!buffer) cicadaBuffers.set(ctx, buffer = noiseBuffer(ctx, 2, 'white', 22));
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  return source;
+}
+
 const AMBIENCE = {
   pirate: {
     level: 0.6, gap: [6, 14],
@@ -179,15 +190,37 @@ const AMBIENCE = {
     }
   },
   temple: {
-    level: 1.4, gap: [4, 11],
+    level: 0.06, gap: [4, 11],
+    // Only a very faint, slowly swelling jungle air runs all the time; the cicadas live in `burst`.
     bed(ctx, out) {
-      const source = noiseLoop(ctx, 'white', 2, 22);
-      const filter = filterNode(ctx, 'bandpass', 5200, 8);
-      const amp = gainOf(ctx, 0.5);
+      const source = noiseLoop(ctx, 'brown', 4, 22);
+      const filter = filterNode(ctx, 'lowpass', 650);
+      const swell = gainOf(ctx, 0.55);
       source.connect(filter);
-      filter.connect(amp);
-      amp.connect(out);
-      return [source, filter, amp, ...lfo(ctx, 38, 0.5, amp.gain)];
+      filter.connect(swell);
+      swell.connect(out);
+      return [source, filter, swell, ...lfo(ctx, 0.05, 0.4, swell.gain)];
+    },
+    // Cicada chorus: a few seconds of pulsed, band-passed noise with soft edges, then a long silence.
+    burst: {
+      gap: [10, 25],
+      play(ctx, out, random, start) {
+        const dur = 2 + random() * 3;
+        const edge = 0.4;
+        const source = cicadaNoise(ctx);
+        const filter = filterNode(ctx, 'bandpass', 4800 + random() * 800, 8);
+        const pulse = gainOf(ctx, 0.5);
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0, start);
+        env.gain.linearRampToValueAtTime(0.45, start + edge);
+        env.gain.setValueAtTime(0.45, start + dur - edge);
+        env.gain.linearRampToValueAtTime(0, start + dur);
+        source.connect(filter);
+        filter.connect(pulse);
+        pulse.connect(env);
+        env.connect(out);
+        return { nodes: [source, filter, pulse, env, ...lfo(ctx, 33 + random() * 10, 0.5, pulse.gain)], dur };
+      }
     },
     event(ctx, out, random) {
       let start = ctx.currentTime + 0.05;
@@ -200,21 +233,24 @@ const AMBIENCE = {
     }
   },
   moon: {
-    level: 0.15, gap: [5, 15],
+    level: 0.03, gap: [5, 15],
     bed(ctx, out) {
-      const filter = filterNode(ctx, 'lowpass', 400);
-      filter.connect(out);
-      const nodes = [filter];
-      for (const [type, hz, level] of [['sine', 55, 0.5], ['sine', 110.4, 0.25], ['triangle', 165, 0.1]]) {
+      // A quiet low drone that slowly breathes, so it never reads as a static tone.
+      const filter = filterNode(ctx, 'lowpass', 220);
+      const breath = gainOf(ctx, 0.6);
+      filter.connect(breath);
+      breath.connect(out);
+      const nodes = [filter, breath];
+      for (const [hz, level] of [[55, 0.5], [110.4, 0.15]]) {
         const osc = ctx.createOscillator();
         const amount = gainOf(ctx, level);
-        osc.type = type;
+        osc.type = 'sine';
         osc.frequency.setValueAtTime(hz, ctx.currentTime);
         osc.connect(amount);
         amount.connect(filter);
         nodes.push(osc, amount);
       }
-      return nodes;
+      return [...nodes, ...lfo(ctx, 0.06, 0.4, breath.gain)];
     },
     event(ctx, out, random) {
       const start = ctx.currentTime + 0.05;
@@ -224,22 +260,40 @@ const AMBIENCE = {
   }
 };
 
-// Single use: start() builds the bed and the event timer, stop() fades and tears everything down.
+// Single use: start() builds the bed and the event timers, stop() fades and tears everything down.
+// A world has short `event` sounds and may add `burst`: longer sounds with their own gap, tracked until they end.
 export function createAmbience(ctx, destination, world, { random = Math.random } = {}) {
   const spec = AMBIENCE[world];
   let phase = 0;
   let nodes = [];
   let out = null;
-  let timer = 0;
+  const timers = new Set();
+  const live = new Set();
 
-  function schedule() {
-    const [low, high] = spec.gap;
-    timer = setTimeout(() => {
-      timer = 0;
+  function schedule([low, high], run) {
+    const id = setTimeout(() => {
+      timers.delete(id);
       if (phase !== 1) return;
-      spec.event(ctx, out, random);
-      schedule();
+      run();
+      schedule([low, high], run);
     }, (low + random() * (high - low)) * 1000);
+    timers.add(id);
+  }
+
+  function release(burst) {
+    if (!live.delete(burst)) return;
+    for (const node of burst) {
+      try { node.stop?.(); } catch (_) {}
+      node.disconnect();
+    }
+  }
+
+  function playBurst() {
+    const start = ctx.currentTime + 0.05;
+    const { nodes: burst, dur } = spec.burst.play(ctx, out, random, start);
+    live.add(burst);
+    for (const node of burst) { node.start?.(start); node.stop?.(start + dur + 0.05); }
+    burst[0].onended = () => release(burst);
   }
 
   function start() {
@@ -253,15 +307,17 @@ export function createAmbience(ctx, destination, world, { random = Math.random }
     bed.connect(out);
     nodes = [out, bed, ...spec.bed(ctx, bed)];
     for (const node of nodes) node.start?.(now);
-    schedule();
+    schedule(spec.gap, () => spec.event(ctx, out, random));
+    if (spec.burst) schedule(spec.burst.gap, playBurst);
   }
 
   function stop(fade = 0.6) {
     if (phase !== 1) return;
     phase = 2;
-    clearTimeout(timer);
-    timer = 0;
+    for (const id of timers) clearTimeout(id);
+    timers.clear();
     const finish = () => {
+      for (const burst of [...live]) release(burst);
       for (const node of nodes) {
         try { node.stop?.(); } catch (_) {}
         node.disconnect();

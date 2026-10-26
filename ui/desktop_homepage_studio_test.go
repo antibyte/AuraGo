@@ -2,6 +2,10 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -112,33 +116,47 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 func TestHomepageStudioUsesExternalHomepageTargets(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	// The workbench module keeps the target state and the refresh loop, the
+	// sites module owns the collection of the deployment targets themselves.
+	main := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
 	for _, want := range []string{
 		"deploymentTargets: []",
 		"function loadHomepageTargets()",
-		"function collectHomepageTargetsFromSite(",
-		"function homepageExternalTargetURL(",
 		"/api/desktop/integrations/homepage/sites",
 		"/api/desktop/integrations/integrations/webhosts",
+		"homepageTargets.collect(site, nextTargets, firstPreviewURL)",
+		"homepageTargets.external(target, state.deploymentTargets)",
+	} {
+		if !strings.Contains(main, want) {
+			t.Fatalf("homepage studio external target support missing marker %q", want)
+		}
+	}
+	sites := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
+	for _, want := range []string{
+		"function collectTargets(",
+		"function externalTargetURL(",
 		"deploy_targets",
 		"last_deploy_url",
 		"provider_target_id",
 		"remote_path",
-		"homepageExternalTargetURL(target, state.deploymentTargets)",
 	} {
-		if !strings.Contains(source, want) {
-			t.Fatalf("homepage studio external target support missing marker %q", want)
+		if !strings.Contains(sites, want) {
+			t.Fatalf("homepage studio sites module external target support missing marker %q", want)
 		}
 	}
-	if strings.Contains(source, "sites.slice(0,") {
-		t.Fatal("homepage studio must not cap managed site detail loading before resolving external targets")
+	for _, source := range []string{main, sites} {
+		if strings.Contains(source, "sites.slice(0,") {
+			t.Fatal("homepage studio must not cap managed site detail loading before resolving external targets")
+		}
 	}
 }
 
 func TestHomepageStudioUsesLedgerDeploymentsAndObservationsForExternalTargets(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	// The deployment ledger and the remote observations are site data, so the
+	// sites module owns the fallback that turns them into external targets.
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
 	for _, want := range []string{
 		"site.deployments",
 		"site.remote_observations",
@@ -157,7 +175,9 @@ func TestHomepageStudioUsesLedgerDeploymentsAndObservationsForExternalTargets(t 
 func TestHomepageStudioCloudTargetsFallbackToKnownExternalURL(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	// The known cloud providers and the fallback to a non-local deployment
+	// target live in the sites module that owns the target list.
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
 	for _, want := range []string{
 		"const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];",
 		"externalTargets.includes(selected)",
@@ -307,6 +327,7 @@ func TestHomepageStudioModuleSplitAndLoadOrder(t *testing.T) {
 		"/js/desktop/apps/homepage-studio-preview.js",
 		"/js/desktop/apps/homepage-studio-sites.js",
 		"/js/desktop/apps/homepage-studio-history.js",
+		"/js/desktop/apps/homepage-studio-annotate.js",
 		"/js/desktop/apps/homepage-studio.js",
 	}
 	lastIndex := -1
@@ -322,10 +343,11 @@ func TestHomepageStudioModuleSplitAndLoadOrder(t *testing.T) {
 	}
 
 	for global, file := range map[string]string{
-		"window.HomepageStudioPreview": "js/desktop/apps/homepage-studio-preview.js",
-		"window.HomepageStudioSites":   "js/desktop/apps/homepage-studio-sites.js",
-		"window.HomepageStudioHistory": "js/desktop/apps/homepage-studio-history.js",
-		"window.HomepageStudioApp":     "js/desktop/apps/homepage-studio.js",
+		"window.HomepageStudioPreview":  "js/desktop/apps/homepage-studio-preview.js",
+		"window.HomepageStudioSites":    "js/desktop/apps/homepage-studio-sites.js",
+		"window.HomepageStudioHistory":  "js/desktop/apps/homepage-studio-history.js",
+		"window.HomepageStudioAnnotate": "js/desktop/apps/homepage-studio-annotate.js",
+		"window.HomepageStudioApp":      "js/desktop/apps/homepage-studio.js",
 	} {
 		source := readDesktopAssetText(t, file)
 		if !strings.Contains(source, global) {
@@ -357,7 +379,11 @@ func TestHomepageStudioSitesPanelMarkers(t *testing.T) {
 
 	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
 	for _, want := range []string{
-		"window.HomepageStudioSites = { create }",
+		"window.HomepageStudioSites = {",
+		"create,",
+		"DRIFT_KEYS,",
+		"driftStatus,",
+		"targets: { collect: collectTargets, add: addTarget, normalize: normalizeTargetProvider, external: externalTargetURL }",
 		"/api/desktop/integrations/homepage/sites",
 		"/reconcile",
 		"drift_status",
@@ -376,6 +402,7 @@ func TestHomepageStudioSitesPanelMarkers(t *testing.T) {
 	for _, want := range []string{
 		"window.HomepageStudioSites.create",
 		"window.HomepageStudioHistory.create",
+		"window.HomepageStudioAnnotate.create",
 		"window.HomepageStudioPreview.create",
 		"onSiteSelected",
 	} {
@@ -393,6 +420,7 @@ func TestHomepageStudioHasNoNativeDialogs(t *testing.T) {
 		"js/desktop/apps/homepage-studio-preview.js",
 		"js/desktop/apps/homepage-studio-sites.js",
 		"js/desktop/apps/homepage-studio-history.js",
+		"js/desktop/apps/homepage-studio-annotate.js",
 	}
 	for _, file := range files {
 		source := readDesktopAssetText(t, file)
@@ -469,5 +497,554 @@ func TestHomepageStudioNewTranslations(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Behaviour checks
+//
+// The checks below execute the shipped Homepage Studio modules so they assert
+// on runtime behaviour instead of on source text.
+// ---------------------------------------------------------------------------
+
+// homepageStudioNodePrelude exposes the production modules to a Node script.
+// The single verb is the JSON encoded map of module sources.
+const homepageStudioNodePrelude = `
+const assert = require('node:assert/strict');
+const SRC = %s;
+
+function loadModule(source, globalName, extra) {
+	const sandbox = Object.assign({ location: { origin: 'https://aurago.test' } }, extra || {});
+	(new Function('window', source))(sandbox);
+	if (!sandbox[globalName]) throw new Error('module did not expose ' + globalName);
+	return sandbox[globalName];
+}
+
+function extractBlock(source, marker) {
+	const start = source.indexOf(marker);
+	if (start < 0) throw new Error('marker not found: ' + marker);
+	let depth = 0;
+	let i = source.indexOf('{', start);
+	if (i < 0) throw new Error('marker has no body: ' + marker);
+	for (; i < source.length; i++) {
+		const ch = source[i];
+		if (ch === '{') depth++;
+		else if (ch === '}') {
+			depth--;
+			if (depth === 0) return source.slice(start, i + 1);
+		}
+	}
+	throw new Error('unbalanced block: ' + marker);
+}
+
+function extractFunction(source, name) {
+	const marker = 'function ' + name + '(';
+	const start = source.indexOf(marker);
+	if (start < 0) throw new Error('function not found: ' + name);
+	const prefix = source.slice(Math.max(0, start - 6), start);
+	if (prefix.endsWith('async ')) return 'async ' + extractBlock(source, marker);
+	return extractBlock(source, marker);
+}
+
+function fakeElement() {
+	return {
+		attributes: {},
+		dataset: {},
+		style: {
+			props: {},
+			setProperty(name, value) { this.props[name] = String(value); },
+			getPropertyValue(name) { return Object.prototype.hasOwnProperty.call(this.props, name) ? this.props[name] : ''; }
+		},
+		classList: { toggle() {}, add() {}, remove() {}, contains() { return false; } },
+		addEventListener() {},
+		removeEventListener() {},
+		setAttribute(name, value) { this.attributes[name] = String(value); },
+		getAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null; },
+		querySelector() { return null; },
+		querySelectorAll() { return []; },
+		getBoundingClientRect() { return { width: 600, height: 400, left: 0, right: 600, top: 0, bottom: 400 }; },
+		focus() {},
+		click() {},
+		setPointerCapture() {},
+		releasePointerCapture() {},
+		className: '',
+		value: '',
+		textContent: ''
+	};
+}
+
+function elementBy(html, attribute, value) {
+	const needle = ' ' + attribute + '="' + value + '"';
+	const at = html.indexOf(needle);
+	if (at < 0) return null;
+	const open = html.lastIndexOf('<', at);
+	const close = html.indexOf('>', at);
+	if (open < 0 || close < 0) return null;
+	const markup = html.slice(open, close + 1);
+	const attrs = {};
+	const attrPattern = /([a-zA-Z0-9:_.-]+)="([^"]*)"/g;
+	let match;
+	while ((match = attrPattern.exec(markup)) !== null) attrs[match[1]] = match[2];
+	return { tag: markup.slice(1).split(/[\s>]/)[0], attrs: attrs, markup: markup };
+}
+
+function elementById(html, id) { return elementBy(html, 'id', id); }
+
+function countOf(text, needle) { return text.split(needle).length - 1; }
+`
+
+// homepageStudioNodeSources embeds the shipped modules into the Node script.
+func homepageStudioNodeSources(t *testing.T) string {
+	t.Helper()
+	sources := map[string]string{
+		"main":     readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js"),
+		"sites":    readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js"),
+		"preview":  readDesktopAssetText(t, "js/desktop/apps/homepage-studio-preview.js"),
+		"annotate": readDesktopAssetText(t, "js/desktop/apps/homepage-studio-annotate.js"),
+		"shared":   readDesktopAssetText(t, "js/shared/shared-core.js"),
+	}
+	encoded, err := json.Marshal(sources)
+	if err != nil {
+		t.Fatalf("encode homepage studio sources: %v", err)
+	}
+	return string(encoded)
+}
+
+// runHomepageStudioNode executes a Node script against the production modules.
+func runHomepageStudioNode(t *testing.T, script string) {
+	t.Helper()
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node runtime required for the Homepage Studio behaviour checks")
+	}
+	// The script carries the production modules, so it goes through a file
+	// instead of the command line.
+	path := filepath.Join(t.TempDir(), "homepage-studio-check.cjs")
+	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
+		t.Fatalf("write homepage studio script: %v", err)
+	}
+	if output, err := exec.Command(node, path).CombinedOutput(); err != nil {
+		t.Fatalf("homepage studio behaviour check failed: %v\n%s", err, output)
+	}
+}
+
+// homepageStudioNodeScript wraps a Node body into a failing runner so a thrown
+// assertion ends the process with a non-zero exit code.
+func homepageStudioNodeScript(t *testing.T, body string) string {
+	t.Helper()
+	return fmt.Sprintf(homepageStudioNodePrelude, homepageStudioNodeSources(t)) +
+		"(async () => {\n" + body +
+		"\n})().catch(error => { console.error(error && error.stack ? error.stack : error); process.exit(1); });\n"
+}
+
+// TestHomepageStudioPreviewURLSelectionPerTarget executes the production
+// preview URL selection for every deployment target.
+func TestHomepageStudioPreviewURLSelectionPerTarget(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const scope = new Function('window', 'state', 'homepageTargets', [
+	extractFunction(SRC.main, 'firstString'),
+	extractFunction(SRC.main, 'safeExternalURL'),
+	extractFunction(SRC.main, 'firstPreviewURL'),
+	extractFunction(SRC.main, 'homepageStatusPreviewURL')
+].join('\n') + '\nreturn { select: homepageStatusPreviewURL, preview: firstPreviewURL };');
+const state = { deploymentTargets: [] };
+const api = scope({ location: { origin: 'https://aurago.test' } }, state, Sites.targets);
+
+const status = {
+	status: 'ok',
+	mode: 'python_fallback',
+	preview_url: 'https://preview.test/app',
+	tunnel_url: 'https://tunnel.test/app',
+	web_container: { running: true, browser_url: 'https://web.test/app' },
+	python_server: { running: true, browser_url: 'https://python.test/app' },
+	vercel_url: 'https://vercel.test/app',
+	netlify_url: 'https://netlify.test/app',
+	here_now_url: 'https://herenow.test/app',
+	remote_url: 'https://remote.test/app'
+};
+const localTarget = [];
+Sites.targets.add(localTarget, 'local', 'https://local.test/app', 'Local', api.preview);
+const vercelTarget = [];
+Sites.targets.add(vercelTarget, 'vercel', 'https://deploy.vercel.test/app', 'Vercel', api.preview);
+const remoteTarget = [];
+Sites.targets.add(remoteTarget, 'remote', 'https://deploy.remote.test/app', 'Remote', api.preview);
+
+const cases = [
+	['local prefers the preview url', 'local', status, [], 'https://preview.test/app'],
+	['local falls back to the tunnel', 'local', { status: 'ok', web_container: { running: true }, tunnel_url: 'https://tunnel.test/app' }, [], 'https://tunnel.test/app'],
+	['local falls back to the web container', 'local', { status: 'ok', web_container: { running: true, browser_url: 'https://web.test/app' } }, [], 'https://web.test/app'],
+	['local falls back to the python server', 'local', { status: 'ok', python_server: { running: true, browser_url: 'https://python.test/app' } }, [], 'https://python.test/app'],
+	['local without any url stays empty', 'local', { status: 'ok' }, [], ''],
+	['vercel uses the vercel url', 'vercel', status, [], 'https://vercel.test/app'],
+	['netlify uses the netlify url', 'netlify', status, [], 'https://netlify.test/app'],
+	['here_now uses the here now url', 'here_now', status, [], 'https://herenow.test/app'],
+	['remote uses the remote url', 'remote', status, [], 'https://remote.test/app'],
+	['vercel falls back to its deployment target', 'vercel', { status: 'ok' }, vercelTarget, 'https://deploy.vercel.test/app'],
+	['remote falls back to its deployment target', 'remote', { status: 'ok' }, remoteTarget, 'https://deploy.remote.test/app'],
+	['remote falls back to a known external target', 'remote', { status: 'ok' }, vercelTarget, 'https://deploy.vercel.test/app'],
+	['a local target never serves a cloud target', 'vercel', { status: 'ok' }, localTarget, ''],
+	['a rejected url is not previewed', 'vercel', { status: 'ok', vercel_url: 'javascript:alert(1)' }, vercelTarget, 'https://deploy.vercel.test/app'],
+	['a rejected preview url is not previewed', 'local', { status: 'ok', preview_url: 'javascript:alert(1)' }, [], '']
+];
+for (const item of cases) {
+	state.deploymentTargets = item[3];
+	assert.equal(api.select(item[2], item[1]), item[4], item[0]);
+}
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioDeviceSwitcherProducesThreePreviewWidths executes the
+// preview module and proves the three devices render three distinct widths.
+func TestHomepageStudioDeviceSwitcherProducesThreePreviewWidths(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+global.document = { fullscreenElement: null, addEventListener() {}, removeEventListener() {} };
+const Preview = loadModule(SRC.preview, 'HomepageStudioPreview');
+const root = fakeElement();
+const frame = fakeElement();
+const panel = fakeElement();
+root.querySelector = selector => {
+	if (selector === '.vd-hp-preview-frame') return frame;
+	if (selector === '.vd-hp-preview-panel') return panel;
+	return null;
+};
+const state = { device: 'desktop' };
+const preview = Preview.create({ root: root, zone: fakeElement(), stage: fakeElement(), state: state, t: key => key });
+const widths = [];
+const scales = [];
+for (const device of Preview.DEVICES) {
+	preview.setDevice(device);
+	widths.push(frame.style.getPropertyValue('--hp-device-w'));
+	scales.push(Number(frame.style.getPropertyValue('--hp-device-scale')));
+}
+assert.deepEqual(widths, ['1280px', '768px', '390px'], 'every device renders the preview at its real width');
+assert.equal(new Set(widths).size, 3, 'the three devices must produce three distinct preview widths');
+assert.equal(state.device, 'mobile');
+assert.equal(preview.getDevice(), 'mobile');
+assert.ok(scales.every(scale => scale > 0), 'every device viewport is scaled into the preview pane');
+assert.ok(scales[0] < 1, 'the desktop viewport is scaled down into the preview pane');
+assert.ok(scales[2] >= 1, 'the mobile viewport fits into the preview pane');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioTargetRefreshStaysWithinRequestBudget proves that one
+// target refresh never fans out into one request per site.
+func TestHomepageStudioTargetRefreshStaysWithinRequestBudget(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const scope = new Function('window', 'state', 'api', 'homepageTargets', [
+	extractFunction(SRC.main, 'firstString'),
+	extractFunction(SRC.main, 'safeExternalURL'),
+	extractFunction(SRC.main, 'firstPreviewURL'),
+	extractFunction(SRC.main, 'safeHomepageApi'),
+	extractFunction(SRC.main, 'loadHomepageTargets')
+].join('\n') + '\nreturn loadHomepageTargets;');
+
+const calls = [];
+let panelSites = [];
+let cachedDetail = null;
+const api = async path => {
+	calls.push(String(path));
+	if (path === '/api/desktop/integrations/integrations/webhosts') {
+		return { webhosts: [{ id: 'homepage', url: 'https://local.test/app', name: 'Homepage' }] };
+	}
+	if (path === '/api/desktop/integrations/homepage/sites') {
+		return { sites: panelSites.slice() };
+	}
+	if (/^\/api\/desktop\/integrations\/homepage\/sites\/\d+$/.test(path)) {
+		return { site: { id: Number(path.split('/').pop()), name: 'Selected', deploy_targets: [{ provider: 'vercel', url: 'https://selected.test/app' }] } };
+	}
+	return {};
+};
+const state = {
+	selectedSiteId: 0,
+	deploymentTargets: [],
+	targetsLoading: null,
+	modules: { sites: { getSites: () => panelSites, getDetail: () => cachedDetail } }
+};
+const refresh = scope({ location: { origin: 'https://aurago.test' } }, state, api, Sites.targets);
+const listCalls = () => calls.filter(path => path === '/api/desktop/integrations/homepage/sites').length;
+const detailCalls = () => calls.filter(path => /^\/api\/desktop\/integrations\/homepage\/sites\/\d+$/.test(path)).length;
+
+panelSites = [];
+for (let index = 1; index <= 30; index++) {
+	panelSites.push({ id: index, name: 'Site ' + index, deploy_targets: [{ provider: 'vercel', url: 'https://v' + index + '.test/app' }] });
+}
+
+calls.length = 0;
+state.selectedSiteId = 0;
+await refresh();
+assert.equal(listCalls(), 0, 'the site list of the panel must be reused');
+assert.equal(detailCalls(), 0, 'without a selection no site detail is needed');
+assert.equal(state.deploymentTargets.length, 31, 'every site contributes its deployment target');
+
+calls.length = 0;
+state.selectedSiteId = 7;
+cachedDetail = null;
+await refresh();
+assert.equal(listCalls(), 0, 'the site list must not be fetched a second time');
+assert.equal(detailCalls(), 1, 'only the selected site needs its detail');
+
+calls.length = 0;
+panelSites = [];
+state.selectedSiteId = 0;
+await refresh();
+assert.equal(listCalls(), 1, 'the site list is fetched at most once');
+assert.equal(detailCalls(), 0, 'no site detail is fetched without a selection');
+
+calls.length = 0;
+state.selectedSiteId = 3;
+cachedDetail = null;
+await refresh();
+assert.equal(listCalls(), 1, 'the site list stays at one request');
+assert.equal(detailCalls(), 1, 'only the selected site needs its detail');
+
+calls.length = 0;
+await Promise.all([refresh(), refresh()]);
+assert.equal(calls.filter(path => path === '/api/desktop/integrations/integrations/webhosts').length, 1, 'concurrent refreshes share one request');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioDynamicKeysFallBackToLabels proves that a missing
+// translation yields the fallback label and never the raw key path.
+func TestHomepageStudioDynamicKeysFallBackToLabels(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const dict = { 'homepage_studio.sites_drift_clean': 'Clean' };
+const sharedScope = new Function('I18N', extractFunction(SRC.shared, 't') + '\nreturn t;');
+const sharedT = sharedScope(dict);
+assert.equal(sharedT('homepage_studio.sites_drift_missing', 'not_deployed'), 'homepage_studio.sites_drift_missing', 'the shared translator treats the second argument as a placeholder map');
+
+const trScope = new Function('t', extractBlock(SRC.main, 'const tr = (key, fallback) =>') + '\nreturn tr;');
+const t = key => (Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : key);
+const tr = trScope(t);
+assert.equal(tr('homepage_studio.sites_drift_clean', 'clean'), 'Clean', 'a translated key keeps its translation');
+assert.equal(tr('homepage_studio.sites_drift_missing', 'not_deployed'), 'not_deployed', 'a missing key falls back to the label');
+
+global.document = { activeElement: null, documentElement: { lang: 'en' } };
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const container = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null };
+const panel = Sites.create({
+	container: container,
+	esc: value => String(value == null ? '' : value),
+	t: t,
+	tr: tr,
+	api: async () => ({ sites: [
+		{ id: 1, name: 'One', drift_status: 'not_deployed' },
+		{ id: 2, name: 'Two', drift_status: 'clean' }
+	] }),
+	notify: () => {},
+	readonly: true,
+	safeExternalURL: value => String(value || ''),
+	locale: 'en',
+	isDisposed: () => false
+});
+await panel.load();
+panel.setSelected(1, {
+	id: 1,
+	name: 'One',
+	drift_status: 'not_deployed',
+	local_root: '/srv/one',
+	deploy_targets: [{ provider: 'vercel', url: 'https://v.test/app', status: 'active' }]
+});
+const html = container.innerHTML;
+assert.ok(html.includes('>not_deployed<'), 'the drift badge uses the fallback label');
+assert.ok(!html.includes('homepage_studio.sites_drift_'), 'the drift key path must not leak');
+assert.ok(!html.includes('homepage_studio.sites_target_'), 'the target key path must not leak');
+assert.ok(!html.includes('homepage_studio.sites_origin_'), 'the origin key path must not leak');
+assert.ok(html.includes('vercel \u00b7 active'), 'the target status falls back to the plain label');
+assert.ok(html.includes('role="option"'), 'the site cards are listbox options');
+assert.ok(html.includes('aria-selected="true"'), 'the selected card is marked');
+assert.equal(countOf(html, 'tabindex="0"'), 1, 'exactly one card is the tab stop');
+assert.equal(countOf(html, 'tabindex="-1"'), 1, 'the other cards are not tab stops');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioLiveRegionContract renders the workbench markup with the
+// production renderer and checks the accessibility contract of the shell.
+func TestHomepageStudioLiveRegionContract(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+global.document = { documentElement: { lang: 'en' } };
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const sandbox = { location: { origin: 'https://aurago.test' }, SYSTEM_LANG: 'en', HomepageStudioSites: Sites };
+(new Function('window', SRC.main))(sandbox);
+const App = sandbox.HomepageStudioApp;
+assert.ok(App && typeof App.render === 'function', 'the workbench module must expose render');
+
+class StopRender extends Error {}
+let markup = '';
+const container = {
+	set innerHTML(value) { markup = value; throw new StopRender(); },
+	get innerHTML() { return markup; },
+	querySelector: () => null,
+	querySelectorAll: () => []
+};
+const context = {
+	esc: value => String(value == null ? '' : value),
+	api: async () => ({}),
+	t: key => key,
+	iconMarkup: () => '',
+	notify: () => {},
+	confirmDialog: async () => false,
+	readonly: false
+};
+try {
+	App.render(container, 'test-window', context);
+	throw new Error('the workbench did not render its markup');
+} catch (error) {
+	if (!(error instanceof StopRender)) throw error;
+}
+assert.ok(markup.length > 0, 'the workbench must render its markup');
+
+const chatLog = elementById(markup, 'hp-log-test-window');
+assert.ok(chatLog, 'the chat log must exist');
+assert.equal(chatLog.attrs['aria-live'], undefined, 'the streaming chat log must not be an aria-live region');
+assert.equal(chatLog.attrs['aria-busy'], 'false', 'the chat log announces its busy state');
+
+const announce = elementById(markup, 'hp-announce-test-window');
+assert.ok(announce, 'the announce node must exist');
+assert.equal(announce.attrs['role'], 'status', 'finished messages need a dedicated status node');
+
+const tablist = elementBy(markup, 'class', 'vd-hp-preview-tablist');
+assert.ok(tablist, 'the inspector tabs need a tablist');
+assert.equal(tablist.attrs['role'], 'tablist');
+
+const sitesTab = elementById(markup, 'hp-tab-sites-test-window');
+assert.ok(sitesTab, 'the sites tab must exist');
+assert.equal(sitesTab.attrs['role'], 'tab');
+assert.equal(sitesTab.attrs['aria-selected'], 'true');
+assert.equal(sitesTab.attrs['tabindex'], '0');
+
+const historyTab = elementById(markup, 'hp-tab-history-test-window');
+assert.ok(historyTab, 'the history tab must exist');
+assert.equal(historyTab.attrs['role'], 'tab');
+assert.equal(historyTab.attrs['aria-selected'], 'false');
+assert.equal(historyTab.attrs['tabindex'], '-1');
+
+const chatSplitter = elementBy(markup, 'data-hp-splitter', 'chat');
+assert.ok(chatSplitter, 'the chat splitter must exist');
+assert.equal(chatSplitter.attrs['role'], 'separator');
+assert.ok(chatSplitter.attrs['aria-valuenow'], 'the splitter must expose its current width');
+assert.ok(chatSplitter.attrs['aria-valuemin'], 'the splitter must expose its minimum width');
+assert.ok(chatSplitter.attrs['aria-valuemax'], 'the splitter must expose its maximum width');
+
+const inspectorSplitter = elementBy(markup, 'data-hp-splitter', 'inspector');
+assert.ok(inspectorSplitter, 'the inspector splitter must exist');
+assert.ok(inspectorSplitter.attrs['aria-valuenow'], 'the splitter must expose its current width');
+
+const deviceGroup = elementBy(markup, 'class', 'vd-hp-device-seg');
+assert.ok(deviceGroup, 'the device switcher must exist');
+assert.equal(deviceGroup.attrs['role'], 'radiogroup');
+const desktopButton = elementBy(markup, 'data-hp-device', 'desktop');
+assert.ok(desktopButton, 'the desktop device button must exist');
+assert.equal(desktopButton.attrs['role'], 'radio');
+assert.equal(desktopButton.attrs['aria-checked'], 'true');
+
+const sitesList = elementById(markup, 'hp-sites-list-test-window');
+assert.ok(sitesList, 'the site list must exist');
+assert.equal(sitesList.attrs['role'], 'listbox');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioAnnotateHelpers executes the annotate module's pure helpers.
+func TestHomepageStudioAnnotateHelpers(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const A = loadModule(SRC.annotate, 'HomepageStudioAnnotate');
+const elements = [
+	{ i: 0, selector: 'body', tag: 'body', box: [0, 0, 1280, 2000], parent: -1 },
+	{ i: 1, selector: 'main', tag: 'main', box: [0, 100, 1280, 900], parent: 0, tab: true },
+	{ i: 2, selector: '#cta', tag: 'a', text: 'Get started', attrs: { href: '/signup' }, box: [100, 200, 200, 50], parent: 1, tab: true },
+	{ i: 3, selector: 'main > div:nth-of-type(2)', tag: 'div', text: 'Card', box: [400, 300, 200, 100], parent: 1 },
+	{ i: 4, selector: 'h1', tag: 'h1', text: 'Welcome', box: [100, 120, 600, 60], parent: 1, tab: true }
+];
+assert.equal(A.hitTest(elements, 150, 220), 2);
+assert.equal(A.hitTest(elements, 1200, 1500), 0);
+assert.equal(A.hitTest(elements, 5000, 5), -1);
+assert.deepEqual(A.normalizeBox(300, 400, 100, 250), [100, 250, 200, 150]);
+assert.deepEqual(A.overlapping(elements, [380, 280, 260, 140]), [3]);
+assert.deepEqual(A.tabOrder(elements), [1, 4, 2]);
+
+const marks = [
+	{ n: 1, kind: 'element', comment: 'Make it  green', box: [100, 200, 200, 50], elementIndex: 2 },
+	{ n: 2, kind: 'area', comment: 'Add an image', box: [380, 280, 260, 140], overlapIndexes: [3] }
+];
+const labels = { defaultMessage: 'Apply the marked changes.', heading: 'Marks:' };
+assert.equal(A.composeMessage('', marks, labels), 'Apply the marked changes.\n\nMarks:\n1. Make it green\n2. Add an image');
+assert.equal(A.composeMessage(' Please ', [], labels), 'Please');
+
+const payload = A.annotationPayload({ path: '/about', viewport: { width: 1280 }, elements }, marks);
+assert.equal(payload.page_path, '/about');
+assert.equal(payload.viewport_width, 1280);
+assert.deepEqual(payload.items[0], { n: 1, kind: 'element', comment: 'Make it  green', box: [100, 200, 200, 50], selector: '#cta', tag: 'a', text: 'Get started', attrs: { href: '/signup' } });
+assert.deepEqual(payload.items[1].elements, [{ selector: 'main > div:nth-of-type(2)', tag: 'div', text: 'Card' }]);
+assert.equal(payload.items[1].selector, undefined);
+
+const layout = A.cropLayout(marks, { width: 1280, height: 2000 });
+assert.equal(layout.crops.length, 2);
+assert.deepEqual(layout.crops[0].src, [52, 152, 296, 146]);
+assert.ok(layout.width <= 1000 && layout.height <= 1600);
+const many = Array.from({ length: 20 }, (_, i) => ({ n: i + 1, kind: 'area', comment: 'x', box: [0, i * 90, 1280, 80] }));
+const big = A.cropLayout(many, { width: 1280, height: 2000 });
+assert.ok(big.height <= 1600, 'stacked crops fit the height budget: ' + big.height);
+assert.ok(big.width <= 1000, 'crops fit the width budget: ' + big.width);
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioSitePillRendersDrift executes the site pill renderer.
+func TestHomepageStudioSitePillRendersDrift(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const pill = fakeElement();
+pill.hidden = true;
+const esc = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const tr = (key, fallback) => fallback;
+Sites.renderSitePill(pill, { name: '<Shop>', drift_status: 'local_changed' }, { esc, tr });
+assert.equal(pill.hidden, false);
+assert.ok(pill.innerHTML.includes('&lt;Shop&gt;'));
+assert.ok(pill.innerHTML.includes('vd-hp-drift-local-changed'));
+Sites.renderSitePill(pill, { name: 'x', drift_status: 'bogus' }, { esc, tr });
+assert.ok(pill.innerHTML.includes('vd-hp-drift-not-deployed'));
+Sites.renderSitePill(pill, null, { esc, tr });
+assert.equal(pill.hidden, true);
+assert.equal(pill.textContent, '');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioAnnotateWiring pins the integration points in the main module.
+func TestHomepageStudioAnnotateWiring(t *testing.T) {
+	t.Parallel()
+
+	main := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"state.modules.annotate.takeForSend(message)",
+		"state.modules.annotate.attachThumbnail(chatLog, marks)",
+		"...(marks ? marks.context : {})",
+		"state.modules.annotate.setAvailable(hasUrl)",
+		"state.modules.annotate.contextChanged()",
+		"state.modules.annotate.count()",
+	} {
+		if !strings.Contains(main, want) {
+			t.Fatalf("homepage studio misses annotate wiring %q", want)
+		}
 	}
 }

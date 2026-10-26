@@ -3,10 +3,18 @@
 
     const Pixel = window.AuraPixelApp = window.AuraPixelApp || {};
 
-    const MAX_HISTORY = 30;
-    const MAX_LAYERS = 20;
+    const MAX_HISTORY = 60;
+    const MAX_LAYERS = 64;
+    // Approximate memory cap for unique history snapshots (width * height * 4 bytes each).
+    const HISTORY_BYTE_BUDGET = 768 * 1024 * 1024;
+    const BLEND_MODES = [
+        'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn',
+        'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'
+    ];
     const canvasPool = [];
-    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif'];
+    const MAX_POOLED_PIXELS = 4000000;
+    // 'ora' is the layered OpenRaster project format (pixel-ora.js); loadDesktopImagePath dispatches it by extension.
+    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'tif', 'avif', 'ora'];
     const PRESET_COLORS = [
         '#000000', '#404040', '#808080', '#c0c0c0', '#ffffff',
         '#ff0000', '#ff6600', '#ffcc00', '#33cc33', '#0099ff',
@@ -25,9 +33,15 @@
 
     function releaseTempCanvas(canvas) {
         if (!canvas) return;
+        // Big canvases are not worth pooling: shrinking to 0 x 0 frees the bitmap now instead of holding it forever.
+        if (canvas.width * canvas.height > MAX_POOLED_PIXELS) { canvas.width = canvas.height = 0; return; }
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (canvasPool.length < 4) canvasPool.push(canvas);
+    }
+
+    function blendOp(mode) {
+        return mode === 'normal' || !BLEND_MODES.includes(mode) ? 'source-over' : mode;
     }
 
     function clamp255(v) { return Math.max(0, Math.min(255, Math.round(v))); }
@@ -98,6 +112,64 @@
         'text': 'T'
     };
 
+    // Registry data: rail groups and top-level menus appear in exactly this order.
+    const TOOL_GROUP_ORDER = ['select', 'paint', 'retouch', 'fill', 'shape', 'type', 'view'];
+    // TOOL_GROUPS above holds the built-in tools; group i of it belongs to this registry group.
+    const BUILTIN_TOOL_GROUP_NAMES = ['select', 'paint', 'fill', 'shape', 'type'];
+    const MENU_ORDER = ['file', 'edit', 'image', 'layer', 'select', 'filter', 'generate', 'view', 'ai'];
+    const DOCKS = ['inspector', 'bottom'];
+
+    // --- keyboard shortcuts ---
+    // Shortcuts are compared as canonical strings: "ctrl+alt+shift+key". Ctrl and Meta are the same modifier, letters are
+    // lower case ("Shift+L" and a Shift+L key press both give "shift+l"), '+' and '=' are the same key, and characters that
+    // need Shift on a US keyboard are folded back to their base key plus Shift ("?" is "shift+/").
+    const SHIFTED_SYMBOLS = {
+        '{': '[', '}': ']', ':': ';', '"': '\'', '<': ',', '>': '.', '?': '/', '_': '-', '~': '`', '|': '\\',
+        '!': '1', '@': '2', '#': '3', '$': '4', '%': '5', '^': '6', '&': '7', '*': '8', '(': '9', ')': '0'
+    };
+    const KEY_ALIASES = { del: 'delete', esc: 'escape', space: ' ', spacebar: ' ', return: 'enter', plus: '=', minus: '-' };
+
+    function canonicalKey(key, shift) {
+        const text = String(key == null ? '' : key);
+        if (text === '+' || text === '=') return { key: '=', shift: false };
+        if (text.length === 1) {
+            if (SHIFTED_SYMBOLS[text]) return { key: SHIFTED_SYMBOLS[text], shift: true };
+            return { key: text.toLowerCase(), shift: !!shift };
+        }
+        const lower = text.toLowerCase();
+        return { key: KEY_ALIASES[lower] || lower, shift: !!shift };
+    }
+
+    function joinShortcut(ctrl, alt, shift, key) {
+        return [ctrl ? 'ctrl' : '', alt ? 'alt' : '', shift ? 'shift' : '', key].filter(Boolean).join('+');
+    }
+
+    // "Ctrl+Shift+Z" -> "ctrl+shift+z"; returns '' for text that is not a shortcut.
+    function normalizeShortcut(text) {
+        let rest = String(text == null ? '' : text).trim();
+        if (!rest) return '';
+        let ctrl = false, alt = false, shift = false;
+        for (;;) {
+            const match = /^(ctrl|control|cmd|command|meta|alt|option|shift)\+(?=.)/i.exec(rest);
+            if (!match) break;
+            const name = match[1].toLowerCase();
+            if (name === 'alt' || name === 'option') alt = true;
+            else if (name === 'shift') shift = true;
+            else ctrl = true;
+            rest = rest.slice(match[0].length);
+        }
+        if (!rest) return '';
+        const parsed = canonicalKey(rest, shift);
+        return joinShortcut(ctrl, alt, parsed.shift, parsed.key);
+    }
+
+    function shortcutFromEvent(e) {
+        if (!e || e.key == null) return '';
+        const parsed = canonicalKey(e.key, e.shiftKey);
+        if (['control', 'shift', 'alt', 'meta', 'os'].includes(parsed.key)) return '';
+        return joinShortcut(!!(e.ctrlKey || e.metaKey), !!e.altKey, parsed.shift, parsed.key);
+    }
+
     function bindRuntime(runtime, fn) {
         return function boundRuntimeFunction(...args) {
             return fn.apply(runtime, args);
@@ -105,8 +177,17 @@
     }
 
     Object.assign(Pixel, {
+        TOOL_GROUP_ORDER,
+        BUILTIN_TOOL_GROUP_NAMES,
+        MENU_ORDER,
+        DOCKS,
+        normalizeShortcut,
+        shortcutFromEvent,
         MAX_HISTORY,
         MAX_LAYERS,
+        HISTORY_BYTE_BUDGET,
+        BLEND_MODES,
+        blendOp,
         IMAGE_EXTS,
         PRESET_COLORS,
         FONT_FAMILIES,

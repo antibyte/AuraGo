@@ -8,7 +8,7 @@ requirements, quality limits, release gate, and reserved provider contract.
 
 > **Authoritative defaults:** When this document and your running `config.yaml` disagree, treat **`config_template.yaml`** in the repository root as the source of truth for default values and available keys.
 
-> **Minimal required:** At least one `providers` entry with `api_key`, and `llm.provider` referencing it — everything else has sensible defaults.
+> **Minimal required:** A configured provider and `llm.provider` referencing it. Enter credentials through Setup or Config → Providers so they stay in the encrypted Vault; local providers may need no key. See [Provider management](provider-management.md) for saved tests, diagnostics and the versioned API.
 
 ---
 
@@ -68,7 +68,7 @@ providers:
 | `capabilities.structured_outputs` | `false` | Enables strict structured output schemas for this provider/model when effective. |
 | `capabilities.multimodal` | `false` | Enables image/file input promotion for the main chat path when effective. |
 | `capabilities.detected_model` | `""` | Model ID the stored detected values belong to. Used to refresh stale auto values after model changes. |
-| `capabilities.source` | `""` | Detection source: `manual`, `openrouter`, `models.dev`, `heuristic`, or `legacy_fallback`. |
+| `capabilities.source` | `""` | Detection source, such as `manual`, `openrouter`, `models.dev`, `model_only_fallback`, `heuristic`, or `legacy_fallback`. |
 
 Detection order is manual provider overrides first, then live OpenRouter metadata when available, the generated `models.dev` registry, conservative local heuristics, and finally the deprecated global `llm` fallback fields for unknown models.
 
@@ -86,7 +86,7 @@ Used for long-term memory (RAG) vector indexing.
 | `local.batch_size` | `2048` | Batch and micro-batch size for the local runtime. |
 | `external_url` | `"http://localhost:11434/v1"` | URL of the external embeddings API (e.g. Ollama). Only used when `provider = "external"`. |
 | `external_model` | `"nomic-embed-text"` | Model name for external embeddings. |
-| `api_key` | `""` | API key for external embeddings provider. Falls back to `EMBEDDINGS_API_KEY` env var, then to `llm.api_key`. Leave empty or `dummy_key` for Ollama (no auth required). |
+| `api_key` | `""` | Legacy external-mode key; `EMBEDDINGS_API_KEY` remains supported. A selected provider ID uses only that provider's Vault credential, including OAuth. Empty parent selections inherit; selecting a different provider never inherits the main key. Keyless local providers can stay empty. |
 
 On Linux, AuraGo only considers native Vulkan available when the service can
 open a `/dev/dri/renderD*` device for reading and writing. The supplied
@@ -124,7 +124,7 @@ Core agent behaviour settings.
 | `show_tool_results` | `false` | Show tool call results in the Web UI by default. Can be toggled live with `/debug on\|off`. |
 | `debug_mode` | `false` | Inject debug instructions into the system prompt so the agent reports internal errors with helpful details. |
 | `adaptive_tools.enabled` | `true` | Enable adaptive tool filtering to reduce token usage. Explicit `false` keeps all enabled tools visible. |
-| `adaptive_tools.max_tools` | `10` | Maximum adaptive/preferred tool schemas before required and always-include tools are added. |
+| `adaptive_tools.max_tools` | `10` | Maximum adaptive/preferred tool schemas before required and always-include tools are added. Only tools the request ranked (name, search, manuals, family, your usage) take these slots: free slots stay empty instead of being filled by unranked schemas, and `generate_image`, `generate_music` and `generate_video` stay always-visible only when the request asks for that kind of media (otherwise they compete for a slot like any other tool). |
 | `adaptive_tools.max_total_tools` | `20` | Maximum final native tool schemas after hard-required tools are kept. |
 | `adaptive_tools.max_schema_tokens` | `6500` | Optional schema-token cap for adaptive native tools. Explicit `0` disables the token cap. |
 | `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
@@ -185,6 +185,8 @@ agent:
 |---|---|---|
 | `bot_token` | `""` | Telegram bot token from [@BotFather](https://t.me/botfather). Leave empty to disable Telegram. |
 | `telegram_user_id` | `0` | Numeric Telegram user ID of the allowed user. `0` = silent discovery mode (first message sender becomes the owner). |
+| `max_concurrent_workers` | `5` | How many Telegram messages may run an agent loop at the same time. Values ≤ 0 fall back to 5. |
+| `readonly` | `false` | When `true`, the bot still answers incoming messages, but the agent may not send on its own (blocks `send_telegram` and the `telegram` notification channel). |
 
 See [telegram_setup.md](telegram_setup.md) for full setup instructions.
 
@@ -195,11 +197,15 @@ See [telegram_setup.md](telegram_setup.md) for full setup instructions.
 | Key | Default | Description |
 |---|---|---|
 | `enabled` | `false` | Enable Discord bot integration. |
-| `read_only` | `false` | When `true`, the agent can only read Discord messages but cannot send them. |
+| `readonly` | `false` | When `true`, the agent can only read Discord messages but cannot send them. (The status API reports this flag as `read_only`.) |
 | `bot_token` | `""` | Bot token from the [Discord Developer Portal](https://discord.com/developers/applications). |
 | `guild_id` | `""` | Server (guild) ID for channel listing commands. |
 | `allowed_user_id` | `""` | Required Discord user ID for inbound control. Leave empty to block user messages. |
 | `default_channel_id` | `""` | Default channel for outbound agent messages when no channel is specified. |
+| `allowed_channel_ids` | `[]` | Channels the agent may read from and write to. **Empty keeps the previous behaviour** (every channel the bot can reach) and only logs a hint at startup. When set, only these channels plus `default_channel_id` are usable; the agent is told which key to change. |
+| `max_concurrent_workers` | `5` | How many Discord messages may run an agent loop at the same time. Values ≤ 0 fall back to 5. |
+
+See [discord_setup.md](discord_setup.md) for full setup instructions.
 
 ---
 

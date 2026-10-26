@@ -498,7 +498,7 @@ async function testQuickConnection() {
             result.textContent = '✓ ' + (t('setup.step0_test_success'));
             result.className = 'field-hint success';
         } else {
-            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed'));
+            result.textContent = data.unsupported ? t('setup.step0_test_unsupported') : '✕ ' + t('setup.step0_test_failed');
             result.className = 'field-hint error';
         }
     } catch (err) {
@@ -671,7 +671,7 @@ function buildQuickConfigPatch() {
 
     // Keep local CPU speech as the installation default; retain profile credentials
     // so the user can select that provider later in Speech Output settings.
-    patch.tts = { provider: 'sanotts', language: 'auto' };
+    patch.tts = { provider: 'phonon', language: 'auto' };
     if (p.tts && p.tts.provider) {
         const ttsProvider = p.tts.provider;
         patch.tts[ttsProvider] = { api_key: apiKey };
@@ -1046,7 +1046,7 @@ async function testConnection() {
             result.textContent = '✓ ' + t('setup.step0_test_success');
             result.className = 'field-hint test-result-ok';
         } else {
-            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed'));
+            result.textContent = data.unsupported ? t('setup.step0_test_unsupported') : '✕ ' + t('setup.step0_test_failed');
             result.className = 'field-hint test-result-fail';
         }
     } catch (err) {

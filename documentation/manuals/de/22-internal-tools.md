@@ -985,13 +985,20 @@ LDAP/Active Directory Server durchsuchen und Authentifizierung durchführen.
 | `attributes` | array | Zurückzugebende Attribute |
 
 ### `paperless_ngx`
-Paperless-ngx Dokumentenverwaltung (Suche, Upload, Metadaten, Tags).
+Paperless-ngx Dokumentenverwaltung.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | search, download, upload, list_tags, list_correspondents, get_document, update_metadata, delete |
-| `query` | string | Suchbegriff |
-| `document_id` | integer | Dokument-ID |
+| `operation` | enum | search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types |
+| `query` | string | Volltextsuche. `content` ist kein Ersatz. |
+| `document_id` | string | Positive Dokument-ID für get, download, update, delete |
+| `tags` | string | Exakte Tag-Namen, kommagetrennt. Suche verknüpft sie mit UND. Update fügt sie hinzu. |
+| `name` / `correspondent` | string | Exakter Korrespondent oder positive ID. `correspondent` gewinnt. |
+| `category` / `document_type` | string | Exakter Dokumenttyp oder positive ID. `document_type` gewinnt. |
+| `content` | string | Text-Upload als `.txt`. Die Antwort enthält eine Task-ID; die Verarbeitung läuft noch. |
+| `limit` | integer | Suchtreffer, Standard 25, höchstens 50 |
+
+Das Update fügt Tags hinzu und schreibt sie nicht erneut, wenn sie schon vorhanden sind. Get und Download kürzen OCR-Text bei 8000 Zeichen und melden die Kürzung. Der Vault-Schlüssel `paperless_ngx_api_token` gilt sofort nach dem Speichern im Vault. URL und Schalter gelten nach dem Speichern der Konfiguration. `readonly` sperrt Upload, Update und Löschen.
 
 ### `yepapi_seo`
 SEO-Analyse über YepAPI: Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlink-Zusammenfassung und On-Page-Audits.
@@ -1266,13 +1273,15 @@ Bilder verarbeiten (resize, convert, crop, rotate).
 | `angle` | integer | 90, 180, 270 |
 
 ### `video_download`
-Lädt Videos von unterstützten Plattformen (YouTube, Vimeo, etc.) herunter. Konvertiert optional in verschiedene Formate und speichert sie in der Media Registry.
+Sucht, prüft, lädt oder transkribiert Videos mit yt-dlp. Download und Transkription bleiben aus, bis ihre eigenen Rechte aktiv sind.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `url` | string | Video-URL |
-| `format` | string | Gewünschtes Format (mp4, webm, audio) |
-| `quality` | string | Qualitätsstufe |
+| `operation` | enum | search, info, download, transcribe |
+| `url` | string | Video-URL für info, download oder transcribe |
+| `query` | string | Suchanfrage für search |
+| `format` | string | video, audio, best, bestaudio oder eine eigene yt-dlp-Formatzeichenfolge |
+| `quality` | string | `low` (480p), `medium` (720p) oder `best` (ohne Höhengrenze). Gilt, wenn format fehlt, `video` oder `best` ist. Eine eigene Formatzeichenfolge bleibt unverändert. Ohne quality bleibt `default_format`. |
 
 ### `media_conversion`
 Konvertiert Mediendateien zwischen verschiedenen Formaten (Video, Audio, Bilder). Nutzt FFmpeg für die Transkodierung.
@@ -1799,3 +1808,8 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 
 **Vorheriges Kapitel:** [Kapitel 21: REST API Referenz](./21-api-reference.md)
 **Nächstes Kapitel:** [Kapitel 23: Interna](./23-internals.md)
+
+
+### Verwaltete Websites und Änderungshistorie
+
+Homepage-Änderungen benötigen einen Zweck in reason und werden automatisch erfasst. Mit homepage_registry overview/get_site/list_events findest Du Identität, lokale und entfernte Orte sowie Änderungsgründe. Discover_workspace/adopt übernehmen bisher nicht erfasste Projekte. Details: [Verwaltete Websites](../../homepage-ledger.md).

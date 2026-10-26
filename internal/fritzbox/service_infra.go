@@ -56,6 +56,7 @@ func (c *Client) infraHostRecords() ([]infraHostRecord, error) {
 		return nil, errors.New("fritzbox host count is invalid")
 	}
 	records := make([]infraHostRecord, 0, count)
+	positions := make(map[string]int, count)
 	for i := 0; i < count; i++ {
 		entry, err := c.SOAP(svcHosts, ctlHosts, "GetGenericHostEntry", map[string]string{"NewIndex": strconv.Itoa(i)})
 		if err != nil {
@@ -63,7 +64,9 @@ func (c *Client) infraHostRecords() ([]infraHostRecord, error) {
 		}
 		mac, err := net.ParseMAC(strings.TrimSpace(entry["NewMACAddress"]))
 		if err != nil || len(mac) != 6 {
-			return nil, errors.New("fritzbox host identity is invalid")
+			// Entries without a usable MAC (VPN/WireGuard peers, remote or
+			// IPv6-only entries) cannot be keyed or acted on; skip them.
+			continue
 		}
 		host := HostEntry{
 			MACAddress: strings.ToUpper(mac.String()),
@@ -72,9 +75,35 @@ func (c *Client) infraHostRecords() ([]infraHostRecord, error) {
 			Active:     entry["NewActive"] == "1",
 			Interface:  strings.TrimSpace(entry["NewInterfaceType"]),
 		}
-		records = append(records, infraHostRecord{entry: host, key: c.infraHostKey(host.MACAddress)})
+		record := infraHostRecord{entry: host, key: c.infraHostKey(host.MACAddress)}
+		// One record per MAC: the key is derived from it, and a repeated key
+		// would make the Infra source reject the whole observation.
+		if at, seen := positions[record.key]; seen {
+			if infraHostBetter(record.entry, records[at].entry) {
+				records[at] = record
+			}
+			continue
+		}
+		positions[record.key] = len(records)
+		records = append(records, record)
+	}
+	if count > 0 && len(records) == 0 {
+		// A firmware that stops reporting MACs must not make every Fritz!Box
+		// host look removed to callers that diff successive observations.
+		return nil, errors.New("fritzbox hosts carry no usable MAC address")
 	}
 	return records, nil
+}
+
+// infraHostBetter reports whether candidate should replace current for the same
+// MAC: an active entry beats an inactive one, then one with an IP address beats
+// one without. Ties keep the earlier entry, so the choice depends only on the
+// order the router reported.
+func infraHostBetter(candidate, current HostEntry) bool {
+	if candidate.Active != current.Active {
+		return candidate.Active
+	}
+	return candidate.IPAddress != "" && current.IPAddress == ""
 }
 
 func (c *Client) infraHostKey(mac string) string {
@@ -83,8 +112,13 @@ func (c *Client) infraHostKey(mac string) string {
 	return "fbh1_" + hex.EncodeToString(sum[:])
 }
 
-// InfraHosts enumerates all Fritz!Box Hosts entries. It fails the whole
-// observation on a partial list so callers cannot infer removals from it.
+// InfraHosts enumerates all Fritz!Box Hosts entries that carry a usable MAC
+// address. Entries without one (VPN peers, remote or IPv6-only entries) are
+// skipped because they can be neither keyed nor acted on; repeated MACs
+// collapse to the best entry (active, then with an IP address, then first).
+// A SOAP failure on the
+// count or on any entry fails the whole observation, as does a table whose
+// entries all lack a MAC, so callers cannot infer removals from a partial list.
 func (c *Client) InfraHosts() ([]InfraHost, error) {
 	records, err := c.infraHostRecords()
 	if err != nil {

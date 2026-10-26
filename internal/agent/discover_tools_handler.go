@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -32,6 +34,12 @@ type DiscoverToolsResponse struct {
 	Manual   string               `json:"manual,omitempty"`
 	Error    string               `json:"error,omitempty"`
 	Category string               `json:"category,omitempty"`
+
+	NoResults       bool     `json:"no_results,omitempty"`
+	Suggestions     []string `json:"suggestions,omitempty"`
+	ValidCategories []string `json:"valid_categories,omitempty"`
+	CursorReset     bool     `json:"cursor_reset,omitempty"`
+	Notice          string   `json:"notice,omitempty"`
 }
 
 type DiscoverCategory struct {
@@ -70,9 +78,15 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		budget = min(budget, cfg.Agent.ToolOutputLimit)
 	}
 	revision := catalogRevision(catalog)
-	category := strings.TrimSpace(stringValueFromMap(tc.Params, "category", "category_name", "cat"))
+	category := strings.ToLower(strings.TrimSpace(stringValueFromMap(tc.Params, "category", "category_name", "cat")))
 	if op == "list_categories" && category != "" {
 		op = "list_family"
+	}
+	// suggest names enabled tools the run may call that resemble a query that found nothing.
+	suggest := func(query string) []string {
+		return discoverySuggestions(catalog, query, 3, func(entry *ToolCatalogEntry) bool {
+			return entry.Enabled && !isDiscoveryMetaTool(entry.Name) && (dc == nil || catalogEntryAllowed(dc, entry))
+		})
 	}
 	switch op {
 	case "list_categories":
@@ -83,8 +97,8 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		categories := make([]DiscoverCategory, 0, len(counts))
 		for name, count := range counts {
 			purpose := strings.ReplaceAll(name, "_", " ")
-			if entries := catalog.ByCategory(name); len(entries) > 0 {
-				purpose = truncateUTF8ToLimit(entries[0].Description, 80, "...")
+			if entries := catalog.ByCategory(name); len(entries) > 0 && strings.TrimSpace(entries[0].Description) != "" {
+				purpose = fenceDiscoveryText(truncateUTF8ToLimit(entries[0].Description, 80, "..."))
 			}
 			categories = append(categories, DiscoverCategory{Name: name, Count: count, Purpose: purpose})
 		}
@@ -94,28 +108,53 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		query := truncateUTF8ToLimit(strings.TrimSpace(stringValueFromMap(tc.Params, "query", "q", "search_query", "keyword")), 512, "")
 		var results []DiscoverToolResult
 		if op == "list_family" {
+			if category != "" && len(catalog.ByCategory(category)) == 0 {
+				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "unknown_category", ValidCategories: discoveryValidCategories(catalog), Summary: "Use list_categories or one of valid_categories."}, budget)
+			}
 			query = category
 			results = discoverySummaryResults(catalog.ByCategory(category), sessionID)
 		} else {
 			if query == "" {
 				return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "query_required"})
 			}
-			entries := catalog.Search(query)
+			var entries []*ToolCatalogEntry
 			if dc != nil {
-				entries = catalog.SearchContext(ctx, query, dc.LongTermMem)
+				entries = discoverySearchEntries(ctx, catalog, tc, dc, sessionID, revision, query)
+			} else {
+				entries = catalog.Search(query)
 			}
 			results = discoverySummaryResults(entries, sessionID)
 			if entry, ok := catalog.Get("composio_call"); ok && entry.Enabled {
 				results = append(results, discoverComposioServiceSearchResults(cfg, query)...)
 			}
+			if len(results) == 0 {
+				// A success flagged no_results: a dedicated status would be
+				// classified as unknown and recorded as an unknown action.
+				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "success", NoResults: true, Revision: revision, Suggestions: suggest(query), Summary: "No tools matched. Try list_categories, a shorter keyword, or one of the suggestions."}, budget)
+			}
 		}
-		data, _ := json.Marshal(results)
-		revision = fmt.Sprintf("%x", sha256.Sum256(append([]byte(revision), data...)))[:16]
+		// Only names and kinds identify the result set: status, call_method and
+		// callable_now flip with the adaptive filter and must not invalidate cursors.
+		identity := []byte(revision)
+		for _, result := range results {
+			identity = append(identity, (result.Name + "\x00" + result.Kind + "\n")...)
+		}
+		revision = fmt.Sprintf("%x", sha256.Sum256(identity))[:16]
 		return discoveryPage(tc, results, revision, discoveryQueryKey(op, query), budget)
 	case "get_tool_info":
-		name := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
+		name := discoveryToolName(tc)
 		if entry, ok := catalog.Get(resolveDiscoverToolName(name)); ok {
 			result := discoverResultFromEntry(entry, sessionID, true)
+			result.Description = fenceDiscoveryText(result.Description)
+			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
+				entry.Schema.Function != nil && catalogEntryAllowed(dc, entry) {
+				// The lookup above queued the schema for the next request, so the
+				// tool itself is callable. The queue is not a guarantee (caps,
+				// budget shedding or a finalizing step can drop the schema), so
+				// the instruction names invoke_tool as the fallback.
+				result.CallMethod, result.CallableNow = "direct", true
+				result.Instruction = fmt.Sprintf("The %s schema is queued for your next request: call %s directly. If it is not in your tool list then, call invoke_tool with tool_name=%s.", entry.Name, entry.Name, entry.Name)
+			}
 			response := DiscoverToolsResponse{Status: "success", Revision: revision, Tool: &result, Summary: "Use get_manual to retrieve workflow guidance separately."}
 			budget = 50000
 			if cfg != nil && cfg.Agent.ToolOutputLimit > 0 {
@@ -135,9 +174,9 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "success", Tool: &service}, budget)
 			}
 		}
-		return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "unknown_or_ambiguous_tool", Summary: "Use search to choose an exact namespaced tool ID."}, budget)
+		return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "unknown_or_ambiguous_tool", Suggestions: suggest(name), Summary: "Use search to choose an exact namespaced tool ID."}, budget)
 	case "get_manual":
-		name := strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool"))
+		name := discoveryToolName(tc)
 		entry, ok := catalog.Get(name)
 		if !ok {
 			if serviceID := exactComposioServiceID(cfg, name); serviceID != "" {
@@ -155,19 +194,57 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		}
 		key := discoveryQueryKey(op, name)
 		digest := fmt.Sprintf("%x", sha256.Sum256([]byte(guide)))[:16]
-		offset, err := discoveryOffset(tc, digest, key)
-		if err != "" || offset > len(guide) {
-			return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "manual_cursor_invalid_or_changed"})
+		offset, reset := discoveryOffset(tc, digest, key)
+		if offset > len(guide) || offset < len(guide) && !utf8.RuneStart(guide[offset]) {
+			offset, reset = 0, true
 		}
-		part := truncateUTF8Prefix(guide[offset:], max(1, (budget-600)/6))
-		response := DiscoverToolsResponse{Status: "success", Revision: digest, Manual: part}
-		if offset+len(part) < len(guide) {
-			response.NextCursor = nextDiscoveryCursor(digest, key, offset+len(part))
+		// A page must reach the model whole: never size it past what the output vault would archive.
+		if dc != nil {
+			budget = min(budget, toolResultInlineBudget(dc))
 		}
-		return discoveryJSONWithinBudget(response, budget)
+		page, ok := discoveryManualPage(guide, offset, reset, digest, key, budget)
+		if !ok {
+			return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "output_budget_too_small", Revision: digest})
+		}
+		return page
 	default:
 		return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "unknown_operation", Summary: "Use list_categories, list_family, search, get_tool_info or get_manual."})
 	}
+}
+
+// discoverySearchEntries ranks a search with the manual index. The order of the
+// first page is kept, and the pages that follow it (a request with a cursor)
+// reuse it: the manual search can fail or time out on one call and succeed on
+// the next, and a different order would change the result identity and reset
+// the cursor. The manual search adds only tools the run may call.
+func discoverySearchEntries(ctx context.Context, catalog *ToolCatalog, tc ToolCall, dc *DispatchContext, sessionID, revision, query string) []*ToolCatalogEntry {
+	key := discoverSearchKey{session: sessionID, query: discoveryQueryKey("search", query), revision: revision}
+	if discoveryCursorParam(tc) != "" {
+		if names, ok := recallDiscoverSearchOrder(key); ok {
+			entries := make([]*ToolCatalogEntry, 0, len(names))
+			for _, name := range names {
+				if entry, ok := catalog.Get(name); ok {
+					entries = append(entries, entry)
+				}
+			}
+			return entries
+		}
+	}
+	entries := catalog.SearchContext(ctx, query, dc.LongTermMem, func(entry *ToolCatalogEntry) bool { return catalogEntryAllowed(dc, entry) })
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name)
+	}
+	rememberDiscoverSearchOrder(key, names)
+	return entries
+}
+
+// discoveryToolNameLimit bounds a tool name a request carries and the query of
+// a suggestion; no tool, alias or Composio service is named longer.
+const discoveryToolNameLimit = 512
+
+func discoveryToolName(tc ToolCall) string {
+	return truncateUTF8ToLimit(strings.TrimSpace(stringValueFromMap(tc.Params, "tool_name", "name", "tool")), discoveryToolNameLimit, "")
 }
 
 func discoverComposioServiceSearchResults(cfg *config.Config, query string) []DiscoverToolResult {
@@ -272,7 +349,7 @@ func composioServiceResult(cfg *config.Config, slug string) DiscoverToolResult {
 		Kind:            "composio_service",
 		ToolStatus:      state,
 		ReadOnly:        readOnly,
-		Description:     fmt.Sprintf("Use the selected Composio %s toolkit through composio_call.", slug),
+		Description:     fenceDiscoveryText(fmt.Sprintf("Use the selected Composio %s toolkit through composio_call.", slug)),
 		CallMethod:      "composio_call",
 		CallableNow:     state == "connected",
 		SchemaAvailable: false,
@@ -303,6 +380,16 @@ func discoverToolsLogInfo(logger *slog.Logger, msg string, args ...any) {
 	if logger != nil {
 		logger.Info(msg, args...)
 	}
+}
+
+// fenceDiscoveryText isolates catalog, MCP and skill blurbs. Names, call
+// methods and schema parameter JSON stay outside this fence.
+func fenceDiscoveryText(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	return security.IsolateExternalData(text)
 }
 
 func discoverResultsFromEntries(entries []*ToolCatalogEntry, sessionID string, markHidden bool) []DiscoverToolResult {
@@ -428,7 +515,7 @@ func formatDiscoverToolGroupInfo(query string, activeNames, enabledNames map[str
 		if activeNames[r.Entry.Name] {
 			status = "●"
 		}
-		sb.WriteString(fmt.Sprintf("  %s %s [%s] - %s\n", status, r.Entry.Name, r.Category, r.Entry.ShortDesc))
+		sb.WriteString(fmt.Sprintf("  %s %s [%s] - %s\n", status, r.Entry.Name, r.Category, fenceDiscoveryText(r.Entry.ShortDesc)))
 	}
 	sb.WriteString("\n● = active   ○ = enabled but hidden by adaptive filtering")
 	sb.WriteString("\nUse get_tool_info with one exact tool name above, then call that exact tool.")

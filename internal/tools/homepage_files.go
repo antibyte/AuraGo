@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 // ─── File Operations ──────────────────────────────────────────────────────
@@ -23,6 +24,9 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 			return errJSON("%v", err)
 		}
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	logger.Info("[Homepage] ListFiles", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
@@ -33,12 +37,22 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 	}
 
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
+	containerPath := shellSingleQuote(homepageWorkspaceMount + "/" + path)
 	// Warm up the kernel directory entry cache inside the container before listing.
 	// When files are written to the bind-mounted workspace by the host process, the
 	// container's view of that directory can occasionally lag until an inode lookup is
-	// forced — stat on the target path triggers that lookup reliably.
-	DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("stat /workspace/%s > /dev/null 2>&1 || true", path), "")
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find /workspace/%s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", path), "")
+	// forced — stat on the target path triggers that lookup reliably. A failing stat
+	// means the directory cannot be listed, so the listing fails instead of returning
+	// an empty result.
+	statResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("stat %s > /dev/null", containerPath), "")
+	if err := homepageDockerExecFailure(statResult); err != nil {
+		return errJSON("list files failed for %s: %v", path, err)
+	}
+	listResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find %s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", containerPath), "")
+	if err := homepageDockerExecFailure(listResult); err != nil {
+		return errJSON("list files failed for %s: %v", path, err)
+	}
+	return listResult
 }
 
 // homepageListFilesLocal performs the local (non-Docker) directory listing.
@@ -139,6 +153,9 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	logger.Info("[Homepage] ReadFile", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost, cfg.Context) {
@@ -149,7 +166,12 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 	}
 
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
+	content, err := homepageReadDockerFile(dockerCfg, path)
+	if err != nil {
+		return errJSON("read file failed for %s: %v", path, err)
+	}
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "container_id": homepageContainerName, "output": content, "exit_code": 0})
+	return string(out)
 }
 
 // homepageReadFileLocal reads a file from the host filesystem in the local (non-Docker)
@@ -195,6 +217,9 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	if err := validateHomepageSourceEditPath(path); err != nil {
 		return errJSON("%v", err)
 	}
@@ -220,26 +245,20 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 		if mkErr := os.MkdirAll(filepath.Dir(fullPath), 0755); mkErr != nil {
 			return errJSON("Failed to create directory: %v", mkErr)
 		}
-		if writeErr := os.WriteFile(fullPath, []byte(content), 0644); writeErr != nil {
+		if writeErr := fileutil.WriteFileContext(nativeHTTPContext(cfg.Context), fullPath, []byte(content), 0644); writeErr != nil {
 			return errJSON("Failed to write file: %v", writeErr)
 		}
 		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
 		return string(out)
 	}
 
-	// Use base64 to safely pass content through shell
-	encoded := base64.StdEncoding.EncodeToString([]byte(content))
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	projectDir := homepageProjectDirFromPath(path)
 	if err := homepageEnsureProjectWritable(dockerCfg, projectDir, logger); err != nil {
 		return errJSON("Homepage project %q is not writable and automatic permission repair failed: %v", projectDir, err)
 	}
-	// Ensure parent directory exists
-	dir := pathpkgDir(path)
-	cmd := fmt.Sprintf("mkdir -p /workspace/%s && printf '%%s' '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, cmd, "")
-	if errMsg := homepageDockerExecErrorMessage(result); errMsg != "" {
-		return errJSON("write file failed for %s: %s", path, errMsg)
+	if err := homepageWriteDockerFile(dockerCfg, path, content); err != nil {
+		return errJSON("write file failed for %s: %v", path, err)
 	}
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
 	return string(out)
@@ -267,6 +286,9 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return errJSON("%v", err)
+	}
 	if err := validateHomepageSourceEditPath(path); err != nil {
 		return errJSON("%v", err)
 	}
@@ -280,27 +302,18 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 		if cfg.WorkspacePath == "" {
 			return homepageWorkspacePathNotConfiguredJSON()
 		}
-		fullPath, err := resolveHomepagePath(cfg.WorkspacePath, path)
+		_, err := resolveHomepagePath(cfg.WorkspacePath, path)
 		if err != nil {
 			return errJSON("%v", err)
 		}
-		return ExecuteFileEditor(operation, path, old, new_, marker, content, startLine, endLine, 0, filepath.Dir(fullPath))
+		return ExecuteFileEditor(operation, path, old, new_, marker, content, startLine, endLine, 0, cfg.WorkspacePath)
 	}
 
 	// Docker: read file from container, apply edit in Go, write back
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-
-	// DockerExec returns JSON; try to detect errors
-	var readResp map[string]interface{}
-	if err := json.Unmarshal([]byte(readResult), &readResp); err == nil {
-		if status, ok := readResp["status"].(string); ok && status == "error" {
-			return readResult
-		}
-		// If there's an "output" field, use that
-		if output, ok := readResp["output"].(string); ok {
-			readResult = output
-		}
+	readResult, err := homepageReadDockerFile(dockerCfg, path)
+	if err != nil {
+		return errJSON("edit file read failed for %s: %v", path, err)
 	}
 
 	// Apply the edit operation on the content
@@ -309,36 +322,8 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 		return editErr
 	}
 
-	// Write back via base64 and verify success.
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	result := DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
-	// Check for DockerExec errors via JSON status field.
-	var execResult map[string]interface{}
-	if err := json.Unmarshal([]byte(result), &execResult); err == nil {
-		if status, ok := execResult["status"].(string); ok && status == "error" {
-			errMsg, _ := execResult["error"].(string)
-			output, _ := execResult["output"].(string)
-			exitCode, _ := execResult["exit_code"].(float64)
-			details := errMsg
-			if details == "" && output != "" {
-				details = strings.TrimSpace(output)
-			}
-			if details == "" {
-				details = fmt.Sprintf("exit_code=%d (likely a permissions error inside the container — run homepage init to recreate the container)", int(exitCode))
-			}
-			return errJSON("edit file write failed for %s: %s", path, details)
-		}
-		// Also catch non-zero exit codes that don't set status=error
-		if exitCode, ok := execResult["exit_code"].(float64); ok && exitCode != 0 {
-			output, _ := execResult["output"].(string)
-			details := strings.TrimSpace(output)
-			if details == "" {
-				details = fmt.Sprintf("exit_code=%d (likely a permissions error — run homepage init to recreate the container)", int(exitCode))
-			}
-			return errJSON("edit file write failed for %s: %s", path, details)
-		}
+	if err := homepageWriteDockerFile(dockerCfg, path, edited); err != nil {
+		return errJSON("edit file write failed for %s: %v", path, err)
 	}
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "operation": operation})
 	return string(out)
@@ -550,6 +535,6 @@ func applyHomepageEdit(text, operation, old, new_, marker, content string, start
 		return strings.Join(newLines, "\n"), ""
 
 	default:
-		return "", errJSON("unknown edit operation: %s", operation)
+		return "", errJSON("unknown edit operation: %s; use sub_operation: str_replace, str_replace_all, insert_after, insert_before, append, prepend, or delete_lines", operation)
 	}
 }

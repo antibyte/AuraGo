@@ -65,4 +65,38 @@ func TestChatFrontend_GalaxyFrameStaysSymmetric(t *testing.T) {
 	if strings.Contains(script, "galaxy-motto") {
 		t.Fatal("js/chat/galaxy-interface.js must not create the retired mottos")
 	}
+
+	sceneContent, err := os.ReadFile(filepath.Join("js", "chat", "galaxy-scene.js"))
+	if err != nil {
+		t.Fatalf("read galaxy-scene.js: %v", err)
+	}
+	scene := string(sceneContent)
+	for _, marker := range []string{
+		`float aurora =`,
+		`stormFlash`,
+		`cityShimmer`,
+		`nebulaWave`,
+		`thrusterPulse`,
+		`navStrobe`,
+		`pointerGoal`,
+		`--galaxy-mx`,
+	} {
+		if !strings.Contains(scene, marker) {
+			t.Fatalf("js/chat/galaxy-scene.js missing polish marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		`--galaxy-mx: 50%;`,
+		`@keyframes galaxyRimBreath`,
+		`@keyframes galaxyOrbFloat`,
+		`@keyframes galaxyStatusPulse`,
+		`@keyframes galaxySendBreath`,
+		`@keyframes galaxyMsgEnter`,
+		`@media (prefers-reduced-motion: no-preference)`,
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("chat-galaxy.css section missing polish marker %q", marker)
+		}
+	}
 }

@@ -14,6 +14,8 @@ func TestDesktopPixelSaveFilterI18n(t *testing.T) {
 	for _, want := range []string{
 		"label: this.t('desktop.file_dialog_png')",
 		"label: this.t('desktop.file_dialog_jpeg')",
+		// The OpenRaster project type goes through the module's text helper so it reads in English until the key is translated.
+		"'desktop.file_dialog_ora', 'OpenRaster project (.ora)'",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("pixel save dialog missing %s", want)

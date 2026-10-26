@@ -173,6 +173,11 @@
         let shownStep;
         let shownNode = null;
         let shownData = null;
+        // Tabs name the panel they show (aria-controls) and each panel its tab (U6). Ids carry the window id.
+        const tabId = (kind, id) => 'ed-' + kind + '-tab-' + ed.windowId + '-' + id;
+        const panelId = (kind, id) => 'ed-' + kind + '-' + ed.windowId + '-' + id;
+        const tab = (kind, id, data, label) => '<button type="button" role="tab" id="' + esc(tabId(kind, id)) + '" aria-controls="' + esc(panelId(kind, id)) + '" ' + data + '="' + id + '">' + esc(label) + '</button>';
+        const panel = (kind, id) => ' role="tabpanel" id="' + esc(panelId(kind, id)) + '" aria-labelledby="' + esc(tabId(kind, id)) + '"';
         const el = core.el('<aside class="ed-detail-backdrop"><div class="ed-detail" role="region">' +
             '<header class="ed-detail-head">' +
             '<button type="button" class="ed-icon-btn ed-detail-back" data-ed-detail-back aria-label="' + esc(t('easydrag.ui.inspector_back')) + '" title="' + esc(t('easydrag.ui.inspector_back')) + '">' + core.icon('arrow-left') + '</button>' +
@@ -181,21 +186,21 @@
             '<span class="ed-detail-tile"></span><div class="ed-detail-title"><input class="ed-detail-label" aria-label="' + esc(t('easydrag.ui.detail_label')) + '"><span class="ed-detail-type"></span></div>' +
             '<span class="ed-detail-status"></span>' +
             '<div class="ed-detail-actions"><button type="button" class="ed-btn" data-ed-detail-test>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.detail_test')) + '</span></button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-detail-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close')) + ' (Esc)">' + core.icon('x') + '</button></div></header>' +
-            '<div class="ed-detail-tabs" role="tablist">' + ['input', 'params', 'output'].map(id => '<button type="button" role="tab" data-ed-narrow="' + id + '">' + esc(t('easydrag.ui.detail_' + (id === 'params' ? 'parameters' : id))) + '</button>').join('') + '</div>' +
+            '<button type="button" class="ed-icon-btn" data-ed-detail-close aria-label="' + esc(t('easydrag.ui.close')) + '" title="' + esc(t('easydrag.ui.close_hint', { key: 'Esc' })) + '">' + core.icon('x') + '</button></div></header>' +
+            '<div class="ed-detail-tabs" role="tablist">' + ['input', 'params', 'output'].map(id => tab('col', id, 'data-ed-narrow', t('easydrag.ui.detail_' + (id === 'params' ? 'parameters' : id)))).join('') + '</div>' +
             '<div class="ed-detail-body">' +
-            '<section class="ed-detail-col" data-col="input"></section>' +
-            '<section class="ed-detail-col" data-col="params"><div class="ed-subtabs" role="tablist">' +
-            '<button type="button" role="tab" data-ed-pane="params">' + esc(t('easydrag.ui.detail_parameters')) + '</button>' +
-            '<button type="button" role="tab" data-ed-pane="settings">' + esc(t('easydrag.ui.detail_settings')) + '</button>' +
-            '<button type="button" role="tab" data-ed-pane="note">' + esc(t('easydrag.ui.detail_note')) + '</button></div>' +
-            '<div class="ed-detail-pane" data-pane="params"></div><div class="ed-detail-pane" data-pane="settings" hidden></div><div class="ed-detail-pane" data-pane="note" hidden></div></section>' +
-            '<section class="ed-detail-col" data-col="output"><div class="ed-col-head">' +
+            '<section class="ed-detail-col" data-col="input"' + panel('col', 'input') + '></section>' +
+            '<section class="ed-detail-col" data-col="params"' + panel('col', 'params') + '><div class="ed-subtabs" role="tablist">' +
+            tab('pane', 'params', 'data-ed-pane', t('easydrag.ui.detail_values')) +
+            tab('pane', 'settings', 'data-ed-pane', t('easydrag.ui.detail_settings')) +
+            tab('pane', 'note', 'data-ed-pane', t('easydrag.ui.detail_note')) + '</div>' +
+            '<div class="ed-detail-pane" data-pane="params"' + panel('pane', 'params') + '></div><div class="ed-detail-pane" data-pane="settings"' + panel('pane', 'settings') + ' hidden></div><div class="ed-detail-pane" data-pane="note"' + panel('pane', 'note') + ' hidden></div></section>' +
+            '<section class="ed-detail-col" data-col="output"' + panel('col', 'output') + '><div class="ed-col-head">' +
             '<h3 data-ed-output-title>' + esc(t('easydrag.ui.detail_output')) + '</h3>' +
-            '<div class="ed-seg ed-seg--small" role="radiogroup" data-ed-subject-group hidden>' +
+            '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.detail_output')) + '" data-ed-subject-group hidden>' +
             '<button type="button" role="radio" data-ed-subject="output">' + esc(t('easydrag.ui.detail_output')) + '</button>' +
             '<button type="button" role="radio" data-ed-subject="params">' + esc(t('easydrag.ui.detail_resolved_params')) + '</button></div>' +
-            '<div class="ed-col-tools"><div class="ed-seg ed-seg--small" role="radiogroup">' +
+            '<div class="ed-col-tools"><div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.output_view_label')) + '">' +
             ['tree', 'table', 'json'].map(v => '<button type="button" role="radio" data-ed-view="' + v + '">' + esc(t('easydrag.ui.view_' + v)) + '</button>').join('') + '</div>' +
             '<button type="button" class="ed-icon-btn" data-ed-copy-json aria-label="' + esc(t('easydrag.ui.copy_json')) + '" title="' + esc(t('easydrag.ui.copy_json')) + '" hidden>' + core.icon('copy') + '</button></div></div>' +
             '<div class="ed-output-status"></div><div class="ed-output"></div></section>' +
@@ -343,9 +348,92 @@
                 ed.model.setSettings(id, { retry: count ? { count, delay_seconds: delay } : undefined, timeout_seconds: timeout });
             });
             host.appendChild(retry);
+            // WCAG 2.5.7 (U10): the step moves without dragging. Whole pixels; an empty or broken value
+            // is refused and the current position shown again. Each change is one undo step.
+            const pos = node.position || { x: 0, y: 0 };
+            const posId = 'ed-pos-' + ed.windowId + '-' + id;
+            const place = core.el('<div class="ed-field" data-ed-position><div class="ed-field-head"><label id="' + esc(posId) + '">' + esc(t('easydrag.ui.settings_position')) + '</label></div>' +
+                '<div class="ed-input-unit ed-input-unit--pair" role="group" aria-labelledby="' + esc(posId) + '">' +
+                '<label>' + esc(t('easydrag.ui.settings_position_x')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="x" value="' + esc(pos.x) + '"' + (ro ? ' disabled' : '') + '></label>' +
+                '<label>' + esc(t('easydrag.ui.settings_position_y')) + ' <input type="number" step="1" class="ed-input" data-ed-pos="y" value="' + esc(pos.y) + '"' + (ro ? ' disabled' : '') + '></label></div>' +
+                '<p class="ed-hint">' + esc(t('easydrag.ui.settings_position_hint')) + '</p></div>');
+            place.addEventListener('change', () => {
+                const input = k => place.querySelector('[data-ed-pos="' + k + '"]');
+                const current = ed.model.node(id);
+                if (!current || ed.readonly || ed.runView) return;
+                const x = Number(input('x').value);
+                const y = Number(input('y').value);
+                if (input('x').value === '' || input('y').value === '' || !Number.isFinite(x) || !Number.isFinite(y)) {
+                    input('x').value = String(current.position.x);
+                    input('y').value = String(current.position.y);
+                    return;
+                }
+                ed.model.moveNodes({ [id]: { x: Math.round(x), y: Math.round(y) } });
+                const moved = ed.model.node(id);
+                if (moved) { input('x').value = String(moved.position.x); input('y').value = String(moved.position.y); }
+            });
+            host.appendChild(place);
             const disabled = core.el('<div class="ed-field ed-field--inline"><label>' + esc(t('easydrag.ui.settings_disabled')) + '</label></div>');
             disabled.appendChild(ED.fields.toggle(fenv, !!s.disabled, () => ed.model.toggleDisabled([id]), t('easydrag.ui.settings_disabled')));
             host.appendChild(disabled);
+            const titleId = 'ed-conns-' + ed.windowId + '-' + id;
+            host.appendChild(core.el('<section class="ed-conns" data-ed-connections aria-labelledby="' + esc(titleId) + '">' +
+                '<h3 class="ed-conns-title" id="' + esc(titleId) + '" tabindex="-1" data-ed-conns-title>' + esc(t('easydrag.ui.connections_title')) + '</h3>' +
+                '<ul class="ed-conns-list" role="list"></ul><p class="ed-hint" data-ed-conns-empty hidden>' + esc(t('easydrag.ui.connections_none')) + '</p></section>'));
+            renderConnections();
+        }
+
+        // ── connections of the step ─────────────────────────────────────────────
+
+        // The settings pane ends with the step's connections, incoming first: the keyboard way to see
+        // and remove a wire, or to put a step into it. The canvas offers these on hover only. The port
+        // is the one the wire leaves (the other step's for an incoming wire, this step's for an outgoing one).
+        function connectionRows() {
+            const out = [];
+            const name = n => n.label || n.type;
+            const add = (e, dir) => {
+                const from = ed.model.node(e.source.node);
+                const to = ed.model.node(e.target.node);
+                if (!from || !to) return;
+                out.push({ id: e.id, dir, other: name(dir === 'in' ? from : to), from: name(from), to: name(to), port: ED.canvas.portLabel(t, from, e.source.port) });
+            };
+            ed.model.incoming(node.id).forEach(e => add(e, 'in'));
+            ed.model.outgoing(node.id).forEach(e => add(e, 'out'));
+            return out;
+        }
+
+        const connectionButtons = kind => Array.from(el.querySelectorAll('[data-ed-conn-' + kind + ']'));
+
+        // focusConnection puts the focus on the button of that kind for the wire (still there), else on
+        // the one now at the same place in the list (the next row, or the last), else on the heading.
+        function focusConnection(kind, index, wire) {
+            const list = connectionButtons(kind);
+            const key = kind === 'remove' ? 'edConnRemove' : 'edConnInsert';
+            const target = (wire && list.find(b => b.dataset[key] === wire)) || list[Math.min(index, list.length - 1)] || el.querySelector('[data-ed-conns-title]');
+            if (target) target.focus({ preventScroll: true });
+        }
+
+        // renderConnections draws the rows again when they changed. A redraw replaces the button that has
+        // the focus: the focus stays in the list.
+        function renderConnections() {
+            const section = el.querySelector('[data-ed-connections]');
+            if (!section) return;
+            const ro = !!(ed.readonly || ed.runView);
+            const rows = connectionRows();
+            const signature = JSON.stringify([ro, rows]);
+            if (section.dataset.edSig === signature) return;
+            section.dataset.edSig = signature;
+            const active = document.activeElement;
+            const held = ['remove', 'insert'].map(kind => ({ kind, at: connectionButtons(kind).indexOf(active) })).find(x => x.at >= 0);
+            const wire = held ? (active.dataset.edConnRemove || active.dataset.edConnInsert) : '';
+            const button = (r, kind, icon, text) => '<button type="button" class="ed-icon-btn" data-ed-conn-' + kind + '="' + esc(r.id) + '" title="' + esc(text) + '" aria-label="' + esc(text) + '">' + core.icon(icon) + '</button>';
+            section.querySelector('ul').innerHTML = rows.map(r => '<li class="ed-conn" data-ed-conn="' + esc(r.id) + '" data-ed-conn-dir="' + r.dir + '">' +
+                '<span class="ed-conn-text">' + esc(t(r.dir === 'in' ? 'easydrag.ui.connections_from' : 'easydrag.ui.connections_to', { name: r.other })) + '</span>' +
+                '<span class="ed-chip ed-chip--muted ed-conn-port">' + esc(r.port) + '</span>' +
+                (ro ? '' : button(r, 'insert', 'plus', t('easydrag.ui.connections_insert', { from: r.from, to: r.to })) + button(r, 'remove', 'x', t('easydrag.ui.connections_remove', { from: r.from, to: r.to }))) +
+                '</li>').join('');
+            section.querySelector('[data-ed-conns-empty]').hidden = rows.length > 0;
+            if (held) focusConnection(held.kind, held.at, wire);
         }
 
         // A typed note is saved 400 ms after the last key, or at once when the view moves to
@@ -445,6 +533,7 @@
             if (step.output && step.output.tokens) parts.push(esc(t('easydrag.ui.output_tokens', { count: (step.output.tokens.input || 0) + (step.output.tokens.output || 0) })));
             if (step.item_count) parts.push(esc(t('easydrag.ui.output_items', { count: step.item_count })));
             if (step.output_truncated) parts.push('<span class="ed-chip ed-chip--warn">' + esc(t('easydrag.ui.output_truncated')) + '</span>');
+            if (step.effect_uncertain) parts.push('<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.step_effect_uncertain_hint')) + '">' + esc(t('easydrag.ui.step_effect_uncertain')) + '</span>');
             status.innerHTML = parts.join(' · ');
             if (step.status === 'error' && outputSubject === 'output') {
                 out.innerHTML = '<div class="ed-callout ed-callout--error">' + core.icon('alert') + '<div><strong>' + esc(t('easydrag.ui.output_error')) + '</strong><p>' + esc(core.stepErrorText(t, step)) + '</p></div></div>';
@@ -488,7 +577,7 @@
         function applyPane() {
             el.querySelectorAll('[data-ed-pane]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.edPane === pane)));
             el.querySelectorAll('.ed-detail-pane').forEach(p => { p.hidden = p.dataset.pane !== pane; });
-            if (pane === 'settings') renderSettings();
+            if (pane === 'settings') { renderSettings(); renderConnections(); }
             if (pane === 'note') renderNote();
         }
 
@@ -568,6 +657,14 @@
             if (nav) { go(Number(nav.dataset.edNav)); return; }
             if (event.target.closest('[data-ed-detail-back]') || event.target.closest('[data-ed-detail-close]')) { closeSelf(); return; }
             if (event.target.closest('[data-ed-detail-test]')) { ed.bus.emit('node-test', { nodeId: node.id }); return; }
+            const rm = event.target.closest('[data-ed-conn-remove]');
+            if (rm) { if (!ed.readonly && !ed.runView) core.removeConnection(ed, rm.dataset.edConnRemove); return; }
+            const ins = event.target.closest('[data-ed-conn-insert]');
+            if (ins) {
+                const index = connectionButtons('insert').indexOf(ins);
+                if (!ed.readonly && !ed.runView) ED.palette.requestInsert(ed, ins.dataset.edConnInsert, ins, { restoreFocus: () => focusConnection('insert', index) });
+                return;
+            }
             const p = event.target.closest('[data-ed-pane]');
             if (p) { pane = p.dataset.edPane; applyPane(); return; }
             const nt = event.target.closest('[data-ed-narrow]');
@@ -617,6 +714,9 @@
             renderHead();
             if (form && (change.nodes.includes(node.id) || change.kind !== 'change')) form.refresh(node, roots(), ed.issues);
             if (pane === 'settings' && change.nodes.includes(node.id) && !el.querySelector('[data-pane="settings"]').contains(document.activeElement)) renderSettings();
+            // A wire added or removed, also one that touches no step (an undo of a disconnect), or a
+            // neighbour renamed: the connections list follows whatever the settings pane does.
+            if (pane === 'settings') renderConnections();
         }));
         // refreshData shows new run data in the input tree and the form previews.
         function refreshData() {

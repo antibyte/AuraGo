@@ -198,27 +198,26 @@ func provisionNativeRuntime(ctx context.Context, sourceRoot, dataRoot string) er
 
 func availableNativeRuntimeBundles(ctx context.Context, sourceRoot string) ([]string, error) {
 	var backends []string
+	var integrityErr error
 	for _, backend := range runtimeBackends(runtime.GOOS) {
-		if err := ctx.Err(); err != nil {
-			return nil, NewError(CodeCancelled, err)
+		source := filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
+		_, err := verifyNativeRuntimeCandidate(ctx, source, backend)
+		if ErrorCode(err) == CodeCancelled {
+			return nil, err
 		}
-		sourceDir := filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)
-		_, _, err := validateRuntimeManifest(ctx, sourceDir, backend, runtime.GOOS, runtime.GOARCH)
-		if err != nil {
-			if ctx.Err() != nil {
-				return nil, NewError(CodeCancelled, ctx.Err())
-			}
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, NewError(CodeRuntimeAttestationFailed, err)
+		if err == nil {
+			backends = append(backends, backend)
+		} else if ErrorCode(err) == CodeRuntimeAttestationFailed {
+			integrityErr = err
 		}
-		backends = append(backends, backend)
 	}
-	if len(backends) == 0 {
-		return nil, NewError(CodeRuntimeArtifactMissing, nil)
+	if len(backends) > 0 {
+		return backends, nil
 	}
-	return backends, nil
+	if integrityErr != nil {
+		return nil, integrityErr
+	}
+	return nil, NewError(CodeRuntimeArtifactMissing, nil)
 }
 
 func copyVerifiedRuntimeBundle(ctx context.Context, sourceDir, destinationDir string) error {

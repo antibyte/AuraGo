@@ -33,19 +33,8 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#overview")
 	defer page.MustClose()
 	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
-	// The config fixture supplies its own translation/runtime globals. Load the
-	// production router helpers without redeclaring those unrelated shared globals.
-	shared := normalizeAssetText(mustReadUIFile(t, "shared.js"))
-	start := strings.Index(shared, "// Content-free router metadata")
-	if start < 0 {
-		t.Fatal("router helpers missing")
-	}
-	end := strings.Index(shared[start:], "if (!window._auragoSharedInitialized)")
-	if end < 0 {
-		t.Fatal("shared initialization boundary missing")
-	}
-	if err := page.AddScriptTag("", shared[start:start+end]); err != nil {
-		t.Fatal(err)
+	if !page.MustEval(`()=>typeof window.AuraLLMRouteLabel==='function' && typeof window.AuraLLMRouteBadge==='function'`).Bool() {
+		t.Fatal("routing helpers missing from the shared script loaded by config.html")
 	}
 	page.MustEval(`async()=>{
         window.routerCalls=[];
@@ -67,7 +56,7 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
                 }
                 if(window.routerFailNextPreview) {window.routerFailNextPreview=false;return new Response('',{status:503});}
                 const source=body.classifier==='decisions'?'decisions':body.helper?'helper':'default';
-                return new Response(JSON.stringify({enabled:true,decision:{turn_id:'preview',area:source==='default'?'':'coding',source,reason:'selected',helper_useful:source==='default',decisions_useful:source==='default',provider:'main',model:'gpt-4o'}}));
+                return new Response(JSON.stringify({enabled:true,decision:{turn_id:'preview',area:source==='default'?'':'coding',source,reason:window.routerReason||'selected',retry_after_seconds:window.routerRetryAfter||0,helper_useful:source==='default',decisions_useful:source==='default',provider:'main',model:'gpt-4o'}}));
             }
             return previousFetch(url,opts);
         };
@@ -128,6 +117,9 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	page.MustEval(`async()=>{await selectSection('llm_router',{scrollBehavior:'auto'});}`)
 	page.MustEval(`()=>{const input=document.querySelector('[data-router-settings] textarea');input.value='Mach das passend';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-router-settings] .cfg-actions button').click();}`)
 	waitForJSBool(t, page, `()=>routerCalls.length===1 && !document.querySelectorAll('[data-router-settings] .cfg-actions button')[1].disabled`)
+	if !page.MustEval(`()=>document.querySelector('[data-router-settings] [role="status"]').textContent.includes(t('common.llm_router.default'))`).Bool() {
+		t.Fatal("local preview did not render the routing result")
+	}
 	if page.MustEval(`()=>routerCalls[0].helper`).Bool() {
 		t.Fatal("local preview called helper")
 	}
@@ -158,6 +150,16 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	}
 	page.MustEval(`async()=>{routerDecisionStatus={available:true,code:'available',backend:'provider',model:'test-decision-model'};document.querySelector('[data-path="llm_router.decisions_fallback"]').click();await saveConfig();}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decision-status]').textContent.includes('test-decision-model')`)
+	// Editing an example cannot reset the shared model cooldown; local tests remain usable.
+	page.MustEval(`()=>{window.routerOriginalNow=Date.now;window.routerClockOffset=0;Date.now=()=>routerOriginalNow()+routerClockOffset;routerRetryAfter=60;const input=document.querySelector('[data-router-settings] textarea');input.value='Mach das bitte passend';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-router-cooldown]').textContent.includes('60') && document.querySelector('[data-classifier="helper"]').disabled && document.querySelector('[data-classifier="decisions"]').disabled && !document.querySelector('[data-classifier="local"]').disabled`)
+	page.MustEval(`()=>{const input=document.querySelector('[data-router-settings] textarea');input.value='Anderes Beispiel';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>!document.querySelector('[data-classifier="local"]').disabled && document.querySelector('[data-classifier="decisions"]').disabled`)
+	page.MustEval(`()=>{routerClockOffset=61000;routerRetryAfter=0;document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>!document.querySelector('[data-classifier="decisions"]').disabled && document.querySelector('[data-router-cooldown]').hidden`)
+	page.MustEval(`()=>{Date.now=routerOriginalNow;routerReason='decisions_busy';document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-router-settings] [role="status"]').textContent.includes('ausgelastet')`)
+	page.MustEval(`()=>{routerReason=null;}`)
 	// A late result must not classify a newly edited example or enable paid tests.
 	page.MustEval(`()=>{routerHoldNextPreview=true;const input=document.querySelector('[data-router-settings] textarea');input.value='Alter Auftrag';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();}`)
 	waitForJSBool(t, page, `()=>typeof routerReleasePreview==='function'`)
@@ -167,6 +169,8 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{routerFailNextPreview=true;document.querySelector('[data-classifier="local"]').click();}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-router-settings] [role="status"]').textContent===t('common.error')`)
+	page.MustEval(`()=>{routerRetryAfter=60;document.querySelector('[data-classifier="local"]').click();}`)
+	waitForJSBool(t, page, `()=>!document.querySelector('[data-router-cooldown]').hidden`)
 	for _, width := range []int{390, 768, 1440} {
 		for _, theme := range []string{"dark", "light"} {
 			t.Run(fmt.Sprintf("%d/%s", width, theme), func(t *testing.T) {
@@ -197,16 +201,25 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 			})
 		}
 	}
+	page.MustEval(`()=>{routerRetryAfter=0;}`)
 	// Provider output must stay text, and a repeated event updates one badge.
 	if !page.MustEval(`()=>{const c=document.createElement('div');const d={turn_id:'1',area:'coding',source:'rules',reason:'selected',model:'<img src=x onerror=alert(1)>',provider:'test'};AuraLLMRouteBadge(c,d);AuraLLMRouteBadge(c,{...d,actual_model:'fallback'});return c.children.length===1 && !c.querySelector('img') && c.textContent.includes('fallback');}`).Bool() {
 		t.Fatal("unsafe or duplicate routing badge")
 	}
 	page.MustEval(`async()=>{routerDecisionStatus={available:false,code:'provider_not_configured',backend:'provider'};await selectSection('llm_router',{scrollBehavior:'auto'});}`)
 	waitForJSBool(t, page, `()=>document.querySelector('[data-decision-status]').textContent.includes('Zugangsdaten')`)
+	page.MustEval(`()=>{
+  window.routerTimerIDs=new Set();window.routerSetTimeout=setTimeout;window.routerClearTimeout=clearTimeout;
+  window.setTimeout=(fn,ms,...args)=>{const id=routerSetTimeout(()=>{routerTimerIDs.delete(id);fn(...args)},ms);if(ms===1000||ms===7000)routerTimerIDs.add(id);return id;};
+  window.clearTimeout=id=>{routerTimerIDs.delete(id);routerClearTimeout(id)};
+  routerRetryAfter=60;const input=document.querySelector('[data-router-settings] textarea');input.value='Wartefrist prüfen';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();
+ }`)
+	waitForJSBool(t, page, `()=>!document.querySelector('[data-router-cooldown]').hidden && !document.querySelector('[data-classifier="local"]').disabled`)
 	page.MustEval(`()=>{routerReleasePreview=null;routerHoldNextPreview=true;const input=document.querySelector('[data-router-settings] textarea');input.value='Noch ein Auftrag';input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-classifier="local"]').click();}`)
 	waitForJSBool(t, page, `()=>typeof routerReleasePreview==='function'`)
 	page.MustEval(`async()=>{await selectSection('overview',{scrollBehavior:'auto'});routerReleasePreview();await new Promise(r=>setTimeout(r,20));}`)
-	if !page.MustEval(`()=>routerLastPreviewSignal.aborted && !document.querySelector('[data-router-settings]')`).Bool() {
-		t.Fatal("disposed router retained preview activity")
+	if !page.MustEval(`()=>routerLastPreviewSignal.aborted && routerTimerIDs.size===0 && !document.querySelector('[data-router-settings]')`).Bool() {
+		t.Fatal("disposed router retained preview activity or timers")
 	}
+	page.MustEval(`()=>{window.setTimeout=routerSetTimeout;window.clearTimeout=routerClearTimeout;}`)
 }

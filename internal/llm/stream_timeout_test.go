@@ -18,11 +18,8 @@ func TestStreamAttemptTimeoutIsRequestLocalAndParentBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 		deadline, ok := client.captured.Deadline()
-		expected := explicit
-		if explicit == 0 {
-			expected = perAttemptTimeout()
-		}
-		expected = min(expected, 10*time.Minute)
+		// Once accepted, only the caller deadline remains active.
+		expected := 10 * time.Minute
 		if !ok || time.Until(deadline) > expected || time.Until(deadline) < expected-time.Second {
 			t.Fatalf("unexpected stream deadline %v for %v", time.Until(deadline), explicit)
 		}

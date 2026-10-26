@@ -285,6 +285,12 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 }
 
 func createVenvContext(ctx context.Context, workspaceDir string, logger *slog.Logger) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(workspaceDir, 0755); err != nil {
+		return fmt.Errorf("create Python workspace: %w", err)
+	}
 	candidates := []string{"python3", "python"}
 	if runtime.GOOS == "windows" {
 		candidates = []string{"python", "python3"}

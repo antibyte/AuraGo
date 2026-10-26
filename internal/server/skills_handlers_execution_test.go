@@ -112,3 +112,56 @@ func TestHandleTestSkillForbiddenWhenDisabled(t *testing.T) {
 		t.Fatalf("usage=%+v err=%v", used, err)
 	}
 }
+
+func TestApprovePythonSkillWarningRoute(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		status   tools.SecurityStatus
+		readOnly bool
+		method   string
+		want     int
+	}{
+		{"warning", tools.SecurityWarning, false, http.MethodPost, http.StatusOK},
+		{"read only", tools.SecurityWarning, true, http.MethodPost, http.StatusForbidden},
+		{"clean", tools.SecurityClean, false, http.MethodPost, http.StatusBadRequest},
+		{"dangerous", tools.SecurityDangerous, false, http.MethodPost, http.StatusBadRequest},
+		{"pending", tools.SecurityPending, false, http.MethodPost, http.StatusBadRequest},
+		{"wrong method", tools.SecurityWarning, false, http.MethodGet, http.StatusMethodNotAllowed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmp := t.TempDir()
+			db, err := tools.InitSkillsDB(filepath.Join(tmp, "skills.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = db.Close() })
+			mgr := tools.NewSkillManager(db, filepath.Join(tmp, "skills"), slog.Default())
+			entry, err := mgr.CreateSkillEntry("approval", "test", `def run(): return "ok"`, tools.SkillTypeUser, "test", "", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := mgr.UpdateSkillSecurity(entry.ID, tc.status, &tools.SecurityReport{}); err != nil {
+				t.Fatal(err)
+			}
+			cfg := &config.Config{}
+			cfg.WebConfig.Enabled = true
+			cfg.Tools.SkillManager.Enabled = true
+			cfg.Tools.SkillManager.ReadOnly = tc.readOnly
+			s := &Server{Cfg: cfg, SkillManager: mgr, Logger: slog.Default()}
+			mux := http.NewServeMux()
+			s.registerToolAPIRoutes(mux)
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, httptest.NewRequest(tc.method, "/api/skills/"+entry.ID+"/approve-warning", nil))
+			if rec.Code != tc.want {
+				t.Fatalf("status=%d want=%d body=%s", rec.Code, tc.want, rec.Body.String())
+			}
+			after, err := mgr.GetSkill(entry.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if after.WarningApproved != (tc.want == http.StatusOK) {
+				t.Fatalf("approval changed unexpectedly: %+v", after)
+			}
+		})
+	}
+}

@@ -295,8 +295,8 @@ func TestExecuteWithRetryReportsPerAttemptDeadlineAsProviderError(t *testing.T) 
 		t.Fatalf("health events len = %d, want 1: %+v", len(reporter.events), reporter.events)
 	}
 	event := reporter.events[0]
-	if event.ErrorCategory != ErrCategoryContextDeadline {
-		t.Fatalf("category = %q, want %q", event.ErrorCategory, ErrCategoryContextDeadline)
+	if event.ErrorCategory != ErrCategoryTemporaryTransport {
+		t.Fatalf("category = %q, want %q", event.ErrorCategory, ErrCategoryTemporaryTransport)
 	}
 	if event.PerAttemptTimeout != time.Millisecond {
 		t.Fatalf("per-attempt timeout = %s, want 1ms", event.PerAttemptTimeout)
@@ -309,7 +309,7 @@ func TestExecuteWithRetryReportsPerAttemptDeadlineAsProviderError(t *testing.T) 
 func TestSelectRetryWaitTimeUsesFirstIntervalForFirstRetry(t *testing.T) {
 	intervals := []time.Duration{10 * time.Second, 2 * time.Minute}
 	wait := selectRetryWaitTime(1, intervals, 5*time.Minute, errors.New("connection timeout"))
-	if wait != 10*time.Second {
+	if wait < 10*time.Second || wait > 11*time.Second {
 		t.Fatalf("first retry wait = %v, want 10s", wait)
 	}
 }
@@ -317,7 +317,7 @@ func TestSelectRetryWaitTimeUsesFirstIntervalForFirstRetry(t *testing.T) {
 func TestSelectRetryWaitTimeUsesFinalIntervalAfterConfiguredIntervals(t *testing.T) {
 	intervals := []time.Duration{10 * time.Second, 2 * time.Minute}
 	wait := selectRetryWaitTime(3, intervals, 5*time.Minute, errors.New("connection timeout"))
-	if wait != 5*time.Minute {
+	if wait < 5*time.Minute || wait > 330*time.Second {
 		t.Fatalf("third retry wait = %v, want 5m", wait)
 	}
 }

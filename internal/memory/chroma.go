@@ -30,6 +30,10 @@ type ToolGuideMeta struct {
 
 const markdownIndexerFingerprint = "markdown-rag-indexer-v2"
 
+// indexDocumentBatchSize is how many documents share one embedding deadline and one
+// published write while a collection is (re)built.
+const indexDocumentBatchSize = 16
+
 // IndexToolGuides reads all .md files in the tool folder and indexes them in ChromaDB.
 // It skips indexing if tool guides are already present, unless force is true.
 // Uses parallel batch indexing for speed.
@@ -45,8 +49,15 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// The run as a whole has no deadline: addDocumentsInBatches bounds every batch
+	// of tool guides separately, and the context ends when the vector DB closes.
+	ctx, cancel := cv.indexingContext()
 	defer cancel()
+	guideFiles, err := loadToolGuideFilesWithWarnings(toolsDir, cv.logger)
+	if err != nil {
+		return err
+	}
+	currentHash := "disclosure-v2:" + cv.computeToolGuidesHashSnapshot(guideFiles)
 
 	// Get or create collection for tool guides
 	cv.mu.Lock()
@@ -62,7 +73,6 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	// the hash differs → full re-index. Pure count-based check was insufficient
 	// because it could not detect file content updates when the count stayed the same.
 	if !force && collection.Count() > 0 {
-		currentHash := "disclosure-v2:" + cv.computeToolGuidesHash(toolsDir)
 		hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
 		storedHashBytes, _ := os.ReadFile(hashFile)
 		if strings.TrimSpace(string(storedHashBytes)) == currentHash {
@@ -75,10 +85,6 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 	var docs []chromem.Document
 	newDocIDs := make(map[string]struct{})
 	staleDocIDs := make(map[string]struct{})
-	guideFiles, err := loadToolGuideFilesWithWarnings(toolsDir, cv.logger)
-	if err != nil {
-		return err
-	}
 	for _, guide := range guideFiles {
 		path := guide.Path
 		data := guide.Data
@@ -113,51 +119,65 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		}
 	}
 
-	if len(docs) == 0 {
-		return nil
-	}
-
-	// Use parallel AddDocuments (batch size 8 or length)
-	concurrency := 8
-	if len(docs) < 8 {
-		concurrency = len(docs)
-	}
-
-	cv.logger.Info("Indexing tool guides...", "total", len(docs), "concurrency", concurrency)
-	if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, collection, docs); err != nil {
-		return fmt.Errorf("failed to batch index tool guides: %w", err)
+	if len(docs) > 0 {
+		// Batches that are already written stay written when a later one fails, and
+		// documents that are already indexed under the current embedding fingerprint
+		// are not embedded again, so a retry only does the missing work. The content
+		// hash and the manifest below are still written only after every batch.
+		cv.logger.Info("Indexing tool guides...", "total", len(docs), "batch_size", indexDocumentBatchSize)
+		stats, err := cv.addDocumentsInBatches(ctx, collection, docs, true)
+		cv.logger.Info("Tool guide batches processed", "embedded", stats.embedded, "rewritten", stats.rewritten, "unchanged", stats.unchanged, "rejected", len(stats.rejected), "total", len(docs))
+		if err != nil {
+			return fmt.Errorf("failed to batch index tool guides: %w", err)
+		}
+		// A guide the credential policy rejected is not indexed, so it does not belong
+		// in the manifest either: a copy indexed earlier is removed as stale below, and
+		// the next run does not take the rejected guide for a missing one.
+		for _, id := range stats.rejected {
+			delete(newDocIDs, id)
+		}
 	}
 
 	previousDocIDs := cv.readToolGuidesDocManifest()
+	staleIDs := make(map[string]struct{}, len(previousDocIDs)+len(staleDocIDs))
 	for _, oldID := range previousDocIDs {
 		if _, ok := newDocIDs[oldID]; ok {
 			continue
 		}
-		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, oldID); err != nil {
-			cv.logger.Warn("Failed to delete stale tool guide document", "doc_id", oldID, "error", err)
-		}
+		staleIDs[oldID] = struct{}{}
 	}
 	for staleID := range staleDocIDs {
 		if _, ok := newDocIDs[staleID]; ok {
 			continue
 		}
-		if err := cv.deleteDocumentsWithCorpus(ctx, collection, nil, staleID); err != nil {
-			cv.logger.Warn("Failed to delete legacy tool guide document", "doc_id", staleID, "error", err)
+		staleIDs[staleID] = struct{}{}
+	}
+	var cleanupErr error
+	staleIDList := mapKeysSorted(staleIDs)
+	// Deleting stale IDs touches no embedding provider, so a plain bound is enough.
+	cleanupCtx, cleanupCancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cleanupCancel()
+	for start := 0; start < len(staleIDList); start += corpusSQLChunkSize {
+		end := min(start+corpusSQLChunkSize, len(staleIDList))
+		if err := cv.deleteDocumentsWithCorpus(cleanupCtx, collection, nil, staleIDList[start:end]...); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("delete stale tool guide documents: %w", err))
 		}
 	}
+	if cleanupErr != nil {
+		return cleanupErr
+	}
 
-	// Persist the content hash so subsequent startups can skip re-indexing.
-	newHash := "disclosure-v2:" + cv.computeToolGuidesHash(toolsDir)
+	// Persist the manifest and content hash only after every stale ID was removed.
+	if err := cv.writeToolGuidesDocManifest(mapKeysSorted(newDocIDs)); err != nil {
+		cv.logger.Warn("Failed to write tool guides doc manifest", "error", err)
+		return fmt.Errorf("write tool guides doc manifest: %w", err)
+	}
+	newHash := currentHash
 	hashFile := filepath.Join(cv.dataDir, ".tool_guides_hash")
 	if err := os.WriteFile(hashFile, []byte(newHash), 0o644); err != nil {
 		cv.logger.Warn("Failed to write tool guides content hash", "path", hashFile, "error", err)
 		return fmt.Errorf("write tool guides content hash: %w", err)
 	}
-	if err := cv.writeToolGuidesDocManifest(mapKeysSorted(newDocIDs)); err != nil {
-		cv.logger.Warn("Failed to write tool guides doc manifest", "error", err)
-		return fmt.Errorf("write tool guides doc manifest: %w", err)
-	}
-
 	cv.logger.Info("Tool guides indexing completed", "count", collection.Count())
 	return nil
 }
@@ -389,8 +409,13 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// The run has no deadline of its own: embedding is bounded per file below and
+	// the context ends when the vector DB closes. Recovery and stale-vector cleanup
+	// touch no embedding provider, so they keep a plain bound.
+	ctx, cancel := cv.indexingContext()
 	defer cancel()
+	maintenanceCtx, cancelMaintenance := context.WithTimeout(ctx, 120*time.Second)
+	defer cancelMaintenance()
 
 	// 1. Get/Create collection
 	cv.mu.Lock()
@@ -400,7 +425,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 		return fmt.Errorf("failed to get/create %s collection: %w", collectionName, err)
 	}
 	if stm != nil {
-		if err := cv.recoverIndexedFiles(ctx, stm, collection, collectionName); err != nil {
+		if err := cv.recoverIndexedFiles(maintenanceCtx, stm, collection, collectionName); err != nil {
 			cv.logger.Warn("Directory index recovery remains pending", "collection", collectionName, "error", err)
 		}
 	}
@@ -540,7 +565,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			if idsErr != nil {
 				return fmt.Errorf("get tracked doc ids for %s in %s: %w", trackedPath, collectionName, idsErr)
 			}
-			if delErr := deleteRemovedMarkdownVectors(ctx, deleter, trackedPath, docIDs); delErr != nil {
+			if delErr := deleteRemovedMarkdownVectors(maintenanceCtx, deleter, trackedPath, docIDs); delErr != nil {
 				cv.logger.Warn("Keeping tracking for removed file until its vectors are deleted", "path", trackedPath, "collection", collectionName, "error", delErr)
 				cleanupErr = errors.Join(cleanupErr, fmt.Errorf("retain tracking for removed file %s in %s: %w", trackedPath, collectionName, delErr))
 				continue
@@ -565,9 +590,13 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 				f.docs[i].Metadata["collection"] = collectionName
 			}
 			state := FileIndexState{LastModified: f.modTime, ContentHash: f.contentHash, IndexFingerprint: f.indexFingerprint}
-			_, err := cv.replaceIndexedDocuments(ctx, stm, collection, f.path, collectionName, state, f.docs)
+			// One deadline per file: a slow file cannot starve the files after it.
+			// replaceIndexedDocuments checks the credential policy before embedding.
+			fileCtx, cancelFile := context.WithTimeout(ctx, indexFileTimeout(len(f.docs)))
+			_, err := cv.replaceIndexedDocuments(fileCtx, stm, collection, f.path, collectionName, state, f.docs)
+			cancelFile()
 			updateErr = errors.Join(updateErr, err)
-		} else if err := cv.addDocumentsWithPrecomputedEmbeddings(ctx, collection, f.docs); err != nil {
+		} else if _, err := cv.addDocumentsInBatches(ctx, collection, f.docs, false); err != nil {
 			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
 		}
 	}
@@ -637,6 +666,10 @@ func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
 	if err != nil {
 		return ""
 	}
+	return cv.computeToolGuidesHashSnapshot(files)
+}
+
+func (cv *ChromemVectorDB) computeToolGuidesHashSnapshot(files []toolGuideFile) string {
 	h := sha256.New()
 	h.Write([]byte(toolGuideIndexFingerprint()))
 	h.Write([]byte("\x00embedding=" + strings.TrimSpace(cv.EmbeddingFingerprint())))

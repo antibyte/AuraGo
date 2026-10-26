@@ -124,14 +124,14 @@ func TestLocalWikipediaManualTakesNoSemanticSlot(t *testing.T) {
 	if lexical := catalog.Search(query); len(lexical) >= 5 {
 		t.Fatalf("query must leave room for semantic discovery, lexical = %d", len(lexical))
 	}
-	got := catalogNames(catalog.SearchContext(context.Background(), query, withManual))
-	want := catalogNames(catalog.SearchContext(context.Background(), query, withoutManual))
+	got := catalogNames(catalog.SearchContext(context.Background(), query, withManual, nil))
+	want := catalogNames(catalog.SearchContext(context.Background(), query, withoutManual, nil))
 	if !slices.Equal(got, want) {
 		t.Errorf("discover_tools with the tool off: %v, without the manual %v", got, want)
 	}
 	onSchemas := BuildNativeToolSchemas(t.TempDir(), nil, on, nil)
 	onCatalog := BuildToolCatalog(onSchemas, onSchemas, "")
-	if found := catalogNames(onCatalog.SearchContext(context.Background(), query, withManual)); !slices.Contains(found, "local_wikipedia") {
+	if found := catalogNames(onCatalog.SearchContext(context.Background(), query, withManual, nil)); !slices.Contains(found, "local_wikipedia") {
 		t.Errorf("discover_tools with the tool on misses local_wikipedia: %v", found)
 	}
 }

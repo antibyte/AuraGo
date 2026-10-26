@@ -1,10 +1,12 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { FLOOR_SURFACES } from './minigolf-shared.js';
+import { TERMINAL_EVENTS, applyBumpers, createZoneState, obstaclePose, resetZoneState, stepZones, validateMechanic, validateObstacle } from './minigolf-mechanics.js';
 
 const BALL_RADIUS = 0.16;
 const FIXED_STEP = 1 / 120;
 const MAX_STEPS = 16;
 const GRAVITY = 9.81;
+const MAX_GRAVITY = 20;
 const CONTACT_SKIN = 0.005;
 const GROUND_PROBE = BALL_RADIUS + 0.04;
 const DOWN = { x: 0, y: -1, z: 0 };
@@ -18,7 +20,7 @@ export const ROLLING = Object.freeze({
     wood: Object.freeze({ a: 0.7, k: 0.42 }),
     stone: Object.freeze({ a: 0.65, k: 0.4 })
 });
-const WALL_RESTITUTION = { wood: 0.78, stone: 0.82 };
+const WALL_RESTITUTION = { wood: 0.78, stone: 0.82, metal: 0.80 };
 
 export function rollDistance(speed, surface = 'grass') {
     const { a, k } = ROLLING[surface] || ROLLING.grass;
@@ -45,6 +47,9 @@ const array3 = value => [value.x, value.y, value.z];
 const array4 = value => [value.x, value.y, value.z, value.w];
 const speed = value => Math.hypot(value.x, value.y, value.z);
 const finiteVec3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
+// Mesh data arrives as plain arrays (manifest v1) or typed arrays (read from the course GLB).
+const numbers = value => Array.isArray(value) || value instanceof Float32Array;
+const integers = value => Array.isArray(value) || value instanceof Uint32Array;
 const lerp = (a, b, amount) => a + (b - a) * amount;
 
 function slerpQuaternion(a, b, amount) {
@@ -64,25 +69,6 @@ function slerpQuaternion(a, b, amount) {
     const fromWeight = Math.sin((1 - amount) * angle) / denominator;
     const toWeight = Math.sin(amount * angle) / denominator;
     return a.map((component, index) => component * fromWeight + target[index] * toWeight);
-}
-
-function multiplyQuaternion(a, b) {
-    return {
-        x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
-        y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
-        z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
-        w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
-    };
-}
-
-function rotationAt(obstacle, time) {
-    const base = obstacle.rotation ? quat(obstacle.rotation) : { x: 0, y: 0, z: 0, w: 1 };
-    if (obstacle.kind !== 'rotate') return base;
-    const axis = obstacle.axis || [0, 1, 0];
-    const length = Math.hypot(...axis) || 1;
-    const angle = Math.sin(time * obstacle.speed + (obstacle.phase || 0)) * obstacle.amplitude;
-    const half = angle / 2;
-    return multiplyQuaternion({ x: axis[0] / length * Math.sin(half), y: axis[1] / length * Math.sin(half), z: axis[2] / length * Math.sin(half), w: Math.cos(half) }, base);
 }
 
 function contains(bounds, position) {
@@ -121,17 +107,47 @@ function launch(body, direction, power) {
     body.setAngvel({ x: dz * velocity / BALL_RADIUS, y: 0, z: -dx * velocity / BALL_RADIUS }, true);
 }
 
+// The ball as the shared mechanics see it (live ball and preview ghost); `moved` runs after a jump in place.
+function ballControl(body, moved = () => {}) {
+    const zero = { x: 0, y: 0, z: 0 };
+    return {
+        position: () => array3(body.translation()),
+        velocity: () => array3(body.linvel()),
+        // `spin` re-aligns the roll with the new horizontal velocity, like a launch.
+        setVelocity(v, spin = false) {
+            body.setLinvel(vec3(v), true);
+            if (spin) body.setAngvel({ x: v[2] / BALL_RADIUS, y: 0, z: -v[0] / BALL_RADIUS }, true);
+        },
+        place(position) { body.setTranslation(vec3(position), true); moved(); },
+        hold(position) {
+            body.setLinvel(zero, true); body.setAngvel(zero, true);
+            body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+            body.setTranslation(vec3(position), true);
+            moved();
+        },
+        release(v) {
+            body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
+            body.wakeUp();
+            body.setLinvel(vec3(v), true); body.setAngvel(zero, true);
+        }
+    };
+}
+
 export async function createPhysics(course, { onEvent = () => {} } = {}) {
     initialized ||= RAPIER.init();
     await initialized;
-    if (!course || !finiteVec3(course.tee) || !finiteVec3(course.cup) || !finiteVec3(course.bounds?.min) || !finiteVec3(course.bounds?.max) || course.bounds.min.some((value, index) => value > course.bounds.max[index])) throw new TypeError('Invalid minigolf course');
+    const gravity = course?.gravity ?? GRAVITY;
+    if (!course || !finiteVec3(course.tee) || !finiteVec3(course.cup) || !finiteVec3(course.bounds?.min) || !finiteVec3(course.bounds?.max) || course.bounds.min.some((value, index) => value > course.bounds.max[index]) || !(Number.isFinite(gravity) && gravity > 0 && gravity <= MAX_GRAVITY)) throw new TypeError('Invalid minigolf course');
 
-    const world = new RAPIER.World({ x: 0, y: -GRAVITY, z: 0 });
+    const world = new RAPIER.World({ x: 0, y: -gravity, z: 0 });
     world.timestep = FIXED_STEP;
     const events = new RAPIER.EventQueue(true);
     const fixed = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
     const obstacleBodies = [];
     const surfaces = new Map();
+    const bumpers = new Map();
+    const zoneState = createZoneState();
+    let zones = [];
     let ballBody;
     let ballCollider;
     let previousPosition;
@@ -149,26 +165,36 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     const cupOpening = Number.isFinite(course.cupRadius) ? course.cupRadius : 0.32;
     const activeSurfaceContacts = new Map();
 
-    const surfaceFriction = { grass: 0.82, sand: 1.1, wood: 0.52, stone: 0.68 };
+    const surfaceFriction = { grass: 0.82, sand: 1.1, wood: 0.52, stone: 0.68, metal: 0.5 };
     // Floors keep a dead bounce; every other collider (rails, gates) is a wall.
     const asWall = (desc, surface) => FLOOR_SURFACES.has(surface) ? desc
         : desc.setRestitution(WALL_RESTITUTION[surface] ?? 0.78).setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Max);
     const addSurface = (collider, surface) => surfaces.set(collider.handle, surface || 'grass');
-    const addBox = (position, halfExtents, rotation, surface, body = fixed) => {
-        if (!finiteVec3(position) || !finiteVec3(halfExtents) || halfExtents.some(v => v <= 0)) throw new TypeError('Invalid minigolf box collider');
-        const desc = RAPIER.ColliderDesc.cuboid(...halfExtents).setTranslation(...position).setFriction(surfaceFriction[surface] ?? 0.75).setRestitution(0.03).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+    const finish = (desc, position, rotation, surface, body) => {
+        desc.setTranslation(...position).setFriction(surfaceFriction[surface] ?? 0.75).setRestitution(0.03).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
         if (rotation) desc.setRotation(quat(rotation));
         const collider = world.createCollider(asWall(desc, surface || 'grass'), body);
         addSurface(collider, surface);
         return collider;
+    };
+    const addBox = (position, halfExtents, rotation, surface, body = fixed) => {
+        if (!finiteVec3(position) || !finiteVec3(halfExtents) || halfExtents.some(v => v <= 0)) throw new TypeError('Invalid minigolf box collider');
+        return finish(RAPIER.ColliderDesc.cuboid(...halfExtents), position, rotation, surface, body);
+    };
+    // Obstacle parts are boxes (default), balls or Y-axis cylinders, posed relative to their kinematic body.
+    const addPart = (part, surface, body) => {
+        const position = part.position || [0, 0, 0];
+        if (part.shape === 'ball') return finish(RAPIER.ColliderDesc.ball(part.radius), position, part.rotation, surface, body);
+        if (part.shape === 'cylinder') return finish(RAPIER.ColliderDesc.cylinder(part.halfHeight, part.radius), position, part.rotation, surface, body);
+        return addBox(position, part.halfExtents, part.rotation, surface, body);
     };
 
     try {
         for (const shape of course.colliders || []) {
             if (shape.type === 'box') addBox(shape.position, shape.halfExtents, shape.rotation, shape.surface);
             else if (shape.type === 'mesh') {
-                if (!Array.isArray(shape.vertices) || shape.vertices.length < 9 || shape.vertices.length > 3_000_000 || shape.vertices.length % 3 || shape.vertices.some(value => !Number.isFinite(value)) || !Array.isArray(shape.indices) || !shape.indices.length || shape.indices.length % 3 || shape.indices.some(index => !Number.isInteger(index) || index < 0 || index >= shape.vertices.length / 3)) throw new TypeError('Invalid minigolf mesh collider');
-                const desc = RAPIER.ColliderDesc.trimesh(new Float32Array(shape.vertices), new Uint32Array(shape.indices), RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
+                if (!numbers(shape.vertices) || shape.vertices.length < 9 || shape.vertices.length > 3_000_000 || shape.vertices.length % 3 || shape.vertices.some(value => !Number.isFinite(value)) || !integers(shape.indices) || !shape.indices.length || shape.indices.length % 3 || shape.indices.some(index => !Number.isInteger(index) || index < 0 || index >= shape.vertices.length / 3)) throw new TypeError('Invalid minigolf mesh collider');
+                const desc = RAPIER.ColliderDesc.trimesh(Float32Array.from(shape.vertices), Uint32Array.from(shape.indices), RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES)
                     .setFriction(surfaceFriction[shape.surface] ?? 0.75).setRestitution(0.02).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
                 const collider = world.createCollider(asWall(desc, shape.surface || 'grass'), fixed);
                 addSurface(collider, shape.surface);
@@ -182,8 +208,11 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             if (!finiteVec3(volume.min) || !finiteVec3(volume.max) || volume.min.some((value, index) => value > volume.max[index])) throw new TypeError('Invalid minigolf water volume');
         }
 
+        const obstacleIds = new Set();
         for (const obstacle of course.obstacles || []) {
-            if (typeof obstacle.id !== 'string' || !obstacle.id || !finiteVec3(obstacle.position) || !finiteVec3(obstacle.halfExtents) || !finiteVec3(obstacle.axis || [0, 1, 0]) || !['rotate', 'slide'].includes(obstacle.kind) || !Number.isFinite(obstacle.amplitude) || !Number.isFinite(obstacle.speed) || !Number.isFinite(obstacle.phase || 0)) throw new TypeError('Invalid minigolf obstacle');
+            validateObstacle(obstacle);
+            if (obstacleIds.has(obstacle.id)) throw new TypeError('Duplicate minigolf obstacle id');
+            obstacleIds.add(obstacle.id);
             const body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(...obstacle.position).setRotation(obstacle.rotation ? quat(obstacle.rotation) : { x: 0, y: 0, z: 0, w: 1 }));
             // Obstacle collider poses are relative to their kinematic body. The
             // manifest's optional pieces describe the visible compound gate;
@@ -191,9 +220,26 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             const parts = Array.isArray(obstacle.colliders) && obstacle.colliders.length
                 ? obstacle.colliders
                 : [{ position: [0, 0, 0], halfExtents: obstacle.halfExtents }];
-            const colliders = parts.map(part => addBox(part.position || [0, 0, 0], part.halfExtents, part.rotation, obstacle.surface || 'wood', body));
+            const colliders = parts.map(part => addPart(part, obstacle.surface || 'wood', body));
             obstacleBodies.push({ spec: obstacle, body, colliders });
         }
+
+        // Bumpers are solid cylinders that bounce with restitution 1; boost, teleport and
+        // cannon are pure zones evaluated by stepZones (cannon first, then teleporters, then boost).
+        const mechanicIds = new Set();
+        for (const mechanic of course.mechanics || []) {
+            validateMechanic(mechanic);
+            if (mechanicIds.has(mechanic.id)) throw new TypeError('Duplicate minigolf mechanic id');
+            mechanicIds.add(mechanic.id);
+            if (mechanic.kind !== 'bumper') continue;
+            const collider = world.createCollider(RAPIER.ColliderDesc.cylinder(mechanic.height / 2, mechanic.radius)
+                .setTranslation(mechanic.position[0], mechanic.position[1] + mechanic.height / 2, mechanic.position[2])
+                .setFriction(0).setRestitution(1).setRestitutionCombineRule(RAPIER.CoefficientCombineRule.Max)
+                .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), fixed);
+            addSurface(collider, mechanic.surface || 'stone');
+            bumpers.set(collider.handle, mechanic);
+        }
+        zones = ['cannon', 'teleport', 'boost'].flatMap(kind => (course.mechanics || []).filter(mechanic => mechanic.kind === kind));
 
         ballBody = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(...course.tee).setLinearDamping(0).setAngularDamping(0).setCcdEnabled(true));
         // Frictionless ball: rolling resistance and spin come from applyRolling.
@@ -212,13 +258,16 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         throw error;
     }
 
+    const control = ballControl(ballBody, () => resetRenderPose());
+
     function emit(type, position, extra = {}) {
-        if (type !== 'impact') {
+        if (TERMINAL_EVENTS.has(type)) {
             activeShot = false;
             quietSteps = 0;
             shotLocked = type !== 'rest';
             resolvedShots++;
             activeSurfaceContacts.clear();
+            resetZoneState(zoneState);
             ballBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
             ballBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
             ballBody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
@@ -231,18 +280,8 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         for (const { spec, body } of obstacleBodies) {
             const { position, rotation } = obstaclePose(spec, time);
             body.setNextKinematicTranslation(vec3(position));
-            body.setNextKinematicRotation(rotation);
+            body.setNextKinematicRotation(quat(rotation));
         }
-    }
-    function obstaclePose(spec, atTime) {
-            const phase = atTime * spec.speed + (spec.phase || 0);
-            const offset = Math.sin(phase) * spec.amplitude;
-            const axis = spec.axis || [0, 1, 0];
-            const length = Math.hypot(...axis) || 1;
-            const position = spec.kind === 'slide'
-                ? [spec.position[0] + axis[0] / length * offset, spec.position[1] + axis[1] / length * offset, spec.position[2] + axis[2] / length * offset]
-                : spec.position;
-            return { position, rotation: rotationAt(spec, atTime) };
     }
 
     function resolveConditions() {
@@ -260,7 +299,8 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             return;
         }
         const angular = ballBody.angvel();
-        if (time > shotStartedAt + 0.15 && speed(velocity) < 0.075 && speed(angular) < 0.075 / BALL_RADIUS + 0.05) quietSteps++;
+        // A held (cannon) or just teleported ball is not at rest.
+        if (!zoneState.captured && time >= zoneState.teleportUntil && time > shotStartedAt + 0.15 && speed(velocity) < 0.075 && speed(angular) < 0.075 / BALL_RADIUS + 0.05) quietSteps++;
         else quietSteps = 0;
         if (quietSteps >= 30) emit('rest', position);
     }
@@ -280,7 +320,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         const velocity = ballBody.linvel();
         const alpha = Math.max(0, Math.min(1, accumulator / FIXED_STEP));
         const position = currentPosition.map((value, index) => lerp(previousPosition[index], value, alpha));
-        return { position, rotation: slerpQuaternion(previousRotation, currentRotation, alpha), velocity: array3(velocity), moving: activeShot && speed(velocity) > 0.075, time };
+        return { position, rotation: slerpQuaternion(previousRotation, currentRotation, alpha), velocity: array3(velocity), moving: activeShot && (!!zoneState.captured || speed(velocity) > 0.075), time };
     }
     function step(dt) {
         if (disposed) throw new Error('Minigolf physics has been disposed');
@@ -298,14 +338,20 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             time += FIXED_STEP;
             accumulator -= FIXED_STEP;
             count++;
+            const bumped = [];
             events.drainCollisionEvents((first, second, started) => {
                 if (first !== ballCollider.handle && second !== ballCollider.handle) return;
                 const other = first === ballCollider.handle ? second : first;
                 if (!started) { activeSurfaceContacts.delete(other); return; }
                 activeSurfaceContacts.set(other, surfaces.get(other));
+                if (bumpers.has(other)) bumped.push(bumpers.get(other));
                 emit('impact', getBall(), { speed: speed(ballBody.linvel()), surface: surfaces.get(other) });
             });
-            if (activeShot) applyRolling(world, ballBody, ballCollider, handle => surfaces.get(handle));
+            if (activeShot) {
+                applyBumpers(bumped, control, emit);
+                if (!zoneState.captured) applyRolling(world, ballBody, ballCollider, handle => surfaces.get(handle));
+                stepZones(zones, zoneState, control, time, { emit });
+            }
             resolveConditions();
             if (resolvedShots !== resolvedBeforeStep) {
                 // An event handler may already have positioned or launched the next ball.
@@ -320,6 +366,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     function shoot(direction, power) {
         if (disposed || activeShot || shotLocked || !validShot(direction, power)) return false;
         launch(ballBody, direction, power);
+        resetZoneState(zoneState);
         activeShot = true;
         quietSteps = 0;
         shotStartedAt = time;
@@ -334,6 +381,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         ballBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
         resetRenderPose();
         activeSurfaceContacts.clear();
+        resetZoneState(zoneState);
         activeShot = false;
         shotLocked = false;
         quietSteps = 0;
@@ -341,12 +389,13 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     }
     function resetTime() {
         time = 0; accumulator = 0; shotStartedAt = 0;
+        resetZoneState(zoneState);
         for (const { spec, body } of obstacleBodies) {
-            const pose = obstaclePose(spec, 0);
+            const pose = obstaclePose(spec, 0), rotation = quat(pose.rotation);
             body.setTranslation(vec3(pose.position), true);
-            body.setRotation(pose.rotation, true);
+            body.setRotation(rotation, true);
             body.setNextKinematicTranslation(vec3(pose.position));
-            body.setNextKinematicRotation(pose.rotation);
+            body.setNextKinematicRotation(rotation);
         }
     }
     // Simulates the aimed shot in a lazily cloned world with the same rolling
@@ -359,17 +408,20 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             ghost = {
                 world: copy, events: new RAPIER.EventQueue(true),
                 ball: copy.getRigidBody(ballBody.handle), collider: copy.getCollider(ballCollider.handle),
-                obstacles: obstacleBodies.map(({ spec, body }) => ({ spec, body: copy.getRigidBody(body.handle) }))
+                obstacles: obstacleBodies.map(({ spec, body }) => ({ spec, body: copy.getRigidBody(body.handle) })),
+                zones: createZoneState()
             };
+            ghost.control = ballControl(ghost.ball);
         }
-        const { world: copy, events: queue, ball, collider, obstacles } = ghost;
+        const { world: copy, events: queue, ball, collider, obstacles, control: ghostControl, zones: ghostZones } = ghost;
+        resetZoneState(ghostZones);
         let atTime = time;
         // Mirror the live step order: after a step the obstacles sit at pose(t - dt),
         // and each step moves them to pose(t) before t advances.
         for (const { spec, body } of obstacles) {
             const pose = obstaclePose(spec, atTime - FIXED_STEP);
             body.setTranslation(vec3(pose.position), true);
-            body.setRotation(pose.rotation, true);
+            body.setRotation(quat(pose.rotation), true);
         }
         const start = getBall();
         ball.setBodyType(RAPIER.RigidBodyType.Fixed, true);
@@ -378,21 +430,27 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         launch(ball, direction, power);
         const limit = Math.max(1.5, 0.45 * power * MAX_ROLL);
         const points = [start];
-        let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, quiet = 0;
+        let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, zone = null, quiet = 0;
         for (let stepIndex = 0; stepIndex < 360; stepIndex++) {
             for (const { spec, body } of obstacles) {
                 const pose = obstaclePose(spec, atTime);
                 body.setNextKinematicTranslation(vec3(pose.position));
-                body.setNextKinematicRotation(pose.rotation);
+                body.setNextKinematicRotation(quat(pose.rotation));
             }
             copy.step(queue);
             atTime += FIXED_STEP;
-            let touchedWall = false;
+            let touchedWall = false, stopped = null;
+            const bumped = [];
             queue.drainCollisionEvents((first, second, started) => {
                 const other = first === collider.handle ? second : second === collider.handle ? first : null;
-                if (started && other !== null && !FLOOR_SURFACES.has(surfaces.get(other))) touchedWall = true;
+                if (!started || other === null) return;
+                if (!FLOOR_SURFACES.has(surfaces.get(other))) touchedWall = true;
+                if (bumpers.has(other)) bumped.push(bumpers.get(other));
             });
+            // Same order as the live step; teleporters and cannons end the path.
+            applyBumpers(bumped, ghostControl);
             applyRolling(copy, ball, collider, handle => surfaces.get(handle));
+            stepZones(zones, ghostZones, ghostControl, atTime, { stop: kind => { stopped = kind; } });
             const position = array3(ball.translation());
             const stepLength = Math.hypot(position[0] - last[0], position[1] - last[1], position[2] - last[2]);
             if (contactAt >= 0 && travelled + stepLength - contactAt >= 0.9) {
@@ -409,6 +467,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
                 contactIndex = points.length - 1;
             } else if (Math.hypot(position[0] - previous[0], position[2] - previous[2]) >= 0.08) points.push(position);
             last = position;
+            if (stopped) { zone = stopped; break; }
             if ((course.water || []).some(volume => contains(volume, position))) { hazard = 'water'; break; }
             if (!contains(course.bounds, position)) { hazard = 'out'; break; }
             if (Math.hypot(position[0] - course.cup[0], position[2] - course.cup[2]) < cupOpening) break;
@@ -418,7 +477,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         }
         if (points[points.length - 1] !== last) points.push(last);
         ball.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-        return { points, contactIndex, hazard };
+        return { points, contactIndex, hazard, zone };
     }
 
     function dispose() {

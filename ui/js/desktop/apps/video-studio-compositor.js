@@ -15,6 +15,8 @@
     // Three context losses within 60 s give up on GL (spec §6.6).
     const LOSS_WINDOW_MS = 60000, MAX_LOSSES = 3;
     const NO_CROP = Object.freeze({ l: 0, t: 0, r: 0, b: 0 });
+    // The largest readScaled size per axis (2f, index §4.26.1).
+    const READ_SCALED_MAX = 1024;
 
     function supported() { return typeof WebGL2RenderingContext === 'function'; }
 
@@ -227,12 +229,17 @@
         // - uv is the part of the returned Texture or Target that placeClip samples.
         // There are three cases:
         // - Without effects or flips nothing is drawn. uv is the crop rect, so the picture is resampled once.
-        // - Static crop: PICTURE crops and flips into a target of capSize(cropped texture px, canvas). The effect passes
-        //   ping-pong in that size, and uv is the whole target.
+        // - Static crop: PICTURE crops and flips into a target of effectSize(cropped texture px, canvas, drawn, cap). The
+        //   effect passes ping-pong in that size, and uv is the whole target.
         // - Crop keyframes: PICTURE flips the whole picture and the effects run on all of it. uv is the frame's crop rect
         //   mirrored for the flips (mirroredCrop), so the crop follows the effects as in the export.
         // 2e: while state.anim.blur is set, the blur_in cascade runs after the effects (blurPasses, blurCascade). It
         // forces the PICTURE pass when the clip has no effects or flips.
+        // 2f (O2, index §4.26.8):
+        // - scene.effectCap > 0 (every preview quality but Full) caps the canvas's long edge for the passes;
+        // - a static crop and a static size also size them to the picture as drawn (passDrawn);
+        // - PICTURE does the downscale, so u_size, the blur σ and the blur_in passes follow the target;
+        // - effectCap 0 (Full, and the golden engine page) gives capSize exactly.
         // The returned target stays the clip's (entry.out) until its next passes or release(clipId).
         function clipPasses(item, texture) {
             const state = item.state || {}, entry = clips.get(item.clip.id);
@@ -244,7 +251,8 @@
             if (entry && entry.out) { ctx.release(entry.out); entry.out = null; }
             const animated = !!E().cropAnimated(item.clip);
             const source = animated ? [0, 0, 1, 1] : cropUV;
-            const size = Pic().capSize(texture.width * source[2], texture.height * source[3], canvasSize());
+            const cap = Math.max(0, Number(current && current.effectCap) || 0);
+            const size = Pic().effectSize(texture.width * source[2], texture.height * source[3], canvasSize(), cap > 0 && !animated ? passDrawn(item, state, rect) : null, cap);
             const passes = effectPasses(state.effects, size), blur = blurPasses(state.anim, size);
             if (!passes.length && !flipH && !flipV && !blur) return texture;
             let input = ctx.target(size.width, size.height), spare = null;
@@ -263,6 +271,16 @@
             if (entry) entry.out = input;
             item.picture.uv = animated ? uvRect(Pic().cropRect(Pic().mirroredCrop(crop, flipH, flipV), decoded.width, decoded.height), decoded) : [0, 0, 1, 1];
             return input;
+        }
+        // O2's drawn picture: placement's draw rect in canvas px at rest (without state.anim). For contain it is the fitted
+        // picture, for cover the larger fitted rect. It is null while width or height has keyframes, so a clip that changes
+        // size keeps one pass size and the size-keyed target pool stays small; pop and the slides keep the rest size too.
+        function passDrawn(item, state, rect) {
+            const keyframes = (item.clip && item.clip.keyframes) || {}, keyed = path => Array.isArray(keyframes[path]) && keyframes[path].length > 0;
+            if (keyed('width') || keyed('height')) return null;
+            const project = (current && current.project) || {}, frame = canvasSize();
+            const place = E().placement(state, frame, { width: Number(project.width) || frame.width, height: Number(project.height) || frame.height }, { width: rect.w, height: rect.h });
+            return place && place.draw ? place.draw : null;
         }
 
         // Stage 3: transform, opacity, mask and in/out animation from item.state.
@@ -428,7 +446,29 @@
             return { width: r.width, height: r.height, data };
         }
 
-        // LUT loads in flight (index §4.5): the preview's settle() waits until this is 0.
+        // The scopes' copy of the last frame (2f, index §4.26.1). The composite still holds the last frame, and the canvas
+        // is never read. scope-sample point-samples the composite into a pooled width × height target, and
+        // ctx.readAsync copies that target without waiting for the GPU. The target goes back to the pool at once.
+        // readScaled never paints and never touches the frame loop or the composite. It resolves to
+        // {width, height, data}, or to null:
+        // - for a size outside 1..1024;
+        // - before the first frame, after dispose and on a lost context;
+        // - while another read is pending;
+        // - when the program or the target is not available (no notice, no failure report).
+        function readScaled(width, height) {
+            if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > READ_SCALED_MAX || height > READ_SCALED_MAX) return Promise.resolve(null);
+            if (disposed || ctx.lost() || !composite) return Promise.resolve(null);
+            const program = ctx.program('scope-sample', S().QUAD_VERTEX, S().SCOPE_SAMPLE);
+            const target = program ? ctx.target(width, height) : null;
+            if (!target) return Promise.resolve(null);
+            ctx.draw(program, target, { u_flipY: 0, u_srcSize: [composite.width, composite.height] }, { u_source: composite });
+            const read = ctx.readAsync(target, { x: 0, y: 0, width, height });
+            ctx.release(target);
+            return read.then(data => (data ? { width, height, data } : null));
+        }
+
+        // LUT loads in flight (index §4.5): the preview's settle() waits until this is 0. Scope reads (readScaled) do not
+        // count.
         function pending() { return disposed ? 0 : loading; }
 
         function release(clipId) {
@@ -477,7 +517,7 @@
             ctx.dispose();
         }
 
-        return { kind: 'gl', canvas, frame, read, release, pending, dispose };
+        return { kind: 'gl', canvas, frame, read, readScaled, release, pending, dispose };
     }
 
     window.VideoStudioCompositor = api;

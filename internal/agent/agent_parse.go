@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log/slog"
 	"math"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,6 +55,10 @@ func formatGuardianBlockedMessage(action, reason string, risk float64, _ bool, _
 	return base + " The block is final for this call. " + guardianBlockNextStep(reason)
 }
 
+// guardianQuarantineNotice is the only model-facing reason for a quarantine
+// verdict. The scanner's own reason stays in the log.
+const guardianQuarantineNotice = "security check quarantined this call before execution"
+
 // ToolDispatchResult preserves the model-facing output together with a
 // machine-readable execution status for protocol bridges such as MCP.
 type ToolDispatchResult struct {
@@ -80,6 +86,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 	// Each call owns its effective policy and mutable dispatch metadata.
 	originalDC := dc
+	if hooks := dc.ExecutionHooks; hooks != nil && hooks.ObserveResult != nil {
+		defer func() { hooks.ObserveResult(*tc, result) }()
+	}
 	local := *dc
 	local.Ctx = ctx
 	dc = &local
@@ -91,8 +100,11 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	if !authorized {
 		return ToolDispatchResult{Output: authorizationChangedOutput, Status: ToolResultDenied, IsError: true}
 	}
-	// Standalone bridges own a short-lived catalog just like the main loop.
-	if dc.DiscoveryRunID == "" && GetToolCatalogState(dc.SessionID) == nil && (tc.Action == "invoke_tool" || tc.Action == "discover_tools") {
+	// Standalone bridges own a short-lived catalog just like the main loop. A
+	// bare discover_tools operation name (search, get_manual, ...) is rewritten
+	// to discover_tools later and needs that catalog as much as the tool does.
+	_, discoverOperation := discoverOperationNames[tc.Action]
+	if dc.DiscoveryRunID == "" && GetToolCatalogState(dc.SessionID) == nil && (tc.Action == "invoke_tool" || tc.Action == "discover_tools" || discoverOperation) {
 		local := *dc
 		dc = &local
 		dc.DiscoveryRunID = acquireDiscoveryRun()
@@ -149,8 +161,15 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 				}
 			}
 			if result.Decision == security.DecisionQuarantine {
-				logger.Warn("[LLM Guardian] Quarantined tool call (proceeding with caution)",
+				logger.Warn("[LLM Guardian] Quarantined tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
+				tc.GuardianBlocked = true
+				tc.GuardianBlockReason = "quarantine"
+				return ToolDispatchResult{
+					Status:  ToolResultDenied,
+					Output:  formatGuardianBlockedMessage(tc.Action, guardianQuarantineNotice, result.RiskScore, false, false),
+					IsError: true,
+				}
 			}
 		}
 	}
@@ -202,8 +221,10 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		}
 	}
 
+	output := formatToolOutputForModel(*tc, sanitized)
+	recordIsolatedModelBody(dc.SessionID, output)
 	return ToolDispatchResult{
-		Output:  formatToolOutputForModel(*tc, sanitized),
+		Output:  output,
 		Status:  status,
 		IsError: status.IsError(),
 	}
@@ -260,6 +281,12 @@ func serverHostNeedsLANIP(host string) bool {
 
 // runMemoryOrchestrator handles the Priority-Based Forgetting System across both RAG and Knowledge Graph.
 func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return runMemoryOrchestratorContext(ctx, req, cfg, logger, client, longTermMem, shortTermMem, kg)
+}
+
+func runMemoryOrchestratorContext(ctx context.Context, req memoryOrchestratorArgs, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph) string {
 	thresholdLow := req.ThresholdLow
 	if thresholdLow == 0 {
 		thresholdLow = 1
@@ -316,7 +343,7 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		// source allows explicit administrative recovery after archiving.
 		for _, meta := range lowDocs {
 			docID := meta.DocID
-			changed, err := shortTermMem.ApplyAutomaticMemoryCurationAction(memory.MemoryCurationAction{
+			changed, err := shortTermMem.ApplyAutomaticMemoryCurationActionContext(ctx, memory.MemoryCurationAction{
 				DocID:        docID,
 				Action:       memory.MemoryCurationActionArchive,
 				Reason:       "memory maintenance low priority",
@@ -1798,7 +1825,17 @@ func GetActiveProcessStatus(registry *tools.ProcessRegistry) string {
 	if len(names) == 0 {
 		return "None"
 	}
-	return strings.Join(names, ", ")
+	return sanitizeActiveProcessStatus(strings.Join(names, ", "))
+}
+
+// externalDataTag matches a fence opener or closer, including a type attribute.
+// The daemon line is escaped once here. The prompt builder must not escape it again.
+var externalDataTag = regexp.MustCompile(`(?i)</?external_data\b[^>]*>`)
+
+func sanitizeActiveProcessStatus(status string) string {
+	status = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ").Replace(status)
+	status = externalDataTag.ReplaceAllString(status, "")
+	return html.EscapeString(status)
 }
 
 // runGitCommand helper runs a git command with enforced environment and safe.directory config.
@@ -1923,7 +1960,7 @@ func decodeBase64(s string) ([]byte, error) {
 }
 
 // calculateEffectiveMaxCalls applies the server-owned tool budget and optional
-// personality/Homepage policy. Model arguments cannot grant additional calls.
+// Homepage policy. Model arguments cannot grant additional calls.
 func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInChain bool, personalityEnabled bool, shortTermMem *memory.SQLiteMemory, logger *slog.Logger) int {
 	if runCfg.ToolCallLimit > 0 {
 		return runCfg.ToolCallLimit
@@ -1935,35 +1972,6 @@ func calculateEffectiveMaxCalls(runCfg RunConfig, tc ToolCall, homepageActiveInC
 	effectiveMaxCalls := cfg.CircuitBreaker.MaxToolCalls
 	if effectiveMaxCalls <= 0 {
 		effectiveMaxCalls = 10
-	}
-
-	// 1. High thoroughness may spend one extra call on a verify step.
-	if personalityEnabled && shortTermMem != nil {
-		if traits, err := shortTermMem.GetTraits(); err == nil {
-			if thoroughness, ok := traits[memory.TraitThoroughness]; ok && thoroughness > 0.8 {
-				effectiveMaxCalls++
-				if logger != nil {
-					logger.Debug("[Behavioral Tool Calling] Allowed one extra verify call for high Thoroughness", "new_max", effectiveMaxCalls)
-				}
-			}
-		}
-	}
-
-	// 1b. Structured emotion state: when the agent is in a tense recovery state,
-	// slightly reduce exploratory retries so it focuses on one concrete correction.
-	if personalityEnabled && shortTermMem != nil {
-		if latestEmotion, err := shortTermMem.GetLatestEmotion(); err == nil && latestEmotion != nil {
-			if latestEmotion.Confidence >= 0.45 && latestEmotion.Valence <= -0.25 && latestEmotion.Arousal >= 0.65 {
-				if effectiveMaxCalls > 1 {
-					effectiveMaxCalls--
-					logger.Debug("[Behavioral Tool Calling] Reduced MaxToolCalls due to tense recovery state",
-						"new_max", effectiveMaxCalls,
-						"valence", latestEmotion.Valence,
-						"arousal", latestEmotion.Arousal,
-						"confidence", latestEmotion.Confidence)
-				}
-			}
-		}
 	}
 
 	// 2. Homepage Tool: absolutes Limit für komplexe Web-Workflows

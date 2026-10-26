@@ -812,7 +812,21 @@ func c18SwapService(t *testing.T, s *Server, cfg flows.ServiceConfig) {
 func TestC18TestRunsShareTheGlobalLimits(t *testing.T) {
 	s, token := newFlowsTestServer(t)
 	c18SwapService(t, s, flows.ServiceConfig{MaxParallelRuns: 1, MaxQueuedPerFlow: 2})
-	rec := createTestFlow(t, s, waitFlowJSON)
+	// logic.wait parks and gives its global slot away; a node that blocks without parking
+	// is what holds the only slot here. Registered first, so its release runs after the
+	// cancels below.
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	s.Flows.Registry().MustRegister(&flows.NodeDef{Type: "test.block", Category: "test",
+		Execute: func(ctx context.Context, _ flows.ExecInput) (flows.ExecResult, error) {
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
+			return flows.ExecResult{}, ctx.Err()
+		}})
+	rec := createTestFlow(t, s, strings.Replace(waitFlowJSON, `"type":"logic.wait"`, `"type":"test.block"`, 1))
 	var ids []string
 	for i, want := range []string{"started", "queued", "queued"} {
 		w := flowsCall(t, s, http.MethodPost, "/api/desktop/flows/"+rec.ID+"/test", token, "")

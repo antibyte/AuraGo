@@ -1,0 +1,941 @@
+{
+  "action_aliases": {
+    "agent": "chat",
+    "agent-chat": "chat",
+    "arrow-left": "chevron-left",
+    "arrow-right": "chevron-right",
+    "attach": "attachment",
+    "audio": "music",
+    "audio-player": "music",
+    "back": "chevron-left",
+    "browser": "globe",
+    "cheater": "notes",
+    "check-circle": "check",
+    "check_square": "check-square",
+    "code-studio": "code",
+    "cut": "scissors",
+    "delete": "trash",
+    "desktop": "monitor",
+    "documents": "file",
+    "external-link": "external",
+    "file-archive": "archive",
+    "file-code": "code",
+    "file-minus": "file",
+    "file-text": "file",
+    "folder-open": "folder",
+    "gallery-action-delete": "trash",
+    "gallery-action-download": "download",
+    "gallery-action-edit": "edit",
+    "gallery-action-preview": "eye",
+    "git-branch": "network",
+    "git-commit": "code",
+    "git-merge": "network",
+    "hard-drive": "server",
+    "image-plus": "image",
+    "launchpad": "apps",
+    "lock": "shield",
+    "maximize-2": "maximize",
+    "message-square": "chat",
+    "minimize": "minus",
+    "more-horizontal": "menu",
+    "more-vertical": "menu",
+    "music-player": "music",
+    "paste": "clipboard",
+    "pencil": "edit",
+    "refresh-cw": "refresh",
+    "rotate-ccw": "undo",
+    "rotate-cw": "refresh",
+    "screensaver": "star",
+    "settings-2": "sliders",
+    "sound": "speaker",
+    "theme-threedee": "cube",
+    "tools": "sliders",
+    "trash-empty": "trash",
+    "trash-full": "trash",
+    "unlock": "key",
+    "user": "users",
+    "volume": "speaker",
+    "volume-2": "speaker",
+    "widgets": "layout",
+    "zoom-reset": "search"
+  },
+  "actions": {
+    "analytics": {
+      "source": "src/16/actions/office-chart-bar.svg"
+    },
+    "apps": {
+      "source": "src/symbolic/actions/view-app-grid-symbolic.svg"
+    },
+    "archive": {
+      "source": "links/16/actions/archive-insert.svg"
+    },
+    "arrow-down": {
+      "source": "src/16/actions/go-down.svg"
+    },
+    "arrow-up": {
+      "source": "src/16/actions/go-up.svg"
+    },
+    "attachment": {
+      "source": "src/16/actions/mail-attachment.svg"
+    },
+    "bell": {
+      "source": "src/16/actions/notifications.svg"
+    },
+    "bookmark": {
+      "source": "src/16/actions/bookmark-new.svg"
+    },
+    "calendar": {
+      "source": "src/16/actions/view-calendar.svg"
+    },
+    "camera": {
+      "source": "src/16/devices/camera-photo.svg"
+    },
+    "chat": {
+      "source": "links/16/actions/mail-message.svg"
+    },
+    "check": {
+      "source": "links/16/actions/dialog-ok.svg"
+    },
+    "check-square": {
+      "source": "links/symbolic/actions/checkbox-checked-symbolic.svg"
+    },
+    "chevron-down": {
+      "source": "src/16/actions/go-down.svg"
+    },
+    "chevron-left": {
+      "source": "src/16/actions/go-previous.svg"
+    },
+    "chevron-right": {
+      "source": "src/16/actions/go-next.svg"
+    },
+    "chevron-up": {
+      "source": "src/16/actions/go-up.svg"
+    },
+    "clipboard": {
+      "source": "src/16/actions/edit-paste.svg"
+    },
+    "clock": {
+      "source": "src/16/actions/appointment-new.svg"
+    },
+    "code": {
+      "source": "src/16/actions/code-context.svg"
+    },
+    "columns": {
+      "source": "links/16/actions/view-split-left-right.svg"
+    },
+    "contrast": {
+      "supplement": "contrast"
+    },
+    "copy": {
+      "source": "src/16/actions/edit-copy.svg"
+    },
+    "cpu": {
+      "source": "src/16/devices/cpu.svg"
+    },
+    "crop": {
+      "source": "src/16/actions/transform-crop.svg"
+    },
+    "cube": {
+      "source": "src/16/actions/draw-cuboid.svg"
+    },
+    "database": {
+      "supplement": "database"
+    },
+    "download": {
+      "source": "src/16/actions/go-down.svg"
+    },
+    "edit": {
+      "source": "links/16/actions/document-edit.svg"
+    },
+    "external": {
+      "source": "links/16/actions/window-new.svg"
+    },
+    "eye": {
+      "source": "links/16/actions/view-visible.svg"
+    },
+    "eye-off": {
+      "source": "src/16/actions/view-hidden.svg"
+    },
+    "eyedropper": {
+      "source": "src/16/actions/color-picker.svg"
+    },
+    "file": {
+      "supplement": "file"
+    },
+    "file-plus": {
+      "source": "src/16/actions/document-new.svg"
+    },
+    "folder": {
+      "source": "src/16/places/folder.svg"
+    },
+    "folder-plus": {
+      "source": "src/16/actions/folder-new.svg"
+    },
+    "format-bold": {
+      "source": "src/16/actions/format-text-bold.svg"
+    },
+    "format-italic": {
+      "source": "src/16/actions/format-text-italic.svg"
+    },
+    "format-numbered": {
+      "source": "links/16/actions/format-list-ordered.svg"
+    },
+    "format-quote": {
+      "supplement": "format-quote"
+    },
+    "format-strike": {
+      "source": "src/16/actions/format-text-strikethrough.svg"
+    },
+    "games": {
+      "supplement": "games"
+    },
+    "globe": {
+      "supplement": "globe"
+    },
+    "grid": {
+      "source": "src/16/actions/view-grid.svg"
+    },
+    "headphones": {
+      "source": "src/16/devices/audio-headphones.svg"
+    },
+    "heart": {
+      "supplement": "heart"
+    },
+    "help": {
+      "source": "src/16/actions/help-contents.svg"
+    },
+    "home": {
+      "source": "src/16/actions/go-home.svg"
+    },
+    "image": {
+      "source": "src/16/actions/insert-image.svg"
+    },
+    "info": {
+      "source": "links/16/actions/dialog-information.svg"
+    },
+    "key": {
+      "source": "src/16/actions/dialog-password.svg"
+    },
+    "keyboard": {
+      "source": "src/16/devices/input-keyboard.svg"
+    },
+    "layout": {
+      "source": "links/16/actions/view-split-left-right.svg"
+    },
+    "link": {
+      "source": "src/16/actions/insert-link.svg"
+    },
+    "list": {
+      "source": "src/16/actions/view-list-details.svg"
+    },
+    "mail": {
+      "source": "src/16/actions/mail-send.svg"
+    },
+    "maximize": {
+      "source": "src/16/actions/window-maximize.svg"
+    },
+    "menu": {
+      "source": "src/16/actions/open-menu-symbolic.svg"
+    },
+    "mesh": {
+      "supplement": "mesh"
+    },
+    "microphone": {
+      "source": "src/16/devices/audio-input-microphone.svg"
+    },
+    "minus": {
+      "source": "src/16/actions/list-remove.svg"
+    },
+    "monitor": {
+      "source": "src/16/devices/video-display-symbolic.svg"
+    },
+    "music": {
+      "supplement": "music"
+    },
+    "network": {
+      "source": "links/16/places/network-workgroup.svg"
+    },
+    "notes": {
+      "source": "links/16/actions/document-edit.svg"
+    },
+    "package": {
+      "supplement": "package"
+    },
+    "palette": {
+      "source": "src/16/actions/color-management.svg"
+    },
+    "pause": {
+      "source": "src/16/actions/media-playback-pause.svg"
+    },
+    "phone": {
+      "source": "src/16/actions/call-start.svg"
+    },
+    "play": {
+      "source": "src/16/actions/media-playback-start.svg"
+    },
+    "plus": {
+      "source": "src/16/actions/list-add.svg"
+    },
+    "printer": {
+      "source": "src/16/actions/document-print.svg"
+    },
+    "puzzle": {
+      "supplement": "puzzle"
+    },
+    "radio": {
+      "source": "links/16/actions/radio.svg"
+    },
+    "redo": {
+      "source": "src/16/actions/edit-redo.svg"
+    },
+    "refresh": {
+      "source": "src/16/actions/view-refresh.svg"
+    },
+    "restore": {
+      "source": "src/16/actions/window-restore.svg"
+    },
+    "run": {
+      "source": "src/16/actions/system-run.svg"
+    },
+    "save": {
+      "source": "src/16/actions/document-save.svg"
+    },
+    "scissors": {
+      "source": "src/16/actions/edit-cut.svg"
+    },
+    "search": {
+      "source": "links/16/actions/system-search.svg"
+    },
+    "server": {
+      "source": "src/16/devices/network-server.svg"
+    },
+    "settings": {
+      "source": "src/16/actions/configure.svg"
+    },
+    "shield": {
+      "supplement": "shield"
+    },
+    "sliders": {
+      "source": "src/16/actions/configure.svg"
+    },
+    "sort": {
+      "source": "src/16/actions/view-sort-ascending.svg"
+    },
+    "speaker": {
+      "source": "src/16/actions/audio-volume-high.svg"
+    },
+    "square": {
+      "source": "links/16/actions/checkbox.svg"
+    },
+    "star": {
+      "source": "src/16/actions/rating.svg"
+    },
+    "stop": {
+      "source": "src/16/actions/media-playback-stop.svg"
+    },
+    "terminal": {
+      "source": "src/16/actions/utilities-terminal.svg"
+    },
+    "todo": {
+      "supplement": "todo"
+    },
+    "trash": {
+      "source": "src/16/actions/edit-delete.svg"
+    },
+    "undo": {
+      "source": "src/16/actions/edit-undo.svg"
+    },
+    "upload": {
+      "source": "src/16/actions/go-up.svg"
+    },
+    "users": {
+      "source": "links/16/actions/system-users.svg"
+    },
+    "video": {
+      "source": "src/16/actions/media-record.svg"
+    },
+    "wallpaper": {
+      "supplement": "wallpaper"
+    },
+    "x": {
+      "source": "src/16/actions/window-close.svg"
+    },
+    "zoom-in": {
+      "source": "src/16/actions/zoom-in.svg"
+    },
+    "zoom-out": {
+      "source": "src/16/actions/zoom-out.svg"
+    }
+  },
+  "folders": {
+    "analytics": {
+      "source": "links/scalable/places/folder-documents.svg"
+    },
+    "apps": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "archive": {
+      "source": "links/scalable/places/folder-tar.svg"
+    },
+    "audio": {
+      "source": "links/scalable/places/folder-music.svg"
+    },
+    "backup": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "book": {
+      "source": "src/scalable/places/folder-library.svg"
+    },
+    "camera": {
+      "source": "links/scalable/places/folder-camera.svg"
+    },
+    "cloud": {
+      "source": "links/scalable/places/folder-cloud.svg"
+    },
+    "code": {
+      "source": "links/scalable/places/folder-development.svg"
+    },
+    "database": {
+      "source": "src/scalable/places/folder-database.svg"
+    },
+    "desktop": {
+      "source": "links/scalable/places/folder-desktop.svg"
+    },
+    "documents": {
+      "source": "links/scalable/places/folder-documents.svg"
+    },
+    "downloads": {
+      "source": "links/scalable/places/folder-downloads.svg"
+    },
+    "folder": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "folder-open": {
+      "source": "links/scalable/places/folder-open.svg"
+    },
+    "folder-plus": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "folder-symbolic": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "forms": {
+      "source": "links/scalable/places/folder-templates.svg"
+    },
+    "globe": {
+      "source": "links/scalable/places/folder-publicshare.svg"
+    },
+    "heart": {
+      "source": "links/scalable/places/folder-favorites.svg"
+    },
+    "help": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "home": {
+      "source": "links/scalable/places/folder-home.svg"
+    },
+    "image": {
+      "source": "links/scalable/places/folder-pictures.svg"
+    },
+    "key": {
+      "source": "links/scalable/places/folder-encrypted.svg"
+    },
+    "mail": {
+      "source": "links/scalable/places/folder-mail.svg"
+    },
+    "map": {
+      "source": "links/scalable/places/folder-publicshare.svg"
+    },
+    "network": {
+      "source": "links/scalable/places/folder-network.svg"
+    },
+    "package": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "phone": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "printer": {
+      "source": "links/scalable/places/folder-print.svg"
+    },
+    "settings": {
+      "source": "links/scalable/places/folder-system.svg"
+    },
+    "share": {
+      "source": "links/scalable/places/folder-publicshare.svg"
+    },
+    "text": {
+      "source": "links/scalable/places/folder-documents.svg"
+    },
+    "tools": {
+      "source": "links/scalable/places/folder-development.svg"
+    },
+    "video": {
+      "source": "links/scalable/places/folder-videos.svg"
+    },
+    "weather": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "workflow": {
+      "source": "src/scalable/places/folder-git.svg"
+    }
+  },
+  "icons": {
+    "agent-chat": {
+      "source": "links/scalable/apps/internet-chat.svg"
+    },
+    "analytics": {
+      "source": "src/scalable/apps/utilities-system-monitor.svg"
+    },
+    "apps": {
+      "source": "links/scalable/apps/applications-other.svg"
+    },
+    "apps-symbolic": {
+      "source": "links/scalable/apps/applications-other.svg"
+    },
+    "archive": {
+      "source": "src/scalable/mimetypes/application-x-archive.svg"
+    },
+    "arrow-up": {
+      "source": "src/16/actions/go-up.svg"
+    },
+    "audio": {
+      "source": "src/scalable/mimetypes/audio-x-generic.svg"
+    },
+    "audio-player": {
+      "source": "links/scalable/apps/multimedia-audio-player.svg"
+    },
+    "backup": {
+      "source": "src/scalable/apps/deja-dup.svg"
+    },
+    "bluetooth": {
+      "source": "src/scalable/apps/bluetooth.svg"
+    },
+    "book": {
+      "source": "src/scalable/apps/accessories-dictionary.svg"
+    },
+    "bookshelf": {
+      "source": "links/scalable/apps/calibre.svg"
+    },
+    "browser": {
+      "source": "src/scalable/apps/web-browser.svg"
+    },
+    "calculator": {
+      "source": "links/scalable/apps/accessories-calculator.svg"
+    },
+    "calendar": {
+      "source": "links/scalable/apps/x-office-calendar.svg"
+    },
+    "camera": {
+      "source": "links/scalable/apps/camera-photo.svg"
+    },
+    "chat": {
+      "source": "links/scalable/apps/internet-chat.svg"
+    },
+    "check-square": {
+      "supplement": "check-square"
+    },
+    "chess": {
+      "source": "src/scalable/apps/gnome-chess.svg"
+    },
+    "chevron-down": {
+      "source": "src/16/actions/go-down.svg"
+    },
+    "chevron-left": {
+      "source": "src/16/actions/go-previous.svg"
+    },
+    "chevron-right": {
+      "source": "src/16/actions/go-next.svg"
+    },
+    "chevron-up": {
+      "source": "src/16/actions/go-up.svg"
+    },
+    "clipboard": {
+      "source": "links/scalable/apps/edit-paste.svg"
+    },
+    "cloud": {
+      "source": "links/scalable/places/folder-cloud.svg"
+    },
+    "code": {
+      "source": "src/scalable/mimetypes/text-x-script.svg"
+    },
+    "code-studio": {
+      "source": "links/scalable/apps/visual-studio-code.svg"
+    },
+    "columns": {
+      "source": "links/16/actions/view-split-left-right.svg"
+    },
+    "commandcode": {
+      "source": "links/scalable/apps/utilities-terminal.svg"
+    },
+    "contrast": {
+      "source": "src/scalable/apps/preferences-desktop-accessibility.svg"
+    },
+    "copy": {
+      "source": "src/16/actions/edit-copy.svg"
+    },
+    "css": {
+      "source": "src/scalable/mimetypes/text-css.svg"
+    },
+    "cube": {
+      "source": "src/16/actions/draw-cuboid.svg"
+    },
+    "cyd-creator": {
+      "source": "src/scalable/apps/arduino.svg"
+    },
+    "database": {
+      "source": "src/scalable/apps/libreoffice-base.svg"
+    },
+    "desktop": {
+      "source": "links/scalable/places/user-desktop.svg"
+    },
+    "desktop-symbolic": {
+      "source": "links/scalable/places/user-desktop.svg"
+    },
+    "documents": {
+      "source": "src/scalable/mimetypes/x-office-document.svg"
+    },
+    "download": {
+      "source": "links/scalable/places/folder-downloads.svg"
+    },
+    "downloads": {
+      "source": "links/scalable/places/folder-downloads.svg"
+    },
+    "dozzle": {
+      "source": "src/scalable/apps/utilities-log-viewer.svg"
+    },
+    "easydrag": {
+      "source": "src/scalable/apps/input-mouse.svg"
+    },
+    "editor": {
+      "source": "src/scalable/apps/accessories-text-editor.svg"
+    },
+    "eye": {
+      "source": "links/16/actions/view-visible.svg"
+    },
+    "eye-off": {
+      "source": "src/16/actions/view-hidden.svg"
+    },
+    "file-plus": {
+      "source": "src/16/actions/document-new.svg"
+    },
+    "folder": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "folder-open": {
+      "source": "links/scalable/places/folder-open.svg"
+    },
+    "folder-plus": {
+      "source": "src/16/actions/folder-new.svg"
+    },
+    "folder-symbolic": {
+      "source": "links/scalable/places/folder.svg"
+    },
+    "forms": {
+      "source": "links/scalable/apps/x-office-address-book.svg"
+    },
+    "galaxa-deluxe": {
+      "supplement": "rocket"
+    },
+    "gallery": {
+      "source": "links/scalable/apps/org.gnome.Photos.svg"
+    },
+    "gallery-action-delete": {
+      "supplement": "trash"
+    },
+    "gallery-action-download": {
+      "supplement": "download"
+    },
+    "gallery-action-edit": {
+      "supplement": "edit"
+    },
+    "gallery-action-preview": {
+      "supplement": "eye"
+    },
+    "globe": {
+      "source": "links/scalable/apps/applications-internet.svg"
+    },
+    "go": {
+      "source": "src/scalable/mimetypes/text-x-go.svg"
+    },
+    "gods-eye-view": {
+      "source": "links/scalable/apps/maps.svg"
+    },
+    "grid": {
+      "source": "src/16/actions/view-grid.svg"
+    },
+    "ha-switchboard": {
+      "source": "src/scalable/apps/preferences-system.svg"
+    },
+    "heart": {
+      "supplement": "heart"
+    },
+    "help": {
+      "source": "src/scalable/apps/help-browser.svg"
+    },
+    "home": {
+      "source": "links/scalable/places/user-home.svg"
+    },
+    "html": {
+      "source": "src/scalable/mimetypes/text-html.svg"
+    },
+    "image": {
+      "source": "src/scalable/mimetypes/image-x-generic.svg"
+    },
+    "info": {
+      "source": "links/scalable/apps/dialog-information.svg"
+    },
+    "info-symbolic": {
+      "source": "links/scalable/apps/dialog-information.svg"
+    },
+    "javascript": {
+      "source": "links/scalable/mimetypes/application-javascript.svg"
+    },
+    "json": {
+      "source": "src/scalable/mimetypes/application-json.svg"
+    },
+    "key": {
+      "source": "links/scalable/apps/dialog-password.svg"
+    },
+    "launchpad": {
+      "source": "src/scalable/apps/view-app-grid.svg"
+    },
+    "layerling": {
+      "source": "links/scalable/mimetypes/text-x-markdown.svg"
+    },
+    "layout": {
+      "source": "links/16/actions/view-split-left-right.svg"
+    },
+    "leafy": {
+      "source": "links/scalable/places/folder-green.svg"
+    },
+    "list": {
+      "source": "src/16/actions/view-list-details.svg"
+    },
+    "live-speech": {
+      "source": "src/scalable/devices/audio-input-microphone.svg"
+    },
+    "looper": {
+      "source": "src/scalable/apps/ardour.svg"
+    },
+    "mail": {
+      "source": "src/scalable/apps/internet-mail.svg"
+    },
+    "map": {
+      "source": "links/scalable/apps/maps.svg"
+    },
+    "markdown": {
+      "source": "links/scalable/mimetypes/text-x-markdown.svg"
+    },
+    "maximize": {
+      "source": "src/16/actions/window-maximize.svg"
+    },
+    "mesh": {
+      "supplement": "mesh"
+    },
+    "minus": {
+      "source": "src/16/actions/list-remove.svg"
+    },
+    "monitor": {
+      "source": "src/scalable/devices/computer.svg"
+    },
+    "monitor-symbolic": {
+      "source": "src/scalable/devices/computer.svg"
+    },
+    "n8n": {
+      "supplement": "workflow"
+    },
+    "nasscad": {
+      "source": "src/scalable/apps/freecad.svg"
+    },
+    "network": {
+      "source": "src/scalable/apps/network-workgroup.svg"
+    },
+    "newspaper": {
+      "source": "links/scalable/mimetypes/application-rss+xml.svg"
+    },
+    "node-red": {
+      "supplement": "network"
+    },
+    "notes": {
+      "source": "links/scalable/apps/accessories-notes.svg"
+    },
+    "olivetin": {
+      "supplement": "switchboard"
+    },
+    "open-webui": {
+      "supplement": "chat"
+    },
+    "openscad": {
+      "source": "src/scalable/apps/openscad.svg"
+    },
+    "package": {
+      "source": "src/scalable/mimetypes/package-x-generic.svg"
+    },
+    "pdf": {
+      "source": "links/scalable/apps/application-pdf.svg"
+    },
+    "personal-radio": {
+      "supplement": "headphones"
+    },
+    "phone": {
+      "source": "src/scalable/devices/phone.svg"
+    },
+    "pixel": {
+      "source": "links/scalable/apps/applications-graphics.svg"
+    },
+    "printer": {
+      "source": "src/scalable/apps/printer.svg"
+    },
+    "python": {
+      "source": "src/scalable/mimetypes/text-x-python.svg"
+    },
+    "quakejs": {
+      "supplement": "games"
+    },
+    "radio": {
+      "source": "links/16/actions/radio.svg"
+    },
+    "redo": {
+      "source": "src/16/actions/edit-redo.svg"
+    },
+    "refresh": {
+      "source": "src/16/actions/view-refresh.svg"
+    },
+    "romm": {
+      "source": "src/scalable/apps/applications-games.svg"
+    },
+    "rtl-sdr": {
+      "supplement": "antenna"
+    },
+    "run": {
+      "source": "links/scalable/apps/system-run.svg"
+    },
+    "ruview": {
+      "supplement": "radar"
+    },
+    "save": {
+      "source": "src/16/actions/document-save.svg"
+    },
+    "scissors": {
+      "source": "src/16/actions/edit-cut.svg"
+    },
+    "screensaver-symbolic": {
+      "source": "src/scalable/apps/preferences-desktop-screensaver.svg"
+    },
+    "search": {
+      "source": "src/scalable/apps/system-search.svg"
+    },
+    "server": {
+      "source": "src/scalable/devices/network-server.svg"
+    },
+    "settings": {
+      "source": "src/scalable/apps/preferences-system.svg"
+    },
+    "settings-symbolic": {
+      "source": "src/scalable/apps/preferences-system.svg"
+    },
+    "sliders": {
+      "source": "links/scalable/apps/preferences-other.svg"
+    },
+    "software-store": {
+      "source": "src/scalable/apps/system-software-install.svg"
+    },
+    "sort": {
+      "source": "src/16/actions/view-sort-ascending.svg"
+    },
+    "sound-symbolic": {
+      "source": "links/scalable/apps/preferences-desktop-sound.svg"
+    },
+    "spreadsheet": {
+      "source": "src/scalable/mimetypes/x-office-spreadsheet.svg"
+    },
+    "square": {
+      "source": "links/16/actions/checkbox.svg"
+    },
+    "star": {
+      "source": "src/16/actions/rating.svg"
+    },
+    "stop": {
+      "source": "src/16/actions/media-playback-stop.svg"
+    },
+    "teevee": {
+      "supplement": "teevee"
+    },
+    "terminal": {
+      "source": "links/scalable/apps/utilities-terminal.svg"
+    },
+    "terminal-app": {
+      "source": "links/scalable/apps/utilities-terminal.svg"
+    },
+    "termix": {
+      "source": "src/scalable/apps/terminator.svg"
+    },
+    "text": {
+      "source": "src/scalable/mimetypes/text-x-generic.svg"
+    },
+    "tools": {
+      "source": "src/scalable/apps/applications-utilities.svg"
+    },
+    "trash": {
+      "source": "src/scalable/places/user-trash.svg"
+    },
+    "trash-empty": {
+      "source": "src/scalable/places/user-trash.svg"
+    },
+    "trash-full": {
+      "source": "src/scalable/places/user-trash-full.svg"
+    },
+    "tresor": {
+      "source": "src/scalable/apps/keepassxc.svg"
+    },
+    "undo": {
+      "source": "src/16/actions/edit-undo.svg"
+    },
+    "upload": {
+      "source": "src/16/actions/go-up.svg"
+    },
+    "users": {
+      "source": "links/scalable/apps/system-users.svg"
+    },
+    "video": {
+      "source": "src/scalable/mimetypes/video-x-generic.svg"
+    },
+    "video-studio": {
+      "source": "src/scalable/apps/kdenlive.svg"
+    },
+    "weather": {
+      "supplement": "sun"
+    },
+    "workflow": {
+      "supplement": "workflow"
+    },
+    "writer": {
+      "source": "src/scalable/apps/libreoffice-writer.svg"
+    },
+    "x": {
+      "source": "src/16/actions/window-close.svg"
+    },
+    "xml": {
+      "source": "links/scalable/mimetypes/application-xml.svg"
+    },
+    "yaml": {
+      "supplement": "code"
+    },
+    "zipper": {
+      "source": "links/scalable/mimetypes/application-zip.svg"
+    },
+    "ziro-designer": {
+      "source": "src/scalable/apps/kicad.svg"
+    },
+    "zoom-in": {
+      "source": "src/16/actions/zoom-in.svg"
+    },
+    "zoom-out": {
+      "source": "src/16/actions/zoom-out.svg"
+    },
+    "zoom-reset": {
+      "supplement": "search"
+    }
+  }
+}

@@ -1,6 +1,9 @@
 package agent
 
-import "encoding/json"
+import (
+	"aurago/internal/tools"
+	"encoding/json"
+)
 
 // These are hard in-process dependencies already required by the handlers.
 // This check performs no network probe and does not infer remote health.
@@ -9,6 +12,10 @@ func toolRuntimeUnavailable(dc *DispatchContext, name string) string {
 		return ""
 	}
 	switch name {
+	case "s3_storage", "s3":
+		if state := tools.S3RuntimeAvailability(dc.Cfg); !state.Available {
+			return state.Reason
+		}
 	case "manage_notes", "notes", "todo", "manage_journal", "journal", "manage_plan":
 		if dc.ShortTermMem == nil {
 			return "Memory storage not available."

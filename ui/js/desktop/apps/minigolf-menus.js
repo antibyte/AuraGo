@@ -1,6 +1,6 @@
 import { PALETTE, colorValue, fillText } from './minigolf-shared.js';
 
-export const WORLD_ICONS = { garden: 'flower', coast: 'wave', night: 'lantern', pirate: 'ship', temple: 'temple', moon: 'moon' };
+export const WORLD_ICONS = { pirate: 'ship', temple: 'temple', moon: 'moon' };
 
 export function roundLabel(mode, holeId, courses, tr) {
     if (mode === 'full') return tr('full');
@@ -68,7 +68,7 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL }) {
         const row = (keys, text) => `<tr><th scope="row">${keys.map(key => `<kbd>${esc(key)}</kbd>`).join('')}</th><td>${esc(text)}</td></tr>`;
         const keys = `<table class="mg-keys"><tbody>${row(['←', '→'], tr('key_aim'))}${row(['↑', '↓'], tr('key_power'))}${row([tr('kbd_shift')], tr('key_fine'))}${row([tr('kbd_space')], tr('shoot'))}${row([tr('kbd_escape')], tr('key_escape'))}${row(['?'], tr('key_help'))}</tbody></table>`;
         const text = body => `<p>${esc(body)}</p>`;
-        showPanel(`<h2>${esc(tr('help'))}</h2>${section('mg-help-section', 'ball', tr('help_aim_title'), text(tr('help_aim_body')))}${section('mg-help-section', 'keyboard', tr('help_keys_title'), keys)}${section('mg-help-section', 'touch', tr('help_touch_title'), text(tr('help_touch_body')))}${section('mg-help-section', 'trophy', tr('help_score_title'), text(tr('score_hint')))}<div class="mg-panel-actions">${inRound ? button('tutorial-again', tr('tutorial_again')) : ''}${button('close', tr('close'), true)}</div>`, 'help', focus);
+        showPanel(`<h2>${esc(tr('help'))}</h2>${section('mg-help-section', 'ball', tr('help_aim_title'), text(tr('help_aim_body')))}${section('mg-help-section', 'camera', tr('help_view_title'), text(tr('help_view_body')))}${section('mg-help-section', 'keyboard', tr('help_keys_title'), keys)}${section('mg-help-section', 'touch', tr('help_touch_title'), text(tr('help_touch_body')))}${section('mg-help-section', 'trophy', tr('help_score_title'), text(tr('score_hint')))}<div class="mg-panel-actions">${inRound ? button('tutorial-again', tr('tutorial_again')) : ''}${button('close', tr('close'), true)}</div>`, 'help', focus);
     }
 
     return {

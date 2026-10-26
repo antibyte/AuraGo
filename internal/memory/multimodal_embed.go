@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"math"
 	"net/http"
@@ -63,6 +62,9 @@ func detectFormat(providerType, baseURL string) string {
 // EmbedFile reads a file (image or audio), base64-encodes it, and calls the
 // multimodal embedding API. Returns the embedding vector.
 func (me *MultimodalEmbedder) EmbedFile(ctx context.Context, filePath string) ([]float32, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	const maxFileBytes = 15 * 1024 * 1024 // 15 MB
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -109,7 +111,7 @@ func (me *MultimodalEmbedder) embedOpenAI(ctx context.Context, mimeType, b64 str
 	return me.doHTTPEmbeddingWithRetry(ctx, func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, "POST", me.baseURL+"/embeddings", bytes.NewReader(body))
 		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
+			return nil, me.requestCreationError()
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+me.apiKey)
@@ -158,7 +160,7 @@ func (me *MultimodalEmbedder) embedVertex(ctx context.Context, mimeType, b64 str
 	return me.doHTTPEmbeddingWithRetry(ctx, func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
+			return nil, me.requestCreationError()
 		}
 		req.Header.Set("Content-Type", "application/json")
 		if me.apiKey != "" {
@@ -166,6 +168,13 @@ func (me *MultimodalEmbedder) embedVertex(ctx context.Context, mimeType, b64 str
 		}
 		return req, nil
 	}, me.doVertexRequest)
+}
+
+// requestCreationError reports an unusable endpoint without the wrapped url.Error,
+// which quotes the whole URL, including a query that may hold the API key. Only
+// the scheme and host are named, as in the other embedding error paths.
+func (me *MultimodalEmbedder) requestCreationError() error {
+	return fmt.Errorf("create request: invalid embedding endpoint (%s)", redactEmbeddingURL(me.baseURL))
 }
 
 func (me *MultimodalEmbedder) doHTTPEmbeddingWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), do func(*http.Request) ([]float32, error)) ([]float32, error) {
@@ -183,21 +192,8 @@ func (me *MultimodalEmbedder) doHTTPEmbeddingWithRetry(ctx context.Context, buil
 		if !shouldRetryEmbeddingError(ctx, err) || attempt == embeddingRetryAttempts {
 			return nil, err
 		}
-		delay := embeddingRetryDelay(attempt)
-		if me.logger != nil {
-			me.logger.Warn("Multimodal embedding request failed transiently; retrying", "attempt", attempt, "error", err, "backoff", delay)
-		}
-		if delay <= 0 {
-			continue
-		}
-		timer := time.NewTimer(delay)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return nil, ctx.Err()
-		case <-timer.C:
+		if waitErr := waitBeforeEmbeddingRetry(ctx, me.logger, "Multimodal embedding request", attempt, err); waitErr != nil {
+			return nil, waitErr
 		}
 	}
 	return nil, lastErr
@@ -207,17 +203,16 @@ func (me *MultimodalEmbedder) doHTTPEmbeddingWithRetry(ctx context.Context, buil
 func (me *MultimodalEmbedder) doRequest(req *http.Request) ([]float32, error) {
 	resp, err := me.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("embedding request failed: %w", err)
+		return nil, fmt.Errorf("embedding request failed: %w", &embeddingTransportError{cause: err})
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("embedding API error %d: %s", resp.StatusCode, truncateResponse(respBody))
+		return nil, newEmbeddingHTTPStatusError(resp)
+	}
+	respBody, err := readEmbeddingResponseBody(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read embedding response: %w", &embeddingTransportError{cause: err})
 	}
 
 	var result struct {
@@ -239,17 +234,16 @@ func (me *MultimodalEmbedder) doRequest(req *http.Request) ([]float32, error) {
 func (me *MultimodalEmbedder) doVertexRequest(req *http.Request) ([]float32, error) {
 	resp, err := me.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("embedding request failed: %w", err)
+		return nil, fmt.Errorf("embedding request failed: %w", &embeddingTransportError{cause: err})
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("embedding API error %d: %s", resp.StatusCode, truncateResponse(respBody))
+		return nil, newEmbeddingHTTPStatusError(resp)
+	}
+	respBody, err := readEmbeddingResponseBody(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read embedding response: %w", &embeddingTransportError{cause: err})
 	}
 
 	var result struct {

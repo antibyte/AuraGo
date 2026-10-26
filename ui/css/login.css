@@ -1104,3 +1104,8 @@
     }
 }
 /* === Precision Entry Login Adapter: end === */
+/* WebAuthn remains within the existing entry card and keyboard flow. */
+.webauthn-hint { color: var(--text-secondary, #a4aab5); font-size: .82rem; line-height: 1.45; margin: 0 0 .75rem; }
+#webauthnLogin { margin-bottom: .85rem; }
+.webauthn-cancel { display: block; margin: .6rem auto 0; padding: .4rem .8rem; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: .5rem; cursor: pointer; }
+.webauthn-cancel:focus-visible { outline: 2px solid var(--accent, #73d4ee); outline-offset: 3px; }

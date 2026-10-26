@@ -140,6 +140,12 @@
     background: var(--vd-theme-input-bg, var(--ed-control)); color: var(--ed-text); font: inherit;
     transition: border-color var(--ed-fast) var(--ed-ease), box-shadow var(--ed-fast) var(--ed-ease);
 }
+/* a select keeps a caret of its own: two triangles in the muted ink, no image */
+select.ed-input {
+    appearance: none; -webkit-appearance: none; padding-right: 28px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ed-muted) 50%), linear-gradient(135deg, var(--ed-muted) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
 .ed-input:focus { outline: none; border-color: var(--ed-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
 .ed-input:disabled { opacity: 0.65; }
 textarea.ed-input { resize: vertical; line-height: 1.45; }
@@ -184,6 +190,8 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-switch--small { width: 30px; height: 17px; }
 .ed-switch--small > span { width: 13px; height: 13px; }
 .ed-switch--small[aria-checked="true"] > span { transform: translateX(13px); }
+/* U9: the small switch keeps its look; a pseudo element widens its target to 34 × 25 px */
+.ed-switch--small::before { content: ""; position: absolute; inset: -4px -2px; }
 .ed-switch-btn {
     display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 10px;
     border: 1px solid var(--ed-border); border-radius: var(--ds-radius-full); background: var(--ed-control);
@@ -202,7 +210,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-chip--ok { background: color-mix(in srgb, var(--ed-ok) 16%, transparent); color: var(--ed-ok-ink); }
 .ed-chip--accent { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); }
 .ed-chip--warn { background: color-mix(in srgb, var(--ed-warn) 18%, transparent); color: var(--ed-warn-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ed-warn) 45%, transparent); }
-.ed-chip--warn[role="link"] { cursor: pointer; }
+.ed-palette-setup:focus-visible { outline: 2px solid var(--ed-focus); outline-offset: 2px; }
 .ed-chip--risk { background: color-mix(in srgb, var(--ed-danger) 16%, transparent); color: var(--ed-danger-ink); }
 
 .ed-callout {
@@ -699,6 +707,15 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-file-meta > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-note { min-height: 220px; }
 
+/* connections of the step: the end of the settings pane (keyboard access to the wires' hover buttons) */
+.ed-conns { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ed-border); }
+.ed-conns-title { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ed-muted); }
+.ed-conns-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ed-conn { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 2px 4px 2px 10px; border: 1px solid var(--ed-border); border-radius: var(--ed-radius); background: var(--ed-panel-strong); }
+.ed-conn-text { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ed-conn-port { flex: none; }
+.ed-conn [data-ed-conn-remove]:hover:not(:disabled) { color: var(--ed-danger-ink); }
+
 /* input tree */
 .ed-inputs .ed-col-head select { max-width: 60%; }
 .ed-tree { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
@@ -710,7 +727,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-tree-row:hover, .ed-tree-row:focus { background: var(--ed-control-hover); }
 .ed-tree-row:active { cursor: grabbing; }
 .ed-tree-root { font-weight: 700; }
-.ed-tree-toggle { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; background: transparent; color: var(--ed-muted); cursor: pointer; }
+.ed-tree-toggle { display: grid; place-items: center; width: 24px; height: 24px; margin: -3px; padding: 0; border: 0; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-tree-toggle .ed-icon { width: 13px; height: 13px; }
 .ed-tree-spacer { width: 18px; flex: none; }
 .ed-tree-tile { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--ed-cat-ink); background: color-mix(in srgb, var(--ed-cat) 16%, transparent); }
@@ -743,7 +760,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-field-issue { display: flex; align-items: center; gap: 6px; color: var(--ed-warn-ink); font-size: 12px; }
 .ed-field-issue .ed-icon { width: 14px; height: 14px; }
 .ed-field.has-issue .ed-input, .ed-field.has-issue .ed-tpl { border-color: color-mix(in srgb, var(--ed-warn) 60%, var(--ed-border)); }
-.ed-field.is-sink > .ed-field-head label::after { content: " ⚑"; color: var(--ed-warn-ink); font-size: 11px; }
+.ed-field.is-sink > .ed-field-head label::after { content: " ⚑"; content: " ⚑" / ""; color: var(--ed-warn-ink); font-size: 11px; }
 .ed-field.is-drop { background: color-mix(in srgb, var(--ed-accent) 8%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ed-accent) 45%, transparent); }
 .ed-field.is-flash { animation: ed-flash 1.2s var(--ed-ease); }
 .ed-editor.is-mapping .ed-field[data-kind] .ed-tpl, .ed-editor.is-mapping .ed-field[data-kind] .ed-input { border-style: dashed; border-color: color-mix(in srgb, var(--ed-accent) 55%, var(--ed-border)); }
@@ -832,7 +849,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-tags { display: grid; gap: 6px; }
 .ed-tags-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .ed-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--ed-control); border: 1px solid var(--ed-border); font-size: 12px; }
-.ed-tag button { display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ed-muted); cursor: pointer; }
+.ed-tag button { display: grid; place-items: center; width: 24px; height: 24px; margin: -3px -2px -3px 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-tag button:hover { background: var(--ed-danger); color: white; }
 .ed-secret { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ed-secret > .ed-input { flex: 1 1 0; width: auto; min-width: 0; }
@@ -914,8 +931,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 
 /* ── responsive ─────────────────────────────────────────────────────────────── */
 @container (max-width: 900px) {
+    /* The text goes, the name stays: these spans are hidden visually (as .ed-sr-only does), and the buttons carry the same words as aria-label. */
     .ed-head-actions .ed-btn:not([data-ed-cmd="test"]):not([data-ed-cmd="publish"]):not([data-ed-cmd="runs"]):not([data-ed-cmd="run-now"]) > span,
-    .ed-switch-btn > span:last-child { display: none; }
+    .ed-switch-btn > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .ed-head-actions .ed-btn[data-ed-cmd="test"] > span,
     .ed-head-actions .ed-btn[data-ed-cmd="publish"] > span,
     .ed-head-actions .ed-btn[data-ed-cmd="runs"] > span,
@@ -938,7 +956,11 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 }
 @container (max-width: 560px) {
     .ed-home-hero, .ed-home-toolbar, .ed-home-section { padding-left: 16px; padding-right: 16px; }
-    .ed-state { display: none; }
+    /* the state chip goes, Paused stays (U13): a paused flow must be told apart on a phone too */
+    .ed-state > :not([data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]) { display: none; }
+    .ed-state > [data-ed-live-outdated], .ed-state > [data-ed-timers-off] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Runs, Test and Run now move into the ⋯ menu (editor moreMenu); Stop stays while a run goes on (V4) */
+    .ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }
     .ed-detail-backdrop { padding: 0; }
     .ed-detail { border-radius: 0; }
     .ed-detail-head {
@@ -1114,3 +1136,39 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-switch[aria-checked="true"], [aria-checked="true"] > .ed-switch { background-color: Highlight; }
     .ed-switch[aria-checked="true"] > span, [aria-checked="true"] > .ed-switch > span { background-color: HighlightText; }
 }
+
+/* header Undo / Redo (easydrag-history.js); aria-disabled keeps the focus on the button */
+.ed-head-history { display: flex; align-items: center; gap: 4px; flex: none; }
+.ed-head-history .ed-icon-btn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+/* "deleted – Undo" toast: above the canvas, below popovers (26) and dialogs (40); no animation */
+.ed-toast {
+    position: absolute; left: 50%; bottom: 16px; z-index: 20; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); padding: 8px 8px 8px 14px;
+    border-radius: 12px; background: var(--ed-panel-strong); color: var(--ed-text);
+    border: 1px solid var(--ed-border-strong); box-shadow: var(--ed-shadow-lg);
+}
+.ed-toast-text { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+
+/* palette: an item that needs setup and its own setup link side by side (U6) */
+.ed-palette-row { display: flex; align-items: center; gap: 4px; }
+.ed-palette-row > .ed-palette-item { flex: 1; min-width: 0; }
+.ed-palette-setup { margin-right: 6px; text-decoration: none; }
+
+/* why a connection is refused, beside the pointer (U14); visual only, the release announces it */
+.ed-connect-hint {
+    position: absolute; left: 0; top: 0; z-index: 6; max-width: 260px; padding: 4px 8px; border-radius: 8px; pointer-events: none;
+    background: color-mix(in srgb, var(--ed-danger) 16%, var(--ed-panel-strong)); color: var(--ed-danger-ink);
+    border: 1px solid var(--ed-danger); font-size: 12px; line-height: 1.35;
+}
+/* first-time tip about ports, until the first connection (U14) */
+.ed-port-tip {
+    position: absolute; left: 50%; bottom: 56px; z-index: 5; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; max-width: min(520px, calc(100% - 32px)); padding: 8px 6px 8px 12px;
+    border-radius: 12px; background: var(--ed-glass); border: 1px solid var(--ed-border); box-shadow: var(--ed-shadow-lg); font-size: 12.5px;
+}
+.ed-port-tip > span { min-width: 0; }
+
+/* a selected card shows its whole error (polish: the box is clamped to 2 lines otherwise) */
+.ed-node.is-selected .ed-node-error { -webkit-line-clamp: 8; z-index: 2; }
+/* the reason of a failed or offline save, in view next to the state */
+.ed-save-reason { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }

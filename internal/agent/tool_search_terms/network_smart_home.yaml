@@ -1,0 +1,109 @@
+# network_smart_home search terms
+adguard:
+  en: ["AdGuard Home", "DNS ad blocker", "block ads network wide", "DNS rewrite", "DNS query log", "DNS filter lists", "parental control DNS", "local DNS record"]
+  de: ["Werbeblocker DNS", "Werbung im Netzwerk blocken", "DNS Umschreibung", "DNS Anfragen Protokoll", "Filterliste hinzufügen", "Kindersicherung DNS", "lokaler DNS Eintrag"]
+api_request:
+  en: ["HTTP request", "call REST API", "send POST request", "GET request to endpoint", "JSON API call", "webhook call", "curl request", "bearer token API"]
+  de: ["HTTP Anfrage", "REST API aufrufen", "POST Anfrage senden", "API Endpunkt abfragen", "Webhook auslösen", "JSON Schnittstelle ansprechen", "API Aufruf mit Token", "curl Anfrage"]
+browser_automation:
+  en: ["headless browser", "background browser session", "click through website", "automate website workflow", "stealth browser", "avoid bot detection", "download file from website", "upload file to web form"]
+  de: ["Browser im Hintergrund", "Webseite durchklicken", "Website Ablauf automatisieren", "Tarnkappen Browser", "Bot Erkennung vermeiden", "Datei in Webformular hochladen", "Download von Webseite holen"]
+certificate_manager:
+  en: ["SSL certificate", "check certificate expiry", "TLS certificate", "self-signed certificate", "when does cert expire", "inspect PEM file", "HTTPS certificate check", "certificate SAN"]
+  de: ["SSL Zertifikat", "Zertifikat Ablaufdatum", "Zertifikat prüfen", "selbstsigniertes Zertifikat", "TLS Zertifikat", "PEM Datei auslesen", "Zertifikat läuft ab", "Testzertifikat erstellen"]
+cloudflare_tunnel:
+  en: ["Cloudflare Tunnel", "cloudflared", "expose site to internet", "publish site via tunnel", "quick tunnel", "temporary public URL", "tunnel status", "tunnel logs"]
+  de: ["Seite im Internet veröffentlichen", "temporärer öffentlicher Link", "Tunnel starten", "Tunnel stoppen", "Tunnel Routen anzeigen"]
+ddg_search:
+  en: ["DuckDuckGo", "DDG search", "search the web", "web search", "google something", "look up online", "internet search", "latest news search"]
+  de: ["DDG Suche", "im Internet suchen", "Websuche", "etwas googeln", "online recherchieren", "Suchmaschine", "aktuelle Nachrichten suchen"]
+dns_lookup:
+  en: ["DNS lookup", "DNS records", "MX record", "resolve hostname", "IP address of domain", "reverse DNS", "TXT SPF record", "nslookup"]
+  de: ["DNS Abfrage", "DNS Einträge", "MX Eintrag prüfen", "Hostname auflösen", "IP Adresse einer Domain", "Reverse Lookup", "SPF Eintrag"]
+evomap:
+  en: ["EvoMap", "evomap.ai", "EvoMap capsules", "GEP A2A integration", "register EvoMap node", "fetch capsules", "EvoMap knowledge graph", "EvoMap status"]
+  de: ["EvoMap Kapseln abrufen", "EvoMap Knoten registrieren", "EvoMap Wissensgraph", "EvoMap Status prüfen", "Kapseln und Assets", "GEP A2A Anbindung", "EvoMap Asset holen"]
+firewall:
+  en: ["firewall rules", "iptables", "ufw", "open port in firewall", "block IP address", "allow SSH through firewall", "list firewall rules", "Linux firewall"]
+  de: ["Firewall Regeln", "iptables Regeln", "ufw Befehl", "Port freigeben Firewall", "IP Adresse sperren", "Firewall Regel anzeigen", "eingehenden Verkehr blockieren"]
+form_automation:
+  en: ["fill web form", "submit form", "login form automation", "list form fields", "click button on page", "form fields CSS selector", "accept cookie banner", "fill and submit"]
+  de: ["Webformular ausfüllen", "Formular absenden", "Login Formular ausfüllen", "Formularfelder auslesen", "Button auf Seite klicken", "Cookie Banner wegklicken", "Eingabefelder per Selektor", "Anmeldeformular automatisch"]
+fritzbox_network:
+  en: ["Fritzbox WLAN", "turn off guest WiFi", "Fritzbox connected devices", "port forwarding Fritzbox", "Fritzbox router hosts", "enable 5 GHz WiFi", "open port on router", "Fritzbox wake PC"]
+  de: ["Gastnetz ausschalten", "Gäste WLAN", "verbundene Geräte Fritzbox", "Portfreigabe einrichten", "Portweiterleitung Router", "WLAN 5 GHz ein", "PC per Fritzbox aufwecken"]
+fritzbox_smarthome:
+  en: ["Fritz DECT", "smart plug Fritzbox", "Fritzbox thermostat", "set radiator temperature", "Fritzbox smart home devices", "DECT lamp brightness", "power consumption of plug", "automation template Fritzbox"]
+  de: ["DECT Steckdose schalten", "Heizkörperthermostat", "Heizung Temperatur einstellen", "Fritzbox Smart Home Geräte", "Stromverbrauch Steckdose", "Lampe dimmen DECT", "Vorlage anwenden Fritzbox"]
+fritzbox_storage:
+  en: ["Fritzbox NAS", "Fritzbox USB drive", "Fritzbox FTP server", "router storage free space", "DLNA media server status", "USB stick on router", "enable FTP on router"]
+  de: ["USB Festplatte am Router", "Speicherplatz am Router", "Medienserver Status", "USB Stick Fritzbox", "FTP am Router einschalten", "FRITZ!NAS"]
+fritzbox_system:
+  en: ["Fritzbox firmware version", "Fritzbox uptime", "reboot Fritzbox", "restart router", "router system log", "Fritzbox model serial", "Fritzbox event log", "router device info"]
+  de: ["Fritzbox neu starten", "Router neustarten", "Fritzbox Laufzeit", "Router Ereignisprotokoll", "Fritzbox Seriennummer", "Systemprotokoll Router", "Fritzbox Modell"]
+fritzbox_telephony:
+  en: ["Fritzbox call list", "missed calls", "answering machine messages", "Fritzbox phonebook", "voicemail transcript", "listen to voicemail", "who called me", "TAM message"]
+  de: ["Anrufliste Fritzbox", "verpasste Anrufe", "Anrufbeantworter Nachrichten", "Telefonbuch Fritzbox", "Voicemail abhören", "Anrufbeantworter transkribieren", "wer hat angerufen", "Sprachnachricht Fritzbox"]
+fritzbox_tv:
+  en: ["Fritzbox TV channels", "DVB-C channel list", "cable TV tuner", "TV stations list", "Fritzbox cable TV", "channel stream URL"]
+  de: ["Fritzbox Fernsehsender", "DVB-C Senderliste", "Kabelfernsehen Fritzbox", "TV Kanäle auflisten", "Sender Stream URL", "Kabel TV Tuner"]
+grafana:
+  en: ["Grafana", "Grafana dashboards", "Grafana alerts", "Prometheus query", "Loki logs query", "observability dashboard", "Grafana data sources", "Grafana health"]
+  de: ["Grafana Alarme", "Prometheus Abfrage", "Loki Logs abfragen", "Messwerte Dashboard", "Grafana Datenquellen", "Grafana Status"]
+home_assistant:
+  en: ["turn on lights", "smart home", "Home Assistant", "switch off heater", "activate scene", "set thermostat temperature", "open close blinds", "device entity state", "run HA script"]
+  de: ["Licht einschalten", "Licht ausschalten", "Smart Home steuern", "Szene aktivieren", "Heizung Thermostat einstellen", "Rollläden öffnen schließen", "Zustand von Gerät abfragen", "HA Skript ausführen"]
+local_wikipedia:
+  en: ["Wikipedia offline", "offline encyclopedia", "local Wikipedia search", "read Wikipedia article", "Kiwix", "ZIM file", "encyclopedia facts", "look up article offline"]
+  de: ["lokale Wikipedia", "Lexikon", "Enzyklopädie", "Wikipedia ohne Internet", "Wikipedia Artikel lesen", "Nachschlagewerk", "Offline Wikipedia"]
+mac_lookup:
+  en: ["MAC address of IP", "find MAC address", "ARP table", "ARP cache lookup", "hardware address of device", "IP to MAC", "MAC of LAN device"]
+  de: ["MAC Adresse herausfinden", "MAC Adresse zu IP", "ARP Tabelle", "ARP Cache", "Hardware Adresse Gerät", "MAC Adresse im LAN", "IP zu MAC"]
+mdns_scan:
+  en: ["mDNS scan", "Bonjour devices", "ZeroConf discovery", "find devices on network", "find Google Cast devices", "find printers on LAN", "find Raspberry Pi", "AirPlay devices", "register discovered devices"]
+  de: ["Geräte im Netzwerk finden", "Bonjour Geräte", "Google Cast Geräte finden", "Drucker im Netzwerk suchen", "Raspberry Pi im Netz finden", "Netzwerkgeräte entdecken", "ZeroConf Suche", "AirPlay Geräte"]
+mqtt_get_messages:
+  en: ["read MQTT messages", "recent MQTT messages", "MQTT message buffer", "what did sensor send", "latest MQTT payload", "check MQTT topic messages", "MQTT history"]
+  de: ["MQTT Nachrichten lesen", "letzte MQTT Nachrichten", "MQTT Nachrichtenpuffer", "was hat der Sensor gesendet", "MQTT Topic auslesen", "empfangene MQTT Werte", "aktuelle MQTT Payload"]
+mqtt_publish:
+  en: ["publish MQTT message", "send MQTT payload", "MQTT publish to topic", "MQTT command to device", "retained MQTT message", "send message to broker", "MQTT QoS publish"]
+  de: ["MQTT Nachricht senden", "MQTT veröffentlichen", "an MQTT Topic schreiben", "MQTT Befehl ans Gerät", "retained Nachricht", "Nachricht an Broker schicken", "MQTT Payload senden"]
+mqtt_subscribe:
+  en: ["subscribe MQTT topic", "listen to MQTT topic", "MQTT wildcard subscription", "watch sensor topic", "receive MQTT messages", "start listening broker", "MQTT subscription"]
+  de: ["MQTT Topic abonnieren", "MQTT abonnieren", "auf MQTT Topic hören", "MQTT Wildcard", "Sensor Topic überwachen", "MQTT Nachrichten empfangen", "Broker Topic beobachten"]
+mqtt_unsubscribe:
+  en: ["unsubscribe MQTT topic", "stop listening MQTT", "cancel MQTT subscription", "remove MQTT subscription", "stop receiving MQTT messages"]
+  de: ["MQTT Topic abbestellen", "MQTT Abo beenden", "nicht mehr auf Topic hören", "MQTT Abonnement entfernen", "MQTT Empfang stoppen"]
+network_ping:
+  en: ["ping host", "is host reachable", "check latency", "packet loss", "ping IP address", "ICMP echo", "is server online", "round trip time"]
+  de: ["Host anpingen", "ist Server erreichbar", "Latenz messen", "Paketverlust", "IP Adresse pingen", "Gerät online prüfen", "Ping Zeit"]
+port_scanner:
+  en: ["port scan", "open ports", "scan TCP ports", "which ports are open", "service banner grab", "nmap alternative", "check if port listening", "scan host for services"]
+  de: ["Portscan", "offene Ports", "Ports scannen", "welche Ports sind offen", "Dienste auf Host finden", "Port erreichbar prüfen", "TCP Ports prüfen", "Banner auslesen"]
+site_crawler:
+  en: ["crawl website", "site map of website", "follow links", "spider site", "discover all pages", "crawl documentation site", "extract multiple pages", "map site structure"]
+  de: ["Webseite crawlen", "alle Seiten einer Website", "Seitenstruktur ermitteln", "Links folgen", "alle Unterseiten finden", "Dokumentation durchforsten", "Sitemap erstellen", "Spider Website"]
+site_monitor:
+  en: ["website change detection", "monitor page for changes", "watch website", "page change history", "track price page changes", "content hash monitor", "check site updates"]
+  de: ["Webseite auf Änderungen überwachen", "Seitenänderung erkennen", "Website beobachten", "Änderungsverlauf Webseite", "Website Änderungen prüfen", "Preisseite beobachten", "Webseiten Monitor"]
+uptime_kuma:
+  en: ["Uptime Kuma", "uptime monitors", "which services are down", "monitor status up down", "Uptime Kuma summary", "response time of monitor", "is my website up", "status page monitors"]
+  de: ["Monitore Status", "welche Dienste sind down", "Ausfälle prüfen", "Verfügbarkeit Monitor", "Antwortzeit Monitor", "ist meine Website erreichbar", "Uptime Übersicht"]
+wake_on_lan:
+  en: ["Wake on LAN", "WOL", "wake up PC", "magic packet", "power on remote computer", "wake sleeping device", "turn on server over network", "boot machine remotely"]
+  de: ["PC aufwecken", "Rechner per Netzwerk einschalten", "Computer remote starten", "Server aus Standby wecken", "Gerät hochfahren übers LAN"]
+web_capture:
+  en: ["screenshot of website", "web page to PDF", "capture URL as PNG", "save page as PDF", "full page screenshot", "render page to PDF", "snapshot of web page"]
+  de: ["Screenshot von Webseite", "Webseite als PDF speichern", "URL als Bild festhalten", "Seite als PDF drucken", "ganze Seite Screenshot", "Bildschirmfoto Website", "Webseite als PNG"]
+web_performance_audit:
+  en: ["page speed test", "website load time", "Core Web Vitals", "page load performance", "TTFB", "why is website slow", "largest resources page", "PageSpeed check"]
+  de: ["Ladezeit Webseite", "Pagespeed Test", "Website zu langsam", "Seitenladezeit messen", "größte Ressourcen Seite", "Performance Analyse Website", "TTFB messen"]
+web_scraper:
+  en: ["scrape web page", "extract text from URL", "read web page", "read RSS feed", "extract table from website", "CSS selector extraction", "scrape product list", "page to Markdown", "extract links images"]
+  de: ["Webseite auslesen", "Text von URL holen", "Webseite lesen", "RSS Feed lesen", "Tabelle von Webseite extrahieren", "Webscraping", "Produktliste auslesen", "Artikel als Markdown", "CSS Selektor auslesen"]
+whois_lookup:
+  en: ["WHOIS lookup", "domain registrar", "domain expiry date", "who owns domain", "domain registration info", "name servers of domain", "DNSSEC status", "when was domain registered"]
+  de: ["WHOIS Abfrage", "Domain Inhaber", "Domain Ablaufdatum", "wem gehört die Domain", "Registrar herausfinden", "Domain Registrierung", "Nameserver der Domain", "Domain Erstellungsdatum"]
+wikipedia_search:
+  en: ["search Wikipedia", "Wikipedia article summary", "Wikipedia online", "encyclopedic facts", "who is biography", "look up definition", "Wikipedia in German", "history of place"]
+  de: ["Wikipedia suchen", "Wikipedia Zusammenfassung", "Wikipedia Artikel online", "Biografie nachschlagen", "Begriff erklären", "was ist Definition", "Wikipedia auf Englisch", "Ort Geschichte nachschlagen"]

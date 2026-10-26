@@ -25,6 +25,14 @@ type nodeInfo struct {
 	// defaultPort is the first non-error port, "" when there is none, and "out"
 	// for an unknown type.
 	defaultPort string
+	// continuePort is the port a failure is delivered on under on_error "continue":
+	// the definition's ContinuePort when the node has it, else defaultPort.
+	continuePort string
+	// refusal is the failure the node gets instead of running, nil for a node that runs
+	// (see secretTargetRefusals).
+	refusal *NodeError
+	// hasEffects records that the node declares an outward effect (declaresEffects).
+	hasEffects bool
 }
 
 // runState is owned by the coordinator goroutine of one run.
@@ -51,9 +59,13 @@ type runState struct {
 	stop     *StopSignal
 	// outputBytes is the encoded size of all accepted outputs (see MaxRunOutputBytes).
 	outputBytes int
+	// storedBytes is what the run log keeps of the run so far (MaxStoredRunBytes).
+	storedBytes int
 	// interrupted records that the end of the run's context cut a node short:
 	// a node was cancelled or abandoned, or never got to run.
 	interrupted bool
+	// gate is the run's slot gate (A7); nil without a runner slot.
+	gate *slotGate
 }
 
 // newRunState prepares the state of one run; run builds the graph after
@@ -89,7 +101,9 @@ func (s *runState) isTrigger(n *Node) bool {
 // checkFlow rejects a flow the engine cannot run: a missing one, one over the
 // document limits, one with a loop (a loop is only a warning for drafts, and
 // its nodes would never become ready) and one whose node definitions panic.
-// On success it has built the graph, the topological order and the node infos.
+// On success it has built the graph, the topological order and the node infos,
+// which also hold the nodes the run refuses to execute (unchecked data deciding
+// where a secret goes; the lint runs once here, not per node or attempt).
 func (s *runState) checkFlow() (code, msg, nodeID string) {
 	f := s.req.Flow
 	if f == nil {
@@ -111,9 +125,29 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		if ne != nil {
 			return ne.Code, ne.Message, id
 		}
+		info.hasEffects = declaresEffects(info.def, s.g.nodes[id])
 		s.info[id] = info
 	}
+	for id, ne := range secretTargetRefusals(f, s.e.reg) {
+		if info, ok := s.info[id]; ok {
+			info.refusal = ne
+			s.info[id] = info
+		}
+	}
 	return "", "", ""
+}
+
+// declaresEffects reports whether n's definition names an outward effect (NodeDef.EffectsOf). A
+// hook that panics counts as one: "effect may have happened" is the safe side.
+func declaresEffects(def *NodeDef, n *Node) bool {
+	if def == nil {
+		return false
+	}
+	var fx []Effect
+	if catchPanic(func() { fx = def.EffectsOf(n) }) != nil {
+		return true
+	}
+	return len(fx) > 0
 }
 
 // describeNode looks up n's definition and evaluates its port hooks. A panic in
@@ -127,7 +161,7 @@ func describeNode(reg *Registry, n *Node) (info nodeInfo, ne *NodeError) {
 	}()
 	def, _ := reg.Lookup(n.Type)
 	if def == nil {
-		return nodeInfo{defaultPort: PortOut}, nil
+		return nodeInfo{defaultPort: PortOut, continuePort: PortOut}, nil
 	}
 	info = nodeInfo{def: def, ports: def.OutputPorts(n)}
 	for _, p := range info.ports {
@@ -135,6 +169,10 @@ func describeNode(reg *Registry, n *Node) (info nodeInfo, ne *NodeError) {
 			info.defaultPort = p
 			break
 		}
+	}
+	info.continuePort = info.defaultPort
+	if def.ContinuePort != "" && def.ContinuePort != PortError && containsString(info.ports, def.ContinuePort) {
+		info.continuePort = def.ContinuePort
 	}
 	return info, nil
 }
@@ -158,6 +196,7 @@ func (s *runState) run(parent context.Context) RunResult {
 	}
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
+	s.gate = newSlotGate(s.req.Slot, ctx)
 
 	trigger := s.g.nodes[s.req.TriggerNode]
 	if trigger == nil || !s.isTrigger(trigger) {
@@ -181,6 +220,10 @@ func (s *runState) run(parent context.Context) RunResult {
 	ctxDone := ctx.Done()
 	var grace *time.Timer
 	var giveUp <-chan time.Time
+	// stopCut ends the grace that steps still running get after a stop node (E3); then the rest
+	// is cancelled. stopping records that the grace was started.
+	var stopCut <-chan time.Time
+	stopping := false
 	var ready []string
 	s.collectReady(&ready)
 loop:
@@ -193,14 +236,25 @@ loop:
 		if s.running == 0 {
 			break
 		}
+		s.gate.idle()
 		select {
 		case d := <-done:
 			s.running--
+			s.gate.received()
 			s.complete(ctx, d)
-			if s.failure != nil || s.stop != nil {
+			switch {
+			case s.failure != nil:
 				cancel()
+			case s.stop != nil && !stopping && s.running > 0:
+				// A stop ends the run, but steps that are running may be sending something right
+				// now: they get the abandon grace to finish before the rest is cancelled.
+				stopping = true
+				stopCut = s.e.services.clock().After(s.e.abandonAfter)
 			}
 			s.collectReady(&ready)
+		case <-stopCut:
+			stopCut = nil
+			cancel()
 		case <-ctxDone:
 			// Running nodes get a real-time grace to return after the run ended.
 			ctxDone = nil
@@ -260,6 +314,7 @@ func (s *runState) fireTrigger(trigger *Node) {
 	s.status[trigger.ID] = StepSuccess
 	s.deliverPorts(trigger, ports)
 	stored, truncated := storedOutput(out, encoded)
+	s.storedBytes += storedSize(encoded, truncated)
 	step := StepRecord{NodeID: trigger.ID, NodeKey: trigger.Key, Attempt: 1, Status: StepSuccess,
 		StartedAt: now, FinishedAt: now, Output: stored, OutputTruncated: truncated, Ports: ports}
 	s.steps = append(s.steps, step)
@@ -335,7 +390,11 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 		Services: s.e.services,
 		Logger:   s.e.logger.With("flow", s.req.Flow.ID, "run", s.req.RunID, "node", n.Key),
 	}
-	def := s.def(n)
+	s.gate.launched()
+	if s.gate != nil {
+		in.Slot = s.gate // never a typed nil
+	}
+	def, refusal := s.def(n), s.info[id].refusal
 	// The worker touches only these locals. runNode recovers from any panic, and
 	// the deferred send of the prefilled fallback also covers runtime.Goexit, so
 	// exactly one result is always sent; done has room for it.
@@ -343,7 +402,7 @@ func (s *runState) launch(ctx context.Context, id string, done chan<- nodeDone) 
 	go func() {
 		d := exitedNode(n, started)
 		defer func() { done <- d }()
-		d = e.runNode(ctx, def, n, in)
+		d = e.runNode(ctx, def, n, in, refusal)
 	}()
 }
 
@@ -375,7 +434,8 @@ func (s *runState) abandonRunning(ctx context.Context, done <-chan nodeDone) {
 		now := s.e.services.Now()
 		step := StepRecord{NodeID: id, NodeKey: n.Key, Status: StepCancelled,
 			StartedAt: s.launched[id], FinishedAt: now, DurationMS: now.Sub(s.launched[id]).Milliseconds(),
-			ErrorCode: "FLOW_NODE_ABANDONED", ErrorMessage: "the node did not stop after the run ended"}
+			ErrorCode: "FLOW_NODE_ABANDONED", ErrorMessage: "the node did not stop after the run ended",
+			EffectUncertain: s.info[id].hasEffects}
 		s.steps = append(s.steps, step)
 		s.publish(RunEvent{Type: EventStepFinished, NodeID: id, Step: &step})
 	}
@@ -419,6 +479,7 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 		s.status[n.ID] = StepCancelled
 		s.skipOutgoing(n.ID)
 		s.interrupted = true
+		step.EffectUncertain = info.hasEffects
 	case d.err != nil:
 		s.status[n.ID] = StepError
 		errOut := map[string]any{"error": map[string]any{"code": d.err.Code, "message": d.err.Message}}
@@ -430,11 +491,12 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 		}
 		switch errorMode {
 		case ErrorContinue:
-			// The default port: "true" for logic.if, "case_1" for logic.switch.
+			// The continue port: the first output, except for a node that names a
+			// fail-closed one ("false" for logic.if, "default" for logic.switch).
 			s.outputs[n.Key] = errOut
 			step.Output = errOut
-			if info.defaultPort != "" {
-				step.Ports = []string{info.defaultPort}
+			if info.continuePort != "" {
+				step.Ports = []string{info.continuePort}
 			}
 			s.deliverPorts(n, step.Ports)
 		case ErrorPort:
@@ -465,8 +527,29 @@ func (s *runState) complete(ctx context.Context, d nodeDone) {
 			s.stop = d.result.Stop
 		}
 	}
+	step = s.chargeStored(step, d.stored)
 	s.steps = append(s.steps, step)
 	s.publish(RunEvent{Type: EventStepFinished, NodeID: n.ID, Step: &step})
+}
+
+// chargeStored counts what the run log keeps of a step against MaxStoredRunBytes. Once the run
+// would pass it, the step keeps neither params nor output (storedOmitted, flags set); the step
+// event carries the same, so the live view and the stored run agree.
+func (s *runState) chargeStored(step StepRecord, size int) StepRecord {
+	if size <= 0 {
+		return step
+	}
+	if s.storedBytes+size <= MaxStoredRunBytes {
+		s.storedBytes += size
+		return step
+	}
+	if step.Params != nil {
+		step.Params, step.ParamsTruncated = storedOmitted(), true
+	}
+	if step.Output != nil {
+		step.Output, step.OutputTruncated = storedOmitted(), true
+	}
+	return step
 }
 
 func (s *runState) deliverPorts(n *Node, ports []string) {
@@ -540,16 +623,15 @@ func (s *runState) closeOpenNodes() {
 func (s *runState) conclude(parent, ctx context.Context) RunResult {
 	s.closeOpenNodes()
 	switch {
-	case s.stop != nil:
-		if s.stop.Status == RunError {
-			msg := s.stop.Message
-			if msg == "" {
-				msg = "the flow was stopped with an error"
-			}
-			return s.finish(RunError, "FLOW_STOPPED", msg, "")
+	case s.stop != nil && s.stop.Status == RunError:
+		msg := s.stop.Message
+		if msg == "" {
+			msg = "the flow was stopped with an error"
 		}
-		return s.finish(RunSuccess, "", "", "")
+		return s.finish(RunError, "FLOW_STOPPED", msg, "")
 	case s.failure != nil:
+		// A failure before any stop, or one of a step still running after a stop with success:
+		// the stop does not hide it (E3).
 		label := s.failedID
 		if n := s.g.nodes[s.failedID]; n != nil {
 			label = n.Label
@@ -558,6 +640,8 @@ func (s *runState) conclude(parent, ctx context.Context) RunResult {
 			}
 		}
 		return s.finish(RunError, s.failure.Code, truncateRunes(label, maxErrorLabelRunes)+": "+s.failure.Message, s.failedID)
+	case s.stop != nil:
+		return s.finish(RunSuccess, "", "", "")
 	case s.interrupted && parent.Err() != nil:
 		return s.finish(RunCancelled, "FLOW_CANCELLED", "the run was cancelled", "")
 	case s.interrupted && errors.Is(ctx.Err(), context.DeadlineExceeded):

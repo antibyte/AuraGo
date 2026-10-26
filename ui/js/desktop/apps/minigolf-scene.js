@@ -6,14 +6,18 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { colorValue, createQualityGovernor, MAX_NAME_LENGTH, POWER_STOPS } from './minigolf-shared.js';
+import { LOOKS, lookOf, tierConfig } from './minigolf-looks.js';
+import { createIntro, overviewFor } from './minigolf-camera.js';
+import { readColliders } from './minigolf-collision.js';
+import { createSky, createEnvironment } from './minigolf-sky.js';
+import { createWater } from './minigolf-water.js';
+import { buildProps, createShaderState, patchMaterial } from './minigolf-props.js';
+import { createFx } from './minigolf-fx.js';
 
-const LOOKS = {
-    garden: { sky: 0x88aa9e, fog: 0x88aa9e, sun: 0xffe4b6, ground: 0x6e9968 },
-    coast: { sky: 0x86acb8, fog: 0x86acb8, sun: 0xffeed1, ground: 0x6baeb4 },
-    night: { sky: 0x182e43, fog: 0x283c50, sun: 0xabbfee, ground: 0x283e49 }
-};
 const [POWER_A, POWER_B, POWER_C] = POWER_STOPS.map(([, hex]) => new THREE.Color(hex));
 const powerTint = new THREE.Color();
+// How far past the course bounds (metres) a panned view may centre.
+const PAN_MARGIN = 3;
 
 function powerColor(value) {
     if (value <= .5) powerTint.copy(POWER_A).lerp(POWER_B, value * 2);
@@ -50,41 +54,6 @@ function nameTag(text) {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
     sprite.scale.set((surface.width / surface.height) * .34, .34, 1);
     return sprite;
-}
-
-function buildSky(world) {
-    const look = LOOKS[world] || LOOKS.garden;
-    const top = world === 'night' ? 0x0c1430 : world === 'coast' ? 0x9cc8de : 0xa6cfe2;
-    const group = new THREE.Group();
-    const dome = new THREE.Mesh(
-        new THREE.SphereGeometry(150, 32, 18),
-        new THREE.ShaderMaterial({
-            side: THREE.BackSide, depthWrite: false,
-            uniforms: { topColor: { value: new THREE.Color(top) }, bottomColor: { value: new THREE.Color(look.fog) } },
-            vertexShader: 'varying vec3 vSkyPosition;\nvoid main(){ vSkyPosition = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-            fragmentShader: 'uniform vec3 topColor;\nuniform vec3 bottomColor;\nvarying vec3 vSkyPosition;\nvoid main(){ float h = clamp(normalize(vSkyPosition).y * 0.5 + 0.5, 0.0, 1.0); gl_FragColor = vec4(mix(bottomColor, topColor, smoothstep(0.44, 0.9, h)), 1.0); }'
-        })
-    );
-    group.add(dome);
-    if (world === 'night') {
-        const positions = new Float32Array(360 * 3);
-        for (let i = 0; i < 360; i++) {
-            const theta = Math.random() * Math.PI * 2;
-            const y = .06 + Math.random() * .92;
-            const radius = Math.sqrt(Math.max(0, 1 - y * y));
-            positions[i * 3] = Math.cos(theta) * radius * 140;
-            positions[i * 3 + 1] = y * 140;
-            positions[i * 3 + 2] = Math.sin(theta) * radius * 140;
-        }
-        const starGeometry = new THREE.BufferGeometry();
-        starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        group.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xf6f4e8, size: 1.7, sizeAttenuation: false, transparent: true, opacity: .9, fog: false, depthWrite: false })));
-        const moon = new THREE.Mesh(new THREE.CircleGeometry(5.5, 28), new THREE.MeshBasicMaterial({ color: 0xf7f1d6, fog: false, depthWrite: false }));
-        moon.position.set(70, 78, -64);
-        moon.lookAt(0, 0, 0);
-        group.add(moon);
-    }
-    return group;
 }
 
 function disposeTree(tree) {
@@ -134,10 +103,12 @@ function fillLine(line, points, from, to) {
 export function createScene(host, options) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = .9;
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = 1;
+    // The composer renders several passes per frame; the scene resets the counters itself.
+    renderer.info.autoReset = false;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     const canvas = renderer.domElement;
     canvas.tabIndex = 0;
     canvas.setAttribute('aria-label', options.label);
@@ -151,20 +122,37 @@ export function createScene(host, options) {
     controls.maxDistance = 38;
     controls.maxPolarAngle = Math.PI * .46;
     controls.minPolarAngle = .18;
-    controls.mouseButtons.LEFT = null;
+    // A left drag that misses the ball pans along the ground (a press on the ball aims, see down()).
+    controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
     controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+    controls.screenSpacePanning = false;
     controls.touches.ONE = null;
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-    controls.addEventListener('start', () => { userOrbiting = true; camTween = null; });
+    controls.addEventListener('start', () => { userOrbiting = true; camTween = null; skipIntro(); });
     controls.addEventListener('end', () => { userOrbiting = false; });
-    const ambient = new THREE.HemisphereLight(0xffffff, 0x60846e, 1.1);
+    // Keeps a panned view over the course: the target stays within the bounds plus a margin, and the camera moves by the
+    // same amount so the view direction does not change. The intro flight is not clamped.
+    controls.addEventListener('change', () => {
+        const bounds = course?.bounds;
+        if (intro || !bounds) return;
+        const [minX, , minZ] = bounds.min || [], [maxX, , maxZ] = bounds.max || [];
+        if (![minX, minZ, maxX, maxZ].every(Number.isFinite)) return;
+        const target = controls.target;
+        const dx = THREE.MathUtils.clamp(target.x, minX - PAN_MARGIN, maxX + PAN_MARGIN) - target.x;
+        const dz = THREE.MathUtils.clamp(target.z, minZ - PAN_MARGIN, maxZ + PAN_MARGIN) - target.z;
+        if (!dx && !dz) return;
+        target.x += dx; target.z += dz;
+        camera.position.x += dx; camera.position.z += dz;
+    });
+    // Ambient light comes from the per-look environment map (scene.environment), not a hemisphere light.
     const sun = new THREE.DirectionalLight(0xffe4b6, 1.8);
     sun.position.set(-9, 18, 8);
     sun.castShadow = true;
     sun.shadow.bias = -.0003;
     sun.shadow.normalBias = .025;
-    Object.assign(sun.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: .1, far: 65 });
-    scene.add(ambient, sun, sun.target);
+    Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: .1, far: 60 });
+    const rim = new THREE.DirectionalLight(0xffffff, 0);
+    scene.add(sun, sun.target, rim);
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
     const bloom = new UnrealBloomPass(new THREE.Vector2(640, 360), .22, .5, 1.1);
@@ -189,24 +177,38 @@ export function createScene(host, options) {
     scene.add(ball);
     const ghosts = new THREE.Group();
     scene.add(ghosts);
-    const effectGeometry = new THREE.IcosahedronGeometry(.055, 0);
-    const effectMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .8, depthWrite: false });
-    const effects = new THREE.InstancedMesh(effectGeometry, effectMaterial, 320);
-    effects.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    effects.frustumCulled = false; effects.count = 0; scene.add(effects);
-    const particleData = [], dummy = new THREE.Object3D(), effectColor = new THREE.Color();
-    const waterTime = { value: 0 };
     const ray = new THREE.Raycaster(), pointer = new THREE.Vector2(), floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hit = new THREE.Vector3();
+    const hit = new THREE.Vector3(), puttOffset = new THREE.Vector3();
     let course = null, courseRoot = null, disposed = false, generation = 0, request = null;
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
-    let skyGroup = null, followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
+    let followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
     let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false, dragStart = null;
-    let obstacleNodes = new Map(), waterNodes = [], flagNodes = [], windmill = null, putter = null, swing = 0, elapsed = 0, trailAt = 0;
+    let obstacleNodes = new Map(), flagNodes = [], spinNodes = [], putter = null, swing = 0, elapsed = 0;
+    // Framing of the loaded island (overviewFor): overview pose, shadow camera size and open water radius.
+    let overview = null;
     const governor = createQualityGovernor(), screenPoint = new THREE.Vector3();
     // Chosen quality and effective tier stay separate; auto follows the governor.
     const tier = () => quality === 'auto' ? governor.tier : quality;
-    const cap = () => tier() === 'low' ? 60 : tier() === 'high' ? 320 : 160;
+    const cfg = () => tierConfig(tier());
+    // One shader clock and motion switch feed the sky, water and every patched prop material.
+    const shaderState = createShaderState();
+    const fx = createFx(scene, LOOKS.pirate);
+    fx.setReduced(reduced);
+    const kits = new Map(), environments = new Map(), fxContext = { ball: ball.position, moving: false, speed: 0, color: undefined, surface: undefined, waterLevel: -1.15, groundY: 0 };
+    let lookId = 'pirate', look = LOOKS.pirate, sky = null, water = null, props = null;
+    let intro = null, introTime = 0, pendingTurn = null;
+    // Last colour id applied to the ball meshes and handed to the effects; null forces the next lookup.
+    let ballColorKey = null, fxColorKey = null;
+    const introPosition = [0, 0, 0], introTarget = [0, 0, 0];
+    // Props kits are fetched once per look; a failed fetch resolves to null so a course still plays without props.
+    function kitFor(id) {
+        if (!kits.has(id)) kits.set(id, fetch(options.assetURL(`/3d/minigolf/props-${id}.glb`))
+            .then(response => { if (!response.ok) throw Error('kit'); return response.arrayBuffer(); })
+            .then(bytes => new GLTFLoader().parseAsync(bytes, ''))
+            .then(gltf => gltf.scene)
+            .catch(() => { kits.delete(id); return null; }));
+        return kits.get(id);
+    }
 
     function resize() {
         if (disposed) return;
@@ -216,6 +218,7 @@ export function createScene(host, options) {
         composer.setPixelRatio(dpr); composer.setSize(width, height);
         bloom.setSize(Math.max(1, width >> 1), Math.max(1, height >> 1));
         camera.aspect = width / height; camera.updateProjectionMatrix();
+        fx.setScale(height * dpr, camera.fov);
     }
     function applyTier() {
         const level = tier();
@@ -235,7 +238,20 @@ export function createScene(host, options) {
             sun.shadow.map?.dispose(); sun.shadow.map = null;
             sun.shadow.mapSize.set(shadowSize, shadowSize);
         }
+        const next = cfg();
+        sky?.setTier(next); water?.setTier(next); fx.setTier(next);
+        shaderState.golfMotion.value = next.motion && !reduced ? 1 : 0;
+        if (props && course && props.scatter !== next.scatter) void rebuildProps();
         resize();
+    }
+    // Rebuilds the instanced props, for example when a tier change adds or drops scatter decoration.
+    async function rebuildProps() {
+        const target = course, id = lookId;
+        const kit = target?.props?.length ? await kitFor(id) : null;
+        // A newer course load owns the props; this rebuild is stale.
+        if (disposed || course !== target) return;
+        props?.dispose(); props = null;
+        if (kit) { props = buildProps(kit, id, target.props, { scatter: cfg().scatter, state: shaderState }); scene.add(props.group); }
     }
     function setQuality(value) {
         quality = ['auto', 'low', 'medium', 'high'].includes(value) ? value : 'auto';
@@ -270,7 +286,7 @@ export function createScene(host, options) {
         }
         if (putter) {
             putter.visible = canAim || swing > 0;
-            putter.position.copy(ball.position).add(new THREE.Vector3(-aimDirection[0] * (.38 + swing * .25), -.13, -aimDirection[1] * (.38 + swing * .25)));
+            putter.position.copy(ball.position).add(puttOffset.set(-aimDirection[0] * (.38 + swing * .25), -.13, -aimDirection[1] * (.38 + swing * .25)));
             putter.rotation.y = Math.atan2(aimDirection[0], aimDirection[1]);
         }
     }
@@ -283,20 +299,30 @@ export function createScene(host, options) {
         aimDirection = direction; aimPower = power; canAim = enabled;
         updateAim();
     }
-    function focusBall(overview = false) {
+    function focusBall(overviewPlan = false) {
+        if (intro) {
+            // Ends the flight in the end pose; a turn framing queued meanwhile runs afterwards.
+            const turn = pendingTurn;
+            intro = null; pendingTurn = null;
+            focusBall(true);
+            if (turn) frameTurn(...turn);
+            return;
+        }
         // Flush pending orbit/pan damping before moving the camera and its target together.
         camTween = null;
         const damping = controls.enableDamping;
         controls.enableDamping = false; controls.update();
-        const offset = overview ? new THREE.Vector3(10, 13, 14)
+        const pose = overviewPlan && course ? overviewPose() : null;
+        const offset = pose ? new THREE.Vector3(...pose.position).sub(new THREE.Vector3(...pose.target)) : overviewPlan ? new THREE.Vector3(10, 13, 14)
             : camera.position.clone().sub(controls.target).clampLength(controls.minDistance, 8);
-        const target = overview && course ? new THREE.Vector3(...course.cup).add(new THREE.Vector3(...course.tee)).multiplyScalar(.5) : ball.position.clone();
+        const target = pose ? new THREE.Vector3(...pose.target) : ball.position.clone();
         controls.target.copy(target);
         camera.position.copy(target).add(offset);
         controls.update();
         controls.enableDamping = damping;
     }
     function frameTurn(angle, position) {
+        if (intro) { pendingTurn = [angle, position ? Array.from(position) : position]; return; }
         if (!aimCamEnabled || !position || position.length < 3) return;
         const target = new THREE.Vector3(position[0], position[1], position[2]);
         const dirX = Math.sin(angle), dirZ = -Math.cos(angle);
@@ -329,7 +355,13 @@ export function createScene(host, options) {
     function setBall(position, rotation, color) {
         ball.position.fromArray(position);
         if (rotation) ball.quaternion.fromArray(rotation);
-        ball.traverse(node => { if (node.isMesh) node.material.color.set(colorValue(color)); });
+        // update() calls this every frame; only a colour change walks the ball and resolves the palette.
+        const colorKey = color ?? '';
+        if (colorKey !== ballColorKey) {
+            ballColorKey = colorKey;
+            const hex = colorValue(color);
+            ball.traverse(node => { if (node.isMesh) node.material.color.set(hex); });
+        }
         blob.position.set(ball.position.x, ball.position.y - .152, ball.position.z);
         updateAim();
     }
@@ -344,80 +376,72 @@ export function createScene(host, options) {
             ghosts.add(tag);
         });
     }
-    function addWaterFoam(node) {
-        node.updateWorldMatrix(true, false);
-        const bounds = new THREE.Box3().setFromObject(node);
-        if (!Number.isFinite(bounds.min.x)) return;
-        const width = bounds.max.x - bounds.min.x, depth = bounds.max.z - bounds.min.z;
-        if (width < .6 || depth < .6) return;
-        const y = bounds.max.y + .02, edge = Math.min(.18, Math.min(width, depth) * .12);
-        const material = new THREE.MeshBasicMaterial({ color: 0xf4fbfa, transparent: true, opacity: .4, depthWrite: false });
-        const group = new THREE.Group();
-        const strip = (sw, sd, cx, cz) => {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(sw, .03, sd), material);
-            mesh.position.set(cx, y, cz);
-            group.add(mesh);
-        };
-        const cx = (bounds.min.x + bounds.max.x) / 2, cz = (bounds.min.z + bounds.max.z) / 2;
-        strip(width, edge, cx, bounds.min.z + edge / 2);
-        strip(width, edge, cx, bounds.max.z - edge / 2);
-        strip(edge, Math.max(.01, depth - edge * 2), bounds.min.x + edge / 2, cz);
-        strip(edge, Math.max(.01, depth - edge * 2), bounds.max.x - edge / 2, cz);
-        scene.add(group);
-        group.updateMatrixWorld(true);
-        node.attach(group);
+    // Sun and shadow camera cover the loaded island: ±9 m around its centre for the small P2 islands, wider for large ones.
+    function frameLight() {
+        const half = overview?.shadowHalf ?? 9, centre = course?.island?.center, distance = 22 + (half - 9) * 1.5, shadowCamera = sun.shadow.camera;
+        sun.target.position.set(Number(centre?.[0]) || 0, 0, Number(centre?.[1]) || 0);
+        sun.position.fromArray(look.sun.direction).normalize().multiplyScalar(distance).add(sun.target.position);
+        Object.assign(shadowCamera, { left: -half, right: half, top: half, bottom: -half, far: Math.max(60, distance + half * 2 + 12) });
+        shadowCamera.updateProjectionMatrix();
+    }
+    function applyLook() {
+        scene.background = new THREE.Color(look.background);
+        // The fog thins out with the overview distance of large courses (overviewFor), so the lane stays as clear as in P2.
+        scene.fog = look.fog ? new THREE.FogExp2(look.fog.color, look.fog.density * (overview?.fogScale ?? 1)) : null;
+        renderer.toneMappingExposure = look.exposure;
+        sun.color.set(look.sun.color); sun.intensity = look.sun.intensity;
+        frameLight();
+        rim.intensity = look.rim?.intensity ?? 0;
+        if (look.rim) { rim.color.set(look.rim.color); rim.position.fromArray(look.rim.direction).normalize().multiplyScalar(20); }
+        if (!environments.has(lookId)) environments.set(lookId, createEnvironment(renderer, look));
+        scene.environment = environments.get(lookId).texture;
+        scene.environmentIntensity = look.environment;
+        bloom.strength = look.bloom.strength; bloom.radius = look.bloom.radius; bloom.threshold = look.bloom.threshold;
+        fx.setLook(look);
     }
     async function load(next) {
         const version = ++generation;
         request?.abort(); request = new AbortController();
+        const nextLook = lookOf(next);
+        const kitPromise = next.props?.length ? kitFor(nextLook) : Promise.resolve(null);
         const response = await fetch(options.assetURL('/3d/minigolf/' + next.model), { signal: request.signal });
         if (!response.ok) throw Error('course_load');
         const bytes = await response.arrayBuffer();
         if (disposed || generation !== version) return false;
-        const gltf = await new GLTFLoader().parseAsync(bytes, '');
+        // The physics meshes are nodes of the course GLB; the manifest only carries their digest.
+        let colliders;
+        try { colliders = readColliders(bytes); } catch (_) { throw Error('course_collision'); }
+        // A course without floor collision would load but drop the ball through the world.
+        if (!colliders.some(group => group.surface === 'grass')) throw Error('course_collision');
+        const [gltf, kit] = await Promise.all([new GLTFLoader().parseAsync(bytes, ''), kitPromise]);
         if (disposed || generation !== version) { disposeTree(gltf.scene); return false; }
         if (courseRoot) { scene.remove(courseRoot); disposeTree(courseRoot); }
-        disposeTree(ball); ball.clear();
+        disposeTree(ball); ball.clear(); ballColorKey = null;
         if (putter) { scene.remove(putter); disposeTree(putter); putter = null; }
-        if (skyGroup) { scene.remove(skyGroup); disposeTree(skyGroup); skyGroup = null; }
+        props?.dispose(); props = null; sky?.dispose(); water?.dispose();
         course = next; courseRoot = gltf.scene; scene.add(courseRoot);
-        skyGroup = buildSky(next.world); scene.add(skyGroup);
         restMark.visible = false;
-        obstacleNodes = new Map(); waterNodes = []; flagNodes = []; windmill = null;
-        const look = LOOKS[next.world] || LOOKS.garden;
-        scene.background = new THREE.Color(look.sky);
-        scene.fog = new THREE.FogExp2(look.fog, next.world === 'night' ? .022 : .013);
-        sun.color.setHex(look.sun); sun.intensity = next.world === 'night' ? .8 : 1.8;
-        ambient.intensity = next.world === 'night' ? .9 : 1.1;
-        ambient.groundColor.setHex(look.ground);
-        bloom.strength = next.world === 'night' ? .32 : .15;
+        obstacleNodes = new Map(); flagNodes = []; spinNodes = [];
+        lookId = nextLook; look = LOOKS[lookId];
+        overview = overviewFor(next);
+        applyLook();
+        sky = createSky(look, cfg(), shaderState); scene.add(sky.group);
+        water = createWater(look, cfg(), shaderState, overview.waterRadius); scene.add(water.group);
+        // Large islands are viewed from up to 60 m: widen the orbit limit and the far plane to match.
+        const viewDistance = Math.hypot(...overview.position.map((value, a) => value - overview.target[a]));
+        controls.maxDistance = Math.max(38, viewDistance * 1.15);
+        camera.far = Math.max(180, 150 + viewDistance * 1.3); camera.updateProjectionMatrix();
         courseRoot.traverse(node => {
-            if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
-            if (node.name.startsWith('water') && node.isMesh) {
-                node.material = node.material.clone();
-                node.material.onBeforeCompile = shader => {
-                    shader.uniforms.golfWaterTime = waterTime;
-                    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 golfWaterXZ;')
-                        .replace('#include <begin_vertex>', '#include <begin_vertex>\ngolfWaterXZ = position.xz;');
-                    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float golfWaterTime;\nvarying vec2 golfWaterXZ;')
-                        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat wave = sin(golfWaterXZ.x * 3.2 + golfWaterTime * 0.65) * sin(golfWaterXZ.y * 2.7 - golfWaterTime * 0.45);\nfloat glint = pow(max(0.0, wave), 12.0);\ndiffuseColor.rgb *= 0.94 + wave * 0.06;\ndiffuseColor.rgb += vec3(0.12, 0.20, 0.19) * glint;');
-                };
-                node.material.customProgramCacheKey = () => 'auragolf-water-v1';
-                waterNodes.push({ node, y: node.position.y });
-                addWaterFoam(node);
+            if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; node.material = patchMaterial(node.material, shaderState); }
+            if (node.userData?.aurago_hidden) node.visible = false;
+            const spin = node.userData?.aurago_spin;
+            if (spin && Array.isArray(spin.axis) && spin.axis.length === 3 && spin.axis.every(Number.isFinite) && Number.isFinite(spin.speed)) {
+                const axis = new THREE.Vector3(...spin.axis);
+                if (axis.lengthSq() > 1e-12) spinNodes.push({ node, axis: axis.normalize(), speed: spin.speed });
             }
+            if (node.name === 'water-shore' && node.isMesh) water.attachShore(node);
             if (node.name === 'flag' || node.name.startsWith('flag-cloth')) flagNodes.push({ node, z: node.rotation.z });
         });
-        const sails = [];
-        courseRoot.traverse(node => { if (node.name.startsWith('windmill-sail')) sails.push(node); });
-        if (sails.length) {
-            courseRoot.updateMatrixWorld(true);
-            windmill = new THREE.Group();
-            for (const sail of sails) windmill.position.add(sail.getWorldPosition(new THREE.Vector3()));
-            windmill.position.divideScalar(sails.length); courseRoot.worldToLocal(windmill.position);
-            courseRoot.add(windmill); windmill.updateMatrixWorld(true);
-            for (const sail of sails) windmill.attach(sail);
-        }
         for (const obstacle of next.obstacles || []) {
             const node = courseRoot.getObjectByName(obstacle.node);
             if (node) obstacleNodes.set(obstacle.id, node);
@@ -430,19 +454,37 @@ export function createScene(host, options) {
         } else throw Error('ball_asset');
         putter = courseRoot.getObjectByName('putter-template');
         if (putter) { putter.removeFromParent(); scene.add(putter); }
-        particleData.length = 0; effects.count = 0;
+        props = kit ? buildProps(kit, lookId, next.props, { scatter: cfg().scatter, state: shaderState }) : null;
+        if (props) scene.add(props.group);
+        fx.clear();
+        intro = null; pendingTurn = null;
         setBall(next.tee); focusBall(true); resize();
+        startIntro();
+        return { colliders };
+    }
+    const overviewPose = () => overview;
+    // The intro flight follows the course path from tee to cup and settles on the overview pose.
+    function startIntro() {
+        intro = null; introTime = 0; pendingTurn = null;
+        if (reduced || !course?.path) return;
+        const end = overviewPose();
+        intro = createIntro(course.path, end.position, end.target);
+    }
+    function finishIntro() {
+        intro = null;
+        const turn = pendingTurn; pendingTurn = null;
+        if (turn) frameTurn(...turn);
+    }
+    function skipIntro() {
+        if (!intro) return false;
+        intro = null;
+        focusBall(true);
+        finishIntro();
         return true;
     }
-    function burst(type, position, speed = 1) {
-        if (type === 'strike') swing = .25 + Math.min(1, speed) * .6;
-        if (reduced || !position) return;
-        const count = type === 'cup' || type === 'win' ? 64 : type === 'water' ? 32 : 9;
-        const color = type === 'water' ? 0x92e2eb : type === 'cup' || type === 'win' ? 0xffd789 : 0xf3edc7;
-        for (let i = 0; i < count && particleData.length < cap(); i++) {
-            const angle = i * 2.399963, strength = .5 + Math.random() * Math.min(3, speed);
-            particleData.push({ p: new THREE.Vector3(...position), v: new THREE.Vector3(Math.cos(angle) * strength, 1 + Math.random() * 2, Math.sin(angle) * strength), life: 1, color, size: .5 + Math.random(), float: false });
-        }
+    function burst(type, position, speed = 1, info = {}) {
+        if (type === 'strike') { swing = .25 + Math.min(1, speed) * .6; skipIntro(); }
+        fx.burst(type, position, speed, info);
     }
     function pointAt(event) {
         const rect = canvas.getBoundingClientRect();
@@ -484,6 +526,7 @@ export function createScene(host, options) {
         return true;
     }
     function down(event) {
+        skipIntro();
         // A second finger (pinch/pan) or another mouse button ends the drag without a shot.
         if (!event.isPrimary || event.button !== 0) { cancelDrag(); return; }
         if (!canAim || cameraMode) return;
@@ -493,6 +536,9 @@ export function createScene(host, options) {
         }
         pointerId = event.pointerId; dragged = false; dragStart = { direction: aimDirection.slice(), power: aimPower };
         canvas.setPointerCapture(pointerId); event.preventDefault(); canvas.focus();
+        // This listener runs first (capture), so a mouse or pen press on the ball never reaches OrbitControls and cannot pan.
+        // A touch still does: its first finger must stay known to OrbitControls so a second finger can zoom and pan.
+        if (event.pointerType !== 'touch') event.stopImmediatePropagation();
     }
     function move(event) {
         if (pointerId !== event.pointerId) return;
@@ -517,7 +563,9 @@ export function createScene(host, options) {
         options.onShot?.(aimDirection, aimPower);
     }
     const lost = event => { event.preventDefault(); options.onError?.('webgl_error'); };
-    canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move);
+    const wheel = () => { skipIntro(); };
+    canvas.addEventListener('wheel', wheel, { passive: true });
+    canvas.addEventListener('pointerdown', down, { capture: true }); canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('webglcontextlost', lost);
     const observer = new ResizeObserver(resize); observer.observe(host);
@@ -532,30 +580,28 @@ export function createScene(host, options) {
             if (node) { node.position.fromArray(pose.position); node.quaternion.fromArray(pose.rotation); }
         }
         swing = Math.max(0, swing - dt * 3);
+        const motion = !reduced && cfg().motion;
+        if (motion) shaderState.golfTime.value += dt;
         if (!reduced) {
-            waterTime.value += dt;
-            if (windmill) windmill.rotation.z += dt * .35;
-            for (const water of waterNodes) water.node.position.y = water.y + Math.sin(elapsed * 1.3) * .018;
-            for (const flag of flagNodes) flag.node.rotation.z = flag.z + Math.sin(elapsed * 2.2) * .045;
-            if (snapshot?.moving && elapsed - trailAt > .05 && particleData.length < cap()) {
-                trailAt = elapsed; particleData.push({ p: ball.position.clone(), v: new THREE.Vector3(), life: .45, color: colorValue(snapshot.color), size: .7, float: true });
-            }
-            if (course && elapsed - (update.lastAmbient || 0) > .18 && particleData.length < cap() - 10) {
-                update.lastAmbient = elapsed;
-                const p = new THREE.Vector3((Math.random() - .5) * 13, .5 + Math.random() * 3, (Math.random() - .5) * 15);
-                particleData.push({ p, v: new THREE.Vector3(.12, .04, .05), life: 3, color: course.world === 'night' ? 0xffed9b : 0xffd7c5, size: .5, float: true });
-            }
+            for (const spin of spinNodes) spin.node.rotateOnAxis(spin.axis, spin.speed * dt);
+            for (const flag of flagNodes) flag.node.rotation.z = flag.z + Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12);
         }
-        let count = 0;
-        for (let i = particleData.length - 1; i >= 0; i--) {
-            const p = particleData[i]; p.life -= dt;
-            if (p.life <= 0 || reduced) { particleData.splice(i, 1); continue; }
-            if (!p.float) p.v.y -= dt * 4;
-            p.p.addScaledVector(p.v, dt); dummy.position.copy(p.p); dummy.scale.setScalar(p.size * Math.min(1, p.life * 2)); dummy.updateMatrix();
-            effects.setMatrixAt(count, dummy.matrix); effects.setColorAt(count++, effectColor.set(p.color));
+        if (motion) props?.update(elapsed);
+        const velocity = snapshot?.velocity;
+        fxContext.moving = !!snapshot?.moving;
+        fxContext.speed = velocity ? Math.hypot(velocity[0], velocity[1], velocity[2]) : 0;
+        const fxKey = snapshot?.color ?? '';
+        if (fxKey !== fxColorKey) { fxColorKey = fxKey; fxContext.color = colorValue(snapshot?.color); }
+        fxContext.surface = snapshot?.surface;
+        fxContext.waterLevel = course?.water?.[0]?.max?.[1] ?? -1.15;
+        fxContext.groundY = (course?.tee?.[1] ?? .16) - .16;
+        fx.update(dt, fxContext);
+        if (intro && !userOrbiting) {
+            introTime += dt;
+            const done = intro.sample(introTime, introPosition, introTarget);
+            camera.position.fromArray(introPosition); controls.target.fromArray(introTarget);
+            if (done) finishIntro();
         }
-        effects.count = count; effects.instanceMatrix.needsUpdate = true;
-        if (effects.instanceColor) effects.instanceColor.needsUpdate = true;
         if (camTween && !userOrbiting) {
             camTween.time = Math.min(camTween.duration, camTween.time + dt);
             const progress = camTween.time / camTween.duration;
@@ -568,21 +614,33 @@ export function createScene(host, options) {
             controls.target.lerp(ball.position, reduced ? 1 : Math.min(1, dt * 2.5));
         }
         controls.enableDamping = !reduced; controls.update(); updateAim();
+        renderer.info.reset();
         if (tier() === 'low') renderer.render(scene, camera); else composer.render();
         const change = governor.frame(dt, elapsed);
         if (change && quality === 'auto') { applyTier(); if (change === 'down') options.onQuality?.('low'); }
     }
     return {
-        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag, screenPosition,
+        canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, resetTrail: () => fx.resetTrail(), setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag, screenPosition, skipIntro,
         setFollow(value) { followEnabled = !!value; },
         setAimCamera(value) { aimCamEnabled = !!value; if (!value) camTween = null; },
-        setReducedMotion(value) { reduced = !!value; if (reduced) particleData.length = 0; },
-        setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : null; updateAim(); },
-        stats() { return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: particleData.length, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
+        setReducedMotion(value) {
+            reduced = !!value;
+            fx.setReduced(reduced);
+            shaderState.golfMotion.value = cfg().motion && !reduced ? 1 : 0;
+            if (reduced) skipIntro();
+        },
+        setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN; updateAim(); },
+        stats() { const effects = fx.stats(); return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: effects.particles, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
+            look: lookId, props: props?.instances || 0, env: !!scene.environment, intro: !!intro, trail: effects.trail,
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
-            canvas.removeEventListener('pointerdown', down); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
+            canvas.removeEventListener('pointerdown', down, { capture: true }); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
+            // Props, sky, water and effects leave the scene first so shared kit geometry is freed exactly once below.
+            props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose();
+            for (const target of environments.values()) target.dispose();
+            for (const pending of kits.values()) pending.then(kit => kit && disposeTree(kit));
+            canvas.removeEventListener('wheel', wheel);
             disposeTree(scene); sun.shadow.dispose(); bloom.dispose(); renderPass.dispose(); output.dispose(); composer.dispose(); renderer.dispose(); renderer.forceContextLoss(); canvas.remove();
         }
     };

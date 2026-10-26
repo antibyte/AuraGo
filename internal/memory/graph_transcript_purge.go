@@ -68,7 +68,7 @@ func (kg *KnowledgeGraph) ScrubSessionTranscriptEvidence(ctx context.Context, se
 			return fmt.Errorf("scan graph source properties: %w", err)
 		}
 	}
-	stamp := time.Now().UTC().Format(time.RFC3339Nano)
+	stamp := formatKGTimestamp(time.Now())
 	for _, update := range updates {
 		if update.table == "kg_nodes" {
 			nodeIDs[update.a] = struct{}{}

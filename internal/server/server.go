@@ -63,8 +63,10 @@ import (
 	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
+	"aurago/internal/rustfs"
 	"aurago/internal/ruview"
 	"aurago/internal/security"
+	"aurago/internal/selftest"
 	"aurago/internal/services"
 	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
@@ -153,24 +155,31 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	knowledge        projectKnowledge
-	Cfg              *config.Config
-	cfgSnapshot      atomic.Pointer[config.Config]
-	CfgMu            sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu        sync.Mutex   // serializes config file writes to prevent TOCTOU races
-	httpDrainMu      sync.Mutex
-	httpDraining     bool
-	httpDrainCtx     context.Context
-	httpDrainCancel  context.CancelFunc
-	httpRequests     sync.WaitGroup
-	httpHijacked     map[*drainHTTPConn]struct{}
-	lockdownLogOnce  sync.Once
-	previewGrants    previewGrantRegistry
-	toolBridgeGrants toolBridgeGrantRegistry
-	SIPConfigMu      sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
-	infraMu          sync.Mutex
-	infraRuntime     *desktopInfraRuntime
-	infraRuntimeErr  error
+	RustFS               *rustfs.Manager
+	selfTestMu           sync.Mutex
+	selfTests            *selftest.Manager
+	knowledge            projectKnowledge
+	Cfg                  *config.Config
+	cfgSnapshot          atomic.Pointer[config.Config]
+	providerRevision     atomic.Pointer[string]
+	providerTests        sync.Map
+	providerProbeHistory sync.Map
+	CfgMu                sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu            sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	httpDrainMu          sync.Mutex
+	httpDraining         bool
+	httpDrainCtx         context.Context
+	httpDrainCancel      context.CancelFunc
+	httpRequests         sync.WaitGroup
+	httpHijacked         map[*drainHTTPConn]struct{}
+	lockdownLogOnce      sync.Once
+	webAuthn             webAuthnRuntime
+	previewGrants        previewGrantRegistry
+	toolBridgeGrants     toolBridgeGrantRegistry
+	SIPConfigMu          sync.Mutex // serializes SIP snapshots, Vault mutations, and config publication
+	infraMu              sync.Mutex
+	infraRuntime         *desktopInfraRuntime
+	infraRuntimeErr      error
 
 	infraConfigAdmission atomic.Pointer[config.Config]
 
@@ -269,7 +278,9 @@ type Server struct {
 	RemoteHub                 *remote.RemoteHub
 	agodeskDesktopMu          sync.Mutex
 	agodeskDesktop            *agodeskDesktopBroker
-	agodeskDevToken           string // loopback-only AgoDesk development opt-in; never exposed to clients
+	agodeskDevToken           string                 // loopback-only AgoDesk development opt-in; never exposed to clients
+	detectiveNotify           detectiveNotifyLimiter // one Desktop notification per case per minute
+	detectiveInitErr          string                 // stable code of the last store initialization failure
 	ProxyManager              *proxy.Manager
 	TsNetManager              *tsnetnode.Manager
 	tsNetHandler              http.Handler                         // stored so the UI can restart tsnet without a full server restart
@@ -315,12 +326,14 @@ type Server struct {
 	Mailer                    *mailer.Service
 	Flows                     *flows.Service
 	flowsCatalog              *flowCatalogEnv
-	flowNotify                flowFailureNotifier // flood rule and send slots of flow failure notifications
-	flowSecretRate            flowRateLimiter     // per-IP limit of flow secret writes and deletes
-	flowStreams               flowStreamLimiter   // open flow run event streams, per run and in total
-	flowStreamBeat            time.Duration       // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
-	flowNodeTypesCache        flowNodeTypesCache  // encoded GET /api/desktop/flows/node-types answers, per language
-	flowHACache               flowHACache         // Home Assistant entity options of the flow editor, reused for 30 s
+	flowNotify                flowFailureNotifier    // flood rule and send slots of flow failure notifications
+	flowSecretRate            flowRateLimiter        // per-IP limit of flow secret writes and deletes
+	flowStreams               flowStreamLimiter      // open flow run event streams, per run and in total
+	flowSSE                   flowSSECache           // scrubbed run events by (run, seq), shared by the open streams
+	missionUpdates            missionUpdateDebouncer // folds mission_update broadcasts (leading and trailing edge, 250 ms)
+	flowStreamBeat            time.Duration          // heartbeat of flow run streams; 0 means flowStreamHeartbeat (tests shorten it)
+	flowNodeTypesCache        flowNodeTypesCache     // encoded GET /api/desktop/flows/node-types answers, per language
+	flowHACache               flowHACache            // Home Assistant entity options of the flow editor, reused for 30 s
 	newspaperSkillReady       bool
 	PersonalRadio             *personalradio.Service
 	RTLSDR                    *rtlsdr.Service
@@ -499,6 +512,14 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if s.RustFS != nil {
+		cfg.AcquireS3 = s.RustFS.AcquireS3
+		cfg.S3Availability = s.RustFS.Availability
+		s.RustFS.Configure(cfg)
+	}
+	if s.integrationCtx != nil {
+		tools.ConfigureOllamaRuntime(s.integrationCtx, cfg)
+	}
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetLimits(tools.BackgroundTaskLimits{
 			MaxActiveTasks: cfg.Agent.BackgroundTasks.MaxActiveTasks, MaxDueStartsPerTick: cfg.Agent.BackgroundTasks.MaxDueStartsPerTick,
@@ -598,9 +619,17 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.bindConfigAuthorization(cfg)
 	s.syncPersonalityConfig(cfg)
-	RegisterLLMSecrets(cfg)
+	llm.ReconfigureHealthReporter(cfg.FallbackLLM.ErrorThreshold)
+	RegisterLLMSecrets(cfg, s.Vault)
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if fi := s.fileIndexer(); fi != nil {
+		// The running indexer keeps the pointer it was created with. Every caller
+		// publishes under CfgMu (write), the lock the indexer reads its config under,
+		// so a revoked folder permission applies to its next file.
+		fi.ReplaceConfigLocked(cfg)
+	}
+	s.bumpProviderRevision()
 	if cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled &&
 		(previous == nil || !previous.VirtualDesktop.Enabled || !previous.VirtualDesktop.BookshelfEnabled) {
 		s.startDesktopBookshelfAtStartup(s.integrationCtx)
@@ -780,7 +809,7 @@ func Start(opts StartOptions) error {
 	// cmd/aurago already registered the LLM keys for log scrubbing before it
 	// built the LLM client; repeat it here for embedders that call Start
 	// directly. replaceConfigSnapshot repeats it for every reloaded config.
-	RegisterLLMSecrets(cfg)
+	RegisterLLMSecrets(cfg, opts.Vault)
 	if err := validateRemoteAuthExposure(cfg); err != nil {
 		return err
 	}
@@ -816,6 +845,17 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	s.RustFS = rustfs.NewManager(serverCtx, cfg, s.Vault, logger)
+	cfg.AcquireS3 = s.RustFS.AcquireS3
+	cfg.S3Availability = s.RustFS.Availability
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := s.RustFS.Shutdown(ctx); err != nil {
+			logger.Warn("[RustFS] Shutdown drain did not complete")
+		}
+	}()
+	defer s.closeSelfTests()
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {
 			return agent.ValidateBackgroundCodeAction(ctx, s.ConfigSnapshot(), s.Logger, action)
@@ -834,6 +874,8 @@ func Start(opts StartOptions) error {
 	mqtt.SetDefaultController(s.MQTTController)
 	s.bindMQTTPermissions()
 	s.bindRuntimePermissions()
+	tools.ConfigureOllamaRuntime(serverCtx, cfg)
+	defer tools.ShutdownOllamaRuntime()
 	s.bindDockerSelfIdentity()
 	s.configureMQTTRelay()
 	defer s.MQTTController.Stop(context.Background())
@@ -1157,7 +1199,7 @@ func Start(opts StartOptions) error {
 			// immediately after a system reboot.
 			const maxRetries = 5
 			for attempt := 1; attempt <= maxRetries; attempt++ {
-				result := tools.HomepageWebServerStart(homepageCfg, "", "", logger)
+				result := tools.HomepageManagedWebServerStart(homepageCfg, s.HomepageRegistryDB, "", "", "Start configured Homepage web server", logger)
 				if strings.Contains(result, `"status":"ok"`) || strings.Contains(result, `"status": "ok"`) {
 					logger.Info("Homepage web server auto-start succeeded", "attempt", attempt, "result", result)
 					return
@@ -1239,43 +1281,8 @@ func Start(opts StartOptions) error {
 				}
 				callbackCtx = owner
 			}
-			recordMissionIssue := func(title, detail string) {
-				if s.PlannerDB == nil {
-					return
-				}
-				missionLabel := missionID
-				if mission, ok := s.MissionManagerV2.Get(missionID); ok && strings.TrimSpace(mission.Name) != "" {
-					missionLabel = strings.TrimSpace(mission.Name)
-				}
-				if title == "" {
-					title = fmt.Sprintf("Mission %s failed", missionLabel)
-				}
-				issue := planner.OperationalIssue{
-					Source:      "mission",
-					Context:     missionID,
-					Title:       title,
-					Detail:      detail,
-					Severity:    "error",
-					Reference:   missionID,
-					Fingerprint: "mission|" + missionID,
-					OccurredAt:  time.Now(),
-				}
-				if issueID, err := planner.RecordOperationalIssue(s.PlannerDB, issue); err != nil {
-					logger.Warn("[MissionV2] Failed to record internal operational issue", "mission_id", missionID, "error", err)
-				} else if s.MissionManagerV2 != nil {
-					s.MissionManagerV2.NotifyPlannerOperationalIssue(issueID, issue.Source, issue.Severity, issue.Title)
-				}
-			}
 			setMissionError := func(title, detail string) {
-				if s.missionRunTracker().consumeCancelled(missionID) {
-					logger.Info("[MissionV2] Mission run cancelled by user", "mission_id", missionID)
-					s.MissionManagerV2.SetResult(missionID, "error", tools.MissionCancelledOutput)
-					broadcastMissionState(s)
-					return
-				}
-				recordMissionIssue(title, detail)
-				s.MissionManagerV2.SetResult(missionID, "error", detail)
-				broadcastMissionState(s)
+				s.setMissionError(callbackCtx, missionID, title, detail)
 			}
 
 			defer func() {
@@ -1308,7 +1315,9 @@ func Start(opts StartOptions) error {
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
 			resp, err := DoInternalRequestWithStartupRetry(callbackCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
-				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
+				if callbackCtx.Err() != context.Canceled {
+					logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
+				}
 				setMissionError("", err.Error())
 				return
 			}
@@ -1316,8 +1325,14 @@ func Start(opts StartOptions) error {
 
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
-				logger.Error("[MissionV2] Failed to read response body", "error", err, "mission_id", missionID)
+				if callbackCtx.Err() != context.Canceled {
+					logger.Error("[MissionV2] Failed to read response body", "error", err, "mission_id", missionID)
+				}
 				setMissionError("", fmt.Sprintf("failed to read response: %v", err))
+				return
+			}
+			if callbackCtx.Err() == context.Canceled {
+				setMissionError("", callbackCtx.Err().Error())
 				return
 			}
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -2085,6 +2100,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			}
 		}
 		s.httpRequests.Wait()
+		s.closeSelfTests()
 		if s.BackgroundTasks != nil {
 			if err := s.BackgroundTasks.Close(); err != nil {
 				s.Logger.Warn("Background task shutdown did not complete cleanly", "error", err)

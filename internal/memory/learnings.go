@@ -191,11 +191,17 @@ func (s *SQLiteMemory) ObserveLearning(ctx context.Context, d LearningDraft, sco
 	}
 	s.correctionMu.Lock()
 	defer s.correctionMu.Unlock()
+	if err := rejectDeletedChatSessionEvidence(ctx, s.db, source.Session); err != nil {
+		return Learning{}, err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Learning{}, err
 	}
 	defer tx.Rollback()
+	if err := rejectDeletedChatSessionEvidence(ctx, tx, source.Session); err != nil {
+		return Learning{}, err
+	}
 	identity, _ := json.Marshal([]any{scope, correctionIdentity(d.Statement), d.Condition})
 	id := "learning_" + learningHash(string(identity))[:24]
 	l, err := readLearning(ctx, tx, id)

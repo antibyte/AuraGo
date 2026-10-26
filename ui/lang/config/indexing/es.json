@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "Máx. caracteres por fragmento",
   "config.indexing.chunk_overlap_chars": "Solapamiento de caracteres",
   "config.indexing.chunk_max_chunks": "Máx. fragmentos por archivo",
-  "config.indexing.chunking_reindex_notice": "Cambiar estos valores activa un reindexado limpio en el próximo escaneo."
+  "config.indexing.chunking_reindex_notice": "Cambiar estos valores activa un reindexado limpio en el próximo escaneo.",
+  "config.indexing.media_toggle_label": "Multimedia al proveedor",
+  "config.indexing.media_toggle_title": "Permite enviar imágenes, audio y PDF escaneados de este directorio al Vision LLM configurado o al proveedor de embeddings multimodales. Desactivado por defecto.",
+  "config.indexing.media_confirm_title": "¿Enviar el contenido multimedia de este directorio a proveedores?",
+  "config.indexing.media_confirm": "Las imágenes, el audio y los PDF escaneados de este directorio se enviarán para su análisis al proveedor de Vision o de embeddings multimodales configurado. Puede ser un servicio externo, por lo que el contenido de estos archivos podría salir de este sistema. Si se vuelve a desactivar, no se enviará más contenido multimedia.",
+  "config.indexing.media_inactive_hint": "Vision y los embeddings multimodales están desactivados globalmente; el ajuste surtirá efecto en cuanto se active uno de ellos.",
+  "config.indexing.index_images_per_folder_hint": "Las imágenes solo se envían de los directorios que tienen activado el envío de contenido multimedia en la lista de arriba."
 }

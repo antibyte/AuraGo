@@ -10,11 +10,26 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/security"
 )
 
 const actionApprovalTTL = 10 * time.Minute
+
+const (
+	// actionApprovalSnapshotMaxBytes is the normal one-shot snapshot cap.
+	// An allow rule can still authorize a larger high-risk call.
+	actionApprovalSnapshotMaxBytes = 32 << 10
+	// copiedSpanSnapshotMaxBytes bounds a copied-span approval. An allow rule
+	// cannot exempt that copy, so the exact call has to fit in memory.
+	copiedSpanSnapshotMaxBytes = 256 << 10
+	// actionApprovalPreviewMaxBytes bounds the text shown in the dialog.
+	// The stored call stays exact.
+	actionApprovalPreviewMaxBytes = 8 << 10
+)
+
+const copiedSpanApprovalMessage = "This high-risk action copies isolated tool text and needs a one-shot approval. No side effect was executed. Do not repeat the call. An allow rule does not exempt the copy."
 
 var ErrActionApprovalUnavailable = errors.New("action approval is unavailable, expired or already decided")
 
@@ -80,12 +95,26 @@ func (m *actionApprovalManager) expireLocked() {
 }
 
 func requestActionApproval(tc ToolCall, dc *DispatchContext, action ActionDescriptor) *ToolDispatchResult {
-	return actionApprovals.request(tc, dc, action)
+	return actionApprovals.request(tc, dc, action, false)
 }
 
-func (m *actionApprovalManager) request(tc ToolCall, dc *DispatchContext, action ActionDescriptor) *ToolDispatchResult {
+// requestCopiedSpanApproval holds a high-risk call that copies isolated tool
+// text. An allow rule cannot authorize it. Calls up to 256 KiB stay approvable;
+// only the dialog preview is shortened.
+func requestCopiedSpanApproval(tc ToolCall, dc *DispatchContext, action ActionDescriptor) *ToolDispatchResult {
+	return actionApprovals.request(tc, dc, action, true)
+}
+
+func (m *actionApprovalManager) request(tc ToolCall, dc *DispatchContext, action ActionDescriptor, copiedSpan bool) *ToolDispatchResult {
 	payload, err := json.Marshal(tc)
-	if err != nil || len(payload) > 32<<10 {
+	limit := actionApprovalSnapshotMaxBytes
+	if copiedSpan {
+		limit = copiedSpanSnapshotMaxBytes
+	}
+	if err != nil || len(payload) > limit {
+		if copiedSpan {
+			return actionPolicyRefusal("copied_span_too_large", "This high-risk action copies isolated tool text and is too large to hold for one-shot approval. It was not executed. Shorten the copied text. An allow rule does not exempt it.", ToolResultDenied)
+		}
 		return actionPolicyRefusal("action_rule_required", "This action is too large for a safe approval preview; configure an exact administrator action rule.", ToolResultDenied)
 	}
 	type snapshotToolCall ToolCall
@@ -114,6 +143,9 @@ func (m *actionApprovalManager) request(tc ToolCall, dc *DispatchContext, action
 		if existing.view.SessionID == dc.SessionID {
 			count++
 			if existing.view.State == "pending" && existing.view.Action.ArgumentsHash == action.ArgumentsHash {
+				if copiedSpan {
+					return approvalRequiredMessage(existing.view, copiedSpanApprovalMessage)
+				}
 				return approvalRequiredResult(existing.view)
 			}
 		}
@@ -143,18 +175,48 @@ func (m *actionApprovalManager) request(tc ToolCall, dc *DispatchContext, action
 	if dc.actionEvent != nil {
 		*dc.actionEvent = event
 	}
-	view := ActionApproval{ID: event.ID, SessionID: dc.SessionID, Action: action, ArgumentsPreview: security.RedactSensitiveInfo(security.Scrub(string(previewBytes))), CreatedAt: m.now().UTC(), ExpiresAt: m.now().Add(actionApprovalTTL).UTC(), State: "pending"}
+	previewText := security.RedactSensitiveInfo(security.Scrub(string(previewBytes)))
+	if copiedSpan {
+		previewText = boundApprovalPreview(previewText)
+	}
+	view := ActionApproval{ID: event.ID, SessionID: dc.SessionID, Action: action, ArgumentsPreview: previewText, CreatedAt: m.now().UTC(), ExpiresAt: m.now().Add(actionApprovalTTL).UTC(), State: "pending"}
 	view.Action.Target = safeActionTarget(view.Action.Target)
 	m.entries[view.ID] = &pendingActionApproval{view: view, call: call, dc: local, ledger: ledger, event: event}
 	if dc.Broker != nil {
 		encoded, _ := json.Marshal(view)
 		dc.Broker.Send("action_approval", string(encoded))
 	}
+	if copiedSpan {
+		return approvalRequiredMessage(view, copiedSpanApprovalMessage)
+	}
 	return approvalRequiredResult(view)
 }
 
+func boundApprovalPreview(preview string) string {
+	note := "\n… preview shortened; approval still runs the exact call."
+	if len(preview) <= actionApprovalPreviewMaxBytes {
+		return preview
+	}
+	budget := actionApprovalPreviewMaxBytes - len(note)
+	if budget < 0 {
+		budget = 0
+	}
+	cut := preview
+	if len(cut) > budget {
+		cut = cut[:budget]
+	}
+	for cut != "" && !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut + note
+}
+
 func approvalRequiredResult(view ActionApproval) *ToolDispatchResult {
-	encoded, _ := json.Marshal(map[string]interface{}{"status": "deferred", "code": "approval_required", "action_id": view.ID, "expires_at": view.ExpiresAt, "message": "This high-risk action requires an administrator decision. No side effect was executed. Do not repeat the call; configure an action rule for unattended use."})
+	return approvalRequiredMessage(view, "This high-risk action requires an administrator decision. No side effect was executed. Do not repeat the call; configure an action rule for unattended use.")
+}
+
+func approvalRequiredMessage(view ActionApproval, message string) *ToolDispatchResult {
+	encoded, _ := json.Marshal(map[string]interface{}{"status": "deferred", "code": "approval_required", "action_id": view.ID, "expires_at": view.ExpiresAt, "message": message})
 	return &ToolDispatchResult{Output: "Tool Output: " + string(encoded), Status: ToolResultDeferred}
 }
 

@@ -347,6 +347,9 @@
 }
 
 .vd-sound-theme-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
     border: 1px solid var(--vd-theme-border);
     border-radius: 10px;
     background: var(--vd-theme-control-bg);
@@ -356,10 +359,30 @@
 }
 
 .vd-sound-theme-card:hover,
-.vd-sound-theme-card:focus-visible {
+.vd-sound-theme-card:focus-within {
     border-color: var(--vd-accent);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--vd-accent) 35%, transparent);
     outline: none;
+}
+
+.vd-sound-theme-select {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.vd-sound-theme-select:focus-visible {
+    outline: 2px solid var(--vd-accent);
+    outline-offset: 4px;
 }
 
 .vd-sound-theme-card.active {
@@ -382,8 +405,22 @@
 }
 
 .vd-sound-theme-preview {
+    margin-top: auto;
     width: 100%;
     justify-content: center;
+}
+
+.vd-sound-theme-art {
+    width: 100%;
+    height: auto;
+    border-radius: 7px;
+    margin-bottom: 12px;
+}
+
+.vd-cursor-preview {
+    width: min(100%, 360px);
+    height: auto;
+    border-radius: 12px;
 }
 
 /* === Screensaver scene picker and desktop theme picker === */

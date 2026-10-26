@@ -3,6 +3,8 @@ package tools
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,13 +56,20 @@ func GetYepAPIClient(apiKey, baseURL string) *YepAPIClient {
 	if baseURL == "" {
 		baseURL = yepAPIBaseURL
 	}
-	key := apiKey + "|" + baseURL
+	key := yepAPIClientCacheKey(apiKey, baseURL)
 	if c, ok := yepAPIClientCache.Load(key); ok {
 		return c.(*YepAPIClient)
 	}
 	c := NewYepAPIClientWithBaseURL(apiKey, baseURL)
 	yepAPIClientCache.Store(key, c)
 	return c
+}
+
+// yepAPIClientCacheKey hashes the API key so that the secret never becomes a
+// map key in memory.
+func yepAPIClientCacheKey(apiKey, baseURL string) string {
+	sum := sha256.Sum256([]byte(apiKey + "|" + baseURL))
+	return hex.EncodeToString(sum[:])
 }
 
 // YepAPIResponse is the standard JSON envelope returned by every YepAPI endpoint.
@@ -80,6 +89,12 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 }
 
 func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload interface{}) ([]byte, error) {
+	// The documented limit is per API key. The request is only delayed here,
+	// before it is built and sent; a limited request is never resent.
+	if err := yepAPIGlobalRateLimiter.wait(ctx, c.apiKey); err != nil {
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: request not sent: %w", err)}
+	}
+
 	url := c.baseURL + endpoint
 
 	var body []byte
@@ -87,38 +102,60 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		var err error
 		body, err = json.Marshal(payload)
 		if err != nil {
-			return nil, fmt.Errorf("yepapi: failed to marshal payload: %w", err)
+			return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: failed to marshal payload: %w", err)}
 		}
+		logYepAPIRequestPayload(ctx, endpoint, safeYepAPIJSONBodyKeys(body))
 		logYepAPIMarshaledRequestBody(ctx, endpoint, body)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("yepapi: failed to build request: %w", err)
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: failed to build request: %w", err)}
 	}
 	req.Header.Set("x-api-key", c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
+	// A context that is already cancelled never reaches the provider, so the
+	// call must not be booked as spent.
+	if err := ctx.Err(); err != nil {
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: request cancelled before sending: %w", err)}
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("yepapi: request failed: %w", err)
+		// The request was handed to the transport. It may have reached the
+		// provider, so the outcome is unknown and the call may be billed.
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: request failed: %w", err), RequestSent: true, OutcomeUncertain: true}
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	if err != nil {
-		return nil, fmt.Errorf("yepapi: failed to read response: %w", err)
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: failed to read response: %w", err), RequestSent: true, OutcomeUncertain: true}
 	}
 
 	// If the HTTP status is not 2xx, include the raw body in the error so
 	// the caller can see what the server actually returned (e.g. HTML 404/403).
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode == http.StatusTooManyRequests {
+			// The provider refused the request before doing any work, so it
+			// was not billed. The request is not repeated.
+			return nil, &YepAPICallError{
+				Err:                fmt.Errorf("yepapi: rate limit reached: this API key may send %d requests per minute. The request was not repeated. Continue with other work and send the next request later.", yepAPIRateLimitPerMinute),
+				RequestSent:        true,
+				RejectedByProvider: true,
+			}
+		}
 		preview := string(respBody)
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview))
+		return nil, &YepAPICallError{
+			Err:                fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview)),
+			RequestSent:        true,
+			RejectedByProvider: resp.StatusCode >= 400 && resp.StatusCode < 500,
+		}
 	}
 
 	var env YepAPIResponse
@@ -127,18 +164,43 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, fmt.Errorf("yepapi: invalid JSON response (%s): %w", security.IsolateExternalData(preview), err)
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: invalid JSON response (%s): %w", security.IsolateExternalData(preview), err), RequestSent: true}
 	}
 
 	if !env.OK {
 		if env.Error != nil {
-			return nil, fmt.Errorf("yepapi: %s - %s", env.Error.Code, security.IsolateExternalData(env.Error.Message))
+			return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: %s - %s", env.Error.Code, security.IsolateExternalData(env.Error.Message)), RequestSent: true}
 		}
-		return nil, fmt.Errorf("yepapi: unknown error")
+		return nil, &YepAPICallError{Err: fmt.Errorf("yepapi: unknown error"), RequestSent: true}
 	}
 
 	return env.Data, nil
 }
+
+// YepAPICallError reports a failed YepAPI call and whether the request
+// reached the provider.
+//
+// RequestSent is true once the request left the client. The provider may have
+// accepted and billed it even when the call failed afterwards, so the caller
+// has to treat such a call as spent.
+//
+// OutcomeUncertain is true when no definitive provider response was received:
+// a transport failure or a body that broke while being read. A complete
+// response - even a non-2xx status or an error envelope - is a known outcome.
+//
+// RejectedByProvider marks a request the provider refused without doing any
+// work, such as a rate-limit refusal. Such a call is not billed, so the
+// caller must not book it.
+type YepAPICallError struct {
+	Err                error
+	RequestSent        bool
+	OutcomeUncertain   bool
+	RejectedByProvider bool
+}
+
+func (e *YepAPICallError) Error() string { return e.Err.Error() }
+
+func (e *YepAPICallError) Unwrap() error { return e.Err }
 
 // ResolveYepAPIKey resolves the YepAPI API key from the config/vault.
 // Priority:
@@ -157,8 +219,8 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 				if err == nil && key != "" {
 					return key, nil
 				}
-				if p.APIKey != "" {
-					return p.APIKey, nil
+				if runtimeKey := p.RuntimeAPIKey(); runtimeKey != "" {
+					return runtimeKey, nil
 				}
 				return "", fmt.Errorf("provider '%s' configured for YepAPI but has no API key", p.ID)
 			}
@@ -173,8 +235,8 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 			if err == nil && key != "" {
 				return key, nil
 			}
-			if p.APIKey != "" {
-				return p.APIKey, nil
+			if runtimeKey := p.RuntimeAPIKey(); runtimeKey != "" {
+				return runtimeKey, nil
 			}
 		}
 	}
@@ -231,9 +293,16 @@ func yepAPIFormatSuccessWithDiagnostics(data json.RawMessage, diagnostics map[st
 		}
 	}
 
-	b, _ := json.Marshal(map[string]interface{}{
+	payload := map[string]interface{}{
 		"status": "success",
 		"data":   json.RawMessage(data),
-	})
+	}
+	for key, value := range diagnostics {
+		if key == "" || value == nil {
+			continue
+		}
+		payload[key] = value
+	}
+	b, _ := json.Marshal(payload)
 	return string(b)
 }

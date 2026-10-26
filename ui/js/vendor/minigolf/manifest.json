@@ -2,6 +2,6 @@
   "three": "0.186.1",
   "rapier": "0.21.0",
   "entry": "ui/js/desktop/apps/minigolf-game.js",
-  "bytes": 5108319,
-  "sha256": "a108f5ab2dd9077f08fe485563dfb477950a01a300aae894f6078c33ef3dae11"
+  "bytes": 5144268,
+  "sha256": "3b78f869128eda4e7845aba679e84cc22cbc9a4991d1ce898721f8c11889781c"
 }

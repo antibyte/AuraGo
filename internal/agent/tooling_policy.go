@@ -8,6 +8,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -27,7 +28,7 @@ type ModelCapabilities struct {
 	AutoEnableNativeFunctions bool
 	SupportsStructuredOutputs bool
 	SupportsParallelToolCalls bool
-	// DisableNativeFunctionCalling is true for models (e.g. GLM/Zhipu, MiniMax) that do not
+	// DisableNativeFunctionCalling is true for models (e.g. GLM/Zhipu, legacy MiniMax) that do not
 	// reliably produce OpenAI-compatible API-level tool_calls. These models often emit tool
 	// invocations as text content using proprietary XML/JSON markers. Forcing JSON text mode
 	// gives the system a consistent, parseable output format.
@@ -123,16 +124,15 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		strings.HasPrefix(lowerModel, "qwq") ||
 		strings.HasPrefix(lowerModel, "ernie")
 
-	// GLM (Zhipu) and MiniMax models emit tool calls as proprietary XML/JSON text
-	// content rather than proper OpenAI-compatible API tool_calls. Force JSON text
-	// mode for these so the prompt-based JSON extraction path is used instead.
-	// Note: MiniMax M2.7+ supports native function calling — only disable for
-	// older MiniMax models (abab prefix) and the legacy minimax-text series.
+	// Keep the legacy text-tool fallback without disabling native MiniMax M2.7/M3 calls.
 	isGLMFamily := strings.HasPrefix(lowerModel, "glm-") ||
 		strings.Contains(lowerModel, "/glm-") ||
 		strings.Contains(lowerModel, "zhipuai/") ||
 		strings.HasPrefix(lowerModel, "abab") ||
-		(strings.HasPrefix(lowerModel, "minimax") && !strings.Contains(lowerModel, "m2.7") && !strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
+		(strings.HasPrefix(lowerModel, "minimax") &&
+			!strings.Contains(lowerModel, "m2.7") &&
+			!strings.HasPrefix(strings.TrimPrefix(lowerModel, "minimax/"), "minimax-m3") &&
+			!strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
 
 	return ModelCapabilities{
 		ProviderType:                 providerType,
@@ -177,7 +177,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 
 	useNativeFunctions := caps.ProviderToolCalling
 	// Force JSON text mode for models known to emit tool calls in text content rather
-	// than proper API tool_calls (e.g. GLM/Zhipu, MiniMax). This ensures the prompt-based
+	// than proper API tool_calls (e.g. GLM/Zhipu, legacy MiniMax). This ensures the prompt-based
 	// JSON extraction path is used regardless of what the config says.
 	if caps.DisableNativeFunctionCalling {
 		useNativeFunctions = false
@@ -448,11 +448,12 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		VirtualComputersEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled,
 		VirtualWorkspaceEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled && cfg.VirtualComputers.AgentControl.Enabled,
 		OpenSCADEnabled:              cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.VirtualDesktop.OpenSCAD.Enabled,
+		QRCodeEnabled:                cfg.Tools.QRCode.Enabled,
 		OfficeDocumentEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeDocument.Enabled,
 		OfficeWorkbookEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeWorkbook.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
 		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
-		S3Enabled:                    cfg.S3.Enabled,
+		S3Enabled:                    tools.S3AgentEnabled(cfg),
 		NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
 		FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
 		UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
@@ -495,6 +496,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	// Use the shared config-only helper as the base.
 	// Then apply runtime-specific conditions that require database handles or runtime context.
 	toolFlags := buildToolFlagsFromConfig(cfg)
+	toolFlags.S3Enabled = toolFlags.S3Enabled && tools.S3RuntimeAvailability(cfg).Available
 
 	// Apply runtime handle availability checks (these are the ONLY runtime conditions).
 	// All other flags (config-based, cfg.Runtime-based) are already set by buildToolFlagsFromConfig.
@@ -502,7 +504,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.RemoteControlEnabled = cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil
 	toolFlags.AgoDeskChatEnabled = hasConnectedAgoDeskChatDevice(runCfg.RemoteHub)
 	toolFlags.MediaRegistryEnabled = cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil
-	toolFlags.HomepageRegistryEnabled = cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil
+	toolFlags.HomepageRegistryEnabled = runCfg.HomepageRegistryDB != nil
 	toolFlags.ContactsEnabled = cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil
 	toolFlags.PlannerEnabled = cfg.Tools.Planner.Enabled && runCfg.PlannerDB != nil
 	toolFlags.SQLConnectionsEnabled = cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil
@@ -647,7 +649,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		TelnyxEnabled:            state.TelnyxEnabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
-		ReuseContext:             buildManagedSitesPromptContext(runCfg),
+		ManagedSitesContext:      buildManagedSitesPromptContext(runCfg),
 		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
 		ComposioServicesContext:  buildComposioServicesPromptContext(cfg),
 		ToolsDir:                 "",
@@ -708,33 +710,68 @@ func buildComposioServicesPromptContext(cfg *config.Config) string {
 }
 
 func buildManagedSitesPromptContext(runCfg RunConfig) string {
-	if runCfg.Config == nil || !runCfg.Config.Homepage.Enabled || runCfg.HomepageRegistryDB == nil {
+	if runCfg.AllowedTools != nil {
+		allowed := normalizedAllowedToolSet(runCfg.AllowedTools)
+		if _, ok := allowed["homepage_registry"]; !ok {
+			return ""
+		}
+	}
+	if runCfg.Config == nil || runCfg.HomepageRegistryDB == nil {
 		return ""
 	}
 	sites, err := tools.ListHomepageManagedSites(runCfg.HomepageRegistryDB)
 	if err != nil || len(sites) == 0 {
 		return ""
 	}
+	activeID := int64(0)
+	if runCfg.SessionID != "" {
+		_ = runCfg.HomepageRegistryDB.QueryRow("SELECT project_id FROM homepage_site_events WHERE json_extract(CASE WHEN json_valid(payload_json) THEN payload_json ELSE '{}' END,'$.session_id')=? ORDER BY id DESC LIMIT 1", runCfg.SessionID).Scan(&activeID)
+	}
+	intent := strings.ToLower(runCfg.UserIntent)
+	sort.SliceStable(sites, func(i, j int) bool {
+		score := func(site tools.HomepageManagedSite) int {
+			if site.ID == activeID {
+				return 2
+			}
+			if intent != "" && (site.ProjectDir != "" && strings.Contains(intent, strings.ToLower(site.ProjectDir)) || site.Name != "" && strings.Contains(intent, strings.ToLower(site.Name))) {
+				return 1
+			}
+			return 0
+		}
+		return score(sites[i]) > score(sites[j])
+	})
 	var b strings.Builder
-	b.WriteString("# MANAGED WEBSITES\n")
+	version, _ := tools.HomepageLedgerVersion(runCfg.HomepageRegistryDB)
+	b.WriteString(fmt.Sprintf("# MANAGED WEBSITES\nInventory version=%d; total=%d. Use homepage_registry overview (limit/offset) for the complete inventory, get_site for the exact site and list_events for what changed and why. Query before editing; never invent a folder or remote URL.\n", version, len(sites)))
 	limit := len(sites)
 	if limit > 8 {
 		limit = 8
 	}
+	shown := 0
 	for i := 0; i < limit; i++ {
 		site := sites[i]
 		if detailed, detailErr := tools.GetHomepageManagedSite(runCfg.HomepageRegistryDB, site.ID); detailErr == nil {
 			site = detailed
 		}
-		line := fmt.Sprintf("- %s (`%s`): drift=%s", site.Name, site.ProjectDir, site.DriftStatus)
+		line := fmt.Sprintf("- id=%d %s (`%s`): origin=%s, drift=%s", site.ID, Truncate(site.Name, 64), Truncate(site.ProjectDir, 160), site.Origin, site.DriftStatus)
+		line += ", local_status=" + site.LocalStatus
+		if site.LastEditReason != "" {
+			line += ", reason=" + Truncate(site.LastEditReason, 160)
+		}
+		if len(site.Events) > 0 {
+			line += ", latest=" + site.Events[0].EventType + "/" + site.Events[0].Outcome
+			if site.Events[0].Reason != "" && site.Events[0].Reason != site.LastEditReason {
+				line += ", why=" + Truncate(site.Events[0].Reason, 160)
+			}
+		}
 		if site.LocalRoot != "" {
-			line += fmt.Sprintf(", local=%s", site.LocalRoot)
+			line += fmt.Sprintf(", local=%s", Truncate(site.LocalRoot, 240))
 		}
 		if site.CurrentRevisionID > 0 {
 			line += fmt.Sprintf(", revision=%d", site.CurrentRevisionID)
 		}
 		if site.LastDeployURL != "" {
-			line += fmt.Sprintf(", last_deploy=%s", site.LastDeployURL)
+			line += fmt.Sprintf(", last_deploy=%s", Truncate(site.LastDeployURL, 240))
 		}
 		if site.GitSHA != "" {
 			short := site.GitSHA
@@ -744,11 +781,15 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 			line += fmt.Sprintf(", git=%s", short)
 		}
 		if site.DriftMessage != "" {
-			line += fmt.Sprintf(", note=%s", site.DriftMessage)
+			line += fmt.Sprintf(", note=%s", Truncate(site.DriftMessage, 160))
 		}
 		if len(site.DeployTargets) > 0 {
 			var targets []string
-			for _, target := range site.DeployTargets {
+			for targetIndex, target := range site.DeployTargets {
+				if targetIndex >= 2 {
+					targets = append(targets, fmt.Sprintf("+%d targets", len(site.DeployTargets)-targetIndex))
+					break
+				}
 				value := target.URL
 				if value == "" {
 					value = target.RemotePath
@@ -757,7 +798,7 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 					value = target.ProviderTargetID
 				}
 				if value != "" {
-					targets = append(targets, fmt.Sprintf("%s=%s", target.Provider, value))
+					targets = append(targets, fmt.Sprintf("%s=%s[%s/%s]", target.Provider, Truncate(value, 240), target.Status, target.Environment))
 				} else {
 					targets = append(targets, target.Provider)
 				}
@@ -771,13 +812,21 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 				line += fmt.Sprintf("@%s", obs.ObservedAt)
 			}
 		}
+		// Keep a bounded required index; detailed history remains available through get_site/list_events.
+		if len(security.IsolateExternalData(b.String()+line)) > 3500 {
+			line = fmt.Sprintf("- id=%d %s (`%s`): use get_site for locations and history", site.ID, Truncate(site.Name, 64), Truncate(site.ProjectDir, 160))
+			if len(security.IsolateExternalData(b.String()+line)) > 3500 {
+				break
+			}
+		}
 		b.WriteString(line)
 		b.WriteByte('\n')
+		shown++
 	}
-	if len(sites) > limit {
-		b.WriteString(fmt.Sprintf("- ...and %d more managed website(s)\n", len(sites)-limit))
+	if len(sites) > shown {
+		b.WriteString(fmt.Sprintf("- ...and %d more managed website(s)\n", len(sites)-shown))
 	}
-	b.WriteString("Before editing a managed website, use the listed project_dir and keep its ledger current through homepage tools.\n")
+	b.WriteString("Values may be shortened. Use get_site for full paths/URLs and list_events for reasons before editing.\n")
 	return strings.TrimSpace(b.String())
 }
 

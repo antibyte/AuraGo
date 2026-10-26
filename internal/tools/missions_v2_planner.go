@@ -141,7 +141,15 @@ func (m *MissionManagerV2) processPlannerFlowAdmissions() {
 				return hooks.StartFlowRun(id, node, string(TriggerPlannerAppointmentDue), data)
 			}()
 			m.mu.Lock()
-			if err != nil {
+			if reason := flowRefusal(err); reason != nil {
+				// A refusal on purpose started no run: settle the target, do not leave it unknown.
+				target.State = "canceled"
+				changed := m.noteFlowRefusalLocked(id, flowRefusalOutput(reason))
+				if changed {
+					m.saveFlowNotesLocked()
+				}
+				logFlowRefusal(changed, reason, "mission_id", id, "node", node, "trigger", string(TriggerPlannerAppointmentDue))
+			} else if err != nil {
 				target.State = "unknown"
 				if mission := m.missions[id]; mission != nil {
 					mission.LastOutput = "Planner flow dispatch outcome unknown; verify before retrying"

@@ -14,6 +14,7 @@
     // - 2d: the Picture section's blend list and mask block (markup in video-studio-inspector.js) and a chroma_key
     //   entry's key colour commit here (compositingChange, effectCommand); addEntry puts a new chroma_key at index 0.
     // - 2e: the Animation section's preset lists and length sliders commit here (animChange, liveAnimDuration).
+    // - 2f: the transition picker's arrow keys, Home and End (handleTransitionPickerKeys; the move is VideoStudioInspector.pickerMove).
     // menuModel, entryName, dropIndex, formatValue, section and addEntry are DOM-free and Node-tested.
     const P = window.VideoStudioParts;
     const Fx = () => window.VideoStudioEffects;
@@ -314,6 +315,25 @@
         moveEntry(s, from, from + (event.code === 'ArrowUp' ? -1 : 1));
         return true;
     }
+    // Arrow keys, Home and End in the open transition picker (spec §8.6; plan index §4.26.9):
+    // - the lists are read from the DOM in order (None, then one list per category). A list's columns are its buttons
+    //   that share the first button's offsetTop, so the measured grid decides Up and Down;
+    // - VideoStudioInspector.pickerMove picks the target, and focus moves there;
+    // - the key is taken (no scrolling, no playhead move) even at an end without a move;
+    // - Tab, Enter, Space, Esc and keys with a modifier keep their paths.
+    // True when the key was taken.
+    const PICKER_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+    function handleTransitionPickerKeys(s, event) {
+        const target = event.target, button = target && typeof target.closest === 'function' ? target.closest('[data-tx-picker] [data-transition]') : null;
+        if (!button || !PICKER_KEYS.has(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false;
+        const lists = Array.from(button.closest('[data-tx-picker]').querySelectorAll('.vs-tx-list'), list => Array.from(list.querySelectorAll('[data-transition]')));
+        const model = lists.map(items => ({ count: items.length, columns: Math.max(1, items.filter(item => item.offsetTop === items[0].offsetTop).length), disabled: items.map(item => item.disabled) }));
+        const list = lists.findIndex(items => items.includes(button));
+        const next = I().pickerMove(model, { list, index: list < 0 ? -1 : lists[list].indexOf(button) }, event.key);
+        event.preventDefault();
+        if (next) lists[next.list][next.index].focus();
+        return true;
+    }
     // The selected clip's entry a control belongs to, while the editor may change it.
     function paramTarget(s, el) {
         const found = selectedVisual(s), index = entryIndex(el);
@@ -601,5 +621,5 @@
     }
 
     window.VideoStudioInspectorEffects = { section, menuModel, entryName, dropIndex, formatValue, addEntry, KEY_PRESETS };
-    Object.assign(P, { effectView, addEffect, effectCommand, handleEffectStackKeys, wireEffectStack, uploadLUT, syncEffectControls, compositingChange, animChange, liveAnimDuration });
+    Object.assign(P, { effectView, addEffect, effectCommand, handleEffectStackKeys, wireEffectStack, uploadLUT, syncEffectControls, compositingChange, animChange, liveAnimDuration, handleTransitionPickerKeys });
 })();

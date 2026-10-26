@@ -10,6 +10,13 @@
     // The emergency copy is written at most once per COPY_MS while changes keep coming (a drag
     // changes the model on every pointer move, and each copy serialises the whole document).
     const COPY_MS = 500;
+    // A refused write (storage full or blocked) is tried again after COPY_MS, then after twice that
+    // each time, up to COPY_RETRY_MAX_MS; after COPY_RETRY_LIMIT refusals in a row no timer is armed.
+    // keepCopy waits for the same time, so a drag does not serialise the document on every pointer
+    // move while storage refuses. flushCopy (a gesture end, a hidden page, a save), flush() and
+    // dispose() still try at once. A write that lands resets all of it.
+    const COPY_RETRY_MAX_MS = 30000;
+    const COPY_RETRY_LIMIT = 6;
     const EMERGENCY_PREFIX = 'aurago.easydrag.draft.';
     const EMERGENCY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
     // Answers a retry cannot fix; every other coded error counts as transient.
@@ -76,6 +83,8 @@
         let copyAt = 0;            // when the emergency copy was written last (Date.now)
         let copyPending = false;   // a change since then is not in the copy yet
         let copyTimer = 0;         // the trailing write of a held-back change
+        let copyFailures = 0;      // refused writes in a row
+        let copyRetryAt = 0;       // keepCopy writes again from this time on (Date.now)
 
         sweepEmergencyCopies();
 
@@ -101,9 +110,14 @@
             const ok = core.storage.set(emergencyKey(o.flowId), { revision, at, doc: o.model.toJSON() });
             if (!ok) {
                 copyPending = true;
-                if (!(opts && opts.hold) && !copyTimer) copyTimer = setTimeout(() => { copyTimer = 0; flushCopy(); }, COPY_MS);
+                copyFailures++;
+                const wait = Math.min(COPY_MS * Math.pow(2, copyFailures - 1), COPY_RETRY_MAX_MS);
+                copyRetryAt = at + wait;
+                if (!(opts && opts.hold) && !copyTimer && copyFailures < COPY_RETRY_LIMIT) copyTimer = setTimeout(() => { copyTimer = 0; flushCopy(); }, wait);
                 return false;
             }
+            copyFailures = 0;
+            copyRetryAt = 0;
             dropPendingCopy();
             copyAt = at;
             return true;
@@ -119,9 +133,10 @@
         // that time waits (copyPending) for a later change, flushCopy, the next save, or at the
         // latest the trailing write COPY_MS later: a crash loses less than COPY_MS of edits.
         function keepCopy() {
-            if (Date.now() - copyAt >= COPY_MS) { writeEmergency(); return; }
+            const now = Date.now();
+            if (now - copyAt >= COPY_MS && now >= copyRetryAt) { writeEmergency(); return; }
             copyPending = true;
-            if (!copyTimer) copyTimer = setTimeout(() => { copyTimer = 0; flushCopy(); }, COPY_MS);
+            if (!copyTimer && copyFailures < COPY_RETRY_LIMIT) copyTimer = setTimeout(() => { copyTimer = 0; flushCopy(); }, Math.max(COPY_MS, copyRetryAt - now));
         }
 
         // flushCopy writes a change that keepCopy held back, while the draft is still unsaved.
@@ -330,11 +345,13 @@
         };
     }
 
-    // emergencyCopy returns a locally kept draft that is newer than the server's revision.
+    // emergencyCopy returns a locally kept draft that the server never received. A copy made on
+    // another revision than the server's current one is marked stale: the flow was saved again
+    // since (another window, the agent), and restoring the copy replaces that newer draft.
     function emergencyCopy(flowId, serverRevision) {
         const copy = ED.core.storage.get(emergencyKey(flowId), null);
-        if (!copy || !copy.doc || copy.revision !== serverRevision) return null;
-        return copy;
+        if (!copy || !copy.doc) return null;
+        return copy.revision === serverRevision ? copy : Object.assign({}, copy, { stale: true });
     }
 
     function dropEmergencyCopy(flowId) { ED.core.storage.remove(emergencyKey(flowId)); }

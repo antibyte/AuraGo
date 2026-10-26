@@ -324,7 +324,7 @@ async function testAgentProgressUsesConfiguredAudio() {
         if (reads++ === 0) return Promise.resolve({ done: false, value: new TextEncoder().encode(
           'data: {"event":"progress","detail":"Ich schaue mir das an. Einen Moment."}\n\n'
         ) });
-        if (reads > 2) return Promise.resolve({ done: true, value: new Uint8Array() });
+        if (reads > 3) return Promise.resolve({ done: true, value: new Uint8Array() });
         return new Promise(resolve => { resolveRead = resolve; });
       } }; } }
     };
@@ -345,6 +345,7 @@ async function testAgentProgressUsesConfiguredAudio() {
   assert.equal(events.find(event => event.phase === 'progress')?.message, 'Ich schaue mir das an. Einen Moment.');
   assert.equal(audioRequests.length, 1);
   assert.equal(audioRequests[0].body.kind, 'ack');
+  assert.equal(audioRequests[0].body.message, 'Ich schaue mir das an. Einen Moment.');
   assert.equal(audioRequests[0].body.session_id, 'session-test');
   assert.equal(audioRequests[0].body.request_id, 'voice-action-test');
   assert.equal(audios.length, 1);
@@ -354,16 +355,28 @@ async function testAgentProgressUsesConfiguredAudio() {
   assert.equal(displays.length, 0, 'progress is not a final chat message');
   assert.ok(!harness.timers().includes(1500), 'the browser must not invent a timed cue');
 
+  runtime.stopActionProgress();
+  const waitMessage = 'Das braucht gerade etwas Zeit. Ich bleibe dran.';
+  resolveRead({ done: false, value: new TextEncoder().encode(`data: ${JSON.stringify({ event: 'progress', detail: waitMessage })}\n\n`) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(events.filter(event => event.phase === 'progress').at(-1)?.message, waitMessage);
+  assert.equal(audioRequests.length, 2);
+  assert.equal(audioRequests[1].body.kind, 'wait');
+  assert.equal(audioRequests[1].body.message, waitMessage, 'audio must use the selected waiting caption');
+  assert.equal(audios[1].played, true);
+
   resolveRead({ done: false, value: new TextEncoder().encode('data: {"event":"final_response","detail":"Status geprüft."}\n\n') });
   const result = await task;
   assert.equal(result.text, 'Status geprüft.');
   assert.equal(displays.length, 1);
   assert.equal(displays[0].content, 'Status geprüft.');
   assert.equal(audios[0].paused, true, 'final response stops progress audio');
+  assert.equal(audios[1].paused, true, 'final response stops the selected waiting audio');
   assert.equal(sources[0].disconnected, true);
   assert.equal(runtime.getProgressOutputLevel(), 0);
   assert.equal(audioRequests[0].signal.aborted, true);
-  assert.deepEqual(revoked, ['blob:progress-test']);
+  assert.equal(audioRequests[1].signal.aborted, true);
+  assert.deepEqual(revoked, ['blob:progress-test', 'blob:progress-test']);
   assert.equal(microphoneMutes.at(-1), false);
 }
 

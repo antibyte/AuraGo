@@ -15,6 +15,29 @@ var desktopSoundEvents = []string{
 }
 
 var desktopSoundLocaleKeys = []string{
+	"desktop.settings_theme_cursors",
+	"desktop.settings_theme_cursors_desc",
+	"desktop.settings_cursor_preview",
+	"desktop.settings_sound_theme_desktop",
+	"desktop.settings_sound_theme_desktop_desc",
+	"desktop.settings_sound_preview_playing",
+	"desktop.settings_sound_preview_failed",
+	"desktop.settings_sound_theme_amiga_desc",
+	"desktop.settings_sound_theme_cyberpunk_desc",
+	"desktop.settings_sound_theme_black_gloss_desc",
+	"desktop.settings_sound_theme_crazy_desc",
+	"desktop.settings_sound_theme_lollipop_desc",
+	"desktop.settings_sound_theme_organic_desc",
+	"desktop.settings_sound_theme_electronic_dreams",
+	"desktop.settings_sound_theme_electronic_dreams_desc",
+	"desktop.settings_sound_theme_windows_xp",
+	"desktop.settings_sound_theme_windows_xp_desc",
+	"desktop.settings_sound_theme_green_slime",
+	"desktop.settings_sound_theme_green_slime_desc",
+	"desktop.settings_sound_theme_voxel_world",
+	"desktop.settings_sound_theme_voxel_world_desc",
+	"desktop.settings_sound_theme_orbit",
+	"desktop.settings_sound_theme_orbit_desc",
 	"desktop.settings_category_sound",
 	"desktop.settings_category_sound_desc",
 	"desktop.settings_sound_enabled",
@@ -89,6 +112,11 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 		"DesktopSoundThemes.analog",
 		"DesktopSoundThemes.workshop",
 		"DesktopSoundThemes.water",
+		"DesktopSoundThemes.electronic_dreams",
+		"DesktopSoundThemes.windows_xp",
+		"DesktopSoundThemes.green_slime",
+		"DesktopSoundThemes.voxel_world",
+		"DesktopSoundThemes.orbit",
 	} {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop-sounds bundle missing marker %q", marker)
@@ -159,7 +187,7 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 	t.Parallel()
 
 	eventRe := regexp.MustCompile(`'([a-z]+(?:\.[a-z]+)+)':`)
-	for _, theme := range []string{"crystal", "wood", "analog", "workshop", "water"} {
+	for _, theme := range []string{"crystal", "wood", "analog", "workshop", "water", "desktop"} {
 		source := readDesktopAssetText(t, "js/desktop/sound/theme-"+theme+".js")
 		found := map[string]bool{}
 		for _, match := range eventRe.FindAllStringSubmatch(source, -1) {
@@ -169,6 +197,99 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 			if !found[event] {
 				t.Fatalf("theme %s missing event %q", theme, event)
 			}
+		}
+	}
+	for _, theme := range []string{"electronic-dreams", "windows-xp", "green-slime", "voxel-world"} {
+		source := readDesktopAssetText(t, "js/desktop/sound/theme-"+theme+".js")
+		if !strings.Contains(source, "composeDesktopEvents") {
+			t.Errorf("theme %s must compose a complete event bank from its authored profile", theme)
+		}
+	}
+	voxel := readDesktopAssetText(t, "js/desktop/sound/theme-voxel-world.js")
+	for _, marker := range []string{"specialFx", "'window.fracture'", "'window.impact'", "'wood'", "'stone'", "'earth'"} {
+		if !strings.Contains(voxel, marker) {
+			t.Errorf("voxel-world bank missing material sound marker %q", marker)
+		}
+	}
+	slime := readDesktopAssetText(t, "js/desktop/sound/theme-green-slime.js")
+	if !strings.Contains(slime, "composeDesktopEvents") || !strings.Contains(slime, "specialFx") {
+		t.Error("green-slime bank must compose the shell events and add its FX bank")
+	}
+	// Orbit authors all 19 shell events itself (whooshes, HUD blips, airlock puffs) and adds the sonar ping.
+	orbit := readDesktopAssetText(t, "js/desktop/sound/theme-orbit.js")
+	orbitEvents := map[string]bool{}
+	for _, match := range eventRe.FindAllStringSubmatch(orbit, -1) {
+		orbitEvents[match[1]] = true
+	}
+	for _, event := range desktopSoundEvents {
+		if !orbitEvents[event] {
+			t.Errorf("orbit bank missing event %q", event)
+		}
+	}
+	for _, marker := range []string{"specialFx", "'orbit.ping'", "small:", "medium:", "large:", "window.DesktopSoundThemes.orbit"} {
+		if !strings.Contains(orbit, marker) {
+			t.Errorf("orbit bank missing marker %q", marker)
+		}
+	}
+	if strings.Contains(orbit, "reverb:") {
+		t.Error("orbit layers must not use the shared reverb pool: its convolver is shared by all layers of a render")
+	}
+}
+
+func TestDesktopThemeFxSoundRuntimeContract(t *testing.T) {
+	t.Parallel()
+
+	// Voxel World and Green Slime share the theme FX plumbing: one table of families, one coalescing queue
+	// and one lazily rendered variant cache.
+	runtime := readDesktopAssetText(t, "js/desktop/core/sound-runtime.js")
+	for _, marker := range []string{
+		"'window.fracture': 'windows'", "'window.impact': 'windows'", "'slime.pop': 'windows'", "'slime.snap': 'windows'",
+		"theme: 'voxel_world'", "theme: 'green_slime'", "'slime.pop': { gain: 0.4, gapMs: 350 }", "'slime.snap': { gain: 0.42, gapMs: 900 }",
+		"'orbit.ping': 'navigation'", "theme: 'orbit'", "'orbit.ping': { gain: 0.38, gapMs: 350 }",
+		"windowMs: 2000, maxInWindow: 3", "coalesceMs: 80, expireMs: 240",
+		"function queueThemeFx(", "function ensureThemeFxBuffer(", "currentThemeId() !== fx.theme",
+		"cancelThemeFx()", "cleanThemeFxOptions", "options.pan", "options.strength", "themeFx: Object.fromEntries",
+	} {
+		if !strings.Contains(runtime, marker) {
+			t.Errorf("sound-runtime missing theme FX contract marker %q", marker)
+		}
+	}
+	if strings.Contains(runtime, "Voxel") {
+		t.Error("sound-runtime still carries voxel-only FX plumbing")
+	}
+}
+
+func TestGreenSlimeSoundFxContract(t *testing.T) {
+	t.Parallel()
+
+	bank := readDesktopAssetText(t, "js/desktop/sound/theme-green-slime.js")
+	for _, marker := range []string{"specialFx", "'slime.pop'", "'slime.snap'", "small:", "medium:", "large:"} {
+		if !strings.Contains(bank, marker) {
+			t.Errorf("green-slime bank missing FX marker %q", marker)
+		}
+	}
+	if strings.Contains(bank, "reverb:") {
+		t.Error("green-slime FX layers must not use the shared reverb pool: its convolver is shared by all layers of a render")
+	}
+
+	// The effect only reports; the sound runtime decides whether anything is heard.
+	bridge := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime.js")
+	for _, marker := range []string{
+		"function sound(eventName, variant, strength, x)", "!motion || document.hidden", "window.DesktopSounds.play(eventName",
+		"slime.soundCue(event)", "sim.takeEvents()", "soundEvents",
+	} {
+		if !strings.Contains(bridge, marker) {
+			t.Errorf("green_slime.js missing sound bridge marker %q", marker)
+		}
+	}
+	sim := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_sim.js")
+	bubbles := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_bubbles.js")
+	touch := readDesktopAssetText(t, "js/desktop/theme-fx/green_slime_touch.js")
+	for source, marker := range map[string]string{
+		sim: "function soundCue(event)", bubbles: "core.emit({ type: 'burst'", touch: "core.emit({ type: 'snap'",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Errorf("Green Slime simulation missing event marker %q", marker)
 		}
 	}
 }

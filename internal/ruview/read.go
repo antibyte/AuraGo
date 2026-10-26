@@ -3,11 +3,7 @@ package ruview
 import (
 	"context"
 	"encoding/json"
-	"regexp"
-	"strings"
 	"time"
-
-	"aurago/internal/security"
 )
 
 // payloadRead is one live GET plus the status observed around it.
@@ -24,6 +20,7 @@ type payloadRead struct {
 }
 
 // presenceRead is the agent summary. It never carries a scope path, a file path, or Wi-Fi data.
+// live_state is NodeList.LiveState: it tells an offline board from a live list that could not be read.
 type presenceRead struct {
 	Source      string         `json:"source"`
 	ObservedAt  time.Time      `json:"observed_at"`
@@ -32,6 +29,7 @@ type presenceRead struct {
 	Simulated   bool           `json:"simulated"`
 	DataState   string         `json:"data_state"`
 	StatusError string         `json:"status_error,omitempty"`
+	LiveState   string         `json:"live_state"`
 	Nodes       []presenceNode `json:"nodes"`
 }
 
@@ -43,14 +41,12 @@ type presenceNode struct {
 	RSSI         *float64 `json:"rssi_dbm,omitempty"`
 }
 
-var statusErrorURL = regexp.MustCompile(`(?i)\b(?:https?|wss?)://\S+`)
-
 func (m *Manager) readPresence(ctx context.Context) (presenceRead, error) {
 	list, err := m.Nodes(ctx)
 	if err != nil {
 		return presenceRead{}, err
 	}
-	out := presenceRead{Nodes: make([]presenceNode, 0, len(list.Nodes))}
+	out := presenceRead{LiveState: list.LiveState, Nodes: make([]presenceNode, 0, len(list.Nodes))}
 	m.attachStatus(ctx, &out.Source, &out.Fresh, &out.Simulated, &out.DataState, &out.StatusError)
 	out.ObservedAt = time.Now().UTC()
 	out.Revision = Revision
@@ -103,16 +99,14 @@ func presenceFresh(source string, simulated bool, state string, node Node) bool 
 	return age >= 0 && age <= 10000
 }
 
+// readStatusError describes a failed status probe for the agent. It is bounded
+// and carries no secret, URL or path (scrubDetail).
 func readStatusError(err error) string {
 	if err == nil {
 		return ""
 	}
-	text := strings.Join(strings.Fields(statusErrorURL.ReplaceAllString(security.Scrub(err.Error()), "")), " ")
-	if text == "" {
-		return "RuView status could not be read"
+	if text := scrubDetail(err.Error(), 160); text != "" {
+		return text
 	}
-	if len(text) > 160 {
-		text = strings.TrimSpace(text[:160])
-	}
-	return text
+	return "RuView status could not be read"
 }

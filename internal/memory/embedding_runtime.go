@@ -105,7 +105,7 @@ func buildEmbeddingRuntimeFromConfig(cfg *config.Config, logger *slog.Logger) em
 	}
 
 	if logger != nil {
-		logger.Info("Embedding runtime configured", "provider", provider, "url", embedURL, "model", embedModel)
+		logger.Info("Embedding runtime configured", "provider", provider, "url", redactEmbeddingURL(embedURL), "model", embedModel)
 		if embedKey == "" {
 			vaultKey := "provider_" + provider + "_api_key"
 			logger.Warn("[Embedding] API key is empty - check vault entry",
@@ -114,7 +114,7 @@ func buildEmbeddingRuntimeFromConfig(cfg *config.Config, logger *slog.Logger) em
 		}
 	}
 
-	embeddingFunc := withEmbeddingRetry(chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil), logger)
+	embeddingFunc := withEmbeddingRetry(newOpenAICompatEmbeddingFunc(embedURL, embedKey, embedModel), logger)
 	fingerprint := buildEmbeddingFingerprint(provider, embedURL, embedModel)
 	return embeddingRuntimeConfig{
 		EmbeddingFunc: embeddingFunc,

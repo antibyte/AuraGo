@@ -3966,7 +3966,7 @@ licenses; we recommend you read them, as their terms may differ from the
 terms above.
 
 
-## markdown-it 15.0.2 — MIT
+## markdown-it 15.0.3 — MIT
 
 Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
 

@@ -1281,7 +1281,7 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["sound.enabled"] != "false" {
 		t.Fatalf("default sound.enabled = %q", bootstrap.Settings["sound.enabled"])
 	}
-	if bootstrap.Settings["sound.theme"] != "crystal" {
+	if bootstrap.Settings["sound.theme"] != "desktop" {
 		t.Fatalf("default sound.theme = %q", bootstrap.Settings["sound.theme"])
 	}
 	if bootstrap.Settings["sound.volume"] != "0.6" {

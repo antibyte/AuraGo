@@ -40,7 +40,6 @@ var credentialedRedirectPending = map[string]string{
 	"internal/tools/grafana.go":                       credentialedRedirectPendingReason,
 	"internal/tools/integration_connection_checks.go": credentialedRedirectPendingReason,
 	"internal/tools/music_generation.go":              credentialedRedirectPendingReason,
-	"internal/tools/netlify.go":                       credentialedRedirectPendingReason,
 	"internal/tools/notification.go":                  credentialedRedirectPendingReason,
 	"internal/tools/space_agent.go":                   credentialedRedirectPendingReason,
 	"internal/tools/tailscale.go":                     credentialedRedirectVendorReason,

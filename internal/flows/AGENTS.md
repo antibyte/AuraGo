@@ -24,7 +24,12 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `FLOW_CONDITION_INVALID` (the node's own parameters), `FLOW_AI_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
   `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOL_DENIED`, `FLOW_ACTION_RULE_REQUIRED`, `FLOW_SECRET_UNAVAILABLE` (missing, refused or unusable
   capability, a vault entry included), `FLOW_BUDGET_EXCEEDED`,
-  `FLOW_OUTPUT_TOO_LARGE`. Everything else is retried, in particular `FLOW_NODE_FAILED`,
+  `FLOW_OUTPUT_TOO_LARGE`, and the failures that follow from the input alone (params are resolved once, so every
+  attempt sees the same): `FLOW_CONDITION_FAILED` (a condition that cannot be evaluated: two dates needed, a bad
+  or too complex pattern), `FLOW_VALUE_TYPE` (a `logic.set` value that does not fit its type) and
+  `FLOW_WAIT_TOO_LONG` (a `logic.wait` until time more than an hour away; it reads the clock, but a retry delay is
+  no way to wait for it), plus `FLOW_AI_OUTPUT_CUT` (an answer cut off at the token limit: the same request is cut
+  off again and paid for again). Everything else is retried, in particular `FLOW_NODE_FAILED`,
   `FLOW_NODE_TIMEOUT`, `FLOW_TOOL_ERROR` and `FLOW_AI_OUTPUT_INVALID`, where a new attempt can answer
   differently. Choose the code of a new error with that in mind.
   Preserve a non-retryable error even when the node deadline also expired:
@@ -62,7 +67,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `ParseToolOutput` limits: nesting deeper than about 10000 levels falls back to text, and the engine fails
   a node whose output is nested beyond its own depth limit.
 - `ai.decision` calls only `Services.Decisions` (`DecisionEvaluator`); its `DecisionRequest.Images` are
-  registered-media references, never paths or bytes. The server owns rooted media resolution and only then
+  registered-media references or server-authorized outgoing attachment paths,
+  never arbitrary filesystem access or bytes. The server owns rooted media resolution and only then
   passes `decisions.Image` bytes to the selected local runtime or external provider.
   Do not import `internal/server` or put image bytes
   into flow params, outputs, events or logs. Validate the service response before routing; a missing,
@@ -84,13 +90,20 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Limits: assembled template text 8 MiB; params nest at most 32 levels; `CollectTemplateRefs` returns at
   most 1000 refs+problems and cuts display paths to 40 runes per segment; `join`, `replace` and `split`
   are capped (8 MiB, 8 MiB, 100000 parts); regex `matches` is capped at 200 bytes and 1000 compiled
-  instructions (`maxPatternInsts`).
+  instructions (`maxPatternInsts`). `compilePattern` judges the size from the parse tree first
+  (`patternInstBound`: an upper bound of the program, repeat counts multiplied, saturating), so a pattern that is
+  too complex is refused without being simplified or compiled; `syntax.Parse` itself already refuses nested
+  repeats whose counts multiply past 1000. Both refusals end the node with `FLOW_CONDITION_FAILED`, which is not retried.
 
 ## Validation and lint
 - Structural problems are always errors; publish rules are errors only in `ModePublish` (warnings in
-  `ModeDraft`). `NODE_UNREACHABLE`, `TEMPLATE_UNKNOWN_FIELD` and the lint are always warnings. Callers
-  save a draft only when `!HasErrors(Validate(…, ModeDraft))`. A cycle is only a draft warning
-  (an error when publishing).
+  `ModeDraft`). `NODE_UNREACHABLE`, `TEMPLATE_UNKNOWN_FIELD` and the lint are always warnings, except
+  `UNTRUSTED_SECRET_TARGET` (see the lint below), which is a publish rule. Callers
+  save a draft only when `!HasErrors(Validate(…, ModeDraft))`; test runs (`StartTestRun`) validate with draft
+  rules too, so a publish rule never blocks them, and `PublishPreview`/`Publish` use publish rules. A cycle is only a draft warning
+  (an error when publishing). A template in a `ParamSecretRef` parameter is a publish rule for every node type
+  (`PARAM_INVALID` on that param): the parameter names a vault entry, and outside data must not pick it
+  (`Templatable` is only an editor hint; `ResolveParams` resolves every param).
 - Above `MaxNodes` nodes or `MaxEdges` edges `Validate` returns right after the document checks (one
   `FLOW_TOO_MANY_NODES` error per exceeded limit). Emit issues in document or topological order, never
   by ranging over a map, so the output stays deterministic.
@@ -107,40 +120,84 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `LintUntrustedData`: taint flows through template refs and through `passesInputs` nodes (merge, and
   set with keep_input). Disabled nodes neither warn nor taint; a cyclic flow gets no lint issues. If the
   ref cap is hit while a taint source exists, the node counts as tainted and every sink param is warned.
+  A sink param flagged `ParamSpec.SecretTarget` (`http.request` `url` only) is an error with its own code,
+  `UNTRUSTED_SECRET_TARGET`, instead of the warning while the node has a `ParamSecretRef` param set (`auth_secret`;
+  a template there counts as set) and the data can reach the URL's scheme, user info, host or port. `secretTargetFixed`
+  lets a value pass whose literal text before the first unescaped `{{` (as `ParseTemplate` splits it, after leading
+  white space) is `http://` or `https://`, a non-empty host part and then `/`, `?` or `#`; data behind that is path,
+  query or fragment and keeps the plain warning (`https://api.example.com{{x}}`, `https://{{x}}/`, `https://h:{{p}}/`
+  and `https://u{{x}}@h/` stay errors). In a secret target a ref to a node that is not an ancestor (a parallel
+  branch, a later node, the node itself) counts as untrusted whatever that node is: the topological walk reaches it
+  before that node's taint is known. `headers` is no secret target, although data can choose header names (the
+  whole `headers` value can be one template that resolves to an object): header names must be valid tokens,
+  net/http drops a `Host` entry of the header map (HTTP/1 and HTTP/2), `withAuthSecret` removes any header named like
+  `auth_header` (case-insensitive) and sets the secret itself, and a redirect that leaves the origin strips every
+  caller header but Accept, Content-Type and User-Agent (`apiRequestClient`). `Validate` turns
+  that error into a warning in `ModeDraft`, like every publish rule. The lint reads the flag from the spec and
+  still calls no hook. Validation is not the only guard: a live revision published under older rules is never
+  validated again and test runs validate with draft rules, so the engine enforces the rule itself, in every run
+  (see Engine semantics, `secretTargetRefusals`).
+- `PARAM_LITERAL_CREDENTIAL` (`IssueLiteralCredential`) is a warning (never an error) on `http.request` `headers`
+  with a typed-in credential header (`credentialHeaderName`); exports redact such values (`RedactCredentials`,
+  templates kept) and the run view redacts them (`redactCredentialHeaders`). S2 stays a warning: untrusted data in
+  command, code, path, delete or device sinks never blocks publishing (decision 2026-10-25).
 - A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`.
 
 ## Engine semantics
 - One coordinator goroutine per run owns all state; nodes run on workers (at most `parallel`, default 4).
-  A node holds its slot until it returns, so a `logic.wait` (up to 1 h) can starve parallel branches.
+  A node holds its per-run worker until it returns, so a `logic.wait` (up to 1 h) can starve parallel branches
+  of the same run. Its *global* run slot is different: `logic.wait` parks it through `ExecInput.Slot`
+  (`SlotParker`, `slotGate`; test runs park too) once no other node of the run is busy, and takes one again before
+  it returns, in FIFO turn with waiting runs and on the run's context (cancel, shutdown and the run time limit
+  apply; the node timeout does not).
   `logic.wait` until looks for the next real minute with that wall-clock time within one hour. Timer rules
   for the spring gap and the autumn overlap stay as they are (see Timers).
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
   panicking definition hook `FLOW_NODE_PANIC`. Test runs execute unpublished drafts, so these are the
   guard. Definitions, ports and default ports are computed once per run; a definition is pinned for it.
+- Run-time refusal of an untrusted secret target: `checkFlow` runs `secretTargetRefusals` (a thin reader of
+  `LintUntrustedData`'s `UNTRUSTED_SECRET_TARGET` errors, so the taint rules stay in the lint) once per run, live
+  or test, and stores the result in `nodeInfo.refusal`. `executeNode` fails such a node with the lint's message
+  and the non-retryable `FLOW_PARAM_INVALID` before it resolves params or calls `Execute`, so the vault is not read
+  and the tool is not called. It is an ordinary node failure: `on_error` decides only what follows (stop the run,
+  or `{error}` on the continue or error port), never whether the request happens, and Retry does not repeat it.
+  The cost is one lint pass per run (about 5 ms for a `MaxNodes` document with a few references per node; the
+  same pass `Validate` makes on every save). A flow without `auth_secret` keeps only the plain warning and runs.
 - Scheduling follows topological order. A node runs when all incoming edges are resolved and at least
   one delivered; otherwise it is skipped and its outgoing edges are skipped (this is how If/Switch and
   Merge work). Disabled nodes and nodes without inputs are skipped with a step record; non-fired
   triggers and nodes outside an `OnlyNode` scope are skipped without one.
-- `on_error`: `stop` fails the run, `continue` delivers `{error}` on the first non-error port (`true` for
-  if, `case_1` for switch, `default` for a switch without cases), `error_port` delivers `{error}` on
+- `on_error`: `stop` fails the run, `continue` delivers `{error}` on the node's continue port: the first
+  non-error port, except for a def that names `NodeDef.ContinuePort` (`logic.if` continues on `false`,
+  `logic.switch` on `default`, so a failure never takes the branch a success has to earn; the other uses of
+  the first port, the trigger's, are unchanged), `error_port` delivers `{error}` on
   `error` only. Retries re-run the whole node (not after a `nonRetryableCodes` error); timeouts are per
   attempt. Timeouts and retry delays are clamped (`MaxNodeTimeoutSeconds`, `MaxRetryDelaySeconds`,
   `MaxRunSecondsLimit`).
 - Params are resolved on the worker before the node timeout starts and cannot be cancelled (known
   limit: a huge filter chain over a large value can take about a second).
-- The first terminal outcome wins: a stop does not override an earlier failure, cancel or timeout. A run
-  is `FLOW_CANCELLED` or `FLOW_RUN_TIMEOUT` only if that actually interrupted a node.
+- The first terminal outcome wins: a stop does not override an earlier failure, cancel or timeout, and a stop
+  with an error keeps its outcome over later failures. After a stop, nodes still running get `abandonAfter`
+  (30 s, on the services clock) to finish; then they are cancelled. One that fails under `on_error: stop` after
+  a stop with success makes the run fail with its error and node (E3). A run is `FLOW_CANCELLED` or
+  `FLOW_RUN_TIMEOUT` only if that actually interrupted a node.
 - A returned port that the node does not declare, or `error` on success, fails with `FLOW_PORT_INVALID`.
 - Stuck nodes are abandoned 30 s after the run context ends (`FLOW_NODE_ABANDONED`); an abandoned worker
   can still cause side effects or read run data later, so treat `RunResult.Outputs` as read-only.
 - Nodes still open at the end get a closing step (`closeOpenNodes`): `cancelled`, or `skipped` after a
-  stop node. Step status `cancelled` exists in addition to the spec's list.
+  stop node. Step status `cancelled` exists in addition to the spec's list. A step launched and then cancelled or
+  abandoned gets `EffectUncertain` (`effect_uncertain`) when its node declares an effect (`declaresEffects`, via
+  `EffectsOf`; a panicking hook counts as one).
 - Error messages are capped at 1000 runes, node labels in run errors at 80.
 - Events: `run_started`, `step_started`, `step_finished`, `run_finished`; `Seq` starts at 1 per run.
 - Sizes: a node output over `MaxOutputBytes` (5 MiB) fails (`FLOW_OUTPUT_TOO_LARGE`); all outputs of a
   run together are capped by `MaxRunOutputBytes` (32 MiB, `FLOW_RUN_OUTPUT_TOO_LARGE`). Stored outputs
   and params over `MaxStoredOutputBytes` (256 KiB) become `{"_preview": …}` (first 64 KiB, cut on a
   rune boundary) with `OutputTruncated`/`ParamsTruncated`. The trigger output is bounded as well.
+  The run log keeps at most `MaxStoredRunBytes` (4 MiB) of a run's stored params and outputs, the trigger's
+  included; later steps keep `{"_preview":"","_omitted":"run_storage_budget"}` with both truncated flags
+  (`chargeStored`, `storedOmittedReason`). Stored params never hold a credential header value
+  (`redactCredentialHeaders`; `Service.Run` also redacts older rows).
 
 ## Runner and event bus
 - Test runs ignore per-flow policies but use the global limit. `queue` keeps at most `MaxQueuedPerFlow`
@@ -148,6 +205,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   queued (no run id), `parallel` only obeys the global limit. The global queue is FIFO.
   `MaxQueuedPerFlow` also caps, separately, the flow's runs waiting for a global slot; `Start` then
   returns `ErrQueueFull`.
+- `dispatchLocked` hands out free global slots in arrival order (tickets) to waiting runs and to parked runs that
+  resume. Counted (live) runs of one flow hold at most `MaxSlotsPerFlow` slots (default `max(1, MaxParallelRuns/2)`,
+  S5); a run over it keeps its place and does not block others (`fitsLocked`; test runs always fit). `Start` refuses
+  with `ErrRunnerQueueFull` (wraps `ErrQueueFull`) a run that would wait while `MaxPendingRuns` (200) runs, or
+  `MaxPendingBytes` (64 MiB) of their trigger data, already wait; one run may always wait (E5).
+- Parking (A7): `runSlot.Release` hands the slot back, `Acquire` queues a resumer. At most `MaxParkedRuns` (64) runs
+  are parked; beyond that `Release` returns false and the wait keeps its slot. A parked run is in `cancels` but holds
+  no slot (`runSlot.held` false), so `slots + parked == len(cancels)`; `slots == len(cancels)` holds only without
+  parked runs. `runSlot.ended` is set by `Runner.release` (`endSlotLocked`): an abandoned node that still asks for a
+  slot gets `ErrRunnerClosed`. `slotGate.Unpark` updates its counters (`parked--`, `active++`) before it takes
+  `acq`, so a woken node queued behind another keeps the run from releasing and asking twice.
 - Every run with an id has an event log from its creation (queued runs too), and the log always ends
   with `run_finished`: `endLog` publishes it for runs that end without the engine (cancelled while
   queued, `FLOW_SHUTDOWN`, runner panic). A runner panic gives `FLOW_RUNNER_PANIC` and frees the slot.
@@ -164,6 +232,15 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `CancelFlowMode(flowID, mode)` is `CancelFlow` for one mode (same queue, slot and `startMu` handling, counts
   only new cancels). Runs of other modes keep their places; a cancelled waiting run frees its flow slot, which
   admits the flow's next queued run of another mode. Mission Control's cancel uses it with `ModeLive`.
+- Gate: `RunnerConfig.Gate` is asked on the run's goroutine, outside all locks, right before a run executes that has
+  `StartRequest.Gated` (live runs a trigger started: `TriggerFromMission`, `onTimerFired`; `RunNow` is not gated) and
+  waited in a queue (`pendingRun.waited`: behind its flow's run or for a global slot); a run that started at once is
+  not asked again, and neither is a parked run that resumes after `logic.wait` (no new launch: no gate, no new
+  record). The check is `gateRefusal` at the top of `Runner.execute`, not in `dispatchLocked`. A
+  refusal, or a panic (fails closed), ends the run cancelled with `RunsPausedCode` (`FLOW_RUNS_PAUSED`) without
+  executing: recorded and its log ended first (`recordUnstarted`), then its slots go to the next waiting run (which
+  asks in turn), then `OnRunFinished` reports it like a run cancelled while queued. The Service's gate is its bridge's
+  `RunGate` (`automaticRunsAllowed`).
 - `CancelRun(runID)` is `Cancel` that also reports whether this call cancelled the run first (`activeRun.cancelled`);
   a caller that records a cancel (the API's audit entry) does so only then. `Store.GetRunHeader` /
   `Service.RunHeader` read a run's header without trigger data and steps.
@@ -180,12 +257,19 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
   so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
   migration a previous release cannot work with.
-- Test runs store their document in `flow_runs.doc_json`; live runs reference `flow_versions`. `Publish` keeps the
+- Test runs store their document once per flow and content in `flow_test_docs` (sha256 key, written in one
+  transaction with the run row) and refer to it through `flow_runs.doc_hash`; rows from before keep `doc_json`.
+  `PruneRunsByMode` sweeps documents no run refers to. Live runs reference `flow_versions`. `Publish` keeps the
   last 50 versions plus every older one an unfinished live run (queued, waiting, running) executes
   (`pruneVersionsSQL`: one non-correlated subquery on `idx_flow_runs_flow_started`, pinned by
   `TestAudit18VersionPruningSearchesTheRunsByIndex`), so the run view (`GetRunDoc`, `include=doc`) can show the
-  document while the run goes on; such a version goes with the first publish after the run finished. A run row
+  document while the run goes on; such a version goes with the first publish after the run finished. Once a version is pruned, `Service.Run` reports `RunDetail.DocMissing` (`version_pruned`, `not_stored` for a test run whose document was too large, `unreadable`) so the run view can say why. A run row
   left unfinished by a crash is marked interrupted at the next `Start`, so it holds nothing.
+- Retention is per mode: `PruneRunsByMode(days, live, test)`; the Service keeps `MaxRunsPerFlow` non-test runs and
+  `MaxTestRunsPerFlow` (default `DefaultMaxTestRunsPerFlow` 20, at most `MaxRunsPerFlow`) test runs (A6).
+  `SetScrubber` scrubs trigger data, step params, outputs and error texts before they are written (S7); the
+  server installs its read-time walk (`flowStoreScrubber`). New columns go into `storeColumns` (added with
+  `dbutil.MigrateAddColumn` before `storeIndexes`) and into the DDL.
 - Not-found and exists cases are typed (`ErrFlowExists`, `ErrNotFound`, `ErrRunNotFound`). Inserts and
   upserts of child rows are guarded by `WHERE EXISTS` on the parent row; plain updates by id
   (`SetMissionID`, `SetRunStatus`, `FinishRun`) use the affected row count. A stale draft revision is
@@ -213,7 +297,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   start-up go to the `missed` callback.
 - An occurrence is consumed (a one-off deleted, a yearly one moved on) only after its callback handled it.
   The Service's fire callback is a `timerHandleFunc` (`onTimerFired`, wired through the unexported
-  `newTimerService`): nil when a run was created or the start was deliberately skipped (Skip policy
+  `newTimerService`): nil when a run was created or the start was deliberately skipped (the bridge's optional
+  `RunGate` refusing automatic runs, checked first and logged at Info with the reason: the server refuses while
+  missions are read-only or flows are switched off, without a restart; Skip policy
   `StartSkipped` and a flow switched off at Info; no live revision, a mission Mission Control does not
   hold (`ErrFlowMissionMissing`), and a node no longer an enabled trigger at Warn with the reason; a
   gone flow at Debug). `ErrMissionControlUnavailable` (Mission Control cannot be read) returns that
@@ -274,7 +360,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   Limits: prompt plus instructions 256 KiB, answer text 1 MiB (`FLOW_OUTPUT_TOO_LARGE`, the node's own cap; the
   server's `LLMStepper` refuses answers over 256 KiB first, see Integration), 50 fields, a field description 500
   runes, a model name 200 bytes. `FLOW_AI_UNAVAILABLE` (no stepper), `FLOW_AI_OUTPUT_INVALID`
-  (retried) and `FLOW_BUDGET_EXCEEDED` (set by the stepper, kept by `aiCall`).
+  (retried), `FLOW_AI_OUTPUT_CUT` (an answer cut off at the token limit; set by the stepper, not retried, and no
+  repair call follows because `aiCall` returns the error before the repair loop; the node has no answer-length
+  setting, so the remedy is a shorter answer or fewer fields) and `FLOW_BUDGET_EXCEEDED` (set by the stepper,
+  kept by `aiCall`).
 - Triggers: `BindTriggers(flow, reg, loc, now)` returns one `TriggerBinding` per enabled trigger node, in
   document order: `manual`, `cron` (`trigger.schedule`, through `ScheduleToCron`), `timer` (`trigger.datetime`,
   yearly dates through `nextYearly`) or `mission` (a Mission Control trigger type plus `Config`, which uses the
@@ -293,22 +382,46 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `result`, `chain_depth`, `output` (the source's answer, at most 2000 bytes) and, for a flow source, `outputs`
   (its leaf outputs by key, bounded to 64 KiB of JSON, else `{"_truncated": true, "_preview": <first 4 KiB>}`),
   as the sample promises. Agent missions waiting for the same source get `outputs` capped at 8 KiB instead.
-- Taint: untrusted outputs are the triggers webhook, email, mqtt, fritzbox_call, planner and mission_completed;
-  the actions web.search, web.read, http.request, file.read, doc.pdf_read and home.assistant; `ai.step` (a
-  model that reads untrusted data can be prompt-injected); and every generic node. The other triggers (manual,
-  schedule, datetime, ha_state, device, startup, budget) are trusted. Asymmetry: `home.assistant` output is
-  untrusted (an entity state can be shaped by mail, RSS or MQTT) while `trigger.ha_state` is pinned trusted by a
-  plan test (`catalog_triggers_test.go`), although the same states reach the flow there.
+- Taint: untrusted outputs are the triggers webhook, email, mqtt, ha_state, fritzbox_call, planner and
+  mission_completed; the actions web.search, web.read, http.request, file.read, doc.pdf_read and home.assistant;
+  `ai.step` (a model that reads untrusted data can be prompt-injected); and every generic node. The other triggers
+  (manual, schedule, datetime, device, startup, budget, person_detected) are trusted. `trigger.ha_state` and
+  `home.assistant` agree: an entity state or attribute can be set by integrations, MQTT, mail or RSS.
+- `home.assistant` has `OutputFieldsFunc` (`homeAssistantFields`) per operation: get_state gives state, attributes,
+  entity_id, last_changed; call_service gives ok, service, affected_entities; an operation the document does not
+  settle gives all of them. The editor mirrors it in `easydrag-model.js` (`fieldsOf`).
 - Sinks are search queries, paths and file names, URLs, headers and bodies, recipients, attachments, accounts,
   channels, MQTT topic and payload, Home Assistant entity and service data, the planner title, the `ai.step`
   instructions (they become the system message; untrusted data belongs in the prompt, which is no sink), and
   the `ai.decision` `images` and `questions` params. The `ai.decision` `state` param is not a sink.
   `OutputIndependent` are the message, the pdf and notify titles (not the planner title, a sink), subject, body,
   document and file content, the MQTT payload and the planner description.
-- Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key. The node reads the value
+- Secrets: a `secret_ref` param (`http.request` `auth_secret`) holds only the vault key, written out: a template
+  in it is refused when publishing (any node type) and `http.request` refuses it at run time too
+  (`FLOW_PARAM_INVALID`, checked on the raw param before the vault is read), so outside data never picks the entry.
+  Outside data that can decide where the secret goes (the `url`'s scheme, user info, host or port) is a publish
+  error while `auth_secret` is set (`UNTRUSTED_SECRET_TARGET`, see Validation and lint) and, whatever revision the
+  flow was published under, the engine refuses the node at run time before it reads the vault (see Engine
+  semantics). `auth_header` and `auth_prefix` must be written out while `auth_secret` is set: a template there is a
+  publish error (`PARAM_INVALID`) and `withAuthSecret` refuses it at run time (`FLOW_PARAM_INVALID`, on the raw
+  param, before the vault is read). The node reads the value
   through `Services.Secrets`; the vault value wins over a user header of the same name; `secretScrubber`
   redacts the value (and its JSON, HTML and URL escapes) from outputs and errors. A `SecretReader` must register
   the value with the global output scrubber too. A missing or unusable secret is `FLOW_SECRET_UNAVAILABLE`.
+- Effects of the web and smart home nodes (`IsRisky` is what makes the publish dialog ask): `http.request` has none
+  for a GET (also an absent or blank method), `sends_message` for POST, PUT and PATCH, and `sends_message` plus
+  `deletes` for DELETE; a method that is a template or no method gets the DELETE worst case. `home.assistant`
+  `get_state` has none; a service call is `controls_devices`, plus `runs_code` for a literal `shell_command` or
+  `python_script` domain and `system_change` for `hassio` and `homeassistant.restart`/`stop`. When the domain is
+  not settled by the document (a service that is a template or no service text, a plain service on an entity that
+  is a template or no entity id) the effects are the worst case, all three. Nothing written yet (no service, or no
+  entity for a plain service) stays a plain device control: the node cannot run, and the palette's sample node
+  must not be risky.
+- `logic.set` fields: a literal value that its type refuses (a number that is no number, a list or object that is
+  none, a bool that is not one of true/false/yes/no/ja/nein/on/off/1/0; null and blank text are false) is a publish
+  error and fails the run with `FLOW_VALUE_TYPE`; a template or a null value is not judged when publishing.
+  `logic.stop` takes the status `success` or `error` only (`PARAM_INVALID` when publishing, `FLOW_PARAM_INVALID`
+  at run time for anything else, never a silent success).
 - Generic nodes (`tool.<name>`, category `tool:<category>`):
   - Curated tools are excluded, so a generic node cannot bypass a curated node's strict readers and taint
     flags: `IsGenericToolExcluded` (the `genericExcluded` list and the prefixes `skill__`, `tool__`,
@@ -365,7 +478,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   in Go; give the def or param a key (generic nodes are the exception, see above). Error and issue codes
   (`FLOW_*`, `PARAM_*`, `TEMPLATE_*`) are not in the list and need their own UI strings;
   `Availability.Reason` is raw text (English when a hook failed).
-- Codes that come with the catalog (each needs a UI string, with the three `ai.step` codes above):
+- Codes that come with the catalog (each needs a UI string, with the four `ai.step` codes above, `FLOW_AI_OUTPUT_CUT` included):
   `FLOW_TOOL_ERROR`, `FLOW_TOOL_DENIED`, `FLOW_NODE_UNAVAILABLE`, `FLOW_TOOLS_UNAVAILABLE`,
   `FLOW_SECRET_UNAVAILABLE`, `FLOW_FILE_EXISTS`, `FLOW_HTTP_STATUS` and `FLOW_NOTIFY_FAILED`. The last two are
   retried: they are not in the non-retryable set under "Writing a node".
@@ -464,13 +577,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `ErrTestDataTooLarge` before anything is stored. Without data the remembered or built-in sample is used.
   `SaveTriggerSample` and `TriggerSampleData` accept only an enabled trigger of the draft (else `ErrNoTrigger`,
   wrapped with the bounded node id), so made-up node ids never get a stored row.
+  `TestRunRequest.BaseRevision > 0` refuses a test of a draft that moved on with `ErrRevisionConflict` (API 409).
 - Live runs (`RunNow`, `TriggerFromMission`, timer callbacks, all through `startLive`) execute the published
   revision (`ErrNotPublished` without one, `ErrNoTrigger` without a matching enabled trigger). `RunNow` also
   refuses a flow that is switched off (`ErrFlowDisabled`, its mission is disabled), as Mission Control does
   (`notEnabledReason` asks `MissionReconciler.FlowMissions` when the bridge offers it: `ErrMissionControlUnavailable`
   without Mission Control, `ErrFlowMissionMissing` when the mission is gone); the
   other live starts check the switch before they get here (Mission Control's triggers and Run, `onTimerFired`,
-  which logs the skip and reports the occurrence handled, except `ErrMissionControlUnavailable`, which leaves it for retry; see Timers), and test runs are not affected. `TriggerFromMission` without a node (Mission Control's Run and
+  which logs the skip and reports the occurrence handled, except `ErrMissionControlUnavailable`, which leaves it for retry; see Timers), and test runs are not affected.
+  Runs on a trigger that nobody asked for also stop while the host says so: the server's `flowMissionHooks.StartFlowRun`
+  refuses (cron, event and dependent-mission triggers) and the optional `RunGate` of the bridge refuses
+  `onTimerFired` (Date/Time timers), see Integration. `TriggerFromMission` without a node (Mission Control's Run and
   `TriggerMissionWithOptions`: the daemon wake-up and `POST /api/missions/v2/{id}/trigger`) drops the caller's
   data and starts like `RunNow` (manual trigger: its sample; any other: `{}`), because `LintUntrustedData`
   treats those triggers as trusted; a trigger registration names its node and keeps its data. The drop is logged at
@@ -490,6 +607,15 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   of `[a-z0-9_]` (else `unknown`), the run header and the bridge record keep at most `MaxStoredOutputBytes` of
   trigger data (`{"_preview": …}` beyond), and the engine replaces trigger data that would exceed
   `MaxOutputBytes` with `{}`. The caller bounds the raw text at the source (`NormalizeTriggerData`).
+- Compatibility check: `CheckLiveRevisions` (the server runs it once after `Start` and `ReconcileMissions`) validates
+  every live revision with this build's publish rules at its `PublishedAt` (a passed one-off date is no finding),
+  plus the self-trigger rule, and keeps the errors without `NODE_UNAVAILABLE`/`NODE_TYPE_UNKNOWN` (tool configuration,
+  not rules). Each flagged flow is logged at Warn and noted through the optional `LiveIssuesNoter` (the bridge calls
+  `MissionManagerV2.NoteFlowLiveRevisionOutdated`); findings are kept in memory per flow and revision (visited flows
+  replace their entry), and `LiveIssues(rec)` (`FlowSummary.LiveIssues`, API `live_issues`) returns them only while
+  that revision is live, so a new publication clears them. No flow lock; Shutdown waits for it. A new rule that
+  tightens what existing revisions may do must be visible here before it breaks runs (the R2 lesson).
+- `TimersRunning()` is true from a successful `Start` until `Shutdown` (API `timers_running`).
 
 ## Tests
 - `go test ./internal/flows/ -count=1`; the race detector needs cgo, so `go test -race ./internal/flows/`
@@ -502,7 +628,10 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   aurago-test: `TestServiceSerializesOperationsPerFlow`, `TestServiceConcurrentPublishAndEnable`,
   `TestServiceDeleteCancelsTheFlowsRuns`, `TestRunnerCancelFlow*`, `TestFlowLocksAreKeyedAndCancellable`,
   `TestServiceLifecycle`, `TestServiceMissionEnabledChanged*`, `TestServiceCancelMissionRuns*` and
-  `TestServiceNextTimerPerFlow`.
+  `TestServiceNextTimerPerFlow`. Repeat `TestFB4WaitingRun*`, `TestFB4ParkedRuns*`,
+  `TestFB4CancelAndShutdownEndParkedRuns` and `TestFB4ParallelFlow*` under `-race -count=20` on aurago-test.
+- A test that needs a node to hold a global slot must not use `logic.wait` (it parks and gives the slot away):
+  register a node that blocks on a channel or `ctx.Done()` (`TestC18TestRunsShareTheGlobalLimits`).
 
 ## Integration (plan 1c)
 - `internal/server` implements the interfaces of this package; the wiring, the API, the bridge and the
@@ -537,7 +666,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     tokens (`llm.ReasoningOutputTokens`, 8192, on reasoning routes), a requested one capped at 16384, both
     clamped to the route's max output. Fields mode asks for a strict `json_schema` when the route supports
     structured outputs. `Text` is the answer without `<think>` blocks, trimmed; `JSON` is set only for a JSON
-    object. An answer cut at the token limit is `FLOW_AI_OUTPUT_INVALID`, one over 256 KiB
+    object. An answer cut at the token limit is `FLOW_AI_OUTPUT_CUT` (not retried), one over 256 KiB
     `FLOW_OUTPUT_TOO_LARGE` (checked here, before the node's own 1 MiB cap). Provider errors are scrubbed (the route's keys replaced) and cut to 300 runes.
     `flowProviderEntry` refuses an unknown id, media and unknown provider types and a typed provider without
     its credential with `FLOW_AI_UNAVAILABLE`; a keyless `custom` endpoint and an untyped one with a model stay
@@ -552,8 +681,19 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     (`flowSpendingTools`: `analyze_image`, `manus`, `huggingface`, `memory_reflect`, `space_agent`,
     `treg_call`, `transcribe_audio`; the families `generate_`, `yepapi_`, `telnyx_`); spending operations of
     other tools are dropped here (`genericDroppedOperations`, under Catalog).
-  - `MissionBridge` (`flowMissionBridge`, `flows_bridge*.go`, with the optional `MissionReconciler`) and the
-    `tools.FlowHooks` that lead back into the Service (`flowMissionHooks`).
+  - `MissionBridge` (`flowMissionBridge`, `flows_bridge*.go`, with the optional `MissionReconciler` and
+    `RunGate`) and the `tools.FlowHooks` that lead back into the Service (`flowMissionHooks`). Both ask the
+    server's `automaticFlowRunsAllowed` (`flows_service.go`) before a run that nobody asked for starts:
+    `flowsAvailable` (service, `flows.enabled`, `tools.missions.enabled`) else `tools.ErrFlowsUnavailable`, then
+    `tools.missions.readonly` else a refusal, read from the current config snapshot, so the switches count at
+    once. `StartFlowRun` returns the refusal (Mission Control logs it); `AutomaticRunsAllowed` makes
+    `onTimerFired` consume the occurrence without a run. A cancel is not refused. `startFlows` retries a failed
+    `Service.Start` in the background (5 s doubling to 5 min, each failure logged at Warn with the attempt and the
+    next delay, the recovery at Info, then `afterFlowsStart`: the reconciliation, `CheckLiveRevisions` and a
+    `flows_changed` broadcast with reason `checked`); `shutdownFlows` ends that retry first and waits for it at most
+    `flowsStartRetryJoinTimeout` (2 s), because a Start stuck in SQLite does not observe its context. The bridge notes
+    a run the gate stopped (`FLOW_RUNS_PAUSED`, `Started` false) on the flow mission like a refused trigger
+    (`MissionManagerV2.NoteFlowRunRefused`, reason re-asked from `automaticFlowRunsAllowed`).
 - `Service.CancelMissionRuns`, `MissionEnabledChanged` and `NextTimer` serve Mission Control (see Service).
 - Every key of `CatalogI18nKeys` must exist in `ui/lang/easydrag/<16 locales>.json`. `catalog_i18n_test.go`
   enforces this: `TestCatalogTranslationsAreComplete` (en holds every key; every locale holds exactly en's keys,

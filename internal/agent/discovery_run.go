@@ -28,6 +28,16 @@ func releaseDiscoveryRun(id string) {
 	delete(discoverToolsState.liveRuns, id)
 	delete(discoverToolsState.snapshots, id)
 	delete(discoverToolsState.requested, id)
+	forgetDiscoverSearchOrdersLocked(id)
+}
+
+// discoveryReinjectsSchemas reports whether the main loop re-attaches the
+// schemas of hidden native tools that discovery or a direct call requested
+// (agent_loop.go, before each request). A stable-prompt, frozen-catalog or
+// prepared-prompt run keeps its tool list fixed, so there a hidden tool stays
+// reachable only through invoke_tool.
+func discoveryReinjectsSchemas(runCfg RunConfig, useNative bool) bool {
+	return useNative && !runCfg.StableSystemPrompt && runCfg.NativeToolSchemas == nil && runCfg.PreparedPrompt == nil
 }
 
 func (dc *DispatchContext) discoveryKey() string {

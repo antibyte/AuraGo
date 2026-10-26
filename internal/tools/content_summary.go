@@ -19,9 +19,11 @@ import (
 // SummaryLLMConfig holds the credentials for the summary LLM call,
 // decoupled from any specific tool's config section.
 type SummaryLLMConfig struct {
+	Config       *config.Config
 	ProviderID   string
 	ProviderType string
 	AccountID    string
+	GatewayID    string
 	APIKey       string
 	BaseURL      string
 	Model        string
@@ -40,20 +42,33 @@ const maxSummaryPromptContentChars = 12000
 func ResolveSummaryLLMConfig(cfg *config.Config, fallback SummaryLLMConfig) SummaryLLMConfig {
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
 		return SummaryLLMConfig{
+			Config:     cfg,
 			APIKey:     helperCfg.APIKey,
 			BaseURL:    helperCfg.BaseURL,
 			Model:      helperCfg.Model,
-			ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, AccountID: helperCfg.AccountID,
+			ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, AccountID: helperCfg.AccountID, GatewayID: helperCfg.GatewayID,
 		}
 	}
-	if cfg != nil && fallback.ProviderType == "" {
-		for _, provider := range cfg.Providers {
-			if strings.TrimRight(provider.BaseURL, "/") == strings.TrimRight(fallback.BaseURL, "/") && provider.BaseURL != "" {
-				fallback.ProviderID = provider.ID
-				fallback.ProviderType = provider.Type
-				fallback.AccountID = provider.AccountID
-				break
+	fallback.Config = cfg
+	if cfg != nil {
+		if provider := cfg.FindProvider(fallback.ProviderID); provider != nil {
+			fallback.ProviderType, fallback.AccountID, fallback.GatewayID = provider.Type, provider.AccountID, provider.GatewayID
+			if fallback.APIKey == "" {
+				fallback.APIKey = provider.APIKey
 			}
+			if fallback.BaseURL == "" {
+				fallback.BaseURL = provider.BaseURL
+			}
+			if fallback.Model == "" {
+				fallback.Model = provider.Model
+			}
+			return fallback
+		}
+	}
+	if cfg != nil && fallback.ProviderID == "" && fallback.ProviderType == "" {
+		if fallback.APIKey == cfg.LLM.APIKey && fallback.BaseURL == cfg.LLM.BaseURL {
+			fallback.ProviderID, fallback.ProviderType = cfg.LLM.Provider, cfg.LLM.ProviderType
+			fallback.AccountID, fallback.GatewayID = cfg.LLM.AccountID, cfg.LLM.GatewayID
 		}
 	}
 	return fallback
@@ -129,10 +144,7 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 	}
 
 	baseURL := strings.TrimRight(llmCfg.BaseURL, "/")
-	if baseURL != "" && !strings.Contains(baseURL, "/v1") {
-		baseURL += "/v1"
-	}
-	client := llm.NewClientFromProviderWithConfig(nil, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID)
+	client := llm.NewClientFromProviderWithConfig(llmCfg.Config, llmCfg.ProviderType, baseURL, apiKey, llmCfg.AccountID, llmCfg.GatewayID)
 
 	req := openai.ChatCompletionRequest{
 		Model: llmCfg.Model,

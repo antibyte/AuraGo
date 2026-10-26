@@ -152,6 +152,16 @@ func TestRuViewOperationalHintsFireOncePerTransition(t *testing.T) {
 
 	t.Run("storage", func(t *testing.T) {
 		m, c, log := managedBudget(t, "native")
+		m.storageEvery = 0 // sample on every watch
+		c.RuView.StorageMB = 1
+		data := filepath.Join(c.Directories.DataDir, "ruview", "data")
+		if err := os.MkdirAll(data, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		full := filepath.Join(data, "recording.bin")
+		if err := os.WriteFile(full, make([]byte, 1<<20+1), 0o600); err != nil {
+			t.Fatal(err)
+		}
 		for i := 0; i < 3; i++ {
 			if m.watch(context.Background()) == nil {
 				t.Fatal("managed runtime did not schedule a probe")
@@ -168,7 +178,7 @@ func TestRuViewOperationalHintsFireOncePerTransition(t *testing.T) {
 		m.managed = true
 		m.runningConfig = c
 		m.mu.Unlock()
-		if err := os.MkdirAll(filepath.Join(c.Directories.DataDir, "ruview", "data"), 0o700); err != nil {
+		if err := os.Remove(full); err != nil {
 			t.Fatal(err)
 		}
 		for i := 0; i < 3; i++ {

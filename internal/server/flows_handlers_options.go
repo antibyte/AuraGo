@@ -118,7 +118,7 @@ func (s *Server) flowOptionList(ctx context.Context, source, lang string) (flowO
 	case "notification_channels":
 		out = append(out, flowOption{Value: "all", Label: tr("easydrag.option.channel_all")},
 			flowOption{Value: "push", Label: tr("easydrag.option.channel_push")})
-		if cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0 {
+		if cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0 && !cfg.Telegram.ReadOnly {
 			out = append(out, flowOption{Value: "telegram", Label: "Telegram"})
 		}
 		if cfg.Discord.Enabled && !cfg.Discord.ReadOnly && strings.TrimSpace(cfg.Discord.DefaultChannelID) != "" {

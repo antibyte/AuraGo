@@ -3,43 +3,51 @@ function renderRuViewSection(section) {
     const c = { enabled: false, readonly: true, agent_access: false, mode: 'docker', source: 'esp32', http_port: 3022, udp_port: 5005, storage_mb: 1024, ...configData.ruview };
     const form = window.AuraConfigForm;
     const tr = key => t('ruview.' + key);
+    // Literal maps keep every key visible to the static i18n lint; callers pass translated labels.
+    const OPTION = {
+        docker: () => tr('docker'), external: () => tr('external'), native: () => tr('native'),
+        esp32: () => tr('esp32'), wifi: () => tr('wifi'), simulated: () => tr('simulated')
+    };
+    const MODE_HELP = { docker: () => tr('mode_help_docker'), external: () => tr('mode_help_external'), native: () => tr('mode_help_native') };
+    const SOURCE_HELP = { esp32: () => tr('source_help_esp32'), wifi: () => tr('source_help_wifi'), simulated: () => tr('source_help_simulated') };
+    const pick = (map, key) => Object.hasOwn(map, key) ? map[key]() : '';
     const field = (key, label, options = {}) => form.field({
-        id: 'ruview-' + key, path: 'ruview.' + key, label: tr(label), value: c[key], ...options
+        id: 'ruview-' + key, path: 'ruview.' + key, label, value: c[key], ...options
     });
-    const toggle = (key, label, help) => field(key, label, { type: 'toggle', help: help ? tr(help) : '', value: c[key] === true });
-    const select = (key, values) => field(key, key, {
-        type: 'select', help: tr(key + '_help_' + c[key]),
-        options: values.map(value => ({ value, label: tr(value) }))
+    const toggle = (key, label, help) => field(key, label, { type: 'toggle', help: help || '', value: c[key] === true });
+    const select = (key, label, helpMap, values) => field(key, label, {
+        type: 'select', help: pick(helpMap, c[key]),
+        options: values.map(value => ({ value, label: OPTION[value]() }))
     });
-    const button = (id, label, primary = false) => `<button id="ruview-${id}" type="button" class="${primary ? 'btn-save' : 'btn-secondary'}">${escapeHtml(tr(label))}</button>`;
+    const button = (id, label, primary = false) => `<button id="ruview-${id}" type="button" class="${primary ? 'btn-save' : 'btn-secondary'}">${escapeHtml(label)}</button>`;
 
     document.getElementById('content').innerHTML = form.renderSpec({
         label: section.label,
         desc: tr('quality'),
         groups: [
             { titleKey: 'config.refresh.operation', content:
-                toggle('enabled', 'enabled') +
-                toggle('readonly', 'readonly', 'readonly_help') +
+                toggle('enabled', tr('enabled')) +
+                toggle('readonly', tr('readonly'), tr('readonly_help')) +
                 '<div id="ruview-readonly-notice" class="cfg-note is-warning" role="status">' + escapeHtml(tr('readonly_notice')) + '</div>' +
-                '<div class="field-grid two-cols">' + select('mode', ['docker', 'external', 'native']) + select('source', ['esp32', 'wifi', 'simulated']) + '</div>' +
+                '<div class="field-grid two-cols">' + select('mode', tr('mode'), MODE_HELP, ['docker', 'external', 'native']) + select('source', tr('source'), SOURCE_HELP, ['esp32', 'wifi', 'simulated']) + '</div>' +
                 '<div id="ruview-mode-notice" class="cfg-note is-warning" role="status" hidden></div>' +
                 form.disclosure({ title: tr('permissions'), content:
-                    toggle('agent_access', 'agent_access', 'agent_help')
+                    toggle('agent_access', tr('agent_access'), tr('agent_help'))
                 })
             },
             { titleKey: 'config.refresh.connection', content:
                 '<div id="ruview-external-fields">' +
-                    field('url', 'url', { type: 'url', placeholder: 'http://192.168.1.20:3000' }) +
-                    field('api_token', 'token', { type: 'password', help: tr('token_help') }) +
-                    toggle('allow_private', 'allow_private') +
+                    field('url', tr('url'), { type: 'url', placeholder: 'http://192.168.1.20:3000' }) +
+                    field('api_token', tr('token'), { type: 'password', help: tr('token_help') }) +
+                    toggle('allow_private', tr('allow_private')) +
                 '</div>' +
                 '<div id="ruview-managed-fields">' + form.note({ text: tr('managed_help') }) +
                     form.disclosure({ content: '<div class="field-grid two-cols">' +
-                        field('http_port', 'http_port', { type: 'number', min: 1024, max: 65534, step: 1 }) +
-                        field('storage_mb', 'storage', { type: 'number', min: 64, max: 1048576, step: 1 }) + '</div>'
+                        field('http_port', tr('http_port'), { type: 'number', min: 1024, max: 65534, step: 1 }) +
+                        field('storage_mb', tr('storage'), { type: 'number', min: 64, max: 1048576, step: 1 }) + '</div>'
                     }) +
                 '</div>' +
-                form.actions([{ html: button('check', 'test', true) }, { html:
+                form.actions([{ html: button('check', tr('test'), true) }, { html:
                     `<a class="btn-secondary" href="/desktop?app=ruview" target="_blank" rel="noopener">${escapeHtml(tr('open'))}</a>`
                 }]) +
                 '<p id="ruview-check-reason" class="field-help" aria-live="polite"></p>' +
@@ -48,20 +56,20 @@ function renderRuViewSection(section) {
             { title: tr('configure'), desc: tr('setup_help'), className: 'ruview-board-panel', content:
                 form.note({ text: tr('receiver_purpose') }) +
                 '<div class="field-grid two-cols">' +
-                    field('receiver_ip', 'receiver', { help: tr('receiver_help'), placeholder: '192.168.1.20' }) +
-                    field('udp_port', 'udp_port', { type: 'number', min: 1024, max: 65535, step: 1 }) +
+                    field('receiver_ip', tr('receiver'), { help: tr('receiver_help'), placeholder: '192.168.1.20' }) +
+                    field('udp_port', tr('udp_port'), { type: 'number', min: 1024, max: 65535, step: 1 }) +
                 '</div>' +
                 '<div id="ruview-receiver-suggestion" hidden>' +
-                    form.actions([{ html: button('use-receiver', 'use_receiver') }]) +
+                    form.actions([{ html: button('use-receiver', tr('use_receiver')) }]) +
                     '<p class="field-help">' + escapeHtml(tr('receiver_suggestion_help')) + '</p>' +
                 '</div>' +
-                '<div id="ruview-managed-udp">' + toggle('udp_enabled', 'udp_enabled', 'udp_help') +
+                '<div id="ruview-managed-udp">' + toggle('udp_enabled', tr('udp_enabled'), tr('udp_help')) +
                     '<div id="ruview-udp-fields">' +
-                        field('udp_bind', 'udp_bind', { placeholder: '192.168.1.20' }) +
-                        field('udp_allow', 'udp_allow', { value: (c.udp_allow || []).join(', '), help: tr('udp_allow_help'), placeholder: '192.168.1.50, 192.168.1.51' }) +
+                        field('udp_bind', tr('udp_bind'), { placeholder: '192.168.1.20' }) +
+                        field('udp_allow', tr('udp_allow'), { value: (c.udp_allow || []).join(', '), help: tr('udp_allow_help'), placeholder: '192.168.1.50, 192.168.1.51' }) +
                     '</div>' +
                 '</div>' +
-                form.actions([{ html: button('setup', 'configure', true) }]) +
+                form.actions([{ html: button('setup', tr('configure'), true) }]) +
                 '<p id="ruview-setup-reason" class="field-help" aria-live="polite"></p>' +
                 '<div id="ruview-setup-result" class="pw-status" role="status" aria-live="polite" hidden></div>'
             }
@@ -85,8 +93,8 @@ function renderRuViewSection(section) {
         root.querySelector('.ruview-board-panel').hidden = source !== 'esp32';
         root.querySelector('#ruview-managed-udp').hidden = external;
         root.querySelector('#ruview-udp-fields').hidden = !root.querySelector('[data-path="ruview.udp_enabled"]').classList.contains('on');
-        root.querySelector('#ruview-mode-help').textContent = tr('mode_help_' + mode);
-        root.querySelector('#ruview-source-help').textContent = tr('source_help_' + source);
+        root.querySelector('#ruview-mode-help').textContent = pick(MODE_HELP, mode);
+        root.querySelector('#ruview-source-help').textContent = pick(SOURCE_HELP, source);
         root.querySelector('#ruview-source option[value="wifi"]').disabled = mode === 'docker';
         const notice = root.querySelector('#ruview-mode-notice');
         notice.hidden = mode !== 'docker' || source !== 'wifi';
@@ -149,24 +157,65 @@ function ruviewConfigActionReason(action) {
     return '';
 }
 
+// ruviewTestOutcome turns a POST /api/ruview/test answer into text and a state.
+// Only fresh real data counts as success: a reachable service without data is a warning.
+function ruviewTestOutcome(ok, data) {
+    // Literal maps keep every key visible to the static i18n lint.
+    const errors = {
+        source_mismatch: () => t('ruview.source_mismatch'),
+        unexpected_simulation: () => t('ruview.unexpected_simulation'),
+        stop_failed: () => t('ruview.stop_failed'),
+        process_exited: () => t('ruview.process_exited')
+    };
+    const states = {
+        unchecked: () => t('ruview.unchecked'),
+        disabled: () => t('ruview.disabled'),
+        starting: () => t('ruview.starting'),
+        stopping: () => t('ruview.stopping'),
+        stopped: () => t('ruview.stopped_state'),
+        disconnected: () => t('ruview.disconnected'),
+        stale: () => t('ruview.stale'),
+        synthetic: () => t('ruview.demo'),
+        live_unverified: () => t('ruview.unavailable'),
+        live: () => t('ruview.unavailable')
+    };
+    const pick = (map, key, fallback) => typeof key === 'string' && Object.hasOwn(map, key) ? map[key]() : fallback();
+    // A different signal source is a configuration mismatch to look at, not a failed test.
+    const failure = code => ({ state: code === 'source_mismatch' ? 'warning' : 'error', text: pick(errors, code, () => String(code)) });
+    if (!ok) return typeof data.error === 'string' && Object.hasOwn(errors, data.error)
+        ? failure(data.error)
+        : { state: 'error', text: data.message || data.error || t('ruview.error') };
+    if (data.error) return failure(data.error);
+    if (data.fresh && !data.simulated) return { state: 'success', text: t('ruview.received') };
+    if (data.simulated) return { state: 'warning', text: t('ruview.demo') };
+    if (data.waiting_for_frames) return { state: 'warning', text: t('ruview.waiting_for_frames') };
+    return { state: 'warning', text: pick(states, data.data_state, () => t('ruview.unchecked')) };
+}
+
+function ruviewShowOutcome(out, outcome) {
+    out.textContent = outcome ? outcome.text : '';
+    if (outcome) out.dataset.state = outcome.state; else delete out.dataset.state;
+    out.classList.toggle('is-success', outcome?.state === 'success');
+    out.classList.toggle('is-error', outcome?.state === 'error');
+}
+
 async function ruviewConfigTest() {
     const button = document.getElementById('ruview-check');
     const out = document.getElementById('ruview-result');
     if (!button || !out || button.getAttribute('aria-busy') === 'true') return;
     const reason = ruviewConfigActionReason('check');
     out.hidden = false;
-    if (reason) { out.textContent = reason; return; }
+    if (reason) { ruviewShowOutcome(out, null); out.textContent = reason; return; }
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
+    ruviewShowOutcome(out, null);
     out.textContent = t('ruview.working');
     try {
         const response = await fetch('/api/ruview/test', { method: 'POST' });
         const data = await response.json();
-        out.textContent = response.ok
-            ? t('ruview.' + (data.fresh ? 'received' : data.data_state || 'unchecked'))
-            : data.message || data.error || t('ruview.error');
+        ruviewShowOutcome(out, ruviewTestOutcome(response.ok, data));
     } catch (_) {
-        out.textContent = t('ruview.error');
+        ruviewShowOutcome(out, { state: 'error', text: t('ruview.error') });
     } finally {
         button.setAttribute('aria-busy', 'false');
         button.disabled = !!ruviewConfigActionReason('check');

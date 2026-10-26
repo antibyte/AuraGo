@@ -28,14 +28,29 @@ type TestRunRequest struct {
 	TriggerData  map[string]any
 	OnlyNode     string
 	RememberData bool
+	// BaseRevision is the draft revision the editor shows; > 0 refuses the test with
+	// ErrRevisionConflict when the draft moved on meanwhile (another window), so no effect runs
+	// for a draft nobody looked at. 0 skips the check.
+	BaseRevision int
 }
 
-// RunDetail is a run with its steps (and optionally the document it executed).
+// RunDetail is a run with its steps (and optionally the document it executed). DocMissing says
+// why an asked-for document is absent: DocMissingVersionPruned (the published version a live
+// run executed was cleaned up, see pruneVersionsSQL), DocMissingNotStored (a test run whose
+// document was too large to keep, see CreateRun) or DocMissingUnreadable (any other error).
 type RunDetail struct {
-	Run   *RunRecord   `json:"run"`
-	Steps []StepRecord `json:"steps"`
-	Doc   *Flow        `json:"doc,omitempty"`
+	Run        *RunRecord   `json:"run"`
+	Steps      []StepRecord `json:"steps"`
+	Doc        *Flow        `json:"doc,omitempty"`
+	DocMissing string       `json:"doc_missing,omitempty"`
 }
+
+// The reasons RunDetail.DocMissing names.
+const (
+	DocMissingVersionPruned = "version_pruned"
+	DocMissingNotStored     = "not_stored"
+	DocMissingUnreadable    = "unreadable"
+)
 
 // StartTestRun runs the draft from a trigger (the manual trigger or the first one by default).
 //
@@ -50,6 +65,9 @@ func (s *Service) StartTestRun(ctx context.Context, id string, req TestRunReques
 	rec, err := s.store.GetFlow(ctx, id)
 	if err != nil {
 		return StartResult{}, err
+	}
+	if req.BaseRevision > 0 && req.BaseRevision != rec.DraftRevision {
+		return StartResult{}, ErrRevisionConflict
 	}
 	if issues := Validate(rec.Draft, s.reg, s.vc(ModeDraft)); HasErrors(issues) {
 		return StartResult{}, &ValidationError{Issues: issues}
@@ -133,7 +151,7 @@ func (s *Service) RunNow(ctx context.Context, id string) (StartResult, error) {
 	if !s.bridge.FlowMissionEnabled(rec.MissionID) {
 		return StartResult{}, s.notEnabledReason(rec.MissionID)
 	}
-	return s.startLive(rec, "", "manual", nil)
+	return s.startLive(rec, "", "manual", nil, false)
 }
 
 // notEnabledReason tells why FlowMissionEnabled said no, which it reports as one false:
@@ -195,10 +213,13 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 		}
 		data = nil
 	}
-	return s.startLive(rec, nodeID, triggerType, data)
+	return s.startLive(rec, nodeID, triggerType, data, true)
 }
 
-// startLive starts a run of rec's live revision.
+// startLive starts a run of rec's live revision. gated marks a run that a trigger started
+// without anyone asking at that moment (Mission Control's triggers and Run, the Date/Time
+// timers): when it has to wait it asks the bridge's RunGate again before it executes
+// (RunnerConfig.Gate). Run now is not gated.
 //
 // Starting versus deleting the flow: no start path (RunNow, TriggerFromMission,
 // StartTestRun, onTimerFired) takes the flow's lock, and none needs it. Runner.Start
@@ -210,7 +231,7 @@ func (s *Service) TriggerFromMission(missionID, nodeID, triggerType string, data
 // The flow lock must stay out of these paths: TriggerFromMission can run inside
 // MissionBridge.FlowRunFinished, which runs inside the delete of another flow while that
 // flow's lock is held, and two flows deleted at once could then wait for each other.
-func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data map[string]any) (StartResult, error) {
+func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data map[string]any, gated bool) (StartResult, error) {
 	if rec.Live == nil {
 		return StartResult{}, ErrNotPublished
 	}
@@ -225,7 +246,16 @@ func (s *Service) startLive(rec *FlowRecord, nodeID, triggerType string, data ma
 		}
 	}
 	return s.runner.Start(StartRequest{Flow: rec.Live, Revision: rec.LiveRevision, Mode: ModeLive,
-		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data})
+		TriggerNode: trigger, TriggerType: cleanTriggerType(triggerType), TriggerData: data, Gated: gated})
+}
+
+// automaticRunsAllowed asks the bridge's optional RunGate; nil without one. It is the runner's
+// Gate (see RunnerConfig).
+func (s *Service) automaticRunsAllowed() error {
+	if gate, ok := s.bridge.(RunGate); ok {
+		return gate.AutomaticRunsAllowed()
+	}
+	return nil
 }
 
 // cleanTriggerType returns t when it is 1 to maxTriggerTypeBytes characters of
@@ -291,13 +321,38 @@ func (s *Service) Run(ctx context.Context, runID string, includeDoc bool) (*RunD
 	if steps == nil {
 		steps = []StepRecord{}
 	}
+	for i := range steps { // runs stored before S6
+		steps[i].Params = redactCredentialHeaders(steps[i].Params, false)
+	}
 	detail := &RunDetail{Run: rec, Steps: steps}
 	if includeDoc {
-		if doc, err := s.store.GetRunDoc(ctx, runID); err == nil {
-			detail.Doc = doc
+		doc, err := s.store.GetRunDoc(ctx, runID)
+		if err == nil {
+			// runs stored before S6 may hold typed-in credentials; templates stay
+			red, rerr := RedactCredentials(doc)
+			if rerr == nil {
+				detail.Doc = red
+			} else {
+				detail.DocMissing = DocMissingUnreadable
+			}
+		} else {
+			detail.DocMissing = docMissingReason(rec.Mode, err)
 		}
 	}
 	return detail, nil
+}
+
+// docMissingReason names why GetRunDoc returned no document for a run of mode: a test run keeps its
+// own document (ErrNotFound means it was not stored), every other run reads a published version.
+func docMissingReason(mode RunMode, err error) string {
+	switch {
+	case errors.Is(err, ErrNotFound) && mode == ModeTest:
+		return DocMissingNotStored
+	case errors.Is(err, ErrNotFound):
+		return DocMissingVersionPruned
+	default:
+		return DocMissingUnreadable
+	}
 }
 
 // RunHeader returns a run's header only (Store.GetRunHeader): no trigger data, no steps.
@@ -527,12 +582,14 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 // onTimerFired starts a live run for a due Date/Time trigger of an enabled flow. It is the
 // timer service's timerHandleFunc and returns nil when the occurrence is handled, so the
 // timer service consumes it: a run was created (started or queued), or no run is wanted.
-// No run is wanted for a flow that is gone (its timers went with it; logged at Debug), and,
-// each logged, for a flow without a published revision (Warn), a flow that is switched
-// off (Info), a flow whose mission Mission Control does not hold (Warn, naming
-// ErrFlowMissionMissing; a flow being deleted can show that too), a node that is no longer
-// an enabled trigger of the published revision (Warn), and a trigger the Skip concurrency
-// policy drops (StartSkipped, Info). Those return nil and the occurrence is consumed.
+// No run is wanted while the bridge's RunGate refuses automatic runs (missions read-only,
+// flows switched off; checked first, logged at Info with the reason), for a flow that is
+// gone (its timers went with it; logged at Debug), and, each logged, for a flow without a
+// published revision (Warn), a flow that is switched off (Info), a flow whose mission
+// Mission Control does not hold (Warn, naming ErrFlowMissionMissing; a flow being deleted
+// can show that too), a node that is no longer an enabled trigger of the published
+// revision (Warn), and a trigger the Skip concurrency policy drops (StartSkipped, Info).
+// Those return nil and the occurrence is consumed.
 // ErrMissionControlUnavailable (Mission Control cannot be read) keeps the same Warn and
 // returns that error, so the occurrence stays and is retried. Any other failure to start
 // (ErrQueueFull, a store error while reading the flow or recording the run, ErrRunnerClosed)
@@ -540,6 +597,13 @@ func leafOutputs(f *Flow, res RunResult) map[string]any {
 // the occurrence stored and tries it again after a backoff, with the same scheduled_for
 // (see TimerService). Past timerMaxRetryLateness the missed callback runs and starts no run.
 func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) error {
+	if gate, ok := s.bridge.(RunGate); ok {
+		if err := gate.AutomaticRunsAllowed(); err != nil {
+			s.logger.Info("a date and time trigger fired while automatic runs are not allowed; no run was started",
+				"flow", flowID, "node", nodeID, "reason", err.Error())
+			return nil
+		}
+	}
 	rec, err := s.store.GetFlow(context.Background(), flowID)
 	if errors.Is(err, ErrNotFound) {
 		s.logLookup("a date and time trigger could not read its flow", "", err, "flow", flowID, "node", nodeID)
@@ -568,7 +632,7 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 		return nil
 	}
 	data := map[string]any{"scheduled_for": scheduledFor.UTC().Format(time.RFC3339)}
-	res, err := s.startLive(rec, nodeID, "datetime", data)
+	res, err := s.startLive(rec, nodeID, "datetime", data, true)
 	switch {
 	case err == nil && res.Status == StartSkipped:
 		s.logger.Info("a date and time trigger was skipped because a run of the flow is still active (concurrency: skip)",
@@ -595,4 +659,13 @@ func (s *Service) onTimerFired(flowID, nodeID string, scheduledFor time.Time) er
 func (s *Service) onTimerMissed(flowID, nodeID string, scheduledFor time.Time) {
 	s.logger.Warn("a date and time trigger was missed; no run was started for it", "flow", flowID, "node", nodeID,
 		"scheduled_for", scheduledFor.Format(time.RFC3339))
+}
+
+// TimersRunning reports whether the Date/Time timers run: Start succeeded and Shutdown has not
+// begun. While Start keeps failing (a locked or broken flows.db; the server retries it)
+// Date/Time triggers do not fire, and the API shows that (timers_running).
+func (s *Service) TimersRunning() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.started && !s.closed
 }

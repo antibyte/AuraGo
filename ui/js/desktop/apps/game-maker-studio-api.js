@@ -20,6 +20,10 @@
             modelPack: (id, options) => request('/asset-packs/' + encodeURIComponent(id) + '/manifest.json', options),
             assetPackFileURL: (id, file) => base + '/asset-packs/' + encodeURIComponent(id) + '/' + file.split('/').map(encodeURIComponent).join('/'),
             capabilities: () => request('/capabilities'),
+            // Passive limit lookup for the start and retry dialogs. Unknown
+            // models answer `known: false`; nothing here probes the provider.
+            modelLimits: (providerID, model) => request('/model-limits?provider_id=' +
+                encodeURIComponent(providerID || '') + '&model=' + encodeURIComponent(model || '')),
             listProjects: () => request('/projects'),
             createProject: body => request('/projects', { method: 'POST', body }),
             getProject: id => request('/projects/' + encodeURIComponent(id)),

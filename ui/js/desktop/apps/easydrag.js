@@ -137,7 +137,16 @@
         }
         if (nav !== inst.nav || !alive(inst)) return;
         clearScreen(inst);
-        inst.screen = ED.editor.create(inst.app, loaded, opts || {});
+        // A document the editor cannot build (a bug, a corrupt draft) shows the error card with Try
+        // again instead of an empty window.
+        try {
+            inst.screen = ED.editor.create(inst.app, loaded, opts || {});
+        } catch (err) {
+            console.error('EasyDrag editor failed', err);
+            inst.screen = null;
+            showError(inst, err);
+            return;
+        }
         inst.root.appendChild(inst.screen.el);
     }
 

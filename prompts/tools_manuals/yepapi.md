@@ -77,7 +77,7 @@ Web scraping with multiple modes.
 
 ## yepapi_youtube
 
-YouTube data without quota limits.
+YouTube data without quota limits. Prefer this tool for metadata when it is enabled. Read captions or subtitles before `video_download` transcribe. Use `video_download` download only when a file is wanted. `send_youtube_video` remains the player path.
 
 **Operations:**
 - `search` — Search videos, channels, playlists
@@ -224,6 +224,6 @@ Amazon product data.
 ## General Notes
 
 - All YepAPI tools are **read-only** (data retrieval only).
-- **Pay-per-call pricing:** Costs are deducted from your YepAPI prepaid balance. Failed requests are never charged.
-- **Rate limit:** 60 requests/minute per API key.
+- **Pay-per-call pricing:** Costs are deducted from your YepAPI prepaid balance. A request the provider rejected before it did any work is not charged; a request that was sent but whose outcome is unknown may still be charged.
+- **Rate limit:** 60 requests/minute per API key. The client paces itself to that limit, and a 429 is reported back to you instead of being retried.
 - **Response format:** All tools return JSON with a `{ "status": "success", "data": { ... } }` envelope on success, or `{ "status": "error", "message": "..." }` on failure.

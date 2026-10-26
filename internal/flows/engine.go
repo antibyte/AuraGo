@@ -16,9 +16,16 @@ const (
 	// MaxRunOutputBytes caps the encoded size of all successful outputs of one
 	// run, the trigger's included. Decoded JSON can take about 16 times its
 	// encoded size in memory, so this bounds a run to roughly 0.5 GB worst case.
-	MaxRunOutputBytes       = 32 << 20
-	MaxStoredOutputBytes    = 256 << 10
-	storedPreviewBytes      = 64 << 10
+	MaxRunOutputBytes    = 32 << 20
+	MaxStoredOutputBytes = 256 << 10
+	storedPreviewBytes   = 64 << 10
+	// MaxStoredRunBytes caps what the run log keeps of one run: the stored params and outputs of
+	// all its steps (each bounded by MaxStoredOutputBytes), the trigger's included. A step over
+	// the rest of the budget keeps neither (storedOmitted), so a run with many large steps cannot
+	// fill flows.db (E4); templates and later steps still see the full outputs.
+	MaxStoredRunBytes = 4 << 20
+	// storedOmittedReason marks params and outputs that the run budget left out.
+	storedOmittedReason     = "run_storage_budget"
 	DefaultMaxParallelNodes = 4
 	// maxErrorMessageRunes caps every error message the engine records (steps,
 	// error outputs, run results and summaries): node errors can carry
@@ -51,6 +58,9 @@ type RunRequest struct {
 	// lasts at most MaxRunSecondsLimit seconds, which the event bus relies on to
 	// recognise leaked logs.
 	Timeout time.Duration
+	// Slot is the run's global slot, which a logic.wait gives back while it waits (A7); nil
+	// without a runner.
+	Slot RunSlot
 }
 
 // EventSink receives run events in order, always from the run's coordinator goroutine.
@@ -102,10 +112,17 @@ func (e *Engine) Services() *Services { return e.services }
 // (FLOW_NODE_PANIC) fail the run before any node runs; test runs execute
 // unpublished drafts, so these checks are their only guard.
 //
-// The first terminal outcome wins: a stop signal is ignored once a node failed
-// or the run was cancelled or timed out. A run is reported cancelled or timed
-// out only if that actually interrupted a node; a run whose nodes all finished
-// is a success.
+// A node whose vault secret would be sent where unchecked data says (the lint's
+// UNTRUSTED_SECRET_TARGET, found once per run) fails with FLOW_PARAM_INVALID before
+// it runs, live or test, whatever revision the flow was published under; its
+// on_error setting decides only what follows the failure.
+//
+// The first terminal outcome wins: a stop signal is ignored once a node failed or the run was
+// cancelled or timed out, and a stop with an error keeps its outcome over later failures. After
+// a stop, nodes still running get a grace (30 s, the services clock) to finish; then they are
+// cancelled, and their steps carry EffectUncertain when the node has an outward effect. One of
+// them that fails under on_error "stop" after a stop with success makes the run fail. A run is
+// reported cancelled or timed out only if that actually interrupted a node.
 //
 // Stuck nodes: after the run's context ended (failure, stop, cancel or timeout),
 // Execute waits a grace period (30 s) for running nodes, then abandons the ones
@@ -123,8 +140,9 @@ func (e *Engine) Services() *Services { return e.services }
 //   - A node's parameters are resolved on its worker before its timeout starts,
 //     and the resolution cannot be cancelled. Expensive templates (for example
 //     100 filter chains over a 5 MiB value) can take about a second.
-//   - on_error "continue" routes a failed node into its default port, which is
-//     "true" for logic.if and "case_1" for logic.switch, with
+//   - on_error "continue" routes a failed node into its first output port, except
+//     logic.if ("false") and logic.switch ("default"), which continue on their
+//     fail-closed branch (NodeDef.ContinuePort), with
 //     {"error": {"code": ..., "message": ...}} as its output.
 func (e *Engine) Execute(ctx context.Context, req RunRequest, emit EventSink) RunResult {
 	if emit == nil {
@@ -138,6 +156,7 @@ type nodeDone struct {
 	step      StepRecord
 	result    ExecResult
 	size      int // encoded size of result.Output, for the run-wide budget
+	stored    int // bytes the run log keeps of the step's params and output (MaxStoredRunBytes)
 	err       *NodeError
 	cancelled bool
 }
@@ -170,9 +189,15 @@ func clampInt(v, lo, hi int) int {
 // capability (FLOW_AI_UNAVAILABLE, FLOW_TOOLS_UNAVAILABLE, FLOW_NODE_UNAVAILABLE,
 // FLOW_TOOL_DENIED, FLOW_ACTION_RULE_REQUIRED, FLOW_SECRET_UNAVAILABLE: a vault entry that is missing or unusable is
 // configuration), a used-up budget (FLOW_BUDGET_EXCEEDED) and data over the size
-// limits (FLOW_OUTPUT_TOO_LARGE). When an attempt fails with one of them the node's
-// Retry setting is ignored and the failure is final at once, so a refusal is not paid
-// for again (an ai.step under Retry 5 could otherwise make 12 model calls).
+// limits (FLOW_OUTPUT_TOO_LARGE). It also holds the failures that follow from the
+// resolved input alone, which is resolved once and so is the same on every attempt: a
+// condition that cannot be evaluated (FLOW_CONDITION_FAILED), a value that does not fit
+// its type (FLOW_VALUE_TYPE) and a wait-until time more than an hour away
+// (FLOW_WAIT_TOO_LONG: the clock moves on between attempts, but a retry delay is no way
+// to wait for it), and an AI answer cut off at its token limit (FLOW_AI_OUTPUT_CUT: the
+// same request is cut off again and pays again). When an attempt fails with one of them the
+// node's Retry setting is ignored and the failure is final at once, so a refusal is not
+// paid for again (an ai.step under Retry 5 could otherwise make 12 model calls).
 //
 // Everything else is retried, in particular FLOW_NODE_FAILED, FLOW_NODE_TIMEOUT,
 // FLOW_TOOL_ERROR and FLOW_AI_OUTPUT_INVALID, where a new attempt can answer
@@ -181,6 +206,10 @@ func clampInt(v, lo, hi int) int {
 var nonRetryableCodes = map[string]bool{
 	"FLOW_PARAM_INVALID":        true,
 	"FLOW_CONDITION_INVALID":    true,
+	"FLOW_CONDITION_FAILED":     true,
+	"FLOW_VALUE_TYPE":           true,
+	"FLOW_WAIT_TOO_LONG":        true,
+	"FLOW_AI_OUTPUT_CUT":        true,
 	"FLOW_BUDGET_EXCEEDED":      true,
 	"FLOW_TOOL_DENIED":          true,
 	"FLOW_ACTION_RULE_REQUIRED": true,
@@ -201,7 +230,12 @@ func hopeless(err error) bool {
 // executeNode runs one node with retries and timeouts. It runs on a worker
 // goroutine and must not touch the run state. A failure with a non-retryable code
 // ends the attempts at once.
-func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput) nodeDone {
+//
+// A refusal (see runState.checkFlow) fails the node before its parameters are even
+// resolved: Execute is never called, so what it would have sent, a vault secret
+// included, is not read. It is an ordinary node failure, and the node's on_error
+// setting decides only what follows it.
+func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput, refusal *NodeError) nodeDone {
 	d := nodeDone{nodeID: n.ID}
 	step := StepRecord{NodeID: n.ID, NodeKey: n.Key, Attempt: 1, StartedAt: e.services.Now()}
 	finish := func(status StepStatus) nodeDone {
@@ -226,12 +260,16 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	if def == nil || def.Execute == nil {
 		return fail(&NodeError{Code: "NODE_TYPE_UNKNOWN", Message: "node type " + quoteForError(n.Type) + " is not available"})
 	}
+	if refusal != nil {
+		return fail(refusal)
+	}
 	params, err := ResolveParams(withDefaults(def, n.Params), in.Env)
 	if err != nil {
 		return fail(&NodeError{Code: "FLOW_TEMPLATE_ERROR", Message: err.Error()})
 	}
 	in.Params = params
-	step.Params, step.ParamsTruncated = storedParams(params)
+	// The run log never keeps a typed-in credential header (S6); the node still gets the value.
+	step.Params, step.ParamsTruncated, d.stored = storedParams(redactCredentialHeaders(params, false))
 	attempts := 1 + clampInt(n.Settings.Retry.Count, 0, MaxRetryCount)
 	// Clamp before multiplying: a huge value would overflow the duration.
 	delay := time.Duration(clampInt(n.Settings.Retry.DelaySeconds, 0, MaxRetryDelaySeconds)) * time.Second
@@ -280,6 +318,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	d.result = res
 	d.size = len(data)
 	step.Output, step.OutputTruncated = storedOutput(output, data)
+	d.stored += storedSize(data, step.OutputTruncated)
 	step.ItemCount = res.ItemCount
 	if step.ItemCount == 0 {
 		if items, ok := output["items"].([]any); ok {
@@ -293,7 +332,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 // anywhere in executeNode (parameter resolution, output encoding through a
 // custom MarshalJSON, ...) into a FLOW_NODE_PANIC failure, so the process never
 // crashes and the coordinator always receives a result.
-func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput) (d nodeDone) {
+func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInput, refusal *NodeError) (d nodeDone) {
 	started := e.services.Now()
 	defer func() {
 		if r := recover(); r != nil {
@@ -304,7 +343,7 @@ func (e *Engine) runNode(ctx context.Context, def *NodeDef, n *Node, in ExecInpu
 				ErrorCode: ne.Code, ErrorMessage: ne.Message}}
 		}
 	}()
-	return e.executeNode(ctx, def, n, in)
+	return e.executeNode(ctx, def, n, in, refusal)
 }
 
 // exitedNode is the result a worker reports when runNode never returns
@@ -363,19 +402,34 @@ func storedOutput(out map[string]any, data []byte) (map[string]any, bool) {
 }
 
 // storedParams returns what the run log keeps of a node's resolved parameters,
-// bounded like outputs. The parameters can share memory with the run's data
-// (see ExecInput), so they are stored as they are and never modified.
-// Parameters that cannot be encoded get a small placeholder; that does not fail
-// the node.
-func storedParams(params map[string]any) (map[string]any, bool) {
+// bounded like outputs, and how many bytes that is. The parameters can share
+// memory with the run's data (see ExecInput), so they are stored as they are
+// and never modified. Parameters that cannot be encoded get a small
+// placeholder; that does not fail the node.
+func storedParams(params map[string]any) (map[string]any, bool, int) {
 	data, err := json.Marshal(params)
 	if err != nil {
-		return map[string]any{"_preview": "<unserializable>"}, true
+		return map[string]any{"_preview": "<unserializable>"}, true, len(`{"_preview":"<unserializable>"}`)
 	}
 	if len(data) <= MaxStoredOutputBytes {
-		return params, false
+		return params, false, len(data)
 	}
-	return previewOf(data), true
+	return previewOf(data), true, storedPreviewBytes
+}
+
+// storedSize is how many bytes the run log keeps of a value whose encoding is data: all of it,
+// or at most a preview when it was truncated.
+func storedSize(data []byte, truncated bool) int {
+	if truncated {
+		return storedPreviewBytes
+	}
+	return len(data)
+}
+
+// storedOmitted is what a step keeps of its params or output once the run's MaxStoredRunBytes
+// are used up. "_preview" keeps the shape the editor knows from truncated values.
+func storedOmitted() map[string]any {
+	return map[string]any{"_preview": "", "_omitted": storedOmittedReason}
 }
 
 // previewOf returns the stored preview of encoded JSON: its first

@@ -838,6 +838,10 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		}
 
 		plannerSummary := buildPlannerOverview(s)
+		var rustFSStatus interface{}
+		if s.RustFS != nil {
+			rustFSStatus = s.RustFS.Status()
+		}
 		maintenanceSummary := buildMaintenanceStatusSummary(s, cfg)
 		memoryHealth := map[string]interface{}{
 			"pending_writes": 0,
@@ -854,6 +858,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent":               agentInfo,
 			"integrations":        integrations,
+			"rustfs":              rustFSStatus,
 			"missions":            missionsSummary,
 			"invasion":            invasionSummary,
 			"indexer":             indexerStatus,

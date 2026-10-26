@@ -39,6 +39,7 @@ import (
 	"aurago/internal/logger"
 	"aurago/internal/memory"
 	"aurago/internal/persondetect"
+	"aurago/internal/pixelmatte"
 	"aurago/internal/planner"
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/push"
@@ -137,6 +138,8 @@ func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return embeddings.RunONNXWorker(args[2:], stdin, stdout, stderr), true
 	case persondetect.WorkerFlag:
 		return persondetect.RunWorker(args[2:], stdin, stdout, stderr), true
+	case pixelmatte.WorkerFlag:
+		return pixelmatte.RunWorker(args[2:], stdin, stdout, stderr), true
 	default:
 		return 0, false
 	}
@@ -708,7 +711,7 @@ func main() {
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
 	// Mask the resolved LLM keys in logs before the LLM client is built.
-	server.RegisterLLMSecrets(cfg)
+	server.RegisterLLMSecrets(cfg, vault)
 
 	// Initialize GitHub Copilot auth manager if a token is stored in the vault
 	if copilotToken, err := vault.ReadSecret("copilot_github_token"); err == nil && copilotToken != "" {
@@ -720,6 +723,11 @@ func main() {
 		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)
 	}
 
+	// Managed embedding startup precedes VectorDB creation and uses the same
+	// admission gates and owner lifetime as later server-owned work.
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(cfg))
+	tools.ConfigureOllamaRuntime(context.Background(), cfg)
+	defer tools.ShutdownOllamaRuntime()
 	if cfg.Docker.Enabled && cfg.Embeddings.LocalOllama.Enabled {
 		tools.EnsureOllamaEmbeddingsRunning(cfg, appLog)
 	} else if cfg.Embeddings.LocalOllama.Enabled {

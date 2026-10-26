@@ -48,7 +48,7 @@ func TestMigrationBacksUpInventoryBeforeAddingInfraSchema(t *testing.T) {
 	if _, err := New(db); err != nil {
 		t.Fatal(err)
 	}
-	backups, err := filepath.Glob(path + ".infra-v2-*.bak")
+	backups, err := filepath.Glob(path + ".infra-v3-*.bak")
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("migration backups = %v, %v; want one pre-migration backup", backups, err)
 	}
@@ -634,7 +634,7 @@ func TestActionLedgerV1UpgradePreservesResultsAndMakesPendingUnknown(t *testing.
 	if pendingStatus != ActionUnknown || doneStatus != ActionCompleted || upid != "UPID:x" {
 		t.Fatalf("migrated statuses pending=%q done=%q upid=%q", pendingStatus, doneStatus, upid)
 	}
-	backups, err := filepath.Glob(path + ".infra-v2-*.bak")
+	backups, err := filepath.Glob(path + ".infra-v3-*.bak")
 	if err != nil || len(backups) != 2 {
 		t.Fatalf("backups after fresh init and schema upgrade = %v, %v; want both pre-migration copies", backups, err)
 	}
@@ -692,6 +692,75 @@ func TestUpdateNodeRefusesANonContainerKindWithChildren(t *testing.T) {
 	empty.Kind = NodeDevice
 	if _, err := store.UpdateNode(ctx, empty); err != nil {
 		t.Fatalf("kind change of a childless group was refused: %v", err)
+	}
+}
+
+func TestUpdateNodeLeavingDeviceKindDropsItsEngineMappings(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	host, err := store.CreateNode(ctx, testNode(NodeDevice, "TheBrain", "tower-server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.CreateNode(ctx, testNode(NodeDevice, "NAS", "nas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, instance := range []string{"docker_engine", "docker_other"} {
+		identity := SourceIdentity{Kind: "docker", Instance: instance, Key: "web"}
+		if err := store.ObserveSources(ctx, identity.Kind, identity.Instance, []SourceObservation{{
+			Identity: identity, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"},
+		}}, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: host.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_other", NodeID: other.ID}); err != nil {
+		t.Fatal(err)
+	}
+	mappingsOf := func(nodeID string) int {
+		t.Helper()
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM infra_source_hosts WHERE node_id=?`, nodeID).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+
+	// A rename keeps the device kind, so the mapping stays.
+	host.Name = "TheBrain 2"
+	renamed, err := store.UpdateNode(ctx, host)
+	if err != nil || mappingsOf(host.ID) != 1 {
+		t.Fatalf("rename = %#v, %v with %d mappings; want the mapping kept", renamed, err, mappingsOf(host.ID))
+	}
+
+	renamed.Kind, renamed.Icon = NodeGroup, "group"
+	regrouped, err := store.UpdateNode(ctx, renamed)
+	if err != nil || regrouped.Kind != NodeGroup {
+		t.Fatalf("kind change = %#v, %v; want it saved", regrouped, err)
+	}
+	if got := mappingsOf(host.ID); got != 0 {
+		t.Fatalf("%d mappings remain on a node that is no longer a device", got)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]SourceHost{}
+	for _, entry := range snapshot.SourceHosts {
+		seen[entry.Instance] = entry
+	}
+	if entry := seen["docker_engine"]; entry.NodeID != "" || entry.Version != 0 {
+		t.Fatalf("engine of the regrouped device = %#v; want an unassigned observed engine", entry)
+	}
+	if entry := seen["docker_other"]; entry.NodeID != other.ID || entry.Version != 1 {
+		t.Fatalf("engine of another device = %#v; want its mapping untouched", entry)
+	}
+	// The engine can be mapped again, now to a device, from version 0.
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: other.ID}); err != nil {
+		t.Fatalf("remapping the engine: %v", err)
 	}
 }
 
@@ -818,5 +887,670 @@ func TestMigrationBackupRetentionKeepsTheNewestCopies(t *testing.T) {
 		if _, err := os.Stat(removed); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("old backup %s was not pruned: %v", removed, err)
 		}
+	}
+}
+
+func TestSchemaV3MigrationKeepsV2RowsAndAddsIgnoreAndSourceHosts(t *testing.T) {
+	store, db, path := openInfraTestStore(t)
+	ctx := context.Background()
+	node, err := store.CreateNode(ctx, testNode(NodeDevice, "Docker host", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := SourceIdentity{Kind: "docker", Instance: "docker_engine", Key: "container-1"}
+	if err := store.ObserveSources(ctx, identity.Kind, identity.Instance, []SourceObservation{{
+		Identity: identity, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"},
+	}}, true); err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the exact v2 shape with rows: no ignore column, no source host table.
+	if _, err := db.Exec(`
+		DROP TABLE infra_source_hosts;
+		ALTER TABLE infra_sources DROP COLUMN ignored_at;
+		UPDATE infra_meta SET version=2 WHERE id=1;
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(db); err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	if err := db.QueryRow(`SELECT version FROM infra_meta WHERE id=1`).Scan(&version); err != nil || version != 3 {
+		t.Fatalf("schema version = %d, %v; want 3", version, err)
+	}
+	var ignoredAt string
+	if err := db.QueryRow(`SELECT ignored_at FROM infra_sources WHERE kind=? AND instance=? AND source_key=?`,
+		identity.Kind, identity.Instance, identity.Key).Scan(&ignoredAt); err != nil || ignoredAt != "" {
+		t.Fatalf("migrated source ignored_at = %q, %v; want empty", ignoredAt, err)
+	}
+	if _, err := db.Exec(`INSERT INTO infra_source_hosts(kind, instance, node_id, version, updated_at) VALUES('docker','docker_engine',?,1,'now')`, node.ID); err != nil {
+		t.Fatalf("source host table after migration: %v", err)
+	}
+	if loaded, err := store.GetNode(ctx, node.ID); err != nil || loaded.Name != "Docker host" {
+		t.Fatalf("migrated node = %#v, %v", loaded, err)
+	}
+	backups, err := filepath.Glob(path + ".infra-v3-*.bak")
+	if err != nil || len(backups) != 2 {
+		t.Fatalf("backups = %v, %v; want the fresh-init and the v2 upgrade copies", backups, err)
+	}
+	if _, err := New(db); err != nil {
+		t.Fatalf("reopening a v3 schema: %v", err)
+	}
+}
+
+func TestPlacementSizeIsBoundedAndOnlyForPlaces(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room := testNode(NodeRoom, "Living room", "room")
+	room.Placements = Placements{ViewAtlas: {X: 10, Y: 20, W: 360, H: 240}}
+	created, err := store.CreateNode(ctx, room)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.GetNode(ctx, created.ID)
+	if err != nil || loaded.Placements[ViewAtlas].W != 360 || loaded.Placements[ViewAtlas].H != 240 {
+		t.Fatalf("stored place size = %#v, %v", loaded.Placements, err)
+	}
+	for _, tc := range []struct {
+		name      string
+		kind      NodeKind
+		placement Placement
+	}{
+		{"device with size", NodeDevice, Placement{W: 360, H: 240}},
+		{"too small", NodeRoom, Placement{W: 119, H: 240}},
+		{"too large", NodeRack, Placement{W: 360, H: 20001}},
+		{"width only", NodeGroup, Placement{W: 360}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			node := testNode(tc.kind, "Sized", "group")
+			node.Placements = Placements{ViewAtlas: tc.placement}
+			if _, err := store.CreateNode(ctx, node); !errors.Is(err, ErrValidation) {
+				t.Fatalf("CreateNode error = %v; want validation error", err)
+			}
+		})
+	}
+	// A sized place that becomes a device keeps its position and loses its size.
+	loaded.Kind = NodeDevice
+	loaded.Icon = "generic-device"
+	changed, err := store.UpdateNode(ctx, loaded)
+	if err != nil {
+		t.Fatalf("kind change of a sized place: %v", err)
+	}
+	if got := changed.Placements[ViewAtlas]; got.W != 0 || got.H != 0 || got.X != 10 || got.Y != 20 {
+		t.Fatalf("placement after kind change = %#v; want position kept and size dropped", got)
+	}
+}
+
+func TestLayoutBatchChangesParentAndPlaceSize(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Office", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rackNode := testNode(NodeRack, "Rack", "rack")
+	rackNode.ParentID = room.ID
+	rack, err := store.CreateNode(ctx, rackNode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.CreateNode(ctx, testNode(NodeDevice, "NAS", "nas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := func(value string) *string { return &value }
+	size := func(value float64) *float64 { return &value }
+
+	updated, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: room.Version, X: 0, Y: 0, W: size(600), H: size(400)},
+		{ID: device.ID, Version: device.Version, X: 48, Y: 72, ParentID: text(room.ID)},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated[0].Placements[ViewAtlas].W != 600 || updated[0].Placements[ViewAtlas].H != 400 || updated[1].ParentID != room.ID {
+		t.Fatalf("layout result = %#v", updated)
+	}
+	// Absent w/h keep the stored size; absent parent_id keeps the parent.
+	moved, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: updated[0].Version, X: 24, Y: 24},
+		{ID: device.ID, Version: updated[1].Version, X: 96, Y: 96},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved[0].Placements[ViewAtlas].H != 400 || moved[1].ParentID != room.ID {
+		t.Fatalf("absent layout fields changed state: %#v", moved)
+	}
+	for _, tc := range []struct {
+		name string
+		item LayoutItem
+	}{
+		{"cycle", LayoutItem{ID: room.ID, Version: moved[0].Version, ParentID: text(rack.ID)}},
+		{"non-container parent", LayoutItem{ID: other.ID, Version: other.Version, ParentID: text(device.ID)}},
+		{"missing parent", LayoutItem{ID: other.ID, Version: other.Version, ParentID: text("missing")}},
+		{"size on a device", LayoutItem{ID: other.ID, Version: other.Version, W: size(300), H: size(200)}},
+		{"place too small", LayoutItem{ID: rack.ID, Version: rack.Version, W: size(100), H: size(200)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// The valid first item proves the batch stays atomic.
+			_, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+				{ID: device.ID, Version: moved[1].Version, X: 500, Y: 500}, tc.item,
+			}})
+			if !errors.Is(err, ErrValidation) {
+				t.Fatalf("SaveLayout error = %v; want validation error", err)
+			}
+			unchanged, err := store.GetNode(ctx, device.ID)
+			if err != nil || unchanged.Version != moved[1].Version {
+				t.Fatalf("rejected batch committed its valid item: %#v, %v", unchanged, err)
+			}
+		})
+	}
+	cleared, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: moved[1].Version, X: 900, Y: 900, ParentID: text("")},
+	}})
+	if err != nil || cleared[0].ParentID != "" {
+		t.Fatalf("clearing the parent = %#v, %v", cleared, err)
+	}
+}
+
+func TestCreateEdgeRejectsSelfLoopsAndDuplicates(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	router, err := store.CreateNode(ctx, testNode(NodeDevice, "Router", "router"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	access, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: router.ID, Kind: EdgeEthernet}); !errors.Is(err, ErrValidation) {
+		t.Fatalf("self-loop error = %v; want validation error", err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeEthernet}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeEthernet, Label: "again"}); !errors.Is(err, ErrEdgeExists) {
+		t.Fatalf("duplicate edge error = %v; want ErrEdgeExists", err)
+	}
+	if _, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeWiFi}); err != nil {
+		t.Fatalf("same pair with another kind: %v", err)
+	}
+}
+
+func TestUpdateEdgeRefusesSelfLoopsAndDuplicatesButKeepsLegacyDuplicatesEditable(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	node := func(name string) Node {
+		created, err := store.CreateNode(ctx, testNode(NodeDevice, name, "generic-device"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return created
+	}
+	router, access, spare := node("Router"), node("Switch"), node("Spare")
+	wired, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeEthernet})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wireless, err := store.CreateEdge(ctx, Edge{From: router.ID, To: access.ID, Kind: EdgeWiFi})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	selfLoop := wired
+	selfLoop.To = selfLoop.From
+	if _, err := store.UpdateEdge(ctx, selfLoop); !errors.Is(err, ErrValidation) {
+		t.Fatalf("self-loop update error = %v; want validation error", err)
+	}
+	intoDuplicate := wireless
+	intoDuplicate.Kind = EdgeEthernet
+	if _, err := store.UpdateEdge(ctx, intoDuplicate); !errors.Is(err, ErrEdgeExists) {
+		t.Fatalf("update into an existing triple error = %v; want ErrEdgeExists", err)
+	}
+	reversed := wireless
+	reversed.From, reversed.To, reversed.Kind = access.ID, router.ID, EdgeEthernet
+	if _, err := store.UpdateEdge(ctx, reversed); err != nil {
+		t.Fatalf("update into a free triple: %v", err)
+	}
+	stored, err := store.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, edge := range stored.Edges {
+		if edge.ID == wireless.ID && (edge.Version != 2 || edge.From != access.ID || edge.Kind != EdgeEthernet) {
+			t.Fatalf("rejected updates must not change the stored edge: %#v", edge)
+		}
+		if edge.ID == wired.ID && edge.Version != 1 {
+			t.Fatalf("rejected updates bumped another edge: %#v", edge)
+		}
+	}
+
+	// A duplicate that predates the check stays editable while its triple is unchanged.
+	if _, err := db.Exec(`INSERT INTO infra_edges(id, version, from_id, to_id, kind, label, updated_at) VALUES('legacy', 1, ?, ?, ?, '', 'now')`,
+		router.ID, access.ID, EdgeEthernet); err != nil {
+		t.Fatal(err)
+	}
+	legacy := Edge{ID: "legacy", Version: 1, From: router.ID, To: access.ID, Kind: EdgeEthernet, Label: "uplink"}
+	updated, err := store.UpdateEdge(ctx, legacy)
+	if err != nil || updated.Version != 2 || updated.Label != "uplink" {
+		t.Fatalf("legacy duplicate relabel = %#v, %v; want it saved", updated, err)
+	}
+	// Moving it into another taken triple is still refused, moving it to a free one works.
+	legacy.Version, legacy.To = 2, spare.ID
+	if moved, err := store.UpdateEdge(ctx, legacy); err != nil || moved.To != spare.ID {
+		t.Fatalf("legacy duplicate move to a free triple = %#v, %v", moved, err)
+	}
+	legacy.Version, legacy.To = 3, access.ID
+	if _, err := store.UpdateEdge(ctx, legacy); !errors.Is(err, ErrEdgeExists) {
+		t.Fatalf("legacy duplicate move into a taken triple error = %v; want ErrEdgeExists", err)
+	}
+}
+
+func TestIgnoredSourcesLeaveDiscoveriesAndSurviveRefresh(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	observed := func(key string) SourceObservation {
+		return SourceObservation{Identity: SourceIdentity{Kind: "docker", Instance: "engine", Key: key}, Name: key,
+			Observed: SourceObserved{Kind: NodeContainer, Name: key, Icon: "container"}}
+	}
+	tv, web := observed("tv"), observed("web")
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{tv, web}, true); err != nil {
+		t.Fatal(err)
+	}
+	webCandidate, err := store.GetCandidate(ctx, CandidateID(web.Identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateImportedNode(ctx, webCandidate.Node, web.Identity); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{web.Identity}, true); !errors.Is(err, ErrSourceLinked) {
+		t.Fatalf("ignoring a linked source = %v; want ErrSourceLinked", err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{{Kind: "docker", Instance: "engine", Key: "missing"}}, true); !errors.Is(err, ErrSourceNotFound) {
+		t.Fatalf("ignoring an unknown source = %v; want ErrSourceNotFound", err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, nil, true); !errors.Is(err, ErrValidation) {
+		t.Fatalf("empty ignore request = %v; want validation error", err)
+	}
+	for range 2 {
+		ignored, err := store.SetSourcesIgnored(ctx, []SourceIdentity{tv.Identity}, true)
+		if err != nil || len(ignored) != 1 || !ignored[0].Ignored {
+			t.Fatalf("ignore result = %#v, %v; want one ignored source on every call", ignored, err)
+		}
+	}
+	// A provider refresh keeps the decision.
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{tv, web}, true); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := store.ListSources(ctx, "docker", "engine")
+	if err != nil || len(listed) != 1 || listed[0].Key != "web" {
+		t.Fatalf("default source list = %#v, %v; want the ignored source left out", listed, err)
+	}
+	all, err := store.ListSourcesIncludingIgnored(ctx, "docker", "engine")
+	if err != nil || len(all) != 2 {
+		t.Fatalf("source list with ignored = %#v, %v; want both sources", all, err)
+	}
+	candidate, err := store.GetCandidate(ctx, CandidateID(tv.Identity))
+	if err != nil || !candidate.Ignored || !candidate.Source.Ignored {
+		t.Fatalf("ignored candidate = %#v, %v; want the ignored flag after a refresh", candidate, err)
+	}
+	// Ignored observations outlive the removed-source retention window.
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{web}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.PruneSources(ctx, time.Now().UTC().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if source, err := store.GetSource(ctx, tv.Identity); err != nil || !source.Ignored || source.State != SourceRemoved {
+		t.Fatalf("ignored removed source after retention = %#v, %v; want it kept", source, err)
+	}
+	restored, err := store.SetSourcesIgnored(ctx, []SourceIdentity{tv.Identity}, false)
+	if err != nil || len(restored) != 1 || restored[0].Ignored {
+		t.Fatalf("restore = %#v, %v", restored, err)
+	}
+	// Importing an ignored source clears the flag: linked sources are never ignored.
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{tv, web}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{tv.Identity}, true); err != nil {
+		t.Fatal(err)
+	}
+	tvCandidate, err := store.GetCandidate(ctx, CandidateID(tv.Identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateImportedNode(ctx, tvCandidate.Node, tv.Identity); err != nil {
+		t.Fatalf("importing an ignored source: %v", err)
+	}
+	if source, err := store.GetSource(ctx, tv.Identity); err != nil || source.Ignored {
+		t.Fatalf("imported source = %#v, %v; want the ignore flag cleared by the link", source, err)
+	}
+}
+
+func TestSnapshotListsIgnoredSourcesOnlyOnRequest(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	identity := SourceIdentity{Kind: "docker", Instance: "engine", Key: "chromecast"}
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{
+		{Identity: identity, Name: "chromecast", Observed: SourceObserved{Kind: NodeContainer, Name: "chromecast", Icon: "container"}},
+		{Identity: SourceIdentity{Kind: "docker", Instance: "engine", Key: "web"}, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"}},
+	}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{identity}, true); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil || len(snapshot.Sources) != 1 || snapshot.Sources[0].Key != "web" {
+		t.Fatalf("default snapshot sources = %#v, %v; want the ignored source left out", snapshot.Sources, err)
+	}
+	withIgnored, err := store.SnapshotWith(ctx, SnapshotOptions{IncludeIgnored: true})
+	if err != nil || len(withIgnored.Sources) != 2 {
+		t.Fatalf("snapshot with ignored = %#v, %v", withIgnored.Sources, err)
+	}
+	for _, source := range withIgnored.Sources {
+		if source.Ignored != (source.Key == "chromecast") {
+			t.Fatalf("source %s ignored = %v", source.Key, source.Ignored)
+		}
+	}
+}
+
+func TestDeleteNodeAndIgnoreSourcesIsAtomic(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	identity := SourceIdentity{Kind: "docker", Instance: "engine", Key: "duplicate-tv"}
+	if err := store.ObserveSources(ctx, "docker", "engine", []SourceObservation{{
+		Identity: identity, Name: "tv", Observed: SourceObserved{Kind: NodeContainer, Name: "tv", Icon: "container"},
+	}}, true); err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := store.GetCandidate(ctx, CandidateID(identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := store.CreateImportedNode(ctx, candidate.Node, identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DeleteNodeAndIgnoreSources(ctx, node.ID, node.Version+1); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale delete = %v; want conflict", err)
+	}
+	if source, err := store.GetSource(ctx, identity); err != nil || source.Ignored {
+		t.Fatalf("a refused delete ignored the source: %#v, %v", source, err)
+	}
+	ignored, err := store.DeleteNodeAndIgnoreSources(ctx, node.ID, node.Version)
+	if err != nil || len(ignored) != 1 || ignored[0] != identity {
+		t.Fatalf("delete and ignore = %#v, %v; want the linked source", ignored, err)
+	}
+	if _, err := store.GetNode(ctx, node.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted node lookup = %v; want not found", err)
+	}
+	if source, err := store.GetSource(ctx, identity); err != nil || !source.Ignored {
+		t.Fatalf("source after delete and ignore = %#v, %v; want ignored", source, err)
+	}
+	if listed, err := store.ListSources(ctx, "docker", "engine"); err != nil || len(listed) != 0 {
+		t.Fatalf("discoverable sources = %#v, %v; want none", listed, err)
+	}
+}
+
+func TestSourceHostMappingUsesVersionCAS(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	host, err := store.CreateNode(ctx, testNode(NodeDevice, "TheBrain", "tower-server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Office", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := SourceIdentity{Kind: "docker", Instance: "docker_engine", Key: "web"}
+	if err := store.ObserveSources(ctx, identity.Kind, identity.Instance, []SourceObservation{{
+		Identity: identity, Name: "web", Observed: SourceObserved{Kind: NodeContainer, Name: "web", Icon: "container"},
+	}}, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		host SourceHost
+		want error
+	}{
+		{"unobserved engine", SourceHost{Kind: "docker", Instance: "docker_unknown", NodeID: host.ID}, ErrSourceNotFound},
+		{"other source kind", SourceHost{Kind: "proxmox", Instance: "docker_engine", NodeID: host.ID}, ErrValidation},
+		{"place as host", SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: room.ID}, ErrValidation},
+		{"missing node", SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: "missing"}, ErrValidation},
+	} {
+		if _, err := store.SetSourceHost(ctx, tc.host); !errors.Is(err, tc.want) {
+			t.Fatalf("%s error = %v; want %v", tc.name, err, tc.want)
+		}
+	}
+	created, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: host.ID, InferredNodeID: "forged"})
+	if err != nil || created.Version != 1 || created.NodeID != host.ID || created.InferredNodeID != "" {
+		t.Fatalf("created mapping = %#v, %v", created, err)
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine"}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second create error = %v; want conflict", err)
+	}
+	cleared, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", Version: 1})
+	if err != nil || cleared.Version != 2 || cleared.NodeID != "" {
+		t.Fatalf("cleared mapping = %#v, %v", cleared, err)
+	}
+	if _, err := store.SetSourceHost(ctx, SourceHost{Kind: "docker", Instance: "docker_engine", NodeID: host.ID, Version: 2}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil || len(snapshot.SourceHosts) != 1 || snapshot.SourceHosts[0].NodeID != host.ID || snapshot.SourceHosts[0].Version != 3 {
+		t.Fatalf("snapshot source hosts = %#v, %v", snapshot.SourceHosts, err)
+	}
+	// Deleting the host node cascades the mapping; the observed engine stays listed.
+	if err := store.DeleteNode(ctx, host.ID, host.Version); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err = store.Snapshot(ctx)
+	if err != nil || len(snapshot.SourceHosts) != 1 || snapshot.SourceHosts[0].NodeID != "" || snapshot.SourceHosts[0].Version != 0 {
+		t.Fatalf("source hosts after deleting the host = %#v, %v; want an unassigned observed engine", snapshot.SourceHosts, err)
+	}
+}
+
+func TestHostProjectionFieldsAreRuntimeOnly(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	node := testNode(NodeContainer, "web", "container")
+	node.HostID, node.HostInferred = "forged-host", true
+	created, err := store.CreateNode(context.Background(), node)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.HostID != "" || created.HostInferred {
+		t.Fatalf("caller-supplied host projection survived: %#v", created)
+	}
+}
+
+func TestSaveLayoutUnplaceRemovesOnlyThatView(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Room", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := func(value float64) *float64 { return &value }
+	atlas, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: room.Version, X: 10, Y: 20, W: size(600), H: size(400)},
+		{ID: device.ID, Version: device.Version, X: 48, Y: 72},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	topology, err := store.SaveLayout(ctx, LayoutRequest{View: ViewTopology, Nodes: []LayoutItem{
+		{ID: device.ID, Version: atlas[1].Version, X: 300, Y: 400, Pinned: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roomNode, deviceNode := atlas[0], topology[0]
+
+	// An unplace removes the placement of that view only and bumps the version.
+	removed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: room.ID, Version: roomNode.Version, Unplace: true},
+		{ID: device.ID, Version: deviceNode.Version, Unplace: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(removed) != 2 || removed[0].Version != roomNode.Version+1 || removed[1].Version != deviceNode.Version+1 {
+		t.Fatalf("unplace result = %#v", removed)
+	}
+	if _, ok := removed[0].Placements[ViewAtlas]; ok || len(removed[0].Placements) != 0 {
+		t.Fatalf("room placements after unplace = %#v", removed[0].Placements)
+	}
+	if _, ok := removed[1].Placements[ViewAtlas]; ok || removed[1].Placements[ViewTopology].X != 300 || !removed[1].Placements[ViewTopology].Pinned {
+		t.Fatalf("device placements after unplace = %#v; want only the topology view kept", removed[1].Placements)
+	}
+	stored, err := store.GetNode(ctx, device.ID)
+	if err != nil || stored.Version != deviceNode.Version+1 || len(stored.Placements) != 1 {
+		t.Fatalf("stored device after unplace = %#v, %v", stored, err)
+	}
+
+	// A node without a placement in that view is a successful no-op: the version
+	// is still checked but not advanced.
+	noop, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: removed[1].Version, Unplace: true},
+	}})
+	if err != nil || len(noop) != 1 || noop[0].Version != removed[1].Version {
+		t.Fatalf("unplace without placement = %#v, %v; want unchanged success", noop, err)
+	}
+	if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: removed[1].Version + 5, Unplace: true},
+	}}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale no-op unplace error = %v; want conflict", err)
+	}
+}
+
+func TestSaveLayoutUnplaceChecksVersionsAndStaysAtomic(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	a, err := store.CreateNode(ctx, testNode(NodeDevice, "A", "generic-device"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := store.CreateNode(ctx, testNode(NodeDevice, "B", "generic-device"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := func(value float64) *float64 { return &value }
+	placed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: a.ID, Version: a.Version, X: 10, Y: 20},
+		{ID: b.ID, Version: b.Version, X: 30, Y: 40},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One stale item rolls back the valid unplace before it.
+	if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: a.ID, Version: placed[0].Version, Unplace: true},
+		{ID: b.ID, Version: placed[1].Version + 1, Unplace: true},
+	}}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale mixed batch error = %v; want conflict", err)
+	}
+	after, err := store.GetNode(ctx, a.ID)
+	if err != nil || after.Version != placed[0].Version || after.Placements[ViewAtlas].X != 10 {
+		t.Fatalf("stale batch committed its valid unplace: %#v, %v", after, err)
+	}
+	// An unplace may share a batch with an ordinary move.
+	mixed, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: a.ID, Version: placed[0].Version, Unplace: true},
+		{ID: b.ID, Version: placed[1].Version, X: 99, Y: 98},
+	}})
+	if err != nil || len(mixed[0].Placements) != 0 || mixed[1].Placements[ViewAtlas].X != 99 {
+		t.Fatalf("mixed unplace and move = %#v, %v", mixed, err)
+	}
+	// An unplace item carries an id and a version only.
+	for _, tc := range []struct {
+		name string
+		item LayoutItem
+	}{
+		{"x", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, X: 1}},
+		{"y", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, Y: 1}},
+		{"pinned", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, Pinned: true}},
+		{"width", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, W: size(200)}},
+		{"height", LayoutItem{ID: b.ID, Version: mixed[1].Version, Unplace: true, H: size(200)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{tc.item}}); !errors.Is(err, ErrValidation) {
+				t.Fatalf("unplace with %s error = %v; want validation error", tc.name, err)
+			}
+		})
+	}
+	unchanged, err := store.GetNode(ctx, b.ID)
+	if err != nil || unchanged.Version != mixed[1].Version || unchanged.Placements[ViewAtlas].X != 99 {
+		t.Fatalf("rejected unplace changed the node: %#v, %v", unchanged, err)
+	}
+}
+
+func TestSaveLayoutUnplaceCanRestoreTheParentAtomically(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	room, err := store.CreateNode(ctx, testNode(NodeRoom, "Room", "room"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateNode(ctx, testNode(NodeDevice, "Switch", "switch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.CreateNode(ctx, testNode(NodeDevice, "NAS", "nas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := func(value string) *string { return &value }
+	// A library drop into the room places the device and sets its parent.
+	dropped, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: device.Version, X: 48, Y: 72, ParentID: text(room.ID)},
+	}})
+	if err != nil || dropped[0].ParentID != room.ID || len(dropped[0].Placements) != 1 {
+		t.Fatalf("drop = %#v, %v", dropped, err)
+	}
+	// An invalid parent on an unplace item rolls back the whole batch.
+	for _, parent := range []string{other.ID, "missing"} {
+		if _, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+			{ID: device.ID, Version: dropped[0].Version, Unplace: true, ParentID: text(parent)},
+		}}); !errors.Is(err, ErrValidation) {
+			t.Fatalf("unplace with parent %q error = %v; want validation error", parent, err)
+		}
+	}
+	unchanged, err := store.GetNode(ctx, device.ID)
+	if err != nil || unchanged.Version != dropped[0].Version || unchanged.ParentID != room.ID || len(unchanged.Placements) != 1 {
+		t.Fatalf("rejected unplace changed the node: %#v, %v", unchanged, err)
+	}
+	// Undoing the drop removes the placement and clears the parent in one call.
+	undone, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: dropped[0].Version, Unplace: true, ParentID: text("")},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if undone[0].Version != dropped[0].Version+1 || undone[0].ParentID != "" || len(undone[0].Placements) != 0 {
+		t.Fatalf("undo result = %#v; want one version step with no placement and no parent", undone[0])
+	}
+	stored, err := store.GetNode(ctx, device.ID)
+	if err != nil || stored.Version != undone[0].Version || stored.ParentID != "" || len(stored.Placements) != 0 {
+		t.Fatalf("stored node after undo = %#v, %v", stored, err)
+	}
+	// A parent change still applies when the node has no placement in the view.
+	restored, err := store.SaveLayout(ctx, LayoutRequest{View: ViewAtlas, Nodes: []LayoutItem{
+		{ID: device.ID, Version: undone[0].Version, Unplace: true, ParentID: text(room.ID)},
+	}})
+	if err != nil || restored[0].ParentID != room.ID || restored[0].Version != undone[0].Version+1 || len(restored[0].Placements) != 0 {
+		t.Fatalf("parent restore without placement = %#v, %v", restored, err)
 	}
 }

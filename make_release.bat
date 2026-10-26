@@ -10,6 +10,7 @@ REM Prerequisites:
 REM   - Go 1.27.2+  (https://go.dev)
 REM   - gh CLI    (https://cli.github.com) -- run "gh auth login" once
 REM   - tar       (built-in Windows 10 Build 17063+)
+REM   - Python 3.10+ (py launcher, python or python3)
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
@@ -54,6 +55,19 @@ if errorlevel 1 (
     exit /b 1
 )
 echo     tar: OK
+powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\sign-release-checksums.ps1" -CheckPrerequisites
+if errorlevel 1 (
+    echo [ERROR] Release signing is not ready. Run scripts\setup-release-signing.ps1 first.
+    exit /b 1
+)
+set "RELEASE_PYTHON="
+for /f "delims=" %%P in ('powershell -nologo -noprofile -ExecutionPolicy Bypass -File "%~dp0scripts\find-release-python.ps1"') do set "RELEASE_PYTHON=%%P"
+if not defined RELEASE_PYTHON (
+    echo [ERROR] Python 3.10+ is required to prepare Phonon release resources.
+    exit /b 1
+)
+echo     Python: !RELEASE_PYTHON!
+"!RELEASE_PYTHON!" scripts\build-release-verifier.py --scripts-only --require-published || exit /b 1
 where node >nul 2>&1
 if errorlevel 1 (
     echo     Node.js: not found; skipping CodeMirror bundle build
@@ -112,7 +126,7 @@ echo.
 
 REM -- Prepare output dirs
 if not exist deploy mkdir deploy
-powershell -nologo -noprofile -command "Get-ChildItem -LiteralPath 'deploy' -Force | Where-Object { $_.Name -ne 'docker' } | Remove-Item -Recurse -Force"
+powershell -nologo -noprofile -command "Get-ChildItem -LiteralPath 'deploy' -Force | Where-Object { $_.Name -notin @('docker', 'phonon') } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }"
 if errorlevel 1 (
     echo [ERROR] Failed to clean generated deploy artifacts.
     exit /b 1
@@ -121,6 +135,11 @@ if not exist bin mkdir bin
 
 REM -- [1/5] Pack resources.dat
 echo [1/5] Packing resources.dat ...
+"!RELEASE_PYTHON!" scripts\prepare-phonon.py --pack
+if errorlevel 1 (
+    echo [ERROR] Pinned Phonon resources are missing or invalid. Nothing was published.
+    exit /b 1
+)
 
 set TMPSTAGE=%TEMP%\aurago-release-%RANDOM%
 mkdir "%TMPSTAGE%\agent_workspace\skills"
@@ -190,6 +209,8 @@ echo [2/5] Compiling binaries (cross-compilation)...
 echo.
 set CGO_ENABLED=0
 
+"!RELEASE_PYTHON!" scripts\build-release-verifier.py --check || goto :build_error
+
 echo   Linux amd64...
 set "GOOS=linux" & set "GOARCH=amd64"
 go build -buildvcs=false -trimpath -ldflags="!MAIN_LDFLAGS! !ASSET_LDFLAGS!" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
@@ -232,11 +253,18 @@ node scripts\check-web-assets.mjs "deploy\aurago_windows_amd64.exe" "bin\aurago_
 
 copy "install.sh" "deploy\install.sh" >nul
 copy "update.sh" "deploy\update.sh" >nul
+copy "repair-update.sh" "deploy\repair-update.sh" >nul || goto :build_error
 echo     [OK] deploy\install.sh
 echo     [OK] deploy\update.sh
 
 for %%F in (
     "deploy\gog\gog-*.zip"
+    "deploy\phonon-model.dat"
+    "deploy\phonon-runtime_linux_amd64.dat"
+    "deploy\phonon-runtime_linux_arm64.dat"
+    "deploy\phonon-runtime_darwin_amd64.dat"
+    "deploy\phonon-runtime_darwin_arm64.dat"
+    "deploy\phonon-runtime_windows_amd64.dat"
     "deploy\resources.dat"
     "deploy\!ASSET_ARCHIVE!"
     "deploy\install.sh"
@@ -278,6 +306,10 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\aurago-remote_windows_arm64.exe'" ^
   ");" ^
   "$files += @(Get-ChildItem -LiteralPath deploy/gog -Filter 'gog-*.zip' | ForEach-Object { $_.FullName });" ^
+  "$files += @(Get-ChildItem -LiteralPath deploy/release-verifier -Filter 'release-verifier_*' | ForEach-Object { $_.FullName });" ^
+  "$files += @('deploy\\repair-update.sh');" ^
+  "$files += @('deploy\\release-keyring.json','deploy\\release-keyring.json.sig');" ^
+  "$files += @('deploy\\phonon-model.dat', 'deploy\\phonon-runtime_linux_amd64.dat', 'deploy\\phonon-runtime_linux_arm64.dat', 'deploy\\phonon-runtime_darwin_amd64.dat', 'deploy\\phonon-runtime_darwin_arm64.dat', 'deploy\\phonon-runtime_windows_amd64.dat');" ^
   "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = Get-Sha256Hex $file; '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
   "[IO.File]::WriteAllText((Join-Path (Get-Location).Path 'deploy\\SHA256SUMS'), ((@($out) -join [char]10) + [char]10), (New-Object System.Text.UTF8Encoding($false)))"
 if errorlevel 1 (
@@ -293,6 +325,7 @@ set "GOOS=windows" & set "GOARCH=amd64"
 echo.
 
 REM -- [3/5] Commit, tag and push
+"!RELEASE_PYTHON!" scripts\build-release-verifier.py --scripts-only --verify-manifest deploy\SHA256SUMS || goto :build_error
 echo [3/5] Pushing code and release tag to GitHub...
 git add .
 git diff-index --quiet HEAD 2>nul
@@ -342,11 +375,13 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo.
     echo ### Installation
     echo.
+    echo Installation and updates verify signatures automatically; no Cosign or key setup is needed.
+    echo See https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md
+    echo.
     echo **Verified install ^(recommended^):**
     echo ```bash
     echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
-    echo curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
-    echo sha256sum -c --ignore-missing SHA256SUMS ^&^& bash install.sh
+    echo bash install.sh
     echo ```
     echo.
     echo **Quick install ^(runs the script from the main branch^):**
@@ -359,7 +394,7 @@ set "NOTES_FILE=%TEMP%\aurago-release-notes-!VERSION!.md"
     echo ./update.sh
     echo ```
 ) > "!NOTES_FILE!"
-gh release create "!VERSION!" --title "AuraGo !VERSION!" --notes-file "!NOTES_FILE!"
+gh release create "!VERSION!" --draft --title "AuraGo !VERSION!" --notes-file "!NOTES_FILE!"
 set "GH_RELEASE_RC=!errorlevel!"
 del "!NOTES_FILE!" >nul 2>&1
 if not "!GH_RELEASE_RC!"=="0" (
@@ -372,6 +407,16 @@ if not "!GH_RELEASE_RC!"=="0" (
 echo     Uploading release assets...
 for %%F in (
     "deploy\gog\gog-*.zip"
+    "deploy\release-verifier\release-verifier_*"
+    "deploy\release-keyring.json"
+    "deploy\release-keyring.json.sig"
+    "deploy\repair-update.sh"
+    "deploy\phonon-model.dat"
+    "deploy\phonon-runtime_linux_amd64.dat"
+    "deploy\phonon-runtime_linux_arm64.dat"
+    "deploy\phonon-runtime_darwin_amd64.dat"
+    "deploy\phonon-runtime_darwin_arm64.dat"
+    "deploy\phonon-runtime_windows_amd64.dat"
     "deploy\resources.dat"
     "deploy\!ASSET_ARCHIVE!"
     "deploy\SHA256SUMS"
@@ -404,12 +449,22 @@ for %%F in (
     )
 )
 
+gh release edit "!VERSION!" --draft=false --latest
+if errorlevel 1 (
+    echo [ERROR] Failed to publish release !VERSION!. Uploaded assets remain in the draft.
+    exit /b 1
+)
+
 REM -- [5/5] Cleanup old releases
 echo.
 echo [5/5] Cleaning up old releases (keeping latest 3)...
-for /f "skip=3 tokens=*" %%T in ('gh release list --limit 20 --json tagName --jq ".[].tagName" 2^>nul ^| findstr /r "^v[0-9]"') do (
-    echo     Deleting: %%T
-    gh release delete "%%T" --yes --cleanup-tag 2>nul
+if "%AURAGO_KEEP_RELEASES%"=="1" (
+    echo     Keeping all existing releases and tags.
+) else (
+    for /f "skip=3 tokens=*" %%T in ('gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName --jq ".[].tagName" 2^>nul ^| findstr /r "^v[0-9]"') do (
+        echo     Deleting: %%T
+        gh release delete "%%T" --yes --cleanup-tag 2>nul
+    )
 )
 
 echo.

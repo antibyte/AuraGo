@@ -60,6 +60,36 @@ func TestAssessMissionCompletion_LiveStyleFinalWithToolActivityIsAccepted(t *tes
 	}
 }
 
+func TestAssessMissionCompletion_ExplicitFailureWithToolActivity(t *testing.T) {
+	for _, content := range []string{
+		"## Fehlerbericht fuer den Coding Agent\n\n**Status: BLOCKIERT** - Kein Deploy durchgefuehrt, Datei unveraendert.\n\nUnbekannte edit_file sub_operation: insert.",
+		"**Status:** failed - the file could not be updated.",
+		"Status: fehlgeschlagen\nDie Datei blieb unveraendert.",
+		`{"status":"blocked","reason":"action_rule_required"}`,
+		`{"status":"failed","message":"No deployment completed"}`,
+	} {
+		for _, count := range []missionToolResultCount{{Value: 12, Known: true}, {}} {
+			assessment := assessMissionCompletion(content, count)
+			if !assessment.Suspicious || assessment.Reason != missionSuspiciousReasonToolError {
+				t.Errorf("failure report accepted with count %+v: %q (%+v)", count, content, assessment)
+			}
+		}
+	}
+}
+
+func TestAssessMissionCompletion_CompletedFailureReportIsAccepted(t *testing.T) {
+	for _, content := range []string{
+		"Fehlerbericht erstellt und gespeichert. Alle angeforderten Pruefungen abgeschlossen.",
+		"Status: success\nDer fruehere Fehler wurde behoben; die Seite wurde aktualisiert.",
+		"Die Seite wurde aktualisiert. Fruehere Meldung:\n> **Status: BLOCKIERT**\nDer anschliessende Deploy war erfolgreich.",
+		"Bericht gespeichert. Beispiel einer frueheren Antwort:\n```text\nStatus: blocked\n```\nDie Seite wurde danach erfolgreich aktualisiert.",
+	} {
+		if assessment := assessMissionCompletion(content, missionToolResultCount{Value: 12, Known: true}); assessment.Suspicious {
+			t.Errorf("completed result was rejected: %q (%+v)", content, assessment)
+		}
+	}
+}
+
 func TestAssessMissionCompletion_UnknownToolCountDoesNotTriggerProgressHeuristic(t *testing.T) {
 	if assessMissionCompletion("Let me verify the deploy.", missionToolResultCount{}).Suspicious {
 		t.Fatal("unknown tool count must not be treated as confirmed zero")

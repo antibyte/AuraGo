@@ -17,6 +17,12 @@ AMD/Vulkan test-server acceptance remain separate from these package checks.
 
 ## Build and publication
 
+The HTTP hardening changes require a new immutable patch release after `1.0.0`
+(next version: `1.0.1`). A local CPU build and real-route loopback self-test do
+not update deployed runtimes. Keep the application catalog at its verified
+published pins until the matrix, publication and anonymous verification below
+have completed with explicit authorization.
+
 1. Review the runtime source pin and patch, then push the reviewed workflow commit
    with explicit publication authorization. Dispatch `decisions-runtime.yml`
    with a new numeric version, initially with `publish=false` to exercise the
@@ -71,6 +77,9 @@ symlinks, duplicate portable names, unlisted members and mismatched pins.
 Docker uses the same verified native package and immutable image digests, keeps
 the 8 GiB host-memory cap, and runs with the existing private transport and GPU
 device policy. `BUILD=0` remains supported.
+Named-volume subdirectory mounts require Docker Engine 26/API 1.45 or newer.
+Older Engines remain supported with resolvable bind mounts; Decisions rejects
+unsupported volume subpaths rather than mounting the whole AuraGo data volume.
 
 ## Verification
 

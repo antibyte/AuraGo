@@ -30,16 +30,46 @@ func yepAPILoggerFromContext(ctx context.Context) *slog.Logger {
 	return nil
 }
 
-func logYepAPIRequestPayload(ctx context.Context, toolName, operation, endpoint string, payload map[string]interface{}) {
+type yepAPIRequestContextKey struct{}
+
+// yepAPIRequestContext names the tool and operation behind a request.
+type yepAPIRequestContext struct {
+	Tool      string
+	Operation string
+}
+
+// WithYepAPIRequestContext attaches the dispatching tool and operation so the
+// request diagnostics name them for every YepAPI tool, not just one family.
+func WithYepAPIRequestContext(ctx context.Context, tool, operation string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, yepAPIRequestContextKey{}, yepAPIRequestContext{Tool: tool, Operation: operation})
+}
+
+func yepAPIRequestContextFromContext(ctx context.Context) yepAPIRequestContext {
+	if ctx == nil {
+		return yepAPIRequestContext{}
+	}
+	if info, ok := ctx.Value(yepAPIRequestContextKey{}).(yepAPIRequestContext); ok {
+		return info
+	}
+	return yepAPIRequestContext{}
+}
+
+// logYepAPIRequestPayload records the request shape. Only key names are
+// logged, never payload values.
+func logYepAPIRequestPayload(ctx context.Context, endpoint string, payloadKeys []string) {
 	logger := yepAPILoggerFromContext(ctx)
 	if logger == nil {
 		return
 	}
-	logger.Warn("[YepAPI] Prepared request payload",
-		"tool", toolName,
-		"operation", operation,
+	info := yepAPIRequestContextFromContext(ctx)
+	logger.Debug("[YepAPI] Prepared request payload",
+		"tool", info.Tool,
+		"operation", info.Operation,
 		"endpoint", endpoint,
-		"payload_keys", safeYepAPIPayloadKeys(payload),
+		"payload_keys", payloadKeys,
 	)
 }
 
@@ -48,7 +78,7 @@ func logYepAPIMarshaledRequestBody(ctx context.Context, endpoint string, body []
 	if logger == nil {
 		return
 	}
-	logger.Warn("[YepAPI] Marshaled request body",
+	logger.Debug("[YepAPI] Marshaled request body",
 		"endpoint", endpoint,
 		"body_keys", safeYepAPIJSONBodyKeys(body),
 	)

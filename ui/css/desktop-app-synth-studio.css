@@ -135,3 +135,93 @@
 @container (max-width:760px){.ss-workspace{position:relative;grid-template-columns:175px minmax(0,1fr)}.ss-inspector-toggle{display:block!important}.ss-inspector{display:none;position:absolute;right:0;top:0;bottom:0;width:210px;z-index:11;box-shadow:-12px 0 25px #0004}.ss-inspector-open .ss-inspector{display:block}.ss-header{padding:8px}.ss-transport{gap:7px}.ss-transport label{font-size:10px}.ss-tempo input{width:62px}.ss-transport-buttons button{width:28px}.ss-position{font-size:14px;min-width:72px}}
 @container (max-width:540px){.ss-workspace{position:relative;display:flex}.ss-main{width:100%}.ss-library{display:none;position:absolute;left:0;top:0;bottom:0;width:210px;z-index:10;box-shadow:12px 0 25px #0004}.ss-library-open .ss-library{display:flex}.ss-compact-only{display:block!important}.ss-transport{flex-wrap:wrap;row-gap:5px;overflow:visible}.ss-transport .ss-loop-range input{width:36px}.ss-transport label{font-size:10px}.ss-header{gap:4px}.ss-brand strong{font-size:12px}.ss-project-name{max-width:130px!important}.ss-file-actions{gap:0;justify-content:flex-end;width:100%}.ss-file-actions button{padding:4px;width:28px}.ss-file-actions select{width:76px;font-size:10px}.ss-transport .ss-history{margin-left:0}.ss-editor-header{gap:6px}.ss-editor-header strong{max-width:90px}.ss-editor-header label{font-size:9px}.ss-editor-header label input{width:40px!important}.ss-note-editor{flex-basis:190px}.ss-arrange-tools{gap:8px}.ss-arrange-tools input{width:45px!important}.ss-footer>span:last-child{font-size:7px}.ss-midi-panel{max-height:180px;overflow:auto}.ss-midi-panel select{max-width:170px}}
 @media(prefers-reduced-motion:reduce){.ss-app *{scroll-behavior:auto!important}}
+
+/* Instrument workspace: scoped to Synth Studio, with native desktop colour schemes. */
+.ss-app {--ss-workbench-height:290px;font-size:13px;background:#161b24}
+[data-scheme="light"] .ss-app {--ss-bg:#edf0f2;--ss-panel:#f9fafb;--ss-text:#202731;--ss-muted:#505c69;--ss-border:#c6ced6;--ss-accent:#176851;background:var(--ss-bg)}
+.ss-workspace {grid-template-columns:220px minmax(0,1fr)}
+.ss-header {min-height:55px}.ss-brand strong {font-size:16px}.ss-project-name {font-size:13px!important}
+.ss-transport {flex-wrap:wrap;overflow:visible;gap:10px}.ss-transport label {font-size:13px}.ss-transport-buttons button {width:38px;height:38px}
+.ss-library-tabs button,.ss-library-name,.ss-search,.ss-categories button,.ss-track-name,.ss-arrange-tools,.ss-editor-header,.ss-inspector label,.ss-inspector h3,.ss-parameter,.ss-file-actions button {font-size:13px!important}
+.ss-track-head {grid-template-columns:1fr 85px;width:180px}.ss-track-name {max-width:none}.ss-track-buttons button {font-size:11px}
+.ss-library-collapsed .ss-library {display:none!important}.ss-library-collapsed .ss-workspace {grid-template-columns:minmax(0,1fr)}
+.ss-compact-only,.ss-inspector-toggle {display:block!important}
+.ss-workbench-tabs {display:flex;gap:5px;padding:7px 10px;background:var(--ss-panel);border-top:1px solid var(--ss-border)}
+.ss-workbench-tabs button {font-size:13px;padding:6px 13px;border:1px solid var(--ss-border)}
+.ss-workbench-tabs [aria-selected="true"] {background:var(--ss-accent);color:var(--ss-bg)}
+.ss-workbench-grip {height:9px;flex:0 0 9px;cursor:ns-resize;touch-action:none;background:linear-gradient(var(--ss-border),var(--ss-border)) center/38px 2px no-repeat}
+.ss-workbench-grip:focus-visible {outline:2px solid var(--ss-accent)}
+.ss-note-editor,.ss-sound-workbench,.ss-performance-workbench {flex:0 1 var(--ss-workbench-height);min-height:100px;max-height:60%;overflow:auto;background:var(--ss-panel)}
+.ss-note-editor {border:0;overflow:hidden}.ss-editor-header {height:auto;min-height:38px;flex-wrap:wrap;gap:6px}
+.ss-editor-header strong {margin-right:auto}.ss-editor-header>span {display:none}
+.ss-sound-workbench .ss-inspector {display:block;position:static;width:auto;border:0;box-shadow:none}
+.ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(5,minmax(85px,1fr));gap:16px}
+.ss-parameter {padding:10px;background:var(--ss-bg);border:1px solid var(--ss-border);border-radius:9px}
+.ss-parameter output {font:13px ui-monospace,monospace;color:var(--ss-text)}
+.ss-parameter button {font-size:11px;padding:2px;min-height:23px}
+.ss-welcome {display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px;background:var(--ss-panel);border-bottom:1px solid var(--ss-border)}
+.ss-welcome strong {width:100%;font-size:15px}.ss-welcome button {border:1px solid var(--ss-border);padding:8px 12px}
+.ss-loop-handle {position:absolute;top:0;height:27px!important;min-height:0!important;z-index:6;padding:0 4px!important;cursor:ew-resize;touch-action:none;background:var(--ss-accent)!important;color:var(--ss-bg)!important}
+.ss-selection-box {position:absolute;pointer-events:none;border:1px solid var(--ss-accent);background:color-mix(in srgb,var(--ss-accent) 16%,transparent)}
+.ss-note-velocities {display:flex;flex-shrink:0;gap:8px;max-height:55px;overflow:auto}
+.ss-note-velocities:empty {display:none}.ss-note-velocities label {min-width:100px;padding:4px;font-size:11px}
+.ss-library-name[aria-pressed="true"] {color:var(--ss-accent)}
+@container (max-width:760px) {
+ .ss-workspace {grid-template-columns:170px minmax(0,1fr)}
+ .ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(3,minmax(85px,1fr))}
+ .ss-header,.ss-transport {padding:7px}.ss-file-actions {width:auto}
+}
+@container (max-width:540px) {
+ .ss-workspace {display:flex}.ss-library {display:none}.ss-library-open .ss-library {display:flex}
+ .ss-transport {gap:5px}.ss-transport label {font-size:12px}.ss-transport-buttons button {width:34px;height:36px}
+ .ss-header {min-height:55px}.ss-time-signature,.ss-footer-hint {display:none}
+ .ss-note-editor,.ss-sound-workbench,.ss-performance-workbench {max-height:55%;flex-basis:var(--ss-workbench-height)}
+ .ss-sound-workbench .ss-param-grid {grid-template-columns:repeat(2,minmax(85px,1fr))}
+ .ss-editor-header strong,.ss-editor-header>label {display:none}.ss-editor-header button {font-size:12px}
+ .ss-workbench-tabs button {padding:5px 9px}.ss-welcome {padding:8px;gap:5px}
+}
+.ss-app .ss-performance-workbench{overflow:auto;padding:14px}
+.ss-app .ss-harmony,.ss-app .ss-generator-controls,.ss-app .ss-generator-actions,.ss-app .ss-preview{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.ss-app .ss-compose label{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.ss-app .ss-compose label:has(select),.ss-app .ss-compose label:has(input[type=range]){flex-direction:column;align-items:start}
+.ss-app .ss-compose input[type=text],.ss-app .ss-compose input[type=number]{width:70px}
+.ss-app .ss-compose input[type=range]{width:100px}
+.ss-app .ss-compose button,.ss-app .ss-compose select{min-height:36px}
+.ss-app .ss-chord-pads{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:14px 0}
+.ss-app .ss-chord-pads button{min-height:64px;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--ss-bg);box-shadow:inset 0 -3px 0 #0003}
+.ss-app .ss-chord-pads span{font-size:10px;white-space:normal}
+.ss-app .ss-chord-pads [aria-pressed=true]{border-color:var(--ss-accent);box-shadow:inset 0 -3px 0 var(--ss-accent)}
+.ss-app .ss-compose details{border-block-start:1px solid var(--ss-border);padding:10px 0}
+.ss-app .ss-compose summary{font-size:13px;cursor:pointer;margin-bottom:8px}
+.ss-app .ss-preview{padding:12px;margin-top:8px;border:1px solid var(--ss-accent);border-radius:6px}
+.ss-app .ss-scale-row{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--ss-accent) 7%,transparent);pointer-events:none}
+.ss-app .ss-keys button.is-scale{border-left:3px solid var(--ss-accent)}
+.ss-app .ss-editor-header button{font-size:13px}
+@container (max-width:540px){.ss-app .ss-chord-pads{grid-template-columns:repeat(4,minmax(0,1fr))}.ss-app .ss-generator-controls{gap:10px}.ss-app .ss-compose label{max-width:100%}}
+.ss-app .ss-stage{border-bottom:1px solid var(--ss-border);padding-bottom:16px;margin-bottom:16px}
+.ss-app .ss-stage-heading,.ss-app .ss-take-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.ss-app .ss-stage-heading strong{margin-right:auto;font-size:14px}
+.ss-app .ss-stage button{min-height:36px;font-size:13px}
+.ss-app .ss-scene-pads{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:12px 0}
+.ss-app .ss-scene-pads button{min-height:64px;min-width:44px;display:flex;flex-direction:column;justify-content:center;gap:5px;overflow:hidden;box-shadow:inset 0 -3px 0 #0003}
+.ss-app .ss-scene-pads strong{overflow:hidden;text-overflow:ellipsis}
+.ss-app .ss-scene-pads span{font-size:11px}
+.ss-app .ss-scene-pads .active{background:var(--ss-accent);color:var(--ss-bg)}
+.ss-app .ss-scene-pads .queued{border:2px dashed var(--ss-accent)}
+.ss-app .ss-scene-pads .is-selected{outline:1px solid var(--ss-text);outline-offset:2px}
+.ss-app .ss-macro{display:flex;align-items:center;gap:18px;margin:16px 0}
+.ss-app .ss-xy{width:180px;height:140px;flex:0 0 180px;position:relative;touch-action:none;border:1px solid var(--ss-accent);border-radius:8px;background:linear-gradient(90deg,transparent 49.6%,var(--ss-border) 50%,transparent 50.4%),linear-gradient(0deg,transparent 49.6%,var(--ss-border) 50%,transparent 50.4%),var(--ss-bg);overflow:hidden;cursor:crosshair}
+.ss-app .ss-xy[aria-disabled=true]{opacity:.45;cursor:default}
+.ss-app .ss-xy-dot{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--ss-accent);left:50%;bottom:50%;transform:translate(-50%,50%);box-shadow:0 0 0 5px color-mix(in srgb,var(--ss-accent) 18%,transparent);pointer-events:none}
+.ss-app .ss-xy-label{position:absolute;left:9px;bottom:8px;font-size:12px;pointer-events:none}
+.ss-app .ss-macro-controls{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ss-app .ss-macro-controls label{display:flex;gap:8px;align-items:center;font-size:13px;flex-wrap:wrap}
+.ss-app .ss-macro-controls input[type=range]{width:120px}
+.ss-app .ss-output-meter{display:flex;gap:5px;align-items:center;margin-left:auto;font-size:10px}
+.ss-app .ss-output-meter meter{width:64px;height:14px}
+.ss-app [data-clip-light]{opacity:.4}.ss-app .is-clipping [data-clip-light]{color:#ff736d;opacity:1}
+.ss-app .ss-transport label,.ss-app .ss-file-actions select,.ss-app .ss-arrange-tools label{font-size:13px}
+@container (max-width:540px){.ss-library-collapsed.ss-library-open .ss-library{display:flex!important}.ss-app .ss-scene-pads{grid-template-columns:repeat(4,minmax(0,1fr))}.ss-app .ss-macro{align-items:start;gap:10px}.ss-app .ss-xy{width:140px;flex-basis:140px}.ss-app .ss-macro-controls input[type=range]{width:100px}.ss-app .ss-output-meter{margin-left:0}}
+@media(prefers-reduced-motion:reduce){.ss-app *{transition:none!important;animation:none!important}}
+
+.ss-app .ss-automation-editor{margin:12px 0;font-size:13px}.ss-app .ss-automation-editor summary{cursor:pointer}.ss-app .ss-automation-fields{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:10px 0}.ss-app .ss-automation-fields label{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.ss-app .ss-automation-fields input{width:80px}

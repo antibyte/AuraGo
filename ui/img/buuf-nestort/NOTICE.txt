@@ -1,0 +1,6 @@
+Buuf For Many Desktops (formerly Buuf Nestort). Original artwork by Paul Davey (Mattahan); remixes by OxayotlTheGreat, robson-66 and eudaimon. Upstream index.theme declares CC BY-NC-SA 2.5. Original artist licensing statement: https://www.deviantart.com/mattahan/art/Buuf-37966044 . Noncommercial use only for the imported artwork. This artwork is NOT covered by AuraGo's MIT license. Selected raster artwork is copied unchanged; see the explicit per-motif source allowlist and provenance.json. Upstream placeholders are not an implicit fallback.
+
+Source: https://git.disroot.org/eudaimon/buuf-nestort
+Revision: ba218523983aec90f1e9facaefeeeeecdcf6d6a5
+Per-file provenance and modifications: provenance.json
+AuraGo original supplements: MIT (SUPPLEMENTS-LICENSE.txt).

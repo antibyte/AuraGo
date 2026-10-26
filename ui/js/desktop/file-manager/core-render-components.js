@@ -156,9 +156,9 @@
         }, true);
     }
 
-    function iconMarkup(key, fallback, className, size) {
+    function iconMarkup(key, fallback, className, size, usage) {
         if (fm.callbacks && typeof fm.callbacks.iconMarkup === 'function') {
-            return fm.callbacks.iconMarkup(key, fallback, className, size);
+            return fm.callbacks.iconMarkup(key, fallback, className, size, usage);
         }
         const pixels = Number(size || 16) || 16;
         return `<span class="${esc(className || '')}" style="font-size:${pixels}px">${esc(fallback || key || '')}</span>`;
@@ -205,7 +205,7 @@
     }
 
     function thumbnailMarkup(file, iconKey, fallback, mode) {
-        const icon = iconMarkup(iconKey, fallback, 'fm-thumb-fallback-icon', mode === 'grid' ? 38 : 18);
+        const icon = iconMarkup(iconKey, fallback, 'fm-thumb-fallback-icon', mode === 'grid' ? 38 : 18, file.type === 'directory' ? 'folder' : 'icon');
         if (!isPreviewableImage(file)) return icon;
         return `<span class="fm-thumb fm-thumb-${esc(mode || 'grid')}" aria-hidden="true">
             <img src="${esc(previewURL(file))}" loading="lazy" decoding="async" alt="">

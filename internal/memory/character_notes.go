@@ -16,10 +16,13 @@ const (
 	CharacterNoteCategorySignature    = "signature"
 	CharacterNoteCategoryCommitment   = "commitment"
 
-	CharacterNoteSourceMilestone  = "milestone"
-	CharacterNoteSourceReflection = "reflection"
-	CharacterNoteSourceUser       = "user_stated"
-	CharacterNoteSourceEvent      = "event"
+	CharacterNoteSourceMilestone       = "milestone"
+	CharacterNoteSourceReflection      = "reflection"
+	CharacterNoteSourceUser            = "user_stated"
+	CharacterNoteSourceManual          = "manual"
+	CharacterNoteSourceEvent           = "event"
+	CharacterNoteSourceCode            = "code_generated"
+	CharacterNoteSourceStateReflection = "state_reflection"
 
 	MaxActiveCharacterNotes       = 20
 	MaxCharacterNoteRunes         = 160
@@ -102,20 +105,35 @@ func (s *SQLiteMemory) ListCharacterNotes() ([]CharacterNote, error) {
 }
 
 // InsertCharacterNote stores a clamped note unless it was rejected or is a duplicate.
-func (s *SQLiteMemory) InsertCharacterNote(note CharacterNote) (CharacterNote, error) {
+func (s *SQLiteMemory) InsertCharacterNote(note CharacterNote, inputs ...*HumanInput) (CharacterNote, error) {
 	note = NormalizeCharacterNote(note)
 	if note.Text == "" {
 		return CharacterNote{}, fmt.Errorf("character note text is empty")
 	}
 	hash := characterNoteHash(note.Text)
+	var input *HumanInput
+	if len(inputs) > 0 {
+		input = inputs[0]
+	}
+	if !input.Valid() && note.Source != CharacterNoteSourceManual && note.Source != CharacterNoteSourceCode && note.Source != CharacterNoteSourceStateReflection {
+		return CharacterNote{}, fmt.Errorf("automatic character note requires provenance")
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return CharacterNote{}, err
+	}
+	defer tx.Rollback()
+	if err = checkPersonalityInputTx(tx, PersonalityObservation{Input: input}); err != nil {
+		return CharacterNote{}, err
+	}
 	var rejected int
-	if err := s.db.QueryRow(`SELECT COUNT(1) FROM character_note_rejections WHERE text_hash = ?`, hash).Scan(&rejected); err != nil {
+	if err := tx.QueryRow(`SELECT COUNT(1) FROM character_note_rejections WHERE text_hash = ?`, hash).Scan(&rejected); err != nil {
 		return CharacterNote{}, fmt.Errorf("check character note rejection: %w", err)
 	}
 	if rejected > 0 {
 		return CharacterNote{}, fmt.Errorf("character note was deleted by the user")
 	}
-	res, err := s.db.Exec(
+	res, err := tx.Exec(
 		`INSERT INTO character_notes (category, text, text_hash, confidence, source, protected)
 		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(text_hash) DO UPDATE SET
@@ -128,13 +146,19 @@ func (s *SQLiteMemory) InsertCharacterNote(note CharacterNote) (CharacterNote, e
 	}
 	_ = res
 	var protected int
-	if err := s.db.QueryRow(
+	if err := tx.QueryRow(
 		`SELECT id, category, text, confidence, source, protected, created_at, updated_at
 		 FROM character_notes WHERE text_hash = ?`, hash,
 	).Scan(&note.ID, &note.Category, &note.Text, &note.Confidence, &note.Source, &protected, &note.CreatedAt, &note.UpdatedAt); err != nil {
 		return CharacterNote{}, fmt.Errorf("reload character note: %w", err)
 	}
 	note.Protected = protected == 1
+	if err = recordPersonalityTextSource(tx, "character", fmt.Sprint(note.ID), input); err != nil {
+		return CharacterNote{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return CharacterNote{}, err
+	}
 	return note, s.enforceCharacterNoteCap()
 }
 
@@ -194,7 +218,7 @@ func (s *SQLiteMemory) DecayUnprotectedCharacterNotes(now time.Time) (int, error
 	cutoff := now.Add(-time.Duration(CharacterNoteDecayDays) * 24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
 	res, err := s.db.Exec(
 		`DELETE FROM character_notes
-		 WHERE protected = 0 AND confidence < 0.75 AND updated_at < ?`,
+		 WHERE protected = 0 AND source<>'manual' AND confidence < 0.75 AND updated_at < ?`,
 		cutoff,
 	)
 	if err != nil {
@@ -288,7 +312,7 @@ func (s *SQLiteMemory) enforceCharacterNoteCap() error {
 		return err
 	}
 	for i := MaxActiveCharacterNotes; i < len(notes); i++ {
-		if notes[i].Protected {
+		if notes[i].Protected || notes[i].Source == CharacterNoteSourceManual {
 			continue
 		}
 		if _, err := s.db.Exec(`DELETE FROM character_notes WHERE id = ?`, notes[i].ID); err != nil {
@@ -321,7 +345,7 @@ func validCharacterNoteCategory(v string) bool {
 
 func validCharacterNoteSource(v string) bool {
 	switch v {
-	case CharacterNoteSourceMilestone, CharacterNoteSourceReflection, CharacterNoteSourceUser, CharacterNoteSourceEvent:
+	case CharacterNoteSourceMilestone, CharacterNoteSourceReflection, CharacterNoteSourceUser, CharacterNoteSourceManual, CharacterNoteSourceEvent, CharacterNoteSourceCode, CharacterNoteSourceStateReflection:
 		return true
 	default:
 		return false

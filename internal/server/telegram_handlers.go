@@ -26,10 +26,27 @@ func handleTelegramStatus(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		status := integrationstatus.TelegramStatus()
+		state := status.State
+		if state == "" {
+			state = "unknown"
+		}
+		label := "ok"
+		if state != "healthy" {
+			label = state
+		}
+		code := http.StatusOK
+		if status.Enabled && state != "healthy" {
+			// A poller that is degraded, stale or unavailable must not be
+			// reported as a healthy service. A disabled integration is no
+			// outage, so it keeps the 200 — like the Discord health endpoint.
+			code = http.StatusServiceUnavailable
+		}
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":   "ok",
-			"telegram": integrationstatus.TelegramStatus(),
+			"status":   label,
+			"telegram": status,
 		})
 	}
 }

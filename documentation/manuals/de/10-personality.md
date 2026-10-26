@@ -41,7 +41,7 @@ Die Persönlichkeit beeinflusst:
 
 ## Personality Engine
 
-AuraGo hat zwei Personality Engines, die unabhängig aktiviert werden können:
+AuraGo hat eine lokale Personality Engine mit optionaler asynchroner V2-Ergänzung:
 
 ### Personality Engine V1 (Heuristisch)
 
@@ -76,7 +76,7 @@ Die V2-Engine bietet:
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Personality** und aktiviere **Personality Engine V2**.
-2. Öffne **Config → LLM Settings** und aktiviere den **Helper LLM** (erforderlich für V2-Stimmungsanalyse).
+2. Öffne **Config → LLM Settings** und aktiviere den **Helper LLM** (empfohlen; ein begrenzter Hauptmodell-Fallback ist verfügbar).
 3. Aktiviere optional **User Profiling**, **Emotion Synthesizer** und **Inner Voice** auf der Personality-Seite.
 4. Speichern.
 
@@ -88,7 +88,7 @@ personality:
   engine_v2: true
   v2_provider: ""                    # deprecated – V2 nutzt jetzt llm.helper_*
   user_profiling: false
-  user_profiling_threshold: 2
+  user_profiling_threshold: 3
   emotion_synthesizer:
     enabled: false
     min_interval_seconds: 60
@@ -100,7 +100,7 @@ personality:
     min_interval_secs: 60
     max_per_session: 20
     decay_turns: 3
-    error_streak_min: 2
+    decay_max_age_secs: 300
 ```
 
 > [!NOTE]
@@ -276,7 +276,7 @@ Die Werte werden transaktional mit Revisionsschutz geschrieben; Belastung und Re
 
 ### Einrichtung in der Web-UI
 
-Das Dashboard zeigt die aktuelle Dynamik auf der Persönlichkeits-Karte (Tab **Agent**) mit Trend-Badge; unter **Config → Persönlichkeit** erscheint derselbe Block. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen, Verlauf oder die aktive Persona zu verändern (Epoch und Revision steigen, laufende Auswertungen werden ungültig). Der Reset ist ein same-origin POST mit normaler Sitzungsauthentifizierung und verlangt die aktive Personality Engine.
+Das Dashboard zeigt die aktuelle Dynamik auf der Karte **Persönlichkeit** (Bereich **Persönlichkeit**, `#personality`) mit Trend-Badge; unter **Config → Persönlichkeit** erscheint derselbe Block. Der Knopf **Aktuelle Dynamik zurücksetzen** setzt die Dynamik auf null und den Affect auf Ruhewerte, ohne Traits, gelebte Notizen, Verlauf oder die aktive Persona zu verändern (Epoch und Revision steigen, laufende Auswertungen werden ungültig). Der Reset ist ein same-origin POST mit normaler Sitzungsauthentifizierung und verlangt die aktive Personality Engine.
 
 ### API-Referenz
 
@@ -354,3 +354,5 @@ Schnelle Infos  → terminator
 
 **Vorheriges Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)
 **Nächstes Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)
+
+Standardwerte: `engine: false`, `engine_v2: false`, `core_personality: neutral`, Profiling-Schwelle `3`. Inner Voice aktiviert auch Emotionsnarration, V2 und die Engine. `decay_max_age_secs` begrenzt das Alter auch zwischen Nachrichten. Siehe [Herkunft, Löschung und Altbestandsprüfung](../../personality-dynamics.md).

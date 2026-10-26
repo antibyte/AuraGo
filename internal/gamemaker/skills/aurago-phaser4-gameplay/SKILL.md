@@ -9,6 +9,7 @@ metadata:
   commit: 41be1e462bc600064e498cba370bfa8c5c055a22
 allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker_validate
 ---
+> General agent use only. Game Maker Studio runs use the `craft.go` guides and its prepared profiles, never this package.
 
 # Phaser 4 Gameplay
 

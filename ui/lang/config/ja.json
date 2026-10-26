@@ -1,4 +1,11 @@
 {
+  "config.telephone_agent.catalog_unavailable": "リストを一時的に読み込めません。保存済みの選択は保持されます。",
+  "config.telephone_agent.tool_unavailable": "ツールを利用できません",
+  "config.telephone_agent.language_auto": "自動",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "発信を許可する番号またはユーザーが設定されていません。",
+  "config.sip.telephone_profile_preserved": "電話エージェントの設定と応答までの待ち時間は保持されます。",
+  "config.decisions.docker_api_too_old": "名前付きボリュームのサブディレクトリには Docker Engine 26（API 1.45）以降が必要です。Docker を更新するか、適切なホストフォルダーのバインドマウントを使用してください。",
+  "config.decisions.runtime_score_timeout": "評価が2分の制限に達しました。サービスは次の評価でも利用できます。",
   "config.decisions.local_setup": "ローカルモデルの設定",
   "config.decisions.local_server_help": "モデルはAuraGoがインストールされたコンピューターで動作します。対応するグラフィックカードを優先します。",
   "config.decisions.advanced": "実行方式とCPUの許可",

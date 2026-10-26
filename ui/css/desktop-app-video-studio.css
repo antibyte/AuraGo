@@ -281,7 +281,11 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-fxlib-group h3 { margin: 0 0 6px; font-size: 11.5px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--vs-muted); }
 .vs-fxlib-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
 .vs-app .vs-fxlib-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); color: var(--vs-text); font-size: 12.5px; text-align: left; cursor: grab; }
-.vs-app .vs-fxlib-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Names wrap between words instead of ending in an ellipsis (2f F1, 2c follow-up 2). The two-column list of the 288 px
+   library cut "Teal and orange", "Black and white" and "Bleach bypass". A word wider than its item still breaks, and
+   each item fills its grid row, so the items of a row keep one height. */
+.vs-app .vs-fxlib-item span { min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.2; }
+.vs-fxlib-list > li { display: grid; }
 .vs-app .vs-fxlib-item .vs-icon { flex: none; color: var(--vs-accent); }
 .vs-app .vs-fxlib-item:hover:not([aria-disabled="true"]) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 .vs-app .vs-fxlib-item[aria-disabled="true"] { opacity: .5; cursor: default; }
@@ -384,6 +388,34 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app .vs-range-bar > button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px; }
 .vs-app .vs-range-bar > .vs-icon-button { justify-content: center; width: 28px; padding: 0; }
 .vs-app .vs-transport [data-action="range-render"].is-busy { color: var(--vs-accent); }
+/* Scopes (2f Task 3, video-studio-scopes.js; index §4.26.5): a dock between the stage and the transport, and its toggle
+   in the transport. A closed dock takes no height. The open panel is --vs-scopes-h high (132 px, 96 px on phones):
+   - the kind buttons sit on the left, then the tiles in one row;
+   - each canvas is the row height wide by its aspect ratio, and the row scrolls sideways when it does not fit;
+   - the canvases use fixed colours in both themes. */
+.vs-center { --vs-scopes-h: 132px; }
+.vs-scopes-dock { flex: 0 0 auto; min-width: 0; }
+.vs-scopes { display: flex; align-items: stretch; gap: 10px; height: var(--vs-scopes-h); min-width: 0; padding: 6px 10px; border-top: 1px solid var(--vs-border); background: var(--vs-panel); }
+.vs-scopes-bar { flex: 0 0 auto; flex-direction: column; align-self: center; margin-top: 0; }
+.vs-scopes-bar button { padding: 3px 10px; text-align: left; }
+.vs-scopes-tiles { flex: 1 1 auto; display: flex; gap: 8px; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; border-radius: 6px; }
+.vs-scope { flex: 0 0 auto; height: 100%; margin: 0; border: 1px solid var(--vs-border); border-radius: 6px; overflow: hidden; background: #0c0f15; }
+.vs-scope canvas { display: block; width: auto; height: 100%; }
+.vs-app .vs-transport [data-action="scopes"][aria-expanded="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-accent); }
+.vs-without-project .vs-scopes-dock { display: none !important; }
+@container vs-app (max-width: 650px) {
+    .vs-center { --vs-scopes-h: 96px; }
+    .vs-scopes { gap: 6px; padding: 4px 6px; }
+    .vs-scopes-bar button { min-height: 22px; padding: 1px 8px; font-size: 11px; }
+    /* An open dock (review I-2): the centre column needs about 94 px for the monitor switch and the transport, the 96 px
+       dock and a stage of at least 90 px, which the 46 % / 224 px library row leaves it only when the phone is tall
+       enough. The row below the column would otherwise cut the transport off, and the stage sat at its 90 px floor.
+       The library row therefore gives way while the dock shows (not without a project, where the library is the page,
+       and not in source mode, which hides the dock): the column takes the whole workspace height. Closing the panel
+       brings the library back. */
+    .vs-app:not(.vs-without-project):has(> .vs-workspace > .vs-center > .vs-scopes-dock:not([hidden]) > .vs-scopes:not([hidden])) .vs-workspace { grid-template-rows: minmax(120px, 1fr); }
+    .vs-app:not(.vs-without-project):has(> .vs-workspace > .vs-center > .vs-scopes-dock:not([hidden]) > .vs-scopes:not([hidden])) .vs-library { display: none; }
+}
 
 /* Empty project */
 .vs-preview-stage.vs-no-project { place-items: stretch; padding: 0; background: var(--vs-bg); }
@@ -1125,6 +1157,12 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-mask-fields { margin-top: 6px; }
 .vs-mask-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .vs-app .vs-mask-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+/* The Picture section's chip buttons (Full frame, Crop in the preview, the flips, Invert mask, Edit mask in the
+   preview) wrap their label inside the column instead of widening the inspector. In Greek, "Edit mask in the preview"
+   (.vs-mask-mode) was wider than the 320 px drawer's column and made [data-inspector] scroll sideways (2f F1, measured
+   by the narrow-drawer check of TestDesktopVideoStudioAnimBrowser/inspector). */
+.vs-position .vs-chip-button, .vs-fx-flips .vs-chip-button, .vs-mask-actions .vs-chip-button { max-width: 100%; min-width: 0; justify-content: flex-start; white-space: normal; text-align: left; }
+.vs-position .vs-chip-button > .vs-icon, .vs-fx-flips .vs-chip-button > .vs-icon, .vs-mask-actions .vs-chip-button > .vs-icon { flex: none; }
 .vs-key-color { display: grid; gap: 6px; margin-top: 6px; }
 .vs-key-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .vs-key-swatch { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }

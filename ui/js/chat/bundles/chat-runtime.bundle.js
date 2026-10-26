@@ -583,6 +583,8 @@
         }
     }
 
+    const YOUTUBE_MAX_START_SECONDS = 172800;
+
     function parseYouTubeTimeValue(raw) {
         let value = String(raw || '').trim().toLowerCase();
         if (!value) return 0;
@@ -592,17 +594,33 @@
         if (value.includes(':')) {
             return value.split(':').reduce((total, part) => {
                 const n = parseInt(part, 10);
-                return Number.isFinite(n) ? (total * 60) + n : 0;
+                if (!Number.isFinite(n) || n < 0) return 0;
+                if (n > YOUTUBE_MAX_START_SECONDS || total > YOUTUBE_MAX_START_SECONDS / 60) return YOUTUBE_MAX_START_SECONDS + 1;
+                return (total * 60) + n;
             }, 0);
         }
         const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
         if (!match) return 0;
-        return ((parseInt(match[1] || '0', 10) || 0) * 3600)
-            + ((parseInt(match[2] || '0', 10) || 0) * 60)
-            + (parseInt(match[3] || '0', 10) || 0);
+        const hours = parseInt(match[1] || '0', 10) || 0;
+        const minutes = parseInt(match[2] || '0', 10) || 0;
+        const seconds = parseInt(match[3] || '0', 10) || 0;
+        if (hours > YOUTUBE_MAX_START_SECONDS / 3600) return YOUTUBE_MAX_START_SECONDS + 1;
+        return (hours * 3600) + (minutes * 60) + seconds;
+    }
+
+    // Country hosts are youtube.<cc>, youtube.co.<cc>, and youtube.com.<cc>.
+    function youtubeHostKind(host) {
+        if (host === 'youtu.be') return 'short';
+        if (host === 'youtube-nocookie.com' || host.endsWith('.youtube-nocookie.com')) return 'nocookie';
+        if (host === 'youtube.com' || host.endsWith('.youtube.com') || /^youtube\.(?:[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/.test(host)) return 'watch';
+        return '';
     }
 
     function parseYouTubeVideoLink(raw) {
+        return parseYouTubeVideoLinkDepth(raw, 0);
+    }
+
+    function parseYouTubeVideoLinkDepth(raw, depth) {
         if (!raw || typeof raw !== 'string') return null;
         let href = raw.trim();
         if (!href) return null;
@@ -611,20 +629,31 @@
         }
         try {
             const parsed = new URL(href, window.location.origin);
+            if (parsed.username || parsed.password) return null;
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
             const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+            const kind = youtubeHostKind(host);
+            if (!kind) return null;
             const segments = parsed.pathname.split('/').filter(Boolean).map((part) => {
                 try { return decodeURIComponent(part); } catch (_err) { return part; }
             });
+            if (kind === 'watch' && segments[0] === 'attribution_link') {
+                if (depth >= 1) return null;
+                const inner = parsed.searchParams.get('u') || '';
+                if (!inner) return null;
+                const next = inner.includes('://') ? inner : `https://${parsed.hostname}${inner.startsWith('/') ? '' : '/'}${inner}`;
+                return parseYouTubeVideoLinkDepth(next, depth + 1);
+            }
             let videoID = '';
-            if (host === 'youtu.be') {
+            if (kind === 'short') {
                 videoID = segments[0] || '';
-            } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+            } else if (kind === 'watch') {
                 if (segments.length === 0 || segments[0] === 'watch') {
                     videoID = parsed.searchParams.get('v') || '';
-                } else if (['shorts', 'embed', 'live'].includes(segments[0])) {
+                } else if (['shorts', 'embed', 'live', 'v', 'e'].includes(segments[0])) {
                     videoID = segments[1] || '';
                 }
-            } else if (host === 'youtube-nocookie.com' && segments[0] === 'embed') {
+            } else if (kind === 'nocookie' && segments[0] === 'embed') {
                 videoID = segments[1] || '';
             }
             if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
@@ -632,6 +661,7 @@
             const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start'))
                 || parseYouTubeTimeValue(parsed.searchParams.get('t'))
                 || parseYouTubeTimeValue(fragment);
+            if (startSeconds > YOUTUBE_MAX_START_SECONDS) return null;
             const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
             const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
             return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };
@@ -658,6 +688,7 @@
             });
             if (host !== 'youtube-nocookie.com' || parts[0] !== 'embed' || parts[1] !== expectedVideoID) return '';
             const start = parseYouTubeTimeValue(parsed.searchParams.get('start'));
+            if (start > YOUTUBE_MAX_START_SECONDS) return '';
             if (start !== (Number(expectedStartSeconds) || 0)) return '';
             return `https://www.youtube-nocookie.com/embed/${expectedVideoID}${start > 0 ? `?start=${start}` : ''}`;
         } catch (_err) {
@@ -4126,7 +4157,14 @@ window.SessionDrawer = (function () {
         if (choice === null) return;
         try {
             const response = await fetch('/api/chat/sessions/' + encodeURIComponent(id) + '?delete_memories=' + choice, { method: 'DELETE', credentials: 'same-origin' });
-            if (!response.ok) throw new Error(t('chat.sessions_delete_failed'));
+            if (!response.ok) {
+                const failure = await response.json().catch(() => ({}));
+                if (failure.code === 'deletion_scope_conflict') {
+                    if (typeof showAlert === 'function') await showAlert(t('chat.sessions_delete'), t('chat.sessions_delete_scope_conflict'));
+                    return;
+                }
+                throw new Error(t('chat.sessions_delete_failed'));
+            }
             const data = await response.json();
             if ((choice || data.status === 'partial') && typeof showAlert === 'function') {
                 const report = data.deletion || {};
@@ -4716,6 +4754,15 @@ document.querySelectorAll('.mood-btn').forEach(btn => {
         autoResize();
 
         // Send personality feedback to backend
+        let feedbackStatus = document.getElementById('personality-feedback-status');
+        if (!feedbackStatus) {
+            feedbackStatus = document.createElement('span');
+            feedbackStatus.id = 'personality-feedback-status';
+            feedbackStatus.setAttribute('role', 'status');
+            btn.parentElement.after(feedbackStatus);
+        }
+        feedbackStatus.textContent = '';
+        btn.classList.remove('flash-error');
         btn.disabled = true;
         const eventID = window.crypto && typeof window.crypto.randomUUID === 'function'
             ? window.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
@@ -4723,14 +4770,21 @@ document.querySelectorAll('.mood-btn').forEach(btn => {
             const res = await fetch('/api/personality/feedback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: feedbackType, event_id: eventID })
+                body: JSON.stringify({ type: feedbackType, event_id: eventID, occurred_at: new Date().toISOString() })
             });
             if (res.ok) {
+                feedbackStatus.textContent = t('personality_legacy.done');
                 btn.classList.add('flash-ok');
                 setTimeout(() => btn.classList.remove('flash-ok'), 500);
+            } else {
+                btn.title = t('personality_legacy.failed');
+                feedbackStatus.textContent = t('personality_legacy.failed');
+                btn.classList.add('flash-error');
             }
         } catch (e) {
-            console.error('Feedback error:', e);
+            btn.title = t('personality_legacy.failed');
+            feedbackStatus.textContent = t('personality_legacy.failed');
+            btn.classList.add('flash-error');
         } finally {
             btn.disabled = false;
         }
@@ -7285,94 +7339,28 @@ function parseYouTubeTimeValue(raw) {
     if (window.AuraChatCore && typeof window.AuraChatCore.parseYouTubeTimeValue === 'function') {
         return window.AuraChatCore.parseYouTubeTimeValue(raw);
     }
-    let value = String(raw || '').trim().toLowerCase();
-    if (!value) return 0;
-    value = value.replace(/^#?t=/, '');
-    value = value.replace(/^start=/, '');
-    if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
-    if (value.includes(':')) {
-        return value.split(':').reduce((total, part) => {
-            const n = parseInt(part, 10);
-            return Number.isFinite(n) ? (total * 60) + n : 0;
-        }, 0);
-    }
-    const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
-    if (!match) return 0;
-    return ((parseInt(match[1] || '0', 10) || 0) * 3600)
-        + ((parseInt(match[2] || '0', 10) || 0) * 60)
-        + (parseInt(match[3] || '0', 10) || 0);
+    return 0;
 }
 
 function parseYouTubeVideoLink(raw) {
     if (window.AuraChatCore && typeof window.AuraChatCore.parseYouTubeVideoLink === 'function') {
         return window.AuraChatCore.parseYouTubeVideoLink(raw);
     }
-    if (!raw || typeof raw !== 'string') return null;
-    let href = raw.trim();
-    if (!href) return null;
-    if (!href.includes('://') && (href.includes('youtube.') || href.includes('youtu.be'))) {
-        href = `https://${href}`;
-    }
-    try {
-        const parsed = new URL(href, window.location.origin);
-        const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-        const segments = parsed.pathname.split('/').filter(Boolean).map((part) => {
-            try { return decodeURIComponent(part); } catch (_err) { return part; }
-        });
-        let videoID = '';
-        if (host === 'youtu.be') {
-            videoID = segments[0] || '';
-        } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
-            if (segments.length === 0 || segments[0] === 'watch') {
-                videoID = parsed.searchParams.get('v') || '';
-            } else if (['shorts', 'embed', 'live'].includes(segments[0])) {
-                videoID = segments[1] || '';
-            }
-        } else if (host === 'youtube-nocookie.com' && segments[0] === 'embed') {
-            videoID = segments[1] || '';
-        }
-        if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
-        const fragment = parsed.hash ? parsed.hash.replace(/^#/, '') : '';
-        const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start'))
-            || parseYouTubeTimeValue(parsed.searchParams.get('t'))
-            || parseYouTubeTimeValue(fragment);
-        const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
-        const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
-        return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };
-    } catch (_err) {
-        return null;
-    }
+    return null;
 }
 
 function youtubePlayerDedupKey(data) {
     if (window.AuraChatCore && typeof window.AuraChatCore.youtubePlayerDedupKey === 'function') {
         return window.AuraChatCore.youtubePlayerDedupKey(data);
     }
-    const id = data && data.video_id ? String(data.video_id) : '';
-    const rawStart = Number((data && data.start_seconds) || 0);
-    const start = Number.isFinite(rawStart) && rawStart > 0 ? Math.floor(rawStart) : 0;
-    const url = data && (data.url || data.embed_url || data.path) ? String(data.url || data.embed_url || data.path) : '';
-    return id ? `${id}:${start}` : `${url}:${start}`;
+    return '';
 }
 
 function safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds) {
     if (window.AuraChatCore && typeof window.AuraChatCore.safeYouTubeEmbedURL === 'function') {
         return window.AuraChatCore.safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds);
     }
-    if (!raw || !expectedVideoID) return '';
-    try {
-        const parsed = new URL(String(raw), window.location.origin);
-        const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-        const parts = parsed.pathname.split('/').filter(Boolean).map((part) => {
-            try { return decodeURIComponent(part); } catch (_err) { return part; }
-        });
-        if (host !== 'youtube-nocookie.com' || parts[0] !== 'embed' || parts[1] !== expectedVideoID) return '';
-        const start = parseYouTubeTimeValue(parsed.searchParams.get('start'));
-        if (start !== (Number(expectedStartSeconds) || 0)) return '';
-        return `https://www.youtube-nocookie.com/embed/${expectedVideoID}${start > 0 ? `?start=${start}` : ''}`;
-    } catch (_err) {
-        return '';
-    }
+    return '';
 }
 
 function createChatVideoElement(videoData) {
@@ -7425,6 +7413,7 @@ function createChatYouTubeElement(youtubeData) {
     if (!videoID) return null;
     const rawStartSeconds = Number((youtubeData && youtubeData.start_seconds) || (parsed && parsed.start_seconds) || 0);
     const startSeconds = Number.isFinite(rawStartSeconds) && rawStartSeconds > 0 ? Math.floor(rawStartSeconds) : 0;
+    if (startSeconds > 172800) return null;
     const url = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
     const fallbackEmbedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
     const embedURL = safeYouTubeEmbedURL(youtubeData && youtubeData.embed_url, videoID, startSeconds) || fallbackEmbedURL;
@@ -7441,14 +7430,25 @@ function createChatYouTubeElement(youtubeData) {
         wrapper.appendChild(titleEl);
     }
 
-    const iframe = document.createElement('iframe');
-    iframe.className = 'chat-youtube-player';
-    iframe.src = embedURL;
-    iframe.title = title || 'YouTube';
-    iframe.loading = 'lazy';
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-    iframe.allowFullscreen = true;
-    wrapper.appendChild(iframe);
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'chat-youtube-play';
+    const playLabel = (typeof t === 'function' && t('chat.youtube_play') && t('chat.youtube_play') !== 'chat.youtube_play')
+        ? t('chat.youtube_play')
+        : 'Play';
+    play.textContent = playLabel;
+    play.addEventListener('click', function () {
+        const frame = document.createElement('iframe');
+        frame.className = 'chat-youtube-player';
+        frame.src = embedURL;
+        frame.title = title || 'YouTube';
+        frame.loading = 'lazy';
+        frame.referrerPolicy = 'no-referrer';
+        frame.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
+        frame.allowFullscreen = true;
+        play.replaceWith(frame);
+    });
+    wrapper.appendChild(play);
 
     const actions = document.createElement('div');
     actions.className = 'chat-video-actions';

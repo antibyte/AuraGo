@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-
-	"aurago/internal/security"
 )
 
 // completeConfigListPaths are lists whose entries the config UI edits per index.
@@ -74,7 +72,7 @@ func configPatchValue(patch map[string]interface{}, path string) (interface{}, b
 // remote agent list before it replaces the saved one. The UI sends the masked
 // placeholders the server reported; a real value is stored in the Vault under
 // the agent id, as a2aSaveVault does.
-func extractA2ARemoteAgentSecretsToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+func extractA2ARemoteAgentSecretsToVault(items []interface{}, vault configSecretWriter, logger *slog.Logger) error {
 	var firstErr error
 	for _, item := range items {
 		agent, ok := item.(map[string]interface{})
@@ -103,7 +101,7 @@ func extractA2ARemoteAgentSecretsToVault(items []interface{}, vault *security.Va
 				}
 				continue
 			}
-			if vault == nil {
+			if configSecretWriterMissing(vault) {
 				if firstErr == nil {
 					firstErr = fmt.Errorf("credential 'a2a.client.remote_agents.%s.%s' cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id, field)
 				}
@@ -120,7 +118,7 @@ func extractA2ARemoteAgentSecretsToVault(items []interface{}, vault *security.Va
 				continue
 			}
 			if logger != nil {
-				logger.Info("[Config] A2A remote agent credential saved to vault", "key", vaultKey)
+				logger.Info("[Config] A2A remote agent credential accepted for Vault storage", "key", vaultKey)
 			}
 		}
 	}

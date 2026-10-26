@@ -27,15 +27,35 @@ func detectiveJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
+// errDetectiveCopyExists marks the create-only Autor copy collision, so the API can
+// answer with a code the app translates instead of an English sentence.
+var errDetectiveCopyExists = errors.New("export copy already exists")
+
+// detectiveError answers with a stable machine-readable code; the app shows a
+// translated sentence for it and keeps the server text only as a fallback.
 func detectiveError(w http.ResponseWriter, err error) {
-	status := http.StatusBadRequest
-	if errors.Is(err, detective.ErrNotFound) {
-		status = 404
+	status, code := http.StatusBadRequest, "invalid_request"
+	switch {
+	case errors.Is(err, detective.ErrNotFound):
+		status, code = http.StatusNotFound, "not_found"
+	case errors.Is(err, detective.ErrConflict):
+		status, code = http.StatusConflict, "conflict"
+	case errors.Is(err, detective.ErrBudget):
+		status, code = http.StatusConflict, "budget_exhausted"
+	case errors.Is(err, detective.ErrPermission):
+		status, code = http.StatusForbidden, "permission_revoked"
+	case errors.Is(err, errDetectiveCopyExists):
+		status, code = http.StatusConflict, "copy_exists"
+	case errors.Is(err, detective.ErrExportFormat):
+		code = "unsupported_format"
+	case errors.Is(err, detective.ErrExportTooLarge):
+		code = "export_too_large"
+	case errors.Is(err, detective.ErrPDFFont):
+		code = "pdf_unsupported_font"
+	case errors.Is(err, detective.ErrClosed):
+		status, code = http.StatusServiceUnavailable, "unavailable"
 	}
-	if errors.Is(err, detective.ErrConflict) || errors.Is(err, detective.ErrBudget) {
-		status = 409
-	}
-	detectiveJSON(w, status, map[string]string{"error": err.Error()})
+	detectiveJSON(w, status, map[string]string{"error": err.Error(), "code": code})
 }
 func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
@@ -47,6 +67,42 @@ func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 		return errors.New("request must contain one JSON object")
 	}
 	return nil
+}
+
+// detectivePDFSupport names the PDF writer the service will use. With Document Creator
+// and the Gotenberg backend configured, artifacts.go renders through it and every script
+// works; otherwise the built-in Go-font writer covers Latin, Greek and Cyrillic only.
+// The app orders the export formats and shows its PDF hint by this capability.
+func detectivePDFSupport(cfg *config.Config) (backend string, scripts bool) {
+	if cfg != nil && cfg.Tools.DocumentCreator.Enabled && cfg.Tools.DocumentCreator.Backend == "gotenberg" {
+		return "gotenberg", true
+	}
+	return "builtin", false
+}
+
+// detectiveCaseView keeps the case response bounded: source text is served per source
+// and findings page through the case archive, so neither belongs in the case payload.
+func detectiveCaseView(c detective.Case) detective.Case {
+	for i := range c.Sources {
+		c.Sources[i].Excerpt = ""
+	}
+	c.Findings = nil
+	return c
+}
+
+// detectiveBlockReason names why the research surface is unavailable, so the UI can
+// explain disabled actions instead of showing a generic notice. Empty means ready.
+func detectiveBlockReason(cfg *config.Config, ready bool) string {
+	if cfg == nil || !cfg.Detective.Enabled {
+		return "disabled"
+	}
+	if !ready {
+		return "initializing"
+	}
+	if cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl {
+		return "read_only"
+	}
+	return ""
 }
 
 func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +147,21 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Desktop unavailable", 503)
 		return
 	}
+	if path == "read-operations" && r.Method == http.MethodGet {
+		// The administrator-owned allowlist is security relevant, so it gets a preview:
+		// tool names, the free-form tools and the current mapping, never tool schemas.
+		tools := []string{}
+		for _, schema := range detectiveSchemas(cfg, s, detective.Request{}) {
+			tools = append(tools, schema.Function.Name)
+		}
+		sort.Strings(tools)
+		configured := cfg.Detective.ExtraReadOperations
+		if configured == nil {
+			configured = map[string][]string{}
+		}
+		detectiveJSON(w, 200, map[string]any{"tools": tools, "free_form": []string{"mcp_call", "composio_call"}, "configured": configured})
+		return
+	}
 	if path == "capabilities" && r.Method == http.MethodGet {
 		tools := []string{}
 		for _, schema := range detectiveSchemas(cfg, s, detective.Request{}) {
@@ -113,11 +184,12 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			providers = append(providers, map[string]string{"id": p.ID, "name": p.Name, "model": p.Model, "usage": usage})
 		}
 		profiles := detective.Profiles()
+		pdfBackend, pdfScripts := detectivePDFSupport(cfg)
 		ready := s.Detective != nil && s.Detective.Ready()
 		if s.Detective != nil {
 			profiles = s.Detective.Profiles()
 		}
-		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
+		detectiveJSON(w, 200, map[string]any{"enabled": cfg.Detective.Enabled, "ready": ready, "block_reason": detectiveBlockReason(cfg, ready), "read_only": cfg.Detective.ReadOnly || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl, "pdf_backend": pdfBackend, "pdf_scripts": pdfScripts, "initialization_error": s.detectiveInitErr, "profiles": profiles, "tools": tools, "private_sources": private, "providers": providers, "provider_id": cfg.LLM.Provider, "model": cfg.LLM.Model})
 		return
 	}
 	if s.Detective == nil || !cfg.Detective.Enabled {
@@ -191,7 +263,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 				detectiveError(w, err)
 				return
 			}
-			detectiveJSON(w, 200, c)
+			detectiveJSON(w, 200, detectiveCaseView(c))
 		case http.MethodDelete:
 			if err := s.Detective.Delete(key); err != nil {
 				detectiveError(w, err)
@@ -322,6 +394,31 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		detectiveJSON(w, 200, view)
+	case "state":
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", 405)
+			return
+		}
+		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
+		if after < 0 {
+			detectiveError(w, errors.New("invalid event cursor"))
+			return
+		}
+		view, err := s.Detective.Live(key)
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		events, err := s.Detective.Events(key, after)
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		next := after
+		if n := len(events); n > 0 {
+			next = events[n-1].ID
+		}
+		detectiveJSON(w, 200, map[string]any{"live": view, "events": events, "next": next})
 	case "run":
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", 405)
@@ -334,7 +431,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			c, _ := s.Detective.Get(key)
-			detectiveJSON(w, 200, c)
+			detectiveJSON(w, 200, detectiveCaseView(c))
 			return
 		}
 		c, err := s.Detective.Start(key, req.Action, req.Effort, req.Key, req.Answer)
@@ -342,7 +439,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			detectiveError(w, err)
 			return
 		}
-		detectiveJSON(w, 202, c)
+		detectiveJSON(w, 202, detectiveCaseView(c))
 	case "export", "autor":
 		autor := parts[2] == "autor"
 		if (!autor && r.Method != http.MethodGet) || (autor && r.Method != http.MethodPost) {
@@ -373,7 +470,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			path := fmt.Sprintf("Documents/Detective/%s-r%d-%d.docx", key, revision, time.Now().UnixNano())
 			_, err = s.DesktopService.WriteFileBytesConditional(ctx, path, artifact.Data, desktop.SourceUser, func(state desktop.FileWriteState) error {
 				if state.Exists {
-					return errors.New("export copy already exists")
+					return errDetectiveCopyExists
 				}
 				return nil
 			})

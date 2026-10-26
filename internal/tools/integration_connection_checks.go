@@ -1,9 +1,11 @@
 package tools
 
 import (
+	"aurago/internal/config"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/minio/minio-go/v7"
 	"io"
 	"net/http"
 	"net/url"
@@ -100,24 +102,65 @@ func CheckProxmoxConnection(ctx context.Context, cfg ProxmoxConfig) error {
 // CheckS3Connection checks only the configured bucket. It does not list,
 // upload, delete, or modify any object.
 func CheckS3Connection(ctx context.Context, cfg S3Config) error {
-	if strings.TrimSpace(cfg.Bucket) == "" {
+	if c := cfg.Config; c != nil && s3Provider(c) == config.S3ProviderRustFS {
+		readable := false
+		for _, location := range c.RustFS.Permissions.AllowedLocations {
+			readable = readable || len(location.Prefixes) > 0
+		}
+		if !c.RustFS.AgentAccess || !c.RustFS.Permissions.AllowRead || !readable {
+			return ErrS3ReadVerificationUnavailable
+		}
+	}
+	resolved, release, err := acquireS3Config(ctx, cfg, false)
+	if err != nil {
+		return err
+	}
+	defer release()
+	cfg = resolved
+	bucket, prefix := cfg.Bucket, ""
+	if cfg.managed() {
+		found := false
+		for _, location := range cfg.Config.RustFS.Permissions.AllowedLocations {
+			for _, candidate := range location.Prefixes {
+				if cfg.allows(location.Bucket, candidate, "read") {
+					bucket, prefix, found = location.Bucket, candidate, true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return ErrS3ReadVerificationUnavailable
+		}
+	}
+	if strings.TrimSpace(bucket) == "" {
 		return errors.New("S3 bucket is not configured")
 	}
 	if strings.TrimSpace(cfg.AccessKey) == "" || strings.TrimSpace(cfg.SecretKey) == "" {
 		return errors.New("S3 credentials are not configured")
 	}
-	security.RegisterSensitive(cfg.AccessKey)
-	security.RegisterSensitive(cfg.SecretKey)
-
 	client, err := newS3Client(cfg)
 	if err != nil {
 		return fmt.Errorf("S3 client initialization failed: %w", err)
 	}
-	exists, err := client.BucketExists(ctx, cfg.Bucket)
+	if cfg.managed() {
+		probeCtx, cancel := context.WithCancel(cfg.requestContext())
+		defer cancel()
+		for object := range client.ListObjects(probeCtx, bucket, minio.ListObjectsOptions{Prefix: prefix, MaxKeys: 1}) {
+			if object.Err != nil {
+				return errors.New("S3 permitted prefix is not accessible")
+			}
+			break
+		}
+		return cfg.check()
+	}
+	exists, err := client.BucketExists(cfg.requestContext(), bucket)
 	if err != nil || !exists {
 		return errors.New("S3 bucket is not accessible")
 	}
-	return nil
+	return cfg.check()
 }
 
 // CheckAnsibleConnection calls only the sidecar status endpoint. It never

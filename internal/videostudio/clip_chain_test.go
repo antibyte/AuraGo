@@ -934,7 +934,7 @@ func TestClipChainBlurSnapshots(t *testing.T) {
 	still := chain(1, clip(func(*Clip) {}), true, 320, 180)
 	p := "vs_an_0_1_"
 	alphaMask := func(n int) string {
-		return fmt.Sprintf("color=c=white:s=4x4:r=25:d=0.800000,trim=end_frame=20,setpts=PTS-STARTPTS,format=gbrp,sendcmd=f=vs_cmd_0_1_m%[1]d.txt,colorchannelmixer@vs_animk_0_1_%[1]d=rr=0:gg=0:bb=0,split=3[%[2]skc%[1]d][%[2]ska%[1]d][%[2]skg%[1]d];[%[2]skc%[1]d]scale=w=320:h=180:flags=neighbor,format=gbrp[%[2]sc%[1]d];[%[2]skg%[1]d]extractplanes=g[%[2]skp%[1]d];[%[2]ska%[1]d][%[2]skp%[1]d]alphamerge,scale=w=320:h=180:flags=neighbor,format=gbrap[%[2]sa%[1]d]", n, p)
+		return fmt.Sprintf("color=c=white:s=4x4:r=25:d=0.800000,trim=end_frame=20,setpts=PTS-STARTPTS,format=gbrp,sendcmd=f=vs_cmd_0_1_m%[1]d.txt,colorchannelmixer@vs_animk_0_1_%[1]d=rr=0:gg=0:bb=0,split=3[%[2]skc%[1]d][%[2]ska%[1]d][%[2]skg%[1]d];[%[2]skc%[1]d]scale=w=320:h=180:flags=neighbor,format=gbrp[%[2]sc%[1]d];[%[2]skg%[1]d]extractplanes=g[%[2]skp%[1]d];[%[2]ska%[1]d]format=gbrap[%[2]skq%[1]d];[%[2]skq%[1]d][%[2]skp%[1]d]alphamerge,scale=w=320:h=180:flags=neighbor,format=gbrap[%[2]sa%[1]d]", n, p)
 	}
 	wantStill := "format=gbrap,premultiply=inplace=1:enable='" + enable + "',split=4[" + p + "s1][" + p + "s2][" + p + "b1][" + p + "b2];" +
 		"[" + p + "b1]gblur=sigma=3.6:steps=4:enable='" + enable + "'[" + p + "g1];" +

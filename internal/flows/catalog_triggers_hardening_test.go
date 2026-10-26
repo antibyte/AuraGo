@@ -44,7 +44,7 @@ func TestTriggerUntrustedOutputTable(t *testing.T) {
 	want := map[string]bool{
 		TypeTriggerManual: false, TypeTriggerSchedule: false, TypeTriggerDateTime: false,
 		TypeTriggerWebhook: true, TypeTriggerEmail: true, TypeTriggerMQTT: true,
-		TypeTriggerHAState: false, TypeTriggerDevice: false, TypeTriggerFritzBox: true,
+		TypeTriggerHAState: true, TypeTriggerDevice: false, TypeTriggerFritzBox: true,
 		TypeTriggerPlanner: true, TypeTriggerStartup: false, TypeTriggerBudget: false,
 		TypeTriggerMission: true, TypeTriggerPersonDetected: false,
 	}

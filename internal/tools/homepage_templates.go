@@ -1,14 +1,15 @@
 package tools
 
 import (
-	"encoding/base64"
+	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/fileutil"
 )
 
 // ─── Homepage Project Templates ──────────────────────────────────────────
@@ -31,6 +32,9 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 		logger.Warn("[Homepage] Unknown template, skipping", "template", template)
 		return ""
 	}
+	if err := sanitizeProjectDir(projectName); err != nil {
+		return errJSON("%v", err)
+	}
 
 	logger.Info("[Homepage] Applying template", "template", template, "files", len(files))
 
@@ -48,23 +52,20 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 				logger.Warn("[Homepage] Template: failed to create dir", "path", f.path, "error", err)
 				continue
 			}
-			if err := os.WriteFile(fullPath, []byte(f.content), 0644); err != nil {
+			if err := fileutil.WriteFileContext(context.Background(), fullPath, []byte(f.content), 0644); err != nil {
 				logger.Warn("[Homepage] Template: failed to write", "path", f.path, "error", err)
 			}
 		}
 		return ""
 	}
 
-	// Docker mode: write files via base64 + DockerExec and verify success.
+	// Docker mode: write files through the archive transport, so file content
+	// never reaches a shell argument.
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	for _, f := range files {
-		encoded := base64.StdEncoding.EncodeToString([]byte(f.content))
-		dir := path.Dir(f.path)
-		cmd := fmt.Sprintf("mkdir -p /workspace/%s/%s && printf '%%s' '%s' | base64 -d > /workspace/%s/%s",
-			projectName, dir, encoded, projectName, f.path)
-		result := homepageDockerExecFunc(dockerCfg, homepageContainerName, cmd, "")
-		if errMsg := homepageDockerExecErrorMessage(result); errMsg != "" {
-			return errJSON("template file write failed for %s: %s", f.path, errMsg)
+		relPath := projectName + "/" + path.Clean(f.path)
+		if err := homepageWriteDockerFile(dockerCfg, relPath, f.content); err != nil {
+			return errJSON("template file write failed for %s: %s", f.path, err)
 		}
 	}
 	return ""

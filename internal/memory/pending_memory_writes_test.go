@@ -2,8 +2,10 @@ package memory
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestPendingMemoryWriteQueueDeduplicatesAndRetries(t *testing.T) {
@@ -49,6 +51,34 @@ func TestPendingMemoryWriteQueueDeduplicatesAndRetries(t *testing.T) {
 	if count, _ := stm.CountPendingMemoryWrites(); count != 0 {
 		t.Fatalf("pending count after completion = %d", count)
 	}
+}
+
+func TestPendingMemoryWriteErrorsAreScrubbedAndUTF8Bounded(t *testing.T) {
+	stm := setupLearnedRulesTest(t)
+	write := PendingMemoryWrite{Concept: "bounded error", Content: "durable payload"}
+	longCause := errors.New(strings.Repeat("é", pendingMemoryWriteLastErrorMaxBytes))
+	if err := stm.EnqueuePendingMemoryWrite(write, longCause); err != nil {
+		t.Fatalf("enqueue pending write: %v", err)
+	}
+	var id int64
+	if err := stm.db.QueryRow(`SELECT id FROM pending_memory_writes WHERE concept=?`, write.Concept).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	assertBoundedError := func(stage string) {
+		t.Helper()
+		var stored string
+		if err := stm.db.QueryRow(`SELECT last_error FROM pending_memory_writes WHERE id=?`, id).Scan(&stored); err != nil {
+			t.Fatal(err)
+		}
+		if len(stored) > pendingMemoryWriteLastErrorMaxBytes || !utf8.ValidString(stored) {
+			t.Fatalf("%s last_error bytes=%d validUTF8=%v", stage, len(stored), utf8.ValidString(stored))
+		}
+	}
+	assertBoundedError("enqueue")
+	if err := stm.MarkPendingMemoryWriteFailed(id, longCause, time.Now().UTC()); err != nil {
+		t.Fatalf("mark failed: %v", err)
+	}
+	assertBoundedError("failure")
 }
 
 func TestPendingMemoryWriteQueueStopsAfterAttemptLimit(t *testing.T) {

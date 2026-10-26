@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -282,7 +281,7 @@ func TestVirtualComputersPreviewProxyClosesWebSocketAfterAuthorizationRevocation
 				if !revokeRequestSession(s, req) {
 					t.Fatal("could not revoke session")
 				}
-				key := sha256.Sum256([]byte(s.Cfg.Auth.SessionSecret + "\x00" + session))
+				key := sessionRevocationKey(s.Cfg.Auth.SessionSecret, session)
 				t.Cleanup(func() {
 					revokedSessions.Lock()
 					delete(revokedSessions.entries, key)

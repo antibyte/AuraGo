@@ -5,23 +5,27 @@ package decisions
 import (
 	"fmt"
 	"os/exec"
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
 // Match the managed-runtime job policy: closing the job also reaps descendants.
-func runDiscoveryCommand(command *exec.Cmd) error {
+func startRuntimeCommand(command *exec.Cmd) (func(), error) {
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer windows.CloseHandle(job)
+	var once sync.Once
+	cleanup := func() { once.Do(func() { _ = windows.CloseHandle(job) }) }
 	limits := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{}
 	limits.BasicLimitInformation.LimitFlags = windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 	if _, err = windows.SetInformationJobObject(job, windows.JobObjectExtendedLimitInformation, uintptr(unsafe.Pointer(&limits)), uint32(unsafe.Sizeof(limits))); err != nil {
-		return err
+		cleanup()
+		return nil, err
 	}
 	command.Cancel = func() error { return windows.TerminateJobObject(job, 1) }
 	if command.SysProcAttr == nil {
@@ -29,8 +33,10 @@ func runDiscoveryCommand(command *exec.Cmd) error {
 	}
 	// Assign the job before any child code can spawn an unowned descendant.
 	command.SysProcAttr.CreationFlags |= windows.CREATE_SUSPENDED
+	command.WaitDelay = 2 * time.Second
 	if err = command.Start(); err != nil {
-		return err
+		cleanup()
+		return nil, err
 	}
 	handle, err := windows.OpenProcess(windows.PROCESS_SET_QUOTA|windows.PROCESS_TERMINATE, false, uint32(command.Process.Pid))
 	if err == nil {
@@ -41,11 +47,12 @@ func runDiscoveryCommand(command *exec.Cmd) error {
 		err = resumeDiscoveryProcess(uint32(command.Process.Pid))
 	}
 	if err != nil {
+		cleanup()
 		_ = command.Process.Kill()
 		_ = command.Wait()
-		return err
+		return nil, err
 	}
-	return command.Wait()
+	return cleanup, nil
 }
 
 func resumeDiscoveryProcess(pid uint32) error {

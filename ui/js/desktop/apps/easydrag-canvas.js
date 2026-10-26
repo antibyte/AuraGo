@@ -9,6 +9,19 @@
     const READABLE_ZOOM = 0.8;
     const READABLE_PAD = 48;
     const ZOOMED_OUT = 0.7;
+    const PORT_TIP_KEY = 'aurago.easydrag.hint.ports';
+    // CARD_TEXT_MAX is how many characters a card's summary value keeps; a longer one ends at a word
+    // with "…" and the card's tooltip holds the whole text.
+    const CARD_TEXT_MAX = 56;
+
+    // clip shortens text to about max characters at a word boundary (when one lies in the second half)
+    // and adds "…"; text that fits stays as it is.
+    function clip(text, max) {
+        if (text.length <= max) return text;
+        const space = text.slice(0, max + 1).lastIndexOf(' ');
+        const cut = space >= max / 2 ? text.slice(0, space) : text.slice(0, max - 1);
+        return cut.replace(/[\s,;:.·–-]+$/, '') + '…';
+    }
 
     // portLabel names the output port of node n: switch cases and decision choices by their
     // configured labels, any other port by its translation. The connect picker uses it too.
@@ -38,6 +51,9 @@
         // drawn from, by node id.
         const signatures = new Map();
         const states = new Map();
+        // renderStats counts card renders (renderNode), state paints (paintState) and wire draws
+        // (wires.js); the b5 F6 check reads them to guard the cost of run events.
+        if (!ed.renderStats) ed.renderStats = { cards: 0, paints: 0, wires: 0 };
 
         const el = core.el(
             '<div class="ed-canvas" tabindex="0" role="application" aria-roledescription="' + esc(t('easydrag.ui.canvas_role')) + '" aria-label="' + esc(t('easydrag.ui.canvas_label')) + '">' +
@@ -50,6 +66,8 @@
             '<div class="ed-empty" hidden><div class="ed-empty-card">' + core.icon('bolt', 'ed-empty-icon') +
             '<h3>' + esc(t('easydrag.ui.empty_title')) + '</h3><p>' + esc(t('easydrag.ui.empty_text')) + '</p>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-empty-add>' + core.icon('plus') + '<span>' + esc(t('easydrag.ui.empty_action')) + '</span></button></div></div>' +
+            '<div class="ed-port-tip" data-ed-port-tip hidden>' + core.icon('info') + '<span>' + esc(t('easydrag.ui.port_tip')) + '</span>' +
+            '<button type="button" class="ed-icon-btn" data-ed-port-tip-close aria-label="' + esc(t('easydrag.ui.port_tip_dismiss')) + '" title="' + esc(t('easydrag.ui.port_tip_dismiss')) + '">' + core.icon('x') + '</button></div>' +
             '<div class="ed-zoom" role="toolbar" aria-label="' + esc(t('easydrag.ui.zoom_label')) + '">' +
             '<button type="button" class="ed-icon-btn" data-ed-zoom="out" title="' + esc(t('easydrag.ui.zoom_out')) + '" aria-label="' + esc(t('easydrag.ui.zoom_out')) + '">' + core.icon('minus') + '</button>' +
             '<button type="button" class="ed-zoom-value" data-ed-zoom="reset" title="' + esc(t('easydrag.ui.zoom_reset')) + '">100%</button>' +
@@ -57,9 +75,12 @@
             '<button type="button" class="ed-icon-btn" data-ed-zoom="fit" title="' + esc(t('easydrag.ui.zoom_fit')) + ' (' + esc(core.shortcut('Shift+1')) + ')" aria-label="' + esc(t('easydrag.ui.zoom_fit')) + '">' + core.icon('fit') + '</button>' +
             '</div>' +
             '<div class="ed-minimap" title="' + esc(t('easydrag.ui.minimap')) + '"><svg viewBox="0 0 200 130" preserveAspectRatio="xMidYMid meet"><g class="ed-minimap-wires"></g><g class="ed-minimap-nodes"></g><rect class="ed-minimap-view" rx="3"></rect></svg></div>' +
-            '<ul class="ed-sr-only ed-node-list" aria-label="' + esc(t('easydrag.ui.node_list')) + '"></ul>' +
             '<div class="ed-sr-only" aria-live="polite" data-ed-live></div>' +
             '</div>');
+
+        // The screen-reader step list is a region beside the canvas, not inside it: role="application"
+        // keeps browse mode out of its content (U4). The editor appends listRegion to .ed-body.
+        const listRegion = core.el('<section class="ed-sr-only ed-node-region" aria-label="' + esc(t('easydrag.ui.node_list')) + '"><ul class="ed-node-list"></ul></section>');
 
         const grid = el.querySelector('.ed-grid');
         const world = el.querySelector('.ed-world');
@@ -70,8 +91,19 @@
         const minimap = el.querySelector('.ed-minimap svg');
         const minimapWires = minimap.querySelector('.ed-minimap-wires');
         const minimapNodes = minimap.querySelector('.ed-minimap-nodes');
-        const listEl = el.querySelector('.ed-node-list');
+        const listEl = listRegion.querySelector('.ed-node-list');
         const liveEl = el.querySelector('[data-ed-live]');
+
+        // The port tip (U14) explains connecting until the first flow with a connection is seen on this
+        // device or the tip is dismissed (PORT_TIP_KEY).
+        const portTip = el.querySelector('[data-ed-port-tip]');
+        portTip.hidden = true;
+        let portTipSeen = !!core.storage.get(PORT_TIP_KEY, false);
+        function syncPortTip() {
+            const doc = ed.model.doc;
+            if (doc.edges.length && !ed.runView && !portTipSeen) { portTipSeen = true; core.storage.set(PORT_TIP_KEY, true); }
+            portTip.hidden = !!(ed.readonly || ed.runView || portTipSeen || doc.nodes.length < 2 || doc.edges.length);
+        }
 
         // Every timeout the canvas starts is tracked, so dispose can clear the ones still pending.
         const timers = new Set();
@@ -265,7 +297,7 @@
 
         // ── node cards ──────────────────────────────────────────────────────────
 
-        function displayValue(n, i, name) {
+        function displayValue(n, i, name, max) {
             const spec = (i.params || []).find(p => p.name === name);
             let value = n.params[name];
             if (value === undefined && spec) value = spec.default;
@@ -282,7 +314,7 @@
                 return '‹' + label + (field ? ' › ' + field : '') + '›';
             });
             text = text.replace(/\s+/g, ' ').trim();
-            return text.length > 56 ? text.slice(0, 55) + '…' : text;
+            return clip(text, max);
         }
 
         // byKey looks a node up by key like model.byKey (the first node wins), without a scan per call.
@@ -296,9 +328,9 @@
             return keyIndex.get(key) || null;
         }
 
-        function summary(n, i) {
+        function summary(n, i, max) {
             if (!i) return n.type;
-            const text = String(i.summary || '').replace(/\{([a-z_]+)\}/g, (m, name) => displayValue(n, i, name)).trim();
+            const text = String(i.summary || '').replace(/\{([a-z_]+)\}/g, (m, name) => displayValue(n, i, name, max)).trim();
             return text.replace(/^[·\s]+|[·\s]+$/g, '');
         }
 
@@ -307,18 +339,54 @@
             return step ? step.status : '';
         }
 
-        function nodeIssues(id) { return (ed.issues || []).filter(is => is.node_id === id && is.severity === 'error'); }
+        // issueCounts counts the open error issues per step once per pass (a scan per card was O(V·I)).
+        function issueCounts() {
+            const counts = new Map();
+            (ed.issues || []).forEach(is => { if (is && is.severity === 'error' && is.node_id) counts.set(is.node_id, (counts.get(is.node_id) || 0) + 1); });
+            return counts;
+        }
+
+        // paintCard brings a card's run status, badges, error box and accessible name up to date when
+        // they changed, without touching its markup: run events and new issues come through here (F6).
+        // The signature holds everything a run event or an issue can change on a card.
+        function paintCard(n, counts) {
+            const card = nodeEls.get(n.id);
+            if (!card) return;
+            const status = statusOf(n.id);
+            const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
+            const issues = counts.get(n.id) || 0;
+            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, step && !!step.effect_uncertain, issues]);
+            if (states.get(n.id) === state) return;
+            states.set(n.id, state);
+            const nextClass = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
+            if (card.className !== nextClass) card.className = nextClass;
+            paintState(card, n, info(n), status, step, issues);
+        }
+
+        // cardName is a card's accessible name (U7): its label and its state (turned off, not set up or
+        // blocked, open issues, the run status), so a screen reader hears more than the name.
+        function cardName(n, i, status, issues) {
+            const parts = [n.label || n.type];
+            if (n.settings && n.settings.disabled) parts.push(t('easydrag.ui.card_state_off'));
+            const avail = i ? (i.availability || {}).state : '';
+            if (!i) parts.push(t('easydrag.ui.badge_unknown'));
+            else if (avail === 'needs_setup') parts.push(t('easydrag.ui.badge_needs_setup'));
+            else if (avail === 'blocked') parts.push(t('easydrag.ui.badge_blocked'));
+            if (issues) parts.push(t('easydrag.ui.badge_incomplete'));
+            if (status) parts.push(core.tr(t, 'easydrag.ui.status_' + status, status));
+            return parts.join(', ');
+        }
 
         // badgesMarkup draws a card's badges: availability, risk, open issues and the run status
         // with its duration.
-        function badgesMarkup(n, i, status, step) {
+        function badgesMarkup(n, i, status, step, issues) {
             const avail = i ? (i.availability || {}).state : 'missing';
             const badges = [];
             if (!i) badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_unknown')) + '">' + core.icon('alert') + '</span>');
             else if (avail === 'needs_setup') badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_needs_setup')) + '">' + core.icon('settings') + '</span>');
             else if (avail === 'blocked') badges.push('<span class="ed-badge ed-badge--warn" title="' + esc(t('easydrag.ui.badge_blocked')) + '">' + core.icon('lock') + '</span>');
             if (i && i.risky) badges.push('<span class="ed-badge ed-badge--risk" title="' + esc(t('easydrag.ui.badge_risky')) + '">' + core.icon('alert') + '</span>');
-            if (nodeIssues(n.id).length) badges.push('<span class="ed-badge ed-badge--issue" title="' + esc(t('easydrag.ui.badge_incomplete')) + '"></span>');
+            if (issues) badges.push('<span class="ed-badge ed-badge--issue" title="' + esc(t('easydrag.ui.badge_incomplete')) + '"></span>');
             if (status) {
                 const label = core.tr(t, 'easydrag.ui.status_' + status, status);
                 const dur = step && step.duration_ms ? ' · ' + core.fmt.duration(step.duration_ms) : '';
@@ -330,9 +398,11 @@
         // paintState shows what runs and checks change on a card (badges, run status, a failed
         // step's error) in place: the card's markup, its tool buttons among it, stays, so a focused
         // tool keeps the focus while a run goes on.
-        function paintState(card, n, i, status, step) {
+        function paintState(card, n, i, status, step, issues) {
+            ed.renderStats.paints++;
+            card.setAttribute('aria-label', cardName(n, i, status, issues));
             const badges = card.querySelector('.ed-node-badges');
-            if (badges) badges.innerHTML = badgesMarkup(n, i, status, step);
+            if (badges) badges.innerHTML = badgesMarkup(n, i, status, step, issues);
             const text = status === 'error' && step ? core.stepErrorText(t, step) : '';
             let box = card.querySelector('.ed-node-error');
             if (!text) { if (box) box.remove(); return; }
@@ -345,7 +415,7 @@
         }
 
         // cardMarkup draws a card without its state (paintState fills the badges and the error).
-        function cardMarkup(n, sum) {
+        function cardMarkup(n, sum, whole) {
             const i = info(n);
             const ports = ed.model.outputs(n);
             const ins = ed.model.inputs(n);
@@ -360,7 +430,7 @@
                     '<button type="button" class="ed-port-add" tabindex="-1" data-ed-port-add="' + esc(p) + '" aria-label="' + esc(t('easydrag.ui.port_add')) + '">' + core.icon('plus') + '</button></span>';
             }).join('');
             const ro = ed.readonly || ed.runView;
-            const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar">' +
+            const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar" aria-label="' + esc(t('easydrag.ui.node_tools', { name: n.label || n.type })) + '">' +
                 toolButton('add', 'plus', t('easydrag.ui.port_add')) +
                 toolButton('connect', 'link', t('easydrag.ui.keys_connect')) +
                 toolButton('test', 'flask', t('easydrag.ui.node_test')) +
@@ -372,7 +442,7 @@
             const typeLine = !i ? n.type : n.label && n.label !== i.label ? i.label : (i.description || '');
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
                 '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
-                (sum ? '<div class="ed-node-summary">' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
+                (sum ? '<div class="ed-node-summary"' + (whole && whole !== sum ? ' title="' + esc(whole) + '"' : '') + '>' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted">' + esc(typeLine) + '</div>' : '') + '</div>' +
                 '<div class="ed-node-badges"></div>' + inPorts + outPorts + tools;
         }
 
@@ -402,7 +472,8 @@
             return cls.join(' ');
         }
 
-        function renderNode(n) {
+        function renderNode(n, counts) {
+            ed.renderStats.cards++;
             let card = nodeEls.get(n.id);
             if (!card) {
                 card = document.createElement('div');
@@ -418,17 +489,14 @@
             const i = info(n);
             card.className = classesFor(n) + (card.classList.contains('is-new') ? ' is-new' : '');
             card.dataset.cat = core.catOf(i);
-            card.setAttribute('aria-label', n.label || n.type);
             card.style.transform = 'translate(' + n.position.x + 'px,' + n.position.y + 'px)';
             card.style.height = G.nodeHeight(outCount(n)) + 'px';
             named.set(n.id, n.key + '|' + n.label);
-            const status = statusOf(n.id);
-            const step = ed.run && ed.run.steps && ed.run.steps.get(n.id);
             // The summary shows the labels of referenced nodes, so it is part of the signature. The
             // selection is not: it only sets the is-selected class. A run's status, duration and
             // error and the open issues are not either: paintState updates them in place, so run
             // events never replace the tool buttons (a focused one would drop the focus to body).
-            const sum = summary(n, i);
+            const sum = summary(n, i, CARD_TEXT_MAX);
             const sig = JSON.stringify([n.label, n.type, n.params, n.settings, i && i.availability, !!ed.runView, ed.readonly, ed.model.outputs(n), sum]);
             // A rebuild replaces the tool buttons: a tool that had the focus (Disable from the
             // keyboard changes the step) gives it to its new button with the same action.
@@ -438,14 +506,10 @@
                 if (active && active !== card && card.contains(active) && active.dataset) focusedTool = active.dataset.edNodeTool || null;
                 signatures.set(n.id, sig);
                 states.delete(n.id);
-                card.innerHTML = cardMarkup(n, sum);
+                card.innerHTML = cardMarkup(n, sum, summary(n, i, Infinity));
                 toolsOn.delete(n.id);
             }
-            const state = JSON.stringify([status, step && step.duration_ms, step && step.error_code, step && step.error_message, nodeIssues(n.id).length]);
-            if (states.get(n.id) !== state) {
-                states.set(n.id, state);
-                paintState(card, n, i, status, step);
-            }
+            paintCard(n, counts || issueCounts());
             syncTools(card, n.id);
             // Only a selected card's tools are tab stops: the focus of a card no longer selected
             // (Escape, then Ctrl+Z) goes to the canvas instead.
@@ -466,9 +530,10 @@
         }
 
         function renderNodes(ids) {
+            const counts = issueCounts();
             (ids || []).forEach(id => {
                 const n = ed.model.node(id);
-                if (n) renderNode(n);
+                if (n) renderNode(n, counts);
                 else removeNode(id);
             });
             afterRender();
@@ -487,7 +552,8 @@
         function render() {
             const present = new Set(ed.model.doc.nodes.map(n => n.id));
             Array.from(nodeEls.keys()).forEach(id => { if (!present.has(id)) removeNode(id); });
-            ed.model.doc.nodes.forEach(renderNode);
+            const counts = issueCounts();
+            ed.model.doc.nodes.forEach(n => renderNode(n, counts));
             afterRender();
         }
 
@@ -495,13 +561,33 @@
             emptyEl.hidden = ed.model.doc.nodes.length > 0 || !!ed.runView;
             minimapFrame.request();
             listUpdate();
+            syncPortTip();
         }
 
-        function refreshClasses() {
-            ed.model.doc.nodes.forEach(n => {
-                const card = nodeEls.get(n.id);
-                if (card) renderNode(n);
-            });
+        // The run painted last and how far its change log (ed.run.changes, runs.js) was followed. A new
+        // run object, one without a log, or no run repaints every card's state; markup never changes here.
+        let runShown = null;
+        let runSeen = 0;
+        function onRun() {
+            const run = ed.run;
+            const log = run && Array.isArray(run.changes) ? run.changes : null;
+            const counts = issueCounts();
+            if (!run || run !== runShown || !log || runSeen > log.length) {
+                runShown = run;
+                runSeen = log ? log.length : 0;
+                ed.model.doc.nodes.forEach(n => paintCard(n, counts));
+            } else {
+                const ids = new Set(log.slice(runSeen));
+                runSeen = log.length;
+                ids.forEach(id => { const n = ed.model.node(id); if (n) paintCard(n, counts); });
+            }
+            selectionTick++;
+            minimapFrame.request();
+        }
+
+        function onIssues() {
+            const counts = issueCounts();
+            ed.model.doc.nodes.forEach(n => paintCard(n, counts));
             selectionTick++;
             minimapFrame.request();
         }
@@ -713,8 +799,10 @@
             }).join('');
         }
 
-        // announce speaks text through the canvas's live region (core.announcer).
+        // announce speaks text through the canvas's live region (core.announcer). ed.announce lets the
+        // modules without a canvas (the palette, the inspector) speak too (core.say).
         function announce(text) { voice.announce(text); }
+        ed.announce = announce;
 
         bag.listen(listEl, 'click', (event) => {
             const btn = event.target.closest('[data-ed-focus-node]');
@@ -736,6 +824,13 @@
             ed.bus.emit('quick-add', { x: s.left + s.w / 2, y: s.top + s.h / 2, filter: 'trigger' });
         });
 
+        bag.listen(portTip.querySelector('[data-ed-port-tip-close]'), 'click', () => {
+            portTipSeen = true;
+            core.storage.set(PORT_TIP_KEY, true);
+            portTip.hidden = true;
+            el.focus({ preventScroll: true });
+        });
+
         bag.add(ed.bus.on('model', change => {
             if (change.kind === 'reset') forgetCaches();
             // A node that comes, goes or gets a new key or label can change the summaries of other cards:
@@ -744,8 +839,8 @@
             else renderNodes(change.nodes.concat(affectedByEdges(change.edges)));
         }));
         bag.add(ed.bus.on('selection', refreshSelection));
-        bag.add(ed.bus.on('run', refreshClasses));
-        bag.add(ed.bus.on('issues', refreshClasses));
+        bag.add(ed.bus.on('run', onRun));
+        bag.add(ed.bus.on('issues', onIssues));
 
         function affectedByEdges(edgeIds) {
             const ids = new Set();
@@ -769,13 +864,13 @@
         });
 
         return {
-            el, world, wiresSvg, nodesHost,
+            el, world, wiresSvg, nodesHost, listRegion,
             render, renderNodes, setView, fit, zoomBy, centerOn, center, setCenter, restoreView, anyNodeVisible, size, clientToWorld, nodeRect, announce,
             autoLayout, alignSelection,
             nodeEl: id => nodeEls.get(id) || null,
-            dispose() { bag.dispose(); }
+            dispose() { bag.dispose(); listRegion.remove(); }
         };
     }
 
-    ED.canvas = { create, portLabel };
+    ED.canvas = { create, portLabel, clip };
 })();

@@ -71,6 +71,7 @@ func (s *Server) ensureCydHub() *cyd.Hub {
 		}
 		s.CfgMu.RUnlock()
 		s.CydHub.SetSpeakDataDir(dataDir)
+		s.useActiveGlassSpeech(s.CydHub)
 	}
 	return s.CydHub
 }
@@ -351,7 +352,22 @@ func (s *Server) pushCydMeshIncoming(conversationID string) {
 			title, body = meshIncomingSpeech(convos, conversationID)
 		}
 	}
-	s.CydHub.Notify(title, body, "high", 20)
+	s.CydHub.NotifySpeech(title, body, cyd.MeshAnnounce(cydAnnounceLanguage(s.ConfigSnapshot())), "high", 20)
+}
+
+// cydAnnounceLanguage prefers the configured system language, then the UI
+// language, then the voice language. MeshCore speech uses only that phrase.
+func cydAnnounceLanguage(cfg *config.Config) string {
+	if cfg == nil {
+		return "en"
+	}
+	for _, lang := range []string{cfg.Agent.SystemLanguage, cfg.Server.UILanguage} {
+		lang = strings.TrimSpace(lang)
+		if lang != "" && !strings.EqualFold(lang, "auto") {
+			return lang
+		}
+	}
+	return cfg.SanoTTSLanguage("")
 }
 
 func meshIncomingSpeech(convos []meshcore.Conversation, conversationID string) (title, body string) {

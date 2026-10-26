@@ -81,6 +81,10 @@ type StepRecord struct {
 	Ports           []string       `json:"ports,omitempty"`
 	ErrorCode       string         `json:"error_code,omitempty"`
 	ErrorMessage    string         `json:"error_message,omitempty"`
+	// EffectUncertain marks a step that was still running when the run ended it (cut off after a
+	// stop's grace, cancelled or abandoned) while its node declares an outward effect: what it
+	// sends or changes may already have happened.
+	EffectUncertain bool `json:"effect_uncertain,omitempty"`
 }
 
 // Run event types.

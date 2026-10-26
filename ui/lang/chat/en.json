@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Also delete associated memories",
   "chat.sessions_delete_backups": "Backups may retain deleted data until their scheduled cleanup.",
   "chat.sessions_delete_failed": "The chat could not be completely deleted. Refresh before retrying.",
+  "chat.sessions_delete_scope_conflict": "This chat already has a different memory-deletion choice. Refresh and check its status before trying again.",
   "chat.sessions_delete_report": "Deleted: {deleted}. Retained because ownership is shared, protected or unknown: {retained}.",
   "chat.speech_lab_auth_required": "AuraGo sign-in is required to open Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Configure the Speech Lab browser URL under Media → Speech Lab.",
@@ -301,5 +302,6 @@
   "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Give your agent a task …",
   "chat.galaxy_persona": "Your personality",
-  "chat.galaxy_mood": "Current mood"
+  "chat.galaxy_mood": "Current mood",
+  "chat.youtube_play": "Play"
 }

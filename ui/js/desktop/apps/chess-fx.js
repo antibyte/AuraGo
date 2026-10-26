@@ -274,15 +274,20 @@
         return '' +
             '<div class="vd-chess">' +
             '<section class="vd-chess-board-pane">' +
+            '<div class="vd-chess-pane-head">' +
+            '<div class="vd-chess-view-switch" data-chess-view-toggle role="group" aria-label="' + esc(t('desktop.chess_view_mode')) + '">' +
+            '<button type="button" data-chess-view="2d" class="is-active" aria-pressed="true">' + esc(t('desktop.chess_view_2d')) + '</button>' +
+            '<button type="button" data-chess-view="3d" aria-pressed="false">' + esc(t('desktop.chess_view_3d')) + '</button></div>' +
             '<div class="vd-chess-material-bar" data-material-bar>' +
             '<span class="vd-chess-material-side" aria-hidden="true">' + king + '</span>' +
             '<div class="vd-chess-material-track" title="' + esc(t('desktop.chess_material')) + '">' +
             '<div class="vd-chess-material-fill" data-material-fill></div></div>' +
-            '<span class="vd-chess-material-score" data-material-bar-score>0</span></div>' +
+            '<span class="vd-chess-material-score" data-material-bar-score>0</span></div></div>' +
             '<div class="vd-chess-board-shell">' +
             '<div class="vd-chess-fx-layer" data-fx-layer aria-hidden="true"></div>' +
             '<div class="vd-chess-board-frame" data-chess-board-frame>' +
-            '<div class="vd-chess-board" data-chess-board></div></div></div>' +
+            '<div class="vd-chess-board" data-chess-board></div>' +
+            '<div class="vd-chess-board-3d" data-chess-board-3d hidden></div></div></div>' +
             '<div class="vd-chess-ribbon">' +
             '<div class="vd-chess-status" data-status>' + esc(t('desktop.chess_loading')) + '</div>' +
             '<div class="vd-chess-comment" data-comment></div></div></section>' +
@@ -293,6 +298,11 @@
             '<div class="vd-chess-clock" data-clock="black"><span class="vd-chess-clock-side">' + king + '</span>' +
             '<span class="vd-chess-clock-time" data-black-time>--:--</span></div></div>' +
             '<div class="vd-chess-controls">' +
+            '<details class="vd-chess-settings" data-settings>' +
+            '<summary class="vd-chess-settings-summary">' + icon('settings', '⚙', 'vd-chess-settings-icon') +
+            '<span>' + esc(t('desktop.app_settings')) + '</span>' +
+            icon('chevron-down', '▾', 'vd-chess-settings-chevron') + '</summary>' +
+            '<div class="vd-chess-settings-grid">' +
             '<div class="vd-chess-field"><label for="chess-mode">' + esc(t('desktop.chess_mode')) + '</label>' +
             '<select id="chess-mode" data-mode>' +
             '<option value="computer">' + esc(t('desktop.chess_mode_computer')) + '</option>' +
@@ -316,6 +326,7 @@
             '<div class="vd-chess-segment" data-color-group>' +
             '<button type="button" data-color="white" class="active">' + esc(t('desktop.chess_color_white')) + '</button>' +
             '<button type="button" data-color="black">' + esc(t('desktop.chess_color_black')) + '</button></div></div>' +
+            '</div></details>' +
             '<div class="vd-chess-actions">' +
             '<button type="button" class="vd-chess-primary" data-new-game>' + icon('refresh', 'N') + '<span>' + esc(t('desktop.chess_new_game')) + '</span></button>' +
             '<button type="button" data-undo>' + icon('undo', 'U') + '<span>' + esc(t('desktop.chess_undo')) + '</span></button>' +
@@ -367,6 +378,36 @@
             if (typeof action === 'function') action();
         });
         root.appendChild(dialog);
+    }
+
+    function requestPromotionChoice(state, color) {
+        const existing = state.refs.root.querySelector('.vd-chess-promotion');
+        if (existing) existing.remove();
+        return new Promise(resolve => {
+            const choices = ['q', 'r', 'b', 'n'];
+            const names = {
+                q: state.ctx.t('desktop.chess_promo_queen'),
+                r: state.ctx.t('desktop.chess_promo_rook'),
+                b: state.ctx.t('desktop.chess_promo_bishop'),
+                n: state.ctx.t('desktop.chess_promo_knight')
+            };
+            const dialog = document.createElement('div');
+            dialog.className = 'vd-chess-promotion';
+            dialog.innerHTML = choices.map(piece => `<button type="button" data-piece="${piece}"><span class="vd-chess-promo-glyph vd-chess-piece-${piece}">${PIECE_GLYPH[piece]}</span><span>${state.ctx.esc(names[piece])}</span></button>`).join('');
+            dialog.addEventListener('click', event => {
+                const button = event.target.closest('[data-piece]');
+                if (!button) return;
+                dialog.remove();
+                resolve(button.dataset.piece);
+            });
+            state.refs.root.appendChild(dialog);
+            const first = dialog.querySelector('button');
+            if (first) first.focus();
+            window.setTimeout(() => {
+                if (!dialog.isConnected) return;
+                dialog.classList.toggle('is-black', color === 'b');
+            }, 0);
+        });
     }
 
     window.createChessFx = createChessFx;

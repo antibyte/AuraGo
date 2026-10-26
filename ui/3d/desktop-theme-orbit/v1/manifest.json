@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "generator": "Blender 5.2.2 LTS / assets/desktop-theme-orbit/generate.py",
+  "units": "metres",
+  "up_axis": "Y",
+  "license": "MIT",
+  "files": [
+    {
+      "name": "station.glb",
+      "bytes": 930756,
+      "sha256": "932a94df3774b7421f0fc6b60ca3e3ddeb8d7a495391048b1c9672c6ab3fde2c",
+      "triangles": 25136
+    },
+    {
+      "name": "shuttle.glb",
+      "bytes": 145228,
+      "sha256": "22c3d4ba1f86fd5ce2cf7d005fadc67f8a33d5a868ac4d80a9a3c8507bd3f1c5",
+      "triangles": 3804
+    },
+    {
+      "name": "satellite.glb",
+      "bytes": 171312,
+      "sha256": "9ad57179ad1853d21a7273bf21078e39b4bccbbf236ade21880b49448197a4e5",
+      "triangles": 3776
+    },
+    {
+      "name": "asteroids.glb",
+      "bytes": 119656,
+      "sha256": "312bef4619d1fcf1ce64297cbe0692656b9c6bf355dce55190a1711ef4b6fdc3",
+      "triangles": 3760
+    }
+  ]
+}

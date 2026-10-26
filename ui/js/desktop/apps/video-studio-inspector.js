@@ -209,7 +209,7 @@
     //   - a length slider in timeline frames over VideoStudioAnim.frameRange (0.2 to 3 s), with its output in seconds.
     //     It is disabled while the side has no animation.
     //   - [data-anim-clamped]: while the stored length is longer than half the clip, the render plays it over half the
-    //     clip (VideoStudioAnim.spans), and this hint says so (animClampText).
+    //     clip (VideoStudioAnim.spans), and this hint says so (animClampText; U+00A0 keeps the number with its unit).
     // The edits run in video-studio-inspector-effects.js (P.animChange, P.liveAnimDuration). animationRows returns ''
     // without VideoStudioAnim. The app loads it before the inspector (§5); the guard keeps Node checks working that
     // load the inspector alone.
@@ -217,7 +217,7 @@
     function animClampText(v, clip, side) {
         const anim = clip && clip['anim_' + side], played = anim ? window.VideoStudioAnim.spans(clip)[side] : 0;
         if (!anim || !(Number(anim.duration) > played)) return '';
-        return v.tr('animClamped', 'This clip is short: the animation plays over {{seconds}} s, half the clip.').split('{{seconds}}').join(formatSeconds(played, v.locale, v.project));
+        return v.tr('animClamped', 'This clip is short: the animation plays over {{seconds}}\xa0s, half the clip.').split('{{seconds}}').join(formatSeconds(played, v.locale, v.project));
     }
     function animationRows(v, clip) {
         const A = window.VideoStudioAnim;
@@ -291,6 +291,42 @@
         return `${summary}<div class="vs-tx-picker" data-tx-picker><div class="vs-tx-list">${transitionChoice(v, NO_TRANSITION, current)}</div>${groups}</div>`;
     }
 
+    // Arrow keys in the open transition picker (spec §8.6; plan index §4.26.9), DOM-free:
+    // - lists are the picker's lists in DOM order, [{count, columns, disabled: [bool]}], with columns measured from the
+    //   layout; current is {list, index};
+    // - ArrowLeft/ArrowRight: the previous/next enabled type in DOM order;
+    // - ArrowUp/ArrowDown: the same column in the previous/next row. Rows run on across the lists, and the column is
+    //   clamped to the target row's length. A disabled target moves on to the next row in the key's direction;
+    // - Home/End: the first/last enabled type.
+    // Returns {list, index}. It returns null at the ends (no wrap), for other keys and for an unknown position.
+    function pickerMove(lists, current, key) {
+        const cells = [], rows = [], off = [];
+        (Array.isArray(lists) ? lists : []).forEach((item, list) => {
+            const count = Math.max(0, Math.floor(Number(item && item.count) || 0)), columns = Math.max(1, Math.floor(Number(item && item.columns) || 1));
+            off[list] = item && Array.isArray(item.disabled) ? item.disabled : [];
+            for (let index = 0; index < count; index++) cells.push({ list, index, disabled: !!off[list][index] });
+            for (let start = 0; start < count; start += columns) rows.push({ list, start, length: Math.min(columns, count - start) });
+        });
+        const pick = cell => (cell ? { list: cell.list, index: cell.index } : null);
+        if (key === 'Home') return pick(cells.find(cell => !cell.disabled));
+        if (key === 'End') return pick(cells.slice().reverse().find(cell => !cell.disabled));
+        const at = current ? cells.findIndex(cell => cell.list === current.list && cell.index === current.index) : -1;
+        if (at < 0) return null;
+        if (key === 'ArrowLeft' || key === 'ArrowRight') {
+            const dir = key === 'ArrowRight' ? 1 : -1;
+            for (let i = at + dir; i >= 0 && i < cells.length; i += dir) if (!cells[i].disabled) return pick(cells[i]);
+            return null;
+        }
+        if (key !== 'ArrowUp' && key !== 'ArrowDown') return null;
+        const here = cells[at], step = key === 'ArrowDown' ? 1 : -1;
+        const row = rows.findIndex(r => r.list === here.list && here.index >= r.start && here.index < r.start + r.length), column = here.index - rows[row].start;
+        for (let k = row + step; k >= 0 && k < rows.length; k += step) {
+            const index = rows[k].start + Math.min(column, rows[k].length - 1);
+            if (!off[rows[k].list][index]) return { list: rows[k].list, index };
+        }
+        return null;
+    }
+
     function transitionSection(v, clip, info) {
         const current = clip.transition && clip.transition.type || 'none';
         const next = info && info.next, length = transitionLength(v.project, clip, next);
@@ -352,5 +388,5 @@
         host.innerHTML = `<div class="vs-insp-head"><span class="vs-insp-thumb vs-kind-${v.esc(kind)}"${thumb}>${thumb ? '' : v.icon(icon, 18)}</span><div class="vs-insp-title"><strong title="${v.esc(title)} · ${v.esc(track.name)}">${v.esc(title)}</strong><span class="vs-insp-meta"><small title="${v.esc(track.name)}">${v.esc(formatTime(clip.start, v.project))} – ${v.esc(formatTime(clip.start + clip.duration, v.project))}</small><span class="vs-insp-actions"><button type="button" class="vs-icon-button" data-action="clip-split" title="${v.esc(v.tr('splitHintShort', 'Split at the playhead (S)'))}" aria-label="${v.esc(v.tr('split', 'Split'))}">${v.icon('scissors', 16)}</button><button type="button" class="vs-icon-button" data-action="clip-duplicate" title="${v.esc(v.tr('duplicate', 'Duplicate'))}" aria-label="${v.esc(v.tr('duplicate', 'Duplicate'))}">${v.icon('copy', 16)}</button><button type="button" class="vs-icon-button vs-danger" data-action="clip-delete" title="${v.esc(v.tr('deleteHint', 'Delete (Del)'))}" aria-label="${v.esc(v.tr('delete', 'Delete'))}">${v.icon('trash', 16)}</button></span></span></div></div>${lock}${clip.text ? textSection(v, clip) : ''}${timeSection(v, clip, asset)}${clip.text ? '' : clipSection(v, clip, asset, track)}${visual ? pictureSection(v, clip) : ''}${visual && window.VideoStudioInspectorEffects ? window.VideoStudioInspectorEffects.section(v, clip, track) : ''}${animationSection(v, clip, asset, track, rampMuted)}${audioCapable ? soundSection(v, clip, rampMuted) : ''}${visual ? transitionSection(v, clip, v.transitionInfo) : ''}`;
     }
 
-    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor, MASK_FIELDS, blendJoins, animClampText, transitionLength };
+    window.VideoStudioInspector = { render, formatTime, parseTime, formatSeconds, presetBox, scaleBox, clampBox, findOverlaySlot, displayTracks, insertIndexFor, FONTS, keyframeTools, controlFor, MASK_FIELDS, blendJoins, animClampText, transitionLength, pickerMove };
 })();

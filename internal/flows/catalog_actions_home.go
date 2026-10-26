@@ -2,6 +2,7 @@ package flows
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 )
@@ -56,9 +57,8 @@ func registerHomeNodes(reg *Registry, env CatalogEnv) error {
 // shape (a sensor fed by mail, RSS, MQTT or a calendar, a media title), so the output
 // is untrusted. That also marks the answer of a service call as untrusted, which only
 // holds the service name and the ids of the changed entities; the lint cannot tell the
-// two operations apart. The trigger.ha_state trigger is pinned as trusted by a plan
-// test (catalog_triggers_test.go), which is inconsistent with this: the same states
-// reach the flow there.
+// two operations apart. trigger.ha_state is untrusted for the same reason: the same
+// states reach the flow there.
 //
 // Re-run: Retry runs the call again after a failure, and a service that is not
 // idempotent (toggle, a counter, a script) then runs twice.
@@ -74,9 +74,8 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 		{Name: "service", Kind: ParamText, LabelKey: "easydrag.param.ha_service", HelpKey: "easydrag.help.ha_service", Required: true, VisibleIf: callService},
 		{Name: "service_data", Kind: ParamJSON, LabelKey: "easydrag.param.ha_service_data", Templatable: true, SensitiveSink: true, VisibleIf: callService},
 	}
-	def.OutputFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
-		{Name: "affected_entities", Type: "list"}, {Name: "entity_id", Type: "text"},
-		{Name: "last_changed", Type: "text"}, {Name: "ok", Type: "bool"}, {Name: "service", Type: "text"}}
+	def.OutputFields = haAllFields
+	def.OutputFieldsFunc = homeAssistantFields
 	def.EffectsFunc = homeAssistantEffects
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
 		if n == nil {
@@ -150,15 +149,45 @@ func homeAssistantDef(env CatalogEnv) *NodeDef {
 	return def
 }
 
+// The output fields of home.assistant per operation (N5): get_state returns the entity, a
+// service call what it changed. haAllFields is for an operation the document does not settle
+// (a template, a value that is no operation) and for FieldsOf(nil).
+var (
+	haStateFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
+		{Name: "entity_id", Type: "text"}, {Name: "last_changed", Type: "text"}}
+	haServiceFields = []FieldSpec{{Name: "ok", Type: "bool", Primary: true}, {Name: "service", Type: "text"},
+		{Name: "affected_entities", Type: "list"}}
+	haAllFields = []FieldSpec{{Name: "state", Type: "text", Primary: true}, {Name: "attributes", Type: "object"},
+		{Name: "entity_id", Type: "text"}, {Name: "last_changed", Type: "text"}, {Name: "ok", Type: "bool"},
+		{Name: "service", Type: "text"}, {Name: "affected_entities", Type: "list"}}
+)
+
+// homeAssistantFields is the node's OutputFieldsFunc: the fields of its operation (the editor
+// mirrors it in easydrag-model.js fieldsOf). It is a hook: pure and panic-free for any params.
+func homeAssistantFields(n *Node) []FieldSpec {
+	op, ok := choiceParam(n.Params["operation"], "call_service", haOperations...)
+	switch {
+	case !ok:
+		return slices.Clone(haAllFields)
+	case op == "get_state":
+		return slices.Clone(haStateFields)
+	}
+	return slices.Clone(haServiceFields)
+}
+
 // homeAssistantEffects lists what a home.assistant node does outwardly. Only a
 // get_state that is written out is read-only: a template, a value that cannot be read
 // and a missing node are assumed to change something. A service call controls devices;
 // a literal service of the shell_command or python_script domain also runs code, and one
 // of the hassio domain or homeassistant.restart and homeassistant.stop changes the
 // system, which the publish dialog then asks about (IsRisky). The domain of a plain
-// service is the entity's, when that is written out too. A service that is a template
-// or cannot be read stays a plain device control, as the run decides it. It is a hook:
-// it copes with a nil node and any parameter.
+// service is the entity's, when that is written out too. When the document does not
+// settle the domain, the run decides it and the effects are the worst case (device
+// control, code and a system change): a service that is a template or no service at all,
+// and a plain service on an entity that is a template or no entity id. Nothing written
+// yet (no service, or no entity for a plain service) is not judged: the node cannot run
+// until it is, and a palette entry with default parameters must not be shown as risky.
+// It is a hook: it copes with a nil node and any parameter.
 func homeAssistantEffects(n *Node) []Effect {
 	effects := []Effect{EffectControlsDevices}
 	if n == nil {
@@ -167,14 +196,21 @@ func homeAssistantEffects(n *Node) []Effect {
 	if op, ok := choiceParam(n.Params["operation"], "call_service", haOperations...); ok && op == "get_state" {
 		return nil
 	}
-	domain, service, err := haServiceName(n.Params["service"])
-	if err != nil {
+	worst := []Effect{EffectControlsDevices, EffectRunsCode, EffectSystemChange}
+	if isEmptyValue(n.Params["service"]) {
 		return effects
 	}
+	domain, service, err := haServiceName(n.Params["service"])
+	if err != nil {
+		return worst
+	}
 	if domain == "" {
+		if isEmptyValue(n.Params["entity"]) {
+			return effects
+		}
 		id, err := haEntityID(n.Params["entity"])
 		if err != nil {
-			return effects
+			return worst
 		}
 		domain, _, _ = strings.Cut(id, ".")
 	}

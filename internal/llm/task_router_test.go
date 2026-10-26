@@ -184,10 +184,7 @@ func TestTaskRouterDoesNotFallbackCancellationOrDenial(t *testing.T) {
 
 func TestTaskRouterHelperLimitsGatewayRetriesPerRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		want := "4"
-		if r.URL.Path == "/bounded" {
-			want = "1"
-		}
+		want := "1"
 		if got := r.Header.Get("cf-aig-max-attempts"); got != want {
 			t.Errorf("%s attempts = %s, want %s", r.URL.Path, got, want)
 		}

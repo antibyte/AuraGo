@@ -16,7 +16,9 @@
 
 ### Default Speech Output Contract
 
-- Fresh installations use `tts.provider: sanotts` and `tts.language: auto`.
+- Fresh installations use bundled `tts.provider: phonon` and `tts.language: auto`;
+  sanoTTS remains selectable and supplies the local fallback for unsupported
+  Phonon languages, missing resources and unavailable native runtimes.
   Keep explicit existing provider/disabled settings intact. Setup profile credentials
   may be prepared, but must not replace the local default. Config remains the owner
   of later provider changes. Automatic speech language follows the user, with English

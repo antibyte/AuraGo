@@ -70,7 +70,11 @@
     }
 
     function entryFor(section) {
-        return actions.find(action => action.section === section) || null;
+        const entry = actions.find(action => action.section === section) || null;
+        if (section === 's3' && window.AuraConfigState?.get('s3.provider', { saved: true }) === 'rustfs') {
+            return Object.assign({}, entry, { requiredPaths: [], credentialPaths: [] });
+        }
+        return entry;
     }
 
     function render(section) {

@@ -20,6 +20,9 @@ func runPrivacyDeletionWorker(ctx context.Context, deps MaintenanceControllerDep
 	}
 	run := func() {
 		now := time.Now().UTC()
+		if _, err := deps.ShortTermMem.CleanupPersonalityObservations(now); err != nil && ctx.Err() == nil {
+			privacyDeletionWorkerWarning(deps.Logger)
+		}
 		if err := deps.ShortTermMem.ProcessDuePrivacyDeletionJobs(ctx, deps.LongTermMem, deps.KG, now, privacyDeletionWorkerBatch); err != nil && ctx.Err() == nil {
 			privacyDeletionWorkerWarning(deps.Logger)
 		}

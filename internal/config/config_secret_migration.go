@@ -27,6 +27,10 @@ var plaintextSecretVaultPaths = map[string]string{
 	"tts.elevenlabs.api_key":           "tts_elevenlabs_api_key",
 	"tts.minimax.api_key":              "tts_minimax_api_key",
 	"tts.mistral.api_key":              "tts_mistral_api_key",
+	"tts.xai.api_key":                  "tts_xai_api_key",
+	"tts.openai.api_key":               "tts_openai_api_key",
+	"tts.stepfun.api_key":              "tts_stepfun_api_key",
+	"tts.resemble.api_key":             "tts_resemble_api_key",
 	"agentmail.api_key":                "agentmail_api_key",
 	"notifications.ntfy.token":         "ntfy_token",
 	"notifications.pushover.user_key":  "pushover_user_key",
@@ -74,7 +78,6 @@ var plaintextSecretVaultPaths = map[string]string{
 	"fallback_llm.api_key":             "provider_fallback_api_key",
 	"co_agents.llm.api_key":            "provider_coagent_api_key",
 	"a2a.llm.api_key":                  "provider_a2a_api_key",
-	"personality.v2_api_key":           "provider_helper_api_key",
 	"manifest.api_key":                 "manifest_api_key",
 	"manifest.postgres_password":       "manifest_postgres_password",
 	"manifest.better_auth_secret":      "manifest_better_auth_secret",
@@ -369,7 +372,7 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 		return
 	}
 
-	migrated := false
+	migrated := migratePersonalityLegacySecrets(rawCfg, vault, log)
 	for path, vaultKey := range plaintextSecretVaultPaths {
 		// Generated egg configs intentionally include a fresh per-deploy shared
 		// key. Egg containers keep a persistent vault volume, so this one secret

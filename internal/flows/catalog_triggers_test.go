@@ -34,7 +34,7 @@ func TestTriggerNodesRegistered(t *testing.T) {
 			t.Errorf("%s is not a proper trigger: %+v", typ, def)
 		}
 	}
-	for typ, untrusted := range map[string]bool{TypeTriggerWebhook: true, TypeTriggerEmail: true, TypeTriggerMQTT: true, TypeTriggerHAState: false, TypeTriggerSchedule: false} {
+	for typ, untrusted := range map[string]bool{TypeTriggerWebhook: true, TypeTriggerEmail: true, TypeTriggerMQTT: true, TypeTriggerHAState: true, TypeTriggerSchedule: false} {
 		if lookupDef(t, reg, typ).UntrustedOutput != untrusted {
 			t.Errorf("%s UntrustedOutput != %v", typ, untrusted)
 		}

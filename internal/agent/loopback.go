@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"aurago/internal/i18n"
@@ -215,19 +216,33 @@ func LoopbackContext(ctx context.Context, runCfg RunConfig, message string, brok
 	defer cancel()
 
 	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)
+	fingerprint := planner.OperationalIssueFingerprint(planner.OperationalIssue{
+		Source: operationalIssueSource(runCfg), Context: operationalIssueContext(runCfg),
+		Title: "Background agent loop failed", Reference: "loopback",
+	})
 	if err != nil {
+		if errors.Is(err, ErrActionRuleRequired) || errors.Is(ctx.Err(), context.Canceled) {
+			logger.Info("[Loopback] Agent loop stopped", "error", err)
+			return
+		}
 		logger.Error("[Loopback] Agent loop failed", "error", err)
 		recordOperationalIssue(runCfg, planner.OperationalIssue{
-			Source:     operationalIssueSource(runCfg),
-			Context:    operationalIssueContext(runCfg),
-			Title:      "Background agent loop failed",
-			Detail:     err.Error(),
-			Severity:   "error",
-			Reference:  "loopback",
-			OccurredAt: time.Now(),
+			Source:      operationalIssueSource(runCfg),
+			Context:     operationalIssueContext(runCfg),
+			Title:       "Background agent loop failed",
+			Detail:      err.Error(),
+			Severity:    "error",
+			Reference:   "loopback",
+			Fingerprint: fingerprint,
+			OccurredAt:  time.Now(),
 		}, logger)
 		broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_loopback"))
 		return
+	}
+	if runCfg.PlannerDB != nil {
+		if _, err := planner.ResolveOperationalIssue(runCfg.PlannerDB, fingerprint, "The same background agent loop completed successfully.", time.Now()); err != nil {
+			logger.Warn("[Loopback] Failed to resolve recovered loop issue", "error", err)
+		}
 	}
 
 	// Send final response via broker

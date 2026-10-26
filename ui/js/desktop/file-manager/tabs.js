@@ -24,7 +24,7 @@
             const sourceName = storageName({ ...fm, storage: tab.storage });
             const title = tab.path ? (tab.storage?.provider !== 'local' ? sourceName + ' · ' : '') + (tab.storage?.name || tab.path.split('/').pop()) : sourceName;
             return `<div class="fm-tab${active}" data-tab-index="${idx}" draggable="true" role="tab" aria-selected="${idx === fm.activeTabIndex ? 'true' : 'false'}">
-                <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12)}</span>
+                <span class="fm-tab-icon">${iconMarkup('folder', 'F', 'fm-tab-folder-icon', 12, 'folder')}</span>
                 <span class="fm-tab-title" title="${esc(tab.path || '/')}">${esc(title)}</span>
                 ${fm.tabs.length > 1 ? `<button type="button" class="fm-tab-close" data-action="close-tab" data-tab-index="${idx}" title="${esc(t('desktop.close'))}">&times;</button>` : ''}
             </div>`;

@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "Max. znaků na chunk",
   "config.indexing.chunk_overlap_chars": "Překryv znaků",
   "config.indexing.chunk_max_chunks": "Max. chunků na soubor",
-  "config.indexing.chunking_reindex_notice": "Změny těchto hodnot spustí čistý reindex při dalším skenování."
+  "config.indexing.chunking_reindex_notice": "Změny těchto hodnot spustí čistý reindex při dalším skenování.",
+  "config.indexing.media_toggle_label": "Média poskytovateli",
+  "config.indexing.media_toggle_title": "Povolit odesílání obrázků, zvuku a naskenovaných PDF z tohoto adresáře do nakonfigurovaného Vision LLM nebo poskytovateli multimodálních embeddingů. Ve výchozím stavu vypnuto.",
+  "config.indexing.media_confirm_title": "Odesílat média z tohoto adresáře poskytovatelům?",
+  "config.indexing.media_confirm": "Obrázky, zvuk a naskenovaná PDF z tohoto adresáře budou odeslány k analýze nakonfigurovanému poskytovateli Vision nebo multimodálních embeddingů. Může jít o externí službu, takže obsah těchto souborů může opustit tento systém. Po opětovném vypnutí se další média již neodesílají.",
+  "config.indexing.media_inactive_hint": "Vision a multimodální embeddingy jsou globálně vypnuty; nastavení se projeví, jakmile bude jedno z nich zapnuto.",
+  "config.indexing.index_images_per_folder_hint": "Obrázky se odesílají jen z adresářů, u nichž je v seznamu výše zapnuto sdílení médií."
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"aurago/internal/phonon"
 )
 
 // TTSSynthesizeInMemory uses the configured TTS provider without creating a
@@ -23,11 +25,26 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 		ctx = context.Background()
 	}
 	cfg.Context = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, "", err
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.Provider), "phonon") {
+		if err := phonon.ValidateText(text); err != nil {
+			return nil, "", err
+		}
+	}
+	cfg = resolvePhononTTSConfig(cfg)
 	var (
 		data []byte
 		err  error
 	)
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "phonon":
+		data, err = phonon.Synthesize(ctx, cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
+		if phononFallbackAllowed(ctx, err) && !cfg.NoProviderFallback {
+			cfg.Provider = "sanotts"
+			return TTSSynthesizeInMemoryContext(ctx, cfg, text)
+		}
 	case "sanotts":
 		data, err = ttsSano(cfg, text)
 	case "elevenlabs":
@@ -36,6 +53,8 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 		data, err = ttsMiniMax(cfg, text)
 	case "mistral":
 		data, err = ttsMistral(cfg, text)
+	case "xai", "openai", "stepfun", "resemble":
+		data, err = ttsCloud(cfg, text)
 	case "piper":
 		data, err = ttsPiper(cfg, text)
 	case "supertonic":

@@ -71,6 +71,8 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	}
 	a.Mutating = !readActionOperation(a.Operation)
 	switch tc.Action {
+	case "qr_code":
+		a.Mutating = a.Operation != "presets" && a.Operation != "scan"
 	case "discover_tools", "read_tool_manual", "query_inventory", "query_memory", "context_memory", "context_manager", "web_capture", "brave_search", "web_search", "web_scraper":
 		a.Mutating = false
 	case "execute_shell", "execute_python", "run_tool", "execute_skill", "run_agent_skill_script":
@@ -220,6 +222,41 @@ func actionPolicyRefusal(code, message string, status ToolResultStatus) *ToolDis
 	return &ToolDispatchResult{Output: "Tool Output: " + string(encoded), Status: status, IsError: status.IsError()}
 }
 
+// unavailableToolRefusal answers a call to a tool outside the run's effective
+// catalog. A known native capability reports why it is off (code tool_disabled,
+// hidden_reason) and gives no discovery advice, because discovery cannot enable
+// it. Any other name is unknown (code unknown_tool) and points at discovery and
+// the closest enabled tools.
+func unavailableToolRefusal(name string, native bool, dc *DispatchContext) *ToolDispatchResult {
+	shown := echoedToolName(name)
+	body := map[string]interface{}{"status": string(ToolResultDenied)}
+	if native {
+		reason := "config_disabled"
+		if catalog := GetToolCatalogState(dc.discoveryKey()); catalog != nil {
+			if entry, ok := canonicalCatalogEntry(catalog, name); ok && !entry.Enabled && entry.HiddenReason != "" {
+				reason = entry.HiddenReason
+			}
+		}
+		body["code"] = "tool_disabled"
+		if runPolicyHiddenReason(reason) {
+			// Run policy, not configuration: enabling the tool changes nothing.
+			body["message"] = `The tool "` + shown + `" is not available in this run.`
+		} else {
+			body["hidden_reason"] = reason
+			body["message"] = `The tool "` + shown + `" is disabled (` + reason + `) and cannot run until an administrator enables it.`
+		}
+	} else {
+		guidance, suggestions := unknownToolGuidance(dc, name)
+		body["code"] = "unknown_tool"
+		body["message"] = strings.TrimSpace(`"` + shown + `" is not a tool you can call directly in this run. ` + guidance)
+		if len(suggestions) > 0 {
+			body["suggestions"] = suggestions
+		}
+	}
+	encoded, _ := json.Marshal(body)
+	return &ToolDispatchResult{Output: "Tool Output: " + string(encoded), Status: ToolResultDenied, IsError: true}
+}
+
 func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchContext) *ToolDispatchResult {
 	if err := ctx.Err(); err != nil {
 		return actionPolicyRefusal("cancelled", "The action was cancelled before execution.", ToolResultCancelled)
@@ -262,7 +299,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		}
 		if policy.Enabled || native {
 			if toolRuntimeUnavailable(dc, tc.Action) == "" || !configuredNativeToolEnabled(dc, tc.Action) {
-				return actionPolicyRefusal("tool_disabled", "The resolved tool is not enabled in the effective catalog.", ToolResultDenied)
+				return unavailableToolRefusal(tc.Action, native, dc)
 			}
 		}
 	}
@@ -274,13 +311,19 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			return actionPolicyRefusal("runtime_dependency_unavailable", reason, ToolResultNeedsSetup)
 		}
 	}
+	if policy.Enabled {
+		for _, rule := range policy.Deny {
+			if actionDenyRuleMatches(rule, a) {
+				return actionPolicyRefusal("action_policy_denied", "An administrator action rule denies this operation and target.", ToolResultDenied)
+			}
+		}
+	}
+	// A copied isolated span waits even when policy is off and even when an allow rule matches.
+	if stop, refusal := gateCopiedIsolatedSpan(ctx, tc, dc, a); stop {
+		return refusal
+	}
 	if !policy.Enabled {
 		return nil
-	}
-	for _, rule := range policy.Deny {
-		if actionDenyRuleMatches(rule, a) {
-			return actionPolicyRefusal("action_policy_denied", "An administrator action rule denies this operation and target.", ToolResultDenied)
-		}
 	}
 	if actionAllowRulesCover(policy.Allow, a) {
 		return nil

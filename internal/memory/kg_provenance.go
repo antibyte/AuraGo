@@ -127,9 +127,15 @@ func (kg *KnowledgeGraph) addEdgeWithProvenance(ctx context.Context, source, tar
 	if err := checkGraphCorrectionGuard(tx, MemoryReference{Store: "kg_edge", ID: source, Target: target, Relation: relation}, target); err != nil {
 		return nil, err
 	}
+	createdEndpoints := make(map[string]bool, 2)
 	for _, id := range []string{source, target} {
-		if err := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); err != nil {
-			kg.logger.Warn("AddEdgeWithProvenance: failed to ensure node exists", "id", id, "error", err)
+		created, err := ensureKnowledgeGraphPlaceholderNodeTrackedTx(tx, id)
+		if err != nil {
+			if kg.logger != nil {
+				kg.logger.Warn("AddEdgeWithProvenance: failed to ensure node exists", "id", id, "error", err)
+			}
+		} else if created {
+			createdEndpoints[id] = true
 		}
 	}
 
@@ -206,19 +212,22 @@ func (kg *KnowledgeGraph) addEdgeWithProvenance(ctx context.Context, source, tar
 		return nil, err
 	}
 
-	if sourceNode, err := kg.GetNode(source); err == nil && sourceNode != nil {
-		if err := kg.finishNodeWrite(ctx, *sourceNode, strict); err != nil {
-			return claim, err
+	for _, id := range []string{source, target} {
+		if !createdEndpoints[id] {
+			continue
 		}
-	} else if err != nil && kg.logger != nil {
-		kg.logger.Warn("AddEdgeWithProvenance: failed to reload source node for semantic index", "id", source, "error", err)
-	}
-	if targetNode, err := kg.GetNode(target); err == nil && targetNode != nil {
-		if err := kg.finishNodeWrite(ctx, *targetNode, strict); err != nil {
-			return claim, err
+		node, err := kg.GetNode(id)
+		if err != nil {
+			if kg.logger != nil {
+				kg.logger.Warn("AddEdgeWithProvenance: failed to reload created endpoint for semantic index", "id", id, "error", err)
+			}
+			continue
 		}
-	} else if err != nil && kg.logger != nil {
-		kg.logger.Warn("AddEdgeWithProvenance: failed to reload target node for semantic index", "id", target, "error", err)
+		if node != nil {
+			if err := kg.finishNodeWrite(ctx, *node, strict); err != nil {
+				return claim, err
+			}
+		}
 	}
 	edge := Edge{Source: source, Target: target, Relation: relation, Properties: finalProps}
 	if strict {
@@ -668,7 +677,7 @@ func cleanupKGClaimsForDeletedNodeTx(tx *sql.Tx, nodeID string) error {
 	if err != nil {
 		return fmt.Errorf("list kg claims for deleted node %s: %w", nodeID, err)
 	}
-	return cleanupKGClaimsByIDTx(tx, claimIDs)
+	return deleteKGClaimsByIDTx(tx, claimIDs)
 }
 
 func cleanupKGClaimsForDeletedEdgeTx(tx *sql.Tx, source, target, relation string) error {
@@ -676,7 +685,7 @@ func cleanupKGClaimsForDeletedEdgeTx(tx *sql.Tx, source, target, relation string
 	if err != nil {
 		return fmt.Errorf("list kg claims for deleted edge %s -> %s (%s): %w", source, target, relation, err)
 	}
-	return cleanupKGClaimsByIDTx(tx, claimIDs)
+	return deleteKGClaimsByIDTx(tx, claimIDs)
 }
 
 func cleanupKGClaimsForDeletedEdgesTx(tx *sql.Tx, edges []Edge) error {
@@ -711,7 +720,7 @@ func cleanupKGSelfClaimFactsTx(tx *sql.Tx, nodeID string) error {
 	if err != nil {
 		return fmt.Errorf("scan self kg claims for node %s: %w", nodeID, err)
 	}
-	return cleanupKGClaimsByIDTx(tx, claimIDs)
+	return deleteKGClaimsByIDTx(tx, claimIDs)
 }
 
 func cleanupMergedCollisionClaimsTx(tx *sql.Tx, targetID, sourceID string) error {
@@ -744,10 +753,21 @@ func cleanupMergedCollisionClaimsTx(tx *sql.Tx, targetID, sourceID string) error
 	if err != nil {
 		return fmt.Errorf("scan merged collision kg claims: %w", err)
 	}
-	return cleanupKGClaimsByIDTx(tx, claimIDs)
+	return deleteKGClaimsByIDTx(tx, claimIDs)
 }
 
 func cleanupKGClaimsByIDTx(tx *sql.Tx, claimIDs []string) error {
+	if err := deleteKGClaimsByIDTx(tx, claimIDs); err != nil {
+		return err
+	}
+	return cleanupOrphanKGEvidenceTx(tx)
+}
+
+func cleanupKGClaimsAndOrphanEvidenceTx(tx *sql.Tx) error {
+	return cleanupOrphanKGEvidenceTx(tx)
+}
+
+func deleteKGClaimsByIDTx(tx *sql.Tx, claimIDs []string) error {
 	claimIDs = uniqueNonEmptyStrings(claimIDs)
 	if len(claimIDs) == 0 {
 		return nil
@@ -782,7 +802,7 @@ func cleanupKGClaimsByIDTx(tx *sql.Tx, claimIDs []string) error {
 			return fmt.Errorf("delete kg claims: %w", err)
 		}
 	}
-	return cleanupOrphanKGEvidenceTx(tx)
+	return nil
 }
 
 func cleanupOrphanKGEvidenceTx(tx *sql.Tx) error {

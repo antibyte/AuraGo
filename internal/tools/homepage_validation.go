@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -124,6 +125,83 @@ func sanitizeProjectDir(projectDir string) error {
 	return nil
 }
 
+// Quoted paths support Unicode names, spaces and Next.js route segments.
+// Controls, quotes, substitutions and shell operators remain excluded.
+var homepagePathAllowlist = regexp.MustCompile(`^[\p{L}\p{M}\p{N} ._/@()\[\]-]+$`)
+
+// validateHomepagePathSegment validates a workspace-relative path against the
+// Homepage path allowlist before the path can reach a container command string.
+//
+// The allowlist is checked first and quoting second: a path that is not on the
+// allowlist is rejected outright, and every path that survives is still quoted
+// with shellSingleQuote before it is interpolated into a command.
+func validateHomepagePathSegment(value string) error {
+	if value == "" {
+		return fmt.Errorf("path is required")
+	}
+	if value == "." {
+		// The workspace root itself is a valid container path.
+		return nil
+	}
+	if !homepagePathAllowlist.MatchString(value) {
+		return fmt.Errorf("invalid path %q. Use letters, numbers, spaces, '.', '_', '-', '@', parentheses or brackets in workspace-relative paths", value)
+	}
+	for _, segment := range strings.Split(value, "/") {
+		if strings.TrimSpace(segment) != segment {
+			return fmt.Errorf("invalid path %q. Path segments must not start or end with whitespace", value)
+		}
+		switch segment {
+		case "":
+			return fmt.Errorf("invalid path %q. Path segments must not be empty", value)
+		case ".", "..":
+			return fmt.Errorf("invalid path %q. Path segments must not be '.' or '..'", value)
+		}
+		if strings.HasPrefix(segment, "-") {
+			return fmt.Errorf("invalid path %q. Path segments must not start with '-'", value)
+		}
+	}
+	return nil
+}
+
+// homepagePackageNamePattern matches an npm package name: an optional scope,
+// a name that starts with a letter, a digit, '-' or '~'.
+var homepagePackageNamePattern = regexp.MustCompile(`^(?:@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*$`)
+
+// homepagePackageVersionPattern matches the version range of a package
+// requirement. Whitespace and every shell metacharacter are excluded.
+var homepagePackageVersionPattern = regexp.MustCompile(`^[a-zA-Z0-9.*~^><=\-]+$`)
+
+// validateHomepagePackageName validates an npm package requirement against the
+// Homepage dependency allowlist. Only a package requirement is accepted: no
+// URL, no local path, no flag, no whitespace and no shell metacharacter.
+func validateHomepagePackageName(name string) error {
+	if name == "" {
+		return fmt.Errorf("package name is required")
+	}
+	if strings.TrimSpace(name) != name {
+		return fmt.Errorf("invalid package %q. Surrounding whitespace is not allowed", name)
+	}
+	base := name
+	version := ""
+	if idx := strings.Index(name, "@"); idx > 0 {
+		base = name[:idx]
+		version = name[idx+1:]
+	} else if strings.HasPrefix(name, "@") {
+		// A scoped package: the version separator is the second '@'.
+		if idx := strings.Index(name[1:], "@"); idx > 0 {
+			base = name[:idx+1]
+			version = name[idx+2:]
+		}
+	}
+	if !homepagePackageNamePattern.MatchString(base) {
+		return fmt.Errorf("invalid package %q. Use a package requirement such as 'left-pad', '@scope/pkg' or 'pkg@1.2.3'", name)
+	}
+	if version != "" && !homepagePackageVersionPattern.MatchString(version) {
+		return fmt.Errorf("invalid version range in package %q. Use a version such as '1.2.3' or '^1.0.0'", name)
+	}
+	return nil
+}
+
 // NormalizeHomepageProjectIdentity returns the canonical registry identity for a
 // homepage project. It accepts only workspace-relative project directories.
 func NormalizeHomepageProjectIdentity(projectDir string, allowRoot bool) (string, error) {
@@ -186,11 +264,13 @@ func validateHomepageRelativePathArg(path, field string) error {
 	if trimmed == "" {
 		return fmt.Errorf("%s is required", field)
 	}
-	if strings.Contains(trimmed, "..") {
-		return fmt.Errorf("path traversal not allowed in %s %q", field, path)
+	for _, segment := range strings.Split(trimmed, "/") {
+		if segment == ".." {
+			return fmt.Errorf("path traversal not allowed in %s %q", field, path)
+		}
 	}
-	// Reject shell metacharacters that could be used for command injection.
-	const shellMetachars = ";|&`$(){}[]<>!\\'\""
+	// Brackets and parentheses in route segments are protected by shell quoting.
+	const shellMetachars = ";|&`${}<>!\\'\""
 	for _, ch := range shellMetachars {
 		if strings.ContainsRune(trimmed, ch) {
 			return fmt.Errorf("invalid character %q in %s %q", ch, field, path)
@@ -206,19 +286,25 @@ func validateHomepageRelativePathArg(path, field string) error {
 func validateHomepageSourceEditPath(path string) error {
 	normalized := filepath.ToSlash(strings.TrimSpace(path))
 	parts := strings.Split(normalized, "/")
-	if len(parts) < 2 {
-		return nil
+	// A generated output directory is blocked at the workspace root ("dist/index.html")
+	// and directly below the project directory ("site/dist/index.html"). A deeper
+	// source folder ("site/src/build/helpers.ts") is a source file, not build output.
+	for _, index := range []int{0, 1} {
+		if index >= len(parts) {
+			break
+		}
+		switch strings.ToLower(parts[index]) {
+		case "dist", "build", "out":
+			return fmt.Errorf("direct edits to generated output directory %q are blocked. Edit source files with homepage write_file/edit_file, run the project build, then deploy the generated output", parts[index])
+		}
 	}
-	switch strings.ToLower(parts[1]) {
-	case "dist", "build", "out":
-		return fmt.Errorf("direct edits to generated output directory %q are blocked. Edit source files with homepage write_file/edit_file, run the project build, then deploy the generated output", parts[1])
-	default:
-		return nil
-	}
+	return nil
 }
 
 // resolveHomepagePath resolves a workspace-relative path and validates that the
 // result stays within the workspace root. Does not allow the workspace root itself.
+// Symlinks are resolved before the check, so a link inside the workspace that
+// points outside of it is rejected.
 // Returns (fullPath, nil) on success, or ("", error) on path traversal.
 func resolveHomepagePath(workspacePath, relPath string) (string, error) {
 	fullPath := filepath.Join(workspacePath, filepath.FromSlash(relPath))
@@ -227,7 +313,35 @@ func resolveHomepagePath(workspacePath, relPath string) (string, error) {
 	if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
 		return "", fmt.Errorf("path traversal not allowed in path %q", relPath)
 	}
+	resolvedWS := cleanWS
+	if resolved, err := filepath.EvalSymlinks(cleanWS); err == nil {
+		resolvedWS = resolved
+	}
+	resolvedFull := resolveHomepageExistingPrefix(cleanFull)
+	if resolvedFull == resolvedWS || !strings.HasPrefix(resolvedFull, resolvedWS+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path %q resolves outside the homepage workspace", relPath)
+	}
 	return fullPath, nil
+}
+
+// resolveHomepageExistingPrefix resolves the symlinks of the longest existing
+// prefix of path and re-appends the segments that do not exist yet.
+func resolveHomepageExistingPrefix(path string) string {
+	current := path
+	rest := []string{}
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			parts := append([]string{resolved}, rest...)
+			return filepath.Join(parts...)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return path
+		}
+		rest = append([]string{filepath.Base(current)}, rest...)
+		current = parent
+	}
 }
 
 // truncateStr returns s truncated to maxLen characters with "…" suffix.

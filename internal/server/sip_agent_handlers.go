@@ -95,15 +95,16 @@ func handleSIPAgent(s *Server) http.HandlerFunc {
 				return
 			}
 			if err := persistSIPConfig(s, next, nil); err != nil {
+				if s.Logger != nil {
+					s.Logger.Error("Failed to save telephone agent configuration", "error", err)
+				}
 				jsonError(w, "Failed to save telephone agent configuration", http.StatusInternalServerError)
 				return
 			}
 			if s != nil && s.SIPPhone != nil {
 				s.SIPPhone.UpdateAgentConfig(next)
 			}
-			writeSIPAgent(w, s, sipConfigSnapshot(s), map[string]bool{
-				"agent_provider_id": false, "asr_provider_id": false, "asr_mode": false, "tts_provider": false,
-			})
+			writeSIPAgent(w, s, sipConfigSnapshot(s), nil)
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -145,7 +146,7 @@ func handleSIPAgentCatalog(s *Server) http.HandlerFunc {
 				Ready: profile.Enabled && strings.TrimSpace(profile.APIKey) != "",
 			})
 		}
-		ttsProviders := []string{"sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic"}
+		ttsProviders := []string{"phonon", "sanotts", "google", "elevenlabs", "minimax", "mistral", "xai", "openai", "stepfun", "resemble", "piper", "supertonic"}
 		asrModes := []string{"whisper", "multimodal", "local"}
 		if cfg.SpeechLab.Active() && cfg.SpeechLab.SIPEnabled {
 			ttsProviders = append(ttsProviders, "speech_lab")
@@ -281,6 +282,8 @@ func sipAgentBlockers(s *Server, sipCfg config.SIPConfig, voiceCfg config.SIPVoi
 	}
 	if !sipCfg.Permissions.OriginateOutbound {
 		blockers = append(blockers, "outbound_permission_disabled")
+	} else if len(sipCfg.Outbound.AllowedUsers) == 0 && len(sipCfg.Outbound.AllowedE164Prefixes) == 0 {
+		blockers = append(blockers, "outbound_destinations_empty")
 	}
 	if s != nil && s.SIPPhone != nil && sipCfg.Enabled && !s.SIPPhone.Status().Registered {
 		blockers = append(blockers, "not_registered")
@@ -428,6 +431,11 @@ func runClassicSIPAgentLiveTest(ctx context.Context, client llm.ChatClient, clas
 	if err != nil {
 		return err
 	}
+	resampler, err := voice.NewSourceResampler(sampleRate, 16000)
+	if err != nil {
+		return fmt.Errorf("normalize telephone live-test audio: %w", err)
+	}
+	pcm, sampleRate = resampler.Process(pcm), 16000
 	wav, err := voice.EncodeWAVPCM16(pcm, sampleRate)
 	if err != nil {
 		return fmt.Errorf("encode telephone live-test audio: %w", err)

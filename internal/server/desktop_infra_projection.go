@@ -184,6 +184,10 @@ func desktopInfraDecorateSnapshot(ctx context.Context, s *Server, cfg *config.Co
 	if snapshot.Nodes == nil {
 		snapshot.Nodes = []infra.Node{}
 	}
+	if snapshot.SourceHosts == nil {
+		snapshot.SourceHosts = []infra.SourceHost{}
+	}
+	desktopInfraProjectHosts(cfg, snapshot, desktopInfraLocalAddresses())
 }
 
 func desktopInfraProjectSourceStates(cfg *config.Config, sources []infra.Source) []infra.Source {

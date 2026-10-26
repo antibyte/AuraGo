@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-detail.js', 'easydrag-runs.js', 'easydrag-publish.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -108,10 +108,12 @@ export async function run(env) {
         let nextId = 1;
         const store = new Map();
         const logged = [];
+        const sources = [];
         class EventSource {
-            constructor(url) { this.url = url; this.listeners = {}; this.closed = false; this.onerror = null; }
+            constructor(url) { this.url = url; this.listeners = {}; this.closed = false; this.onerror = null; sources.push(this); }
             addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
             close() { this.closed = true; }
+            emit(type, data) { if (!this.closed) (this.listeners[type] || []).slice().forEach(fn => fn({ type, data: JSON.stringify(data) })); }
         }
         const box = vm.createContext({
             window: { SYSTEM_LANG: 'en', location: { origin: 'https://aurago.test' }, open() {}, addEventListener: (type, fn) => { (winListeners[type] = winListeners[type] || []).push(fn); },
@@ -151,7 +153,7 @@ export async function run(env) {
             return Promise.resolve().then(() => { const out = answer(req); return out === undefined ? defaults(req) : out; });
         };
         const h = {
-            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport,
+            ED, dom, body, win: box.window, store, timers, frames, logged, docListeners, winListeners, dialogs, requests, transport, sources,
             api: ED.core.createApi(transport), catalog: catalogOf(),
             notes: [], confirms: [], confirmAnswer: false, menus: [], cleared: [], homes: [], opened: [],
             puts: () => requests.filter(r => r.method === 'PUT'),
@@ -354,7 +356,7 @@ export async function run(env) {
         const h = sandbox(() => undefined);
         const editor = openEditor(h);
         await settle();
-        h.store.set('aurago.easydrag.clipboard', JSON.stringify({ easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] }));
+        h.store.set('aurago.easydrag.clipboard', JSON.stringify({ at: Date.now(), frag: { easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] } }));
         const paste = h.menus.find(m => m.id === 'edit').items.find(i => i.id === 'paste');
         await paste.action();
         await settle();

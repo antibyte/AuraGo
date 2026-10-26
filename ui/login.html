@@ -111,17 +111,23 @@
             </div>
 
             <!-- Submit Button -->
+            <div id="webauthnLogin" class="is-hidden">
+                <p id="webauthnHint" class="webauthn-hint"></p>
+                <button type="button" class="btn-login" id="btnPasskey" onclick="submitPasskeyLogin()"></button>
+                <button type="button" class="webauthn-cancel is-hidden" id="btnPasskeyCancel" onclick="cancelPasskeyLogin()"></button>
+            </div>
             <button class="btn-login" id="btnLogin" onclick="submitLogin()">
                 <span id="btnText"></span>
             </button>
 
             <!-- Error -->
-            <div class="login-error" id="loginError"></div>
+            <div class="login-error" id="loginError" role="status" aria-live="polite"></div>
         </div>
     </div>
 
     <!-- Three.js for WebGL -->
     <script src="/js/vendor/three.min.js" onerror="window._threeLoadFailed=true"></script>
+    <script src="/auth/webauthn/client.js"></script>
     <script src="/js/login/main.js"></script>
     <script type="module" src="/js/login/flame-wrap.js?v={{.BuildVersion}}"></script>
 </body>

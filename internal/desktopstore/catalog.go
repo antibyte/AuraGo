@@ -5,6 +5,27 @@ package desktopstore
 func DefaultCatalog() []CatalogEntry {
 	return withCatalogDefaults([]CatalogEntry{
 		{
+			ID:          "ziro-designer",
+			Category:    "creative",
+			Name:        "Ziro Designer",
+			Description: "Local KiCad-compatible schematic and PCB editor with AuraGo Shared projects and offline libraries.",
+			Image:       "ghcr.io/antibyte/aurago-ziro-designer:ziro-7b45970-1",
+			Icon:        "ziro-designer",
+			LogoSlug:    "ziro-designer",
+			LogoURL:     "/img/desktop/store/ziro-designer.svg",
+			PrimaryPort: PortSpec{ContainerPort: 8080, Protocol: "tcp"},
+			Metadata:    map[string]string{"store_ui": "ziro-designer", "description_key": "desktop.ziro.description"},
+		},
+		{
+			ID: PrintGuardAppID, Category: "system", Name: "PrintGuard",
+			Description: "Local camera monitoring and AI failure detection for 3D printers.",
+			Image:       printGuardImages["cpu"], Icon: "printer", LogoSlug: "printguard",
+			LogoURL:     "/img/desktop/store/printguard.png",
+			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 8000, Protocol: "tcp"},
+			Volumes:     []VolumeTemplate{{NameSuffix: "data", ContainerPath: "/data"}},
+			Metadata:    map[string]string{"open_maximized": "true", "isolated": "true", "description_key": "desktop.store.pg_description"},
+		},
+		{
 			ID:          GodsEyeAppID,
 			Category:    "media",
 			Name:        "God's Eye View",

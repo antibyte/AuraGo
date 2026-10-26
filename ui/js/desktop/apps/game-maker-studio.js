@@ -89,22 +89,17 @@
                         <span class="gm-engine" data-gm-engine></span>
                     </div>
                     <nav class="gm-actions" aria-label="${esc(t('game_maker.project_actions'))}">
-                        <button type="button" class="gm-action-wide" data-gm-action="rename" disabled>${esc(t('game_maker.rename'))}</button>
-                        <button type="button" class="gm-action-wide" data-gm-action="delete" disabled>${esc(t('game_maker.delete'))}</button>
-                        <button type="button" data-gm-action="skills">${esc(t('game_maker.sources'))}</button>
-                        <button type="button" data-gm-action="knowledge" disabled>${esc(t('game_maker.knowledge'))}</button>
                         <button type="button" data-gm-action="assets">${esc(t('game_maker.assets'))}</button>
-                        <button type="button" class="gm-action-wide" data-gm-action="revisions" disabled>${esc(t('game_maker.revisions'))}</button>
-                        <button type="button" class="gm-action-wide" data-gm-action="code" disabled>${esc(t('game_maker.open_code_studio'))}</button>
-                        <button type="button" class="gm-action-wide" data-gm-action="export" disabled>${esc(t('game_maker.export_zip'))}</button>
+                        <button type="button" data-gm-action="export" disabled>${esc(t('game_maker.export_zip'))}</button>
                         <div class="gm-more" data-gm-more>
                             <button type="button" data-gm-more-toggle aria-haspopup="menu" aria-expanded="false"
                                 aria-label="${esc(t('game_maker.more_actions'))}" title="${esc(t('game_maker.more_actions'))}">⋯</button>
                             <div class="gm-more-menu" data-gm-more-menu role="menu" hidden>
-                                ${menuItem('rename', 'game_maker.rename')}
+                                <button type="button" role="menuitem" data-gm-action="skills">${esc(t('game_maker.sources'))}</button>
+                                ${menuItem('knowledge', 'game_maker.knowledge')}
                                 ${menuItem('revisions', 'game_maker.revisions')}
                                 ${menuItem('code', 'game_maker.open_code_studio')}
-                                ${menuItem('export', 'game_maker.export_zip')}
+                                ${menuItem('rename', 'game_maker.rename')}
                                 ${menuItem('delete', 'game_maker.delete', 'class="gm-menu-danger"')}
                             </div>
                         </div>
@@ -122,6 +117,14 @@
                         <div class="gm-steps" role="group" data-gm-steps aria-label="${esc(t('game_maker.steps'))}">
                             <button type="button" data-gm-step="agent" aria-pressed="true">${esc(t('game_maker.step_agent'))}</button>
                             <button type="button" data-gm-step="preview" aria-pressed="false">${esc(t('game_maker.step_preview'))}</button>
+                        </div>
+                        <div class="gm-job-feed" data-gm-job-feed hidden>
+                            <div class="gm-job-feed-head">
+                                <strong data-gm-job-feed-title></strong>
+                                <span class="gm-job-feed-elapsed" data-gm-job-feed-elapsed></span>
+                                <button type="button" class="gm-danger" data-gm-action="stop">${esc(t('game_maker.stop'))}</button>
+                            </div>
+                            <ol data-gm-job-feed-lines></ol>
                         </div>
                         <section class="gm-agent-pane">
                             <div class="gm-pane-head">
@@ -232,6 +235,26 @@
             const retry = event.target.closest('[data-gm-retry]');
             if (retry) {
                 retryLastPrompt(state);
+                return;
+            }
+            const retryModel = event.target.closest('[data-gm-retry-model]');
+            if (retryModel) {
+                showRetryModelModal(state);
+                return;
+            }
+            const applyCheck = event.target.closest('[data-gm-apply-check]');
+            if (applyCheck) {
+                const input = state.container.querySelector('[data-gm-change-form] textarea');
+                if (input && !input.disabled) {
+                    input.value = checkPrompt(state, applyCheck.dataset.gmApplyCheck || '');
+                    autoGrow(input);
+                    input.focus();
+                }
+                return;
+            }
+            const extendButton = event.target.closest('[data-gm-extend-repairs]');
+            if (extendButton) {
+                extendRepairsAction(state, extendButton.dataset.gmExtendRepairs);
                 return;
             }
             const stepButton = event.target.closest('[data-gm-steps] [data-gm-step]');
@@ -458,9 +481,10 @@
                 state.job = {
                     id: state.activeJob.job_id,
                     status: state.activeJob.status,
-                    phase: state.activeJob.phase
+                    phase: state.activeJob.phase,
+                    started_at: state.activeJob.started_at
                 };
-                state.jobStartedAt = Date.now();
+                state.jobStartedAt = jobStartMillis(state.job) || Date.now();
                 state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, state.activeJob.phase);
                 if ((state.activeJob.phase || state.activeJob.status) === 'validating') setStudioStep(state, 'preview');
             } else if (state.latestJob && terminalStatuses.has(state.latestJob.status)) {
@@ -488,7 +512,7 @@
             ? `${state.context.t('game_maker.voxel')} ${state.capabilities.voxel_version || 1} · Three.js ${state.capabilities.three_version}` : project.dimension === '3d'
             ? `Three.js ${state.capabilities.three_version}` : `Phaser ${state.capabilities.phaser_version}`;
         setButton(state, 'revisions', true);
-        setButton(state, 'knowledge', true);
+        setButton(state, 'knowledge', Boolean(window.AuraGoLearnings));
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit));
         setButton(state, 'delete', Boolean(state.capabilities.allow_delete));
         setButton(state, 'export', Boolean(project.current_revision));
@@ -638,7 +662,7 @@
             if (!state.job) state.job = { id: event.job_id };
             state.job.phase = payload.phase;
             state.job.status = payload.phase;
-            if (!state.jobStartedAt) state.jobStartedAt = Date.now();
+            if (!state.jobStartedAt) state.jobStartedAt = jobStartMillis(state.job) || Date.now();
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, payload.phase);
             syncJobControls(state);
             if (showValidationPreview) setStudioStep(state, 'preview');
@@ -646,13 +670,6 @@
         }
         case 'text_delta':
             appendAgentDelta(state, payload.content || '');
-            break;
-        case 'skill_activation':
-            appendActivity(state, state.context.t('game_maker.skill_loaded') + ': ' + (payload.tool_id || ''));
-            break;
-        case 'file_changed':
-        case 'asset_changed':
-            appendActivity(state, state.context.t('game_maker.updated') + ': ' + (payload.path || payload.kind || ''));
             break;
         case 'diagnostic':
             addDiagnostic(state, payload);
@@ -712,13 +729,19 @@
         if (state.job && payload.status) state.job.status = payload.status;
         rememberJobOutcome(state, payload);
         if (state.job && !terminalStatuses.has(payload.status)) {
-            state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
+            state.activeJob = {
+                job_id: state.job.id,
+                project_id: state.project.id,
+                status: state.job.status,
+                phase: state.job.phase,
+                started_at: state.job.started_at
+            };
         } else if (state.activeJob?.job_id === state.job?.id) {
             state.activeJob = null;
         }
-        if (!state.jobStartedAt) {
-            state.jobStartedAt = state.job && state.job.started_at ? Date.parse(state.job.started_at) || Date.now() : Date.now();
-        }
+        const started = jobStartMillis(state.job);
+        if (started) state.jobStartedAt = started;
+        else if (!state.jobStartedAt) state.jobStartedAt = Date.now();
         updateStatus(state, payload.status || 'working');
         syncJobControls(state);
         if (!terminalStatuses.has(payload.status)) return;
@@ -833,12 +856,69 @@
         const cause = code || failureKind(kind, message);
         const hint = cause ? `<p class="gm-result-hint">${esc(t('game_maker.failure_hint_' + cause))}</p>` : '';
         const title = t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title');
-        const technical = String(message || '').trim();
+        const checks = job && Array.isArray(job.open_checks) ? job.open_checks : [];
+        const observations = checks.filter(Boolean).slice(0, 6).map(check => {
+            const detail = [check.expected, check.observed].filter(Boolean).join(' → ');
+            return detail ? String(check.id || '') + ': ' + detail : '';
+        }).filter(Boolean).join('\n');
+        const technical = [String(message || '').trim(), observations].filter(Boolean).join('\n');
+        const open = openChecksMarkup(state, job);
+        const next = job && Array.isArray(job.open_checks)
+            ? job.open_checks.map(check => String(check && check.next_action || '').trim()).find(Boolean)
+            : '';
+        const instruction = next
+            ? `<p data-gm-model-instruction>${esc(t('game_maker.model_instruction'))}: ${esc(next)}</p>`
+            : '';
+        const used = Number(job && job.repair_passes);
+        // Only a failed job that actually spent repair passes can extend them,
+        // and the shared ceiling of six passes applies here too.
+        const extend = kind === 'error' && Number.isFinite(used) && used > 0 && used < 6
+            ? `<button type="button" data-gm-extend-repairs="${Math.min(6, used + 3)}">${esc(t('game_maker.extend_repairs', { extra: 3 }))}</button>`
+            : '';
+        const retryModel = kind === 'error'
+            ? `<button type="button" data-gm-retry-model>${esc(t('game_maker.retry_model'))}</button>`
+            : '';
         card.setAttribute('role', 'alert');
-        card.innerHTML = `<strong>${esc(title)}</strong>${hint}${counts}
-            ${technical && technical !== title ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary><p>${esc(technical)}</p></details>` : ''}
-            <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>`;
+        const details = technical && technical !== title || instruction
+            ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary>${technical && technical !== title ? `<p>${esc(technical)}</p>` : ''}${instruction}</details>`
+            : '';
+        card.innerHTML = `<strong>${esc(title)}</strong>${hint}${open}${counts}
+            ${details}
+            <p class="gm-result-hint" data-gm-retry-bindings>${esc(t('game_maker.retry_keeps_bindings'))}</p>
+            <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>${retryModel}${extend}`;
         return card;
+    }
+
+    // Translated help stays on the card. The model-facing next step stays in
+    // the technical details, and the apply button only fills the change field.
+    function openChecksMarkup(state, job) {
+        const raw = job && Array.isArray(job.open_checks) ? job.open_checks : [];
+        const checks = raw.filter(check => check && String(check.id || '').trim()).slice(0, 6);
+        if (!checks.length) return '';
+        const { esc, t } = state.context;
+        const items = checks.map(check => {
+            const status = t('game_maker.check_' + (check.status === 'unavailable' ? 'unavailable' : 'failed'));
+            return `<li data-gm-open-check="${esc(check.id)}"><strong>${esc(check.id)}</strong>
+                <span>${esc(status)}</span><p>${esc(checkHelp(state, check.id))}</p>
+                <button type="button" data-gm-apply-check="${esc(check.id)}">${esc(t('game_maker.check_apply'))}</button></li>`;
+        }).join('');
+        return `<div class="gm-open-checks" data-gm-open-checks><strong>${esc(t('game_maker.open_checks_title'))}</strong>
+            <ul>${items}</ul></div>`;
+    }
+
+    function localizedCheckText(state, prefix, id) {
+        const specific = prefix + id;
+        const label = state.context.t(specific);
+        if (label && label !== specific) return label;
+        return state.context.t(prefix + 'generic', { id });
+    }
+
+    function checkHelp(state, id) {
+        return localizedCheckText(state, 'game_maker.check_help_', id);
+    }
+
+    function checkPrompt(state, id) {
+        return localizedCheckText(state, 'game_maker.check_prompt_', id);
     }
 
     function checksMarkup(state, job) {
@@ -916,6 +996,225 @@
 
     function retryLastPrompt(state) {
         return submitChange(state, true);
+    }
+
+    // Passive model-limit line for the start and retry dialogs. Only a known
+    // route inside the local catalog produces text; unknown models stay silent
+    // and are never blocked (the server keeps the same rule).
+    function modelLimitText(state, limits) {
+        if (!limits || !Number(limits.context_window)) return '';
+        return state.context.t('game_maker.model_limits_line', {
+            context: Number(limits.context_window),
+            output: Number(limits.max_output_tokens) || 0
+        });
+    }
+
+    function modelLimitWarning(state, limits) {
+        if (!limits || !limits.below_minimum) return '';
+        return state.context.t('game_maker.model_limits_warning', {
+            minimum: Number(limits.minimum_context_window) || 0
+        });
+    }
+
+    function applyModelLimits(state, layer, limits) {
+        const line = layer.querySelector('[data-gm-model-limits]');
+        if (line) {
+            line.textContent = modelLimitText(state, limits);
+            line.hidden = !line.textContent;
+        }
+        const warning = layer.querySelector('[data-gm-model-warning]');
+        if (warning) {
+            warning.textContent = modelLimitWarning(state, limits);
+            warning.hidden = !warning.textContent;
+        }
+        const holder = layer.querySelector('[data-gm-model-state]');
+        if (holder) holder.setAttribute('data-below-minimum', limits && limits.below_minimum ? 'true' : 'false');
+        const compact = layer.querySelector('[data-gm-compact-mode]');
+        if (compact) {
+            const show = Boolean(limits && limits.small_model);
+            compact.hidden = !show;
+            compact.textContent = show
+                ? state.context.t('game_maker.compact_mode_title') + ' — ' + state.context.t('game_maker.compact_mode_body')
+                : '';
+        }
+    }
+
+    // Debounced limit probe bound to a modal's provider/model fields. The
+    // cached result decides the confirmation and the `allow_small_model` flag;
+    // a failed probe degrades to "unknown" and never blocks the dialog.
+    function bindModelLimits(state, layer, form, limitsState) {
+        const provider = form.querySelector('[name="provider_id"]');
+        const model = form.querySelector('[name="model"]');
+        if (!provider || !model) return;
+        let timer = null;
+        let requestID = 0;
+        const refresh = async () => {
+            const current = ++requestID;
+            const providerID = String(provider.value || '');
+            const modelID = String(model.value || '').trim();
+            if (!providerID && !modelID) {
+                limitsState.limits = null;
+                applyModelLimits(state, layer, null);
+                return;
+            }
+            try {
+                const limits = await state.api.modelLimits(providerID, modelID);
+                if (current !== requestID || state.disposed) return;
+                limitsState.limits = limits || null;
+            } catch (error) {
+                if (current !== requestID || state.disposed) return;
+                limitsState.limits = null;
+            }
+            applyModelLimits(state, layer, limitsState.limits);
+        };
+        const schedule = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => { timer = null; refresh(); }, 350);
+        };
+        provider.addEventListener('change', schedule);
+        model.addEventListener('input', schedule);
+        state.modalCleanup = () => {
+            if (timer) clearTimeout(timer);
+            timer = null;
+            requestID += 1;
+        };
+        refresh();
+    }
+
+    async function confirmSmallModel(state, limits) {
+        if (!limits || !limits.below_minimum) return true;
+        return confirmAction(state, state.context.t('game_maker.small_model_title'),
+            state.context.t('game_maker.small_model_confirm', {
+                context: Number(limits.context_window) || 0,
+                minimum: Number(limits.minimum_context_window) || 0
+            }));
+    }
+
+    function smallModelFlag(limits) {
+        return Boolean(limits && limits.below_minimum);
+    }
+
+    function apiErrorCode(error) {
+        return error && error.body ? String(error.body.code || '') : '';
+    }
+
+    function applyStartedJob(state, job) {
+        state.jobStartedAt = jobStartMillis(job) || Date.now();
+        state.repairCount = 0;
+        state.lastPhase = '';
+        state.validationPreviewDismissed = false;
+        state.gameplayStatus = '';
+        state.previewStale = true;
+        state.activeJob = { job_id: job.id, project_id: state.project.id, status: job.status, phase: job.phase, started_at: job.started_at };
+        syncJobControls(state);
+    }
+
+    // Continue the retained draft with an explicit route override. The server
+    // stores the new provider/model on the project, so the note in the dialog
+    // is part of the contract, not a guess.
+    async function startResumedJob(state, route) {
+        if (!state.project || state.jobActive) return false;
+        state.jobActive = true;
+        state.container.querySelector('[data-gm-outcome]')?.remove();
+        try {
+            finalizeStreaming(state);
+            const selection = postedSelection(state, true);
+            const job = await state.api.startJob(state.project.id, Object.assign({
+                prompt: '',
+                resume: true,
+                validate_restored_draft: true,
+                preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
+                asset_pack_ids: selection.asset_pack_ids,
+                model_asset_ids: selection.model_asset_ids,
+                asset_selections: selection.asset_selections,
+                presentation: selection.presentation,
+                provider_id: state.project.provider_id,
+                model: state.project.model
+            }, route || {}));
+            state.job = job;
+            if (job && job.prompt) {
+                state.messages.push({ role: 'user', content: job.prompt });
+                renderConversation(state);
+                scrollConversation(state);
+            }
+            if (route && route.provider_id) state.project.provider_id = route.provider_id;
+            if (route && route.model) state.project.model = route.model;
+            const index = state.projects.findIndex(item => item.id === state.project.id);
+            if (index >= 0) state.projects[index] = state.project;
+            applyStartedJob(state, job);
+            return true;
+        } catch (error) {
+            state.jobActive = false;
+            fail(state, error);
+            return false;
+        }
+    }
+
+    async function extendRepairsAction(state, passes) {
+        if (!state.project || !passes) return;
+        const count = Math.min(6, Math.max(1, Number(passes) || 0));
+        const confirmed = await confirmAction(state, state.context.t('game_maker.extend_repairs'),
+            state.context.t('game_maker.extend_repairs_note', {
+                passes: count,
+                model: state.project.model || state.latestJob?.model || ''
+            }));
+        if (!confirmed || state.disposed) return;
+        await startResumedJob(state, { max_repair_passes: count });
+    }
+
+    function showRetryModelModal(state) {
+        if (!state.project || state.jobActive) return;
+        const cap = state.capabilities || {};
+        const { esc, t } = state.context;
+        const eligibleProviders = (cap.providers || []).filter(provider => provider && provider.id && provider.usage !== 'decisions');
+        const currentProvider = String(state.project.provider_id || cap.default_provider_id || '');
+        const currentModel = String(state.project.model || cap.default_model || '');
+        const providers = eligibleProviders.map(provider =>
+            `<option value="${esc(provider.id)}" data-model="${esc(provider.model || '')}"
+                ${provider.id === currentProvider ? 'selected' : ''}>${esc(provider.name || provider.id)}</option>`
+        ).join('');
+        const limitsState = { limits: null };
+        showModal(state, `
+            <form class="gm-modal gm-retry-model-modal" data-gm-retry-model-form>
+                <header><div><h2>${esc(t('game_maker.retry_model_title'))}</h2></div>
+                    <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
+                <p class="gm-field-help">${esc(t('game_maker.retry_model_note'))}</p>
+                <div class="gm-form-grid" data-gm-model-state>
+                    <label>${esc(t('game_maker.provider'))}<select name="provider_id">${providers}</select></label>
+                    <label>${esc(t('game_maker.model'))}<input name="model" value="${esc(currentModel)}" required></label>
+                </div>
+                <p class="gm-field-help" data-gm-model-limits hidden></p>
+                <p class="gm-model-warning" data-gm-model-warning role="status" hidden></p>
+                <p class="gm-compact-mode" data-gm-compact-mode hidden></p>
+                <footer><button type="button" data-modal-close>${esc(t('game_maker.cancel'))}</button>
+                    <button type="submit" class="gm-primary">${esc(t('game_maker.retry_model_start'))}</button></footer>
+            </form>`, layer => {
+            const form = layer.querySelector('[data-gm-retry-model-form]');
+            form.querySelector('select[name="provider_id"]').addEventListener('change', event => {
+                const model = event.target.selectedOptions[0]?.dataset.model;
+                if (model) form.elements.model.value = model;
+            });
+            bindModelLimits(state, layer, form, limitsState);
+            let submitting = false;
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (submitting) return;
+                submitting = true;
+                const allowed = await confirmSmallModel(state, limitsState.limits);
+                if (!allowed || state.disposed) {
+                    submitting = false;
+                    return;
+                }
+                closeModal(state);
+                const started = await startResumedJob(state, {
+                    provider_id: String(form.elements.provider_id.value || ''),
+                    model: String(form.elements.model.value || '').trim(),
+                    allow_small_model: smallModelFlag(limitsState.limits)
+                });
+                if (!started) submitting = false;
+            });
+            form.elements.model?.focus();
+        });
     }
 
     async function reloadProjectRecord(state) {
@@ -1143,10 +1442,13 @@
                 <div class="gm-idea-examples" role="group" aria-label="${esc(t('game_maker.example_ideas_label'))}">
                     <span class="gm-field-help">${esc(t('game_maker.example_ideas_label'))}</span>${chips}
                 </div>
-                <div class="gm-form-grid">
+                <div class="gm-form-grid" data-gm-model-state>
                     <label>${esc(t('game_maker.provider'))}<select name="provider_id">${providers}</select></label>
                     <label>${esc(t('game_maker.model'))}<input name="model" value="${esc(cap.default_model || '')}" required></label>
                 </div>
+                <p class="gm-field-help" data-gm-model-limits hidden></p>
+                <p class="gm-model-warning" data-gm-model-warning role="status" hidden></p>
+                <p class="gm-compact-mode" data-gm-compact-mode hidden></p>
                 <div class="gm-media-options">
                     ${mediaToggle(state, 'use_image_generation', 'image_generation', 'image_assets')}
                     ${mediaToggle(state, 'use_music_generation', 'music_generation', 'music_assets')}
@@ -1156,10 +1458,12 @@
                     <button type="submit" class="gm-primary">${esc(t('game_maker.start_creating'))}</button></footer>
             </form>`, layer => {
             const form = layer.querySelector('[data-gm-create]');
+            const limitsState = { limits: null };
             form.querySelector('select[name="provider_id"]').addEventListener('change', event => {
                 const model = event.target.selectedOptions[0]?.dataset.model;
                 if (model) form.elements.model.value = model;
             });
+            bindModelLimits(state, layer, form, limitsState);
             layer.querySelectorAll('[data-idea]').forEach(chip => chip.addEventListener('click', async () => {
                 const idea = t('game_maker.example_idea_' + chip.dataset.idea);
                 const target = form.elements.description;
@@ -1196,6 +1500,13 @@
                     use_image_generation: data.get('use_image_generation') === 'on',
                     use_music_generation: data.get('use_music_generation') === 'on'
                 };
+                // A known route below the Studio floor starts only after an
+                // explicit confirmation; the server enforces the same rule.
+                const allowSmallModel = smallModelFlag(limitsState.limits);
+                if (!await confirmSmallModel(state, limitsState.limits)) {
+                    creating = false;
+                    return;
+                }
                 setModalBusy(layer, true);
                 let createdProject = null;
                 try {
@@ -1216,12 +1527,13 @@
                         provider_id: request.provider_id,
                         model: request.model,
                         image_generation: request.use_image_generation,
-                        music_generation: request.use_music_generation
+                        music_generation: request.use_music_generation,
+                        allow_small_model: allowSmallModel
                     });
                     closeModal(state);
                     state.projects.unshift(createdProject);
-                    state.jobStartedAt = Date.now();
-                    state.activeJob = { job_id: job.id, project_id: createdProject.id, status: job.status, phase: job.phase };
+                    state.jobStartedAt = jobStartMillis(job) || Date.now();
+                    state.activeJob = { job_id: job.id, project_id: createdProject.id, status: job.status, phase: job.phase, started_at: job.started_at };
                     await openProject(state, createdProject.id);
                     if (!state.job) state.job = job;
                     syncJobControls(state);
@@ -1234,7 +1546,9 @@
                         fail(state, error);
                     } else {
                         setModalBusy(layer, false);
-                        modalError(layer, error.message || String(error));
+                        modalError(layer, apiErrorCode(error) === 'model_context_too_small'
+                            ? t('game_maker.small_model_blocked')
+                            : (error.message || String(error)));
                     }
                 }
             });
@@ -1285,14 +1599,7 @@
                 renderConversation(state);
                 scrollConversation(state);
             }
-            state.jobStartedAt = Date.now();
-            state.repairCount = 0;
-            state.lastPhase = '';
-            state.validationPreviewDismissed = false;
-            state.gameplayStatus = '';
-            state.previewStale = true;
-            state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
-            syncJobControls(state);
+            applyStartedJob(state, state.job);
         } catch (error) {
             if (!resume) {
                 input.value = prompt;
@@ -1436,13 +1743,13 @@
             state.container.querySelector('[data-gm-outcome]')?.remove();
             syncJobControls(state);
             state.job = await state.api.startJob(state.project.id, { adopt_workspace: true });
-            state.jobStartedAt = Date.now();
+            state.jobStartedAt = jobStartMillis(state.job) || Date.now();
             state.repairCount = 0;
             state.lastPhase = '';
             state.validationPreviewDismissed = false;
             state.gameplayStatus = '';
             state.previewStale = true;
-            state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
+            state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase, started_at: state.job.started_at };
             syncJobControls(state);
         } catch (error) {
             state.jobActive = false;
@@ -1530,16 +1837,20 @@
             validating.hidden = phase !== 'validating';
             if (phase === 'validating') validating.textContent = state.context.t('game_maker.validating_preview_hint');
         }
-        const stop = banner.querySelector('[data-gm-action="stop"]');
-        stop.disabled = Boolean(state.job && state.job.status === 'cancelling');
+        const cancelling = Boolean(state.job && state.job.status === 'cancelling');
+        state.container.querySelectorAll('[data-gm-action="stop"]').forEach(stop => {
+            stop.disabled = cancelling;
+        });
     }
 
     function startElapsed(state) {
         if (state.elapsedTimer) return;
         if (!state.jobStartedAt) state.jobStartedAt = Date.now();
-        const node = state.container.querySelector('[data-gm-job-elapsed]');
         const tick = () => {
-            if (node) node.textContent = formatElapsed(Date.now() - state.jobStartedAt);
+            const text = formatElapsed(Date.now() - state.jobStartedAt);
+            state.container.querySelectorAll('[data-gm-job-elapsed], [data-gm-job-feed-elapsed]').forEach(node => {
+                node.textContent = text;
+            });
         };
         tick();
         state.elapsedTimer = setInterval(tick, 1000);
@@ -1548,6 +1859,11 @@
     function stopElapsed(state) {
         if (state.elapsedTimer) clearInterval(state.elapsedTimer);
         state.elapsedTimer = null;
+    }
+
+    function jobStartMillis(job) {
+        const parsed = Date.parse(job && job.started_at || '');
+        return Number.isFinite(parsed) ? parsed : 0;
     }
 
     function formatElapsed(ms) {

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -60,6 +61,7 @@ func TestDispatchHomepageInitProjectRegistersProjectDir(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	output, ok := dispatchServices(context.Background(), ToolCall{
+		Reason:    "Homepage regression fixture",
 		Action:    "homepage",
 		Operation: "init_project",
 		Framework: "html",
@@ -312,6 +314,7 @@ func TestDispatchHomepageWriteFileRecordsLedgerRevision(t *testing.T) {
 	}
 
 	output, ok := dispatchServices(context.Background(), ToolCall{
+		Reason:    "Homepage regression fixture",
 		Action:    "homepage",
 		Operation: "write_file",
 		Path:      "site-a/index.html",
@@ -501,5 +504,14 @@ func TestDispatchHomepageDeploySFTPDoesNotLogFailedDeploy(t *testing.T) {
 	}
 	if proj.LastDeployURL != "" || proj.LastDeployedAt != "" {
 		t.Fatalf("failed SFTP deploy must not update last deployment fields, got url=%q at=%q", proj.LastDeployURL, proj.LastDeployedAt)
+	}
+}
+
+func TestHomepageLedgerFailureAfterDeployForbidsBlindRetry(t *testing.T) {
+	raw := homepageLedgerFatalResult(`{"status":"ok","url":"https://example.test"}`, fmt.Errorf("database unavailable"))
+	for _, field := range []string{`"status":"partial_success"`, `"retry_safe":false`, `"ledger_updated":false`} {
+		if !strings.Contains(raw, field) {
+			t.Fatal(raw)
+		}
 	}
 }

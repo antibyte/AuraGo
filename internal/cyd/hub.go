@@ -56,7 +56,8 @@ func NewHub() *Hub {
 	}
 }
 
-// SetSpeakDataDir points the hub at AuraGo's managed sanoTTS venv.
+// SetSpeakDataDir keeps the managed sanoTTS venv only as a fallback. An
+// installed active-TTS synth stays attached.
 func (h *Hub) SetSpeakDataDir(dataDir string) {
 	if h == nil {
 		return
@@ -64,9 +65,28 @@ func (h *Hub) SetSpeakDataDir(dataDir string) {
 	next := NewSpeakerWithData(dataDir)
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.speak != nil {
+		h.speak.mu.Lock()
+		next.synth = h.speak.synth
+		next.ready = h.speak.ready
+		h.speak.mu.Unlock()
+	}
 	if next.Available() {
 		h.speak = next
 	}
+}
+
+// SetSpeechSynth makes glass alerts use the hub's active TTS provider.
+func (h *Hub) SetSpeechSynth(fn SpeechSynth, ready func() bool) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.speak == nil {
+		h.speak = NewSpeaker()
+	}
+	h.speak.SetSynth(fn, ready)
 }
 
 func (h *Hub) SetInputs(in Inputs) {
@@ -108,6 +128,15 @@ func NewNotifyID() string {
 }
 
 func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
+	return h.notify(title, body, "", priority, ttl)
+}
+
+// NotifySpeech shows title and body on the glass and speaks line instead.
+func (h *Hub) NotifySpeech(title, body, line, priority string, ttl int) Notify {
+	return h.notify(title, body, line, priority, ttl)
+}
+
+func (h *Hub) notify(title, body, line, priority string, ttl int) Notify {
 	n := Notify{
 		ID:       NewNotifyID(),
 		Title:    Truncate(title, TitleMax),
@@ -130,7 +159,11 @@ func (h *Hub) Notify(title, body, priority string, ttl int) Notify {
 	if h.speak != nil && h.speak.Available() && !inGoTest() {
 		copyN.Speak = true
 		n.Speak = true
-		h.speak.Queue(n.ID, n.Title, n.Body)
+		if strings.TrimSpace(line) != "" {
+			h.speak.QueueText(n.ID, line)
+		} else {
+			h.speak.Queue(n.ID, n.Title, n.Body)
+		}
 	} else if !inGoTest() {
 		h.speak.warnUnavailable()
 	}

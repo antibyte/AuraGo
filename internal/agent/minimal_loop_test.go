@@ -68,6 +68,28 @@ func TestMinimalLoopResponseFormatIsOptInAndToolFree(t *testing.T) {
 	}
 }
 
+func TestMinimalLoopAppliesConfiguredTemperature(t *testing.T) {
+	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
+	cfg := &config.Config{}
+	cfg.Agent.ContextWindow = 6000
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	temperature := float32(0.2)
+	if _, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Return JSON.", "Implement the game.", nil, &DispatchContext{Cfg: cfg}, nil, logger, &MinimalLoopOptions{MaxToolRounds: 0, Temperature: &temperature}); err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if len(client.requests) != 1 || client.requests[0].Temperature != temperature {
+		t.Fatalf("pinned temperature not sent: %+v", client.requests)
+	}
+	// A nil option keeps the provider default instead of forcing 0.
+	client.requests = nil
+	if _, _, err := ExecuteMinimalLoop(context.Background(), client, "primary-model", "Return JSON.", "Implement the game.", nil, &DispatchContext{Cfg: cfg}, nil, logger, &MinimalLoopOptions{MaxToolRounds: 0}); err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if len(client.requests) != 1 || client.requests[0].Temperature != 0 {
+		t.Fatalf("nil temperature must keep the provider default: %+v", client.requests)
+	}
+}
+
 func TestPrepareMinimalLoopRequestFitsEveryRouteAndKeepsToolGroupsAtomic(t *testing.T) {
 	client := &minimalLoopRouteClient{routes: minimalLoopTestRoutes()}
 	cfg := &config.Config{}
@@ -397,5 +419,18 @@ func TestExecuteMinimalLoopNeverReturnsToolText(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestMinimalSystemPromptDiscoverHint(t *testing.T) {
+	if got := MinimalSystemPromptBuilder(nil); strings.Contains(got, MinimalLoopDiscoverHint) {
+		t.Fatalf("a prompt without tools must not carry the discover hint:\n%s", got)
+	}
+	if got := MinimalSystemPromptBuilder([]string{"filesystem", "invoke_tool"}); strings.Contains(got, MinimalLoopDiscoverHint) {
+		t.Fatalf("a prompt without discover_tools must not carry the discover hint:\n%s", got)
+	}
+	got := MinimalSystemPromptBuilder([]string{"filesystem", "discover_tools"})
+	if strings.Count(got, MinimalLoopDiscoverHint) != 1 || !strings.HasSuffix(got, MinimalLoopDiscoverHint+"\n") {
+		t.Fatalf("a prompt with discover_tools must end with the discover hint once:\n%s", got)
 	}
 }

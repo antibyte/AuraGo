@@ -154,7 +154,7 @@ type MissionV2 struct {
 	Priority      string         `json:"priority"` // low | medium | high
 	Enabled       bool           `json:"enabled"`
 	Status        string         `json:"status"` // idle | queued | running | waiting
-	LastRun       time.Time      `json:"last_run"`
+	LastRun       time.Time      `json:"last_run,omitzero"`
 	LastResult    string         `json:"last_result"` // success | error | ""
 	LastOutput    string         `json:"last_output"` // truncated last response
 	RunCount      int            `json:"run_count"`
@@ -1355,7 +1355,7 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 		if err != nil {
 			return err
 		}
-		return hooks.StartFlowRun(missionID, "", triggerType, triggerData)
+		return startFlowRunReported(hooks, missionID, triggerType, triggerData)
 	}
 
 	m.mu.Lock()
@@ -2029,7 +2029,7 @@ func (m *MissionManagerV2) RunNow(id string) error {
 		if err != nil {
 			return err
 		}
-		return hooks.StartFlowRun(id, "", "manual", "")
+		return startFlowRunReported(hooks, id, "manual", "")
 	}
 
 	m.mu.Lock()

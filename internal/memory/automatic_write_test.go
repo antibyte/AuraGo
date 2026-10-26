@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"errors"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -23,6 +24,10 @@ func TestAnalysisSourcesMigrationBacksUpLegacyStore(t *testing.T) {
 	}
 	before, _ := s.GetMemoryMeta("legacy")
 	if _, err := s.db.Exec(`DROP TABLE memory_extraction_sources`); err != nil {
+		t.Fatal(err)
+	}
+	// Exercise the legacy bridge migration from its documented schema version.
+	if _, err := s.db.Exec(`PRAGMA user_version=11`); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -97,7 +102,7 @@ func TestAnalysisSessionIdentityPreservesArchivedFact(t *testing.T) {
 	}
 	before, _ := s.GetMemoryMeta(id)
 	second, err := StoreAutomaticMemoryDocument(s, v, concept, "source:memory_analysis session:chat-B", MemoryMetaUpdate{SourceType: "memory_analysis"})
-	if err != nil || !reflect.DeepEqual(second.ReusedIDs, []string{id}) || v.Count() != 1 {
+	if !errors.Is(err, ErrAutomaticMemorySkipped) || len(second.ReusedIDs)+len(second.CreatedIDs) != 0 || v.Count() != 1 {
 		t.Fatalf("revived: %+v %v", second, err)
 	}
 	after, _ := s.GetMemoryMeta(id)
@@ -105,7 +110,7 @@ func TestAnalysisSessionIdentityPreservesArchivedFact(t *testing.T) {
 		t.Fatal("metadata changed on reuse")
 	}
 	sources, err := s.GetMemoryExtractionSources(id)
-	if err != nil || len(sources) != 2 || sources[0].SessionID != "chat-A" || sources[1].SessionID != "chat-B" {
+	if err != nil || len(sources) != 0 {
 		t.Fatalf("sources: %+v %v", sources, err)
 	}
 }

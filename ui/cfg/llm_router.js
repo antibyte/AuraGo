@@ -2,7 +2,7 @@
 function renderLLMRouterSection(section) {
     const areas = ['general', 'easy', 'normal', 'complex', 'coding', 'research', 'creativity', 'security', 'writing'];
     const data = configData.llm_router || {};
-    const tr = key => t('common.llm_router.' + key);
+    const tr = (key, vars) => t('common.llm_router.' + key, vars);
     const root = document.createElement('div');
     root.className = 'cfg-section active';
     root.dataset.routerSettings = '';
@@ -107,6 +107,15 @@ function renderLLMRouterSection(section) {
     const result = node('p', 'cfg-note-banner');
     result.setAttribute('role', 'status');
     result.setAttribute('aria-live', 'polite');
+    const cooldownStatus = node('p', 'field-help');
+    cooldownStatus.dataset.routerCooldown = '';
+    cooldownStatus.setAttribute('aria-live', 'polite');
+    let disposed = false;
+    let cooldownUntil = 0;
+    let cooldownTimer;
+    const timers = new Set();
+    const delay = (callback, ms) => { const id = setTimeout(() => { timers.delete(id); callback(); }, ms); timers.add(id); return id; };
+    const clearDelay = id => { clearTimeout(id); timers.delete(id); };
     const helperStatus = node('p', 'field-help');
     let available = false;
     let decisionsAvailable = false;
@@ -116,12 +125,18 @@ function renderLLMRouterSection(section) {
     let controller;
     let statusController;
     const lifetime = new AbortController();
-    const initialTimer = setTimeout(() => lifetime.abort(), 7000);
+    const initialTimer = delay(() => lifetime.abort(), 7000);
     const syncButtons = () => {
+        if (disposed) return;
+        clearDelay(cooldownTimer);
+        const seconds = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
+        cooldownStatus.hidden = seconds === 0;
+        cooldownStatus.textContent = seconds ? tr('cooldown_wait', {seconds}) : '';
+        if (seconds) cooldownTimer = delay(syncButtons, 1000);
         const quota = Number(configData.llm_router?.helper_max_calls_per_hour ?? 20);
         localButton.disabled = busy || !input.value.trim();
-        helperButton.disabled = busy || !input.value.trim() || !available || !helper.classList.contains('on') || quota === 0 || !helperUseful;
-        decisionButton.disabled = busy || !input.value.trim() || !decisionsAvailable || !decisions.classList.contains('on') || quota === 0 || !decisionsUseful;
+        helperButton.disabled = busy || seconds > 0 || !input.value.trim() || !available || !helper.classList.contains('on') || quota === 0 || !helperUseful;
+        decisionButton.disabled = busy || seconds > 0 || !input.value.trim() || !decisionsAvailable || !decisions.classList.contains('on') || quota === 0 || !decisionsUseful;
     };
     const invalidatePreview = () => {
         helperUseful = decisionsUseful = false;
@@ -146,11 +161,14 @@ function renderLLMRouterSection(section) {
         controller = requestController;
         const text = input.value;
         const current = () => root.isConnected && controller === requestController && input.value === text && !hasUnsavedConfigChanges();
-        const timer = setTimeout(() => requestController.abort(), 7000);
+        const timer = delay(() => requestController.abort(), 7000);
         try {
             const response = await fetch('/api/llm-router/preview', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text, classifier, helper: classifier === 'helper'}), signal: requestController.signal });
             if (!response.ok) throw new Error('preview');
             const body = await response.json();
+            if (root.isConnected && Number(body.decision?.retry_after_seconds) > 0) {
+                cooldownUntil = Math.max(cooldownUntil, Date.now() + body.decision.retry_after_seconds * 1000);
+            }
             if (!current()) return;
             helperUseful = !!body.decision?.helper_useful && body.decision?.source === 'default';
             decisionsUseful = !!body.decision?.decisions_useful && body.decision?.source === 'default';
@@ -158,7 +176,7 @@ function renderLLMRouterSection(section) {
         } catch (error) {
             if (current()) result.textContent = t('common.error');
         } finally {
-            clearTimeout(timer);
+            clearDelay(timer);
             if (controller === requestController) { controller = null; busy = false; syncButtons(); }
         }
     };
@@ -173,7 +191,7 @@ function renderLLMRouterSection(section) {
         statusController?.abort();
         const active = new AbortController();
         statusController = active;
-        const timer = setTimeout(() => active.abort(), 7000);
+        const timer = delay(() => active.abort(), 7000);
         fetch('/api/llm-router/status', {credentials: 'same-origin', signal: active.signal}).then(r => { if (!r.ok) throw new Error('status'); return r.json(); }).then(status => {
             if (!root.isConnected || statusController !== active) return;
             available = !!status.helper_available;
@@ -193,7 +211,7 @@ function renderLLMRouterSection(section) {
                 helperStatus.textContent = decisionStatus.textContent = t('common.error');
                 syncButtons();
             }
-        }).finally(() => clearTimeout(timer));
+        }).finally(() => clearDelay(timer));
     };
     const onSaved = () => { invalidatePreview(); refreshStatus(); };
     document.addEventListener('aurago:config-saved', onSaved);
@@ -206,7 +224,10 @@ function renderLLMRouterSection(section) {
     // The observer also covers section switches and a closing embedded config panel.
     const observer = new MutationObserver(() => {
         if (!root.isConnected) {
-            clearTimeout(initialTimer);
+            disposed = true;
+            timers.forEach(clearTimeout);
+            timers.clear();
+            clearDelay(initialTimer);
             lifetime.abort();
             controller?.abort();
             statusController?.abort();

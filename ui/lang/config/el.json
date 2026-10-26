@@ -1,4 +1,11 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Οι λίστες δεν είναι προσωρινά διαθέσιμες. Οι αποθηκευμένες επιλογές διατηρούνται.",
+  "config.telephone_agent.tool_unavailable": "Το εργαλείο δεν είναι διαθέσιμο",
+  "config.telephone_agent.language_auto": "Αυτόματα",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "Δεν έχουν οριστεί επιτρεπόμενοι εξερχόμενοι αριθμοί ή χρήστες.",
+  "config.sip.telephone_profile_preserved": "Οι ρυθμίσεις του τηλεφωνικού πράκτορα και η καθυστέρηση απάντησης διατηρούνται.",
+  "config.decisions.docker_api_too_old": "Οι υποκατάλογοι ονομαστικών τόμων απαιτούν Docker Engine 26 (API 1.45) ή νεότερο. Ενημέρωσε το Docker ή χρησιμοποίησε κατάλληλη προσάρτηση καταλόγου του συστήματος.",
+  "config.decisions.runtime_score_timeout": "Η αξιολόγηση έφτασε στο όριο των δύο λεπτών. Η υπηρεσία παραμένει διαθέσιμη για την επόμενη αξιολόγηση.",
   "config.decisions.local_setup": "Ρύθμιση τοπικού μοντέλου",
   "config.decisions.local_server_help": "Το μοντέλο εκτελείται στον υπολογιστή που φιλοξενεί το AuraGo. Προτιμάται συμβατή κάρτα γραφικών.",
   "config.decisions.advanced": "Τρόπος εκτέλεσης και άδεια CPU",

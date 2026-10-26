@@ -6,7 +6,7 @@
 
 JSON, admin auth where it hurts, SSE at `GET /events`. No public chat `/ws`. Default origin: `http://localhost:8088`.
 
-> Updated: 3 October 2026. Routes are what the server registers, not a wish list.
+> Updated: 19 October 2026. Routes are what the server registers, not a wish list.
 
 ---
 
@@ -569,10 +569,45 @@ Model wiring, failover, and embeddings.
 GET /api/providers
 ```
 
-#### Provider Pricing
+Reads return an array and an opaque quoted `ETag`. Save that revision and send
+it as `If-Match` for both writes below:
+
 ```http
-GET /api/providers/pricing
+PUT /api/providers
+If-Match: "<revision>"
+
+POST /api/providers/pricing?id=main
+If-Match: "<revision>"
 ```
+
+Successful writes return the new revision. Missing revisions return **428**;
+stale revisions return **412**. Provider removal with saved references returns
+**409**, `provider_in_use`, and all references, including disabled features.
+Any `providers` field on `PUT /api/config` returns **400**,
+`provider_use_api_providers`, before any mutation. AgoDesk list/get and writes
+use the same `revision`; force cannot bypass reference protection.
+
+#### Pricing, passive diagnostics and explicit tests
+
+```http
+GET /api/providers/pricing?id=main
+GET /api/providers/status
+POST /api/providers/test
+Content-Type: application/json
+
+{"provider_id":"main","probe_kind":"metadata"}
+```
+
+Status is authenticated and never probes providers. Test kind defaults to
+`metadata`; `generation` is explicit, potentially paid and booked through the
+budget path. Tests accept no endpoint/credential overrides, use saved settings,
+last at most 20 seconds and allow one concurrent test per provider. Unsupported
+metadata does not trigger generation. A stale result does not confirm a newer
+revision. Secrets stay in the Vault; a credential mask only keeps an existing
+valid value and an empty field clears it.
+
+See [Provider management](../../provider-management.md) for bootstrap, conflicts
+and the full compatibility contract.
 
 ### Ollama API
 
@@ -1226,6 +1261,8 @@ GET /api/pixel/config
 
 Returns whether image generation is enabled, the resolved provider/model, default size/quality/style, and image-to-image support.
 
+`supports_cutout_ai` is `true` when the local AI background removal can run on this server. It is `false` when the platform has no ONNX Runtime build for the AI cutout; the classic on-device engine in the editor works either way. Its status and model downloads are described below.
+
 #### Generate Image
 ```http
 POST /api/pixel/generate
@@ -1267,6 +1304,125 @@ Content-Type: application/json
 ```
 
 Relative paths are stored under the configured data workspace.
+
+`format` is `png`, `jpeg` (alias `jpg`) or `ora`. It must agree with the file extension; otherwise the request fails with
+`400` and `Image format and filename must agree`. A path ending in `.ora`, or `format: "ora"`, saves an OpenRaster project
+(layers, masks, blend modes, locks), which GIMP and Krita open:
+
+```http
+POST /api/pixel/save
+Content-Type: application/json
+
+{
+  "path": "Images/project.ora",
+  "data": "data:application/zip;base64,...",
+  "format": "ora"
+}
+```
+
+`data` is the base64 encoded ZIP archive; the server ignores the data URL prefix. The archive is validated before anything is
+written: at most 32 MiB (or the lower desktop file size limit), at most 128 entries, a stored `mimetype` entry first that
+reads `image/openraster`, safe entry names (no `..`, no absolute paths), a `stack.xml` of at most 1 MiB, layer and mask PNGs
+that pass the image checks and fit the document, and at most 512 MiB uncompressed in total.
+
+A successful save returns `200`:
+
+```json
+{"status": "ok", "path": "Images/project.ora", "size": 183204, "version": "..."}
+```
+
+The same `version` is sent in the `ETag` header. Send it back as `If-Match` on the next save of that file, so that a newer
+change from another window is not overwritten. Errors use `{"error": "..."}`: `400` for invalid input or a format mismatch,
+`413` for a file that is too large, and `503` when the Virtual Desktop service is unavailable. In a read-only Virtual Desktop
+the request is refused with `403` and `"code": "desktop_readonly"`.
+
+#### AI Cutout Status
+```http
+GET /api/pixel/cutout/status
+```
+
+Reports whether the local AI background removal can run, the state of its two models and whether a cutout is running. It
+never downloads anything and needs read access to the Virtual Desktop. Other methods return `405`.
+
+```json
+{
+  "available": true,
+  "runtime_ready": false,
+  "busy": false,
+  "models": [
+    {"id": "standard", "name": "ISNet general-use", "license": "Apache-2.0", "size_bytes": 178648008, "ready": false, "downloading": false, "progress": 0, "error": ""},
+    {"id": "precise", "name": "BiRefNet general lite", "license": "MIT", "size_bytes": 224005088, "ready": false, "downloading": false, "progress": 0, "error": ""}
+  ]
+}
+```
+
+- `available`: the platform has an ONNX Runtime build for the AI cutout (the same value as `supports_cutout_ai`).
+- `runtime_ready`: the ONNX Runtime library is present.
+- `busy`: a cutout is running. Only one cutout runs at a time.
+- `progress`: from `0` to `1` while a model is downloading.
+- `error`: the last download error, or an empty string.
+
+The models are `standard` (ISNet general-use, Apache-2.0, from the rembg v0.0.0 release) and `precise` (BiRefNet general lite,
+MIT, from the same release). Sizes and SHA-256 hashes are pinned in `internal/pixelmatte/model.go`.
+
+#### Prepare AI Cutout Model
+```http
+POST /api/pixel/cutout/prepare
+Content-Type: application/json
+
+{"model": "standard"}
+```
+
+Starts the background download of the model and, when it is missing, the ONNX Runtime for the platform. This is the only
+request that downloads anything. A download runs once per model; repeated calls join it, and it continues until it finishes
+or the server stops, even if the request has ended.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `202 Accepted` | `{"status": "downloading"}` | Download started, or already running |
+| `200 OK` | `{"status": "ready"}` | Model and runtime are already present |
+| `400 Bad Request` | `{"status": "error", "error": "model must be standard or precise"}` | Unknown model or invalid JSON |
+| `409 Conflict` | `{"status": "unavailable", "error": "AI cutout is not available on this platform"}` | No ONNX Runtime build for this platform |
+| `403 Forbidden` | `"code": "desktop_readonly"` | The Virtual Desktop is read-only |
+
+#### Run AI Cutout
+```http
+POST /api/pixel/cutout
+Content-Type: application/json
+
+{
+  "model": "standard",
+  "source_data": "data:image/png;base64,..."
+}
+```
+
+`model` is `standard` or `precise`. `source_data` is a PNG or JPEG image as a data URL. The request body may be up to 44 MiB,
+and the decoded image up to 32 MiB and 32 megapixels. The model must be downloaded first (see `prepare`). The Pixel editor
+scales the image to at most 2048 pixels on its longer side before it uploads, so the returned mask has the size of the
+uploaded image, and the editor scales it back to the document.
+
+A successful run returns `200`:
+
+```json
+{"status": "ok", "mask": "data:image/png;base64,...", "width": 1024, "height": 683, "ms": 1870}
+```
+
+`mask` is an 8-bit grayscale PNG of `width` × `height`. Bright pixels are the subject, so the luminance is the alpha value.
+`ms` is the run time in milliseconds. Image data is never written to the logs.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `400 Bad Request` | `{"status": "error", "error": "..."}` | Unknown model, missing `source_data`, an encoding that is not a data URL, or an image that is not a valid PNG or JPEG or exceeds the limits |
+| `403 Forbidden` | `"code": "desktop_readonly"` | The Virtual Desktop is read-only |
+| `409 Conflict` | `{"status": "not_ready", "error": "The AI cutout model is not downloaded yet"}` | The model is missing: call `prepare` first |
+| `409 Conflict` | `{"status": "unavailable", "error": "..."}` | No ONNX Runtime build for this platform |
+| `413 Payload Too Large` | `{"status": "error", "error": "Image request is too large"}` | The request body is above 44 MiB |
+| `429 Too Many Requests` | `{"status": "busy", "error": "Another cutout is running"}` | Another run is in progress |
+| `504 Gateway Timeout` | `{"status": "timeout", "error": "The cutout took too long"}` | The run exceeded 180 seconds |
+| `500 Internal Server Error` | `{"status": "error", "error": "Background matting failed"}` | The worker failed; the details are in the server log |
+
+The older provider-based endpoints (`/api/pixel/generate`, `/enhance`, `/remove-bg` and `/upscale`) are separate. They use the
+image-generation provider and do not run the local models.
 
 ### Music Generation API
 
@@ -2153,24 +2309,178 @@ Dashboard, containers, backups, system status, and event streams.
 
 ### Dashboard API
 
+Routes called *administrator-only* below are registered behind `requireAdmin`: a Web UI session passes (every caller does while Web UI authentication is off); a bearer token needs the `admin` scope.
+
+#### Summary
+```http
+GET /api/dashboard/summary
+```
+
+Administrator-only. One answer feeds the overview, the sidebar status block and the sidebar badges. Other methods return `405`. The server does not cache it (`Cache-Control: no-store`); the dashboard reuses an answer for 15 seconds.
+
+**Response:**
+```json
+{
+  "generated_at": "2026-10-19T09:41:00+02:00",
+  "overall": "warning",
+  "agent": {
+    "model": "llama-3.3-70b-instruct",
+    "provider": "openrouter",
+    "personality": "friend",
+    "context_window": 131072,
+    "busy": false,
+    "debug": false,
+    "maintenance": true,
+    "mood": "focused"
+  },
+  "context": {
+    "total_chars": 48000
+  },
+  "last_activity_hours": 0.4,
+  "maintenance": {
+    "enabled": true,
+    "last_run": "2026-10-19T03:00:04+02:00",
+    "last_status": "completed",
+    "next_run": "2026-10-20T03:00:00+02:00"
+  },
+  "health": {
+    "cpu_percent": 18.4,
+    "memory_percent": 46.2,
+    "disk_percent": 61,
+    "uptime_seconds": 273600,
+    "sampled_at": "2026-10-19T09:40:52+02:00"
+  },
+  "attention": [
+    {
+      "id": "operational_issue:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
+      "severity": "warning",
+      "code": "operational_issue",
+      "params": {
+        "kind": "runtime_failure",
+        "occurrences": 3,
+        "source": "maintenance",
+        "title": "Backup target unreachable"
+      },
+      "section": "problems",
+      "count": 1,
+      "at": "2026-10-19T08:12:00+02:00"
+    },
+    {
+      "id": "cron_errors",
+      "severity": "warning",
+      "code": "cron_errors",
+      "params": {
+        "first_id": "nightly-backup"
+      },
+      "section": "automations",
+      "count": 1,
+      "at": ""
+    }
+  ],
+  "attention_more": 0,
+  "badges": {
+    "problems": 1,
+    "automations": 1
+  },
+  "kpis": {
+    "budget": {
+      "enabled": true,
+      "spent_usd": 0.42,
+      "daily_limit_usd": 2,
+      "percentage": 0.21,
+      "state": "ok"
+    },
+    "automations": {
+      "missions_running": 1,
+      "missions_queued": 0,
+      "missions_failed_24h": 0,
+      "cron_errors": 1,
+      "daemons_failed": 0
+    },
+    "knowledge": {
+      "kg_nodes": 1284,
+      "kg_edges": 3410,
+      "core_facts": 37
+    }
+  },
+  "recent_activity": [
+    {
+      "id": 5120,
+      "timestamp": "2026-10-19T09:38:12+02:00",
+      "source": "mission",
+      "event_type": "mission_run",
+      "target_name": "Morning briefing",
+      "status": "success",
+      "duration_ms": 41250,
+      "section": "automations"
+    }
+  ],
+  "unavailable": []
+}
+```
+
+- `overall` is `critical` when an attention item is critical, `warning` when one is a warning, otherwise `ok`; `info` items never change `ok`.
+- `agent`, `context`, `last_activity_hours` and `maintenance` use the keys of `GET /api/dashboard/overview`. `mood` stays empty unless the personality engine is on; `last_activity_hours` is `-1` when unknown.
+- `health` is `null` until the 10-second metrics collector has taken its first sample; `uptime_seconds` counts from the AuraGo start.
+- `attention` holds at most 8 items, sorted by severity (`critical`, `warning`, `info`), then `at` (newest first, empty last), then `code`; `attention_more` counts the items that were cut off. `code` is one of `operational_issue`, `cron_errors`, `missions_failed`, `daemon_failed`, `budget_warning`, `budget_blocked`, `disk_high`, `memory_high`, `indexer_error`, `memory_conflicts` and `localwiki_update`; `params` fills the client-side text `dashboard.attention.<code>`; `section` is the dashboard section the row links to; `at` is RFC 3339 or empty. The sanitized operational-issue `title` is the only free text.
+- `badges.problems` counts all active operational issues; `badges.automations` adds cron jobs in error, failed mission runs of the last 24 hours and failed daemon skills.
+- `kpis.budget` amounts are USD, `percentage` is a fraction (0–1) and `state` is `ok`, `warning` or `blocked`; `enabled` is `false` while budget tracking is off.
+- `recent_activity` lists the latest 8 audit events without their summary or detail text; `section` is `automations` for mission events, otherwise `audit`.
+- `unavailable` names the sources that failed for this answer: `health`, `operational_issues`, `missions`, `knowledge`, `memory` and `audit`. The answer stays `200` with zeros for those sources, and the server logs `[Dashboard] Summary source unavailable` with the error. A source that is not configured is not listed; it reports zeros or `enabled: false`.
+- Raw error texts, file paths, tokens and issue fingerprints are never returned. The `id` of a `recent_activity` entry is the audit row id, which the audit delete route also takes.
+
 #### System Metrics
 ```http
 GET /api/dashboard/system
 ```
 
+Samples the host for about one second.
+
 **Response:**
 ```json
 {
-  "cpu": 15.2,
-  "memory": 45.8,
-  "disk": 72.1,
-  "network": {
-    "rx_mbps": 1.2,
-    "tx_mbps": 0.8
+  "cpu": {
+    "usage_percent": 15.2,
+    "cores": 8,
+    "model_name": "Example CPU"
   },
+  "disk": {
+    "total": 512110190592,
+    "free": 142878743175,
+    "used": 369231447417,
+    "used_percent": 72.1
+  },
+  "host_uptime_seconds": 1209600,
+  "memory": {
+    "total": 17179869184,
+    "available": 9311489098,
+    "used": 7868380086,
+    "used_percent": 45.8
+  },
+  "network": {
+    "bytes_sent": 1843254211,
+    "bytes_recv": 9725118976
+  },
+  "sse_clients": 2,
   "uptime_seconds": 86400
 }
 ```
+
+`host_uptime_seconds` appears only when the host uptime is known. The `system_metrics` SSE event (about every 10 seconds) carries the same fields plus `available`.
+
+#### Dashboard Overview
+```http
+GET /api/dashboard/overview
+```
+
+The snapshot behind the **Operations & Services** card in the **System and services** section: `agent`, `integrations`, `missions`, `invasion`, `indexer`, `devices`, `mqtt`, `notes`, `security`, `context`, `last_activity_hours`, `cheatsheets`, `tunnel`, `skills`, `daemons`, `planner`, `maintenance`, `memory` and `local_wikipedia`.
+
+#### Maintenance Status
+```http
+GET /api/dashboard/maintenance/status
+```
+
+Returns `{"status": "ok", "maintenance": {…}}` with the nightly maintenance summary.
 
 #### Mood History
 ```http
@@ -2187,6 +2497,32 @@ GET /api/dashboard/emotion-history
 GET /api/dashboard/memory
 ```
 
+#### Memory Curation
+```http
+GET  /api/dashboard/memory/curation
+POST /api/dashboard/memory/curation/dry-run
+POST /api/dashboard/memory/curation/apply
+POST /api/dashboard/memory/curation/{doc_id}
+```
+
+`apply` needs `{"confirm": "APPLY_MEMORY_CURATION"}`. `apply` and the per-document action (`{"action": …, "reason": …}`) are administrator-only.
+
+#### Memory Hygiene
+```http
+GET  /api/dashboard/memory/hygiene
+POST /api/dashboard/memory/hygiene/dry-run
+POST /api/dashboard/memory/hygiene/apply
+```
+
+`apply` is administrator-only and needs `{"confirm": "APPLY_MEMORY_HYGIENE"}`; with `"include_kg": true` it also needs `"kg_confirm": "APPLY_KG_HYGIENE"`.
+
+#### Memory Reflection
+```http
+POST /api/dashboard/memory/reflection/run
+```
+
+Administrator-only. Runs the weekly memory reflection now (**Run now** on the **Latest reflection** card).
+
 #### Core Memory
 ```http
 GET /api/dashboard/core-memory
@@ -2194,14 +2530,13 @@ GET /api/dashboard/core-memory
 
 #### Mutate Core Memory
 ```http
-POST /api/dashboard/core-memory/mutate
+DELETE /api/dashboard/core-memory/mutate
 Content-Type: application/json
 
-{
-  "action": "add",
-  "content": "Important information"
-}
+{"id": 42}
 ```
+
+Deletes one core fact; `{"all": true, "confirm": "DELETE_ALL_CORE_MEMORY"}` deletes all of them. `POST` and `PUT` answer `403`: only the agent writes core memory (`manage_memory`/`remember` tools).
 
 #### Profile Data
 ```http
@@ -2227,15 +2562,13 @@ GET /api/github/repos
 GET /api/dashboard/logs
 ```
 
-#### Dashboard Overview
-```http
-GET /api/dashboard/overview
-```
-
 #### Notes
 ```http
-GET /api/dashboard/notes
+GET   /api/dashboard/notes
+PATCH /api/dashboard/notes
 ```
+
+`PATCH` is administrator-only and sets the protection of one note: `{"id": 7, "protected": true, "keep_forever": false}` (all three fields are required).
 
 #### Journal
 ```http
@@ -2263,6 +2596,59 @@ GET /api/dashboard/prompt-stats
 ```http
 GET /api/dashboard/tool-stats
 ```
+
+#### Prompt Optimization and Output Compression
+```http
+GET /api/dashboard/optimization
+GET /api/dashboard/compression
+```
+
+#### Mission History
+```http
+GET /api/dashboard/mission-history?limit=10&offset=0&mission_id=&result=&trigger_type=&from=&to=
+```
+
+Returns `entries`, `total`, `limit` and `offset` — the same data as `GET /api/missions/v2/history`.
+
+#### Audit Log
+```http
+GET    /api/dashboard/audit?limit=25&offset=0&q=&source=&status=&type=&from=&to=
+DELETE /api/dashboard/audit/{id}
+DELETE /api/dashboard/audit
+```
+
+Both `DELETE` routes are administrator-only. The bulk `DELETE` removes the entries that match the same filters and needs `confirm=DELETE_AUDIT_EVENTS` (query parameter or JSON field).
+
+#### Cron Jobs
+```http
+GET    /api/dashboard/cronjobs?q=&source=&status=
+PUT    /api/dashboard/cronjobs
+DELETE /api/dashboard/cronjobs/{id}
+```
+
+All three are administrator-only. `GET` returns `jobs`, `total`, `enabled`, `disabled`, `errors` and `sources` for the filtered list (`status` is `enabled`, `disabled` or `error`). `PUT` takes `{"id": "nightly-backup", "cron_expr": "0 3 * * *", "task_prompt": "…", "disabled": false}` (`disabled` is optional). Jobs of an EasyDrag flow answer `409` to `PUT` and `DELETE`; without a scheduler every method answers `503`.
+
+#### LLM Router Status
+```http
+GET /api/llm-router/status
+```
+
+Administrator-only. Returns the router settings and its in-memory `stats` since the restart.
+
+#### Memory Conflicts
+```http
+POST /api/memory/conflicts/resolve
+```
+
+Administrator-only. `{"conflict_id": 12, "winning_doc_id": "…", "reason": "…"}` keeps the winning fact and supersedes the other; `{"conflict_id": 12, "action": "dismiss"}` keeps both facts.
+
+#### Deletion Jobs
+```http
+GET  /api/privacy-deletions?limit=50
+POST /api/privacy-deletions/{id}/retry
+```
+
+Administrator-only. The list returns `{"status": "ok", "jobs": […]}`; a retry answers `202`, or `409` when the job is not retryable.
 
 ### Container API
 
@@ -2421,12 +2807,12 @@ Accept: text/event-stream
 
 **Example Stream:**
 ```text
-event: system_metrics
-data: {"cpu": 15.2, "memory": 45.8, "disk": 72.1}
+data: {"type":"system_metrics","payload":{"available":{"cpu":true,"disk":true,"memory":true,"network":true},"cpu":{"usage_percent":15.2,"cores":8,"model_name":"Example CPU"},"disk":{"total":512110190592,"free":142878743175,"used":369231447417,"used_percent":72.1},"host_uptime_seconds":1209600,"memory":{"total":17179869184,"available":9311489098,"used":7868380086,"used_percent":45.8},"network":{"bytes_sent":1843254211,"bytes_recv":9725118976},"sse_clients":2,"uptime_seconds":86400}}
 
-event: container_update
-data: [{"id": "abc", "state": "running"}]
+data: {"type":"container_update","payload":[{"id":"abc","state":"running"}]}
 ```
+
+Typed events arrive as `data:` lines with a `{"type": …, "payload": …}` envelope; there are no `event:` lines. A few older messages (for example `budget_update`) carry an `event` field instead.
 
 ### Operational Issues API
 
@@ -2437,6 +2823,8 @@ POST /api/operational-issues/archive-stale
 POST /api/operational-issues/{id}/resolve
 POST /api/operational-issues/{id}/archive
 ```
+
+These endpoints are administrator-only.
 
 List filters include `status`, `kind`, `severity`, `source`, `limit`, and
 `offset`. Records are sanitized and use non-reversible public IDs. Archive and

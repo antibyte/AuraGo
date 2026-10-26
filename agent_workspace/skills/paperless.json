@@ -1,17 +1,17 @@
 {
   "name": "paperless",
-  "description": "Manage documents in a Paperless-ngx document management system. Search documents by full text or filters, retrieve document metadata and content, upload new documents, update metadata, delete documents, and list tags/correspondents/document types.",
+  "description": "Manage documents in a Paperless-ngx document management system. Search uses query only. Tag filters are exact names combined with AND. name and correspondent are the same correspondent field; category and document_type are the same document type; the native names win when both are set. Upload sends text and returns a task id while processing continues. Update adds tags and keeps existing ones, and does not write tags that are already present. Get and download return OCR text truncated at 8000 characters and report the cut.",
   "executable": "__builtin__",
   "parameters": {
     "operation": "The operation to perform: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types (required)",
-    "query": "Full-text search query string (for search operation)",
-    "document_id": "Numeric ID of the document (for get, download, update, delete)",
-    "title": "Document title (for upload or update)",
-    "tags": "Comma-separated tag names for filtering (search) or setting (upload/update)",
-    "name": "Correspondent name for filtering (search) or setting (upload/update)",
-    "category": "Document type name for filtering (search) or setting (upload/update)",
-    "content": "Text content to upload as a new document (for upload)",
-    "limit": "Maximum number of results to return (default: 25, for search)"
+    "query": "Full-text search query. Search does not fall back to content.",
+    "document_id": "Positive document ID for get, download, update, delete. A number is accepted.",
+    "title": "Document title (for upload or update). Replaces the current title.",
+    "tags": "Comma-separated exact tag names or positive IDs. Search requires every tag. Upload sets them. Update adds them and keeps existing tags.",
+    "name": "Exact correspondent name or positive ID. Same field as correspondent.",
+    "category": "Exact document type name or positive ID. Same field as document_type.",
+    "content": "Text content uploaded as a .txt document. Not a search query.",
+    "limit": "Maximum search results (default 25, capped at 50). A numeric string is accepted."
   },
   "returns": "JSON object with status, message, and data containing document details, search results, or lists of tags/correspondents/document types"
 }

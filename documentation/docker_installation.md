@@ -192,6 +192,8 @@ The proxy reduces attack surface but does not contain a compromised AuraGo: cont
 
 The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. Keep the `docker-control` network private and do not attach unrelated sidecars to it. The enabled permissions map to these features:
 
+Optional [managed RustFS storage](rustfs.md) uses the existing container/image/volume/network and information/version permissions with `POST=1`. It works with `BUILD=0` and `EXEC=0`; its S3 traffic stays on the shared application network, outside `docker-control`. Enable and operate it from **Configuration → S3**.
+
 - `CONTAINERS=1` with `POST=1`: create, start, stop and remove managed sidecars, Software Store apps, Invasion Control eggs, the CYD Creator builder and the security proxy, and copy files into and out of containers (the CYD Creator builder exchanges build trees and artefacts this way).
 - `IMAGES=1` with `POST=1`: pull and tag published images such as Code Studio, go2rtc, the local LLM runtime, Software Store apps, the CYD Creator toolchain and the security proxy.
 - `VOLUMES=1` and `NETWORKS=1`: model and app volumes, the CYD Creator build cache and work volumes, private Software Store networks, the browser automation network check and the security proxy's lookup of the network it shares with AuraGo.

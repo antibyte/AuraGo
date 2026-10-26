@@ -155,7 +155,6 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"file_reader_advanced", "Read line ranges, head/tail, and contextual search in large files"},
 		{"smart_file_read", "Intelligently inspect large files: analyze, sample, structure, summarize"},
 		{"archive", "Create and extract tar.gz and zip archives"},
-		{"pdf_extractor", "Extract and optionally summarise text from PDF documents"},
 		{"pdf_operations", "Read, merge, split, extract text/images from PDFs"},
 		{"image_processing", "Resize, crop, rotate, convert, compress, watermark images"},
 		{"detect_file_type", "Identify file type by content (magic bytes)"},
@@ -185,7 +184,6 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"ddg_search", "Search the web with DuckDuckGo and summarise results"},
 		{"wikipedia_search", "Look up encyclopedic topics and summaries on Wikipedia"},
 		{"local_wikipedia", "Search and read the offline Wikipedia edition installed on this server"},
-		{"brave_search", "Search the web with Brave Search"},
 		{"evomap", "Fetch EvoMap capsules and query the gated KG as untrusted external data"},
 		{"web_scraper", "Scrape web pages and extract content"},
 		{"site_crawler", "Crawl websites following links and extracting data"},
@@ -255,7 +253,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"manage_sql_connections", "Manage external SQL database connections"},
 		{"query_inventory", "Search registered devices and inventory records"},
 		{"register_device", "Register discovered network devices in inventory"},
-		{"ollama", "Manage local Ollama LLM models (list, pull, run, delete)"},
+		{"ollama", "Manage local Ollama LLM models (list, pull, running, delete)"},
 		{"truenas", "Manage TrueNAS storage (pools, datasets, snapshots, shares)"},
 		{"network_shares", "Inspect and manage local SMB and NFS server shares"},
 		{"sip_phone", "Inspect and operate the native SIP telephone endpoint"},
@@ -277,6 +275,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_computers", "Launch and operate short-lived private virtual computers through AuraGo"},
 		{"virtual_workspace", "Create and control stateful agent workspaces inside Firecracker virtual machines"},
 		{"virtual_browser", "Interactive website navigation in visible Chromium; watch via Virtual Computers Agent Workspaces"},
+		{"qr_code", "Generate, style, scan, and batch-export QR codes for Writer, spreadsheets, and Pixel"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"layerling", "Inspect and edit an open Layerling 3D CAD model in the Desktop"},
@@ -358,22 +357,33 @@ var toolCategoryLabels = map[string]string{
 // Built once on first access.
 var toolToCategoryOnce sync.Once
 var toolToCategoryMap map[string]string
+var toolShortDescMap map[string]string
 
 func buildToolToCategoryMap() {
 	toolToCategoryOnce.Do(func() {
-		m := make(map[string]string, 128)
+		m := make(map[string]string, 256)
+		descriptions := make(map[string]string, 256)
 		for cat, entries := range toolCategoryDef {
 			for _, e := range entries {
 				m[e.Name] = cat
+				descriptions[e.Name] = e.ShortDesc
 			}
 		}
 		toolToCategoryMap = m
+		toolShortDescMap = descriptions
 	})
 }
 
 func ToolCategoryForName(name string) string {
 	buildToolToCategoryMap()
 	return toolToCategoryMap[name]
+}
+
+// toolShortDescForName returns the one-line description the category table
+// gives a tool, "" when it has none.
+func toolShortDescForName(name string) string {
+	buildToolToCategoryMap()
+	return toolShortDescMap[name]
 }
 
 // GetToolCategory returns the category a tool belongs to, or "" if not categorized.

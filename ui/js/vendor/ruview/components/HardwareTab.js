@@ -27,16 +27,9 @@ export class HardwareTab {
   }
 
   // Start CSI simulation
+  // AuraGo: this view has no CSI source, so no timer runs and nothing is measured.
   startCSISimulation() {
-    // Initial update
     this.updateCSIDisplay();
-    
-    // Set up periodic updates
-    this.csiUpdateInterval = setInterval(() => {
-      if (this.hasActiveAntennas()) {
-        this.updateCSIDisplay();
-      }
-    }, 1000);
   }
 
   // Check if any antennas are active
@@ -45,57 +38,17 @@ export class HardwareTab {
   }
 
   // Update CSI display
+  // AuraGo: amplitude and phase are never measured here, so the rows stay empty.
   updateCSIDisplay() {
     const activeAntennas = this.antennas.filter(a => a.classList.contains('active'));
-    const isActive = activeAntennas.length > 0;
-    
-    // Get display elements
     const amplitudeFill = this.container.querySelector('.csi-fill.amplitude');
     const phaseFill = this.container.querySelector('.csi-fill.phase');
     const amplitudeValue = this.container.querySelector('.csi-row:first-child .csi-value');
     const phaseValue = this.container.querySelector('.csi-row:last-child .csi-value');
-    
-    if (!isActive) {
-      // Set to zero when no antennas active
-      if (amplitudeFill) amplitudeFill.style.width = '0%';
-      if (phaseFill) phaseFill.style.width = '0%';
-      if (amplitudeValue) amplitudeValue.textContent = '0.00';
-      if (phaseValue) phaseValue.textContent = '0.0π';
-      return;
-    }
-    
-    // Generate realistic CSI values based on active antennas
-    const txCount = activeAntennas.filter(a => a.classList.contains('tx')).length;
-    const rxCount = activeAntennas.filter(a => a.classList.contains('rx')).length;
-    
-    // Amplitude increases with more active antennas
-    const baseAmplitude = 0.3 + (txCount * 0.1) + (rxCount * 0.05);
-    const amplitude = Math.min(0.95, baseAmplitude + (Math.random() * 0.1 - 0.05));
-    
-    // Phase varies more with multiple antennas
-    const phaseVariation = 0.5 + (activeAntennas.length * 0.1);
-    const phase = 0.5 + Math.random() * phaseVariation;
-    
-    // Update display
-    if (amplitudeFill) {
-      amplitudeFill.style.width = `${amplitude * 100}%`;
-      amplitudeFill.style.transition = 'width 0.5s ease';
-    }
-    
-    if (phaseFill) {
-      phaseFill.style.width = `${phase * 50}%`;
-      phaseFill.style.transition = 'width 0.5s ease';
-    }
-    
-    if (amplitudeValue) {
-      amplitudeValue.textContent = amplitude.toFixed(2);
-    }
-    
-    if (phaseValue) {
-      phaseValue.textContent = `${phase.toFixed(1)}π`;
-    }
-    
-    // Update antenna array visualization
+    if (amplitudeFill) amplitudeFill.style.width = '0%';
+    if (phaseFill) phaseFill.style.width = '0%';
+    if (amplitudeValue) amplitudeValue.textContent = '—';
+    if (phaseValue) phaseValue.textContent = '—';
     this.updateAntennaArray(activeAntennas);
   }
 
@@ -129,7 +82,7 @@ export class HardwareTab {
     
     arrayStatus.appendChild(createInfoDiv('Active TX:', `${txActive}/3`));
     arrayStatus.appendChild(createInfoDiv('Active RX:', `${rxActive}/6`));
-    arrayStatus.appendChild(createInfoDiv('Signal Quality:', `${this.calculateSignalQuality(txActive, rxActive)}%`));
+    arrayStatus.appendChild(createInfoDiv('Signal Quality (example):', `${this.calculateSignalQuality(txActive, rxActive)}%`));
   }
 
   // Calculate signal quality based on active antennas

@@ -9,6 +9,10 @@
     const SNAP_RADIUS = 20;
     const GUIDE_RADIUS = 6;
     const CLIPBOARD_KEY = 'aurago.easydrag.clipboard';
+    // The fragment kept in localStorage can hold typed parameters in plain text: it carries the time
+    // it was copied and is dropped after CLIPBOARD_MAX_AGE_MS. One without that stamp (kept before the
+    // stamp existed) counts as expired.
+    const CLIPBOARD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
     function create(ed, canvas, wires) {
         const core = ED.core;
@@ -22,6 +26,28 @@
         overlay.appendChild(guides);
         const guideV = guides.firstChild;
         const guideH = guides.lastChild;
+        // connectHint shows beside the pointer why the port under it refuses the connection (U14). The
+        // overlay is aria-hidden; the release announces the same words.
+        const connectHint = core.el('<div class="ed-connect-hint" hidden></div>');
+        overlay.appendChild(connectHint);
+        connectHint.hidden = true;
+        let hintTimer = 0;
+
+        function showConnectHint(reason, clientX, clientY) {
+            clearTimeout(hintTimer);
+            hintTimer = 0;
+            if (!reason) { connectHint.hidden = true; return; }
+            const s = canvas.size();
+            connectHint.textContent = core.tr(t, 'easydrag.ui.connect_' + reason, t('easydrag.ui.connect_port'));
+            connectHint.style.transform = 'translate(' + Math.round(clientX - s.left + 14) + 'px,' + Math.round(clientY - s.top + 14) + 'px)';
+            connectHint.hidden = false;
+        }
+
+        // A refused release keeps the reason on screen for 2.5 s.
+        function fadeConnectHint() {
+            clearTimeout(hintTimer);
+            hintTimer = setTimeout(() => { hintTimer = 0; connectHint.hidden = true; }, 2500);
+        }
         const pointers = new Map();
         let spaceDown = false;
         let lastPointer = null;
@@ -31,6 +57,19 @@
         let gesture = null; // the pan, drag, connect or box select that follows a pointer now
 
         const readonly = () => !!(ed.readonly || ed.runView);
+
+        // ── announcements ───────────────────────────────────────────────────────
+
+        const nameOf = id => { const n = ed.model.node(id); return n ? (n.label || n.type) : ''; };
+        // tell says what an action did to steps in the live region: the name of one, the count of several.
+        function tell(keyOne, keyMany, names) { if (names.length) canvas.announce(core.stepsText(t, keyOne, keyMany, names)); }
+        // Arrow-key moves come in bursts: the live region hears about them once, 500 ms after the last
+        // key press. A pointer drag never goes through here.
+        let movedIds = [];
+        const movedSoon = core.debounce(() => {
+            tell('easydrag.ui.announce_moved_one', 'easydrag.ui.announce_moved_many', movedIds.map(nameOf).filter(Boolean));
+            movedIds = [];
+        }, 500);
 
         // ── selection ───────────────────────────────────────────────────────────
 
@@ -99,7 +138,7 @@
         // ── pointer handling ────────────────────────────────────────────────────
 
         function onPointerDown(event) {
-            if (event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-wire-actions, .ed-node-tools')) return;
+            if (event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-wire-actions, .ed-node-tools, .ed-port-tip')) return;
             el.focus({ preventScroll: true });
             pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
             // A second finger turns the gesture into a pinch; more fingers are ignored.
@@ -200,7 +239,7 @@
                 ed.model.moveNodes(ids, want.x - applied.x, want.y - applied.y);
                 applied = want;
                 dropEdge = null;
-                if (ids.length === 1 && !ed.model.incoming(nodeId).length && !ed.model.outgoing(nodeId).length && ed.model.inputs(primary).length) {
+                if (ids.length === 1 && !ed.model.incoming(nodeId).length && !ed.model.outgoing(nodeId).length && ed.model.inputs(primary).length && ed.model.outputs(primary).length) {
                     const rect = canvas.nodeRect(nodeId);
                     const cy = rect.y + rect.h / 2;
                     const near = edgeNear({ x: rect.x + rect.w / 2, y: cy }, nodeId) ||
@@ -298,6 +337,7 @@
                     state = check.ok ? 'snap' : 'invalid';
                     if (!check.ok) target = Object.assign({}, target, { invalid: check.reason });
                 }
+                showConnectHint(target && target.invalid ? target.invalid : '', ev.clientX, ev.clientY);
                 const end = target && !target.invalid ? target.point : p;
                 if (reverse) wires.preview(end, anchor, state); else wires.preview(anchor, end, state);
             };
@@ -307,6 +347,8 @@
                 el.classList.remove('is-connecting');
                 wires.preview(null, null);
                 if (stopWatch) stopWatch();
+                const refused = !cancelled && started && !!(target && target.invalid);
+                if (refused) fadeConnectHint(); else showConnectHint('', 0, 0);
                 // A tap never changes the document or its undo/redo history.
                 if (!started) {
                     if (!cancelled) ed.bus.emit('connect-picker', { nodeId, port, side });
@@ -373,7 +415,7 @@
         function onDoubleClick(event) {
             const nodeEl = event.target.closest('.ed-node');
             if (nodeEl && !event.target.closest('.ed-node-tools, .ed-port')) { ed.bus.emit('open-detail', { nodeId: nodeEl.dataset.nodeId }); return; }
-            if (!nodeEl && !readonly() && event.target.closest('.ed-canvas') && !event.target.closest('.ed-zoom, .ed-minimap, .ed-empty')) {
+            if (!nodeEl && !readonly() && event.target.closest('.ed-canvas') && !event.target.closest('.ed-zoom, .ed-minimap, .ed-empty, .ed-port-tip')) {
                 ed.bus.emit('quick-add', { x: event.clientX, y: event.clientY });
             }
         }
@@ -396,10 +438,45 @@
                 ed.bus.emit('quick-add', { x: rect.right + 8, y: rect.top, from: { node: id, port: outs[0] } });
             } else if (action === 'connect') ed.bus.emit('connect-picker', { nodeId: id });
             else if (action === 'test') ed.bus.emit('node-test', { nodeId: id });
-            else if (action === 'disable') ed.model.toggleDisabled([id]);
-            else if (action === 'duplicate') select(ed.model.duplicate([id]));
-            else if (action === 'delete') { ed.model.removeNodes([id], { bridge: true }); select([]); }
+            else if (action === 'disable') toggleSteps([id]);
+            else if (action === 'duplicate') duplicateSteps([id]);
+            else if (action === 'delete') removeSteps([id]);
         }
+
+        // ── commands that say what they did ─────────────────────────────────────
+
+        // duplicateSteps copies steps next to themselves, selects the copies and announces them.
+        function duplicateSteps(ids) {
+            const added = ed.model.duplicate(ids);
+            select(added);
+            tell('easydrag.ui.announce_added_one', 'easydrag.ui.announce_added_many', added.map(nameOf));
+        }
+
+        // removeSteps deletes steps (one step hands its wires on, bridge) and announces them.
+        function removeSteps(ids, quiet) {
+            const names = ids.map(nameOf).filter(Boolean);
+            ed.model.removeNodes(ids, { bridge: ids.length === 1 });
+            select([]);
+            if (quiet) return;
+            tell('easydrag.ui.announce_deleted_one', 'easydrag.ui.announce_deleted_many', names);
+            // The editor offers to take the deletion back (a toast with Undo, easydrag-history.js).
+            if (names.length) ed.bus.emit('steps-deleted', { names });
+        }
+
+        // toggleSteps turns steps off, or on when all of them are off, and announces which.
+        function toggleSteps(ids) {
+            const list = ids.map(id => ed.model.node(id)).filter(Boolean);
+            if (!list.length) return;
+            const off = list.some(n => !n.settings.disabled);
+            ed.model.toggleDisabled(list.map(n => n.id));
+            const names = list.map(n => n.label || n.type);
+            if (off) tell('easydrag.ui.announce_disabled_one', 'easydrag.ui.announce_disabled_many', names);
+            else tell('easydrag.ui.announce_enabled_one', 'easydrag.ui.announce_enabled_many', names);
+        }
+
+        // undo and redo announce only when there was something to undo or redo.
+        function undo() { if (!readonly() && ed.model.undo()) canvas.announce(t('easydrag.ui.announce_undo')); }
+        function redo() { if (!readonly() && ed.model.redo()) canvas.announce(t('easydrag.ui.announce_redo')); }
 
         function onHover(event) {
             const nodeEl = event.target.closest && event.target.closest('.ed-node');
@@ -420,9 +497,9 @@
                 { icon: 'edit', label: t('easydrag.ui.menu_open_node'), action: () => ed.bus.emit('open-detail', { nodeId: id }) },
                 { icon: 'play', label: t('easydrag.ui.node_test'), disabled: ro, action: () => ed.bus.emit('node-test', { nodeId: id }) },
                 { separator: true },
-                { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => select(ed.model.duplicate(Array.from(ed.selection))) },
+                { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => duplicateSteps(Array.from(ed.selection)) },
                 { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },
-                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => ed.model.toggleDisabled(Array.from(ed.selection)) }
+                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => toggleSteps(Array.from(ed.selection)) }
             ];
             if (ed.selection.size >= 2) {
                 items.push(
@@ -453,7 +530,7 @@
         }
 
         function onContextMenu(event) {
-            if (event.target.closest('.ed-zoom, .ed-minimap')) return;
+            if (event.target.closest('.ed-zoom, .ed-minimap, .ed-port-tip')) return;
             event.preventDefault();
             const nodeEl = event.target.closest('.ed-node');
             if (nodeEl) openNodeMenu(nodeEl.dataset.nodeId, event.clientX, event.clientY);
@@ -466,7 +543,7 @@
             if (!ed.selection.size) return false;
             const frag = ed.model.fragment(Array.from(ed.selection));
             const text = JSON.stringify(frag);
-            core.storage.set(CLIPBOARD_KEY, frag);
+            core.storage.set(CLIPBOARD_KEY, { at: Date.now(), frag });
             if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(() => {});
             canvas.announce(t('easydrag.ui.copied', { count: frag.nodes.length }));
             return true;
@@ -480,7 +557,19 @@
                     if (parsed && parsed.easydrag === 1) return parsed;
                 } catch (err) { /* permission denied or not EasyDrag JSON */ }
             }
-            return core.storage.get(CLIPBOARD_KEY, null);
+            return storedFragment();
+        }
+
+        // storedFragment returns the fragment kept in localStorage while it is fresh, and removes an
+        // expired, unstamped or unreadable one.
+        function storedFragment() {
+            const kept = core.storage.get(CLIPBOARD_KEY, null);
+            if (!kept) return null;
+            const at = Number(kept.at);
+            const now = Date.now();
+            if (kept.frag && Number.isFinite(at) && now - at <= CLIPBOARD_MAX_AGE_MS && at <= now + 60000) return kept.frag;
+            core.storage.remove(CLIPBOARD_KEY);
+            return null;
         }
 
         async function pasteAt(point) {
@@ -499,6 +588,7 @@
                 return;
             }
             select(ids);
+            tell('easydrag.ui.announce_added_one', 'easydrag.ui.announce_added_many', ids.map(nameOf));
         }
 
         function centerWorld() {
@@ -506,13 +596,14 @@
             return G.toWorld(ed.view, { x: s.w / 2, y: s.h / 2 });
         }
 
-        function removeSelection() {
+        // removeSelection deletes the selected wire or steps. A cut (quiet) leaves the announcement to
+        // its copy: "Copied" already says where the steps went.
+        function removeSelection(opts) {
             if (readonly()) return;
-            if (ed.selectedEdge) { ed.model.disconnect([ed.selectedEdge]); ed.selectedEdge = null; return; }
+            if (ed.selectedEdge) { core.removeConnection(ed, ed.selectedEdge); ed.selectedEdge = null; return; }
             const ids = Array.from(ed.selection);
             if (!ids.length) return;
-            ed.model.removeNodes(ids, { bridge: ids.length === 1 });
-            select([]);
+            removeSteps(ids, !!(opts && opts.quiet));
         }
 
         // ── keyboard ────────────────────────────────────────────────────────────
@@ -541,13 +632,13 @@
             const mod = core.isMod(event);
             const one = ed.selection.size === 1 ? Array.from(ed.selection)[0] : null;
             if (key === ' ' && !event.repeat) { spaceDown = true; el.classList.add('is-space'); return true; }
-            if (mod && key.toLowerCase() === 'z' && !event.shiftKey) { if (!readonly()) ed.model.undo(); return true; }
-            if (mod && (key.toLowerCase() === 'y' || (key.toLowerCase() === 'z' && event.shiftKey))) { if (!readonly()) ed.model.redo(); return true; }
+            if (mod && key.toLowerCase() === 'z' && !event.shiftKey) { undo(); return true; }
+            if (mod && (key.toLowerCase() === 'y' || (key.toLowerCase() === 'z' && event.shiftKey))) { redo(); return true; }
             if (mod && key.toLowerCase() === 'a') { selectAll(); return true; }
             if (mod && key.toLowerCase() === 'c') return copySelection();
-            if (mod && key.toLowerCase() === 'x') { if (copySelection()) removeSelection(); return true; }
+            if (mod && key.toLowerCase() === 'x') { if (copySelection()) removeSelection({ quiet: true }); return true; }
             if (mod && key.toLowerCase() === 'v') { pasteAt(null); return true; }
-            if (mod && key.toLowerCase() === 'd') { if (!readonly() && ed.selection.size) select(ed.model.duplicate(Array.from(ed.selection))); return true; }
+            if (mod && key.toLowerCase() === 'd') { if (!readonly() && ed.selection.size) duplicateSteps(Array.from(ed.selection)); return true; }
             if (mod && key === '0') { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); return true; }
             if (mod) return false;
             if (key === 'Delete' || key === 'Backspace') { removeSelection(); return true; }
@@ -555,14 +646,16 @@
             if (key === '!' || (key === '1' && event.shiftKey)) { canvas.fit({ animate: true }); return true; }
             if (key === '+' || key === '=') { canvas.zoomBy(1.2); return true; }
             if (key === '-') { canvas.zoomBy(1 / 1.2); return true; }
-            if ((key === 'd' || key === 'D') && ed.selection.size) { if (!readonly()) ed.model.toggleDisabled(Array.from(ed.selection)); return true; }
+            if ((key === 'd' || key === 'D') && ed.selection.size) { if (!readonly()) toggleSteps(Array.from(ed.selection)); return true; }
             if (key === 'Enter' && one) { ed.bus.emit('open-detail', { nodeId: one }); return true; }
             if ((key === 'c' || key === 'C') && one && !readonly()) { ed.bus.emit('connect-picker', { nodeId: one }); return true; }
             if (key.startsWith('Arrow')) {
                 if (event.shiftKey && ed.selection.size && !readonly()) {
                     const d = event.altKey ? 1 : G.GRID;
                     const delta = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[key];
-                    ed.model.moveNodes(Array.from(ed.selection), delta[0], delta[1]);
+                    movedIds = Array.from(ed.selection);
+                    ed.model.moveNodes(movedIds, delta[0], delta[1]);
+                    movedSoon();
                     return true;
                 }
                 const start = one || (ed.model.doc.nodes[0] && ed.model.doc.nodes[0].id);
@@ -583,6 +676,8 @@
             if (event.key === ' ') { spaceDown = false; el.classList.remove('is-space'); }
         }
 
+        // An expired fragment goes as soon as an editor opens, not only at the next paste.
+        storedFragment();
         bag.listen(el, 'pointerdown', onPointerDown);
         bag.listen(el, 'pointermove', onPointerMoveAny);
         bag.listen(el, 'pointerup', onPointerUpAny);
@@ -595,12 +690,12 @@
         bag.listen(el, 'click', onClick);
         bag.listen(el, 'contextmenu', onContextMenu);
         bag.listen(el, 'focusout', () => { spaceDown = false; el.classList.remove('is-space'); });
-        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); });
+        bag.add(() => { clearTimeout(hoverTimer); clearTimeout(longPress); clearTimeout(hintTimer); movedSoon.cancel(); });
         // Added last, so it runs first on dispose: a gesture still in progress is cancelled.
         bag.add(() => { if (gesture) gesture.abort(); });
 
         return {
-            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, edgeNear,
+            select, selectAll, handleKey, handleKeyUp, copySelection, pasteAt, removeSelection, duplicateSteps, undo, redo, edgeNear,
             lastPointer: () => lastPointer,
             // abortGesture cancels a pan, drag, connect or box select in progress (a drag moves back).
             abortGesture() { if (gesture) gesture.abort(); },

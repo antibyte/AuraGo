@@ -112,13 +112,18 @@ Preview never inserts a chat message or changes a session's previous decision.
 
 **Ask Decisions once** explicitly tests an unclear example using the configured
 service and shared quota. Preview bypasses and never populates production caches.
+Model previews share the 60-second session cooldown, including after editing the
+example. The preview shows the remaining wait and disables both model buttons;
+local classification remains available. The additive `retry_after_seconds`
+field reports this wait separately from quota/concurrency limits. Queue or
+runtime overload appears as `decisions_busy`, score expiry as `decisions_timeout`.
 The administrator-only preview API accepts `classifier: local|decisions|helper`
 and defaults to `local`; legacy `helper: true` still selects the helper.
 Conflicting inputs are rejected. Passive router status includes the selected
 Decisions service/model and never performs inference.
 
 Web Chat and Desktop show the area, decision source and actual provider/model in
-a transient turn badge. The Dashboard's system tab shows in-memory counters since
+a transient turn badge. The Dashboard's **LLM and costs** section (**LLM router** card) shows in-memory counters since
 restart, including separate Decisions/helper calls, tokens, failures and fallbacks. Unknown
 usage is shown as `?` or a lower bound rather than zero cost. No dollar savings are
 inferred. Routing metadata is not included in assistant text or persistent memory.

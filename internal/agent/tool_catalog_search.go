@@ -4,7 +4,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"context"
-	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -13,52 +13,86 @@ type discoveryGuideSearcher interface {
 	SearchToolGuideMatchesContext(context.Context, string, int) ([]memory.ToolGuideMatch, error)
 }
 
-// SearchContext retains exact lexical precedence and augments incomplete task
-// matches with the existing manual index. Unavailable embeddings fail closed to
-// deterministic lexical discovery without performing a new indexing operation.
-func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source memory.VectorDB) []*ToolCatalogEntry {
-	lexical := c.Search(query)
+// discoverySemanticTimeout bounds the manual search that augments a search.
+const discoverySemanticTimeout = 400 * time.Millisecond
+
+// SearchContext ranks like Search and fuses the result with the existing
+// manual index (fuseToolRanking), so a query that shares no word with a tool
+// still finds the tool its manual describes. Exact name, alias and operation
+// matches stay first. Unavailable embeddings fail closed to the deterministic
+// lexical result without performing a new indexing operation. A lexical leader
+// that clearly outscores the next lexical hit keeps the first place after the
+// exact matches (holdClearLexicalLeader); the manuals only break near-ties.
+//
+// The manual search only ever adds tools allow accepts (nil accepts all); the
+// lexical hits are not filtered. A query that holds a credential never reaches
+// the embedding provider (see discoverySemanticQueryAllowed).
+func (c *ToolCatalog) SearchContext(ctx context.Context, query string, source memory.VectorDB, allow func(*ToolCatalogEntry) bool) []*ToolCatalogEntry {
+	query = boundToolSearchQuery(query)
+	hits := c.rankedSearch(query)
 	searcher, ok := source.(discoveryGuideSearcher)
-	if !ok || len(lexical) >= 5 || ctx.Err() != nil {
-		return lexical
+	if !ok || c == nil || !discoverySemanticQueryAllowed(query) || ctx.Err() != nil {
+		return hitEntries(hits)
 	}
-	bounded, cancel := context.WithTimeout(ctx, 400*time.Millisecond)
+	bounded, cancel := context.WithTimeout(ctx, discoverySemanticTimeout)
 	defer cancel()
+	cfg := discoveryToolFusion
 	// A non-displacing tool that is not enabled loses its manual before the
-	// cut to the top five, so it never costs another tool its slot.
-	const semanticTopK = 5
-	matches, err := searcher.SearchToolGuideMatchesContext(bounded, query, semanticTopK+len(prompts.NonDisplacingTools))
+	// cut to the window, so it never costs another tool its place.
+	matches, err := searcher.SearchToolGuideMatchesContext(bounded, query, cfg.ManualWindow+len(prompts.NonDisplacingTools))
 	if err != nil {
-		return lexical
+		return hitEntries(hits)
 	}
-	seen := map[string]bool{}
-	for _, entry := range lexical {
-		seen[entry.Name] = true
+
+	index := c.searchIndex()
+	var pinned, lexical, manuals []string
+	for _, hit := range hits {
+		if hit.Tier > toolSearchTierLexical {
+			pinned = append(pinned, hit.Entry.Name)
+		} else {
+			lexical = append(lexical, hit.Entry.Name)
+		}
 	}
-	considered := 0
+	members := make(map[string][]string, len(matches))
 	for _, match := range matches {
-		manual := strings.TrimSuffix(filepath.Base(match.Path), ".md")
-		if prompts.IsNonDisplacingManual(manual) && !c.enabledManual(manual) {
-			continue
-		}
-		if considered == semanticTopK {
-			break
-		}
-		considered++
-		for _, entry := range c.Entries() {
-			if !seen[entry.Name] && prompts.ToolManualID(entry.Name) == manual {
-				lexical = append(lexical, entry)
-				seen[entry.Name] = true
+		manual := manualIDFromPath(match.Path)
+		manuals = append(manuals, manual)
+		if _, done := members[manual]; !done {
+			for _, entry := range index.members[manual] {
+				if allow == nil || allow(entry) {
+					members[manual] = append(members[manual], entry.Name)
+				}
 			}
 		}
 	}
-	return lexical
+	skip := func(manual string) bool { return prompts.IsNonDisplacingManual(manual) && !c.enabledManual(manual) }
+	fused := holdClearLexicalLeader(fuseToolRanking(pinned, lexical, manuals, members, skip, cfg), len(pinned), hits)
+
+	out := make([]*ToolCatalogEntry, 0, len(fused))
+	for _, name := range fused {
+		if entry := c.entries[name]; entry != nil {
+			out = append(out, entry)
+		}
+	}
+	// The fusion mixes the status classes; a tool that can be called now
+	// still comes before one that needs setup or is disabled.
+	rest := out[len(pinned):]
+	sort.SliceStable(rest, func(i, j int) bool { return toolSearchStatusClass(rest[i]) < toolSearchStatusClass(rest[j]) })
+	return out
+}
+
+// discoverySemanticQueryAllowed reports whether a query may be sent to the
+// embedding provider. A model writes it, often from the user's message, so it
+// gets the check the memory write path applies: a query that holds a
+// credential is ranked by the local lexical search alone.
+func discoverySemanticQueryAllowed(query string) bool {
+	return strings.TrimSpace(query) != "" && !memory.HasDurableCredential(query)
 }
 
 // enabledManual reports whether an enabled catalog entry uses the manual.
 func (c *ToolCatalog) enabledManual(manual string) bool {
-	for _, entry := range c.Entries() {
-		if entry.Enabled && prompts.ToolManualID(entry.Name) == manual {
+	for _, entry := range c.searchIndex().members[manual] {
+		if entry.Enabled {
 			return true
 		}
 	}

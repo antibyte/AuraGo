@@ -26,6 +26,7 @@
     }
 
     function setPaused(current, paused) {
+        current.paused = !!paused;
         const method = paused ? current.instance.pause : current.instance.resume;
         if (typeof method !== 'function') return;
         try {
@@ -45,7 +46,15 @@
         layer.setAttribute('aria-hidden', 'true');
         document.body.appendChild(layer);
         const controller = new AbortController();
-        const current = { id: key, layer, controller, instance: {} };
+        const current = {
+            id: key,
+            layer,
+            controller,
+            options: options || {},
+            motion: !!(options && options.motion),
+            paused: false,
+            instance: {}
+        };
         active = current;
         try {
             current.instance = impl.start({ layer, signal: controller.signal, options: options || {} }) || {};
@@ -55,6 +64,7 @@
             return false;
         }
         document.addEventListener('visibilitychange', () => setPaused(current, document.hidden), { signal: controller.signal });
+        window.addEventListener('pagehide', stop, { once: true, signal: controller.signal });
         if (document.hidden) setPaused(current, true);
         return true;
     }
@@ -63,5 +73,36 @@
         return active ? active.id : '';
     }
 
-    window.AuraDesktopThemeFx = { register, start, stop, activeId };
+    // Tests/debug: forwards to instance.command(name, payload) when the active effect has one.
+    function command(name, payload) {
+        const current = active;
+        if (!current || !current.instance || typeof current.instance.command !== 'function') return null;
+        try {
+            const result = current.instance.command(name, payload);
+            return result === undefined ? null : result;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function inspect() {
+        const current = active;
+        if (!current) return { activeId: '', motion: false, paused: false, rendererReady: false };
+        let details = {};
+        try {
+            if (current.instance && typeof current.instance.inspect === 'function') {
+                const result = current.instance.inspect();
+                if (result && typeof result === 'object') details = result;
+            }
+        } catch (_) { /* diagnostics must not affect the effect host */ }
+        return {
+            ...details,
+            activeId: current.id,
+            motion: current.motion,
+            paused: current.paused,
+            aborted: current.controller.signal.aborted
+        };
+    }
+
+    window.AuraDesktopThemeFx = { register, start, stop, activeId, inspect, command };
 })();

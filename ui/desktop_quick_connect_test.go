@@ -45,6 +45,69 @@ func TestDesktopQuickConnectUsesProtocolNeutralCopyAndFilters(t *testing.T) {
 	}
 }
 
+func TestDesktopQuickConnectOnlyListsRemoteDevicesBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	for _, theme := range []string{"standard", "fruity"} {
+		t.Run(theme, func(t *testing.T) {
+			page := newQuickConnectShellPage(t, browser, theme, 1200, 800)
+			defer page.Close()
+			result := page.MustEval(`async()=>{
+                serialShell.cleanup();
+                const devices=[
+                    {id:'ssh-lab',name:'SSH lab',type:'router',protocol:'ssh',ip_address:'192.0.2.10',port:2222},
+                    {id:'vnc-lab',name:'VNC lab',type:'desktop',protocol:'vnc',ip_address:'192.0.2.11',port:5901},
+                    ...['generic','server','linux','vm',''].map(type=>({id:'cast-'+(type||'untyped'),name:'Cast '+(type||'untyped'),type,protocol:'none',ip_address:'192.0.2.12',port:8009})),
+                    {id:'http-server',name:'HTTP server',type:'server',protocol:'http',ip_address:'192.0.2.13',port:80}
+                ];
+                const api=window.api;
+                window.api=(url,options)=>url==='/api/desktop/integrations/devices'?Promise.resolve({devices}):api(url,options);
+                serialShell.app=window.__renderQuickConnect('qc');
+                const ids=()=>Array.from(document.querySelectorAll('[data-device-id]')).map(node=>node.dataset.deviceId).sort().join(',');
+                const filter=value=>document.querySelector('[data-qc-filter="'+value+'"]').click();
+                await serialShell.wait(()=>document.querySelector('[data-device-id="ssh-lab"]')&&document.querySelector('[data-serial-profile]'));
+                const all=ids();
+                filter('ssh');const ssh=ids();
+                filter('vnc');const vnc=ids();
+                filter('all');
+                const search=document.querySelector('.vd-qc-search input');
+                search.value='Cast';search.dispatchEvent(new Event('input'));
+                const searchHidesUnconnectable=ids()==='';
+                search.value='';search.dispatchEvent(new Event('input'));
+                filter('serial');
+                const serialProfiles=!document.querySelector('[data-serial-list]').hidden&&!!document.querySelector('[data-serial-profile]')&&document.querySelector('[data-device-list]').hidden;
+                filter('all');
+                applyQuickConnectLaunchContext('qc',{device_id:'cast-generic'});
+                await serialShell.wait(()=>document.querySelector('[data-qc-target] button'));
+                const targeted=ids();
+                const targetDisabled=document.querySelector('[data-qc-target] button').disabled;
+                document.querySelector('[data-device-id="cast-generic"]').click();
+                const noConnection=serialShell.sockets.length===0&&serialShell.rfbs.length===0;
+                serialShell.cleanup();
+                return {all,ssh,vnc,searchHidesUnconnectable,serialProfiles,targeted,targetDisabled,noConnection,errors:window.__shellErrors};
+            }`)
+			for key, want := range map[string]string{
+				"all":      "__aurago-host__,ssh-lab,vnc-lab",
+				"ssh":      "__aurago-host__,ssh-lab",
+				"vnc":      "vnc-lab",
+				"targeted": "__aurago-host__,cast-generic,ssh-lab,vnc-lab",
+			} {
+				if got := result.Get(key).Str(); got != want {
+					t.Errorf("%s devices = %q, want %q", key, got, want)
+				}
+			}
+			for _, key := range []string{"searchHidesUnconnectable", "serialProfiles", "targetDisabled", "noConnection"} {
+				if !result.Get(key).Bool() {
+					t.Errorf("%s failed: %s", key, result.JSON("", ""))
+				}
+			}
+			if len(result.Get("errors").Arr()) != 0 {
+				t.Errorf("browser errors: %s", result.Get("errors").JSON("", ""))
+			}
+		})
+	}
+}
+
 func TestDesktopQuickConnectVNCSessionToolbarMarkers(t *testing.T) {
 	t.Parallel()
 

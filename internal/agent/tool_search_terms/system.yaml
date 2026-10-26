@@ -1,0 +1,115 @@
+# system search terms
+activate_agent_skill:
+  en: ["activate agent skill", "load agent skill", "load SKILL.md", "agent skill instructions", "read skill workflow", "use installed skill package"]
+  de: ["Agent Skill aktivieren", "Skill Anleitung laden", "SKILL.md lesen", "Skill Paket benutzen", "Skill Arbeitsablauf laden"]
+create_skill_from_template:
+  en: ["create new skill", "skill from template", "build custom skill", "skill scaffold", "new python skill", "api client skill", "use skill template"]
+  de: ["Skill erstellen", "neuen Skill anlegen", "Skill aus Vorlage", "Skill Vorlage verwenden", "eigenen Skill bauen", "Skill Gerüst"]
+cron_scheduler:
+  en: ["schedule task", "cron job", "recurring task", "run every day", "scheduled job", "run at 9am", "cron expression", "disable schedule"]
+  de: ["Cronjob einrichten", "Aufgabe planen", "regelmäßige Aufgabe", "jeden Tag ausführen", "zeitgesteuert", "geplante Aufgaben anzeigen", "Cron Ausdruck"]
+discover_tools:
+  en: ["find a tool", "search tool catalog", "which tool can do", "hidden tools", "what tools exist", "tool for this task", "list tool categories"]
+  de: ["Werkzeug suchen", "welches Tool passt", "verfügbare Tools suchen", "versteckte Tools", "Toolkatalog durchsuchen", "gibt es ein Tool für", "Tool finden"]
+execute_python:
+  en: ["run python script", "python on host", "run python code", "persistent python script", "unsandboxed python", "python with vault secrets", "python venv", "host python"]
+  de: ["Python Skript ausführen", "Python Code starten", "Python auf dem Host", "Python ohne Sandbox", "Python Programm laufen lassen", "Python mit Zugangsdaten"]
+execute_sandbox:
+  en: ["run code safely", "sandbox", "isolated docker container", "run javascript", "run go code", "run java code", "run c++ code", "test code snippet"]
+  de: ["Code sicher ausführen", "isolierter Container", "Code testen", "Programmcode ausführen", "JavaScript ausführen", "C++ Code kompilieren", "Codeschnipsel laufen lassen"]
+execute_shell:
+  en: ["run shell command", "terminal command", "bash command", "powershell command", "command line", "run command background", "system command", "shell script"]
+  de: ["Shell Befehl ausführen", "Terminal Befehl", "Kommandozeile", "Bash Befehl", "PowerShell Befehl", "Befehl im Hintergrund", "Konsole Befehl", "Systembefehl ausführen"]
+execute_skill:
+  en: ["run skill", "execute registered skill", "web search skill", "pdf extractor", "virustotal scan", "wikipedia search skill", "run installed skill", "ddg search"]
+  de: ["Skill ausführen", "Skill starten", "registrierten Skill benutzen", "PDF Text extrahieren", "Websuche Skill", "Wikipedia Suche Skill"]
+execute_sudo:
+  en: ["run as root", "sudo command", "admin privileges", "elevated privileges", "root command", "privileged command", "run with sudo", "read protected system file"]
+  de: ["als root ausführen", "sudo Befehl", "Administratorrechte", "mit Root Rechten", "erhöhte Rechte", "privilegierter Befehl", "sudo ausführen", "geschützte Systemdatei lesen"]
+follow_up:
+  en: ["continue in background", "follow up task", "next step automatically", "chain next step", "do it afterwards", "autonomous next step", "keep working after reply"]
+  de: ["danach weitermachen", "im Hintergrund fortsetzen", "Folgeaufgabe", "nächsten Schritt automatisch", "Anschlussaufgabe", "nach der Antwort weiterarbeiten", "Aufgabe verketten"]
+game_maker_asset:
+  en: ["game sprite assets", "3D model assets", "import asset pack", "find game sprites", "game character model", "describe asset", "game maker assets"]
+  de: ["Spiel Sprites suchen", "3D Modelle für Spiel", "Asset Paket importieren", "Spielfiguren Grafiken", "Spielgrafiken finden", "Sprite importieren"]
+game_maker_file:
+  en: ["edit game source file", "read game code", "write game file", "replace code block game", "search game source", "game json", "change game code", "multi file edit game"]
+  de: ["Spielcode bearbeiten", "Spieldatei lesen", "Spiel Quelltext ändern", "Datei im Spiel schreiben", "Spiel Code durchsuchen", "game json bearbeiten", "mehrere Dateien ändern Spiel"]
+game_maker_project:
+  en: ["game design plan", "game project overview", "list game files", "plan game", "set game design", "inspect game scene", "game examples", "game project structure"]
+  de: ["Spielentwurf", "Spiel planen", "Spielprojekt Übersicht", "Spieldateien auflisten", "Spiel Szene prüfen", "Spieldesign festlegen", "Beispiele fürs Spiel", "Projektplan Spiel"]
+game_maker_validate:
+  en: ["test game build", "validate game", "check game loads", "game preview check", "playtest game", "verify game works", "game startup check", "game quality check"]
+  de: ["Spiel testen", "Spiel prüfen", "Spiel validieren", "Spielvorschau prüfen", "startet das Spiel", "Spielbarkeit testen", "Spiel Build prüfen", "Spiel veröffentlichen prüfen"]
+get_skill_documentation:
+  en: ["read skill manual", "skill documentation", "how to use skill", "skill markdown manual", "show skill docs", "skill usage instructions"]
+  de: ["Skill Dokumentation lesen", "Skill Handbuch", "Skill Anleitung anzeigen", "wie benutze ich Skill", "Skill Doku", "Bedienungsanleitung Skill"]
+golangci_lint:
+  en: ["go lint", "golangci lint", "lint go code", "go static analysis", "check go code quality", "go linter", "find go code issues"]
+  de: ["Go Code prüfen", "statische Analyse Go", "Go Code Qualität", "Lint Fehler finden", "Go Quellcode analysieren", "Linting ausführen"]
+invoke_tool:
+  en: ["call hidden tool", "invoke native tool", "call tool via invoke", "call tool indirectly", "hidden native tool", "tool not directly callable", "fallback tool call"]
+  de: ["verstecktes Tool aufrufen", "natives Tool aufrufen", "Tool indirekt aufrufen", "Tool nicht direkt aufrufbar", "Ersatzaufruf Tool", "Tool über Umweg starten"]
+list_agent_skills:
+  en: ["list agent skills", "available agent skills", "installed skill packages", "SKILL.md packages", "which agent skills enabled", "agent skill catalog"]
+  de: ["Agent Skills auflisten", "verfügbare Agent Skills", "installierte Skill Pakete", "welche Agent Skills aktiv", "Agent Skill Katalog", "Skill Pakete anzeigen"]
+list_skill_templates:
+  en: ["list skill templates", "available skill templates", "which templates exist", "skill template overview", "skill blueprints"]
+  de: ["Skill Vorlagen anzeigen", "welche Vorlagen gibt es", "verfügbare Skill Vorlagen", "Vorlagen auflisten", "Skill Vorlagen Übersicht"]
+list_skills:
+  en: ["list skills", "available skills", "what skills exist", "installed skills", "skill overview", "pre-built skills", "available integrations"]
+  de: ["Skills auflisten", "verfügbare Skills", "welche Skills gibt es", "installierte Skills", "Skill Übersicht", "vorhandene Fähigkeiten", "vorhandene Integrationen"]
+manage_appointments:
+  en: ["calendar appointment", "schedule appointment", "meeting reminder", "add calendar entry", "upcoming appointments", "cancel appointment", "doctor appointment", "wake agent at appointment"]
+  de: ["Kalender Termin", "Termin eintragen", "Termin anlegen", "Termin löschen", "Terminerinnerung", "nächste Termine", "Arzttermin eintragen", "Besprechung planen", "Termin absagen"]
+manage_daemon:
+  en: ["daemon skill", "background daemon", "start daemon", "stop daemon", "daemon status", "restart crashed daemon", "long running skill", "re-enable daemon"]
+  de: ["Daemon starten", "Daemon stoppen", "Hintergrunddienst Skill", "abgestürzten Daemon neu starten", "dauerhaft laufender Skill", "Daemon wieder aktivieren"]
+manage_missions:
+  en: ["mission control", "create mission", "background automation", "run mission now", "mission history", "automation job", "triggered mission", "scheduled mission"]
+  de: ["Mission erstellen", "Mission starten", "Hintergrundautomatisierung", "Missionsverlauf", "Automatisierung anlegen", "ausgelöste Mission", "wiederkehrende Mission"]
+manage_plan:
+  en: ["work plan", "make a plan", "multi-step plan", "track progress", "task plan session", "update plan", "plan blocker", "step by step plan"]
+  de: ["Arbeitsplan", "Plan erstellen", "mehrstufiger Plan", "Fortschritt verfolgen", "Aufgabenplan", "Plan aktualisieren", "Schritt für Schritt Plan"]
+manage_todos:
+  en: ["todo list", "add todo", "to-do item", "task list", "mark todo done", "checklist", "due date task", "daily todo reminder", "high priority task"]
+  de: ["To-do Liste", "Aufgabenliste", "Aufgabe hinzufügen", "als erledigt markieren", "Checkliste", "Aufgabe mit Fälligkeit", "tägliche Aufgabenerinnerung", "offene Aufgaben"]
+manage_updates:
+  en: ["check for updates", "update AuraGo", "new version available", "install update", "software update", "latest release", "self update", "upgrade AuraGo"]
+  de: ["Updates prüfen", "AuraGo aktualisieren", "neue Version verfügbar", "Update installieren", "Softwareaktualisierung", "aktuelle Version", "Selbstupdate", "gibt es ein Update"]
+package_manager:
+  en: ["install package", "apt install", "winget install", "uninstall package", "search packages", "list installed packages", "system upgrade", "brew install", "install software"]
+  de: ["Paket installieren", "Software installieren", "Programm deinstallieren", "Pakete suchen", "installierte Pakete", "Paketverwaltung", "System aktualisieren", "Paketmanager"]
+process_analyzer:
+  en: ["top cpu processes", "memory hog", "find process by name", "process tree", "what is using cpu", "process details pid", "all system processes", "resource hogs"]
+  de: ["welcher Prozess frisst CPU", "Prozesse nach Speicher", "Prozess suchen", "Prozessbaum", "laufende Prozesse", "Prozess Details", "Ressourcenfresser", "hoher CPU Verbrauch"]
+process_management:
+  en: ["background processes", "kill background process", "stop managed process", "list running jobs", "process status logs", "terminate background job", "AuraGo processes"]
+  de: ["Hintergrundprozesse", "Hintergrundprozess beenden", "Prozess abbrechen", "laufende Jobs anzeigen", "Prozessstatus Log", "Hintergrundjob stoppen", "AuraGo Prozesse"]
+question_user:
+  en: ["ask user to choose", "multiple choice question", "confirm with user", "ask with options", "let user pick", "yes or no prompt", "choice popup", "user decision"]
+  de: ["Nutzer fragen", "Auswahlfrage", "Rückfrage mit Optionen", "Nutzer entscheiden lassen", "Multiple Choice", "Ja Nein Abfrage", "Bestätigung einholen", "Auswahl Popup"]
+request_vault_secret:
+  en: ["ask for api key", "enter password securely", "store secret in vault", "secure secret input", "request token from user", "masked password dialog", "provide credentials safely"]
+  de: ["API Schlüssel abfragen", "Passwort sicher eingeben", "Geheimnis im Tresor speichern", "Token vom Nutzer anfordern", "sichere Passworteingabe", "Zugangsdaten sicher eingeben", "Passwort Dialog"]
+run_agent_skill_script:
+  en: ["run skill script", "agent skill helper script", "execute skill python script", "skill scripts folder", "run skill package script", "skill script with json"]
+  de: ["Skill Skript ausführen", "Hilfsskript des Agent Skills", "Skript aus Skill Paket", "Skill Python Skript starten", "Skript mit JSON Argumenten", "Skill Skripte"]
+run_tool:
+  en: ["run custom tool", "saved python tool", "run my custom tool", "custom tool with args", "user-created tool", "run saved script"]
+  de: ["eigenes Tool ausführen", "gespeichertes Python Tool", "benutzerdefiniertes Tool", "eigenes Skript starten", "gespeichertes Skript ausführen", "Custom Tool starten"]
+save_tool:
+  en: ["save python tool", "register custom tool", "store script as tool", "create custom tool", "save script", "new python tool", "persist tool"]
+  de: ["Python Tool speichern", "eigenes Tool anlegen", "Skript als Tool speichern", "Tool registrieren", "Skript dauerhaft speichern", "neues eigenes Tool"]
+set_skill_documentation:
+  en: ["write skill manual", "document skill", "update skill documentation", "skill markdown docs", "replace skill manual", "save skill notes", "skill edge cases"]
+  de: ["Skill Dokumentation schreiben", "Skill dokumentieren", "Skill Handbuch aktualisieren", "Skill Doku speichern", "Skill Anleitung ersetzen", "Skill Handbuch schreiben"]
+system_metrics:
+  en: ["cpu temperature", "cpu temperatures", "temperature sensors", "thermal sensors", "system monitor", "monitor cpu", "cpu monitor", "hardware metrics", "check disk space", "ram usage"]
+  de: ["cpu temperatur", "Festplatte voll", "Speicherplatz prüfen", "Arbeitsspeicher Auslastung", "Systemauslastung", "CPU Last", "Netzwerkstatistik", "Systemressourcen"]
+upnp_scan:
+  en: ["upnp scan", "find devices on network", "ssdp discovery", "discover smart tv", "scan network for devices", "find router", "network device discovery", "find nas"]
+  de: ["Netzwerkgeräte finden", "Geräte im Netzwerk suchen", "Smart TV finden", "Router finden", "Heimnetz scannen", "SSDP Suche", "NAS im Netzwerk finden", "Drucker im Netz suchen"]
+wait_for_event:
+  en: ["wait for process to finish", "wait until url is up", "wait for file change", "wait for server", "notify when done", "wait asynchronously", "http endpoint available", "wait for exit"]
+  de: ["auf Prozessende warten", "warten bis Server läuft", "auf Dateiänderung warten", "warten bis URL erreichbar", "asynchron warten", "bis Prozess fertig ist", "Server erreichbar abwarten", "weitermachen wenn fertig"]

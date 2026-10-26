@@ -4,14 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 )
 
 type SessionDeletionReport struct {
-	TranscriptDeleted  bool `json:"transcript_deleted"`
-	DeletedMemories    int  `json:"deleted_memories"`
-	RetainedMemories   int  `json:"retained_memories"`
-	DeletedGraphItems  int  `json:"deleted_graph_items"`
-	RetainedGraphItems int  `json:"retained_graph_items"`
+	PersonalityDeleted       int  `json:"personality_deleted"`
+	PersonalityRetained      int  `json:"personality_retained"`
+	PersonalityLegacyUnknown int  `json:"personality_legacy_unknown"`
+	TranscriptDeleted        bool `json:"transcript_deleted"`
+	DeletedMemories          int  `json:"deleted_memories"`
+	RetainedMemories         int  `json:"retained_memories"`
+	DeletedGraphItems        int  `json:"deleted_graph_items"`
+	RetainedGraphItems       int  `json:"retained_graph_items"`
 }
 
 // DeleteChatSessionWithMemories removes only memories with exclusive, automatic provenance.
@@ -23,8 +28,22 @@ func (s *SQLiteMemory) DeleteChatSessionWithMemories(ctx context.Context, sessio
 		return SessionDeletionReport{}, err
 	}
 	defer s.sessionWriteMu.Unlock()
+	s.correctionMu.Lock()
+	defer s.correctionMu.Unlock()
 	s.automaticMemoryMu.Lock()
 	defer s.automaticMemoryMu.Unlock()
+	// Preserve the compatibility helper's separate vector/graph counters. The
+	// HTTP path uses PrepareChatPrivacyDeletion and its full durable manifest.
+	if err := s.ensureDeletedSessionPrivacyMapping(ctx); err != nil {
+		return SessionDeletionReport{}, err
+	}
+	if _, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO deleted_chat_sessions(session_id) VALUES(?)`, sessionID); err != nil {
+		return SessionDeletionReport{}, err
+	}
+	personalityTargets, err := s.preparePersonalityPrivacyTargets(ctx, sessionID, deleteMemories)
+	if err != nil {
+		return SessionDeletionReport{}, err
+	}
 	var report SessionDeletionReport
 	var cleanupErr error
 	if deleteMemories {
@@ -86,19 +105,65 @@ func (s *SQLiteMemory) DeleteChatSessionWithMemories(ctx context.Context, sessio
 				tx.Rollback()
 				cleanupErr = errors.Join(cleanupErr, err)
 			} else {
-				cleanupErr = errors.Join(cleanupErr, tx.Commit())
+				if commitErr := tx.Commit(); commitErr != nil {
+					cleanupErr = errors.Join(cleanupErr, commitErr)
+					continue
+				}
+				report.DeletedMemories++
 			}
-			report.DeletedMemories++
 		}
 		if kg != nil {
 			report.DeletedGraphItems, report.RetainedGraphItems, err = kg.deleteExclusiveSessionGraph(ctx, sessionID)
 			cleanupErr = errors.Join(cleanupErr, err)
 		}
 	}
-	purgeErr := s.purgeChatSessionLocked(sessionID)
+	purgeErr := s.purgeChatSessionWithGraphPrivacyJobLocked(sessionID, "", kg, personalityTargets)
 	report.TranscriptDeleted = purgeErr == nil
+	var personalityJobID string
+	if err := s.db.QueryRowContext(ctx, `SELECT privacy_job_id FROM deleted_chat_sessions WHERE session_id=?`, sessionID).Scan(&personalityJobID); err != nil {
+		cleanupErr = errors.Join(cleanupErr, err)
+	}
+	if personalityJobID != "" && purgeErr == nil {
+		targets, err := s.privacyDeletionTargets(ctx, personalityJobID)
+		cleanupErr = errors.Join(cleanupErr, err)
+		for _, target := range targets {
+			if strings.HasPrefix(target.Store, "personality_") && target.State == "pending" {
+				_, err := s.applyPersonalityPrivacyTarget(ctx, personalityJobID, target)
+				cleanupErr = errors.Join(cleanupErr, err)
+			}
+		}
+		cleanupErr = errors.Join(cleanupErr, s.refreshPrivacyDeletionCounts(ctx, personalityJobID, time.Now().UTC()))
+	}
 	if kg != nil {
-		cleanupErr = errors.Join(cleanupErr, kg.ScrubSessionTranscriptEvidence(ctx, sessionID))
+		graphErr := kg.ScrubSessionTranscriptEvidence(ctx, sessionID)
+		cleanupErr = errors.Join(cleanupErr, graphErr)
+		if graphErr == nil {
+			var jobID string
+			if err := s.db.QueryRowContext(ctx, `SELECT privacy_job_id FROM deleted_chat_sessions WHERE session_id=?`, sessionID).Scan(&jobID); err != nil {
+				cleanupErr = errors.Join(cleanupErr, err)
+			} else if jobID != "" {
+				tx, err := s.db.BeginTx(ctx, nil)
+				if err != nil {
+					cleanupErr = errors.Join(cleanupErr, err)
+				} else {
+					target := privacyGraphTranscriptTarget(sessionID)
+					if err = markPrivacyTargetStateTx(ctx, tx, jobID, target, "deleted", ""); err == nil {
+						err = tx.Commit()
+					} else {
+						_ = tx.Rollback()
+					}
+					cleanupErr = errors.Join(cleanupErr, err)
+					if err == nil {
+						cleanupErr = errors.Join(cleanupErr, s.refreshPrivacyDeletionCounts(ctx, jobID, time.Now().UTC()))
+					}
+				}
+			}
+		}
+	}
+	if personalityJobID != "" {
+		var err error
+		report.PersonalityDeleted, report.PersonalityRetained, report.PersonalityLegacyUnknown, err = s.personalityPrivacyCounts(ctx, personalityJobID)
+		cleanupErr = errors.Join(cleanupErr, err)
 	}
 	return report, errors.Join(cleanupErr, purgeErr)
 }

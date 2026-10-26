@@ -16,6 +16,13 @@ separately under **Agent & AI → Telephone agent**. That profile applies to
 agent-led incoming and outgoing calls, never to manual browser conversations.
 It stays visible while SIP is disabled and reports the concrete blockers.
 
+Changing the guided account setup or deleting the SIP account preserves the
+Telephone agent profile and its auto-answer delay. Deletion disables SIP and
+sets incoming routing to `reject`. Guided setup also selects `reject` when
+incoming calls are disabled. If setup enables incoming calls for an existing
+account that already uses agent routing, that route is retained. A new account
+starts with manual answering.
+
 ## Network setup
 
 For a LAN PBX such as a FritzBox, bind signaling to the host's private address
@@ -50,7 +57,8 @@ files, and does not add SRTP media encryption or WS/WSS support.
 ## Policy and privacy
 
 - Incoming calls require both a trusted source IP/CIDR and a matching caller
-  allowlist entry. A spoofable `From` header alone is never trusted.
+  allowlist entry. Caller entries match normalized callers and support `*` and
+  `?` patterns. A spoofable `From` header alone is never trusted.
 - The guided **All callers** choice stores `*` in `inbound.allowed_callers`.
   It accepts any caller from the trusted registrar IPs resolved during setup,
   subject to `inbound.denied_callers`. It does not bypass the source-IP/CIDR check.
@@ -66,8 +74,8 @@ files, and does not add SRTP media encryption or WS/WSS support.
   connection tests, but prevents answering or originating calls.
 - Audio, RTP packets, complete SIP headers, and authentication material are
   never logged or stored. Call history contains only IDs,
-  direction, normalized peer, timestamps, state, end reason, backend, and an
-  optional chat-session link.
+  direction, normalized peer, timestamps, state, end reason, backend,
+  `media_mode` (agent or browser), and an optional chat-session link.
 - Transcripts are transient by default. These calls also suppress derived
   memory, personality, activity, journal, and reuse artifacts before the chat
   session is purged. Enabling `persist_transcripts` retains only the existing
@@ -118,7 +126,31 @@ registration or browser media. An active call retains its complete provider,
 tool, behavior, duration, and transcript-retention snapshot. Legacy
 configurations with empty telephone provider fields inherit the existing global
 LLM, Whisper, and TTS selections until the Telephone agent page is first saved;
-that save records the effective IDs.
+that save records the available effective IDs. Inactive classic fields can stay
+empty when Gemini Live is selected and no global choice exists. The inherited
+indicators describe the fields still empty in the saved profile.
+
+## Telephone agent limits
+
+The fields below are relative to `sip` in `config.yaml`.
+
+| Field | Default | Accepted range | Purpose |
+| --- | --- | --- | --- |
+| `inbound.auto_answer_delay_ms` | 1000 | 0–60000 ms | Delay before agent answering; 0 answers immediately |
+| `voice.max_call_duration_seconds` | 3600 | 30–86400 s | Maximum agent call duration |
+| `voice.idle_timeout_seconds` | 120 | 15–3600 s | Agent conversation inactivity limit |
+| `voice.turn_timeout_seconds` | 60 | 15–300 s | Classic turn or Gemini action budget |
+| `voice.max_response_chars` | 1200 | 200–5000 characters | Spoken response and tool-result cap |
+| `voice.max_outbound_calls_per_day` | 10 | 1–1000 | Admitted agent-led outgoing attempts per local calendar day |
+
+The daily limit counts an attempt when call history admits it, before INVITE.
+Failures and cancellations after admission still count, including cancellation
+by a configuration change. Invalid targets, policy denials, and failed provider
+preflights before admission do not count. Incoming calls and manual browser
+calls do not consume this agent limit. The reset is midnight in the server's
+local time zone. The Telephone agent API and page report usage and reset time;
+`agent_daily_call_limit_reached` also returns `used`, `limit`,
+`retry_after_seconds`, and `resets_at`.
 
 ## Public interfaces and future clients
 
@@ -127,9 +159,15 @@ status, call history/actions, and an SSE event stream. Telephone agent adds
 `GET/PUT /api/sip/agent`, the secret-free
 `GET /api/sip/agent/catalog`, and `POST /api/sip/agent/test`. The default test
 is a free local reference, token, and pipeline-readiness preflight; it does not
-send a paid completion. An explicitly confirmed live test is rate-limited,
+send a paid completion or require an outbound destination. An explicitly
+confirmed live test is limited to three attempts per hour per client IP,
 uses no agent tools, and stores neither audio nor a test conversation. The
+classic audio check resamples synthesized speech to 16 kHz before ASR. The
 native `sip_phone` agent tool applies the same runtime permissions.
+
+Use the dedicated SIP configuration/setup and Telephone agent endpoints for
+updates. A top-level `sip` field in `PUT /api/config` is rejected with HTTP 400
+and code `sip_use_dedicated_api` before configuration or Vault changes occur.
 
 Status exposes sanitized registration codes. `registration_failed_401` and
 `registration_failed_403` normally indicate account credentials or provider

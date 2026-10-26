@@ -79,6 +79,10 @@ export class PoseDetectionCanvas {
     // Set up pose service subscription
     this.setupPoseServiceSubscription();
 
+    // AuraGo learns the data source asynchronously; keep the demo entry points in step with it.
+    this.updateDemoGate();
+    this.demoGateTimer = setInterval(() => this.updateDemoGate(), 2000);
+
     this.logger.info('PoseDetectionCanvas component initialized successfully');
   }
 
@@ -97,7 +101,7 @@ export class PoseDetectionCanvas {
             <button class="btn btn-start" id="start-btn-${this.containerId}">&#9654; Start</button>
             <button class="btn btn-stop" id="stop-btn-${this.containerId}" disabled>&#9632; Stop</button>
             <button class="btn btn-reconnect" id="reconnect-btn-${this.containerId}" disabled>&#8635; Reconnect</button>
-            <button class="btn btn-demo" id="demo-btn-${this.containerId}">&#9881; Demo</button>
+            <button class="btn btn-demo" id="demo-btn-${this.containerId}" style="display:none">&#9881; Demo</button>
             <select class="mode-select" id="mode-select-${this.containerId}">
               <option value="skeleton">Skeleton</option>
               <option value="keypoints">Keypoints</option>
@@ -575,7 +579,21 @@ export class PoseDetectionCanvas {
     }
   }
 
+  // AuraGo: the demo is available only while the source is explicitly simulated.
+  updateDemoGate() {
+    const allowed = window.auragoRuViewSimulationAllowed?.() === true;
+    for (const button of [document.getElementById('demo-btn-' + this.containerId), document.getElementById('run-offline-demo')]) {
+      if (button) button.style.display = allowed ? '' : 'none';
+    }
+    if (!allowed && this.demoState && this.demoState.isRunning) {
+      this.stopDemo();
+      this.updateDemoButton(false);
+    }
+    return allowed;
+  }
+
   updateControls() {
+    this.updateDemoGate();
     const startBtn = document.getElementById(`start-btn-${this.containerId}`);
     const stopBtn = document.getElementById(`stop-btn-${this.containerId}`);
     const reconnectBtn = document.getElementById(`reconnect-btn-${this.containerId}`);
@@ -670,6 +688,11 @@ export class PoseDetectionCanvas {
     try {
       this.logger.info('Stopping pose detection');
       this.state.isActive = false;
+      // AuraGo: a running demo animation stops with the stream.
+      if (this.demoState && this.demoState.isRunning) {
+        this.stopDemo();
+        this.updateDemoButton(false);
+      }
       
       poseService.stopPoseStream();
       this.setConnectionState('disconnected');
@@ -811,12 +834,14 @@ export class PoseDetectionCanvas {
       this.updateDemoButton(false);
     } else {
       this.runDemo();
-      this.updateDemoButton(true);
+      this.updateDemoButton(!!(this.demoState && this.demoState.isRunning));
     }
   }
 
   // Demo mode - renders animated test pose data
   runDemo() {
+    // AuraGo: never fabricate pose frames unless the source is explicitly simulated.
+    if (window.auragoRuViewSimulationAllowed?.() !== true) return;
     this.logger.info('Running animated demo mode');
     
     // Stop any existing demo animation
@@ -876,10 +901,18 @@ export class PoseDetectionCanvas {
       demoBtn.style.background = isRunning ? '#dc3545' : '#6f42c1';
       demoBtn.style.borderColor = isRunning ? '#dc3545' : '#6f42c1';
     }
+    // AuraGo: the hidden canvas button is not the one users see; keep the Live Demo tab button in step.
+    const offlineBtn = document.getElementById('run-offline-demo');
+    if (offlineBtn) offlineBtn.textContent = isRunning ? 'Stop Demo' : 'Demo';
   }
 
   startDemoAnimation() {
     if (!this.demoState || !this.demoState.isRunning) return;
+    if (window.auragoRuViewSimulationAllowed?.() !== true) {
+      this.stopDemo();
+      this.updateDemoButton(false);
+      return;
+    }
 
     this.demoState.frameCount++;
     const elapsed = (Date.now() - this.demoState.startTime) / 1000;
@@ -1520,6 +1553,7 @@ export class PoseDetectionCanvas {
       }
 
       // Stop demo animation
+      clearInterval(this.demoGateTimer);
       this.stopDemo();
 
       // Dispose settings panel

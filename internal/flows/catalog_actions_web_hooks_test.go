@@ -22,20 +22,22 @@ func webAnswers(req ToolRequest) (ToolResponse, error) {
 	return apiAnswer(200, `{"a":1}`), nil
 }
 
-// Only a GET is free of outward effects. A method that is not known yet (a
-// template) or has no meaning counts as one that may change something, and the hook
-// copes with a nil node and any parameter.
+// Only a GET is free of outward effects, and only a DELETE deletes. A method that is
+// not known yet (a template) or has no meaning counts as the worst case, a DELETE, and
+// the hook copes with a nil node and any parameter.
 func TestHTTPRequestEffects(t *testing.T) {
 	def := httpNodeDef(t)
 	sends := []Effect{EffectSendsMessage}
+	deletes := []Effect{EffectSendsMessage, EffectDeletes}
 	for name, c := range map[string]struct {
 		method any
 		want   []Effect
 	}{
 		"absent": {nil, nil}, "empty": {"", nil}, "blank": {"  ", nil}, "GET": {"GET", nil}, "lower": {"get", nil}, "padded": {" Get\n", nil},
-		"POST": {"POST", sends}, "post": {"post", sends}, "PUT": {"PUT", sends}, "PATCH": {"PATCH", sends}, "DELETE": {"delete", sends},
-		"template": {"{{trigger.data.method}}", sends}, "unknown": {"HEAD", sends}, "number": {5.0, sends}, "flag": {true, sends},
-		"list": {[]any{"GET"}, sends}, "object": {map[string]any{}, sends}, "huge": {strings.Repeat("G", 1<<20), sends},
+		"POST": {"POST", sends}, "post": {"post", sends}, "PUT": {"PUT", sends}, "PATCH": {"PATCH", sends},
+		"DELETE": {"DELETE", deletes}, "delete": {"delete", deletes}, "padded delete": {" Delete\n", deletes},
+		"template": {"{{trigger.data.method}}", deletes}, "unknown": {"HEAD", deletes}, "number": {5.0, deletes}, "flag": {true, deletes},
+		"list": {[]any{"GET"}, deletes}, "object": {map[string]any{}, deletes}, "huge": {strings.Repeat("G", 1<<20), deletes},
 	} {
 		if got := def.EffectsOf(&Node{Params: map[string]any{"method": c.method}}); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("method %s: effects %v, want %v", name, got, c.want)
@@ -85,7 +87,7 @@ func TestHTTPRequestValidate(t *testing.T) {
 	check(map[string]any{"headers": "X-A: 1"}, "headers")
 	check(map[string]any{"auth_secret": "tok", "auth_header": "Bad Name"}, "auth_header")
 	check(map[string]any{"auth_header": "Bad Name"})
-	check(map[string]any{"auth_secret": "tok", "auth_header": "{{trigger.data.h}}"})
+	check(map[string]any{"auth_secret": "tok", "auth_header": "{{trigger.data.h}}"}, "auth_header")
 	check(map[string]any{"auth_secret": "{{trigger.data.s}}", "auth_header": "X\r\nEvil"}, "auth_header")
 	check(map[string]any{"auth_secret": "tok", "auth_header": " X-Key "})
 	check(map[string]any{"auth_secret": "tok"})
@@ -107,7 +109,7 @@ func TestHTTPRequestValidate(t *testing.T) {
 	check(map[string]any{"auth_secret": "tok", "auth_prefix": []any{"Bearer "}}, "auth_prefix")
 	check(map[string]any{"auth_secret": "tok", "auth_prefix": "Token "})
 	check(map[string]any{"auth_secret": "tok", "auth_prefix": ""})
-	check(map[string]any{"auth_secret": "tok", "auth_prefix": "{{trigger.data.p}}"})
+	check(map[string]any{"auth_secret": "tok", "auth_prefix": "{{trigger.data.p}}"}, "auth_prefix")
 	check(map[string]any{"auth_prefix": "Bearer\r\nEvil: 1"})
 	check(map[string]any{"fail_on_error": "maybe"}, "fail_on_error")
 	check(map[string]any{"method": "FETCH", "headers": []any{"x"}, "auth_secret": "tok", "auth_header": ":"}, "method", "headers", "auth_header")

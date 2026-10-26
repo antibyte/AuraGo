@@ -13,7 +13,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
 )
 
 func TestDesktopSoundBrowser(t *testing.T) {
@@ -128,7 +127,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 	}
 
 	qualityJSON := page.MustEval(`async()=>{
-        const themes=['crystal','wood','analog','workshop','water'];
+        const themes=DesktopSounds.inspect().themes;
         const report={themes:{}};
         for (const theme of themes) {
             const cache=await soundTest.renderTheme(theme);
@@ -150,8 +149,8 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if err := json.Unmarshal([]byte(qualityJSON), &quality); err != nil {
 		t.Fatalf("parse render quality: %v\n%s", err, qualityJSON)
 	}
-	if len(quality.Themes) != 5 {
-		t.Fatalf("expected 5 rendered themes, got %d", len(quality.Themes))
+	if len(quality.Themes) != 16 {
+		t.Fatalf("expected 16 rendered themes, got %d", len(quality.Themes))
 	}
 	const rmsMin = 0.0005
 	const peakMax = 0.891 // -1 dBFS
@@ -207,6 +206,363 @@ window.WebSocket=class extends EventTarget { close(){} };
 		t.Fatalf("expected cached theme water, got %q", theme)
 	}
 
+	// Material events are exclusive to the voxel bank and keep the same windows
+	// category gate as ordinary shell sounds.
+	beforeVoxelFx := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	allowedWhileWater := page.MustEval(`async()=>await DesktopSounds.play('window.impact',{material:'stone',strength:.8,pan:.4})`).Bool()
+	if allowedWhileWater || page.MustEval(`()=>soundTest.inspect().plays`).Int() != beforeVoxelFx {
+		t.Fatal("voxel impact must be ignored while another effective sound theme is selected")
+	}
+	page.MustEval(`async()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='voxel_world';
+        applySoundSettingsChange('sound.theme','voxel_world');
+    }`)
+	for _, fx := range []struct{ event, material string }{
+		{event: "window.fracture", material: "wood"},
+		{event: "window.impact", material: "stone"},
+		{event: "window.impact", material: "earth"},
+	} {
+		before := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+		ok := page.MustEval(`async payload=>await DesktopSounds.play(payload.event,{material:payload.material,strength:.72,pan:-.35})`, map[string]string{"event": fx.event, "material": fx.material}).Bool()
+		if !ok {
+			t.Fatalf("%s/%s event was not accepted", fx.event, fx.material)
+		}
+		page.MustWait(`before=>soundTest.inspect().plays>before`, before)
+		if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != fx.event {
+			t.Fatalf("voxel FX lastEvent = %q, want %q", event, fx.event)
+		}
+		if cachedTheme := page.MustEval(`()=>soundTest.inspect().cachedTheme`).Str(); cachedTheme != "water" {
+			t.Fatalf("material FX should not eagerly render the full voxel sound bank; cached theme = %q", cachedTheme)
+		}
+		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,240))`)
+	}
+	// A dense pile must not turn one landing into a wall of full-volume audio.
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,1100))`)
+	if got := page.MustEval(`async()=>{const before=soundTest.inspect().plays;for(let batch=0;batch<16;batch++){for(let i=0;i<64;i++)DesktopSounds.play('window.impact',{material:'stone',strength:.35,pan:0});await new Promise(r=>setTimeout(r,35));}await new Promise(r=>setTimeout(r,300));const after=soundTest.inspect().plays;await new Promise(r=>setTimeout(r,500));return {plays:after-before,late:soundTest.inspect().plays-after};}`).Map(); got["plays"].Int() < 1 || got["plays"].Int() > 4 || got["late"].Int() != 0 {
+		t.Fatalf("voxel burst exceeded playback budget or left a trailing queue: %v", got)
+	}
+	// A slow first render must never replay a stale impact after the cubes stopped.
+	page.MustEval(`async()=>{soundTest.state.bootstrap.settings['sound.windows']='false';applySoundSettingsChange('sound.windows','false');soundTest.state.bootstrap.settings['sound.windows']='true';applySoundSettingsChange('sound.windows','true');const original=DesktopSoundSynth.renderLayers;DesktopSoundSynth.renderLayers=async function(...args){await new Promise(r=>setTimeout(r,400));return original.apply(this,args);};const before=soundTest.inspect().plays;DesktopSounds.play('window.impact',{material:'earth',strength:.7});await new Promise(r=>setTimeout(r,800));DesktopSoundSynth.renderLayers=original;if(soundTest.inspect().plays!==before)throw new Error('stale impact played after delayed synthesis');}`)
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.windows']='false';
+        applySoundSettingsChange('sound.windows','false');
+    }`)
+	beforeVoxelFx = page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	page.MustEval(`async()=>await DesktopSounds.play('window.impact',{material:'earth',strength:1,pan:0})`)
+	if page.MustEval(`()=>soundTest.inspect().plays`).Int() != beforeVoxelFx {
+		t.Fatal("voxel impact must respect the windows category toggle")
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.windows']='true';
+        soundTest.state.bootstrap.settings['sound.theme']='water';
+        applySoundSettingsChange('sound.windows','true');
+        applySoundSettingsChange('sound.theme','water');
+    }`)
+
+	// Green Slime FX (a bursting bubble, a parting strand) share the theme FX gate with the voxel sounds: they
+	// play only for the Green Slime sound theme, never as a preview, and are rate limited on their own.
+	slimePlays := func() int { return page.MustEval(`()=>soundTest.inspect().plays`).Int() }
+	beforeSlimeFx := slimePlays()
+	if page.MustEval(`async()=>await DesktopSounds.play('slime.pop',{variant:'medium',strength:.8,pan:.2})`).Bool() ||
+		page.MustEval(`async()=>await DesktopSounds.play('slime.snap',{variant:'large',strength:1})`).Bool() || slimePlays() != beforeSlimeFx {
+		t.Fatal("slime FX must be ignored while another effective sound theme is selected")
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='green_slime';
+        applySoundSettingsChange('sound.theme','green_slime');
+    }`)
+	var rejected map[string]interface{}
+	rejectedJSON := page.MustEval(`async()=>{
+        const out={}, wait=ms=>new Promise(r=>setTimeout(r,ms));
+        const start={requested:DesktopSounds.inspect().themeFx.slime.requested,plays:DesktopSounds.inspect().plays};
+        out.preview=await DesktopSounds.play('slime.pop',{preview:true,theme:'green_slime',strength:1});
+        out.silent=await DesktopSounds.play('slime.pop',{silent:true,strength:1});
+        out.mute=await DesktopSounds.play('slime.snap',{strength:0});
+        Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});
+        out.hidden=await DesktopSounds.play('slime.pop',{strength:1});
+        Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+        soundTest.state.sessionRestoring=true;
+        out.restoring=await DesktopSounds.play('slime.snap',{strength:1});
+        soundTest.state.sessionRestoring=false;
+        soundTest.state.bootstrap.settings['sound.windows']='false';
+        applySoundSettingsChange('sound.windows','false');
+        out.category=await DesktopSounds.play('slime.pop',{strength:1});
+        soundTest.state.bootstrap.settings['sound.windows']='true';
+        applySoundSettingsChange('sound.windows','true');
+        await wait(300);
+        const now=DesktopSounds.inspect();
+        out.requested=now.themeFx.slime.requested-start.requested;
+        out.plays=now.plays-start.plays;
+        return JSON.stringify(out);
+    }`).Str()
+	if err := json.Unmarshal([]byte(rejectedJSON), &rejected); err != nil {
+		t.Fatalf("parse slime FX rejections: %v\n%s", err, rejectedJSON)
+	}
+	for _, key := range []string{"preview", "silent", "mute", "hidden", "restoring", "category"} {
+		if rejected[key] != false {
+			t.Errorf("slime FX must be ignored (%s), got %v", key, rejected[key])
+		}
+	}
+	if rejected["requested"] != float64(0) || rejected["plays"] != float64(0) {
+		t.Fatalf("ignored slime FX still queued or played: %s", rejectedJSON)
+	}
+
+	// An accepted call renders only its own variant, not the whole bank.
+	beforeSlimeFx = slimePlays()
+	if !page.MustEval(`async()=>await DesktopSounds.play('slime.pop',{variant:'large',strength:.8,pan:-.3})`).Bool() {
+		t.Fatal("slime.pop was not accepted for the Green Slime sound theme")
+	}
+	page.MustWait(`before=>soundTest.inspect().plays>before`, beforeSlimeFx)
+	if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != "slime.pop" {
+		t.Fatalf("slime FX lastEvent = %q, want slime.pop", event)
+	}
+	if cachedTheme := page.MustEval(`()=>soundTest.inspect().cachedTheme`).Str(); cachedTheme != "water" {
+		t.Fatalf("slime FX should not eagerly render the full sound bank; cached theme = %q", cachedTheme)
+	}
+	if rendered := page.MustEval(`()=>soundTest.inspect().themeFx.slime.rendered`).Int(); rendered != 1 {
+		t.Fatalf("slime FX rendered %d variants for one pop, want 1", rendered)
+	}
+
+	// Rate limits: a pop at most every 350 ms and a snap at most every 900 ms, three slime sounds per 2 s
+	// at the most, bursts within 80 ms merged into one. The waits let both gaps and the 2 s window clear.
+	var limits struct{ Burst, Stream, Snaps, Limited int }
+	limitsJSON := page.MustEval(`async()=>{
+        const wait=ms=>new Promise(r=>setTimeout(r,ms)), played=()=>DesktopSounds.inspect().plays;
+        await wait(2200);
+        let before=played();
+        for(let i=0;i<8;i++){DesktopSounds.play('slime.pop',{variant:'small',strength:.7});await wait(25);}
+        await wait(400);
+        const burst=played()-before;
+        await wait(2200);
+        before=played();
+        for(let i=0;i<14;i++){DesktopSounds.play('slime.pop',{variant:'medium',strength:.7});await wait(120);}
+        await wait(400);
+        const stream=played()-before;
+        await wait(2200);
+        before=played();
+        for(let i=0;i<6;i++){DesktopSounds.play('slime.snap',{variant:'medium',strength:.7});await wait(100);}
+        await wait(400);
+        const snaps=played()-before;
+        return JSON.stringify({burst,stream,snaps,limited:DesktopSounds.inspect().themeFx.slime.limited});
+    }`).Str()
+	if err := json.Unmarshal([]byte(limitsJSON), &limits); err != nil {
+		t.Fatalf("parse slime FX rate limits: %v\n%s", err, limitsJSON)
+	}
+	t.Logf("slime FX plays: %s", limitsJSON)
+	if limits.Burst != 1 || limits.Stream < 2 || limits.Stream > 3 || limits.Snaps != 1 || limits.Limited < 1 {
+		t.Fatalf("slime FX rate limits off (burst of 8 quick pops %d, want 1; 14 pops over 1.7 s %d, want 2-3; 6 quick snaps %d, want 1; limited %d): %s",
+			limits.Burst, limits.Stream, limits.Snaps, limits.Limited, limitsJSON)
+	}
+
+	// The bank renders every variant cleanly and well below a window sound: the peak is about 40 % of it and
+	// the 20 ms loudness a quarter to a third, the pop lasts under 180 ms and the snap under 260 ms.
+	var bank struct {
+		Open    struct{ Peak, Loud float64 } `json:"open"`
+		Seconds float64                      `json:"seconds"`
+		Gains   map[string]float64           `json:"gains"`
+		Items   []struct {
+			Event, Variant string
+			Finite         bool
+			Peak, Loud     float64
+			Audible        float64
+		} `json:"items"`
+	}
+	bankJSON := page.MustEval(`async()=>{
+        const synth=DesktopSoundSynth, bank=DesktopSoundThemes.green_slime, fx=DesktopSounds.inspect().themeFx.slime;
+        const measure=buffer=>{
+            const channels=[];for(let c=0;c<buffer.numberOfChannels;c++)channels.push(buffer.getChannelData(c));
+            let peak=0,finite=true;
+            for(const d of channels)for(let i=0;i<d.length;i++){if(!Number.isFinite(d[i]))finite=false;peak=Math.max(peak,Math.abs(d[i]));}
+            const ch=channels[0],rate=buffer.sampleRate;
+            let last=0;for(let i=0;i<ch.length;i++)if(Math.abs(ch[i])>peak*0.001)last=i;
+            const win=Math.round(rate*0.02);let run=0,loud=0;
+            for(let i=0;i<ch.length;i++){run+=ch[i]*ch[i];if(i>=win)run-=ch[i-win]*ch[i-win];if(i>=win-1)loud=Math.max(loud,run/win);}
+            return {finite,peak,loud:Math.sqrt(loud),audible:(last+1)/rate};
+        };
+        const open=measure((await synth.renderLayers(bank.events['window.open'],synth.MAX_SECONDS)).buffer);
+        const out={open,seconds:fx.seconds,gains:fx.gains,items:[]};
+        for(const event of Object.keys(fx.gains))for(const variant of ['small','medium','large']){
+            const m=measure((await synth.renderLayers(bank.specialFx[event][variant],fx.seconds)).buffer);
+            out.items.push(Object.assign({event,variant},m));
+        }
+        return JSON.stringify(out);
+    }`).Str()
+	if err := json.Unmarshal([]byte(bankJSON), &bank); err != nil {
+		t.Fatalf("parse slime FX bank: %v\n%s", err, bankJSON)
+	}
+	if len(bank.Items) != 6 || bank.Open.Peak <= 0 || bank.Open.Loud <= 0 {
+		t.Fatalf("slime FX bank should render 2 events in 3 variants: %s", bankJSON)
+	}
+	for _, item := range bank.Items {
+		name := item.Event + "/" + item.Variant
+		gain := bank.Gains[item.Event]
+		maxAudible := 0.18
+		if item.Event == "slime.snap" {
+			maxAudible = 0.26
+		}
+		if !item.Finite || item.Peak <= 0 {
+			t.Errorf("%s renders NaN or silence", name)
+		}
+		if peak := item.Peak * gain / bank.Open.Peak; peak < 0.3 || peak > 0.5 {
+			t.Errorf("%s plays at %.2f of a window sound's peak, want about 0.4", name, peak)
+		}
+		if loud := item.Loud * gain / bank.Open.Loud; loud < 0.1 || loud > 0.45 {
+			t.Errorf("%s plays at %.2f of a window sound's loudness, want a quarter to a third", name, loud)
+		}
+		if item.Audible < 0.03 || item.Audible > maxAudible || item.Audible > bank.Seconds-0.03 {
+			t.Errorf("%s is audible for %.0f ms (render length %.0f ms), want 30 ms to %.0f ms and no truncation", name, item.Audible*1000, bank.Seconds*1000, maxAudible*1000)
+		}
+	}
+
+	// The Orbit sonar ping shares the theme FX gate: it plays only for the Orbit sound theme (here the slime
+	// theme is still active), never as a preview and under the Navigation category, one per 350 ms at the most.
+	beforeOrbit := slimePlays()
+	if page.MustEval(`async()=>await DesktopSounds.play('orbit.ping',{variant:'medium',strength:.8,pan:.2})`).Bool() || slimePlays() != beforeOrbit {
+		t.Fatal("orbit ping must be ignored while another effective sound theme is selected")
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='orbit';
+        applySoundSettingsChange('sound.theme','orbit');
+    }`)
+	var orbitRejected map[string]interface{}
+	orbitRejectedJSON := page.MustEval(`async()=>{
+        const out={}, wait=ms=>new Promise(r=>setTimeout(r,ms));
+        const start={requested:DesktopSounds.inspect().themeFx.orbit.requested,plays:DesktopSounds.inspect().plays};
+        out.preview=await DesktopSounds.play('orbit.ping',{preview:true,theme:'orbit',strength:1});
+        out.silent=await DesktopSounds.play('orbit.ping',{silent:true,strength:1});
+        out.mute=await DesktopSounds.play('orbit.ping',{strength:0});
+        soundTest.state.bootstrap.settings['sound.navigation']='false';
+        applySoundSettingsChange('sound.navigation','false');
+        out.category=await DesktopSounds.play('orbit.ping',{strength:1});
+        soundTest.state.bootstrap.settings['sound.navigation']='true';
+        applySoundSettingsChange('sound.navigation','true');
+        await wait(300);
+        const now=DesktopSounds.inspect();
+        out.requested=now.themeFx.orbit.requested-start.requested;
+        out.plays=now.plays-start.plays;
+        return JSON.stringify(out);
+    }`).Str()
+	if err := json.Unmarshal([]byte(orbitRejectedJSON), &orbitRejected); err != nil {
+		t.Fatalf("parse orbit ping rejections: %v\n%s", err, orbitRejectedJSON)
+	}
+	for _, key := range []string{"preview", "silent", "mute", "category"} {
+		if orbitRejected[key] != false {
+			t.Errorf("orbit ping must be ignored (%s), got %v", key, orbitRejected[key])
+		}
+	}
+	if orbitRejected["requested"] != float64(0) || orbitRejected["plays"] != float64(0) {
+		t.Fatalf("ignored orbit pings still queued or played: %s", orbitRejectedJSON)
+	}
+	beforeOrbit = slimePlays()
+	if !page.MustEval(`async()=>await DesktopSounds.play('orbit.ping',{variant:'large',strength:.8,pan:-.3})`).Bool() {
+		t.Fatal("orbit.ping was not accepted for the Orbit sound theme")
+	}
+	page.MustWait(`before=>soundTest.inspect().plays>before`, beforeOrbit)
+	if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != "orbit.ping" {
+		t.Fatalf("orbit ping lastEvent = %q, want orbit.ping", event)
+	}
+	if rendered := page.MustEval(`()=>soundTest.inspect().themeFx.orbit.rendered`).Int(); rendered != 1 {
+		t.Fatalf("orbit ping rendered %d variants for one ping, want 1", rendered)
+	}
+	// Eight quick pings merge into one and a stream of 14 over 1.7 s plays two or three (350 ms gap, three per 2 s).
+	var orbitLimits struct{ Burst, Stream, Limited int }
+	orbitLimitsJSON := page.MustEval(`async()=>{
+        const wait=ms=>new Promise(r=>setTimeout(r,ms)), played=()=>DesktopSounds.inspect().plays;
+        await wait(2200);
+        let before=played();
+        for(let i=0;i<8;i++){DesktopSounds.play('orbit.ping',{variant:'small',strength:.7});await wait(25);}
+        await wait(400);
+        const burst=played()-before;
+        await wait(2200);
+        before=played();
+        for(let i=0;i<14;i++){DesktopSounds.play('orbit.ping',{variant:'medium',strength:.7});await wait(120);}
+        await wait(400);
+        const stream=played()-before;
+        return JSON.stringify({burst,stream,limited:DesktopSounds.inspect().themeFx.orbit.limited});
+    }`).Str()
+	if err := json.Unmarshal([]byte(orbitLimitsJSON), &orbitLimits); err != nil {
+		t.Fatalf("parse orbit ping rate limits: %v\n%s", err, orbitLimitsJSON)
+	}
+	t.Logf("orbit ping plays: %s", orbitLimitsJSON)
+	if orbitLimits.Burst != 1 || orbitLimits.Stream < 2 || orbitLimits.Stream > 3 || orbitLimits.Limited < 1 {
+		t.Fatalf("orbit ping rate limits off (burst of 8 quick pings %d, want 1; 14 pings over 1.7 s %d, want 2-3; limited %d): %s",
+			orbitLimits.Burst, orbitLimits.Stream, orbitLimits.Limited, orbitLimitsJSON)
+	}
+	// Every variant renders cleanly at about 38 % of a window sound's peak, rings for 0.35 to 0.85 s and is not
+	// cut off by the one-second render.
+	var orbitBank struct {
+		Open    struct{ Peak, Loud float64 } `json:"open"`
+		Seconds float64                      `json:"seconds"`
+		Gain    float64                      `json:"gain"`
+		Items   []struct {
+			Variant    string
+			Finite     bool
+			Peak, Loud float64
+			Audible    float64
+		} `json:"items"`
+	}
+	orbitBankJSON := page.MustEval(`async()=>{
+        const synth=DesktopSoundSynth, bank=DesktopSoundThemes.orbit, fx=DesktopSounds.inspect().themeFx.orbit;
+        const measure=buffer=>{
+            const channels=[];for(let c=0;c<buffer.numberOfChannels;c++)channels.push(buffer.getChannelData(c));
+            let peak=0,finite=true;
+            for(const d of channels)for(let i=0;i<d.length;i++){if(!Number.isFinite(d[i]))finite=false;peak=Math.max(peak,Math.abs(d[i]));}
+            const ch=channels[0],rate=buffer.sampleRate;
+            let last=0;for(let i=0;i<ch.length;i++)if(Math.abs(ch[i])>peak*0.001)last=i;
+            const win=Math.round(rate*0.02);let run=0,loud=0;
+            for(let i=0;i<ch.length;i++){run+=ch[i]*ch[i];if(i>=win)run-=ch[i-win]*ch[i-win];if(i>=win-1)loud=Math.max(loud,run/win);}
+            return {finite,peak,loud:Math.sqrt(loud),audible:(last+1)/rate};
+        };
+        const open=measure((await synth.renderLayers(bank.events['window.open'],synth.MAX_SECONDS)).buffer);
+        const out={open,seconds:fx.seconds,gain:fx.gains['orbit.ping'],items:[]};
+        for(const variant of ['small','medium','large']){
+            out.items.push(Object.assign({variant},measure((await synth.renderLayers(bank.specialFx['orbit.ping'][variant],fx.seconds)).buffer)));
+        }
+        return JSON.stringify(out);
+    }`).Str()
+	if err := json.Unmarshal([]byte(orbitBankJSON), &orbitBank); err != nil {
+		t.Fatalf("parse orbit ping bank: %v\n%s", err, orbitBankJSON)
+	}
+	if len(orbitBank.Items) != 3 || orbitBank.Open.Peak <= 0 || orbitBank.Open.Loud <= 0 {
+		t.Fatalf("orbit ping bank should render three variants: %s", orbitBankJSON)
+	}
+	for _, item := range orbitBank.Items {
+		if !item.Finite || item.Peak <= 0 {
+			t.Errorf("orbit.ping/%s renders NaN or silence", item.Variant)
+		}
+		if peak := item.Peak * orbitBank.Gain / orbitBank.Open.Peak; peak < 0.3 || peak > 0.5 {
+			t.Errorf("orbit.ping/%s plays at %.2f of a window sound's peak, want about 0.4", item.Variant, peak)
+		}
+		if loud := item.Loud * orbitBank.Gain / orbitBank.Open.Loud; loud < 0.1 || loud > 0.5 {
+			t.Errorf("orbit.ping/%s plays at %.2f of a window sound's loudness, want 0.1 to 0.5", item.Variant, loud)
+		}
+		if item.Audible < 0.35 || item.Audible > 0.85 || item.Audible > orbitBank.Seconds-0.03 {
+			t.Errorf("orbit.ping/%s rings for %.0f ms (render length %.0f ms), want 350 to 850 ms and no truncation", item.Variant, item.Audible*1000, orbitBank.Seconds*1000)
+		}
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='green_slime';
+        applySoundSettingsChange('sound.theme','green_slime');
+    }`)
+
+	// Sounds off: the context closes and slime FX are ignored until the next gesture unlocks it again.
+	if page.MustEval(`async()=>{
+        soundTest.state.bootstrap.settings['sound.enabled']='false';
+        applySoundSettingsChange('sound.enabled','false');
+        const heard=await DesktopSounds.play('slime.pop',{variant:'small',strength:1});
+        soundTest.state.bootstrap.settings['sound.enabled']='true';
+        applySoundSettingsChange('sound.enabled','true');
+        document.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));
+        await new Promise(r=>setTimeout(r,80));
+        return heard;
+    }`).Bool() {
+		t.Fatal("slime FX must be ignored while desktop sounds are disabled")
+	}
+	page.MustEval(`()=>{
+        soundTest.state.bootstrap.settings['sound.theme']='water';
+        applySoundSettingsChange('sound.theme','water');
+    }`)
+
 	// Settings UI sound section screenshots in standard + fruity themes.
 	page.MustEval(`async()=>{
         await AuraDesktopModules.loadAppAssets('settings');
@@ -233,7 +589,16 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if !page.MustEval(`()=>!!document.querySelector('[data-sound-preview="wood"]')`).Bool() {
 		t.Fatal("settings sound preview control missing")
 	}
+	activePreviewTheme := page.MustEval(`()=>soundTest.inspect().theme`).Str()
+	if activePreviewTheme == "crystal" {
+		t.Fatal("inactive-bank preview regression requires crystal to differ from the active sound theme")
+	}
+	beforePreview := page.MustEval(`()=>soundTest.inspect().plays`).Int()
 	page.MustEval(`async()=>{ await previewDesktopSound('crystal'); }`)
+	afterPreview := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	if afterPreview-beforePreview != 3 {
+		t.Fatalf("previewing inactive crystal bank should play all three preview sounds: before=%d after=%d active=%q", beforePreview, afterPreview, activePreviewTheme)
+	}
 	if previews := page.MustEval(`()=>soundTest.inspect().previewPlays`).Int(); previews < 1 {
 		t.Fatalf("expected previewPlays >= 1, got %d", previews)
 	}

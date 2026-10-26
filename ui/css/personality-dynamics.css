@@ -14,4 +14,7 @@
 .personality-dynamics-hint { color: var(--text-secondary, #8994a7); }
 .personality-dynamics .btn { max-width: 100%; white-space: normal; }
 .personality-dynamics-status { display: block; margin-block-start: .5rem; font-size: .85rem; }
+.personality-legacy-entry { padding-block: .8rem; border-block-start: 1px solid var(--border-color, #64748b55); }
+.personality-legacy-entry pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; max-height: 16rem; overflow: auto; }
+.personality-legacy-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 560px) { .personality-dynamics-meters { grid-template-columns: 1fr; } }

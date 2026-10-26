@@ -1,9 +1,28 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
+
+func TestValidateSIPConfigBoundsAutoAnswerDelay(t *testing.T) {
+	for _, delay := range []int{-1, 0, 1000, 60000, 60001, int(^uint(0) >> 1)} {
+		t.Run(fmt.Sprint(delay), func(t *testing.T) {
+			var cfg SIPConfig
+			ApplySIPDefaults(&cfg)
+			cfg.Inbound.AutoAnswerDelayMS = delay
+			NormalizeSIPConfig(&cfg)
+			err := ValidateSIPConfig(cfg)
+			if (err != nil) != (delay < 0 || delay > 60000) {
+				t.Fatalf("delay %d: %v", delay, err)
+			}
+			if err == nil && cfg.Inbound.AutoAnswerDelayMS != delay {
+				t.Fatal("normalization changed the explicit delay")
+			}
+		})
+	}
+}
 
 func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	var cfg SIPConfig

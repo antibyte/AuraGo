@@ -68,6 +68,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-effects.js"></script>
 <script src="/js/desktop/apps/video-studio-picture.js"></script>
 <script src="/js/desktop/apps/video-studio-anim.js"></script>
+<script src="/js/desktop/apps/video-studio-scope-math.js"></script>
 <script src="/js/desktop/apps/video-studio-media.js"></script>
 <script src="/js/desktop/apps/video-studio-gl.js"></script>
 <script src="/js/desktop/apps/video-studio-shaders.js"></script>
@@ -98,6 +99,7 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-markers.js"></script>
 <script src="/js/desktop/apps/video-studio-transport.js"></script>
 <script src="/js/desktop/apps/video-studio-rangerender.js"></script>
+<script src="/js/desktop/apps/video-studio-scopes.js"></script>
 <script src="/js/desktop/apps/video-studio-derive.js"></script>
 <script src="/js/desktop/apps/video-studio-projects.js"></script>
 <script src="/js/desktop/apps/video-studio-mediabin.js"></script>

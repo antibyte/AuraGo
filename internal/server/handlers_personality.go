@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -220,8 +222,9 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			Type    string `json:"type"` // "positive", "negative", "angry"
-			EventID string `json:"event_id,omitempty"`
+			Type       string     `json:"type"` // "positive", "negative", "angry"
+			EventID    string     `json:"event_id,omitempty"`
+			OccurredAt *time.Time `json:"occurred_at,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			jsonError(w, i18n.T(desktopUILanguage(s), "backend.auth_bad_request"), http.StatusBadRequest)
@@ -325,12 +328,49 @@ func handlePersonalityFeedback(s *Server) http.HandlerFunc {
 		if id != "" {
 			id = "feedback:" + id
 		}
-		snapshot, err := s.ShortTermMem.ApplyPersonalityObservation(memory.PersonalityObservation{
-			ID: id, Source: "feedback", Human: true, Explicit: true, Target: "agent", Confidence: 1, At: time.Now(),
-			Event: &event, Signal: signal, Mood: mood, TraitDeltas: traitDeltas, AffinityDelta: affinityDelta, Meta: &meta, Basis: &basis,
-		})
+		legacyReplay := false
+		if id != "" && req.OccurredAt == nil {
+			legacyReplay, err = s.ShortTermMem.PersonalityEventReceipt(id, time.Now())
+			if errors.Is(err, memory.ErrPersonalityEventExpired) {
+				jsonError(w, "Personality event expired", http.StatusGone)
+				return
+			}
+			if err != nil {
+				jsonError(w, "Feedback receipt unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			if !legacyReplay {
+				jsonError(w, "occurred_at is required with a new event_id", http.StatusBadRequest)
+				return
+			}
+		}
+		input := memory.NewHumanInput(req.Type, "personality-feedback")
+		if id != "" {
+			input.TurnID = id
+		}
+		if req.OccurredAt != nil {
+			input.OccurredAt = req.OccurredAt.UTC()
+		}
+		if input.OccurredAt.After(time.Now().Add(5 * time.Minute)) {
+			jsonError(w, "occurred_at is too far in the future", http.StatusBadRequest)
+			return
+		}
+		snapshot := basis
+		if !legacyReplay {
+			snapshot, err = s.ShortTermMem.ApplyPersonalityObservation(memory.PersonalityObservation{
+				ID: id, Input: input, Source: "feedback", Human: true, Explicit: true, Target: "agent", Confidence: 1, At: time.Now(),
+				Event: &event, Signal: signal, Mood: mood, TraitDeltas: traitDeltas, AffinityDelta: affinityDelta, Meta: &meta, Basis: &basis,
+			})
+		}
 		if err != nil {
-			jsonError(w, "Failed to apply personality feedback", http.StatusInternalServerError)
+			status := http.StatusInternalServerError
+			if errors.Is(err, memory.ErrPersonalityEventExpired) {
+				status = http.StatusGone
+			}
+			if errors.Is(err, memory.ErrPersonalityEventConflict) {
+				status = http.StatusConflict
+			}
+			jsonError(w, "Failed to apply personality feedback", status)
 			return
 		}
 
@@ -427,12 +467,25 @@ func handleGetPersonalityContent(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// Invalid disk profiles must still produce editable JSON and a diagnostic.
+		for _, value := range []*float64{&meta.Volatility, &meta.EmpathyBias, &meta.LonelinessSusceptibility, &meta.TraitDecayRate} {
+			if math.IsNaN(*value) || math.IsInf(*value, 0) {
+				*value = 1.0
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"name":            name,
 			"body":            body,
 			"meta":            meta,
 			"extra_meta_yaml": extraMetaYAML,
+			"diagnostic": func() string {
+				if err := promptbuilder.ValidatePersonalitySource(string(data)); err != nil {
+					return err.Error()
+				}
+				return ""
+			}(),
 		})
 	}
 }
@@ -462,8 +515,8 @@ func handleSavePersonalityFile(s *Server) http.HandlerFunc {
 			jsonError(w, "Core personality '"+req.Name+"' is read-only and cannot be modified.", http.StatusForbidden)
 			return
 		}
-		if _, _, err := promptbuilder.ParsePromptSource(req.Name+".md", req.Content, s.Logger); err != nil {
-			jsonError(w, "Invalid personality frontmatter", http.StatusBadRequest)
+		if err := promptbuilder.ValidatePersonalitySource(req.Content); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		profilePath := filepath.Join(s.ConfigSnapshot().Directories.PromptsDir, "personalities", req.Name+".md")

@@ -31,6 +31,7 @@ func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
 		{"empty", 0, false},
 		{"sticker-sized pack", (512 << 20) + 1, true},
 		{"galaxa expansion pack", (640 << 20) + 1, true},
+		{"above former archive limit", (768 << 20) + 1, true},
 		{"limit", MaxArchiveBytes, true},
 		{"over limit", MaxArchiveBytes + 1, false},
 	} {
@@ -47,6 +48,34 @@ func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
 			}
 			if _, err := os.Stat(filepath.Join(s.Dir, pin.ID)); !os.IsNotExist(err) {
 				t.Fatal("published an incomplete resource set")
+			}
+		})
+	}
+}
+
+func TestExpandedSizeBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		first, second int64
+		valid         bool
+	}{
+		{"above former expanded limit", 1 << 30, 1, true},
+		{"at expanded limit", MaxExpandedBytes - 1, 1, true},
+		{"aggregate over limit", MaxExpandedBytes, 1, false},
+		{"single entry over limit", MaxExpandedBytes + 1, 0, false},
+		{"negative entry size", -1, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(Manifest{Version: 1, Files: []Entry{
+				{Path: "ui/first.bin", Size: tc.first, SHA256: Digest(nil)},
+				{Path: "ui/second.bin", Size: tc.second, SHA256: Digest(nil)},
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = ParseManifest(data, Digest(data))
+			if (err == nil) != tc.valid {
+				t.Fatalf("ParseManifest error = %v, want valid = %v", err, tc.valid)
 			}
 		})
 	}

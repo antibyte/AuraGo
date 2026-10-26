@@ -178,27 +178,28 @@ export async function run(env) {
         const kept = h.model.addNode('web.search', { x: 0, y: 0 });
         h.interact.select([kept]);
         const tooMany = { easydrag: 1, nodes: Array.from({ length: 501 }, (_, i) => ({ id: 'n' + i, type: 'web.search' })), edges: [] };
-        h.store.set(KEY, JSON.stringify(tooMany));
+        h.store.set(KEY, JSON.stringify({ at: Date.now(), frag: tooMany }));
         await h.interact.pasteAt({ x: 0, y: 0 });
         eq('c1d04 a refused fragment is announced and keeps the selection', [h.model.doc.nodes.length, h.announced, Array.from(h.ed.selection)], [1, ['paste_refused'], [kept]]);
-        h.store.set(KEY, JSON.stringify({ easydrag: 1, nodes: [{ id: 'a', type: 'evil.type' }], edges: [] }));
+        h.store.set(KEY, JSON.stringify({ at: Date.now(), frag: { easydrag: 1, nodes: [{ id: 'a', type: 'evil.type' }], edges: [] } }));
         await h.interact.pasteAt({ x: 0, y: 0 });
         eq('c1d04 a fragment without a known step is announced too', [h.model.doc.nodes.length, h.announced.length, Array.from(h.ed.selection)], [1, 2, [kept]]);
-        h.store.set(KEY, JSON.stringify({ easydrag: 1, nodes: [{ id: 'a', key: 'k', type: 'web.search', position: { x: 0, y: 0 } }, { id: 'b', key: 'l', type: 'web.search', position: { x: 300, y: 0 } }],
-            edges: [{ source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }] }));
+        h.store.set(KEY, JSON.stringify({ at: Date.now(), frag: { easydrag: 1, nodes: [{ id: 'a', key: 'k', type: 'web.search', position: { x: 0, y: 0 } }, { id: 'b', key: 'l', type: 'web.search', position: { x: 300, y: 0 } }],
+            edges: [{ source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }] } }));
         await h.interact.pasteAt({ x: 100, y: 200 });
         const pasted = Array.from(h.ed.selection);
-        eq('c1d04 a good fragment is pasted, drawn and selected without an announcement',
-            [h.model.doc.nodes.length, pasted.length, h.model.incoming(pasted[1]).length, h.announced.length, !!h.card(pasted[0]), h.canvas.wiresSvg.querySelectorAll('.ed-edge').length],
-            [3, 2, 1, 2, true, 1]);
+        // a1023b U3: the paste is announced (the count of the steps pasted) after the two refusals.
+        eq('c1d04 a good fragment is pasted, drawn, selected and announced',
+            [h.model.doc.nodes.length, pasted.length, h.model.incoming(pasted[1]).length, h.announced, !!h.card(pasted[0]), h.canvas.wiresSvg.querySelectorAll('.ed-edge').length],
+            [3, 2, 1, ['paste_refused', 'paste_refused', 'announce_added_many:2'], true, 1]);
         // readClipboard keeps the easydrag marker check: other JSON on the system clipboard is not pasted.
         h.store.delete(KEY);
         h.navigator.clipboard = { readText: async () => JSON.stringify({ nodes: [{ id: 'x', type: 'web.search' }], edges: [] }) };
         await h.interact.pasteAt({ x: 0, y: 0 });
-        eq('c1d04 clipboard JSON without the easydrag marker is not pasted', [h.model.doc.nodes.length, h.announced.length], [3, 2]);
+        eq('c1d04 clipboard JSON without the easydrag marker is not pasted', [h.model.doc.nodes.length, h.announced.length], [3, 3]);
         h.navigator.clipboard = { readText: async () => { h.ed.readonly = true; return JSON.stringify({ easydrag: 1, nodes: [{ id: 'x', type: 'web.search' }], edges: [] }); } };
         await h.interact.pasteAt({ x: 0, y: 0 });
-        eq('c1d04 a canvas that turned read-only while the clipboard was read pastes nothing', [h.model.doc.nodes.length, h.announced.length], [3, 2]);
+        eq('c1d04 a canvas that turned read-only while the clipboard was read pastes nothing', [h.model.doc.nodes.length, h.announced.length], [3, 3]);
         eq('c1d04 the paste checks log no errors', h.logged, []);
     });
 
@@ -208,7 +209,7 @@ export async function run(env) {
         const { interact, el, key } = h;
         h.runTimers(400); // draws the screen-reader node list
         const zoomIn = el.querySelector('[data-ed-zoom="in"]');
-        const listButton = el.querySelector('[data-ed-focus-node]');
+        const listButton = h.canvas.listRegion.querySelector('[data-ed-focus-node]');
         interact.select([A]);
         const onButtons = [key('Tab', el, { shiftKey: true }), key('Tab', zoomIn), key('Tab', listButton), key(' ', zoomIn), key('Enter', zoomIn), key('Enter', listButton)].map(ev => interact.handleKey(ev));
         eq('c1d04 Shift+Tab, and Tab, Space and Enter on canvas buttons keep their default',
@@ -549,7 +550,7 @@ export async function run(env) {
         check('c1d04 wireBounds holds the whole wire, backwards wires included', inside);
         // The node list is built in one pass over nodes and edges.
         h.runTimers(400);
-        check('c1d04 the node list names where each step leads', h.el.querySelector('.ed-node-list').html.includes('Alpha ' + String.fromCharCode(0x2192) + ' Changed'));
+        check('c1d04 the node list names where each step leads', h.canvas.listRegion.querySelector('.ed-node-list').html.includes('Alpha ' + String.fromCharCode(0x2192) + ' Changed'));
         eq('c1d04 the frame checks log no errors', h.logged, []);
     });
 

@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Gesendet",
   "mailer.outbox_unknown": "Versandstatus unklar",
   "mailer.partial_action": "Einige Nachrichten wurden geändert. Die Liste wurde aktualisiert. Prüfe die übrigen Nachrichten vor einem erneuten Versuch.",
+  "mailer.participants_count": "{count} Beteiligte",
   "mailer.password": "Passwort",
   "mailer.preview_rule": "Betroffene Nachrichten ansehen",
   "mailer.print": "Drucken",

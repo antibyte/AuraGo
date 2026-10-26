@@ -115,6 +115,37 @@ func TestEvaluateDockerComposeHostAccessAllowsHomeLabStacksWithHostAccess(t *tes
 	}
 }
 
+func TestEvaluateDockerComposeHostAccessReservesRustFSDNSNames(t *testing.T) {
+	policy := composeTestPolicy(t, true)
+	for name, resolved := range map[string]string{
+		"explicit runtime alias":         `{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`,
+		"named network external false":   `{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app","external":false}}}`,
+		"named network external omitted": `{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app"}}}`,
+		"DNS case and trailing dot":      `{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["AURAGO-RUSTFS."]}}}},"networks":{"app":{"name":"project_app"}}}`,
+		"automatic service alias":        `{"services":{"aurago-rustfs":{"image":"fixture","networks":{"app":{}}}},"networks":{"app":{"name":"shared-app","external":true}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			model, err := ParseDockerComposeModel(resolved)
+			if err != nil {
+				t.Fatalf("ParseDockerComposeModel() error = %v", err)
+			}
+			for _, scope := range dockerComposeAllScopes {
+				violations := EvaluateDockerComposeHostAccess(model, nil, scope, policy)
+				if len(violations) != 1 || !violations[0].Always || violations[0].Field != "service/network alias" {
+					t.Fatalf("scope %d: violations = %+v, want an always-tier RustFS alias denial", scope, violations)
+				}
+			}
+		})
+	}
+	internal, err := ParseDockerComposeModel(`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["api"]}}}},"networks":{"app":{"name":"project_app"}}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if violations := EvaluateDockerComposeHostAccess(internal, nil, DockerComposeScopeRun, policy); len(violations) != 0 {
+		t.Fatalf("unrelated project-network alias was blocked: %+v", violations)
+	}
+}
+
 func TestEvaluateDockerComposeHostAccessRejectsHostAttributesWithoutHostAccess(t *testing.T) {
 	policy := composeTestPolicy(t, false)
 	for name, fixture := range homeLabComposeFixtures() {

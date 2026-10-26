@@ -16,6 +16,11 @@ func (s *Service) StarterGenerationReady(ctx context.Context, runJob Job) (bool,
 	if runJob.ResumeFrom != "" || runJob.BaseRevision != 0 {
 		return false, nil
 	}
+	// Adapt mode owns the starter: the model edits the installed entry through
+	// exact replacements, so a tool-free full source generation is never used.
+	if runJob.BuildingMode == BuildingModeAdapt {
+		return false, nil
+	}
 	jobID := runJob.ID
 	_, job, err := s.ProjectForJob(ctx, jobID)
 	if err != nil {

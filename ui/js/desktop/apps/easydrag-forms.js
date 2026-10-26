@@ -293,19 +293,49 @@
 
         function filled(value) { return !(value === undefined || value === null || value === '' || (Array.isArray(value) && !value.length)); }
 
+        // a11yTargets lists what takes focus for a param's control: the element with the field id and a
+        // template field's view. A group control (radios, lists, switches) stands for itself.
+        function a11yTargets(entry) {
+            if (GROUP_KINDS.has(entry.param.kind)) return [entry.control];
+            const inner = Array.from(entry.control.querySelectorAll('.ed-tpl-view, [id]')).filter(n => n.id === entry.id || n.classList.contains('ed-tpl-view'));
+            const list = (entry.control.id === entry.id ? [entry.control] : []).concat(inner);
+            return list.length ? list : [entry.control];
+        }
+
+        // markField links a param's control to its state (U5): aria-required for a required param (not on
+        // a plain group, which has no such state) and, while an issue shows, aria-invalid plus
+        // aria-describedby pointing at the issue text. A description another part set (the JSON error)
+        // is left alone.
+        function markField(entry, issue) {
+            if (!entry) return;
+            const issueId = entry.id + '-issue';
+            a11yTargets(entry).forEach(n => {
+                if (entry.param.required && n.getAttribute('role') !== 'group') n.setAttribute('aria-required', 'true');
+                if (issue) {
+                    n.setAttribute('aria-invalid', 'true');
+                    n.setAttribute('aria-describedby', issueId);
+                } else if (n.getAttribute('aria-describedby') === issueId) {
+                    n.removeAttribute('aria-invalid');
+                    n.removeAttribute('aria-describedby');
+                }
+            });
+        }
+
         // syncIssues brings the issue markers of the shown fields up to date without a rebuild,
         // which would take the focus from the field being edited.
         function syncIssues() {
-            controls.forEach(({ field, param }) => {
+            controls.forEach(entry => {
+                const { field, param } = entry;
                 const issue = issueFor(param.name);
                 field.classList.toggle('has-issue', !!issue);
                 let box = Array.from(field.children).find(child => child.classList.contains('ed-field-issue'));
-                if (!issue) { if (box) box.remove(); return; }
+                if (!issue) { if (box) box.remove(); markField(entry, null); return; }
                 if (!box) {
-                    box = core.el('<div class="ed-field-issue">' + core.icon('alert') + '<span></span></div>');
+                    box = core.el('<div class="ed-field-issue" id="' + esc(entry.id + '-issue') + '">' + core.icon('alert') + '<span></span></div>');
                     field.appendChild(box);
                 }
                 box.querySelector('span').textContent = core.issueText(t, issue);
+                markField(entry, issue);
             });
         }
 
@@ -333,7 +363,7 @@
                     '</div><div class="ed-field-control"></div>' +
                     (plaintextValue(env.info.type, param.name) ? '<p class="ed-hint ed-field-plaintext">' + esc(t('easydrag.ui.hint_plaintext_value')) + '</p>' : '') +
                     '<div class="ed-field-preview" hidden></div>' +
-                    (issue ? '<div class="ed-field-issue">' + core.icon('alert') + '<span>' + esc(core.issueText(t, issue)) + '</span></div>' : '') + '</div>');
+                    (issue ? '<div class="ed-field-issue" id="' + esc(id) + '-issue">' + core.icon('alert') + '<span>' + esc(core.issueText(t, issue)) + '</span></div>' : '') + '</div>');
                 const control = controlFor(param, value, id, labelId);
                 if (grouped) {
                     if (control.getAttribute('role') === null) control.setAttribute('role', 'group');
@@ -341,7 +371,9 @@
                 }
                 field.querySelector('.ed-field-control').appendChild(control);
                 if (param.sensitive_sink) field.classList.add('is-sink');
-                controls.set(param.name, { field, control, param });
+                const entry = { field, control, param, id };
+                controls.set(param.name, entry);
+                markField(entry, issue);
                 el.appendChild(field);
                 previewFor(param.name);
             });
@@ -378,6 +410,7 @@
             field.classList.remove('has-issue');
             const box = Array.from(field.children).find(child => child.classList.contains('ed-field-issue'));
             if (box) box.remove();
+            markField(controls.get(field.dataset.param), null);
         });
 
         el.addEventListener('focusin', (event) => {

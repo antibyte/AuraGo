@@ -41,6 +41,10 @@ type Node struct {
 	ActionReasons       map[string]string            `json:"action_reasons,omitempty"`
 	SourceActions       map[string][]string          `json:"source_actions,omitempty"`
 	SourceActionReasons map[string]map[string]string `json:"source_action_reasons,omitempty"`
+	// HostID and HostInferred are runtime projections for VMs and containers:
+	// the device running the guest, and whether that host was inferred.
+	HostID       string `json:"host_id,omitempty"`
+	HostInferred bool   `json:"host_inferred,omitempty"`
 }
 
 // AppLink names a local application target. Profile.AppBindings persists explicit
@@ -88,9 +92,13 @@ type Link struct {
 
 type Placements map[View]Placement
 
+// Placement is one view position. W and H size a place region (sites, rooms,
+// racks and groups only); zero means the client default size.
 type Placement struct {
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
+	W      float64 `json:"w,omitempty"`
+	H      float64 `json:"h,omitempty"`
 	Pinned bool    `json:"pinned"`
 }
 
@@ -123,6 +131,8 @@ type Source struct {
 	FetchedAt *time.Time     `json:"fetched_at,omitempty"`
 	RemovedAt *time.Time     `json:"removed_at,omitempty"`
 	Observed  SourceObserved `json:"observed"`
+	// Ignored hides the source from discoveries. An ignored source is never linked.
+	Ignored bool `json:"ignored,omitempty"`
 }
 
 // SourceObserved contains only bounded, typed facts safe to retain from an adapter.
@@ -158,6 +168,7 @@ type Candidate struct {
 	Node        Node     `json:"node"`
 	RegistryID  string   `json:"registry_id,omitempty"`
 	Suggestions []string `json:"suggestions"`
+	Ignored     bool     `json:"ignored,omitempty"`
 }
 
 type EdgeKind string
@@ -185,12 +196,20 @@ type Edge struct {
 	Source   *SourceIdentity `json:"source,omitempty"`
 }
 
+// LayoutItem moves one node. ParentID nil keeps the parent and "" clears it;
+// W/H nil keep the stored place size. Unplace removes the node's placement in
+// the request's view; such an item carries an ID, a version and optionally a
+// ParentID (same semantics), never a position or size.
 type LayoutItem struct {
-	ID      string  `json:"id"`
-	Version int64   `json:"version"`
-	X       float64 `json:"x"`
-	Y       float64 `json:"y"`
-	Pinned  bool    `json:"pinned"`
+	ID       string   `json:"id"`
+	Version  int64    `json:"version"`
+	X        float64  `json:"x"`
+	Y        float64  `json:"y"`
+	Pinned   bool     `json:"pinned"`
+	ParentID *string  `json:"parent_id,omitempty"`
+	W        *float64 `json:"w,omitempty"`
+	H        *float64 `json:"h,omitempty"`
+	Unplace  bool     `json:"unplace,omitempty"`
 }
 
 type LayoutRequest struct {
@@ -204,10 +223,21 @@ type Capabilities struct {
 	Control    bool `json:"control"`
 }
 
+// SourceHost maps a provider engine instance (Docker only) to the Infra device
+// that runs it. InferredNodeID is a runtime projection and is never stored.
+type SourceHost struct {
+	Kind           string `json:"kind"`
+	Instance       string `json:"instance"`
+	NodeID         string `json:"node_id"`
+	Version        int64  `json:"version"`
+	InferredNodeID string `json:"inferred_node_id,omitempty"`
+}
+
 type Snapshot struct {
 	Nodes        []Node       `json:"nodes"`
 	Edges        []Edge       `json:"edges"`
 	Sources      []Source     `json:"sources"`
+	SourceHosts  []SourceHost `json:"source_hosts"`
 	Capabilities Capabilities `json:"capabilities"`
 }
 
@@ -228,4 +258,26 @@ type ActionRecord struct {
 	Action    string `json:"action"`
 	Status    string `json:"status"`
 	UPID      string `json:"upid,omitempty"`
+}
+
+// ViewPlacement positions a node in one view (batch import and link).
+type ViewPlacement struct {
+	View   View    `json:"view"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	W      float64 `json:"w,omitempty"`
+	H      float64 `json:"h,omitempty"`
+	Pinned bool    `json:"pinned,omitempty"`
+}
+
+// AsPlacement returns the stored form of the position.
+func (p ViewPlacement) AsPlacement() Placement {
+	return Placement{X: p.X, Y: p.Y, W: p.W, H: p.H, Pinned: p.Pinned}
+}
+
+// ImportLayout optionally places a node while a source is linked to it.
+// ParentID nil keeps the parent and "" clears it.
+type ImportLayout struct {
+	ParentID  *string
+	Placement *ViewPlacement
 }

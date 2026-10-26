@@ -60,8 +60,8 @@ func TestConfigPersonalitySurfacesHelperBannerAndLivedNotes(t *testing.T) {
 	if !strings.Contains(mainJS, "personalitySectionNeedsHelperLLM") {
 		t.Fatal("config personality section must detect a missing helper LLM")
 	}
-	if !strings.Contains(mainJS, "config.personality.helper_required") {
-		t.Fatal("config personality section must show the helper-required banner")
+	if !strings.Contains(mainJS, "personality_legacy.settings") {
+		t.Fatal("config personality section must explain the optional helper and activation cascade")
 	}
 	if strings.Contains(mainJS, "pers.engine || pers.engine_v2") {
 		t.Fatal("helper banner must not fire for V1-only personality engine")
@@ -73,8 +73,8 @@ func TestConfigPersonalitySurfacesHelperBannerAndLivedNotes(t *testing.T) {
 	if !strings.Contains(promptsJS, "hydratePromptsLivedNotes") {
 		t.Fatal("prompts section must load live character notes")
 	}
-	if !strings.Contains(promptsJS, "config.personality.helper_required") {
-		t.Fatal("prompts section must show the helper-required banner")
+	if !strings.Contains(promptsJS, "personality_legacy.settings") {
+		t.Fatal("prompts section must explain the optional helper")
 	}
 }
 

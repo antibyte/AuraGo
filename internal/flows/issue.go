@@ -66,6 +66,13 @@ const (
 	IssueTemplateRootUnavailable = "TEMPLATE_ROOT_UNAVAILABLE"
 	IssueTemplateUnknownField    = "TEMPLATE_UNKNOWN_FIELD"
 	IssueUntrustedData           = "UNTRUSTED_DATA_TO_SINK"
+	// IssueUntrustedSecretTarget is IssueUntrustedData for a parameter that decides where
+	// a vault secret is sent (ParamSpec.SecretTarget while the node has a secret set): a
+	// publish error, not a warning.
+	IssueUntrustedSecretTarget = "UNTRUSTED_SECRET_TARGET"
+	// IssueLiteralCredential warns about a credential header (Authorization, X-Api-Key, Cookie, ...)
+	// whose value is typed into the node: it sits in clear text in the draft and its versions.
+	IssueLiteralCredential = "PARAM_LITERAL_CREDENTIAL"
 )
 
 // HasErrors reports whether any issue has error severity.

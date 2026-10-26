@@ -24,6 +24,7 @@ var serpEngines = map[string]string{
 
 // DispatchYepAPISERP handles SERP tool operations via YepAPI.
 func DispatchYepAPISERP(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_serp", operation)
 	endpoint, ok := serpEngines[operation]
 	if !ok {
 		return "", fmt.Errorf("unknown yepapi_serp operation: %s", operation)

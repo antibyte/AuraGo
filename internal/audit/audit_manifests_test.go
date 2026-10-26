@@ -28,6 +28,7 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		"composio_call", "execute_shell", "execute_sudo", "file_editor", "filesystem",
 		"home_assistant", "homepage", "here_now_sites", "here_now_site", "invasion_control", "json_editor", "manage_outgoing_webhooks",
 		"manus", "meshcentral", "netlify", "remote_execution", "secrets_vault",
+		"send_discord", "send_telegram", "fetch_discord", "list_discord_channels",
 		"transfer_remote_file", "truenas", "vercel", "video_download", "virtual_desktop", "xml_editor", "yaml_editor",
 	}
 	matrix := ToolPermissionMatrix()
@@ -55,6 +56,9 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		}
 		if hasAnyCapability(entry, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityExecute) && entry.ConfigGate == "" {
 			t.Fatalf("high-risk tool %q has mutating/executing capability without a gate", name)
+		}
+		if name == "video_download" && entry.ReadOnlyGate != "tools.video_download.readonly" {
+			t.Fatalf("video_download read-only gate = %q", entry.ReadOnlyGate)
 		}
 	}
 }
@@ -108,6 +112,15 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 	}
 	if !routeContractExists(contracts, "/api/manus/", "session") {
 		t.Fatal("/api/manus/ must have an explicit session route contract")
+	}
+	if !routeContractExists(contracts, "/api/telegram/test-connection", "admin") {
+		t.Fatal("/api/telegram/test-connection must have an explicit admin route contract")
+	}
+	if !routeContractExists(contracts, "/api/discord/test", "admin") {
+		t.Fatal("/api/discord/test must have an explicit admin route contract")
+	}
+	if !routeContractExists(contracts, "/api/health/discord", "session") {
+		t.Fatal("/api/health/discord must have an explicit session route contract")
 	}
 
 	routes := extractLiteralRoutes(t, repoPath("internal/server"))
@@ -1403,7 +1416,8 @@ func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
 			path: "make_release.ps1",
 			required: []string{
 				"tar -tzf $resourcesOut | Out-Null",
-				"(Get-Item -LiteralPath $fullPath).Length -lt 1024",
+				"$minimumBytes = if ($file -eq 'deploy\\web-assets.json') { 64 } else { 1024 }",
+				"(Get-Item -LiteralPath $fullPath).Length -lt $minimumBytes",
 			},
 		},
 		{
@@ -1474,8 +1488,8 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 			path:          "update.sh",
 			helper:        "fetch_optional_url_to_file()",
 			quietCalls:    []string{`fetch_url_to_file "$url" "$out" 2>/dev/null`},
-			requiredSig:   `fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file"`,
-			requiredCert:  `fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"`,
+			requiredSig:   `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.sig" "$sig" 4096`,
+			requiredCert:  `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.pem" "$cert" 16384`,
 			forbiddenSig:  `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig"`,
 			forbiddenCert: `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem"`,
 		},
@@ -1483,11 +1497,21 @@ func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
 			name:          "install",
 			path:          "install.sh",
 			helper:        "_download_optional()",
-			quietCalls:    []string{`curl -fsSL "$url" -o "$dest" 2>/dev/null`, `wget -q "$url" -O "$dest" 2>/dev/null`},
-			requiredSig:   `_download_optional "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file"`,
-			requiredCert:  `_download_optional "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"`,
+			quietCalls:    []string{`curl -fsSL --connect-timeout 15 --max-time 180 --retry 2 --retry-max-time 60 "$url" -o "$dest" 2>/dev/null`, `wget -q --timeout=60 --tries=3 "$url" -O "$dest" 2>/dev/null`},
+			requiredSig:   `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.sig" "$sig" 4096`,
+			requiredCert:  `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.pem" "$cert" 16384`,
 			forbiddenSig:  `_download "${RELEASE_BASE}/SHA256SUMS.sig"`,
 			forbiddenCert: `_download "${RELEASE_BASE}/SHA256SUMS.pem"`,
+		},
+		{
+			name:          "repair",
+			path:          "repair-update.sh",
+			helper:        "fetch_optional_url_to_file()",
+			quietCalls:    []string{`"$1" -o "$2" 2>/dev/null`, `-O "$2" "$1" 2>/dev/null`},
+			requiredSig:   `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.sig" "$sig" 4096`,
+			requiredCert:  `release_verifier_fetch "$RELEASE_BASE/SHA256SUMS.pem" "$cert" 16384`,
+			forbiddenSig:  `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig"`,
+			forbiddenCert: `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem"`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

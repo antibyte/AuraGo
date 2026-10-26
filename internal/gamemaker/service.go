@@ -57,11 +57,14 @@ type Service struct {
 	skills             []SkillInfo
 	skillsReady        bool
 	acceptedPlans      map[string]bool
-	planAttempts       map[string]int
+	planBudgets        map[string]*planBudget
 	planErrors         map[string]error
+	designPreviews     map[string][]byte
+	designWarnings     map[string][]string
 	planConstraints    map[string]planSelectionConstraints
 	jobSummaries       map[string]string
 	validationFailures map[string]int
+	repairLimits       map[string]int
 	lastFailedBuild    map[string]string
 	lastValidation     map[string]*BuildResult
 }
@@ -124,11 +127,14 @@ func NewService(opts Options) (*Service, error) {
 		tokens:             map[string]previewToken{},
 		previewJobs:        map[string]string{},
 		acceptedPlans:      map[string]bool{},
-		planAttempts:       map[string]int{},
+		planBudgets:        map[string]*planBudget{},
+		designPreviews:     map[string][]byte{},
+		designWarnings:     map[string][]string{},
 		planErrors:         map[string]error{},
 		planConstraints:    map[string]planSelectionConstraints{},
 		jobSummaries:       map[string]string{},
 		validationFailures: map[string]int{},
+		repairLimits:       map[string]int{},
 		lastFailedBuild:    map[string]string{},
 		lastValidation:     map[string]*BuildResult{},
 	}
@@ -228,7 +234,7 @@ func (s *Service) ActiveJobInfo(ctx context.Context) *ActiveJobInfo {
 	if err != nil {
 		return nil
 	}
-	return &ActiveJobInfo{JobID: job.ID, ProjectID: job.ProjectID, Status: job.Status, Phase: job.Phase}
+	return &ActiveJobInfo{JobID: job.ID, ProjectID: job.ProjectID, Status: job.Status, Phase: job.Phase, StartedAt: job.StartedAt}
 }
 
 func (s *Service) ListProjects(ctx context.Context) ([]Project, error) {
@@ -532,7 +538,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		ProviderID:            providerID,
 		Model:                 model,
 		BaseRevision:          project.CurrentRevision,
-		CreatedAt:             now,
+		// The server resolves small-model detection before starting; the request
+		// value is already the recorded decision.
+		SmallModel:   req.SmallModel,
+		BuildingMode: InitialBuildingMode(kind),
+		CreatedAt:    now,
 	}
 
 	s.mu.Lock()
@@ -544,6 +554,7 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	s.activeJobID = job.ID
 	s.jobCancels[job.ID] = cancel
 	s.planConstraints[job.ID] = newPlanSelectionConstraints(assetSelections, modelAssetIDs, req.Presentation)
+	s.repairLimits[job.ID] = clampRepairPasses(req.MaxRepairPasses)
 	s.mu.Unlock()
 
 	project.ProviderID = providerID
@@ -557,9 +568,9 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		return Job{}, fmt.Errorf("update game maker job preferences: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO gm_jobs
-		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
-		job.ProviderID, job.Model, job.BaseRevision, job.CreatedAt)
+		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at,small_model,building_mode)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
+		job.ProviderID, job.Model, job.BaseRevision, job.CreatedAt, boolInt(job.SmallModel), job.BuildingMode)
 	if err != nil {
 		s.releaseJob(job.ID)
 		return Job{}, fmt.Errorf("create game maker job: %w", err)
@@ -581,14 +592,17 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		delete(s.acceptedPlans, job.ID)
-		delete(s.planAttempts, job.ID)
+		delete(s.planBudgets, job.ID)
 		delete(s.planErrors, job.ID)
+		delete(s.designPreviews, job.ID)
+		delete(s.designWarnings, job.ID)
 		delete(s.planConstraints, job.ID)
 		delete(s.designDrafts, job.ID)
 		delete(s.jobSummaries, job.ID)
 		delete(s.validationFailures, job.ID)
 		delete(s.lastFailedBuild, job.ID)
 		delete(s.lastValidation, job.ID)
+		delete(s.repairLimits, job.ID)
 	}()
 	defer s.releaseJob(job.ID)
 	stage := filepath.Join(s.stagingDir, job.ID)
@@ -678,7 +692,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 		s.mu.RLock()
 		accepted := s.acceptedPlans[job.ID]
-		exhausted := s.planAttempts[job.ID] >= 3
+		budget := s.planBudgets[job.ID]
+		exhausted := budget != nil && budget.charged >= planChargedLimit
 		planErr := s.planErrors[job.ID]
 		s.mu.RUnlock()
 		if accepted {
@@ -699,10 +714,13 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 	}
 	if plan == nil {
-		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after at most two corrections: %s", diagnosticsText(planDiagnostics))})
+		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after the charged correction budget was spent: %s", diagnosticsText(planDiagnostics))})
 		return
 	}
-	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(plan))
+	// The accepted base decides rewrite versus adapt; record it before any
+	// prompt, context or tool guard reads the run.
+	s.applyBuildingMode(ctx, &job, plan)
+	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(job, plan))
 	if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
 		s.terminateJob(job, ctx, err)
 		return
@@ -785,9 +803,10 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	// game left unverified (no target, blocked route, no effect) can.
 	passes := 0
 	repairPasses := &passes
-	for attempt := 1; !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && attempt <= 3; attempt++ {
+	repairLimit := s.repairLimit(job.ID)
+	for attempt := 1; !result.OK && (result.Repairable || result.RuntimeStatus != "unavailable" && result.GameplayStatus != "unavailable") && attempt <= repairLimit; attempt++ {
 		s.mu.RLock()
-		exhausted := s.validationFailures[job.ID] >= 4
+		exhausted := s.validationFailures[job.ID] >= s.repairLimitLocked(job.ID)+1
 		s.mu.RUnlock()
 		if exhausted {
 			break
@@ -896,8 +915,8 @@ func (s *Service) failJob(job Job, failure error) {
 	job.FinishedAt = &now
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
-		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='failed',phase='failed',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=?,open_checks=? WHERE id=?`,
+		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), encodeOpenChecks(job.OpenChecks), job.ID)
 	_, _ = s.db.Exec(`UPDATE gm_projects SET status='failed',updated_at=? WHERE id=?`, now, job.ProjectID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
@@ -931,8 +950,8 @@ func (s *Service) cancelledJob(job Job, cause error) {
 	job.FinishedAt = &now
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
-		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='cancelled',phase='cancelled',error=?,error_code=?,finished_at=?,gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=?,open_checks=? WHERE id=?`,
+		message, job.ErrorCode, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), encodeOpenChecks(job.OpenChecks), job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
 	s.attachPromptUsage(&job)

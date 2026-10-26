@@ -239,6 +239,88 @@
         });
     }
 
+    // Compose a complete desktop event bank from a distinct synthesis profile.
+    // Theme files provide the pitch, timbre and texture choices; this keeps event
+    // roles consistent while each bank retains its own authored sound character.
+    function composeDesktopEvents(profile) {
+        const p = profile || {};
+        const events = {};
+        EVENTS.forEach((eventId, index) => {
+            const menu = eventId.startsWith('menu.');
+            const low = /(?:close|minimize|deny|error|cancel|trash|delete|fracture)/.test(eventId);
+            const busy = /(?:maximize|space\.switch|fracture|impact|error)/.test(eventId);
+            const anchor = (p.root || 60) + (low ? (p.fall || -5) : (p.rise || 0)) + (index % 3) * (p.color || 2);
+            const gain = (p.gain || 0.2) * (menu ? 0.62 : 1) * (busy ? 1.08 : 0.9);
+            const step = menu ? 0.026 : (p.step || 0.07);
+            const count = menu ? 1 : (busy ? 3 : 2);
+            const layers = [];
+
+            if (p.voice === 'relay') {
+                for (let i = 0; i < count; i++) {
+                    layers.push(layer('fm', {
+                        midi: anchor + i * (low ? -3 : (p.interval || 4)), at: i * step,
+                        duration: menu ? 0.075 : 0.15 + (p.tail || 0.08), gain: gain * (i ? 0.62 : 1),
+                        attack: 0.003, decay: 0.06, sustain: 0, release: p.tail || 0.08,
+                        modRatio: p.modRatio || 1.8, index: (p.index || 24) * (low ? 1.2 : 1), indexDecay: 0.11,
+                        filter: { type: 'lowpass', freq: p.filter || 2200, q: 0.8 }, reverb: menu ? 'short' : 'plate'
+                    }));
+                }
+                if (!menu && (busy || eventId.startsWith('notify.'))) {
+                    layers.push(layer('noise', { at: step * count, duration: 0.06, gain: gain * 0.12,
+                        color: 'pink', filter: { type: 'bandpass', freq: p.signal || 1250, q: 0.7 }, reverb: 'short' }));
+                }
+            } else if (p.voice === 'chime') {
+                const intervals = busy ? [0, 4, 7] : (low ? [0, -3] : [0, 5]);
+                intervals.forEach((interval, i) => {
+                    layers.push(layer('tone', {
+                        midi: anchor + interval, at: i * step, duration: menu ? 0.095 : 0.22 + (p.tail || 0.12),
+                        gain: gain * (i ? 0.6 : 1), attack: 0.004, decay: 0.08, sustain: 0.04,
+                        release: p.tail || 0.12, type: 'sine',
+                        partials: [{ ratio: 1, gain: 1 }, { ratio: 2, gain: 0.22, type: 'triangle' }, { ratio: 3.01, gain: 0.06 }],
+                        filter: { type: 'lowpass', freq: p.filter || 4300, q: 0.55 }, reverb: menu ? 'short' : 'plate'
+                    }));
+                });
+            } else if (p.voice === 'slime') {
+                const start = midiToHz(anchor);
+                layers.push(layer('sweep', {
+                    freq: start, toFreq: midiToHz(anchor + (low ? -7 : 6)), duration: menu ? 0.11 : 0.24,
+                    sweepTime: menu ? 0.09 : 0.21, type: 'sine', gain: gain * 0.88,
+                    attack: 0.004, decay: 0.08, sustain: 0.05, release: p.tail || 0.14,
+                    filter: { type: 'lowpass', freq: p.filter || 1500, q: p.resonance || 3 }, reverb: 'short'
+                }));
+                layers.push(layer('pluck', {
+                    midi: anchor - 12, at: menu ? 0.012 : 0.045, duration: menu ? 0.12 : 0.2,
+                    gain: gain * 0.54, periods: 11, decay: 2.6,
+                    filter: { type: 'lowpass', freq: p.filter || 1500, q: 1.3 }, reverb: 'short'
+                }));
+                if (busy) layers.push(layer('noise', {
+                    at: 0.03, duration: 0.12, gain: gain * 0.14, color: 'pink', decayPower: 2.4,
+                    filter: { type: 'lowpass', freq: p.noiseCutoff || 950, q: 0.7 }, reverb: 'short'
+                }));
+            } else {
+                layers.push(layer('pluck', {
+                    midi: anchor - 8, duration: menu ? 0.12 : 0.19, gain: gain * 0.8,
+                    periods: p.periods || 7, decay: 2.4,
+                    filter: { type: 'lowpass', freq: p.filter || 1800, q: 0.8 }, reverb: menu ? 'short' : 'plate'
+                }));
+                layers.push(layer('noise', {
+                    at: 0.012, duration: busy ? 0.13 : 0.075, gain: gain * (busy ? 0.36 : 0.18),
+                    color: 'pink', decayPower: 2.1,
+                    filter: { type: busy ? 'bandpass' : 'lowpass', freq: p.noiseCutoff || 1200, q: 0.85 },
+                    reverb: menu ? 'short' : 'plate'
+                }));
+                if (!menu) layers.push(layer('tone', {
+                    midi: anchor + (low ? -12 : 0), at: 0.026, duration: 0.16, gain: gain * 0.42,
+                    attack: 0.002, decay: 0.07, sustain: 0, release: 0.11, type: 'triangle',
+                    filter: { type: 'lowpass', freq: p.filter || 1800, q: 0.6 }, reverb: 'short'
+                }));
+            }
+            events[eventId] = layers;
+        });
+        events._default = events['notify.info'];
+        return events;
+    }
+
     function normalizeBuffer(buffer) {
         let peak = 0;
         for (let c = 0; c < buffer.numberOfChannels; c++) {
@@ -307,6 +389,7 @@
         MAX_SECONDS,
         midiToHz,
         layer,
+        composeDesktopEvents,
         renderLayers,
         normalizeBuffer
     };
@@ -743,4 +826,407 @@
     events._default = events['notify.info'];
     window.DesktopSoundThemes = window.DesktopSoundThemes || {};
     window.DesktopSoundThemes.water = { id: 'water', events };
+})();
+
+;
+/* ui/js/desktop/sound/theme-desktop.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    const L = S.layer;
+    // Original sonic identities. Each uses its own tuning, rhythm, instrument and texture.
+    // Short navigation gestures, longer confirmations, descending warnings; never a looping bed.
+    const profiles = {
+        amiga: { root: 72, step: 0.045, voice: 'chip', gain: 0.20, tail: 0.06, chord: [0, 4, 7], filter: 3900 },
+        cyberpunk: { root: 57, step: 0.065, voice: 'pulse', gain: 0.22, tail: 0.11, chord: [0, 7, 14], filter: 2100 },
+        black_gloss: { root: 65, step: 0.080, voice: 'glass', gain: 0.20, tail: 0.22, chord: [0, 7, 12], filter: 3200 },
+        crazy: { root: 69, step: 0.050, voice: 'bubble', gain: 0.20, tail: 0.13, chord: [0, 6, 11, 16], filter: 2600 },
+        lollipop: { root: 77, step: 0.075, voice: 'celesta', gain: 0.18, tail: 0.18, chord: [0, 4, 9], filter: 3500 },
+        organic: { root: 62, step: 0.095, voice: 'wood', gain: 0.22, tail: 0.20, chord: [0, 5, 9], filter: 1600 }
+    };
+    function note(p, midi, at, quiet) {
+        const base = { midi, at, gain: p.gain * (quiet ? 0.65 : 1), duration: 0.20 + p.tail,
+            attack: 0.004, decay: 0.07, sustain: 0, release: p.tail,
+            filter: { type: 'lowpass', freq: p.filter, q: 0.7 } };
+        switch (p.voice) {
+            case 'chip': return L('tone', Object.assign(base, { type: 'square', duration: 0.12, decay: 0.035, partials: [{ ratio: 1, gain: 0.7, type: 'square' }, { ratio: 0.5, gain: 0.25, type: 'triangle' }] }));
+            case 'pulse': return L('fm', Object.assign(base, { modRatio: 2, index: 90, indexDecay: 0.08, reverb: 'short' }));
+            case 'glass': return L('tone', Object.assign(base, { reverb: 'plate', partials: [{ ratio: 1, gain: 1 }, { ratio: 2.76, gain: 0.14 }, { ratio: 4.07, gain: 0.05 }] }));
+            case 'bubble': return L('tone', Object.assign(base, { type: 'sine', glide: S.midiToHz(midi + 7), glideTime: 0.09, reverb: 'short' }));
+            case 'celesta': return L('fm', Object.assign(base, { modRatio: 3, index: 24, indexDecay: 0.05, reverb: 'plate' }));
+            default: return L('tone', Object.assign(base, { reverb: 'short', partials: [{ ratio: 1, gain: 1 }, { ratio: 2.03, gain: 0.22, type: 'triangle' }, { ratio: 3.97, gain: 0.07 }] }));
+        }
+    }
+    Object.entries(profiles).forEach(([id, p]) => {
+        const c = p.chord;
+        const scores = {
+            'window.open': [0, c[1], c[2]], 'window.close': [c[1], 0, -12],
+            'window.minimize': [0, -5], 'window.restore': [-5, 0],
+            'window.maximize': [0, c[1], c[2], 12], 'window.snap': [7], 'window.deny': [-7, -8],
+            'notify.info': [c[1], c[2], 12], 'notify.message': [0, 12], 'notify.error': [-12, -13, -17],
+            'menu.open': [12], 'menu.close': [7], 'space.switch': [-12, 0, c[1]],
+            'dialog.open': [0, c[1]], 'dialog.confirm': [0, c[2], 12], 'dialog.cancel': [0, -5],
+            'file.trash': [-5, -12], 'file.delete': [-12, -19], 'file.drop': [-12, 0]
+        };
+        const events = {};
+        Object.entries(scores).forEach(([event, notes]) => {
+            const quiet = event.startsWith('menu.') || event === 'window.snap';
+            events[event] = notes.map((n, i) => note(p, p.root + n, i * p.step, quiet));
+            if (id === 'cyberpunk' && !quiet) events[event].push(L('noise', { duration: 0.045, gain: 0.025, filter: { type: 'highpass', freq: 3800 } }));
+            if (id === 'organic') events[event].push(L('noise', { duration: 0.12, gain: 0.022, color: 'pink', filter: { type: 'bandpass', freq: 720, q: 0.7 }, reverb: 'short' }));
+            if (id === 'crazy' && event === 'notify.info') events[event].push(note(p, p.root + c[3], 0.22, true));
+        });
+        events._default = events['notify.info'];
+        window.DesktopSoundThemes[id] = { id, events };
+    });
+})();
+
+;
+/* ui/js/desktop/sound/theme-electronic-dreams.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    window.DesktopSoundThemes.electronic_dreams = {
+        id: 'electronic_dreams',
+        events: S.composeDesktopEvents({ voice: 'relay', root: 59, rise: 3, fall: -4, color: 2, interval: 5,
+            step: 0.072, gain: 0.23, tail: 0.09, modRatio: 1.55, index: 21, filter: 1750, signal: 980 })
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-windows-xp.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    window.DesktopSoundThemes.windows_xp = {
+        id: 'windows_xp',
+        // Fresh friendly chimes with a bright upper partial and quick, rounded tails.
+        events: S.composeDesktopEvents({ voice: 'chime', root: 65, rise: 2, fall: -3, color: 2,
+            step: 0.064, gain: 0.22, tail: 0.13, filter: 4100 })
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-green-slime.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    const L = S.layer;
+
+    // Theme FX are not shell events. The Green Slime desktop effect asks for them by name through
+    // sound-runtime.js: slime.pop when a bubble bursts and slime.snap when a pulled strand parts. Each has a
+    // small, medium and large variant. The synth peak-normalises every buffer, so this file only sets the
+    // balance inside one sound; the runtime plays them at about 40% of a window sound and rate-limits them.
+    // No layer uses the synth's reverb pool, because its convolver is shared by all layers of one render and
+    // would smear a layer into the envelope of its neighbour. Every layer is low-passed or band-limited.
+
+    // Bubble burst: a sine blop whose pitch glides upward (a smaller bubble rings higher), a very short
+    // band-passed tick of the film tearing, and a faint low-passed tail of wet air.
+    const POP = {
+        small: { from: 520, to: 1100, glide: 0.030, attack: 0.003, decay: 0.016, sustain: 0.20, release: 0.050,
+            click: 3800, tick: 0.002, wet: 1100, tail: 0.060 },
+        medium: { from: 360, to: 760, glide: 0.042, attack: 0.004, decay: 0.022, sustain: 0.22, release: 0.075,
+            click: 3000, tick: 0.004, wet: 800, tail: 0.080 },
+        large: { from: 240, to: 520, glide: 0.058, attack: 0.005, decay: 0.030, sustain: 0.25, release: 0.105,
+            click: 2300, tick: 0.006, wet: 600, tail: 0.100 }
+    };
+
+    function pop(s) {
+        return [
+            L('noise', { duration: s.tick, gain: 0.09, attack: 0.0005, decay: s.tick, color: 'white', decayPower: 1,
+                filter: { type: 'bandpass', freq: s.click, q: 0.9 } }),
+            L('tone', { at: 0.002, freq: s.from, glide: s.to, glideTime: s.glide, duration: s.attack + s.decay,
+                gain: 0.5, attack: s.attack, decay: s.decay, sustain: s.sustain, release: s.release, type: 'sine',
+                filter: { type: 'lowpass', freq: s.to * 1.8, q: 0.5 } }),
+            L('noise', { at: 0.01, duration: s.tail, gain: 0.06, attack: 0.006, decay: s.tail, color: 'pink', decayPower: 1.6,
+                filter: { type: 'lowpass', freq: s.wet, q: 0.6 } })
+        ];
+    }
+
+    // Strand parting: a wet "thwip" (band-passed noise whose centre sweeps down) and, a moment later, the
+    // soft low plop of the base recoiling into the gel. The plop gets a quiet octave above it so that small
+    // speakers, which drop everything below about 200 Hz, still carry it.
+    const SNAP = {
+        small: { from: 3400, to: 1100, q: 1.4, sweep: 0.025, plopAt: 0.036, plopFrom: 240, plopTo: 160, lowpass: 520, tail: 0.060 },
+        medium: { from: 3000, to: 900, q: 1.3, sweep: 0.032, plopAt: 0.040, plopFrom: 205, plopTo: 138, lowpass: 440, tail: 0.075 },
+        large: { from: 2600, to: 750, q: 1.2, sweep: 0.040, plopAt: 0.046, plopFrom: 180, plopTo: 120, lowpass: 380, tail: 0.090 }
+    };
+
+    function snap(s) {
+        const plop = { at: s.plopAt, glideTime: 0.060, duration: 0.036, attack: 0.006, decay: 0.030, sustain: 0.25, release: 0.070, type: 'sine' };
+        return [
+            L('noise', { duration: s.sweep + 0.004, gain: 0.7, attack: 0.002, decay: s.sweep + 0.004, color: 'white', decayPower: 1,
+                filter: { type: 'bandpass', freq: s.from, q: s.q }, sweep: { from: s.from, to: s.to, time: s.sweep } }),
+            L('tone', Object.assign({ freq: s.plopFrom, glide: s.plopTo, gain: 0.5,
+                filter: { type: 'lowpass', freq: s.lowpass, q: 0.5 } }, plop)),
+            L('tone', Object.assign({ freq: s.plopFrom * 2, glide: s.plopTo * 2, gain: 0.16,
+                filter: { type: 'lowpass', freq: s.lowpass * 2, q: 0.5 } }, plop)),
+            L('noise', { at: s.plopAt + 0.004, duration: s.tail, gain: 0.04, attack: 0.008, decay: s.tail, color: 'pink', decayPower: 1.6,
+                filter: { type: 'lowpass', freq: s.lowpass * 1.2, q: 0.6 } })
+        ];
+    }
+
+    const specialFx = { 'slime.pop': {}, 'slime.snap': {} };
+    Object.keys(POP).forEach(size => {
+        specialFx['slime.pop'][size] = pop(POP[size]);
+        specialFx['slime.snap'][size] = snap(SNAP[size]);
+    });
+
+    window.DesktopSoundThemes.green_slime = {
+        id: 'green_slime',
+        events: S.composeDesktopEvents({ voice: 'slime', root: 53, rise: 5, fall: -7, color: 3,
+            step: 0.082, gain: 0.24, tail: 0.15, filter: 980, resonance: 3.8, noiseCutoff: 680 }),
+        specialFx
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-voxel-world.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    const L = S.layer;
+    const materials = ['wood', 'stone', 'earth'];
+
+    function impact(eventId, material) {
+        const fracture = eventId === 'window.fracture';
+        const spec = {
+            wood: { midi: 43, cutoff: 950, noise: 0.11, tone: 0.18, periods: 9 },
+            stone: { midi: 55, cutoff: 1850, noise: 0.2, tone: 0.15, periods: 5 },
+            earth: { midi: 38, cutoff: 620, noise: 0.23, tone: 0.11, periods: 12 }
+        }[material];
+        const layers = [
+            L('pluck', { midi: spec.midi - (fracture ? 5 : 0), duration: fracture ? 0.22 : 0.15,
+                gain: fracture ? 0.3 : 0.34, periods: spec.periods, decay: fracture ? 2.1 : 2.8,
+                filter: { type: 'lowpass', freq: spec.cutoff, q: 0.9 }, reverb: 'short' }),
+            L('noise', { at: 0.004, duration: fracture ? 0.21 : 0.12, gain: spec.noise,
+                color: 'pink', decayPower: fracture ? 2.6 : 3.1,
+                filter: { type: material === 'stone' ? 'bandpass' : 'lowpass', freq: spec.cutoff, q: 0.9 }, reverb: 'short' }),
+            L('tone', { at: 0.015, midi: spec.midi - (fracture ? 12 : 7), duration: 0.18,
+                gain: spec.tone, attack: 0.002, decay: 0.07, sustain: 0, release: 0.12,
+                type: 'triangle', filter: { type: 'lowpass', freq: spec.cutoff * 1.4, q: 0.7 }, reverb: 'short' })
+        ];
+        if (fracture) layers.push(L('noise', { at: 0.075, duration: 0.1, gain: spec.noise * 0.42,
+            color: 'pink', decayPower: 3.6,
+            filter: { type: 'highpass', freq: material === 'stone' ? 2200 : 1100 }, reverb: 'short' }));
+        return layers;
+    }
+
+    const specialFx = {};
+    ['window.fracture', 'window.impact'].forEach(eventId => {
+        specialFx[eventId] = Object.fromEntries(materials.map(material => [material, impact(eventId, material)]));
+    });
+
+    window.DesktopSoundThemes.voxel_world = {
+        id: 'voxel_world',
+        events: S.composeDesktopEvents({ voice: 'voxel', root: 48, rise: 3, fall: -5, color: 2,
+            step: 0.064, gain: 0.22, filter: 1380, noiseCutoff: 1150, periods: 7 }),
+        specialFx
+    };
+})();
+
+;
+/* ui/js/desktop/sound/theme-orbit.js */
+(function () {
+    'use strict';
+    const S = window.DesktopSoundSynth;
+    const L = S.layer;
+
+    // Orbit sounds like a quiet space station: soft synth whooshes, sonar pings, airlock hiss and small HUD
+    // blips. Everything is built from sines and band-limited noise with 3 to 30 ms attacks and rounded tails,
+    // so a window that opens or closes forty times a day never clicks or bites. Nothing sits above about
+    // 4 kHz, and the sparkle of a dissolving window is a handful of faint grains, not a shimmer.
+    // The synth peak-normalises every buffer, so this file only balances the layers inside one sound. The key
+    // is A: the pings are A5, C#6 and E6, and every shell sound moves between notes of that chord and its
+    // neighbours. No layer uses the synth's reverb pool, because its convolver is shared by all layers of one
+    // render and would smear a layer into the envelope of its neighbour; the echo of a chime is a second,
+    // quieter and darker tone instead.
+
+    // A rounded sine blip with an optional pitch glide: attack, a short fall to `sustain` and an exponential
+    // release. The oscillator is kept running for attack + decay, and the synth adds the release to that, so
+    // it never stops while the envelope is still audible.
+    function blip(freq, at, o) {
+        o = o || {};
+        const attack = o.attack || 0.004;
+        const decay = o.decay || 0.03;
+        return L('tone', {
+            freq, glide: o.to, glideTime: o.glideTime || 0.04, at, duration: attack + decay,
+            gain: o.gain == null ? 0.3 : o.gain, attack, decay,
+            sustain: o.sustain == null ? 0.2 : o.sustain, release: o.release || 0.08,
+            type: 'sine', partials: o.partials, pan: o.pan,
+            filter: { type: 'lowpass', freq: o.cutoff || 3200, q: 0.5 }
+        });
+    }
+
+    // A pitched swoosh: a sine that glides from one note to another.
+    function glide(from, to, at, time, o) {
+        o = o || {};
+        return blip(from, at, Object.assign({ to, glideTime: time, attack: 0.012, decay: time * 0.8,
+            sustain: 0.1, release: 0.06, cutoff: 2600 }, o));
+    }
+
+    // A whoosh: noise through a band-pass filter whose centre sweeps from one frequency to another. The level
+    // rises over `attack` seconds and falls over `decay` seconds, so a rising whoosh peaks late and a falling
+    // one early.
+    function whoosh(from, to, at, dur, o) {
+        o = o || {};
+        return L('noise', {
+            at, duration: dur, gain: o.gain == null ? 0.4 : o.gain,
+            attack: o.attack || dur * 0.45, decay: o.decay || dur * 0.55, release: 0.02,
+            color: 'pink', decayPower: 0.3, filter: { type: 'bandpass', q: o.q || 1.1 },
+            sweep: { from, to, time: dur }
+        });
+    }
+
+    // A soft puff of air (an airlock seal, a latch) through a low-pass filter.
+    function puff(at, dur, cutoff, gain) {
+        return L('noise', {
+            at, duration: dur, gain, attack: 0.006, decay: dur * 0.9, release: 0.02,
+            color: 'pink', decayPower: 1.6, filter: { type: 'lowpass', freq: cutoff, q: 0.6 }
+        });
+    }
+
+    // Faint grains of the dissolving window: very short sines on notes of the key, alternating left and right.
+    const GRAINS = [
+        { at: 0.095, note: 2217, gain: 0.085, pan: -0.5 }, { at: 0.128, note: 1760, gain: 0.08, pan: 0.45 },
+        { at: 0.152, note: 2637, gain: 0.066, pan: -0.3 }, { at: 0.190, note: 1976, gain: 0.06, pan: 0.5 },
+        { at: 0.214, note: 1480, gain: 0.05, pan: -0.45 }, { at: 0.247, note: 1760, gain: 0.04, pan: 0.3 },
+        { at: 0.280, note: 1319, gain: 0.03, pan: -0.2 }
+    ];
+
+    function sparkle() {
+        return GRAINS.map(g => blip(g.note, g.at, { gain: g.gain, pan: g.pan, attack: 0.003, decay: 0.012,
+            sustain: 0.3, release: 0.03, cutoff: 4000 }));
+    }
+
+    // A sonar-ish chime of two sine notes with a body of a quiet second partial and a darker, quieter echo of
+    // the last note.
+    const BELL = [{ ratio: 1, gain: 1 }, { ratio: 2, gain: 0.16, type: 'triangle' }];
+
+    function chime(first, second, gap, echoAfter, o) {
+        o = o || {};
+        return [
+            blip(first, 0, { gain: 0.3, partials: BELL, decay: 0.07, sustain: 0.12, release: o.release || 0.24, cutoff: 3600 }),
+            blip(second, gap, { gain: 0.34, partials: BELL, decay: 0.08, sustain: 0.12, release: (o.release || 0.24) + 0.08, cutoff: 3600 }),
+            blip(second, gap + echoAfter, { gain: 0.12, decay: 0.06, sustain: 0.1, release: o.echoRelease || 0.22, cutoff: 1900 })
+        ];
+    }
+
+    // A low, muted pair of blips: it informs without scolding.
+    const MUTED = [{ ratio: 1, gain: 1 }, { ratio: 2, gain: 0.26, type: 'triangle' }];
+
+    function lowBlips(first, second, gap, gain, release) {
+        return [
+            blip(first, 0, { gain, partials: MUTED, decay: 0.03, sustain: 0.18, release, cutoff: 700 }),
+            blip(second, gap, { gain: gain * 0.9, partials: MUTED, decay: 0.03, sustain: 0.18, release, cutoff: 650 })
+        ];
+    }
+
+    const events = {
+        // Materialise: a whoosh that builds, a soft chirp rising an octave and a faint FM glint on the arrival.
+        'window.open': [
+            whoosh(280, 2300, 0, 0.22, { gain: 0.5, attack: 0.15, decay: 0.07, q: 1.0 }),
+            glide(392, 880, 0.03, 0.15, { gain: 0.3, attack: 0.03, decay: 0.12, release: 0.07 }),
+            L('fm', { midi: 88, at: 0.12, duration: 0.1, gain: 0.13, attack: 0.01, decay: 0.07, sustain: 0, release: 0.08,
+                modRatio: 2, index: 120, indexDecay: 0.14, filter: { type: 'lowpass', freq: 3800, q: 0.5 } })
+        ],
+        // Dissolve: a falling whoosh, a sinking chirp and a tail of faint grains.
+        'window.close': [
+            whoosh(2400, 260, 0, 0.26, { gain: 0.42, attack: 0.05, decay: 0.21, q: 1.0 }),
+            glide(740, 330, 0, 0.22, { gain: 0.26, attack: 0.01, decay: 0.19, release: 0.06 })
+        ].concat(sparkle()),
+        'window.minimize': [
+            whoosh(1900, 520, 0, 0.15, { gain: 0.4, attack: 0.03, decay: 0.12, q: 1.2 }),
+            glide(587, 294, 0, 0.14, { gain: 0.28, attack: 0.008, release: 0.05 })
+        ],
+        'window.restore': [
+            whoosh(500, 2100, 0, 0.16, { gain: 0.38, attack: 0.11, decay: 0.05, q: 1.2 }),
+            glide(294, 587, 0, 0.15, { gain: 0.26, attack: 0.02, release: 0.05 }),
+            blip(1319, 0.12, { gain: 0.1, release: 0.07 })
+        ],
+        'window.maximize': [
+            whoosh(220, 1700, 0, 0.22, { gain: 0.42, attack: 0.15, decay: 0.07, q: 0.9 }),
+            glide(220, 440, 0, 0.2, { gain: 0.32, attack: 0.02, decay: 0.17, release: 0.06 }),
+            blip(880, 0.17, { gain: 0.14, release: 0.1 }),
+            blip(1319, 0.2, { gain: 0.09, release: 0.12 })
+        ],
+        // An airlock seal: a soft thump, a puff of air and a tiny latch.
+        'window.snap': [
+            glide(190, 120, 0, 0.06, { gain: 0.42, attack: 0.003, decay: 0.04, release: 0.06, cutoff: 900 }),
+            puff(0, 0.06, 1700, 0.22),
+            blip(1760, 0.045, { gain: 0.07, release: 0.06 })
+        ],
+        'window.deny': lowBlips(196, 165, 0.1, 0.42, 0.06),
+        'notify.info': chime(659, 880, 0.12, 0.17),
+        'notify.message': chime(988, 1319, 0.09, 0.14, { release: 0.2, echoRelease: 0.18 }),
+        'notify.error': lowBlips(220, 185, 0.11, 0.46, 0.09),
+        // The tiny HUD blips of menus: a short glide up to open and down to close.
+        'menu.open': [blip(880, 0, { to: 1175, glideTime: 0.035, gain: 0.3, decay: 0.02, sustain: 0.15, release: 0.05 })],
+        'menu.close': [blip(1047, 0, { to: 698, glideTime: 0.035, gain: 0.26, decay: 0.02, sustain: 0.15, release: 0.05 })],
+        'space.switch': [
+            L('noise', { duration: 0.15, gain: 0.34, attack: 0.08, decay: 0.07, release: 0.02, color: 'pink', decayPower: 0.3,
+                filter: { type: 'bandpass', q: 2.2 }, sweep: { from: 900, to: 1500, time: 0.15 } }),
+            blip(659, 0.07, { gain: 0.14, release: 0.07 }),
+            blip(880, 0.12, { gain: 0.16, release: 0.1 })
+        ],
+        'dialog.open': [
+            blip(880, 0, { gain: 0.26, release: 0.08 }),
+            blip(1319, 0.05, { gain: 0.24, release: 0.12 }),
+            puff(0, 0.05, 1500, 0.1)
+        ],
+        'dialog.confirm': [
+            blip(880, 0, { gain: 0.26, partials: BELL, release: 0.18, cutoff: 3600 }),
+            blip(1319, 0.07, { gain: 0.32, partials: BELL, release: 0.28, cutoff: 3600 }),
+            blip(1319, 0.24, { gain: 0.11, release: 0.18, cutoff: 1900 })
+        ],
+        'dialog.cancel': [
+            blip(1047, 0, { gain: 0.24, release: 0.08, cutoff: 2400 }),
+            blip(784, 0.06, { gain: 0.22, release: 0.1, cutoff: 2400 })
+        ],
+        'file.trash': [
+            whoosh(1300, 600, 0, 0.16, { gain: 0.38, attack: 0.015, decay: 0.145, q: 1.0 }),
+            glide(300, 170, 0, 0.1, { gain: 0.25, attack: 0.006, release: 0.06 })
+        ],
+        'file.delete': [
+            whoosh(2000, 500, 0, 0.26, { gain: 0.45, attack: 0.02, decay: 0.24, q: 0.9 }),
+            glide(220, 110, 0, 0.14, { gain: 0.36, attack: 0.006, release: 0.07, cutoff: 900 }),
+            blip(165, 0.17, { gain: 0.2, release: 0.08, cutoff: 800 })
+        ],
+        'file.drop': [
+            puff(0, 0.07, 1300, 0.25),
+            glide(260, 190, 0, 0.06, { gain: 0.35, attack: 0.004, decay: 0.04, release: 0.05, cutoff: 900 }),
+            blip(1319, 0.05, { gain: 0.09, release: 0.08 })
+        ]
+    };
+    events._default = events['notify.info'];
+
+    // Theme FX: orbit.ping is not a shell event. The Orbit desktop effect asks for it by name through
+    // sound-runtime.js when the desktop is clicked and passes a variant for how far the pulse travels. A
+    // sonar ping is a sine with a 6 ms attack that decays exponentially over 420 to 700 ms, an echo 180 ms
+    // later that is 9 dB quieter and a little darker, and a faint noise click at the start. The runtime plays
+    // it at 0.38 of a window sound, at most once per 350 ms and three times per 2 s.
+    const PING = {
+        small: { freq: 1320, release: 0.42 },
+        medium: { freq: 1100, release: 0.56 },
+        large: { freq: 880, release: 0.7 }
+    };
+    const ECHO_AT = 0.18;
+    const ECHO_GAIN = Math.pow(10, -9 / 20);
+
+    function ping(s) {
+        const ring = { duration: 0.01, attack: 0.006, decay: 0.001, sustain: 1, release: s.release, type: 'sine' };
+        return [
+            L('noise', { duration: 0.004, gain: 0.05, attack: 0.001, decay: 0.004, color: 'white', decayPower: 1,
+                filter: { type: 'bandpass', freq: 2400, q: 0.9 } }),
+            L('tone', Object.assign({ freq: s.freq, gain: 0.5, filter: { type: 'lowpass', freq: s.freq * 2.5, q: 0.5 } }, ring)),
+            L('tone', Object.assign({ freq: s.freq, at: ECHO_AT, gain: 0.5 * ECHO_GAIN,
+                filter: { type: 'lowpass', freq: s.freq * 1.6, q: 0.5 } }, ring))
+        ];
+    }
+
+    const specialFx = { 'orbit.ping': {} };
+    Object.keys(PING).forEach(size => { specialFx['orbit.ping'][size] = ping(PING[size]); });
+
+    window.DesktopSoundThemes = window.DesktopSoundThemes || {};
+    window.DesktopSoundThemes.orbit = { id: 'orbit', events, specialFx };
 })();

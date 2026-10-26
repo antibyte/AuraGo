@@ -120,6 +120,78 @@ func TestInfraHostsRejectPartialEnumerationAndReadonlyWrites(t *testing.T) {
 	}
 }
 
+// infraHostTableClient serves a Hosts table whose entries are given by index.
+func infraHostTableClient(t *testing.T, entries []map[string]string) *Client {
+	t.Helper()
+	return newInfraTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		action := strings.Trim(strings.TrimSpace(r.Header.Get("SoapAction")), `"`)
+		if cut := strings.LastIndex(action, "#"); cut >= 0 {
+			action = action[cut+1:]
+		}
+		body, _ := io.ReadAll(r.Body)
+		switch action {
+		case "GetHostNumberOfEntries":
+			infraSOAPResponse(w, action, map[string]string{"NewHostNumberOfEntries": fmt.Sprint(len(entries))})
+		case "GetGenericHostEntry":
+			for i, entry := range entries {
+				if strings.Contains(string(body), fmt.Sprintf("<NewIndex>%d</NewIndex>", i)) {
+					infraSOAPResponse(w, action, entry)
+					return
+				}
+			}
+			http.Error(w, "no such index", http.StatusInternalServerError)
+		default:
+			t.Errorf("unexpected SOAP action %s", action)
+			http.Error(w, "unexpected action", http.StatusBadRequest)
+		}
+	})
+}
+
+func TestInfraHostsSkipEntriesWithoutUsableMAC(t *testing.T) {
+	client := infraHostTableClient(t, []map[string]string{
+		{"NewMACAddress": "", "NewIPAddress": "192.0.2.50", "NewHostName": "wireguard-peer"},
+		{"NewMACAddress": "not-a-mac", "NewIPAddress": "192.0.2.51", "NewHostName": "garbled"},
+		{"NewMACAddress": "AA:BB:CC:DD:EE:FF", "NewIPAddress": "192.0.2.10", "NewHostName": "printer", "NewActive": "1"},
+	})
+	hosts, err := client.InfraHosts()
+	if err != nil || len(hosts) != 1 {
+		t.Fatalf("InfraHosts() = %+v, %v; want only the host with a MAC", hosts, err)
+	}
+	if hosts[0].Name != "printer" || hosts[0].IPAddress != "192.0.2.10" || hosts[0].Key != client.infraHostKey("AA:BB:CC:DD:EE:FF") {
+		t.Fatalf("unexpected host projection: %+v", hosts[0])
+	}
+}
+
+func TestInfraHostsKeepOneHostPerMAC(t *testing.T) {
+	client := infraHostTableClient(t, []map[string]string{
+		{"NewMACAddress": "AA:BB:CC:DD:EE:FF", "NewHostName": "old-lease", "NewActive": "0"},
+		{"NewMACAddress": "11:22:33:44:55:66", "NewIPAddress": "192.0.2.20", "NewHostName": "first", "NewActive": "1"},
+		{"NewMACAddress": "aa:bb:cc:dd:ee:ff", "NewIPAddress": "192.0.2.10", "NewHostName": "printer", "NewActive": "1"},
+		{"NewMACAddress": "11:22:33:44:55:66", "NewIPAddress": "192.0.2.21", "NewHostName": "second", "NewActive": "1"},
+	})
+	hosts, err := client.InfraHosts()
+	if err != nil || len(hosts) != 2 {
+		t.Fatalf("InfraHosts() = %+v, %v; want one host per MAC", hosts, err)
+	}
+	if hosts[0].Key != client.infraHostKey("AA:BB:CC:DD:EE:FF") || hosts[0].Name != "printer" || hosts[0].IPAddress != "192.0.2.10" || !hosts[0].Active {
+		t.Fatalf("duplicate MAC kept the wrong entry: %+v", hosts[0])
+	}
+	if hosts[1].Name != "first" || hosts[1].IPAddress != "192.0.2.20" {
+		t.Fatalf("tie between equal entries must keep the first: %+v", hosts[1])
+	}
+}
+
+func TestInfraHostsFailWhenNoEntryCarriesAMAC(t *testing.T) {
+	client := infraHostTableClient(t, []map[string]string{
+		{"NewMACAddress": "", "NewIPAddress": "192.0.2.50", "NewHostName": "wireguard-peer"},
+		{"NewIPAddress": "192.0.2.51", "NewHostName": "remote"},
+	})
+	hosts, err := client.InfraHosts()
+	if err == nil || hosts != nil || !strings.Contains(err.Error(), "no usable MAC") {
+		t.Fatalf("InfraHosts() = %+v, %v; want a no-usable-MAC error", hosts, err)
+	}
+}
+
 func TestInfraWakeResolvesOpaqueKeyBeforeSending(t *testing.T) {
 	var wokeMAC string
 	client := newInfraTestClient(t, func(w http.ResponseWriter, r *http.Request) {

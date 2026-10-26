@@ -271,11 +271,11 @@ AuraGo enthält einen SIP-User-Agent im Go-Prozess, ein Vault-geschütztes Konto
 
 #### Einrichtung
 
-1. Öffne **Config → SIP Phone** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
+1. Öffne **Config → SIP-Telefon** und wähle ein geführtes Provider-Preset oder die Experteneinstellungen.
 2. Speichere das Digest-Passwort über die UI. Es liegt ausschließlich unter dem Vault-Schlüssel `sip_endpoint_password`.
 3. Konfiguriere Signaling-Bind-Adresse, Transport, vertrauenswürdige Peer-CIDRs, Caller-Allowlist, Zielrichtlinie und RTP-Bereich.
 4. Setze in Docker vor aktiven Gesprächen `advertised_signaling_host` und `media.advertised_host` auf vom PBX erreichbare Adressen.
-5. Öffne die Virtual-Desktop-App **SIP Phone** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
+5. Öffne die Virtual-Desktop-App **SIP-Telefon** für das authentifizierte Browser-Telefon. Der Kontakte-Tab nutzt das AuraGo-Kontaktregister; das optionale schwebende Telefon-Gadget ist ein weiterer Einstieg in dieselbe App.
 
 ```yaml
 sip:
@@ -295,13 +295,34 @@ V1 unterstützt G.711 PCMA/PCMU und bietet kein STUN, ICE, keine automatische Ro
 
 #### Vertrauen, Agent-Routing und Datenschutz
 
-- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen exakten normalisierten Caller-Allowlist-Treffer. Leere Caller- oder Ziellisten verweigern alles.
+- Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Quell-IP bzw. ein CIDR als auch einen passenden Eintrag für den normalisierten Anrufer in der Caller-Allowlist. Die Muster unterstützen `*` und `?`. Leere Caller- oder Ziellisten verweigern alles.
 - Ausgehende Anrufe benötigen eine kanonische `sip:`-URI, eine exakt erlaubte Domain und entweder einen exakten Benutzer oder ein erlaubtes E.164-Präfix. FRITZ!Box-Ziele wie `**610` sind exakte Benutzer.
-- Das separate Profil **Telephone agent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
+- Das separate Profil **Telefonagent** gilt nur für agentengeführte Anrufe. Es übernimmt Provider, Tools, Verhalten, Dauer, Sprache und Transcript-Regeln vor Answer oder INVITE als unveränderlichen Snapshot; Speichern wirkt nur auf zukünftige Gespräche.
+- Geführte Kontoänderungen und das Löschen des Kontos erhalten dieses Profil und die Annahmeverzögerung. Löschen oder das Deaktivieren eingehender Anrufe setzt das Routing auf `reject`. Bei aktivierten eingehenden Anrufen erhält die Einrichtung vorhandenes Agent-Routing; neue Konten verwenden die manuelle Annahme.
 - `classic` verwendet die ausgewählten ASR-, Agent-LLM- und zentralen TTS-Provider. `gemini_live` nutzt eine serverseitige Gemini-Live-Verbindung und gibt deren Zugangsdaten nie an den Browser. Beide verwenden explizite Tool-Allowlisten; eine leere Liste erlaubt keine nativen Tools.
 - RTP/Audio, vollständige SIP-Header, Authentifizierungsdaten und rohe Transcripts werden weder geloggt noch gespeichert. Transcripts sind standardmäßig flüchtig; Telefon-Sessions erzeugen keine Aufnahmen und keine abgeleiteten Memory-Artefakte.
 - `readonly: true` erlaubt weiterhin Registrierung, Status, Historie und Verbindungstests, blockiert aber Answer und ausgehende Anrufe.
 - Die Sicherheitsprüfung warnt mit `sip_auto_answer_all_interfaces`, wenn `inbound.route: agent` auf einer Wildcard-`bind_host` (`0.0.0.0` oder `::`) automatisch annimmt. Mit `sip_wildcard_callers_cidr_peers` warnt sie, wenn `allowed_callers` ein Muster enthält, das jeden Anrufer erfasst (etwa `*` oder `*@*`), und `trusted_peer_cidrs` ein ganzes Subnetz nennt; Einträge mit `/32` oder `/128` gelten als exakte Peers.
+
+#### Grenzen des Telefonagenten
+
+Alle Feldnamen beziehen sich auf `sip`.
+
+| Feld | Standard | Erlaubter Bereich |
+| --- | --- | --- |
+| `inbound.auto_answer_delay_ms` | 1000 | 0–60000 ms; 0 nimmt sofort an |
+| `voice.max_call_duration_seconds` | 3600 | 30–86400 s |
+| `voice.idle_timeout_seconds` | 120 | 15–3600 s |
+| `voice.turn_timeout_seconds` | 60 | 15–300 s |
+| `voice.max_response_chars` | 1200 | 200–5000 Zeichen |
+| `voice.max_outbound_calls_per_day` | 10 | 1–1000 Versuche |
+
+Das Tageslimit zählt agentengeführte ausgehende Versuche, sobald die Historie
+sie vor INVITE zulässt, auch bei späteren Fehlern oder Abbrüchen. Ungültige Ziele,
+Richtlinienablehnungen und fehlgeschlagene Provider-Vorprüfungen vor dieser
+Zulassung zählen nicht; eingehende und manuelle Browser-Anrufe ebenfalls nicht.
+Der Zähler wird um Mitternacht in der lokalen Zeitzone des Servers zurückgesetzt.
+Im Telefonagenten siehst Du Verbrauch und Rücksetzzeit.
 
 Siehe [Native SIP-Telefonie](../../sip_telephony.md) für Netzwerkregeln, Fehlercodes, Provider-Einrichtung und die vollständige API-Liste.
 
@@ -1280,14 +1301,14 @@ Routing für unterstützten LLM-Traffic über Cloudflare AI Gateway, ohne dass S
 #### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → AI Gateway**.
 2. Aktiviere die Integration und trage **Account ID** sowie **Gateway ID** ein.
-3. Wähle den Routing-Modus. `auto` nutzt sichere anbieter-native Cloudflare-Routen und überspringt nicht unterstützte Anbieter, statt still auf `/openai` zu fallen.
-4. Wähle den Logging-Modus. `metadata_only` ist der datenschutzfreundliche Standard; `full` aktiviert Payload-Logging; `off` deaktiviert Collection-Header.
-5. Optional: Setze Request-Timeout, Wiederholungen, Backoff und nicht geheime Metadaten-Header.
-6. Speichere und nutze danach **Gateway testen**. Workers AI verwendet Cloudflares lokalen Models-Search-Endpunkt, OpenAI-kompatible native Routen verwenden `/models`, und Routen ohne sicheren Probe-Endpunkt werden als konfiguriert mit `live_status: skipped` gemeldet.
+3. Das Routing nutzt sichere native Anbieter-Routen und erhält eigene Endpunkte. Einen allgemeinen `/openai`-Fallback gibt es nicht.
+4. Wähle den Logging-Modus. `metadata_only` respektiert Cloudflares Logging-Schalter und unterdrückt Payloads; `full` speichert ausdrücklich Prompts und Antworten; `off` unterdrückt sämtliche Logs.
+5. Optional: Setze ein Zeitlimit für den Antwortbeginn und bis zu fünf nicht geheime Metadatenpaare. AuraGo steuert Wiederholungen und fordert beim Gateway immer genau einen Versuch an.
+6. Speichere und wähle einen Anbieter. **Gateway testen** prüft Metadaten ohne Generierung. **Modell prüfen (kostenpflichtig)** führt eine begrenzte, budgetierte Generierung aus. Konfiguriert, übersprungen, Verbindung geprüft und Modell getestet bleiben getrennte Zustände.
 
 Workers AI wird über den Cloudflare-REST-Endpunkt (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) mit `cf-aig-gateway-id` geroutet. Anbieter-native Gateway-Routen nutzen `cf-aig-authorization` für das optionale Authenticated-Gateway-Token. Lege keine Secrets in Metadaten ab.
 
-Google AI Gateway provider-native Routing ist bewusst noch nicht aktiviert. Cloudflares Google-Provider-Route erwartet Gemini-native Requests, während AuraGo Google-Traffic aktuell über OpenAI-kompatible Provider-Clients sendet.
+Für Google-Modelle über Cloudflare legst Du einen eigenen Anbieter vom Typ `cloudflare-rest` an. Cerebras und Perplexity haben native Routen. Moderner Hugging-Face-Chat nutzt einen einmalig in Cloudflare eingerichteten Custom Provider. Die [Einrichtungs- und Anbieterreferenz](../../ai-gateway.md) beschreibt Tokens, Abrechnung, genaue Pfade, Zeitlimits und Kompatibilität.
 
 #### YAML-Referenz
 ```yaml
@@ -1295,13 +1316,10 @@ ai_gateway:
   enabled: true
   account_id: "YOUR_ACCOUNT_ID"
   gateway_id: "YOUR_GATEWAY_ID"
-  mode: auto                 # auto, openai_compatible, provider_native
+  huggingface_provider_slug: ""
   log_mode: metadata_only    # metadata_only, off, full
   metadata: {}
   request_timeout_ms: 0
-  max_attempts: 0
-  retry_delay_ms: 0
-  backoff: ""                # "", constant, linear, exponential
 ```
 
 ### Fallback LLM
@@ -1882,15 +1900,22 @@ sql_connections:
 
 ### Paperless NGX
 
-Dokumentenmanagement und Durchsuchung.
+Dokumentenverwaltung und Suche.
 
-**Web-UI:** Config → Integrationen → Paperless NGX → URL eingeben. API-Key im Vault speichern.
+**Web-UI:** Config → Integrationen → Paperless NGX.
+
+1. Schalte die Integration ein. Mit `readonly` darf der Agent nur suchen und lesen.
+2. Trag die URL ein, zum Beispiel `https://paperless.example.com`, und speichere die Konfiguration. URL und Schalter gelten nach dem Speichern der Konfiguration.
+3. Speichere den API-Token im Vault unter `paperless_ngx_api_token`. Der Token gilt sofort nach dem Speichern im Vault.
+
+Das Werkzeug nimmt `correspondent` oder `name` und `document_type` oder `category`. Wenn beide Namen gesetzt sind, gewinnen `correspondent` und `document_type`. Die Tag-Suche verlangt exakte Namen und verknüpft sie mit UND. Der Upload sendet Text und liefert eine Task-ID, während Paperless noch verarbeitet. Das Update fügt Tags hinzu und behält vorhandene. Tags, die schon am Dokument stehen, werden nicht erneut geschrieben. Fehlt die Tag-Liste in der Antwort, bleiben die Tags unverändert. Get und Download liefern OCR-Text, gekürzt bei 8000 Zeichen, und sagen das, wenn Text gekürzt wurde. `readonly` sperrt Upload, Update und Löschen.
 
 #### YAML-Referenz
 ```yaml
 paperless_ngx:
   enabled: true
-  url: "https://paperless.local"
+  readonly: false
+  url: "https://paperless.example.com"
 ```
 
 ### Obsidian Integration
@@ -1992,7 +2017,7 @@ tools:
 
 ### Video Download Integration
 
-Video-Download über yt-dlp (YouTube und andere Plattformen). Unterstützt Docker- und Native-Modus.
+Video-Download über yt-dlp (YouTube und andere Plattformen). Unterstützt Docker- und Native-Modus. `default_format` unten ist der 720p-Selektor neuer Installationen. Ein leerer Wert wählt beim Download `best`.
 
 **Web-UI:** Config → Integrationen → Video Download → Modus (docker/native) und Download-Verzeichnis konfigurieren.
 
@@ -2009,7 +2034,7 @@ tools:
     download_dir: ""
     max_file_size_mb: 0
     timeout_seconds: 0
-    default_format: ""
+    default_format: "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
     max_search_results: 0
     container_image: ""
     auto_pull: false
@@ -2341,7 +2366,7 @@ virtual_desktop:
 
 **RuView** integriert Wi-Fi-Sensing ([RuView v3122](https://github.com/ruvnet/RuView)) inklusive Dashboard, Observatory, Pose Fusion, Kalibrierung, Aufnahme und Training. Die Verwaltung durch AuraGo spricht alle 16 Sprachen; die Upstream-Ansichten behalten ihre Originalsprache. Wi-Fi-Sensing ist experimentell — Verbindung bedeutet keine Aussage über Mess-, Präsenz- oder Posen-Genauigkeit.
 
-**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **RuView öffnen** öffnet die Desktop-App; dort verwalten **Laufzeit installieren** und **Starten** eine verwaltete Runtime. **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein. Anleitung: [Kapitel 30](30-ruview.md).
+**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **RuView öffnen** öffnet die Desktop-App; dort verwalten der nächste Schritt in der Status-Ansicht (**Installieren** oder **Dienst starten**) und das Menü **⋯** (**Dienst installieren**) eine verwaltete Runtime. **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein. Anleitung: [Kapitel 30](30-ruview.md).
 
 **Runtimes:**
 
@@ -2850,3 +2875,8 @@ Jetzt, wo die Integrationen stehen:
 ---
 **Vorheriges Kapitel:** [Kapitel 7: Konfiguration](./07-configuration.md)
 **Nächstes Kapitel:** [Kapitel 9: Gedächtnis & Wissen](./09-memory.md)
+
+
+### Verwaltete Websites und Änderungshistorie
+
+Homepage-Änderungen benötigen einen Zweck in reason und werden automatisch erfasst. Mit homepage_registry overview/get_site/list_events findest Du Identität, lokale und entfernte Orte sowie Änderungsgründe. Discover_workspace/adopt übernehmen bisher nicht erfasste Projekte. Details: [Verwaltete Websites](../../homepage-ledger.md).

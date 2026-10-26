@@ -511,7 +511,7 @@ func TestBuildCoAgentSystemPromptIncludesTemperamentOnly(t *testing.T) {
 	if _, err := stm.InsertCharacterNote(memory.CharacterNote{
 		Category: memory.CharacterNoteCategoryHabit,
 		Text:     "I verify changes with one concrete check before calling the work done.",
-		Source:   memory.CharacterNoteSourceReflection,
+		Source:   memory.CharacterNoteSourceCode,
 	}); err != nil {
 		t.Fatalf("InsertCharacterNote: %v", err)
 	}

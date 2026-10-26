@@ -1,4 +1,11 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Las listas no están disponibles temporalmente. Se conservan las selecciones guardadas.",
+  "config.telephone_agent.tool_unavailable": "Herramienta no disponible",
+  "config.telephone_agent.language_auto": "Automático",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "No hay números ni usuarios permitidos para llamadas salientes.",
+  "config.sip.telephone_profile_preserved": "Se conservan los ajustes del agente telefónico y el tiempo de espera para responder.",
+  "config.decisions.docker_api_too_old": "Los subdirectorios de volúmenes con nombre requieren Docker Engine 26 (API 1.45) o posterior. Actualiza Docker o utiliza un montaje adecuado de una carpeta del equipo.",
+  "config.decisions.runtime_score_timeout": "La evaluación alcanzó el límite de dos minutos. El servicio sigue disponible para la siguiente evaluación.",
   "config.decisions.local_setup": "Configurar el modelo local",
   "config.decisions.local_server_help": "El modelo se ejecuta en el equipo donde está instalado AuraGo. Se da prioridad a una tarjeta gráfica compatible.",
   "config.decisions.advanced": "Modo de ejecución y permiso de CPU",

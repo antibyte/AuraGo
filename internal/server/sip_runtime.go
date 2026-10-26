@@ -74,15 +74,29 @@ func (s *Server) initSIP(ctx context.Context) error {
 	s.SIPBrowserMedia = browserMedia
 	s.VoiceActionRunner = runner
 	sipphone.SetDefaultManager(manager)
+	purgedAll := false
 	if s.ShortTermMem != nil {
 		sessionIDs, listErr := manager.NonPersistentSessionIDs(ctx)
+		purgedAll = listErr == nil
 		if listErr != nil {
-			reporter(ctx, "sip_transient_session_purge_failed", "Transient SIP sessions could not be enumerated")
+			if ctx.Err() == nil {
+				reporter(ctx, "sip_transient_session_purge_failed", "Transient SIP sessions could not be enumerated")
+			}
 		} else {
 			for _, sessionID := range sessionIDs {
+				if ctx.Err() != nil {
+					purgedAll = false
+					break
+				}
 				if purgeErr := s.ShortTermMem.PurgeChatSession(sessionID); purgeErr != nil {
+					purgedAll = false
 					reporter(ctx, "sip_transient_session_purge_failed", "An orphaned transient SIP session could not be purged")
 				}
+			}
+		}
+		if purgedAll && ctx.Err() == nil && s.PlannerDB != nil {
+			if _, err := planner.ResolveOperationalIssue(s.PlannerDB, "sip_transient_session_purge_failed", "All transient SIP sessions were purged successfully.", time.Now().UTC()); err != nil && s.Logger != nil {
+				s.Logger.Warn("Failed to resolve SIP cleanup issue", "error", err)
 			}
 		}
 	}
@@ -96,7 +110,7 @@ func (s *Server) initSIP(ctx context.Context) error {
 		sipphone.SetDefaultManager(nil)
 		return fmt.Errorf("start SIP endpoint: %w", err)
 	}
-	if s.Cfg.SIP.HistoryRetentionDays > 0 {
+	if purgedAll && s.Cfg.SIP.HistoryRetentionDays > 0 {
 		_ = manager.PruneHistory(ctx, time.Now().AddDate(0, 0, -s.Cfg.SIP.HistoryRetentionDays))
 	}
 	return nil

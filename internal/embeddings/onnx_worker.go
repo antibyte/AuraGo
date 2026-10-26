@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -113,19 +115,76 @@ func writeWorkerResponse(output io.Writer, response workerResponse) error {
 	return json.NewEncoder(output).Encode(response)
 }
 
+const (
+	// onnxStartupTimeout bounds one worker start, including the model load.
+	onnxStartupTimeout = 10 * time.Minute
+	// onnxDrainTimeout bounds how long an abandoned request may keep the
+	// worker busy before the process is considered hung and killed.
+	onnxDrainTimeout = 2 * time.Minute
+	// onnxCloseWaitTimeout bounds how long Close waits for a request in flight
+	// (or a drain) before it stops the process anyway.
+	onnxCloseWaitTimeout = 30 * time.Second
+)
+
+var errONNXWorkerClosed = errors.New("ONNX worker is closed")
+
+// onnxWorkerConn is one live worker process as the embedder sees it. Tests
+// replace the process with in-memory pipes and a fake kill.
+type onnxWorkerConn struct {
+	stdin   io.Writer
+	decoder *json.Decoder
+	stderr  *limitedBuffer
+	hello   workerResponse
+	// kill ends the process and reaps it. stop makes it run only once.
+	kill     func() error
+	stopOnce sync.Once
+	stopErr  error
+}
+
+func (conn *onnxWorkerConn) stop() error {
+	conn.stopOnce.Do(func() {
+		if conn.kill != nil {
+			conn.stopErr = conn.kill()
+		}
+	})
+	return conn.stopErr
+}
+
+func (conn *onnxWorkerConn) log() string {
+	if conn.stderr == nil {
+		return ""
+	}
+	return conn.stderr.String()
+}
+
+// onnxWorkerEmbedder talks to an isolated worker process. One request is in
+// flight at a time: slot is a one-token semaphore, so waiting for it can honor
+// the caller's context (a mutex could not). stateMu only guards the fields
+// below and is never held across I/O, so Status never waits for an inference.
+//
+// A caller whose context ends after the request was sent gets its error
+// immediately, but the worker is not killed: a drain goroutine keeps the slot
+// until the late response has been read and discarded. The process is only
+// replaced after a protocol or I/O error, a crash, or a drain timeout, and
+// only until Close is called.
 type onnxWorkerEmbedder struct {
-	mu              sync.Mutex
-	command         *exec.Cmd
-	stdin           io.WriteCloser
-	decoder         *json.Decoder
-	stderr          *limitedBuffer
-	nextID          atomic.Uint64
+	options      onnxWorkerOptions
+	start        func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error)
+	respawns     *restartBudget
+	drainTimeout time.Duration
+	closeWait    time.Duration
+	logger       *slog.Logger
+	slot         chan struct{}
+	nextID       atomic.Uint64
+	fingerprint  string
+
+	stateMu         sync.Mutex
+	conn            *onnxWorkerConn // nil after the process died; Embed starts a new one
 	backend         string
 	version         string
 	providers       []string
 	backendVerified bool
-	fingerprint     string
-	closed          bool
+	closed          bool // set by Close only; final
 }
 
 type onnxWorkerOptions struct {
@@ -134,9 +193,50 @@ type onnxWorkerOptions struct {
 	TokenizerPath string
 	Backend       string
 	ContextSize   int
+	// Logger receives worker supervision warnings; nil means slog.Default().
+	Logger *slog.Logger
 }
 
 func newONNXWorkerEmbedder(ctx context.Context, options onnxWorkerOptions) (*onnxWorkerEmbedder, error) {
+	return newONNXWorkerEmbedderWith(
+		ctx,
+		options,
+		startONNXWorkerConn,
+		newRestartBudget(maxProcessRestarts, processRestartWindow),
+	)
+}
+
+func newONNXWorkerEmbedderWith(
+	ctx context.Context,
+	options onnxWorkerOptions,
+	start func(context.Context, onnxWorkerOptions) (*onnxWorkerConn, error),
+	respawns *restartBudget,
+) (*onnxWorkerEmbedder, error) {
+	conn, err := start(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	logger := options.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	worker := &onnxWorkerEmbedder{
+		logger:       logger,
+		options:      options,
+		start:        start,
+		respawns:     respawns,
+		drainTimeout: onnxDrainTimeout,
+		closeWait:    onnxCloseWaitTimeout,
+		slot:         make(chan struct{}, 1),
+		backend:      options.Backend,
+		fingerprint:  onnxFingerprint(),
+	}
+	worker.adoptLocked(conn)
+	return worker, nil
+}
+
+// startONNXWorkerConn launches the worker process and waits for its hello.
+func startONNXWorkerConn(ctx context.Context, options onnxWorkerOptions) (*onnxWorkerConn, error) {
 	executable, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("resolve AuraGo executable: %w", err)
@@ -167,62 +267,150 @@ func newONNXWorkerEmbedder(ctx context.Context, options onnxWorkerOptions) (*onn
 		return nil, fmt.Errorf("start ONNX worker: %w", err)
 	}
 
-	worker := &onnxWorkerEmbedder{
-		command:     command,
-		stdin:       stdin,
-		decoder:     json.NewDecoder(bufio.NewReader(stdout)),
-		stderr:      stderr,
-		backend:     options.Backend,
-		fingerprint: onnxFingerprint(),
+	conn := &onnxWorkerConn{
+		stdin:   stdin,
+		decoder: json.NewDecoder(bufio.NewReader(stdout)),
+		stderr:  stderr,
+		kill: func() error {
+			_ = stdin.Close()
+			if command.Process == nil {
+				return nil
+			}
+			_ = command.Process.Kill()
+			err := command.Wait()
+			if err != nil && !strings.Contains(strings.ToLower(err.Error()), "killed") {
+				return fmt.Errorf("wait for ONNX worker: %w", err)
+			}
+			return nil
+		},
 	}
-	hello, err := worker.decodeWithContext(ctx)
+	hello, err := decodeWorkerResponse(ctx, conn.decoder)
 	if err != nil {
-		_ = worker.forceClose()
+		_ = conn.stop()
 		return nil, fmt.Errorf("start ONNX worker: %w; log: %s", err, stderr.String())
 	}
 	if hello.Type != "hello" {
-		_ = worker.forceClose()
+		_ = conn.stop()
 		return nil, fmt.Errorf("ONNX worker returned %q instead of hello", hello.Type)
 	}
 	if hello.Error != "" {
-		_ = worker.forceClose()
+		_ = conn.stop()
 		return nil, fmt.Errorf("ONNX worker initialization failed: %s", hello.Error)
 	}
-	worker.version = hello.Version
-	worker.providers = hello.Providers
-	worker.backendVerified = hello.BackendVerified
-	return worker, nil
+	conn.hello = hello
+	return conn, nil
+}
+
+// decodeWorkerResponse reads one response without outliving ctx. On ctx expiry
+// the reader goroutine is left to end when the caller kills the process.
+func decodeWorkerResponse(ctx context.Context, decoder *json.Decoder) (workerResponse, error) {
+	exchange := make(chan workerExchange, 1)
+	go func() {
+		var response workerResponse
+		err := decoder.Decode(&response)
+		exchange <- workerExchange{response: response, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return workerResponse{}, ctx.Err()
+	case result := <-exchange:
+		return result.response, result.err
+	}
+}
+
+// workerExchange is the outcome of one request/response round trip.
+type workerExchange struct {
+	response workerResponse
+	err      error
 }
 
 func (worker *onnxWorkerEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
-		return nil, fmt.Errorf("at least one text is required")
+		return nil, fmt.Errorf("%w: at least one text is required", ErrInvalidInput)
 	}
-	worker.mu.Lock()
-	defer worker.mu.Unlock()
-	if worker.closed || worker.command == nil || worker.command.Process == nil {
-		return nil, fmt.Errorf("ONNX worker is closed")
+	if worker.isClosed() {
+		return nil, errONNXWorkerClosed
 	}
-	request := workerRequest{ID: worker.nextID.Add(1), Command: "embed", Texts: texts}
-	if err := json.NewEncoder(worker.stdin).Encode(request); err != nil {
-		_ = worker.forceCloseLocked()
-		return nil, fmt.Errorf("send ONNX worker request: %w", err)
+	select {
+	case worker.slot <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	response, err := worker.decodeWithContext(ctx)
+	// The slot goes to a goroutine (drain or finishRespawn) when the caller
+	// leaves while the process still works for it.
+	handedToDrain := false
+	defer func() {
+		if !handedToDrain {
+			<-worker.slot
+		}
+	}()
+	// The slot and a done context can win the select above together; a
+	// request must never be sent for a caller that is already gone.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	conn, slotHandedOff, err := worker.connection(ctx)
+	if slotHandedOff {
+		handedToDrain = true
+	}
 	if err != nil {
-		_ = worker.forceCloseLocked()
-		return nil, fmt.Errorf("read ONNX worker response: %w; log: %s", err, worker.stderr.String())
+		return nil, err
 	}
+
+	request := workerRequest{ID: worker.nextID.Add(1), Command: "embed", Texts: texts}
+	result := worker.exchange(conn, request)
+	select {
+	case exchange := <-result:
+		return worker.finish(conn, request, exchange)
+	case <-ctx.Done():
+		// The request is out. Keep the slot until its response has been read
+		// so the next request cannot read it by mistake, and keep the process.
+		handedToDrain = true
+		go worker.drain(conn, request.ID, result)
+		return nil, ctx.Err()
+	}
+}
+
+// exchange sends request and reads its response on its own goroutine, so a
+// stuck pipe write or read cannot hold the caller past its context.
+func (worker *onnxWorkerEmbedder) exchange(conn *onnxWorkerConn, request workerRequest) <-chan workerExchange {
+	result := make(chan workerExchange, 1)
+	go func() {
+		if err := json.NewEncoder(conn.stdin).Encode(request); err != nil {
+			result <- workerExchange{err: fmt.Errorf("send ONNX worker request: %w", err)}
+			return
+		}
+		var response workerResponse
+		if err := conn.decoder.Decode(&response); err != nil {
+			result <- workerExchange{err: fmt.Errorf("read ONNX worker response: %w; log: %s", err, conn.log())}
+			return
+		}
+		result <- workerExchange{response: response}
+	}()
+	return result
+}
+
+// finish turns a completed round trip into vectors. Protocol and I/O errors
+// drop the process (the next request starts a new one); errors the worker
+// reports itself leave it running.
+func (worker *onnxWorkerEmbedder) finish(conn *onnxWorkerConn, request workerRequest, exchange workerExchange) ([][]float32, error) {
+	if exchange.err != nil {
+		worker.dropConn(conn)
+		return nil, exchange.err
+	}
+	response := exchange.response
 	if response.ID != request.ID {
-		_ = worker.forceCloseLocked()
+		worker.dropConn(conn)
 		return nil, fmt.Errorf("ONNX worker response ID %d, want %d", response.ID, request.ID)
 	}
 	if response.Error != "" {
 		return nil, fmt.Errorf("%s", response.Error)
 	}
+	worker.stateMu.Lock()
 	worker.backendVerified = response.BackendVerified
-	if len(response.Vectors) != len(texts) {
-		return nil, fmt.Errorf("ONNX worker returned %d vectors for %d texts", len(response.Vectors), len(texts))
+	worker.stateMu.Unlock()
+	if len(response.Vectors) != len(request.Texts) {
+		return nil, fmt.Errorf("ONNX worker returned %d vectors for %d texts", len(response.Vectors), len(request.Texts))
 	}
 	for i := range response.Vectors {
 		if err := validateGraniteVector(response.Vectors[i]); err != nil {
@@ -232,23 +420,135 @@ func (worker *onnxWorkerEmbedder) Embed(ctx context.Context, texts []string) ([]
 	return response.Vectors, nil
 }
 
-func (worker *onnxWorkerEmbedder) decodeWithContext(ctx context.Context) (workerResponse, error) {
-	type decodeResult struct {
-		response workerResponse
-		err      error
+// drain owns the slot of an abandoned request: it waits for the response
+// (bounded by drainTimeout), discards it and frees the slot. A broken response
+// or a worker that stays silent past the timeout gets the process killed, with
+// one warning: no caller is left to receive the error.
+func (worker *onnxWorkerEmbedder) drain(conn *onnxWorkerConn, requestID uint64, result <-chan workerExchange) {
+	defer func() { <-worker.slot }()
+	timer := time.NewTimer(worker.drainTimeout)
+	defer timer.Stop()
+	select {
+	case exchange := <-result:
+		switch {
+		case exchange.err != nil:
+			worker.dropAfterDrain(conn, requestID, exchange.err.Error())
+		case exchange.response.ID != requestID:
+			worker.dropAfterDrain(conn, requestID, fmt.Sprintf("response ID %d, want %d", exchange.response.ID, requestID))
+		}
+	case <-timer.C:
+		worker.dropAfterDrain(conn, requestID, fmt.Sprintf("no response within %s", worker.drainTimeout))
 	}
-	resultChannel := make(chan decodeResult, 1)
+}
+
+// dropAfterDrain logs why a drained worker is dropped, then drops it. After
+// Close the process is stopped on purpose, so that failure is not worth a warning.
+func (worker *onnxWorkerEmbedder) dropAfterDrain(conn *onnxWorkerConn, requestID uint64, reason string) {
+	if !worker.isClosed() {
+		worker.logger.Warn("Abandoned ONNX worker request ended badly; dropping the worker process",
+			"request_id", requestID,
+			"reason", reason,
+			"log", conn.log())
+	}
+	worker.dropConn(conn)
+}
+
+// connection returns the live process, starting a new one when the previous
+// died on its own and the restart budget allows it. Caller holds the slot.
+//
+// The start runs on its own deadline, detached from ctx: a model load can take
+// longer than the callers' deadlines, and a start that died with its caller was
+// refunded and begun again by the next request, so the worker never came back.
+// A caller whose ctx ends first gets its ctx error and slotHandedOff: the slot
+// then belongs to finishRespawn, and the respawn token stays spent.
+func (worker *onnxWorkerEmbedder) connection(ctx context.Context) (conn *onnxWorkerConn, slotHandedOff bool, err error) {
+	worker.stateMu.Lock()
+	closed, current := worker.closed, worker.conn
+	worker.stateMu.Unlock()
+	if closed {
+		return nil, false, errONNXWorkerClosed
+	}
+	if current != nil {
+		return current, false, nil
+	}
+	if !worker.respawns.take() {
+		return nil, false, fmt.Errorf("ONNX worker restart limit reached (%d per %s)", maxProcessRestarts, processRestartWindow)
+	}
+	startCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), onnxStartupTimeout)
+	started := make(chan onnxRespawn, 1)
 	go func() {
-		var response workerResponse
-		err := worker.decoder.Decode(&response)
-		resultChannel <- decodeResult{response: response, err: err}
+		defer cancel()
+		fresh, err := worker.start(startCtx, worker.options)
+		started <- onnxRespawn{conn: fresh, err: err}
 	}()
 	select {
+	case respawn := <-started:
+		fresh, err := worker.adoptRespawn(respawn)
+		return fresh, false, err
 	case <-ctx.Done():
-		return workerResponse{}, ctx.Err()
-	case result := <-resultChannel:
-		return result.response, result.err
+		go worker.finishRespawn(started)
+		return nil, true, ctx.Err()
 	}
+}
+
+// onnxRespawn is the outcome of one worker start.
+type onnxRespawn struct {
+	conn *onnxWorkerConn
+	err  error
+}
+
+// adoptRespawn makes the process of a finished start the live one, unless the
+// embedder was closed meanwhile: then the process is stopped, not leaked.
+func (worker *onnxWorkerEmbedder) adoptRespawn(respawn onnxRespawn) (*onnxWorkerConn, error) {
+	if respawn.err != nil {
+		return nil, fmt.Errorf("restart ONNX worker: %w", respawn.err)
+	}
+	worker.stateMu.Lock()
+	if worker.closed {
+		worker.stateMu.Unlock()
+		_ = respawn.conn.stop()
+		return nil, errONNXWorkerClosed
+	}
+	worker.adoptLocked(respawn.conn)
+	worker.stateMu.Unlock()
+	return respawn.conn, nil
+}
+
+// finishRespawn owns the slot of a respawn whose caller left, the way drain
+// owns the slot of an abandoned request: it waits for the start (which ends by
+// itself at onnxStartupTimeout), adopts the process for the next request, logs
+// a failure that no caller is left to receive, and frees the slot.
+func (worker *onnxWorkerEmbedder) finishRespawn(started <-chan onnxRespawn) {
+	defer func() { <-worker.slot }()
+	if _, err := worker.adoptRespawn(<-started); err != nil && !errors.Is(err, errONNXWorkerClosed) {
+		worker.logger.Warn("ONNX worker respawn failed after its caller left", "error", err)
+	}
+}
+
+// adoptLocked makes conn the live process. Callers other than the constructor
+// hold stateMu.
+func (worker *onnxWorkerEmbedder) adoptLocked(conn *onnxWorkerConn) {
+	worker.conn = conn
+	worker.version = conn.hello.Version
+	worker.providers = conn.hello.Providers
+	worker.backendVerified = conn.hello.BackendVerified
+}
+
+// dropConn kills a process that can no longer be trusted. The embedder keeps
+// working: the next request starts a new process within the restart budget.
+func (worker *onnxWorkerEmbedder) dropConn(conn *onnxWorkerConn) {
+	worker.stateMu.Lock()
+	if worker.conn == conn {
+		worker.conn = nil
+	}
+	worker.stateMu.Unlock()
+	_ = conn.stop()
+}
+
+func (worker *onnxWorkerEmbedder) isClosed() bool {
+	worker.stateMu.Lock()
+	defer worker.stateMu.Unlock()
+	return worker.closed
 }
 
 func (worker *onnxWorkerEmbedder) Dimensions() int {
@@ -264,11 +564,15 @@ func (worker *onnxWorkerEmbedder) Fingerprint() string {
 }
 
 func (worker *onnxWorkerEmbedder) Status() Status {
-	worker.mu.Lock()
-	defer worker.mu.Unlock()
+	worker.stateMu.Lock()
+	defer worker.stateMu.Unlock()
 	state := "ready"
-	if worker.closed {
+	switch {
+	case worker.closed:
 		state = "closed"
+	case worker.conn == nil && worker.respawns.remaining() == 0:
+		// The process is gone and the next Embed may not start another one.
+		state = "unavailable"
 	}
 	return Status{
 		State:        state,
@@ -285,35 +589,33 @@ func (worker *onnxWorkerEmbedder) Status() Status {
 	}
 }
 
+// Close ends the worker for good; unlike a crash it is never followed by a
+// restart. It admits no new request, then waits (bounded by closeWait) for the
+// request in flight or the drain in progress, so a backend swap does not fail
+// the callers still embedding on the old one. After the wait, or when it runs
+// out, the process is stopped anyway. Safe to call more than once.
 func (worker *onnxWorkerEmbedder) Close() error {
-	worker.mu.Lock()
-	defer worker.mu.Unlock()
-	return worker.forceCloseLocked()
-}
-
-func (worker *onnxWorkerEmbedder) forceClose() error {
-	worker.mu.Lock()
-	defer worker.mu.Unlock()
-	return worker.forceCloseLocked()
-}
-
-func (worker *onnxWorkerEmbedder) forceCloseLocked() error {
-	if worker.closed {
-		return nil
-	}
+	worker.stateMu.Lock()
 	worker.closed = true
-	if worker.stdin != nil {
-		_ = worker.stdin.Close()
+	worker.stateMu.Unlock()
+
+	timer := time.NewTimer(worker.closeWait)
+	defer timer.Stop()
+	select {
+	case worker.slot <- struct{}{}:
+		// Owning the slot means no request is running when the process stops.
+		defer func() { <-worker.slot }()
+	case <-timer.C:
 	}
-	if worker.command == nil || worker.command.Process == nil {
+
+	worker.stateMu.Lock()
+	conn := worker.conn
+	worker.conn = nil
+	worker.stateMu.Unlock()
+	if conn == nil {
 		return nil
 	}
-	_ = worker.command.Process.Kill()
-	err := worker.command.Wait()
-	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "killed") {
-		return fmt.Errorf("wait for ONNX worker: %w", err)
-	}
-	return nil
+	return conn.stop()
 }
 
 type limitedBuffer struct {

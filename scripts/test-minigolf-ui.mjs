@@ -26,7 +26,7 @@ assert.equal(Array.from(cleanName(String.fromCodePoint(0x1f600).repeat(30))).len
 assert.equal(cleanName('Ada' + ' '.repeat(21) + 'Lovelace'), 'Ada', 'trims again after cutting');
 assert.deepEqual(uniqueNames(['Ada 2', 'Ada', 'ada']), ['Ada 2', 'Ada', 'ada 3']);
 assert.deepEqual(uniqueNames(['y'.repeat(24), 'y'.repeat(24)]), ['y'.repeat(24), 'y'.repeat(22) + ' 2'], 'suffix stays within 24 code points');
-assert.deepEqual(worldIds([{ world: 'garden' }, { world: 'coast' }, { world: 'garden' }, { world: 'Bad' }]), ['garden', 'coast']);
+assert.deepEqual(worldIds([{ world: 'temple' }, { world: 'pirate' }, { world: 'temple' }, { world: 'Bad' }]), ['temple', 'pirate']);
 assert.ok(FLOOR_SURFACES.has('grass') && FLOOR_SURFACES.has('sand') && !FLOOR_SURFACES.has('wood'));
 assert.equal(formatToPar(0, 'Par'), 'Par');
 assert.equal(formatToPar(-2, 'Par'), String.fromCharCode(0x2212) + '2');
@@ -86,6 +86,8 @@ assert.equal(lane.walls.length, 12, 'rail tops count, the vertical rail side doe
 assert.deepEqual(lane.frame, { min: [-1.5, -3.5], max: [2.5, 3.5] }, 'floor bounds plus 0.5 m');
 assert.deepEqual(lane.water, [{ min: [2, -1], max: [3, 1] }]);
 assert.deepEqual(laneGeometry({ bounds: { min: [-5, -1, -4], max: [5, 2, 4] } }).frame, { min: [-5, -4], max: [5, 4] }, 'no floor falls back to bounds');
+const typedLane = laneGeometry({ bounds: { min: [-5, -1, -5], max: [5, 2, 5] }, colliders: [{ type: 'mesh', surface: 'grass', vertices: Float32Array.of(-1, 0, -3, 1, 0, -3, 1, 0, 3, -1, 0, 3), indices: Uint32Array.of(0, 1, 2, 0, 3, 2) }] });
+assert.deepEqual(typedLane.floor.grass, lane.floor.grass, 'typed collider arrays give the same lane triangles');
 const area = (list, at) => ((list[at + 2] - list[at]) * (list[at + 5] - list[at + 1]) - (list[at + 4] - list[at]) * (list[at + 3] - list[at + 1])) / 2;
 assert.equal(new Set([area(lane.floor.grass, 0), area(lane.floor.grass, 6), area(lane.floor.sand, 0)].map(Math.sign)).size, 1, 'floor triangles share one winding, so one fill never cancels overlaps');
 const gate = { obstacles: [{ id: 'gate', position: [0, 0.3, 0], halfExtents: [1, 0.1, 1], colliders: [{ position: [0, 0, 0], halfExtents: [1, 0.1, 0.2] }, { position: [0, 0, 0], halfExtents: [0.2, 0.1, 1] }] }] };
@@ -93,6 +95,9 @@ const xs = outline => outline.filter((_, index) => index % 2 === 0), zs = outlin
 const still = obstacleOutlines(gate);
 assert.equal(still.length, 2, 'one outline per obstacle part');
 close(Math.max(...xs(still[0])), 1, 1e-9, 'unrotated bar width'); close(Math.max(...zs(still[0])), 0.2, 1e-9, 'unrotated bar depth');
+const round = obstacleOutlines({ obstacles: [{ id: 'post', position: [1, 0.3, 2], colliders: [{ shape: 'ball', position: [0, 0, 0], radius: 0.5 }, { shape: 'cylinder', position: [1, 0, 0], radius: 0.25, halfHeight: 0.3 }] }] });
+assert.equal(round.length, 2, 'ball and cylinder parts get an outline');
+close(Math.max(...xs(round[0])), 1.5, 1e-9, 'ball outline radius'); close(Math.max(...zs(round[0])), 2.5, 1e-9, 'ball outline depth'); close(Math.max(...xs(round[1])), 2.25, 1e-9, 'cylinder outline centre and radius');
 const turned = obstacleOutlines(gate, [{ id: 'gate', position: [2, 0.3, 0], rotation: [0, Math.SQRT1_2, 0, Math.SQRT1_2] }]);
 close(Math.max(...xs(turned[0])), 2.2, 1e-9, 'physics pose turns and moves the bar'); close(Math.max(...zs(turned[0])), 1, 1e-9, 'turned bar depth');
 close(Math.min(...xs(obstacleOutlines({ obstacles: [{ id: 'box', position: [2, 0, 0], halfExtents: [0.5, 0.1, 0.5] }] })[0])), 1.5, 1e-9, 'single-box obstacle');

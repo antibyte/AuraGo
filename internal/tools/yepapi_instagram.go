@@ -12,14 +12,14 @@ type instagramUserLookup struct {
 	usernameOrURL string
 }
 
-func instagramUserLookupArg(args map[string]interface{}) instagramUserLookup {
+func instagramUserLookupArg(args map[string]interface{}, operation string) instagramUserLookup {
 	if value, ok := args["username_or_url"].(string); ok && strings.TrimSpace(value) != "" {
 		return instagramUserLookup{
 			username:      normalizeInstagramUsername(value),
 			usernameOrURL: strings.TrimSpace(value),
 		}
 	}
-	value := stringArgWithFallback(args, "username")
+	value := stringArgForOperation(args, operation, "username")
 	if strings.TrimSpace(value) == "" {
 		return instagramUserLookup{}
 	}
@@ -66,6 +66,7 @@ func normalizeInstagramUsername(value string) string {
 
 // DispatchYepAPIInstagram handles Instagram data operations via YepAPI.
 func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_instagram", operation)
 	switch operation {
 	case "search":
 		query := instagramSearchQueryArg(args)
@@ -74,7 +75,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		}
 		endpoint := "/v1/instagram/search"
 		payload := map[string]interface{}{"search_query": query}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -108,13 +109,13 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return dispatchInstagramUsername(ctx, client, "/v1/instagram/user-similar", operation, args, true)
 
 	case "post":
-		shortcode := stringArgWithFallback(args, "shortcode")
+		shortcode := stringArgForOperation(args, "post", "shortcode")
 		if shortcode == "" {
 			return yepAPIFormatError("post operation requires a 'shortcode' string"), nil
 		}
 		endpoint := "/v1/instagram/post"
 		payload := map[string]interface{}{"shortcode": shortcode}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -127,26 +128,26 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return dispatchInstagramShortcode(ctx, client, "/v1/instagram/post-likers", operation, args, true)
 
 	case "hashtag":
-		tag := stringArgWithFallback(args, "tag")
+		tag := stringArgForOperation(args, "hashtag", "tag")
 		if tag == "" {
 			return yepAPIFormatError("hashtag operation requires a 'tag' string (without #)"), nil
 		}
 		endpoint := "/v1/instagram/hashtag"
 		payload := map[string]interface{}{"tag": tag}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
 		return formatInstagramPayloadSuccess(data, endpoint, operation, payload), nil
 
 	case "media_id":
-		shortcode := stringArgWithFallback(args, "shortcode")
+		shortcode := stringArgForOperation(args, "media_id", "shortcode")
 		if shortcode == "" {
 			return yepAPIFormatError("media_id operation requires a 'shortcode' string"), nil
 		}
 		endpoint := "/v1/instagram/media-id"
 		payload := map[string]interface{}{"shortcode": shortcode}
-		data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}
@@ -155,11 +156,6 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 	default:
 		return "", fmt.Errorf("unknown yepapi_instagram operation: %s", operation)
 	}
-}
-
-func postInstagramPayload(ctx context.Context, client *YepAPIClient, endpoint, operation string, payload map[string]interface{}) ([]byte, error) {
-	logYepAPIRequestPayload(ctx, "yepapi_instagram", operation, endpoint, payload)
-	return client.Post(ctx, endpoint, payload)
 }
 
 func instagramPayloadDiagnostics(endpoint, operation string, payload map[string]interface{}) map[string]interface{} {
@@ -175,7 +171,7 @@ func formatInstagramPayloadSuccess(data []byte, endpoint, operation string, payl
 }
 
 func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
-	lookup := instagramUserLookupArg(args)
+	lookup := instagramUserLookupArg(args, operation)
 	if lookup.username == "" && lookup.usernameOrURL == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'username' or 'username_or_url' string", operation)), nil
 	}
@@ -186,7 +182,7 @@ func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoi
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}
-	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+	data, err := client.Post(ctx, endpoint, payload)
 	if err != nil {
 		return "", err
 	}
@@ -194,7 +190,7 @@ func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoi
 }
 
 func dispatchInstagramShortcode(ctx context.Context, client *YepAPIClient, endpoint, operation string, args map[string]interface{}, withLimit bool) (string, error) {
-	shortcode := stringArgWithFallback(args, "shortcode")
+	shortcode := stringArgForOperation(args, operation, "shortcode")
 	if shortcode == "" {
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'shortcode' string", operation)), nil
 	}
@@ -202,7 +198,7 @@ func dispatchInstagramShortcode(ctx context.Context, client *YepAPIClient, endpo
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}
-	data, err := postInstagramPayload(ctx, client, endpoint, operation, payload)
+	data, err := client.Post(ctx, endpoint, payload)
 	if err != nil {
 		return "", err
 	}

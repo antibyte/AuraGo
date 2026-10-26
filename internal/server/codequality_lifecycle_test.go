@@ -3,7 +3,6 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/security"
-	"crypto/sha256"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +26,7 @@ func TestLogoutRevocationSurvivesReloadAndLeavesNewSessionValid(t *testing.T) {
 	if !revokeRequestSession(s, request) {
 		t.Fatal("revocation failed")
 	}
-	key := sha256.Sum256([]byte(secret + "\x00" + cookie))
+	key := sessionRevocationKey(secret, cookie)
 	revokedSessions.Lock()
 	delete(revokedSessions.entries, key)
 	revokedSessions.Unlock()

@@ -21,6 +21,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- `cfg/s3.js` owns external S3 settings and optional managed RustFS. Preserve external fields on provider changes; bucket/prefix rows replace one atomic list in the shared draft. Lifecycle and probes use saved settings; polling is fenced by view and saved-generation identity and ends on navigation. Docker read-only disables lifecycle actions, not observations. Dashboard distinguishes configured from observed runtime readiness and links to `/config#s3`. Verify `TestRustFSS3SettingsBrowser`, `TestRustFSS3LocalesAreComplete` and `TestRustFSDashboardSeparatesConfiguredAndObservedState`; runtime contract: `../internal/rustfs/AGENTS.md`.
+
+- Provider editors own the revision and draft they opened. Save with that revision, disable duplicate saves, retain drafts on conflicts and require explicit reload. Background refresh must not lend a newer revision to an old draft. Modal close cancels/ignores its requests and picker results; model selection never mutates another settings section's budget draft.
+- Credentials have explicit removal actions; masks only retain stored values. Allow incomplete drafts and valid custom/local HTTP(S) hosts. Diagnostics are passive; metadata/generation tests use saved settings, with a separate cost confirmation for generation and no automatic generation fallback. Keep all changed copy translated across 16 locales. Verify `TestProviderRevisionAndSavedTestsBrowser`, `TestProviderSafetyLocalesComplete` and provider usage round-trip coverage.
+- Explicit credential removal survives a change of authentication type in the same modal. Verify `TestProviderClearKeySurvivesAuthTypeChangeBrowser` in addition to same-authentication removal.
+
+- Ollama config displays a derived read-only URL in managed mode. Connection tests and Recreate require saved settings; Recreate confirms interruption and polls its receipt through slow image/model downloads. Docker read-only disables lifecycle mutations, not observation. Polls end on terminal state/navigation and ignore detached or stale responses. Embeddings show managed Ollama model state. All operation labels and help remain translated in all 16 locales. Verify `TestOllamaManagedLifecycleBrowser` and `TestOllamaOperationLocalesAreComplete`.
+
 - Action-policy blocks are terminal outcomes, not queued/running work. Dashboard
   background tasks render `blocked` with `last_error: action_rule_required` as a
   translated missing-rule diagnosis linking to `/config#danger`; active counters
@@ -83,8 +91,58 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
   forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
   `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
+- Chat YouTube players are DOM-built in `js/chat/chat-messages.js`. They use
+  `referrerpolicy="no-referrer"`, omit `clipboard-write` and `web-share`, and
+  set the youtube-nocookie `src` only after a local play click. They do not use
+  `sandbox="allow-same-origin"`. Start times over 48 hours are rejected. Verify
+  `TestChatFrontend_VideoPlayerFlowRemainsPresent`.
 
 ## Local Contracts
+
+- Shared QR editing is lazy key `qr`: `js/desktop/shared/qr-dialog.js` and
+  `css/desktop-qr.css`. Writer, Sheets and Pixel use the same local Go renderer,
+  scanner, configuration normalizer and CSV batch service. Payloads stay in POST
+  bodies, never URLs; previews do not publish files. `desktop.qr_*` and QR agent
+  Config/help keys live in all sixteen Desktop locale files.
+- Calendar QR drafts capture one RFC3339 creation timestamp for stable DTSTAMP
+  bytes across preview, styling and export; configuration import retains the
+  normalized timestamp. vCards expose separate work/private/mobile numbers;
+  local telephone numbers are retained with the core's country-context warning.
+- A QR dialog belongs to its initiating window and captured document/selection.
+  Preview, export and insertion use the same configuration revision; superseded
+  responses cannot replace a preview or mutate another document. Close/dispose
+  aborts requests and file readers, clears drafts/listeners/timers, revokes blob
+  URLs and stops all camera tracks, including a permission request that resolves
+  after close. Scanned content is text only and never executes.
+- QR localStorage contains only compact/full-view and pinned-control preferences.
+  Full configuration files include content, captions and embedded resources only
+  after explicit save; `/api/qr/config` normalizes images before download. Raster
+  and restricted SVG logo/background uploads are normalized by Go, never browser
+  SVG execution; scanning accepts PNG/JPEG/GIF/WebP. Explicit guarded URL imports
+  never create rendering-time network dependencies. Fonts use the fixed local
+  catalog in `fonts/qr/AGENTS.md`.
+- QR agent exposure (`tools.qr_code.enabled`, default off; `readonly`, default on)
+  is separate from human editor access. Read-only agent access permits scanning
+  and catalog reads; publication remains disabled. Existing editor restrictions
+  still govern insertion. Verify `TestQRDialogWriterPixelBrowser`,
+  `node scripts/test-pixel-qrcode.mjs`, `node scripts/test-qr-config.mjs`, the
+  Pixel suite and Desktop i18n checks;
+  actual camera hardware and printed-page scanning remain separate acceptance.
+  Operator workflow and input/output limits are in
+  [QR codes](../documentation/qr-code.md).
+- QR CSV file imports decode UTF-8 strictly, accept an optional UTF-8 BOM and
+  retain the prior draft on invalid encoding. Late file reads cannot replace a
+  newer selection or edits. Insertion callbacks receive the operation's abort
+  signal; closing or changing the dialog must cancel pending insertion work.
+
+- Dashboard Tools owns the self-test card (`js/dashboard/self-tests.js`): explicit Start/Stop, read/fixture/exact-binding profiles, KPI summary before a closed details table and fixed same-origin Markdown/JSON downloads. Dynamic values use `textContent`; prevent duplicate starts, discard stale requests and stop polling while hidden. Keep `dashboard.selftest_*` aligned in all 16 locales. Verify `TestSelfTestDashboard*` and `node ui/testdata/selftests.cjs`; backend/evidence contracts belong to `internal/selftest/AGENTS.md`.
+
+- Speech Output defaults to `phonon` with automatic language/voice on fresh setup.
+  The Phonon picker uses `AuraConfigState`, retains manual voices across navigation
+  and async catalog refreshes, and separates downloads from selection/saving.
+  Catalog reads are passive; only explicit download buttons install a voice.
+  Late responses cannot repaint another section. Keep all sixteen TTS locales
+  and `TestPhononConfigDownloadAndDraftBrowser` aligned.
 
 ### Render and asynchronous ownership
 
@@ -151,7 +209,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   requires a clean draft and uses saved settings, with a separate explicit
   helper action and cancellation on disposal. `common.llm_router.*` covers all
   sixteen locales. Chat/Desktop `llm_route` badges use text-only, turn-scoped
-  metadata; Dashboard counters never imply unreported usage is free. Verify
+  metadata. Their `AuraLLMRouteLabel`/`AuraLLMRouteBadge` helpers live in the
+  production `js/shared/shared-core.js`; browser tests must use the page's
+  loaded helpers without injecting them from legacy `shared.js`.
+  Dashboard counters never imply unreported usage is free. Verify
   `TestLLMRouterConfigBrowser`, `TestTaskRouter*` and canonical UI bundles.
   Offer Agnes chat providers and their configured models, including models newer
   than the catalog; exclude Agnes image/video generation choices.
@@ -189,18 +250,24 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Chat history loads are session-generation bound through every rendered batch; a late fetch or animation-frame continuation cannot append to a newer session. Store dialogs clear input values and attributes on close/dispose, and late API responses cannot reopen them. Verify `TestChatHistorySwitchDropsLateBatchesBrowser` and `TestSoftwareStoreDisposesSensitiveDialogsBrowser`.
 
 - Radio, Personal Radio, and RTL-SDR use separate icon keys and assets in both Papirus and WhiteSur. Keep the backend app manifests, Desktop mappings, theme manifests, and generated main bundle aligned; verify `TestDesktopRadioAppsHaveDistinctThemeIcons`.
-- Theme manifests reference only their own `img/papirus/icons/` or `img/whitesur/icons/` assets; an app logo such as `img/desktop-icons/layerling.svg` stays `logo_path` metadata. Verify `TestDesktopWhiteSurAssetsAreEmbedded`.
+- Theme manifests reference only assets inside their own theme directory; an app logo such as `img/desktop-icons/layerling.svg` stays `logo_path` metadata. Tela, Candy, Fluent and Buuf use version-2 action/scheme/folder palettes with per-use provenance; their import owner is `../assets/desktop-icon-themes/AGENTS.md`. `icon-theme-resolver.js` is shared by the shell and generated SDK; edit SDK behavior in `sdk-runtime.js`. Explicit `folder` roles distinguish folders from files, and `action` roles select small controls. Appearance updates use current document-bound MessagePorts and invalidate SDK caches/render epochs. Preserve readable missing-asset fallbacks. Verify `TestDesktopAdditionalIcon*`, `TestDesktopWhiteSurAssetsAreEmbedded` and the importer checks in `../documentation/desktop-icon-themes.md`.
 
 - Desktop theme system: `DESKTOP_THEMES` in `js/desktop/core/theme-runtime.js` is the only theme registry. It loads right after `desktop-foundation.js` and holds one `Object.freeze({ id: '...', ... })` descriptor per line, with the keys in the order `desktopThemeKeyOrder` lists in `ui/desktop_theme_registry_test.go`. Its ids and order must equal `desktop.DesktopThemeIDs()` (`internal/desktop/themes.go`); `light` and `dark` are reserved. Verify `TestDesktopThemeRegistryMatchesGoAndAssets`.
 - `applyDesktopThemeAttributes()`, called by `applyDesktopSettings()`, sets the `<body>` attributes `data-theme` (skin rules), `data-shell` (`taskbar` or `dock`; layout rules), `data-scheme` (`light` or `dark`; apps read and observe it) and `data-polish` (`on` or `off`; gates `desktop-polish.css`). Shell code asks `shellLayout()`, `themeUsesGlobalMenu()`, `themeScheme()`, `themeMotionMs(kind)` and `themeIconFamily()`, never a theme id; `isFruityTheme()` is a test-marker alias only.
 - An open desktop radial menu must not stay inside backdrop-filter chrome. The taskbar, dock status pill and global menu bar blur their backdrop, and overflowing descendants paint behind that blur. `placeLiftedRadialMenu()` parks a placeholder in the tray and holds `#radialMenuAnchor` on `document.body` until the menu closes. Verify `TestVirtualDesktopCreatesRadialMenuAnchorDynamically` and `TestDesktopFruityDockBrowser`.
 - Skins are `css/desktop-theme-<id>.css` (underscores become dashes), bundled after `desktop-wallpaper-live.css` and before `desktop-polish.css`, which stays last. Standard and Fruity have no skin file. Their core tokens live in `desktop-base.css` and their `--vd-theme-*` bridge in `desktop-shell-overrides.css`, whose `.desktop-body[data-theme]` rule resolves the legacy control tokens through `--vd-theme-*`.
-- Skin contract (`ui/desktop_theme_css_contract_test.go`): every selector starts with `.desktop-body[data-theme="<id>"]`. The first rule is that bare root rule and defines the whole token set: `color-scheme` (equal to the registry scheme), core `--vd-*`, the 17 `--vd-theme-*` bridge tokens, `--vd-chrome-*`, `--ds-*` and `--vd-accent-contrast` (text colour on the accent; required on every theme root, at least 4.5:1 on fixed accents). Fixed accents also define `--vd-accent`, `--vd-accent-r/-g/-b` and `--vd-accent-glow`; user-accent themes must not. `--vd-text` on the app and panel backgrounds, and `--vd-theme-muted` on the app background, reach 4.5:1. The optional token `--vd-theme-overlay-blur` defaults to `blur(10px) saturate(1.08)` on `.desktop-body` and drives the backdrop blur of the app modal overlays in `desktop-app-common.css`; Amiga sets it to `none`.
+- Skin contract (`ui/desktop_theme_css_contract_test.go`): every selector starts with `.desktop-body[data-theme="<id>"]`. The first rule is that bare root rule and defines the whole token set: `color-scheme` (equal to the registry scheme), core `--vd-*`, the 17 `--vd-theme-*` bridge tokens, `--vd-chrome-*`, `--ds-*` and `--vd-accent-contrast` (text colour on the accent; required on every theme root, at least 4.5:1 on fixed accents). Fixed accents also define `--vd-accent`, `--vd-accent-r/-g/-b` and `--vd-accent-glow`; user-accent themes must not. `--vd-text` on the app and panel backgrounds, and `--vd-theme-muted` on the app background, reach 4.5:1. A theme with a `schemeSetting` (Minimal) also has a plain dark root rule, `.desktop-body[data-theme="<id>"][data-scheme="dark"]`, that sets `color-scheme: dark`. It may set the root-only tokens (`color-scheme`, `--vd-theme-app-bg`, `--vd-theme-panel-bg`, `--vd-text`, `--vd-theme-muted`, `--vd-accent` and `--vd-accent-contrast`). The contract merges it over the root and measures its contrast and scheme the same way. Those tokens set in any other rule fail the contract. The optional token `--vd-theme-overlay-blur` defaults to `blur(10px) saturate(1.08)` on `.desktop-body` and drives the backdrop blur of the app modal overlays in `desktop-app-common.css`; Amiga sets it to `none`.
 - Motion: `prefers-reduced-motion: reduce` is enforced globally by the override in `desktop-shell-overrides.css`, which sets transition and animation durations to 0 ms and animation iteration counts to one, so skins need no reduced-motion query of their own. Skins additionally gate every `animation` behind `:not([data-animations="false"])` (the Window animations switch). Keyframes are named `vd-theme-<id>-*` and animate only `transform`, `opacity`, `offset` and `animation-timing-function`. A skin stays under 900 lines and Crazy has at most 6 `infinite` animations. `will-change` goes on decorative animated layers and the effects layer, never on a window; `!important` only beats a base rule that is itself `!important` (say so in a comment); `clip-path` only on decorative pseudo-elements. `@font-face` families start with `Desktop Theme `.
 - Skins restyle shell surfaces (taskbar or dock, menus, window frames, controls, icons, dialogs) and must not target an app's own classes, except an App tokens rule on an app root that sets the tokens the app exposes for fixed accents (`.vs-app` `--vs-accent-strong`/`--vs-accent-hover`, `.code-studio` `--cs-accent-contrast`). App interiors read `--vd-theme-*`; see the App theme bridge contract in `js/desktop/apps/AGENTS.md`. On coarse pointers the global menu bar is 44 px with 44 px tray controls, and below 1024 px the window menus take a second 44 px row (`desktop-chrome.css`); Amiga sizes its gadgets from the bar height and opts out of the second row in its skin.
-- Effects: `fx: true` loads the lazy `desktop-theme-fx` bundle (`theme-fx/fx-core.js`, then `theme-fx/<id>.js`, which calls `register('<id>', { start })`). `syncDesktopThemeFx()` runs the effect only when the theme has `fx`, animations are on, reduced motion is off and the desktop is not in mobile mode; otherwise it stops it. The host owns `.vd-theme-fx-layer`, the AbortSignal and the hidden-tab pause.
-- Wallpaper follow: `followThemeWallpaper()` moves `appearance.wallpaper` to the new theme's suggestion only while every space still shows the previous suggestion or `groupshoot`. A wallpaper the user picked is never changed.
-- Settings picker (`js/desktop/apps/settings.js`): a card grid saved through `saveDesktopSetting('appearance.theme')`, which also pairs `appearance.icon_theme` with the theme's `iconTheme`. The light/dark row shows only for themes with `schemeSetting`; the accent row only for `accent: 'user'`.
+- Effects: `fx: true` loads the lazy `desktop-theme-fx` bundle (`theme-fx/fx-core.js`, then `theme-fx/<id>.js`, which calls `register('<id>', { start })`). `staticFx: true` keeps material rendering when motion is disabled; the host receives `{ motion, wallpaper }`. Mobile uses the complete CSS skin. Theme/wallpaper changes invalidate late loads and dispose the previous instance. The host owns `.vd-theme-fx-layer`, the AbortSignal, hidden-tab pause and pagehide cleanup. `AuraDesktopThemeFx.inspect()` exposes copied diagnostics for browser verification.
+- Experience themes consume `aurago:desktop-window` from `core/window-effects-runtime.js` and `aurago:desktop-windows-refresh`; never mutate window/application state from effects. `close` fires only after the close guard accepts. `silent` suppresses bursts/sound but never static materials. Geometry snapshots exclude closed, hidden and inactive-space windows. Motion updates follow the manager's animation-frame batching. App contents and foreground windows must be masked; desktop icons/widgets behind a window must not cut holes in its frame. Dragged widgets, menus and dialogs remain foreground masks. All effect layers use `pointer-events: none`. Electronic Dreams reserves a separate component strip in the titlebar grid; never paint it over menus or app content. Verify `TestDesktopLivingMaterialsIdleBrowser` and `TestDesktopExperienceEffectOcclusionBrowser`.
+- Green Slime springs store local offsets, never delayed screen positions. Fill the membrane between the deforming outer contour and the fixed, rounded DOM aperture; use the actual corner radii for masks. Paint manager motion events in the same compositor frame. Keep window overflow visible for resize handles and menu popovers while content clips to its own corners. Invariants: one canvas, `.vd-fx-slime-canvas`; the Canvas 2D fallback replaces it and never adds a second, because a canvas keeps its WebGL context. The simulation (`green_slime_geometry.js`, `_bubbles.js`, `_touch.js`, `_sim.js`) stays DOM-free and runs in Node via `vm` (`testGreenSlimeSimulation`, `scripts/test-ui-regressions.mjs`). Gel radius is clamped to `MIN_GEL_RADIUS` (10 px) and `MAX_GEL_RADIUS` (44 px). Coverage contract: alpha of at least 220 near the frame (2 px and 7 px outside each edge and in the corners), alpha 0 inside content. Pointer input uses passive capture listeners on motion only and never calls `preventDefault` or `stopPropagation`; presses on `POKE_BLOCKERS` never poke the gel. WebGL2 (`green_slime_gl.js`) falls back to Canvas 2D on missing WebGL2, software GL (unless `window.__auraSlimeSoftwareGL`), shader build failure, `webglcontextlost` (for the rest of the instance) and sustained slow frames. Keep each file under 1100 lines; the split follows that convention (`scripts/test-infra-ui.mjs` enforces the limit only for the infra app). Sounds: bursts and strand snaps reach the sound system as `slime.pop`/`slime.snap` through `DesktopSounds.play` (the sim queues events, `takeEvents()` and `soundCue()` map them, the bridge's `sound()` calls); the effect never plays audio itself, and `sound-runtime.js` (theme FX table `THEME_FX`, shared with Voxel World) owns the gates and rate limits. Verify real drag/reversal/resize pixel coverage with `TestDesktopGreenSlimeAttachedMembraneBrowser`, six-window pause/disposal with `TestDesktopGreenSlimeSixWindowsBrowser`, the bubble, strand and drop paths with `TestDesktopGreenSlimeInteractionBrowser`, and review close-ups with `TestDesktopGreenSlimeCloseUpsBrowser` (`AURAGO_THEME_RECORDINGS=1`).
+- Voxel World uses its own lazy, pinned Three.js/Rapier bundle in `js/vendor/desktop-themes/`, built by `scripts/build-desktop-theme-vendor.mjs`; no game singleton. Use bounded instancing, fixed physics steps, disposal and a complete no-WebGL fallback. Verify `npm run check:desktop-themes` plus `TestDesktopExperience*` browser tests. Special sounds route through the normal sound gate as `window.fracture`/`window.impact`, only for the effective `voxel_world` sound bank. An impact requires incoming normal velocity, not support force from resting piles. Bound the group rate and volume, discard expired audio renders and cancel pending/active sounds on mute; verify `TestDesktopVoxelRestingPileQuietBrowser` and `TestDesktopSoundBrowser`.
+- Orbit (`theme-fx/orbit*.js`, `css/desktop-theme-orbit.css`) has its own lazy bundle `js/vendor/desktop-themes/orbit-runtime.js`, built by the same vendor script as Voxel World, and one scene canvas, `.vd-fx-orbit-scene`, built only with the Orbit wallpaper. The GLB pack in `ui/3d/desktop-theme-orbit/v1/` is verified by `scripts/test-desktop-theme-orbit-assets.mjs`. The choreography (`orbit-choreo.js`) and the particles (`orbit-particles.js`) stay DOM-free and run in Node (`testOrbitChoreoAndParticles`). The window bridge (`orbit-windows.js`) writes only `data-orbit-tilt` and its three tilt properties, never app state or input. `orbit-scene.js` is about 1,060 lines: keep it under 1,100 and split new code into its own part before it passes that limit. `orbit.js` publishes the scene's quality as `data-orbit-quality` on the body, which the skin's blur rule reads. The poster `ui/img/wallpapers/themes/orbit.png` is a still frame that `TestDesktopOrbitPosterBrowser` regenerates with `AURAGO_ORBIT_POSTER=1`; regenerate it after visible scene changes. Verify with `node scripts/test-ui-regressions.mjs`, the `TestDesktopOrbit*` browser tests and the Orbit close-ups.
+- `startMenu` is a declarative descriptor (`classic` or `xp`), published as `data-start-menu`. XP adds two-column shortcut navigation and its own system icon manifest; app identities can retain their existing local artwork.
+- XP shares `--vd-xp-title-height`/`--vd-xp-menu-height` between window tracks and titlebar tracks, including touch sizing. Keep the menubar inside those tracks. Its Start menu uses a single app list and a continuous pale-blue shortcut/category column with content-sized shortcut rows; use the canonical `desktop` icon key. Verify gaps, icon fallbacks, scrolling, touch targets and real menu/shortcut actions with `TestDesktopWindowsXPChromeBrowser`.
+- Wallpaper follow: `followThemeWallpaper()` remains available for conditional hand-over outside the explicit theme picker. Merely applying saved settings or restarting must preserve wallpaper and sound overrides.
+- Settings picker (`js/desktop/apps/settings.js`): choosing a theme deliberately applies its complete preset in one PUT: `appearance.theme`, `appearance.icon_theme`, `appearance.wallpaper`, empty `appearance.wallpaper_by_space`, enabled `appearance.theme_cursors`, and `sound.theme`. Do not enable sound or motion master switches. Subsequent individual customizations persist until another theme is selected. A failed save changes none of the preset. Verify `TestDesktopExperienceThemeAtomicSelectionBrowser`. The light/dark row shows only for themes with `schemeSetting`; the accent row only for `accent: 'user'`.
 - Thumbnails are `img/themes/<id>.svg`: schematic, at most 8192 bytes, with no script, `foreignObject`, event handler or URL except the XML namespace declarations. Every theme needs `desktop.settings_theme_<id>` and `desktop.settings_theme_<id>_desc` in all 16 `lang/desktop/*.json` files.
 - Standard/Fruity neutrality: a re-key of their shared tokens must leave every `reports/desktop-audit-browser/` screenshot from `TestDesktopAuditAppearanceBrowser` pixel-identical.
 - Add a theme: (1) descriptor line in `theme-runtime.js`; (2) the id at the same position in `DesktopThemeIDs()`; (3) `css/desktop-theme-<id>.css` in the `desktop-shell.bundle.css` entry of `scripts/build-ui-bundles.js`, plus `theme-fx/<id>.js` in the `desktop-theme-fx` bundle when `fx: true`; (4) `img/themes/<id>.svg`; (5) the two locale keys in 16 locales; (6) `npm run build:ui` and `npm run check:ui`, then `go test ./ui -run DesktopTheme -count=1` and `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_SWEEP=<id> go test ./ui -run TestDesktopThemeSweepBrowser -timeout 30m`.
@@ -244,6 +311,11 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   toggles. Volume saves must keep the Settings pane scroll; `sound-symbolic`
   uses the speaker mini icon or a currentColor mask. Verify markers with
   `TestDesktopSound*` and browser smoke with `AURAGO_RUN_BROWSER_SMOKE=1`.
+  Theme effect sounds (Voxel World `window.fracture`/`window.impact`, Green Slime
+  `slime.pop`/`slime.snap`) are one `THEME_FX` family table in `sound-runtime.js`
+  with coalescing, an expiry, per-family and per-event rate limits and lazily
+  rendered `specialFx[event][variant]` buffers; add a family there, never a second
+  queue.
 
 - The desktop screensaver is opt-in (`screensaver.*` settings, off by default).
   `core/screensaver-runtime.js` in `main.bundle.js` owns idle detection, suppression
@@ -261,11 +333,15 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   do not actuate arbitrary home devices for acceptance. App contracts live in
   `js/desktop/apps/AGENTS.md`.
 
-- Speech Output offers local CPU `sanotts` and automatic user language, with English
-  fallback for unavailable local voices. Quick Setup keeps this installation default
-  even when a provider profile supplies cloud TTS credentials. Existing saved provider
+- Speech Output retains local CPU `sanotts` as a fallback, using English for unavailable
+  local voices. Existing saved provider
   choices and the disabled option remain editable. Keep all `lang/config/tts/` locales
-  aligned; verify with `TestTTSConfigSanoDefaultsBrowser`.
+  aligned; verify with `TestTTSConfigSanoDefaultsBrowser`. Cloud choices include xAI,
+  OpenAI, StepFun and archived Resemble with separate Vault key saves, custom voices
+  and model selection. Keep provider availability notices visible and verify draft,
+  navigation and key masking with `TestTTSCloudProviderConfigBrowser`.
+  Shared config state resolves custom dropdown values through the adjacent
+  `data-custom-for` input during editing, snapshot collection and DOM restoration.
 
 - Speech Lab Config keeps a persistent live action status for refresh, deployment,
   hardware profile saves, and stack activation. Deployment actions poll the status API
@@ -374,7 +450,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   (`[data-pw-density-toggle]`, styled `pw-density-toggle`) next to the theme
   toggle; `js/precision/workspace.js` discovers it automatically.
 - Tab strips use the boxed Precision style only. Page tab classes
-  (`.kc-tab`, `.sk-tab`, `.media-tab`, `.dash-tab`, `.invasion-tab`,
+  (`.kc-tab`, `.sk-tab`, `.media-tab`, `.invasion-tab`,
   `.cheatsheet-tab`, `.tab` with `.ct-filter-btn`) must not re-skin tabs with
   underline indicators, pill shapes, or per-page tab backgrounds; shared tab
   visuals belong to `precision-pages.css`. Knowledge has no tab indicator
@@ -473,7 +549,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Integration actions that depend on credentials remain locked until the
   authoritative saved runtime status is ready. After `aurago:config-saved`,
   visible integration sections refresh that status; independent catalog
-  requests preserve successful results when a sibling request fails.
+  requests preserve successful results when a sibling request fails. A section
+  that caches its runtime status across renders (Netlify) drops that cache on
+  `aurago:config-saved` so a new token or toggle is visible without a reload.
 - Telephone agent is a dedicated lazy Config section under Agent & AI. SIP Phone
   owns account/network/trust/browser-media settings and only links to the
   telephone profile; it must not expose a second editable copy of `sip.voice`
@@ -496,6 +574,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   add progress to the chat transcript/tool result. Do not speak over the user or
   provider; stop in-flight audio on completion, cancellation, or session close.
   Feed audible progress clips to the same analyser-driven Persona mouth motion.
+  Forward the exact progress caption as `message` to the audio endpoint; the
+  server validates its translated phrase allowlist so spoken variants match.
 - SIP Phone surfaces `outbound_policy_migration_required` as a localized setup
   blocker.
 - Live Speech remembers the selected/started profile ID in browser storage
@@ -724,9 +804,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
   four distinct low-poly ships (saucer cruiser, cargo freighter, ring explorer,
-  shuttle) each bake their lit hull, bridge and engines into one mesh. Keep
-  diagonal courses visible at every aspect ratio and wrap fully offscreen.
-  Both effects use scene time and the existing pause/disposal lifecycle.
+  shuttle) each bake their lit hull, bridge, engines and thruster plumes into
+  one mesh with shader-driven thruster/strobe glow. Keep diagonal courses
+  visible at every aspect ratio and wrap fully offscreen. Planet/backdrop
+  shaders include subtle aurora, city-light shimmer, storm lightning and
+  micro-meteors; pointer movement drives gentle parallax and `--galaxy-mx` /
+  `--galaxy-my` glass highlights. All effects use scene time and the existing
+  pause/disposal lifecycle.
   No full-screen postprocessing. Start desktop at high quality with
   at most 1.5 DPR / 3840x2160 pixels, then lower resolution after sustained
   slow frames. Calibrate the idle display cadence during the first-frame fade;
@@ -849,6 +933,9 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Work Guidance
 
+- AI Gateway tests select saved providers and distinguish local routing, non-generating metadata and explicit billable model tests. Dirty drafts block tests. Abort on provider changes; stale responses or section disposal cannot repaint another selection. Keep all sixteen gateway/help/provider locale fragments aligned. Verify `TestAIGatewaySavedProviderDiagnosticsBrowser` and the provider/config roundtrip tests.
+- AI Gateway metadata retains incomplete, duplicate and excessive rows as draft row pairs across rendering/navigation; only validated maps may be saved. Removing a row uses its element identity, so renaming a key cannot break removal. Verify `TestAIGatewayMetadataDraftBrowser` in both themes.
+
 - `cfg/treg.js` keeps endpoint grants in the shared draft until Save, with no
   preselected action class. Vault saves update saved token state without losing
   the draft; connection tests require saved settings. Parse USD as integer
@@ -944,9 +1031,40 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestDecisionsConfigBrowser` and `TestDecisionsLocaleKeys`. The backend and
   hardware acceptance contract lives in `../internal/decisions/AGENTS.md`.
 
+## Passkey and FIDO2 login
+
+- `cfg/auth_webauthn.js` owns protected settings and named credential management;
+  its own save must preserve unrelated `AuraConfigState` drafts. Use
+  `data-search-path` for Config search, never ordinary `data-path` persistence.
+  Enrollment requires saved RP/origin settings. Keep step-up, inline outcomes,
+  cancellation and disposal guards; never start biometric prompts on status reads.
+  Without enabled login protection and an authenticated owner, show the translated
+  prerequisite instead of requesting protected credential metadata. Watch the stable
+  `#content` ancestor so removing a nested section aborts requests and prompts.
+- Full login and embedded recovery share `internal/server/auth_webauthn_client.js`.
+  Require secure context/API capability while preserving external security-key
+  support. In second-factor mode without TOTP, unsupported clients must never
+  reveal a password-only alternative. Native JSON conversion has a tested legacy
+  ArrayBuffer adapter. Do not automatically retry writes or finished assertions;
+  distinguish an uncertain network outcome from cancelled authenticator selection.
+  Use `AuraAuth.nativeFetch` when available: wrong step-up credentials and expired
+  ceremonies stay inline without discarding drafts; genuine session failures still
+  reach the shared auth response handler. Keep the browser fixture nested under
+  `.cfg-section` and load `shared-core.js` to exercise both integrations.
+- Translate `webauthn.*` in all 16 `lang/common/` files and regenerate the small
+  recovery subset with `node scripts/build-webauthn-locales.mjs`. Verify its
+  `--check`, `node scripts/webauthn-client.test.mjs`, server `TestWebAuthn*` and
+  the UI bundle check. Device/proxy acceptance remains separate from virtual
+  authenticator browser tests. See `../documentation/webauthn.md`.
+
 ## Child DOX Index
 
+- `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
+  integrity manifests and OFL notices; runtime schema/rendering belongs to
+  `../internal/qrcode/AGENTS.md`.
+
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
+- `3d/chess/AGENTS.md` — Versioned AuraGo chess piece GLBs and their manifest contract for the Desktop 3D board.
 - `3d/system-world/AGENTS.md` — Compact versioned Blender GLBs and asset integrity/LOD contracts.
 
 - `img/personas/animated/AGENTS.md` - Reviewed Rive persona payloads, catalog

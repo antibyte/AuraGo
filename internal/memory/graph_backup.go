@@ -16,7 +16,7 @@ func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {
 	}
 	defer tx.Rollback()
 
-	now := time.Now().Format(time.RFC3339)
+	now := formatKGTimestamp(time.Now())
 	indexNodes := make([]Node, 0, len(nodes))
 	indexEdges := make([]Edge, 0, len(edges))
 	var bulkErrors []error
@@ -234,6 +234,9 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 			}
 		}
 	}
+	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+		return fmt.Errorf("cleanup orphan KG evidence after file-sync replacement: %w", err)
+	}
 
 	if err := tx.Commit(); err != nil {
 		return err
@@ -250,7 +253,7 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 
 func (kg *KnowledgeGraph) mergeExtractedEntitiesTx(tx *sql.Tx, nodes []Node, edges []Edge) ([]Node, []Edge, error) {
 	nowTime := time.Now()
-	now := nowTime.Format(time.RFC3339)
+	now := formatKGTimestamp(nowTime)
 	mergedNodes := mergeKnowledgeGraphNodes(nodes)
 	mergedEdges := mergeKnowledgeGraphEdges(edges)
 	indexNodes := make([]Node, 0, len(mergedNodes))

@@ -470,6 +470,10 @@ func TestDockerCreateBindCheckMatchesDecodedCreatePaths(t *testing.T) {
 	configureDockerSecurityTestPermissions(t, false)
 	var requests []string
 	host := fakeDockerHost(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/volumes/data") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		requests = append(requests, r.Method+" "+r.URL.RequestURI())
 		if strings.HasSuffix(r.URL.Path, "/start") {
 			w.WriteHeader(http.StatusNoContent)

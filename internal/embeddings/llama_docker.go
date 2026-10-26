@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -148,8 +149,17 @@ type dockerLlamaEmbedder struct {
 	network     string
 	baseURL     string
 	client      *http.Client
-	restarts    int
-	closed      bool
+	restarts    *restartBudget
+	// hangs counts the requests that ended at the caller's deadline; mu guards it.
+	hangs llamaHangState
+	// lifecycle is what Close and Status reach without the lock; see llamaLifecycle.
+	lifecycle llamaLifecycle
+	// logger is set by the manager right after construction; nil means slog.Default().
+	logger *slog.Logger
+	// needsRestart marks a sidecar whose last request failed; the next
+	// attempt restarts the container before it embeds again.
+	needsRestart bool
+	closed       bool
 }
 
 type dockerModelMount struct {
@@ -206,6 +216,7 @@ func newDockerLlamaEmbedder(
 		image:       image,
 		container:   llamaDockerContainerBase + "-" + backend + "-" + hex.EncodeToString(suffix),
 		client:      &http.Client{Timeout: 2 * time.Minute},
+		restarts:    newRestartBudget(maxProcessRestarts, processRestartWindow),
 	}
 	if err := embedder.createAndStartLocked(ctx); err != nil {
 		_ = embedder.removeLocked(context.Background())
@@ -363,37 +374,62 @@ func removeDockerLlamaImage(ctx context.Context, dockerHost, backend string) err
 
 func (embedder *dockerLlamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
-		return nil, fmt.Errorf("at least one text is required")
+		return nil, fmt.Errorf("%w: at least one text is required", ErrInvalidInput)
 	}
-	embedder.mu.Lock()
-	defer embedder.mu.Unlock()
+	if err := lockContext(ctx, &embedder.mu); err != nil {
+		return nil, err
+	}
+	// A restart that outlives this caller keeps running and takes the lock with
+	// it (hold below); it frees the lock when the start is over.
+	lockHandedOver := false
+	defer func() {
+		if !lockHandedOver {
+			embedder.mu.Unlock()
+		}
+	}()
 	if embedder.closed {
 		return nil, fmt.Errorf("llama.cpp Docker embedder is closed")
 	}
-	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
-		vectors, err := embedder.embedLocked(ctx, texts)
-		if err == nil {
-			for i := range vectors {
-				if err := l2Normalize(vectors[i]); err != nil {
-					return nil, fmt.Errorf("normalize Docker llama.cpp vector %d: %w", i, err)
-				}
-				if err := validateGraniteVector(vectors[i]); err != nil {
-					return nil, fmt.Errorf("validate Docker llama.cpp vector %d: %w", i, err)
-				}
+	if embedder.restarts == nil {
+		embedder.restarts = newRestartBudget(maxProcessRestarts, processRestartWindow)
+	}
+	vectors, err := embedWithRestarts(ctx, embedder.restarts, llamaServerOps{
+		name: "managed llama-server",
+		// A failed sidecar is marked and restarted by the next attempt, which
+		// pays the restart from the budget.
+		running: func() bool { return !embedder.needsRestart },
+		start: func(ctx context.Context) error {
+			if err := embedder.restartLocked(ctx); err != nil {
+				return fmt.Errorf("restart managed llama-server: %w", err)
 			}
-			return vectors, nil
+			embedder.needsRestart = false
+			return nil
+		},
+		embed: embedder.embedLocked,
+		stop:  func() { embedder.needsRestart = true },
+		hangs: &embedder.hangs,
+		hold: func(finished <-chan struct{}) {
+			lockHandedOver = true
+			go func() {
+				<-finished
+				embedder.mu.Unlock()
+			}()
+		},
+		logger:    embedder.logger,
+		lifecycle: &embedder.lifecycle,
+	}, texts)
+	if err != nil {
+		return nil, err
+	}
+	for i := range vectors {
+		if err := l2Normalize(vectors[i]); err != nil {
+			return nil, fmt.Errorf("normalize Docker llama.cpp vector %d: %w", i, err)
 		}
-		lastErr = err
-		if embedder.restarts >= 2 {
-			break
-		}
-		embedder.restarts++
-		if restartErr := embedder.restartLocked(ctx); restartErr != nil {
-			lastErr = fmt.Errorf("%v; restart failed: %w", lastErr, restartErr)
+		if err := validateGraniteVector(vectors[i]); err != nil {
+			return nil, fmt.Errorf("validate Docker llama.cpp vector %d: %w", i, err)
 		}
 	}
-	return nil, fmt.Errorf("managed llama-server failed after restart limit: %w", lastErr)
+	return vectors, nil
 }
 
 func (embedder *dockerLlamaEmbedder) embedLocked(ctx context.Context, texts []string) ([][]float32, error) {
@@ -911,15 +947,26 @@ func (embedder *dockerLlamaEmbedder) Fingerprint() string {
 	return ggufFingerprint()
 }
 
+// Status never waits for the embedder lock: a restart can hold it for minutes
+// and the config UI polls this. While it is taken the last status seen is
+// returned, reported as restarting during a start.
 func (embedder *dockerLlamaEmbedder) Status() Status {
-	embedder.mu.Lock()
+	if !embedder.mu.TryLock() {
+		return embedder.lifecycle.busy(embedder.statusWith("ready", false))
+	}
 	defer embedder.mu.Unlock()
 	state := "ready"
 	if embedder.closed {
 		state = "closed"
 	}
 	logs := embedder.logsLocked(context.Background())
-	verified := embedder.backend != "cpu" && llamaGPUVerified(embedder.backend, logs)
+	status := embedder.statusWith(state, embedder.backend != "cpu" && llamaGPUVerified(embedder.backend, logs))
+	embedder.lifecycle.remember(status)
+	return status
+}
+
+// statusWith fills in what is fixed at construction, so it needs no lock.
+func (embedder *dockerLlamaEmbedder) statusWith(state string, gpuVerified bool) Status {
 	return Status{
 		State:        state,
 		Provider:     LocalGraniteProvider,
@@ -929,13 +976,16 @@ func (embedder *dockerLlamaEmbedder) Status() Status {
 		Runtime:      "llama.cpp-docker",
 		RuntimeBuild: llamaRuntimeBuild,
 		GPU:          embedder.backend != "cpu",
-		GPUVerified:  verified,
+		GPUVerified:  gpuVerified,
 		Fingerprint:  ggufFingerprint(),
 		UpdatedAt:    time.Now().UTC(),
 	}
 }
 
 func (embedder *dockerLlamaEmbedder) Close() error {
+	// Before the lock: a restart in flight holds it, and would keep Close
+	// waiting for a health check that can run for two minutes.
+	embedder.lifecycle.shutdown()
 	embedder.mu.Lock()
 	defer embedder.mu.Unlock()
 	if embedder.closed {

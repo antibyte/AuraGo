@@ -16,6 +16,7 @@ import (
 // blockedSecretPrefixes lists vault key prefixes that are exclusively managed by
 // system integrations and must NEVER be accessible to Python tools.
 var blockedSecretPrefixes = []string{
+	"personality_legacy_",
 	"email_",
 	"agentmail_",
 	"google_workspace_",
@@ -39,6 +40,7 @@ var blockedSecretPrefixes = []string{
 	"three_d_printer_klipper_",
 	"cloudflare_tunnel_",
 	"s3_",
+	"rustfs_",
 	"telnyx_",
 	"sip_",
 	"fritzbox_",
@@ -97,6 +99,10 @@ var blockedSecretExact = map[string]struct{}{
 	"tts_elevenlabs_api_key":              {},
 	"tts_minimax_api_key":                 {},
 	"tts_mistral_api_key":                 {},
+	"tts_xai_api_key":                     {},
+	"tts_openai_api_key":                  {},
+	"tts_stepfun_api_key":                 {},
+	"tts_resemble_api_key":                {},
 	"ntfy_token":                          {},
 	"home_assistant_access_token":         {},
 	"webdav_password":                     {},

@@ -78,10 +78,10 @@ func TestAudit17UnhandledOccurrenceBacksOffWithoutBlockingOthers(t *testing.T) {
 		h.clock.WaitForWaiters(t, 1)
 		h.clock.Advance(d)
 	}
-	step(time.Hour)             // b fails: retry after 7 s, before c's time
-	step(7 * time.Second)       // b fails again: retry after 14 s, so c (3 s away) is next
-	step(3 * time.Second)       // c fires on time while b waits
-	step(11 * time.Second)      // b fails a third time: 28 s, capped at 20 s
+	step(time.Hour)              // b fails: retry after 7 s, before c's time
+	step(7 * time.Second)        // b fails again: retry after 14 s, so c (3 s away) is next
+	step(3 * time.Second)        // c fires on time while b waits
+	step(11 * time.Second)       // b fails a third time: 28 s, capped at 20 s
 	h.clock.WaitForWaiters(t, 1) // the 20 s wait
 	h.clock.assertWaitsStay(t, time.Hour, 7*time.Second, 3*time.Second, 11*time.Second, 20*time.Second)
 	handler.assertCalls(t, "fire:n_aaaaaaab", "fire:n_aaaaaaab", "fire:n_aaaaaaac", "fire:n_aaaaaaab")

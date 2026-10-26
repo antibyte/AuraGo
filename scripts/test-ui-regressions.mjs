@@ -258,14 +258,15 @@ async function testGameMakerEventConnectionLifecycle() {
     eventTypes: ['job_status'], terminalStatuses: new Set(['ready', 'failed', 'cancelled']),
     updateStatus(_state, status) { statuses.push(status); }, syncJobControls() {}, finalizeStreaming() {}, stopElapsed() {},
     phaseMarkup(_state, status) { return status; }, renderProjects() {},
-    async reloadProjectRecord() {}, refreshWorkspaceDrift() {}
+    async reloadProjectRecord() {}, refreshWorkspaceDrift() {}, window: {}
   };
   vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
   vm.runInContext(sourceBetween(app, 'const outcomeFields =', 'function stepBarShown('), context);
   for (const [start, end] of [['function connectEvents(', 'function parseEvent('], ['function closeEvents(', 'function dispose('], ['function handleJobStatus(', 'function finalizeStreaming(']]) {
     vm.runInContext(sourceBetween(app, start, end), context);
   }
-  const state = { project: { id: 'bo', status: 'draft' }, job: { id: 'job', status: 'building' },
+  const state = { project: { id: 'bo', status: 'draft' }, job: { id: 'job', status: 'building', started_at: '2026-01-02T00:00:00Z' },
     api: { eventURL: () => '/events' }, container: { querySelector: selector => selector === '[data-gm-phases]' ? phases : null }, context: { t: key => key, esc: String } };
   context.connectEvents(state);
   const first = sources[0];
@@ -276,6 +277,7 @@ async function testGameMakerEventConnectionLifecycle() {
   assert.equal(state.reconnecting, false);
   context.handleJobStatus(state, { status: 'cancelled', error: 'Game creation exceeded its time limit.' });
   await Promise.resolve();
+  assert.equal(state.jobStartedAt, Date.parse(state.job.started_at), 'reload retains the server start time');
   assert.equal(phases.innerHTML, 'cancelled', 'terminal jobs leave the active building phase');
   assert.equal(state.latestJob.status, 'cancelled');
   assert.equal(state.latestJob.error, 'Game creation exceeded its time limit.');
@@ -332,6 +334,7 @@ async function testGameMakerJobEventOwnership() {
   };
   context.syncJobControls = state => { state.jobActive = !context.terminalStatuses.has(state.job.status); };
   vm.createContext(context);
+  vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
   vm.runInContext(sourceBetween(app, 'const outcomeFields =', 'function stepBarShown('), context);
   vm.runInContext(sourceBetween(app, 'function connectEvents(', 'function finalizeStreaming('), context);
   const job = { id: 'new', status: 'building', created_at: '2026-01-02T00:00:00Z' };
@@ -455,8 +458,11 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   const context = {
     window: {}, addDiagnostic(_state, diagnostic) { shown.push(diagnostic); },
     setTimeout() { return 1; }, clearTimeout() {},
-    autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {}
+    autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}, syncJobControls() {},
+    fail(_state, error) { throw error; }
   };
+  vm.runInNewContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
+  vm.runInNewContext(sourceBetween(app, 'function applyStartedJob(', 'async function startResumedJob('), context);
   vm.runInNewContext(sourceBetween(app, 'function handlePreviewMessage(', 'function addDiagnostic('), context);
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
   state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
@@ -520,13 +526,16 @@ async function testGameMakerAssetSelectionReachesCreateAndEdit() {
     const fields = { name: 'New game', description: 'Create the game', dimension: '2d' };
     const context = {
       window: {}, FormData: class { get(key) { return fields[key] || ''; } },
-      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '',
+      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '', bindModelLimits() {},
       showModal(_state, _html, mount) { mount(layer); }, closeModal() {}, setModalBusy() {},
       modalError(_layer, message) { assert.fail(message); }, fail(_state, error) { throw error; },
       async openProject(current) { current.project = project; },
       syncJobControls() {}, autoGrow() {}, finalizeStreaming() {}, renderConversation() {}, scrollConversation() {}
     };
     vm.createContext(context);
+    vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
+    vm.runInContext(sourceBetween(app, 'async function confirmSmallModel(', 'function applyStartedJob('), context);
+    vm.runInContext(sourceBetween(app, 'function applyStartedJob(', 'async function startResumedJob('), context);
     vm.runInContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
     vm.runInContext(sourceBetween(app, 'function postedSelection(', 'async function stopJob('), context);
     context.showCreateModal(state);
@@ -4442,6 +4451,709 @@ function testInvasionNestSecretFieldHidesOnlyWithoutEffect() {
   assert.match(source, /secretInput\.dataset\.stored = isEdit && nest\?\.has_secret \? 'true' : ''/);
 }
 
+// The Green Slime simulation is DOM-free: geometry, bubbles, strands, pools and splats run in plain Node.
+function testGreenSlimeSimulation() {
+  const context = { window: {} };
+  vm.createContext(context);
+  // The simulation parts in bundle order (scripts/build-ui-bundles.js).
+  for (const part of ['geometry', 'bubbles', 'touch', 'sim']) vm.runInContext(read('ui/js/desktop/theme-fx/green_slime_' + part + '.js'), context);
+  const slime = context.window.AuraGreenSlimeSim;
+  const { createSim, geometry, constants } = slime;
+  assert.equal(constants.SURFACE_SAMPLES, 32);
+  assert.equal(constants.TABLE_SAMPLES, 128);
+  assert.equal(constants.MAX_DROPS, 72);
+  assert.equal(constants.MAX_SPRAY, 24);
+  assert.equal(constants.MIN_GEL_RADIUS, 10);
+  assert.equal(constants.STRAND_SNAP, 170);
+
+  // Sound cues: the pop is sized by the bubble's base radius, the snap by the strand's length, the strength
+  // runs 0.35..1, and everything that is not a burst or a snap is silent.
+  {
+    const cue = (event) => slime.soundCue(event);
+    for (const [base, variant] of [[0, 'small'], [3, 'small'], [5.99, 'small'], [6, 'medium'], [8.99, 'medium'], [9, 'large'], [12, 'large']]) {
+      assert.equal(cue({ type: 'burst', base }).event, 'slime.pop');
+      assert.equal(cue({ type: 'burst', base }).variant, variant, 'burst base ' + base);
+    }
+    for (const [length, variant] of [[0, 'small'], [18, 'small'], [59, 'small'], [60, 'medium'], [109, 'medium'], [110, 'large'], [170, 'large'], [400, 'large']]) {
+      assert.equal(cue({ type: 'snap', length }).event, 'slime.snap');
+      assert.equal(cue({ type: 'snap', length }).variant, variant, 'snap length ' + length);
+    }
+    for (const strength of [cue({ type: 'burst', base: 0 }).strength, cue({ type: 'burst', base: 3 }).strength, cue({ type: 'snap', length: 0 }).strength]) assert.equal(strength, .35);
+    for (const strength of [cue({ type: 'burst', base: 12 }).strength, cue({ type: 'burst', base: 40 }).strength, cue({ type: 'snap', length: 170 }).strength, cue({ type: 'snap', length: 400 }).strength]) assert.ok(Math.abs(strength - 1) < 1e-9, 'strength ' + strength);
+    assert.ok(cue({ type: 'burst', base: 6 }).strength > cue({ type: 'burst', base: 4 }).strength);
+    assert.ok(cue({ type: 'snap', length: 120 }).strength > cue({ type: 'snap', length: 40 }).strength);
+    assert.equal(cue({ type: 'drop', x: 1, y: 1 }), null);
+    assert.equal(cue(null), null);
+  }
+
+  // Perimeter projection round trip, including square and uneven corners (sharp corners are ambiguous).
+  const box = { x: 120, y: 80, width: 400, height: 300 };
+  for (const radii of [[22, 22, 22, 22], [0, 0, 0, 0], [22, 10, 0, 30], [200, 200, 200, 200]]) {
+    const lay = geometry.layout(box, radii);
+    assert.ok(lay.length > 1000 && lay.length < 1500, 'perimeter ' + lay.length);
+    const corners = [[box.x, box.y, radii[0]], [box.x + box.width, box.y, radii[1]], [box.x + box.width, box.y + box.height, radii[2]], [box.x, box.y + box.height, radii[3]]];
+    let checked = 0;
+    for (let i = 0; i < 300; i++) {
+      const s = (i + .37) / 300 * lay.length;
+      const p = geometry.pointAt(lay, s, {});
+      if (corners.some(([cx, cy, r]) => r < 1 && Math.hypot(p.x - cx, p.y - cy) < 9)) continue;
+      for (const d of [7, -5, 1.5]) {
+        const q = geometry.project(lay, p.x + p.nx * d, p.y + p.ny * d, {});
+        const ds = Math.abs(((q.s - s + lay.length * 1.5) % lay.length) - lay.length / 2);
+        assert.ok(Math.abs(q.dist - d) < 1e-6 && ds < 1e-6, 'round trip radii=' + radii + ' s=' + s + ' d=' + d + ' got s=' + q.s + ' dist=' + q.dist);
+        checked++;
+      }
+    }
+    assert.ok(checked > 600);
+  }
+  assert.equal(geometry.perimeterLength(box, [0, 0, 0, 0]), 1400);
+
+  const windowA = () => ({ id: 'a', rect: { x: 300, y: 200, width: 400, height: 300 }, radii: [22, 22, 22, 22], z: 5, active: true });
+  const windowB = () => ({ id: 'b', rect: { x: 760, y: 220, width: 300, height: 260 }, radii: [22, 22, 22, 22], z: 6, active: false });
+  const windowC = () => ({ id: 'c', rect: { x: 80, y: 120, width: 260, height: 200 }, radii: [22, 22, 22, 22], z: 4, active: false });
+  const taskbar = { x: 0, y: 662, width: 1280, height: 58, desktop: false, taskbar: true };
+  const frame = (sim, windows, dt = 1 / 60, extra = {}) => {
+    sim.update({ dt, now: sim.clock, width: 1280, height: 720, dpr: 1, windows, masks: [taskbar], taskbar, ...extra });
+  };
+  const run = (sim, windows, seconds, each) => {
+    for (let i = 0, n = Math.round(seconds * 60); i < n; i++) {
+      frame(sim, windows);
+      if (each) each(i);
+    }
+  };
+  const radiusRange = (sim) => {
+    let min = Infinity, max = 0;
+    for (const win of sim.scene().windows) for (const r of win.radius) { min = Math.min(min, r); max = Math.max(max, r); }
+    return [min, max];
+  };
+
+  // Bubble lifecycle: forced bubble, stage order and timing bounds, spray, crater ripple, healing.
+  {
+    // The ambient spawner shares the simulation's random stream, so the seed picks a run in which no
+    // second bubble appears while the forced one is being followed.
+    const sim = createSim({ motion: true, seed: 13 });
+    const wins = [windowA()];
+    run(sim, wins, .5);
+    const id = sim.spawnBubble({ windowId: 'a', base: 8 });
+    assert.ok(id > 0, 'forced bubble returns its id');
+    const timings = [], views = {};
+    let current = '', since = 0, time = 0, sprayBefore = sim.stats().sprayCount, peakEnergy = 0;
+    for (let i = 0; i < 60 * 12; i++) {
+      frame(sim, wins);
+      time += 1 / 60;
+      const bubble = sim.scene().windows[0].bubbles[0];
+      const stage = bubble ? bubble.stage : 'gone';
+      if (stage !== current) {
+        if (current) timings.push([current, time - since]);
+        current = stage; since = time;
+      }
+      if (bubble) (views[stage] = views[stage] || []).push(bubble);
+      peakEnergy = Math.max(peakEnergy, sim.stats().rippleEnergy);
+      if (stage === 'gone') break;
+    }
+    assert.deepEqual(timings.map(([stage]) => stage), ['nucleate', 'grow', 'hold', 'burst', 'crater']);
+    const bounds = { nucleate: [.5, .9], grow: [1.4, 3.2], hold: [.2, .8], burst: [.11, .16], crater: [.675, 1.125] };
+    for (const [stage, seconds] of timings) {
+      assert.ok(seconds >= bounds[stage][0] - .04 && seconds <= bounds[stage][1] + .04, stage + ' lasted ' + seconds.toFixed(3) + ' s');
+    }
+    const grow = views.grow;
+    assert.ok(grow[0].dome < .2 && grow[grow.length - 1].dome > .9, 'the dome rises while the bubble grows');
+    assert.ok(grow[grow.length - 1].r > grow[0].r, 'the footprint swells');
+    assert.ok(views.burst[views.burst.length - 1].holeR > views.burst[0].holeR, 'the rupture hole opens');
+    assert.ok(views.crater[0].crater > .5, 'the crater starts deep');
+    const sprayed = sim.stats().sprayCount - sprayBefore;
+    assert.ok(sprayed >= 3 && sprayed <= 7, 'micro-droplets flung: ' + sprayed);
+    assert.ok(peakEnergy > .05, 'the crater rings the frame');
+    const stats = sim.stats();
+    assert.equal(stats.bubbleBursts, 1);
+    assert.equal(JSON.stringify(stats.bubbleStageEntries), JSON.stringify({ nucleate: 1, grow: 1, hold: 1, burst: 1, crater: 1 }));
+    assert.equal(stats.activeBubbles, 0);
+    // The burst is reported once, at the dome, sized by the bubble; spray and the crater make no event.
+    const burstEvents = sim.takeEvents();
+    assert.equal(burstEvents.length, 1);
+    assert.equal(burstEvents[0].type, 'burst');
+    assert.equal(burstEvents[0].base, views.burst[0].base);
+    assert.ok(Math.abs(burstEvents[0].x - views.burst[0].x) < 1e-6 && burstEvents[0].y > 120 && burstEvents[0].y < 600);
+    assert.equal(stats.eventCount, 1);
+    const popBase = burstEvents[0].base;
+    assert.equal(slime.soundCue(burstEvents[0]).variant, popBase < 6 ? 'small' : popBase < 9 ? 'medium' : 'large');
+    assert.equal(sim.takeEvents().length, 0, 'events are handed over once');
+    run(sim, wins, 5);
+    assert.equal(sim.stats().rippleEnergy, 0, 'the ripple decays to rest');
+  }
+
+  // Ripple wave: an impulse rises, travels and decays; the radius table follows it.
+  {
+    const sim = createSim({ motion: true, seed: 3 });
+    const wins = [windowA()];
+    run(sim, wins, 1);
+    const surface = sim.surfaces.get('a');
+    assert.equal(sim.stats().rippleEnergy, 0);
+    sim.rippleImpulse(surface, 600, 3, 20);
+    const energy0 = (frame(sim, wins), sim.stats().rippleEnergy);
+    assert.ok(energy0 > .5, 'impulse energy ' + energy0);
+    run(sim, wins, .4);
+    assert.ok(Math.max(...surface.ripple.map(Math.abs)) < 3, 'the bump spreads');
+    run(sim, wins, 4);
+    assert.ok(sim.stats().rippleEnergy < .05, 'energy decays: ' + sim.stats().rippleEnergy);
+  }
+
+  // Caps: per window and global, spray pool, free drop pool.
+  {
+    const sim = createSim({ motion: true, seed: 5 });
+    const wins = [windowA(), windowB(), windowC()];
+    run(sim, wins, 2);
+    let maxSpray = 0, maxActive = 0, maxPerWindow = 0, spawned = 0;
+    for (let i = 0; i < 60 * 14; i++) {
+      frame(sim, wins);
+      if (i % 12 === 0) for (const win of wins) if (sim.spawnBubble({ windowId: win.id, fast: true })) spawned++;
+      const stats = sim.stats();
+      maxSpray = Math.max(maxSpray, stats.activeSpray);
+      maxActive = Math.max(maxActive, stats.activeBubbles);
+      for (const win of sim.scene().windows) maxPerWindow = Math.max(maxPerWindow, win.bubbles.length);
+    }
+    assert.ok(spawned > 6, 'bubbles were spawned: ' + spawned);
+    assert.ok(maxActive <= 5 && maxPerWindow <= 2 && maxSpray <= 24, 'caps ' + [maxActive, maxPerWindow, maxSpray]);
+    // Nobody drained the events: the queue keeps the newest 12, and only bursts made events.
+    const undrained = sim.takeEvents();
+    assert.ok(undrained.length > 0 && undrained.length <= 12, 'bounded event queue: ' + undrained.length);
+    assert.ok(undrained.every(event => event.type === 'burst'));
+    assert.ok(sim.stats().eventCount > 12 && sim.stats().eventCount <= sim.stats().bubbleBursts, 'events ' + sim.stats().eventCount + ' for ' + sim.stats().bubbleBursts + ' bursts');
+    for (let i = 0; i < 100; i++) sim.addDrop(20 + i, 10, 4, 0, 0, 5);
+    assert.equal(sim.stats().activeDrops, 72);
+    assert.ok(sim.stats().dropCount >= 100);
+    const sceneDrops = sim.scene().drops.length;
+    assert.ok(sceneDrops <= 96, 'scene drops ' + sceneDrops);
+    const [min, max] = radiusRange(sim);
+    assert.ok(min >= 10 - 1e-6 && max <= constants.MAX_GEL_RADIUS + 1e-6, 'gel radius stays bounded: ' + [min, max]);
+  }
+
+  // Strand: press on the gel, pull away, thin, bead, snap; release and timeout also snap.
+  {
+    const sim = createSim({ motion: true, seed: 9 });
+    const wins = [windowA()];
+    run(sim, wins, .5);
+    const downAt = { x: 500, y: 514 };
+    assert.equal(sim.pointerDown(downAt.x - 2000, downAt.y, sim.clock), null, 'a press outside any gel is ignored');
+    const hit = sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    assert.ok(hit && hit.id === 'a', 'the press lands on the gel');
+    assert.equal(sim.stats().pokeCount, 1);
+    let pulledAt = -1, beadedAt = -1, lastMid = Infinity;
+    const dropsBefore = sim.stats().dropCount;
+    for (let i = 0; i < 90 && sim.stats().strandSnaps === 0; i++) {
+      sim.pointerMove(downAt.x, downAt.y + 6 + i * 3.4, sim.clock, 1);
+      frame(sim, wins);
+      const strand = sim.scene().windows[0].strands[0];
+      if (strand) {
+        if (pulledAt < 0) pulledAt = i;
+        assert.ok(strand.mid <= lastMid + 1e-9, 'the thread only thins');
+        lastMid = strand.mid;
+        if (strand.beads && beadedAt < 0) { beadedAt = i; assert.ok(strand.mid < 1.6 && strand.beads >= 2 && strand.beads <= 4); }
+      }
+    }
+    const stats = sim.stats();
+    assert.equal(stats.strandCount, 1);
+    assert.equal(stats.strandSnaps, 1, 'snaps beyond 170 px');
+    // The snap is reported once, from the middle of the thread, as a large and strong slime.snap.
+    const snapEvents = sim.takeEvents().filter(event => event.type === 'snap');
+    assert.equal(snapEvents.length, 1);
+    assert.ok(snapEvents[0].length > 170 - 1e-6 && snapEvents[0].x > 300 && snapEvents[0].x < 700 && snapEvents[0].y > downAt.y, 'snap event ' + JSON.stringify(snapEvents[0]));
+    const snapCue = slime.soundCue(snapEvents[0]);
+    assert.equal(snapCue.event + ':' + snapCue.variant, 'slime.snap:large');
+    assert.ok(snapCue.strength > .95);
+    assert.ok(pulledAt >= 0 && beadedAt > pulledAt, 'pulled, then beaded: ' + [pulledAt, beadedAt]);
+    assert.ok(stats.dropCount - dropsBefore >= 2, 'tip drop plus satellites');
+    assert.ok(sim.strand && sim.strand.state === 'recoil', 'the base recoils');
+    run(sim, wins, .4);
+    assert.equal(sim.strand, null);
+    assert.equal(sim.stats().activeStrands, 0);
+    const [min] = radiusRange(sim);
+    assert.ok(min >= 10 - 1e-6);
+
+    // release snaps a pulled thread, a plain click leaves none behind
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    sim.pointerUp();
+    assert.equal(sim.strand, null);
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    for (let i = 0; i < 20; i++) { sim.pointerMove(downAt.x, downAt.y + 60, sim.clock, 1); frame(sim, wins); }
+    assert.equal(sim.stats().strandCount, 2);
+    assert.ok(sim.strand.state === 'pulled' && sim.strand.length < 100);
+    sim.pointerUp();
+    assert.equal(sim.stats().strandSnaps, 2, 'release snaps');
+    const releaseSnaps = sim.takeEvents().filter(event => event.type === 'snap');
+    assert.equal(releaseSnaps.length, 1);
+    assert.ok(releaseSnaps[0].length < 100 && slime.soundCue(releaseSnaps[0]).variant !== 'large', 'a short thread sounds smaller');
+    run(sim, wins, .4);
+
+    // a held thread gives way after 2.5 s
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    let held = 0;
+    for (let i = 0; i < 60 * 4 && sim.stats().strandSnaps < 3; i++) { sim.pointerMove(downAt.x, downAt.y + 60, sim.clock, 1); frame(sim, wins); held += 1 / 60; }
+    assert.equal(sim.stats().strandSnaps, 3);
+    assert.ok(held > 2.3 && held < 3.1, 'held ' + held.toFixed(2));
+    // a button that is no longer down ends the press
+    run(sim, wins, .4);
+    sim.pointerDown(downAt.x, downAt.y, sim.clock);
+    sim.pointerMove(downAt.x, downAt.y + 50, sim.clock, 0);
+    assert.equal(sim.strand, null);
+  }
+
+  // Drops: merge into another window's gel, splat on the taskbar edge, fade after 2-4 s.
+  {
+    const sim = createSim({ motion: true, seed: 2 });
+    const wins = [windowA()];
+    run(sim, wins, .3);
+    const absorbedBefore = sim.stats().absorbedDrops;
+    const falling = sim.addDrop(500, 120, 5, 0, 0, 6);
+    run(sim, wins, 1.2);
+    assert.equal(sim.stats().absorbedDrops, absorbedBefore + 1, 'the drop merged into the window gel');
+    assert.ok(!sim.drops.includes(falling));
+    // Without windows there are no periodic drips: the splat is the only thing on the taskbar edge.
+    const quiet = createSim({ motion: true, seed: 2 });
+    run(quiet, [], .2);
+    const landing = quiet.addDrop(120, 560, 6, 0, 0, 6);
+    run(quiet, [], 1.5);
+    assert.ok(!quiet.drops.includes(landing));
+    assert.equal(quiet.stats().splatCount, 1);
+    assert.equal(quiet.stats().activeSplats, 1);
+    const splat = quiet.scene().splats[0];
+    assert.ok(splat.spread > 0 && splat.alpha === 1 && splat.y === 662);
+    run(quiet, [], 4.2);
+    assert.equal(quiet.stats().activeSplats, 0, 'the splat fades away');
+  }
+
+  // Window inertia: a quick drag stop flings droplets, nodes stay bounded, the radius never drops below the minimum.
+  {
+    const sim = createSim({ motion: true, seed: 4 });
+    const wins = [windowA()];
+    run(sim, wins, 1.2);
+    const dropsBefore = sim.stats().dropCount;
+    for (let i = 0; i < 20; i++) {
+      wins[0].rect.x += 14;
+      sim.windowEvent({ id: 'a', phase: 'drag', rect: { ...wins[0].rect }, velocity: { x: 840, y: 0 } }, sim.clock);
+      frame(sim, wins);
+      assert.ok(radiusRange(sim)[0] >= 10 - 1e-6);
+    }
+    sim.windowEvent({ id: 'a', phase: 'drag-end', rect: { ...wins[0].rect }, velocity: { x: 840, y: 0 } }, sim.clock);
+    run(sim, wins, 1, () => assert.ok(sim.stats().currentMaxDisplacement <= 18));
+    assert.ok(sim.stats().dropCount - dropsBefore >= 2, 'a hard stop flings droplets');
+  }
+
+  // Pointer: a slow pointer near the gel makes it lean toward it, a fast one dents it where it crosses.
+  {
+    const still = createSim({ motion: true, seed: 12 });
+    const near = createSim({ motion: true, seed: 12 });
+    const wins = [windowA()];
+    run(still, wins, 1);
+    run(near, wins, 1);
+    near.pointerMove(500, 530, near.clock, 0);
+    run(near, wins, 1.4);
+    run(still, wins, 1.4);
+    const a = still.scene().windows[0].radius, b = near.scene().windows[0].radius;
+    let lean = 0;
+    for (let k = 0; k < a.length; k++) lean = Math.max(lean, b[k] - a[k]);
+    assert.ok(lean >= 3 && lean <= 16, 'the gel leans toward a slow pointer: ' + lean.toFixed(2));
+    // Once the pointer is gone the gel settles back to where an undisturbed one is.
+    near.pointerMove(1100, 90, near.clock, 0);
+    run(near, wins, 3);
+    run(still, wins, 3);
+    const c = near.scene().windows[0].radius, d = still.scene().windows[0].radius;
+    let rest = 0;
+    for (let k = 0; k < c.length; k++) rest = Math.max(rest, Math.abs(c[k] - d[k]));
+    assert.ok(rest < 1.5, 'the lean fades again: ' + rest.toFixed(2));
+
+    const fast = createSim({ motion: true, seed: 12 });
+    run(fast, wins, 1);
+    assert.equal(fast.stats().rippleEnergy, 0);
+    for (let y = 600; y >= 470; y -= 25) { fast.pointerMove(500, y, fast.clock, 0); frame(fast, wins); }
+    assert.ok(fast.stats().rippleEnergy > .1, 'a fast pointer dents the gel: ' + fast.stats().rippleEnergy);
+    assert.ok(radiusRange(fast)[0] >= 10 - 1e-6);
+  }
+
+  // Open ooze: the gel starts as a thin meniscus ring and swells to full size.
+  {
+    const sim = createSim({ motion: true, seed: 6 });
+    const wins = [windowA()];
+    sim.windowEvent({ id: 'a', phase: 'open', rect: { ...wins[0].rect }, silent: false }, 0);
+    frame(sim, wins, 1 / 60);
+    const first = sim.scene().windows[0];
+    assert.ok(first.grow < .2 && Math.max(...first.radius) < 12, 'starts thin: ' + Math.max(...first.radius));
+    assert.ok(Math.min(...first.radius) >= 10 - 1e-6);
+    run(sim, wins, 1.5);
+    const last = sim.scene().windows[0];
+    assert.equal(last.grow, 1);
+    assert.ok(Math.max(...last.radius) > 20, 'full size: ' + Math.max(...last.radius));
+  }
+
+  // Static mode: deterministic, quiet, no bubbles, strands or pointer reactions.
+  {
+    const sim = createSim({ motion: false, seed: 1 });
+    const other = createSim({ motion: false, seed: 99 });
+    const wins = [windowA()];
+    for (let i = 0; i < 5; i++) { frame(sim, wins, 0); frame(other, wins, 0); }
+    const a = sim.scene().windows[0], b = other.scene().windows[0];
+    assert.deepEqual(Array.from(a.radius), Array.from(b.radius));
+    assert.ok(a.bubbles.length <= 1 && a.strands.length === 0);
+    assert.equal(sim.stats().activeBubbles, 0);
+    assert.equal(sim.spawnBubble({ windowId: 'a' }), null);
+    assert.equal(sim.pointerDown(500, 514, 0), null);
+    assert.equal(sim.poke(500, 514), null);
+    assert.equal(sim.stats().dropCount, 0);
+    assert.equal(sim.stats().eventCount, 0);
+    assert.equal(sim.takeEvents().length, 0, 'the still gel makes no sound');
+    assert.equal(sim.stats().surfaceNodeCount, 32);
+    const [min, max] = radiusRange(sim);
+    assert.ok(min >= 10 - 1e-6 && max < 40);
+  }
+}
+
+// The Voxel World sky model, island generator and mesher are DOM-free and run in plain Node.
+function testVoxelWorldIsland() {
+  const context = { window: {} };
+  vm.createContext(context);
+  // Pure parts in bundle order (scripts/build-ui-bundles.js).
+  for (const part of ['voxel-sky', 'voxel-island', 'voxel-mesher']) vm.runInContext(read('ui/js/desktop/theme-fx/' + part + '.js'), context);
+  const { AuraVoxelSky: sky, AuraVoxelIsland: island, AuraVoxelMesher: mesher } = context.window;
+
+  assert.equal(sky.at(12).phase, 'day');
+  assert.equal(sky.at(0).phase, 'night');
+  assert.equal(sky.at(6.2).phase, 'dawn');
+  assert.equal(sky.at(19.6).phase, 'dusk');
+  assert.ok(sky.at(12).sunDir[1] > .8, 'noon sun is high');
+  assert.ok(sky.at(0).sunDir[1] < 0, 'midnight sun is below the horizon');
+  assert.equal(sky.at(0).night, 1);
+  assert.equal(sky.at(12).night, 0);
+  for (const key of ['skyTop', 'skyHorizon', 'fogColor', 'keyColor', 'hemiSky']) {
+    let prev = sky.at(0)[key];
+    for (let h = .05; h <= 24.0001; h += .05) {
+      const next = sky.at(h)[key];
+      for (let c = 0; c < 3; c++) assert.ok(Math.abs(next[c] - prev[c]) < .06, key + ' jumps at ' + h.toFixed(2));
+      prev = next;
+    }
+  }
+  assert.deepEqual(Array.from(sky.at(24).skyTop), Array.from(sky.at(0).skyTop));
+
+  const a = island.generate();
+  const b = island.generate();
+  assert.equal(a.voxels.length, a.w * a.d * a.h);
+  let same = a.voxels.length === b.voxels.length;
+  for (let i = 0; same && i < a.voxels.length; i++) same = a.voxels[i] === b.voxels[i];
+  assert.ok(same, 'island generation must be deterministic');
+  assert.ok(a.solidCount > 14000 && a.solidCount < 45000, 'solid ' + a.solidCount);
+  const M = island.MATERIAL;
+  const at = (x, y, z) => a.voxels[x + z * a.w + y * a.w * a.d];
+  let water = 0;
+  for (let i = 0; i < a.voxels.length; i++) if (a.voxels[i] === M.WATER) water++;
+  assert.ok(water >= 40, 'water ' + water);
+  const fall = a.features.waterfall;
+  for (let y = fall.y + a.yBase; y >= 0; y--) assert.equal(at(fall.x, y, fall.z), M.AIR, 'waterfall column open at grid y ' + y);
+  assert.ok(a.features.chimneys.length >= 1, 'chimney');
+  assert.ok(a.features.lanterns.length >= 4, 'lanterns');
+  assert.ok(a.features.windows.length >= 6, 'windows');
+  assert.ok(a.features.crystals.length >= 8, 'crystals');
+  let roots = 0;
+  for (let i = 0; i < a.voxels.length; i++) if (a.voxels[i] === M.ROOT) roots++;
+  assert.ok(roots > 0 && roots <= 30, 'ten short root strands of at most three voxels, got ' + roots + ' root voxels');
+  assert.equal(a.features.vines.length, 14, 'fourteen hanging vines');
+  for (const [x, y, z, len] of a.features.vines) {
+    assert.ok(len >= 2 && len <= 5, 'vine length ' + len);
+    assert.equal(at(x, y + a.yBase, z), M.OAK_LEAVES, 'a vine starts with a leaf voxel');
+  }
+  assert.ok(Array.isArray(a.features.windmill.hub), 'windmill hub');
+  assert.equal(a.islets.length, 2);
+
+  const grid = () => ({ w: 3, d: 3, h: 3, yBase: 0, voxels: new Uint8Array(27) });
+  const one = grid();
+  one.voxels[1 + 3 + 9] = M.STONE;
+  const m1 = mesher.mesh(one, island.MATERIAL_INFO);
+  assert.equal(m1.faceCount, 6);
+  assert.ok(Array.from(m1.groups.solid.ao).every(v => v === 1), 'a lone cube is unoccluded');
+  const two = grid();
+  two.voxels[0 + 3 + 9] = M.STONE;
+  two.voxels[1 + 3 + 9] = M.STONE;
+  assert.equal(mesher.mesh(two, island.MATERIAL_INFO).faceCount, 10);
+  const step = grid();
+  step.voxels[0 + 3 * 1 + 9 * 0] = M.STONE; // floor cube at x0 z1 y0
+  step.voxels[1 + 3 * 1 + 9 * 0] = M.STONE; // floor cube at x1 z1 y0
+  step.voxels[0 + 3 * 1 + 9 * 1] = M.STONE; // wall cube on top of x0
+  assert.ok(Array.from(mesher.mesh(step, island.MATERIAL_INFO).groups.solid.ao).some(v => v < 1), 'inner corner is occluded');
+  const big = mesher.mesh(a, island.MATERIAL_INFO);
+  assert.ok(big.faceCount > 8000 && big.faceCount < 70000, 'faces ' + big.faceCount);
+  for (const g of Object.values(big.groups)) {
+    const vertices = g.positions.length / 3;
+    for (let i = 0; i < g.indices.length; i++) assert.ok(g.indices[i] < vertices, 'index in range');
+    assert.equal(g.ao.length, vertices);
+    assert.equal(g.uvs.length, vertices * 2);
+  }
+  assert.equal(big.groups.glow.emissive.length, big.groups.glow.positions.length);
+}
+
+// The Orbit choreography and the particle system are DOM-free and run in plain Node.
+async function testOrbitChoreoAndParticles() {
+  const context = { window: {} };
+  vm.createContext(context);
+  for (const part of ['orbit-choreo', 'orbit-particles']) vm.runInContext(read('ui/js/desktop/theme-fx/' + part + '.js'), context);
+  const { AuraOrbitChoreo: C, AuraOrbitParticles: P } = context.window;
+  assert.ok(C && P, 'orbit modules attach their globals');
+
+  const a = C.createRng(42), b = C.createRng(42);
+  for (let i = 0; i < 5; i++) assert.equal(a(), b(), 'rng is deterministic');
+
+  const wide = C.composition(1920, 1080), tall = C.composition(1080, 1920);
+  assert.ok(wide.planet.x > 0.65 && wide.planet.y > 0.65, 'planet sits lower right on wide screens');
+  assert.ok(wide.station.x < 0.35 && wide.station.y < 0.4, 'station sits upper left');
+  assert.ok(tall.planet.radius < wide.planet.radius, 'portrait planet is smaller');
+
+  assert.equal(C.shuttleState(10).phase, 'docked');
+  assert.equal(C.shuttleState(50).phase, 'cruise');
+  assert.equal(C.shuttleState(96 + 10).cycle, 1);
+  const docked = C.shuttleOffset(C.shuttleState(5));
+  assert.deepEqual([docked.x, docked.y, docked.z], [0, 0, 0]);
+  const loopStart = C.shuttleOffset({ phase: 'cruise', progress: 0, cycle: 0 });
+  const loopEnd = C.shuttleOffset({ phase: 'cruise', progress: 1, cycle: 0 });
+  assert.ok(Math.hypot(loopStart.x - loopEnd.x, loopStart.y - loopEnd.y, loopStart.z - loopEnd.z) < 1e-6, 'cruise loop is closed');
+
+  const e1 = C.eventsBetween(7, 'comet', 0, 600), e2 = C.eventsBetween(7, 'comet', 0, 600);
+  assert.deepEqual(JSON.parse(JSON.stringify(e1)), JSON.parse(JSON.stringify(e2)), 'events are deterministic');
+  assert.ok(e1.length >= 8 && e1.length <= 30, 'about one comet per 38 s');
+  const split = C.eventsBetween(7, 'comet', 0, 300).concat(C.eventsBetween(7, 'comet', 300, 600));
+  assert.equal(split.length, e1.length, 'queries are window independent');
+
+  let s = { value: 0, velocity: 0 };
+  for (let i = 0; i < 120; i++) s = C.spring(s, 1, 1 / 60);
+  assert.ok(Math.abs(s.value - 1) < 0.01, 'spring settles within 2 s');
+  s = { value: 0, velocity: 0 };
+  s = C.spring(s, 1, 0.5);
+  assert.ok(Number.isFinite(s.value) && Math.abs(s.value) < 2, 'large dt stays stable');
+  const tilt = C.tiltFromVelocity(5000, 0);
+  assert.ok(tilt.y > 8.5 && tilt.y <= 9 && Math.abs(tilt.x) < 1e-9, 'tilt saturates at maxDeg');
+
+  const sys = P.createSystem({ capacity: 300, seed: 3 });
+  const rect = { x: 100, y: 80, width: 400, height: 300 };
+  sys.emitMaterialize(rect, { count: 120, duration: 0.5 });
+  assert.equal(sys.stats().live, 120);
+  for (let t = 0; t < 0.44; t += 1 / 60) sys.update(1 / 60);
+  let near = 0, total = 0;
+  sys.forEach(p => {
+    total++;
+    const dx = Math.max(rect.x - p.x, 0, p.x - (rect.x + rect.width));
+    const dy = Math.max(rect.y - p.y, 0, p.y - (rect.y + rect.height));
+    const inside = dx === 0 && dy === 0;
+    const edge = inside ? Math.min(p.x - rect.x, rect.x + rect.width - p.x, p.y - rect.y, rect.y + rect.height - p.y) : Math.hypot(dx, dy);
+    if (edge < 6) near++;
+  });
+  assert.ok(total > 0 && near / total > 0.9, 'materialize converges onto the frame');
+  sys.emitDissolve(rect, { count: 260, duration: 0.95 });
+  assert.ok(sys.stats().live <= 300, 'pool capacity holds');
+  for (let t = 0; t < 1.2; t += 1 / 30) sys.update(1 / 30);
+  assert.equal(sys.stats().live, 0, 'everything expires');
+  sys.emitPing({ x: 10, y: 10 });
+  assert.equal(sys.rings().length, 1);
+  sys.update(0.5);
+  assert.ok(sys.rings()[0].radius > 20, 'ring grows (dt clamped to 0.05 per call)');
+  P.drawCanvas2D({}, sys, 1);
+}
+
+// Detective: the selected revision belongs to the view, and a stale selection falls back to the
+// newest known revision instead of leaving the export bar without a report (audit finding 4.2).
+function testDetectiveRevisionSelectionSurvivesCaseSwitch() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  assert.ok(views && typeof views.chosenReport === 'function', 'views expose the revision helpers');
+
+  const fresh = { reports: [{ revision: 1, title: 'fresh' }] };
+  assert.equal(views.chosenReport(fresh, 0, [], null).revision, 1, 'no selection picks the newest');
+  assert.equal(views.chosenReport(fresh, 3, [], null).revision, 1, 'a stale revision falls back to the newest');
+  assert.equal(views.chosenReport({ reports: [] }, 3, [], null), undefined, 'no reports yield no selection');
+
+  const history = [{ revision: 1 }, { revision: 2 }];
+  const current = { reports: [{ revision: 3 }] };
+  assert.equal(views.chosenReport(current, 2, history, null).revision, 2, 'an archived revision is found');
+  const selected = { revision: 2, title: 'pinned' };
+  assert.equal(views.chosenReport(current, 2, history, selected).title, 'pinned', 'the pinned report wins');
+  assert.deepEqual(Array.from(views.knownReports(current, history, null), report => report.revision), [1, 2, 3]);
+  assert.deepEqual(Array.from(views.knownReports(current, history, selected), report => report.revision), [1, 2, 3]);
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /state\.revision = 0;\s*viewGeneration\+\+/, 'resetArchive owns the revision reset');
+  assert.match(app, /const chosenReport = \(\) => v\.chosenReport\(state\.current, state\.revision, history, selectedReport\)/);
+  assert.match(app, /const knownReports = \(\) => v\.knownReports\(state\.current, history, selectedReport\)/);
+  assert.match(app, /const revisions = knownReports\(\), chosen = chosenReport\(\) \|\| revisions\.at\(-1\)/);
+  assert.match(app, /state\.tab = 'report';/, 'a created case opens on the report tab');
+}
+
+// Detective: Start/Continue needs an idempotency key on plain-HTTP LAN installs too, where
+// crypto.randomUUID does not exist (audit finding 4.10).
+function testDetectiveIdempotencyKeyWithoutSecureContext() {
+  const source = read('ui/js/desktop/apps/detective.js');
+  const helper = sourceBetween(source, 'const key = () =>', 'function render(');
+  const build = cryptoObject => {
+    const context = { window: { crypto: cryptoObject }, Uint8Array, Math, Array, String, Number };
+    vm.createContext(context);
+    vm.runInContext(`${helper}; globalThis.key = key;`, context);
+    return context.key();
+  };
+
+  assert.equal(build({ randomUUID: () => 'uuid-1' }), 'uuid-1', 'a secure context keeps randomUUID');
+  const supplied = build({ getRandomValues: bytes => { bytes.fill(0xab); return bytes; } });
+  assert.equal(supplied, 'ab'.repeat(16), 'the fallback uses getRandomValues');
+  const insecure = build(undefined);
+  assert.match(insecure, /^[0-9a-f]{32}$/, 'a missing crypto object still yields a hex id');
+  assert.ok(insecure.length <= 128, 'the key fits the server limit');
+  assert.notEqual(build(undefined), build(undefined), 'fallback keys differ');
+  assert.match(source, /typeof c\.randomUUID === 'function'/, 'randomUUID is no longer called unguarded');
+}
+
+// Detective: Stop is a server state write and must not wait for a research runner, while a
+// disabled integration still hides it (audit finding 4.6).
+function testDetectiveStopFollowsEnabledNotReady() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+
+  assert.equal(views.canStop({ enabled: true, ready: false }), true, 'ready is not required');
+  assert.equal(views.canStop({ enabled: true, ready: true }), true);
+  assert.equal(views.canStop({ enabled: false, ready: true }), false, 'a disabled integration hides Stop');
+  assert.equal(views.canStop(undefined), false, 'missing capabilities stay closed');
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /const canStop = v\.canStop\(caps\)/);
+  assert.doesNotMatch(app, /const canStop = !!caps\.enabled && !!caps\.ready/);
+  assert.match(app, /const blockText = \(\) => \{/, 'the block reason is derived at render time');
+  assert.match(app, /caps\.initialization_error\) return/, 'a store failure wins over the generic block reason');
+  assert.match(app, /tr\('block_' \+ reason\)/);
+  assert.match(app, /role="status">\$\{e\(tr\('unavailable'\)\)\}/);
+}
+
+// Detective: the case payload carries source metadata only, so an opened disclosure
+// fetches its text; an already-loaded excerpt renders inline (audit finding 4.3).
+function testDetectiveSourceTextLoadsOnExpand() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const retrieved = new Date().toISOString();
+  const pending = views.sources([{ id: 'src_1', title: 'T', url: 'https://example.org/1', status: 'read', retrieved_at: retrieved }], key => key);
+  assert.match(pending, /<blockquote aria-busy="true">/, 'a pending excerpt is marked busy');
+  const loaded = views.sources([{ id: 'src_1', title: 'T', url: 'https://example.org/1', status: 'read', excerpt: 'Recorded evidence', retrieved_at: retrieved }], key => key);
+  assert.match(loaded, /<blockquote>Recorded evidence<\/blockquote>/);
+  assert.doesNotMatch(loaded, /aria-busy/);
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /host\.addEventListener\('toggle'/, 'opening a source triggers the fetch');
+  assert.match(app, /excerpts\.clear\(\)/, 'a case switch drops the excerpt cache');
+  assert.match(app, /'\/source\?id=' \+ encodeURIComponent\(id\)/);
+}
+
+// Detective: polling backs off when nothing is running, pauses while the window is
+// hidden, and reads status plus events in one round trip (audit 4.1/4.18).
+function testDetectivePollingBacksOffAndPauses() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  for (const status of ['queued', 'running', 'waiting_for_user']) {
+    assert.equal(views.pollDelay(status), 3000, `${status} polls every 3 s`);
+  }
+  for (const status of ['completed', 'partial', 'failed', 'draft', undefined]) {
+    assert.equal(views.pollDelay(status), 10000, `${status} backs off to 10 s`);
+  }
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /'\/state\?after=' \+ after/, 'status and events share one request');
+  assert.doesNotMatch(app, /\/live'/, 'the app no longer polls /live separately');
+  assert.match(app, /if \(state\.disposed \|\| document\.hidden\) return;/, 'a hidden window does no work');
+  assert.match(app, /addEventListener\('visibilitychange', onVisibility/, 'becoming visible polls at once');
+  assert.match(app, /setTimeout\(poll, v\.pollDelay\(state\.current\?\.run\?\.status\)\)/);
+}
+
+// Detective: an API refusal shows a translated sentence for its code, and the export
+// formats follow the PDF capability (audit 4.14).
+function testDetectiveErrorsAndExportFormats() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const messages = {
+    'desktop.detective_error': 'Something failed',
+    'desktop.detective_error_budget_exhausted': 'Research budget is used up',
+    'desktop.detective_error_pdf_unsupported_font': 'PDF cannot render this report',
+  };
+  // tr mirrors the app wrapper: a missing message returns the bare key.
+  const tr = key => messages['desktop.detective_' + key] || key;
+  assert.equal(views.errorText(tr, { body: { code: 'budget_exhausted', error: 'server text' } }), 'Research budget is used up');
+  assert.equal(views.errorText(tr, { body: { code: 'pdf_unsupported_font', error: 'server text' } }), 'PDF cannot render this report');
+  assert.equal(views.errorText(tr, { body: { code: 'brand_new_code', error: 'server text' } }), 'server text', 'unknown codes keep the server text');
+  assert.equal(views.errorText(tr, { message: 'network down' }), 'network down');
+  assert.equal(views.errorText(tr, {}), 'Something failed');
+
+  assert.equal(views.formats().map(f => f.id).join(','), 'md,pdf,docx');
+  assert.equal(views.formats({ pdf_scripts: true }).map(f => f.id).join(','), 'md,pdf,docx');
+  const limited = views.formats({ pdf_scripts: false });
+  assert.equal(limited.map(f => f.id).join(','), 'md,docx,pdf', 'Word comes first without full PDF script support');
+  assert.equal(limited.find(f => f.id === 'pdf').hint, 'pdf_hint');
+  assert.equal(limited.filter(f => f.hint).map(f => f.id).join(','), 'pdf', 'only the PDF link names the limit');
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /state\.notice = v\.errorText\(tr, err\)/);
+  assert.match(app, /const formats = v\.formats\(state\.caps\)/);
+  assert.match(app, /aria-describedby="\$\{hintID\}"/);
+}
+
+// Detective: a provisional partial report never becomes the default revision, and an
+// explicit selection still reaches it (audit 4.14).
+function testDetectiveProvisionalRevisionStaysOutOfTheDefault() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const current = { latest_complete_revision: 3, reports: [{ revision: 3, partial: false }, { revision: 4, partial: true, provisional: true }] };
+  assert.equal(views.chosenReport(current, 0, [], null).revision, 3, 'the last full report stays the default');
+  assert.equal(views.chosenReport(current, 4, [], null).revision, 4, 'an explicit selection reaches the provisional revision');
+  assert.equal(views.chosenReport({ reports: [{ revision: 2, partial: true, provisional: true }] }, 0, [], null).revision, 2, 'without a full report the provisional one is shown');
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /function provisionalNotice\(\)/);
+  assert.match(app, /tr\('provisional_notice'\)/);
+  assert.match(app, /x\.provisional \? ' · ' \+ e\(tr\('provisional'\)\)/);
+}
+
+// Detective: token counts appear in the status line, the case list and the automatic
+// panel; a zero usage renders nothing (audit 4.17).
+function testDetectiveTokenCounts() {
+  const viewsSource = read('ui/js/desktop/apps/detective-views.js');
+  const context = { Map, Set, String, Number, Date, JSON, URL, window: {} };
+  vm.createContext(context);
+  vm.runInContext(`${viewsSource}\nglobalThis.views = window.DetectiveViews;`, context);
+  const views = context.views;
+  const labels = { tokens: 'Tokens', tokens_in: 'in', tokens_out: 'out', tokens_cached: 'cached' };
+  const tr = key => labels[key] || key;
+  assert.equal(views.tokenText({}, tr), '');
+  assert.equal(views.tokenText({ prompt_tokens: 0, completion_tokens: 0 }, tr), '');
+  const html = views.tokenText({ prompt_tokens: 1234, completion_tokens: 567 }, tr);
+  assert.match(html, /Tokens:/);
+  assert.match(html, /1[.,]?234/);
+  assert.match(html, /567/);
+  assert.doesNotMatch(html, /cached/);
+  const cached = views.tokenText({ prompt_tokens: 10, completion_tokens: 5, cached_tokens: 89 }, tr);
+  assert.match(cached, /cached/);
+  assert.match(cached, /89/);
+
+  const app = read('ui/js/desktop/apps/detective.js');
+  assert.match(app, /v\.tokenText\(usage, tr\)/, 'the status line shows tokens');
+  assert.match(app, /function caseTokens\(item\)/, 'the case list shows a token total');
+  assert.match(app, /v\.autoStatus\(c\.auto_update, tr, c\.run\?\.usage\)/, 'the automatic panel shows the last run usage');
+}
+
 const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
@@ -4511,6 +5223,14 @@ const tests = [
   ['Window menu shortcut hints are drawn but not dispatched', testWindowMenuShortcutHintIsDrawnButNotDispatched],
   ['EasyDrag notifications keep only server-shaped flow and run ids', testEasyDragNotificationContextKeepsOnlyServerIds],
   ['Network Cameras notifications keep the detection event id', testNetworkCamerasNotificationContextKeepsEventIds],
+  ['Detective revision selection survives a case switch', testDetectiveRevisionSelectionSurvivesCaseSwitch],
+  ['Detective idempotency keys work without a secure context', testDetectiveIdempotencyKeyWithoutSecureContext],
+  ['Detective Stop follows enabled, not ready', testDetectiveStopFollowsEnabledNotReady],
+  ['Detective source text loads on expand', testDetectiveSourceTextLoadsOnExpand],
+  ['Detective polling backs off and pauses when hidden', testDetectivePollingBacksOffAndPauses],
+  ['Detective errors and export formats follow the API codes', testDetectiveErrorsAndExportFormats],
+  ['Detective provisional reports stay out of the default', testDetectiveProvisionalRevisionStaysOutOfTheDefault],
+  ['Detective token counts are visible', testDetectiveTokenCounts],
   ['EasyDrag session keeps only valid flow ids', testEasyDragSessionKeepsOnlyValidFlowIds],
   ['EasyDrag flows_changed is forwarded as aurago:flows-changed', testEasyDragFlowsChangedIsForwarded],
   ['Desktop event delivered over WebSocket and SSE is handled once', testDesktopEventDeliveredTwiceIsHandledOnce],
@@ -4520,7 +5240,10 @@ const tests = [
   ['Config 3D printer lists save as complete lists', testConfigThreeDPrinterListsSaveAsCompleteLists],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting],
   ['Invasion nest form sends export_nest_secret', testInvasionNestFormSendsExportNestSecret],
-  ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect]
+  ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect],
+  ['Green Slime simulation: geometry, bubbles, strands, pools and splats', testGreenSlimeSimulation],
+  ['Voxel World: sky model, island generator and mesher', testVoxelWorldIsland],
+  ['Orbit: choreography, schedules and particle system', testOrbitChoreoAndParticles]
 ];
 
 let failures = 0;

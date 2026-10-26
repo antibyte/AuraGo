@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -9,12 +10,17 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
+
+	"aurago/internal/fileutil"
+	"aurago/internal/security"
 )
 
 const homepageArtifactManifestName = ".aurago-site-manifest.json"
@@ -82,6 +88,14 @@ type HomepageArtifactManifestFile struct {
 
 // HomepageManagedSite is the compact read model exposed to APIs and agent context.
 type HomepageManagedSite struct {
+	LocalStatus    string              `json:"local_status"`
+	WorkspaceRoot  string              `json:"workspace_root"`
+	ContainerPath  string              `json:"container_path"`
+	Origin         string              `json:"origin"`
+	CreationRunID  string              `json:"creation_run_id,omitempty"`
+	LastEditReason string              `json:"last_edit_reason,omitempty"`
+	Events         []HomepageSiteEvent `json:"events,omitempty"`
+
 	ID                 int64                              `json:"id"`
 	Name               string                             `json:"name"`
 	Framework          string                             `json:"framework,omitempty"`
@@ -118,6 +132,10 @@ type HomepageManagedDeployment struct {
 
 // HomepageManagedDeployTarget is the compact current remote target read model.
 type HomepageManagedDeployTarget struct {
+	Status      string `json:"status"`
+	Account     string `json:"account,omitempty"`
+	Environment string `json:"environment,omitempty"`
+
 	ID               int64  `json:"id"`
 	Provider         string `json:"provider"`
 	ProviderTargetID string `json:"provider_target_id,omitempty"`
@@ -153,7 +171,10 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 		return nil, err
 	}
 	if proj, err := GetProjectByDir(db, canonical); err == nil {
-		if err := ensureHomepageProjectState(db, cfg, proj.ID, canonical, 0, "", "not_deployed", ""); err != nil {
+		if err := bindHomepageProjectWorkspace(db, cfg, proj.ID, canonical); err != nil {
+			return nil, err
+		}
+		if err := ensureHomepageProjectState(db, cfg, proj.ID, canonical, 0, "", "", ""); err != nil {
 			return nil, err
 		}
 		return proj, nil
@@ -186,7 +207,10 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 			}
 		}
 	}
-	if err := ensureHomepageProjectState(db, cfg, id, canonical, 0, "", "not_deployed", ""); err != nil {
+	if err := bindHomepageProjectWorkspace(db, cfg, id, canonical); err != nil {
+		return nil, err
+	}
+	if err := ensureHomepageProjectState(db, cfg, id, canonical, 0, "", "", ""); err != nil {
 		return nil, err
 	}
 	return GetProject(db, id)
@@ -194,38 +218,39 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 
 // RecordHomepageEvent appends one structured ledger event.
 func RecordHomepageEvent(db *sql.DB, projectID int64, eventType, source, summary string, payload map[string]interface{}) (int64, error) {
-	if db == nil {
-		return 0, fmt.Errorf("homepage registry DB not initialized")
+	if db == nil || projectID <= 0 {
+		return 0, fmt.Errorf("homepage registry and project_id are required")
 	}
-	if projectID <= 0 {
-		return 0, fmt.Errorf("project_id is required")
-	}
-	eventType = strings.TrimSpace(eventType)
 	if eventType == "" {
 		eventType = "note"
 	}
-	source = strings.TrimSpace(source)
 	if summary == "" {
 		summary = eventType
 	}
-	payloadJSON := ""
-	if payload != nil {
-		b, _ := json.Marshal(payload)
-		payloadJSON = string(b)
+	actor := ledgerString(payload, "actor")
+	if actor == "" {
+		actor = "system"
 	}
-	correlationID := fmt.Sprintf("hp-%d", time.Now().UnixNano())
-	res, err := db.Exec(`INSERT INTO homepage_site_events
-		(project_id, actor, source, event_type, summary, correlation_id, payload_json)
-		VALUES (?, 'agent', ?, ?, ?, ?, ?)`,
-		projectID, source, eventType, summary, correlationID, payloadJSON)
+	correlation := ledgerString(payload, "operation_id")
+	if correlation == "" {
+		correlation = "hp-" + rand.Text()
+	}
+	encoded, err := json.Marshal(payload)
 	if err != nil {
-		return 0, fmt.Errorf("failed to record homepage event: %w", err)
+		return 0, err
 	}
-	id, _ := res.LastInsertId()
-	return id, nil
+	encodedText := security.RedactSensitiveInfo(string(encoded))
+	if !json.Valid([]byte(encodedText)) {
+		return 0, fmt.Errorf("redacted homepage event is not valid JSON")
+	}
+	result, err := db.Exec(`INSERT INTO homepage_site_events (project_id,actor,source,event_type,summary,correlation_id,payload_json)
+        VALUES (?,?,?,?,?,?,?)`, projectID, actor, source, eventType, security.RedactSensitiveInfo(summary), correlation, encodedText)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
 }
 
-// SnapshotHomepageFileState replaces the current file-state inventory for a project.
 func SnapshotHomepageFileState(cfg HomepageConfig, db *sql.DB, projectID int64, projectDir string, revisionID int64, logger *slog.Logger) error {
 	if db == nil {
 		return fmt.Errorf("homepage registry DB not initialized")
@@ -238,7 +263,7 @@ func SnapshotHomepageFileState(cfg HomepageConfig, db *sql.DB, projectID int64, 
 		return err
 	}
 	basePath := homepageLocalRoot(cfg, canonical)
-	files, err := enumerateProjectFiles(basePath, logger)
+	files, _, err := enumerateProjectFiles(basePath, logger)
 	if err != nil {
 		return fmt.Errorf("enumerate project files: %w", err)
 	}
@@ -292,6 +317,11 @@ func SaveHomepageRevisionAndState(cfg HomepageConfig, db *sql.DB, projectDir, me
 		result.Warnings = append(result.Warnings, err.Error())
 		return result
 	}
+	if actor := ledgerString(payload, "actor"); actor != "" {
+		op := homepageCurrentOperation(cfg)
+		op.Actor = actor
+		cfg.Context = context.WithValue(nativeHTTPContext(cfg.Context), homepageOperationKey{}, op)
+	}
 	raw := HomepageSaveRevision(cfg, db, proj.ProjectDir, message, reason, logger)
 	result.JSON = raw
 	parsed := map[string]interface{}{}
@@ -314,6 +344,9 @@ func SaveHomepageRevisionAndState(cfg HomepageConfig, db *sql.DB, projectDir, me
 			result.Warnings = append(result.Warnings, fmt.Sprintf("file state snapshot failed: %v", err))
 		}
 	}
+	if !result.Changed {
+		return result
+	}
 	eventType := "revision_checked"
 	if result.Changed {
 		eventType = "revision_saved"
@@ -321,12 +354,25 @@ func SaveHomepageRevisionAndState(cfg HomepageConfig, db *sql.DB, projectDir, me
 	if payload == nil {
 		payload = map[string]interface{}{}
 	}
+	if op := homepageCurrentOperation(cfg); op.ID != "" {
+		if _, ok := payload["operation_id"]; !ok {
+			payload["operation_id"] = op.ID
+		}
+		if _, ok := payload["reason"]; !ok {
+			payload["reason"] = op.Reason
+		}
+		if _, ok := payload["actor"]; !ok {
+			payload["actor"] = op.Actor
+		}
+		payload["run_id"] = op.RunID
+		payload["session_id"] = op.SessionID
+	}
 	payload["revision_id"] = result.RevisionID
 	payload["changed"] = result.Changed
 	if _, err := RecordHomepageEvent(db, proj.ID, eventType, source, message, payload); err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("event logging failed: %v", err))
 	}
-	if result.Changed {
+	if result.Changed && !HomepageOperationInProgress(cfg) {
 		_, _ = AddHomepageHistoryEntry(db, proj.ID, "note", fmt.Sprintf("Saved revision: %s", message), source, nil)
 	}
 	return result
@@ -355,28 +401,39 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 	metadataJSON := ""
 	if rec.Metadata != nil {
 		b, _ := json.Marshal(rec.Metadata)
-		metadataJSON = string(b)
+		metadataJSON = security.RedactSensitiveInfo(string(b))
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
+	targetKey := homepageDeploymentTargetKey(rec)
+	// Reuse a migrated target once; never erase its historical foreign-key links.
+	if _, err := db.Exec("UPDATE homepage_deploy_targets SET target_key=? WHERE project_id=? AND provider=? AND provider_target_id=? AND target_key LIKE 'legacy:%'", targetKey, rec.ProjectID, rec.Provider, rec.ProviderTargetID); err != nil {
+		return err
+	}
 	_, err := db.Exec(`INSERT INTO homepage_deploy_targets
-		(project_id, provider, provider_target_id, url, remote_path, metadata_json, last_seen_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(project_id, provider) DO UPDATE SET
+		(project_id, provider, provider_target_id, url, remote_path, metadata_json, last_seen_at, updated_at,target_key,status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?,?,?)
+        ON CONFLICT(project_id, provider,target_key) DO UPDATE SET
+            status=excluded.status,
 			provider_target_id = excluded.provider_target_id,
 			url = excluded.url,
 			remote_path = excluded.remote_path,
 			metadata_json = excluded.metadata_json,
 			last_seen_at = excluded.last_seen_at,
 			updated_at = excluded.updated_at`,
-		rec.ProjectID, rec.Provider, rec.ProviderTargetID, rec.URL, rec.RemotePath, metadataJSON, now, now)
+		rec.ProjectID, rec.Provider, rec.ProviderTargetID, rec.URL, rec.RemotePath, metadataJSON, now, now, targetKey, func() string {
+			if rec.Status == "ok" || rec.Status == "verified" {
+				return "active"
+			}
+			return "unknown"
+		}())
 	if err != nil {
 		return fmt.Errorf("failed to upsert deploy target: %w", err)
 	}
 	var targetID int64
 	if err := db.QueryRow(
-		"SELECT id FROM homepage_deploy_targets WHERE project_id = ? AND provider = ?",
+		"SELECT id FROM homepage_deploy_targets WHERE project_id = ? AND provider = ? AND target_key=?",
 		rec.ProjectID,
-		rec.Provider,
+		rec.Provider, targetKey,
 	).Scan(&targetID); err != nil {
 		return fmt.Errorf("failed to read deploy target id: %w", err)
 	}
@@ -400,6 +457,9 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 		"build_dir":          rec.BuildDir,
 		"artifact_hash":      rec.ArtifactHash,
 	}); err != nil {
+		return err
+	}
+	if _, err := db.Exec("UPDATE homepage_projects SET last_deploy_url=?,last_deployed_at=?,updated_at=? WHERE id=?", rec.URL, now, now, rec.ProjectID); err != nil {
 		return err
 	}
 	_, _ = db.Exec("UPDATE homepage_project_state SET drift_status = 'clean', drift_message = '', updated_at = ? WHERE project_id = ?", now, rec.ProjectID)
@@ -464,6 +524,13 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	}
 	if buildDir == "" {
 		buildDir = "."
+	}
+	if op := homepageCurrentOperation(cfg); op.ID != "" {
+		saved := SaveHomepageRevisionAndState(cfg, db, proj.ProjectDir, "Source for "+provider+" deployment", op.Reason, op.Source, map[string]interface{}{"operation_id": op.ID}, logger)
+		if len(saved.Warnings) > 0 {
+			result.Fatal = fmt.Errorf("source revision could not be linked: %s", strings.Join(saved.Warnings, "; "))
+			return result
+		}
 	}
 	latest, _ := GetLatestHomepageRevision(db, proj.ProjectDir)
 	revisionID := int64(0)
@@ -557,7 +624,7 @@ func BuildHomepageArtifactManifest(cfg HomepageConfig, projectID int64, projectD
 		return HomepageArtifactManifest{}, err
 	}
 	root := filepath.Join(homepageLocalRoot(cfg, canonical), filepath.FromSlash(buildDir))
-	files, err := enumerateProjectFiles(root, nil)
+	files, _, err := enumerateProjectFiles(root, nil)
 	if err != nil {
 		return HomepageArtifactManifest{}, err
 	}
@@ -599,16 +666,27 @@ func WriteHomepageArtifactManifest(cfg HomepageConfig, manifest HomepageArtifact
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(manifest.ManifestPath, b, 0644)
+	if err := fileutil.WriteFileContext(context.Background(), manifest.ManifestPath, b, 0644); err != nil {
+		return fmt.Errorf("write artifact manifest: %w", err)
+	}
+	return nil
 }
 
 // ReconcileHomepageProject updates local state and drift based on current files.
 func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string, logger *slog.Logger) (HomepageProjectState, error) {
+	if !HomepageOperationInProgress(cfg) {
+		lock, _ := homepageOperationLocks.LoadOrStore(filepath.Clean(cfg.WorkspacePath), &sync.Mutex{})
+		mu := lock.(*sync.Mutex)
+		if err := lockToolHTTPContext(nativeHTTPContext(cfg.Context), mu); err != nil {
+			return HomepageProjectState{}, err
+		}
+		defer mu.Unlock()
+	}
 	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "", "")
 	if err != nil {
 		return HomepageProjectState{}, err
 	}
-	current, err := enumerateProjectFiles(homepageLocalRoot(cfg, proj.ProjectDir), logger)
+	current, _, err := enumerateProjectFiles(homepageLocalRoot(cfg, proj.ProjectDir), logger)
 	if err != nil {
 		return HomepageProjectState{}, err
 	}
@@ -624,6 +702,10 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 			stored[path] = hash
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return HomepageProjectState{}, err
+	}
+	rows.Close()
 	currentMap := map[string]string{}
 	for _, f := range current {
 		currentMap[f.Path] = f.Hash
@@ -644,6 +726,12 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 				message = fmt.Sprintf("local file removed: %s", path)
 				break
 			}
+		}
+	}
+	if drift == "local_changed" {
+		saved := SaveHomepageRevisionAndState(cfg, db, proj.ProjectDir, "Observed external file changes", "Original reason unknown; detected during reconciliation", "external_observation", map[string]interface{}{"actor": "external", "reason": "unknown", "reason_known": false}, logger)
+		if len(saved.Warnings) > 0 {
+			return HomepageProjectState{}, fmt.Errorf("record external changes: %s", strings.Join(saved.Warnings, "; "))
 		}
 	}
 	if drift == "clean" {
@@ -670,6 +758,12 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 			message = remoteMessage
 		}
 	}
+	previous, _ := GetHomepageProjectState(db, proj.ID)
+	if previous.DriftStatus != drift || previous.DriftMessage != message {
+		if _, err := RecordHomepageEvent(db, proj.ID, "reconciled", "homepage_reconciler", message, map[string]interface{}{"actor": "system", "reason": "Verify current website state", "drift_status": drift}); err != nil {
+			return HomepageProjectState{}, err
+		}
+	}
 	gitSHA := HomepageProjectGitSHA(cfg, proj.ProjectDir)
 	if err := nativeHTTPContext(cfg.Context).Err(); err != nil {
 		return HomepageProjectState{}, err
@@ -682,16 +776,20 @@ func ReconcileHomepageProject(cfg HomepageConfig, db *sql.DB, projectDir string,
 
 // ListHomepageManagedSites returns all managed sites with current state.
 func ListHomepageManagedSites(db *sql.DB) ([]HomepageManagedSite, error) {
+	return listHomepageManagedSites(db, 0)
+}
+func listHomepageManagedSites(db *sql.DB, id int64) ([]HomepageManagedSite, error) {
 	if db == nil {
 		return nil, fmt.Errorf("homepage registry DB not initialized")
 	}
 	rows, err := db.Query(`SELECT p.id, p.name, p.framework, p.url, p.project_dir, p.status,
 			COALESCE(p.last_edited_at, ''), COALESCE(p.last_deployed_at, ''), p.last_deploy_url,
 			COALESCE(s.local_root, ''), COALESCE(s.current_revision_id, 0), COALESCE(s.git_sha, ''),
-			COALESCE(s.last_reconciled_at, ''), COALESCE(s.drift_status, 'not_deployed'), COALESCE(s.drift_message, '')
+			COALESCE(s.last_reconciled_at, ''), COALESCE(s.drift_status, 'not_deployed'), COALESCE(s.drift_message, ''),
+            p.workspace_root,p.origin,p.creation_run_id,p.last_edit_reason
 		FROM homepage_projects p
 		LEFT JOIN homepage_project_state s ON s.project_id = p.id
-		ORDER BY p.updated_at DESC, p.created_at DESC`)
+		WHERE (?=0 OR p.id=?) ORDER BY p.updated_at DESC,p.id DESC`, id, id)
 	if err != nil {
 		return nil, err
 	}
@@ -701,8 +799,23 @@ func ListHomepageManagedSites(db *sql.DB) ([]HomepageManagedSite, error) {
 		var site HomepageManagedSite
 		if err := rows.Scan(&site.ID, &site.Name, &site.Framework, &site.URL, &site.ProjectDir, &site.Status,
 			&site.LastEditedAt, &site.LastDeployedAt, &site.LastDeployURL, &site.LocalRoot, &site.CurrentRevisionID,
-			&site.GitSHA, &site.LastReconciledAt, &site.DriftStatus, &site.DriftMessage); err != nil {
+			&site.GitSHA, &site.LastReconciledAt, &site.DriftStatus, &site.DriftMessage, &site.WorkspaceRoot, &site.Origin, &site.CreationRunID, &site.LastEditReason); err != nil {
 			return nil, err
+		}
+		site.LocalStatus = "unknown"
+		if site.LocalRoot != "" {
+			if info, err := os.Stat(site.LocalRoot); err == nil && info.IsDir() {
+				site.LocalStatus = "available"
+			} else if os.IsNotExist(err) {
+				site.LocalStatus = "missing"
+			}
+		}
+		if site.ProjectDir == "" {
+			site.ContainerPath = ""
+			site.LocalStatus = "remote_only"
+			site.DriftStatus = "remote_unknown"
+		} else {
+			site.ContainerPath = "/workspace/" + site.ProjectDir
 		}
 		sites = append(sites, site)
 	}
@@ -714,7 +827,7 @@ func GetHomepageManagedSite(db *sql.DB, id int64) (HomepageManagedSite, error) {
 	if id <= 0 {
 		return HomepageManagedSite{}, fmt.Errorf("id is required")
 	}
-	sites, err := ListHomepageManagedSites(db)
+	sites, err := listHomepageManagedSites(db, id)
 	if err != nil {
 		return HomepageManagedSite{}, err
 	}
@@ -734,6 +847,10 @@ func GetHomepageManagedSite(db *sql.DB, id int64) (HomepageManagedSite, error) {
 			}
 			site.Deployments = deployments
 			site.DeployTargets = targets
+			site.Events, err = ListHomepageSiteEvents(db, id, 20, 0)
+			if err != nil {
+				return HomepageManagedSite{}, err
+			}
 			site.RemoteObservations = observations
 			return site, nil
 		}
@@ -766,7 +883,7 @@ func ListHomepageManagedDeployments(db *sql.DB, projectID int64, limit int) ([]H
 // ListHomepageManagedDeployTargets returns current deploy targets for a project.
 func ListHomepageManagedDeployTargets(db *sql.DB, projectID int64) ([]HomepageManagedDeployTarget, error) {
 	rows, err := db.Query(`SELECT id, provider, provider_target_id, url, remote_path,
-			COALESCE(last_seen_at, ''), COALESCE(updated_at, '')
+			COALESCE(last_seen_at, ''), COALESCE(updated_at, ''),status,metadata_json
 		FROM homepage_deploy_targets
 		WHERE project_id = ?
 		ORDER BY updated_at DESC, id DESC`, projectID)
@@ -777,9 +894,14 @@ func ListHomepageManagedDeployTargets(db *sql.DB, projectID int64) ([]HomepageMa
 	var targets []HomepageManagedDeployTarget
 	for rows.Next() {
 		var target HomepageManagedDeployTarget
-		if err := rows.Scan(&target.ID, &target.Provider, &target.ProviderTargetID, &target.URL, &target.RemotePath, &target.LastSeenAt, &target.UpdatedAt); err != nil {
+		var metadata string
+		if err := rows.Scan(&target.ID, &target.Provider, &target.ProviderTargetID, &target.URL, &target.RemotePath, &target.LastSeenAt, &target.UpdatedAt, &target.Status, &metadata); err != nil {
 			return nil, err
 		}
+		var details map[string]interface{}
+		json.Unmarshal([]byte(metadata), &details)
+		target.Account = firstLedgerString(details, "account_id", "account", "team_id")
+		target.Environment = firstLedgerString(details, "target", "environment")
 		targets = append(targets, target)
 	}
 	return targets, rows.Err()
@@ -824,6 +946,26 @@ func latestSuccessfulHomepageDeploymentRevision(db *sql.DB, projectID int64) int
 }
 
 func observeHomepageRemote(db *sql.DB, projectID int64, contexts ...context.Context) (string, string) {
+	targets, err := ListHomepageManagedDeployTargets(db, projectID)
+	if err != nil {
+		return "remote_unknown", err.Error()
+	}
+	if len(targets) == 0 {
+		return observeHomepageRemoteTarget(db, projectID, 0, contexts...)
+	}
+	drift, message := "", ""
+	for _, target := range targets {
+		if target.Status == "inactive" {
+			continue
+		}
+		status, note := observeHomepageRemoteTarget(db, projectID, target.ID, contexts...)
+		if status == "remote_unknown" || (status != "" && drift == "") {
+			drift, message = status, note
+		}
+	}
+	return drift, message
+}
+func observeHomepageRemoteTarget(db *sql.DB, projectID, targetFilter int64, contexts ...context.Context) (string, string) {
 	ctx := nativeHTTPContext(contexts...)
 	if ctx.Err() != nil {
 		return "", ""
@@ -833,13 +975,17 @@ func observeHomepageRemote(db *sql.DB, projectID int64, contexts ...context.Cont
 	var provider, url, providerDeployID string
 	err := db.QueryRow(`SELECT id, target_id, provider, url, provider_deploy_id
 		FROM homepage_deployments
-		WHERE project_id = ? AND url != ''
-		ORDER BY created_at DESC, id DESC LIMIT 1`, projectID).
+		WHERE project_id = ? AND url != '' AND (?=0 OR target_id=?) AND status NOT IN ('failed','error')
+		ORDER BY created_at DESC, id DESC LIMIT 1`, projectID, targetFilter, targetFilter).
 		Scan(&deploymentID, &targetID, &provider, &url, &providerDeployID)
 	if err != nil {
 		return "", ""
 	}
-	resp, err := getToolHTTP(ctx, homepageVerifyHTTPClient, url)
+	client, err := homepageRemoteProbeClient(ctx, provider, url)
+	var resp *http.Response
+	if err == nil {
+		resp, err = getToolHTTP(ctx, client, url)
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			return "", ""
@@ -937,27 +1083,32 @@ func ensureHomepageProjectState(db *sql.DB, cfg HomepageConfig, projectID int64,
 	if projectID <= 0 {
 		return fmt.Errorf("project_id is required")
 	}
-	localRoot := homepageLocalRoot(cfg, projectDir)
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
 	var revision interface{}
 	if revisionID > 0 {
 		revision = revisionID
 	}
-	if driftStatus == "" {
-		driftStatus = "not_deployed"
+	reconciled := ""
+	if driftStatus != "" {
+		reconciled = now
+	}
+	initial := driftStatus
+	if initial == "" {
+		initial = "not_deployed"
 	}
 	_, err := db.Exec(`INSERT INTO homepage_project_state
-		(project_id, local_root, current_revision_id, git_sha, last_reconciled_at, drift_status, drift_message, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(project_id) DO UPDATE SET
-			local_root = excluded.local_root,
-			current_revision_id = COALESCE(excluded.current_revision_id, homepage_project_state.current_revision_id),
-			git_sha = CASE WHEN excluded.git_sha != '' THEN excluded.git_sha ELSE homepage_project_state.git_sha END,
-			last_reconciled_at = excluded.last_reconciled_at,
-			drift_status = CASE WHEN excluded.drift_status != '' THEN excluded.drift_status ELSE homepage_project_state.drift_status END,
-			drift_message = excluded.drift_message,
-			updated_at = excluded.updated_at`,
-		projectID, localRoot, revision, gitSHA, now, driftStatus, driftMessage, now)
+        (project_id,local_root,current_revision_id,git_sha,last_reconciled_at,drift_status,drift_message,updated_at)
+        VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET
+        current_revision_id=COALESCE(excluded.current_revision_id,homepage_project_state.current_revision_id),
+        git_sha=CASE WHEN excluded.git_sha!='' THEN excluded.git_sha ELSE homepage_project_state.git_sha END,
+        last_reconciled_at=CASE WHEN ?!='' THEN excluded.last_reconciled_at ELSE homepage_project_state.last_reconciled_at END,
+        drift_status=CASE WHEN ?!='' THEN excluded.drift_status
+            WHEN excluded.current_revision_id>COALESCE(homepage_project_state.current_revision_id,0) THEN 'not_deployed'
+            ELSE homepage_project_state.drift_status END,
+        drift_message=CASE WHEN ?!='' THEN excluded.drift_message
+            WHEN excluded.current_revision_id>COALESCE(homepage_project_state.current_revision_id,0) THEN 'current revision has not been deployed'
+            ELSE homepage_project_state.drift_message END,
+        updated_at=excluded.updated_at`, projectID, homepageLocalRoot(cfg, projectDir), revision, gitSHA, reconciled, initial, driftMessage, now, driftStatus, driftStatus, driftStatus)
 	return err
 }
 
@@ -1056,4 +1207,20 @@ func ledgerBuildDirFromDeployPath(projectDir, deployPath string) string {
 		}
 	}
 	return deployPath
+}
+
+func bindHomepageProjectWorkspace(db *sql.DB, cfg HomepageConfig, id int64, dir string) error {
+	root := homepageWorkspaceRoot(cfg)
+	var pinned, local string
+	if err := db.QueryRow("SELECT p.workspace_root,COALESCE(s.local_root,'') FROM homepage_projects p LEFT JOIN homepage_project_state s ON s.project_id=p.id WHERE p.id=?", id).Scan(&pinned, &local); err != nil {
+		return err
+	}
+	if pinned != "" && filepath.Clean(pinned) != root {
+		return fmt.Errorf("project belongs to workspace %q; explicit relocation is required", pinned)
+	}
+	if pinned == "" && local != "" && filepath.Clean(local) != homepageLocalRoot(cfg, dir) {
+		return fmt.Errorf("legacy project location does not match the configured workspace; explicit relocation is required")
+	}
+	_, err := db.Exec("UPDATE homepage_projects SET workspace_root=? WHERE id=? AND workspace_root=''", root, id)
+	return err
 }

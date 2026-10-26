@@ -21,56 +21,75 @@ type buildFixPattern struct {
 	fix func(matches []string, projectDir string) string
 }
 
+// homepageAutoFixPackageName normalizes a module name captured from build
+// output: the subpath is stripped and the scope of a scoped package is kept.
+func homepageAutoFixPackageName(module string) string {
+	mod := module
+	// Strip subpath (e.g. 'foo/bar' → 'foo')
+	if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
+		mod = mod[:idx]
+	}
+	// For scoped packages, keep scope + name
+	if strings.HasPrefix(mod, "@") {
+		parts := strings.SplitN(mod, "/", 3)
+		if len(parts) >= 2 {
+			mod = parts[0] + "/" + parts[1]
+		}
+	}
+	return mod
+}
+
+// homepageAutoFixPackageCommand builds an `npm install` command for a module
+// name captured from build output. The name is validated against the
+// dependency allowlist and quoted, so a captured name can never become a
+// second command. An empty result means the name is not installable.
+func homepageAutoFixPackageCommand(dir, module string) string {
+	mod := homepageAutoFixPackageName(module)
+	if err := validateHomepagePackageName(mod); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("cd /workspace/%s && npm install %s 2>&1", dir, shellSingleQuote(mod))
+}
+
+// homepageAutoFixTypesCommand builds the `npm install --save-dev @types/…`
+// command for a module name captured from TypeScript build output.
+func homepageAutoFixTypesCommand(dir, module string) string {
+	mod := homepageAutoFixPackageName(module)
+	if strings.HasPrefix(mod, "@") {
+		// A scoped package already carries its own types package.
+		return ""
+	}
+	if err := validateHomepagePackageName(mod); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("cd /workspace/%s && npm install --save-dev %s 2>&1 || true", dir, shellSingleQuote("@types/"+mod))
+}
+
 var buildFixPatterns = []buildFixPattern{
 	{
 		name:    "missing-npm-module",
-		pattern: regexp.MustCompile(`(?i)Cannot find module '([^']+)'`),
+		pattern: regexp.MustCompile(`(?i)Cannot find module '([a-zA-Z0-9@._~/-]+)'`),
 		fix: func(m []string, dir string) string {
-			mod := m[1]
-			// Strip subpath (e.g. 'foo/bar' → 'foo')
-			if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
-				mod = mod[:idx]
-			}
-			// For scoped packages, keep scope + name
-			if strings.HasPrefix(mod, "@") {
-				parts := strings.SplitN(mod, "/", 3)
-				if len(parts) >= 2 {
-					mod = parts[0] + "/" + parts[1]
-				}
-			}
-			return fmt.Sprintf("cd /workspace/%s && npm install %s 2>&1", dir, mod)
+			return homepageAutoFixPackageCommand(dir, m[1])
 		},
 	},
 	{
 		name:    "module-not-found-webpack",
-		pattern: regexp.MustCompile(`(?i)Module not found:.*Can't resolve '([^']+)'`),
+		pattern: regexp.MustCompile(`(?i)Module not found:.*Can't resolve '([a-zA-Z0-9@._~/-]+)'`),
 		fix: func(m []string, dir string) string {
-			mod := m[1]
-			if strings.HasPrefix(mod, ".") || strings.HasPrefix(mod, "/") {
-				return "" // relative path — not an installable package
-			}
-			if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
-				mod = mod[:idx]
-			}
-			if strings.HasPrefix(mod, "@") {
-				parts := strings.SplitN(mod, "/", 3)
-				if len(parts) >= 2 {
-					mod = parts[0] + "/" + parts[1]
-				}
-			}
-			return fmt.Sprintf("cd /workspace/%s && npm install %s 2>&1", dir, mod)
+			return homepageAutoFixPackageCommand(dir, m[1])
 		},
 	},
 	{
 		name:    "missing-peer-dep",
-		pattern: regexp.MustCompile(`(?i)WARN.*requires a peer of ([^ ]+)`),
+		pattern: regexp.MustCompile(`(?i)WARN.*requires a peer of ([a-zA-Z0-9@._~/-]+)`),
 		fix: func(m []string, dir string) string {
 			dep := m[1]
 			// Strip version spec
 			if idx := strings.Index(dep, "@"); idx > 0 {
 				dep = dep[:idx]
 			}
-			return fmt.Sprintf("cd /workspace/%s && npm install %s 2>&1", dir, dep)
+			return homepageAutoFixPackageCommand(dir, dep)
 		},
 	},
 	{
@@ -97,37 +116,17 @@ var buildFixPatterns = []buildFixPattern{
 	// TypeScript-specific: TS2307 module not found → install the package
 	{
 		name:    "ts-missing-module",
-		pattern: regexp.MustCompile(`(?i)error TS2307: Cannot find module '([^']+)'`),
+		pattern: regexp.MustCompile(`(?i)error TS2307: Cannot find module '([a-zA-Z0-9@._~/-]+)'`),
 		fix: func(m []string, dir string) string {
-			mod := m[1]
-			if strings.HasPrefix(mod, ".") || strings.HasPrefix(mod, "/") {
-				return "" // relative path — not an installable package
-			}
-			if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
-				mod = mod[:idx]
-			}
-			if strings.HasPrefix(mod, "@") {
-				parts := strings.SplitN(mod, "/", 3)
-				if len(parts) >= 2 {
-					mod = parts[0] + "/" + parts[1]
-				}
-			}
-			return fmt.Sprintf("cd /workspace/%s && npm install %s 2>&1", dir, mod)
+			return homepageAutoFixPackageCommand(dir, m[1])
 		},
 	},
 	// TypeScript: missing @types declaration → install @types/package
 	{
 		name:    "ts-missing-types",
-		pattern: regexp.MustCompile(`(?i)Could not find a declaration file for module '([^']+)'`),
+		pattern: regexp.MustCompile(`(?i)Could not find a declaration file for module '([a-zA-Z0-9@._~/-]+)'`),
 		fix: func(m []string, dir string) string {
-			mod := m[1]
-			if strings.HasPrefix(mod, ".") || strings.HasPrefix(mod, "/") {
-				return "" // relative path
-			}
-			if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
-				mod = mod[:idx]
-			}
-			return fmt.Sprintf("cd /workspace/%s && npm install --save-dev @types/%s 2>&1 || true", dir, mod)
+			return homepageAutoFixTypesCommand(dir, m[1])
 		},
 	},
 }

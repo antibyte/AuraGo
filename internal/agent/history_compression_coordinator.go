@@ -202,6 +202,9 @@ func compressPersistentHistory(
 	if runCfg.HistoryManager == nil || runCfg.ShortTermMem == nil || client == nil || strings.TrimSpace(model) == "" {
 		return result
 	}
+	if ctx.Err() != nil || historyCompressionOnCooldown(runCfg.SessionID) {
+		return result
+	}
 	history := runCfg.HistoryManager.GetAll()
 	if len(history) < 2+compressionKeepTail {
 		return result
@@ -279,32 +282,48 @@ func compressPersistentHistory(
 
 	prompt := buildPersistentHistorySummaryPrompt(runCfg.HistoryManager.GetSummary(), selected)
 	summaryReq := openai.ChatCompletionRequest{
-		Model:       model,
-		Messages:    []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: prompt}},
-		MaxTokens:   summaryMaxTokensForCount(len(selected)),
+		Model:    model,
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: prompt}},
+		// The recap includes the existing summary, independently of this batch's size.
+		MaxTokens:   historySummaryMaxTokens,
 		Temperature: 0.2,
+	}
+	if runCfg.Config != nil {
+		outputTokens, err := maintenanceCompletionBudget(runCfg.Config, summaryReq)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("[Compression] Summary request does not fit the helper route", "error", err)
+			}
+			return result
+		}
+		summaryReq.MaxTokens = outputTokens
 	}
 	summaryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	response, err := budget.CompleteChat(summaryCtx, client, summaryReq, llm.ModelRoute{Model: model}, "compression", summaryReq.MaxTokens, prompts.CountTokensForModelContext)
+	if ctx.Err() != nil {
+		return result
+	}
 	if err != nil {
 		if logger != nil {
 			logger.Warn("[Compression] Persistent summary failed", "error", err)
 		}
 		// Cancellation (shutdown or the caller giving up) is not a helper
 		// failure and must not raise the repeated-failure operational issue.
-		if ctx.Err() == nil {
-			recordHistoryCompressionFailure(runCfg)
-		}
+		recordHistoryCompressionFailure(runCfg, "request_failed")
 		return result
 	}
-	if len(response.Choices) == 0 || response.Choices[0].FinishReason == openai.FinishReasonLength {
-		recordHistoryCompressionFailure(runCfg)
+	if len(response.Choices) == 0 {
+		recordHistoryCompressionFailure(runCfg, "empty_response")
+		return result
+	}
+	if response.Choices[0].FinishReason != openai.FinishReasonStop {
+		recordHistoryCompressionFailure(runCfg, "incomplete_response")
 		return result
 	}
 	summary := strings.TrimSpace(response.Choices[0].Message.Content)
 	if summary == "" || prompts.CountTokensForModel(summary, model) > historySummaryMaxTokens {
-		recordHistoryCompressionFailure(runCfg)
+		recordHistoryCompressionFailure(runCfg, "empty_or_oversized_summary")
 		return result
 	}
 	if ctx.Err() != nil {

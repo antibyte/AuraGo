@@ -218,7 +218,9 @@
         if (!state.selectionHold) rememberAssetSelection(state);
     }
     function selectionMarkup(state) {
-        return `<p class="gm-asset-selection" data-gm-asset-selection>${state.context.esc(selectionText(state))}</p>`;
+        const { esc, t } = state.context;
+        return `<p class="gm-asset-selection" data-gm-asset-selection>${esc(selectionText(state))}</p>
+            <p class="gm-asset-note">${esc(t('game_maker.assets_browser_only'))}</p>`;
     }
     function clearSelection(state) {
         state.selectedAssetPackIDs = [];

@@ -182,6 +182,7 @@ maintenance:
 telegram:
   bot_token: ""
   telegram_user_id: 0
+  readonly: false
 
 discord:
   enabled: false
@@ -190,6 +191,7 @@ discord:
   guild_id: ""
   allowed_user_id: ""
   default_channel_id: ""
+  allowed_channel_ids: []
 
 email:
   enabled: false
@@ -276,7 +278,7 @@ web_config:
 | GET | `/api/health` | Health-Check | Nein |
 | GET | `/api/config` | Konfiguration abrufen (maskiert) | Ja* |
 | POST | `/api/config` | Konfiguration aktualisieren | Ja* |
-| GET | `/api/dashboard` | System-Kennzahlen | Ja* |
+| GET | `/api/dashboard/system` | System-Kennzahlen (CPU, RAM, Disk, Netzwerk, Laufzeit) | Ja* |
 | GET | `/api/memory/short-term` | Kurzzeitgedächtnis | Ja* |
 | GET | `/api/memory/long-term` | Langzeitgedächtnis | Ja* |
 | POST | `/api/memory/query` | Erinnerungen abfragen | Ja* |

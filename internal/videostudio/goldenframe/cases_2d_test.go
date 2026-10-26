@@ -381,23 +381,27 @@ func TestCompositingCasesCoverGroups(t *testing.T) {
 			t.Errorf("media %s is registered %d times, want once", name, count)
 		}
 	}
-	// The 2c opt-ins: report-only Deltas whose baseline is the case without its effect; no other 2c case has one.
-	optIns := map[string]Delta{
-		"color_temperature_tint":  reportOnly(DeltaBlend),
-		"lut_keyframed_intensity": reportOnly(DeltaBlend),
+	// The 2c delta cases (plan 2d Task 12, plan 2f Task 4): each baseline is the case without its effect, and no other 2c
+	// case has a Delta. Since F2 the colour and LUT checks are normal and the native guards are never report-only;
+	// sharpen_static and blur_logo_alpha stay report-only only under F2 outcome B (magnification, cases_2c.go).
+	deltas := map[string]Delta{
+		"color_temperature_tint":  DeltaBlend,
+		"lut_keyframed_intensity": DeltaBlend,
 		"sharpen_static":          reportOnly(DeltaMask),
 		"blur_logo_alpha":         reportOnly(DeltaMask),
+		"blur_logo_alpha_native":  DeltaMask,
+		"sharpen_static_native":   DeltaMask,
 	}
 	for _, c := range pictureCases(m) {
-		spec, opted := optIns[c.Name]
-		if !opted {
+		spec, has := deltas[c.Name]
+		if !has {
 			if c.Delta != nil {
-				t.Errorf("%s: unexpected Delta (only the four weak 2c cases opt in)", c.Name)
+				t.Errorf("%s: unexpected Delta (only the six 2c delta cases have one)", c.Name)
 			}
 			continue
 		}
 		if c.Delta == nil {
-			t.Errorf("%s: the 2c opt-in has no Delta", c.Name)
+			t.Errorf("%s: the 2c delta case has no Delta", c.Name)
 			continue
 		}
 		bounds := *c.Delta

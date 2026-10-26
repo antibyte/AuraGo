@@ -71,8 +71,18 @@ attestation, request validation, candidate-logit normalization, and status.
   `installing` before `stopLocked`, with an empty code and Ready false, even
   while `operationCancel` is still nil. A busy lock or an already-pending
   cleanup does not publish. If `stopLocked` or operation registration then
-  fails, status becomes `error` with that code unless the code is `cancelled`
-  or an operation is already registered. AutoStart waits/retries bounded
+  fails, status becomes `error` only for the current policy and absent cleanup;
+  `cancelled` and `lifecycle_busy` never replace lifecycle status.
+  Cleanup has a manager-owned ten-second budget, including context-aware lock
+  acquisition. Caller cancellation may return earlier. Retain failed sessions
+  and the admission barrier with `stopped_with_error`; Stop retries teardown.
+  Revoke active device/offload attestation synchronously, retaining package pins.
+  Native discovery and resident processes share descendant supervision and a
+  two-second pipe drain limit. Docker teardown confirms container removal.
+  Keep private-network cleanup and its token until network removal succeeds,
+  independently of whether a container was created or is already gone. Failed
+  network cleanup retains the session and admission barrier for another Stop.
+  AutoStart waits/retries bounded
   lifecycle-busy windows so a replacement cannot race old runtime teardown. Evaluation and
   Start preserve caller cancellation causes, including deadlines, while a
   successful Start detaches the resident process lifetime from the caller.
@@ -91,6 +101,9 @@ attestation, request validation, candidate-logit normalization, and status.
   Published Docker images use compiled immutable digests and need no BUILD grant.
   Developer bundles remain supported. Never invent missing release pins. See
   `documentation/decisions-runtime-release.md` for the publication gate.
+  Reuse a verified installed accelerator package without requiring downloads for
+  additional backends. A CPU package alone still preserves accelerator acquisition;
+  availability never grants readiness or CPU permission.
   Verify the pinned build identity and binary digest before provisioning.
   Publish with `fileutil.RenameContext` without deleting the existing target.
   Verification and publication must observe cancellation; failed replacement
@@ -106,6 +119,10 @@ attestation, request validation, candidate-logit normalization, and status.
   may reach status. Progress updates are fenced by the active operation ID.
   Installation success means installed, not ready; only attested Start grants
   readiness. The UI keeps accepted operations pending until status resolves.
+- Each native/Docker score has a two-minute context through the full response
+  read. Its own expiry is `runtime_score_timeout` (HTTP 504), terminal for that
+  evaluation only: no retry, device switch or generation retirement. Preserve
+  caller cancellation causes and keep the cancel endpoint active while reading.
 
 ## Verification
 

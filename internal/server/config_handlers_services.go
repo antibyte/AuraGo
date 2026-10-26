@@ -86,15 +86,34 @@ func handleOllamaManagedStatus(s *Server) http.HandlerFunc {
 		s.CfgMu.RLock()
 		dockerHost := s.Cfg.Docker.Host
 		managed := s.Cfg.Ollama.ManagedInstance.Enabled
+		cfg := *s.Cfg
 		s.CfgMu.RUnlock()
+		embeddings := r.URL.Query().Get("embeddings") == "1"
+		name := "aurago_ollama_managed"
+		port := cfg.Ollama.ManagedInstance.ContainerPort
+		if embeddings {
+			managed = cfg.Embeddings.LocalOllama.Enabled
+			name = "aurago_ollama_embeddings"
+			port = cfg.Embeddings.LocalOllama.ContainerPort
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		if !managed {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "disabled"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "disabled", "operations": tools.OllamaOperations(name)})
 			return
 		}
 		result := tools.OllamaManagedContainerStatus(dockerHost)
-		w.Write([]byte(result))
+		if embeddings {
+			result = tools.OllamaContainerStatus(dockerHost, name)
+		}
+		var response map[string]interface{}
+		if json.Unmarshal([]byte(result), &response) != nil {
+			jsonError(w, "Invalid Docker status", http.StatusBadGateway)
+			return
+		}
+		response["operations"] = tools.OllamaOperations(name)
+		response["endpoint"] = config.ManagedOllamaURL(cfg.Runtime.IsDocker, embeddings, port)
+		json.NewEncoder(w).Encode(response)
 	}
 }
 
@@ -129,14 +148,17 @@ func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 		}
 
 		s.Logger.Info("[Config UI] Ollama managed container recreate requested via Web UI")
-		go func() {
-			tools.EnsureOllamaManagedRunning(&cfg, s.Logger)
-		}()
+		operation, err := tools.StartOllamaReconcile(&cfg, false, true, s.Logger)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"status":  "ok",
-			"message": "Container creation started in background.",
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":    "accepted",
+			"operation": operation,
 		})
 	}
 }
@@ -144,7 +166,7 @@ func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
 func ollamaEmbeddingsInputsChanged(oldCfg, newCfg *config.Config) bool {
 	oldLO := oldCfg.Embeddings.LocalOllama
 	newLO := newCfg.Embeddings.LocalOllama
-	return oldLO.ContainerPort != newLO.ContainerPort ||
+	return oldCfg.Docker.Host != newCfg.Docker.Host || oldLO.ContainerPort != newLO.ContainerPort ||
 		oldLO.UseHostGPU != newLO.UseHostGPU ||
 		oldLO.GPUBackend != newLO.GPUBackend ||
 		oldLO.Model != newLO.Model
@@ -153,7 +175,7 @@ func ollamaEmbeddingsInputsChanged(oldCfg, newCfg *config.Config) bool {
 func ollamaManagedInputsChanged(oldCfg, newCfg *config.Config) bool {
 	oldMI := oldCfg.Ollama.ManagedInstance
 	newMI := newCfg.Ollama.ManagedInstance
-	if oldMI.ContainerPort != newMI.ContainerPort ||
+	if oldCfg.Docker.Host != newCfg.Docker.Host || oldMI.ContainerPort != newMI.ContainerPort ||
 		oldMI.UseHostGPU != newMI.UseHostGPU ||
 		oldMI.GPUBackend != newMI.GPUBackend ||
 		oldMI.MemoryLimit != newMI.MemoryLimit ||

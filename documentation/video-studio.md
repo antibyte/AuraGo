@@ -54,8 +54,8 @@ square (720p, 1080p, 2160p) or 4:5 (1080 × 1350) format at 24, 25, 30, 50 or 60
 fps, or at the NTSC rates 23.976, 29.97 and 59.94 fps. Project settings (project
 menu) change the name, format and frame rate. A frame-rate change rounds every
 clip time to the new rate in one undoable step. The preview quality next to the
-full-screen button lowers the preview resolution for smooth playback of 4K
-projects; it does not affect exports. The timeline supports up to sixty
+full-screen button (**Auto**, **Full**, **Half**, **Quarter**) trades preview detail for smooth playback; it does not
+affect exports (see Preview engine, proxies and range check). The timeline supports up to sixty
 minutes, eight video, eight audio and eight overlay tracks, and 2000 clips.
 Projects saved by earlier versions open unchanged at 30 fps. Import
 video, audio, and still images from the Desktop or upload them from the browser.
@@ -334,7 +334,8 @@ Desktop files, or use **Upload .cube** in a LUT effect. Video Studio accepts 3D 
 - at most 16 MB per file and 32 LUTs per project.
 
 1D LUTs and unknown keywords are refused, and a file that cannot be parsed names the bad line. A render refuses more than
-64 LUT effects playing at the same time (only enabled clips on visible tracks count). In the library a LUT
+64 LUT effects playing at the same time (only enabled clips on visible tracks count), with a message that too many LUT
+effects play at the same time in one part of the timeline. In the library a LUT
 shows as a **LUT** card, with its own **LUTs** filter while the project has LUTs. Drag it onto a clip to add a LUT
 effect with it, or press its **+** to add it to the selected clip. A LUT that an effect uses counts as used. Removing
 it asks first, removes those effects in the same undo step, and then deletes the file.
@@ -357,6 +358,12 @@ An export that needs them stops with a message, and **Check Video Studio** lists
   the picture, so preview and export match.
 - Sharpening has no radius and works on pixels, so at preview size a large source can look sharper in the preview
   than in the export.
+- In the **Auto**, **Half** and **Quarter** preview qualities, the WebGL2 preview runs the effects at the size the
+  picture is drawn, at most 1280 pixels on the long edge. That makes playback much lighter (see Preview engine,
+  proxies and range check), and fine detail after sharpening or a key may look slightly different. **Full** runs the
+  effects at the source's size, up to the preview's size: it is the exact preview.
+- A blur or sharpening on a picture that the preview enlarges looks a little weaker in the preview than in the export,
+  because the browser enlarges pictures with a simpler filter than FFmpeg. At the picture's own size the two match.
 - A keyframed LUT intensity and a keyframed vignette make that step of the export about 20 and 12 times slower; a
   fixed intensity below 100 % about 4 times. Use them where they matter.
 
@@ -418,10 +425,10 @@ shows the outline. If the graphics driver cannot draw a blend mode or a mask, th
 without its mask, and a notice says so; the export is not affected.
 - A mask with keyframes is computed for every frame at a quarter of the clip box's resolution and then scaled up. A
   very hard edge (feather 0) can therefore sit up to about 1.3 pixels away from the preview's edge.
-- Export cost at 1080p, measured with FFmpeg 8.1 and 5.1:
-  - a mask with keyframes adds about 15 ms per frame on FFmpeg 8.1 and about 37 ms on 5.1;
+- Export cost at 1080p, measured with FFmpeg 8.1 and FFmpeg 5.1:
+  - a mask with keyframes adds about 15 ms per frame on FFmpeg 8.1 and about 37 ms on FFmpeg 5.1;
   - a mask without keyframes on a clip that does not move is computed once per export segment and costs about 0.2 to
-    0.4 seconds (measured: 3.2 ms per frame on FFmpeg 8.1 and 6.9 ms on 5.1 over a 50-frame clip);
+    0.4 seconds (measured: 3.2 ms per frame on FFmpeg 8.1 and 6.9 ms on FFmpeg 5.1 over a 50-frame clip);
   - each blend mode other than Normal adds about 3 to 8 ms per frame and track; a layer that mixes three modes with
     Normal adds about 16 to 31 ms per frame;
   - a chroma key adds about 4 to 6 ms per frame.
@@ -440,11 +447,18 @@ transparency. This also applies when such a clip is keyed.
 outgoing clip, and the two clips overlap by its length. In the inspector, the **Transition to next clip** section has a
 button that shows the current type; its tooltip says **Choose a transition**. Press it to open the list. It starts with
 **None**, then four groups. Choosing a type applies it and closes the list. `Esc` closes the list without a change and
-returns the focus to the button. `Tab`, `Enter` and `Space` work in the list.
+returns the focus to the button. `Tab`, `Enter` and `Space` work in the list, and the arrow keys move between the
+types:
+- `←` and `→` go to the previous or next type.
+- `↑` and `↓` go to the type above or below, also into the group before or after.
+- `Home` and `End` go to the first or last type.
+
+Types that the server's FFmpeg lacks are skipped, and the keys stop at the ends of the list.
 
 **Length** sets the overlap. It moves in steps of about a tenth of a second, goes up to three seconds, and stays shorter
 than both clips. It is off while the clip has no transition. Choosing a type from **None** gives the transition half a
-second; if either clip is half a second or shorter, the change is refused with a notice.
+second, or less when the clips are short, as the effects library does. Only clips too short for any transition refuse
+it, with a notice.
 - **Basic transitions:**
   - **Dissolve** is a cross-fade.
   - **Through black** and **Through white** pass through that colour.
@@ -474,7 +488,8 @@ second; if either clip is half a second or shorter, the change is refused with a
 Every type has a small picture in the list. Blue is the outgoing clip, orange the incoming one, and white arrows show
 the direction.
 - **Through black**, **Through white**, **Circle through black** and **Rectangle through black** are opaque. On an
-  overlay track their colour covers the tracks below, as in FFmpeg.
+  overlay track their colour covers the tracks below, as in FFmpeg. **Through grayscale** keeps each picture's own
+  transparency, so the transparent parts of an overlay clip stay transparent during it.
 - **Through grayscale** needs an FFmpeg that computes it correctly. When Video Studio checks the server's FFmpeg, it
   renders a tiny test of this transition. FFmpeg 5.1 (as in Debian 12) fails the test, so the type is greyed out there
   and **Check Video Studio** lists it as missing. A clip that already uses it keeps it, but its export stops with a
@@ -489,8 +504,9 @@ groups.
   decides which cut, and that cut is marked while you drag. Dropping anywhere else changes nothing, and a notice
   explains where to drop.
 - Double-click a transition, or press `Enter` or `Space` on it, to set it between the selected clip and the clip after
-  it. The selected clip must be on a video or overlay track. As in the inspector, the later clips on the track move so
-  that the two clips overlap by the transition's length.
+  it. The selected clip must be on a video or overlay track; without one, a notice asks you to select the clip before
+  the cut or to drop the transition on a cut. As in the inspector, the later clips on the track move so that the two
+  clips overlap by the transition's length.
 - A new transition is half a second long, or shorter when the clips are short. A transition that is already there
   keeps its length. Each drop or double-click is one undo step and selects the outgoing clip.
 
@@ -550,7 +566,8 @@ other transitions as a dissolve. It shows Fade, the slides, Pop and Wipe, but no
 ## Preview engine, proxies and range check
 
 **Preview engine.** The timeline preview draws with WebGL2 when the browser offers it. It shows what the export
-renders for position, size, rotation, opacity, contain / cover, every transition and the in and out animations; the
+renders for position, size, rotation, opacity, contain / cover, the effects, blend modes, masks and keys, every
+transition and the in and out animations; the
 opaque transitions (through black or white, and the circle and rectangle through black) cover the tracks below as well,
 like the export. When WebGL2 is missing, fails to start, or the browser loses the graphics
 context three times within a minute, the preview switches to a simpler 2D drawing and shows a notice in the preview
@@ -572,12 +589,53 @@ Known differences between preview and export:
   share the same numbers, so preview and export agree within two brightness steps of 255 on the FFmpeg versions tested
   (5.1 and 8.1).
 
-**Proxies.** After a video is imported, the server makes a preview proxy: 960 × 540 at the source frame rate (at most
-60 fps; an unknown rate uses 30 fps). Proxies are made one at a time per project so exports are not held up. The
-library shows each video's proxy state. The preview quality decides what plays: **Full** plays the originals, and
+**Scopes.** The **Scopes** button in the transport, next to **Render range exactly**, opens a panel below the preview.
+It shows three scopes of the picture the preview draws:
+- **Histogram:** how many pixels have each brightness, from dark on the left to bright on the right. Red, green and blue
+  are coloured bars, and luma (BT.709 weights) is the white line. Pure black and pure white may reach the top without
+  flattening the rest.
+- **Waveform:** the luma of every column of the picture, from left to right, with 0 % at the bottom and 100 % at the
+  top. The lines mark 0, 25, 50, 75 and 100 %.
+- **Vectorscope:** the colour of every pixel, as BT.709 Cb to the right and Cr upwards. Grey sits in the centre, and
+  stronger colours lie further out. Two circles help judge saturation, the small squares mark the 75 % colour bars (red,
+  yellow, green, cyan, blue and magenta), and the skin-tone line points to the upper left.
+
+The buttons on the left of the panel show or hide each one; at least one stays shown. This browser remembers whether
+the panel is open and which scopes it shows. `Esc` in the panel closes it and returns to the button; there is no
+keyboard shortcut.
+- The scopes read a small copy of the finished frame (256 × 144 pixels): at most ten times a second while playing, and
+  while paused after every change to the picture. A closed panel costs nothing.
+- They show the timeline preview only. The source monitor has no scopes, and the panel hides there.
+- With the simpler 2D drawing they show that drawing, which has no effects.
+- While **Render range exactly** compares, they show the live preview, not the rendered video.
+- Full screen shows only the picture. In a window 650 px wide or less the panel is lower, the library strip below the
+  preview is hidden while the panel is open, and the scopes scroll sideways when they do not fit.
+
+**Proxies.** As soon as a video's import finishes, the editor asks the server for a preview proxy: 960 × 540 at the
+source frame rate (at most 60 fps; an unknown rate uses 30 fps). Proxies are made one at a time per project so exports
+are not held up. The library shows each video's proxy state. The preview quality decides what plays: **Full** plays the originals, and
 **Auto**, **Half** and **Quarter** play the proxy once it is ready. If a proxy fails, the original plays. The source
 monitor always plays originals. Media imported before this version gets a proxy from its item menu with **Create
 preview proxy**. Proxies count toward the project's storage.
+
+**Performance.** Video Studio was measured in Chrome with a 1080p project at 30 fps: four full-frame video layers, each
+with two effects (colour and blur; a look and a vignette; sharpening and colour; a chroma key and a vignette). A
+preview is smooth when every layer shows all 30 frames per second.
+- A discrete graphics card (Intel Arc B580) plays the project smoothly at every preview quality, from the originals
+  too.
+- Integrated graphics (an Intel UHD chip, and the AMD Radeon graphics of a Ryzen 5 5500U) play it smoothly in **Auto**
+  once the proxies are ready: 30.0 and 30.0 frames per second. Proxies are made as soon as an import finishes, so this
+  is the usual case.
+- **Auto**, **Half** and **Quarter** run the effects at the size the picture is drawn, at most 1280 pixels on the long
+  edge. With the 1080p originals (before the proxies are ready) the Intel chip then shows 30.0 and the AMD chip 29.1 of
+  30 frames per second. The AMD chip's limit is decoding the four 1080p videos in software.
+- **Full** plays the originals and runs the effects at the full picture size. It is the exact preview; the integrated
+  chips show 27.8 and 25.4 frames per second there. Use **Full** to judge fine detail, and **Auto** (once the proxies are
+  ready) for smooth playback on weak graphics. **Half** is smooth on the Intel UHD chip but not quite on the AMD chip.
+- Export: an export of the same project, 60 seconds long, takes about 300 seconds with FFmpeg 8.1 and 321 seconds with
+  FFmpeg 5.1 (6.0 and 5.6 frames per second, about 5 times the length of the video). The effects take 80 % and 63 % of
+  that time. Exports always apply the effects at the source's full resolution; the preview settings never change an
+  export.
 
 **Render range exactly.** The transport button next to full screen renders a short part of the timeline through the
 export pipeline, so you can check what the export will show: the in/out range when both points are set, otherwise
@@ -630,7 +688,7 @@ proxies. `off` always uses the CPU (libx264); `vaapi`, `qsv`, `nvenc` or `amf` t
 Decoding and picture composition stay on the CPU; the GPU only encodes. When the GPU
 fails during an export, the export restarts once on the CPU; the finished job's result records the encoder
 (`encoder`) and the fallback (`encoder_fallback: true`).
-"Check Video Studio" shows the chosen encoder. The test result is kept for ten minutes or until the
+**Check Video Studio** shows the chosen encoder. The test result is kept for ten minutes or until the
 configuration changes; an export that had to fall back to the CPU tests again next time.
 Preview proxies may grow to 2 GiB, enough for hour-long sources.
 
@@ -675,12 +733,14 @@ landscape, portrait, or square export format remains independently selectable.
 
 ## Scope and verification
 
-Version 1 focuses on short videos. It does not include 4K, animated stickers,
-automatic subtitles, or an AI editing assistant.
-Provider credentials and runtime state are never stored in project JSON. No agent
-tool is added by enabling the editor.
+Video Studio focuses on short videos. It does not include animated stickers, automatic subtitles, or an AI editing
+assistant. Provider credentials and runtime state are never stored in project JSON. No agent tool is added by enabling
+the editor.
 
-Local verification includes model validation, real FFmpeg video/audio fixtures,
-file and job permission tests, conflict handling, and browser flows. A local
-fixture pass does not establish rendering speed on a particular home-lab server
-or acceptance of a paid generation by an external provider.
+Local verification includes model validation, real FFmpeg video/audio fixtures, file and job permission tests, conflict
+handling, and browser flows. Golden-frame tests render the same frames in the WebGL2 preview and through FFmpeg and
+compare them: every effect, blend mode, mask, key, transition and animation. Most cases also check that the preview
+changes the picture as much as the export does. The FFmpeg tests run on FFmpeg 8.1 and on FFmpeg 5.1 (as in Debian 12).
+Two opt-in benchmarks measure the preview's frame rate on several graphics chips and the export speed (see Preview
+engine, proxies and range check). A local pass does not establish rendering speed on a particular home-lab server or
+acceptance of a paid generation by an external provider.

@@ -35,8 +35,8 @@ const compressionKeepTail = 6
 // summaries for larger windows while staying compact for small ones.
 func summaryMaxTokensForCount(droppedMessages int) int {
 	tokens := 30 * droppedMessages
-	if tokens < 80 {
-		tokens = 80
+	if tokens < 1024 {
+		tokens = 1024
 	}
 	if tokens > historySummaryMaxTokens {
 		tokens = historySummaryMaxTokens

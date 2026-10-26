@@ -1,0 +1,50 @@
+/* Locally packaged theme artwork also remains selectable independently of the skin. */
+.desktop-body[data-wallpaper="electronic_dreams"] {
+    background: #0e2520 url('/img/wallpapers/themes/electronic_dreams.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="windows_xp"] {
+    background: #5c9ee9 url('/img/wallpapers/themes/windows_xp.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="green_slime"] {
+    background: #233815 url('/img/wallpapers/themes/green_slime.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="voxel_world"] {
+    background: #bfe2ff url('/img/wallpapers/themes/voxel_world.png') center / cover no-repeat fixed;
+}
+.desktop-body:is([data-wallpaper="electronic_dreams"], [data-wallpaper="windows_xp"], [data-wallpaper="green_slime"]) .vd-icon-label {
+    color: #fff;
+    background: rgba(16, 25, 19, .66);
+    text-shadow: 0 1px 2px #142018;
+}
+/* Voxel World labels over the bright isle: a square dark plate, white text with a hard 1 px shadow. */
+.desktop-body[data-wallpaper="voxel_world"] .vd-icon-label {
+    color: #fff;
+    background: rgba(18, 18, 18, .62);
+    border-radius: 0;
+    text-shadow: 1px 1px 0 #000;
+}
+/* Orbit: the poster (a render of the still scene) shows while the live scene loads and wherever WebGL is unavailable; the
+   scene host fades in over it. Cool labels on a dark glass plate. */
+.desktop-body[data-wallpaper="orbit"] {
+    background: #03040c url('/img/wallpapers/themes/orbit.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="orbit"] .vd-icon-label {
+    color: #eaf6ff;
+    background: rgba(6, 10, 26, .62);
+    text-shadow: 0 1px 2px #000;
+}
+/* Minimal: paper or graphite with one barely visible light, following the colour scheme. */
+.desktop-body[data-wallpaper="minimal"] {
+    background: #f1f0eb radial-gradient(130% 100% at 50% 32%, #f9f8f5 0%, #f2f1ec 58%, #ebeae4 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] {
+    background: #0f0f0f radial-gradient(130% 100% at 50% 32%, #1a1a1a 0%, #121212 58%, #0c0c0c 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"] .vd-icon-label {
+    color: #161616;
+    background: transparent;
+    text-shadow: none;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] .vd-icon-label {
+    color: #ededed;
+}

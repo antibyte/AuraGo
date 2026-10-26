@@ -1138,6 +1138,10 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 	if errors.Is(err, videostudio.ErrInsufficientDiskSpace) {
 		return "failed", "insufficient_disk_space", "The server does not have enough free disk space for this export."
 	}
+	// ErrTooManyLUTs wraps ErrTooManyInputs, so the LUT cap is checked first (plan 2f, F4).
+	if errors.Is(err, videostudio.ErrTooManyLUTs) {
+		return "failed", "render_too_many_luts", "Too many LUT effects play at the same time in one part of the timeline."
+	}
 	if errors.Is(err, videostudio.ErrTooManyInputs) {
 		return "failed", "render_too_many_inputs", "Too many clips play at the same time in one part of the timeline."
 	}

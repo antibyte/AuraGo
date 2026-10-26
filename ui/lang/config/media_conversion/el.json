@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "Διαδρομή ImageMagick",
   "config.media_conversion.timeout_label": "Χρονικό όριο",
   "config.media_conversion.seconds": "δευτερόλεπτα",
+  "config.media_conversion.max_file_size_label": "Μέγιστο μέγεθος εισόδου",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "Δοκιμή εργαλείων",
   "config.media_conversion.loading": "Έλεγχος εργαλείων…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "Στη λειτουργία μόνο ανάγνωσης επιτρέπεται μόνο το info. Οι πραγματικές μετατροπές μπλοκάρονται.",
   "help.media_conversion.ffmpeg_path": "Προαιρετική προσαρμοσμένη διαδρομή προς το ffmpeg. Αφήστε κενό για αυτόματη εύρεση στο PATH.",
   "help.media_conversion.imagemagick_path": "Προαιρετική προσαρμοσμένη διαδρομή προς το magick ή το convert. Αφήστε κενό για αυτόματη εύρεση.",
-  "help.media_conversion.timeout_seconds": "Μέγιστος χρόνος εκτέλεσης για μία μετατροπή σε δευτερόλεπτα."
+  "help.media_conversion.timeout_seconds": "Μέγιστος χρόνος εκτέλεσης για μία μετατροπή σε δευτερόλεπτα.",
+  "help.media_conversion.max_file_size_mb": "Μέγιστο μέγεθος αρχείου εισόδου σε megabyte. Το 0 σημαίνει χωρίς όριο."
 }

@@ -123,6 +123,8 @@ func TestChatFrontend_VideoPlayerFlowRemainsPresent(t *testing.T) {
 		"function safeYouTubeEmbedURL",
 		"function youtubePlayerDedupKey",
 		"className = 'chat-youtube-player'",
+		"referrerPolicy = 'no-referrer'",
+		"className = 'chat-youtube-play'",
 		"https://www.youtube-nocookie.com/embed/",
 		"start_seconds",
 		"className = 'chat-video-player'",
@@ -134,6 +136,19 @@ func TestChatFrontend_VideoPlayerFlowRemainsPresent(t *testing.T) {
 	for _, marker := range requiredMarkers {
 		if !strings.Contains(all, marker) {
 			t.Fatalf("chat frontend is missing expected video player marker %q", marker)
+		}
+	}
+	if strings.Contains(string(messagesContent), "clipboard-write") || strings.Contains(string(messagesContent), "web-share") {
+		t.Fatal("chat YouTube player still grants clipboard-write or web-share")
+	}
+	coreContent, err := os.ReadFile(filepath.Join("js", "shared", "chat-core.js"))
+	if err != nil {
+		t.Fatalf("read chat core: %v", err)
+	}
+	core := string(coreContent)
+	for _, marker := range []string{"attribution_link", "172800", "youtube.co.", "'v', 'e'"} {
+		if !strings.Contains(core, marker) {
+			t.Fatalf("chat core is missing YouTube parser marker %q", marker)
 		}
 	}
 }
@@ -2078,8 +2093,8 @@ func TestConfigFrontendManifestProviderTypeIsExplicitAndManaged(t *testing.T) {
 		"config.providers.hint.manifest",
 		"config.providers.manifest_url_auto",
 		"const isManagedGateway = typ === 'manifest' || typ === 'omniroute';",
-		"type === 'workers-ai'",
-		"type === 'manifest'",
+		"['workers-ai', 'cloudflare-rest']",
+		"typ === 'manifest'",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing explicit Manifest provider marker %q", modulePath, marker)
@@ -2286,7 +2301,7 @@ func TestConfigFrontendOmniRouteProviderTypeIsExplicitAndManaged(t *testing.T) {
 		"config.providers.hint.omniroute",
 		"config.providers.omniroute_url_auto",
 		"const isManagedGateway = typ === 'manifest' || typ === 'omniroute';",
-		"type === 'omniroute'",
+		"typ === 'omniroute'",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing explicit OmniRoute provider marker %q", modulePath, marker)
@@ -3871,7 +3886,10 @@ func TestChatYouTubeParserReadsFragmentStart(t *testing.T) {
 		}
 	}
 	fallback := readChatSource(t, "js/chat/chat-messages.js")
-	if !strings.Contains(fallback, "parsed.hash") {
-		t.Fatal("chat-messages.js fallback parser ignores the fragment")
+	if !strings.Contains(fallback, "window.AuraChatCore.parseYouTubeVideoLink") || !strings.Contains(fallback, "window.AuraChatCore.parseYouTubeTimeValue") {
+		t.Fatal("chat-messages.js must delegate YouTube parsing to AuraChatCore")
+	}
+	if strings.Contains(fallback, "parsed.hash") {
+		t.Fatal("chat-messages.js reimplemented the fragment parser")
 	}
 }

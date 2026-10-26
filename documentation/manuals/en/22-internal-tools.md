@@ -929,7 +929,7 @@ Monitor uptime via Uptime Kuma (status pages, heartbeats).
 Query LDAP directory (users, groups, search).
 
 ### `paperless_ngx`
-Manage Paperless-ngx documents (search, upload, tags, correspondents).
+Manage Paperless-ngx documents: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types. `correspondent` and `name` are the same field (`correspondent` wins). `document_type` and `category` are the same field (`document_type` wins). Tag search is an exact AND. Upload is text and returns a task id while processing continues. Update adds tags and skips a write when they are already present. Get and download clip OCR text at 8000 characters and report the cut. Vault key `paperless_ngx_api_token` applies on vault save; URL and toggles apply on config save. `readonly` blocks upload, update, and delete.
 
 ### `adguard`
 Manage AdGuard Home DNS server.
@@ -1264,13 +1264,15 @@ Process images (resize, convert, crop, rotate).
 | `angle` | integer | 90, 180, 270 |
 
 ### `video_download`
-Download videos from supported platforms (YouTube, Vimeo, etc.). Optionally converts to different formats and saves to the Media Registry.
+Search, inspect, download, or transcribe videos with yt-dlp. Download and transcription stay off until their own permissions are enabled.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `url` | string | Video URL |
-| `format` | string | Desired format (mp4, webm, audio) |
-| `quality` | string | Quality level |
+| `operation` | enum | search, info, download, transcribe |
+| `url` | string | Video URL for info, download, or transcribe |
+| `query` | string | Search query for search |
+| `format` | string | video, audio, best, bestaudio, or a custom yt-dlp format string |
+| `quality` | string | `low` (480p), `medium` (720p), or `best` (uncapped). Applies when format is omitted, `video`, or `best`. A custom format string stays unchanged. Omitted quality keeps `default_format`. |
 
 ### `media_conversion`
 Convert media files between different formats (video, audio, images). Uses FFmpeg for transcoding.
@@ -1815,3 +1817,8 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 
 **Previous Chapter:** [Chapter 21: REST API Reference](./21-api-reference.md)
 **Next Chapter:** [Chapter 23: Internals](./23-internals.md)
+
+
+### Managed website history
+
+Homepage mutations require reason and automatically record changes and outcomes. Use homepage_registry overview/get_site/list_events for identity, locations and reasons. Discover_workspace/adopt recover unregistered projects. See [Managed websites](../../homepage-ledger.md).

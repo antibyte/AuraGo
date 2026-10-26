@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Zugehörige Erinnerungen ebenfalls löschen",
   "chat.sessions_delete_backups": "Sicherungen können gelöschte Daten bis zur geplanten Bereinigung enthalten.",
   "chat.sessions_delete_failed": "Der Chat konnte nicht vollständig gelöscht werden. Aktualisiere die Ansicht vor einem erneuten Versuch.",
+  "chat.sessions_delete_scope_conflict": "Für diesen Chat wurde bereits ein anderer Umfang zum Löschen von Erinnerungen gewählt. Aktualisiere die Seite und prüfe den Status, bevor du es erneut versuchst.",
   "chat.sessions_delete_report": "Gelöscht: {deleted}. Wegen geteilter, geschützter oder unbekannter Herkunft behalten: {retained}.",
   "chat.speech_lab_auth_required": "Für Speech Lab ist die AuraGo-Anmeldung erforderlich.",
   "chat.speech_lab_browser_url_missing": "Konfiguriere die Speech-Lab-Browser-URL unter Medien → Speech Lab.",
@@ -301,5 +302,6 @@
   "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Gib deinem Agenten eine Aufgabe …",
   "chat.galaxy_persona": "Deine Persönlichkeit",
-  "chat.galaxy_mood": "Aktuelle Stimmung"
+  "chat.galaxy_mood": "Aktuelle Stimmung",
+  "chat.youtube_play": "Abspielen"
 }

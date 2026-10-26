@@ -53,6 +53,7 @@ func TestEngineDoesNotRetryHopelessErrors(t *testing.T) {
 	hopeless := []string{
 		"FLOW_PARAM_INVALID", "FLOW_BUDGET_EXCEEDED", "FLOW_TOOL_DENIED", "FLOW_NODE_UNAVAILABLE",
 		"FLOW_TOOLS_UNAVAILABLE", "FLOW_AI_UNAVAILABLE", "FLOW_OUTPUT_TOO_LARGE", "FLOW_CONDITION_INVALID", "FLOW_SECRET_UNAVAILABLE", "FLOW_ACTION_RULE_REQUIRED",
+		"FLOW_CONDITION_FAILED", "FLOW_WAIT_TOO_LONG", "FLOW_VALUE_TYPE", "FLOW_AI_OUTPUT_CUT",
 	}
 	for _, code := range hopeless {
 		t.Run(code, func(t *testing.T) {
@@ -111,7 +112,8 @@ func TestNonRetryableCodesAreTheDocumentedSet(t *testing.T) {
 		"FLOW_PARAM_INVALID": true, "FLOW_BUDGET_EXCEEDED": true, "FLOW_TOOL_DENIED": true,
 		"FLOW_NODE_UNAVAILABLE": true, "FLOW_TOOLS_UNAVAILABLE": true, "FLOW_AI_UNAVAILABLE": true,
 		"FLOW_OUTPUT_TOO_LARGE": true, "FLOW_CONDITION_INVALID": true, "FLOW_SECRET_UNAVAILABLE": true,
-		"FLOW_ACTION_RULE_REQUIRED": true,
+		"FLOW_ACTION_RULE_REQUIRED": true, "FLOW_CONDITION_FAILED": true, "FLOW_WAIT_TOO_LONG": true,
+		"FLOW_VALUE_TYPE": true, "FLOW_AI_OUTPUT_CUT": true,
 	}
 	if len(nonRetryableCodes) != len(want) {
 		t.Fatalf("nonRetryableCodes = %v", nonRetryableCodes)
@@ -125,6 +127,32 @@ func TestNonRetryableCodesAreTheDocumentedSet(t *testing.T) {
 		if nonRetryableCodes[code] {
 			t.Errorf("%q must stay retryable", code)
 		}
+	}
+}
+
+// A logic.set whose value does not fit its type fails the same way on every attempt:
+// the params are resolved once, so a retry (and its delay) would only repeat the refusal.
+func TestSetConversionFailureIsAttemptedOnce(t *testing.T) {
+	reg := newTestRegistry(t)
+	b, tr, n := singleNodeFlow("Set retry", "set", TypeSet, map[string]any{
+		"fields": []any{map[string]any{"name": "n", "type": "number", "value": "abc"}},
+	})
+	f := b.build()
+	f.NodeByID(n).Settings.Retry = RetryPolicy{Count: 3, DelaySeconds: 30}
+	// A clock that nobody advances: a retry delay that is slept would hang the run.
+	clock := newFakeClock(time.Date(2026, 10, 3, 7, 0, 0, 0, time.UTC))
+	done := make(chan RunResult, 1)
+	go func() {
+		res, _ := runWith(context.Background(), newTestEngine(reg, &Services{Clock: clock, Location: time.UTC}, 4), f, RunRequest{TriggerNode: tr})
+		done <- res
+	}()
+	select {
+	case res := <-done:
+		if s := stepOf(res, n); res.Status != RunError || res.ErrorCode != "FLOW_VALUE_TYPE" || s == nil || s.Attempt != 1 {
+			t.Fatalf("result = %s %s, step = %+v; want FLOW_VALUE_TYPE after one attempt", res.Status, res.ErrorCode, s)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the run did not finish: the retry delay was slept for a deterministic failure")
 	}
 }
 

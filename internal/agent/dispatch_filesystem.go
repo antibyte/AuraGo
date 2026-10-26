@@ -46,7 +46,10 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 			return "Tool Output: [PERMISSION DENIED] media_conversion write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
 		}
 		logger.Info("LLM requested media conversion", "op", req.Operation, "path", req.FilePath, "output", req.OutputFile)
-		return "Tool Output: " + tools.ExecuteMediaConversion(cfg.Directories.WorkspaceDir, &cfg.Tools.MediaConversion, tools.MediaConversionRequest{
+		return "Tool Output: " + tools.ExecuteMediaConversion(ctx, cfg.Directories.WorkspaceDir, &cfg.Tools.MediaConversion, tools.MediaConversionDeps{
+			DataDir:    cfg.Directories.DataDir,
+			RegistryDB: dc.MediaRegistryDB,
+		}, tools.MediaConversionRequest{
 			Operation:    req.Operation,
 			FilePath:     req.FilePath,
 			OutputFile:   req.OutputFile,
@@ -294,9 +297,10 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		op := strings.TrimSpace(strings.ToLower(req.Operation))
 		logger.Info("LLM requested smart_file_read", "op", op, "path", req.FilePath, "strategy", req.SamplingStrategy)
 		result := tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-			APIKey:  cfg.LLM.APIKey,
-			BaseURL: cfg.LLM.BaseURL,
-			Model:   cfg.LLM.Model,
+			ProviderID: cfg.LLM.Provider,
+			APIKey:     cfg.LLM.APIKey,
+			BaseURL:    cfg.LLM.BaseURL,
+			Model:      cfg.LLM.Model,
 		}), logger, op, req.FilePath, req.Query, req.SamplingStrategy, req.MaxTokens, req.LineCount, cfg.Directories.WorkspaceDir)
 		trackWorkspaceAccessFromToolOutput(dc, req.FilePath, "read", result)
 		return result

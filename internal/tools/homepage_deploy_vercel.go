@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"aurago/internal/security"
 )
 
 func normalizeVercelDeployTarget(target string) string {
@@ -101,6 +103,9 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	if strings.TrimSpace(vcfg.Token) == "" {
 		return errJSON("Vercel token is required")
 	}
+	// The token must never reach the ledger or a tool result: register it for
+	// scrubbing before the deploy output is produced.
+	security.RegisterSensitive(vcfg.Token)
 	if cfg.WorkspacePath == "" {
 		return errJSON("Homepage workspace path is not configured")
 	}
@@ -235,7 +240,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	scopeFlag := vercelScopeFlag(vcfg)
 	deployCmd := buildVercelDeployCommand(deploySubdir, cliProjectRef, target, vcfg)
 	deployRaw := HomepageExec(cfg, deployCmd, []string{"VERCEL_TOKEN=" + vcfg.Token}, logger)
-	deployOutput := extractOutput(deployRaw)
+	deployOutput := security.Scrub(extractOutput(deployRaw))
 
 	var deployResp map[string]interface{}
 	if err := json.Unmarshal([]byte(deployRaw), &deployResp); err == nil {
@@ -297,7 +302,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		aliasCmd := fmt.Sprintf("cd /workspace/%s && vercel alias set %s %s --token $VERCEL_TOKEN%s 2>&1",
 			deploySubdir, shellSingleQuote(deploymentURL), shellSingleQuote(candidate), scopeFlag)
 		aliasRaw := HomepageExec(cfg, aliasCmd, []string{"VERCEL_TOKEN=" + vcfg.Token}, logger)
-		aliasOutput := extractOutput(aliasRaw)
+		aliasOutput := security.Scrub(extractOutput(aliasRaw))
 		var aliasResp map[string]interface{}
 		if err := json.Unmarshal([]byte(aliasRaw), &aliasResp); err == nil {
 			if code, _ := aliasResp["exit_code"].(float64); code != 0 {

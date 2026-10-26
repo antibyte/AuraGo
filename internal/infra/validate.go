@@ -39,7 +39,7 @@ func validateNode(node *Node) error {
 	if node.Placements == nil {
 		node.Placements = Placements{}
 	}
-	if err := validatePlacements(node.Placements); err != nil {
+	if err := validatePlacements(node.Kind, node.Placements); err != nil {
 		return err
 	}
 	if node.Sources == nil {
@@ -55,6 +55,8 @@ func normalizeNodeRuntime(node *Node) {
 	node.ActionReasons = nil
 	node.SourceActions = nil
 	node.SourceActionReasons = nil
+	node.HostID = ""
+	node.HostInferred = false
 }
 
 func validateProfile(profile *Profile) error {
@@ -184,19 +186,59 @@ func validateInterfaces(interfaces []NetworkInterface, forbidMAC bool) error {
 	return nil
 }
 
-func validatePlacements(placements Placements) error {
+const (
+	minPlaceSize = 120
+	maxPlaceSize = 20000
+)
+
+func validatePlacements(kind NodeKind, placements Placements) error {
+	if placements == nil {
+		return fmt.Errorf("%w: placements must be an object", ErrValidation)
+	}
 	for view, placement := range placements {
 		if view != ViewAtlas && view != ViewTopology {
 			return fmt.Errorf("%w: unsupported placement view", ErrValidation)
 		}
-		if !validCoordinate(placement.X) || !validCoordinate(placement.Y) {
-			return fmt.Errorf("%w: placement coordinates must be finite and within bounds", ErrValidation)
+		if err := validatePlacement(kind, placement); err != nil {
+			return err
 		}
 	}
-	if placements == nil {
-		return fmt.Errorf("%w: placements must be an object", ErrValidation)
+	return nil
+}
+
+// validatePlacement checks one view position. A size belongs only to places and
+// is either absent (both zero) or fully bounded.
+func validatePlacement(kind NodeKind, placement Placement) error {
+	if !validCoordinate(placement.X) || !validCoordinate(placement.Y) {
+		return fmt.Errorf("%w: placement coordinates must be finite and within bounds", ErrValidation)
+	}
+	if placement.W == 0 && placement.H == 0 {
+		return nil
+	}
+	if !containerKind(kind) {
+		return fmt.Errorf("%w: only places can have a placement size", ErrValidation)
+	}
+	if !validPlaceSize(placement.W) || !validPlaceSize(placement.H) {
+		return fmt.Errorf("%w: place size must be between %d and %d", ErrValidation, minPlaceSize, maxPlaceSize)
 	}
 	return nil
+}
+
+func validPlaceSize(value float64) bool {
+	return value >= minPlaceSize && value <= maxPlaceSize
+}
+
+// placementsForKind drops place sizes from kinds that cannot carry them.
+func placementsForKind(kind NodeKind, placements Placements) Placements {
+	if containerKind(kind) || placements == nil {
+		return placements
+	}
+	result := make(Placements, len(placements))
+	for view, placement := range placements {
+		placement.W, placement.H = 0, 0
+		result[view] = placement
+	}
+	return result
 }
 
 func validateEdge(edge *Edge) error {

@@ -3,7 +3,16 @@
     const instances = new Map();
     const base = '/api/desktop/detective';
     const active = c => ['queued', 'running'].includes(c?.run?.status);
-    const key = () => window.crypto.randomUUID();
+    // crypto.randomUUID only exists in a secure context, which a plain-HTTP LAN install is not.
+    // The server caps the idempotency key at 128 characters (internal/detective/jobs.go).
+    const key = () => {
+        const c = window.crypto;
+        if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+        const bytes = new Uint8Array(16);
+        if (c && typeof c.getRandomValues === 'function') c.getRandomValues(bytes);
+        else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+        return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    };
     function render(host, windowId, context) {
         dispose(windowId);
         const ctx = context || {}, v = window.DetectiveViews, e = v.esc;
@@ -13,10 +22,18 @@
         instances.set(windowId, state);
         let selectedReport = null, reportParts = [], history = [], historyNext = 0, historyLoaded = false;
         let archiveSources = [], sourceNext = 0, sourcesLoaded = false, viewGeneration = 0;
+        // Source text loads on first expand; the case response carries metadata only.
+        const excerpts = new Map();
         const autoDrafts = new Map();
         const draftKey = () => state.current?.id || 'new';
-        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; viewGeneration++; }
+        function resetArchive() { selectedReport = null; reportParts = []; history = []; historyNext = 0; historyLoaded = false; archiveSources = []; sourceNext = 0; sourcesLoaded = false; excerpts.clear(); state.revision = 0; viewGeneration++; }
         const readOnly = () => { const caps = state.caps || {}; return !!(ctx.readonly || caps.read_only || !caps.enabled || !caps.ready || state.current?.auto_update?.outcome === 'permission_blocked'); };
+        const blockText = () => {
+            const caps = state.caps || {};
+            if (caps.initialization_error) return `${tr('init_failed')} (${caps.initialization_error})`;
+            const reason = caps.block_reason;
+            return reason ? tr('block_' + reason) : '';
+        };
         const request = async (path, options = {}) => {
             const opts = {...options, signal: controller.signal};
             if (opts.body) { opts.headers = {'Content-Type': 'application/json'}; opts.body = JSON.stringify(opts.body); }
@@ -25,14 +42,11 @@
         };
         const error = err => {
             if (state.disposed || !err || err.name === 'AbortError') return;
-            state.notice = err.message || tr('error');
+            state.notice = v.errorText(tr, err);
             const node = host.querySelector('.dt-error');
             if (node) { node.hidden = false; node.textContent = state.notice; }
         };
-        const chosenReport = () => {
-            const revisions = state.current?.reports || [];
-            return state.revision ? selectedReport || revisions.find(x => x.revision === state.revision) : revisions.at(-1);
-        };
+        const chosenReport = () => v.chosenReport(state.current, state.revision, history, selectedReport);
         function autoDraft() {
             const box = host.querySelector('.dt-auto-settings');
             if (!box) return null;
@@ -70,20 +84,22 @@
             if (pause) pause.disabled = !state.current?.auto_update?.enabled || state.busy || !state.caps?.ready;
         }
         function autoPanel(c, ro) {
-            return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
+            return `<details class="dt-auto-panel"><summary>${e(tr('auto_title'))}</summary><div class="dt-auto-state" aria-live="polite">${v.autoStatus(c.auto_update, tr, c.run?.usage)}</div>${v.autoSettings(c.auto_update, tr, ro)}<div class="dt-auto-actions"><button data-do="auto-save"${ro ? ' disabled' : ''}>${e(tr('auto_save'))}</button><button data-do="auto-pause"${!c.auto_update?.enabled ? ' disabled' : ''}>${e(tr('auto_pause'))}</button></div></details>`;
         }
-        function knownReports() {
-            const map = new Map([...history, ...(state.current?.reports || []), ...(selectedReport ? [selectedReport] : [])].map(r => [r.revision, r]));
-            return [...map.values()].sort((a, b) => a.revision - b.revision);
+        const knownReports = () => v.knownReports(state.current, history, selectedReport);
+        function caseTokens(item) {
+            const usage = item.run?.usage || {};
+            const total = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
+            return total ? ` · ${total.toLocaleString()} ${e(tr('tokens'))}` : '';
         }
         function listHTML() {
             const c = state.current;
-            return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
+            return state.cases.map(item => `<button class="dt-case ${item.id === c?.id ? 'is-selected' : ''}" data-case="${e(item.id)}" aria-pressed="${item.id === c?.id}"><b>${e(item.request.topic)}</b><small>${e(tr(item.run.status))} · ${e(tr(item.request.effort))}${caseTokens(item)}</small></button>`).join('') || `<p>${e(tr('no_cases'))}</p>`;
         }
         function actionsHTML(c, ro) {
             const r = c.run || {};
             const caps = state.caps || {};
-            const canStop = !!caps.enabled && !!caps.ready;
+            const canStop = v.canStop(caps);
             if (active(c)) return `<button data-do="finish" ${ro ? 'disabled' : ''}>${e(tr('finish'))}</button><button data-do="stop" ${canStop ? '' : 'disabled'}>${e(tr('stop'))}</button>`;
             const lead = r.status === 'draft' ? `<button data-do="start" ${ro ? 'disabled' : ''}>${e(tr('start'))}</button>` : r.status !== 'completed' ? `<button data-do="continue" ${ro ? 'disabled' : ''}>${e(tr('continue'))}</button>` : '';
             const effort = `<select class="dt-effort" aria-label="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select>`;
@@ -102,12 +118,41 @@
         function statusInner(c, ro) {
             const r = c.run || {}, usage = r.usage || {}, p = r.profile || {};
             const reason = reasonText(r.reason);
-            return `<h2>${e(c.request.topic)}</h2><div><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions">${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
+            return `<h1>${e(c.request.topic)}</h1><div aria-live="polite"><strong>${e(tr(r.status))}</strong><span>${e(tr(r.phase || 'research'))}</span><span>${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}${v.tokenText(usage, tr) ? ' ' + v.tokenText(usage, tr) : ''}</span></div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
+        }
+        function provisionalNotice() {
+            const report = chosenReport();
+            if (!report?.provisional) return '';
+            const complete = state.current?.latest_complete_revision || 0;
+            return `<p class="dt-hint dt-provisional">${e(tr('provisional_notice'))}${complete ? ` <button data-revision="${complete}">${e(tr('revision'))} ${complete}</button>` : ''}</p>`;
+        }
+        // selectCase is the entry point for a launch context (notification click).
+        async function selectCase(id) {
+            if (!id || state.disposed || state.current?.id === id) return;
+            resetArchive();
+            state.events = [];
+            state.tab = 'report';
+            state.notice = '';
+            state.current = state.cases.find(c => c.id === id) || null;
+            if (!state.current) {
+                try {
+                    state.current = await request('/cases/' + encodeURIComponent(id));
+                } catch (err) {
+                    error(err);
+                    return;
+                }
+                if (!Array.isArray(state.current.sources)) state.current.sources = [];
+            }
+            try { await refresh(true); } catch (err) { error(err); }
+            if (!state.disposed) draw();
         }
         function exportHTML(c, ro) {
-            const revisions = knownReports(), chosen = chosenReport();
-            if (!revisions.length) return '';
-            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}</option>`).join('')}</select></label>${['md', 'pdf', 'docx'].map(format => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${format}">${format === 'md' ? 'Markdown' : format === 'docx' ? 'Word' : 'PDF'}</a>`).join('')}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
+            const revisions = knownReports(), chosen = chosenReport() || revisions.at(-1);
+            if (!revisions.length || !chosen) return '';
+            const formats = v.formats(state.caps), hintID = `dt-pdf-hint-${state.id}`;
+            const links = formats.map(f => `<a class="dt-download" href="${base}/cases/${encodeURIComponent(c.id)}/export?revision=${chosen.revision}&format=${f.id}"${f.hint ? ` aria-describedby="${hintID}"` : ''}>${f.label}</a>`).join('');
+            const hint = formats.some(f => f.hint) ? `<span class="dt-hint" id="${hintID}">${e(tr('pdf_hint'))}</span>` : '';
+            return `<label>${e(tr('revision'))}<select class="dt-revision">${revisions.map(x => `<option value="${x.revision}" ${x === chosen ? 'selected' : ''}>${x.revision}${x.partial ? ' · ' + e(tr('partial')) : ''}${x.provisional ? ' · ' + e(tr('provisional')) : ''}</option>`).join('')}</select></label>${links}${hint}<button data-do="autor" ${ro ? 'disabled' : ''}>${e(tr('autor'))}</button>`;
         }
         function linkedExportRevision() {
             const link = host.querySelector('.dt-export a.dt-download');
@@ -132,19 +177,20 @@
         }
         function contentHTML() {
             if (state.tab === 'sources') {
-                const items = [...new Map([...(state.current.sources || []), ...archiveSources].map(s => [s.id, s])).values()];
+                const items = [...new Map([...(state.current.sources || []), ...archiveSources].map(s => [s.id, s])).values()]
+                    .map(s => (s.excerpt || !excerpts.has(s.id) ? s : {...s, excerpt: excerpts.get(s.id)}));
                 return v.sources(items, tr) + (!sourcesLoaded || sourceNext ? `<button data-do="sources-more">${e(tr('archive_more'))}</button>` : '');
             }
             if (state.tab === 'activity') return v.activity(state.events, tr);
             if (state.tab === 'history') return `<div class="dt-history">${history.map(r => `<button data-revision="${r.revision}"><b>${e(tr('revision'))} ${r.revision}</b><span>${e(new Date(r.created_at).toLocaleString())}</span><span>${e(r.title)}</span></button>`).join('')}${!historyLoaded || historyNext ? `<button data-do="history-more">${e(tr('archive_more'))}</button>` : ''}</div>`;
             const parts = reportParts.length ? reportParts : [chosenReport()];
             const baseRevision = parts[0]?.base_revision || 0;
-            return `${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
+            return `${provisionalNotice()}${baseRevision ? `<button data-base-revision="${baseRevision}">${e(tr('archive_previous'))}</button>` : ''}${parts.map(r => v.report(r, tr)).join('')}`;
         }
         function caseMainHTML(c, ro) {
-            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" aria-pressed="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');
+            const tabs = ['report', 'sources', 'activity', 'history'].map(tab => `<button data-tab="${tab}" role="tab" id="dt-tab-${state.id}-${tab}" aria-controls="dt-panel-${state.id}" aria-selected="${state.tab === tab}">${e(tr(tab))}${tab === 'sources' ? ` (${c.source_count || (c.sources || []).length})` : ''}</button>`).join('');
             const activity = state.tab === 'activity' ? '' : `<ol class="dt-activity" hidden>${v.activityItems(state.events, tr)}</ol>`;
-            return `<section class="dt-status" aria-live="polite">${statusInner(c, ro)}</section>${autoPanel(c, ro)}<nav class="dt-tabs" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content">${contentHTML()}</div>${activity}`;
+            return `<section class="dt-status">${statusInner(c, ro)}</section>${autoPanel(c, ro)}<nav class="dt-tabs" role="tablist" aria-label="${e(tr('views'))}">${tabs}</nav><div class="dt-export">${exportHTML(c, ro)}</div><div class="dt-content" role="tabpanel" id="dt-panel-${state.id}" aria-labelledby="dt-tab-${state.id}-${state.tab}">${contentHTML()}</div>${activity}`;
         }
         function appHTML(main) {
             const ro = readOnly();
@@ -163,7 +209,7 @@
             const missingProvider = selectedProvider && !eligibleProviders.some(provider => String(provider.id) === selectedProvider)
                 ? `<option value="${e(selectedProvider)}" selected disabled>${e(selectedProvider)} — ${e(tr('provider_unavailable'))}</option>` : '';
             const providerOptions = missingProvider + eligibleProviders.map(p => `<option value="${e(p.id)}" ${p.id === caps.provider_id ? 'selected' : ''}>${e(p.name || p.id)} · ${e(p.model)}</option>`).join('');
-            main.innerHTML = `<form class="dt-form"><h1>${e(tr('new'))}</h1><p>${e(tr('intro'))}</p><label>${e(tr('topic'))}<textarea name="topic" required maxlength="8000" rows="3"></textarea></label><fieldset><legend>${e(tr('effort'))}</legend><div class="dt-profiles">${['quick', 'normal', 'maximum'].map(level => { const p = caps.profiles?.[level] || {}; return `<label><input type="radio" name="effort" value="${level}" ${level === 'normal' ? 'checked' : ''}><b>${e(tr(level))}</b><small>${Math.ceil((p.seconds || 0) / 60)} min · ${p.tools || 0} ${e(tr('tools'))}</small></label>`; }).join('')}</div></fieldset><details><summary>${e(tr('advanced'))}</summary><label>${e(tr('scope'))}<textarea name="scope" maxlength="8000"></textarea></label><label>${e(tr('language'))}<input name="language" value="${e(document.documentElement.lang || 'de')}" maxlength="30"></label><label>${e(tr('source_urls'))}<textarea name="source_urls" rows="2"></textarea></label><label>${e(tr('provider'))}<select name="provider_id">${providerOptions}</select></label><label>${e(tr('model'))}<input name="model" placeholder="${e(caps.model || '')}" maxlength="200"></label>${(caps.private_sources || []).length ? `<fieldset><legend>${e(tr('private_sources'))}</legend>${caps.private_sources.map(name => `<label><input type="checkbox" name="private_sources" value="${e(name)}">${e(name)}</label>`).join('')}</fieldset>` : ''}</details><p class="dt-capabilities">${e(tr('available'))}: ${e((caps.tools || []).filter(x => !['detective_report', 'invoke_tool', 'discover_tools', 'execute_skill', 'list_skills'].includes(x)).join(', '))}</p>${ro ? `<p role="status">${e(tr('unavailable'))}</p>` : ''}<button type="submit" ${ro || state.busy ? 'disabled' : ''}>${e(tr('start'))}</button></form>`;
+            main.innerHTML = `<form class="dt-form"><h1>${e(tr('new'))}</h1><p>${e(tr('intro'))}</p><label>${e(tr('topic'))}<textarea name="topic" required maxlength="8000" rows="3"></textarea></label><fieldset><legend>${e(tr('effort'))}</legend><div class="dt-profiles">${['quick', 'normal', 'maximum'].map(level => { const p = caps.profiles?.[level] || {}; return `<label><input type="radio" name="effort" value="${level}" ${level === 'normal' ? 'checked' : ''}><b>${e(tr(level))}</b><small>${Math.ceil((p.seconds || 0) / 60)} min · ${p.tools || 0} ${e(tr('tools'))}</small></label>`; }).join('')}</div></fieldset><details><summary>${e(tr('advanced'))}</summary><label>${e(tr('scope'))}<textarea name="scope" maxlength="8000"></textarea></label><label>${e(tr('language'))}<input name="language" value="${e(document.documentElement.lang || 'de')}" maxlength="30"></label><label>${e(tr('source_urls'))}<textarea name="source_urls" rows="2"></textarea></label><label>${e(tr('provider'))}<select name="provider_id">${providerOptions}</select></label><label>${e(tr('model'))}<input name="model" placeholder="${e(caps.model || '')}" maxlength="200"></label>${(caps.private_sources || []).length ? `<fieldset><legend>${e(tr('private_sources'))}</legend>${caps.private_sources.map(name => `<label><input type="checkbox" name="private_sources" value="${e(name)}">${e(name)}</label>`).join('')}</fieldset>` : ''}</details><p class="dt-capabilities">${e(tr('available'))}: ${e((caps.tools || []).filter(x => !['detective_report', 'invoke_tool', 'discover_tools', 'execute_skill', 'list_skills'].includes(x)).join(', '))}</p>${ro ? `<p role="status">${e(tr('unavailable'))}${blockText() ? ' ' + e(blockText()) : ''}</p>` : ''}<button type="submit" ${ro || state.busy ? 'disabled' : ''}>${e(tr('start'))}</button></form>`;
             main.querySelector('.dt-profiles')?.closest('fieldset')?.insertAdjacentHTML('afterend', v.autoSettings(null, tr, ro));
         }
         function rewriteList() {
@@ -326,16 +372,27 @@
             return run;
         }
         async function load(redraw) {
-            const list = await request('/cases');
-            if (state.disposed) return;
-            state.cases = list.cases || [];
-            if (!state.current) { if (redraw && !host.querySelector('.dt-form')) draw(); return; }
+            if (!state.current) {
+                // Research form open: no case to poll. The list arrives once so the
+                // sidebar is filled, then stays until a case is selected again.
+                if (!state.cases.length) {
+                    const list = await request('/cases');
+                    if (state.disposed) return;
+                    state.cases = list.cases || [];
+                }
+                if (redraw && !host.querySelector('.dt-form')) draw();
+                return;
+            }
             const id = state.current.id;
-            const live = await request('/cases/' + id + '/live');
             const after = state.events.at(-1)?.id || 0;
-            const data = await request('/cases/' + id + '/events?after=' + after);
+            // One round trip for status and new events; the list stays for the sidebar.
+            const snapshot = await request('/cases/' + id + '/state?after=' + after);
             if (state.disposed || state.current?.id !== id) return;
-            const fresh = (data.events || []).filter(ev => ev.id > after);
+            const list = await request('/cases');
+            if (state.disposed || state.current?.id !== id) return;
+            state.cases = list.cases || [];
+            const live = snapshot.live || {};
+            const fresh = (snapshot.events || []).filter(ev => ev.id > after);
             state.events = [...state.events, ...fresh].slice(-500);
             const liveSourceID = live.latest_source_id || '';
             const sourcesChanged = state.latestSourceID !== liveSourceID;
@@ -354,11 +411,20 @@
             if (redraw) paint(sourcesChanged, reportChanged, fresh);
         }
         async function poll() {
-            if (state.disposed) return;
+            if (state.disposed || document.hidden) return;
             try { await refresh(true); }
             catch (err) { error(err); }
-            if (!state.disposed) state.timer = setTimeout(poll, 3000);
+            if (!state.disposed) state.timer = setTimeout(poll, v.pollDelay(state.current?.run?.status));
         }
+        // A hidden tab or minimized Desktop window does no work at all; becoming visible
+        // polls immediately instead of waiting for the next interval.
+        const onVisibility = () => {
+            if (state.disposed) return;
+            clearTimeout(state.timer);
+            if (!document.hidden) poll();
+        };
+        document.addEventListener('visibilitychange', onVisibility, {signal: controller.signal});
+        state.selectCase = selectCase;
         host.addEventListener('submit', async ev => {
             if (!ev.target.matches('.dt-form')) return;
             ev.preventDefault();
@@ -381,6 +447,7 @@
                 state.events = [];
                 state.fresh = false;
                 state.latestSourceID = '';
+                state.tab = 'report';
                 try {
                     await request('/cases/' + c.id + '/run', {method: 'POST', body: {action: 'start', idempotency_key: key()}});
                 } catch (err) {
@@ -400,6 +467,30 @@
         };
         host.addEventListener('input', rememberAuto, {signal: controller.signal});
         host.addEventListener('change', rememberAuto, {signal: controller.signal});
+        // A source disclosure fetches its text the first time it opens. The excerpt is
+        // not part of the case payload, so a metadata poll never downloads evidence.
+        host.addEventListener('toggle', async ev => {
+            const node = ev.target;
+            if (!node?.matches?.('.dt-source[open]') || state.busy) return;
+            const id = node.dataset.id;
+            const block = node.querySelector('blockquote');
+            if (!id || !block || !block.hasAttribute('aria-busy')) return;
+            const known = [...(state.current?.sources || []), ...archiveSources].find(s => s.id === id);
+            if (known?.excerpt) { block.textContent = known.excerpt; block.removeAttribute('aria-busy'); return; }
+            if (excerpts.has(id)) { block.textContent = excerpts.get(id); block.removeAttribute('aria-busy'); return; }
+            const caseID = state.current?.id;
+            if (!caseID) return;
+            try {
+                const source = await request('/cases/' + caseID + '/source?id=' + encodeURIComponent(id));
+                if (state.disposed || state.current?.id !== caseID) return;
+                excerpts.set(id, source.excerpt || '');
+                block.textContent = source.excerpt || '';
+                block.removeAttribute('aria-busy');
+            } catch (err) {
+                block.removeAttribute('aria-busy');
+                error(err);
+            }
+        }, {signal: controller.signal});
         async function selectRevision(revision) {
             const id = state.current.id, generation = viewGeneration;
             const report = (state.current.reports || []).find(r => r.revision === revision) || await request('/cases/' + id + '/report?revision=' + revision);
@@ -510,7 +601,8 @@
                     return;
                 }
                 if (action === 'delete') {
-                    const accepted = ctx.confirmDialog ? await ctx.confirmDialog(tr('delete'), tr('delete_confirm')) : window.confirm(tr('delete_confirm'));
+                    if (typeof ctx.confirmDialog !== 'function') { error(new Error(tr('unavailable'))); return; }
+            const accepted = await ctx.confirmDialog(tr('delete'), tr('delete_confirm'));
                     if (!accepted) return;
                     await request('/cases/' + state.current.id, {method: 'DELETE'});
                     state.current = null;
@@ -528,8 +620,15 @@
             } catch (err) { error(err); }
             finally { state.busy = false; syncAuto(); }
         }, {signal: controller.signal});
-        (async () => { try { state.caps = await request('/capabilities'); await refresh(false); if (!state.fresh && state.cases.length) { state.current = state.cases[0]; await refresh(false); } draw(); poll(); } catch (err) { draw(); error(err); } })();
+        (async () => { try { state.caps = await request('/capabilities'); await refresh(false); if (!state.fresh && state.cases.length) { state.current = state.cases[0]; await refresh(false); } const launch = String(ctx.context?.case_id || ctx.launch?.case_id || ''); draw(); poll(); if (launch) state.selectCase(launch); } catch (err) { draw(); error(err); } })();
+    }
+    // A Desktop notification names a case; the shell calls open for a running app.
+    async function open(windowId, context) {
+        const st = instances.get(windowId);
+        const id = context && context.case_id ? String(context.case_id) : '';
+        if (!st || st.disposed || !id || typeof st.selectCase !== 'function') return;
+        await st.selectCase(id);
     }
     function dispose(id) { const s = instances.get(id); if (!s) return; s.disposed = true; clearTimeout(s.timer); s.controller.abort(); instances.delete(id); }
-    window.DetectiveApp = {render, dispose};
+    window.DetectiveApp = {render, dispose, open};
 })();

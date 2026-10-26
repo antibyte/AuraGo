@@ -72,7 +72,7 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 			return c, ErrConflict
 		}
 	case "update":
-		if !c.AutoUpdate.Enabled || c.LatestRevision == 0 {
+		if !c.AutoUpdate.Enabled || c.completeRevision() == 0 {
 			return c, ErrConflict
 		}
 	default:
@@ -91,7 +91,7 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 		}
 		c.Run = Run{ID: id("run_"), Profile: p, Phase: "research"}
 		if action == "update" {
-			c.Run.Automatic, c.Run.BaseRevision, c.Run.ReportStyle = true, c.LatestRevision, c.AutoUpdate.ReportStyle
+			c.Run.Automatic, c.Run.BaseRevision, c.Run.ReportStyle = true, c.completeRevision(), c.AutoUpdate.ReportStyle
 			c.Sources, c.Findings, c.Plan = []Source{}, []Finding{}, nil
 		}
 	}
@@ -100,6 +100,9 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 			return c, errors.New("invalid clarification answer")
 		}
 		c.Answers = append(c.Answers, answers[0])
+		// The answer belongs in the activity feed: with the window closed, the question
+		// event alone would never show what the user replied.
+		s.eventLocked(&c, "answer", bounded(answers[0], 600))
 	}
 	c.Run.Status = "queued"
 	c.Run.Reason = ""
@@ -131,6 +134,10 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 	}
 	if err = tx.Commit(); err != nil {
 		return c, err
+	}
+	// Idempotency keys only matter for recent retries; cap the table per case (audit 4.23).
+	if _, err := s.db.Exec(`DELETE FROM detective_keys WHERE case_id=? AND rowid NOT IN (SELECT rowid FROM detective_keys WHERE case_id=? ORDER BY rowid DESC LIMIT 50)`, key, key); err != nil {
+		s.log().Warn("detective key retention failed", "error", err)
 	}
 	s.eventLocked(&c, "status", "queued")
 	s.wake()
@@ -191,6 +198,12 @@ func (s *Service) worker() {
 				s.mu.Unlock()
 				break
 			}
+			if !allowed {
+				// Rights were revoked: leave queued cases where they are and wait for
+				// the next tick instead of starting a run that must abort immediately.
+				s.mu.Unlock()
+				break
+			}
 			err := s.db.QueryRow("SELECT id FROM detective_cases WHERE status='queued' ORDER BY updated LIMIT 1").Scan(&key)
 			if err != nil {
 				s.mu.Unlock()
@@ -211,10 +224,22 @@ func (s *Service) worker() {
 				err = runSafely(ctx, runner, session)
 			}
 			cancel()
-			session.complete(err)
+			completeErr := session.complete(err)
 			s.mu.Lock()
 			s.active = nil
 			s.mu.Unlock()
+			if completeErr != nil {
+				// The case is still queued. Retrying immediately would spin on the same
+				// row, so wait for the next tick instead. A persistent failure stays
+				// visible as a queued case and is logged every third attempt.
+				s.failures[key]++
+				if s.failures[key] >= 3 {
+					s.failures[key] = 0
+					s.log().Warn("detective run state could not be persisted", "case_id", key, "error", completeErr)
+				}
+				break
+			}
+			delete(s.failures, key)
 		}
 	}
 }
@@ -420,7 +445,8 @@ func (x *Session) Checkpoint(v Continuation) error     { return x.service.SaveCo
 func (x *Session) Done() bool                          { s := x.service; s.mu.Lock(); defer s.mu.Unlock(); return x.published }
 
 func (x *Session) Wait(question string) error {
-	return x.update(func(c *Case) error {
+	var topic string
+	err := x.update(func(c *Case) error {
 		if !activeStatus(c.Run.Status) || x.published {
 			return context.Canceled
 		}
@@ -430,21 +456,27 @@ func (x *Session) Wait(question string) error {
 			c.AutoUpdate.Outcome = "waiting_for_user"
 			c.AutoUpdate.NextRunAt = time.Time{}
 		}
+		topic = c.Request.Topic
 		x.service.eventLocked(c, "question", question)
 		x.cancel()
 		return nil
 	})
+	if err == nil {
+		x.service.notify("question", x.CaseID, "Detective: question waiting", fmt.Sprintf("%s — %s", topic, bounded(question, 200)))
+	}
+	return err
 }
 
-func (x *Session) complete(runErr error) {
-	_ = x.update(func(c *Case) error {
+func (x *Session) complete(runErr error) error {
+	var topic, status, reason string
+	err := x.update(func(c *Case) error {
 		if x.published {
 			return nil
 		}
 		if c.Run.Status == "waiting_for_user" {
 			return nil
 		}
-		reason := "incomplete_response"
+		reason = "incomplete_response"
 		if runErr != nil {
 			reason = "provider_or_tool_failure"
 		}
@@ -454,6 +486,10 @@ func (x *Session) complete(runErr error) {
 		} else if x.stopReason != "" {
 			reason = x.stopReason
 			c.Run.Status = "cancelled"
+		} else if errors.Is(runErr, ErrPermission) {
+			// Rights changed under the run: keep it resumable instead of failing it.
+			reason = "permission_revoked"
+			c.Run.Status = "interrupted"
 		} else if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(runErr, ErrBudget) || c.Run.Usage.ActiveMS >= int64(c.Run.Profile.Seconds)*1000 {
 			reason = "budget_exhausted"
 			c.Run.Status = "partial"
@@ -464,16 +500,24 @@ func (x *Session) complete(runErr error) {
 			}
 		}
 		c.Run.Reason = reason
+		status = c.Run.Status
 		if c.Run.Automatic {
-			if c.Run.Status != "interrupted" {
-				c.AutoUpdate.Outcome, c.AutoUpdate.Error = "error", reason
+			if c.Run.Status != "interrupted" || reason == "permission_revoked" {
+				if reason == "permission_revoked" {
+					c.AutoUpdate.Outcome, c.AutoUpdate.Error = "permission_blocked", ""
+				} else {
+					c.AutoUpdate.Outcome, c.AutoUpdate.Error = "error", reason
+				}
 				if !c.AutoUpdate.Enabled {
 					c.AutoUpdate.Outcome = "paused"
 				}
 				nextUpdate(c, x.service.now())
 			}
 		} else if len(c.Findings) > 0 {
-			report := Report{Title: c.Request.Topic, Summary: "Partial research findings", Partial: true, Limitations: reason}
+			// A continue/decrease/update run that ends without a full report may keep its
+			// findings, but the result must not replace the last complete report as the
+			// default revision (audit 4.14).
+			report := Report{Title: c.Request.Topic, Summary: "Partial research findings", Partial: true, Provisional: c.Run.BaseRevision > 0, Limitations: reason}
 			for _, f := range c.Findings {
 				report.Blocks = append(report.Blocks, Block{Type: "paragraph", Text: f.Text, Evidence: []string{f.ID}})
 			}
@@ -481,7 +525,12 @@ func (x *Session) complete(runErr error) {
 			c.Reports = []Report{report}
 			c.pendingReports = append(c.pendingReports, report)
 		}
+		topic, status = c.Request.Topic, c.Run.Status
 		x.service.eventLocked(c, "status", reason)
 		return nil
 	})
+	if err == nil && status == "failed" {
+		x.service.notify("error", x.CaseID, "Detective: research failed", fmt.Sprintf("%s — %s", topic, reason))
+	}
+	return err
 }

@@ -31,6 +31,9 @@ const (
 
 var clockPattern = regexp.MustCompile(`^([01]\d|2[0-3]):([0-5]\d)$`)
 
+// stopStatuses are the choices of the status parameter of logic.stop.
+var stopStatuses = []string{"success", "error"}
+
 // RegisterLogicNodes registers the built-in logic nodes.
 func RegisterLogicNodes(reg *Registry) error {
 	for _, def := range []*NodeDef{ifNodeDef(), switchNodeDef(), mergeNodeDef(), waitNodeDef(), setNodeDef(), stopNodeDef()} {
@@ -116,6 +119,8 @@ func isNilValue(v any) bool {
 func ifNodeDef() *NodeDef {
 	def := logicDef(TypeIf, "git-branch")
 	def.Outputs = []string{PortTrue, PortFalse}
+	// A failed condition is not true: on_error "continue" delivers the error on false.
+	def.ContinuePort = PortFalse
 	def.Params = []ParamSpec{{Name: "condition", Kind: ParamConditionGroup, LabelKey: "easydrag.param.condition", Required: true, Templatable: true}}
 	def.OutputFields = []FieldSpec{{Name: "result", Type: "bool", Primary: true}}
 	def.Validate = func(n *Node, _ ValidateContext) []Issue {
@@ -139,6 +144,8 @@ func casePort(i int) string { return "case_" + strconv.Itoa(i+1) }
 
 func switchNodeDef() *NodeDef {
 	def := logicDef(TypeSwitch, "arrows-split")
+	// A failed case matched nothing: on_error "continue" delivers the error on default.
+	def.ContinuePort = PortDefault
 	def.Params = []ParamSpec{
 		{Name: "cases", Kind: ParamCases, LabelKey: "easydrag.param.cases", Required: true, Templatable: true},
 		{Name: "mode", Kind: ParamSegmented, LabelKey: "easydrag.param.switch_mode", Default: "first",
@@ -298,7 +305,7 @@ func waitNodeDef() *NodeDef {
 		if err != nil {
 			return ExecResult{}, err
 		}
-		if err := in.Services.Sleep(ctx, d); err != nil {
+		if err := waitParked(ctx, in, d); err != nil {
 			return ExecResult{}, err
 		}
 		return ExecResult{Output: map[string]any{"waited_seconds": d.Seconds()}}, nil
@@ -373,9 +380,12 @@ func setNodeDef() *NodeDef {
 			if s, ok := typ.(string); ok && HasTemplate(s) {
 				continue
 			}
-			if text := Stringify(typ); !fieldTypes[text] {
+			text := Stringify(typ)
+			if !fieldTypes[text] {
 				issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, fmt.Sprintf("fields[%d].type", i), "unknown field type "+quoteForError(text)))
+				continue
 			}
+			issues = append(issues, setValueIssue(n, i, name, text, m["value"])...)
 		}
 		return issues
 	}
@@ -410,6 +420,21 @@ func setNodeDef() *NodeDef {
 // handles; the empty type means auto.
 var fieldTypes = map[string]bool{"": true, "auto": true, "text": true, "number": true, "bool": true, "list": true, "object": true}
 
+// setValueIssue reports a literal value of field i that convertValue refuses, so the
+// author hears about it when publishing and not from every run. A template is only
+// known at run time, a null value is "not set yet" and a field without a name is
+// skipped by Execute; none of them is judged. The type is known to be valid.
+func setValueIssue(n *Node, i int, name, typ string, value any) []Issue {
+	if name == "" || value == nil || isTemplateText(value) {
+		return nil
+	}
+	if _, err := convertValue(value, typ); err != nil {
+		return []Issue{paramIssue(n, IssueParamInvalid, SeverityError, fmt.Sprintf("fields[%d].value", i),
+			fmt.Sprintf("field %s: %v", quoteForError(name), err))}
+	}
+	return nil
+}
+
 func convertValue(v any, typ string) (any, error) {
 	switch typ {
 	case "", "auto":
@@ -423,6 +448,16 @@ func convertValue(v any, typ string) (any, error) {
 		}
 		return f, nil
 	case "bool":
+		// Text must be one of the words flagValue reads: any other would be false by
+		// truthy, and a typo must not switch a flag off silently. Null and blank text
+		// are "nothing" and stay false.
+		if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+			on, known := flagValue(s)
+			if !known {
+				return nil, fmt.Errorf("%s is not a yes/no value (use true, false, yes, no, ja, nein, on, off, 1 or 0)", quoteForError(s))
+			}
+			return on, nil
+		}
 		return truthy(v), nil
 	case "list":
 		if list, ok := v.([]any); ok {
@@ -458,9 +493,22 @@ func stopNodeDef() *NodeDef {
 			Options: []Option{option("success", "stop_success"), option("error", "stop_error")}},
 		{Name: "message", Kind: ParamText, LabelKey: "easydrag.param.stop_message", Templatable: true},
 	}
+	def.Validate = func(n *Node, _ ValidateContext) []Issue {
+		if n == nil {
+			return nil
+		}
+		return choiceIssue(n, "status", "success", stopStatuses)
+	}
 	def.Execute = func(_ context.Context, in ExecInput) (ExecResult, error) {
+		// Fail closed: the status decides whether the run counts as failed, so a value
+		// that is neither choice (a typo, a template that resolved to anything else) is
+		// refused instead of ending the run as a success.
+		choice, ok := choiceParam(in.Params["status"], "success", stopStatuses...)
+		if !ok {
+			return ExecResult{}, choiceError("status", stopStatuses)
+		}
 		status := RunSuccess
-		if Stringify(in.Params["status"]) == "error" {
+		if choice == "error" {
 			status = RunError
 		}
 		msg := Stringify(in.Params["message"])
@@ -470,4 +518,21 @@ func stopNodeDef() *NodeDef {
 		}, nil
 	}
 	return def
+}
+
+// waitParked sleeps d. With a runner slot (ExecInput.Slot) the run gives its global slot back
+// while it sleeps and takes one again, in turn, before the node returns (A7), so waiting runs do
+// not block other flows. Cancellation, shutdown and the run's time limit end the sleep and the
+// wait for a slot alike.
+func waitParked(ctx context.Context, in ExecInput, d time.Duration) (err error) {
+	if in.Slot == nil || d <= 0 {
+		return in.Services.Sleep(ctx, d)
+	}
+	in.Slot.Park()
+	defer func() {
+		if uerr := in.Slot.Unpark(); err == nil {
+			err = uerr
+		}
+	}()
+	return in.Services.Sleep(ctx, d)
 }

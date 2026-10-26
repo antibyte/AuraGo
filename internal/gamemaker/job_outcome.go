@@ -90,13 +90,19 @@ func (s *Service) planningDrift(ctx context.Context, job Job, project Project) *
 	return &drift
 }
 
-func planSummaryPayload(plan *GamePlan) map[string]any {
+func planSummaryPayload(job Job, plan *GamePlan) map[string]any {
 	payload := map[string]any{
 		"template":    "",
 		"objective":   "",
 		"perspective": "",
 		"controls":    []string{},
 		"assets":      []map[string]string{},
+	}
+	if job.SmallModel {
+		payload["small_model"] = true
+	}
+	if job.BuildingMode != "" {
+		payload["building_mode"] = job.BuildingMode
 	}
 	if plan == nil {
 		return payload
@@ -149,8 +155,17 @@ func applyJobOutcome(payload map[string]any, job Job) map[string]any {
 	if job.RepairPasses != nil {
 		payload["repair_passes"] = *job.RepairPasses
 	}
+	if len(job.OpenChecks) > 0 {
+		payload["open_checks"] = job.OpenChecks
+	}
 	if strings.TrimSpace(job.GameplayStatus) != "" {
 		payload["gameplay_status"] = job.GameplayStatus
+	}
+	if job.SmallModel {
+		payload["small_model"] = true
+	}
+	if job.BuildingMode != "" {
+		payload["building_mode"] = job.BuildingMode
 	}
 	if job.Usage != nil && job.Usage.Calls > 0 {
 		payload["usage"] = job.Usage
@@ -163,6 +178,7 @@ func (s *Service) finishFailure(job Job, ctx context.Context, failure error, res
 	if result != nil {
 		job.ChecksPassed, job.ChecksFailed = checkCounts(result.Checks)
 		job.GameplayStatus = strings.TrimSpace(result.GameplayStatus)
+		job.OpenChecks = openChecksFromResult(result)
 	}
 	job.RepairPasses = repairPasses
 	s.terminateJob(job, ctx, failure)
@@ -182,7 +198,7 @@ func (s *Service) finishReady(job Job, project Project, revision Revision, resul
 	job.RepairPasses = repairPasses
 	s.finishWorkingCopy(job)
 	s.mu.Lock()
-	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=?,error_code='',gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=? WHERE id=?`,
+	_, _ = s.db.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=?,error_code='',gameplay_status=?,checks_passed=?,checks_failed=?,repair_passes=?,open_checks='' WHERE id=?`,
 		revision.Number, now, job.GameplayStatus, nullableInt(job.ChecksPassed), nullableInt(job.ChecksFailed), nullableInt(job.RepairPasses), job.ID)
 	s.releaseJobLocked(job.ID)
 	s.mu.Unlock()
@@ -212,7 +228,7 @@ func (s *Service) runAdoptJob(ctx context.Context, job Job, project Project, sta
 		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: err})
 		return
 	}
-	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(accepted))
+	_, _ = s.emit(ctx, project.ID, job.ID, "plan_summary", planSummaryPayload(job, accepted))
 	if err := s.updateJobPhase(ctx, &job, "validating"); err != nil {
 		s.terminateJob(job, ctx, &JobError{Code: "internal", Err: err})
 		return

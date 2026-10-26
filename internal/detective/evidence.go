@@ -18,7 +18,7 @@ import (
 func canonicalURL(raw string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
-		return "", errors.New("source must use a public HTTP(S) URL without credentials")
+		return "", errors.New("source must be an HTTP(S) URL without credentials; the tool layer decides reachability")
 	}
 	u.Fragment = ""
 	q := u.Query()
@@ -89,7 +89,12 @@ func (x *Session) recordSource(u, locator, title, method, excerpt string, read b
 		if len(c.Sources) >= 400 || c.Run.Usage.Bytes+len(excerpt) > 8<<20 {
 			return errors.New("source storage budget exhausted")
 		}
-		c.Sources = append(c.Sources, out)
+		// The working set keeps metadata only; the excerpt lives in detective_sources and
+		// is served by the per-source endpoint. Keeping it here made every state write
+		// rewrite megabytes and forced a case read to download them.
+		metadata := out
+		metadata.Excerpt = ""
+		c.Sources = append(c.Sources, metadata)
 		c.pendingSources = append(c.pendingSources, out)
 		c.SourceCount++
 		c.LatestSourceID = out.ID
@@ -220,6 +225,9 @@ func ValidateReport(c Case, r Report) error {
 func sealReport(c *Case, r *Report, now time.Time) {
 	r.Revision = c.LatestRevision + 1
 	c.LatestRevision = r.Revision
+	if !r.Partial && !r.Provisional {
+		c.LatestCompleteRevision = r.Revision
+	}
 	r.CreatedAt = now.UTC()
 	r.Findings = append([]Finding(nil), c.Findings...)
 	sources, _ := reportSources(Report{Blocks: r.Blocks, Findings: r.Findings, Sources: c.Sources})
@@ -231,6 +239,8 @@ func sealReport(c *Case, r *Report, now time.Time) {
 	}
 }
 func (x *Session) Submit(r Report) error {
+	var published int
+	var topic string
 	err := x.update(func(c *Case) error {
 		if x.published {
 			return errors.New("report already published")
@@ -266,8 +276,12 @@ func (x *Session) Submit(r Report) error {
 		}
 		r.Revision, r.CreatedAt = c.LatestRevision+1, x.service.now().UTC()
 		c.LatestRevision = r.Revision
+		if !r.Partial && !r.Provisional {
+			c.LatestCompleteRevision = r.Revision
+		}
 		c.Reports = []Report{r}
 		c.pendingReports = append(c.pendingReports, r)
+		published, topic = r.Revision, c.Request.Topic
 		c.Run.Phase = "finished"
 		c.Run.Status = "completed"
 		if r.Partial {
@@ -287,6 +301,7 @@ func (x *Session) Submit(r Report) error {
 		x.published = true
 		x.service.mu.Unlock()
 		x.Event("report", "report published")
+		x.service.notify("info", x.CaseID, fmt.Sprintf("Detective: revision %d published", published), topic)
 	}
 	return err
 }

@@ -99,3 +99,30 @@ func TestOpenRouterProbabilityValidationRemainsStrict(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenRouterScoreRoundingPreservesRawIntervals(t *testing.T) {
+	options := make([]Option, 62)
+	probabilities := make(map[string]float64, 62)
+	for i := range options {
+		id := strconv.Itoa(i)
+		options[i] = Option{ID: id, Label: id}
+		probabilities[id] = 0
+	}
+	question := Question{ID: "score", Type: "score", Options: options}
+	probabilities["0"], probabilities["61"] = .1001, .8899
+	normalized := 61 * .8899 / .99
+	if _, err := mapOpenRouterAnswer(question, options, openRouterAnswer{Type: "score", Score: &normalized, Probabilities: probabilities}); err != nil {
+		t.Fatalf("nonuniform normalized mean: %v", err)
+	}
+	rawWeighted := 61 * .8899
+	if _, err := mapOpenRouterAnswer(question, options, openRouterAnswer{Type: "score", Score: &rawWeighted, Probabilities: probabilities}); err == nil {
+		t.Fatal("raw weighted sum accepted as normalized mean")
+	}
+	for key := range probabilities {
+		probabilities[key] = .02
+	}
+	compatible := 29.0
+	if _, err := mapOpenRouterAnswer(question, options, openRouterAnswer{Type: "score", Score: &compatible, Probabilities: probabilities}); err != nil {
+		t.Fatalf("raw rounding intervals changed: %v", err)
+	}
+}

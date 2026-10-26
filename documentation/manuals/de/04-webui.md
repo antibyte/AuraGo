@@ -56,7 +56,7 @@ Je nach Seite werden verschiedene Buttons angezeigt:
 - `Agent Active` – Status-Pill
 
 **Im Dashboard:**
-- Filter-Buttons für verschiedene Ansichten
+- Menü-Button für die Bereichs-Seitenleiste (nur in Fenstern bis 900 px Breite) und der Dichte-Umschalter (**Komfortabel** / **Kompakt**)
 
 **In Config:**
 - `Save` – Änderungen speichern
@@ -171,34 +171,19 @@ Klicke auf den Pfeil ▼/▶ um Details ein-/auszuklappen.
 
 ## Das Dashboard
 
-Das Dashboard zeigt System-Informationen und Statistiken.
+Das Dashboard (`/dashboard`) beantwortet „Ist alles in Ordnung?“ und sammelt die Statistiken. Eine Seitenleiste gliedert 14 Bereiche:
 
-### Bereiche
+| Gruppe | Bereiche |
+|--------|----------|
+| — | **Lagebild**: Statuszeile, Liste **Braucht Aufmerksamkeit** und Kacheln |
+| **Agent** | **Persönlichkeit**, **Gedächtnis**, **Benutzer** |
+| **Wissen** | **Wissensgraph**, **Dateisync** |
+| **Betrieb** | **Probleme**, **Automationen**, **System und Dienste**, **Audit**, **Logs** |
+| **Analyse** | **LLM und Kosten**, **Prompts**, **Tools** |
 
-**1. System-Metriken**
-- CPU-Auslastung
-- RAM-Verbrauch
-- Disk-Platz
-- Laufzeit
+Der Statusblock oben in der Seitenleiste zeigt in jedem Bereich den Gesamtzustand; Badges zählen Aufmerksamkeitspunkte, offene Probleme und Automationsfehler. In Fenstern bis 900 px Breite wird die Seitenleiste zur Schublade hinter dem Menü-Button. Jeder Bereichskopf hat einen Aktualisieren-Button, und Links wie `/dashboard#automations` öffnen einen Bereich direkt.
 
-**2. Mood-Verlauf**
-- Zeitliche Entwicklung der Agent-Stimmung
-- Farbcodiert (Grün = positiv, Rot = negativ)
-
-**3. Prompt-Builder Analytics**
-- Token-Verbrauch pro Anfrage
-- Kontext-Kompression
-- Kosten pro Modell
-
-**4. Memory-Statistiken**
-- Größe der Vektordatenbank
-- Anzahl gespeicherter Fakten
-- Knowledge-Graph-Größe
-
-**5. Budget-Tracking** (falls aktiviert)
-- Heutige Kosten
-- Tageslimit-Fortschrittsbalken
-- Modell-Nutzung
+Details: [Kapitel 13: Dashboard](13-dashboard.md)
 
 ## Die Config-Oberfläche
 
@@ -254,11 +239,11 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
 | **Terminal** | Workspace-Terminal mit wählbaren CRT-Stilen (Retro-Röhren-Look); mit **Retro-Net** (standardmäßig an) zusätzlich ein Wählerverzeichnis für Telnet-BBS, C64-Boards, MUDs u. a. — siehe unten |
 | **Autor / Tabellen / Notizen / Viewer** | Nativer DOCX-Textprozessor, native Tabellenkalkulation und Rich-Notiz-Editor (Liste, Live-Vorschau, Tags, Rich-Layout) sowie Dateibetrachter |
-| **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
+| **Pixel** | Ebenen-Bildeditor mit Masken, Mischmodi, Auswahlen, Retuschewerkzeugen, 80 Filtern und Anpassungen, 43 Generatoren, Freistellen (auf dem Gerät oder KI-Modelle auf Abruf), Befehlspalette und OpenRaster-Projekten (`.ora`). Dazu kommt das ältere KI-Panel mit Providern ([Kapitel 31](31-pixel.md)) |
 | **Video Studio** | Mehrspur-Videoeditor mit Keyframes, Speed-Ramps, LUTs, Masken, Chroma-Key, WebGL2-Vorschau und FFmpeg-Export. Standardmäßig aus ([Kapitel 26](26-video-studio.md)) |
 | **Bookshelf** | Bibliothek und E-Book-Reader für EPUB, MOBI/KF8, FB2, CBZ, TXT und PDF aus lokalen Ordnern, Uploads und verbundenen Quellen ([Kapitel 27](27-bookshelf.md)) |
 | **Mailer** | Mail-Client für IMAP-, POP3- und SMTP-Konten, Google über gog und AgentMail, mit Hintergrund-Sync ([Kapitel 28](28-mailer.md)) |
-| **Infra** | Der gemeinsame Homelab-Atlas: Atlas-, Topologie- und Inventar-Ansicht mit Live-Stromwerten, gefüllt aus ausdrücklichen Quell-Importen; Quellenänderungen und Energieaktionen sind optional ([Kapitel 29](29-infra.md)) |
+| **Infra** | Die gemeinsame Homelab-Karte: Karten-, Topologie- und Listenansicht mit Live-Stromwerten, gefüllt aus ausdrücklichen Quell-Importen; Quellenänderungen und Energieaktionen sind optional ([Kapitel 29](29-infra.md)) |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
 | **Camera / Gallery / Music Player** | Kamera-Aufnahme, Galerie und Musikwiedergabe |
 | **Radio / TeeVee / Noisemaker** | Retro-Radioempfänger, CRT-Fernseher für Live-Streams (IPTV); Noisemaker: KI-Musikstudio als Werkbank – links die Song-Erstellung (Einfach-Modus mit Genre-Presets oder Eigener Modus mit Stil, Lyrics, Titel und lokalen ACE-Step-Reglern), rechts die Bibliothek (Raster/Liste, Suche, Favoriten, Mehrfachauswahl) und unten eine persistente Player-Leiste mit Warteschlange, Shuffle/Repeat, Visualizer und „Jetzt läuft“-Ansicht. Fenstermenüs (Datei/Bearbeiten/Ansicht/Wiedergabe) und Kontextmenüs decken alle Aktionen ab. |
@@ -289,6 +274,18 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Tresor** | Browser-verschlüsselter Desktop-Safe: Einträge (Namen, Notizen, Dateien) liegen ausschließlich verschlüsselt in `data/tresor.db`; der Server sieht nur Ciphertext. Passwort plus Wiederherstellungsschlüssel, Versionen, automatisches Speichern von Notizen und Verriegeln beim Schließen |
 | **Launchpad** | Verwaltete URL-Sammlungen als Desktop-App: Links mit Kategorien und Symbolen (Suche im Icon-Katalog, Icon-Download) |
 | **God's Eye View** | Store-App: 3D-Globus auf Cesium-Basis im verwalteten Container. Der Store-Dialog nimmt optionale Provider-Keys (nur Vault) und erlaubte AuraGo-Ursprünge auf; Start/Stop bleibt im Store, das Fenster startet maximiert und erhält Mikrofon-Fähigkeit nur für sich selbst |
+
+#### Homepage Studio: Änderungen in der Vorschau markieren
+
+Wähle in der Vorschau-Leiste **Seite annotieren** (Stift-Symbol). Die Schaltfläche ist deaktiviert, solange keine Vorschau verfügbar ist. AuraGo erfasst die Seite in der Breite des gewählten Geräts (1280, 768 oder 390 px) und zeigt sie als Standbild. Klicke ein Element an oder ziehe über einen Bereich, schreib, was sich ändern soll, und drück Enter. Ein leerer Kommentar verwirft die Markierung. Jede Markierung bekommt eine Nummer und erscheint als Chip über dem Chat-Eingabefeld. Du kannst bis zu 20 Markierungen setzen.
+
+Mit deiner nächsten Nachricht gehen die Markierungen mit: Der Agent bekommt deine Kommentare, die nummerierten Ausschnitte und die Element-Details (Selektor, Text, Attribute, Position). Du kannst die Markierungen auch ohne Nachrichtentext senden. Die gesendete Nachricht listet deine Kommentare nummeriert auf und zeigt ein Vorschaubild der markierten Seite.
+
+Mit **Seitenpfad** und **Neu erfassen** markierst du eine Unterseite. Wenn Markierungen vorhanden sind, fragt Neu erfassen vorher nach und verwirft sie dann. **Fertig** kehrt zur Live-Vorschau zurück und behält die Markierungen als Chips.
+
+Per Tastatur wechseln Tab und Umschalt+Tab zwischen den Elementen der Seite, und Enter setzt eine Markierung am markierten Element. Nach dem letzten Element geht Tab weiter zu **Seitenpfad**, **Neu erfassen** und **Fertig**. Esc schließt zuerst das offene Kommentarfeld; ein zweites Esc beendet den Annotationsmodus. Entf auf einem Chip löscht dessen Markierung.
+
+AuraGo erfasst die lokale Vorschau und öffentliche Deployments. Markierungen werden verworfen, wenn du das Ziel wechselst. Bei einem Deployment-Ziel verwirft auch der Wechsel zu einer anderen Website sie. Markierungen werden nicht gespeichert; nach einem Neuladen der Seite sind sie weg.
 
 ### Retro-Net im Terminal
 

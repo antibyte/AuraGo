@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"os/exec"
@@ -50,12 +51,22 @@ func buildTelegramAgentMessages(historyManager *memory.HistoryManager) []openai.
 	return append(finalMessages, historyManager.Get()...)
 }
 
+// telegramHTTPTimeout bounds a single Telegram request. It exceeds the 60 s
+// long-poll window so a healthy poll is never cut short, while a stuck
+// connection can no longer block the polling loop forever.
+const telegramHTTPTimeout = 90 * time.Second
+
+// newTelegramHTTPClient builds the HTTP client used for Telegram requests.
+func newTelegramHTTPClient() *http.Client {
+	return &http.Client{Timeout: telegramHTTPTimeout}
+}
+
 // StartLongPolling starts one cancellable generation without waiting for network I/O.
 func StartLongPolling(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, snapshot func() (*config.Config, llm.ChatClient), routingDecisions agent.TaskDecisionService, offsets *UpdateOffsets) *Bot {
 	if cfg != nil {
 		cfg = cfg.Clone()
 	}
-	return startLongPolling(ctx, cfg, logger, plannerDB, offsets, tgbotapi.APIEndpoint, &http.Client{}, func(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+	return startLongPolling(ctx, cfg, logger, plannerDB, offsets, tgbotapi.APIEndpoint, newTelegramHTTPClient(), func(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		current, currentClient := cfg, client
 		if snapshot != nil {
 			current, currentClient = snapshot()
@@ -87,15 +98,50 @@ func acquireTelegramWorker(ctx context.Context, slots chan struct{}) bool {
 
 var telegramPollingInitialBackoff = time.Second
 
+const (
+	// telegramOffsetPersistEveryUpdates bounds how many updates may pass
+	// without a cursor write. The cursor is written after every update, so a
+	// restart never replays a batch.
+	telegramOffsetPersistEveryUpdates = 1
+	// telegramMaxRetryAfterSeconds caps the flood-control delay Telegram asks
+	// for, so a hostile or buggy response cannot stall the poller.
+	telegramMaxRetryAfterSeconds = 60
+	// telegramPollingBackoffJitter spreads retries by ±20 %.
+	telegramPollingBackoffJitter = 0.2
+)
+
+// telegramOffsetPersistInterval bounds how long a cursor may stay unpersisted:
+// it is the delay after which a failed write is retried and the fallback that
+// writes the cursor when the update threshold is not reached. It is a variable
+// so the test can shorten the wait.
+var telegramOffsetPersistInterval = 30 * time.Second
+
 type telegramUpdatePoller interface {
 	GetUpdates(config tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
 }
 
-func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update) bool) int {
+// runPollingLoop polls for updates and hands them to the worker. The persist
+// callback writes the cursor and reports whether the write succeeded: a failed
+// write stays unpersisted and is retried, so a restart cannot replay an
+// update that the store never accepted.
+func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg tgbotapi.UpdateConfig, plannerDB *sql.DB, logger *slog.Logger, handle func(tgbotapi.Update) bool, persist func(offset int) bool) int {
 	backoff := telegramPollingInitialBackoff
+	pending := 0
+	lastPersist := time.Now()
+	persistFailed := false
 	for {
 		if err := ctx.Err(); err != nil {
 			return updateCfg.Offset
+		}
+		// A failed write is retried after the interval, also when no further
+		// update arrives: otherwise the cursor could stay unwritten until the
+		// next message and a restart would replay the update.
+		if persist != nil && persistFailed && time.Since(lastPersist) >= telegramOffsetPersistInterval {
+			if persist(updateCfg.Offset) {
+				persistFailed = false
+				pending = 0
+				lastPersist = time.Now()
+			}
 		}
 		updates, err := poller.GetUpdates(updateCfg)
 		if ctx.Err() != nil {
@@ -116,10 +162,16 @@ func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg 
 					logger.Warn("Failed to record Telegram polling issue", "error", recordErr)
 				}
 			}
-			if logger != nil {
-				logger.Warn("Telegram long poll failed", "error_code", code, "consecutive_failures", failures, "retry_in", backoff)
+			wait := telegramPollBackoff(backoff)
+			if retryAfter, ok := telegramRetryAfter(err); ok {
+				// Flood control defines its own delay; the local backoff would
+				// only retry too early.
+				wait = retryAfter
 			}
-			timer := time.NewTimer(backoff)
+			if logger != nil {
+				logger.Warn("Telegram long poll failed", "error_code", code, "consecutive_failures", failures, "retry_in", wait)
+			}
+			timer := time.NewTimer(wait)
 			select {
 			case <-ctx.Done():
 				timer.Stop()
@@ -149,14 +201,63 @@ func runPollingLoop(ctx context.Context, poller telegramUpdatePoller, updateCfg 
 			if handle != nil && !handle(update) {
 				return updateCfg.Offset
 			}
+			// The cursor advances only after the update was handed to the
+			// worker, so a crash can lose at most this one message. The
+			// cursor is persisted right away, so a restart does not replay
+			// the rest of the batch either.
 			updateCfg.Offset = update.UpdateID + 1
+			pending++
+			if persist != nil && (pending >= telegramOffsetPersistEveryUpdates || time.Since(lastPersist) >= telegramOffsetPersistInterval) {
+				if persist(updateCfg.Offset) {
+					pending = 0
+					lastPersist = time.Now()
+					persistFailed = false
+				} else {
+					// The cursor stays unwritten: pending and lastPersist keep
+					// their values, so the next update writes it again and the
+					// retry after the interval catches the case that no further
+					// update arrives.
+					persistFailed = true
+					if logger != nil {
+						logger.Warn("Failed to persist the Telegram cursor; the write is retried", "offset", updateCfg.Offset)
+					}
+				}
+			}
 		}
 	}
+}
+
+// telegramPollBackoff spreads the retry delay by ±20 % so parallel pollers do
+// not reconnect in lockstep.
+func telegramPollBackoff(base time.Duration) time.Duration {
+	if base <= 0 {
+		return base
+	}
+	factor := 1 - telegramPollingBackoffJitter + rand.Float64()*(2*telegramPollingBackoffJitter)
+	return time.Duration(float64(base) * factor)
+}
+
+// telegramRetryAfter reports the flood-control delay Telegram advertised with
+// a 429 response.
+func telegramRetryAfter(err error) (time.Duration, bool) {
+	var tgErr *tgbotapi.Error
+	if !errors.As(err, &tgErr) || tgErr.Code != 429 || tgErr.RetryAfter <= 0 {
+		return 0, false
+	}
+	seconds := tgErr.RetryAfter
+	if seconds > telegramMaxRetryAfterSeconds {
+		seconds = telegramMaxRetryAfterSeconds
+	}
+	return time.Duration(seconds) * time.Second, true
 }
 
 func telegramPollErrorCode(err error) string {
 	if err == nil {
 		return ""
+	}
+	var tgErr *tgbotapi.Error
+	if errors.As(err, &tgErr) && tgErr.Code == 429 {
+		return "telegram_poll_rate_limited"
 	}
 	message := strings.ToLower(err.Error())
 	switch {
@@ -296,6 +397,10 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// Pin the caption or voice transcription before adding image/file contents.
 	routingText := inputText
+	humanInput := memory.NewHumanInputEvent(inputText, sessionID, fmt.Sprintf("telegram:%d:%d", msg.Chat.ID, msg.MessageID), time.Time{})
+	if msg.Date > 0 {
+		humanInput.OccurredAt = time.Unix(int64(msg.Date), 0).UTC()
+	}
 	// If it's a photo, process it
 	if len(msg.Photo) > 0 {
 		// Get the largest photo (usually the last one)
@@ -406,7 +511,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			tools.CompleteQuestion(sessionID, response)
 			return
 		}
-		sendTelegramMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.")
+		deliverMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.", "reply prompt", logger)
 		return
 	}
 
@@ -434,21 +539,17 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		cmdResult, isCmd, err := commands.Handle(msg.Text, cmdCtx)
 		if err != nil {
 			logger.Error("Telegram command execution failed", "error", err)
-			sendTelegramMessage(bot, msg.From.ID, "⚠️ Fehler beim Ausführen des Befehls.")
+			deliverMessage(bot, msg.From.ID, "⚠️ Fehler beim Ausführen des Befehls.", "command error notice", logger)
 			return
 		}
 		if isCmd {
-			if err := sendTelegramMessage(bot, msg.From.ID, cmdResult); err != nil {
-				logger.Error("Failed to send Telegram command result", "error", err)
-			}
+			deliverMessage(bot, msg.From.ID, cmdResult, "command result", logger)
 			return
 		}
 	}
 
 	if shouldBlockTelegramPromptInjection(inputText, guardian, logger, msg.From.ID) {
-		if err := sendTelegramMessage(bot, msg.From.ID, "Your message was blocked by the security guardian."); err != nil {
-			logger.Error("Failed to send Telegram security block notice", "error", err)
-		}
+		deliverMessage(bot, msg.From.ID, "Your message was blocked by the security guardian.", "security block notice", logger)
 		return
 	}
 	inputText = security.IsolateExternalData(inputText)
@@ -473,6 +574,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
 		TaskRoutingText:    &routingText,
+		HumanInput:         humanInput,
 		Config:             cfg,
 		Logger:             logger,
 		LLMClient:          client,
@@ -526,7 +628,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			if typingCtx.Err() != nil {
 				return
 			}
-			bot.Send(tgbotapi.NewChatAction(msg.From.ID, tgbotapi.ChatTyping))
+			_ = sendChatAction(bot, msg.From.ID, tgbotapi.ChatTyping)
 			select {
 			case <-ticker.C:
 			case <-typingCtx.Done():
@@ -547,7 +649,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	if err != nil {
 		logger.Error("Telegram agent loop failed", "error", err)
-		sendTelegramMessage(bot, msg.From.ID, "⚠️ Sorry, I encountered an error processing your request.")
+		deliverMessage(bot, msg.From.ID, "⚠️ Sorry, I encountered an error processing your request.", "error notice", logger)
 		return
 	}
 
@@ -564,18 +666,12 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			}
 			if convErr != nil {
 				logger.Warn("[Telegram] OGG conversion failed, falling back to audio", "error", convErr)
-				if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
-					logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
-				}
+				deliverAudio(bot, msg.From.ID, af.FilePath, af.Title, logger)
 			} else {
-				if err := sendTelegramVoice(bot, msg.From.ID, oggPath); err != nil {
-					logger.Warn("[Telegram] Failed to send voice note", "path", oggPath, "error", err)
-				}
+				deliverVoice(bot, msg.From.ID, oggPath, logger)
 			}
 		} else {
-			if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
-				logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
-			}
+			deliverAudio(bot, msg.From.ID, af.FilePath, af.Title, logger)
 		}
 	}
 
@@ -611,20 +707,68 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			} else {
 				continue
 			}
-			if err := sendTelegramPhoto(bot, msg.From.ID, localPath, img.Caption); err != nil {
-				logger.Warn("Failed to send Telegram photo", "path", localPath, "error", err)
-			}
+			deliverPhoto(bot, msg.From.ID, localPath, img.Caption, logger)
 			if staged {
 				_ = os.Remove(localPath)
 			}
 		}
 		cleanText = AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
 		if cleanText != "" {
-			if err := sendTelegramMessage(bot, msg.From.ID, cleanText); err != nil {
-				logger.Error("Failed to send Telegram message", "error", err)
-			}
+			deliverMessage(bot, msg.From.ID, cleanText, "answer", logger)
 		}
 	}
+}
+
+// deliverMessage sends a message to the user and records a failed delivery. A
+// lost answer is invisible to the user, so it is logged and counted in the
+// runtime status. The what label names the path in the log message.
+func deliverMessage(bot *tgbotapi.BotAPI, chatID int64, text string, what string, logger *slog.Logger) error {
+	err := sendTelegramMessage(bot, chatID, text)
+	if err != nil {
+		recordTelegramDeliveryFailure(what, err, logger)
+	}
+	return err
+}
+
+// deliverPhoto sends a photo to the user and records a failed delivery. A
+// lost photo is as invisible to the user as a lost answer.
+func deliverPhoto(bot *tgbotapi.BotAPI, chatID int64, localPath, caption string, logger *slog.Logger) error {
+	err := sendTelegramPhoto(bot, chatID, localPath, caption)
+	if err != nil {
+		recordTelegramDeliveryFailure("photo", err, logger, "path", localPath)
+	}
+	return err
+}
+
+// deliverAudio sends an audio attachment to the user and records a failed
+// delivery. The reply never reaches the chat without the file.
+func deliverAudio(bot *tgbotapi.BotAPI, chatID int64, localPath, title string, logger *slog.Logger) error {
+	err := sendTelegramAudio(bot, chatID, localPath, title)
+	if err != nil {
+		recordTelegramDeliveryFailure("audio", err, logger, "path", localPath)
+	}
+	return err
+}
+
+// deliverVoice sends a voice note to the user and records a failed delivery.
+func deliverVoice(bot *tgbotapi.BotAPI, chatID int64, oggPath string, logger *slog.Logger) error {
+	err := sendTelegramVoice(bot, chatID, oggPath)
+	if err != nil {
+		recordTelegramDeliveryFailure("voice note", err, logger, "path", oggPath)
+	}
+	return err
+}
+
+// recordTelegramDeliveryFailure counts a lost delivery and logs it. Every
+// content path has to use it, because a message that never arrives stays
+// invisible to the user.
+func recordTelegramDeliveryFailure(what string, err error, logger *slog.Logger, attrs ...any) {
+	integrationstatus.MarkTelegramDeliveryFailure(time.Now())
+	if logger == nil {
+		return
+	}
+	args := append([]any{"error", security.Scrub(err.Error())}, attrs...)
+	logger.Error("Failed to send Telegram "+what, args...)
 }
 
 // telegramChatAllowsOperator reports whether operator slash commands may run:
@@ -708,6 +852,13 @@ func sendTelegramVoice(bot *tgbotapi.BotAPI, chatID int64, oggPath string) error
 	return err
 }
 
+// sendChatAction shows a chat action, for example the typing indicator. It
+// carries no content, so a failure loses no message and stays uncounted.
+func sendChatAction(bot *tgbotapi.BotAPI, chatID int64, action string) error {
+	_, err := bot.Send(tgbotapi.NewChatAction(chatID, action))
+	return err
+}
+
 func convertToOGGContext(ctx context.Context, inputPath string, logger *slog.Logger) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -768,7 +919,7 @@ type TelegramBroker struct {
 
 func (b *TelegramBroker) Send(event, message string) {
 	if event == "question_user" {
-		sendTelegramMessage(b.bot, b.chatID, message)
+		b.deliver(message)
 		return
 	}
 	// Capture audio events for native sending after the loop
@@ -815,13 +966,24 @@ func (b *TelegramBroker) Send(event, message string) {
 		if event == "progress" {
 			text = fmt.Sprintf("⏳ %s", message) // Cleaner for progress
 		}
-		sendTelegramMessage(b.bot, b.chatID, text)
+		b.deliver(text)
 	}
 	if event == "budget_warning" {
-		sendTelegramMessage(b.bot, b.chatID, "⚠️ "+message)
+		b.deliver("⚠️ " + message)
 	}
 	if event == "budget_blocked" {
-		sendTelegramMessage(b.bot, b.chatID, "🚫 "+message)
+		b.deliver("🚫 " + message)
+	}
+}
+
+// deliver sends a message and records a failed delivery. A lost message is
+// invisible to the user, so it is logged and counted in the runtime status.
+func (b *TelegramBroker) deliver(text string) {
+	if err := sendTelegramMessage(b.bot, b.chatID, text); err != nil {
+		integrationstatus.MarkTelegramDeliveryFailure(time.Now())
+		if b.logger != nil {
+			b.logger.Error("[Telegram] Message could not be delivered", "error", security.Scrub(err.Error()))
+		}
 	}
 }
 
@@ -876,11 +1038,17 @@ func downloadFile(ctx context.Context, url string, logger *slog.Logger) (string,
 		}
 	}()
 
-	if _, err := io.Copy(tempFile, io.LimitReader(resp.Body, maxTelegramDownloadBytes)); err != nil {
+	// Read one byte beyond the limit so an oversized transfer fails loudly
+	// instead of being truncated silently.
+	written, err := io.Copy(tempFile, io.LimitReader(resp.Body, maxTelegramDownloadBytes+1))
+	if err != nil {
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
 		return "", err
+	}
+	if written > maxTelegramDownloadBytes {
+		return "", fmt.Errorf("telegram download exceeds max size: %d bytes", maxTelegramDownloadBytes)
 	}
 	if ctx.Err() != nil {
 		return "", ctx.Err()

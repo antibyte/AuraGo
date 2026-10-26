@@ -81,6 +81,12 @@ func handleDesktopInfra(s *Server) http.HandlerFunc {
 			desktopInfraNodeRoute(w, r, s, cfg, store, runtime, strings.TrimPrefix(path, "nodes/"))
 		case path == "import" && r.Method == http.MethodPost:
 			desktopInfraImport(w, r, s, cfg, store, runtime)
+		case path == "import/batch" && r.Method == http.MethodPost:
+			desktopInfraImportBatch(w, r, s, cfg, store, runtime)
+		case path == "sources/ignore" && r.Method == http.MethodPut:
+			desktopInfraIgnoreSources(w, r, cfg, store)
+		case path == "source-hosts" && r.Method == http.MethodPut:
+			desktopInfraSetSourceHost(w, r, store)
 		case path == "edges" && r.Method == http.MethodPost:
 			desktopInfraCreateEdge(w, r, store)
 		case strings.HasPrefix(path, "edges/"):
@@ -306,7 +312,7 @@ func desktopInfraSnapshot(w http.ResponseWriter, r *http.Request, s *Server, cfg
 	} else {
 		desktopInfraScheduleRefreshConfigured(s, cfg, store, runtime)
 	}
-	snapshot, err := store.Snapshot(r.Context())
+	snapshot, err := store.SnapshotWith(r.Context(), infra.SnapshotOptions{IncludeIgnored: r.URL.Query().Get("include_ignored") == "1"})
 	if err != nil {
 		desktopInfraStoreError(w, err)
 		return
@@ -332,9 +338,13 @@ func desktopInfraRefreshContext(s *Server, r *http.Request, cfg *config.Config, 
 }
 
 func desktopInfraSnapshotResponse(snapshot infra.Snapshot, runtime *desktopInfraRuntime) map[string]any {
+	sourceHosts := snapshot.SourceHosts
+	if sourceHosts == nil {
+		sourceHosts = []infra.SourceHost{}
+	}
 	response := map[string]any{
 		"nodes": snapshot.Nodes, "edges": snapshot.Edges, "sources": snapshot.Sources,
-		"capabilities": snapshot.Capabilities,
+		"source_hosts": sourceHosts, "capabilities": snapshot.Capabilities,
 	}
 	if sourceErrors := runtime.sourceErrors(); len(sourceErrors) > 0 {
 		response["source_errors"] = sourceErrors
@@ -409,7 +419,10 @@ func desktopInfraCandidates(w http.ResponseWriter, r *http.Request, s *Server, c
 		desktopInfraRefreshConfigured(ctx, s, cfg, store, runtime, r.URL.Query().Get("refresh") == "1")
 		finish()
 	}
-	sources, err := desktopInfraConfiguredSources(r.Context(), s, cfg, store)
+	// Ignored sources stay out of discoveries unless the caller asks for them;
+	// they then carry ignored: true.
+	includeIgnored := r.URL.Query().Get("include_ignored") == "1"
+	sources, err := desktopInfraConfiguredSources(r.Context(), s, cfg, store, includeIgnored)
 	if err != nil {
 		desktopInfraStoreError(w, err)
 		return
@@ -498,9 +511,14 @@ func desktopInfraNodeRoute(w http.ResponseWriter, r *http.Request, s *Server, cf
 			return
 		}
 		updated = desktopInfraDecorateNode(r.Context(), s, cfg, updated)
+		updated = desktopInfraApplyHosts(r.Context(), store, cfg, []infra.Node{updated})[0]
 		desktopInfraJSON(w, http.StatusOK, updated)
 	case http.MethodDelete:
 		version, ok := desktopInfraVersionQuery(w, r)
+		if !ok {
+			return
+		}
+		ignoreSources, ok := desktopInfraFlagQuery(w, r, "ignore_sources")
 		if !ok {
 			return
 		}
@@ -509,7 +527,13 @@ func desktopInfraNodeRoute(w http.ResponseWriter, r *http.Request, s *Server, cf
 			desktopInfraStoreError(w, err)
 			return
 		}
-		if err := store.DeleteNode(r.Context(), nodeID, version); err != nil {
+		ignored := []infra.SourceIdentity{}
+		if ignoreSources {
+			ignored, err = store.DeleteNodeAndIgnoreSources(r.Context(), nodeID, version)
+		} else {
+			err = store.DeleteNode(r.Context(), nodeID, version)
+		}
+		if err != nil {
 			desktopInfraStoreError(w, err)
 			return
 		}
@@ -522,7 +546,11 @@ func desktopInfraNodeRoute(w http.ResponseWriter, r *http.Request, s *Server, cf
 		for instance := range instances {
 			_ = desktopInfraReconcileProxmoxEdges(r.Context(), store, instance)
 		}
-		desktopInfraJSON(w, http.StatusOK, map[string]any{"status": "deleted", "id": nodeID})
+		response := map[string]any{"status": "deleted", "id": nodeID}
+		if ignoreSources {
+			response["ignored"] = ignored
+		}
+		desktopInfraJSON(w, http.StatusOK, response)
 	default:
 		desktopInfraMethodNotAllowed(w)
 	}
@@ -583,6 +611,7 @@ func desktopInfraImport(w http.ResponseWriter, r *http.Request, s *Server, cfg *
 		_ = desktopInfraReconcileProxmoxEdges(r.Context(), store, candidate.Source.Instance)
 	}
 	node = desktopInfraDecorateNode(r.Context(), s, cfg, node)
+	node = desktopInfraApplyHosts(r.Context(), store, cfg, []infra.Node{node})[0]
 	desktopInfraJSON(w, http.StatusCreated, node)
 }
 
@@ -649,6 +678,7 @@ func desktopInfraSaveLayout(w http.ResponseWriter, r *http.Request, s *Server, c
 		updated = []infra.Node{}
 	}
 	updated = desktopInfraProjectNodes(r.Context(), s, cfg, updated)
+	updated = desktopInfraApplyHosts(r.Context(), store, cfg, updated)
 	desktopInfraJSON(w, http.StatusOK, map[string]any{"nodes": updated})
 }
 
@@ -694,26 +724,52 @@ func desktopInfraVersionQuery(w http.ResponseWriter, r *http.Request) (int64, bo
 	return version, true
 }
 
+// desktopInfraFlagQuery reads an optional boolean query flag ("1"/"true" or
+// "0"/"false"; absent means false). Anything else is refused so a typo never
+// silently drops the requested behaviour.
+func desktopInfraFlagQuery(w http.ResponseWriter, r *http.Request, name string) (bool, bool) {
+	switch r.URL.Query().Get(name) {
+	case "":
+		return false, true
+	case "1", "true":
+		return true, true
+	case "0", "false":
+		return false, true
+	default:
+		desktopInfraError(w, http.StatusBadRequest, "invalid_request", "Query flag "+name+" must be 1 or 0")
+		return false, false
+	}
+}
+
 func desktopInfraValidPathID(id string) bool {
 	return id != "" && len(id) <= 128 && !strings.ContainsAny(id, "/\\\x00") && id != "." && id != ".."
 }
 
 func desktopInfraStoreError(w http.ResponseWriter, err error) {
+	status, code, message := desktopInfraStoreErrorStatus(err)
+	desktopInfraError(w, status, code, message)
+}
+
+// desktopInfraStoreErrorStatus maps a store error to a status, a stable code and
+// a sanitized message. Batch imports report the same codes per item.
+func desktopInfraStoreErrorStatus(err error) (int, string, string) {
 	switch {
 	case errors.Is(err, infra.ErrConflict):
-		desktopInfraError(w, http.StatusConflict, "conflict", "The item changed; refresh and try again")
+		return http.StatusConflict, "conflict", "The item changed; refresh and try again"
 	case errors.Is(err, infra.ErrNotFound), errors.Is(err, infra.ErrSourceNotFound):
-		desktopInfraError(w, http.StatusNotFound, "not_found", "The Infra item was not found")
+		return http.StatusNotFound, "not_found", "The Infra item was not found"
 	case errors.Is(err, infra.ErrSourceRemoved), errors.Is(err, infra.ErrSourceLinked):
-		desktopInfraError(w, http.StatusConflict, "source_unavailable", "The source is no longer available")
+		return http.StatusConflict, "source_unavailable", "The source is no longer available"
 	case errors.Is(err, infra.ErrHasChildren):
-		desktopInfraError(w, http.StatusConflict, "has_children", "Move or remove child nodes first")
+		return http.StatusConflict, "has_children", "Move or remove child nodes first"
+	case errors.Is(err, infra.ErrEdgeExists):
+		return http.StatusConflict, "edge_exists", "This connection already exists"
 	case errors.Is(err, infra.ErrReadOnly):
-		desktopInfraError(w, http.StatusForbidden, "source_readonly", "This source is read-only")
+		return http.StatusForbidden, "source_readonly", "This source is read-only"
 	case errors.Is(err, infra.ErrValidation):
-		desktopInfraError(w, http.StatusBadRequest, "invalid_request", "Infra data is invalid")
+		return http.StatusBadRequest, "invalid_request", "Infra data is invalid"
 	default:
-		desktopInfraError(w, http.StatusInternalServerError, "infra_error", "Infra could not complete the request")
+		return http.StatusInternalServerError, "infra_error", "Infra could not complete the request"
 	}
 }
 
@@ -806,7 +862,7 @@ func desktopInfraRefreshSource(ctx context.Context, s *Server, cfg *config.Confi
 	}
 }
 
-func desktopInfraConfiguredSources(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store) ([]infra.Source, error) {
+func desktopInfraConfiguredSources(ctx context.Context, s *Server, cfg *config.Config, store *infra.Store, includeIgnored bool) ([]infra.Source, error) {
 	sources := make([]infra.Source, 0)
 	providers := []struct {
 		kind, instance string
@@ -817,11 +873,15 @@ func desktopInfraConfiguredSources(ctx context.Context, s *Server, cfg *config.C
 		{"proxmox", desktopInfraProxmoxInstance(cfg), cfg.Proxmox.Enabled},
 		{"fritzbox", desktopInfraFritzInstance(cfg), desktopInfraFritzAllowed(cfg)},
 	}
+	list := store.ListSources
+	if includeIgnored {
+		list = store.ListSourcesIncludingIgnored
+	}
 	for _, provider := range providers {
 		if !provider.enabled {
 			continue
 		}
-		found, err := store.ListSources(ctx, provider.kind, provider.instance)
+		found, err := list(ctx, provider.kind, provider.instance)
 		if err != nil {
 			return nil, err
 		}

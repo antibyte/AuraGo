@@ -1115,7 +1115,10 @@ type RunConfig struct {
 	// TaskRoutingText captures human text before media enrichment. A non-nil
 	// empty value prevents falling back to attachment contents or chat history.
 	TaskRoutingText *string
-	DiscoveryRunID  string
+	// HumanInput is captured only at authenticated human ingress. Never infer it
+	// from request roles, history, prefixes, snapshots or model output.
+	HumanInput     *memory.HumanInput
+	DiscoveryRunID string
 	// ExecutionHooks are optional server-owned boundaries for isolated jobs.
 	ExecutionHooks     *ExecutionHooks
 	IterationLimit     int
@@ -1205,7 +1208,7 @@ type RunConfig struct {
 	// nil keeps the fixed timeout.
 	StreamThroughput *llm.ThroughputPolicy
 	// ToolCallLimit is an optional server-owned fixed budget for this run.
-	// Zero retains the normal system/personality/tool-specific calculation.
+	// Zero retains the normal configuration and tool-specific calculation.
 	ToolCallLimit int
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.
@@ -1379,7 +1382,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 	case "git", "git_status", "git_log", "git_diff", "git_commit", "git_push", "git_pull":
 		hint = " Use execute_shell with the git command in the 'command' field."
 	}
-	return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", tc.Action, hint)
+	if guidance, _ := unknownToolGuidance(dc, tc.Action); guidance != "" {
+		hint += " " + guidance
+	}
+	return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", echoedToolName(tc.Action), hint)
 }
 
 func isCoAgentMissionReadOperation(operation string) bool {

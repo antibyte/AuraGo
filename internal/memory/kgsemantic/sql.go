@@ -10,7 +10,7 @@ func EdgeDirtyCondition(edgeAlias string) string {
 		OR EXISTS (
 			SELECT 1 FROM kg_nodes n
 			WHERE (n.id = %s.source OR n.id = %s.target)
-			  AND n.updated_at > COALESCE(%s.semantic_indexed_at, '1970-01-01')
+			  AND (n.semantic_indexed_at IS NULL OR n.updated_at > COALESCE(%s.semantic_indexed_at, '1970-01-01'))
 		)
 	)`, edgeAlias, edgeAlias, edgeAlias, edgeAlias, edgeAlias, edgeAlias)
 }

@@ -34,8 +34,8 @@ func TestLocalWikipediaSchemaIsGatedAndReadOnly(t *testing.T) {
 }
 
 // The live acceptance found the encyclopedia-intent swap skipped at default
-// settings: the knapsack fills the schema token budget to within a few
-// tokens, and local_wikipedia (358) was far larger than wikipedia_search
+// settings: a full selection left only a few tokens of the schema token
+// budget, and local_wikipedia (358) was far larger than wikipedia_search
 // (181). The schema now stays close to wikipedia_search's size.
 func TestLocalWikipediaSchemaStaysCompact(t *testing.T) {
 	got := estimateSingleToolSchemaTokens(localWikipediaSchema())

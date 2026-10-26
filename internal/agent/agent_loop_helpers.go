@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"aurago/internal/config"
@@ -214,40 +215,46 @@ type contextToolGuideSearcher interface {
 }
 
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
+
+// adaptiveFamilySeedTools lists, per tool family, the tools a request of that
+// family is likely to need, by importance: only the first
+// adaptiveFamilySeedLimit that the selection offers are used
+// (adaptiveSeedsForQuery), and they compete in the fused ranking instead of
+// being kept outright.
 var adaptiveFamilySeedTools = map[string][]string{
 	"files": {
-		"filesystem", "workspace_search", "smart_file_read", "file_search", "file_reader_advanced",
-		"detect_file_type", "pdf_operations", "document_creator", "media_conversion", "send_document",
+		"filesystem", "file_editor", "smart_file_read", "workspace_search", "pdf_operations", "file_search",
+		"file_reader_advanced", "detect_file_type", "document_creator", "media_conversion", "send_document",
 	},
 	"shell": {
-		"execute_shell", "execute_python", "execute_sandbox", "filesystem",
-		"system_metrics", "process_analyzer", "process_management",
+		"execute_shell", "execute_python", "filesystem", "system_metrics", "process_analyzer", "process_management",
+		"execute_sandbox",
 	},
 	"coding": {
 		"execute_python", "execute_sandbox", "execute_shell", "document_creator",
 	},
 	"web": {
-		"ddg_search", "api_request", "web_scraper", "site_crawler", "web_capture", "document_creator",
+		"ddg_search", "web_scraper", "api_request", "web_capture", "site_crawler", "document_creator",
 	},
 	"deployment": {
-		"homepage_deploy", "homepage_project", "homepage_file", "homepage_quality", "homepage_git", "homepage_registry", "netlify",
+		"homepage_deploy", "homepage_project", "netlify", "homepage_file", "homepage_quality", "homepage_registry", "homepage_git",
 	},
 	"network": {
-		"network_ping", "dns_lookup", "port_scanner", "mdns_scan", "upnp_scan",
+		"network_ping", "port_scanner", "dns_lookup", "mdns_scan", "upnp_scan",
 	},
 	"infra": {
-		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
-		"invasion_nests", "invasion_tasks", "invasion_artifacts", "execute_shell", "system_metrics", "process_analyzer",
+		"docker", "proxmox", "remote_execution", "ansible", "tailscale", "github", "execute_shell", "system_metrics",
+		"process_analyzer", "invasion_nests", "invasion_tasks", "invasion_artifacts",
 	},
 	"communication": {
-		"fetch_email", "send_email", "send_document", "send_audio", "send_video", "send_youtube_video",
+		"send_email", "fetch_email", "send_document", "send_audio", "send_video", "send_youtube_video",
 	},
 	"automation": {
-		"cron_scheduler", "follow_up", "manage_missions", "co_agent",
+		"cron_scheduler", "manage_missions", "follow_up", "co_agent",
 	},
 	"media": {
-		"media_registry", "media_conversion", "send_document", "send_audio", "send_video", "send_youtube_video", "send_image", "tts",
-		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast", "bluetooth",
+		"media_registry", "send_image", "tts", "send_audio", "media_conversion", "send_document", "transcribe_audio",
+		"send_video", "send_youtube_video", "generate_image", "generate_music", "generate_video", "chromecast", "bluetooth",
 	},
 }
 
@@ -470,9 +477,16 @@ func collectRecentUserIntentText(messages []openai.ChatCompletionMessage, maxMes
 	return joined[len(joined)-maxChars:]
 }
 
+// extractIntentMatchedTools lists the offered tools whose name the request
+// spells out, best first: the whole name as consecutive words (priority 0), all
+// words of a multi-word name somewhere in the message (1), at least two of
+// them (2). Words are compared as whole words after the search folding and
+// stemming (toolIntentText), so "manuscript" does not name manus and "profile"
+// does not name a file tool; a name word of fewer than three runes never counts
+// on its own.
 func extractIntentMatchedTools(userQuery string, availableTools []string) []string {
-	normalizedQuery := normalizeAdaptiveIntentText(userQuery)
-	if normalizedQuery == "" || len(availableTools) == 0 {
+	text := newToolIntentText(userQuery)
+	if len(text.words) == 0 || len(availableTools) == 0 {
 		return nil
 	}
 
@@ -488,33 +502,25 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		if tool == "" || seen[tool] {
 			continue
 		}
-		normalizedTool := normalizeAdaptiveIntentText(tool)
-		if normalizedTool == "" {
+		name, ok := compileToolIntentTerm(tool)
+		if !ok {
 			continue
 		}
 
 		priority := -1
-		switch {
-		case strings.Contains(normalizedQuery, normalizedTool):
+		if name.occursIn(text) {
 			priority = 0
-		default:
-			tokens := strings.Fields(normalizedTool)
-			if len(tokens) == 1 {
-				if len(tokens[0]) >= 4 && strings.Contains(normalizedQuery, tokens[0]) {
-					priority = 1
+		} else if len(name.words) > 1 {
+			matched := 0
+			for i, word := range name.words {
+				if utf8.RuneCountInString(word) >= 3 && text.hasWord(word, name.stems[i]) {
+					matched++
 				}
-			} else {
-				matched := 0
-				for _, token := range tokens {
-					if len(token) >= 3 && strings.Contains(normalizedQuery, token) {
-						matched++
-					}
-				}
-				if matched == len(tokens) {
-					priority = 1
-				} else if matched >= 2 {
-					priority = 2
-				}
+			}
+			if matched == len(name.words) {
+				priority = 1
+			} else if matched >= 2 {
+				priority = 2
 			}
 		}
 
@@ -536,102 +542,6 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		result = append(result, match.name)
 	}
 	return result
-}
-
-func adaptiveFamilySeedsForQuery(userQuery string) []string {
-	family := inferToolFamilyFromQuery(userQuery)
-	out := make([]string, 0, 8)
-	seen := make(map[string]bool)
-	add := func(name string) {
-		if name == "" || seen[name] {
-			return
-		}
-		seen[name] = true
-		out = append(out, name)
-	}
-	if family != "" {
-		for _, seed := range adaptiveFamilySeedTools[family] {
-			add(seed)
-		}
-	}
-
-	q := normalizeAdaptiveIntentText(userQuery)
-	if isResourceUsageIntent(q) {
-		add("system_metrics")
-		add("process_analyzer")
-		add("execute_shell")
-	}
-	if isContainerIntent(q) {
-		add("docker")
-		add("execute_shell")
-	}
-	if isNetworkCameraIntent(q) {
-		add("go2rtc")
-	}
-	if isMCPIntent(q) {
-		add("mcp_call")
-	}
-	if isComposioIntent(q) {
-		add("composio_call")
-	}
-	if isManusIntent(q) {
-		add("manus")
-	}
-
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func isNetworkCameraIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	explicitTerms := []string{
-		"go2rtc", "onvif", "netzwerkkamera", "netzwerk kamera",
-		"ip kamera", "ip camera", "network camera",
-		"personenerkennung", "personen erkennung", "person detection", "people detection",
-	}
-	for _, term := range explicitTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	cameraMentioned := networkCameraWord(normalizedQuery)
-	mediaAction := strings.Contains(normalizedQuery, "snapshot") || strings.Contains(normalizedQuery, "live stream") ||
-		strings.Contains(normalizedQuery, "livebild") || strings.Contains(normalizedQuery, "stream anzeigen")
-	if cameraMentioned && mediaAction {
-		return true
-	}
-	// Arming person detection ("scharf schalten", "unscharf", "arm", "disarm") needs a camera
-	// or an alarm system in the same request.
-	armingContext := cameraMentioned || strings.Contains(normalizedQuery, "alarmanlage") || strings.Contains(normalizedQuery, "alarm system")
-	return armingContext && networkCameraArmingWord(normalizedQuery)
-}
-
-// networkCameraWord reports a word naming a camera, compounds such as "gartenkamera" or
-// "kamerabild" included; "kamerad" (comrade) and its compounds do not count.
-func networkCameraWord(normalizedQuery string) bool {
-	for _, word := range strings.Fields(normalizedQuery) {
-		if strings.Contains(word, "camera") || (strings.Contains(word, "kamera") && !strings.Contains(word, "kamerad")) {
-			return true
-		}
-	}
-	return false
-}
-
-// networkCameraArmingWord reports an arming word as a whole word, so "alarm" or "warm" do
-// not count as "arm".
-func networkCameraArmingWord(normalizedQuery string) bool {
-	for _, word := range strings.Fields(normalizedQuery) {
-		switch word {
-		case "scharf", "unscharf", "scharfschalten", "scharfgeschaltet", "unscharfschalten",
-			"arm", "disarm", "armed", "disarmed", "arming", "disarming":
-			return true
-		}
-	}
-	return false
 }
 
 // adaptiveIntentOnlyTools take no capped slot in the adaptive selection on
@@ -835,101 +745,6 @@ func isEncyclopediaIntent(normalizedQuery string) bool {
 	return false
 }
 
-func isResourceUsageIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	resourceTerms := []string{
-		"ram", "cpu", "memory usage", "mem usage", "resource usage",
-		"resources", "ressourcen", "verbrauch", "auslastung",
-		"speicherverbrauch", "arbeitsspeicher", "speicher auslastung",
-		"wieviel speicher", "wie viel speicher", "wieviel ram", "wie viel ram",
-	}
-	for _, term := range resourceTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isContainerIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	containerTerms := []string{"docker", "container", "containers", "compose"}
-	for _, term := range containerTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isMCPIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	mcpTerms := []string{"mcp", "model context protocol"}
-	for _, term := range mcpTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isComposioIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	composioTerms := []string{"composio", "integration", "integrations", "gmail", "google mail", "googlemail", "g mail"}
-	for _, term := range composioTerms {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return false
-}
-
-func isManusIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	if strings.Contains(" "+normalizedQuery+" ", " manus ") {
-		return true
-	}
-	for _, term := range []string{"manus ai", "manus task", "manus aufgabe", "delegate to manus", "an manus delegieren"} {
-		if strings.Contains(normalizedQuery, term) {
-			return true
-		}
-	}
-	return normalizedQuery == "manus"
-}
-
-func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, schemas []openai.Tool) []string {
-	seeds := adaptiveFamilySeedsForQuery(userQuery)
-	if len(seeds) == 0 {
-		return alwaysInclude
-	}
-
-	available := make(map[string]bool, len(schemas))
-	for _, schema := range schemas {
-		if schema.Function != nil && schema.Function.Name != "" {
-			available[schema.Function.Name] = true
-		}
-	}
-
-	out := make([]string, 0, len(alwaysInclude)+len(seeds))
-	out = append(out, alwaysInclude...)
-	for _, seed := range seeds {
-		if available[seed] {
-			out = append(out, seed)
-		}
-	}
-	return out
-}
-
 func outputRefAdaptiveAlwaysInclude(messages []openai.ChatCompletionMessage, alwaysInclude []string) []string {
 	for _, name := range alwaysInclude {
 		if name == "read_tool_output" {
@@ -997,6 +812,9 @@ func channelAdaptiveAlwaysInclude(runCfg RunConfig, alwaysInclude []string, ff T
 	}
 	if ff.OfficeDocumentEnabled {
 		out = append(out, "office_document")
+	}
+	if ff.QRCodeEnabled {
+		out = append(out, "qr_code")
 	}
 	if ff.OfficeWorkbookEnabled {
 		out = append(out, "office_workbook")
@@ -1066,77 +884,6 @@ func searchToolGuidesWithTimeout(gs toolGuideSearcher, query string, limit int, 
 	}
 }
 
-func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
-	available := make([]string, 0, len(schemas))
-	availableSet := make(map[string]bool, len(schemas))
-	for _, schema := range schemas {
-		if schema.Function == nil || schema.Function.Name == "" {
-			continue
-		}
-		name := schema.Function.Name
-		if !availableSet[name] {
-			available = append(available, name)
-			availableSet[name] = true
-		}
-	}
-
-	prioritized := make([]string, 0, len(weightedUsage)+8)
-	seen := make(map[string]bool, len(availableSet))
-	add := func(name string) {
-		if name == "" || seen[name] || !availableSet[name] {
-			return
-		}
-		seen[name] = true
-		prioritized = append(prioritized, name)
-	}
-
-	// Explicit discovery and adaptive selection share names, aliases and operations.
-	catalog := BuildToolCatalog(schemas, schemas, "")
-	for _, entry := range catalog.Search(userQuery) {
-		add(entry.Name)
-	}
-	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
-		// The manuals of non-displacing tools are dropped before the cut to
-		// the top four: those tools are never ranked, so their manual would
-		// only cost another tool its semantic slot.
-		const semanticTopK = 4
-		paths := searchToolGuidesWithTimeout(guideSearcher, userQuery, semanticTopK+len(prompts.NonDisplacingTools), 400*time.Millisecond, logger)
-		considered := 0
-		for _, path := range paths {
-			name := strings.TrimSuffix(filepath.Base(filepath.Clean(path)), filepath.Ext(path))
-			if prompts.IsNonDisplacingManual(name) {
-				continue
-			}
-			if considered == semanticTopK {
-				break
-			}
-			considered++
-			add(name)
-		}
-	}
-
-	for _, tool := range adaptiveFamilySeedsForQuery(userQuery) {
-		add(tool)
-	}
-
-	for _, tool := range extractIntentMatchedTools(userQuery, available) {
-		add(tool)
-	}
-
-	seedCount := len(prioritized)
-	for i := 0; i < seedCount; i++ {
-		for _, neighbor := range adaptiveToolNeighbors[prioritized[i]] {
-			add(neighbor)
-		}
-	}
-
-	for _, tool := range weightedUsage {
-		add(tool)
-	}
-
-	return prioritized
-}
-
 // isToolError returns true if the tool result content indicates an error.
 // Used for tool usage tracking to distinguish successes from failures.
 func isToolError(resultContent string) bool {
@@ -1204,6 +951,9 @@ func extractErrorMessage(resultContent string) string {
 }
 
 type toolSchemaFilterOptions struct {
+	// PreferredTools are the tools a ranking picked, best first. Only these
+	// take an adaptive slot: a schema nobody ranked stays out even when slots
+	// are free (buildAdaptiveKnapsackOrder).
 	PreferredTools   []string
 	HardAlwaysTools  []string
 	SoftAlwaysTools  []string
@@ -1219,9 +969,8 @@ type toolSchemaFilterOptions struct {
 	// model's stability limit. Being last, they are also the first schemas the
 	// request budget sheds. A hard tool listed here stays hard.
 	AdditiveTools []string
-	// AdaptiveExcludedTools are never picked by the adaptive ranking (neither
-	// as preferred tool nor as filler); they are kept only as hard, soft or
-	// additive tools.
+	// AdaptiveExcludedTools are never picked by the adaptive ranking; they are
+	// kept only as hard, soft or additive tools.
 	AdaptiveExcludedTools []string
 	// AdditiveSwaps maps an additive tool to the one tool it may replace
 	// when a cap leaves it no room: the replaced tool must have been picked
@@ -1438,7 +1187,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	canAddAdaptive := func() bool {
 		return !opts.DisableAdaptive && (opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools)
 	}
-	adaptiveOrder := buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder, consumed, hardSet, reservedSet, schemaTokens, opts.MaxSchemaTokens > 0)
+	adaptiveOrder := buildAdaptiveKnapsackOrder(preferredOrder, consumed, hardSet, reservedSet)
 	for _, name := range adaptiveOrder {
 		schema, ok := schemaByName[name]
 		if !ok || consumed[name] || !canAddAdaptive() {
@@ -1521,52 +1270,18 @@ func estimateSingleToolSchemaTokens(schema openai.Tool) int {
 	return roughTokenEstimate(len(b))
 }
 
-func buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder []string, consumed map[string]bool, hardSet, softSet map[string]bool, schemaTokens map[string]int, tokenAware bool) []string {
-	preferredRank := make(map[string]int, len(preferredOrder))
-	for i, name := range preferredOrder {
-		preferredRank[name] = len(preferredOrder) - i
-	}
-	type candidate struct {
-		name         string
-		utility      int
-		tokens       int
-		originalRank int
-	}
-	candidates := make([]candidate, 0, len(schemaOrder))
-	for i, name := range schemaOrder {
-		if consumed[name] || hardSet[name] || softSet[name] {
+// buildAdaptiveKnapsackOrder lists the tools that may take an adaptive slot,
+// best first: the preferred ones, in rank order. A schema that no signal
+// ranked never takes a slot, however small it is; a slot nothing ranked stays
+// empty. A preferred tool that does not fit a cap is skipped by the caller and
+// the next one is tried.
+func buildAdaptiveKnapsackOrder(preferredOrder []string, consumed, hardSet, reservedSet map[string]bool) []string {
+	out := make([]string, 0, len(preferredOrder))
+	for _, name := range preferredOrder {
+		if consumed[name] || hardSet[name] || reservedSet[name] {
 			continue
 		}
-		utility := preferredRank[name]
-		if utility <= 0 {
-			utility = 1
-		}
-		tokens := schemaTokens[name]
-		if tokens <= 0 {
-			tokens = 1
-		}
-		candidates = append(candidates, candidate{
-			name:         name,
-			utility:      utility,
-			tokens:       tokens,
-			originalRank: i,
-		})
-	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		left, right := candidates[i], candidates[j]
-		lp, rp := preferredRank[left.name], preferredRank[right.name]
-		if lp != rp {
-			return lp > rp
-		}
-		if tokenAware && left.tokens != right.tokens {
-			return left.tokens < right.tokens
-		}
-		return left.originalRank < right.originalRank
-	})
-
-	out := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		out = append(out, candidate.name)
+		out = append(out, name)
 	}
 	return out
 }
@@ -1647,6 +1362,13 @@ func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, 
 	seenTurns := 0
 	seen := map[string]bool{}
 	outReversed := make([]string, 0)
+	record := func(name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		outReversed = append(outReversed, name)
+	}
 	for i := len(messages) - 1; i >= 0 && seenTurns < turns; i-- {
 		msg := messages[i]
 		if msg.Role == openai.ChatMessageRoleUser {
@@ -1658,11 +1380,26 @@ func recentNativeToolNamesFromMessages(messages []openai.ChatCompletionMessage, 
 		}
 		for _, tc := range msg.ToolCalls {
 			name := strings.TrimSpace(tc.Function.Name)
-			if name == "" || seen[name] {
+			record(name)
+			if name != "invoke_tool" {
 				continue
 			}
-			seen[name] = true
-			outReversed = append(outReversed, name)
+			// The tool run through invoke_tool is the one the model relied on;
+			// keeping only invoke_tool would let the target drop out of the
+			// next selection. Malformed arguments leave just invoke_tool.
+			var args map[string]interface{}
+			if json.Unmarshal([]byte(tc.Function.Arguments), &args) != nil {
+				continue
+			}
+			// Both spellings are kept when they differ: remote_execution is the
+			// published schema name while its dispatch alias is not a schema
+			// name at all.
+			target := strings.TrimSpace(stringValueFromMap(args, "tool_name", "name", "tool"))
+			if target == "invoke_tool" {
+				continue
+			}
+			record(target)
+			record(canonicalNativeAlias(target))
 		}
 	}
 	names := make([]string, 0, len(outReversed))
@@ -2039,15 +1776,80 @@ func compactKnowledgeContextForPrompt(text string, maxBytes int) string {
 	return kgquery.FitEntries(entries, "\n", maxBytes)
 }
 
+const (
+	// shortQueryRAGMaxBytes is the length (in bytes) below which a user message
+	// counts as a short query for the RAG relevance filter.
+	shortQueryRAGMaxBytes = 40
+	// shortQueryRAGMinScore is the minimum blended score a memory needs to be
+	// served for a short query.
+	shortQueryRAGMinScore = 0.50
+)
+
+// filterShortQueryRAGMemories drops weakly ranked memories for short messages
+// (<40 bytes). Very short messages such as "versuche es erneut" are
+// semantically close to old error messages and would otherwise pull in
+// contextually irrelevant memories. The threshold is deliberately soft (0.50)
+// so that highly relevant old memories survive. There is no top-1 fallback:
+// when nothing reaches the threshold the turn gets no retrieved memory at all
+// instead of the least-bad match. Longer messages are returned unchanged.
+func filterShortQueryRAGMemories(lastUserMsg string, ranked []rankedMemory) []rankedMemory {
+	if len(lastUserMsg) >= shortQueryRAGMaxBytes || len(ranked) == 0 {
+		return ranked
+	}
+	var filtered []rankedMemory
+	for _, r := range ranked {
+		if r.score >= shortQueryRAGMinScore {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
+// memoryExcerptMinBytes is the least amount of memory text worth keeping as an
+// excerpt. With less room completeMemoryForPrompt falls back to a bare pointer.
+const memoryExcerptMinBytes = 60
+
+// completeMemoryForPrompt returns the sanitized memory when it fits into
+// maxBytes. An over-long memory with a docID becomes an excerpt of its
+// beginning followed by a recall_memory pointer (the whole entry stays within
+// maxBytes); when maxBytes leaves less than memoryExcerptMinBytes for the
+// excerpt it degrades to the bare pointer. Without a docID there is nothing to
+// point at and the entry is dropped via FitEntries.
 func completeMemoryForPrompt(text, docID string, maxBytes int) string {
 	text = sanitizeMemoryForPrompt(text)
 	if len(text) <= maxBytes {
 		return text
 	}
 	if docID != "" {
+		suffix := " … [memory:" + docID + "] (truncated; use recall_memory for the full text)"
+		if excerpt := memoryExcerptForPrompt(text, maxBytes-len(suffix)); excerpt != "" {
+			return excerpt + suffix
+		}
 		return kgquery.FitEntries([]string{"[memory:" + docID + "] (content omitted; use recall_memory)"}, "", maxBytes)
 	}
 	return kgquery.FitEntries([]string{text}, "", maxBytes)
+}
+
+// memoryExcerptForPrompt returns the longest beginning of text (which must be
+// longer than maxBytes) that fits into maxBytes. The cut falls on a rune
+// boundary and, when that keeps at least half of the available bytes, on the
+// last whitespace so words are not split. It returns "" if maxBytes is below
+// memoryExcerptMinBytes.
+func memoryExcerptForPrompt(text string, maxBytes int) string {
+	if maxBytes < memoryExcerptMinBytes || maxBytes >= len(text) {
+		return ""
+	}
+	end := maxBytes
+	for end > 0 && !utf8.RuneStart(text[end]) {
+		end--
+	}
+	// A cut that already sits in front of whitespace ends on a word boundary.
+	if next, _ := utf8.DecodeRuneInString(text[end:]); !unicode.IsSpace(next) {
+		if idx := strings.LastIndexFunc(text[:end], unicode.IsSpace); idx >= end/2 {
+			end = idx
+		}
+	}
+	return strings.TrimRightFunc(text[:end], unicode.IsSpace)
 }
 
 const (
@@ -2070,23 +1872,57 @@ type promptMemoryEntry struct {
 	text  string
 }
 
+const (
+	// ragPromptEntrySeparator joins the retrieved-memory entries in
+	// flags.RetrievedMemories; applyAggressivePromptContextBudgets splits and
+	// re-fits the section on the same separator.
+	ragPromptEntrySeparator = "\n---\n"
+	// minRAGPromptEntryBytes is the smallest remaining budget in which a further
+	// memory is still worth adding (a bare recall pointer with a UUID is ~80 bytes).
+	minRAGPromptEntryBytes = 120
+)
+
+// buildAggressiveRAGPromptEntries renders the served memories in rank order.
+// The top memory may use the deep-details path (full text, aggressiveDetailedRAGMemoryChars);
+// every other memory is capped at aggressiveAutoRAGMemoryChars. The entries
+// joined with ragPromptEntrySeparator never exceed aggressiveRetrievedMemoriesChars,
+// the budget applyAggressivePromptContextBudgets later enforces on the whole
+// section: once it is used up the remaining memories are dropped, and the
+// last kept memory is shortened to the space left.
 func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails bool, getFull func(string) (string, error)) []promptMemoryEntry {
 	if len(served) == 0 {
 		return nil
 	}
-	top := served[0]
-	if wantsDeepDetails && getFull != nil && top.docID != "" {
-		if full, err := getFull(top.docID); err == nil && full != "" && shouldServeRAGMemory(full) {
-			return []promptMemoryEntry{{
-				docID: top.docID,
-				text:  "[Detailed Memory]\n" + completeMemoryForPrompt(full, top.docID, aggressiveDetailedRAGMemoryChars-len("[Detailed Memory]\n")),
-			}}
+	entries := make([]promptMemoryEntry, 0, len(served))
+	used := 0 // bytes of the entries so far, joined with ragPromptEntrySeparator
+	for i, item := range served {
+		room := aggressiveRetrievedMemoriesChars - used
+		if len(entries) > 0 {
+			room -= len(ragPromptEntrySeparator)
+			if room < minRAGPromptEntryBytes {
+				break
+			}
 		}
+		var text string
+		if i == 0 && wantsDeepDetails && getFull != nil && item.docID != "" {
+			if full, err := getFull(item.docID); err == nil && full != "" && shouldServeRAGMemory(full) {
+				const header = "[Detailed Memory]\n"
+				text = header + completeMemoryForPrompt(full, item.docID, min(aggressiveDetailedRAGMemoryChars, room)-len(header))
+			}
+		}
+		if text == "" {
+			text = completeMemoryForPrompt(item.text, item.docID, min(aggressiveAutoRAGMemoryChars, room))
+		}
+		if text == "" {
+			continue
+		}
+		if len(entries) > 0 {
+			used += len(ragPromptEntrySeparator)
+		}
+		used += len(text)
+		entries = append(entries, promptMemoryEntry{docID: item.docID, text: text})
 	}
-	return []promptMemoryEntry{{
-		docID: top.docID,
-		text:  completeMemoryForPrompt(top.text, top.docID, aggressiveAutoRAGMemoryChars),
-	}}
+	return entries
 }
 
 func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDemandRetrievalConfig, logger *slog.Logger) ([]rankedMemory, []rankedMemory) {

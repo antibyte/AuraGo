@@ -9,7 +9,7 @@ import (
 
 func newTestSQLiteMemory(t *testing.T) (*SQLiteMemory, func()) {
 	t.Helper()
-	tmpFile, err := os.CreateTemp("", "aurago_test_*.db")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "aurago_test_*.db")
 	if err != nil {
 		t.Fatal(err)
 	}

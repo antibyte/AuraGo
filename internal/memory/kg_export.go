@@ -2,7 +2,9 @@ package memory
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 )
 
 type KGJSONLDDocument struct {
@@ -136,19 +138,65 @@ func (kg *KnowledgeGraph) exportJSONLDEdges(includeInactive bool, limit int) ([]
 		return nil, fmt.Errorf("iterate json-ld export edges: %w", err)
 	}
 	rows.Close()
-
-	for i := range relationships {
-		source := relationships[i].Source["@id"]
-		target := relationships[i].Target["@id"]
-		source = trimKGNodeJSONLDID(source)
-		target = trimKGNodeJSONLDID(target)
-		claims, err := kg.GetClaimsForEdge(source, target, relationships[i].Relation, includeInactive, 100)
-		if err != nil {
-			return nil, fmt.Errorf("load claims for json-ld edge %s/%s/%s: %w", source, relationships[i].Relation, target, err)
-		}
-		relationships[i].Claims = claims
+	if err := kg.attachJSONLDClaims(relationships, includeInactive); err != nil {
+		return nil, err
 	}
 	return relationships, nil
+}
+
+func (kg *KnowledgeGraph) attachJSONLDClaims(relationships []KGJSONLDRelationship, includeInactive bool) error {
+	const edgeChunkSize = 300
+	claimsByEdge := make(map[string][]KGClaim, len(relationships))
+	for start := 0; start < len(relationships); start += edgeChunkSize {
+		end := start + edgeChunkSize
+		if end > len(relationships) {
+			end = len(relationships)
+		}
+		chunk := relationships[start:end]
+		values := make([]string, 0, len(chunk))
+		args := make([]interface{}, 0, len(chunk)*3+1)
+		for _, relationship := range chunk {
+			source := trimKGNodeJSONLDID(relationship.Source["@id"])
+			target := trimKGNodeJSONLDID(relationship.Target["@id"])
+			values = append(values, "(?,?,?)")
+			args = append(args, source, target, relationship.Relation)
+		}
+		statusFilter := ""
+		if !includeInactive {
+			statusFilter = ` AND c.status='accepted'`
+		}
+		query := `WITH edge_keys(subject_id,object_id,predicate) AS (VALUES ` + strings.Join(values, ",") + `),
+			ranked AS (
+				SELECT c.id,ROW_NUMBER() OVER (
+					PARTITION BY c.subject_id,c.object_id,c.predicate
+					ORDER BY c.learned_at DESC,c.id DESC
+				) AS edge_rank
+				FROM kg_claims c JOIN edge_keys k
+				  ON k.subject_id=c.subject_id AND k.object_id=c.object_id AND k.predicate=c.predicate
+				WHERE 1=1` + statusFilter + `
+			)
+		` + kgClaimsWithEvidenceSQL(`WHERE c.id IN (SELECT id FROM ranked WHERE edge_rank<=100)
+			ORDER BY c.subject_id,c.predicate,c.object_id,c.learned_at DESC,c.id DESC`)
+		rows, err := kg.db.Query(query, args...)
+		if err != nil {
+			return fmt.Errorf("batch load claims for json-ld export: %w", err)
+		}
+		claims, scanErr := scanKGClaimRows(rows)
+		closeErr := rows.Close()
+		if err := errors.Join(scanErr, closeErr); err != nil {
+			return fmt.Errorf("scan claims for json-ld export: %w", err)
+		}
+		for _, claim := range claims {
+			key := knowledgeGraphEdgeKey(claim.SubjectID, claim.ObjectID, claim.Predicate)
+			claimsByEdge[key] = append(claimsByEdge[key], claim)
+		}
+	}
+	for i := range relationships {
+		source := trimKGNodeJSONLDID(relationships[i].Source["@id"])
+		target := trimKGNodeJSONLDID(relationships[i].Target["@id"])
+		relationships[i].Claims = claimsByEdge[knowledgeGraphEdgeKey(source, target, relationships[i].Relation)]
+	}
+	return nil
 }
 
 func kgNodeJSONLDID(id string) string {

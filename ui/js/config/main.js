@@ -353,6 +353,10 @@ async function refreshVaultStatus() {
 
 // Provider management state (loaded from /api/providers)
 let providersCache = [];
+let providersDiagnostics = null;
+let providersRevision = '';
+let providersSaving = false;
+let providersConflict = false;
 let providersLoaded = false;
 let providersLoadError = '';
 let providersLoadRedirected = false;
@@ -370,8 +374,12 @@ async function loadProviders() {
             throw new Error(message || t('config.common.error'));
         }
         providersCache = await provResp.json();
+        providersRevision = provResp.headers.get('ETag') || '';
+        providersConflict = false;
         providersLoaded = true;
         providersLoadError = '';
+        providersDiagnostics = null;
+        try { const status = await fetch('/api/providers/status'); if (status.ok) providersDiagnostics = await status.json(); } catch (_) { /* status remains unknown */ }
         return true;
     } catch (e) {
         providersLoadError = e && e.message ? e.message : String(e);
@@ -1285,6 +1293,7 @@ function showUnsavedChangesDecision() {
 }
 
 async function navigateToConfigSection(key, options = {}) {
+    if (configSaveInFlight || document.querySelector('#content [data-config-saving]')) return false;
     const target = normalizeSectionKey(key);
     if (target === activeSection && !hasUnsavedConfigChanges()) {
         await selectSection(target, options);
@@ -1294,7 +1303,7 @@ async function navigateToConfigSection(key, options = {}) {
     if (hasUnsavedConfigChanges()) {
         const decision = await showUnsavedChangesDecision();
         if (decision === 'save') {
-            if (!await saveConfig()) return false;
+            if (!await saveConfig() || hasUnsavedConfigChanges()) return false;
         } else if (decision === 'discard') {
             if (window.AuraConfigState) configData = window.AuraConfigState.discard();
             if (typeof window.sipDiscardUnsaved === 'function') window.sipDiscardUnsaved();
@@ -1428,6 +1437,7 @@ function focusConfigField(path) {
     if (!path) return;
     requestAnimationFrame(() => {
         const field = document.querySelector('[data-path="' + CSS.escape(path) + '"]')
+            || document.querySelector('[data-search-path="' + CSS.escape(path) + '"]')
             || (path.startsWith('sip.') ? document.querySelector('[data-sip="' + CSS.escape(path.slice(4)) + '"]') : null);
         if (!field) return;
         let disclosure = field.closest('details');
@@ -1590,7 +1600,7 @@ function renderOptimizations() {
     }
     // Group 3: Tool Visibility
     if (configMigrationNotices.length) {
-        html += `<div class="wh-notice"><div><strong>${t('config.tool_policy.migrations')}</strong><ul>${configMigrationNotices.map(path => `<li>${escapeHtml(path)}</li>`).join('')}</ul><small>${t('config.tool_policy.migrations_help')}</small></div></div>`;
+        html += `<div class="wh-notice"><div><strong>${t('config.tool_policy.migrations')}</strong><ul>${configMigrationNotices.map(path => `<li>${escapeHtml(path.startsWith('personality.inner_voice.error_streak_min') ? t('personality_legacy.deprecated') : path)}</li>`).join('')}</ul><small>${t('config.tool_policy.migrations_help')}</small></div></div>`;
     }
     html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_visibility')}</div>`;
     html += renderFields(
@@ -1746,7 +1756,7 @@ async function renderSection(key) {
     // V2 mood, emotion synthesis, and lived notes need the Helper LLM.
     if (key === 'personality' && personalitySectionNeedsHelperLLM()) {
         html += `<div class="cfg-note-banner cfg-note-banner-warning" id="personality-helper-banner">
-                    \u{26A0} ${t('config.personality.helper_required')}
+                    \u{26A0} ${t('personality_legacy.settings')}
                 </div>`;
     }
 
@@ -1874,13 +1884,20 @@ async function renderSection(key) {
         </div>`;
     }
 
-    if (key === 'personality') html += '<section id="config-personality-dynamics"></section>';
+    if (key === 'personality') {
+        html += '<p>' + t('personality_legacy.settings') + '</p><section id="config-personality-dynamics"></section>';
+        if (configMigrationNotices.some(path => path.startsWith('personality.inner_voice.error_streak_min'))) html += '<p role="status">' + t('personality_legacy.deprecated') + '</p>';
+    }
     if (sectionBlocked) html += '</div>'; // End feature-unavailable-fields
+    if (key === 'personality') html += '<section id="config-personality-legacy" class="personality-dynamics"></section>';
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
 
-    if (key === 'personality') window.AuraPersonalityDynamics.load(document.getElementById('config-personality-dynamics'));
+    if (key === 'personality') {
+        window.AuraPersonalityDynamics.load(document.getElementById('config-personality-dynamics'));
+        window.AuraPersonalityDynamics.loadLegacy(document.getElementById('config-personality-legacy'));
+    }
     _initArrayChipFields();
     if (integrationActions) integrationActions.bind(key);
 
@@ -1938,6 +1955,23 @@ function syncEmbeddingsRuntimeVisibility(localGranite) {
 
 let embeddingsRuntimeRefreshTimer = 0;
 
+async function refreshOllamaEmbeddingStatus() {
+    const element = document.getElementById('ollama-embedding-status');
+    if (!element || !(configData.embeddings || {}).local_ollama?.enabled) return;
+    try {
+        const response = await fetch('/api/ollama/managed/status?embeddings=1', {signal: AbortSignal.timeout(10000)});
+        const data = await response.json();
+        if (!element.isConnected) return;
+        if (!response.ok) throw new Error(t('config.ollama.managed_status_error'));
+        const op = (data.operations || []).sort((a,b) => new Date(b.updated) - new Date(a.updated))[0];
+        const models = Object.entries(op?.models || {}).map(([model,state]) => model + ': ' + t('config.ollama.state_' + state));
+        element.textContent = op ? [t('config.ollama.state_' + op.state), ...models].join(' · ') + (op.error ? ': ' + op.error : '') : t('config.ollama.container_unverified');
+        if (op && !['ready','failed','cancelled','unknown','stopped'].includes(op.state)) {
+            setTimeout(() => { if (element.isConnected) refreshOllamaEmbeddingStatus(); }, 2000);
+        }
+    } catch (error) { if (element.isConnected) element.textContent = t('config.ollama.managed_status_error'); }
+}
+
 function renderEmbeddingsRuntimeBlock() {
     const localGranite = (configData.embeddings || {}).provider === 'local-granite';
     return `<section id="emb-local-runtime-card" class="emb-runtime-card${localGranite ? '' : ' is-hidden'}"
@@ -1965,6 +1999,7 @@ function renderEmbeddingsRuntimeBlock() {
             <button id="embedding-runtime-benchmark-btn" type="button" class="cfg-btn">${t('config.embeddings.benchmark_action')}</button>
         </div>
     </section>
+    <div id="ollama-embedding-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div id="emb-index-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div class="pw-u-inline-actions emb-runtime-actions">
         <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
@@ -1973,6 +2008,7 @@ function renderEmbeddingsRuntimeBlock() {
 }
 
 function bindEmbeddingsRuntimeActions() {
+    refreshOllamaEmbeddingStatus();
     const actions = window.AuraConfigActions;
     if (!actions) return;
     actions.register('embedding-runtime-test', {
@@ -2270,6 +2306,7 @@ function managedDockerUnavailableReason() {
     if (dockerCfg.enabled !== true) {
         return t('config.docker.managed_disabled_reason');
     }
+    if (dockerCfg.readonly === true) return t('config.ollama.docker_readonly');
     const dockerFeature = (runtimeData.features || {}).docker;
     if (dockerFeature && dockerFeature.available === false) {
         return dockerFeature.reason || t('config.docker.socket_missing_reason');
@@ -2977,6 +3014,7 @@ function setConfigSaveBusy(busy) {
 function attachChangeListeners() {
     // Include data-path controls even when modules omit field-* classes (e.g. indexing selects).
     document.querySelectorAll('.field-input, .field-select, .field-textarea, .cfg-input, [data-path]').forEach(el => {
+        if (el.closest('#auth-webauthn')) return;
         if (el.dataset.cfgDirtyBound === 'true') return;
         el.dataset.cfgDirtyBound = 'true';
         el.addEventListener('input', markDirty);
@@ -3154,6 +3192,10 @@ async function saveConfig() {
     } finally {
         configSaveInFlight = false;
         setConfigSaveBusy(false);
+        if (saveSucceeded && hasUnsavedConfigChanges()) {
+            status.className = 'save-status warning';
+            status.textContent = t('config.save_bar.unsaved_changes');
+        }
     }
     return saveSucceeded;
 }
@@ -3408,6 +3450,7 @@ const SECTION_MODULES = {
     ldap: { m: 'ldap', fn: 'renderLDAPSection' },
     webdav: { m: 'webdav', fn: 'renderWebDAVSection' },
     koofr: { m: 'koofr', fn: 'renderKoofrSection' },
+    s3: { m: 's3', fn: 'renderS3Section' },
     telnyx: { m: 'telnyx', fn: 'renderTelnyxSection' },
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },

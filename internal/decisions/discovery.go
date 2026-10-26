@@ -12,6 +12,15 @@ import (
 
 const runtimeDiscoveryTimeout = 60 * time.Second
 
+func runDiscoveryCommand(command *exec.Cmd) error {
+	cleanup, err := startRuntimeCommand(command)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	return command.Wait()
+}
+
 func (manager *Manager) discoverDevices(ctx context.Context, deployment string, access RuntimeAccess, paths modelPaths) ([]runtimeDevice, error) {
 	probeCtx, cancel := context.WithTimeout(ctx, runtimeDiscoveryTimeout)
 	defer cancel()

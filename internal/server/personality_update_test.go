@@ -114,3 +114,61 @@ func TestPersonalityFileSaveValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestPersonalityDiskNonFiniteMetadataReturnsEditableDiagnostic(t *testing.T) {
+	for _, tc := range []struct {
+		name, value, extra string
+		wantValue          float64
+		wantDiagnostic     bool
+	}{
+		{"nan", "NaN", "", 1, true},
+		{"positive_infinity", "+Inf", "  custom_metadata: preserve\n", 1, true},
+		{"negative_infinity", "-Inf", "", 1, true},
+		{"finite", "0.75", "", .75, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Directories.PromptsDir = t.TempDir()
+			s := &Server{Cfg: cfg, Logger: slog.Default()}
+			path := filepath.Join(cfg.Directories.PromptsDir, "personalities", "custom.md")
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			fields := []string{"volatility", "empathy_bias", "loneliness_susceptibility", "trait_decay_rate"}
+			content := "---\nid: custom\nmeta:\n"
+			for _, field := range fields {
+				content += "  " + field + ": " + tc.value + "\n"
+			}
+			content += tc.extra + "---\nKeep this custom persona editable."
+			if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			rec := httptest.NewRecorder()
+			handleGetPersonalityContent(s)(rec, httptest.NewRequest(http.MethodGet, "/api/config/personality-files?name=custom", nil))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status=%d: %s", rec.Code, rec.Body.String())
+			}
+			var response struct {
+				Body          string                 `json:"body"`
+				Meta          map[string]interface{} `json:"meta"`
+				ExtraMetaYAML string                 `json:"extra_meta_yaml"`
+				Diagnostic    string                 `json:"diagnostic"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+				t.Fatalf("invalid diagnostic response: %v", err)
+			}
+			if response.Body != "Keep this custom persona editable." || response.ExtraMetaYAML != strings.TrimRight(tc.extra, "\n") || (response.Diagnostic != "") != tc.wantDiagnostic {
+				t.Fatalf("lost editable content or diagnostic: %+v", response)
+			}
+			for _, field := range fields {
+				if response.Meta[field] != tc.wantValue {
+					t.Fatalf("%s=%v want %v", field, response.Meta[field], tc.wantValue)
+				}
+			}
+			after, err := os.ReadFile(path)
+			if err != nil || string(after) != content {
+				t.Fatalf("GET changed the stored profile: %v", err)
+			}
+		})
+	}
+}

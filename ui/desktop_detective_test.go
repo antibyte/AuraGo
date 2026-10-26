@@ -579,7 +579,7 @@ func fixtureLive(c detective.Case) detective.LiveView {
 	view := detective.LiveView{
 		ID: c.ID, UpdatedAt: c.UpdatedAt, Status: c.Run.Status, Phase: c.Run.Phase, Reason: c.Run.Reason,
 		Effort: c.Request.Effort, Topic: c.Request.Topic, Usage: c.Run.Usage, Profile: c.Run.Profile,
-		Sources: len(c.Sources), Findings: len(c.Findings), Reports: len(c.Reports),
+		Sources: len(c.Sources), Findings: len(c.Findings),
 		AutoUpdate: c.AutoUpdate,
 	}
 	if n := len(c.Reports); n > 0 {
@@ -589,4 +589,81 @@ func fixtureLive(c detective.Case) detective.LiveView {
 		view.LatestSourceID = c.Sources[n-1].ID
 	}
 	return view
+}
+
+// A Desktop notification names a case; the shell must hand that context to the running
+// app, and the app must select it (audit 4.19).
+func TestDesktopDetectiveOpensTheNotifiedCase(t *testing.T) {
+	read := func(path string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join("js", "desktop", path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	shell := read(filepath.Join("core", "window-shell-runtime.js"))
+	if !strings.Contains(shell, "appId === 'detective' && context && context.case_id") {
+		t.Fatal("the shell does not route a detective notification context")
+	}
+	if !strings.Contains(shell, "window.DetectiveApp.open(existing.id, context)") {
+		t.Fatal("the shell does not call DetectiveApp.open")
+	}
+	app := read(filepath.Join("apps", "detective.js"))
+	for _, want := range []string{
+		"async function selectCase(id)",
+		"state.selectCase = selectCase",
+		"typeof st.selectCase !== 'function'",
+		"window.DetectiveApp = {render, dispose, open}",
+		"ctx.context?.case_id || ctx.launch?.case_id",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("detective.js lacks %q", want)
+		}
+	}
+}
+
+// The Detective surface follows the shell's accessibility contract: one h1 per view,
+// real tab semantics, a live region around the status line only, and no window.confirm
+// fallback (audit 4.21/4.22).
+func TestDesktopDetectiveAccessibilityMarkers(t *testing.T) {
+	read := func(path string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join("js", "desktop", "apps", path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	app := read("detective.js")
+	for _, want := range []string{
+		"<h1>${e(c.request.topic)}</h1>",
+		"<div aria-live=\"polite\">",
+		"<section class=\"dt-status\">",
+		"role=\"tab\"",
+		"aria-selected=\"${state.tab === tab}\"",
+		"aria-controls=\"dt-panel-${state.id}\"",
+		"id=\"dt-tab-${state.id}-${tab}\"",
+		"role=\"tablist\"",
+		"role=\"tabpanel\" id=\"dt-panel-${state.id}\"",
+		"aria-labelledby=\"dt-tab-${state.id}-${state.tab}\"",
+		"if (typeof ctx.confirmDialog !== 'function') { error(new Error(tr('unavailable'))); return; }",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("detective.js lacks %q", want)
+		}
+	}
+	if strings.Contains(app, "window.confirm") {
+		t.Fatal("detective.js still falls back to window.confirm")
+	}
+	if strings.Contains(app, "aria-pressed=\"${state.tab === tab}\"") {
+		t.Fatal("tabs still use aria-pressed instead of aria-selected")
+	}
+	views := read("detective-views.js")
+	if !strings.Contains(views, "<h2>${esc(r.title)}</h2>") {
+		t.Fatal("the report title is not an h2")
+	}
+	if !strings.Contains(views, "<h3>${esc(b.text)}</h3>") {
+		t.Fatal("report block headings are not h3")
+	}
 }

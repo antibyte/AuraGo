@@ -15,6 +15,21 @@ Convert audio, video, and image files inside the workspace.
 - Prefer `info` first when you need codec, duration, dimensions, channels, or sample rate
 - Use explicit `output_file` or `output_format` so the result path is predictable
 - Respect read-only mode: only `info` is allowed there
+- `output_file` and `output_format` must agree: an `output_file` without an extension gets
+  the extension of `output_format`, and a contradicting extension is rejected
+- `audio_convert` always drops the video track, so the result is a pure audio file
+- Converter metadata output is limited to 4 MiB; larger output returns an explicit
+  size error instead of parsing incomplete JSON. This does not limit media file size.
+
+## Supported output formats
+
+| Operation | Formats |
+| --- | --- |
+| `audio_convert` | mp3, wav, aac, m4a, ogg, flac, opus, aiff, wma |
+| `video_convert` | mp4, webm, mkv, mov, avi, m4v, mpeg, ts |
+| `image_convert` | png, jpg, jpeg, webp, gif, tiff, tif, bmp |
+
+A format outside the list is rejected with an error that names the supported ones.
 
 ## Operations
 
@@ -113,3 +128,20 @@ Example:
   "quality_pct": 85
 }
 ```
+
+## Result
+
+A successful conversion returns:
+
+- `file` — the resulting file inside the workspace
+- `output_format` — the format that was actually produced
+- `output_size_bytes` — the size of the resulting file
+- `width` / `height` — the dimensions of the result, when known
+- `duration_seconds` — the duration of the result, when known
+
+The result is registered in the media registry: a copy of the converted file is placed in the
+media library and served from there, so it can be reused with the media tools and shown in the
+media view without registering it again. The file in the workspace stays where it was written.
+
+A conversion that exceeds the configured timeout fails with a `timed out` message
+instead of a generic process error.

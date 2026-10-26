@@ -33,51 +33,12 @@ revision publication and standalone export for Phaser and Three.js games.
 
 ## Local Contracts
 
-### Voxel games
-
-- Voxel projects use immutable `dimension: 3d, variant: voxel`; legacy projects
-  retain the empty variant. Schema 5/base `voxel` owns `src/voxel.json` and optional
-  `main.ts` hooks. Plan acceptance and file writes share definition validation.
-  Build evidence requires a used definition and the installed Voxel runtime;
-  executable definitions count as implementations. Keep generic `config.objects`,
-  scene/mechanics and unchanged-code requirements on their existing game paths.
-- Version 1 is a finite, single-player FPS sandbox: 96×48×96 by default,
-  at most 128×64×128, 16³ chunks, 64 blocks/items/recipes and 24 enemies.
-  Survival/creative is fixed by the definition. Definition errors name the
-  element index/ID, the field and its accepted values. Grid mutation owns collision,
-  geometry invalidation and saves; inventory/crafting transactions are atomic.
-  Hooks use the public API and dispose their scene additions on reload/disposal.
-- Both modes require the seven `voxelTerrainMaterials` used by terrain generation.
-  Planning/editing guidance names them; creative supply does not remove them.
-  Definition validation reports bounded independent corrections together before
-  checking reachability. Native JSON-string and object designs retain the same
-  failed draft for partial corrections; acceptance and file-write gates stay strict.
-- Voxel prepared profiles keep three planning/four editing tools and fixed
-  schemas; repair shares editing. Only compact definitions/API and bounded file
-  observations enter prompts. Saves and chunk arrays never enter agent context.
-  Exact helper comparison remains necessary for compact source references.
-- The additive migration takes a SQLite backup before changing existing project
-  tables. Autosaves are CAS-versioned by project and compatible world identity;
-  incompatible revisions retain older saves. Reset advances a tombstone version.
-  Validate all 4 MiB payloads, coordinates, identities and numerical bounds.
-- Published saves require a separate parent-only project/revision grant plus
-  HTTP authorization and existing write/delete policy. Asset grants, draft and
-  validation frames never read or write saved progress. Published previews and
-  exports use immutable revision files; no automatic source/runtime migrations.
-  Exported games use IndexedDB; studio save rows are never exported.
-- Voxel validation uses real sampled block/inventory/player/enemy consequences.
-  Counter-only reports cannot pass mining, placing, crafting or combat. Preserve
-  the 16-check/60-second ceilings and the ordinary input-only driver boundary.
-  Pause, inventory, focus loss, touch cancellation and disposal release input.
-  Held input is owned by its keyboard, UI or canvas-pointer source: releasing
-  camera look cannot cancel a separately held Mine action. Verify
-  `TestVoxelTouchMineSurvivesCanvasLookRelease` with `GAMEMAKER_VOXEL_BROWSER=1`.
-- Canvas input must not request pointer capture while pointer lock owns the mouse.
-  Verify real right-click placement under pointer lock as well as unlocked mouse,
-  keyboard and touch input; keyboard-only placement checks miss browser failures.
-- Creative mining may discard drops when inventory is full, but still removes
-  the block and marks the save dirty. Count collection progress only for credited
-  items. Survival mining remains atomic and requires room for the drop.
+- Voxel definitions, finite worlds, transactions, evidence and isolated saves:
+  `voxel/AGENTS.md`.
+- Validation plan disclosure, repairable checks, tool validation evidence and
+  the browser evidence boundary: `validation/AGENTS.md`.
+- Revision blobs, publication fingerprints, filesystem receipts and ZIP export:
+  `export/AGENTS.md`.
 
 ### Shared game lifecycle
 
@@ -214,6 +175,22 @@ revision publication and standalone export for Phaser and Three.js games.
   client that replaces the request model. Disable global fallback in that job's
   config snapshot; leave system defaults untouched. Verify the actual HTTP
   model/endpoint with `TestGameMakerSelectedModelReachesProvider`.
+- Planning, building, repair and source generation pin sampling per phase
+  (`game_maker.planning_temperature` default 0.6, `game_maker.building_temperature`
+  default 0.2, both clamped 0.05–1.5); the tool-enabled loop and the tool-free
+  minimal loops use the same values. Prepared profiles are `game-maker/v2/...`;
+  small-model jobs use the separate `game-maker/v3/<planning|building>/<2d|3d>/compact`
+  branch (a small voxel job keeps the v2 voxel text and only takes the v3 name). Any
+  prompt text change bumps the version; never edit a published profile in place.
+- New Studio jobs resolve the selected provider/model limits before starting. A known
+  model below 16384 usable context tokens is refused with `model_context_too_small`
+  unless `StartJobRequest.AllowSmallModel` is set; unknown models keep the
+  conservative defaults and are never refused. `GET /api/game-maker/model-limits`
+  reports the resolved limits passively, without a provider probe, plus
+  `small_model`, `small_context_window` (65536) and `small_output_tokens`
+  (16384). `small_model` is true only for a known route below either threshold.
+  Unknown models are not small and are never blocked. `ActiveJobInfo` includes
+  `started_at` once the job has started.
 - Planning, editing, source-only generation and image review have versioned
   prepared prompt profiles. Editing is shared by building and repair. Select
   2D/3D guidance once; keep the three planning/four editing schemas and their
@@ -270,9 +247,10 @@ revision publication and standalone export for Phaser and Three.js games.
   a copied validation report never establishes success.
 - Compact design correction errors expose up to eight independent field issues,
   examples and remaining attempts. Draft omission/null/array rules and the
-  initial-plus-two-corrections budget remain binding.
+  charged correction budget remain binding; deterministic asset normalization (plural IDs, duplicate roles, unknown asset metadata) runs before validation and is reported as warnings.
 - Building and repair context carries `current_sources`: the complete `src/main.ts`
-  (and `src/voxel.json`) with sha256 when each fits one 24000-byte read window, so
+  (and `src/voxel.json`) with sha256 when each fits one 24000-byte read window
+  (12000 bytes for the compact small-model profile), so
   the first call can be the edit. Larger files instead appear in `omitted_sources`
   with reason, byte/line counts, hash and a readable first range when possible.
   File-size/path gates still apply. Prompts and budget guidance must not claim
@@ -335,12 +313,36 @@ revision publication and standalone export for Phaser and Three.js games.
   SSE, including chunks without usage. Existing nonempty canonical fields win;
   never expose reasoning as answer/source or double-count aliases. Stream errors
   report text/reasoning byte counts only. Thinking and call deadlines stay enabled.
-- Jobs run in isolated staging directories with one global writer. A validated internal `.aurago/game-plan.json` is required before agent code/media/import mutations. Planning has an initial submission and at most two corrections. The selected model plans and builds; no user confirmation or stronger-model fallback is required.
+- Jobs run in isolated staging directories with one global writer. A validated internal `.aurago/game-plan.json` is required before agent code/media/import mutations. Planning has an initial submission and at most three charged corrections: an attempt that reduces the independent issue count is free, every job caps at five submissions, and three `dry_run` previews validate a design without accepting it or consuming the budget. The selected model plans and builds; no user confirmation or stronger-model fallback is required.
+- `ListRevisions` compares each revision's stored file hashes with its parent and fills `changed_paths` (at most 40 relative paths), `changed_count` and `truncated`. Revision 1 compares with an empty parent. The list contains no file contents and no host paths.
 - `WorkspaceDrift` is a read-only hash compare of the published revision and the editable workspace. `GET /api/game-maker/projects/{id}/workspace-drift` uses the same read permission as other project reads. Skip export dot paths (`.aurago/` included). Cap each path list at 40 and return full counts plus `truncated`. Revision 0 or equal trees return empty counts. A missing workspace lists the published files as removed. Do not write blobs. Relative-path errors only; `RedactHostPaths` stays the last boundary. Symlinks and the publication size limits still reject the walk.
 - `adopt_workspace` publishes Code Studio edits without a model. Reject it before the writer lock when there is no current revision, the drift is empty, or the request also resumes, supplies a prompt, asset selections, pack IDs, model IDs, presentation, image or music generation, or preview diagnostics. The job still copies the workspace. Accept the stored plan with `acceptPublishedPlan` (force `CurrentRevision` 0 for the preserve check) and do not rewrite `.aurago/game-plan.json`. Validate once at full scope, or startup for free-code 3D without scene data. Publish through `publishValidated` with source `adopt` only when the checks pass. No repair and no image review. Failure keeps the last revision.
 - A normal edit that copied a drifted workspace (`ResumeFrom` empty, base revision above 0, kind not adopt) names that drift on the planning `JobRun` only. `compactGameMakerContext` puts `workspace_drift` in the untrusted context after the stable profile. Building omits it. A drift error omits the field and does not fail the job. The profile fingerprint stays unchanged.
 - After plan acceptance, emit `plan_summary` once: template, objective truncated to 240 runes, perspective, up to 8 sorted control keys, and up to 12 assets `{role, id}`. No scene, mechanics, or model prose. `GET /api/game-maker/projects/{id}` also returns the latest `plan_summary` and `latest_job`.
 - `gm_jobs` stores `error_code`, `gameplay_status`, and nullable `checks_passed`, `checks_failed`, and `repair_passes`. `ensureJobOutcomeColumns` backs up the database only when a column is missing. Fresh databases already include the columns. Terminal `job_status` carries the code and counts. Codes are `planning`, `validation`, `preview`, `timeout`, `cancelled`, `model`, and `internal`. Unavailable checks are not failures. A nil repair count means the run never entered repair; adopt stores 0.
+- `gm_jobs.open_checks` stores the bounded JSON list behind the failure card: at most six still-open checks (failed or unavailable, never passed or skipped) with `id`, `status`, `expected`, `observed`, at most eight executed `steps`, `repairable`, and the result's `ValidationNextAction` as `next_action`. Text fields are truncated, unreadable values degrade to "no open checks", and the list never carries source or provider text. `LatestJob`, `GetJob` and the terminal `job_status` expose it as `open_checks`; a ready job clears it. The Studio card renders it above the technical details; it never becomes `passed`.
+- `gm_jobs.small_model` and `gm_jobs.building_mode` record the small-model decision
+  (additive columns; the backup still runs only when a column is missing). A job is
+  small when the resolved route has fewer than 65536 context or 16384 output tokens
+  or `StartJobRequest.SmallModel` opts in; unknown models are never small and an
+  explicit `false` cannot disable a resolved-small route. `building_mode` is `adapt`
+  only for a new game (`kind: create`, `BaseRevision 0`) on a small model whose
+  template is not `minimal`, `three` or `voxel`; every other job stores `rewrite` and
+  adopt keeps it empty. Both values reach `GetJob`/`LatestJob`, the terminal
+  `job_status` and `plan_summary`.
+- In `adapt` mode the building/repair context carries `edit_targets`: at most six
+  `{path, sha256, start_line, end_line, snippet, purpose}` anchors derived
+  deterministically from the installed `src/main.ts` (snippet at most 400 bytes).
+  A full-content `write` of `src/main.ts` is refused with `mode_requires_replace`
+  and that anchor list; `replace`, `replace_many`, other files under `src/`, the
+  `minimal` base and normal jobs stay writable, and the refusal consumes no repair
+  pass and does not end the round. Tool-free starter generation never runs in
+  `adapt` mode, so the server cannot rewrite the starter itself. Guided 3D starters
+  have no anchor that fits the snippet bound, so their write gate stays open.
+- The compact small-model building context caps `current_sources` at 12000 bytes and
+  replaces `api_reference` with a bounded cheat sheet (`CompactRuntimeReference`, at
+  most 2000 bytes) built from the same runtime reference. Ordinary runs keep the
+  24000-byte window and the complete reference.
 - The result card reads that job's `prompt_usage` events only. It reports the call count, the sum of measured input and output tokens when every call reported both, and `estimated_cost_usd` when every call has a finite price. Cache reads and writes stay out of the token sum. Legacy `token_usage` is ignored. A missing measurement stays off the field so the UI can call it unknown. Zero calls omit the line, including adopt. Fill it on the terminal `job_status` and in `LatestJob`. It is not a `gm_jobs` column and `GetJob` does not scan it.
 - Game Maker planning/building/repair use a server-owned per-run tool budget of `max(40, ceil(circuit_breaker.max_tool_calls * 1.25))`, rounded upward and logged at job start. It overrides personality/tool adjustments for that run only; the shared system setting, other agents, time/token limits and plan/repair attempt limits remain unchanged. Tool-free implementation/image review stays tool-free.
 - Provider schemas may encode `set_plan.plan` as a JSON object string. Native and XML fallback parsing must preserve the complete structured plan, including the legacy XML task-prompt alias. Keep field-specific validation errors across planning rounds and in the final failure; successful correction must not carry obsolete plan errors into building.
@@ -349,9 +351,9 @@ revision publication and standalone export for Phaser and Three.js games.
   Explicit user-selected artwork/model/presentation IDs and sound bindings are
   checked at the shared compact/legacy plan acceptance boundary, within the same
   correction budget. Never report acceptance and revoke it later for selections.
-- Exhausted repair budgets, unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
+- Exhausted repair budgets (the per-job repair limit), unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
 - A rejected tool call in the tool-free limit response during Game Maker building/repair hands the saved source back to orchestrator validation. Never execute the extra call, retain its prose, increase budgets or mark the game successful without the existing checks. Planning failures, cancellation and other provider/agent errors still fail normally.
-- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. New 3D planning prefers one of those bases when the request fits that loop. It does not rewrite an explicit `three` design. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. A ready `job_status` includes `gameplay_status`; the Studio shows that disclosure only when the value is `unverified` on a non-voxel 3D project. Failed/cancelled jobs preserve the last playable revision; at most three repair passes are shared by tool and orchestrator validation.
+- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. New 3D planning prefers one of those bases when the request fits that loop. It does not rewrite an explicit `three` design. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. A ready `job_status` includes `gameplay_status`; the Studio shows that disclosure only when the value is `unverified` on a non-voxel 3D project. Failed/cancelled jobs preserve the last playable revision; the shared repair limit defaults to three passes and a job may request 1–6 (`StartJobRequest.MaxRepairPasses`); tool and orchestrator validation share it.
 - Phaser 4.2.1 and Three.js 0.186.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
 - Phaser `scene.restart()` reuses the instance. Guidance and source references
@@ -378,80 +380,22 @@ revision publication and standalone export for Phaser and Three.js games.
 - Scenario schemas enumerate `GameMetrics()` and `GameKeys()`, the same lists `validateScenario` enforces; never advertise a metric or key it rejects. Voxel scenarios accept only key/wait/observe steps (the voxel driver runs nothing else) in both the planning schema and `checkPlan`.
 - Additional plan scenarios are optional (0–8). Schema 4 starter scenarios replace input, primary-action or rules checks only with driven `increased`, `decreased` or `changed` assertions for the matching metric; `equals` and `at_least` assertions remain additive because they may already hold before input. Scene/blank compositions retain their separate scenario selection. Lifecycle, resource and unrelated checks remain server-owned. Check results include the executed finite steps, so repairs distinguish launch/actions from collisions/hits and ESC end from natural defeat. New GameScene templates reject update overrides at startup with hook-specific guidance; preserve common.ts lifecycle and sprite following.
 - Script writes preflight literal built-in metadata imports with esbuild against complete project PNG/JSON pairs, resolving from the source file. Invalid imports leave source/preview and repair counts unchanged and return existing import paths; ordinary module writes retain their build-validation workflow. Arcade collider/overlap registration rejects wrapper records whose body is a GameObject; spawned collision objects belong in persistent groups. Repairs preserve passing sprite/input behavior and the accepted plan.
+- Source writes return advisory `lint` findings (at most five) for `src/main.ts`:
+  missing `setup()`, missing `this.player`, declared stages without
+  `configureLevels`/`levels:`, external URLs and unused planned roles. Lint never
+  blocks a write, never feeds `passed` and never changes build or validation.
 - Game Maker tool results reach the model as plain JSON (`<`, `>`, `&` literal) inside readable `<external_data>` source isolation, so reads can be copied exactly into `replace`. They remain untrusted data; boundary-forging or Guardian-critical content keeps the fully escaped form (see root Security & Safety).
 - The isolated Game Maker agent receives phase-specific schemas for `game_maker_project`, `game_maker_file`, `game_maker_asset`, and `game_maker_validate`. Planning exposes only reads, asset discovery and `set_design`; build/repair omit plan mutation. Embedded guidance is already active; redundant skill activation is not advertised. `invoke_tool`, generic filesystem/shell/Python/network tools, and uncurated Agent Skills must remain unavailable.
 - Studio dispatch uses a server-owned job context, never a job inferred from session names or the globally active job. Omitted job IDs use this binding; mismatches fail. In bound runs only, a file content payload without an operation means write. Unbound calls retain explicit job/operation requirements and all policy/path/size gates remain enforced. Plan examples distinguish position metrics from primary-action counters.
-- `set_design` accepts a compact closed object (base, objective, features, optional assets/settings/preserve/scene/mechanics/presentation/scenarios). The server fills the canonical plan and exact catalog metadata. Only misplaced root `outcomes`, `lives`, `blocks` and `events` normalize into `mechanics`; conflicting simultaneous values are rejected and all normal value/size checks still apply. A root `dimension` equal to the project's is dropped as redundant; a different value is rejected naming the fixed dimension. Schemas and examples advertise the canonical nested form. Corrections retain omitted/null fields and replace supplied arrays; a flat mechanic correction retains omitted sibling helpers. The initial-plus-two-corrections budget is shared with legacy `set_plan`. Guided 3D resolves default roles and validates FPS rigs/bindings; user-selected models cannot disappear. Goal/speed/duration settings apply only to guided 3D. On a non-guided base, a correction that omits settings or supplies settings:null removes incompatible carried settings from the failed draft, including after a base change; other fields and guided settings retain their omission/null semantics. Explicit unsupported settings still reject with a design.settings correction that preserves the requested base. Published guided settings must not be inherited into a non-guided edit.
+- `set_design` accepts a compact closed object (base, objective, features, optional assets/settings/preserve/scene/mechanics/presentation/scenarios). The server fills the canonical plan and exact catalog metadata. Only misplaced root `outcomes`, `lives`, `blocks` and `events` normalize into `mechanics`; conflicting simultaneous values are rejected and all normal value/size checks still apply. A root `dimension` equal to the project's is dropped as redundant; a different value is rejected naming the fixed dimension. Schemas and examples advertise the canonical nested form. Corrections retain omitted/null fields and replace supplied arrays; a flat mechanic correction retains omitted sibling helpers. The charged correction budget is shared with legacy `set_plan`. Guided 3D resolves default roles and validates FPS rigs/bindings; user-selected models cannot disappear. Goal/speed/duration settings apply only to guided 3D. On a non-guided base, a correction that omits settings or supplies settings:null removes incompatible carried settings from the failed draft, including after a base change; other fields and guided settings retain their omission/null semantics. Explicit unsupported settings still reject with a design.settings correction that preserves the requested base. Published guided settings must not be inherited into a non-guided edit.
 - File reads return bounded line ranges and a full-file SHA-256; native numeric and XML numeric-text `start_line`/`end_line` use the same finite nonnegative integer checks and range limits. Unique exact `replace` requires that digest. Writes return `written` and bounded `build.ok`/diagnostics separately. Preserve path/policy/import limits and reject stale edits before mutation. Imported 2D roles bind automatically in every template, with catalog-supported animation and separate collision proxies.
 - The browser test driver waits for asynchronous GLB initialization within its existing deadline. Guided 3D observations come from live input/state, including FPS aiming/reload; no model-provided code is evaluated. Pointer lock does not grant same-origin access. `TestGuidedBrowser` is opt-in with `GAMEMAKER_GUIDED_BROWSER=1`; `TestGameMakerLiveEvaluation` runs explicitly selected providers on their own host, synthetic projects only, without exporting credentials.
-- `SetPlanJSON` accepts a plan object or one JSON-string wrapper at the shared validation boundary. Malformed inner JSON returns its syntax position, not a string-to-struct error. All transports retain strict field/rule checks, size limits and the shared initial-plus-two-corrections budget; never guess missing plan content.
+- `SetPlanJSON` accepts a plan object or one JSON-string wrapper at the shared validation boundary. Malformed inner JSON returns its syntax position, not a string-to-struct error. All transports retain strict field/rule checks, size limits and the shared charged correction budget; never guess missing plan content.
 - System-managed Game Maker Agent Skills must match the complete embedded package. Startup self-heals their `SKILL.md` and registers the exact single-file binary package through the Skill Manager before exposing Game Maker; Guardian/SkillSpector latency on unrelated packages must not delay it. Optional scanner warnings can be replaced by verified binary provenance. Explicitly blocked packages, extra files/directories, symlinks, missing content and hash mismatches still block readiness. Runtime package hashes remain checked before use; bundle registration is internal and never accepts model/user-provided trust claims.
 - Preview iframes omit `allow-same-origin`, use short-lived project/job-bound tokens, restrictive CSP including document `sandbox allow-scripts allow-pointer-lock` (so a top-level tab cannot ride the admin session), external-connect blocking, and a source/channel-validated bridge for bounded diagnostics and finite test inputs.
 - Preview tests accept only finite key/pointer/wait/observe steps, never model JavaScript. The authenticated parent forwards bounded numeric observations and at most two bounded PNGs. The server compares evidence; missing observations never pass. Runs are bound to a build and preview token, last at most 60 seconds, and reset gameplay afterwards. Optional image review uses only a confirmed image-capable selected model, is tool-free and cannot override technical checks.
 - Phase-specific verified guidance uses prepared prompt profiles; human intent, model plans, project files and diagnostics stay separate untrusted data. Planning text is never streamed/persisted as chat; final player prose is held until publication. `.aurago/validation-report.json` binds results to the compiled bundle hash and is revisioned but excluded from ZIP export.
 - Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
-- Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
-- Publication holds the source/build locks and rechecks the validation fingerprint
-  over source, assets, runtimes, output and plan before creating a revision.
-  Generated asset writes share the source lock. Changed or missing fingerprints
-  reject publication while preserving the working copy and playable revision.
-  A failed revision commit must retain staged blob work for retry or explicit cleanup;
-  rollback removes only records and blobs created by that failed attempt.
-- Publication and deletion write a private filesystem receipt before moving
-  project directories. On restart, recover only when the project revision and
-  expected files establish the outcome; retain ambiguous receipts for review.
-  Incomplete temporary receipt writes may be removed without changing projects.
-- Browser gameplay evidence is a cooperative quality check, not independent
-  attestation of hostile game code: the driver and project share one JavaScript
-  realm. Preserve sandbox/API isolation; do not claim that window/channel checks
-  authenticate observations independently of the generated game.
-- ZIP export reads one published revision from the blob store, verifies sizes/hashes and required entry files, and retains that revision's runtime files. Never export mutable workspace edits alongside old compiled output. Finish a temporary archive before committing HTTP download headers; export failures must not become successful partial ZIPs. Include standalone HTTP-server instructions; file:// is not a supported launch path. Check extracted 2D/3D games without the preview boot/driver, including subdirectory hosting, imported assets and audio. `TestNightlyExportBrowser` does that for one unmodified platformer export and one exploration export that uses the guided default catalog models, with no LLM, when `GAMEMAKER_NIGHTLY_BROWSER=1`. The larger `GAMEMAKER_*_BROWSER` suites stay opt-in.
-
-### Agent guidance and repairable checks
-
-- `validationScenarios` in `validation_plan.go` is the single source of the
-  scenarios a build drives. `ValidationPlan` and `BaseChecks` disclose exactly
-  those checks; never describe a check the build does not execute. Planning
-  context and `inspect` carry `base_checks`; building and repair carry
-  `validation_plan`. Both are untrusted context after the prompt prefix and
-  never change a profile fingerprint.
-- `CheckResult.Repairable` and `BuildResult.Repairable` mark an `unavailable`
-  check whose cause lies in the game: an absent or unreachable target, an
-  inactive or unsupported control, or sampled state without the expected
-  consequence. Such a result enters the bounded repair loop and shares its
-  budget with failed checks. Missing browser feedback, an absent measurement or
-  an unavailable runtime stays non-repairable and ends validation as before.
-  Repairable never turns a check into `passed` and never permits publication.
-- `ValidationNextAction` names the next step for every validation answer and
-  must never claim success for unobserved gameplay. Tool answers also return
-  the remaining repair passes.
-- Invalid scopes/check IDs and unsupported free-code 3D gameplay requests
-  return a `request` diagnostic with correction guidance. They preserve the
-  current preview and last validation, consume no repair pass and do not end
-  the agent round. Check IDs are resolved before building. Free-code `three`
-  needs valid 3D scene data for gameplay; declared scenarios alone do not enable it.
-- `game_maker_file` `search` without `path` scans `game.json` and `src/**` text
-  only: at most 64 files of 512 KiB each and twelve matches in total. Managed
-  runtimes, compiled output, assets and `.aurago` stay excluded. `path` is
-  therefore optional in every phase schema; other operations still reject a
-  missing path.
-- File errors are `*fs.PathError` values carrying the project-relative path, so
-  `os.IsNotExist` and `errors.Is` keep working. `RedactHostPaths` is the last
-  boundary before text reaches a model, a client or the job ledger; route new
-  error paths through it or through `fileError`.
-- Phase context includes `budget`: tool calls, remaining seconds rounded to
-  30 s and phase guidance. Keep it coarse; exact values defeat prompt reuse.
-
-### Game Maker tool validation contract
-
-- Game Maker `BuildJob` compiles without waiting; `ValidateJob` additionally
-  requires a build-bound browser startup check through the authenticated Studio
-  parent. Runtime errors feed the bounded repair loop; missing feedback prevents
-  publication. Diagnostics stay bounded, untrusted data and never become trusted
-  prompt instructions. Only the server boot's visible-canvas report establishes
-  readiness; engine console errors also fail validation. Procedural SVG assets
-  return `.svg` paths, never SVG bytes mislabeled as PNG. A passed startup check
-  does not certify all gameplay.
 
 ### Game Maker sprite library contract
 
@@ -613,3 +557,6 @@ Do not patch a published game merely because a new starter changed.
 ## Child DOX Index
 
 - `asset_packs/AGENTS.md`: original local content, metadata and reproducible packing.
+- `export/AGENTS.md`: revision blobs, publication fingerprints, receipts and ZIP export.
+- `validation/AGENTS.md`: validation plan disclosure, repairable checks and evidence.
+- `voxel/AGENTS.md`: Voxel definitions, finite worlds, transactions and saves.

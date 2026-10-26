@@ -9,8 +9,11 @@ import (
 const homepageLedgerReconcileInterval = 15 * time.Minute
 
 func startHomepageLedgerReconciler(shutdownCh <-chan struct{}, s *Server) {
-	if s == nil || s.HomepageRegistryDB == nil || s.Cfg == nil || !s.Cfg.Homepage.Enabled {
+	if s == nil || s.HomepageRegistryDB == nil {
 		return
+	}
+	if err := tools.RecoverHomepageOperations(s.HomepageRegistryDB); err != nil && s.Logger != nil {
+		s.Logger.Warn("Homepage operation recovery failed", "error", err)
 	}
 	go func() {
 		runHomepageLedgerReconcileOnce(s)
@@ -28,6 +31,13 @@ func startHomepageLedgerReconciler(shutdownCh <-chan struct{}, s *Server) {
 }
 
 func runHomepageLedgerReconcileOnce(s *Server) {
+	s.CfgMu.RLock()
+	enabled := s.Cfg != nil && s.Cfg.Homepage.Enabled
+	s.CfgMu.RUnlock()
+	if !enabled {
+		return
+	}
+
 	sites, err := tools.ListHomepageManagedSites(s.HomepageRegistryDB)
 	if err != nil {
 		if s.Logger != nil {
@@ -37,6 +47,9 @@ func runHomepageLedgerReconcileOnce(s *Server) {
 	}
 	cfg := homepageConfigFromServer(s)
 	for _, site := range sites {
+		if site.Status == "archived" {
+			continue
+		}
 		if _, err := tools.ReconcileHomepageProject(cfg, s.HomepageRegistryDB, site.ProjectDir, s.Logger); err != nil && s.Logger != nil {
 			s.Logger.Warn("Homepage ledger reconcile failed", "project_dir", site.ProjectDir, "error", err)
 		}

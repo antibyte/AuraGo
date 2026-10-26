@@ -366,9 +366,9 @@ func TestSummaryMaxTokensForCount(t *testing.T) {
 		minToken int
 		maxToken int
 	}{
-		{"1 message", 1, 80, 80},
-		{"5 messages", 5, 150, 150},
-		{"10 messages", 10, 300, 300},
+		{"1 message", 1, 1024, 1024},
+		{"5 messages", 5, 1024, 1024},
+		{"10 messages", 10, 1024, 1024},
 		{"20 messages", 20, 600, historySummaryMaxTokens},
 		{"50 messages", 50, 1500, historySummaryMaxTokens},
 		{"large history", 1000, historySummaryMaxTokens, historySummaryMaxTokens},

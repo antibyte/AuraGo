@@ -5,6 +5,13 @@ let telephoneAgentInherited = {};
 let telephoneAgentBlockers = [];
 let telephoneAgentToolQuery = '';
 let telephoneAgentDailyUsage = null;
+let telephoneAgentAction = '';
+let telephoneAgentSavePromise = null;
+let telephoneAgentLoadGeneration = 0;
+let telephoneAgentLoading = false;
+let telephoneAgentProfileError = false;
+let telephoneAgentCatalogError = false;
+let telephoneAgentRefreshPending = false;
 
 function taEsc(value) {
     return escapeHtml(String(value == null ? '' : value));
@@ -57,15 +64,14 @@ function taOptions(items, selected, emptyKey) {
     const eligible = (items || []).filter(item => item.usage !== 'decisions');
     eligible.forEach(item => {
         const label = `${item.name || item.id}${item.model ? ` · ${item.model}` : ''}${item.ready ? '' : ` · ${t('config.telephone_agent.not_ready')}`}`;
-		const reason = item.ready || !item.reason ? '' : ` · ${item.reason}`;
-		options.push(`<option value="${taEsc(item.id)}" ${item.id === selected ? 'selected' : ''} ${item.ready ? '' : 'disabled'}>${taEsc(label + reason)}</option>`);
+		options.push(`<option value="${taEsc(item.id)}" ${item.id === selected ? 'selected' : ''} ${item.ready ? '' : 'disabled'} title="${item.ready ? '' : taEsc(t('config.telephone_agent.provider_unavailable'))}">${taEsc(label)}</option>`);
 	});
     if (selected && !eligible.some(item => String(item.id) === String(selected))) {
         const saved = (items || []).find(item => String(item.id) === String(selected)) ||
             (typeof providersCache !== 'undefined' && Array.isArray(providersCache) ? providersCache.find(item => String(item.id) === String(selected)) : null);
         const label = saved && saved.usage === 'decisions'
             ? `${saved.name || saved.id} · ${t('config.providers.decisions_only_unavailable')}`
-            : `${selected} · ${t('config.telephone_agent.provider_unavailable')}`;
+            : `${selected} · ${t(telephoneAgentCatalogError ? 'config.telephone_agent.catalog_unavailable' : 'config.telephone_agent.provider_unavailable')}`;
         options.push(`<option value="${taEsc(selected)}" selected disabled>${taEsc(label)}</option>`);
     }
     return options.join('');
@@ -88,7 +94,12 @@ function taBlockerMarkup() {
 }
 
 function taToolMarkup(selected) {
-    const tools = Array.isArray(telephoneAgentCatalog?.tools) ? telephoneAgentCatalog.tools : [];
+    const tools = Array.isArray(telephoneAgentCatalog?.tools) ? telephoneAgentCatalog.tools.slice() : [];
+    (selected || []).forEach(id => {
+        if (!tools.some(tool => tool.id === id)) {
+            tools.push({ id, description: t(telephoneAgentCatalogError ? 'config.telephone_agent.catalog_unavailable' : 'config.telephone_agent.tool_unavailable') });
+        }
+    });
     const query = telephoneAgentToolQuery.trim().toLowerCase();
     const visible = tools.filter(tool => !query || `${tool.id} ${tool.description || ''}`.toLowerCase().includes(query));
     if (!visible.length) return `<p class="ta-empty">${taEsc(t('config.telephone_agent.no_tools'))}</p>`;
@@ -113,11 +124,13 @@ function taRender() {
     const providers = telephoneAgentCatalog?.providers || [];
     const profiles = telephoneAgentCatalog?.realtime_profiles || [];
     const ttsProviders = telephoneAgentCatalog?.tts_providers || [];
+    const asrModes = [...new Set([...(telephoneAgentCatalog?.asr_modes || []), c.voice.classic.asr_mode])];
     const classic = c.voice.backend === 'classic';
     document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section">
         <div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div>
         <div class="section-desc">${taEsc(t('config.telephone_agent.desc'))}</div>
-        ${taBlockerMarkup()}
+        <div data-ta-blockers aria-live="polite">${taBlockerMarkup()}</div>
+        ${taLoadProblemMarkup()}
 
         <div class="ta-grid">
             <section class="ta-card">
@@ -144,13 +157,13 @@ function taRender() {
                 ${classic ? `
 					<label>${taLabel('config.telephone_agent.asr_provider', 'asr_provider_id')}<select class="field-select" data-ta="voice.classic.asr_provider_id">${taOptions(providers, c.voice.classic.asr_provider_id, 'config.telephone_agent.choose_provider')}</select></label>
 					<label>${taLabel('config.telephone_agent.asr_mode', 'asr_mode')}<select class="field-select" data-ta="voice.classic.asr_mode">
-                        ${(telephoneAgentCatalog?.asr_modes || []).map(mode => `<option value="${taEsc(mode)}" ${mode === c.voice.classic.asr_mode ? 'selected' : ''}>${taEsc(mode)}</option>`).join('')}
+                        ${asrModes.map(mode => `<option value="${taEsc(mode)}" ${mode === c.voice.classic.asr_mode ? 'selected' : ''}>${taEsc(mode)}</option>`).join('')}
                     </select></label>
 					<label>${taLabel('config.telephone_agent.tts_provider', 'tts_provider')}<select class="field-select" data-ta="voice.classic.tts_provider">${taOptions(ttsProviders, c.voice.classic.tts_provider, 'config.telephone_agent.choose_provider')}</select></label>
                 ` : `<label>${taEsc(t('config.sip.realtime_profile'))}<select class="field-select" data-ta="voice.realtime_profile_id">${taOptions(profiles, c.voice.realtime_profile_id, 'config.telephone_agent.choose_profile')}</select></label>`}
                 <label>${taEsc(t('config.sip.language'))}
                     <select class="field-select" data-ta="voice.language">
-                        ${['auto', 'de', 'en', 'fr', 'es', 'it', 'nl', 'pt', 'pl', 'cs', 'da', 'no', 'sv', 'el', 'hi', 'ja', 'zh'].map(language => `<option value="${language}" ${language === c.voice.language ? 'selected' : ''}>${language}</option>`).join('')}
+                        ${['auto', 'de', 'en', 'fr', 'es', 'it', 'nl', 'pt', 'pl', 'cs', 'da', 'no', 'sv', 'el', 'hi', 'ja', 'zh'].map(language => `<option value="${language}" ${language === c.voice.language ? 'selected' : ''}>${taEsc(taLanguageLabel(language))}</option>`).join('')}
                     </select>
                 </label>
             </section>
@@ -173,7 +186,7 @@ function taRender() {
             <section class="ta-card">
                 <h2 class="cfg-topic-heading">${taEsc(t('config.telephone_agent.tools'))}</h2>
                 <p class="ta-hint">${taEsc(t('config.telephone_agent.tools_desc'))}</p>
-                <input class="field-input" type="search" data-ta-search placeholder="${taEsc(t('config.telephone_agent.search_tools'))}" value="${taEsc(telephoneAgentToolQuery)}">
+                <input class="field-input" type="search" data-ta-search aria-label="${taEsc(t('config.telephone_agent.search_tools'))}" placeholder="${taEsc(t('config.telephone_agent.search_tools'))}" value="${taEsc(telephoneAgentToolQuery)}">
                 <div class="ta-tools" data-ta-tools>${taToolMarkup(c.voice.allowed_tools)}</div>
             </section>
 
@@ -198,6 +211,63 @@ function taRender() {
         </div>
     </section>`;
     taBind();
+    taSyncActions();
+}
+
+function taLanguageLabel(language) {
+    if (language === 'auto') return t('config.telephone_agent.language_auto');
+    if (typeof Intl.DisplayNames !== 'function') return language;
+    return new Intl.DisplayNames([document.documentElement.lang || 'en'], { type: 'language' }).of(language) || language;
+}
+
+function taLoadProblemMarkup() {
+    if (!telephoneAgentProfileError && !telephoneAgentCatalogError) return '';
+    const key = telephoneAgentProfileError ? 'config.refresh.load_error' : 'config.telephone_agent.catalog_unavailable';
+    return `<div class="ta-status-card is-blocked" role="alert"><span>${taEsc(t(key))}</span><button type="button" class="btn btn-secondary" data-ta-action="retry">${taEsc(t('config.refresh.retry'))}</button></div>`;
+}
+
+function taIsActive() {
+    return (typeof activeSection === 'undefined' || activeSection === 'telephone_agent') && !!document.querySelector('.telephone-agent-section');
+}
+
+function taSyncActions() {
+    const section = document.querySelector('.telephone-agent-section');
+    if (!section) return;
+    section.toggleAttribute('data-config-saving', telephoneAgentAction === 'save');
+    section.querySelectorAll('[data-ta-action]').forEach(button => {
+        if (['save', 'preflight', 'live-test'].includes(button.dataset.taAction)) {
+            button.disabled = !!telephoneAgentAction || telephoneAgentLoading || telephoneAgentProfileError;
+        } else if (button.dataset.taAction === 'retry') {
+            button.disabled = !!telephoneAgentAction || telephoneAgentLoading;
+        }
+    });
+}
+
+function taFinishAction() {
+    telephoneAgentAction = '';
+    taSyncActions();
+    if (telephoneAgentRefreshPending && taIsActive()) {
+        telephoneAgentRefreshPending = false;
+        void taLoad();
+    }
+}
+
+function taStatus(message) {
+    if (!taIsActive()) return;
+    const status = document.getElementById('telephone-agent-status');
+    if (status) status.textContent = message;
+}
+
+function taShowError(error) {
+    if (!taIsActive()) return;
+    if (Array.isArray(error.body?.blockers)) {
+        telephoneAgentBlockers = error.body.blockers;
+        const blockers = document.querySelector('[data-ta-blockers]');
+        if (blockers) blockers.innerHTML = taBlockerMarkup();
+        taStatus(t('config.telephone_agent.blocked'));
+    } else {
+        taStatus(error.message || t('config.refresh.load_error'));
+    }
 }
 
 function taAssign(target, path, value) {
@@ -226,7 +296,8 @@ function taRead() {
 }
 
 function taMarkDirty() {
-    if (typeof setDirty === 'function') setDirty(true);
+    if (typeof markDirty === 'function') markDirty();
+    else if (typeof setDirty === 'function') setDirty(window.telephoneAgentHasUnsavedChanges());
 }
 
 function taBind() {
@@ -255,7 +326,10 @@ function taBind() {
             }));
         }
     });
-    document.querySelectorAll('[data-ta-action]').forEach(button => button.addEventListener('click', async () => {
+    const section = document.querySelector('.telephone-agent-section');
+    if (section) section.onclick = async event => {
+        const button = event.target.closest('[data-ta-action]');
+        if (!button || button.disabled) return;
         const action = button.dataset.taAction;
         if (action === 'open-sip') {
             await navigateToConfigSection('sip');
@@ -265,44 +339,65 @@ function taBind() {
             await taTest(false);
         } else if (action === 'live-test') {
             await taTest(true);
+        } else if (action === 'retry') {
+            await taLoad();
         }
-    }));
+    };
 }
 
 async function taRequest(path, options) {
     const response = await fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.message || body.error || `HTTP ${response.status}`);
+    if (!response.ok) {
+        const error = new Error(body.message || body.error || t('config.refresh.load_error'));
+        error.body = body;
+        throw error;
+    }
     return body;
 }
 
-async function taSave() {
-    const status = document.getElementById('telephone-agent-status');
-    try {
-        const payload = taRead();
-        if (status) status.textContent = t('config.sip.saving');
-        const response = await taRequest('/api/sip/agent', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        telephoneAgentState = taNormalize(response);
-        telephoneAgentBlockers = response.blockers || [];
-		telephoneAgentInherited = response.inherited || {};
-		telephoneAgentDailyUsage = response.daily_usage || null;
-        telephoneAgentSaved = taComparable(telephoneAgentState);
-        taRender();
-        const renderedStatus = document.getElementById('telephone-agent-status');
-        if (renderedStatus) renderedStatus.textContent = t('config.sip.saved');
-        if (typeof setDirty === 'function') setDirty(false);
-        return true;
-    } catch (error) {
-        if (status) status.textContent = error.message;
-        return false;
-    }
+function taSave() {
+    if (telephoneAgentSavePromise) return telephoneAgentSavePromise;
+    if (telephoneAgentAction || telephoneAgentLoading || telephoneAgentProfileError) return Promise.resolve(false);
+    telephoneAgentAction = 'save';
+    taSyncActions();
+    telephoneAgentSavePromise = (async () => {
+        try {
+            const payload = taRead();
+            taStatus(t('config.sip.saving'));
+            const response = await taRequest('/api/sip/agent', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const draft = taRead();
+            const edited = taComparable(draft) !== taComparable(payload);
+            const saved = taNormalize(response);
+            telephoneAgentState = edited ? draft : saved;
+            telephoneAgentSaved = taComparable(saved);
+            telephoneAgentBlockers = response.blockers || [];
+            telephoneAgentInherited = response.inherited || {};
+            telephoneAgentDailyUsage = response.daily_usage || null;
+            if (taIsActive()) {
+                if (!edited) taRender();
+                const blockers = document.querySelector('[data-ta-blockers]');
+                if (blockers) blockers.innerHTML = taBlockerMarkup();
+                taStatus(t('config.sip.saved') + (edited ? ` · ${t('config.save_bar.unsaved_changes')}` : ''));
+                taMarkDirty();
+            }
+            return true;
+        } catch (error) {
+            taShowError(error);
+            return false;
+        }
+    })().finally(() => {
+        telephoneAgentSavePromise = null;
+        taFinishAction();
+    });
+    return telephoneAgentSavePromise;
 }
 
 async function taTest(live) {
+    if (telephoneAgentAction || telephoneAgentLoading || telephoneAgentProfileError) return;
+    const generation = telephoneAgentLoadGeneration;
     const status = document.getElementById('telephone-agent-status');
     if (taComparable(taRead()) !== telephoneAgentSaved) {
         if (status) status.textContent = t('config.telephone_agent.save_before_test');
@@ -314,15 +409,19 @@ async function taTest(live) {
         return;
     }
     try {
+        telephoneAgentAction = 'test';
+        taSyncActions();
         if (status) status.textContent = t('config.telephone_agent.testing');
         const result = await taRequest('/api/sip/agent/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ live, confirm_live: confirmed })
         });
-        if (status) status.textContent = result.mode === 'live' ? t('config.telephone_agent.live_ok') : t('config.telephone_agent.preflight_ok');
+        if (generation === telephoneAgentLoadGeneration) taStatus(result.mode === 'live' ? t('config.telephone_agent.live_ok') : t('config.telephone_agent.preflight_ok'));
     } catch (error) {
-        if (status) status.textContent = error.message;
+        if (generation === telephoneAgentLoadGeneration) taShowError(error);
+    } finally {
+        taFinishAction();
     }
 }
 
@@ -341,19 +440,52 @@ window.telephoneAgentDiscardUnsaved = function () {
 
 async function renderTelephoneAgentSection() {
     document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section"><div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div><div class="loading-state">${taEsc(t('config.telephone_agent.loading'))}</div></section>`;
+    await taLoad();
+}
+
+async function taLoad() {
+    const generation = ++telephoneAgentLoadGeneration;
+    telephoneAgentLoading = true;
+    taSyncActions();
     try {
-        const [payload, catalog] = await Promise.all([
+        const [profile, catalog] = await Promise.allSettled([
             taRequest('/api/sip/agent'),
             taRequest('/api/sip/agent/catalog')
         ]);
-        telephoneAgentState = taNormalize(payload);
-        telephoneAgentCatalog = catalog;
-		telephoneAgentInherited = payload.inherited || {};
-		telephoneAgentDailyUsage = payload.daily_usage || null;
-        telephoneAgentBlockers = payload.blockers || [];
-        telephoneAgentSaved = taComparable(telephoneAgentState);
-        taRender();
-    } catch (error) {
-        document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section"><div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div><div class="ta-status-card is-blocked" role="alert">${taEsc(error.message)}</div></section>`;
+        if (generation !== telephoneAgentLoadGeneration || !taIsActive()) return;
+        const draft = telephoneAgentState ? taRead() : null;
+        const dirty = window.telephoneAgentHasUnsavedChanges();
+        telephoneAgentProfileError = profile.status === 'rejected';
+        telephoneAgentCatalogError = catalog.status === 'rejected';
+        if (!telephoneAgentProfileError) {
+            const payload = profile.value;
+            const saved = taNormalize(payload);
+            telephoneAgentState = dirty ? draft : saved;
+            if (!dirty) telephoneAgentSaved = taComparable(saved);
+            telephoneAgentInherited = payload.inherited || {};
+            telephoneAgentDailyUsage = payload.daily_usage || null;
+            telephoneAgentBlockers = payload.blockers || [];
+        } else if (draft) {
+            telephoneAgentState = draft;
+        }
+        if (!telephoneAgentCatalogError) telephoneAgentCatalog = catalog.value;
+        if (telephoneAgentState) {
+            taRender();
+            taMarkDirty();
+        } else {
+            document.getElementById('content').innerHTML = `<section class="cfg-section active telephone-agent-section"><div class="section-header">${taEsc(t('config.telephone_agent.title'))}</div>${taLoadProblemMarkup()}</section>`;
+            taBind();
+        }
+    } finally {
+        if (generation === telephoneAgentLoadGeneration) {
+            telephoneAgentLoading = false;
+            taSyncActions();
+        }
     }
 }
+
+document.addEventListener('aurago:config-saved', () => {
+    if (!taIsActive()) return;
+    if (telephoneAgentAction) telephoneAgentRefreshPending = true;
+    else void taLoad();
+});

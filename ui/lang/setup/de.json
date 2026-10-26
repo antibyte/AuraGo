@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 Admin-Passwort",
-  "setup.step0_test_connection": "🔌 Verbindung testen",
+  "setup.step0_test_connection": "Metadaten prüfen",
   "setup.step0_test_failed": "Verbindung fehlgeschlagen.",
   "setup.step0_test_no_model": "Bitte zuerst einen Modellnamen eingeben.",
-  "setup.step0_test_success": "Verbindung erfolgreich!",
-  "setup.step0_test_testing": "Verbindung wird getestet...",
+  "setup.step0_test_success": "Der Metadaten-Endpunkt ist erreichbar. Die Modellgenerierung wurde nicht geprüft.",
+  "setup.step0_test_testing": "Metadaten prüfen…",
   "setup.step0_title": "LLM-Verbindung",
   "setup.step1_badge": "⭐ Empfohlen",
   "setup.step1_description": "Diese Einstellungen verbessern AuraGos Fähigkeiten erheblich. Du kannst sie jetzt konfigurieren oder später in der Config-UI nachholen.",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "Ein lokales Zertifikat wird automatisch erstellt. Prüfe es und richte bei Bedarf das Vertrauen im Browser oder auf Deinem Gerät ein.",
   "setup.secure_ready": "Dieser Browser meldet einen sicheren Kontext. Desktop-Funktionen benötigen weiterhin Browserunterstützung und Geräteberechtigungen.",
   "setup.secure_unavailable": "Dieser Browser meldet keinen sicheren Kontext. Viele Desktop-Funktionen, darunter Sprachchat und Mikrofonzugriff, können ausfallen.",
-  "setup.https_manage": "Ändere HTTPS im Installer oder nach der Einrichtung unter Config → Server. HTTPS über einen Proxy und localhost können ebenfalls einen sicheren Kontext bieten."
+  "setup.https_manage": "Ändere HTTPS im Installer oder nach der Einrichtung unter Config → Server. HTTPS über einen Proxy und localhost können ebenfalls einen sicheren Kontext bieten.",
+  "setup.step0_test_unsupported": "Für diesen Provider ist keine Metadatenprüfung verfügbar."
 }

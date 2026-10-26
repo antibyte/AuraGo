@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"aurago/internal/videostudio"
 )
@@ -115,6 +116,8 @@ console.log('ok');
 //   - Unavailable types are disabled with the transitionUnavailable title; the current one stays enabled and pressed.
 //   - Without a following clip the summary is disabled and the panel stays closed.
 //   - transitionLength keeps the 2a slider rules.
+//   - 2f F1: VideoStudioInspector.pickerMove over a measured layout (arrow keys, Home, End, disabled types, no wrap),
+//     and the disabled slider of a short pair already holds the clamped length that a choice from None applies.
 //
 // The test also pins the app wiring (toggle, view flag, Esc before the drawer), the timeline tooltip from label_key and
 // the CSS (no 2a grid, no gradient icons).
@@ -139,6 +142,21 @@ func TestVideoStudioTransitionPicker(t *testing.T) {
 	drawer := strings.Index(app, "if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector'))")
 	if escape < 0 || drawer < 0 || escape > drawer {
 		t.Error("handleKeys must close the transition picker on Escape before it closes the narrow drawer")
+	}
+	// 2f F1:
+	//   - a choice from None takes the length slider's value, disabled or not;
+	//   - the picker's keys go to P.handleTransitionPickerKeys after the picker's Escape and before the drawer's.
+	if !strings.Contains(app, "frames = range ? Number(range.value) : Math.round(rateOf(s) / 2);") || strings.Contains(app, "range && !range.disabled ? Number(range.value)") {
+		t.Error("a choice from None must take the length slider's value, disabled or not")
+	}
+	if hook := strings.Index(app, "if (P.handleTransitionPickerKeys && P.handleTransitionPickerKeys(s, event)) return;"); hook < 0 || hook < escape || hook > drawer {
+		t.Error("handleKeys must hand the picker's keys to P.handleTransitionPickerKeys after the picker's Escape and before the drawer's")
+	}
+	effects := read("js", "desktop", "apps", "video-studio-inspector-effects.js")
+	for _, want := range []string{"function handleTransitionPickerKeys(s, event) {", "I().pickerMove(model, ", "handleTransitionPickerKeys });"} {
+		if !strings.Contains(effects, want) {
+			t.Errorf("video-studio-inspector-effects.js lacks %s", want)
+		}
 	}
 	if !strings.Contains(timeline, "window.VideoStudioEffects.transition(clip.transition.type)") {
 		t.Error("the timeline's transition tooltip must read the registry label_key")
@@ -226,6 +244,64 @@ assert.deepEqual(I.transitionLength({fps: 25}, {duration: 200}, {duration: 200})
 html = view(pair({type: 'dissolve', duration: 10}));
 assert(/<input type="range" data-transition-duration min="3" max="59" step="1" value="10" >/.test(html), 'the slider follows transitionLength');
 assert(/<input type="range" data-transition-duration[^>]* disabled>/.test(view(lone)), 'no slider without a following clip');
+
+// A choice from None takes the disabled slider's value (2f F1). For a 12 + 12-frame pair at 30 fps the slider already
+// holds 11 frames: the longest length the pair allows, the library's number (transitionLength).
+const short = pair(null);
+short.tracks[0].clips[0].duration = 12;
+Object.assign(short.tracks[0].clips[1], {start: 12, duration: 12});
+assert.deepEqual(I.transitionLength({fps: 30}, short.tracks[0].clips[0], short.tracks[0].clips[1]), {step: 3, max: 11, value: 11});
+assert(/<input type="range" data-transition-duration min="3" max="11" step="1" value="11" disabled>/.test(view(short)), 'the disabled slider holds the clamped length');
+
+// pickerMove (2f F1, spec §8.6): the picker's lists in DOM order. Here they are None and the four groups, in four
+// columns.
+const grid = (count, columns) => ({count, columns, disabled: Array(count).fill(false)});
+const layout = [grid(1, 1), grid(5, 4), grid(9, 4), grid(6, 4), grid(4, 4)];
+const move = (list, index, key, lists) => I.pickerMove(lists || layout, {list, index}, key);
+const cell = (list, index) => ({list, index});
+// ArrowLeft/ArrowRight: DOM order across the groups, no wrap.
+assert.deepEqual(move(0, 0, 'ArrowRight'), cell(1, 0), 'Right from None');
+assert.deepEqual(move(1, 4, 'ArrowRight'), cell(2, 0), 'Right from the last Basic type enters Wipes');
+assert.deepEqual(move(2, 0, 'ArrowLeft'), cell(1, 4), 'Left from the first wipe');
+assert.deepEqual(move(1, 0, 'ArrowLeft'), cell(0, 0), 'Left back to None');
+assert.equal(move(0, 0, 'ArrowLeft'), null, 'no wrap at the start');
+assert.equal(move(4, 3, 'ArrowRight'), null, 'no wrap at the end');
+// ArrowDown: the same column one row down. Rows run on across the groups, and the column is clamped to the target row.
+assert.deepEqual(move(0, 0, 'ArrowDown'), cell(1, 0), 'Down from None lands on Basic column 0');
+assert.deepEqual(move(1, 3, 'ArrowDown'), cell(1, 4), 'column 3 clamps to the one-type last row of Basic');
+assert.deepEqual(move(1, 4, 'ArrowDown'), cell(2, 0), 'Down from the last row of Basic lands on Wipes');
+assert.deepEqual(move(2, 7, 'ArrowDown'), cell(2, 8), 'column 3 clamps to the last wipe');
+assert.deepEqual(move(2, 8, 'ArrowDown'), cell(3, 0));
+assert.deepEqual(move(3, 3, 'ArrowDown'), cell(3, 5), 'column 3 clamps to the two-type last row of Push and zoom');
+assert.deepEqual(move(3, 5, 'ArrowDown'), cell(4, 1), 'column 1 carries into Shapes');
+assert.equal(move(4, 2, 'ArrowDown'), null, 'no row below Shapes');
+// ArrowUp: symmetric.
+assert.deepEqual(move(1, 0, 'ArrowUp'), cell(0, 0));
+assert.deepEqual(move(1, 3, 'ArrowUp'), cell(0, 0), 'column 3 clamps to None');
+assert.deepEqual(move(2, 2, 'ArrowUp'), cell(1, 4), 'Up from the first wipe row lands on the last Basic row, clamped');
+assert.deepEqual(move(3, 1, 'ArrowUp'), cell(2, 8));
+assert.deepEqual(move(4, 3, 'ArrowUp'), cell(3, 5), 'column 3 clamps to the last row of Push and zoom');
+assert.deepEqual(move(2, 5, 'ArrowUp'), cell(2, 1));
+assert.equal(move(0, 0, 'ArrowUp'), null, 'no row above None');
+// Home and End: the first and the last enabled type.
+assert.deepEqual(move(2, 5, 'Home'), cell(0, 0));
+assert.deepEqual(move(1, 0, 'End'), cell(4, 3));
+// Disabled types are skipped in the key's direction (fadegrays, the first wipe and the last shape are off here).
+const off = layout.map(list => Object.assign({}, list, {disabled: list.disabled.slice()}));
+off[1].disabled[3] = true;
+off[2].disabled[0] = true;
+off[4].disabled[3] = true;
+assert.deepEqual(move(1, 2, 'ArrowRight', off), cell(1, 4), 'Right skips a disabled type');
+assert.deepEqual(move(1, 4, 'ArrowLeft', off), cell(1, 2), 'Left skips it too');
+assert.deepEqual(move(1, 4, 'ArrowDown', off), cell(2, 4), 'Down skips a disabled target to the next row');
+assert.deepEqual(move(2, 4, 'ArrowUp', off), cell(1, 4), 'Up skips it the other way');
+assert.deepEqual(move(0, 0, 'End', off), cell(4, 2), 'End skips a disabled last type');
+assert.equal(move(4, 2, 'ArrowRight', off), null, 'nothing enabled after it');
+// Other keys and bad input.
+assert.equal(move(1, 0, 'Enter'), null);
+assert.equal(move(1, 0, 'Tab'), null);
+assert.equal(move(9, 0, 'ArrowRight'), null, 'an unknown position');
+assert.equal(I.pickerMove(null, {list: 0, index: 0}, 'Home'), null, 'no lists');
 console.log('ok');
 `)
 }
@@ -264,6 +340,52 @@ func TestVideoStudioTransitionPickerLocales(t *testing.T) {
 		}
 		if lang != "en" && values["videoStudio.transitionPicker"] == english["videoStudio.transitionPicker"] {
 			t.Errorf("%s copies the English videoStudio.transitionPicker", lang)
+		}
+	}
+}
+
+// Picker labels break between words only (2f F1, plan index §4.26.9). In the 3-column narrow drawer a word of 14 or more
+// characters was broken inside itself (2e Task 16 review). The rule:
+//   - every space-separated word of every registry transition label, and of None, has at most 13 characters (runes);
+//   - it applies in every locale except ja and zh, which have no spaces (CJK may break anywhere);
+//   - the six shortened labels are pinned: de is binding, the others are the texts accepted in brief.md.
+func TestVideoStudioTransitionLabelsFitThePicker(t *testing.T) {
+	const longest = 13
+	keys := []string{"none"}
+	for _, spec := range videostudio.EffectRegistry().Transitions {
+		keys = append(keys, spec.LabelKey)
+	}
+	if len(keys) != 25 {
+		t.Fatalf("label keys %v, want None and 24 transitions", keys)
+	}
+	for _, lang := range videoStudioLocales {
+		if lang == "ja" || lang == "zh" {
+			continue
+		}
+		values := readDesktopLocale(t, lang)
+		for _, key := range keys {
+			text := values["videoStudio."+key]
+			if strings.TrimSpace(text) == "" {
+				t.Errorf("%s lacks videoStudio.%s", lang, key)
+				continue
+			}
+			for _, word := range strings.Fields(text) {
+				if n := utf8.RuneCountInString(word); n > longest {
+					t.Errorf("%s videoStudio.%s = %q: the word %q has %d characters, at most %d fit a picker button", lang, key, text, word, n, longest)
+				}
+			}
+		}
+	}
+	for _, c := range []struct{ lang, key, want string }{
+		{"de", "transition_radial", "Uhrblende"},
+		{"de", "transition_squeezeh", "Vertikal stauchen"},
+		{"da", "transition_squeezeh", "Klem lodret"},
+		{"no", "transition_squeezeh", "Klem loddrett"},
+		{"no", "dissolve", "Overtoning"},
+		{"it", "transition_pixelize", "Effetto pixel"},
+	} {
+		if got := readDesktopLocale(t, c.lang)["videoStudio."+c.key]; got != c.want {
+			t.Errorf("%s videoStudio.%s = %q, want %q", c.lang, c.key, got, c.want)
 		}
 	}
 }

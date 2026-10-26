@@ -475,7 +475,13 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			if operation == "set_design" {
+			dryRun := false
+			if value, ok := tc.Params["dry_run"].(bool); ok {
+				dryRun = value
+			}
+			if dryRun && operation == "set_design" {
+				err = service.PreviewDesignJSON(ctx, jobID, data)
+			} else if operation == "set_design" {
 				err = service.SetDesignJSON(ctx, jobID, data)
 			} else {
 				err = service.SetPlanJSON(ctx, jobID, data)
@@ -483,7 +489,22 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "next_action": "Plan accepted. End this planning turn; the server will import assets and start implementation."}), true
+			warnings := service.TakeDesignWarnings(jobID)
+			if dryRun && operation == "set_design" {
+				answer := map[string]any{"status": "ok", "dry_run": true, "next_action": "Preview validated. Submit set_design without dry_run to accept this design; an accepted design ends planning."}
+				if plan := service.DesignPreview(jobID); len(plan) > 0 {
+					answer["plan"] = json.RawMessage(plan)
+				}
+				if len(warnings) > 0 {
+					answer["warnings"] = warnings
+				}
+				return gameMakerToolJSON(answer), true
+			}
+			answer := map[string]any{"status": "ok", "next_action": "Plan accepted. End this planning turn; the server will import assets and start implementation."}
+			if len(warnings) > 0 {
+				answer["warnings"] = warnings
+			}
+			return gameMakerToolJSON(answer), true
 		}
 		if operation == "list_files" {
 			files, err := service.ListJobFiles(ctx, jobID)
@@ -496,13 +517,26 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 		if operation != "inspect" {
 			return gameMakerToolError(fmt.Errorf("unknown project operation")), true
 		}
-		inspection := map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "runtime": service.RuntimeContext(ctx, jobID), "plan_example": gamemaker.ExampleGamePlan(project), "design_example": gamemaker.ExampleGameDesign(project), "next_action": gamemaker.JobNextAction(job)}
+		inspection := map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "runtime": service.RuntimeContext(ctx, jobID), "next_action": gamemaker.JobNextAction(job)}
 		if job.Phase == "planning" {
+			// Planning needs the compact design example; the legacy full-plan
+			// example only serves unbound callers that may still submit set_plan.
+			inspection["design_example"] = gamemaker.ExampleGameDesign(project)
+			if boundJobID == "" {
+				inspection["plan_example"] = gamemaker.ExampleGamePlan(project)
+			}
 			if project.Variant != "voxel" {
 				inspection["base_checks"] = gamemaker.BaseChecks(project.Dimension)
 			}
-		} else if plan := service.ValidationPlan(ctx, jobID); plan != nil {
-			inspection["validation_plan"] = plan
+		} else {
+			// Building and repair already carry the accepted plan; a legacy
+			// example here only invites copying placeholder text.
+			if boundJobID == "" {
+				inspection["plan_example"] = gamemaker.ExampleGamePlan(project)
+			}
+			if plan := service.ValidationPlan(ctx, jobID); plan != nil {
+				inspection["validation_plan"] = plan
+			}
 		}
 		return gameMakerToolJSON(inspection), true
 
@@ -572,7 +606,11 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			if err != nil {
 				return gameMakerToolError(err), true
 			}
-			return gameMakerToolJSON(map[string]any{"status": "ok", "result": result}), true
+			answer := map[string]any{"status": "ok", "result": result}
+			if findings := service.LintJobSource(ctx, jobID); len(findings) > 0 {
+				answer["lint"] = findings
+			}
+			return gameMakerToolJSON(answer), true
 		}
 		if operation == "read" {
 			start, end := 0, 0
@@ -622,9 +660,28 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			result, err = service.WriteJobFileChecked(ctx, jobID, path, content, toolArgString(tc.Params, "expected_sha256"))
 		}
 		if err != nil {
+			// Adapt mode edits the installed starter. The refusal lists the anchors
+			// and stays an ordinary tool error: replace/replace_many are still open,
+			// no repair pass is consumed and the agent round does not end.
+			var rejected *gamemaker.ModeRequiresReplaceError
+			if errors.As(err, &rejected) {
+				return gameMakerToolJSON(map[string]any{
+					"status":       "error",
+					"code":         gamemaker.CodeModeRequiresReplace,
+					"message":      rejected.Error(),
+					"path":         rejected.Path,
+					"edit_targets": rejected.Targets,
+					"next_action":  "Use operation=replace with the exact snippet as old_text and the supplied sha256 as expected_sha256, or replace_many for several anchors. Writing src/main.ts with complete content is unavailable in this mode; new files under src/ may still be written.",
+				}), true
+			}
 			return gameMakerToolError(err), true
 		}
-		return gameMakerToolJSON(map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}), true
+		answer := map[string]any{"status": "ok", "operation": operation, "path": path, "written": result.Written, "sha256": result.SHA256, "build": result.Build, "next_action": "If build.ok is false, repair the reported source location. A saved file is not a validated game."}
+		// Advisory structural lint; it never blocks the write or validation.
+		if findings := service.LintJobSource(ctx, jobID); len(findings) > 0 {
+			answer["lint"] = findings
+		}
+		return gameMakerToolJSON(answer), true
 
 	case "game_maker_validate":
 		checkIDs, checkErr := gameMakerCheckIDsFromParams(tc.Params)

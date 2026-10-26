@@ -474,7 +474,7 @@ func TestDetectiveArchiveMigrationAndRollback(t *testing.T) {
 				}
 				s.Close()
 			}
-			backups, err := filepath.Glob(path + ".pre-v3-*.bak")
+			backups, err := filepath.Glob(path + ".pre-v4-*.bak")
 			if err != nil || len(backups) != 1 {
 				t.Fatal("missing or repeated backup", err)
 			}

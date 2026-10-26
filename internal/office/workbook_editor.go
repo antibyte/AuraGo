@@ -92,6 +92,7 @@ type WorkbookEditorDocument struct {
 	SchemaVersion    int            `json:"schema_version"`
 	Workbook         EditorWorkbook `json:"workbook"`
 	Charts           []EditorChart  `json:"charts"`
+	Images           []EditorImage  `json:"images"`
 	Limitations      []string       `json:"limitations"`
 	StructuralLocked bool           `json:"structural_locked"`
 }
@@ -129,6 +130,7 @@ type WorkbookEditorPatch struct {
 	SchemaVersion int                          `json:"schema_version"`
 	Workbook      EditorWorkbook               `json:"workbook"`
 	Charts        []EditorChart                `json:"charts"`
+	Images        []EditorImage                `json:"images"`
 	Operations    []WorkbookStructureOperation `json:"operations,omitempty"`
 }
 type workbookMetadata struct {
@@ -361,6 +363,15 @@ func DecodeEditorWorkbook(data []byte) (WorkbookEditorDocument, error) {
 			return doc, err
 		}
 	}
+	pictures, drawingsLocked, err := readWorkbookPictures(parts, doc.Workbook)
+	if err != nil {
+		return doc, err
+	}
+	doc.Images = make([]EditorImage, 0, len(pictures))
+	for _, picture := range pictures {
+		doc.Images = append(doc.Images, picture.image)
+	}
+	doc.StructuralLocked = drawingsLocked
 	for name, content := range parts {
 		if strings.HasPrefix(name, "xl/worksheets/") && strings.HasSuffix(name, ".xml") {
 			var rules struct {
@@ -574,6 +585,10 @@ func ApplyWorkbookEditorPatch(original []byte, patch WorkbookEditorPatch) ([]byt
 		return nil, err
 	}
 	defer f.Close()
+	omittedImages := patch.Images == nil
+	if omittedImages {
+		patch.Images = before.Images
+	}
 	structural := len(patch.Operations) > 0 || !reflect.DeepEqual(before.Workbook.SheetOrder, patch.Workbook.SheetOrder)
 	for id, s := range patch.Workbook.Sheets {
 		if old := before.Workbook.Sheets[id]; old != nil && old.Name != s.Name {
@@ -582,6 +597,9 @@ func ApplyWorkbookEditorPatch(original []byte, patch WorkbookEditorPatch) ([]byt
 	}
 	if structural && before.StructuralLocked {
 		return nil, fmt.Errorf("Structural changes are locked because this workbook contains unsupported references")
+	}
+	if structural && omittedImages && len(before.Images) > 0 {
+		return nil, fmt.Errorf("Structural changes with images require the native image snapshot")
 	}
 	if resourceChanged(before.Workbook, patch.Workbook, resourceCondition) {
 		for _, limitation := range before.Limitations {
@@ -880,12 +898,18 @@ func ApplyWorkbookEditorPatch(original []byte, patch WorkbookEditorPatch) ([]byt
 	if err = cacheEditorFormulaValues(updated, patch.Workbook); err != nil {
 		return nil, err
 	}
+	if err = preserveEditorImageDrawings(originalParts, updated, !reflect.DeepEqual(before.Charts, patch.Charts)); err != nil {
+		return nil, err
+	}
+	if err = applyEditorImageParts(originalParts, updated, before.Workbook, patch.Workbook, patch.Images); err != nil {
+		return nil, err
+	}
 	if !bytes.Contains(updated["[Content_Types].xml"], []byte(`PartName="/aurago/editor.json"`)) {
 		updated["[Content_Types].xml"] = bytes.Replace(updated["[Content_Types].xml"], []byte("</Types>"), []byte(`<Override PartName="/aurago/editor.json" ContentType="application/json"/></Types>`), 1)
 	}
 	metadata := workbookMetadata{Fingerprint: workbookFingerprint(updated), Workbook: patch.Workbook, Charts: patch.Charts}
 	updated[workbookMetadataPart] = jsonBytes(metadata)
-	return writeOfficeParts(updated)
+	return writeOfficeImageParts(updated)
 }
 func ptr[T any](v T) *T { return &v }
 func writeOfficeParts(parts map[string][]byte) ([]byte, error) {

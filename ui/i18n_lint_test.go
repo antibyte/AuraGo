@@ -1055,11 +1055,13 @@ type localI18nHelper struct {
 
 // desktopLocalI18nHelpers registers Desktop app files whose local helper the
 // static i18n checks resolve: tr('title') in gog-sources.js is desktop.gog.title.
-// Register every new prefix helper here so its keys stay verified.
+// Register every new prefix helper here so its keys stay verified. Config page
+// scripts under cfg/ are scanned by the same check (path form: cfg/ruview.js).
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/go2rtc-tuya.js":                          {name: "translate", prefix: "common.go2rtc_tuya."},
 	"js/desktop/apps/network-cameras.js":         {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
 	"js/desktop/apps/network-cameras-media.js":   {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
+	"js/desktop/shared/qr-dialog.js":             {name: "tr", prefix: "desktop.qr_"},
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-hud.js":            {name: "tr", prefix: "minigolf."},
@@ -1076,6 +1078,66 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/rtl-sdr-runtime.js":         {name: "tr", prefix: "rtlSdr."},
 	"js/desktop/apps/rtl-sdr.js":                 {name: "t", prefix: "rtlSdr."},
 	"js/desktop/apps/ruview.js":                  {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-model.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-store.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-views.js":            {name: "t", prefix: "ruview."},
+	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
+}
+
+// desktopDynamicI18nPrefixes registers locale key prefixes that the Desktop
+// apps assemble at runtime, such as
+// t('homepage_studio.sites_drift_' + drift). The static lint only ever sees
+// the literal prefix, so every family needs its own "exists in every locale"
+// guarantee.
+var desktopDynamicI18nPrefixes = []string{
+	"desktop.qr_",
+	"homepage_studio.sites_drift_",
+	"homepage_studio.sites_origin_",
+	"homepage_studio.sites_target_",
+	"homepage_studio.sites_outcome_",
+	"homepage_studio.sites_reason_",
+	"homepage_studio.history_type_",
+	"homepage_studio.history_filter_",
+	"homepage_studio.annotate_error_",
+	"homepage_studio.target_",
+}
+
+// desktopDynamicI18nPrefixKeys returns every merged English key that belongs to
+// a registered dynamic prefix family.
+func desktopDynamicI18nPrefixKeys(t *testing.T) []string {
+	t.Helper()
+
+	merged := loadMergedEnglishTranslationKeys(t)
+	var keys []string
+	for key := range merged {
+		for _, prefix := range desktopDynamicI18nPrefixes {
+			if strings.HasPrefix(key, prefix) {
+				keys = append(keys, key)
+				break
+			}
+		}
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// TestDesktopDynamicI18nPrefixKeysExistInAllLanguages guarantees that every
+// dynamically built translation family is present in all sixteen locales.
+func TestDesktopDynamicI18nPrefixKeysExistInAllLanguages(t *testing.T) {
+	t.Parallel()
+
+	keys := desktopDynamicI18nPrefixKeys(t)
+	if len(keys) == 0 {
+		t.Fatal("no dynamic translation keys found in the merged English bundle")
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		values := readMergedLangMap(t, lang)
+		for _, key := range keys {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing dynamic translation key %s", lang, key)
+			}
+		}
+	}
 }
 
 // localI18nHelperKeys returns the full keys a registered file passes to its

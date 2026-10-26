@@ -1,0 +1,110 @@
+/* Pixel: WP4 tools (brush engine, retouch, shapes, gradient, fill, transform, crop, view). Loaded after pixel.css; every class is prefixed pixel-. */
+
+/* The tool rail holds ~35 tools now: two columns instead of one long strip. */
+.pixel-tool-rail {
+    flex: 0 0 84px;
+    width: 84px;
+}
+
+.pixel-tool-rail .pixel-rail-group {
+    display: grid;
+    grid-template-columns: repeat(2, 32px);
+    justify-content: center;
+    gap: 4px;
+}
+
+.pixel-tool-rail .pixel-rail-sep {
+    width: 56px;
+}
+
+/* At the default window size the 36 tools do not all fit: the rail scrolls, the colour swatches stay in view. */
+.pixel-tool-rail .pixel-rail-colors {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-top: 2px;
+    padding-bottom: 4px;
+    background: var(--vd-theme-chrome-bg);
+}
+
+/* Option bar: the param-kit controls of a tool sit in one wrapping row. */
+.pixel-opt-wrap {
+    display: contents;
+}
+
+.pixel-options-bar .pixel-param-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 6px 14px;
+}
+
+.pixel-options-bar .pixel-param {
+    flex: 0 0 auto;
+    width: 150px;
+}
+
+.pixel-options-bar .pixel-param-type-select,
+.pixel-options-bar .pixel-param-type-segmented,
+.pixel-options-bar .pixel-param-type-int {
+    width: auto;
+    min-width: 96px;
+}
+
+.pixel-options-bar .pixel-param-type-bool {
+    width: auto;
+}
+
+.pixel-options-bar .pixel-param-type-angle {
+    width: 120px;
+}
+
+.pixel-options-bar .pixel-param-number {
+    width: 54px;
+}
+
+.pixel-opt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.pixel-opt-label {
+    font-size: 0.76rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-opt-select {
+    min-width: 120px;
+}
+
+.pixel-opt-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.pixel-opt-hint {
+    max-width: 420px;
+    font-size: 0.78rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-opt-more {
+    align-self: flex-end;
+}
+
+/* Brush panel (inspector tab): presets first, then every setting of the active stroke tool. */
+.pixel-brush-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.pixel-brush-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}

@@ -250,6 +250,33 @@ func normalizeDograhDefaultImage(raw, currentDefault, legacyDefault string) stri
 	return image
 }
 
+// normalizeChannelIDs trims, drops empty entries and removes duplicates so an
+// empty allowlist always normalizes to nil. A nil slice keeps configuration
+// comparisons stable: an absent key and an explicitly empty list are the same
+// configuration.
+func normalizeChannelIDs(ids []string) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(ids))
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			continue
+		}
+		if _, duplicate := seen[trimmed]; duplicate {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func normalizeSpaceAgentURLAndPort(publicURL string, port int, runningInDocker bool) (string, int) {
 	const oldConflictingPort = 3000
 	const defaultSpaceAgentPort = 3100
@@ -359,6 +386,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	for _, notice := range PersonalityMigrationNotices(data) {
+		slog.Warn("[Config] Deprecated personality setting", "setting", notice)
+	}
 	// Pre-process: fix common YAML corruption issues
 	data = fixCommonConfigIssues(data)
 	data = normalizeFritzBoxLegacyKeys(data)
@@ -368,6 +398,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	var cfg Config
+	cfg.Tools.QRCode.ReadOnly = true
 	cfg.Agent.ActionPolicy.Enabled = true
 	cfg.Sandbox.Enabled = true
 	cfg.Agent.MaxCronJobs = 1000
@@ -478,7 +509,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.VideoDownload.DownloadDir = "data/downloads"
 	cfg.Tools.VideoDownload.MaxFileSizeMB = 500
 	cfg.Tools.VideoDownload.TimeoutSeconds = 300
-	cfg.Tools.VideoDownload.DefaultFormat = "best"
+	cfg.Tools.VideoDownload.DefaultFormat = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
 	cfg.Tools.VideoDownload.MaxSearchResults = 10
 	cfg.Tools.VideoDownload.ContainerImage = "ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c"
 	cfg.Tools.VideoDownload.AutoPull = true
@@ -803,6 +834,11 @@ func Load(path string) (*Config, error) {
 	cfg.TTS.CacheRetentionHours = 168
 	cfg.TTS.CacheMaxFiles = 500
 	cfg.TTS.Mistral.ModelID = "voxtral-mini-tts-2603"
+	cfg.TTS.XAI.VoiceID = "eve"
+	cfg.TTS.OpenAI.ModelID = "gpt-4o-mini-tts"
+	cfg.TTS.OpenAI.VoiceID = "coral"
+	cfg.TTS.StepFun.ModelID = "step-tts-mini"
+	cfg.TTS.StepFun.VoiceID = "jingdiannvsheng"
 	cfg.TTS.Piper.ContainerPort = 10200
 	cfg.TTS.Piper.DataPath = "data/piper"
 	cfg.TTS.Piper.Image = "rhasspy/wyoming-piper:latest"
@@ -1234,6 +1270,7 @@ func Load(path string) (*Config, error) {
 	if err := ValidateLocalMusicConfig(&cfg); err != nil {
 		return nil, err
 	}
+	NormalizeMediaConversionConfig(&cfg.Tools.MediaConversion)
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
 	cfg.OmniRoute.URL = NormalizeLegacySidecarURL(cfg.OmniRoute.URL, runningInDocker, "omniroute", 20128)
@@ -1537,6 +1574,27 @@ func Load(path string) (*Config, error) {
 	if cfg.GameMaker.JobTimeoutSeconds <= 0 {
 		cfg.GameMaker.JobTimeoutSeconds = 1800
 	}
+	if cfg.GameMaker.PlanningTemperature != nil {
+		value := *cfg.GameMaker.PlanningTemperature
+		if value < 0.05 {
+			value = 0.05
+		}
+		if value > 1.5 {
+			value = 1.5
+		}
+		cfg.GameMaker.PlanningTemperature = &value
+	}
+	if cfg.GameMaker.BuildingTemperature != nil {
+		value := *cfg.GameMaker.BuildingTemperature
+		if value < 0.05 {
+			value = 0.05
+		}
+		if value > 1.5 {
+			value = 1.5
+		}
+		cfg.GameMaker.BuildingTemperature = &value
+	}
+
 	if strings.TrimSpace(cfg.VirtualComputers.Provider) == "" {
 		cfg.VirtualComputers.Provider = "boring_computers"
 	}
@@ -1624,6 +1682,12 @@ func Load(path string) (*Config, error) {
 	if cfg.SQLite.GameMakerPath == "" {
 		cfg.SQLite.GameMakerPath = "./data/game_maker.db"
 	}
+	cfg.Detective.Normalize()
+	if cfg.SQLite.DetectivePath == "" {
+		cfg.SQLite.DetectivePath = "./data/detective.db"
+		cfg.SQLite.DetectivePathDefaulted = true
+	}
+	cfg.SQLite.DetectivePath = resolvePath(configDir, cfg.SQLite.DetectivePath)
 	cfg.SQLite.GameMakerPath = resolvePath(configDir, cfg.SQLite.GameMakerPath)
 	if cfg.SQLite.CYDCreatorPath == "" {
 		cfg.SQLite.CYDCreatorPath = "./data/cyd_creator.db"
@@ -2015,9 +2079,6 @@ func Load(path string) (*Config, error) {
 	if cfg.Personality.InnerVoice.DecayMaxAgeSecs <= 0 {
 		cfg.Personality.InnerVoice.DecayMaxAgeSecs = 300 // 5 minutes
 	}
-	if cfg.Personality.InnerVoice.ErrorStreakMin <= 0 {
-		cfg.Personality.InnerVoice.ErrorStreakMin = 2
-	}
 	// Inner Voice requires Emotion Synthesizer + V2
 	if cfg.Personality.InnerVoice.Enabled && !cfg.Personality.EmotionSynthesizer.Enabled {
 		cfg.Personality.EmotionSynthesizer.Enabled = true
@@ -2194,6 +2255,9 @@ func Load(path string) (*Config, error) {
 	if cfg.CoAgents.BudgetQuotaPercent < 0 {
 		cfg.CoAgents.BudgetQuotaPercent = 0
 	}
+	if cfg.YepAPI.BudgetQuotaPercent < 0 {
+		cfg.YepAPI.BudgetQuotaPercent = 0
+	}
 	if cfg.CoAgents.MaxContextHints <= 0 {
 		cfg.CoAgents.MaxContextHints = 6
 	}
@@ -2263,6 +2327,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Koofr.BaseURL == "" {
 		cfg.Koofr.BaseURL = "https://app.koofr.net"
 	}
+	if err := NormalizeRustFSConfig(&cfg); err != nil {
+		return nil, fmt.Errorf("invalid S3/RustFS configuration: %w", err)
+	}
 	if cfg.S3.Region == "" {
 		cfg.S3.Region = "us-east-1"
 	}
@@ -2290,6 +2357,12 @@ func Load(path string) (*Config, error) {
 	if cfg.Telegram.MaxConcurrentWorkers <= 0 {
 		cfg.Telegram.MaxConcurrentWorkers = 5
 	}
+
+	// Discord defaults — mirror the Telegram worker limit so both channels behave alike.
+	if cfg.Discord.MaxConcurrentWorkers <= 0 {
+		cfg.Discord.MaxConcurrentWorkers = 5
+	}
+	cfg.Discord.AllowedChannelIDs = normalizeChannelIDs(cfg.Discord.AllowedChannelIDs)
 
 	// Telnyx defaults
 	if cfg.Telnyx.WebhookPath == "" {
@@ -2462,7 +2535,7 @@ func Load(path string) (*Config, error) {
 	}
 	// When managed instance is active, point the Ollama URL to the local container.
 	if cfg.Ollama.ManagedInstance.Enabled {
-		cfg.Ollama.URL = fmt.Sprintf("http://localhost:%d", cfg.Ollama.ManagedInstance.ContainerPort)
+		cfg.Ollama.URL = ManagedOllamaURL(runningInDocker, false, cfg.Ollama.ManagedInstance.ContainerPort)
 	}
 
 	// RocketChat defaults
@@ -2605,6 +2678,8 @@ func Load(path string) (*Config, error) {
 		cfg.Indexing.Extensions = append([]string(nil), defaultIndexingExtensions...)
 	}
 	if len(cfg.Indexing.Directories) == 0 {
+		// Media analysis (AllowMediaAnalysis) stays off for the default folder, like
+		// for legacy bare-string entries, until the user enables it per folder.
 		cfg.Indexing.Directories = []IndexingDirectory{{Path: "./knowledge"}}
 	}
 	cfg.Indexing.Chunking = normalizeIndexingChunkingConfig(cfg.Indexing.Chunking)
@@ -2696,6 +2771,9 @@ func Load(path string) (*Config, error) {
 
 	if err := ValidateActionPolicy(cfg.Agent.ActionPolicy); err != nil {
 		return nil, fmt.Errorf("validate agent action policy: %w", err)
+	}
+	if err := ValidateWebAuthnConfig(cfg.Auth.WebAuthn); err != nil {
+		return nil, fmt.Errorf("validate authentication: %w", err)
 	}
 	return &cfg, nil
 }
@@ -2908,16 +2986,7 @@ func NormalizeAIGatewayConfig(c *Config) {
 	if c.AIGateway.Metadata == nil {
 		c.AIGateway.Metadata = map[string]string{}
 	}
-	normalizedMetadata := make(map[string]string, len(c.AIGateway.Metadata))
-	for key, value := range c.AIGateway.Metadata {
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		if key == "" || value == "" || len(normalizedMetadata) >= 5 {
-			continue
-		}
-		normalizedMetadata[key] = value
-	}
-	c.AIGateway.Metadata = normalizedMetadata
+	// Keep operator data intact; validation rejects invalid or ambiguous pairs.
 	if c.AIGateway.RequestTimeoutMS < 0 {
 		c.AIGateway.RequestTimeoutMS = 0
 	}
@@ -3249,6 +3318,16 @@ func (c *Config) Save(path string) error {
 		{[]string{"game_maker", "max_asset_size_mb"}, c.GameMaker.MaxAssetSizeMB},
 		{[]string{"game_maker", "max_project_size_mb"}, c.GameMaker.MaxProjectSizeMB},
 		{[]string{"game_maker", "job_timeout_seconds"}, c.GameMaker.JobTimeoutSeconds},
+	}
+	if c.GameMaker.PlanningTemperature != nil {
+		if err := setYAMLPathValue(&root, []string{"game_maker", "planning_temperature"}, *c.GameMaker.PlanningTemperature); err != nil {
+			return fmt.Errorf("failed to patch config path game_maker.planning_temperature: %w", err)
+		}
+	}
+	if c.GameMaker.BuildingTemperature != nil {
+		if err := setYAMLPathValue(&root, []string{"game_maker", "building_temperature"}, *c.GameMaker.BuildingTemperature); err != nil {
+			return fmt.Errorf("failed to patch config path game_maker.building_temperature: %w", err)
+		}
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

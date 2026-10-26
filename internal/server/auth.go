@@ -121,18 +121,38 @@ type desktopEmbedTokenPayload struct {
 
 // createSessionValue produces a tamper-proof session token.
 // Format: base64url(payload) + "." + hmac_hex
-// Payload: "user|<unix_expires>"
+// Payload: "user|<unix_expires>|<session_nonce>"
 func createSessionValue(secret string, expiry time.Time) string {
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return ""
 	}
-	payload := fmt.Sprintf("user|%d|%s", expiry.Unix(), hex.EncodeToString(nonce))
+	return signSessionValue(secret, expiry, hex.EncodeToString(nonce))
+}
+
+func signSessionValue(secret string, expiry time.Time, nonce string) string {
+	payload := fmt.Sprintf("user|%d|%s", expiry.Unix(), nonce)
 	payloadEnc := base64.URLEncoding.EncodeToString([]byte(payload))
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payloadEnc))
 	sig := hex.EncodeToString(mac.Sum(nil))
 	return payloadEnc + "." + sig
+}
+
+// sessionNonce is a stable identity, not authentication; callers validate the signed token first.
+func sessionNonce(value string) string {
+	payload, err := base64.URLEncoding.DecodeString(strings.SplitN(value, ".", 2)[0])
+	if err == nil {
+		fields := strings.Split(string(payload), "|")
+		if len(fields) == 3 {
+			if nonce, err := hex.DecodeString(fields[2]); err == nil && len(nonce) == 16 {
+				return hex.EncodeToString(nonce)
+			}
+		}
+	}
+	// Legacy signed cookies acquire the same identity when first renewed.
+	digest := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(digest[:16])
 }
 
 // validateSessionValue verifies the signature and expiry of a session token.
@@ -358,8 +378,10 @@ func normalizeDesktopEmbedPath(rawPath string) (string, error) {
 // The Secure flag is automatically set when the request is over HTTPS.
 func SetSessionCookie(w http.ResponseWriter, r *http.Request, secret string, timeout time.Duration) {
 	expiry := time.Now().Add(timeout)
-	value := createSessionValue(secret, expiry)
+	setSessionCookie(w, r, createSessionValue(secret, expiry), expiry)
+}
 
+func setSessionCookie(w http.ResponseWriter, r *http.Request, value string, expiry time.Time) {
 	cookie := &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    value,
@@ -471,6 +493,15 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	if path == "/api/rustfs" || strings.HasPrefix(path, "/api/rustfs/") {
+		return true
+	}
+	if path == "/api/self-tests" || strings.HasPrefix(path, "/api/self-tests/") {
+		return true
+	}
+	if path == "/api/personality/legacy" || path == "/api/personality/legacy/review" {
+		return true
+	}
 	switch path {
 	case "/api/learnings", "/api/desktop/learnings", "/api/code-graph", "/api/desktop/code-graph":
 		return true
@@ -508,6 +539,7 @@ func isAdminProtectedPath(path string) bool {
 		"/api/backup/create",
 		"/api/backup/import",
 		"/api/debug/kg-file-sync-cleanup",
+		"/api/media-conversion/test",
 		"/api/proxy/destroy",
 		"/api/vault":
 		return true
@@ -713,11 +745,16 @@ func ClientIP(r *http.Request, behindProxy bool) string {
 // The setup wizard (/setup) calls this endpoint but auth is auto-disabled when no
 // password is configured, so the setup flow still works without a bypass here.
 var authBypassExactPaths = map[string]bool{
+	"/auth/login":                        true,
+	"/auth/logout":                       true,
 	"/api/health":                        true,
 	"/api/ready":                         true,
 	"/api/i18n":                          true,
 	"/api/auth/status":                   true,
 	"/api/auth/logout":                   true,
+	"/auth/webauthn/client.js":           true,
+	"/auth/webauthn/login/begin":         true,
+	"/auth/webauthn/login/finish":        true,
 	"/api/security/status":               true,
 	"/api/setup":                         true,
 	"/api/openrouter/models":             true,
@@ -752,7 +789,6 @@ var authBypassExactPaths = map[string]bool{
 // Static media files (audio, images, documents) are NOT exempt: they are served
 // as sub-resources of authenticated pages and may expose user-generated content.
 var authBypassSubtrees = []string{
-	"/auth/",
 	"/api/setup/",
 	"/api/agodesk/tts/",              // agodesk TTS assets — limited to cached TTS audio filenames
 	"/api/agodesk/media/",            // agodesk media assets — limited to explicit media buckets by the handler
@@ -830,6 +866,8 @@ func (s *Server) isTelnyxWebhookIngress(path string) bool {
 // is hard-blocked, so the server is never openly accessible while auth is
 // "enabled" but the vault is missing or the password was lost.
 var noPasswordExactPaths = map[string]bool{
+	"/auth/login":            true,
+	"/auth/logout":           true,
 	"/api/auth/status":       true,
 	"/api/auth/logout":       true,
 	"/api/auth/password":     true, // allows setting the initial password
@@ -850,7 +888,6 @@ var noPasswordExactPaths = map[string]bool{
 }
 
 var noPasswordSubtrees = []string{
-	"/auth/",
 	"/api/setup/",
 	"/css/",
 	"/fonts/",

@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Enviada",
   "mailer.outbox_unknown": "Estado de entrega desconhecido",
   "mailer.partial_action": "Algumas mensagens foram alteradas. A lista foi atualizada; reveja as restantes antes de tentar novamente.",
+  "mailer.participants_count": "{count} participantes",
   "mailer.password": "Palavra-passe",
   "mailer.preview_rule": "Pré-visualizar mensagens afetadas",
   "mailer.print": "Imprimir",

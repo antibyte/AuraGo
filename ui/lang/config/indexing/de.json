@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "Max. Zeichen pro Chunk",
   "config.indexing.chunk_overlap_chars": "Zeichen-Überlappung",
   "config.indexing.chunk_max_chunks": "Max. Chunks pro Datei",
-  "config.indexing.chunking_reindex_notice": "Änderungen an diesen Werten lösen beim nächsten Scan einen sauberen Reindex aus."
+  "config.indexing.chunking_reindex_notice": "Änderungen an diesen Werten lösen beim nächsten Scan einen sauberen Reindex aus.",
+  "config.indexing.media_toggle_label": "Medien an Provider",
+  "config.indexing.media_toggle_title": "Bilder, Audio und gescannte PDFs aus diesem Verzeichnis dürfen an die konfigurierte Vision-LLM oder den multimodalen Embedding-Provider gesendet werden. Standardmäßig aus.",
+  "config.indexing.media_confirm_title": "Medien dieses Verzeichnisses an Provider senden?",
+  "config.indexing.media_confirm": "Bilder, Audio und gescannte PDFs aus diesem Verzeichnis werden zur Analyse an den konfigurierten Vision- bzw. multimodalen Embedding-Provider gesendet. Das kann ein externer Dienst sein, sodass die Inhalte dieser Dateien dieses System verlassen können. Wird die Option wieder ausgeschaltet, werden keine weiteren Medien gesendet.",
+  "config.indexing.media_inactive_hint": "Vision- und multimodale Embeddings sind global ausgeschaltet; die Einstellung greift erst, sobald eines davon aktiviert ist.",
+  "config.indexing.index_images_per_folder_hint": "Bilder werden nur für Verzeichnisse gesendet, bei denen die Medienfreigabe in der Liste oben eingeschaltet ist."
 }

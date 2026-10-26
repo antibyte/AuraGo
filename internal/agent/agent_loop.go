@@ -222,6 +222,14 @@ type agentLoopState struct {
 	// toolBatchCalls counts the tool calls of the model response being
 	// executed; their results share the next request (inlineBudgetBasis).
 	toolBatchCalls int
+
+	// adaptivePlan holds the classes of the first adaptive selection (soft,
+	// generator, history, requested tools and the ranking); the refresh before
+	// every model call keeps them. Nil when the run had no such selection.
+	adaptivePlan *adaptiveSelectionPlan
+	// discoverRequestOrder lists the run's discover_tools requests, oldest
+	// first; discoverRequestedTools is the same set.
+	discoverRequestOrder []string
 }
 
 // inlineBudgetBasis is what the automatic inline budget of the current tool
@@ -245,6 +253,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		MemoryCorrections:    s.correctionRun(),
 		ToolDetailFits:       toolDetailBudgetCheck(s.requestBudget, s.req),
 		inlineBasis:          s.inlineBudgetBasis(),
+		discoveryReinjects:   discoveryReinjectsSchemas(s.runCfg, s.useNativeFunctions),
 		DiscoveryRunID:       s.runCfg.DiscoveryRunID,
 		ExecutionHooks:       s.runCfg.ExecutionHooks,
 		Cfg:                  s.runCfg.Config,
@@ -650,6 +659,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		flags.ManagedSitesContext = "" // Managed inventory is a request-local required addendum below.
 		flags.ReuseContext = ""
 		if !runCfg.IsMission && !runCfg.IsCoAgent && !isAutonomousRun {
 			trimmedReuseQuery := strings.TrimSpace(lastUserMsg)
@@ -700,12 +710,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if useNativeFunctions && !toolLimitFinalizing && !runCfg.StableSystemPrompt && runCfg.NativeToolSchemas == nil && runCfg.PreparedPrompt == nil {
+		if !toolLimitFinalizing && discoveryReinjectsSchemas(runCfg, useNativeFunctions) {
 			ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
 			all := filterSchemasByAllowedTools(s.nativeSchemaSnapshot.FullSchemas(), runCfg.AllowedTools)
 			requested := ConsumeDiscoverRequestedTools(runCfg.DiscoveryRunID)
 			s.discoverRequestedTools = recordRequestedTools(s.discoverRequestedTools, requested)
+			s.discoverRequestOrder = recordRequestOrder(s.discoverRequestOrder, requested)
 			available := stringSet(toolSchemaNames(all))
 			var retained []openai.Tool
 			for _, schema := range req.Tools {
@@ -725,24 +736,30 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if !cfg.Agent.AdaptiveTools.Enabled {
 				maxAdaptive = 0
 			}
-			// Tools kept from the session are never swapped out; a kept or
-			// requested non-displacing tool is ranked like any other kept or
-			// requested tool (toolSchemaFilterOptions.SwapProtectedTools).
-			kept := refreshSwapProtectedTools(s.adaptiveInitFiltered, s.sessionUsedTools,
-				recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns))
-			filtered := filterToolSchemasWithReport(req.Tools, toolSchemaFilterOptions{
-				PreferredTools:        append(requested, toolSchemaNames(req.Tools)...),
-				HardAlwaysTools:       channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff),
-				SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
-				MaxAdaptiveTools:      maxAdaptive,
-				MaxTotalTools:         toolingPolicy.EffectiveMaxTotalTools,
-				MaxSchemaTokens:       toolingPolicy.EffectiveMaxSchemaTokens,
-				AdditiveTools:         s.adaptiveAdditiveTools,
-				AdaptiveExcludedTools: adaptiveRefreshExcludedTools(s.adaptiveInitFiltered, s.discoverRequestedTools),
-				AdditiveSwaps:         s.adaptiveSwaps,
-				PinnedTools:           pinnedToolNames(s.discoverRequestedTools),
-				SwapProtectedTools:    kept,
-			}, s.currentLogger)
+			// The refresh keeps the classes of the first selection (adaptive
+			// plan): the soft, generator and history tools, the tools used since
+			// and the requested ones stay, and the ranking is the first one.
+			// Tools kept from the session are never swapped out; without a plan a
+			// kept or requested non-displacing tool is ranked like any other kept
+			// or requested tool (toolSchemaFilterOptions.SwapProtectedTools).
+			filtered := filterToolSchemasWithReport(req.Tools, adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+				Config:          cfg,
+				RunConfig:       runCfg,
+				Features:        ff,
+				Plan:            s.adaptivePlan,
+				Tools:           req.Tools,
+				Requested:       requested,
+				RequestOrder:    s.discoverRequestOrder,
+				Pinned:          s.discoverRequestedTools,
+				SessionUsed:     s.sessionUsedTools,
+				Recent:          recentNativeToolNamesFromMessages(req.Messages, cfg.Agent.AdaptiveTools.SessionToolRetentionTurns),
+				InitFiltered:    s.adaptiveInitFiltered,
+				MaxAdaptive:     maxAdaptive,
+				MaxTotal:        toolingPolicy.EffectiveMaxTotalTools,
+				MaxSchemaTokens: toolingPolicy.EffectiveMaxSchemaTokens,
+				AdditiveTools:   s.adaptiveAdditiveTools,
+				AdditiveSwaps:   s.adaptiveSwaps,
+			}), s.currentLogger)
 			req.Tools = filtered.Tools
 			s.adaptiveSwapped = recordAdaptiveSwaps(s.adaptiveSwapped, filtered.Report)
 		}
@@ -835,7 +852,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Get the mood trigger context from the message history
-		triggerValue := getMoodTrigger(req.Messages, lastUserMsg)
+		triggerValue := ""
+		if runCfg.HumanInput.Valid() {
+			triggerValue = runCfg.HumanInput.Text
+		}
 		moodTrigger := func() string { return triggerValue }
 
 		// Note: The call to PrepareDynamicGuides will happen after the response is received
@@ -933,7 +953,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				ragLastUserMsg = lastUserMsg
 				ragToolIterationsSinceLastRefresh = 0
 
-				// Over-fetch 6 candidates, then re-rank to keep best 3
+				// Over-fetch candidates (6, or 8 with the helper batch) and re-rank
+				// them. Below, the top MaxEssentialMemories (default 1) are served in
+				// prompt form; with on-demand retrieval the rest become teasers.
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_attempt")
 				autoRetrievalStart := time.Now()
 				searchLimit := 6
@@ -994,28 +1016,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
 					}
 
-					// For short queries (<40 chars), apply a softer score filtering to
-					// avoid injecting semantically-similar but contextually-irrelevant
-					// old memories (e.g. "versuche es erneut" matching old error messages).
-					// Use a lower threshold (0.50) to avoid filtering out highly-relevant old memories,
-					// and always keep at least the top result if anything was found.
-					if len(lastUserMsg) < 40 && len(ranked) > 0 {
-						scoreThreshold := 0.50
-						var filtered []rankedMemory
-						for _, r := range ranked {
-							if r.score >= scoreThreshold {
-								filtered = append(filtered, r)
-							}
-						}
-						// Preserve at least the top result if it was filtered out — old memories
-						// that are semantically highly similar may still be relevant.
-						if len(filtered) == 0 && len(ranked) > 0 {
-							filtered = ranked[:1]
-						}
-						if len(filtered) < len(ranked) {
-							s.currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
-						}
-						ranked = filtered
+					// For short queries (<40 bytes), drop memories below a soft score
+					// threshold (0.50) so that semantically-similar but contextually-
+					// irrelevant old memories (e.g. "versuche es erneut" matching old
+					// error messages) are not injected. If nothing reaches the threshold
+					// the turn simply gets no retrieved memory.
+					before := len(ranked)
+					ranked = filterShortQueryRAGMemories(lastUserMsg, ranked)
+					if len(ranked) < before {
+						s.currentLogger.Debug("[RAG] Short-query filter applied", "before", before, "after", len(ranked))
 					}
 
 					onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
@@ -1386,11 +1395,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.learningContext = observation
 		}
 		if !runCfg.IsMission && !isAutonomousRun && personalityEnabled && shortTermMem != nil {
-			if cfg.Personality.EngineV2 {
+			if cfg.Personality.EngineV2 && loopIterationCount == 1 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
-				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger)
+				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger, runCfg.HumanInput)
 			}
-			flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
+			flags.PersonalityLine = mergeEmotionBehaviorPrompt(shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta), emotionPolicy)
 			flags.CharacterNotes = shortTermMem.FormatCharacterNotesForPrompt(memory.MaxCharacterNotesInPrompt)
 			flags.NarrativeVisible = shortTermMem.NarrativeVisible()
 
@@ -1516,7 +1525,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		// Trusted emotion/behavior hints stay active even when inner voice is
 		// injected. Inner voice is untrusted tone only; these hints are Go policy.
-		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy)
+		flags.AdditionalPrompt = baseAdditionalPrompt
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
 		budgetMessages := req.Messages
 		if lastGeneratedSystemPrompt != "" && len(budgetMessages) > 0 &&
@@ -1631,6 +1640,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			Addenda: append([]prompts.PromptAddendum(nil), s.runCfg.TrustedPromptAddenda...),
 		}
 		fitRequest.Addenda = append(fitRequest.Addenda, meshCorePromptAddenda(cfg)...)
+		managedSites := buildManagedSitesPromptContext(runCfg)
+		if managedSites != "" {
+			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "managed_websites", Text: security.IsolateExternalData(managedSites)})
+		}
 		if budgetHint != "" {
 			fitRequest.Addenda = append(fitRequest.Addenda, prompts.PromptAddendum{ID: "budget_status", Text: budgetHint})
 		}
@@ -1640,9 +1653,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if len(runCfg.TrustedPromptAddenda) != 0 {
 				return openai.ChatCompletionResponse{}, fmt.Errorf("prepared prompt cannot accept dynamic addenda")
 			}
-			promptResult = prompts.PromptBuildResult{Text: basePrompt, Tokens: basePromptTokens, Revision: runCfg.PreparedPrompt.revision, InputChars: len(basePrompt), InputTokens: basePromptTokens}
-			if basePromptTokens > flags.TokenBudget {
-				promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: flags.TokenBudget, RequiredTokens: basePromptTokens}
+			if managedSites != "" {
+				promptResult, promptFitErr = prompts.FitSystemPromptToBudget(ctx, prompts.PromptFitRequest{Text: basePrompt, Tokens: basePromptTokens, Model: req.Model, TokenBudget: flags.TokenBudget, Addenda: []prompts.PromptAddendum{{ID: "managed_websites", Text: security.IsolateExternalData(managedSites)}}}, s.currentLogger)
+			} else {
+				promptResult = prompts.PromptBuildResult{Text: basePrompt, Tokens: basePromptTokens, Revision: runCfg.PreparedPrompt.revision, InputChars: len(basePrompt), InputTokens: basePromptTokens}
+				if basePromptTokens > flags.TokenBudget {
+					promptResult.BudgetExceeded = &prompts.PromptBudgetExceededError{Budget: flags.TokenBudget, RequiredTokens: basePromptTokens}
+				}
 			}
 		} else {
 			promptResult, promptFitErr = prompts.FitSystemPromptToBudget(ctx, fitRequest, s.currentLogger)
@@ -2487,7 +2504,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			var turnPersonalityInput *helperTurnPersonalityInput
 			if useBatchedTurnPersonality {
 				contextHistory, userHistory := buildPersonalityHistories(req.Messages, "Assistant Response", content)
-				_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
+				emotionEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer, personalityBasis)
 				traits, _ := shortTermMem.GetTraits()
 				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
 				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
@@ -2500,7 +2517,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 				turnPersonalityInput = &helperTurnPersonalityInput{
-					CurrentUserMessage: lastUserMsg,
+					CurrentUserMessage: runCfg.HumanInput.Text,
+					EmotionEnabled:     emotionEligible,
 					Snapshot:           personalityBasis,
 					RecentHistory:      contextHistory,
 					UserOnlyHistory:    userHistory,
@@ -2515,7 +2533,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					InactivityHours:    userInactivityHours,
 					ErrorCount:         recoveryState.ConsecutiveErrorCount,
 					SuccessCount:       batchSuccessCount,
-					InnerVoiceEnabled:  batchIVEnabled,
+					InnerVoiceEnabled:  batchIVEnabled && emotionEligible,
 					InnerVoiceLanguage: cfg.Agent.SystemLanguage,
 					InnerVoiceHistory:  batchIVHistory,
 				}
@@ -2592,7 +2610,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				applyExtractedLearnings(analysisCtx, cfg, shortTermMem, sid, userMsg, batchResult.MemoryAnalysis.Learnings, runCfg.learningAnalysisScope())
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
-						personalityResult.Basis, personalityResult.ObservationID = personalityBasis, personalityBasis.TurnID
+						personalityResult.Basis, personalityResult.ObservationID, personalityResult.Input = personalityBasis, runCfg.HumanInput.TurnID, runCfg.HumanInput
+						if !turnPersonalityInput.EmotionEnabled {
+							personalityResult.SynthesizedEmotion = nil
+							personalityResult.InnerThought = ""
+						}
 						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 						v2FailCount.Store(0)
 						applyPersonalityV2AnalysisResult(

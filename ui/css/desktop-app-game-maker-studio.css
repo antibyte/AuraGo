@@ -323,6 +323,9 @@
 .gm-workspace {
     display: grid;
     grid-template-columns: minmax(320px, 0.82fr) minmax(420px, 1.18fr);
+    /* The feed stays a content-sized first row. The panes keep the rest,
+       so the conversation still owns most of the agent pane. */
+    grid-template-rows: auto minmax(0, 1fr);
     min-width: 0;
     min-height: 0;
 }
@@ -349,6 +352,7 @@
 .gm-agent-pane,
 .gm-preview-pane {
     display: grid;
+    grid-row: 2;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     min-width: 0;
@@ -1135,6 +1139,61 @@
     color: var(--gm-text);
 }
 
+/* Open checks and the model-limit warning sit above the technical details. */
+.gm-result-card .gm-open-checks {
+    width: 100%;
+    min-width: 0;
+}
+
+.gm-result-card .gm-open-checks ul {
+    display: grid;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gm-result-card .gm-open-checks li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: baseline;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--gm-text) 7%, transparent);
+}
+
+.gm-result-card .gm-open-checks li small,
+.gm-result-card .gm-open-checks li p,
+.gm-result-card .gm-open-checks li button {
+    width: 100%;
+    color: var(--gm-muted);
+    overflow-wrap: anywhere;
+}
+
+.gm-result-card .gm-open-checks li button {
+    width: auto;
+    color: var(--gm-text);
+}
+
+.gm-model-warning {
+    margin: 0;
+    color: var(--gm-tone-warn, var(--gm-text));
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.gm-model-warning[hidden],
+.gm-field-help[hidden],
+.gm-compact-mode[hidden] {
+    display: none;
+}
+
+[data-gm-model-state][data-below-minimum="true"] select,
+[data-gm-model-state][data-below-minimum="true"] input {
+    border-color: var(--gm-tone-warn, var(--gm-accent));
+}
+
 .gm-result-card details {
     width: 100%;
     min-width: 0;
@@ -1316,7 +1375,90 @@
 
 .gm-more {
     position: relative;
+    display: block;
+}
+
+.gm-job-feed {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-self: start;
+    gap: 6px;
+    min-width: 0;
+    margin: 8px 12px 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(139, 124, 246, 0.4);
+    border-radius: 11px;
+    background: rgba(139, 124, 246, 0.1);
+}
+
+.gm-job-feed[hidden] {
     display: none;
+}
+
+.gm-job-feed-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.gm-job-feed-head strong {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gm-job-feed-head .gm-danger {
+    flex: none;
+}
+
+.gm-job-feed-elapsed {
+    color: var(--gm-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.gm-job-feed ol {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    max-height: 8.5em;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    color: var(--gm-muted);
+    font-size: 11px;
+    list-style: none;
+}
+
+.gm-job-feed li {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gm-compact-mode,
+.gm-asset-note {
+    margin: 0 0 6px;
+    color: var(--gm-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.gm-compact-mode[hidden] {
+    display: none;
+}
+
+.gm-revision-paths {
+    margin: 6px 0 0;
+    padding-left: 16px;
+    color: var(--gm-muted);
+    font-size: 11px;
 }
 
 .gm-more > button {
@@ -1445,26 +1587,6 @@
    Every width rule exists twice: @container follows the Studio window,
    @media covers narrow screens and markup rendered outside the shell. */
 
-@media (max-width: 1180px) {
-    .gm-actions .gm-action-wide {
-        display: none;
-    }
-
-    .gm-more {
-        display: block;
-    }
-}
-
-@container gm-studio (max-width: 1180px) {
-    .gm-actions .gm-action-wide {
-        display: none;
-    }
-
-    .gm-more {
-        display: block;
-    }
-}
-
 @media (max-width: 980px) {
     .gm-layout {
         grid-template-columns: minmax(0, 1fr);
@@ -1549,11 +1671,12 @@
 
     .gm-workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
         overflow: hidden;
     }
 
     .gm-steps,
+    .gm-job-feed,
     .gm-agent-pane,
     .gm-preview-pane {
         grid-column: 1;
@@ -1561,9 +1684,11 @@
 
     .gm-steps { grid-row: 1; }
 
+    .gm-job-feed { grid-row: 2; }
+
     .gm-agent-pane,
     .gm-preview-pane {
-        grid-row: 2;
+        grid-row: 3;
     }
 
     .gm-studio[data-gm-step="preview"] .gm-agent-pane,
@@ -1620,11 +1745,12 @@
 
     .gm-workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
         overflow: hidden;
     }
 
     .gm-steps,
+    .gm-job-feed,
     .gm-agent-pane,
     .gm-preview-pane {
         grid-column: 1;
@@ -1632,9 +1758,11 @@
 
     .gm-steps { grid-row: 1; }
 
+    .gm-job-feed { grid-row: 2; }
+
     .gm-agent-pane,
     .gm-preview-pane {
-        grid-row: 2;
+        grid-row: 3;
     }
 
     .gm-studio[data-gm-step="preview"] .gm-agent-pane,

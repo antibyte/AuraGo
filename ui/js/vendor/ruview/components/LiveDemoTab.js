@@ -163,7 +163,7 @@ export class LiveDemoTab {
             <div class="demo-controls">
               <button class="btn btn--primary" id="start-enhanced-demo">Start Detection</button>
               <button class="btn btn--secondary" id="stop-enhanced-demo" disabled>Stop Detection</button>
-              <button class="btn btn--accent" id="run-offline-demo">Demo</button>
+              <button class="btn btn--accent" id="run-offline-demo" style="display:none">Demo</button>
               <button class="btn btn--primary" id="toggle-debug">Debug Mode</button>
               <select class="zone-select" id="zone-selector">
                 <option value="zone_1">Zone 1</option>
@@ -1176,6 +1176,11 @@ export class LiveDemoTab {
 
   // Stop demo
   stopDemo() {
+    const canvas = this.components.poseCanvas;
+    if (canvas && canvas.demoState && canvas.demoState.isRunning) {
+      canvas.stopDemo();
+      canvas.updateDemoButton(false);
+    }
     if (!this.state.isActive) {
       this.logger.warn('Demo not active');
       return;

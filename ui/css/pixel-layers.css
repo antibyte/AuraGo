@@ -1,0 +1,382 @@
+/* Pixel: layers dock (WP1). Loaded after pixel.css; every class carries the pixel- prefix. */
+
+.pixel-panel-layers {
+    gap: 6px;
+}
+
+/* Header: blend mode, opacity, locks and the clipping toggle of the active layer */
+.pixel-layers-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--pixel-line);
+}
+
+.pixel-layers-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pixel-layers-blend {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pixel-layers-caption,
+.pixel-layers-unit {
+    flex: 0 0 auto;
+    font-size: 0.76rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-layers-opacity {
+    flex: 1 1 auto;
+    min-width: 40px;
+}
+
+.pixel-layers-number {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 48px;
+    padding: 2px 4px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 4px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.pixel-layers-number:focus {
+    outline: none;
+    border-color: var(--pixel-accent);
+}
+
+.pixel-layers-locks {
+    gap: 4px;
+}
+
+.pixel-layers-gap {
+    flex: 1 1 auto;
+}
+
+.pixel-layers-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 30px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--pixel-line);
+    border-radius: 5px;
+    background: var(--pixel-surface);
+    color: var(--pixel-muted);
+    cursor: pointer;
+    transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+
+.pixel-layers-toggle:hover:not(:disabled) {
+    background: var(--pixel-hover);
+    color: inherit;
+}
+
+.pixel-layers-toggle.active {
+    border-color: var(--pixel-accent);
+    background: var(--pixel-hover);
+    color: var(--pixel-accent);
+}
+
+.pixel-layers-toggle:disabled,
+.pixel-layers-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* The list: rows are rebuilt only when the stack changes; the bottom dock body scrolls it. */
+.pixel-panel-layers .pixel-layer-list {
+    position: relative;
+    display: block;
+    outline: none;
+}
+
+.pixel-panel-layers .pixel-layer-list:focus-visible {
+    outline: 1px solid var(--pixel-accent);
+    outline-offset: 2px;
+}
+
+.pixel-layer-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pixel-panel-layers .pixel-layer-item {
+    position: relative;
+    min-height: 42px;
+    padding: 3px 5px;
+    gap: 5px;
+    touch-action: pan-y;
+}
+
+.pixel-layer-item.pixel-layer-clipped {
+    padding-left: 22px;
+}
+
+.pixel-layer-item.pixel-layer-clipped::before {
+    content: "\21b3";
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--pixel-muted);
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+.pixel-layer-item.dragging {
+    opacity: 0.45;
+}
+
+.pixel-layer-list.is-dragging {
+    cursor: grabbing;
+}
+
+.pixel-layer-item.is-hidden .pixel-layer-thumb,
+.pixel-layer-item.is-hidden .pixel-layer-maskthumb,
+.pixel-layer-item.is-hidden .pixel-layer-name {
+    opacity: 0.5;
+}
+
+.pixel-layer-drop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--pixel-accent);
+    pointer-events: none;
+    z-index: 3;
+}
+
+.pixel-layer-drop[hidden] {
+    display: none;
+}
+
+.pixel-panel-layers .pixel-layer-vis {
+    flex: 0 0 auto;
+    color: var(--pixel-muted);
+}
+
+.pixel-panel-layers .pixel-layer-vis:not(.off) {
+    color: inherit;
+}
+
+.pixel-layer-thumb,
+.pixel-layer-maskthumb {
+    position: relative;
+    flex: 0 0 auto;
+    display: block;
+    border-radius: 3px;
+    line-height: 0;
+}
+
+.pixel-layer-thumb {
+    width: 44px;
+    height: 32px;
+}
+
+.pixel-layer-maskthumb {
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+
+.pixel-layer-thumb-canvas,
+.pixel-layer-mask-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* What the brush paints on: the layer pixels (default) or the mask while it is being edited. */
+.pixel-layer-item.active .pixel-layer-thumb {
+    outline: 2px solid var(--pixel-accent);
+    outline-offset: 1px;
+}
+
+.pixel-layer-item.active.editing-mask .pixel-layer-thumb {
+    outline: none;
+}
+
+.pixel-layer-item.active.editing-mask .pixel-layer-maskthumb {
+    outline: 2px solid var(--pixel-accent);
+    outline-offset: 1px;
+}
+
+.pixel-layer-maskthumb:hover {
+    outline: 1px solid var(--pixel-muted);
+    outline-offset: 1px;
+}
+
+/* A disabled mask shows a red X over its thumbnail */
+.pixel-layer-maskthumb.disabled::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to top right, transparent calc(50% - 1px), #e5484d calc(50% - 1px), #e5484d calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(to top left, transparent calc(50% - 1px), #e5484d calc(50% - 1px), #e5484d calc(50% + 1px), transparent calc(50% + 1px));
+    pointer-events: none;
+}
+
+.pixel-layer-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pixel-panel-layers .pixel-layer-name {
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.pixel-layer-badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 0;
+    color: var(--pixel-muted);
+}
+
+.pixel-layer-badges:empty {
+    display: none;
+}
+
+.pixel-layer-badge {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.pixel-layer-badge-text {
+    max-width: 72px;
+    padding: 1px 4px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 3px;
+    font-size: 0.62rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-layer-rename {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 1px 4px;
+    border: 1px solid var(--pixel-accent);
+    border-radius: 3px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    font-size: 0.78rem;
+    outline: none;
+    user-select: text;
+}
+
+/* Footer buttons */
+.pixel-layers-footer {
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 2px;
+}
+
+.pixel-layers-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 32px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background 100ms ease, border-color 100ms ease;
+}
+
+.pixel-layers-btn:hover:not(:disabled) {
+    background: var(--pixel-hover);
+    border-color: var(--pixel-line);
+}
+
+/* Context menu: reuses the desktop menu look; only the row height is tightened */
+.pixel-layers-menu {
+    --vd-menu-row-height: 28px;
+    min-width: 230px;
+}
+
+/* Layer properties dialog (appended to the page body, so it carries its own theme variables) */
+.pixel-layer-dialog {
+    --pixel-line: var(--vd-theme-border, var(--vd-border));
+    --pixel-surface: var(--vd-theme-control-bg, rgba(0, 0, 0, 0.18));
+    --pixel-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, 0.08));
+    --pixel-muted: var(--vd-theme-muted, var(--vd-muted));
+    --pixel-accent: var(--vd-accent, #59d4c8);
+}
+
+.pixel-layer-dialog-grid {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 4px;
+    margin: 10px 0 6px;
+}
+
+.pixel-layer-dialog-grid .vd-modal-input {
+    height: 34px;
+    margin: 0;
+}
+
+.pixel-layer-dialog-label {
+    font-size: 0.82rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-layer-dialog-opacity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pixel-layer-dialog-opacity span {
+    flex: 0 0 38px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.pixel-layer-dialog-checks {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0 14px;
+}
+
+.pixel-layer-dialog-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    cursor: pointer;
+}

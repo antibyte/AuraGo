@@ -25,7 +25,8 @@ func composioManualTestContext(t *testing.T) (*DispatchContext, string, string) 
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
-	guide := "# composio_call\n" + strings.Repeat("Read selected service guidance: Äpfel 日本語.\n", 25)
+	// Pages are filled to the output budget, so the guide must outgrow it.
+	guide := "# composio_call\n" + strings.Repeat("Read selected service guidance: Äpfel 日本語.\n", 60)
 	if err := os.WriteFile(path, []byte(guide), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -126,13 +127,14 @@ func TestComposioServiceManualPaginationAndRevision(t *testing.T) {
 		t.Fatal("manual was incomplete or changed during pagination")
 	}
 	dc.Cfg.Composio.Toolkits = append(dc.Cfg.Composio.Toolkits, config.ComposioToolkitConfig{Slug: "slack", Enabled: true})
-	if result := read("composio:slack", first.NextCursor); result.Error != "manual_cursor_invalid_or_changed" {
-		t.Fatalf("cursor crossed service identity: %+v", result)
+	// The reset notice takes room, so the restarted page may be shorter than first.
+	if result := read("composio:slack", first.NextCursor); !result.CursorReset || result.Manual == "" || !strings.HasPrefix(first.Manual, result.Manual) {
+		t.Fatalf("cursor crossed service identity instead of restarting at the first page: %+v", result)
 	}
 	if err := os.WriteFile(path, []byte(guide+"\nUpdated guidance.\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if result := read("composio:gmail", first.NextCursor); result.Error != "manual_cursor_invalid_or_changed" {
+	if result := read("composio:gmail", first.NextCursor); result.Status != "success" || !result.CursorReset || result.Revision == first.Revision {
 		t.Fatalf("stale content revision accepted: %+v", result)
 	}
 }

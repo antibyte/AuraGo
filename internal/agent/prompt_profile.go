@@ -45,6 +45,15 @@ func (p *PreparedPromptProfile) Revision() string {
 	}
 	return p.revision
 }
+
+// Name is the versioned profile identity (for example
+// "game-maker/v2/building/2d"). It stays part of the revision fingerprint.
+func (p *PreparedPromptProfile) Name() string {
+	if p == nil {
+		return ""
+	}
+	return p.name
+}
 func (p *PreparedPromptProfile) SystemPrompt() string { return p.system }
 func (p *PreparedPromptProfile) Tools() []openai.Tool {
 	var result []openai.Tool

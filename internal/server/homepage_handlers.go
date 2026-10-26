@@ -122,6 +122,10 @@ func handleHomepageSiteByID(s *Server) http.HandlerFunc {
 			return
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/api/homepage/sites/")
+		events := strings.HasSuffix(path, "/events")
+		if events {
+			path = strings.TrimSuffix(path, "/events")
+		}
 		reconcile := false
 		if strings.HasSuffix(path, "/reconcile") {
 			reconcile = true
@@ -147,6 +151,17 @@ func handleHomepageSiteByID(s *Server) http.HandlerFunc {
 				return
 			}
 			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if events {
+			limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+			after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
+			entries, err := tools.ListHomepageSiteEvents(s.HomepageRegistryDB, id, limit, after)
+			if err != nil {
+				jsonError(w, "could not read site events", http.StatusInternalServerError)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "events": entries})
 			return
 		}
 		if reconcile {

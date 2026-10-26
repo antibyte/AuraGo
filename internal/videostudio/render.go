@@ -32,6 +32,9 @@ var (
 	ErrInsufficientDiskSpace = errors.New("insufficient disk space for rendering")
 	// ErrTooManyInputs reports a span that needs more simultaneous inputs than one FFmpeg process may open.
 	ErrTooManyInputs = errors.New("too many simultaneous clips for one render segment")
+	// ErrTooManyLUTs reports a span that needs more simultaneous lut effects than one FFmpeg process may load
+	// (MaxSegmentLUTInstances). It wraps ErrTooManyInputs, so errors.Is with either holds (plan 2f, F4).
+	ErrTooManyLUTs = fmt.Errorf("%w: too many simultaneous LUT effects", ErrTooManyInputs)
 	// ErrOutputLimit reports an export that reached RenderOptions.MaxOutputBytes.
 	ErrOutputLimit = errors.New("rendered output reached the size limit")
 )
@@ -515,7 +518,7 @@ func stageVideoGraph(dir, graph string, rate Rate, files graphFiles) (workDir, g
 		return fail(fmt.Errorf("write FFmpeg filter graph: %w", err))
 	}
 	if len(files.luts) > MaxSegmentLUTInstances {
-		return fail(fmt.Errorf("%w: %d LUT tables for one FFmpeg process, at most %d", ErrTooManyInputs, len(files.luts), MaxSegmentLUTInstances))
+		return fail(fmt.Errorf("%w: %d LUT tables for one FFmpeg process, at most %d", ErrTooManyLUTs, len(files.luts), MaxSegmentLUTInstances))
 	}
 	seen := make(map[string]bool, len(files.commands)+len(files.luts))
 	for _, file := range files.commands {

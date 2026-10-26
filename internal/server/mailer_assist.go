@@ -166,7 +166,7 @@ func (s *Server) handleMailerAssist(w http.ResponseWriter, r *http.Request) {
 		cfg.LLM.Provider, cfg.LLM.ProviderType = provider.ID, provider.Type
 		cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID = provider.BaseURL, provider.APIKey, provider.AccountID
 		cfg.LLM.Model = provider.Model
-		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID))
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID, provider.GatewayID))
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()

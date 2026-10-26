@@ -1,5 +1,17 @@
 # Externe Projekte und Lizenzbedingungen
 
+## Phonon-Sprachausgabe
+
+Gradium Phonon wird als getrenntes lokales Sprachpaket mitgeliefert. Die Laufzeit
+`ptts` 0.4.0 steht unter MIT/Apache-2.0, der Katalog `gradium/phonon-voices` unter
+Apache-2.0. Die unveränderten Gewichte von `gradium/phonon-40m-multilingual`
+stehen unter **CC BY-NC 4.0 und sind nur für nichtkommerzielle Nutzung freigegeben**.
+Eine kommerzielle Nutzung benötigt eine entsprechende Erlaubnis von Gradium.
+Quellen, feste Revisionen und Attribution stehen in `documentation/phonon.md`;
+das Paket enthält diese Hinweise sowie `texts/CC-BY-NC-4.0.txt`,
+`texts/Apache-2.0.txt` und den originalen Laufzeittext `texts/Phonon-MIT.txt`.
+AuraGos eigene MIT-Lizenz bleibt bestehen.
+
 Der native Codegraph verwendet zusätzlich `github.com/odvcencio/gotreesitter`
 `v0.56.0` (MIT, Copyright (c) 2026 Oscar Villavicencio). Eingebunden sind nur die
 Go-, JavaScript-, TypeScript-/TSX- und Python-Grammatiken (MIT; Max Brunsfeld,
@@ -22,6 +34,10 @@ eingefrorenen Digest. Vor einer Veröffentlichung den konkreten Image-Digest
 gegen diese Liste prüfen.
 
 ## Was die üblichen Lizenzen verlangen
+
+Das gemeinsame QR-Modul verwendet `github.com/makiuchi-d/gozxing` v0.1.1 (MIT, Copyright 2018 Daisuke MAKIUCHI; ursprüngliche ZXing-Anteile Apache-2.0, Copyright 2007–2018 ZXing authors) und `github.com/go-text/typesetting` v0.3.5 (Unlicense ODER BSD-3-Clause, Copyright 2021 The go-text authors; HarfBuzz-Übersetzung MIT). Die vollständigen Urheberzeilen stehen in `THIRD_PARTY_NOTICES.md`, die Lizenztexte in `texts/MIT.txt`, `texts/Apache-2.0.txt`, `texts/BSD-3-Clause.txt` und `texts/Unlicense.txt`.
+
+Die QR-Schriften Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji und Liberation Serif stehen unter OFL-1.1. Originaltexte und exakte Herkunft mit Hashes liegen in `ui/fonts/qr/`. Go Sans/Mono stammen aus der vorhandenen `golang.org/x/image/font/gofont`-Abhängigkeit. `jsqr` 1.4.0 (Apache-2.0) dient ausschließlich als unabhängiger Decoder in Entwicklungstests. Mini QR dient als Funktionsvorlage; dessen Quellcode und Assets werden nicht mitgeliefert.
 
 | Lizenz | Bedingung für die Weitergabe |
 | --- | --- |
@@ -103,6 +119,7 @@ AuraGo-eigene Oberflächen ohne Fremdcode stehen hier nicht.
 | Galaxy-Bedienelemente | Lucide | ISC |
 | Desktop-Themes | Papirus, WhiteSur | GPL-3.0 |
 | OpenSCAD | openscad, gepinnter Digest | GPL-2.0 plus CGAL-Linking-Ausnahme |
+| Ziro Designer | `ghcr.io/antibyte/aurago-ziro-designer:ziro-7b45970-1` | GPL-3.0-or-later; KiCad-Bibliotheken CC-BY-SA-4.0 mit KiCad-Ausnahme; Quellen und Hinweise im Image |
 | God's Eye View | Upstream von Bilawal Sidhu, Image `gev-7596522-1` | MIT, `ui/img/desktop/store/gods-eye-view.LICENSE` |
 | Retro Games | Emularity von archive.org | GPL-3.0, nicht mitgeliefert |
 | Quake | QuakeJS-Rootless-Image | GPL-2.0-Engine, proprietäre Spieldaten |
@@ -153,6 +170,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 
 | Produkt | Referenz | Lizenz |
 | --- | --- | --- |
+| RustFS 1.0.4 | `docker.io/rustfs/rustfs:1.0.4`, Digest in `internal/rustfs/types.go` | [Apache-2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE), Copyright 2024–2026 RustFS, Inc.; unverändertes optionales Image |
 | Gotenberg 8 | `gotenberg/gotenberg:8` | MIT |
 | Docker Socket Proxy | `tecnativa/docker-socket-proxy:v0.5.0` mit Digest in `docker-compose.yml` | HAProxy GPL-2.0 im Image |
 | go2rtc 1.9.14 | `alexxit/go2rtc`, Digest in der Config | MIT |
@@ -345,3 +363,16 @@ enthält Platzhalter für Jahr und Namen. Die konkreten Zeilen ersetzen diese Pl
 | `Open-WebUI.txt` | Open WebUI |
 | `CanvasUI-Commons-Clause.txt` | CanvasUI |
 | `C64-Pro-Mono.txt` | C64 Pro Mono |
+
+## Zusätzliche Desktop-Icons
+
+Tela und Fluent von Vince Liuice sowie Candy von Eliver Lara stehen unter GPL-3.0.
+Die Quellenhinweise von Tela/Fluent auf Numix, Papirus und Paper bleiben in
+`AUTHORS.txt` erhalten. Buuf For Many Desktops (eudaimon/Nestort; Artwork von Paul
+Davey/Mattahan, Remixe von OxayotlTheGreat und robson-66) wird unter CC BY-NC-SA 2.5
+für nichtkommerzielle Nutzung mitgeliefert. Diese Buuf-Assets sind nicht MIT.
+
+Die vier Pakete enthalten ihre Lizenztexte, feste Revisionen und Nachweise je
+Motiv. Der vollständige CC-Text liegt zusätzlich in `texts/CC-BY-NC-SA-2.5.txt`.
+Eigene AuraGo-Ergänzungen sind gesondert als MIT gekennzeichnet. Einzelheiten und
+Quellen: `documentation/desktop-icon-themes.md`.

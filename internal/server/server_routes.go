@@ -485,6 +485,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/personality/state", handlePersonalityState(s))
 	mux.HandleFunc("/api/personality/character-notes", handlePersonalityCharacterNotes(s))
 	mux.HandleFunc("/api/personality/feedback", handlePersonalityFeedback(s))
+	mux.Handle("/api/personality/legacy", requireAdmin(s, handlePersonalityLegacy(s)))
+	mux.Handle("/api/personality/legacy/review", requireAdmin(s, handlePersonalityLegacyReview(s)))
 	mux.HandleFunc("/api/personality/dynamics/reset", handlePersonalityDynamicsReset(s))
 	mux.HandleFunc("/api/agent/question-status", handleQuestionStatus(s))
 	mux.HandleFunc("/api/agent/question-response", handleQuestionResponse(s))
@@ -662,6 +664,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/pixel/remove-bg", handlePixelRemoveBG(s))
 	mux.HandleFunc("/api/pixel/upscale", handlePixelUpscale(s))
 	mux.HandleFunc("/api/pixel/save", handlePixelSave(s))
+	mux.HandleFunc("/api/qr/", handleQR(s))
+	mux.HandleFunc("/api/pixel/cutout/status", handlePixelCutoutStatus(s))
+	mux.HandleFunc("/api/pixel/cutout/prepare", handlePixelCutoutPrepare(s))
+	mux.HandleFunc("/api/pixel/cutout", handlePixelCutout(s))
 
 	// Galaxa Deluxe highscore endpoints
 	mux.HandleFunc("/api/desktop/galaxa/highscore", handleGalaxaHighscoreGet(s))
@@ -735,8 +741,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				msg, quarantineAddenda := prepareIncomingSMSAgentInput(from, text, mediaURLs, quarantined)
 				s.Logger.Info("Telnyx SMS relayed to agent", "quarantined", quarantined)
 				runCfg := agent.RunConfig{
-					RoutingDecisions:   taskDecisionService{s},
-					TaskRoutingText:    &text,
+					RoutingDecisions: taskDecisionService{s},
+					TaskRoutingText:  &text,
+					HumanInput: func() *memory.HumanInput {
+						if quarantined {
+							return nil
+						}
+						return memory.NewHumanInput(text, sessionID)
+					}(),
 					Config:             s.Cfg,
 					Logger:             s.Logger,
 					LLMClient:          s.LLMClient,
@@ -782,9 +794,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// MCP: start external MCP server connections (only when both gates are open)
 		if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled {
 			mcpConfigs := buildRuntimeMCPConfigs(s.Cfg, s.Vault, s.Logger)
-			if len(mcpConfigs) > 0 {
-				tools.InitMCPManager(mcpConfigs, s.Logger)
-			}
+			tools.InitMCPManager(mcpConfigs, s.Logger)
+			go s.startPrintGuardMCP()
 		}
 
 		// Sandbox: start the llm-sandbox MCP server (separate from user MCP servers)

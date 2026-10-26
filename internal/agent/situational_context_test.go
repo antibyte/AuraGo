@@ -153,7 +153,6 @@ func TestShouldGenerateInnerVoice_SkipMissionAndCoAgent(t *testing.T) {
 	cfg.Personality.EngineV2 = true
 	cfg.Personality.InnerVoice.MaxPerSession = 20
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
-	cfg.Personality.InnerVoice.ErrorStreakMin = 2
 
 	ResetInnerVoiceState()
 
@@ -185,7 +184,6 @@ func TestShouldGenerateInnerVoice_SuppressesActiveErrorRecovery(t *testing.T) {
 	cfg.Personality.EngineV2 = true
 	cfg.Personality.InnerVoice.MaxPerSession = 20
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
-	cfg.Personality.InnerVoice.ErrorStreakMin = 2
 
 	ResetInnerVoiceState()
 
@@ -232,7 +230,6 @@ func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 	cfg.Personality.EngineV2 = true
 	cfg.Personality.InnerVoice.MaxPerSession = 20
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
-	cfg.Personality.InnerVoice.ErrorStreakMin = 5
 
 	ResetInnerVoiceState()
 
@@ -257,7 +254,6 @@ func TestShouldGenerateInnerVoice_RecoveryTriggerRequiresToolSuccess(t *testing.
 	cfg.Personality.EngineV2 = true
 	cfg.Personality.InnerVoice.MaxPerSession = 20
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
-	cfg.Personality.InnerVoice.ErrorStreakMin = 5
 
 	ResetInnerVoiceState()
 	applyInnerVoiceResult("sess-a", "seed", "seed", 0.8)
@@ -329,7 +325,6 @@ func TestShouldGenerateInnerVoice_SessionCap(t *testing.T) {
 	cfg.Personality.EngineV2 = true
 	cfg.Personality.InnerVoice.MaxPerSession = 2
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
-	cfg.Personality.InnerVoice.ErrorStreakMin = 1
 
 	ResetInnerVoiceState()
 

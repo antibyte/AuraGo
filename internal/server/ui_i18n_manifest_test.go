@@ -17,8 +17,8 @@ func TestUII18NSectionsManifestCoversEveryPage(t *testing.T) {
 	t.Parallel()
 
 	want := map[string][]string{
-		"config":      {"config", "chat", "help", "security", "shared", "ruview"},
-		"dashboard":   {"dashboard", "chat", "config", "knowledge", "shared"},
+		"config":      {"config", "chat", "help", "security", "shared", "ruview", "personality_dynamics", "personality_legacy"},
+		"dashboard":   {"dashboard", "chat", "config", "knowledge", "shared", "personality_dynamics"},
 		"desktop":     {"desktop"},
 		"plans":       {"plans", "chat", "config", "shared"},
 		"missions":    {"missions", "chat", "config", "shared"},
@@ -30,7 +30,7 @@ func TestUII18NSectionsManifestCoversEveryPage(t *testing.T) {
 		"skills":      {"skills", "chat", "config", "shared"},
 		"invasion":    {"invasion", "chat", "config", "shared"},
 		"setup":       {"setup", "chat", "config", "shared"},
-		"chat":        {"chat", "config", "plans", "pwa", "shared", "viewer"},
+		"chat":        {"chat", "config", "plans", "pwa", "shared", "viewer", "personality_legacy"},
 		"404":         {"notfound"},
 	}
 
@@ -40,6 +40,50 @@ func TestUII18NSectionsManifestCoversEveryPage(t *testing.T) {
 	for page, sections := range want {
 		if got := uiI18NSections[page]; !reflect.DeepEqual(got, sections) {
 			t.Errorf("uiI18NSections[%q] = %#v, want %#v", page, got, sections)
+		}
+	}
+}
+
+func TestPersonalityTemplateDataIncludesTranslations(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+	pages := map[string][]string{
+		"config":    {"personality_dynamics.", "personality_legacy."},
+		"dashboard": {"personality_dynamics."},
+		"chat":      {"personality_legacy."},
+	}
+	for _, lang := range strings.Fields("cs da de el en es fr hi it ja nl no pl pt sv zh") {
+		common, err := fs.ReadFile(ui.Content, "lang/common/"+lang+".json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var labels map[string]string
+		if err := json.Unmarshal(common, &labels); err != nil {
+			t.Fatal(err)
+		}
+		for page, prefixes := range pages {
+			t.Run(lang+"/"+page, func(t *testing.T) {
+				data := uiTemplateData(lang, page)
+				var payload struct {
+					I18N map[string]string `json:"i18n"`
+				}
+				if err := json.Unmarshal([]byte(fmt.Sprint(data["TemplateDataJSON"])), &payload); err != nil {
+					t.Fatal(err)
+				}
+				for _, prefix := range prefixes {
+					found := false
+					for key, want := range labels {
+						if strings.HasPrefix(key, prefix) {
+							found = true
+							if want == "" || payload.I18N[key] != want {
+								t.Errorf("page payload missing localized key %s", key)
+							}
+						}
+					}
+					if !found {
+						t.Errorf("locale missing namespace %s", prefix)
+					}
+				}
+			})
 		}
 	}
 }

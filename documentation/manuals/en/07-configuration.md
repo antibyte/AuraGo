@@ -170,7 +170,7 @@ Homepage workflows include an additional global `prompts/rules/homepage/DESIGN.m
 
 The `providers` section defines reusable LLM connections. Multiple components can reference the same provider by its `id`.
 
-> 🖥️ **Web UI:** Go to **Config → Providers** to add, edit, or delete providers. Use the **Test** button to verify connectivity before saving.
+> 🖥️ **Web UI:** Go to **Config → Providers** to manage connections and Vault credentials. Save first, then use the diagnostics tab: **Metadata test** never generates text; **Model test** is an explicit, potentially paid generation. Passive status makes no provider request. Conflicts keep your draft until you explicitly reload. See [Provider management](../../provider-management.md) for credential removal, limits, OAuth status and API migration.
 
 ```yaml
 providers:
@@ -178,14 +178,12 @@ providers:
     name: "OpenRouter Main"
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: "sk-or-v1-..."
     model: arcee-ai/trinity-large-preview:free
 
   - id: ollama-local
     name: "Local Ollama"
     type: ollama
     base_url: http://localhost:11434/v1
-    api_key: "dummy_key"
     model: llama3.1
 
 llm:
@@ -832,7 +830,7 @@ AuraGo validates the configuration on startup:
 
 | Error | Solution |
 |-------|----------|
-| `providers section requires at least one provider` | Configure a provider with an API key in the `providers` list |
+| `providers section requires at least one provider` | Configure a provider and store any required credential through Setup or Config → Providers |
 | `invalid yaml` | Check YAML syntax (indentation!) |
 | `invalid port number` | Choose a port between 1–65535 |
 | `directory not found` | Correct the directory path |
@@ -852,7 +850,6 @@ providers:
     name: "Local Ollama"
     type: ollama
     base_url: http://localhost:11434/v1
-    api_key: dummy_key
     model: llama3.1
 
 llm:
@@ -881,14 +878,12 @@ providers:
     name: "OpenRouter Main"
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: ${OPENROUTER_API_KEY}  # From environment
     model: anthropic/claude-3.5-sonnet
 
   - id: openrouter-vision
     name: "OpenRouter Vision"
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: ${OPENROUTER_API_KEY}
     model: google/gemini-2.5-flash-lite-preview-09-2025
 
 llm:
@@ -967,7 +962,6 @@ providers:
     name: OpenRouter
     type: openrouter
     base_url: https://openrouter.ai/api/v1
-    api_key: ${API_KEY}
     model: meta-llama/llama-3.1-8b-instruct:free
 
 llm:
@@ -1033,8 +1027,8 @@ The following blocks can also be configured through the Web UI or additionally i
 
 | Block | Purpose | YAML quick example |
 |-------|---------|--------------------|
-| `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678` |
-| `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."` |
+| `telegram` | Telegram bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `discord` | Discord bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | Email IMAP/SMTP (array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(legacy)* Email IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
 | `home_assistant` | Home Assistant | `home_assistant:`<br>`  enabled: true`<br>`  url: "http://homeassistant.local:8123"` |
@@ -1054,13 +1048,13 @@ The following blocks can also be configured through the Web UI or additionally i
 | `meshcentral` | Control WebSocket for devices, wake, power, and MeshAgent commands | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
 | `github` | GitHub API | `github:`<br>`  enabled: false`<br>`  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud storage | Each `enabled: false`, endpoint/credentials in UI/Vault |
-| `paperless_ngx` | Document workflow | `paperless_ngx:`<br>`  enabled: false`<br>`  url: ""` |
+| `paperless_ngx` | Document workflow | `paperless_ngx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""` |
 | `telnyx` / `rocketchat` | Telephony/chat | `enabled: false`, details via Web UI |
 | `google_workspace` | Google APIs | `google_workspace:`<br>`  enabled: false`<br>`  gmail: false`<br>`  drive: false` |
 | `egg_mode` | Worker mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
 | `invasion_control` | Remote deployment | `invasion_control:`<br>`  enabled: false`<br>`  readonly: false` |
 | `security_proxy` | Reverse proxy | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true` |
-| `indexing` | File indexing | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
+| `indexing` | File indexing; media per folder via `allow_media_analysis` | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
 | `a2a` | Agent-to-agent | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`  client:`<br>`    enabled: false` |
 | `realtime_speech` | Live speech sessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Managed virtual computers | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
@@ -1212,9 +1206,9 @@ Only shares created by AuraGo and recorded in `data/network_shares.db` may be ch
 
 The resident workspace index is controlled by `workspace_search.enabled`; it is separate from the semantic `indexing` service and does not persist file contents. The `go2rtc` camera integration is opt-in as well; sources and the internal password are stored only in the Vault. See [go2rtc](../../go2rtc.md) and [Workspace Search](06-tools.md#10-workspace-search) for the detailed limits.
 
-### Speech Output — sanoTTS as the Local Default
+### Speech Output — Phonon as the Local Default
 
-New installations use the local CPU pipeline **sanoTTS** (`tts.provider: sanotts`) for speech output by default; the voice follows the user language, and unsupported voices fall back to English. Existing providers (ElevenLabs, Mistral, Piper, Supertonic) remain selectable under **Config → Speech Output**. The Speech Lab stays separate and attaches the s2s pipeline.
+New installations use bundled local **Phonon (CPU)** (`tts.provider: phonon`) for German, English, French, Spanish and Portuguese. Other languages and unavailable resources use sanoTTS. Automatic voices follow language and persona; manual voice selection and additional voice downloads are available in **Config → Speech Output**. Existing providers remain selectable, and Speech Lab keeps its own s2s pipeline. See `documentation/phonon.md` for details and licensing.
 
 ### Task LLM Router
 
@@ -1288,7 +1282,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `auth` | Web UI authentication. | `auth:`<br>`  enabled: true`<br>`  session_timeout_hours: 24`<br>`  totp_enabled: false`<br>`  max_login_attempts: 5` |
 | `llm_guardian` | Tool/document safety scanning. | `llm_guardian:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  default_level: medium` |
 | `guardian` | Regex-based input scanning. | `guardian:`<br>`  max_scan_bytes: 16384`<br>`  scan_edge_bytes: 6144` |
-| `ai_gateway` | Cloudflare AI Gateway routing, privacy logging, request handling, and metadata headers. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  mode: auto`<br>`  log_mode: metadata_only`<br>`  metadata: {}` |
+| `ai_gateway` | Native Cloudflare gateway routing and shared privacy controls. Explicit `cloudflare-rest` providers are independent. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  huggingface_provider_slug: ""`<br>`  log_mode: metadata_only`<br>`  request_timeout_ms: 0`<br>`  metadata: {}` |
 | `mcp_server` | Expose AuraGo as MCP server. | `mcp_server:`<br>`  enabled: false`<br>`  allowed_tools: []`<br>`  require_auth: true` |
 | `consolidation` | Nightly memory optimization; optional daily backlog catch-up after the morning briefing. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200`<br>`  catchup_minutes: 0` |
 | `web_config` | Web-based config editor. | `web_config:`<br>`  enabled: true` |
@@ -1320,7 +1314,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto`<br>`    default_models: []`<br>`    memory_limit: ""`<br>`    volume_path: ""` |
 | `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |
 | `github` | GitHub repository integration. | `github:`<br>`  enabled: false`<br>`  readonly: false`<br>`  owner: ""`<br>`  default_private: false` |
-| `tts` | Text-to-speech config. New installs default to the local CPU `sanotts` pipeline; ElevenLabs, Mistral, Piper and Supertonic stay selectable in Config → Speech Output. | `tts:`<br>`  provider: sanotts`<br>`  language: auto`<br>`  cache_max_files: 500` |
+| `tts` | Text-to-speech config. New installs use bundled local CPU Phonon for supported languages, with sanoTTS fallback; other providers remain selectable in Config → Speech Output. | `tts:`<br>`  provider: phonon`<br>`  language: auto`<br>`  phonon:`<br>`    voice_id: ""`<br>`  cache_max_files: 500` |
 | `notifications` | Push notification providers. | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`    url: ""`<br>`    topic: ""` |
 | `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8`<br>`  default_cost:`<br>`    input_per_million: 1.0`<br>`    output_per_million: 3.0` |
 | `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  provider: ""`<br>`  error_threshold: 2`<br>`  probe_interval_seconds: 60` |
@@ -1333,7 +1327,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `music_generation` | AI music generation. | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  max_daily: 0` |
 | `security_proxy` | Public-facing protection layer. `geo_blocking` is not implemented yet; the proxy ignores it. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
 | `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
-| `indexing` | File indexing for RAG. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
+| `indexing` | File indexing for RAG. Media per folder: `allow_media_analysis` on each `directories` entry. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
 | `co_agents` | Parallel sub-agents. | `co_agents:`<br>`  enabled: false`<br>`  max_concurrent: 3`<br>`  budget_quota_percent: 0`<br>`  llm:`<br>`    provider: ""`<br>`  retry_policy:`<br>`    max_retries: 1`<br>`  specialists:`<br>`    researcher:`<br>`      enabled: true` |
 | `tools.daemon_skills` | Background daemon tools. | `tools:`<br>`  daemon_skills:`<br>`    enabled: false`<br>`    max_concurrent_daemons: 5` |
 | `journal` | Auto journal entries. | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |

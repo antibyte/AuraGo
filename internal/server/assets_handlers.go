@@ -54,7 +54,13 @@ func (s *Server) recoveryPage(w http.ResponseWriter, r *http.Request) {
 	} else {
 		buildCommand += "go build -trimpath -ldflags=\"-s -w $(cat deploy/web-assets.ldflags)\" -o aurago ./cmd/aurago"
 	}
-	_ = recoveryTemplate.Execute(w, map[string]any{"Lang": lang, "Pin": webassets.Default.Pin, "BuildCommand": buildCommand})
+	messages := webAuthnLocales[lang]
+	if messages == nil {
+		messages = webAuthnLocales["en"]
+	}
+	stringsJSON, _ := json.Marshal(messages)
+	// Both values come from reviewed, embedded sources; JSON escapes HTML delimiters.
+	_ = recoveryTemplate.Execute(w, map[string]any{"Lang": lang, "Pin": webassets.Default.Pin, "BuildCommand": buildCommand, "WebAuthnClient": template.JS(webAuthnClientJS), "WebAuthnStrings": template.JS(stringsJSON)})
 }
 
 func (s *Server) registerRecoveryUI(mux *http.ServeMux) {
@@ -77,6 +83,7 @@ func (s *Server) registerRecoveryUI(mux *http.ServeMux) {
 }
 
 func (s *Server) registerAssetRecoveryRoutes(mux *http.ServeMux) {
+	s.registerWebAuthnRoutes(mux)
 	mux.Handle("/api/assets/status", requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)

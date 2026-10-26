@@ -3,7 +3,7 @@
 AuraGo pins Go 1.27.2 in `go.mod`, container builders, installers and release
 scripts. `GOTOOLCHAIN=auto` downloads that compiler when the host has an older Go.
 Release scripts select the exact compiler explicitly. The stripped executable
-budget is 130 MB (130,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
+budget is 200 MB (200,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
 The model/provider catalog embeds deterministic gzip copies of its JSON sources.
 `go run scripts/sync_ohmypi_catalog.go --write` regenerates both forms; `--check`
 checks both. Catalog tests verify byte equality after decompression, preserving
@@ -17,6 +17,14 @@ Use stable upstream releases; a larger version is not sufficient when it breaks
 the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
+
+Shared QR codes pin `github.com/makiuchi-d/gozxing` v0.1.1 (MIT plus upstream ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 (Unlicense OR BSD-3-Clause; HarfBuzz translation MIT). Both run with CGO disabled. Keep payload/geometry, exact final-byte decoding and independent Chromium/jsQR acceptance when updating either dependency. `jsqr` 1.4.0 (Apache-2.0) is a test-only npm pin, not a production decoder. Caption fallback fonts are pinned by URL, revision, byte length and SHA-256 in `ui/fonts/qr/manifest.json`, retain their OFL texts, and ship through verified web assets. See [qr-code.md](qr-code.md).
+
+Owner WebAuthn verification pins `github.com/go-webauthn/webauthn` v0.18.2
+(BSD-3-Clause). It supports the pinned Go compiler and CGO-free builds; protocol
+verification stays in that library. Its server/client contract and focused
+checks are documented in [webauthn.md](webauthn.md). Recheck advisories when
+updating the library and retain complete credential records across upgrades.
 
 Newspaper PDF download and Telegram share Noto Sans SC 2.004 regular/bold
 fallback fonts in the verified external resource set (SIL OFL 1.1). They remain
@@ -42,7 +50,10 @@ See [AuraGolf](minigolf.md).
 | go-imap / go-message | go-imap 1.2.1; go-message 0.18.1 | Mailer uses the v1 IMAP client API with UIDVALIDITY and `BODY.PEEK`, plus the MIME parser and charset readers. A v2 migration must retain the protocol fixtures, unread-state behavior, cancellation, and MIME size bounds. |
 | CYD builder PlatformIO / Starlette | PlatformIO 6.2.0; Starlette >=1.3.1,<2 (hash-pinned lock); SCons 4.11.1 | PlatformIO 6.1.19 restricts Starlette below 0.53, excluding the fixes for GHSA-82w8-qh3p-5jfq, GHSA-jp82-jpqv-5vv3, GHSA-wqp7-x3pw-xc5r, GHSA-x746-7m8f-x49c and GHSA-86qp-5c8j-p5mr. PlatformIO 6.2 also requires the matching SCons update. Rebuild the builder and run its offline self-test before publishing an image. |
 | CYD builder setuptools | >=83.0.0 (hash-pinned lock) | Python 3.11's venv seeds an older version outside PlatformIO's dependency graph. Pin its replacement too, and audit the installed Python environment as well as the requirements file. |
+| CYD builder certifi | >=2026.10.19 (hash-pinned lock) | Removes compromised emSign trust roots (GHSA-6q48-6c7w-9gw2). Preserve this floor when refreshing PlatformIO's transitive dependencies. |
+| markdown-it | 15.0.3 exact pin | Fixes quadratic parsing in multiline link references and inline HTML (GHSA-gfr2-rv44-r23c, GHSA-vfgh-jcmw-g37q). Rebuild the browser vendor and chat bundles together. |
 | cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
+| RustFS | 1.0.4; multi-architecture image digest in `internal/rustfs/types.go` | Optional managed S3 server. Qualify native IAM privilege denials, S3 operations, revocation and retained-volume lifecycle against each new pin. See [Managed RustFS](rustfs.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
 | Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
 | pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.3 still calls the previous API. |
@@ -72,8 +83,8 @@ qualification; editing a Docker build input does not update a published image.
 ACE-Step still exports its upstream frozen Python lock and uses matched hardware
 wheels. Its build-time uv is 0.13.1. Supertonic remains on upstream 1.3.1.
 The Ansible sidecar pins 14.5.0 and gives its unprivileged user a writable home.
-The CYD builder is 1.0.2; its refreshed hash lock includes Starlette 1.8.0 and
-setuptools 84.0.0. All nine offline board builds and both library-gating cases
+The CYD builder is 1.0.3; its refreshed hash lock includes Starlette 1.8.0,
+setuptools 84.0.0 and certifi 2026.10.19. All nine offline board builds and both library-gating cases
 must pass before publishing this image. Hardware-qualified firmware libraries
 and board toolchains remain a coherent pinned set.
 

@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Staat toe dat de agent video- of audiobestanden downloadt naar de downloadmap.",
   "help.video_download.allow_transcribe": "Staat toe dat de agent audio downloadt en naar speech-to-text stuurt.",
   "help.video_download.download_dir": "Projectlokale map waar gedownloade mediabestanden worden opgeslagen.",
-  "help.video_download.default_format": "Standaard yt-dlp-formaat. Gebruik best, bestaudio, audio, video of een eigen formaatstring.",
+  "help.video_download.default_format": "Nieuwe installaties gebruiken bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Opgeslagen waarden zoals best blijven staan. Je kunt ook bestaudio, audio, video of een eigen formaatstring gebruiken.",
   "help.video_download.max_file_size_mb": "Maximale grootte van een gedownload bestand. 0 betekent onbeperkt.",
   "help.video_download.timeout_seconds": "Maximale looptijd voor één yt-dlp-operatie.",
   "help.video_download.max_search_results": "Maximaal aantal zoekresultaten dat aan de agent wordt teruggegeven.",
   "help.video_download.yt_dlp_path": "Optioneel pad naar yt-dlp in native mode. Leeg laat PATH gebruiken.",
-  "help.video_download.container_image": "Dockerimage gebruikt in Docker-modus.",
-  "help.video_download.auto_pull": "Haalt de yt-dlp-image automatisch op wanneer die lokaal ontbreekt."
+  "help.video_download.container_image": "Dockerimage gebruikt in Docker-modus. De digest-pin is bewust. Laat hem staan, tenzij je een ander vastgezet image kiest.",
+  "help.video_download.auto_pull": "Haalt de yt-dlp-image automatisch op wanneer die lokaal ontbreekt.",
+  "config.video_download.readonly_label": "Alleen-lezenmodus",
+  "help.video_download.readonly": "Blokkeert downloads en transcriptie, ook als die rechten aan staan. Zoeken en video-info blijven beschikbaar."
 }

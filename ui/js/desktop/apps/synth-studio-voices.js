@@ -393,9 +393,14 @@
     oscillator.stop(at + 0.05);
   }
 
-  function updateTrackBus(bus, track) {
+  function updateTrackBus(bus, track, at, smooth = false) {
     const p = trackParams(track);
-    const now = bus.input.context.currentTime;
+    const now = at ?? bus.input.context.currentTime;
+    const set = (param, value) => {
+      if (!param) return;
+      if (smooth && param.setTargetAtTime) { param.cancelScheduledValues(now); param.setTargetAtTime(value, now, 0.015); }
+      else param.setValueAtTime(value, now);
+    };
     const presetTone = root.SynthStudioPresets?.get(track.instrument)?.patch?.cutoff;
     const tone = Number.isFinite(presetTone) ? p.tone * 0.65 + presetTone * 0.35 : p.tone;
     const resonance = clamp(p.resonance, 0, 1, 0);
@@ -403,17 +408,31 @@
     const chorusAmount = clamp(p.chorus, 0, 1, 0);
     const phaserAmount = clamp(p.phaser, 0, 1, 0);
     const qComp = 1 / (1 + resonance * 0.22);
-    bus.gain.gain.setValueAtTime(track.mute ? 0 : track.volume * qComp, now);
-    bus.filter.frequency.setValueAtTime(240 + tone * 18500, now);
-    bus.filter.Q.setValueAtTime(0.7 + tone * 0.8 + Math.pow(resonance, 1.35) * 11.5, now);
+    set(bus.input.gain, track.mute ? 0 : 1);
+    set(bus.gain.gain, track.volume * qComp);
+    set(bus.filter.frequency, 240 + tone * 18500);
+    set(bus.filter.Q, 0.7 + tone * 0.8 + Math.pow(resonance, 1.35) * 11.5);
     if (bus.drive) bus.drive.curve = DRIVE_CURVES[Math.round(driveAmount * 32)] || DRIVE_CURVES[0];
-    if (bus.phaserWet) bus.phaserWet.gain.setValueAtTime(phaserAmount * 0.55, now);
-    if (bus.chorusGain) bus.chorusGain.gain.setValueAtTime(chorusAmount * 0.46, now);
-    if (bus.pan.pan) bus.pan.pan.setValueAtTime(track.pan, now);
+    if (bus.phaserWet) set(bus.phaserWet.gain, phaserAmount * 0.55);
+    if (bus.chorusGain) set(bus.chorusGain.gain, chorusAmount * 0.46);
+    if (bus.pan.pan) set(bus.pan.pan, track.pan);
     else if (bus.pan.setPosition) bus.pan.setPosition(track.pan, 0, 1 - Math.abs(track.pan));
-    bus.reverbGain.gain.setValueAtTime(p.reverb * 0.36, now);
-    bus.delayGain.gain.setValueAtTime(p.delay * 0.4, now);
-    if (bus.feedback) bus.feedback.gain.setValueAtTime(0.24 + clamp(p.delay, 0, 1, 0) * 0.18, now);
+    set(bus.reverbGain.gain, p.reverb * 0.36 * track.volume);
+    set(bus.delayGain.gain, p.delay * 0.4 * track.volume);
+    if (bus.feedback) set(bus.feedback.gain, 0.24 + clamp(p.delay, 0, 1, 0) * 0.18);
+  }
+
+  function updateTrackParameter(bus,track,parameter,value,at,cancel=false) {
+    const now=at??bus.input.context.currentTime;
+    const set=(param,v)=>{
+      if(cancel) { if(param.cancelAndHoldAtTime)param.cancelAndHoldAtTime(now);else param.cancelScheduledValues(now); }
+      param.setTargetAtTime(v,now,.015);
+    };
+    if(parameter==='reverb'){set(bus.reverbGain.gain,value*.36*track.volume);return;}
+    const cutoff=root.SynthStudioPresets?.get(track.instrument)?.patch?.cutoff;
+    const tone=Number.isFinite(cutoff)?value*.65+cutoff*.35:value;
+    set(bus.filter.frequency,240+tone*18500);
+    set(bus.filter.Q,.7+tone*.8+Math.pow(clamp(track.params.resonance,0,1,0),1.35)*11.5);
   }
 
   const CUSTOM_HARMONICS = {
@@ -572,8 +591,9 @@
   }
 
   function releaseVoice(voice, at, tailOverride) {
-    if (!voice || voice.releaseRequested || voice.disposed) return;
+    if (!voice || voice.disposed || (voice.releaseRequested && (voice.releaseAt ?? -Infinity) <= at)) return;
     voice.releaseRequested = true;
+    voice.releaseAt = at;
     const tail = tailOverride === undefined ? voice.releaseSeconds : clamp(tailOverride, 0, 30, voice.releaseSeconds);
     for (const envelope of voice.envelopes) {
       const age = Math.max(0, at - voice.startTime);
@@ -616,24 +636,25 @@
     if (type === "bend") {
       state.bend = clamp(value, -1, 1, 0);
       for (const voice of voiceSet) for (const source of voice.sources) {
-        if (source.detune && voice.endTime > at) source.detune.setValueAtTime(state.bend * 200, Math.max(at, voice.startTime));
+        if (source.detune && voice.endTime > at && !(voice.releaseRequested && voice.releaseAt <= at)) source.detune.setValueAtTime(state.bend * 200, Math.max(at, voice.startTime));
       }
       return;
     }
     if (type === "modulation") {
       state.mod = clamp(value, 0, 1, 0);
       for (const voice of voiceSet) {
-        if (voice.endTime <= at) continue;
+        if (voice.endTime <= at || (voice.releaseRequested && voice.releaseAt <= at)) continue;
         attachVibrato(context, voice, state.mod, Math.max(at, voice.startTime));
       }
     }
   }
 
   function releaseTrackState(context, state, track, at) {
-    applyController(context, state, null, track, "sustain", 0, at);
-    applyController(context, state, null, track, "bend", 0, at);
-    applyController(context, state, null, track, "modulation", 0, at);
-    for (const voice of state.voices) releaseVoice(voice, at);
+    for (const voice of state.voices) {
+      for(const source of voice.sources)source.detune?.cancelScheduledValues(at);
+      releaseVoice(voice, at);
+    }
+    state.sustain=false;state.bend=0;state.mod=0;
     state.pending.length = 0;
   }
 
@@ -651,6 +672,7 @@
     makeMix,
     createTrackBus,
     updateTrackBus,
+    updateTrackParameter,
     scheduleMetronome,
     createVoice,
     disposeVoice,

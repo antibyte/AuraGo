@@ -23,11 +23,13 @@
   "help.video_download.allow_download": "Lar agenten laste ned video- eller lydfiler til nedlastingsmappen.",
   "help.video_download.allow_transcribe": "Lar agenten laste ned lyd og sende den til tale-til-tekst.",
   "help.video_download.download_dir": "Prosjektlokal mappe der nedlastede mediefiler lagres.",
-  "help.video_download.default_format": "Standard yt-dlp-format. Bruk best, bestaudio, audio, video eller en egendefinert formatstreng.",
+  "help.video_download.default_format": "Nye installasjoner bruker bestvideo[height<=720]+bestaudio/best[height<=720]/best (720p). Lagrede verdier som best blir stående. Du kan også bruke bestaudio, audio, video eller en egendefinert formatstreng.",
   "help.video_download.max_file_size_mb": "Maksimal størrelse på en nedlastet fil. 0 betyr ubegrenset.",
   "help.video_download.timeout_seconds": "Maksimal kjøretid for én yt-dlp-operasjon.",
   "help.video_download.max_search_results": "Maksimalt antall søkeresultater returnert til agenten.",
   "help.video_download.yt_dlp_path": "Valgfri sti til yt-dlp-binærfilen på verten. La stå tom for å bruke PATH.",
-  "help.video_download.container_image": "Docker-image brukt i Docker-modus.",
-  "help.video_download.auto_pull": "Henter yt-dlp-imaget automatisk hvis det mangler lokalt."
+  "help.video_download.container_image": "Docker-image brukt i Docker-modus. Digesten er bevisst fast. La den stå, med mindre du velger et annet festet image.",
+  "help.video_download.auto_pull": "Henter yt-dlp-imaget automatisk hvis det mangler lokalt.",
+  "config.video_download.readonly_label": "Skrivebeskyttet modus",
+  "help.video_download.readonly": "Blokkerer nedlastinger og transkripsjon selv når disse tillatelsene er på. Søk og videoinfo forblir tilgjengelige."
 }

@@ -352,8 +352,19 @@
                     { value: Number(pendingActions.length || 0).toLocaleString(), label: t('dashboard.memory_pending_title') },
                     { value: Number(conflicts.length || 0).toLocaleString(), label: t('dashboard.memory_conflicts_title') },
                     { value: Number(data.pending_memory_writes || 0).toLocaleString(), label: t('dashboard.memory_pending_writes') },
+                    { value: Number.isFinite(data.exhausted_memory_writes) ? data.exhausted_memory_writes.toLocaleString() : '—', label: t('dashboard.memory_exhausted_writes') },
+                    { value: Number.isFinite(data.terminal_consolidation_failures) ? data.terminal_consolidation_failures.toLocaleString() : '—', label: t('dashboard.memory_terminal_consolidations') },
                     { value: reflectionActionables.toLocaleString(), label: t('dashboard.memory_reflection_actionables') },
                 ];
+                const corpus = health.corpus;
+                const corpusValue = (value, suffix = '') => corpus?.available && Number.isFinite(value)
+                    ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) + suffix : '—';
+                items.push(
+                    { value: corpusValue(corpus?.documents), label: t('dashboard.memory_corpus_documents') },
+                    { value: corpus?.available ? (corpus.dimensions || []).join(', ') || '—' : '—', label: t('dashboard.memory_corpus_dimensions') },
+                    { value: corpusValue((corpus?.database_bytes + corpus?.wal_bytes) / 1048576, ' MiB'), label: t('dashboard.memory_corpus_storage') },
+                    { value: corpusValue(corpus?.vector_payload_bytes / 1048576, ' MiB'), label: t('dashboard.memory_corpus_vector_estimate') },
+                );
                 summaryEl.innerHTML = `
                     <div class="memory-health-strategy">
                         <div class="memory-health-strategy-head">

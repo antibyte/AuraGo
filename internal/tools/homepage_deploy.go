@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/dockerutil"
+	"aurago/internal/fileutil"
 	"aurago/internal/remote"
 
 	"github.com/pkg/sftp"
@@ -47,7 +48,10 @@ func saveWebserverState(workspacePath, projectDir, buildDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal webserver state: %w", err)
 	}
-	return os.WriteFile(filepath.Join(workspacePath, webserverStateFile), data, 0644)
+	if err := fileutil.WriteFileContext(context.Background(), filepath.Join(workspacePath, webserverStateFile), data, 0644); err != nil {
+		return fmt.Errorf("failed to write webserver state: %w", err)
+	}
+	return nil
 }
 
 // loadWebserverState reads the previously saved project/build configuration.
@@ -353,8 +357,10 @@ func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.L
 		webInspect, webCode, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")
 		if webCode == 200 {
 			_ = webInspect
-			routes := loadProxyRoutes(cfg.WorkspacePath)
-			if err := rewriteCaddyfileWithProxyRoutes(cfg, dockerCfg, routes, logger); err != nil {
+			routes, routeErr := homepageReadProxyRoutes(cfg.WorkspacePath)
+			if routeErr != nil {
+				logger.Warn("[Homepage] Failed to read proxy routes", "error", routeErr)
+			} else if err := rewriteCaddyfileWithProxyRoutes(cfg, dockerCfg, routes, logger); err != nil {
 				logger.Warn("[Homepage] Failed to update Caddy proxy routes", "error", err)
 			}
 		}
@@ -633,21 +639,24 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 
 	// Generate Caddyfile (with proxy routes if any)
-	routes := loadProxyRoutes(cfg.WorkspacePath)
-	filteredRoutes := filterProxyRoutesForStaticProject(routes, projectDir)
-	if len(filteredRoutes) != len(routes) {
-		if err := saveProxyRoutes(cfg.WorkspacePath, filteredRoutes); err != nil {
-			logger.Warn("[Homepage] Failed to prune stale proxy routes for static project", "project_dir", projectDir, "error", err)
-		} else {
-			logger.Info("[Homepage] Pruned stale proxy routes for static project", "project_dir", projectDir, "removed", len(routes)-len(filteredRoutes))
-		}
-		routes = filteredRoutes
+	pruned := 0
+	routes, routeErr := homepageMutateProxyRoutes(cfg.WorkspacePath, func(routes []ProxyRoute) []ProxyRoute {
+		filtered := filterProxyRoutesForStaticProject(routes, projectDir)
+		pruned = len(routes) - len(filtered)
+		return filtered
+	})
+	if routeErr != nil {
+		logger.Warn("[Homepage] Failed to prune stale proxy routes for static project", "project_dir", projectDir, "error", routeErr)
+	} else if pruned > 0 {
+		logger.Info("[Homepage] Pruned stale proxy routes for static project", "project_dir", projectDir, "removed", pruned)
 	}
 	caddyfile := buildCaddyfileWithProxies(cfg.WebServerDomain, port, routes)
 
-	// Write Caddyfile to workspace
+	// Write Caddyfile to workspace. The file is bind-mounted into the Caddy
+	// container, so it is written through a synced temporary copy in the same
+	// directory instead of being replaced by a rename.
 	caddyfilePath := filepath.Join(cfg.WorkspacePath, ".aurago-Caddyfile")
-	if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0644); err != nil {
+	if err := writeHomepageBindMountedFile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return errJSON("Failed to write Caddyfile: %v", err)
 	}
 
@@ -1079,7 +1088,7 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 			return
 		}
 		dstPath := filepath.Join(targetDir, filepath.Base(ref.name))
-		if writeErr := os.WriteFile(dstPath, srcData, 0644); writeErr != nil {
+		if writeErr := fileutil.WriteFileContext(context.Background(), dstPath, srcData, 0644); writeErr != nil {
 			logger.Warn("[Homepage] Could not write asset to build dir", "file", ref.name, "error", writeErr)
 			continue
 		}
@@ -1395,7 +1404,7 @@ func ensureNextJsStaticExport(projectRoot string, logger *slog.Logger) bool {
 			}
 			// Try to inject output: 'export' into the existing config object.
 			if patched := nextJsInjectOutputExport(content); patched != "" {
-				if werr := os.WriteFile(configPath, []byte(patched), 0644); werr == nil {
+				if werr := fileutil.WriteFileContext(context.Background(), configPath, []byte(patched), 0644); werr == nil {
 					logger.Info("[Homepage] Injected output: 'export' into Next.js config", "file", configPath)
 					return true
 				}
@@ -1414,7 +1423,7 @@ func ensureNextJsStaticExport(projectRoot string, logger *slog.Logger) bool {
 	} else if strings.HasSuffix(configPath, ".mjs") {
 		minimal = "/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  output: 'export',\n};\n\nexport default nextConfig;\n"
 	}
-	if werr := os.WriteFile(configPath, []byte(minimal), 0644); werr == nil {
+	if werr := fileutil.WriteFileContext(context.Background(), configPath, []byte(minimal), 0644); werr == nil {
 		logger.Info("[Homepage] Wrote minimal Next.js config with output: 'export'", "file", configPath)
 		return true
 	}

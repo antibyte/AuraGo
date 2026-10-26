@@ -1,8 +1,12 @@
 package discord
 
 import (
+	"bytes"
+	"context"
+	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -197,5 +201,210 @@ func TestDiscordConversationIDScopesGuildChannelAndUser(t *testing.T) {
 		if got := discordConversationID(changed); got == want {
 			t.Fatalf("conversation collision after dimension changed: %q", got)
 		}
+	}
+}
+
+// ── Channel allowlist (WP-1) ────────────────────────────────────────────────
+
+// Without an allowlist every channel stays usable: existing installations must
+// keep their behaviour.
+func TestChannelAllowedWithoutAllowlistPermitsEveryChannel(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.DefaultChannelID = "channel-default"
+
+	for _, channelID := range []string{"channel-default", "channel-other", "dm-1"} {
+		if err := ChannelAllowed(cfg, channelID); err != nil {
+			t.Fatalf("channel %q = %v, want no error without an allowlist", channelID, err)
+		}
+	}
+}
+
+func TestChannelAllowedWithAllowlistPermitsDefaultAndListedChannels(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.DefaultChannelID = "channel-default"
+	cfg.Discord.AllowedChannelIDs = []string{"channel-allowed"}
+
+	for _, channelID := range []string{"channel-default", "channel-allowed"} {
+		if err := ChannelAllowed(cfg, channelID); err != nil {
+			t.Fatalf("channel %q = %v, want allowed", channelID, err)
+		}
+	}
+}
+
+func TestChannelAllowedRejectsChannelOutsideAllowlist(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.DefaultChannelID = "channel-default"
+	cfg.Discord.AllowedChannelIDs = []string{"channel-allowed"}
+
+	err := ChannelAllowed(cfg, "channel-other")
+	if err == nil {
+		t.Fatal("ChannelAllowed = nil, want an error for a channel outside the allowlist")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "discord.allowed_channel_ids") {
+		t.Fatalf("error = %q, want it to name the config key", msg)
+	}
+	if !strings.Contains(msg, "channel-default") || !strings.Contains(msg, "channel-allowed") {
+		t.Fatalf("error = %q, want it to name the allowed channels", msg)
+	}
+}
+
+func TestChannelAllowedRejectsEmptyChannel(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.AllowedChannelIDs = []string{"channel-allowed"}
+
+	if err := ChannelAllowed(cfg, "   "); err == nil {
+		t.Fatal("ChannelAllowed = nil, want an error for an empty channel")
+	}
+}
+
+func TestFilterAllowedChannelsHidesUnreleasedChannels(t *testing.T) {
+	channels := []*discordgo.Channel{
+		{ID: "channel-default", Name: "default"},
+		{ID: "channel-allowed", Name: "allowed"},
+		{ID: "channel-other", Name: "other"},
+	}
+
+	cfg := &config.Config{}
+	cfg.Discord.DefaultChannelID = "channel-default"
+	cfg.Discord.AllowedChannelIDs = []string{"channel-allowed"}
+
+	filtered := filterAllowedChannels(cfg, channels)
+	if len(filtered) != 2 {
+		t.Fatalf("filtered channels = %d, want 2: %+v", len(filtered), filtered)
+	}
+	if filtered[0].ID != "channel-default" || filtered[1].ID != "channel-allowed" {
+		t.Fatalf("filtered channels = %+v, want the default and the listed channel", filtered)
+	}
+
+	legacy := filterAllowedChannels(&config.Config{}, channels)
+	if len(legacy) != len(channels) {
+		t.Fatalf("filtered channels without allowlist = %d, want %d", len(legacy), len(channels))
+	}
+}
+
+// ── Worker limit (WP-2) ─────────────────────────────────────────────────────
+
+// fakeDiscordSender records what was sent to a channel.
+type fakeDiscordSender struct {
+	channelID string
+	content   string
+	sends     int
+}
+
+func (f *fakeDiscordSender) ChannelMessageSend(channelID string, content string, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	f.channelID = channelID
+	f.content = content
+	f.sends++
+	return &discordgo.Message{ChannelID: channelID, Content: content}, nil
+}
+
+func TestAcquireDiscordWorkerReleasesSlot(t *testing.T) {
+	slots := make(chan struct{}, 1)
+	ctx := context.Background()
+
+	if !acquireDiscordWorker(ctx, slots) {
+		t.Fatal("acquireDiscordWorker = false, want a slot")
+	}
+	shortCtx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+	if acquireDiscordWorker(shortCtx, slots) {
+		t.Fatal("acquireDiscordWorker = true, want no slot from an exhausted pool")
+	}
+	<-slots
+	if !acquireDiscordWorker(ctx, slots) {
+		t.Fatal("acquireDiscordWorker = false, want a slot after the release")
+	}
+	<-slots
+}
+
+func TestRunDiscordMessageReleasesSlotAfterTheRun(t *testing.T) {
+	slots := newDiscordWorkerSlots(1)
+	if slots == nil {
+		t.Fatal("newDiscordWorkerSlots(1) = nil, want a semaphore")
+	}
+	sender := &fakeDiscordSender{}
+	runs := 0
+
+	if !runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), func() { runs++ }) {
+		t.Fatal("runDiscordMessage rejected a message while the pool was free")
+	}
+	if runs != 1 {
+		t.Fatalf("runs = %d, want 1", runs)
+	}
+	if len(slots) != 0 {
+		t.Fatalf("slots in use = %d, want 0 after the run", len(slots))
+	}
+	if sender.sends != 0 {
+		t.Fatalf("sends = %d, want no busy reply for an accepted message", sender.sends)
+	}
+}
+
+func TestRunDiscordMessageRejectsWhenPoolExhausted(t *testing.T) {
+	original := discordWorkerWaitTimeout
+	discordWorkerWaitTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { discordWorkerWaitTimeout = original })
+
+	slots := newDiscordWorkerSlots(1)
+	slots <- struct{}{} // another run occupies the only slot
+	defer func() { <-slots }()
+
+	sender := &fakeDiscordSender{}
+	runs := 0
+	accepted := runDiscordMessage(context.Background(), slots, 1, sender, "channel-1", slog.Default(), func() { runs++ })
+	if accepted {
+		t.Fatal("runDiscordMessage accepted a message while the pool was exhausted")
+	}
+	if runs != 0 {
+		t.Fatalf("runs = %d, want 0 — no agent run may start", runs)
+	}
+	if sender.sends != 1 {
+		t.Fatalf("sends = %d, want exactly one busy reply", sender.sends)
+	}
+	if sender.content != discordBusyMessage {
+		t.Fatalf("busy reply = %q, want %q", sender.content, discordBusyMessage)
+	}
+	if sender.channelID != "channel-1" {
+		t.Fatalf("busy reply channel = %q, want channel-1", sender.channelID)
+	}
+}
+
+func TestRunDiscordMessageWithoutLimitRunsUnbounded(t *testing.T) {
+	sender := &fakeDiscordSender{}
+	runs := 0
+
+	if !runDiscordMessage(context.Background(), newDiscordWorkerSlots(0), 0, sender, "channel-1", slog.Default(), func() { runs++ }) {
+		t.Fatal("runDiscordMessage rejected a message without a configured limit")
+	}
+	if runs != 1 {
+		t.Fatalf("runs = %d, want 1", runs)
+	}
+}
+
+// ── Discovery mode (WP-10) ──────────────────────────────────────────────────
+
+func TestDiscoveryModeLogsDiscoveredUser(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	cfg := &config.Config{}
+	cfg.Discord.AllowedUserID = "0"
+	msg := &discordgo.MessageCreate{Message: &discordgo.Message{
+		Author:  &discordgo.User{ID: "user-42", Username: "Andi"},
+		GuildID: "guild-1", ChannelID: "channel-1", Content: "hello",
+	}}
+
+	decision := shouldHandleDiscordMessage("bot-1", msg, cfg)
+	if decision.Accepted || decision.Reason != "discovery_mode" {
+		t.Fatalf("decision = %+v, want a blocked discovery_mode decision", decision)
+	}
+	logBlockedDiscordMessage(logger, msg, cfg, decision)
+
+	out := buf.String()
+	if !strings.Contains(out, "user-42") {
+		t.Fatalf("log = %q, want the discovered user ID", out)
+	}
+	if !strings.Contains(out, "Andi") {
+		t.Fatalf("log = %q, want the discovered username", out)
 	}
 }

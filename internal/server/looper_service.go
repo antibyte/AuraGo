@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -604,6 +605,13 @@ func looperSystemPrompt(cfg *config.Config) string {
 	if cfg != nil {
 		if lang := strings.TrimSpace(cfg.Agent.SystemLanguage); lang != "" {
 			rules += "\n- Write user-visible text in " + lang + " unless the goal names another language."
+		}
+		// The hint only belongs in the prompt of a run whose tools include
+		// discover_tools; it is static per run, so prompt-cache reuse holds.
+		if slices.ContainsFunc(agent.GetLooperToolSchemas(cfg), func(tool openai.Tool) bool {
+			return tool.Function != nil && tool.Function.Name == "discover_tools"
+		}) {
+			rules += "\n- " + agent.MinimalLoopDiscoverHint
 		}
 	}
 	return base + "\n\n" + rules

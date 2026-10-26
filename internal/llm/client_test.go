@@ -73,14 +73,14 @@ func TestAIGatewayAuthTransportAddsControlHeaders(t *testing.T) {
 			if got := req.Header.Get("cf-aig-request-timeout"); got != "5000" {
 				t.Fatalf("cf-aig-request-timeout = %q, want 5000", got)
 			}
-			if got := req.Header.Get("cf-aig-max-attempts"); got != "3" {
-				t.Fatalf("cf-aig-max-attempts = %q, want 3", got)
+			if got := req.Header.Get("cf-aig-max-attempts"); got != "1" {
+				t.Fatalf("cf-aig-max-attempts = %q, want 1", got)
 			}
-			if got := req.Header.Get("cf-aig-retry-delay"); got != "250" {
-				t.Fatalf("cf-aig-retry-delay = %q, want 250", got)
+			if got := req.Header.Get("cf-aig-retry-delay"); got != "" {
+				t.Fatalf("cf-aig-retry-delay = %q, want omitted", got)
 			}
-			if got := req.Header.Get("cf-aig-backoff"); got != "linear" {
-				t.Fatalf("cf-aig-backoff = %q, want linear", got)
+			if got := req.Header.Get("cf-aig-backoff"); got != "" {
+				t.Fatalf("cf-aig-backoff = %q, want omitted", got)
 			}
 			var metadata map[string]string
 			if err := json.Unmarshal([]byte(req.Header.Get("cf-aig-metadata")), &metadata); err != nil {

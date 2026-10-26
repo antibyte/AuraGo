@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "ImageMagick-sti",
   "config.media_conversion.timeout_label": "Timeout",
   "config.media_conversion.seconds": "sekunder",
+  "config.media_conversion.max_file_size_label": "Maksimum inputstørrelse",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "Test værktøjer",
   "config.media_conversion.loading": "Kontrollerer værktøjer…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "I skrivebeskyttet tilstand er kun info tilladt. Faktiske konverteringer blokeres.",
   "help.media_conversion.ffmpeg_path": "Valgfri brugerdefineret sti til ffmpeg-binæren. Lad være tom for automatisk opslag i PATH.",
   "help.media_conversion.imagemagick_path": "Valgfri brugerdefineret sti til magick eller convert. Lad være tom for automatisk opslag.",
-  "help.media_conversion.timeout_seconds": "Maksimal køretid for en enkelt konvertering i sekunder."
+  "help.media_conversion.timeout_seconds": "Maksimal køretid for en enkelt konvertering i sekunder.",
+  "help.media_conversion.max_file_size_mb": "Maksimumstørrelse for en inputfil i megabyte. 0 betyder ingen grænse."
 }

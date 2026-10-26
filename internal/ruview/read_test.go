@@ -77,12 +77,17 @@ func TestRuViewReadKeepsPayloadWhenStatusProbeFails(t *testing.T) {
 
 func TestRuViewPresenceSummarizesLiveAndSavedBoards(t *testing.T) {
 	var nodesBody atomic.Value
+	var nodesCode atomic.Int32
 	nodesBody.Store(`{"nodes":[{"node_id":7,"csi_status":"active","csi_last_seen_ms":42,"csi_sequence":3,"rssi_dbm":-51,"password":"never-show","ssid":"secret-net"},{"node_id":8,"csi_status":"stale","csi_last_seen_ms":10,"csi_sequence":1,"rssi_dbm":-40},{"node_id":9,"csi_status":"active","csi_last_seen_ms":10001,"csi_sequence":2,"rssi_dbm":-12},{"node_id":10,"csi_status":"active","csi_last_seen_ms":5,"rssi_dbm":-7},{"node_id":11,"csi_status":"active","csi_last_seen_ms":10000,"csi_sequence":0,"rssi_dbm":-3}]}`)
 	var statusBody atomic.Value
 	statusBody.Store(`{"status":"ready","source":"esp32","source_state":"live_unverified","last_frame_age_ms":0}`)
 	m, c := fixture(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/nodes":
+			if code := nodesCode.Load(); code != 0 {
+				w.WriteHeader(int(code))
+				return
+			}
 			io.WriteString(w, nodesBody.Load().(string))
 		case "/api/v1/status":
 			io.WriteString(w, statusBody.Load().(string))
@@ -97,7 +102,7 @@ func TestRuViewPresenceSummarizesLiveAndSavedBoards(t *testing.T) {
 		t.Fatal(err)
 	}
 	presence, ok := got.(presenceRead)
-	if !ok || !presence.Fresh || presence.Simulated || presence.Source != "esp32" || presence.DataState != "live_unverified" {
+	if !ok || !presence.Fresh || presence.Simulated || presence.Source != "esp32" || presence.DataState != "live_unverified" || presence.LiveState != "ok" {
 		t.Fatalf("envelope: %+v", got)
 	}
 	if len(presence.Nodes) != 5 {
@@ -139,6 +144,22 @@ func TestRuViewPresenceSummarizesLiveAndSavedBoards(t *testing.T) {
 	for _, node := range presence.Nodes {
 		if node.State != "offline" || node.Fresh || node.RSSI != nil || node.RSSIRetained {
 			t.Fatalf("offline: %+v", node)
+		}
+	}
+	// A list the service could not give is not the same as boards that were not seen.
+	nodesCode.Store(http.StatusServiceUnavailable)
+	got, err = m.Read(ctx, "presence")
+	if err != nil {
+		t.Fatal(err)
+	}
+	unavailable := got.(presenceRead)
+	nodesCode.Store(0)
+	if unavailable.LiveState != "unreachable" || len(unavailable.Nodes) != 5 {
+		t.Fatalf("unreachable list: %+v", unavailable)
+	}
+	for _, node := range unavailable.Nodes {
+		if node.State != "offline" || node.Fresh || node.RSSI != nil {
+			t.Fatalf("offline board invented a reading: %+v", node)
 		}
 	}
 	encoded, err := json.Marshal(presence)

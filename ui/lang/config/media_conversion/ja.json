@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "ImageMagick パス",
   "config.media_conversion.timeout_label": "タイムアウト",
   "config.media_conversion.seconds": "秒",
+  "config.media_conversion.max_file_size_label": "最大入力サイズ",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "ツールをテスト",
   "config.media_conversion.loading": "ツールを確認中…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "読み取り専用モードでは info 操作のみ許可されます。実際の変換はブロックされます。",
   "help.media_conversion.ffmpeg_path": "ffmpeg バイナリへの任意のカスタムパス。PATH から自動検出する場合は空欄のままにします。",
   "help.media_conversion.imagemagick_path": "magick または convert への任意のカスタムパス。自動検出する場合は空欄のままにします。",
-  "help.media_conversion.timeout_seconds": "1 回の変換の最大実行時間（秒）。"
+  "help.media_conversion.timeout_seconds": "1 回の変換の最大実行時間（秒）。",
+  "help.media_conversion.max_file_size_mb": "入力ファイルの最大サイズ（MB）。0 は無制限を意味します。"
 }

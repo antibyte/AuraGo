@@ -373,18 +373,7 @@ func defaultMediaWebPathForFilename(dataDir, mediaType, filename string) (string
 }
 
 func defaultMediaFileLocation(mediaType string) (subdir, prefix string, ok bool) {
-	switch mediaType {
-	case "image":
-		return "generated_images", "/files/generated_images/", true
-	case "video":
-		return "generated_videos", "/files/generated_videos/", true
-	case "audio", "music":
-		return "audio", "/files/audio/", true
-	case "document":
-		return "documents", "/files/documents/", true
-	default:
-		return "", "", false
-	}
+	return tools.MediaDataLocation(mediaType)
 }
 
 func generatedImageFileExists(dataDir, filename string) bool {

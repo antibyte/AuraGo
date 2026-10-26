@@ -2,7 +2,9 @@ package flows
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -111,12 +113,19 @@ func requireRow(res sql.Result, notFound error) error {
 	return nil
 }
 
+// insertRunSQL inserts a run header while its flow exists; the last argument is the flow id again.
+const insertRunSQL = `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
+	trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_hash)
+	SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`
+
 // CreateRun inserts a run header. It returns ErrNotFound when the flow does not exist
 // (the foreign key would fail) and rejects a zero StartedAt.
 //
-// For test runs the flow document is stored so the run view can show it later; one
-// above MaxDocumentBytes could not be read back by ParseFlow, so it is left out (with
-// a warning) instead of failing the run, and GetRunDoc then reports ErrNotFound.
+// For test runs the flow document is stored so the run view can show it later: once per flow
+// and content (flow_test_docs, keyed by the sha256 of its JSON), so repeated tests of an
+// unchanged draft share one copy (E4). One above MaxDocumentBytes could not be read back by
+// ParseFlow, so it is left out (with a warning) instead of failing the run, and GetRunDoc then
+// reports ErrNotFound.
 //
 // The trigger data (a webhook or mail payload of up to MaxOutputBytes) is bounded like a step
 // output: beyond MaxStoredOutputBytes the header keeps {"_preview": ...} instead.
@@ -128,7 +137,10 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 	if err != nil {
 		return err
 	}
-	docJSON := ""
+	if trigger, err = s.scrubJSON(trigger); err != nil {
+		return err
+	}
+	docJSON, docHash := "", ""
 	if doc != nil && rec.Mode == ModeTest {
 		data, err := doc.Marshal()
 		if err != nil {
@@ -137,18 +149,38 @@ func (s *Store) CreateRun(ctx context.Context, rec RunRecord, doc *Flow) error {
 		if len(data) > MaxDocumentBytes {
 			s.logger.Warn("flow document too large to store with its test run", "run", truncateForError(rec.ID), "bytes", len(data))
 		} else {
-			docJSON = string(data)
+			sum := sha256.Sum256(data)
+			docJSON, docHash = string(data), hex.EncodeToString(sum[:])
 		}
 	}
-	res, err := s.db.ExecContext(ctx, `INSERT INTO flow_runs (id, flow_id, revision, mode, trigger_node, trigger_type,
-		trigger_data_json, status, started_at, parent_run_id, parent_node_id, doc_json)
-		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`,
-		rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
-		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docJSON, rec.FlowID)
+	args := []any{rec.ID, rec.FlowID, rec.Revision, string(rec.Mode), rec.TriggerNode, rec.TriggerType, trigger,
+		string(rec.Status), formatTime(rec.StartedAt), rec.ParentRunID, rec.ParentNodeID, docHash, rec.FlowID}
+	if docHash == "" {
+		res, err := s.db.ExecContext(ctx, insertRunSQL, args...)
+		if err != nil {
+			return err
+		}
+		return requireRow(res, ErrNotFound)
+	}
+	// The document and the run row go in together, so the orphan sweep of PruneRunsByMode never
+	// sees the document without its run. The transaction starts with a write (see Store).
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	return requireRow(res, ErrNotFound)
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO flow_test_docs (flow_id, hash, json)
+		SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM flows WHERE id = ?)`, rec.FlowID, docHash, docJSON, rec.FlowID); err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, insertRunSQL, args...)
+	if err != nil {
+		return err
+	}
+	if err := requireRow(res, ErrNotFound); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetRunStatus updates the status of a run. It returns ErrRunNotFound when no
@@ -173,6 +205,12 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 	if err != nil {
 		return err
 	}
+	if params, err = s.scrubJSON(params); err != nil {
+		return err
+	}
+	if output, err = s.scrubJSON(output); err != nil {
+		return err
+	}
 	ports, err := json.Marshal(step.Ports)
 	if err != nil {
 		return err
@@ -184,13 +222,17 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 	if step.OutputTruncated {
 		outputTruncated = 1
 	}
+	effectUncertain := 0
+	if step.EffectUncertain {
+		effectUncertain = 1
+	}
 	res, err := s.db.ExecContext(ctx, `INSERT OR REPLACE INTO flow_run_steps (run_id, seq, node_id, node_key, attempt, status,
 		started_at, finished_at, duration_ms, params_json, params_truncated, output_json, output_truncated, item_count,
-		ports_json, error_code, error_message)
-		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flow_runs WHERE id = ?)`,
+		ports_json, error_code, error_message, effect_uncertain)
+		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM flow_runs WHERE id = ?)`,
 		runID, seq, step.NodeID, step.NodeKey, step.Attempt, string(step.Status), formatTime(step.StartedAt),
 		formatTime(step.FinishedAt), step.DurationMS, params, paramsTruncated, output, outputTruncated, step.ItemCount,
-		string(ports), step.ErrorCode, step.ErrorMessage, runID)
+		string(ports), step.ErrorCode, s.scrubText(step.ErrorMessage), effectUncertain, runID)
 	if err != nil {
 		return err
 	}
@@ -201,7 +243,7 @@ func (s *Store) SaveStep(ctx context.Context, runID string, seq int, step StepRe
 // such run is stored, for example because its flow was deleted meanwhile.
 func (s *Store) FinishRun(ctx context.Context, runID string, res RunResult) error {
 	r, err := s.db.ExecContext(ctx, `UPDATE flow_runs SET status = ?, error_code = ?, error_message = ?, finished_at = ?,
-		duration_ms = ? WHERE id = ?`, string(res.Status), res.ErrorCode, res.ErrorMessage, formatTime(res.FinishedAt),
+		duration_ms = ? WHERE id = ?`, string(res.Status), res.ErrorCode, s.scrubText(res.ErrorMessage), formatTime(res.FinishedAt),
 		res.DurationMS, runID)
 	if err != nil {
 		return err
@@ -219,7 +261,7 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 		return nil, nil, err
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT node_id, node_key, attempt, status, started_at, finished_at, duration_ms,
-		params_json, params_truncated, output_json, output_truncated, item_count, ports_json, error_code, error_message
+		params_json, params_truncated, output_json, output_truncated, item_count, ports_json, error_code, error_message, effect_uncertain
 		FROM flow_run_steps WHERE run_id = ? ORDER BY seq`, runID)
 	if err != nil {
 		return nil, nil, err
@@ -229,9 +271,9 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 	for rows.Next() {
 		var st StepRecord
 		var status, startedAt, finishedAt, params, output, ports string
-		var paramsTruncated, outputTruncated int
+		var paramsTruncated, outputTruncated, effectUncertain int
 		if err := rows.Scan(&st.NodeID, &st.NodeKey, &st.Attempt, &status, &startedAt, &finishedAt, &st.DurationMS,
-			&params, &paramsTruncated, &output, &outputTruncated, &st.ItemCount, &ports, &st.ErrorCode, &st.ErrorMessage); err != nil {
+			&params, &paramsTruncated, &output, &outputTruncated, &st.ItemCount, &ports, &st.ErrorCode, &st.ErrorMessage, &effectUncertain); err != nil {
 			return nil, nil, err
 		}
 		st.Status = StepStatus(status)
@@ -239,6 +281,7 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*RunRecord, []StepRec
 		st.FinishedAt = parseTime(finishedAt)
 		st.ParamsTruncated = paramsTruncated == 1
 		st.OutputTruncated = outputTruncated == 1
+		st.EffectUncertain = effectUncertain == 1
 		_ = json.Unmarshal([]byte(params), &st.Params)
 		_ = json.Unmarshal([]byte(output), &st.Output)
 		_ = json.Unmarshal([]byte(ports), &st.Ports)
@@ -266,15 +309,19 @@ func (s *Store) GetRunHeader(ctx context.Context, runID string) (*RunRecord, err
 // test run whose document was not stored (see CreateRun): its revision is a draft
 // revision, which says nothing about the published versions.
 func (s *Store) GetRunDoc(ctx context.Context, runID string) (*Flow, error) {
-	var flowID, mode, docJSON string
+	var flowID, mode, docJSON, shared string
 	var revision int
-	err := s.db.QueryRowContext(ctx, `SELECT flow_id, revision, mode, doc_json FROM flow_runs WHERE id = ?`, runID).
-		Scan(&flowID, &revision, &mode, &docJSON)
+	err := s.db.QueryRowContext(ctx, `SELECT r.flow_id, r.revision, r.mode, r.doc_json, COALESCE(d.json, '')
+		FROM flow_runs r LEFT JOIN flow_test_docs d ON r.doc_hash != '' AND d.flow_id = r.flow_id AND d.hash = r.doc_hash
+		WHERE r.id = ?`, runID).Scan(&flowID, &revision, &mode, &docJSON, &shared)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrRunNotFound
 	}
 	if err != nil {
 		return nil, err
+	}
+	if docJSON == "" { // runs stored before E4 keep their own copy in doc_json
+		docJSON = shared
 	}
 	if docJSON != "" {
 		doc, err := ParseFlow([]byte(docJSON))
@@ -370,12 +417,33 @@ func (s *Store) MarkInterruptedRuns(ctx context.Context, before, now time.Time) 
 	return res.RowsAffected()
 }
 
-// PruneRuns deletes finished (success, error or cancelled) runs older than
-// retentionDays and keeps at most maxPerFlow finished runs per flow, the newest ones.
-// A value of zero or less disables that rule. Queued, running and waiting runs are
-// never deleted and do not count toward maxPerFlow. The steps of a deleted run go
-// with it (ON DELETE CASCADE). It returns the number of deleted runs.
+// DefaultMaxTestRunsPerFlow is how many finished test runs a flow keeps by default
+// (ServiceConfig.MaxTestRunsPerFlow). Test runs are the editor's scratch runs; counted on their
+// own they no longer push live runs out of the history.
+const DefaultMaxTestRunsPerFlow = 20
+
+const (
+	pruneLiveRunsSQL = `DELETE FROM flow_runs WHERE id IN (
+		SELECT id FROM flow_runs WHERE flow_id = ? AND mode != 'test' AND status IN ('success', 'error', 'cancelled')
+		ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`
+	pruneTestRunsSQL = `DELETE FROM flow_runs WHERE id IN (
+		SELECT id FROM flow_runs WHERE flow_id = ? AND mode = 'test' AND status IN ('success', 'error', 'cancelled')
+		ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`
+)
+
+// PruneRuns is PruneRunsByMode with the same per-flow cap for test runs and for the other runs.
 func (s *Store) PruneRuns(ctx context.Context, retentionDays, maxPerFlow int, now time.Time) (int64, error) {
+	return s.PruneRunsByMode(ctx, retentionDays, maxPerFlow, maxPerFlow, now)
+}
+
+// PruneRunsByMode deletes finished (success, error or cancelled) runs older than retentionDays
+// and keeps, per flow, at most maxLivePerFlow finished runs that are not test runs (live, agent
+// and call runs) and at most maxTestPerFlow finished test runs, the newest of each. The caps are
+// counted separately, so test runs never push live runs out of the history. A value of zero or
+// less disables that rule. Queued, running and waiting runs are never deleted and do not count
+// toward a cap. The steps of a deleted run go with it (ON DELETE CASCADE). It returns the number
+// of deleted runs.
+func (s *Store) PruneRunsByMode(ctx context.Context, retentionDays, maxLivePerFlow, maxTestPerFlow int, now time.Time) (int64, error) {
 	var total int64
 	if retentionDays > 0 {
 		cutoff := formatTime(now.AddDate(0, 0, -retentionDays))
@@ -387,36 +455,51 @@ func (s *Store) PruneRuns(ctx context.Context, retentionDays, maxPerFlow int, no
 		n, _ := res.RowsAffected()
 		total += n
 	}
-	if maxPerFlow > 0 {
-		rows, err := s.db.QueryContext(ctx, `SELECT id FROM flows`)
+	if maxLivePerFlow > 0 || maxTestPerFlow > 0 {
+		ids, err := s.flowIDs(ctx)
 		if err != nil {
 			return total, err
 		}
-		var flowIDs []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return total, err
+		for _, id := range ids {
+			for _, rule := range []struct {
+				query string
+				keep  int
+			}{{pruneLiveRunsSQL, maxLivePerFlow}, {pruneTestRunsSQL, maxTestPerFlow}} {
+				if rule.keep <= 0 {
+					continue
+				}
+				res, err := s.db.ExecContext(ctx, rule.query, id, rule.keep)
+				if err != nil {
+					return total, err
+				}
+				n, _ := res.RowsAffected()
+				total += n
 			}
-			flowIDs = append(flowIDs, id)
-		}
-		// The rows are closed before the deletes below: they need the connection pool.
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return total, err
-		}
-		for _, id := range flowIDs {
-			res, err := s.db.ExecContext(ctx, `DELETE FROM flow_runs WHERE id IN (
-				SELECT id FROM flow_runs WHERE flow_id = ? AND status IN ('success', 'error', 'cancelled')
-				ORDER BY started_at DESC, id DESC LIMIT -1 OFFSET ?)`, id, maxPerFlow)
-			if err != nil {
-				return total, err
-			}
-			n, _ := res.RowsAffected()
-			total += n
 		}
 	}
+	// Test documents no run refers to any more (CreateRun stores one per flow and content).
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM flow_test_docs WHERE NOT EXISTS (
+		SELECT 1 FROM flow_runs r WHERE r.flow_id = flow_test_docs.flow_id AND r.doc_hash = flow_test_docs.hash)`); err != nil {
+		return total, err
+	}
 	return total, nil
+}
+
+// flowIDs returns the ids of all flows. The rows are closed before it returns, so the caller's
+// deletes get a connection from the pool.
+func (s *Store) flowIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM flows`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

@@ -1,0 +1,94 @@
+# memory_data_apis search terms
+cheatsheet:
+  en: ["cheat sheet", "workflow instructions", "reusable procedure", "step by step guide", "save a how-to", "procedure checklist", "playbook", "attach file to sheet"]
+  de: ["Spickzettel", "Cheat Sheet anlegen", "Anleitung speichern", "Arbeitsablauf Vorlage", "Schritt für Schritt Anleitung", "wiederverwendbare Anleitung", "Checkliste ablegen", "Merkzettel Ablauf"]
+composio_call:
+  en: ["Composio", "Composio toolkit", "connected accounts", "Gmail Slack Notion", "external app integration", "execute Composio action", "connect GitHub account", "Google Calendar via Composio"]
+  de: ["verbundene Konten", "externe App anbinden", "Aktion über Composio ausführen", "GitHub Konto verbinden", "Apps über Composio nutzen"]
+context_manager:
+  en: ["context window", "token budget", "compact conversation", "summarize old messages", "free up tokens", "context is full", "drop message", "conversation too long"]
+  de: ["Kontextfenster", "Token Budget prüfen", "Gespräch komprimieren", "alte Nachrichten zusammenfassen", "Tokens freigeben", "Kontext ist voll", "Nachricht entfernen", "Verlauf kürzen"]
+context_memory:
+  en: ["memory last week", "memory by time range", "connected context", "multi source memory", "memory with relationships", "deep memory search", "what happened this month", "timeline of recent days"]
+  de: ["was war letzte Woche", "Erinnerung nach Zeitraum", "verknüpfter Kontext", "Überblick der letzten Tage", "tiefe Gedächtnissuche", "zusammenhängende Erinnerungen", "Aktivität heute", "Verlauf letzter Monat"]
+correct_memory:
+  en: ["correct wrong fact", "fix outdated memory", "that is wrong now", "update stored fact", "archive old fact", "retract memory", "memory correction", "my preference changed"]
+  de: ["Fakt korrigieren", "falsche Erinnerung berichtigen", "veralteten Fakt ersetzen", "stimmt nicht mehr", "Gedächtnis korrigieren", "alte Info archivieren", "Angabe richtigstellen", "ich bevorzuge jetzt"]
+explore_kg:
+  en: ["expand graph node", "node neighbors by ID", "explore graph node", "graph teaser details", "expand kg node", "connected entities of node", "kg node ID", "node from context index"]
+  de: ["Graph Knoten erweitern", "Knoten Nachbarn anzeigen", "Graph Knoten erkunden", "Knoten per ID öffnen", "KG Eintrag aufklappen", "verbundene Knoten lesen", "KG Knoten ID", "Knoten aus Kontextindex"]
+huggingface:
+  en: ["Hugging Face", "HF Hub", "search AI models", "find datasets", "download model files", "Hugging Face Spaces", "dataset viewer rows", "ML papers", "run Hugging Face job"]
+  de: ["KI Modelle suchen", "Datensatz finden", "Modell herunterladen", "HF Hub durchsuchen", "Spaces ansehen", "Datensatz Beispielzeilen", "Forschungspapiere suchen", "Hugging Face Job starten"]
+knowledge_graph:
+  en: ["knowledge graph", "add entity relationship", "who owns what", "link two entities", "graph nodes and edges", "merge duplicate nodes", "relationships between people", "graph health", "graph conflicts"]
+  de: ["Wissensgraph", "Beziehung eintragen", "Entitäten verknüpfen", "Knoten zusammenführen", "wer gehört zu wem", "Graph Verbindungen", "Beziehungen zwischen Personen", "Graph bereinigen", "Wissensgraph Konflikte"]
+manage_journal:
+  en: ["journal entry", "write in journal", "add milestone", "daily summary", "diary", "log a reflection", "journal search", "summary of a day"]
+  de: ["Tagebuch", "Journal Eintrag", "ins Tagebuch schreiben", "Meilenstein festhalten", "Tageszusammenfassung", "Reflexion notieren", "Journal durchsuchen", "Logbuch"]
+manage_memory:
+  en: ["core memory", "permanent fact", "store preference permanently", "hard constraint", "delete core fact", "list core facts", "always remember", "remember my name"]
+  de: ["Kernspeicher", "Kerngedächtnis", "dauerhafte Tatsache", "dauerhaft merken", "Vorliebe speichern", "Kernfakt löschen", "immer merken", "Kernfakten auflisten"]
+manage_notes:
+  en: ["save note", "notes", "to-do list", "add todo", "mark todo done", "shopping list", "reminder note", "bookmark for later", "note with due date"]
+  de: ["Notiz speichern", "Notizen lesen", "Aufgabe hinzufügen", "To-do Liste", "Einkaufsliste", "Aufgabe abhaken", "Notiz löschen", "Lesezeichen merken", "Notiz mit Fälligkeit"]
+manus:
+  en: ["Manus", "Manus AI agent", "delegate research task", "async research task", "hand off to Manus", "Manus credits", "check Manus task", "autonomous agent task"]
+  de: ["Manus KI Agent", "Rechercheauftrag delegieren", "Aufgabe an Manus übergeben", "Manus Guthaben", "Manus Aufgabe prüfen", "asynchrone Recherche", "Manus Task starten"]
+memory_reflect:
+  en: ["reflect on memory", "weekly reflection", "recurring errors", "find contradictions", "knowledge gaps", "pattern analysis", "progress summary", "learned rules review", "what did I learn"]
+  de: ["Gedächtnis reflektieren", "Wochenrückblick", "wiederkehrende Fehler", "Widersprüche finden", "Wissenslücken", "Muster analysieren", "Fortschrittsbericht", "Rückblick auf die Woche", "Selbstreflexion"]
+query_memory:
+  en: ["search my memory", "what do you remember", "recall past conversation", "have we solved this before", "search all memory", "find in memory", "past errors lookup", "memory search"]
+  de: ["Gedächtnis durchsuchen", "woran erinnerst du dich", "frühere Gespräche suchen", "haben wir das schon gelöst", "in Erinnerungen suchen", "was weißt du über mich", "Erinnerung nachschlagen", "Wissen nachschlagen"]
+read_tool_output:
+  en: ["archived tool output", "output too large", "read more output", "full output archived", "page through result", "grep archived output", "continue truncated result", "output ref"]
+  de: ["archivierte Ausgabe", "Ausgabe zu groß", "Rest der Ausgabe lesen", "abgeschnittenes Ergebnis weiterlesen", "Ausgabe durchblättern", "archiviertes Ergebnis durchsuchen", "Output Referenz", "mehr vom Ergebnis"]
+recall_memory:
+  en: ["read memory by ID", "open memory entry", "full memory entry", "recall memory teaser", "context index memory", "expand memory ID", "memory ID lookup"]
+  de: ["Erinnerung per ID lesen", "Gedächtniseintrag öffnen", "vollständiger Eintrag", "Kontextindex Erinnerung", "Erinnerung aufrufen", "Speicher ID nachschlagen", "Teaser aufklappen"]
+remember:
+  en: ["remember this", "store this info", "note this down", "keep in mind", "don't forget", "save for later", "auto route memory", "memorize"]
+  de: ["merk dir das", "Erinnerung speichern", "speicher das ab", "nicht vergessen", "behalte im Kopf", "Info merken", "halte das fest", "einfach merken"]
+remember_learning:
+  en: ["record a decision", "save learning with evidence", "store preference rationale", "technical finding", "lesson learned", "decision with reason", "record insight", "learning memory"]
+  de: ["Entscheidung festhalten", "Erkenntnis speichern", "Lernerfahrung merken", "Begründung dazu speichern", "technische Erkenntnis", "Entscheidung mit Begründung", "gewonnene Einsicht", "Lessons Learned"]
+retrieve_original_output:
+  en: ["original tool output", "compressed result details", "details missing", "uncompressed output", "full original result", "restore archived output", "output was shortened"]
+  de: ["Originalausgabe holen", "komprimiertes Ergebnis Details", "Details fehlen", "ungekürzte Ausgabe", "vollständiges Original", "gekürzte Ausgabe wiederherstellen", "Original Toolergebnis"]
+secrets_vault:
+  en: ["secrets vault", "store password", "save API key", "encrypted vault", "retrieve secret", "list secret keys", "delete secret", "store token securely"]
+  de: ["Passwort speichern", "Tresor", "API Schlüssel ablegen", "verschlüsselter Tresor", "Geheimnis abrufen", "Secret Schlüssel auflisten", "Zugangsdaten sicher speichern", "Token löschen"]
+treg_call:
+  en: ["treg call", "execute treg endpoint", "run approved endpoint", "treg API request", "generate media via treg", "paid API call", "treg create task", "call provider endpoint"]
+  de: ["treg Endpunkt ausführen", "genehmigten Endpunkt aufrufen", "treg Anfrage senden", "Medien über treg erzeugen", "kostenpflichtiger API Aufruf", "treg Aufgabe erstellen", "Anbieter Endpunkt nutzen"]
+treg_catalog:
+  en: ["treg catalog", "search treg endpoints", "find treg provider", "endpoint pricing", "treg grants", "approved endpoints list", "browse treg APIs", "endpoint input details"]
+  de: ["treg Katalog", "treg Endpunkte suchen", "Endpunkt Preise", "freigegebene Endpunkte", "treg Anbieter finden", "Endpunkt Details ansehen", "treg Freigaben", "Katalog durchsuchen"]
+treg_status:
+  en: ["treg balance", "treg credits left", "treg receipt", "poll treg task", "treg accounting", "check treg task status", "provider resources voices", "treg spend"]
+  de: ["treg Guthaben", "treg Kontostand", "treg Beleg prüfen", "treg Aufgabe abfragen", "treg Abrechnung", "Status der treg Aufgabe", "treg Kosten", "Stimmen des Anbieters"]
+virustotal_scan:
+  en: ["VirusTotal", "scan for malware", "check file hash", "is this URL safe", "check suspicious domain", "IP reputation", "virus scan file", "threat intelligence"]
+  de: ["auf Malware prüfen", "Datei Hash prüfen", "ist diese URL sicher", "verdächtige Domain prüfen", "Datei auf Viren scannen", "Bedrohungsanalyse"]
+yepapi_amazon:
+  en: ["Amazon product search", "Amazon reviews", "product by ASIN", "Amazon best sellers", "Amazon deals", "Amazon price lookup", "Amazon seller", "compare Amazon products"]
+  de: ["Amazon Produktsuche", "Amazon Bewertungen", "Produkt per ASIN", "Amazon Bestseller", "Amazon Angebote", "Amazon Preis nachschauen", "Amazon Verkäufer", "Produktrezensionen lesen"]
+yepapi_instagram:
+  en: ["Instagram profile", "Instagram posts", "Instagram reels", "Instagram hashtag", "Instagram followers", "Instagram comments", "search Instagram users", "Instagram stories"]
+  de: ["Instagram Profil", "Instagram Beiträge", "Instagram Follower", "Instagram Kommentare", "Instagram Nutzer suchen", "Instagram Stories ansehen"]
+yepapi_scrape:
+  en: ["scrape website", "web scraping", "bypass anti-bot", "screenshot full page", "extract data from page", "JavaScript rendered page", "page to markdown", "scrape with AI", "stealth scrape"]
+  de: ["Webseite scrapen", "Bot Schutz umgehen", "Screenshot ganze Seite", "Daten von Seite extrahieren", "JavaScript Seite auslesen", "Seite als Markdown", "Seite per KI auslesen", "Scraper"]
+yepapi_seo:
+  en: ["SEO analysis", "keyword research", "keyword ideas", "domain overview", "backlink check", "competitor domains", "on-page audit", "Google Trends", "search volume"]
+  de: ["SEO Analyse", "Keyword Recherche", "Keyword Ideen", "Domain Übersicht", "Backlinks prüfen", "Konkurrenz Domains", "OnPage Audit", "Suchvolumen"]
+yepapi_serp:
+  en: ["Google results", "SERP data", "Bing search results", "Google News results", "Google Maps places", "search engine rankings", "Google Images search", "Google autocomplete"]
+  de: ["Google Ergebnisse", "SERP Daten", "Bing Suchergebnisse", "Google News Ergebnisse", "Google Maps Orte", "Suchmaschinen Ranking", "Google Bildersuche", "Google Autovervollständigung"]
+yepapi_tiktok:
+  en: ["TikTok video", "TikTok profile", "TikTok search", "TikTok comments", "TikTok followers", "TikTok challenge", "TikTok sound", "TikTok hashtag"]
+  de: ["TikTok Profil", "TikTok Suche", "TikTok Kommentare", "TikTok Follower", "TikTok Nutzer suchen"]
+yepapi_youtube:
+  en: ["YouTube transcript", "YouTube video info", "YouTube channel", "YouTube comments", "YouTube search", "trending videos", "YouTube subtitles", "YouTube playlist", "YouTube shorts"]
+  de: ["YouTube Transkript", "YouTube Video Infos", "YouTube Kanal", "YouTube Kommentare", "YouTube Suche", "Trend Videos", "YouTube Untertitel"]

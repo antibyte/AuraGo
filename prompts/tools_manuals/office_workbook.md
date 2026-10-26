@@ -4,7 +4,7 @@ Use `office_workbook` for agent-safe spreadsheet work inside AuraGo's virtual de
 
 The tool requires `tools.office_workbook.enabled`, `virtual_desktop.enabled`, and `virtual_desktop.allow_agent_control`. Paths are jailed to `virtual_desktop.workspace_dir`; do not expose secrets in spreadsheet contents unless the user explicitly asked for that data.
 
-If `tools.office_workbook.readonly` is enabled, only `read` and `evaluate_formula` are allowed. `write`, `set_cell`, `set_range`, and `export` are blocked.
+If `tools.office_workbook.readonly` is enabled, only `read` and `evaluate_formula` are allowed. `write`, `set_cell`, `set_range`, `export`, and `insert_image` are blocked.
 
 ## Operations
 
@@ -14,6 +14,7 @@ If `tools.office_workbook.readonly` is enabled, only `read` and `evaluate_formul
 - `set_range`: use `path`, `sheet`, `start_cell`, and `values` as a 2D array of strings or `{value, formula}` cells.
 - `evaluate_formula`: use `path`, `sheet`, and `formula`; supports AuraGo's safe formula subset (`SUM`, `AVG`/`AVERAGE`, `MIN`, `MAX`, `COUNT`, arithmetic, and same-sheet ranges).
 - `export`: use `path`, `output_path`, and `format` (`xlsx` or `csv`); pass `sheet` for CSV export when needed.
+- `insert_image`: XLSX/XLSM only. Read the target first and pass its `office_version.etag` as `expected_version`, `image_ref:{root:"desktop"|"workspace",path:"relative/image.png"}`, `sheet`, and an A1 `anchor`. Optional `width`/`height` are 96-DPI pixels; `alt` is an accessible description. The image is embedded using DrawingML without replacing existing drawings, macros or opaque package parts. Conflicts retain the original. CSV cannot retain images. Generate a verified PNG with `qr_code` first when inserting a QR code.
 
 `office_version.modified` and `office_version.mod_time` are equivalent RFC3339 timestamps; prefer `modified` in new callers.
 

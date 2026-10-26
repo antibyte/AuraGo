@@ -14,6 +14,12 @@
 /nul
 # bin/ — all binaries are distributed via GitHub Releases, not tracked in git
 /bin/
+/phonon/
+/data/phonon/
+# Local runtime state, build scratch and browser-test artifacts.
+/data/
+/tmp/
+/ui/reports/
 METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)
 *.lock
@@ -183,3 +189,9 @@ terminals/
 
 # Bookshelf catalog, managed imports, renditions and disposable cache.
 /data/bookshelf/
+
+# Blender backup files from regenerating the 3D asset packs.
+*.blend1
+
+# AuraGolf generator scratch output (P2)
+/assets/minigolf/build/

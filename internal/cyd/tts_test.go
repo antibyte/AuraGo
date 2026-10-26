@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aurago/internal/sanotts"
@@ -33,6 +34,55 @@ func TestSpeakLineEnglish(t *testing.T) {
 	got := SpeakLine("Backup failed", "disk /data 98%")
 	if got != "Backup failed. disk data 98" {
 		t.Fatalf("got %q", got)
+	}
+	if got := SpeakLine("Tür", "offen"); got != "Tür. offen" {
+		t.Fatalf("german = %q", got)
+	}
+}
+
+func TestSpeakerUsesActiveSynth(t *testing.T) {
+	const from = 8000
+	const n = 160
+	data := make([]byte, n*2)
+	for i := 0; i < n; i++ {
+		v := int16(12000 * (i%10 - 5) / 5)
+		binary.LittleEndian.PutUint16(data[i*2:], uint16(v))
+	}
+	wav := makeWav(1, 16, from, data)
+	s := NewSpeaker()
+	s.SetSynth(func(text string) ([]byte, error) {
+		if text != "Hallo. Tür" {
+			t.Fatalf("text %q", text)
+		}
+		return wav, nil
+	}, func() bool { return true })
+	if !s.Available() {
+		t.Fatal("synth not available")
+	}
+	s.render("ntf_active", "Hallo. Tür")
+	if got := s.Get("ntf_active"); len(got) < 16 {
+		t.Fatalf("pcm len %d", len(got))
+	}
+}
+
+func TestMeshAnnounceFollowsSystemLanguage(t *testing.T) {
+	if got := MeshAnnounce("Deutsch"); got != "Neue Nachricht auf MeshCore" {
+		t.Fatalf("de %q", got)
+	}
+	if got := MeshAnnounce("de-DE"); got != "Neue Nachricht auf MeshCore" {
+		t.Fatalf("de-DE %q", got)
+	}
+	if got := MeshAnnounce("en"); got != "New message on MeshCore" {
+		t.Fatalf("en %q", got)
+	}
+	if got := MeshAnnounce("fr"); got != "Nouveau message sur MeshCore" {
+		t.Fatalf("fr %q", got)
+	}
+	if strings.Contains(MeshAnnounce("Deutsch"), ".") || strings.Contains(MeshAnnounce(""), ".") {
+		t.Fatal("announce must not contain a period")
+	}
+	if MeshAnnounce("") != "New message on MeshCore" || MeshAnnounce("klingon") != "New message on MeshCore" {
+		t.Fatal("unknown language should fall back to English")
 	}
 }
 

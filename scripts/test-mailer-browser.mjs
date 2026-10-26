@@ -34,7 +34,7 @@ try {
         const accounts=[{id:'email:work',source:'email',protocol:'imap',name:'Work',address:'owner@example.test',linked:true,reauthorize_supported:true,capabilities:['read','send','read_state','star','move','archive','trash','restore','delete','folders_read','folders_create']},{id:'email:private',source:'email',protocol:'pop3',name:'Personal',address:'personal@example.test',linked:true,capabilities:['read','search','folders_read']}];
         const folders=accounts.flatMap(a=>['inbox','archive','trash','sent'].map(kind=>({id:a.id+':'+kind,account_id:a.id,provider_id:kind,name:kind[0].toUpperCase()+kind.slice(1),kind})));
         const state={enabled:true,settings:{enabled:true},accounts,sources:accounts,folders,account_settings:{},templates:[],signatures:[],rules:[],contacts:[{name:'Alice Example',email:'alice@example.test'}],providers:[{id:'fixture',name:'Local assistant',model:'test-model'}],default_provider_id:'fixture',assist_guardian:{id:'scanner',name:'Security scanner',model:'scan-model'},assist_policy:'fixture-policy',readonly:false};
-        const rows=Array.from({length:40},(_,i)=>({id:'thread-'+i,message_id:'message-'+i,account_id:accounts[i%2].id,folder_id:accounts[i%2].id+':inbox',from:i%2?'Mara <mara@example.test>':'Alice <alice@example.test>',subject:i===0?'Project update and next steps':'Mailbox fixture '+i,preview:'A clear preview of the selected conversation.',date:new Date(Date.UTC(2026,9,16,12,0,-i)).toISOString(),unread:i<8,starred:i===2,message_count:1,attachment_count:0}));
+        const rows=Array.from({length:40},(_,i)=>({id:'thread-'+i,message_id:'message-'+i,account_id:accounts[i%2].id,folder_id:accounts[i%2].id+':inbox',from:i%2?'Mara Example <mara@example.test>':'Alice Example <alice@example.test>',to:['owner@example.test'],participants:i%2?['owner@example.test','mara@example.test']:['"Alice Example" <alice@example.test>','owner@example.test','notifications@example.test'],subject:i===0?'Project update and next steps':'Mailbox fixture '+i,preview:'A clear preview of the selected conversation.',date:new Date(Date.UTC(2026,9,16,12,0,-i)).toISOString(),unread:i<8,starred:i===2,message_count:1,attachment_count:0}));
         let draft=null, outbox=null, conflictNextSave=false, conflictLatest=null, uploadFailNext=false, uploadWaitEnabled=false, releaseUpload=null, uploadStartResolve=null;
         let outboxRecords=Array.from({length:54},(_,i)=>({id:`job-${i}`,status:i===0?'failed':i===1?'scheduled':'sent',updated_at:new Date(Date.UTC(2026,9,16,12,0,-i)).toISOString()}));
         let ruleRuns=[{message_id:'message-0',rule_id:'rule-failed',rule_revision:2,action_index:1,action_count:3,status:'failed',error:'Move action failed',updated_at:new Date().toISOString()},{message_id:'message-0',rule_id:'rule-unknown',rule_revision:1,action_index:0,action_count:2,status:'unknown',error:'Provider response was lost',updated_at:new Date().toISOString()}];
@@ -88,7 +88,7 @@ try {
         await page.addScriptTag({url:origin+'/js/vendor/marked.min.js'});
         await page.addScriptTag({url:origin+'/js/vendor/purify.min.js'});
         for(const file of ['sticker-catalog','sticker-library']) await page.addScriptTag({url:origin+'/js/desktop/shared/'+file+'.js'});
-        for(const file of ['mailer-api','mailer-stickers','mailer-compose','mailer-settings','mailer']) await page.addScriptTag({url:origin+'/js/desktop/apps/'+file+'.js'});
+        for(const file of ['mailer-api','mailer-views','mailer-stickers','mailer-compose','mailer-settings','mailer']) await page.addScriptTag({url:origin+'/js/desktop/apps/'+file+'.js'});
         await page.evaluate(({words,theme,mode,state})=>{
             document.body.className='desktop-body'; document.body.dataset.theme=theme; document.documentElement.dataset.theme=mode;
             document.documentElement.style.setProperty('--surface-color',mode==='light'?'#f5f6fa':'#111823');
@@ -101,8 +101,37 @@ try {
         },{words,theme,mode,state});
         await page.locator('[data-thread-id]').first().waitFor();
         assert.equal(await page.locator('[data-thread-id]').count(),40,'large mailbox must only render the returned page');
+        const avatarLetters=await page.locator('.vd-mailer-thread .vd-mailer-avatar').allTextContents();
+        assert(avatarLetters.length===40,'every thread row must render a sender avatar');
+        assert(avatarLetters.every(text=>/^[A-Z][A-Z]?$/.test(text.trim())),'avatar circles must only carry letters of the sender, got '+avatarLetters.map(text=>text.trim()).join(','));
+        assert.equal(avatarLetters[0].trim(),'AE','the avatar must show the sender of the thread, not an arbitrary participant');
+        assert.equal((await page.locator('.vd-mailer-thread-line b').first().textContent()).trim(),'Alice Example','the row label must name the sender');
         await page.locator('[data-thread-id]').first().focus(); await page.keyboard.press('Enter');
         await page.locator('[data-reader] iframe').first().waitFor({state:'visible'});
+        const readerFill=await page.evaluate(()=>{
+            const reader=document.querySelector('[data-reader]');
+            const head=reader.querySelector('.vd-mailer-reader-head');
+            const message=reader.querySelector('.vd-mailer-message');
+            const body=reader.querySelector('.vd-mailer-message-body');
+            const readerStyle=getComputedStyle(reader), messageStyle=getComputedStyle(message);
+            const outer=el=>{const cs=getComputedStyle(el);return el.getBoundingClientRect().height+parseFloat(cs.marginTop)+parseFloat(cs.marginBottom);};
+            const siblings=[...message.children].filter(child=>child!==body);
+            const free=message.getBoundingClientRect().height-parseFloat(messageStyle.paddingTop)-parseFloat(messageStyle.paddingBottom)-siblings.reduce((sum,child)=>sum+outer(child),0);
+            return {readerContent:reader.clientHeight-parseFloat(readerStyle.paddingTop)-parseFloat(readerStyle.paddingBottom),
+                head:head.getBoundingClientRect().height, message:message.getBoundingClientRect().height, free,
+                body:body.getBoundingClientRect().height, below:reader.getBoundingClientRect().bottom-message.getBoundingClientRect().bottom};
+        });
+        assert(readerFill.message>=readerFill.readerContent-readerFill.head-4,'the message must fill the reader column instead of leaving dead space, got '+JSON.stringify(readerFill));
+        assert(readerFill.body>=readerFill.free-4,'the mail body must take the free height of the message, got '+JSON.stringify(readerFill));
+        assert(readerFill.below<=40,'the reader must not leave dead space below the message, got '+JSON.stringify(readerFill));
+        const readerActions=await page.locator('.vd-mailer-reader-actions [data-reader-action]').count();
+        assert(readerActions>=6,'the reader must offer its response and file actions');
+        assert.equal(await page.locator('.vd-mailer-reader-actions [data-reader-action] svg.vd-mailer-icon').count(),readerActions,'every reader action must carry its icon');
+        assert(await page.locator('.vd-mailer-reader-action-group').count()>=2,'the reader actions must be grouped instead of one flat pile');
+        assert.equal(await page.locator('.vd-mailer-reader-actions [data-reader-action="reply"] span').count(),1,'the reply action must keep its label');
+        assert.equal(await page.locator('.vd-mailer-reader-actions [data-reader-action="print"] span').count(),0,'utility actions must collapse into icon buttons');
+        assert.equal(await page.locator('.vd-mailer-reader-actions [data-reader-action="print"]').getAttribute('aria-label'),words['mailer.print'],'icon-only actions must stay accessible');
+        assert.equal((await page.locator('.vd-mailer-participant-chip').first().textContent()).trim(),'3 participants','the reader must report the thread roster');
         await page.locator('[data-rule-runs-for="message-0"] li').first().waitFor();
         assert.equal(await page.locator('[data-retry-rule-run]').count(),2,'failed and unknown rule runs must offer explicit retry controls');
         await page.locator('[data-retry-rule-run="rule-unknown"]').focus(); await page.keyboard.press('Enter');

@@ -238,7 +238,10 @@ export function patchControls(name, text, patch) {
         text = patch(text, "    const stop = this._btn('Stop Training', 'tp-btn tp-btn-danger', () => this._stopTraining());\n    stop.disabled = this.state.loading; stop.style.marginTop = '10px'; s.appendChild(stop);", '');
         text = patch(text, "        del.disabled = this.state.loading;", "        del.dataset.ruviewAction='recording_delete'; del.disabled = this.state.loading || !this.state.recordingsLoaded;");
         text = patch(text, "    const active = ts && ts.active;", "    const active = this.state.statusLoaded && ts && ts.active;");
-        text = text.replaceAll('else if (ts && !ts.active && this.progressData.losses.length > 0)', 'else if (this.state.statusLoaded && ts && !ts.active && this.progressData.losses.length > 0)');
+        // Upstream repeats this branch, so keep replaceAll semantics but fail when the anchor is gone.
+        const progressBranch = 'else if (ts && !ts.active && this.progressData.losses.length > 0)';
+        if (!text.includes(progressBranch)) throw Error('Pinned RuView adapter patch no longer matches');
+        text = text.replaceAll(progressBranch, 'else if (this.state.statusLoaded && ts && !ts.active && this.progressData.losses.length > 0)');
         text = patch(text, "    panel.appendChild(this._renderHeader());", "    panel.setAttribute('aria-busy', String(this.state.loading));\n    panel.appendChild(this._renderHeader());\n    if (this.state.loading) { const pending=this._el('p','tp-empty','Loading…'); pending.setAttribute('role','status'); panel.appendChild(pending); }");
         text = patch(text, "    h.appendChild(this._el('span', cls, txt));", "    const badge=this._el('span',cls,txt);badge.setAttribute('role','status');h.appendChild(badge);");
         text = patch(text, "txt = 'Training';", "txt = ts.phase === 'stopping' ? 'Stopping training…' : 'Training';");

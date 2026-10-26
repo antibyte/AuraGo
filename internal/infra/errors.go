@@ -11,4 +11,5 @@ var (
 	ErrSourceLinked   = errors.New("infra source is already linked")
 	ErrSourceRemoved  = errors.New("infra source was removed")
 	ErrHasChildren    = errors.New("infra node has children")
+	ErrEdgeExists     = errors.New("infra edge already exists")
 )

@@ -13,6 +13,27 @@
         const { esc, api, t, iconMarkup, notify, confirmDialog } = context;
         const readonly = !!context.readonly;
 
+        /* t(k, p) treats its second argument as a placeholder map, so a string
+           fallback never applies. tr() compares against the raw key instead. */
+        const tr = (key, fallback) => {
+            const value = t(key);
+            return value === key ? fallback : value;
+        };
+
+        /* Deployment target collection lives in the sites panel module. */
+        const homepageTargets = (window.HomepageStudioSites && window.HomepageStudioSites.targets) || {
+            collect: () => {},
+            add: () => {},
+            external: () => ''
+        };
+
+        /* Dates follow the app language, not the browser language. */
+        const appLocale = window.SYSTEM_LANG || document.documentElement.lang || 'en';
+        const DEFAULT_CHAT_WIDTH = 320;
+        const DEFAULT_INSPECTOR_WIDTH = 300;
+        const MIN_PANEL_WIDTH = 240;
+        const MAX_PANEL_WIDTH = 560;
+
         const state = {
             chatBusy: false,
             abortCtrl: null,
@@ -20,6 +41,7 @@
             target: 'local',
             previewUrl: '',
             statusLoaded: false,
+            lastStatus: null,
             homepageEnabled: false,
             deploymentTargets: [],
             targetsLoading: null,
@@ -28,10 +50,10 @@
             inspectorTab: 'sites',
             chatCollapsed: false, inspectorCollapsed: false,
             chatWidth: 0, inspectorWidth: 0,
-            selectedSiteId: 0, busyStart: 0,
-            busyTimer: null, persistTimer: null,
+            selectedSiteId: 0, selectedSiteName: '', busyStart: 0,
+            busyTimer: null, persistTimer: null, refreshTimer: null,
             listeners: [],
-            modules: { preview: null, sites: null, history: null }
+            modules: { preview: null, sites: null, history: null, annotate: null }
         };        instances.set(windowId, state);
 
         const suggestions = [
@@ -69,45 +91,51 @@
                         </label>
                     </div>
                     <div class="vd-hp-header-actions">
-                        <button type="button" class="vd-hp-icon-btn active" id="hp-toggle-chat-${windowId}" title="${esc(t('homepage_studio.assistant_toggle'))}" aria-label="${esc(t('homepage_studio.assistant_toggle'))}" aria-expanded="true">
+                        <button type="button" class="vd-hp-icon-btn active" id="hp-toggle-chat-${windowId}" data-hp-toggle="chat" title="${esc(t('homepage_studio.assistant_toggle'))}" aria-label="${esc(t('homepage_studio.assistant_toggle'))}" aria-expanded="true">
                             ${iconMarkup('chat', 'A', 'vd-hp-btn-icon', 15)}
                         </button>
-                        <button type="button" class="vd-hp-icon-btn active" id="hp-toggle-inspector-${windowId}" title="${esc(t('homepage_studio.inspector_toggle'))}" aria-label="${esc(t('homepage_studio.inspector_toggle'))}" aria-expanded="true">
+                        <button type="button" class="vd-hp-icon-btn active" id="hp-toggle-inspector-${windowId}" data-hp-toggle="inspector" title="${esc(t('homepage_studio.inspector_toggle'))}" aria-label="${esc(t('homepage_studio.inspector_toggle'))}" aria-expanded="true">
                             ${iconMarkup('sliders', 'I', 'vd-hp-btn-icon', 15)}
                         </button>
                     </div>
                 </header>
                 <div class="vd-hp-main" id="hp-main-${windowId}">
-                    <aside class="vd-hp-chat" aria-label="${esc(t('homepage_studio.assistant_label'))}">
+                    <aside class="vd-hp-chat" id="hp-chat-${windowId}" aria-label="${esc(t('homepage_studio.assistant_label'))}">
                         <div class="vd-hp-chat-head">
                             <span class="vd-hp-panel-label">${esc(t('homepage_studio.assistant_label'))}</span>
                             <button type="button" class="vd-hp-icon-btn" id="hp-collapse-chat-${windowId}" title="${esc(t('homepage_studio.collapse_panel'))}" aria-label="${esc(t('homepage_studio.collapse_panel'))}">
                                 ${iconMarkup('chevron-left', '‹', 'vd-hp-btn-icon', 14)}
                             </button>
                         </div>
-                        <section class="vd-hp-chat-log" id="hp-log-${windowId}" aria-live="polite">
+                        <section class="vd-hp-chat-log" id="hp-log-${windowId}" aria-busy="false">
                             <div class="vd-hp-welcome" id="hp-welcome-${windowId}">
                                 <span class="vd-hp-welcome-icon" aria-hidden="true">${iconMarkup('globe', '🌐', '', 30)}</span>
-                                <h2 class="vd-hp-welcome-heading">${esc(t('homepage_studio.welcome_heading'))}</h2>
+                                <p class="vd-hp-welcome-heading">${esc(t('homepage_studio.welcome_heading'))}</p>
                                 <p class="vd-hp-welcome-sub">${esc(t('homepage_studio.welcome'))}</p>
                                 <div class="vd-hp-chips" role="group" aria-label="${esc(t('homepage_studio.suggest_label'))}">
                                     ${suggestions.map(item => `<button type="button" class="vd-hp-chip" data-hp-suggest="${item.key}"${readonly ? ' disabled' : ''}>${iconMarkup(item.icon, '•', 'vd-hp-btn-icon', 13)}<span>${esc(t('homepage_studio.' + item.key))}</span></button>`).join('')}
                                 </div>
                             </div>
                         </section>
+                        <div class="vd-hp-chat-announce visually-hidden" id="hp-announce-${windowId}" role="status" aria-live="polite" aria-atomic="true"></div>
                         ${readonly ? `<div class="vd-hp-readonly-hint" id="hp-readonly-hint-${windowId}" role="note">${esc(t('homepage_studio.readonly_hint'))}</div>` : ''}
                         <form class="vd-hp-chat-form" id="hp-form-${windowId}">
-                            <textarea class="vd-hp-chat-input" id="hp-input-${windowId}" rows="1" placeholder="${esc(t(readonly ? 'homepage_studio.readonly_hint' : 'homepage_studio.chat_placeholder'))}" autocomplete="off" enterkeyhint="send" aria-label="${esc(t('homepage_studio.chat_placeholder'))}"${readonly ? ' disabled' : ''}></textarea>
-                            <button type="submit" class="vd-hp-send-btn" id="hp-send-${windowId}"${readonly ? ' disabled' : ''}>
-                                ${iconMarkup('chat', 'S', 'vd-hp-send-icon', 15)}
-                                <span id="hp-send-label-${windowId}">${esc(t('desktop.send'))}</span>
-                            </button>
+                            <textarea class="vd-hp-chat-input" id="hp-input-${windowId}" rows="1" placeholder="${esc(t(readonly ? 'homepage_studio.readonly_placeholder' : 'homepage_studio.chat_placeholder'))}" autocomplete="off" enterkeyhint="send" aria-label="${esc(t('homepage_studio.chat_placeholder'))}"${readonly ? ' disabled' : ''}></textarea>
+                            <button type="submit" class="vd-hp-send-btn" id="hp-send-${windowId}"${readonly ? ' disabled' : ''}>${iconMarkup('chat', 'S', 'vd-hp-send-icon', 15)}<span id="hp-send-label-${windowId}">${esc(t('desktop.send'))}</span></button>
                         </form>
+                        <div class="vd-hp-agent-row" id="hp-agent-row-${windowId}">
+                            <span class="vd-hp-agent-pill" id="hp-agent-pill-${windowId}" role="status" hidden>
+                                <span class="vd-hp-agent-spinner" aria-hidden="true"></span>
+                                <span>${esc(t('homepage_studio.agent_working'))}</span>
+                                <span class="vd-hp-agent-elapsed" id="hp-agent-elapsed-${windowId}" aria-hidden="true"></span>
+                            </span>
+                        </div>
                     </aside>
-                    <div class="vd-hp-splitter" data-hp-splitter="chat" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${esc(t('homepage_studio.assistant_label'))}"></div>
+                    <div class="vd-hp-splitter" data-hp-splitter="chat" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${esc(t('homepage_studio.resize_assistant'))}" aria-controls="hp-chat-${windowId}" aria-valuemin="${MIN_PANEL_WIDTH}" aria-valuemax="${MAX_PANEL_WIDTH}" aria-valuenow="${DEFAULT_CHAT_WIDTH}"></div>
                     <main class="vd-hp-preview-zone" id="hp-preview-zone-${windowId}">
                         <div class="vd-hp-stage" data-hp-stage data-device="desktop">
                             <div class="vd-hp-preview-panel" id="hp-panel-preview-${windowId}">
+                                <div class="vd-hp-preview-frame" id="hp-frame-${windowId}"></div>
                                 <div class="vd-hp-preview-placeholder" id="hp-placeholder-${windowId}">
                                     <span class="vd-hp-preview-placeholder-icon" aria-hidden="true">${iconMarkup('globe', '🌐', '', 34)}</span>
                                     <h3 class="vd-hp-preview-placeholder-title">${esc(t('homepage_studio.preview_empty_title'))}</h3>
@@ -129,11 +157,12 @@
                                 <strong class="vd-hp-preview-url" id="hp-url-${windowId}" title="${esc(t('homepage_studio.no_url'))}">—</strong>
                             </div>
                             <div class="vd-hp-viewport-toolbar">
-                                <div class="vd-hp-device-seg" role="group" aria-label="${esc(t('homepage_studio.device_label'))}">
-                                    <button type="button" data-hp-device="desktop" class="active" aria-pressed="true">${esc(t('homepage_studio.device_desktop'))}</button>
-                                    <button type="button" data-hp-device="tablet" aria-pressed="false">${esc(t('homepage_studio.device_tablet'))}</button>
-                                    <button type="button" data-hp-device="mobile" aria-pressed="false">${esc(t('homepage_studio.device_mobile'))}</button>
+                                <div class="vd-hp-device-seg" role="radiogroup" aria-label="${esc(t('homepage_studio.device_label'))}">
+                                    <button type="button" data-hp-device="desktop" class="active" role="radio" aria-checked="true">${esc(t('homepage_studio.device_desktop'))}</button>
+                                    <button type="button" data-hp-device="tablet" role="radio" aria-checked="false">${esc(t('homepage_studio.device_tablet'))}</button>
+                                    <button type="button" data-hp-device="mobile" role="radio" aria-checked="false">${esc(t('homepage_studio.device_mobile'))}</button>
                                 </div>
+                                <span class="vd-hp-device-width" id="hp-device-width-${windowId}"></span>
                                 <span class="vd-hp-toolbar-sep" aria-hidden="true"></span>
                                 <button type="button" class="vd-hp-icon-btn" id="hp-refresh-${windowId}" title="${esc(t('homepage_studio.refresh_preview'))}" aria-label="${esc(t('homepage_studio.refresh_preview'))}">
                                     ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
@@ -146,31 +175,26 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="vd-hp-footer">
-                            <span class="vd-hp-site-pill" id="hp-site-pill-${windowId}" hidden></span>
-                            <span class="vd-hp-agent-pill" id="hp-agent-pill-${windowId}" hidden>
-                                <span class="vd-hp-agent-spinner" aria-hidden="true"></span>
-                                <span>${esc(t('homepage_studio.agent_working'))}</span>
-                                <span class="vd-hp-agent-elapsed" id="hp-agent-elapsed-${windowId}"></span>
-                            </span>
-                        </div>
+                        <div class="vd-hp-footer"><span class="vd-hp-site-pill" id="hp-site-pill-${windowId}" hidden></span></div>
                     </main>
-                    <div class="vd-hp-splitter" data-hp-splitter="inspector" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${esc(t('homepage_studio.inspector_label'))}"></div>
-                    <aside class="vd-hp-inspector" aria-label="${esc(t('homepage_studio.inspector_label'))}">
-                        <div class="vd-hp-preview-tabs" role="tablist" aria-label="${esc(t('homepage_studio.inspector_tabs'))}">
-                            <button type="button" class="vd-hp-preview-tab is-active" id="hp-tab-sites-${windowId}" role="tab" aria-selected="true" aria-controls="hp-panel-sites-${windowId}">
-                                ${esc(t('homepage_studio.sites_tab'))}
-                            </button>
-                            <button type="button" class="vd-hp-preview-tab" id="hp-tab-history-${windowId}" role="tab" aria-selected="false" aria-controls="hp-panel-history-${windowId}">
-                                ${esc(t('homepage_studio.history_tab'))}
-                            </button>
+                    <div class="vd-hp-splitter" data-hp-splitter="inspector" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${esc(t('homepage_studio.resize_inspector'))}" aria-controls="hp-inspector-${windowId}" aria-valuemin="${MIN_PANEL_WIDTH}" aria-valuemax="${MAX_PANEL_WIDTH}" aria-valuenow="${DEFAULT_INSPECTOR_WIDTH}"></div>
+                    <aside class="vd-hp-inspector" id="hp-inspector-${windowId}" aria-label="${esc(t('homepage_studio.inspector_label'))}">
+                        <div class="vd-hp-preview-tabs">
+                            <div class="vd-hp-preview-tablist" role="tablist" aria-label="${esc(t('homepage_studio.inspector_tabs'))}">
+                                <button type="button" class="vd-hp-preview-tab is-active" id="hp-tab-sites-${windowId}" role="tab" aria-selected="true" aria-controls="hp-panel-sites-${windowId}" tabindex="0">
+                                    ${esc(t('homepage_studio.sites_tab'))}
+                                </button>
+                                <button type="button" class="vd-hp-preview-tab" id="hp-tab-history-${windowId}" role="tab" aria-selected="false" aria-controls="hp-panel-history-${windowId}" tabindex="-1">
+                                    ${esc(t('homepage_studio.history_tab'))}
+                                </button>
+                            </div>
                             <button type="button" class="vd-hp-icon-btn" id="hp-collapse-inspector-${windowId}" title="${esc(t('homepage_studio.collapse_panel'))}" aria-label="${esc(t('homepage_studio.collapse_panel'))}">
                                 ${iconMarkup('chevron-right', '›', 'vd-hp-btn-icon', 14)}
                             </button>
                         </div>
                         <div class="vd-hp-inspector-body">
                             <div class="vd-hp-inspector-panel is-active" id="hp-panel-sites-${windowId}" role="tabpanel" aria-labelledby="hp-tab-sites-${windowId}">
-                                <div class="vd-hp-sites-list" id="hp-sites-list-${windowId}">
+                                <div class="vd-hp-sites-list" id="hp-sites-list-${windowId}" role="listbox" aria-label="${esc(t('homepage_studio.sites_tab'))}">
                                     <div class="vd-hp-sites-empty">${esc(t('homepage_studio.sites_loading'))}</div>
                                 </div>
                             </div>
@@ -178,13 +202,13 @@
                                 <div class="vd-hp-history-controls" id="hp-history-controls-${windowId}">
                                     <input type="search" class="vd-hp-history-search" id="hp-history-search-${windowId}" placeholder="${esc(t('homepage_studio.history_search_placeholder'))}" aria-label="${esc(t('homepage_studio.history_search_placeholder'))}">
                                     <select class="vd-hp-history-filter" id="hp-history-filter-${windowId}" aria-label="${esc(t('homepage_studio.history_filter_label'))}">
-                                        ${historyTypes.map(value => `<option value="${value}">${esc(t('homepage_studio.history_filter_' + (value || 'all')))}</option>`).join('')}
+                                        ${historyTypes.map(value => `<option value="${value}">${esc(tr('homepage_studio.history_filter_' + (value || 'all'), value || 'all'))}</option>`).join('')}
                                     </select>
                                     <button type="button" class="vd-hp-history-refresh" id="hp-history-refresh-${windowId}" title="${esc(t('homepage_studio.refresh'))}" aria-label="${esc(t('homepage_studio.refresh'))}">
                                         ${iconMarkup('refresh', '↻', 'vd-hp-btn-icon', 14)}
                                     </button>
                                 </div>
-                                <div class="vd-hp-history-list" id="hp-history-list-${windowId}">
+                                <div class="vd-hp-history-list" id="hp-history-list-${windowId}" role="list" aria-label="${esc(t('homepage_studio.history_tab'))}">
                                     <div class="vd-hp-history-empty">${esc(t('homepage_studio.history_loading'))}</div>
                                 </div>
                             </div>
@@ -223,6 +247,9 @@
         const sitePill = $(`hp-site-pill-${windowId}`);
         const agentPill = $(`hp-agent-pill-${windowId}`);
         const agentElapsed = $(`hp-agent-elapsed-${windowId}`);
+        const announceEl = $(`hp-announce-${windowId}`);
+        const previewFrame = $(`hp-frame-${windowId}`);
+        const tabList = root ? root.querySelector('.vd-hp-preview-tablist') : null;
         const stage = previewZone ? previewZone.querySelector('[data-hp-stage]') : null;
 
         function listen(target, event, handler, options) {
@@ -255,86 +282,31 @@
                 return null;
             }
         }
-        /* Panel collapse / splitters */
-        function setCollapsed(side, collapsed) {
-            const isChat = side === 'chat';
-            if (isChat) state.chatCollapsed = collapsed; else state.inspectorCollapsed = collapsed;
-            root.classList.toggle('chat-collapsed', state.chatCollapsed);
-            root.classList.toggle('inspector-collapsed', state.inspectorCollapsed);
-            const toggle = isChat ? toggleChatBtn : toggleInspectorBtn;
-            if (toggle) {
-                toggle.classList.toggle('active', !collapsed);
-                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-            }
-            schedulePersist();
-        }
-
-        function clampPanelWidth(px) {
-            return Math.max(240, Math.min(560, px));
-        }
+        /* Panel collapse / splitters live in the preview chrome module. */
+        const clampPanelWidth = (window.HomepageStudioPreview && window.HomepageStudioPreview.clampPanelWidth)
+            || (px => Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, px)));
 
         function applyWidths() {
-            if (state.chatWidth) root.style.setProperty('--hp-chat-w', state.chatWidth + 'px');
-            if (state.inspectorWidth) root.style.setProperty('--hp-inspector-w', state.inspectorWidth + 'px');
+            if (state.modules.preview) state.modules.preview.applyWidths();
         }
 
-        function wireSplitter(splitter, side) {
-            if (!splitter) return;
-            listen(splitter, 'pointerdown', event => {
-                if (event.button !== 0) return;
-                event.preventDefault();
-                splitter.setPointerCapture(event.pointerId);
-                splitter.classList.add('dragging');
-                const mainRect = $(`hp-main-${windowId}`).getBoundingClientRect();
-                const onMove = moveEvent => {
-                    const px = side === 'chat'
-                        ? moveEvent.clientX - mainRect.left
-                        : mainRect.right - moveEvent.clientX;
-                    const width = clampPanelWidth(px);
-                    if (side === 'chat') state.chatWidth = width; else state.inspectorWidth = width;
-                    applyWidths();
-                };
-                const onUp = () => {
-                    splitter.classList.remove('dragging');
-                    splitter.removeEventListener('pointermove', onMove);
-                    splitter.removeEventListener('pointerup', onUp);
-                    splitter.removeEventListener('pointercancel', onUp);
-                    schedulePersist();
-                };
-                splitter.addEventListener('pointermove', onMove);
-                splitter.addEventListener('pointerup', onUp);
-                splitter.addEventListener('pointercancel', onUp);
-            });
-            listen(splitter, 'dblclick', () => {
-                setCollapsed(side, side === 'chat' ? !state.chatCollapsed : !state.inspectorCollapsed);
-            });
-            listen(splitter, 'keydown', event => {
-                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-                event.preventDefault();
-                const current = side === 'chat'
-                    ? (state.chatWidth || 360)
-                    : (state.inspectorWidth || 330);
-                const delta = event.key === 'ArrowRight' ? 28 : -28;
-                const next = side === 'chat' ? current + delta : current - delta;
-                const width = clampPanelWidth(next);
-                if (side === 'chat') state.chatWidth = width; else state.inspectorWidth = width;
-                applyWidths();
-                schedulePersist();
-            });
+        function setCollapsed(side, collapsed) {
+            if (state.modules.preview) state.modules.preview.setCollapsed(side, collapsed);
         }
 
-        wireSplitter(root.querySelector('[data-hp-splitter="chat"]'), 'chat');
-        wireSplitter(root.querySelector('[data-hp-splitter="inspector"]'), 'inspector');
         /* Sub modules */
         if (window.HomepageStudioPreview && stage) {
             state.modules.preview = window.HomepageStudioPreview.create({
                 root,
                 zone: previewZone,
                 stage,
+                state,
+                t,
                 onDeviceChange: device => {
                     state.device = device;
                     schedulePersist();
-                }
+                },
+                onLayoutChange: () => schedulePersist()
             });
         }
 
@@ -350,10 +322,16 @@
                 isDisposed: () => state.disposed,
                 onSiteSelected: (siteId, detail) => {
                     state.selectedSiteId = siteId || 0;
+                    state.selectedSiteName = detail ? (detail.name || detail.project_dir || '') : '';
                     updateSitePill(detail);
                     if (state.modules.history) state.modules.history.setProjectId(state.selectedSiteId);
+                    if (state.lastStatus) refreshHomepageTargets(state.lastStatus);
+                    if (state.modules.annotate) state.modules.annotate.contextChanged();
                     schedulePersist();
-                }
+                },
+                safeExternalURL,
+                tr,
+                locale: appLocale
             });
         }
 
@@ -367,25 +345,26 @@
                 readonly,
                 controls: $(`hp-history-controls-${windowId}`),
                 list: $(`hp-history-list-${windowId}`),
+                locale: appLocale,
+                tr,
                 isDisposed: () => state.disposed
             });
         }
 
-        function updateSitePill(detail) {
-            if (!sitePill) return;
-            if (!detail) {
-                sitePill.hidden = true;
-                sitePill.textContent = '';
-                return;
-            }
-            const name = detail.name || detail.project_dir || '';
-            const drift = detail.drift_status || 'not_deployed';
-            const driftKnown = ['clean', 'local_changed', 'remote_changed', 'remote_unknown'].includes(drift) ? drift : 'not_deployed';
-            const driftKey = { clean: 'clean', local_changed: 'local-changed', remote_changed: 'remote-changed', remote_unknown: 'remote-unknown', not_deployed: 'not-deployed' }[driftKnown];
-            sitePill.innerHTML = `<span class="vd-hp-site-pill-name">${esc(name)}</span>` +
-                `<span class="vd-hp-drift vd-hp-drift-${driftKey}">${esc(t('homepage_studio.sites_drift_' + driftKnown))}</span>`;
-            sitePill.hidden = false;
+        if (window.HomepageStudioAnnotate && stage) {
+            state.modules.annotate = window.HomepageStudioAnnotate.create({
+                root, stage, chatForm, windowId, api, t, iconMarkup, notify, confirmDialog, announce, readonly,
+                isDisposed: () => state.disposed,
+                context: () => ({ siteId: state.selectedSiteId, target: state.target, device: state.device, previewUrl: state.previewUrl })
+            });
         }
+
+        function updateSitePill(detail) {
+            const liveFrame = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
+            if (liveFrame) liveFrame.title = previewFrameTitle();
+            if (sitePill && window.HomepageStudioSites) window.HomepageStudioSites.renderSitePill(sitePill, detail, { esc, tr });
+        }
+
         /* Restore draft */
         const draft = loadDraft();
         if (draft) {
@@ -405,7 +384,9 @@
                 state.selectedSiteId = Number(draft.selectedSiteId) || 0;
             }
             if (state.modules.history) state.modules.history.syncFilters(draft.historyQuery, draft.historyFilter);
-            switchPanel(draft.inspectorTab === 'history' ? 'history' : 'sites');
+            const restoredTab = draft.inspectorTab === 'history' ? 'history' : 'sites';
+            switchPanel(restoredTab);
+            if (restoredTab === 'history') loadHistoryPanel();
         }
         /* Chat */
         autoResizeTextarea(chatInput);
@@ -426,7 +407,7 @@
                 return;
             }
             const msg = chatInput.value.trim();
-            if (msg) sendMessage(msg);
+            if (msg || (state.modules.annotate && state.modules.annotate.count())) sendMessage(msg);
         });
 
         root.querySelectorAll('[data-hp-suggest]').forEach(chip => {
@@ -439,6 +420,7 @@
 
         listen(targetSelect, 'change', () => {
             state.target = targetSelect.value;
+            if (state.modules.annotate) state.modules.annotate.contextChanged();
             schedulePersist();
             loadStatus();
         });
@@ -454,20 +436,33 @@
         listen(collapseChatBtn, 'click', () => setCollapsed('chat', true));
         listen(collapseInspectorBtn, 'click', () => setCollapsed('inspector', true));
 
-        listen(sitesTab, 'click', () => switchPanel('sites'));
-        listen(historyTab, 'click', () => {
-            switchPanel('history');
-            loadHistoryPanel();
+        listen(sitesTab, 'click', () => selectTab(sitesTab, false));
+        listen(historyTab, 'click', () => selectTab(historyTab, false));
+
+        /* WAI-ARIA tabs pattern: arrow keys move selection and focus. */
+        listen(tabList, 'keydown', event => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return;
+            const tabs = [sitesTab, historyTab];
+            const currentIndex = tabs.indexOf(document.activeElement);
+            if (currentIndex < 0) return;
+            event.preventDefault();
+            let nextIndex = currentIndex;
+            if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+            else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+            else if (event.key === 'Home') nextIndex = 0;
+            else nextIndex = tabs.length - 1;
+            selectTab(tabs[nextIndex], true);
         });
 
         listen(root, 'keydown', e => {
             if (e.key !== 'Escape') return;
-            const typing = e.target.closest('input, textarea, select, [contenteditable]');
-            if (typing) return;
+            /* A running agent may be stopped from anywhere, including the composer. */
             if (state.chatBusy && state.abortCtrl) {
                 state.abortCtrl.abort();
                 return;
             }
+            const typing = e.target.closest('input, textarea, select, [contenteditable]');
+            if (typing) return;
             if (!state.inspectorCollapsed) {
                 setCollapsed('inspector', true);
             } else if (!state.chatCollapsed) {
@@ -475,10 +470,16 @@
             }
         });
 
-        loadStatus();
-        if (state.modules.sites) state.modules.sites.load();
+        /* The sites list is loaded first so the target resolver can reuse it
+           instead of fetching a second copy. */
+        const sitesReady = state.modules.sites ? state.modules.sites.load() : Promise.resolve();
+        Promise.resolve(sitesReady).then(() => {
+            if (state.disposed) return;
+            loadStatus();
+        });
 
         function loadHistoryPanel() {
+            if (state.disposed) return;
             if (!state.modules.history) return;
             state.modules.history.setEnabled(!state.statusLoaded || state.homepageEnabled);
             state.modules.history.loadHistory();
@@ -499,6 +500,7 @@
             try {
                 const data = await api('/api/desktop/integrations/homepage/status');
                 state.statusLoaded = true;
+                state.lastStatus = data;
                 state.homepageEnabled = data && data.status !== 'disabled';
 
                 if (!state.homepageEnabled) {
@@ -513,18 +515,32 @@
                 const pythonRunning = data && data.python_server && data.python_server.running;
                 const serverRunning = webRunning || pythonRunning;
 
+                let kind = serverRunning ? 'online' : 'offline';
                 let text = serverRunning
                     ? t('homepage_studio.status_online')
                     : t('homepage_studio.status_offline');
-                const extras = [];
-                if (serverRunning && (data.mode === 'python_fallback' || (pythonRunning && !webRunning))) {
-                    extras.push(t('homepage_studio.status_python_fallback'));
+                const target = String(state.target || 'local');
+                if (target !== 'local') {
+                    /* A cloud target is only healthy when it actually resolves. */
+                    const targetLabel = t('homepage_studio.target_' + target);
+                    if (homepageStatusPreviewURL(data, target)) {
+                        kind = 'online';
+                        text = targetLabel + ' · ' + t('homepage_studio.status_target_reachable');
+                    } else {
+                        kind = 'offline';
+                        text = targetLabel + ' · ' + t('homepage_studio.target_unreachable');
+                    }
+                } else {
+                    const extras = [];
+                    if (serverRunning && (data.mode === 'python_fallback' || (pythonRunning && !webRunning))) {
+                        extras.push(t('homepage_studio.status_python_fallback'));
+                    }
+                    if (data && data.tunnel_url) {
+                        extras.push(t('homepage_studio.status_tunnel'));
+                    }
+                    if (extras.length) text += ' · ' + extras.join(' · ');
                 }
-                if (data && data.tunnel_url) {
-                    extras.push(t('homepage_studio.status_tunnel'));
-                }
-                if (extras.length) text += ' · ' + extras.join(' · ');
-                setStatus(serverRunning ? 'online' : 'offline', text);
+                setStatus(kind, text);
 
                 state.previewUrl = homepageStatusPreviewURL(data, state.target);
                 updatePreviewUrl();
@@ -541,6 +557,8 @@
             statusText.textContent = text;
             statusPill.title = text;
         }
+
+        function homepageTargetLabel(target) { const value = String(target || 'local'); return t('homepage_studio.target_' + value); }
 
         function refreshHomepageTargets(statusData) {
             loadHomepageTargets().then(() => {
@@ -586,29 +604,41 @@
             if (state.targetsLoading) return state.targetsLoading;
             state.targetsLoading = (async () => {
                 const nextTargets = [];
-                const [sitesData, webhostsData] = await Promise.all([
-                    safeHomepageApi('/api/desktop/integrations/homepage/sites'),
-                    safeHomepageApi('/api/desktop/integrations/integrations/webhosts')
-                ]);
-
+                const webhostsData = await safeHomepageApi('/api/desktop/integrations/integrations/webhosts');
                 const webhosts = Array.isArray(webhostsData && webhostsData.webhosts) ? webhostsData.webhosts : [];
                 for (const item of webhosts) {
                     if (item && item.id === 'homepage') {
-                        addHomepageTarget(nextTargets, 'local', item.url, item.name || t('homepage_studio.default_name'));
+                        homepageTargets.add(nextTargets, 'local', item.url, item.name || t('homepage_studio.default_name'), firstPreviewURL);
                     }
                 }
 
-                const sites = Array.isArray(sitesData && sitesData.sites) ? sitesData.sites : [];
+                /* The sites panel owns the site list; the target resolver reuses
+                   that list instead of fetching a second copy of it. */
+                let sites = state.modules.sites && typeof state.modules.sites.getSites === 'function'
+                    ? state.modules.sites.getSites()
+                    : [];
+                if (!sites.length) {
+                    const sitesData = await safeHomepageApi('/api/desktop/integrations/homepage/sites');
+                    sites = Array.isArray(sitesData && sitesData.sites) ? sitesData.sites : [];
+                }
                 for (const site of sites) {
-                    collectHomepageTargetsFromSite(site, nextTargets);
+                    homepageTargets.collect(site, nextTargets, firstPreviewURL);
                 }
 
-                await Promise.all(sites.map(async site => {
-                    const id = Number(site && site.id);
-                    if (!Number.isFinite(id) || id <= 0) return;
-                    const detail = await safeHomepageApi('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(id)));
-                    collectHomepageTargetsFromSite(detail && detail.site, nextTargets);
-                }));
+                /* Only the selected site needs its detail; the provider URLs of
+                   the other sites come from the status payload. */
+                const detailId = Number(state.selectedSiteId) || 0;
+                if (detailId > 0) {
+                    const cached = state.modules.sites && typeof state.modules.sites.getDetail === 'function'
+                        ? state.modules.sites.getDetail(detailId)
+                        : null;
+                    let site = cached;
+                    if (!site) {
+                        const response = await safeHomepageApi('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(detailId)));
+                        site = response && response.site ? response.site : null;
+                    }
+                    homepageTargets.collect(site, nextTargets, firstPreviewURL);
+                }
 
                 state.deploymentTargets = nextTargets;
                 return nextTargets;
@@ -629,78 +659,12 @@
             }
         }
 
-        function collectHomepageTargetsFromSite(site, targets) {
-            if (!site || typeof site !== 'object') return;
-            addHomepageTarget(targets, 'remote', site.last_deploy_url, site.name || site.project_dir);
-            const deployTargets = Array.isArray(site.deploy_targets) ? site.deploy_targets : [];
-            for (const target of deployTargets) {
-                const provider = normalizeHomepageTargetProvider(target && target.provider);
-                const label = firstString(target && target.provider_target_id, site.name, site.project_dir, provider);
-                const url = firstPreviewURL(target && target.url, target && target.remote_path);
-                addHomepageTarget(targets, provider, url, label);
-            }
-            const deployments = Array.isArray(site.deployments) ? site.deployments : [];
-            for (const deployment of deployments) {
-                const provider = normalizeHomepageTargetProvider(deployment && deployment.provider);
-                const label = firstString(deployment && deployment.provider_deploy_id, site.name, site.project_dir, provider);
-                addHomepageTarget(targets, provider, deployment && deployment.url, label);
-            }
-            const observations = Array.isArray(site.remote_observations) ? site.remote_observations : [];
-            for (const observation of observations) {
-                const provider = normalizeHomepageTargetProvider(observation && observation.provider);
-                const label = firstString(observation && observation.provider_deploy_id, site.name, site.project_dir, provider);
-                addHomepageTarget(targets, provider, observation && observation.url, label);
-            }
-        }
-
-        function addHomepageTarget(targets, provider, url, label) {
-            const normalizedProvider = normalizeHomepageTargetProvider(provider);
-            const normalizedURL = firstPreviewURL(url);
-            if (!normalizedProvider || !normalizedURL) return;
-            const key = normalizedProvider + '\n' + normalizedURL;
-            if (targets.some(item => item.key === key)) return;
-            targets.push({
-                key,
-                provider: normalizedProvider,
-                url: normalizedURL,
-                label: firstString(label, normalizedProvider)
-            });
-        }
-
-        function normalizeHomepageTargetProvider(provider) {
-            const value = firstString(provider).toLowerCase();
-            if (value === 'homepage') return 'local';
-            if (value === 'sftp' || value === 'scp' || value === 'ssh') return 'remote';
-            return value || 'remote';
-        }
-
-        function homepageExternalTargetURL(target, deploymentTargets) {
-            if (!Array.isArray(deploymentTargets) || !deploymentTargets.length) return '';
-            const selected = normalizeHomepageTargetProvider(target);
-            const aliases = {
-                local: ['local', 'homepage'],
-                vercel: ['vercel'],
-                netlify: ['netlify'],
-                here_now: ['here_now'],
-                remote: ['remote', 'sftp', 'scp', 'ssh']
-            };
-            const allowed = aliases[selected] || [selected];
-            const exact = deploymentTargets.find(item => item && allowed.includes(item.provider) && item.url);
-            if (exact) return exact.url;
-            const externalTargets = ['remote', 'vercel', 'netlify', 'here_now'];
-            if (externalTargets.includes(selected)) {
-                const fallback = deploymentTargets.find(item => item && item.provider !== 'local' && item.url);
-                if (fallback) return fallback.url;
-            }
-            return '';
-        }
-
         function homepageStatusPreviewURL(data, target) {
             if (!data) return '';
             const webRunning = data.web_container && data.web_container.running;
             const pythonRunning = data.python_server && data.python_server.running;
             const serverRunning = webRunning || pythonRunning;
-            const externalURL = homepageExternalTargetURL(target, state.deploymentTargets);
+            const externalURL = homepageTargets.external(target, state.deploymentTargets);
 
             const objectURL = key => {
                 const obj = data[key];
@@ -739,6 +703,7 @@
             const hasUrl = !!safeURL;
             externalBtn.disabled = !hasUrl;
             externalBtn.classList.toggle('is-disabled', !hasUrl);
+            if (state.modules.annotate) state.modules.annotate.setAvailable(hasUrl);
             if (hasUrl) {
                 previewUrl.textContent = safeURL;
                 previewUrl.title = safeURL;
@@ -756,14 +721,16 @@
                 hidePreview();
                 return;
             }
-            let iframe = previewPanel.querySelector('.vd-hp-preview-iframe');
+            let iframe = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
             if (!iframe) {
                 previewPlaceholder.style.display = 'none';
                 iframe = document.createElement('iframe');
                 iframe.className = 'vd-hp-preview-iframe';
                 iframe.sandbox = 'allow-scripts allow-forms';
                 iframe.referrerPolicy = 'no-referrer';
-                previewPanel.insertBefore(iframe, previewLoading);
+                iframe.title = previewFrameTitle();
+                if (previewFrame) previewFrame.appendChild(iframe);
+                else previewPanel.insertBefore(iframe, previewLoading);
             }
             if (iframe.src !== safeURL) {
                 previewLoading.classList.add('active');
@@ -781,12 +748,16 @@
         }
 
         function hidePreview() {
-            const iframe = previewPanel.querySelector('.vd-hp-preview-iframe');
+            const iframe = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
             if (iframe) iframe.remove();
             previewPlaceholder.style.display = '';
         }
 
+        /* The preview frame needs an accessible name. */
+        function previewFrameTitle() { const label = t('homepage_studio.preview_tab'); return state.selectedSiteName ? label + ': ' + state.selectedSiteName : label; }
+
         function refreshPreview() {
+            if (state.disposed) return;
             if (!state.previewUrl) {
                 loadStatus();
                 return;
@@ -800,8 +771,9 @@
             }
             previewLoading.classList.add('active');
             previewLoading.setAttribute('aria-hidden', 'false');
-            const iframe = previewPanel.querySelector('.vd-hp-preview-iframe');
+            const iframe = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
             if (iframe) {
+                iframe.title = previewFrameTitle();
                 iframe.onload = () => {
                     previewLoading.classList.remove('active');
                     previewLoading.setAttribute('aria-hidden', 'true');
@@ -819,6 +791,8 @@
             historyTab.setAttribute('aria-selected', historyActive ? 'true' : 'false');
             sitesTab.classList.toggle('is-active', !historyActive);
             sitesTab.setAttribute('aria-selected', historyActive ? 'false' : 'true');
+            historyTab.setAttribute('tabindex', historyActive ? '0' : '-1');
+            sitesTab.setAttribute('tabindex', historyActive ? '-1' : '0');
             historyPanel.classList.toggle('is-active', historyActive);
             sitesPanel.classList.toggle('is-active', !historyActive);
             if (historyActive) {
@@ -830,6 +804,18 @@
             }
             schedulePersist();
         }
+
+        function selectTab(tab, moveFocus) {
+            if (!tab) return;
+            const historyActive = tab === historyTab;
+            switchPanel(historyActive ? 'history' : 'sites');
+            if (historyActive) loadHistoryPanel();
+            if (moveFocus) tab.focus();
+        }
+
+        /* The chat log is a transcript, not a live region: the streaming bubble
+           is rewritten per frame. Only finished events are announced. */
+        function announce(message) { if (announceEl && message) announceEl.textContent = message; }
         /* Agent chat stream */
         function homepageWindowContext() {
             return {
@@ -844,6 +830,8 @@
         }
 
         async function sendMessage(message) {
+            const marks = state.modules.annotate ? state.modules.annotate.takeForSend(message) : null;
+            if (marks) message = marks.message;
             chatInput.value = '';
             autoResizeTextarea(chatInput);
             state.chatBusy = true;
@@ -853,6 +841,7 @@
             if (welcome) welcome.remove();
 
             appendBubble('user', message);
+            if (marks) state.modules.annotate.attachThumbnail(chatLog, marks);
 
             const renderer = window.DesktopChatRenderer;
             const statusEl = renderer ? renderer.createThinkingStatus() : null;
@@ -901,12 +890,18 @@
                 state.abortCtrl = null;
                 setBusy(false);
                 scrollToEnd();
+                announce(t('homepage_studio.agent_finished'));
+                if (state.disposed) return;
                 refreshPreview();
                 loadHistoryPanel();
                 if (state.modules.sites) state.modules.sites.load();
 
                 if (streamingContent.trim()) {
-                    setTimeout(() => refreshPreview(), 500);
+                    if (state.refreshTimer) clearTimeout(state.refreshTimer);
+                    state.refreshTimer = setTimeout(() => {
+                        state.refreshTimer = null;
+                        if (!state.disposed) refreshPreview();
+                    }, 500);
                 }
             }
 
@@ -920,6 +915,7 @@
                 if (statusEl && statusEl.parentNode) statusEl.remove();
                 const msg = (err && err.message) || String(err || t('desktop.chat_request_failed'));
                 appendBubble('agent', msg);
+                announce(msg);
                 state.chatBusy = false;
                 state.abortCtrl = null;
                 setBusy(false);
@@ -932,7 +928,8 @@
                 source: 'homepage-studio',
                 target: state.target,
                 homepage_mode: true,
-                window_context: homepageWindowContext()
+                window_context: homepageWindowContext(),
+                ...(marks ? marks.context : {})
             };
 
             try {
@@ -1029,6 +1026,7 @@
         function setBusy(busy) {
             chatInput.disabled = !!busy || readonly;
             sendBtn.classList.toggle('is-stop', !!busy);
+            chatLog.setAttribute('aria-busy', busy ? 'true' : 'false');
             const sendText = t('desktop.send');
             const stopText = t('desktop.chat_stop');
             sendLabel.textContent = busy ? stopText : sendText;
@@ -1038,6 +1036,7 @@
             }
             if (busy) {
                 state.busyStart = Date.now();
+                announce(t('homepage_studio.agent_working'));
                 const elapsedText = (seconds) => t('desktop.noisemaker_progress_elapsed', { seconds });
                 if (agentElapsed) agentElapsed.textContent = elapsedText(0);
                 state.busyTimer = setInterval(() => {
@@ -1078,6 +1077,7 @@
         if (!state) return;
         if (state.abortCtrl) { state.abortCtrl.abort(); state.abortCtrl = null; }
         if (state.persistTimer) { clearTimeout(state.persistTimer); state.persistTimer = null; }
+        if (state.refreshTimer) { clearTimeout(state.refreshTimer); state.refreshTimer = null; }
         persistHomepageDraft(state, windowId);
         state.disposed = true;
         if (state.busyTimer) { clearInterval(state.busyTimer); state.busyTimer = null; }

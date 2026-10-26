@@ -759,7 +759,7 @@ func TestHandleUpdateConfigNormalizesAIGatewayBeforePersisting(t *testing.T) {
 			"mode": "definitely-invalid",
 			"log_mode": "leak-everything",
 			"backoff": "sideways",
-			"request_timeout_ms": -500,
+			"request_timeout_ms": 0,
 			"max_attempts": 12,
 			"retry_delay_ms": -10
 		}
@@ -910,9 +910,11 @@ agent:
 			loaded.ConfigPath = configPath
 			s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
 
-			body := `{"providers":[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o"}]}`
+			body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o"}]`
 			rec := httptest.NewRecorder()
-			handleUpdateConfig(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(body)))
+			req := httptest.NewRequest(http.MethodPut, "/api/providers", strings.NewReader(body))
+			req.Header.Set("If-Match", s.providerETag())
+			handlePutProviders(s, rec, req)
 
 			if rec.Code != http.StatusOK {
 				t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())

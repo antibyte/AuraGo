@@ -18,6 +18,7 @@ const gameMakerJSONLimit = 256 * 1024
 
 func registerGameMakerRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/game-maker/capabilities", handleGameMakerCapabilities(s))
+	mux.HandleFunc("/api/game-maker/model-limits", handleGameMakerModelLimits(s))
 	mux.HandleFunc("/api/game-maker/asset-packs", handleGameMakerAssetPacks(s))
 	mux.HandleFunc("/api/game-maker/asset-packs/", handleGameMakerAssetPacks(s))
 	mux.HandleFunc("/api/game-maker/projects", handleGameMakerProjects(s))
@@ -294,6 +295,27 @@ func handleGameMakerStartJob(w http.ResponseWriter, r *http.Request, s *Server, 
 			jsonError(w, "selected Game Maker provider is not available for general chat", http.StatusBadRequest)
 			return
 		}
+	}
+	if cfg := s.ConfigSnapshot(); cfg != nil {
+		model := strings.TrimSpace(request.Model)
+		if model == "" {
+			if project, err := s.GameMaker.GetProject(r.Context(), projectID); err == nil {
+				model = strings.TrimSpace(project.Model)
+			}
+		}
+		if contextWindow, blocked := gameMakerModelLimitBlocked(cfg, providerID, model, request.AllowSmallModel); blocked {
+			writeGameMakerJSON(w, http.StatusBadRequest, map[string]any{
+				"status":                 "error",
+				"code":                   "model_context_too_small",
+				"message":                fmt.Sprintf("the selected model reports %d tokens of context; Game Maker needs at least %d. Choose a larger model or opt in explicitly.", contextWindow, gameMakerMinContextWindow),
+				"context_window":         contextWindow,
+				"minimum_context_window": gameMakerMinContextWindow,
+			})
+			return
+		}
+		// Record the small-model decision once, before the job exists: the explicit
+		// client opt-in wins, automatic detection still applies to an explicit false.
+		request.SmallModel = gameMakerSmallModelDecision(cfg, providerID, model, request.SmallModel)
 	}
 	job, err := s.GameMaker.StartJob(r.Context(), projectID, request)
 	if err != nil {

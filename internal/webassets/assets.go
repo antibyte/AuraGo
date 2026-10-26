@@ -20,8 +20,8 @@ import (
 var SetID, ArchiveSHA256, ArchiveBytes, DownloadURL string
 
 const ManifestName = "manifest.json"
-const MaxArchiveBytes int64 = 768 << 20
-const MaxExpandedBytes int64 = 1 << 30
+const MaxArchiveBytes int64 = 1 << 30
+const MaxExpandedBytes int64 = 2 << 30
 const MaxFiles = 20000
 
 var ErrUnavailable = errors.New("web resources unavailable; install the matching asset set and restart AuraGo")

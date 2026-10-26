@@ -24,6 +24,7 @@ let sipNeedsRestart = false;
 let sipDeleteConfirm = false;
 let sipDeleteHistory = false;
 let sipDockerAdvertisedHostRequired = false;
+let sipSavePromise = null;
 
 function sipEsc(value) {
     return String(value == null ? '' : value)
@@ -161,7 +162,7 @@ function sipWizardConfigured() {
 
 function sipDeleteConfirmation() {
     return `<section class="sip-delete-confirm" role="alertdialog" tabindex="-1" aria-labelledby="sip-delete-title" aria-describedby="sip-delete-text">
-        <div><strong id="sip-delete-title">${sipEsc(t('config.sip.delete.title'))}</strong><p id="sip-delete-text">${sipEsc(t('config.sip.delete.text'))}</p></div>
+        <div><strong id="sip-delete-title">${sipEsc(t('config.sip.delete.title'))}</strong><p id="sip-delete-text">${sipEsc(t('config.sip.delete.text'))}</p><p>${sipEsc(t('config.sip.telephone_profile_preserved'))}</p></div>
         <label><input type="checkbox" data-sip-delete-history ${sipDeleteHistory ? 'checked' : ''}> <span>${sipEsc(t('config.sip.delete.history'))}</span></label>
         <div><button type="button" class="btn btn-secondary" data-sip-profile="delete-cancel">${sipEsc(t('config.sip.delete.cancel'))}</button><button type="button" class="btn-save sip-danger-button" data-sip-profile="delete-confirm">${sipEsc(t('config.sip.delete.confirm'))}</button></div>
     </section>`;
@@ -297,6 +298,7 @@ function sipWizardReview(provider) {
             <div><span>${sipEsc(t('config.sip.answer_inbound'))}</span><strong>${sipEsc(inboundSummary)}</strong></div>
         </div>
         <div class="sip-security-summary"><strong>${sipEsc(t('config.sip.wizard.verify_check_title'))}</strong><p>${sipEsc(t('config.sip.wizard.verify_check_text'))}</p></div>
+        <p class="section-desc">${sipEsc(t('config.sip.telephone_profile_preserved'))}</p>
         ${sipWizardTestCode ? `<div class="sip-test-diagnostic" role="alert"><strong>${sipEsc(sipTestErrorMessage(sipWizardTestCode))}</strong><div><button type="button" class="btn btn-secondary" data-sip-wizard="diagnostic-credentials">${sipEsc(t('config.sip.diagnostic.check_credentials'))}</button><button type="button" class="btn btn-secondary" data-sip-wizard="diagnostic-provider">${sipEsc(t('config.sip.diagnostic.check_provider'))}</button></div></div>` : ''}
         ${replacing ? `<label class="sip-replace-confirm"><input type="checkbox" data-sip-replace-confirm> <span>${sipEsc(t('config.sip.wizard.replace_confirm'))}</span></label>` : ''}
         <div class="sip-wizard-actions">
@@ -424,6 +426,7 @@ function sipRender() {
         <div class="rs-security-note"><strong>${sipEsc(t('config.sip.security_title'))}</strong><p>${sipEsc(t('config.sip.security_note'))}</p></div>
     </section>`;
     sipBindEvents();
+    sipSyncSaving();
     sipLoadStatus();
 }
 
@@ -501,7 +504,8 @@ function sipMarkClean() {
     } else {
         sipSavedState = '';
     }
-    if (typeof setDirty === 'function') setDirty(false);
+    if (typeof markDirty === 'function') markDirty();
+    else if (typeof setDirty === 'function') setDirty(false);
 }
 
 function sipBindEvents() {
@@ -859,48 +863,81 @@ async function sipRequest(path, options) {
     }
 }
 
-async function sipSave() {
-    const status = document.getElementById('sip-action-status');
-    const save = document.querySelector('[data-sip-action="save"]');
-    if (!document.querySelector('[data-sip]')) return false;
-    if (save) save.disabled = true;
-    if (status) status.textContent = t('config.sip.saving');
-    try {
-        const payload = sipRead();
-        // Expert destinations still become dialable when the administrator
-        // explicitly leaves read-only mode.
-        sipNormalizeOutboundPayload(payload);
-		if (payload.domain && !payload.readonly && payload.permissions?.originate_outbound) {
-            payload.permissions = payload.permissions || {};
-            payload.permissions.originate_outbound = true;
-            payload.permissions.send_dtmf = true;
-            payload.permissions.agent_hangup = true;
-            if (!payload.browser_media) payload.browser_media = {};
-            payload.browser_media.enabled = true;
+function sipSyncSaving(saving = !!sipSavePromise) {
+    const section = document.querySelector('.sip-section');
+    if (!section) return;
+    section.toggleAttribute('data-config-saving', saving);
+    section.querySelectorAll('[data-sip-action="save"]').forEach(button => { button.disabled = saving; });
+}
+
+function sipSave() {
+    if (sipSavePromise) return sipSavePromise;
+    if (!document.querySelector('[data-sip]')) return Promise.resolve(false);
+    sipSyncSaving(true);
+    sipSavePromise = (async () => {
+        try {
+            const sentDraft = sipRead();
+            const payload = JSON.parse(JSON.stringify(sentDraft));
+            const status = document.getElementById('sip-action-status');
+            if (status) status.textContent = t('config.sip.saving');
+            // Expert destinations still become dialable when the administrator
+            // explicitly leaves read-only mode.
+            sipNormalizeOutboundPayload(payload);
+            if (payload.domain && !payload.readonly && payload.permissions?.originate_outbound) {
+                payload.permissions = payload.permissions || {};
+                payload.permissions.originate_outbound = true;
+                payload.permissions.send_dtmf = true;
+                payload.permissions.agent_hangup = true;
+                if (!payload.browser_media) payload.browser_media = {};
+                payload.browser_media.enabled = true;
+            }
+            const response = await sipRequest('/api/sip/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const saved = sipNormalize(Object.prototype.hasOwnProperty.call(response, 'enabled') ? response : await sipRequest('/api/sip/config'));
+            const draft = sipRead();
+            const edited = sipComparable(draft) !== sipComparable(sentDraft) || draft.password !== sentDraft.password || draft.clear_password !== sentDraft.clear_password;
+            if (draft.password === sentDraft.password) {
+                draft.password = '';
+                const input = document.querySelector('[data-sip="password"]');
+                if (input) input.value = '';
+            }
+            if (draft.clear_password === sentDraft.clear_password) {
+                draft.clear_password = false;
+                const input = document.querySelector('[data-sip="clear_password"]');
+                if (input) input.checked = false;
+            }
+            draft.password_set = saved.password_set;
+            sipConfigState = edited ? draft : saved;
+            sipSavedState = sipComparable(saved);
+            sipPhoneTargets = sipList([
+                ...(sipConfigState.outbound.allowed_users || []),
+                ...(sipConfigState.outbound.allowed_e164_prefixes || [])
+            ]);
+            if (sipConfigState.registrar) sipWizardStep = 0;
+            const needsRestart = !!(response && (response.needs_restart || response.status === 'pending'));
+            sipNeedsRestart = sipNeedsRestart || needsRestart;
+            if (!edited) {
+                sipRender();
+                sipMarkClean();
+            } else {
+                sipAdvancedDirty = true;
+                if (typeof markDirty === 'function') markDirty();
+                else if (typeof setDirty === 'function') setDirty(true);
+            }
+            const nextStatus = document.getElementById('sip-action-status');
+            if (nextStatus) {
+                nextStatus.textContent = needsRestart
+                    ? t('config.sip.restart_required')
+                    : t('config.sip.saved');
+                if (edited) nextStatus.textContent += ` · ${t('config.save_bar.unsaved_changes')}`;
+            }
+            return true;
+        } catch (error) {
+            const status = document.getElementById('sip-action-status');
+            if (status) status.textContent = error.message;
+            return false;
         }
-        const saved = await sipRequest('/api/sip/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        sipConfigState = sipNormalize(Object.prototype.hasOwnProperty.call(saved, 'enabled') ? saved : await sipRequest('/api/sip/config'));
-        sipPhoneTargets = sipList([
-            ...(sipConfigState.outbound.allowed_users || []),
-            ...(sipConfigState.outbound.allowed_e164_prefixes || [])
-        ]);
-        if (sipConfigState.registrar) sipWizardStep = 0;
-        const needsRestart = !!(saved && (saved.needs_restart || saved.status === 'pending'));
-        sipNeedsRestart = sipNeedsRestart || needsRestart;
-        sipRender();
-        sipMarkClean();
-        const nextStatus = document.getElementById('sip-action-status');
-        if (nextStatus) {
-            nextStatus.textContent = needsRestart
-                ? t('config.sip.restart_required')
-                : t('config.sip.saved');
-        }
-        return true;
-    } catch (error) {
-        if (status) status.textContent = error.message;
-        if (save) save.disabled = false;
-        return false;
-    }
+    })().finally(() => { sipSavePromise = null; sipSyncSaving(false); });
+    return sipSavePromise;
 }
 
 async function sipSaveUnsaved() {
@@ -1061,7 +1098,7 @@ async function renderSIPSection() {
         const outboundPrefixes = sipConfigState.outbound.allowed_e164_prefixes || [];
         const hasAllNumberPrefixes = outboundPrefixes.length === 9 && Array.from({length: 9}, (_, i) => '+' + (i + 1)).every(prefix => outboundPrefixes.includes(prefix));
         sipWizardOutboundScope = !(sipConfigState.outbound.allowed_users || []).length && hasAllNumberPrefixes ? 'all' : 'custom';
-        sipWizardInboundEnabled = sipConfigState.inbound.route === 'manual' && !!sipConfigState.permissions.answer_inbound;
+        sipWizardInboundEnabled = ['manual', 'agent'].includes(sipConfigState.inbound.route) && !!sipConfigState.permissions.answer_inbound;
         sipWizardInboundScope = (sipConfigState.inbound.allowed_callers || []).includes('*') ? 'all' : 'custom';
         sipWizardCustomCallers = sipList(sipConfigState.inbound.allowed_callers || []);
         sipRender();

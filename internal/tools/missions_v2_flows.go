@@ -68,6 +68,47 @@ type FlowHooks interface {
 	NextFlowRun(missionID string) (time.Time, bool)
 }
 
+// FlowStartOutcome tells what a flow start did (FlowRunReporter): Status is "started", "queued" or
+// "skipped" (the flow's skip policy dropped the start while one of its runs is going); RunID is
+// empty for a skip.
+type FlowStartOutcome struct {
+	RunID  string
+	Status string
+}
+
+// FlowRunReporter is an optional FlowHooks extension that reports what a start did. RunNow and
+// TriggerMissionWithOptions use it, so a start the flow skipped answers as skipped
+// (MissionTriggerSkippedError, FlowStartSkippedReason) instead of as a queued run.
+type FlowRunReporter interface {
+	StartFlowRunReported(missionID, nodeID, triggerType, triggerData string) (FlowStartOutcome, error)
+}
+
+// FlowStartSkippedReason is the MissionTriggerSkippedError reason of a flow start that the flow's
+// skip policy dropped.
+const FlowStartSkippedReason = "flow_busy"
+
+// ErrFlowQueueFull refuses a flow run because too many runs wait already (the flow's own queue or
+// the runner's waiting list); the server wraps the flow service's ErrQueueFull with it. Mission
+// Control treats it as a deliberate refusal (flowRefusal).
+var ErrFlowQueueFull = errors.New("too many flow runs are waiting; this one was not started")
+
+// startFlowRunReported is StartFlowRun for Mission Control's own starts (Run, the trigger API):
+// with a FlowRunReporter, a start the flow skipped becomes a MissionTriggerSkippedError.
+func startFlowRunReported(hooks FlowHooks, missionID, triggerType, triggerData string) error {
+	reporter, ok := hooks.(FlowRunReporter)
+	if !ok {
+		return hooks.StartFlowRun(missionID, "", triggerType, triggerData)
+	}
+	out, err := reporter.StartFlowRunReported(missionID, "", triggerType, triggerData)
+	if err != nil {
+		return err
+	}
+	if out.Status == "skipped" {
+		return &MissionTriggerSkippedError{Reason: FlowStartSkippedReason}
+	}
+	return nil
+}
+
 // ErrFlowMissionManaged rejects changes to flow missions outside EasyDrag. The text contains
 // "not supported" so the mission API answers 400.
 var ErrFlowMissionManaged = errors.New("flow missions are managed in EasyDrag; changing them here is not supported")
@@ -75,6 +116,11 @@ var ErrFlowMissionManaged = errors.New("flow missions are managed in EasyDrag; c
 // ErrFlowsUnavailable refuses a run of a flow mission while no flow service is wired in
 // (flows.enabled is off, or the flow store could not be opened). The mission API answers 503.
 var ErrFlowsUnavailable = errors.New("flows are not available")
+
+// ErrFlowRunsPaused refuses a run that nobody asked for (a trigger, a planner admission) while
+// tools.missions.readonly is on. No run was started; Mission Control notes it on the flow
+// mission instead of treating it as a failed start.
+var ErrFlowRunsPaused = errors.New("flow runs are paused while missions are read-only")
 
 func isFlowMission(m *MissionV2) bool { return m != nil && m.ExecutionType == ExecutionFlow }
 
@@ -725,60 +771,124 @@ func (m *MissionManagerV2) shouldFireFlowSpecLocked(missionID string, spec FlowT
 	return true
 }
 
-// startFlowRun starts a flow run through hooks. Callers do not hold m.mu.
+// startFlowRun starts a flow run through hooks. Without hooks, or when they refuse on purpose
+// (flowRefusal), the mission shows why and nothing more is logged than the first refusal.
+// Callers do not hold m.mu.
 func (m *MissionManagerV2) startFlowRun(hooks FlowHooks, missionID, nodeID, triggerType, data string) {
+	var err error
 	if hooks == nil {
-		m.mu.Lock()
-		changed := m.noteFlowsUnavailableLocked(missionID)
-		if changed {
-			m.saveFlowNotesLocked()
-		}
-		m.mu.Unlock()
-		logFlowsUnavailable(changed, "mission_id", missionID, "node", nodeID)
+		err = ErrFlowsUnavailable
+	} else {
+		err = hooks.StartFlowRun(missionID, nodeID, triggerType, data)
+	}
+	if err == nil {
 		return
 	}
-	if err := hooks.StartFlowRun(missionID, nodeID, triggerType, data); err != nil {
+	reason := flowRefusal(err)
+	if reason == nil {
 		slog.Warn("[MissionV2] Flow trigger could not start a run", "mission_id", missionID, "node", nodeID,
 			"trigger", triggerType, "error", err)
+		return
 	}
+	m.mu.Lock()
+	changed := m.noteFlowRefusalLocked(missionID, flowRefusalOutput(reason))
+	if changed {
+		m.saveFlowNotesLocked()
+	}
+	m.mu.Unlock()
+	logFlowRefusal(changed, reason, "mission_id", missionID, "node", nodeID)
 }
+
+// flowRefusal returns the sentinel behind a flow run that was refused on purpose,
+// ErrFlowRunsPaused, ErrFlowsUnavailable or ErrFlowQueueFull, and nil for every other error.
+func flowRefusal(err error) error {
+	switch {
+	case errors.Is(err, ErrFlowRunsPaused):
+		return ErrFlowRunsPaused
+	case errors.Is(err, ErrFlowsUnavailable):
+		return ErrFlowsUnavailable
+	case errors.Is(err, ErrFlowQueueFull):
+		return ErrFlowQueueFull
+	}
+	return nil
+}
+
+// flowRefusalOutput is the LastOutput that shows a refusal (a flowRefusal result) on the mission.
+func flowRefusalOutput(reason error) string {
+	switch reason {
+	case ErrFlowRunsPaused:
+		return flowRunsPausedOutput
+	case ErrFlowQueueFull:
+		return flowQueueFullOutput
+	}
+	return flowsUnavailableOutput
+}
+
+// flowQueueFullOutput is the LastOutput of a flow mission whose trigger fired while too many flow
+// runs were waiting (ErrFlowQueueFull).
+const flowQueueFullOutput = "Too many EasyDrag flow runs were waiting; this trigger started no run"
 
 // flowsUnavailableOutput is the LastOutput of a flow mission whose trigger fired while no
 // flow service is wired in: flows.enabled is off, or the flow store could not be opened.
 const flowsUnavailableOutput = "EasyDrag flows are not available (switched off, or their store could not be opened); the flow did not run"
 
-// noteFlowsUnavailableLocked shows on a flow mission that a trigger fired while flows are
-// not available: LastResult "error" with flowsUnavailableOutput. Nothing else changes (no
-// run is counted and no dependent fires). It reports whether the mission changed, that is
-// whether it did not show that already; it does not save, so a caller noting several
-// missions saves once (saveFlowNotesLocked) and a trigger that keeps firing does not
-// rewrite the missions file. Caller holds m.mu for writing.
-func (m *MissionManagerV2) noteFlowsUnavailableLocked(missionID string) bool {
+// flowRunsPausedOutput is the LastOutput of a flow mission whose trigger fired while missions
+// are read-only (ErrFlowRunsPaused).
+const flowRunsPausedOutput = "EasyDrag flow runs are paused while missions are read-only; the flow did not run"
+
+// noteFlowRefusalLocked shows a note on a flow mission (a refused trigger or run, a published
+// revision that needs republishing): LastResult "error" with output (flowsUnavailableOutput or flowRunsPausedOutput).
+// Nothing else changes (no run is counted and no dependent fires), and the next run result
+// replaces the note. It reports whether the mission changed, that is whether it did not show
+// that already; it does not save, so a caller noting several missions saves once
+// (saveFlowNotesLocked) and a trigger that keeps firing does not rewrite the missions file.
+// Caller holds m.mu for writing.
+func (m *MissionManagerV2) noteFlowRefusalLocked(missionID, output string) bool {
 	mission, ok := m.missions[missionID]
 	if !ok || !isFlowMission(mission) ||
-		(mission.LastResult == MissionResultError && mission.LastOutput == flowsUnavailableOutput) {
+		(mission.LastResult == MissionResultError && mission.LastOutput == output) {
 		return false
 	}
-	mission.LastResult, mission.LastOutput = MissionResultError, flowsUnavailableOutput
+	mission.LastResult, mission.LastOutput = MissionResultError, output
 	return true
 }
 
-// saveFlowNotesLocked persists the notes of noteFlowsUnavailableLocked. Caller holds m.mu.
+// saveFlowNotesLocked persists the notes of noteFlowRefusalLocked. Caller holds m.mu.
 func (m *MissionManagerV2) saveFlowNotesLocked() {
 	if err := m.save(); err != nil {
 		slog.Warn("[MissionV2] Failed to persist the flow mission state", "error", err)
 	}
 }
 
-// logFlowsUnavailable logs a flow trigger refused for lack of flow hooks: at Warn when it
-// changed a mission (the first refusal shows up), at Debug when it repeats.
-func logFlowsUnavailable(changed bool, args ...any) {
-	const msg = "[MissionV2] Flow trigger fired but flows are not available"
+// logFlowRefusal logs a flow trigger refused for reason (ErrFlowsUnavailable or
+// ErrFlowRunsPaused): at Warn when it changed a mission (the first refusal shows up), at
+// Debug when it repeats.
+func logFlowRefusal(changed bool, reason error, args ...any) {
+	msg := "[MissionV2] Flow trigger fired but " + reason.Error()
 	if changed {
 		slog.Warn(msg, args...)
 		return
 	}
 	slog.Debug(msg, args...)
+}
+
+// NoteFlowRunRefused shows on a flow mission that a run was refused on purpose: reason is
+// ErrFlowRunsPaused or ErrFlowsUnavailable (wrapped or not). The flow service reports it for a
+// queued run its gate stopped before it executed. It saves only when the note changed, logs like
+// a refused trigger and reports whether the mission changed; any other reason is ignored.
+func (m *MissionManagerV2) NoteFlowRunRefused(missionID string, reason error) bool {
+	r := flowRefusal(reason)
+	if r == nil {
+		return false
+	}
+	m.mu.Lock()
+	changed := m.noteFlowRefusalLocked(missionID, flowRefusalOutput(r))
+	if changed {
+		m.saveFlowNotesLocked()
+	}
+	m.mu.Unlock()
+	logFlowRefusal(changed, r, "mission_id", missionID)
+	return changed
 }
 
 // flowEvent carries the values that event trigger specs filter on.
@@ -845,7 +955,7 @@ func (r flowRunRequest) release() {
 // m.mu, so the runs go to the event dispatcher (the hooks call back into the manager). The
 // dispatcher keeps event order; when its queue is full, the runs of the event are dropped.
 // Without flow hooks no run starts and every matching flow mission shows why
-// (noteFlowsUnavailableLocked).
+// (noteFlowRefusalLocked).
 func (m *MissionManagerV2) notifyFlowsLocked(trigger TriggerType, ev flowEvent, data any) {
 	m.notifyFlowsForOwnerLocked(trigger, ev, data, QueueItem{})
 }
@@ -880,12 +990,12 @@ func (m *MissionManagerV2) notifyFlowsForOwnerLocked(trigger TriggerType, ev flo
 	if m.flowHooks == nil {
 		changed := false
 		for _, s := range starts {
-			changed = m.noteFlowsUnavailableLocked(s.missionID) || changed
+			changed = m.noteFlowRefusalLocked(s.missionID, flowsUnavailableOutput) || changed
 		}
 		if changed {
 			m.saveFlowNotesLocked() // once per event, however many flows it refused
 		}
-		logFlowsUnavailable(changed, "trigger", string(trigger), "runs", len(starts))
+		logFlowRefusal(changed, ErrFlowsUnavailable, "trigger", string(trigger), "runs", len(starts))
 		return
 	}
 	raw := ""
@@ -988,4 +1098,39 @@ func homeAssistantMonitoredEntities(missions []*MissionV2) map[string]bool {
 		}
 	}
 	return out
+}
+
+// flowLiveRevisionOutdatedOutput is the LastOutput of a flow mission whose published revision no
+// longer passes the flow service's current checks (its start-up compatibility check).
+const flowLiveRevisionOutdatedOutput = "The published version of this EasyDrag flow no longer passes the current checks and its runs may fail; open the flow in EasyDrag and publish it again"
+
+// NoteFlowLiveRevisionOutdated shows on a flow mission that its published revision no longer
+// passes the flow service's current checks, like a refusal note (noteFlowRefusalLocked: no run
+// counted, the next run result replaces it). It saves only when the mission changed and reports
+// whether it did.
+func (m *MissionManagerV2) NoteFlowLiveRevisionOutdated(missionID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	changed := m.noteFlowRefusalLocked(missionID, flowLiveRevisionOutdatedOutput)
+	if changed {
+		m.saveFlowNotesLocked()
+	}
+	return changed
+}
+
+// ClearFlowLiveRevisionOutdated takes the note of NoteFlowLiveRevisionOutdated away again (the
+// flow was published again, or its live revision passes the checks): LastResult and LastOutput
+// go back to empty, but only while the mission still shows exactly that note, so a run result
+// or another note stays. It saves only when the mission changed and reports whether it did.
+func (m *MissionManagerV2) ClearFlowLiveRevisionOutdated(missionID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mission, ok := m.missions[missionID]
+	if !ok || !isFlowMission(mission) || mission.LastResult != MissionResultError ||
+		mission.LastOutput != flowLiveRevisionOutdatedOutput {
+		return false
+	}
+	mission.LastResult, mission.LastOutput = "", ""
+	m.saveFlowNotesLocked()
+	return true
 }

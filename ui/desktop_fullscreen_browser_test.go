@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/desktop"
+	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 )
@@ -23,7 +24,7 @@ func TestDesktopFullscreenTranslations(t *testing.T) {
 		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/"+locale+".json")), &words); err != nil {
 			t.Fatal(err)
 		}
-		for _, key := range []string{"desktop.fullscreen", "desktop.exit_fullscreen", "desktop.fullscreen_unavailable", "desktop.fullscreen_error"} {
+		for _, key := range []string{"desktop.fullscreen", "desktop.exit_fullscreen", "desktop.fullscreen_unavailable", "desktop.fullscreen_error", "desktop.settings_open_fullscreen", "desktop.settings_open_fullscreen_desc"} {
 			if strings.TrimSpace(words[key]) == "" {
 				t.Errorf("%s: missing %s", locale, key)
 			}
@@ -31,7 +32,8 @@ func TestDesktopFullscreenTranslations(t *testing.T) {
 	}
 }
 
-func TestDesktopFullscreenBrowser(t *testing.T) {
+func newDesktopFullscreenPage(t *testing.T) *rod.Page {
+	t.Helper()
 	requirePrecisionBrowserSmoke(t)
 	html := regexp.MustCompile(`(?s)<script\b[^>]*>.*?</script>`).ReplaceAllString(readDesktopAssetText(t, "desktop.html"), "")
 	html = regexp.MustCompile(`\{\{[^}]*\}\}`).ReplaceAllString(html, "")
@@ -41,7 +43,7 @@ func TestDesktopFullscreenBrowser(t *testing.T) {
 	if cut < 0 {
 		t.Fatal("desktop startup seam missing")
 	}
-	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,bindViewportMetrics,handleDesktopKeydown,closeContextMenu};})();`
+	shell = shell[:cut] + `window.aurora={state,loadIconManifest,applyDesktopSettings,renderIcons,renderStartApps,renderStartButtonIcon,wireShellChromeControls,openDesktopFullscreenOnStartup,bindViewportMetrics,handleDesktopKeydown,closeContextMenu};})();`
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, html) })
@@ -54,11 +56,16 @@ func TestDesktopFullscreenBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/fixture-apps", func(w http.ResponseWriter, _ *http.Request) { json.NewEncoder(w).Encode(desktop.BuiltinApps()) })
 	server := httptest.NewServer(mux)
-	defer server.Close()
+	t.Cleanup(server.Close)
 	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(90 * time.Second)
-	defer page.Close()
 	page.MustWaitLoad()
 	page.MustEval(`async()=>{await fixtureReady;aurora.wireShellChromeControls();}`)
+	return page
+}
+
+func TestDesktopFullscreenBrowser(t *testing.T) {
+	page := newDesktopFullscreenPage(t)
+	defer page.Close()
 
 	for _, width := range []int{1366, 820, 390} {
 		page.MustSetViewport(width, 900, 1, width == 390)
@@ -114,4 +121,74 @@ func TestDesktopFullscreenBrowser(t *testing.T) {
         if(b.disabled||b.title!=='Vollbild')throw Error('Refresh failed');
         if(fixtureErrors.length)throw Error(JSON.stringify(fixtureErrors));
     }`)
+}
+
+func TestDesktopFullscreenOnOpenBrowser(t *testing.T) {
+	page := newDesktopFullscreenPage(t)
+	defer page.Close()
+	for _, tc := range []struct {
+		name, theme, gesture string
+		enabled              bool
+	}{
+		{"default_off", "standard", "click", false},
+		{"mouse", "standard", "click", true},
+		{"activation_at_startup", "standard", "active", true},
+		{"touch", "standard", "touch", true},
+		{"keyboard", "fruity-light", "key", true},
+		{"manual_button", "fruity-dark", "button", true},
+		{"disabled_before_gesture", "standard", "disable", true},
+		{"unsupported", "standard", "unsupported", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			page.MustReload().MustWaitLoad()
+			page.MustEval(`async(theme,enabled,gesture)=>{
+                await fixtureReady;
+                fixtureTheme(theme);
+                if(enabled) aurora.state.bootstrap.settings['desktop.open_fullscreen']='true';
+                if(gesture==='unsupported') {
+                    document.documentElement.requestFullscreen=undefined;
+                    window.dispatchEvent(new Event('aurago:language-changed'));
+                }
+                window.startupFullscreenCalls=0;
+                const native=document.documentElement.requestFullscreen;
+                if(native) document.documentElement.requestFullscreen=function(){startupFullscreenCalls++;return native.call(this);};
+                if(gesture!=='active') aurora.openDesktopFullscreenOnStartup();
+                if(startupFullscreenCalls||document.fullscreenElement) throw Error('Requested fullscreen without activation');
+                document.body.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+                document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+                if(startupFullscreenCalls) throw Error('Synthetic input triggered fullscreen');
+                if(gesture==='disable') aurora.state.bootstrap.settings['desktop.open_fullscreen']='false';
+            }`, tc.theme, tc.enabled, tc.gesture)
+			if tc.gesture == "key" {
+				page.Keyboard.MustType(input.Tab)
+			} else if tc.gesture == "touch" {
+				if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
+					t.Fatal(err)
+				}
+				page.Touch.MustTap(600, 400)
+				if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page); err != nil {
+					t.Fatal(err)
+				}
+			} else if tc.gesture == "button" {
+				page.MustElement("#vd-fullscreen-button").MustClick()
+			} else {
+				page.Mouse.MustMoveTo(600, 400).MustClick(proto.InputMouseButtonLeft)
+			}
+			if tc.gesture == "active" {
+				page.MustEval(`()=>aurora.openDesktopFullscreenOnStartup()`)
+			}
+			if !tc.enabled || tc.gesture == "disable" || tc.gesture == "unsupported" {
+				page.MustEval(`()=>{if(startupFullscreenCalls||document.fullscreenElement)throw Error('Fullscreen preference or support ignored');}`)
+				return
+			}
+			waitForJSBool(t, page, `()=>document.fullscreenElement===document.documentElement && !document.getElementById('vd-fullscreen-button').disabled`)
+			page.MustEval(`async()=>{if(startupFullscreenCalls!==1)throw Error('Duplicate startup request');await document.exitFullscreen();}`)
+			waitForJSBool(t, page, `()=>!document.fullscreenElement && document.getElementById('vd-fullscreen-button').getAttribute('aria-pressed')==='false'`)
+			page.Mouse.MustMoveTo(600, 400).MustClick(proto.InputMouseButtonLeft)
+			page.MustEval(`()=>{
+                if(startupFullscreenCalls!==1||document.fullscreenElement) throw Error('Manual fullscreen exit was overridden');
+                if(fixtureErrors.length) throw Error(JSON.stringify(fixtureErrors));
+            }`)
+		})
+	}
 }

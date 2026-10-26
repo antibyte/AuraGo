@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -86,6 +87,36 @@ func (b flowMissionBridge) FlowMissionEnabled(missionID string) bool {
 }
 
 var _ flows.MissionReconciler = flowMissionBridge{}
+var _ flows.RunGate = flowMissionBridge{}
+var _ flows.LiveIssuesNoter = flowMissionBridge{}
+
+// NoteFlowLiveIssues implements flows.LiveIssuesNoter: Mission Control shows on the flow mission
+// that its published version no longer passes the current checks.
+func (b flowMissionBridge) NoteFlowLiveIssues(missionID string, _ []flows.Issue) {
+	mm, err := b.missions()
+	if err != nil {
+		return
+	}
+	if mm.NoteFlowLiveRevisionOutdated(missionID) {
+		broadcastMissionState(b.s)
+	}
+}
+
+// ClearFlowLiveIssues implements flows.LiveIssuesNoter: the flow mission no longer shows the
+// outdated-revision note.
+func (b flowMissionBridge) ClearFlowLiveIssues(missionID string) {
+	mm, err := b.missions()
+	if err != nil {
+		return
+	}
+	if mm.ClearFlowLiveRevisionOutdated(missionID) {
+		broadcastMissionState(b.s)
+	}
+}
+
+// AutomaticRunsAllowed implements flows.RunGate: the Date/Time timers start no run while
+// automaticFlowRunsAllowed refuses (read-only missions, flows switched off).
+func (b flowMissionBridge) AutomaticRunsAllowed() error { return b.s.automaticFlowRunsAllowed() }
 
 // FlowMissions implements flows.MissionReconciler: the flow missions Mission Control
 // holds, mission id → flow id; nil without Mission Control.
@@ -157,7 +188,8 @@ func (b flowMissionBridge) FlowRunStarted(missionID string, rec flows.RunRecord)
 //
 // Only a started run (info.Started) reaches Mission Control: mm.FlowRunFinishedAtDepth
 // releases one running slot, counts the run and fires dependents. A run that never started
-// (cancelled while queued, or ended by a shutdown) only tells open editors to refresh.
+// (cancelled while queued, or ended by a shutdown) only tells open editors to refresh; one the
+// runner's gate stopped (flows.RunsPausedCode) is also noted on the mission (noteRunsPaused).
 // That path stays free of database, file and network work, because it runs synchronously
 // inside DeleteFlow (with the flow lock held), CancelMissionRuns and Runner.Shutdown, once
 // per queued run.
@@ -175,6 +207,9 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	if !info.Started {
 		b.s.Logger.Debug("Flow run ended before it started; Mission Control does not record it",
 			"flow", info.Record.FlowID, "run", info.Record.ID, "status", string(info.Result.Status))
+		if info.Result.ErrorCode == flows.RunsPausedCode {
+			b.noteRunsPaused(info.MissionID)
+		}
 		b.s.broadcastFlowsChanged(info.Record.FlowID, "run_finished")
 		return
 	}
@@ -201,6 +236,25 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 	b.s.broadcastFlowsChanged(info.Record.FlowID, "run_finished")
 }
 
+// noteRunsPaused shows on the mission that a queued run of its flow was not started because
+// automatic runs are refused (flows.RunsPausedCode), as Mission Control shows a refused trigger.
+// The runner keeps only the text, so the reason is asked again; when the switch was turned back
+// meanwhile the note says paused. Such a run ends on its own goroutine, never inside DeleteFlow
+// or a cancel, so the one missions-file write (only when the note changes) stays off those paths.
+func (b flowMissionBridge) noteRunsPaused(missionID string) {
+	mm, err := b.missions()
+	if err != nil || missionID == "" {
+		return
+	}
+	reason := b.s.automaticFlowRunsAllowed()
+	if reason == nil {
+		reason = tools.ErrFlowRunsPaused
+	}
+	if mm.NoteFlowRunRefused(missionID, reason) {
+		broadcastMissionState(b.s)
+	}
+}
+
 // flowMissionHooks lets Mission Control start and manage flow runs (tools.FlowHooks).
 //
 // How MissionManagerV2 (internal/tools) calls the hooks, and why none of them can wait for
@@ -224,12 +278,39 @@ func (b flowMissionBridge) FlowRunFinished(info flows.RunFinishedInfo) {
 //     a flow lock. It calls Service.NextTimer, which takes no flow lock.
 type flowMissionHooks struct{ s *Server }
 
-// StartFlowRun implements tools.FlowHooks.
+// StartFlowRun implements tools.FlowHooks: StartFlowRunReported without the outcome.
 func (h flowMissionHooks) StartFlowRun(missionID, nodeID, triggerType, triggerData string) error {
+	_, err := h.StartFlowRunReported(missionID, nodeID, triggerType, triggerData)
+	return err
+}
+
+// StartFlowRunReported implements tools.FlowRunReporter. It refuses while flows are switched off
+// or missions are read-only (automaticFlowRunsAllowed: tools.ErrFlowsUnavailable or
+// tools.ErrFlowRunsPaused), so cron, event and dependent-mission triggers follow the switches at
+// once. It reports the run id and status (a skip of the flow's skip policy included) and marks a
+// full queue (flowStartError). A cancel does not come through here and stays open.
+func (h flowMissionHooks) StartFlowRunReported(missionID, nodeID, triggerType, triggerData string) (tools.FlowStartOutcome, error) {
 	if h.s.Flows == nil {
-		return tools.ErrFlowsUnavailable
+		return tools.FlowStartOutcome{}, tools.ErrFlowsUnavailable
 	}
-	_, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
+	if err := h.s.automaticFlowRunsAllowed(); err != nil {
+		return tools.FlowStartOutcome{}, err
+	}
+	res, err := h.s.Flows.TriggerFromMission(missionID, nodeID, triggerType, flows.NormalizeTriggerData(triggerType, triggerData))
+	if err != nil {
+		return tools.FlowStartOutcome{}, flowStartError(err)
+	}
+	h.s.Logger.Debug("Flow run requested by Mission Control", "mission_id", missionID, "run", res.RunID, "status", string(res.Status))
+	return tools.FlowStartOutcome{RunID: res.RunID, Status: string(res.Status)}, nil
+}
+
+// flowStartError marks a full run queue (flows.ErrQueueFull, the runner's ErrRunnerQueueFull too)
+// as tools.ErrFlowQueueFull, so Mission Control notes the refusal on the mission instead of
+// logging every dropped trigger; errors.Is still finds flows.ErrQueueFull (429 in the APIs).
+func flowStartError(err error) error {
+	if errors.Is(err, flows.ErrQueueFull) && !errors.Is(err, tools.ErrFlowQueueFull) {
+		return fmt.Errorf("%w: %w", tools.ErrFlowQueueFull, err)
+	}
 	return err
 }
 

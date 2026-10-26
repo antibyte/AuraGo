@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "Μέγ. χαρακτήρες ανά chunk",
   "config.indexing.chunk_overlap_chars": "Επικάλυψη χαρακτήρων",
   "config.indexing.chunk_max_chunks": "Μέγ. chunks ανά αρχείο",
-  "config.indexing.chunking_reindex_notice": "Οι αλλαγές σε αυτές τις τιμές προκαλούν καθαρό reindex στην επόμενη σάρωση."
+  "config.indexing.chunking_reindex_notice": "Οι αλλαγές σε αυτές τις τιμές προκαλούν καθαρό reindex στην επόμενη σάρωση.",
+  "config.indexing.media_toggle_label": "Πολυμέσα σε πάροχο",
+  "config.indexing.media_toggle_title": "Επιτρέπει την αποστολή εικόνων, ήχου και σαρωμένων PDF από αυτόν τον κατάλογο στο ρυθμισμένο Vision LLM ή στον πάροχο πολυτροπικών embeddings. Απενεργοποιημένο από προεπιλογή.",
+  "config.indexing.media_confirm_title": "Αποστολή των πολυμέσων αυτού του καταλόγου σε παρόχους;",
+  "config.indexing.media_confirm": "Οι εικόνες, ο ήχος και τα σαρωμένα PDF αυτού του καταλόγου θα σταλούν για ανάλυση στον ρυθμισμένο πάροχο Vision ή πολυτροπικών embeddings. Αυτός μπορεί να είναι εξωτερική υπηρεσία, επομένως το περιεχόμενο αυτών των αρχείων μπορεί να φύγει από αυτό το σύστημα. Αν η επιλογή απενεργοποιηθεί ξανά, δεν θα σταλούν άλλα πολυμέσα.",
+  "config.indexing.media_inactive_hint": "Το Vision και τα πολυτροπικά embeddings είναι απενεργοποιημένα καθολικά· η ρύθμιση θα ισχύσει μόλις ενεργοποιηθεί ένα από αυτά.",
+  "config.indexing.index_images_per_folder_hint": "Οι εικόνες αποστέλλονται μόνο για καταλόγους στους οποίους έχει ενεργοποιηθεί η κοινή χρήση πολυμέσων στη λίστα παραπάνω."
 }

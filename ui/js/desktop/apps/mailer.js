@@ -2,6 +2,15 @@
     'use strict';
     const instances = new Map();
     const PAGE_SIZE = 40;
+    // Pure rendering helpers live in mailer-views.js (loaded before this file).
+    const safeMailHTML = (...args) => window.MailerViews.safeMailHTML(...args);
+    const displayName = value => window.MailerViews.displayName(value);
+    const parseSender = value => window.MailerViews.parseSender(value);
+    const formatDate = (value, timezone) => window.MailerViews.formatDate(value, timezone);
+    const formatBytes = size => window.MailerViews.formatBytes(size);
+    const avatar = (name, extraClass) => window.MailerViews.avatar(name, extraClass);
+    const emptyState = (options) => window.MailerViews.emptyState(esc, options);
+    const skeleton = rows => window.MailerViews.skeleton(rows);
     function esc(value) {
         return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
     }
@@ -25,7 +34,13 @@
             outbox: '<path d="M4 15h12V6H4zM8 9l2-2 2 2M10 7v6"/>',
             drafts: '<path d="M4 3h8l4 4v10H4zM12 3v4h4M7 11h6M7 14h4"/>',
             star: '<path d="m10 2 2.3 5 5.4.7-4 3.8 1 5.5-4.7-2.7-4.7 2.7 1-5.5-4-3.8L7.7 7z"/>',
-            label: '<path d="M3 4h8l6 6-7 7-7-6zM7 8h.01"/>'
+            label: '<path d="M3 4h8l6 6-7 7-7-6zM7 8h.01"/>',
+            reply: '<path d="M8 5 3 9l5 4M3 9h9a5 5 0 0 1 5 5v1"/>',
+            replyAll: '<path d="M6 4 1 8l5 4M1 8h8a4 4 0 0 1 4 4v2M11 4l4 4-4 4"/>',
+            forward: '<path d="m12 5 5 4-5 4M17 9H8a5 5 0 0 0-5 5v1"/>',
+            print: '<path d="M6 8V3h8v5M6 8h8a2 2 0 0 1 2 2v4h-3M6 14H4v-4a2 2 0 0 1 2-2M7 12h6v5H7z"/>',
+            download: '<path d="M10 3v9M6 9l4 4 4-4M4 16h12"/>',
+            back: '<path d="M12 4 6 10l6 6M6 10h11"/>'
         };
         return `<svg class="vd-mailer-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${shapes[name] || shapes.folder}</svg>`;
     }
@@ -61,7 +76,7 @@
         });
         instances.set(windowId, inst);
         host.innerHTML = `<section class="vd-mailer ${ctx.readonly ? 'is-readonly' : ''}" data-mailer-app>
-            <header class="vd-mailer-topbar"><div class="vd-mailer-brand"><span class="vd-mailer-logo" aria-hidden="true">${ctx.iconMarkup ? ctx.iconMarkup('mail', '✉', 'vd-mailer-logo-icon', 24) : '✉'}</span><div><p class="vd-mailer-eyebrow">AuraGo Desktop</p><h1>Mailer</h1></div></div>
+            <header class="vd-mailer-topbar"><div class="vd-mailer-brand"><span class="vd-mailer-logo" aria-hidden="true">${ctx.iconMarkup ? ctx.iconMarkup('mail', '✉', 'vd-mailer-logo-icon', 24) : '✉'}</span><div class="vd-mailer-brand-text"><p class="vd-mailer-eyebrow">AuraGo Desktop</p><h1>Mailer</h1></div></div>
                 <label class="vd-mailer-account-picker"><span>${esc(t(ctx, 'account'))}</span><select data-account-picker aria-label="${esc(t(ctx, 'account'))}"></select></label>
                 <label class="vd-mailer-search"><span aria-hidden="true">${iconSVG('search')}</span><input type="search" data-search placeholder="${esc(t(ctx, 'search_placeholder'))}" aria-label="${esc(t(ctx, 'search'))}" autocomplete="off"><button type="button" data-clear-search aria-label="${esc(t(ctx, 'clear_search'))}" hidden>×</button></label>
                 <div class="vd-mailer-top-actions"><button type="button" class="vd-mailer-button" data-provider-search hidden>${esc(t(ctx, 'search_provider'))}</button><button type="button" class="vd-mailer-button" data-refresh aria-label="${esc(t(ctx, 'refresh'))}" title="${esc(t(ctx, 'refresh'))}">${iconSVG('refresh')}</button><button type="button" class="vd-mailer-button" data-open-settings>${esc(t(ctx, 'settings'))}</button><button type="button" class="vd-mailer-button vd-mailer-primary" data-compose><span>${iconSVG('compose')}</span>${esc(t(ctx, 'compose'))}</button></div>
@@ -79,7 +94,7 @@
                     <div class="vd-mailer-list-footer"><span data-search-notice></span><span data-list-count></span><button type="button" class="vd-mailer-button" data-load-more hidden>${esc(t(ctx, 'load_more'))}</button></div>
                 </section>
                 <div class="vd-mailer-resizer" data-resizer="list" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${esc(t(ctx, 'resize_message_panel'))}"></div>
-                <section class="vd-mailer-reader" data-reader aria-label="${esc(t(ctx, 'message_reader'))}"><div class="vd-mailer-empty-reader"><span aria-hidden="true">✉</span><p>${esc(t(ctx, 'select_message'))}</p></div></section>
+                <section class="vd-mailer-reader" data-reader aria-label="${esc(t(ctx, 'message_reader'))}"><div class="vd-mailer-empty-reader"><span class="vd-mailer-empty-badge" aria-hidden="true">✉</span><p>${esc(t(ctx, 'select_message'))}</p></div></section>
             </div>
             <div class="vd-mailer-status" data-status role="status" aria-live="polite"></div>
             <section class="vd-mailer-settings" data-settings hidden aria-label="${esc(t(ctx, 'settings'))}"></section>
@@ -163,7 +178,7 @@
             if (event.target.closest('[data-load-more]')) { if ((inst.view === 'outbox' ? inst.outboxHasMore : inst.nextCursor) && !inst.loadingMore) loadCurrent(inst, true); return; }
             const remoteImages = event.target.closest('[data-load-images]');
             if (remoteImages) { inst.remoteImages.add(inst.activeThread); paintReader(inst); return; }
-            if (event.target.closest('[data-reader-back]')) { clearInlineImages(inst); inst.activeThread = null; inst.activeThreadData = null; inst.mailerRoot.classList.remove('has-active-reader'); host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty-reader"><span aria-hidden="true">✉</span><p>${esc(t(inst.ctx, 'select_message'))}</p></div>`; return; }
+            if (event.target.closest('[data-reader-back]')) { clearInlineImages(inst); inst.activeThread = null; inst.activeThreadData = null; inst.mailerRoot.classList.remove('has-active-reader'); host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty-reader"><span class="vd-mailer-empty-badge" aria-hidden="true">✉</span><p>${esc(t(inst.ctx, 'select_message'))}</p></div>`; return; }
             if (event.target.closest('[data-remove-label]')) { const button = event.target.closest('[data-remove-label]'); runOneAction(inst, inst.activeThread, 'label_remove', { label_id: button.dataset.removeLabel }); return; }
             if (event.target.closest('[data-reader-action]')) { const button = event.target.closest('[data-reader-action]'); readerAction(inst, button.dataset.readerAction, button); return; }
             if (event.target.closest('[data-eml]')) { const message = findMessage(inst, event.target.closest('[data-eml]').dataset.eml); if (message) window.open(inst.api.emlURL(message.id), '_blank', 'noopener'); return; }
@@ -352,7 +367,7 @@
         syncProviderSearchButton(inst);
         const more = inst.host.querySelector('[data-load-more]');
         if (more) more.disabled = !!append;
-        if (!append) list.innerHTML = `<div class="vd-mailer-skeleton"><i></i><i></i><i></i><i></i></div>`;
+        if (!append) list.innerHTML = skeleton(6);
         if (!append && inst.view === 'outbox') { inst.outbox = []; inst.outboxCursor = ''; inst.outboxHasMore = false; }
         inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'true');
         try {
@@ -379,7 +394,7 @@
         } catch (error) {
             if (error.name !== 'AbortError' && generation === inst.loadGeneration) {
                 updateSearchNotice(inst, null);
-                list.innerHTML = `<div class="vd-mailer-empty"><b>${esc(t(inst.ctx, 'load_failed'))}</b><button type="button" class="vd-mailer-button" data-refresh>${esc(t(inst.ctx, 'retry'))}</button></div>`;
+                list.innerHTML = emptyState({ icon: '!', title: t(inst.ctx, 'load_failed'), action: 'refresh', actionLabel: t(inst.ctx, 'retry') });
             }
         } finally {
             inst.loadingRemote = false;
@@ -409,17 +424,19 @@
         root.innerHTML = items.length ? items.map(item => {
             const account = accountForThread(inst, item);
             const accountName = !inst.accountId && account ? (account.name || account.address) : '';
-            return `<article class="vd-mailer-thread ${(item.unread_count || item.unread) ? 'is-unread' : ''} ${item.id === inst.activeThread ? 'is-selected' : ''}" data-thread-id="${esc(item.id)}" tabindex="0" role="button" aria-label="${esc(t(inst.ctx, 'open_message_label', { subject: item.subject || t(inst.ctx, 'no_subject'), from: (item.participants || [item.from]).filter(Boolean).join(', ') }))}" aria-current="${item.id === inst.activeThread ? 'true' : 'false'}">
+            const senderName = threadIdentity(inst, item) || t(inst.ctx, 'unknown_sender');
+            return `<article class="vd-mailer-thread ${(item.unread_count || item.unread) ? 'is-unread' : ''} ${item.id === inst.activeThread ? 'is-selected' : ''}" data-thread-id="${esc(item.id)}" tabindex="0" role="button" aria-label="${esc(t(inst.ctx, 'open_message_label', { subject: item.subject || t(inst.ctx, 'no_subject'), from: senderName }))}" aria-current="${item.id === inst.activeThread ? 'true' : 'false'}">
             <label class="vd-mailer-thread-check" aria-label="${esc(t(inst.ctx, 'select_message'))}"><input type="checkbox" data-select-thread value="${esc(item.id)}" ${inst.selected.has(item.id) ? 'checked' : ''}></label>
             <button type="button" class="vd-mailer-star" data-star-thread="${esc(item.id)}" aria-label="${esc(item.starred ? t(inst.ctx, 'unstar') : t(inst.ctx, 'star'))}" aria-pressed="${item.starred ? 'true' : 'false'}" ${!canThreadCapability(inst, item, 'star') ? 'disabled' : ''}>${iconSVG('star')}</button>
-            <div class="vd-mailer-thread-copy"><div class="vd-mailer-thread-line"><b>${esc((item.participants || []).slice(0, 2).join(', ') || item.from || t(inst.ctx, 'unknown_sender'))}</b>${accountName ? `<small class="vd-mailer-thread-account">${esc(accountName)}</small>` : ''}<time>${esc(formatDate(item.last_message_at || item.date, inst.state.timezone))}</time></div><strong>${esc(item.subject || t(inst.ctx, 'no_subject'))}</strong><p>${esc(item.preview || item.snippet || '')}</p>${item.attachment_count ? `<span class="vd-mailer-attachment-count">📎 ${Number(item.attachment_count)}</span>` : ''}</div>
+            ${avatar(senderName, 'vd-mailer-avatar--row')}
+            <div class="vd-mailer-thread-copy"><div class="vd-mailer-thread-line"><b title="${esc(senderName)}">${esc(senderName)}</b>${accountName ? `<small class="vd-mailer-thread-account">${esc(accountName)}</small>` : ''}<time>${esc(formatDate(item.last_message_at || item.date, inst.state.timezone))}</time></div><strong>${esc(item.subject || t(inst.ctx, 'no_subject'))}</strong><p>${esc(item.preview || item.snippet || '')}</p>${item.attachment_count ? `<span class="vd-mailer-attachment-count">📎 ${Number(item.attachment_count)}</span>` : ''}</div>
             </article>`;
-        }).join('') : `<div class="vd-mailer-empty"><span aria-hidden="true">${inst.view === 'inbox' ? '✉' : '⌕'}</span><b>${esc(t(inst.ctx, 'empty_title'))}</b><p>${esc(t(inst.ctx, 'empty_view_' + inst.view))}</p></div>`;
+        }).join('') : emptyState({ icon: inst.view === 'inbox' ? '✉' : '⌕', title: t(inst.ctx, 'empty_title'), hint: t(inst.ctx, 'empty_view_' + inst.view) });
         inst.host.querySelector('[data-list-count]').textContent = t(inst.ctx, 'messages_count', { count: items.length });
         const more = inst.host.querySelector('[data-load-more]');
         more.hidden = !inst.nextCursor;
         more.disabled = !inst.nextCursor || inst.loadingMore;
-        if (!items.length && !inst.activeThread) inst.host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty-reader"><span aria-hidden="true">✉</span><p>${esc(t(inst.ctx, 'select_message'))}</p></div>`;
+        if (!items.length && !inst.activeThread) inst.host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty-reader"><span class="vd-mailer-empty-badge" aria-hidden="true">✉</span><p>${esc(t(inst.ctx, 'select_message'))}</p></div>`;
     }
 
     function paintSpecialList(inst) {
@@ -445,7 +462,7 @@
         return [sendDetail, appendDetail].filter(Boolean).map(detail => `<p>${esc(detail)}</p>`).join('');
     }
 
-    function emptyHTML(inst, key) { return `<div class="vd-mailer-empty"><span aria-hidden="true">✉</span><b>${esc(t(inst.ctx, 'empty_title'))}</b><p>${esc(t(inst.ctx, key))}</p></div>`; }
+    function emptyHTML(inst, key) { return emptyState({ icon: '✉', title: t(inst.ctx, 'empty_title'), hint: t(inst.ctx, key) }); }
 
     async function openThread(inst, threadId) {
         clearInlineImages(inst);
@@ -475,8 +492,22 @@
             loadRuleRuns(inst, threadId, thread.messages || []);
             if (markRead) paintList(inst);
         } catch (_) {
-            if (current === inst.loadGeneration) inst.host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty"><b>${esc(t(inst.ctx, 'message_load_failed'))}</b><button type="button" class="vd-mailer-button" data-reader-action="reload">${esc(t(inst.ctx, 'retry'))}</button></div>`;
+            if (current === inst.loadGeneration) inst.host.querySelector('[data-reader]').innerHTML = `<div class="vd-mailer-empty"><span class="vd-mailer-empty-badge" aria-hidden="true">!</span><b>${esc(t(inst.ctx, 'message_load_failed'))}</b><button type="button" class="vd-mailer-button" data-reader-action="reload">${esc(t(inst.ctx, 'retry'))}</button></div>`;
         }
+    }
+
+    // readerActionButton renders one action of the reader toolbar. Response
+    // actions keep their label, utility and file actions collapse into an
+    // icon with a tooltip, so the reader header never becomes a wall of
+    // full-text buttons.
+    function readerActionButton(inst, action, labelKey, glyph, iconOnly, primary, danger) {
+        const label = t(inst.ctx, labelKey);
+        const classes = ['vd-mailer-reader-action'];
+        if (iconOnly) classes.push('vd-mailer-reader-action--icon');
+        if (primary) classes.push('vd-mailer-primary');
+        if (danger) classes.push('vd-mailer-danger');
+        const attributes = iconOnly ? ` title="${esc(label)}" aria-label="${esc(label)}"` : '';
+        return `<button type="button" class="${classes.join(' ')}" data-reader-action="${action}"${attributes}>${glyph}${iconOnly ? '' : `<span>${esc(label)}</span>`}</button>`;
     }
 
     function paintReader(inst) {
@@ -492,17 +523,41 @@
         const canTrash = canThreadCapability(inst, thread, 'trash');
         const canRestore = canThreadCapability(inst, thread, 'restore');
         const canLabel = canThreadCapability(inst, thread, 'labels_write');
-        const folderAction = trashView ? canRestore ? `<button type="button" data-reader-action="restore">${esc(t(inst.ctx, 'restore'))}</button>` : '' : canArchive ? `<button type="button" data-reader-action="archive">${esc(t(inst.ctx, 'archive'))}</button>` : '';
-        const toolbar = `<div class="vd-mailer-reader-actions"><button type="button" class="vd-mailer-reader-back" data-reader-back>${esc(t(inst.ctx, 'back_to_list'))}</button>${canSend ? `<button type="button" data-reader-action="reply">${esc(t(inst.ctx, 'reply'))}</button><button type="button" data-reader-action="reply_all">${esc(t(inst.ctx, 'reply_all'))}</button><button type="button" data-reader-action="forward">${esc(t(inst.ctx, 'forward'))}</button>` : ''}<button type="button" data-reader-action="print">${esc(t(inst.ctx, 'print'))}</button><button type="button" data-reader-action="eml">${esc(t(inst.ctx, 'download_eml'))}</button>${folderAction}${canTrash ? `<button type="button" data-reader-action="trash">${esc(t(inst.ctx, 'trash'))}</button>` : ''}${canDeleteThread(inst, thread) ? `<button type="button" data-reader-action="delete">${esc(t(inst.ctx, 'delete'))}</button>` : ''}</div>`;
+        const folderAction = trashView
+            ? (canRestore ? readerActionButton(inst, 'restore', 'restore', iconSVG('restore'), true) : '')
+            : (canArchive ? readerActionButton(inst, 'archive', 'archive', iconSVG('archive'), true) : '');
+        const responseGroup = canSend
+            ? `<span class="vd-mailer-reader-action-group">${readerActionButton(inst, 'reply', 'reply', iconSVG('reply'), false, true)}${readerActionButton(inst, 'reply_all', 'reply_all', iconSVG('replyAll'), false)}${readerActionButton(inst, 'forward', 'forward', iconSVG('forward'), false)}</span>`
+            : '';
+        const utilityGroup = `<span class="vd-mailer-reader-action-group">${readerActionButton(inst, 'print', 'print', iconSVG('print'), true)}${readerActionButton(inst, 'eml', 'download_eml', iconSVG('download'), true)}</span>`;
+        const fileGroup = folderAction || canTrash || canDeleteThread(inst, thread)
+            ? `<span class="vd-mailer-reader-action-group vd-mailer-reader-action-group--files">${folderAction}${canTrash ? readerActionButton(inst, 'trash', 'trash', iconSVG('trash'), true) : ''}${canDeleteThread(inst, thread) ? readerActionButton(inst, 'delete', 'delete', iconSVG('delete'), true, false, true) : ''}</span>`
+            : '';
+        const toolbar = `<div class="vd-mailer-reader-actions"><button type="button" class="vd-mailer-reader-back" data-reader-back>${iconSVG('back')}<span>${esc(t(inst.ctx, 'back_to_list'))}</span></button>${responseGroup}${utilityGroup}${fileGroup}</div>`;
         const threadLabels = thread.labels || current.labels || [];
         const knownLabelIDs = new Set((inst.state.labels || []).map(label => String(label.id)));
         const visibleLabels = threadLabels.filter(label => knownLabelIDs.has(String(typeof label === 'string' ? label : label.id)));
-        root.innerHTML = `<header class="vd-mailer-reader-head"><div class="vd-mailer-reader-subject"><h2>${esc(thread.subject || t(inst.ctx, 'no_subject'))}</h2><p>${visibleLabels.map(label => { const id = typeof label === 'string' ? label : label.id; const known = inst.state.labels.find(item => String(item.id) === String(id)); return `<span class="vd-mailer-label-chip">${esc(known?.name || id)}${canLabel ? `<button type="button" data-remove-label="${esc(id)}" aria-label="${esc(t(inst.ctx, 'remove_label'))}">×</button>` : ''}</span>`; }).join('')}</p></div>${toolbar}</header>
+        // The reader has room for the thread roster, the list row does not.
+        const participantCount = (thread.participants || []).filter(Boolean).length;
+        const participantChip = participantCount > 2 ? `<span class="vd-mailer-participant-chip">${esc(t(inst.ctx, 'participants_count', { count: participantCount }))}</span>` : '';
+        root.innerHTML = `<header class="vd-mailer-reader-head"><div class="vd-mailer-reader-subject"><h2>${esc(thread.subject || t(inst.ctx, 'no_subject'))}</h2><p>${participantChip}${visibleLabels.map(label => { const id = typeof label === 'string' ? label : label.id; const known = inst.state.labels.find(item => String(item.id) === String(id)); return `<span class="vd-mailer-label-chip">${esc(known?.name || id)}${canLabel ? `<button type="button" data-remove-label="${esc(id)}" aria-label="${esc(t(inst.ctx, 'remove_label'))}">×</button>` : ''}</span>`; }).join('')}</p></div>${toolbar}</header>
             <div class="vd-mailer-message-stack">${messages.map((message, index) => renderMessage(inst, message, index, messages.length)).join('')}</div>`;
         paintMessageFrames(inst);
     }
 
     function accountForThread(inst, thread) { return (inst.state.accounts || []).find(account => account.id === thread.account_id); }
+    // threadIdentity resolves the person a list row belongs to. Received
+    // mail shows the sender, sent mail the recipient, so the avatar letters
+    // and the row label always name the other party. The participant list
+    // of a thread mixes recipients and the sender and therefore never
+    // describes one person.
+    function threadIdentity(inst, item) {
+        const folder = (inst.folders || []).find(entry => entry.id === item.folder_id);
+        const recipients = (item.to || []).filter(Boolean);
+        if (folder && folder.kind === 'sent' && recipients.length) return displayName(recipients[0]);
+        const participants = (item.participants || []).filter(Boolean);
+        return displayName(item.from || participants[participants.length - 1] || '');
+    }
     function threadReadOnly(inst, thread) { return !!accountForThread(inst, thread)?.read_only; }
     function canThreadCapability(inst, thread, capability) {
         const account = accountForThread(inst, thread);
@@ -527,13 +582,13 @@
         const body = message.html ? `<div class="vd-mailer-html-wrap"><iframe sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="${esc(t(inst.ctx, 'email_content'))}" data-email-frame="${esc(message.id)}"></iframe></div>` : `<pre class="vd-mailer-plain-body">${esc(message.text || '')}</pre>`;
         const sender = parseSender(message.from || t(inst.ctx, 'unknown_sender'));
         const recipientLine = [message.to, message.cc?.length ? 'Cc: ' + message.cc.join(', ') : ''].flat().filter(Boolean).join(' · ');
-        return `<article class="vd-mailer-message"><header class="vd-mailer-message-head"><span class="vd-mailer-avatar" aria-hidden="true">${esc(initials(sender.name))}</span><div class="vd-mailer-message-meta"><b>${esc(sender.name)}</b>${sender.address ? `<details class="vd-mailer-sender-address"><summary>${esc(t(inst.ctx, 'email_address'))}</summary><span>${esc(sender.address)}</span></details>` : ''}<span>${esc(recipientLine)}</span></div><time>${esc(formatDate(message.date, inst.state.timezone))}</time>${canThreadCapability(inst, inst.activeThreadData || {}, 'star') ? `<button type="button" class="vd-mailer-reader-star" data-reader-action="${message.starred ? 'unstar' : 'star'}" data-message-id="${esc(message.id)}" aria-label="${esc(t(inst.ctx, message.starred ? 'unstar' : 'star'))}" aria-pressed="${message.starred ? 'true' : 'false'}">${message.starred ? '★' : '☆'}</button>` : ''}</header>
+        return `<article class="vd-mailer-message"><header class="vd-mailer-message-head">${avatar(sender.name, 'vd-mailer-avatar--message')}<div class="vd-mailer-message-meta"><b>${esc(sender.name)}</b>${sender.address ? `<details class="vd-mailer-sender-address"><summary>${esc(t(inst.ctx, 'email_address'))}</summary><span>${esc(sender.address)}</span></details>` : ''}<span>${esc(recipientLine)}</span></div><time>${esc(formatDate(message.date, inst.state.timezone))}</time>${canThreadCapability(inst, inst.activeThreadData || {}, 'star') ? `<button type="button" class="vd-mailer-reader-star" data-reader-action="${message.starred ? 'unstar' : 'star'}" data-message-id="${esc(message.id)}" aria-label="${esc(t(inst.ctx, message.starred ? 'unstar' : 'star'))}" aria-pressed="${message.starred ? 'true' : 'false'}">${message.starred ? '★' : '☆'}</button>` : ''}</header>
             ${hasRemoteImages ? `<div class="vd-mailer-remote-warning"><span>${esc(t(inst.ctx, remoteEnabled ? 'remote_images_loaded' : 'remote_images_blocked'))}</span>${remoteEnabled ? '' : `<button type="button" data-load-images>${esc(t(inst.ctx, 'load_remote_images'))}</button>`}</div>` : ''}
             ${notices}
             <div class="vd-mailer-message-body">${body}</div>
             ${attachments.length ? `<ul class="vd-mailer-message-attachments" aria-label="${esc(t(inst.ctx, 'attachments'))}">${attachments.map(item => `<li><a href="${esc(inst.api.attachmentURL(message.id, item.id))}" download="${esc(item.filename)}">📎 ${esc(item.filename)} <small>${formatBytes(item.size)}</small></a></li>`).join('')}</ul>` : ''}
             <div class="vd-mailer-rule-runs" data-rule-runs-for="${esc(message.id)}"></div>
-            <footer><button type="button" data-eml="${esc(message.id)}">${esc(t(inst.ctx, 'download_message_eml'))}</button>${index + 1 < total ? `<span>${esc(t(inst.ctx, 'quoted_message'))}</span>` : ''}</footer></article>`;
+            <footer><button type="button" data-eml="${esc(message.id)}">${iconSVG('download')}<span>${esc(t(inst.ctx, 'download_message_eml'))}</span></button>${index + 1 < total ? `<span>${esc(t(inst.ctx, 'quoted_message'))}</span>` : ''}</footer></article>`;
     }
 
     function paintRuleRunsForMessage(inst, messageId) {
@@ -605,93 +660,13 @@
         } catch (error) { showError(inst, error); }
     }
 
-    function initials(value) {
-        const text = String(value || '').replace(/<[^>]+>/g, '').trim();
-        return (text.split(/\s+/).slice(0, 2).map(part => part[0] || '').join('') || '?').toUpperCase();
-    }
-
-    function parseSender(value) {
-        const raw = String(value || '').trim();
-        const match = raw.match(/^\s*(?:"([^"]+)"|([^<]+?))?\s*<([^>]+)>\s*$/);
-        if (!match) return { name: raw || '?', address: '' };
-        const address = match[3].trim();
-        return { name: (match[1] || match[2] || '').trim() || address, address };
-    }
-
     function messageHasRemoteImages(html) {
         const template = document.createElement('template');
         template.innerHTML = String(html || '');
         return Array.from(template.content.querySelectorAll('img[src]')).some(image => /^(?:https?:)?\/\//i.test((image.getAttribute('src') || '').trim()));
     }
 
-    function formatDate(value, timezone) {
-        if (!value) return '';
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        try { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone || undefined }).format(date); }
-        catch (_) { return date.toLocaleString(); }
-    }
-
-    function formatBytes(size) {
-        const n = Number(size) || 0;
-        if (n < 1024) return n + ' B';
-        if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
-        return (n / 1048576).toFixed(1) + ' MB';
-    }
-
     function findMessage(inst, messageId) { return inst.activeThreadData?.messages?.find(item => String(item.id) === String(messageId)); }
-
-    function safeMailHTML(html, allowRemote, inlineImages, quotedLabel, collapseQuotes) {
-        const source = document.createElement('template');
-        source.innerHTML = String(html || '');
-        const placeholders = new Map();
-        let placeholderNumber = 0;
-        for (const image of source.content.querySelectorAll('img[src]')) {
-            const src = (image.getAttribute('src') || '').trim();
-            image.setAttribute('src', src);
-            if (/^cid:/i.test(src)) {
-                const mapped = inlineImages && inlineImages.get(normalizeContentID(src));
-                if (mapped) {
-                    const marker = `https://mailer.invalid/${window.crypto?.randomUUID?.() || (++placeholderNumber).toString(36)}`;
-                    placeholders.set(marker, mapped);
-                    image.setAttribute('src', marker);
-                } else image.removeAttribute('src');
-                continue;
-            }
-            if (/^(?:https?:)?\/\//i.test(src)) {
-                if (!allowRemote) image.removeAttribute('src');
-                else if (src.startsWith('//')) image.setAttribute('src', 'https:' + src);
-            }
-        }
-        if (collapseQuotes !== false) {
-            for (const quote of Array.from(source.content.querySelectorAll('blockquote'))) {
-                const details = document.createElement('details');
-                const summary = document.createElement('summary');
-                summary.textContent = quotedLabel || 'Quoted message';
-                quote.replaceWith(details);
-                details.append(summary, quote);
-            }
-        }
-        const safe = window.DOMPurify ? window.DOMPurify.sanitize(source.innerHTML, {
-            FORBID_TAGS: ['script', 'form', 'input', 'button', 'select', 'textarea', 'iframe', 'object', 'embed', 'video', 'audio', 'svg', 'math', 'base', 'meta', 'link'],
-            FORBID_ATTR: ['srcset', 'action', 'formaction', 'xlink:href'],
-            ALLOW_DATA_ATTR: false
-        }) : '<pre>' + esc(html) + '</pre>';
-        const output = document.createElement('template');
-        output.innerHTML = safe;
-        for (const image of output.content.querySelectorAll('img[src]')) {
-            const marker = image.getAttribute('src') || '';
-            if (placeholders.has(marker)) image.setAttribute('src', placeholders.get(marker));
-        }
-        for (const link of output.content.querySelectorAll('a[href]')) {
-            link.setAttribute('target', '_blank');
-            link.setAttribute('rel', 'noopener noreferrer');
-            link.setAttribute('referrerpolicy', 'no-referrer');
-        }
-        const cleaned = output.innerHTML;
-        const imagePolicy = ['blob:', allowRemote ? 'https:' : '', allowRemote ? 'http:' : ''].filter(Boolean).join(' ');
-        return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imagePolicy}; style-src 'unsafe-inline'; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none';"><meta name="referrer" content="no-referrer"><style>html{color-scheme:light}body{font:15px/1.6 system-ui,-apple-system,sans-serif;color:#252a33;overflow-wrap:anywhere;margin:0;padding:18px}img{max-width:100%;height:auto}table{max-width:100%;border-collapse:collapse}td,th{border:1px solid #c8cdd5;padding:5px 8px}pre{white-space:pre-wrap}blockquote{border-left:3px solid #c2cbd6;margin-left:0;padding-left:14px;color:#566274}details{margin:8px 0}details>summary{cursor:pointer;color:#566274;font-size:13px;font-weight:600}</style></head><body>${cleaned}</body></html>`;
-    }
 
     function paintMessageFrames(inst) {
         const generation = clearInlineImages(inst);
@@ -728,11 +703,7 @@
 
     const INLINE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
 
-    function normalizeContentID(value) {
-        let id = String(value || '').replace(/^cid:/i, '');
-        try { id = decodeURIComponent(id); } catch (_) {}
-        return id.trim().replace(/^<|>$/g, '').toLowerCase();
-    }
+    function normalizeContentID(value) { return window.MailerViews.normalizeContentID(value); }
 
     async function loadInlineImages(inst, message, signal) {
         const images = new Map();
@@ -961,7 +932,7 @@
 
     function errorState(inst) {
         const root = inst.host.querySelector('[data-thread-list]');
-        root.innerHTML = `<div class="vd-mailer-empty"><b>${esc(t(inst.ctx, 'load_failed'))}</b><button type="button" class="vd-mailer-button" data-refresh>${esc(t(inst.ctx, 'retry'))}</button></div>`;
+        root.innerHTML = emptyState({ icon: '!', title: t(inst.ctx, 'load_failed'), action: 'refresh', actionLabel: t(inst.ctx, 'retry') });
         inst.host.querySelector('[data-mailer-workspace]').setAttribute('aria-busy', 'false');
     }
 

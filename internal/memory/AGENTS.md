@@ -10,6 +10,21 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Personality evidence
+
+- Only ingress-owned `HumanInput` supplies current human evidence. Missing or
+  empty proof never falls back to history, media, snapshots or model JSON.
+- `ApplyPersonalityObservation` atomically commits numeric state, profile
+  contributions, provenance, narration and receipts. Expire original events after
+  90 days before mutation; never evict valid receipts to satisfy a row cap.
+- Normal model/tool/history/reflection readers must never read
+  `personality_legacy_review`. Administrative adoption is explicit manual curation;
+  old emotion/inner-voice text cannot be reactivated.
+- Chat privacy jobs capture personality candidates before transcript purge,
+  recheck ownership/protection/fingerprints and fence late writes. Preserve manual
+  corrections, shared evidence and numeric development. Keep additive counts and
+  unknown legacy state accurate. Explicit profile deletion fences old analyses.
+
 ### Session ingress turns
 
 - `BeginSessionTurn` registers an ingress run before waiting on the store/session
@@ -49,7 +64,53 @@ Memory retrieval, hygiene, indexing, and maintenance.
   Verify `TestModelRememberProvenanceAtomicAndDoesNotRelabelExistingFact`.
 
 ### Memory System
+- **Schema lifecycle**: Read `user_version` before schema writes and reject newer
+  versions. Version 12 is the one-time legacy bridge; later steps commit their
+  changes and version atomically. Back up existing stores before migration,
+  fail and close on required initialization errors, and keep bounded crash
+  recovery separate from data migrations. Never repair a missing required table
+  in a database already claiming the current version by silently recreating it.
+  Verify `TestMemorySchema*`. Contract test references, including documented
+  wildcard prefixes, are checked by `TestMemoryContractTestReferencesResolve`.
 - **Short-Term**: SQLite sliding-window conversation context
+- **Archive identity and cleanup**: Preserve a durable digest of complete normalized
+  content and domain before archiving; only recognized analysis provenance is
+  excluded. Automatic writers check the digest even after vector removal.
+  Serialize budget enforcement, protection and restoration, recheck the candidate
+  snapshot in the write transaction, and commit the actual previous status and
+  cleanup receipt before deleting a vector. Unproven conditional deletion retains
+  its receipt. Explicit restoration clears the identity only with available source
+  content and a successful transaction. Backfill only available historical content.
+  Context APIs bound lock/publication waits; compatibility wrappers use 30 seconds.
+  Verify `TestArchive*`; operational limits are in
+  `documentation/memory-persistence.md`.
+- **Resumable maintenance**: Consolidation checkpoints bind each archive message,
+  source digest, part number and extractor/model version. Persist validated parts,
+  extract at most one part per message in a round, and publish complete messages
+  through bounded idempotent cursor steps. Cancellation preserves progress without
+  consuming retries. Delete checkpoints with their archive source and reject late
+  writes from deleted sessions. Keep terminal consolidation failures visible in
+  the ledger, briefing and operational issue until explicitly recovered. Pending
+  counts exclude exhausted writes; remove terminal payloads after 30 days while
+  retaining a private dedupe identity. Verify `TestConsolidationCheckpoint*`,
+  `TestTerminalConsolidationFailure*` and `TestPendingMemoryCleanup*`.
+- **Privacy evidence**: An existing deletion job has an immutable scope; both
+  conflicting directions return HTTP 409 with `deletion_scope_conflict`. Scrub
+  current and historical learning sources and nested correction snapshots before
+  completion. Serialize corrections with deletion, retain committed effects and
+  anti-replay guards, and terminally cancel unfinished correction work. Unknown
+  external cleanup states require durable reconciliation. Store checks and SQL
+  fences reject late source evidence. Shutdown cancellation never consumes a
+  business retry. Verify `TestPrivacy*` and
+  `TestChatSessionDeleteReturnsTypedScopeConflict`.
+- **Corpus publication and diagnostics**: Page canonical sources including pending
+  state; read only IDs and metadata for filtered deletion or replacement. Batch
+  pending acknowledgements in a transaction after index publication succeeds.
+  Candidate groups share archive, file-generation and canonical-snapshot checks;
+  lookup failures remain errors. Diagnostics distinguish canonical row counts,
+  dimensions, database/WAL bytes and the theoretical float32 payload estimate from
+  actual process memory. The durable vector format remains JSON. See
+  `documentation/memory-persistence.md`; verify `TestCorpusStatus*`.
 - **Long-Term**: `directories.vectordb_dir/documents.sqlite` is the canonical document corpus: collection names, raw IDs, complete content, metadata, vectors, dimensions and provider/model fingerprints. Chromem is an in-memory derived index; its legacy 32-bit disk filenames must never define identity. Commit source documents before publishing index changes and retain durable pending work after failures/cancellation. Open and count sources even when embeddings are disabled.
 - **Corpus Migration and Reset**: Under the application lock, back up legacy files before migration, verify copied/decoded source digests, complete counts/content and raw IDs transactionally, retain originals and refuse corrupt/orphan/unverified data. A reset or model change schedules reindex only: preserve source documents, archive/curation, extraction sources, file pointers and KG SQL facts. Unknown/incompatible fingerprints or dimensions never enter a live index. Pending multimodal records expose blocked status until the existing authorized file indexer can re-embed their source. Reproduced unchanged chunks preserve raw IDs and provenance; actual content/chunk drift uses the file-generation protocol. The retained legacy `kg_embeddings` snapshot is never restored into the live KG index; KG SQL is authoritative. Verify `TestDocumentCorpus*`, including SQLite FULL, cancellation/restart, collision and available/missing multimodal source cases.
 - **Automatic Memory Snapshots**: Automatic snapshots and the memory portion of manual exports share a per-store `MemorySnapshotCoordinator`. Prepare embeddings before a publication lease; pass lease contexts explicitly through nested writes. Hold the lease across corpus, metadata and provenance commits; durable source-free completion markers or existing replacement journals prevent certification after an uncertain partial commit. Lock order is outer session/operation locks, coordinator, then index/SQLite locks. Snapshots reserve all three SQLite writers, pin all three read transactions, release reservations and copy those pinned snapshots with the online backup API. Integrity checks, hashing, ZIP and retention run outside the freeze. Only checksum-verified completed `auto-memory-v2` snapshots with the coordination proof participate in retention: keep 30 days and at least three complete snapshots. Legacy v1, manual, quarantine, migration, unknown and incomplete artifacts stay outside this policy. Restrict snapshot directories/files to their owner. Verify `TestSnapshotWaitsForCorpusMetadataAndProvenancePublication`, `TestBlockedEmbeddingDoesNotHoldSnapshotLease`, `TestPartialAutomaticPublicationPreventsSnapshotCertification`, `TestPinnedReadSnapshotSurvivesConcurrentCommitAcrossBackupSteps`, `TestAutomaticSnapshot*` and `TestManualBackupUsesCoordinatedMemorySnapshotAndRejectsPartialPublication`.
@@ -81,6 +142,10 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - **Schema Migration Errors**: `migrateFileIndexToCollectionAware` returns schema-inspection and count errors so `applySQLiteMemoryMigrations` does not bump `user_version` over an unknown state. KG `initTables` returns column-add errors and `fts_schema_version` read/write errors; the `updated_at` backfill and performance indexes stay warnings, and a failed `idx_kg_conflicts_pair_open` is logged at error level for review. Verify `TestMigrateFileIndexReportsSchemaInspectionError` and `TestKGInitReportsFTSMarkerWriteFailure`.
 - **Plan Dependencies**: Persist a non-null JSON array of task IDs (`[]` means no dependencies); reject null, other JSON shapes, malformed/empty values, missing IDs and cycles. Promotion visibly blocks invalid legacy tasks and their plan with `planTaskDependencyBlocker` (same shape as `SetPlanTaskBlocker`, resumable with `ClearPlanTaskBlocker`); splitting refuses unreadable dependency data. Validate new plans before publishing any rows. Verify `TestCreatePlanRejectsInvalidDependencyGraphs`, `TestLegacyInvalidDependencyGraphsBecomeVisibleBlockers`, `TestLegacyEmptyDependencyArrayRemainsRunnable`, `TestPromoteNextPlanTaskBlocksUnreadableDependencies` and `TestSplitPlanTaskRejectsUnreadableDependencies`.
 - **Multimodal Embedding Origin**: `NewMultimodalEmbedder` uses `httporigin.NewClient`, so the key and file content never follow a redirect off the configured origin; `shouldRetryEmbeddingError` treats `httporigin.ErrCrossOriginRedirect` as final and never retries it. Verify `TestMultimodalEmbedderDoesNotFollowCrossOriginRedirect` and `TestEmbeddingRetryTreatsRejectedRedirectAsFinal`.
+
+### Learned rules
+
+- `UpsertLearnedRule` truncates pattern and rule to 500 runes, then rejects the insert when the rule text matches the core-memory instruction markers, or when the rule text contains its own pattern as a contiguous substring of at least 48 runes. The error is returned; callers log it and skip. Empty rules stay a no-op. Short operator preferences and the local shell-timeout template remain insertable. Journal, retrieval and prompt isolation stay. Verify `TestUpsertLearnedRuleRejectsInstructionTextAndCopiedSource`.
 
 ### Bounded Memory Writes
 - Small memory writes embed the complete document once and reuse that vector for identity checks and storage across owned, domain and batch paths. Identity probes do not apply retrieval age decay; reuse still requires complete normalized content/domain equality, with only the proven analysis-provenance exception. Consolidation passes its context through automatic storage to provider embeddings, including chunks, and releases interrupted claims without spending retries. Log extraction and storage timings without source content. Verify `TestMemoryWritesEmbedEachFactOnce`, `TestMemoryDedupDoesNotAgeIdenticalFacts`, `TestAutomaticMemoryWriteStopsEmbeddingAtDeadline`, and `TestConsolidationStorageDeadlineReleasesClaims` alongside existing ownership/curation tests.

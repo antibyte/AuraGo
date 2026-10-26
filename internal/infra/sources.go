@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// sourceColumns is the column list scanSource reads, in order.
+const sourceColumns = `kind, instance, source_key, name, state, fetched_at, removed_at, observed_json, ignored_at`
+
 func CandidateID(identity SourceIdentity) string {
 	return "infra_" + base64.RawURLEncoding.EncodeToString([]byte(identity.Kind+"\x00"+identity.Instance+"\x00"+identity.Key))
 }
@@ -59,7 +62,7 @@ func (s *Store) GetCandidate(ctx context.Context, id string) (Candidate, error) 
 		Kind: observed.Kind, Name: name, Icon: observed.Icon, Profile: profile,
 		Placements: Placements{}, Sources: []Source{}, AvailableActions: []string{}, AppLinks: []AppLink{},
 	}
-	candidate := Candidate{ID: id, Source: source, Node: node, Suggestions: []string{}}
+	candidate := Candidate{ID: id, Source: source, Node: node, Suggestions: []string{}, Ignored: source.Ignored}
 	if identity.Kind == "registry" {
 		candidate.RegistryID = identity.Key
 		node.RegistryID = identity.Key
@@ -87,9 +90,19 @@ func parseCandidateID(id string) (SourceIdentity, error) {
 	return identity, nil
 }
 
+// ListSources lists observations, optionally of one kind and instance, without
+// ignored sources. ListSourcesIncludingIgnored also returns those.
 func (s *Store) ListSources(ctx context.Context, kind, instance string) ([]Source, error) {
-	query := `SELECT kind, instance, source_key, name, state, fetched_at, removed_at, observed_json
-		FROM infra_sources WHERE 1=1`
+	return s.listSources(ctx, kind, instance, false)
+}
+
+// ListSourcesIncludingIgnored lists observations including ignored sources.
+func (s *Store) ListSourcesIncludingIgnored(ctx context.Context, kind, instance string) ([]Source, error) {
+	return s.listSources(ctx, kind, instance, true)
+}
+
+func (s *Store) listSources(ctx context.Context, kind, instance string, includeIgnored bool) ([]Source, error) {
+	query := `SELECT ` + sourceColumns + ` FROM infra_sources WHERE 1=1`
 	args := make([]any, 0, 2)
 	if kind != "" {
 		query += ` AND kind=?`
@@ -98,6 +111,9 @@ func (s *Store) ListSources(ctx context.Context, kind, instance string) ([]Sourc
 	if instance != "" {
 		query += ` AND instance=?`
 		args = append(args, instance)
+	}
+	if !includeIgnored {
+		query += ` AND ignored_at=''`
 	}
 	query += ` ORDER BY kind, instance, source_key`
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -232,12 +248,22 @@ func (s *Store) MarkSourcesStale(ctx context.Context, kind, instance string) err
 	return nil
 }
 
+// LinkSource links an observed source to an existing node.
 func (s *Store) LinkSource(ctx context.Context, nodeID string, identity SourceIdentity) (Node, error) {
+	return s.LinkSourceWithLayout(ctx, nodeID, identity, ImportLayout{})
+}
+
+// LinkSourceWithLayout links a source and, in the same transaction and version
+// step, applies an optional parent and view placement to the node.
+func (s *Store) LinkSourceWithLayout(ctx context.Context, nodeID string, identity SourceIdentity, layout ImportLayout) (Node, error) {
 	if err := validateIdentity(identity); err != nil {
 		return Node{}, err
 	}
 	if err := validateText("node id", nodeID, 128, true); err != nil {
 		return Node{}, err
+	}
+	if layout.Placement != nil && layout.Placement.View != ViewAtlas && layout.Placement.View != ViewTopology {
+		return Node{}, fmt.Errorf("%w: unsupported placement view", ErrValidation)
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -294,10 +320,28 @@ func (s *Store) LinkSource(ctx context.Context, nodeID string, identity SourceId
 		}
 		node.RegistryID = identity.Key
 	}
+	if layout.ParentID != nil {
+		parentID := strings.TrimSpace(*layout.ParentID)
+		if err := validateParent(ctx, tx, node.ID, parentID); err != nil {
+			return Node{}, err
+		}
+		node.ParentID = parentID
+	}
+	if layout.Placement != nil {
+		placement := layout.Placement.AsPlacement()
+		if err := validatePlacement(node.Kind, placement); err != nil {
+			return Node{}, err
+		}
+		node.Placements[layout.Placement.View] = placement
+	}
+	placementsJSON, err := json.Marshal(node.Placements)
+	if err != nil {
+		return Node{}, fmt.Errorf("encode infra node placements: %w", err)
+	}
 	previous := node.Version
 	node.Version++
-	res, err := tx.ExecContext(ctx, `UPDATE infra_nodes SET registry_id=?, version=?, updated_at=? WHERE id=? AND version=?`,
-		node.RegistryID, node.Version, formatTime(time.Now().UTC()), node.ID, previous)
+	res, err := tx.ExecContext(ctx, `UPDATE infra_nodes SET registry_id=?, parent_id=?, placements_json=?, version=?, updated_at=? WHERE id=? AND version=?`,
+		node.RegistryID, nullIfEmpty(node.ParentID), string(placementsJSON), node.Version, formatTime(time.Now().UTC()), node.ID, previous)
 	if err != nil {
 		return Node{}, fmt.Errorf("advance infra node version for source link: %w", err)
 	}
@@ -307,7 +351,7 @@ func (s *Store) LinkSource(ctx context.Context, nodeID string, identity SourceId
 		}
 		return Node{}, ErrConflict
 	}
-	res, err = tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=? WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`, nodeID, identity.Kind, identity.Instance, identity.Key)
+	res, err = tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=?, ignored_at='' WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`, nodeID, identity.Kind, identity.Instance, identity.Key)
 	if err != nil {
 		return Node{}, fmt.Errorf("set infra source link: %w", err)
 	}
@@ -328,7 +372,7 @@ func registryLinkableKind(kind NodeKind) bool {
 }
 
 func loadSource(ctx context.Context, q queryer, identity SourceIdentity) (Source, error) {
-	row := q.QueryRowContext(ctx, `SELECT kind, instance, source_key, name, state, fetched_at, removed_at, observed_json
+	row := q.QueryRowContext(ctx, `SELECT `+sourceColumns+`
 		FROM infra_sources WHERE kind=? AND instance=? AND source_key=?`, identity.Kind, identity.Instance, identity.Key)
 	source, err := scanSource(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -347,10 +391,11 @@ type queryer interface {
 
 func scanSource(row sourceScanner) (Source, error) {
 	var source Source
-	var fetchedAt, removedAt, observedJSON string
-	if err := row.Scan(&source.Kind, &source.Instance, &source.Key, &source.Name, &source.State, &fetchedAt, &removedAt, &observedJSON); err != nil {
+	var fetchedAt, removedAt, observedJSON, ignoredAt string
+	if err := row.Scan(&source.Kind, &source.Instance, &source.Key, &source.Name, &source.State, &fetchedAt, &removedAt, &observedJSON, &ignoredAt); err != nil {
 		return Source{}, fmt.Errorf("read infra source: %w", err)
 	}
+	source.Ignored = ignoredAt != ""
 	if fetchedAt != "" {
 		t, err := time.Parse(timeLayout, fetchedAt)
 		if err != nil {

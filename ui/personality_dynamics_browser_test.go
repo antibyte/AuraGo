@@ -24,6 +24,11 @@ func TestPersonalityDynamicsTranslations(t *testing.T) {
 				t.Fatalf("missing %s in %s", key, file)
 			}
 		}
+		for _, key := range strings.Fields("title hint adopt next empty loading done failed stale protected diagnostic settings reload kind_profile kind_character kind_emotion kind_mood deprecated") {
+			if labels["personality_legacy."+key] == "" {
+				t.Fatalf("missing legacy label %s in %s", key, file)
+			}
+		}
 	}
 }
 
@@ -41,6 +46,7 @@ func TestPersonalityDynamicsBrowser(t *testing.T) {
 		window.resetCalls=0; window.resetFailure=false;
 		const original=window.fetch;
 		window.fetch=async(url,opts)=>{
+			if(String(url).startsWith('/api/personality/legacy'))return new Response(JSON.stringify({entries:[],next_after:0,has_more:false}),{headers:{'Content-Type':'application/json'}});
 			if(url==='/api/personality/state')return new Response(JSON.stringify(dynamicsFixture),{headers:{'Content-Type':'application/json'}});
 			if(url==='/api/personality/dynamics/reset'){
 				resetCalls++; if(opts.method!=='POST')throw new Error('wrong method');

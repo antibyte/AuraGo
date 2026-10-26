@@ -25,7 +25,7 @@ func TestDetectUserEmotionTriggerRecognizesPositiveFeedback(t *testing.T) {
 }
 
 func TestDetectUserEmotionTriggerRecognizesNegativeFeedback(t *testing.T) {
-	trigger, _, _ := detectUserEmotionTrigger("Das funktioniert immer noch nicht.", nil, "")
+	trigger, _, _ := detectUserEmotionTrigger("Deine Antwort ist falsch.", nil, "")
 	if trigger != memory.EmotionTriggerNegativeFeedback {
 		t.Fatalf("trigger = %q, want %q", trigger, memory.EmotionTriggerNegativeFeedback)
 	}

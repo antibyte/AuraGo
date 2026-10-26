@@ -2,6 +2,13 @@
 
 let nfStatusCache = null;
 
+// The account status is cached for the page lifetime. A config save can change
+// the token or the enabled state, so the cached answer is dropped on that event.
+if (!window.__auragoNetlifyStatusInvalidate) {
+    window.__auragoNetlifyStatusInvalidate = true;
+    document.addEventListener('aurago:config-saved', () => { nfStatusCache = null; });
+}
+
 async function renderNetlifySection(section) {
     if (nfStatusCache === null) {
         try {
@@ -21,11 +28,14 @@ async function renderNetlifySection(section) {
 
     if (nfEnabled && st.status === 'ok') {
         const name = st.full_name || st.email || 'Connected';
+        const siteCount = st.site_count !== undefined
+            ? String(st.site_count) + (st.site_count_truncated ? '+' : '')
+            : '';
         html += `<div class="wh-notice nf-status-ok">
             <span>✅</span>
             <div>
                 <strong>${t('config.netlify.status_connected')}</strong><br>
-                <small>${escapeAttr(name)}${st.site_count !== undefined ? ' · ' + st.site_count + ' ' + t('config.netlify.sites') : ''}</small>
+                <small>${escapeAttr(name)}${siteCount ? ' · ' + siteCount + ' ' + t('config.netlify.sites') : ''}</small>
             </div>
         </div>`;
     } else if (nfEnabled && st.status === 'no_token') {
@@ -87,7 +97,7 @@ async function renderNetlifySection(section) {
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_site_management ? 'on' : ''}" data-path="netlify.allow_site_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_site_management === true ? 'on' : ''}" data-path="netlify.allow_site_management" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.allow_site_management')}</span>
             <div class="field-help">${t('config.netlify.allow_site_management_help')}</div>
@@ -95,7 +105,7 @@ async function renderNetlifySection(section) {
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_env_management ? 'on' : ''}" data-path="netlify.allow_env_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_env_management === true ? 'on' : ''}" data-path="netlify.allow_env_management" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.allow_env_management')}</span>
             <div class="field-help">${t('config.netlify.allow_env_management_help')}</div>
@@ -224,7 +234,7 @@ async function nfTestConnection() {
         const json = await resp.json();
         if (!result) return;
         if (json.status === 'ok') {
-            let details = json.full_name || json.email || '';
+            let details = json.account_email || json.account_slug || json.full_name || json.email || '';
             if (json.site_count !== undefined) {
                 details += (details ? ' · ' : '') + json.site_count + ' ' + t('config.netlify.sites');
             }

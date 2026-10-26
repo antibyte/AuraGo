@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -334,21 +335,27 @@ func TestCountMemoryPromptTelemetryTokensIncludesAllMemorySections(t *testing.T)
 	}
 }
 
-func TestBuildAggressiveRAGPromptEntriesKeepsOneCompactMemory(t *testing.T) {
+func TestBuildAggressiveRAGPromptEntriesCapsEachMemoryAndKeepsOrder(t *testing.T) {
 	served := []rankedMemory{
 		{text: strings.Repeat("primary memory detail ", 80), docID: "mem-1", score: 0.95},
 		{text: "secondary memory", docID: "mem-2", score: 0.90},
 	}
 
 	entries := buildAggressiveRAGPromptEntries(served, false, nil)
-	if len(entries) != 1 {
-		t.Fatalf("entries len = %d, want 1: %+v", len(entries), entries)
+	if len(entries) != 2 {
+		t.Fatalf("entries len = %d, want 2: %+v", len(entries), entries)
 	}
-	if entries[0].docID != "mem-1" {
-		t.Fatalf("entry docID = %q, want mem-1", entries[0].docID)
+	if entries[0].docID != "mem-1" || entries[1].docID != "mem-2" {
+		t.Fatalf("entry docIDs = %q, %q, want mem-1, mem-2", entries[0].docID, entries[1].docID)
 	}
-	if len([]rune(entries[0].text)) > 321 {
-		t.Fatalf("entry text length = %d, want <= 321 including ellipsis", len([]rune(entries[0].text)))
+	if len(entries[0].text) > aggressiveAutoRAGMemoryChars {
+		t.Fatalf("entry text length = %d, want <= %d", len(entries[0].text), aggressiveAutoRAGMemoryChars)
+	}
+	if !strings.HasPrefix(entries[0].text, "primary memory detail primary") || !strings.Contains(entries[0].text, "[memory:mem-1]") {
+		t.Fatalf("overlong memory should be an excerpt with a recall pointer, got %q", entries[0].text)
+	}
+	if entries[1].text != "secondary memory" {
+		t.Fatalf("second entry = %q, want the short memory verbatim", entries[1].text)
 	}
 }
 
@@ -810,15 +817,15 @@ func TestFilterToolSchemas_MaxToolsZeroDisablesLimit(t *testing.T) {
 	}
 }
 
-func TestFilterToolSchemas_EmptyFrequentFallsBackToDropped(t *testing.T) {
+func TestFilterToolSchemas_NoRankedToolsLeavesTheSlotsEmpty(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("x"), makeTool("y"),
 	}
-	// No frequent tools, no alwaysInclude, maxTools=5 → remaining slots filled from dropped list
+	// No ranked tools and no alwaysInclude: free slots are not filled with
+	// unranked schemas, however small they are.
 	result := filterToolSchemas(schemas, []string{}, []string{}, 5, nil)
-	// Both tools land in 'dropped', then are added via remaining-slots fill-up
-	if len(result) != 2 {
-		t.Errorf("expected 2 tools from fill-up, got %d", len(result))
+	if len(result) != 0 {
+		t.Errorf("expected no tools without a ranking, got %v", toolNames(result))
 	}
 }
 
@@ -878,18 +885,17 @@ func TestFilterToolSchemas_AlwaysIncludeNotDuplicatedByFrequent(t *testing.T) {
 	}
 }
 
-func TestFilterToolSchemas_OriginalOrderPreservedForDropped(t *testing.T) {
-	// Dropped tools are appended in original schema order
+func TestFilterToolSchemas_RankedToolsKeepTheirRankAndUnrankedStayOut(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("rare1"), makeTool("rare2"), makeTool("rare3"),
 	}
-	result := filterToolSchemas(schemas, []string{}, []string{}, 2, nil)
-	if len(result) != 2 {
-		t.Fatalf("expected 2 tools, got %d", len(result))
+	result := filterToolSchemas(schemas, []string{"rare3"}, []string{}, 2, nil)
+	if len(result) != 1 || result[0].Function.Name != "rare3" {
+		t.Fatalf("expected only the ranked rare3, got %v", toolNames(result))
 	}
-	if result[0].Function.Name != "rare1" || result[1].Function.Name != "rare2" {
-		t.Errorf("expected original order rare1,rare2; got %s,%s",
-			result[0].Function.Name, result[1].Function.Name)
+	result = filterToolSchemas(schemas, []string{"rare3", "rare1", "rare2"}, []string{}, 2, nil)
+	if got := strings.Join(toolNames(result), ","); got != "rare3,rare1" {
+		t.Fatalf("expected the ranking order rare3,rare1; got %s", got)
 	}
 }
 
@@ -1023,7 +1029,7 @@ func TestFilterToolSchemasWithReport_HardToolsSurviveSchemaTokenBudget(t *testin
 	}
 }
 
-func TestFilterToolSchemasWithReport_TokenBudgetPrefersSmallerAdaptiveTool(t *testing.T) {
+func TestFilterToolSchemasWithReport_TokenBudgetSkipsTheRankedToolThatDoesNotFit(t *testing.T) {
 	schemas := []openai.Tool{
 		makeSizedTool("discover_tools", "hard catalog"),
 		makeSizedTool("large_tool", strings.Repeat("large schema text ", 300)),
@@ -1091,6 +1097,40 @@ func TestRecentNativeToolNamesFromMessagesKeepsRecentCalls(t *testing.T) {
 	names := recentNativeToolNamesFromMessages(msgs, 1)
 	if len(names) != 1 || names[0] != "docker" {
 		t.Fatalf("names = %v, want [docker]", names)
+	}
+}
+
+func TestRecentNativeToolNamesIncludeInvokeTargets(t *testing.T) {
+	call := func(id, name, args string) openai.ChatCompletionMessage {
+		return openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
+			ID: id, Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: name, Arguments: args},
+		}}}
+	}
+	user := openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: "go"}
+
+	got := recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{
+		user,
+		call("c1", "invoke_tool", `{"tool_name":"manage_todos","arguments":{}}`),
+		call("c2", "invoke_tool", `{"tool_name":"manage_todos"}`),
+	}, 1)
+	if !containsName(got, "manage_todos") || !containsName(got, "invoke_tool") || len(got) != 2 {
+		t.Fatalf("names = %v, want invoke_tool and one manage_todos", got)
+	}
+
+	// The published schema name survives next to its dispatch alias.
+	got = recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{
+		user,
+		call("c3", "invoke_tool", `{"tool_name":"remote_execution"}`),
+	}, 1)
+	if !containsName(got, "remote_execution") || !containsName(got, "execute_remote_shell") || len(got) != 3 {
+		t.Fatalf("names = %v, want invoke_tool, remote_execution and execute_remote_shell", got)
+	}
+
+	for _, args := range []string{`{`, ``, `{"tool_name":""}`, `{"tool_name":"invoke_tool"}`, `{"tool_name":7}`} {
+		got = recentNativeToolNamesFromMessages([]openai.ChatCompletionMessage{user, call("c1", "invoke_tool", args)}, 1)
+		if len(got) != 1 || got[0] != "invoke_tool" {
+			t.Fatalf("arguments %q: names = %v, want only invoke_tool", args, got)
+		}
 	}
 }
 
@@ -1231,33 +1271,76 @@ func TestBuildAdaptiveToolPriorityKeepsBalancedProgressiveToolsReachable(t *test
 	}
 }
 
-func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
-	schemas := []openai.Tool{
-		makeTool("execute_shell"),
-		makeTool("generate_music"),
-		makeTool("generate_video"),
+// The media family offers its important tools as seeds; the generators are
+// not among the first ones, they come with the request that asks for them.
+func TestAdaptiveSeedsLimitTheFamilyToTheFirstOfferedTools(t *testing.T) {
+	query := "play some music and a video"
+	all := adaptiveSeedsForQuery(query, nil)
+	if len(all) != adaptiveFamilySeedLimit {
+		t.Fatalf("seeds = %v, want %d family seeds", all, adaptiveFamilySeedLimit)
 	}
-	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", []string{"execute_shell"}, schemas)
-	if !containsName(got, "execute_shell") {
-		t.Fatalf("expected existing always-include tool to remain, got %v", got)
+	if !slices.Equal(all, adaptiveFamilySeedTools[inferToolFamilyFromQuery(query)][:adaptiveFamilySeedLimit]) {
+		t.Fatalf("seeds %v are not the first of the family %q", all, inferToolFamilyFromQuery(query))
 	}
-	if !containsName(got, "generate_video") {
-		t.Fatalf("expected media family bundle to include generate_video, got %v", got)
+	// A tool the selection cannot offer, or holds anyway, costs no place.
+	offered := func(name string) bool { return name != all[0] && name != all[1] }
+	got := adaptiveSeedsForQuery(query, offered)
+	if len(got) != adaptiveFamilySeedLimit || containsName(got, all[0]) || containsName(got, all[1]) {
+		t.Fatalf("seeds with two tools held = %v, want %d other family seeds (all: %v)", got, adaptiveFamilySeedLimit, all)
 	}
-	if !containsName(got, "generate_music") {
-		t.Fatalf("expected media family bundle to include generate_music, got %v", got)
+	family := adaptiveFamilySeedTools[inferToolFamilyFromQuery(query)]
+	if !slices.Equal(got, family[2:2+adaptiveFamilySeedLimit]) {
+		t.Fatalf("seeds with two tools held = %v, want the next four of %v", got, family)
+	}
+	// Cues add their tools in front of the family, and a repeated tool is listed once.
+	seeds := adaptiveSeedsForQuery("restart the docker container and check the cpu", nil)
+	for _, want := range []string{"docker", "execute_shell", "system_metrics", "process_analyzer"} {
+		if !containsName(seeds, want) {
+			t.Fatalf("seeds = %v, want %s", seeds, want)
+		}
+	}
+	seen := map[string]bool{}
+	for _, name := range seeds {
+		if seen[name] {
+			t.Fatalf("seeds list %s twice: %v", name, seeds)
+		}
+		seen[name] = true
+	}
+	if got := adaptiveSeedsForQuery("hello there", nil); len(got) != 0 {
+		t.Fatalf("a request without a cue got seeds %v", got)
 	}
 }
 
-func TestCacheAwareAdaptiveAlwaysIncludeSkipsUnavailableFamilySeeds(t *testing.T) {
-	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", nil, []openai.Tool{
+// A family seed is a candidate, not a reserved slot: it joins the fused
+// ranking at a fixed weight, so a tool the text of the request ranks better
+// stays ahead of it, and a seed the schema set lacks is not listed.
+func TestBuildAdaptiveToolPriorityFusesFamilySeedsAsCandidates(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("execute_shell"),
+		makeTool("send_audio"),
+		makeTool("send_document"),
 		makeTool("generate_video"),
-	})
-	if !containsName(got, "generate_video") {
-		t.Fatalf("expected available media seed to be included, got %v", got)
+		makeTool("generate_music"),
+		makeTool("analyze_image"),
 	}
-	if containsName(got, "generate_music") {
-		t.Fatalf("did not expect unavailable media seed to be included, got %v", got)
+	got := buildAdaptiveToolPriority(schemas, nil, "generate a short video with music", nil, nil)
+	for _, want := range []string{"generate_video", "generate_music"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected %s in the ranking, got %v", want, got)
+		}
+	}
+	for _, name := range got {
+		if !containsName(toolSchemaNames(schemas), name) {
+			t.Fatalf("ranking lists %q, which is not offered: %v", name, got)
+		}
+	}
+	// The media seeds that the schema set offers are ranked behind the exact
+	// lexical hits for this request.
+	if got[0] != "generate_video" && got[0] != "generate_music" {
+		t.Fatalf("lexical hits must lead the ranking, got %v", got)
+	}
+	if containsName(buildAdaptiveToolPriority([]openai.Tool{makeTool("generate_video")}, nil, "generate a short video with music", nil, nil), "generate_music") {
+		t.Fatal("did not expect an unavailable seed in the ranking")
 	}
 }
 
@@ -1557,6 +1640,63 @@ func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
 	}
 }
 
+func TestAdaptivePriorityMapsSharedManualAndSkipsEmptySlots(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("send_email"),
+		makeTool("fetch_email"),
+		makeTool("list_email_accounts"),
+		makeTool("docker"),
+		makeTool("filesystem"),
+	}
+	const query = "qqzzx plugh"
+	manual := func(name string) string { return filepath.Join("tools_manuals", name+".md") }
+
+	// One manual documents the whole email family, so its tools are offered.
+	got := buildAdaptiveToolPriority(schemas, nil, query, fakeGuideSearcher{paths: []string{manual("email")}}, nil)
+	for _, want := range []string{"send_email", "fetch_email", "list_email_accounts"} {
+		if !containsName(got, want) {
+			t.Fatalf("shared email manual must offer %s, got %v", want, got)
+		}
+	}
+
+	// Manuals that document no available tool use no semantic slot, so the
+	// fifth manual still reaches the ranking.
+	got = buildAdaptiveToolPriority(schemas, nil, query, fakeGuideSearcher{paths: []string{
+		manual("missing_a"), manual("missing_b"), manual("missing_c"), manual("missing_d"), manual("docker"),
+	}}, nil)
+	if !containsName(got, "docker") {
+		t.Fatalf("empty semantic slots must not use up the look-ahead, got %v", got)
+	}
+
+	// The semantic pass adds at most four tools in total, however many tools
+	// the matched manuals document: the discord family is cut in schema order.
+	familySchemas := make([]openai.Tool, 0, 9)
+	for _, name := range []string{
+		"send_email", "fetch_email", "list_email_accounts",
+		"send_discord", "fetch_discord", "list_discord_channels",
+		"telnyx_call", "telnyx_manage", "telnyx_sms",
+	} {
+		familySchemas = append(familySchemas, makeTool(name))
+	}
+	got = buildAdaptiveToolPriority(familySchemas, nil, query, fakeGuideSearcher{paths: []string{
+		manual("email"), manual("discord"), manual("telnyx"),
+	}}, nil)
+	// The curated neighbors of the tools ranked so far follow the semantic pass,
+	// so the rest of the discord family still arrives after the cut; the third
+	// manual (telnyx) is out of budget and has no neighbor in the ranking.
+	if len(got) < 4 {
+		t.Fatalf("semantic pass added too few tools: %v", got)
+	}
+	if gotJoined, want := strings.Join(got[:4], ","), "send_email,fetch_email,list_email_accounts,send_discord"; gotJoined != want {
+		t.Fatalf("semantic pass must add at most 4 tools in schema order, got %q, want %q", gotJoined, want)
+	}
+	for _, tool := range []string{"telnyx_call", "telnyx_manage", "telnyx_sms"} {
+		if containsName(got, tool) {
+			t.Fatalf("%s is beyond the semantic budget of 4 tools, got %v", tool, got)
+		}
+	}
+}
+
 func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("homepage_deploy"),
@@ -1618,7 +1758,7 @@ func TestBuildAdaptiveToolPriorityPrefersHomepageForGermanWebsiteDeploy(t *testi
 	}
 }
 
-func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *testing.T) {
+func TestAdaptiveSelectionKeepsHomepageForGermanWebsiteDeploy(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("filesystem"),
 		makeTool("homepage_deploy"),
@@ -1628,19 +1768,15 @@ func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *t
 		makeTool("shell"),
 	}
 
-	alwaysInclude := cacheAwareAdaptiveAlwaysInclude(
-		"aktualisiere die Webseite und veröffentliche sie",
-		[]string{"query_memory"},
-		schemas,
-	)
-
+	priority := buildAdaptiveToolPriority(schemas, []string{"shell"}, "aktualisiere die Webseite und veröffentliche sie", nil, nil)
 	for _, want := range []string{"homepage_deploy", "homepage_registry", "netlify"} {
-		if !containsName(alwaysInclude, want) {
-			t.Fatalf("expected %s to stay always-included for website deployment intent, got %v", want, alwaysInclude)
+		if !containsName(priority, want) {
+			t.Fatalf("expected %s to be ranked for website deployment intent, got %v", want, priority)
 		}
 	}
 
-	filtered := filterToolSchemas(schemas, []string{"shell"}, alwaysInclude, 1, nil)
+	// The ranking, not a reserved class, keeps homepage_deploy even with maxTools=1.
+	filtered := filterToolSchemas(schemas, priority, []string{"query_memory"}, 1, nil)
 	if !containsName(toolNames(filtered), "homepage_deploy") {
 		t.Fatalf("expected filtered schemas to keep homepage_deploy even with maxTools=1, got %v", toolNames(filtered))
 	}

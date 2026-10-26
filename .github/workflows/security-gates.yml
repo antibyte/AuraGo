@@ -134,7 +134,17 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Verify native bootstrap reproducibility and automatic installation
+        shell: bash
+        run: |
+          python scripts/build-release-verifier.py --check
+          go test ./internal/releaseverify ./cmd/release-verifier -count=1
+          go test ./internal/audit -run 'ReleaseSignature|ReleaseBootstrap|ReleaseVerifier' -count=1
       - name: Sign, verify and reject altered checksums without a provider
         shell: pwsh
         env:

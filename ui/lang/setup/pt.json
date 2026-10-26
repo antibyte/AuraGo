@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 Senha de administrador",
-  "setup.step0_test_connection": "🔌 Testar conexão",
+  "setup.step0_test_connection": "Verificar metadados",
   "setup.step0_test_failed": "Conexão falhou.",
   "setup.step0_test_no_model": "Por favor, insira um nome de modelo primeiro.",
-  "setup.step0_test_success": "Conexão bem-sucedida!",
-  "setup.step0_test_testing": "Testando conexão...",
+  "setup.step0_test_success": "O endereço de metadados está acessível. A geração do modelo não foi testada.",
+  "setup.step0_test_testing": "Verificar metadados…",
   "setup.step0_title": "Conexão LLM",
   "setup.step1_badge": "⭐ Recomendado",
   "setup.step1_description": "Estas configurações melhoram significativamente as capacidades do AuraGo. Você pode configurá-las agora ou depois na UI de Configuração.",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "É gerado automaticamente um certificado local. Verifica-o e adiciona-o aos certificados de confiança do navegador ou dispositivo, se necessário.",
   "setup.secure_ready": "Este navegador indica um contexto seguro. As funções do ambiente de trabalho continuam a exigir suporte do navegador e permissões dos dispositivos.",
   "setup.secure_unavailable": "Este navegador não indica um contexto seguro. Muitas funções do ambiente de trabalho, incluindo o chat de voz e o acesso ao microfone, podem estar indisponíveis.",
-  "setup.https_manage": "Altera HTTPS no instalador ou em Config → Servidor após a configuração. HTTPS através de um proxy e localhost também podem fornecer um contexto seguro."
+  "setup.https_manage": "Altera HTTPS no instalador ou em Config → Servidor após a configuração. HTTPS através de um proxy e localhost também podem fornecer um contexto seguro.",
+  "setup.step0_test_unsupported": "Este fornecedor não suporta um teste de metadados."
 }

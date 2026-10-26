@@ -1,0 +1,213 @@
+/* Pixel: WP5 filters and adjustments (Filters panel, Adjust panel, curves editor, histogram). Loaded after pixel.css; every class is pixel- prefixed. */
+
+.pixel-fx-search {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 5px 9px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    background: var(--pixel-surface);
+    color: inherit;
+    font: inherit;
+    font-size: 0.8rem;
+}
+
+.pixel-fx-search:focus {
+    outline: none;
+    border-color: var(--pixel-accent);
+}
+
+.pixel-fx-gallery {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+}
+
+.pixel-fx-gallery .pixel-filter-card[hidden] {
+    display: none;
+}
+
+.pixel-fx-gallery .pixel-filter-card {
+    padding: 4px;
+    gap: 3px;
+}
+
+.pixel-filter-fav {
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.75);
+    color: #ffd166;
+}
+
+.pixel-fx-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--pixel-line);
+}
+
+.pixel-fx-detail[hidden] {
+    display: none;
+}
+
+.pixel-fx-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pixel-fx-title {
+    min-width: 0;
+    font-size: 0.86rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pixel-fx-star {
+    flex: 0 0 auto;
+    padding: 0 4px;
+    border: none;
+    background: none;
+    color: #ffd166;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.pixel-fx-fade {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--pixel-line);
+}
+
+.pixel-fx-fade .pixel-select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pixel-fx-status {
+    min-height: 1em;
+    font-size: 0.74rem;
+    color: var(--pixel-muted);
+}
+
+.pixel-fx-status.active {
+    color: var(--pixel-accent);
+}
+
+.pixel-fx-status.active::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border: 2px solid var(--pixel-accent);
+    border-right-color: transparent;
+    border-radius: 50%;
+    vertical-align: -1px;
+    animation: pixel-fx-spin 0.8s linear infinite;
+}
+
+@keyframes pixel-fx-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pixel-fx-status.active::before {
+        animation: none;
+    }
+}
+
+.pixel-panel-actions .pixel-btn[disabled] {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.pixel-btn.active {
+    border-color: var(--pixel-accent);
+    color: var(--pixel-accent);
+}
+
+/* Adjust panel */
+
+.pixel-fx-hist-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pixel-fx-hist {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 72px;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.pixel-fx-hist-modes .pixel-param-seg-btn {
+    padding: 2px 6px;
+    font-size: 0.7rem;
+}
+
+.pixel-fx-auto-row {
+    display: flex;
+    gap: 6px;
+}
+
+.pixel-fx-auto-row .pixel-select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pixel-fx-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pixel-fx-group-title {
+    margin: 4px 0 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--pixel-muted);
+}
+
+/* Curves editor */
+
+.pixel-fx-curves {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pixel-fx-curves-canvas {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 280px;
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--pixel-line);
+    border-radius: 6px;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.pixel-fx-curves-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.pixel-fx-curves-row .pixel-select {
+    flex: 1 1 auto;
+    min-width: 0;
+}

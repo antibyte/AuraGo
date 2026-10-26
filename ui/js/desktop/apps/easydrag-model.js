@@ -12,6 +12,10 @@
     const MAX_HISTORY = 300;
     const MAX_PASTE_NODES = 500; // flows.MaxNodes
     const MAX_PASTE_EDGES = 2000; // flows.MaxEdges
+    // home.assistant fields per operation (homeAssistantFields in internal/flows/catalog_actions_home.go).
+    const HA_STATE_FIELDS = [{ name: 'state', type: 'text', primary: true }, { name: 'attributes', type: 'object' }, { name: 'entity_id', type: 'text' }, { name: 'last_changed', type: 'text' }];
+    const HA_SERVICE_FIELDS = [{ name: 'ok', type: 'bool', primary: true }, { name: 'service', type: 'text' }, { name: 'affected_entities', type: 'list' }];
+    const HA_ALL_FIELDS = HA_STATE_FIELDS.concat([{ name: 'ok', type: 'bool' }, { name: 'service', type: 'text' }, { name: 'affected_entities', type: 'list' }]);
 
     function randomSuffix(n) {
         const bytes = new Uint8Array(n);
@@ -138,7 +142,34 @@
             }
             return nodeIndex.get(id) || null;
         }
-        function edge(id) { return state.doc.edges.find(e => e.id === id) || null; }
+        // adjacency holds each node's incoming and outgoing edges and an id Map of the edges. Like the
+        // node Map it follows docGen and the edge list it was built from, so a walk over the graph costs
+        // O(V+E), not O(V·E) (F6). Callers get copies of its lists.
+        let adjacency = null;
+        let adjacencyOf = null;
+        let adjacencyGen = -1;
+        function adj() {
+            const list = state.doc.edges;
+            if (!adjacency || adjacencyOf !== list || adjacencyGen !== docGen) {
+                const inc = new Map();
+                const out = new Map();
+                const byId = new Map();
+                list.forEach(e => {
+                    if (!byId.has(e.id)) byId.set(e.id, e);
+                    const to = e.target.node;
+                    const from = e.source.node;
+                    if (!inc.has(to)) inc.set(to, []);
+                    inc.get(to).push(e);
+                    if (!out.has(from)) out.set(from, []);
+                    out.get(from).push(e);
+                });
+                adjacency = { inc, out, byId };
+                adjacencyOf = list;
+                adjacencyGen = docGen;
+            }
+            return adjacency;
+        }
+        function edge(id) { return adj().byId.get(id) || null; }
         function byKey(key) { return state.doc.nodes.find(n => n.key === key) || null; }
 
         function inputs(n) {
@@ -177,6 +208,12 @@
         function fieldsOf(n) {
             const i = info(n.type);
             if (!i) return [];
+            if (i.dynamic_fields === 'operation') {
+                const raw = n.params ? n.params.operation : undefined;
+                const op = raw === undefined || raw === null ? 'call_service' : typeof raw === 'string' ? (raw.trim().toLowerCase() || 'call_service') : '';
+                const list = op === 'get_state' ? HA_STATE_FIELDS : op === 'call_service' ? HA_SERVICE_FIELDS : HA_ALL_FIELDS;
+                return list.map(f => Object.assign({}, f));
+            }
             if (i.dynamic_fields === 'mode') {
                 if (i.type === 'ai.decision') {
                     const fields = Array.isArray(i.output_fields) ? i.output_fields.slice() : [];
@@ -204,15 +241,14 @@
             return Array.isArray(i.output_fields) ? i.output_fields.slice() : [];
         }
 
-        function incoming(id) { return state.doc.edges.filter(e => e.target.node === id); }
-        function outgoing(id) { return state.doc.edges.filter(e => e.source.node === id); }
+        function incoming(id) { return (adj().inc.get(id) || []).slice(); }
+        function outgoing(id) { return (adj().out.get(id) || []).slice(); }
 
         function walk(start, next) {
             const seen = new Set();
             const queue = [start];
-            while (queue.length) {
-                const id = queue.shift();
-                next(id).forEach(other => { if (!seen.has(other)) { seen.add(other); queue.push(other); } });
+            for (let i = 0; i < queue.length; i++) {
+                next(queue[i]).forEach(other => { if (!seen.has(other)) { seen.add(other); queue.push(other); } });
             }
             seen.delete(start);
             return seen;
@@ -554,13 +590,16 @@
             change('disconnect', rec => { (ids || []).forEach(id => { if (edge(id)) rec.removeEdge(id); }); });
         }
 
-        // insertOnEdge places a node (new type or existing id) between the two ends of an edge.
+        // insertOnEdge places a node (new type or existing id) between the two ends of an edge. It
+        // returns null and changes nothing for a node without an input or without an output: the
+        // wire would end at it and cut off the node behind it.
         function insertOnEdge(edgeId, typeOrId, position) {
             const e = edge(edgeId);
             if (!e) return null;
             let id = node(typeOrId) ? typeOrId : null;
             const i = id ? info(node(id).type) : info(typeOrId);
             if (!i || !(i.inputs || []).length) return null;
+            if (!outputs(id ? node(id) : { type: typeOrId, params: defaults(i), settings: {} }).length) return null;
             change('insert', rec => {
                 if (!id) {
                     id = newNodeID();
@@ -621,7 +660,11 @@
             if (!node(id)) return;
             change('settings', rec => {
                 const n = rec.node(id);
-                n.settings = Object.assign({}, n.settings, clone(patch));
+                // clone() goes through JSON and would drop an undefined value, which keeps the old
+                // setting: each value is cloned on its own, and undefined, null and '' (back to the
+                // default) are removed below.
+                n.settings = Object.assign({}, n.settings);
+                Object.keys(patch).forEach(k => { n.settings[k] = clone(patch[k]); });
                 Object.keys(n.settings).forEach(k => { if (n.settings[k] === undefined || n.settings[k] === null || n.settings[k] === '') delete n.settings[k]; });
                 dropDanglingEdges(rec, id);
             }, { coalesce: 'settings:' + id + ':' + Object.keys(patch).join(',') });

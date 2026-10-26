@@ -884,7 +884,19 @@ func dockerComposePolicyRun(ctx context.Context, cfg *config.Config, dockerCfg t
 			return dockerComposeOwnerDenial(dockerutil.LocalLLMOwner)
 		}
 	}
-	return dockerComposeHostAccessPolicy(ctx, cfg, req, preflight, effective)
+	if denied := dockerComposeHostAccessPolicy(ctx, cfg, req, preflight, effective); denied != "" {
+		return denied
+	}
+	if !dockerComposeSkipsContainerReferences(subcommand) {
+		owned, err := tools.DockerComposeUsesRustFSVolumeAliases(dockerCfg, preflight.model, effective.model)
+		if owned {
+			return dockerComposeOwnerDenial(dockerutil.RustFSOwner)
+		}
+		if err != nil {
+			return dockerAgentError("docker_ownership_unverified", err.Error())
+		}
+	}
+	return ""
 }
 
 // dockerComposeAllProfilesWarned remembers the (file, error) pairs whose
@@ -956,6 +968,10 @@ func dockerComposeErrorTail(text string, limit int) string {
 
 func dockerComposeOwnerDenial(owner string) string {
 	switch owner {
+	case dockerutil.RustFSOwner:
+		return dockerAgentError("docker_managed_rustfs_resource", "Managed RustFS resources are private. Use the S3 tool for permitted object access or administrator S3 settings for lifecycle changes.")
+	case dockerutil.OllamaOwner:
+		return dockerAgentError("docker_managed_ollama_resource", "Docker Compose access to managed Ollama containers and model volumes is blocked.")
 	case dockerutil.LocalLLMOwner, acestep.Owner:
 		return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
 	case dockerutil.BoringGarageOwner:
@@ -995,6 +1011,8 @@ func dockerComposeCYDCreatorImageDenial(cfg *config.Config, models ...tools.Dock
 // (dispatchServices). The security proxy is not listed: the agent keeps its
 // exec access there.
 var dockerComposeReferenceOwners = []string{
+	dockerutil.RustFSOwner,
+	dockerutil.OllamaOwner,
 	acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", dockerutil.LocalLLMOwner,
 	dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.DecisionsOwner,
 }

@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -609,5 +612,113 @@ func TestHandleDiscoverToolsAliasFallbacks(t *testing.T) {
 	decodeToolOutputJSON(t, out4, &payload4)
 	if payload4.Status != "success" || payload4.Tool == nil || payload4.Tool.Name != "chromecast" {
 		t.Fatalf("get_tool_info fallback tool failed: status=%s, raw=%s", payload4.Status, out4)
+	}
+}
+
+// flakyGuideSearcher answers the manual search with the given manuals, or fails
+// the way an unreachable embedding provider does.
+type flakyGuideSearcher struct {
+	memory.VectorDB
+	fail    bool
+	manuals []string
+}
+
+func (s *flakyGuideSearcher) SearchToolGuideMatchesContext(context.Context, string, int) ([]memory.ToolGuideMatch, error) {
+	if s.fail {
+		return nil, errors.New("embedding provider unavailable")
+	}
+	return manualGuideSearcher{manuals: s.manuals}.SearchToolGuideMatchesContext(context.Background(), "", 0)
+}
+
+// TestDiscoverToolsSearchPagesKeepTheOrderOfTheFirstPage guards the cursor of a
+// search: whether the manual search answers can differ from call to call, and
+// a page of another order must not reset the cursor of the page before.
+func TestDiscoverToolsSearchPagesKeepTheOrderOfTheFirstPage(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		failFirst, then bool
+	}{
+		{"manual search fails on the first page", true, false},
+		{"manual search fails on the second page", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Eight tools match the query; the manual search adds three more.
+			var schemas []openai.Tool
+			for i := 0; i < 8; i++ {
+				schemas = append(schemas, testToolSchema(fmt.Sprintf("lexical_%d", i), "Frobnicate widgets"))
+			}
+			manuals := []string{"manual_a", "manual_b", "manual_c"}
+			for _, manual := range manuals {
+				schemas = append(schemas, testToolSchema(manual, "Unrelated text "+manual))
+			}
+			sid := t.Name()
+			SetDiscoverToolsState(sid, schemas, nil, "")
+			t.Cleanup(func() { ClearDiscoverToolsState(sid) })
+			source := &flakyGuideSearcher{fail: tc.failFirst, manuals: manuals}
+			dc := &DispatchContext{SessionID: sid, LongTermMem: source}
+			page := func(cursor string) DiscoverToolsResponse {
+				params := map[string]interface{}{"operation": "search", "query": "frobnicate widgets"}
+				if cursor != "" {
+					params["cursor"] = cursor
+				}
+				var response DiscoverToolsResponse
+				decodeToolOutputJSON(t, handleDiscoverToolsContext(context.Background(), ToolCall{Params: params}, &config.Config{}, nil, sid, dc), &response)
+				return response
+			}
+			first := page("")
+			if first.NextCursor == "" {
+				t.Fatalf("fixture: the search has no second page: %d results of %d", len(first.Results), first.Total)
+			}
+			source.fail = tc.then
+			second := page(first.NextCursor)
+			if second.CursorReset || len(second.Results) == 0 {
+				t.Fatalf("the second page did not continue the first: reset=%v results=%d", second.CursorReset, len(second.Results))
+			}
+			for _, a := range first.Results {
+				for _, b := range second.Results {
+					if a.Name == b.Name {
+						t.Errorf("%s is on both pages", a.Name)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestDiscoverSearchOrderMemoIsBounded guards the memory of the paging memo: a
+// session cannot grow it without limit, and an order lives for the snapshot TTL.
+func TestDiscoverSearchOrderMemoIsBounded(t *testing.T) {
+	sid := t.Name()
+	t.Cleanup(func() { ClearDiscoverToolsState(sid) })
+	for i := 0; i < 3*discoverSearchOrderLimit; i++ {
+		rememberDiscoverSearchOrder(discoverSearchKey{sid, fmt.Sprint(i), "r"}, []string{"a"})
+	}
+	discoverToolsState.mu.RLock()
+	kept := len(discoverToolsState.orders)
+	discoverToolsState.mu.RUnlock()
+	if kept > discoverSearchOrderLimit {
+		t.Errorf("%d orders kept, limit %d", kept, discoverSearchOrderLimit)
+	}
+	long := discoverSearchKey{sid, "long", "r"}
+	rememberDiscoverSearchOrder(long, make([]string, discoverSearchOrderNames+1))
+	if _, ok := recallDiscoverSearchOrder(long); ok {
+		t.Errorf("an order of %d names was kept", discoverSearchOrderNames+1)
+	}
+
+	SetDiscoverToolsSnapshotTTL(20 * time.Millisecond)
+	t.Cleanup(func() { SetDiscoverToolsSnapshotTTL(0) })
+	expiring := discoverSearchKey{sid, "expiring", "r"}
+	rememberDiscoverSearchOrder(expiring, []string{"a"})
+	if _, ok := recallDiscoverSearchOrder(expiring); !ok {
+		t.Fatalf("a fresh order was not recalled")
+	}
+	time.Sleep(60 * time.Millisecond)
+	if _, ok := recallDiscoverSearchOrder(expiring); ok {
+		t.Errorf("an order outlived the snapshot TTL")
+	}
+	rememberDiscoverSearchOrder(expiring, []string{"a"})
+	ClearDiscoverToolsState(sid)
+	if _, ok := recallDiscoverSearchOrder(expiring); ok {
+		t.Errorf("clearing the session kept its orders")
 	}
 }

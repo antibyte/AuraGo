@@ -9,6 +9,11 @@ auth:
     session_timeout_hours: 24
     require_origin_header: false  # stricter CSRF mode: require Origin on authenticated writes
     totp_enabled: false
+    webauthn:
+        enabled: false
+        login_mode: "" # Choose passkey or second_factor before enabling.
+        rp_id: "" # Stable DNS name, without scheme or port.
+        origins: [] # Exact trusted HTTPS origins; http://localhost is development only.
     max_login_attempts: 5
     lockout_minutes: 15
 agent:
@@ -221,7 +226,7 @@ sip:
         advertised_ip: ""                                   # optional concrete host-candidate IP; no STUN/TURN
     inbound:
         route: agent                                        # agent, manual, reject
-        auto_answer_delay_ms: 1000
+        auto_answer_delay_ms: 1000                           # 0-60000 ms; 0 answers immediately
         ring_timeout_seconds: 90                            # unanswered manual calls: 15-300 seconds
         number_region: ""                                  # optional ISO region (e.g. DE) for national 0... caller normalization
         trusted_peer_cidrs: []                              # PBX/proxy source IPs or CIDRs
@@ -230,7 +235,7 @@ sip:
     outbound:
         allowed_domains: []                                 # empty uses sip.domain; entries define the exact allowed domains
         denied_domains: []                                  # negative list; overrides allowed_domains
-        allowed_users: []                                   # when this and allowed_e164_prefixes are empty, every user is allowed
+        allowed_users: []                                   # empty users AND allowed_e164_prefixes deny all destinations
         denied_users: []                                    # negative list; overrides allowed_users
         allowed_e164_prefixes: []                           # entries restrict numbers; denylists always take precedence
         denied_e164_prefixes: []                            # blocked prefixes; overrides positive lists
@@ -242,11 +247,11 @@ sip:
     voice:
         backend: classic                                    # classic or gemini_live
         realtime_profile_id: ""
-        agent_provider_id: ""                               # empty inherits llm.provider until first Telefonagent save
+        agent_provider_id: ""                               # empty inherits llm.provider until first Telephone agent save
         classic:
             asr_provider_id: ""                             # empty inherits whisper.provider until first save
-            asr_mode: ""                                    # whisper, multimodal, local; empty inherits whisper.mode
-            tts_provider: ""                                # central TTS profile: google, elevenlabs, minimax, mistral, piper, supertonic
+            asr_mode: ""                                    # whisper, multimodal, local, speech_lab; empty inherits whisper.mode
+            tts_provider: ""                                # phonon, sanotts, google, elevenlabs, minimax, mistral, piper, supertonic, speech_lab
         behavior:
             greeting_enabled: true
             greeting: ""                                    # empty uses a safe pipeline-native AuraGo greeting
@@ -403,6 +408,12 @@ discord:
     default_channel_id: ""
     enabled: false
     guild_id: ""
+    # Channels the agent may read from and write to. Empty keeps the previous
+    # behaviour (every channel the bot can reach). When set, only these channels
+    # plus default_channel_id are usable; the agent gets a hint naming this key.
+    allowed_channel_ids: []
+    # Parallel agent runs per Discord message burst. 0 or less restores the default of 5.
+    max_concurrent_workers: 5
 docker:
     enabled: false
     host: ""
@@ -662,7 +673,7 @@ tools:
         download_dir: data/downloads                      # project-local directory for downloaded media
         max_file_size_mb: 500                             # maximum downloaded file size in MB (0 = unlimited)
         timeout_seconds: 300                              # per-command timeout in seconds
-        default_format: best                              # best, bestaudio, or a custom yt-dlp format string
+        default_format: bestvideo[height<=720]+bestaudio/best[height<=720]/best  # 720p for new installs; a saved best stays best
         max_search_results: 10                            # maximum search results returned to the agent
         container_image: ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c    # Docker image used in docker mode (digest-pinned)
         auto_pull: true                                   # automatically pull the container image when missing
@@ -672,6 +683,9 @@ tools:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
     virtual_computers:
         enabled: false                                     # enable virtual_computers tool; also requires virtual_computers.enabled
+    qr_code:
+        enabled: false                                     # agent QR generation/scanning; desktop dialog is independent
+        readonly: true                                     # permit presets/scan, block generate/batch_generate
     office_document:
         enabled: false                                     # enable office_document tool; also requires virtual_desktop.enabled and allow_agent_control
         readonly: false                                    # read-only mode: allow read only; block write, patch, and export
@@ -718,6 +732,7 @@ mission_preparation:
     auto_prepare_scheduled: true                            # auto-prepare scheduled missions on change
 # ── S3-compatible storage ──────────────────────────────────────────────────────
 s3:
+    provider: external                                     # external or rustfs (managed installation)
     enabled: false
     readonly: false                                         # true = only list/download, no upload/delete/copy
     endpoint: ""                                            # e.g. https://s3.amazonaws.com or http://minio.local:9000
@@ -726,6 +741,17 @@ s3:
     use_path_style: true                                    # required for MinIO and most S3-compatible services
     insecure: false                                         # allow HTTP (non-TLS) endpoints
     # access_key and secret_key are stored in the encrypted vault — configure via Config UI
+# Optional managed RustFS server. Install and operate through the S3 Config UI.
+rustfs:
+    enabled: false
+    bucket: aurago                                         # initial bucket; data survives stop/removal
+    agent_access: false
+    permissions:
+        allow_read: false
+        allow_write: false
+        allow_delete: false
+        allowed_locations: []                              # e.g. [{bucket: aurago, prefixes: ["agent/"]}]
+    # Credentials and runtime identity are private Vault state, never YAML.
 # LLM Providers — configure via the Setup Wizard or Config UI
 # Supported types: openai, openrouter, ollama, anthropic, google, minimax, agnes,
 # workers-ai, manifest, omniroute, yepapi, custom, deepseek, groq, mistral, xai,
@@ -876,6 +902,9 @@ sqlite:
     media_registry_path: ./data/media_registry.db
     homepage_registry_path: ./data/homepage_registry.db
     game_maker_path: ./data/game_maker.db
+    # Detective research store. Empty keeps the legacy file next to the Game Maker
+    # database when it already exists, otherwise ./data/detective.db.
+    detective_path: ./data/detective.db
     cyd_creator_path: ./data/cyd_creator.db
     contacts_path: ./data/contacts.db
     planner_path: ./data/planner.db
@@ -923,6 +952,8 @@ telegram:
     bot_token: ""
     telegram_user_id: 0
     max_concurrent_workers: 5
+    # Read-only mode: the bot still answers, but the agent may not send on its own.
+    readonly: false
 tts:
     cache_max_files: 500
     cache_retention_hours: 168
@@ -934,6 +965,20 @@ tts:
         api_key: ""                    # stored in Vault by the Web UI
         model_id: voxtral-mini-tts-2603
         voice_id: ""                   # preset or custom voice ID from Mistral Studio
+    xai:
+        api_key: ""                    # stored in Vault by the Web UI
+        voice_id: eve
+    openai:
+        api_key: ""                    # stored in Vault by the Web UI
+        model_id: gpt-4o-mini-tts       # Speech API models retire on 2027-01-06
+        voice_id: coral
+    stepfun:
+        api_key: ""                    # stored in Vault by the Web UI
+        model_id: step-tts-mini
+        voice_id: jingdiannvsheng
+    resemble:
+        api_key: ""                    # archived hosted service; requires working account access
+        voice_id: ""                   # required voice UUID from your Resemble account
     language: auto                    # sanoTTS follows the user language; unsupported voices use English
     piper:
         container_port: 10200
@@ -942,7 +987,9 @@ tts:
         image: rhasspy/wyoming-piper:latest
         speaker_id: 0
         voice: de_DE-thorsten-high
-    provider: sanotts                  # local CPU default; selectable in Speech Output config
+    provider: phonon                   # bundled CPU default; sanoTTS fallback for other languages
+    phonon:
+        voice_id: ""                  # empty: automatic voice matching language and persona
     supertonic:
         auto_start: false
         container_name: aurago-supertonic-tts
@@ -1226,6 +1273,8 @@ game_maker:
     max_asset_size_mb: 32
     max_project_size_mb: 100
     job_timeout_seconds: 1800                              # normal budget; recent compiled source may earn one 50% extension, capped at 15 min
+    planning_temperature: 0.6                              # sampling for planning; omit for the default (clamped 0.05-1.5)
+    building_temperature: 0.2                              # sampling for building, repair and source generation; omit for the default
 cyd_creator:
     enabled: false                                         # CYD Creator desktop app (needs docker.enabled); builds run in a Docker container
     builder_image: ghcr.io/antibyte/aurago-cyd-builder:1   # published toolchain image; pulled from the app, never built locally
@@ -1298,6 +1347,7 @@ indexing:
     directories:
         - path: ./knowledge
           collection: ""                        # optional; empty = default collection "file_index"
+          allow_media_analysis: false           # send images, audio and scanned PDFs of this folder to the Vision/multimodal provider
     poll_interval_seconds: 60
     chunking:
         strategy: recursive                         # recursive (default) or legacy; changes trigger a clean reindex
@@ -1320,7 +1370,7 @@ indexing:
         - .ods
         - .odp
         - .rtf
-    index_images: false                         # send images to Vision LLM for analysis and index results
+    index_images: false                         # send images to Vision LLM for analysis and index results (only for directories with allow_media_analysis)
 learnings:
   enabled: false # Evidence-based insights; requires enabled, writable memory for learning.
 
@@ -1392,8 +1442,7 @@ cyd:
     overlay_ttl_seconds: 30      # default notification overlay lifetime
     allow_agent_control: true    # allow cyd_display page/brightness/led mutations
     mqtt_mirror: false           # also publish snapshots to MQTT topic aurago/cyd/snapshot
-    # Spoken English alerts use sanoTTS (pip install sanotts, voice heart-nano)
-    # when the sanotts CLI is on PATH. The glass fetches 8 kHz PCM from /api/cyd/speak/{id}.
+    # Spoken alerts use the active tts.provider. The glass fetches 8 kHz PCM from /api/cyd/speak/{id}.
 adguard:
     enabled: false
     readonly: false
@@ -1666,34 +1715,34 @@ three_d_printers:
 ollama:
     enabled: false
     readonly: false
-    url: ""
+    url: ""                           # external API root; derived automatically while managed_instance is enabled
     managed_instance:
         enabled: false                 # auto-manage a local Ollama Docker container
-        container_port: 11434          # host port for the managed container
+        container_port: 11434          # native host port; Docker bridges use internal 11434 without host publication
         use_host_gpu: false            # pass GPU devices into the container (Linux only)
         gpu_backend: "auto"            # "auto", "nvidia", "amd", "intel", "vulkan" — use "vulkan" for older iGPUs/APUs without ROCm support
         default_models: []             # models to auto-pull after start, e.g. ["llama3", "mistral"]
         memory_limit: ""               # Docker memory limit, e.g. "8g" (empty = unlimited)
         volume_path: ""                # host path for /root/.ollama; empty uses named volume aurago_ollama_managed_models
 personality:
-    core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
-    engine: true                       # enable personality engine (mood, micro-traits)
-    engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
+    core_personality: neutral          # active personality profile, e.g. 'neutral', 'punk', 'friend'
+    engine: false                      # enable personality engine (mood, micro-traits)
+    engine_v2: false                   # enable advanced V2 engine with async LLM mood analysis
     v2_provider: ""                    # deprecated compatibility field; personality V2 now uses llm.helper_*
     user_profiling: false              # auto-detect user preferences from conversation
-    user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
+    user_profiling_threshold: 3        # confirmations needed before injecting a trait into prompt
     emotion_synthesizer:
         enabled: false                 # enable emotion synthesis
         min_interval_seconds: 60       # minimum seconds between emotion synthesis runs
         max_history_entries: 100       # max emotion history entries to keep
-        trigger_on_mood_change: true   # synthesize when V2 detects a mood change (default: true)
+        trigger_on_mood_change: true   # narrate when the Go mood changes (default: true)
         trigger_always: false          # synthesize on every message (default: false)
     inner_voice:
         enabled: false                 # enable inner voice / subconscious nudge engine (requires emotion_synthesizer + engine_v2)
         min_interval_secs: 60          # minimum seconds between inner voice generations
         max_per_session: 20            # maximum inner voice thoughts per session
         decay_turns: 3                 # inner voice thought expires after N turns
-        error_streak_min: 2            # minimum consecutive errors before error-streak trigger fires
+        decay_max_age_secs: 300        # absolute age limit, even if no new turn arrives
 rocketchat:
     enabled: false
     url: ""
@@ -1839,7 +1888,7 @@ llm_guardian:
     provider: ""
     model: ""
     default_level: "medium"
-    fail_safe: "block"
+    fail_safe: "block"                 # block (default) | quarantine (stop, fixed notice) | allow (only fail-open path)
     cache_ttl: 300
     max_checks_per_minute: 60
     tool_overrides: {}
@@ -2067,16 +2116,14 @@ shell_sandbox:
     max_file_size_mb: 100
     allowed_paths: []
 ai_gateway:
-    enabled: false
+    enabled: false             # rewrite supported existing providers; explicit cloudflare-rest providers are independent
     account_id: ""
     gateway_id: ""
-    mode: auto                 # auto, openai_compatible, provider_native
+    huggingface_provider_slug: "" # Cloudflare custom provider with upstream https://router.huggingface.co
     log_mode: metadata_only    # metadata_only, off, full
     metadata: {}               # sent as cf-aig-metadata; do not store secrets here
-    request_timeout_ms: 0      # 0 = Cloudflare default
-    max_attempts: 0            # 0 = disabled/default
-    retry_delay_ms: 0          # 0 = Cloudflare default
-    backoff: ""                # "", constant, linear, exponential
+    request_timeout_ms: 0      # response-start limit; 0 = existing client limits; caller deadlines still win
+    # AuraGo owns retries: cf-aig-max-attempts is always 1.
 mcp_server:
     enabled: false
     allowed_tools: []                              # explicit server-side tool allowlist; empty = no exposed tools
@@ -2113,6 +2160,7 @@ yepapi:
     enabled: false
     provider: ""                            # provider entry ID with type 'yepapi' (empty = auto-select first)
     base_url: ""                            # custom YepAPI base URL (empty = https://api.yepapi.com)
+    budget_quota_percent: 0                 # daily budget share (0 = no reserved quota)
     seo:
         enabled: false                      # keyword research, domain overview, competitor analysis, backlinks
     serp:

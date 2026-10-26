@@ -30,7 +30,7 @@ func TestRunConsolidationCatchupIsOptInAndHonorsMessageCap(t *testing.T) {
 	calls := 0
 	client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 		calls++
-		return skillQualityTestClient{response: `{"facts":[]}`}.CreateChatCompletion(ctx, req)
+		return skillQualityTestClient{response: maintenanceConsolidationResponseForRequest(req, `"facts":[]`)}.CreateChatCompletion(ctx, req)
 	}}
 	runConsolidationCatchup(t.Context(), cfg, logger, client, stm, &hierarchyVectorDB{}, nil, newMaintenanceRunLedger())
 	if calls != 0 {

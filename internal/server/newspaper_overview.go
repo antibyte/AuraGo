@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	"html"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/newspaper"
 
 	"github.com/PuerkitoBio/goquery"
@@ -126,7 +128,7 @@ func (r *newspaperResearchRun) overviews(ctx context.Context, round int) {
 }
 
 func (r *newspaperResearchRun) initialOverviewRequests() []newspaperOverviewRequest {
-	requests := make([]newspaperOverviewRequest, 0, len(r.profile.RSSFeeds)+3)
+	requests := make([]newspaperOverviewRequest, 0, len(r.profile.RSSFeeds)+10)
 	index := map[string]int{}
 	add := func(rawURL string, mode newspaperOverviewMode) {
 		key, resolvedURL := newspaperOverviewRequestKey(rawURL)
@@ -156,6 +158,31 @@ func (r *newspaperResearchRun) initialOverviewRequests() []newspaperOverviewRequ
 	}
 	if topics := newspaperSpecialistTopics(r.topics); len(topics) > 0 && r.overviewSourceEnabled(newspaperOverviewTechmeme) {
 		add("https://www.techmeme.com/feed.xml", newspaperOverviewMode{source: newspaperOverviewTechmeme, topics: topics, shared: true})
+	}
+	for _, feed := range []struct {
+		source, url string
+		sections    []string
+	}{
+		{config.NewspaperOverviewTagesschau, "https://www.tagesschau.de/xml/rss2/", []string{"national", "international", "politics"}},
+		{config.NewspaperOverviewBBCBusiness, "https://feeds.bbci.co.uk/news/business/rss.xml", []string{"economy"}},
+		{config.NewspaperOverviewScienceDaily, "https://www.sciencedaily.com/rss/all.xml", []string{"science", "health"}},
+		{config.NewspaperOverviewNASA, "https://www.nasa.gov/news-release/feed/", []string{"science"}},
+		{config.NewspaperOverviewGuardianEnvironment, "https://www.theguardian.com/environment/rss", []string{"environment"}},
+		{config.NewspaperOverviewBBCSport, "https://feeds.bbci.co.uk/sport/rss.xml", []string{"sport"}},
+		{config.NewspaperOverviewGuardianCulture, "https://www.theguardian.com/culture/rss", []string{"culture"}},
+	} {
+		if !r.overviewSourceEnabled(feed.source) {
+			continue
+		}
+		var topics []newspaperTopic
+		for _, topic := range r.topics {
+			if slices.Contains(feed.sections, topic.Section) || topic.Section == "interests" {
+				topics = append(topics, topic)
+			}
+		}
+		if len(topics) > 0 {
+			add(feed.url, newspaperOverviewMode{source: feed.source, topics: topics, shared: true})
+		}
 	}
 	return requests
 }
@@ -306,6 +333,13 @@ func (r *newspaperResearchRun) consumeAggregatorHit(mode newspaperOverviewMode, 
 	topics := mode.topics
 	if mode.shared && mode.source == newspaperOverviewGoogle {
 		topics = newspaperTopOverviewMatches(r.profile, mode.topics, title+" "+description+" "+publisher)
+	} else if mode.shared && mode.source != newspaperOverviewHacker && mode.source != newspaperOverviewTechmeme {
+		topics = nil
+		for _, topic := range mode.topics {
+			if topic.Section != "interests" || newspaperMatchesInterest(title+" "+description, topic.Label) {
+				topics = append(topics, topic)
+			}
+		}
 	}
 	originalURL := ""
 	if mode.source == newspaperOverviewTechmeme {

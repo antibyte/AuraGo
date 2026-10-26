@@ -195,6 +195,27 @@ func authHeaderName(v any) (string, error) {
 	return s, nil
 }
 
+// authLiteralParams shape the credential header next to auth_secret. While a secret is set they
+// must be written out: data from a template would choose the header name or the text in front
+// of the secret.
+var authLiteralParams = []string{"auth_header", "auth_prefix"}
+
+func authLiteralMessage(param string) string {
+	return param + " must be written out while auth_secret is set; it cannot be taken from another node"
+}
+
+// authLiteralIssues reports auth_header and auth_prefix when they hold a template (the caller
+// checks that a secret is set).
+func authLiteralIssues(n *Node) []Issue {
+	var issues []Issue
+	for _, param := range authLiteralParams {
+		if isTemplateText(n.Params[param]) {
+			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, param, authLiteralMessage(param)))
+		}
+	}
+	return issues
+}
+
 // withAuthSecret adds the credential named by auth_secret to the headers and
 // returns a scrubber for its value (one that removes nothing when no secret is
 // used). The vault value is trimmed (a pasted secret often ends in a newline, which
@@ -204,12 +225,28 @@ func authHeaderName(v any) (string, error) {
 // the configured credential. The value never reaches the parameters, an error
 // message or an output; the node's parameters only hold the secret's name.
 func withAuthSecret(in ExecInput, headers []httpHeader) ([]httpHeader, *secretScrubber, error) {
+	// The vault entry is the document author's choice, never data that flows through the
+	// run: a template is refused even though the run has resolved it to a valid name (the
+	// raw parameter tells), as haServiceParam does for the Home Assistant service. A caller
+	// without the raw node only has the resolved value to judge.
+	if in.Node != nil && isTemplateText(in.Node.Params["auth_secret"]) {
+		return nil, nil, NewNodeError("FLOW_PARAM_INVALID", "auth_secret must name a vault secret directly; it cannot be taken from another node")
+	}
 	key, err := scalarTextParam(in.Params["auth_secret"], "auth_secret")
 	if err != nil {
 		return nil, nil, err
 	}
 	if key = strings.TrimSpace(key); key == "" {
 		return headers, nil, nil
+	}
+	// auth_header and auth_prefix shape the credential header; like the vault entry they are the
+	// author's choice, never data that flows through the run (the raw parameter tells).
+	if in.Node != nil {
+		for _, param := range authLiteralParams {
+			if isTemplateText(in.Node.Params[param]) {
+				return nil, nil, NewNodeError("FLOW_PARAM_INVALID", "%s", authLiteralMessage(param))
+			}
+		}
 	}
 	if err := checkFileText(key, maxSecretNameBytes, "secret name"); err != nil {
 		return nil, nil, err
@@ -327,20 +364,22 @@ func nestingWithin(v any, limit int) bool {
 	return true
 }
 
-// httpRequestEffects: a GET has no outward effect; every other method, and one that
-// is not known yet (a template, a value of the wrong type), may change something on
-// the server. It is a hook, so it copes with a nil node and any parameter.
+// httpRequestEffects: a GET (also an absent or blank method, which is the default) has
+// no outward effect; a POST, PUT or PATCH sends something; a DELETE also deletes
+// something on the server, which makes the publish dialog ask (IsRisky). A method that
+// is not known yet (a template, a value of the wrong type or one that is no method)
+// gets the worst case, a DELETE's. It is a hook, so it copes with a nil node and any
+// parameter.
 func httpRequestEffects(n *Node) []Effect {
 	if n == nil {
 		return nil
 	}
-	switch v := n.Params["method"].(type) {
-	case nil:
+	method, ok := choiceParam(n.Params["method"], "GET", httpMethods...)
+	switch {
+	case !ok || method == "DELETE":
+		return []Effect{EffectSendsMessage, EffectDeletes}
+	case method == "GET":
 		return nil
-	case string:
-		if s := strings.TrimSpace(v); s == "" || strings.EqualFold(s, "GET") {
-			return nil
-		}
 	}
 	return []Effect{EffectSendsMessage}
 }
@@ -365,9 +404,18 @@ func httpRequestEffects(n *Node) []Effect {
 // denial or plain-text refusal, is a tool failure: FLOW_TOOL_ERROR, FLOW_TOOL_DENIED
 // or FLOW_NODE_UNAVAILABLE, never an HTTP status.
 //
-// The address, the headers and the body are sensitive sinks, and so is auth_secret,
-// because untrusted data that picks the vault entry makes the node send it
-// wherever the address points.
+// The address, the headers and the body are sensitive sinks, and so is auth_secret.
+// auth_secret is a secret_ref, which never holds a template (Validate refuses one when
+// publishing, withAuthSecret at run time), so no outside data can pick the vault entry.
+// The address also decides where the secret is sent: while auth_secret is set, untrusted
+// data that can reach its scheme, user info, host or port is an error (SecretTarget, see
+// secretTargetFixed), not a warning; data behind a literal "https://host/" is path or query.
+// The headers are no secret target, although data can choose header names (the whole headers
+// value can be one template that resolves to an object): a header never moves the request.
+// Header names must be valid tokens, net/http writes the Host line from the URL and drops a
+// "Host" entry of the header map (HTTP/1 and HTTP/2), withAuthSecret removes any header named
+// like auth_header (case-insensitive) and sets the secret itself, and a redirect that leaves
+// the origin drops every caller header but Accept, Content-Type and User-Agent (see above).
 func httpRequestDef(env CatalogEnv) *NodeDef {
 	def := actionDef(TypeHTTPRequest, "web", "api", "api_request", env)
 	def.UntrustedOutput = true
@@ -376,7 +424,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		{Value: "PATCH", Label: "PATCH"}, {Value: "DELETE", Label: "DELETE"}}
 	def.Params = []ParamSpec{
 		{Name: "method", Kind: ParamSelect, LabelKey: "easydrag.param.http_method", Default: "GET", Options: methods},
-		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true},
+		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true, SecretTarget: true},
 		{Name: "headers", Kind: ParamKeyValue, LabelKey: "easydrag.param.http_headers", Templatable: true, SensitiveSink: true},
 		{Name: "body", Kind: ParamTextarea, LabelKey: "easydrag.param.http_body", Templatable: true, SensitiveSink: true,
 			VisibleIf: &Visibility{Param: "method", Equals: []string{"POST", "PUT", "PATCH", "DELETE"}}},
@@ -397,12 +445,18 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		issues := append(webURLIssue(n), choiceIssue(n, "method", "GET", httpMethods)...)
 		if _, err := parseHeaders(n.Params["headers"], true); err != nil {
 			issues = append(issues, paramIssue(n, IssueParamInvalid, SeverityError, "headers", asNodeError(err).Message))
+		} else {
+			for _, name := range literalCredentialHeaders(n.Params["headers"]) {
+				issues = append(issues, paramIssue(n, IssueLiteralCredential, SeverityWarning, "headers",
+					"the header "+quoteForError(name)+" holds a credential typed in clear text, kept in the flow and its versions; store it as a secret and use auth_secret"))
+			}
 		}
 		// auth_header and auth_prefix only matter, and are only checked by Execute, when a
-		// secret is set.
+		// secret is set; then they must be written out.
 		if !isEmptyValue(n.Params["auth_secret"]) {
 			issues = append(issues, literalIssue(n, "auth_header", authHeaderName)...)
 			issues = append(issues, literalIssue(n, "auth_prefix", authPrefixValue)...)
+			issues = append(issues, authLiteralIssues(n)...)
 		}
 		// Execute does not reject a fail_on_error it cannot read, it keeps the default
 		// (fail); the publish check is where the author hears about it.

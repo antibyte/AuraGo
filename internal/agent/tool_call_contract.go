@@ -61,7 +61,9 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	tc = normalizeDirectToolCall(tc, dc)
 	tc.Operation = toolCallSnapshotOperation(tc)
 	if tc.Action != "invoke_tool" {
-		return canonicalizeLeafCall(tc, dc)
+		tc = canonicalizeLeafCall(tc, dc)
+		markDirectHiddenNativeCall(tc, dc)
+		return tc
 	}
 	fail := func(message string) ToolCall {
 		tc.PreparationError = message
@@ -76,16 +78,33 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	}
 	entry, ok := preparationCatalogEntry(name, dc)
 	if !ok || name == "" {
-		return fail(`Tool Output: {"status":"error","code":"tool_not_found","message":"Use discover_tools to select an unambiguous tool name."}`)
+		fields := map[string]interface{}{}
+		if _, suggestions := unknownToolGuidance(dc, name); len(suggestions) > 0 {
+			fields["suggestions"] = suggestions
+		}
+		return fail(invokeToolRefusal("error", "tool_not_found", "Use discover_tools to select an unambiguous tool name.", fields))
+	}
+	if entry.Name == "invoke_tool" {
+		return fail(invokeToolRefusal("policy_denied", "recursive_invoke", "invoke_tool cannot invoke itself; call the target tool or name another tool_name.", nil))
+	}
+	// Scope is checked before availability, so a tool outside the run's scope
+	// answers exactly like a direct call to it and never discloses its state.
+	if !catalogEntryAllowed(dc, entry) {
+		return fail(toolScopeDeniedOutput(entry.Name))
 	}
 	if entry.Status == ToolStatusNeedsSetup {
 		return fail(toolSetupRequiredOutput(entry.HiddenReason))
 	}
-	if !entry.Enabled || entry.Status == ToolStatusDisabled || entry.Name == "invoke_tool" {
-		return fail(`Tool Output: {"status":"policy_denied","message":"Tool is disabled or cannot be invoked recursively."}`)
-	}
-	if !catalogEntryAllowed(dc, entry) {
-		return fail(toolScopeDeniedOutput(entry.Name))
+	if !entry.Enabled || entry.Status == ToolStatusDisabled {
+		shown := echoedToolName(entry.Name)
+		if runPolicyHiddenReason(entry.HiddenReason) {
+			return fail(invokeToolRefusal("policy_denied", "tool_disabled", `Tool "`+shown+`" is not available in this run.`, nil))
+		}
+		fields := map[string]interface{}{}
+		if entry.HiddenReason != "" {
+			fields["hidden_reason"] = entry.HiddenReason
+		}
+		return fail(invokeToolRefusal("policy_denied", "tool_disabled", `Tool "`+shown+`" is disabled and cannot run until it is enabled.`, fields))
 	}
 	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
 	if args == nil {
@@ -120,6 +139,52 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	routed.IsTool, routed.Todo = tc.IsTool, tc.Todo
 	routed.Operation = toolCallSnapshotOperation(routed)
 	return canonicalizeLeafCall(routed, dc)
+}
+
+// runPolicyHiddenReason reports whether a disabled catalog entry is off because
+// of this run's policy (role, scope or a live authorization change) rather than
+// because of the configuration. An administrator enabling the tool would not
+// change a run policy, so the model is neither told to wait for that nor shown
+// the reason.
+func runPolicyHiddenReason(reason string) bool {
+	switch reason {
+	case "role_restricted", "authorization_changed", "out_of_scope":
+		return true
+	}
+	return false
+}
+
+// invokeToolRefusal encodes an invoke_tool preparation failure. fields adds keys
+// beyond status, code and message.
+func invokeToolRefusal(status, code, message string, fields map[string]interface{}) string {
+	body := map[string]interface{}{"status": status, "code": code, "message": message}
+	for key, value := range fields {
+		body[key] = value
+	}
+	encoded, _ := json.Marshal(body)
+	return "Tool Output: " + string(encoded)
+}
+
+// markDirectHiddenNativeCall requests schema re-injection for a hidden native
+// tool that the model called by its own name, exactly as an invoke_tool call or
+// a discover_tools lookup does. It changes presentation only; the call itself
+// still runs through the same policy checks. Only a run that re-injects schemas
+// (dc.discoveryReinjects) marks, and only for an enabled, in-scope entry of the
+// run catalog under that exact name.
+func markDirectHiddenNativeCall(tc ToolCall, dc *DispatchContext) {
+	if dc == nil || !dc.discoveryReinjects || tc.PreparationError != "" || tc.TransportAction != "" {
+		return
+	}
+	catalog := GetToolCatalogState(dc.discoveryKey())
+	if catalog == nil {
+		return
+	}
+	entry, ok := catalog.Get(tc.Action)
+	if !ok || entry.Name != tc.Action || entry.Kind != ToolKindNative || !entry.Enabled || entry.Status != ToolStatusHidden ||
+		entry.Schema.Function == nil || !catalogEntryAllowed(dc, entry) {
+		return
+	}
+	MarkDiscoverRequestedTool(dc.discoveryKey(), entry.Name)
 }
 
 type legacyOutcomeEnvelope struct {

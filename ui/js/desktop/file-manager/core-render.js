@@ -873,7 +873,7 @@
             const isActive = !isRemote() && (fm.currentPath === dir || fm.currentPath.startsWith(dir + '/'));
             const iconKey = iconForDirectory(baseName(dir) || dir);
             return `<div class="fm-sidebar-item${isActive ? ' active' : ''}" data-sidebar-path="${esc(dir)}" role="button" tabindex="0">
-                ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18)}
+                ${iconMarkup(iconKey, '\u25A0', 'fm-sidebar-icon', 18, 'folder')}
                 <span class="fm-sidebar-label">${esc(baseName(dir) || dir)}</span>
             </div>`;
         }).join('');
@@ -922,7 +922,7 @@
             if (fm.filteredFiles !== null && fm.searchQuery) {
                 return `<div class="fm-empty">${iconMarkup('search', '\u2315', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.no_results', { query: fm.searchQuery }))}</div></div>`;
             }
-            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32)}<div>${esc(t('desktop.fm.empty_folder'))}</div></div>`;
+            return `<div class="fm-empty">${iconMarkup('folder-open', '\u25A1', 'fm-empty-icon', 32, 'folder')}<div>${esc(t('desktop.fm.empty_folder'))}</div></div>`;
         }
         const renderFiles = files.length > FILE_INCREMENTAL_THRESHOLD ? files.slice(0, FILE_RENDER_BATCH_SIZE) : files;
         const incrementalAttr = files.length > FILE_INCREMENTAL_THRESHOLD ? ` data-fm-incremental="${esc(String(files.length))}"` : '';

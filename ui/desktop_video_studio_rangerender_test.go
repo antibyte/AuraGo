@@ -62,6 +62,8 @@ assert.equal(P.jobFailure({status: 'failed', error: 'range_too_long'})[0], 'rang
 assert.equal(P.jobFailure({status: 'failed', error: 'feature_unavailable'})[0], 'featureUnavailable');
 assert.equal(P.jobFailure({status: 'failed', error: 'source_aspect_extreme'})[0], 'sourceAspectExtreme');
 assert.equal(P.jobFailure({status: 'failed', error: 'render_segment_failed', result: {failed_from_seconds: 1, failed_to_seconds: 2}})[0], 'renderSegmentFailed');
+assert.deepEqual(P.jobFailure({status: 'failed', error: 'render_too_many_luts'}), ['tooManyLUTsAtOnce', 'Too many LUT effects play at the same time in one part of the timeline. Remove some of them there.'], 'the LUT cap has its own text (F4)');
+assert.equal(P.jobFailure({status: 'failed', error: 'render_too_many_inputs'})[0], 'tooManyClipsAtOnce', 'too many clips keep theirs');
 `
 	if output, err := exec.Command(node, "-e", script).CombinedOutput(); err != nil {
 		t.Fatalf("range render checks: %v\n%s", err, output)
@@ -74,7 +76,7 @@ func TestVideoStudioRangeRenderLocales(t *testing.T) {
 	if err != nil || len(files) != 16 {
 		t.Fatalf("desktop locales: %d files, %v", len(files), err)
 	}
-	keys := []string{"rangeRender", "rangeRendering", "rangeLive", "rangeRendered", "rangeClose", "rangeRetry", "rangeFailed", "rangeTooLong", "job_range_render", "featureUnavailable", "sourceAspectExtreme"}
+	keys := []string{"rangeRender", "rangeRendering", "rangeLive", "rangeRendered", "rangeClose", "rangeRetry", "rangeFailed", "rangeTooLong", "job_range_render", "featureUnavailable", "sourceAspectExtreme", "tooManyLUTsAtOnce"}
 	locales := make(map[string]map[string]string, len(files))
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -99,10 +101,18 @@ func TestVideoStudioRangeRenderLocales(t *testing.T) {
 		if lang == "en" {
 			continue
 		}
-		for _, key := range []string{"rangeRender", "rangeFailed", "rangeTooLong", "featureUnavailable", "sourceAspectExtreme"} {
+		for _, key := range []string{"rangeRender", "rangeFailed", "rangeTooLong", "featureUnavailable", "sourceAspectExtreme", "tooManyLUTsAtOnce"} {
 			if values["videoStudio."+key] == locales["en"]["videoStudio."+key] {
 				t.Errorf("%s copies the English videoStudio.%s", lang, key)
 			}
+		}
+	}
+	for lang, want := range map[string]string{
+		"en": "Too many LUT effects play at the same time in one part of the timeline. Remove some of them there.",
+		"de": "In einem Teil der Zeitleiste laufen zu viele LUT-Effekte gleichzeitig. Entferne dort einige davon.",
+	} {
+		if got := locales[lang]["videoStudio.tooManyLUTsAtOnce"]; got != want {
+			t.Errorf("%s: videoStudio.tooManyLUTsAtOnce = %q, want %q", lang, got, want)
 		}
 	}
 }

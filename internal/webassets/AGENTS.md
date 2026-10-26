@@ -12,15 +12,16 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - Verify every file before use; keep reads under `os.Root` and manifest paths.
   Reject archive links, traversal, duplicates, modes and size/count violations.
   Serialize installs; publish a verified directory atomically. Keep old sets.
-- Archives are bounded to 768 MiB (including the sticker library and Galaxa expansion);
-  expanded resources remain bounded to 1 GiB and 20,000 files.
+- Archives are bounded to 1 GiB; expanded resources remain bounded to 2 GiB
+  and 20,000 files. Packaging, installation and verification share these limits.
 - Set `Default` once before services start. Installation never hot-swaps captured
   templates or the active filesystem; restart activates the matching set.
 - Production PDF.js resources include CMaps (`.bcmap`), Type 1 fonts (`.pfb`),
   ICC color profiles (`.icc`) and WASM decoders; keep these in the asset manifest.
+- QR caption fallbacks and their licences under `ui/fonts/qr/` belong to the verified external set. `QRRenderOptions` resolves only fixed catalog font IDs through that namespace; no CWD or network fallback and no large font embed. Read `ui/fonts/qr/AGENTS.md` before changing the font manifest.
 - Keep tests runnable with `go test ./internal/webassets ./cmd/assetpack`.
   `scripts/check-web-assets.mjs` enforces a 10 MB first-party embed budget and
-  the separate 1 MB recovery-page and 130 MB stripped-binary budgets (decimal).
+  the separate 1 MB recovery-page and 200 MB stripped-binary budgets (decimal).
 - `ui.Content` and per-package test fixtures are test inputs, never production
   fallback sources. Maintain missing-set behavior for Desktop and Game Maker.
 
@@ -31,6 +32,11 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - `internal/webassets/AGENTS.md` owns verified immutable resource sets and installation.
 - `assets/web-assets.json` is the production manifest; `cmd/assetpack` emits the shared archive, installed set and exact binary ldflags. Full UI, CAD, pets and Game Maker runtime/art must not be embedded.
 - Only the tiny recovery/login page remains in the server binary. Keep installer, updater, Docker, source builds, offline repair and size gates synchronized with `documentation/web-assets.md`.
+- Recovery also embeds the small shared WebAuthn client and generated locale
+  subset; the full Config/login UI remains external. Preserve both configured
+  login modes when resources are absent. Check generated locale parity with
+  `node scripts/build-webauthn-locales.mjs --check` and recovery with server
+  `TestWebAuthnBrowserLoginAndRecovery` plus `TestExternalAssetsRecoveryAuthAndCSRF`.
 - Set BuildVersion to the resource digest. Keep configured auth/TOTP and CSRF intact in recovery; activate installations only after restart. Preserve user-edited workspace apps and rollback sets.
 
 ## Child DOX Index

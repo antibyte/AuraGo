@@ -1,4 +1,11 @@
 {
+  "config.telephone_agent.catalog_unavailable": "Listorna är tillfälligt otillgängliga. Sparade val behålls.",
+  "config.telephone_agent.tool_unavailable": "Verktyget är inte tillgängligt",
+  "config.telephone_agent.language_auto": "Automatiskt",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "Inga tillåtna utgående nummer eller användare har angetts.",
+  "config.sip.telephone_profile_preserved": "Dina inställningar för telefonagenten och fördröjningen före svar behålls.",
+  "config.decisions.docker_api_too_old": "Underkataloger i namngivna volymer kräver Docker Engine 26 (API 1.45) eller senare. Uppdatera Docker eller använd en lämplig koppling till en värdmapp.",
+  "config.decisions.runtime_score_timeout": "Bedömningen nådde gränsen på två minuter. Tjänsten är fortfarande tillgänglig för nästa bedömning.",
   "config.decisions.local_setup": "Konfigurera den lokala modellen",
   "config.decisions.local_server_help": "Modellen körs på datorn där AuraGo är installerat. Ett kompatibelt grafikkort prioriteras.",
   "config.decisions.advanced": "Driftläge och CPU-tillstånd",

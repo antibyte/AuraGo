@@ -29,8 +29,8 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"desktop.settings_icon_theme_papirus",
 		"desktop.settings_icon_theme_whitesur",
 		"settingSelect('appearance.icon_theme'",
-		"const pairedIconTheme = nextTheme ? nextTheme.iconTheme : '';",
-		"updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });",
+		"const themeChange = key === 'appearance.theme';",
+		"{ key: 'appearance.icon_theme', value: nextTheme.iconTheme }",
 	} {
 		if !strings.Contains(settingsText, want) {
 			t.Fatalf("settings app is missing icon theme setting marker %q", want)

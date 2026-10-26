@@ -8,32 +8,322 @@
 - While Video Studio loads, the window record retains one transient offer outside its session context; rendering consumes it once.
 - Verify `TestDesktopCameraHandoffBrowser`, `TestDesktopVideoStudioCameraImportBrowser`, `TestDesktopCameraHandoffIntegrationBrowser` and `TestDesktopVideoStudioStartMenuBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`.
 
+## Pixel
+
+Pixel is the image editor (`window.AuraPixelApp` is its namespace, `window.PixelApp = { render, dispose }` its entry point).
+`module-loader.js` key `pixel` loads the styles `pixel.css`, `desktop-stickers.css`, `pixel-stickers.css`, `pixel-layers.css`,
+`pixel-filters.css`, `pixel-generators.css`, `pixel-cutout.css`, `pixel-selection.css`, `pixel-tools-pro.css` and
+`pixel-smart.css`, and the scripts in the order given in the table below. Older notes in this file that say "layers (max
+20)", describe a canvas-only history, or give the old 17-tool, 21-filter or 29-filter counts are obsolete. The current
+limits are 64 layers and 60 history steps, and the catalogue holds 80 filters and 43 generators.
+
+### Module structure
+
+The loader starts with `shared/sticker-catalog.js` and `shared/sticker-library.js`, then:
+
+| Layer | Files | Role |
+|---|---|---|
+| State and constants | `pixel-state.js` | `MAX_HISTORY` 60, `MAX_LAYERS` 64, `BLEND_MODES`, `IMAGE_EXTS` (includes `ora`), tool SVGs, tool groups, default tool shortcuts, the shortcut normaliser (`normalizeShortcut`, `shortcutFromEvent`) |
+| Core | `pixel-core.js` | Registries (`registerModule`, `registerPanel`, `registerTool`, `registerMenuItems`, `registerCommand`), layers and masks, composition with blend modes and clipping, history with shared snapshots, selection masks, `commitLayerPixels`, `runJob`, overlays, events |
+| Libraries (DOM-free) | `pixel-lib-core.js` (`AuraPixelLib` helpers, core ops), `pixel-lib-fx.js` (filters, histogram, auto tone, fade), `pixel-lib-gen.js` (`GENERATORS` catalog and renderers), `pixel-lib-cutout.js` (classic matting, colour key, refine, decontaminate, blur), `pixel-lib-inpaint.js` (PatchMatch fill) | Pure functions on `{ width, height, data }` images. They load in a window, in the worker and in a node `vm` |
+| Worker | `pixel-worker.js` | Classic Worker, created lazily by `runJob`; NOT listed in the loader. It `importScripts` every `pixel-lib-*.js` (`TestPixelWorkerImportsEveryLib` keeps the list complete). Protocol `{ id, op, args }` → `{ id, progress }` / `{ id, result }` / `{ id, error }` |
+| Shell | `pixel.js` (windows, instances, wiring, dispose), `pixel-view.js` (markup, the parameter-controls kit `defaultParams` / `buildParamControls` / `wireParamControls`, built-in panels, tools and menus), `pixel-events.js` (pointer and key dispatch, shortcuts modal, context menu) | The shell. Built-in tools, panels and menus are registered in `pixel-view.js`, and the brush tools in `pixel-brush.js` |
+| Legacy paths | `pixel-canvas.js`, `pixel-tools.js`, `pixel-actions.js` | Pre-core composition, file I/O, the provider AI calls (`/api/pixel/generate`, `enhance`, `remove-bg`, `upscale`). Newer modules override parts of them; do not add features there |
+| Feature modules | `pixel-brush.js` (stroke engine, `toolUi`, Brush tab), `pixel-tools-pro.js` (shapes, gradient, bucket, retouch, hand, zoom, grids), `pixel-transform.js` (move, free transform, crop), `pixel-selection.js` (selection tools, Select menu, `selectionKit`), `pixel-layers.js` (Layers dock, Layer menu), `pixel-filters.js` (Filters and Adjust tabs, Filter menu), `pixel-generators.js` (Generate tab and menu), `pixel-cutout.js` (Cutout tab, AI, classic and colour-key engines, cutout brush), `pixel-smart.js` (content-aware fill, remove-object tool, Colors tab, trim, auto-crop, canvas size), `pixel-commands.js` (command palette, fuzzy matcher, synonyms), `pixel-ora.js` (OpenRaster write and read, Save and Open glue), `pixel-stickers.js` (sticker layers) | Feature modules call `Pixel.installX`/`registerModule` and register panels, tools, menu items and commands. They do not edit the shell. A module whose installer throws is logged and skipped, so a test must catch it |
+
+Pixel scripts are classic scripts in the `window.AuraPixelApp` namespace (`Pixel`). Module installers run once per window,
+after the built-in installers and before the markup exists. DOM work belongs in a panel `mount` or in `r.on('ready', …)`.
+
+### Contracts
+
+- **QR insertion.** `pixel-qrcode.js` registers immediately after `pixel-core.js`
+  and adds Generate/menu-palette entries. It lazily opens shared key `qr`, captures
+  the document, layers, history entry and selection, and rejects stale results.
+  Insert a normal named document-sized raster layer with `commitLayerPixels`
+  (`respectSelection:false`, `history:false`), then one `pushHistory`; existing
+  layers and the selection descriptor survive. Placement uses bounded pixel
+  dimensions/offsets and the preview aspect ratio. Existing transforms and
+  OpenRaster own later editing/persistence; never add a parametric QR layer type.
+  Decode the scaled PNG and original preview with the shared scanner before
+  creating the layer; their complete payloads must match. Reject unreadable sizes
+  without changing layers/history and recheck document and cancellation after
+  verification. Commit the same verified pixels without resampling again.
+  Wrap the existing `disposeCore` to abort the dialog before core cleanup.
+
+- **Layers.** `layer = { id, name, canvas, visible, opacity, blend, lockPixels, lockAlpha, lockPosition, maskCanvas,
+  maskEnabled, clip, rev, maskRev, sticker?, stickerImage? }`. Every layer owns a document-sized canvas. Create layers with
+  `createLayer`, mark them with `markLayerDirty(layer, { mask })`, read through `getActiveReadCtx()` and write through
+  `getActiveCtx()`. Do not reintroduce a null background canvas.
+- **Pixel changes.** Route every pixel change through `commitLayerPixels(layer, source, { label, respectSelection, mask,
+  history })`. It applies the feathered selection, refuses `lockPixels`, keeps the alpha under `lockAlpha` and writes
+  history. The exception is an incremental stroke tool, which draws into the stroke buffer (`brush.js` `openSession`) and
+  calls `pushHistory` on release.
+- **History.** `pushHistory(label)` stores `{ label, width, height, activeLayerId, layers: [{ meta, snap, maskSnap }],
+  selection }`. A `snap = { rev, canvas }` is shared with the previous entry while the layer's `rev` is unchanged.
+  `restoreHistory` copies snapshots back into fresh canvases. Undo, redo and jump go through it. `HISTORY_BYTE_BUDGET` caps
+  the unique snapshot memory at 768 MiB.
+- **Selection.** `r.selection` is a descriptor (`rect`, `ellipse` or `mask`). Assign a new object instead of mutating one.
+  `getSelectionMask()` returns `{ alpha, x, y, w, h }` (cached). `setSelectionMask(alpha, { mode })` takes `replace`, `add`,
+  `subtract` or `intersect`.
+- **Long work.** Anything per pixel × radius, iterative, or a preview goes through `r.runJob(op, args, { key, signal,
+  onProgress })`. A second job with the same `key` replaces the first, which rejects with `AbortError`. The pool has two
+  workers; `Worker` missing means a synchronous fallback. Ops are registered with `AuraPixelLib.registerOp(name, fn)`.
+- **Registries.** `Pixel.registerPanel({ id, labelKey, fallback, order, dock, build, mount, onShow, onHide })`,
+  `Pixel.registerTool({ id, group, svg, shortcut, labelKey, fallback, raster, options, wireOptions, onDown, onMove, onUp,
+  onHover, onKey, onActivate, onDeactivate, overlay })`, `Pixel.registerMenuItems(menuId, items, { order })` for the menus
+  `file`, `edit`, `image`, `layer`, `select`, `filter`, `generate`, `view` and `ai`, and `Pixel.registerCommand({ id,
+  labelKey, fallback, keywords, group, shortcut, run, enabled })`. Re-registering an id replaces the definition.
+- **Shortcuts.** A shortcut is a property of a menu item (`shortcut` or `shortcuts`), a tool (`shortcut`) or a command.
+  Ctrl and Meta are the same modifier, letters are case-folded, and the newest enabled command wins. Shortcuts are ignored
+  inside inputs, after `defaultPrevented`, and in windows that are not the active Pixel window.
+- **Strings.** `t('pixel.key', 'English fallback')` (or `tx(r, key, fallback)` in the modules). Every key must exist in all 16
+  `ui/lang/desktop/*.json` files (`TestDesktopUsedI18nKeysExistInAllLanguages`).
+- **Parameter schemas.** `r.defaultParams`, `r.buildParamControls` and `r.wireParamControls` take fields `{ key, type,
+  labelKey, fallback, default, min, max, step, unit, options, showIf }`. Types are `range`, `int`, `select`, `segmented`,
+  `bool`, `color`, `angle`, `seed`, `point`, `gradient` and `custom`.
+- **OpenRaster.** `Pixel.ora.write(layers, w, h)` and `Pixel.ora.read(buffer, { maxLayers })` in `pixel-ora.js`. The server
+  (`internal/server/pixel_ora.go`) validates every archive again. Keep its limits and the client's in step: 32 MiB per file,
+  128 entries, 512 MiB uncompressed, and 64 layers when opening.
+
+### Server and AI models
+
+- Routes are in `internal/server/server_routes.go` (`/api/pixel/config`, `generate`, `enhance`, `remove-bg`, `upscale`,
+  `save`, `cutout/status`, `cutout/prepare`, `cutout`). Handlers are in `pixel_handlers.go`, `pixel_cutout.go`,
+  `pixel_ora.go` and `pixel_files.go`.
+- The Cutout tab is the only path that downloads AI models, and only after the user clicks **Download model**. The matting
+  package is `internal/pixelmatte` (`internal/pixelmatte/AGENTS.md`). The classic engine and colour key run in the worker.
+
+### File ownership
+
+- Shared (change with care, run the full Pixel suite): `pixel.js`, `pixel-state.js`, `pixel-core.js`, `pixel-view.js`,
+  `pixel-events.js`, `pixel-lib-core.js`, `pixel-worker.js`, `ui/js/desktop/core/module-loader.js` (key `pixel`).
+- Feature areas own their files: layers → `pixel-layers.js`; filters → `pixel-filters.js`, `pixel-lib-fx.js`; generators →
+  `pixel-generators.js`, `pixel-lib-gen.js`; cutout → `pixel-cutout.js`, `pixel-lib-cutout.js`; selection →
+  `pixel-selection.js`; brush and retouch → `pixel-brush.js`, `pixel-tools-pro.js`; transform → `pixel-transform.js`;
+  intelligence → `pixel-smart.js`, `pixel-commands.js`, `pixel-lib-inpaint.js`; project files → `pixel-ora.js`; stickers →
+  `pixel-stickers.js`; QR insertion → `pixel-qrcode.js`. Styles are
+  `ui/css/pixel*.css`, one per feature area; QR chrome uses shared lazy
+  `ui/css/desktop-qr.css`.
+- Files that other apps read: `menus-and-routing.js` (`desktopIsImageFile`, bundled into
+  `ui/js/desktop/bundles/main.bundle.js`) and `editor-filemenu.js` (`isPixelImageFile`). After editing either, run
+  `npm run build:ui` and `npm run check:ui`.
+
+### Tests
+
+- `npm run test:pixel` runs `node scripts/test-pixel-all.mjs`, which runs every `scripts/test-pixel-*.mjs` and reports
+  all failures at the end. `test-pixel-core.mjs` is a fake-DOM harness that loads every script and runs `render()`, so it
+  catches module install errors. Run a single area with `node scripts/test-pixel-<area>.mjs` (areas: `core`, `lib`,
+  `tools`, `layers`, `selection`, `fx`, `gen`, `cutout`, `inpaint`, `ora`). Syntax-check edited files with `node --check`.
+- `go test ./ui -run '(TestPixel|TestDesktopPixel)' -count=1` runs the Go source-contract tests in `ui/desktop_pixel_*_test.go`
+  (wiring, loader order, registrations, strings, CSS rules). Both name prefixes are used.
+- `go test ./internal/server -run TestPixel -count=1` and `go test ./internal/pixelmatte -count=1` cover the server.
+- Do not run the full `./ui` suite for Pixel changes. The browser smoke is manual.
+
 ## Infra
 
-- Load `infra-model.js`, then `infra-views.js`, then `infra.js`. The model owns
-  pure map math. The view factory owns rendering and node forms for one window.
-  The app retains requests, lifecycle and source actions. A snapshot poll
-  repaints the inspector only when the selected draft is clean and focus is
-  outside it. Dragging, panning and keyboard moves defer that paint until the
-  gesture ends. All three use the translated Desktop keys without literal
-  English fallbacks.
-- `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch, never a
-  snapshot: merge it through `InfraAppModel.applyLayoutPatch` and replace the
-  atlas only for an explicit `snapshot` field (`InfraAppModel.layoutSnapshot`).
-  Keep `node.placements` patches, the search stampede guard (one repaint per
-  animation frame) and the derived children/edge indexes; key them by the
-  current node/edge array so `replaceNode` stays correct. Keyboard placement
-  persists a visible position before it takes focus.
-- Verify `node scripts/test-infra-ui.mjs`, the UI line budget and the existing
-  `TestDesktopInfra*Browser` suites after changes to this boundary. The browser
-  fixture answers `/layout` like the server; never return a full snapshot there.
+- Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
+  guests, filters, scene builder, layout intents, history), `infra-lanes.js` (Topology lanes, auto layout; `window.InfraAppLanes`,
+  `app.lanes`), `infra-store.js` (state, API, polling and visibility,
+  layout queue, undo), `infra-canvas.js` (keyed map rendering), `infra-gestures.js` (pointer and keyboard),
+  `infra-library.js`, `infra-inspector.js`, `infra-table.js`, `infra-dialogs.js`, then `infra.js` (composition root).
+  Styles: `desktop-app-infra.css` (shell, panels, dialogs) and `desktop-app-infra-canvas.css` (map). Every file stays
+  below 1100 lines and no file touches the DOM at load time (the Node test runs them in a vm).
+- World coordinates: an asset placement is the centre of its 216×64 card; a place placement is the top-left of its
+  region plus `w`/`h`. Cards sit at `left`/`top` world px inside `[data-scene]`, which carries the only transform
+  (`translate(x, y) scale(z)`, zoom 0.25–2).
+- Every position, parent or size change goes through `store.dispatch` with an `InfraAppStore.commands` object. The
+  store keeps one `PUT /layout` in flight per view, coalesces later moves, rebases once on 409 (fresh snapshot, same
+  intents) and leaves a second failure unsaved behind `[data-action="retry-layout"]`. A conflict clears that view's
+  history. Placing from the library is undoable when the server supports `unplace` (`features.layoutParent`); the
+  revert queues `{unplace: true}` intents, which the queue sends as `{id, version, unplace: true}`. A command with a
+  `partial()` hook (`setParent`, which writes node by node) keeps a history entry for the nodes it wrote before it failed.
+  The connection dialog reads the stored version of the connection at Save and reloads on a 409, like the inline form.
+- `PUT /layout` answers `{"nodes": [<changed nodes>]}` and is a patch: merge it through
+  `InfraAppModel.applyLayoutPatch` (full nodes also set `parent_id`); only an explicit `snapshot` field replaces the
+  atlas.
+- The server rejects unknown body fields. `parent_id`, `w` and `h` go out only when the snapshot has `source_hosts`
+  (`store.features.layoutParent`); node drafts never gain fields the snapshot did not send.
+- Rendering is keyed by id; search and filters dim instead of re-rendering; a snapshot poll repaints the inspector
+  only when its draft is clean and focus is outside it; gestures defer snapshot repaints until they end; keep the
+  one-repaint-per-frame search guard.
+- Verify `node scripts/test-infra-ui.mjs`, the UI line budget, the i18n and asset guards and
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopInfra`. The browser fixture answers `/layout` like the
+  server (version CAS, patch reply); never return a full snapshot there.
+- Full load order: `infra-model.js`, `infra-lanes.js`, `infra-store.js`, `infra-picker.js`, `infra-canvas.js`, `infra-gestures.js`,
+  `infra-library.js`, `infra-cleanup.js`, `infra-inspector-forms.js`, `infra-inspector.js`, `infra-table.js`,
+  `infra-dialogs.js`, `infra-import.js`, `infra-menus.js`, `infra.js`. The module-loader list and the file list of
+  `scripts/test-infra-ui.mjs` must match it.
+- Plan C modules: `infra-picker.js` (ARIA combobox, popover and inline; options carry `data-app-target`,
+  `data-node-option`, `data-place-option`), `infra-cleanup.js` (Cleanup/Ignored from `InfraAppModel.infraCleanup`,
+  dismissals in `infra.dismissed.v1`), `infra-inspector-forms.js` (Details/Sources forms; all four tab panels are
+  rendered and inactive ones hidden; app bindings live in the draft), `infra-import.js` (non-modal import sheet,
+  `POST /import/batch`, `discoveryRelevance` groups; `InfraAppImport.dropItems` builds the items of a drop: the placement is
+  `pinned: true` like a drag, and a discovery bound to an asset that is already placed in the view sends neither placement nor
+  `parent_id`, because an import never enters the undo history; the asset is selected and revealed where it stands),
+  `infra-menus.js` (context menus through `ctx.showContextMenu`,
+  the inspector's more menu, the shortcut sheet and the legend).
+- Snapshots always ask `?include_ignored=1`; ignored sources never count in the ledger and appear only under
+  Ignored. Ignore, remove-and-ignore, engine hosts and batch import go through the store, which reloads the
+  snapshot and says so on an uncertain outcome. `unplace` intents make library placing undoable (only when the
+  snapshot has `source_hosts`). Inspector tab per kind persists in `infra.inspector.v1`, List sort in `infra.table.v1`.
+- Menus: items are built when the menu opens, writes carry `disabledHint` in read-only windows, and every item hands
+  the focus back to its anchor before it acts (the import sheet remembers that element). Shift+F10 and the
+  context-menu key open the same menu; `?` (shortcut sheet) and those keys ignore text fields. Do not add global
+  Delete or Ctrl A handlers: the table and the import sheet keep their own.
+- Selections made with the List checkboxes carry `state.selectionOrigin === 'check'`: in the List view the inspector
+  stays closed for them and the bulk bar is the surface (below 1100 px the inspector is an overlay whose scrim would
+  cover it). Every other `store.select` resets the origin. Clicking an asset's name still opens its panel.
+- Design QA batch D-fix-1 (amendments A1 to A16):
+  - Cards are 216x64 (`CARD_W`, `CARD_H`); a stacked card lands 72 px away (`freeSlot` gap 8), `compactGrid` cells are
+    240x96 and Arrange/Topology fall back to a 252x160 grid from (126, 100). The status glyph and the power dot ride on the icon.
+  - Semantic zoom lives in `InfraAppModel.zoomLevels(zoom, previousForm)`; `paintLevels` in infra-canvas.js applies it once
+    per level change. Classes on `[data-stage]`: `is-compact` (below 0.65, kept until 0.68), `is-tiny` (below 0.4),
+    `is-no-handles` (below 0.5), `is-zoom-low` (edge labels, below 0.75), `is-form-switching` (the fade, only while
+    `app.animationsEnabled()`). Names, region headers and lane labels are counter-scaled with a transform whose factor is the
+    CSS variable `--infra-name-k`, `--infra-header-k` or `--infra-lane-k` on `[data-scene]` (12, 13 and 13 px on screen at
+    the least); never change their font size per frame. `--infra-ring` keeps a compact icon's status ring visible. The
+    compact form changes no geometry.
+  - The minimap is a 168x112 panel without text; `model.sceneFits` hides it while the scene fits. Its toggle sits in the
+    tools cluster; the shown count is the toggle's `title` and the cluster's `aria-description`.
+  - A connection label that would sit on a card gets `is-label-clash` (`model.edgeLabelClash`) and shows on hover or
+    selection only; labels are hidden with `visibility` so they can be measured.
+  - Command bar: `fitFilterChips` shows the chips that fit and a `+N` chip (`data-filter-overflow`) that opens the filter
+    popover, the search keeps 220 px from 760 px up; below 560 px the search is the `open-search` icon and opens over the bar
+    (`data-search-open`, `app.focusSearch()`, which Ctrl K calls and which keeps the event from the desktop's Spotlight).
+  - `model.sourceLabels` numbers several instances of a source kind ("Docker 1"); the instance id only goes into a title.
+    `model.APP_LINK_TARGETS` is the one list of linkable apps.
+- Topology lanes (Plan D, amended by D-fix-2, A17 to A27). The pure helpers live in `infra-lanes.js` (`window.InfraAppLanes`,
+  `app.lanes`); the model no longer knows lanes (`buildScene` returns no `lanes`, its `bounds` are the drawn cards only).
+  - Lanes: four fixed world bands, `LANE_H` = 384 px from y = 0 (internet, network, compute, clients), `laneAt(y)` =
+    clamp(floor(y / 384), 0, 3). They are drawn as swimlane stripes in `[data-lanes]` (the first scene layer,
+    `aria-hidden`, pointer-events none): static elements 100000 px wide (`LANE_EXTENT` = 50000 each side of x = 0), an
+    alternating neutral fill and a separator in `--infra-outline`. They never take part in bounds, fit, the minimap or hit
+    tests. Labels are sticky: `paintView` calls `paintLaneLabels`, which sets `--infra-lane-x` (and `--infra-lane-w`) on
+    the lanes layer once per frame so the pill sits 12 px from the viewport's left edge; `--infra-lane-k` counter-scales it.
+  - A card saved `pinned: true` is in lane `laneAt(y)`; any other card is in `topologyLane(node)`: the network kind, the icon
+    (`LANE_ICONS`, real ids of the icon catalog: servers, storage, NVR, database, UPS and PDU are compute, VPN and firewall
+    network, modem-ont internet), words in the role, "has guests", else clients. Auto columns sit `LANE_CELL_W` = 240 px
+    apart; a lane has at most two rows (centres at lane top + 96 and + 240, `LANE_ROW_H` = 144), columns per row =
+    max(8, ceil(n / 2)), every row centred on x = 0.
+  - Order inside a lane (A20): `topologyLayout` starts from the connection order (breadth first over Ethernet, fiber and Wi-Fi)
+    and reorders each lane by the barycentre of the neighbours in the other lanes (one sweep down, one up; a card whose links
+    stay in its lane borrows their key, unconnected cards go last, ties keep the connection order). `ordering: 'connection'`
+    gives the plain order. It is deterministic; the Node test pins the crossing counts of the lab fixture (11 and 5).
+  - Placements: Topology ignores a saved `pinned: false` placement (`store.effectivePlacement` returns null for it, A22): it is a
+    leftover of the retired layered Arrange. The auto layout never writes: `topologyAutoPositions` slots every eligible asset
+    without a placement (not a place, guest or hostless VM/container). The canvas memoizes it (`autoPositions()`,
+    `isAutoPlaced(id)`); the library tree and the inspector read it. In Topology the library has no To place section and the
+    placed one is titled "In topology". Cards the auto layout moves glide (`is-gliding`, `startGlide`) only while
+    `app.animationsEnabled()`.
+  - Connections (A19, A28): `topologyPaths(lines, cardAt, ids)` is the one source of every Topology path. Between lanes it is a
+    cubic from the bottom edge of the upper card to the top edge of the lower one (control offset max(48, dy / 2)). Inside a
+    lane it is the straight segment between the facing sides while no other card is in the way (a drawn card whose box, padded
+    by 4 px, touches the segment; `ids` lists every drawn card, so pinned cards count by position and direct neighbours
+    stay straight); otherwise it is an arc above the row from the top edge of the left card to that of the right one, rising
+    clamp(24 + 0.12 dx, 32, 56) px. The connections on one card edge spread over the middle 60% in slots; on a top edge the
+    arcs to the left come first, then the curves arriving from the lane above, then the arcs to the right (each group by the
+    other end's x), so arcs never cross arrivals. A slot is kept for every connection of the view, so nothing moves when a
+    hidden one appears (A29). The result carries the label anchor `mx, my` (the path's midpoint; `edgeLabelClash` reads it)
+    for the A5 clash rule. The canvas draws it for the line, the hit area and the selection, and redraws all of them while a
+    card is dragged. Cross-lane curves do not avoid cards of the lanes between. The Map view stays straight.
+  - Gestures: a drag or keyboard move highlights its lane (`setLaneTarget`) and announces a lane change. The first move of
+    an auto-laid card undoes back to the automatic layout (`{unplace: true}` in `previousIntent`; without unplace support it
+    is not undoable). Arrange in Topology (A22) is no layout: it hands the selection, or every card with a saved pin, back to the
+    automatic layout as one undoable unplace save (`arrangeIds`, `removeFromMap`); it reads "Arrange automatically" and is
+    disabled, with a reason title, without `store.features.unplace` (menu item, window menu and the inspector button).
+  - Fit keeps 104 px below the cards (`FIT_PADDING`, `fitView` takes a padding object) so the tools and the names of compact
+    cards stay clear. The compact icon is counter-scaled by `--infra-icon-k` (A24: `zoomLevels().icon`).
+  - The empty-result action names its cause (A26: `clear-search`, `reset-filters` or `clear-search-filters` on the no-match
+    box) and a library section that a query or filter emptied says "No matches". `fitSearchBadge` hides the Ctrl K badge when
+    the placeholder would not fit next to it (A27).
+  - A query or filter whose matches are all off the map does not say "No asset matches": the box counts them
+    (`infra_no_match_unplaced[_one]`) and offers a primary `show-match` action beside the cause's clear action. The count, the
+    asset revealed come from the library's own rows, `store.unplacedMatches(view)`: nothing in Topology; in the Map the To place
+    rows (`store.toPlace`, `model.toPlaceNodes`: every unplaced asset that is no guest and no hostless vm or container, plus a host
+    whose guest matches, since a guest has no row of its own) by name, then the Needs attention rows (`store.attention`, which the
+    library section uses too) of hostless guests that are not on the map (`model.unplacedAttention`). Show match, and Enter in the
+    search when no placed match exists (`revealUnplacedMatch`), open the first of them in the inspector and show its library row
+    selected and in view, in whichever section lists it (`library.showRow`); they never place it. Anything else that matches
+    nothing the library lists (a hostless guest with nothing to attend to, a place in Topology) keeps `infra_no_match` without that
+    action. Never count or reveal from a second predicate.
+- Design QA batch D-fix-3 (A28 to A31; A28 is in the Connections bullet above):
+  - Which connections show (A29/A30) is one pure answer, `model.edgeState({view, kind, id, ends}, {selection, selectedEdge,
+    near, dimmed})` -> `{off, linked, faded, dimmed}`, and `paintEdges` (infra-canvas.js) only toggles the classes `is-off`,
+    `is-linked`, `is-faded`, `is-dimmed` on the connection groups: no scene render, so a hover costs no layout. `ends` holds
+    the two cards of a line and the two assets the connection joins (a guest rides in its host's card). The canvas keeps
+    `hoverId` (pointerover on a card, guest chip, host badge or region header) and `focusId` (keyboard focus only, tested with
+    `:focus-visible`, so a clicked card does not keep its connections open); both are the `near` set.
+  - Topology draws ethernet, fiber, wifi and the membership kinds (`member_of`, `runs_on`) always; `powered_by` and `depends_on`
+    are `is-off` (opacity 0, no hit area) until an end is selected, hovered or focused, or the connection itself is selected.
+    The Map draws every kind. Hidden connections keep their path and their slots on the card edges, so nothing moves when one
+    appears. The inspector's Connections tab lists all of them.
+  - A selection (cards, guests, a place or one connection) makes the connections that touch it `is-linked` (accent stroke,
+    moved last in `[data-edge-layer]` so they paint above) and the other visible ones `is-faded` (35 %); a hover only reveals.
+    A connection with a dimmed (filtered out) end is `is-dimmed` (28 %, like the cards), whether or not it is drawn. The
+    opacity change is a transition only while `app.animationsEnabled()` and reduced motion is not asked for.
+  - Scene paint order (A31): `.infra-lane-label` has `z-index: 1`, so the sticky lane labels paint above the connection layer
+    (the `svg` has no z-index) and below the cards (z-index 1, later in the scene); nothing but z-index decides this.
+  - `.infra-canvas-empty` and `.infra-canvas-nomatch` are centred boxes on their own surface (`--vd-theme-panel-bg-strong`, the surface of the tools and the minimap, with
+    the theme blur, as the minimap) above the scene; only their buttons take the pointer.
+- Visual review fixes (Plan D Task 10/11, screenshots in `reports/infra-ui-review/plan-d/`):
+  - Status colours: `--infra-ok/warn/bad` stay the raw tokens for dots and strokes. Text and rings use `--infra-ok-text`,
+    `--infra-warn-text`, `--infra-bad-text` and `--infra-ok-ring`, `--infra-warn-ring`, `--infra-bad-ring`, which are
+    `light-dark(color-mix(token, --vd-text), token)`: the dark schemes keep the token (the danger text and the link are only
+    lightened a little), the light schemes darken it, because only the default theme and Minimal ship light variants of
+    `--ds-color-*-fg` (Fruity light, Windows XP and Amiga inherit the dark values: a theme-token follow-up). Accent used as a
+    text colour goes through `--infra-link`. Never use the raw tokens as text colour.
+  - Surfaces that float over the canvas (tools, lane labels, minimap, empty and no-match boxes) use `--vd-theme-panel-bg-strong`;
+    `--vd-theme-overlay-bg` is a modal scrim (the scrim and the dialog backdrop only).
+  - The List's table view is a container (`infra-table`): fixed px column widths, the name takes the rest, and Hardware, then
+    Power and Source, then Place, then Type, then Address drop below 1142, 1011, 807, 657 and 507 px so the List never scrolls
+    sideways. Spacer rows have no colspan (a colspan would keep the hidden columns' width). An empty inventory or a query with no
+    match shows `[data-table-empty]`.
+  - While the import sheet is open (`data-import-open`), the tools cluster moves right of it. Compact card names sit on a chip in
+    the app colour so connections leaving the bottom edge do not strike through them.
+  - Field labels are never capitalised by CSS. The inspector header stacks the kind and the breadcrumbs without a separator.
+    Its action button (`.infra-head-pills .infra-button`) has no fixed height: a label too long for the 360 px panel wraps to
+    centred lines inside the button (`TestDesktopInfraHeaderActionFitsBrowser` checks all 16 locales).
+- Focus return (Plan D Task 7): `app.focusReturnTarget(el)` names where focus goes back when a panel opened from `el` closes (a
+  menu or popover item hands over to the trigger of its menu through `MENU_TRIGGERS`; anything outside the window, or nothing,
+  hands over to the map, or to the active view button in the List) and `app.restoreFocus(el)` focuses it, falling back to the
+  same place when `el` is gone or hidden. The dialog host remembers it in `openDialog` and restores it from the dialog's
+  `close` event (skipped while another dialog is already open); the import sheet does the same with its own opener. The narrow
+  library sheet (`openLibrarySheet` / `closeLibrarySheet`) focuses its first row when it opens and its toggle when it closes
+  (toggle, scrim, Escape inside it; an inspector opening over it closes it without moving focus); the toggle's
+  `aria-expanded` follows the sheet below 760 px and the docked library above. Live regions: only `[data-announce]` polite,
+  `[data-layout-chip]`, the draft and review banners (`role="status"`) and the inline errors (`role="alert"`); `[data-live]`
+  has none, so a poll never speaks. A failing poll reports once (`loadSnapshot`, `explicit` always reports). The only
+  `role="toolbar"` is the canvas tools, with a roving tab stop and arrows, Home and End.
 
 ## Synth Studio
 
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
-  Keep its fifty presets (five groups of ten), 128 synthesized GM programs and
+  Keep its eighty presets (five groups of sixteen), 128 synthesized GM programs and
   percussion bank local. See `documentation/synth-studio.md` for supported music
   formats, controls and resource limits.
+- `synth-studio-workspace.js` owns workbench tabs, resizing, templates and local
+  view preferences. Parameter gestures update existing audio buses and commit one
+  undo step; cancellation restores the initial value. Structural edits wait for
+  the next bar without restarting transport; cancel obsolete reserved voices even
+  inside look-ahead. Stop/deadline takes priority over queued changes. Verify scheduler tests
+  and responsive browser flows when changing these contracts.
+- `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm
+  transforms; `synth-studio-compose.js` owns preview/apply and held live inputs.
+  Preview/cancel never changes the project; Apply commits ordinary notes once.
+  Format v2 stores harmony, bar-range scenes and track automation; all automation
+  counts toward the event/byte limits. v1 validation preserves v1. Upgrade in
+  memory and require a create-only v2 copy before enabling autosave.
+- `synth-studio-performance.js` owns pure scene expansion, sustain-to-duration
+  conversion, automation reduction and take limits. `synth-studio-stage.js` owns
+  scene pads, XY/manual override, point editing and temporary take recovery.
+  Takes preserve their source and become distinct unsaved projects. Bound them by
+  64 bars and the same renderer/project budgets before scheduling; keep captured
+  material on stop or failure. Store drafts through OfficeSession with conditional
+  removal, and start recovery only after initial project loading completes.
+- Tone/reverb automation uses arrangement ticks, native AudioParam smoothing and
+  at most 20 capture samples/second plus gesture endpoints. Manual input suppresses
+  that parameter's automation until release. Scene changes release held/sustained
+  notes, chase controllers and retain effect tails; Stop cancels future actions.
 - Model validation owns project trust boundaries. Notes/controllers use clip-local
   ticks; clips use arrangement ticks. Live playback and offline WAV rendering
   share the native Web Audio implementation. Never schedule musical timing from
@@ -62,10 +352,11 @@
 - Scene, fixed-step Rapier physics, round model, views and audio have separate
   modules. Visible obstacles use physics poses. Keep one active ball, transparent
   non-colliding opponents, true cup openings and collision geometry from the
-  exported Blender scene. Authoring sources live in `assets/minigolf/`;
-  regeneration (`blender --background --python assets/minigolf/generate.py`) is
-  deterministic — on Windows rerun it until it reports `Wrote 18 courses` after
-  transient export locks, then validate with `node scripts/test-minigolf-assets.mjs`.
+  exported Blender scene. Authoring sources live in `assets/minigolf/` (README and
+  `kit/AGENTS.md`); regeneration is deterministic: `generate.py -- --only kits,courses`
+  (plus `--course N` or `--only previews`) under Blender 5.2.2. On Windows rerun a
+  courses build that hits a transient export lock until it reports `Wrote 18 courses`,
+  then validate with `node scripts/test-minigolf-assets.mjs`.
 - UI modules: `minigolf-shared.js` is DOM- and three-free (palette,
   `MAX_NAME_LENGTH` = 24 code points, `POWER_STOPS`, `FLOOR_SURFACES` for physics
   and the map, `createQualityGovernor`). `minigolf-views.js` builds the shell,
@@ -73,6 +364,52 @@
   scorecard functions into its view; `-hud` imports `-minimap`. UI factories receive
   `tr`, `esc` and `icon` as arguments. Register each new `tr` module in
   `desktopLocalI18nHelpers` (`ui/i18n_lint_test.go`).
+- P2 renderer modules: `minigolf-looks.js` (pure data: `LOOKS`, `TIERS`,
+  `lookOf()` reading the manifest `world`, `placementMatrix()`),
+  `minigolf-camera.js` (pure intro-flight maths), `minigolf-sky.js` (per-look sky
+  dome, moon stars and Earth, `createEnvironment()` PMREM), `minigolf-water.js`
+  (open disc and the `water-shore` material), `minigolf-props.js` (kit materials
+  from glTF extras, `buildProps()` instancing, the shared shader clock) and
+  `minigolf-fx.js` (fixed particle pools, ball trail, rings, fireworks).
+  `minigolf-scene.js` stays the owner: it fetches and caches kits and environments,
+  loads courses, runs the composer and exposes the public API. New modules import
+  only `three`, `minigolf-shared.js` and each other; the pure parts are covered by
+  `scripts/test-minigolf-look.mjs`.
+- P3 physics modules, DOM- and three-free so Node tests cover them. `minigolf-collision.js`
+  (`readColliders(glb)`, `colliderDigest(groups)`) reads physics meshes from the course GLB:
+  mesh nodes with the extra `aurago_collider` (`grass|sand|wood|stone|metal`), world
+  transform through TRS/matrix and the parent chain in the term order of
+  `export.glb_fixed_colliders`, bit-identical Float32 vertices welded per surface in triangle
+  order, collapsed triangles dropped (their vertices stay), groups in that surface order as
+  typed arrays. The digest (contract V1 in the P3 plan) must equal the Python
+  `glb_collision`. `minigolf-mechanics.js` imports nothing: obstacle poses
+  (`rotate|slide|spin|gate|boulder`), `validateObstacle|Mechanic` and the zone logic
+  (bumper kick, boost, teleport, cannon) that the live step and `predict()` share through a ball
+  adapter. Physics accepts typed mesh arrays, `course.gravity` (finite, 0 < g <= 20, default
+  9.81), `metal` rails (restitution 0.80), obstacle parts `box|ball|cylinder` and `mechanics`.
+  Only `rest|cup|water|out` end a shot; `impact`, `bumper`, `boost`, `teleport` and `cannon`
+  only report, and `predict()` returns `zone: 'teleport'|'cannon'|null`. Verify with
+  `scripts/test-minigolf-collision.mjs` and the mechanics, loop prototype and seam cases in
+  `scripts/test-minigolf-physics.mjs`.
+- P3 scene and game: `overviewFor(course)` (`minigolf-camera.js`, pure) returns the overview
+  pose, `shadowHalf`, `waterRadius` and `fogScale`. An island half-axis up to 5.5 m keeps the
+  fixed (10, 13, 14) view of the tee/cup midpoint (shadow ±9, water 60, fog scale 1). A larger
+  course is framed by its playable area, the plan box of `path` and every `corridors` line plus
+  2.5 m on each side: the camera looks at the box centre from `clamp(3.4 · half extent, 21.6, 60)`
+  m (a course without routes falls back to the island centre and half-axis). Shadow ±max(9, island
+  half-axis + 1.5) and water radius max(60, 5 · island half-axis) still cover the whole island.
+  `fogScale = min(1, 21.56 / distance)` multiplies the look's `FogExp2` density in `applyLook`, so
+  the fog over the lane at the overview distance equals the P2 value (4.5 % pirate, 8.7 % temple).
+  The scene follows the pose (orbit `maxDistance`, camera `far`, sun target at
+  the island centre). `scene.load(course)` always reads the colliders from the GLB (manifest v2 has no
+  `course.colliders`; an unreadable GLB or one without a `grass` collision throws `course_collision`) and resolves to
+  `{ colliders }`; the game passes `{ ...course, colliders }` to physics and the lane map. Nodes with
+  the extra `aurago_spin: { axis, speed }` turn about their local axis unless motion is reduced.
+  `boost`, `teleport`, `cannon` and `bumper` events only play sound and effects (`spark` bursts,
+  `scene.resetTrail?.()` on teleport, an extra `impact` burst on a bumper kick) and never end `busy`.
+  Developer route search lives in `scripts/lib/minigolf-routes.mjs` (`loadCourses`, `runShot`,
+  `progress`/`remaining` along `corridors`/`path`, `findRoute`, `timedRoute`, `replayRoute`) with the
+  CLI `scripts/minigolf-route-search.mjs [--dir] [--course id|number|look-NN] [--json]`.
 - `settings(values, track, focus)`, `audioSettings(settings, track)` and
   `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
   settings, sound and credits panels.
@@ -82,11 +419,65 @@
   (Shift keeps fine steps), a one-finger Aim drag putts from anywhere, and
   optional persisted settings add a four-degree aim assist, per-turn camera
   framing behind the ball and roll following — all still usable under reduced
-  motion. Visuals add a gradient sky dome with night stars and moon, a
-  blob-shadow fallback on the low tier, water foam rings, a dashed aim line with
-  a color-graded power ring, penalty rest markers, name tags on ghost balls, a
-  lane map with a persisted toggle, and the animated scorecard with grade
-  badges.
+  motion. Visuals add a dashed aim line with a color-graded power ring, penalty
+  rest markers, name tags on ghost balls, a lane map with a persisted toggle, and
+  the animated scorecard with grade badges, on top of the P2 look below.
+- P2 look: `LOOKS` (exposure, sky, fog, sun, rim, environment intensity, bloom,
+  water mode, FX palette) drives each world. The renderer uses
+  `THREE.NeutralToneMapping` with per-look exposure, no hemisphere light, and
+  `scene.environment` from the look's PMREM (kept per look for the scene's
+  lifetime). The sun shadow camera covers ±9 m around the island (wider for large P3
+  islands, see `overviewFor` below). `TIERS` (read
+  through `tierConfig(tier())`) sets pixel ratio, shadows, bloom, clouds, twinkle,
+  water motion and glints, scatter, motion, particle caps and the trail; the
+  governor still chooses `auto`. Low has no shadow maps and no composer: a blob
+  shadow sits under the ball instead.
+- Kits and course data: `props-<look>.glb` is fetched once per look per scene
+  (`kitFor`, in parallel with the course fetch). A failed fetch resolves to null and
+  the course plays without props. The kit owns the geometry; `buildProps()` makes one
+  `InstancedMesh` per prop primitive with cloned, patched materials. A course switch
+  disposes the props, sky, water and course tree; `dispose()` also releases the
+  PMREM targets, pending kit trees and effects. Manifest use: `world` is the look
+  (`lookOf()`: `pirate|temple|moon`, anything else falls back to `pirate`; the manifest has no `look`
+  field), `path` drives the intro flight
+  (no path, no flight), `props` are `[name, x, y, z, yaw, scale]` placements, and
+  `worlds[].preview` feeds the menu cards. The game does not read `kits`; the scene
+  reads `island` for framing. The game accepts only manifest `version` 2 with 18
+  courses, `course-NN.glb` models and a string `collision.digest` per course; there is no v1 branch and no
+  legacy world id (`garden|coast|night`) anywhere: `LEGACY_LOOK`, `WORLD_ALIAS` and the old icons and accents are gone.
+- Node contract: `aurago_hidden` on the `rail-wood|stone|metal` collision nodes hides them at
+  load (the collision stays in physics). `rail-trim` is plain decor. `water-shore` takes the
+  shore material (`TEXCOORD_0.x` is the distance to the shore; animated foam). Only nodes
+  with `aurago_spin` turn (teleporter rings, radar arm); the temple sun wheel is a static
+  prop and the scene has no windmill pivot. `flag` waves on every tier unless reduced.
+- Material extras (`patchMaterial`): `aurago_kind` picks the response. `foliage` and
+  `cloth` with `aurago_sway` bend with height, scaled by the `golfMotion` switch;
+  `emissive` and `glow` multiply their emission by `COLOR_0` and take
+  `aurago_flicker`; `glass` loses its transmission (transparent at 0.55 opacity).
+  `aurago_strength` is not read at runtime; the exported emission is used.
+- Effects: `burst(type, position, speed, info)` types are `strike`, `impact`, `water`,
+  `cup`, `win` and `spark` (18 glow particles in the look's palette, the P3 mechanic flash); `info.surface` (`sand`) selects the sand cloud on a strike. The
+  rolling sand plume follows `update(dt, snapshot)` and its optional
+  `snapshot.surface`. The pools are fixed buffers capped by `TIERS.particles`
+  (confetti: half); nothing allocates per frame. The ball trail is 28 points, on
+  medium and high only, and shows once the ball moves faster than 0.6 m/s.
+- Intro flight: `createIntro()` follows the path at 2.2 m behind and 3.2 m above,
+  looking 2.5 m ahead, for 0.35 s per metre clamped to 2.5–4.5 s, and then settles
+  on the overview pose. `scene.skipIntro()` ends it (returns true when one was
+  running): pointer down on the canvas, wheel, orbit start, a strike burst and
+  `setReducedMotion(true)` call it. `focusBall()` ends a running flight as well, and
+  `minigolf-game.js` calls `skipIntro` on any keydown without consuming the key. A
+  `frameTurn` queued during the flight runs after it.
+- Reduced motion (OS/Desktop preference, `data-animations="false"` or the checkbox)
+  skips the flight, stops particles, fireworks, sway, flicker, spin, flags and
+  water and sky animation, and keeps the gold ring static. The ball
+  trail stays. Low tier also drops scatter props, sway, flicker and spin, the
+  composer (bloom) and the trail, and freezes the water.
+- `stats()` also reports `look`, `props` (placed instances), `env` (environment
+  set), `intro` (flight running) and `trail` (visible trail points). `triangles` and
+  `calls` count the whole frame: `renderer.info.autoReset` is false and the counters
+  reset once per frame. Before P2 they covered only the last composer pass, so only
+  frame rates compare with older runs.
 - Saves contain settled shots only. Pause, minimization and hidden tabs stop
   simulation/audio; closing releases GPU, WASM, audio, observers and listeners.
   Respect reduced motion while retaining gameplay obstacle movement.
@@ -97,8 +488,9 @@
   settings fields, and `saveSettings()` keeps unknown stored fields. The v1 round
   and best keys are removed without migration, with a one-time notice when no v2
   progress exists.
-- World accents and symbols exist for `garden`, `coast`, `night`, `pirate`,
-  `temple` and `moon`. Optional card previews come from manifest
+- World ids are `pirate` (holes 1-6), `temple` (7-12) and `moon` (13-18); `WORLD_ICONS`, the accent
+  tables in `css/desktop-app-minigolf.css` and the locale keys `minigolf.<worldId>` cover exactly these three
+  (the P1/P2 keys `minigolf.garden|coast|night` are removed from all 16 locales). Optional card previews come from manifest
   `worlds: [{ id, preview }]`; the game accepts only relative image paths (webp,
   png, jpg, avif) without `..`.
 - Styling uses `--mg-*` tokens aliased to Desktop `--vd-*` theme tokens, with no
@@ -111,8 +503,9 @@
   the podium renders two steps centred as a pair (`data-count="2"`).
 - `inspect()` is additive: `hud` (`meter`, `bannerCount`, `banner`, `toasts`,
   `map`), `tutorial` (current step) and `menuStep` (menu panel only).
-- Scene helpers `frameTurn`, `setFollow`, `setAimCamera`, `setRestMark`, `panAt`,
-  `screenPosition()`, `cancelDrag()` and `stats().tier` are optional-callable.
+- Scene helpers `frameTurn`, `skipIntro()`, `setFollow`, `setAimCamera`, `setRestMark`,
+  `panAt`, `screenPosition()`, `cancelDrag()`, the optional `info` argument of
+  `burst()` and `stats().tier` are optional-callable (the game calls them with `?.`).
   `cancelDrag()` restores a changed aim from before the press and reports `onAim` with
   `phase: 'cancel'`.
 - Audio is the `minigolf-audio.js` facade over `minigolf-audio-engine.js` (context,
@@ -120,21 +513,33 @@
   ducking) and `minigolf-audio-synth.js` (UI blips, ambience, impulse responses).
   AuraGolf must not load Synth Studio. Create no `AudioContext` and make no `fetch`
   before a user gesture (`unlock()`). Persisted zero volumes stay zero.
-- Assets come only from `ui/3d/minigolf/audio/`, generated from
+- Scene files are `ui/3d/minigolf/course-NN.glb`, `props-<look>.glb`,
+  `previews/<look>.webp` and `manifest.json` (contracts in `assets/minigolf/README.md`
+  and `kit/AGENTS.md`). A missing preview falls back to the drawn placeholder.
+- Audio comes only from `ui/3d/minigolf/audio/`, generated from
   `assets/minigolf/audio/sources.json` by `scripts/build-minigolf-audio.mjs`.
   `--check` verifies SHA-256, CC0, the budgets (SFX ≤ 2 MiB, music ≤ 6 MiB,
   manifest ≤ 128 KB) and stray files. Never hand-edit `manifest.json`; change the
   recipe and rebuild. `REQUIRED_GROUPS` must equal the manifest SFX groups.
 - `pause()` suspends the context and freezes `position`. `setMusic('menu'|world)`
-  and `setAmbient(world)` apply `WORLD_ALIAS` until the new worlds land. `cup`,
+  and `setAmbient(world)` take the world id as is (unknown ids select the menu track or no ambience). `cup`,
   `cannon` and `win` duck the music. `effect('cannon'|'boost'|'teleport')` exists
-  for P3; the game does not call it yet.
+  and is played by the game from the matching physics events.
 - The browser test's zero-tolerance underrun assertion can flake under heavy
   machine load; rerun once before suspecting a regression.
-- Validate `npm run test:minigolf` (includes `scripts/test-minigolf-ui.mjs`),
-  `npm run test:synth-studio`, `node scripts/build-minigolf-audio.mjs --check`,
-  `TestDesktopMinigolf*`, `TestFrontend_StaticI18nKeysExistInEnglishBundle`, the
-  minigolf bundle check (`node scripts/build-minigolf.mjs --check`) and desktop bundle checks.
+- Validate `npm run test:minigolf` (model, `scripts/test-minigolf-look.mjs`, UI,
+  physics, asset, course and audio checks), `npm run test:synth-studio`,
+  `node scripts/build-minigolf-audio.mjs --check`, `node scripts/build-minigolf.mjs --check`
+  (6 MiB cap, pinned Three.js 0.186.1 and Rapier 0.21.0), `TestDesktopMinigolf*`,
+  `TestFrontend_StaticI18nKeysExistInEnglishBundle` and the desktop bundle checks.
+- `TestDesktopMinigolfBrowser` needs `AURAGO_RUN_BROWSER_SMOKE=1`. This machine's
+  headless Chrome reports `prefers-reduced-motion: reduce`, so the smoke emulates
+  `no-preference` only for its first intro check, resets it, and then requires that
+  later loads under reduced motion start no flight. It loads the finale of each world of manifest v2
+  (`pirate-06`, `temple-12`, `moon-18`; `AURAGO_MINIGOLF_ALL_COURSES=1` loads all 18) through the menus
+  (`graphics.look` equals the world id, props and environment present) and checks that the ball rests on its tee
+  floor, which proves that the collision came from the GLB; the world cards are `full,pirate,temple,moon,practice`. `AURAGO_MINIGOLF_BENCHMARK=1`
+  logs 240-frame 1920×1080 measurements per tier (run with `go test -v`).
   Browser/GPU measurements and human listening remain separate acceptance steps.
   Keep `minigolf.*` in all sixteen Desktop locales, including the
   `follow_ball`/`aim_camera`/`magnet`/`hole_map` and score-grade keys; settings
@@ -247,10 +652,15 @@
   with the existing search icon. All sixteen locales use `desktop.detective_*`.
 - `DetectiveApp` owns a per-window instance with cancellable polling. Disposal
   aborts that window's UI controller only; it does not stop the run. Research
-  remains owned by the server. While a case is open, one refresh chain polls
-  live status and new events every 3 seconds on every tab. Source text and the
-  report render again only when that data changes. A missing report and
-  `latest_revision` 0 are the same revision, so an empty report stays in place.
+  remains owned by the server. While a case is open, one refresh chain reads
+  `GET …/state?after=` (live view plus new events in one round trip) and the case
+  list, every 3 seconds while the case is queued, running or waiting, every 10
+  seconds otherwise (`v.pollDelay`). A hidden document does no work at all; the
+  `visibilitychange` listener polls once as soon as the window is visible again.
+  With the research form open only the first list load happens, never a poll.
+  Source text and the report render again only when that data changes. A missing
+  report and `latest_revision` 0 are the same revision, so an empty report stays in
+  place.
   An open source disclosure, a report text selection, scroll position, and a
   focused answer keep their text through a status-only poll. The reason
   paragraph tracks the live reason. `waiting_for_user` shows `.dt-answer` on
@@ -263,16 +673,50 @@
   stores `latestSourceID` only after the loaded sources match that id, and an
   absent source list becomes an empty list so the next poll does not refetch it.
 - Stop stays enabled for an active case when Detective or Virtual Desktop is
-  read-only, while the integration is enabled and ready. Finish, Start,
-  Continue, Deepen, Delete and New stay disabled. A draft offers Start and the
-  effort control, not Deepen. Continue does not post `effort`. Start and Deepen
-  do.
+  read-only, and when the integration is enabled without a ready runner
+  (`v.canStop(caps)` needs only `enabled`; Stop is a server state write). Finish,
+  Start, Continue, Deepen, Delete and New stay disabled. A draft offers Start and
+  the effort control, not Deepen. Continue does not post `effort`. Start and
+  Deepen do. Disabled actions name their reason from `caps.block_reason`
+  (`disabled`, `read_only`, `initializing`) through `desktop.detective_block_*`.
+- The revision selection is view state: `knownReports`/`chosenReport` in
+  `detective-views.js` merge current reports, history and the pinned report, and a
+  revision that is not in that set falls back to the newest one. A provisional revision (the
+  partial a failed continue, deepen or update keeps) never becomes the default:
+  `chosenReport` prefers the newest non-provisional revision, the selector marks it,
+  and the report tab shows `desktop.detective_provisional_notice` with a button to the
+  last full revision. `resetArchive()`
+  clears `state.revision` (case switch, "New", and after creating a case, which also
+  opens the report tab), so a stale selection can never leave the export bar without
+  a report. Test it without a DOM in `scripts/test-ui-regressions.mjs`.
+- Idempotency keys use `crypto.randomUUID` in a secure context and fall back to
+  `crypto.getRandomValues` on a plain-HTTP LAN install (`Math.random` only without
+  any crypto object), so Start/Continue never throw; the key stays under the
+  server's 128-character limit.
+- The case payload carries source metadata only. A source disclosure starts with a
+  `<blockquote aria-busy="true">…</blockquote>` and the `toggle` listener fetches
+  `GET …/source?id=` once, caches the text per case (`excerpts`, cleared by
+  `resetArchive`), and fills that blockquote in place — no redraw, so the open
+  disclosure and the scroll position survive. Archive pages already carry their
+  excerpts and render inline.
 - Export links name the revision on screen. A live poll rebuilds the export bar
   when the visible revision changes or when the revision set grows or shrinks,
   even if the chosen number stays the same. A poll that leaves both unchanged
   does not rebuild the bar. Autor
   opens a new, create-only DOCX copy. No private model continuation is returned
   to the UI.
+- API refusals carry `code` in `err.body.code`; `v.errorText(tr, err)` shows
+  `desktop.detective_error_<code>` and keeps the server text for an unknown code.
+  `v.formats(caps)` orders the export links: with `caps.pdf_scripts === false`
+  (the built-in PDF writer's truth) Word comes before PDF and the PDF link gets
+  `aria-describedby` pointing at the `pdf_hint` note, so the limit is visible
+  before the download fails.
+- Answers and token counts are visible: `startLocked` writes an `answer` event, so the
+  activity tab shows the question and the reply after the window was closed, and
+  `v.tokenText(usage, tr)` renders `desktop.detective_tokens{,_in,_out,_cached}` in the
+  status line, the case list total (`caseTokens`) and the automatic panel (usage of the
+  last run). No pricing logic lives here; the budget tracker owns costs. Zero counts
+  render nothing.
 - Verify `TestDetectiveTranslations`, `TestDesktopDetectiveBrowser` and the
   Detective config section. Backend contracts: `internal/detective/AGENTS.md`.
 - Automatic Update settings belong to each case (also available on creation):
@@ -535,7 +979,7 @@
   Backend: `internal/desktop/looper.go`, `internal/server/looper_service.go`.
 
 ## EasyDrag
-- Nineteen scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
+- Twenty scripts (`easydrag-*.js` and `easydrag.js`) share `window.EasyDrag` and load in the
   order of `DESKTOP_APP_ASSETS.easydrag` (`core/module-loader.js`), `easydrag.js` last.
   `window.EasyDragApp = { render, open, dispose }`; `open` re-routes an existing window by
   `flowId`/`flow_id` and `runId`/`run_id`, and `{section: 'home'}` (Mission Control's New flow)
@@ -558,9 +1002,27 @@
   record is read again and `FLOW_NOT_FOUND` means deleted. Every delete (editor, start-page card,
   elsewhere, a broadcast on the start page) calls `core.forgetFlow(id)`, which drops the four
   per-flow keys (`core.FLOW_KEYS`: emergency copy, view, effects-ok, test-trigger).
+- `flows_changed` with reason `checked` (no flow id) follows the server's start-up check: the start page reloads and
+  the editor re-reads its record. `live_issues` shows `state_live_outdated` (`.ed-chip--risk`, `live_outdated_hint`
+  as title and `.ed-sr-only` text) on the card and in the header, the latter only while `ed.flow.live_revision` is
+  the revision the issues came with; `timers_running: false` shows the `timers_stopped_*` banner (`.ed-home-stale`
+  look) on the start page and a `.ed-chip--warn` in the header.
+- The key-value editor (`ED.fields.keyValue`) compares trimmed keys; while two rows share one it emits nothing and
+  marks them `aria-invalid` with `aria-describedby` on its one `[data-ed-kv-error]` message. An unedited value keeps
+  its JSON type (an object is cloned); an edited value is the field's text.
+- Below 900 px (`@container`) the header hides the text of Stop and of the Active switch, visually
+  only (the `.ed-sr-only` pattern, not `display: none`). Both carry the same words as `aria-label`
+  and `title`, so the visible label is part of the name; Stop's name follows its text to "Stopping…"
+  (`setStopPending`). A new header button that loses its text needs the same.
 - Run now is off while a published flow is paused (`runNowState`), in the ⋯ menu, the Flow menu
   and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
   draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
+- Undo affordances live in `easydrag-history.js` (`ED.history.create(ed, {host, toastHost, undo, redo, focusCanvas})`): the header group `[data-ed-history-host]` holds Undo/Redo (`data-ed-history`, `aria-disabled`, never `disabled`, hidden on a read-only desktop) and `.ed-toast` offers Undo after `interact.removeSteps` emits `steps-deleted` ({names}); the toast is no live region (the canvas announced the delete), closes after 8 s or on any other model change, and its Undo acts only on the version right after the delete. No delete confirmation.
+- At an editor width of 560 px or less (`@container`), Runs, Test and Run now are hidden in the header and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
+- The JSON editor (`fields.jsonEditor`) keeps `aria-invalid` live on every input but writes the `role="alert"` text only when the error appears and never rewrites identical text (a screen reader would read it on every keystroke); change and blur announce a standing error afresh.
+- The editor builds in two steps: `create` makes the shell and `build(app, loaded, opts, guard)` fills it. A build aborted by a dispose, a failure or a newer open cleans up what it made so far.
+- Run events repaint in place without markup: `runs.js` logs touched steps in `ed.run.changes`, the canvas (`paintCard`) and wires (`onRun`, `syncPill`) follow that log; a new run object repaints all states. `ed.renderStats` ({cards, paints, wires}) is guarded by the b5 F6 check (300 steps, 1000 events: no card render). `model.incoming/outgoing/edge` use an adjacency index rebuilt on `docGen` and return copies.
+- Storage: the clipboard fragment is stored as `{at, frag}` and expires after 24 h (unstamped counts as expired); refused emergency writes back off 0.5 to 8 s and stop after 6 (flushCopy/flush/dispose still write); the port tip is shown until `aurago.easydrag.hint.ports`. Quick-add chooses on `click` (a press only keeps focus).
 - DOM modules get the editor state `ed` and talk over `ed.bus`, never through other modules'
   DOM. Focus moves synchronously when a popover or dialog opens; `.ed-app [hidden]` forces
   `display: none`. `ED.canvas.portLabel(t, node, port)` is the one port label. An edge whose
@@ -580,6 +1042,16 @@
   `is-inspector`) the graph and the inspector take turns. EasyDrag is not a mobile wide window.
   `appWindowMinSize` is 360×480. The responsive check also uses a 320 px viewport. Supported
   appearances there are Standard, Fruity light and Fruity dark. There is no Standard-light theme.
+- The Settings pane of the inspector ends with Connections (`[data-ed-connections]`, `renderConnections`
+  in `easydrag-detail.js`): the step's incoming wires first, then the outgoing ones, each as "From/To
+  {step}" with the port the wire leaves (`ED.canvas.portLabel`). It is the keyboard way to what the
+  canvas shows on wire hover only: Remove (`core.removeConnection`) and Insert a step (the same
+  quick-add as the wire's insert button, `ED.palette.requestInsert`, which takes a `restoreFocus`
+  callback so the focus returns to the row, not the canvas). Both buttons name both ends in
+  `aria-label`. A read-only desktop and the run view list the wires without buttons. The list redraws
+  on every model change while the Settings tab shows (a signature of the rows keeps typing from
+  redrawing it), also for an undo that touches no step; a redraw keeps the focus in the list (same wire,
+  else the row now at that place, else the heading `[data-ed-conns-title]`).
 - Keyboard model of the canvas: Tab, Space and Enter keep ordinary control behavior, so the canvas
   is not a focus trap and Tab does not add a step. The canvas is one tab stop and the zoom bar
   follows. With five steps and no selection the browser smoke test counts five stops (canvas plus
@@ -598,8 +1070,19 @@
   included, is rebuilt only when the step itself changes, so a focused tool keeps focus during a
   run. A rebuild hands that focus to the new button with the same `data-ed-node-tool` while the
   card is selected, else to the canvas. D, Ctrl+D and Del remain keys; Test step is also in the
-  inspector (Enter). The screen-reader step list (`.ed-node-list`) duplicates the arrow keys, so
-  its buttons are `tabindex="-1"`. Accessibility acceptance requires screen-reader and user
+  inspector (Enter). The screen-reader step list (`.ed-node-list` in `section.ed-node-region`, `canvas.listRegion`,
+  appended to `.ed-body` beside the canvas: `role="application"` would keep browse mode out of it) duplicates
+  the arrow keys, so its buttons are `tabindex="-1"`. User actions are announced in the canvas's live region
+  (`canvas.announce`, `ed.announce`, `core.say`; WCAG 4.1.3): steps added (palette, quick-add,
+  paste, duplicate), deleted, turned off or on, moved by Shift+Arrow (one text 500 ms after the last
+  key, never for a pointer drag), undo and redo (only when there was something to undo), a removed
+  connection (wire button, Delete, inspector), a started test or live run and each step that fails
+  during a live run (once per step). One step gives its name, several the count, as separate keys
+  (`announce_*_one` takes {name}, `announce_*_many` {count}: languages count differently). Not
+  announced: autosave (the save chip has its own live region), a cut (its copy says "Copied"), the
+  inspector's switch for a step turned off (a switch speaks its own state), steps that went well.
+  Do not add announcements to the model's change descriptor; announce from the user-action site.
+  Accessibility acceptance requires screen-reader and user
   task checks, not screenshots alone. The minimap patches selection and run status on existing
   rects (`minimapMarks` / `selectionTick`) without rebuilding geometry. Performance acceptance
   requires measured p95 interaction latency at most 100 ms with the hardware, browser and
@@ -696,7 +1179,7 @@
 - Other surfaces: Mission Control (`MissionControlTriggers.isFlow`/`isUnpublishedFlow`/
   `upcomingRun`), `ui/js/missions/main.js`, `ui/cfg/flows.js` and the dashboard's cron list
   (`managed_by: easydrag`). User docs: manual chapter 24.
-- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra6.mjs`),
+- Verify: `node scripts/test-easydrag.mjs` (with `-extra.mjs` to `-extra7.mjs` and `-ux-batch5.mjs`),
   `npm run test:mission-control`, `npm run test:dashboard-cron`, `npm run test:missions-page`,
   `go test ./ui -run 'EasyDrag|MissionControlShowsFlow|StandaloneMissionsPage'` and the opt-in
   browser tests `TestDesktopEasyDragBrowser`, `TestDesktopEasyDragDecisionBrowser` and
@@ -999,6 +1482,22 @@
 This subtree owns built-in virtual desktop app modules that are loaded lazily by
 `ui/js/desktop/core/module-loader.js`.
 
+- `ziro-designer.js` owns the `store_ui=ziro-designer` wrapper; `ziro-files.js`
+  owns bounded Shared project reads and conditional binary uploads. Load them
+  through the Store renderer, including its stylesheet. Only the parent owns
+  API credentials, file versions, dialogs and Shared paths. Bind a MessageChannel
+  to the exact Store iframe, origin and random document challenge, and revoke
+  it on navigation/disposal. Keep version/draft state per window and preserve
+  partial-save progress; a cancelled recovery must retain the original draft.
+  Once bound to a project, New/Open launch a separate Desktop window to isolate
+  pending editor callbacks; Save As retains the current editor's file set.
+  Snapshot every mounted editor before explicit Save/Ctrl+S and before closing.
+  Match dirty state to the snapshot generation so an older acknowledgement
+  cannot hide later edits. The upstream image adapter owns strict serialization,
+  binary/new-file preservation and local drafts. Read `documentation/ziro-designer.md`.
+  Verify `node scripts/test-ziro.mjs`, `node scripts/test-ziro-bridge.mjs` and
+  `node scripts/test-ziro-browser.mjs` against the built local image.
+
 - `tresor.js` owns setup, recovery confirmation, note/file workflows, encrypted note autosave/draft recovery, the five-minute idle lock and window disposal. Desktop close awaits saves and reports failures. Explicit, idle and pagehide locks immediately clear decrypted state even during failed/pending writes; only completed ciphertext drafts survive. Late operations cannot alter a newer session. Commit note selection only after loading/decryption succeeds, and keep both draft fields in state across redraws. `tresor-crypto.js` derives Argon2id keys with locally copied `argon2id@1.0.1` WASM, wipes its entire workspace and encrypts metadata and bodies with Web Crypto AES-256-GCM. Never send passwords, recovery keys or plaintext to `/api/desktop/tresor` or persistent browser storage. The door artwork is decorative; forms stay keyboard-accessible and reduced motion disables the opening effect. Verify `TestDesktopTresorBrowser` (including `checkTresorFailureRecovery`) and `npm run test:tresor-crypto`.
 
 - Game Maker's existing asset browser includes sprite packs and individual 3D
@@ -1070,7 +1569,18 @@ per-window minimum width/height, including the fixed opposite edge on west/north
 Free titlebar/menubar space supports dragging and double-click maximizing;
 buttons and menu popovers remain excluded from those gestures.
 
-### God's Eye View Store setup
+### Store app setup
+
+- PrintGuard setup in `software-store.js` uses its admin config/test endpoints,
+  CPU-first install, defined acceleration/network choices and explicit off/read/
+  control grants. Never prefill tokens or test unsaved drafts. Clear credentials
+  and ignore late requests on close/disposal; preserve focus trapping and status
+  announcements. Show active compute, CPU fallback and pending runtime changes.
+  Missing deployment prerequisites disable Install and block form submission.
+  Keep their messages visible during edits, link to Server config and allow a
+  fresh check. A valid network choice clears only the network prerequisite.
+  Keep all `desktop.store.pg_*` texts in sixteen locales and the upstream icon /
+  license under `img/desktop/store/`. Verify `TestPrintGuard*` and bundle `--check`.
 
 - Store operation failures remain as escaped, accessible text on the app card
   until retry, including when install rollback removes the installed record.
@@ -1319,7 +1829,9 @@ buttons and menu popovers remain excluded from those gestures.
   `desktop.file_dialog_images`. Pixel save-dialog filters use
   `desktop.file_dialog_png` and `desktop.file_dialog_jpeg` (the server validates
   the actual PNG/JPEG data). WebP remains an export format. Do not hardcode `Images`,
-  `PNG Image`, `JPEG Image`, or `WebP Image` there.
+  `PNG Image`, `JPEG Image`, or `WebP Image` there. The OpenRaster filter of the
+  open and save dialogs uses `desktop.file_dialog_ora`; the Pixel save dialog lists
+  it first only when the document has several layers or masks.
   Pixel `t` stays key-only. Leave File Manager and
   OpenSCAD byte formatters unchanged.
 - Quick Connect SFTP status uses `desktop.qc_sftp_items`. SFTP sizes
@@ -1345,6 +1857,10 @@ buttons and menu popovers remain excluded from those gestures.
   pending device choices and close late opens after policy/auth/window disposal.
   Browser serial requires a trusted user gesture and always uses the browser's
   picker. No automatic reconnect. Embedded apps deny `serial` in their frame policy.
+- Quick Connect lists inventory entries by explicit `ssh`/`vnc` protocol; device
+  types never imply remote access. An explicit `device_id` launch may retain a
+  `none` target with connection disabled. Keep the synthetic AuraGo host and serial
+  profiles. Verify `TestDesktopQuickConnectOnlyListsRemoteDevicesBrowser` in both themes.
 - Keep serial writes ordered, capture and render queues bounded, initial DTR/RTS
   off, and clear Break after 250 ms including cleanup races. Device traffic never
   counts as user activity. Verify `TestQuickConnectSerialTranslations`, serial
@@ -1589,7 +2105,7 @@ buttons and menu popovers remain excluded from those gestures.
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css` and `desktop-stickers.css`, then
   `shared/sticker-catalog.js`, `shared/sticker-library.js`,
   `video-studio-icons.js`, `video-studio-time.js`, `video-studio-effects.js` (DOM-free registry mirror and shared
-  math), `video-studio-picture.js` (DOM-free colour and picture math), `video-studio-anim.js` (DOM-free in/out animation math), `video-studio-media.js`, `video-studio-gl.js`
+  math), `video-studio-picture.js` (DOM-free colour and picture math), `video-studio-anim.js` (DOM-free in/out animation math), `video-studio-scope-math.js` (DOM-free scope math), `video-studio-media.js`, `video-studio-gl.js`
   (WebGL2 helper), `video-studio-shaders.js`,
   `video-studio-compositor.js` (GL painter), `video-studio-painter2d.js` (2D painter), `video-studio-preview.js`,
   `video-studio-timeline.js`,
@@ -1609,14 +2125,14 @@ buttons and menu popovers remain excluded from those gestures.
   (Effects section, crop and flip edits, LUT picker, stack keys), `-source.js`
   (source monitor), `-tracks.js` (track commands, targets, heights, solo),
   `-markers.js` (marker commands and popover), `-transport.js` (JKL, in/out,
-  loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-derive.js`
+  loop and navigation keys), `-rangerender.js` (render range exactly and its compare overlay), `-scopes.js` (scopes panel: transport toggle, dock, readback and drawing), `-derive.js`
   (reverse, freeze frame and export frame as server jobs; the edit is applied
   by the `onSucceeded` hook of `createJob`/`pollJob`, always directly before
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (40 Video Studio scripts after the two shared
-  sticker scripts, so 42 in all; the same order in `module-loader.js`, both browser fixtures and
+  `-menus.js` (context menus), and `video-studio.js` last (42 Video Studio scripts after the two shared
+  sticker scripts, so 44 in all; the same order in `module-loader.js`, both browser fixtures and
   `TestVideoStudioNavigationLoadOrder`; lists only get insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
@@ -1707,7 +2223,7 @@ buttons and menu popovers remain excluded from those gestures.
   `EnabledDuration`) and sends `range {start, end}`; `exportName(s, job)` adds ` (in-out)` for a range result. Node
   checks: `go test ./ui -run TestVideoStudioFolderModel`.
 - Preview engine, proxies and range check (phase 2a): `video-studio-preview.js` keeps the clock, media sync and audio
-  and paints through a painter (`kind`, `canvas`, `frame(scene)`, `read(rect)`, `release(clipId)`, `dispose()`):
+  and paints through a painter (`kind`, `canvas`, `frame(scene)`, `read(rect)`, `readScaled(width, height)` (2f), `release(clipId)`, `pending()` (2c), `dispose()`):
   `VideoStudioCompositor` (WebGL2; `video-studio-compositor.js` with `VideoStudioGL` and `VideoStudioShaders`, named
   stages `sourceTexture`, `clipPasses`, `placeClip`, `compositeClip`, `drawTransition`, `present`) or
   `VideoStudioPainter2D`. `describeFrame` builds the scene (visual tracks in paint order, items with
@@ -1963,6 +2479,81 @@ buttons and menu popovers remain excluded from those gestures.
       2a wipes as in the export, and the 20 transitions of 2e as a dissolve.
   - Node checks: `go test ./ui -run 'TestVideoStudio(Anim|Transition|Effects|EffectsLibrary|Canonical|Picture|Shaders|Painter|Preview|NavigationLoadOrder)' -count=1`.
     Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '^TestDesktopVideoStudio(TransitionsGL|AnimGL|Anim)Browser$' -count=1 -timeout 30m`.
+- Scopes and polish (phase 2f), DOM-free part:
+  - `VideoStudioScopeMath` (`video-studio-scope-math.js`, directly after `-anim.js`; index §4.26.3–§4.26.4):
+    - constants `SIZE` (256 × 144), `HISTOGRAM`, `WAVEFORM`, `VECTORSCOPE`, `READ_INTERVAL_MS` (100), `KINDS` and
+      `COLORS`;
+    - functions `luma`, `chroma`, `skinAngle`, `analyse`, `histogramImage`, `waveformImage`, `vectorscopeImage`,
+      `graticule`, `due` and `prefs`;
+    - rules: BT.709 float luma, Cb/Cr scaled to ±0.5, the skin line on the NTSC I axis mapped into Cb/Cr, log
+      intensity, fixed colours, no text in the canvases.
+  - `VideoStudioPicture.EFFECT_CAP_LONG` (1280) and `effectSize(width, height, canvas, drawn, cap)` (O2, index §4.26.8).
+    The target is the smallest of the canvas size, the drawn size and the cap on the long edge, never below 1 px. With
+    `drawn` null and `cap` 0 it equals `capSize`.
+  - `VideoStudioInspector.pickerMove(lists, current, key)`: the transition picker's arrow, Home and End rules over the
+    measured columns. Disabled types are skipped and the moves never wrap.
+- Scopes and polish (phase 2f), painters and preview:
+  - Both painters have `readScaled(width, height) -> Promise<{width, height, data} | null>`: a point-sampled, top-down
+    RGBA8 copy of the last frame, 1..1024 px per side. It never paints and never changes the canvas.
+    - GL draws the composite through `scope-sample` (`VideoStudioShaders.SCOPE_SAMPLE`) into a pooled target and reads
+      it with `ctx.readAsync(target, rect)` (`video-studio-gl.js`).
+    - `readAsync` keeps one pack buffer per context generation and size, one fence per read, and one read in flight. It
+      polls on the next animation frame or a 16 ms timer, and resolves null on a context loss, after 3000 ms or while
+      another read is pending.
+    - Nothing reads the WebGL canvas, and nothing reads back synchronously (spike S1: 11–32 ms stalls on iGPUs).
+    - The 2D painter reads a reused `willReadFrequently` small canvas with smoothing off. Its own canvas is never
+      `willReadFrequently`.
+    - `pending()` still counts LUT loads only.
+  - Preview:
+    - mount option `onPaint()`: called last in every paint, inside try/catch; it must not paint;
+    - mount option `effectCap()`: copied into `scene.effectCap`, 0 without the option;
+    - instance method `readScaled(width, height)`. `capture(rect)` still paints first.
+  - O2:
+    - the stage passes `effectCap: () => P.previewEffectCap(s)` (`video-studio-core.js`: 0 at full, else
+      `EFFECT_CAP_LONG`);
+    - `clipPasses` sizes its targets with `effectSize(…, canvasSize(), drawn, cap)`. `drawn` (`passDrawn`) is placement's
+      draw rect at rest for a static crop and a static width and height, and is used only while the cap is on;
+    - PICTURE does the downscale, so `u_size` and the blur σ follow the target;
+    - full quality and the golden engine page (no option) render exactly as before.
+- Scopes and polish (phase 2f), UI part:
+  - Scopes panel (`video-studio-scopes.js`, directly after `-rangerender.js`). `P.wireScopes` runs once from
+    `appRender`, after `P.wireMaskBox`, and inserts:
+    - the toggle `[data-action="scopes"]` (`aria-expanded`, `aria-controls`) before `[data-action="range-render"]`;
+    - the dock `.vs-scopes-dock[data-stage="timeline"]` after the timeline stage, holding
+      `section.vs-scopes[data-scopes]` (`role="region"`).
+    The section holds the kind buttons `[data-scope="histogram|waveform|vectorscope"]` (`aria-pressed`; the last shown
+    kind stays pressed), the focusable tile row `.vs-scopes-tiles`, and one `figure[data-scope-tile]` per kind with a
+    `canvas[data-scope-canvas]` (`role="img"`).
+    - View state `s.scopes = {open, show, last, pending, dirty}`; preference `aurago.videoStudio.scopes`, read through
+      `prefs`.
+    - Parts: `P.syncScopes` (from `renderUI`), `P.setScopesOpen` and `P.toggleScope`; `P.handleScopeClick` (in
+      `handleClick` after `P.handleRangeClick`) and `P.handleScopeKeys` (Esc, in `handleKeys` after `P.handleRangeKeys`);
+      `P.scopesAfterPaint` (the `onPaint` hook), `P.readScopes` and `P.drawScopes`.
+  - Readback rule: a closed panel or source mode reads nothing. While playing, a paint reads at most every
+    `READ_INTERVAL_MS` (`due`); while paused, every paint reads. One read is in flight: a due paint during it sets
+    `dirty`, and one trailing read of the last frame follows; a paint that is not due is dropped. Opening the panel
+    reads at once.
+  - Every 2f call in `video-studio.js` is guarded (`if (P.wireScopes) …`), because the camera handoff browser tests
+    load shorter script lists.
+  - Transition picker keys: `P.handleTransitionPickerKeys(s, event)` (`video-studio-inspector-effects.js`) runs in
+    `handleKeys` directly after the picker's Esc line. It measures the columns (the buttons that share the first
+    button's `offsetTop`), calls `pickerMove`, focuses the result and prevents the default. Choosing a type from None
+    takes the length slider's value, whether or not the slider is disabled.
+  - Library and labels: a transition drop or double-click without a picture clip shows `effectsLibraryTransitionNeedsClip`
+    (`NEEDS_CUT` in `video-studio-effects-library.js`); effects keep `effectsLibraryNeedsClip`. Every word of a transition
+    label has at most 13 characters, except in ja and zh (`TestVideoStudioTransitionLabelsFitThePicker`).
+    `animClamped` has U+00A0 before the unit in every locale that has a space there (`\xa0` in `animClampText`'s
+    fallback).
+  - Job failures and media: `jobFailure` maps `render_too_many_luts` to `tooManyLUTsAtOnce`; `removeMediaFrom` calls
+    `removeLUTRefs` alone, and `mutate` drops the strip's effect-key selection when the stack changes.
+  - Node checks: `go test ./ui -run 'TestVideoStudio(ScopeMath|ScopesPanel|ScopesLocales|Painter2DReadScaled|PreviewEffectCap|PictureUniforms|TransitionLabels|TransitionPicker|AnimInspector|EffectsLibraryTransitions|EffectKeySelection|RangeRender|Proxy|NavigationLoadOrder)' -count=1`.
+    Browser: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopVideoStudio(ScopesBrowser|AnimBrowser|EffectsGLBrowser)' -count=1 -timeout 30m`.
+    Preview benchmark (reported, never asserted): `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_VIDEO_STUDIO_BENCHMARK=1 go test ./ui -run '^TestDesktopVideoStudioPreviewBenchmarkOptIn$' -count=1 -v -timeout 60m`.
+    - Variables: `AURAGO_VS_BENCH_LAUNCHERS` (default `gpu,swiftshader`), `AURAGO_VS_BENCH_BROWSER`,
+      `AURAGO_VS_BENCH_GPU_FLAGS` (`force_low_power_gpu` for the local iGPU; Chrome's default adapter on the 2f
+      measurement machine is that UHD chip, and `force_high_performance_gpu` selects the Arc B580),
+      `AURAGO_VS_BENCH_REPS` (default 3), `AURAGO_VS_BENCH_SCENARIOS` (a comma list of scenario names; default all eight).
+    - The Renoir container recipe is in plan index §6.
 - Layout: toolbar (project popover with switch/rename/new, save chip
   `[data-action="save"]`, undo/redo, format `[data-canvas]`, tasks popover with
   `[data-jobs]`, shortcuts, export), tabbed library (media/text/stickers/effects/AI;
@@ -2017,7 +2608,8 @@ buttons and menu popovers remain excluded from those gestures.
   Project settings rescales clip edges in one undo step after a confirm; durations are clamped by the source extent
   rule with the clip's speed. The preview canvas backing store
   follows the per-viewer quality (`aurago.videoStudio.previewQuality`: auto = long edge ≤ 1920 px, full, half,
-  quarter); the transform box stays in CSS pixels.
+  quarter); the transform box stays in CSS pixels. Every quality but full caps the GL effect passes at 1280 px on the
+  long edge and sizes them to the drawn picture (`P.previewEffectCap`, 2f O2); full is the exact preview.
 - Timing and transitions use integer frames at the project rate (24/25/30/50/60, NTSC ×1000/1001). The outgoing clip owns an
   exact overlap with the next clip on its track; transitions apply on change.
   `setTransition` moves the following clip and every later clip on the track
@@ -2136,8 +2728,12 @@ buttons and menu popovers remain excluded from those gestures.
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
   System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
-  launcher, Chess chrome, and Nasscad read `--vd-theme-*` for chrome,
-  panels, controls, borders, and shadows.
+  launcher, Chess chrome, Nasscad, Mailer and Infra read `--vd-theme-*` for chrome,
+  panels, controls, borders, and shadows. Infra's two stylesheets are held to that by a Node guard in
+  `scripts/test-infra-ui.mjs` (spec §12): no hex or literal colour functions outside `color-mix()`, no named colours, no
+  `--vd-font` (use `--vd-font-ui`), no uppercase or monospace labels, no `[data-theme…]` selectors, and every `transition` or
+  `animation` sits inside `@media (prefers-reduced-motion: no-preference)` on selectors that start with
+  `body:not([data-animations="false"])`.
 - Fixed accents: an app that paints text on the raw accent exposes a root
   token that a fixed-accent skin overrides in an App tokens rule of its
   skin file (`.vs-app` `--vs-accent-strong`/`--vs-accent-hover`,
@@ -2292,9 +2888,41 @@ buttons and menu popovers remain excluded from those gestures.
   game-over result overlay with win confetti, CSS move/capture/check/thinking
   effects (`prefers-reduced-motion` aware), and Web Audio synthesized
   move/capture/check/castle/promote/game-over sounds. Split across `chess.js`
-  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers),
-  `chess-engine.js` (Stockfish worker bridge), and `chess-agent.js`
-  (AuraGo agent move API client).
+  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers and
+  the promotion dialog), `chess-engine.js` (Stockfish worker bridge),
+  `chess-agent.js` (AuraGo agent move API client) and `chess-3d.js` (the
+  optional 3D board).
+- `chess-3d.js` owns the optional 3D board mode of the Chess app. It renders
+  the live position with the original AuraGo piece kit from `/3d/chess/v1/`
+  through the vendored global Three.js, GLTFLoader and OrbitControls, and
+  exposes `window.createChess3D` plus `window.ChessView3D` (view switch, sync
+  and disposal). The module never owns game state: `chess.js` owns the
+  position, the turn, the board skin and the orientation, and the 3D view
+  mirrors the snapshot it is given. Piece reconciliation keeps pieces that
+  still match their square and code, retires every other previous piece by
+  entry identity (a taken piece shares its target square with its captor, so a
+  square-keyed sweep leaks it), animates the mover onto its target and swaps a
+  promoted pawn for the promoted piece. Player intent (select, move) is reported
+  back to `chess.js`, which applies the move through the regular player-move
+  path including the promotion dialog. The 2D board stays the default and
+  stays mounted; switching modes hides one surface and shows the other, and
+  the 3D view is disposed with the window. A missing WebGL context or a failed
+  asset load shows a localized note instead of a blank canvas. Verify with
+  `go test ./ui/ -run TestDesktopChess` and `node scripts/test-chess-assets.mjs`.
+- Chess layout is one centered board column: the view switch and material score
+  share the pane head row, the board sits in a single square box, and the status
+  ribbon closes the column below it. The head and the ribbon are capped by
+  `--chess-column`. The board box fits the pane height (`container-type: size` on
+  the shell plus `100cqh` in the frame width), so a tall window gets a bigger
+  board and a short one never clips it. The 2D board is that square box; the 3D
+  board is a perspective scene and takes the whole board area
+  (`.vd-chess.is-3d`), so a wide pane lets it spread into the free width. The
+  right sidebar widens with the window (`clamp(340px, 22vw, 420px)`), folds its
+  settings away into a disclosure, pairs the open fields in two columns and
+  scrolls instead of clipping when the window gets short. The panels carry their
+  own display rule, so the tab switch needs the explicit `[hidden]` reset.
+  Never let a compact row stretch across the full pane and never size the board
+  from the browser viewport (`vh`).
 - `writer.js` owns Autor's native DOCX document, menus and lifecycle;
   `writer-session.js` owns revision-bound autosave and IndexedDB recovery;
   `writer-panels.js` owns formatting, search, review, AI and snapshot printing.
@@ -2385,7 +3013,7 @@ buttons and menu popovers remain excluded from those gestures.
   `game-maker-studio-modals.js`, and `game-maker-studio.js` implement Game
   Maker Studio: a project library, 2D/3D creation dialog with idea chips,
   bounded agent progress (job banner with phase, elapsed time, and repair-pass
-  indicator plus a phase stepper), result cards for ready/failed jobs,
+  indicator, a phase stepper, and a job feed under the steps outside both panes), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
 - `live-speech.js` mounts the shared realtime-speech panel on the desktop in a
@@ -2424,22 +3052,8 @@ buttons and menu popovers remain excluded from those gestures.
   filter. The app can also run
   windowless as a floating desktop gadget (see `sip-phone-gadget-runtime.js`
   in the Child DOX Index).
-- `pixel*.js` implements Pixel, a canvas image editor: left tool rail (20
-  tools in 5 groups, incl. magic wand, lasso, move, clone stamp, mask
-  selections, gradient, airbrush, dodge/burn and blur brush), contextual
-  options bar, adjustments, a 29-filter gallery in 4 categories with
-  favorites and before/after compare, plus colors, transform, layers (max
-  20), editable stickers, click-to-jump history and AI generate/enhance/remove-bg/upscale
-  panels. Split across `pixel-state.js` (constants, tool SVGs/groups,
-  canvas pool, MAX_LAYERS), `pixel-view.js` (rail/panel markup),
-  `pixel-canvas.js` (canvas, history stack, zoom, adjustments,
-  crop/resize/rotate, expandCanvasToFit for oversized AI layers), `pixel-tools.js`
-  (tools, selections, floating move, clone-stamp stroke snapshot, layers, history
-  panel), `pixel-actions.js` (file I/O, AI calls, photos), `pixel-filters.js`
-  (filter catalog, gallery, non-destructive preview), `pixel-events.js`
-  (mouse handlers, shortcuts modal, context menu, option wiring), `pixel-stickers.js`
-  (shared picker, original-backed affine objects, transform controls and rasterization) and
-  `pixel.js` (shell, runtime, event wiring).
+- `pixel*.js` implements the Pixel image editor. Its module structure, contracts, file ownership and test commands are in
+  `## Pixel` at the top of this file. The sticker contracts below still apply to Pixel sticker layers.
 
 ## Ownership
 
@@ -2480,7 +3094,9 @@ registration lives in `internal/desktop/types.go`.
   `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
   overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
   (`window.GameMakerStudioModals`: shared modal lifecycle, media toggles,
-  skills and revisions; confirmation stays shell-mediated),
+  skills and revisions; the revisions list shows `changed_paths`, at most 40,
+  and `game_maker.revision_paths_truncated` when `truncated` is set;
+  confirmation stays shell-mediated),
   `game-maker-studio-assets.js` (`window.GameMakerStudioAssets`: offline pack
   catalog, selection, sprite/animation previews), then
   `game-maker-studio.js`.
@@ -2488,8 +3104,11 @@ registration lives in `internal/desktop/types.go`.
   `gm-studio` inline-size container and `.gm-preview-pane` the `gm-preview`
   container. Every width rule exists as `@container` and as its `@media` twin,
   because fixtures render panes outside the shell; change both together. Below
-  760px both rules show `[data-gm-steps]` and give `.gm-workspace` one column
-  and one flexible row. `.gm-studio` starts at `data-gm-step="agent"`. That
+  760px both rules show `[data-gm-steps]` and give `.gm-workspace` one column.
+  The step bar is row 1, `[data-gm-job-feed]` is row 2, and the panes share
+  row 3. A hidden feed uses `display: none`, so its row collapses. On a wide
+  grid the feed spans both columns as a content-sized first row; the panes
+  stay on the flexible second row so the conversation keeps most of the agent pane. `.gm-studio` starts at `data-gm-step="agent"`. That
   step hides `.gm-preview-pane`; `preview` hides `.gm-agent-pane`. The bar uses
   `display:none` above 760px, not the `hidden` attribute, and those pane rules
   stay inside the 760px queries so a wide window keeps both panes. The buttons
@@ -2517,6 +3136,35 @@ registration lives in `internal/desktop/types.go`.
   a second usage stream in the client. Library states use `game_maker.status_<status>`. Verify with
   `TestGameMakerStudioLayoutBrowser` (`GAMEMAKER_STUDIO_REPORTS` writes
   screenshots).
+- Model qualification and continuation actions belong to the start and retry
+  dialogs plus the failure card. Both dialogs show the passive
+  `GET /api/game-maker/model-limits` line (`game_maker.model_limits_line`) under
+  the provider/model fields, warn with `game_maker.model_limits_warning` when a
+  known route reports `below_minimum`, and mark the field group with
+  `data-gm-model-state[data-below-minimum]`. The probe is debounced (350 ms),
+  ignores late responses and degrades to "unknown" on failure; only an explicit
+  confirmation sends `allow_small_model: true`, and a server
+  `model_context_too_small` answer replaces the dialog error with
+  `game_maker.small_model_blocked`. When the same response reports `small_model`,
+  both dialogs show `game_maker.compact_mode_title` and
+  `game_maker.compact_mode_body`. That flag is separate from `below_minimum`:
+  a route can be compact while it still clears the 16384 context floor.
+  The failure card renders translated help for `latest_job.open_checks` (at most
+  six). `required_controls` and `required_stages` use their own strings; any
+  other id uses `game_maker.check_help_generic`. A missing translation falls
+  back to that generic string. `data-gm-apply-check` writes the matching
+  `game_maker.check_prompt_*` into the change field and does not start a job.
+  Expected and observed values stay in the collapsed technical details, off the headline. The model-facing
+  `next_action` stays inside the technical `details` as
+  `data-gm-model-instruction`. The card offers
+  `data-gm-retry-model` (resume with the chosen provider/model, which becomes the
+  project default) and `data-gm-extend-repairs` only for a failed job whose
+  `repair_passes` is above zero and below six, carrying `used + 3` as
+  `max_repair_passes`. Both resume with empty asset arrays, and the card says
+  so with `game_maker.retry_keeps_bindings`. They never reset unrelated fields.
+  Elapsed time reads `started_at` from the job or the active-job capability and
+  falls back to the local clock only when that time is missing.
+  Verify `TestGameMakerFailureCardBrowser`.
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
   channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
@@ -2547,7 +3195,9 @@ registration lives in `internal/desktop/types.go`.
   actual inputs, repeated resource counts, exported games and narrow layouts.
 - Each project remembers its last asset selection in this browser
   (`localStorage` key `aurago.game-maker.asset-selection`, with an in-memory
-  fallback). The next change request sends that selection again until the user
+  fallback). The selection line also says `game_maker.assets_browser_only`:
+  it applies only in this browser and only to an ordinary change. The next
+  change request sends that selection again until the user
   clears it. Try again sends empty `asset_pack_ids`, `model_asset_ids` and
   `asset_selections`, and no presentation, so an accepted binding stays. An
   empty selection lets the agent choose. Selecting packs never starts a job.
@@ -2786,6 +3436,24 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.4.
+- Load `sheets-images.js` after charts and before `sheets.js`.
+  `SheetsImages.create(state)` owns per-window image nodes in the existing charts
+  overlay. `aux.images` stores ID, sheet ID/A1 anchor, offsets, dimensions, MIME,
+  embedded data, alt text and readonly state on the same native auxiliary undo
+  command as charts and print. Row/column operations transform/remove anchors in
+  that transaction; sheet renames preserve stable IDs. Unsupported pictures stay
+  readonly/opaque and unsafe unknown drawing references lock structural edits.
+  Sheet copies give managed images new IDs and the copied sheet's ID in the
+  native copy undo/redo transaction. Check aggregate image limits before copying;
+  preserve existing chart references and reject unsupported structural copies.
+- Sheets QR insertion captures document revision/signal and selected sheet/range
+  before loading the shared dialog. Images preserve aspect ratio while dragging
+  or resizing; arrows move one pixel, Shift+arrows resize four pixels, Delete
+  removes. Existing snapshots, drafts, conditional writes, Save As, recovery and
+  print retain image bytes; CSV warns about omitted images. Dispose removes image
+  nodes and pointer listeners. Verify `TestDesktopSheetsImagesBrowser`,
+  `TestDesktopSheetsQRDialogBrowser` (actual dialog/selection and XLSX QR decode) and the
+  existing Sheets engine/app/recovery/versioned-assets browser checks.
 - Resolve the engine import and formula worker through `AuraLazyAssets.versionedURL`
   so both match the desktop build, including after a cached pre-1.0 resource set.
   Verify `TestDesktopSheetsVersionedAssetsBrowser` alongside the app/recovery checks.
@@ -2829,6 +3497,13 @@ registration lives in `internal/desktop/types.go`.
   option. Format indent, hex color, highlight and image fields follow the
   selection. Keep the async close guard installed until cleanup and never
   replace failed loads with blank content.
+- Writer Insert QR captures the native retained selection, document identity and
+  package revision before lazy loading. Native image insertion requires a caret:
+  collapse to the captured anchor and retain selected text. Pass generated PNG
+  through the existing `insertImage`/native image command with requested physical
+  millimetres converted to points independently of export pixels. Readonly and
+  suggestion-mode restrictions apply again at insertion; document replacement
+  closes the dialog. Keep native undo, serial saves, DOCX/print/export and recovery.
 - Writer exposes New/Open after load failures and clears the persisted window
   path only on a confirmed 404. Transient errors retain it for Retry. Verify
   `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
@@ -2989,24 +3664,14 @@ registration lives in `internal/desktop/types.go`.
   without focusing its text field, so touch dialing does not summon the OS
   keyboard. Direct field editing remains available. Verify
   `TestDesktopSIPPhoneKeypadFocusBrowser`.
-- Pixel loads `shared/sticker-catalog.js` and `shared/sticker-library.js` first,
-  followed by state, view, canvas, tools, actions, filters, events, stickers,
-  and pixel.js. Load `desktop-stickers.css` and `pixel-stickers.css` with `pixel.css`. Modules attach via
-  `Pixel.install<Domain>(runtime)` with `bindRuntime` (no eval); shared state
-  lives in the getter/setter runtime object created by `pixel.js`.
-- Pixel exposes `window.PixelApp = { render, dispose }`; every window
-  instance owns its history stack, layers, filter preview state, marching-ants
-  RAF, and document-level key handlers (all removed on dispose).
-- Pixel layout contract: toolbar + panel tabs on top, contextual options bar
-  (`data-options-bar`) below it, tool rail (`data-tool-rail`) left, canvas
-  center, panel right. Panel tabs: adjust, filters, colors, transform,
-  layers, history, ai, stickers. Tool options render into the options bar via
-  `renderOptionsBar()`; there is no draw panel tab.
-- Pixel filters live in the `Pixel.FILTERS` catalog (`pixel-filters.js`) with
-  css/pixel/canvas implementations across the categories color/light/style/
-  detail; legacy filter IDs stay valid. Selecting a filter previews
-  non-destructively (layer snapshot + strength blend); Apply commits to
-  history, leaving the filters tab resets the preview.
+- Pixel's load order, module structure and registries are described in `## Pixel` at the top of this file. The loader
+  (`module-loader.js`, key `pixel`) loads the sticker catalog and library first, then the Pixel scripts and styles. Modules
+  attach through the registries and `bindRuntime` (no eval); shared state lives on the runtime object created by `pixel.js`.
+- Pixel exposes `window.PixelApp = { render, dispose }`. Every window instance owns its layers, history, selection overlay,
+  worker jobs and document-level key handlers, all removed on dispose.
+- Pixel filters live in the `Pixel.FILTERS` catalog (`pixel-filters.js`, with the pixel work in `pixel-lib-fx.js`). Selecting a
+  filter shows a live preview on a layer preview (`setLayerPreview`). Apply commits through `commitLayerPixels`, and leaving the
+  Filters tab resets the preview. Legacy filter ids stay valid.
 - Pixel visible UI strings use `pixel.*` and shared `stickers.*` keys in all 16
   `ui/lang/desktop/*.json` files.
 - The shared sticker catalog contains 100 stable IDs, ten categories and ten styles.
@@ -3025,6 +3690,50 @@ registration lives in `internal/desktop/types.go`.
   the existing explicit conversion; read-only and queued drafts disable insertion.
   Verify `scripts/test-mailer-stickers.mjs`, `scripts/test-mailer-browser.mjs`, and
   `TestStickerDraftAndMIMERoundTrip` / `TestAgentMailStickerWireFormat`.
+- The Mailer surface is theme-native. `desktop-app-mailer.css` resolves local
+  `--mail-*` aliases from the `--vd-theme-*` bridge (`--vd-theme-app-bg`,
+  `--vd-theme-panel-bg`, `--vd-theme-chrome-bg`, `--vd-theme-control-bg`,
+  `--vd-theme-border`, `--vd-theme-muted`, `--vd-theme-radius-*`,
+  `--vd-theme-shadow-*`) plus `--vd-text` and `--vd-accent`; the legacy chat
+  tokens (`--surface-color`, `--accent-color`, `--text-color`, `--text-muted`)
+  are gone. Accent tints are mixed from `--mail-accent` with `color-mix()`, never
+  from the fixed `--vd-accent-r/g/b` fallback. Mail HTML bodies keep their light
+  paper surface; only the surrounding chrome follows the theme.
+- The Mailer is split into `mailer.js` (window shell, list, reader, lifecycle),
+  `mailer-views.js` (pure rendering helpers: `safeMailHTML`, `initials`,
+  `parseSender`, `formatDate`, `formatBytes`, avatar, empty state, skeleton),
+  `mailer-compose.js`, `mailer-settings.js`, `mailer-stickers.js` and
+  `mailer-api.js`. The loader order is `mailer-api` → `mailer-views` →
+  `mailer-stickers` → `mailer-compose` → `mailer-settings` → `mailer`; the views
+  module must load before the shell because the shell delegates to it.
+  `window.MailerApp` keeps `{ render, dispose, safeMailHTML }`.
+- Mailer layout stays container driven: `container-name: mailer` with the
+  1099 px and 719 px app-width breakpoints and `container-name: mailer-compose`
+  for the composer. Viewport media queries are forbidden. The reader is an
+  overlay pane below 719 px, and the list panel stays the flex child.
+- The reader hands the whole pane to the message body. `.vd-mailer-reader` is a
+  flex column, the message stack and the message grow into the free height, and
+  the mail frame is an absolutely positioned iframe inside a relative wrap, so
+  the body fills the column instead of floating in a fixed 210px strip. The
+  reader itself only scrolls when the subject header, the sender rows and the
+  footer need more room than the pane; a long mail scrolls inside its frame.
+  The automation report (`.vd-mailer-rule-runs`) is capped and scrolls inside
+  its own box, so it can never squeeze the mail body out of the reader.
+- Mailer surfaces use the shared desktop app conventions: focus-visible rings,
+  styled thin scrollbars, 140 ms hover feedback, `prefers-reduced-motion`
+  fallbacks, sender avatars with a stable tone per name, and an unread marker on
+  the avatar instead of an extra grid child.
+- A thread row shows one person. `threadIdentity` picks the sender of the
+  latest message and, in a sent folder, its recipient. The `participants` list
+  of a thread mixes recipients and the sender, so it must never reach
+  `initials` or the avatar: the letters of one address only. The reader header
+  shows the roster as `mailer.participants_count` chip.
+- The reader actions are grouped, never one flat pile: response actions
+  (`reply`, `reply_all`, `forward`) keep their label, utility and file actions
+  (`print`, `eml`, `archive`, `trash`, `delete`) collapse into icon buttons
+  with `title` and `aria-label`, and every action carries its `vd-mailer-icon`.
+  `readerActionButton` is the only builder for them. The back button belongs
+  to the overlay reader below 719 px and stays hidden in the three-pane layout.
 - Video Studio imports originals through the existing project media importer before
   adding a four-second overlay at the playhead, at 24% of the shorter canvas edge.
   Recheck project identity/epoch after asynchronous work and keep busy/locked overlay
@@ -3464,14 +4173,81 @@ registration lives in `internal/desktop/types.go`.
   `allow-same-origin`) stay in `homepage-studio.js` — they are pinned by
   `ui/security_lint_test.go` and must not move into sub-modules.
 - `homepage-studio-preview.js` (`window.HomepageStudioPreview { create }`)
-  owns only the preview chrome (device widths, fullscreen); the sites panel
-  (`window.HomepageStudioSites { create }`) and history panel
-  (`window.HomepageStudioHistory { create }`) receive their dependencies
+  owns the preview chrome **and the workbench layout**: the device switcher, the
+  fullscreen control, the panel splitters (pointer drag, double-click collapse,
+  ArrowLeft/ArrowRight), the collapsed state, and the scaled device viewport
+  (the previewed page renders at the real device width — desktop 1280 px, tablet
+  768 px, mobile 390 px — and is scaled into the pane through
+  `.vd-hp-preview-frame`, `--hp-device-w`, `--hp-device-h`,
+  `--hp-device-scale`); the sites panel
+  (`window.HomepageStudioSites { create, DRIFT_KEYS, driftStatus, targets }`)
+  owns the site cards, the drift enum and the deployment target collection
+  (`targets.collect/add/normalize/external`), and the history panel
+  (`window.HomepageStudioHistory { create }`) receives their dependencies
   via a deps object like `NoisemakerLibrary`.
+- `homepage-studio-annotate.js` (`window.HomepageStudioAnnotate { create,
+  hitTest, overlapping, normalizeBox, tabOrder, composeMessage,
+  annotationPayload, cropLayout, MAX_MARKS }`) owns annotate mode. It injects
+  the toolbar button (`data-hp-annotate`), the snapshot layer inside
+  `.vd-hp-preview-frame` (scaled with the device), the mode bar and the mark
+  popover on `.vd-hp-preview-panel`, and the mark chips before the chat form;
+  styles live in `css/desktop-app-homepage-studio-annotate.css`. Snapshots come
+  from `POST /api/desktop/integrations/homepage/annotation-snapshot`
+  (`internal/server/homepage_annotation_handlers.go`, capture in
+  `internal/tools/homepage_annotation_capture.go`). The client sends site id,
+  target, path, viewport and `preview_url` (the URL its iframe shows). The
+  server uses `preview_url` only for deployed targets, and only when it matches
+  a URL registered for a managed site; otherwise it answers
+  `preview_unavailable`. The capture Chrome runs through a per-capture filtering
+  forward proxy (`internal/security/capture_proxy.go`, `--proxy-server` and
+  `--proxy-bypass-list=<-loopback>`). The proxy dials only the local preview
+  origin `127.0.0.1:<WebServerPort>` directly and checks every other destination
+  with the SSRF rules. It caps 16 concurrent connections, 600 connections and
+  64 MiB per capture. `GuardRodPageSSRF` is unchanged. Captures use a
+  desktop-style viewport at every width (`Mobile: false`). Keyboard: Tab and
+  Shift+Tab step through `tabOrder`; Tab past the last element goes on to Path,
+  Recapture and Done, Shift+Tab before the first element leaves the snapshot,
+  and neither wraps. Escape closes the popover, then the mode, and stops
+  propagation so the studio's Escape handler does not run. `takeForSend` returns
+  the message with the localized "Marks:" list (user comments only),
+  `context.annotations` (element details, rendered as untrusted external data by
+  `buildHomepageStudioAgentContext`) and `context.image_base64` (numbered crops,
+  at most 1000 × 1600 px and 1.4 MB of base64, below the 2 MiB chat body limit).
+  If the image cannot be used (too large, a provider that needs public image
+  URLs, or a failed vision fallback), the turn is still sent and the prompt says
+  so. On a text-only provider, the vision-fallback description of the marks
+  image enters the prompt only as untrusted external data
+  (`homepage_image_analysis`). Marks are not part of the draft. They are
+  dropped when the target changes, and for a deployed target also when the site
+  or the preview URL changes. The site pill renderer lives in the sites module
+  (`renderSitePill`), which keeps `homepage-studio.js` under the 1100-line
+  budget.
+- Homepage Studio accessibility contract: the chat log is a transcript, not a
+  live region — it carries `aria-busy` and **no** `aria-live`; a dedicated
+  `role="status"` node announces the finished message, the agent start and the
+  agent completion exactly once; the elapsed counter stays `aria-hidden`. The
+  inspector tabs are a `role="tablist"` with `role="tab"` children, arrow-key
+  navigation and a roving `tabindex`; the site list is a `role="listbox"` with
+  `role="option"` cards that keep the keyboard focus across re-renders; the
+  preview iframe always carries a `title`; the panel splitters expose
+  `aria-valuenow`/`aria-valuemin`/`aria-valuemax`; the device switcher is a
+  `role="radiogroup"`.
+- The shared translator `t(key, params)` treats its **second argument as a
+  placeholder map**, so a string fallback never applies. Homepage Studio uses
+  the local helper `tr(key, fallback)` (defined in `homepage-studio.js`, handed
+  to the sub-modules through the deps object) for every dynamically built key
+  (`homepage_studio.sites_drift_*`, `history_type_*`, `history_filter_*`,
+  `sites_origin_*`, `sites_target_*`, `sites_outcome_*`).
 - Homepage Studio honors `context.readonly` (composer, suggestion chips,
   reconcile, and history delete disabled). Destructive history deletes use
   the shell `confirmDialog` passed by `menus-and-routing.js`; native
   `alert`/`confirm`/`prompt` are forbidden in all four modules.
+- Homepage Studio loads its site list **once per status load** and refreshes
+  only the detail of the selected site; the target resolver reuses the sites
+  panel list and its cached detail instead of issuing a second request per
+  site. The status pill describes the **selected target** (container running,
+  cloud target reachable, cloud target unreachable), not only the local
+  container.
 - Homepage Studio visible UI strings use `homepage_studio.*` keys in all
   16 `ui/lang/desktop/*.json` files. The local webhost name fallback
   uses `homepage_studio.default_name`. Chat-stream failures reuse
@@ -3490,6 +4266,14 @@ registration lives in `internal/desktop/types.go`.
   vendored chess package versions or copied Stockfish assets.
 
 ## Verification
+
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestQRDialogWriterPixelBrowser -count=1`
+  covers the shared real-core dialog and decodes QR media after native DOCX/ORA
+  save/reopen, plus undo/redo, selection fencing, all sixteen locales and viewport
+  cases. `node scripts/test-pixel-qrcode.mjs` covers raster insertion, bounds,
+  readonly, document changes and disposal; `npm run test:pixel` includes it.
+  Shared QR use and limitations are documented in
+  [QR codes](../../../../documentation/qr-code.md).
 
 - `node scripts/test-sheets-data.mjs`, `node scripts/test-writer-session.mjs`
 - `node scripts/build-sheets-vendor.js --check`
@@ -3740,6 +4524,7 @@ registration lives in `internal/desktop/types.go`.
   The programmer section starts hidden; mode tabs must fit the content width.
   Verify all three modes in the default and narrow windows with
   `TestDesktopCalculatorLayoutBrowser`.
+- Settings icon themes include Tela, Candy, Fluent and Buuf; Tela/Fluent each persist their own folder color. The picker reads generated manifest palettes, with backend parity enforced by `TestDesktopAdditionalIconAssets`. Serialize settings saves so fast selections keep their order; failed saves restore the previous state. Theme/color/scheme changes update open decorative icons without replacing controls or focus.
 - `settings.js` implements the Settings app, a virtual desktop configuration
   panel with sidebar navigation, global search, hamburger menu on mobile,
   and full desktop shell re-render on changes (icons, widgets, start menu,
@@ -3748,10 +4533,13 @@ registration lives in `internal/desktop/types.go`.
   control columns must not let long provider/model names squeeze their labels.
   Keep full workspace paths wrappable and Info values at normal text weight.
   The theme picker is a card grid (`renderDesktopThemes`, `data-desktop-theme`)
-  built from the `DESKTOP_THEMES` registry. A pick saves `appearance.theme`,
-  pairs `appearance.icon_theme` with the theme's `iconTheme` and runs
-  `followThemeWallpaper()`; if the wallpaper hand-over fails, a notification
-  shows and the saved theme stays. The light/dark row (`appearance.fruity_mode`)
+  built from the `DESKTOP_THEMES` registry. A pick atomically saves the theme,
+  matching icon family, wallpaper for all spaces (clearing per-space overrides),
+  enabled theme cursors and matching sound bank in one settings PUT. Sound and
+  motion master switches remain unchanged. A failed save preserves the complete
+  previous selection. Later individual customizations survive reloads.
+  Verify `TestDesktopExperienceThemeAtomicSelectionBrowser`.
+  The light/dark row (`appearance.fruity_mode`)
   shows only for themes with `schemeSetting`, and the accent row only for
   `accent: 'user'`. Verify `TestDesktopThemeSweepBrowser`.
 - `camera.js` implements the Camera app (device webcam): photo mode with
@@ -3988,6 +4776,17 @@ registration lives in `internal/desktop/types.go`.
   EventSource to `/api/desktop/logs/stream`, readonly-gated download.
   Exposes `window.LogViewerFilters` then `window.LogViewerApp`. No child
   DOX file needed.
+- `mailer-views.js` / `mailer.js` / `mailer-compose.js` / `mailer-settings.js` /
+  `mailer-stickers.js` / `mailer-api.js` - Mailer: theme-native three-pane
+  mail client (folder rail | message list | reader). `mailer-views.js` owns the
+  pure rendering helpers (mail HTML sandbox, sender parsing, avatar tones,
+  empty state, skeleton) and loads before the shell; `mailer.js` owns the
+  window lifecycle, list, reader and `window.MailerApp`
+  (`{ render, dispose, safeMailHTML }`). Styles live in
+  `css/desktop-app-mailer.css` and resolve `--mail-*` from the `--vd-theme-*`
+  bridge; the reader is an overlay pane below 719 px and the layout stays
+  container driven. Sticker drafts keep their `cid:` contract. No child DOX
+  file needed.
 - `noisemaker-menus.js` - Noisemaker window/context menu builders. Exposes
   `window.NoisemakerMenus`; pure builders over `{ t, tFull, readonly, s,
   actions }`. Loads before `noisemaker.js`. No child DOX file needed.
@@ -4059,7 +4858,15 @@ registration lives in `internal/desktop/types.go`.
   `window.AuraTeeVeeCatalog`). Exposes `window.TeeVeeApp`. The real-shell
   `TestDesktopTeeVeeBrowser` covers video, HLS/AES, origin fallback, controls and
   lifecycle; opt in with `AURAGO_RUN_BROWSER_SMOKE=1`. No child DOX file needed.
-- `game-maker-studio.js` - Game Maker Studio shell. Missing
+- `game-maker-studio.js` - Game Maker Studio shell. The shell hosts
+  `[data-gm-job-feed]` directly under `[data-gm-steps]`, outside both panes.
+  `GameMakerStudioActivity` paints the phase, the shared elapsed time and the
+  last eight public events, and hides the feed while `.gm-build-terminal` is
+  connected. Assets and Export stay visible buttons. Sources, Knowledge,
+  Revisions, Code Studio, Rename and Delete live only in `.gm-more`, which
+  stays visible at every width. Knowledge is enabled only when a project is
+  open and `window.AuraGoLearnings` exists. The sources item stays enabled.
+  Export stays disabled until the open project has a revision. Missing
   skills/revisions modals throw `game_maker.modules_load_failed`
   via `state.context.t(key)`. Exposes `window.GameMakerStudioApp`.
   Its optional screenshot-review strip has an explicit, height-bounded grid row;
@@ -4072,17 +4879,13 @@ registration lives in `internal/desktop/types.go`.
   queued job; old terminal/preview events cannot finish a newer job. Project-only
   revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
   No child DOX file needed.
-- `pixel-state.js`, `pixel-view.js`, `pixel-canvas.js`, `pixel-tools.js`,
-  `pixel-actions.js`, `pixel-filters.js`, `pixel-events.js`, `pixel-stickers.js`, `pixel.js` -
-  Pixel image editor: tool rail + options bar layout, 17 tools (magic wand
-  with mask selections, gradient, airbrush, dodge/burn, blur brush plus the
-  classic set), 21-filter catalog gallery with live thumbnails and strength
-  slider, layers, click-to-jump history panel, AI generate/enhance. The
-  open-dialog filter uses `desktop.file_dialog_images`. Save-dialog
-  filters use `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`,
-  and `desktop.file_dialog_webp`. Image-decode failures throw
-  `pixel.error_load`. Exposes `window.PixelApp`. No child DOX file
-  needed.
+- `pixel*.js`, `pixel-lib-*.js` (incl. `pixel-worker.js`) - Pixel image editor, structure in `## Pixel`:
+  shell and core, the DOM-free libraries (filters, generators, cutout, inpaint), the worker, and the feature
+  modules for layers, selections, brush and retouch, transform, filters, generators, cutout, intelligence
+  (command palette, content-aware fill, colour panel) and OpenRaster projects. The open-dialog filter uses
+  `desktop.file_dialog_images`. Save-dialog filters use `desktop.file_dialog_png`, `desktop.file_dialog_jpeg`
+  and `desktop.file_dialog_ora`. Image-decode failures throw `pixel.error_load`. Exposes `window.PixelApp`.
+  No child DOX file needed.
 - `terminal.js` - Standalone workspace terminal and Retro-Net dialer. Exactly
   one live socket per window: the shell (`/api/code-studio/terminal`) **or** a
   Retro-Net session (`/api/desktop/retronet/connect?entry=<id>&cols&rows`, in
@@ -4342,6 +5145,7 @@ registration lives in `internal/desktop/types.go`.
 - The notes.meta.json sidecar keeps version/pinned/sort/last_note. Full-text search is
   server-side, shared with desktop_notes; no browser 500-file index. Relative attachments
   and link destinations survive moves; user trash preserves original folder paths.
+  Attachment uploads use `If-None-Match: *` even with unique filenames.
   A missing sidecar returns 404 through the real Notes handler so first use can
   create it conditionally; wrapped filesystem errors must retain that status.
 - Agent Notes access is list/search/read/create only in native APIs, including
@@ -4358,3 +5162,22 @@ registration lives in `internal/desktop/types.go`.
 - `js/go2rtc-tuya.js` owns the shared account/setup dialog used by Config and Network Cameras; load it before the camera modules with `css/go2rtc-tuya.css`. Strings use `common.go2rtc_tuya.*` in all 16 common locales. Config adopts committed account/camera metadata without replacing other drafts.
 - Entered credentials exist only in dialog drafts until save or disposal. Discovery selections are opaque; account checks test saved inputs explicitly. Probe each selected HD/SD quality; failed HD offers an explicit SD choice. Cancel/close/window disposal abort requests, drop late results and clear drafts.
 - Tuya role settings hide RTSP transport/manual source controls. Talk is disabled without a confirmed source backchannel; reconcile `source_type` and `talk_supported` changes in the toolbar, stopping active talk if capability disappears. State refresh never recreates a microphone or unchanged viewer. Verify `TestGo2RTCTuya*Browser`, existing media browser smokes and `node scripts/test-ui-regressions.mjs`.
+
+### Homepage Studio managed website evidence
+
+- Render locations, provenance, check timestamps and grouped automatic reasons from the shared managed-site model. Escape all ledger strings and retain the safe URL filter.
+- Stored URLs do not prove liveness; render explicit target state. Keep Homepage labels translated in all sixteen Desktop locales.
+- Verify Homepage source/locale tests and the deterministic browser timeline fixture.
+- Notifications: a published revision, `no_changes`, a question and a failed run arrive as
+  a Desktop notification with `appId: "detective"` and `context.case_id`. The shell's
+  `openApp` calls `window.DetectiveApp.open(existing.id, context)` (window-shell-runtime.js,
+  main bundle) and `selectCase` loads that case, resets the archive and opens the report
+  tab; a fresh window takes `ctx.context.case_id`/`ctx.launch.case_id`. Test:
+  `TestDesktopDetectiveOpensTheNotifiedCase`.- Accessibility: the case title is the view's `h1`, the report title `h2` and report
+  blocks `h3`. Tabs are a real `role="tablist"` with `role="tab"`, `aria-selected` and
+  `aria-controls="dt-panel"`; the content area is the single `role="tabpanel"`. Only the
+  status/phase line (`<div aria-live="polite">`) is a live region, not the whole status
+  section. Deletion requires `ctx.confirmDialog`; there is no `window.confirm` fallback.
+  The built-in icon stays `search`: it already denotes research, and a distinct glyph
+  would need new artwork in both icon families for a cosmetic change (audit 4.23 kept
+  the shared key deliberately). `TestDesktopDetectiveAccessibilityMarkers` pins all of it.

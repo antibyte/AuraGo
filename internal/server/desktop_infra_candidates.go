@@ -37,6 +37,10 @@ func desktopInfraVisibleNodes(snapshot *infra.Snapshot) []infra.Node {
 	for _, node := range snapshot.Nodes {
 		referenced[node.ParentID] = true
 	}
+	// An explicit Docker engine mapping is a deliberate use, like an edge.
+	for _, host := range snapshot.SourceHosts {
+		referenced[host.NodeID] = true
+	}
 	nodes := make([]infra.Node, 0, len(snapshot.Nodes))
 	for _, node := range snapshot.Nodes {
 		// Preserve edited, placed and connected nodes; hide only untouched discovery imports.

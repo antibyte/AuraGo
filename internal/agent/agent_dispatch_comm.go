@@ -598,7 +598,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			// Enrich each entry with has_documentation so the agent knows which
 			// skills carry a Markdown manual it should consult before calling.
 			docFlags := map[string]bool{}
-			if mgr := tools.DefaultSkillManager(); mgr != nil {
+			mgr := tools.DefaultSkillManager()
+			if mgr != nil {
 				if entries, listErr := mgr.ListSkillsFiltered("", "", "", nil); listErr == nil {
 					for _, e := range entries {
 						docFlags[e.Name] = e.HasDocumentation
@@ -607,11 +608,22 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			type listed struct {
 				tools.SkillManifest
-				HasDocumentation bool `json:"has_documentation"`
+				HasDocumentation bool   `json:"has_documentation"`
+				Enabled          *bool  `json:"enabled,omitempty"`
+				SecurityStatus   string `json:"security_status,omitempty"`
+				Executable       *bool  `json:"executable,omitempty"`
 			}
 			out := make([]listed, len(availableSkills))
 			for i, sk := range availableSkills {
-				out[i] = listed{SkillManifest: sk, HasDocumentation: docFlags[sk.Name]}
+				item := listed{SkillManifest: sk, HasDocumentation: docFlags[sk.Name]}
+				if mgr != nil {
+					if enabled, status, executable, found := mgr.SkillExecutionListing(sk.Name); found {
+						item.Enabled = &enabled
+						item.SecurityStatus = string(status)
+						item.Executable = &executable
+					}
+				}
+				out[i] = item
 			}
 			b, err := json.MarshalIndent(out, "", "  ")
 			if err != nil {
@@ -717,9 +729,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						searchQuery = "summarise the key content of this document"
 					}
 					summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-						APIKey:  cfg.Tools.PDFExtractor.SummaryAPIKey,
-						BaseURL: cfg.Tools.PDFExtractor.SummaryBaseURL,
-						Model:   cfg.Tools.PDFExtractor.SummaryModel,
+						ProviderID: cfg.Tools.PDFExtractor.SummaryProvider,
+						APIKey:     cfg.Tools.PDFExtractor.SummaryAPIKey,
+						BaseURL:    cfg.Tools.PDFExtractor.SummaryBaseURL,
+						Model:      cfg.Tools.PDFExtractor.SummaryModel,
 					}), logger, result, searchQuery, "PDF document")
 					if err != nil {
 						logger.Warn("pdf_extractor summary failed, returning raw content", "error", err)
@@ -1121,6 +1134,17 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + exec.Output
 
+		case "qr_code":
+			logger.Info("LLM requested QR operation", "operation", tc.Operation)
+			exec := tools.ExecuteQRCode(ctx, cfg, tc.Params)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(struct {
+					Type    string         `json:"type"`
+					Payload *desktop.Event `json:"payload"`
+				}{"virtual_desktop_event", exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
 		case "office_document":
 			logger.Info("LLM requested office document operation",
 				"operation", tc.Operation,
@@ -1372,9 +1396,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			switch req.Operation {
 			case "list":
-				missions := missionManagerV2.List()
-				b, _ := json.Marshal(map[string]interface{}{"status": "success", "data": missions})
-				return "Tool Output: " + string(b)
+				return "Tool Output: " + tools.FormatMissionListForAgent(missionManagerV2.List())
 
 			case "create", "add":
 				// The agent cannot create flows; this path only builds manual and scheduled

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -397,9 +398,26 @@ func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) e
 	if correctionLocked > 0 {
 		return nil
 	}
-	var existing string
+	var existing, existingSource string
 	var conf int
-	qErr := tx.QueryRow("SELECT value, confidence FROM user_profile WHERE category = ? AND key = ?", category, key).Scan(&existing, &conf)
+	qErr := tx.QueryRow("SELECT value, confidence,source FROM user_profile WHERE category = ? AND key = ?", category, key).Scan(&existing, &conf, &existingSource)
+	if qErr != nil && qErr != sql.ErrNoRows {
+		return qErr
+	}
+	if existingSource == "manual" && source != "manual" {
+		return nil
+	}
+	if source == "manual" {
+		if qErr == sql.ErrNoRows {
+			if err := checkCorrectionProfileCapacity(context.Background(), tx, category); err != nil {
+				return err
+			}
+		}
+		if _, err = tx.Exec(`INSERT INTO user_profile(category,key,value,confidence,source) VALUES(?,?,?,3,'manual') ON CONFLICT(category,key) DO UPDATE SET value=excluded.value,confidence=MAX(user_profile.confidence,3),source='manual',updated_at=CURRENT_TIMESTAMP`, category, key, value); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
 	if qErr == nil {
 		// Entry exists: update in-place.
 		if strings.EqualFold(normalizeProfileValue(existing), value) {
@@ -430,7 +448,7 @@ func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) e
 // GetUserProfileSummary returns a compact, token-efficient summary of the user profile.
 // Only entries with confidence >= minConfidence are included.
 func (s *SQLiteMemory) GetUserProfileSummary(minConfidence int) string {
-	query := `SELECT category, key, value, confidence FROM user_profile WHERE confidence >= ? OR source='memory_correction' ORDER BY category, confidence DESC`
+	query := `SELECT category, key, value, confidence FROM user_profile WHERE confidence >= ? OR source IN ('manual','memory_correction') ORDER BY category, confidence DESC`
 	rows, err := s.db.Query(query, minConfidence)
 	if err != nil {
 		return ""
@@ -528,7 +546,7 @@ func (s *SQLiteMemory) ResetUserProfile() error {
 // CleanupStaleProfileEntries removes profile entries with confidence=1 that
 // haven't been updated in the given number of days.
 func (s *SQLiteMemory) CleanupStaleProfileEntries(olderThanDays int) (int64, error) {
-	res, err := s.db.Exec("DELETE FROM user_profile WHERE source != 'memory_correction' AND confidence <= 1 AND updated_at < datetime('now', ?)", fmt.Sprintf("-%d days", olderThanDays))
+	res, err := s.db.Exec("DELETE FROM user_profile WHERE source NOT IN ('manual','memory_correction') AND confidence <= 1 AND updated_at < datetime('now', ?)", fmt.Sprintf("-%d days", olderThanDays))
 	if err != nil {
 		return 0, err
 	}
@@ -541,7 +559,7 @@ func (s *SQLiteMemory) CleanupStaleProfileEntries(olderThanDays int) (int64, err
 //
 // Call this after every batch of profile upserts to keep the profile lean.
 func (s *SQLiteMemory) PruneStaleProfileEntries() (deleted int64, downgraded int64, err error) {
-	res, err := s.db.Exec(`DELETE FROM user_profile WHERE source != 'memory_correction' AND confidence = 1 AND updated_at < datetime('now', '-24 hours')`)
+	res, err := s.db.Exec(`DELETE FROM user_profile WHERE source NOT IN ('manual','memory_correction') AND confidence = 1 AND updated_at < datetime('now', '-24 hours')`)
 	if err != nil {
 		return 0, 0, fmt.Errorf("profile prune delete: %w", err)
 	}
@@ -549,7 +567,7 @@ func (s *SQLiteMemory) PruneStaleProfileEntries() (deleted int64, downgraded int
 
 	res, err = s.db.Exec(`UPDATE user_profile
 		SET confidence = 1, updated_at = CURRENT_TIMESTAMP
-		WHERE source != 'memory_correction' AND confidence = 2 AND updated_at < datetime('now', '-48 hours')`)
+		WHERE source NOT IN ('manual','memory_correction') AND confidence = 2 AND updated_at < datetime('now', '-48 hours')`)
 	if err != nil {
 		return deleted, 0, fmt.Errorf("profile prune downgrade: %w", err)
 	}
@@ -566,7 +584,7 @@ func (s *SQLiteMemory) DeduplicateProfileEntries() error {
 	rows, err := s.db.Query(`
 		SELECT a.category, a.key
 		FROM user_profile a
-		WHERE a.source != 'memory_correction' AND EXISTS (
+		WHERE a.source NOT IN ('manual','memory_correction') AND EXISTS (
 			SELECT 1 FROM user_profile b
 			WHERE b.category = a.category
 			  AND lower(b.value) = lower(a.value)
@@ -601,7 +619,7 @@ func (s *SQLiteMemory) DeduplicateProfileEntries() error {
 	defer tx.Rollback()
 
 	for _, e := range toDelete {
-		if _, err := tx.Exec("DELETE FROM user_profile WHERE category = ? AND key = ? AND source != 'memory_correction'", e.cat, e.key); err != nil {
+		if _, err := tx.Exec("DELETE FROM user_profile WHERE category = ? AND key = ? AND source NOT IN ('manual','memory_correction')", e.cat, e.key); err != nil {
 			return fmt.Errorf("profile dedup delete %s/%s: %w", e.cat, e.key, err)
 		}
 	}
@@ -621,7 +639,7 @@ func (s *SQLiteMemory) EnforceProfileSizeLimit(maxEntries int) error {
 	}
 	excess := count - maxEntries
 	_, err := s.db.Exec(`DELETE FROM user_profile WHERE rowid IN (
-		SELECT rowid FROM user_profile WHERE source != 'memory_correction' ORDER BY confidence ASC, updated_at ASC LIMIT ?
+		SELECT rowid FROM user_profile WHERE source NOT IN ('manual','memory_correction') ORDER BY confidence ASC, updated_at ASC LIMIT ?
 	)`, excess)
 	return err
 }
@@ -640,7 +658,7 @@ func (s *SQLiteMemory) enforceProfileCategoryLimit(category string, maxEntries i
 	excess := count - maxEntries
 	_, err := s.db.Exec(`DELETE FROM user_profile WHERE rowid IN (
 		SELECT rowid FROM user_profile
-		WHERE category = ? AND source != 'memory_correction'
+		WHERE category = ? AND source NOT IN ('manual','memory_correction')
 		ORDER BY confidence ASC, updated_at ASC
 		LIMIT ?
 	)`, category, excess)

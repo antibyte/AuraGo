@@ -47,6 +47,18 @@ type MissionBridge interface {
 	FlowRunFinished(info RunFinishedInfo)
 }
 
+// RunGate is an optional extension of MissionBridge that the Service looks for by type
+// assertion (a bridge without it allows everything). AutomaticRunsAllowed says whether runs
+// that no one asked for at that moment may start: nil when they may, else why not (missions
+// read-only, flows switched off). It is asked when a Date/Time timer fires (a refused
+// occurrence starts no run and counts as handled) and, through RunnerConfig.Gate, right before
+// a queued run that a trigger started executes (a refused one ends with RunsPausedCode).
+// Mission Control's own triggers are also gated on its side, by the hooks. Like every bridge
+// method it follows the bridge rule: no call into a Service method that takes a flow lock.
+type RunGate interface {
+	AutomaticRunsAllowed() error
+}
+
 // RunFinishedInfo describes a finished live run for Mission Control. Every live run is
 // reported, also one whose flow was deleted while the run was queued or active; then
 // the fields hold what is still known.
@@ -87,12 +99,16 @@ type RunFinishedInfo struct {
 
 // ServiceConfig tunes the service; zero values use the defaults.
 type ServiceConfig struct {
-	MaxParallelRuns   int
-	MaxParallelNodes  int
-	MaxQueuedPerFlow  int
-	RunRetentionDays  int
-	MaxRunsPerFlow    int
-	RetentionInterval time.Duration
+	MaxParallelRuns  int
+	MaxParallelNodes int
+	MaxQueuedPerFlow int
+	RunRetentionDays int
+	MaxRunsPerFlow   int
+	// MaxTestRunsPerFlow caps the finished test runs a flow keeps, counted apart from the other
+	// runs (Store.PruneRunsByMode). Zero means DefaultMaxTestRunsPerFlow; it never exceeds
+	// MaxRunsPerFlow.
+	MaxTestRunsPerFlow int
+	RetentionInterval  time.Duration
 }
 
 // ValidationError carries the issues that block saving or publishing.
@@ -146,9 +162,11 @@ type Service struct {
 	started  bool
 	closed   bool
 	bootTime time.Time
-	stop     chan struct{}
-	done     chan struct{}
-	stopOnce sync.Once
+	// liveIssues holds CheckLiveRevisions' findings by flow id (see LiveIssues).
+	liveIssues map[string]liveCompat
+	stop       chan struct{}
+	done       chan struct{}
+	stopOnce   sync.Once
 	// reconciling counts the ReconcileMissions calls in progress; Shutdown waits for them.
 	// Add happens only under mu while !closed, so it never races with Shutdown's Wait.
 	reconciling sync.WaitGroup
@@ -168,6 +186,12 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	if cfg.MaxRunsPerFlow <= 0 {
 		cfg.MaxRunsPerFlow = 200
 	}
+	if cfg.MaxTestRunsPerFlow <= 0 {
+		cfg.MaxTestRunsPerFlow = DefaultMaxTestRunsPerFlow
+	}
+	if cfg.MaxTestRunsPerFlow > cfg.MaxRunsPerFlow {
+		cfg.MaxTestRunsPerFlow = cfg.MaxRunsPerFlow
+	}
 	if cfg.RetentionInterval <= 0 {
 		cfg.RetentionInterval = time.Hour
 	}
@@ -176,7 +200,7 @@ func NewService(store *Store, reg *Registry, services *Services, bridge MissionB
 	s.bootTime = services.Now()
 	s.engine = NewEngine(reg, services, logger, cfg.MaxParallelNodes)
 	s.runner = NewRunner(s.engine, store, RunnerHooks{OnRunStarted: s.onRunStarted, OnRunFinished: s.onRunFinished},
-		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow}, logger)
+		RunnerConfig{MaxParallelRuns: cfg.MaxParallelRuns, MaxQueuedPerFlow: cfg.MaxQueuedPerFlow, Gate: s.automaticRunsAllowed}, logger)
 	// onTimerFired reports a failed start, so the occurrence stays stored and is retried.
 	s.timers = newTimerService(store, services.clock(), s.onTimerFired, s.onTimerMissed, logger)
 	// Yearly timers recur at their local time of day, in the zone the triggers are bound in.
@@ -316,7 +340,7 @@ func (s *Service) retentionLoop() {
 
 // PruneNow applies run retention and forgets old event logs.
 func (s *Service) PruneNow(ctx context.Context) (int64, error) {
-	n, err := s.store.PruneRuns(ctx, s.cfg.RunRetentionDays, s.cfg.MaxRunsPerFlow, s.now())
+	n, err := s.store.PruneRunsByMode(ctx, s.cfg.RunRetentionDays, s.cfg.MaxRunsPerFlow, s.cfg.MaxTestRunsPerFlow, s.now())
 	s.runner.Bus().Sweep()
 	return n, err
 }
@@ -423,6 +447,7 @@ type FlowSummary struct {
 	Triggers              []string      `json:"triggers"`
 	Preview               []PreviewNode `json:"preview"`
 	PreviewEdges          [][2]int      `json:"preview_edges,omitempty"`
+	LiveIssues            []Issue       `json:"live_issues,omitempty"`
 }
 
 // PreviewNode positions a node in the start page's mini preview.
@@ -478,6 +503,7 @@ func (s *Service) ListFlows(ctx context.Context) ([]FlowSummary, error) {
 			}
 		}
 		sum.Enabled = rec.MissionID != "" && s.bridge.FlowMissionEnabled(rec.MissionID)
+		sum.LiveIssues = s.LiveIssues(rec)
 		out = append(out, sum)
 	}
 	return out, nil

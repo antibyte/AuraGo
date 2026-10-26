@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -20,6 +21,21 @@ type maintenanceCompletionTestClient struct {
 
 func (c maintenanceCompletionTestClient) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	return c.complete(ctx, req)
+}
+
+func maintenanceConsolidationResponseForRequest(req openai.ChatCompletionRequest, factsPayload string) string {
+	content := ""
+	if len(req.Messages) > 0 {
+		content = req.Messages[len(req.Messages)-1].Content
+	}
+	var batches []string
+	for index := 1; strings.Contains(content, fmt.Sprintf("=== batch_%d ===", index)); index++ {
+		batches = append(batches, fmt.Sprintf(`{"batch_id":"batch_%d",%s}`, index, factsPayload))
+	}
+	if len(batches) == 0 {
+		return "{" + factsPayload + "}"
+	}
+	return `{"batches":[` + strings.Join(batches, ",") + `]}`
 }
 
 func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
@@ -56,7 +72,7 @@ func TestConsolidationUsesRemainingPhaseBudget(t *testing.T) {
 					case <-ctx.Done():
 						return openai.ChatCompletionResponse{}, ctx.Err()
 					case <-time.After(tc.delay):
-						return skillQualityTestClient{response: `{"facts":[]}`}.CreateChatCompletion(ctx, req)
+						return skillQualityTestClient{response: maintenanceConsolidationResponseForRequest(req, `"facts":[]`)}.CreateChatCompletion(ctx, req)
 					}
 				}}
 				ctx, cancel := context.WithTimeout(t.Context(), tc.timeout)
@@ -142,9 +158,10 @@ func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 				client := maintenanceCompletionTestClient{complete: func(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 					phase := "summary"
 					content := "Configured NAS backups."
-					if strings.Contains(req.Messages[0].Content, "knowledge extraction engine") {
+					lastMessage := req.Messages[len(req.Messages)-1].Content
+					if strings.Contains(lastMessage, "source message_id=") || strings.Contains(lastMessage, "=== batch_") {
 						phase = "consolidation"
-						content = `{"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]}`
+						content = maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]`)
 					}
 					calls = append(calls, phase)
 					if phase == slow {
@@ -174,9 +191,9 @@ func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 				}
 				if slow == "consolidation" {
 					candidates, err := stm.GetConsolidationCandidates(10, 3)
-					// SQLite retry timestamps use the real clock; only the released
-					// claim is immediately eligible inside the fake-clock test.
-					if err != nil || len(candidates) != 1 {
+					// The grouped request owns both messages and releases both without
+					// consuming retries when its request deadline expires.
+					if err != nil || len(candidates) != 2 {
 						t.Fatalf("eligible candidates=%d err=%v", len(candidates), err)
 					}
 					pending := 0
@@ -185,7 +202,7 @@ func TestMaintenanceConsolidationMakesProgressBeforeSlowPhases(t *testing.T) {
 							pending++
 						}
 					}
-					if pending != 1 {
+					if pending != 2 {
 						t.Fatal("phase deadline consumed a retry")
 					}
 				}
@@ -251,7 +268,7 @@ func TestMaintenanceCompletionsReserveReasoningWithinProviderLimits(t *testing.T
 		}
 		content := "Configured NAS backups."
 		if strings.Contains(req.Messages[0].Content, "knowledge extraction engine") {
-			content = `{"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]}`
+			content = maintenanceConsolidationResponseForRequest(req, `"facts":[{"concept":"Backup target","content":"The backup target is the NAS."}]`)
 		}
 		return skillQualityTestClient{response: content}.CreateChatCompletion(ctx, req)
 	}}

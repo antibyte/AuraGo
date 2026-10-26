@@ -640,32 +640,50 @@
         return el;
     }
 
+    // keyValue edits an object of keys and values (HTTP headers, for example). Keys are compared
+    // trimmed. While two rows share a key nothing is emitted (an object cannot hold both, and the
+    // later one would silently replace the earlier): those rows are marked aria-invalid and point
+    // at one message through aria-describedby. A value the editor did not change keeps its type, so
+    // a number or a flag from an import stays one (an object is cloned); an edited value is text.
     function keyValue(env, value, onChange) {
         const c = core();
         const { t, esc } = env;
         const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-        const pairs = Object.entries(source).map(([k, v]) => ({ k, v: v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v) }));
+        const shown = v => v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+        const pairs = Object.entries(source).map(([k, v]) => ({ k, v: shown(v), raw: v, edited: false }));
+        const errorId = 'ed-kv-error-' + (++fieldCount);
         const el = c.el('<div class="ed-kv"><div class="ed-kv-rows"></div>' +
+            '<p class="ed-json-error" id="' + errorId + '" aria-live="polite" data-ed-kv-error></p>' +
             (env.readonly ? '' : '<button type="button" class="ed-btn ed-btn--ghost ed-btn--small" data-ed-kv-add>' + c.icon('plus') + '<span>' + esc(t('easydrag.ui.kv_add')) + '</span></button>') + '</div>');
         const rows = el.querySelector('.ed-kv-rows');
-        const emit = () => {
-            const out = {};
-            pairs.forEach(p => { if (p.k.trim()) out[p.k.trim()] = p.v; });
-            onChange(out);
+        const error = el.querySelector('[data-ed-kv-error]');
+        error.hidden = true;
+        const valueOf = p => {
+            if (p.edited || typeof p.raw === 'string') return p.v;
+            return p.raw && typeof p.raw === 'object' ? JSON.parse(JSON.stringify(p.raw)) : p.raw;
         };
+        // markDuplicates marks the rows whose trimmed key another row has too and reports whether any does.
         const markDuplicates = () => {
             const counts = new Map();
-            pairs.forEach(p => {
-                const k = p.k.trim();
-                if (k) counts.set(k, (counts.get(k) || 0) + 1);
-            });
+            pairs.forEach(p => { const k = p.k.trim(); if (k) counts.set(k, (counts.get(k) || 0) + 1); });
+            let any = false;
             rows.querySelectorAll('[data-ed-kv-key]').forEach((inp, i) => {
                 const k = (pairs[i] && pairs[i].k || '').trim();
                 const dup = Boolean(k && (counts.get(k) || 0) > 1);
+                any = any || dup;
                 inp.classList.toggle('is-invalid', dup);
-                if (dup) inp.setAttribute('aria-invalid', 'true');
-                else inp.removeAttribute('aria-invalid');
+                if (dup) { inp.setAttribute('aria-invalid', 'true'); inp.setAttribute('aria-describedby', errorId); }
+                else { inp.removeAttribute('aria-invalid'); inp.removeAttribute('aria-describedby'); }
             });
+            error.textContent = any ? t('easydrag.ui.kv_duplicate_key') : '';
+            error.hidden = !any;
+            return any;
+        };
+        const emit = () => {
+            if (markDuplicates()) return;
+            const out = {};
+            pairs.forEach(p => { if (p.k.trim()) out[p.k.trim()] = valueOf(p); });
+            onChange(out);
         };
         function render() {
             rows.innerHTML = '';
@@ -673,22 +691,18 @@
                 const row = c.el('<div class="ed-kv-row"><input class="ed-input" data-ed-kv-key placeholder="' + esc(t('easydrag.ui.kv_key')) + '" aria-label="' + esc(t('easydrag.ui.kv_key')) + '" value="' + esc(p.k) + '"' + (env.readonly ? ' disabled' : '') + '><div class="ed-kv-value"></div>' +
                     (env.readonly ? '' : '<button type="button" class="ed-icon-btn" data-ed-kv-remove="' + idx + '" aria-label="' + esc(t('easydrag.ui.remove_row', { n: idx + 1 })) + '">' + c.icon('x') + '</button>') + '</div>');
                 const keyInp = row.querySelector('input');
-                const onKeyEdit = (event) => {
-                    p.k = event.target.value;
-                    markDuplicates();
-                    emit();
-                };
+                const onKeyEdit = (event) => { p.k = event.target.value; emit(); };
                 keyInp.addEventListener('input', onKeyEdit);
                 keyInp.addEventListener('change', onKeyEdit);
-                row.querySelector('.ed-kv-value').appendChild(templateField(withChange(env, v => { p.v = v; emit(); }), p.v, { placeholder: t('easydrag.ui.kv_value'), label: t('easydrag.ui.kv_value') }).el);
+                row.querySelector('.ed-kv-value').appendChild(templateField(withChange(env, v => { p.v = v; p.edited = true; emit(); }), p.v, { placeholder: t('easydrag.ui.kv_value'), label: t('easydrag.ui.kv_value') }).el);
                 rows.appendChild(row);
             });
             markDuplicates();
         }
         el.addEventListener('click', (event) => {
-            if (event.target.closest('[data-ed-kv-add]')) { pairs.push({ k: '', v: '' }); render(); return; }
+            if (event.target.closest('[data-ed-kv-add]')) { pairs.push({ k: '', v: '', raw: '', edited: false }); render(); return; }
             const rm = event.target.closest('[data-ed-kv-remove]');
-            if (rm) { pairs.splice(Number(rm.dataset.edKvRemove), 1); emit(); render(); }
+            if (rm) { pairs.splice(Number(rm.dataset.edKvRemove), 1); render(); emit(); }
         });
         render();
         return el;
@@ -698,28 +712,52 @@
         const c = core();
         const { t, esc } = env;
         const text = value === undefined ? '' : JSON.stringify(value, null, 2);
-        const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' + esc(text) + '</textarea><div class="ed-json-error" hidden></div></div>');
+        const errorId = (id || 'ed-json-' + (++fieldCount)) + '-error';
+        const el = c.el('<div class="ed-json"><textarea class="ed-input ed-code" rows="6" spellcheck="false"' + (id ? ' id="' + esc(id) + '"' : '') + (env.readonly ? ' disabled' : '') + '>' + esc(text) + '</textarea>' +
+            '<div class="ed-json-error" id="' + esc(errorId) + '" role="alert" hidden></div></div>');
         const area = el.querySelector('textarea');
         const error = el.querySelector('.ed-json-error');
         let committed = area.value;
+        // showError shows the message as an alert and links it to the field while the text is no JSON (U5).
+        function showError(on) {
+            error.hidden = !on;
+            if (on) {
+                // Written once while the error shows: a rewrite would make a screen reader read it on every keystroke.
+                const text = t('easydrag.ui.json_invalid');
+                if (error.textContent !== text) error.textContent = text;
+                area.setAttribute('aria-invalid', 'true');
+                area.setAttribute('aria-describedby', errorId);
+            } else if (area.getAttribute('aria-describedby') === errorId) {
+                area.removeAttribute('aria-invalid');
+                area.removeAttribute('aria-describedby');
+            }
+        }
         function commit() {
             if (area.edComposing) return false;
             if (area.value === committed && error.hidden) return true;
             const raw = area.value.trim();
-            if (!raw) { error.hidden = true; committed = area.value; onChange(undefined); return true; }
+            if (!raw) { showError(false); committed = area.value; onChange(undefined); return true; }
             try {
                 const parsed = JSON.parse(raw);
-                error.hidden = true;
+                showError(false);
                 committed = area.value;
                 onChange(parsed);
                 return true;
             } catch (err) {
-                error.hidden = false;
-                error.textContent = t('easydrag.ui.json_invalid');
+                showError(true);
                 return false;
             }
         }
+        // Change and blur announce a standing error afresh.
+        const announceAgain = () => {
+            if (error.hidden) return;
+            const text = error.textContent;
+            error.textContent = '';
+            error.textContent = text;
+        };
         area.addEventListener('input', () => { commit(); });
+        area.addEventListener('change', announceAgain);
+        area.addEventListener('blur', announceAgain);
         area.edCommit = commit;
         return el;
     }

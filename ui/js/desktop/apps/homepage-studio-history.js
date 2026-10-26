@@ -19,7 +19,8 @@
             loadingMore: false,
             enabled: true,
             projectId: 0,
-            abortCtrl: null
+            abortCtrl: null,
+            debounceTimer: null
         };
 
         function esc(value) {
@@ -33,10 +34,12 @@
         }
 
         function debounce(fn, ms) {
-            let timer;
             return function (...args) {
-                clearTimeout(timer);
-                timer = setTimeout(() => fn.apply(this, args), ms);
+                if (state.debounceTimer) clearTimeout(state.debounceTimer);
+                state.debounceTimer = setTimeout(() => {
+                    state.debounceTimer = null;
+                    fn.apply(this, args);
+                }, ms);
             };
         }
 
@@ -98,11 +101,23 @@
         }
 
         function typeLabel(type) {
-            return t('homepage_studio.history_type_' + type, type);
+            const tr = typeof deps.tr === 'function' ? deps.tr : deps.t;
+            return tr('homepage_studio.history_type_' + type, type);
+        }
+
+        function formatTime(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            const locale = deps.locale || window.SYSTEM_LANG || document.documentElement.lang || 'en';
+            return date.toLocaleString(locale);
         }
 
         function renderHistory(entries, emptyMessage, loading) {
             if (!list) return;
+            /* The list is rebuilt on every render; keep the keyboard position. */
+            const active = document.activeElement;
+            const activeMore = active && active.classList ? active.classList.contains('vd-hp-history-more') : false;
             if (loading) {
                 list.innerHTML = `<div class="vd-hp-history-empty">${esc(t('homepage_studio.history_loading'))}</div>`;
                 return;
@@ -112,16 +127,17 @@
                 return;
             }
             const html = entries.map(entry => {
-                const date = entry.created_at ? new Date(entry.created_at).toLocaleString() : '';
+                const date = entry.created_at ? formatTime(entry.created_at) : '';
                 const type = String(entry.entry_type || 'note').replace(/[^a-z_]/g, '') || 'note';
                 const source = entry.source ? `<span class="vd-hp-history-source">${esc(entry.source)}</span>` : '';
                 const author = entry.author ? `<span class="vd-hp-history-author">${esc(entry.author)}</span>` : '';
                 const tags = (entry.tags || []).map(tag => `<span class="vd-hp-history-tag">${esc(tag)}</span>`).join('');
                 const id = esc(String(entry.id || ''));
+                const deleteLabel = t('homepage_studio.history_delete_entry', { date: date || typeLabel(type) });
                 const deleteBtn = deps.readonly ? '' : `
-                            <button type="button" class="vd-hp-history-delete" data-id="${id}" title="${esc(t('homepage_studio.history_delete'))}" aria-label="${esc(t('homepage_studio.history_delete'))}">×</button>`;
+                            <button type="button" class="vd-hp-history-delete" data-id="${id}" title="${esc(deleteLabel)}" aria-label="${esc(deleteLabel)}">×</button>`;
                 return `
-                    <article class="vd-hp-history-entry vd-hp-history-type-${esc(type)}">
+                    <article class="vd-hp-history-entry vd-hp-history-type-${esc(type)}" role="listitem">
                         <header class="vd-hp-history-entry-header">
                             <span class="vd-hp-history-entry-type">${esc(typeLabel(type))}</span>
                             <time class="vd-hp-history-entry-time" datetime="${esc(entry.created_at || '')}">${esc(date)}</time>${deleteBtn}
@@ -145,6 +161,7 @@
                     if (state.loadingMore || state.loading) return;
                     loadHistory(true);
                 });
+                if (activeMore) moreBtn.focus();
             }
         }
 
@@ -204,6 +221,10 @@
             if (state.abortCtrl) {
                 state.abortCtrl.abort();
                 state.abortCtrl = null;
+            }
+            if (state.debounceTimer) {
+                clearTimeout(state.debounceTimer);
+                state.debounceTimer = null;
             }
         }
 

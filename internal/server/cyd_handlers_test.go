@@ -292,6 +292,21 @@ func TestMeshIncomingSpeechUsesPreview(t *testing.T) {
 	if title != "Mesh Carol" || body != "locked" {
 		t.Fatalf("protected got %q %q", title, body)
 	}
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "Deutsch"
+	cfg.Server.UILanguage = "en"
+	cfg.TTS.Language = "fr"
+	got := cydAnnounceLanguage(cfg)
+	if got != "Deutsch" {
+		t.Fatalf("system language %q", got)
+	}
+	if cyd.MeshAnnounce(got) != "Neue Nachricht auf MeshCore" {
+		t.Fatal("mesh speech should follow the system language")
+	}
+	cfg.Agent.SystemLanguage = ""
+	if cydAnnounceLanguage(cfg) != "en" {
+		t.Fatal("UI language should follow when the system language is empty")
+	}
 }
 
 func TestAuthBypassesCYDDeviceRoutes(t *testing.T) {

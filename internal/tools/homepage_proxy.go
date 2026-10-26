@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"aurago/internal/fileutil"
 )
 
 const homepageNetworkName = "aurago-homepage-net"
@@ -32,63 +35,92 @@ func proxyRoutesPath(workspacePath string) string {
 }
 
 // loadProxyRoutes reads the persisted proxy routes from disk.
-// Returns an empty slice (never nil) when the file does not exist.
-func loadProxyRoutes(workspacePath string) []ProxyRoute {
-	proxyRoutesMu.Lock()
-	defer proxyRoutesMu.Unlock()
-
-	path := proxyRoutesPath(workspacePath)
-	data, err := os.ReadFile(path)
+// It returns no routes and no error when the file does not exist, and an error
+// when the file cannot be read or parsed. A damaged route file is never
+// reported as an empty route set.
+func loadProxyRoutes(workspacePath string) ([]ProxyRoute, error) {
+	data, err := os.ReadFile(proxyRoutesPath(workspacePath))
 	if err != nil {
-		return nil
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read proxy routes: %w", err)
 	}
 	var routes []ProxyRoute
 	if err := json.Unmarshal(data, &routes); err != nil {
-		return nil
+		return nil, fmt.Errorf("failed to parse proxy routes %s: %w", proxyRoutesPath(workspacePath), err)
 	}
-	return routes
+	return routes, nil
 }
 
-// saveProxyRoutes persists the given routes to disk.
+// saveProxyRoutes persists the given routes to disk. The file is replaced
+// atomically: a synced temporary file in the same directory is renamed over
+// the target, so a crashed write never leaves a half-written route file.
+//
+// The caller owns the routes lock.
 func saveProxyRoutes(workspacePath string, routes []ProxyRoute) error {
-	proxyRoutesMu.Lock()
-	defer proxyRoutesMu.Unlock()
-
 	data, err := json.MarshalIndent(routes, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal proxy routes: %w", err)
 	}
-	return os.WriteFile(proxyRoutesPath(workspacePath), data, 0644)
+	if err := fileutil.WriteFileContext(context.Background(), proxyRoutesPath(workspacePath), data, 0644); err != nil {
+		return fmt.Errorf("failed to write proxy routes: %w", err)
+	}
+	return nil
+}
+
+// homepageReadProxyRoutes returns the persisted proxy routes under the routes
+// lock.
+func homepageReadProxyRoutes(workspacePath string) ([]ProxyRoute, error) {
+	proxyRoutesMu.Lock()
+	defer proxyRoutesMu.Unlock()
+	return loadProxyRoutes(workspacePath)
+}
+
+// homepageMutateProxyRoutes applies mutate to the persisted routes and
+// persists the result. The whole load → modify → save sequence runs under one
+// lock, so concurrent callers can never lose an update.
+func homepageMutateProxyRoutes(workspacePath string, mutate func([]ProxyRoute) []ProxyRoute) ([]ProxyRoute, error) {
+	proxyRoutesMu.Lock()
+	defer proxyRoutesMu.Unlock()
+	routes, err := loadProxyRoutes(workspacePath)
+	if err != nil {
+		return nil, err
+	}
+	updated := mutate(routes)
+	if err := saveProxyRoutes(workspacePath, updated); err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 
 // RegisterProxyRoute adds or updates a proxy route and persists it.
 // If a route with the same path already exists it is replaced.
 func RegisterProxyRoute(workspacePath string, route ProxyRoute) error {
-	routes := loadProxyRoutes(workspacePath)
-	replaced := false
-	for i, r := range routes {
-		if r.Path == route.Path {
-			routes[i] = route
-			replaced = true
-			break
+	_, err := homepageMutateProxyRoutes(workspacePath, func(routes []ProxyRoute) []ProxyRoute {
+		for i, r := range routes {
+			if r.Path == route.Path {
+				routes[i] = route
+				return routes
+			}
 		}
-	}
-	if !replaced {
-		routes = append(routes, route)
-	}
-	return saveProxyRoutes(workspacePath, routes)
+		return append(routes, route)
+	})
+	return err
 }
 
 // RemoveProxyRoute removes a proxy route by path prefix.
 func RemoveProxyRoute(workspacePath, path string) error {
-	routes := loadProxyRoutes(workspacePath)
-	var filtered []ProxyRoute
-	for _, r := range routes {
-		if r.Path != path {
-			filtered = append(filtered, r)
+	_, err := homepageMutateProxyRoutes(workspacePath, func(routes []ProxyRoute) []ProxyRoute {
+		filtered := make([]ProxyRoute, 0, len(routes))
+		for _, r := range routes {
+			if r.Path != path {
+				filtered = append(filtered, r)
+			}
 		}
-	}
-	return saveProxyRoutes(workspacePath, filtered)
+		return filtered
+	})
+	return err
 }
 
 func filterProxyRoutesForStaticProject(routes []ProxyRoute, projectDir string) []ProxyRoute {
@@ -241,13 +273,55 @@ func reloadCaddy(dockerCfg DockerConfig, logger *slog.Logger) (string, error) {
 	return output, fmt.Errorf("caddy reload failed: %s", truncateStr(output, 500))
 }
 
+// writeHomepageBindMountedFile writes a file that is bind-mounted into a
+// container (the Caddyfile). The container binds the file by inode, so
+// replacing it with a rename would leave the running container on the
+// previous content. The new content is therefore staged in a synced temporary
+// file in the same directory and copied into the existing file, which keeps the
+// bind mount valid.
+func writeHomepageBindMountedFile(path string, content []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".aurago-publish-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(content); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	staged, err := os.ReadFile(tmpName)
+	if err != nil {
+		return err
+	}
+	target, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer target.Close()
+	if err := target.Truncate(0); err != nil {
+		return err
+	}
+	if _, err := target.WriteAt(staged, 0); err != nil {
+		return err
+	}
+	return target.Sync()
+}
+
 // rewriteCaddyfileWithProxyRoutes rewrites the Caddyfile on disk (inside the
 // container mount) and reloads Caddy.  Used when a dev server starts/stops
 // and the proxy routes change while the web container is already running.
 func rewriteCaddyfileWithProxyRoutes(cfg HomepageConfig, dockerCfg DockerConfig, routes []ProxyRoute, logger *slog.Logger) error {
 	caddyfile := buildCaddyfileWithProxies(cfg.WebServerDomain, cfg.WebServerPort, routes)
 	caddyfilePath := filepath.Join(cfg.WorkspacePath, ".aurago-Caddyfile")
-	if err := os.WriteFile(caddyfilePath, []byte(caddyfile), 0644); err != nil {
+	if err := writeHomepageBindMountedFile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("failed to write Caddyfile: %w", err)
 	}
 

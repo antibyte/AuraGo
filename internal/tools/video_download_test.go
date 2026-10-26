@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -112,11 +113,128 @@ func TestBuildYtDlpDownloadArgsUsesModeSpecificOutputDir(t *testing.T) {
 	if !strings.Contains(strings.Join(dockerArgs, " "), "--max-filesize 500M") {
 		t.Fatalf("docker args should enforce yt-dlp max filesize: %v", dockerArgs)
 	}
+	joinedDocker := strings.Join(dockerArgs, " ")
+	if !strings.Contains(joinedDocker, "--cache-dir /downloads/.yt-dlp-cache") || !strings.Contains(joinedDocker, "--paths temp:/downloads/.yt-dlp-tmp") {
+		t.Fatalf("docker args should keep yt-dlp cache and temp on the download dir: %v", dockerArgs)
+	}
 
 	nativeDir := filepath.Join(t.TempDir(), "downloads")
 	nativeArgs := buildYtDlpDownloadArgs(cfg, req, "https://youtu.be/dQw4w9WgXcQ", "video", nativeDir)
-	if !strings.Contains(strings.Join(nativeArgs, " "), filepath.ToSlash(nativeDir)+"/%(title).200B") {
+	nativeJoined := strings.Join(nativeArgs, " ")
+	nativeBase := filepath.ToSlash(nativeDir)
+	if !strings.Contains(nativeJoined, nativeBase+"/%(title).200B") {
 		t.Fatalf("native args should use host download dir: %v", nativeArgs)
+	}
+	if !strings.Contains(nativeJoined, "--cache-dir "+nativeBase+"/.yt-dlp-cache") || !strings.Contains(nativeJoined, "--paths temp:"+nativeBase+"/.yt-dlp-tmp") {
+		t.Fatalf("native args should keep yt-dlp cache and temp on the download dir: %v", nativeArgs)
+	}
+}
+
+func TestBuildYtDlpDownloadArgsAppliesQualityToDefaultFormat(t *testing.T) {
+	const medium = videoDownloadFormatMedium
+	const low = videoDownloadFormatLow
+	cases := []struct {
+		name    string
+		def     string
+		format  string
+		quality string
+		want    string
+	}{
+		{name: "new default low", def: medium, format: "video", quality: "low", want: low},
+		{name: "new default medium", def: medium, format: "video", quality: "medium", want: medium},
+		{name: "new default best lifts the cap", def: medium, format: "video", quality: "best", want: videoDownloadFormatBest},
+		{name: "omitted quality keeps the 720p default", def: medium, format: "video", quality: "", want: medium},
+		{name: "saved best still accepts low", def: "best", format: "", quality: "low", want: low},
+		{name: "saved best still accepts medium", def: "best", format: "video", quality: "medium", want: medium},
+		{name: "explicit best still accepts low", def: medium, format: "best", quality: "low", want: low},
+		{name: "custom format ignores quality", def: medium, format: "bv*[height<=1080]+ba/b", quality: "low", want: "bv*[height<=1080]+ba/b"},
+		{name: "audio ignores quality", def: medium, format: "audio", quality: "low", want: "bestaudio/best"},
+		{name: "empty default still falls through to best", def: "", format: "video", quality: "", want: videoDownloadFormatBest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Tools.VideoDownload.DefaultFormat = tc.def
+			args := buildYtDlpDownloadArgs(cfg, VideoDownloadRequest{Format: tc.format, Quality: tc.quality}, "https://youtu.be/dQw4w9WgXcQ", strings.ToLower(strings.TrimSpace(tc.format)), videoDownloadContainerDir)
+			if got := ytDlpFormatArg(t, args); got != tc.want {
+				t.Fatalf("format = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func ytDlpFormatArg(t *testing.T, args []string) string {
+	t.Helper()
+	for i, arg := range args {
+		if arg == "-f" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	t.Fatalf("args have no -f value: %v", args)
+	return ""
+}
+
+func TestVideoDownloadSearchRejectsLongQuery(t *testing.T) {
+	cfg := &config.Config{}
+	raw := videoDownloadSearch(context.Background(), cfg, VideoDownloadRequest{
+		Query: strings.Repeat("ä", 301),
+	}, nil)
+	var result videoDownloadResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("decode result: %v\n%s", err, raw)
+	}
+	if result.Status != "error" || !strings.Contains(result.Message, "300") {
+		t.Fatalf("result = %+v, want a 300-character rejection", result)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cfg.Tools.VideoDownload.Mode = "native"
+	raw = videoDownloadSearch(ctx, cfg, VideoDownloadRequest{Query: strings.Repeat("a", 300)}, nil)
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("decode boundary result: %v\n%s", err, raw)
+	}
+	if strings.Contains(result.Message, "300") {
+		t.Fatalf("300-rune query was rejected: %+v", result)
+	}
+}
+
+func TestVideoDownloadRunsOneAtATime(t *testing.T) {
+	videoDownloadSlot <- struct{}{}
+	released := false
+	t.Cleanup(func() {
+		if !released {
+			select {
+			case <-videoDownloadSlot:
+			default:
+			}
+		}
+	})
+
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Mode = "native"
+	cfg.Tools.VideoDownload.TimeoutSeconds = 5
+	started := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		close(started)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, _, _ = runYtDlp(ctx, cfg, []string{"--version"}, nil)
+		close(done)
+	}()
+	<-started
+	select {
+	case <-done:
+		t.Fatal("second yt-dlp run finished while the slot was held")
+	case <-time.After(150 * time.Millisecond):
+	}
+	<-videoDownloadSlot
+	released = true
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("second yt-dlp run did not continue after the slot was released")
 	}
 }
 

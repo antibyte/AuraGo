@@ -42,6 +42,12 @@ type OAuthToken struct {
 type IndexingDirectory struct {
 	Path       string `yaml:"path"`
 	Collection string `yaml:"collection"` // optional; empty = default "file_index"
+	// AllowMediaAnalysis is the per-folder opt-in for sending this folder's
+	// images, audio and scanned PDFs to the Vision LLM or the multimodal
+	// embedding provider. It is an additional, required gate next to the global
+	// capability switches indexing.index_images and embeddings.multimodal, and
+	// stays off unless the user enables it for the folder.
+	AllowMediaAnalysis bool `yaml:"allow_media_analysis,omitempty" json:"allow_media_analysis"`
 }
 
 type IndexingChunkingConfig struct {
@@ -121,19 +127,21 @@ func (c ProviderCapabilities) AutoEnabled() bool {
 // ProviderEntry defines a named LLM provider connection that can be referenced
 // by multiple config slots (LLM, Fallback, Vision, Whisper, Embeddings, etc.).
 type ProviderEntry struct {
-	ID              string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
-	Name            string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
-	Usage           string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
-	Type            string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
-	BaseURL         string               `yaml:"base_url" json:"base_url"`                                       // API base URL
-	APIKey          string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
-	Model           string               `yaml:"model"    json:"model"`                                          // default model name
-	ContextWindow   int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
-	MaxOutputTokens int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
-	Capabilities    ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	RuntimeOAuthToken string               `yaml:"-" json:"-"`                                                     // runtime-only access token; never a stored API key
+	ID                string               `yaml:"id"       json:"id"`                                             // unique slug, e.g. "main", "vision", "local-ollama"
+	Name              string               `yaml:"name"     json:"name"`                                           // human-readable label shown in UI
+	Usage             string               `yaml:"usage,omitempty" json:"usage,omitempty"`                         // "general" (default/legacy) or "decisions"
+	Type              string               `yaml:"type"     json:"type"`                                           // openai, openrouter, ollama, anthropic, google, custom
+	BaseURL           string               `yaml:"base_url" json:"base_url"`                                       // API base URL
+	APIKey            string               `yaml:"-" vault:"api_key" json:"-"`                                     // API key (vault-only)
+	Model             string               `yaml:"model"    json:"model"`                                          // default model name
+	ContextWindow     int                  `yaml:"context_window,omitempty" json:"context_window,omitempty"`       // optional model-context override; 0 = automatic
+	MaxOutputTokens   int                  `yaml:"max_output_tokens,omitempty" json:"max_output_tokens,omitempty"` // optional output-limit override; 0 = automatic
+	Capabilities      ProviderCapabilities `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
 
-	// Cloudflare Workers AI — required when Type is "workers-ai"
-	AccountID string `yaml:"account_id,omitempty" json:"account_id"` // Cloudflare account ID
+	// Cloudflare account identity, required for Workers AI and Cloudflare REST.
+	AccountID string `yaml:"account_id,omitempty" json:"account_id"`           // Cloudflare account ID
+	GatewayID string `yaml:"gateway_id,omitempty" json:"gateway_id,omitempty"` // explicit Cloudflare REST gateway
 
 	// OAuth2 Authorization Code flow (optional, alternative to static API key)
 	AuthType          string `yaml:"auth_type,omitempty"           json:"auth_type"`       // "api_key" (default) or "oauth2"
@@ -260,8 +268,8 @@ type MediaConversionConfig struct {
 	ReadOnly        bool   `yaml:"readonly"`         // block conversion writes when true; info remains allowed
 	FFmpegPath      string `yaml:"ffmpeg_path"`      // optional ffmpeg binary path override
 	ImageMagickPath string `yaml:"imagemagick_path"` // optional ImageMagick binary path override
-	TimeoutSeconds  int    `yaml:"timeout_seconds"`  // per-conversion timeout in seconds
-	MaxFileSizeMB   int    `yaml:"max_file_size_mb"` // max input file size in MB (0 = unlimited)
+	TimeoutSeconds  int    `yaml:"timeout_seconds"`  // per-conversion timeout in seconds (5..1800, 0 = default)
+	MaxFileSizeMB   int    `yaml:"max_file_size_mb"` // max input file size in MB (0 = unlimited, max 102400)
 }
 
 // VideoDownloadConfig holds settings for the video_download tool.
@@ -717,6 +725,11 @@ type GameMakerConfig struct {
 	MaxAssetSizeMB       int    `yaml:"max_asset_size_mb" json:"max_asset_size_mb"`
 	MaxProjectSizeMB     int    `yaml:"max_project_size_mb" json:"max_project_size_mb"`
 	JobTimeoutSeconds    int    `yaml:"job_timeout_seconds" json:"job_timeout_seconds"`
+	// PlanningTemperature and BuildingTemperature pin sampling for the isolated
+	// agent. Nil keeps the documented defaults (0.6 planning, 0.2 code phases);
+	// values are clamped to the agent loop's 0.05–1.5 range.
+	PlanningTemperature *float64 `yaml:"planning_temperature" json:"planning_temperature"`
+	BuildingTemperature *float64 `yaml:"building_temperature" json:"building_temperature"`
 }
 
 // CYDCreatorConfig controls the CYD Creator desktop app (spec §15). Defaults
@@ -1116,7 +1129,11 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
-	Gog GogConfig `yaml:"gog" json:"gog"`
+	// Callbacks retain server-owned runtime identity through Config.Clone.
+	AcquireS3      func(context.Context, *Config, bool) (*RustFSS3Lease, error) `yaml:"-" json:"-"`
+	S3Availability func(*Config) FeatureAvailability                            `yaml:"-" json:"-"`
+	RustFS         RustFSConfig                                                 `yaml:"rustfs" json:"rustfs"`
+	Gog            GogConfig                                                    `yaml:"gog" json:"gog"`
 	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
 	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.
@@ -1163,6 +1180,7 @@ type Config struct {
 		APIKey                       string   `yaml:"-"       json:"-"`   // resolved from provider entry
 		Model                        string   `yaml:"-"       json:"-"`   // resolved from provider entry
 		AccountID                    string   `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
+		GatewayID                    string   `yaml:"-" json:"-"`         // resolved Cloudflare REST gateway
 		LegacyURL                    string   `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
 		LegacyAPIKey                 string   `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
 		LegacyModel                  string   `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
@@ -1172,6 +1190,7 @@ type Config struct {
 		HelperBaseURL                string   `yaml:"-"         json:"-"` // resolved helper base URL
 		HelperAPIKey                 string   `yaml:"-"         json:"-"` // resolved helper API key
 		HelperAccountID              string   `yaml:"-"         json:"-"` // resolved helper account ID (workers-ai)
+		HelperGatewayID              string   `yaml:"-" json:"-"`         // resolved helper Cloudflare REST gateway
 		HelperModel                  string   `yaml:"helper_model"`       // optional helper model override (empty = provider default)
 		HelperResolvedModel          string   `yaml:"-"         json:"-"` // resolved helper model
 		UseNativeFunctions           bool     `yaml:"use_native_functions"`
@@ -1212,21 +1231,24 @@ type Config struct {
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		GameMakerPath        string `yaml:"game_maker_path"`
-		CYDCreatorPath       string `yaml:"cyd_creator_path"`
-		ContactsPath         string `yaml:"contacts_path"`
-		PlannerPath          string `yaml:"planner_path"`
-		VirtualDesktopPath   string `yaml:"virtual_desktop_path"`
-		VirtualComputersPath string `yaml:"virtual_computers_path"`
-		SiteMonitorPath      string `yaml:"site_monitor_path"`
-		SQLConnectionsPath   string `yaml:"sql_connections_path"`
-		SkillsPath           string `yaml:"skills_path"`
-		KnowledgeGraphPath   string `yaml:"knowledge_graph_path"`
-		OptimizationPath     string `yaml:"optimization_path"`
-		PreparedMissionsPath string `yaml:"prepared_missions_path"`
-		MissionHistoryPath   string `yaml:"mission_history_path"`
-		PushPath             string `yaml:"push_path"`
-		LaunchpadPath        string `yaml:"launchpad_path"`
-		NetworkSharesPath    string `yaml:"network_shares_path"`
+		DetectivePath        string `yaml:"detective_path"`
+		// DetectivePathDefaulted records that Load applied the default, not the operator.
+		DetectivePathDefaulted bool   `yaml:"-"`
+		CYDCreatorPath         string `yaml:"cyd_creator_path"`
+		ContactsPath           string `yaml:"contacts_path"`
+		PlannerPath            string `yaml:"planner_path"`
+		VirtualDesktopPath     string `yaml:"virtual_desktop_path"`
+		VirtualComputersPath   string `yaml:"virtual_computers_path"`
+		SiteMonitorPath        string `yaml:"site_monitor_path"`
+		SQLConnectionsPath     string `yaml:"sql_connections_path"`
+		SkillsPath             string `yaml:"skills_path"`
+		KnowledgeGraphPath     string `yaml:"knowledge_graph_path"`
+		OptimizationPath       string `yaml:"optimization_path"`
+		PreparedMissionsPath   string `yaml:"prepared_missions_path"`
+		MissionHistoryPath     string `yaml:"mission_history_path"`
+		PushPath               string `yaml:"push_path"`
+		LaunchpadPath          string `yaml:"launchpad_path"`
+		NetworkSharesPath      string `yaml:"network_shares_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -1432,7 +1454,6 @@ type Config struct {
 			MaxPerSession   int  `yaml:"max_per_session"`    // max inner voice generations per session (default: 20)
 			DecayTurns      int  `yaml:"decay_turns"`        // turns after which inner voice fades from prompt (default: 3)
 			DecayMaxAgeSecs int  `yaml:"decay_max_age_secs"` // max seconds before inner voice expires regardless of turns (default: 300 = 5min)
-			ErrorStreakMin  int  `yaml:"error_streak_min"`   // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`
 	CircuitBreaker struct {
@@ -1448,6 +1469,7 @@ type Config struct {
 		UserID               int64  `yaml:"telegram_user_id"`
 		BotToken             string `yaml:"-" vault:"bot_token"` // vault-only
 		MaxConcurrentWorkers int    `yaml:"max_concurrent_workers"`
+		ReadOnly             bool   `yaml:"readonly"` // true = inbound only, block outbound sends
 	} `yaml:"telegram"`
 	Whisper struct {
 		Provider     string `yaml:"provider"`          // provider entry ID
@@ -1479,6 +1501,7 @@ type Config struct {
 		APIKey               string `yaml:"-"       json:"-"`  // resolved
 		Model                string `yaml:"-"       json:"-"`  // resolved
 		AccountID            string `yaml:"-"       json:"-"`  // resolved from provider entry (workers-ai)
+		GatewayID            string `yaml:"-" json:"-"`        // resolved Cloudflare REST gateway
 		LegacyURL            string `yaml:"base_url" json:"-"` // legacy/compat
 		LegacyAPIKey         string `yaml:"api_key"  json:"-"` // legacy/compat
 		LegacyModel          string `yaml:"model"    json:"-"` // legacy/compat
@@ -1537,7 +1560,7 @@ type Config struct {
 		Provider           string            `yaml:"provider"`              // provider entry ID (falls back to main LLM)
 		Model              string            `yaml:"model"`                 // model override (optional)
 		DefaultLevel       string            `yaml:"default_level"`         // off, low, medium, high (default "medium")
-		FailSafe           string            `yaml:"fail_safe"`             // block, allow, quarantine on guardian error (default "block")
+		FailSafe           string            `yaml:"fail_safe"`             // block (default), quarantine (stop, fixed notice), or allow (only fail-open path) on guardian error
 		CacheTTL           int               `yaml:"cache_ttl"`             // cache TTL in seconds (default 300)
 		MaxChecksPerMin    int               `yaml:"max_checks_per_minute"` // rate limit (default 60)
 		MaxChecksPerMinOld int               `yaml:"max_checks_per_min"`    // deprecated compatibility alias
@@ -1594,12 +1617,14 @@ type Config struct {
 		EnablePromptLog bool   `yaml:"enable_prompt_log"`
 	} `yaml:"logging"`
 	Discord struct {
-		Enabled          bool   `yaml:"enabled"`
-		ReadOnly         bool   `yaml:"readonly"`            // true = only fetch/list, block send
-		BotToken         string `yaml:"-" vault:"bot_token"` // vault-only
-		GuildID          string `yaml:"guild_id"`
-		AllowedUserID    string `yaml:"allowed_user_id"`
-		DefaultChannelID string `yaml:"default_channel_id"`
+		Enabled              bool     `yaml:"enabled"`
+		ReadOnly             bool     `yaml:"readonly"`            // true = only fetch/list, block send
+		BotToken             string   `yaml:"-" vault:"bot_token"` // vault-only
+		GuildID              string   `yaml:"guild_id"`
+		AllowedUserID        string   `yaml:"allowed_user_id"`
+		DefaultChannelID     string   `yaml:"default_channel_id"`
+		AllowedChannelIDs    []string `yaml:"allowed_channel_ids"` // empty = no channel restriction (legacy)
+		MaxConcurrentWorkers int      `yaml:"max_concurrent_workers"`
 	} `yaml:"discord"`
 	Email struct {
 		Enabled           bool   `yaml:"enabled"`
@@ -1860,6 +1885,7 @@ type Config struct {
 		BaseURL           string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
 	S3 struct {
+		Provider     string `yaml:"provider"`
 		Enabled      bool   `yaml:"enabled"`
 		ReadOnly     bool   `yaml:"readonly"`             // true = only list/download, block upload/delete/copy/move
 		Endpoint     string `yaml:"endpoint"`             // e.g. https://s3.amazonaws.com or http://minio.local:9000
@@ -1877,11 +1903,14 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider            string `yaml:"provider"`              // "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", or "s2s"
-		Language            string `yaml:"language"`              // BCP-47 language; "auto" follows the user language for sanoTTS
+		Provider            string `yaml:"provider"`              // Phonon, sanoTTS, Google, cloud speech providers, Piper, Supertonic, or s2s
+		Language            string `yaml:"language"`              // BCP-47 language; "auto" follows the user language
 		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
 		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)
-		ElevenLabs          struct {
+		Phonon              struct {
+			VoiceID string `yaml:"voice_id"` // empty selects a bundled voice by language and persona
+		} `yaml:"phonon"`
+		ElevenLabs struct {
 			APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 			VoiceID string `yaml:"voice_id"`          // default voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"
@@ -1897,7 +1926,11 @@ type Config struct {
 			VoiceID string `yaml:"voice_id"`          // preset or custom Mistral voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "voxtral-mini-tts-2603"
 		} `yaml:"mistral"`
-		Piper struct {
+		XAI      TTSVoiceProviderConfig `yaml:"xai"`
+		OpenAI   TTSModelProviderConfig `yaml:"openai"`
+		StepFun  TTSModelProviderConfig `yaml:"stepfun"`
+		Resemble TTSVoiceProviderConfig `yaml:"resemble"`
+		Piper    struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage a Piper TTS container
 			Voice         string `yaml:"voice"`          // e.g. "de_DE-thorsten-high"
 			SpeakerID     int    `yaml:"speaker_id"`     // multi-speaker model speaker index
@@ -1968,16 +2001,17 @@ type Config struct {
 		} `yaml:"pushover"`
 	} `yaml:"notifications"`
 	Auth struct {
-		Enabled                    bool   `yaml:"enabled"`                      // enable login page protection
-		AllowUnauthenticatedRemote bool   `yaml:"allow_unauthenticated_remote"` // explicit unsafe remote exposure without login
-		PasswordHash               string `yaml:"-" vault:"password_hash"`      // bcrypt hash (vault-only)
-		SessionSecret              string `yaml:"-" vault:"session_secret"`     // HMAC key for session cookies (vault-only)
-		SessionTimeoutHours        int    `yaml:"session_timeout_hours"`        // how long a session stays valid (default 24h)
-		RequireOriginHeader        bool   `yaml:"require_origin_header"`        // require Origin on authenticated state-changing requests
-		TOTPSecret                 string `yaml:"-" vault:"totp_secret"`        // base32 TOTP secret for 2FA (vault-only)
-		TOTPEnabled                bool   `yaml:"totp_enabled"`                 // whether TOTP 2FA is active
-		MaxLoginAttempts           int    `yaml:"max_login_attempts"`           // failed attempts before lockout (default 5)
-		LockoutMinutes             int    `yaml:"lockout_minutes"`              // lockout duration in minutes (default 15)
+		Enabled                    bool           `yaml:"enabled"`                      // enable login page protection
+		AllowUnauthenticatedRemote bool           `yaml:"allow_unauthenticated_remote"` // explicit unsafe remote exposure without login
+		PasswordHash               string         `yaml:"-" vault:"password_hash"`      // bcrypt hash (vault-only)
+		SessionSecret              string         `yaml:"-" vault:"session_secret"`     // HMAC key for session cookies (vault-only)
+		SessionTimeoutHours        int            `yaml:"session_timeout_hours"`        // how long a session stays valid (default 24h)
+		RequireOriginHeader        bool           `yaml:"require_origin_header"`        // require Origin on authenticated state-changing requests
+		TOTPSecret                 string         `yaml:"-" vault:"totp_secret"`        // base32 TOTP secret for 2FA (vault-only)
+		TOTPEnabled                bool           `yaml:"totp_enabled"`                 // whether TOTP 2FA is active
+		WebAuthn                   WebAuthnConfig `yaml:"webauthn"`
+		MaxLoginAttempts           int            `yaml:"max_login_attempts"` // failed attempts before lockout (default 5)
+		LockoutMinutes             int            `yaml:"lockout_minutes"`    // lockout duration in minutes (default 15)
 	} `yaml:"auth"`
 	WebConfig struct {
 		Enabled bool `yaml:"enabled"` // false = /config endpoint disabled for security
@@ -2386,6 +2420,10 @@ type Config struct {
 		VirtualComputers struct {
 			Enabled bool `yaml:"enabled"` // enable virtual_computers tool (microVM control plane)
 		} `yaml:"virtual_computers"`
+		QRCode struct {
+			Enabled  bool `yaml:"enabled"`
+			ReadOnly bool `yaml:"readonly"`
+		} `yaml:"qr_code"`
 		OfficeDocument struct {
 			Enabled  bool `yaml:"enabled"`  // enable office_document tool (agent-safe Writer document operations)
 			ReadOnly bool `yaml:"readonly"` // true = only read documents, block write/patch/export
@@ -2495,17 +2533,18 @@ type Config struct {
 		} `yaml:"allowed_paths"` // additional paths beyond defaults
 	} `yaml:"shell_sandbox"`
 	AIGateway struct {
-		Enabled          bool              `yaml:"enabled" json:"enabled"`
-		AccountID        string            `yaml:"account_id" json:"account_id"`                 // Cloudflare account ID
-		GatewayID        string            `yaml:"gateway_id" json:"gateway_id"`                 // AI Gateway name/slug
-		Mode             string            `yaml:"mode" json:"mode"`                             // "auto" (default), "openai_compatible", or "provider_native"
-		LogMode          string            `yaml:"log_mode" json:"log_mode"`                     // "metadata_only" (default), "off", or "full"
-		Metadata         map[string]string `yaml:"metadata" json:"metadata"`                     // up to five custom metadata tags for cf-aig-metadata
-		RequestTimeoutMS int               `yaml:"request_timeout_ms" json:"request_timeout_ms"` // cf-aig-request-timeout in milliseconds
-		MaxAttempts      int               `yaml:"max_attempts" json:"max_attempts"`             // cf-aig-max-attempts, max 5
-		RetryDelayMS     int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`         // cf-aig-retry-delay in milliseconds, max 5000
-		Backoff          string            `yaml:"backoff" json:"backoff"`                       // "constant", "linear", or "exponential"
-		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
+		Enabled                 bool              `yaml:"enabled" json:"enabled"`
+		AccountID               string            `yaml:"account_id" json:"account_id"`                               // Cloudflare account ID
+		GatewayID               string            `yaml:"gateway_id" json:"gateway_id"`                               // AI Gateway name/slug
+		HuggingFaceProviderSlug string            `yaml:"huggingface_provider_slug" json:"huggingface_provider_slug"` // preconfigured Cloudflare custom provider
+		Mode                    string            `yaml:"mode" json:"mode"`                                           // "auto" (default), "openai_compatible", or "provider_native"
+		LogMode                 string            `yaml:"log_mode" json:"log_mode"`                                   // "metadata_only" (default), "off", or "full"
+		Metadata                map[string]string `yaml:"metadata" json:"metadata"`                                   // up to five custom metadata tags for cf-aig-metadata
+		RequestTimeoutMS        int               `yaml:"request_timeout_ms" json:"request_timeout_ms"`               // cf-aig-request-timeout in milliseconds
+		MaxAttempts             int               `yaml:"max_attempts" json:"max_attempts"`                           // cf-aig-max-attempts, max 5
+		RetryDelayMS            int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`                       // cf-aig-retry-delay in milliseconds, max 5000
+		Backoff                 string            `yaml:"backoff" json:"backoff"`                                     // "constant", "linear", or "exponential"
+		Token                   string            `yaml:"-" vault:"token" json:"-"`                                   // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
 	Manus       ManusConfig       `yaml:"manus" json:"manus"`
@@ -2780,22 +2819,44 @@ func yamlConfigHasKey(node *yaml.Node, key string) bool {
 
 // YepAPIConfig holds settings for the YepAPI tool suite.
 type YepAPIConfig struct {
-	Enabled      bool                `yaml:"enabled" json:"enabled"`
-	Provider     string              `yaml:"provider" json:"provider"` // provider entry ID (empty = auto-select first yepapi provider)
-	ProviderType string              `yaml:"-" json:"-"`               // resolved: provider type
-	BaseURL      string              `yaml:"base_url" json:"base_url"` // custom YepAPI base URL (empty = https://api.yepapi.com)
-	SEO          YepAPIServiceConfig `yaml:"seo" json:"seo"`
-	SERP         YepAPIServiceConfig `yaml:"serp" json:"serp"`
-	Scraping     YepAPIServiceConfig `yaml:"scraping" json:"scraping"`
-	YouTube      YepAPIServiceConfig `yaml:"youtube" json:"youtube"`
-	TikTok       YepAPIServiceConfig `yaml:"tiktok" json:"tiktok"`
-	Instagram    YepAPIServiceConfig `yaml:"instagram" json:"instagram"`
-	Amazon       YepAPIServiceConfig `yaml:"amazon" json:"amazon"`
+	Enabled            bool                `yaml:"enabled" json:"enabled"`
+	Provider           string              `yaml:"provider" json:"provider"`                         // provider entry ID (empty = auto-select first yepapi provider)
+	BaseURL            string              `yaml:"base_url" json:"base_url"`                         // custom YepAPI base URL (empty = https://api.yepapi.com)
+	BudgetQuotaPercent int                 `yaml:"budget_quota_percent" json:"budget_quota_percent"` // share of the daily budget reserved for YepAPI (0 = disabled)
+	SEO                YepAPIServiceConfig `yaml:"seo" json:"seo"`
+	SERP               YepAPIServiceConfig `yaml:"serp" json:"serp"`
+	Scraping           YepAPIServiceConfig `yaml:"scraping" json:"scraping"`
+	YouTube            YepAPIServiceConfig `yaml:"youtube" json:"youtube"`
+	TikTok             YepAPIServiceConfig `yaml:"tiktok" json:"tiktok"`
+	Instagram          YepAPIServiceConfig `yaml:"instagram" json:"instagram"`
+	Amazon             YepAPIServiceConfig `yaml:"amazon" json:"amazon"`
 }
 
 // YepAPIServiceConfig holds per-service enablement for YepAPI.
 type YepAPIServiceConfig struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+// ServiceEnabled reports the label and the enablement of a native YepAPI tool
+// family. The label names the settings section used in the disabled message.
+func (c YepAPIConfig) ServiceEnabled(tool string) (label string, enabled bool, ok bool) {
+	switch tool {
+	case "yepapi_seo":
+		return "SEO", c.SEO.Enabled, true
+	case "yepapi_serp":
+		return "SERP", c.SERP.Enabled, true
+	case "yepapi_scrape":
+		return "Scraping", c.Scraping.Enabled, true
+	case "yepapi_youtube":
+		return "YouTube", c.YouTube.Enabled, true
+	case "yepapi_tiktok":
+		return "TikTok", c.TikTok.Enabled, true
+	case "yepapi_instagram":
+		return "Instagram", c.Instagram.Enabled, true
+	case "yepapi_amazon":
+		return "Amazon", c.Amazon.Enabled, true
+	}
+	return "", false, false
 }
 
 // LDAPConfig holds configuration for LDAP/Active Directory integration.
@@ -2890,9 +2951,11 @@ type CloudflareIngressRule struct {
 
 // ModelCost defines per-model token pricing.
 type ModelCost struct {
-	Name             string  `yaml:"name"`
-	InputPerMillion  float64 `yaml:"input_per_million"`
-	OutputPerMillion float64 `yaml:"output_per_million"`
+	Name             string  `yaml:"name" json:"name"`
+	InputPerMillion  float64 `yaml:"input_per_million" json:"input_per_million"`
+	OutputPerMillion float64 `yaml:"output_per_million" json:"output_per_million"`
+	Source           string  `yaml:"source,omitempty" json:"source,omitempty"`
+	Estimated        bool    `yaml:"estimated,omitempty" json:"estimated,omitempty"`
 }
 
 // ModelCostRates defines fallback pricing for unlisted models.

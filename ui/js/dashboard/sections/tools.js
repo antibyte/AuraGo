@@ -4,6 +4,7 @@
 // statement registers the section loader with DashSections (dash-sections.js); main.js#loadSectionContent runs it.
 
         async function loadSectionTools({ force = false } = {}) {
+			if (window.AuraSelfTests) void window.AuraSelfTests.load();
             CardState.setLoading('card-activity');
             const opts = sectionFetch(force);
             const [activityR, toolStatsR] = await Promise.all([

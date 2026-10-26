@@ -128,6 +128,27 @@
         };
     }
 
+    // say speaks text through the editor's live region (ed.announce, set by the canvas). A state
+    // without a canvas stays silent.
+    function say(ed, text) { if (ed && typeof ed.announce === 'function' && text) ed.announce(text); }
+
+    // stepsText tells what an action did to steps: the name for one, the count for several. The two
+    // texts are separate keys because languages count differently (keyOne takes {name}, keyMany {count}).
+    function stepsText(t, keyOne, keyMany, names) {
+        return names.length === 1 ? t(keyOne, { name: names[0] }) : t(keyMany, { count: names.length });
+    }
+
+    // removeConnection deletes one connection on the user's behalf (the wire's button, Delete, the
+    // inspector) and says which two steps it joined.
+    function removeConnection(ed, edgeId) {
+        const e = ed.model.edge(edgeId);
+        if (!e) return;
+        const name = id => { const n = ed.model.node(id); return n ? (n.label || n.type) : ''; };
+        const text = ed.t('easydrag.ui.announce_disconnected', { from: name(e.source.node), to: name(e.target.node) });
+        ed.model.disconnect([edgeId]);
+        say(ed, text);
+    }
+
     // frame coalesces many requests into one requestAnimationFrame callback.
     function frame(fn) {
         let id = 0;
@@ -209,10 +230,14 @@
         number(value) {
             try { return new Intl.NumberFormat(lang()).format(value); } catch (err) { return String(value); }
         },
+        // decimal formats a number with one decimal in the desktop language ("2,5" in German).
+        decimal(value) {
+            try { return new Intl.NumberFormat(lang(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value); } catch (err) { return Number(value).toFixed(1); }
+        },
         duration(ms) {
             const n = Number(ms) || 0;
             if (n < 1000) return Math.round(n) + ' ms';
-            if (n < 10000) return (n / 1000).toFixed(1) + ' s';
+            if (n < 10000) return fmt.decimal(n / 1000) + ' s';
             // Whole seconds first, then minutes: 119 999 ms reads 2:00 min, not 1:60 min.
             const total = Math.round(n / 1000);
             if (total < 60) return total + ' s';
@@ -240,8 +265,8 @@
         bytes(n) {
             const value = Number(n) || 0;
             if (value < 1024) return value + ' B';
-            if (value < 1048576) return (value / 1024).toFixed(1) + ' KB';
-            return (value / 1048576).toFixed(1) + ' MB';
+            if (value < 1048576) return fmt.decimal(value / 1024) + ' KB';
+            return fmt.decimal(value / 1048576) + ' MB';
         }
     };
 
@@ -470,7 +495,7 @@
     }
 
     ED.core = {
-        ICONS, icon, esc, tr, clamp, debounce, announcer, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
+        ICONS, icon, esc, tr, clamp, debounce, announcer, say, stepsText, removeConnection, frame, emitter, bag, el, isEditable, isMod, shortcut, IS_MAC,
         randomID, lang, fmt, storage, FLOW_KEYS, forgetFlow, createApi, errorCode, errorText, issueText, stepErrorText, modal, capturePointer, catOf, openFlowSettings
     };
 })();

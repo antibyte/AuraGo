@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -16,16 +17,19 @@ import (
 type FailoverManager struct {
 	mu sync.RWMutex
 
-	primary        *openai.Client
-	fallback       *openai.Client
-	primaryType    string
-	fallbackType   string
-	primaryModel   string
-	fallbackModel  string
-	primaryBaseURL string
-	primaryAPIKey  string
-	primaryRoute   ModelRoute
-	fallbackRoute  ModelRoute
+	primary          *openai.Client
+	fallback         *openai.Client
+	primaryType      string
+	fallbackType     string
+	primaryModel     string
+	fallbackModel    string
+	primaryBaseURL   string
+	primaryAPIKey    string
+	primaryProbeHTTP *http.Client
+	primaryRoute     ModelRoute
+	retryPolicy      RetryPolicy
+	probeStatus      FailoverProbeStatus
+	fallbackRoute    ModelRoute
 
 	isOnFallback       bool
 	errorCount         int
@@ -43,15 +47,16 @@ type FailoverManager struct {
 }
 
 type failoverProbeSnapshot struct {
-	route          ModelRoute
-	recorder       func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)
-	generation     int
-	onFallback     bool
-	primaryClient  *openai.Client
-	primaryType    string
-	primaryModel   string
-	primaryBaseURL string
-	primaryAPIKey  string
+	route            ModelRoute
+	recorder         func(context.Context, ModelRoute, openai.ChatCompletionRequest, *UsageCapture, openai.ChatCompletionResponse)
+	generation       int
+	onFallback       bool
+	primaryClient    *openai.Client
+	primaryType      string
+	primaryModel     string
+	primaryBaseURL   string
+	primaryAPIKey    string
+	primaryProbeHTTP *http.Client
 }
 
 // FailoverOption customizes client construction without changing existing callers.
@@ -75,16 +80,8 @@ func (fm *FailoverManager) SetProbeUsageRecorder(recorder func(context.Context, 
 }
 
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...FailoverOption) *FailoverManager {
-	if cfg != nil {
-		// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
-		// never get a dangerously short per-attempt timeout from old configs.
-		timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
-		if timeout < 120*time.Second {
-			timeout = 120 * time.Second
-		}
-		SetPerAttemptTimeout(timeout)
-		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, logger)
-		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, logger)
+	if cfg == nil {
+		cfg = &config.Config{}
 	}
 	fm := &FailoverManager{
 		primaryType:    cfg.LLM.ProviderType,
@@ -98,10 +95,12 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 		clientFactory:  NewClient,
 	}
 	fm.primaryRoute = modelRouteFromConfig(cfg, false)
+	fm.retryPolicy = RetryPolicyFromConfig(cfg)
 	for _, option := range options {
 		option(fm)
 	}
 	fm.primary = fm.clientFactory(cfg)
+	fm.primaryBaseURL, fm.primaryProbeHTTP = primaryProbeTransport(cfg)
 
 	fb := cfg.FallbackLLM
 	if !fb.Enabled || (fb.BaseURL == "" && fb.AccountID == "") {
@@ -114,6 +113,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 	fallbackCfg.LLM.APIKey = fb.APIKey
 	fallbackCfg.LLM.Model = fb.Model
 	fallbackCfg.LLM.AccountID = fb.AccountID
+	fallbackCfg.LLM.GatewayID = fb.GatewayID
 	fm.fallback = fm.clientFactory(&fallbackCfg)
 	fm.fallbackType = fb.ProviderType
 	fm.fallbackModel = fb.Model
@@ -131,20 +131,13 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...Fail
 }
 
 func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
-	if cfg != nil {
-		// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
-		// never get a dangerously short per-attempt timeout from old configs.
-		timeout := time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second
-		if timeout < 120*time.Second {
-			timeout = 120 * time.Second
-		}
-		SetPerAttemptTimeout(timeout)
-		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, fm.logger)
-		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, fm.logger)
+	if cfg == nil {
+		cfg = &config.Config{}
 	}
 	fm.Stop()
 
 	newPrimary := fm.clientFactory(cfg)
+	probeBaseURL, probeHTTP := primaryProbeTransport(cfg)
 	newStopCh := make(chan struct{})
 
 	fm.mu.Lock()
@@ -153,13 +146,16 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.probeInterval = 60 * time.Second
 	fm.primaryType = cfg.LLM.ProviderType
 	fm.primaryModel = cfg.LLM.Model
-	fm.primaryBaseURL = cfg.LLM.BaseURL
+	fm.primaryBaseURL = probeBaseURL
+	fm.primaryProbeHTTP = probeHTTP
 	fm.primaryAPIKey = cfg.LLM.APIKey
 	fm.primaryRoute = modelRouteFromConfig(cfg, false)
+	fm.retryPolicy = RetryPolicyFromConfig(cfg)
 	fm.isOnFallback = false
 	fm.errorCount = 0
 	fm.fallbackErrorCount = 0
 	fm.generation++
+	fm.probeStatus = FailoverProbeStatus{State: "idle"}
 	fm.stopCh = newStopCh
 
 	fb := cfg.FallbackLLM
@@ -171,6 +167,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		fallbackCfg.LLM.APIKey = fb.APIKey
 		fallbackCfg.LLM.Model = fb.Model
 		fallbackCfg.LLM.AccountID = fb.AccountID
+		fallbackCfg.LLM.GatewayID = fb.GatewayID
 		fm.fallback = fm.clientFactory(&fallbackCfg)
 		fm.fallbackType = fb.ProviderType
 		fm.fallbackModel = fb.Model
@@ -217,6 +214,7 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 	}
 	reqCopy := req
 	reqCopy.Model = route.model
+	recordAttemptRoute(ctx, route.route)
 	response, err := route.client.CreateChatCompletion(ctx, reqCopy)
 	if err != nil {
 		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, route.onFallback, req, route.generation); retry {
@@ -225,6 +223,7 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 				return response, err
 			}
 			reqCopy.Model = fallbackModel
+			recordAttemptRoute(ctx, fallbackRoute.route)
 			response, err = fallbackClient.CreateChatCompletion(ctx, reqCopy)
 			route = fallbackRoute
 		}
@@ -248,6 +247,7 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 	}
 	reqCopy := req
 	reqCopy.Model = route.model
+	recordAttemptRoute(ctx, route.route)
 
 	stream, err := route.client.CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
@@ -257,6 +257,7 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 				return nil, err
 			}
 			reqCopy.Model = fallbackModel
+			recordAttemptRoute(ctx, fallbackRoute.route)
 			stream, err = fallbackClient.CreateChatCompletionStream(ctx, reqCopy)
 			if err != nil {
 				fm.recordStreamError(fallbackRoute, providerOutcomeError(ctx, err))
@@ -293,7 +294,7 @@ func (fm *FailoverManager) immediateFallbackForRequest(
 		return nil, "", false
 	}
 	fm.logger.Warn("LLM failover: managed local runtime unavailable, retrying current request on fallback",
-		"model", fm.fallbackModel, "error", err)
+		"model", fm.fallbackModel, "error", redactProviderError(err))
 	fm.isOnFallback = true
 	fm.errorCount = 0
 	return fm.fallback, fm.fallbackModel, true
@@ -477,12 +478,12 @@ func (fm *FailoverManager) recordErrorLocked(err error) {
 	}
 
 	if IsNonRetryable(err) {
-		fm.logger.Error("[LLM] Non-retryable error, not counting towards failover", "error", err, "category", ClassifyError(err))
+		fm.logger.Error("[LLM] Non-retryable error, not counting towards failover", "error", redactProviderError(err), "category", ClassifyError(err))
 		return
 	}
 
 	if IsRateLimit(err) {
-		fm.logger.Debug("[LLM] Rate limit error, not counting towards failover", "error", err)
+		fm.logger.Debug("[LLM] Rate limit error, not counting towards failover", "error", redactProviderError(err))
 		return
 	}
 
@@ -490,7 +491,7 @@ func (fm *FailoverManager) recordErrorLocked(err error) {
 	if errors.As(err, &immediate) && immediate.ImmediateFailover() {
 		if fm.fallback != nil && !fm.isOnFallback {
 			fm.logger.Warn("LLM failover: managed local runtime unavailable, switching immediately",
-				"model", fm.fallbackModel, "error", err)
+				"model", fm.fallbackModel, "error", redactProviderError(err))
 			fm.isOnFallback = true
 			fm.errorCount = 0
 		}
@@ -501,7 +502,7 @@ func (fm *FailoverManager) recordErrorLocked(err error) {
 	if fm.fallback == nil || fm.isOnFallback {
 		if fm.isOnFallback {
 			fm.fallbackErrorCount++
-			fm.logger.Warn("LLM failover: error on fallback endpoint", "error", err, "fallback_error_count", fm.fallbackErrorCount)
+			fm.logger.Warn("LLM failover: error on fallback endpoint", "error", redactProviderError(err), "fallback_error_count", fm.fallbackErrorCount)
 			if fm.fallbackErrorCount >= fm.errorThreshold*3 {
 				fm.logger.Error("LLM failover: fallback endpoint has excessive errors, consider reconfiguring", "fallback_error_count", fm.fallbackErrorCount, "threshold", fm.errorThreshold*3)
 			}
@@ -509,7 +510,7 @@ func (fm *FailoverManager) recordErrorLocked(err error) {
 		return
 	}
 
-	fm.logger.Warn("LLM failover: primary error recorded", "error", err, "count", fm.errorCount, "threshold", fm.errorThreshold)
+	fm.logger.Warn("LLM failover: primary error recorded", "error", redactProviderError(err), "count", fm.errorCount, "threshold", fm.errorThreshold)
 	if fm.errorCount >= fm.errorThreshold {
 		fm.logger.Warn("LLM failover: switching to fallback endpoint", "model", fm.fallbackModel)
 		fm.isOnFallback = true
@@ -555,6 +556,7 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 				continue
 			}
 
+			fm.setProbeStatus(snapshot.generation, "running", nil, nextProbe)
 			fm.logger.Debug("LLM failover: probing primary endpoint...")
 			ctx, cancel := context.WithTimeout(probeCtx, 30*time.Second)
 
@@ -568,13 +570,20 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 				nextProbe = time.Now().Add(wait)
 			}
 			cancel()
-
+			state := "ok"
+			if err != nil {
+				state = "failed"
+				if IsContextError(err) {
+					state = "cancelled"
+				}
+			}
+			fm.setProbeStatus(snapshot.generation, state, err, nextProbe)
 			if err != nil {
 				if IsContextError(err) {
-					fm.logger.Debug("LLM failover: primary probe context error (inconclusive)", "error", err)
+					fm.logger.Debug("LLM failover: primary probe context error (inconclusive)", "error", redactProviderError(err))
 					continue
 				}
-				fm.logger.Debug("LLM failover: primary still unavailable", "error", err)
+				fm.logger.Debug("LLM failover: primary still unavailable", "error", redactProviderError(err))
 				continue
 			}
 
@@ -585,7 +594,7 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 
 // Metadata availability alone cannot confirm that generation has recovered.
 func probePrimaryGeneration(ctx context.Context, snapshot failoverProbeSnapshot) error {
-	err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey)
+	err := probePrimaryHealth(ctx, snapshot.primaryClient, snapshot.primaryType, snapshot.primaryBaseURL, snapshot.primaryAPIKey, snapshot.primaryProbeHTTP)
 	if err != nil && !IsProbeInconclusive(err) {
 		return err
 	}
@@ -613,13 +622,14 @@ func (fm *FailoverManager) primaryProbeSnapshot() failoverProbeSnapshot {
 	defer fm.mu.RUnlock()
 	return failoverProbeSnapshot{
 		route: fm.primaryRoute, recorder: fm.probeUsageRecorder,
-		generation:     fm.generation,
-		onFallback:     fm.isOnFallback,
-		primaryClient:  fm.primary,
-		primaryType:    fm.primaryType,
-		primaryModel:   fm.primaryModel,
-		primaryBaseURL: fm.primaryBaseURL,
-		primaryAPIKey:  fm.primaryAPIKey,
+		generation:       fm.generation,
+		onFallback:       fm.isOnFallback,
+		primaryClient:    fm.primary,
+		primaryType:      fm.primaryType,
+		primaryModel:     fm.primaryModel,
+		primaryBaseURL:   fm.primaryBaseURL,
+		primaryAPIKey:    fm.primaryAPIKey,
+		primaryProbeHTTP: fm.primaryProbeHTTP,
 	}
 }
 

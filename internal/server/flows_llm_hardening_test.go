@@ -211,7 +211,7 @@ func TestC14CutOffAnswerIsAnErrorInBothModes(t *testing.T) {
 		}}
 		f, _, _, _ := c14FlowLLM(main)
 		_, err := f.Step(context.Background(), flows.LLMRequest{Prompt: "x", JSONSchema: schema})
-		ne := c14NodeError(t, err, "FLOW_AI_OUTPUT_INVALID")
+		ne := c14NodeError(t, err, "FLOW_AI_OUTPUT_CUT")
 		if !strings.Contains(ne.Message, "cut off") || !strings.Contains(ne.Message, fmt.Sprint(flowAIMaxTokens)) {
 			t.Fatalf("message = %q", ne.Message)
 		}

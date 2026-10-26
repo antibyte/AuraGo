@@ -1,0 +1,6 @@
+Fluent icon theme. Imported artwork is distributed under GPL-3.0; upstream copyright notices are retained. Source paths, SHA-256 hashes, resolved links and every modification are recorded in provenance.json. Source archives and the deterministic importer are described in documentation/desktop-icon-themes.md.
+
+Source: https://github.com/vinceliuice/Fluent-icon-theme
+Revision: c8a244f571ef8fb47812bdc9dbce76546cedce69
+Per-file provenance and modifications: provenance.json
+AuraGo original supplements: MIT (SUPPLEMENTS-LICENSE.txt).

@@ -232,6 +232,9 @@ func (s *Service) godsEyeEnvironment() ([]string, []SecretRef, error) {
 func (s *Service) runtimeContainerSpec(app InstalledApp) (ContainerSpec, error) {
 	spec := containerSpecFromRecord(app)
 	spec.Hardening = s.catalogHardening(app.AppID, "")
+	if app.AppID == PrintGuardAppID {
+		return s.printGuardContainerSpec(app, spec)
+	}
 	if app.AppID != GodsEyeAppID {
 		return spec, nil
 	}

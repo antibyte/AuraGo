@@ -1790,6 +1790,9 @@ func TestLoadVideoDownloadDefaults(t *testing.T) {
 	if cfg.Tools.VideoDownload.TimeoutSeconds != 300 {
 		t.Fatalf("timeout_seconds = %d, want 300", cfg.Tools.VideoDownload.TimeoutSeconds)
 	}
+	if cfg.Tools.VideoDownload.DefaultFormat != "bestvideo[height<=720]+bestaudio/best[height<=720]/best" {
+		t.Fatalf("default_format = %q, want the 720p selector", cfg.Tools.VideoDownload.DefaultFormat)
+	}
 }
 
 func TestLoadSendYouTubeVideoDefaults(t *testing.T) {
@@ -4382,5 +4385,58 @@ func TestLoadGrandfathersMeshCentralPowerOnlyWhenEnabledAndWritable(t *testing.T
 				t.Fatalf("AllowPowerActions = %v, want %v", cfg.MeshCentral.AllowPowerActions, tc.want)
 			}
 		})
+	}
+}
+
+// The Detective store path has its own default and is resolved like the other SQLite
+// paths instead of deriving from the Game Maker database (audit 4.20).
+func TestDetectivePathDefaultAndResolve(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(""), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !filepath.IsAbs(cfg.SQLite.DetectivePath) {
+		t.Fatalf("path %q is not resolved", cfg.SQLite.DetectivePath)
+	}
+	if filepath.Base(cfg.SQLite.DetectivePath) != "detective.db" {
+		t.Fatalf("path = %q", cfg.SQLite.DetectivePath)
+	}
+
+	custom := filepath.Join(dir, "custom", "research.db")
+	if err := os.WriteFile(configPath, []byte("sqlite:\n  detective_path: "+custom+"\n"), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err = Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.SQLite.DetectivePath != custom {
+		t.Fatalf("override = %q, want %q", cfg.SQLite.DetectivePath, custom)
+	}
+}
+func TestYepAPIBudgetQuotaPercentClamp(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want int
+	}{
+		{"providers: []\nyepapi:\n  budget_quota_percent: -5\n", 0},
+		{"providers: []\nyepapi:\n  budget_quota_percent: 35\n", 35},
+	} {
+		configPath := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(configPath, []byte(tc.raw), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(configPath)
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.YepAPI.BudgetQuotaPercent != tc.want {
+			t.Fatalf("YepAPI budget quota percent = %d, want %d", cfg.YepAPI.BudgetQuotaPercent, tc.want)
+		}
 	}
 }

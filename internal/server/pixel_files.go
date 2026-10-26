@@ -66,6 +66,24 @@ func pixelValidateImage(data []byte, limit int64) (string, error) {
 	return format, nil
 }
 
+// pixelValidateImageHeader is pixelValidateImage without the full decode: it reads only the header (format PNG or
+// JPEG, byte size, dimensions within pixelMaxPixels) and returns the image size. Use it where the bytes are handed to
+// something that decodes them itself (a worker subprocess, a plain file store), so the main process never allocates
+// the decoded bitmap (up to 128 MB for one image) on behalf of a request.
+func pixelValidateImageHeader(data []byte, limit int64) (image.Config, string, error) {
+	if int64(len(data)) > limit {
+		return image.Config{}, "", fmt.Errorf("image exceeds the size limit")
+	}
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil || (format != "png" && format != "jpeg") {
+		return image.Config{}, "", fmt.Errorf("a valid PNG or JPEG image is required")
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > pixelMaxPixels {
+		return image.Config{}, "", fmt.Errorf("image dimensions exceed the limit")
+	}
+	return cfg, format, nil
+}
+
 func pixelSourceBytes(s *Server, r *http.Request, sourcePath, sourceData string) ([]byte, error) {
 	svc, _, err := s.getDesktopService(r.Context())
 	if err != nil {

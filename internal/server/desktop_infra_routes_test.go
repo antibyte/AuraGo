@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -207,6 +208,51 @@ func TestDesktopInfraImportCreatesANodeFromARegistryCandidate(t *testing.T) {
 	}
 }
 
+func TestDesktopInfraEdgeUpdateRouteRefusesSelfLoopsAndDuplicates(t *testing.T) {
+	_, _, store, _ := newDesktopInfraRefreshFixture(t)
+	ctx := context.Background()
+	node := func(name string) infra.Node {
+		created, err := store.CreateNode(ctx, infra.Node{Kind: infra.NodeDevice, Name: name, Icon: "generic-device"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return created
+	}
+	router, access := node("router"), node("switch")
+	if _, err := store.CreateEdge(ctx, infra.Edge{From: router.ID, To: access.ID, Kind: infra.EdgeEthernet}); err != nil {
+		t.Fatal(err)
+	}
+	wireless, err := store.CreateEdge(ctx, infra.Edge{From: router.ID, To: access.ID, Kind: infra.EdgeWiFi})
+	if err != nil {
+		t.Fatal(err)
+	}
+	put := func(edge infra.Edge) *httptest.ResponseRecorder {
+		t.Helper()
+		body, err := json.Marshal(edge)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response := httptest.NewRecorder()
+		desktopInfraEdgeRoute(response, httptest.NewRequest(http.MethodPut, desktopInfraBasePath+"/edges/"+edge.ID, strings.NewReader(string(body))), store, edge.ID)
+		return response
+	}
+	selfLoop := wireless
+	selfLoop.To = selfLoop.From
+	if response := put(selfLoop); response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "invalid_request") {
+		t.Fatalf("self-loop update = %d %s; want 400 invalid_request", response.Code, response.Body.String())
+	}
+	duplicate := wireless
+	duplicate.Kind = infra.EdgeEthernet
+	if response := put(duplicate); response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "edge_exists") {
+		t.Fatalf("duplicate update = %d %s; want 409 edge_exists", response.Code, response.Body.String())
+	}
+	relabelled := wireless
+	relabelled.Label = "guest"
+	if response := put(relabelled); response.Code != http.StatusOK {
+		t.Fatalf("relabel update = %d %s; want 200", response.Code, response.Body.String())
+	}
+}
+
 func TestDesktopInfraStoreErrorMapsEverySentinel(t *testing.T) {
 	cases := []struct {
 		err    error
@@ -219,6 +265,7 @@ func TestDesktopInfraStoreErrorMapsEverySentinel(t *testing.T) {
 		{infra.ErrSourceRemoved, http.StatusConflict, "source_unavailable"},
 		{infra.ErrSourceLinked, http.StatusConflict, "source_unavailable"},
 		{infra.ErrHasChildren, http.StatusConflict, "has_children"},
+		{infra.ErrEdgeExists, http.StatusConflict, "edge_exists"},
 		{infra.ErrReadOnly, http.StatusForbidden, "source_readonly"},
 		{infra.ErrValidation, http.StatusBadRequest, "invalid_request"},
 		{errors.New("boom"), http.StatusInternalServerError, "infra_error"},
@@ -260,5 +307,101 @@ func TestDesktopInfraRefreshContextHonoursRevocation(t *testing.T) {
 	if _, finish, ok := desktopInfraRefreshContext(s, request, cfg, runtime); ok {
 		finish()
 		t.Fatal("a revoked configuration still registered a refresh context")
+	}
+}
+
+func TestDesktopInfraLayoutRouteUnplacesANodeInOneView(t *testing.T) {
+	s, cfg, _, runtime := newDesktopInfraRefreshFixture(t)
+	store := runtime.store
+	ctx := context.Background()
+	node, err := store.CreateNode(ctx, infra.Node{Kind: infra.NodeDevice, Name: "web", Icon: "generic-device"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	save := func(body string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		desktopInfraSaveLayout(response, httptest.NewRequest(http.MethodPut, desktopInfraBasePath+"/layout", strings.NewReader(body)), s, cfg, store)
+		return response
+	}
+	id := `"id":"` + node.ID + `"`
+	if response := save(`{"view":"atlas","nodes":[{` + id + `,"version":1,"x":120,"y":140}]}`); response.Code != http.StatusOK {
+		t.Fatalf("atlas placement = %d %s", response.Code, response.Body.String())
+	}
+	if response := save(`{"view":"topology","nodes":[{` + id + `,"version":2,"x":30,"y":40}]}`); response.Code != http.StatusOK {
+		t.Fatalf("topology placement = %d %s", response.Code, response.Body.String())
+	}
+	response := save(`{"view":"atlas","nodes":[{` + id + `,"version":3,"unplace":true}]}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unplace = %d %s", response.Code, response.Body.String())
+	}
+	var payload struct {
+		Nodes []infra.Node `json:"nodes"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Nodes) != 1 || payload.Nodes[0].Version != 4 {
+		t.Fatalf("unplace answer = %#v; want the node at version 4", payload.Nodes)
+	}
+	if _, ok := payload.Nodes[0].Placements[infra.ViewAtlas]; ok || payload.Nodes[0].Placements[infra.ViewTopology].X != 30 {
+		t.Fatalf("unplace answer placements = %#v; want the topology view only", payload.Nodes[0].Placements)
+	}
+	// A stale version conflicts and an item with coordinates is invalid.
+	if stale := save(`{"view":"atlas","nodes":[{` + id + `,"version":3,"unplace":true}]}`); stale.Code != http.StatusConflict {
+		t.Fatalf("stale unplace = %d %s; want 409", stale.Code, stale.Body.String())
+	}
+	if invalid := save(`{"view":"atlas","nodes":[{` + id + `,"version":4,"x":5,"unplace":true}]}`); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("unplace with coordinates = %d %s; want 400", invalid.Code, invalid.Body.String())
+	}
+}
+
+func TestDesktopInfraNewWriteRoutesAreRoutedAndHonourReadOnly(t *testing.T) {
+	s, _, writeToken := testDesktopPermissionServer(t)
+	adminToken, _, err := s.TokenManager.Create("infra admin", []string{desktopScopeAdmin}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := inventory.InitDB(filepath.Join(t.TempDir(), "inventory.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	s.InventoryDB = db
+	s.Cfg.VirtualDesktop.Enabled = true
+	s.Cfg.VirtualDesktop.Infra.Enabled = true
+	mux := http.NewServeMux()
+	registerDesktopInfraRoutes(mux, s)
+	call := func(method, path, token, body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		request.Header.Set("Authorization", "Bearer "+token)
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+	type route struct {
+		method, path, body string
+		status             int
+	}
+	routes := []route{
+		{http.MethodPut, desktopInfraBasePath + "/sources/ignore", `{}`, http.StatusBadRequest},
+		{http.MethodPut, desktopInfraBasePath + "/source-hosts", `{}`, http.StatusBadRequest},
+		{http.MethodPost, desktopInfraBasePath + "/import/batch", `{}`, http.StatusBadRequest},
+		{http.MethodDelete, desktopInfraBasePath + "/nodes/missing?version=1&ignore_sources=1", "", http.StatusNotFound},
+	}
+	for _, tc := range routes {
+		if response := call(tc.method, tc.path, writeToken, tc.body); response.Code != http.StatusForbidden && response.Code != http.StatusUnauthorized {
+			t.Fatalf("%s %s without admin scope = %d %s", tc.method, tc.path, response.Code, response.Body.String())
+		}
+		// An admin reaches the handler's own validation, so the route exists.
+		if response := call(tc.method, tc.path, adminToken, tc.body); response.Code != tc.status {
+			t.Fatalf("%s %s = %d %s; want %d", tc.method, tc.path, response.Code, response.Body.String(), tc.status)
+		}
+	}
+	s.Cfg.VirtualDesktop.Infra.ReadOnly = true
+	for _, tc := range routes {
+		response := call(tc.method, tc.path, adminToken, tc.body)
+		if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), "infra_readonly") {
+			t.Fatalf("%s %s on read-only Infra = %d %s; want 403 infra_readonly", tc.method, tc.path, response.Code, response.Body.String())
+		}
 	}
 }

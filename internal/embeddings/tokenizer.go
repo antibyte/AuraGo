@@ -130,7 +130,7 @@ func firstSpecialID(values map[string]struct {
 
 func (t *graniteTokenizer) encodeBatch(texts []string, contextSize int) (tokenBatch, error) {
 	if len(texts) == 0 {
-		return tokenBatch{}, fmt.Errorf("at least one text is required")
+		return tokenBatch{}, fmt.Errorf("%w: at least one text is required", ErrInvalidInput)
 	}
 	if contextSize < 2 {
 		return tokenBatch{}, fmt.Errorf("context size must be at least 2")

@@ -27,6 +27,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	case "meshcore":
 		return dispatchMeshCore(ctx, tc, dc), true
 	case "send_telegram":
+		if cfg.Telegram.ReadOnly {
+			return `Tool Output: {"status":"error","message":"Telegram is in read-only mode. Disable telegram.readonly to allow sending."}`, true
+		}
 		req := decodeSendTelegramArgs(tc)
 		if msg := telegramFilePathArgError(tc.Params); msg != "" {
 			return toolErrorJSON(msg), true
@@ -98,7 +101,7 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 			return `Tool Output: {"status": "error", "message": "Discord is not enabled. Configure the discord section in config.yaml."}`, true
 		}
 		if cfg.Discord.ReadOnly {
-			return `Tool Output: {"status":"error","message":"Discord is in read-only mode. Disable discord.read_only to allow changes."}`, true
+			return `Tool Output: {"status":"error","message":"Discord is in read-only mode. Disable discord.readonly to allow changes."}`, true
 		}
 		req := decodeDiscordMessageArgs(tc)
 		channelID := req.ChannelID
@@ -114,7 +117,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		}
 		logger.Info("LLM requested Discord send", "channel", channelID)
 		if err := tools.DiscordSend(channelID, message, logger); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Discord send failed: %v"}`, err), true
+			// The bridge error names the released channels and the config key,
+			// so it is passed through to the agent instead of being swallowed.
+			return toolErrorf("Discord send failed: %v", err), true
 		}
 		return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Message sent to Discord channel %s"}`, channelID), true
 
@@ -137,7 +142,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		logger.Info("LLM requested Discord message fetch", "channel", channelID, "limit", limit)
 		msgs, err := tools.DiscordFetch(channelID, limit, logger)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Discord fetch failed: %v"}`, err), true
+			// The bridge error names the released channels and the config key,
+			// so it is passed through to the agent instead of being swallowed.
+			return toolErrorf("Discord fetch failed: %v", err), true
 		}
 		if guardian != nil {
 			for i := range msgs {

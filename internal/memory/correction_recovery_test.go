@@ -84,6 +84,9 @@ func TestMemoryCorrectionGraphMigrationBacksUpPopulatedDatabase(t *testing.T) {
 	if _, err = g.db.Exec(`DROP TABLE kg_correction_receipts; DROP TABLE kg_correction_guards`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = g.db.Exec(`PRAGMA user_version=0`); err != nil {
+		t.Fatal(err)
+	}
 	if err = g.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +95,7 @@ func TestMemoryCorrectionGraphMigrationBacksUpPopulatedDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer g.Close()
-	backups, err := filepath.Glob(path + ".memory-corrections-v1-*.bak")
+	backups, err := filepath.Glob(path + ".graph-schema-v2-*.bak")
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("backups=%v %v", backups, err)
 	}

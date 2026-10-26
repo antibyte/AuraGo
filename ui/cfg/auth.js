@@ -196,6 +196,8 @@ async function renderWebConfigSection(section) {
 
     html += '</div></div>'; // close totp-status-area + field-group
 
+    html += typeof renderWebAuthnSection === 'function' ? renderWebAuthnSection(authCfg.webauthn || {}, authStatus) : `<p role="status">${t('webauthn.failed')}</p>`;
+
     // ── Security Audit panel (populated async after render) ──
     html += `<div class="auth-section-title auth-section-title-spaced">
                 🔎 ${t('config.security.panel_title')}
@@ -208,6 +210,7 @@ async function renderWebConfigSection(section) {
 
     content.innerHTML = html;
     attachChangeListeners();
+    if (typeof initWebAuthnSection === 'function') initWebAuthnSection();
     loadSecurityAuditPanel();
 }
 

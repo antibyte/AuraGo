@@ -272,3 +272,64 @@ func TestDetectiveReadonlyRevokesProviderCall(t *testing.T) {
 type detectiveTestRunner func(context.Context, *detective.Session) error
 
 func (f detectiveTestRunner) Run(ctx context.Context, s *detective.Session) error { return f(ctx, s) }
+
+// The capabilities answer must name why the research surface is blocked: the UI
+// disables Start/Continue without a reason otherwise, and Stop depends on `enabled`.
+func TestDetectiveCapabilitiesBlockReason(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = false
+	cfg.VirtualDesktop.Enabled = true
+	cfg.VirtualDesktop.AllowAgentControl = true
+	cfg.Detective.Enabled = true
+	s := &Server{Cfg: cfg}
+	reason := func() string {
+		t.Helper()
+		r := httptest.NewRequest("GET", "/api/desktop/detective/capabilities", nil)
+		w := httptest.NewRecorder()
+		s.handleDetective(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("capabilities: %d %s", w.Code, w.Body.String())
+		}
+		var body map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		value, _ := body["block_reason"].(string)
+		return value
+	}
+	if got := reason(); got != "initializing" {
+		t.Fatalf("without a service: %q", got)
+	}
+	svc, err := detective.New(detective.Options{Path: filepath.Join(t.TempDir(), "block.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	s.Detective = svc
+	if got := reason(); got != "initializing" {
+		t.Fatalf("without a runner: %q", got)
+	}
+	svc.SetRunner(detectiveTestRunner(func(context.Context, *detective.Session) error { return nil }))
+	if got := reason(); got != "" {
+		t.Fatalf("ready: %q", got)
+	}
+	cfg.Detective.ReadOnly = true
+	if got := reason(); got != "read_only" {
+		t.Fatalf("detective readonly: %q", got)
+	}
+	cfg.Detective.ReadOnly = false
+	cfg.VirtualDesktop.ReadOnly = true
+	if got := reason(); got != "read_only" {
+		t.Fatalf("desktop readonly: %q", got)
+	}
+	cfg.VirtualDesktop.ReadOnly = false
+	cfg.VirtualDesktop.AllowAgentControl = false
+	if got := reason(); got != "read_only" {
+		t.Fatalf("agent control disabled: %q", got)
+	}
+	cfg.VirtualDesktop.AllowAgentControl = true
+	cfg.Detective.Enabled = false
+	if got := reason(); got != "disabled" {
+		t.Fatalf("disabled: %q", got)
+	}
+}

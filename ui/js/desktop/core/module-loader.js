@@ -20,12 +20,13 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        qr: { styles: ['/css/desktop-qr.css'], scripts: ['/js/desktop/shared/qr-dialog.js'] },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
         },
-        infra: { styles: appStyles('/css/desktop-app-infra.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-views.js', '/js/desktop/apps/infra.js'] },
-        'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
+        infra: { styles: appStyles('/css/desktop-app-infra.css', '/css/desktop-app-infra-canvas.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-lanes.js', '/js/desktop/apps/infra-store.js', '/js/desktop/apps/infra-picker.js', '/js/desktop/apps/infra-canvas.js', '/js/desktop/apps/infra-gestures.js', '/js/desktop/apps/infra-library.js', '/js/desktop/apps/infra-cleanup.js', '/js/desktop/apps/infra-inspector-forms.js', '/js/desktop/apps/infra-inspector.js', '/js/desktop/apps/infra-table.js', '/js/desktop/apps/infra-dialogs.js', '/js/desktop/apps/infra-import.js', '/js/desktop/apps/infra-menus.js', '/js/desktop/apps/infra.js'] },
+        'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview-model.js', '/js/desktop/apps/ruview-store.js', '/js/desktop/apps/ruview-views.js', '/js/desktop/apps/ruview.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),
             scripts: ['/js/desktop/apps/ha-switchboard.js']
@@ -43,7 +44,7 @@
         },
         'sheets': {
             styles: appStyles('/js/vendor/sheets/engine.css', '/css/desktop-app-sheets.css'),
-            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets.js']
+            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets-images.js', '/js/desktop/apps/sheets.js']
         },
         'settings': {
             styles: appStyles('/css/desktop-app-settings.css'),
@@ -170,11 +171,11 @@
         },
         'synth-studio': {
             styles: appStyles('/css/desktop-app-synth-studio.css'),
-            scripts: ['/js/desktop/apps/writer-session.js', '/js/vendor/synth-studio/gm-data.js', '/js/desktop/apps/synth-studio-presets.js', '/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js', '/js/desktop/apps/synth-studio-model.js', '/js/desktop/apps/synth-studio-voices.js', '/js/desktop/apps/synth-studio-audio.js', '/js/desktop/apps/synth-studio-midi.js', '/js/desktop/apps/synth-studio-storage.js', '/js/desktop/apps/synth-studio-editor.js', '/js/desktop/apps/synth-studio.js']
+            scripts: ['/js/desktop/apps/writer-session.js', '/js/vendor/synth-studio/gm-data.js', '/js/desktop/apps/synth-studio-presets.js', '/js/vendor/synth-studio/tone-midi-2.0.28.bundle.js', '/js/desktop/apps/synth-studio-model.js', '/js/desktop/apps/synth-studio-music.js', '/js/desktop/apps/synth-studio-voices.js', '/js/desktop/apps/synth-studio-audio.js', '/js/desktop/apps/synth-studio-midi.js', '/js/desktop/apps/synth-studio-storage.js', '/js/desktop/apps/synth-studio-editor.js', '/js/desktop/apps/synth-studio-workspace.js', '/js/desktop/apps/synth-studio-compose.js', '/js/desktop/apps/synth-studio-performance.js', '/js/desktop/apps/synth-studio-stage.js', '/js/desktop/apps/synth-studio.js']
         },
         'video-studio': {
             styles: appStyles('/css/desktop-app-video-studio.css', '/css/desktop-stickers.css'),
-            scripts: ['/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/video-studio-icons.js', '/js/desktop/apps/video-studio-time.js', '/js/desktop/apps/video-studio-effects.js', '/js/desktop/apps/video-studio-picture.js', '/js/desktop/apps/video-studio-anim.js', '/js/desktop/apps/video-studio-media.js', '/js/desktop/apps/video-studio-gl.js', '/js/desktop/apps/video-studio-shaders.js', '/js/desktop/apps/video-studio-compositor.js', '/js/desktop/apps/video-studio-painter2d.js', '/js/desktop/apps/video-studio-preview.js', '/js/desktop/apps/video-studio-timeline.js', '/js/desktop/apps/video-studio-ruler.js', '/js/desktop/apps/video-studio-edit.js', '/js/desktop/apps/video-studio-keyframe-edit.js', '/js/desktop/apps/video-studio-navigation.js', '/js/desktop/apps/video-studio-source-edit.js', '/js/desktop/apps/video-studio-folders.js', '/js/desktop/apps/video-studio-inspector.js', '/js/desktop/apps/video-studio-colorwheel.js', '/js/desktop/apps/video-studio-core.js', '/js/desktop/apps/video-studio-library.js', '/js/desktop/apps/video-studio-effects-library.js', '/js/desktop/apps/video-studio-artwork.js', '/js/desktop/apps/video-studio-jobs.js', '/js/desktop/apps/video-studio-stage.js', '/js/desktop/apps/video-studio-mask.js', '/js/desktop/apps/video-studio-editing.js', '/js/desktop/apps/video-studio-keyframes.js', '/js/desktop/apps/video-studio-inspector-effects.js', '/js/desktop/apps/video-studio-source.js', '/js/desktop/apps/video-studio-tracks.js', '/js/desktop/apps/video-studio-markers.js', '/js/desktop/apps/video-studio-transport.js', '/js/desktop/apps/video-studio-rangerender.js', '/js/desktop/apps/video-studio-derive.js', '/js/desktop/apps/video-studio-projects.js', '/js/desktop/apps/video-studio-mediabin.js', '/js/desktop/apps/video-studio-menus.js', '/js/desktop/apps/video-studio.js']
+            scripts: ['/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/video-studio-icons.js', '/js/desktop/apps/video-studio-time.js', '/js/desktop/apps/video-studio-effects.js', '/js/desktop/apps/video-studio-picture.js', '/js/desktop/apps/video-studio-anim.js', '/js/desktop/apps/video-studio-scope-math.js', '/js/desktop/apps/video-studio-media.js', '/js/desktop/apps/video-studio-gl.js', '/js/desktop/apps/video-studio-shaders.js', '/js/desktop/apps/video-studio-compositor.js', '/js/desktop/apps/video-studio-painter2d.js', '/js/desktop/apps/video-studio-preview.js', '/js/desktop/apps/video-studio-timeline.js', '/js/desktop/apps/video-studio-ruler.js', '/js/desktop/apps/video-studio-edit.js', '/js/desktop/apps/video-studio-keyframe-edit.js', '/js/desktop/apps/video-studio-navigation.js', '/js/desktop/apps/video-studio-source-edit.js', '/js/desktop/apps/video-studio-folders.js', '/js/desktop/apps/video-studio-inspector.js', '/js/desktop/apps/video-studio-colorwheel.js', '/js/desktop/apps/video-studio-core.js', '/js/desktop/apps/video-studio-library.js', '/js/desktop/apps/video-studio-effects-library.js', '/js/desktop/apps/video-studio-artwork.js', '/js/desktop/apps/video-studio-jobs.js', '/js/desktop/apps/video-studio-stage.js', '/js/desktop/apps/video-studio-mask.js', '/js/desktop/apps/video-studio-editing.js', '/js/desktop/apps/video-studio-keyframes.js', '/js/desktop/apps/video-studio-inspector-effects.js', '/js/desktop/apps/video-studio-source.js', '/js/desktop/apps/video-studio-tracks.js', '/js/desktop/apps/video-studio-markers.js', '/js/desktop/apps/video-studio-transport.js', '/js/desktop/apps/video-studio-rangerender.js', '/js/desktop/apps/video-studio-scopes.js', '/js/desktop/apps/video-studio-derive.js', '/js/desktop/apps/video-studio-projects.js', '/js/desktop/apps/video-studio-mediabin.js', '/js/desktop/apps/video-studio-menus.js', '/js/desktop/apps/video-studio.js']
         },
         'teevee': {
             styles: appStyles('/css/teevee.css'),
@@ -205,6 +206,7 @@
                 '/js/desktop/apps/easydrag-publish.js',
                 '/js/desktop/apps/easydrag-home.js',
                 '/js/desktop/apps/easydrag-dialogs.js',
+                '/js/desktop/apps/easydrag-history.js',
                 '/js/desktop/apps/easydrag-editor.js',
                 '/js/desktop/apps/easydrag.js'
             ]
@@ -290,11 +292,30 @@
             scripts: ['/js/desktop/apps/zipper.js']
         },
         'pixel': {
-            styles: appStyles('/css/pixel.css', '/css/desktop-stickers.css', '/css/pixel-stickers.css'),
+            // pixel-worker.js is loaded by runtime.runJob as a Worker, never as a script; the pixel-lib-*.js files are imported by it too.
+            styles: appStyles(
+                '/css/pixel.css',
+                '/css/desktop-stickers.css',
+                '/css/pixel-stickers.css',
+                '/css/pixel-layers.css',
+                '/css/pixel-filters.css',
+                '/css/pixel-generators.css',
+                '/css/pixel-cutout.css',
+                '/css/pixel-selection.css',
+                '/css/pixel-tools-pro.css',
+                '/css/pixel-smart.css'
+            ),
             scripts: [
                 '/js/desktop/shared/sticker-catalog.js',
                 '/js/desktop/shared/sticker-library.js',
                 '/js/desktop/apps/pixel-state.js',
+                '/js/desktop/apps/pixel-lib-core.js',
+                '/js/desktop/apps/pixel-lib-fx.js',
+                '/js/desktop/apps/pixel-lib-gen.js',
+                '/js/desktop/apps/pixel-lib-cutout.js',
+                '/js/desktop/apps/pixel-lib-inpaint.js',
+                '/js/desktop/apps/pixel-core.js',
+                '/js/desktop/apps/pixel-qrcode.js',
                 '/js/desktop/apps/pixel-view.js',
                 '/js/desktop/apps/pixel-canvas.js',
                 '/js/desktop/apps/pixel-tools.js',
@@ -302,6 +323,16 @@
                 '/js/desktop/apps/pixel-filters.js',
                 '/js/desktop/apps/pixel-events.js',
                 '/js/desktop/apps/pixel-stickers.js',
+                '/js/desktop/apps/pixel-layers.js',
+                '/js/desktop/apps/pixel-selection.js',
+                '/js/desktop/apps/pixel-brush.js',
+                '/js/desktop/apps/pixel-tools-pro.js',
+                '/js/desktop/apps/pixel-transform.js',
+                '/js/desktop/apps/pixel-generators.js',
+                '/js/desktop/apps/pixel-cutout.js',
+                '/js/desktop/apps/pixel-smart.js',
+                '/js/desktop/apps/pixel-commands.js',
+                '/js/desktop/apps/pixel-ora.js',
                 '/js/desktop/apps/pixel.js'
             ]
         },
@@ -350,9 +381,13 @@
         'chess': {
             styles: appStyles('/css/cm-chessboard.css', '/css/desktop-app-chess.css'),
             scripts: [
+                '/js/vendor/three.min.js',
+                '/js/vendor/GLTFLoader.min.js',
+                '/js/vendor/OrbitControls.min.js',
                 '/js/desktop/apps/chess-engine.js',
                 '/js/desktop/apps/chess-agent.js',
                 '/js/desktop/apps/chess-fx.js',
+                '/js/desktop/apps/chess-3d.js',
                 '/js/desktop/apps/chess.js'
             ]
         },
@@ -459,7 +494,7 @@
         },
         'mailer': {
             styles: appStyles('/css/desktop-app-mailer.css', '/css/desktop-stickers.css'),
-            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-stickers.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
+            scripts: ['/js/vendor/marked.min.js', '/js/vendor/purify.min.js', '/js/desktop/shared/sticker-catalog.js', '/js/desktop/shared/sticker-library.js', '/js/desktop/apps/mailer-api.js', '/js/desktop/apps/mailer-views.js', '/js/desktop/apps/mailer-stickers.js', '/js/desktop/apps/mailer-compose.js', '/js/desktop/apps/mailer-settings.js', '/js/desktop/apps/mailer.js']
         },
         'local-wikipedia': {
             styles: appStyles('/css/desktop-app-local-wikipedia.css'),
@@ -470,7 +505,7 @@
             scripts: ['/js/desktop/apps/retro-games-views.js', '/js/desktop/apps/retro-games-player.js', '/js/desktop/apps/retro-games.js']
         },
         'homepage-studio': {
-            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
+            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/desktop-app-homepage-studio-annotate.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [
                 '/js/vendor/markdown-it.min.js',
                 '/js/vendor/highlight.min.js',
@@ -481,6 +516,7 @@
                 '/js/desktop/apps/homepage-studio-preview.js',
                 '/js/desktop/apps/homepage-studio-sites.js',
                 '/js/desktop/apps/homepage-studio-history.js',
+                '/js/desktop/apps/homepage-studio-annotate.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]
         },

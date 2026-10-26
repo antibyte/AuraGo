@@ -139,7 +139,7 @@ func TestDesktopNetworkCamerasDetectionRegistration(t *testing.T) {
 
 	loader := strings.ReplaceAll(rawDesktopAssetText(t, "js/desktop/core/module-loader.js"), "\r\n", "\n")
 	for _, marker := range []string{
-		"styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css')",
+		"styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css', '/css/go2rtc-tuya.css')",
 		"'/js/desktop/apps/network-cameras-detection-views.js',\n                '/js/desktop/apps/network-cameras-detection-zones.js',\n                '/js/desktop/apps/network-cameras-detection.js',\n                '/js/desktop/apps/network-cameras-media.js',\n                '/js/desktop/apps/network-cameras.js'",
 	} {
 		if !strings.Contains(loader, marker) {

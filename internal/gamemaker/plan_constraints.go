@@ -44,7 +44,7 @@ func (s *Service) validatePlanSelections(jobID string, plan GamePlan, compact bo
 		s.planConstraints[jobID].modelAssetIDs,
 		s.planConstraints[jobID].presentation,
 	)
-	remaining := max(0, 3-s.planAttempts[jobID])
+	remaining := s.remainingPlanAttemptsLocked(jobID)
 	s.mu.RUnlock()
 	if len(constraints.assetSelections) == 0 && len(constraints.modelAssetIDs) == 0 && constraints.presentation == nil {
 		return nil

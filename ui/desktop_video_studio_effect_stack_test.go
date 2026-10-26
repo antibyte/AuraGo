@@ -557,6 +557,14 @@ assert.deepEqual(ids(), ['color', 'lut', 'vignette'], 'locked tracks never chang
 //     and every undo and redo, clears the selected effects.<i>.* ids. Base keys stay selected.
 //   - Edits that leave the entries in place (param changes, an entry added at the end) and refused edits keep the selection.
 func TestVideoStudioEffectKeySelectionFollowsTheStack(t *testing.T) {
+	// F4 (plan 2f Task 6): the media bin's removal leaves the effect keys to mutate; it has no selection filter of its own.
+	mediabin, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "video-studio-mediabin.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text := string(mediabin); !strings.Contains(text, "L().removeLUTRefs(project, ids);") || strings.Contains(text, "s.kfStrip.selected.filter") {
+		t.Fatal("removeMediaFrom must call L().removeLUTRefs(project, ids) alone; mutate drops the strip's effect keys (dropEffectKeySelection)")
+	}
 	runVideoStudioKeyframesScript(t, videoStudioEffectStackPartsPrelude+`
 P.renderUI = () => {}; P.renderToolbar = () => {}; P.resyncArtwork = () => {};
 const p = project([track('v1','video',[clip('c',V,0,100,{offset:100, keyframes: {opacity: [kf(100, 1), kf(130, 0.5)]}})]), track('v2','video',[clip('d',V,0,100,{offset:100})])]);
@@ -623,6 +631,28 @@ assert.deepEqual(s.kfStrip.selected, ['opacity:130']);
 delete s.kfStrip;
 P.undo(s, false);
 assert.equal(s.kfStrip, undefined);
+
+// The media bin's removal of a LUT asset (F4, plan 2f): removeMediaFrom runs removeLUTRefs inside its edit and drops the
+// asset, without a selection filter of its own. mutate drops the effect ids when the removal takes an entry of the
+// strip clip's stack, and keeps them when it takes another clip's entry.
+require('./js/desktop/apps/video-studio-effects-library.js');
+const LIB = window.VideoStudioEffectsLibrary;
+const removeLUT = id => project => { LIB.removeLUTRefs(project, [id]); project.assets = project.assets.filter(asset => asset.id !== id); };
+s.kfStrip = {clipId: 'c', expanded: true, selected: []};
+assert.equal(ids(), 'lut,blur');
+assert.equal(P.mutate(s, 'luts', project => {
+  project.assets.push({id: 'L1', name: 'One.cube', kind: 'lut', duration_frames: 0, lut_size: 17}, {id: 'L2', name: 'Two.cube', kind: 'lut', duration_frames: 0, lut_size: 17});
+  at(project, 'c').effects[0].params.lut = 'L1';
+  if (K.addEffect(project, 'd', 'lut') !== true) return false;
+  at(project, 'd').effects[0].params.lut = 'L2';
+}), true);
+select();
+assert.equal(P.mutate(s, 'remove other media', removeLUT('L2')), true);
+assert.equal('effects' in at(s.project, 'd'), false, "the other clip's LUT entry went");
+assert.deepEqual(s.kfStrip.selected, ALL, "removing another clip's LUT keeps the effect keys");
+assert.equal(P.mutate(s, 'remove media', removeLUT('L1')), true);
+assert.equal(ids(), 'blur', "the strip clip's LUT entry went");
+assert.deepEqual(s.kfStrip.selected, ['opacity:100'], "removing the strip clip's LUT drops the effect keys");
 `)
 }
 

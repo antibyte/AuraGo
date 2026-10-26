@@ -21,22 +21,32 @@
         }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.info.label.localeCompare(b.info.label)).map(x => x.info);
     }
 
-    function availabilityBadge(core, t, esc, info) {
+    function availabilityBadge(core, t, esc, info, tag) {
         const state = (info.availability || {}).state;
-        if (state === 'needs_setup') return '<span class="ed-chip ed-chip--warn" role="link" data-ed-setup="' + esc((info.availability || {}).config_section || 'tools') + '" title="' + esc(t('easydrag.ui.palette_needs_setup')) + '">' + esc(t('easydrag.ui.palette_setup')) + '</span>';
+        // In the panel the setup chip is a link of its own beside the item (setupLink): a link inside the
+        // item's button role cannot be reached by keyboard. Quick-add options hold no controls, so there
+        // it is a plain chip.
+        if (state === 'needs_setup') return tag === 'li' ? '<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.palette_needs_setup')) + '">' + esc(t('easydrag.ui.palette_setup')) + '</span>' : '';
         if (state === 'blocked') return '<span class="ed-chip ed-chip--warn" title="' + esc(t('easydrag.ui.badge_blocked')) + '">' + core.icon('lock') + '</span>';
         if (info.risky) return '<span class="ed-chip ed-chip--risk" title="' + esc(t('easydrag.ui.badge_risky')) + '">' + core.icon('alert') + '</span>';
         return '';
     }
 
+    function setupLink(t, esc, info) {
+        const section = (info.availability || {}).config_section || 'tools';
+        return '<a class="ed-chip ed-chip--warn ed-palette-setup" href="/config#' + esc(section) + '" target="_blank" rel="noopener" data-ed-setup="' + esc(section) + '" title="' + esc(t('easydrag.ui.palette_needs_setup')) + '">' + esc(t('easydrag.ui.palette_setup')) + '</a>';
+    }
+
     function itemMarkup(core, t, esc, info, tag) {
         const unavailable = (info.availability || {}).state !== 'available';
-        return '<' + tag + ' class="ed-palette-item' + (unavailable ? ' is-unavailable' : '') + '" data-ed-type="' + esc(info.type) + '" data-cat="' + esc(core.catOf(info)) + '"' +
+        const item = '<' + tag + ' class="ed-palette-item' + (unavailable ? ' is-unavailable' : '') + '" data-ed-type="' + esc(info.type) + '" data-cat="' + esc(core.catOf(info)) + '"' +
             (tag === 'li' ? ' role="option"' : ' role="button" tabindex="0"') + ' title="' + esc(info.description || info.label) + '">' +
             '<span class="ed-palette-tile">' + core.icon(info.icon) + '</span>' +
             '<span class="ed-palette-text"><span class="ed-palette-name">' + esc(info.label) + '</span>' +
             (info.description ? '<span class="ed-palette-desc">' + esc(info.description) + '</span>' : '') + '</span>' +
-            availabilityBadge(core, t, esc, info) + '</' + tag + '>';
+            availabilityBadge(core, t, esc, info, tag) + '</' + tag + '>';
+        if (tag !== 'li' && (info.availability || {}).state === 'needs_setup') return '<div class="ed-palette-row">' + item + setupLink(t, esc, info) + '</div>';
+        return item;
     }
 
     function rememberType(type) {
@@ -53,20 +63,32 @@
         if (!info || ed.readonly || ed.runView) return null;
         rememberType(type);
         const pos = { x: G.snap(at.x), y: G.snap(at.y) };
-        let id;
+        let id = null;
         if (opts && opts.edge && ed.model.edge(opts.edge) && (info.inputs || []).length) {
             id = ed.model.insertOnEdge(opts.edge, type, pos);
-        } else if (opts && opts.from && !info.trigger) {
+        }
+        // insertOnEdge refuses a step without outputs (it would cut the wire off): that step is added beside the wire.
+        if (!id && opts && opts.from && !info.trigger) {
             id = ed.model.addNode(type, pos, null, opts.from);
-        } else {
+        } else if (!id) {
             id = ed.model.addNode(type, pos);
         }
         if (id) {
             ed.selection.clear();
             ed.selection.add(id);
             ed.bus.emit('selection', ed.selection);
+            const added = ed.model.node(id);
+            ED.core.say(ed, ed.t('easydrag.ui.announce_added_one', { name: added.label || added.type }));
         }
         return id;
+    }
+
+    // requestInsert asks the editor for the quick-add popover that puts a step into a connection. The
+    // popover opens under anchor (the wire's insert button, a row of the inspector's connections).
+    // extra: restoreFocus() takes the focus back once the popover closes, where the canvas would.
+    function requestInsert(ed, edgeId, anchor, extra) {
+        const rect = anchor.getBoundingClientRect();
+        ed.bus.emit('quick-add', Object.assign({ x: rect.left + rect.width / 2, y: rect.bottom + 6, edge: edgeId }, extra));
     }
 
     function createPanel(ed, canvas) {
@@ -224,6 +246,14 @@
         // pressed. Closing it this way leaves the stored choice as it is.
         function closeOverlay() { if (isOpen() && isOverlay()) setOpen(false, true); }
 
+        // restoreDocked shows the panel again by the stored choice once it is docked beside the canvas
+        // (leaving the run view). A floating panel stays closed until asked for. The run view may have
+        // begun on a narrow window and ended on a wide one, where syncLayout skipped this.
+        function restoreDocked() {
+            if (isOverlay() || isOpen()) return;
+            if (core.storage.get(OPEN_KEY, true)) setOpen(true, true);
+        }
+
         // syncLayout follows the window width: becoming a floating panel closes it, becoming a docked
         // one again restores the stored choice (not in the run view, which keeps the panel hidden).
         // The editor runs it before its first view.
@@ -308,14 +338,16 @@
         setOpen(core.storage.get(OPEN_KEY, true));
 
         return {
-            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove,
+            el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove, restoreDocked,
             focusSearch() { setOpen(true); input.focus(); input.select(); },
             dispose() { if (drag) drag.abort(); bag.dispose(); }
         };
     }
 
     // openQuickAdd shows the quick-add popover at client point (x, y).
-    // req: {x, y, from?: {node, port}, edge?: edgeId, filter?: "trigger"}
+    // req: {x, y, from?: {node, port}, edge?: edgeId, filter?: "trigger", restoreFocus?: () => void}
+    // restoreFocus takes the focus back when the popover ends with a choice, Escape or Tab; without
+    // it the canvas gets the focus.
     function openQuickAdd(ed, canvas, req) {
         const core = ED.core;
         const G = ED.geometry;
@@ -378,6 +410,14 @@
         function choose(idx) {
             const info = items[idx];
             if (!info) return;
+            // The wire or the step quick-add was opened for can be gone by now (an undo, a delete
+            // elsewhere): nothing is added, the popover closes and says why.
+            if ((req.from && !ed.model.node(req.from.node)) || (req.edge && !ed.model.edge(req.edge))) {
+                close();
+                giveFocusBack();
+                ED.core.say(ed, ed.t('easydrag.ui.quick_target_gone'));
+                return;
+            }
             let at;
             if (req.from) {
                 const src = ed.model.node(req.from.node);
@@ -398,7 +438,12 @@
             const spot = req.edge ? at : G.freeSpot(at, rects);
             const id = place(ed, info.type, spot, { from: req.from, edge: req.edge });
             close();
-            if (id) canvas.el.focus({ preventScroll: true });
+            if (id) giveFocusBack();
+        }
+
+        function giveFocusBack() {
+            if (typeof req.restoreFocus === 'function') req.restoreFocus();
+            else canvas.el.focus({ preventScroll: true });
         }
 
         let closed = false;
@@ -420,13 +465,17 @@
             if (event.key === 'ArrowDown') { event.preventDefault(); active = Math.min(items.length - 1, active + 1); render(); }
             else if (event.key === 'ArrowUp') { event.preventDefault(); active = Math.max(0, active - 1); render(); }
             else if (event.key === 'Enter') { event.preventDefault(); choose(active); }
-            else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); canvas.el.focus({ preventScroll: true }); }
+            else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); giveFocusBack(); }
             event.stopPropagation();
         });
+        // A press only keeps the focus in the search field; the choice is made on click, so a touch
+        // that scrolls the list adds nothing (U11).
         listEl.addEventListener('pointerdown', (event) => {
+            if (event.target.closest('[data-ed-index]')) event.preventDefault();
+        });
+        listEl.addEventListener('click', (event) => {
             const item = event.target.closest('[data-ed-index]');
             if (!item) return;
-            event.preventDefault();
             choose(Number(item.dataset.edIndex));
         });
         // Listen for outside presses from the next task on (not the press that opened the popover),
@@ -444,5 +493,5 @@
         if (ed.quickAdd) ed.quickAdd.close();
     }
 
-    ED.palette = { createPanel, openQuickAdd, closeQuickAdd, search, place };
+    ED.palette = { createPanel, openQuickAdd, closeQuickAdd, requestInsert, search, place };
 })();

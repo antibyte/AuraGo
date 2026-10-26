@@ -3,15 +3,14 @@ package tools
 import (
 	"context"
 	"fmt"
-	neturl "net/url"
-	"strings"
 )
 
 // DispatchYepAPIScrape handles web scraping operations via YepAPI.
 func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
+	ctx = WithYepAPIRequestContext(ctx, "yepapi_scrape", operation)
 	switch operation {
 	case "scrape":
-		payload, ok, msg := scrapeURLPayload(args)
+		payload, ok, msg := scrapeURLPayload(args, operation)
 		if !ok {
 			return yepAPIFormatError(msg), nil
 		}
@@ -27,7 +26,7 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "js":
-		payload, ok, msg := scrapeURLPayload(args)
+		payload, ok, msg := scrapeURLPayload(args, operation)
 		if !ok {
 			return yepAPIFormatError(msg), nil
 		}
@@ -41,7 +40,7 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "stealth":
-		payload, ok, msg := scrapeURLPayload(args)
+		payload, ok, msg := scrapeURLPayload(args, operation)
 		if !ok {
 			return yepAPIFormatError(msg), nil
 		}
@@ -55,7 +54,7 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "screenshot":
-		payload, ok, msg := scrapeURLPayload(args)
+		payload, ok, msg := scrapeURLPayload(args, operation)
 		if !ok {
 			return yepAPIFormatError(msg), nil
 		}
@@ -66,7 +65,7 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "extract", "ai_extract":
-		payload, ok, msg := scrapeURLPayload(args)
+		payload, ok, msg := scrapeURLPayload(args, operation)
 		if !ok {
 			return yepAPIFormatError(msg), nil
 		}
@@ -111,15 +110,13 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 	}
 }
 
-func scrapeURLPayload(args map[string]interface{}) (map[string]interface{}, bool, string) {
-	url := stringArgWithFallback(args, "url")
+func scrapeURLPayload(args map[string]interface{}, operation string) (map[string]interface{}, bool, string) {
+	url, err := urlArgForOperation(args, operation, "url")
+	if err != nil {
+		return nil, false, err.Error()
+	}
 	if url == "" {
 		return nil, false, "scrape operations require a 'url' string"
-	}
-	url = strings.TrimSpace(url)
-	parsedURL, err := neturl.ParseRequestURI(url)
-	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		return nil, false, "scrape operations require a valid http:// or https:// URL with a host"
 	}
 	return map[string]interface{}{"url": url}, true, ""
 }

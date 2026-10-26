@@ -56,6 +56,8 @@
             loadDesktopImagePath: Pixel.bindRuntime(runtime, async function loadDesktopImagePath(path, options) {
                                 const nextPath = String(path || '').trim();
                                 if (!nextPath) return;
+                                // Layered OpenRaster projects are fetched and decoded by pixel-ora.js.
+                                if (/\.ora$/i.test(nextPath) && this.loadOraProject) return this.loadOraProject(nextPath, options);
                                 this.state.imageRead?.abort();
                                 const controller = new AbortController();
                                 this.state.imageRead = controller;
@@ -83,7 +85,8 @@
                                 try {
                                     const resp = await this.api('/api/desktop/files?path=Pictures&recursive=true&limit=30');
                                     if (!resp || !resp.files || !resp.files.length) { grid.innerHTML = `<span class="pixel-photos-empty">${this.esc(this.t('pixel.no_photos'))}</span>`; return; }
-                                    const imageFiles = resp.files.filter(f => f.is_dir === false && this.IMAGE_EXTS.some(ext => (f.name || '').toLowerCase().endsWith('.' + ext)));
+                                    // .ora projects have no raster preview, so they stay out of the photo thumbnails (they open from the dialog and the recent list).
+                                    const imageFiles = resp.files.filter(f => f.is_dir === false && this.IMAGE_EXTS.some(ext => ext !== 'ora' && (f.name || '').toLowerCase().endsWith('.' + ext)));
                                     if (!imageFiles.length) { grid.innerHTML = `<span class="pixel-photos-empty">${this.esc(this.t('pixel.no_photos'))}</span>`; return; }
                                     grid.innerHTML = imageFiles.slice(0, 12).map(f => {
                                         const name = f.name || f.path || '';
@@ -94,7 +97,9 @@
             }),
             openFile: Pixel.bindRuntime(runtime, async function openFile() {
                                 if (!this.ctx.openFileDialog) return;
-                                const result = await this.ctx.openFileDialog({ title: this.t('pixel.open'), initialPath: 'Photos', filters: [{ label: this.t('desktop.file_dialog_images'), extensions: this.IMAGE_EXTS }] });
+                                const filters = [{ label: this.t('desktop.file_dialog_images'), extensions: this.IMAGE_EXTS }];
+                                if (this.loadOraProject) filters.push({ label: (this.oraText || this.t).call(this, 'desktop.file_dialog_ora', 'OpenRaster project (.ora)'), extensions: ['ora'] });
+                                const result = await this.ctx.openFileDialog({ title: this.t('pixel.open'), initialPath: 'Photos', filters });
                                 if (result && !result.canceled && result.path) {
                                     await this.loadDesktopImagePath(result.path);
                                 }
@@ -106,20 +111,18 @@
                                 const previousPath = this.filePath;
                                 const historyEntry = this.history[this.historyIdx];
                                 const version = this.state.versionPath === path ? this.state.fileVersion : '';
+                                const ext = (path.split('.').pop() || 'png').toLowerCase();
+                                const isJPEG = ext === 'jpg' || ext === 'jpeg';
+                                // .ora keeps layers, masks and blend modes (pixel-ora.js); PNG/JPEG save the flattened picture.
+                                const isORA = ext === 'ora' && !!this.oraDataURL;
                                 this.state.saveBusy = true;
                                 this.setStatus(this.t('pixel.status_saving'));
                                 try {
-                                    const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                    const tmpX = tmpC.getContext('2d');
-                                    this.renderComposition(tmpX);
-                                    const ext = (path.split('.').pop() || 'png').toLowerCase();
-                                    const isJPEG = ext === 'jpg' || ext === 'jpeg';
-                                    const dataURL = isJPEG ? tmpC.toDataURL('image/jpeg', 0.92) : tmpC.toDataURL('image/png');
-                                    this.releaseTempCanvas(tmpC);
+                                    const dataURL = isORA ? await this.oraDataURL() : (isJPEG ? this.flattenToDataURL('image/jpeg', 0.92) : this.flattenToDataURL('image/png'));
                                     const saved = await this.api('/api/pixel/save', {
                                         method: 'POST',
                                         headers: Object.assign({ 'Content-Type': 'application/json' }, version ? { 'If-Match': version } : { 'If-None-Match': '*' }),
-                                        body: JSON.stringify({ path, data: dataURL, format: isJPEG ? 'jpeg' : 'png' })
+                                        body: JSON.stringify({ path, data: dataURL, format: isORA ? 'ora' : (isJPEG ? 'jpeg' : 'png') })
                                     });
                                     if (this.state.disposed || this.filePath !== previousPath) return;
                                     this.filePath = saved.path || path;
@@ -129,19 +132,28 @@
                                     this.isDirty = this.history[this.historyIdx] !== historyEntry;
                                     this.updateStatus();
                                     this.notify({ type: 'success', message: this.t('pixel.saved') });
+                                    if (!isORA && this.noteFlattenedLayers) this.noteFlattenedLayers();
                                 } catch (err) {
                                     if (err.name === 'AbortError' || this.state.disposed) return;
-                                    this.notify({ type: 'error', message: this.t('pixel.error_save') });
-                                    this.setStatus(this.t('pixel.error_save'));
+                                    const failure = isORA && this.oraErrorMessage ? this.oraErrorMessage(err, 'save') : this.t('pixel.error_save');
+                                    this.notify({ type: 'error', message: failure });
+                                    this.setStatus(failure);
                                 } finally { this.state.saveBusy = false; }
             }),
             saveFileAs: Pixel.bindRuntime(runtime, async function saveFileAs() {
                                 if (!this.canvas.width || this.ctx.readonly || this.state.saveBusy) return;
                                 if (!this.ctx.saveFileDialog) return;
-                                const result = await this.ctx.saveFileDialog({ initialPath: 'Pictures', filters: [
+                                const filters = [
                                     { label: this.t('desktop.file_dialog_png'), extensions: ['png'] },
                                     { label: this.t('desktop.file_dialog_jpeg'), extensions: ['jpg', 'jpeg'] }
-                                ] });
+                                ];
+                                if (this.oraDataURL) {
+                                    const project = { label: (this.oraText || this.t).call(this, 'desktop.file_dialog_ora', 'OpenRaster project (.ora)'), extensions: ['ora'] };
+                                    // A document with layers or masks offers the project format first, so it is the default type.
+                                    if (this.layers.length > 1 || this.layers.some(layer => layer.maskCanvas)) filters.unshift(project); else filters.push(project);
+                                }
+                                // A name typed without an extension gets the extension of the first (default) type.
+                                const result = await this.ctx.saveFileDialog({ initialPath: 'Pictures', defaultExtension: filters[0].extensions[0], filters });
                                 if (result && !result.canceled && result.path) {
                                     await this.saveFile(result.path);
                                 }
@@ -186,36 +198,36 @@
                                 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
             }),
             exportWithFormat: Pixel.bindRuntime(runtime, function exportWithFormat(format, quality) {
-                                const tmpC = this.acquireTempCanvas(this.canvas.width, this.canvas.height);
-                                const tmpX = tmpC.getContext('2d');
-                                    this.renderComposition(tmpX);
                                 const mime = format === 'jpeg' ? 'image/jpeg' : (format === 'webp' ? 'image/webp' : 'image/png');
                                 const ext = format === 'jpeg' ? 'jpg' : format;
                                 const link = document.createElement('a');
                                 link.download = (this.fileName || 'image').replace(/\.[^.]+$/, '') + '.' + ext;
-                                link.href = tmpC.toDataURL(mime, quality || 0.92);
+                                link.href = this.flattenToDataURL(mime, quality || 0.92);
                                 link.click();
-                                this.releaseTempCanvas(tmpC);
+            }),
+            // PNG/JPEG/WebP data URL of the visible layers merged, without any adjust or filter preview.
+            flattenToDataURL: Pixel.bindRuntime(runtime, function flattenToDataURL(mime, quality) {
+                                const flat = this.flattenDocument(this.acquireTempCanvas(this.canvas.width, this.canvas.height));
+                                const url = flat.toDataURL(mime || 'image/png', quality);
+                                this.releaseTempCanvas(flat);
+                                return url;
             }),
             applyAIResult: Pixel.bindRuntime(runtime, async function applyAIResult(resp) {
                                 if (!resp || !resp.url) return;
                                 const mode = (this.host.querySelector('[data-ai-result-mode]') || {}).value || 'layer';
                                 if (mode === 'layer' && this.layers.length < this.MAX_LAYERS) {
-                                    this.ensureBackgroundMigrated();
                                     const img = await this.loadImage(resp.url);
                                     const nw = img.naturalWidth;
                                     const nh = img.naturalHeight;
                                     if (nw > this.canvas.width || nh > this.canvas.height) {
                                         this.expandCanvasToFit(nw, nh);
                                     }
-                                    const c = document.createElement('canvas');
-                                    c.width = nw;
-                                    c.height = nh;
-                                    c.getContext('2d').drawImage(img, 0, 0);
-                                    this.layers.push({ canvas: c, name: this.t('pixel.ai_layer'), visible: true, opacity: 1 });
+                                    this.commitPendingPreviews();
+                                    // Layers are document-sized, so the result is drawn at the origin after the document has grown.
+                                    this.layers.push(this.createLayer({ name: this.t('pixel.ai_layer'), source: img }));
                                     this.activeLayerIdx = this.layers.length - 1;
-                                    this.compositeLayers();
-                                    this.refreshLayerPanel();
+                                    this.editMaskMode = false;
+                                    this.layersStructureChanged();
                                     this.pushHistory('ai');
                                 } else {
                                     await this.loadImageToCanvas(resp.url);
@@ -258,7 +270,7 @@
                                 const statusEl = this.host.querySelector('[data-ai-status]');
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    const dataURL = this.canvas.toDataURL('image/png');
+                                    const dataURL = this.flattenToDataURL('image/png');
                                     this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/enhance', {
                                         method: 'POST',
@@ -283,7 +295,7 @@
                                 const statusEl = this.host.querySelector('[data-ai-status]');
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    const dataURL = this.canvas.toDataURL('image/png');
+                                    const dataURL = this.flattenToDataURL('image/png');
                                     this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/remove-bg', {
                                         method: 'POST',
@@ -304,7 +316,7 @@
                                 const statusEl = this.host.querySelector('[data-ai-status]');
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    const dataURL = this.canvas.toDataURL('image/png');
+                                    const dataURL = this.flattenToDataURL('image/png');
                                     this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/upscale', {
                                         method: 'POST',
@@ -333,8 +345,10 @@
                                     const removeBtn = this.host.querySelector('[data-ai-remove-bg]');
                                     const upscaleBtn = this.host.querySelector('[data-ai-upscale]');
                                     if (removeBtn) {
-                                        removeBtn.disabled = !this.aiSupportsRemoveBG;
-                                        removeBtn.title = this.aiSupportsRemoveBG ? '' : this.t('pixel.remove_bg_unavailable');
+                                        // With the cutout module the button runs the local/AI-model engine, which needs no image provider.
+                                        const usable = typeof this.removeBackground === 'function' || this.aiSupportsRemoveBG;
+                                        removeBtn.disabled = !usable;
+                                        removeBtn.title = usable ? '' : this.t('pixel.remove_bg_unavailable');
                                     }
                                     if (upscaleBtn) {
                                         upscaleBtn.disabled = !this.aiSupportsUpscale;

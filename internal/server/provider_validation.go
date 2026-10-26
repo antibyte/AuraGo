@@ -31,11 +31,14 @@ func validateProviderID(id string) error {
 // with uppercase) may be re-saved unchanged so a single legacy ID does not
 // block the entire provider list PUT.
 func validateProviderIDForSave(id string, existingIDs map[string]bool) error {
+	if existingIDs[id] && strings.TrimSpace(id) != "" && !strings.EqualFold(strings.TrimSpace(id), config.LocalLLMProviderID) {
+		return nil
+	}
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return fmt.Errorf("Provider ID must not be empty")
 	}
-	if strings.EqualFold(id, config.LocalLLMProviderID) {
+	if strings.EqualFold(id, config.LocalLLMProviderID) || strings.EqualFold(id, config.LocalMusicProviderID) {
 		return fmt.Errorf("Provider ID %q is reserved for AuraGo's managed local model", id)
 	}
 	if existingIDs[id] {

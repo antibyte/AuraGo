@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -28,6 +29,79 @@ var discoverToolsState struct {
 	snapshots map[string]discoverToolsSnapshot
 	requested map[string]map[string]int
 	liveRuns  map[string]bool
+	orders    map[discoverSearchKey]discoverSearchOrder
+}
+
+// discoverSearchKey identifies a search that is being paged: the ranking of the
+// same query over the same catalog revision in the same session or run.
+type discoverSearchKey struct{ session, query, revision string }
+
+// discoverSearchOrder is the tool names of a search in the order of its first
+// page. The ranking can differ from one call to the next (the manual search
+// may time out or fail), and a page of another order would not continue the
+// cursor of the previous one.
+type discoverSearchOrder struct {
+	names []string
+	at    time.Time
+}
+
+const (
+	// discoverSearchOrderLimit bounds the orders kept, discoverSearchOrderNames
+	// the names of one; an order is dropped after the snapshot TTL.
+	discoverSearchOrderLimit = 64
+	discoverSearchOrderNames = 512
+)
+
+// rememberDiscoverSearchOrder keeps the order of a search for its next pages.
+func rememberDiscoverSearchOrder(key discoverSearchKey, names []string) {
+	key.session = normalizeDiscoverSessionID(key.session)
+	now := time.Now()
+	discoverToolsState.mu.Lock()
+	defer discoverToolsState.mu.Unlock()
+	delete(discoverToolsState.orders, key)
+	if len(names) > discoverSearchOrderNames {
+		return
+	}
+	if discoverToolsState.orders == nil {
+		discoverToolsState.orders = make(map[discoverSearchKey]discoverSearchOrder)
+	}
+	for other, order := range discoverToolsState.orders {
+		if now.Sub(order.at) > discoverToolsSnapshotTTL {
+			delete(discoverToolsState.orders, other)
+		}
+	}
+	if len(discoverToolsState.orders) >= discoverSearchOrderLimit {
+		var oldest discoverSearchKey
+		var oldestAt time.Time
+		for other, order := range discoverToolsState.orders {
+			if oldestAt.IsZero() || order.at.Before(oldestAt) {
+				oldest, oldestAt = other, order.at
+			}
+		}
+		delete(discoverToolsState.orders, oldest)
+	}
+	discoverToolsState.orders[key] = discoverSearchOrder{names: slices.Clone(names), at: now}
+}
+
+// recallDiscoverSearchOrder returns the order remembered for a search.
+func recallDiscoverSearchOrder(key discoverSearchKey) ([]string, bool) {
+	key.session = normalizeDiscoverSessionID(key.session)
+	discoverToolsState.mu.RLock()
+	defer discoverToolsState.mu.RUnlock()
+	order, ok := discoverToolsState.orders[key]
+	if !ok || time.Since(order.at) > discoverToolsSnapshotTTL {
+		return nil, false
+	}
+	return slices.Clone(order.names), true
+}
+
+// forgetDiscoverSearchOrdersLocked drops the orders of a session or run.
+func forgetDiscoverSearchOrdersLocked(session string) {
+	for key := range discoverToolsState.orders {
+		if key.session == session {
+			delete(discoverToolsState.orders, key)
+		}
+	}
 }
 
 // SetDiscoverToolsState stores the current tool state for discover_tools lookups.
@@ -99,6 +173,7 @@ func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
 		if snapshot.updatedAt.IsZero() {
 			// Zero time means the snapshot was never properly initialised; treat as expired.
 			delete(discoverToolsState.snapshots, sessionID)
+			forgetDiscoverSearchOrdersLocked(sessionID)
 			if discoverToolsState.requested != nil {
 				delete(discoverToolsState.requested, sessionID)
 			}
@@ -106,6 +181,7 @@ func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
 		}
 		if snapshot.updatedAt.Before(cutoff) {
 			delete(discoverToolsState.snapshots, sessionID)
+			forgetDiscoverSearchOrdersLocked(sessionID)
 			if discoverToolsState.requested != nil {
 				delete(discoverToolsState.requested, sessionID)
 			}
@@ -206,6 +282,7 @@ func ClearDiscoverToolsState(sessionID string) {
 	discoverToolsState.mu.Lock()
 	defer discoverToolsState.mu.Unlock()
 	delete(discoverToolsState.snapshots, sessionID)
+	forgetDiscoverSearchOrdersLocked(sessionID)
 	if discoverToolsState.requested != nil {
 		delete(discoverToolsState.requested, sessionID)
 	}

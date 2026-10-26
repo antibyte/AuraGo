@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Sendt",
   "mailer.outbox_unknown": "Leveringsstatus er ukjent",
   "mailer.partial_action": "Noen meldinger ble endret. Listen er oppdatert. Se gjennom resten før du prøver på nytt.",
+  "mailer.participants_count": "{count} deltakere",
   "mailer.password": "Passord",
   "mailer.preview_rule": "Forhåndsvis regel",
   "mailer.print": "Skriv ut",

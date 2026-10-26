@@ -15,15 +15,16 @@ func TestValidateAgentSkillScriptPolicyLanguageAndDangerZone(t *testing.T) {
 			t.Fatalf("error = %v, want agent.allow_python denial", err)
 		}
 	})
-	t.Run("python requires unsafe host execution exception", func(t *testing.T) {
+	t.Run("python without unsafe host stays allowed for the sandbox path", func(t *testing.T) {
 		cfg := &config.Config{}
 		cfg.Agent.AllowPython = true
-		if err := ValidateAgentSkillScriptPolicy(cfg, "scripts/run.py"); err == nil || !strings.Contains(err.Error(), "agent.allow_unsafe_host_execution") {
-			t.Fatalf("error = %v, want unsafe host execution denial", err)
+		if err := ValidateAgentSkillScriptPolicy(cfg, "scripts/run.py"); err != nil {
+			t.Fatalf("sandbox path rejected: %v", err)
 		}
 		cfg.Agent.AllowUnsafeHostExecution = true
+		cfg.Tools.SkillManager.RequireSandbox = true
 		if err := ValidateAgentSkillScriptPolicy(cfg, "scripts/run.py"); err != nil {
-			t.Fatalf("explicit host execution exception rejected: %v", err)
+			t.Fatalf("require_sandbox path rejected: %v", err)
 		}
 	})
 

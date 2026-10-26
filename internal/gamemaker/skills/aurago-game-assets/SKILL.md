@@ -10,6 +10,7 @@ metadata:
   threejs_commit: 7221c1f4a6d2ae189a4d85d058d24f3228499d46
 allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker_validate
 ---
+> General agent use only. Game Maker Studio runs use the `craft.go` guides and its prepared profiles, never this package.
 
 # Game Assets
 

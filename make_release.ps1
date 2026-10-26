@@ -1,6 +1,6 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
-# Requires: PowerShell 5.1+, Go 1.27.2+, GitHub CLI (gh), tar
+# Requires: PowerShell 5.1+, Go 1.27.2+, GitHub CLI (gh), tar, Node.js, Python 3.10+
 
 param(
     [string]$Version
@@ -55,6 +55,12 @@ try {
     exit 1
 }
 
+& (Join-Path $PSScriptRoot 'scripts\sign-release-checksums.ps1') -CheckPrerequisites
+$releasePython = & (Join-Path $PSScriptRoot 'scripts\find-release-python.ps1')
+Write-Host "    Python: $releasePython" -ForegroundColor Green
+& $releasePython (Join-Path $PSScriptRoot 'scripts\build-release-verifier.py') --scripts-only --require-published
+if ($LASTEXITCODE -ne 0) { throw 'The pinned bootstrap must be published before building an application release.' }
+
 Write-Host ""
 
 # ── Version tag ──────────────────────────────────────────────────────────
@@ -78,8 +84,23 @@ if ([string]::IsNullOrEmpty($scriptDir)) {
 }
 Set-Location $scriptDir
 
+$buildID = (git rev-parse --verify HEAD).Trim()
+$buildTime = (git show -s --format=%cI HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $buildID -or -not $buildTime) { throw 'Unable to resolve release source identity.' }
+if (git status --porcelain --untracked-files=normal) { throw 'Refusing to build release artifacts from a dirty worktree.' }
+$existingTag = git ls-remote --tags origin "refs/tags/$Version"
+if ($LASTEXITCODE -ne 0) { throw 'Cannot check the remote release tag.' }
+if ($existingTag) { throw "Release tag $Version already exists; choose a new version." }
+$mainLdFlags = "-s -w -X aurago/internal/buildinfo.BuildID=$buildID -X aurago/internal/buildinfo.BuildVCSRevision=$buildID -X aurago/internal/buildinfo.BuildVCSTime=$buildTime -X aurago/internal/buildinfo.BuildVCSModified=false"
+$hostGoOS = (go env GOHOSTOS).Trim()
+$hostGoArch = (go env GOHOSTARCH).Trim()
+$env:GOOS = $hostGoOS
+$env:GOARCH = $hostGoArch
+
 if (Test-Path "deploy") {
-    Remove-Item -Recurse -Force "deploy"
+    Get-ChildItem -LiteralPath 'deploy' -Force |
+        Where-Object { $_.Name -notin @('docker', 'phonon') } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
 }
 New-Item -ItemType Directory -Force -Path "deploy" | Out-Null
 if (-not (Test-Path "bin")) {
@@ -88,6 +109,10 @@ if (-not (Test-Path "bin")) {
 
 # ── Step 1: Pack resources.dat ───────────────────────────────────────────
 Write-Host "[1/5] Packing resources.dat ..." -ForegroundColor Yellow
+& $releasePython (Join-Path $scriptDir 'scripts\prepare-phonon.py') --pack
+if ($LASTEXITCODE -ne 0) { throw 'Pinned Phonon resources are missing or invalid; nothing was published.' }
+$phononManifest = Get-Content -LiteralPath (Join-Path $scriptDir 'internal\phonon\manifest.json') -Raw | ConvertFrom-Json
+$phononPackages = @('deploy\phonon-model.dat') + @($phononManifest.runtimes | ForEach-Object { 'deploy\phonon-runtime_' + $_.target + '.dat' })
 
 $tmpStage = Join-Path $env:TEMP "aurago-release-$([guid]::NewGuid().ToString().Substring(0,8))"
 try {
@@ -161,6 +186,13 @@ $configContent = $configContent -replace 'access_token: "[^"]*"', 'access_token:
 Set-Content -Path (Join-Path $tmpStage "config.yaml") -Value $configContent
 
 # Create tar.gz
+node scripts/build-ui-bundles.js
+if ($LASTEXITCODE -ne 0) { throw 'UI bundle generation failed.' }
+go run ./cmd/assetpack -out deploy -stage (Join-Path $tmpStage 'assets/web') -release $Version
+if ($LASTEXITCODE -ne 0) { throw 'Version-bound web asset packaging failed.' }
+$assetLdFlags = (Get-Content -LiteralPath 'deploy/web-assets.ldflags' -Raw).Trim()
+$assetArchive = (Get-Content -LiteralPath 'deploy/web-assets.name' -Raw).Trim()
+$webReleaseAssets = @(('deploy\' + $assetArchive), 'deploy\web-assets.json')
 $resourcesOut = Join-Path $scriptDir "deploy\resources.dat"
 tar -czf $resourcesOut -C $tmpStage .
 if ($LASTEXITCODE -ne 0) {
@@ -187,6 +219,11 @@ Write-Host ""
 
 $env:CGO_ENABLED = "0"
 
+& $releasePython (Join-Path $scriptDir 'scripts\build-release-verifier.py') --check
+if ($LASTEXITCODE -ne 0) { throw 'Release verifier bootstrap differs from reviewed pins; nothing was published.' }
+$verifierPackages = @(Get-ChildItem -LiteralPath (Join-Path $scriptDir 'deploy/release-verifier') -Filter 'release-verifier_*')
+if ($verifierPackages.Count -ne 6) { throw 'Expected six release verifier packages' }
+
 # Build the pinned helper and embed its reviewed checksums before AuraGo.
 go run ./scripts/build-gog.go -out deploy/gog
 if ($LASTEXITCODE -ne 0) { throw "Managed gog build failed" }
@@ -201,8 +238,9 @@ function Build-Binary {
     $fullOutput = Join-Path $scriptDir $Output
     Write-Host "    -> $Output" -ForegroundColor Green
     $binaryFlags = "-s -w"
+    if ($Target -eq "./cmd/aurago/") { $binaryFlags = "$mainLdFlags $assetLdFlags" }
     if ($Target -eq "./cmd/remote/") { $binaryFlags += " -X main.BuildVersion=$Version" }
-    go build -trimpath -ldflags=$binaryFlags -o $fullOutput $Target
+    go build -buildvcs=false -trimpath "-ldflags=$binaryFlags" -o $fullOutput $Target
     if ($LASTEXITCODE -ne 0) {
         throw "Build failed for $Output"
     }
@@ -251,9 +289,13 @@ $env:GOARCH = "arm64"
 Build-Binary -Output "deploy\aurago_windows_arm64.exe" -Target "./cmd/aurago/"
 Build-Binary -Output "deploy\aurago-remote_windows_arm64.exe" -Target "./cmd/remote/"
 
+node scripts/check-web-assets.mjs 'deploy/aurago_windows_amd64.exe' 'bin/aurago_linux'
+if ($LASTEXITCODE -ne 0) { throw 'Release binary/resource budget verification failed.' }
+
 # Copy install.sh
 Copy-Item "install.sh" "deploy\install.sh" -Force
 Copy-Item "update.sh" "deploy\update.sh" -Force
+Copy-Item "repair-update.sh" "deploy\repair-update.sh" -Force
 Write-Host "    -> deploy\install.sh" -ForegroundColor Green
 Write-Host "    -> deploy\update.sh" -ForegroundColor Green
 
@@ -262,9 +304,11 @@ $requiredPortableAssets = @(
     "deploy\install.sh",
     "deploy\update.sh"
 )
+$requiredPortableAssets += $webReleaseAssets
 foreach ($file in $requiredPortableAssets) {
     $fullPath = Join-Path $scriptDir $file
-    if (!(Test-Path -LiteralPath $fullPath) -or (Get-Item -LiteralPath $fullPath).Length -lt 1024) {
+    $minimumBytes = if ($file -eq 'deploy\web-assets.json') { 64 } else { 1024 }
+    if (!(Test-Path -LiteralPath $fullPath) -or (Get-Item -LiteralPath $fullPath).Length -lt $minimumBytes) {
         throw "Required release asset is missing or unexpectedly small: $file"
     }
 }
@@ -303,6 +347,12 @@ $checksumFiles = @(
     "deploy\aurago-remote_windows_arm64.exe"
 )
 $checksumFiles += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
+$checksumFiles += $phononPackages
+$checksumFiles += 'deploy\repair-update.sh'
+$checksumFiles += @($verifierPackages | ForEach-Object { 'deploy\release-verifier\' + $_.Name })
+$rotationAssets = @('deploy\release-keyring.json', 'deploy\release-keyring.json.sig') | Where-Object { Test-Path -LiteralPath $_ }
+$checksumFiles += $rotationAssets
+$checksumFiles += $webReleaseAssets
 $checksumLines = foreach ($file in $checksumFiles) {
     $fullPath = Join-Path $scriptDir $file
     if (Test-Path $fullPath) {
@@ -315,6 +365,8 @@ $checksumLines = foreach ($file in $checksumFiles) {
 [IO.File]::WriteAllText((Join-Path $scriptDir 'deploy\SHA256SUMS'), (($checksumLines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
 Write-Host "    -> deploy\SHA256SUMS" -ForegroundColor Green
 & (Join-Path $scriptDir 'scripts\sign-release-checksums.ps1') -Manifest (Join-Path $scriptDir 'deploy\SHA256SUMS')
+& $releasePython (Join-Path $scriptDir 'scripts\build-release-verifier.py') --scripts-only --verify-manifest (Join-Path $scriptDir 'deploy\SHA256SUMS')
+if ($LASTEXITCODE -ne 0) { throw 'Release signature is not trusted by automatic installers; nothing was published.' }
 
 # Reset env
 $env:GOOS = "windows"
@@ -325,17 +377,10 @@ Write-Host ""
 # ── Step 3: Commit & push code ───────────────────────────────────────────
 Write-Host "[3/5] Pushing code to GitHub..." -ForegroundColor Yellow
 
-git add .
-$status = git diff-index --quiet HEAD 2>&1
-$hasChanges = $LASTEXITCODE -ne 0
-if ($hasChanges) {
-    git commit -m "build: release $Version [skip actions]"
-    git push origin main
-    Write-Host "    Code pushed." -ForegroundColor Green
-}
-if (-not $hasChanges) {
-    Write-Host "    Nothing to commit - working tree clean." -ForegroundColor Gray
-}
+if (git status --porcelain --untracked-files=normal) { throw 'Generated release inputs changed; review and commit them before publishing.' }
+git push origin HEAD:refs/heads/main
+if ($LASTEXITCODE -ne 0) { throw 'Source publication failed; no release was created.' }
+Write-Host "    Reviewed source pushed." -ForegroundColor Green
 
 Write-Host ""
 
@@ -369,6 +414,11 @@ $assetPaths = @(
 )
 
 $assetPaths += @($gogPackages | ForEach-Object { 'deploy\gog\' + $_.Name })
+$assetPaths += $phononPackages
+$assetPaths += 'deploy\repair-update.sh'
+$assetPaths += @($verifierPackages | ForEach-Object { 'deploy\release-verifier\' + $_.Name })
+$assetPaths += $rotationAssets
+$assetPaths += $webReleaseAssets
 foreach ($path in $assetPaths) {
     $fullPath = Join-Path $scriptDir $path
     if (Test-Path $fullPath) {
@@ -381,11 +431,13 @@ $notes = @'
 
 ### Installation
 
+Installation and updates verify release signatures automatically. No Cosign installation, key setup or environment variables are needed.
+See [release verification](https://github.com/antibyte/AuraGo/blob/main/documentation/release-signatures.md).
+
 **Verified install (recommended, no Go required):**
 ```bash
 curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
-curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
-sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+bash install.sh
 ```
 
 **Quick install (runs the script from the main branch):**
@@ -405,9 +457,14 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 '@
 $notes = $notes -replace '\{VERSION\}', $Version
 
+$notesFile = [IO.Path]::GetTempFileName()
+[IO.File]::WriteAllText($notesFile, $notes, [Text.UTF8Encoding]::new($false))
 try {
-    $ghArgs = @("release", "create", $Version, $assets, "--title", "AuraGo $Version", "--notes", $notes)
+    $ghArgs = @("release", "create", $Version) + $assets + @("--draft", "--target", $buildID, "--title", "AuraGo $Version", "--notes-file", $notesFile)
     gh @ghArgs
+    if ($LASTEXITCODE -ne 0) { throw 'Release draft creation or asset upload failed.' }
+    gh release edit $Version --draft=false --latest
+    if ($LASTEXITCODE -ne 0) { throw 'Release publication failed; uploaded assets remain in the draft.' }
     Write-Host "    Release created successfully!" -ForegroundColor Green
 } catch {
     Write-Host ""
@@ -415,15 +472,17 @@ try {
     Write-Host "         - gh auth status (must be logged in)" -ForegroundColor Yellow
     Write-Host "         - Tag $Version may already exist (run: gh release delete $Version)" -ForegroundColor Yellow
     exit 1
-}
+} finally { Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue }
 
 Write-Host ""
 
 # ── Step 5: Cleanup old releases ─────────────────────────────────────────
 Write-Host "[5/5] Cleaning up old releases (keeping latest 3)..." -ForegroundColor Yellow
 
-try {
-    $releases = gh release list --limit 20 --json tagName | ConvertFrom-Json
+if ($env:AURAGO_KEEP_RELEASES -eq '1') {
+    Write-Host '    Keeping all existing releases and tags.' -ForegroundColor Gray
+} else { try {
+    $releases = gh release list --limit 100 --exclude-drafts --exclude-pre-releases --json tagName | ConvertFrom-Json
     $toDelete = $releases | Where-Object { $_.tagName -match '^v[0-9]' } | Select-Object -Skip 3
     foreach ($rel in $toDelete) {
         Write-Host "    Deleting old release: $($rel.tagName)" -ForegroundColor Gray
@@ -431,7 +490,7 @@ try {
     }
 } catch {
     Write-Host "    Could not cleanup old releases (non-fatal)" -ForegroundColor Gray
-}
+} }
 
 Write-Host ""
 Write-Host "Verifying release..." -ForegroundColor Yellow

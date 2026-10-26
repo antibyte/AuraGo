@@ -129,12 +129,17 @@ func (kg *KnowledgeGraph) applySessionGraphPrivacyTarget(ctx context.Context, ta
 		if blocked {
 			return false, nil
 		}
-		if err := cleanupKGClaimsByIDTx(tx, []string{target.TargetID}); err != nil {
+		if err := deleteKGClaimsByIDTx(tx, []string{target.TargetID}); err != nil {
 			return false, err
 		}
 		deleted = true
 	default:
 		return false, fmt.Errorf("unsupported graph privacy target %q", target.Store)
+	}
+	if target.Store == "kg_claim" {
+		if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
+			return false, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return false, err

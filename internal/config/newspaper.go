@@ -9,9 +9,16 @@ const (
 	NewspaperBudgetAuto  = "auto"
 	NewspaperBudgetFixed = "fixed"
 
-	NewspaperOverviewGoogleNews = "google_news"
-	NewspaperOverviewHackerNews = "hacker_news"
-	NewspaperOverviewTechmeme   = "techmeme"
+	NewspaperOverviewGoogleNews          = "google_news"
+	NewspaperOverviewHackerNews          = "hacker_news"
+	NewspaperOverviewTechmeme            = "techmeme"
+	NewspaperOverviewTagesschau          = "tagesschau"
+	NewspaperOverviewBBCBusiness         = "bbc_business"
+	NewspaperOverviewScienceDaily        = "science_daily"
+	NewspaperOverviewNASA                = "nasa"
+	NewspaperOverviewGuardianEnvironment = "guardian_environment"
+	NewspaperOverviewBBCSport            = "bbc_sport"
+	NewspaperOverviewGuardianCulture     = "guardian_culture"
 )
 
 // NewspaperConfig controls the optional, server-owned daily publication.
@@ -44,9 +51,16 @@ func NormalizeNewspaperConfig(cfg *NewspaperConfig) error {
 		return fmt.Errorf("newspaper.budget_mode must be auto or fixed")
 	}
 	allowed := map[string]struct{}{
-		NewspaperOverviewGoogleNews: {},
-		NewspaperOverviewHackerNews: {},
-		NewspaperOverviewTechmeme:   {},
+		NewspaperOverviewGoogleNews:          {},
+		NewspaperOverviewHackerNews:          {},
+		NewspaperOverviewTechmeme:            {},
+		NewspaperOverviewTagesschau:          {},
+		NewspaperOverviewBBCBusiness:         {},
+		NewspaperOverviewScienceDaily:        {},
+		NewspaperOverviewNASA:                {},
+		NewspaperOverviewGuardianEnvironment: {},
+		NewspaperOverviewBBCSport:            {},
+		NewspaperOverviewGuardianCulture:     {},
 	}
 	seen := make(map[string]struct{}, len(cfg.OverviewSources))
 	sources := make([]string, 0, len(cfg.OverviewSources))

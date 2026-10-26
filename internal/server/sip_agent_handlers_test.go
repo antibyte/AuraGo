@@ -263,7 +263,8 @@ func (*sipLiveTestClient) CreateChatCompletionStream(context.Context, openai.Cha
 }
 
 type sipLiveTestSynthesizer struct {
-	calls int
+	calls      int
+	sampleRate int
 }
 
 func (s *sipLiveTestSynthesizer) Synthesize(_ context.Context, text, _ string) ([]int16, int, error) {
@@ -271,7 +272,11 @@ func (s *sipLiveTestSynthesizer) Synthesize(_ context.Context, text, _ string) (
 	if text != "OK" {
 		return nil, 0, fmt.Errorf("unexpected TTS text %q", text)
 	}
-	return make([]int16, 160), 8000, nil
+	rate := s.sampleRate
+	if rate == 0 {
+		rate = 8000
+	}
+	return make([]int16, rate/50), rate, nil
 }
 
 type sipLiveTestRecognizer struct {
@@ -280,22 +285,27 @@ type sipLiveTestRecognizer struct {
 
 func (r *sipLiveTestRecognizer) Recognize(_ context.Context, wav []byte, sampleRate int, _ string) (string, error) {
 	r.calls++
-	if len(wav) < 44 || sampleRate != 8000 {
+	pcm, rate, err := voice.DecodeWAVPCM16(wav)
+	if err != nil || sampleRate != 16000 || rate != sampleRate || len(pcm) < 300 || len(pcm) > 321 {
 		return "", fmt.Errorf("invalid ASR probe audio")
 	}
 	return "OK", nil
 }
 
 func TestClassicTelephoneLiveTestExercisesLLMTTSAndASR(t *testing.T) {
-	client := &sipLiveTestClient{}
-	synthesizer := &sipLiveTestSynthesizer{}
-	recognizer := &sipLiveTestRecognizer{}
-	classic := &voice.ClassicBackend{Synthesizer: synthesizer, Recognizer: recognizer}
-	if err := runClassicSIPAgentLiveTest(context.Background(), client, classic, "phone-model", "de"); err != nil {
-		t.Fatal(err)
-	}
-	if client.calls != 1 || synthesizer.calls != 1 || recognizer.calls != 1 {
-		t.Fatalf("live test stages: LLM=%d TTS=%d ASR=%d", client.calls, synthesizer.calls, recognizer.calls)
+	for _, rate := range []int{8000, 16000, 24000, 22050, 44100, 48000} {
+		t.Run(fmt.Sprint(rate), func(t *testing.T) {
+			client := &sipLiveTestClient{}
+			synthesizer := &sipLiveTestSynthesizer{sampleRate: rate}
+			recognizer := &sipLiveTestRecognizer{}
+			classic := &voice.ClassicBackend{Synthesizer: synthesizer, Recognizer: recognizer}
+			if err := runClassicSIPAgentLiveTest(context.Background(), client, classic, "phone-model", "de"); err != nil {
+				t.Fatal(err)
+			}
+			if client.calls != 1 || synthesizer.calls != 1 || recognizer.calls != 1 {
+				t.Fatalf("live test stages: LLM=%d TTS=%d ASR=%d", client.calls, synthesizer.calls, recognizer.calls)
+			}
+		})
 	}
 }
 

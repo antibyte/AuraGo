@@ -75,7 +75,10 @@ AuraGo's system-wide selection.
 The selected model plans, builds, validates, and polishes autonomously. Planning
 is internal and requires no additional user confirmation. The server validates
 the structured plan before allowing code/media/import mutations. The initial
-plan has at most two corrections. Verified phase guidance is supplied directly;
+planning budget allows three charged invalid submissions, including the initial
+rejection. A correction that reduces the independent issue count is free, a job
+stops at five submissions, and three dry-run previews neither accept a plan nor consume
+that budget. Verified phase guidance is supplied directly;
 the model does not have to discover or activate skills first. Peaceful requests
 do not inherit mandatory combat, hazards or endings from the design defaults.
 Progress events,
@@ -148,6 +151,28 @@ Observed streams on the official OpenAI route request `stream_options.include_us
 unknown/custom routes keep their existing request compatibility.
 Missing measurements remain `null`, including providers that report no cache data.
 
+Sampling is pinned per phase: planning uses `game_maker.planning_temperature`
+(default 0.6), building, repair, source generation and image review use
+`game_maker.building_temperature` (default 0.2). Both are clamped to the agent
+loop's 0.05–1.5 range and reach the tool-enabled loop and the tool-free minimal
+loops. Planning charges at most three failed `set_design` submissions: an attempt
+that reduces the number of independent design issues is free, every job caps at
+five submissions, and up to three `dry_run` previews validate a design, return
+the expanded plan and warnings, and neither accept it nor consume the budget.
+A job may request a different repair budget (`StartJobRequest.max_repair_passes`,
+1–6, default 3); the repair loop, the mutation gate, the visual repair and the
+disclosed remaining count all use the same limit.
+New jobs resolve the selected provider/model limits before starting. A model that
+is known to have fewer than 16 384 usable context tokens is refused with
+`model_context_too_small`; pass `allow_small_model` in the start request to
+override that for an explicit weak-model experiment. Models the registry does not
+know keep the conservative defaults and are never refused. The passive endpoint
+`GET /api/game-maker/model-limits?provider_id=…&model=…` reports the resolved
+context, output limit, source and the minimum without a provider probe.
+Deterministic asset normalization (plural `pack_ids`/`asset_ids`, duplicate
+roles, unknown catalog metadata) runs before validation and is reported as
+`warnings`; unknown catalog IDs, conflicting mechanics and invalid scenes still
+reject.
 Protocol references: [StepFun usage](https://platform.stepfun.ai/docs/en/api-reference/chat/chat-completion-create),
 [Anthropic cache accounting](https://platform.claude.com/docs/en/build-with-claude/prompt-caching),
 and [OpenAI caching](https://developers.openai.com/api/docs/guides/prompt-caching).
@@ -233,16 +258,54 @@ browser validation still decide whether the resulting game is ready.
 ## Studio workflow
 
 - The creation dialog offers localized idea chips and a short description
-  guide next to name, dimension, provider, and media options.
+  guide next to name, dimension, provider, and media options. It also shows the
+  resolved limits of the chosen model (`ctx … tok · out … tok`) and warns when a
+  known model sits below the Studio floor of 16 384 context tokens; starting
+  anyway asks for an explicit confirmation and sends the small-model opt-in.
+  Unknown models show no warning and are never blocked. A known route below
+  65 536 context tokens or below 16 384 output tokens also shows the compact-mode
+  notice: a shorter plan, at most six anchors, and no full rewrite of
+  `src/main.ts`. That notice is separate from the context-floor warning.
+  The copy names the
+  rough budget: about 12–14K input plus a 16K output reserve for a 2D building
+  round, so 32K context is a sensible minimum.
+- Models below 65 536 tokens of context, or below 16 384 output tokens, count as
+  small and run the compact profile: the design schema asks only for base,
+  objective, features and up to two stages, the building context keeps at most
+  12 000 bytes of source, and the API reference shrinks to a short cheat sheet.
+  A new game on such a model edits the installed starter through a list of up to
+  six anchors instead of rewriting `src/main.ts`; a full rewrite of that file is
+  refused with the anchor list. Validation, repair and publication gates are
+  unchanged, and an ordinary run keeps the complete profile and source window.
 - While a job runs, a banner shows the current phase, the elapsed time, and
   the repair pass when the builder loops back from validation. The phase
-  stepper below it mirrors the same state.
+  stepper below it mirrors the same state. The elapsed time follows the job's
+  `started_at` and falls back to the local clock only when that time is
+  missing, including when a running project is opened again. A job feed under
+  the step bar, outside both panes, shows the phase, the same elapsed time,
+  stop, and the last eight public events. It stays hidden while the
+  empty-preview terminal is on screen, and it stays visible when the preview
+  is the game itself. Narrow step switching does not hide the feed.
 - Finished jobs end with a result card in the conversation: a playable
   revision offers **Play now**. A failure explains the cause in the interface
   language (failed play test, unavailable browser test, time limit, plan,
   language model, cancelled run, or unexpected end), keeps the backend report
   folded under **Technical details**, and offers **Try again**, which continues
-  the saved working copy and agent context. When the server sends check counts,
+  the saved working copy and agent context. Above the technical details it names
+  up to six open checks in the interface language. `required_controls` and
+  `required_stages` have their own explanation; every other check uses a
+  generic sentence that includes the check id. **Use as change** copies a
+  matching request into the change field and does not start a job. Expected
+  and observed values stay diagnostic data. The instruction that was given to
+  the model stays folded under **Technical details**. The card also says that
+  **Try again** sends no new asset selection, so a binding the plan already
+  accepted stays. The server never puts source text in the check list.
+- **Try with another model** reopens the model choice and continues the same
+  draft. The selected provider and model become the project default, so later
+  runs use them; the dialog says so. When the failed run used repair passes, an
+  **Extend repairs** action continues the draft with three more passes (at most
+  six in total), without a new planning round and without another model choice.
+  When the server sends check counts,
   the card shows how many passed and failed, and how many repair passes ran.
   When the job recorded `prompt_usage` calls, the same card shows the call
   count, measured input plus output tokens, and a price. A missing measurement
@@ -265,9 +328,14 @@ browser validation still decide whether the resulting game is ready.
 - Only one job runs at a time. The library marks the busy project with a
   spinner, and the change form of other projects stays disabled with a hint
   until the active job finishes (the capabilities API exposes the active
-  job's project ID, status, and phase).
+  job's project ID, status, phase, and start time).
+- **Assets** and **Export** stay visible. Sources, Knowledge, Revisions,
+  Code Studio, Rename, and Delete live in the more menu at every width.
+  Knowledge is offered when a project is open and the learnings window is
+  available. Export stays disabled until the project has a revision.
+  The revisions list shows the changed relative paths, at most 40, and says
+  when more paths changed than the list shows.
 - The layout follows the width of the Studio window, not of the screen. Below
-  1180 px the secondary project actions move into an overflow menu. Below
   980 px the library collapses into a project dropdown in the agent pane, next
   to its own **New game** button. Below 760 px the conversation and the preview
   are separate steps. The conversation is the default. **Play now** opens the
@@ -305,7 +373,8 @@ provide four directions; rotatable vehicles record their exact forward angle.
 
 Search/filter packs, inspect sprites, play animations, and switch between
 checkerboard, white and dark backgrounds. **Use for next job** prepares the next
-creation or change request without starting it. The form shows the selection.
+creation or change request without starting it. The form shows the selection
+and says that it applies only in this browser and only to an ordinary change.
 Each project remembers that selection in this browser, and the next change
 request uses it again until it is cleared. Try again continues without sending
 the selection again, so a binding the plan already accepted stays. An empty
@@ -613,6 +682,12 @@ boundary for AuraGo data and APIs.
 
 ## Curated skill sources
 
+The five bundled `aurago-*` game packages are general-agent guidance: they are
+installed, hash-verified and available to the chat agent, but Game Maker Studio
+runs never inject them. Studio guidance comes from the `craft.go` guides, the
+phase guidance and the prepared profiles, so a design rule that must reach the
+model belongs there and not only in a `SKILL.md`.
+
 - Three.js material is adapted from
   `majidmanzarpour/threejs-game-skills` at commit
   `7221c1f4a6d2ae189a4d85d058d24f3228499d46` (MIT).
@@ -770,7 +845,25 @@ dot-path files. Without the variable the test skips, so ordinary
 their own environment flags.
 
 `game-maker-comparison.json` defines eight fixed weak-model cases and the recorded
-fields. Run both commits with the same configured provider/model and settings,
-then record human playability observations independently of model success prose.
-This provider-dependent comparison is separate from the deterministic browser
-suite; do not claim a model quality improvement without those measurements.
+fields. `scripts/game-maker-benchmark.mjs` runs them and records the terminal job
+outcome, repair passes, usage and duration per case:
+
+```bash
+node scripts/game-maker-benchmark.mjs --dry-run      # list the cases
+AURAGO_BASE_URL=https://127.0.0.1:8443 AURAGO_TOKEN=<admin token> \
+GM_PROVIDER=<provider id> GM_MODEL=<model> GM_COMMIT=$(git rev-parse --short HEAD) \
+node scripts/game-maker-benchmark.mjs
+```
+
+The report lands in the ignored `reports/game-maker-benchmark/` as JSON plus a
+Markdown summary; it never contains the token. The runner cannot judge quality:
+fill `playable` per case by watching the games, independently of model prose. Run
+both commits with the same configured provider/model and settings. This
+provider-dependent comparison is separate from the deterministic browser suite;
+do not claim a model quality improvement without those measurements.
+
+Source writes to `src/main.ts` return advisory `lint` findings (at most five):
+missing `setup()` or `this.player`, declared stages without `configureLevels`
+or `levels:`, external URLs and planned roles that never appear in the source.
+Lint is a hint for the model; it never blocks a write and never changes
+validation or publication.

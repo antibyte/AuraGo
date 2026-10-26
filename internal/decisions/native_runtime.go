@@ -35,6 +35,9 @@ func (factory *managedRuntimeFactory) install(ctx context.Context, deployment st
 		if !dockerMayMutate(access) {
 			return NewError(CodeDeploymentDenied, nil)
 		}
+		if err := preflightDockerMounts(ctx, access, dataDir, factory.options.dockerSelfContainer); err != nil {
+			return err
+		}
 		return ensureDockerRuntimeImages(ctx, access, cpuAllowed, progress)
 	}
 	return ensureNativeRuntime(ctx, runtimeBuildDirectory(factory.options), filepath.Join(dataDir, "decisions", "runtime"), cpuAllowed, progress)
@@ -62,28 +65,17 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 	devices := make([]runtimeDevice, 0)
 	checked := false
 	executed := false
-	managedTarget := filepath.Join(managedRoot, runtimeTarget(runtime.GOOS, runtime.GOARCH))
-	_, managedErr := os.Stat(managedTarget)
-	searchManaged := managedErr == nil
+	var integrityErr error
 	for _, backend := range runtimeBackends(runtime.GOOS) {
-		if err := ctx.Err(); err != nil {
-			return nil, NewError(CodeCancelled, err)
+		candidates, err := nativeRuntimeCandidates(ctx, sourceRoot, managedRoot, backend)
+		if ErrorCode(err) == CodeCancelled {
+			return nil, err
 		}
-		candidates := []string{filepath.Join(sourceRoot, "bin", "decisions-runtime", runtimeTarget(runtime.GOOS, runtime.GOARCH), backend)}
-		if searchManaged {
-			candidates = []string{filepath.Join(managedTarget, backend)}
+		if ErrorCode(err) == CodeRuntimeAttestationFailed {
+			integrityErr = err
 		}
-		if entry, ok := releaseRuntimeCatalog.native(runtime.GOOS, runtime.GOARCH, backend); ok {
-			candidates = append([]string{onnxrt.RuntimeDir(filepath.Join(managedRoot, "packages"), entry.asset())}, candidates...)
-		}
-		for _, directory := range candidates {
-			if err := validateDownloadedRuntime(ctx, directory, backend); err != nil {
-				continue
-			}
-			binary, digest, err := validateRuntimeManifest(ctx, directory, backend, runtime.GOOS, runtime.GOARCH)
-			if err != nil {
-				continue
-			}
+		for _, bundle := range candidates {
+			directory, binary, digest := bundle.directory, bundle.binary, bundle.digest
 			checked = true
 			args := []string{"--discover"}
 			if modelPath != "" {
@@ -137,6 +129,9 @@ func discoverNativeDevices(ctx context.Context, managedRoot, sourceRoot, modelPa
 		return nil, NewError(CodeCancelled, err)
 	}
 	if len(devices) == 0 && !checked {
+		if integrityErr != nil {
+			return nil, integrityErr
+		}
 		return nil, NewError(CodeRuntimeArtifactMissing, fmt.Errorf("no verified native runtime bundles are installed"))
 	}
 	if checked && !executed {
@@ -185,7 +180,8 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 	command.Stdout = io.Discard
 	startupStderr := &nativeStartupStderr{}
 	command.Stderr = startupStderr
-	if err := command.Start(); err != nil {
+	cleanup, err := startRuntimeCommand(command)
+	if err != nil {
 		cancel()
 		_ = os.Remove(token)
 		return nil, NewError(CodeRuntimeStartFailed, err)
@@ -196,7 +192,7 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		command: command, cancel: cancel, wait: make(chan error, 1), device: device,
 		cpuAllowed: cfg.CPUFallbackAllowed, deployment: config.DecisionsDeploymentNative,
 	}
-	go func() { session.wait <- command.Wait(); close(session.wait) }()
+	go func() { err := command.Wait(); cleanup(); session.wait <- err; close(session.wait) }()
 	err = waitRuntimeReady(ctx, runtimeStartupTimeout, func(probeCtx context.Context) (bool, error) {
 		if phase := startupStderr.progress(); progress != nil && phase != "" {
 			progress(phase)
@@ -214,7 +210,9 @@ func startNativeRuntime(ctx context.Context, device runtimeDevice, paths modelPa
 		return false, nil
 	})
 	if err != nil {
-		_ = session.Close(context.Background())
+		if closeErr := session.Close(context.Background()); closeErr != nil {
+			return session, err
+		}
 		return nil, err
 	}
 	return session, nil
@@ -291,7 +289,21 @@ func sameRuntimeHardware(left, right runtimeHardware) bool {
 		leftDevice.Type == rightDevice.Type && deviceBoolEqual(leftDevice.Integrated, rightDevice.Integrated) && left.Offload == right.Offload
 }
 
-func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeScoreRequest) (runtimeScoreResult, error) {
+const runtimeScoreTimeout = 2 * time.Minute
+
+func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeScoreRequest) (result runtimeScoreResult, scoreErr error) {
+	parent := ctx
+	ctx, cancel := context.WithTimeout(ctx, runtimeScoreTimeout)
+	defer cancel()
+	defer func() {
+		if parent.Err() != nil {
+			result = runtimeScoreResult{}
+			scoreErr = NewError(CodeCancelled, cancellationCause(parent))
+		} else if ctx.Err() == context.DeadlineExceeded {
+			result = runtimeScoreResult{}
+			scoreErr = NewError(CodeRuntimeScoreTimeout, context.DeadlineExceeded)
+		}
+	}()
 	requestID, err := newRuntimeRequestID()
 	if err != nil {
 		return runtimeScoreResult{}, NewError(CodeInferenceFailed, err)
@@ -314,8 +326,14 @@ func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeSco
 	request.Header.Set("Authorization", "Bearer "+session.tokenValue())
 	request.Header.Set("Content-Type", "application/json")
 	stopCancel := context.AfterFunc(ctx, func() { session.cancelRequest(requestID) })
-	response, err := session.client.Do(request)
-	stopCancel()
+	defer func() {
+		if ctx.Err() == nil {
+			stopCancel()
+		}
+	}()
+	client := *session.client
+	client.Timeout = 0
+	response, err := client.Do(request)
 	if err != nil {
 		if ctx.Err() != nil {
 			return runtimeScoreResult{}, NewError(CodeCancelled, ctx.Err())
@@ -328,7 +346,14 @@ func (session *nativeRuntimeSession) score(ctx context.Context, score runtimeSco
 		return runtimeScoreResult{}, decodeRuntimeError(data, response.StatusCode)
 	}
 	var decoded runtimeScoreWireResponse
-	if err := json.NewDecoder(io.LimitReader(response.Body, 32<<20)).Decode(&decoded); err != nil {
+	data, err := io.ReadAll(io.LimitReader(response.Body, (32<<20)+1))
+	if err != nil {
+		return runtimeScoreResult{}, NewError(CodeInvalidRuntimeResponse, err)
+	}
+	if len(data) > 32<<20 {
+		return runtimeScoreResult{}, NewError(CodeInvalidRuntimeResponse, fmt.Errorf("runtime response exceeds byte limit"))
+	}
+	if err := json.Unmarshal(data, &decoded); err != nil {
 		return runtimeScoreResult{}, NewError(CodeInvalidRuntimeResponse, err)
 	}
 	if decoded.RequestID != requestID || decoded.Protocol != runtimeProtocol || decoded.Model != session.cached.Model || decoded.Projector != session.cached.Projector ||
@@ -380,6 +405,8 @@ func (session *nativeRuntimeSession) tokenValue() string {
 }
 
 func (session *nativeRuntimeSession) Close(ctx context.Context) error {
+	ctx, closeCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer closeCancel()
 	if session.cancel != nil {
 		session.cancel()
 	}
@@ -388,11 +415,7 @@ func (session *nativeRuntimeSession) Close(ctx context.Context) error {
 		case <-session.wait:
 		case <-ctx.Done():
 			_ = session.command.Process.Kill()
-			select {
-			case <-session.wait:
-			case <-time.After(2 * time.Second):
-				return ctx.Err()
-			}
+			return ctx.Err()
 		}
 	}
 	if session.token != "" {

@@ -2,13 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strings"
 	"time"
 
-	"aurago/internal/agent"
 	"aurago/internal/agodesk"
 	"aurago/internal/config"
 	"aurago/internal/llm"
@@ -16,6 +16,19 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+func writeAgodeskProviderError(conn *websocket.Conn, state *agodeskConnectionState, requestID string, err error) {
+	var detail *providerWriteError
+	if errors.As(err, &detail) {
+		refs := make([]agodesk.ProviderReferencePayload, 0, len(detail.references))
+		for _, ref := range detail.references {
+			refs = append(refs, agodesk.ProviderReferencePayload{Path: ref.Path, Role: ref.Role})
+		}
+		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeChatError, agodesk.ChatErrorPayload{RequestID: requestID, Code: detail.code, Message: detail.message, References: refs})
+		return
+	}
+	_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, "Provider settings could not be saved")
+}
 
 func agodeskServerCapabilitiesForDevice(s *Server, readOnly bool) []string {
 	capabilities := agodeskServerCapabilities(s)
@@ -136,6 +149,7 @@ func handleAgodeskProviderGet(s *Server, conn *websocket.Conn, state *agodeskCon
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeConfigProvider, agodesk.ConfigProviderPayload{
 		SessionID: sessionID,
 		Status:    "ok",
+		Revision:  provider.Revision,
 		Provider:  provider,
 	})
 }
@@ -148,12 +162,13 @@ func handleAgodeskProviderUpsert(s *Server, conn *websocket.Conn, state *agodesk
 	payload.SessionID = sessionID
 	provider, err := upsertAgodeskProvider(s, payload)
 	if err != nil {
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, err.Error())
+		writeAgodeskProviderError(conn, state, requestID, err)
 		return
 	}
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeConfigProvider, agodesk.ConfigProviderPayload{
 		SessionID: sessionID,
 		Status:    "ok",
+		Revision:  provider.Revision,
 		Provider:  provider,
 	})
 }
@@ -166,7 +181,7 @@ func handleAgodeskProviderDelete(s *Server, conn *websocket.Conn, state *agodesk
 	payload.SessionID = sessionID
 	response, err := deleteAgodeskProvider(s, payload)
 	if err != nil {
-		_ = writeAgodeskErrorLocked(conn, state, requestID, agodesk.ErrorInvalidMessage, err.Error())
+		writeAgodeskProviderError(conn, state, requestID, err)
 		return
 	}
 	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeConfigProviders, response)
@@ -237,6 +252,7 @@ func handleAgodeskProviderOAuthRevoke(s *Server, conn *websocket.Conn, state *ag
 func agodeskProvidersPayload(s *Server, sessionID string) agodesk.ConfigProvidersPayload {
 	s.CfgMu.RLock()
 	cfg := *s.Cfg
+	revision := s.providerETag()
 	providers := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
 	fallback := llm.CapabilityFallback{
 		ToolCalling:       s.Cfg.LLM.UseNativeFunctions,
@@ -247,11 +263,14 @@ func agodeskProvidersPayload(s *Server, sessionID string) agodesk.ConfigProvider
 
 	out := make([]agodesk.ConfigProviderEntryPayload, 0, len(providers))
 	for _, provider := range providers {
-		out = append(out, agodeskProviderPayload(s, &cfg, provider, fallback))
+		entry := agodeskProviderPayload(s, &cfg, provider, fallback)
+		entry.Revision = revision
+		out = append(out, entry)
 	}
 	return agodesk.ConfigProvidersPayload{
 		SessionID: strings.TrimSpace(sessionID),
 		Status:    "ok",
+		Revision:  revision,
 		Providers: out,
 	}
 }
@@ -287,6 +306,7 @@ func agodeskProviderPayload(s *Server, cfg *config.Config, provider config.Provi
 		BaseURL:               provider.BaseURL,
 		Model:                 provider.Model,
 		AccountID:             provider.AccountID,
+		GatewayID:             provider.GatewayID,
 		AuthType:              authType,
 		OAuthAuthURL:          provider.OAuthAuthURL,
 		OAuthTokenURL:         provider.OAuthTokenURL,
@@ -319,7 +339,8 @@ func agodeskModelCostPayloads(models []config.ModelCost) []agodesk.ProviderModel
 	out := make([]agodesk.ProviderModelCostPayload, 0, len(models))
 	for _, model := range models {
 		out = append(out, agodesk.ProviderModelCostPayload{
-			Name:             model.Name,
+			Name:   model.Name,
+			Source: model.Source, Estimated: model.Estimated,
 			InputPerMillion:  model.InputPerMillion,
 			OutputPerMillion: model.OutputPerMillion,
 		})
@@ -334,7 +355,8 @@ func agodeskProviderModelCosts(models []agodesk.ProviderModelCostPayload) []conf
 	out := make([]config.ModelCost, 0, len(models))
 	for _, model := range models {
 		out = append(out, config.ModelCost{
-			Name:             strings.TrimSpace(model.Name),
+			Name:   strings.TrimSpace(model.Name),
+			Source: model.Source, Estimated: model.Estimated,
 			InputPerMillion:  model.InputPerMillion,
 			OutputPerMillion: model.OutputPerMillion,
 		})
@@ -401,139 +423,71 @@ func agodeskProviderReferences(cfg *config.Config, providerID string) []agodesk.
 }
 
 func upsertAgodeskProvider(s *Server, payload agodesk.ConfigProviderUpsertPayload) (agodesk.ConfigProviderEntryPayload, error) {
-	if s == nil || s.Cfg == nil {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("server config is not available")
-	}
+	providerID := payload.Provider.ID
 	mode := strings.ToLower(strings.TrimSpace(payload.Mode))
 	if mode == "" {
 		mode = "update"
 	}
 	if mode != "create" && mode != "update" {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("mode must be create or update")
+		return agodesk.ConfigProviderEntryPayload{}, providerInvalid("Mode must be create or update")
 	}
-	providerID := strings.TrimSpace(payload.Provider.ID)
-
-	s.CfgMu.RLock()
-	current := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
-	fallback := llm.CapabilityFallback{
-		ToolCalling:       s.Cfg.LLM.UseNativeFunctions,
-		StructuredOutputs: s.Cfg.LLM.StructuredOutputs,
-		Multimodal:        s.Cfg.LLM.Multimodal,
-	}
-	oldProviderIDs := make([]string, 0, len(current))
-	existingIDSet := make(map[string]bool, len(current))
-	for _, provider := range current {
-		oldProviderIDs = append(oldProviderIDs, provider.ID)
-		existingIDSet[provider.ID] = true
-	}
-	s.CfgMu.RUnlock()
-
-	// Create always requires a canonical ID. Updates may keep a legacy ID that
-	// already exists in config so renames stay explicit and vault keys stay stable.
-	if mode == "create" {
-		if err := validateProviderID(providerID); err != nil {
-			return agodesk.ConfigProviderEntryPayload{}, err
+	result, err := persistProviderEntries(s, payload.Revision, func(current *config.Config) ([]config.ProviderEntry, []vaultMutation, error) {
+		index := -1
+		var entry config.ProviderEntry
+		for i, p := range current.Providers {
+			if p.ID == providerID {
+				index = i
+				entry = p
+				break
+			}
 		}
-	} else if err := validateProviderIDForSave(providerID, existingIDSet); err != nil {
+		if mode == "create" && index >= 0 {
+			return nil, nil, providerInvalid("Provider already exists")
+		}
+		if mode == "update" && index < 0 {
+			return nil, nil, providerInvalid("Provider not found")
+		}
+		oldKey, err := readProviderSecret(s, "provider_"+providerID+"_api_key", entry.APIKey)
+		if err != nil {
+			return nil, nil, err
+		}
+		oldSecret, err := readProviderSecret(s, "provider_"+providerID+"_oauth_client_secret", entry.OAuthClientSecret)
+		if err != nil {
+			return nil, nil, err
+		}
+		key, err := applyAgodeskSecretOperation(payload.Secrets.APIKey, oldKey)
+		if err != nil {
+			return nil, nil, err
+		}
+		secret, err := applyAgodeskSecretOperation(payload.Secrets.OAuthClientSecret, oldSecret)
+		if err != nil {
+			return nil, nil, err
+		}
+		p := payload.Provider
+		caps := agodeskProviderCapabilitiesFromPayload(p.Capabilities)
+		converted, mutations, err := providerEntriesFromJSON(s, current, []providerJSON{{ID: providerID, Name: p.Name, Usage: entry.Usage, Type: p.Type, BaseURL: p.BaseURL, Model: p.Model,
+			ContextWindow: entry.ContextWindow, MaxOutputTokens: entry.MaxOutputTokens, APIKey: key, OAuthClientSecret: secret,
+			AccountID: p.AccountID, GatewayID: p.GatewayID, AuthType: agodeskProviderAuthTypeForUpsert(entry, p),
+			OAuthAuthURL: p.OAuthAuthURL, OAuthTokenURL: p.OAuthTokenURL, OAuthClientID: p.OAuthClientID, OAuthScopes: p.OAuthScopes,
+			Models: agodeskProviderModelCosts(p.Models), Capabilities: func() *providerCapabilitiesJSON { v := providerCapabilitiesToJSON(caps); return &v }()}})
+		if err != nil {
+			return nil, nil, err
+		}
+		if index >= 0 {
+			current.Providers[index] = converted[0]
+		} else {
+			current.Providers = append(current.Providers, converted[0])
+		}
+		return current.Providers, mutations, nil
+	})
+	if err != nil {
 		return agodesk.ConfigProviderEntryPayload{}, err
 	}
-
-	index := -1
-	var existing config.ProviderEntry
-	for i, provider := range current {
-		if strings.EqualFold(provider.ID, providerID) {
-			index = i
-			existing = provider
-			break
-		}
-	}
-	if mode == "create" && index >= 0 {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("provider already exists: %s", providerID)
-	}
-	if mode == "update" && index < 0 {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("provider not found: %s", providerID)
-	}
-
-	entry := existing
-	entry.ID = providerID
-	entry.Name = payload.Provider.Name
-	entry.Type = payload.Provider.Type
-	entry.BaseURL = payload.Provider.BaseURL
-	entry.Model = payload.Provider.Model
-	entry.AccountID = payload.Provider.AccountID
-	entry.AuthType = agodeskProviderAuthTypeForUpsert(existing, payload.Provider)
-	entry.OAuthAuthURL = payload.Provider.OAuthAuthURL
-	entry.OAuthTokenURL = payload.Provider.OAuthTokenURL
-	entry.OAuthClientID = payload.Provider.OAuthClientID
-	entry.OAuthScopes = payload.Provider.OAuthScopes
-	entry.Models = agodeskProviderModelCosts(payload.Provider.Models)
-	entry.Capabilities = agodeskProviderCapabilitiesFromPayload(payload.Provider.Capabilities)
-
-	existingAPIKey := existing.APIKey
-	existingClientSecret := existing.OAuthClientSecret
-	if s.Vault != nil {
-		if value, err := s.Vault.ReadSecret("provider_" + providerID + "_api_key"); err == nil {
-			existingAPIKey = value
-		}
-		if value, err := s.Vault.ReadSecret("provider_" + providerID + "_oauth_client_secret"); err == nil {
-			existingClientSecret = value
-		}
-	}
-
-	apiKey, err := applyAgodeskSecretOperation(payload.Secrets.APIKey, existingAPIKey)
-	if err != nil {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("api_key secret op: %w", err)
-	}
-	clientSecret, err := applyAgodeskSecretOperation(payload.Secrets.OAuthClientSecret, existingClientSecret)
-	if err != nil {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("oauth_client_secret secret op: %w", err)
-	}
-
-	vaultMutations := []vaultMutation{}
-	if entry.AuthType == "oauth2" {
-		entry.APIKey = ""
-		entry.OAuthClientSecret = clientSecret
-		vaultMutations = append(vaultMutations, vaultMutation{key: "provider_" + providerID + "_api_key", delete: true})
-		if strings.TrimSpace(clientSecret) == "" {
-			vaultMutations = append(vaultMutations, vaultMutation{key: "provider_" + providerID + "_oauth_client_secret", delete: true})
-		} else {
-			vaultMutations = append(vaultMutations, vaultMutation{key: "provider_" + providerID + "_oauth_client_secret", value: clientSecret})
-		}
-	} else {
-		entry.APIKey = apiKey
-		entry.OAuthClientSecret = ""
-		vaultMutations = append(vaultMutations,
-			vaultMutation{key: "provider_" + providerID + "_oauth_client_secret", delete: true},
-			vaultMutation{key: "oauth_" + providerID, delete: true},
-		)
-		if strings.TrimSpace(apiKey) == "" {
-			vaultMutations = append(vaultMutations, vaultMutation{key: "provider_" + providerID + "_api_key", delete: true})
-		} else {
-			vaultMutations = append(vaultMutations, vaultMutation{key: "provider_" + providerID + "_api_key", value: apiKey})
-		}
-	}
-
-	if index >= 0 {
-		current[index] = entry
-	} else {
-		current = append(current, entry)
-	}
-	if _, err := persistProviderEntries(s, current, vaultMutations, oldProviderIDs); err != nil {
-		return agodesk.ConfigProviderEntryPayload{}, err
-	}
-
-	s.CfgMu.RLock()
-	cfg := *s.Cfg
-	updated := s.Cfg.FindProvider(providerID)
-	var updatedEntry config.ProviderEntry
-	if updated != nil {
-		updatedEntry = *updated
-	}
-	s.CfgMu.RUnlock()
-	if updated == nil {
-		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("provider was saved but could not be reloaded")
-	}
-	return agodeskProviderPayload(s, &cfg, updatedEntry, fallback), nil
+	cfg := result.config
+	fallback := llm.CapabilityFallback{ToolCalling: cfg.LLM.UseNativeFunctions, StructuredOutputs: cfg.LLM.StructuredOutputs, Multimodal: cfg.LLM.Multimodal}
+	saved := agodeskProviderPayload(s, cfg, *cfg.FindProvider(providerID), fallback)
+	saved.Revision = result.Revision
+	return saved, nil
 }
 
 func applyAgodeskSecretOperation(op agodesk.SecretOperationPayload, existing string) (string, error) {
@@ -541,52 +495,41 @@ func applyAgodeskSecretOperation(op agodesk.SecretOperationPayload, existing str
 	if operation == "" {
 		operation = "keep"
 	}
-	switch operation {
-	case "keep":
-		return existing, nil
-	case "set":
-		return op.Value, nil
-	case "clear":
-		return "", nil
-	default:
-		return "", fmt.Errorf("unsupported operation %q", op.Op)
-	}
+	return applyProviderSecret(operation, op.Value, existing)
 }
 
 func deleteAgodeskProvider(s *Server, payload agodesk.ConfigProviderDeletePayload) (agodesk.ConfigProvidersPayload, error) {
-	providerID := strings.TrimSpace(payload.ProviderID)
-	if providerID == "" {
-		return agodesk.ConfigProvidersPayload{}, fmt.Errorf("provider_id is required")
+	id := payload.ProviderID
+	if strings.TrimSpace(id) == "" {
+		return agodesk.ConfigProvidersPayload{}, providerInvalid("provider_id is required")
 	}
-	s.CfgMu.RLock()
-	cfg := *s.Cfg
-	current := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
-	oldProviderIDs := make([]string, 0, len(current))
-	for _, provider := range current {
-		oldProviderIDs = append(oldProviderIDs, provider.ID)
-	}
-	s.CfgMu.RUnlock()
-
-	references := agodeskProviderReferences(&cfg, providerID)
-	if len(references) > 0 && !payload.Force {
-		return agodesk.ConfigProvidersPayload{}, fmt.Errorf("provider %s is still referenced", providerID)
-	}
-	filtered := make([]config.ProviderEntry, 0, len(current))
-	found := false
-	for _, provider := range current {
-		if strings.EqualFold(provider.ID, providerID) {
-			found = true
-			continue
+	result, err := persistProviderEntries(s, payload.Revision, func(current *config.Config) ([]config.ProviderEntry, []vaultMutation, error) {
+		filtered := make([]config.ProviderEntry, 0, len(current.Providers))
+		found := false
+		for _, p := range current.Providers {
+			if p.ID == id {
+				found = true
+			} else {
+				filtered = append(filtered, p)
+			}
 		}
-		filtered = append(filtered, provider)
-	}
-	if !found {
-		return agodesk.ConfigProvidersPayload{}, fmt.Errorf("provider not found: %s", providerID)
-	}
-	if _, err := persistProviderEntries(s, filtered, nil, oldProviderIDs); err != nil {
+		if !found {
+			return nil, nil, providerInvalid("Provider not found")
+		}
+		return filtered, nil, nil
+	})
+	if err != nil {
 		return agodesk.ConfigProvidersPayload{}, err
 	}
-	return agodeskProvidersPayload(s, payload.SessionID), nil
+	cfg := result.config
+	fallback := llm.CapabilityFallback{ToolCalling: cfg.LLM.UseNativeFunctions, StructuredOutputs: cfg.LLM.StructuredOutputs, Multimodal: cfg.LLM.Multimodal}
+	response := agodesk.ConfigProvidersPayload{SessionID: payload.SessionID, Status: "ok", Revision: result.Revision, Providers: []agodesk.ConfigProviderEntryPayload{}}
+	for _, p := range cfg.Providers {
+		entry := agodeskProviderPayload(s, cfg, p, fallback)
+		entry.Revision = result.Revision
+		response.Providers = append(response.Providers, entry)
+	}
+	return response, nil
 }
 
 func testAgodeskProvider(s *Server, sessionID, providerID string) agodesk.ConfigProviderTestResultPayload {
@@ -896,10 +839,9 @@ func completeAgodeskProviderOAuth(s *Server, payload agodesk.ConfigProviderOAuth
 		}
 		return agodesk.ConfigProviderOAuthStatusPayload{}, fmt.Errorf("%s", oauthUserMessage(err))
 	}
-	if err := storeOAuthToken(s.Vault, providerID, tokenResp, now); err != nil {
+	if err := storeProviderOAuthToken(s, entry, tokenResp, now); err != nil {
 		return agodesk.ConfigProviderOAuthStatusPayload{}, fmt.Errorf("failed to store token")
 	}
-	applyOAuthTokenToRuntime(s)
 	status := agodeskProviderOAuthStatus(s, providerID, redirectURI)
 	status.SessionID = strings.TrimSpace(payload.SessionID)
 	status.Status = "ok"
@@ -982,14 +924,5 @@ func revokeAgodeskProviderOAuth(s *Server, providerID string) error {
 	if s == nil {
 		return fmt.Errorf("server is not available")
 	}
-	if s.Vault != nil {
-		_ = s.Vault.DeleteSecret("oauth_" + providerID)
-	}
-	s.CfgMu.Lock()
-	if p := s.Cfg.FindProvider(providerID); p != nil && normalizeProviderAuthType(p.AuthType) == "oauth2" {
-		p.APIKey = ""
-	}
-	s.CfgMu.Unlock()
-	agent.ResetGlobalHelperLLMManager()
-	return nil
+	return revokeProviderOAuth(s, providerID)
 }

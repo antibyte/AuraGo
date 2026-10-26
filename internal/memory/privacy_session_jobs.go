@@ -25,6 +25,10 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 		return PrivacyDeletionJob{}, err
 	}
 	defer s.sessionWriteMu.Unlock()
+	if err := lockMemoryMutex(ctx, &s.correctionMu); err != nil {
+		return PrivacyDeletionJob{}, err
+	}
+	defer s.correctionMu.Unlock()
 	if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
 		return PrivacyDeletionJob{}, err
 	}
@@ -39,7 +43,7 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 	}
 
 	// A retry after a lost HTTP response reuses the existing journal.
-	if job, err := s.privacyJobForSession(ctx, sessionID); err == nil {
+	if job, err := s.privacyJobForSession(ctx, sessionID, deleteMemories); err == nil {
 		return job, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return PrivacyDeletionJob{}, err
@@ -48,6 +52,7 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 	jobID := newPrivacyDeletionID()
 	marker := sessionPrivacyMarker(sessionID)
 	targets := make([]privacyDeletionTarget, 0)
+	targets = append(targets, privacyGraphTranscriptTarget(sessionID))
 	if deleteMemories {
 		ltmTargets, err := s.prepareSessionLongTermTargets(ctx, sessionID, marker, ltm)
 		if err != nil {
@@ -62,6 +67,16 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 			targets = append(targets, graphTargets...)
 		}
 	}
+	correctionTargets, err := s.sessionCorrectionCleanupTargets(ctx, sessionID)
+	if err != nil {
+		return PrivacyDeletionJob{}, err
+	}
+	targets = append(targets, correctionTargets...)
+	personalityTargets, err := s.preparePersonalityPrivacyTargets(ctx, sessionID, deleteMemories)
+	if err != nil {
+		return PrivacyDeletionJob{}, fmt.Errorf("prepare personality privacy targets: %w", err)
+	}
+	targets = append(targets, personalityTargets...)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -72,6 +87,9 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 		return PrivacyDeletionJob{}, fmt.Errorf("persist chat privacy fence: %w", err)
 	}
 	if err := s.createPrivacyDeletionJobTx(ctx, tx, jobID, "chat", PrivacyDeletionPreparing, deleteMemories, "", "", time.Now().UTC(), targets); err != nil {
+		return PrivacyDeletionJob{}, err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO personality_privacy_counts(job_id,legacy_unknown) SELECT ?,COUNT(*) FROM personality_legacy_review`, jobID); err != nil {
 		return PrivacyDeletionJob{}, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET session_hash=? WHERE deletion_job_id=?`, strings.TrimPrefix(marker, "deleted:"), jobID); err != nil {
@@ -85,18 +103,32 @@ func (s *SQLiteMemory) PrepareChatPrivacyDeletion(ctx context.Context, sessionID
 	}
 
 	if err := s.finishChatPrivacyScrub(ctx, jobID, sessionID, kg); err != nil {
-		_ = s.markPrivacyDeletionFailure(context.Background(), jobID, "privacy_scrub_failed", time.Now().UTC())
-		job, readErr := s.GetPrivacyDeletionJob(context.Background(), jobID)
-		return job, errors.Join(err, readErr)
+		finalizeCtx, cancel := boundedPrivacyDeletionFinalizationContext(ctx)
+		defer cancel()
+		var markErr error
+		if ctx.Err() == nil {
+			var reconcile *privacyDeletionReconcileError
+			if errors.As(err, &reconcile) {
+				markErr = s.markPrivacyDeletionReconcilePending(finalizeCtx, jobID, reconcile.code, time.Now().UTC())
+			} else {
+				markErr = s.markPrivacyDeletionFailure(finalizeCtx, jobID, "privacy_scrub_failed", time.Now().UTC())
+			}
+		}
+		job, readErr := s.GetPrivacyDeletionJob(finalizeCtx, jobID)
+		return job, errors.Join(err, markErr, readErr)
 	}
 	return s.GetPrivacyDeletionJob(ctx, jobID)
 }
 
-func (s *SQLiteMemory) privacyJobForSession(ctx context.Context, sessionID string) (PrivacyDeletionJob, error) {
+func (s *SQLiteMemory) privacyJobForSession(ctx context.Context, sessionID string, deleteMemories bool) (PrivacyDeletionJob, error) {
 	var id string
-	err := s.db.QueryRowContext(ctx, `SELECT privacy_job_id FROM deleted_chat_sessions WHERE session_id=? AND privacy_job_id<>''`, sessionID).Scan(&id)
+	var existingDeleteMemories bool
+	err := s.db.QueryRowContext(ctx, `SELECT d.privacy_job_id,j.delete_memories FROM deleted_chat_sessions d JOIN privacy_deletion_jobs j ON j.deletion_job_id=d.privacy_job_id WHERE d.session_id=? AND d.privacy_job_id<>''`, sessionID).Scan(&id, &existingDeleteMemories)
 	if err != nil {
 		return PrivacyDeletionJob{}, err
+	}
+	if existingDeleteMemories != deleteMemories {
+		return PrivacyDeletionJob{}, &PrivacyDeletionScopeConflictError{ExistingDeleteMemories: existingDeleteMemories, RequestedDeleteMemories: deleteMemories}
 	}
 	return s.GetPrivacyDeletionJob(ctx, id)
 }
@@ -175,7 +207,7 @@ func (s *SQLiteMemory) prepareSessionLongTermTargets(ctx context.Context, sessio
 }
 
 func (s *SQLiteMemory) finishChatPrivacyScrub(ctx context.Context, jobID, sessionID string, kg *KnowledgeGraph) error {
-	if err := s.purgeChatSessionWithPrivacyJobLocked(sessionID, jobID); err != nil {
+	if err := s.purgeChatSessionWithGraphPrivacyJobLocked(sessionID, jobID, kg); err != nil {
 		return fmt.Errorf("purge chat transcript: %w", err)
 	}
 	if kg != nil {
@@ -188,13 +220,20 @@ func (s *SQLiteMemory) finishChatPrivacyScrub(ctx context.Context, jobID, sessio
 		return err
 	}
 	defer tx.Rollback()
-	if err := s.clearPrivacyPublicationMarkerTx(ctx, tx, jobID); err != nil {
-		return err
+	if kg != nil {
+		if err := markPrivacyTargetStateTx(ctx, tx, jobID, privacyGraphTranscriptTarget(sessionID), "deleted", ""); err != nil {
+			return fmt.Errorf("record graph transcript scrub: %w", err)
+		}
 	}
 	if err := s.setPrivacyJobStatusTx(ctx, tx, jobID, PrivacyDeletionPending, "", time.Now().UTC()); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+func privacyGraphTranscriptTarget(sessionID string) privacyDeletionTarget {
+	marker := sessionPrivacyMarker(sessionID)
+	return privacyDeletionTarget{Store: privacyTargetGraphTranscript, TargetID: marker, SourceMarker: marker, State: "pending"}
 }
 
 func sha256Bytes(value []byte) []byte {

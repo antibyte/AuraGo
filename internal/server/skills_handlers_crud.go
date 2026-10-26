@@ -532,6 +532,44 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleApprovePythonSkillWarning accepts a warning status for one Python skill.
+// POST /api/skills/{id}/approve-warning
+func handleApprovePythonSkillWarning(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.SkillManager == nil {
+			jsonError(w, "Skill Manager is not enabled", http.StatusServiceUnavailable)
+			return
+		}
+		s.CfgMu.RLock()
+		readOnly := s.Cfg != nil && s.Cfg.Tools.SkillManager.ReadOnly
+		s.CfgMu.RUnlock()
+		if readOnly {
+			jsonError(w, "Skill Manager is in read-only mode", http.StatusForbidden)
+			return
+		}
+		id := extractSkillPathID(r.URL.Path, "/api/skills/")
+		if id == "" {
+			jsonError(w, "Skill ID is required", http.StatusBadRequest)
+			return
+		}
+		if err := s.SkillManager.ApprovePythonSkillWarning(id, "user"); err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to approve skill warning", "Failed to approve skill warning", err, "skill_id", id)
+			return
+		}
+		entry, err := s.SkillManager.GetSkill(id)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Skill not found", "Skill lookup failed", err, "skill_id", id)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "approved", "skill": entry})
+	}
+}
+
 // handleVerifySkill triggers a security re-scan for a skill.
 // POST /api/skills/{id}/verify
 func handleVerifySkill(s *Server) http.HandlerFunc {

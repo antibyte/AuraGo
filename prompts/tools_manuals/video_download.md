@@ -11,6 +11,8 @@ Search, inspect, download, and transcribe videos using yt-dlp.
 
 Search and metadata lookup are read-only. Download and transcription are separate opt-in permissions.
 
+Prefer `yepapi_youtube` for metadata when YepAPI is enabled. Otherwise use `search` or `info`. Read captions or subtitles before `transcribe`. Use `download` only when a file is wanted. `send_youtube_video` remains the player path.
+
 ## Backend
 
 - Default: Docker mode runs the digest-pinned image `ghcr.io/jauderho/yt-dlp@sha256:90cd9016efc4451153c8bc35cc7a0d9a8cba0e796818e52f3b4d28b9736ac91c` in an ephemeral container. With `tools.video_download.auto_pull: true` (default), AuraGo pulls that digest before each run.
@@ -28,7 +30,7 @@ Search and metadata lookup are read-only. Download and transcription are separat
 | `query` | string | for `search` | Search query |
 | `url` | string | for `info`, `download`, `transcribe` | Video URL |
 | `format` | string | no | `video`, `audio`, `best`, `bestaudio`, or custom yt-dlp format |
-| `quality` | string | no | `best`, `medium`, or `low` for video downloads |
+| `quality` | string | no | `low` (480p), `medium` (720p), or `best` (uncapped). Replaces the default format and a literal `best`. A custom format string stays unchanged. Omitted quality keeps `default_format`. |
 
 ## Examples
 

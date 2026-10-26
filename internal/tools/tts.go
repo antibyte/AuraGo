@@ -19,19 +19,28 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/httporigin"
+	"aurago/internal/phonon"
 	"aurago/internal/sanotts"
 	"aurago/internal/speechlab"
 )
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider            string // "sanotts", "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
+	Provider            string // configured local or cloud speech provider
 	Language            string // BCP-47 language code (e.g. "de", "en")
 	Context             context.Context
 	DataDir             string // base data directory for storing audio files
 	CacheRetentionHours int    // remove cached files older than this many hours; 0 disables age-based cleanup
 	CacheMaxFiles       int    // keep at most this many cached files; 0 disables count-based cleanup
-	ElevenLabs          struct {
+	// NoProviderFallback keeps the selected provider. Glass alerts set this so a
+	// missing Phonon voice is not silently replaced by sanoTTS.
+	NoProviderFallback bool
+	Phonon              struct {
+		VoiceID string
+		Persona string
+		Root    string // internal resource override; empty uses the installation's package
+	}
+	ElevenLabs struct {
 		APIKey  string
 		VoiceID string
 		ModelID string
@@ -60,6 +69,10 @@ type TTSConfig struct {
 		VoiceID string // preset or custom Mistral voice ID
 		ModelID string // e.g. "voxtral-mini-tts-2603"
 	}
+	XAI      config.TTSVoiceProviderConfig
+	OpenAI   config.TTSModelProviderConfig
+	StepFun  config.TTSModelProviderConfig
+	Resemble config.TTSVoiceProviderConfig
 	// SpeechLab is used when Provider is "s2s" / "speech_lab".
 	SpeechLab struct {
 		BaseURL        string
@@ -71,19 +84,30 @@ type TTSConfig struct {
 	}
 }
 
-// ttsHTTPClient carries the ElevenLabs xi-api-key and the Mistral/MiniMax
-// bearer keys, so it never follows a redirect to another origin.
+// ttsHTTPClient carries provider credentials and never redirects to another origin.
 var ttsHTTPClient = httporigin.NewClient(30 * time.Second)
 
 // TTSSynthesize generates speech audio from text and returns the filename (relative to data/tts/).
 // The file is saved as MP3 in {DataDir}/tts/{hash}.mp3.
 func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
+	if err := ttsRequestContext(cfg).Err(); err != nil {
+		return "", err
+	}
 	if text == "" {
 		return "", fmt.Errorf("text is required")
 	}
 	// Enforce 500 character limit (rune-safe to handle multi-byte UTF-8)
 	if len([]rune(text)) > 500 {
 		text = string([]rune(text)[:500])
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.Provider), "phonon") {
+		if err := phonon.ValidateText(text); err != nil {
+			return "", err
+		}
+	}
+	cfg = resolvePhononTTSConfig(cfg)
+	if err := ttsRequestContext(cfg).Err(); err != nil {
+		return "", err
 	}
 
 	// Ensure output directory exists
@@ -110,7 +134,13 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	var audioData []byte
 	var err error
 
-	switch strings.ToLower(cfg.Provider) {
+	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "phonon":
+		audioData, err = phonon.Synthesize(ttsRequestContext(cfg), cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
+		if phononFallbackAllowed(ttsRequestContext(cfg), err) && !cfg.NoProviderFallback {
+			cfg.Provider = "sanotts"
+			return TTSSynthesize(cfg, text)
+		}
 	case "sanotts":
 		audioData, err = ttsSano(cfg, text)
 	case "elevenlabs":
@@ -119,6 +149,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		audioData, err = ttsMiniMax(cfg, text)
 	case "mistral":
 		audioData, err = ttsMistral(cfg, text)
+	case "xai", "openai", "stepfun", "resemble":
+		audioData, err = ttsCloud(cfg, text)
 	case "piper":
 		audioData, err = ttsPiper(cfg, text)
 	case "supertonic":
@@ -145,6 +177,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 func ttsCacheKey(cfg TTSConfig, text string) string {
 	provider := strings.ToLower(strings.TrimSpace(cfg.Provider))
 	switch provider {
+	case "phonon":
+		return strings.Join([]string{provider, phonon.Revision(), phonon.Language(cfg.Language), cfg.Phonon.VoiceID, text}, "\x00")
 	case "sanotts":
 		return strings.Join([]string{provider, sanotts.Revision, sanotts.Voice(cfg.Language), text}, "\x00")
 	case "elevenlabs":
@@ -172,6 +206,14 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 			cfg.Mistral.ModelID,
 			text,
 		}, "\x00")
+	case "xai":
+		return strings.Join([]string{provider, cfg.Language, cfg.XAI.VoiceID, text}, "\x00")
+	case "openai":
+		return strings.Join([]string{provider, cfg.Language, cfg.OpenAI.VoiceID, cfg.OpenAI.ModelID, text}, "\x00")
+	case "stepfun":
+		return strings.Join([]string{provider, cfg.Language, cfg.StepFun.VoiceID, cfg.StepFun.ModelID, text}, "\x00")
+	case "resemble":
+		return strings.Join([]string{provider, cfg.Language, cfg.Resemble.VoiceID, text}, "\x00")
 	case "piper":
 		return strings.Join([]string{
 			provider,
@@ -213,7 +255,7 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 
 func ttsAudioExtension(cfg TTSConfig) string {
 	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
-	case "piper", "sanotts":
+	case "piper", "sanotts", "phonon":
 		return ".wav"
 	case "supertonic":
 		return "." + supertonicResponseFormat(cfg.Supertonic.ResponseFormat)

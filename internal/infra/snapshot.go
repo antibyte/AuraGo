@@ -8,8 +8,20 @@ import (
 	"time"
 )
 
+// SnapshotOptions selects optional snapshot content.
+type SnapshotOptions struct {
+	// IncludeIgnored adds sources the operator ignored; they are never linked.
+	IncludeIgnored bool
+}
+
+// Snapshot returns the stored graph without ignored sources.
 func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
-	result := Snapshot{Nodes: []Node{}, Edges: []Edge{}, Sources: []Source{}}
+	return s.SnapshotWith(ctx, SnapshotOptions{})
+}
+
+// SnapshotWith returns the stored graph with optional content.
+func (s *Store) SnapshotWith(ctx context.Context, options SnapshotOptions) (Snapshot, error) {
+	result := Snapshot{Nodes: []Node{}, Edges: []Edge{}, Sources: []Source{}, SourceHosts: []SourceHost{}}
 	rows, err := s.db.QueryContext(ctx, `SELECT id, version, kind, name, icon, registry_id, parent_id, profile_json, placements_json
 		FROM infra_nodes ORDER BY name COLLATE NOCASE, id`)
 	if err != nil {
@@ -42,17 +54,22 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 		return Snapshot{}, fmt.Errorf("close infra node list: %w", err)
 	}
 	// Unlinked removed observations are retained only for the retention window and
-	// carry no graph information; they stay out of the editor snapshot.
-	rows, err = s.db.QueryContext(ctx, `SELECT node_id, kind, instance, source_key, name, state, fetched_at, removed_at, observed_json
-		FROM infra_sources WHERE node_id IS NOT NULL OR state<>'removed' ORDER BY kind, instance, source_key`)
+	// carry no graph information; they stay out of the editor snapshot. Ignored
+	// sources (never linked) appear only on request.
+	sourceQuery := `SELECT node_id, kind, instance, source_key, name, state, fetched_at, removed_at, observed_json, ignored_at
+		FROM infra_sources WHERE (node_id IS NOT NULL OR state<>'removed')`
+	if !options.IncludeIgnored {
+		sourceQuery += ` AND ignored_at=''`
+	}
+	rows, err = s.db.QueryContext(ctx, sourceQuery+` ORDER BY kind, instance, source_key`)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("list infra sources: %w", err)
 	}
 	for rows.Next() {
 		var nodeID sql.NullString
 		var source Source
-		var fetchedAt, removedAt, observedJSON string
-		if err := rows.Scan(&nodeID, &source.Kind, &source.Instance, &source.Key, &source.Name, &source.State, &fetchedAt, &removedAt, &observedJSON); err != nil {
+		var fetchedAt, removedAt, observedJSON, ignoredAt string
+		if err := rows.Scan(&nodeID, &source.Kind, &source.Instance, &source.Key, &source.Name, &source.State, &fetchedAt, &removedAt, &observedJSON, &ignoredAt); err != nil {
 			_ = rows.Close()
 			return Snapshot{}, fmt.Errorf("read infra source: %w", err)
 		}
@@ -60,6 +77,7 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 			_ = rows.Close()
 			return Snapshot{}, err
 		}
+		source.Ignored = ignoredAt != ""
 		result.Sources = append(result.Sources, source)
 		if nodeID.Valid {
 			if i, exists := byID[nodeID.String]; exists {
@@ -75,6 +93,10 @@ func (s *Store) Snapshot(ctx context.Context) (Snapshot, error) {
 		return Snapshot{}, fmt.Errorf("close infra source list: %w", err)
 	}
 	result.Edges, err = s.listEdges(ctx)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	result.SourceHosts, err = s.snapshotSourceHosts(ctx, result.Sources)
 	if err != nil {
 		return Snapshot{}, err
 	}

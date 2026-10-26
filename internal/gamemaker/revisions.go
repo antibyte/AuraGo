@@ -37,7 +37,78 @@ func (s *Service) ListRevisions(ctx context.Context, projectID string) ([]Revisi
 		}
 		out = append(out, revision)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	hashes, err := s.revisionFileHashes(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		paths, count, truncated := diffRevisionPaths(hashes[out[i].Number], hashes[out[i].Parent])
+		out[i].ChangedPaths = paths
+		out[i].ChangedCount = count
+		out[i].Truncated = truncated
+	}
+	return out, nil
+}
+
+const revisionPathCap = 40
+
+func (s *Service) revisionFileHashes(ctx context.Context, projectID string) (map[int64]map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT r.number, f.path, f.content_hash
+		FROM gm_revision_files f JOIN gm_revisions r ON r.id=f.revision_id
+		WHERE r.project_id=?`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("list revision files: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64]map[string]string{}
+	for rows.Next() {
+		var number int64
+		var path, hash string
+		if err := rows.Scan(&number, &path, &hash); err != nil {
+			return nil, err
+		}
+		if out[number] == nil {
+			out[number] = map[string]string{}
+		}
+		out[number][path] = hash
+	}
 	return out, rows.Err()
+}
+
+// diffRevisionPaths lists project-relative paths whose hash differs from the
+// parent revision. The first revision is compared with an empty parent. The
+// returned slice is capped; count is the full number of differing paths.
+func diffRevisionPaths(current, parent map[string]string) ([]string, int, bool) {
+	if current == nil {
+		current = map[string]string{}
+	}
+	if parent == nil {
+		parent = map[string]string{}
+	}
+	paths := make([]string, 0)
+	for path, hash := range current {
+		if parent[path] != hash {
+			paths = append(paths, path)
+		}
+	}
+	for path := range parent {
+		if _, ok := current[path]; !ok {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	count := len(paths)
+	truncated := count > revisionPathCap
+	if truncated {
+		paths = paths[:revisionPathCap]
+	}
+	return paths, count, truncated
 }
 
 // Keep the admission check and filesystem commit under the same file, policy,

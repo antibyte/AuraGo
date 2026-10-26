@@ -328,8 +328,8 @@ func TestReleaseScriptsPreserveCodeStudioDockerfile(t *testing.T) {
 	if strings.Contains(makeReleaseText, "rmdir /s /q deploy") {
 		t.Fatal("make_release.bat must not delete the whole deploy directory because deploy/docker is versioned source")
 	}
-	if !strings.Contains(makeReleaseText, "$_.Name -ne 'docker'") {
-		t.Fatal("make_release.bat must preserve deploy/docker while cleaning generated deploy artifacts")
+	if !strings.Contains(makeReleaseText, "$_.Name -notin @('docker', 'phonon')") {
+		t.Fatal("make_release.bat must preserve deploy/docker and prepared Phonon inputs while cleaning generated deploy artifacts")
 	}
 }
 

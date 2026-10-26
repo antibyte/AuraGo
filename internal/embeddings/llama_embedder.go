@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -36,8 +37,14 @@ type llamaEmbedder struct {
 	command      *exec.Cmd
 	stderr       *limitedBuffer
 	client       *http.Client
-	restarts     int
-	closed       bool
+	restarts     *restartBudget
+	// hangs counts the requests that ended at the caller's deadline; mu guards it.
+	hangs llamaHangState
+	// lifecycle is what Close and Status reach without the lock; see llamaLifecycle.
+	lifecycle llamaLifecycle
+	// logger is set by the manager right after construction; nil means slog.Default().
+	logger *slog.Logger
+	closed bool
 }
 
 func newLlamaEmbedder(
@@ -67,6 +74,7 @@ func newLlamaEmbedder(
 		batchSize:    batchSize,
 		apiKey:       apiKey,
 		client:       &http.Client{Timeout: 2 * time.Minute},
+		restarts:     newRestartBudget(maxProcessRestarts, processRestartWindow),
 	}
 	if err := embedder.startLocked(ctx); err != nil {
 		return nil, err
@@ -76,41 +84,56 @@ func newLlamaEmbedder(
 
 func (embedder *llamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
-		return nil, fmt.Errorf("at least one text is required")
+		return nil, fmt.Errorf("%w: at least one text is required", ErrInvalidInput)
 	}
-	embedder.mu.Lock()
-	defer embedder.mu.Unlock()
+	if err := lockContext(ctx, &embedder.mu); err != nil {
+		return nil, err
+	}
+	// A restart that outlives this caller keeps running and takes the lock with
+	// it (hold below); it frees the lock when the start is over.
+	lockHandedOver := false
+	defer func() {
+		if !lockHandedOver {
+			embedder.mu.Unlock()
+		}
+	}()
 	if embedder.closed {
 		return nil, fmt.Errorf("llama.cpp embedder is closed")
 	}
-	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
-		if embedder.command == nil || embedder.command.Process == nil {
-			if embedder.restarts >= 2 {
-				return nil, fmt.Errorf("llama-server restart limit reached: %w", lastErr)
-			}
-			embedder.restarts++
-			if err := embedder.startLocked(ctx); err != nil {
-				lastErr = err
-				continue
-			}
-		}
-		vectors, err := embedder.embedLocked(ctx, texts)
-		if err == nil {
-			for i := range vectors {
-				if err := l2Normalize(vectors[i]); err != nil {
-					return nil, fmt.Errorf("normalize llama.cpp vector %d: %w", i, err)
-				}
-				if err := validateGraniteVector(vectors[i]); err != nil {
-					return nil, fmt.Errorf("validate llama.cpp vector %d: %w", i, err)
-				}
-			}
-			return vectors, nil
-		}
-		lastErr = err
-		_ = embedder.stopLocked()
+	if embedder.restarts == nil {
+		embedder.restarts = newRestartBudget(maxProcessRestarts, processRestartWindow)
 	}
-	return nil, fmt.Errorf("llama.cpp embedding failed after restart: %w", lastErr)
+	vectors, err := embedWithRestarts(ctx, embedder.restarts, llamaServerOps{
+		name: "llama-server",
+		running: func() bool {
+			return embedder.command != nil && embedder.command.Process != nil
+		},
+		start: embedder.startLocked,
+		embed: embedder.embedLocked,
+		stop:  func() { _ = embedder.stopLocked() },
+		hangs: &embedder.hangs,
+		hold: func(finished <-chan struct{}) {
+			lockHandedOver = true
+			go func() {
+				<-finished
+				embedder.mu.Unlock()
+			}()
+		},
+		logger:    embedder.logger,
+		lifecycle: &embedder.lifecycle,
+	}, texts)
+	if err != nil {
+		return nil, err
+	}
+	for i := range vectors {
+		if err := l2Normalize(vectors[i]); err != nil {
+			return nil, fmt.Errorf("normalize llama.cpp vector %d: %w", i, err)
+		}
+		if err := validateGraniteVector(vectors[i]); err != nil {
+			return nil, fmt.Errorf("validate llama.cpp vector %d: %w", i, err)
+		}
+	}
+	return vectors, nil
 }
 
 func (embedder *llamaEmbedder) embedLocked(ctx context.Context, texts []string) ([][]float32, error) {
@@ -166,6 +189,10 @@ func (embedder *llamaEmbedder) embedLocked(ctx context.Context, texts []string) 
 }
 
 func (embedder *llamaEmbedder) startLocked(ctx context.Context) error {
+	// Close may have ended the start before the process exists.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	port, err := availableLoopbackPort()
 	if err != nil {
 		return err
@@ -252,14 +279,26 @@ func (embedder *llamaEmbedder) Fingerprint() string {
 	return ggufFingerprint()
 }
 
+// Status never waits for the embedder lock: a start can hold it for minutes
+// and the config UI polls this. While it is taken the last status seen is
+// returned, reported as restarting during a start.
 func (embedder *llamaEmbedder) Status() Status {
-	embedder.mu.Lock()
+	if !embedder.mu.TryLock() {
+		return embedder.lifecycle.busy(embedder.statusWith("ready", false))
+	}
 	defer embedder.mu.Unlock()
 	state := "ready"
 	if embedder.closed {
 		state = "closed"
 	}
 	verified := embedder.backend == "cpu" || llamaGPUVerified(embedder.backend, embedder.stderr.String())
+	status := embedder.statusWith(state, embedder.backend != "cpu" && verified)
+	embedder.lifecycle.remember(status)
+	return status
+}
+
+// statusWith fills in what is fixed at construction, so it needs no lock.
+func (embedder *llamaEmbedder) statusWith(state string, gpuVerified bool) Status {
 	return Status{
 		State:        state,
 		Provider:     LocalGraniteProvider,
@@ -269,13 +308,16 @@ func (embedder *llamaEmbedder) Status() Status {
 		Runtime:      "llama.cpp",
 		RuntimeBuild: llamaRuntimeBuild,
 		GPU:          embedder.backend != "cpu",
-		GPUVerified:  embedder.backend != "cpu" && verified,
+		GPUVerified:  gpuVerified,
 		Fingerprint:  ggufFingerprint(),
 		UpdatedAt:    time.Now().UTC(),
 	}
 }
 
 func (embedder *llamaEmbedder) Close() error {
+	// Before the lock: a start in flight holds it, and would keep Close waiting
+	// for a health check that can run for two minutes.
+	embedder.lifecycle.shutdown()
 	embedder.mu.Lock()
 	defer embedder.mu.Unlock()
 	if embedder.closed {

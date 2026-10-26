@@ -460,7 +460,7 @@ circuit_breaker:
 
 ### Über die Web-UI
 
-Das Dashboard zeigt aktive Co-Agenten an:
+Das Dashboard zeigt Co-Agenten im Bereich **Tools** auf der Karte **Aktivität** an:
 
 ```text
 ┌─────────────────────────────────────────┐

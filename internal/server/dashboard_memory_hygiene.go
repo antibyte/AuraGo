@@ -120,7 +120,7 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	memoryApplied := 0
 	memorySkipped := 0
 	for _, action := range append(plan.Memory.AutoConfirm, plan.Memory.AutoArchive...) {
-		changed, err := s.ShortTermMem.ApplyAutomaticMemoryCurationAction(action)
+		changed, err := s.ShortTermMem.ApplyAutomaticMemoryCurationActionContext(r.Context(), action)
 		if err != nil {
 			s.Logger.Warn("Failed to apply memory curation action during hygiene", "doc_id", action.DocID, "action", action.Action, "error", err)
 			failedActions = append(failedActions, dashboardHygieneFailure{

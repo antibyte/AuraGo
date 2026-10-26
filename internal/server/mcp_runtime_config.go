@@ -68,7 +68,11 @@ func resolveMCPHostWorkdir(cfg *config.Config, srv config.MCPServer, logger *slo
 }
 
 func buildRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logger *slog.Logger) []tools.MCPServerConfig {
-	return buildSelectedRuntimeMCPConfigs(cfg, vault, logger, true)
+	configs := buildSelectedRuntimeMCPConfigs(cfg, vault, logger, true)
+	if managed, _, err := printGuardBindingConfig(cfg, vault, true); err == nil {
+		configs = append(configs, *managed)
+	}
+	return configs
 }
 
 func buildSelectedRuntimeMCPConfigs(cfg *config.Config, vault config.SecretReader, logger *slog.Logger, includeDograh bool) []tools.MCPServerConfig {

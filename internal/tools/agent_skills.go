@@ -1362,7 +1362,14 @@ func validateAgentSkillEditablePath(relPath string) (string, error) {
 	return relPath, nil
 }
 
-func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptPath string, args map[string]interface{}) (string, error) {
+func agentSkillScriptUsesHost(ctx context.Context, requireSandbox bool, shell bool) bool {
+	if requireSandbox {
+		return false
+	}
+	return !isolatedExecutionRequired(ctx, shell)
+}
+
+func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptPath string, args map[string]interface{}, requireSandbox bool) (string, error) {
 	m.qualityMutationMu.RLock()
 	defer m.qualityMutationMu.RUnlock()
 	entry, err := m.GetAgentSkill(id)
@@ -1412,7 +1419,7 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	}
 	ctx, cancel := context.WithTimeout(ctx, GetSkillTimeout())
 	defer cancel()
-	if isolatedExecutionRequired(ctx, ext != ".py") {
+	if !agentSkillScriptUsesHost(ctx, requireSandbox, ext != ".py") {
 		if err := requireIsolatedPermission(ctx, ext != ".py"); err != nil {
 			return "", err
 		}
@@ -1437,13 +1444,11 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 		if err := requirePythonPermissionContext(ctx); err != nil {
 			return "", err
 		}
+		if err := EnsureVenvContext(ctx, m.workspaceDir, m.logger); err != nil {
+			return "", fmt.Errorf("cannot execute Agent Skill script: %w", err)
+		}
 		pythonBin := GetPythonBin(m.workspaceDir)
 		if _, err := os.Stat(pythonBin); err != nil {
-			if fallback := findSystemPython(); fallback != "" {
-				pythonBin = fallback
-			}
-		}
-		if pythonBin == "" {
 			return "", fmt.Errorf("python not found")
 		}
 		cmd = exec.CommandContext(ctx, pythonBin, "-u", filepath.Join(entry.Directory, filepath.FromSlash(scriptPath)))
@@ -1472,6 +1477,12 @@ func (m *AgentSkillManager) RunAgentSkillScript(ctx context.Context, id, scriptP
 	cmd.Dir = entry.Directory
 	cmd.Env = sandbox.FilterEnv(os.Environ())
 	SetSkillLimits(cmd, 1024, int(GetSkillTimeout().Seconds()))
+	perms, _ := currentRuntimePermissions()
+	protected, protectionErr := sandbox.ProtectFilesCommand(cmd, perms.ProtectedNotesRoots, ctx)
+	if protectionErr != nil {
+		return "", protectionErr
+	}
+	cmd = protected
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return "", err

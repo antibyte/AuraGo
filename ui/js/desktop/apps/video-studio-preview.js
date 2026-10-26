@@ -68,11 +68,17 @@
     function mount(canvas, getProject, getFrame, setFrame, onPlayState, getScale, options) {
         const fps = () => window.VideoStudioTime.rate(getProject());
         const scale = () => { const value = typeof getScale === 'function' ? Number(getScale()) : 1; return Math.max(0.1, Math.min(1, value || 1)); };
+        // O2 (plan 2f, index §4.26.8): the long-edge cap of the GL effect passes in px, from options.effectCap(). It is read
+        // on every paint like getScale. Without the option, for a non-positive value or a throw it is 0 (the exact preview).
+        const effectCap = () => { try { return options && typeof options.effectCap === 'function' ? Math.max(0, Number(options.effectCap()) || 0) : 0; } catch (_) { return 0; } };
         const media = new Map();
         // options.painter: 'auto' | 'gl' | '2d' (default '2d'). options.mediaURL(asset): the URL to play (a proxy), by
         // default asset.media_url; it still passes the same-origin check. The painter owns its canvas element, because a
         // canvas holds one context type only.
         const pickURL = options && typeof options.mediaURL === 'function' ? options.mediaURL : null;
+        // options.onPaint() (2f, index §4.26.1) runs at the end of every paint, after the painter, syncMedia and setFrame,
+        // inside try/catch. It must not paint; the scopes panel reads the painter's last frame from it.
+        const onPaint = options && typeof options.onPaint === 'function' ? options.onPaint : null;
         // Painter selection (index §4.5): GL only when asked for ('auto' or 'gl'), WebGL2 exists and the compositor
         // starts. A canvas that ever returned a WebGL context cannot give a 2D one, so after a failed GL attempt, and on
         // every fallback, the 2D painter draws on a fresh shallow clone of the element (same attributes, including
@@ -314,7 +320,7 @@
         // The frame description handed to the painter (phase 2 index §4.5): visual tracks in paint order, hidden tracks
         // skipped; per track the active clips and the transition pair, which the painter composes as one track layer.
         function describeFrame(project, at, opts) {
-            const scene = { project, frame: at, width: opts.width, height: opts.height, layers: [] };
+            const scene = { project, frame: at, width: opts.width, height: opts.height, effectCap: Math.max(0, Number(opts.effectCap) || 0), layers: [] };
             (project.tracks || []).forEach(track => {
                 if (track.hidden || track.kind === 'audio') return;
                 const pair = transitionPair(track, at), items = [];
@@ -334,9 +340,10 @@
             frame = Math.max(0, Number(nextFrame) || 0);
             // The backing store follows the preview quality; the painter sizes its canvas to it, so geometry scales with it.
             const width = Math.max(2, Math.round(Number(project.width || 1280) * scale())), height = Math.max(2, Math.round(Number(project.height || 720) * scale()));
-            painter.frame(describeFrame(project, frame, { width, height }));
+            painter.frame(describeFrame(project, frame, { width, height, effectCap: effectCap() }));
             syncMedia(project, frame, forward());
             if (typeof setFrame === 'function') setFrame(Math.round(frame));
+            if (onPaint) { try { onPaint(); } catch (_) { /* a paint hook never breaks the preview */ } }
         }
 
         function tick(now) {
@@ -461,9 +468,15 @@
             paint(frame);
             return painter.read(rect);
         }
+        // The painter's last frame, point-sampled to width × height (2f, index §4.26.1): a Promise of {width, height, data}
+        // or null. It never paints (capture still does). null without a painter that reads, and after dispose.
+        function readScaled(width, height) {
+            if (disposed || !painter || typeof painter.readScaled !== 'function') return Promise.resolve(null);
+            try { return Promise.resolve(painter.readScaled(width, height)); } catch (_) { return Promise.resolve(null); }
+        }
         paint(Number(getFrame() || 0));
         return { play, pause, seek, setRate, setLoop, setSolo, rate: () => rate, getFrame: () => Math.round(frame), isPlaying: () => playing, fallback, failedPrograms, mediaSize, dispose,
-            painterKind: () => painter.kind, capture, settle };
+            painterKind: () => painter.kind, capture, settle, readScaled };
     }
 
     window.VideoStudioPreview = { mount, rules: { transitionPair, activeAt, playBounds, sourceSeconds, mediaRate, audioAllowed } };

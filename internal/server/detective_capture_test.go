@@ -1,15 +1,19 @@
 package server
 
 import (
-	"aurago/internal/agent"
-	"aurago/internal/detective"
-	"aurago/internal/security"
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
+
+	"aurago/internal/agent"
+	"aurago/internal/detective"
+	"aurago/internal/security"
 )
 
 func TestDetectiveCaptureBindsOnlyRetrievedDocuments(t *testing.T) {
@@ -78,5 +82,74 @@ func TestDetectiveCaptureBindsOnlyRetrievedDocuments(t *testing.T) {
 	if len(c.Sources) != 5 {
 		b, _ := json.Marshal(c)
 		t.Fatalf("capture incomplete: %s", b)
+	}
+}
+
+// A tool result carries a compact receipt: identity plus a short preview, never the
+// full excerpt the tool output already contains (audit 4.4).
+func TestDetectiveCaptureAppendsBoundedReceipt(t *testing.T) {
+	type capture struct {
+		tail     string
+		receipts []detectiveReceipt
+		err      error
+	}
+	svc, err := detective.New(detective.Options{Path: filepath.Join(t.TempDir(), "case.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	captured := make(chan capture, 1)
+	long := strings.Repeat("recorded evidence sentence. ", 1200)
+	svc.SetRunner(detectiveTestRunner(func(ctx context.Context, job *detective.Session) error {
+		_, done, err := job.Activate(ctx)
+		if err != nil {
+			return err
+		}
+		defer done()
+		out := `{"status":"success","url":"https://example.org/long","content":` + strconv.Quote(long) + `}`
+		receipt := detectiveCapture(job, agent.ToolCall{Action: "web_scraper"}, out)
+		start := strings.Index(receipt, "Server-recorded research sources")
+		if start < 0 {
+			captured <- capture{err: errors.New("no receipt appended")}
+			return nil
+		}
+		tail := receipt[start:]
+		body := tail[strings.Index(tail, "\n")+1:]
+		var receipts []detectiveReceipt
+		parseErr := json.Unmarshal([]byte(body), &receipts)
+		captured <- capture{tail: tail, receipts: receipts, err: parseErr}
+		return nil
+	}))
+	c, err := svc.Create(detective.Request{Topic: "bounded receipt", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = svc.Start(c.ID, "start", "quick", "receipt-1"); err != nil {
+		t.Fatal(err)
+	}
+	var got capture
+	select {
+	case got = <-captured:
+	case <-time.After(5 * time.Second):
+		t.Fatal("capture never ran")
+	}
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	if len(got.tail) > 2<<10 {
+		t.Fatalf("receipt grew to %d bytes", len(got.tail))
+	}
+	if len(got.receipts) != 1 || got.receipts[0].ID == "" || got.receipts[0].SHA256 == "" {
+		t.Fatalf("receipt missing identity: %+v", got.receipts)
+	}
+	if n := utf8.RuneCountInString(got.receipts[0].Excerpt); n > receiptExcerptRunes {
+		t.Fatalf("receipt excerpt has %d runes", n)
+	}
+	stored, err := svc.Source(c.ID, got.receipts[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.Excerpt) < 30000 {
+		t.Fatalf("archive excerpt shrank to %d bytes", len(stored.Excerpt))
 	}
 }

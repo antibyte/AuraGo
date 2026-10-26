@@ -1,9 +1,11 @@
 package cyd
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -13,8 +15,15 @@ import (
 	"time"
 	"unicode"
 
+	mp3 "github.com/hajimehoshi/go-mp3"
+
+	"aurago/internal/i18n"
 	"aurago/internal/sanotts"
 )
+
+// SpeechSynth renders the active AuraGo voice. The bytes are a WAV or MP3;
+// the glass stores 8 kHz unsigned PCM after conversion.
+type SpeechSynth func(text string) ([]byte, error)
 
 const (
 	SpeakRate       = 8000
@@ -31,6 +40,8 @@ type Speaker struct {
 	bin      string
 	voice    string
 	cacheDir string
+	synth    SpeechSynth
+	ready    func() bool
 	warned   bool
 }
 
@@ -67,14 +78,44 @@ func NewSpeakerWithData(dataDir string) *Speaker {
 }
 
 func (s *Speaker) Available() bool {
-	return s != nil && s.bin != ""
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	ready, synth, bin := s.ready, s.synth, s.bin
+	s.mu.Unlock()
+	if ready != nil {
+		return ready()
+	}
+	return synth != nil || bin != ""
+}
+
+// SetSynth installs the hub's active TTS. ready reports whether that voice
+// can be called; a nil ready means the synth itself is enough.
+func (s *Speaker) SetSynth(fn SpeechSynth, ready func() bool) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.synth = fn
+	s.ready = ready
+	s.mu.Unlock()
 }
 
 func (s *Speaker) Queue(id, title, body string) {
+	s.QueueText(id, SpeakLine(title, body))
+}
+
+// QueueText speaks line as written. Mesh alerts use it so the glass does not
+// read the channel name or the message.
+func (s *Speaker) QueueText(id, text string) {
 	if !s.Available() || id == "" || inGoTest() {
 		return
 	}
-	text := SpeakLine(title, body)
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
 	go s.render(id, text)
 }
 
@@ -97,12 +138,29 @@ func (s *Speaker) warnUnavailable() {
 		return
 	}
 	s.warned = true
-	slog.Warn("[CYD] glass speech is unavailable: sanoTTS executable not found")
+	slog.Warn("[CYD] glass speech is unavailable: active TTS is not configured")
 }
 
 func (s *Speaker) render(id, text string) {
-	pcm, err := synthesizeU8(s.bin, s.voice, text, s.cacheDir)
-	if err != nil {
+	s.mu.Lock()
+	synth := s.synth
+	bin, voice, cacheDir := s.bin, s.voice, s.cacheDir
+	s.mu.Unlock()
+	var pcm []byte
+	var err error
+	if synth != nil {
+		var raw []byte
+		raw, err = synth(text)
+		if err == nil {
+			pcm, err = PCM8kFromAudio(raw)
+		}
+	} else {
+		pcm, err = synthesizeU8(bin, voice, text, cacheDir)
+	}
+	if err != nil || len(pcm) == 0 {
+		if err == nil {
+			err = fmt.Errorf("empty speech")
+		}
 		slog.Warn("[CYD] speech synthesis failed", "id", id, "error", err)
 		return
 	}
@@ -119,9 +177,9 @@ func (s *Speaker) render(id, text string) {
 	}
 }
 
-// MeshSpeakParts is the glass overlay (and TTS line) for an incoming MeshCore
-// message. Title keeps a Mesh prefix so firmware plays the mesh chime.
-// Protected bodies stay "locked"; radio node keys are not spoken.
+// MeshSpeakParts is the glass overlay for an incoming MeshCore message.
+// Title keeps a Mesh prefix so firmware plays the mesh chime. The spoken
+// line is MeshAnnounce, not this preview. Protected bodies stay "locked".
 func MeshSpeakParts(name, kind, preview string, protected bool) (title, body string) {
 	from := strings.TrimSpace(name)
 	if from == "" || looksLikeNodeKey(from) {
@@ -157,7 +215,50 @@ func looksLikeNodeKey(s string) bool {
 	return true
 }
 
-// SpeakLine is the English sentence the model hears.
+// MeshAnnounce is the only sentence spoken for a MeshCore message.
+// lang is the system language (Deutsch, de, en, …). Unknown languages use English.
+func MeshAnnounce(lang string) string {
+	lang = strings.TrimSpace(lang)
+	if i := strings.IndexAny(lang, "-_"); i > 0 {
+		lang = lang[:i]
+	}
+	switch i18n.NormalizeLang(lang) {
+	case "de":
+		return "Neue Nachricht auf MeshCore"
+	case "es":
+		return "Nuevo mensaje en MeshCore"
+	case "fr":
+		return "Nouveau message sur MeshCore"
+	case "pl":
+		return "Nowa wiadomość w MeshCore"
+	case "zh":
+		return "MeshCore 有新消息"
+	case "hi":
+		return "MeshCore पर नया संदेश"
+	case "nl":
+		return "Nieuw bericht op MeshCore"
+	case "it":
+		return "Nuovo messaggio su MeshCore"
+	case "pt":
+		return "Nova mensagem no MeshCore"
+	case "da":
+		return "Ny besked på MeshCore"
+	case "ja":
+		return "MeshCoreに新しいメッセージ"
+	case "sv":
+		return "Nytt meddelande på MeshCore"
+	case "no":
+		return "Ny melding på MeshCore"
+	case "cs":
+		return "Nová zpráva na MeshCore"
+	case "el":
+		return "Νέο μήνυμα στο MeshCore"
+	default:
+		return "New message on MeshCore"
+	}
+}
+
+// SpeakLine is the sentence spoken for alerts other than MeshCore.
 func SpeakLine(title, body string) string {
 	t := asciiEnglish(strings.TrimSpace(title))
 	b := asciiEnglish(strings.TrimSpace(body))
@@ -174,12 +275,6 @@ func asciiEnglish(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
-		if r > 127 {
-			if unicode.IsSpace(r) {
-				b.WriteByte(' ')
-			}
-			continue
-		}
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune(" .,!?'-", r) {
 			b.WriteRune(r)
 		} else if unicode.IsSpace(r) {
@@ -249,6 +344,42 @@ func PCM8kFromWAV(wav []byte) ([]byte, error) {
 		samples[i] = int16(binary.LittleEndian.Uint16(data[i*2:]))
 	}
 	out := downsampleU8(samples, int(rate), SpeakRate)
+	if len(out) > speakMaxBytes {
+		out = out[:speakMaxBytes]
+	}
+	return out, nil
+}
+
+// PCM8kFromAudio accepts the WAV or MP3 produced by the active TTS provider.
+func PCM8kFromAudio(data []byte) ([]byte, error) {
+	if len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WAVE" {
+		return PCM8kFromWAV(data)
+	}
+	return pcm8kFromMP3(data)
+}
+
+func pcm8kFromMP3(data []byte) ([]byte, error) {
+	decoder, err := mp3.NewDecoder(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("decode speech mp3: %w", err)
+	}
+	linear, err := io.ReadAll(io.LimitReader(decoder, 8<<20+1))
+	if err != nil {
+		return nil, fmt.Errorf("read speech mp3: %w", err)
+	}
+	if len(linear) == 0 || len(linear) > 8<<20 || len(linear)%4 != 0 {
+		return nil, fmt.Errorf("invalid speech mp3")
+	}
+	samples := make([]int16, len(linear)/4)
+	for i := range samples {
+		left := int32(int16(binary.LittleEndian.Uint16(linear[i*4 : i*4+2])))
+		right := int32(int16(binary.LittleEndian.Uint16(linear[i*4+2 : i*4+4])))
+		samples[i] = int16((left + right) / 2)
+	}
+	out := downsampleU8(samples, decoder.SampleRate(), SpeakRate)
+	if len(out) == 0 {
+		return nil, fmt.Errorf("empty speech mp3")
+	}
 	if len(out) > speakMaxBytes {
 		out = out[:speakMaxBytes]
 	}

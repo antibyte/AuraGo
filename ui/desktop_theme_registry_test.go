@@ -19,8 +19,8 @@ import (
 
 // desktopThemeKeyOrder is the property order of every descriptor line.
 var desktopThemeKeyOrder = []string{
-	"id", "labelKey", "descKey", "scheme", "schemeSetting", "shell", "globalMenu", "iconTheme", "iconFamily",
-	"accent", "glassPolish", "fx", "wallpaper", "thumb", "motion",
+	"id", "labelKey", "descKey", "scheme", "schemeSetting", "shell", "startMenu", "globalMenu", "iconTheme", "iconFamily",
+	"accent", "glassPolish", "fx", "staticFx", "wallpaper", "thumb", "cursorTheme", "soundTheme", "motion",
 }
 
 // desktopThemeMotionKeys are the eight motion durations every descriptor carries (milliseconds).
@@ -35,6 +35,8 @@ type desktopThemeDescriptor struct {
 	DescKey       string
 	Scheme        string
 	SchemeSetting string
+	StartMenu     string
+	StaticFX      bool
 	Shell         string
 	GlobalMenu    bool
 	IconTheme     string
@@ -145,6 +147,8 @@ func parseDesktopThemeLine(t testing.TB, line string) desktopThemeDescriptor {
 		DescKey:       needString("descKey"),
 		Scheme:        needString("scheme"),
 		SchemeSetting: needString("schemeSetting"),
+		StartMenu:     needString("startMenu"),
+		StaticFX:      needBool("staticFx"),
 		Shell:         needString("shell"),
 		GlobalMenu:    needBool("globalMenu"),
 		IconTheme:     needString("iconTheme"),
@@ -297,11 +301,17 @@ func TestDesktopThemeRegistryMatchesGoAndAssets(t *testing.T) {
 			if theme.Shell != "taskbar" && theme.Shell != "dock" {
 				t.Errorf("shell %q must be taskbar or dock", theme.Shell)
 			}
+			if theme.StartMenu != "classic" && theme.StartMenu != "xp" {
+				t.Errorf("unknown start menu variant %q", theme.StartMenu)
+			}
+			if theme.StaticFX && !theme.FX {
+				t.Error("static FX requires an effect implementation")
+			}
 			if theme.Shell == "dock" && !theme.GlobalMenu {
 				t.Errorf("a dock shell needs the global menu bar (globalMenu: true)")
 			}
-			if theme.SchemeSetting != "" && theme.SchemeSetting != "appearance.fruity_mode" {
-				t.Errorf("schemeSetting %q must be empty or appearance.fruity_mode", theme.SchemeSetting)
+			if allowedSchemeSettings := map[string]bool{"appearance.fruity_mode": true, "appearance.minimal_mode": true}; theme.SchemeSetting != "" && !allowedSchemeSettings[theme.SchemeSetting] {
+				t.Errorf("schemeSetting %q must be empty, appearance.fruity_mode or appearance.minimal_mode", theme.SchemeSetting)
 			}
 			if !desktopThemeContains(iconThemes, theme.IconTheme) {
 				t.Errorf("iconTheme %q is not an appearance.icon_theme value %v", theme.IconTheme, iconThemes)

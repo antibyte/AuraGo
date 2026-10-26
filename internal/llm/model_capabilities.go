@@ -160,20 +160,29 @@ func managedLocalProvider(provider config.ProviderEntry) bool {
 // CapabilitiesFromRegistry returns capability flags from bundled catalog and
 // generated models.dev metadata.
 func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResult, bool) {
-	if snapshot, err := loadCapabilityCatalog(); err == nil {
+	snapshot, catalogErr := loadCapabilityCatalog()
+	if catalogErr == nil {
 		if model, ok := snapshot.FindModel(provider, modelID); ok {
-			return capabilityResultFromCatalogModel(model), true
-		}
-		if model, ok := snapshot.FindModelByID(modelID); ok {
 			return capabilityResultFromCatalogModel(model), true
 		}
 	}
 	entry, ok := getModelsDevInfo(provider, modelID)
+	if !ok && catalogErr == nil {
+		if model, ok := snapshot.FindModelByID(modelID); ok {
+			result := capabilityResultFromCatalogModel(model)
+			result.Source = "model_only_fallback"
+			return result, true
+		}
+	}
 	if !ok {
 		entry, ok = getModelsDevInfoByID(modelID)
 	}
 	if !ok {
 		return ProviderCapabilityResult{}, false
+	}
+	source := CapabilitySourceModelsDev
+	if entry.MetadataSource == "model_only_fallback" {
+		source = entry.MetadataSource
 	}
 	return ProviderCapabilityResult{
 		ToolCalling:       entry.SupportsToolCall,
@@ -182,19 +191,23 @@ func CapabilitiesFromRegistry(provider, modelID string) (ProviderCapabilityResul
 		Image:             entry.SupportsMultimodal,
 		Reasoning:         entry.SupportsReasoning,
 		DetectedModel:     entry.ID,
-		Source:            CapabilitySourceModelsDev,
+		Source:            source,
 		Known:             true,
 	}, true
 }
 
 func capabilityResultFromCatalogModel(model catalog.Model) ProviderCapabilityResult {
+	source := model.Source
+	if source == "" {
+		source = CapabilitySourceOhMyPi
+	}
 	result := ProviderCapabilityResult{
 		ToolCalling:       model.SupportsTools,
 		StructuredOutputs: model.StructuredOutputs,
 		Multimodal:        model.Multimodal,
 		Reasoning:         model.Reasoning,
 		DetectedModel:     model.ID,
-		Source:            CapabilitySourceOhMyPi,
+		Source:            source,
 		Known:             true,
 	}
 	if known, image := catalogInputIncludesImage(model.Input); known {
@@ -221,7 +234,7 @@ func catalogInputIncludesImage(inputs []string) (known bool, image bool) {
 }
 
 func storedCatalogImage(providerType, model, source string) (known bool, image bool, ok bool) {
-	if strings.TrimSpace(source) != CapabilitySourceOhMyPi {
+	if strings.TrimSpace(source) != CapabilitySourceOhMyPi && strings.TrimSpace(source) != catalog.SourceCloudflare && strings.TrimSpace(source) != "model_only_fallback" {
 		return false, false, false
 	}
 	snapshot, err := loadCapabilityCatalog()

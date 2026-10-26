@@ -230,3 +230,45 @@ func TestVideoStudioPreviewPainterFallback(t *testing.T) {
 }
 `)
 }
+
+// O2 (plan 2f Task 11, index §4.26.8): P.previewEffectCap gives the long-edge cap of the GL effect passes per preview
+// quality: Full 0 (exact), every other quality VideoStudioPicture.EFFECT_CAP_LONG. The preview copies the mount
+// option effectCap() into every scene. The value is 0 without the option, for anything but a positive number and for a
+// getter that throws, and the getter is read on every paint.
+func TestVideoStudioPreviewEffectCap(t *testing.T) {
+	runVideoStudioPainterScript(t, `
+require('./js/desktop/apps/video-studio-timeline.js');
+require('./js/desktop/apps/video-studio-core.js');
+const Parts = window.VideoStudioParts, Pic = window.VideoStudioPicture;
+assert.equal(Pic.EFFECT_CAP_LONG, 1280, 'the cap of spike S4');
+for (const [quality, want] of [['auto', 1280], ['half', 1280], ['quarter', 1280], ['full', 0], [undefined, 1280], ['', 1280]]) {
+  assert.equal(Parts.previewEffectCap({previewQuality: quality}), want, 'quality ' + quality);
+}
+const capOf = options => {
+  const canvas = makeCanvas({'data-preview': ''});
+  canvas.parentNode = {};
+  const preview = Preview.mount(canvas, () => project, () => 0, () => {}, () => {}, () => 1, Object.assign({painter: 'auto'}, options));
+  assert.equal(preview.painterKind(), 'gl');
+  const scene = glPainters.at(-1).scenes.at(-1);
+  preview.dispose();
+  return scene.effectCap;
+};
+{
+  const s = {previewQuality: 'auto'};
+  const canvas = makeCanvas({'data-preview': ''});
+  canvas.parentNode = {};
+  const preview = Preview.mount(canvas, () => project, () => 0, () => {}, () => {}, () => 1, {painter: 'auto', effectCap: () => Parts.previewEffectCap(s)});
+  const gl = glPainters.at(-1);
+  assert.equal(gl.scenes.at(-1).effectCap, 1280, 'Auto caps the passes');
+  s.previewQuality = 'full';
+  preview.seek(0);
+  assert.equal(gl.scenes.at(-1).effectCap, 0, 'the getter is read on every paint: Full is exact');
+  preview.dispose();
+}
+assert.equal(capOf({}), 0, 'no option: uncapped');
+assert.equal(capOf({effectCap: () => -5}), 0, 'a negative cap is no cap');
+assert.equal(capOf({effectCap: () => 'wide'}), 0, 'a non-number is no cap');
+assert.equal(capOf({effectCap: () => { throw new Error('boom'); }}), 0, 'a failing getter never breaks the paint');
+assert.equal(capOf({effectCap: () => 960}), 960);
+`)
+}

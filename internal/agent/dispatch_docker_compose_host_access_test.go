@@ -434,13 +434,15 @@ func TestDockerComposePolicyFlagOffAdditions(t *testing.T) {
 			model := `{"services":{"app":` + tc.service + `}` + tc.extra + `}`
 			stubDockerComposeResolver(t, func(string) (string, error) { return model, nil })
 			cfg := &config.Config{}
+			cfg.Docker.Enabled = true
+			host := rustFSAbsentDockerVolumeHost(t)
 			useRuntimePermissionsForTest(t, cfg)
-			got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d"})
+			got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{Host: host, WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d"})
 			if !strings.Contains(got, `"code":"docker_compose_host_access_denied"`) || !strings.Contains(got, `"field":"`+tc.field+`"`) {
 				t.Fatalf("flag off: got %s, want a %s host-access denial", got, tc.field)
 			}
 			cfg.Docker.AllowHostAccess = true
-			if got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d"}); got != "" {
+			if got := dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{Host: host, WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "compose.yml", Command: "up -d"}); got != "" {
 				t.Fatalf("flag on: %s blocked: %s", tc.field, got)
 			}
 		})

@@ -61,9 +61,10 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 				searchQuery = "summarise the key facts about: " + req.Query
 			}
 			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-				APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
-				BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
-				Model:   cfg.Tools.Wikipedia.SummaryModel,
+				ProviderID: cfg.Tools.Wikipedia.SummaryProvider,
+				APIKey:     cfg.Tools.Wikipedia.SummaryAPIKey,
+				BaseURL:    cfg.Tools.Wikipedia.SummaryBaseURL,
+				Model:      cfg.Tools.Wikipedia.SummaryModel,
 			}), logger, result, searchQuery, "Wikipedia article")
 			if err != nil {
 				logger.Warn("wikipedia summary failed, returning raw content", "error", err)
@@ -88,9 +89,10 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 				searchQuery = "synthesise the most relevant findings for: " + req.Query
 			}
 			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-				APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
-				BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
-				Model:   cfg.Tools.DDGSearch.SummaryModel,
+				ProviderID: cfg.Tools.DDGSearch.SummaryProvider,
+				APIKey:     cfg.Tools.DDGSearch.SummaryAPIKey,
+				BaseURL:    cfg.Tools.DDGSearch.SummaryBaseURL,
+				Model:      cfg.Tools.DDGSearch.SummaryModel,
 			}), logger, result, searchQuery, "search results")
 			if err != nil {
 				logger.Warn("ddg_search summary failed, returning raw content", "error", err)

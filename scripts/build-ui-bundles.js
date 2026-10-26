@@ -7,8 +7,12 @@ const checkOnly = process.argv.includes('--check');
 
 const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
+  'ui/js/desktop/icon-theme-resolver.js',
   'ui/js/desktop/core/desktop-foundation.js',
+  'ui/js/desktop/core/icon-theme-runtime.js',
   'ui/js/desktop/core/theme-runtime.js',
+  'ui/js/desktop/core/window-effects-runtime.js',
+  'ui/js/desktop/core/cursor-runtime.js',
   'ui/js/desktop/core/sound-runtime.js',
   'ui/js/desktop/core/screensaver-runtime.js',
   'ui/js/desktop/core/mini-icons-runtime.js',
@@ -103,6 +107,7 @@ const chatRuntimeParts = [
 ];
 
 const jsBundles = [
+  { out: 'ui/js/desktop/aura-desktop-sdk.js', parts: ['ui/js/desktop/icon-theme-resolver.js', 'ui/js/desktop/sdk-runtime.js'] },
   {
     out: 'ui/js/desktop/bundles/main.bundle.js',
     parts: desktopMainParts
@@ -130,14 +135,47 @@ const jsBundles = [
       'ui/js/desktop/sound/theme-wood.js',
       'ui/js/desktop/sound/theme-analog.js',
       'ui/js/desktop/sound/theme-workshop.js',
-      'ui/js/desktop/sound/theme-water.js'
+      'ui/js/desktop/sound/theme-water.js',
+      'ui/js/desktop/sound/theme-desktop.js',
+      'ui/js/desktop/sound/theme-electronic-dreams.js',
+      'ui/js/desktop/sound/theme-windows-xp.js',
+      'ui/js/desktop/sound/theme-green-slime.js',
+      'ui/js/desktop/sound/theme-voxel-world.js',
+      'ui/js/desktop/sound/theme-orbit.js'
     ]
   },
   {
     out: 'ui/js/desktop/bundles/desktop-theme-fx.bundle.js',
     parts: [
       'ui/js/desktop/theme-fx/fx-core.js',
-      'ui/js/desktop/theme-fx/crazy.js'
+      'ui/js/desktop/theme-fx/crazy.js',
+      'ui/js/desktop/theme-fx/electronic_dreams.js',
+      'ui/js/desktop/theme-fx/green_slime_geometry.js',
+      'ui/js/desktop/theme-fx/green_slime_bubbles.js',
+      'ui/js/desktop/theme-fx/green_slime_touch.js',
+      'ui/js/desktop/theme-fx/green_slime_sim.js',
+      'ui/js/desktop/theme-fx/green_slime_canvas2d.js',
+      'ui/js/desktop/theme-fx/green_slime_gl_shaders.js',
+      'ui/js/desktop/theme-fx/green_slime_gl.js',
+      'ui/js/desktop/theme-fx/green_slime.js',
+      'ui/js/desktop/theme-fx/voxel-sky.js',
+      'ui/js/desktop/theme-fx/voxel-island.js',
+      'ui/js/desktop/theme-fx/voxel-mesher.js',
+      'ui/js/desktop/theme-fx/voxel-blocks.js',
+      'ui/js/desktop/theme-fx/voxel-shaders.js',
+      'ui/js/desktop/theme-fx/voxel-life.js',
+      'ui/js/desktop/theme-fx/voxel-scene.js',
+      'ui/js/desktop/theme-fx/voxel-graphics.js',
+      'ui/js/desktop/theme-fx/voxel-fragments.js',
+      'ui/js/desktop/theme-fx/voxel_world.js',
+      'ui/js/desktop/theme-fx/orbit-choreo.js',
+      'ui/js/desktop/theme-fx/orbit-particles.js',
+      'ui/js/desktop/theme-fx/orbit-shaders.js',
+      'ui/js/desktop/theme-fx/orbit-textures.js',
+      'ui/js/desktop/theme-fx/orbit-models.js',
+      'ui/js/desktop/theme-fx/orbit-scene.js',
+      'ui/js/desktop/theme-fx/orbit-windows.js',
+      'ui/js/desktop/theme-fx/orbit.js'
     ]
   },
   {
@@ -191,12 +229,20 @@ const cssBundles = [
       'ui/css/desktop-sip-phone-shell.css',
       'ui/css/desktop-chrome.css',
       'ui/css/desktop-wallpaper-live.css',
+      'ui/css/desktop-wallpaper-themes.css',
       'ui/css/desktop-theme-amiga.css',
       'ui/css/desktop-theme-cyberpunk.css',
       'ui/css/desktop-theme-black-gloss.css',
       'ui/css/desktop-theme-crazy.css',
       'ui/css/desktop-theme-lollipop.css',
       'ui/css/desktop-theme-organic.css',
+      'ui/css/desktop-theme-electronic-dreams.css',
+      'ui/css/desktop-theme-windows-xp.css',
+      'ui/css/desktop-theme-green-slime.css',
+      'ui/css/desktop-theme-voxel-world.css',
+      'ui/css/desktop-theme-orbit.css',
+      'ui/css/desktop-theme-minimal.css',
+      'ui/css/desktop-cursors.css',
       'ui/css/desktop-polish.css'
     ]
   },

@@ -29,6 +29,11 @@ func startPendingMemoryWriteRetryLoop(ctx context.Context, logger *slog.Logger, 
 		defer ticker.Stop()
 		for {
 			retryPendingMemoryWrites(ctx, logger, stm, ltm, configSnapshot())
+			if ctx.Err() == nil {
+				if _, err := stm.CleanupExpiredPendingMemoryWrites(ctx, time.Now().UTC(), 100); err != nil && logger != nil {
+					logger.Warn("[Memory Retry] Failed to clean expired exhausted payloads", "error", err)
+				}
+			}
 			select {
 			case <-ctx.Done():
 				return
@@ -43,7 +48,13 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 	if stm == nil || ltm == nil {
 		return 0, 0
 	}
-	writes, err := stm.GetDuePendingMemoryWrites(time.Now().UTC(), 20)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ctx.Err() != nil {
+		return 0, 0
+	}
+	writes, err := stm.GetDuePendingMemoryWritesContext(ctx, time.Now().UTC(), 20)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("[Memory Retry] Failed to load pending writes", "error", err)
@@ -56,7 +67,7 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		}
 		if write.MetadataError != nil {
 			failed++
-			if err := stm.MarkPendingMemoryWriteFailed(write.ID, write.MetadataError, time.Now().UTC()); err != nil && logger != nil {
+			if err := stm.MarkPendingMemoryWriteFailedContext(ctx, write.ID, write.MetadataError, time.Now().UTC()); err != nil && logger != nil {
 				logger.Warn("[Memory Retry] Failed to record invalid metadata", "id", write.ID, "error", err)
 			}
 			continue
@@ -79,19 +90,24 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			details.SourceSessionID, _ = memory.MemoryAnalysisSession(write.Content)
 		}
 		if !shouldStoreExtractedMemory(write.Concept, "") {
-			_ = stm.CompletePendingMemoryWrite(write.ID)
+			_ = stm.CompletePendingMemoryWriteContext(ctx, write.ID)
 			continue
 		}
 		if len(configs) > 0 && !runtimeMemoryWriteAllowed(configs[0], "memory", details.SourceSessionID) {
+			// A currently closed session gate is not a failed write. Move it out
+			// of the next due page so later sessions can make progress this cycle.
+			if err := stm.DeferPendingMemoryWriteContext(ctx, write.ID, time.Now().UTC()); err != nil && logger != nil {
+				logger.Warn("[Memory Retry] Failed to defer session-gated write", "id", write.ID, "error", err)
+			}
 			continue
 		}
 		stored, err := memory.StoreAutomaticMemoryDocumentWithContext(ctx, stm, ltm, write.Concept, write.Content, details)
 		if err != nil {
 			if errors.Is(err, memory.ErrAutomaticMemorySkipped) {
-				_ = stm.CompletePendingMemoryWrite(write.ID)
+				_ = stm.CompletePendingMemoryWriteContext(ctx, write.ID)
 				continue
 			}
-			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes); rollbackErr != nil {
+			if rollbackErr := rollbackPendingMemoryWriteCreatedIDs(logger, stm, ltm, stored.Writes, ctx); rollbackErr != nil {
 				err = errors.Join(err, rollbackErr)
 			}
 			failed++
@@ -100,9 +116,9 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 			}
 			var markErr error
 			if isTransientHelperError(err) {
-				markErr = stm.DeferPendingMemoryWrite(write.ID, time.Now().UTC())
+				markErr = stm.DeferPendingMemoryWriteContext(ctx, write.ID, time.Now().UTC())
 			} else {
-				markErr = stm.MarkPendingMemoryWriteFailed(write.ID, err, time.Now().UTC())
+				markErr = stm.MarkPendingMemoryWriteFailedContext(ctx, write.ID, err, time.Now().UTC())
 			}
 			if markErr != nil && logger != nil {
 				logger.Warn("[Memory Retry] Failed to update pending write", "id", write.ID, "error", markErr)
@@ -113,7 +129,7 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if len(ids) == 0 {
 			err := fmt.Errorf("memory retry returned no document IDs")
 			failed++
-			if markErr := stm.MarkPendingMemoryWriteFailed(write.ID, err, time.Now().UTC()); markErr != nil && logger != nil {
+			if markErr := stm.MarkPendingMemoryWriteFailedContext(ctx, write.ID, err, time.Now().UTC()); markErr != nil && logger != nil {
 				logger.Warn("[Memory Retry] Failed to update pending write", "id", write.ID, "error", markErr)
 			}
 			continue
@@ -121,7 +137,7 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, write.Concept+"\n\n"+write.Content, conflictStoredDocument); err != nil && logger != nil {
 			logger.Warn("[Memory Retry] Conflict check failed", "error", err)
 		}
-		if err := stm.CompletePendingMemoryWrite(write.ID); err != nil {
+		if err := stm.CompletePendingMemoryWriteContext(ctx, write.ID); err != nil {
 			failed++
 			if logger != nil {
 				logger.Warn("[Memory Retry] Failed to complete pending write", "id", write.ID, "error", err)
@@ -136,8 +152,14 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 	return succeeded, failed
 }
 
-func rollbackPendingMemoryWriteCreatedIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, writes []memory.AutomaticMemoryWrite) error {
-	err := stm.RollbackAutomaticMemoryWrites(ltm, writes)
+func rollbackPendingMemoryWriteCreatedIDs(logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, writes []memory.AutomaticMemoryWrite, contexts ...context.Context) error {
+	ctx := context.Background()
+	if len(contexts) > 0 && contexts[0] != nil {
+		ctx = contexts[0]
+	}
+	cleanupCtx, cancel := boundedMaintenanceRollbackContext(ctx)
+	defer cancel()
+	err := stm.RollbackAutomaticMemoryWritesContext(cleanupCtx, ltm, writes)
 	if err != nil && logger != nil {
 		logger.Warn("[Memory Retry] Rollback retained unproven or changed memories", "error", err)
 	}

@@ -99,6 +99,7 @@
     const NEEDS_CLIP = ['effectsLibraryNeedsClip', 'Select a picture clip first, or drop the effect on one.'];
     const DROP_ON_CLIP = ['effectsLibraryDropOnClip', 'Drop it on a picture clip.'];
     const DROP_ON_CUT = ['effectsLibraryDropOnCut', 'Drop a transition on the cut between two clips on one track.'];
+    const NEEDS_CUT = ['effectsLibraryTransitionNeedsClip', 'Select the picture clip before the cut first, or drop the transition on a cut.'];
     // Generated transition icons (VideoStudioIcons.transition, 30×18); none without the icon module (Node checks).
     const transitionIcon = id => (window.VideoStudioIcons && window.VideoStudioIcons.transition ? window.VideoStudioIcons.transition(id, 30) : '');
 
@@ -143,14 +144,14 @@
         if (ok && s.app && s.app.getBoundingClientRect().width <= 920 && P.setInspectorOpen) P.setInspectorOpen(s, true, false);
         return ok;
     }
-    // Sets a library transition on the cut after the outgoing clip (index §4.9) in one undo step through
-    // P.applyTransition. That path checks the following clip and the length, and selects the outgoing clip. An existing
-    // transition keeps its length; a new one gets the inspector's default (VideoStudioInspector.transitionLength).
+    // Sets a library transition on the cut after the outgoing clip (index §4.9) in one undo step through P.applyTransition,
+    // which checks the following clip and the length and selects the outgoing clip. An existing transition keeps its
+    // length, a new one gets VideoStudioInspector.transitionLength; without a picture clip NEEDS_CUT names the cut (2f).
     function addTransitionTo(s, clipId, type) {
         if (!s.project) return false;
         if (s.readonly) { showNotice(s, 'readonly', 'Read-only mode prevents editing.', true); return false; }
         const found = clipId ? T().clipFor(s.project, clipId) : null;
-        if (!found || found.track.kind === 'audio') { showNotice(s, NEEDS_CLIP[0], NEEDS_CLIP[1], false); return false; }
+        if (!found || found.track.kind === 'audio') { showNotice(s, NEEDS_CUT[0], NEEDS_CUT[1], false); return false; }
         if (found.track.locked) { P.showReason(s, 'locked'); return false; }
         const order = found.track.clips.slice().sort((a, b) => a.start - b.start), next = order[order.indexOf(found.clip) + 1] || null;
         const ok = !!P.applyTransition(s, type, I().transitionLength(s.project, found.clip, next).value, found.clip.id);

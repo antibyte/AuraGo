@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Verzonden",
   "mailer.outbox_unknown": "Onbekende bezorgstatus",
   "mailer.partial_action": "Sommige berichten zijn gewijzigd. De lijst is vernieuwd. Controleer de overige berichten voordat je het opnieuw probeert.",
+  "mailer.participants_count": "{count} deelnemers",
   "mailer.password": "Wachtwoord",
   "mailer.preview_rule": "Regelvoorbeeld",
   "mailer.print": "Afdrukken",

@@ -63,7 +63,7 @@
             '<div class="ed-home-toolbar"><div class="ed-search">' + core.icon('search') + '<input type="search" placeholder="' + esc(t('easydrag.ui.home_search')) + '" aria-label="' + esc(t('easydrag.ui.home_search')) + '" enterkeyhint="search" inputmode="search" data-ed-home-search></div>' +
             '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.home_filter')) + '">' +
             ['all', 'active', 'inactive', 'drafts', 'errors'].map(f => '<button type="button" role="radio" data-ed-filter="' + f + '" aria-checked="' + (f === filter) + '">' + esc(t('easydrag.ui.home_filter_' + f)) + '</button>').join('') + '</div>' +
-            '<select class="ed-select ed-home-sort" aria-label="' + esc(t('easydrag.ui.home_sort')) + '" data-ed-home-sort>' +
+            '<select class="ed-input ed-input--small ed-home-sort" aria-label="' + esc(t('easydrag.ui.home_sort')) + '" data-ed-home-sort>' +
             '<option value="updated">' + esc(t('easydrag.ui.home_sort_updated')) + '</option>' +
             '<option value="last_run">' + esc(t('easydrag.ui.home_sort_last_run')) + '</option>' +
             '<option value="name">' + esc(t('easydrag.ui.home_sort_name')) + '</option></select></div>' +
@@ -87,6 +87,15 @@
             if (!f.published) return '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_draft')) + '</span>';
             if (f.has_unpublished_changes) return '<span class="ed-chip ed-chip--accent">' + esc(t('easydrag.ui.state_changes')) + '</span>';
             return '<span class="ed-chip ed-chip--ok">' + esc(t('easydrag.ui.state_published')) + '</span>';
+        }
+
+        // liveBadge: the published version no longer passes the server's current checks (its
+        // start-up check); publishing again clears it.
+        function liveBadge(f) {
+            if (!f.published || !Array.isArray(f.live_issues) || !f.live_issues.length) return '';
+            const hint = t('easydrag.ui.live_outdated_hint');
+            return '<span class="ed-chip ed-chip--risk" data-ed-live-outdated title="' + esc(hint) + '">' + esc(t('easydrag.ui.state_live_outdated')) +
+                '<span class="ed-sr-only"> ' + esc(hint) + '</span></span>';
         }
 
         function lastRun(f) {
@@ -127,8 +136,13 @@
         // in memory only. Nothing is written to storage for either.
         let loadError = null;
         let staleError = null;
+        let timersRunning = true;  // GET /flows timers_running; false while Date & time triggers do not fire
         let listed = false;
         let spoken = '';
+        // templateError is the failure of the last template load while no templates are known; the
+        // template section shows it with its own Try again (retryTemplates).
+        let templateError = null;
+        let templateSeq = 0;
 
         function errorIdentity(err) {
             const body = err && err.body || {};
@@ -174,6 +188,13 @@
                 '<button type="button" class="ed-btn" data-ed-home-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button></div>';
         }
 
+        // timersBanner: Date & time triggers do not fire (the server keeps retrying to start).
+        function timersBanner() {
+            if (timersRunning) return '';
+            return '<div class="ed-home-stale" role="status" data-ed-timers-off><h3>' + esc(t('easydrag.ui.timers_stopped_title')) + '</h3><p>' +
+                esc(t('easydrag.ui.timers_stopped_text')) + '</p></div>';
+        }
+
         function emptyCard() {
             const off = createOff();
             const dis = off ? ' disabled' : '';
@@ -205,10 +226,19 @@
             if (opts && typeof opts.onLoaded === 'function') opts.onLoaded();
         }
 
+        // cardName is a flow card's accessible name (U7): its name and the state the card shows
+        // (state, Paused, a failed last run).
+        function cardName(f) {
+            const parts = [f.name, !f.published ? t('easydrag.ui.state_draft') : f.has_unpublished_changes ? t('easydrag.ui.state_changes') : t('easydrag.ui.state_published')];
+            if (f.published && !f.enabled) parts.push(t('easydrag.ui.state_inactive'));
+            if (f.last_run && f.last_run.status === 'error') parts.push(t('easydrag.ui.status_error'));
+            return parts.join(', ');
+        }
+
         function render() {
             const list = visibleFlows();
             const off = createOff();
-            const banner = !loadError && staleError ? staleBanner() : '';
+            const banner = (!loadError && staleError ? staleBanner() : '') + (!loadError ? timersBanner() : '');
             if (loadError) {
                 grid.innerHTML = errorCard(loadError);
                 speak(core.errorCode(loadError) === 'FLOWS_DISABLED' ? 'disabled' : 'error', core.errorCode(loadError) === 'FLOWS_DISABLED' ? t('easydrag.ui.disabled_title') : core.errorText(t, loadError));
@@ -220,17 +250,21 @@
                 speak(staleError ? 'stale-none' : 'none', t('easydrag.ui.home_no_match'));
             } else {
                 grid.innerHTML = banner + list.map(f =>
-                    '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(f.name) + '">' +
+                    '<article class="ed-flow-card' + (f.enabled ? ' is-active' : '') + '" data-ed-flow="' + esc(f.id) + '" tabindex="0" aria-label="' + esc(cardName(f)) + '">' +
                     '<div class="ed-flow-preview">' + previewSVG(f.preview, esc, f.preview_edges) + '</div>' +
                     '<div class="ed-flow-info"><h3>' + esc(f.name) + '</h3><p class="ed-flow-triggers">' + core.icon('bolt') + '<span>' + esc(triggerLabels(f).join(' · ') || t('easydrag.ui.home_no_trigger')) + '</span></p>' +
-                    '<div class="ed-flow-meta">' + statusBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
+                    '<div class="ed-flow-meta">' + statusBadge(f) + liveBadge(f) + '<span class="ed-flow-run">' + lastRun(f) + '</span></div></div>' +
                     '<div class="ed-flow-card-actions">' +
-                    (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.active')) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
+                    (f.published && !off ? '<button type="button" class="ed-switch ed-switch--small" role="switch" aria-checked="' + !!f.enabled + '" data-ed-toggle="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.home_active_named', { name: f.name })) + '" title="' + esc(t('easydrag.ui.active')) + '"><span></span></button>' : '') +
                     '<button type="button" class="ed-icon-btn" data-ed-card-menu="' + esc(f.id) + '" aria-label="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button></div></article>').join('');
                 speak(staleError ? 'stale' : 'ready', staleError ? t('easydrag.ui.home_stale_title') : t('easydrag.ui.home_flows'));
             }
             tplGrid.classList.toggle('is-disabled', off);
-            tplGrid.innerHTML = templates.map(tp =>
+            // Templates that could not be loaded say so here, with their own Try again; the flows above stay.
+            if (templateError && !templates.length && !loadError) {
+                tplGrid.innerHTML = '<p class="ed-error">' + esc(t('easydrag.ui.home_templates_failed', { reason: core.errorText(t, templateError) })) + '</p>' +
+                    '<div class="ed-row"><button type="button" class="ed-btn" data-ed-templates-retry>' + core.icon('refresh') + '<span>' + esc(t('easydrag.ui.retry')) + '</span></button></div>';
+            } else tplGrid.innerHTML = templates.map(tp =>
                 '<article class="ed-template-card" data-ed-template="' + esc(tp.id) + '" tabindex="' + (off ? '-1' : '0') + '" role="button"' + (off ? ' aria-disabled="true"' : '') + ' aria-label="' + esc(tp.name) + '">' +
                 '<div class="ed-template-cats">' + (tp.categories || []).map(c => '<span class="ed-cat-dot" data-cat="' + esc(c) + '"></span>').join('') + '</div>' +
                 '<h3>' + esc(tp.name) + '</h3><p>' + esc(tp.description) + '</p><span class="ed-template-use">' + esc(t('easydrag.ui.home_use_template')) + core.icon('chevron-right') + '</span></article>').join('');
@@ -245,23 +279,24 @@
         // loadSeq numbers the list requests: only the newest answer is shown, none after dispose.
         let loadSeq = 0;
 
-        // reload fetches the flow list (and the templates once). A failure is shown and not retried
-        // by itself: the next flows_changed or the user (Reload) asks again. Flows switched off
-        // (FLOWS_DISABLED, possible at any time) show a calm state instead of an error.
+        // reload fetches the flow list and, once, the templates. Each answer stands on its own
+        // (allSettled): templates that fail leave the flows listed and show their own Try again in
+        // the template section. A list that fails is shown and not retried by itself: the next
+        // flows_changed or the user (Reload) asks again. Flows switched off (FLOWS_DISABLED,
+        // possible at any time) show a calm state instead of an error.
         async function reload() {
             reloadSoon.cancel();
             const mine = ++loadSeq;
-            let list;
-            let tpl;
-            try {
-                [list, tpl] = await Promise.all([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
-            } catch (err) {
-                if (mine !== loadSeq) return;
+            const [listAnswer, tplAnswer] = await Promise.allSettled([app.api.list(), templates.length ? Promise.resolve({ templates }) : app.api.templates()]);
+            if (mine !== loadSeq) return;
+            if (listAnswer.status === 'rejected') {
+                const err = listAnswer.reason;
                 // A refresh that fails keeps the last authoritative list and blocks changes.
                 // The first load, FLOWS_DISABLED and a lost session do not keep protected cards.
                 if (authLoss(err)) {
                     flows = [];
                     templates = [];
+                    templateError = null;
                     listed = false;
                     staleError = null;
                     loadError = err;
@@ -278,15 +313,37 @@
                 reportLoaded();
                 return;
             }
-            if (mine !== loadSeq) return;
+            const list = listAnswer.value || {};
             loadError = null;
             staleError = null;
             listed = true;
             flows = list.flows || [];
-            templates = tpl.templates || [];
+            timersRunning = list.timers_running !== false;
+            if (tplAnswer.status === 'fulfilled') {
+                templates = (tplAnswer.value && tplAnswer.value.templates) || [];
+                templateError = null;
+            } else if (!templates.length) {
+                templateError = tplAnswer.reason;
+            }
             render();
             reportLoaded();
             focusLeftFlow();
+        }
+
+        // retryTemplates loads the templates again (their Try again). Focus that was on the old button
+        // goes to the new Try again, or to the first template.
+        async function retryTemplates() {
+            const mine = ++templateSeq;
+            const hadFocus = tplGrid.contains(document.activeElement);
+            let next = null;
+            let failure = null;
+            try { next = await app.api.templates(); } catch (err) { failure = err; }
+            if (gone || mine !== templateSeq) return;
+            if (failure) templateError = failure;
+            else { templates = (next && next.templates) || []; templateError = null; }
+            render();
+            const target = tplGrid.querySelector('[data-ed-templates-retry]') || tplGrid.querySelector('[data-ed-template]');
+            if (hadFocus && target && typeof target.focus === 'function') target.focus();
         }
         // Every autosave broadcasts flows_changed "saved", and every live run's end "run_finished";
         // listing parses every flow on the server: those refreshes wait until they pause for 1.5 s.
@@ -370,16 +427,21 @@
             a.remove();
         }
 
+        // duplicating holds the flows whose copy is being made: a double click copies once.
+        const duplicating = new Set();
         async function duplicate(id) {
-            if (!mayChange()) return;
+            if (!mayChange() || duplicating.has(id)) return;
+            duplicating.add(id);
             try {
                 const res = await app.api.get(id);
                 if (!mayChange()) return;
                 const doc = res.flow.draft;
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
-                create({ import: doc });
+                await create({ import: doc });
             } catch (err) {
                 if (!gone) ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+            } finally {
+                duplicating.delete(id);
             }
         }
 
@@ -400,8 +462,10 @@
             if (!mayChange() || !f || !f.published || !f.enabled || runsPending.has(f.id)) return;
             runsPending.add(f.id);
             try {
-                await app.api.runNow(f.id);
-                if (!gone) ctx.notify({ title: f.name, message: t('easydrag.ui.run_started') });
+                const res = await app.api.runNow(f.id);
+                // Concurrency "skip" with a run still going starts nothing (202 {status: "skipped"}).
+                const skipped = !!(res && res.status === 'skipped' && !res.run_id);
+                if (!gone) ctx.notify({ title: f.name, message: t(skipped ? 'easydrag.ui.run_now_skipped' : 'easydrag.ui.run_started') });
             } catch (err) {
                 if (!gone) ctx.notify({ title: f.name, message: core.errorText(t, err), type: 'error' });
             } finally {
@@ -468,6 +532,7 @@
 
         bag.listen(el, 'click', (event) => {
             if (event.target.closest('[data-ed-home-settings]')) { core.openFlowSettings(); return; }
+            if (event.target.closest('[data-ed-templates-retry]')) { retryTemplates(); return; }
             if (event.target.closest('[data-ed-home-retry]')) { retry(); return; }
             if (event.target.closest('[data-ed-home-templates]')) { focusTemplates(); return; }
             if (event.target.closest('[data-ed-home-clear-search]')) { clearSearch(); return; }

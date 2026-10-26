@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ func handleRealtimeSpeechProgressAudio(s *Server, registry *realtimespeech.Regis
 			ClientID  string `json:"client_id"`
 			RequestID string `json:"request_id"`
 			Kind      string `json:"kind"`
+			Message   string `json:"message"`
 		}
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
@@ -69,6 +71,14 @@ func handleRealtimeSpeechProgressAudio(s *Server, registry *realtimespeech.Regis
 			jsonError(w, "Speech output unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		message := i18n.T(cfg.Server.UILanguage, key)
+		if body.Message != "" {
+			if body.Message != message && (body.Kind != "wait" || !slices.Contains(i18n.WorkflowWaitMessages(cfg.Server.UILanguage), body.Message)) {
+				jsonError(w, "Invalid progress message", http.StatusBadRequest)
+				return
+			}
+			message = body.Message
+		}
 		select {
 		case limit <- struct{}{}:
 			defer func() { <-limit }()
@@ -101,7 +111,7 @@ func handleRealtimeSpeechProgressAudio(s *Server, registry *realtimespeech.Regis
 			}
 			tts.SpeechLab.Client, tts.SpeechLab.ExpectedTTSID, tts.SpeechLab.Voice = client, ready.TTSID, ready.Voice
 		}
-		data, ext, err := tools.TTSSynthesizeInMemoryContext(ctx, tts, i18n.T(cfg.Server.UILanguage, key))
+		data, ext, err := tools.TTSSynthesizeInMemoryContext(ctx, tts, message)
 		if ctx.Err() != nil {
 			return
 		}

@@ -434,6 +434,7 @@ function showDisabledState() {
             category: s.Category || s.category || '',
             enabled: s.Enabled !== undefined ? !!s.Enabled : !!s.enabled,
             securityStatus: (s.SecurityStatus || s.security_status || 'pending').toLowerCase(),
+            warningApproved: !!(s.WarningApproved || s.warning_approved),
             tags: sortedSnapshotArray(s.Tags || s.tags),
             dependencies: sortedSnapshotArray(s.Dependencies || s.dependencies),
             vaultKeys: sortedSnapshotArray(s.VaultKeys || s.vault_keys),
@@ -503,6 +504,10 @@ function showDisabledState() {
         const enabledClass = enabled ? 'sk-enabled' : 'sk-disabled-card';
         const toggleLabel = enabled ? (t('skills.btn_disable')) : (t('skills.btn_enable'));
         const toggleClass = enabled ? 'btn-secondary' : 'btn-primary';
+        const warningApproved = !!(skill.WarningApproved || skill.warning_approved);
+        const approveButton = secStatus === 'warning' && !warningApproved
+            ? `<button class="btn btn-sm btn-warning" onclick="approvePythonSkillWarning('${id}')" data-i18n="skills.agent_btn_approve">${t('skills.agent_btn_approve')}</button>`
+            : '';
 
         let depTags = '';
         if (deps.length > 0) {
@@ -553,6 +558,7 @@ function showDisabledState() {
         ${renderDaemonActions(skill)}
         <div class="sk-card-actions">
             <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
+            ${approveButton}
             <button class="btn btn-sm btn-secondary" onclick="viewCode('${id}')" data-i18n="skills.btn_view_code">Code</button>
             <button class="btn btn-sm ${toggleClass}" onclick="toggleSkill('${id}', ${!enabled})">${toggleLabel}</button>
             <button class="btn btn-sm btn-danger" onclick="showDeleteSkillModal('${id}', '${name}')" data-i18n="skills.btn_delete">Delete</button>
@@ -764,6 +770,22 @@ function showDisabledState() {
     }
 
     // eslint-disable-next-line no-unused-vars
+    async function approvePythonSkillWarning(id) {
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(id)}/approve-warning`, { method: 'POST' });
+            const data = await resp.json();
+            if (data.status === 'approved') {
+                showToast(t('skills.agent_warning_approved'), 'success');
+                await loadSkills();
+                if (currentDetailId === id) showDetail(id);
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error'), 'error');
+        }
+    }
+
     async function approveAgentSkillWarning(id) {
         try {
             const resp = await fetch(`/api/agent-skills/${encodeURIComponent(id)}/approve-warning`, { method: 'POST' });
@@ -1544,6 +1566,7 @@ function showDisabledState() {
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_name')}:</span> <span>${esc(s.Name || s.name)}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_type')}:</span> <span class="sk-type-badge sk-type-${(s.Type || s.type || '').toLowerCase()}">${esc(s.Type || s.type)}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_status')}:</span> ${renderSecurityBadge((s.SecurityStatus || s.security_status || 'pending').toLowerCase())}</div>
+                ${((s.SecurityStatus || s.security_status || '').toLowerCase() === 'warning') ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.agent_warning_approved_label')}:</span><span>${(s.WarningApproved || s.warning_approved) ? t('common.yes') : t('common.no')}</span></div>` : ''}
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled')}:</span> <span>${s.Enabled || s.enabled ? '✅' : '❌'}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created')}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
                 <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description')}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>

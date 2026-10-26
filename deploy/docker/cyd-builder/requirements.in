@@ -3,3 +3,5 @@ platformio==6.2.0
 starlette>=1.3.1,<2
 # Replace the vulnerable setuptools seeded by Python 3.11's venv.
 setuptools>=83.0.0
+# Remove compromised emSign trust roots (GHSA-6q48-6c7w-9gw2).
+certifi>=2026.10.19

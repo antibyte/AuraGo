@@ -45,6 +45,7 @@ func handlePixelConfig(s *Server) http.HandlerFunc {
 			"supports_img2img":   supportsImg2Img,
 			"supports_remove_bg": cfg.Enabled && supportsImg2Img,
 			"supports_upscale":   true,
+			"supports_cutout_ai": pixelCutoutManager(s).Available(),
 			"default_size":       cfg.DefaultSize,
 			"default_quality":    cfg.DefaultQuality,
 			"default_style":      cfg.DefaultStyle,
@@ -508,9 +509,17 @@ func handlePixelSave(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid image encoding", http.StatusBadRequest)
 			return
 		}
-		format, err := pixelValidateImage(data, limit)
+		// PNG and JPEG keep the image rules; a .ora path (or format "ora") is an OpenRaster project archive.
+		format, err := pixelValidateSavePayload(r.Context(), data, limit, savePath, req.Format)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			status := http.StatusBadRequest
+			switch {
+			case errors.Is(err, errPixelORATooLarge):
+				status = http.StatusRequestEntityTooLarge
+			case errors.Is(err, errPixelORABusy):
+				status = http.StatusServiceUnavailable
+			}
+			jsonError(w, err.Error(), status)
 			return
 		}
 		ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(savePath)), ".")

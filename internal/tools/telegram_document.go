@@ -289,6 +289,9 @@ func checkTelegramReply(resp *http.Response, token, what string) error {
 	var reply struct {
 		OK          bool   `json:"ok"`
 		Description string `json:"description"`
+		Parameters  *struct {
+			RetryAfter int `json:"retry_after"`
+		} `json:"parameters"`
 	}
 	decoded := readErr == nil && json.Unmarshal(data, &reply) == nil
 	detail := ""
@@ -299,7 +302,15 @@ func checkTelegramReply(resp *http.Response, token, what string) error {
 		detail = string(data)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return telegramReplyError(fmt.Sprintf("telegram returned HTTP %d", resp.StatusCode), detail, token)
+		retryAfter := 0
+		if reply.Parameters != nil {
+			retryAfter = reply.Parameters.RetryAfter
+		}
+		return &telegramStatusError{
+			status:     resp.StatusCode,
+			retryAfter: retryAfter,
+			err:        telegramReplyError(fmt.Sprintf("telegram returned HTTP %d", resp.StatusCode), detail, token),
+		}
 	}
 	if readErr != nil {
 		return telegramReplyError(fmt.Sprintf("telegram returned HTTP %d with an answer that could not be read", resp.StatusCode), readErr.Error(), token)
@@ -312,6 +323,18 @@ func checkTelegramReply(resp *http.Response, token, what string) error {
 	}
 	return nil
 }
+
+// telegramStatusError carries the status and the flood-control wait time of a Bot API
+// answer, so a caller can react to a throttled send without reading the message text.
+type telegramStatusError struct {
+	status     int
+	retryAfter int
+	err        error
+}
+
+func (e *telegramStatusError) Error() string { return e.err.Error() }
+
+func (e *telegramStatusError) Unwrap() error { return e.err }
 
 func telegramReplyError(prefix, detail, token string) error {
 	if strings.TrimSpace(detail) == "" {

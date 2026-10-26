@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/meshcentral"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 // handleRuntime returns the current runtime detection results and feature availability.
@@ -347,9 +348,26 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 		}
 
 		explicitURL := strings.TrimSpace(r.URL.Query().Get("url"))
+		integration := r.URL.Query().Get("integration")
 
 		var ollamaHost string
-		if explicitURL != "" {
+		if integration == "ollama" || integration == "embeddings" {
+			s.CfgMu.RLock()
+			ollamaHost = s.Cfg.Ollama.URL
+			if integration == "embeddings" {
+				ollamaHost = s.Cfg.Embeddings.BaseURL
+			}
+			s.CfgMu.RUnlock()
+			ollamaHost = strings.TrimRight(strings.TrimSpace(ollamaHost), "/")
+			if integration == "embeddings" {
+				ollamaHost = strings.TrimSuffix(ollamaHost, "/v1")
+			}
+			parsed, err := neturl.Parse(ollamaHost)
+			if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+				jsonError(w, "Invalid saved Ollama endpoint", http.StatusBadRequest)
+				return
+			}
+		} else if explicitURL != "" {
 			// Caller supplied a URL directly (e.g. from provider modal)
 			var err error
 			ollamaHost, err = normalizeOllamaModelsBaseURL(explicitURL)
@@ -461,9 +479,17 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			names = append(names, m.Name)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"models": names,
-		})
+		response := map[string]interface{}{"models": names}
+		if integration != "" {
+			version, err := tools.OllamaVersion(r.Context(), ollamaHost)
+			if err != nil {
+				jsonError(w, "Ollama version check failed", http.StatusBadGateway)
+				return
+			}
+			response["version"] = version
+			response["endpoint"] = ollamaHost
+		}
+		json.NewEncoder(w).Encode(response)
 	}
 }
 

@@ -392,7 +392,8 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 	}
 	if ff.SendYouTubeVideoEnabled {
 		tools = append(tools, tool("send_youtube_video",
-			"Send a YouTube video to the user. In the Web UI it appears as an embedded YouTube player; in Telegram, Discord, and other text channels it appears as a normal YouTube link. Do not download the video.",
+			"Send a YouTube video to the user. This is the player path. Prefer yepapi_youtube for metadata when that tool is available; otherwise use video_download search or info. Read captions or subtitles before video_download transcribe, and use download only when a file is wanted. "+
+				"In the Web UI it appears as an embedded YouTube player; in Telegram, Discord, and other text channels it appears as a normal YouTube link. Do not download the video.",
 			schema(map[string]interface{}{
 				"url":           prop("string", "YouTube URL (youtube.com/watch, youtu.be, shorts, live, or embed URL)"),
 				"title":         prop("string", "Optional title shown above the embedded player or before the link"),

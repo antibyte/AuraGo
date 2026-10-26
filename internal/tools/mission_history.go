@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/security"
 	"aurago/internal/uid"
 )
 
@@ -379,11 +381,60 @@ func CleanOldMissionHistory(db *sql.DB, maxAge time.Duration, logger *slog.Logge
 	return deleted, nil
 }
 
-// FormatMissionHistoryJSON marshals mission history entries to JSON string.
+// FormatMissionHistoryJSON encodes mission history entries for the agent (manage_missions
+// history). trigger_data, output and error_msg carry text from outside: webhook, mail and MQTT
+// payloads, flow outputs built from them, answers of prompt missions and error text that quotes
+// them. Each non-empty one is wrapped with security.IsolateExternalData, so the agent reads it as
+// data, not as instructions. The fields stay JSON strings (the value is
+// "<external_data>\n...\n</external_data>" with HTML escaping inside); the encoder does not escape
+// HTML, so the tags stay readable. page is not modified.
 func FormatMissionHistoryJSON(page *MissionHistoryPage) string {
-	b, err := json.Marshal(page)
-	if err != nil {
+	if page != nil && page.Entries != nil {
+		isolated := *page
+		isolated.Entries = make([]*MissionRun, len(page.Entries))
+		for i, run := range page.Entries {
+			if run == nil {
+				continue
+			}
+			c := *run
+			c.TriggerData = security.IsolateExternalData(run.TriggerData)
+			c.Output = security.IsolateExternalData(run.Output)
+			c.ErrorMsg = security.IsolateExternalData(run.ErrorMsg)
+			isolated.Entries[i] = &c
+		}
+		page = &isolated
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(page); err != nil {
 		return `{"entries":[],"total":0,"limit":10,"offset":0}`
 	}
-	return string(b)
+	return strings.TrimRight(buf.String(), "\n")
+}
+
+// FormatMissionListForAgent renders the mission list as the agent's manage_missions list reply
+// ({"status":"success","data":[...]}). last_output holds text a mission run produced (a flow's
+// leaf output can carry mail or web content), so a non-empty value is wrapped like the history
+// output by security.IsolateExternalData. It works on copies: the caller's missions stay as they
+// are, because the same list feeds the UI.
+func FormatMissionListForAgent(missions []*MissionV2) string {
+	data := make([]*MissionV2, len(missions))
+	for i, m := range missions {
+		if m == nil {
+			continue
+		}
+		c := *m
+		if c.LastOutput != "" {
+			c.LastOutput = security.IsolateExternalData(c.LastOutput)
+		}
+		data[i] = &c
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(map[string]any{"status": "success", "data": data}); err != nil {
+		return `{"status":"error","message":"could not encode the mission list"}`
+	}
+	return strings.TrimRight(buf.String(), "\n")
 }

@@ -1,6 +1,9 @@
 package agent
 
-import openai "github.com/sashabaranov/go-openai"
+import (
+	openai "github.com/sashabaranov/go-openai"
+	"strings"
+)
 
 func replaceMegaToolSchemasWithFocused(toolSchemas []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
 	skip := map[string]bool{}
@@ -77,11 +80,11 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"path":          prop("string", "Homepage workspace path including project directory."),
 			"file_path":     prop("string", "Alias for path."),
 			"project_dir":   prop("string", "Required workspace-relative project subdirectory for optimize_images."),
-			"content":       prop("string", "File content or inserted text."),
-			"sub_operation": prop("string", "Edit sub-operation for edit_file/json_edit/yaml_edit/xml_edit."),
-			"old":           prop("string", "Text to find."),
-			"new":           prop("string", "Replacement text."),
-			"marker":        prop("string", "Anchor text for insert operations."),
+			"content":       prop("string", "Full file for write_file; inserted text for edit_file insert_after/insert_before/append/prepend."),
+			"sub_operation": prop("string", "For edit_file: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines. For json_edit/yaml_edit: get, set, delete, keys, validate, format (JSON only). For xml_edit: get, set_text, set_attribute, add_element, delete, validate, format."),
+			"old":           prop("string", "Existing text for str_replace (unique match) or str_replace_all."),
+			"new":           prop("string", "Replacement text for str_replace/str_replace_all."),
+			"marker":        prop("string", "Text matching exactly one line for insert_after/insert_before; insertion adds lines."),
 			"start_line":    prop("integer", "First line for delete_lines."),
 			"end_line":      prop("integer", "Last line for delete_lines."),
 			"json_path":     prop("string", "Dot path for JSON/YAML edits."),
@@ -124,6 +127,18 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"file_path":   prop("string", "Alias for path."),
 		}, "operation")),
 	)
+
+	for _, entry := range toolSchemas {
+		if entry.Function == nil || !strings.HasPrefix(entry.Function.Name, "homepage") {
+			continue
+		}
+		if parameters, ok := entry.Function.Parameters.(map[string]interface{}); ok {
+			if properties, ok := parameters["properties"].(map[string]interface{}); ok {
+				properties["reason"] = prop("string", "Required for mutations: short purpose of the change.")
+				properties["managed_site_id"] = prop("integer", "Internal managed website ID; distinct from provider site_id/project_id.")
+			}
+		}
+	}
 	return toolSchemas
 }
 
@@ -595,7 +610,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.TTSEnabled {
 		tools = append(tools, tool("tts",
 			"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+
-				"Supports Google, ElevenLabs, MiniMax, Mistral, Piper, and Supertonic TTS providers. "+
+				"Supports sanoTTS, Google, ElevenLabs, MiniMax, Mistral, xAI, OpenAI, StepFun, Resemble, Piper, and Supertonic TTS providers. "+
 				"When VOICE MODE is active, YOU MUST USE THIS TOOL to reply to the user instead of typing a long text response. "+
 				"Put your conversational output in the 'text' argument.",
 			schema(map[string]interface{}{
@@ -833,6 +848,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"slug":                prop("string", "Exact here.now Site slug; required except for publish."),
 					"version_id":          prop("string", "Exact version ID for restore_version or delete_version."),
 					"project_dir":         prop("string", "Homepage workspace-relative project directory for publish/update."),
+					"reason":              prop("string", "Required purpose for publishing or updating a managed website."),
 					"build_dir":           prop("string", "Optional build output directory; auto-detected when omitted."),
 					"workspace_label":     prop("string", "Optional exact DNS-safe workspace label for a new Site."),
 					"display_name":        prop("string", "Owner-facing Site title, maximum 80 characters."),
@@ -1307,14 +1323,14 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.DiscordEnabled {
 		tools = append(tools,
 			tool("send_discord",
-				"Send a message to a Discord channel.",
+				"Send a message to a Discord channel. Only channels released by the operator are usable (discord.allowed_channel_ids, plus the default channel); other channels are refused.",
 				schema(map[string]interface{}{
 					"message":    prop("string", "Message text to send"),
 					"channel_id": prop("string", "Discord channel ID (uses default_channel_id from config if omitted)"),
 				}, "message"),
 			),
 			tool("fetch_discord",
-				"Fetch recent messages from a Discord channel.",
+				"Fetch recent messages from a Discord channel. Only channels released by the operator are usable (discord.allowed_channel_ids, plus the default channel); other channels are refused.",
 				schema(map[string]interface{}{
 					"channel_id": prop("string", "Discord channel ID (uses default from config if omitted)"),
 					"limit":      map[string]interface{}{"type": "integer", "description": "Number of messages to fetch (default: 10)"},
@@ -1919,12 +1935,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HomepageRegistryEnabled {
 		tools = append(tools, tool("homepage_registry",
-			"Track homepage/web projects, deploy history, project history, problems, metadata. register requires project_dir. Read list_history before changes; add_history after.",
+			"Track homepage/web projects, locations, deploy history and project history. Read overview/get_site/list_events; mutations need reason. add_history/list_history add notes.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "add_history", "list_history", "get_history", "search_history", "update_history", "delete_history"},
+					"enum":        []string{"register", "search", "get", "list", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "add_history", "list_history", "get_history", "search_history", "update_history", "delete_history", "overview", "get_site", "list_events", "discover_workspace", "adopt", "relocate", "audit_revisions"},
 				},
 				"name":        prop("string", "Project name (unique identifier)"),
 				"query":       prop("string", "Search query (searches name, description, framework, URL, notes, history content)"),
@@ -2294,6 +2310,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.QRCodeEnabled {
+		tools = append(tools, qrCodeToolSchema())
+	}
 	if ff.OfficeDocumentEnabled {
 		tools = append(tools, tool("office_document",
 			"Create, read, patch, and export Writer documents inside AuraGo's virtual desktop workspace. "+
@@ -2302,18 +2321,24 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Document operation to perform.",
-					"enum":        []string{"read", "write", "patch", "export"},
+					"enum":        []string{"read", "write", "patch", "export", "insert_image"},
 				},
-				"path":         prop("string", "Workspace-relative document path, e.g. 'Documents/report.docx'."),
-				"file_path":    prop("string", "Alias for path."),
-				"output_path":  prop("string", "Workspace-relative target path for export."),
-				"format":       prop("string", "Export format: docx, html, md, or txt."),
-				"title":        prop("string", "Document title for write or patch."),
-				"content":      prop("string", "Plain document text for write, or seed text for patch when the file does not exist."),
-				"text":         prop("string", "Alias for content."),
-				"html":         prop("string", "Optional HTML representation for write."),
-				"prepend_text": prop("string", "Text to prepend during patch."),
-				"append_text":  prop("string", "Text to append during patch."),
+				"path":             prop("string", "Workspace-relative document path, e.g. 'Documents/report.docx'."),
+				"file_path":        prop("string", "Alias for path."),
+				"output_path":      prop("string", "Workspace-relative target path for export."),
+				"format":           prop("string", "Export format: docx, html, md, or txt."),
+				"title":            prop("string", "Document title for write or patch."),
+				"content":          prop("string", "Plain document text for write, or seed text for patch when the file does not exist."),
+				"text":             prop("string", "Alias for content."),
+				"html":             prop("string", "Optional HTML representation for write."),
+				"image_ref":        officeImageReferenceSchema(),
+				"expected_version": prop("string", "Required for insert_image: exact office_version.etag from read. A stale version never overwrites the file."),
+				"anchor":           prop("string", "For insert_image use end to append an inline image without changing original document content."),
+				"width":            prop("integer", "Inserted image width in 96-DPI pixels; omit for its intrinsic width."),
+				"height":           prop("integer", "Inserted image height in 96-DPI pixels; omit for its intrinsic height."),
+				"alt":              prop("string", "Accessible image description; avoid embedding private QR content."),
+				"prepend_text":     prop("string", "Text to prepend during patch."),
+				"append_text":      prop("string", "Text to append during patch."),
 				"replacements": map[string]interface{}{
 					"type":        "array",
 					"description": "Patch replacements, each item {find, replace}.",
@@ -2336,17 +2361,23 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Workbook operation to perform.",
-					"enum":        []string{"read", "write", "set_cell", "set_range", "evaluate_formula", "export"},
+					"enum":        []string{"read", "write", "set_cell", "set_range", "evaluate_formula", "export", "insert_image"},
 				},
-				"path":        prop("string", "Workspace-relative workbook path, e.g. 'Documents/budget.xlsx'."),
-				"file_path":   prop("string", "Alias for path."),
-				"output_path": prop("string", "Workspace-relative target path for export."),
-				"format":      prop("string", "Export format: xlsx or csv."),
-				"sheet":       prop("string", "Sheet name for workbook operations."),
-				"cell":        prop("string", "A1-style cell reference for set_cell, e.g. B3."),
-				"start_cell":  prop("string", "A1-style top-left cell reference for set_range, e.g. A1."),
-				"value":       prop("string", "Cell value for set_cell."),
-				"formula":     prop("string", "Cell formula for set_cell/evaluate_formula, with or without a leading '='."),
+				"path":             prop("string", "Workspace-relative workbook path, e.g. 'Documents/budget.xlsx'."),
+				"file_path":        prop("string", "Alias for path."),
+				"output_path":      prop("string", "Workspace-relative target path for export."),
+				"format":           prop("string", "Export format: xlsx or csv."),
+				"sheet":            prop("string", "Sheet name for workbook operations."),
+				"image_ref":        officeImageReferenceSchema(),
+				"expected_version": prop("string", "Required for insert_image: exact office_version.etag from read. A stale version never overwrites the file."),
+				"anchor":           prop("string", "A1-style anchor cell for insert_image, e.g. B3. The sheet name is required."),
+				"width":            prop("integer", "Inserted image width in 96-DPI pixels; omit for intrinsic width."),
+				"height":           prop("integer", "Inserted image height in 96-DPI pixels; omit for intrinsic height."),
+				"alt":              prop("string", "Accessible image description; avoid embedding private QR content."),
+				"cell":             prop("string", "A1-style cell reference for set_cell, e.g. B3."),
+				"start_cell":       prop("string", "A1-style top-left cell reference for set_range, e.g. A1."),
+				"value":            prop("string", "Cell value for set_cell."),
+				"formula":          prop("string", "Cell formula for set_cell/evaluate_formula, with or without a leading '='."),
 				"values": map[string]interface{}{
 					"type":        "array",
 					"description": "2D array for set_range. Cells may be strings or objects with value/formula.",
@@ -2428,21 +2459,21 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.PaperlessNGXEnabled {
 		tools = append(tools, tool("paperless_ngx",
-			"Manage documents in Paperless-ngx. Search, read, upload, update metadata, delete documents, and list tags/correspondents/document types.",
+			"Manage documents in Paperless-ngx. Search, read, upload, update metadata, delete documents, and list tags/correspondents/document types. Get and download clip OCR text at 8000 characters and report the cut.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
 					"enum":        []string{"search", "get", "download", "upload", "update", "delete", "list_tags", "list_correspondents", "list_document_types"},
 				},
-				"document_id":   prop("string", "Document ID (required for get, download, update, delete)"),
-				"query":         prop("string", "Search query for full-text document search"),
-				"title":         prop("string", "Document title (for upload or update)"),
-				"content":       prop("string", "Document content text (for upload)"),
-				"tags":          prop("string", "Comma-separated tag names (for search filter, upload, or update)"),
-				"correspondent": prop("string", "Correspondent name (for search filter, upload, or update)"),
-				"document_type": prop("string", "Document type name (for search filter, upload, or update)"),
-				"limit":         map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default: 25)"},
+				"document_id":   prop("string", "Positive document ID (required for get, download, update, delete). A JSON number is accepted."),
+				"query":         prop("string", "Full-text search query. Used only for search; content is not a search fallback."),
+				"title":         prop("string", "Document title (for upload or update). Title replaces the current title."),
+				"content":       prop("string", "Plain text uploaded as a .txt document. A successful upload returns a task id while processing is still running."),
+				"tags":          prop("string", "Comma-separated exact tag names or positive IDs. Search requires every tag (AND). Upload sets them. Update adds them and keeps existing tags. Tags that are already present are not written again."),
+				"correspondent": prop("string", "Exact correspondent name or positive ID. Same field as name; correspondent wins when both are set. Resolved to an ID."),
+				"document_type": prop("string", "Exact document type name or positive ID. Same field as category; document_type wins when both are set. Resolved to an ID."),
+				"limit":         map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default 25, capped at 50)"},
 			}, "operation"),
 		))
 	}

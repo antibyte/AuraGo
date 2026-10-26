@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "Maks tegn per chunk",
   "config.indexing.chunk_overlap_chars": "Tegnoverlapp",
   "config.indexing.chunk_max_chunks": "Maks chunks per fil",
-  "config.indexing.chunking_reindex_notice": "Endringer i disse verdiene utløser en ren reindex ved neste skanning."
+  "config.indexing.chunking_reindex_notice": "Endringer i disse verdiene utløser en ren reindex ved neste skanning.",
+  "config.indexing.media_toggle_label": "Medier til leverandør",
+  "config.indexing.media_toggle_title": "Tillat at bilder, lyd og skannede PDF-er fra denne mappen sendes til den konfigurerte Vision LLM eller multimodale embedding-leverandøren. Av som standard.",
+  "config.indexing.media_confirm_title": "Sende medier fra denne mappen til leverandører?",
+  "config.indexing.media_confirm": "Bilder, lyd og skannede PDF-er fra denne mappen sendes til analyse til den konfigurerte Vision- eller multimodale embedding-leverandøren. Dette kan være en ekstern tjeneste, så innholdet i disse filene kan forlate dette systemet. Hvis innstillingen slås av igjen, sendes det ikke flere medier.",
+  "config.indexing.media_inactive_hint": "Vision og multimodale embeddings er slått av globalt; innstillingen trer i kraft så snart en av dem er aktivert.",
+  "config.indexing.index_images_per_folder_hint": "Bilder sendes bare for mapper der mediedeling er slått på i listen ovenfor."
 }

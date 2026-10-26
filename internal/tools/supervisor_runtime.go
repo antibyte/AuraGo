@@ -109,9 +109,29 @@ func installSandboxPackage(runtimeDir, agentWorkspace, backend string, logger *s
 	} else if err != nil {
 		return err
 	}
+	if err := ensureSupervisorPip(ctx, runtimeDir); err != nil {
+		return err
+	}
 	if err := run(supervisorPythonCommand(ctx, python, "-m", "pip", "--isolated", "install", "--disable-pip-version-check", pkg)); err != nil {
 		return fmt.Errorf("provision pinned supervisor package: %w", err)
 	}
 	logger.Info("[Sandbox] Private supervisor package provisioned", "package", pkg)
+	return nil
+}
+
+func ensureSupervisorPip(ctx context.Context, runtimeDir string) error {
+	run := func(args ...string) error {
+		command := supervisorPythonCommand(ctx, GetPythonBin(runtimeDir), args...)
+		command.Dir = runtimeDir
+		_, _, err := NewForegroundRunner(command, ForegroundOptions{Timeout: 5 * time.Minute, ScrubOutput: true}).Run(ctx)
+		return err
+	}
+	if err := run("-m", "pip", "--version"); err == nil {
+		return nil
+	}
+	// An interrupted venv creation can leave Python present without pip.
+	if err := run("-m", "ensurepip", "--upgrade"); err != nil {
+		return fmt.Errorf("bootstrap private supervisor pip: %w", err)
+	}
 	return nil
 }

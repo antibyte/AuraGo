@@ -13,6 +13,10 @@ without configuration or resources opens recovery at `http://127.0.0.1:8088`.
 It does not initialize integrations, create a vault, or start recording.
 `--recovery-address` changes this initial listener. Existing configurations
 continue through normal startup and authentication, including password and TOTP.
+The embedded login also supports both configured [WebAuthn modes](webauthn.md),
+using a small shared client and generated translations. Missing full resources
+never introduce a password-only bypass for the second-factor mode. Rebuild the
+matching backend and resource set when changing this login contract.
 
 ## Build and install
 
@@ -50,8 +54,8 @@ to pin its immutable GitHub release download URL. `make_release.bat` does this
 with its selected tag; `make_deploy.sh` uses `AURAGO_RELEASE_TAG` when provided.
 Local builds have no download URL. Never substitute a `latest` resource set.
 
-The compressed archive limit is 768 MiB; the expanded set remains limited to
-1 GiB and 20,000 files. The updater installs resources with the staged candidate
+The compressed archive limit is 1 GiB; the expanded set remains limited to
+2 GiB and 20,000 files. The updater installs resources with the staged candidate
 binary, so it applies the matching version's limits before activation.
 
 The release builders require a clean worktree so the binary identity matches
@@ -128,8 +132,19 @@ update artifacts automatically. Explicit release/rollback pins stay protected.
 See [update retention](update-retention.md) for previews, legacy adoption and
 recovery of interrupted updates.
 
+If the updater reports `Cannot identify current web assets`, inspect
+`bin/aurago_linux --assets-info` (or the executable selected by your installation).
+An empty `asset_set_id` means the executable has no resource pin. The updater
+stops before shutdown or file replacement because it cannot verify a rollback
+resource set. Use the build commands above to generate matching resources and
+rebuild the executable with their exact flags, or restore a previously verified
+executable and its matching set. Verify the replacement with `--check-assets`
+before installing it, then restart and retry the update. Packaging alone,
+reusing stale `deploy/web-assets.ldflags`, or selecting an installed directory
+by date cannot repair the executable's missing pin.
+
 `node scripts/check-web-assets.mjs <stripped-binary>...` enforces a
-130 MB (130,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
+200 MB (200,000,000 bytes) executable ceiling, a 10 MB first-party embed budget and a 1 MB bootstrap
 limit. The packaging CI checks Windows and Linux. Production assets are never
 committed as generated archives; source files and the inclusion manifest are.
 

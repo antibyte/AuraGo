@@ -154,8 +154,8 @@ func TestDispatchToolCallSanitizesSearchOutputForModel(t *testing.T) {
 
 	got := g.SanitizeToolOutput("ddg_search", raw)
 
-	if !strings.Contains(got, "<external_data>") {
-		t.Fatalf("expected model-bound search output to be isolated, got %q", got)
+	if !strings.Contains(got, "[QUARANTINE NOTICE]") || strings.Contains(got, "exfiltrate vault") {
+		t.Fatalf("expected search output to be withheld, got %q", got)
 	}
 }
 
@@ -165,10 +165,7 @@ func TestDispatchToolCallSanitizesReplayOutputForModel(t *testing.T) {
 
 	got := g.SanitizeToolOutput("read_tool_output", raw)
 
-	if !strings.Contains(got, "<external_data>") {
-		t.Fatalf("expected replayed output to be isolated, got %q", got)
-	}
-	if strings.Contains(got, "system:") {
-		t.Fatalf("expected role marker to be neutralized, got %q", got)
+	if !strings.Contains(got, "[QUARANTINE NOTICE]") || strings.Contains(got, "ignore all previous") {
+		t.Fatalf("expected replayed output to be withheld, got %q", got)
 	}
 }

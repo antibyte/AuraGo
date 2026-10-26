@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -75,23 +77,111 @@ func starterReferences(plan *GamePlan, files map[string]string) map[string]any {
 
 // A retained version comment cannot certify an authored helper's API.
 func verifiedTemplateDescriptor(plan *GamePlan, common string) map[string]any {
+	return helperDescriptor(plan, common, false)
+}
+
+// toleratedHelperDescriptor also trusts a helper whose comments or bodies were
+// edited while its exported symbols and hook signatures stayed identical. The
+// documented API cannot have changed in that case, and the model avoids reading
+// a 30 KB helper. Source generation keeps the exact comparison.
+func toleratedHelperDescriptor(plan *GamePlan, common string) map[string]any {
+	return helperDescriptor(plan, common, true)
+}
+
+func helperDescriptor(plan *GamePlan, common string, allowStructural bool) map[string]any {
 	if plan == nil || common == "" {
 		return nil
 	}
 	expected, err := gameTemplateSources(*plan)
-	if err != nil || strings.ReplaceAll(common, "\r\n", "\n") != strings.ReplaceAll(string(expected["common.ts"]), "\r\n", "\n") {
+	if err != nil {
 		return nil
 	}
-	lines := strings.Split(strings.ReplaceAll(common, "\r\n", "\n"), "\n")
+	normalized := strings.ReplaceAll(common, "\r\n", "\n")
+	expectedCommon := strings.ReplaceAll(string(expected["common.ts"]), "\r\n", "\n")
+	descriptor := parseRuntimeDescriptor(normalized)
+	if descriptor == nil {
+		return nil
+	}
+	// The descriptor documents the API. A changed descriptor is never trusted,
+	// even when the surrounding code equals the template.
+	if !reflect.DeepEqual(descriptor, parseRuntimeDescriptor(expectedCommon)) {
+		return nil
+	}
+	if normalized == expectedCommon {
+		return descriptor
+	}
+	if !allowStructural || !helperStructureMatches(normalized, expectedCommon) {
+		return nil
+	}
+	descriptor["helper_changed"] = true
+	return descriptor
+}
+
+// parseRuntimeDescriptor reads the AURAGO_RUNTIME_API marker from the helper
+// header. Only the first eight lines are contract surface.
+func parseRuntimeDescriptor(source string) map[string]any {
+	lines := strings.Split(source, "\n")
 	for _, line := range lines[:min(8, len(lines))] {
-		if strings.HasPrefix(line, runtimeContractPrefix) {
-			var descriptor map[string]any
-			if json.Unmarshal([]byte(strings.TrimPrefix(line, runtimeContractPrefix)), &descriptor) == nil {
-				return descriptor
-			}
+		if !strings.HasPrefix(line, runtimeContractPrefix) {
+			continue
+		}
+		var descriptor map[string]any
+		if json.Unmarshal([]byte(strings.TrimPrefix(line, runtimeContractPrefix)), &descriptor) == nil {
+			return descriptor
 		}
 	}
 	return nil
+}
+
+// helperStructureMatches compares the public surface: exported symbol names and
+// the hook signature lines. Comments, whitespace and bodies are ignored.
+func helperStructureMatches(actual, expected string) bool {
+	return slices.Equal(helperExports(actual), helperExports(expected)) &&
+		slices.Equal(helperHookSignatures(actual), helperHookSignatures(expected))
+}
+
+func helperExports(source string) []string {
+	names := []string{}
+	for _, line := range strings.Split(source, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "export ") {
+			continue
+		}
+		rest := strings.TrimPrefix(line, "export ")
+		rest = strings.TrimPrefix(rest, "default ")
+		fields := strings.Fields(rest)
+		if len(fields) < 2 {
+			continue
+		}
+		switch fields[0] {
+		case "class", "function", "interface", "type", "const", "let", "var", "enum":
+			name := strings.TrimRight(fields[1], "({[<:=;,")
+			if name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+func helperHookSignatures(source string) []string {
+	hooks := []string{"start(", "startGame(", "startVoxelGame(", "setup(", "step(", "action(", "tick(", "paintHUD(", "shutdown(", "dispose(", "reset("}
+	signatures := []string{}
+	for _, line := range strings.Split(source, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+		for _, hook := range hooks {
+			if strings.Contains(trimmed, hook) {
+				signatures = append(signatures, hook+" "+trimmed)
+				break
+			}
+		}
+	}
+	slices.Sort(signatures)
+	return signatures
 }
 
 // Explicit structural summaries with omission counts are never partial source.

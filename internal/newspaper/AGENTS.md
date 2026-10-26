@@ -18,6 +18,7 @@ Own the installation's personal daily publication, durable editions and delivery
 - `documentation/newspaper-yield-plan.md` owns the implemented coverage and automatic-budget contract. `ResolveBudget` is shared by scheduling, research and preview. Missing mode remains fixed; explicit auto scales by distinct sections plus individual interests. Live changes may narrow a run, never expand its starting snapshot.
 - The profile is installation-owned. Saving preferences does not send an edition; changing the email destination or account clears verification and daily email.
 - Up to ten profile-owned RSS/Atom feeds supplement permitted Brave News/Web or DuckDuckGo search. Each feed belongs to a selected section; only guarded public HTTP(S) retrieval is permitted. Up to 40 current feed entries are leads until their originals are fetched.
+- `newspaper.overview_sources` explicitly selects from ten built-in providers. The IDs, fixed feed URLs and section coverage live in `documentation/newspaper.md`; new catalog entries never expand saved selections or the existing recommendation preset. Publisher feeds share the guarded overview reader, budgets and per-run URL deduplication. Limit them to matching sections/individual interests; interest associations require matching headline/description text. Config source choices remain spaced, keyboard-accessible and responsive in both themes and all sixteen locales.
 - Research uses the bundled guide for open, international source discovery and validated topic/language plans with deterministic fallback. The server owns capability snapshots, retries and shared budgets: fixed mode keeps 200 candidates, 32 default searches (1–64) and 6/12/16 stories; auto scales to 800 candidates, 128 searches and 31 stories. Keep two planning calls, four original-page reads (one per publisher) and two editors. Reserve 40% of page/search work for follow-up, switch by 50% of time, and stop discovery at 80%. Reuse fetched older originals. Keep exact evidence validation and bounded single repairs; no retry of editorial declines. Permit smaller, explicitly partial editions.
 - `Run.Research` is optional JSON in the existing run record, not a new table or migration. Persist bounded counters, rejection codes and topic gaps independently of accepted edition sources. Preserve legacy runs and source evidence on interruption. Recheck write policy before publication; disabling the feature or enabling read-only cannot publish a new revision.
 - Published revisions are immutable. Each story paragraph cites a fetched source passage; unsupported or unsafe drafts do not publish.
@@ -32,8 +33,9 @@ Own the installation's personal daily publication, durable editions and delivery
 ## Verification
 
 - Run `go test ./internal/newspaper` for validation, persistence, restart and DST behavior.
+- Run `go test ./internal/config -run Newspaper` for overview source IDs, defaults and load validation.
 - Run `go test ./internal/server -run TestNewspaper` for HTTP policy, guided research, yield/concurrency/budgets and delivery adapters; `go test ./internal/tools -run 'Brave|ExecuteDDG|Newspaper'` for search compatibility and bundled skill registration.
-- Run `go test ./ui -run 'TestNewspaperTranslations|TestDesktopNewspaperBrowser'` with `AURAGO_RUN_BROWSER_SMOKE=1` for the reader.
+- Run `go test ./ui -run 'TestNewspaperTranslations|TestNewspaperResearchTranslations|TestNewspaperConfigResearchBrowser|TestDesktopNewspaperBrowser'` with `AURAGO_RUN_BROWSER_SMOKE=1` for the reader, source selection and responsive settings.
 
 ## Child DOX Index
 

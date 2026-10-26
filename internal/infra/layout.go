@@ -3,8 +3,15 @@ package infra
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
+// SaveLayout atomically stores one view's positions. Items may also move a node
+// into or out of a place (ParentID: nil keeps the parent, "" clears it) and size
+// a place (W, H: nil keeps the stored size). An Unplace item deletes the node's
+// placement in the request's view and may also set ParentID with the same
+// semantics; without a placement and without ParentID it is a version-checked
+// no-op.
 func (s *Store) SaveLayout(ctx context.Context, request LayoutRequest) ([]Node, error) {
 	if request.View != ViewAtlas && request.View != ViewTopology {
 		return nil, fmt.Errorf("%w: unsupported layout view", ErrValidation)
@@ -19,6 +26,14 @@ func (s *Store) SaveLayout(ctx context.Context, request LayoutRequest) ([]Node, 
 		}
 		if item.Version <= 0 || !validCoordinate(item.X) || !validCoordinate(item.Y) {
 			return nil, fmt.Errorf("%w: layout item needs a version and bounded coordinates", ErrValidation)
+		}
+		if item.Unplace && (item.X != 0 || item.Y != 0 || item.Pinned || item.W != nil || item.H != nil) {
+			return nil, fmt.Errorf("%w: an unplace layout item carries an id, a version and optionally a parent", ErrValidation)
+		}
+		if item.ParentID != nil {
+			if err := validateText("layout parent id", *item.ParentID, 128, false); err != nil {
+				return nil, err
+			}
 		}
 		if _, exists := seen[item.ID]; exists {
 			return nil, fmt.Errorf("%w: duplicate node in layout update", ErrValidation)
@@ -38,9 +53,54 @@ func (s *Store) SaveLayout(ctx context.Context, request LayoutRequest) ([]Node, 
 		if node.Version != item.Version {
 			return nil, ErrConflict
 		}
+		if item.Unplace {
+			_, placed := node.Placements[request.View]
+			if !placed && item.ParentID == nil {
+				// Nothing to change: the version was checked, and the node stays as is.
+				continue
+			}
+			delete(node.Placements, request.View)
+			if item.ParentID != nil {
+				// Same rules as a moving item, so an undo can drop the placement and
+				// restore the previous parent in one atomic step.
+				parentID := strings.TrimSpace(*item.ParentID)
+				if err := validateParent(ctx, tx, node.ID, parentID); err != nil {
+					return nil, err
+				}
+				node.ParentID = parentID
+			}
+			previous := node.Version
+			node.Version++
+			if err := updateNodeTx(ctx, tx, node, previous); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		placement := Placement{X: item.X, Y: item.Y, Pinned: item.Pinned}
+		if current, ok := node.Placements[request.View]; ok {
+			placement.W, placement.H = current.W, current.H
+		}
+		if item.W != nil {
+			placement.W = *item.W
+		}
+		if item.H != nil {
+			placement.H = *item.H
+		}
+		if err := validatePlacement(node.Kind, placement); err != nil {
+			return nil, err
+		}
+		if item.ParentID != nil {
+			parentID := strings.TrimSpace(*item.ParentID)
+			// Earlier items are already written in this transaction, so a cycle
+			// built across several items of one batch is detected as well.
+			if err := validateParent(ctx, tx, node.ID, parentID); err != nil {
+				return nil, err
+			}
+			node.ParentID = parentID
+		}
 		previous := node.Version
 		node.Version++
-		node.Placements[request.View] = Placement{X: item.X, Y: item.Y, Pinned: item.Pinned}
+		node.Placements[request.View] = placement
 		if err := updateNodeTx(ctx, tx, node, previous); err != nil {
 			return nil, err
 		}

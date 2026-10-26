@@ -1,0 +1,911 @@
+[
+ {
+  "id": "Q001",
+  "lang": "en",
+  "style": "kw",
+  "query": "docker containers running",
+  "expected_any_of": [
+   "docker"
+  ]
+ },
+ {
+  "id": "Q002",
+  "lang": "en",
+  "style": "sent",
+  "query": "what is the weather tomorrow in Berlin",
+  "expected_any_of": [
+   "ddg_search"
+  ]
+ },
+ {
+  "id": "Q003",
+  "lang": "en",
+  "style": "sent",
+  "query": "send this picture to my Telegram",
+  "expected_any_of": [
+   "send_image",
+   "send_telegram"
+  ]
+ },
+ {
+  "id": "Q004",
+  "lang": "en",
+  "style": "kw",
+  "query": "resize photo 800px width",
+  "expected_any_of": [
+   "image_processing"
+  ]
+ },
+ {
+  "id": "Q005",
+  "lang": "en",
+  "style": "sent",
+  "query": "list the files in my project folder",
+  "expected_any_of": [
+   "filesystem"
+  ]
+ },
+ {
+  "id": "Q006",
+  "lang": "en",
+  "style": "kw",
+  "query": "find pdf files named invoice",
+  "expected_any_of": [
+   "file_search"
+  ]
+ },
+ {
+  "id": "Q007",
+  "lang": "en",
+  "style": "sent",
+  "query": "read the last 200 lines of the server log",
+  "expected_any_of": [
+   "file_reader_advanced"
+  ]
+ },
+ {
+  "id": "Q008",
+  "lang": "en",
+  "style": "sent",
+  "query": "is this file really a png or a renamed jpg",
+  "expected_any_of": [
+   "detect_file_type"
+  ]
+ },
+ {
+  "id": "Q009",
+  "lang": "en",
+  "style": "kw",
+  "query": "zip the reports folder",
+  "expected_any_of": [
+   "archive"
+  ]
+ },
+ {
+  "id": "Q010",
+  "lang": "en",
+  "style": "sent",
+  "query": "merge these three PDFs into one document",
+  "expected_any_of": [
+   "pdf_operations"
+  ]
+ },
+ {
+  "id": "Q011",
+  "lang": "en",
+  "style": "sent",
+  "query": "change the port value in config.yaml to 8080",
+  "expected_any_of": [
+   "yaml_editor"
+  ]
+ },
+ {
+  "id": "Q012",
+  "lang": "en",
+  "style": "kw",
+  "query": "toml version bump in pyproject",
+  "expected_any_of": [
+   "toml_editor"
+  ]
+ },
+ {
+  "id": "Q013",
+  "lang": "en",
+  "style": "sent",
+  "query": "compare these two text files and show the differences",
+  "expected_any_of": [
+   "text_diff"
+  ]
+ },
+ {
+  "id": "Q014",
+  "lang": "en",
+  "style": "kw",
+  "query": "json set key value",
+  "expected_any_of": [
+   "json_editor"
+  ]
+ },
+ {
+  "id": "Q015",
+  "lang": "en",
+  "style": "sent",
+  "query": "replace the old hostname string in this file",
+  "expected_any_of": [
+   "file_editor"
+  ]
+ },
+ {
+  "id": "Q016",
+  "lang": "en",
+  "style": "sent",
+  "query": "search my workspace index for the invoice",
+  "expected_any_of": [
+   "workspace_search"
+  ]
+ },
+ {
+  "id": "Q017",
+  "lang": "en",
+  "style": "sent",
+  "query": "run a shell command to check disk space",
+  "expected_any_of": [
+   "execute_shell"
+  ]
+ },
+ {
+  "id": "Q018",
+  "lang": "en",
+  "style": "sent",
+  "query": "run this python script in a sandbox",
+  "expected_any_of": [
+   "execute_sandbox"
+  ]
+ },
+ {
+  "id": "Q019",
+  "lang": "en",
+  "style": "kw",
+  "query": "install package htop",
+  "expected_any_of": [
+   "package_manager"
+  ]
+ },
+ {
+  "id": "Q020",
+  "lang": "en",
+  "style": "sent",
+  "query": "how much memory and CPU is the machine using right now",
+  "expected_any_of": [
+   "system_metrics"
+  ]
+ },
+ {
+  "id": "Q021",
+  "lang": "en",
+  "style": "sent",
+  "query": "which process is using the most CPU",
+  "expected_any_of": [
+   "process_analyzer"
+  ]
+ },
+ {
+  "id": "Q022",
+  "lang": "en",
+  "style": "sent",
+  "query": "schedule a backup job to run every night at 2am",
+  "expected_any_of": [
+   "cron_scheduler"
+  ]
+ },
+ {
+  "id": "Q023",
+  "lang": "en",
+  "style": "sent",
+  "query": "create a mission that checks the news every morning",
+  "expected_any_of": [
+   "manage_missions"
+  ]
+ },
+ {
+  "id": "Q024",
+  "lang": "en",
+  "style": "sent",
+  "query": "wait until the website is back online and then continue",
+  "expected_any_of": [
+   "wait_for_event"
+  ]
+ },
+ {
+  "id": "Q025",
+  "lang": "en",
+  "style": "sent",
+  "query": "ask me whether I want to delete or keep the file",
+  "expected_any_of": [
+   "question_user"
+  ]
+ },
+ {
+  "id": "Q026",
+  "lang": "en",
+  "style": "sent",
+  "query": "check if there is a newer AuraGo version",
+  "expected_any_of": [
+   "manage_updates"
+  ]
+ },
+ {
+  "id": "Q027",
+  "lang": "en",
+  "style": "kw",
+  "query": "list available skills",
+  "expected_any_of": [
+   "list_skills"
+  ]
+ },
+ {
+  "id": "Q028",
+  "lang": "en",
+  "style": "sent",
+  "query": "ping 8.8.8.8 and show the latency",
+  "expected_any_of": [
+   "network_ping"
+  ]
+ },
+ {
+  "id": "Q029",
+  "lang": "en",
+  "style": "kw",
+  "query": "dns mx records example.com",
+  "expected_any_of": [
+   "dns_lookup"
+  ]
+ },
+ {
+  "id": "Q030",
+  "lang": "en",
+  "style": "sent",
+  "query": "who registered the domain example.org",
+  "expected_any_of": [
+   "whois_lookup"
+  ]
+ },
+ {
+  "id": "Q031",
+  "lang": "en",
+  "style": "sent",
+  "query": "give me the wikipedia article about the moon landing",
+  "expected_any_of": [
+   "wikipedia_search",
+   "local_wikipedia"
+  ]
+ },
+ {
+  "id": "Q032",
+  "lang": "en",
+  "style": "sent",
+  "query": "scrape the readable text of this article",
+  "expected_any_of": [
+   "web_scraper"
+  ]
+ },
+ {
+  "id": "Q033",
+  "lang": "en",
+  "style": "sent",
+  "query": "take a screenshot of this website",
+  "expected_any_of": [
+   "web_capture"
+  ]
+ },
+ {
+  "id": "Q034",
+  "lang": "en",
+  "style": "sent",
+  "query": "make a GET request to the REST API endpoint",
+  "expected_any_of": [
+   "api_request"
+  ]
+ },
+ {
+  "id": "Q035",
+  "lang": "en",
+  "style": "sent",
+  "query": "wake my desktop PC up",
+  "expected_any_of": [
+   "wake_on_lan"
+  ]
+ },
+ {
+  "id": "Q036",
+  "lang": "en",
+  "style": "sent",
+  "query": "generate an image of a sunset over the mountains",
+  "expected_any_of": [
+   "generate_image"
+  ]
+ },
+ {
+  "id": "Q037",
+  "lang": "en",
+  "style": "sent",
+  "query": "read this text out loud",
+  "expected_any_of": [
+   "tts"
+  ]
+ },
+ {
+  "id": "Q038",
+  "lang": "en",
+  "style": "sent",
+  "query": "send this video to me in the chat",
+  "expected_any_of": [
+   "send_video"
+  ]
+ },
+ {
+  "id": "Q039",
+  "lang": "en",
+  "style": "sent",
+  "query": "play this youtube video for me",
+  "expected_any_of": [
+   "send_youtube_video"
+  ]
+ },
+ {
+  "id": "Q040",
+  "lang": "en",
+  "style": "sent",
+  "query": "what is in this photo",
+  "expected_any_of": [
+   "analyze_image"
+  ]
+ },
+ {
+  "id": "Q041",
+  "lang": "en",
+  "style": "sent",
+  "query": "turn off the living room lights",
+  "expected_any_of": [
+   "home_assistant"
+  ]
+ },
+ {
+  "id": "Q042",
+  "lang": "en",
+  "style": "sent",
+  "query": "send a push notification to my phone",
+  "expected_any_of": [
+   "send_notification"
+  ]
+ },
+ {
+  "id": "Q043",
+  "lang": "en",
+  "style": "sent",
+  "query": "send an SMS to my mother",
+  "expected_any_of": [
+   "telnyx_sms"
+  ]
+ },
+ {
+  "id": "Q044",
+  "lang": "en",
+  "style": "sent",
+  "query": "start a parallel co-agent to research this topic",
+  "expected_any_of": [
+   "co_agent"
+  ]
+ },
+ {
+  "id": "Q045",
+  "lang": "en",
+  "style": "sent",
+  "query": "create a pull request on github",
+  "expected_any_of": [
+   "github"
+  ]
+ },
+ {
+  "id": "Q046",
+  "lang": "en",
+  "style": "sent",
+  "query": "start proxmox virtual machine 101",
+  "expected_any_of": [
+   "proxmox"
+  ]
+ },
+ {
+  "id": "Q047",
+  "lang": "en",
+  "style": "sent",
+  "query": "upload this file to my s3 bucket",
+  "expected_any_of": [
+   "s3_storage"
+  ]
+ },
+ {
+  "id": "Q048",
+  "lang": "en",
+  "style": "sent",
+  "query": "find the server db01 in my inventory",
+  "expected_any_of": [
+   "query_inventory"
+  ]
+ },
+ {
+  "id": "Q049",
+  "lang": "en",
+  "style": "sent",
+  "query": "what meetings do I have today in google calendar",
+  "expected_any_of": [
+   "gog_calendar"
+  ]
+ },
+ {
+  "id": "Q050",
+  "lang": "en",
+  "style": "sent",
+  "query": "remember that I am vegan",
+  "expected_any_of": [
+   "remember",
+   "manage_memory"
+  ]
+ },
+ {
+  "id": "Q051",
+  "lang": "de",
+  "style": "sent",
+  "query": "Zeig mir welche Container gerade laufen",
+  "expected_any_of": [
+   "docker"
+  ]
+ },
+ {
+  "id": "Q052",
+  "lang": "de",
+  "style": "sent",
+  "query": "Wie wird das Wetter morgen in Hamburg?",
+  "expected_any_of": [
+   "ddg_search"
+  ]
+ },
+ {
+  "id": "Q053",
+  "lang": "de",
+  "style": "sent",
+  "query": "Schick mir das Bild auf Telegram",
+  "expected_any_of": [
+   "send_image",
+   "send_telegram"
+  ]
+ },
+ {
+  "id": "Q054",
+  "lang": "de",
+  "style": "kw",
+  "query": "Bild verkleinern",
+  "expected_any_of": [
+   "image_processing"
+  ]
+ },
+ {
+  "id": "Q055",
+  "lang": "de",
+  "style": "sent",
+  "query": "Zeig mir alle Dateien im Downloads-Ordner",
+  "expected_any_of": [
+   "filesystem"
+  ]
+ },
+ {
+  "id": "Q056",
+  "lang": "de",
+  "style": "sent",
+  "query": "Beende den hängenden Prozess",
+  "expected_any_of": [
+   "process_management"
+  ]
+ },
+ {
+  "id": "Q057",
+  "lang": "de",
+  "style": "sent",
+  "query": "Speichere dieses Skript als wiederverwendbares Werkzeug",
+  "expected_any_of": [
+   "save_tool"
+  ]
+ },
+ {
+  "id": "Q058",
+  "lang": "de",
+  "style": "sent",
+  "query": "Welche Ports sind auf meinem Rechner offen?",
+  "expected_any_of": [
+   "port_scanner"
+  ]
+ },
+ {
+  "id": "Q059",
+  "lang": "de",
+  "style": "sent",
+  "query": "Welche Geräte gibt es im Netzwerk?",
+  "expected_any_of": [
+   "mdns_scan",
+   "upnp_scan"
+  ]
+ },
+ {
+  "id": "Q060",
+  "lang": "de",
+  "style": "sent",
+  "query": "Überwache diese Webseite auf Änderungen",
+  "expected_any_of": [
+   "site_monitor"
+  ]
+ },
+ {
+  "id": "Q061",
+  "lang": "de",
+  "style": "sent",
+  "query": "Schick mir das PDF als Dokument",
+  "expected_any_of": [
+   "send_document"
+  ]
+ },
+ {
+  "id": "Q062",
+  "lang": "de",
+  "style": "sent",
+  "query": "Wie schnell lädt die Webseite?",
+  "expected_any_of": [
+   "web_performance_audit"
+  ]
+ },
+ {
+  "id": "Q063",
+  "lang": "de",
+  "style": "sent",
+  "query": "Prüfe das SSL Zertifikat meiner Domain",
+  "expected_any_of": [
+   "certificate_manager"
+  ]
+ },
+ {
+  "id": "Q064",
+  "lang": "de",
+  "style": "sent",
+  "query": "Fülle das Kontaktformular auf der Seite aus und sende es ab",
+  "expected_any_of": [
+   "form_automation"
+  ]
+ },
+ {
+  "id": "Q065",
+  "lang": "de",
+  "style": "kw",
+  "query": "Virenscan für diese URL",
+  "expected_any_of": [
+   "virustotal_scan"
+  ]
+ },
+ {
+  "id": "Q066",
+  "lang": "de",
+  "style": "sent",
+  "query": "Erstelle einen Song mit Gesang über den Sommer",
+  "expected_any_of": [
+   "generate_music"
+  ]
+ },
+ {
+  "id": "Q067",
+  "lang": "de",
+  "style": "sent",
+  "query": "Erstelle ein kurzes Video von Meereswellen",
+  "expected_any_of": [
+   "generate_video"
+  ]
+ },
+ {
+  "id": "Q068",
+  "lang": "de",
+  "style": "sent",
+  "query": "Transkribiere diese Audiodatei",
+  "expected_any_of": [
+   "transcribe_audio"
+  ]
+ },
+ {
+  "id": "Q069",
+  "lang": "de",
+  "style": "sent",
+  "query": "Spiele diese MP3 Datei im Chat ab",
+  "expected_any_of": [
+   "send_audio"
+  ]
+ },
+ {
+  "id": "Q070",
+  "lang": "de",
+  "style": "sent",
+  "query": "Konvertiere die WAV Datei in MP3",
+  "expected_any_of": [
+   "media_conversion"
+  ]
+ },
+ {
+  "id": "Q071",
+  "lang": "de",
+  "style": "sent",
+  "query": "Zeig mir meine Medienbibliothek",
+  "expected_any_of": [
+   "media_registry"
+  ]
+ },
+ {
+  "id": "Q072",
+  "lang": "de",
+  "style": "sent",
+  "query": "Nimm den UKW Sender mit dem SDR Stick auf",
+  "expected_any_of": [
+   "rtl_sdr"
+  ]
+ },
+ {
+  "id": "Q073",
+  "lang": "de",
+  "style": "sent",
+  "query": "Verbinde den Bluetooth Lautsprecher",
+  "expected_any_of": [
+   "bluetooth"
+  ]
+ },
+ {
+  "id": "Q074",
+  "lang": "de",
+  "style": "sent",
+  "query": "Spiel das Video auf dem Wohnzimmer Fernseher ab",
+  "expected_any_of": [
+   "chromecast"
+  ]
+ },
+ {
+  "id": "Q075",
+  "lang": "de",
+  "style": "sent",
+  "query": "Schick eine Nachricht in den Discord Kanal",
+  "expected_any_of": [
+   "send_discord"
+  ]
+ },
+ {
+  "id": "Q076",
+  "lang": "de",
+  "style": "sent",
+  "query": "Lies die letzten Discord Nachrichten",
+  "expected_any_of": [
+   "fetch_discord"
+  ]
+ },
+ {
+  "id": "Q077",
+  "lang": "de",
+  "style": "sent",
+  "query": "Ruf Max an und sag ihm, dass ich später komme",
+  "expected_any_of": [
+   "telnyx_call",
+   "sip_phone"
+  ]
+ },
+ {
+  "id": "Q078",
+  "lang": "de",
+  "style": "sent",
+  "query": "Löse den ausgehenden Webhook aus",
+  "expected_any_of": [
+   "call_webhook"
+  ]
+ },
+ {
+  "id": "Q079",
+  "lang": "de",
+  "style": "sent",
+  "query": "Schalte das WLAN für Gäste an der Fritzbox ein",
+  "expected_any_of": [
+   "fritzbox_network"
+  ]
+ },
+ {
+  "id": "Q080",
+  "lang": "de",
+  "style": "sent",
+  "query": "Stell die Heizung im Bad auf 22 Grad",
+  "expected_any_of": [
+   "fritzbox_smarthome"
+  ]
+ },
+ {
+  "id": "Q081",
+  "lang": "de",
+  "style": "sent",
+  "query": "Zeig mir die Anrufliste der Fritzbox",
+  "expected_any_of": [
+   "fritzbox_telephony"
+  ]
+ },
+ {
+  "id": "Q082",
+  "lang": "de",
+  "style": "sent",
+  "query": "Sind alle Dienste online? Prüfe die Monitore",
+  "expected_any_of": [
+   "uptime_kuma"
+  ]
+ },
+ {
+  "id": "Q083",
+  "lang": "de",
+  "style": "sent",
+  "query": "Wie viele Werbeanfragen blockiert AdGuard?",
+  "expected_any_of": [
+   "adguard"
+  ]
+ },
+ {
+  "id": "Q084",
+  "lang": "de",
+  "style": "sent",
+  "query": "Zeig mir die Tailscale Geräte",
+  "expected_any_of": [
+   "tailscale"
+  ]
+ },
+ {
+  "id": "Q085",
+  "lang": "de",
+  "style": "sent",
+  "query": "Führe das Ansible Playbook aus",
+  "expected_any_of": [
+   "ansible"
+  ]
+ },
+ {
+  "id": "Q086",
+  "lang": "de",
+  "style": "sent",
+  "query": "Suche den Benutzer im Active Directory",
+  "expected_any_of": [
+   "ldap"
+  ]
+ },
+ {
+  "id": "Q087",
+  "lang": "de",
+  "style": "sent",
+  "query": "Zeig die Ereignisse der Frigate Kamera",
+  "expected_any_of": [
+   "frigate"
+  ]
+ },
+ {
+  "id": "Q088",
+  "lang": "de",
+  "style": "kw",
+  "query": "Ollama Modelle auflisten",
+  "expected_any_of": [
+   "ollama"
+  ]
+ },
+ {
+  "id": "Q089",
+  "lang": "de",
+  "style": "sent",
+  "query": "Veröffentliche diese Seite auf Netlify",
+  "expected_any_of": [
+   "netlify"
+  ]
+ },
+ {
+  "id": "Q090",
+  "lang": "de",
+  "style": "sent",
+  "query": "Führe eine SQL Abfrage auf der Datenbank aus",
+  "expected_any_of": [
+   "sql_query"
+  ]
+ },
+ {
+  "id": "Q091",
+  "lang": "de",
+  "style": "sent",
+  "query": "Führe auf dem Server web01 per SSH einen Befehl aus",
+  "expected_any_of": [
+   "remote_execution"
+  ]
+ },
+ {
+  "id": "Q092",
+  "lang": "de",
+  "style": "sent",
+  "query": "Kopiere die Datei per SFTP auf den Server",
+  "expected_any_of": [
+   "transfer_remote_file"
+  ]
+ },
+ {
+  "id": "Q093",
+  "lang": "de",
+  "style": "sent",
+  "query": "Richte eine SMB Freigabe für den Fotoordner ein",
+  "expected_any_of": [
+   "network_shares"
+  ]
+ },
+ {
+  "id": "Q094",
+  "lang": "de",
+  "style": "sent",
+  "query": "Finde die Rechnung in Paperless",
+  "expected_any_of": [
+   "paperless_ngx"
+  ]
+ },
+ {
+  "id": "Q095",
+  "lang": "de",
+  "style": "sent",
+  "query": "Erstelle eine Notiz in meinem Obsidian Vault",
+  "expected_any_of": [
+   "obsidian"
+  ]
+ },
+ {
+  "id": "Q096",
+  "lang": "de",
+  "style": "sent",
+  "query": "Lade die Datei in meine OneDrive hoch",
+  "expected_any_of": [
+   "onedrive"
+  ]
+ },
+ {
+  "id": "Q097",
+  "lang": "de",
+  "style": "sent",
+  "query": "Such die Datei auf Google Drive",
+  "expected_any_of": [
+   "gog_drive",
+   "google_workspace"
+  ]
+ },
+ {
+  "id": "Q098",
+  "lang": "de",
+  "style": "sent",
+  "query": "Erstelle eine Präsentation",
+  "expected_any_of": [
+   "gog_slides",
+   "google_workspace"
+  ]
+ },
+ {
+  "id": "Q099",
+  "lang": "de",
+  "style": "sent",
+  "query": "Schreib eine Zusammenfassung in mein Google Doc",
+  "expected_any_of": [
+   "gog_docs"
+  ]
+ },
+ {
+  "id": "Q100",
+  "lang": "de",
+  "style": "sent",
+  "query": "Merk dir, dass ich Veganer bin",
+  "expected_any_of": [
+   "remember",
+   "manage_memory"
+  ]
+ }
+]

@@ -19,6 +19,7 @@ func TestRealtimeSpeechProgressAudioUsesActiveSpeechLabVoice(t *testing.T) {
 	i18n.Load(ui.Content, slog.Default())
 	server, _ := newRealtimeSpeechTestServer(t)
 	server.Cfg.Server.UILanguage = "de"
+	synthesized := make(chan map[string]string, 1)
 	lab := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/ready":
@@ -30,9 +31,7 @@ func TestRealtimeSpeechProgressAudioUsesActiveSpeechLabVoice(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			if body["input"] != "Ich schaue mir das an. Einen Moment." || body["voice"] != "Serena" {
-				t.Fatalf("unexpected progress synthesis: %#v", body)
-			}
+			synthesized <- body
 			w.Header().Set("Content-Type", "audio/wav")
 			w.Header().Set("X-S2S-TTS-ID", "tts-a")
 			w.Header().Set("X-S2S-Voice", "Serena")
@@ -58,19 +57,39 @@ func TestRealtimeSpeechProgressAudioUsesActiveSpeechLabVoice(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer registry.EndAction("action-1")
-	requestBody := `{"session_id":"` + session.ID + `","client_id":"browser","request_id":"action-1","kind":"ack"}`
-	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/realtime-speech/progress-audio", strings.NewReader(requestBody))
-	request.Header.Set("X-Realtime-Speech-Client-ID", "browser")
-	request.Header.Set("Origin", "https://aurago.local")
-	response := httptest.NewRecorder()
-	handleRealtimeSpeechProgressAudio(server, registry).ServeHTTP(response, request)
-	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "audio/wav" || response.Body.Len() == 0 {
-		t.Fatalf("progress audio status=%d type=%q bytes=%d body=%s", response.Code, response.Header().Get("Content-Type"), response.Body.Len(), response.Body.String())
+	ack := i18n.T("de", "backend.workflow_feedback")
+	messages := append([]string{"", ack}, i18n.WorkflowWaitMessages("de")...)
+	handler := handleRealtimeSpeechProgressAudio(server, registry)
+	for _, message := range messages {
+		kind, wantMessage := "wait", message
+		if message == "" || message == ack {
+			kind, wantMessage = "ack", ack
+		}
+		requestBody, err := json.Marshal(map[string]string{
+			"session_id": session.ID, "client_id": "browser", "request_id": "action-1", "kind": kind, "message": message,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/realtime-speech/progress-audio", strings.NewReader(string(requestBody)))
+		request.Header.Set("X-Realtime-Speech-Client-ID", "browser")
+		request.Header.Set("Origin", "https://aurago.local")
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "audio/wav" || response.Body.Len() == 0 {
+			t.Fatalf("progress audio status=%d type=%q bytes=%d body=%s", response.Code, response.Header().Get("Content-Type"), response.Body.Len(), response.Body.String())
+		}
+		body := <-synthesized
+		if body["input"] != wantMessage || body["voice"] != "Serena" {
+			t.Fatalf("unexpected progress synthesis: %#v, want message %q", body, wantMessage)
+		}
 	}
 }
 
 func TestRealtimeSpeechProgressAudioRejectsOtherOriginsAndSessions(t *testing.T) {
 	server, _ := newRealtimeSpeechTestServer(t)
+	server.Cfg.Server.UILanguage = "de"
+	server.initConfigSnapshot()
 	registry := realtimespeech.NewRegistry(nil)
 	session, _, err := registry.Acquire("browser", realtimespeech.Session{Provider: realtimespeech.ProviderOpenAI}, false)
 	if err != nil {
@@ -82,19 +101,24 @@ func TestRealtimeSpeechProgressAudioRejectsOtherOriginsAndSessions(t *testing.T)
 	defer registry.EndAction("action-1")
 	handler := handleRealtimeSpeechProgressAudio(server, registry)
 	for _, test := range []struct {
-		name   string
-		origin string
-		client string
-		kind   string
-		status int
+		name    string
+		origin  string
+		client  string
+		kind    string
+		message string
+		status  int
 	}{
-		{"cross origin", "https://other.example", "browser", "ack", http.StatusForbidden},
-		{"other session", "https://aurago.local", "other", "ack", http.StatusNotFound},
-		{"invalid kind", "https://aurago.local", "browser", "arbitrary", http.StatusBadRequest},
-		{"no tts", "https://aurago.local", "browser", "ack", http.StatusServiceUnavailable},
+		{"cross origin", "https://other.example", "browser", "ack", "", http.StatusForbidden},
+		{"other session", "https://aurago.local", "other", "ack", "", http.StatusNotFound},
+		{"invalid kind", "https://aurago.local", "browser", "arbitrary", "", http.StatusBadRequest},
+		{"arbitrary wait text", "https://aurago.local", "browser", "wait", "untrusted", http.StatusBadRequest},
+		{"arbitrary acknowledgement", "https://aurago.local", "browser", "ack", "untrusted", http.StatusBadRequest},
+		{"wrong kind", "https://aurago.local", "browser", "ack", "Ich bin noch dran. Es dauert etwas länger.", http.StatusBadRequest},
+		{"wrong language", "https://aurago.local", "browser", "wait", "I am still working on it. This is taking a little longer.", http.StatusBadRequest},
+		{"no tts", "https://aurago.local", "browser", "ack", "", http.StatusServiceUnavailable},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			body := `{"session_id":"` + session.ID + `","client_id":"` + test.client + `","request_id":"action-1","kind":"` + test.kind + `"}`
+			body := `{"session_id":"` + session.ID + `","client_id":"` + test.client + `","request_id":"action-1","kind":"` + test.kind + `","message":"` + test.message + `"}`
 			request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/realtime-speech/progress-audio", strings.NewReader(body))
 			request.Header.Set("Origin", test.origin)
 			request.Header.Set("X-Realtime-Speech-Client-ID", test.client)

@@ -59,10 +59,14 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "netlify", ConfigGate: "netlify.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "remote_execution", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityExecute, CapabilityNetwork, CapabilityHost}},
 		{Name: "secrets_vault", ConfigGate: "tools.secrets_vault.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityDelete}},
+		{Name: "send_discord", ConfigGate: "discord.enabled", ReadOnlyGate: "discord.readonly", Capabilities: []Capability{CapabilityWrite, CapabilityNetwork}},
+		{Name: "send_telegram", ConfigGate: "telegram.bot_token + telegram.telegram_user_id", ReadOnlyGate: "telegram.readonly", Capabilities: []Capability{CapabilityWrite, CapabilityNetwork}},
+		{Name: "fetch_discord", ConfigGate: "discord.enabled", ReadOnlyGate: "discord.readonly (blocks sending, not reading)", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
+		{Name: "list_discord_channels", ConfigGate: "discord.enabled + discord.guild_id", Capabilities: []Capability{CapabilityRead, CapabilityNetwork}},
 		{Name: "transfer_remote_file", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
 		{Name: "truenas", ConfigGate: "truenas.enabled", ReadOnlyGate: "truenas.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "vercel", ConfigGate: "vercel.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
-		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
+		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
 		{Name: "virtual_desktop", ConfigGate: "virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled", ReadOnlyGate: "virtual_desktop.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityHost}},
 		{Name: "workspace_search", ConfigGate: "workspace_search.enabled", Capabilities: []Capability{CapabilityRead, CapabilityHost}},
 		{Name: "xml_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
@@ -115,6 +119,8 @@ type RouteContract struct {
 
 func RouteContractManifest() []RouteContract {
 	return []RouteContract{
+		{Pattern: "/api/tts/phonon/voices", Methods: []string{"GET"}, Auth: "session-admin", Category: "tts", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/tts/phonon/voices/", Methods: []string{"POST"}, Auth: "session-admin-csrf", Category: "tts", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/gog/", Methods: []string{"GET", "POST"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/desktop/integrations/gog/", Methods: []string{"GET", "POST"}, Auth: "session-or-desktop-admin-token", Category: "desktop", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/auth/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "public-bootstrap", Category: "auth"},
@@ -149,7 +155,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/cron", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-admin", Category: "dashboard", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/cron/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-admin", Category: "dashboard", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dashboard/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "dashboard"},
-		{Pattern: "/api/indexing/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "knowledge"},
+		{Pattern: "/api/indexing/", Methods: []string{"GET", "POST", "PATCH", "DELETE"}, Auth: "session", Category: "knowledge"},
 		{Pattern: "/api/plans", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "planner", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/todos", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "planner", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/devices", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "inventory", ContentTypes: []string{"application/json"}},
@@ -185,6 +191,9 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/system/notifications/read", Methods: []string{"POST"}, Auth: "session", Category: "notifications"},
 		{Pattern: "/api/telegram/status", Methods: []string{"GET"}, Auth: "session", Category: "notifications"},
 		{Pattern: "/api/telegram/test", Methods: []string{"POST"}, Auth: "admin", Category: "notifications"},
+		{Pattern: "/api/telegram/test-connection", Methods: []string{"POST"}, Auth: "admin", Category: "notifications"},
+		{Pattern: "/api/discord/test", Methods: []string{"POST"}, Auth: "admin", Category: "integration"},
+		{Pattern: "/api/health/discord", Methods: []string{"GET"}, Auth: "session", Category: "integration"},
 		{Pattern: "/api/cyd/snapshot", Methods: []string{"GET"}, Auth: "bearer-scope-cyd", Category: "cyd"},
 		{Pattern: "/api/cyd/heartbeat", Methods: []string{"POST"}, Auth: "bearer-scope-cyd", Category: "cyd", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/cyd/ack", Methods: []string{"POST"}, Auth: "bearer-scope-cyd", Category: "cyd", ContentTypes: []string{"application/json"}},
@@ -210,6 +219,7 @@ type NetworkClientUse struct {
 
 func NetworkClientInventory() []NetworkClientUse {
 	return []NetworkClientUse{
+		{Path: "internal/phonon/", Classification: "fixed-pinned-public-voice-downloads-with-allowlisted-https-redirects"},
 		{Path: "internal/decisions/", Classification: "pinned-model-downloads-and-authenticated-private-scoring-runtime", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/gog/", Classification: "fixed-google-oauth-same-origin-and-checksummed-release-download", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/mailer/gmail_adapter.go", Classification: "fixed-google-gmail-api-same-origin-redirects", Credentialed: true},
@@ -238,6 +248,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/localllm/", Classification: "fixed-pinned-model-download-docker-control-and-private-loopback-sidecar", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/localwiki/", Classification: "fixed-kiwix-catalog-meta4-and-mirror-download-https-only-redirects"},
 		{Path: "internal/ruview/", Classification: "saved-origin-no-redirects-explicit-lan-and-verified-runtime-download", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/rustfs/", Classification: "digest-pinned-managed-docker-private-s3-signed-native-admin-no-redirects", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/retrogames/", Classification: "fixed-archive-org-scrape-api-strict-public-no-redirects", RequiresSSRF: true},
 		{Path: "internal/manus/", Classification: "fixed-manus-api-and-presigned-file-transfer", RequiresSSRF: true, Credentialed: true},
 		{Path: "internal/media/", Classification: "user-requested-media-fetch", RequiresSSRF: true},
@@ -254,6 +265,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/speechlab/", Classification: "configured-private-speech-sidecar", AllowsLocalNet: true},
 		{Path: "internal/telegram/", Classification: "telegram-api", Credentialed: true},
 		{Path: "internal/telnyx/", Classification: "telnyx-api", Credentialed: true},
+		{Path: "internal/tools/homepage_remote.go", Classification: "homepage-target-scoped-observation", RequiresSSRF: true, AllowsLocalNet: true},
 		{Path: "internal/tools/", Classification: "tool-specific-network-policy", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/truenas/", Classification: "configured-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/updater/", Classification: "github-release-check", Credentialed: false},
@@ -274,6 +286,7 @@ type DBMigrationDomain struct {
 
 func DBMigrationManifest() []DBMigrationDomain {
 	return []DBMigrationDomain{
+		{Domain: "homepage-registry", PackagePath: "internal/tools", SchemaVersioned: true, HasLegacyFixtureTest: true, OwnsRuntimeData: true},
 		{Domain: "contacts", PackagePath: "internal/contacts", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "credentials", PackagePath: "internal/credentials", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "inventory", PackagePath: "internal/inventory", SchemaVersioned: true, OwnsRuntimeData: true},

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"aurago/internal/agent"
@@ -20,6 +22,48 @@ import (
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+// detectiveStorePath prefers the configured SQLite path. Without one it keeps the
+// legacy location next to the Game Maker database only while that file already exists,
+// so an upgrade does not lose its cases and a fresh install uses the data directory.
+func detectiveStorePath(cfg *config.Config) string {
+	configured := strings.TrimSpace(cfg.SQLite.DetectivePath)
+	legacy := filepath.Join(filepath.Dir(cfg.SQLite.GameMakerPath), "detective.db")
+	legacyExists := false
+	if info, err := os.Stat(legacy); err == nil && !info.IsDir() {
+		legacyExists = true
+	}
+	if configured == "" {
+		if legacyExists {
+			return legacy
+		}
+		return "data/detective.db"
+	}
+	if configured != legacy && legacyExists && cfg.SQLite.DetectivePathDefaulted {
+		if _, err := os.Stat(configured); errors.Is(err, fs.ErrNotExist) {
+			// An upgrade: the operator never chose a path, the default store is not there yet
+			// and the old file is. Starting empty would look like lost cases.
+			return legacy
+		}
+	}
+	return configured
+}
+
+// detectiveInitCode maps a store initialization failure onto a small, stable set of codes;
+// the raw error stays in the log so no path or SQL text reaches the UI.
+func detectiveInitCode(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, detective.ErrSchemaTooNew):
+		return "schema_too_new"
+	case errors.Is(err, fs.ErrPermission):
+		return "permission_denied"
+	case errors.Is(err, os.ErrNotExist):
+		return "path_missing"
+	}
+	return "store_failed"
+}
 
 func (s *Server) initDetective() {
 	if s.Cfg == nil || !s.Cfg.VirtualDesktop.Enabled {
@@ -39,11 +83,8 @@ func (s *Server) initDetective() {
 		}
 		profiles[k] = detective.Profile{Seconds: v.Seconds, Tools: v.Tools, Iterations: v.Iterations, Tokens: v.Tokens}
 	}
-	path := filepath.Join(filepath.Dir(s.Cfg.SQLite.GameMakerPath), "detective.db")
-	if s.Cfg.SQLite.GameMakerPath == "" {
-		path = "data/detective.db"
-	}
-	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, Allowed: func() bool { return detectiveResearchAllowed(s.ConfigSnapshot()) }, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
+	path := detectiveStorePath(s.Cfg)
+	service, err := detective.New(detective.Options{Path: path, Profiles: profiles, Logger: s.Logger, Notify: s.notifyDetective, Allowed: func() bool { return detectiveResearchAllowed(s.ConfigSnapshot()) }, PDF: func(ctx context.Context, report detective.Report) ([]byte, error) {
 		cfg := s.ConfigSnapshot()
 		if cfg != nil && cfg.Tools.DocumentCreator.Enabled && cfg.Tools.DocumentCreator.Backend == "gotenberg" {
 			return tools.RenderReportHTMLPDF(ctx, &cfg.Tools.DocumentCreator.Gotenberg, detective.ReportHTML(report))
@@ -52,9 +93,12 @@ func (s *Server) initDetective() {
 		return a.Data, err
 	}})
 	if err != nil {
-		s.Logger.Error("Detective initialization failed", "error", err)
+		s.detectiveInitErr = detectiveInitCode(err)
+		s.Logger.Error("Detective initialization failed", "code", s.detectiveInitErr, "error", err)
 		return
 	}
+	s.detectiveInitErr = ""
+	s.Logger.Info("Detective store ready", "path", path)
 	s.Detective = service
 	if err = s.installDetectiveSkill(); err != nil {
 		s.Logger.Error("Detective skill verification failed", "error", err)
@@ -130,7 +174,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 	}
 	cfg := *cfgPtr
 	if !cfg.Detective.Enabled || cfg.Detective.ReadOnly || !cfg.VirtualDesktop.Enabled || cfg.VirtualDesktop.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl {
-		return errors.New("Detective research is disabled or read-only")
+		return detective.ErrPermission
 	}
 	c, err := job.Snapshot()
 	if err != nil {
@@ -151,7 +195,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 		cfg.LLM.APIKey = p.APIKey
 		cfg.LLM.AccountID = p.AccountID
 		cfg.LLM.Model = p.Model
-		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID))
+		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID, p.GatewayID))
 	}
 	if c.Request.Model != "" {
 		cfg.LLM.Model = c.Request.Model
@@ -212,7 +256,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 				return err
 			}
 			if !detectiveResearchAllowed(s.ConfigSnapshot()) {
-				return errors.New("research permission revoked")
+				return detective.ErrPermission
 			}
 			limit, err := job.BeforeRequest(prompt, req.MaxTokens)
 			if err == nil {
@@ -226,7 +270,7 @@ func (r *detectiveRunner) Run(ctx context.Context, job *detective.Session) error
 			}
 			latest := s.ConfigSnapshot()
 			if latest == nil || !latest.Detective.Enabled || latest.Detective.ReadOnly || !latest.VirtualDesktop.Enabled || latest.VirtualDesktop.ReadOnly || !latest.VirtualDesktop.AllowAgentControl {
-				return errors.New("research permission revoked")
+				return detective.ErrPermission
 			}
 			if err := detectiveAuthorize(latest, c.Request, tc); err != nil {
 				return err

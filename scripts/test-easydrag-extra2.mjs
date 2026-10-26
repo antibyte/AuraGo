@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 
-const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js',
+const MODULES = ['easydrag-core.js', 'easydrag-template.js', 'easydrag-model.js', 'easydrag-canvas.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-mapping.js',
     'easydrag-detail.js', 'easydrag-runs.js', 'easydrag-publish.js'];
 const T1 = 'n_tttttttt';
 const T2 = 'n_uuuuuuuu';
@@ -310,9 +310,9 @@ export async function run(env) {
         eq('c1d06 unchanged test data runs with the stored sample; edits are remembered unless they hold [redacted]',
             [shown, tests(), h.notes],
             [JSON.stringify(samples[T1], null, 2), [
-                { trigger_node: T1, remember_data: false },
-                { trigger_node: T1, remember_data: true, trigger_data: { name: 'Grace' } },
-                { trigger_node: T1, remember_data: false, trigger_data: { name: 'Linus', token: '[redacted]' } }
+                { trigger_node: T1, remember_data: false, base_revision: 3 },
+                { trigger_node: T1, remember_data: true, base_revision: 3, trigger_data: { name: 'Grace' } },
+                { trigger_node: T1, remember_data: false, base_revision: 3, trigger_data: { name: 'Linus', token: '[redacted]' } }
             ], [{ title: 'test_title', message: 'test_data_redacted' }]]);
         // Another trigger shows its own sample; unchanged, it runs with that trigger's stored one.
         const d = await open();
@@ -327,7 +327,7 @@ export async function run(env) {
         e.select.fire('change');
         await settle();
         eq('c1d06 picking another trigger loads its sample unless the text was edited',
-            [switched, tests()[3], e.area.value], [JSON.stringify(samples[T2], null, 2), { trigger_node: T2, remember_data: false }, '{"mine": true}']);
+            [switched, tests()[3], e.area.value], [JSON.stringify(samples[T2], null, 2), { trigger_node: T2, remember_data: false, base_revision: 3 }, '{"mine": true}']);
         eq('c1d06 the test data checks log no errors', h.logged, []);
     });
 

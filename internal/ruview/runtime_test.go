@@ -32,7 +32,7 @@ func TestRuViewDockerOwnershipAndBoundedResources(t *testing.T) {
 	c.RuView.UDPBind = "192.168.1.2"
 	c.RuView.UDPAllow = []string{"192.168.1.4"}
 	var payload map[string]any
-	owned, started, stopped := false, false, false
+	owned, started, stopped, removed := false, false, false, false
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := regexp.MustCompile(`^/v[0-9.]+/`).ReplaceAllString(r.URL.Path, "/")
 		switch {
@@ -63,6 +63,9 @@ func TestRuViewDockerOwnershipAndBoundedResources(t *testing.T) {
 		case path == "/containers/owned-id/stop":
 			stopped = true
 			w.WriteHeader(204)
+		case path == "/containers/owned-id" && r.Method == http.MethodDelete:
+			removed, owned = true, false
+			w.WriteHeader(204)
 		default:
 			t.Errorf("unexpected Docker request %s %s", r.Method, path)
 			w.WriteHeader(500)
@@ -71,7 +74,7 @@ func TestRuViewDockerOwnershipAndBoundedResources(t *testing.T) {
 	defer api.Close()
 	c.Docker.Host = "tcp://" + strings.TrimPrefix(api.URL, "http://")
 	m := New(func() *config.Config { return c }, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if err := m.startDocker(context.Background(), c, filepath.Join(c.Directories.DataDir, "ruview/data"), "fixture-secret"); err != nil {
+	if err := m.createContainer(context.Background(), c, filepath.Join(c.Directories.DataDir, "ruview/data"), "fixture-secret"); err != nil {
 		t.Fatal(err)
 	}
 	if !started {
@@ -90,12 +93,13 @@ func TestRuViewDockerOwnershipAndBoundedResources(t *testing.T) {
 	}
 	m.runningConfig = c
 	m.managed = true
-	if err := m.Stop(context.Background()); err != nil || !stopped {
-		t.Fatalf("stop failed %v", err)
+	if err := m.Stop(context.Background()); err != nil || !stopped || !removed {
+		t.Fatalf("stop failed %v (stopped=%v removed=%v)", err, stopped, removed)
 	}
-	stopped = false
-	if err := m.Stop(context.Background()); err != nil || !stopped {
-		t.Fatalf("owned container could not be stopped after manager restart: %v", err)
+	// A container left by an earlier process is stopped and removed too (M23).
+	owned, stopped, removed = true, false, false
+	if err := m.Stop(context.Background()); err != nil || !stopped || !removed {
+		t.Fatalf("owned container could not be stopped after manager restart: %v (stopped=%v removed=%v)", err, stopped, removed)
 	}
 }
 
@@ -125,9 +129,12 @@ func TestRuViewDockerPullReportsBoundedScrubbedReason(t *testing.T) {
 	defer api.Close()
 	c.Docker.Host = "tcp://" + strings.TrimPrefix(api.URL, "http://")
 	m := New(func() *config.Config { return c }, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	err := m.startDocker(context.Background(), c, c.Directories.DataDir, "fixture-secret")
+	err := m.ensureImage(context.Background(), c)
 	if err == nil || !strings.Contains(err.Error(), "HTTP 403: registry denied") || pulls != 1 {
 		t.Fatalf("missing pull failure or unexpected retry: %v (pulls=%d)", err, pulls)
+	}
+	if typed := AsError(err); typed.Code != CodeImageDenied || typed.HTTP != http.StatusBadGateway {
+		t.Fatalf("a registry refusal must be image_denied/502: %+v", typed)
 	}
 	if text := err.Error(); len(text) > 560 || strings.ContainsAny(text, "\n\r\u202e") || strings.Contains(text, secret) {
 		t.Fatal("pull failure was not bounded, sanitized and scrubbed")

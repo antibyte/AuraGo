@@ -1480,6 +1480,12 @@ func TestBuiltinToolSchemasHomepageUsesFocusedTools(t *testing.T) {
 	if _, ok := homepageFileProps["sub_operation"]; !ok {
 		t.Fatal("homepage_file schema missing sub_operation property")
 	}
+	subOperation := homepageFileProps["sub_operation"].(map[string]interface{})["description"].(string)
+	for _, operation := range []string{"str_replace", "str_replace_all", "insert_after", "insert_before", "append", "prepend", "delete_lines"} {
+		if !strings.Contains(subOperation, operation) {
+			t.Errorf("homepage_file schema does not explain edit operation %q", operation)
+		}
+	}
 	if _, ok := homepageFileProps["file_path"]; !ok {
 		t.Fatal("homepage_file schema missing file_path alias for path")
 	}
@@ -1541,6 +1547,16 @@ func TestVideoDownloadSchemaReflectsOptionalWritePermissions(t *testing.T) {
 	for _, want := range []string{"search", "info", "download", "transcribe"} {
 		if !containsName(fullOps, want) {
 			t.Fatalf("full video_download schema missing %q in %v", want, fullOps)
+		}
+	}
+	for _, schema := range fullSchemas {
+		if schema.Function == nil || schema.Function.Name != "video_download" {
+			continue
+		}
+		for _, sentence := range []string{"yepapi_youtube", "send_youtube_video", "before transcribe"} {
+			if !strings.Contains(schema.Function.Description, sentence) {
+				t.Fatalf("video_download description missing %q", sentence)
+			}
 		}
 	}
 }

@@ -124,6 +124,29 @@ func newTestService(t *testing.T) *Service {
 	return service
 }
 
+func TestActiveJobInfoReportsStartedAt(t *testing.T) {
+	service := newTestService(t)
+	project := createTestProject(t, service, "2d")
+	service.SetRunner(testRunner{service: service, block: true})
+	job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{Prompt: "make a short game"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = service.CancelJob(context.Background(), job.ID) })
+	deadline := time.Now().Add(10 * time.Second)
+	var info *ActiveJobInfo
+	for time.Now().Before(deadline) {
+		info = service.ActiveJobInfo(context.Background())
+		if info != nil && info.StartedAt != nil && !info.StartedAt.IsZero() {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if info == nil || info.JobID != job.ID || info.ProjectID != project.ID || info.StartedAt == nil || info.StartedAt.IsZero() {
+		t.Fatalf("active job = %+v", info)
+	}
+}
+
 func TestGeneratedAssetUsesSeparateAssetSizeLimit(t *testing.T) {
 	service := newTestService(t)
 	project := createTestProject(t, service, "2d")

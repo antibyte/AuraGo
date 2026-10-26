@@ -1,39 +1,48 @@
 package tools
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strings"
 
 	"github.com/beevik/etree"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"gopkg.in/yaml.v3"
+
+	"aurago/internal/security"
 )
 
 // ─── Structured File Editors ──────────────────────────────────────────────
 
-// extractDockerOutput extracts the output text from a DockerExec JSON response.
-func extractDockerOutput(result string) string {
-	var resp map[string]interface{}
-	if err := json.Unmarshal([]byte(result), &resp); err == nil {
-		if status, ok := resp["status"].(string); ok && status == "error" {
-			return ""
-		}
-		if output, ok := resp["output"].(string); ok {
-			return output
-		}
+// homepageEditorErrorResult reports a failed editor operation. The envelope is
+// {"status":"error","error":…}; the message is scrubbed so container output can
+// never leak a registered secret.
+type homepageEditorErrorResult struct {
+	Status string `json:"status"`
+	Error  string `json:"error"`
+}
+
+// homepageEditorErrorJSON encodes a failed editor operation.
+func homepageEditorErrorJSON(format string, args ...interface{}) string {
+	encoded, err := json.Marshal(homepageEditorErrorResult{
+		Status: "error",
+		Error:  security.Scrub(fmt.Sprintf(format, args...)),
+	})
+	if err != nil {
+		return `{"status":"error","error":"editor failure could not be encoded"}`
 	}
-	return result
+	return string(encoded)
 }
 
 // HomepageJsonEdit edits a JSON file inside the homepage container (or local workspace).
 func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setValue interface{}, content string, logger *slog.Logger) string {
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
+	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return homepageEditorErrorJSON("%v", err)
 	}
 	switch operation {
 	case "get", "keys", "validate":
@@ -58,12 +67,14 @@ func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setV
 		return ExecuteJsonEditor(operation, fullPath, jsonPath, setValue, content, cfg.WorkspacePath)
 	}
 
-	// Docker: read from container
+	// Docker: read from container through the bounded archive transport
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-	fileContent := extractDockerOutput(readResult)
+	fileContent, readErr := homepageReadDockerFile(dockerCfg, path)
+	if readErr != nil {
+		return homepageEditorErrorJSON("could not read file from container: %v", readErr)
+	}
 	if fileContent == "" && operation != "set" {
-		return errJSON("could not read file from container")
+		return homepageEditorErrorJSON("could not read file from container")
 	}
 
 	// Apply JSON operation on content
@@ -78,11 +89,11 @@ func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setV
 		return result
 	}
 
-	// Write edited content back
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
+	// Write edited content back through the archive transport: file content
+	// never reaches a shell argument.
+	if writeErr := homepageWriteDockerFile(dockerCfg, path, edited); writeErr != nil {
+		return homepageEditorErrorJSON("write failed for %s: %v", path, writeErr)
+	}
 	return result
 }
 
@@ -185,6 +196,9 @@ func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setVa
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return homepageEditorErrorJSON("%v", err)
+	}
 	switch operation {
 	case "get", "keys", "validate":
 	default:
@@ -208,12 +222,14 @@ func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setVa
 		return ExecuteYamlEditor(operation, fullPath, dotPath, setValue, cfg.WorkspacePath)
 	}
 
-	// Docker: read from container
+	// Docker: read from container through the bounded archive transport
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-	fileContent := extractDockerOutput(readResult)
+	fileContent, readErr := homepageReadDockerFile(dockerCfg, path)
+	if readErr != nil {
+		return homepageEditorErrorJSON("could not read file from container: %v", readErr)
+	}
 	if fileContent == "" && operation != "set" {
-		return errJSON("could not read file from container")
+		return homepageEditorErrorJSON("could not read file from container")
 	}
 
 	// Apply YAML operation on content
@@ -228,11 +244,11 @@ func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setVa
 		return result
 	}
 
-	// Write edited content back
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
+	// Write edited content back through the archive transport: file content
+	// never reaches a shell argument.
+	if writeErr := homepageWriteDockerFile(dockerCfg, path, edited); writeErr != nil {
+		return homepageEditorErrorJSON("write failed for %s: %v", path, writeErr)
+	}
 	return result
 }
 
@@ -341,6 +357,9 @@ func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepagePathSegment(path); err != nil {
+		return homepageEditorErrorJSON("%v", err)
+	}
 	switch operation {
 	case "get", "validate":
 	default:
@@ -364,12 +383,14 @@ func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue
 		return ExecuteXmlEditor(operation, fullPath, xpath, setValue, cfg.WorkspacePath)
 	}
 
-	// Docker: read from container
+	// Docker: read from container through the bounded archive transport
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-	fileContent := extractDockerOutput(readResult)
+	fileContent, readErr := homepageReadDockerFile(dockerCfg, path)
+	if readErr != nil {
+		return homepageEditorErrorJSON("could not read file from container: %v", readErr)
+	}
 	if fileContent == "" && operation != "add_element" {
-		return errJSON("could not read file from container")
+		return homepageEditorErrorJSON("could not read file from container")
 	}
 
 	// Apply XML operation on content
@@ -384,11 +405,11 @@ func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue
 		return result
 	}
 
-	// Write edited content back
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
+	// Write edited content back through the archive transport: file content
+	// never reaches a shell argument.
+	if writeErr := homepageWriteDockerFile(dockerCfg, path, edited); writeErr != nil {
+		return homepageEditorErrorJSON("write failed for %s: %v", path, writeErr)
+	}
 	return result
 }
 

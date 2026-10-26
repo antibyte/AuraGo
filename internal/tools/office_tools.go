@@ -38,6 +38,9 @@ func ExecuteOfficeDocument(ctx context.Context, cfg *config.Config, args map[str
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	defer cleanup()
+	if op == "insert_image" {
+		return officeInsertImage(ctx, cfg, svc, args, "document")
+	}
 	return executeOfficeDocumentOperation(ctx, svc, args, op)
 }
 
@@ -55,6 +58,9 @@ func ExecuteOfficeWorkbook(ctx context.Context, cfg *config.Config, args map[str
 		return virtualDesktopJSON("error", err.Error(), nil, nil)
 	}
 	defer cleanup()
+	if op == "insert_image" {
+		return officeInsertImage(ctx, cfg, svc, args, "workbook")
+	}
 	return executeOfficeWorkbookOperation(ctx, svc, args, op)
 }
 

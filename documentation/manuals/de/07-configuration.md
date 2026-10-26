@@ -156,7 +156,7 @@ Homepage-Workflows erhalten zusätzlich das globale `prompts/rules/homepage/DESI
 
 > 🆕 **Ab Version 2.x:** Das Provider-System ermöglicht die zentrale Verwaltung mehrerer LLM-Verbindungen.
 
-In der **Web-UI** findest du unter *Config → Provider* eine Liste aller konfigurierten Verbindungen. Über "Add Provider" kannst du neue Endpunkte hinzufügen und direkt mit "Test" die Erreichbarkeit prüfen. Die aktive Verbindung für `llm`, `vision`, `whisper` oder `embeddings` lässt sich per Dropdown zuweisen.
+In der **Web-UI** verwaltest du unter *Config → Provider* Verbindungen und Zugangsdaten im verschlüsselten Vault. Speichere zuerst und öffne dann die Diagnose: Der **Metadatentest** erzeugt niemals Text; der **Modelltest** ist eine ausdrücklich gestartete, möglicherweise kostenpflichtige Generierung. Die Statusanzeige stellt keine Provider-Anfrage. Bei einem Speicherkonflikt bleibt dein Entwurf erhalten, bis du ausdrücklich neu lädst. Die aktive Verbindung für `llm`, `vision`, `whisper` oder `embeddings` weist du per Dropdown zu. Details zu Entfernen, OAuth, Limits und API-Umstellung: [Provider-Verwaltung](../../provider-management.md).
 
 ### YAML-Beispiel
 
@@ -166,7 +166,6 @@ providers:
     name: "Haupt-LLM"
     type: "openrouter"
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "sk-or-v1-DEIN-KEY"
     model: "arcee-ai/trinity-large-preview:free"
 
 llm:
@@ -520,8 +519,8 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 
 | Block | Zweck | YAML-Kurzbeispiel |
 |-------|-------|-------------------|
-| `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678` |
-| `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."` |
+| `telegram` | Telegram Bot | `telegram:`<br>`  bot_token: "..."`<br>`  telegram_user_id: 12345678`<br>`  readonly: false` |
+| `discord` | Discord Bot | `discord:`<br>`  enabled: true`<br>`  bot_token: "..."`<br>`  guild_id: "..."`<br>`  allowed_channel_ids: []` |
 | `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:`<br>`  - id: personal`<br>`    name: Personal`<br>`    imap_host: imap.gmail.com`<br>`    smtp_host: smtp.gmail.com` |
 | `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:`<br>`  enabled: true`<br>`  imap_host: imap.gmail.com`<br>`  smtp_host: smtp.gmail.com` |
 | `home_assistant` | Home Assistant | `home_assistant:`<br>`  enabled: true`<br>`  url: "http://homeassistant.local:8123"` |
@@ -541,17 +540,18 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `meshcentral` | Control-WebSocket für Geräte, Wake, Strom und MeshAgent-Befehle | `enabled: false`, `readonly: true`, `allow_power_actions: false` |
 | `github` | GitHub API | `github:`<br>`  enabled: false`<br>`  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud-Speicher | Jeweils `enabled: false`, Endpoint/Credentials in UI/Vault |
-| `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:`<br>`  enabled: false`<br>`  url: ""` |
+| `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""` |
 | `telnyx` / `rocketchat` | Telefonie/Chat | `enabled: false`, Details über Web-UI |
 | `google_workspace` | Google APIs | `google_workspace:`<br>`  enabled: false`<br>`  gmail: false`<br>`  drive: false` |
 | `egg_mode` | Worker-Mode | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_pin_sha256: ""`<br>`  tls_skip_verify: false` |
 | `invasion_control` | Remote Deployment | `invasion_control:`<br>`  enabled: false`<br>`  readonly: false` |
 | `security_proxy` | Reverse Proxy | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true` |
-| `indexing` | Datei-Indexierung | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
+| `indexing` | Datei-Indexierung; Medien je Ordner per `allow_media_analysis` freigeben | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false` |
 | `a2a` | Agent-to-Agent | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`  client:`<br>`    enabled: false` |
 | `realtime_speech` | Live-Sprachsessions | `realtime_speech:`<br>`  enabled: false`<br>`  default_profile: ""` |
 | `virtual_computers` | Verwaltete virtuelle Computer | `virtual_computers:`<br>`  enabled: false`<br>`  auto_setup: false`<br>`  readonly: false` |
 | `manus` | Asynchrone Manus-Aufgaben | `manus:`<br>`  enabled: false`<br>`  read_only: true` |
+| `ai_gateway` | Native Cloudflare-Routen und gemeinsame Datenschutzregeln; ausdrücklich gewählte `cloudflare-rest`-Anbieter bleiben eigenständig. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  huggingface_provider_slug: ""`<br>`  log_mode: metadata_only`<br>`  request_timeout_ms: 0`<br>`  metadata: {}` |
 | `omniroute` | OpenAI-kompatibles Gateway | `omniroute:`<br>`  enabled: false`<br>`  mode: managed` |
 | `evomap` | EvoMap GEP/A2A | `evomap:`<br>`  enabled: false`<br>`  readonly: true` |
 | `music_generation` | KI-Musik | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  max_daily: 0` |
@@ -699,9 +699,9 @@ Nur AuraGo-erstellte und im Ledger `data/network_shares.db` erfasste Shares dür
 
 Der residente Workspace-Index wird über `workspace_search.enabled` gesteuert; er ist vom semantischen `indexing`-Indexer getrennt und speichert keine Dateiinhalte. Die Kamera-Integration `go2rtc` bleibt ebenfalls opt-in; Quellen und internes Passwort werden ausschließlich im Vault verwaltet. Die ausführlichen Grenzen stehen in [go2rtc](../../go2rtc.md) und im Abschnitt [Workspace Search](06-tools.md#10-workspace-search).
 
-### Sprachausgabe – sanoTTS als lokaler Standard
+### Sprachausgabe – Phonon als lokaler Standard
 
-Neue Installationen nutzen für die Sprachausgabe standardmäßig die lokale CPU-Pipeline **sanoTTS** (`tts.provider: sanotts`); die Sprache folgt der Nutzersprache, nicht unterstützte Stimmen fallen auf Englisch zurück. Bestehende Provider (ElevenLabs, Mistral, Piper, Supertonic) bleiben in **Config → Speech Output** wählbar. Das Sprach-Lab (Speech Lab) bleibt getrennt und bindet die s2s-Pipeline an.
+Neue Installationen nutzen für die Sprachausgabe das mitgelieferte lokale **Phonon (CPU)** (`tts.provider: phonon`) für Deutsch, Englisch, Französisch, Spanisch und Portugiesisch. Andere Sprachen und nicht verfügbare Ressourcen nutzen sanoTTS. Die automatische Stimme folgt Sprache und Persona; eine manuelle Auswahl und weitere Stimmen-Downloads stehen in **Config → Speech Output** bereit. Bestehende Provider bleiben wählbar. Das Sprach-Lab (Speech Lab) behält seine eigene s2s-Pipeline. Details und Lizenzbedingungen stehen in `documentation/phonon.md`.
 
 ### Task-LLM-Router
 
@@ -781,7 +781,6 @@ providers:
   - id: "main"
     type: "openrouter"
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "DEIN-API-KEY"
     model: "arcee-ai/trinity-large-preview:free"
 
 llm:
@@ -847,7 +846,7 @@ AuraGo validiert die Konfiguration beim Start:
 
 | Fehler | Lösung |
 |--------|--------|
-| `providers section requires at least one provider` | Provider mit API-Key in `providers`-Liste konfigurieren |
+| `providers section requires at least one provider` | Provider konfigurieren und benötigte Zugangsdaten über Setup oder Config → Provider im Vault hinterlegen |
 | `invalid yaml` | YAML-Syntax prüfen (Einrückungen!) |
 | `invalid port number` | Port zwischen 1-65535 wählen |
 | `directory not found` | Verzeichnispfad korrigieren |

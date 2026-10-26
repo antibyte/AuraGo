@@ -139,8 +139,8 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 			logger.Warn("[Guardian] fail_safe is set to 'allow': guardian errors will silently pass requests through. " +
 				"Consider setting fail_safe to 'block' for stronger security.")
 		case "quarantine":
-			logger.Warn("[Guardian] fail_safe is set to 'quarantine': guardian errors will warn/log but still permit tool execution. " +
-				"Consider setting fail_safe to 'block' for stronger security.")
+			logger.Warn("[Guardian] fail_safe is set to 'quarantine': guardian errors stop the tool call and return a fixed notice. " +
+				"The scanner reason is logged only. fail_safe 'block' remains the closed default.")
 		}
 		if provider := strings.TrimSpace(cfg.LLMGuardian.Provider); provider != "" && cfg.FindProvider(provider) == nil {
 			logger.Warn("[Guardian] llm_guardian.provider was not found; falling back to the main LLM for security checks",
@@ -148,12 +148,16 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 		}
 	}
 
+	accountID, gatewayID := cfg.LLM.AccountID, cfg.LLM.GatewayID
+	if provider := cfg.FindProvider(cfg.LLMGuardian.Provider); provider != nil {
+		accountID, gatewayID = provider.AccountID, provider.GatewayID
+	}
 	client := llm.NewClientFromProviderWithConfig(
 		cfg,
 		cfg.LLMGuardian.ProviderType,
 		cfg.LLMGuardian.BaseURL,
 		cfg.LLMGuardian.APIKey,
-		"",
+		accountID, gatewayID,
 	)
 
 	maxChecks := cfg.LLMGuardian.MaxChecksPerMin

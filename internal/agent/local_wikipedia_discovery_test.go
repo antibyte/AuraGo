@@ -75,10 +75,10 @@ var adaptiveProbeBudgets = []adaptiveProbeBudget{
 	{name: "small 6/14/6500", adaptive: 6, total: 14, token: 6500, initFiltered: true, refreshAdaptive: 6},
 }
 
-// adaptiveSelectionProbe mirrors the production adaptive selection for one
-// user message: the first selection of initAgentLoopState (when the budget
-// has one) and the per-iteration refresh of ExecuteAgentLoop. Usage history
-// is empty; guides is the semantic manual search (nil: unavailable).
+// adaptiveSelectionProbe runs the production adaptive selection for one user
+// message: the shared first-selection planner of initAgentLoopState (when the
+// budget has one) and the refresh of ExecuteAgentLoop (adaptiveRefreshFilterOptions).
+// Usage history is empty; guides is the semantic manual search (nil: unavailable).
 func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, guides toolGuideSearcher) (initial, refreshed []string) {
 	t.Helper()
 	cfg := &config.Config{}
@@ -91,41 +91,26 @@ func adaptiveSelectionProbe(t *testing.T, query string, ff ToolFeatureFlags, b a
 	}
 	runCfg := RunConfig{Config: cfg}
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
-	hard := channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff)
 	additive := adaptiveAdditiveToolsForQuery(query)
 
 	first := schemas
 	var swapped map[string]string
+	var plan *adaptiveSelectionPlan
 	if b.initFiltered {
-		always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
-		always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
-		always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
-		always = expandAdaptiveAlwaysInclude(cfg, always)
-		result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
-			PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, guides, nil),
-			HardAlwaysTools:       hard,
-			SoftAlwaysTools:       always,
-			MaxAdaptiveTools:      b.adaptive,
-			MaxTotalTools:         b.total,
-			MaxSchemaTokens:       b.token,
-			AdditiveTools:         additive,
-			AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-			AdditiveSwaps:         adaptiveSwapsForQuery(query),
-		}, nil)
+		planned := planAdaptiveFirstSelection(adaptiveSelectionInput{
+			Config: cfg, RunConfig: runCfg, Features: ff, Schemas: schemas, Query: query, Guides: guides,
+			MaxAdaptive: b.adaptive, MaxTotal: b.total, MaxSchemaTokens: b.token,
+		})
+		plan = &planned
+		result := filterToolSchemasWithReport(schemas, planned.Options, nil)
 		first, swapped = result.Tools, recordAdaptiveSwaps(nil, result.Report)
 	}
 	candidates := restoreAdaptiveSwapPartners(first, schemas, swapped)
-	second := filterToolSchemasWithReport(candidates, toolSchemaFilterOptions{
-		PreferredTools:        toolSchemaNames(candidates),
-		HardAlwaysTools:       hard,
-		SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
-		MaxAdaptiveTools:      b.refreshAdaptive,
-		MaxTotalTools:         b.total,
-		MaxSchemaTokens:       b.token,
-		AdditiveTools:         additive,
-		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(b.initFiltered, nil),
-		AdditiveSwaps:         adaptiveSwapsForQuery(query),
-	}, nil).Tools
+	second := filterToolSchemasWithReport(candidates, adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+		Config: cfg, RunConfig: runCfg, Features: ff, Plan: plan, Tools: candidates, InitFiltered: b.initFiltered,
+		MaxAdaptive: b.refreshAdaptive, MaxTotal: b.total, MaxSchemaTokens: b.token,
+		AdditiveTools: additive, AdditiveSwaps: adaptiveSwapsForQuery(query),
+	}), nil).Tools
 	return sortedToolNames(first), sortedToolNames(second)
 }
 
@@ -506,14 +491,14 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 		t.Fatal("no budget exercised")
 	}
 
-	// local_wikipedia used earlier in the conversation, plus tools requested
-	// through discover_tools during the run (local_wikipedia among them in
-	// some runs). It follows the generic rules of kept and requested tools:
-	// the first selection keeps it as a soft tool like every session-kept
-	// tool, so it costs exactly its own slot and schema tokens there; the
-	// refresh, which runs before every model call, ranks it like any other
-	// kept or requested tool. The additive rule may only add it on top when
-	// the ranking left it out (leftover room, or the wikipedia_search swap).
+	// local_wikipedia used earlier in the conversation (the plan's history),
+	// plus tools requested through discover_tools during the run
+	// (local_wikipedia among them in some runs). It follows the generic rules
+	// of kept and requested tools: the first selection keeps it as a soft tool
+	// like every session-kept tool, so it costs exactly its own slot and
+	// schema tokens there, and the refresh, which runs before every model
+	// call, keeps that class instead of ranking it again, so a flood of
+	// requests cannot push it out and it still costs exactly its own slot.
 	disabled := enabled
 	disabled.LocalWikipediaEnabled = false
 	lwTokens := 0
@@ -522,8 +507,12 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 			lwTokens = estimateSingleToolSchemaTokens(schema)
 		}
 	}
+	requestSets := [][]string{
+		nil, {"jellyfin"}, {"local_wikipedia"}, {"jellyfin", "local_wikipedia"},
+		{"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"},
+		{"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github", "ollama", "vercel", "tailscale", "ansible", "home_assistant", "mqtt_publish"},
+	}
 	history := []string{"local_wikipedia"}
-	ranked, added := 0, 0
 	for _, b := range adaptiveProbeBudgets {
 		if !b.initFiltered {
 			continue
@@ -536,19 +525,43 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 			room.token += lwTokens
 		}
 		for query := range localWikipediaProbeQueries {
-			for _, requested := range [][]string{nil, {"jellyfin"}, {"local_wikipedia"}, {"jellyfin", "local_wikipedia"}, {"jellyfin", "proxmox", "truenas", "grafana", "netlify", "github"}} {
+			for _, requested := range requestSets {
 				label := fmt.Sprintf("%s %q req=%v", b.name, query, requested)
-				initial, refreshed, ordinary := adaptiveSessionProbe(t, query, enabled, b, history, requested)
+				initial, refreshed, _ := adaptiveSessionProbe(t, query, enabled, b, history, nil, requested)
 				if !containsName(initial, "local_wikipedia") {
 					t.Errorf("%s: the first selection dropped the session-kept local_wikipedia", label)
 				}
-				offInitial, _, _ := adaptiveSessionProbe(t, query, disabled, b, history, requested)
-				roomInitial, _, _ := adaptiveSessionProbe(t, query, enabled, room, history, requested)
-				want := append(slices.Clone(offInitial), "local_wikipedia")
-				slices.Sort(want)
-				if !slices.Equal(roomInitial, want) {
-					t.Errorf("%s: in the first selection local_wikipedia cost more than its own slot\nwith it %v\nwithout %v", label, roomInitial, offInitial)
+				if !containsName(refreshed, "local_wikipedia") {
+					t.Errorf("%s: the refresh dropped the session-kept local_wikipedia", label)
 				}
+				offInitial, offRefreshed, _ := adaptiveSessionProbe(t, query, disabled, b, history, nil, requested)
+				roomInitial, roomRefreshed, _ := adaptiveSessionProbe(t, query, enabled, room, history, nil, requested)
+				for stage, got := range map[string][2][]string{"first selection": {roomInitial, offInitial}, "refresh": {roomRefreshed, offRefreshed}} {
+					want := append(slices.Clone(got[1]), "local_wikipedia")
+					slices.Sort(want)
+					if !slices.Equal(got[0], want) {
+						t.Errorf("%s: in the %s local_wikipedia cost more than its own slot\nwith it %v\nwithout %v", label, stage, got[0], got[1])
+					}
+				}
+			}
+		}
+	}
+
+	// A local_wikipedia the run used after the first selection is no soft
+	// tool: it is ranked like any kept tool, behind the requests, and the
+	// additive rule may still offer it in leftover room or through the swap.
+	ranked, added := 0, 0
+	for _, b := range adaptiveProbeBudgets {
+		if !b.initFiltered {
+			continue
+		}
+		for query, intent := range localWikipediaProbeQueries {
+			if !intent {
+				continue
+			}
+			for _, requested := range requestSets {
+				label := fmt.Sprintf("%s %q req=%v", b.name, query, requested)
+				_, refreshed, ordinary := adaptiveSessionProbe(t, query, enabled, b, nil, []string{"local_wikipedia"}, requested)
 				// The refresh equals the ranking with local_wikipedia as an
 				// ordinary candidate, plus at most local_wikipedia on top.
 				extra := slices.DeleteFunc(slices.Clone(refreshed), func(n string) bool { return slices.Contains(ordinary, n) })
@@ -566,7 +579,7 @@ func TestKeptLocalWikipediaStaysOnEncyclopediaQuestions(t *testing.T) {
 		}
 	}
 	if ranked == 0 || added == 0 {
-		t.Errorf("probe did not cover both paths: ranked %d, added on top %d", ranked, added)
+		t.Errorf("probe did not cover both paths of a used local_wikipedia: ranked %d, added on top %d", ranked, added)
 	}
 }
 
@@ -627,13 +640,14 @@ func TestSwapKeepsNamedOrSessionKeptWikipediaSearch(t *testing.T) {
 	}
 }
 
-// adaptiveSessionProbe mirrors the first selection and the refresh like
+// adaptiveSessionProbe runs the first selection and the refresh like
 // adaptiveSelectionProbe, for a conversation whose history used the recent
-// tools and a run in which discover_tools requested further tools before the
-// refresh (the refresh runs before every model call, the first included).
+// tools, a run that used the given tools after the first selection and in
+// which discover_tools requested further tools before the refresh (the
+// refresh runs before every model call, the first included).
 // ordinary is the same refresh without the additive rule and its swaps, i.e.
 // with local_wikipedia treated as an ordinary candidate.
-func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, recent, requested []string) (initial, refreshed, ordinary []string) {
+func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b adaptiveProbeBudget, recent, used, requested []string) (initial, refreshed, ordinary []string) {
 	t.Helper()
 	cfg := &config.Config{}
 	cfg.Agent.AdaptiveTools.Enabled = true
@@ -643,25 +657,13 @@ func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b ada
 	cfg.Agent.AdaptiveTools.AlwaysInclude = append([]string{"filesystem", "query_memory", "manage_memory", "execute_shell"}, b.alwaysExtra...)
 	runCfg := RunConfig{Config: cfg}
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
-	hard := channelAdaptiveAlwaysInclude(runCfg, adaptiveHardAlwaysInclude(cfg), ff)
 	additive, swaps := adaptiveAdditiveToolsForQuery(query), adaptiveSwapsForQuery(query)
 
-	always := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
-	always = channelAdaptiveAlwaysInclude(runCfg, always, ff)
-	always = cacheAwareAdaptiveAlwaysInclude(query, always, schemas)
-	always = append(always, recent...)
-	always = expandAdaptiveAlwaysInclude(cfg, always)
-	first := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
-		PreferredTools:        buildAdaptiveToolPriority(schemas, nil, query, nil, nil),
-		HardAlwaysTools:       hard,
-		SoftAlwaysTools:       always,
-		MaxAdaptiveTools:      b.adaptive,
-		MaxTotalTools:         b.total,
-		MaxSchemaTokens:       b.token,
-		AdditiveTools:         additive,
-		AdaptiveExcludedTools: adaptiveIntentOnlyTools,
-		AdditiveSwaps:         swaps,
-	}, nil)
+	plan := planAdaptiveFirstSelection(adaptiveSelectionInput{
+		Config: cfg, RunConfig: runCfg, Features: ff, Schemas: schemas, Query: query, History: recent,
+		MaxAdaptive: b.adaptive, MaxTotal: b.total, MaxSchemaTokens: b.token,
+	})
+	first := filterToolSchemasWithReport(schemas, plan.Options, nil)
 
 	candidates := restoreAdaptiveSwapPartners(first.Tools, schemas, recordAdaptiveSwaps(nil, first.Report))
 	present := stringSet(toolSchemaNames(candidates))
@@ -674,19 +676,12 @@ func adaptiveSessionProbe(t *testing.T, query string, ff ToolFeatureFlags, b ada
 			candidates = append(candidates, schema)
 		}
 	}
-	refresh := toolSchemaFilterOptions{
-		PreferredTools:        append(slices.Clone(requested), toolSchemaNames(candidates)...),
-		HardAlwaysTools:       hard,
-		SoftAlwaysTools:       cfg.Agent.AdaptiveTools.AlwaysInclude,
-		MaxAdaptiveTools:      b.refreshAdaptive,
-		MaxTotalTools:         b.total,
-		MaxSchemaTokens:       b.token,
-		AdditiveTools:         additive,
-		AdaptiveExcludedTools: adaptiveRefreshExcludedTools(true, requestedSet),
-		AdditiveSwaps:         swaps,
-		PinnedTools:           pinnedToolNames(requestedSet),
-		SwapProtectedTools:    refreshSwapProtectedTools(true, nil, recent),
-	}
+	refresh := adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+		Config: cfg, RunConfig: runCfg, Features: ff, Plan: &plan, Tools: candidates, Requested: requested,
+		RequestOrder: requested, Pinned: requestedSet, SessionUsed: stringSet(used), Recent: recent, InitFiltered: true,
+		MaxAdaptive: b.refreshAdaptive, MaxTotal: b.total, MaxSchemaTokens: b.token,
+		AdditiveTools: additive, AdditiveSwaps: swaps,
+	})
 	second := filterToolSchemasWithReport(candidates, refresh, nil)
 	refresh.AdditiveTools, refresh.AdditiveSwaps = nil, nil
 	plain := filterToolSchemasWithReport(candidates, refresh, nil)

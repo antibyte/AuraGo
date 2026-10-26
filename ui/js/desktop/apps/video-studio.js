@@ -223,7 +223,7 @@
         if (P.wireKeyframeStrip) P.wireKeyframeStrip(s, s.q('[data-timeline]'));
         // The library's effect drops listen on the timeline root after the timeline's own listeners (video-studio-effects-library.js).
         P.wireEffectsLibrary(s);
-        // The stage asks for the GL compositor ('auto'); the hidden previewEngine setting forces '2d'. The source monitor stays 2D.
+        // The stage asks for the GL compositor ('auto'); the hidden previewEngine setting forces '2d'. The source monitor stays 2D. Every paint feeds the scopes (onPaint, 2f).
         s.preview = window.VideoStudioPreview.mount(s.q('[data-preview]'), () => s.project, () => s.frame, frame => {
             s.frame = frame;
             const current = I().formatTime(frame, s.project);
@@ -235,7 +235,7 @@
             if (!playing && s.shuttle) s.shuttle.reset(); if (!playing && P.syncKeyframeControls) P.syncKeyframeControls(s);
             const button = s.q('[data-action="play"]');
             if (button) { button.innerHTML = icon(playing ? 'pause' : 'play', 20); button.setAttribute('aria-label', tr(s, playing ? 'pause' : 'play', playing ? 'Pause' : 'Play')); button.classList.toggle('is-playing', playing); }
-        }, () => previewScale(s), { painter: P.previewEngine(s), mediaURL: asset => P.previewMediaURL(s, asset), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => { P.syncPreviewNotice(s); if (s.project) renderInspector(s); } });
+        }, () => previewScale(s), { painter: P.previewEngine(s), mediaURL: asset => P.previewMediaURL(s, asset), effectCap: () => (P.previewEffectCap ? P.previewEffectCap(s) : 0), onPainterChange: () => P.syncPreviewNotice(s), onProgramFailed: () => { P.syncPreviewNotice(s); if (s.project) renderInspector(s); }, onPaint: () => { if (P.scopesAfterPaint) P.scopesAfterPaint(s); } });
         // The JKL shuttle drives the preview; the preview reports its play state back (see the playing callback).
         s.shuttle = P.createShuttle({ getFrame: () => s.frame, seek: frame => s.preview.seek(frame), play: () => s.preview.play(), pause: () => s.preview.pause(), setRate: rate => s.preview.setRate(rate), maxFrame: () => maxFrames(s) });
         const signal = s.abort.signal;
@@ -282,6 +282,7 @@
         wireTransform(s);
         P.wireCropBox(s);
         P.wireMaskBox(s);
+        if (P.wireScopes) P.wireScopes(s);
         if (P.wireEffectStack) P.wireEffectStack(s);
         P.wireSource(s);
         if (typeof MutationObserver === 'function') {
@@ -526,6 +527,7 @@
         s.q('.vs-preview-mat').style.setProperty('--vs-ar', String(Number(s.project.width || 1280) / Number(s.project.height || 720)));
         renderPreviewEmpty(s);
         P.syncPreviewNotice(s);
+        if (P.syncScopes) P.syncScopes(s);
         s.q('[data-canvas]').disabled = s.readonly;
         renderToolbar(s);
         renderAssets(s);
@@ -733,6 +735,7 @@
         const cancel = event.target.closest('[data-cancel-job]'); if (cancel) { cancelJob(s, cancel.dataset.cancelJob); return; }
         const stopWatch = event.target.closest('[data-stop-watch]'); if (stopWatch) { s.jobLocalStops.add(stopWatch.dataset.stopWatch); renderJobs(s); return; }
         if (P.handleRangeClick && P.handleRangeClick(s, event)) return;
+        if (P.handleScopeClick && P.handleScopeClick(s, event)) return;
         if (P.handleKeyframeClick && P.handleKeyframeClick(s, event)) return;
         if (P.effectCommand && P.effectCommand(s, event)) return;
         if (event.target.closest('[data-timeline]')) return;
@@ -743,7 +746,7 @@
         const fit = event.target.closest('[data-fit]');
         if (fit) { mutateSelected(s, 'fit', clip => { clip.fit = fit.dataset.fit === 'cover' ? 'cover' : 'contain'; }); return; }
         const transition = event.target.closest('[data-transition]');
-        if (transition) { const range = s.q('[data-transition-duration]'), frames = range && !range.disabled ? Number(range.value) : Math.round(rateOf(s) / 2); applyTransition(s, transition.dataset.transition, frames); setTransitionPicker(s, false); return; }
+        if (transition) { const range = s.q('[data-transition-duration]'), frames = range ? Number(range.value) : Math.round(rateOf(s) / 2); applyTransition(s, transition.dataset.transition, frames); setTransitionPicker(s, false); return; }
         const align = event.target.closest('[data-text-align]');
         if (align) { if (mutateSelected(s, 'text align', clip => { clip.text_style = Object.assign({}, clip.text_style || {}, { alignment: align.dataset.textAlign }); })) P.markTextStale(s, s.selectedClipId); return; }
         const toggle = event.target.closest('[data-text-toggle]');
@@ -810,11 +813,14 @@
             if (s.markerPop && s.markerPop.el.isConnected) { P.closeMarkerPopover(s, true); event.preventDefault(); return; }
             if (Object.values(POPOVERS).some(([, selector]) => !s.q(selector).hidden)) { closePopovers(s, null, true); event.preventDefault(); return; }
         }
-        // Escape in the open transition picker closes it before the narrow drawer (index §4.9).
+        // Escape in the open transition picker closes it before the narrow drawer (index §4.9); its arrows, Home and End move focus (2f).
         if (event.key === 'Escape' && s.transitionPickerOpen && target.closest('[data-inspector]')) { setTransitionPicker(s, false); event.preventDefault(); return; }
+        if (P.handleTransitionPickerKeys && P.handleTransitionPickerKeys(s, event)) return;
         if (event.key === 'Escape' && s.app.classList.contains('vs-show-inspector')) { setInspectorOpen(s, false, false); s.q('.vs-inspector-toggle')?.focus(); event.preventDefault(); return; }
         // The range comparison: Escape closes it; plain keys on its own controls stay with them (video-studio-rangerender.js).
         if (P.handleRangeKeys && P.handleRangeKeys(s, event)) return;
+        // The scopes panel: Escape inside it closes it; its tile row keeps the scroll keys (video-studio-scopes.js).
+        if (P.handleScopeKeys && P.handleScopeKeys(s, event)) return;
         // Keys inside the crop overlay: nudges, Enter/Escape to leave (video-studio-stage.js).
         if (P.handleCropKeys && P.handleCropKeys(s, event)) return;
         // Keys inside the mask overlay: nudges, Enter/Escape to leave (video-studio-mask.js).

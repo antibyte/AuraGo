@@ -21,6 +21,7 @@ acknowledgements and free-space thresholds. This package does not grant filesyst
 - Retry only Windows permission/sharing violations, at most eight attempts with
   15–105 ms delays. Context cancellation stops waiting and prevents later attempts.
 - Vault, Config, native editors, and both MissionV2 state files share this primitive.
+- The Homepage writers share it too: proxy routes, webserver state, asset copies, `next.config` files, local project files, local templates and artifact manifests are published through `WriteFileContext`, so a failed write never leaves a half-written file behind. A file that a running container has bind-mounted is the exception the caller must handle, because a rename would leave the container on the old inode; the Homepage Caddyfile is therefore written in place by its caller.
 - Token storage and Desktop archive publication share the same retry behavior; rooted callers supply an authorized root rename callback, never an unchecked absolute-path fallback.
   Keep their existing filesystem gates, locks, file modes, and error handling.
 - `FreeDiskBytes(path)` reports the bytes available to the current user (`statfs`

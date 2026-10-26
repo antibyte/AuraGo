@@ -27,7 +27,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 *October 2026*
 
 - **Video Studio.** A multitrack editor with keyframes, speed ramps, `.cube` LUTs, masks, chroma key, a WebGL2 preview and a project manager with versions. FFmpeg export, with optional GPU encoding. Off by default. [Guide](documentation/video-studio.md)
-- **Dashboard redesign.** A sidebar with 14 sections, customizable overview tiles, a summary feed and attention badges.
+- **Dashboard redesign.** A sidebar with 14 sections, customizable overview tiles, a summary feed and attention badges. [Chapter 13](documentation/manuals/en/13-dashboard.md)
 - **Bookshelf and Mailer.** A reader for EPUB, MOBI/KF8, FB2, CBZ, TXT and PDF, plus a mail client with background sync. [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md)
 - **Galaxa Deluxe and AuraGolf.** A synthwave arcade shooter with 50 animated motifs, and 18 low-poly 3D minigolf holes for up to four players on one device. [Galaxa](documentation/galaxa-expansion.md) · [AuraGolf](documentation/minigolf.md)
 - **Synth Studio.** Five banks of ten presets, a General MIDI bank of 128 synthesized sounds, a piano roll and Web MIDI input. [Guide](documentation/synth-studio.md)
@@ -68,11 +68,18 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 <p align="center"><strong>Around 60 desktop apps · 9 start-menu categories · 3 virtual Spaces · screensavers, animated wallpapers and desktop pets</strong></p>
 
 <details>
-<summary>Chat and dashboard screenshots</summary>
+<summary>Chat screenshot</summary>
 
 [![AuraGo chat](documentation/screenshots/chat.png)](documentation/screenshots/chat.png)
 
-[![AuraGo admin dashboard with sidebar and overview tiles](documentation/screenshots/dashboard.png)](documentation/screenshots/dashboard.png)
+</details>
+
+<details>
+<summary>Dashboard screenshot</summary>
+
+[![AuraGo dashboard overview: sidebar with 14 sections, status line, Needs attention list, tiles, recent activity and agent state](documentation/screenshots/dashboard.png)](documentation/screenshots/dashboard.png)
+
+*Overview with sample data from a local test instance, dark theme.*
 
 </details>
 
@@ -199,12 +206,11 @@ Optional layers sit on top. The **LLM router** sends tasks to different models p
 
 ### Linux
 
-**Verified install (recommended).** Download the installer and its checksum list from the latest release, and run the script only if the checksum matches:
+**Install (no Go or Cosign setup).** Download the official installer over HTTPS. It automatically checks the release signature and all downloaded application files:
 
 ```bash
 curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/install.sh
-curl -fsSLO https://github.com/antibyte/AuraGo/releases/latest/download/SHA256SUMS
-sha256sum -c --ignore-missing SHA256SUMS && bash install.sh
+bash install.sh
 ```
 
 **Quick install (runs the script from the main branch):**
@@ -214,6 +220,10 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 ```
 
 The installer starts AuraGo and prints your URL and first-login password. Open that address (usually **http://localhost:8088** on the host), change the password, and finish `/setup`. Pick a model, connect an integration, then try **“Show me system information.”**
+
+Updates from the app, agent or `update.sh` use the same automatic signature checks.
+No public-key files or environment variables are required. Operators migrating a
+blocked older updater can use the [verified repair procedure](documentation/release-signatures.md#existing-installations).
 
 <details>
 <summary>Docker instead?</summary>

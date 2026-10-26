@@ -5,13 +5,19 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
 import {checkControls} from './control-browser.mjs';
-import {checkDevices,checkPolicy} from './ui-browser.mjs';
+import {describedText,checkDevices,checkPolicy,checkStatusStates,checkStateFixtures,checkCommandBar,checkFocusKept,checkLiveRegion,checkImageDenied,checkAllowChanges,openView,openLab,resolved,waitState} from './ui-browser.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=process.env.AURAGO_PLAYWRIGHT?require(process.env.AURAGO_PLAYWRIGHT):require('playwright');
 const locales=['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh'];
 let writes=0,readonly=false,offline=false,mode='external',source='esp32',failure='',statusError='',firmwareError=false,sourceState='disconnected',sourceProbeFailed=false,configRequests=0;
-let serviceState='';
-const nodeFixture={reads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,scope:'fixture'};
+const configPuts=[];
+let configPutStatus=0;
+const until=async(done,ms=5000)=>{for(let waited=0;waited<ms&&!done();waited+=50)await new Promise(resolve=>setTimeout(resolve,50));assert.ok(done(),'condition not reached');};
+const nodeFixture={reads:0,statusReads:0,active:0,max:0,fail:false,statusFail:false,hold:null,offline:false,unavailable:false,liveState:'',disabled:false,statusExtra:null,scope:'fixture'};
+// What the checks in ui-browser.mjs may steer on the fixture server.
+const ctl={configPuts,
+ get mode(){return mode},set mode(value){mode=value},get source(){return source},set source(value){source=value},
+ get readonly(){return readonly},set readonly(value){readonly=value},get putStatus(){return configPutStatus},set putStatus(value){configPutStatus=value},get offline(){return offline},set offline(value){offline=value}};
 const sensingSockets=new Set(),poseSockets=new Set(),poseRequests=[],healthRequests=new Set();
 function sendFrames(sockets,data){
  const body=Buffer.from(JSON.stringify(data));assert.ok(body.length<65536);
@@ -20,18 +26,31 @@ function sendFrames(sockets,data){
  for(const socket of sockets)socket.write(Buffer.concat([header,body]));
 }
 const sendSensing=data=>sendFrames(sensingSockets,data);
+// The status the backend sends (design 8.1): derived fields included, merged with the check's override.
+function statusBody(){
+ const live=!offline&&!nodeFixture.disabled;
+ return {enabled:!nodeFixture.disabled,readonly,mode,source,runtime:mode==='external'?'external':'running',phase:'',phase_since:null,
+  ready:live,fresh:live,simulated:false,data_state:nodeFixture.disabled?'disabled':offline?'disconnected':'live_unverified',waiting_for_frames:false,
+  last_frame_age_ms:live?800:null,signal:'CSI',observed_at:new Date().toISOString(),last_fresh_at:live?new Date().toISOString():null,
+  error:statusError||undefined,error_code:statusError?'unreachable':'',error_detail:statusError,stop_reason:'',stopped_at:null,hints:[],...nodeFixture.statusExtra};
+}
 const server=createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost'),p=url.pathname;
   if(p.includes('/api/config'))configRequests++;
   if(p.startsWith('/api/')&&!p.includes('/ui/')){
    res.setHeader('Content-Type','application/json');if(req.method==='POST')writes++;
+   if(p==='/api/config'&&req.method==='PUT'){let body='';for await(const chunk of req)body+=chunk;configPuts.push({body,type:req.headers['content-type']});if(configPutStatus){res.statusCode=configPutStatus;return res.end(JSON.stringify({error:'admin access required'}));}readonly=false;return res.end(JSON.stringify({status:'ok'}));}
    if(p.endsWith('/ruview/nodes')){
     nodeFixture.reads++;nodeFixture.active++;nodeFixture.max=Math.max(nodeFixture.max,nodeFixture.active);
     try {
      if(nodeFixture.hold)await nodeFixture.hold;
      if(nodeFixture.fail){res.statusCode=503;return res.end('{}');}
-     return res.end(JSON.stringify({scope:nodeFixture.scope,available:!nodeFixture.unavailable,nodes:nodeFixture.offline||nodeFixture.unavailable?[{node_id:7,csi_status:'offline',csi_last_seen_ms:null,csi_sequence:null,rssi_dbm:null}]:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
+     // A disabled integration refuses the board list, as the real handler does.
+     if(nodeFixture.disabled){res.statusCode=403;return res.end(JSON.stringify({error:'RuView is disabled'}));}
+     // Mirrors the backend: live_state says why the live list is absent, available is true exactly for ok.
+     const live=nodeFixture.liveState||(nodeFixture.unavailable?'unreachable':'ok');
+     return res.end(JSON.stringify({scope:nodeFixture.scope,available:live==='ok',live_state:live,nodes:nodeFixture.offline||live!=='ok'?[{node_id:7,csi_status:'offline',csi_last_seen_ms:null,csi_sequence:null,rssi_dbm:null}]:[{node_id:7,csi_status:'active',csi_last_seen_ms:42,csi_sequence:3,rssi_dbm:-51}]}));
     }finally{nodeFixture.active--;}
    }
    if(p.includes('/proxy/')){
@@ -56,12 +75,14 @@ const server=createServer(async(req,res)=>{
    if(firmwareError&&p.endsWith('/firmware')){res.statusCode=503;return res.end(JSON.stringify({error:'Firmware catalog unavailable'}));}
    if(p.endsWith('/firmware'))return res.end(await readFile('internal/ruview/artifacts.json'));
    if(p.endsWith('/capabilities'))return res.end(JSON.stringify({unavailable:['model_load','model_unload','lora_activate','camera','timed_recording']}));
-   if(p.endsWith('/status')&&nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}
-   return res.end(JSON.stringify({enabled:true,readonly,mode,source,ready:!offline&&!serviceState,fresh:!offline&&!serviceState,data_state:serviceState||(offline?'disconnected':'live_unverified'),signal:'CSI',observed_at:new Date().toISOString(),error:statusError||undefined}));
+   if(p.endsWith('/status')){nodeFixture.statusReads++;if(nodeFixture.statusFail){res.statusCode=503;return res.end('{}');}}
+   return res.end(JSON.stringify(statusBody()));
   }
   if(p==='/'){
-   const locale=JSON.parse(await readFile(`ui/lang/ruview/${url.searchParams.get('lang')||'de'}.json`));
-   res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(`<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/css/ruview.css"><style>body{margin:0}#app{height:100vh}</style></head><body><main id="app"></main><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/apps/ruview.js"></script><script>const dict=${JSON.stringify(locale)};window.render=()=>RuViewApp.render(document.getElementById('app'),'test',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});render();</script></body></html>`);
+   const lang=locales.includes(url.searchParams.get('lang'))?url.searchParams.get('lang'):'de';
+   const locale=JSON.parse(await readFile(`ui/lang/ruview/${lang}.json`));
+   const theme=url.searchParams.get('theme')==='fruity'?'fruity':'standard',tone=url.searchParams.get('mode')==='dark'?'dark':'light';
+   res.setHeader('Content-Type','text/html; charset=utf-8');return res.end(`<!doctype html><html lang="${lang}" data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/ruview.css"><style>body{margin:0}#app{height:100vh}</style></head><body class="desktop-body" data-theme="${theme}" data-fruity-mode="${tone}"><main id="app"></main><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/apps/ruview-model.js"></script><script src="/js/desktop/apps/ruview-store.js"></script><script src="/js/desktop/apps/ruview-views.js"></script><script src="/js/desktop/apps/ruview.js"></script><script>const dict=${JSON.stringify(locale)};window.render=()=>RuViewApp.render(document.getElementById('app'),'test',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'),readonly:false,modalDialog:async options=>{(window.__ruviewModals=window.__ruviewModals||[]).push(options);return window.__ruviewAnswer===undefined?'confirm':window.__ruviewAnswer;},openApp(){},setWindowBeforeClose(){},setWindowMenus(){},clearWindowMenus(){}});render();</script></body></html>`);
   }
   const rel=p.includes('/ui/')?'js/vendor/ruview/'+p.split('/ui/')[1]:p.slice(1);
   if(!rel||rel.includes('..')){res.writeHead(404).end();return;}
@@ -86,19 +107,19 @@ const browser=await chromium.launch({headless:true,channel:'chrome'});
 await mkdir('reports/ruview-browser',{recursive:true});
 try{
  const page=await browser.newPage();
+ const origin=`http://127.0.0.1:${server.address().port}`;
+ const de=JSON.parse(await readFile('ui/lang/ruview/de.json','utf8'));
  await Promise.race([
  new Promise((_,reject)=>page.on('pageerror',reject)),
  (async()=>{
  for(const theme of ['standard','fruity-light','fruity-dark'])for(const width of [1100,390])for(const lang of locales){
-  await page.setViewportSize({width,height:800});await page.goto(`http://127.0.0.1:${server.address().port}/?lang=${lang}`);
-  if(theme==='fruity-light')await page.addStyleTag({content:':root{--vd-theme-app-bg:#f5f6f7;--vd-text:#253044;--vd-theme-panel-bg:#fff;--vd-theme-border:#ccd3da}'});
-  if(theme==='fruity-dark')await page.addStyleTag({content:':root{--vd-theme-app-bg:#16171b;--vd-text:#f0f0f2;--vd-theme-panel-bg:#24252b;--vd-theme-border:#46474d}'});
-  await page.locator('[data-action=test]').waitFor();assert.equal(writes,0,'render must not probe');
+  await page.setViewportSize({width,height:800});await page.goto(`${origin}/?lang=${lang}&theme=${theme==='standard'?'standard':'fruity'}&mode=${theme.endsWith('dark')?'dark':'light'}`);
+  await resolved(page);assert.equal(writes,0,'render must not probe');
   assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('#app').innerText()),`missing ${lang} labels`);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`overflow ${lang} ${width}`);
   if(lang==='de')await page.screenshot({path:`reports/ruview-browser/${theme}-${width}.png`});
   nodeFixture.offline=true;
-  await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+  await openView(page,'boards');await page.locator('.ruview-node').waitFor();
   assert.ok(!/ruview\.[a-z_]+/.test(await page.locator('#app').innerText()),`device translations ${lang}`);
   assert.equal(await page.locator('[data-age]').innerText(),'—','known offline boards must not invent measurements');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`device overflow ${lang} ${width}`);
@@ -106,41 +127,75 @@ try{
  }
  nodeFixture.offline=false;
  await page.setViewportSize({width:1100,height:800});await page.emulateMedia({colorScheme:'dark'});
- await page.goto(`http://127.0.0.1:${server.address().port}/?lang=de`);await page.locator('[data-action=test]').waitFor();
- for(const [state,label] of [['unchecked','Nicht geprüft'],['starting','Wird ausgeführt…'],['','Bereit']]){
-  serviceState=state;await page.evaluate(()=>render());
-  await page.waitForFunction(label=>document.querySelector('.ruview-summary article strong')?.textContent===label,label);
+ await page.goto(`${origin}/?lang=de`);await resolved(page);
+ const idle={mode:'docker',ready:false,fresh:false,data_state:'unchecked',last_frame_age_ms:null,observed_at:null,last_fresh_at:null};
+ for(const [extra,state] of [[{...idle,runtime:'not_started'},'stopped'],[{...idle,runtime:'starting',phase:'pulling_image',phase_since:new Date().toISOString()},'starting_pull'],[null,'live']]){
+  nodeFixture.statusExtra=extra;await page.evaluate(()=>render());await waitState(page,state);
   assert.equal(writes,0,'opening the app must not start or probe a service');
  }
- await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('.ruview-summary article strong')?.textContent==='Bereit');
+ await page.evaluate(()=>render());await waitState(page,'live');
  assert.equal(writes,0,'reopening preserves backend readiness without another start');
- await page.locator('[data-tab=devices]').click();await page.locator('.ruview-node').waitFor();
+ await checkStatusStates(page,nodeFixture,ctl);
+ await checkStateFixtures(page,nodeFixture);
+ await checkCommandBar(page);
+ await checkFocusKept(page,nodeFixture);
+ await checkLiveRegion(page,nodeFixture,ctl);
+ await checkImageDenied(page,nodeFixture);
+ await checkAllowChanges(page,nodeFixture,ctl);
+ await page.setViewportSize({width:1100,height:800});
+ await page.evaluate(()=>render());await resolved(page);
+ await openView(page,'boards');await page.locator('.ruview-node').waitFor();
  await checkDevices(page,nodeFixture);
- await page.locator('[data-action=flash]').click();await page.locator('dialog').waitFor();
+ await page.locator('[data-ruview-primary]').click();await page.locator('dialog').waitFor();
  await page.locator('dialog input[name=ssid]').fill('memory-only');await page.locator('dialog input[name=password]').fill('memory-password');await page.locator('dialog button[value=close]').click();await page.locator('dialog').waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>localStorage.length),0);
- await page.locator('[data-tab=overview]').click();await page.locator('[data-action=test]').click();assert.equal(writes,1);
+ await openView(page,'status');await page.locator('[data-ruview-more]').click();await page.locator('[data-ruview-menu] [data-action=test]').click();
+ await until(()=>writes===1);
  for(failure of ['error','message','html']){
-  await page.locator('[data-action=test]').click();
+  await page.locator('[data-ruview-more]').click();await page.locator('[data-ruview-menu] [data-action=test]').click();
   const detail=failure==='html'?'HTTP 502':'registry denied';
-  await page.waitForFunction(detail=>document.querySelector('.ruview-feedback')?.textContent.includes(detail),detail);
-  assert.equal(await page.locator('.ruview-feedback img').count(),0,'backend errors must remain text');
+  await page.waitForFunction(detail=>document.querySelector('[data-ruview-action-error]')?.textContent.includes(detail),detail);
+  assert.equal(await page.locator('[data-ruview-action-error] img').count(),0,'backend errors must remain text');
   await page.waitForTimeout(3200);
-  assert.ok((await page.locator('.ruview-feedback').innerText()).includes(detail),'passive status polling must preserve the action failure');
+  assert.ok((await page.locator('[data-ruview-action-error]').textContent()).includes(detail),'passive status polling must preserve the action failure');
  }
  failure='';statusError='RuView service could not be reached';offline=true;
- await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('.ruview-feedback')?.textContent.includes('could not be reached'));
- firmwareError=true;await page.locator('[data-action=flash]').click();await page.locator('dialog').waitFor();
+ await page.evaluate(()=>render());await waitState(page,'error');
+ assert.equal(await page.locator('[data-ruview-headline-text]').innerText(),de['ruview.err_unreachable']);
+ assert.ok((await page.locator('[data-ruview-technical]').textContent()).includes('could not be reached'));
+ firmwareError=true;await openView(page,'boards');await page.locator('[data-ruview-primary]').click();await page.locator('dialog').waitFor();
  await page.waitForFunction(()=>document.querySelector('dialog [role=status]')?.textContent.includes('Firmware catalog unavailable'));
  await page.locator('dialog button[value=close]').click();firmwareError=false;statusError='';
- readonly=true;await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action=flash]')?.disabled);assert.equal(await page.locator('[data-action=test]').isDisabled(),false);
- assert.equal(await page.locator('[data-action="runtime/stop"]').isDisabled(),true,'external service cannot be stopped');
- mode='native';await page.evaluate(()=>render());await page.waitForFunction(()=>document.querySelector('[data-action="runtime/stop"]')&&!document.querySelector('[data-action="runtime/stop"]').disabled);
- assert.equal(await page.locator('[data-action="runtime/start"]').isDisabled(),true,'read-only still blocks start');
- await page.locator('[data-action="runtime/stop"]').click();mode='external';
- offline=true;await page.evaluate(()=>render());await page.locator('.ruview-summary').waitFor();
+ readonly=true;await page.evaluate(()=>render());await openView(page,'boards');
+ await page.waitForFunction(()=>document.querySelector('[data-ruview-primary]')?.getAttribute('aria-disabled')==='true');
+ // A blocked control names its reason: the visible line is what its description points to.
+ await page.locator('button[data-node="7"]').waitFor();
+ assert.equal(await page.locator('button[data-node="7"]').getAttribute('aria-disabled'),'true');
+ for(const selector of ['[data-ruview-primary]','button[data-node="7"]'])assert.equal(await describedText(page,selector),de['ruview.reason_readonly'],selector);
+ assert.equal(await page.locator('[data-ruview-add-reason]').isVisible(),true);
+ await page.locator('[data-ruview-more]').click();
+ assert.equal(await page.locator('[data-ruview-menu] [data-action=test]').getAttribute('aria-disabled'),null,'checking stays possible while read-only');
+ assert.equal(await page.locator('[data-ruview-menu] [data-action="runtime/stop"]').count(),0,'external service cannot be stopped');
+ await page.keyboard.press('Escape');
+ mode='native';nodeFixture.statusExtra={runtime:'running'};await page.evaluate(()=>render());
+ await page.locator('[data-ruview-more]').click();
+ await page.locator('[data-ruview-menu] [data-action="runtime/stop"]').waitFor();
+ assert.equal(await page.locator('[data-ruview-menu] [data-action="runtime/stop"]').getAttribute('aria-disabled'),null,'stopping stays possible while read-only');
+ const before=writes;await page.locator('[data-ruview-menu] [data-action="runtime/stop"]').click();
+ await until(()=>writes===before+1);
+ // Read-only blocks a start: after a failed start the row offers "retry", blocked with its reason, and a click sends nothing.
+ nodeFixture.statusExtra={runtime:'not_started',error_code:'image_denied',ready:false,fresh:false,data_state:'unchecked',last_frame_age_ms:null,observed_at:null,last_fresh_at:null};
+ await page.evaluate(()=>render());await waitState(page,'error');
+ const retry=page.locator('[data-ruview-next][data-action="runtime/start"]');
+ assert.equal(await retry.getAttribute('aria-disabled'),'true','read-only blocks the start');
+ assert.equal(await describedText(page,'[data-ruview-next]'),de['ruview.reason_readonly']);
+ const sent=writes;await retry.click({force:true});await page.waitForTimeout(600);
+ assert.equal(writes,sent,'a blocked start sends nothing');
+ mode='external';nodeFixture.statusExtra=null;
+ offline=true;await page.evaluate(()=>render());await openView(page,'status');
  for(const view of ['index.html','observatory.html','pose-fusion.html']){
-  await page.locator(`[data-tab="${view}"]`).click();await page.locator('iframe').waitFor();await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-scripts');assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");
+  await openLab(page,view);await page.waitForTimeout(1500);assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-scripts');assert.equal(await page.locator('iframe').getAttribute('allow'),"serial 'none'; camera 'none'; microphone 'none'");
+  assert.equal(await page.locator('iframe').getAttribute('title'),de[`ruview.lab_frame_title_${view==='index.html'?'dashboard':view.replace('.html','').replace('-','_')}`],'the frame is named in the user language');
   const frame=page.frames().find(f=>f.url().endsWith('/'+view));
   if(view==='index.html'){
    assert.match(await page.evaluate(async()=>(await fetch(document.querySelector('iframe').src)).headers.get('content-security-policy')||''),/connect-src 'none'/);
@@ -207,17 +262,17 @@ try{
  source='simulated';await fusion.waitForFunction(()=>window.auragoRuViewSimulationAllowed());
  await fusion.waitForFunction(()=>document.getElementById('csi-bar-val')?.textContent!=='Unavailable');
  source='esp32';await fusion.waitForFunction(()=>document.getElementById('status-label')?.textContent==='NO LIVE CSI');
- await fusion.goto(`http://127.0.0.1:${server.address().port}/api/desktop/integrations/ruview/ui/viz.html`);
+ await fusion.goto(`${origin}/api/desktop/integrations/ruview/ui/viz.html`);
  await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  source='simulated';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='');
  source='esp32';await fusion.waitForFunction(()=>document.querySelector('#viz-container > canvas')?.style.visibility==='hidden');
  // Tab changes, app reopening and full reload must preserve a dismissed tour.
  for(const reopen of [
   async()=>{},
-  async()=>{await page.evaluate(()=>{RuViewApp.dispose('test');render();});},
-  async()=>{await page.reload();}
+  async()=>{await page.evaluate(()=>{RuViewApp.dispose('test');render();});await resolved(page);},
+  async()=>{await page.reload();await resolved(page);}
  ]){
-  await reopen();await page.locator('[data-tab="index.html"]').click();await page.locator('iframe').waitFor();
+  await reopen();await openLab(page,'index.html');
   const dashboard=page.frameLocator('iframe');
   await dashboard.locator('.conn-status-label').waitFor();await page.waitForTimeout(1100);
   assert.equal(await dashboard.locator('.onboarding-overlay').count(),0,'dismissed tour must not restart');
@@ -234,11 +289,11 @@ try{
  }
  assert.equal(await dashboard.locator('.onboarding-overlay').count(),0);
  assert.equal(await page.evaluate(()=>localStorage.getItem('aurago.ruview.onboarding.done')),'true');
- await page.reload();await page.locator('[data-tab="index.html"]').click();
+ await page.reload();await resolved(page);await openLab(page,'index.html');
  await page.frameLocator('iframe').locator('.conn-status-label').waitFor();await page.waitForTimeout(1100);
  assert.equal(await page.frameLocator('iframe').locator('.onboarding-overlay').count(),0,'completed tour must not restart');
  await page.evaluate(()=>RuViewApp.dispose('test'));assert.equal(await page.locator('iframe').count(),0);
- console.log('RuView: 96 locale/theme/size cases, pose WebSocket and frame delivery, tour dismissal/replay/persistence, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
+ console.log('RuView: 96 locale/theme/size cases, 18-state walk without scrolling, 560 px command bar, kept focus, silent live region, image-denied cause, allow-changes confirmation, pose WebSocket and frame delivery, tour dismissal/replay/persistence, device aging, read failures, stop permissions, controls, source provenance, live/stale recovery, health routing, wizard cleanup and disposal passed');
  })()
  ]);
 }finally{await browser.close();for(const socket of [...sensingSockets,...poseSockets])socket.destroy();await new Promise(resolve=>server.close(resolve));}

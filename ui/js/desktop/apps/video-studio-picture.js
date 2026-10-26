@@ -296,6 +296,24 @@
         return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
     }
 
+    // O2 (plan 2f, index §4.26.8): the clip-local target of the GL effect passes, for a cropped texture of width x height
+    // px. Each factor is a scale k applied to that texture:
+    // - kc is capSize's canvas rule;
+    // - kd is the drawn picture's scale (drawn: VideoStudioEffects.placement's draw rect in canvas px, or null);
+    // - kl = cap / max(width, height) when cap > 0, else no limit: the cap bounds the target's long edge.
+    // k = min(1, kc, kd, kl). The factors are not multiplied: a clip drawn smaller than the cap keeps its drawn size
+    // (the cap never shrinks it further, so the final placement does not magnify the passes). drawn null and cap 0 give
+    // capSize exactly. Never upscaled, at least 1 px.
+    const EFFECT_CAP_LONG = 1280;
+    function effectSize(width, height, canvas, drawn, cap) {
+        const w = Math.max(1, Number(width) || 1), h = Math.max(1, Number(height) || 1);
+        const cw = Math.max(1, Number(canvas && canvas.width) || w), ch = Math.max(1, Number(canvas && canvas.height) || h);
+        const dw = Number(drawn && drawn.w), dh = Number(drawn && drawn.h), limit = Number(cap) > 0 ? Number(cap) / Math.max(w, h) : Infinity;
+        const kd = dw > 0 && dh > 0 ? Math.max(dw / w, dh / h) : Infinity;
+        const k = Math.min(1, Math.max(cw / w, ch / h), kd, limit);
+        return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
+    }
+
     // The GL uniforms of an effect's passes (index §4.7), one object per pass. values are the entry's values at the frame
     // (clipState); size is the target {width, height}. The result is []:
     // - when the entry is the identity, as in the export: colour at the identity curve, intensity 0, blur radius 0,
@@ -550,5 +568,5 @@
         return out;
     }
 
-    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill, boxRect, maskUniforms, transitionParams, transitionUniforms };
+    window.VideoStudioPicture = { WHEEL_K, NEUTRAL_K, TEMPERATURE_GAIN, TINT_GAIN, LUMA, whiteBalance, wheel, colorCoefficients, applyColor, saturationMatrix, cropRect, mirroredCrop, vignetteAngle, blurSigma, parseCube, sampleLUT, unitDomain, CAS_P0, CAS_P1, decodedSize, capSize, EFFECT_CAP_LONG, effectSize, passUniforms, BLEND_SWAPPED, blendChannel, compositeRGB, overlapBlend, maskFrame, maskAt, keyColor, keyAlpha, despill, boxRect, maskUniforms, transitionParams, transitionUniforms };
 })();

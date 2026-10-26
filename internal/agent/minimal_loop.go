@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -53,6 +54,9 @@ type MinimalLoopOptions struct {
 	// 0 means "no tools at all" (the request is sent without tool schemas).
 	// -1 or unset defaults to 3.
 	MaxToolRounds int
+	// Temperature overrides the sampling temperature when set. Callers that pin
+	// code generation use a low value; nil keeps the provider default.
+	Temperature *float32
 	// BudgetCategory attributes every provider response to this budget category.
 	// Empty categories use "chat" so minimal-loop responses are never silently exempt.
 	BudgetCategory string
@@ -175,6 +179,9 @@ func ExecuteMinimalLoop(
 		Tools:    reqTools,
 		Stream:   opts != nil && opts.StreamText && noTools,
 	}
+	if opts != nil && opts.Temperature != nil {
+		req.Temperature = *opts.Temperature
+	}
 	if opts != nil && noTools {
 		req.ResponseFormat = opts.ResponseFormat
 	}
@@ -191,8 +198,22 @@ func ExecuteMinimalLoop(
 				return result, req.Messages, fmt.Errorf("save agent continuation: %w", err)
 			}
 		}
+		requestAddenda := append([]prompts.PromptAddendum(nil), addenda...)
+		if dispatchCtx.HomepageRegistryDB != nil && (toolSchemaExists("homepage_registry", reqTools) || dispatchCtx.ToolScopeRestricted && func() bool { _, ok := dispatchCtx.AllowedTools["homepage_registry"]; return ok }()) {
+			var allowed []string
+			if dispatchCtx.ToolScopeRestricted {
+				allowed = make([]string, 0, len(dispatchCtx.AllowedTools))
+				for name := range dispatchCtx.AllowedTools {
+					allowed = append(allowed, name)
+				}
+			}
+			managed := buildManagedSitesPromptContext(RunConfig{Config: dispatchCtx.Cfg, HomepageRegistryDB: dispatchCtx.HomepageRegistryDB, AllowedTools: allowed, SessionID: dispatchCtx.SessionID})
+			if managed != "" {
+				requestAddenda = append(requestAddenda, prompts.PromptAddendum{ID: "managed_websites", Text: security.IsolateExternalData(managed)})
+			}
+		}
 		localHit := profile != nil && (round > 0 || formatRetried || opts.PreparedPromptReused)
-		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, localHit, addenda...)
+		prepared, prepareErr := prepareMinimalLoopRequestWithProfileAndTaskAnchor(ctx, dispatchCtx.Cfg, client, &req, baseSystemPrompt, dispatchCtx.Guardian, logger, tokenCache, result.ToolCalls, preserveReasoning, profile, currentTaskText, currentUserIndex, localHit, requestAddenda...)
 		if prepareErr != nil {
 			return result, req.Messages, prepareErr
 		}
@@ -529,6 +550,11 @@ func GetLooperToolSchemas(cfg *config.Config) []openai.Tool {
 	return filtered
 }
 
+// MinimalLoopDiscoverHint tells a minimal-loop model how to reach a tool that
+// is not in its tool list. A prompt carries it only when discover_tools is
+// among the tools the run offers.
+const MinimalLoopDiscoverHint = "If a needed tool is not in your tool list, call discover_tools with operation=search and follow the returned call_method (hidden tools run through invoke_tool)."
+
 // MinimalSystemPromptBuilder creates a minimal system prompt for the Looper.
 func MinimalSystemPromptBuilder(availableTools []string) string {
 	var b strings.Builder
@@ -538,6 +564,10 @@ func MinimalSystemPromptBuilder(availableTools []string) string {
 	if len(availableTools) > 0 {
 		b.WriteString("\nAvailable tools: ")
 		b.WriteString(strings.Join(availableTools, ", "))
+		b.WriteString("\n")
+	}
+	if slices.Contains(availableTools, "discover_tools") {
+		b.WriteString(MinimalLoopDiscoverHint)
 		b.WriteString("\n")
 	}
 	return b.String()

@@ -329,6 +329,30 @@
         return false;
     }
 
+    function openDesktopFullscreenOnStartup() {
+        const button = document.getElementById('vd-fullscreen-button');
+        if (!state.bootstrap?.enabled || !settingBool('desktop.open_fullscreen') || !button || button.disabled || document.fullscreenElement) return;
+        const controller = new AbortController();
+        const options = { capture: true, signal: controller.signal };
+        const activate = event => {
+            if (event && (!event.isTrusted || event.repeat || event.ctrlKey || event.altKey || event.metaKey)) return;
+            if (event?.type === 'keydown' && ['Escape', 'F11', 'Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) return;
+            if (event && navigator.userActivation && !navigator.userActivation.isActive) return;
+            controller.abort();
+            // Let the taskbar button handle its own click or keyboard activation once.
+            if (event && button.contains(event.target)) return;
+            if (settingBool('desktop.open_fullscreen') && !document.fullscreenElement && !button.disabled) button.click();
+        };
+        // Browsers require a user gesture; wait for the first one when startup has none.
+        document.addEventListener('click', activate, options);
+        document.addEventListener('keydown', activate, options);
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) controller.abort();
+        }, options);
+        window.addEventListener('pagehide', () => controller.abort(), { once: true, signal: controller.signal });
+        if (navigator.userActivation?.isActive) activate();
+    }
+
     function wireShellChromeControls() {
         const fullscreenBtn = document.getElementById('vd-fullscreen-button');
         if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {

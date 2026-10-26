@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -25,6 +26,30 @@ type backgroundFixture struct {
 	starts, creates, probes      atomic.Int32
 	owned, failStatus, failStart atomic.Bool
 	startEntered, startCancelled chan struct{}
+	// imageMissing makes the image inspect answer 404 until a pull completes;
+	// exited and foreign change what the container inspect reports.
+	imageMissing, exited, foreign atomic.Bool
+	pulls, deletes, stops, forced atomic.Int32
+	// onInspect runs once, inside the next container inspect, before it answers
+	// with the state it saw when the request arrived: a Stop or Start that
+	// happens while the caller is still waiting for the Engine.
+	onInspect atomic.Pointer[func()]
+	// pullEntered is closed when the first pull arrives; the pull then waits
+	// for pullRelease (or for its request to be cancelled).
+	pullEntered, pullRelease chan struct{}
+	pullOnce                 sync.Once
+}
+
+// within fails the test when fn does not return in time, instead of hanging.
+func within(t *testing.T, d time.Duration, what string, fn func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() { defer close(done); fn() }()
+	select {
+	case <-done:
+	case <-time.After(d):
+		t.Fatalf("%s did not return within %v", what, d)
+	}
 }
 
 func managedBackgroundFixture(t *testing.T, statusHandler http.HandlerFunc) (*Manager, *config.Config, *backgroundFixture) {
@@ -44,8 +69,36 @@ func managedBackgroundFixture(t *testing.T, statusHandler http.HandlerFunc) (*Ma
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]any{"Id": "boot-fixture", "Config": map[string]any{"Labels": map[string]string{"aurago.managed": "ruview", "aurago.ruview.owner": owner(c)}}})
+			label, status, exit, exitedNow := owner(c), "running", 0, f.exited.Load()
+			if hook := f.onInspect.Swap(nil); hook != nil {
+				(*hook)()
+			}
+			if f.foreign.Load() {
+				label = "someone-else"
+			}
+			if exitedNow {
+				status, exit = "exited", 137
+			}
+			json.NewEncoder(w).Encode(map[string]any{"Id": "boot-fixture", "Config": map[string]any{"Labels": map[string]string{"aurago.managed": "ruview", "aurago.ruview.owner": label}}, "State": map[string]any{"Running": !exitedNow, "Status": status, "ExitCode": exit}})
+		case path == "/images/create":
+			f.pulls.Add(1)
+			if f.pullEntered != nil {
+				f.pullOnce.Do(func() { close(f.pullEntered) })
+			}
+			if f.pullRelease != nil {
+				select {
+				case <-f.pullRelease:
+				case <-r.Context().Done():
+					return
+				}
+			}
+			f.imageMissing.Store(false)
+			io.WriteString(w, `{"status":"Downloaded"}`+"\n")
 		case strings.HasPrefix(path, "/images/"):
+			if f.imageMissing.Load() {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 			io.WriteString(w, `{}`)
 		case path == "/containers/create":
 			f.creates.Add(1)
@@ -61,13 +114,18 @@ func managedBackgroundFixture(t *testing.T, statusHandler http.HandlerFunc) (*Ma
 				return
 			}
 			if f.failStart.Load() {
-				http.Error(w, "fixture start rejected", http.StatusForbidden)
+				http.Error(w, "fixture start rejected at /var/lib/docker/overlay2/x via http://registry.example/v2/ from 10.0.0.5:2375", http.StatusForbidden)
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
 		case path == "/containers/boot-fixture/stop":
+			f.stops.Add(1)
 			w.WriteHeader(http.StatusNoContent)
 		case path == "/containers/boot-fixture" && r.Method == http.MethodDelete:
+			f.deletes.Add(1)
+			if r.URL.Query().Get("force") == "1" {
+				f.forced.Add(1)
+			}
 			f.owned.Store(false)
 			w.WriteHeader(http.StatusNoContent)
 		case path == "/api/v1/status":
@@ -322,5 +380,137 @@ func TestStopAndShutdownCancelAutomaticStart(t *testing.T) {
 				t.Fatal("automatic start survived stop/shutdown")
 			}
 		})
+	}
+}
+
+func TestRuViewStartPhasesBusyAndStopDuringPull(t *testing.T) {
+	t.Run("stop during pull", func(t *testing.T) {
+		m, _, f := managedBackgroundFixture(t, nil)
+		f.imageMissing.Store(true)
+		f.pullEntered, f.pullRelease = make(chan struct{}), make(chan struct{}) // never released
+		started := make(chan error, 1)
+		go func() { started <- m.Start(context.Background()) }()
+		select {
+		case <-f.pullEntered:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the start never reached the image pull")
+		}
+		s := m.Status()
+		if s.Runtime != RuntimeStarting || s.Phase != PhasePullingImage || s.PhaseSince == nil {
+			t.Fatalf("a pulling start must report starting/pulling_image with a start time: %+v", s)
+		}
+		// A pull does not hold opMu: the watch loop, a second start, an install and a stop all return.
+		within(t, time.Second, "watch", func() {
+			if m.watch(context.Background()) != nil {
+				t.Error("watch scheduled a probe for a runtime that is still starting")
+			}
+		})
+		var err error
+		within(t, time.Second, "second Start", func() { err = m.Start(context.Background()) })
+		if e := AsError(err); e == nil || e.Code != CodeBusy || e.HTTP != http.StatusConflict {
+			t.Fatalf("a second start must be busy/409: %v", err)
+		}
+		within(t, time.Second, "Install", func() { err = m.Install(context.Background()) })
+		if e := AsError(err); e == nil || e.Code != CodeBusy {
+			t.Fatalf("an install during a start must be busy: %v", err)
+		}
+		within(t, 2*time.Second, "Stop", func() { err = m.Stop(context.Background()) })
+		if err != nil {
+			t.Fatalf("stop during a pull: %v", err)
+		}
+		select {
+		case err = <-started:
+			if e := AsError(err); e == nil || e.Code != CodeCancelled {
+				t.Fatalf("the cancelled start must report cancelled: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("the pending start survived Stop")
+		}
+		s = m.Status()
+		if s.Runtime != RuntimeStopped || s.StopReason != StopUser || s.Phase != "" || s.PhaseSince != nil || f.creates.Load() != 0 || s.ErrorCode != "" {
+			t.Fatalf("a stop during a pull must end stopped/user without creating anything: %+v creates=%d", s, f.creates.Load())
+		}
+	})
+
+	t.Run("pull completes", func(t *testing.T) {
+		m, _, f := managedBackgroundFixture(t, nil)
+		f.imageMissing.Store(true)
+		f.pullRelease = make(chan struct{})
+		close(f.pullRelease)
+		if err := m.Start(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if s := m.Status(); s.Runtime != RuntimeStarting || s.Phase != PhaseWaitingReady || f.pulls.Load() != 1 || f.creates.Load() != 1 {
+			t.Fatalf("a finished start waits for the first ready probe: %+v", s)
+		}
+		if s, err := m.Test(context.Background()); err != nil || !s.Ready {
+			t.Fatalf("probe: %+v %v", s, err)
+		}
+		if s := m.Status(); s.Runtime != RuntimeRunning || s.Phase != "" || s.PhaseSince != nil {
+			t.Fatalf("the first ready probe must end the wait: %+v", s)
+		}
+	})
+}
+
+func TestRuViewDockerConflictIsReportedAndStopIgnoresForeign(t *testing.T) {
+	m, _, f := managedBackgroundFixture(t, nil)
+	f.owned.Store(true)
+	f.foreign.Store(true)
+	err := m.Start(context.Background())
+	e := AsError(err)
+	if e == nil || e.Code != CodeContainerConflict || HTTPStatus(e.Code) != http.StatusConflict {
+		t.Fatalf("a foreign container must be reported as container_conflict: %v", err)
+	}
+	s := m.Status()
+	if s.ErrorCode != CodeContainerConflict || s.Runtime != RuntimeNotStarted {
+		t.Fatalf("conflict status: %+v", s)
+	}
+	// The Engine address and the container URL are internal; none of them may
+	// reach the status or the error text, whatever the wrapping.
+	blob, _ := json.Marshal(s)
+	for _, text := range []string{string(blob), err.Error()} {
+		if strings.Contains(text, "127.0.0.1") || strings.Contains(text, "tcp://") || strings.Contains(text, "/containers/") {
+			t.Fatalf("the conflict text exposes the Engine: %s", text)
+		}
+	}
+	if err := m.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if f.stops.Load() != 0 || f.deletes.Load() != 0 {
+		t.Fatalf("stop touched a container that is not ours: stops=%d deletes=%d", f.stops.Load(), f.deletes.Load())
+	}
+}
+
+func TestRuViewDockerExitIsDetected(t *testing.T) {
+	m, c, f := managedBackgroundFixture(t, nil)
+	c.RuView.UDPEnabled, c.RuView.UDPBind, c.RuView.UDPAllow = true, "192.168.1.2", []string{"192.168.1.4"}
+	m.Configure() // record the new baseline: the settings are part of the runtime
+	m.dockerEvery = 0
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !m.Status().UDPReady {
+		t.Fatal("precondition: a running managed runtime with UDP settings is ready")
+	}
+	f.exited.Store(true)
+	if m.watch(context.Background()) != nil {
+		t.Fatal("watch scheduled a probe for an exited container")
+	}
+	s := m.Status()
+	if s.Runtime != RuntimeExited || s.ErrorCode != CodeProcessExited || !strings.Contains(s.ErrorDetail, "137") || s.StopReason != StopProcessExit || s.StoppedAt == nil {
+		t.Fatalf("exit not reported: %+v", s)
+	}
+	if s.UDPReady || s.RevisionVerified || s.Ready {
+		t.Fatalf("an exited runtime must not look ready: %+v", s)
+	}
+	if list, err := m.Nodes(context.Background()); err != nil || list.LiveState != liveStateNotRunning {
+		t.Fatalf("an exited runtime must not be dialled: %+v %v", list, err)
+	}
+	f.exited.Store(false)
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatalf("an explicit start after an exit must not report already_running: %v", err)
+	}
+	if s := m.Status(); s.Runtime != RuntimeStarting || s.ErrorCode != "" || s.StopReason != "" {
+		t.Fatalf("a new start must clear the exit: %+v", s)
 	}
 }

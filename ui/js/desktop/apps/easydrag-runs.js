@@ -14,6 +14,8 @@
     // after 1, 2, 4, 8 and 16 s until it ended: a test run announces its end to no other window,
     // and the engine waits up to 30 s for a step that ignores the cancel.
     const STOP_POLL_MS = [1000, 2000, 4000, 8000, 16000];
+    // While a live run is parked behind a run view its stored state is asked every PARK_POLL_MS: its stream is closed, so it ends unseen.
+    const PARK_POLL_MS = 3000;
     // REDACTED is the server's placeholder for secret values in scrubbed test data.
     const REDACTED = '[redacted]';
     const EFFECT_ICONS = { sends_message: 'brand-telegram', writes_files: 'file-pencil', controls_devices: 'home', runs_code: 'api', deletes: 'trash', system_change: 'settings' };
@@ -135,6 +137,7 @@
         let failures = 0;
         // parked is a live run that a run view replaced; clearRun() attaches it again.
         let parked = null;
+        let parkTimer = 0;
         let drawer = null;
         let drawerOpener = null;
         let drawerFilter = 'all';
@@ -142,6 +145,10 @@
         let viewSeq = 0;
         let viewing = null;
         let disposed = false;
+
+        // noteStep records that a step of run changed (ed.run.changes): the canvas and the wires repaint
+        // only those steps on the next run event (F6). A run object without a log is repainted whole.
+        function noteStep(run, id) { if (run && Array.isArray(run.changes)) run.changes.push(id); }
 
         function setRun(next) {
             ed.run = next;
@@ -175,18 +182,33 @@
             if (source) { source.close(); source = null; }
         }
 
+        // failedSpoken holds the steps of the live run whose failure was announced: a step that
+        // reports again (the snapshot of a reconnect) is not announced twice. Steps that went well
+        // are not announced at all; the end of the run is (finish).
+        let failedSpoken = new Set();
+
+        function announceFailed(nodeId, step) {
+            if (!step || step.status !== 'error' || failedSpoken.has(nodeId)) return;
+            failedSpoken.add(nodeId);
+            const node = ed.model.node(nodeId);
+            const name = node ? (node.label || node.type) : step.node_key;
+            if (name) canvas.announce(t('easydrag.ui.announce_step_failed', { name }));
+        }
+
         // attach follows a live run. A run started while the run view shows a stored run (its
         // request answered after the view opened) must not paint over it: it is parked, and
         // clearRun() attaches it when the run view ends.
         function attach(runId, meta) {
             const mode = (meta && meta.mode) || 'test';
-            if (ed.runView) { parked = { id: runId, mode }; return; }
+            if (ed.runView) { parked = { id: runId, mode }; watchParked(); return; }
             closeStream();
             lastSeq = 0;
             retryDelay = RETRY_MS;
             failures = 0;
             parked = null;
-            setRun({ id: runId, status: 'queued', mode, steps: new Map(), record: null, error: '' });
+            clearTimeout(parkTimer);
+            failedSpoken = new Set();
+            setRun({ id: runId, status: 'queued', mode, steps: new Map(), changes: [], record: null, error: '' });
             connect(runId);
         }
 
@@ -206,7 +228,7 @@
                 if (!streamed(runId)) return;
                 ed.run.record = detail.run;
                 ed.run.status = detail.run.status;
-                (detail.steps || []).forEach(s => ed.run.steps.set(s.node_id, s));
+                (detail.steps || []).forEach(s => { ed.run.steps.set(s.node_id, s); noteStep(ed.run, s.node_id); announceFailed(s.node_id, s); });
                 setRun(ed.run);
             });
             es.addEventListener('event', (event) => {
@@ -259,14 +281,20 @@
             const status = Number(failure && failure.status) || 0;
             const code = core.errorCode(failure);
             if (failure && (status === 404 || status === 503 || code === 'FLOW_RUN_NOT_FOUND' || code === 'FLOWS_DISABLED')) {
-                closeStream();
-                ed.run.stale = true;
-                ed.run.error = core.errorText(t, failure);
-                setRun(ed.run);
-                ed.ctx.notify({ title: t('easydrag.ui.run_stream_lost'), message: ed.run.error, type: 'error' });
+                streamLost(failure);
                 return;
             }
             reconnectLater(runId);
+        }
+
+        // streamLost gives up following the run: its stored state cannot be had. isRunning ends
+        // (the run is stale) and the error is shown.
+        function streamLost(failure) {
+            closeStream();
+            ed.run.stale = true;
+            ed.run.error = core.errorText(t, failure);
+            setRun(ed.run);
+            ed.ctx.notify({ title: t('easydrag.ui.run_stream_lost'), message: ed.run.error, type: 'error' });
         }
 
         // isRunning: a live run is active (not a run view, not one whose stream was given up).
@@ -274,8 +302,8 @@
 
         function applyEvent(ev) {
             if (ev.type === 'run_started') ed.run.status = 'running';
-            else if (ev.type === 'step_started') ed.run.steps.set(ev.node_id, Object.assign({}, ed.run.steps.get(ev.node_id), { node_id: ev.node_id, status: 'running' }));
-            else if (ev.type === 'step_finished' && ev.step) ed.run.steps.set(ev.node_id, ev.step);
+            else if (ev.type === 'step_started') { ed.run.steps.set(ev.node_id, Object.assign({}, ed.run.steps.get(ev.node_id), { node_id: ev.node_id, status: 'running' })); noteStep(ed.run, ev.node_id); }
+            else if (ev.type === 'step_finished' && ev.step) { ed.run.steps.set(ev.node_id, ev.step); noteStep(ed.run, ev.node_id); announceFailed(ev.node_id, ev.step); }
             else if (ev.type === 'run_finished' && ev.run) {
                 ed.run.status = ev.run.status;
                 ed.run.error = ev.run.error_message || '';
@@ -287,20 +315,33 @@
 
         // finish loads the stored result of a run (known: a detail fetched already) and announces
         // it, once per run: "end" and a cancel that found the run finished may both get here. A
-        // run that another run (or a run view) replaced during the fetch is left alone.
+        // run that another run (or a run view) replaced during the fetch is left alone. When the
+        // fetch fails and the streamed state is not final, the run is not finished as far as the
+        // editor knows: finished is reset so that a later finish or probe can complete it, and the
+        // stream reconnects (backing off) to end again and ask again. After MAX_FAILURES failed
+        // fetches the run counts as lost.
         async function finish(runId, known) {
             const current = ed.run;
             if (!current || current.id !== runId || current.finished) return;
             current.finished = true;
             let detail = known || null;
+            let failure = null;
             if (!detail) {
-                try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; /* keep the streamed state */ }
+                try { detail = await ed.api.run(runId, false); } catch (err) { detail = null; failure = err; /* keep the streamed state */ }
             }
             if (disposed || ed.run !== current) return;
+            if (failure && !isFinal(current.status)) {
+                current.finished = false;
+                current.finishFailures = (current.finishFailures || 0) + 1;
+                if (current.finishFailures >= MAX_FAILURES) { streamLost(failure); return; }
+                retryDelay = Math.min(RETRY_MS * Math.pow(2, current.finishFailures - 1), RETRY_MAX_MS);
+                reconnectLater(runId);
+                return;
+            }
             if (detail && detail.run) {
                 current.record = detail.run;
                 current.status = detail.run.status;
-                (detail.steps || []).forEach(s => current.steps.set(s.node_id, s));
+                (detail.steps || []).forEach(s => { current.steps.set(s.node_id, s); noteStep(current, s.node_id); });
                 rememberRun(detail.run, detail.steps || []);
                 // The finished run is the last run now: the footer keeps naming it once the run
                 // state is cleared (leaving a run view), as after loadLast.
@@ -430,8 +471,14 @@
                 fx = pending(trigger.id);
             }
             if (o.quick && !fx.size && !unchecked(trigger.id) && ed.model.version === version) { await run(trigger.id, null, o.onlyNode, false); return undefined; }
+            // A rerun from the run view (o.data) starts from that run's trigger data instead of the
+            // stored sample. It runs as given even unchanged, and is not remembered unless ticked.
+            let prefilled = !!(o.data && typeof o.data === 'object' && !Array.isArray(o.data));
             let sample = {};
-            try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+            if (prefilled) sample = o.data;
+            else {
+                try { sample = (await ed.api.testData(ed.flow.id, trigger.id)).data || {}; } catch (err) { sample = {}; }
+            }
             if (disposed) return undefined;
             // The sample comes scrubbed (secret values read "[redacted]") and must never be saved
             // back: unchanged text runs without trigger_data, so the server uses the stored sample.
@@ -442,7 +489,8 @@
                     list.map(n => '<option value="' + esc(n.id) + '"' + (n.id === trigger.id ? ' selected' : '') + '>' + esc(n.label || n.type) + '</option>').join('') + '</select></label>' : '') +
                     '<label class="ed-label">' + esc(t('easydrag.ui.test_data')) + '<textarea class="ed-input ed-code" rows="9" spellcheck="false" data-ed-test-data>' + esc(shown) + '</textarea></label>' +
                     '<p class="ed-hint">' + esc(t('easydrag.ui.test_data_hint')) + '</p><p class="ed-error" role="alert" hidden></p>' +
-                    '<label class="ed-check"><input type="checkbox" data-ed-test-remember checked> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
+                    '<label class="ed-check"><input type="checkbox" data-ed-test-remember' + (prefilled ? '' : ' checked') + '> ' + esc(t('easydrag.ui.test_remember')) + '</label>' +
+                    (prefilled && shown.includes(REDACTED) ? '<p class="ed-callout ed-callout--warn" data-ed-rerun-redacted>' + core.icon('alert') + '<span>' + esc(t('easydrag.ui.rerun_redacted')) + '</span></p>' : '') +
                     (unchecked(trigger.id) ? uncheckedMarkup() : '') + effectsMarkup(fx),
                 actions: [{ id: 'cancel', label: t('easydrag.ui.cancel') }, { id: 'run', label: t('easydrag.ui.test_run'), primary: true, icon: 'play' }],
                 onAction: async (action, d) => {
@@ -459,7 +507,7 @@
                         return false;
                     }
                     const text = d.body.querySelector('[data-ed-test-data]').value;
-                    const edited = text !== shown;
+                    const edited = text !== shown || prefilled;
                     let data = null;
                     if (edited) {
                         try { data = JSON.parse(text || '{}'); } catch (e) { err.hidden = false; err.textContent = t('easydrag.ui.json_invalid'); return false; }
@@ -508,18 +556,28 @@
                     if (select.value !== id || area.value !== shown) return;
                     shown = JSON.stringify(next, null, 2);
                     area.value = shown;
+                    prefilled = false;
                 });
             }
             return dialog;
+        }
+
+        // baseRevision is the draft revision a test runs: the saver's (it saved just before) or the
+        // flow's. The server refuses the test with 409 when the draft moved on in another window.
+        function baseRevision() {
+            const rev = ed.saver && Number.isInteger(ed.saver.revision) ? ed.saver.revision : ed.flow && ed.flow.draft_revision;
+            return Number.isInteger(rev) && rev > 0 ? rev : 0;
         }
 
         function run(triggerNode, data, onlyNode, remember) {
             return trackStart(async () => {
                 try {
                     const body = { trigger_node: triggerNode, only_node: onlyNode || undefined, remember_data: !!remember };
+                    const rev = baseRevision();
+                    if (rev) body.base_revision = rev;
                     if (data) body.trigger_data = data;
                     const res = await ed.api.test(ed.flow.id, body);
-                    if (res && res.run_id && !disposed) attach(res.run_id, { mode: 'test' });
+                    if (res && res.run_id && !disposed) { attach(res.run_id, { mode: 'test' }); canvas.announce(t('easydrag.ui.announce_test_started')); }
                     return true;
                 } catch (err) {
                     ed.ctx.notify({ title: t('easydrag.ui.test_title'), message: core.errorText(t, err), type: 'error' });
@@ -533,7 +591,13 @@
             return trackStart(async () => {
                 try {
                     const res = await ed.api.runNow(ed.flow.id);
-                    if (res && res.run_id && !disposed) attach(res.run_id, { mode: 'live' });
+                    if (disposed) return;
+                    if (res && res.run_id) { attach(res.run_id, { mode: 'live' }); canvas.announce(t('easydrag.ui.announce_run_started')); return; }
+                    // Concurrency "skip" with a run still going: 202 {status: "skipped"} and no run to follow (runner.go Start).
+                    if (res && res.status === 'skipped') {
+                        ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: t('easydrag.ui.run_now_skipped') });
+                        canvas.announce(t('easydrag.ui.run_now_skipped'));
+                    }
                 } catch (err) {
                     ed.ctx.notify({ title: t('easydrag.ui.run_now'), message: core.errorText(t, err), type: 'error' });
                 }
@@ -580,6 +644,13 @@
                 if (on) b.setAttribute('aria-busy', 'true');
                 else b.removeAttribute('aria-busy');
                 b.classList.toggle('is-busy', !!on);
+                // The header's Stop is named after its text (its text is hidden on narrow headers):
+                // the name says "Stopping…" as long as the text does.
+                if (b.dataset.edCmd === 'cancel') {
+                    const name = on ? t('easydrag.ui.run_stopping') : t('easydrag.ui.run_cancel');
+                    b.setAttribute('aria-label', name);
+                    b.setAttribute('title', name);
+                }
                 const span = b.querySelector('span');
                 if (!span) return;
                 if (on) {
@@ -623,6 +694,31 @@
                 if (pending) setStopPending(record.id, false);
                 stopping.delete(record.id);
             }
+        }
+
+        // watchParked asks for the stored state of the parked live run every PARK_POLL_MS. Nothing else learns that
+        // it ended (its stream is closed). Once final it is released (hasParked drives the run view's Test again and
+        // the run-going note), becomes the last run, and the header repaints through the run event.
+        function watchParked() {
+            clearTimeout(parkTimer);
+            if (!parked || disposed) return;
+            const id = parked.id;
+            parkTimer = setTimeout(async () => {
+                let detail = null;
+                let gone = false;
+                try { detail = await ed.api.run(id, false); } catch (err) { gone = Number(err && err.status) === 404; }
+                if (disposed || !parked || parked.id !== id) return;
+                if (detail && detail.run && isFinal(detail.run.status)) {
+                    parked = null;
+                    rememberRun(detail.run, detail.steps || []);
+                    ed.bus.emit('last-run', detail.run);
+                    ed.bus.emit('run', ed.run);
+                    if (drawer) loadRuns(true);
+                    return;
+                }
+                if (gone) { parked = null; ed.bus.emit('run', ed.run); return; }
+                watchParked();
+            }, PARK_POLL_MS);
         }
 
         // followStop asks for a stopped run's stored state after STOP_POLL_MS[attempt] and refreshes
@@ -777,7 +873,7 @@
             drawerOpener = document.activeElement;
             drawer = core.el('<aside class="ed-drawer" aria-label="' + esc(t('easydrag.ui.runs_title')) + '"><header class="ed-drawer-head"><h3>' + esc(t('easydrag.ui.runs_title')) + '</h3>' +
                 '<button type="button" class="ed-icon-btn" data-ed-drawer-close aria-label="' + esc(t('easydrag.ui.close')) + '">' + core.icon('x') + '</button></header>' +
-                '<div class="ed-seg ed-seg--small" role="radiogroup">' + ['all', 'errors', 'tests', 'live'].map(f => '<button type="button" role="radio" aria-checked="' + (f === drawerFilter) + '" data-ed-runs-filter="' + f + '">' + esc(t('easydrag.ui.runs_filter_' + f)) + '</button>').join('') + '</div>' +
+                '<div class="ed-seg ed-seg--small" role="radiogroup" aria-label="' + esc(t('easydrag.ui.runs_filter_label')) + '">' + ['all', 'errors', 'tests', 'live'].map(f => '<button type="button" role="radio" aria-checked="' + (f === drawerFilter) + '" data-ed-runs-filter="' + f + '">' + esc(t('easydrag.ui.runs_filter_' + f)) + '</button>').join('') + '</div>' +
                 '<div class="ed-runs-list"></div></aside>');
             (ed.root.querySelector('.ed-body') || ed.root).appendChild(drawer);
             ed.root.classList.add('has-drawer');
@@ -809,7 +905,14 @@
             try {
                 const detail = await ed.api.run(runId, true);
                 if (disposed || mine !== viewSeq) return;
-                if (!detail.doc) { ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: t('easydrag.ui.run_view_missing'), type: 'error' }); return; }
+                if (!detail.doc) {
+                    // doc_missing (internal/flows RunDetail) tells a cleaned-up version from other gaps.
+                    const message = detail.doc_missing === 'version_pruned'
+                        ? t('easydrag.ui.run_view_pruned', { revision: (detail.run && detail.run.revision) || '?' })
+                        : t('easydrag.ui.run_view_missing');
+                    ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message, type: 'error' });
+                    return;
+                }
                 ed.enterRunView(detail);
             } catch (err) {
                 if (!disposed && mine === viewSeq) ed.ctx.notify({ title: t('easydrag.ui.runs_title'), message: core.errorText(t, err), type: 'error' });
@@ -821,14 +924,14 @@
         function stepsFrom(steps, record) {
             const map = new Map();
             (steps || []).forEach(s => map.set(s.node_id, s));
-            return { id: record.id, status: record.status, mode: record.mode, steps: map, record };
+            return { id: record.id, status: record.status, mode: record.mode, steps: map, changes: [], record };
         }
 
         // applyRunView shows a stored run in the run view, with its own data in the input tree
         // (ed.runView.data). A live run that is still going is parked: its stream closes, and
         // clearRun() (leaving the run view) attaches it again.
         function applyRunView(detail) {
-            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) parked = { id: ed.run.id, mode: ed.run.mode };
+            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) { parked = { id: ed.run.id, mode: ed.run.mode }; watchParked(); }
             closeStream();
             const shown = stepsFrom(detail.steps, detail.run);
             shown.view = true;
@@ -841,18 +944,20 @@
             closeStream();
             const back = parked;
             parked = null;
+            clearTimeout(parkTimer);
             if (back && !disposed) { attach(back.id, { mode: back.mode }); return; }
             setRun(null);
         }
 
         bag.add(closeStream);
+        bag.add(() => clearTimeout(parkTimer));
         bag.add(() => { stopPolls.forEach(clearTimeout); stopPolls.clear(); });
         bag.add(() => runFinished.cancel());
         bag.add(() => toggleDrawer(false));
 
         return {
             startTest, attach, runLive, cancel, stopRun, refreshShown, runFinished, loadLast, toggleDrawer, openRunView, effects, stepsFrom, applyRunView, clearRun,
-            isRunning,
+            isRunning, hasParked: () => !!parked,
             drawerOpen: () => !!drawer,
             dispose() { disposed = true; parked = null; bag.dispose(); }
         };

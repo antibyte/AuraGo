@@ -67,7 +67,7 @@ func (s *Service) SetAutoUpdate(key string, settings AutoUpdateSettings) (Case, 
 	} else if (!wasEnabled || intervalChanged) && !activeStatus(c.Run.Status) {
 		c.AutoUpdate.Error = ""
 		c.AutoUpdate.Outcome = "scheduled"
-		if c.LatestRevision > 0 && len(c.Reports) > 0 && !c.Reports[len(c.Reports)-1].Partial {
+		if c.completeRevision() > 0 {
 			c.AutoUpdate.NextRunAt = s.now().UTC().Add(time.Duration(settings.IntervalHours) * time.Hour)
 		}
 	}
@@ -80,7 +80,7 @@ func (s *Service) SetAutoUpdate(key string, settings AutoUpdateSettings) (Case, 
 }
 
 func nextUpdate(c *Case, now time.Time) {
-	if c.AutoUpdate.Enabled && c.LatestRevision > 0 {
+	if c.AutoUpdate.Enabled && c.completeRevision() > 0 {
 		c.AutoUpdate.NextRunAt = now.UTC().Add(time.Duration(c.AutoUpdate.IntervalHours) * time.Hour)
 	} else {
 		c.AutoUpdate.NextRunAt = time.Time{}
@@ -96,7 +96,7 @@ func (s *Service) queueDueLocked() error {
 	err := s.db.QueryRow(`SELECT id FROM detective_cases
 WHERE json_extract(body,'$.auto_update.enabled')=1 AND status NOT IN ('queued','running','waiting_for_user')
 AND ((status='interrupted' AND json_extract(body,'$.run.automatic')=1 AND json_extract(body,'$.run.reason') IN ('server_restart','server_shutdown'))
-OR (NULLIF(json_extract(body,'$.auto_update.next_run_at'),'0001-01-01T00:00:00Z')<=? AND json_extract(body,'$.latest_revision')>0))
+OR (NULLIF(json_extract(body,'$.auto_update.next_run_at'),'0001-01-01T00:00:00Z')<=? AND COALESCE(NULLIF(json_extract(body,'$.latest_complete_revision'),0), json_extract(body,'$.latest_revision'))>0))
 ORDER BY updated LIMIT 1`, s.now().UTC().Format(time.RFC3339Nano)).Scan(&key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -133,6 +133,7 @@ func (x *Session) Checked() error {
 }
 
 func (x *Session) NoChanges() error {
+	var topic string
 	err := x.update(func(c *Case) error {
 		if !c.Run.Automatic || !activeStatus(c.Run.Status) || x.published {
 			return ErrConflict
@@ -146,6 +147,7 @@ func (x *Session) NoChanges() error {
 		c.Run.Status, c.Run.Phase, c.Run.Reason = "completed", "finished", "no_changes"
 		c.AutoUpdate.LastCheckedAt = x.service.now().UTC()
 		c.AutoUpdate.Outcome, c.AutoUpdate.Error = "no_changes", ""
+		topic = c.Request.Topic
 		nextUpdate(c, x.service.now())
 		return nil
 	})
@@ -154,6 +156,7 @@ func (x *Session) NoChanges() error {
 		x.published = true
 		x.service.mu.Unlock()
 		x.Event("auto_update", "no_changes")
+		x.service.notify("info", x.CaseID, "Detective: no new information", topic)
 	}
 	return err
 }

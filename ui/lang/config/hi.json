@@ -1,4 +1,11 @@
 {
+  "config.telephone_agent.catalog_unavailable": "सूचियाँ अस्थायी रूप से उपलब्ध नहीं हैं। सहेजे गए चयन बने रहते हैं।",
+  "config.telephone_agent.tool_unavailable": "टूल उपलब्ध नहीं है",
+  "config.telephone_agent.language_auto": "स्वचालित",
+  "config.telephone_agent.blocker.outbound_destinations_empty": "आउटगोइंग कॉल के लिए कोई अनुमत नंबर या उपयोगकर्ता सेट नहीं है।",
+  "config.sip.telephone_profile_preserved": "तुम्हारे टेलीफ़ोन एजेंट की सेटिंग और कॉल उठाने का विलंब सुरक्षित रहते हैं।",
+  "config.decisions.docker_api_too_old": "नामित वॉल्यूम की उपनिर्देशिकाओं के लिए Docker Engine 26 (API 1.45) या नया संस्करण चाहिए। Docker अपडेट करो या होस्ट फ़ोल्डर का उपयुक्त बाइंड माउंट इस्तेमाल करो।",
+  "config.decisions.runtime_score_timeout": "मूल्यांकन दो मिनट की सीमा तक पहुँच गया। सेवा अगले मूल्यांकन के लिए उपलब्ध है।",
   "config.decisions.local_setup": "स्थानीय मॉडल तैयार करें",
   "config.decisions.local_server_help": "मॉडल उसी कंप्यूटर पर चलता है जहाँ AuraGo स्थापित है। संगत ग्राफ़िक्स कार्ड को प्राथमिकता दी जाती है।",
   "config.decisions.advanced": "चलाने का तरीका और CPU की अनुमति",

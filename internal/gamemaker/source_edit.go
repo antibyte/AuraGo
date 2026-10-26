@@ -77,6 +77,12 @@ func (s *Service) ReadJobSource(ctx context.Context, jobID, path string, maxByte
 func (s *Service) WriteJobFileChecked(ctx context.Context, jobID, path, content, expected string) (SourceWrite, error) {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
+	// Adapt-mode jobs must edit the installed starter, not replace it. The
+	// rejection is a plain tool error: replace/replace_many, new files under src/
+	// and the blank base stay available, and no repair pass is consumed.
+	if err := s.adaptWriteRejected(ctx, jobID, path); err != nil {
+		return SourceWrite{}, err
+	}
 	if expected != "" {
 		old, err := s.ReadJobFile(ctx, jobID, path)
 		if err != nil {

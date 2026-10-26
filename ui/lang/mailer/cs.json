@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "Odesláno",
   "mailer.outbox_unknown": "Stav doručení není znám",
   "mailer.partial_action": "Některé zprávy se změnily. Seznam byl obnoven; před dalším pokusem zkontroluj zbývající zprávy.",
+  "mailer.participants_count": "{count} účastníků",
   "mailer.password": "Heslo",
   "mailer.preview_rule": "Náhled pravidla",
   "mailer.print": "Tisknout",

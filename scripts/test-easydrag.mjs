@@ -9,6 +9,11 @@
 // elsewhere, the shared state words, pans, the saver's emergency copy, run views and focus.
 // The a1008 checks (test-easydrag-extra6.mjs) run the editor findings of the 2026-10-08 audit on
 // the c1d07 sandbox.
+// The a1023 and a1023b checks (test-easydrag-extra7.mjs) run the editor fixes and the accessibility
+// fixes of the 2026-10-23 audit on the c1d07 sandbox.
+// The a1025 checks (test-easydrag-live-state.mjs) run the 2026-10-25 audit's editor fixes on the c1d07 sandbox.
+// The b5 checks (test-easydrag-ux-batch5.mjs) run fix batch 5 of 2026-10-25 (editor UX, accessibility,
+// i18n, run-event rendering) on the c1d07 sandbox.
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -215,6 +220,19 @@ guard('c1d02 merge fields', () => {
     mm.connect(branch, 'true', merge2, 'in');
     mm.connect(branch, 'false', merge2, 'in');
     eq('c1d02 merge skips duplicate upstream nodes', mm.fieldsOf(mm.node(merge2)).map(f => f.name), ['wenn']);
+});
+guard('fb4 home assistant fields', () => {
+    // home.assistant fields follow the operation (homeAssistantFields in internal/flows/catalog_actions_home.go).
+    const haTypes = new Map(types);
+    haTypes.set('home.assistant', { type: 'home.assistant', label: 'Home Assistant', inputs: ['in'], outputs: ['out'], dynamic_fields: 'operation',
+        params: [{ name: 'operation', kind: 'segmented', default: 'call_service' }], output_fields: [{ name: 'ok', type: 'bool', primary: true }] });
+    const hm = M.create({ schema: 1, name: 'HA', nodes: [], edges: [] }, { types: haTypes });
+    const ha = hm.addNode('home.assistant', { x: 0, y: 0 });
+    eq('fb4 call_service fields', hm.fieldsOf(hm.node(ha)).map(f => f.name), ['ok', 'service', 'affected_entities']);
+    hm.setParam(ha, 'operation', 'get_state');
+    eq('fb4 get_state fields', hm.fieldsOf(hm.node(ha)), [{ name: 'state', type: 'text', primary: true }, { name: 'attributes', type: 'object' }, { name: 'entity_id', type: 'text' }, { name: 'last_changed', type: 'text' }]);
+    hm.setParam(ha, 'operation', '{{trigger.data.op}}');
+    eq('fb4 templated operation lists every field', hm.fieldsOf(hm.node(ha)).map(f => f.name), ['state', 'attributes', 'entity_id', 'last_changed', 'ok', 'service', 'affected_entities']);
 });
 guard('c1d02 filters', () => {
     // Preview filters follow the Go engine (internal/flows/filters.go); the expectations are Go's results.
@@ -1092,6 +1110,18 @@ await (await import('./test-easydrag-extra5.mjs')).run({ apps, types, t, miniDom
 // ── a1008: audit 2026-10-08, the editor findings (test-easydrag-extra6.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-extra6.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor,
     desktopMenus: editorHarness.desktopMenus });
+
+// ── a1023, a1023b: audit 2026-10-23, editor fixes and accessibility (test-easydrag-extra7.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-extra7.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
+
+// ── a1025: audit 2026-10-25, republish and timer state (test-easydrag-live-state.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-live-state.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
+
+// ── a1025: audit 2026-10-25, key-value editor (test-easydrag-kv-editor.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-kv-editor.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
+
+// ── b5: fix batch 5, editor UX, accessibility and i18n (test-easydrag-ux-batch5.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
 
 // ── start page preview and shortcut table ──
 const H = ED.home;

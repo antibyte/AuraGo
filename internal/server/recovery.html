@@ -5,9 +5,10 @@
 :root{font:16px/1.55 system-ui,sans-serif;color-scheme:light dark;background:#f0f3f6;color:#1c2938}*{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px}main{width:min(100%,580px);padding:32px;border:1px solid #9aabb844;border-radius:20px;background:#ffffff}header{font-weight:700;letter-spacing:.08em;color:#287579}h1{font-size:1.65rem;line-height:1.25}p{color:#536271}button,input{font:inherit;border-radius:8px;border:1px solid #80939c;padding:10px 14px}button{background:#226c71;color:white;cursor:pointer}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #29a1ad;outline-offset:3px}input{width:100%;margin:4px 0 16px;background:transparent;color:inherit}label{display:block}pre{padding:14px;background:#e8edf1;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}small{overflow-wrap:anywhere;display:block;color:#667887}.actions{display:flex;gap:10px;flex-wrap:wrap}[hidden]{display:none!important}#status{min-height:1.6em}@media(prefers-color-scheme:dark){:root{background:#10191e;color:#e3edf3}main{background:#19252c}p,small{color:#a6b9c5}pre{background:#111d24}}@media(max-width:420px){body{padding:12px}main{padding:22px}}
 </style>
 <main><header>AURAGO</header><h1 id="title"></h1><p id="description"></p>
-<form id="login" hidden><label><span id="passwordLabel"></span><input name="password" type="password" autocomplete="current-password" required></label><label id="totpLabel" hidden><span id="codeLabel"></span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label><button id="loginButton" type="submit"></button></form>
+<form id="login" hidden><label><span id="passwordLabel"></span><input name="password" type="password" autocomplete="current-password" required></label><label id="totpLabel" hidden><span id="codeLabel"></span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label><p id="passkeyHint" hidden></p><div class="actions"><button id="loginButton" type="submit"></button><button id="passkeyButton" type="button" hidden></button><button id="passkeyCancel" type="button" hidden>×</button></div></form>
 <section id="repair"><small id="version"></small><p id="offline"></p><pre id="command"></pre><div class="actions"><button id="download" type="button"></button><button id="restart" type="button" hidden></button><button id="reload" type="button"></button></div></section>
 <p id="status" role="status" aria-live="polite"></p></main>
+<script>{{.WebAuthnClient}}</script>
 <script>
 (() => {
 'use strict';
@@ -32,6 +33,9 @@ sv:['Webbgränssnittets filer','Installera paketet som matchar programmet för a
 zh:['网页界面资源','安装与此程序匹配的资源包，即可打开聊天、设置和桌面。','下载资源','离线：导入对应版本的归档文件，然后重启 AuraGo。','重启 AuraGo','登录','密码','身份验证代码','请稍候…','资源已安装。请重启 AuraGo。','操作失败。请检查登录信息或服务器日志。','刷新']
 };
 const t = translations[document.documentElement.lang] || translations.en;
+const waText = {{.WebAuthnStrings}};
+const waMessage = error => waText[AuraWebAuthn.errorKey(error)] || waText['webauthn.failed'];
+let authStatus = null, loginPending = false, passkeyController = null;
 const el = id => document.getElementById(id);
 const login = location.pathname === '/auth/login';
 for (const [id, index] of Object.entries({title:login?5:0,description:1,download:2,offline:3,restart:4,loginButton:5,passwordLabel:6,codeLabel:7,reload:11})) el(id).textContent = t[index];
@@ -67,12 +71,41 @@ async function post(url, body) {
  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
  if (!r.ok) throw new Error(); return r.json();
 }
+function loginBusy(pending) {
+ loginPending=pending; el('loginButton').disabled=pending; el('passkeyButton').disabled=pending||!AuraWebAuthn.available();
+ el('passkeyCancel').hidden=!pending||!passkeyController;
+}
 el('login').addEventListener('submit',async event=>{
- event.preventDefault(); el('loginButton').disabled=true; el('status').textContent=t[8];
+ event.preventDefault(); if(loginPending)return;
+ if(authStatus?.webauthn_enabled && !authStatus.password_login_available){el('passkeyButton').click();return;}
+ loginBusy(true); el('status').textContent=t[8];
  try { await post('/auth/login',{password:el('login').elements.password.value,totp_code:el('login').elements.code.value,redirect:'/'}); location.replace('/'); }
- catch { el('status').textContent=t[10]; el('loginButton').disabled=false; }
+ catch { el('status').textContent=t[10]; }
+ finally { loginBusy(false); }
 });
-if (login) { el('login').elements.password.focus(); fetch('/api/auth/status').then(r=>r.json()).then(a=>{el('totpLabel').hidden=!a.totp_enabled; el('login').elements.code.required=!!a.totp_enabled;}).catch(()=>{}); }
+el('passkeyButton').addEventListener('click',async()=>{
+ if(loginPending)return;
+ if(authStatus?.webauthn_mode==='second_factor'&&!el('login').elements.password.reportValidity())return;
+ passkeyController=new AbortController();loginBusy(true);el('status').textContent=t[8];
+ try {
+  await AuraWebAuthn.login(el('login').elements.password.value,'/',passkeyController.signal);
+  const status=await fetch('/api/auth/status',{credentials:'same-origin',cache:'no-store',signal:passkeyController.signal}).then(r=>r.json());
+  if(!status.authenticated)throw new Error('Session confirmation failed');
+  location.replace('/');
+ } catch(error){el('status').textContent=waMessage(error);}
+ finally {passkeyController=null;loginBusy(false);el('passkeyButton').focus();}
+});
+el('passkeyCancel').addEventListener('click',()=>passkeyController?.abort());
+window.addEventListener('pagehide',()=>passkeyController?.abort());
+if (login) { el('login').elements.password.focus(); fetch('/api/auth/status',{cache:'no-store'}).then(r=>r.json()).then(a=>{
+ authStatus=a;el('totpLabel').hidden=!a.totp_enabled;el('login').elements.code.required=!!a.totp_enabled;
+ el('loginButton').hidden=a.password_login_available===false;
+ el('passkeyButton').hidden=!a.webauthn_enabled;el('passkeyButton').disabled=!AuraWebAuthn.available();
+ el('passkeyButton').textContent=waText[a.webauthn_mode==='second_factor'?'webauthn.login_second_factor':'webauthn.login_passkey'];
+ el('passkeyHint').hidden=!a.webauthn_enabled;
+ el('passkeyHint').textContent=waText[!AuraWebAuthn.available()?'webauthn.unsupported':a.webauthn_mode==='second_factor'?'webauthn.second_factor_hint':'webauthn.passkey_hint'];
+ el('passkeyCancel').setAttribute('aria-label',waText['common.btn_cancel']);
+}).catch(()=>{}); }
 el('download').addEventListener('click',async()=>{
  el('download').disabled=true; el('status').textContent=t[8];
  try { await post('/api/assets/install'); el('status').textContent=t[9]; el('restart').hidden=false; el('restart').focus(); }

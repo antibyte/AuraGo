@@ -5444,6 +5444,13 @@
     overflow: visible;
 }
 
+/* Shared theme images retain the existing decorative icon boxes and hit targets. */
+.vd-theme-image-icon { background-image: none !important; display: inline-flex; align-items: center; justify-content: center; }
+.vd-theme-image { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.vd-theme-image[hidden], .vd-theme-image-fallback[hidden] { display: none !important; }
+.vd-theme-image-fallback { font: 700 0.7em/1 system-ui, sans-serif; color: currentColor; }
+.vd-mini-themed-icon { flex-shrink: 0; filter: none !important; }
+
 /* ui/css/desktop-widgets.css */
 /* desktop-widgets.css — widgets, widget manager, quickchat */
 
@@ -11238,6 +11245,58 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.38));
 }
 
+/* ui/css/desktop-wallpaper-themes.css */
+/* Locally packaged theme artwork also remains selectable independently of the skin. */
+.desktop-body[data-wallpaper="electronic_dreams"] {
+    background: #0e2520 url('/img/wallpapers/themes/electronic_dreams.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="windows_xp"] {
+    background: #5c9ee9 url('/img/wallpapers/themes/windows_xp.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="green_slime"] {
+    background: #233815 url('/img/wallpapers/themes/green_slime.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="voxel_world"] {
+    background: #bfe2ff url('/img/wallpapers/themes/voxel_world.png') center / cover no-repeat fixed;
+}
+.desktop-body:is([data-wallpaper="electronic_dreams"], [data-wallpaper="windows_xp"], [data-wallpaper="green_slime"]) .vd-icon-label {
+    color: #fff;
+    background: rgba(16, 25, 19, .66);
+    text-shadow: 0 1px 2px #142018;
+}
+/* Voxel World labels over the bright isle: a square dark plate, white text with a hard 1 px shadow. */
+.desktop-body[data-wallpaper="voxel_world"] .vd-icon-label {
+    color: #fff;
+    background: rgba(18, 18, 18, .62);
+    border-radius: 0;
+    text-shadow: 1px 1px 0 #000;
+}
+/* Orbit: the poster (a render of the still scene) shows while the live scene loads and wherever WebGL is unavailable; the
+   scene host fades in over it. Cool labels on a dark glass plate. */
+.desktop-body[data-wallpaper="orbit"] {
+    background: #03040c url('/img/wallpapers/themes/orbit.png') center / cover no-repeat fixed;
+}
+.desktop-body[data-wallpaper="orbit"] .vd-icon-label {
+    color: #eaf6ff;
+    background: rgba(6, 10, 26, .62);
+    text-shadow: 0 1px 2px #000;
+}
+/* Minimal: paper or graphite with one barely visible light, following the colour scheme. */
+.desktop-body[data-wallpaper="minimal"] {
+    background: #f1f0eb radial-gradient(130% 100% at 50% 32%, #f9f8f5 0%, #f2f1ec 58%, #ebeae4 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] {
+    background: #0f0f0f radial-gradient(130% 100% at 50% 32%, #1a1a1a 0%, #121212 58%, #0c0c0c 100%) fixed;
+}
+.desktop-body[data-wallpaper="minimal"] .vd-icon-label {
+    color: #161616;
+    background: transparent;
+    text-shadow: none;
+}
+.desktop-body[data-wallpaper="minimal"][data-scheme="dark"] .vd-icon-label {
+    color: #ededed;
+}
+
 /* ui/css/desktop-theme-amiga.css */
 /* desktop-theme-amiga.css - Amiga Workbench 3.1 desktop skin (theme id "amiga").
    Four pens: grey 0 #aaaaaa, black 1 #000000, white 2 #ffffff, blue 3 #6688bb. Square, opaque, bevelled, no motion.
@@ -15132,6 +15191,2756 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     }
 }
 
+/* ui/css/desktop-theme-electronic-dreams.css */
+/* Electronic Dreams: a quiet graphite PCB desktop with copper traces and instrument lights. */
+.desktop-body[data-theme="electronic_dreams"] {
+    color-scheme: dark;
+    --vd-bg: #0a1413;
+    --vd-surface: #14211f;
+    --vd-surface-strong: #1b2c28;
+    --vd-border: #496158;
+    --vd-border-bright: #789184;
+    --vd-text: #edf4ee;
+    --vd-muted: #bdcbbf;
+    --vd-shadow: 0 18px 48px rgba(0, 0, 0, .58);
+    --vd-shadow-window: 0 24px 68px rgba(0, 0, 0, .7), 0 0 0 1px rgba(213, 151, 54, .14);
+    --vd-inner-glow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    --vd-window-radius: 8px;
+    --vd-font-ui: 'Inter', 'Geist', system-ui, sans-serif;
+    --vd-accent: #e6a83a;
+    --vd-accent-r: 230;
+    --vd-accent-g: 168;
+    --vd-accent-b: 58;
+    --vd-accent-glow: rgba(230, 168, 58, .2);
+    --vd-accent-contrast: #20170b;
+    --vd-theme-app-bg: #101c1a;
+    --vd-theme-panel-bg: #192723;
+    --vd-theme-panel-bg-strong: #1e302b;
+    --vd-theme-chrome-bg: #14221f;
+    --vd-theme-overlay-bg: rgba(2, 8, 7, .78);
+    --vd-theme-control-bg: #1a2a25;
+    --vd-theme-control-hover: #263a33;
+    --vd-theme-border: #43594f;
+    --vd-theme-border-strong: #698170;
+    --vd-theme-muted: #bdcbbf;
+    --vd-theme-accent-soft: rgba(230, 168, 58, .17);
+    --vd-theme-accent-border: rgba(230, 168, 58, .55);
+    --vd-theme-radius-panel: 8px;
+    --vd-theme-radius-modal: 10px;
+    --vd-theme-shadow-panel: 0 14px 36px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255, 255, 255, .05);
+    --vd-theme-shadow-modal: 0 26px 72px rgba(0, 0, 0, .68), inset 0 1px 0 rgba(255, 255, 255, .06);
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 255, 255, .07);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(230, 168, 58, .12);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(211, 126, 56, .66), rgba(230, 168, 58, .86), transparent);
+    --ds-color-fg-primary: #edf4ee;
+    --ds-color-fg-secondary: #d2ded4;
+    --ds-color-fg-muted: #bdcbbf;
+    --ds-color-fg-disabled: #85958a;
+    --ds-color-bg-canvas: #0a1413;
+    --ds-color-bg-raised: #14211f;
+    --ds-color-bg-overlay: #1b2c28;
+    --ds-color-bg-modal: #20332d;
+    --ds-color-surface-0: #101c1a;
+    --ds-color-surface-1: #14221f;
+    --ds-color-surface-2: #192723;
+    --ds-color-surface-3: #20332d;
+    --ds-color-border-subtle: #354b42;
+    --ds-color-border-default: #496158;
+    --ds-color-border-strong: #698170;
+    --ds-color-border-focus: #e6a83a;
+    --ds-color-accent-500: #e6a83a;
+    --ds-color-accent-600: #c7832c;
+    --ds-color-accent-glow: rgba(230, 168, 58, .2);
+    --ds-color-control-active: #33463a;
+    --ds-color-inner-highlight: rgba(255, 255, 255, .07);
+    --ds-elevation-1: 0 2px 5px rgba(0, 0, 0, .3);
+    --ds-elevation-2: 0 5px 14px rgba(0, 0, 0, .36);
+    --ds-elevation-3: 0 12px 28px rgba(0, 0, 0, .44);
+    --ds-elevation-4: 0 22px 52px rgba(0, 0, 0, .56);
+    --ds-elevation-5: 0 32px 72px rgba(0, 0, 0, .64);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+}
+
+.desktop-body[data-theme="electronic_dreams"] .vd-taskbar {
+    border: 1px solid #4b6155;
+    border-bottom: 0;
+    background: linear-gradient(180deg, #263831 0%, #172621 20%, #101b18 100%);
+    box-shadow: 0 -1px 0 rgba(232, 173, 87, .46), 0 -12px 32px rgba(0, 0, 0, .26);
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-taskbar::before {
+    background: linear-gradient(90deg, transparent, #b1743d 12%, #e1a34a 50%, #b1743d 88%, transparent);
+    opacity: .8;
+}
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand, .vd-window-menu-button) {
+    border: 1px solid #43594e;
+    border-radius: 5px;
+    background: linear-gradient(180deg, rgba(52, 72, 62, .9), rgba(24, 39, 33, .96));
+    color: #eaf1e9;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 2px #0008;
+}
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand, .vd-window-menu-button):hover {
+    border-color: #b4773f;
+    background: linear-gradient(180deg, #3a5144, #20332a);
+    color: #fff2d9;
+}
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-task-button, .vd-taskbar-pin)[aria-pressed="true"],
+.desktop-body[data-theme="electronic_dreams"] .vd-task-button.active {
+    border-color: #d79743;
+    box-shadow: inset 0 0 0 1px rgba(230, 168, 58, .18), 0 0 10px rgba(230, 168, 58, .12);
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window {
+    border: 1px solid #64766a;
+    border-radius: 8px;
+    background: #14211f;
+    box-shadow: var(--vd-shadow-window);
+    overflow: hidden;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window.active { border-color: #d59a4c; }
+.desktop-body[data-theme="electronic_dreams"] .vd-window:not(.no-titlebar) {
+    grid-template-rows: auto minmax(0, 1fr);
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window-titlebar {
+    position: relative;
+    height: 66px;
+    min-height: 66px;
+    padding-bottom: 24px;
+    background:
+        repeating-linear-gradient(0deg, transparent 0 5px, #8cb66a08 5px 6px),
+        linear-gradient(170deg, #345b3e, #152c20 58%, #0c2117);
+    border-bottom: 1px solid #506358;
+    color: #f2f4e8;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window.has-window-menu .vd-window-titlebar {
+    height: 94px;
+    padding-bottom: 24px;
+}
+@media (max-width: 767px), (pointer: coarse) {
+    .desktop-body[data-theme="electronic_dreams"] .vd-window-titlebar { height: 76px; }
+    .desktop-body[data-theme="electronic_dreams"] .vd-window.has-window-menu .vd-window-titlebar {
+        height: 108px;
+        grid-template-rows: 52px 32px;
+    }
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window-titlebar::before {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    left: 8px;
+    right: 8px;
+    height: 20px;
+    pointer-events: none;
+    opacity: .55;
+    background:
+        radial-gradient(circle, #e6a83a 0 1.7px, transparent 2.2px) 0 1px / 5px 5px no-repeat,
+        linear-gradient(90deg, #b1743d, rgba(177, 116, 61, .25)) 4px 3px / 43px 1px no-repeat,
+        linear-gradient(0deg, #b1743d, #b1743d) 47px 3px / 1px 7px no-repeat,
+        linear-gradient(90deg, #b1743d, #d1954e) 47px 10px / 54px 1px no-repeat,
+        radial-gradient(circle, #62c7ae 0 1.5px, transparent 2px) 98px 8px / 5px 5px no-repeat,
+        linear-gradient(0deg, #62c7ae, #62c7ae) 100px 3px / 1px 6px no-repeat,
+        linear-gradient(90deg, rgba(98, 199, 174, .2), #62c7ae) 101px 3px / 46px 1px no-repeat,
+        radial-gradient(circle, #d59a4c 0 1.5px, transparent 2px) calc(100% - 5px) 1px / 5px 5px no-repeat;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window-titlebar::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #af7040, #e6a83a 30%, transparent 74%);
+    opacity: .78;
+    pointer-events: none;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window-button {
+    border: 1px solid #52665a;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #34473e, #1b2c25);
+    color: #dbe6d9;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-window-button:hover { background: #40564a; color: #fff; }
+.desktop-body[data-theme="electronic_dreams"] .vd-window-button[data-action="close"]:hover { background: #8a4533; border-color: #d08053; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-menubar, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu) {
+    border-color: #485e52;
+    background: #1a2a25;
+    color: #edf4ee;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .5), inset 0 1px rgba(255, 255, 255, .04);
+}
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category):is(:hover, :focus-visible, [aria-selected="true"]) {
+    background: #293d33;
+    color: #fff1cf;
+    outline-color: #e6a83a;
+}
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) {
+    border-color: #64766a;
+    background: #1b2c27;
+    color: #edf4ee;
+    box-shadow: var(--vd-theme-shadow-modal);
+}
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) {
+    border: 1px solid #506459;
+    border-radius: 5px;
+    background: #101d19;
+    color: #f2f5ef;
+}
+.desktop-body[data-theme="electronic_dreams"] .vd-button:hover { border-color: #d49a4e; background: #293d33; }
+.desktop-body[data-theme="electronic_dreams"] .vd-button-primary { border-color: #d39338; background: #e6a83a; color: #20170b; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 12px; height: 12px; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { background: #101c19; border: 1px solid #2e433a; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #101c19; border-radius: 5px; background: #536c5c; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: #bd8442; }
+.desktop-body[data-theme="electronic_dreams"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #f1b84f; outline-offset: 2px; }
+.desktop-body[data-theme="electronic_dreams"] ::selection { background: #d99338; color: #1d160d; }
+.desktop-body[data-theme="electronic_dreams"]:not([data-animations="false"]) .vd-window-titlebar::after { animation: vd-theme-electronic-dreams-signal 8s ease-in-out infinite; }
+@keyframes vd-theme-electronic-dreams-signal {
+    0%, 72%, 100% { opacity: .56; }
+    78%, 88% { opacity: 1; }
+}
+@media (pointer: coarse) {
+    .desktop-body[data-theme="electronic_dreams"] .vd-start-button { min-height: 44px; }
+    .desktop-body[data-theme="electronic_dreams"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }
+}
+
+/* ui/css/desktop-theme-windows-xp.css */
+/* Windows XP: Luna-inspired blue title gradients, a green Start button and warm control surfaces. */
+.desktop-body[data-theme="windows_xp"] {
+    color-scheme: light;
+    --vd-bg: #b7c9e4;
+    --vd-surface: #ece9d8;
+    --vd-surface-strong: #fffdf6;
+    --vd-border: #8298b5;
+    --vd-border-bright: #ffffff;
+    --vd-text: #1c2d45;
+    --vd-muted: #435873;
+    --vd-shadow: 0 12px 30px rgba(26, 54, 94, .24);
+    --vd-shadow-window: 0 18px 40px rgba(20, 48, 89, .3), 0 0 0 1px rgba(255, 255, 255, .6);
+    --vd-inner-glow: inset 0 1px 0 #ffffff;
+    --vd-window-radius: 3px;
+    --vd-font-ui: Tahoma, 'Segoe UI', Arial, sans-serif;
+    --vd-accent: #1d5faf;
+    --vd-accent-r: 29;
+    --vd-accent-g: 95;
+    --vd-accent-b: 175;
+    --vd-accent-glow: rgba(31, 100, 188, .16);
+    --vd-accent-contrast: #ffffff;
+    --vd-theme-app-bg: #ece9d8;
+    --vd-theme-panel-bg: #f1efe2;
+    --vd-theme-panel-bg-strong: #fffdf6;
+    --vd-theme-chrome-bg: #d8e6f8;
+    --vd-theme-overlay-bg: rgba(27, 52, 89, .34);
+    --vd-theme-control-bg: #ffffff;
+    --vd-theme-control-hover: #e9f1fc;
+    --vd-theme-border: #9aaec8;
+    --vd-theme-border-strong: #6685ae;
+    --vd-theme-muted: #435873;
+    --vd-theme-accent-soft: rgba(29, 95, 175, .12);
+    --vd-theme-accent-border: rgba(29, 95, 175, .45);
+    --vd-theme-radius-panel: 3px;
+    --vd-theme-radius-modal: 3px;
+    --vd-theme-shadow-panel: 0 10px 26px rgba(22, 54, 99, .2), inset 0 1px 0 #fff;
+    --vd-theme-shadow-modal: 0 20px 48px rgba(20, 48, 91, .3), inset 0 1px 0 #fff;
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 255, 255, .9);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(41, 91, 158, .22);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #fff 18%, #a7cafa 50%, #fff 82%, transparent);
+    --ds-color-fg-primary: #1c2d45;
+    --ds-color-fg-secondary: #344a65;
+    --ds-color-fg-muted: #435873;
+    --ds-color-fg-disabled: #78869a;
+    --ds-color-bg-canvas: #dce7f5;
+    --ds-color-bg-raised: #ece9d8;
+    --ds-color-bg-overlay: #f1efe2;
+    --ds-color-bg-modal: #fffdf6;
+    --ds-color-surface-0: #ece9d8;
+    --ds-color-surface-1: #f1efe2;
+    --ds-color-surface-2: #dce6f4;
+    --ds-color-surface-3: #fffdf6;
+    --ds-color-border-subtle: #bfcbdb;
+    --ds-color-border-default: #9aaec8;
+    --ds-color-border-strong: #6685ae;
+    --ds-color-border-focus: #1d5faf;
+    --ds-color-accent-500: #1d5faf;
+    --ds-color-accent-600: #164a8d;
+    --ds-color-accent-glow: rgba(29, 95, 175, .16);
+    --ds-color-control-active: #d1def0;
+    --ds-color-inner-highlight: #ffffff;
+    --ds-elevation-1: 0 1px 3px rgba(34, 62, 99, .12);
+    --ds-elevation-2: 0 4px 10px rgba(34, 62, 99, .16);
+    --ds-elevation-3: 0 10px 24px rgba(34, 62, 99, .2);
+    --ds-elevation-4: 0 20px 42px rgba(34, 62, 99, .24);
+    --ds-elevation-5: 0 28px 60px rgba(34, 62, 99, .3);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+    --vd-taskbar-height: 40px;
+    --vd-start-button-size: 40px;
+    --vd-xp-title-height: 30px;
+    --vd-xp-menu-height: 26px;
+}
+
+.desktop-body[data-theme="windows_xp"] .vd-taskbar {
+    border: 1px solid #2c5ca8;
+    border-bottom: 0;
+    background: linear-gradient(180deg, #4a92f0 0%, #2874d8 24%, #155ab9 65%, #08408c 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .48), 0 -3px 9px rgba(31, 73, 133, .24);
+}
+.desktop-body[data-theme="windows_xp"] .vd-taskbar::before { background: linear-gradient(90deg, transparent, rgba(190, 220, 255, .55), transparent); }
+.desktop-body[data-theme="windows_xp"] .vd-start-button {
+    width: 110px;
+    min-width: 110px;
+    height: 40px;
+    padding: 0 10px;
+    gap: 0;
+    border: 1px solid #4d8334;
+    border-radius: 16px 10px 10px 16px;
+    background: linear-gradient(180deg, #4a7e38 0%, #36702b 46%, #20561d 100%);
+    color: #fff;
+    font: 700 14px Tahoma, 'Segoe UI', sans-serif;
+    text-shadow: 0 1px 2px #173c16;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 1px 0 5px rgba(12, 51, 8, .25);
+    transform: none;
+}
+.desktop-body[data-theme="windows_xp"] .vd-start-button:hover { background: linear-gradient(180deg, #568b43, #3d792f 48%, #286522); transform: none; }
+.desktop-body[data-theme="windows_xp"] .vd-start-button :is(.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon, .vd-start-label) { display: none; }
+.desktop-body[data-theme="windows_xp"] .vd-start-button .vd-start-xp-label {
+    display: inline;
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    color: #fff;
+    font: italic 700 14px Tahoma, 'Segoe UI', sans-serif;
+    line-height: 1;
+    white-space: nowrap;
+}
+.desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand) {
+    border: 1px solid rgba(176, 212, 255, .42);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(45, 112, 201, .96), rgba(20, 72, 148, .98));
+    color: #fff;
+    box-shadow: inset 0 1px rgba(255, 255, 255, .32), 0 1px 2px rgba(5, 35, 82, .28);
+}
+.desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand):hover { background: linear-gradient(180deg, #3478c7, #1b579f); }
+.desktop-body[data-theme="windows_xp"] .vd-task-button.active,
+.desktop-body[data-theme="windows_xp"] .vd-task-button[aria-pressed="true"] { background: linear-gradient(180deg, #174b99, #2b68b9); box-shadow: inset 0 2px 5px rgba(5, 29, 74, .42); }
+.desktop-body[data-theme="windows_xp"] .vd-window {
+    grid-template-rows: var(--vd-xp-title-height) minmax(0, 1fr);
+    border: 3px solid #1658b0;
+    border-radius: 3px;
+    background: #ece9d8;
+    box-shadow: var(--vd-shadow-window);
+    overflow: hidden;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu {
+    grid-template-rows: calc(var(--vd-xp-title-height) + var(--vd-xp-menu-height)) minmax(0, 1fr);
+}
+.desktop-body[data-theme="windows_xp"] .vd-window.no-titlebar { grid-template-rows: minmax(0, 1fr); }
+.desktop-body[data-theme="windows_xp"] .vd-window-titlebar {
+    height: auto;
+    min-height: 0;
+    padding: 0 6px;
+    gap: 7px;
+    background: linear-gradient(180deg, #3b8cff 0 3px, #0054e3 4px 66%, #0644ad 67% 100%) top / 100% var(--vd-xp-title-height) no-repeat #ece9d8;
+    border: 0;
+    color: #fff;
+    font-family: var(--vd-font-ui);
+    text-shadow: 0 1px 2px #17427f;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu .vd-window-titlebar {
+    grid-template-rows: var(--vd-xp-title-height) var(--vd-xp-menu-height);
+    padding: 0;
+    gap: 0 7px;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu .vd-window-title-group { padding-left: 6px; }
+.desktop-body[data-theme="windows_xp"] .vd-window.has-window-menu .vd-window-actions { margin-right: 6px; }
+.desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-titlebar { background-image: linear-gradient(180deg, #9bb8df 0 3px, #5579ae 4px 66%, #3f6092 67% 100%); }
+.desktop-body[data-theme="windows_xp"] .vd-window-title { color: #fff; font-weight: 700; letter-spacing: .01em; }
+.desktop-body[data-theme="windows_xp"] .vd-window:not(.active) .vd-window-title { opacity: 1; }
+.desktop-body[data-theme="windows_xp"] .vd-window-titlebar .vd-window-subtitle { color: #dce9f8; }
+.desktop-body[data-theme="windows_xp"] .vd-window-button {
+    width: 25px;
+    height: 23px;
+    border: 1px solid #17488f;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #72b5ff, #2375e0 52%, #0752b9);
+    color: #fff;
+    box-shadow: inset 0 1px rgba(255, 255, 255, .7), 0 1px 2px rgba(0, 28, 80, .3);
+}
+.desktop-body[data-theme="windows_xp"] .vd-window-button:hover { background: linear-gradient(180deg, #9bcfff, #3988ed 54%, #1760bf); }
+.desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"] { background: linear-gradient(180deg, #d84f3c, #bd3025 52%, #922019); border-color: #761712; }
+.desktop-body[data-theme="windows_xp"] .vd-window-button[data-action="close"]:hover { background: linear-gradient(180deg, #e4674d, #cb3a2b 52%, #a6251e); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-menubar, .vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover) { border-color: #a8b8ce; background: #fffef9; color: #1c2d45; box-shadow: 0 8px 22px rgba(28, 53, 87, .22); }
+.desktop-body[data-theme="windows_xp"] .vd-window-menubar {
+    align-self: stretch;
+    min-height: 0;
+    margin: 0;
+    padding: 0 3px;
+    border: 0;
+    border-bottom: 1px solid #d1cdb9;
+    background: #ece9d8;
+    box-shadow: none;
+    text-shadow: none;
+}
+.desktop-body[data-theme="windows_xp"] .vd-window-menu-button { height: calc(var(--vd-xp-menu-height) - 2px); padding: 0 8px; color: #1c2d45; font-size: 12px; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-menu-button, .vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible, [aria-selected="true"]) { border-radius: 3px; background: #dce9f8; color: #163f79; outline-color: #1d5faf; }
+.desktop-body[data-theme="windows_xp"] .vd-start-menu {
+    width: min(520px, calc(100vw - 14px));
+    border: 1px solid #2a67bc;
+    border-radius: 3px;
+    background: #f4f2e9;
+    box-shadow: 0 12px 36px rgba(18, 45, 84, .38), inset 0 1px #fff;
+    overflow: hidden;
+    font-family: var(--vd-font-ui);
+}
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-header {
+    display: flex;
+    flex: 0 0 auto;
+    min-height: 54px;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 12px;
+    border-bottom: 1px solid #184b99;
+    background: linear-gradient(180deg, #4a8de4, #235eb5);
+    color: #fff;
+    text-shadow: 0 1px 2px #17427f;
+}
+.desktop-body[data-theme="windows_xp"] .vd-start-xp-header strong { font: 700 16px var(--vd-font-ui); }
+.desktop-body[data-theme="windows_xp"] .vd-start-xp-avatar { flex: 0 0 auto; border: 2px solid #e8f3ff; border-radius: 4px; background-color: #bad5f4; box-shadow: 0 1px 3px #17427f; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { display: grid; grid-template-columns: minmax(0, 1fr) 230px; grid-template-rows: auto minmax(0, 1fr); gap: 0; background: #d3e5fa; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-pane { grid-column: 1; grid-row: 1 / span 2; min-width: 0; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { grid-column: 2; grid-row: 1; display: grid; align-content: start; gap: 2px; padding: 8px; border-left: 1px solid #99b5d8; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 38px; padding: 5px 7px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #24466f; font: 700 12px/1.3 var(--vd-font-ui); text-align: left; }
+.desktop-body[data-theme="windows_xp"] .vd-start-xp-link > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:hover,
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link:focus-visible { border-color: #b1c8e3; background: #dce9f8; color: #163f79; }
+.desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-rail { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 2px; padding: 8px; overflow: hidden auto; border-top: 1px solid #a5bfdc; border-left: 1px solid #99b5d8; border-right: 0; background: transparent; scrollbar-width: thin; }
+.desktop-body[data-theme="windows_xp"] .vd-start-search { padding: 8px 12px; background: linear-gradient(180deg, #fefefe, #dce8f6); border-bottom: 1px solid #b8c8de; }
+.desktop-body[data-theme="windows_xp"] .vd-start-search input { border: 1px solid #91a6c1; border-radius: 3px; background: #fff; color: #1c2d45; box-shadow: inset 0 1px 2px rgba(33, 57, 89, .14); }
+.desktop-body[data-theme="windows_xp"] .vd-start-rail-indicator { display: none; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; min-height: 34px; padding: 5px 7px; border: 1px solid transparent; border-radius: 3px; color: #24466f; font-size: 12px; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category:is(:hover, [aria-selected="true"]) { border-color: #215da7; background: #2b65af; color: #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-start-category:is(:hover, [aria-selected="true"]) .vd-start-category-count { color: #fff; background: rgba(0, 0, 0, .15); }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane { background: linear-gradient(90deg, #fffef9, #f2f0e6); }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane-head { padding: 10px 14px 8px; border-bottom: 1px solid #c3c9d1; }
+.desktop-body[data-theme="windows_xp"] .vd-start-pane-title { color: #174c91; font-weight: 700; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-start-item, .vd-context-item, .vd-window-menu-item):hover { background-color: #dce9f8; color: #173f75; }
+.desktop-body[data-theme="windows_xp"] .vd-start-grid { grid-template-columns: minmax(0, 1fr); }
+.desktop-body[data-theme="windows_xp"] .vd-start-item { min-height: 36px; padding: 3px 7px; gap: 8px; border-radius: 3px; color: #253b56; font-family: var(--vd-font-ui); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) { border: 1px solid #91a9c7; border-radius: 3px; background: #f7f6ef; color: #1c2d45; box-shadow: var(--vd-theme-shadow-modal); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) { border: 1px solid #8b9db3; border-radius: 2px; background: linear-gradient(180deg, #fff, #e8e7df); color: #1c2d45; box-shadow: inset 0 1px #fff; }
+.desktop-body[data-theme="windows_xp"] .vd-button:hover { border-color: #3c77c3; background: linear-gradient(180deg, #fff, #dcecff); }
+.desktop-body[data-theme="windows_xp"] .vd-button-primary { border-color: #164a8d; background: linear-gradient(180deg, #286ab8, #164a8d); color: #fff; text-shadow: 0 1px #103665; }
+.desktop-body[data-theme="windows_xp"] .vd-window-content :is(input[type="checkbox"], input[type="radio"]) { accent-color: #1d5faf; }
+.desktop-body[data-theme="windows_xp"] .vd-window-content :is(input, select, textarea):focus-visible { outline: 2px solid #1d5faf; outline-offset: 1px; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 15px; height: 15px; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { border: 1px solid #bcc5cf; background: #e7e7e3; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #e7e7e3; border-radius: 5px; background: linear-gradient(90deg, #e2effd, #98b8de); box-shadow: inset 1px 0 #fff, inset -1px 0 #89a4c4; }
+.desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #d8e9fa, #78a3d5); }
+.desktop-body[data-theme="windows_xp"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #174f97; outline-offset: 2px; }
+.desktop-body[data-theme="windows_xp"] ::selection { background: #286dc2; color: #fff; }
+@media (max-width: 480px) {
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-body { grid-template-columns: minmax(0, 1fr) 44%; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-links { gap: 0; padding: 4px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link { padding: 4px; gap: 6px; font-size: 11px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-category { padding-inline: 3px; gap: 6px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-category-count { display: none; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-apps { padding-inline: 4px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-item { padding-inline: 3px; gap: 5px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-sheet-handle { order: -1; background: #4a8de4; }
+}
+@media (pointer: coarse) {
+    .desktop-body[data-theme="windows_xp"] { --vd-taskbar-height: 52px; --vd-xp-title-height: 52px; --vd-xp-menu-height: 46px; }
+    .desktop-body[data-theme="windows_xp"] .vd-window-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-button { height: 44px; min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"][data-start-menu="xp"] .vd-start-xp-link,
+    .desktop-body[data-theme="windows_xp"] .vd-start-item,
+    .desktop-body[data-theme="windows_xp"] .vd-start-category { min-height: 44px; }
+    .desktop-body[data-theme="windows_xp"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 18px; height: 18px; }
+}
+
+/* ui/css/desktop-theme-green-slime.css */
+/* Green Slime: readable dark moss surfaces wrapped in glossy lime gel and soft drips. */
+.desktop-body[data-theme="green_slime"] {
+    color-scheme: dark;
+    --vd-bg: #11180d;
+    --vd-surface: #202a15;
+    --vd-surface-strong: #2b371b;
+    --vd-border: #61743b;
+    --vd-border-bright: #98b95c;
+    --vd-text: #f1f7dc;
+    --vd-muted: #c6d4a6;
+    --vd-shadow: 0 18px 46px rgba(4, 8, 1, .56);
+    --vd-shadow-window: 0 24px 56px rgba(3, 7, 1, .64), 0 0 0 1px rgba(185, 222, 83, .18);
+    --vd-inner-glow: inset 0 1px 0 rgba(240, 255, 196, .22);
+    --vd-window-radius: 22px;
+    --vd-font-ui: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-accent: #a5d941;
+    --vd-accent-r: 165;
+    --vd-accent-g: 217;
+    --vd-accent-b: 65;
+    --vd-accent-glow: rgba(165, 217, 65, .22);
+    --vd-accent-contrast: #17210b;
+    --vd-theme-app-bg: #1a2212;
+    --vd-theme-panel-bg: #26321a;
+    --vd-theme-panel-bg-strong: #303d20;
+    --vd-theme-chrome-bg: #27351b;
+    --vd-theme-overlay-bg: rgba(7, 12, 3, .76);
+    --vd-theme-control-bg: #1b2712;
+    --vd-theme-control-hover: #354522;
+    --vd-theme-border: #566c35;
+    --vd-theme-border-strong: #78934a;
+    --vd-theme-muted: #c6d4a6;
+    --vd-theme-accent-soft: rgba(165, 217, 65, .16);
+    --vd-theme-accent-border: rgba(165, 217, 65, .5);
+    --vd-theme-radius-panel: 16px 19px 14px 20px;
+    --vd-theme-radius-modal: 20px 17px 22px 16px;
+    --vd-theme-shadow-panel: 0 16px 38px rgba(4, 8, 1, .45), inset 0 2px 2px rgba(242, 255, 204, .12);
+    --vd-theme-shadow-modal: 0 26px 66px rgba(3, 7, 1, .64), inset 0 2px 3px rgba(242, 255, 204, .16);
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+    --vd-chrome-highlight: inset 0 2px 0 rgba(239, 255, 189, .22);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(165, 217, 65, .18);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(200, 240, 117, .85), rgba(240, 255, 194, .7), transparent);
+    --ds-color-fg-primary: #f1f7dc;
+    --ds-color-fg-secondary: #d9e6b9;
+    --ds-color-fg-muted: #c6d4a6;
+    --ds-color-fg-disabled: #89976b;
+    --ds-color-bg-canvas: #11180d;
+    --ds-color-bg-raised: #202a15;
+    --ds-color-bg-overlay: #2b371b;
+    --ds-color-bg-modal: #303d20;
+    --ds-color-surface-0: #1a2212;
+    --ds-color-surface-1: #202a15;
+    --ds-color-surface-2: #26321a;
+    --ds-color-surface-3: #303d20;
+    --ds-color-border-subtle: #43552d;
+    --ds-color-border-default: #61743b;
+    --ds-color-border-strong: #78934a;
+    --ds-color-border-focus: #a5d941;
+    --ds-color-accent-500: #a5d941;
+    --ds-color-accent-600: #80b32b;
+    --ds-color-accent-glow: rgba(165, 217, 65, .2);
+    --ds-color-control-active: #3b4c23;
+    --ds-color-inner-highlight: rgba(239, 255, 189, .16);
+    --ds-elevation-1: 0 2px 4px rgba(0, 0, 0, .3);
+    --ds-elevation-2: 0 6px 14px rgba(0, 0, 0, .36);
+    --ds-elevation-3: 0 14px 30px rgba(0, 0, 0, .44);
+    --ds-elevation-4: 0 24px 52px rgba(0, 0, 0, .54);
+    --ds-elevation-5: 0 34px 72px rgba(0, 0, 0, .62);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+    --vd-taskbar-height: 58px;
+    --vd-start-button-size: 56px;
+}
+
+.desktop-body[data-theme="green_slime"] .vd-taskbar {
+    border: 1px solid #6f883f;
+    border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+    background: linear-gradient(180deg, #425627, #26371a 28%, #192511);
+    box-shadow: inset 0 2px 0 rgba(236, 255, 188, .2), 0 -10px 28px rgba(4, 8, 1, .3);
+}
+.desktop-body[data-theme="green_slime"] .vd-taskbar::before { background: linear-gradient(90deg, transparent, rgba(180, 226, 84, .55), transparent); }
+.desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand, .vd-button) {
+    border: 1px solid #718c3f;
+    border-radius: 14px 11px 15px 10px;
+    background: linear-gradient(160deg, rgba(168, 211, 74, .3), #34451e 46%, #263719);
+    color: #f2f8df;
+    box-shadow: inset 0 2px 2px rgba(245, 255, 208, .2), inset 0 -2px 3px rgba(0, 0, 0, .2), 0 3px 6px rgba(0, 0, 0, .22);
+    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand, .vd-button):hover { border-color: #b6de66; background: linear-gradient(160deg, rgba(190, 235, 96, .42), #405529 50%, #2d3d1b); }
+.desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand, .vd-button):active { transform: none; border-radius: 16px 13px 17px 12px; box-shadow: inset 0 3px 5px rgba(3, 7, 1, .34), inset 0 1px rgba(229, 255, 157, .18); }
+.desktop-body[data-theme="green_slime"] .vd-window {
+    border: 1px solid #819b49;
+    border-radius: var(--vd-window-radius);
+    background: #26321a;
+    box-shadow: var(--vd-shadow-window), 0 0 0 2px #364c1d, inset 0 2px 2px rgba(235, 255, 183, .13);
+    overflow: visible;
+}
+/* While the slime effect layer runs, the gel wraps the window and throws its own soft shadow. The big DOM
+   shadow would darken the real wallpaper around a gel that shows the unshadowed texture, so keep it light. */
+.desktop-body[data-theme="green_slime"]:has(> .vd-theme-fx-layer) .vd-window:not(.maximized) {
+    box-shadow: 0 8px 22px rgba(3, 7, 1, .32), 0 0 0 2px #364c1d, inset 0 2px 2px rgba(235, 255, 183, .13);
+}
+.desktop-body[data-theme="green_slime"] .vd-window.active { border-color: #a7ce55; }
+.desktop-body[data-theme="green_slime"] .vd-window.maximized { border-radius: 0; }
+.desktop-body[data-theme="green_slime"] .vd-window.maximized > .vd-window-titlebar { border-radius: 0; }
+.desktop-body[data-theme="green_slime"] .vd-window-titlebar {
+    position: relative;
+    border-bottom: 1px solid #4d652d;
+    border-radius: 21px 21px 0 0;
+    background:
+        radial-gradient(ellipse at 18% 0, #e2f7ae55, transparent 48%),
+        linear-gradient(178deg, #9abd55, #617e30 13%, #364f24 43%, #293d1b 86%, #536f2c);
+    box-shadow: inset 0 1px 1px #e8fbc073, inset 0 -1px 3px #18280c66;
+    color: #f5f9e8;
+    text-shadow: 0 1px 2px rgba(13, 23, 6, .8);
+}
+.desktop-body[data-theme="green_slime"] .vd-window-titlebar::after {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    left: 24px;
+    right: 24px;
+    top: 3px;
+    height: 8px;
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse at 18% 70%, #e5ff9b88 0 2px, #547b2b44 3px 5px, transparent 6px),
+        radial-gradient(ellipse at 43% 60%, #d5f97588 0 1px, #43691d55 2px 4px, transparent 5px),
+        radial-gradient(ellipse at 76% 75%, #e5ff9b88 0 3px, #3d5e2088 4px 6px, transparent 7px),
+        linear-gradient(180deg, #f0ffd044, transparent 85%);
+    pointer-events: none;
+}
+.desktop-body[data-theme="green_slime"] .vd-window-button {
+    position: relative;
+    border: 1px solid rgba(206, 238, 126, .56);
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 25%, #d7f293, #8fba43 42%, #4d6a27 100%);
+    color: #19240c;
+    box-shadow: inset 0 1px 2px #f4ffd3, 0 2px 3px rgba(0, 0, 0, .28);
+}
+.desktop-body[data-theme="green_slime"] .vd-window-button::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 2px 4px 56%;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #fbffe4aa, #dbff7e11);
+    pointer-events: none;
+    transform-origin: 40% 65%;
+}
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-window-button::before { animation: vd-theme-green-slime-gloss 3.8s ease-in-out infinite alternate; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-window-titlebar::after { animation: vd-theme-green-slime-bubbles 5.5s ease-in-out infinite alternate; }
+.desktop-body[data-theme="green_slime"] .vd-window-button:active::before { transform: scale(.7, .5); opacity: .45; }
+.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-window-button:active::before { animation: none; }
+@keyframes vd-theme-green-slime-gloss {
+    from { transform: translate(-1px, 0) scale(.88, 1); opacity: .65; }
+    to { transform: translate(1px, 1px) scale(1.08, .7); opacity: 1; }
+}
+@keyframes vd-theme-green-slime-bubbles {
+    from { transform: translateX(-3px) scaleY(.8); opacity: .6; }
+    to { transform: translateX(4px) scaleY(1.15); opacity: 1; }
+}
+.desktop-body[data-theme="green_slime"] .vd-window-button:hover { background: radial-gradient(circle at 34% 25%, #ecffb5, #a7d756 45%, #5f8030); }
+.desktop-body[data-theme="green_slime"] .vd-window-button[data-action="close"] { color: #3a220d; background: radial-gradient(circle at 34% 25%, #ffe1a0, #d88d40 55%, #845323); }
+.desktop-body[data-theme="green_slime"] .vd-window-menubar {
+    border: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, #344823, #29391d);
+    color: #f1f7dc;
+    box-shadow: inset 0 1px #b9d47e26;
+}
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu) {
+    border: 1px solid #6d8540;
+    border-radius: 16px 18px 14px 20px;
+    background: linear-gradient(145deg, #303f21, #222e17 70%);
+    color: #f1f7dc;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, .5), inset 0 2px 2px rgba(239, 255, 189, .12);
+}
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category):is(:hover, :focus-visible, [aria-selected="true"]) { border-radius: 11px 14px 10px 13px; background: #40532a; color: #f8ffdf; outline-color: #a5d941; }
+.desktop-body[data-theme="green_slime"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) { border: 1px solid #738a45; border-radius: 20px 17px 22px 16px; background: linear-gradient(145deg, #303e20, #222e17); color: #f1f7dc; box-shadow: var(--vd-theme-shadow-modal), inset 0 2px 2px rgba(239, 255, 189, .14); }
+.desktop-body[data-theme="green_slime"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) { border: 1px solid #667f3a; border-radius: 12px 9px 13px 10px; background: #1a2712; color: #f1f7dc; box-shadow: inset 0 2px 3px rgba(0, 0, 0, .28), inset 0 1px rgba(218, 248, 148, .08); }
+.desktop-body[data-theme="green_slime"] .vd-button-primary { border-color: #a5d941; background: linear-gradient(145deg, #c2e866, #8dbf32); color: #17210b; box-shadow: inset 0 1px 2px #efffbf, 0 3px 7px rgba(0, 0, 0, .25); }
+.desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 13px; height: 13px; }
+.desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { border-radius: 8px; background: #17220f; }
+.desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #17220f; border-radius: 9px; background: linear-gradient(90deg, #718d39, #a5d941, #719137); }
+.desktop-body[data-theme="green_slime"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #c2ea69; outline-offset: 2px; }
+.desktop-body[data-theme="green_slime"] ::selection { background: #a5d941; color: #17210b; }
+@media (pointer: coarse) {
+    .desktop-body[data-theme="green_slime"] .vd-window-titlebar { border-radius: 0; }
+    .desktop-body[data-theme="green_slime"] .vd-start-button { min-height: 44px; height: 44px; }
+    .desktop-body[data-theme="green_slime"] .vd-taskbar-system :is(button, .vd-space-pager button) { min-width: 44px; min-height: 44px; }
+}
+
+/* ui/css/desktop-theme-voxel-world.css */
+/* desktop-theme-voxel-world.css - Voxel World shell skin (theme id "voxel_world"): a block-game inventory.
+   The live 3D isle behind the shell and the pixel-art window frames around the windows are drawn by theme-fx
+   (voxel-scene.js, voxel-graphics.js); this file styles the DOM: a hotbar taskbar of grey bevelled slots, a grass-block
+   start button, oak-plank titlebars with stone buttons and grey inventory panels. Every rule is rooted at
+   .desktop-body[data-theme="voxel_world"]; ui/desktop_theme_css_contract_test.go enforces the contract.
+   Palette: stone slots #9a9a9a, panels #c6c6c6, bevels #fdfdfd / #555, outlines #1e1e1e, planks #d9b67a to #6b4c2a,
+   grass #4c8a32 / #3f7a2a, redstone #b33a2b. */
+
+.desktop-body[data-theme="voxel_world"] {
+    color-scheme: light;
+    --vd-bg: #d8e7d1;
+    --vd-surface: #f5f1e5;
+    --vd-surface-strong: #fffaf0;
+    --vd-border: #8c7856;
+    --vd-border-bright: #fff5d9;
+    --vd-text: #352b1e;
+    --vd-muted: #5d513e;
+    --vd-shadow: 0 6px 0 rgba(0, 0, 0, .22);
+    --vd-shadow-window: 0 5px 0 rgba(0, 0, 0, .28);
+    --vd-inner-glow: inset 0 1px 0 #fff9e4;
+    --vd-window-radius: 0;
+    --vd-font-ui: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    --vd-accent: #476b3c;
+    --vd-accent-r: 71;
+    --vd-accent-g: 107;
+    --vd-accent-b: 60;
+    --vd-accent-glow: rgba(71, 107, 60, .14);
+    --vd-accent-contrast: #ffffff;
+    --vd-theme-app-bg: #f5f1e5;
+    --vd-theme-panel-bg: #e7dfcb;
+    --vd-theme-panel-bg-strong: #fffaf0;
+    --vd-theme-chrome-bg: #d9e8d2;
+    --vd-theme-overlay-bg: rgba(0, 0, 0, .45);
+    --vd-theme-control-bg: #fffaf0;
+    --vd-theme-control-hover: #e7efdd;
+    --vd-theme-border: #9a8967;
+    --vd-theme-border-strong: #735d3c;
+    --vd-theme-muted: #5d513e;
+    --vd-theme-accent-soft: rgba(71, 107, 60, .12);
+    --vd-theme-accent-border: rgba(71, 107, 60, .44);
+    --vd-theme-radius-panel: 0;
+    --vd-theme-radius-modal: 0;
+    --vd-theme-shadow-panel: 0 3px 0 rgba(0, 0, 0, .16);
+    --vd-theme-shadow-modal: 0 6px 0 rgba(0, 0, 0, .25);
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+    --vd-chrome-highlight: inset 0 1px 0 rgba(255, 255, 255, .92);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(87, 104, 64, .2);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #f7f0d4, #92ad70, transparent);
+    --ds-color-fg-primary: #352b1e;
+    --ds-color-fg-secondary: #4d402c;
+    --ds-color-fg-muted: #5d513e;
+    --ds-color-fg-disabled: #8b806d;
+    --ds-color-bg-canvas: #e0ead7;
+    --ds-color-bg-raised: #f5f1e5;
+    --ds-color-bg-overlay: #e7dfcb;
+    --ds-color-bg-modal: #fffaf0;
+    --ds-color-surface-0: #f5f1e5;
+    --ds-color-surface-1: #eee8d8;
+    --ds-color-surface-2: #e7dfcb;
+    --ds-color-surface-3: #fffaf0;
+    --ds-color-border-subtle: #c4b99f;
+    --ds-color-border-default: #9a8967;
+    --ds-color-border-strong: #735d3c;
+    --ds-color-border-focus: #476b3c;
+    --ds-color-accent-500: #476b3c;
+    --ds-color-accent-600: #35562d;
+    --ds-color-accent-glow: rgba(71, 107, 60, .14);
+    --ds-color-control-active: #d2dec6;
+    --ds-color-inner-highlight: #fff9e4;
+    --ds-elevation-1: 0 2px 0 rgba(0, 0, 0, .14);
+    --ds-elevation-2: 0 3px 0 rgba(0, 0, 0, .16);
+    --ds-elevation-3: 0 4px 0 rgba(0, 0, 0, .2);
+    --ds-elevation-4: 0 6px 0 rgba(0, 0, 0, .24);
+    --ds-elevation-5: 0 8px 0 rgba(0, 0, 0, .28);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+    --vd-taskbar-height: 56px;
+    --vd-start-button-size: 50px;
+
+    /* Block-game helpers: bevels, inline pixel art (crisp edges, drawn at 2 px per art pixel). */
+    --vd-theme-voxel-raised: inset 2px 2px 0 #d2d2d2, inset -2px -2px 0 #555;
+    --vd-theme-voxel-pressed: inset 2px 2px 0 #555, inset -2px -2px 0 #d2d2d2;
+    --vd-theme-voxel-sunken: inset 2px 2px 0 #555, inset -2px -2px 0 #fdfdfd;
+    --vd-theme-voxel-panel: inset 3px 3px 0 #fdfdfd, inset -3px -3px 0 #555, 0 6px 0 rgba(0, 0, 0, .25);
+    --vd-theme-voxel-planks: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23d9b67a' d='M0 0h5v1h-5zM6 0h5v1h-5zM12 0h4v1h-4zM0 8h3v1h-3zM4 8h3v1h-3zM8 8h6v1h-6zM15 8h1v1h-1z'/%3E%3Cpath fill='%23c39a5d' d='M5 0h1v1h-1zM0 1h3v1h-3zM4 1h4v1h-4zM9 1h2v1h-2zM12 1h3v1h-3zM0 2h1v1h-1zM2 2h4v1h-4zM7 2h4v1h-4zM12 2h1v1h-1zM14 2h2v1h-2zM3 3h1v1h-1zM8 3h1v1h-1zM2 4h1v1h-1zM13 4h1v1h-1zM7 8h1v1h-1zM14 8h1v1h-1zM0 9h1v1h-1zM2 9h1v1h-1zM4 9h6v1h-6zM11 9h5v1h-5zM0 10h3v1h-3zM4 10h1v1h-1zM6 10h7v1h-7zM14 10h2v1h-2zM6 11h1v1h-1zM11 11h1v1h-1z'/%3E%3Cpath fill='%238a6539' d='M11 0h1v1h-1zM11 1h1v1h-1zM11 2h1v1h-1zM11 3h1v1h-1zM6 4h1v1h-1zM11 4h1v1h-1zM1 5h1v1h-1zM10 5h2v1h-2zM15 5h1v1h-1zM0 6h1v1h-1zM3 6h1v1h-1zM9 6h1v1h-1zM11 6h1v1h-1zM14 6h1v1h-1zM3 8h1v1h-1zM3 9h1v1h-1zM3 10h1v1h-1zM3 11h1v1h-1zM3 12h1v1h-1zM8 12h1v1h-1zM1 13h1v1h-1zM3 13h2v1h-2zM11 13h1v1h-1zM14 13h1v1h-1zM0 14h1v1h-1zM3 14h1v1h-1zM13 14h1v1h-1z'/%3E%3Cpath fill='%23ad854e' d='M3 1h1v1h-1zM8 1h1v1h-1zM15 1h1v1h-1zM1 2h1v1h-1zM6 2h1v1h-1zM13 2h1v1h-1zM0 3h3v1h-3zM4 3h4v1h-4zM9 3h2v1h-2zM12 3h4v1h-4zM0 4h2v1h-2zM3 4h3v1h-3zM7 4h4v1h-4zM12 4h1v1h-1zM14 4h2v1h-2zM0 5h1v1h-1zM2 5h8v1h-8zM12 5h3v1h-3zM1 6h2v1h-2zM4 6h5v1h-5zM10 6h1v1h-1zM12 6h2v1h-2zM15 6h1v1h-1zM1 9h1v1h-1zM10 9h1v1h-1zM5 10h1v1h-1zM13 10h1v1h-1zM0 11h3v1h-3zM4 11h2v1h-2zM7 11h4v1h-4zM12 11h4v1h-4zM0 12h3v1h-3zM4 12h4v1h-4zM9 12h7v1h-7zM0 13h1v1h-1zM2 13h1v1h-1zM5 13h6v1h-6zM12 13h2v1h-2zM15 13h1v1h-1zM1 14h2v1h-2zM4 14h9v1h-9zM14 14h2v1h-2z'/%3E%3Cpath fill='%236b4c2a' d='M0 7h16v1h-16zM0 15h16v1h-16z'/%3E%3C/svg%3E");
+    --vd-theme-voxel-grass: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Crect width='10' height='10' fill='%231b1b1b'/%3E%3Cpath fill='%237cbd4a' d='M1 1h2v1h-2zM4 1h3v1h-3zM8 1h1v1h-1zM2 2h2v1h-2zM5 2h1v1h-1zM7 2h2v1h-2zM1 3h1v1h-1zM5 3h1v1h-1zM8 3h1v1h-1z'/%3E%3Cpath fill='%2362a03a' d='M3 1h1v1h-1zM7 1h1v1h-1zM1 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM2 3h1v1h-1zM4 3h1v1h-1zM7 3h1v1h-1zM3 4h1v1h-1zM7 4h1v1h-1z'/%3E%3Cpath fill='%235f3e27' d='M3 3h1v1h-1zM6 3h1v1h-1zM1 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM3 5h1v1h-1zM7 5h1v1h-1zM7 6h1v1h-1zM2 7h1v1h-1zM5 8h1v1h-1z'/%3E%3Cpath fill='%238f6342' d='M2 4h1v1h-1zM5 4h1v1h-1zM8 4h1v1h-1zM1 5h1v1h-1zM4 5h1v1h-1zM6 5h1v1h-1zM2 6h2v1h-2zM5 6h2v1h-2zM1 7h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM8 7h1v1h-1zM2 8h3v1h-3zM7 8h2v1h-2z'/%3E%3Cpath fill='%237a5236' d='M2 5h1v1h-1zM5 5h1v1h-1zM8 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM8 6h1v1h-1zM3 7h1v1h-1zM5 7h1v1h-1zM7 7h1v1h-1zM1 8h1v1h-1zM6 8h1v1h-1z'/%3E%3C/svg%3E");
+    --vd-theme-voxel-glyph-minimize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath d='M0 5h7v2h-7z'/%3E%3C/svg%3E");
+    --vd-theme-voxel-glyph-maximize: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h7v2h-7zM0 2h1v5h-1zM6 2h1v5h-1zM1 6h5v1h-5z'/%3E%3C/svg%3E");
+    --vd-theme-voxel-glyph-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7' viewBox='0 0 7 7' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h1v1h-1zM1 1h1v1h-1zM2 2h1v1h-1zM3 3h1v1h-1zM4 4h1v1h-1zM5 5h1v1h-1zM6 6h1v1h-1zM6 0h1v1h-1zM5 1h1v1h-1zM4 2h1v1h-1zM2 4h1v1h-1zM1 5h1v1h-1zM0 6h1v1h-1z'/%3E%3C/svg%3E");
+}
+
+/* ---- Text selection, scrollbars ---- */
+.desktop-body[data-theme="voxel_world"] ::selection { background: #476b3c; color: #ffffff; }
+.desktop-body[data-theme="voxel_world"] .vd-window-content input:is([type="checkbox"], [type="radio"]) { accent-color: #476b3c; }
+
+/* The base sets scrollbar-width and scrollbar-color, which make Chrome ignore the ::-webkit-scrollbar rules below. */
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-content, .vd-window-content *, .vd-scroll, .vd-start-apps, .vd-start-rail, .vd-notification-list, .vd-spotlight-results, .vd-file-dialog-list, .vd-file-dialog-sidebar, .vd-context-menu, .vd-context-submenu-popover) { scrollbar-width: auto; scrollbar-color: auto; }
+.desktop-body[data-theme="voxel_world"] .vd-window-content ::-webkit-scrollbar,
+.desktop-body[data-theme="voxel_world"] .vd-scroll::-webkit-scrollbar,
+.desktop-body[data-theme="voxel_world"] .vd-notification-list::-webkit-scrollbar,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-list::-webkit-scrollbar,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-sidebar::-webkit-scrollbar,
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-results::-webkit-scrollbar,
+.desktop-body[data-theme="voxel_world"] .vd-start-rail::-webkit-scrollbar {
+    width: 16px; height: 16px; background: #8b8b8b;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-content ::-webkit-scrollbar-corner { background: #8b8b8b; }
+.desktop-body[data-theme="voxel_world"] .vd-window-content ::-webkit-scrollbar-track,
+.desktop-body[data-theme="voxel_world"] .vd-scroll::-webkit-scrollbar-track,
+.desktop-body[data-theme="voxel_world"] .vd-notification-list::-webkit-scrollbar-track,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-list::-webkit-scrollbar-track,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-sidebar::-webkit-scrollbar-track,
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-results::-webkit-scrollbar-track,
+.desktop-body[data-theme="voxel_world"] .vd-start-rail::-webkit-scrollbar-track {
+    border-radius: 0; background: #8b8b8b; box-shadow: inset 2px 2px 0 #555555, inset -2px -2px 0 #b9b9b9;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-content ::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="voxel_world"] .vd-scroll::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="voxel_world"] .vd-notification-list::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-list::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-sidebar::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-results::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="voxel_world"] .vd-start-rail::-webkit-scrollbar-thumb {
+    min-height: 36px; border: 2px solid #1e1e1e; border-radius: 0; background: #c6c6c6; background-clip: border-box; box-shadow: inset 2px 2px 0 #fdfdfd, inset -2px -2px 0 #6a6a6a;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-content ::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="voxel_world"] .vd-scroll::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="voxel_world"] .vd-notification-list::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-list::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-sidebar::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="voxel_world"] .vd-spotlight-results::-webkit-scrollbar-thumb:hover,
+.desktop-body[data-theme="voxel_world"] .vd-start-rail::-webkit-scrollbar-thumb:hover {
+    background: #dadada;
+}
+
+/* ---- Focus: 3 px dark green ring, readable on parchment and on grey panels (the hotbar and the titlebar override it below) ---- */
+.desktop-body[data-theme="voxel_world"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-shortcuts-panel, .vd-window-switcher) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 3px solid #35562d; outline-offset: 2px; }
+
+/* ---- Hotbar: dark strip, grey bevelled slots, white frame on the active window ---- */
+.desktop-body[data-theme="voxel_world"] .vd-taskbar {
+    gap: 8px;
+    padding: 0 12px 0 8px;
+    border: 0;
+    border-top: 2px solid #000000;
+    border-radius: 0;
+    background: rgba(22, 22, 22, .62);
+    box-shadow: inset 0 2px 0 #5a5a5a;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition: none;
+}
+.desktop-body[data-theme="voxel_world"] .vd-taskbar::before { display: none; }
+/* The slots' frames and focus rings reach past the slot, so the scrolling track keeps room for them. */
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-apps { gap: 8px; padding: 5px; align-items: center; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-pins { gap: 6px; margin-right: 6px; padding-right: 10px; border-right: 2px solid #000000; box-shadow: 2px 0 0 #5a5a5a; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-pins:not(:has(.vd-taskbar-pin)) { display: none; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-windows { gap: 6px; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-system { gap: 8px; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-system .vd-space-pager { gap: 4px; margin: 0; }
+
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin, .vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn) {
+    box-sizing: border-box;
+    height: 40px;
+    margin: 0;
+    border: 2px solid #1b1b1b;
+    border-radius: 0;
+    background: #9a9a9a;
+    color: #151515;
+    font-weight: 700;
+    text-shadow: none;
+    box-shadow: var(--vd-theme-voxel-raised);
+    transform: none;
+    filter: none;
+    transition: none;
+    animation: none;
+}
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin, .vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn):is(:hover, :focus-visible):not(:disabled) { background: #adadad; border-color: #1b1b1b; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin, .vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn):active:not(:disabled) { background: #8b8b8b; box-shadow: var(--vd-theme-voxel-pressed); transform: none; filter: none; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin, .vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn):disabled { opacity: .6; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-task-button { max-width: 186px; padding: 0 12px 0 10px; gap: 8px; font-size: 12.5px; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-taskbar-pin { width: 40px; min-width: 40px; padding: 0; display: inline-grid; place-items: center; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-live-speech-button) { width: 40px; min-width: 40px; padding: 0; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-agent-button { min-width: 0; padding: 0 12px; gap: 8px; font-size: 12.5px; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-space-pager-btn { min-width: 30px; height: 30px; padding: 0 4px; font-size: 12px; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-task-icon { filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, .35)); }
+
+/* The active window's slot: a bright white frame, like the selected hotbar slot. */
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button.active, .vd-space-pager-btn.active, .vd-space-pager-btn[aria-pressed="true"], .vd-fullscreen-button[aria-pressed="true"], .vd-live-speech-button[data-active="true"]) {
+    background: #bdbdbd;
+    color: #101010;
+    outline: 3px solid #f4f4f4;
+    outline-offset: -1px;
+    box-shadow: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #6a6a6a, 0 0 0 3px #000000;
+}
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-space-pager-btn:is(.active, [aria-pressed="true"]) { outline-width: 2px; box-shadow: inset 2px 2px 0 #ffffff, inset -2px -2px 0 #6a6a6a, 0 0 0 2px #000000; }
+
+/* Keyboard focus on the dark strip: white ring with a black hairline, visible over the sky and the slots. */
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(button:not(.vd-start-button), [tabindex], .vd-clock):focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; box-shadow: var(--vd-theme-voxel-raised), 0 0 0 1px #000000; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-clock:focus-visible { box-shadow: 0 0 0 1px #000000; }
+
+/* Text straight on the strip: light with a hard 2 px shadow. */
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-clock { padding: 0 8px; color: #ffffff; font-weight: 700; text-shadow: 2px 2px 0 #222222; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-notification-icon { font-size: 16px; filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, .4)); }
+.desktop-body[data-theme="voxel_world"] .vd-notification-badge { top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 3px; border: 2px solid #000000; border-radius: 0; background: #b33a2b; color: #ffffff; font: 700 10px/12px var(--vd-font-ui); box-sizing: border-box; }
+.desktop-body[data-theme="voxel_world"] .vd-live-speech-button::after,
+.desktop-body[data-theme="voxel_world"] .vd-live-speech-button-wave i { border-radius: 0; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-live-speech-button[data-active="true"] { background: #b9d39a; color: #1b3a12; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-agent-dot, .vd-status-dot) { width: 10px; height: 10px; border: 2px solid #1b1b1b; border-radius: 0; box-shadow: none; box-sizing: border-box; animation: none; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-agent-dot { background: #ff8066; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-status-dot { background: #8b8b8b; border-color: #000000; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-status-dot[data-state="online"] { background: #7cbd4a; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-status-dot[data-state="reconnecting"] { background: #f2b84b; }
+
+/* ---- Start button: a grass block (8x8 pixel art in a dark outline); it bobs when pointed at ---- */
+.desktop-body[data-theme="voxel_world"] .vd-start-button {
+    width: var(--vd-start-button-size);
+    height: var(--vd-start-button-size);
+    min-width: var(--vd-start-button-size);
+    margin: 0 4px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--vd-theme-voxel-grass) center / 100% 100% no-repeat;
+    image-rendering: pixelated;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, .4);
+    transform: none;
+    filter: none;
+    transition: none;
+    overflow: visible;
+}
+.desktop-body[data-theme="voxel_world"] .vd-start-button:hover { background: var(--vd-theme-voxel-grass) center / 100% 100% no-repeat; filter: brightness(1.12); transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-start-button:active { filter: brightness(.88); transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-start-button[data-active="true"] { background: var(--vd-theme-voxel-grass) center / 100% 100% no-repeat; outline: 3px solid #f4f4f4; outline-offset: 1px; box-shadow: 0 0 0 1px #000000; transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-start-button:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; box-shadow: 0 0 0 1px #000000; }
+/* The launcher icon stays readable on top of the block. */
+.desktop-body[data-theme="voxel_world"] .vd-start-button :is(.vd-sprite-start, .vd-papirus-icon, .vd-start-glyph) { transform: scale(.8); border-radius: 0; background-color: transparent; box-shadow: none; filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, .7)); image-rendering: auto; }
+.desktop-body[data-theme="voxel_world"] .vd-start-button .vd-start-glyph { background: transparent; color: #ffffff; font-weight: 900; text-shadow: 1px 1px 0 #000000; }
+@keyframes vd-theme-voxel-world-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+.desktop-body[data-theme="voxel_world"]:not([data-animations="false"]) .vd-start-button:hover { animation: vd-theme-voxel-world-bob 600ms steps(1, end) infinite; }
+
+/* ---- Windows: dark outline, oak-plank titlebar with the title on a name plate, stone buttons ---- */
+.desktop-body[data-theme="voxel_world"] .vd-window {
+    border: 3px solid #2f2114;
+    border-radius: 0;
+    background: #f5f1e5;
+    box-shadow: var(--vd-shadow-window);
+    overflow: visible;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition: none;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window.maximized { border-width: 0 0 3px; }
+.desktop-body[data-theme="voxel_world"] .vd-window.vd-window-file-drop-target { outline: 3px dashed #35562d; outline-offset: -6px; }
+.desktop-body[data-theme="voxel_world"] .vd-window.vd-window-file-drop-reject { outline: 3px dashed #b33a2b; outline-offset: -6px; }
+.desktop-body[data-theme="voxel_world"] .vd-window-titlebar {
+    background-color: #ffffff;
+    background-image: var(--vd-theme-voxel-planks);
+    background-size: 32px 32px;
+    background-blend-mode: normal;
+    image-rendering: pixelated;
+    border-bottom: 3px solid #2f2114;
+    border-radius: 0;
+    color: #fff7e0;
+    box-shadow: inset 0 2px 0 rgba(255, 238, 200, .45);
+    transition: none;
+}
+/* An inactive window's planks go dull (multiplied with grey); its title stays fully readable. */
+.desktop-body[data-theme="voxel_world"] .vd-window:not(.active) > .vd-window-titlebar { background-color: #a89c8c; background-blend-mode: multiply; }
+.desktop-body[data-theme="voxel_world"] .vd-window.dragging > .vd-window-titlebar { background-color: #ffffff; background-image: var(--vd-theme-voxel-planks); }
+.desktop-body[data-theme="voxel_world"] .vd-window-title,
+.desktop-body[data-theme="voxel_world"] .vd-window-subtitle { flex: 0 1 auto; padding: 1px 8px; background: rgba(34, 22, 8, .62); color: #fff7e0; font-weight: 700; letter-spacing: .02em; text-shadow: 2px 2px 0 #3b2a1a; text-transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-window-subtitle { font-size: 11px; color: #f2e4c4; }
+.desktop-body[data-theme="voxel_world"] .vd-window:not(.active) :is(.vd-window-title, .vd-window-subtitle) { opacity: 1; }
+.desktop-body[data-theme="voxel_world"] .vd-window.active .vd-window-header-icon-wrap { filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, .55)); }
+
+.desktop-body[data-theme="voxel_world"] .vd-window-button {
+    box-sizing: border-box;
+    border: 2px solid #1e1e1e;
+    border-radius: 0;
+    background: #a0a0a0;
+    color: #151515;
+    box-shadow: inset 2px 2px 0 #dcdcdc, inset -2px -2px 0 #5a5a5a;
+    transition: none;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-button:hover { background: #a9b8d8; color: #101010; }
+.desktop-body[data-theme="voxel_world"] .vd-window-button:active { background: #8f9cb8; box-shadow: inset 2px 2px 0 #5a5a5a, inset -2px -2px 0 #dcdcdc; transform: none; filter: none; }
+.desktop-body[data-theme="voxel_world"] .vd-window-button::after { display: none; }
+.desktop-body[data-theme="voxel_world"] .vd-window-button[data-action="close"] { background: #b33a2b; color: #ffffff; box-shadow: inset 2px 2px 0 #e06a5a, inset -2px -2px 0 #6e1f16; }
+.desktop-body[data-theme="voxel_world"] .vd-window-button[data-action="close"]:hover { background: #c4473a; color: #ffffff; border-color: #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] .vd-window-button[data-action="close"]:active { background: #a02f21; box-shadow: inset 2px 2px 0 #6e1f16, inset -2px -2px 0 #e06a5a; }
+/* Pixel glyphs replace the packed artwork: the base draws a minimize bar, a maximize square and a cross in currentColor. */
+.desktop-body[data-theme="voxel_world"] .vd-window-button:is([data-action="minimize"], [data-action="maximize"], [data-action="close"]) .vd-window-control-icon { display: none; }
+.desktop-body[data-theme="voxel_world"] .vd-window-button:is([data-action="minimize"], [data-action="maximize"], [data-action="close"]):has(.vd-window-control-icon)::before {
+    content: "";
+    display: block;
+    width: 14px;
+    height: 14px;
+    margin: auto;
+    border: 0;
+    border-radius: 0;
+    background: currentColor;
+    -webkit-mask: var(--vd-theme-voxel-glyph-minimize) center / 14px 14px no-repeat;
+    mask: var(--vd-theme-voxel-glyph-minimize) center / 14px 14px no-repeat;
+}
+.desktop-body[data-theme="voxel_world"] .vd-window-button[data-action="maximize"]:has(.vd-window-control-icon)::before { -webkit-mask-image: var(--vd-theme-voxel-glyph-maximize); mask-image: var(--vd-theme-voxel-glyph-maximize); }
+.desktop-body[data-theme="voxel_world"] .vd-window-button[data-action="close"]:has(.vd-window-control-icon)::before { -webkit-mask-image: var(--vd-theme-voxel-glyph-close); mask-image: var(--vd-theme-voxel-glyph-close); }
+/* On the planks the focus ring is a white frame with a dark edge on both sides, so it reads over every plank shade. */
+.desktop-body[data-theme="voxel_world"] .vd-window-titlebar .vd-window-button:focus-visible { outline: 3px solid #ffffff; outline-offset: 1px; box-shadow: inset 2px 2px 0 #dcdcdc, inset -2px -2px 0 #5a5a5a, 0 0 0 5px #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] .vd-window-titlebar .vd-window-button[data-action="close"]:focus-visible { box-shadow: inset 2px 2px 0 #e06a5a, inset -2px -2px 0 #6e1f16, 0 0 0 5px #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] .vd-window-ai-button { color: #151515; }
+.desktop-body[data-theme="voxel_world"] .vd-resize-handle:hover { background: rgba(53, 86, 45, .35); }
+
+/* Window menu bar: a grey inventory strip under the planks. */
+.desktop-body[data-theme="voxel_world"] .vd-window-menubar { border: 2px solid #1e1e1e; border-bottom: 0; border-radius: 0; background: #c6c6c6; box-shadow: inset 0 2px 0 #fdfdfd, inset 0 -2px 0 #555; }
+.desktop-body[data-theme="voxel_world"] .vd-window-menu-button { height: 24px; border: 0; border-radius: 0; background: transparent; color: #2a2a2a; font-weight: 700; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu.open > .vd-window-menu-button, .vd-window-menu-button:is(:hover, :focus-visible)) { border: 0; background: #dadada; color: #1b1b1b; box-shadow: inset 0 0 0 2px #476b3c; outline: none; }
+.desktop-body[data-theme="voxel_world"] .vd-window .vd-window-menubar .vd-window-menu-button:focus-visible { outline: 3px solid #35562d; outline-offset: -3px; }
+
+/* ---- Inventory panels: grey, hard bevels, square corners ---- */
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-shortcuts-modal, .vd-modal, .vd-file-dialog, .vd-toast, .vd-spaces-overview-panel, .vd-disabled-panel) {
+    border: 2px solid #1e1e1e;
+    border-radius: 0;
+    background: #c6c6c6;
+    color: #2a2a2a;
+    box-shadow: var(--vd-theme-voxel-panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    --vd-muted: #3d3d3d;
+    --vd-border: #6a6a6a;
+    --vd-theme-border: #8b8b8b;
+    --vd-theme-border-subtle: #a8a8a8;
+    --ds-color-control-bg: #e8e8e8;
+}
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-menu, .vd-notification-center, .vd-spotlight, .vd-file-dialog) { padding: 3px; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay, .vd-spotlight-backdrop, .vd-shortcuts-help, .vd-spaces-overview-backdrop) { background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="voxel_world"] .vd-window-switcher { background: rgba(0, 0, 0, .5); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-menu-backdrop) { background: rgba(0, 0, 0, .3); -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Rows: slot-like, hover and focus show a green inset frame, the selected row is green. */
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category, .vd-spotlight-item, .vd-notification-item, .vd-file-dialog-row, .vd-file-dialog-sidebar-item) { border-radius: 0; color: #2a2a2a; transition: none; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category, .vd-spotlight-item, .vd-notification-item, .vd-file-dialog-row, .vd-file-dialog-sidebar-item):is(:hover, :focus-visible):not(:disabled) { border-radius: 0; background: #dadada; color: #1b1b1b; box-shadow: inset 0 0 0 2px #476b3c; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu, .vd-spotlight, .vd-notification-center, .vd-file-dialog) :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category, .vd-spotlight-item, .vd-notification-item, .vd-file-dialog-row, .vd-file-dialog-sidebar-item):focus-visible { background: #ececec; outline: 3px solid #35562d; outline-offset: -3px; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-category[aria-selected="true"], .vd-spotlight-item.active, .vd-file-dialog-row.selected, .vd-file-dialog-sidebar-item.active) { background: #b9d39a; color: #14230f; box-shadow: inset 0 0 0 2px #476b3c; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-context-item, .vd-window-menu-item):disabled { color: #5a5a5a; }
+.desktop-body[data-theme="voxel_world"] .vd-window-menu-item.checked { color: #1f3d17; }
+.desktop-body[data-theme="voxel_world"] :is(kbd, .vd-context-shortcut, .vd-window-menu-arrow, .vd-context-arrow) { color: #3d3d3d; }
+.desktop-body[data-theme="voxel_world"] .vd-context-icon { color: #2a2a2a; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-context-separator, .vd-window-menu-separator) { height: 2px; background: #8b8b8b; box-shadow: 0 2px 0 #f2f2f2; opacity: 1; }
+
+/* ---- Start menu: search slot, grey rail, app grid ---- */
+.desktop-body[data-theme="voxel_world"] .vd-start-menu { left: 12px; border-radius: 0; }
+.desktop-body[data-theme="voxel_world"] .vd-start-sheet-handle::after { border-radius: 0; background: #6a6a6a; }
+.desktop-body[data-theme="voxel_world"] .vd-start-search { padding: 8px; border-bottom: 2px solid #8b8b8b; }
+.desktop-body[data-theme="voxel_world"] .vd-start-rail { gap: 4px; padding: 8px; border-right: 2px solid #555555; background: #b4b4b4; }
+.desktop-body[data-theme="voxel_world"] .vd-start-rail-indicator { display: none; }
+.desktop-body[data-theme="voxel_world"] .vd-start-rail-separator { height: 2px; background: #6a6a6a; }
+.desktop-body[data-theme="voxel_world"] .vd-start-category { min-height: 36px; color: #2a2a2a; font-weight: 700; }
+.desktop-body[data-theme="voxel_world"] .vd-start-category-icon { opacity: 1; transform: none; transition: none; }
+.desktop-body[data-theme="voxel_world"] .vd-start-category-count { border-radius: 0; background: #9a9a9a; color: #151515; opacity: 1; }
+.desktop-body[data-theme="voxel_world"] .vd-start-category[aria-selected="true"] .vd-start-category-count { background: #476b3c; color: #ffffff; }
+.desktop-body[data-theme="voxel_world"] .vd-start-pane-title { color: #1b1b1b; font-weight: 900; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-pane-count, .vd-start-recent-label, .vd-start-empty) { color: #3d3d3d; opacity: 1; }
+.desktop-body[data-theme="voxel_world"] .vd-start-grid { gap: 4px 6px; }
+.desktop-body[data-theme="voxel_world"] .vd-start-item { border: 0; background: transparent; }
+.desktop-body[data-theme="voxel_world"] .vd-start-recent-item { border-left: 4px solid #476b3c; background: transparent; }
+
+/* ---- Fields and buttons: sunken stone fields, raised stone buttons, grass primary ---- */
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input) {
+    border: 2px solid #1e1e1e;
+    border-radius: 0;
+    background: #e8e8e8;
+    color: #151515;
+    box-shadow: var(--vd-theme-voxel-sunken);
+}
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-name input)::placeholder { color: #4a4a4a; opacity: 1; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input):is(:hover, :focus) { background: #f4f4f4; border-color: #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input):focus-visible { outline: 3px solid #35562d; outline-offset: 2px; }
+
+.desktop-body[data-theme="voxel_world"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close, .vd-spaces-overview-close, .vd-switcher-item) {
+    box-sizing: border-box;
+    border: 2px solid #1e1e1e;
+    border-radius: 0;
+    background: #a0a0a0;
+    color: #151515;
+    font-weight: 700;
+    box-shadow: inset 2px 2px 0 #dcdcdc, inset -2px -2px 0 #5a5a5a;
+    transition: none;
+}
+.desktop-body[data-theme="voxel_world"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close, .vd-spaces-overview-close):hover:not(:disabled) { background: #a9b8d8; color: #101010; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close, .vd-spaces-overview-close):active:not(:disabled) { background: #8f9cb8; box-shadow: inset 2px 2px 0 #5a5a5a, inset -2px -2px 0 #dcdcdc; transform: none; filter: none; }
+.desktop-body[data-theme="voxel_world"] .vd-button::after { display: none; }
+.desktop-body[data-theme="voxel_world"] .vd-button:disabled { background: #9a9a9a; color: #4a4a4a; opacity: .75; }
+.desktop-body[data-theme="voxel_world"] .vd-button-primary { background: #3f7a2a; border-color: #1e1e1e; color: #ffffff; text-shadow: 1px 1px 0 #1d3a12; box-shadow: inset 2px 2px 0 #7cbd4a, inset -2px -2px 0 #2f5a1f; }
+.desktop-body[data-theme="voxel_world"] .vd-button-primary:hover:not(:disabled) { background: #44842d; color: #ffffff; }
+.desktop-body[data-theme="voxel_world"] .vd-button-primary:active:not(:disabled) { background: #386f25; box-shadow: inset 2px 2px 0 #2f5a1f, inset -2px -2px 0 #7cbd4a; }
+.desktop-body[data-theme="voxel_world"] .vd-toast-close { width: 28px; height: 28px; font-size: 13px; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-shortcuts-list kbd, .vd-shortcuts-keys) { border: 2px solid #1e1e1e; border-radius: 0; background: #9a9a9a; color: #151515; box-shadow: inset 1px 1px 0 #d2d2d2, inset -1px -1px 0 #555555; }
+
+
+/* ---- Modals and dialogs ---- */
+.desktop-body[data-theme="voxel_world"] .vd-modal { padding: 20px; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-modal-title, .vd-file-dialog-title, .vd-shortcuts-title, .vd-shortcuts-heading, .vd-spaces-overview-title, .vd-notification-title, .vd-disabled-title) { color: #1b1b1b; font-weight: 900; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-modal-copy, .vd-toast-message, .vd-file-dialog-status, .vd-shortcuts-action, .vd-prop-label, .vd-file-dialog-name, .vd-file-dialog-breadcrumbs, .vd-disabled-copy) { color: #3d3d3d; }
+.desktop-body[data-theme="voxel_world"] .vd-prop-value { color: #1b1b1b; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-header,
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-footer { border-color: #6a6a6a; border-width: 0 0 2px; border-style: solid; background: #b4b4b4; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-footer { border-width: 2px 0 0; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-sidebar { border-right: 2px solid #555555; background: #b4b4b4; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-main { background: #c6c6c6; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-breadcrumbs button { border-radius: 0; color: #1b1b1b; font-weight: 700; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-list { border: 2px solid #1e1e1e; border-radius: 0; background: #e8e8e8; box-shadow: var(--vd-theme-voxel-sunken); }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-row { border-bottom: 1px solid #b4b4b4; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-file-dialog-entry-icon, .vd-file-dialog-entry-type, .vd-file-dialog-entry-size, .vd-file-dialog-empty) { color: #3d3d3d; }
+.desktop-body[data-theme="voxel_world"] .vd-file-dialog-close { width: 34px; height: 34px; }
+.desktop-body[data-theme="voxel_world"] .vd-shortcuts-row { border-radius: 0; background: #e8e8e8; }
+
+/* ---- Toasts, notification centre, clock popup, thumbnails, switcher ---- */
+.desktop-body[data-theme="voxel_world"] .vd-toast { padding: 12px 14px 14px; animation-timing-function: steps(4, end); }
+.desktop-body[data-theme="voxel_world"] .vd-toast::after { left: 3px; right: 3px; bottom: 3px; height: 4px; border-radius: 0; background: #3f7a2a; opacity: 1; }
+.desktop-body[data-theme="voxel_world"] .vd-toast[data-type="error"]::after { background: #b33a2b; }
+.desktop-body[data-theme="voxel_world"] .vd-toast.vd-toast-paused { border-color: #1e1e1e; translate: none; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-notification-header, .vd-clock-popup-head) { padding: 10px 12px; border-bottom: 2px solid #8b8b8b; }
+.desktop-body[data-theme="voxel_world"] .vd-notification-item { border-bottom: 1px solid #a8a8a8; }
+.desktop-body[data-theme="voxel_world"] .vd-notification-item.unread { background: #d3e5bd; }
+.desktop-body[data-theme="voxel_world"] .vd-notification-item.unread::before { border-radius: 0; background: #3f7a2a; box-shadow: 0 0 0 2px #1e1e1e; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-notification-item-message, .vd-notification-item-time, .vd-clock-popup-loading, .vd-notification-empty, .vd-clock-popup-empty, .vd-clock-popup-section, .vd-clock-event-time) { color: #3d3d3d; opacity: 1; }
+.desktop-body[data-theme="voxel_world"] .vd-clock-popup-events li { border-bottom: 1px solid #a8a8a8; }
+.desktop-body[data-theme="voxel_world"] .vd-clock-popup-time { color: #1b1b1b; }
+.desktop-body[data-theme="voxel_world"] .vd-taskbar-thumbnail { padding: 8px; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-taskbar-thumb-viewport, .vd-taskbar-thumb-fallback, .vd-overview-card-viewport) { border: 2px solid #1e1e1e; border-radius: 0; background: #e8e8e8; color: #3d3d3d; }
+.desktop-body[data-theme="voxel_world"] .vd-switcher-item { min-width: 120px; box-shadow: var(--vd-theme-voxel-panel); background: #c6c6c6; }
+.desktop-body[data-theme="voxel_world"] .vd-switcher-item.active { border-color: #1e1e1e; outline: 3px solid #ffffff; outline-offset: 1px; transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-switcher-label { color: #1b1b1b; font-weight: 700; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-space-column, .vd-space-window-card) { border: 2px solid #1e1e1e; border-radius: 0; background: #b4b4b4; color: #2a2a2a; }
+.desktop-body[data-theme="voxel_world"] .vd-space-column.active { box-shadow: inset 0 0 0 2px #476b3c; }
+.desktop-body[data-theme="voxel_world"] .vd-space-column-empty { color: #3d3d3d; }
+
+/* ---- Desktop icons: square selection frame, the label sits on its own dark plate (see desktop-wallpaper-themes.css) ---- */
+.desktop-body[data-theme="voxel_world"] .vd-icon { border-radius: 0; }
+.desktop-body[data-theme="voxel_world"] :is(.vd-icon:hover, .vd-icon.selected, .vd-icon:focus-visible) { border: 2px solid #f4f4f4; background: rgba(0, 0, 0, .22); box-shadow: 0 0 0 2px #000000; transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-icon:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+.desktop-body[data-theme="voxel_world"] .vd-icon:active { transform: none; }
+.desktop-body[data-theme="voxel_world"] .vd-desktop-selection-marquee { border: 2px solid #ffffff; border-radius: 0; background: rgba(255, 255, 255, .18); box-shadow: 0 0 0 1px #000000; }
+
+.desktop-body[data-theme="voxel_world"] .vd-window-switcher button.vd-switcher-item:focus-visible { outline: 3px solid #ffffff; outline-offset: 2px; }
+
+/* ---- Touch: slots, buttons and the start block keep 44 px targets ---- */
+@media (pointer: coarse) {
+    .desktop-body[data-theme="voxel_world"] .vd-start-button { min-width: 44px; min-height: 44px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar-apps { padding: 4px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-space-pager-btn) { min-width: 44px; min-height: 44px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-space-pager-btn { height: 44px; }
+}
+
+/* Narrow shell: the block shrinks, the hotbar keeps its padding for the safe areas. */
+@media (max-width: 820px) {
+    .desktop-body[data-theme="voxel_world"] { --vd-start-button-size: 44px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar { min-height: 0; padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left)); }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-task-button { min-width: 42px; padding: 0 8px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar-system { gap: 4px; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar-pins { margin-right: 0; padding-right: 0; border-right: 0; box-shadow: none; }
+    .desktop-body[data-theme="voxel_world"] .vd-taskbar .vd-clock { padding: 0 4px; }
+}
+
+/* Touch phones: the base floats the bar as a pill; keep a square hotbar instead. */
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="voxel_world"]:not([data-shell="dock"]) .vd-taskbar {
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        min-height: 0;
+        padding: 3px 8px;
+        border: 2px solid #000000;
+        border-radius: 0;
+        background: rgba(22, 22, 22, .78);
+        box-shadow: inset 0 2px 0 #5a5a5a, 0 4px 0 rgba(0, 0, 0, .3);
+    }
+}
+
+/* ui/css/desktop-theme-orbit.css */
+/* desktop-theme-orbit.css - Orbit shell skin (theme id "orbit"): a maximal, live 3D space theme.
+   Behind the shell a WebGL scene shows a ringed giant, a space station and drifting dust (theme-fx: orbit.js,
+   orbit-scene.js); a Canvas 2D particle layer and a window bridge (orbit-particles.js, orbit-windows.js) add sparks and
+   drag tilt. This file styles the DOM: dark glass windows with cyan and violet hairlines, a HUD taskbar, and the 3D
+   open, close and minimize keyframes. Windows are flat at rest; the third dimension exists only while they move.
+   Every rule is rooted at .desktop-body[data-theme="orbit"]; ui/desktop_theme_css_contract_test.go enforces the
+   contract: the bare root rule comes first and carries every token, every animation sits behind
+   :not([data-animations="false"]) on the root compound, and keyframes (vd-theme-orbit-*) animate only transform,
+   opacity, offset and animation-timing-function.
+   Palette: deep space #03040c to #0b1020, glass panels #0e1428, ice text #e8f1ff, signal cyan #5ce1ff (accent),
+   nebula violet #8b7bff, ring amber #ffb547.
+   Fonts: Geist (Vercel, SIL Open Font License 1.1, listed in THIRD_PARTY_LIBRARIES.md) and Barlow Condensed
+   (c) 2017 The Barlow Project Authors, SIL Open Font License 1.1, see /fonts/BarlowCondensed-LICENSE.txt. */
+
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Barlow Condensed";
+    src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+.desktop-body[data-theme="orbit"] {
+    color-scheme: dark;
+
+    /* Core */
+    --vd-bg: #060913;
+    --vd-surface: rgba(14, 20, 40, .62);
+    --vd-surface-strong: rgba(14, 20, 40, .88);
+    --vd-border: rgba(92, 225, 255, .22);
+    --vd-border-bright: rgba(139, 123, 255, .55);
+    --vd-text: #e8f1ff;
+    --vd-muted: #9fb0cc;
+    --vd-shadow: 0 0 0 1px rgba(92, 225, 255, .08), 0 18px 48px rgba(0, 0, 8, .6);
+    --vd-shadow-window: 0 0 0 1px rgba(92, 225, 255, .16), 0 0 28px rgba(92, 225, 255, .1), 0 28px 70px rgba(0, 0, 8, .68);
+    --vd-inner-glow: inset 0 1px 0 rgba(200, 230, 255, .1);
+    --vd-window-radius: 14px;
+    --vd-font-ui: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+
+    /* Fixed accent: signal cyan */
+    --vd-accent: #5ce1ff;
+    --vd-accent-r: 92;
+    --vd-accent-g: 225;
+    --vd-accent-b: 255;
+    --vd-accent-glow: rgba(92, 225, 255, .45);
+    --vd-accent-contrast: #04121a; /* text on the accent: near-black on cyan */
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #0b1020;
+    --vd-theme-panel-bg: #0e1428;
+    --vd-theme-panel-bg-strong: rgba(14, 20, 40, .94);
+    --vd-theme-chrome-bg: rgba(8, 12, 28, .74);
+    --vd-theme-overlay-bg: rgba(3, 5, 14, .68);
+    --vd-theme-control-bg: rgba(92, 225, 255, .06);
+    --vd-theme-control-hover: rgba(92, 225, 255, .14);
+    --vd-theme-border: rgba(92, 225, 255, .22);
+    --vd-theme-border-strong: rgba(139, 123, 255, .55);
+    --vd-theme-muted: #9fb0cc;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 92), var(--vd-accent-g, 225), var(--vd-accent-b, 255), .14);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 92), var(--vd-accent-g, 225), var(--vd-accent-b, 255), .5);
+    --vd-theme-radius-panel: 14px;
+    --vd-theme-radius-modal: 18px;
+    --vd-theme-shadow-panel: 0 0 0 1px rgba(92, 225, 255, .12), 0 16px 40px rgba(0, 0, 8, .6);
+    --vd-theme-shadow-modal: 0 0 0 1px rgba(139, 123, 255, .28), 0 0 36px rgba(92, 225, 255, .12), 0 28px 80px rgba(0, 0, 8, .72);
+    --vd-theme-blur: blur(18px) saturate(1.2);
+    --vd-theme-overlay-blur: blur(12px) saturate(1.1);
+
+    /* Chrome */
+    --vd-chrome-highlight: inset 0 1px 0 rgba(210, 235, 255, .14);
+    --vd-chrome-ring: inset 0 0 0 1px rgba(92, 225, 255, .28);
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, rgba(92, 225, 255, .7) 20%, rgba(139, 123, 255, .6) 80%, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #e8f1ff;
+    --ds-color-fg-secondary: #c3d2ea;
+    --ds-color-fg-muted: #9fb0cc;
+    --ds-color-fg-disabled: #6d7e9c;
+    --ds-color-bg-canvas: #060913;
+    --ds-color-bg-raised: #0b1020;
+    --ds-color-bg-overlay: #0e1428;
+    --ds-color-bg-modal: #121a33;
+    --ds-color-surface-0: #0b1020;
+    --ds-color-surface-1: #0e1428;
+    --ds-color-surface-2: #121a33;
+    --ds-color-surface-3: #18213f;
+    --ds-color-border-subtle: rgba(92, 225, 255, .12);
+    --ds-color-border-default: rgba(92, 225, 255, .26);
+    --ds-color-border-strong: rgba(139, 123, 255, .55);
+    --ds-color-border-focus: #5ce1ff;
+    --ds-color-accent-500: #5ce1ff;
+    --ds-color-accent-600: #2fb8dc;
+    --ds-color-accent-glow: rgba(92, 225, 255, .3);
+    --ds-color-control-active: rgba(92, 225, 255, .24);
+    --ds-color-inner-highlight: rgba(210, 235, 255, .1);
+    --ds-elevation-1: 0 0 0 1px rgba(92, 225, 255, .1), 0 2px 6px rgba(0, 0, 8, .5);
+    --ds-elevation-2: 0 0 0 1px rgba(92, 225, 255, .12), 0 6px 16px rgba(0, 0, 8, .55);
+    --ds-elevation-3: 0 0 0 1px rgba(92, 225, 255, .14), 0 12px 32px rgba(0, 0, 8, .6);
+    --ds-elevation-4: 0 0 0 1px rgba(92, 225, 255, .16), 0 0 18px rgba(92, 225, 255, .08), 0 20px 50px rgba(0, 0, 8, .66);
+    --ds-elevation-5: 0 0 0 1px rgba(139, 123, 255, .26), 0 0 28px rgba(92, 225, 255, .12), 0 28px 70px rgba(0, 0, 8, .72);
+    --ds-blur-fine: blur(12px) saturate(1.2);
+    --ds-blur-coarse: blur(6px);
+
+    /* Geometry and type of this skin: the taskbar floats 10px above the screen edge, so the work area
+       (maximized windows, start menu, workspace padding) reserves bar height plus that offset. */
+    --vd-taskbar-height: 56px;
+    --vd-taskbar-offset: 10px;
+    --vd-maximized-window-reserve: var(--vd-taskbar-gap, 66px);
+    --vd-start-button-size: 40px;
+    --vd-orbit-bar: 40px;
+    --vd-orbit-menubar: 28px;
+    --vd-orbit-display: "Desktop Theme Barlow Condensed", "Barlow Condensed", "Desktop Theme Geist", system-ui, sans-serif;
+    --vd-orbit-edge: linear-gradient(135deg, #5ce1ff, #8a6bff 45%, #ffb547 80%, #5ce1ff);
+    --vd-orbit-hair: rgba(140, 200, 255, .22);
+}
+
+.desktop-body[data-theme="orbit"][data-density="compact"] { --vd-taskbar-height: 50px; --vd-start-button-size: 36px; }
+
+@media (pointer: coarse) {
+    .desktop-body[data-theme="orbit"] { --vd-orbit-bar: 48px; }
+}
+
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="orbit"] { --vd-orbit-bar: 52px; --vd-orbit-menubar: 32px; }
+}
+
+/* === Windows: smoked glass, a 1px hairline at rest, a holographic edge on the active one ===
+   Pseudo-elements: ::before is the holographic ring (masked 1px gradient), ::after the travelling glint; the
+   scan line of the open animation lives on .vd-window-content::after. data-polish is off for Orbit, so the
+   shared polish layer does not claim ::before. Every window is flat (no transform) at rest. */
+.desktop-body[data-theme="orbit"] .vd-window {
+    --vd-orbit-bracket: rgba(92, 225, 255, .28);
+    --vd-orbit-sheen: transparent;
+    isolation: isolate;
+    grid-template-rows: var(--vd-orbit-bar) minmax(0, 1fr);
+    border: 1px solid var(--vd-orbit-hair);
+    border-radius: 14px;
+    background: rgba(10, 14, 32, .58);
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .8), 0 0 0 1px rgba(92, 225, 255, .06);
+    -webkit-backdrop-filter: blur(22px) saturate(1.6);
+    backdrop-filter: blur(22px) saturate(1.6);
+}
+
+.desktop-body[data-theme="orbit"] .vd-window.has-window-menu { grid-template-rows: calc(var(--vd-orbit-bar) + var(--vd-orbit-menubar)) minmax(0, 1fr); }
+.desktop-body[data-theme="orbit"] .vd-window.no-titlebar { grid-template-rows: minmax(0, 1fr); border: 1px solid var(--vd-orbit-hair); background: var(--vd-theme-app-bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+.desktop-body[data-theme="orbit"] .vd-window.active {
+    --vd-orbit-bracket: rgba(92, 225, 255, .7);
+    --vd-orbit-sheen: rgba(255, 255, 255, .08);
+    border-color: transparent;
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .8), 0 0 0 1px rgba(92, 225, 255, .06), 0 0 24px rgba(92, 225, 255, .25);
+}
+
+.desktop-body[data-theme="orbit"] .vd-window.active.no-titlebar { border-color: rgba(92, 225, 255, .5); }
+/* Integrated GPUs: orbit.js publishes the scene's quality level on the body; at 2 and below the frame loses its backdrop
+   blur (the costly part of glass over a moving scene) and gets a more opaque fill. */
+.desktop-body[data-theme="orbit"]:is([data-orbit-quality="2"], [data-orbit-quality="3"], [data-orbit-quality="4"]) .vd-window:not(.no-titlebar) { background: rgba(10, 14, 32, .84); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="orbit"] .vd-window.maximized.active,
+.desktop-body[data-theme="orbit"] .vd-window.maximized { border-radius: 0; box-shadow: none; }
+.desktop-body[data-theme="orbit"] .vd-window.vd-window-file-drop-target { border-color: #5ce1ff; box-shadow: 0 0 0 2px rgba(92, 225, 255, .35), 0 0 32px rgba(92, 225, 255, .3); }
+.desktop-body[data-theme="orbit"] .vd-window.vd-window-file-drop-reject { border-color: #ff6b8a; box-shadow: 0 0 0 2px rgba(255, 107, 138, .35), 0 0 32px rgba(255, 107, 138, .25); }
+.desktop-body[data-theme="orbit"] .vd-window.dragging { box-shadow: 0 46px 110px -34px rgba(0, 0, 0, .9), 0 0 32px rgba(92, 225, 255, .32) !important; }
+
+/* The holographic edge: a 1px ring cut out of the gradient with a double mask (exclude the content box). */
+.desktop-body[data-theme="orbit"] .vd-window.active:not(.no-titlebar)::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: 5;
+    padding: 1px;
+    border-radius: 14px;
+    background: var(--vd-orbit-edge);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-window.maximized::before,
+.desktop-body[data-theme="orbit"] .vd-window.maximized::after { display: none; }
+
+/* Titlebar: 40px of smoked glass with a scan-line texture, HUD corner brackets (8 hairline gradients, no extra
+   DOM) and, on the active window, a pointer sheen that follows --vd-orbit-mx/--vd-orbit-my (set on body). */
+.desktop-body[data-theme="orbit"] .vd-window-titlebar {
+    min-height: var(--vd-orbit-bar);
+    padding: 0 8px 0 14px;
+    gap: 10px;
+    border-bottom: 1px solid rgba(140, 200, 255, .14);
+    background:
+        radial-gradient(circle 240px at var(--vd-orbit-mx, 50%) var(--vd-orbit-my, 0%), var(--vd-orbit-sheen), transparent 70%) 0 0 / auto no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px top 6px / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px top 6px / 1px 10px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px top 6px / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px top 6px / 1px 10px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px bottom 6px / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px bottom 6px / 1px 10px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px bottom 6px / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px bottom 6px / 1px 10px no-repeat,
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px) 0 0 / auto,
+        rgba(14, 22, 48, .55);
+}
+
+.desktop-body[data-theme="orbit"] .vd-window.active .vd-window-titlebar { border-bottom-color: rgba(92, 225, 255, .3); }
+.desktop-body[data-theme="orbit"] .vd-window.has-window-menu .vd-window-titlebar { grid-template-rows: var(--vd-orbit-bar) var(--vd-orbit-menubar); padding: 0 8px 0 14px; }
+
+.desktop-body[data-theme="orbit"] .vd-window-title {
+    color: #cfe9ff;
+    font: 600 14px/1.2 var(--vd-orbit-display);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.desktop-body[data-theme="orbit"] .vd-window.active .vd-window-title { text-shadow: 0 0 10px rgba(92, 225, 255, .35); }
+.desktop-body[data-theme="orbit"] .vd-window-subtitle { color: var(--vd-theme-muted); font: 500 11px/1.2 var(--vd-orbit-display); letter-spacing: .1em; }
+
+/* Window buttons: 14px glass discs in the 28px (44px on touch) hit box. */
+.desktop-body[data-theme="orbit"] .vd-window > .vd-window-titlebar > .vd-window-actions { gap: 0; }
+
+.desktop-body[data-theme="orbit"] .vd-window-button:not(.vd-window-ai-button) {
+    --vd-orbit-disc: 92, 225, 255;
+    border: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(var(--vd-orbit-disc), .2) 0 5.5px, rgba(var(--vd-orbit-disc), .6) 6px 6.5px, transparent 7px);
+    color: #dff3ff;
+    overflow: visible;
+    transition: filter 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.desktop-body[data-theme="orbit"] .vd-window-button[data-action="minimize"] { --vd-orbit-disc: 138, 107, 255; }
+.desktop-body[data-theme="orbit"] .vd-window-button[data-action="close"] { --vd-orbit-disc: 255, 181, 71; }
+.desktop-body[data-theme="orbit"] .vd-window-button::after { display: none; }
+.desktop-body[data-theme="orbit"] .vd-window-button .vd-window-control-icon { width: 8px; height: 8px; }
+.desktop-body[data-theme="orbit"] .vd-window:not(.active) .vd-window-button:not(.vd-window-ai-button) { filter: saturate(.55); opacity: .75; }
+
+.desktop-body[data-theme="orbit"] .vd-window-button:not(.vd-window-ai-button):hover {
+    background: radial-gradient(circle at 50% 50%, rgba(var(--vd-orbit-disc), .75) 0 5.5px, rgba(var(--vd-orbit-disc), .95) 6px 6.5px, transparent 7px);
+    color: #03101a;
+    filter: drop-shadow(0 0 6px rgba(var(--vd-orbit-disc), .9));
+}
+
+.desktop-body[data-theme="orbit"] .vd-window-ai-button { color: #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-window-ai-button:hover { border-color: rgba(92, 225, 255, .4); background: rgba(92, 225, 255, .12); }
+
+.desktop-body[data-theme="orbit"] .vd-window-menubar { margin: 0 -8px 0 -14px; padding: 0 10px; border-top: 1px solid rgba(140, 200, 255, .12); }
+.desktop-body[data-theme="orbit"] .vd-window-menu-button { color: var(--vd-theme-muted); font-weight: 500; }
+
+.desktop-body[data-theme="orbit"] :is(.vd-window-menu.open > .vd-window-menu-button, .vd-window-menu-button:is(:hover, :focus-visible)) {
+    border-color: rgba(92, 225, 255, .35);
+    background: rgba(92, 225, 255, .1);
+    color: #fff;
+}
+
+/* App content areas stay opaque so text keeps its contrast on top of the glass. */
+.desktop-body[data-theme="orbit"] .vd-window-content { background: var(--vd-theme-app-bg); }
+
+/* === Taskbar: a floating glass console, inset 10px from the screen edges === */
+.desktop-body[data-theme="orbit"] .vd-taskbar {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    padding: 0 12px 0 10px;
+    border: 1px solid rgba(140, 200, 255, .18);
+    border-radius: 18px;
+    background: rgba(8, 12, 30, .55);
+    box-shadow: 0 18px 44px -12px rgba(0, 0, 0, .75), 0 0 0 1px rgba(92, 225, 255, .05), inset 0 1px 0 rgba(210, 235, 255, .08);
+    -webkit-backdrop-filter: blur(22px) saturate(1.5);
+    backdrop-filter: blur(22px) saturate(1.5);
+}
+
+.desktop-body[data-theme="orbit"] .vd-taskbar::before { top: -1px; left: 36px; right: 36px; background: var(--vd-chrome-hairline); box-shadow: 0 0 12px rgba(92, 225, 255, .4); }
+.desktop-body[data-theme="orbit"] .vd-taskbar-apps { padding: 4px 2px; }
+.desktop-body[data-theme="orbit"] .vd-taskbar-system { gap: 8px; padding-left: 12px; border-left: 1px solid rgba(140, 200, 255, .14); }
+
+/* Start button: a small ringed planet drawn with gradients (::before the globe, ::after the ring). */
+.desktop-body[data-theme="orbit"] .vd-start-button {
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    transform: none;
+    filter: drop-shadow(0 0 6px rgba(92, 225, 255, .35));
+}
+
+.desktop-body[data-theme="orbit"] .vd-start-button :is(.vd-start-glyph, .vd-sprite-start, .vd-papirus-icon) { display: none; }
+
+.desktop-body[data-theme="orbit"] .vd-start-button::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    margin: -9px 0 0 -9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #c4f5ff 0, #5ce1ff 26%, #6a62ff 62%, #171c52 100%);
+    box-shadow: inset -3px -3px 5px rgba(3, 4, 20, .55), 0 0 10px rgba(92, 225, 255, .45);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-start-button::after {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 32px;
+    height: 11px;
+    margin: -5.5px 0 0 -16px;
+    border: 2px solid rgba(255, 181, 71, .4);
+    border-bottom-color: #ffb547;
+    border-radius: 50%;
+    background: none;
+    opacity: 1;
+    transform: rotate(-24deg);
+    transition: transform 320ms cubic-bezier(.2, .9, .25, 1);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-start-button:hover { background: transparent; box-shadow: none; transform: none; filter: drop-shadow(0 0 10px rgba(92, 225, 255, .75)); }
+.desktop-body[data-theme="orbit"] .vd-start-button:hover::after { opacity: 1; transform: rotate(-12deg); }
+.desktop-body[data-theme="orbit"] .vd-start-button[data-active="true"] { box-shadow: none; transform: none; filter: drop-shadow(0 0 9px rgba(255, 181, 71, .6)); }
+
+.desktop-body[data-theme="orbit"] .vd-task-button {
+    position: relative;
+    border: 1px solid rgba(140, 200, 255, .12);
+    border-radius: 12px;
+    background: rgba(92, 225, 255, .04);
+    color: var(--vd-text);
+    font-weight: 500;
+    transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms cubic-bezier(.2, .9, .25, 1);
+}
+
+.desktop-body[data-theme="orbit"] .vd-task-button:hover { border-color: rgba(92, 225, 255, .35); background: rgba(92, 225, 255, .1); transform: translateY(-2px); }
+.desktop-body[data-theme="orbit"] .vd-task-button:hover:active { transform: translateY(-1px) scale(.96); }
+.desktop-body[data-theme="orbit"] .vd-task-button.active { border-color: rgba(92, 225, 255, .45); background: rgba(92, 225, 255, .12); box-shadow: 0 0 16px rgba(92, 225, 255, .18), inset 0 1px 0 rgba(210, 235, 255, .1); }
+
+/* Every task button is an open window: a dim dot; the focused one carries the cyan orbit dot. */
+.desktop-body[data-theme="orbit"] .vd-task-button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: rgba(140, 200, 255, .5);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-task-button.active::after { background: #5ce1ff; box-shadow: 0 0 6px 1px rgba(92, 225, 255, .8); }
+
+.desktop-body[data-theme="orbit"] .vd-clock { color: #cfe9ff; font: 600 15px/1 var(--vd-orbit-display); letter-spacing: .08em; text-shadow: 0 0 8px rgba(92, 225, 255, .45); }
+
+.desktop-body[data-theme="orbit"] :is(.vd-fullscreen-button, .vd-notification-button, .vd-show-desktop-btn, .vd-space-pager-btn, .vd-agent-button, .vd-taskbar-widget-btn, .vd-live-speech-button, .vd-taskbar-pin) {
+    border: 1px solid rgba(140, 200, 255, .16);
+    border-radius: 10px;
+    background: rgba(92, 225, 255, .05);
+    color: var(--vd-muted);
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="orbit"] :is(.vd-fullscreen-button:enabled, .vd-notification-button, .vd-show-desktop-btn, .vd-live-speech-button, .vd-agent-button, .vd-taskbar-widget-btn, .vd-taskbar-pin):hover { border-color: rgba(92, 225, 255, .45); background: rgba(92, 225, 255, .14); color: #fff; }
+.desktop-body[data-theme="orbit"] .vd-space-pager-btn:is(.active, [aria-pressed="true"]) { border-color: rgba(92, 225, 255, .5); color: #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-agent-dot { background: #ffb547; box-shadow: 0 0 6px rgba(255, 181, 71, .75); }
+.desktop-body[data-theme="orbit"] .vd-notification-badge { background: #ffb547; color: #1a1000; }
+
+/* === Panels: smoked glass with the same hairline ring as the active window (::after); the start menu's
+   ::before is the light cone above the start button === */
+.desktop-body[data-theme="orbit"] :is(.vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-toast) {
+    border: 1px solid rgba(140, 200, 255, .1);
+    border-radius: 14px;
+    background: rgba(10, 16, 36, .72);
+    box-shadow: 0 24px 60px -18px rgba(0, 0, 0, .8), 0 0 0 1px rgba(92, 225, 255, .05), inset 0 1px 0 rgba(210, 235, 255, .08);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    backdrop-filter: blur(20px) saturate(1.4);
+}
+
+/* Modal panels sit on an already blurred backdrop: a denser fill instead of a second blur. */
+.desktop-body[data-theme="orbit"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal) {
+    position: relative;
+    border: 1px solid rgba(140, 200, 255, .1);
+    border-radius: 18px;
+    background: rgba(12, 18, 40, .9);
+    box-shadow: var(--vd-theme-shadow-modal);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="orbit"] :is(.vd-spotlight, .vd-shortcuts-panel) { position: relative; }
+
+.desktop-body[data-theme="orbit"] :is(.vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-shortcuts-panel, .vd-modal, .vd-file-dialog, .vd-shortcuts-modal)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--vd-orbit-edge);
+    opacity: .75;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-toast { border-left: 3px solid #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-toast[data-type="error"] { border-color: rgba(255, 107, 138, .4); border-left-color: #ff6b8a; }
+.desktop-body[data-theme="orbit"] .vd-toast::after { background: linear-gradient(90deg, #5ce1ff, #8a6bff, #ffb547); }
+.desktop-body[data-theme="orbit"] .vd-toast[data-type="error"]::after { background: #ff6b8a; }
+
+/* Backdrops: dark veil, radial vignette and a light blur. */
+.desktop-body[data-theme="orbit"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay, .vd-spotlight-backdrop, .vd-shortcuts-help) {
+    background: radial-gradient(ellipse at 50% 46%, transparent 38%, rgba(0, 0, 8, .5) 100%), rgba(2, 4, 14, .55);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.desktop-body[data-theme="orbit"] .vd-start-menu { left: 10px; }
+
+/* The light cone: a trapezoid of cyan light rising from the start button into the menu; it flashes on open. */
+.desktop-body[data-theme="orbit"] .vd-start-menu::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 0;
+    width: 300px;
+    height: 280px;
+    background: linear-gradient(to top, rgba(92, 225, 255, .34), transparent);
+    clip-path: polygon(14px 100%, 46px 100%, 100% 0, 0 0);
+    opacity: .5;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="orbit"] .vd-start-search { border-bottom: 1px solid rgba(140, 200, 255, .14); }
+.desktop-body[data-theme="orbit"] .vd-start-rail { border-right: 1px solid rgba(140, 200, 255, .14); background: rgba(4, 8, 22, .3); }
+.desktop-body[data-theme="orbit"] .vd-start-rail-indicator { background: rgba(92, 225, 255, .1); box-shadow: inset 0 0 0 1px rgba(92, 225, 255, .18); }
+.desktop-body[data-theme="orbit"] .vd-start-rail-indicator::before { background: #5ce1ff; box-shadow: 0 0 8px #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-start-category { font: 600 14px/1.2 var(--vd-orbit-display); letter-spacing: .06em; text-transform: uppercase; }
+.desktop-body[data-theme="orbit"] .vd-start-category[aria-selected="true"] { color: #fff; }
+.desktop-body[data-theme="orbit"] .vd-start-category-count { background: rgba(92, 225, 255, .1); color: #8fdcf5; }
+.desktop-body[data-theme="orbit"] .vd-start-category[aria-selected="true"] .vd-start-category-count { background: rgba(92, 225, 255, .22); color: #fff; }
+.desktop-body[data-theme="orbit"] :is(.vd-start-pane-title, .vd-start-recent-label) { color: #5ce1ff; font: 600 14px/1.2 var(--vd-orbit-display); letter-spacing: .1em; text-transform: uppercase; opacity: 1; }
+.desktop-body[data-theme="orbit"] .vd-start-recent-item { border-left-color: #5ce1ff; background: rgba(92, 225, 255, .05); }
+
+/* Rows: a soft cyan fill and a 2px light bar on the left. */
+.desktop-body[data-theme="orbit"] :is(.vd-start-item, .vd-start-category, .vd-context-item, .vd-window-menu-item, .vd-spotlight-item, .vd-notification-item, .vd-file-dialog-sidebar-item) { border-radius: 8px; }
+
+.desktop-body[data-theme="orbit"] :is(.vd-start-item, .vd-start-category, .vd-spotlight-item):is(:hover, :focus-visible),
+.desktop-body[data-theme="orbit"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible):not(:disabled) {
+    background: rgba(92, 225, 255, .12);
+    color: #fff;
+    box-shadow: inset 2px 0 0 #5ce1ff;
+}
+
+.desktop-body[data-theme="orbit"] :is(.vd-context-separator, .vd-window-menu-separator, .vd-start-rail-separator) { background: rgba(140, 200, 255, .16); }
+.desktop-body[data-theme="orbit"] :is(.vd-notification-header, .vd-clock-popup-head, .vd-clock-popup-section, .vd-spotlight-label, .vd-shortcuts-heading, .vd-modal-title, .vd-file-dialog-title, .vd-shortcuts-title, .vd-toast-title) { font-family: var(--vd-orbit-display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.desktop-body[data-theme="orbit"] :is(.vd-modal-title, .vd-file-dialog-title, .vd-shortcuts-title) { color: #5ce1ff; }
+.desktop-body[data-theme="orbit"] .vd-clock-popup-time { font-family: var(--vd-orbit-display); letter-spacing: .08em; text-shadow: 0 0 8px rgba(92, 225, 255, .4); }
+.desktop-body[data-theme="orbit"] :is(.vd-file-dialog-header, .vd-file-dialog-footer) { background: rgba(14, 22, 48, .6); border-color: rgba(140, 200, 255, .14); }
+.desktop-body[data-theme="orbit"] .vd-file-dialog-sidebar { background: rgba(4, 8, 22, .4); border-right-color: rgba(140, 200, 255, .14); }
+
+/* Fields and buttons */
+.desktop-body[data-theme="orbit"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter) { border: 1px solid rgba(140, 200, 255, .22); border-radius: 10px; background: rgba(3, 6, 18, .6); color: var(--vd-text); }
+.desktop-body[data-theme="orbit"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter):hover { border-color: rgba(92, 225, 255, .45); background: rgba(3, 6, 18, .72); }
+.desktop-body[data-theme="orbit"] :is(.vd-start-search input, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter):focus { border-color: #5ce1ff; background: rgba(3, 6, 18, .8); box-shadow: 0 0 0 3px rgba(92, 225, 255, .14); }
+.desktop-body[data-theme="orbit"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close) { border: 1px solid rgba(140, 200, 255, .25); border-radius: 10px; background: rgba(92, 225, 255, .06); color: var(--vd-text); box-shadow: none; }
+.desktop-body[data-theme="orbit"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-file-dialog-close, .vd-toast-close):hover:not(:disabled) { border-color: rgba(92, 225, 255, .6); background: rgba(92, 225, 255, .16); color: #fff; }
+.desktop-body[data-theme="orbit"] :is(.vd-button-primary, .vd-button.primary) { border-color: #5ce1ff; background: linear-gradient(135deg, rgba(92, 225, 255, .38), rgba(138, 107, 255, .3)); color: #fff; }
+
+/* Desktop icons: a cyan frame for hover and selection. */
+.desktop-body[data-theme="orbit"] .vd-icon:hover { border-color: rgba(92, 225, 255, .3); background: rgba(92, 225, 255, .07); box-shadow: none; }
+.desktop-body[data-theme="orbit"] .vd-icon.selected { border-color: rgba(92, 225, 255, .6); background: rgba(92, 225, 255, .13); box-shadow: 0 0 16px rgba(92, 225, 255, .2); }
+.desktop-body[data-theme="orbit"] .vd-desktop-selection-marquee { border-color: rgba(92, 225, 255, .8); background: rgba(92, 225, 255, .1); }
+
+/* Focus, selection and scrollbars */
+.desktop-body[data-theme="orbit"] ::selection { background: rgba(92, 225, 255, .32); color: #fff; }
+.desktop-body[data-theme="orbit"] :is(.vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-titlebar, .vd-window-menubar, .vd-window-menu-popover, .vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-shortcuts-panel, .vd-notification-center, .vd-clock-popup, .vd-spotlight, .vd-toast, .vd-icons) :is(a, button, select, [tabindex]):focus-visible { outline: 2px solid #5ce1ff !important; outline-offset: 2px; }
+.desktop-body[data-theme="orbit"] :is(.vd-start-menu, .vd-modal, .vd-file-dialog, .vd-shortcuts-panel, .vd-spotlight, .vd-window-titlebar, .vd-window-menubar, .vd-notification-center, .vd-clock-popup) :is(input, textarea):focus-visible { outline: 2px solid #5ce1ff !important; outline-offset: -1px; }
+.desktop-body[data-theme="orbit"] :is(.vd-taskbar, .vd-start-menu, .vd-modal, .vd-file-dialog, .vd-shortcuts-panel, .vd-spotlight) :is(button, select):focus-visible { box-shadow: 0 0 0 4px rgba(92, 225, 255, .16), 0 0 14px rgba(92, 225, 255, .4); }
+.desktop-body[data-theme="orbit"] .vd-taskbar-apps :is(.vd-task-button, .vd-taskbar-pin):focus-visible { outline-offset: -3px; }
+.desktop-body[data-theme="orbit"] :is(.vd-window-content, .vd-start-apps, .vd-start-rail, .vd-notification-list, .vd-context-menu, .vd-file-dialog-list) ::-webkit-scrollbar-track { background: rgba(92, 225, 255, .04); }
+.desktop-body[data-theme="orbit"] :is(.vd-window-content, .vd-start-apps, .vd-start-rail, .vd-notification-list, .vd-context-menu, .vd-file-dialog-list) ::-webkit-scrollbar-thumb { background: rgba(92, 225, 255, .34); background-clip: padding-box; border-radius: 8px; }
+.desktop-body[data-theme="orbit"] :is(.vd-window-content, .vd-start-apps, .vd-start-rail, .vd-notification-list, .vd-context-menu, .vd-file-dialog-list) ::-webkit-scrollbar-thumb:hover { background: rgba(92, 225, 255, .6); background-clip: padding-box; }
+.desktop-body[data-theme="orbit"] :is(.vd-start-apps, .vd-start-rail, .vd-notification-list, .vd-file-dialog-list)::-webkit-scrollbar-thumb { background: rgba(92, 225, 255, .34); background-clip: padding-box; border-radius: 8px; }
+
+/* === Compact touch layout: the shared floating island and bottom sheet keep their geometry, in glass === */
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="orbit"]:not([data-shell="dock"]) .vd-taskbar { left: 50%; right: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: max-content; max-width: calc(100vw - 28px); border-radius: 999px; transform: translateX(-50%); }
+    .desktop-body[data-theme="orbit"] .vd-taskbar::before { display: none; }
+    .desktop-body[data-theme="orbit"] .vd-taskbar-system { padding-left: 0; border-left: 0; }
+    .desktop-body[data-theme="orbit"] .vd-window::before,
+    .desktop-body[data-theme="orbit"] .vd-window::after,
+    .desktop-body[data-theme="orbit"] .vd-start-menu::before { display: none; }
+    .desktop-body[data-theme="orbit"] .vd-start-menu { border-radius: 20px 20px 0 0; }
+}
+
+/* === Motion: windows fly in from depth and fall away, menus unfold, modals open like a hatch ===
+   All of it sits behind data-animations and prefers-reduced-motion. Each duration is 20 ms under the JS
+   fallback timer of the theme registry; the keyframes move only transform and opacity (the glint moves along
+   offset), and every window is flat again (transform: none) when the class comes off. */
+@media (prefers-reduced-motion: no-preference) {
+    /* The glint: a streak of light that circles the frame of the focused window, turning with the corners
+       (offset-rotate: auto). It sits under the window content (z-index 0), so it lights the outer edge and the
+       translucent titlebar but never the app. Without offset-path support it stays unpainted. */
+    @supports (offset-path: inset(0)) {
+        .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window.active:not(.maximized):not(.no-titlebar)::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            z-index: 0;
+            width: 120px;
+            height: 24px;
+            background: radial-gradient(ellipse closest-side, rgba(255, 255, 255, .9) 0, rgba(150, 236, 255, .5) 28%, rgba(92, 225, 255, 0) 100%);
+            offset-path: inset(0 round 14px);
+            offset-rotate: auto;
+            pointer-events: none;
+            animation: vd-theme-orbit-glint 7s linear infinite;
+        }
+    }
+
+    /* Drag tilt: JS sets data-orbit-tilt and the three properties on the dragged window. The shell's transform
+       transition is replaced so the window follows the pointer without lag. */
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window[data-orbit-tilt] {
+        transform: perspective(1600px) translateZ(var(--vd-orbit-lift, 0px)) rotateX(var(--vd-orbit-tilt-x, 0deg)) rotateY(var(--vd-orbit-tilt-y, 0deg));
+        transition: box-shadow 160ms ease;
+        box-shadow: 0 60px 120px -40px rgba(0, 0, 0, .9), 0 0 36px rgba(92, 225, 255, .35), 0 0 0 1px rgba(92, 225, 255, .1);
+    }
+
+    /* Modals open like a hatch; their backdrops fade in. */
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { animation: vd-theme-orbit-fade 260ms ease-out both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) :is(.vd-modal-backdrop .vd-modal, .vd-file-dialog-backdrop .vd-file-dialog, .vd-shortcuts-overlay .vd-shortcuts-modal) { transform-origin: 50% 0; animation: vd-theme-orbit-hatch 420ms cubic-bezier(.25, .46, .45, .94) both; }
+}
+
+/* Roomy layouts only: the compact touch layout keeps the shell's own gentle motion. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 821px), (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window-opening { transform-origin: 50% 60%; animation: vd-theme-orbit-window-open 620ms linear both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window-closing { transform-origin: 50% 60%; animation: vd-theme-orbit-window-close 520ms linear both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window-minimizing { transform-origin: 50% 50%; animation: vd-theme-orbit-window-minimize 460ms linear both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window-restoring { transform-origin: 50% 50%; animation: vd-theme-orbit-window-restore 480ms linear both; }
+
+    /* The runtime ends a motion class on the first animationend or transitionend of the window itself. A window that takes
+       focus while it opens starts 200ms transitions (border, shadow), which would end the 620ms flight after 200ms. */
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) :is(.vd-window-opening, .vd-window-closing, .vd-window-minimizing, .vd-window-restoring) { transition: none; }
+
+    /* The hologram scan line: a cyan bar with a trailing glow sweeps once over the content of an opening window. */
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window-opening .vd-window-content::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        background: linear-gradient(180deg, transparent calc(100% - 96px), rgba(92, 225, 255, .16) calc(100% - 3px), rgba(205, 248, 255, .95) calc(100% - 2px), rgba(92, 225, 255, .3) 100%);
+        opacity: 0;
+        pointer-events: none;
+        animation: vd-theme-orbit-scan 620ms cubic-bezier(.45, 0, .25, 1) both;
+    }
+
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening { transform-origin: 0 0; animation: vd-theme-orbit-unfold 260ms cubic-bezier(.2, .9, .25, 1) both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-window-menu.open > .vd-window-menu-popover:not(.vd-window-menu-popover-closing) { transform-origin: 0 0; animation: vd-theme-orbit-unfold 220ms cubic-bezier(.2, .9, .25, 1) both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) :is(.vd-context-menu-closing, .vd-window-menu-popover-closing) { transform-origin: 0 0; animation: vd-theme-orbit-fold 180ms cubic-bezier(.5, 0, .75, .4) both; }
+
+    /* The rows fly in one after the other. 8ms per row and 150ms per row keep row 12 inside the 260ms of the menu,
+       so no row is cut short when the runtime removes the opening class. */
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > * { animation: vd-theme-orbit-item-in 150ms cubic-bezier(.2, .9, .25, 1) both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(1) { animation-delay: 8ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(2) { animation-delay: 16ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(3) { animation-delay: 24ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(4) { animation-delay: 32ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(5) { animation-delay: 40ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(6) { animation-delay: 48ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(7) { animation-delay: 56ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(8) { animation-delay: 64ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(9) { animation-delay: 72ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(10) { animation-delay: 80ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(11) { animation-delay: 88ms; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-context-menu-opening > :nth-child(n+12) { animation-delay: 96ms; }
+
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-start-menu-opening { transform-origin: 50% 100%; animation: vd-theme-orbit-hologram 380ms cubic-bezier(.25, .46, .45, .94) both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-start-menu-closing { transform-origin: 8% 100%; animation: vd-theme-orbit-collapse 240ms cubic-bezier(.5, 0, .75, .4) both; }
+    .desktop-body[data-theme="orbit"]:not([data-animations="false"]) .vd-start-menu-opening::before { animation: vd-theme-orbit-cone 380ms ease-out both; }
+}
+
+@keyframes vd-theme-orbit-glint {
+    from { offset: inset(0 round 14px) 0% auto; }
+    to { offset: inset(0 round 14px) 100% auto; }
+}
+
+/* The easing sits on the steps (the animation-level curve would restart on every step and finish the flight in the
+   first 100ms): an ease-out into each pose, an ease-in where the window accelerates away. */
+@keyframes vd-theme-orbit-window-open {
+    0% { opacity: 0; transform: perspective(1600px) translate3d(0, 60px, -900px) rotateX(34deg) rotateY(-16deg) scale(.72); animation-timing-function: cubic-bezier(.25, .46, .45, .94); }
+    55% { opacity: 1; transform: perspective(1600px) translate3d(0, -6px, 40px) rotateX(-4deg) rotateY(2deg) scale(1.015); animation-timing-function: cubic-bezier(.35, 0, .3, 1); }
+    78% { transform: perspective(1600px) translate3d(0, 2px, -8px) rotateX(1.2deg) rotateY(-.6deg) scale(.998); animation-timing-function: cubic-bezier(.25, .6, .3, 1); }
+    100% { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-orbit-window-close {
+    0% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(.2, .7, .3, 1); }
+    30% { opacity: 1; transform: perspective(1600px) translate3d(0, -8px, 30px) rotateX(-6deg) rotateZ(0deg) scale(1.02); animation-timing-function: cubic-bezier(.55, 0, .75, .3); }
+    100% { opacity: 0; transform: perspective(1600px) translate3d(0, 40px, -1100px) rotateX(48deg) rotateZ(-4deg) scale(.6); }
+}
+
+/* Minimize and restore travel along --vd-minimize-dx/dy (set by the runtime). The perspective shrinks a point at
+   -300px to 1400/1700 of its offset, so the deltas are scaled by 1.2143 to land on the task button. */
+@keyframes vd-theme-orbit-window-minimize {
+    0% { opacity: 1; transform: perspective(1400px) translate3d(0, 0, 0) rotateX(0deg) scale(1); animation-timing-function: cubic-bezier(.3, .6, .4, 1); }
+    35% { opacity: 1; transform: perspective(1400px) translate3d(calc(var(--vd-minimize-dx, 0px) * .15), calc(var(--vd-minimize-dy, 60vh) * .15), -60px) rotateX(24deg) scale(.86); animation-timing-function: cubic-bezier(.5, 0, .75, .5); }
+    100% { opacity: 0; transform: perspective(1400px) translate3d(calc(var(--vd-minimize-dx, 0px) * 1.2143), calc(var(--vd-minimize-dy, 60vh) * 1.2143), -300px) rotateX(72deg) scale(.16); }
+}
+
+@keyframes vd-theme-orbit-window-restore {
+    0% { opacity: 0; transform: perspective(1400px) translate3d(calc(var(--vd-minimize-dx, 0px) * 1.2143), calc(var(--vd-minimize-dy, 60vh) * 1.2143), -300px) rotateX(72deg) scale(.16); animation-timing-function: cubic-bezier(.2, .6, .3, 1); }
+    60% { opacity: 1; transform: perspective(1400px) translate3d(0, -6px, 24px) rotateX(-5deg) scale(1.03); animation-timing-function: cubic-bezier(.35, 0, .3, 1); }
+    80% { opacity: 1; transform: perspective(1400px) translate3d(0, 2px, -6px) rotateX(1.5deg) scale(.995); animation-timing-function: cubic-bezier(.25, .6, .3, 1); }
+    100% { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-orbit-scan {
+    0% { opacity: 0; transform: translateY(-100%); }
+    12% { opacity: 1; }
+    82% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(0); }
+}
+
+@keyframes vd-theme-orbit-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes vd-theme-orbit-hatch {
+    0% { opacity: 0; transform: perspective(1400px) rotateX(-75deg) translateZ(-120px); }
+    70% { opacity: 1; transform: perspective(1400px) rotateX(6deg) translateZ(0); }
+    100% { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-orbit-unfold {
+    from { opacity: 0; transform: perspective(900px) rotateX(-55deg) scale(.92); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-orbit-fold {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: perspective(900px) rotateX(-40deg) scale(.94); }
+}
+
+@keyframes vd-theme-orbit-item-in {
+    from { opacity: 0; transform: perspective(400px) translate3d(-10px, 0, -60px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-orbit-hologram {
+    0% { opacity: 0; transform: perspective(1200px) rotateX(70deg) scaleY(.02); }
+    60% { opacity: 1; transform: perspective(1200px) rotateX(-4deg) scaleY(1.02); }
+    100% { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-orbit-collapse {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: perspective(1200px) rotateX(60deg) scale(.3, .02); }
+}
+
+@keyframes vd-theme-orbit-cone {
+    0% { opacity: 0; }
+    40% { opacity: .9; }
+    100% { opacity: .5; }
+}
+
+/* Reduced transparency: the glass turns into solid panels without the backdrop blur. */
+@media (prefers-reduced-transparency: reduce) {
+    .desktop-body[data-theme="orbit"] :is(.vd-window, .vd-taskbar, .vd-start-menu, .vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-toast) { background: #0b1020; -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .desktop-body[data-theme="orbit"] .vd-window-titlebar { background-color: #0e1630; }
+    .desktop-body[data-theme="orbit"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay, .vd-spotlight-backdrop, .vd-shortcuts-help) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* ui/css/desktop-theme-minimal.css */
+/* desktop-theme-minimal.css - Minimal shell skin (theme id "minimal"): ultra plain, light or dark.
+   Hairlines, generous type and nothing else: flat windows, no blur, no gradients, no decoration. One skin file serves
+   both colour schemes. The plain root rule below is the light palette (the registry scheme); the second rule, keyed on
+   [data-scheme="dark"], is the dark palette. The shell sets data-scheme from the setting appearance.minimal_mode.
+   Every rule is rooted at .desktop-body[data-theme="minimal"]; ui/desktop_theme_css_contract_test.go enforces the
+   contract: the bare root rule comes first and carries every token, and the dark root rule (the only other rule that
+   may set the measured tokens color-scheme, --vd-theme-app-bg, --vd-theme-panel-bg, --vd-text, --vd-theme-muted,
+   --vd-accent and --vd-accent-contrast) is contrast-checked as well. Every animation sits behind
+   :not([data-animations="false"]) on the root compound; keyframes (vd-theme-minimal-*) animate only transform and
+   opacity.
+   Palette: paper #f7f6f3 and white windows, ink #161616, hairlines #e4e2dc, muted #6b6a66; dark: graphite #121212 to
+   #1c1c1c, text #ededed, hairlines #2a2a2a, muted #9a9893. The accent is the ink itself.
+   Typography carries the look: Geist at 400/500, small capitals with wide tracking for titles and section labels.
+   Icons are grayscale and gain their colour under the pointer. One soft shadow lifts the active window and floating
+   panels; everything else is a hairline. Motion is a calm 100-200 ms fade with a few pixels of travel.
+   Geist (Vercel), SIL Open Font License 1.1, listed in THIRD_PARTY_LIBRARIES.md. */
+
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Desktop Theme Geist";
+    src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+.desktop-body[data-theme="minimal"] {
+    color-scheme: light;
+    font-synthesis: none;
+    accent-color: var(--vd-accent); /* ink checkboxes, radios and sliders */
+
+    /* Core */
+    --vd-bg: #f7f6f3;
+    --vd-surface: #fbfaf8;
+    --vd-surface-strong: #ffffff;
+    --vd-border: #e4e2dc;
+    --vd-border-bright: #cfcdc6;
+    --vd-text: #161616;
+    --vd-muted: #6b6a66;
+    --vd-shadow: none;
+    --vd-shadow-window: 0 24px 60px -28px rgba(0, 0, 0, .18);
+    --vd-inner-glow: none;
+    --vd-window-radius: 8px;
+    --vd-font-ui: "Desktop Theme Geist", "Segoe UI", system-ui, sans-serif;
+
+    /* Fixed accent: the ink */
+    --vd-accent: #161616;
+    --vd-accent-r: 22;
+    --vd-accent-g: 22;
+    --vd-accent-b: 22;
+    --vd-accent-glow: rgba(22, 22, 22, .12);
+    --vd-accent-contrast: #f7f6f3; /* text on the accent: paper on ink */
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #ffffff;
+    --vd-theme-panel-bg: #fbfaf8;
+    --vd-theme-panel-bg-strong: #ffffff;
+    --vd-theme-chrome-bg: #f7f6f3;
+    --vd-theme-overlay-bg: rgba(247, 246, 243, .72);
+    --vd-theme-control-bg: rgba(22, 22, 22, .03);
+    --vd-theme-control-hover: rgba(22, 22, 22, .07);
+    --vd-theme-border: #e4e2dc;
+    --vd-theme-border-strong: #c9c7c0;
+    --vd-theme-muted: #6b6a66;
+    --vd-theme-accent-soft: rgba(var(--vd-accent-r, 22), var(--vd-accent-g, 22), var(--vd-accent-b, 22), .06);
+    --vd-theme-accent-border: rgba(var(--vd-accent-r, 22), var(--vd-accent-g, 22), var(--vd-accent-b, 22), .32);
+    --vd-theme-radius-panel: 8px;
+    --vd-theme-radius-modal: 10px;
+    --vd-theme-shadow-panel: none;
+    --vd-theme-shadow-modal: var(--ds-elevation-4);
+    --vd-theme-blur: none;
+    --vd-theme-overlay-blur: none;
+
+    /* Chrome */
+    --vd-chrome-highlight: 0 0 0 transparent;
+    --vd-chrome-ring: inset 0 0 0 1px #e4e2dc;
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #e4e2dc, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #161616;
+    --ds-color-fg-secondary: #3d3c39;
+    --ds-color-fg-muted: #6b6a66;
+    --ds-color-fg-disabled: #a09e98;
+    --ds-color-bg-canvas: #f7f6f3;
+    --ds-color-bg-raised: #ffffff;
+    --ds-color-bg-overlay: #fbfaf8;
+    --ds-color-bg-modal: #ffffff;
+    --ds-color-surface-0: #ffffff;
+    --ds-color-surface-1: #fbfaf8;
+    --ds-color-surface-2: #f4f3ef;
+    --ds-color-surface-3: #ecebe6;
+    --ds-color-border-subtle: #efede8;
+    --ds-color-border-default: #e4e2dc;
+    --ds-color-border-strong: #c9c7c0;
+    --ds-color-border-focus: #161616;
+    --ds-color-accent-500: #161616;
+    --ds-color-accent-600: #000000;
+    --ds-color-accent-glow: rgba(22, 22, 22, .12);
+    --ds-color-control-active: rgba(22, 22, 22, .1);
+    --ds-color-inner-highlight: transparent;
+    --ds-elevation-1: none;
+    --ds-elevation-2: none;
+    --ds-elevation-3: none;
+    --ds-elevation-4: 0 18px 40px -24px rgba(0, 0, 0, .22);
+    --ds-elevation-5: 0 24px 60px -28px rgba(0, 0, 0, .18);
+    --ds-blur-fine: none;
+    --ds-blur-coarse: none;
+
+    /* Quiet statuses: desaturated, readable on paper and white */
+    --ds-color-success-fg: #2f7a4f;
+    --ds-color-warning-fg: #96641a;
+    --ds-color-danger-fg: #b3392f;
+    --ds-color-info-fg: #3d6a99;
+    --ds-radius-xs: 3px;
+    --ds-radius-sm: 6px;
+    --ds-radius-md: 8px;
+    --ds-radius-lg: 8px;
+    --ds-radius-xl: 10px;
+
+    /* Shell hooks the shared menus and the taskbar read */
+    --vd-shell-context-menu-bg: var(--vd-theme-panel-bg);
+    --vd-shell-context-menu-border: var(--vd-border);
+    --vd-shell-context-menu-shadow: var(--ds-elevation-4);
+    --vd-shell-context-menu-blur: none;
+
+    /* Skin geometry */
+    --vd-taskbar-height: 40px;
+    --vd-start-button-size: 30px;
+    --vd-minimal-title-h: 36px;
+    --vd-minimal-menubar-h: 28px;
+    --vd-minimal-caps: .14em;
+    --vd-minimal-gray: grayscale(1) contrast(.95); /* the resting look of every icon */
+}
+
+/* Dark scheme: only the colours change. Tokens built from other tokens (the accent soft and border tints) follow. */
+.desktop-body[data-theme="minimal"][data-scheme="dark"] {
+    color-scheme: dark;
+
+    /* Core */
+    --vd-bg: #121212;
+    --vd-surface: #1c1c1c;
+    --vd-surface-strong: #202020;
+    --vd-border: #2a2a2a;
+    --vd-border-bright: #3a3a3a;
+    --vd-text: #ededed;
+    --vd-muted: #9a9893;
+    --vd-shadow-window: 0 24px 60px -28px rgba(0, 0, 0, .7);
+
+    /* Fixed accent: the ink, inverted */
+    --vd-accent: #ededed;
+    --vd-accent-r: 237;
+    --vd-accent-g: 237;
+    --vd-accent-b: 237;
+    --vd-accent-glow: rgba(237, 237, 237, .12);
+    --vd-accent-contrast: #121212;
+
+    /* Theme bridge */
+    --vd-theme-app-bg: #181818;
+    --vd-theme-panel-bg: #1c1c1c;
+    --vd-theme-panel-bg-strong: #202020;
+    --vd-theme-chrome-bg: #121212;
+    --vd-theme-overlay-bg: rgba(10, 10, 10, .66);
+    --vd-theme-control-bg: rgba(237, 237, 237, .04);
+    --vd-theme-control-hover: rgba(237, 237, 237, .09);
+    --vd-theme-border: #2a2a2a;
+    --vd-theme-border-strong: #444444;
+    --vd-theme-muted: #9a9893;
+
+    /* Chrome */
+    --vd-chrome-ring: inset 0 0 0 1px #2a2a2a;
+    --vd-chrome-hairline: linear-gradient(90deg, transparent, #2a2a2a, transparent);
+
+    /* Design system */
+    --ds-color-fg-primary: #ededed;
+    --ds-color-fg-secondary: #c9c8c4;
+    --ds-color-fg-muted: #9a9893;
+    --ds-color-fg-disabled: #6a6966;
+    --ds-color-bg-canvas: #121212;
+    --ds-color-bg-raised: #1c1c1c;
+    --ds-color-bg-overlay: #1c1c1c;
+    --ds-color-bg-modal: #202020;
+    --ds-color-surface-0: #181818;
+    --ds-color-surface-1: #1c1c1c;
+    --ds-color-surface-2: #222222;
+    --ds-color-surface-3: #292929;
+    --ds-color-border-subtle: #222222;
+    --ds-color-border-default: #2a2a2a;
+    --ds-color-border-strong: #444444;
+    --ds-color-border-focus: #ededed;
+    --ds-color-accent-500: #ededed;
+    --ds-color-accent-600: #ffffff;
+    --ds-color-accent-glow: rgba(237, 237, 237, .12);
+    --ds-color-control-active: rgba(237, 237, 237, .12);
+    --ds-elevation-4: 0 18px 40px -24px rgba(0, 0, 0, .6);
+    --ds-elevation-5: 0 24px 60px -28px rgba(0, 0, 0, .7);
+    --ds-color-success-fg: #6fc29a;
+    --ds-color-warning-fg: #d6a95a;
+    --ds-color-danger-fg: #e8857d;
+    --ds-color-info-fg: #85aee0;
+    --vd-minimal-gray: grayscale(1) brightness(1.12) contrast(.95);
+}
+
+/* ---- Flat ground: the shared page orbs and grain (shared-variables.css) stay off; selection and icons ---- */
+.desktop-body[data-theme="minimal"]::before,
+.desktop-body[data-theme="minimal"]::after { display: none; }
+
+.desktop-body[data-theme="minimal"] ::selection { background: var(--vd-theme-border-strong); }
+
+/* Icons are grayscale at rest and take their colour under the pointer. */
+
+.desktop-body[data-theme="minimal"] :where(
+    .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon),
+    .vd-task-icon,
+    .vd-start-item :is(.vd-sprite-start-item, .vd-theme-icon, .vd-app-logo-icon),
+    .vd-start-category-icon,
+    .vd-window-header-icon,
+    .vd-context-papirus-icon,
+    .vd-window-menu-papirus-icon,
+    .vd-notification-icon
+) {
+    filter: var(--vd-minimal-gray);
+    transition: filter 200ms ease, transform 160ms ease;
+}
+
+.desktop-body[data-theme="minimal"] :is(.vd-icon:hover, .vd-icon:focus-visible, .vd-icon.selected) > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon),
+.desktop-body[data-theme="minimal"] :is(.vd-task-button:hover, .vd-task-button:focus-visible, .vd-task-button.active, .vd-taskbar-pin:hover, .vd-taskbar-pin:focus-visible) .vd-task-icon,
+.desktop-body[data-theme="minimal"] :is(.vd-start-item:hover, .vd-start-item:focus-visible) :is(.vd-sprite-start-item, .vd-theme-icon, .vd-app-logo-icon),
+.desktop-body[data-theme="minimal"] :is(.vd-start-category:hover, .vd-start-category:focus-visible, .vd-start-category[aria-selected="true"]) .vd-start-category-icon,
+.desktop-body[data-theme="minimal"] :is(.vd-context-item:hover, .vd-context-item:focus-visible) .vd-context-papirus-icon,
+.desktop-body[data-theme="minimal"] :is(.vd-window-menu-item:hover, .vd-window-menu-item:focus-visible) .vd-window-menu-papirus-icon,
+.desktop-body[data-theme="minimal"] .vd-notification-button:is(:hover, :focus-visible) .vd-notification-icon { filter: none; }
+
+/* ---- Desktop icons: a hairline plate on hover, ink on selection ---- */
+.desktop-body[data-theme="minimal"] .vd-icon { border-radius: 6px; }
+
+.desktop-body[data-theme="minimal"] .vd-icon:is(:hover, :focus-visible) {
+    border-color: var(--vd-border);
+    background: var(--vd-theme-control-bg);
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-icon:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 1px; }
+
+.desktop-body[data-theme="minimal"] .vd-icon.selected {
+    border-color: var(--vd-theme-accent-border);
+    background: var(--vd-theme-accent-soft);
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-icon-label { font-size: 12px; font-weight: 400; letter-spacing: .01em; }
+.desktop-body[data-theme="minimal"] .vd-desktop-selection-marquee { border-color: var(--vd-theme-accent-border); border-radius: 2px; background: var(--vd-theme-accent-soft); box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-snap-overlay { border: 1px dashed var(--vd-theme-border-strong); background: var(--vd-theme-control-bg); box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-resize-handle:hover { background: transparent; }
+
+/* ---- Taskbar: one hairline on top, text-led buttons, an ink tick under the active one ---- */
+.desktop-body[data-theme="minimal"] .vd-taskbar {
+    gap: 8px;
+    padding: 0 12px 0 10px;
+    border: 0;
+    border-top: 1px solid var(--vd-border);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--vd-bg) 92%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-taskbar::before { content: none; }
+.desktop-body[data-theme="minimal"] .vd-taskbar-apps { align-items: center; gap: 4px; }
+.desktop-body[data-theme="minimal"] .vd-taskbar-pins { gap: 2px; margin-right: 6px; padding-right: 8px; border-right-color: var(--vd-border); }
+.desktop-body[data-theme="minimal"] .vd-taskbar-windows { gap: 0; }
+
+.desktop-body[data-theme="minimal"] .vd-taskbar-pin {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    color: var(--vd-theme-muted);
+}
+
+.desktop-body[data-theme="minimal"] .vd-taskbar-pin:hover { border-color: transparent; background-color: var(--vd-theme-control-hover); }
+
+.desktop-body[data-theme="minimal"] .vd-start-button {
+    width: var(--vd-start-button-size);
+    height: var(--vd-start-button-size);
+    min-width: var(--vd-start-button-size);
+    border-color: transparent;
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-start-button:hover { border-color: transparent; background: var(--vd-theme-control-hover); box-shadow: none; transform: none; }
+.desktop-body[data-theme="minimal"] .vd-start-button:active { transform: none; filter: none; }
+.desktop-body[data-theme="minimal"] .vd-start-button[data-active="true"] { background: var(--vd-theme-control-hover); box-shadow: none; transform: none; }
+
+/* The launcher mark is drawn, not an icon: a 3x3 grid of ink dots (the shared artwork is a coloured disc). */
+.desktop-body[data-theme="minimal"] .vd-start-button :is(.vd-sprite-start, .vd-papirus-icon, .vd-start-glyph) { display: none; }
+
+.desktop-body[data-theme="minimal"] .vd-start-button::before {
+    content: "";
+    width: 15px;
+    height: 15px;
+    background: radial-gradient(circle, var(--vd-text) 1.3px, transparent 1.6px) 0 0 / 5px 5px;
+    pointer-events: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-task-button {
+    position: relative;
+    height: calc(var(--vd-taskbar-height) - 1px);
+    max-width: 184px;
+    padding: 0 12px;
+    gap: 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--vd-theme-muted);
+    font-size: 12.5px;
+    font-weight: 400;
+    letter-spacing: .01em;
+    transition: color 160ms ease;
+}
+
+.desktop-body[data-theme="minimal"] .vd-task-button:hover { border: 0; background: transparent; color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-task-button.active { border: 0; background: transparent; box-shadow: none; color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-task-button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: -3px; }
+.desktop-body[data-theme="minimal"] .vd-task-icon { width: 18px !important; height: 18px !important; }
+
+.desktop-body[data-theme="minimal"] .vd-task-button.active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 16px;
+    height: 1.5px;
+    background: var(--vd-accent);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+/* Tray: ghost glyphs that take a quiet plate on hover. */
+.desktop-body[data-theme="minimal"] .vd-taskbar-system { gap: 4px; }
+
+.desktop-body[data-theme="minimal"] :is(.vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button) {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-theme-muted);
+}
+
+.desktop-body[data-theme="minimal"] :is(.vd-fullscreen-button:enabled, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button):hover {
+    border-color: transparent;
+    background-color: var(--vd-theme-control-hover);
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="minimal"] .vd-fullscreen-button[aria-pressed="true"] { border-color: var(--vd-theme-border-strong); background: transparent; color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-show-desktop-btn::before { width: 16px; height: 16px; }
+.desktop-body[data-theme="minimal"] .vd-notification-badge { top: -2px; right: -2px; min-width: 14px; height: 14px; padding: 0 3px; background: var(--vd-accent); color: var(--vd-accent-contrast); font-size: .6rem; font-weight: 500; line-height: 14px; }
+.desktop-body[data-theme="minimal"] .vd-notification-icon { opacity: .85; }
+
+.desktop-body[data-theme="minimal"] .vd-space-pager { gap: 2px; margin-right: 2px; }
+
+.desktop-body[data-theme="minimal"] .vd-space-pager-btn {
+    min-width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--vd-theme-muted);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.desktop-body[data-theme="minimal"] .vd-space-pager-btn:hover { background: transparent; color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-space-pager-btn.active,
+.desktop-body[data-theme="minimal"] .vd-space-pager-btn[aria-pressed="true"] { border-color: var(--vd-text); background: transparent; color: var(--vd-text); }
+
+.desktop-body[data-theme="minimal"] .vd-status-dot { width: 6px; height: 6px; margin: 0 6px; background: transparent; box-shadow: inset 0 0 0 1px var(--vd-theme-border-strong); }
+.desktop-body[data-theme="minimal"] .vd-status-dot[data-state="online"] { background: var(--vd-text); box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-status-dot[data-state="reconnecting"] { background: var(--vd-theme-muted); box-shadow: none; animation: none; }
+
+.desktop-body[data-theme="minimal"] .vd-clock { padding: 0 8px; color: var(--vd-text); font-size: 12px; font-weight: 400; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.desktop-body[data-theme="minimal"] .vd-live-speech-button { width: 28px; height: 28px; border-radius: 6px; }
+.desktop-body[data-theme="minimal"] .vd-live-speech-button[data-active="true"]::after { box-shadow: none; }
+
+.desktop-body[data-theme="minimal"] .vd-agent-button {
+    min-width: 0;
+    height: 28px;
+    padding: 0 10px;
+    gap: 7px;
+    border-color: var(--vd-border);
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--vd-theme-muted);
+    font-size: 12px;
+}
+
+.desktop-body[data-theme="minimal"] .vd-agent-button:hover { border-color: var(--vd-theme-border-strong); background: var(--vd-theme-control-hover); color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-agent-dot { width: 6px; height: 6px; background: var(--vd-text); }
+
+/* ---- Windows: a flat page with a hairline; only the active one lifts ---- */
+.desktop-body[data-theme="minimal"] .vd-window {
+    grid-template-rows: var(--vd-minimal-title-h) minmax(0, 1fr);
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: var(--vd-theme-app-bg);
+    box-shadow: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-window.has-window-menu { grid-template-rows: calc(var(--vd-minimal-title-h) + var(--vd-minimal-menubar-h)) minmax(0, 1fr); }
+.desktop-body[data-theme="minimal"] .vd-window.no-titlebar { grid-template-rows: 1fr; border: 1px solid var(--vd-border); background: var(--vd-theme-app-bg); }
+.desktop-body[data-theme="minimal"] .vd-window.active { border-color: var(--vd-border-bright); box-shadow: var(--vd-shadow-window); }
+.desktop-body[data-theme="minimal"] .vd-window.resizing { box-shadow: var(--vd-shadow-window); }
+.desktop-body[data-theme="minimal"] .vd-window.maximized { border-radius: 0; box-shadow: none; }
+
+.desktop-body[data-theme="minimal"] .vd-window > .vd-window-titlebar {
+    min-height: var(--vd-minimal-title-h);
+    padding: 0 10px;
+    gap: 0 10px; /* no row gap: a window with a menubar is a two-row grid */
+    border-bottom: 1px solid transparent;
+    background: var(--vd-theme-app-bg);
+    color: var(--vd-theme-muted);
+}
+
+.desktop-body[data-theme="minimal"] .vd-window.active > .vd-window-titlebar { border-bottom-color: var(--vd-border); color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-window-title-group { gap: 8px; }
+.desktop-body[data-theme="minimal"] .vd-window-header-icon-wrap { width: 14px; height: 14px; }
+.desktop-body[data-theme="minimal"] .vd-window-header-icon { width: 14px !important; height: 14px !important; }
+
+.desktop-body[data-theme="minimal"] .vd-window-title {
+    color: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: var(--vd-minimal-caps);
+    text-transform: uppercase;
+}
+
+.desktop-body[data-theme="minimal"] .vd-window-subtitle { color: var(--vd-theme-muted); font-size: 11px; font-weight: 400; letter-spacing: .1em; }
+.desktop-body[data-theme="minimal"] .vd-window:not(.active) :is(.vd-window-title, .vd-window-subtitle) { opacity: 1; }
+
+/* Window buttons: 12px hairline circles; the glyph appears while the titlebar is hovered. Every button keeps the shell hit
+   size (28px, 44px on touch screens) and draws its circle as ::before, centred inside it. */
+.desktop-body[data-theme="minimal"] .vd-window > .vd-window-titlebar > .vd-window-actions { gap: 2px; }
+
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button {
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+    color: var(--vd-text);
+    outline-offset: -6px;
+    transform: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:focus-visible { outline: 2px solid var(--vd-accent); }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button::after { display: none; }
+
+/* :where() keeps this under the rules of apps that draw their own window buttons and hide ::before. */
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button))::before {
+    content: "";
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 12px;
+    height: 12px;
+    margin: auto;
+    box-sizing: border-box;
+    border: 1px solid var(--vd-theme-border-strong);
+    border-radius: 50%;
+    background: transparent;
+    pointer-events: none;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.desktop-body[data-theme="minimal"] .vd-window:not(.active) .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button))::before { border-color: var(--vd-border); }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button)):hover::before { background: var(--vd-theme-control-hover); border-color: var(--vd-theme-border-strong); }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button[data-action="close"]:hover::before { background: var(--vd-accent); border-color: var(--vd-accent); }
+
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-control-icon {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    color: var(--vd-text);
+    opacity: 0;
+    transition: opacity 160ms ease;
+}
+
+.desktop-body[data-theme="minimal"] .vd-window-titlebar:hover .vd-window-control-icon,
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:focus-visible .vd-window-control-icon { opacity: 1; }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button[data-action="close"]:hover .vd-window-control-icon { color: var(--vd-accent-contrast); opacity: 1; }
+
+/* The chat button is a ghost glyph in the same row; its coloured sprite goes grayscale and takes its colour on hover.
+   The shared .vd-mini-icon rule pins filter with !important, so this must too. */
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-ai-button { border-radius: 6px; color: var(--vd-theme-muted); }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-ai-button:hover { background: var(--vd-theme-control-hover); border-color: transparent; color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-ai-button:focus-visible { outline-offset: -2px; }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-ai-button-icon { filter: var(--vd-minimal-gray) !important; opacity: .8; transition: opacity 200ms ease; }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-ai-button:is(:hover, :focus-visible) .vd-window-ai-button-icon { filter: none !important; opacity: 1; }
+
+/* Menubar of windows that carry one: plain words under the title row. */
+.desktop-body[data-theme="minimal"] .vd-window-menubar { min-height: var(--vd-minimal-menubar-h); margin-left: -6px; padding: 0; gap: 0; border-top: 0; background: transparent; box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-window-menu-button { height: 24px; padding: 0 8px; border-color: transparent; border-radius: 4px; color: var(--vd-theme-muted); font-size: 12.5px; font-weight: 400; }
+
+.desktop-body[data-theme="minimal"] .vd-window-menu.open > .vd-window-menu-button,
+.desktop-body[data-theme="minimal"] .vd-window-menu-button:hover,
+.desktop-body[data-theme="minimal"] .vd-window-menu-button:focus-visible { border-color: transparent; background: var(--vd-theme-control-hover); color: var(--vd-text); }
+
+.desktop-body[data-theme="minimal"] .vd-window-menu-button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: -2px; }
+
+/* ---- Start menu: a hairline panel; the rail is plain words with an ink tick ---- */
+.desktop-body[data-theme="minimal"] .vd-start-menu {
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: var(--vd-theme-panel-bg);
+    box-shadow: var(--ds-elevation-4);
+}
+
+.desktop-body[data-theme="minimal"] .vd-start-search { padding: 12px; border-bottom: 1px solid var(--vd-border); }
+
+.desktop-body[data-theme="minimal"] .vd-start-search input {
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-text);
+    font-size: 13px;
+}
+
+.desktop-body[data-theme="minimal"] .vd-start-search input:hover { border-color: var(--vd-theme-border-strong); background: transparent; }
+.desktop-body[data-theme="minimal"] .vd-start-search input:focus { border-color: var(--vd-accent); background: transparent; box-shadow: 0 0 0 3px var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-start-search input:focus-visible { outline: none; }
+
+.desktop-body[data-theme="minimal"] .vd-start-rail { gap: 1px; border-color: var(--vd-border); background: transparent; }
+.desktop-body[data-theme="minimal"] .vd-start-rail-separator { background: var(--vd-border); }
+.desktop-body[data-theme="minimal"] .vd-start-rail-indicator { border-radius: 0; background: transparent; box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-start-rail-indicator::before { top: 9px; bottom: 9px; width: 2px; border-radius: 1px; background: var(--vd-accent); box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-start-category { min-height: 34px; border-radius: 6px; font-size: 13px; }
+.desktop-body[data-theme="minimal"] .vd-start-category:hover { background-color: var(--vd-theme-control-bg); color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-start-category[aria-selected="true"] { color: var(--vd-text); font-weight: 500; }
+.desktop-body[data-theme="minimal"] .vd-start-category:hover .vd-start-category-icon,
+.desktop-body[data-theme="minimal"] .vd-start-category[aria-selected="true"] .vd-start-category-icon { transform: none; }
+.desktop-body[data-theme="minimal"] .vd-start-category-count,
+.desktop-body[data-theme="minimal"] .vd-start-category[aria-selected="true"] .vd-start-category-count { min-width: 0; padding: 0; background: transparent; color: var(--vd-theme-muted); font-size: 11px; font-weight: 400; opacity: 1; }
+
+.desktop-body[data-theme="minimal"] .vd-start-pane-head { padding: 16px 18px 6px; }
+.desktop-body[data-theme="minimal"] .vd-start-pane-title { color: var(--vd-theme-muted); font-size: 11px; font-weight: 500; letter-spacing: var(--vd-minimal-caps); text-transform: uppercase; }
+.desktop-body[data-theme="minimal"] .vd-start-pane-count { font-weight: 400; }
+.desktop-body[data-theme="minimal"] .vd-start-recent-label { padding: 10px 8px 4px; color: var(--vd-theme-muted); font-weight: 500; letter-spacing: var(--vd-minimal-caps); opacity: 1; }
+.desktop-body[data-theme="minimal"] .vd-start-item { border-radius: 6px; font-size: 13px; transition: background-color 160ms ease; }
+.desktop-body[data-theme="minimal"] .vd-start-item:hover { background: var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-start-item:active { transform: none; }
+.desktop-body[data-theme="minimal"] .vd-start-recent-item { border-left: 0; background: transparent; }
+.desktop-body[data-theme="minimal"] .vd-start-empty { color: var(--vd-theme-muted); }
+
+/* ---- Menus, popovers and floating panels: hairline, panel colour, one soft shadow, no blur ---- */
+.desktop-body[data-theme="minimal"] :is(.vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover, .vd-notification-center, .vd-clock-popup, .vd-taskbar-thumbnail) {
+    border: 1px solid var(--vd-border);
+    border-radius: 8px;
+    background: var(--vd-theme-panel-bg);
+    box-shadow: var(--ds-elevation-4);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="minimal"] :is(.vd-notification-center, .vd-clock-popup):focus-visible { outline: none; }
+.desktop-body[data-theme="minimal"] :is(.vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover) { padding: 4px; }
+
+/* Menu artwork is grayscale too (the shared .vd-mini-icon rule pins filter with !important, so this must too). */
+.desktop-body[data-theme="minimal"] :is(.vd-context-menu, .vd-context-submenu-popover, .vd-window-menu-popover) .vd-mini-icon { filter: var(--vd-minimal-gray) !important; opacity: .85; }
+.desktop-body[data-theme="minimal"] :is(.vd-context-item, .vd-window-menu-item):is(:hover, :focus-visible) .vd-mini-icon { filter: none !important; opacity: 1; }
+.desktop-body[data-theme="minimal"] :is(.vd-context-item, .vd-window-menu-item) { border-radius: 4px; font-size: 13px; }
+
+.desktop-body[data-theme="minimal"] .vd-context-item:hover:not(:disabled),
+.desktop-body[data-theme="minimal"] .vd-context-item:focus-visible:not(:disabled),
+.desktop-body[data-theme="minimal"] .vd-window-menu-item:hover:not(:disabled),
+.desktop-body[data-theme="minimal"] .vd-window-menu-item:focus-visible:not(:disabled) { border-radius: 4px; background: var(--vd-theme-control-hover); box-shadow: none; }
+
+.desktop-body[data-theme="minimal"] .vd-context-item:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: -2px; }
+.desktop-body[data-theme="minimal"] .vd-context-item:disabled { opacity: .6; }
+.desktop-body[data-theme="minimal"] :is(.vd-context-separator, .vd-window-menu-separator) { margin: 4px 8px; background: var(--vd-border); opacity: 1; }
+.desktop-body[data-theme="minimal"] .vd-window-menu-popover { transition: opacity 120ms ease, transform 120ms ease; transform: translateY(-2px); }
+
+.desktop-body[data-theme="minimal"] :is(.vd-notification-header, .vd-clock-popup-head) { padding: 12px 14px; border-bottom: 1px solid var(--vd-border); background: transparent; box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-notification-item { padding: 12px 14px 12px 28px; border-bottom-color: var(--vd-border); }
+.desktop-body[data-theme="minimal"] .vd-notification-item:is(:hover, :focus-visible) { background: var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-notification-item.unread { background: transparent; }
+.desktop-body[data-theme="minimal"] .vd-notification-item.unread:is(:hover, :focus-visible) { background: var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-notification-item.unread::before { left: 12px; top: 18px; width: 5px; height: 5px; box-shadow: none; }
+.desktop-body[data-theme="minimal"] .vd-notification-item-title { font-weight: 500; letter-spacing: 0; }
+.desktop-body[data-theme="minimal"] .vd-clock-popup-time { font-size: 1.6rem; font-weight: 300; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.desktop-body[data-theme="minimal"] .vd-clock-popup-section { font-weight: 500; letter-spacing: var(--vd-minimal-caps); }
+
+/* The clear button has no shared style of its own and would fall back to the browser's grey. */
+.desktop-body[data-theme="minimal"] .vd-notification-clear {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--vd-theme-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.desktop-body[data-theme="minimal"] .vd-notification-clear:hover { border-color: var(--vd-theme-border-strong); background: var(--vd-theme-control-hover); }
+
+.desktop-body[data-theme="minimal"] .vd-toast { padding: 12px 14px; border: 1px solid var(--vd-border); border-radius: 8px; background: var(--vd-theme-panel-bg); box-shadow: var(--ds-elevation-4); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="minimal"] .vd-toast-title { font-weight: 500; letter-spacing: 0; }
+.desktop-body[data-theme="minimal"] .vd-toast-close { width: 24px; height: 24px; border: 0; border-radius: 4px; background: transparent; box-shadow: none; color: var(--vd-theme-muted); font-size: 12px; }
+.desktop-body[data-theme="minimal"] .vd-toast-close:hover { background: var(--vd-theme-control-hover); color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-toast::after { height: 1px; background: var(--vd-accent); opacity: .4; }
+.desktop-body[data-theme="minimal"] .vd-toast[data-type="error"]::after { background: var(--ds-color-danger-fg); opacity: .9; }
+
+/* ---- Dialogs and controls ---- */
+.desktop-body[data-theme="minimal"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay, .vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher, .vd-start-menu-backdrop) {
+    background: var(--vd-theme-overlay-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="minimal"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal) {
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: var(--vd-theme-panel-bg);
+    box-shadow: var(--vd-theme-shadow-modal);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.desktop-body[data-theme="minimal"] .vd-modal { padding: 24px; }
+.desktop-body[data-theme="minimal"] .vd-modal-title { margin-bottom: 6px; font-size: 15px; font-weight: 500; letter-spacing: -.005em; }
+.desktop-body[data-theme="minimal"] .vd-modal-copy { margin-bottom: 16px; color: var(--vd-theme-muted); font-size: 13px; line-height: 1.55; }
+.desktop-body[data-theme="minimal"] .vd-modal-actions { gap: 8px; }
+.desktop-body[data-theme="minimal"] :is(.vd-file-dialog-header, .vd-file-dialog-footer) { padding: 12px 16px; background: transparent; border-color: var(--vd-border); }
+.desktop-body[data-theme="minimal"] .vd-file-dialog-title { font-size: 13px; font-weight: 500; }
+.desktop-body[data-theme="minimal"] .vd-file-dialog-row.selected { background: var(--vd-theme-accent-soft); }
+
+.desktop-body[data-theme="minimal"] :is(.vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input) {
+    border: 1px solid var(--vd-theme-border-strong);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--vd-text);
+}
+
+.desktop-body[data-theme="minimal"] .vd-modal-input { height: 36px; margin: 4px 0 18px; padding: 0 12px; }
+
+.desktop-body[data-theme="minimal"] :is(.vd-modal-input, .vd-spotlight-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input):focus {
+    border-color: var(--vd-accent);
+    box-shadow: 0 0 0 3px var(--vd-theme-control-hover);
+    outline: none;
+}
+
+.desktop-body[data-theme="minimal"] :is(.vd-button, .vd-tool-button) {
+    min-height: 32px;
+    padding: 0 14px;
+    border: 1px solid var(--vd-theme-border-strong);
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--vd-text);
+    font-size: 13px;
+    font-weight: 400;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.desktop-body[data-theme="minimal"] :is(.vd-button, .vd-tool-button):hover { border-color: var(--vd-text); background: var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] :is(.vd-button, .vd-tool-button):active { transform: none; filter: none; }
+.desktop-body[data-theme="minimal"] :is(.vd-button, .vd-tool-button):focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
+
+.desktop-body[data-theme="minimal"] :is(.vd-button-primary, .vd-button.primary) { border-color: var(--vd-accent); background: var(--vd-accent); color: var(--vd-accent-contrast); }
+.desktop-body[data-theme="minimal"] :is(.vd-button-primary, .vd-button.primary):hover { border-color: var(--vd-accent); background: color-mix(in srgb, var(--vd-accent) 84%, var(--vd-bg)); }
+
+/* Switches: a hairline track and an ink knob; on, the track fills with ink. */
+.desktop-body[data-theme="minimal"] .vd-switch { width: 40px; height: 22px; }
+.desktop-body[data-theme="minimal"] .vd-switch span { border-color: var(--vd-theme-border-strong); background: transparent; transition: background-color 160ms ease, border-color 160ms ease; }
+.desktop-body[data-theme="minimal"] .vd-switch span::before { width: 14px; height: 14px; left: 3px; top: 3px; background: var(--vd-theme-muted); transition: transform 160ms ease, background-color 160ms ease; }
+.desktop-body[data-theme="minimal"] .vd-switch input:checked + span { border-color: var(--vd-accent); background: var(--vd-accent); }
+.desktop-body[data-theme="minimal"] .vd-switch input:checked + span::before { background: var(--vd-accent-contrast); transform: translateX(18px); }
+.desktop-body[data-theme="minimal"] .vd-switch input:focus-visible + span { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
+
+/* A letter stands in for a missing icon: plain ink instead of the shared accent-to-amber gradient. */
+.desktop-body[data-theme="minimal"] .vd-icon-letter { border-radius: 6px; background: var(--vd-text); box-shadow: none; color: var(--vd-bg); }
+
+/* Scrollbars: 8px, a quiet thumb. The standard properties win in current browsers; the prefixed rules cover the rest. */
+.desktop-body[data-theme="minimal"] :where(.vd-window-content, .vd-window-content *, .vd-scroll, .vd-start-apps, .vd-notification-list) { scrollbar-width: thin; scrollbar-color: var(--vd-theme-border-strong) transparent; }
+.desktop-body[data-theme="minimal"] .vd-window-content ::-webkit-scrollbar,
+.desktop-body[data-theme="minimal"] .vd-scroll::-webkit-scrollbar,
+.desktop-body[data-theme="minimal"] .vd-start-apps::-webkit-scrollbar { width: 8px; height: 8px; }
+
+.desktop-body[data-theme="minimal"] .vd-window-content ::-webkit-scrollbar-track,
+.desktop-body[data-theme="minimal"] .vd-scroll::-webkit-scrollbar-track,
+.desktop-body[data-theme="minimal"] .vd-start-apps::-webkit-scrollbar-track { background: transparent; }
+
+.desktop-body[data-theme="minimal"] .vd-window-content ::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="minimal"] .vd-scroll::-webkit-scrollbar-thumb,
+.desktop-body[data-theme="minimal"] .vd-start-apps::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: var(--vd-theme-border-strong) padding-box; }
+
+/* ---- Motion: calm fades with a few pixels of travel; durations match the registry's fallback timers ---- */
+@keyframes vd-theme-minimal-window-open {
+    from { opacity: 0; transform: translateY(4px) scale(.995); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-minimal-window-close {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(4px) scale(.995); }
+}
+
+@keyframes vd-theme-minimal-window-minimize {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 40px)) scale(.92); }
+}
+
+@keyframes vd-theme-minimal-window-restore {
+    from { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 40px)) scale(.92); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-minimal-menu-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-minimal-menu-drop {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-minimal-menu-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(2px); }
+}
+
+@keyframes vd-theme-minimal-start-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes vd-theme-minimal-start-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(4px); }
+}
+
+@keyframes vd-theme-minimal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-opening { animation: vd-theme-minimal-window-open 200ms cubic-bezier(.22, 1, .36, 1) both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-closing { animation: vd-theme-minimal-window-close 140ms ease-in both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-minimizing { animation: vd-theme-minimal-window-minimize 180ms ease-in both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-window-restoring { animation: vd-theme-minimal-window-restore 200ms cubic-bezier(.22, 1, .36, 1) both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-context-menu-opening { animation: vd-theme-minimal-menu-in 120ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-context-menu-opening .vd-context-item { animation: none; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-context-menu-closing, .vd-window-menu-popover-closing) { animation: vd-theme-minimal-menu-out 100ms ease-in both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-context-submenu:is(:hover, :focus-within) > .vd-context-submenu-popover { animation: vd-theme-minimal-fade-in 120ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-start-menu-closing { animation: vd-theme-minimal-start-out 120ms ease-in both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center, .vd-taskbar-thumbnail) { animation: vd-theme-minimal-menu-in 120ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-clock-popup, .vd-notification-center)[data-placement="below"] { animation-name: vd-theme-minimal-menu-drop; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-toast { animation: vd-theme-minimal-menu-in 160ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-toast.vd-toast-closing { animation: vd-theme-minimal-menu-out 120ms ease-in both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay) { animation: vd-theme-minimal-fade-in 180ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-modal-backdrop .vd-modal, .vd-file-dialog-backdrop .vd-file-dialog, .vd-shortcuts-overlay .vd-shortcuts-modal) { animation: vd-theme-minimal-menu-in 180ms ease-out both; }
+
+/* Quiet where the shell is loud: no staggered cascades, no bell swing, no icon pop. */
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-category { animation: none; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) :is(.vd-start-pane-head, .vd-start-apps).vd-start-pane-switching :is(.vd-start-pane-title, .vd-start-pane-count, .vd-start-section-label, .vd-start-empty) { animation: none; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-notification-button.vd-bell-ring :is(.vd-notification-icon, .vd-notification-badge) { animation: none; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-task-button { animation: vd-theme-minimal-fade-in 160ms ease-out both; }
+.desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-icon { animation-name: vd-theme-minimal-fade-in; animation-duration: 220ms; animation-timing-function: ease-out; }
+
+/* The compact touch layout opens the start menu as a sheet with its own slide; only the popover fades in. */
+@media (min-width: 821px), (hover: hover) and (pointer: fine) {
+    .desktop-body[data-theme="minimal"]:not([data-animations="false"]) .vd-start-menu-opening { animation: vd-theme-minimal-start-in 160ms cubic-bezier(.22, 1, .36, 1) both; }
+}
+
+/* ---- Wide viewports: the title sits in the middle of the bar ---- */
+@media (min-width: 821px) {
+    .desktop-body[data-theme="minimal"] .vd-window:not(.no-titlebar) > .vd-window-titlebar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr; /* the button stack sets the width of both sides, so the title stays centred */
+        grid-template-rows: var(--vd-minimal-title-h);
+        gap: 0;
+    }
+
+    .desktop-body[data-theme="minimal"] .vd-window.has-window-menu:not(.no-titlebar) > .vd-window-titlebar { grid-template-rows: var(--vd-minimal-title-h) var(--vd-minimal-menubar-h); }
+    .desktop-body[data-theme="minimal"] .vd-window > .vd-window-titlebar > .vd-window-title-group { grid-column: 2; grid-row: 1; flex: none; justify-content: center; }
+    .desktop-body[data-theme="minimal"] .vd-window > .vd-window-titlebar > .vd-window-actions { grid-column: 3; grid-row: 1; justify-self: end; }
+}
+
+/* ---- Narrow and touch: the shared geometry keeps its sizes; the skin only paints it ---- */
+@media (pointer: coarse) {
+    .desktop-body[data-theme="minimal"] { --vd-minimal-title-h: 48px; }
+    .desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button { outline-offset: -11px; }
+    .desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button))::before { width: 18px; height: 18px; }
+    .desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-control-icon { width: 11px; height: 11px; }
+    .desktop-body[data-theme="minimal"] :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-live-speech-button) { width: 44px; height: 44px; }
+}
+
+@media (max-width: 820px) {
+    .desktop-body[data-theme="minimal"] { --vd-minimal-title-h: 52px; --vd-minimal-menubar-h: 32px; }
+}
+
+@media (max-width: 820px) and (hover: none), (max-width: 820px) and (pointer: coarse) {
+    .desktop-body[data-theme="minimal"] .vd-taskbar { border: 1px solid var(--vd-border); border-radius: 999px; background: var(--vd-theme-panel-bg); box-shadow: var(--ds-elevation-4); }
+    .desktop-body[data-theme="minimal"] .vd-start-menu { border-radius: 14px 14px 0 0; }
+}
+
+/* Without a pointer to hover, the control glyphs stay visible. */
+@media (hover: none), (pointer: coarse) {
+    .desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-control-icon { opacity: 1; }
+}
+
+/* desktop-shell-overrides.css forces a blur on touch with !important; these surfaces are flat, so it only costs GPU time. */
+@media (pointer: coarse) {
+    .desktop-body[data-theme="minimal"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-context-menu, .vd-modal, .vd-toast-container) {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
+}
+
+/* ui/css/desktop-cursors.css */
+/* Native cursors only on pointing devices. High-contrast mode keeps the OS cursor.
+   App canvases, remote desktops and inline tool cursors retain their own semantics. */
+@media (any-pointer: fine) and (forced-colors: none) {
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) {
+        cursor: var(--vd-cursor-default, default);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(
+        button, a[href], select, summary, [role="button"], [role="menuitem"], [role="tab"],
+        input[type="checkbox"], input[type="radio"], input[type="range"],
+        .vd-icon, .vd-taskbar-window, .vd-dock-app, .vd-menu-item, .vd-context-item,
+        .vd-start-app, .vd-window-button, .vd-space-button) {
+        cursor: var(--vd-cursor-pointer, pointer);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(
+        textarea, input:not([type]), input[type="text"], input[type="search"], input[type="password"],
+        input[type="email"], input[type="url"], input[type="number"], input[type="tel"],
+        [contenteditable="true"], [role="textbox"]) {
+        cursor: var(--vd-cursor-text, text);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) .vd-window-titlebar {
+        cursor: var(--vd-cursor-grab, grab);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) .vd-window.dragging .vd-window-titlebar {
+        cursor: var(--vd-cursor-grabbing, grabbing);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-n, .vd-resize-s) {
+        cursor: var(--vd-cursor-ns-resize, ns-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-e, .vd-resize-w) {
+        cursor: var(--vd-cursor-ew-resize, ew-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-ne, .vd-resize-sw) {
+        cursor: var(--vd-cursor-nesw-resize, nesw-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(.vd-resize-nw, .vd-resize-se) {
+        cursor: var(--vd-cursor-nwse-resize, nwse-resize);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(button, input, select, textarea, [role], [aria-disabled]):is(:disabled, [aria-disabled="true"]) {
+        cursor: var(--vd-cursor-not-allowed, not-allowed);
+    }
+    .desktop-body[data-cursor-theme]:not([data-cursor-theme="system"]) :is(button, input, select, textarea, [role], [aria-busy])[aria-busy="true"] {
+        cursor: var(--vd-cursor-wait, wait);
+    }
+}
+
 /* ui/css/desktop-polish.css */
 /* desktop-polish.css — finishing layer: wallpaper light in the chrome, a pointer light on
  * launchers and menus, deeper focus and small details. Loads last in the shell bundle and
@@ -15164,6 +17973,12 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-wallpaper="firefly_dusk"] { --vd-ambient-top: 10, 14, 36; --vd-ambient-bottom: 8, 10, 16; --vd-ambient-glow: 226, 240, 110; }
 .desktop-body[data-wallpaper="neon_overdrive"] { --vd-ambient-top: 30, 8, 60; --vd-ambient-bottom: 20, 4, 40; --vd-ambient-glow: 255, 70, 200; }
 .desktop-body[data-wallpaper="fractal_trip"] { --vd-ambient-top: 40, 14, 60; --vd-ambient-bottom: 24, 10, 48; --vd-ambient-glow: 190, 110, 255; }
+.desktop-body[data-wallpaper="electronic_dreams"] { --vd-ambient-top: 20, 40, 34; --vd-ambient-bottom: 12, 30, 24; --vd-ambient-glow: 230, 168, 58; }
+.desktop-body[data-wallpaper="windows_xp"] { --vd-ambient-top: 64, 133, 225; --vd-ambient-bottom: 69, 131, 38; --vd-ambient-glow: 184, 217, 252; }
+.desktop-body[data-wallpaper="green_slime"] { --vd-ambient-top: 37, 63, 22; --vd-ambient-bottom: 25, 44, 15; --vd-ambient-glow: 165, 217, 65; }
+.desktop-body[data-wallpaper="voxel_world"] { --vd-ambient-top: 155, 200, 219; --vd-ambient-bottom: 90, 128, 54; --vd-ambient-glow: 255, 211, 126; }
+.desktop-body[data-wallpaper="orbit"] { --vd-ambient-top: 14, 18, 44; --vd-ambient-bottom: 4, 6, 16; --vd-ambient-glow: 92, 225, 255; }
+.desktop-body[data-wallpaper="minimal"] { --vd-ambient-top: 242, 241, 236; --vd-ambient-bottom: 235, 234, 228; --vd-ambient-glow: 22, 22, 22; }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="light"] {
     --vd-reveal: var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255);

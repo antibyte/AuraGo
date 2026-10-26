@@ -121,11 +121,11 @@
   "setup.step0_provider_openai": "OpenAI",
   "setup.step0_provider_openrouter": "OpenRouter",
   "setup.step0_security_heading": "🔐 Heslo správce",
-  "setup.step0_test_connection": "🔌 Test připojení",
+  "setup.step0_test_connection": "Ověřit metadata",
   "setup.step0_test_failed": "Připojení selhalo.",
   "setup.step0_test_no_model": "Nejprve zadejte název modelu.",
-  "setup.step0_test_success": "Připojení úspěšné!",
-  "setup.step0_test_testing": "Testování připojení...",
+  "setup.step0_test_success": "Adresa metadat je dostupná. Generování modelu nebylo ověřeno.",
+  "setup.step0_test_testing": "Ověřit metadata…",
   "setup.step0_title": "LLM připojení",
   "setup.step1_badge": "⭐ Doporučeno",
   "setup.step1_description": "Tato nastavení výrazně zlepšují schopnosti AuraGo. Můžete je nakonfigurovat nyní nebo později v Config UI.",
@@ -230,5 +230,6 @@
   "setup.https_selfsigned": "Místní certifikát se vytvoří automaticky. Ověř ho a podle potřeby mu nastav důvěru v prohlížeči nebo zařízení.",
   "setup.secure_ready": "Tento prohlížeč hlásí zabezpečený kontext. Funkce plochy stále vyžadují podporu prohlížeče a oprávnění zařízení.",
   "setup.secure_unavailable": "Tento prohlížeč nehlásí zabezpečený kontext. Mnoho funkcí plochy, včetně hlasového chatu a přístupu k mikrofonu, nemusí být dostupných.",
-  "setup.https_manage": "HTTPS změň v instalátoru nebo po dokončení nastavení v Config → Server. HTTPS přes proxy a localhost mohou také poskytovat zabezpečený kontext."
+  "setup.https_manage": "HTTPS změň v instalátoru nebo po dokončení nastavení v Config → Server. HTTPS přes proxy a localhost mohou také poskytovat zabezpečený kontext.",
+  "setup.step0_test_unsupported": "Tento poskytovatel nepodporuje test metadat."
 }

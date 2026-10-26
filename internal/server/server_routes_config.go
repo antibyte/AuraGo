@@ -14,6 +14,7 @@ import (
 )
 
 func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster) {
+	s.registerSelfTestRoutes(mux)
 	mux.Handle("/api/agent/actions", requireAdmin(s, handleActionApprovals(s)))
 	mux.Handle("/api/agent/action-policy/preview", requireAdmin(s, handleActionPolicyPreview(s)))
 	mux.Handle("/api/agent/action-policy/catalog", requireAdmin(s, handleActionPolicyCatalog(s)))
@@ -25,6 +26,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/security/hints", handleSecurityHints(s))
 	mux.HandleFunc("/api/security/harden", handleSecurityHarden(s))
 
+	mux.Handle("/api/providers/status", requireAdmin(s, handleProviderStatus(s)))
+	mux.Handle("/api/providers/test", requireAdmin(s, handleProviderTest(s)))
 	mux.HandleFunc("/api/providers", handleProviders(s))
 	mux.HandleFunc("/api/providers/capabilities", handleProviderCapabilities(s))
 	mux.HandleFunc("/api/providers/pricing", handleProviderPricing(s))
@@ -176,6 +179,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/homepage/history", handleHomepageHistory(s))
 	mux.HandleFunc("/api/homepage/sites", handleHomepageSites(s))
 	mux.HandleFunc("/api/homepage/sites/", handleHomepageSiteByID(s))
+	mux.HandleFunc("/api/homepage/annotation-snapshot", handleHomepageAnnotationSnapshot(s))
 
 	// Cloudflare Tunnel endpoints
 	mux.HandleFunc("/api/tunnel/status", handleTunnelStatus(s))
@@ -204,6 +208,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Music Generation endpoints
 	mux.Handle("/api/music-generation/test", requireAdmin(s, handleMusicGenerationTest(s)))
 	registerLocalMusicRoutes(mux, s)
+	registerRustFSRoutes(mux, s)
 
 	// Video Generation endpoints
 	mux.HandleFunc("/api/video-generation/test", handleVideoGenerationTest(s))
@@ -268,7 +273,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 
 	// Document Creator endpoints
 	mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
-	mux.HandleFunc("/api/media-conversion/test", handleMediaConversionTest(s))
+	mux.Handle("/api/media-conversion/test", requireAdmin(s, handleMediaConversionTest(s)))
 	mux.HandleFunc("/api/browser-automation/status", handleBrowserAutomationStatus(s))
 	mux.HandleFunc("/api/browser-automation/test", handleBrowserAutomationTest(s))
 	mux.HandleFunc("/api/manifest/status", handleManifestStatus(s))
@@ -288,13 +293,16 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dograh/register-aurago-mcp-tool", handleDograhRegisterAuraGoMCPTool(s))
 
 	// YepAPI integration endpoints
-	mux.HandleFunc("/api/yepapi/test", handleYepAPITest(s))
+	mux.Handle("/api/yepapi/test", requireAdmin(s, handleYepAPITest(s)))
 
 	// Ansible endpoints
 	mux.Handle("/api/ansible/test", requireAdmin(s, handleAnsibleTest(s)))
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
 
 	// Local TTS sidecar endpoints
+	mux.Handle("/api/tts/routes", requireAdmin(s, handleTTSRoutes(s)))
+	mux.Handle("/api/tts/phonon/voices", requireAdmin(s, handlePhononVoices(s)))
+	mux.Handle("/api/tts/phonon/voices/", requireAdmin(s, handlePhononVoiceDownload(s)))
 	mux.HandleFunc("/api/piper/status", handlePiperStatus(s))
 	mux.HandleFunc("/api/piper/voices", handlePiperVoices(s))
 	mux.HandleFunc("/api/supertonic/status", handleSupertonicStatus(s))

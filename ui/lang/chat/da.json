@@ -3,6 +3,7 @@
   "chat.sessions_delete_memories": "Slet også tilknyttede minder",
   "chat.sessions_delete_backups": "Sikkerhedskopier kan indeholde slettede data indtil den planlagte oprydning.",
   "chat.sessions_delete_failed": "Chatten kunne ikke slettes helt. Opdater visningen før et nyt forsøg.",
+  "chat.sessions_delete_scope_conflict": "Denne chat har allerede en anden indstilling for sletning af minder. Opdater siden, og kontrollér status, før du prøver igen.",
   "chat.sessions_delete_report": "Slettet: {deleted}. Beholdt på grund af delt, beskyttet eller ukendt oprindelse: {retained}.",
   "chat.speech_lab_auth_required": "AuraGo-login kræves for at åbne Speech Lab.",
   "chat.speech_lab_browser_url_missing": "Konfigurer Speech Lab-browser-URL under Medier → Speech Lab.",
@@ -301,5 +302,6 @@
   "chat.galaxy_live": "Live",
   "chat.galaxy_placeholder": "Giv din agent en opgave …",
   "chat.galaxy_persona": "Din personlighed",
-  "chat.galaxy_mood": "Aktuelt humør"
+  "chat.galaxy_mood": "Aktuelt humør",
+  "chat.youtube_play": "Afspil"
 }

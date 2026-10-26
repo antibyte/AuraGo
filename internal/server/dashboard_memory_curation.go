@@ -101,7 +101,7 @@ func handleDashboardMemoryCurationApply(s *Server, w http.ResponseWriter, r *htt
 	applied := 0
 	skipped := 0
 	for _, action := range append(plan.AutoConfirm, plan.AutoArchive...) {
-		changed, err := s.ShortTermMem.ApplyAutomaticMemoryCurationAction(action)
+		changed, err := s.ShortTermMem.ApplyAutomaticMemoryCurationActionContext(r.Context(), action)
 		if err != nil {
 			s.Logger.Warn("Failed to apply memory curation action", "doc_id", action.DocID, "action", action.Action, "error", err)
 			continue
@@ -133,7 +133,7 @@ func handleDashboardMemoryCurationDocAction(s *Server, w http.ResponseWriter, r 
 		Action: action,
 		Reason: req.Reason,
 	}
-	if err := s.ShortTermMem.ApplyMemoryCurationAction(curationAction, "admin", false); err != nil {
+	if err := s.ShortTermMem.ApplyMemoryCurationActionContext(r.Context(), curationAction, "admin", false); err != nil {
 		s.Logger.Warn("Failed to apply manual memory curation action", "doc_id", docID, "action", action, "error", err)
 		jsonError(w, "Internal server error", http.StatusInternalServerError)
 		return

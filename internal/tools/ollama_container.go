@@ -1,13 +1,13 @@
 package tools
 
 import (
+	"aurago/internal/dockerutil"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 const (
@@ -23,6 +23,7 @@ const (
 )
 
 type ollamaCreateBody struct {
+	Labels       map[string]string      `json:"Labels,omitempty"`
 	Image        string                 `json:"Image"`
 	Env          []string               `json:"Env,omitempty"`
 	ExposedPorts map[string]struct{}    `json:"ExposedPorts,omitempty"`
@@ -60,6 +61,7 @@ type ollamaDevice struct {
 }
 
 type ollamaContainerSpec struct {
+	Role        string
 	Image       string
 	Port        int
 	Bind        string
@@ -101,6 +103,7 @@ func ollamaEmbeddingsCreatePayload(port int, gpu GPUInfo) ([]byte, error) {
 		port = 11435
 	}
 	return ollamaContainerCreatePayload(ollamaContainerSpec{
+		Role:        "embeddings",
 		Image:       ollamaImageForGPU(gpu),
 		Port:        port,
 		Bind:        ollamaEmbeddingsVolumeName + ":/root/.ollama",
@@ -113,6 +116,9 @@ func ollamaEmbeddingsCreatePayload(port int, gpu GPUInfo) ([]byte, error) {
 }
 
 func ollamaContainerCreatePayload(spec ollamaContainerSpec) ([]byte, error) {
+	if spec.Role == "" {
+		spec.Role = "inference"
+	}
 	host := ollamaCreateHostConfig{
 		RestartPolicy: map[string]string{"Name": "unless-stopped"},
 		PortBindings: map[string][]ollamaPortBind{
@@ -124,7 +130,8 @@ func ollamaContainerCreatePayload(spec ollamaContainerSpec) ([]byte, error) {
 		SecurityOpt: spec.SecurityOpt,
 	}
 	body := ollamaCreateBody{
-		Image: spec.Image,
+		Labels: dockerutil.ManagedLabels(dockerutil.OllamaOwner, "ollama", spec.Role, ""),
+		Image:  spec.Image,
 		ExposedPorts: map[string]struct{}{
 			"11434/tcp": {},
 		},
@@ -177,13 +184,19 @@ func ollamaManagedSpecDrift(inspect, desired []byte) bool {
 	}
 	var got struct {
 		Config struct {
-			Image string   `json:"Image"`
-			Env   []string `json:"Env"`
+			Image  string            `json:"Image"`
+			Env    []string          `json:"Env"`
+			Labels map[string]string `json:"Labels"`
 		} `json:"Config"`
 		RepoTags   []string               `json:"RepoTags"`
 		HostConfig ollamaCreateHostConfig `json:"HostConfig"`
 	}
 	if json.Unmarshal(inspect, &got) != nil {
+		return true
+	}
+	networkMatches := got.HostConfig.NetworkMode == want.HostConfig.NetworkMode ||
+		want.HostConfig.NetworkMode == "" && (got.HostConfig.NetworkMode == "default" || got.HostConfig.NetworkMode == "bridge")
+	if !dockerutil.ManagedBy(got.Config.Labels, dockerutil.OllamaOwner) || !networkMatches {
 		return true
 	}
 	if !ollamaImageMatches(got.Config.Image, got.RepoTags, want.Image) {
@@ -199,6 +212,9 @@ func ollamaManagedSpecDrift(inspect, desired []byte) bool {
 		return true
 	}
 	if !stringSetEqual(got.HostConfig.SecurityOpt, want.HostConfig.SecurityOpt) {
+		return true
+	}
+	if !stringSetEqual(got.HostConfig.GroupAdd, want.HostConfig.GroupAdd) {
 		return true
 	}
 	if !envCovers(want.Env, got.Config.Env) {
@@ -380,79 +396,12 @@ type ollamaReconcile struct {
 	Docker        DockerConfig
 	Logger        ollamaEnsureLogger
 	Models        []string
-}
-
-// reconcileNamedOllamaContainer inspects one named container. Drift or a
-// missing host device removes it and creates the payload. A foreign container
-// publishing the same host port is not adopted.
-func reconcileNamedOllamaContainer(job ollamaReconcile) {
-	prefix := "[" + job.Label + "] "
-	if err := requireDockerMutationPermission(); err != nil {
-		job.Logger.Error(prefix+"Docker mutation refused", "error", err)
-		return
-	}
-	data, code, err := dockerRequest(job.Docker, "GET", "/containers/"+job.ContainerName+"/json", "")
-	if err != nil {
-		job.Logger.Warn(prefix+"Docker unavailable, skipping auto-start", "error", err)
-		return
-	}
-	if code == 200 {
-		if ollamaManagedSpecDrift(data, job.Payload) {
-			if err := ensureOllamaImage(job.Docker, job.Image); err != nil {
-				job.Logger.Error(prefix+"Replacement image is not available; leaving the existing container", "image", job.Image, "error", err)
-				return
-			}
-			job.Logger.Warn(prefix + "Existing container does not match the desired spec; recreating")
-			if err := removeOllamaContainerBestEffort(job.Docker, job.ContainerName); err != nil {
-				job.Logger.Error(prefix+"Container replacement stopped", "error", err)
-				return
-			}
-			code = 404
-		} else if ollamaInspectRunning(data) {
-			job.Logger.Info(prefix + "Container already running")
-			waitForOllamaReady(job.Port, job.Label, job.Logger)
-			pullManagedModels(job.Port, job.Models, job.Label, job.Logger)
-			return
-		} else {
-			startData, startCode, startErr := dockerRequest(job.Docker, "POST", "/containers/"+job.ContainerName+"/start", "")
-			if startErr != nil || (startCode != 204 && startCode != 304) {
-				job.Logger.Error(prefix+"Failed to start existing container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
-				return
-			}
-			job.Logger.Info(prefix + "Container started")
-			waitForOllamaReady(job.Port, job.Label, job.Logger)
-			pullManagedModels(job.Port, job.Models, job.Label, job.Logger)
-			return
-		}
-	}
-	if code != 404 {
-		job.Logger.Warn(prefix+"Unexpected Docker inspect response, skipping", "code", code)
-		return
-	}
-
-	body := string(job.Payload)
-	createData, createCode, createErr := dockerRequest(job.Docker, "POST", "/containers/create?name="+job.ContainerName, body)
-	if createCode == 404 {
-		job.Logger.Info(prefix+"Image not found locally, pulling...", "image", job.Image)
-		if pullErr := ensureOllamaImage(job.Docker, job.Image); pullErr != nil {
-			job.Logger.Error(prefix+"Image pull failed", "image", job.Image, "error", pullErr)
-			return
-		}
-		job.Logger.Info(prefix+"Image pulled successfully", "image", job.Image)
-		createData, createCode, createErr = dockerRequest(job.Docker, "POST", "/containers/create?name="+job.ContainerName, body)
-	}
-	if createErr != nil || createCode != 201 {
-		job.Logger.Error(prefix+"Failed to create container", "code", createCode, "error", createErr, "docker_error", dockerBodyMessage(createCode, createData))
-		return
-	}
-	startData, startCode, startErr := dockerRequest(job.Docker, "POST", "/containers/"+job.ContainerName+"/start", "")
-	if startErr != nil || (startCode != 204 && startCode != 304) {
-		job.Logger.Error(prefix+"Failed to start new container", "code", startCode, "error", startErr, "docker_error", dockerBodyMessage(startCode, startData))
-		return
-	}
-	job.Logger.Info(prefix+"Container created and started", "image", job.Image, "port", job.Port, "gpu", job.GPUBackend)
-	waitForOllamaReady(job.Port, job.Label, job.Logger)
-	pullManagedModels(job.Port, job.Models, job.Label, job.Logger)
+	BaseURL       string
+	Force         bool
+	RequireGPU    bool
+	InDocker      bool
+	Phase         func(string)
+	ModelState    func(string, string)
 }
 
 func ollamaInspectRunning(data []byte) bool {
@@ -465,39 +414,4 @@ func ollamaInspectRunning(data []byte) bool {
 		return false
 	}
 	return info.State.Running
-}
-
-var (
-	ollamaPullMu      sync.Mutex
-	ollamaPulls       = map[string]struct{}{}
-	ollamaModelPullFn = pullModelIfNeeded
-)
-
-// startOllamaModelPull runs pullModelIfNeeded in the background. Overlapping
-// calls for the same port and model share one pull.
-func startOllamaModelPull(port int, model, label string, logger interface {
-	Info(string, ...any)
-	Warn(string, ...any)
-	Error(string, ...any)
-}) {
-	model = strings.TrimSpace(model)
-	if model == "" {
-		model = "nomic-embed-text"
-	}
-	key := fmt.Sprintf("%d\x00%s", port, model)
-	ollamaPullMu.Lock()
-	if _, running := ollamaPulls[key]; running {
-		ollamaPullMu.Unlock()
-		return
-	}
-	ollamaPulls[key] = struct{}{}
-	ollamaPullMu.Unlock()
-	go func() {
-		defer func() {
-			ollamaPullMu.Lock()
-			delete(ollamaPulls, key)
-			ollamaPullMu.Unlock()
-		}()
-		ollamaModelPullFn(port, model, label, logger)
-	}()
 }

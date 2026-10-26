@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/json"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -26,14 +28,15 @@ var defaultLLMSecretScope llmSecretScope
 // API key and OAuth client secret. It is safe to call on every config reload;
 // cmd/aurago calls it once the vault secrets and OAuth tokens are applied, and
 // Start, replaceConfigSnapshot and the OAuth authorize path repeat it.
-func RegisterLLMSecrets(cfg *config.Config) {
-	defaultLLMSecretScope.register(cfg)
+func RegisterLLMSecrets(cfg *config.Config, readers ...config.SecretReader) {
+	defaultLLMSecretScope.register(cfg, readers...)
 }
 
-func (scope *llmSecretScope) register(cfg *config.Config) {
+func (scope *llmSecretScope) register(cfg *config.Config, readers ...config.SecretReader) {
 	if cfg == nil {
 		return
 	}
+	registerStaticLLMSecret(cfg.AIGateway.Token)
 	oauthProviders := make(map[string]bool, len(cfg.Providers))
 	for _, provider := range cfg.Providers {
 		if provider.AuthType == "oauth2" {
@@ -47,18 +50,72 @@ func (scope *llmSecretScope) register(cfg *config.Config) {
 	// the slot that references it; those values are scoped, everything else is
 	// a static key that stays masked even after the user rotates it.
 	accessTokens := make(map[string]struct{})
+	registerAccessToken := func(value string) {
+		if trimmed := strings.TrimSpace(value); trimmed != "" && trimmed != maskedKey {
+			accessTokens[value] = struct{}{}
+		}
+	}
+	for _, provider := range cfg.Providers {
+		if provider.AuthType == "oauth2" {
+			registerAccessToken(provider.RuntimeOAuthToken)
+		}
+	}
 	slot := func(providerID, value string) {
 		if !oauthProviders[providerID] {
 			registerStaticLLMSecret(value)
 			return
 		}
-		if value = strings.TrimSpace(value); llmSecretWorthMasking(value) {
-			accessTokens[value] = struct{}{}
-		}
+		registerAccessToken(value)
 	}
 	slot(cfg.LLM.Provider, cfg.LLM.APIKey)
 	slot(cfg.LLM.HelperProvider, cfg.LLM.HelperAPIKey)
 	slot(cfg.FallbackLLM.Provider, cfg.FallbackLLM.APIKey)
+	slot(func() string {
+		if cfg.Vision.Provider == "" {
+			return cfg.LLM.Provider
+		}
+		return cfg.Vision.Provider
+	}(), cfg.Vision.APIKey)
+	slot(func() string {
+		if cfg.Whisper.Provider == "" {
+			return cfg.LLM.Provider
+		}
+		return cfg.Whisper.Provider
+	}(), cfg.Whisper.APIKey)
+	slot(func() string {
+		if cfg.Embeddings.Provider == "" {
+			return cfg.LLM.Provider
+		}
+		return cfg.Embeddings.Provider
+	}(), cfg.Embeddings.APIKey)
+	slot(func() string {
+		if cfg.CoAgents.LLM.Provider == "" {
+			return cfg.LLM.Provider
+		}
+		return cfg.CoAgents.LLM.Provider
+	}(), cfg.CoAgents.LLM.APIKey)
+	slot(func() string {
+		if cfg.A2A.LLM.Provider == "" {
+			return cfg.LLM.Provider
+		}
+		return cfg.A2A.LLM.Provider
+	}(), cfg.A2A.LLM.APIKey)
+	// Read every configured OAuth provider, including dormant or SIP-only routes.
+	for _, reader := range readers {
+		if reader == nil || reflect.ValueOf(reader).Kind() == reflect.Pointer && reflect.ValueOf(reader).IsNil() {
+			continue
+		}
+		for id := range oauthProviders {
+			raw, err := reader.ReadSecret("oauth_" + id)
+			if err != nil {
+				continue
+			}
+			var token config.OAuthToken
+			if json.Unmarshal([]byte(raw), &token) == nil {
+				registerAccessToken(token.AccessToken)
+			}
+		}
+	}
 
 	scope.replaceAccessTokens(accessTokens)
 }

@@ -3,14 +3,61 @@
 
     const instances = new Map();
     const Pixel = window.AuraPixelApp = window.AuraPixelApp || {};
+    let pointerScopeTracked = false;
+
+    // A pointer press anywhere on the page decides which Pixel window gets keyboard shortcuts: the window it hit
+    // (canvas, panels or its own title bar), or none when it hit something else. One listener serves all windows.
+    function trackPointerScope() {
+        if (pointerScopeTracked) return;
+        pointerScopeTracked = true;
+        document.addEventListener('pointerdown', e => {
+            const target = e.target;
+            let hit = null;
+            if (target && target.closest) {
+                instances.forEach(entry => {
+                    if (hit || !entry.host || entry.disposed) return;
+                    const frame = entry.host.closest ? entry.host.closest('.vd-window') : null;
+                    if (entry.host.contains(target) || (frame && frame.contains(target))) hit = entry;
+                });
+            }
+            if (hit) { hit.lastActive = Date.now(); Pixel.activeInstance = hit; } else Pixel.activeInstance = null;
+        }, true);
+    }
+
+    function interpolate(text, vars) {
+        let out = String(text);
+        if (vars) Object.keys(vars).forEach(name => {
+            const value = String(vars[name] == null ? '' : vars[name]);
+            out = out.split('{{' + name + '}}').join(value).split('{' + name + '}').join(value);
+        });
+        return out;
+    }
+
+    // The desktop t(key, vars) returns the key for a missing translation and reads its 2nd argument as a placeholder map.
+    // Pixel code calls t(key, 'English'), t(key, vars) and t(key, 'English', vars): this wrapper resolves all three and
+    // falls back to the interpolated English text until the key exists in the language files.
+    Pixel.makeTranslator = function makeTranslator(base) {
+        const source = typeof base === 'function' ? base : null;
+        return function t(key, second, third) {
+            const fallback = typeof second === 'string' ? second : '';
+            const vars = second && typeof second === 'object' ? second : (third && typeof third === 'object' ? third : null);
+            let text = '';
+            if (source) {
+                try { text = source(key, vars || undefined); } catch (_) { text = ''; }
+            }
+            if (typeof text !== 'string' || !text || text === key) return fallback ? interpolate(fallback, vars) : (typeof text === 'string' && text ? text : String(key == null ? '' : key));
+            return text;
+        };
+    };
 
     function render(host, windowId, context) {
         if (!host) return;
-        const state = { disposed: false };
+        const state = { disposed: false, lastActive: 0, host };
         instances.set(windowId, state);
+        trackPointerScope();
         const ctx = context || {};
         const esc = ctx.esc || (v => String(v == null ? '' : v));
-        const t = ctx.t || ((k, f) => f || k);
+        const t = Pixel.makeTranslator(ctx.t);
         const api = ctx.api || fetchJSON;
         const iconMarkup = ctx.iconMarkup || ((k, f) => `<span>${esc(f || k || '')}</span>`);
         const notify = ctx.notify || (() => {});
@@ -148,12 +195,13 @@
             drawStartY: { get: () => drawStartY, set: value => { drawStartY = value; }, enumerable: true },
             lastDrawX: { get: () => lastDrawX, set: value => { lastDrawX = value; }, enumerable: true },
             lastDrawY: { get: () => lastDrawY, set: value => { lastDrawY = value; }, enumerable: true },
-            selection: { get: () => selection, set: value => { selection = value; }, enumerable: true },
+            selection: { get: () => selection, set: value => { selection = value; runtime.selectionRev++; runtime.emit('selection-changed', { selection: value }); }, enumerable: true },
             selImageData: { get: () => selImageData, set: value => { selImageData = value; }, enumerable: true },
             isMovingSel: { get: () => isMovingSel, set: value => { isMovingSel = value; }, enumerable: true },
             selDragOfsX: { get: () => selDragOfsX, set: value => { selDragOfsX = value; }, enumerable: true },
             selDragOfsY: { get: () => selDragOfsY, set: value => { selDragOfsY = value; }, enumerable: true },
             marchingOfs: { get: () => marchingOfs, set: value => { marchingOfs = value; }, enumerable: true },
+            // Holds the timer of the next marching-ants frame (see scheduleMarchingAnts).
             marchingRAF: { get: () => marchingRAF, set: value => { marchingRAF = value; }, enumerable: true },
             isPanning: { get: () => isPanning, set: value => { isPanning = value; }, enumerable: true },
             spaceHeld: { get: () => spaceHeld, set: value => { spaceHeld = value; }, enumerable: true },
@@ -162,7 +210,7 @@
             panStartSL: { get: () => panStartSL, set: value => { panStartSL = value; }, enumerable: true },
             panStartST: { get: () => panStartST, set: value => { panStartST = value; }, enumerable: true },
             layers: { get: () => layers, set: value => { layers = value; }, enumerable: true },
-            activeLayerIdx: { get: () => activeLayerIdx, set: value => { activeLayerIdx = value; }, enumerable: true },
+            activeLayerIdx: { get: () => activeLayerIdx, set: value => { const changed = value !== activeLayerIdx; activeLayerIdx = value; if (changed) runtime.syncActiveLayer(); }, enumerable: true },
             compareMode: { get: () => compareMode, set: value => { compareMode = value; }, enumerable: true },
             comparePos: { get: () => comparePos, set: value => { comparePos = value; }, enumerable: true },
             compareOrigData: { get: () => compareOrigData, set: value => { compareOrigData = value; }, enumerable: true },
@@ -209,6 +257,8 @@
             strengthSlider: { get: () => strengthSlider, set: value => { strengthSlider = value; }, enumerable: true },
             MAX_HISTORY: { get: () => Pixel.MAX_HISTORY, enumerable: true },
             MAX_LAYERS: { get: () => Pixel.MAX_LAYERS, enumerable: true },
+            HISTORY_BYTE_BUDGET: { get: () => Pixel.HISTORY_BYTE_BUDGET, enumerable: true },
+            BLEND_MODES: { get: () => Pixel.BLEND_MODES, enumerable: true },
             IMAGE_EXTS: { get: () => Pixel.IMAGE_EXTS, enumerable: true },
             PRESET_COLORS: { get: () => Pixel.PRESET_COLORS, enumerable: true },
             FONT_FAMILIES: { get: () => Pixel.FONT_FAMILIES, enumerable: true },
@@ -220,6 +270,9 @@
             rgbToHex: { get: () => Pixel.rgbToHex, enumerable: true },
             colorDist: { get: () => Pixel.colorDist, enumerable: true }
         });
+        // Built-in installers first, then every module registered with Pixel.registerModule in load order, so a feature
+        // module can extend or replace what the built-ins put on the runtime without a change to this file.
+        Pixel.installCore(runtime);
         Pixel.installView(runtime);
         Pixel.installCanvas(runtime);
         Pixel.installTools(runtime);
@@ -227,118 +280,39 @@
         Pixel.installFilters(runtime);
         Pixel.installEvents(runtime);
         Pixel.installStickers(runtime);
+        Pixel.listModules().forEach(entry => {
+            try {
+                entry.install(runtime);
+            } catch (err) {
+                if (window.console) console.error('pixel module ' + entry.id, err);
+            }
+        });
+        Object.assign(runtime, { gesture: null, cursorPos: null, menusDynamic: false });
         const {
-            toolSvg,
-            toolLabel,
             buildToolRailHTML,
-            buildDrawOptionsHTML,
-            buildColorsPanelHTML,
-            buildHistoryPanelHTML,
-            buildLayersPanelHTML,
-            buildPanelHTML,
-            buildSlider,
-            buildFilterGalleryHTML,
-            setStatus,
-            updateStatus,
-            updateZoomLabel,
-            canvasCoords,
-            getActiveCtx,
-            compositeLayers,
+            buildDocksHTML,
             pushHistory,
-            restoreHistory,
             undo,
             redo,
-            applyZoom,
             zoomTo,
             zoomFit,
-            loadImage,
-            loadImageToCanvas,
             newBlankCanvas,
             showNewImageDialog,
-            loadRecentFiles,
-            saveRecentFile,
-            renderRecentFiles,
             loadDesktopImagePath,
             loadPhotos,
             openFile,
             saveFile,
-            saveFileAs,
             exportFile,
-            showPanel,
-            refreshLayerPanel,
-            refreshHistoryPanel,
-            jumpToHistory,
-            renderRecentColors,
-            setActiveTool,
-            renderOptionsBar,
-            getToolCursor,
-            clearOverlay,
-            drawMarchingAnts,
-            startMarchingAnts,
             stopMarchingAnts,
-            selectAll,
             deselect,
-            copySelection,
-            cutSelection,
-            pasteClipboard,
-            deleteSelection,
-            magicWandSelect,
-            commitGradient,
-            sprayAt,
-            dodgeBurnAt,
-            blurAt,
-            addRecentColor,
-            setPrimaryColor,
-            setSecondaryColor,
-            swapColors,
-            drawBrushStroke,
-            drawShapePreview,
-            commitShape,
-            floodFill,
-            commitTextToCanvas,
-            buildFilterString,
-            applyAdjustmentsPreview,
-            applyCustomAdjustments,
-            applyAdjustments,
-            resetAdjustments,
-            toggleCompare,
-            renderCompare,
-            rotateCanvas,
-            flipCanvas,
-            startCrop,
-            cancelCrop,
-            applyCrop,
-            resizeImage,
-            aiGenerate,
-            aiEnhance,
-            aiRemoveBG,
-            aiUpscale,
-            showExportDialog,
-            checkAIConfig,
-            addLayer,
-            deleteLayer,
-            duplicateLayer,
-            mergeDown,
-            flattenLayers,
-            filterDef,
-            renderFiltered,
-            selectFilter,
-            applyFilter,
-            resetFilterPreview,
-            applyFilterPreview,
-            refreshFilterThumbnails,
-            wireFilterPanel,
-            toggleFilterCompare,
-            toggleLayerMask,
             onCanvasMouseDown,
             onCanvasMouseMove,
             onCanvasMouseUp,
-            showTextInput,
+            onCanvasLeave,
             onCropMouseDown,
-            updateCropSelection,
-            showShortcutsModal,
             showContextMenu,
-            wireDrawOptionEvents
+            renderRecentFiles,
+            checkAIConfig
         } = runtime;
         const toolbarIcon = (key, fallback) => iconMarkup(key, fallback, 'pixel-toolbar-icon', 16);
         host.innerHTML = `<div class="pixel-app">
@@ -354,16 +328,6 @@
                 <span class="pixel-zoom-label" data-zoom-label>100%</span>
                 <button class="pixel-btn-icon" type="button" data-action="zoom-in" title="${esc(t('pixel.zoom_in'))}">${toolbarIcon('zoom-in', '+')}</button>
                 <button class="pixel-btn-icon" type="button" data-action="zoom-fit" title="${esc(t('pixel.zoom_fit'))}">${toolbarIcon('maximize', 'F')}</button>
-                <span class="pixel-toolbar-spacer"></span>
-                <div class="pixel-tabs">
-                    <button class="pixel-tab${activePanel === 'adjust' ? ' active' : ''}" type="button" data-panel="adjust">${esc(t('pixel.adjust'))}</button>
-                    <button class="pixel-tab${activePanel === 'filters' ? ' active' : ''}" type="button" data-panel="filters">${esc(t('pixel.filters'))}</button>
-                    <button class="pixel-tab${activePanel === 'colors' ? ' active' : ''}" type="button" data-panel="colors">${esc(t('pixel.tab_colors'))}</button>
-                    <button class="pixel-tab${activePanel === 'transform' ? ' active' : ''}" type="button" data-panel="transform">${esc(t('pixel.transform'))}</button>
-                    <button class="pixel-tab${activePanel === 'layers' ? ' active' : ''}" type="button" data-panel="layers">${esc(t('pixel.layers'))}</button>
-                    <button class="pixel-tab${activePanel === 'history' ? ' active' : ''}" type="button" data-panel="history">${esc(t('pixel.tab_history'))}</button>
-                    <button class="pixel-tab${activePanel === 'ai' ? ' active' : ''}" type="button" data-panel="ai">${esc(t('pixel.ai_generate'))}</button>
-                </div>
             </div>
             <div class="pixel-options-bar" data-options-bar hidden></div>
             <div class="pixel-workspace">
@@ -397,7 +361,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="pixel-panel" data-panel-container>${buildPanelHTML()}</div>
+                <div class="pixel-panel" data-panel-container>${buildDocksHTML()}</div>
             </div>
             <div class="pixel-status-bar" data-status>
                 <span data-status-text>${esc(t('pixel.status_ready'))}</span>
@@ -428,14 +392,14 @@
         cropOverlay = host.querySelector('[data-crop-overlay]');
         const compareDivider = host.querySelector('[data-compare-divider]');
 
-        layers = [{ canvas: null, name: t('pixel.layer_background'), visible: true, opacity: 1 }];
+        layers = [runtime.createLayer({ name: t('pixel.layer_background') })];
         activeLayerIdx = 0;
 
         function wireClick(selector, handler) {
             host.querySelectorAll(selector).forEach(el => el.addEventListener('click', handler));
         }
 
-        // Event wiring
+        // Toolbar and empty-state actions; every panel wires its own section in its mount(), see pixel-view.js.
         wireClick('[data-action="open"]', openFile);
         wireClick('[data-action="save"]', saveFile);
         wireClick('[data-action="export"]', exportFile);
@@ -444,35 +408,10 @@
         wireClick('[data-action="zoom-in"]', () => zoomTo(zoom * 1.25));
         wireClick('[data-action="zoom-out"]', () => zoomTo(zoom / 1.25));
         wireClick('[data-action="zoom-fit"]', zoomFit);
-        runtime.mountStickers();
-        host.querySelectorAll('.pixel-tab').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
-        wireClick('[data-action="apply-adjust"]', applyAdjustments);
-        wireClick('[data-action="reset-adjust"]', resetAdjustments);
-        wireClick('[data-action="compare-toggle"]', toggleCompare);
-        wireClick('[data-action="apply-filter"]', applyFilter);
-        wireClick('[data-action="reset-filter"]', resetFilterPreview);
-        wireClick('[data-action="filter-compare"]', toggleFilterCompare);
-        wireClick('[data-action="rotate-cw"]', () => rotateCanvas(90));
-        wireClick('[data-action="rotate-ccw"]', () => rotateCanvas(-90));
-        wireClick('[data-action="flip-h"]', () => flipCanvas(true));
-        wireClick('[data-action="flip-v"]', () => flipCanvas(false));
-        wireClick('[data-action="crop"]', startCrop);
-        wireClick('[data-action="apply-crop"]', applyCrop);
-        wireClick('[data-action="cancel-crop"]', cancelCrop);
-        wireClick('[data-action="resize"]', resizeImage);
-        wireClick('[data-action="ai-generate"]', aiGenerate);
-        wireClick('[data-action="ai-enhance"]', aiEnhance);
-        wireClick('[data-action="ai-remove-bg"]', aiRemoveBG);
-        wireClick('[data-action="ai-upscale"]', aiUpscale);
-        wireClick('[data-action="export-preset"]', showExportDialog);
         wireClick('[data-action="new-image"]', showNewImageDialog);
-        wireClick('[data-action="swap-colors"]', swapColors);
-        wireClick('[data-action="add-layer"]', addLayer);
-        wireClick('[data-action="delete-layer"]', deleteLayer);
-        wireClick('[data-action="duplicate-layer"]', duplicateLayer);
-        wireClick('[data-action="merge-layers"]', mergeDown);
-        wireClick('[data-action="flatten-layers"]', flattenLayers);
-        wireFilterPanel();
+        runtime.mountToolRail();
+        runtime.mountPanels();
+        runtime.initDocks();
 
         host.querySelectorAll('[data-template]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -492,130 +431,39 @@
                 const path = photoBtn.dataset.photoPath;
                 loadDesktopImagePath(path).catch(() => {});
             }
-            const histBtn = e.target.closest('[data-history-idx]');
-            if (histBtn) {
-                jumpToHistory(Number(histBtn.dataset.historyIdx));
-            }
+            const clearBtn = e.target.closest('[data-action="clear-selection"]');
+            if (clearBtn) { deselect(); }
         });
 
         state._cropMouseDown = onCropMouseDown;
         cropOverlay.addEventListener('mousedown', state._cropMouseDown);
 
-        overlayCanvas.addEventListener('mousedown', onCanvasMouseDown);
-        overlayCanvas.addEventListener('mousemove', onCanvasMouseMove);
-        overlayCanvas.addEventListener('mouseup', onCanvasMouseUp);
-        overlayCanvas.addEventListener('mouseleave', () => { if (isDrawing && activeTool && ['brush', 'eraser', 'pencil'].includes(activeTool)) { isDrawing = false; pushHistory('draw:' + activeTool); } if (!selection && !isDrawing) clearOverlay(); });
+        // Pointer events with capture: a stroke that leaves the canvas keeps going until the button is released.
+        state._pointerDown = e => {
+            if (spaceHeld) return;
+            if (e.button === 0) {
+                try { overlayCanvas.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointer */ }
+            }
+            onCanvasMouseDown(e);
+        };
+        state._pointerUp = e => {
+            try {
+                if (overlayCanvas.hasPointerCapture && overlayCanvas.hasPointerCapture(e.pointerId)) overlayCanvas.releasePointerCapture(e.pointerId);
+            } catch (_) { /* already released */ }
+            onCanvasMouseUp(e);
+        };
+        state._pointerLeave = e => {
+            onCanvasLeave(e);
+            const captured = overlayCanvas.hasPointerCapture && overlayCanvas.hasPointerCapture(e.pointerId);
+            if (!captured && isDrawing && activeTool && ['brush', 'eraser', 'pencil'].includes(activeTool)) { isDrawing = false; pushHistory('draw:' + activeTool); }
+        };
+        overlayCanvas.addEventListener('pointerdown', state._pointerDown);
+        overlayCanvas.addEventListener('pointermove', onCanvasMouseMove);
+        overlayCanvas.addEventListener('pointerup', state._pointerUp);
+        overlayCanvas.addEventListener('pointercancel', state._pointerUp);
+        overlayCanvas.addEventListener('pointerleave', state._pointerLeave);
 
         canvasArea.addEventListener('contextmenu', showContextMenu);
-
-        host.querySelectorAll('[data-draw-tool]').forEach(b => {
-            b.addEventListener('click', () => setActiveTool(b.dataset.drawTool));
-        });
-
-        host.querySelectorAll('[data-palette-color]').forEach(b => {
-            b.addEventListener('click', () => { setPrimaryColor(b.dataset.paletteColor); addRecentColor(b.dataset.paletteColor); });
-        });
-
-        host.querySelectorAll('[data-palette-color]').forEach(b => {
-            b.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); setSecondaryColor(b.dataset.paletteColor); });
-        });
-
-        host.addEventListener('click', e => {
-            const rc = e.target.closest('[data-recent-color]');
-            if (rc) { setPrimaryColor(rc.dataset.recentColor); }
-            const clearBtn = e.target.closest('[data-action="clear-selection"]');
-            if (clearBtn) { deselect(); }
-        });
-
-        const primarySwatch = host.querySelector('[data-color-primary]');
-        if (primarySwatch) {
-            primarySwatch.addEventListener('click', () => {
-                const input = document.createElement('input');
-                input.type = 'color';
-                input.value = primaryColor;
-                input.addEventListener('input', () => setPrimaryColor(input.value));
-                input.addEventListener('change', () => { addRecentColor(input.value); input.remove(); });
-                input.click();
-            });
-        }
-
-        const secondarySwatch = host.querySelector('[data-color-secondary]');
-        if (secondarySwatch) {
-            secondarySwatch.addEventListener('click', () => {
-                const input = document.createElement('input');
-                input.type = 'color';
-                input.value = secondaryColor;
-                input.addEventListener('input', () => setSecondaryColor(input.value));
-                input.addEventListener('change', () => input.remove());
-                input.click();
-            });
-        }
-
-        const hexInput = host.querySelector('[data-hex-input]');
-        if (hexInput) {
-            hexInput.addEventListener('change', () => {
-                let v = hexInput.value.trim();
-                if (!v.startsWith('#')) v = '#' + v;
-                if (/^#[0-9a-fA-F]{6}$/.test(v)) { setPrimaryColor(v); addRecentColor(v); }
-                else hexInput.value = primaryColor;
-            });
-        }
-
-        host.querySelectorAll('[data-adjust]').forEach(slider => {
-            slider.addEventListener('input', () => {
-                adjustments[slider.dataset.adjust] = Number(slider.value);
-                const valEl = host.querySelector(`[data-val-${slider.dataset.adjust}]`);
-                if (valEl) valEl.textContent = slider.value;
-                applyAdjustmentsPreview();
-            });
-            slider.addEventListener('dblclick', () => { slider.value = 0; adjustments[slider.dataset.adjust] = 0; const valEl = host.querySelector(`[data-val-${slider.dataset.adjust}]`); if (valEl) valEl.textContent = '0'; applyAdjustmentsPreview(); });
-        });
-
-        const strengthSlider = host.querySelector('[data-enhance-strength]');
-        if (strengthSlider) {
-            strengthSlider.addEventListener('input', () => { const el = host.querySelector('[data-strength-val]'); if (el) el.textContent = strengthSlider.value; });
-        }
-
-        host.addEventListener('click', e => {
-            const maskBtn = e.target.closest('[data-layer-mask]');
-            if (maskBtn) {
-                toggleLayerMask(parseInt(maskBtn.dataset.layerMask, 10));
-                return;
-            }
-            const visBtn = e.target.closest('[data-layer-vis]');
-            if (visBtn) {
-                const idx = parseInt(visBtn.dataset.layerVis);
-                if (layers[idx]) { layers[idx].visible = !layers[idx].visible; compositeLayers(); refreshLayerPanel(); }
-            }
-        });
-
-        host.addEventListener('click', e => {
-            const nameEl = e.target.closest('[data-layer-name]');
-            if (nameEl) {
-                const idx = parseInt(nameEl.dataset.layerName);
-                resetFilterPreview();
-                if (compareMode) exitCompareMode({ preservePreview: true });
-                activeLayerIdx = idx;
-                runtime.cancelStickerGesture();
-                if (layers[idx]?.sticker && activeTool !== 'move') setActiveTool('move');
-                if (editMaskMode) {
-                    editMaskMode = false;
-                    notify({ type: 'info', message: t('pixel.mask_edit_off') });
-                }
-                runtime.captureAdjustmentSource();
-                refreshLayerPanel();
-            }
-        });
-
-        host.addEventListener('input', e => {
-            const opSlider = e.target.closest('[data-layer-opacity]');
-            if (opSlider) {
-                const idx = parseInt(opSlider.dataset.layerOpacity);
-                if (layers[idx]) { layers[idx].opacity = Number(opSlider.value) / 100; compositeLayers(); }
-            }
-        });
-
-        renderRecentColors();
 
         // Scroll-wheel zoom
         canvasArea.addEventListener('wheel', e => {
@@ -639,81 +487,35 @@
             }
         });
 
-        document.addEventListener('mousemove', e => {
+        state._panMove = e => {
             if (isPanning) {
                 canvasArea.scrollLeft = panStartSL - (e.clientX - panStartX);
                 canvasArea.scrollTop = panStartST - (e.clientY - panStartY);
             }
-        });
-
-        document.addEventListener('mouseup', () => {
+        };
+        state._panUp = () => {
             if (isPanning) {
                 isPanning = false;
                 canvasArea.style.cursor = spaceHeld ? 'grab' : '';
             }
-        });
+        };
+        document.addEventListener('mousemove', state._panMove);
+        document.addEventListener('mouseup', state._panUp);
 
         // Double-click to fit
         canvasArea.addEventListener('dblclick', () => { if (imgWidth) zoomFit(); });
 
-        // Keyboard shortcuts
-        state._keydown = e => {
-            if (state.disposed) return;
-            if (e.target.closest('input, textarea, select')) return;
-
-            if (e.key === ' ') { e.preventDefault(); spaceHeld = true; canvasArea.style.cursor = 'grab'; }
-
-            if (e.ctrlKey || e.metaKey) {
-                if (e.key === 'o') { e.preventDefault(); openFile(); }
-                if (e.key === 's' && e.shiftKey) { e.preventDefault(); saveFileAs(); }
-                else if (e.key === 's') { e.preventDefault(); saveFile(); }
-                if (e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
-                else if (e.key === 'z') { e.preventDefault(); undo(); }
-                if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomTo(zoom * 1.25); }
-                if (e.key === '-') { e.preventDefault(); zoomTo(zoom / 1.25); }
-                if (e.key === '0') { e.preventDefault(); zoomFit(); }
-                if (e.key === 'c') { e.preventDefault(); if (selection) copySelection(); }
-                if (e.key === 'x') { e.preventDefault(); if (selection) cutSelection(); }
-                if (e.key === 'v') { e.preventDefault(); pasteClipboard(); }
-                if (e.key === 'a') { e.preventDefault(); selectAll(); }
-                if (e.key === 'd') { e.preventDefault(); deselect(); }
-            }
-
-            if (!e.ctrlKey && !e.metaKey) {
-                if (e.key === 'b') setActiveTool('brush');
-                if (e.key === 'e') setActiveTool('eraser');
-                if (e.key === 'p') setActiveTool('pencil');
-                if (e.key === 'a') setActiveTool('airbrush');
-                if (e.key === 'd') setActiveTool('dodge-burn');
-                if (e.key === 'n') setActiveTool('blur-brush');
-                if (e.key === 'w') setActiveTool('magic-wand');
-                if (e.key === 'u') setActiveTool('gradient');
-                if (e.key === 'l' && !e.shiftKey) setActiveTool('lasso');
-                if (e.key === 'l' && e.shiftKey) setActiveTool('line');
-                if (e.key === 's' && !e.ctrlKey && !e.metaKey) setActiveTool('clone-stamp');
-                if (e.key === 'm') setActiveTool('move');
-                if (e.key === 'r') setActiveTool('rectangle');
-                if (e.key === 'o') setActiveTool('ellipse');
-                if (e.key === 't') setActiveTool('text');
-                if (e.key === 'g') setActiveTool('fill');
-                if (e.key === 'i') setActiveTool('eyedropper');
-                if (e.key === 'v' && !e.shiftKey) setActiveTool('select-rect');
-                if (e.key === 'v' && e.shiftKey) setActiveTool('select-ellipse');
-                if (e.key === 'a' && e.shiftKey) setActiveTool('arrow');
-            }
-
-            if (e.key === 'Escape' && cropState) cancelCrop();
-            if (e.key === 'Escape' && selection) deselect();
-            if (e.key === 'Delete' && selection) { deleteSelection(); deselect(); }
-            if (e.key === '?') showShortcutsModal();
-            if (e.key === 'F1') { e.preventDefault(); showShortcutsModal(); }
-        };
+        // Keyboard: one listener per window; handleKeydown ignores keys unless this is the active Pixel window and
+        // dispatches shortcuts through the command registry (menu items, tools, panels, registered commands).
+        state._keydown = e => runtime.handleKeydown(e);
+        state._keyup = e => runtime.handleKeyup(e);
         document.addEventListener('keydown', state._keydown);
-
-        state._keyup = e => {
-            if (e.key === ' ') { spaceHeld = false; if (!isPanning) canvasArea.style.cursor = ''; }
-        };
         document.addEventListener('keyup', state._keyup);
+        const markActive = () => runtime.markActiveWindow();
+        host.addEventListener('pointerdown', markActive, true);
+        host.addEventListener('pointerenter', markActive);
+        host.addEventListener('focusin', markActive);
+        markActive();
 
         // Drag-drop support
         appEl.addEventListener('dragover', e => {
@@ -739,51 +541,11 @@
             }
         });
 
-        // Window menus
-        if (typeof ctx.setWindowMenus === 'function') {
-            ctx.setWindowMenus(windowId, [
-                { id: 'file', labelKey: 'desktop.menu_file', items: [
-                    { id: 'open', labelKey: 'pixel.open', icon: 'folder-open', shortcut: 'Ctrl+O', action: openFile },
-                    { id: 'save', labelKey: 'pixel.save', icon: 'save', shortcut: 'Ctrl+S', action: saveFile },
-                    { id: 'save-as', labelKey: 'pixel.save_as', icon: 'save', shortcut: 'Ctrl+Shift+S', action: saveFileAs },
-                    { id: 'export', labelKey: 'pixel.export', icon: 'download', action: exportFile },
-                    { type: 'separator' },
-                    { id: 'new-image', labelKey: 'pixel.new_image', icon: 'image', action: showNewImageDialog }
-                ]},
-                { id: 'edit', labelKey: 'desktop.menu_edit', items: [
-                    { id: 'undo', labelKey: 'pixel.undo', icon: 'undo', shortcut: 'Ctrl+Z', action: undo },
-                    { id: 'redo', labelKey: 'pixel.redo', icon: 'redo', shortcut: 'Ctrl+Shift+Z', action: redo },
-                    { type: 'separator' },
-                    { id: 'copy', labelKey: 'pixel.copy', icon: 'image', shortcut: 'Ctrl+C', action: copySelection },
-                    { id: 'cut', labelKey: 'pixel.cut', icon: 'scissors', shortcut: 'Ctrl+X', action: cutSelection },
-                    { id: 'paste', labelKey: 'pixel.paste', icon: 'image', shortcut: 'Ctrl+V', action: pasteClipboard },
-                    { type: 'separator' },
-                    { id: 'select-all', labelKey: 'pixel.select_all', icon: 'image', shortcut: 'Ctrl+A', action: selectAll },
-                    { id: 'deselect', labelKey: 'pixel.deselect', icon: 'image', shortcut: 'Ctrl+D', action: deselect }
-                ]},
-                { id: 'view', labelKey: 'desktop.menu_view', items: [
-                    { id: 'zoom-in', labelKey: 'pixel.zoom_in', icon: 'zoom-in', shortcut: 'Ctrl++', action: () => zoomTo(zoom * 1.25) },
-                    { id: 'zoom-out', labelKey: 'pixel.zoom_out', icon: 'zoom-out', shortcut: 'Ctrl+-', action: () => zoomTo(zoom / 1.25) },
-                    { id: 'zoom-fit', labelKey: 'pixel.zoom_fit', icon: 'maximize', shortcut: 'Ctrl+0', action: zoomFit },
-                    { id: 'zoom-100', labelKey: 'pixel.zoom_100', icon: 'zoom-in', action: () => zoomTo(1) },
-                    { type: 'separator' },
-                    { id: 'shortcuts', labelKey: 'pixel.shortcuts', icon: 'image', shortcut: '?', action: showShortcutsModal }
-                ]},
-                { id: 'image', labelKey: 'pixel.menu_image', items: [
-                    { id: 'rotate-cw', labelKey: 'pixel.rotate_cw', icon: 'redo', action: () => rotateCanvas(90) },
-                    { id: 'rotate-ccw', labelKey: 'pixel.rotate_ccw', icon: 'undo', action: () => rotateCanvas(-90) },
-                    { id: 'flip-h', labelKey: 'pixel.flip_h', icon: 'sort', action: () => flipCanvas(true) },
-                    { id: 'flip-v', labelKey: 'pixel.flip_v', icon: 'sort', action: () => flipCanvas(false) },
-                    { type: 'separator' },
-                    { id: 'crop', labelKey: 'pixel.crop', icon: 'scissors', action: startCrop },
-                    { id: 'resize', labelKey: 'pixel.resize', icon: 'maximize', action: resizeImage }
-                ]},
-                { id: 'ai', labelKey: 'pixel.ai_generate', items: [
-                    { id: 'generate', labelKey: 'pixel.generate', icon: 'image', action: () => { showPanel('ai'); } },
-                    { id: 'enhance', labelKey: 'pixel.enhance', icon: 'image', action: () => { showPanel('ai'); } }
-                ]}
-            ]);
-        }
+        // Window menus come from Pixel.registerMenuItems (file, edit, image, layer, select, filter, generate, view, ai).
+        runtime.rebuildMenus();
+
+        // Module installers run before the markup exists; modules that need the finished shell wait for this event.
+        runtime.emit('ready');
 
         // Load initial image
         if (filePath) {
@@ -796,6 +558,7 @@
 
         state.dispose = function () {
             runtime.disposeStickers();
+            runtime.disposeCore();
             if (runtime._filterPreviewRAF) cancelAnimationFrame(runtime._filterPreviewRAF);
             state.disposed = true;
             state.imageRead?.abort();
@@ -803,10 +566,18 @@
             stopMarchingAnts();
             if (state._keydown) document.removeEventListener('keydown', state._keydown);
             if (state._keyup) document.removeEventListener('keyup', state._keyup);
+            if (state._panMove) document.removeEventListener('mousemove', state._panMove);
+            if (state._panUp) document.removeEventListener('mouseup', state._panUp);
             if (state._cropMouseDown) cropOverlay.removeEventListener('mousedown', state._cropMouseDown);
-            overlayCanvas.removeEventListener('mousedown', onCanvasMouseDown);
-            overlayCanvas.removeEventListener('mousemove', onCanvasMouseMove);
-            overlayCanvas.removeEventListener('mouseup', onCanvasMouseUp);
+            overlayCanvas.removeEventListener('pointerdown', state._pointerDown);
+            overlayCanvas.removeEventListener('pointermove', onCanvasMouseMove);
+            overlayCanvas.removeEventListener('pointerup', state._pointerUp);
+            overlayCanvas.removeEventListener('pointercancel', state._pointerUp);
+            overlayCanvas.removeEventListener('pointerleave', state._pointerLeave);
+            host.removeEventListener('pointerdown', markActive, true);
+            host.removeEventListener('pointerenter', markActive);
+            host.removeEventListener('focusin', markActive);
+            if (Pixel.activeInstance === state) Pixel.activeInstance = null;
             history = [];
             originalImage = null;
             selImageData = null;
@@ -817,7 +588,7 @@
             overlayCanvas = null;
             olCtx = null;
         };
-        }
+    }
 
     function dispose(windowId) {
         const state = instances.get(windowId);

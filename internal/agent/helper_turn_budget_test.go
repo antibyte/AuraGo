@@ -80,7 +80,7 @@ func TestHelperTurnBudgetOverflowDefersWithoutProviderCall(t *testing.T) {
 		},
 	}
 	_, err := manager.AnalyzeTurn(t.Context(), strings.Repeat("<& complete source > ", 1000), "Assistant source", nil, nil,
-		&helperTurnPersonalityInput{Language: "English"}, tracker)
+		&helperTurnPersonalityInput{Language: "English", CurrentUserMessage: strings.Repeat("<& complete source > ", 1000)}, tracker)
 	if !errors.Is(err, errHelperBudgetUnavailable) || !strings.Contains(err.Error(), "json_completion_context_budget") {
 		t.Fatalf("overflow did not carry the no-fallback budget category: %v", err)
 	}

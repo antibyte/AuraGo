@@ -8,6 +8,8 @@
   "config.media_conversion.imagemagick_path_label": "ImageMagick पथ",
   "config.media_conversion.timeout_label": "टाइमआउट",
   "config.media_conversion.seconds": "सेकंड",
+  "config.media_conversion.max_file_size_label": "अधिकतम इनपुट आकार",
+  "config.media_conversion.megabytes": "MB",
   "config.media_conversion.test_button": "टूल जाँचें",
   "config.media_conversion.loading": "टूल जाँचे जा रहे हैं…",
   "config.media_conversion.status_success": "✅",
@@ -19,5 +21,6 @@
   "help.media_conversion.readonly": "केवल-पढ़ें मोड में केवल info ऑपरेशन अनुमति है। वास्तविक रूपांतरण रोके जाते हैं।",
   "help.media_conversion.ffmpeg_path": "ffmpeg बाइनरी का वैकल्पिक कस्टम पथ। PATH से स्वतः खोज के लिए खाली छोड़ें।",
   "help.media_conversion.imagemagick_path": "magick या convert का वैकल्पिक कस्टम पथ। स्वतः खोज के लिए खाली छोड़ें।",
-  "help.media_conversion.timeout_seconds": "एकल रूपांतरण के लिए अधिकतम रनटाइम सेकंड में।"
+  "help.media_conversion.timeout_seconds": "एकल रूपांतरण के लिए अधिकतम रनटाइम सेकंड में।",
+  "help.media_conversion.max_file_size_mb": "इनपुट फ़ाइल का अधिकतम आकार मेगाबाइट में। 0 का अर्थ है कोई सीमा नहीं।"
 }

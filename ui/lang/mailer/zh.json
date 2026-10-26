@@ -183,6 +183,7 @@
   "mailer.outbox_sent": "已发送",
   "mailer.outbox_unknown": "投递状态未知",
   "mailer.partial_action": "部分邮件已更改。列表已刷新；重试前请检查其余邮件。",
+  "mailer.participants_count": "{count} 位参与者",
   "mailer.password": "密码",
   "mailer.preview_rule": "预览规则",
   "mailer.print": "打印",

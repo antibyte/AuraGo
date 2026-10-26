@@ -112,9 +112,11 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	if ttsCfg.Language == "" {
 		ttsCfg.Language = cfg.TTS.Language
 	}
-	if strings.EqualFold(provider, "sanotts") || strings.EqualFold(ttsCfg.Language, "auto") {
+	if strings.EqualFold(provider, "sanotts") || strings.EqualFold(provider, "phonon") || strings.EqualFold(ttsCfg.Language, "auto") {
 		ttsCfg.Language = cfg.SanoTTSLanguage(language)
 	}
+	ttsCfg.Phonon.VoiceID = cfg.TTS.Phonon.VoiceID
+	ttsCfg.Phonon.Persona = cfg.Personality.CorePersonality
 	ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
 	ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
 	ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
@@ -125,6 +127,10 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	ttsCfg.Mistral.APIKey = cfg.TTS.Mistral.APIKey
 	ttsCfg.Mistral.VoiceID = cfg.TTS.Mistral.VoiceID
 	ttsCfg.Mistral.ModelID = cfg.TTS.Mistral.ModelID
+	ttsCfg.XAI = cfg.TTS.XAI
+	ttsCfg.OpenAI = cfg.TTS.OpenAI
+	ttsCfg.StepFun = cfg.TTS.StepFun
+	ttsCfg.Resemble = cfg.TTS.Resemble
 	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
 	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
 	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
@@ -147,7 +153,7 @@ func isTTSConfigured(cfg *config.Config) bool {
 	}
 
 	switch provider {
-	case "google", "sanotts":
+	case "google", "sanotts", "phonon":
 		return true
 	case "elevenlabs":
 		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
@@ -156,6 +162,14 @@ func isTTSConfigured(cfg *config.Config) bool {
 	case "mistral":
 		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
 			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
+	case "xai":
+		return strings.TrimSpace(cfg.TTS.XAI.APIKey) != ""
+	case "openai":
+		return strings.TrimSpace(cfg.TTS.OpenAI.APIKey) != ""
+	case "stepfun":
+		return strings.TrimSpace(cfg.TTS.StepFun.APIKey) != ""
+	case "resemble":
+		return strings.TrimSpace(cfg.TTS.Resemble.APIKey) != "" && strings.TrimSpace(cfg.TTS.Resemble.VoiceID) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
 	case "supertonic":

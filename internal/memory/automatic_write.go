@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // AutomaticMemoryWrite records only ownership established by this operation.
@@ -52,7 +53,9 @@ func (s *SQLiteMemory) initializeAutomaticMemoryMeta(id string, details MemoryMe
 // StoreAutomaticMemoryDocument shares insert-only metadata and ownership
 // receipts across analysis, consolidation, hierarchy and queued retries.
 func StoreAutomaticMemoryDocument(s *SQLiteMemory, ltm VectorDB, concept, content string, details MemoryMetaUpdate) (AutomaticMemoryStoreResult, error) {
-	return storeAutomaticMemoryDocument(context.Background(), s, ltm, concept, content, details, func(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return storeAutomaticMemoryDocument(ctx, s, ltm, concept, content, details, func(ctx context.Context, ltm VectorDB, concept, content string) (VectorStoreResult, error) {
 		if _, ok := ltm.(*ChromemVectorDB); ok {
 			return StoreDocumentWithOwnershipContext(ctx, ltm, concept, content)
 		}
@@ -85,6 +88,10 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 			return AutomaticMemoryStoreResult{}, err
 		}
 		defer s.automaticMemoryMu.Unlock()
+		s.bindArchiveVector(ltm)
+		if err := s.backfillArchiveIdentities(ctx, ltm); err != nil {
+			return result, err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return result, err
@@ -102,6 +109,13 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 	validate := func() error {
 		if s == nil {
 			return nil
+		}
+		blockedArchive, err := s.archivedIdentityBlocked(ctx, memoryDocumentIdentity(buildContentString(concept, content), ""))
+		if err != nil {
+			return fmt.Errorf("check archived memory identity: %w", err)
+		}
+		if blockedArchive {
+			return fmt.Errorf("%w: fact is archived", ErrAutomaticMemorySkipped)
 		}
 		deleted, err := s.IsSessionDeleted(session)
 		if err != nil {
@@ -163,6 +177,7 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 		}
 		ids := append(append(append([]string{}, stored.CreatedIDs...), stored.ReusedIDs...), stored.UnknownIDs...)
 		for _, id := range ids {
+			resultErr = errors.Join(resultErr, s.recordDocumentIdentity(ctx, id, memoryDocumentIdentity(buildContentString(concept, content), "")))
 			source := strings.TrimSpace(details.SourceType)
 			if source == "" {
 				source = "system"
@@ -197,21 +212,32 @@ func storeAutomaticMemoryDocument(ctx context.Context, s *SQLiteMemory, ltm Vect
 // reused documents. The SQLite write lock prevents curation between validation
 // and the vector store's conditional content deletion.
 func (s *SQLiteMemory) RollbackAutomaticMemoryWrites(ltm VectorDB, writes []AutomaticMemoryWrite) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.RollbackAutomaticMemoryWritesContext(ctx, ltm, writes)
+}
+
+func (s *SQLiteMemory) RollbackAutomaticMemoryWritesContext(ctx context.Context, ltm VectorDB, writes []AutomaticMemoryWrite) error {
 	if s != nil {
-		s.automaticMemoryMu.Lock()
+		if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+			return err
+		}
 		defer s.automaticMemoryMu.Unlock()
 	}
 	if s == nil {
 		return fmt.Errorf("memory metadata store is unavailable")
 	}
-	_, release, err := s.BeginMemoryPublication(context.Background())
+	ctx, release, err := s.BeginMemoryPublication(ctx)
 	if err != nil {
 		return err
 	}
 	defer release()
 	var result error
 	for _, write := range writes {
-		result = errors.Join(result, s.rollbackAutomaticMemoryWrite(ltm, write))
+		if err := ctx.Err(); err != nil {
+			return errors.Join(result, err)
+		}
+		result = errors.Join(result, s.rollbackAutomaticMemoryWriteContext(ctx, ltm, write))
 	}
 	if result == nil {
 		result = s.completeRolledBackPublications(writes)
@@ -220,20 +246,26 @@ func (s *SQLiteMemory) RollbackAutomaticMemoryWrites(ltm VectorDB, writes []Auto
 }
 
 func (s *SQLiteMemory) rollbackAutomaticMemoryWrite(ltm VectorDB, write AutomaticMemoryWrite) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return s.rollbackAutomaticMemoryWriteContext(ctx, ltm, write)
+}
+
+func (s *SQLiteMemory) rollbackAutomaticMemoryWriteContext(ctx context.Context, ltm VectorDB, write AutomaticMemoryWrite) error {
 	owned, ok := ltm.(OwnershipAwareVectorDB)
 	if s == nil || s.db == nil || !ok || write.Metadata == nil || write.ContentHash == "" || len(write.Sources) != 1 {
 		return fmt.Errorf("retained automatic memory %s: rollback ownership is unproven", write.DocID)
 	}
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("retain automatic memory %s: %w", write.DocID, err)
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE memory_meta SET doc_id=doc_id WHERE doc_id=?`, write.DocID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE memory_meta SET doc_id=doc_id WHERE doc_id=?`, write.DocID); err != nil {
 		return err
 	}
 	var current MemoryMeta
-	if err := scanMemoryMeta(tx.QueryRow(`SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, write.DocID), &current); err != nil {
+	if err := scanMemoryMeta(tx.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, write.DocID), &current); err != nil {
 		return err
 	}
 	sources, err := readMemoryExtractionSources(tx, write.DocID)
@@ -246,19 +278,19 @@ func (s *SQLiteMemory) rollbackAutomaticMemoryWrite(ltm VectorDB, write Automati
 		return fmt.Errorf("retained automatic memory %s: metadata or sources changed", write.DocID)
 	}
 	var referenced bool
-	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM memory_curation_events WHERE doc_id=?) OR
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM memory_curation_events WHERE doc_id=?) OR
 		EXISTS(SELECT 1 FROM memory_usage_log WHERE memory_id=?) OR
 		EXISTS(SELECT 1 FROM memory_conflicts WHERE doc_id_left=? OR doc_id_right=?) OR
 		EXISTS(SELECT 1 FROM file_embedding_docs WHERE doc_id=?)`, write.DocID, write.DocID, write.DocID, write.DocID, write.DocID).Scan(&referenced); err != nil {
 		return err
 	}
 	var episodesExist bool
-	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='episodic_memories')`).Scan(&episodesExist); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='episodic_memories')`).Scan(&episodesExist); err != nil {
 		return err
 	}
 	if episodesExist {
 		var linked bool
-		if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM episodic_memories,json_each(related_doc_ids) WHERE json_each.value=?)`, write.DocID).Scan(&linked); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM episodic_memories,json_each(related_doc_ids) WHERE json_each.value=?)`, write.DocID).Scan(&linked); err != nil {
 			return err
 		}
 		referenced = referenced || linked
@@ -266,7 +298,12 @@ func (s *SQLiteMemory) rollbackAutomaticMemoryWrite(ltm VectorDB, write Automati
 	if referenced {
 		return fmt.Errorf("retained automatic memory %s: references exist", write.DocID)
 	}
-	deleted, err := owned.DeleteDocumentIfContentMatches(write.DocID, write.ContentHash)
+	var deleted bool
+	if native, ok := ltm.(*ChromemVectorDB); ok {
+		deleted, err = native.DeleteDocumentIfContentMatchesContext(ctx, write.DocID, write.ContentHash)
+	} else {
+		deleted, err = owned.DeleteDocumentIfContentMatches(write.DocID, write.ContentHash)
+	}
 	if err != nil {
 		return fmt.Errorf("rollback automatic vector %s: %w", write.DocID, err)
 	}
@@ -274,7 +311,7 @@ func (s *SQLiteMemory) rollbackAutomaticMemoryWrite(ltm VectorDB, write Automati
 		return fmt.Errorf("retained automatic memory %s: vector content changed", write.DocID)
 	}
 	for _, table := range []string{"memory_extraction_sources", "memory_meta"} {
-		if _, err := tx.Exec(`DELETE FROM `+table+` WHERE doc_id=?`, write.DocID); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE doc_id=?`, write.DocID); err != nil {
 			return fmt.Errorf("rollback automatic %s: %w", table, err)
 		}
 	}

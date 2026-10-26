@@ -10,9 +10,23 @@
     // create builds the editor for a loaded flow. app: {ctx, t, esc, api, catalog, windowId,
     // readonly, openHome(), openFlow(id)}; loaded: GET /flows/{id} response.
     function create(app, loaded, opts) {
+        // abort is set once the cleanup bag exists: a build that throws after that (a late render) releases what it set up.
+        const guard = { abort: null };
+        try {
+            return build(app, loaded, opts, guard);
+        } catch (err) {
+            if (guard.abort) guard.abort();
+            throw err;
+        }
+    }
+
+    function build(app, loaded, opts, guard) {
         const core = ED.core;
         const { t, esc, ctx } = app;
         const bag = core.bag();
+        let canvas, wires, interact, palette, runs, publish, history;
+        // A build that fails later releases what it set up (dispose skips what does not exist yet).
+        guard.abort = () => { try { dispose(); } catch (err) { bag.dispose(); } };
         const draftModel = ED.model.create(loaded.flow.draft, app.catalog);
         // One notice for the draft only. The run view builds its own model and must not say this.
         // A later restore (replaceDoc emits reset) says it if the first document did not.
@@ -25,8 +39,6 @@
         noteDroppedDuplicates();
         bag.add(draftModel.on(change => { if (change && change.kind === 'reset') noteDroppedDuplicates(); }));
         let savedView = null;
-        // paletteBefore: the palette was open when the run view hid it; leaving the run view shows it again.
-        let paletteBefore = false;
         let contentDirty = false;
         let lastRecord = null;
         // partialRevision is the live revision of the last partial publish (ed.publishIncomplete).
@@ -40,17 +52,20 @@
             '<header class="ed-head">' +
             '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + core.icon('arrow-left') + '</button>' +
             '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span><span class="ed-revision" data-ed-revision data-ed-revisions></span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
+            '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<div class="ed-head-actions">' +
             '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + core.icon('history') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            // Below 900 px the text of Stop and of the Active switch (below) is hidden: the name and the tooltip say the same words.
+            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" title="' + esc(t('easydrag.ui.run_cancel')) + '" aria-label="' + esc(t('easydrag.ui.run_cancel')) + '" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + core.icon('rocket') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + core.icon('play') + '<span>' + esc(t('easydrag.ui.run_now')) + '</span></button>' +
-            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
+            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active" title="' + esc(t('easydrag.ui.active')) + '" aria-label="' + esc(t('easydrag.ui.active')) + '"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + core.icon('dots') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + core.icon('history') + '<span data-ed-runview-text></span>' +
             '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + core.icon('flask') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + core.icon('arrow-left') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
             '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="palette" aria-pressed="true" title="' + esc(t('easydrag.ui.palette_title')) + ' (' + core.shortcut('Ctrl+K') + ')" aria-label="' + esc(t('easydrag.ui.palette_title')) + '">' + core.icon('plus') + '</button>' +
@@ -73,19 +88,27 @@
             // model is the document shown (a stored run's in the run view); draftModel is the draft.
             root: el, flow: loaded.flow, flowEnabled: !!loaded.enabled, model: draftModel, draftModel,
             selection: new Set(), selectedEdge: null, hoverNode: null, hoverEdge: null, view: { x: 0, y: 0, zoom: 1 },
-            run: null, runView: null, issues: loaded.issues || [], lastRunData: null, detail: null, quickAdd: null,
+            run: null, runView: null, issues: loaded.issues || [],
+            timersRunning: loaded.timers_running !== false, liveIssues: Array.isArray(loaded.live_issues) ? loaded.live_issues : [], liveIssuesRevision: Number(loaded.flow.live_revision) || 0, lastRunData: null, detail: null, quickAdd: null,
             dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
             enterRunView, exitRunView
         };
 
-        const canvas = ED.canvas.create(ed);
-        const wires = ED.wires.create(ed, canvas);
-        const interact = ED.interact.create(ed, canvas, wires);
-        const palette = ED.palette.createPanel(ed, canvas);
-        const runs = ED.runs.create(ed, canvas);
-        const publish = ED.publish.create(ed);
+        canvas = ED.canvas.create(ed);
+        wires = ED.wires.create(ed, canvas);
+        interact = ED.interact.create(ed, canvas, wires);
+        palette = ED.palette.createPanel(ed, canvas);
+        runs = ED.runs.create(ed, canvas);
+        publish = ED.publish.create(ed);
         body.appendChild(palette.el);
         body.appendChild(canvas.el);
+        body.appendChild(canvas.listRegion);
+        // Undo/Redo in the header and the "deleted – Undo" toast (easydrag-history.js).
+        history = ED.history.create(ed, {
+            host: el.querySelector('[data-ed-history-host]'), toastHost: body,
+            undo: () => interact.undo(), redo: () => interact.redo(),
+            focusCanvas: () => canvas.el.focus({ preventScroll: true })
+        });
 
         ed.saver = ED.saver.create({
             api: ed.api, flowId: ed.flow.id, model: draftModel, revision: ed.flow.draft_revision,
@@ -122,7 +145,8 @@
 
         // revisionText is the persistent draft-versus-live line. Partial publish stays on the state chip.
         function revisionText() {
-            if (ed.runView) return t('easydrag.ui.state_run_view');
+            // The run view's chip says "Past run" already; the line stays empty and hidden there.
+            if (ed.runView) return '';
             if (!ed.flow.live) return t('easydrag.ui.state_draft');
             const liveN = Number(ed.flow.live_revision) || 0;
             if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return t('easydrag.ui.revision_ahead', { n: liveN });
@@ -148,7 +172,26 @@
             node.dataset.draft = draftN;
             node.dataset.live = liveN;
             node.dataset.paused = paused ? 'true' : 'false';
+            node.hidden = !!ed.runView;
             node.textContent = revisionText();
+        }
+
+        // liveChip marks a published version that no longer passes the server's current checks
+        // (its start-up check), only while that version is still live: a new publication clears it.
+        function liveChip() {
+            const outdated = !ed.runView && !!ed.flow.live && ed.liveIssues.length > 0 && Number(ed.flow.live_revision) === ed.liveIssuesRevision;
+            if (!outdated) return '';
+            const hint = t('easydrag.ui.live_outdated_hint');
+            return '<span class="ed-chip ed-chip--risk" data-ed-live-outdated title="' + esc(hint) + '">' + esc(t('easydrag.ui.state_live_outdated')) +
+                '<span class="ed-sr-only"> ' + esc(hint) + '</span></span>';
+        }
+
+        // timersChip: the server's Date & time triggers do not fire (its flow store did not start).
+        function timersChip() {
+            if (ed.runView || ed.timersRunning !== false) return '';
+            const text = t('easydrag.ui.timers_stopped_text');
+            return '<span class="ed-chip ed-chip--warn" data-ed-timers-off title="' + esc(text) + '">' + esc(t('easydrag.ui.timers_stopped_title')) +
+                '<span class="ed-sr-only"> ' + esc(text) + '</span></span>';
         }
 
         function renderHeader() {
@@ -160,8 +203,9 @@
             const s = stateOf();
             const inactive = ed.flow.live && !ed.flowEnabled && !ed.runView;
             el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
-                (inactive ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '');
+                (inactive ? '<span class="ed-chip ed-chip--muted" data-ed-paused>' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + liveChip() + timersChip();
             paintRevision();
+            syncSaveChip();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
@@ -200,7 +244,10 @@
             const err = ed.saver && ed.saver.error;
             const title = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : s === 'offline' ? t('easydrag.ui.save_offline_hint') : '';
             // .ed-foot-text: narrow footers show the icon only, the text stays for screen readers.
-            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.save_' + s)) + '</span>';
+            // A failed save, and an offline one that has an error, show the reason, not only as tooltip.
+            const reason = s === 'failed' || (s === 'offline' && err) ? core.errorText(t, err) : '';
+            const label = core.icon(SAVE_ICONS[s] || 'check') + '<span class="ed-foot-text">' + esc(t('easydrag.ui.save_' + s)) + '</span>' +
+                (reason ? '<span class="ed-save-reason">' + esc(reason) + '</span>' : '');
             const hadFocus = node.contains(document.activeElement);
             node.className = 'ed-foot-item ed-save ed-save--' + s;
             node.innerHTML = s === 'failed'
@@ -210,6 +257,14 @@
             // Each state replaces the retry button: keyboard focus moves to the new one or, once the
             // save went through, to the canvas.
             if (hadFocus && !disposed) (node.querySelector('[data-ed-cmd="save"]') || canvas.el).focus({ preventScroll: true });
+            syncSaveChip();
+        }
+
+        // syncSaveChip hides "Saved" in the run view (nothing there can be saved); any other save
+        // state, a failure above all, stays visible there.
+        function syncSaveChip() {
+            const node = el.querySelector('[data-ed-save]');
+            if (node && ed.saver) node.hidden = !!ed.runView && ed.saver.state === 'saved';
         }
 
         function renderIssues() {
@@ -268,16 +323,44 @@
             const off = !ED.runs.isActive(run.status);
             if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
             stop.hidden = off;
+            banner.querySelector('[data-ed-cmd="rerun-viewed"]').hidden = !canRerun(run);
+        }
+
+        // canRerun: the viewed run brought its trigger data (GET runs/{id} returns it), the draft still
+        // has that trigger, switched on, and the desktop may test.
+        function canRerun(run) {
+            if (!run || ed.readonly) return false;
+            const data = run.trigger_data;
+            if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+            // The store keeps oversized trigger data as a stub ({_preview} or {_omitted}): testing it would run real effects on the stub.
+            if ('_preview' in data || '_omitted' in data) return false;
+            // A run is going (the viewed one or a parked live run): leaving the view would lose it, and no test can start.
+            if (ED.runs.isActive(run.status) || runs.hasParked()) return false;
+            const n = draftModel.node(run.trigger_node);
+            const i = n && draftModel.info(n.type);
+            return !!(i && i.trigger && !(n.settings && n.settings.disabled));
+        }
+
+        // rerunViewed leaves the run view and opens the test dialog with the viewed run's trigger data.
+        // The dialog lists the real effects and asks before anything runs, as every test does.
+        function rerunViewed() {
+            const run = ed.runView && ed.runView.run;
+            if (!canRerun(run)) {
+                if (run && (ED.runs.isActive(run.status) || runs.hasParked())) ctx.notify({ title: draftModel.doc.name, message: t('easydrag.ui.run_going') });
+                return;
+            }
+            const triggerNode = run.trigger_node;
+            const data = JSON.parse(JSON.stringify(run.trigger_data));
+            exitRunView();
+            if (ed.runView) return;
+            runs.startTest({ triggerNode, data });
         }
 
         function enterRunView(detail) {
             if (!ed.flushPendingEdits()) return;
             ED.detail.close(ed);
             ED.palette.closeQuickAdd(ed);
-            if (!ed.runView) {
-                savedView = Object.assign({}, ed.view);
-                paletteBefore = palette.isOpen();
-            }
+            if (!ed.runView) savedView = Object.assign({}, ed.view);
             ed.runView = { run: detail.run, doc: detail.doc };
             ed.model = ED.model.create(detail.doc, ed.catalog);
             ed.selection = new Set();
@@ -312,8 +395,8 @@
             runs.clearRun();
             ed.bus.emit('model', { kind: 'reset', nodes: [], edges: [], meta: true, structural: true });
             if (savedView) canvas.setView(savedView, { animate: true });
-            if (paletteBefore && !palette.isOpen() && !palette.isOverlay()) palette.setOpen(true, true);
-            paletteBefore = false;
+            // A docked palette comes back by the stored choice; a floating one stays closed.
+            palette.restoreDocked();
             renderHeader();
             setMenus();
             renderIssues();
@@ -422,15 +505,23 @@
             app.openHome(opts);
         }
 
+        // duplicating: one copy at a time; a double click (or the menu and the key) copies once.
+        let duplicating = false;
         async function duplicateFlow() {
-            if (!(await leave()) || disposed) return;
+            if (duplicating) return;
+            duplicating = true;
             try {
+                if (!(await leave()) || disposed) return;
                 // The draft, also in the run view (whose model is a stored run's document).
                 const doc = draftModel.toJSON();
                 doc.name = t('easydrag.ui.copy_of', { name: doc.name });
                 const res = await ed.api.create({ import: doc });
                 app.openFlow(res.flow.id);
-            } catch (err) { ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' }); }
+            } catch (err) {
+                ctx.notify({ title: 'EasyDrag', message: core.errorText(t, err), type: 'error' });
+            } finally {
+                duplicating = false;
+            }
         }
 
         // leave saves pending content before the editor closes; false keeps it open. A drag still in
@@ -467,10 +558,23 @@
             return ctx.confirmDialog(t('easydrag.ui.leave_title'), t('easydrag.ui.leave_text'));
         }
 
+        // headerNarrow: the editor is 560 px wide or narrower, where the stylesheet hides Runs, Test and
+        // Run now in the header (@container max-width 560px) and the ⋯ menu offers them.
+        function headerNarrow() {
+            const width = el.getBoundingClientRect().width;
+            return width > 0 && width <= 560;
+        }
+
         function moreMenu(anchor) {
             const r = anchor.getBoundingClientRect();
             const run = runNowState();
-            ctx.showContextMenu(r.left, r.bottom + 4, [
+            const ro = !!(ed.readonly || ed.runView);
+            const moved = headerNarrow() ? [
+                { icon: 'history', label: t('easydrag.ui.runs_title'), action: () => { runs.toggleDrawer(); renderHeader(); setMenus(); } },
+                { icon: 'flask', label: t('easydrag.ui.test_draft'), disabled: ro || runs.isRunning(), action: test },
+                { separator: true }
+            ] : [];
+            ctx.showContextMenu(r.left, r.bottom + 4, moved.concat([
                 { icon: 'play', label: t('easydrag.ui.run_now'), disabled: run.disabled, disabledHint: run.hint, action: runLiveNow },
                 { icon: 'history', label: t('easydrag.ui.versions_title'), action: () => publish.openVersions() },
                 { icon: 'settings', label: t('easydrag.ui.flow_settings'), action: () => ED.dialogs.flowSettings(ed) },
@@ -479,7 +583,7 @@
                 { icon: 'list', label: t('easydrag.ui.home_mission_control'), action: () => ctx.openApp && ctx.openApp('mission-control') },
                 { separator: true },
                 { icon: 'trash', label: t('easydrag.ui.home_delete'), disabled: !!ed.readonly, action: deleteFlow }
-            ]);
+            ]));
         }
 
         // ── window menus ────────────────────────────────────────────────────────
@@ -524,13 +628,13 @@
                 },
                 {
                     id: 'edit', labelKey: 'easydrag.ui.menu_edit', items: [
-                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: 'Ctrl+Z', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => ed.model.undo()) },
-                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: 'Ctrl+Shift+Z', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => ed.model.redo()) },
+                        { id: 'undo', labelKey: 'easydrag.ui.undo', icon: 'undo', shortcutHint: 'Ctrl+Z', disabled: ro || busy || !ed.model.canUndo(), action: unlessOverlay(() => interact.undo()) },
+                        { id: 'redo', labelKey: 'easydrag.ui.redo', icon: 'redo', shortcutHint: 'Ctrl+Shift+Z', disabled: ro || busy || !ed.model.canRedo(), action: unlessOverlay(() => interact.redo()) },
                         { type: 'separator' },
-                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: 'Ctrl+X', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection(); }) },
+                        { id: 'cut', labelKey: 'easydrag.ui.cut', icon: 'scissors', shortcutHint: 'Ctrl+X', disabled: ro || busy || !sel, action: unlessOverlay(() => { if (interact.copySelection()) interact.removeSelection({ quiet: true }); }) },
                         { id: 'copy', labelKey: 'easydrag.ui.copy', icon: 'copy', shortcutHint: 'Ctrl+C', disabled: busy || !sel, action: unlessOverlay(() => interact.copySelection()) },
                         { id: 'paste', labelKey: 'easydrag.ui.paste', icon: 'clipboard', shortcutHint: 'Ctrl+V', disabled: ro || busy, action: unlessOverlay(() => interact.pasteAt(null)) },
-                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.select(ed.model.duplicate(Array.from(ed.selection)))) },
+                        { id: 'duplicate', labelKey: 'easydrag.ui.duplicate', icon: 'copy', shortcutHint: 'Ctrl+D', disabled: ro || busy || !sel, action: unlessOverlay(() => interact.duplicateSteps(Array.from(ed.selection))) },
                         { id: 'delete-sel', labelKey: 'easydrag.ui.delete', icon: 'trash', shortcutHint: 'Del', disabled: ro || busy || (!sel && !ed.selectedEdge), action: unlessOverlay(() => interact.removeSelection()) },
                         { type: 'separator' },
                         { id: 'select-all', labelKey: 'easydrag.ui.select_all', icon: 'check-square', shortcutHint: 'Ctrl+A', disabled: busy, action: unlessOverlay(() => interact.selectAll()) },
@@ -668,6 +772,7 @@
             else if (cmd === 'more') moreMenu(b);
             else if (cmd === 'exit-run-view') exitRunView();
             else if (cmd === 'stop-viewed') runs.stopRun(ed.runView && ed.runView.run);
+            else if (cmd === 'rerun-viewed') rerunViewed();
             else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
             else if (cmd === 'issues') publish.openIssues(b);
             else if (cmd === 'keys') ED.dialogs.shortcuts(ed);
@@ -726,7 +831,7 @@
         bag.listen(document, 'aurago:flows-changed', (event) => {
             const d = event.detail || {};
             const mine = d.flow_id === ed.flow.id;
-            const maybe = !d.flow_id && (d.reason === 'deleted' || d.reason === 'enabled');
+            const maybe = !d.flow_id && (d.reason === 'deleted' || d.reason === 'enabled' || d.reason === 'checked');
             if (!mine && !maybe) return;
             if (d.reason === 'deleted') {
                 if (deleting) return;
@@ -735,7 +840,7 @@
             }
             // A live run ended: the last run, the drawer and a run view follow (debounced in runs).
             if (d.reason === 'run_finished') runs.runFinished();
-            if (d.reason === 'enabled' || d.reason === 'published') refreshRecord();
+            if (d.reason === 'enabled' || d.reason === 'published' || d.reason === 'checked') refreshRecord();
         });
 
         // refreshRecord re-reads publication state changed elsewhere (another window, the agent,
@@ -755,6 +860,9 @@
             ed.flow.live = res.flow.live;
             ed.flow.published_draft_revision = res.flow.published_draft_revision;
             ed.flow.live_revision = res.flow.live_revision;
+            ed.liveIssues = Array.isArray(res.live_issues) ? res.live_issues : [];
+            ed.liveIssuesRevision = Number(res.flow.live_revision) || 0;
+            ed.timersRunning = res.timers_running !== false;
             if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
             ed.flowEnabled = !!res.enabled;
             renderHeader();
@@ -765,9 +873,11 @@
 
         // ── start ───────────────────────────────────────────────────────────────
 
-        // start offers an emergency copy that differs from the server draft. Only an explicit
-        // "discard" drops it; any other answer (null: the dialog closed with the editor) keeps the
-        // copy and the draft as they are, so the offer comes again when the flow opens next.
+        // start offers an emergency copy that differs from the server draft, also one made on an
+        // older server revision (the dialog warns that it replaces the newer draft; the restore
+        // saves against the current revision, the saver's). Only an explicit "discard" drops it;
+        // any other answer (null: the dialog closed with the editor) keeps the copy and the draft
+        // as they are, so the offer comes again when the flow opens next.
         async function start() {
             const copy = !ed.readonly && ED.saver.emergencyCopy(ed.flow.id, ed.flow.draft_revision);
             if (copy && differs(copy.doc, draftModel.toJSON())) {
@@ -821,29 +931,31 @@
         if (!ed.issues.length) publish.refreshIssues();
         start();
 
+        // dispose saves pending content last: the detail view flushes its note on close, and
+        // interact cancels a drag in progress (its nodes move back), so neither is lost nor
+        // saved in a mid-drag state. Each step runs on its own: one that throws cannot keep
+        // the saver, the listeners or the window's close guard from being released.
+        // It is also the cleanup of a build that failed: modules not created yet are skipped.
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
+            safely(() => ED.detail.close(ed));
+            safely(() => ED.palette.closeQuickAdd(ed));
+            safely(() => { if (interact) interact.dispose(); });
+            safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
+            safely(() => storeView.flush());
+            [wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            safely(() => { if (ed.saver) ed.saver.dispose(); });
+            safely(() => setMenusSoon.cancel());
+            safely(() => bag.dispose());
+            if (typeof ctx.setWindowBeforeClose === 'function') safely(() => ctx.setWindowBeforeClose(ed.windowId, null));
+            el.remove();
+        }
         return {
             el, ed, leave,
             showRun(runId) { runs.openRunView(runId); },
-            // dispose saves pending content last: the detail view flushes its note on close, and
-            // interact cancels a drag in progress (its nodes move back), so neither is lost nor
-            // saved in a mid-drag state. Each step runs on its own: one that throws cannot keep
-            // the saver, the listeners or the window's close guard from being released.
-            dispose() {
-                if (disposed) return;
-                disposed = true;
-                const safely = fn => { try { fn(); } catch (err) { console.error('EasyDrag editor cleanup failed', err); } };
-                safely(() => ED.detail.close(ed));
-                safely(() => ED.palette.closeQuickAdd(ed));
-                safely(() => interact.dispose());
-                safely(() => { if (contentDirty) ed.saver.save(); });
-                safely(() => storeView.flush());
-                [wires, canvas, palette, runs, publish].forEach(m => safely(() => m.dispose()));
-                safely(() => ed.saver.dispose());
-                setMenusSoon.cancel();
-                safely(() => bag.dispose());
-                if (typeof ctx.setWindowBeforeClose === 'function') safely(() => ctx.setWindowBeforeClose(ed.windowId, null));
-                el.remove();
-            }
+            dispose
         };
     }
 

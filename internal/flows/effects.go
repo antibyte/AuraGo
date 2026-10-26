@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
+	"unicode"
 )
 
 var effectOrder = []Effect{
@@ -113,12 +115,53 @@ func passesInputs(n *Node) bool {
 	return false
 }
 
+// secretTargetFixed reports whether the raw value of a SecretTarget parameter fixes where the
+// secret goes before any data comes in. Only a web address can: text whose literal part before
+// the first unescaped "{{" (as ParseTemplate splits it, so "\{{" is literal text), after leading
+// white space, is "http://" or "https://" (any case), a non-empty host part and then "/", "?" or
+// "#". net/url, which api_request parses the address with, cuts the fragment and the query
+// before it reads the host and ends the host at the first "/", so data behind that point is
+// path, query or fragment and cannot change the scheme, the user info, the host or the port.
+// Anything else is not fixed: no literal start ("{{x}}"), an empty host ("https://{{x}}/"), data
+// glued to the host ("https://api.example.com{{x}}" with x = ".evil.com" or "@evil.com"), a port
+// or user info from data, text that does not parse, and every value that is not text. It reads
+// the raw parameter and calls no hook.
+func secretTargetFixed(raw any) bool {
+	s, ok := raw.(string)
+	if !ok {
+		return false
+	}
+	tpl, err := ParseTemplate(s)
+	if err != nil || len(tpl.parts) == 0 || tpl.parts[0].expr != nil {
+		return false
+	}
+	prefix := strings.TrimLeftFunc(tpl.parts[0].literal, unicode.IsSpace)
+	if !hasWebScheme(prefix) {
+		return false
+	}
+	rest := prefix[strings.Index(prefix, "://")+len("://"):]
+	return strings.IndexAny(rest, "/?#") > 0
+}
+
 // LintUntrustedData warns when data from an untrusted source (untrusted triggers,
 // nodes with UntrustedOutput, and anything derived from them) reaches a parameter
 // flagged SensitiveSink. Taint flows through template references in topological
 // order, and through nodes that copy their inputs (see passesInputs) from any
 // tainted node on an incoming edge. Disabled nodes neither warn nor taint, as they
 // do not run.
+//
+// The finding is an error (IssueUntrustedSecretTarget, whose message asks for a fixed
+// address) instead of a warning for a parameter flagged SecretTarget while the node has
+// a secret_ref parameter set: that data decides where the vault secret is sent. The
+// caller turns an error into a warning for a draft, as it does for every publish rule.
+//
+// A SecretTarget whose literal start fixes the target (secretTargetFixed: "https://host/" before
+// the first data reference) is not one: the data behind it can fill the path, the query or the
+// fragment but not move the request, so it keeps the plain warning.
+//
+// In a secret target a reference to a node that is not an ancestor of the node counts as
+// untrusted whatever that node is: the topological walk can reach it before that node.
+// auth_header and auth_prefix are literal while auth_secret is set (authLiteralIssues, withAuthSecret).
 //
 // A reference in a parameter flagged OutputIndependent (it reaches only the node's
 // effect, such as the content of a PDF or the text of a message, never its output)
@@ -137,7 +180,8 @@ func passesInputs(n *Node) bool {
 // The result follows topological order, then the node's references in sorted
 // parameter order, then the cap warnings in the definition's parameter order. The
 // flow and the registry's definitions are only read. The lint reads the Trigger,
-// UntrustedOutput and Params fields of a definition and calls none of its hooks,
+// UntrustedOutput and Params fields of a definition (of a parameter spec the Kind,
+// SensitiveSink, OutputIndependent and SecretTarget) and calls none of its hooks,
 // so a crashing hook cannot affect it.
 func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 	g := buildGraph(f)
@@ -150,6 +194,13 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 		def, ok := reg.Lookup(f.Nodes[i].Type)
 		if ok && def.Trigger && def.UntrustedOutput && !f.Nodes[i].Settings.Disabled {
 			triggerUntrusted = true
+		}
+	}
+	// byKey maps a node key to the first node with it, as Flow.NodeByKey finds it.
+	byKey := make(map[string]*Node, len(f.Nodes))
+	for i := range f.Nodes {
+		if _, dup := byKey[f.Nodes[i].Key]; !dup {
+			byKey[f.Nodes[i].Key] = &f.Nodes[i]
 		}
 	}
 	tainted := map[string]bool{}
@@ -169,6 +220,7 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 		nodeTainted := def.UntrustedOutput
 		sinks := map[string]bool{}
 		independent := map[string]bool{}
+		secretSet := false
 		for _, spec := range def.Params {
 			if spec.SensitiveSink {
 				sinks[spec.Name] = true
@@ -176,18 +228,47 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 			if spec.OutputIndependent {
 				independent[spec.Name] = true
 			}
+			// A template counts as set: the value is only known at run time.
+			if spec.Kind == ParamSecretRef && !isEmptyValue(n.Params[spec.Name]) {
+				secretSet = true
+			}
+		}
+		// The sinks that decide where the node's secret goes, while it has one: a SecretTarget
+		// whose literal start does not fix the target already (secretTargetFixed).
+		secretTargets := map[string]bool{}
+		if secretSet {
+			for _, spec := range def.Params {
+				if spec.SensitiveSink && spec.SecretTarget && !secretTargetFixed(n.Params[spec.Name]) {
+					secretTargets[spec.Name] = true
+				}
+			}
 		}
 		reported := map[string]bool{}
 		warned := map[string]bool{}
 		refs, problems := CollectTemplateRefs(n.Params)
 		// The node's key, cut like an error echo, is part of every message.
 		nodeKey := echoKey(n.Key)
+		// ancestors is computed once per node, and only for a ref in a secret target.
+		var ancestors map[string]bool
 		for _, ref := range refs {
 			root := ref.Expr.Root
-			if !(root == "trigger" && triggerUntrusted) && !tainted[root] {
+			param := TopParam(ref.Param)
+			untrusted := (root == "trigger" && triggerUntrusted) || tainted[root]
+			if !untrusted && secretTargets[param] {
+				// The walk reaches a node that does not run before this one (a parallel branch, a
+				// later node, the node itself) before that node's taint is known, so in a secret
+				// target such a ref counts as untrusted whatever the node is. Publishing refuses it
+				// anyway (TEMPLATE_NOT_UPSTREAM); drafts and test runs would only warn.
+				if src := byKey[root]; src != nil {
+					if ancestors == nil {
+						ancestors = g.ancestors(id)
+					}
+					untrusted = !ancestors[src.ID]
+				}
+			}
+			if !untrusted {
 				continue
 			}
-			param := TopParam(ref.Param)
 			// A param that only feeds the node's effect (OutputIndependent) does not make
 			// what the node returns untrusted; it still warns when it is a sink.
 			if !independent[param] {
@@ -197,6 +278,14 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 			if sinks[param] && !reported[key] {
 				reported[key] = true
 				warned[param] = true
+				if secretTargets[param] {
+					issues = append(issues, Issue{
+						Code: IssueUntrustedSecretTarget, Severity: SeverityError, NodeID: n.ID, Param: param,
+						Message: fmt.Sprintf("unchecked data from %s decides where the secret of %s is sent through %s; use a fixed address",
+							truncateForError(root), nodeKey, echoKey(param)),
+					})
+					continue
+				}
 				issues = append(issues, Issue{
 					Code: IssueUntrustedData, Severity: SeverityWarning, NodeID: n.ID, Param: param,
 					Message: fmt.Sprintf("unchecked data from %s flows into %s.%s", truncateForError(root), nodeKey, echoKey(param)),
@@ -210,6 +299,14 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 					continue
 				}
 				warned[spec.Name] = true
+				if secretTargets[spec.Name] {
+					issues = append(issues, Issue{
+						Code: IssueUntrustedSecretTarget, Severity: SeverityError, NodeID: n.ID, Param: spec.Name,
+						Message: fmt.Sprintf("%s has more than %d template expressions, so they are not checked; assuming unchecked data decides where the secret is sent through %s; use a fixed address",
+							nodeKey, maxTemplateRefs, echoKey(spec.Name)),
+					})
+					continue
+				}
 				issues = append(issues, Issue{
 					Code: IssueUntrustedData, Severity: SeverityWarning, NodeID: n.ID, Param: spec.Name,
 					Message: fmt.Sprintf("%s has more than %d template expressions, so they are not checked; assuming unchecked data flows into %s.%s",
@@ -231,4 +328,27 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 		}
 	}
 	return issues
+}
+
+// secretTargetRefusals returns, by node id, the failure a run gives each node that
+// LintUntrustedData reports as IssueUntrustedSecretTarget: unchecked data decides where
+// the node's vault secret is sent. The rule is a publish error, but a live revision
+// published under older rules is never validated again and a test run validates with
+// draft rules, so the engine enforces it itself, once per run (checkFlow), before the
+// node's Execute runs. The error is FLOW_PARAM_INVALID, which no retry repeats, and
+// carries the lint's message, which names the data and asks for a fixed address. A node
+// with several findings gets the first. nil when no node is refused. The taint rules
+// are the lint's alone; this only reads its result.
+func secretTargetRefusals(f *Flow, reg *Registry) map[string]*NodeError {
+	var refusals map[string]*NodeError
+	for _, is := range LintUntrustedData(f, reg) {
+		if is.Code != IssueUntrustedSecretTarget || is.NodeID == "" || refusals[is.NodeID] != nil {
+			continue
+		}
+		if refusals == nil {
+			refusals = map[string]*NodeError{}
+		}
+		refusals[is.NodeID] = NewNodeError("FLOW_PARAM_INVALID", "%s", is.Message)
+	}
+	return refusals
 }

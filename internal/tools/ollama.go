@@ -3,8 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -18,8 +20,10 @@ type OllamaConfig struct {
 }
 
 // ollamaHTTPClient is a shared HTTP client for Ollama API calls.
-var ollamaHTTPClient = &http.Client{Timeout: 120 * time.Second}
-var ollamaPullHTTPClient = &http.Client{Timeout: 30 * time.Minute}
+var ollamaHTTPClient = &http.Client{Timeout: 120 * time.Second, CheckRedirect: ollamaRejectRedirect}
+var ollamaPullHTTPClient = &http.Client{Timeout: 30 * time.Minute, CheckRedirect: ollamaRejectRedirect}
+
+func ollamaRejectRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
 func ollamaReadOnlyMutationError(cfg OllamaConfig, operation string) string {
 	if cfg.ReadOnly {
@@ -126,12 +130,12 @@ func OllamaListModels(cfg OllamaConfig) string {
 func OllamaListRunning(cfg OllamaConfig) string {
 	data, code, err := ollamaRequest(cfg, "GET", "/api/ps", "")
 	if err != nil {
-		return errJSON("Failed to list running models: %v", err)
+		return marshalToolJSON(map[string]any{"status": "error", "message": "Failed to list running models: " + err.Error(), "operations": OllamaOperations("")})
 	}
 	if code != 200 {
-		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "message": string(data)})
+		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": code, "message": string(data), "operations": OllamaOperations("")})
 	}
-	return marshalToolJSON(map[string]interface{}{"status": "ok", "data": jsonRawOrString(data)})
+	return marshalToolJSON(map[string]interface{}{"status": "ok", "data": jsonRawOrString(data), "operations": OllamaOperations("")})
 }
 
 // OllamaShowModel returns metadata/details about a specific model.
@@ -173,37 +177,48 @@ func OllamaShowModel(cfg OllamaConfig, modelName string) string {
 
 // OllamaPullModel pulls (downloads) a model. This is synchronous and may take a long time.
 func OllamaPullModel(cfg OllamaConfig, modelName string) string {
-	if modelName == "" {
-		return errJSON("model name is required.")
+	if err := ollamaPullVerified(cfg, modelName); err != nil {
+		return ollamaErrJSON(err.Error())
 	}
-	if denied := ollamaReadOnlyMutationError(cfg, "pull"); denied != "" {
-		return denied
+	return marshalToolJSON(map[string]any{"status": "ok", "message": "Model pull completed successfully."})
+}
+
+func ollamaPullVerified(cfg OllamaConfig, modelName string) error {
+	if modelName == "" {
+		return fmt.Errorf("model name is required")
+	}
+	if cfg.ReadOnly {
+		return fmt.Errorf("Ollama is in read-only mode; pull is disabled")
 	}
 	body := marshalToolJSON(map[string]any{"model": modelName, "stream": false})
 	url := strings.TrimRight(cfg.URL, "/") + "/api/pull"
 	req, err := newToolHTTPRequest(cfg.Context, "POST", url, strings.NewReader(body))
 	if err != nil {
-		return errJSON("Failed to create pull request: %v", err)
+		return fmt.Errorf("create Ollama pull request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := ollamaPullHTTPClient.Do(req)
 	if err != nil {
-		return errJSON("Pull failed: %v", err)
+		var dialErr *net.OpError
+		if errors.As(err, &dialErr) && dialErr.Op == "dial" {
+			return fmt.Errorf("connect to Ollama before sending pull: %w", err)
+		}
+		return &ollamaUnknownOutcome{fmt.Errorf("Ollama pull outcome unknown; check model availability before retry: %w", err)}
 	}
 	defer resp.Body.Close()
 
 	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
-		return errJSON("Failed to read pull response: %v", err)
+		return &ollamaUnknownOutcome{fmt.Errorf("Ollama pull outcome unknown after interrupted response: %w", err)}
 	}
 	if resp.StatusCode != 200 {
-		return marshalToolJSON(map[string]interface{}{"status": "error", "http_code": resp.StatusCode, "message": string(data)})
+		return fmt.Errorf("Ollama pull failed (HTTP %d)", resp.StatusCode)
 	}
 	if err := validateOllamaPullResult(data); err != nil {
-		return ollamaErrJSON(err.Error())
+		return err
 	}
-	return marshalToolJSON(map[string]interface{}{"status": "ok", "message": fmt.Sprintf("Model '%s' pulled successfully.", modelName), "data": jsonRawOrString(data)})
+	return nil
 }
 
 // OllamaDeleteModel removes a model from local storage.
@@ -288,13 +303,13 @@ func validateOllamaPullResult(data []byte) error {
 		Error  string `json:"error"`
 	}
 	if err := json.Unmarshal(data, &result); err != nil {
-		return fmt.Errorf("incomplete Ollama pull response: %w", err)
+		return &ollamaUnknownOutcome{fmt.Errorf("incomplete Ollama pull response; outcome unknown: %w", err)}
 	}
 	if result.Error != "" {
 		return fmt.Errorf("Ollama model pull failed: %s", result.Error)
 	}
 	if result.Status != "success" {
-		return fmt.Errorf("Ollama model pull completion was not confirmed")
+		return &ollamaUnknownOutcome{fmt.Errorf("Ollama model pull completion was not confirmed; outcome unknown")}
 	}
 	return nil
 }

@@ -26,7 +26,9 @@ export async function flash(port,profile,{erase=false,signal,onProgress=()=>{},o
         stage='flash_failed';
         validateBoard(profile,loader.chip.CHIP_NAME,await loader.readFlashId());
         const table=profile.parts.find(p=>p.offset===0x8000);const previous=await loader.readFlash(table.offset,table.size);
-        if(await sha256(previous)!==profile.partition_sha256&&!erase)throw Error('erase_required');
+        // A brand-new chip reads as all 0xFF: writeFlash erases the sectors it writes, so no full erase is needed.
+        const blank=previous.length>0&&previous.every(byte=>byte===0xff);
+        if(!blank&&await sha256(previous)!==profile.partition_sha256&&!erase)throw Error('erase_required');
         if(erase){onPhase('erasing');await loader.eraseFlash();}
         onPhase('writing');
         const totalBytes=files.reduce((sum,file)=>sum+file.data.length,0);

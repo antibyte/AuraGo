@@ -12,6 +12,8 @@ func canonicalNativeAlias(name string) string {
 		return "execute_remote_shell"
 	case "get_system_metrics":
 		return "system_metrics"
+	case "s3":
+		return "s3_storage"
 	case "paperless":
 		return "paperless_ngx"
 	default:
@@ -71,9 +73,51 @@ func canonicalCatalogEntry(catalog *ToolCatalog, name string) (*ToolCatalogEntry
 	return nil, false
 }
 
+// discoverOperationNames are discover_tools operations that models sometimes
+// call as if each were a tool of its own. Composio's search_tools is left out on
+// purpose: it is a composio_call operation, so rewriting it would be ambiguous.
+var discoverOperationNames = map[string]struct{}{
+	"get_tool_info": {}, "search": {}, "list_categories": {}, "list_family": {}, "get_manual": {},
+}
+
+// canonicalizeDiscoverOperationCall turns a call to a discover_tools operation
+// name into a discover_tools call carrying that operation. It leaves real tools
+// alone (a builtin or an exact catalog entry of the run with that name). It never
+// widens a scope: TransportAction stays empty, so a run without discover_tools
+// still denies the rewritten call in the policy and scope checks that follow.
+func canonicalizeDiscoverOperationCall(tc ToolCall, dc *DispatchContext) ToolCall {
+	if _, operation := discoverOperationNames[tc.Action]; !operation {
+		return tc
+	}
+	if _, builtin := allBuiltinToolNameSet()[tc.Action]; builtin {
+		return tc
+	}
+	if dc != nil {
+		if entry, ok := GetToolCatalogState(dc.discoveryKey()).Get(tc.Action); ok && entry.Name == tc.Action {
+			return tc
+		}
+	}
+	args := map[string]interface{}{}
+	if tc.Params != nil {
+		args = cloneJSONSchemaValue(tc.Params).(map[string]interface{})
+	}
+	args["operation"] = tc.Action
+	if stringValueFromMap(args, "tool_name", "name", "tool") == "" {
+		if name := firstNonEmptyToolString(tc.ToolName, tc.Name, tc.Tool); name != "" {
+			args["tool_name"] = name
+		}
+	}
+	if stringValueFromMap(args, "query", "q", "search_query", "keyword") == "" && tc.Query != "" {
+		args["query"] = tc.Query
+	}
+	tc.Params, tc.Operation, tc.Action = args, tc.Action, "discover_tools"
+	return tc
+}
+
 // canonicalizeLeafCall runs before Guardian, role, scope, learning and action
 // policy checks. It only rewrites known routes and never performs an action.
 func canonicalizeLeafCall(tc ToolCall, dc *DispatchContext) ToolCall {
+	tc = canonicalizeDiscoverOperationCall(tc, dc)
 	if tc.Action == "execute_skill" {
 		tc = canonicalizeNativeSkillWrapper(tc, dc)
 		if tc.PreparationError != "" {

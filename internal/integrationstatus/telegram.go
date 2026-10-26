@@ -17,12 +17,20 @@ type TelegramRuntimeStatus struct {
 	LastSuccessfulPollAt  string `json:"last_successful_poll_at,omitempty"`
 	LastPollErrorAt       string `json:"last_poll_error_at,omitempty"`
 	LastTestAt            string `json:"last_test_at,omitempty"`
+	DeliveryFailures      int    `json:"delivery_failures"`
+	LastDeliveryErrorAt   string `json:"last_delivery_error_at,omitempty"`
 }
 
 var telegramRuntime = struct {
 	sync.RWMutex
 	status TelegramRuntimeStatus
 }{status: TelegramRuntimeStatus{State: "disabled"}}
+
+// TelegramStalePollAfter marks a healthy Telegram poller as stale once its
+// last successful poll is older than this duration. A stale poller is not
+// necessarily broken, but it no longer proves that updates are flowing.
+// Tests may shorten the window to exercise the stale state.
+var TelegramStalePollAfter = 3 * time.Minute
 
 func SetTelegramConfigured(enabled, configured bool) {
 	telegramRuntime.Lock()
@@ -63,7 +71,7 @@ func MarkTelegramPollSuccess(now time.Time) {
 func MarkTelegramPollFailure(code string, now time.Time) int {
 	telegramRuntime.Lock()
 	defer telegramRuntime.Unlock()
-	telegramRuntime.status.Polling = true
+	telegramRuntime.status.Polling = false
 	telegramRuntime.status.State = "degraded"
 	telegramRuntime.status.ConsecutivePollErrors++
 	telegramRuntime.status.LastErrorCode = code
@@ -86,8 +94,28 @@ func MarkTelegramTest(now time.Time) {
 	telegramRuntime.status.LastTestAt = now.UTC().Format(time.RFC3339)
 }
 
+// MarkTelegramDeliveryFailure counts a message that could not be delivered. A
+// lost answer is invisible to the user, so the counter makes it visible in the
+// runtime status.
+func MarkTelegramDeliveryFailure(now time.Time) {
+	telegramRuntime.Lock()
+	defer telegramRuntime.Unlock()
+	telegramRuntime.status.DeliveryFailures++
+	telegramRuntime.status.LastDeliveryErrorAt = now.UTC().Format(time.RFC3339)
+}
+
 func TelegramStatus() TelegramRuntimeStatus {
 	telegramRuntime.RLock()
 	defer telegramRuntime.RUnlock()
-	return telegramRuntime.status
+	status := telegramRuntime.status
+	if status.State == "healthy" && status.LastSuccessfulPollAt != "" {
+		// An unparsable timestamp must never fail the snapshot; it simply
+		// leaves the state untouched.
+		if last, err := time.Parse(time.RFC3339, status.LastSuccessfulPollAt); err == nil {
+			if time.Since(last) > TelegramStalePollAfter {
+				status.State = "stale"
+			}
+		}
+	}
+	return status
 }

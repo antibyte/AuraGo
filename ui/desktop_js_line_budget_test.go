@@ -24,6 +24,16 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sheets.js")):                      true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "code-studio", "core.js")):         true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "openscad.js")):                    true,
+		// Pixel Pro: pure image libraries (they must stay DOM-free single files because the worker imports them) and
+		// the large feature modules of the editor.
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-core.js")):       true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-cutout.js")):     true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-filters.js")):    true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-layers.js")):     true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-lib-cutout.js")): true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-lib-fx.js")):     true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-lib-gen.js")):    true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-selection.js")):  true,
 	}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {

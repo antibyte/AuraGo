@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,7 +133,7 @@ func TestPlanSummaryPayloadStaysBounded(t *testing.T) {
 	}
 	assets[12].AssetID = ""
 	assets[12].AssemblyID = "asm"
-	payload := planSummaryPayload(&GamePlan{
+	payload := planSummaryPayload(Job{SmallModel: true, BuildingMode: BuildingModeAdapt}, &GamePlan{
 		Template:    "minimal",
 		Objective:   strings.Repeat("ä", 241),
 		Perspective: "top",
@@ -147,6 +148,13 @@ func TestPlanSummaryPayloadStaysBounded(t *testing.T) {
 	}
 	if _, ok := payload["scene"]; ok {
 		t.Fatal("summary included scene")
+	}
+	// The plan summary names the small-model decision the job was started with.
+	if payload["small_model"] != true || payload["building_mode"] != BuildingModeAdapt {
+		t.Fatalf("summary lost the small-model decision: %#v", payload)
+	}
+	if quiet := planSummaryPayload(Job{BuildingMode: BuildingModeRewrite}, &GamePlan{Template: "minimal"}); quiet["small_model"] != nil {
+		t.Fatalf("normal summary claims a small model: %#v", quiet)
 	}
 }
 
@@ -186,11 +194,80 @@ func TestJobOutcomeColumnsMigrateOnce(t *testing.T) {
 	if job.ErrorCode != "" || job.ChecksPassed != nil || job.ChecksFailed != nil || job.RepairPasses != nil || job.GameplayStatus != "" {
 		t.Fatalf("old job gained outcome data: %+v", job)
 	}
+	// Additive small-model and building-mode columns keep old rows ordinary.
+	if job.SmallModel || job.BuildingMode != "" {
+		t.Fatalf("old job gained a small-model decision: %+v", job)
+	}
+	var smallModel int
+	var buildingMode string
+	if err := db.QueryRow(`SELECT small_model, building_mode FROM gm_jobs WHERE id='job'`).Scan(&smallModel, &buildingMode); err != nil {
+		t.Fatal(err)
+	}
+	if smallModel != 0 || buildingMode != "" {
+		t.Fatalf("migrated defaults = %d/%q", smallModel, buildingMode)
+	}
 
 	fresh := newTestService(t)
 	freshBackups, _ := filepath.Glob(fresh.opts.DBPath + ".before-job-outcome-*.bak")
 	if len(freshBackups) != 0 {
 		t.Fatalf("fresh database wrote %d backups", len(freshBackups))
+	}
+}
+
+func TestListRevisionsReportsChangedPaths(t *testing.T) {
+	service := newTestService(t)
+	project := createTestProject(t, service, "2d")
+	ctx := context.Background()
+	insert := func(number, parent int, files map[string]string) {
+		t.Helper()
+		result, err := service.db.ExecContext(ctx, `INSERT INTO gm_revisions(project_id,number,parent,source,summary,file_count,total_bytes,created_at)
+			VALUES(?,?,?,'test','fixture',?,?,?)`, project.ID, number, parent, len(files), 1, time.Now().UTC())
+		if err != nil {
+			t.Fatal(err)
+		}
+		revisionID, _ := result.LastInsertId()
+		for path, body := range files {
+			sum := sha256.Sum256([]byte(body))
+			if _, err := service.db.ExecContext(ctx, `INSERT INTO gm_revision_files(revision_id,path,content_hash,size) VALUES(?,?,?,?)`,
+				revisionID, path, hex.EncodeToString(sum[:]), len(body)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	insert(1, 0, map[string]string{"src/main.ts": "a"})
+	insert(2, 1, map[string]string{"src/main.ts": "b", "src/extra.ts": "c"})
+	many := map[string]string{"src/main.ts": "b", "src/extra.ts": "c"}
+	for i := 0; i < revisionPathCap+1; i++ {
+		many[fmt.Sprintf("src/f%02d.ts", i)] = "x"
+	}
+	insert(3, 2, many)
+
+	revisions, err := service.ListRevisions(ctx, project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revisions) != 3 {
+		t.Fatalf("revisions = %d", len(revisions))
+	}
+	newest := revisions[0]
+	if newest.Number != 3 || newest.ChangedCount != revisionPathCap+1 || !newest.Truncated || len(newest.ChangedPaths) != revisionPathCap {
+		t.Fatalf("newest = %+v", newest)
+	}
+	for _, path := range newest.ChangedPaths {
+		if strings.Contains(path, "..") || strings.Contains(path, ":") || strings.Contains(path, "\\") {
+			t.Fatalf("path = %q", path)
+		}
+	}
+	second := revisions[1]
+	if second.Number != 2 || second.ChangedCount != 2 || second.Truncated {
+		t.Fatalf("second = %+v", second)
+	}
+	if strings.Join(second.ChangedPaths, ",") != "src/extra.ts,src/main.ts" {
+		t.Fatalf("second paths = %#v", second.ChangedPaths)
+	}
+	first := revisions[2]
+	if first.Number != 1 || first.ChangedCount != 1 || len(first.ChangedPaths) != 1 || first.ChangedPaths[0] != "src/main.ts" {
+		t.Fatalf("first = %+v", first)
 	}
 }
 

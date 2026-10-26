@@ -24,6 +24,8 @@
             vendor: null,
             game: null,
             board: null,
+            view3d: null,
+            viewMode: '2d',
             engine: null,
             agent: null,
             audio: null,
@@ -96,6 +98,9 @@
             if (state.fx) state.fx.dispose();
         } catch (e) {}
         try {
+            if (window.ChessView3D) window.ChessView3D.dispose(state);
+        } catch (e) {}
+        try {
             if (state.board) state.board.destroy();
         } catch (e) {}
         try {
@@ -135,6 +140,8 @@
             boardShell: root.querySelector('.vd-chess-board-shell'),
             boardFrame: root.querySelector('[data-chess-board-frame]'),
             board: root.querySelector('[data-chess-board]'),
+            board3d: root.querySelector('[data-chess-board-3d]'),
+            viewToggle: root.querySelector('[data-chess-view-toggle]'),
             status: root.querySelector('[data-status]'),
             comment: root.querySelector('[data-comment]'),
             mode: root.querySelector('[data-mode]'),
@@ -203,6 +210,14 @@
                 if (skinApi) skinApi.apply(state);
                 updateLastMoveMarkers(state);
                 updateCheckMarkers(state);
+                if (window.ChessView3D) window.ChessView3D.sync(state);
+            });
+        }
+        if (window.ChessView3D) {
+            window.ChessView3D.bind(state, {
+                canMove: () => canPlayerMove(state),
+                legalMoves: square => state.game.moves({ square, verbose: true }),
+                onMove: (from, to) => requestPlayerMove(state, from, to)
             });
         }
         refs.colorGroup.addEventListener('click', event => {
@@ -255,6 +270,8 @@
     function attachBoardResizeObserver(state) {
         const resize = () => fitBoardToShell(state);
         state.resizeHandler = resize;
+        /* The 3D module switches the view and needs the frame to follow. */
+        state.refitBoard = resize;
         if (window.ResizeObserver && state.refs.boardShell) {
             state.resizeObserver = new ResizeObserver(resize);
             state.resizeObserver.observe(state.refs.boardShell);
@@ -275,11 +292,10 @@
         const width = Math.max(0, (shell.clientWidth || shell.getBoundingClientRect().width || 0) - padX);
         const height = Math.max(0, (shell.clientHeight || shell.getBoundingClientRect().height || 0) - padY);
         /* leave a few px so the wood rim/shadow is never clipped by the shell */
-        const size = Math.floor(Math.min(width, height, 620) - 8);
+        const size = Math.floor(Math.min(width, height, 900) - 8);
         if (!Number.isFinite(size) || size < 180) return;
-        const px = size + 'px';
-        if (frame.style.width !== px) frame.style.width = px;
-        if (frame.style.height !== px) frame.style.height = px;
+        frame.style.setProperty('--chess-frame-size', size + 'px');
+        frame.classList.add('is-sized');
         // Inner board fills the frame content box; never put padding on the
         // cm-chessboard context (library sizes SVG to context.clientWidth).
         board.style.width = '100%';
@@ -447,6 +463,15 @@
         clearMoveMarkers(state);
         syncBoard(state, true);
         finishAppliedMove(state, move, '');
+    }
+
+    function requestPlayerMove(state, from, to) {
+        if (!validatePlayerMove(state, from, to)) return false;
+        const move = state.pendingMove;
+        state.pendingMove = null;
+        clearMoveMarkers(state);
+        if (move) finishAppliedMove(state, move, '');
+        return true;
     }
 
     function finishAppliedMove(state, move, comment) {
@@ -712,6 +737,7 @@
         const orientation = state.flipped ? oppositeColor(state.playerColor) : state.playerColor;
         const color = orientation === 'black' ? state.vendor.COLOR.black : state.vendor.COLOR.white;
         state.board.setOrientation(color, !!animated).catch(() => {});
+        if (window.ChessView3D) window.ChessView3D.sync(state);
     }
 
     function updateLastMoveMarkers(state) {
@@ -948,33 +974,7 @@
     }
 
     function requestPromotionChoice(state, color) {
-        const existing = state.refs.root.querySelector('.vd-chess-promotion');
-        if (existing) existing.remove();
-        return new Promise(resolve => {
-            const choices = ['q', 'r', 'b', 'n'];
-            const names = {
-                q: state.ctx.t('desktop.chess_promo_queen'),
-                r: state.ctx.t('desktop.chess_promo_rook'),
-                b: state.ctx.t('desktop.chess_promo_bishop'),
-                n: state.ctx.t('desktop.chess_promo_knight')
-            };
-            const dialog = document.createElement('div');
-            dialog.className = 'vd-chess-promotion';
-            dialog.innerHTML = choices.map(piece => `<button type="button" data-piece="${piece}"><span class="vd-chess-promo-glyph vd-chess-piece-${piece}">${PIECE_GLYPH[piece]}</span><span>${state.ctx.esc(names[piece])}</span></button>`).join('');
-            dialog.addEventListener('click', event => {
-                const button = event.target.closest('[data-piece]');
-                if (!button) return;
-                dialog.remove();
-                resolve(button.dataset.piece);
-            });
-            state.refs.root.appendChild(dialog);
-            const first = dialog.querySelector('button');
-            if (first) first.focus();
-            window.setTimeout(() => {
-                if (!dialog.isConnected) return;
-                dialog.classList.toggle('is-black', color === 'b');
-            }, 0);
-        });
+        return window.ChessPromotion.requestPromotionChoice(state, color);
     }
 
     function showModal(state, message, buttons) {

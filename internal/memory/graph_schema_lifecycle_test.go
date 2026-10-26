@@ -25,6 +25,9 @@ func TestLegacyGraphMigrationPreservesEdgesClaimsAndBackup(t *testing.T) {
 			t.Fatal(stmt, err)
 		}
 	}
+	if _, err := kg.db.Exec(`PRAGMA user_version=0`); err != nil {
+		t.Fatal(err)
+	}
 	kg.Close()
 	kg, err = NewKnowledgeGraph(path, "", slog.Default())
 	if err != nil {

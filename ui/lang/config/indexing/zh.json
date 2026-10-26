@@ -84,5 +84,11 @@
   "config.indexing.chunk_max_chars": "每块最大字符数",
   "config.indexing.chunk_overlap_chars": "字符重叠",
   "config.indexing.chunk_max_chunks": "每个文件最大块数",
-  "config.indexing.chunking_reindex_notice": "更改这些值会在下次扫描时触发干净的重新索引。"
+  "config.indexing.chunking_reindex_notice": "更改这些值会在下次扫描时触发干净的重新索引。",
+  "config.indexing.media_toggle_label": "向提供商发送媒体",
+  "config.indexing.media_toggle_title": "允许将此目录中的图像、音频和扫描版 PDF 发送给已配置的 Vision LLM 或多模态 embeddings 提供商。默认关闭。",
+  "config.indexing.media_confirm_title": "要将此目录中的媒体发送给提供商吗？",
+  "config.indexing.media_confirm": "此目录中的图像、音频和扫描版 PDF 将被发送给已配置的 Vision 或多模态 embeddings 提供商进行分析。该提供商可能是外部服务，因此这些文件的内容可能会离开此系统。再次关闭该选项后，将不再发送更多媒体。",
+  "config.indexing.media_inactive_hint": "Vision 和多模态 embeddings 已全局关闭；一旦启用其中之一，此设置即会生效。",
+  "config.indexing.index_images_per_folder_hint": "只有在上方列表中开启了媒体共享的目录，其图像才会被发送。"
 }

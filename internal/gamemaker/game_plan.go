@@ -92,7 +92,14 @@ func templateNames() []string {
 func (s *Service) PlanningComplete(jobID string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.activeJobID == jobID && (s.acceptedPlans[jobID] || s.planAttempts[jobID] >= 3)
+	if s.activeJobID != jobID {
+		return false
+	}
+	if s.acceptedPlans[jobID] {
+		return true
+	}
+	budget := s.planBudgets[jobID]
+	return budget != nil && budget.charged >= planChargedLimit
 }
 
 func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) {
@@ -165,14 +172,38 @@ func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) erro
 // validates model input before unknown fields can be discarded.
 // Syntax and schema failures consume the same bounded corrections as rule errors.
 func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) error {
-	return s.setPlanJSON(ctx, jobID, data, false)
+	return s.setPlanJSON(ctx, jobID, data, false, false)
 }
 
 func (s *Service) SetDesignJSON(ctx context.Context, jobID string, data []byte) error {
-	return s.setPlanJSON(ctx, jobID, data, true)
+	return s.setPlanJSON(ctx, jobID, data, true, false)
 }
 
-func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, compact bool) (err error) {
+// PreviewDesignJSON validates a compact design without consuming a correction or
+// writing .aurago/game-plan.json. The canonical plan is available through
+// DesignPreview until the next preview or the job ends.
+func (s *Service) PreviewDesignJSON(ctx context.Context, jobID string, data []byte) error {
+	return s.setPlanJSON(ctx, jobID, data, true, true)
+}
+
+// DesignPreview returns the canonical plan produced by the last dry run.
+func (s *Service) DesignPreview(jobID string) []byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return append([]byte(nil), s.designPreviews[jobID]...)
+}
+
+// TakeDesignWarnings returns and clears the deterministic repair notes of the
+// last planning submission so the model can see what the server normalized.
+func (s *Service) TakeDesignWarnings(jobID string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	warnings := s.designWarnings[jobID]
+	delete(s.designWarnings, jobID)
+	return warnings
+}
+
+func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, compact, dryRun bool) (err error) {
 	s.policyMu.RLock()
 	defer s.policyMu.RUnlock()
 	if !s.policy.Enabled {
@@ -188,29 +219,42 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 	if job.Phase != "planning" {
 		return fmt.Errorf("plan is locked during %s; follow the accepted plan", job.Phase)
 	}
-	s.mu.Lock()
-	if s.planAttempts[jobID] >= 3 {
-		s.mu.Unlock()
-		return fmt.Errorf("plan correction limit reached (initial plan plus two corrections)")
+	if dryRun {
+		if err := s.takeDesignPreview(jobID); err != nil {
+			return err
+		}
+	} else {
+		if s.planBudgetExhausted(jobID) {
+			return fmt.Errorf("plan correction limit reached (initial plan plus two charged corrections)")
+		}
+		if err := s.takePlanSubmission(jobID); err != nil {
+			return err
+		}
 	}
-	s.planAttempts[jobID]++
-	s.mu.Unlock()
 	// Preserve the actual field error across fresh planning rounds. A subsequent
 	// correction-limit rejection must not replace it with a generic message.
 	defer func() {
+		if dryRun {
+			return
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if compact && err != nil {
-			var detail *DesignValidationError
-			if !errors.As(err, &detail) {
-				err = &DesignValidationError{Issues: []DesignIssue{{Path: "design", Code: "invalid", Message: err.Error()}}, RemainingAttempts: max(0, 3-s.planAttempts[jobID])}
-			}
-		}
 		if err == nil {
 			delete(s.planErrors, jobID)
-		} else {
-			s.planErrors[jobID] = err
+			return
 		}
+		// Every failed submission is charged unless it reduced the independent
+		// issue count. Legacy full plans keep the same charged budget.
+		s.chargePlanAttemptLocked(jobID, designIssueCount(err))
+		if compact {
+			var detail *DesignValidationError
+			if errors.As(err, &detail) {
+				detail.RemainingAttempts = s.remainingPlanAttemptsLocked(jobID)
+			} else {
+				err = &DesignValidationError{Issues: []DesignIssue{{Path: "design", Code: "invalid", Message: err.Error()}}, RemainingAttempts: s.remainingPlanAttemptsLocked(jobID)}
+			}
+		}
+		s.planErrors[jobID] = err
 	}()
 	if len(data) > 32768 || int64(len(data)) > s.opts.MaxFileBytes {
 		return fmt.Errorf("game plan exceeds allowed size")
@@ -273,6 +317,15 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 	if err := s.validatePlanSelections(jobID, plan, compact); err != nil {
 		return err
 	}
+	if dryRun {
+		s.mu.Lock()
+		if s.designPreviews == nil {
+			s.designPreviews = map[string][]byte{}
+		}
+		s.designPreviews[jobID] = append([]byte(nil), data...)
+		s.mu.Unlock()
+		return nil
+	}
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
 		return err
@@ -315,6 +368,8 @@ func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, co
 	}
 	s.mu.Lock()
 	s.acceptedPlans[jobID] = true
+	delete(s.planBudgets, jobID)
+	delete(s.planErrors, jobID)
 	s.mu.Unlock()
 	return nil
 }
@@ -659,7 +714,7 @@ func (s *Service) CheckJobMutation(ctx context.Context, jobID string) error {
 	}
 	s.mu.RLock()
 	accepted := s.acceptedPlans[jobID]
-	exhausted := s.validationFailures[jobID] >= 4
+	exhausted := s.validationFailures[jobID] >= s.repairLimitLocked(jobID)+1
 	s.mu.RUnlock()
 	if exhausted {
 		return ErrRepairLimit
@@ -681,7 +736,7 @@ func (s *Service) HoldAgentSummary(jobID, text string) {
 
 func JobNextAction(job Job) string {
 	if job.Phase == "planning" {
-		return "Use the supplied context; search assets as needed, then set_design with base, objective, features and asset roles. Technical defaults are resolved by the server. Existing full set_plan remains supported. Mutations are locked until acceptance."
+		return "Use the supplied context; search assets as needed, then set_design with base, objective, features and optional asset roles. An optional dry_run previews the expanded plan without consuming a correction. Technical defaults are resolved by the server. Mutations are locked until acceptance."
 	}
 	return "Read src/main.ts once unless the Studio context already supplied it in current_sources. Keep the installed lifecycle and asset bindings; implement requested rules using small replace edits and the returned sha256. Compile errors are returned by writes. Validate full for 2D and guided 3D, startup only for free-code three. Never claim an unobserved check."
 }

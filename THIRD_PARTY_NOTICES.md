@@ -1,5 +1,19 @@
 # Third-party notices
 
+## Optional RustFS storage server
+
+RustFS 1.0.4 is an unmodified optional Docker dependency, pinned by manifest digest in `internal/rustfs/types.go`. Copyright 2024–2026 RustFS, Inc.; [Apache License 2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE). The license text is retained in `licences/texts/Apache-2.0.txt`. See `documentation/rustfs.md` for operation and image qualification. This separate server does not change AuraGo's own license.
+
+## Gradium Phonon speech resources
+
+The separate local speech package contains Gradium's Phonon `ptts` 0.4.0 runtime
+(MIT/Apache-2.0), the Apache-2.0 `gradium/phonon-voices` catalog and the unchanged
+q8 weights of `gradium/phonon-40m-multilingual` (CC BY-NC 4.0, noncommercial only).
+Attribution, source URLs, exact revisions and checksums are in
+[`documentation/phonon.md`](documentation/phonon.md). Packages carry that notice,
+the original runtime MIT text and the Apache-2.0 and CC BY-NC 4.0 license texts.
+These component licenses do not change AuraGo's own MIT license.
+
 ## Native code graph
 
 `github.com/odvcencio/gotreesitter v0.56.0` is MIT licensed,
@@ -32,6 +46,8 @@ AuraGo links the listed Go modules or retrieves the listed optional model/runtim
 | DirectX Shader Compiler `dxcompiler.dll` 1.9.0.1 and `dxil.dll` 1.8.2502.11 (inside the Windows WebGPU wheel) | Shader compilation of the WebGPU provider on Windows (Direct3D 12) | University of Illinois/NCSA Open Source License (upstream project); Microsoft-signed binaries, see "Person detection models and runtime" |
 | D-FINE-N, ONNX export `AnnotateIt/dfine-nano-coco-onnx` of `ustc-community/dfine-nano-coco` (revision 571d3971bfb4) | Person detector, "standard" model | Apache License 2.0 |
 | D-FINE-S, ONNX conversion `onnx-community/dfine_s_coco-ONNX` (revision a3cf03147a9b) of `ustc-community/dfine-small-coco` | Person detector, "accurate" model | Apache License 2.0 (the original weights; the conversion repository itself declares no license) |
+| ISNet general-use (DIS), ONNX file `isnet-general-use.onnx` from the rembg release `v0.0.0` (178,648,008 bytes) | Pixel background removal, "AI standard" engine; downloaded only when a user clicks "Download model" | Apache License 2.0 (upstream project: DIS, https://github.com/xuebinqin/DIS) |
+| BiRefNet general lite (Swin-tiny backbone), ONNX file `BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx` from the rembg release `v0.0.0` (224,005,088 bytes) | Pixel background removal, "AI precise" engine; downloaded only when a user clicks "Download model" | MIT License (upstream project: BiRefNet, https://github.com/ZhengPeng7/BiRefNet) |
 | "Pedestrians using crosswalk (Unsplash)" by Peter Miranda | Embedded self-test photo of the person detector (`internal/persondetect/selftest_reference.jpg`) | CC0 1.0 Universal |
 | llama.cpp b9994 | GGUF embedding server and published Docker sidecars | MIT License |
 | Ebitengine PureGo | CGO-free dynamic calls from Go into ONNX Runtime | Apache License 2.0 |
@@ -55,6 +71,9 @@ The upstream projects and their complete license texts remain authoritative:
 - https://huggingface.co/onnx-community/dfine_s_coco-ONNX
 - https://huggingface.co/ustc-community/dfine-small-coco
 - https://arxiv.org/abs/2410.13842
+- https://github.com/danielgatis/rembg/releases/tag/v0.0.0
+- https://github.com/xuebinqin/DIS
+- https://github.com/ZhengPeng7/BiRefNet
 - https://commons.wikimedia.org/wiki/File:Pedestrians_using_crosswalk_(Unsplash).jpg
 - https://github.com/ggml-org/llama.cpp
 - https://github.com/emiago/diago
@@ -247,3 +266,76 @@ verified by exact size and SHA-256 before use.
   AuraGo embeds a 1280 px thumbnail resized to 800 px wide (LANCZOS, JPEG quality
   85) to check every detector start. Attribution is not required by CC0 and is given
   here for provenance.
+
+## Pixel AI background removal models
+
+The Pixel image editor (`internal/pixelmatte`, Cutout panel) can remove backgrounds with two ONNX
+matting models. AuraGo does not ship them. They are downloaded only after a user clicks
+**Download model**, from the HTTPS URLs pinned in `internal/pixelmatte/model.go`. Those URLs point
+to the `v0.0.0` release of the rembg project on GitHub
+(https://github.com/danielgatis/rembg/releases/tag/v0.0.0). Each download is checked by its exact
+size and SHA-256 before it is used. AuraGo loads the files unmodified and does not redistribute them.
+
+- **ISNet general-use.** File `isnet-general-use.onnx`, 178,648,008 bytes, SHA-256
+  `60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a`. The upstream project is
+  DIS (dichotomous image segmentation), https://github.com/xuebinqin/DIS, licensed under the
+  Apache License 2.0. It is the "AI standard" engine.
+- **BiRefNet general lite.** File `BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx`, 224,005,088
+  bytes, SHA-256 `5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333`. The upstream
+  project is BiRefNet, https://github.com/ZhengPeng7/BiRefNet, licensed under the MIT License. It
+  is the "AI precise" engine.
+- Both models run in an isolated worker process on the CPU ONNX Runtime listed above. Images go
+  to the AuraGo server only; no external service receives them.
+
+## Shared QR codes
+
+- `github.com/makiuchi-d/gozxing` v0.1.1: Copyright (c) 2018 Daisuke MAKIUCHI (MakKi; makki_d), MIT. Its original ZXing portions are Copyright 2007-2018 ZXing authors, Apache License 2.0. [Source](https://github.com/makiuchi-d/gozxing/tree/v0.1.1).
+- `github.com/go-text/typesetting` v0.3.5: Copyright 2021 The go-text authors, Unlicense OR BSD-3-Clause. [Source](https://github.com/go-text/typesetting/tree/v0.3.5). The HarfBuzz translation retains the following MIT copyright lines:
+
+```text
+Copyright (c) 2021 B. KUGLER
+Copyright © 2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020  Google, Inc.
+Copyright © 2018,2019,2020  Ebrahim Byagowi
+Copyright © 2019,2020  Facebook, Inc.
+Copyright © 2012  Mozilla Foundation
+Copyright © 2011  Codethink Limited
+Copyright © 2008,2010  Nokia Corporation and/or its subsidiary(-ies)
+Copyright © 2009  Keith Stribley
+Copyright © 2009  Martin Hosken and SIL International
+Copyright © 2007  Chris Wilson
+Copyright © 2006  Behdad Esfahbod
+Copyright © 2005  David Turner
+Copyright © 2004,2007,2008,2009,2010  Red Hat, Inc.
+Copyright © 1998-2004  David Turner and Werner Lemberg
+```
+
+The complete MIT, BSD-3-Clause, Unlicense and Apache-2.0 texts are retained under `licences/texts/`.
+
+The verified external QR font set contains Noto Sans Arabic and Devanagari (Copyright 2022 The Noto Project Authors), Noto Sans CJK SC, Noto Emoji (Copyright 2013 Google LLC), and Liberation Serif (digitised data Copyright 2010 Google Corporation, reserved names Arimo/Tinos/Cousine; Copyright 2012 Red Hat, Inc., reserved name Liberation). All retain their original OFL-1.1 texts alongside the font bytes. Exact font sources, immutable revisions, hashes and lengths are in [`ui/fonts/qr/manifest.json`](ui/fonts/qr/manifest.json). Go Sans/Mono are supplied by the already pinned `golang.org/x/image/font/gofont` dependency.
+
+Go Sans/Mono: Copyright (c) 2016 Bigelow & Holmes Inc., all rights reserved. The original BSD-style font terms (including the Google/contributor endorsement clause) are preserved in `ui/fonts/qr/Go-fonts-LICENSE.txt` and accompany the resource set.
+
+The independent browser test uses `jsqr` 1.4.0, Apache-2.0 ([source](https://github.com/cozmo/jsQR)); it is a development dependency and is not a production QR runtime. [Mini QR](https://github.com/lyqht/mini-qr) is the functional reference; AuraGo's implementation/presets contain no copied Mini QR source or assets.
+
+## Ziro Designer (Software Store)
+
+ZiroEDA and contributors; portions derived from KiCad, copyright The KiCad Developers.
+GPL-3.0-or-later; KiCad libraries CC-BY-SA-4.0 with the KiCad library exception.
+The separate Store image includes `/LICENSE`, `/NOTICE.md` and `/source.tar.gz`
+with the pinned upstream source and AuraGo adapter, served by the image web server.
+Upstream: https://github.com/ZiroEDA/ziro-designer/tree/7b4597005e4801d4fb19661fcac6fc3380547cf2.
+
+## Additional Desktop icon themes
+
+Tela (Vince Liuice), Candy (Eliver Lara) and Fluent (Vince Liuice) artwork is
+distributed under GPL-3.0. Tela/Fluent preserve Numix, Papirus and Paper source
+credits in their AUTHORS.txt. Buuf For Many Desktops (eudaimon/Nestort), based on
+Paul Davey/Mattahan with OxayotlTheGreat and robson-66 remixes, is CC BY-NC-SA 2.5
+and is included for noncommercial use. The imported Buuf assets are not MIT.
+
+Pinned revisions, per-motif source paths, hashes and changes are documented in
+`documentation/desktop-icon-themes.md` and `ui/img/<theme>/provenance.json`.
+Each generated theme directory ships LICENSE.txt and NOTICE.txt; Buuf also ships
+its original README/index declarations. Original AuraGo supplements are separately
+marked MIT with their own license copy. All notices accompany the offline web
+resource package.

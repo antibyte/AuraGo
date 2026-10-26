@@ -30,8 +30,10 @@ provider/spending limits still apply.
   available findings produce a clearly marked partial revision. An automatic
   update keeps the last published report and archives its intermediate findings.
   Stop stays available when Detective or Virtual Desktop is read-only, as long
-  as Detective is enabled and ready. Start, Continue, Deepen, Delete and New
-  do not.
+  as Detective is enabled — it is a state write and does not need a ready
+  research runner. Start, Continue, Deepen, Delete and New do not. When actions
+  are disabled, the app names the reason (disabled, read-only, starting up)
+  from the capabilities answer.
 - **Continue** resumes with the remaining recorded budget, including after a
   restart. It does not apply a new effort.
 - **Deepen** explicitly grants a new effort budget to an existing case that has
@@ -39,10 +41,15 @@ provider/spending limits still apply.
   The effort control next to Deepen applies only to Deepen and to the first
   Start of a draft.
 - Closing the window leaves the server job running. Reopening restores the case.
-  An open window polls live status and new activity, and reloads source text or
-  the report only when that list changes.
+  An open window polls status and new activity in one request — every 3 seconds
+  while the case is queued, running or waiting for an answer, every 10 seconds
+  otherwise — and reloads the report only when its revision changes. A hidden or
+  minimized window does not poll at all and refreshes as soon as it is visible
+  again; source text loads when a source is opened.
 
-One case runs at a time; additional cases queue. The app shows actual tool,
+One case runs at a time; additional cases queue. The app shows actual tool, token and
+time counters; tokens appear as input, output and cached counts, and a clarification
+answer appears in the activity feed.
 source and time counters, concise plans, retrieved sources and recorded findings.
 Private model continuation never appears in the activity feed or exports.
 
@@ -71,10 +78,15 @@ The app shows activation, next check, last successful check, last report change,
 and errors or questions. A question pauses checks until answered. **Pause** or
 **Stop** cancels an active automatic update and disables future checks, retaining
 recorded evidence. Permission restrictions prevent scheduling and revoke active
-work. Pause remains available in readonly mode.
+work. A queued case waits until permissions return instead of starting and failing;
+a run stopped this way is reported as "research permission revoked" and can be
+continued. Pause remains available in readonly mode.
 
 No new findings means no report version is created. Extra URLs for the same
-finding do not count as news. Failed or stopped updates keep the last published
+finding do not count as news. A published revision, a `no_changes` result, a pending
+question and a failed run also reach the Desktop notification center, at most one
+notification per case per minute; the notification names the case so a click can
+open it, and delivery needs Virtual Desktop. Failed or stopped updates keep the last published
 report; a later run can revisit and publish pending findings after checking their
 sources again. Corrections need newly retrieved evidence as well.
 
@@ -139,28 +151,54 @@ selected edition and its additions. Export assembly is limited to 4096 segments
 and 16 MiB of report data, output to 32 MiB, and requests to 60 seconds. Oversized
 editions return an explicit error; choose an earlier edition or a new full rewrite.
 
-The built-in PDF renderer embeds Go fonts and requires no Docker service. It
-supports their Latin, Greek and Cyrillic coverage. Unsupported glyphs and complex
-scripts return an explicit error rather than a damaged PDF. For those reports,
-use DOCX/Markdown, or configure the existing Document Creator Gotenberg backend
-with suitable fonts. Detective uses that configured renderer without starting a
-container. Report HTML has no scripts, remote images or external stylesheets.
+A continue, deepen or update that ends without a full report may keep its findings as a
+**provisional** partial revision. It is listed in the revision selector, can be
+exported, and never becomes the default: the app shows the last full report with a
+notice and a button to the provisional revision. Automatic updates and append bases
+always continue from the last full report, so a failed deepen neither blocks the
+schedule nor makes the partial result the baseline.
 
-Cases live in `detective.db` beside the configured Game Maker SQLite database
-(default `data/detective.db`). The store includes private continuation, so protect
+PDF rendering has two paths. With Document Creator enabled on the Gotenberg backend,
+Detective renders through it and every script works. Otherwise the built-in renderer
+embeds Go fonts and needs no Docker service; it covers Latin, Greek and Cyrillic and
+refuses Arabic, Devanagari, Hebrew, CJK and emoji instead of producing a damaged PDF,
+telling the user to use Word/Markdown or to configure Gotenberg. The app warns before
+the click: `GET /api/desktop/detective/capabilities` reports `pdf_backend`
+`gotenberg`/`builtin` and `pdf_scripts`, and without full script support the export
+bar orders Word and Markdown first and names the limit next to the PDF link. Report
+HTML has no scripts, remote images or external stylesheets.
+
+Cases live in the configured `sqlite.detective_path` (default `data/detective.db`).
+Older installs keep their file next to the Game Maker database while that
+`detective.db` exists and no path is configured. When the store cannot be opened,
+`GET /api/desktop/detective/capabilities` reports a stable `initialization_error`
+(`schema_too_new`, `permission_denied`, `path_missing`, `store_failed`) and the app
+names it; the raw error stays in the server log. The store includes private continuation, so protect
 it like other application data. Deleting a case removes its evidence,
 continuation, revisions, events and cached artifacts. Up to 100 cases are allowed.
 The working set remains bounded to 400 sources and 200 findings; those limits and
-the former 30-revision cap no longer bound a case's lifetime archive. Source,
-finding and report tables grow with use; nothing is automatically removed.
+the former 30-revision cap no longer bound a case's lifetime archive. The working
+set keeps source metadata only — the recorded excerpt stays in the archive table and
+is fetched per source when the app opens a disclosure. Source, finding and report
+tables grow with use; nothing is automatically removed.
 
 Opening an older database first creates a consistent, synced
-`detective.db.pre-v3-<timestamp>.bak` snapshot. The version-3 migration then moves
-existing evidence and reports into archive tables transactionally, retaining IDs,
-revision numbers and cached exports. A backup or migration error aborts opening.
-Protect backups like the database; they contain the same private data.
+`detective.db.pre-v4-<timestamp>.bak` snapshot. The migration then runs in one
+transaction: version 3 moves existing evidence and reports into archive tables and
+version 4 moves the evidence body to the end of the case row (so polling reads the
+case counters without touching the body), adds the bounded `detective_summaries`
+table that the live view and the case list read, and backfills it from the existing
+cases — retaining IDs, revision numbers and cached exports. A backup or migration
+error aborts opening and leaves the old file untouched. Protect backups like the
+database; they contain the same private data.
 
-The case API includes `auto_update`, archive counts and the latest revision.
+The case API includes `auto_update`, archive counts and the latest revision. A case
+response stays bounded: sources carry metadata only (no excerpt) and the case-level
+`findings` are omitted; source text comes from `GET .../source?id=` and findings from
+`GET .../findings`. Live status comes from the bounded summary table, so polling does
+not touch the evidence. `GET .../state?after=<event id>` returns the live view, the new
+activity and the next cursor in one response; `GET .../live` and `GET .../events`
+remain available.
 `PUT /api/desktop/detective/cases/{id}/auto-update` accepts `enabled`,
 `interval_hours`, `report_style` (`append`/`rewrite`) and `effort`
 (`quick`/`normal`/`maximum`). GET `reports`, `sources` and `findings` below that case
@@ -168,6 +206,13 @@ accept `before`, `limit` (20 by default, at most 50) and optional `query`, retur
 `next` as the next cursor. GET `report?revision=N` returns one immutable segment;
 `source?id=...` retrieves one source. Existing revision-bound export URLs keep
 their meaning. All routes retain the Desktop administrator boundary.
+
+Every refusal answers `{"error": "<server text>", "code": "<stable code>"}`, so the
+app can show a translated sentence instead of the English text. Codes: `not_found`
+(404), `conflict` (409), `budget_exhausted` (409), `copy_exists` (409),
+`permission_revoked` (403), `unavailable` (503), `unsupported_format`,
+`export_too_large`, `pdf_unsupported_font` and `invalid_request` (400). An unknown
+code falls back to the server text.
 
 ## Verification
 
@@ -178,6 +223,6 @@ exports, long tables and Desktop lifecycle. Chrome exercises the production app
 modules in Standard/Fruity, light/dark and narrow/wide layouts. All 16 Desktop
 languages include the new labels.
 
-Live comparative provider runs, DOCX roundtrips in Word/LibreOffice/Autor and
-multilingual Gotenberg rendering remain release acceptance work. Automated
-reference checks are not a substitute for those quality checks.
+Live comparative provider runs, DOCX roundtrips in Word/LibreOffice/Autor and the
+PDF refusal for Arabic, Devanagari, Hebrew, CJK and emoji remain release acceptance
+work. Automated reference checks are not a substitute for those quality checks.

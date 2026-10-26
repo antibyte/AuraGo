@@ -698,3 +698,8 @@ Created tools are saved to `agent_workspace/tools/` and available immediately.
 
 **Previous Chapter:** [Chapter 5: Chat basics](./05-chat-basics.md)
 **Next Chapter:** [Chapter 7: Configuration](./07-configuration.md)
+
+
+### Managed website history
+
+Homepage mutations require reason and automatically record changes and outcomes. Use homepage_registry overview/get_site/list_events for identity, locations and reasons. Discover_workspace/adopt recover unregistered projects. See [Managed websites](../../homepage-ledger.md).

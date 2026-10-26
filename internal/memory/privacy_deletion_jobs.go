@@ -32,18 +32,22 @@ const (
 )
 
 type PrivacyDeletionJob struct {
-	DeletionJobID     string `json:"deletion_job_id"`
-	Kind              string `json:"kind"`
-	DeletionStatus    string `json:"deletion_status"`
-	TranscriptDeleted bool   `json:"transcript_deleted"`
-	CreatedAt         string `json:"created_at"`
-	UpdatedAt         string `json:"updated_at"`
-	NextRetryAt       string `json:"next_retry_at,omitempty"`
-	AttemptCount      int    `json:"attempt_count"`
-	PendingCount      int    `json:"pending_count"`
-	DeletedCount      int    `json:"deleted_count"`
-	RetainedCount     int    `json:"retained_count"`
-	ErrorCode         string `json:"error_code,omitempty"`
+	PersonalityDeleted       int    `json:"personality_deleted"`
+	PersonalityRetained      int    `json:"personality_retained"`
+	PersonalityLegacyUnknown int    `json:"personality_legacy_unknown"`
+	DeletionJobID            string `json:"deletion_job_id"`
+	Kind                     string `json:"kind"`
+	DeletionStatus           string `json:"deletion_status"`
+	DeleteMemories           bool   `json:"delete_memories"`
+	TranscriptDeleted        bool   `json:"transcript_deleted"`
+	CreatedAt                string `json:"created_at"`
+	UpdatedAt                string `json:"updated_at"`
+	NextRetryAt              string `json:"next_retry_at,omitempty"`
+	AttemptCount             int    `json:"attempt_count"`
+	PendingCount             int    `json:"pending_count"`
+	DeletedCount             int    `json:"deleted_count"`
+	RetainedCount            int    `json:"retained_count"`
+	ErrorCode                string `json:"error_code,omitempty"`
 }
 
 type privacyDeletionTarget struct {
@@ -145,7 +149,7 @@ func (s *SQLiteMemory) ListPrivacyDeletionJobs(ctx context.Context, limit int) (
 		limit = privacyDeletionMaximumPageSize
 	}
 	cutoff := time.Now().UTC().Add(-privacyDeletionTerminalRetention).Format(time.RFC3339Nano)
-	rows, err := s.db.QueryContext(ctx, `SELECT deletion_job_id,kind,deletion_status,transcript_deleted,created_at,updated_at,next_retry_at,attempt_count,pending_count,deleted_count,retained_count,error_code
+	rows, err := s.db.QueryContext(ctx, `SELECT deletion_job_id,kind,deletion_status,delete_memories,transcript_deleted,created_at,updated_at,next_retry_at,attempt_count,pending_count,deleted_count,retained_count,error_code
 		FROM privacy_deletion_jobs WHERE deletion_status NOT IN (?,?,?) OR updated_at>=?
 		ORDER BY CASE WHEN deletion_status IN ('completed','aborted','retained_review') THEN 1 ELSE 0 END,updated_at DESC,deletion_job_id LIMIT ?`, PrivacyDeletionCompleted, PrivacyDeletionAborted, PrivacyDeletionRetainedReview, cutoff, limit)
 	if err != nil {
@@ -163,6 +167,13 @@ func (s *SQLiteMemory) ListPrivacyDeletionJobs(ctx context.Context, limit int) (
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate privacy deletion jobs: %w", err)
 	}
+	rows.Close()
+	for i := range jobs {
+		jobs[i].PersonalityDeleted, jobs[i].PersonalityRetained, jobs[i].PersonalityLegacyUnknown, err = s.personalityPrivacyCounts(ctx, jobs[i].DeletionJobID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return jobs, nil
 }
 
@@ -170,18 +181,33 @@ func (s *SQLiteMemory) GetPrivacyDeletionJob(ctx context.Context, id string) (Pr
 	if s == nil || s.db == nil {
 		return PrivacyDeletionJob{}, fmt.Errorf("privacy deletion store is unavailable")
 	}
-	job, err := scanPrivacyDeletionJob(s.db.QueryRowContext(ctx, `SELECT deletion_job_id,kind,deletion_status,transcript_deleted,created_at,updated_at,next_retry_at,attempt_count,pending_count,deleted_count,retained_count,error_code FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id))
+	job, err := scanPrivacyDeletionJob(s.db.QueryRowContext(ctx, `SELECT deletion_job_id,kind,deletion_status,delete_memories,transcript_deleted,created_at,updated_at,next_retry_at,attempt_count,pending_count,deleted_count,retained_count,error_code FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return PrivacyDeletionJob{}, ErrPrivacyDeletionJobNotFound
 	}
 	if err != nil {
 		return PrivacyDeletionJob{}, fmt.Errorf("get privacy deletion job: %w", err)
 	}
+	job.PersonalityDeleted, job.PersonalityRetained, job.PersonalityLegacyUnknown, err = s.personalityPrivacyCounts(ctx, id)
+	if err != nil {
+		return PrivacyDeletionJob{}, err
+	}
 	return job, nil
 }
 
 var ErrPrivacyDeletionJobNotFound = errors.New("privacy deletion job not found")
 var ErrPrivacyDeletionJobNotRetryable = errors.New("privacy deletion job is not retryable")
+
+// PrivacyDeletionScopeConflictError means an idempotent session-deletion retry
+// requested a different memory-deletion scope than the durable job selected.
+type PrivacyDeletionScopeConflictError struct {
+	ExistingDeleteMemories  bool
+	RequestedDeleteMemories bool
+}
+
+func (e *PrivacyDeletionScopeConflictError) Error() string {
+	return "chat deletion already exists with a different memory-deletion scope"
+}
 
 func (s *SQLiteMemory) RetryPrivacyDeletionJob(ctx context.Context, id string, now time.Time) (PrivacyDeletionJob, error) {
 	if now.IsZero() {
@@ -284,30 +310,68 @@ func (s *SQLiteMemory) markPrivacyDeletionFailure(ctx context.Context, id, code 
 	}
 	defer tx.Rollback()
 	var attempts int
-	var status string
-	if err := tx.QueryRowContext(ctx, `SELECT attempt_count,deletion_status FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id).Scan(&attempts, &status); err != nil {
+	var status, kind string
+	if err := tx.QueryRowContext(ctx, `SELECT attempt_count,deletion_status,kind FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id).Scan(&attempts, &status, &kind); err != nil {
 		return err
 	}
 	if status == PrivacyDeletionCompleted || status == PrivacyDeletionAborted || status == PrivacyDeletionRetainedReview {
 		return nil
 	}
 	var pending, deleted, retained int
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, id).Scan(&pending, &deleted, &retained); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' AND (?<>'chat' OR store IN ('ltm','kg_node','kg_edge','kg_claim')) THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, kind, id).Scan(&pending, &deleted, &retained); err != nil {
 		return err
 	}
 	attempts++
-	delay := privacyDeletionRetryInitial
-	for step := 1; step < attempts && delay < privacyDeletionRetryMaximum; step++ {
-		delay *= 2
-	}
-	if delay > privacyDeletionRetryMaximum {
-		delay = privacyDeletionRetryMaximum
-	}
+	delay := privacyDeletionBackoff(attempts)
 	stamp := now.UTC().Format(time.RFC3339Nano)
 	if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET deletion_status=?,attempt_count=?,next_retry_at=?,updated_at=?,error_code=?,pending_count=?,deleted_count=?,retained_count=? WHERE deletion_job_id=?`, PrivacyDeletionRetryWait, attempts, now.UTC().Add(delay).Format(time.RFC3339Nano), stamp, safePrivacyDeletionErrorCode(code), pending, deleted, retained, id); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (s *SQLiteMemory) markPrivacyDeletionReconcilePending(ctx context.Context, id, code string, now time.Time) error {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var attempts int
+	var status, kind string
+	if err := tx.QueryRowContext(ctx, `SELECT attempt_count,deletion_status,kind FROM privacy_deletion_jobs WHERE deletion_job_id=?`, id).Scan(&attempts, &status, &kind); err != nil {
+		return err
+	}
+	if status == PrivacyDeletionCompleted || status == PrivacyDeletionAborted || status == PrivacyDeletionRetainedReview {
+		return nil
+	}
+	var pending, deleted, retained int
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN state='pending' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='deleted' AND (?<>'chat' OR store IN ('ltm','kg_node','kg_edge','kg_claim')) THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN state='retained_review' THEN 1 ELSE 0 END),0) FROM privacy_deletion_targets WHERE deletion_job_id=?`, kind, id).Scan(&pending, &deleted, &retained); err != nil {
+		return err
+	}
+	stamp := now.UTC().Format(time.RFC3339Nano)
+	attempts++
+	nextRetry := now.UTC().Add(privacyDeletionBackoff(attempts)).Format(time.RFC3339Nano)
+	if _, err := tx.ExecContext(ctx, `UPDATE privacy_deletion_jobs SET deletion_status=?,attempt_count=?,next_retry_at=?,updated_at=?,error_code=?,pending_count=?,deleted_count=?,retained_count=? WHERE deletion_job_id=?`, PrivacyDeletionReconcilePending, attempts, nextRetry, stamp, safePrivacyDeletionErrorCode(code), pending, deleted, retained, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func privacyDeletionBackoff(attempt int) time.Duration {
+	delay := privacyDeletionRetryInitial
+	for step := 1; step < attempt && delay < privacyDeletionRetryMaximum; step++ {
+		if delay > privacyDeletionRetryMaximum/2 {
+			return privacyDeletionRetryMaximum
+		}
+		delay *= 2
+	}
+	if delay > privacyDeletionRetryMaximum {
+		return privacyDeletionRetryMaximum
+	}
+	return delay
 }
 
 func safePrivacyDeletionErrorCode(code string) string {
@@ -329,7 +393,7 @@ func safePrivacyDeletionErrorCode(code string) string {
 func scanPrivacyDeletionJob(row interface{ Scan(...any) error }) (PrivacyDeletionJob, error) {
 	var job PrivacyDeletionJob
 	var next string
-	err := row.Scan(&job.DeletionJobID, &job.Kind, &job.DeletionStatus, &job.TranscriptDeleted, &job.CreatedAt, &job.UpdatedAt, &next, &job.AttemptCount, &job.PendingCount, &job.DeletedCount, &job.RetainedCount, &job.ErrorCode)
+	err := row.Scan(&job.DeletionJobID, &job.Kind, &job.DeletionStatus, &job.DeleteMemories, &job.TranscriptDeleted, &job.CreatedAt, &job.UpdatedAt, &next, &job.AttemptCount, &job.PendingCount, &job.DeletedCount, &job.RetainedCount, &job.ErrorCode)
 	if err != nil {
 		return PrivacyDeletionJob{}, err
 	}

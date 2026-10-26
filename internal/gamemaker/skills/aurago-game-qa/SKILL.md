@@ -9,6 +9,7 @@ metadata:
   concepts_commit: f59f1dca8bf461227c9b5d856764e1e90d8b8e90
 allowed-tools: game_maker_project, game_maker_file, game_maker_validate
 ---
+> General agent use only. Game Maker Studio runs use the `craft.go` guides and its prepared profiles, never this package.
 
 # Game QA
 

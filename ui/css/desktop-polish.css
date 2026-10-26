@@ -29,6 +29,12 @@
 .desktop-body[data-wallpaper="firefly_dusk"] { --vd-ambient-top: 10, 14, 36; --vd-ambient-bottom: 8, 10, 16; --vd-ambient-glow: 226, 240, 110; }
 .desktop-body[data-wallpaper="neon_overdrive"] { --vd-ambient-top: 30, 8, 60; --vd-ambient-bottom: 20, 4, 40; --vd-ambient-glow: 255, 70, 200; }
 .desktop-body[data-wallpaper="fractal_trip"] { --vd-ambient-top: 40, 14, 60; --vd-ambient-bottom: 24, 10, 48; --vd-ambient-glow: 190, 110, 255; }
+.desktop-body[data-wallpaper="electronic_dreams"] { --vd-ambient-top: 20, 40, 34; --vd-ambient-bottom: 12, 30, 24; --vd-ambient-glow: 230, 168, 58; }
+.desktop-body[data-wallpaper="windows_xp"] { --vd-ambient-top: 64, 133, 225; --vd-ambient-bottom: 69, 131, 38; --vd-ambient-glow: 184, 217, 252; }
+.desktop-body[data-wallpaper="green_slime"] { --vd-ambient-top: 37, 63, 22; --vd-ambient-bottom: 25, 44, 15; --vd-ambient-glow: 165, 217, 65; }
+.desktop-body[data-wallpaper="voxel_world"] { --vd-ambient-top: 155, 200, 219; --vd-ambient-bottom: 90, 128, 54; --vd-ambient-glow: 255, 211, 126; }
+.desktop-body[data-wallpaper="orbit"] { --vd-ambient-top: 14, 18, 44; --vd-ambient-bottom: 4, 6, 16; --vd-ambient-glow: 92, 225, 255; }
+.desktop-body[data-wallpaper="minimal"] { --vd-ambient-top: 242, 241, 236; --vd-ambient-bottom: 235, 234, 228; --vd-ambient-glow: 22, 22, 22; }
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="light"] {
     --vd-reveal: var(--vd-accent-r, 10), var(--vd-accent-g, 132), var(--vd-accent-b, 255);

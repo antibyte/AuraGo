@@ -23,10 +23,16 @@
         return /(?:^|\s)(?:vd-(?:tool|context-papirus|window-menu-papirus|settings-nav|settings-pane-papirus|settings-hamburger|modal-action|window-ai-button|quickchat-send|dock-scroll|todo-action|calendar-(?:action|mini)|gallery-action|chess-action|chat-(?:toolbar|sidebar|scroll|voice|send|context)|qc-(?:btn|filter|close|input)|launchpad-action|store-(?:btn|terminal-action|terminal-tab-close)|hp-(?:btn|send)|viewer-action)|fm-(?:btn|search|sort-indicator|drop|context)|cs-(?:button|icon-button|file-action|tab-close)|pixel-toolbar|oscad-btn|camera-btn)-icon(?:\s|$)/.test(String(className || ''));
     }
     function miniIconName(key) {
-        const name = normalizeIconName(key).replace(/^(?:papirus|whitesur):/, '').replace(/_/g, '-').replace(/-symbolic$/, '');
+        const name = normalizeIconName(key).replace(/^(?:papirus|whitesur|windows_xp|tela|candy|fluent|buuf_nestort):/, '').replace(/_/g, '-').replace(/-symbolic$/, '');
         return MINI_ALIASES[name] || name;
     }
     function miniIconMarkup(key, className, size) {
+        if (typeof themeIconPath === 'function' && typeof settingValue === 'function') {
+            const explicit = String(key || '').includes(':') ? String(key).split(':')[0] : '';
+            const selected = (state.iconThemeManifests || {})[explicit || settingValue('appearance.icon_theme')];
+            const path = selected && selected.actions && themeIconPath(key, 'action');
+            if (path) return themedArtworkMarkup(path, key, miniIconName(key), className, size || 16, true);
+        }
         const name = miniIconName(key);
         const pixels = Math.max(8, Math.min(64, Number(size) || 16));
         const manifest = state.miniIconManifest, icon = manifest && manifest.icons && manifest.icons[name];

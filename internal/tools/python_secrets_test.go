@@ -113,6 +113,10 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"boring_anthropic_key",
 		"boring_openrouter_key",
 		"tts_mistral_api_key",
+		"tts_xai_api_key",
+		"tts_openai_api_key",
+		"tts_stepfun_api_key",
+		"tts_resemble_api_key",
 		"webhook_outgoing_hook_1_0123456789ab_secrets",
 		"here_now_api_key",
 	} {

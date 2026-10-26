@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {patchControls} from './patch-controls.mjs';
+import {patchHonesty} from './patch-honesty.mjs';
 import {localizeFonts} from './local-fonts.mjs';
 
 const revision = 'a71634ae8a606bba5463489450c69e8b42de114e';
@@ -13,6 +14,11 @@ const digest = b => crypto.createHash('sha256').update(b).digest('hex');
 function patch(text, before, after) {
   if (!text.includes(before)) throw Error('Pinned RuView adapter patch no longer matches');
   return text.replace(before, after);
+}
+// Checked regex replacement: a pattern that stops matching must fail the run, not silently drop a gate.
+function patchRegex(text, pattern, after) {
+  if (!pattern.test(text)) throw Error('Pinned RuView adapter patch no longer matches');
+  return text.replace(pattern, after);
 }
 if (check) {
   const manifest = JSON.parse(await readFile(`${target}/provenance.json`));
@@ -35,12 +41,15 @@ if (check) {
       if (/\.(js|css|html)$/.test(name)) {
         let text = bytes.toString('utf8').replaceAll('\r\n','\n');
         text = text.replaceAll('https://unpkg.com/three@0.160.0/', './deps/three/').replaceAll('https://unpkg.com/stats.js@0.17.0/build/stats.min.js', './deps/stats.min.js').replaceAll('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', './deps/three-global.js');
-        if (name.endsWith('.css')) text = localizeFonts(name, text, patch);
+        if (name.endsWith('.css')) text = patchHonesty(name, localizeFonts(name, text, patch), patch);
         if (name.endsWith('.html')) {
           text = text.replace(/<img\b[^>]*\bsrc="https:[^"]*"[^>]*>/g, '');
-          text = text.replace(/<head([^>]*)>/i, '<head$1><script src="./aurago-adapter.js"></script>');
+          text = patchRegex(text, /<head([^>]*)>/i, '<head$1><script src="./aurago-adapter.js"></script>');
         }
-        if (name === 'app.js') text = text.replace("if ('serviceWorker' in navigator)", 'if (false)').replace('const useMock = await backendDetector.shouldUseMockServer();','const useMock = false;');
+        if (name === 'app.js') {
+          text = patch(text, "if ('serviceWorker' in navigator)", 'if (false)');
+          text = patch(text, 'const useMock = await backendDetector.shouldUseMockServer();', 'const useMock = false;');
+        }
         if (name === 'services/pose.service.js') {
           text=patch(text,`    // Use a lower confidence threshold when model inference is active
     const defaultThreshold = this.modelActive
@@ -61,7 +70,7 @@ if (check) {
     const params = {};`);
         }
         if (name === 'services/sensing.service.js') {
-          text = text.replace(/function clientSimulationAllowed\([^)]*\)\s*\{[\s\S]*?\n\}/, 'function clientSimulationAllowed() { return false; }');
+          text = patchRegex(text, /function clientSimulationAllowed\([^)]*\)\s*\{[\s\S]*?\n\}/, 'function clientSimulationAllowed() { return false; }');
           const start=text.indexOf('  async _detectServerSource() {'),end=text.indexOf('  /** @return {string|null} Raw server source');
           if(start<0||end<start)throw Error('Pinned sensing source detection changed');
           text=patch(text,text.slice(start,end),`  async _detectServerSource() {
@@ -137,12 +146,12 @@ if (check) {
         'server-simulated':`);
         }
         if (name === 'pose-fusion/js/csi-simulator.js') {
-          text=text.replace("return this.mode === 'live' && this.verifiedFrame === true;", "return this.mode === 'live' && this.verifiedFrame === true && performance.now()-this.auragoFrameAt<10000;");
-          text=text.replace('this.verifiedFrame = true;', 'this.verifiedFrame = true; this.auragoFrameAt = performance.now();');
-          text=text.replace('_handleJsonFrame(msg) {', "_handleJsonFrame(msg) { if(msg.source!=='esp32'||msg._simulated){this.verifiedFrame=false;this.mode='demo';return;}");
+          text=patch(text,"return this.mode === 'live' && this.verifiedFrame === true;", "return this.mode === 'live' && this.verifiedFrame === true && performance.now()-this.auragoFrameAt<10000;");
+          text=patch(text,'this.verifiedFrame = true;', 'this.verifiedFrame = true; this.auragoFrameAt = performance.now();');
+          text=patch(text,'_handleJsonFrame(msg) {', "_handleJsonFrame(msg) { if(msg.source!=='esp32'||msg._simulated){this.verifiedFrame=false;this.mode='demo';return;}");
         }
         if (name === 'pose-fusion/js/main.js') {
-          text=text.replace('if (isPaused) return;', `if (isPaused) return;
+          text=patch(text,'if (isPaused) return;', `if (isPaused) return;
   if(!csiSimulator.isLive&&!window.auragoRuViewSimulationAllowed?.()){
     statusLabel.textContent='NO LIVE CSI';statusDot.classList.add('offline');
     for(const canvas of [skeletonCanvas,csiCanvas,embeddingCanvas])canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
@@ -150,7 +159,7 @@ if (check) {
     for(const bar of [videoBar,csiBar,fusedBar,rssiBarEl])if(bar)bar.style.width='0%';
     return;
   }`);
-          text=text.replace("statusLabel.textContent = 'LIVE CSI';", "statusLabel.textContent = 'EXPERIMENTAL CSI';");
+          text=patch(text,"statusLabel.textContent = 'LIVE CSI';", "statusLabel.textContent = 'EXPERIMENTAL CSI';");
         }
         if (name === 'components/ModelPanel.js') {
           const start=text.indexOf('      st.innerHTML = '),end=text.indexOf('\n',start);
@@ -210,7 +219,8 @@ if (check) {
         }
         bytes = Buffer.from(text);
       }
-      if (/\.(js|html)$/.test(name)) bytes = Buffer.from(patchControls(name, bytes.toString('utf8'), patch));
+      // Honesty patches run last, on top of the control patches, for every scripted or markup file.
+      if (/\.(js|html)$/.test(name)) bytes = Buffer.from(patchHonesty(name, patchControls(name, bytes.toString('utf8'), patch), patch));
       await put(name, bytes);
     }
   }
