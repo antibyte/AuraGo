@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -577,7 +578,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			}
 			result, err := service.SearchJobFile(ctx, jobID, path, query)
 			if err != nil {
-				return gameMakerToolError(err), true
+				return gameMakerFileToolError(ctx, service, jobID, boundJobID != "", err), true
 			}
 			answer := map[string]any{"status": "ok", "result": result}
 			if hint := gameMakerFileHint(ctx, service, jobID, path); hint != "" {
@@ -632,7 +633,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			}
 			result, err := service.ReadJobFileRange(ctx, jobID, path, start, end)
 			if err != nil {
-				return gameMakerToolError(err), true
+				return gameMakerFileToolError(ctx, service, jobID, boundJobID != "", err), true
 			}
 			answer := map[string]any{"status": "ok", "path": path, "content": result.Content, "sha256": result.SHA256, "start_line": result.StartLine, "end_line": result.EndLine, "total_lines": result.TotalLines}
 			if hint := gameMakerFileHint(ctx, service, jobID, path); hint != "" {
@@ -928,12 +929,65 @@ func annotateGameMakerNormalizedCall(output string, tc ToolCall) string {
 	return "Tool Output: " + strings.TrimSuffix(body, "}") + separator + `"normalized_call":` + string(note) + "}"
 }
 
-func gameMakerToolError(err error) string {
+// gameMakerSourceFileLimit bounds the existing-source list in a missing-file answer.
+const gameMakerSourceFileLimit = 12
+
+var gameMakerSourceExtensions = map[string]bool{
+	".ts": true, ".tsx": true, ".js": true, ".jsx": true, ".mjs": true, ".json": true,
+	".css": true, ".html": true, ".glsl": true, ".vert": true, ".frag": true, ".wgsl": true,
+	".txt": true, ".md": true,
+}
+
+// gameMakerExistingSources renders the text source files under src/ (sorted, at
+// most gameMakerSourceFileLimit) so a model that guessed a helper name, such as
+// src/common.ts in a 3D project, can read the real one.
+func gameMakerExistingSources(files []string) string {
+	var sources []string
+	for _, file := range files {
+		if strings.HasPrefix(file, "src/") && gameMakerSourceExtensions[strings.ToLower(filepath.Ext(file))] {
+			sources = append(sources, file)
+		}
+	}
+	if len(sources) == 0 {
+		return ""
+	}
+	sort.Strings(sources)
+	extra := len(sources) - gameMakerSourceFileLimit
+	if extra > 0 {
+		sources = sources[:gameMakerSourceFileLimit]
+	}
+	list := strings.Join(sources, ", ")
+	if extra > 0 {
+		list += fmt.Sprintf(" (+%d more)", extra)
+	}
+	return "existing src files: " + list
+}
+
+// gameMakerFileToolError answers a failed file read or search. For a bound
+// Studio job a missing file also names the source files that do exist, because
+// 3D projects use differently named helpers than the 2D templates.
+func gameMakerFileToolError(ctx context.Context, service *gamemaker.Service, jobID string, bound bool, err error) string {
+	if !bound || !errors.Is(err, fs.ErrNotExist) {
+		return gameMakerToolError(err)
+	}
+	files, listErr := service.ListJobFiles(ctx, jobID)
+	if listErr != nil {
+		return gameMakerToolError(err)
+	}
+	return gameMakerToolErrorHint(err, gameMakerExistingSources(files))
+}
+
+func gameMakerToolError(err error) string { return gameMakerToolErrorHint(err, "") }
+
+func gameMakerToolErrorHint(err error, existing string) string {
 	// Operating-system errors quote resolved locations; the model only ever
 	// receives project-relative paths.
 	message := gamemaker.DefaultService().RedactHostPaths(err.Error())
 	if errors.Is(err, fs.ErrNotExist) {
 		message += ". Use game_maker_project operation=list_files for this project's paths"
+		if existing != "" {
+			message += "; " + existing
+		}
 	}
 	var detail *gamemaker.DesignValidationError
 	if errors.As(err, &detail) {
