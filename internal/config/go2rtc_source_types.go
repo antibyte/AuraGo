@@ -187,12 +187,18 @@ func ValidateGo2RTCSourceURL(raw string) (string, error) {
 	}
 	kind, ok := go2RTCSourceTypeForScheme(strings.ToLower(parsed.Scheme))
 	if !ok {
-		return "", fmt.Errorf("source scheme %q is not allowed", strings.ToLower(parsed.Scheme))
+		scheme := strings.ToLower(parsed.Scheme)
+		// Only name schemes that are deliberately blocked; an unknown "scheme"
+		// may be pasted userinfo (user:pw@host) and must not be echoed.
+		switch scheme {
+		case "exec", "echo", "expr", "ffmpeg", "device", "file", "xiaomi", "isapi", "ftp":
+			return "", fmt.Errorf("source scheme %q is not allowed", scheme)
+		}
+		return "", fmt.Errorf("this camera source type is not supported")
 	}
-	query, err := url.ParseQuery(parsed.RawQuery)
-	if err != nil {
-		return "", fmt.Errorf("%s source has an invalid query", kind.ID)
-	}
+	// Legacy sources may have sloppy queries (";" or stray "%"). ParseQuery
+	// still returns every pair it could parse, so the error is ignored on purpose.
+	query, _ := url.ParseQuery(parsed.RawQuery)
 	switch kind.shape {
 	case go2RTCShapeTuya:
 		if err := ValidateGo2RTCTuyaSource(raw); err != nil {

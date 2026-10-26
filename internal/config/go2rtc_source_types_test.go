@@ -33,6 +33,10 @@ func TestValidateGo2RTCSourceURLAcceptsCatalogTypes(t *testing.T) {
 		{"webrtc:http://192.168.1.123:5000/signaling/camera1?kvs#format=wyze", "webrtc"},
 		{"webrtc:wss://example.org/ws", "webrtc"},
 		{"webtorrent:?share=huofssuxaty00izc&pwd=k3l2j9djeg8v8r7e", "webtorrent"},
+		{"http://192.168.1.2/snap.cgi?user=admin;pwd=x", "http"},
+		{"http://192.168.1.2/snap.cgi?user=admin&pwd=50%off", "http"},
+		{"rtsp://cam.local/live?a=1;b=2", "rtsp"},
+		{"rtsp://u:p@cam.local/live?x=50%zz", "rtsp"},
 	} {
 		got, err := ValidateGo2RTCSourceURL(tc.raw)
 		if err != nil || got != tc.want {
@@ -152,5 +156,19 @@ func TestGo2RTCSourceTypesCatalogIsConsistent(t *testing.T) {
 	types[0].Fields = nil
 	if len(Go2RTCSourceTypes()[0].Fields) == 0 {
 		t.Errorf("Go2RTCSourceTypes returned the shared slice")
+	}
+}
+
+func TestValidateGo2RTCSourceURLNeverEchoesUnknownSchemes(t *testing.T) {
+	_, err := ValidateGo2RTCSourceURL("admin:secretpw@192.168.1.2/stream")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if strings.Contains(err.Error(), "admin") || strings.Contains(err.Error(), "secretpw") {
+		t.Fatalf("error leaks URL text: %q", err)
+	}
+	_, err = ValidateGo2RTCSourceURL("exec:x")
+	if err == nil || !strings.Contains(err.Error(), `"exec"`) {
+		t.Fatalf("exec error = %v; want it to name \"exec\"", err)
 	}
 }
