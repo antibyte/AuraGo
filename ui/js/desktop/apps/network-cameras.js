@@ -220,7 +220,7 @@
         return '<article class="nc-card ' + (selected ? 'is-selected ' : '') + (!enabled ? 'is-disabled' : '') + '" data-stream-card="' + ctx.esc(stream.id) + '">' +
             '<button type="button" class="nc-card-select" data-select="' + ctx.esc(stream.id) + '" ' + (!enabled ? 'disabled' : '') + ' aria-label="' + ctx.esc(stream.name || stream.id) + '"></button>' +
             '<div class="nc-card-media">' + media + '<span class="nc-live-badge">' + ctx.esc(live ? text(ctx, 'live') : '') + '</span></div>' +
-            '<div class="nc-card-copy"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(codecs) + '</small></div>' +
+            '<div class="nc-card-copy"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(codecs) + (stream.source_type ? '<span class="go2rtc-source-badge">' + ctx.esc(window.AuraGoSourceForm.label(state.sourceTypes, stream.source_type)) + '</span>' : '') + '</small></div>' +
                 '<div class="nc-card-state ' + (stream.reachable ? 'is-online' : '') + '"><span></span>' + ctx.esc(enabled ? (stream.reachable ? text(ctx, 'online') : text(ctx, stream.state === 'connecting' ? 'connecting' : 'idle')) : text(ctx, 'disabled')) + '</div></div>' +
             '<div class="nc-card-meta"><span>' + ctx.esc(text(ctx, 'viewers', { count: Number(stream.consumers || 0) })) + '</span>' + (state.data.can_manage ? '<span class="nc-card-admin-actions"><button type="button" data-edit="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'manage')) + '" ' + (deleting ? 'disabled' : '') + '>' + appIcon(ctx, 'settings', 'M', 15) + '</button><button class="is-danger" type="button" data-delete="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'delete')) + '" ' + (deleting ? 'disabled' : '') + '>' + (deleting ? '<span class="nc-spinner is-small"></span>' : appIcon(ctx, 'trash', 'X', 15)) + '</button></span>' : '') + '</div>' +
             '</article>';
@@ -499,7 +499,7 @@
     }
 
     function openSetupModal(state) {
-        state.modal = { type: 'setup', step: 1, method: '', candidates: [], selectedCandidate: '', address: '', username: '', password: '', profiles: [], setupToken: '', profileID: '', subProfileID: '', useSnapshot: false, snapshotAvailable: null, name: '', id: '', source: '', busy: false, error: '' };
+        state.modal = { type: 'setup', step: 1, method: '', candidates: [], selectedCandidate: '', address: '', username: '', password: '', profiles: [], setupToken: '', profileID: '', subProfileID: '', useSnapshot: false, snapshotAvailable: null, name: '', id: '', source: '', sourceForm: null, busy: false, error: '' };
         drawModal(state);
     }
 
@@ -507,13 +507,14 @@
         const stream = allStreams(state).find(item => item.id === streamID);
         if (!stream) return;
         state.modal = {
-            type: 'manage', streamID, name: stream.name || stream.id, enabled: stream.enabled !== false, originalEnabled: stream.enabled !== false, source: '', busy: false, error: '',
+            type: 'manage', streamID, name: stream.name || stream.id, enabled: stream.enabled !== false, originalEnabled: stream.enabled !== false, source: '', sourceForm: window.AuraGoSourceForm.newState(''), busy: false, error: '',
             tab: tab === 'detection' && detectionTabAvailable(state) ? 'detection' : 'general',
             detection: stream.detection ? JSON.parse(JSON.stringify(stream.detection)) : null,
             detectionDirty: false
         };
         Object.assign(state.modal, window.NetworkCamerasMedia.defaults(stream));
         drawModal(state);
+        if (!state.sourceTypes) ensureSourceTypes(state).then(() => { if (state.modal && state.modal.type === 'manage' && state.modal.streamID === streamID && !state.modal.sourceForm.type) drawModal(state); }).catch(() => {});
     }
 
     function detectionTabAvailable(state) {
@@ -534,7 +535,7 @@
 
     function manageMarkup(state, modal, detectionStream) {
         const ctx = state.ctx;
-        const sourceField = modal.tuya_account_id ? '' : '<label>' + ctx.esc(text(ctx, 'replace_source')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="' + ctx.esc(text(ctx, 'keep_source')) + '"></label>';
+        const sourceField = modal.tuya_account_id ? '' : '<fieldset class="nc-source-fieldset"><legend>' + ctx.esc(text(ctx, 'replace_source')) + '</legend>' + window.AuraGoSourceForm.markup(state.sourceTypes || [], modal.sourceForm, { t: ctx.t, emptyLabel: ctx.t('common.go2rtc_source.keep_current') }) + '</fieldset>';
         const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label>' + sourceField + window.NetworkCamerasMedia.fields(state, modal) + '</div>';
         if (!detectionStream) return general;
         const tab = (id, label) => '<button type="button" role="tab" data-modal-tab="' + id + '" aria-selected="' + (modal.tab === id) + '" tabindex="' + (modal.tab === id ? '0' : '-1') + '" class="' + (modal.tab === id ? 'is-active' : '') + '">' + ctx.esc(label) + '</button>';
@@ -562,8 +563,10 @@
             setupMethod(ctx, 'discover', 'radar', 'method_discover', 'method_discover_help', state.data.discovery && state.data.discovery.available, state.data.discovery && state.data.discovery.available ? '' : text(ctx, 'discovery_unavailable')) +
             setupMethod(ctx, 'address', 'network', 'method_address', 'method_address_help', true, '') +
             setupMethod(ctx, 'tuya', 'camera', 'method_tuya', 'method_tuya_help', true, '') +
+            setupMethod(ctx, 'type', 'camera', 'method_type', 'method_type_help', true, '') +
             setupMethod(ctx, 'url', 'link', 'method_url', 'method_url_help', true, '') + '</div>';
         if (modal.step === 2) {
+            if (modal.method === 'type') return '<div class="nc-form">' + window.AuraGoSourceForm.markup(state.sourceTypes || [], modal.sourceForm, { t: ctx.t }) + '</div>';
             if (modal.method === 'discover' && modal.busy) {
                 return '<div class="nc-discovery-progress" role="status" aria-live="polite"><span class="nc-spinner"></span><strong>' + ctx.esc(text(ctx, 'method_discover')) + '</strong><small>' + ctx.esc(text(ctx, 'method_discover_help')) + '</small></div>';
             }
@@ -636,6 +639,13 @@
                 if (target) target.focus();
             });
         });
+        const sourceRoot = host.querySelector('[data-source-form]');
+        if (sourceRoot && state.modal.sourceForm) window.AuraGoSourceForm.bind(sourceRoot, state.modal.sourceForm, redraw => { if (redraw) drawModal(state); });
+    }
+
+    async function ensureSourceTypes(state) {
+        if (!state.sourceTypes) state.sourceTypes = await window.AuraGoSourceForm.loadCatalog(() => request(state, '/api/desktop/integrations/go2rtc/source-types'));
+        return state.sourceTypes;
     }
 
     function openTuya(state, mode) {
@@ -654,6 +664,20 @@
         modal.method = method;
         modal.error = '';
         if (method === 'url') { modal.step = 4; return drawModal(state); }
+        if (method === 'type') {
+            modal.step = 2;
+            modal.sourceForm = window.AuraGoSourceForm.newState('');
+            modal.busy = true;
+            drawModal(state);
+            try {
+                await ensureSourceTypes(state);
+            } catch (error) {
+                modal.error = text(state.ctx, 'source_types_failed');
+            } finally {
+                modal.busy = false;
+            }
+            return drawModal(state);
+        }
         modal.step = 2;
         if (method === 'discover') {
             modal.busy = true;
@@ -675,7 +699,7 @@
         const modal = state.modal;
         if (!modal) return;
         if (action === 'cancel') { state.modal = null; return drawModal(state); }
-        if (action === 'back') { modal.step = Math.max(1, modal.step - 1); return drawModal(state); }
+        if (action === 'back') { modal.step = modal.method === 'type' && modal.step === 4 ? 2 : Math.max(1, modal.step - 1); return drawModal(state); }
         if (action === 'next') return advanceSetup(state);
         if (action === 'save') return saveManagedStream(state);
         if (action === 'delete') return deleteManagedStream(state);
@@ -684,6 +708,13 @@
     async function advanceSetup(state) {
         const modal = state.modal;
         modal.error = '';
+        if (modal.step === 2 && modal.method === 'type') {
+            const built = window.AuraGoSourceForm.buildURL(state.sourceTypes || [], modal.sourceForm);
+            if (built.error) { modal.error = window.AuraGoSourceForm.errorText(state.ctx.t, built); return drawModal(state); }
+            modal.source = built.url;
+            modal.step = 4;
+            return drawModal(state);
+        }
         if (modal.step === 2) {
             if (modal.method === 'discover' && !modal.selectedCandidate) { modal.error = text(state.ctx, 'choose_device_error'); return drawModal(state); }
             if (modal.method === 'address' && !modal.address.trim()) { modal.error = text(state.ctx, 'address_required'); return drawModal(state); }
@@ -725,11 +756,11 @@
     async function createStream(state) {
         const modal = state.modal;
         if (!modal.name.trim() || !modal.id.trim()) { modal.error = text(state.ctx, 'name_id_required'); return drawModal(state); }
-        if (modal.method === 'url' && !modal.source.trim()) { modal.error = text(state.ctx, 'source_required'); return drawModal(state); }
+        if ((modal.method === 'url' || modal.method === 'type') && !modal.source.trim()) { modal.error = text(state.ctx, 'source_required'); return drawModal(state); }
         modal.busy = true;
         drawModal(state);
         try {
-            const result = await request(state, '/api/desktop/integrations/go2rtc/streams', { method: 'POST', body: { id: modal.id, name: modal.name, source: modal.method === 'url' ? modal.source : '', setup_token: modal.setupToken, profile_id: modal.profileID, sub_profile_id: modal.subProfileID, use_camera_snapshot: modal.useSnapshot } });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams', { method: 'POST', body: { id: modal.id, name: modal.name, source: modal.method === 'url' || modal.method === 'type' ? modal.source : '', setup_token: modal.setupToken, profile_id: modal.profileID, sub_profile_id: modal.subProfileID, use_camera_snapshot: modal.useSnapshot } });
             modal.source = '';
             state.selected = result.stream && result.stream.id ? result.stream.id : modal.id;
             state.modal = null;
@@ -762,6 +793,11 @@
                 modal.tab = 'detection';
                 return drawModal(state);
             }
+        }
+        if (modal.sourceForm && modal.sourceForm.type) {
+            const built = window.AuraGoSourceForm.buildURL(state.sourceTypes || [], modal.sourceForm);
+            if (built.error) { modal.error = window.AuraGoSourceForm.errorText(state.ctx.t, built); modal.tab = 'general'; return drawModal(state); }
+            modal.source = built.url;
         }
         const confirmations = [];
         if (modal.originalEnabled && !modal.enabled) confirmations.push(text(state.ctx, 'disable_confirm_message'));

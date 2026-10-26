@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Introduce YYYY-MM-DDTHH:mm con zona horaria o RFC3339 con desfase UTC. Los eventos de día completo usan YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "No se pudieron clasificar algunos campos. Se muestra el texto original.",
   "desktop.qr_warning_payload_limit": "El contenido leído supera los límites admitidos.",
-  "desktop.qr_csv_template_download": "Descargar plantilla CSV"
+  "desktop.qr_csv_template_download": "Descargar plantilla CSV",
+  "desktop.network_cameras.method_type": "Tipo de cámara",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant y más",
+  "desktop.network_cameras.source_types_failed": "No se pudieron cargar los tipos de cámara."
 }

@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Skriv YYYY-MM-DDTHH:mm med tidssone eller RFC3339 med UTC-forskyvning. Heldagshendelser bruker YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "Noen felt kunne ikke gjenkjennes. Originalteksten vises.",
   "desktop.qr_warning_payload_limit": "Det leste innholdet overstiger støttede grenser.",
-  "desktop.qr_csv_template_download": "Last ned CSV-mal"
+  "desktop.qr_csv_template_download": "Last ned CSV-mal",
+  "desktop.network_cameras.method_type": "Kameratype",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant og mer",
+  "desktop.network_cameras.source_types_failed": "Kameratypene kunne ikke lastes."
 }

@@ -269,9 +269,10 @@
             scripts: ['/js/desktop/apps/sip-phone.js']
         },
         'network-cameras': {
-            styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css', '/css/go2rtc-tuya.css'),
+            styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css', '/css/go2rtc-tuya.css', '/css/go2rtc-source-form.css'),
             scripts: [
                 '/js/go2rtc-tuya.js',
+                '/js/go2rtc-source-form.js',
                 '/js/desktop/apps/network-cameras-detection-views.js',
                 '/js/desktop/apps/network-cameras-detection-zones.js',
                 '/js/desktop/apps/network-cameras-detection.js',

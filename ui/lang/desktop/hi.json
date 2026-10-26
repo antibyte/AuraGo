@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "समय क्षेत्र के साथ YYYY-MM-DDTHH:mm या UTC अंतर सहित RFC3339 डालें। पूरे दिन के कार्यक्रम के लिए YYYY-MM-DD दें।",
   "desktop.qr_warning_payload_fields": "कुछ फ़ील्ड पहचाने नहीं जा सके। मूल पाठ दिखाया गया है।",
   "desktop.qr_warning_payload_limit": "पढ़ी गई सामग्री समर्थित सीमा से अधिक है।",
-  "desktop.qr_csv_template_download": "CSV टेम्पलेट डाउनलोड करें"
+  "desktop.qr_csv_template_download": "CSV टेम्पलेट डाउनलोड करें",
+  "desktop.network_cameras.method_type": "कैमरा प्रकार",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant और अन्य",
+  "desktop.network_cameras.source_types_failed": "कैमरा प्रकार लोड नहीं हो सके।"
 }

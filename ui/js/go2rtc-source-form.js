@@ -103,6 +103,7 @@
             const selected = current(state, field);
             control = '<select' + attrs + '>' + (field.options || []).map(option => '<option value="' + escape(option) + '"' + (option === selected ? ' selected' : '') + '>' + escape(option === '' ? t(prefix + 'option_default') : option) + '</option>').join('') + '</select>';
         } else if (field.kind === 'secret') {
+            delete state.values[field.name]; // the input renders empty, so the memory must not keep a hidden value
             control = '<input' + attrs + ' type="password" autocomplete="new-password" value="">';
         } else {
             const numeric = field.kind === 'port' || field.kind === 'number' ? ' inputmode="numeric"' : '';
@@ -122,6 +123,7 @@
         if (type) {
             if (type.hint) html += '<p class="go2rtc-source-hint">' + escape(t(prefix + 'hint_' + type.id)) + '</p>';
             if (type.mode === 'url') {
+                delete state.values.url;
                 html += '<label class="' + escape(c.field) + '"><span class="' + escape(c.label) + '">' + escape(t(prefix + 'field_url')) + ' *</span><input class="' + escape(c.input) + '" data-source-field="url" type="password" autocomplete="off" value="" placeholder="' + escape(type.template || '') + '"></label>';
             } else {
                 html += (type.fields || []).map(field => fieldControl(field, state, t, c)).join('');

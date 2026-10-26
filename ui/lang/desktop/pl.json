@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Wpisz YYYY-MM-DDTHH:mm ze strefą czasową lub RFC3339 z przesunięciem UTC. Wydarzenia całodniowe używają YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "Nie udało się rozpoznać niektórych pól. Wyświetlono oryginalny tekst.",
   "desktop.qr_warning_payload_limit": "Odczytana treść przekracza obsługiwane limity.",
-  "desktop.qr_csv_template_download": "Pobierz szablon CSV"
+  "desktop.qr_csv_template_download": "Pobierz szablon CSV",
+  "desktop.network_cameras.method_type": "Typ kamery",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant i inne",
+  "desktop.network_cameras.source_types_failed": "Nie udało się wczytać typów kamer."
 }

@@ -2365,10 +2365,18 @@ function testNetworkCamerasDetectionAppContracts() {
 
   const cameraLoader = sourceBetween(loader, "'network-cameras': {", "'meshcore': {");
   const cameraScripts = [...cameraLoader.matchAll(/'([^']+\.js)'/g)].map(match => match[1]);
-  const expectedScripts = ['/js/go2rtc-tuya.js', '/js/desktop/apps/network-cameras-detection-views.js', '/js/desktop/apps/network-cameras-detection-zones.js', '/js/desktop/apps/network-cameras-detection.js', '/js/desktop/apps/network-cameras-media.js', '/js/desktop/apps/network-cameras.js'];
+  const expectedScripts = ['/js/go2rtc-tuya.js', '/js/go2rtc-source-form.js', '/js/desktop/apps/network-cameras-detection-views.js', '/js/desktop/apps/network-cameras-detection-zones.js', '/js/desktop/apps/network-cameras-detection.js', '/js/desktop/apps/network-cameras-media.js', '/js/desktop/apps/network-cameras.js'];
   let previousScript = -1;
   for (const script of expectedScripts) { const index = cameraScripts.indexOf(script); assert.ok(index > previousScript, 'camera dependencies must load before the app: ' + script); previousScript = index; }
   assert.ok(cameraLoader.includes('/css/go2rtc-tuya.css'), 'Tuya dialog styles must load with the camera app');
+  assert.ok(cameraLoader.includes('/css/go2rtc-source-form.css'), 'source form styles must load with the camera app');
+  const cams = read('ui/js/desktop/apps/network-cameras.js');
+  assert.match(cams, /setupMethod\(ctx, 'type', /, 'setup offers the camera type method');
+  assert.match(cams, /\/api\/desktop\/integrations\/go2rtc\/source-types/);
+  assert.match(sourceBetween(cams, 'async function advanceSetup(state)', 'function slugify'), /modal\.method === 'type'[\s\S]*AuraGoSourceForm\.buildURL/);
+  assert.match(sourceBetween(cams, 'async function createStream(state)', 'async function saveManagedStream'), /modal\.method === 'url' \|\| modal\.method === 'type'/);
+  assert.match(sourceBetween(cams, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /AuraGoSourceForm\.buildURL[\s\S]*confirmDialog/, 'the replacement source is built before the confirmation');
+  assert.match(cams, /stream\.source_type/, 'cards show the source type');
 
   const modeSource = sourceBetween(app, 'function coerceMode(value)', 'function readPreferences');
   const modeContext = {};

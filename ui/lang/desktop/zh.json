@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "请输入带时区的YYYY-MM-DDTHH:mm，或带UTC偏移的RFC3339。全天事件使用YYYY-MM-DD。",
   "desktop.qr_warning_payload_fields": "部分字段无法分类，已显示原始文本。",
   "desktop.qr_warning_payload_limit": "解码内容超出支持的范围。",
-  "desktop.qr_csv_template_download": "下载CSV模板"
+  "desktop.qr_csv_template_download": "下载CSV模板",
+  "desktop.network_cameras.method_type": "摄像头类型",
+  "desktop.network_cameras.method_type_help": "Tapo、Kasa、Ring、Nest、DVR、Home Assistant 等",
+  "desktop.network_cameras.source_types_failed": "无法加载摄像头类型。"
 }

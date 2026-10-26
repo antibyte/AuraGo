@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Συμπλήρωσε YYYY-MM-DDTHH:mm με ζώνη ώρας ή RFC3339 με μετατόπιση UTC. Τα ολοήμερα συμβάντα χρησιμοποιούν YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "Ορισμένα πεδία δεν αναγνωρίστηκαν. Εμφανίζεται το αρχικό κείμενο.",
   "desktop.qr_warning_payload_limit": "Το αποκωδικοποιημένο περιεχόμενο υπερβαίνει τα υποστηριζόμενα όρια.",
-  "desktop.qr_csv_template_download": "Λήψη προτύπου CSV"
+  "desktop.qr_csv_template_download": "Λήψη προτύπου CSV",
+  "desktop.network_cameras.method_type": "Τύπος κάμερας",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant και άλλα",
+  "desktop.network_cameras.source_types_failed": "Δεν ήταν δυνατή η φόρτωση των τύπων κάμερας."
 }

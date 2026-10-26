@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Zadej YYYY-MM-DDTHH:mm s časovým pásmem nebo RFC3339 s posunem UTC. Celodenní události používají YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "Některá pole se nepodařilo rozpoznat. Zobrazuje se původní text.",
   "desktop.qr_warning_payload_limit": "Rozpoznaný obsah překračuje podporované meze.",
-  "desktop.qr_csv_template_download": "Stáhnout šablonu CSV"
+  "desktop.qr_csv_template_download": "Stáhnout šablonu CSV",
+  "desktop.network_cameras.method_type": "Typ kamery",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant a další",
+  "desktop.network_cameras.source_types_failed": "Typy kamer se nepodařilo načíst."
 }

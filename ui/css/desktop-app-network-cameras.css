@@ -355,3 +355,5 @@
     .nc-card,
     .nc-spinner { animation: none; transition: none; }
 }
+.nc-source-fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.nc-source-fieldset legend { font-weight: 600; margin-bottom: 6px; }

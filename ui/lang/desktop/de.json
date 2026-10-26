@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Gib YYYY-MM-DDTHH:mm mit Zeitzone oder RFC3339 mit UTC-Versatz ein. Ganztägige Termine nutzen YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "Einige Felder konnten nicht zugeordnet werden. Der Originaltext wird angezeigt.",
   "desktop.qr_warning_payload_limit": "Der erkannte Inhalt überschreitet die unterstützten Grenzen.",
-  "desktop.qr_csv_template_download": "CSV-Vorlage herunterladen"
+  "desktop.qr_csv_template_download": "CSV-Vorlage herunterladen",
+  "desktop.network_cameras.method_type": "Kameratyp",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant und mehr",
+  "desktop.network_cameras.source_types_failed": "Kameratypen konnten nicht geladen werden."
 }

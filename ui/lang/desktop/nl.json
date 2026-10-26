@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "Voer YYYY-MM-DDTHH:mm met tijdzone of RFC3339 met UTC-afwijking in. Hele dagen gebruiken YYYY-MM-DD.",
   "desktop.qr_warning_payload_fields": "Sommige velden konden niet worden herkend. De oorspronkelijke tekst wordt getoond.",
   "desktop.qr_warning_payload_limit": "De gelezen inhoud overschrijdt de ondersteunde grenzen.",
-  "desktop.qr_csv_template_download": "CSV-sjabloon downloaden"
+  "desktop.qr_csv_template_download": "CSV-sjabloon downloaden",
+  "desktop.network_cameras.method_type": "Cameratype",
+  "desktop.network_cameras.method_type_help": "Tapo, Kasa, Ring, Nest, DVR, Home Assistant en meer",
+  "desktop.network_cameras.source_types_failed": "Cameratypen konden niet worden geladen."
 }

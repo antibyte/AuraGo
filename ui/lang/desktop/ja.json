@@ -9983,5 +9983,8 @@
   "desktop.qr_calendar_hint": "タイムゾーン付きのYYYY-MM-DDTHH:mm、またはUTCオフセット付きRFC3339を入力。終日の予定はYYYY-MM-DDを使います。",
   "desktop.qr_warning_payload_fields": "一部の項目を分類できませんでした。元のテキストを表示しています。",
   "desktop.qr_warning_payload_limit": "読み取った内容が対応範囲を超えています。",
-  "desktop.qr_csv_template_download": "CSVテンプレートをダウンロード"
+  "desktop.qr_csv_template_download": "CSVテンプレートをダウンロード",
+  "desktop.network_cameras.method_type": "カメラの種類",
+  "desktop.network_cameras.method_type_help": "Tapo、Kasa、Ring、Nest、DVR、Home Assistantなど",
+  "desktop.network_cameras.source_types_failed": "カメラの種類を読み込めませんでした。"
 }
