@@ -54,7 +54,7 @@
   "help.go2rtc.stream_enabled": "Inaktiverade flöden synkroniseras inte och kan inte visas.",
   "help.go2rtc.stream_id": "Endast gemener, siffror, bindestreck och understreck. ID:t låses när en källa har sparats.",
   "help.go2rtc.stream_name": "Vänligt namn som visas för användare och agenten.",
-  "help.go2rtc.source": "Tillåtna scheman: rtsp, rtsps, rtspx, http, https och onvif. Hela URL:en lagras endast i krypterade Vault.",
+  "help.go2rtc.source": "Välj kameratyp och fyll i fälten; AuraGo bygger go2rtc-käll-URL:en. Stöds: RTSP, HTTP, ONVIF, RTMP, Tapo, Kasa, DVR-IP, Bubble, EseeCloud, DoorBird, GoPro, Home Assistant, Ring, Nest, HomeKit, Roborock, Wyze, Ivideon, WebRTC och WebTorrent. Tuya-kameror använder ”Lägg till Tuya-kamera”. Hela URL:en lagras bara i det krypterade Vault.",
   "help.go2rtc.image": "Granskad standard: go2rtc 1.9.14 med oföränderlig digest. Ändra bara efter granskning av en annan version.",
   "help.go2rtc.container_name": "Namn på Docker-containern som endast hanteras av AuraGo.",
   "help.go2rtc.url": "Intern sidecar-URL. Lämna tomt för Docker- eller loopbackstandard.",

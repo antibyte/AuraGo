@@ -54,7 +54,7 @@
   "help.go2rtc.stream_enabled": "禁用的流不会同步，也无法查看。",
   "help.go2rtc.stream_id": "只能使用小写字母、数字、连字符和下划线。保存源后 ID 会锁定。",
   "help.go2rtc.stream_name": "向用户和代理显示的易读名称。",
-  "help.go2rtc.source": "允许 rtsp、rtsps、rtspx、http、https 和 onvif。完整 URL 只保存在加密 Vault。",
+  "help.go2rtc.source": "选择摄像头类型并填写其字段,AuraGo 会生成 go2rtc 来源 URL。支持:RTSP、HTTP、ONVIF、RTMP、Tapo、Kasa、DVR-IP、Bubble、EseeCloud、DoorBird、GoPro、Home Assistant、Ring、Nest、HomeKit、Roborock、Wyze、Ivideon、WebRTC 和 WebTorrent。Tuya 摄像头请使用“添加 Tuya 摄像头”。完整 URL 仅保存在加密的 Vault 中。",
   "help.go2rtc.image": "已审查的默认值：带不可变摘要的 go2rtc 1.9.14。只有审查其他版本后才应修改。",
   "help.go2rtc.container_name": "仅由 AuraGo 管理的 Docker 容器名称。",
   "help.go2rtc.url": "内部 sidecar URL。留空将使用 Docker 或回环默认值。",

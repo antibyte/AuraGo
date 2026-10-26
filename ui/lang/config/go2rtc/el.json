@@ -54,7 +54,7 @@
   "help.go2rtc.stream_enabled": "Οι ανενεργές ροές δεν συγχρονίζονται και δεν προβάλλονται.",
   "help.go2rtc.stream_id": "Μόνο πεζά, αριθμοί, παύλες και κάτω παύλες. Το ID κλειδώνει μετά την αποθήκευση πηγής.",
   "help.go2rtc.stream_name": "Φιλικό όνομα για χρήστες και agent.",
-  "help.go2rtc.source": "Επιτρέπονται rtsp, rtsps, rtspx, http, https και onvif. Το πλήρες URL μένει μόνο στο κρυπτογραφημένο Vault.",
+  "help.go2rtc.source": "Επιλέξτε τον τύπο κάμερας και συμπληρώστε τα πεδία της· το AuraGo δημιουργεί το URL πηγής του go2rtc. Υποστηρίζονται: RTSP, HTTP, ONVIF, RTMP, Tapo, Kasa, DVR-IP, Bubble, EseeCloud, DoorBird, GoPro, Home Assistant, Ring, Nest, HomeKit, Roborock, Wyze, Ivideon, WebRTC και WebTorrent. Οι κάμερες Tuya χρησιμοποιούν «Προσθήκη κάμερας Tuya». Το πλήρες URL αποθηκεύεται μόνο στο κρυπτογραφημένο Vault.",
   "help.go2rtc.image": "Ελεγμένη προεπιλογή: go2rtc 1.9.14 με αμετάβλητο digest. Άλλαξέ το μόνο μετά από έλεγχο άλλης έκδοσης.",
   "help.go2rtc.container_name": "Όνομα του Docker container που διαχειρίζεται αποκλειστικά το AuraGo.",
   "help.go2rtc.url": "Εσωτερικό URL sidecar. Άφησέ το κενό για την προεπιλογή Docker ή loopback.",

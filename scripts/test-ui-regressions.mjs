@@ -4133,7 +4133,10 @@ function configSectionContext(configData, modules, { regions = [], globals = {} 
 }
 
 function configGo2RTCContext(go2rtc) {
-  return configSectionContext({ go2rtc }, ['ui/cfg/go2rtc.js']);
+  // The catalog request never settles here, so the section keeps its first render.
+  const context = configSectionContext({ go2rtc }, ['ui/js/go2rtc-source-form.js', 'ui/cfg/go2rtc.js'], { globals: { fetch: () => new Promise(() => {}), showToast() {}, TextEncoder, btoa } });
+  context.document.querySelectorAll = () => [];
+  return context;
 }
 
 // Reads the complete lists a save would send; any other patched key fails the check.
@@ -4300,6 +4303,17 @@ function testConfigGo2RTCStreamsSaveAsCompleteList() {
 
   context.renderGo2RTCSection({ label: 'go2rtc', desc: 'Cameras' });
   assert.equal(state.isDirty(), false);
+  // The main source is the guided form; its hidden data-path input carries the built URL through the existing save path.
+  const cfg = read('ui/cfg/go2rtc.js');
+  const html = read('ui/config.html');
+  assert.match(html, /<script src="\/js\/go2rtc-source-form\.js\?v=\{\{\.BuildVersion\}\}"><\/script>/);
+  assert.match(html, /go2rtc-source-form\.css/);
+  assert.match(cfg, /type="hidden" data-path="' \+ escapeAttr\(base \+ '\.source'\)/, 'the built URL travels through the existing source path');
+  assert.match(cfg, /\/api\/go2rtc\/source-types/);
+  assert.doesNotMatch(sourceBetween(cfg, 'function go2rtcSourceBlock', 'function go2rtcApplySource'), /go2rtcSecret\(base \+ '\.source'/, 'the main source no longer uses the raw secret field');
+  const sourceInput = context.content.control('go2rtc.streams.0.source');
+  assert.equal(sourceInput.type, 'hidden');
+  assert.equal(sourceInput.value, '••••••••', 'the masked saved source is kept until the form builds a new URL');
 
   typeName(1, 'Garage side');
   const edited = [stream('front-door', 'Front door'), stream('garage', 'Garage side'), stream('backyard', 'Backyard')];

@@ -54,7 +54,7 @@
   "help.go2rtc.stream_enabled": "無効な配信は同期されず表示できません。",
   "help.go2rtc.stream_id": "小文字、数字、ハイフン、アンダースコアのみ。ソース保存後はIDがロックされます。",
   "help.go2rtc.stream_name": "ユーザーとエージェントに表示する分かりやすい名前です。",
-  "help.go2rtc.source": "許可: rtsp、rtsps、rtspx、http、https、onvif。完全なURLは暗号化Vaultだけに保存されます。",
+  "help.go2rtc.source": "カメラの種類を選んでフィールドを入力すると、AuraGoがgo2rtcのソースURLを作成します。対応: RTSP、HTTP、ONVIF、RTMP、Tapo、Kasa、DVR-IP、Bubble、EseeCloud、DoorBird、GoPro、Home Assistant、Ring、Nest、HomeKit、Roborock、Wyze、Ivideon、WebRTC、WebTorrent。Tuyaカメラは「Tuyaカメラを追加」から追加します。完全なURLは暗号化Vaultだけに保存されます。",
   "help.go2rtc.image": "確認済み既定値: 不変digest付きgo2rtc 1.9.14。他の版を監査した場合だけ変更してください。",
   "help.go2rtc.container_name": "AuraGoだけが管理するDockerコンテナの名前です。",
   "help.go2rtc.url": "内部sidecar URL。Dockerまたはループバックの既定値には空欄を使用します。",

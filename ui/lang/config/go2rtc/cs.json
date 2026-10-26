@@ -54,7 +54,7 @@
   "help.go2rtc.stream_enabled": "Zakázané streamy se nesynchronizují a nelze je zobrazit.",
   "help.go2rtc.stream_id": "Jen malá písmena, číslice, pomlčky a podtržítka. ID se po uložení zdroje uzamkne.",
   "help.go2rtc.stream_name": "Přívětivý název pro uživatele a agenta.",
-  "help.go2rtc.source": "Povoleno: rtsp, rtsps, rtspx, http, https a onvif. Celá URL zůstává jen v šifrovaném Vaultu.",
+  "help.go2rtc.source": "Vyberte typ kamery a vyplňte její pole; AuraGo sestaví URL zdroje go2rtc. Podporováno: RTSP, HTTP, ONVIF, RTMP, Tapo, Kasa, DVR-IP, Bubble, EseeCloud, DoorBird, GoPro, Home Assistant, Ring, Nest, HomeKit, Roborock, Wyze, Ivideon, WebRTC a WebTorrent. Kamery Tuya se přidávají přes „Přidat kameru Tuya“. Úplná URL se ukládá pouze do šifrovaného Vaultu.",
   "help.go2rtc.image": "Prověřená výchozí hodnota: go2rtc 1.9.14 s neměnným digestem. Měň jen po kontrole jiné verze.",
   "help.go2rtc.container_name": "Název Docker kontejneru spravovaného výhradně AuraGo.",
   "help.go2rtc.url": "Interní URL sidecaru. Nech prázdné pro výchozí Docker nebo loopback hodnotu.",

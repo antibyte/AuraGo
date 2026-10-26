@@ -79,7 +79,7 @@ function go2rtcSetStreams(streams) {
 }
 
 function renderGo2RTCSection(section) {
-    if (section) _go2rtcSection = section;
+    if (section) { _go2rtcSection = section; go2rtcSourceForms = {}; }
     section = section || _go2rtcSection;
     const data = go2rtcEnsureData();
     const streams = go2rtcStreams();
@@ -123,7 +123,7 @@ function renderGo2RTCSection(section) {
 			html += go2rtcSelect(base + '.tuya.main_resolution', stream.tuya.main_resolution, 'common.go2rtc_tuya.main', [['hd', 'HD'], ['sd', 'SD']]);
 			html += go2rtcSelect(base + '.tuya.sub_resolution', stream.tuya.sub_resolution || '', 'common.go2rtc_tuya.sub', [['', t('common.go2rtc_tuya.none')], ['sd', 'SD'], ['hd', 'HD']]);
 			html += '<p class="field-help">' + t('common.go2rtc_tuya.cloud_notice') + '</p>';
-		} else html += go2rtcSecret(base + '.source', stream.source || '', 'config.go2rtc.source', 'help.go2rtc.source', 'rtsp://camera.example/stream');
+		} else html += go2rtcSourceBlock(stream, index, base);
         html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">' + t('config.go2rtc.media_settings') + '</summary><div class="cfg-advanced-body">';
         for (const key of ['sub_source', 'snapshot_source']) {
 			if (stream.tuya) continue;
@@ -168,7 +168,77 @@ function renderGo2RTCSection(section) {
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    go2rtcBindSourceForms();
     go2rtcRefreshStatus();
+    if (go2rtcSourceTypes === null) {
+        go2rtcSourceTypes = [];
+        go2rtcLoadSourceTypes().then(types => {
+            go2rtcSourceTypes = types;
+            if (window.AuraConfigState && window.AuraConfigState.syncFromDOM) window.AuraConfigState.syncFromDOM();
+            renderGo2RTCSection(null);
+        }).catch(() => { go2rtcSourceTypes = null; showToast(t('common.go2rtc_source.load_failed'), 'error'); });
+    }
+}
+
+let go2rtcSourceTypes = null;
+let go2rtcSourceForms = {};
+
+function go2rtcLoadSourceTypes() {
+    return window.AuraGoSourceForm.loadCatalog(() => fetch('/api/go2rtc/source-types', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
+}
+
+// The main source is a guided form. The hidden data-path input carries the value
+// the config save already understands: the saved (masked) source until the form
+// builds a new URL. Secrets typed into the form live only in the form's memory.
+function go2rtcSourceBlock(stream, index, base) {
+    const state = go2rtcSourceForms[index] || (go2rtcSourceForms[index] = window.AuraGoSourceForm.newState(''));
+    const saved = window.AuraConfigState && window.AuraConfigState.get ? window.AuraConfigState.get('go2rtc.streams', { saved: true }) : null;
+    const savedStream = Array.isArray(saved) ? saved.find(item => item && item.id === stream.id) : null;
+    const original = savedStream ? (savedStream.source || '') : (stream.source || '');
+    const badge = stream.source_type ? '<span class="go2rtc-source-badge">' + escapeHtml(window.AuraGoSourceForm.label(go2rtcSourceTypes, stream.source_type)) + '</span>' : '';
+    return '<div class="field-group"><div class="field-label">' + t('config.go2rtc.source') + badge + '</div><div class="field-help">' + t('help.go2rtc.source') + '</div>' +
+        '<input type="hidden" data-path="' + escapeAttr(base + '.source') + '" data-original="' + escapeAttr(original) + '" value="' + escapeAttr(stream.source || '') + '">' +
+        '<div data-go2rtc-source="' + index + '">' + go2rtcSourceMarkup(index, state) + '</div></div>';
+}
+
+function go2rtcSourceMarkup(index, state) {
+    const stream = (go2rtcEnsureData().streams || [])[index] || {};
+    const empty = t(stream.source_configured ? 'common.go2rtc_source.keep_current' : 'common.go2rtc_source.choose_type');
+    return window.AuraGoSourceForm.markup(go2rtcSourceTypes || [], state, { t, emptyLabel: empty, classes: { field: 'field-group', label: 'field-label', input: 'field-input' } });
+}
+
+function go2rtcApplySource(index) {
+    const state = go2rtcSourceForms[index];
+    const hidden = document.querySelector('[data-path="go2rtc.streams.' + index + '.source"]');
+    const root = document.querySelector('[data-go2rtc-source="' + index + '"]');
+    if (!state || !hidden || !root) return;
+    const built = state.type ? window.AuraGoSourceForm.buildURL(go2rtcSourceTypes || [], state) : null;
+    hidden.value = built && built.url ? built.url : hidden.dataset.original;
+    const error = root.querySelector('.go2rtc-source-error');
+    if (error) {
+        error.textContent = built && built.error ? window.AuraGoSourceForm.errorText(t, built) : '';
+        error.hidden = !(built && built.error);
+    }
+    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Binds one camera's form; a type change redraws and rebinds only that form.
+function go2rtcBindSourceForm(root) {
+    const index = Number(root.dataset.go2rtcSource);
+    const state = go2rtcSourceForms[index];
+    const form = root.querySelector('[data-source-form]');
+    if (!state || !form) return;
+    window.AuraGoSourceForm.bind(form, state, redraw => {
+        if (redraw) {
+            root.innerHTML = go2rtcSourceMarkup(index, state);
+            go2rtcBindSourceForm(root);
+        }
+        go2rtcApplySource(index);
+    });
+}
+
+function go2rtcBindSourceForms() {
+    document.querySelectorAll('[data-go2rtc-source]').forEach(go2rtcBindSourceForm);
 }
 
 function go2rtcToggle(path, on, labelKey, helpKey, rerender) {
@@ -196,6 +266,7 @@ function go2rtcNumber(path, value, labelKey, helpKey, min, max) {
 
 function go2rtcAddStream() {
     const streams = go2rtcStreams();
+    go2rtcSourceForms = {};
     let suffix = streams.length + 1;
     let id = 'camera-' + suffix;
     while (streams.some(stream => stream.id === id)) {
@@ -208,6 +279,7 @@ function go2rtcAddStream() {
 
 function go2rtcRemoveStream(index) {
     const streams = go2rtcStreams();
+    go2rtcSourceForms = {};
     streams.splice(index, 1);
     go2rtcSetStreams(streams);
 }
