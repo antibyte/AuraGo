@@ -12,6 +12,8 @@ AuraGo can optionally manage a private RustFS server in Docker and use it throug
 
 Managed placement requires a local Linux Docker Engine. Native AuraGo publishes only to loopback; a containerized AuraGo uses a proven shared application bridge without publishing the S3 port. The Docker control network is not a data network. An unproven container placement or remote Engine is refused; use the external S3 provider for an independently administered server.
 
+Container connections use the verified RustFS container address rather than its shared DNS alias. AuraGo rechecks the address before admitting S3 access; an address change invalidates earlier managed requests without cancelling external-provider transfers.
+
 Native Engine connections must use a local Unix socket or Windows named pipe. A loopback TCP address alone cannot distinguish a local daemon from a tunnel, so native TCP placement is refused. Container placement proves its own Engine identity and supports the existing private socket proxy.
 
 The existing socket proxy needs container, image, network, volume, information/version and mutation access. RustFS does not require enabling Docker builds or exec. `docker.read_only` permits observations but refuses installation and lifecycle mutations.
@@ -53,9 +55,11 @@ Start, stop, recreate and remove are administrator actions on saved settings. Re
 
 Before saving a change that removes Docker authority, AuraGo must stop the existing runtime using the old authority. An unsuccessful stop rejects the save. If configuration was changed outside AuraGo, the UI reports blocked or unknown state rather than claiming a stop succeeded.
 
+An interrupted permission change keeps managed access blocked until the stored identity and policy are verified. After a failed confirmation read, retry the same permission save or use **Start** to reconcile the saved settings. An unknown mutation outcome requires explicit **Start**, even after retrying the save. Restarting AuraGo or saving an unrelated setting does not replay an uncertain IAM operation. A failed Vault write prevents the permission mutation from starting.
+
 The manager records the instance, Engine and volume identities. A missing or replaced volume, incompatible Engine, missing initialized bucket/IAM state or foreign container requires recovery. It must not silently create an empty replacement. Preserve the encrypted Vault, master key and both Docker volumes together for recovery. Take a consistent backup while the runtime is stopped before changing its image or storage layout. This integration does not provide an automatic downgrade or a conversion from single-node storage to a distributed deployment.
 
-Generic agent Docker/Compose access to managed RustFS containers, ownership labels and protected volumes is denied independently of the Docker host-access switch. This boundary does not make unrestricted host shell or a separately exposed Docker socket safe; those grants remain independent operator authority.
+Generic agent Docker/Compose access to managed RustFS containers, ownership labels and protected volumes is denied independently of the Docker host-access switch. RustFS service names and DNS aliases are reserved even on non-external Compose networks. This boundary does not make unrestricted host shell or a separately exposed Docker socket safe; those grants remain independent operator authority.
 
 ## Pinned dependency and verification
 

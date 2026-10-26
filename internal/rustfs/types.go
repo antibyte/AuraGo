@@ -128,6 +128,8 @@ type persistedState struct {
 	PolicyName         string `json:"policy_name"`
 	Provisioned        bool   `json:"provisioned"`
 	PolicyHash         string `json:"policy_hash,omitempty"`
+	IAMPending         bool   `json:"iam_pending,omitempty"`
+	PendingPolicyHash  string `json:"pending_policy_hash,omitempty"`
 }
 type job struct {
 	generation uint64

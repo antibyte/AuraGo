@@ -30,26 +30,55 @@ func (a *adminClient) mutation(ctx context.Context, method, name string, q url.V
 func (m *Manager) rootAdmin(s persistedState) (*adminClient, error) {
 	return newAdminClient(s.Endpoint, s.RootAccess, s.RootSecret, m.http)
 }
-func (m *Manager) disableChild(ctx context.Context, s persistedState) error {
-	admin, err := m.rootAdmin(s)
+func (m *Manager) verifyChildCredentials(ctx context.Context, s persistedState) error {
+	child, err := newAdminClient(s.Endpoint, s.ChildAccess, s.ChildSecret, m.http)
 	if err != nil {
 		return err
 	}
-	if err = admin.mutation(ctx, http.MethodPost, "update-service-account", url.Values{"accessKey": {s.ChildAccess}}, map[string]any{"newStatus": "off"}, nil); err != nil {
+	if _, err = child.native(ctx, http.MethodGet, "account/info", nil, nil, nil); err != nil {
+		return failure("recovery_required", err)
+	}
+	return nil
+}
+func (m *Manager) disableChild(ctx context.Context, s persistedState) error {
+	admin, err := m.rootAdmin(s)
+	if err != nil {
 		return err
 	}
 	var info serviceAccountInfo
 	if _, err = admin.native(ctx, http.MethodGet, "info-service-account", url.Values{"accessKey": {s.ChildAccess}}, nil, &info); err != nil {
 		return err
 	}
-	if info.Parent != s.ParentAccess || info.Status != "off" && info.Status != "disabled" {
+	if info.Parent != s.ParentAccess || info.Description != "AuraGo managed S3 "+s.Instance || info.Implied {
+		return failure("recovery_required", nil)
+	}
+	switch info.Status {
+	case "off", "disabled":
+		return nil
+	case "on", "enabled":
+		if err = m.verifyChildCredentials(ctx, s); err != nil {
+			return err
+		}
+	default:
+		return failure("credential_revocation_failed", nil)
+	}
+	if err = admin.mutation(ctx, http.MethodPost, "update-service-account", url.Values{"accessKey": {s.ChildAccess}}, map[string]any{"newStatus": "off"}, nil); err != nil {
+		return err
+	}
+	if _, err = admin.native(ctx, http.MethodGet, "info-service-account", url.Values{"accessKey": {s.ChildAccess}}, nil, &info); err != nil {
+		return err
+	}
+	if info.Parent != s.ParentAccess || info.Description != "AuraGo managed S3 "+s.Instance || info.Implied {
+		return failure("recovery_required", nil)
+	}
+	if info.Status != "off" && info.Status != "disabled" {
 		return failure("credential_revocation_failed", nil)
 	}
 	return nil
 }
 func (m *Manager) reconcileIAM(ctx context.Context, cfg *config.Config, s *persistedState) error {
 	if s.Provisioned {
-		if err := m.inspectEstablishedIAM(ctx, cfg, *s); err != nil {
+		if err := m.inspectEstablishedIAM(ctx, cfg, *s, true); err != nil {
 			return err
 		}
 	}
@@ -79,16 +108,22 @@ func (m *Manager) reconcileIAM(ctx context.Context, cfg *config.Config, s *persi
 	}
 	childExists := code == http.StatusOK
 	if childExists {
-		if child.Parent != s.ParentAccess || child.Description != "AuraGo managed S3 "+s.Instance {
+		if child.Parent != s.ParentAccess || child.Description != "AuraGo managed S3 "+s.Instance || child.Implied {
 			return failure("recovery_required", nil)
 		}
-		if err = m.disableChild(ctx, *s); err != nil {
+	}
+	desiredPolicyHash := policyHash(policy)
+	if !s.IAMPending {
+		s.IAMPending = true
+		s.PendingPolicyHash = desiredPolicyHash
+		if err = m.saveState(*s); err != nil {
 			return err
 		}
 	}
-	s.PolicyHash = ""
-	if err = m.saveState(*s); err != nil {
-		return err
+	if childExists && child.Status != "off" && child.Status != "disabled" {
+		if err = m.disableChild(ctx, *s); err != nil {
+			return err
+		}
 	}
 	if err = admin.mutation(ctx, http.MethodPut, "add-canned-policy", url.Values{"name": {s.PolicyName}}, json.RawMessage(policy), nil); err != nil {
 		return err
@@ -167,13 +202,18 @@ func (m *Manager) reconcileIAM(ctx context.Context, cfg *config.Config, s *persi
 		return failure("credential_revocation_failed", nil)
 	}
 	s.Provisioned = true
-	s.PolicyHash = policyHash(policy)
+	s.PolicyHash = desiredPolicyHash
+	s.IAMPending = false
+	s.PendingPolicyHash = ""
 	return nil
 }
 
 // Initialized stores are recovery targets, never candidates for silent IAM or bucket bootstrap.
-func (m *Manager) inspectEstablishedIAM(ctx context.Context, cfg *config.Config, s persistedState) error {
+func (m *Manager) inspectEstablishedIAM(ctx context.Context, cfg *config.Config, s persistedState, allowPending bool) error {
 	if s.InitialBucket == "" || cfg.RustFS.Bucket != s.InitialBucket {
+		return failure("recovery_required", nil)
+	}
+	if (s.Provisioned && s.PolicyHash == "") || (s.IAMPending && !allowPending) {
 		return failure("recovery_required", nil)
 	}
 	admin, err := m.rootAdmin(s)
@@ -205,21 +245,38 @@ func (m *Manager) inspectEstablishedIAM(ctx context.Context, cfg *config.Config,
 	if _, err = admin.native(ctx, http.MethodGet, "info-service-account", url.Values{"accessKey": {s.ChildAccess}}, nil, &child); err != nil || child.Parent != s.ParentAccess || child.Description != "AuraGo managed S3 "+s.Instance || child.Implied {
 		return failure("recovery_required", fmt.Errorf("established IAM artifact missing or changed"))
 	}
-	if s.PolicyHash != "" && (policyHash(policy.Document) != s.PolicyHash || policyHash([]byte(child.Policy)) != s.PolicyHash) {
+	actualPolicyHash := policyHash(policy.Document)
+	childPolicyHash := policyHash([]byte(child.Policy))
+	if s.IAMPending {
+		allowed := map[string]bool{s.PolicyHash: true, policyHash(generatePolicy(effectivePermissions(cfg))): true}
+		if s.PendingPolicyHash != "" {
+			allowed[s.PendingPolicyHash] = true
+		}
+		if !allowed[actualPolicyHash] || !allowed[childPolicyHash] {
+			return failure("recovery_required", fmt.Errorf("established IAM artifact missing or changed"))
+		}
+		switch child.Status {
+		case "on", "enabled", "off", "disabled":
+		default:
+			return failure("recovery_required", nil)
+		}
+	} else if actualPolicyHash != s.PolicyHash || childPolicyHash != s.PolicyHash {
 		return failure("recovery_required", fmt.Errorf("established IAM artifact missing or changed"))
 	}
-	if s.PolicyHash != "" && s.PolicyHash == policyHash(generatePolicy(effectivePermissions(cfg))) {
+	if s.IAMPending {
+		if child.Status == "on" || child.Status == "enabled" {
+			if err = m.verifyChildCredentials(ctx, s); err != nil {
+				return err
+			}
+		}
+	} else if s.PolicyHash == policyHash(generatePolicy(effectivePermissions(cfg))) {
 		enabled := hasDataPermissions(effectivePermissions(cfg))
 		if enabled && child.Status != "on" && child.Status != "enabled" || !enabled && child.Status != "off" && child.Status != "disabled" {
 			return failure("recovery_required", nil)
 		}
 		if enabled {
-			machine, e := newAdminClient(s.Endpoint, s.ChildAccess, s.ChildSecret, m.http)
-			if e != nil {
-				return e
-			}
-			if _, e = machine.native(ctx, http.MethodGet, "account/info", nil, nil, nil); e != nil {
-				return failure("recovery_required", nil)
+			if err = m.verifyChildCredentials(ctx, s); err != nil {
+				return err
 			}
 		}
 	}

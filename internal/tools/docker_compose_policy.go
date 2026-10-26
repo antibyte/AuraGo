@@ -183,7 +183,8 @@ func dockerComposeKeepEnd(text string, limit int) string {
 }
 
 // DockerComposeModelOwner reports the first AuraGo owner whose resources the
-// resolved model names, or "". It checks container_name, aurago.managed labels
+// resolved model names, or "". RustFS service names and network aliases are
+// reserved globally. It checks container_name, aurago.managed labels
 // (canonical and legacy) on services, top-level volumes and networks, the
 // homepage image repository, named and bind volume sources, local bind volume
 // devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
@@ -195,6 +196,9 @@ func dockerComposeKeepEnd(text string, limit int) string {
 func DockerComposeModelOwner(model DockerComposeModel) string {
 	for _, name := range sortedDockerComposeKeys(model.Services) {
 		service := model.Services[name]
+		if dockerComposeRustFSAlias(name, service) != "" {
+			return dockerutil.RustFSOwner
+		}
 		if owner := dockerComposeContainerOwner(service.ContainerName); owner != "" {
 			return owner
 		}
@@ -252,6 +256,25 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 	}
 	return ""
+}
+
+// dockerComposeRustFSAlias reports a reserved RustFS service name or DNS alias.
+func dockerComposeRustFSAlias(serviceName string, service DockerComposeService) string {
+	if dockerutil.IsRustFSContainerName(normalizeDockerComposeDNSName(serviceName)) {
+		return serviceName
+	}
+	for _, networkName := range sortedDockerComposeKeys(service.Networks) {
+		for _, alias := range service.Networks[networkName].Aliases {
+			if dockerutil.IsRustFSContainerName(normalizeDockerComposeDNSName(alias)) {
+				return alias
+			}
+		}
+	}
+	return ""
+}
+
+func normalizeDockerComposeDNSName(name string) string {
+	return strings.TrimSuffix(strings.TrimSpace(name), ".")
 }
 
 // dockerComposeServiceUsesImage reports whether matches accepts the service's

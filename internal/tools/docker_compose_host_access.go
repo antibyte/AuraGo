@@ -372,6 +372,11 @@ func (e *dockerComposeEvaluation) hostExecution(name string, service DockerCompo
 // the always tier first.
 func EvaluateDockerComposeHostAccess(model DockerComposeModel, envFiles []DockerComposeEnvFile, scope DockerComposeHostAccessScope, policy DockerComposeHostPolicy) []DockerComposeViolation {
 	e := newDockerComposeEvaluation(policy, scope)
+	for _, name := range sortedDockerComposeKeys(model.Services) {
+		if alias := dockerComposeRustFSAlias(name, model.Services[name]); alias != "" {
+			e.add(name, "service/network alias", alias, "managed RustFS names are reserved by AuraGo", true)
+		}
+	}
 	buildsImages := scope == DockerComposeScopeRun || scope == DockerComposeScopeBuild
 	for _, name := range sortedDockerComposeKeys(model.Services) {
 		service := model.Services[name]

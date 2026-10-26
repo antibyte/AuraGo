@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 )
 
 func managedS3AgentConfig() *config.Config {
@@ -123,6 +124,88 @@ func TestS3AuthorizationTargetAndPolicyChangesNeedFreshRun(t *testing.T) {
 	c.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return c, current }
 	if _, ok := dispatchAuthorization(c); !ok {
 		t.Fatal("unrelated save revoked S3 authority")
+	}
+}
+
+func TestDormantS3TargetChangesDoNotBlockUnrelatedDispatchOrLearning(t *testing.T) {
+	t.Run("system metrics", func(t *testing.T) {
+		baseline := &config.Config{}
+		current := baseline.Clone()
+		current.S3.Endpoint = "https://changed.invalid"
+		current.S3.SecretKey = "rotated-while-disabled"
+		baseline.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return baseline, current }
+		dc := &DispatchContext{Cfg: baseline, SessionID: t.Name(), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		call := ToolCall{Action: "system_metrics"}
+		if result := DispatchToolCallResult(t.Context(), &call, dc, "check system metrics"); result.IsError {
+			t.Fatalf("unrelated dispatch was denied: %s", result.Output)
+		}
+	})
+
+	t.Run("learning write", func(t *testing.T) {
+		_, dc, _ := correctionAgentFixture(t)
+		dc.Cfg.Learnings.Enabled = true
+		dc.LearningScope = memory.LearningScope{Project: "a"}
+		dc.MemoryCorrections.evidence["user:current"] = correctionEvidenceRecord{"user", "I prefer green tea"}
+		baseline := dc.Cfg
+		current := baseline.Clone()
+		current.S3.Endpoint = "https://changed.invalid"
+		current.S3.SecretKey = "rotated-while-disabled"
+		baseline.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return baseline, current }
+		call := rememberTestCall("I prefer green tea", "I prefer green tea")
+		result := DispatchToolCallResult(t.Context(), &call, dc, "remember my tea preference")
+		if result.IsError || learningResult(t, result.Output)["status"] != "ok" {
+			t.Fatalf("unrelated learning write failed: %s", result.Output)
+		}
+		learnings, err := dc.ShortTermMem.ListLearnings(t.Context(), dc.LearningScope, "green tea", "active", 10)
+		if err != nil || len(learnings) != 1 {
+			t.Fatalf("learning write was not persisted: count=%d err=%v", len(learnings), err)
+		}
+	})
+
+	t.Run("S3 grants still revoke while disabled", func(t *testing.T) {
+		baseline := managedS3AgentConfig()
+		baseline.S3.Enabled = false
+		current := baseline.Clone()
+		current.RustFS.AgentAccess = false
+		baseline.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return baseline, current }
+		actual, ok := dispatchAuthorization(baseline)
+		if !ok || actual.RustFS.AgentAccess {
+			t.Fatalf("RustFS agent access = %v (ok=%v), want revoked", actual.RustFS.AgentAccess, ok)
+		}
+
+		current.RustFS.Permissions.AllowedLocations[0].Prefixes = []string{"other/"}
+		if _, ok := dispatchAuthorization(baseline); ok {
+			t.Fatal("changed scoped permissions reused an existing run")
+		}
+	})
+}
+
+func TestS3EnablementChangesRevokeWithoutGranting(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		baselineEnabled bool
+		currentEnabled  bool
+	}{
+		{"active to disabled", true, false},
+		{"disabled to active", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			baseline := &config.Config{}
+			baseline.S3.Provider = config.S3ProviderExternal
+			baseline.S3.Enabled = tc.baselineEnabled
+			current := baseline.Clone()
+			current.S3.Enabled = tc.currentEnabled
+			baseline.AuthorizationSnapshots = func() (*config.Config, *config.Config) { return baseline, current }
+			actual, ok := dispatchAuthorization(baseline)
+			if !ok || actual.S3.Enabled {
+				t.Fatalf("S3 authorization = %+v (ok=%v), want the run's grant disabled", actual.S3, ok)
+			}
+			dc := &DispatchContext{Cfg: baseline, SessionID: t.Name(), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+			call := ToolCall{Action: "s3_storage", Operation: "list_objects"}
+			if result := DispatchToolCallResult(t.Context(), &call, dc, "list S3 objects"); !result.IsError {
+				t.Fatalf("S3 call retained or gained access: %s", result.Output)
+			}
+		})
 	}
 }
 

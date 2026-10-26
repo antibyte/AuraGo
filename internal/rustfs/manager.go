@@ -16,6 +16,7 @@ import (
 
 type Manager struct {
 	prepared           bool
+	preparedIAMTarget  string
 	uncertain          bool
 	external           context.Context
 	externalCancel     context.CancelFunc
@@ -87,6 +88,8 @@ func (m *Manager) Configure(next *config.Config) {
 		m.mu.Unlock()
 		return
 	}
+	preparedIAMTarget := m.preparedIAMTarget == configFingerprint(next)
+	m.preparedIAMTarget = ""
 	m.prepared = false
 	previous := m.cfg
 	if externalScopeFingerprint(previous) != externalScopeFingerprint(next) || m.externalBlocked {
@@ -109,6 +112,9 @@ func (m *Manager) Configure(next *config.Config) {
 	}
 	if m.state.Provisioned && m.state.DesiredRunning && m.status.Running && next.RustFS.Enabled && next.Docker.Enabled && !next.Docker.ReadOnly && m.state.PolicyHash != policyHash(generatePolicy(effectivePermissions(next))) {
 		action = ActionStart
+		if m.state.IAMPending && !preparedIAMTarget {
+			action = ""
+		}
 	}
 	if m.uncertain {
 		action = ""
@@ -209,13 +215,31 @@ func (m *Manager) PrepareReconfigure(ctx context.Context, next *config.Config) (
 		return failure("docker_readonly", nil)
 	}
 	if s.Provisioned && !mustStop && (targetFingerprint(old) != targetFingerprint(next) || policyHash(generatePolicy(effectivePermissions(old))) != policyHash(generatePolicy(effectivePermissions(next)))) {
-		if err = m.disableChild(ctx, s); err != nil {
+		endpoint, refreshErr := m.refreshOwnedEndpoint(ctx, old, s)
+		if refreshErr != nil {
+			return refreshErr
+		}
+		s.Endpoint = endpoint
+		nextPolicyHash := policyHash(generatePolicy(effectivePermissions(next)))
+		if s.IAMPending && s.PendingPolicyHash != nextPolicyHash {
+			return failure("recovery_required", nil)
+		}
+		if err = m.inspectEstablishedIAM(ctx, old, s, s.IAMPending); err != nil {
 			return err
 		}
-		s.PolicyHash = ""
+		if !s.IAMPending {
+			s.IAMPending = true
+			s.PendingPolicyHash = nextPolicyHash
+		}
 		if err = m.saveState(s); err != nil {
 			return err
 		}
+		if err = m.disableChild(ctx, s); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		m.preparedIAMTarget = configFingerprint(next)
+		m.mu.Unlock()
 	}
 	if mustStop {
 		return m.stopRuntime(ctx, s, true)
@@ -490,6 +514,7 @@ func (m *Manager) AcquireS3(ctx context.Context, cfg *config.Config, agent bool)
 	generation := m.generationIDLocked()
 	desired := m.desired
 	managed := cfg.S3.Provider == config.S3ProviderRustFS
+	var managedState persistedState
 	if !managed {
 		generation = m.externalIDLocked()
 		desired = m.external
@@ -513,13 +538,33 @@ func (m *Manager) AcquireS3(ctx context.Context, cfg *config.Config, agent bool)
 			return nil, failure("permission_pending", nil)
 		}
 		lease.Permissions = intersectPermissions(effectivePermissions(cfg), effectivePermissions(m.cfg))
-		lease.Endpoint = m.state.Endpoint
+		managedState = m.state
 		lease.Region = Region
 		lease.Bucket = cfg.RustFS.Bucket
-		lease.AccessKey = m.state.ChildAccess
-		lease.SecretKey = m.state.ChildSecret
 	}
 	m.mu.Unlock()
+	if managed {
+		endpoint, err := m.refreshOwnedEndpoint(ctx, cfg, managedState)
+		if err != nil {
+			return nil, err
+		}
+		m.mu.Lock()
+		if m.closed || m.owner.Err() != nil || ctx.Err() != nil || m.generationIDLocked() != generation || m.state.Instance != managedState.Instance || m.state.ContainerID != managedState.ContainerID || m.blocked || !m.status.Ready {
+			m.mu.Unlock()
+			return nil, failure("stale_target", nil)
+		}
+		if endpoint != m.state.Endpoint {
+			m.updateManagedEndpointLocked(endpoint)
+		}
+		desired = m.desired
+		generation = m.generationIDLocked()
+		lease.Endpoint = endpoint
+		lease.AccessKey = m.state.ChildAccess
+		lease.SecretKey = m.state.ChildSecret
+		lease.Permissions = intersectPermissions(effectivePermissions(cfg), effectivePermissions(m.cfg))
+		lease.Generation = generation
+		m.mu.Unlock()
+	}
 	if !managed && (lease.AccessKey == "" || lease.SecretKey == "") {
 		if m.vault == nil {
 			return nil, failure("s3_credentials_unavailable", nil)

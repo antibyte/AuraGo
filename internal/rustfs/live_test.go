@@ -106,6 +106,9 @@ func TestLiveRustFS(t *testing.T) {
 		}
 	})
 	waitOperation(t, m, ActionInstall)
+	if cfg.Runtime.IsDocker {
+		installLiveRustFSAliasCollision(t, m, cfg)
+	}
 	status := m.Status()
 	if !status.Ready || !status.Provisioned || status.AccessState != "ready" {
 		t.Fatalf("runtime state %s/%s", status.State, status.AccessState)

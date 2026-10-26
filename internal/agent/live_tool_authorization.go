@@ -137,6 +137,11 @@ func sameS3AuthorizationTarget(a, b *config.Config) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
+	// Dormant S3 settings cannot redirect this run; permission changes are
+	// still checked by intersectAuthorizationFields.
+	if !a.S3.Enabled && !b.S3.Enabled {
+		return true
+	}
 	provider := func(c *config.Config) string {
 		if c.S3.Provider == "" {
 			return config.S3ProviderExternal

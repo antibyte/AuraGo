@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -40,8 +40,13 @@ type containerInfo struct {
 			HostIP   string `json:"HostIp"`
 			HostPort string
 		}
-		Networks map[string]struct{ NetworkID string }
+		Networks map[string]containerNetwork
 	}
+}
+type containerNetwork struct {
+	NetworkID         string
+	IPAddress         string
+	GlobalIPv6Address string
 }
 type volumeInfo struct {
 	Mountpoint string
@@ -50,7 +55,7 @@ type volumeInfo struct {
 	Labels     map[string]string
 	Options    map[string]string
 }
-type placement struct{ engine, network, endpoint string }
+type placement struct{ engine, network, networkID string }
 
 func (m *Manager) labels(role string, s persistedState) map[string]string {
 	labels := dockerutil.ManagedLabels(dockerutil.RustFSOwner, "rustfs", role, "")
@@ -99,21 +104,60 @@ func (m *Manager) validateRuntimeSpec(info containerInfo, currentImage bool) err
 	}
 	return nil
 }
-func (m *Manager) observedEndpoint(cfg *config.Config, info containerInfo, p placement) (string, error) {
-	if info.HostConfig.NetworkMode != p.network {
+func (m *Manager) observedEndpoint(cfg *config.Config, s persistedState, info containerInfo, p placement) (string, error) {
+	if info.ID == "" || s.ContainerID != "" && info.ID != s.ContainerID || !owns(info.Config.Labels, s, "runtime") || info.HostConfig.NetworkMode != p.network {
 		return "", failure("unsupported_placement", nil)
 	}
 	if cfg.Runtime.IsDocker {
-		if _, ok := info.NetworkSettings.Networks[p.network]; !ok || len(info.NetworkSettings.Ports["9000/tcp"]) != 0 {
+		attached, ok := info.NetworkSettings.Networks[p.network]
+		if !ok || p.networkID == "" || attached.NetworkID != p.networkID || len(info.NetworkSettings.Ports["9000/tcp"]) != 0 {
 			return "", failure("unsupported_placement", nil)
 		}
-		return p.endpoint, nil
+		address := strings.TrimSpace(attached.IPAddress)
+		if address == "" {
+			address = strings.TrimSpace(attached.GlobalIPv6Address)
+		}
+		ip := net.ParseIP(address)
+		if ip == nil || !ip.IsGlobalUnicast() || ip.IsUnspecified() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsMulticast() {
+			return "", failure("unsupported_placement", nil)
+		}
+		return "http://" + net.JoinHostPort(ip.String(), "9000"), nil
 	}
 	bindings := info.NetworkSettings.Ports["9000/tcp"]
 	if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort == "" {
 		return "", failure("unsupported_placement", nil)
 	}
 	return "http://127.0.0.1:" + bindings[0].HostPort, nil
+}
+
+func (m *Manager) refreshOwnedEndpoint(ctx context.Context, cfg *config.Config, s persistedState) (string, error) {
+	p, err := m.provePlacement(ctx, cfg, s)
+	if err != nil {
+		return "", err
+	}
+	info, found, err := m.inspectContainer(ctx, s)
+	if err != nil {
+		return "", err
+	}
+	if !found || !info.State.Running {
+		return "", failure("runtime_unavailable", nil)
+	}
+	if err = m.validateRuntimeSpec(info, true); err != nil {
+		return "", err
+	}
+	return m.observedEndpoint(cfg, s, info, p)
+}
+
+// A new owned endpoint revokes managed leases while leaving external S3 leases valid.
+func (m *Manager) updateManagedEndpointLocked(endpoint string) {
+	if endpoint == "" || endpoint == m.state.Endpoint {
+		return
+	}
+	m.desiredCancel()
+	m.desired, m.desiredCancel = context.WithCancel(m.owner)
+	m.generation++
+	m.state.Endpoint = endpoint
+	m.status.Endpoint = endpoint
 }
 func (m *Manager) inspectVolume(ctx context.Context, name, role, created string, s persistedState) (volumeInfo, bool, error) {
 	var volume volumeInfo
@@ -179,8 +223,8 @@ func (m *Manager) provePlacement(ctx context.Context, cfg *config.Config, s pers
 		}
 	}
 	type candidate struct {
-		name     string
-		internal bool
+		name, networkID string
+		internal        bool
 	}
 	var networks []candidate
 	for name, attached := range own.NetworkSettings.Networks {
@@ -192,7 +236,7 @@ func (m *Manager) provePlacement(ctx context.Context, cfg *config.Config, s pers
 			Internal   bool
 		}
 		if _, err := m.docker.DoJSON(ctx, http.MethodGet, "networks/"+url.PathEscape(name), nil, &network); err == nil && network.Driver == "bridge" && network.ID != "" && network.ID == attached.NetworkID {
-			networks = append(networks, candidate{name, network.Internal})
+			networks = append(networks, candidate{name: name, networkID: attached.NetworkID, internal: network.Internal})
 		}
 	}
 	sort.Slice(networks, func(i, j int) bool {
@@ -205,7 +249,7 @@ func (m *Manager) provePlacement(ctx context.Context, cfg *config.Config, s pers
 		return p, failure("unsupported_placement", nil)
 	}
 	p.network = networks[0].name
-	p.endpoint = "http://" + m.names.container + ":9000"
+	p.networkID = networks[0].networkID
 	return p, nil
 }
 func (m *Manager) Preflight(ctx context.Context) (Preflight, error) {
@@ -256,13 +300,11 @@ func (m *Manager) Preflight(ctx context.Context) (Preflight, error) {
 			return fail(err)
 		}
 		if info.State.Running {
-			endpoint, e := m.observedEndpoint(cfg, info, place)
+			endpoint, e := m.observedEndpoint(cfg, s, info, place)
 			if e != nil {
 				return fail(e)
 			}
-			if s.Endpoint != endpoint {
-				return fail(failure("recovery_required", nil))
-			}
+			s.Endpoint = endpoint
 		}
 	}
 	_, data, err := m.inspectVolume(ctx, m.names.data, "data", s.DataCreated, s)
@@ -279,7 +321,7 @@ func (m *Manager) Preflight(ctx context.Context) (Preflight, error) {
 	if found && info.State.Running && s.Endpoint != "" {
 		ready = m.ready(ctx, s.Endpoint) == nil
 		if ready && s.Provisioned {
-			if err := m.inspectEstablishedIAM(ctx, cfg, s); err != nil {
+			if err := m.inspectEstablishedIAM(ctx, cfg, s, false); err != nil {
 				return fail(err)
 			}
 		}
@@ -288,6 +330,9 @@ func (m *Manager) Preflight(ctx context.Context) (Preflight, error) {
 	defer m.mu.Unlock()
 	if generation != m.generation || configFingerprint(cfg) != m.fingerprint || ctx.Err() != nil {
 		return p, failure("stale_target", nil)
+	}
+	if s.Endpoint != "" && m.state.Instance == s.Instance && m.state.ContainerID == s.ContainerID && m.state.Endpoint != s.Endpoint && m.active == nil && !m.prepared && !m.uncertain && !m.blocked {
+		m.updateManagedEndpointLocked(s.Endpoint)
 	}
 	m.status.Installed = found
 	m.status.Running = found && info.State.Running
@@ -530,14 +575,12 @@ func (m *Manager) ensureRuntime(ctx context.Context, cfg *config.Config, j *job)
 		}
 	}
 	if s.Provisioned && found && info.State.Running {
-		endpoint, e := m.observedEndpoint(cfg, info, p)
+		endpoint, e := m.observedEndpoint(cfg, s, info, p)
 		if e != nil {
 			return e
 		}
-		if endpoint != s.Endpoint {
-			return failure("recovery_required", nil)
-		}
-		if err = m.inspectEstablishedIAM(ctx, cfg, s); err != nil {
+		s.Endpoint = endpoint
+		if err = m.inspectEstablishedIAM(ctx, cfg, s, true); err != nil {
 			return err
 		}
 	}
@@ -609,7 +652,10 @@ func (m *Manager) ensureRuntime(ctx context.Context, cfg *config.Config, j *job)
 	}
 	s.DesiredRunning = true
 	if cfg.Runtime.IsDocker {
-		s.Endpoint = p.endpoint
+		s.Endpoint, err = m.observedEndpoint(cfg, s, info, p)
+		if err != nil {
+			return err
+		}
 	} else {
 		bindings := info.NetworkSettings.Ports["9000/tcp"]
 		if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort == "" {

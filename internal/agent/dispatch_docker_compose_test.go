@@ -89,6 +89,38 @@ func TestDockerComposePolicyBlocksOwnedResourcesHiddenFromRawText(t *testing.T) 
 	}
 }
 
+func TestDockerComposePolicyBlocksRustFSDNSAliases(t *testing.T) {
+	workspace := t.TempDir()
+	writeComposeFixture(t, workspace, "stack/compose.yml", "services:\n  fixture:\n    image: fixture\n")
+	dockerCfg := tools.DockerConfig{WorkspaceDir: workspace}
+	cases := map[string]struct {
+		resolved string
+		blocked  bool
+	}{
+		"runtime alias":                       {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, true},
+		"alias with external false":           {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app","external":false}}}`, true},
+		"alias with external omitted":         {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app"}}}`, true},
+		"DNS case and trailing dot":           {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["AURAGO-RUSTFS."]}}}},"networks":{"app":{"name":"project_app"}}}`, true},
+		"seed alias":                          {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs-key-seed"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, true},
+		"automatic service alias":             {`{"services":{"aurago-rustfs":{"image":"fixture","networks":{"app":{}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, true},
+		"automatic seed service alias":        {`{"services":{"aurago-rustfs-key-seed":{"image":"fixture"}}}`, true},
+		"unrelated external alias":            {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["api"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, false},
+		"same service key on project network": {`{"services":{"aurago-rustfs":{"image":"fixture","networks":{"app":{}}}},"networks":{"app":{"name":"project_app"}}}`, true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			for _, command := range []string{"up -d", "ps"} {
+				stubDockerComposeResolver(t, func(string) (string, error) { return tc.resolved, nil })
+				got := dockerComposePolicy(context.Background(), &config.Config{}, dockerCfg, dockerArgs{Operation: "compose", File: "stack/compose.yml", Command: command})
+				blocked := strings.Contains(got, `"code":"docker_managed_rustfs_resource"`)
+				if blocked != tc.blocked {
+					t.Fatalf("%s: dockerComposePolicy() = %s, blocked=%v", command, got, blocked)
+				}
+			}
+		})
+	}
+}
+
 func TestDockerComposePolicyKeepsRawTokenMatches(t *testing.T) {
 	workspace := t.TempDir()
 	writeComposeFixture(t, workspace, "compose.yml", "# proxies aurago-homepage\nservices:\n  web:\n    image: alpine\n")
