@@ -1,0 +1,321 @@
+/* Homepage Studio annotate mode: snapshot layer, marks, popover and chips.
+   Every colour comes from the --hp-* tokens declared on .vd-hp-studio. */
+
+.vd-hp-annotate-layer[hidden],
+.vd-hp-annotate-label[hidden],
+.vd-hp-annotate-bar[hidden],
+.vd-hp-mark-popover[hidden],
+.vd-hp-mark-tray[hidden],
+.vd-hp-annotate-hover[hidden],
+.vd-hp-annotate-drag[hidden] {
+    display: none !important;
+}
+
+.vd-hp-stage.is-annotating .vd-hp-preview-iframe {
+    visibility: hidden;
+}
+
+.vd-hp-annotate-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: auto;
+    cursor: crosshair;
+    background: var(--hp-bg);
+    outline: none;
+}
+
+.vd-hp-annotate-layer:focus-visible {
+    box-shadow: inset 0 0 0 3px var(--hp-accent);
+}
+
+.vd-hp-annotate-canvas {
+    position: relative;
+}
+
+.vd-hp-annotate-shot {
+    display: block;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+    pointer-events: none;
+}
+
+.vd-hp-annotate-hover,
+.vd-hp-annotate-drag,
+.vd-hp-mark-outline {
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.vd-hp-annotate-hover,
+.vd-hp-mark-outline.is-element {
+    border: 2px solid var(--hp-accent);
+}
+
+.vd-hp-annotate-hover {
+    background: var(--hp-accent-soft);
+}
+
+.vd-hp-annotate-drag,
+.vd-hp-mark-outline.is-area {
+    border: 2px dashed var(--hp-warm);
+    background: color-mix(in srgb, var(--hp-warm) 12%, transparent);
+}
+
+.vd-hp-mark-badge {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid var(--hp-accent);
+    background: var(--hp-surface-strong);
+    color: var(--hp-text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    pointer-events: auto;
+    /* Keep the badge readable at every device scale. */
+    transform: scale(calc(1 / var(--hp-device-scale, 1)));
+    transform-origin: top left;
+}
+
+.vd-hp-mark-badge.is-area {
+    border-color: var(--hp-warm);
+}
+
+.vd-hp-annotate-label {
+    position: absolute;
+    z-index: 7;
+    max-width: 60%;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--hp-border);
+    background: var(--hp-surface-strong);
+    color: var(--hp-text);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+.vd-hp-annotate-bar {
+    position: absolute;
+    z-index: 7;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--hp-glass-border);
+    background: var(--hp-glass);
+    color: var(--hp-text);
+    box-shadow: var(--hp-shadow);
+}
+
+.vd-hp-annotate-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--hp-muted);
+}
+
+.vd-hp-annotate-path input {
+    width: 180px;
+    min-height: 30px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid var(--hp-border);
+    background: var(--hp-control);
+    color: var(--hp-text);
+    font-family: var(--vd-font-mono, monospace);
+    font-size: 12px;
+}
+
+.vd-hp-annotate-path input:focus-visible,
+.vd-hp-mark-popover-input:focus-visible {
+    outline: 2px solid var(--hp-accent);
+    outline-offset: 1px;
+}
+
+.vd-hp-annotate-status {
+    font-size: 12px;
+    color: var(--hp-muted);
+}
+
+.vd-hp-annotate-action {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--hp-border);
+    background: var(--hp-control);
+    color: var(--hp-text);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.vd-hp-annotate-action:hover {
+    background: var(--hp-control-hover);
+}
+
+.vd-hp-annotate-action:focus-visible {
+    outline: 2px solid var(--hp-accent);
+    outline-offset: 2px;
+}
+
+.vd-hp-annotate-action.is-primary {
+    border-color: var(--hp-accent-ring);
+    background: var(--hp-accent-soft);
+}
+
+.vd-hp-annotate-action.is-danger {
+    color: var(--hp-danger);
+}
+
+.vd-hp-annotate-action:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.vd-hp-mark-popover {
+    position: absolute;
+    z-index: 8;
+    width: 264px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid var(--hp-glass-border);
+    background: var(--hp-surface-strong);
+    color: var(--hp-text);
+    box-shadow: var(--hp-shadow);
+}
+
+.vd-hp-mark-popover-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.vd-hp-mark-popover-input {
+    resize: vertical;
+    min-height: 64px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--hp-border);
+    background: var(--hp-control);
+    color: var(--hp-text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.vd-hp-mark-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.vd-hp-mark-popover-actions .is-danger {
+    margin-right: auto;
+}
+
+.vd-hp-mark-tray {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px 0;
+    border-top: 1px solid var(--hp-border);
+    background: var(--hp-glass);
+}
+
+.vd-hp-mark-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    border-radius: 999px;
+    border: 1px solid var(--hp-border);
+    background: var(--hp-control);
+}
+
+.vd-hp-mark-chip-open,
+.vd-hp-mark-remove,
+.vd-hp-mark-clear {
+    border: 0;
+    background: transparent;
+    color: var(--hp-text);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.vd-hp-mark-chip-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 220px;
+    padding: 3px 4px 3px 4px;
+}
+
+.vd-hp-mark-num {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid var(--hp-accent);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.vd-hp-mark-num.is-area {
+    border-color: var(--hp-warm);
+}
+
+.vd-hp-mark-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-hp-mark-remove {
+    padding: 3px 8px 3px 2px;
+    color: var(--hp-muted);
+}
+
+.vd-hp-mark-clear {
+    padding: 3px 6px;
+    color: var(--hp-muted);
+    text-decoration: underline;
+}
+
+.vd-hp-mark-chip-open:focus-visible,
+.vd-hp-mark-remove:focus-visible,
+.vd-hp-mark-clear:focus-visible,
+.vd-hp-mark-badge:focus-visible {
+    outline: 2px solid var(--hp-accent);
+    outline-offset: 2px;
+}
+
+.vd-hp-mark-thumb {
+    display: block;
+    max-width: 100%;
+    max-height: 160px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--hp-border);
+}

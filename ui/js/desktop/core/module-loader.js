@@ -501,7 +501,7 @@
             scripts: ['/js/desktop/apps/retro-games-views.js', '/js/desktop/apps/retro-games-player.js', '/js/desktop/apps/retro-games.js']
         },
         'homepage-studio': {
-            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
+            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/desktop-app-homepage-studio-annotate.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [
                 '/js/vendor/markdown-it.min.js',
                 '/js/vendor/highlight.min.js',
@@ -512,6 +512,7 @@
                 '/js/desktop/apps/homepage-studio-preview.js',
                 '/js/desktop/apps/homepage-studio-sites.js',
                 '/js/desktop/apps/homepage-studio-history.js',
+                '/js/desktop/apps/homepage-studio-annotate.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]
         },
