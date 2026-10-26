@@ -138,9 +138,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 - MiniMax M3/M3.1 routes, including `minimax/` model IDs, retain native tool
   schemas when the provider supports tools. Do not apply the legacy MiniMax
-  text-tool fallback; strict schemas remain disabled. The fallback rules in
-  `resolveModelCapabilities` match the model name with spaces and underscores
-  normalised to `-` ("MiniMax M3" and `minimax_m3` are M3). Verify
+  text-tool fallback; strict schemas remain disabled. In
+  `resolveModelCapabilities` only the MiniMax exemptions match the model name with
+  spaces and underscores normalised to `-` ("MiniMax M3" and `minimax_m3` are M3);
+  the GLM and abab rules match the name as configured. Verify
   `TestMiniMaxM3PreparedToolsReachAgentRequest` with the Game Maker planning tools
   and `TestResolveModelCapabilitiesNormalisesModelNameSeparators`.
 

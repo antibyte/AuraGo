@@ -56,6 +56,8 @@ func TestResolveModelCapabilitiesNormalisesModelNameSeparators(t *testing.T) {
 		{"MiniMax M2.7", false},
 		{"abab6.5", true},
 		{"glm-4", true},
+		{"GLM 4.6", false}, // separator normalisation only repairs the MiniMax exemptions
+		{"glm_4.6", false},
 		{"hf:zai-org/GLM-5.3-Flash", true},
 		{"minimax-text-01", true},
 	} {
