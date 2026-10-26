@@ -327,6 +327,7 @@ func TestHomepageStudioModuleSplitAndLoadOrder(t *testing.T) {
 		"/js/desktop/apps/homepage-studio-preview.js",
 		"/js/desktop/apps/homepage-studio-sites.js",
 		"/js/desktop/apps/homepage-studio-history.js",
+		"/js/desktop/apps/homepage-studio-annotate.js",
 		"/js/desktop/apps/homepage-studio.js",
 	}
 	lastIndex := -1
@@ -342,10 +343,11 @@ func TestHomepageStudioModuleSplitAndLoadOrder(t *testing.T) {
 	}
 
 	for global, file := range map[string]string{
-		"window.HomepageStudioPreview": "js/desktop/apps/homepage-studio-preview.js",
-		"window.HomepageStudioSites":   "js/desktop/apps/homepage-studio-sites.js",
-		"window.HomepageStudioHistory": "js/desktop/apps/homepage-studio-history.js",
-		"window.HomepageStudioApp":     "js/desktop/apps/homepage-studio.js",
+		"window.HomepageStudioPreview":  "js/desktop/apps/homepage-studio-preview.js",
+		"window.HomepageStudioSites":    "js/desktop/apps/homepage-studio-sites.js",
+		"window.HomepageStudioHistory":  "js/desktop/apps/homepage-studio-history.js",
+		"window.HomepageStudioAnnotate": "js/desktop/apps/homepage-studio-annotate.js",
+		"window.HomepageStudioApp":      "js/desktop/apps/homepage-studio.js",
 	} {
 		source := readDesktopAssetText(t, file)
 		if !strings.Contains(source, global) {
@@ -400,6 +402,7 @@ func TestHomepageStudioSitesPanelMarkers(t *testing.T) {
 	for _, want := range []string{
 		"window.HomepageStudioSites.create",
 		"window.HomepageStudioHistory.create",
+		"window.HomepageStudioAnnotate.create",
 		"window.HomepageStudioPreview.create",
 		"onSiteSelected",
 	} {
@@ -417,6 +420,7 @@ func TestHomepageStudioHasNoNativeDialogs(t *testing.T) {
 		"js/desktop/apps/homepage-studio-preview.js",
 		"js/desktop/apps/homepage-studio-sites.js",
 		"js/desktop/apps/homepage-studio-history.js",
+		"js/desktop/apps/homepage-studio-annotate.js",
 	}
 	for _, file := range files {
 		source := readDesktopAssetText(t, file)
@@ -1001,4 +1005,46 @@ assert.ok(big.height <= 1600, 'stacked crops fit the height budget: ' + big.heig
 assert.ok(big.width <= 1000, 'crops fit the width budget: ' + big.width);
 `)
 	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioSitePillRendersDrift executes the site pill renderer.
+func TestHomepageStudioSitePillRendersDrift(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const pill = fakeElement();
+pill.hidden = true;
+const esc = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const tr = (key, fallback) => fallback;
+Sites.renderSitePill(pill, { name: '<Shop>', drift_status: 'local_changed' }, { esc, tr });
+assert.equal(pill.hidden, false);
+assert.ok(pill.innerHTML.includes('&lt;Shop&gt;'));
+assert.ok(pill.innerHTML.includes('vd-hp-drift-local-changed'));
+Sites.renderSitePill(pill, { name: 'x', drift_status: 'bogus' }, { esc, tr });
+assert.ok(pill.innerHTML.includes('vd-hp-drift-not-deployed'));
+Sites.renderSitePill(pill, null, { esc, tr });
+assert.equal(pill.hidden, true);
+assert.equal(pill.textContent, '');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioAnnotateWiring pins the integration points in the main module.
+func TestHomepageStudioAnnotateWiring(t *testing.T) {
+	t.Parallel()
+
+	main := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"state.modules.annotate.takeForSend(message)",
+		"state.modules.annotate.attachThumbnail(chatLog, marks)",
+		"...(marks ? marks.context : {})",
+		"state.modules.annotate.setAvailable(hasUrl)",
+		"state.modules.annotate.contextChanged()",
+		"state.modules.annotate.count()",
+	} {
+		if !strings.Contains(main, want) {
+			t.Fatalf("homepage studio misses annotate wiring %q", want)
+		}
+	}
 }

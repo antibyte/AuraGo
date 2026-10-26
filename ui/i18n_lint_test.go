@@ -1092,6 +1092,7 @@ var desktopDynamicI18nPrefixes = []string{
 	"homepage_studio.sites_reason_",
 	"homepage_studio.history_type_",
 	"homepage_studio.history_filter_",
+	"homepage_studio.annotate_error_",
 	"homepage_studio.target_",
 }
 

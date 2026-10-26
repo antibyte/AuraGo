@@ -53,7 +53,7 @@
             selectedSiteId: 0, selectedSiteName: '', busyStart: 0,
             busyTimer: null, persistTimer: null, refreshTimer: null,
             listeners: [],
-            modules: { preview: null, sites: null, history: null }
+            modules: { preview: null, sites: null, history: null, annotate: null }
         };        instances.set(windowId, state);
 
         const suggestions = [
@@ -326,6 +326,7 @@
                     updateSitePill(detail);
                     if (state.modules.history) state.modules.history.setProjectId(state.selectedSiteId);
                     if (state.lastStatus) refreshHomepageTargets(state.lastStatus);
+                    if (state.modules.annotate) state.modules.annotate.contextChanged();
                     schedulePersist();
                 },
                 safeExternalURL,
@@ -350,28 +351,20 @@
             });
         }
 
-        function updateSitePill(detail) {
-            if (!sitePill) return;
-            const liveFrame = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
-            if (liveFrame) liveFrame.title = previewFrameTitle();
-            if (!detail) {
-                sitePill.hidden = true;
-                sitePill.textContent = '';
-                return;
-            }
-            const name = detail.name || detail.project_dir || '';
-            const drift = homepageDrift(detail.drift_status);
-            sitePill.innerHTML = `<span class="vd-hp-site-pill-name">${esc(name)}</span>` +
-                `<span class="vd-hp-drift vd-hp-drift-${drift.key}">${esc(tr('homepage_studio.sites_drift_' + drift.status, drift.status))}</span>`;
-            sitePill.hidden = false;
+        if (window.HomepageStudioAnnotate && stage) {
+            state.modules.annotate = window.HomepageStudioAnnotate.create({
+                root, stage, chatForm, windowId, api, t, iconMarkup, notify, confirmDialog, announce, readonly,
+                isDisposed: () => state.disposed,
+                context: () => ({ siteId: state.selectedSiteId, target: state.target, device: state.device, previewUrl: state.previewUrl })
+            });
         }
 
-        /* One drift enum for the whole studio: the sites module owns it. */
-        function homepageDrift(status) {
-            const module = window.HomepageStudioSites || {};
-            const known = typeof module.driftStatus === 'function' ? module.driftStatus(status) : 'not_deployed';
-            return { status: known, key: (module.DRIFT_KEYS || {})[known] || known.replace(/_/g, '-') };
+        function updateSitePill(detail) {
+            const liveFrame = previewFrame ? previewFrame.querySelector('.vd-hp-preview-iframe') : null;
+            if (liveFrame) liveFrame.title = previewFrameTitle();
+            if (sitePill && window.HomepageStudioSites) window.HomepageStudioSites.renderSitePill(sitePill, detail, { esc, tr });
         }
+
         /* Restore draft */
         const draft = loadDraft();
         if (draft) {
@@ -414,7 +407,7 @@
                 return;
             }
             const msg = chatInput.value.trim();
-            if (msg) sendMessage(msg);
+            if (msg || (state.modules.annotate && state.modules.annotate.count())) sendMessage(msg);
         });
 
         root.querySelectorAll('[data-hp-suggest]').forEach(chip => {
@@ -427,6 +420,7 @@
 
         listen(targetSelect, 'change', () => {
             state.target = targetSelect.value;
+            if (state.modules.annotate) state.modules.annotate.contextChanged();
             schedulePersist();
             loadStatus();
         });
@@ -709,6 +703,7 @@
             const hasUrl = !!safeURL;
             externalBtn.disabled = !hasUrl;
             externalBtn.classList.toggle('is-disabled', !hasUrl);
+            if (state.modules.annotate) state.modules.annotate.setAvailable(hasUrl);
             if (hasUrl) {
                 previewUrl.textContent = safeURL;
                 previewUrl.title = safeURL;
@@ -835,6 +830,8 @@
         }
 
         async function sendMessage(message) {
+            const marks = state.modules.annotate ? state.modules.annotate.takeForSend(message) : null;
+            if (marks) message = marks.message;
             chatInput.value = '';
             autoResizeTextarea(chatInput);
             state.chatBusy = true;
@@ -844,6 +841,7 @@
             if (welcome) welcome.remove();
 
             appendBubble('user', message);
+            if (marks) state.modules.annotate.attachThumbnail(chatLog, marks);
 
             const renderer = window.DesktopChatRenderer;
             const statusEl = renderer ? renderer.createThinkingStatus() : null;
@@ -930,7 +928,8 @@
                 source: 'homepage-studio',
                 target: state.target,
                 homepage_mode: true,
-                window_context: homepageWindowContext()
+                window_context: homepageWindowContext(),
+                ...(marks ? marks.context : {})
             };
 
             try {
