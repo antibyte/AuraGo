@@ -57,7 +57,7 @@ type textModeReplayResult struct {
 // text tool-call mode, answering each model turn with the next recorded reply
 // and then with plain prose. The model name is pinned to a GLM id so text mode
 // does not depend on the MiniMax name rule.
-func replayGameMakerPlanning(t *testing.T, dimension string, replies []string) textModeReplayResult {
+func replayGameMakerPlanning(t *testing.T, dimension string, replies []string, tune ...func(*RunConfig)) textModeReplayResult {
 	t.Helper()
 	runCfg, _, cleanup := newPromptPipelineTestRunConfig(t, "game-maker-replay-"+t.Name(), "game_maker")
 	defer cleanup()
@@ -70,6 +70,9 @@ func replayGameMakerPlanning(t *testing.T, dimension string, replies []string) t
 	runCfg.AllowedTools = nil
 	for _, definition := range GameMakerPhaseToolSchemas("planning", dimension) {
 		runCfg.AllowedTools = append(runCfg.AllowedTools, definition.Function.Name)
+	}
+	for _, adjust := range tune {
+		adjust(&runCfg)
 	}
 	root := t.TempDir()
 	s, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "game.db"), WorkspacePath: filepath.Join(root, "workspace"), Enabled: true, AllowCreate: true, AllowEdit: true})

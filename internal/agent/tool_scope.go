@@ -84,18 +84,7 @@ func scopeRecoveryFields(dc *DispatchContext, denied string) ([]string, string) 
 	if dc == nil || !dc.ToolScopeRestricted {
 		return nil, ""
 	}
-	names := []string{}
-	studio := false
-	for name := range dc.AllowedTools {
-		if name = canonicalNativeAlias(strings.ToLower(strings.TrimSpace(name))); name != "" && !slices.Contains(names, name) {
-			names = append(names, name)
-			studio = studio || strings.HasPrefix(name, "game_maker_")
-		}
-	}
-	slices.Sort(names)
-	if len(names) > scopeRecoveryMaxTools {
-		names = append(names[:scopeRecoveryMaxTools:scopeRecoveryMaxTools], "…")
-	}
+	names, studio := allowedToolList(dc.AllowedTools)
 	owner := gameMakerOperationOwners()[denied]
 	switch {
 	case len(names) == 0:
@@ -106,6 +95,24 @@ func scopeRecoveryFields(dc *DispatchContext, denied string) ([]string, string) 
 		return names, "Call one of allowed_tools by its exact name; operations such as set_design go in the operation argument."
 	}
 	return names, "Call one of allowed_tools by its exact name; operations go in the operation argument."
+}
+
+// allowedToolList is the normalised, sorted allow-list a model is shown: at
+// most scopeRecoveryMaxTools names, then "…". studio reports whether the run
+// may call a Game Maker tool. The list is never nil.
+func allowedToolList(allowed map[string]struct{}) (names []string, studio bool) {
+	names = []string{}
+	for name := range allowed {
+		if name = canonicalNativeAlias(strings.ToLower(strings.TrimSpace(name))); name != "" && !slices.Contains(names, name) {
+			names = append(names, name)
+			studio = studio || strings.HasPrefix(name, "game_maker_")
+		}
+	}
+	slices.Sort(names)
+	if len(names) > scopeRecoveryMaxTools {
+		names = append(names[:scopeRecoveryMaxTools:scopeRecoveryMaxTools], "…")
+	}
+	return names, studio
 }
 
 // toolScopeDeniedFor is toolScopeDeniedOutput for a run: under a restricted
