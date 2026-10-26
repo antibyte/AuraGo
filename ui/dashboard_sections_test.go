@@ -93,7 +93,7 @@ var dashboardCardPlacement = map[string][]string{
 	"logs":        {"card-logs:12"},
 	"llm":         {"card-budget:8", "card-llm-router:4", "card-helper-llm:12"},
 	"prompts":     {"card-prompt:12", "card-optimization:6", "card-compression:6"},
-	"tools":       {"card-activity:12", "card-adaptive-tools:12", "card-tooling-telemetry:12"},
+	"tools":       {"card-selftest:12", "card-activity:12", "card-adaptive-tools:12", "card-tooling-telemetry:12"},
 }
 
 // TestDashboardSidebarLinksMatchSectionPartials: one sidebar link per section partial and vice versa, in the
@@ -239,8 +239,8 @@ func TestDashboardCardsFollowSectionPlacementAndAnatomy(t *testing.T) {
 			t.Errorf("section %s cards = %v, want %v", id, got, dashboardCardPlacement[id])
 		}
 	}
-	if len(seen) != 34 {
-		t.Errorf("dashboard has %d cards, want 34", len(seen))
+	if len(seen) != 35 {
+		t.Errorf("dashboard has %d cards, want 35", len(seen))
 	}
 
 	errorCard := dashboardCardMarkup(t, readDashboardSection(t, "problems"), "card-error-patterns")

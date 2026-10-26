@@ -215,6 +215,10 @@ jobs:
           npm ci --no-audit --no-fund
           node scripts/build-codemirror.js
 
+      - name: Prepare verified Phonon resources for the AuraGo image
+        if: matrix.id == 'aurago'
+        run: python3 scripts/prepare-phonon.py --from-release latest --target linux_amd64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -240,7 +244,7 @@ jobs:
 
       - name: Verify Code Studio Go toolchain
         if: matrix.id == 'code-studio'
-        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.2"
+        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.3"
 
       - name: Verify Supertonic non-root cache
         if: matrix.id == 'supertonic'

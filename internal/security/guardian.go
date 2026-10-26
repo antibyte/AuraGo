@@ -1,6 +1,7 @@
 package security
 
 import (
+	"encoding/json"
 	"html"
 	"log/slog"
 	"regexp"
@@ -765,6 +766,14 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	if trust == toolOutputSourceData || trust == toolOutputExternal {
 		scan = g.ScanForInjection(output)
 	}
+	if trust == toolOutputExternal && scan.Level < ThreatHigh {
+		// JSON transport escapes must not hide markup from local guards or trigger a second remote judge.
+		if decoded := toolOutputJSONStrings(output); decoded != "" {
+			if decodedScan := g.ScanForInjectionLocal(decoded); decodedScan.Level > scan.Level {
+				scan = decodedScan
+			}
+		}
+	}
 	if trust == toolOutputExternal && scan.Level >= ThreatHigh {
 		if g.logger != nil {
 			g.logger.Warn("[Guardian] Withheld external tool output",
@@ -816,6 +825,26 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	}
 
 	return output
+}
+
+func toolOutputJSONStrings(output string) string {
+	if !json.Valid([]byte(output)) {
+		return ""
+	}
+	decoder := json.NewDecoder(strings.NewReader(output))
+	decoder.UseNumber()
+	var decoded strings.Builder
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		if text, ok := token.(string); ok {
+			decoded.WriteString(text)
+			decoded.WriteByte('\n')
+		}
+	}
+	return decoded.String()
 }
 
 // ScanUserInput analyzes a user message for injection attempts.

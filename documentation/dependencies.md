@@ -1,6 +1,6 @@
 # Dependency maintenance
 
-AuraGo pins Go 1.27.2 in `go.mod`, container builders, installers and release
+AuraGo pins Go 1.27.3 in `go.mod`, container builders, installers and release
 scripts. `GOTOOLCHAIN=auto` downloads that compiler when the host has an older Go.
 Release scripts select the exact compiler explicitly. The stripped executable
 budget is 200 MB (200,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
@@ -47,7 +47,7 @@ See [AuraGolf](minigolf.md).
 | --- | --- | --- |
 | go-imap / go-message | go-imap 1.2.1; go-message 0.18.1 | Mailer uses the v1 IMAP client API with UIDVALIDITY and `BODY.PEEK`, plus the MIME parser and charset readers. A v2 migration must retain the protocol fixtures, unread-state behavior, cancellation, and MIME size bounds. |
 | CYD builder PlatformIO / Starlette | PlatformIO 6.2.0; Starlette >=1.3.1,<2 (hash-pinned lock); SCons 4.11.1 | PlatformIO 6.1.19 restricts Starlette below 0.53, excluding the fixes for GHSA-82w8-qh3p-5jfq, GHSA-jp82-jpqv-5vv3, GHSA-wqp7-x3pw-xc5r, GHSA-x746-7m8f-x49c and GHSA-86qp-5c8j-p5mr. PlatformIO 6.2 also requires the matching SCons update. Rebuild the builder and run its offline self-test before publishing an image. |
-| CYD builder setuptools | >=83.0.0 (hash-pinned lock) | Python 3.11's venv seeds an older version outside PlatformIO's dependency graph. Pin its replacement too, and audit the installed Python environment as well as the requirements file. |
+| CYD builder setuptools | >=84.1.0 (hash-pinned lock) | Replaces Python 3.11's vulnerable venv seed and fixes GHSA-xmj3-9gf7-h52w. Audit the installed Python environment as well as the requirements file. |
 | CYD builder certifi | >=2026.10.19 (hash-pinned lock) | Removes compromised emSign trust roots (GHSA-6q48-6c7w-9gw2). Preserve this floor when refreshing PlatformIO's transitive dependencies. |
 | markdown-it | 15.0.3 exact pin | Fixes quadratic parsing in multiline link references and inline HTML (GHSA-gfr2-rv44-r23c, GHSA-vfgh-jcmw-g37q). Rebuild the browser vendor and chat bundles together. |
 | cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
@@ -80,8 +80,8 @@ qualification; editing a Docker build input does not update a published image.
 ACE-Step still exports its upstream frozen Python lock and uses matched hardware
 wheels. Its build-time uv is 0.13.1. Supertonic remains on upstream 1.3.1.
 The Ansible sidecar pins 14.5.0 and gives its unprivileged user a writable home.
-The CYD builder is 1.0.3; its refreshed hash lock includes Starlette 1.8.0,
-setuptools 84.0.0 and certifi 2026.10.19. All nine offline board builds and both library-gating cases
+The CYD builder is 1.0.4; its refreshed hash lock includes Starlette 1.8.0,
+setuptools 84.1.0 and certifi 2026.10.19. All nine offline board builds and both library-gating cases
 must pass before publishing this image. Hardware-qualified firmware libraries
 and board toolchains remain a coherent pinned set.
 

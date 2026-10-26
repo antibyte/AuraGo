@@ -10,6 +10,28 @@ import receiver
 
 
 class ReceiverContracts(unittest.TestCase):
+    def test_analog_initialization_has_bounded_timeout_without_replay(self):
+        radio = receiver.Receiver.__new__(receiver.Receiver)
+        radio.children, radio.serial = [], "fixture"
+
+        def reply(port, path, method="GET", data=None, timeout=3):
+            if path == "/sdrangel/audio":
+                return {"outputDevices": [{"name": "receiver"}]}
+            if path == "/sdrangel/deviceset/0/device":
+                self.assertEqual(timeout, 30)
+                raise TimeoutError("device initialization timed out")
+            self.assertEqual(timeout, 3)
+            return {}
+
+        with patch.dict(receiver.os.environ, {"XDG_RUNTIME_DIR": "/unused"}), \
+             patch.object(receiver.os, "makedirs"), patch.object(receiver, "spawn"), \
+             patch.object(receiver.time, "sleep"), patch.object(radio, "wait_http"), \
+             patch.object(receiver, "request", side_effect=reply) as request:
+            with self.assertRaises(TimeoutError):
+                radio.start_analog({})
+        writes = [call for call in request.call_args_list if call.args[1] == "/sdrangel/deviceset/0/device"]
+        self.assertEqual(len(writes), 1, "uncertain device creation was replayed")
+
     def test_analog_retuning_keeps_decoder_alive(self):
         radio = receiver.Receiver.__new__(receiver.Receiver)
         radio.lock = threading.RLock()

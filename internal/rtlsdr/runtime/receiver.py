@@ -239,7 +239,9 @@ class Receiver:
         if output is None:
             raise RuntimeError("sdr_virtual_audio_unavailable")
         api("/deviceset?direction=0", "POST")
-        api("/deviceset/0/device", "PUT", {"hwType": "RTLSDR", "direction": 0, "serial": self.serial})
+        # Cold plugin initialization can exceed the ordinary API budget on ARM64.
+        request(8091, "/sdrangel/deviceset/0/device", "PUT",
+                {"hwType": "RTLSDR", "direction": 0, "serial": self.serial}, timeout=30)
         self.configure_analog(tuning, create=True)
         api("/deviceset/0/spectrum/settings", "PATCH", {"fftSize": 1024, "fftWindow": 3,
             "fpsPeriodMs": 100, "wsSpectrumAddress": "127.0.0.1", "wsSpectrumPort": 8887})

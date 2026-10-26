@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"aurago/internal/planner"
@@ -64,17 +65,19 @@ func TestLoopbackDeadlineStillRecordsRuntimeFailure(t *testing.T) {
 	run.SuppressTurnSideEffects = true
 	run.PlannerDB = newPlannerTestDB(t)
 	t.Cleanup(func() { _ = run.PlannerDB.Close() })
-	client := newCtxBlockingSummaryClient()
-	run.LLMClient = client
 	prompts.CountTokensForModel("warmup", run.Config.LLM.Model)
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	LoopbackContext(ctx, run, "routine check", NoopBroker{})
-	select {
-	case <-client.started:
-	default:
-		t.Fatal("loop never reached the provider before its deadline")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		client := newCtxBlockingSummaryClient()
+		run.LLMClient = client
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		LoopbackContext(ctx, run, "routine check", NoopBroker{})
+		select {
+		case <-client.started:
+		default:
+			t.Fatal("loop never reached the provider before its deadline")
+		}
+	})
 	page, err := planner.ListOperationalIssues(run.PlannerDB, planner.OperationalIssueListFilter{Status: "active"})
 	if err != nil || page.Total != 1 || page.Items[0].Kind != planner.OperationalIssueKindRuntimeFailure {
 		t.Fatalf("deadline failure was hidden: page=%+v err=%v", page, err)

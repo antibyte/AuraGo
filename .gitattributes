@@ -69,3 +69,6 @@ scripts/localwiki/fixtures/*.txt text eol=lf
 # The Decisions safety patch is verified by its exact SHA-256 during builds.
 # Blank unified-diff context lines retain their required leading space.
 decisions_runtime/patches/*.patch text eol=lf whitespace=-blank-at-eol
+
+# SDR native-build patches must also apply from Windows checkouts.
+internal/rtlsdr/runtime/*.patch text eol=lf whitespace=-blank-at-eol

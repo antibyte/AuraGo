@@ -151,7 +151,7 @@ Ohne passendes Paket oder ungepinntes Binary siehst du nur die Reparaturseite.
 Für Entwickler oder wenn du den Code modifizieren willst:
 
 **Voraussetzungen:**
-- Go 1.27.2+
+- Go 1.27.3+
 - Python 3.10+ (optional, für Python-Tools)
 
 ```bash

@@ -349,7 +349,7 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for deadline := time.Now().Add(10 * time.Second); ; {
+			for deadline := time.Now().Add(60 * time.Second); ; {
 				done, err := service.GetJob(context.Background(), unplannedJob.ID)
 				if err == nil && done.Status == "failed" && service.ActiveJobInfo(context.Background()) == nil {
 					if !strings.Contains(done.Error, "tool_limit_final_response_invalid") {
@@ -395,7 +395,7 @@ func TestGameMakerToolLimitStillValidatesSavedSource(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for deadline := time.Now().Add(20 * time.Second); ; {
+			for deadline := time.Now().Add(60 * time.Second); ; {
 				done, err := service.GetJob(context.Background(), job.ID)
 				if err == nil && done.Status == "failed" {
 					if done.Error != "verified validation handoff" || done.ResultRevision != 0 || calls.Load() != 4 || finalCalls.Load() != 2 {

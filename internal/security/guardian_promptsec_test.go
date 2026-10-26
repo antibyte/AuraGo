@@ -14,12 +14,14 @@ import (
 // fakeJudge implements promptsec.LLMJudge for testing.
 type fakeJudge struct {
 	called bool
+	calls  int
 	safe   bool
 	input  string
 }
 
 func (f *fakeJudge) Judge(ctx context.Context, req promptsec.LLMJudgeRequest) (promptsec.LLMJudgeDecision, error) {
 	f.called = true
+	f.calls++
 	f.input = req.Input
 	if f.safe {
 		return promptsec.LLMJudgeDecision{Verdict: promptsec.LLMJudgeVerdictSafe, Score: 0.1, Reason: "test safe"}, nil

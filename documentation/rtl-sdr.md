@@ -146,7 +146,7 @@ Build the currently expected image locally on the server:
 
 ```sh
 docker build -f internal/rtlsdr/runtime/Dockerfile \
-  -t ghcr.io/antibyte/aurago-rtl-sdr:3 .
+  -t ghcr.io/antibyte/aurago-rtl-sdr:4 .
 docker build -f internal/rtlsdr/runtime/Dockerfile.fixtures \
   -t aurago-rtl-sdr-fixtures .
 docker run --rm --network none --cap-drop ALL \

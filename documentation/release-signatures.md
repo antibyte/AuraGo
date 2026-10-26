@@ -39,8 +39,10 @@ retain the previous optional policy unless strict verification or a key is set.
 
 `python scripts/build-release-verifier.py --check` rebuilds Linux/macOS/Windows
 amd64/arm64 helpers with pinned Go 1.27.2, CGO disabled, trimpath, no VCS stamping and
-no build ID. Every binary must match `scripts/release-verifier.json`, and every
-generated bootstrap block must match its template. Both Windows builders and the
+no build ID. A temporary stdlib-only module file keeps the bootstrap compiler
+independent of application Go updates. Every binary must match
+`scripts/release-verifier.json`, and every generated bootstrap block must match
+its template. Both Windows builders and the
 Linux builder include these checks, helpers and the repair script in release output.
 Security Gates checks reproducibility on Linux and Windows and actual Cosign/native
 interoperability with disposable keys.

@@ -21,7 +21,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 # Pin the compiler used by CI and release artifacts.
-export GOTOOLCHAIN=go1.27.2
+export GOTOOLCHAIN=go1.27.3
 
 DEPLOY_DIR="./deploy"
 RESOURCES="resources.dat"

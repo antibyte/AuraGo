@@ -34,6 +34,11 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
 - Linux is the supported native host. Other builds keep the app available but
   report `sdr_linux_required` for receiver setup. Browser clients are portable.
 
+- Device-plugin initialization has one bounded 30-second request; ordinary
+  SDRangel calls retain their 3-second budget. Never retry an uncertain device PUT.
+- Runtime patches retain LF and unified-diff context whitespace on every host;
+  `.gitattributes` owns their Windows checkout normalization.
+
 Validate with the package tests, server `TestRTLSDR*`, agent `TestRTLSDR*`, the
 headless runtime unit tests, `Dockerfile.fixtures` IQ decoder acceptance, and
 opt-in real-hardware acceptance. Changing any runtime file requires a new

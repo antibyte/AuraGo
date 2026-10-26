@@ -94,6 +94,9 @@ func (c *MQTTController) updateGenerationSubscriptions(gen *mqttGeneration, cfg 
 	if gen == nil {
 		return
 	}
+	// Broker replies must finish publishing before newer ownership replaces their snapshot.
+	gen.subscriptionOpMu.Lock()
+	defer gen.subscriptionOpMu.Unlock()
 	owners, filters := desiredSubscriptionState(c, cfg)
 	gen.subscriptionMu.Lock()
 	old := gen.subscriptions
