@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Øyeblikksbilde av siden. Tab flytter mellom elementer, Enter legger til en markering, Esc lukker.",
   "homepage_studio.annotate_limit": "Du kan legge til opptil {{max}} markeringer.",
   "homepage_studio.annotate_mark_heading": "Markering {{n}}",
+  "homepage_studio.annotate_mark_removed": "Markering {{n}} fjernet.",
   "homepage_studio.annotate_mark_saved": "Markering {{n}} lagret.",
   "homepage_studio.annotate_marks_heading": "Markeringer:",
   "homepage_studio.annotate_marks_label": "Markeringer for neste melding",

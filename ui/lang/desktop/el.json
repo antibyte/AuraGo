@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Στιγμιότυπο σελίδας. Το Tab μετακινεί μεταξύ στοιχείων, το Enter προσθέτει επισήμανση, το Esc κλείνει.",
   "homepage_studio.annotate_limit": "Μπορείτε να προσθέσετε έως {{max}} επισημάνσεις.",
   "homepage_studio.annotate_mark_heading": "Επισήμανση {{n}}",
+  "homepage_studio.annotate_mark_removed": "Η επισήμανση {{n}} αφαιρέθηκε.",
   "homepage_studio.annotate_mark_saved": "Η επισήμανση {{n}} αποθηκεύτηκε.",
   "homepage_studio.annotate_marks_heading": "Επισημάνσεις:",
   "homepage_studio.annotate_marks_label": "Επισημάνσεις για το επόμενο μήνυμα",

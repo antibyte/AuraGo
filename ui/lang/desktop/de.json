@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Seitenschnappschuss. Tab wechselt zwischen Elementen, Enter setzt eine Markierung, Escape schließt.",
   "homepage_studio.annotate_limit": "Du kannst bis zu {{max}} Markierungen setzen.",
   "homepage_studio.annotate_mark_heading": "Markierung {{n}}",
+  "homepage_studio.annotate_mark_removed": "Markierung {{n}} entfernt.",
   "homepage_studio.annotate_mark_saved": "Markierung {{n}} gespeichert.",
   "homepage_studio.annotate_marks_heading": "Markierungen:",
   "homepage_studio.annotate_marks_label": "Markierungen für die nächste Nachricht",

@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Zrzut strony. Tab przełącza między elementami, Enter dodaje znacznik, Esc zamyka.",
   "homepage_studio.annotate_limit": "Możesz dodać maksymalnie {{max}} znaczników.",
   "homepage_studio.annotate_mark_heading": "Znacznik {{n}}",
+  "homepage_studio.annotate_mark_removed": "Usunięto znacznik {{n}}.",
   "homepage_studio.annotate_mark_saved": "Zapisano znacznik {{n}}.",
   "homepage_studio.annotate_marks_heading": "Znaczniki:",
   "homepage_studio.annotate_marks_label": "Znaczniki do następnej wiadomości",

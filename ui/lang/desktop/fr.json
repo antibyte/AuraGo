@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Instantané de la page. Tab passe d'un élément à l'autre, Entrée ajoute une marque, Échap ferme.",
   "homepage_studio.annotate_limit": "Vous pouvez ajouter jusqu'à {{max}} marques.",
   "homepage_studio.annotate_mark_heading": "Marque {{n}}",
+  "homepage_studio.annotate_mark_removed": "Marque {{n}} supprimée.",
   "homepage_studio.annotate_mark_saved": "Marque {{n}} enregistrée.",
   "homepage_studio.annotate_marks_heading": "Marques :",
   "homepage_studio.annotate_marks_label": "Marques pour le prochain message",

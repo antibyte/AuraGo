@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Snímek stránky. Klávesa Tab přepíná mezi prvky, Enter přidá značku, Esc zavře.",
   "homepage_studio.annotate_limit": "Můžete přidat nejvýše {{max}} značek.",
   "homepage_studio.annotate_mark_heading": "Značka {{n}}",
+  "homepage_studio.annotate_mark_removed": "Značka {{n}} byla odebrána.",
   "homepage_studio.annotate_mark_saved": "Značka {{n}} byla uložena.",
   "homepage_studio.annotate_marks_heading": "Značky:",
   "homepage_studio.annotate_marks_label": "Značky pro další zprávu",

@@ -150,6 +150,7 @@
             available: false,
             snapshot: null,
             snapshotContext: null,
+            captureContext: null,
             marks: [],
             abortCtrl: null,
             drag: null,
@@ -358,6 +359,9 @@
             const ctrl = new AbortController();
             state.abortCtrl = ctrl;
             const ctx = context();
+            /* Remembered so a site, target or preview-URL change during the
+               first capture is noticed before any snapshot exists. */
+            state.captureContext = ctx;
             state.mode = 'capturing';
             setPressed(true);
             bar.hidden = false;
@@ -398,16 +402,21 @@
                 return Promise.resolve();
             }
             return new Promise(resolve => {
-                shot.onload = () => {
-                    shot.onload = null;
-                    shot.onerror = null;
+                /* Decoded detached: the visible image and the element map must
+                   change together, and only once the result is accepted. */
+                const probe = new Image();
+                probe.onload = () => {
+                    probe.onload = null;
+                    probe.onerror = null;
                     /* The user left annotate mode while the image was decoding. */
                     if (ctrl.signal.aborted || deps.isDisposed()) {
                         resolve();
                         return;
                     }
+                    shot.src = data.image;
                     state.snapshot = data;
                     state.snapshotContext = ctx;
+                    state.captureContext = null;
                     state.focusList = tabOrder(data.elements);
                     state.focusPos = -1;
                     canvas.style.width = data.page.width + 'px';
@@ -418,13 +427,13 @@
                     deps.announce(t('homepage_studio.annotate_ready'));
                     resolve();
                 };
-                shot.onerror = () => {
-                    shot.onload = null;
-                    shot.onerror = null;
+                probe.onerror = () => {
+                    probe.onload = null;
+                    probe.onerror = null;
                     if (!ctrl.signal.aborted && !deps.isDisposed()) failCapture('capture_failed');
                     resolve();
                 };
-                shot.src = data.image;
+                probe.src = data.image;
             });
         }
 
@@ -452,6 +461,7 @@
             }
             closePopover(false);
             state.drag = null;
+            state.captureContext = null;
             state.mode = 'idle';
             stage.classList.remove('is-annotating');
             layer.hidden = true;
@@ -508,6 +518,7 @@
         function forgetSnapshot() {
             state.snapshot = null;
             state.snapshotContext = null;
+            state.captureContext = null;
             shot.removeAttribute('src');
         }
 
@@ -568,6 +579,23 @@
             renderTray();
         }
 
+        function chatTextarea() {
+            return chatForm ? chatForm.querySelector('textarea') : null;
+        }
+
+        /* Removing a chip destroys the focused button, so focus moves to the
+           chip that took its place (else the previous one, else the composer)
+           and the removal is announced. */
+        function removeFromTray(mark) {
+            const index = state.marks.indexOf(mark);
+            const n = mark.n;
+            deleteMark(mark);
+            const chips = tray.querySelectorAll('.vd-hp-mark-chip-open');
+            const next = chips[Math.min(index, chips.length - 1)] || chatTextarea();
+            if (next) next.focus();
+            deps.announce(t('homepage_studio.annotate_mark_removed', { n }));
+        }
+
         async function confirmDiscard() {
             return !state.marks.length || !!(await deps.confirmDialog(t('homepage_studio.annotate_discard_confirm')));
         }
@@ -602,6 +630,8 @@
             exitMode(false);
             clearMarks();
             forgetSnapshot();
+            const input = chatTextarea();
+            if (input) input.focus();
         }
 
         function composeImage(marks) {
@@ -643,25 +673,61 @@
             }
         }
 
+        /* A snapshot, or a capture still in flight, belongs to the source it was
+           taken from; any other site, target or preview URL makes it stale. */
+        function contextChanged() {
+            const known = state.snapshotContext || state.captureContext;
+            if (!known || sameSource(known, context())) return;
+            const hadMarks = state.marks.length > 0;
+            exitMode(false);
+            clearMarks();
+            forgetSnapshot();
+            if (hadMarks) {
+                notice(t('homepage_studio.annotate_discarded_context'));
+                deps.announce(t('homepage_studio.annotate_discarded_context'));
+            }
+        }
+
+        /* The studio calls this whenever the preview URL is recomputed, so it
+           doubles as the preview-URL change check. */
         function setAvailable(available) {
             state.available = !!available;
             button.disabled = !state.available;
             button.classList.toggle('is-disabled', !state.available);
             button.title = t(state.available ? 'homepage_studio.annotate_button' : 'homepage_studio.annotate_unavailable');
             if (!state.available && state.mode !== 'idle') exitMode(false);
+            contextChanged();
         }
 
         listen(button, 'click', () => { toggle(); });
         listen(doneBtn, 'click', () => exitMode(true));
         listen(recaptureBtn, 'click', () => { recapture(); });
+        /* Escape belongs to annotate mode while it is active: it must not reach
+           the studio's own Escape handler, which would stop a running agent or
+           collapse a panel. Every focusable part of the mode handles it. */
+        function swallowEscape(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        listen(button, 'keydown', e => {
+            if (e.key !== 'Escape' || state.mode === 'idle') return;
+            swallowEscape(e);
+            exitMode(true);
+        });
+        listen(bar, 'keydown', e => {
+            if (e.key !== 'Escape') return;
+            swallowEscape(e);
+            exitMode(true);
+        });
+        listen(popover, 'keydown', e => {
+            if (e.key !== 'Escape') return;
+            swallowEscape(e);
+            closePopover();
+        });
         listen(pathInput, 'keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 recapture();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                exitMode(true);
             }
         });
         listen(popSave, 'click', savePopover);
@@ -676,29 +742,29 @@
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 savePopover();
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                closePopover();
             }
         });
         listen(layer, 'pointerdown', e => {
             if (state.mode !== 'annotating' || state.popover || e.button !== 0) return;
             if (e.target && e.target.closest && e.target.closest('.vd-hp-mark-badge')) return;
             const point = pagePoint(e);
-            state.drag = { x: point.x, y: point.y, moved: false, pointerId: e.pointerId };
+            /* The box uses page coordinates; the click/drag decision uses the
+               pointer's own (client) pixels so it does not shrink with the scale. */
+            state.drag = { x: point.x, y: point.y, clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId };
             try { layer.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointers have no capture */ }
             e.preventDefault();
         });
+        function draggedPast(drag, e) {
+            return Math.hypot(e.clientX - drag.clientX, e.clientY - drag.clientY) > DRAG_THRESHOLD;
+        }
         listen(layer, 'pointermove', e => {
             if (state.mode !== 'annotating' || state.popover) return;
             const point = pagePoint(e);
             if (state.drag) {
-                const box = normalizeBox(state.drag.x, state.drag.y, point.x, point.y);
-                if (box[2] > DRAG_THRESHOLD || box[3] > DRAG_THRESHOLD) {
-                    state.drag.moved = true;
-                    placeBox(dragBox, box);
-                    dragBox.hidden = false;
+                const moved = draggedPast(state.drag, e);
+                dragBox.hidden = !moved;
+                if (moved) {
+                    placeBox(dragBox, normalizeBox(state.drag.x, state.drag.y, point.x, point.y));
                     hoverBox.hidden = true;
                     hoverLabel.hidden = true;
                 }
@@ -713,7 +779,7 @@
             try { layer.releasePointerCapture(drag.pointerId); } catch (_) { /* see pointerdown */ }
             dragBox.hidden = true;
             const point = pagePoint(e);
-            if (drag.moved) {
+            if (draggedPast(drag, e)) {
                 const box = normalizeBox(drag.x, drag.y, point.x, point.y);
                 startMark({ kind: 'area', box, overlapIndexes: overlapping(state.snapshot.elements, box) });
                 return;
@@ -728,17 +794,27 @@
             if (!state.popover) hoverLabel.hidden = true;
         });
         listen(layer, 'keydown', e => {
-            if (state.mode !== 'annotating' || state.popover) return;
+            /* Escape is handled in every mode, before the early return below:
+               with the popover open it closes the popover, otherwise it leaves. */
             if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                exitMode(true);
-            } else if (e.key === 'Tab' && state.focusList.length) {
-                e.preventDefault();
+                swallowEscape(e);
+                if (state.popover) closePopover();
+                else exitMode(true);
+                return;
+            }
+            if (state.mode !== 'annotating' || state.popover) return;
+            if (e.key === 'Tab' && state.focusList.length) {
                 const count = state.focusList.length;
-                state.focusPos = e.shiftKey
-                    ? (state.focusPos <= 0 ? count - 1 : state.focusPos - 1)
-                    : (state.focusPos + 1) % count;
+                /* Tab steps through the page's elements but never wraps: past
+                   either end focus leaves the layer, so Path, Recapture and
+                   Done stay reachable (they follow the layer in the DOM). */
+                if (e.shiftKey ? state.focusPos <= 0 : state.focusPos >= count - 1) {
+                    state.focusPos = -1;
+                    showHover(-1);
+                    return;
+                }
+                e.preventDefault();
+                state.focusPos += e.shiftKey ? -1 : 1;
                 const item = state.snapshot.elements[state.focusList[state.focusPos]];
                 if (item.box[1] < layer.scrollTop || item.box[1] + item.box[3] > layer.scrollTop + layer.clientHeight) {
                     layer.scrollTop = Math.max(0, item.box[1] - 40);
@@ -761,7 +837,7 @@
             if (!target) return;
             if (target.hasAttribute('data-mark-remove')) {
                 const mark = markByNumber(target.getAttribute('data-mark-remove'));
-                if (mark) deleteMark(mark);
+                if (mark) removeFromTray(mark);
             } else if (target.hasAttribute('data-mark-clear')) {
                 discardAll();
             } else if (target.dataset.markN) {
@@ -776,24 +852,14 @@
             const mark = e.target && e.target.dataset ? markByNumber(e.target.dataset.markN) : null;
             if (!mark) return;
             e.preventDefault();
-            deleteMark(mark);
+            removeFromTray(mark);
         });
 
         setAvailable(false);
 
         return {
             setAvailable,
-            contextChanged() {
-                if (!state.snapshotContext || sameSource(state.snapshotContext, context())) return;
-                const hadMarks = state.marks.length > 0;
-                exitMode(false);
-                clearMarks();
-                forgetSnapshot();
-                if (hadMarks) {
-                    notice(t('homepage_studio.annotate_discarded_context'));
-                    deps.announce(t('homepage_studio.annotate_discarded_context'));
-                }
-            },
+            contextChanged,
             count() {
                 return state.marks.length;
             },

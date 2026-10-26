@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "पेज स्नैपशॉट। Tab से तत्वों के बीच जाएँ, Enter से चिह्न जोड़ें, Esc से बंद करें।",
   "homepage_studio.annotate_limit": "आप अधिकतम {{max}} चिह्न जोड़ सकते हैं।",
   "homepage_studio.annotate_mark_heading": "चिह्न {{n}}",
+  "homepage_studio.annotate_mark_removed": "चिह्न {{n}} हटाया गया।",
   "homepage_studio.annotate_mark_saved": "चिह्न {{n}} सहेजा गया।",
   "homepage_studio.annotate_marks_heading": "चिह्न:",
   "homepage_studio.annotate_marks_label": "अगले संदेश के लिए चिह्न",

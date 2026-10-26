@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "Istantanea della pagina. Tab passa da un elemento all'altro, Invio aggiunge un segno, Esc chiude.",
   "homepage_studio.annotate_limit": "Puoi aggiungere fino a {{max}} segni.",
   "homepage_studio.annotate_mark_heading": "Segno {{n}}",
+  "homepage_studio.annotate_mark_removed": "Segno {{n}} rimosso.",
   "homepage_studio.annotate_mark_saved": "Segno {{n}} salvato.",
   "homepage_studio.annotate_marks_heading": "Segni:",
   "homepage_studio.annotate_marks_label": "Segni per il prossimo messaggio",

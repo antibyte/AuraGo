@@ -4592,6 +4592,7 @@
   "homepage_studio.annotate_layer_label": "页面快照。按 Tab 在元素之间切换，按 Enter 添加标记，按 Esc 关闭。",
   "homepage_studio.annotate_limit": "您最多可以添加 {{max}} 个标记。",
   "homepage_studio.annotate_mark_heading": "标记 {{n}}",
+  "homepage_studio.annotate_mark_removed": "标记 {{n}} 已移除。",
   "homepage_studio.annotate_mark_saved": "标记 {{n}} 已保存。",
   "homepage_studio.annotate_marks_heading": "标记：",
   "homepage_studio.annotate_marks_label": "用于下一条消息的标记",
