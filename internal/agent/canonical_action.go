@@ -328,7 +328,7 @@ func canonicalizeNativeSkillWrapper(tc ToolCall, dc *DispatchContext) ToolCall {
 		return tc
 	}
 	if !dispatchToolAllowed(dc, "execute_skill") {
-		tc.PreparationError = toolScopeDeniedOutput("execute_skill")
+		tc.PreparationError = toolScopeDeniedFor(dc, "execute_skill")
 		return tc
 	}
 	if inner, ok := args["skill_args"].(map[string]interface{}); ok && len(inner) > 0 {

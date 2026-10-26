@@ -1246,10 +1246,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 	}
 	logger := dc.Logger
 	if !dispatchToolAllowed(dc, tc.Action) {
-		return toolScopeDeniedOutput(tc.Action)
+		return toolScopeDeniedFor(dc, tc.Action)
 	}
 	if tc.TransportAction != "" && !dispatchToolAllowed(dc, tc.TransportAction) {
-		return toolScopeDeniedOutput(tc.TransportAction)
+		return toolScopeDeniedFor(dc, tc.TransportAction)
 	}
 
 	if blocked := roleToolRestriction(tc, dc); blocked != "" {

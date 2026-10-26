@@ -70,7 +70,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		return tc
 	}
 	if !dispatchToolAllowed(dc, "invoke_tool") {
-		return fail(toolScopeDeniedOutput("invoke_tool"))
+		return fail(toolScopeDeniedFor(dc, "invoke_tool"))
 	}
 	name := stringValueFromMap(tc.Params, "tool_name", "name", "tool")
 	if strings.HasPrefix(name, "git_") && canonicalActionName(name) == "execute_shell" {
@@ -90,7 +90,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	// Scope is checked before availability, so a tool outside the run's scope
 	// answers exactly like a direct call to it and never discloses its state.
 	if !catalogEntryAllowed(dc, entry) {
-		return fail(toolScopeDeniedOutput(entry.Name))
+		return fail(toolScopeDeniedFor(dc, entry.Name))
 	}
 	if entry.Status == ToolStatusNeedsSetup {
 		return fail(toolSetupRequiredOutput(entry.HiddenReason))
