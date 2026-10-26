@@ -6,7 +6,12 @@ import (
 )
 
 const (
-	OllamaOwner = "ollama"
+	RustFSOwner                = "rustfs"
+	RustFSContainerName        = "aurago-rustfs"
+	RustFSSeedContainerName    = "aurago-rustfs-key-seed"
+	RustFSDataVolumeName       = "aurago_rustfs_data"
+	RustFSCredentialVolumeName = "aurago_rustfs_credentials"
+	OllamaOwner                = "ollama"
 	// LocalLLMOwner is the canonical owner value for AuraGo-Qwen resources.
 	LocalLLMOwner = "local-llm"
 
@@ -162,7 +167,7 @@ func IsCYDCreatorVolumeName(name string) bool {
 // ImageRepository returns the repository of an image reference: lowercase,
 // without tag and digest, and without Docker Hub's implicit "docker.io/" (or
 // "index.docker.io/") and "library/" prefixes, so "nginx", "library/nginx:1"
-// and "docker.io/library/nginx@sha256:…" share the repository "nginx". It
+// and "docker.io/library/nginx@sha256:â€¦" share the repository "nginx". It
 // returns "" for an empty reference.
 func ImageRepository(reference string) string {
 	reference = strings.ToLower(strings.TrimSpace(reference))
@@ -184,7 +189,7 @@ func ImageRepository(reference string) string {
 	return reference
 }
 
-// ImageReferenceDigest returns the "sha256:…" digest of a digest-pinned
+// ImageReferenceDigest returns the "sha256:â€¦" digest of a digest-pinned
 // reference (lowercase), or "".
 func ImageReferenceDigest(reference string) string {
 	_, digest, ok := strings.Cut(strings.ToLower(strings.TrimSpace(reference)), "@")
@@ -289,3 +294,22 @@ func ParseNumericGroupIDs(raw string) []string {
 	}
 	return result
 }
+
+// IsRustFSContainerName also recognizes Compose-prefixed reserved names.
+func IsRustFSContainerName(name string) bool {
+	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
+	for _, reserved := range []string{RustFSContainerName, RustFSSeedContainerName} {
+		if name == reserved || strings.HasSuffix(name, "-"+reserved) || strings.HasSuffix(name, "_"+reserved) || strings.Contains(name, "-"+reserved+"-") || strings.Contains(name, "_"+reserved+"_") {
+			return true
+		}
+	}
+	return false
+}
+
+func IsRustFSVolumeName(name string) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+	return name == RustFSDataVolumeName || name == RustFSCredentialVolumeName || strings.HasSuffix(name, "_"+RustFSDataVolumeName) || strings.HasSuffix(name, "_"+RustFSCredentialVolumeName)
+}
+
+// IsRustFSVolumePath covers reserved volumes and ancestors of known backing paths.
+func IsRustFSVolumePath(name string) bool { return rustFSVolumePath(name) }

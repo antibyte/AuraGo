@@ -732,6 +732,7 @@ mission_preparation:
     auto_prepare_scheduled: true                            # auto-prepare scheduled missions on change
 # ── S3-compatible storage ──────────────────────────────────────────────────────
 s3:
+    provider: external                                     # external or rustfs (managed installation)
     enabled: false
     readonly: false                                         # true = only list/download, no upload/delete/copy
     endpoint: ""                                            # e.g. https://s3.amazonaws.com or http://minio.local:9000
@@ -740,6 +741,17 @@ s3:
     use_path_style: true                                    # required for MinIO and most S3-compatible services
     insecure: false                                         # allow HTTP (non-TLS) endpoints
     # access_key and secret_key are stored in the encrypted vault — configure via Config UI
+# Optional managed RustFS server. Install and operate through the S3 Config UI.
+rustfs:
+    enabled: false
+    bucket: aurago                                         # initial bucket; data survives stop/removal
+    agent_access: false
+    permissions:
+        allow_read: false
+        allow_write: false
+        allow_delete: false
+        allowed_locations: []                              # e.g. [{bucket: aurago, prefixes: ["agent/"]}]
+    # Credentials and runtime identity are private Vault state, never YAML.
 # LLM Providers — configure via the Setup Wizard or Config UI
 # Supported types: openai, openrouter, ollama, anthropic, google, minimax, agnes,
 # workers-ai, manifest, omniroute, yepapi, custom, deepseek, groq, mistral, xai,

@@ -53,6 +53,7 @@ See [AuraGolf](minigolf.md).
 | CYD builder certifi | >=2026.10.19 (hash-pinned lock) | Removes compromised emSign trust roots (GHSA-6q48-6c7w-9gw2). Preserve this floor when refreshing PlatformIO's transitive dependencies. |
 | markdown-it | 15.0.3 exact pin | Fixes quadratic parsing in multiline link references and inline HTML (GHSA-gfr2-rv44-r23c, GHSA-vfgh-jcmw-g37q). Rebuild the browser vendor and chat bundles together. |
 | cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
+| RustFS | 1.0.4; multi-architecture image digest in `internal/rustfs/types.go` | Optional managed S3 server. Qualify native IAM privilege denials, S3 operations, revocation and retained-volume lifecycle against each new pin. See [Managed RustFS](rustfs.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
 | Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
 | pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.3 still calls the previous API. |

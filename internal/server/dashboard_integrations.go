@@ -51,6 +51,7 @@ func dashboardIntegrationFlags(cfg *config.Config) map[string]bool {
 		"uptime_kuma":      cfg.UptimeKuma.Enabled,
 		"grafana":          cfg.Grafana.Enabled,
 		"s3":               cfg.S3.Enabled,
+		"rustfs":           cfg.RustFS.Enabled,
 		"mcp":              cfg.MCP.Enabled,
 		"mcp_server":       cfg.MCPServer.Enabled,
 		"dograh":           cfg.Dograh.Enabled,

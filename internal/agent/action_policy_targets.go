@@ -177,6 +177,43 @@ func canonicalActionTargets(tc ToolCall, dc *DispatchContext) ([]string, bool) {
 		} else {
 			unknown = true
 		}
+	case "s3_storage", "s3":
+		req := decodeS3Args(tc)
+		provider, bucket := "external", req.Bucket
+		if dc != nil && dc.Cfg != nil {
+			if dc.Cfg.S3.Provider != "" {
+				provider = dc.Cfg.S3.Provider
+			}
+			if bucket == "" {
+				if provider == "rustfs" {
+					bucket = dc.Cfg.RustFS.Bucket
+				} else {
+					bucket = dc.Cfg.S3.Bucket
+				}
+			}
+		}
+		add("s3_provider", provider)
+		object := func(b, k string) { add("s3_object", provider+"/"+b+"/"+url.PathEscape(k)) }
+		switch req.Operation {
+		case "list_buckets":
+		case "list", "list_objects":
+			add("s3_prefix", provider+"/"+bucket+"/"+url.PathEscape(req.Prefix))
+		default:
+			object(bucket, req.Key)
+		}
+		if req.Operation == "copy" || req.Operation == "move" {
+			dest := req.DestinationBucket
+			if strings.TrimSpace(dest) == "" {
+				dest = bucket
+			}
+			object(dest, req.DestinationKey)
+		}
+		if req.Operation == "upload" || req.Operation == "download" {
+			file(req.LocalPath)
+		}
+		if bucket == "" && req.Operation != "list_buckets" {
+			unknown = true
+		}
 	case "execute_remote_shell":
 		remote(decodeRemoteShellArgs(tc).ServerID)
 	case "transfer_remote_file":

@@ -1107,7 +1107,11 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
-	Gog GogConfig `yaml:"gog" json:"gog"`
+	// Callbacks retain server-owned runtime identity through Config.Clone.
+	AcquireS3      func(context.Context, *Config, bool) (*RustFSS3Lease, error) `yaml:"-" json:"-"`
+	S3Availability func(*Config) FeatureAvailability                            `yaml:"-" json:"-"`
+	RustFS         RustFSConfig                                                 `yaml:"rustfs" json:"rustfs"`
+	Gog            GogConfig                                                    `yaml:"gog" json:"gog"`
 	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
 	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.
@@ -1859,6 +1863,7 @@ type Config struct {
 		BaseURL           string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
 	S3 struct {
+		Provider     string `yaml:"provider"`
 		Enabled      bool   `yaml:"enabled"`
 		ReadOnly     bool   `yaml:"readonly"`             // true = only list/download, block upload/delete/copy/move
 		Endpoint     string `yaml:"endpoint"`             // e.g. https://s3.amazonaws.com or http://minio.local:9000

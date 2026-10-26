@@ -232,6 +232,34 @@ func TestDockerComposeModelOwnerChecksTopLevelVolumeAndNetworkLabels(t *testing.
 	}
 }
 
+func TestDockerComposeModelOwnerReservesRustFSNamesAcrossNetworks(t *testing.T) {
+	cases := map[string]struct {
+		resolved string
+		want     string
+	}{
+		"runtime alias":                {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, dockerutil.RustFSOwner},
+		"seed alias":                   {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs-key-seed"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, dockerutil.RustFSOwner},
+		"alias with external false":    {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app","external":false}}}`, dockerutil.RustFSOwner},
+		"alias with external omitted":  {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["aurago-rustfs"]}}}},"networks":{"app":{"name":"shared-app"}}}`, dockerutil.RustFSOwner},
+		"DNS case and trailing dot":    {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["AURAGO-RUSTFS."]}}}},"networks":{"app":{"name":"project_app"}}}`, dockerutil.RustFSOwner},
+		"automatic service alias":      {`{"services":{"aurago-rustfs":{"image":"fixture"}}}`, dockerutil.RustFSOwner},
+		"automatic seed service alias": {`{"services":{"aurago-rustfs-key-seed":{"image":"fixture"}}}`, dockerutil.RustFSOwner},
+		"unrelated external alias":     {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["api"]}}}},"networks":{"app":{"name":"shared-app","external":true}}}`, ""},
+		"unrelated internal alias":     {`{"services":{"fixture":{"image":"fixture","networks":{"app":{"aliases":["api"]}}}},"networks":{"app":{"name":"project_app"}}}`, ""},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			model, err := ParseDockerComposeModel(tc.resolved)
+			if err != nil {
+				t.Fatalf("ParseDockerComposeModel() error = %v", err)
+			}
+			if got := DockerComposeModelOwner(model); got != tc.want {
+				t.Fatalf("DockerComposeModelOwner() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestParseDockerComposeModelDeviceForms(t *testing.T) {
 	model, err := ParseDockerComposeModel(`{"services":{"w":{"devices":["/dev/a:/dev/b:rwm","/dev/c"]}}}`)
 	if err != nil {

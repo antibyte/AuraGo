@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Χρησιμοποίησε μόνο προετοιμασμένους στόχους. Δήλωσε αναγνωριστικό δοκιμής, εργαλείο, ακριβή ορίσματα και αναμενόμενα πεδία JSON. Οι ενέργειες απαιτούν allow_effects: true· τα υπάρχοντα δικαιώματα ισχύουν. Οι τιμές δεν αποθηκεύονται στην αναφορά.",
   "dashboard.selftest_case": "Δοκιμή",
   "dashboard.selftest_tool": "Εργαλείο",
-  "dashboard.selftest_connections": "Συνδέσεις"
+  "dashboard.selftest_connections": "Συνδέσεις",
+  "dashboard.rustfs_running_unready": "Εκτελείται, δεν είναι ακόμη έτοιμο"
 }

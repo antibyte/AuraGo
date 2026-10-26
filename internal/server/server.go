@@ -63,6 +63,7 @@ import (
 	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
+	"aurago/internal/rustfs"
 	"aurago/internal/ruview"
 	"aurago/internal/security"
 	"aurago/internal/selftest"
@@ -154,6 +155,7 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
+	RustFS               *rustfs.Manager
 	selfTestMu           sync.Mutex
 	selfTests            *selftest.Manager
 	knowledge            projectKnowledge
@@ -505,6 +507,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
 	}
+	if s.RustFS != nil {
+		cfg.AcquireS3 = s.RustFS.AcquireS3
+		cfg.S3Availability = s.RustFS.Availability
+		s.RustFS.Configure(cfg)
+	}
 	if s.integrationCtx != nil {
 		tools.ConfigureOllamaRuntime(s.integrationCtx, cfg)
 	}
@@ -833,6 +840,16 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	s.RustFS = rustfs.NewManager(serverCtx, cfg, s.Vault, logger)
+	cfg.AcquireS3 = s.RustFS.AcquireS3
+	cfg.S3Availability = s.RustFS.Availability
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := s.RustFS.Shutdown(ctx); err != nil {
+			logger.Warn("[RustFS] Shutdown drain did not complete")
+		}
+	}()
 	defer s.closeSelfTests()
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {

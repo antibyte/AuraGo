@@ -453,7 +453,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		OfficeWorkbookEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeWorkbook.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
 		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
-		S3Enabled:                    cfg.S3.Enabled,
+		S3Enabled:                    tools.S3AgentEnabled(cfg),
 		NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
 		FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
 		UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
@@ -496,6 +496,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	// Use the shared config-only helper as the base.
 	// Then apply runtime-specific conditions that require database handles or runtime context.
 	toolFlags := buildToolFlagsFromConfig(cfg)
+	toolFlags.S3Enabled = toolFlags.S3Enabled && tools.S3RuntimeAvailability(cfg).Available
 
 	// Apply runtime handle availability checks (these are the ONLY runtime conditions).
 	// All other flags (config-based, cfg.Runtime-based) are already set by buildToolFlagsFromConfig.

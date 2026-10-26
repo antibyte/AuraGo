@@ -59,6 +59,15 @@ func handleConfiguredIntegrationTest(s *Server, spec integrationTestSpec) http.H
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 		if err := spec.check(ctx, cfg); err != nil {
+			if errors.Is(err, tools.ErrS3ReadVerificationUnavailable) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"status": "unavailable", "code": "read_verification_unavailable",
+					"message": "No read grant is configured for a managed S3 connection test",
+				})
+				return
+			}
 			safeError := security.Scrub(err.Error())
 			if s.Logger != nil {
 				s.Logger.Warn("Integration connection test failed", "integration", spec.name, "error", safeError)
@@ -173,6 +182,9 @@ func handleS3Test(s *Server) http.HandlerFunc {
 		name:    "S3",
 		enabled: func(cfg *config.Config) bool { return cfg.S3.Enabled },
 		validate: func(cfg *config.Config) error {
+			if cfg.S3.Provider == config.S3ProviderRustFS {
+				return nil // The managed resolver validates readiness and private credentials.
+			}
 			if err := requireIntegrationValue(cfg.S3.Bucket, "S3 bucket is not configured"); err != nil {
 				return err
 			}
@@ -182,16 +194,7 @@ func handleS3Test(s *Server) http.HandlerFunc {
 			return requireIntegrationValue(cfg.S3.SecretKey, "S3 secret key is not configured")
 		},
 		check: func(ctx context.Context, cfg *config.Config) error {
-			return tools.CheckS3Connection(ctx, tools.S3Config{
-				Endpoint:     cfg.S3.Endpoint,
-				Region:       cfg.S3.Region,
-				Bucket:       cfg.S3.Bucket,
-				AccessKey:    cfg.S3.AccessKey,
-				SecretKey:    cfg.S3.SecretKey,
-				UsePathStyle: cfg.S3.UsePathStyle,
-				Insecure:     cfg.S3.Insecure,
-				ReadOnly:     cfg.S3.ReadOnly,
-			})
+			return tools.CheckS3Connection(ctx, tools.S3ConfigFromConfig(cfg))
 		},
 	})
 }

@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Používej jen připravené testovací cíle. Zadej ID testu, nástroj, přesné argumenty a očekávaná pole JSON. Akce vyžadují allow_effects: true; stávající oprávnění platí dál. Hodnoty vazeb se do zprávy neukládají.",
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Nástroj",
-  "dashboard.selftest_connections": "Spojení"
+  "dashboard.selftest_connections": "Spojení",
+  "dashboard.rustfs_running_unready": "Běží, zatím nepřipraveno"
 }

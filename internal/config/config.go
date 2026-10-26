@@ -2324,6 +2324,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Koofr.BaseURL == "" {
 		cfg.Koofr.BaseURL = "https://app.koofr.net"
 	}
+	if err := NormalizeRustFSConfig(&cfg); err != nil {
+		return nil, fmt.Errorf("invalid S3/RustFS configuration: %w", err)
+	}
 	if cfg.S3.Region == "" {
 		cfg.S3.Region = "us-east-1"
 	}

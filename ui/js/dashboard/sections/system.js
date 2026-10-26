@@ -156,7 +156,7 @@
                 piper_tts: dashIcon('speaker'), supertonic_tts: dashIcon('speaker'),
                 paperless_ngx: dashIcon('doc'), cloudflare_tunnel: dashIcon('cloud'),
                 fritzbox: dashIcon('plug'), meshcentral: dashIcon('monitor'), a2a: dashIcon('link'),
-                adguard: dashIcon('shield'), s3: dashIcon('database'), mcp: dashIcon('plug'), mcp_server: dashIcon('plug'), dograh: dashIcon('cube'),
+                adguard: dashIcon('shield'), s3: dashIcon('database'), rustfs: dashIcon('database'), mcp: dashIcon('plug'), mcp_server: dashIcon('plug'), dograh: dashIcon('cube'),
                 memory_analysis: dashIcon('brain'), llm_guardian: dashIcon('shield'), security_proxy: dashIcon('lock'),
                 sandbox: dashIcon('box'), ai_gateway: dashIcon('globe'), image_generation: dashIcon('palette'),
                 evomap: dashIcon('globe'),
@@ -187,7 +187,7 @@
                 cloudflare_tunnel: t('dashboard.integration_cloudflare_tunnel'),
                 fritzbox: t('dashboard.integration_fritzbox'),
                 meshcentral: t('dashboard.integration_meshcentral'), a2a: t('dashboard.integration_a2a'),
-                adguard: t('dashboard.integration_adguard'), s3: t('dashboard.integration_s3'),
+                adguard: t('dashboard.integration_adguard'), s3: t('dashboard.integration_s3'), rustfs: 'RustFS',
                 mcp: t('dashboard.integration_mcp'), mcp_server: t('dashboard.integration_mcp_server'), dograh: t('dashboard.integration_dograh'),
                 memory_analysis: t('dashboard.integration_memory_analysis'),
                 llm_guardian: t('dashboard.integration_llm_guardian'),
@@ -215,6 +215,17 @@
                 // MQTT: distinguish "enabled but disconnected" from "enabled and connected"
                 if (key === 'mqtt' && active && overview.mqtt && overview.mqtt.connected === false) cls = 'active-warning';
                 const content = `${icons[key] || '•'} ${esc(names[key] || key)}`;
+                if (key === 'rustfs') {
+                    const runtime = overview.rustfs;
+                    const ready = runtime?.ready === true && runtime?.running === true;
+                    if (active && !ready) cls = 'active-warning';
+                    const configured = t(active ? 'dashboard.cronjobs_status_enabled' : 'dashboard.operations_disabled');
+                    const observed = !runtime ? t('dashboard.overview.pill_unavailable')
+                        : ready ? t('dashboard.agent_banner_status_ready')
+                        : runtime.running === true ? t('dashboard.rustfs_running_unready')
+                        : runtime.running === false ? t('dashboard.daemons_stopped') : t('dashboard.overview.pill_unavailable');
+                    return `<a class="int-badge ${cls}" href="/config#s3">${content} · ${esc(configured)} · ${esc(observed)}</a>`;
+                }
                 if (key === 'ruview') return `<a class="int-badge ${cls}" href="/desktop?app=ruview">${content}</a>`;
                 if (key === 'go2rtc') return `<a class="int-badge ${cls}" href="/desktop?app=network-cameras">${content}</a>`;
                 if (key === 'local_wikipedia') {

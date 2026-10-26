@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Brug kun forberedte testmål. Angiv test-id, værktøj, præcise argumenter og forventede JSON-felter. Handlinger kræver allow_effects: true; eksisterende tilladelser gælder stadig. Bindingsværdier gemmes ikke i rapporten.",
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Værktøj",
-  "dashboard.selftest_connections": "Forbindelser"
+  "dashboard.selftest_connections": "Forbindelser",
+  "dashboard.rustfs_running_unready": "Kører, endnu ikke klar"
 }
