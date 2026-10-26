@@ -1,6 +1,11 @@
 package agent
 
-import "strings"
+import (
+	"strings"
+	"sync"
+
+	"aurago/internal/gamemaker"
+)
 
 // canonicalNativeAlias covers equivalent capabilities only. Fixed git aliases
 // deliberately do not belong here: allowing git_status must not grant a shell.
@@ -114,9 +119,116 @@ func canonicalizeDiscoverOperationCall(tc ToolCall, dc *DispatchContext) ToolCal
 	return tc
 }
 
+// gameMakerToolOperations lists the operations of each Game Maker tool, read
+// from the tool schemas so the list cannot drift. game_maker_validate has no
+// operation enum; its single action is called validate.
+var gameMakerToolOperations = sync.OnceValue(func() map[string][]string {
+	operations := map[string][]string{"game_maker_validate": {"validate"}}
+	for _, definition := range appendGameMakerToolSchemas(nil, ToolFeatureFlags{GameMakerEnabled: true}) {
+		params, _ := definition.Function.Parameters.(map[string]interface{})
+		properties, _ := params["properties"].(map[string]interface{})
+		operation, _ := properties["operation"].(map[string]interface{})
+		if enum, _ := operation["enum"].([]string); len(enum) > 0 {
+			operations[definition.Function.Name] = enum
+		}
+	}
+	return operations
+})
+
+// gameMakerOperationOwners maps an operation name to the one tool that owns it.
+// The enums are disjoint (guarded by a test), so the owner is unambiguous.
+var gameMakerOperationOwners = sync.OnceValue(func() map[string]string {
+	owners := map[string]string{}
+	for tool, operations := range gameMakerToolOperations() {
+		for _, operation := range operations {
+			owners[operation] = tool
+		}
+	}
+	return owners
+})
+
+// gameMakerDesignFields are the keys of the design object. Only these move into
+// it when set_design fields arrive flat: a text-mode call also carries transport
+// residue (tool, arguments, ...) that must never reach the design.
+var gameMakerDesignFields = sync.OnceValue(func() map[string]struct{} {
+	fields := map[string]struct{}{}
+	properties, _ := gameDesignSchema()["properties"].(map[string]interface{})
+	for key := range properties {
+		fields[key] = struct{}{}
+	}
+	return fields
+})
+
+// canonicalizeGameMakerOperationCall repairs the two ways weak models misaddress
+// the Game Maker tools inside a Studio run: they call an operation name as if it
+// were a tool (set_design, get_plan, search_assets), or pass an operation to the
+// tool that does not own it (game_maker_file list_files). set_design fields given
+// flat are wrapped into the design object. It is a strict no-op unless a Studio
+// job is bound to the context, the name is no real tool, and the owning tool is
+// inside the run's scope: it never widens a scope, so an out-of-scope call keeps
+// the ordinary denial.
+func canonicalizeGameMakerOperationCall(tc ToolCall, dc *DispatchContext) ToolCall {
+	if dc == nil || dc.Ctx == nil || gamemaker.JobIDFromContext(dc.Ctx) == "" {
+		return tc
+	}
+	owners := gameMakerOperationOwners()
+	name := tc.Action
+	operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
+	owner := ""
+	if _, studioTool := gameMakerToolOperations()[name]; studioTool {
+		// game_maker_validate ignores its operation, so it never reroutes.
+		if owner = owners[operation]; owner == "" || name == "game_maker_validate" {
+			owner = name
+		}
+	} else {
+		if owner = owners[name]; owner == "" {
+			return tc
+		}
+		if _, builtin := allBuiltinToolNameSet()[name]; builtin {
+			return tc
+		}
+		if entry, ok := GetToolCatalogState(dc.discoveryKey()).Get(name); ok && entry.Name == name {
+			return tc
+		}
+		if operation == "" {
+			operation = name
+		}
+	}
+	if !dispatchToolAllowed(dc, owner) {
+		return tc
+	}
+	_, hasBase := tc.Params["base"]
+	_, hasObjective := tc.Params["objective"]
+	wrap := operation == "set_design" && tc.Params["design"] == nil && (hasBase || hasObjective)
+	if owner == name && !wrap {
+		return tc
+	}
+	args := map[string]interface{}{}
+	if tc.Params != nil {
+		args = cloneJSONSchemaValue(tc.Params).(map[string]interface{})
+	}
+	if wrap {
+		design := map[string]interface{}{}
+		for key, value := range args {
+			if _, field := gameMakerDesignFields()[key]; field {
+				design[key] = value
+				delete(args, key)
+			}
+		}
+		args["design"] = design
+	}
+	args["operation"] = operation
+	if dc.Logger != nil {
+		dc.Logger.Info("Game Maker call normalized", "from", name, "tool", owner, "operation", operation, "wrapped_design", wrap)
+	}
+	tc.normalizedFrom, tc.Params, tc.Operation, tc.Action = name, args, operation, owner
+	return tc
+}
+
 // canonicalizeLeafCall runs before Guardian, role, scope, learning and action
 // policy checks. It only rewrites known routes and never performs an action.
 func canonicalizeLeafCall(tc ToolCall, dc *DispatchContext) ToolCall {
+	tc = canonicalizeGameMakerOperationCall(tc, dc)
 	tc = canonicalizeDiscoverOperationCall(tc, dc)
 	if tc.Action == "execute_skill" {
 		tc = canonicalizeNativeSkillWrapper(tc, dc)

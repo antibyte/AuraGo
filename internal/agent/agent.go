@@ -359,6 +359,7 @@ type ToolCall struct {
 
 	nativeCall          *openai.ToolCall
 	TransportAction     string                   `json:"-"`
+	normalizedFrom      string                   // Tool name a Game Maker run called before canonicalization; "" when unchanged
 	PreparationError    string                   `json:"-"`
 	DispatchStatus      ToolResultStatus         `json:"-"`
 	Action              string                   `json:"action"`

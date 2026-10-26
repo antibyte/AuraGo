@@ -533,6 +533,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   tracking see `discover_tools`. It skips builtin names and exact run-catalog
   entries and sets no `TransportAction`: a run without `discover_tools` still
   denies the call. Verify `TestUnknownToolNamesRouteOrGuide`.
+- `canonicalizeGameMakerOperationCall` runs first in `canonicalizeLeafCall` and only when `dc.Ctx` carries a bound Game Maker job: an operation name used as a tool name (`set_design`, `get_plan`, `search_assets`, `search`, `validate`) or an operation sent to the wrong Game Maker tool (`game_maker_file` `list_files`) is rewritten to the owning tool, and flat `set_design` fields are wrapped into `design`. The operation-to-tool map comes from the schema enums (disjoint, tested). It never widens scope (an owner outside `AllowedTools` keeps the ordinary denial) and skips builtin or run-catalog names; rewritten JSON results carry `normalized_call`. Verify `TestGameMakerOperation*`.
 - A name outside the effective catalog answers `unknown_tool` with discovery
   advice and the closest enabled tools (`unknownToolGuidance`), while a known
   native capability that is off answers `tool_disabled` with `hidden_reason` and

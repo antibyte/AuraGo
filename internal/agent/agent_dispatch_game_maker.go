@@ -449,6 +449,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 	}
 	started := time.Now()
 	defer func() { recordGameMakerToolResult(ctx, service, jobID, tc, output, time.Since(started)) }()
+	defer func() { output = annotateGameMakerNormalizedCall(output, tc) }()
 	switch tc.Action {
 	case "game_maker_project":
 		operation := firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))
@@ -903,6 +904,28 @@ func gameMakerToolJSON(value any) string {
 		return `Tool Output: {"status":"error","message":"could not serialize Game Maker result"}`
 	}
 	return "Tool Output: " + strings.TrimSuffix(data.String(), "\n")
+}
+
+// annotateGameMakerNormalizedCall tells the model which tool and operation a
+// misaddressed call ran as (canonicalizeGameMakerOperationCall), so it learns the
+// real name. Only a JSON-object result of a rewritten call is annotated.
+func annotateGameMakerNormalizedCall(output string, tc ToolCall) string {
+	body := strings.TrimPrefix(output, "Tool Output: ")
+	if tc.normalizedFrom == "" || body == output || !strings.HasPrefix(body, "{") || !strings.HasSuffix(body, "}") || !json.Valid([]byte(body)) {
+		return output
+	}
+	note, err := json.Marshal(struct {
+		Tool      string `json:"tool"`
+		Operation string `json:"operation"`
+	}{tc.Action, firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))})
+	if err != nil {
+		return output
+	}
+	separator := ","
+	if body == "{}" {
+		separator = ""
+	}
+	return "Tool Output: " + strings.TrimSuffix(body, "}") + separator + `"normalized_call":` + string(note) + "}"
 }
 
 func gameMakerToolError(err error) string {
