@@ -69,6 +69,25 @@ func TestNewspaperLoadRejectsUnknownBudgetAndOverviewIDs(t *testing.T) {
 	}
 }
 
+func TestNewspaperLoadAcceptsPublisherOverviewSources(t *testing.T) {
+	want := []string{NewspaperOverviewTagesschau, NewspaperOverviewBBCBusiness, NewspaperOverviewScienceDaily, NewspaperOverviewNASA, NewspaperOverviewGuardianEnvironment, NewspaperOverviewBBCSport, NewspaperOverviewGuardianCulture}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	body, err := yaml.Marshal(map[string]any{"newspaper": NewspaperConfig{OverviewSources: want}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(cfg.Newspaper.OverviewSources, want) {
+		t.Fatalf("overview sources=%v, want %v", cfg.Newspaper.OverviewSources, want)
+	}
+}
+
 func TestConfigTemplateOptsIntoAutoNewspaperBudget(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
 	if err != nil {

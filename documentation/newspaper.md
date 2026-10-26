@@ -4,7 +4,7 @@ Newspaper is an optional Virtual Desktop app that makes a personal daily edition
 
 ## Set up
 
-1. Enable Virtual Desktop and Newspaper in Config. Newspaper starts disabled. The Config page also controls read-only mode, automatic or fixed research budgets, optional Google News/Hacker News/Techmeme overview sources, archive retention (365 editions), and whether email or Telegram delivery is allowed.
+1. Enable Virtual Desktop and Newspaper in Config. Newspaper starts disabled. The Config page also controls read-only mode, automatic or fixed research budgets, ten optional overview sources, archive retention (365 editions), and whether email or Telegram delivery is allowed.
 2. Configure a selectable LLM, web scraping and network requests. Brave Search with a configured key provides News and Web search; permitted DuckDuckGo search and optional public RSS/Atom feeds provide alternatives. DuckDuckGo uses the existing network permission and has no separate toggle. The Config readiness check and the app's **Research tools** disclosure distinguish disabled tools, missing setup and errors from the last attempt. Research requires the model, original-page reader, network permission and verified bundled guide; configured capabilities do not guarantee a remote service is healthy.
 3. Open **Newspaper** on the Virtual Desktop. Choose sections and optional free-text interests or exclusions. Add up to ten public RSS feed URLs for selected sections if desired. Set the country code, regional place if needed, publication language, IANA time zone, ready time and reading length. Save the profile, then choose **Create today's edition**. The default selection covers national and international news, politics, culture, technology and science.
 4. For automatic editions, enable the daily switch in Preferences. The displayed ready time is a target. Research starts before it; the app shows the actual publication time. A missed or failed run stays visible. Closing the window does not stop server research.
@@ -35,8 +35,27 @@ apply, but there is no promised dollar ceiling.
 Overview providers are individually selectable. Existing installations do not
 enable them automatically; Config offers an explicit preset. Google News
 supplies localized headlines for targeted publisher searches. Hacker News and
-Techmeme help with relevant technical topics. The overview stage takes at most
-30 seconds and feeds bounded, untrusted metadata to the existing planning call.
+Techmeme help with relevant technical topics. Seven publisher feeds add other
+areas; select them individually in the responsive source grid:
+
+| Source | Configuration ID | Coverage |
+| --- | --- | --- |
+| [tagesschau](https://www.tagesschau.de/xml/rss2/) | `tagesschau` | National, international and political news |
+| [BBC Business](https://feeds.bbci.co.uk/news/business/rss.xml) | `bbc_business` | Economy and business |
+| [ScienceDaily](https://www.sciencedaily.com/rss/all.xml) | `science_daily` | Research and health |
+| [NASA](https://www.nasa.gov/news-release/feed/) | `nasa` | Space and science |
+| [The Guardian Environment](https://www.theguardian.com/environment/rss) | `guardian_environment` | Environment and climate |
+| [BBC Sport](https://feeds.bbci.co.uk/sport/rss.xml) | `bbc_sport` | Sport |
+| [The Guardian Culture](https://www.theguardian.com/culture/rss) | `guardian_culture` | Culture and arts |
+
+Publisher feeds are read for their matching sections or individual interests.
+Their headlines or descriptions must match an individual interest before being
+associated with it. Entries remain leads until the original article is read and
+validated. The Recommended sources preset retains Google News, Hacker News and
+Techmeme; adding providers never expands an existing saved selection.
+
+The overview stage takes at most 30 seconds and feeds bounded, untrusted metadata
+to the existing planning call.
 It fetches shared feeds once per run. Google wrappers, Techmeme summaries and HN
 discussions are never original-article evidence. HN submission times remain
 hints, not publication dates. Feeds that fail or return 429 do not prevent

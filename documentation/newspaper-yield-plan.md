@@ -43,6 +43,14 @@ installations retain their source choices until opting into the overview preset;
 new setup offers the preset explicitly. Enabled Newspaper, network and read-only
 policies still apply to every read. Do not require every source to be healthy.
 
+The ten-source catalog also includes tagesschau, BBC Business, ScienceDaily,
+NASA, Guardian Environment, BBC Sport and Guardian Culture. Their fixed RSS URLs,
+IDs and section coverage are listed in `newspaper.md`. Fetch selected publisher
+feeds only for matching sections or individual interests; associate interest
+leads only with matching headlines/descriptions. Reuse the same guarded feed
+reader, budget, concurrency limits and original-page evidence checks. Preserve
+saved selections and the existing three-source recommendation preset.
+
 The overview stage does not call an additional LLM. It collects bounded metadata
 and supplies it to the existing first planning call. Retain the existing maximum
 of two planning calls, each bounded to 45 seconds. Fetch each shared feed once
