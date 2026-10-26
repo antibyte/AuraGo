@@ -85,14 +85,25 @@ func ClassifyError(err error) ErrorCategory {
 	// envelope) when the error body is not an {"error":{...}} object, e.g. a
 	// 402 with {"error":"No active plan"}. It may nest an empty *APIError
 	// without a status, so the status check above must not claim it first.
+	// The text rules keep precedence (they always applied to these errors);
+	// the status only decides what they leave undecided.
 	var requestErr *openai.RequestError
 	if errors.As(err, &requestErr) && requestErr.HTTPStatusCode != 0 {
+		if cat := classifyErrorByString(err); cat != ErrCategoryProviderValidation {
+			return cat
+		}
 		return classifyHTTPError(requestErr.HTTPStatusCode, err.Error())
 	}
 	if apiErrFound {
 		return classifyHTTPError(apiErr.HTTPStatusCode, err.Error())
 	}
 
+	return classifyErrorByString(err)
+}
+
+// classifyErrorByString is the text-based classification for errors that carry
+// no usable HTTP status. ErrCategoryProviderValidation means "undecided".
+func classifyErrorByString(err error) ErrorCategory {
 	if strings.Contains(err.Error(), "context canceled") || strings.Contains(err.Error(), "context deadline exceeded") {
 		return ErrCategoryContextDeadline
 	}

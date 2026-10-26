@@ -48,9 +48,51 @@ func TestClassifyError_RequestErrorStatus(t *testing.T) {
 			want: ErrCategoryQuotaExceeded,
 		},
 		{
-			name: "401 unauthorized",
+			// The status line itself contains "unauthorized", which the string
+			// rules have always mapped to non_retryable_config; still not retried.
+			name: "401 unauthorized status text",
 			err:  &openai.RequestError{HTTPStatus: "401 Unauthorized", HTTPStatusCode: http.StatusUnauthorized, Body: []byte("denied")},
+			want: ErrCategoryNonRetryableConfig,
+		},
+		{
+			name: "401 without keyword text",
+			err:  &openai.RequestError{HTTPStatus: "401", HTTPStatusCode: http.StatusUnauthorized, Body: []byte("denied")},
 			want: ErrCategoryAuthError,
+		},
+		// Existing string classification keeps precedence over the status for
+		// a RequestError, so these categories are unchanged by the 402 fix.
+		{
+			name: "403 with quota text",
+			err:  &openai.RequestError{HTTPStatus: "403 Forbidden", HTTPStatusCode: http.StatusForbidden, Body: []byte("quota exceeded for this key")},
+			want: ErrCategoryQuotaExceeded,
+		},
+		{
+			name:      "500 with rate limit text",
+			err:       &openai.RequestError{HTTPStatus: "500 Internal Server Error", HTTPStatusCode: http.StatusInternalServerError, Body: []byte("rate limit hit")},
+			want:      ErrCategoryRateLimit,
+			retryable: true,
+		},
+		{
+			name:      "503 with too many requests text",
+			err:       &openai.RequestError{HTTPStatus: "503 Service Unavailable", HTTPStatusCode: http.StatusServiceUnavailable, Body: []byte("too many requests")},
+			want:      ErrCategoryRateLimit,
+			retryable: true,
+		},
+		{
+			name:      "400 with rate limit text",
+			err:       &openai.RequestError{HTTPStatus: "400 Bad Request", HTTPStatusCode: http.StatusBadRequest, Body: []byte("rate limit reached")},
+			want:      ErrCategoryRateLimit,
+			retryable: true,
+		},
+		{
+			name: "503 with model not found text",
+			err:  &openai.RequestError{HTTPStatus: "503 Service Unavailable", HTTPStatusCode: http.StatusServiceUnavailable, Body: []byte("model not found")},
+			want: ErrCategoryNonRetryableConfig,
+		},
+		{
+			name: "503 with unauthorized text",
+			err:  &openai.RequestError{HTTPStatus: "503 Service Unavailable", HTTPStatusCode: http.StatusServiceUnavailable, Body: []byte("unauthorized upstream")},
+			want: ErrCategoryNonRetryableConfig,
 		},
 		{
 			name:      "429 too many requests",
