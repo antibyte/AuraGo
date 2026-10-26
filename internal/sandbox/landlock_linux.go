@@ -22,14 +22,17 @@ var defaultReadOnlyPaths = []string{
 	"/usr/lib",
 	"/usr/lib64",
 	"/usr/libexec",
+	"/usr/share/python-wheels", // Debian/Ubuntu keep ensurepip's bundled wheels here.
 	"/lib",
 	"/lib64",
 	"/etc/alternatives",
 	"/etc/ld.so.cache",
 	"/etc/ld.so.conf",
 	"/etc/ld.so.conf.d",
-	"/etc/passwd", // many tools need this for user name lookups
-	"/etc/group",  // many tools need this for group name lookups
+	"/etc/passwd",         // many tools need this for user name lookups
+	"/etc/group",          // many tools need this for group name lookups
+	"/etc/debian_version", // pip's distro metadata probe reads this on Debian/Ubuntu.
+	"/etc/mime.types",     // Python's MIME database is used while pip selects wheels.
 	"/etc/nsswitch.conf",
 	"/etc/resolv.conf",
 	"/etc/hosts",
