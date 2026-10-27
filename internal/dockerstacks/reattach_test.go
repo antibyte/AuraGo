@@ -248,3 +248,80 @@ func TestTheFirstUseOfAHostSweepsLeftoverHelpers(t *testing.T) {
 		t.Fatal("the sweep must not list containers again on the next call")
 	}
 }
+
+// leftBehindSince records an unfinished operation that started `ago` before the
+// test clock, so that its time budget (MaxDuration) is spent when it is adopted.
+func leftBehindSince(t *testing.T, env *testEnv, id, stack, kind, state string, ago time.Duration) {
+	t.Helper()
+	j, err := newJournal(env.svc.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := env.clock.Now().UTC().Add(-ago)
+	op := Operation{ID: id, HostID: testHostID, Stack: stack, Kind: kind, State: state,
+		RunnerID: "old-runner-id", CreatedAt: started, StartedAt: &started}
+	if err := j.insert(context.Background(), op); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAnAdoptedOperationWhoseTimeRanOutWhileAuraGoWasDownIsStillFinishedFromItsExitCode(t *testing.T) {
+	env := newTestEnv(t, true)
+	seedComposeStack(env, "web")
+	seedComposeStack(env, "api")
+	leftBehindSince(t, env, "op_7777777777777771", "web", KindUp, StateRunning, 2*time.Hour)
+	leftRunner(env, "op_7777777777777771", "web", KindUp, "exited", 0, `{"id":"Container web-web-1","status":"Done","text":"Started"}`)
+	leftBehindSince(t, env, "op_7777777777777772", "api", KindUp, StateRunning, 2*time.Hour)
+	leftRunner(env, "op_7777777777777772", "api", KindUp, "exited", 15, "yaml: line 4: did not find expected key")
+
+	s2 := reopen(t, env, nil)
+	if web := waitDone(t, s2, "op_7777777777777771"); web.State != StateSucceeded || web.ExitCode == nil || *web.ExitCode != 0 {
+		t.Fatalf("an exited runner keeps its result although the time is spent, got %+v", web)
+	}
+	if api := waitDone(t, s2, "op_7777777777777772"); api.State != StateFailed || api.Code != opCodeRunnerFailed || api.ExitCode == nil || *api.ExitCode != 15 {
+		t.Fatalf("an exited runner keeps its exit code although the time is spent, got %+v", api)
+	}
+	for _, stack := range []string{"web", "api"} {
+		if s2.activeRun(testHostID, stack) != nil {
+			t.Fatalf("the stack %s must be free again", stack)
+		}
+	}
+}
+
+func TestAnAdoptedOperationWithSpentTimeKillsARunnerThatIsStillGoing(t *testing.T) {
+	prev := spentBudgetWindow
+	spentBudgetWindow = 300 * time.Millisecond
+	t.Cleanup(func() { spentBudgetWindow = prev })
+	env := newTestEnv(t, true)
+	seedComposeStack(env, "web")
+	leftBehindSince(t, env, "op_7777777777777773", "web", KindUp, StateRunning, 2*time.Hour)
+	leftRunner(env, "op_7777777777777773", "web", KindUp, "running", 0, "still working")
+
+	done := waitDone(t, reopen(t, env, nil), "op_7777777777777773")
+	if done.State != StateFailed || done.Code != opCodeTimeout {
+		t.Fatalf("done = %+v, want a timeout", done)
+	}
+	kills := 0
+	for _, r := range env.fe.requests() {
+		if strings.HasPrefix(r, "POST /v1.45/containers/") && strings.Contains(r, "/kill") {
+			kills++
+		}
+	}
+	if kills != 1 {
+		t.Fatalf("the runner must be killed once: %v", env.fe.requests())
+	}
+	waitUntil(t, "the runner to be removed", 5*time.Second, func() bool { return len(env.fe.containersWithRole(RoleRunner)) == 0 })
+}
+
+func TestAnAdoptedOperationWithSpentTimeEndsInsteadOfWaitingForAHostThatDoesNotAnswer(t *testing.T) {
+	env := newTestEnv(t, true)
+	seedComposeStack(env, "web")
+	leftBehindSince(t, env, "op_7777777777777774", "web", KindUp, StateRunning, 2*time.Hour)
+	leftRunner(env, "op_7777777777777774", "web", KindUp, "exited", 0, "done")
+	env.hosts.setDown(testHostID, true)
+
+	done := waitDone(t, reopen(t, env, nil), "op_7777777777777774")
+	if done.State != StateFailed || done.Code != opCodeTimeout {
+		t.Fatalf("done = %+v, want a timeout and not a parked operation", done)
+	}
+}

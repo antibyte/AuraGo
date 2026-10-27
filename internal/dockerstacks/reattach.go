@@ -83,15 +83,27 @@ func (r *opRun) resetOutput() {
 	r.scan = errorScan{}
 }
 
+// spentBudgetWindow is the time an adopted operation whose own time (MaxDuration)
+// ran out while AuraGo was down gets to look up its runner and, when the runner
+// still goes, to follow it before it is killed as a timeout.
+var spentBudgetWindow = cleanupTimeout
+
 // resumeOutcome decides what became of an adopted operation. park is true when
-// the host cannot be asked right now.
+// the host cannot be asked right now, except for an operation whose time is
+// spent: it is not parked (it would fail every lookup on its expired context,
+// forever, with its stack locked) but ends as a timeout when the host does not answer.
 func (s *Service) resumeOutcome(run *opRun) (out outcome, park bool) {
 	op := run.snapshot()
 	if op.Kind == KindPrepare {
 		return lostRunner(op), false // prepare has no runner to find
 	}
 	ctx, cancel := s.runContext(op)
-	defer cancel()
+	spent := ctx.Err() != nil
+	if spent && s.baseCtx.Err() == nil {
+		cancel()
+		ctx, cancel = context.WithTimeout(s.baseCtx, spentBudgetWindow)
+	}
+	defer func() { cancel() }()
 
 	_, e, err := s.target(ctx, op.HostID)
 	if err != nil {
@@ -100,6 +112,8 @@ func (s *Service) resumeOutcome(run *opRun) (out outcome, park bool) {
 			return outcome{abandoned: true}, false
 		case errors.Is(err, dockerhost.ErrHostNotFound):
 			return outcome{state: StateInterrupted, code: opCodeInterrupted, message: "The Docker host was removed while this operation was running."}, false
+		case spent:
+			return s.timeoutOutcome(), false
 		}
 		return outcome{}, true
 	}
@@ -110,6 +124,8 @@ func (s *Service) resumeOutcome(run *opRun) (out outcome, park bool) {
 		return lostRunner(op), false
 	case err != nil && s.baseCtx.Err() != nil:
 		return outcome{abandoned: true}, false
+	case err != nil && spent:
+		return s.timeoutOutcome(), false
 	case err != nil:
 		return outcome{}, true
 	case st.Status == "created": // never started: nothing ran
@@ -124,6 +140,9 @@ func (s *Service) resumeOutcome(run *opRun) (out outcome, park bool) {
 	final, err := s.followRunner(ctx, run, e, st.ID)
 	if err != nil {
 		out := s.failure(ctx, err)
+		if spent && out.code == opCodeHostUnreachable {
+			out = s.timeoutOutcome()
+		}
 		switch {
 		case out.abandoned:
 			return out, false

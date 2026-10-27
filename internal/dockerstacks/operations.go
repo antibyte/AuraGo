@@ -118,6 +118,12 @@ func (s *Service) drive(run *opRun) outcome {
 	return s.driveStack(ctx, run, op, e, h)
 }
 
+// timeoutOutcome is the outcome of an operation that ran out of time.
+func (s *Service) timeoutOutcome() outcome {
+	return outcome{state: StateFailed, code: opCodeTimeout,
+		message: fmt.Sprintf("The operation took longer than %s and was stopped.", s.opts.MaxDuration)}
+}
+
 // failure turns an error into the outcome of a failed operation. A service that
 // is closing abandons the operation instead; a passed deadline is a timeout.
 func (s *Service) failure(ctx context.Context, err error) outcome {
@@ -125,8 +131,7 @@ func (s *Service) failure(ctx context.Context, err error) outcome {
 		return outcome{abandoned: true}
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
-		return outcome{state: StateFailed, code: opCodeTimeout,
-			message: fmt.Sprintf("The operation took longer than %s and was stopped.", s.opts.MaxDuration)}
+		return s.timeoutOutcome()
 	}
 	var coded *Error
 	if errors.As(err, &coded) {
