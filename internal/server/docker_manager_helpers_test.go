@@ -123,3 +123,25 @@ func TestDockerManagerHostTestCarriesTheHelperStatus(t *testing.T) {
 		t.Fatalf("test without the stacks service = %d %s, want no helpers member", code, f.lastRaw)
 	}
 }
+
+func TestDockerManagerShortIDPrefixOfAHelperIsStillProtected(t *testing.T) {
+	f := newDMFixture(t)
+	id := f.addRemote("NAS")
+	f.remote.setContainers(dmHelperContainers(t))
+	f.local.setContainers(dmHelperContainers(t))
+	defer replaceContainerProtection(containerProtection{})()
+	base := "/hosts/" + id + "/containers/"
+
+	// The Engine accepts any unique ID prefix, so one to three characters name the helper as well.
+	for _, ref := range []string{"1", "22", "333"} {
+		code, body := f.do(http.MethodDelete, base+ref+"?force=1", nil)
+		dmExpectError(t, f, code, body, http.StatusConflict, containerCodeConfirmationRequired)
+		if body["owner"] != "docker_manager" || f.remote.called("DELETE /containers/"+ref) {
+			t.Fatalf("remove of %q = %s, calls %v, want the helper confirmation and nothing sent to the engine", ref, f.lastRaw, f.remote.calls)
+		}
+	}
+	// The ordinary container is not affected, short ID or not.
+	if code, _ := f.do(http.MethodDelete, base+"4", nil); code != http.StatusOK || !f.remote.called("DELETE /containers/4") {
+		t.Fatalf("remove of an ordinary container by a short prefix = %d %s, calls %v", code, f.lastRaw, f.remote.calls)
+	}
+}

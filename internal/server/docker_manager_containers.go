@@ -284,7 +284,7 @@ func (dm *dmRequest) helperRemoveAllowed(ctx context.Context, client *dockerutil
 	}
 	needle := strings.ToLower(ref)
 	for _, container := range list {
-		if dmContainerMatches(container, needle) && dmHelperRole(container.Labels) != "" {
+		if dmHelperMatches(container, needle) && dmHelperRole(container.Labels) != "" {
 			p := containerProtection{Owner: dmHelperOwner}
 			dmWriteError(dm.w, http.StatusConflict, containerCodeConfirmationRequired, p.confirmationMessage(), dmFields{"owner": p.label()})
 			return false
@@ -313,6 +313,22 @@ func (dm *dmRequest) remoteContainerProtection(ctx context.Context, client *dock
 		}
 	}
 	return containerProtection{Owner: firstContainerOwner([]string{ref}, nil)}, nil
+}
+
+// dmHelperMatches is dmContainerMatches for the helper guard, which must not be
+// narrower than the Engine: the Engine takes any unique prefix of the full ID
+// (one character will do), so every non-empty prefix counts here. The owner
+// rules keep dmContainerMatches and its four-character minimum.
+func dmHelperMatches(container dockerhost.ContainerSummary, needle string) bool {
+	if needle == "" {
+		return false
+	}
+	for _, name := range container.Names {
+		if strings.ToLower(strings.TrimPrefix(name, "/")) == needle {
+			return true
+		}
+	}
+	return strings.HasPrefix(strings.ToLower(container.FullID), needle)
 }
 
 func dmContainerMatches(container dockerhost.ContainerSummary, needle string) bool {
