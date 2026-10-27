@@ -166,7 +166,7 @@ func TestExecuteDocumentCreator_CreatePDFMaroto_AutoFilename(t *testing.T) {
 
 func TestBuildHTMLFromSections(t *testing.T) {
 	sections := `[{"type":"text","header":"Intro","body":"Hello"},{"type":"table","header":"Data","rows":[["A","B"],["1","2"]]}]`
-	html := buildHTMLFromSections("Title", "", sections)
+	html := buildHTMLFromSections("Title", "", mustDocumentSections(t, sections))
 	if !strings.Contains(html, "<h1>Title</h1>") {
 		t.Error("expected title in HTML")
 	}
@@ -183,7 +183,7 @@ func TestBuildHTMLFromSections(t *testing.T) {
 
 func TestBuildHTMLFromSections_List(t *testing.T) {
 	sections := `[{"type":"list","header":"Items","body":"Apple\nBanana\nCherry"}]`
-	html := buildHTMLFromSections("", "", sections)
+	html := buildHTMLFromSections("", "", mustDocumentSections(t, sections))
 	if !strings.Contains(html, "<ul>") {
 		t.Error("expected unordered list")
 	}
@@ -193,7 +193,7 @@ func TestBuildHTMLFromSections_List(t *testing.T) {
 }
 
 func TestBuildHTMLFromSections_PlainContent(t *testing.T) {
-	html := buildHTMLFromSections("Doc", "<p>Hello</p>", "")
+	html := buildHTMLFromSections("Doc", "<p>Hello</p>", nil)
 	if strings.Contains(html, "<p>Hello</p>") {
 		t.Fatalf("expected plain content to be escaped, got: %s", html)
 	}
@@ -208,7 +208,7 @@ func TestBuildHTMLFromSections_PlainContent(t *testing.T) {
 func TestBuildHTMLFromSectionsEscapesPlainContent(t *testing.T) {
 	t.Parallel()
 
-	html := buildHTMLFromSections("Title", `<script>alert("x")</script>`, "")
+	html := buildHTMLFromSections("Title", `<script>alert("x")</script>`, nil)
 	if strings.Contains(html, "<script>") {
 		t.Fatalf("plain create_pdf content should be escaped, got %s", html)
 	}

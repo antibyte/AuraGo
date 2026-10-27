@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -16,23 +15,17 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/security"
 )
 
-// gotenbergClient is the shared HTTP client for Gotenberg requests.
-var gotenbergClient *http.Client
-
-// getGotenbergClient returns a lazily-initialised HTTP client with the configured timeout.
+// Each call keeps its timeout; the default transport shares connection pools.
 func getGotenbergClient(timeoutSec int) *http.Client {
-	if gotenbergClient != nil {
-		return gotenbergClient
-	}
 	t := 120
 	if timeoutSec > 0 {
 		t = timeoutSec
 	}
-	gotenbergClient = &http.Client{Timeout: time.Duration(t) * time.Second}
-	return gotenbergClient
+	return httporigin.NewClient(time.Duration(t) * time.Second)
 }
 
 // gotenbergRequest sends a multipart/form-data request to a Gotenberg endpoint.
@@ -53,10 +46,10 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 
 	// Write file parts
 	for name, data := range files {
-		h := make(textproto.MIMEHeader)
-		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="files"; filename="%s"`, name))
-		h.Set("Content-Type", "application/octet-stream")
-		part, err := writer.CreatePart(h)
+		if strings.ContainsAny(name, "\r\n\x00") {
+			return nil, fmt.Errorf("multipart filename contains control characters")
+		}
+		part, err := writer.CreateFormFile("files", name)
 		if err != nil {
 			return nil, fmt.Errorf("create file part %s: %w", name, err)
 		}
@@ -83,7 +76,7 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 
 	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
-		return nil, fmt.Errorf("read gotenberg response: %w", err)
+		return nil, fmt.Errorf("read Gotenberg PDF/image output (maximum 10 MiB): %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("gotenberg returned HTTP %d: %s", resp.StatusCode, gotenbergTruncate(string(body), 500))
@@ -92,27 +85,11 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 }
 
 // saveGotenbergOutput writes response bytes to the output directory and returns metadata.
-func saveGotenbergOutput(data []byte, outputDir, filename, ext string) (filePath, webPath string, err error) {
-	if filename == "" {
-		filename = defaultDocumentName()
-	}
-	// Sanitise filename to prevent path traversal
-	filename = filepath.Base(filename)
-	if !strings.HasSuffix(strings.ToLower(filename), ext) {
-		filename += ext
-	}
-
+func saveGotenbergOutput(ctx context.Context, data []byte, outputDir, filename, ext string) (filePath, webPath string, err error) {
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return "", "", fmt.Errorf("create output dir: %w", err)
 	}
-
-	outPath := filepath.Join(outputDir, filename)
-	if err := os.WriteFile(outPath, data, 0640); err != nil {
-		return "", "", fmt.Errorf("write file: %w", err)
-	}
-
-	webPath = "/files/documents/" + filename
-	return outPath, webPath, nil
+	return saveDocumentOutput(ctx, data, outputDir, filename, ext)
 }
 
 // ── Gotenberg operations ─────────────────────────────────────────────────────
@@ -307,7 +284,7 @@ func GotenbergURLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputD
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -335,7 +312,7 @@ func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, output
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -379,7 +356,7 @@ th { background: #f2f2f2; }
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -389,7 +366,7 @@ th { background: #f2f2f2; }
 // GotenbergConvertDocument converts office documents (docx, xlsx, pptx, etc.) to PDF via LibreOffice.
 func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, outputDir, sourceFilePath, filename, paperSize string, landscape bool) string {
 	// Read the source file
-	srcData, err := os.ReadFile(sourceFilePath)
+	sources, err := readDocumentSources(ctx, "convert_document", []string{sourceFilePath})
 	if err != nil {
 		return gotenbergErrJSON("read source file: " + err.Error())
 	}
@@ -401,7 +378,7 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 
 	srcName := filepath.Base(sourceFilePath)
 	files := map[string][]byte{
-		srcName: srcData,
+		srcName: sources[0],
 	}
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/libreoffice/convert", fields, files)
@@ -413,7 +390,7 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 		filename = strings.TrimSuffix(srcName, filepath.Ext(srcName))
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -429,19 +406,16 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 
 // GotenbergMergePDFs merges multiple PDF files into one.
 func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, outputDir string, sourcePaths []string, filename string) string {
-	if len(sourcePaths) < 2 {
-		return `{"status":"error","message":"merge_pdfs requires at least 2 PDF files"}`
+	sources, err := readDocumentSources(ctx, "merge_pdfs", sourcePaths)
+	if err != nil {
+		return gotenbergErrJSON(err.Error())
 	}
 
 	files := make(map[string][]byte, len(sourcePaths))
 	for i, p := range sourcePaths {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return gotenbergErrJSON("read file " + filepath.Base(p) + ": " + err.Error())
-		}
 		// Gotenberg merges in alphabetical order of filenames
 		name := fmt.Sprintf("%02d_%s", i+1, filepath.Base(p))
-		files[name] = data
+		files[name] = sources[i]
 	}
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/pdf-engines/merge", nil, files)
@@ -449,7 +423,7 @@ func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, output
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -478,7 +452,7 @@ func GotenbergScreenshotURL(ctx context.Context, cfg *config.GotenbergConfig, ou
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".png")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".png")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -504,7 +478,7 @@ func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, o
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".png")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".png")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
