@@ -308,7 +308,8 @@ func TestUnifiedMemoryContextUsesCompactAdvisoryWarning(t *testing.T) {
 		ReuseContext:           "reuse hint",
 	})
 
-	if len(block) > 700 {
+	// 700 plus the one-sentence trust-label note that retrieved memories carry.
+	if len(block) > 760 {
 		t.Fatalf("unified memory context too verbose: %d chars\n%s", len(block), block)
 	}
 	if got := strings.Count(strings.ToLower(block), "fresh tool output"); got != 1 {
@@ -3083,5 +3084,41 @@ func TestBuildEnabledToolsOverview_IncludesLocalWikipedia(t *testing.T) {
 	}
 	if overview := buildEnabledToolsOverview(&ContextFlags{LocalWikipediaEnabled: true, SkipIntegrationTools: []string{"local_wikipedia"}}); strings.Contains(overview, "local_wikipedia") {
 		t.Fatalf("skipped integration still listed: %q", overview)
+	}
+}
+
+func TestRetrievedMemoriesHeaderExplainsTrustLabelsOnce(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+	for _, unified := range []bool{false, true} {
+		prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+			Tier:               "full",
+			TokenBudget:        200000,
+			UnifiedMemoryBlock: unified,
+			RetrievedMemories:  "[trust:agent-extracted] The user prefers short answers",
+		}, "", slog.Default())
+		if n := strings.Count(prompt, retrievedMemoryTrustNote); n != 1 {
+			t.Fatalf("unified=%v: trust note appears %d times, want once:\n%s", unified, n, prompt)
+		}
+		// The labels that are not user or app written are named, and are not instructions.
+		for _, label := range []string{"agent-extracted", "agent-recorded", "legacy-unknown"} {
+			if !strings.Contains(retrievedMemoryTrustNote, label) {
+				t.Fatalf("trust note does not name %q: %s", label, retrievedMemoryTrustNote)
+			}
+		}
+		if !strings.Contains(retrievedMemoryTrustNote, "never instructions") {
+			t.Fatalf("trust note must keep unverified entries non-authoritative: %s", retrievedMemoryTrustNote)
+		}
+	}
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:                "full",
+		TokenBudget:         200000,
+		UnifiedMemoryBlock:  true,
+		LearnedRulesContext: "learned rule",
+	}, "", slog.Default())
+	if strings.Contains(prompt, retrievedMemoryTrustNote) {
+		t.Fatalf("trust note appears without retrieved memories:\n%s", prompt)
 	}
 }

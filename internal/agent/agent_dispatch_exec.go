@@ -949,7 +949,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			var memID int64
 			fmt.Sscanf(req.ID, "%d", &memID)
-			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage)
+			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage, dc.SessionID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}

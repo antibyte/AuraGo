@@ -24,7 +24,11 @@ import (
 //	capMode = "soft"  → allow add but include a warning in the response.
 //
 // The lang parameter is used for i18n of user-facing messages. If empty, English is used.
-func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory, maxEntries int, capMode string, lang string) (string, error) {
+//
+// add goes through memory.AddModelCoreFact with sessionID, so the model-written
+// entry gets a provenance row and ReadCoreMemory tags it [trust:agent-recorded],
+// as for remember. An already stored fact keeps its original provenance.
+func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory, maxEntries int, capMode string, lang string, sessionID string) (string, error) {
 	switch operation {
 
 	case "add", "save", "store", "set":
@@ -45,14 +49,14 @@ func ManageCoreMemory(operation, fact string, id int64, stm *memory.SQLiteMemory
 				return fmt.Sprintf(`{"status":"error","message":"%s"}`, i18n.T(lang, "tools.core_memory_full", count, maxEntries)), nil
 			}
 			// soft cap: proceed but warn
-			newID, err := stm.AddCoreMemoryFact(fact)
+			newID, err := stm.AddModelCoreFact(fact, sessionID, maxEntries, false)
 			if err != nil {
 				return "", fmt.Errorf("core memory add: %w", err)
 			}
 			return fmt.Sprintf(`{"status":"success","id":%d,"message":"%s"}`, newID, i18n.T(lang, "tools.core_memory_soft_cap_warning", count+1, maxEntries)), nil
 		}
 
-		newID, err := stm.AddCoreMemoryFact(fact)
+		newID, err := stm.AddModelCoreFact(fact, sessionID, maxEntries, capMode == "hard")
 		if err != nil {
 			return "", fmt.Errorf("core memory add: %w", err)
 		}

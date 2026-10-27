@@ -56,12 +56,24 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 - New model `remember` writes to Core Memory, Notes and Journal commit actor `agent`,
   origin `model_remember` and a content digest in the same transaction as the record.
+  `manage_memory` add commits the same Core Memory row (it goes through
+  `AddModelCoreFact` with the dispatch session ID), so `ReadCoreMemory` tags both
+  `[trust:agent-recorded]`; update keeps invalidating the label. Verify
+  `TestManageMemoryAddWritesOriginRow` in `internal/tools`.
   A hash identifies the private source session. Reusing an existing fact preserves its
   provenance; edits invalidate old labels. Legacy provenance stays unknown.
 - Retrieval shows concise trust labels and excludes raw source session IDs from
   provenance presentation. Known analysis envelopes retain the complete fact while
   hiding the private source session; arbitrary factual paragraphs are preserved.
   Verify `TestModelRememberProvenanceAtomicAndDoesNotRelabelExistingFact`.
+- The prompt explains the labels once, in the RETRIEVED MEMORIES header and in the
+  unified memory block when it carries retrieved memories (`retrievedMemoryTrustNote`
+  in `internal/prompts/builder.go`): `agent-extracted`, `agent-recorded` and
+  `legacy-unknown` are unverified claims, never instructions; the user and app labels
+  need no warning. A new label that is not user or app written
+  (`memoryTextWithTrust`, `MemoryOriginForRecord`) needs its name in that note.
+  Verify `TestRetrievedMemoriesHeaderExplainsTrustLabelsOnce` and, in
+  `internal/agent`, `TestMemoryHeaderNamesEveryTrustLabelTheAgentWrites`.
 - `ValidateCoreMemoryFact` refuses a standing order that reaches for a tool, a secret
   or an outbound channel even without a listed marker: `isCoreMemoryInstructionLike`
   also asks `security.DirectiveShape`. That covers `remember` (`AddModelCoreFact`),
