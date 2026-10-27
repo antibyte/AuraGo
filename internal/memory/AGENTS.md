@@ -62,6 +62,15 @@ Memory retrieval, hygiene, indexing, and maintenance.
   provenance presentation. Known analysis envelopes retain the complete fact while
   hiding the private source session; arbitrary factual paragraphs are preserved.
   Verify `TestModelRememberProvenanceAtomicAndDoesNotRelabelExistingFact`.
+- `ValidateCoreMemoryFact` refuses a standing order that reaches for a tool, a secret
+  or an outbound channel even without a listed marker: `isCoreMemoryInstructionLike`
+  also asks `security.DirectiveShape`. That covers `remember` (`AddModelCoreFact`),
+  `manage_memory` add and update, correction previews, learned-rule text, and the
+  prompt-side filter that hides such an existing entry. Ordinary standing preferences
+  ("Always answer in German") stay allowed. A change to `DirectiveShape` moves this
+  gate. Verify `TestCoreMemoryFactPolicyRejectsStandingDirectives`,
+  `TestCoreMemoryFactPolicyKeepsOrdinaryStandingPreferences` and
+  `TestAddModelCoreFactRefusesStandingDirective`.
 
 ### Memory System
 - **Schema lifecycle**: Read `user_version` before schema writes and reject newer
