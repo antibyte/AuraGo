@@ -647,6 +647,17 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     `document_creator`, refuses Home Assistant `script`, `shell_command`, `python_script` and `hassio` services
     unless `home_assistant.allowed_services` lists them, registers the call's credentials with the output
     scrubber and redacts them from the output, and never logs arguments (`flowLogHandler`).
+  - `agent.DispatchToolCallResult` wraps every answer in exactly one `<external_data>` layer, with a Guardian in
+    the context or without (the fallback regex Guardian), and the fence's boundary hardening rewrites the JSON
+    escape for `<` into one with a space after the backslash, which is no JSON. The invoker therefore removes that
+    layer itself (`flowOpenDispatchLayer`: label, fence, HTML escaping, and the broken escape put back when that
+    turns the body into valid JSON) before it redacts, classifies or returns the answer; the flows side then gets
+    the tool's own JSON (`web.read`, `doc.pdf_read`). An answer that is not fenced from end to end (a refusal the
+    dispatcher wrote, a quarantine notice, a warning line behind the fence) is left as it is. A layer that is
+    still there afterwards is the tool's own marking of remote content and picks no status (`flowToolText`).
+    Verify `TestC13DispatchLayerIsRemovedExactly`, `TestC13ToolMarkedTextBehindTheDispatchLayerPicksNoStatus`,
+    `TestC13GuardianLayerDoesNotDependOnTheDispatchedContext`, `TestC13WebReadNodeSpendsNoSummaryTokens` and
+    `TestC13PDFCreateThenPDFReadThroughTheInvoker`.
   - The invoker's outcome (`flowToolOutcome`) sets `IsError` for plain-text failures and maps AuraGo's own
     refusal texts (read-only, not enabled, SSRF, runtime gates, path refusals) to `denied`/`needs_setup`; a call
     whose context ended without success returns the context's error. A `send_telegram` whose text went out while
