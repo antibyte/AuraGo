@@ -241,6 +241,8 @@ func (dm *dmRequest) route(segs []string) {
 	case len(segs) == 3 && segs[0] == "hosts" && (segs[2] == "images" || segs[2] == "volumes" || segs[2] == "networks"):
 		dm.resourceList(segs[1], segs[2])
 	default:
-		dm.notFound()
+		if !dm.stackRoute(segs) {
+			dm.notFound()
+		}
 	}
 }
