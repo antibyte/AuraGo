@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -21,6 +22,7 @@ func TestClassifyError(t *testing.T) {
 		{"dns error type", &net.DNSError{Err: "no such host", Name: "nas.lan", IsNotFound: true}, CodeDNS},
 		{"dns timeout is still dns", &net.DNSError{Err: "i/o timeout", Name: "nas.lan", IsTimeout: true}, CodeDNS},
 		{"dns text", errors.New("dial tcp: lookup nas.lan: no such host"), CodeDNS},
+		{"dns resolver without resolv.conf", errors.New("dial tcp: lookup nas.lan: open /etc/resolv.conf: no such file or directory"), CodeDNS},
 		{"refused errno", fmt.Errorf("Docker request: %w", &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}), CodeRefused},
 		{"refused text", errors.New("dial tcp 10.0.0.5:2375: connect: connection refused"), CodeRefused},
 		{"refused windows text", errors.New("dial tcp 127.0.0.1:2375: connectex: No connection could be made because the target machine actively refused it."), CodeRefused},
@@ -64,5 +66,18 @@ func TestProbeHostRefusesEnginesBelowAPI141(t *testing.T) {
 		if want != "" && (status.State != StateError || status.Code != want) {
 			t.Fatalf("API %s: status = %+v, want an error with code %s", api, status, want)
 		}
+	}
+}
+
+func TestProbeHostSaysSoWhenTheEngineReportsNoAPIVersion(t *testing.T) {
+	fe := newFakeEngine(t)
+	// The unversioned probe of the transport sees API 1.45; the versioned answer lacks the field.
+	fe.json("GET", "/version", 200, `{"Version":"27.0.0"}`)
+	status := probeHost(context.Background(), fe.client(t))
+	if status.State != StateError || status.Code != CodeUnknown {
+		t.Fatalf("status = %+v, want an unknown error, not api_too_old", status)
+	}
+	if strings.Contains(status.Message, "too old") || !strings.Contains(status.Message, "did not report") {
+		t.Fatalf("message = %q, want a text that says no version was reported", status.Message)
 	}
 }

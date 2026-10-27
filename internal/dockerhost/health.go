@@ -98,12 +98,14 @@ func ClassifyError(err error) string {
 		return CodeSocketMissing
 	case errors.Is(err, syscall.ECONNREFUSED) || strings.Contains(text, "connection refused") || strings.Contains(text, "actively refused"):
 		return CodeRefused
+	case strings.Contains(text, "no such host") || strings.Contains(text, "server misbehaving") ||
+		strings.Contains(text, "name resolution") || strings.Contains(text, "resolv.conf"):
+		// Before the socket test: a resolver that cannot open /etc/resolv.conf
+		// reports "open /...: no such file or directory", which is a DNS problem.
+		return CodeDNS
 	case strings.Contains(text, "open /") || strings.Contains(text, "no such file or directory") ||
 		strings.Contains(text, "cannot find the file") || strings.Contains(text, "cannot find the path"):
 		return CodeSocketMissing
-	case strings.Contains(text, "no such host") || strings.Contains(text, "server misbehaving") ||
-		strings.Contains(text, "name resolution"):
-		return CodeDNS
 	}
 	return CodeUnknown
 }
@@ -161,7 +163,12 @@ func probeHost(ctx context.Context, c *dockerutil.Client) HostStatus {
 	if err := engineJSON(ctx, c, http.MethodGet, "version", &version); err != nil {
 		return errorStatus(err)
 	}
-	if minor, ok := apiMinor(version.APIVersion); !ok || minor < minAPIMinor {
+	minor, ok := apiMinor(version.APIVersion)
+	if !ok {
+		return errorStatus(withCode(CodeUnknown, fmt.Errorf(
+			"the endpoint did not report a usable Docker Engine API version (got %q); is it a Docker Engine?", version.APIVersion)))
+	}
+	if minor < minAPIMinor {
 		return errorStatus(withCode(CodeAPITooOld, fmt.Errorf(
 			"Docker Engine API %q is too old; the Docker Manager needs API 1.%d or newer (Docker 20.10+)", version.APIVersion, minAPIMinor)))
 	}

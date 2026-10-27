@@ -63,7 +63,8 @@ func ProjectDockerInspect(raw []byte) (map[string]interface{}, error) {
 
 // RedactDockerLabels masks label values whose key names a credential and
 // scrubs URL credentials and key=value secrets in the others, with the rules
-// of the admin inspect. It returns a new map.
+// of the admin inspect. It returns a new map, except for a nil or empty map,
+// which it returns as it is.
 func RedactDockerLabels(labels map[string]string) map[string]string {
 	if len(labels) == 0 {
 		return labels

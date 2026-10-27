@@ -60,7 +60,7 @@ func NewClientWithDialer(name string, dial func(ctx context.Context) (net.Conn, 
 		IdleConnTimeout: dialerIdleConnTimeout,
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			if dial == nil {
-				return nil, fmt.Errorf("Docker client %q has no dial function", name)
+				return nil, fmt.Errorf("docker client %q has no dial function", name)
 			}
 			return dial(ctx)
 		},
