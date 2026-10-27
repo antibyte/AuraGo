@@ -427,13 +427,16 @@ func (r *Registry) Test(ctx context.Context, id string) HostStatus {
 	return status
 }
 
-// TestNow is Test as a deliberate user action: it first lifts the SSH login
-// pause of the host, so exactly one login is attempted even after a rejected
-// password. Background tests use Test.
+// TestNow is Test as a deliberate user action (the Test and Retry buttons): it
+// first lifts the running SSH login pause of the host, so exactly one login is
+// attempted even after a rejected password. The failure series stays: if that
+// attempt is rejected too, the next pause is the next one of the series (2 min,
+// 4 min, ...), not 2 min again. A successful login, Update and Delete reset the
+// series. Background tests use Test.
 func (r *Registry) TestNow(ctx context.Context, id string) HostStatus {
 	r.mu.Lock()
 	if guard, ok := r.guards[id]; ok {
-		guard.breaker.reset()
+		guard.breaker.lift()
 	}
 	r.mu.Unlock()
 	return r.Test(ctx, id)
@@ -443,38 +446,44 @@ func (r *Registry) TestNow(ctx context.Context, id string) HostStatus {
 // input leaves out come from the stored host when h.ID names one, except a
 // stored SSH secret when the address, port or user differs from the stored host
 // (the same rule as Update). The client is not cached, is closed afterwards and
-// neither consults nor changes the SSH login pause: it is a manual action.
-func (r *Registry) TestDraft(ctx context.Context, h Host, sec SecretInput) HostStatus {
+// neither consults nor changes the SSH login pause: every click on the form's
+// Test button is one deliberate attempt, so it is unguarded by design.
+//
+// A draft that cannot be tested at all (an invalid field, a missing or
+// unusable secret) is returned as the *ValidationError, like Create and Update
+// report it; only the outcome of a real connection attempt, or a failure to
+// prepare one, is a HostStatus.
+func (r *Registry) TestDraft(ctx context.Context, h Host, sec SecretInput) (HostStatus, error) {
 	h = h.Normalized()
 	if h.Color == "" {
 		h.Color = Colors[0]
 	}
 	if err := ValidateHost(h); err != nil {
-		return errorStatus(err)
+		return HostStatus{}, err
 	}
 	var prev secretBundle
 	if h.ID != "" && h.ID != LocalHostID {
 		if stored, err := r.store.Get(ctx, h.ID); err == nil {
 			if prev, err = r.loadBundle(h.ID); err != nil {
-				return errorStatus(err)
+				return errorStatus(err), nil
 			}
 			if prev, err = reusableSecrets(stored, h, prev, sec); err != nil {
-				return errorStatus(err)
+				return HostStatus{}, err
 			}
 		}
 	}
 	bundle, err := resolveSecrets(h, prev, sec)
 	if err != nil {
-		return errorStatus(err)
+		return HostStatus{}, err
 	}
 	client, err := r.newClient(h, bundle, nil)
 	if err != nil {
-		return errorStatus(err)
+		return errorStatus(err), nil
 	}
 	defer client.CloseIdleConnections()
 	ctx, cancel := context.WithTimeout(ctx, testBudget)
 	defer cancel()
-	return probeHost(ctx, client)
+	return probeHost(ctx, client), nil
 }
 
 // Close closes the idle connections of the cached clients, which also ends the

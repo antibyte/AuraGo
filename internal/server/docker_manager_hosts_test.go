@@ -101,6 +101,12 @@ func TestDockerManagerDraftTestDoesNotSave(t *testing.T) {
 	if body["field"] != "address" {
 		t.Fatalf("draft validation = %s, want field address", f.lastRaw)
 	}
+	// Missing credentials are a validation problem of a field, like on save, not a connection status.
+	code, body = f.do(http.MethodPost, "/hosts/test", map[string]any{"name": "Draft", "kind": "ssh", "address": "192.0.2.10", "ssh_user": "root"})
+	dmExpectError(t, f, code, body, http.StatusBadRequest, "invalid_host")
+	if body["field"] != "ssh_secret" {
+		t.Fatalf("draft without an ssh secret = %s, want field ssh_secret", f.lastRaw)
+	}
 	_, body = f.do(http.MethodGet, "/hosts", nil)
 	if got := len(dmArray(t, body, "hosts")); got != 1 {
 		t.Fatalf("a draft test stored a host: %d hosts", got)

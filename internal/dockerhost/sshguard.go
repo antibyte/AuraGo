@@ -25,7 +25,8 @@ const (
 
 // authBreaker pauses the logins of one host after authentication failures. The
 // pause starts at authBackoffMin and doubles per consecutive failure up to
-// authBackoffMax; a success or reset closes the breaker again.
+// authBackoffMax; a success or reset closes the breaker again and forgets the
+// series, lift only ends the running pause.
 type authBreaker struct {
 	now func() time.Time
 
@@ -77,11 +78,22 @@ func (b *authBreaker) reset() {
 	b.until = time.Time{}
 }
 
+// lift ends the current pause but keeps the failure series: the attempt it
+// allows is a deliberate one (Registry.TestNow), and if it fails too the next
+// pause is the next one of the series instead of starting at authBackoffMin
+// again. Only a successful login or reset forgets the series.
+func (b *authBreaker) lift() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.until = time.Time{}
+}
+
 // pausedError is the error of a login that was not attempted because the
-// breaker is open. It classifies as CodeAuth.
+// breaker is open. It classifies as CodeAuth. The advice names what the UI
+// offers: Test and Retry both go through Registry.TestNow.
 func pausedError(left time.Duration) error {
 	return withCode(CodeAuth, fmt.Errorf(
-		"SSH login paused after an authentication failure; next attempt in %s. Fix the credentials or press Test",
+		"SSH login paused after an authentication failure; next attempt in %s. Fix the credentials or test the connection again.",
 		left.Round(time.Second)))
 }
 

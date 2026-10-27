@@ -58,6 +58,18 @@ func TestAuthBreakerDoublesFromTwoToThirtyMinutesAndResets(t *testing.T) {
 		}
 	}
 
+	// lift ends the running pause but keeps the series: the next failure doubles.
+	lifted := newAuthBreaker(clock.Now)
+	lifted.fail()
+	lifted.lift()
+	if lifted.remaining() != 0 {
+		t.Fatal("lift must end the pause")
+	}
+	lifted.fail()
+	if got := lifted.remaining(); got != 2*authBackoffMin {
+		t.Fatalf("pause after lift and a second failure = %v, want the series to continue at %v", got, 2*authBackoffMin)
+	}
+
 	b.fail()
 	b.reset()
 	if b.remaining() != 0 {

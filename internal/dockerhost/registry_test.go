@@ -312,8 +312,8 @@ func TestRegistryTestDraftDoesNotSaveAndClassifiesFailures(t *testing.T) {
 	fe := newFakeEngine(t)
 	reg, _ := newTestRegistry(t, "")
 
-	if status := reg.TestDraft(ctx, tcpHostFor(fe, "draft"), SecretInput{}); status.State != StateOK || status.EngineVersion != "27.3.1" {
-		t.Fatalf("TestDraft of a reachable engine = %+v", status)
+	if status, err := reg.TestDraft(ctx, tcpHostFor(fe, "draft"), SecretInput{}); err != nil || status.State != StateOK || status.EngineVersion != "27.3.1" {
+		t.Fatalf("TestDraft of a reachable engine = %+v, %v", status, err)
 	}
 	if hosts, _ := reg.store.List(ctx); len(hosts) != 0 {
 		t.Fatalf("TestDraft must not save the host: %+v", hosts)
@@ -327,14 +327,19 @@ func TestRegistryTestDraftDoesNotSaveAndClassifiesFailures(t *testing.T) {
 	refusedPort := closed.Addr().(*net.TCPAddr).Port
 	_ = closed.Close()
 	dead := Host{Name: "dead", Kind: KindTCP, Address: "127.0.0.1", Port: refusedPort, Color: "gray"}
-	status := reg.TestDraft(ctx, dead, SecretInput{})
-	if status.State != StateError || status.Code != CodeRefused {
-		t.Fatalf("TestDraft of a closed port = %+v, want error code refused", status)
+	status, err := reg.TestDraft(ctx, dead, SecretInput{})
+	if err != nil || status.State != StateError || status.Code != CodeRefused {
+		t.Fatalf("TestDraft of a closed port = %+v, %v; want error code refused", status, err)
 	}
 
-	// An invalid draft is reported as a status, not a panic.
-	if status := reg.TestDraft(ctx, Host{Name: "x", Kind: KindTCP, Address: "tcp://x"}, SecretInput{}); status.State != StateError || !strings.Contains(status.Message, "address") {
-		t.Fatalf("TestDraft of an invalid draft = %+v", status)
+	// A draft that cannot be tested is a ValidationError, not a connection status.
+	_, err = reg.TestDraft(ctx, Host{Name: "x", Kind: KindTCP, Address: "tcp://x"}, SecretInput{})
+	if field, _ := validationOf(err); field != "address" {
+		t.Fatalf("TestDraft of an invalid draft = %v, want a ValidationError for address", err)
+	}
+	_, err = reg.TestDraft(ctx, Host{Name: "pi", Kind: KindSSH, Address: "pi.lan", SSHUser: "pi"}, SecretInput{})
+	if field, _ := validationOf(err); field != "ssh_secret" {
+		t.Fatalf("TestDraft of an SSH draft without a secret = %v, want a ValidationError for ssh_secret", err)
 	}
 
 	// A draft that names a stored host reuses its stored secrets.
@@ -344,8 +349,8 @@ func TestRegistryTestDraftDoesNotSaveAndClassifiesFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status := reg.TestDraft(ctx, saved, SecretInput{}); status.State != StateOK {
-		t.Fatalf("TestDraft of a stored host without secret input = %+v, want the stored CA used", status)
+	if status, err := reg.TestDraft(ctx, saved, SecretInput{}); err != nil || status.State != StateOK {
+		t.Fatalf("TestDraft of a stored host without secret input = %+v, %v; want the stored CA used", status, err)
 	}
 }
 

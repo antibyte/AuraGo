@@ -96,8 +96,8 @@ func TestRegistrySSHAuthFailurePausesLoginsUntilTestNowOrUpdate(t *testing.T) {
 	}
 
 	// TestDraft is a manual action: it dials even while paused and leaves the pause as it is.
-	if draft := reg.TestDraft(ctx, host, SecretInput{}); draft.Code != CodeAuth || log.count() != 2 {
-		t.Fatalf("TestDraft = %+v after %d logins, want a real attempt (2 logins)", draft, log.count())
+	if draft, err := reg.TestDraft(ctx, host, SecretInput{}); err != nil || draft.Code != CodeAuth || log.count() != 2 {
+		t.Fatalf("TestDraft = %+v, %v after %d logins, want a real attempt (2 logins)", draft, err, log.count())
 	}
 	if reg.Test(ctx, host.ID); log.count() != 2 {
 		t.Fatal("TestDraft must not lift the pause")
@@ -107,9 +107,10 @@ func TestRegistrySSHAuthFailurePausesLoginsUntilTestNowOrUpdate(t *testing.T) {
 	if status := reg.TestNow(ctx, host.ID); status.Code != CodeAuth || log.count() != 3 {
 		t.Fatalf("TestNow = %+v after %d logins, want one more login", status, log.count())
 	}
-	reg.Test(ctx, host.ID)
-	if log.count() != 3 {
-		t.Fatalf("Test after TestNow made a login (%d), want the pause back", log.count())
+	// The failure series survives the click: the pause doubles instead of starting at 2 min again.
+	paused := reg.Test(ctx, host.ID)
+	if log.count() != 3 || !strings.Contains(paused.Message, "next attempt in 4m0s. Fix the credentials or test the connection again.") {
+		t.Fatalf("Test after TestNow = %+v after %d logins, want the pause back, doubled to 4m0s", paused, log.count())
 	}
 
 	// Editing the host (new credentials) forgets the pause.
@@ -148,9 +149,9 @@ func TestRegistryStoredSSHSecretDoesNotFollowAChangedHostIdentity(t *testing.T) 
 			t.Fatalf("a rejected Update (%s) must leave the vault as it was", name)
 		}
 		before := log.count()
-		draft := reg.TestDraft(ctx, edit, SecretInput{})
-		if draft.State != StateError || !strings.Contains(draft.Message, errSSHSecretIdentity) || log.count() != before {
-			t.Fatalf("TestDraft with a changed %s = %+v (%d new logins); want the same error and no login", name, draft, log.count()-before)
+		_, draftErr := reg.TestDraft(ctx, edit, SecretInput{})
+		if field, message := validationOf(draftErr); field != "ssh_secret" || message != errSSHSecretIdentity || log.count() != before {
+			t.Fatalf("TestDraft with a changed %s = %v (%d new logins); want the same ssh_secret error and no login", name, draftErr, log.count()-before)
 		}
 	}
 	// A host that was not SSH has no stored SSH secret to carry over.

@@ -208,7 +208,10 @@ func (dm *dmRequest) hostTest(id string) {
 // hostDraftTest serves POST /hosts/test: it tests an unsaved draft. A draft
 // that names a stored host by id takes the secrets it leaves out from that
 // host's vault entries (done by TestDraft), so "Test connection" works while
-// editing without retyping a key. An invalid draft is a 400 with the field.
+// editing without retyping a key. A draft that cannot be tested (an invalid
+// field, or SSH/TLS credentials that are missing or may not be reused) is a 400
+// invalid_host with the field, like a save; only a real connection outcome is a
+// 200 host_status.
 func (dm *dmRequest) hostDraftTest() {
 	if !dm.allow(http.MethodPost) {
 		return
@@ -219,15 +222,12 @@ func (dm *dmRequest) hostDraftTest() {
 	}
 	ctx, cancel := dm.context(dmHostTestTimeout)
 	defer cancel()
-	host := in.host().Normalized()
-	if host.Color == "" {
-		host.Color = dockerhost.Colors[0]
-	}
-	if err := dockerhost.ValidateHost(host); err != nil {
+	host := in.host()
+	host.ID = strings.TrimSpace(in.ID)
+	status, err := dm.registry().TestDraft(ctx, host, in.secrets())
+	if err != nil {
 		dm.hostFailure(err)
 		return
 	}
-	host.ID = strings.TrimSpace(in.ID)
-	status := dm.registry().TestDraft(ctx, host, in.secrets())
 	dmWriteOK(dm.w, http.StatusOK, dmFields{"host_status": status})
 }
