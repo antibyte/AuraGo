@@ -260,8 +260,9 @@ func checkSize(file, content string) error {
 
 // Create writes a new stack: its folder, compose.yaml and, when in.Env is set,
 // .env. A folder that already has a compose file is CodeStackExists; a folder
-// without one (leftover data) is used as it is. The stack's status is draft
-// until it is deployed.
+// without one (leftover data) is used as it is, except that an .env in it is
+// never replaced (CodeStackExists naming it when in.Env is set; kept when not).
+// The stack's status is draft until it is deployed.
 func (s *Service) Create(ctx context.Context, hostID string, in CreateInput) (StackDetail, error) {
 	if err := ValidateName(in.Name); err != nil {
 		return StackDetail{}, err
@@ -305,6 +306,17 @@ func (s *Service) Create(ctx context.Context, hostID string, in CreateInput) (St
 			exists := newError(CodeStackExists, "the stack %q already exists on this host", in.Name)
 			exists.Err = ErrStackExists
 			return StackDetail{}, exists
+		}
+		if in.Env != nil {
+			// Leftover data may include a .env; it is never replaced behind the user's back.
+			envExists, err := e.pathExists(ctx, path.Join(dir, EnvFileName))
+			if err != nil {
+				return StackDetail{}, err
+			}
+			if envExists {
+				return StackDetail{}, newError(CodeStackExists,
+					"the folder of stack %q already holds a %s that would be overwritten; remove it or create the stack without one", in.Name, EnvFileName)
+			}
 		}
 	}
 

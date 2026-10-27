@@ -407,3 +407,30 @@ func TestOnlyOneWriterPassesThePerStackLockAtATime(t *testing.T) {
 		t.Fatalf("wins = %d conflicts = %d, want exactly one writer to succeed", wins, conflicts)
 	}
 }
+
+func TestCreateNeverOverwritesAnExistingEnvOfAFolderWithoutAComposeFile(t *testing.T) {
+	env := newTestEnv(t, true)
+	ctx := context.Background()
+	env.fe.putFile("/opt/stacks/leftover/.env", "DB_PASSWORD=old-secret\n")
+
+	newEnv := "NEW=1\n"
+	_, err := env.svc.Create(ctx, testHostID, CreateInput{Name: "leftover", Compose: stacksTestCompose, Env: &newEnv})
+	if CodeOf(err) != CodeStackExists || !strings.Contains(err.Error(), ".env") {
+		t.Fatalf("Create with an .env over an existing one = %v, want %s naming the .env", err, CodeStackExists)
+	}
+	if got, _ := env.fe.file("/opt/stacks/leftover/.env"); got != "DB_PASSWORD=old-secret\n" {
+		t.Fatalf("the existing .env was overwritten: %q", got)
+	}
+	if _, ok := env.fe.file("/opt/stacks/leftover/compose.yaml"); ok {
+		t.Fatal("a refused create must write nothing")
+	}
+
+	// Without an .env in the request the existing one is kept as it is.
+	detail, err := env.svc.Create(ctx, testHostID, CreateInput{Name: "leftover", Compose: stacksTestCompose})
+	if err != nil {
+		t.Fatalf("Create without an .env next to an existing one: %v", err)
+	}
+	if got, _ := env.fe.file("/opt/stacks/leftover/.env"); got != "DB_PASSWORD=old-secret\n" || detail.Env.Content != got {
+		t.Fatalf("the existing .env must stay untouched, got %q / %+v", got, detail.Env)
+	}
+}
