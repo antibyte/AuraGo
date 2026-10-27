@@ -136,7 +136,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 			}
 		}
 	}
-	applyExtendedActionRisk(&a, tc, args)
+	applyExtendedActionRisk(&a, tc, dc, args)
 	a.targets, a.targetUnknown = canonicalActionTargets(tc, dc)
 	a.Target = actionTargetSummary(a.targets)
 	return a

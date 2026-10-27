@@ -261,10 +261,13 @@ func TestUnattendedProbeHostCopyingIsolatedTextNeedsARule(t *testing.T) {
 	recordIsolatedModelBody(dc.SessionID, isolatedToolOutput("zones: alpha-service.beta-service.gamma-service.delta-svc.example.com is the staging stack"))
 
 	composed := "alpha-service.beta-service.gamma-service.delta-svc.example.org"
-	if a := DescribeAction(ToolCall{Action: "dns_lookup", Params: map[string]interface{}{"host": composed}}, dc); a.HighRisk {
-		t.Fatalf("fixture host must be ordinary for B4: %+v", a)
+	if probeHostLooksLikeExfiltration(composed) {
+		t.Fatal("fixture host must be an ordinary name by shape")
 	}
 	lookup := ToolCall{Action: "dns_lookup", Params: map[string]interface{}{"host": composed}}
+	if a := DescribeAction(lookup, dc); !a.HighRisk {
+		t.Fatalf("a host that copies isolated text is high-risk whatever its shape: %+v", a)
+	}
 	result := DispatchToolCallResult(context.Background(), &lookup, dc, "fixture")
 	if result.Status != ToolResultDenied || !strings.Contains(result.Output, "action_rule_required") || *calls != 0 {
 		t.Fatalf("unattended composed host = %+v calls=%d", result, *calls)
@@ -425,4 +428,30 @@ func TestCopiedSpanStoreKeepsASessionThatIsStillInUse(t *testing.T) {
 	if count > copiedSpanMaxSessions {
 		t.Fatalf("%d sessions kept, limit %d", count, copiedSpanMaxSessions)
 	}
+}
+
+func TestInteractiveProbeCopyingIsolatedTextNeedsApproval(t *testing.T) {
+	dc, calls := copiedSpanFixture(t)
+	dc.Cfg.Tools.NetworkPing.Enabled = true // network_ping and port_scanner share this gate.
+	dc.MessageSource = ""
+	dc.Cfg.Agent.ActionPolicy.Allow = nil
+	recordIsolatedModelBody(dc.SessionID, isolatedToolOutput("zones: alpha-service.beta-service.gamma-service.delta-svc.example.com is the staging stack"))
+	composed := "alpha-service.beta-service.gamma-service.delta-svc.example.org"
+
+	for _, tool := range []string{"dns_lookup", "network_ping", "port_scanner"} {
+		call := ToolCall{Action: tool, Params: map[string]interface{}{"host": composed}}
+		if a := DescribeAction(call, dc); !a.HighRisk || a.RunType != "interactive" {
+			t.Fatalf("%s: a copied host must be high-risk in an interactive run too: %+v", tool, a)
+		}
+		before := *calls
+		result := DispatchToolCallResult(context.Background(), &call, dc, "fixture")
+		if result.Status != ToolResultDeferred || !strings.Contains(result.Output, "approval_required") || *calls != before {
+			t.Fatalf("%s: interactive copied host = %+v calls=%d", tool, result, *calls)
+		}
+		CancelActionApprovals(dc.SessionID)
+	}
+	// A host that appears whole in the output is a name the model followed, and an
+	// unrelated host is not a copy.
+	requireRuns(t, dc, calls, ToolCall{Action: "dns_lookup", Params: map[string]interface{}{"host": "ALPHA-service.beta-service.gamma-service.delta-svc.example.com"}})
+	requireRuns(t, dc, calls, ToolCall{Action: "network_ping", Params: map[string]interface{}{"host": "example.com"}})
 }
