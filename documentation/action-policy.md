@@ -44,12 +44,36 @@ A high-risk call that copies a 48-character span from an earlier isolated tool
 body still waits for a one-shot approval, including when the policy is off.
 An allow rule does not skip that wait. A still-valid approval for the exact
 arguments does. Short original arguments and reads stay on the existing path.
-The comparison uses the call arguments. The session todo and guardian
-bookkeeping fields do not count. An unattended copy stays blocked, and the
-refusal does not offer an allow rule as the remedy. An interactive copy up to
-256 KiB can still be approved once. The dialog preview is shortened; approval
-runs the exact call. A larger copy is refused.
+The comparison uses the call arguments as text (every string value, decoded)
+against the isolated tool output as the model saw it. Both sides have HTML
+entities resolved and every run of whitespace, line breaks included, collapsed
+to one space, so a hard-wrapped or re-flowed copy still matches. Each session
+keeps the full isolated output of its recent tool calls, up to 256 KiB of text,
+and drops the oldest first; one output beyond that keeps its start. The session
+todo and guardian bookkeeping fields do not count. An unattended copy stays
+blocked, and the refusal does not offer an allow rule as the remedy. An
+interactive copy up to 256 KiB can still be approved once. The dialog preview is
+shortened to 8 KiB and begins with the size and SHA-256 of the whole call and of
+each long text field (such as the copied body), so the approver can see how much
+the preview leaves out; approval runs the exact call. A larger copy is refused.
 Existing endpoint/method/path/action grants in treg remain authoritative.
+
+Outbound fetches and probes (`api_request`, `web_scraper`, `web_capture`, the
+browser, crawler and monitor tools, `dns_lookup`, `network_ping`, `port_scanner`,
+`whois_lookup`) are mostly not high-risk, but the destination sees their URL or
+host name. In an unattended run the same 48-character test therefore covers that
+URL or host. Case and percent-encoding are ignored. A target that appears whole
+in an earlier output is a link the model followed and passes. A target that
+carries a span of earlier output (a query string built from a mail, a host name
+made of a memory entry) stops with `action_rule_required` until an allow rule
+names the tool and target. This check is part of the action policy: with
+`enabled: false` it does not run.
+
+The approval dialog and the LLM Guardian are told which external tools the
+session read lately, for example `untrusted content read earlier in this
+session: web_scraper, fetch_email`. The record holds the last eight tools whose
+non-quarantined output reached the model within the past hour. It informs the
+decision and never blocks anything.
 
 Docker `exec` and Ansible ad-hoc/module/command or playbook execution require
 explicit action authority; merely enabling a writable integration does not

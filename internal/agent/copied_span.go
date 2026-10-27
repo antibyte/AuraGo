@@ -1,87 +1,240 @@
 package agent
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
 const (
-	copiedSpanRunes       = 48
-	copiedSpanBodies      = 3
-	copiedSpanMaxBytes    = 4000
-	copiedSpanMaxRunes    = 1500
+	copiedSpanRunes = 48
+	// copiedSpanSessionBytes is the normalised text kept per session. The oldest
+	// outputs are evicted first; one output larger than the budget keeps its start.
+	copiedSpanSessionBytes = 256 << 10
+	// copiedSpanTotalBytes bounds all sessions together, copiedSpanMaxSessions their number.
+	copiedSpanTotalBytes  = 16 << 20
 	copiedSpanMaxSessions = 256
+	// untrustedReadMax and untrustedReadTTL bound the record of external tools whose
+	// output reached the model in a session.
+	untrustedReadMax = 8
+	untrustedReadTTL = time.Hour
 )
 
-// isolatedBodyStore keeps the last few model-visible isolated bodies per session.
-// The next high-risk call is checked against them. The current call is recorded
+// isolatedBodyStore keeps the model-visible isolated outputs of each session, in
+// full up to a byte budget, and the external tools that produced them. The next
+// high-risk call is checked against the outputs. The current call is recorded
 // only after it returns, so it cannot block itself.
 type isolatedBodyStore struct {
 	mu       sync.Mutex
 	order    []string
-	sessions map[string][]string
+	sessions map[string]*isolatedSession
+	total    int
+	now      func() time.Time
 }
 
-var modelIsolatedBodies = &isolatedBodyStore{sessions: map[string][]string{}}
+type isolatedSession struct {
+	entries [][]string // Oldest first; one entry per output, one text per view.
+	bytes   int
+	reads   []untrustedRead // Oldest first, one per tool.
+}
 
+type untrustedRead struct {
+	tool string
+	at   time.Time
+}
+
+var modelIsolatedBodies = &isolatedBodyStore{sessions: map[string]*isolatedSession{}, now: time.Now}
+
+// recordIsolatedModelBody indexes one tool output for the copied-span check.
 func recordIsolatedModelBody(sessionID, output string) {
-	if sessionID == "" || !strings.Contains(output, "<external_data>") || strings.Contains(output, "[QUARANTINE NOTICE]") {
-		return
-	}
-	body := boundCopiedSpanBody(output)
-	if utf8.RuneCountInString(body) < copiedSpanRunes {
-		return
-	}
-	modelIsolatedBodies.add(sessionID, body)
+	recordIsolatedModelOutput(sessionID, "", output)
 }
 
-func boundCopiedSpanBody(output string) string {
-	runes := []rune(output)
-	if len(runes) > copiedSpanMaxRunes {
-		runes = runes[:copiedSpanMaxRunes]
+// recordIsolatedModelOutput indexes one tool output and, when tool is set, notes that
+// this external tool's content reached the model. A quarantine notice is neither.
+func recordIsolatedModelOutput(sessionID, tool, output string) {
+	if sessionID == "" {
+		return
 	}
-	body := string(runes)
-	for len(body) > copiedSpanMaxBytes && len(runes) > 0 {
-		runes = runes[:len(runes)-1]
-		body = string(runes)
+	payload, ok := isolatedModelPayload(output)
+	if !ok {
+		return
 	}
-	return body
+	if name := untrustedReadName(tool); name != "" {
+		modelIsolatedBodies.noteRead(sessionID, name)
+	}
+	var views []string
+	for _, view := range copiedSpanViews(payload) {
+		if utf8.RuneCountInString(view) >= copiedSpanRunes {
+			views = append(views, view)
+		}
+	}
+	if len(views) > 0 {
+		modelIsolatedBodies.add(sessionID, views)
+	}
 }
 
-func (s *isolatedBodyStore) add(sessionID, body string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, ok := s.sessions[sessionID]; !ok {
+// isolatedModelPayload recovers the content the model saw from an isolated tool
+// output. The handler or SanitizeToolOutput wrapped it in <external_data>. Only the
+// notice itself, which starts the output, is skipped: a page that merely prints
+// the notice's words must not stop its own text from being recorded.
+func isolatedModelPayload(output string) (string, bool) {
+	if !strings.Contains(output, "<external_data>") {
+		return "", false
+	}
+	payload, isolated := toolResultPayload(output)
+	if isolated {
+		return payload, true
+	}
+	if strings.HasPrefix(payload, "[QUARANTINE NOTICE]") {
+		return "", false
+	}
+	return output, true
+}
+
+// untrustedReadName keeps a tool name that is safe to show in an approval and to
+// hand to the guardian.
+func untrustedReadName(tool string) string {
+	tool = strings.ToLower(strings.TrimSpace(tool))
+	if tool == "" || len(tool) > 48 {
+		return ""
+	}
+	for _, r := range tool {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || strings.ContainsRune("_.:/-", r)) {
+			return ""
+		}
+	}
+	return tool
+}
+
+func (s *isolatedBodyStore) clock() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
+}
+
+func (s *isolatedBodyStore) sessionLocked(sessionID string) *isolatedSession {
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		session = &isolatedSession{}
+		s.sessions[sessionID] = session
 		s.order = append(s.order, sessionID)
 	}
-	bodies := append(s.sessions[sessionID], body)
-	if len(bodies) > copiedSpanBodies {
-		bodies = bodies[len(bodies)-copiedSpanBodies:]
-	}
-	s.sessions[sessionID] = bodies
-	for len(s.sessions) > copiedSpanMaxSessions && len(s.order) > 0 {
-		drop := s.order[0]
-		s.order = s.order[1:]
+	return session
+}
+
+// evictLocked drops the oldest sessions, never keep, until the count and the byte
+// total fit.
+func (s *isolatedBodyStore) evictLocked(keep string) {
+	for (len(s.sessions) > copiedSpanMaxSessions || s.total > copiedSpanTotalBytes) && len(s.order) > 1 {
+		at := 0
+		if s.order[at] == keep {
+			at = 1
+		}
+		drop := s.order[at]
+		s.order = append(s.order[:at], s.order[at+1:]...)
+		if session := s.sessions[drop]; session != nil {
+			s.total -= session.bytes
+		}
 		delete(s.sessions, drop)
 	}
 }
 
-func (s *isolatedBodyStore) bodies(sessionID string) []string {
+func truncateCopiedView(view string, limit int) string {
+	if len(view) <= limit {
+		return view
+	}
+	for limit > 0 && !utf8.RuneStart(view[limit]) {
+		limit--
+	}
+	return view[:limit]
+}
+
+func (s *isolatedBodyStore) add(sessionID string, views []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	src := s.sessions[sessionID]
-	out := make([]string, len(src))
-	copy(out, src)
+	session := s.sessionLocked(sessionID)
+	entry := make([]string, len(views))
+	size := 0
+	for i, view := range views {
+		entry[i] = truncateCopiedView(view, copiedSpanSessionBytes/len(views))
+		size += len(entry[i])
+	}
+	session.entries = append(session.entries, entry)
+	session.bytes += size
+	s.total += size
+	for session.bytes > copiedSpanSessionBytes && len(session.entries) > 1 {
+		dropped := 0
+		for _, view := range session.entries[0] {
+			dropped += len(view)
+		}
+		session.entries = session.entries[1:]
+		session.bytes -= dropped
+		s.total -= dropped
+	}
+	s.evictLocked(sessionID)
+}
+
+func (s *isolatedBodyStore) noteRead(sessionID, tool string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session := s.sessionLocked(sessionID)
+	now := s.clock()
+	kept := session.reads[:0]
+	for _, read := range session.reads {
+		if read.tool != tool && now.Sub(read.at) < untrustedReadTTL {
+			kept = append(kept, read)
+		}
+	}
+	session.reads = append(kept, untrustedRead{tool: tool, at: now})
+	if len(session.reads) > untrustedReadMax {
+		session.reads = session.reads[len(session.reads)-untrustedReadMax:]
+	}
+	s.evictLocked(sessionID)
+}
+
+// views returns every indexed text of the session.
+func (s *isolatedBodyStore) views(sessionID string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session := s.sessions[sessionID]
+	if session == nil {
+		return nil
+	}
+	var out []string
+	for _, entry := range session.entries {
+		out = append(out, entry...)
+	}
+	return out
+}
+
+// recentReads returns the external tools read lately, newest first.
+func (s *isolatedBodyStore) recentReads(sessionID string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	session := s.sessions[sessionID]
+	if session == nil {
+		return nil
+	}
+	now := s.clock()
+	var out []string
+	for i := len(session.reads) - 1; i >= 0; i-- {
+		if now.Sub(session.reads[i].at) < untrustedReadTTL {
+			out = append(out, session.reads[i].tool)
+		}
+	}
 	return out
 }
 
 func clearIsolatedModelBodies(sessionID string) {
 	modelIsolatedBodies.mu.Lock()
 	defer modelIsolatedBodies.mu.Unlock()
+	if session := modelIsolatedBodies.sessions[sessionID]; session != nil {
+		modelIsolatedBodies.total -= session.bytes
+	}
 	delete(modelIsolatedBodies.sessions, sessionID)
 	kept := modelIsolatedBodies.order[:0]
 	for _, id := range modelIsolatedBodies.order {
@@ -92,53 +245,60 @@ func clearIsolatedModelBodies(sessionID string) {
 	modelIsolatedBodies.order = kept
 }
 
+// untrustedReadsNote names the external tools whose content reached the model in
+// this session, for the approval dialog and the LLM Guardian context. It is
+// provenance, not a gate. It is empty when nothing external was read lately.
+func untrustedReadsNote(sessionID string) string {
+	if sessionID == "" {
+		return ""
+	}
+	tools := modelIsolatedBodies.recentReads(sessionID)
+	if len(tools) == 0 {
+		return ""
+	}
+	return "untrusted content read earlier in this session: " + strings.Join(tools, ", ")
+}
+
+// guardianContextShownBytes is what the LLM Guardian prompt keeps of a check's
+// context; the note must fit in it to reach the judge whole.
+const guardianContextShownBytes = 200
+
+// guardianContextWithReads appends the untrusted-read note to the context of an
+// LLM Guardian check, shortening the user message to make room for it.
+func guardianContextWithReads(userContext, sessionID string) string {
+	note := untrustedReadsNote(sessionID)
+	if note == "" {
+		return userContext
+	}
+	if userContext == "" {
+		return note
+	}
+	return truncateUTF8ToLimit(userContext, max(guardianContextShownBytes-len(note)-1, 60), "") + "\n" + note
+}
+
+// copiesViews reports whether text shares a copiedSpanRunes window with any view.
+func copiesViews(views []string, text []rune) bool {
+	for _, view := range views {
+		if sharesWindow([]rune(view), text) {
+			return true
+		}
+	}
+	return false
+}
+
 func copiedIsolatedSpan(tc ToolCall, dc *DispatchContext) bool {
 	if dc == nil || dc.SessionID == "" {
 		return false
 	}
-	args := toolCallArgumentJSON(tc)
-	if utf8.RuneCountInString(args) < copiedSpanRunes {
+	views := modelIsolatedBodies.views(dc.SessionID)
+	if len(views) == 0 {
 		return false
 	}
-	for _, body := range modelIsolatedBodies.bodies(dc.SessionID) {
-		if spanWindowMatches(body, args) {
-			return true
-		}
-	}
-	return false
-}
-
-func toolCallArgumentJSON(tc ToolCall) string {
-	// The session todo and guardian notes ride along on the call. They are not
-	// the arguments that will be executed or sent.
-	tc.Todo = ""
-	tc.GuardianJustification = ""
-	tc.GuardianBlocked = false
-	tc.GuardianBlockReason = ""
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(tc); err != nil {
-		return ""
-	}
-	return buf.String()
-}
-
-func spanWindowMatches(body, args string) bool {
-	runes := []rune(body)
-	if len(runes) < copiedSpanRunes {
+	args := []rune(copiedSpanArgumentText(tc))
+	if len(args) < copiedSpanRunes {
 		return false
 	}
-	for i := 0; i+copiedSpanRunes <= len(runes); i++ {
-		window := string(runes[i : i+copiedSpanRunes])
-		if strings.TrimSpace(window) == "" {
-			continue
-		}
-		if strings.Contains(args, window) {
-			return true
-		}
-	}
-	return false
+	return copiesViews(views, args)
 }
 
 // gateCopiedIsolatedSpan reports whether a high-risk call copies a stored isolated span.

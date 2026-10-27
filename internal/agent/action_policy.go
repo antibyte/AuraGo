@@ -344,7 +344,10 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	if tc.Action == "treg_call" {
 		return nil
 	}
-	if !a.HighRisk {
+	// An unattended fetch or probe is not high-risk, but when its URL or host carries
+	// text copied from earlier isolated output it needs a rule that names it.
+	fetchCopy := !a.HighRisk && a.RunType != "interactive" && copiedFetchSpan(tc, dc)
+	if !a.HighRisk && !fetchCopy {
 		return nil
 	}
 	if grant, ok := ctx.Value(approvedActionKey{}).(approvedActionGrant); ok && grant.SessionID == dc.SessionID && grant.ArgumentsHash == a.ArgumentsHash {
@@ -355,6 +358,9 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	}
 	if preview, _ := ctx.Value(actionPreviewKey{}).(bool); preview {
 		return actionPolicyRefusal("action_rule_required", "A matching administrator rule or one-shot approval is required.", ToolResultDenied)
+	}
+	if fetchCopy {
+		return actionPolicyRefusal("action_rule_required", "This unattended request carries text copied from earlier isolated tool output in its URL or host. It needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)
 	}
 	if a.RunType != "interactive" {
 		return actionPolicyRefusal("action_rule_required", "This high-risk unattended action needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)

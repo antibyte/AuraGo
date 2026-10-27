@@ -160,6 +160,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 		if len(guardianCtx) > 300 {
 			guardianCtx = guardianCtx[:300]
 		}
+		// Provenance, not a verdict: the judge sees that this session read content
+		// from outside before the call it is judging.
+		guardianCtx = guardianContextWithReads(guardianCtx, dc.SessionID)
 		check := security.GuardianCheck{
 			Operation:  subject.Action,
 			Parameters: toolCallParams(subject),
@@ -239,7 +242,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 
 	output := formatToolOutputForModel(*tc, sanitized)
-	recordIsolatedModelBody(dc.SessionID, output)
+	recordIsolatedModelOutput(dc.SessionID, tc.Action, output)
 	return ToolDispatchResult{
 		Output:  output,
 		Status:  status,
