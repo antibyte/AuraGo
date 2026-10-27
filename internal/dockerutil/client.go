@@ -39,6 +39,41 @@ func NewClient(host string, timeout time.Duration) *Client {
 	}
 }
 
+// dialerIdleConnTimeout reaps idle connections of a NewClientWithDialer client.
+// For an Engine reached through SSH this also closes the SSH client the idle
+// connection owns.
+const dialerIdleConnTimeout = time.Minute
+
+// NewClientWithDialer is NewClient with a caller-supplied dial function and
+// version-probe budget, for Engines reached through a transport that an
+// endpoint string cannot express (TLS with client certificates, SSH tunnels).
+// name is what Host reports. Requests still use Endpoint
+// ("http://docker/v1.45/..."): a TLS dial function returns a *tls.Conn, so the
+// URL stays plain http for every kind. timeout <= 0 keeps the 30 s request
+// timeout and probeTimeout <= 0 the 5 s budget of the /version probe.
+// Connections are pooled; CloseIdleConnections releases them at once.
+func NewClientWithDialer(name string, dial func(ctx context.Context) (net.Conn, error), timeout, probeTimeout time.Duration) *Client {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	transport := &http.Transport{
+		IdleConnTimeout: dialerIdleConnTimeout,
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			if dial == nil {
+				return nil, fmt.Errorf("Docker client %q has no dial function", name)
+			}
+			return dial(ctx)
+		},
+	}
+	return &Client{
+		host: name,
+		httpClient: &http.Client{
+			Transport: NewVersionTransportWithProbeTimeout(transport, probeTimeout),
+			Timeout:   timeout,
+		},
+	}
+}
+
 // Endpoint returns a versioned Docker Engine path.
 func Endpoint(path string) string {
 	return "http://docker/" + APIVersion + "/" + strings.TrimLeft(path, "/")
