@@ -50,6 +50,9 @@ func (t ThreatLevel) String() string {
 	}
 }
 
+// scanIncompletePattern is the category an incomplete scan reports.
+const scanIncompletePattern = "scan_incomplete"
+
 // ScanResult contains the analysis of a text for injection patterns.
 type ScanResult struct {
 	Level            ThreatLevel
@@ -59,6 +62,20 @@ type ScanResult struct {
 	StructuredPrompt bool     // output is a complete prompt envelope, never a user-message replacement
 	TaintSource      string   // promptsec taint provenance source, when enabled
 	TaintLevel       string   // promptsec taint trust level, when enabled
+	Incomplete       bool     // the decode shadows exceeded the scan budget, so part of the text was not scanned
+
+	// signal is set when a finding is more than the sanitizer's note on what it
+	// normalized (see isNormalizationNote). A Medium result without it is plain
+	// non-ASCII or invisible-character text, not a hint of an attack.
+	signal bool
+}
+
+// isNormalizationNote reports whether thr is the sanitizer saying it stripped
+// invisible characters or swapped confusable letters (encoding_attack at 0.3).
+// That happens for ordinary Cyrillic, Greek, fullwidth or emoji-joined text, and
+// the scan view reads such text for real injection signals separately.
+func isNormalizationNote(thr promptsec.Threat) bool {
+	return thr.Guard == "sanitizer" && thr.Type == promptsec.ThreatEncodingAttack && thr.Severity < 0.5
 }
 
 // PromptSecSanitizerOptions mirrors the sanitizer configuration.
@@ -529,6 +546,9 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 
 			result.Patterns = appendUniqueString(result.Patterns, string(thr.Type))
 			msgs = appendUniqueString(msgs, thr.Message)
+			if !isNormalizationNote(thr) {
+				result.signal = true
+			}
 		}
 
 		// If promptsec marks unsafe, ensure at least ThreatMedium
@@ -554,27 +574,46 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	// they act as and folds compatibility letters; the decode shadows carry
 	// what the sanitizer cannot decode. Each window gets its own view, so a
 	// window the view leaves unchanged costs nothing beyond the scan above.
+	// Every window is read whatever the earlier ones cost: when the shadows
+	// outgrow their budget, only further shadows are skipped and the scan is
+	// marked incomplete (see below), never a later window's view.
 	primary = false
-	shadowBytes, shadowCount := 0, 0
+	shadowBytes := 0
+	scanned := 0
+	for _, window := range scanWindows {
+		scanned += len(window)
+	}
+	shadowBudget := maxDecodeShadowTextFactor*scanned + maxDecodeShadowWindows*maxScanBytes
 	seenShadows := make(map[string]bool)
-viewScan:
 	for _, window := range scanWindows {
 		view := scanView(window)
 		if view != window {
 			scanAll([]string{view}, false)
 		}
+		if result.Incomplete {
+			continue
+		}
 		for _, shadow := range decodeShadows(view) {
 			if seenShadows[shadow] {
 				continue
 			}
-			if shadowCount >= maxDecodeShadows || shadowBytes+len(shadow) > maxDecodeShadowWindows*maxScanBytes {
-				break viewScan
+			if shadowBytes+len(shadow) > shadowBudget {
+				result.Incomplete = true
+				break
 			}
 			seenShadows[shadow] = true
-			shadowCount++
 			shadowBytes += len(shadow)
 			scanAll([]string{shadow}, true)
 		}
+	}
+	if result.Incomplete {
+		// Text was left unread, so it cannot be called clean: the scan reads as
+		// High, which withholds external output and stops an inbound message.
+		if result.Level < ThreatHigh {
+			result.Level = ThreatHigh
+		}
+		result.Patterns = appendUniqueString(result.Patterns, scanIncompletePattern)
+		msgs = appendUniqueString(msgs, "decoded text exceeded the scan budget")
 	}
 	if judge != nil {
 		// Preserve the configured escalation mode using all local findings,
@@ -821,13 +860,19 @@ func neutralizeRoleMarkers(text string) string {
 
 // maxScanOutputBytes is the most text one SanitizeToolOutput call (and the
 // advisory ScanExternalContent) runs through the regex tier. The promptsec chain
-// reads roughly 20 to 60 KiB per second: on the development host 256 KiB took
-// 4 to 8 s, 1 MiB 17 to 64 s and the 5 MiB a scraper may return over 3 minutes,
-// twice when the output is JSON (raw and decoded view), all on the dispatch
-// goroutine. The agent clips what the model sees only after this call, and the
-// output vault pages the rest back, so a prefix scan would let unscanned text
-// through. Longer external output is therefore withheld as incomplete; longer
-// source output takes the escaped form without a scan.
+// reads roughly 50 to 100 KiB per second of plain text: on the development host
+// (measured 2026-10-27, with the scan view and decode shadows, which cost nothing
+// on text without escapes or invisible characters) 256 KiB of English took 4 to
+// 5 s and of Russian 2.5 to 3 s, and as a JSON output (raw and decoded view,
+// plus the keys) 8 to 9 s and 5.5 to 6 s; 1 MiB and the 5 MiB a scraper may
+// return take four and twenty times that, all on the dispatch goroutine. Text
+// dense in escapes or entities adds up to twice its size in decode shadows. A
+// Guardian without a logger skips the advisory ScanExternalContent altogether, so
+// the scraper's own pass no longer adds a third read of a page. The agent clips
+// what the model sees only after this call, and the output vault pages the rest
+// back, so a prefix scan would let unscanned text through. Longer external
+// output is therefore withheld as incomplete; longer source output takes the
+// escaped form without a scan.
 const maxScanOutputBytes = 256 * 1024
 
 // SanitizeToolOutput processes tool output to prevent injection.
@@ -857,12 +902,23 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		scan = g.ScanForInjection(output)
 		// A JSON envelope escapes line breaks and quotes, which splits a phrase
 		// the regexes need whole. Scan the decoded string values joined by
-		// newlines as well and keep the higher verdict.
+		// newlines as well, and the object keys (distinct ones, joined the
+		// same way), and keep the higher verdict.
 		if leaves = jsonStringLeaves(output); len(leaves) > 0 {
-			if joined = joinJSONLeaves(leaves); joined != "" {
+			if joined = joinJSONLeaves(leaves, false); joined != "" {
 				scan = mergeScanResults(scan, g.ScanForInjection(joined))
 			}
+			if keys := joinJSONLeaves(leaves, true); keys != "" {
+				scan = mergeScanResults(scan, g.ScanForInjection(keys))
+			}
 		}
+	}
+	if trust == toolOutputExternal && scan.Incomplete {
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] Withheld external tool output, the scan was incomplete",
+				"tool", toolName, "bytes", len(output))
+		}
+		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineIncomplete))
 	}
 	if trust == toolOutputExternal && scan.Level >= ThreatHigh {
 		if g.logger != nil {
@@ -899,9 +955,9 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
 			}
 			output = IsolateExternalData(output)
-		} else if oversize {
+		} else if oversize || scan.Incomplete {
 			if g.logger != nil {
-				g.logger.Info("[Guardian] Project source beyond the scan limit, escaping",
+				g.logger.Info("[Guardian] Project source not fully scanned, escaping",
 					"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
 			}
 			output = IsolateExternalData(output)
@@ -938,24 +994,24 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 // externalWarningCategories names why external output that is delivered anyway
 // gets a SECURITY WARNING line: a Medium scan finding (the detector's own
 // category names; payload text stays out) and a standing-instruction shape in
-// the text, decoded JSON values first. Neither withholds. It logs the
-// categories only.
+// the text. Neither withholds. A Medium that is only the sanitizer's note on
+// normalized characters (ordinary Cyrillic, Greek or emoji-joined text) names no
+// attack and warns about nothing. The shape is read from the decoded JSON string
+// values when the output has them, so keys and braces cannot join sentences,
+// and from the output itself otherwise. It logs the categories only.
 func (g *Guardian) externalWarningCategories(toolName string, scan ScanResult, output, joined string) []string {
 	var cats []string
-	if scan.Level >= ThreatMedium {
+	if scan.Level >= ThreatMedium && scan.signal {
 		cats = append(cats, scan.Patterns...)
 		if len(cats) == 0 {
 			cats = append(cats, "unspecified")
 		}
 	}
-	directive := false
+	text := output
 	if joined != "" {
-		_, directive = DirectiveShape(joined)
+		text = joined
 	}
-	if !directive {
-		_, directive = DirectiveShape(output)
-	}
-	if directive {
+	if _, directive := DirectiveShape(text); directive {
 		cats = append(cats, DirectiveShapeCategory)
 	}
 	if len(cats) == 0 {
@@ -1013,6 +1069,12 @@ func StripInternalMissionAdvisoryForScan(text string) string {
 // scan is advisory (SanitizeToolOutput is the gate) and skipped beyond
 // maxScanOutputBytes.
 func (g *Guardian) ScanExternalContent(source, content string) string {
+	if g.logger == nil {
+		// The scan only logs. Without a logger its result is dropped, and the
+		// tool output that carries this content is scanned again at dispatch, so
+		// a Guardian without one (the scraper's and the crawler's) reads nothing.
+		return IsolateExternalData(content)
+	}
 	if len(content) > maxScanOutputBytes {
 		// The scan here only logs. The tool output carrying this content is
 		// withheld by SanitizeToolOutput beyond the same limit, so reading it

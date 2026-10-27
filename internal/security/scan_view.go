@@ -22,16 +22,21 @@ import (
 // rewritten from the view.
 
 // isScanSeparator reports whether r hides inside a word without being
-// visible: every Cf rune plus the invisible fillers that are not Cf.
+// visible: every Cf rune plus the invisible characters that are not Cf (the
+// fillers and the variation selectors, which render as nothing between letters).
 func isScanSeparator(r rune) bool {
 	if r < 0x80 {
 		return false
 	}
-	switch r {
-	case 0x034F, // combining grapheme joiner
-		0x115F, 0x1160, 0x3164, 0xFFA0, // Hangul fillers
-		0x17B4, 0x17B5, // Khmer inherent vowels
-		0x2800: // braille blank
+	switch {
+	case r == 0x034F, // combining grapheme joiner
+		r == 0x115F, r == 0x1160, r == 0x3164, r == 0xFFA0, // Hangul fillers
+		r == 0x17B4, r == 0x17B5, // Khmer inherent vowels
+		r == 0x2800,                  // braille blank
+		r >= 0x180B && r <= 0x180D,   // Mongolian free variation selectors
+		r == 0x180F,                  // Mongolian free variation selector four
+		r >= 0xFE00 && r <= 0xFE0F,   // variation selectors
+		r >= 0xE0100 && r <= 0xE01EF: // variation selectors supplement
 		return true
 	}
 	return unicode.Is(unicode.Cf, r)
@@ -76,16 +81,24 @@ func scanView(text string) string {
 
 // Decode shadows are extra windows built from text that only exists after
 // decoding. Their findings count as encoded payloads: a shadow with a real
-// signal is at least decodeShadowSeverity (ThreatHigh), the sanitizer's own
-// severity for a decoded block, while a shadow with no signal adds nothing.
+// injection signal is at least decodeShadowSeverity (ThreatHigh), the
+// sanitizer's own severity for a decoded block, while a shadow with no signal
+// adds nothing.
+//
+// A window yields at most three shadows (all base64 runs, all percent-escape
+// clusters, all entity clusters), none longer than the window. No shadow is
+// ever dropped for its position or for an earlier one. The shadows of one scan
+// are budgeted (maxDecodeShadowTextFactor times the scanned text plus a few
+// windows), which bounds the cost at about four reads of the text: as written,
+// as view and the shadows. Beyond the budget the scan is incomplete
+// (ScanResult.Incomplete), never silently shorter.
 const (
 	decodeShadowSeverity = 0.7
-	// A scan decodes at most maxDecodeShadows shadows, together at most
-	// maxDecodeShadowWindows scan windows of text; maxShadowsPerKind bounds one
-	// window per encoding.
-	maxDecodeShadows       = 64
-	maxDecodeShadowWindows = 4
-	maxShadowsPerKind      = 16
+	// A page dense in two encodings (each shadow spans the page with its context)
+	// needs about 1.8 times its own size in shadows; only text built to be dense in
+	// all three goes beyond the budget.
+	maxDecodeShadowTextFactor = 2
+	maxDecodeShadowWindows    = 4
 	// An escape cluster is at least minEscapeCluster escapes whose gaps are at
 	// most escapeClusterGap bytes; the shadow adds escapeClusterContext bytes
 	// on each side.
@@ -102,35 +115,28 @@ var (
 )
 
 // decodeShadows returns the decoded forms of the view that the sanitizer does
-// not produce: unpadded and URL-safe base64 runs of 16 or more characters whose
-// decoded text is mostly printable, percent-encoded clusters and HTML numeric
-// entity clusters. Benign runs yield a shadow too; the caller scans it and
-// only a finding changes the level.
+// not produce, one shadow per encoding: unpadded and URL-safe base64 runs of 16
+// or more characters whose decoded text is mostly printable (joined by
+// newlines), percent-encoded clusters and HTML numeric entity clusters. Benign
+// runs yield a shadow too; the caller scans it and only a finding changes the
+// level.
 func decodeShadows(view string) []string {
 	var shadows []string
-	seen := map[string]bool{}
 	add := func(s string) {
-		if s != "" && s != view && !seen[s] {
-			seen[s] = true
+		if s != "" && s != view {
 			shadows = append(shadows, s)
 		}
 	}
 
-	count := 0
+	var runs []string
 	for _, loc := range base64Run.FindAllStringIndex(view, -1) {
 		if decoded, ok := decodeBase64Run(view[loc[0]:loc[1]]); ok {
-			add(decoded)
-			if count++; count >= maxShadowsPerKind {
-				break
-			}
+			runs = append(runs, decoded)
 		}
 	}
-	for _, s := range escapeClusterShadows(view, percentEscape, percentDecode) {
-		add(s)
-	}
-	for _, s := range escapeClusterShadows(view, numericEntity, html.UnescapeString) {
-		add(s)
-	}
+	add(strings.Join(runs, "\n"))
+	add(escapeClusterShadow(view, percentEscape, percentDecode))
+	add(escapeClusterShadow(view, numericEntity, html.UnescapeString))
 	return shadows
 }
 
@@ -168,15 +174,17 @@ func mostlyPrintable(raw []byte) bool {
 	return total > 0 && printable*10 >= total*9
 }
 
-// escapeClusterShadows decodes the excerpts of view around clusters of
-// matches of re. Encoded phrases stay local, so a page with many unrelated
-// escapes (URLs) yields small excerpts instead of a full decoded copy.
-func escapeClusterShadows(view string, re *regexp.Regexp, decode func(string) string) []string {
+// escapeClusterShadow decodes the excerpts of view around every cluster of
+// matches of re and joins them with newlines (excerpts that touch are one).
+// Encoded phrases stay local, so a page with many unrelated escapes (URLs)
+// yields small excerpts instead of a full decoded copy, and no cluster is left
+// out however many came before it.
+func escapeClusterShadow(view string, re *regexp.Regexp, decode func(string) string) string {
 	locs := re.FindAllStringIndex(view, -1)
 	if len(locs) < minEscapeCluster {
-		return nil
+		return ""
 	}
-	var out []string
+	var spans [][2]int
 	for i := 0; i < len(locs); {
 		j := i
 		for j+1 < len(locs) && locs[j+1][0]-locs[j][1] <= escapeClusterGap {
@@ -191,14 +199,19 @@ func escapeClusterShadows(view string, re *regexp.Regexp, decode func(string) st
 			for end < len(view) && !utf8.RuneStart(view[end]) {
 				end++
 			}
-			out = append(out, decode(view[start:end]))
-			if len(out) >= maxShadowsPerKind {
-				break
+			if n := len(spans); n > 0 && start <= spans[n-1][1] {
+				spans[n-1][1] = max(spans[n-1][1], end)
+			} else {
+				spans = append(spans, [2]int{start, end})
 			}
 		}
 		i = j + 1
 	}
-	return out
+	parts := make([]string, len(spans))
+	for i, span := range spans {
+		parts[i] = decode(view[span[0]:span[1]])
+	}
+	return strings.Join(parts, "\n")
 }
 
 // percentDecode decodes valid %XX escapes and form-encoded '+' spaces and
@@ -235,16 +248,32 @@ func unhex(c byte) byte {
 	}
 }
 
-// liftShadowAnalysis raises every Medium-or-higher finding of a decode shadow
-// to decodeShadowSeverity and records the encoding, so text that was hidden on
-// purpose reaches ThreatHigh even when its own wording only scores Medium.
-// A shadow without such a finding is returned unchanged.
+// liftableShadowThreat reports whether a shadow finding says something an
+// attacker wants the model to do: an override, a disclosure request, a role or a
+// delimiter forgery. The sanitizer's notes on what it normalized (Cyrillic or
+// zero-width text, encoding_attack at 0.3) are not such a finding: ordinary
+// Russian text decoded from a percent-encoded link scores them, and lifting them
+// would withhold the page and refuse the chat message that carries the link.
+func liftableShadowThreat(t promptsec.Threat) bool {
+	switch t.Type {
+	case promptsec.ThreatInstructionOverride, promptsec.ThreatSystemPromptLeak,
+		promptsec.ThreatRoleManipulation, promptsec.ThreatDelimiterInjection:
+		return t.Severity >= 0.3
+	}
+	return false
+}
+
+// liftShadowAnalysis raises every Medium-or-higher injection finding of a decode
+// shadow (liftableShadowThreat) to decodeShadowSeverity and records the
+// encoding, so text that was hidden on purpose reaches ThreatHigh even when its
+// own wording only scores Medium. Any other finding keeps its severity, and a
+// shadow without a liftable finding is returned unchanged.
 func liftShadowAnalysis(analysis *promptsec.Result) *promptsec.Result {
 	lifted := false
 	threats := make([]promptsec.Threat, len(analysis.Threats), len(analysis.Threats)+1)
 	copy(threats, analysis.Threats)
 	for i := range threats {
-		if threats[i].Severity >= 0.3 {
+		if liftableShadowThreat(threats[i]) {
 			lifted = true
 			if threats[i].Severity < decodeShadowSeverity {
 				threats[i].Severity = decodeShadowSeverity
