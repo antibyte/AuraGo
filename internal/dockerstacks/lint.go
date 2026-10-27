@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -44,6 +45,7 @@ type linter struct {
 	published   []PublishedPort
 	diags       []Diagnostic
 	preview     Preview
+	lines       []string // the compose file by line, to find where a variable of a folded scalar was written
 
 	vars      map[string]*varUse
 	varOrder  []string
@@ -80,6 +82,7 @@ func Lint(in LintInput, published []PublishedPort) LintResult {
 			Message: "YAML syntax error: " + detail, Params: map[string]string{"detail": detail},
 		})
 	} else {
+		l.lines = strings.Split(strings.ReplaceAll(in.Compose, "\r\n", "\n"), "\n")
 		l.checkDocument(&doc)
 	}
 	sort.SliceStable(l.diags, func(i, j int) bool {
@@ -196,14 +199,88 @@ func (l *linter) collectVariables(top *yaml.Node) {
 		if !strings.Contains(n.Value, "$") {
 			return
 		}
-		if n.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
-			for i, text := range strings.Split(n.Value, "\n") { // a block scalar's text starts on the line after the header
+		if n.Style&yaml.LiteralStyle != 0 {
+			for i, text := range strings.Split(n.Value, "\n") { // a literal block's text starts on the line after the header
 				interpolate(text, l.env, l.recordVar(n.Line+1+i, 0))
 			}
 			return
 		}
-		interpolate(n.Value, l.env, l.recordVar(n.Line, n.Column))
+		// Folding (a ">" block, or a quoted or plain scalar that continues on the next lines) joins source lines, so the
+		// value no longer tells where a variable was written: find each use in the source text, in order.
+		cur := varCursor{line: n.Line, off: runeToByte(l.sourceLine(n.Line), n.Column)}
+		if n.Style&yaml.FoldedStyle != 0 {
+			cur = varCursor{line: n.Line + 1} // the header line carries no text
+		}
+		interpolate(n.Value, l.env, func(r varRef) {
+			line, col := l.locateVar(&cur, r.Name)
+			switch {
+			case line == 0, line == n.Line: // not found, or on the line the scalar starts: where the scalar starts
+				line, col = n.Line, n.Column
+			}
+			l.recordVar(line, col)(r)
+		})
 	})
+}
+
+// maxVarSearchLines is how far below the start of a scalar locateVar looks for a variable.
+const maxVarSearchLines = 100
+
+// varCursor is the position in the source after the last variable found in the current scalar: a 1-based line and a
+// byte offset in it.
+type varCursor struct{ line, off int }
+
+func (l *linter) sourceLine(line int) string {
+	if line < 1 || line > len(l.lines) {
+		return ""
+	}
+	return l.lines[line-1]
+}
+
+// locateVar finds the next use of the variable name at or after the cursor and moves the cursor past it. line is 0
+// when there is none within maxVarSearchLines.
+func (l *linter) locateVar(c *varCursor, name string) (line, col int) {
+	for ln := c.line; ln < c.line+maxVarSearchLines && ln <= len(l.lines); ln++ {
+		text, from := l.lines[ln-1], 0
+		if ln == c.line {
+			from = c.off
+		}
+		if idx := findVarToken(text, from, name); idx >= 0 {
+			c.line, c.off = ln, idx+1
+			return ln, utf8.RuneCountInString(text[:idx]) + 1
+		}
+	}
+	return 0, 0
+}
+
+// findVarToken returns the index of the first "$name" or "${name" in text at or after from, skipping the "$$" that
+// stands for a literal dollar sign; -1 when there is none.
+func findVarToken(text string, from int, name string) int {
+	for i := from; i < len(text); i++ {
+		if text[i] != '$' {
+			continue
+		}
+		if i+1 < len(text) && text[i+1] == '$' {
+			i++
+			continue
+		}
+		rest := strings.TrimPrefix(text[i+1:], "{")
+		if strings.HasPrefix(rest, name) && (len(rest) == len(name) || !isNameChar(rest[len(name)])) {
+			return i
+		}
+	}
+	return -1
+}
+
+// runeToByte converts a 1-based column counted in characters into a byte offset in s.
+func runeToByte(s string, col int) int {
+	n := 0
+	for i := range s {
+		if n >= col-1 {
+			return i
+		}
+		n++
+	}
+	return len(s)
 }
 
 func (l *linter) recordVar(line, col int) func(varRef) {
