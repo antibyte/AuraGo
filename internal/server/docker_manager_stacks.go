@@ -17,7 +17,8 @@ import (
 var dmProjectActions = map[string]bool{"start": true, "stop": true, "restart": true}
 
 // stackRoute serves the stack routes and hands the others of the stacks API to
-// operationRoute. It returns false when the path matches none of them.
+// operationRoute and lintRoute. It returns false when the path matches none of
+// them.
 func (dm *dmRequest) stackRoute(segs []string) bool {
 	switch {
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "helpers":
@@ -33,7 +34,7 @@ func (dm *dmRequest) stackRoute(segs []string) bool {
 	case len(segs) == 5 && segs[0] == "hosts" && segs[2] == "projects":
 		dm.projectAction(segs[1], segs[3], segs[4])
 	default:
-		return dm.operationRoute(segs)
+		return dm.operationRoute(segs) || dm.lintRoute(segs)
 	}
 	return true
 }
