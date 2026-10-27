@@ -1,8 +1,11 @@
 package dockerstacks
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseEnvFile(t *testing.T) {
@@ -90,5 +93,27 @@ func TestInterpolate(t *testing.T) {
 				t.Fatalf("interpolate with a nil visitor = %q, want %q", again, tc.want)
 			}
 		})
+	}
+}
+
+func TestAnUnclosedQuoteIsScannedOnceNotOncePerFollowingLine(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("P=\"unclosed\n")
+	for i := 0; i < 20000; i++ {
+		fmt.Fprintf(&b, "K%d=value%d\n", i, i)
+	}
+	start := time.Now()
+	env, diags := parseEnvFile(b.String())
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("parseEnvFile took %v on %d KB with one unclosed quote", elapsed, b.Len()>>10)
+	}
+	if len(diags) != 1 || diags[0].Line != 1 || len(env) != 20000 || env["K19999"] != "value19999" {
+		t.Fatalf("got %d diagnostics and %d variables, want the one warning on line 1 and every later line parsed", len(diags), len(env))
+	}
+
+	// A backslash at the end of a line still escapes the line break the scan carries on over.
+	env, diags = parseEnvFile("A=\"x\\\n\"y\nB=1\n")
+	if env["A"] != "x\\\n" || env["B"] != "1" || len(diags) != 1 || diags[0].Line != 1 {
+		t.Fatalf("env = %#v, diagnostics = %+v", env, diags)
 	}
 }

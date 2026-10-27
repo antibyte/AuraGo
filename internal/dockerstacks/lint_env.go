@@ -80,9 +80,16 @@ func parseEnvValue(rest string, following []string) (value string, extra int, pr
 		}
 		return strings.TrimSpace(rest), 0, ""
 	}
-	body := rest[1:]
+	// The value grows by one line per round, and every round scans only the text that is new (from where the last
+	// scan stopped), so a quote that is never closed costs one pass over the file, not one per line.
+	var acc strings.Builder
+	acc.WriteString(rest[1:])
+	pos := 0
 	for n := 0; ; n++ {
-		if end := closingQuote(body, q); end >= 0 {
+		body := acc.String()
+		end, next := closingQuoteFrom(body, q, pos)
+		pos = next
+		if end >= 0 {
 			tail := strings.TrimSpace(body[end+1:])
 			if tail != "" && !strings.HasPrefix(tail, "#") {
 				problem = "unexpected text after the closing quote"
@@ -96,21 +103,24 @@ func parseEnvValue(rest string, following []string) (value string, extra int, pr
 		if n >= len(following) {
 			return "", 0, problemOpenQuote
 		}
-		body += "\n" + strings.TrimSuffix(following[n], "\r")
+		acc.WriteByte('\n')
+		acc.WriteString(strings.TrimSuffix(following[n], "\r"))
 	}
 }
 
-// closingQuote returns the index of the first unescaped q in s, or -1.
-func closingQuote(s string, q byte) int {
-	for i := 0; i < len(s); i++ {
+// closingQuoteFrom returns the index of the first unescaped q in s at or after from, or -1. next is where the scan
+// stopped: len(s), or one more when a backslash at the very end escapes whatever is appended next.
+func closingQuoteFrom(s string, q byte, from int) (end, next int) {
+	i := from
+	for ; i < len(s); i++ {
 		switch {
 		case s[i] == '\\' && q == '"':
 			i++
 		case s[i] == q:
-			return i
+			return i, i
 		}
 	}
-	return -1
+	return -1, i
 }
 
 var doubleQuotedEscapes = strings.NewReplacer(`\n`, "\n", `\r`, "\r", `\t`, "\t", `\"`, `"`, `\\`, `\`, `\$`, `$`)
