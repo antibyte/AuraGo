@@ -1089,6 +1089,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/docker-manager-dialogs.js":  {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-stacks.js":   {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-editor.js":   {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-ops.js":      {name: "t", prefix: "docker_manager."},
 	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }
 
@@ -1128,6 +1129,7 @@ var desktopDynamicI18nPrefixes = []string{
 	"docker_manager.svc_health_",
 	"docker_manager.op_kind_",
 	"docker_manager.lint_",
+	"docker_manager.op_state_",
 }
 
 // desktopDynamicI18nPrefixKeys returns every merged English key that belongs to

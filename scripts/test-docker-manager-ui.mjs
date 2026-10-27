@@ -1049,7 +1049,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1060,7 +1060,7 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
-    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerDialogs && full.DockerManagerApp, 'all 8 modules publish their global');
+    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerOps && full.DockerManagerDialogs && full.DockerManagerApp, 'all 9 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
     assert.equal(typeof full.DockerManagerViews.create, 'function');
@@ -1139,6 +1139,36 @@ const full = {};
     eq(cancelled, [], 'a cancelled lint never runs');
 }
 
+// ---- the progress drawer: a status line, entries with bars, output without colour codes, everything escaped --------------------
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, lang: 'en', uid: 'x' });
+    const store2 = { state: { ops: [] } };
+    const ops = full.DockerManagerOps.create({ t, esc, model: model2, stackModel: sm2, views, store: store2, toast: () => {}, announce: () => {}, uid: 'x' });
+    const snap = { state: store2.state, hosts: [hostA], multi: false, pageHost: 'desk.lan', now: Date.parse('2026-10-27T10:00:30Z') };
+    assert.ok(ops.html(snap).includes('ops_idle'), 'nothing running: the status line says so');
+    const entry = sm2.newOpEntry({ id: 'op_1', host_id: 'local', stack: '<b>shop</b>', kind: 'up', state: 'running', created_at: '2026-10-27T10:00:00Z', output: '\x1b[32mhello <i>\x1b[0m\n' }, 0);
+    sm2.applyOpEvent(entry, { type: 'progress', progress: { id: 'db layer', current: 1, total: 4 } });
+    store2.state.ops = [entry];
+    const closed = ops.html(snap);
+    assert.ok(/aria-expanded="false"/.test(closed) && /dm-ops-body" id="x-ops-body" hidden/.test(closed), 'collapsed: only the status line shows');
+    ops.setOpen(true);
+    const html = ops.html(snap);
+    assert.ok(!html.includes('<b>shop') && html.includes('&lt;b&gt;shop'), 'the stack name is escaped');
+    assert.ok(!html.includes('\x1b') && html.includes('hello &lt;i&gt;'), 'terminal colour codes are removed and the output is escaped');
+    assert.ok(html.includes('<progress') && html.includes('value="25"') && html.includes('db layer'), 'a bar per image that reported a total');
+    assert.ok(html.includes('data-elapsed="op_1"') && html.includes('0:30'), 'the elapsed time counts from the start');
+    assert.equal(ops.tick({ querySelectorAll: () => [] }), true, 'the ticker keeps going while an operation runs');
+    entry.op.state = 'failed';
+    entry.op.error = 'line 3: bad';
+    entry.op.error_line = 3;
+    const failed = ops.html(snap);
+    assert.ok(failed.includes('data-action="op-goto-line"') && failed.includes('line 3: bad') && failed.includes('data-op-output'), 'a failed operation shows its error, a way to the line and its output');
+    assert.equal(ops.tick({ querySelectorAll: () => [] }), false, 'the ticker stops when nothing runs');
+}
+
 // ---- the owner of a 409 protected-confirmation answer gets the translated sentence, never the server's message -----------------
 {
     const t = (key, params) => key + (params ? JSON.stringify(params) : '');
@@ -1195,7 +1225,8 @@ const full = {};
         svc_state_: [...sm.SERVICE_STATES],
         svc_health_: ['healthy', 'unhealthy', 'starting', 'none'],
         op_kind_: [...sm.OP_KINDS],
-        lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint']
+        lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint'],
+        op_state_: [...sm.OP_STATES]
     };
     // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
     for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing']) used.add(prefix + name);
