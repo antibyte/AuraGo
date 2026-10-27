@@ -24,6 +24,7 @@ var blockedSecretPrefixes = []string{
 	"homepage_",
 	"here_now_",
 	"nest_",
+	"docker_host_",
 	"auth_",
 	"provider_",
 	"realtime_speech_",

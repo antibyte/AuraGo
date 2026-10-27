@@ -119,6 +119,8 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"tts_resemble_api_key",
 		"webhook_outgoing_hook_1_0123456789ab_secrets",
 		"here_now_api_key",
+		"docker_host_ssh_h_0123456789ab",
+		"docker_host_tls_h_0123456789ab",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)
