@@ -473,6 +473,14 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 		t.Fatalf("saved files = %s, want the edited text with revision r1", body)
 	}
 
+	// Save and deploy (Ctrl+Enter): the stack that was saved is the stack that gets deployed.
+	page.MustInsertText("# deploy\n")
+	dockerManagerPress(page, input.Enter)
+	page.MustWait(`()=>document.querySelector('[data-action="save-file"][data-file="compose"]').disabled && !!document.querySelector('li.dm-op[data-state="succeeded"] .dm-op-title')?.textContent.includes('shop')`)
+	if body := fixture.body("POST /hosts/local/stacks/shop/ops"); body != `{"kind":"up"}` {
+		t.Fatalf("deploy request = %s, want kind up for shop", body)
+	}
+
 	// The file changes on the host meanwhile: a diff dialog offers the host version or an overwrite with the host's revision.
 	fixture.mu.Lock()
 	fixture.conflictNext = true

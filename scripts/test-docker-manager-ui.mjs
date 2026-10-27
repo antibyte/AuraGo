@@ -1179,6 +1179,57 @@ const full = {};
     eq(cancelled, [], 'a cancelled lint never runs');
 }
 
+// ---- the workbench: a save started for one stack never writes into the drafts of another or deploys it -------------------------------
+{
+    // The smallest DOM the editor needs to mount its plain text area (CodeMirror never loads here).
+    const element = () => ({
+        className: '', id: '', hidden: false, dataset: {}, children: [], textContent: '', innerHTML: '', value: '', readOnly: false, spellcheck: false, listeners: {},
+        append(...nodes) { this.children.push(...nodes); }, replaceChildren(...nodes) { this.children = nodes; }, setAttribute() {},
+        addEventListener(type, handler) { (this.listeners[type] = this.listeners[type] || []).push(handler); }
+    });
+    const editorWindow = {};
+    vm.runInNewContext(read('ui/js/desktop/apps/docker-manager-editor.js'), { window: editorWindow, document: { createElement: element }, console, setTimeout, clearTimeout, AbortController, Map, Set, JSON, Math, Date, Promise });
+    const t2 = key => key, never = () => new Promise(() => {});
+    const sm2 = full.DockerManagerStackModel;
+    const factory = editorWindow.DockerManagerEditor.create({ t: t2, esc: String, stackModel: sm2, views: { errorText: () => 'error', dot: () => '' }, uid: 'x', load: never });
+    const stackOf = (name, content) => ({ key: 'local/' + name, hostId: 'local', name, detail: { compose: { content, revision: 'r-' + name, exists: true }, env: { content: '', revision: '', exists: false } } });
+    const store = { state: { stack: null }, lint: () => Promise.resolve({ diagnostics: [] }), saves: [], saveFiles(hostId, name, payload) { return new Promise(resolve => this.saves.push({ hostId, name, payload, resolve })); } };
+    const deployed = [], toasts = [];
+    const bench = factory.createWorkbench({ store, dialogs: {}, toast: (message, tone) => toasts.push(tone), announce() {}, canMutate: () => true, onChange() {}, onDeploy: key => deployed.push(key) });
+    const surface = element(), pane = { querySelector: selector => (selector === '[data-ed-surface="compose"]' ? surface : null), querySelectorAll: () => [] };
+    const openStack = stack => { store.state.stack = stack; bench.open(pane, stack); bench.showTab('compose'); };
+    const edit = text => {
+        const area = surface.children[0].children[0].children[0];
+        area.value = text;
+        for (const handler of area.listeners.input) handler({});
+    };
+
+    openStack(stackOf('a', 'a: 1'));
+    edit('a: 2');
+    assert.equal(bench.anyDirty(), true, 'an edited draft is dirty');
+    const own = bench.save(['compose'], true);
+    store.saves[0].resolve({ compose: 'r-a2' });
+    assert.equal(await own, true, 'a save of the open stack succeeds');
+    eq(deployed, ['local/a'], 'a save with deploy hands the key of the stack it saved to onDeploy');
+    eq([store.saves[0].name, store.saves[0].payload.compose.revision], ['a', 'r-a'], 'the save went to stack a with the revision its draft was based on');
+
+    edit('a: 3');
+    const stale = bench.save(['compose'], true);
+    openStack(stackOf('b', 'b: 1'));
+    toasts.length = 0;
+    store.saves[1].resolve({ compose: 'r-a3' });
+    assert.equal(await stale, false, 'a save that finished after another stack was opened reports failure');
+    eq(deployed, ['local/a'], 'and deploys nothing');
+    eq(bench.dirtyState(), { compose: false, env: false }, 'the drafts of stack b were not written into');
+    eq(toasts, [], 'and nothing is reported as saved');
+    edit('b: 2');
+    const second = bench.save(['compose'], false);
+    store.saves[2].resolve({ compose: 'r-b2' });
+    assert.equal(await second, true, 'the workbench saves for the new stack once the stale save is over');
+    eq([store.saves[2].name, store.saves[2].payload.compose.revision], ['b', 'r-b'], 'the next save goes to stack b');
+    bench.close();
+}
+
 // ---- the progress drawer: a status line, entries with bars, output without colour codes, everything escaped --------------------
 {
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));

@@ -263,10 +263,11 @@
 
         // ---- the workbench of the open stack -------------------------------------------------------------------------
 
-        // w = {store, dialogs, toast, announce, canMutate(), onChange(), onDeploy(), onEscape()}. One workbench lives while a
-        // stack is open; open(pane, stack) binds it to the pane built by Stacks.shell().
+        // w = {store, dialogs, toast, announce, canMutate(), onChange(), onDeploy(stackKey), onEscape()}. One workbench lives while a
+        // stack is open; open(pane, stack) binds it to the pane built by Stacks.shell(). `generation` changes with every open()
+        // and close(): a save that was started for one stack stops after its next await once the workbench belongs to another.
         function createWorkbench(w) {
-            let pane = null, key = '', ids = { hostId: '', name: '' }, linter = null, saving = false, disposed = false;
+            let pane = null, key = '', ids = { hostId: '', name: '' }, linter = null, saving = false, disposed = false, generation = 0;
             const drafts = {}, editors = {};
             const baseOf = file => ({ content: String(file && file.content || ''), revision: String(file && file.revision || ''), exists: !!(file && file.exists) });
             const detailOf = () => {
@@ -361,8 +362,9 @@
             // asked for is on the host (nothing dirty counts as saved).
             async function save(files, deploy) {
                 if (saving || disposed || !w.canMutate()) return false;
-                const names = files.filter(dirty);
-                if (!names.length) { if (deploy) w.onDeploy(); return true; }
+                const names = files.filter(dirty), mine = generation, target = ids, stackKey = key;
+                const stale = () => disposed || mine !== generation;
+                if (!names.length) { if (deploy) w.onDeploy(stackKey); return true; }
                 saving = true;
                 paintState();
                 try {
@@ -370,22 +372,23 @@
                         const payload = {};
                         for (const file of names) payload[file] = { content: drafts[file].text, revision: drafts[file].base.revision };
                         try {
-                            const revisions = await w.store.saveFiles(ids.hostId, ids.name, payload);
-                            if (disposed) return false;
+                            const revisions = await w.store.saveFiles(target.hostId, target.name, payload);
+                            if (stale()) return false;
                             for (const file of names) {
                                 drafts[file].base = { content: payload[file].content, revision: String(revisions[file] || ''), exists: true };
                                 drafts[file].stale = false;
                             }
                             w.toast(t('editor_saved_toast', { files: names.map(file => (file === 'env' ? '.env' : 'compose')).join(', ') }), 'success');
                             w.announce(t('editor_saved'));
-                            if (deploy) w.onDeploy();
+                            if (deploy) w.onDeploy(stackKey);
                             return true;
                         } catch (error) {
                             const info = (error && error.dm) || {};
                             if (info.code !== 'revision_conflict' || !info.data || !info.data.current) { w.toast(views.errorText(info), 'error'); return false; }
+                            if (stale()) return false;
                             const file = FILES.includes(info.data.file) ? info.data.file : names[0], current = info.data.current;
                             const choice = await w.dialogs.confirmConflict({ file, mine: drafts[file].text, theirs: String(current.content || ''), name: file === 'env' ? '.env' : String(current.name || 'compose.yaml') });
-                            if (disposed) return false;
+                            if (stale()) return false;
                             if (choice === 'theirs') {
                                 drafts[file].base = baseOf(current);
                                 drafts[file].text = drafts[file].base.content;
@@ -399,8 +402,8 @@
                     }
                     return false;
                 } finally {
-                    saving = false;
-                    if (!disposed) { paintState(); w.onChange(); }
+                    // close() and open() already reset the flag for the stack that replaced this one.
+                    if (mine === generation) { saving = false; paintState(); w.onChange(); }
                 }
             }
 
@@ -408,6 +411,7 @@
                 // Binds to the pane of a stack; the first sync() fills the drafts.
                 open(element, stack) {
                     this.close();
+                    generation += 1;
                     pane = element;
                     key = stack.key;
                     ids = { hostId: stack.hostId, name: stack.name };
@@ -416,6 +420,7 @@
                 },
                 close() {
                     disposed = true;
+                    generation += 1;
                     linter?.dispose();
                     linter = null;
                     for (const file of FILES) { editors[file]?.dispose(); delete editors[file]; delete drafts[file]; }
