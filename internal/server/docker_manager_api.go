@@ -226,12 +226,16 @@ func (dm *dmRequest) route(segs []string) {
 		dm.hostItem(segs[1])
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "test":
 		dm.hostTest(segs[1])
+	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "overview":
+		dm.overview(segs[1])
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "containers":
 		dm.containerList(segs[1])
 	case len(segs) == 4 && segs[0] == "hosts" && segs[2] == "containers":
 		dm.containerRemove(segs[1], segs[3])
 	case len(segs) == 5 && segs[0] == "hosts" && segs[2] == "containers":
 		dm.containerSub(segs[1], segs[3], segs[4])
+	case len(segs) == 3 && segs[0] == "hosts" && (segs[2] == "images" || segs[2] == "volumes" || segs[2] == "networks"):
+		dm.resourceList(segs[1], segs[2])
 	default:
 		dm.notFound()
 	}
