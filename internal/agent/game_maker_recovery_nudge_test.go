@@ -81,6 +81,16 @@ func TestGameMakerAnnouncementNudgeIsStudioSpecific(t *testing.T) {
 			"Your last reply contained no Game Maker tool call.", "game_maker_asset, game_maker_file, game_maker_project",
 			"in the operation argument of its tool; use the native function-calling mechanism.",
 		}, []string{`{"action"`, "raw JSON"}},
+		// The Studio adds code_graph to its scope when project knowledge is enabled.
+		{"text building with code_graph", false, append([]string{"code_graph"}, building...), []string{
+			"code_graph, game_maker_asset, game_maker_file, game_maker_project, game_maker_validate",
+			`{"action":"game_maker_file","operation":"read","path":"src/main.ts"}`,
+			"If this phase's work is done, reply with one short sentence; the server then checks the saved files.",
+		}, []string{"Planning ends", "native"}},
+		{"native planning with code_graph", true, append([]string{"code_graph"}, planning...), []string{
+			"Your last reply contained no Game Maker tool call.", "code_graph, game_maker_asset, game_maker_file, game_maker_project",
+			"in the operation argument of its tool; use the native function-calling mechanism.",
+		}, []string{`{"action"`, "raw JSON"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			s := announcementState(t, test.native, test.allowed)
@@ -122,10 +132,12 @@ func TestGameMakerAnnouncementNudgeExampleParses(t *testing.T) {
 // The main agent (no scope) and mixed scopes keep the generic nudge.
 func TestGameMakerNudgesLeaveOtherRunsUntouched(t *testing.T) {
 	scopes := map[string][]string{
-		"main agent":  nil,
-		"empty scope": {},
-		"mixed scope": {"game_maker_file", "execute_shell"},
-		"other tools": {"docker", "filesystem"},
+		"main agent":       nil,
+		"empty scope":      {},
+		"mixed scope":      {"game_maker_file", "execute_shell"},
+		"other tools":      {"docker", "filesystem"},
+		"code graph only":  {"code_graph"},
+		"code graph mixed": {"code_graph", "game_maker_file", "execute_shell"},
 	}
 	for name, allowed := range scopes {
 		for _, native := range []bool{false, true} {
@@ -153,7 +165,10 @@ func TestGameMakerXMLFallbackNoteStaysInsideStudio(t *testing.T) {
 	for name, test := range map[string]struct {
 		allowed []string
 		native  bool
-	}{"studio text": {building, false}, "studio native": {building, true}, "main agent": {nil, false}, "mixed scope": {append([]string{"execute_shell"}, building...), false}} {
+	}{
+		"studio text": {building, false}, "studio native": {building, true}, "studio code graph": {append([]string{"code_graph"}, building...), false},
+		"main agent": {nil, false}, "mixed scope": {append([]string{"execute_shell"}, building...), false},
+	} {
 		s := announcementState(t, test.native, test.allowed)
 		if _, _, _, handled := handleAgentLoopRecoveries(s, long, tc, ParsedToolResponse{}, false, emotionBehaviorPolicy{}); !handled || len(s.req.Messages) == 0 {
 			t.Fatalf("%s: XML fallback was not handled", name)

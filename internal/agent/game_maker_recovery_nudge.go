@@ -7,23 +7,32 @@ import (
 	"strings"
 )
 
+// gameMakerStudioExtraTools are the non-game_maker_* tools the Studio adds to
+// its own scope: code_graph comes from WithCodeGraphProfile, added when project
+// knowledge is enabled.
+var gameMakerStudioExtraTools = map[string]bool{"code_graph": true}
+
 // gameMakerRun reports whether this is a Game Maker Studio run: its tool scope
-// is restricted, non-empty and holds nothing but game_maker_* tools. (The job
-// bound to the context is not consulted: the loop state never carries it.) The
-// generic recovery nudges describe concepts a Studio run does not have (<done/>,
-// discover_tools, file_editor), so a Studio run gets Studio-specific ones. The
-// main agent (no scope) and mixed scopes keep the generic text.
+// is restricted, non-empty, holds at least one game_maker_* tool and nothing
+// else but the Studio's own extras (code_graph). (The job bound to the context
+// is not consulted: the loop state never carries it.) The generic recovery
+// nudges describe concepts a Studio run does not have (<done/>, discover_tools,
+// file_editor), so a Studio run gets Studio-specific ones. The main agent (no
+// scope) and mixed scopes keep the generic text.
 func (s *agentLoopState) gameMakerRun() bool {
 	if s == nil || len(s.runCfg.AllowedTools) == 0 {
 		return false
 	}
-	names, _ := allowedToolList(normalizedAllowedToolSet(s.runCfg.AllowedTools))
-	for _, name := range names {
-		if !strings.HasPrefix(name, "game_maker_") {
+	studio := false
+	for name := range normalizedAllowedToolSet(s.runCfg.AllowedTools) {
+		switch {
+		case strings.HasPrefix(name, "game_maker_"):
+			studio = true
+		case !gameMakerStudioExtraTools[name]:
 			return false
 		}
 	}
-	return len(names) > 0
+	return studio
 }
 
 // announcementFeedback is the nudge for a text-only reply that made no tool call.
