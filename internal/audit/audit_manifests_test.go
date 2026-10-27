@@ -110,6 +110,9 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 	if !routeContractExists(contracts, "/api/containers", "session-admin") {
 		t.Fatal("/api/containers must have an explicit session-admin route contract")
 	}
+	if !routeContractExists(contracts, "/api/docker-manager/", "session-admin") {
+		t.Fatal("/api/docker-manager/ must have an explicit session-admin route contract")
+	}
 	if !routeContractExists(contracts, "/api/manus/", "session") {
 		t.Fatal("/api/manus/ must have an explicit session route contract")
 	}
