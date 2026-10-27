@@ -1,4 +1,5 @@
 {
+  "config.document_creator.allow_remote_resources_label": "允许外部资源",
   "config.document_creator.backend_gotenberg": "Gotenberg（Docker边车）",
   "config.document_creator.backend_label": "后端",
   "config.document_creator.backend_maroto": "Maroto（内置Go库）",
@@ -10,6 +11,8 @@
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "加载中…",
   "config.document_creator.output_dir_label": "输出目录",
+  "config.document_creator.restart_required": "重启 AuraGo，以安全地重新创建受管理的 Gotenberg 服务。",
+  "config.document_creator.save_before_test": "请先保存更改，再进行测试。",
   "config.document_creator.seconds": "秒",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
@@ -17,9 +20,14 @@
   "config.document_creator.test_fail": "连接失败",
   "config.document_creator.test_gotenberg": "测试连接",
   "config.document_creator.test_ok": "连接成功",
+  "config.document_creator.test_saved_settings": "测试使用已保存的设置。",
+  "config.document_creator.test_unreachable": "无法连接到服务。",
+  "config.document_creator.test_unverified": "服务可连接，但尚未验证网络防护。",
+  "config.document_creator.test_verified": "服务可连接，且已验证网络防护。",
   "config.document_creator.url_required": "需要Gotenberg URL",
+  "help.document_creator.allow_remote_resources": "默认情况下，HTML 和 Markdown 离线渲染。启用后可加载公开的图片、字体、样式表和脚本。内部网络地址仍会被阻止。",
   "help.document_creator.backend": "Maroto是一个无外部依赖的纯Go PDF库。Gotenberg是一个Docker服务，支持完整的文档转换、截图和Office格式。",
   "help.document_creator.gotenberg_timeout": "文档生成的最大等待时间（秒）。",
-  "help.document_creator.gotenberg_url": "Gotenberg服务的基础URL（例如 http://gotenberg:3000）。",
+  "help.document_creator.gotenberg_url": "Gotenberg 服务的基础 URL。留空时使用本地地址；Docker 中使用服务名称 gotenberg。",
   "help.document_creator.output_dir": "生成的文档保存目录。"
 }

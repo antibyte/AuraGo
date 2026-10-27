@@ -438,6 +438,16 @@ services:
 ```
 
 This prevents external access to Gotenberg while allowing AuraGo to communicate with it.
+The repository's default Compose bridge permits egress and shares API access with
+its other services; its loopback host binding does not isolate those services.
+Keep Gotenberg's unauthenticated API and `/debug` accessible only to AuraGo and
+trusted operators. Preserve the pinned image, resource limits and all four
+private-IP filters in `docker-compose.yml`. AuraGo verifies the running flags
+before every upload; `/health` alone is insufficient. After updating the Compose
+profile, recreate only that service with `docker compose up -d gotenberg` during
+an operator maintenance window. Native auto-migration never adopts Compose
+containers. See [Document Creator](document-creator.md) for external instances,
+offline rendering and migration recovery.
 
 ### Custom Port Configuration
 

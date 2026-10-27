@@ -21,6 +21,16 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Document Creator uses a native boolean checkbox for the default-off saved
+  public-resource grant. Its help names images, fonts, stylesheets and scripts;
+  all 16 locales carry the same policy. Native checkbox drafts/discard/save use
+  boolean `checked`, never the string `value`. The connection test refuses dirty
+  drafts, uses saved settings and distinguishes unreachable, unverified,
+  verified and restart-required states. Ignore detached results and announce
+  status accessibly. Verify `TestDocumentCreatorPolicyAndDiagnosticsBrowser`,
+  `TestDocumentCreatorLocales*` and config rerender/draft browser tests; runtime
+  contract: `../documentation/document-creator.md`.
+
 - `cfg/s3.js` owns external S3 settings and optional managed RustFS. Preserve external fields on provider changes; bucket/prefix rows replace one atomic list in the shared draft. Lifecycle and probes use saved settings; polling is fenced by view and saved-generation identity and ends on navigation. Docker read-only disables lifecycle actions, not observations. Dashboard distinguishes configured from observed runtime readiness and links to `/config#s3`. Verify `TestRustFSS3SettingsBrowser`, `TestRustFSS3LocalesAreComplete` and `TestRustFSDashboardSeparatesConfiguredAndObservedState`; runtime contract: `../internal/rustfs/AGENTS.md`.
 
 - Provider editors own the revision and draft they opened. Save with that revision, disable duplicate saves, retain drafts on conflicts and require explicit reload. Background refresh must not lend a newer revision to an old draft. Modal close cancels/ignores its requests and picker results; model selection never mutates another settings section's budget draft.

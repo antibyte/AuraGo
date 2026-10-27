@@ -317,7 +317,7 @@ Details: `documentation/output_compression.md`
 
 ## Tool-Konfiguration
 
-Unter *Config → Tools* kannst du einzelne Tools aktivieren, deaktivieren oder auf Nur-Lesen stellen. Besonders nützlich für `memory`, `knowledge_graph`, `secrets_vault`, `web_scraper` oder `document_creator`.
+Unter *Config → Tools* kannst du einzelne Tools aktivieren, deaktivieren oder, sofern angeboten, auf Nur-Lesen stellen. Besonders nützlich für `memory`, `knowledge_graph`, `secrets_vault` oder `web_scraper`. Document Creator hat keine Nur-Lesen-Option. Geliefertes HTML/Markdown wird standardmäßig offline gerendert; die Admin-Freigabe erlaubt öffentliche externe Bilder, Fonts, Stylesheets und Skripte. Private Ziele bleiben gesperrt. Der Verbindungstest prüft die gespeicherten Einstellungen einschließlich des Sicherheitsnachweises. Details: [Document Creator](../../document-creator.md).
 
 ```yaml
 tools:
@@ -357,6 +357,10 @@ tools:
     enabled: false
     backend: maroto
     output_dir: data/documents
+    allow_remote_resources: false
+    gotenberg:
+      url: ""  # nativ Loopback, in Docker der Service gotenberg:3000
+      timeout: 120
   python_tool_bridge:
     enabled: false
     allowed_tools: []

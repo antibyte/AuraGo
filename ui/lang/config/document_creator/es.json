@@ -1,4 +1,5 @@
 {
+  "config.document_creator.allow_remote_resources_label": "Permitir recursos externos",
   "config.document_creator.backend_gotenberg": "Gotenberg (sidecar Docker)",
   "config.document_creator.backend_label": "Backend",
   "config.document_creator.backend_maroto": "Maroto (biblioteca Go integrada)",
@@ -10,6 +11,8 @@
   "config.document_creator.gotenberg_url_label": "URL de Gotenberg",
   "config.document_creator.loading": "Cargando…",
   "config.document_creator.output_dir_label": "Directorio de salida",
+  "config.document_creator.restart_required": "Reinicia AuraGo para volver a crear de forma segura el servicio Gotenberg administrado.",
+  "config.document_creator.save_before_test": "Guarda los cambios antes de realizar la prueba.",
   "config.document_creator.seconds": "segundos",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
@@ -17,9 +20,14 @@
   "config.document_creator.test_fail": "Error de conexión",
   "config.document_creator.test_gotenberg": "Probar conexión",
   "config.document_creator.test_ok": "Conexión exitosa",
+  "config.document_creator.test_saved_settings": "La prueba utiliza la configuración guardada.",
+  "config.document_creator.test_unreachable": "No se puede acceder al servicio.",
+  "config.document_creator.test_unverified": "Servicio accesible, pero la protección de red no está verificada.",
+  "config.document_creator.test_verified": "Servicio accesible y protección de red verificada.",
   "config.document_creator.url_required": "Se requiere URL de Gotenberg",
+  "help.document_creator.allow_remote_resources": "HTML y Markdown se procesan sin conexión de forma predeterminada. El permiso permite imágenes, fuentes, hojas de estilo y scripts públicos. Las direcciones de red internas siguen bloqueadas.",
   "help.document_creator.backend": "Maroto es una biblioteca PDF pura en Go sin dependencias externas. Gotenberg es un servicio Docker con conversión completa de documentos, capturas y soporte de formatos Office.",
   "help.document_creator.gotenberg_timeout": "Tiempo máximo en segundos para la generación de documentos.",
-  "help.document_creator.gotenberg_url": "URL base del servicio Gotenberg (ej. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_url": "URL base del servicio Gotenberg. Si está vacía, se utiliza la dirección local; Docker utiliza el nombre de servicio gotenberg.",
   "help.document_creator.output_dir": "Directorio donde se guardan los documentos generados."
 }

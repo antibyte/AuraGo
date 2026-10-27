@@ -1,4 +1,5 @@
 {
+  "config.document_creator.allow_remote_resources_label": "बाहरी संसाधनों की अनुमति दें",
   "config.document_creator.backend_gotenberg": "Gotenberg (Docker साइडकार)",
   "config.document_creator.backend_label": "बैकएंड",
   "config.document_creator.backend_maroto": "Maroto (अंतर्निहित Go लाइब्रेरी)",
@@ -10,6 +11,8 @@
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "लोड हो रहा है…",
   "config.document_creator.output_dir_label": "आउटपुट डायरेक्टरी",
+  "config.document_creator.restart_required": "प्रबंधित Gotenberg सेवा को सुरक्षित रूप से फिर बनाने के लिए AuraGo पुनः प्रारंभ करो।",
+  "config.document_creator.save_before_test": "परीक्षण से पहले अपने बदलाव सहेजो।",
   "config.document_creator.seconds": "सेकंड",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
@@ -17,9 +20,14 @@
   "config.document_creator.test_fail": "कनेक्शन विफल",
   "config.document_creator.test_gotenberg": "कनेक्शन परीक्षण",
   "config.document_creator.test_ok": "कनेक्शन सफल",
+  "config.document_creator.test_saved_settings": "परीक्षण सहेजी गई सेटिंग का उपयोग करता है।",
+  "config.document_creator.test_unreachable": "सेवा तक पहुँचा नहीं जा सकता।",
+  "config.document_creator.test_unverified": "सेवा उपलब्ध है, लेकिन नेटवर्क सुरक्षा सत्यापित नहीं है।",
+  "config.document_creator.test_verified": "सेवा उपलब्ध है और नेटवर्क सुरक्षा सत्यापित है।",
   "config.document_creator.url_required": "Gotenberg URL आवश्यक है",
+  "help.document_creator.allow_remote_resources": "HTML और Markdown डिफ़ॉल्ट रूप से ऑफ़लाइन प्रस्तुत किए जाते हैं। अनुमति देने पर सार्वजनिक चित्र, फ़ॉन्ट, स्टाइलशीट और स्क्रिप्ट इस्तेमाल हो सकते हैं। आंतरिक नेटवर्क पते अवरुद्ध रहते हैं।",
   "help.document_creator.backend": "Maroto बिना बाहरी निर्भरता वाली शुद्ध Go PDF लाइब्रेरी है। Gotenberg एक Docker सेवा है जो पूर्ण दस्तावेज़ रूपांतरण, स्क्रीनशॉट और Office प्रारूप का समर्थन करती है।",
   "help.document_creator.gotenberg_timeout": "दस्तावेज़ निर्माण के लिए सेकंड में अधिकतम प्रतीक्षा समय।",
-  "help.document_creator.gotenberg_url": "Gotenberg सेवा का आधार URL (उदा. http://gotenberg:3000)।",
+  "help.document_creator.gotenberg_url": "Gotenberg सेवा का मूल URL। खाली रखने पर स्थानीय पता इस्तेमाल होता है; Docker में सेवा का नाम gotenberg इस्तेमाल होता है।",
   "help.document_creator.output_dir": "वह डायरेक्टरी जहाँ जनरेट किए गए दस्तावेज़ सहेजे जाते हैं।"
 }

@@ -654,8 +654,9 @@ tools:
         enabled: false
         backend: maroto  # maroto (built-in) or gotenberg (Docker sidecar)
         output_dir: data/documents
+        allow_remote_resources: false  # supplied HTML/Markdown stays offline unless an admin opts in
         gotenberg:
-            url: "http://gotenberg:3000"
+            url: ""  # native: http://127.0.0.1:3000; Docker: http://gotenberg:3000; private /debug required
             timeout: 120
     media_conversion:
         enabled: false

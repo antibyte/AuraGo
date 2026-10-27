@@ -60,12 +60,17 @@ async function renderDocumentCreatorSection(section) {
     html += '<section id="dc-gotenberg-fields" class="cfg-topic' + (showGot ? '' : ' is-hidden') + '">';
     html += '<h2 class="cfg-topic-heading">' + t('config.document_creator.gotenberg_title') + '</h2>';
 
+    html += '<div class="field-group"><label for="dc-allow-remote-resources">';
+    html += '<input id="dc-allow-remote-resources" type="checkbox" data-path="tools.document_creator.allow_remote_resources" aria-describedby="dc-remote-help"' + (data.allow_remote_resources === true ? ' checked' : '') + '> ';
+    html += t('config.document_creator.allow_remote_resources_label') + '</label>';
+    html += '<div id="dc-remote-help" class="field-help">' + t('help.document_creator.allow_remote_resources') + '</div></div>';
+
     // URL
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.document_creator.gotenberg_url_label') + '</div>';
     const helpUrl = t('help.document_creator.gotenberg_url');
     if (helpUrl) html += '<div class="field-help">' + helpUrl + '</div>';
-    html += '<input class="field-input" type="text" data-path="tools.document_creator.gotenberg.url" value="' + escapeAttr(gotCfg.url || 'http://gotenberg:3000') + '" placeholder="http://gotenberg:3000">';
+    html += '<input class="field-input" type="text" data-path="tools.document_creator.gotenberg.url" value="' + escapeAttr(gotCfg.url || '') + '">';
     html += '</div>';
 
     // Timeout
@@ -81,7 +86,8 @@ async function renderDocumentCreatorSection(section) {
     // Test button
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="dcTestGotenberg()" id="dc-test-btn">🔌 ' + t('config.document_creator.test_gotenberg') + '</button>';
-    html += '<span id="dc-test-result" class="dc-test-result"></span>';
+    html += '<span id="dc-test-result" class="dc-test-result" role="status" aria-live="polite"></span>';
+    html += '<div class="field-help">' + t('config.document_creator.test_saved_settings') + '</div>';
     html += '</div>';
 
     html += '</section>'; // End gotenberg-fields
@@ -111,6 +117,11 @@ function dcSwitchBackend(val) {
 async function dcTestGotenberg() {
     var btn = document.getElementById('dc-test-btn');
     var result = document.getElementById('dc-test-result');
+    if (hasUnsavedConfigChanges()) {
+        result.textContent = t('config.document_creator.save_before_test');
+        result.className = 'dc-test-result is-danger';
+        return;
+    }
     btn.disabled = true;
     result.textContent = t('config.document_creator.loading');
     result.className = 'dc-test-result';
@@ -118,13 +129,17 @@ async function dcTestGotenberg() {
     try {
         var resp = await fetch('/api/document-creator/test', { method: 'POST' });
         var body = await resp.json();
-        if (resp.ok && body.status === 'success') {
+        if (!btn.isConnected || !result.isConnected) return;
+        if (body.restart_required) {
+            result.className = 'dc-test-result is-danger';
+            result.textContent = t('config.document_creator.restart_required');
+        } else if (resp.ok && body.status === 'success' && body.security_verified === true) {
             result.className = 'dc-test-result is-success';
-            var backendInfo = body.active_backend ? ' (backend: ' + body.active_backend + ')' : '';
-            result.textContent = t('config.document_creator.status_success') + ' ' + t('config.document_creator.test_ok') + backendInfo;
+            result.textContent = t('config.document_creator.test_verified');
         } else {
             result.className = 'dc-test-result is-danger';
-            result.textContent = t('config.document_creator.status_error') + ' ' + (body.message || ('HTTP ' + resp.status));
+            var key = body.reachable === true ? 'test_unverified' : 'test_unreachable';
+            result.textContent = t('config.document_creator.' + key) + (body.message ? ' ' + body.message : '');
         }
     } catch (e) {
         result.className = 'dc-test-result is-danger';
