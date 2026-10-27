@@ -117,3 +117,22 @@ func TestAnUnclosedQuoteIsScannedOnceNotOncePerFollowingLine(t *testing.T) {
 		t.Fatalf("env = %#v, diagnostics = %+v", env, diags)
 	}
 }
+
+func TestNestedDefaultsAreFollowedOnlyToAFixedDepth(t *testing.T) {
+	const depth = 24000
+	s := strings.Repeat("${A:-", depth) + "x" + strings.Repeat("}", depth)
+	start := time.Now()
+	got, unresolved := interpolate(s, map[string]string{}, nil)
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("interpolate took %v on %d nested defaults", elapsed, depth)
+	}
+	if !unresolved || len(got) != 6*(depth-maxInterpolateDepth)+1 || !strings.HasPrefix(got, "${A:-") {
+		t.Fatalf("a nesting deeper than %d levels must stay as it is and count as unresolved, got unresolved=%v (%d bytes)", maxInterpolateDepth, unresolved, len(got))
+	}
+
+	// What a real file nests still expands.
+	ok := strings.Repeat("${A:-", maxInterpolateDepth-1) + "x" + strings.Repeat("}", maxInterpolateDepth-1)
+	if got, unresolved := interpolate(ok, map[string]string{}, nil); got != "x" || unresolved {
+		t.Fatalf("interpolate at %d levels = %q, %v, want x", maxInterpolateDepth-1, got, unresolved)
+	}
+}

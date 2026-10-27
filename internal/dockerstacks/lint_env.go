@@ -142,8 +142,17 @@ func isNameChar(c byte) bool  { return isNameStart(c) || (c >= '0' && c <= '9') 
 // substituted, ${NAME:-d} ${NAME-d} ${NAME:+r} ${NAME+r} ${NAME:?m} ${NAME?m} follow Compose's rules and may nest.
 // visit (optional) is told about every variable that is actually evaluated. unresolved reports that a variable
 // without a default had no value, so the result is not what Compose would deploy. Text that is not valid
-// variable syntax stays as it is.
+// variable syntax stays as it is, and so does everything inside a ${...} that nests defaults deeper than
+// maxInterpolateDepth levels (such a result is reported as unresolved).
 func interpolate(s string, env map[string]string, visit func(varRef)) (out string, unresolved bool) {
+	return interpolateAt(s, env, visit, 0)
+}
+
+// maxInterpolateDepth is how deep ${A:-${B:-...}} is followed. Every level looks for its closing brace in the rest
+// of the text, so an unbounded depth would cost the square of the text's length; no real file nests this far.
+const maxInterpolateDepth = 32
+
+func interpolateAt(s string, env map[string]string, visit func(varRef), depth int) (out string, unresolved bool) {
 	var b strings.Builder
 	for i := 0; i < len(s); {
 		c := s[i]
@@ -158,12 +167,16 @@ func interpolate(s string, env map[string]string, visit func(varRef)) (out strin
 			b.WriteByte('$')
 			i += 2
 		case next == '{':
+			if depth >= maxInterpolateDepth {
+				b.WriteString(s[i:])
+				return b.String(), true
+			}
 			end := matchBrace(s, i+1)
 			if end < 0 {
 				b.WriteString(s[i:])
 				return b.String(), unresolved
 			}
-			text, unres, ok := expandBraced(s[i+2:end], env, visit)
+			text, unres, ok := expandBraced(s[i+2:end], env, visit, depth)
 			if !ok {
 				text = s[i : end+1]
 			}
@@ -212,7 +225,7 @@ func matchBrace(s string, open int) int {
 }
 
 // expandBraced expands the inside of ${...}. ok is false when the text is not valid variable syntax.
-func expandBraced(body string, env map[string]string, visit func(varRef)) (text string, unresolved, ok bool) {
+func expandBraced(body string, env map[string]string, visit func(varRef), depth int) (text string, unresolved, ok bool) {
 	if body == "" || !isNameStart(body[0]) {
 		return "", false, false
 	}
@@ -228,7 +241,7 @@ func expandBraced(body string, env map[string]string, visit func(varRef)) (text 
 			visit(r)
 		}
 	}
-	sub := func(arg string) (string, bool) { return interpolate(arg, env, visit) }
+	sub := func(arg string) (string, bool) { return interpolateAt(arg, env, visit, depth+1) }
 	switch {
 	case op == "":
 		report(varRef{Set: defined})
