@@ -37,6 +37,7 @@ import (
 	"aurago/internal/desktopstore"
 	"aurago/internal/detective"
 	"aurago/internal/discord"
+	"aurago/internal/dockerhost"
 	"aurago/internal/dockerutil"
 	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
@@ -351,6 +352,13 @@ type Server struct {
 	videoStudio               *videoStudioManager
 	videoStudioClosed         bool
 	videoStudioConfigRevoking atomic.Bool
+
+	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
+	// DockerHosts stays nil when the store could not be opened.
+	DockerHosts     *dockerhost.Registry
+	dockerHostStore *dockerhost.Store
+	dockerStatus    dockerStatusRefresher
+
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -962,6 +970,7 @@ func Start(opts StartOptions) error {
 		if s.Newspaper != nil {
 			_ = s.Newspaper.Close()
 		}
+		s.closeDockerHosts()
 		if s.Mailer != nil {
 			_ = s.Mailer.Close()
 		}
@@ -1097,6 +1106,7 @@ func Start(opts StartOptions) error {
 	s.initCYDCreator()
 	s.initDetective()
 	s.initNewspaper()
+	s.initDockerHosts()
 	s.initMailer(serverCtx)
 	s.initPersonalRadio()
 	s.initRTLSDR()
