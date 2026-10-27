@@ -420,3 +420,58 @@ const B = '/api/docker-manager';
 }
 
 console.log('docker-manager ui tests: model and store ok');
+
+// ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
+{
+    const css = read('ui/css/desktop-app-docker-manager.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    const stripMixes = value => value.replace(/color-mix\((?:[^()]|\([^()]*\))*\)/g, 'color-mix()');
+    const NAMED = /(^|[\s,(])(white|black|red|green|blue|gray|grey|silver|orange|yellow|purple|pink|navy|teal|maroon|olive|lime|aqua|fuchsia)(?=$|[\s,)!;])/i;
+    const COLOR_PROPS = /^(color|background|background-color|border|border-(top|right|bottom|left)|border(-(top|right|bottom|left))?-color|outline|outline-color|fill|stroke|box-shadow|text-shadow|caret-color|accent-color|text-decoration-color|column-rule)$/;
+    const MOTION_PROPS = /^(transition|transition-property|transition-duration|animation|animation-name|animation-duration)$/;
+    // leafRules: every rule that holds declarations, with the at-rules around it.
+    const leafRules = text => {
+        const rules = [], stack = [];
+        let buffer = '';
+        for (const ch of text) {
+            if (ch === '{') { stack.push(buffer.trim()); buffer = ''; }
+            else if (ch === '}') { const head = stack.pop() || ''; if (buffer.trim()) rules.push({ selector: head, body: buffer.trim(), context: [...stack] }); buffer = ''; }
+            else buffer += ch;
+        }
+        return rules;
+    };
+    const splitSelectors = selector => {
+        const parts = [];
+        let depth = 0, current = '';
+        for (const ch of selector) {
+            if (ch === '(') depth += 1;
+            if (ch === ')') depth -= 1;
+            if (ch === ',' && depth === 0) { parts.push(current.trim()); current = ''; } else current += ch;
+        }
+        if (current.trim()) parts.push(current.trim());
+        return parts;
+    };
+    const outside = stripMixes(css);
+    eq(outside.match(/#[0-9a-fA-F]{3,8}\b/g) || [], [], 'the stylesheet uses hex colours outside color-mix()');
+    eq(outside.match(/\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(\s*[\d.]/g) || [], [], 'the stylesheet uses literal colour functions instead of tokens');
+    assert.ok(!/var\(--vd-font[,)]/.test(css), 'use --vd-font-ui, not --vd-font');
+    assert.ok(!/\[data-theme[=\]]/.test(css), 'rules must not key on a theme id; use the --vd-theme-* tokens');
+    assert.ok(!/(^|[^a-z-])cc-[a-z]/.test(css), 'the cc- class prefix is reserved by cookie-banner blockers; this app uses dm-');
+    const named = [], labels = [], ungated = [];
+    for (const rule of leafRules(css).filter(item => !item.context.some(head => head.startsWith('@keyframes')))) {
+        for (const [, prop, rawValue] of rule.body.matchAll(/([a-z-]+)\s*:\s*([^;]+)/g)) {
+            const name = prop.toLowerCase(), value = rawValue.trim();
+            if (name.startsWith('--')) continue;
+            if (COLOR_PROPS.test(name) && NAMED.test(stripMixes(value))) named.push(rule.selector + ' { ' + name + ': ' + value + ' }');
+            if (name === 'text-transform' && /uppercase/i.test(value)) labels.push(rule.selector + ' { text-transform: uppercase }');
+            // Logs, raw JSON and technical details are code; every other label keeps the UI font.
+            if ((name === 'font' || name === 'font-family') && /monospace/i.test(value) && !/\.dm-(log|pre)\b/.test(rule.selector)) labels.push(rule.selector + ' { ' + name + ': ' + value + ' }');
+            if (MOTION_PROPS.test(name) && !/^(none|0m?s)\b/i.test(value)) {
+                const gated = rule.context.some(head => /prefers-reduced-motion\s*:\s*no-preference/.test(head)) && splitSelectors(rule.selector).every(part => part.includes(':not([data-animations="false"])'));
+                if (!gated) ungated.push(rule.selector + ' { ' + name + ' }');
+            }
+        }
+    }
+    eq(named, [], 'the stylesheet uses named colours instead of tokens');
+    eq(labels, [], 'the stylesheet has uppercase labels or monospace outside the log and technical-detail surfaces');
+    eq(ungated, [], 'motion must sit inside @media (prefers-reduced-motion: no-preference) with body:not([data-animations="false"])');
+}
