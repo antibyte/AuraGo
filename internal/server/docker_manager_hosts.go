@@ -190,7 +190,10 @@ func (dm *dmRequest) hostDelete(id string) {
 // answers with the refreshed host. An unreachable host is still a 200; the
 // failure is the test's result. The button is a deliberate attempt, so it lifts
 // the pause that follows a rejected SSH login (Registry.TestNow); the background
-// refresh keeps respecting it.
+// refresh keeps respecting it. When the Engine answered, the answer also carries
+// the host's helper status (runner image, IO container; see GET .../helpers) so
+// the app can offer "Prepare host" without another request; a status that cannot
+// be read is left out.
 func (dm *dmRequest) hostTest(id string) {
 	if !dm.allow(http.MethodPost) {
 		return
@@ -202,7 +205,13 @@ func (dm *dmRequest) hostTest(id string) {
 		return
 	}
 	status := dm.registry().TestNow(ctx, host.ID)
-	dmWriteOK(dm.w, http.StatusOK, dmFields{"host": dm.hostView(host, status)})
+	fields := dmFields{"host": dm.hostView(host, status)}
+	if status.State == dockerhost.StateOK && dm.stacks != nil {
+		if helpers, err := dm.stacks.Helpers(ctx, host.ID); err == nil {
+			fields["helpers"] = helpers
+		}
+	}
+	dmWriteOK(dm.w, http.StatusOK, fields)
 }
 
 // hostDraftTest serves POST /hosts/test: it tests an unsaved draft. A draft

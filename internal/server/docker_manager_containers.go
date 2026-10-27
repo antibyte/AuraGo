@@ -9,8 +9,24 @@ import (
 	"time"
 
 	"aurago/internal/dockerhost"
+	"aurago/internal/dockerstacks"
 	"aurago/internal/dockerutil"
 )
+
+// dmHelperOwner is the protected owner of the Docker Manager's own helper
+// containers (runner, lister and IO container): removing one needs the same
+// confirmation as removing a container another AuraGo feature manages.
+const dmHelperOwner = "docker_manager"
+
+// dmHelperRole returns the role (runner, io or lister) of a Docker Manager
+// helper container, or "" for any other container.
+func dmHelperRole(labels map[string]string) string {
+	switch role := labels[dockerstacks.LabelRole]; role {
+	case dockerstacks.RoleRunner, dockerstacks.RoleIO, dockerstacks.RoleLister:
+		return role
+	}
+	return ""
+}
 
 const (
 	dmListTimeout   = 20 * time.Second
@@ -30,6 +46,10 @@ type dockerContainerView struct {
 	Self           bool   `json:"self,omitempty"`
 	DockerEndpoint bool   `json:"docker_endpoint,omitempty"`
 	SharedNetwork  bool   `json:"shared_network,omitempty"`
+	// AuragoHelper is the role of a Docker Manager helper container (runner,
+	// io or lister); such a container is also reported with the protected
+	// owner docker_manager, so the list and the remove confirmation agree.
+	AuragoHelper string `json:"aurago_helper,omitempty"`
 }
 
 // localProtectionFlags reuses the Containers page's own computation
@@ -68,6 +88,12 @@ func (dm *dmRequest) containerViews(ctx context.Context, host dockerhost.Host, l
 			view.Self, view.DockerEndpoint, view.SharedNetwork = flags.Self, flags.DockerEndpoint, flags.SharedNetwork
 			if flags.ProtectedOwner != "" {
 				view.ProtectedOwner = flags.ProtectedOwner
+			}
+		}
+		if role := dmHelperRole(container.Labels); role != "" {
+			view.AuragoHelper = role
+			if view.ProtectedOwner == "" {
+				view.ProtectedOwner = dmHelperOwner
 			}
 		}
 		views = append(views, view)
@@ -217,8 +243,12 @@ func dmTruthy(value string) bool {
 // containers: the owner from names and labels, plus the self check on the
 // container's full ID (an Engine reached by another route, such as an SSH or
 // tcp host on AuraGo's own machine, can still hold the container AuraGo runs
-// in). It writes the 409 and returns false when the request stops.
+// in). The Docker Manager's helper containers are checked first, on every
+// host. It writes the 409 and returns false when the request stops.
 func (dm *dmRequest) removeAllowed(ctx context.Context, host dockerhost.Host, client *dockerutil.Client, ref string) bool {
+	if !dm.helperRemoveAllowed(ctx, client, ref) {
+		return false
+	}
 	cfg, _, _ := containerDockerConfig(dm.s)
 	if host.ID == dockerhost.LocalHostID || host.ReachesEngineAt(cfg.Host) {
 		return containerActionAllowed(dm.s, cfg, ref, "remove", dm.w, dm.r)
@@ -231,6 +261,34 @@ func (dm *dmRequest) removeAllowed(ctx context.Context, host dockerhost.Host, cl
 	if p.protected() && dm.r.URL.Query().Get(containerConfirmParam) != containerConfirmProtected {
 		dmWriteError(dm.w, http.StatusConflict, containerCodeConfirmationRequired, p.confirmationMessage(), dmFields{"owner": p.label()})
 		return false
+	}
+	return true
+}
+
+// helperRemoveAllowed asks for the protected confirmation before one of the
+// Docker Manager's helper containers is removed. The helpers carry no
+// aurago.managed label (the stacks service owns their labels), so the owner
+// rules of the other hosts cannot see them; the container is found in the host's
+// list by name, full ID or ID prefix. A request that already carries
+// confirm=protected makes no extra request. A failing list stops the removal:
+// whether the target is a helper is not known then. It writes the answer and
+// returns false when the request stops.
+func (dm *dmRequest) helperRemoveAllowed(ctx context.Context, client *dockerutil.Client, ref string) bool {
+	if dm.r.URL.Query().Get(containerConfirmParam) == containerConfirmProtected {
+		return true
+	}
+	list, err := dockerhost.ListContainers(ctx, client)
+	if err != nil {
+		dm.engineFailure(err, "")
+		return false
+	}
+	needle := strings.ToLower(ref)
+	for _, container := range list {
+		if dmContainerMatches(container, needle) && dmHelperRole(container.Labels) != "" {
+			p := containerProtection{Owner: dmHelperOwner}
+			dmWriteError(dm.w, http.StatusConflict, containerCodeConfirmationRequired, p.confirmationMessage(), dmFields{"owner": p.label()})
+			return false
+		}
 	}
 	return true
 }
