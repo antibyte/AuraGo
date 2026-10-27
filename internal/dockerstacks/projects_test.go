@@ -199,3 +199,37 @@ func TestPublishedPortsSkipHelpersStoppedContainersAndTheExcludedProject(t *test
 		t.Fatalf("excluded = %+v", excluded)
 	}
 }
+
+func TestProjectActionNeverTouchesTheContainersOfAStackOfTheSameName(t *testing.T) {
+	env := newTestEnv(t, true)
+	addLifecycleRoutes(env.fe)
+	seedComposeStack(env, "web")
+	now := time.Now().Unix()
+	env.fe.addProjectContainer("web-web-1", "web", "web", "running", "Up", "", now) // the stack's own, from /opt/stacks/web
+	foreign := env.fe.addProjectContainer("web-db-1", "web", "db", "running", "Up", "", now)
+	env.fe.setWorkingDir(foreign, "/home/andi/web") // an external project that happens to have the stack's name
+	ctx := context.Background()
+	state := func(name string) string {
+		fc := env.fe.container(name)
+		env.fe.mu.Lock()
+		defer env.fe.mu.Unlock()
+		return fc.state
+	}
+
+	if err := env.svc.ProjectAction(ctx, testHostID, "web", "stop"); err != nil {
+		t.Fatal(err)
+	}
+	if state("web-db-1") != "exited" || state("web-web-1") != "running" {
+		t.Fatalf("states: foreign %s, own %s; want only the external project stopped", state("web-db-1"), state("web-web-1"))
+	}
+
+	// Without an external project of that name there is nothing for the action to do.
+	env.fe.setWorkingDir(foreign, "/opt/stacks/web")
+	before := env.fe.requestCount("POST /containers/")
+	if err := env.svc.ProjectAction(ctx, testHostID, "web", "start"); CodeOf(err) != CodeStackNotFound {
+		t.Fatalf("a project action on a stack's own containers = %v, want %s", err, CodeStackNotFound)
+	}
+	if env.fe.requestCount("POST /containers/") != before {
+		t.Fatal("no container may be touched")
+	}
+}

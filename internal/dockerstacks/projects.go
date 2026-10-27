@@ -37,7 +37,20 @@ func (s *Service) ProjectAction(ctx context.Context, hostID, project, action str
 		return err
 	}
 	members := projectGroups(containers)[project]
+	// Where a stack has the name, the stack's own containers are its operations' business (they hold the
+	// stack's lock for a reason); the action reaches only the containers the listing shows as the external project.
+	composeName, err := s.locateCompose(ctx, e, h, project)
+	if err != nil {
+		return err
+	}
+	isStack := composeName != ""
+	if isStack {
+		_, members = splitProject(members, stackDir(h, project))
+	}
 	if len(members) == 0 {
+		if isStack {
+			return newError(CodeStackNotFound, "%q is a stack of this host and no compose project of that name runs from another folder; use the stack's operations", project)
+		}
 		return newError(CodeStackNotFound, "there is no compose project %q on this host", project)
 	}
 	sort.SliceStable(members, func(i, j int) bool { return serviceLabel(members[i]) < serviceLabel(members[j]) })
