@@ -175,8 +175,9 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
   panicking definition hook `FLOW_NODE_PANIC`. Test runs execute unpublished drafts, so these are the
   guard. Definitions, ports and default ports are computed once per run; a definition is pinned for it.
-- Run-time refusal of an untrusted secret target: `checkFlow` runs `secretTargetRefusals` (a thin reader of
-  `LintUntrustedData`'s `UNTRUSTED_SECRET_TARGET` errors, so the taint rules stay in the lint) once per run, live
+- Run-time refusal of an untrusted secret target: `checkFlow` runs the lint once per run (`lintUntrusted`, which
+  also yields the taint for the render-time fence below) and reads its `UNTRUSTED_SECRET_TARGET` errors through
+  `refusalsOf` (`secretTargetRefusals` is that reader for a flow, so the taint rules stay in the lint), live
   or test, and stores the result in `nodeInfo.refusal`. `executeNode` fails such a node with the lint's message
   and the non-retryable `FLOW_PARAM_INVALID` before it resolves params or calls `Execute`, so the vault is not read
   and the tool is not called. It is an ordinary node failure: `on_error` decides only what follows (stop the run,
