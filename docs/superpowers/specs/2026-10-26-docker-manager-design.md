@@ -51,13 +51,19 @@ official `docker:<version>-cli` image (it contains the compose plugin), pinned b
 - **Command:** `docker compose -p <name> -f <file> [--env-file .env] <subcommand>` with working directory
   `/opt/stacks/<name>`. Machine-readable progress (`--progress json` when the pinned compose version supports it,
   `plain` otherwise) is streamed to AuraGo by attaching to the container.
-- **Registry credentials** (optional, from the vault) are written as a generated `config.json` into the runner before
-  it starts, via the archive API. The runner itself needs no network, because pulls and builds are done by the daemon.
+- **Registry credentials** (optional, from the vault; phase 4) reach the runner as a generated `config.json` through
+  its stdin, because its read-only root filesystem cannot receive a file through the archive API before it starts.
+  The runner itself needs no network, because pulls and builds are done by the daemon.
 
 File access uses the same image as a **parked IO container** per host (`aurago-docker-manager-io`): created, never
 started, with the stacks directory bound at the same path. The Engine archive API (`GET/PUT
 /containers/{id}/archive`, already wrapped by `DockerGetArchiveContext` in `internal/tools/docker_archive.go:70`) works
 on stopped containers, so AuraGo can list, read and write stack files on every host type without SSH or SFTP.
+
+Stack folders are discovered with a short-lived **lister** container from the same image (`find` over the stacks
+directory, bound read-only), because the archive API can only stream whole trees. The runner image and the IO
+container are created by an explicit **prepare** step per host (or as the first step of a stack operation); reads
+never pull.
 
 This gives real compose semantics everywhere (build, profiles, `depends_on` conditions, `include`, `extends`). It is
 the same mechanism for the local socket, TCP, TLS and SSH, and it needs nothing installed in AuraGo's own image. Cost:
@@ -122,8 +128,9 @@ Agent tool docker_stacks ───┴─▶ HTTP API /api/docker-manager
   - `stopped`;
   - `error`: exited with a non-zero code.
 - **External projects**: compose projects whose `com.docker.compose.project.working_dir` label is outside the stacks
-  directory. They support start, stop, restart and logs, but no editing. *Adopt* is offered only when the working
-  directory is inside the stacks directory of that host.
+  directory. They support start, stop, restart and logs, but no editing. *Adopt* (phase 4) is offered only when the
+  working directory is inside the stacks directory of that host; moving a project folder re-resolves its relative
+  binds, so adopt needs its own design.
 - **Files**: only the compose file and `.env` are editable. Reads return content plus a revision (SHA-256 of the
   bytes). Writes carry `If-Match: <revision>`; a mismatch returns 409 with both versions.
 - **Names**: stack names follow compose project rules, `^[a-z0-9][a-z0-9_-]{0,62}$`. Path traversal is impossible by
@@ -180,15 +187,16 @@ Agent tool docker_stacks ───┴─▶ HTTP API /api/docker-manager
 ### HTTP API `/api/docker-manager`
 
 Authentication and authorisation match `/api/containers`: browser sessions, or bearer tokens with admin scope
-(`internal/server/auth.go:1002-1016, 1192-1193`). `docker.readonly` turns every mutating route into 403. Protected
+(`internal/server/auth.go:1002-1016, 1192-1193`). `docker.readonly` turns every route that changes containers,
+stacks or helper resources into 403; host management stays allowed, and lint and convert change nothing. Protected
 AuraGo containers reuse `containerActionAllowed` and `?confirm=protected`
 (`internal/server/containers_protection.go:683-698`).
 
 | Area | Routes |
 | --- | --- |
-| Hosts | `GET/POST /hosts`, `PUT/DELETE /hosts/{host}`, `POST /hosts/{host}/test` (engine, runner, IO container), `POST /hosts/import-nest/{nest}`, `GET /hosts/{host}/overview` |
-| Stacks | `GET/POST /hosts/{host}/stacks`, `GET/DELETE /hosts/{host}/stacks/{name}`, `PUT /hosts/{host}/stacks/{name}/files`, `POST /hosts/{host}/lint`, `POST /hosts/{host}/stacks/{name}/ops`, `POST /hosts/{host}/stacks/{name}/adopt` |
-| Operations | `GET /operations/{id}`, `GET /operations/{id}/stream` (SSE) |
+| Hosts | `GET/POST /hosts`, `PUT/DELETE /hosts/{host}`, `POST /hosts/{host}/test` (engine, runner, IO container), `POST /hosts/import-nest/{nest}`, `GET /hosts/{host}/overview`, `GET /hosts/{host}/helpers`, `POST /hosts/{host}/prepare` |
+| Stacks | `GET/POST /hosts/{host}/stacks`, `GET/DELETE /hosts/{host}/stacks/{name}`, `PUT /hosts/{host}/stacks/{name}/files`, `GET /hosts/{host}/stacks/{name}/volumes`, `POST /hosts/{host}/lint`, `POST /hosts/{host}/stacks/{name}/ops`, `POST /hosts/{host}/projects/{project}/{start,stop,restart}`, `POST /hosts/{host}/stacks/{name}/adopt` (phase 4) |
+| Operations | `GET /operations`, `GET /operations/{id}`, `GET /operations/{id}/stream` (SSE) |
 | Containers | `GET /hosts/{host}/containers`, `POST .../containers/{id}/{start,stop,restart,pause,unpause,kill}`, `DELETE .../containers/{id}`, `GET .../inspect` (secret env redacted), `GET .../logs?follow=1` (SSE), `GET .../terminal` (WebSocket, same protocol as `containers_terminal.go`) |
 | Resources | `GET /hosts/{host}/{images,volumes,networks}`, `POST .../images/pull`, `DELETE .../images/{id}`, `DELETE .../volumes/{name}`, `POST/DELETE .../networks` |
 | Cleanup | `POST /hosts/{host}/cleanup/preview`, `POST /hosts/{host}/cleanup` (explicit ids only) |
@@ -348,7 +356,8 @@ Each phase gets its own implementation plan and leaves a usable state.
    - CodeMirror YAML.
 3. **Live**: `internal/dockerwatch` events and stats, log follow, terminal with host parameter; UI Logs and Terminal
    tabs, sparklines, host gauges.
-4. **Care**: images, volumes and networks views, cleanup assistant, update check, notifications.
+4. **Care**: images, volumes and networks views, cleanup assistant, update check, notifications, registry
+   credentials, adopt.
 5. **Agent and templates**: `docker_stacks` tool, editor AI help, templates (generated from
    `desktopstore.DefaultCatalog()` plus own templates), manual chapter in `documentation/`.
 
@@ -359,7 +368,10 @@ registry management beyond stored credentials; per-user permissions; backups of 
 
 ## To verify in the plans
 
-- Runner image: exact tag, digest, size and compose version; whether `--progress json` is available.
+- Runner image: exact tag, digest, size and compose version; whether `--progress json` is available. *Plan 2:*
+  `docker:29.9.2-cli`, index digest `sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14809346814bbfdb`,
+  about 64 MB compressed per arch, Compose 5.6.1; the `--progress json` field names are confirmed by the plan 2 live
+  test. Stack routes need Engine API 1.41.
 - Docker Desktop (Windows, macOS): behaviour of a host-path stacks directory inside the Desktop VM; verified in the
   plan 2 live test.
 - Rootless Docker: socket path detection, or a documented per-host setting.
