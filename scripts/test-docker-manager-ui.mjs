@@ -743,6 +743,254 @@ assert.ok(sm, 'the stack model publishes its global');
     assert.equal(sm.draftDirty({ text: 'a' }, { content: 'b' }), true);
 }
 
+// ---- store: stacks ---------------------------------------------------------------------------------------------------------
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+class FakeEventSource {
+    static all = [];
+    constructor(url) { this.url = url; this.listeners = {}; this.closed = false; FakeEventSource.all.push(this); }
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    close() { this.closed = true; }
+    emit(type, data) { for (const fn of this.listeners[type] || []) fn({ data: typeof data === 'string' ? data : JSON.stringify(data) }); }
+    fail() { if (this.onerror) this.onerror(); }
+}
+const stackFixture = (name, extra = {}) => ({ name, host_id: 'local', dir: '/opt/stacks/' + name, compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 1, running: 1 }, ports: [], container_ids: [], created: 1760000000, ...extra });
+const listingBody = (stacks, extra = {}) => ({ status: 'ok', host_id: 'local', stacks_dir: '/opt/stacks', stacks, external: [], ignored: [], scanned_at: '2026-10-27T10:00:00Z', cached: false, ...extra });
+const detailFixture = (extra = {}) => ({
+    ...stackFixture('shop'), service_list: [{ name: 'web', image: 'nginx:1.27', state: 'running', ports: [] }],
+    compose: { name: 'compose.yaml', content: 'services:\n  web:\n    image: nginx:1.27\n', revision: 'r1', exists: true }, env: { name: '.env', content: '', revision: '', exists: false }, ...extra
+});
+const opFixture = (extra = {}) => ({ id: 'op_a1', host_id: 'local', stack: 'shop', kind: 'up', options: {}, state: 'queued', output: '', created_at: '2026-10-27T10:00:00Z', ...extra });
+
+{
+    // listing: a host that is not prepared, a host with an old API and an unreachable host keep their own state; a refresh asks the server to rescan
+    let mode = 'ok';
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA, hostB] },
+        ['GET ' + B + '/hosts/local/stacks']: () => {
+            if (mode === 'unprepared') throw httpError(409, { code: 'host_not_prepared', message: 'prepare first', helpers: { runner_image: 'docker:29.9.2-cli', runner_image_present: false, io_container: 'missing' } });
+            if (mode === 'down') throw httpError(502, { code: 'host_unreachable', reason: 'timeout', message: 'dial timeout' });
+            return listingBody([stackFixture('shop'), stackFixture('blog', { status: 'draft' })]);
+        },
+        ['GET ' + B + '/hosts/h_nas/stacks']: () => { throw httpError(409, { code: 'api_too_old', message: 'old engine', api_version: '1.38' }); }
+    });
+    const store = Store.create({ api });
+    assert.equal(store.state.section, 'stacks', 'the Stacks section is the default');
+    await store.loadHosts();
+    await Promise.all([store.loadStacks('local'), store.loadStacks('h_nas')]);
+    eq(store.state.stacks.local.listing.stacks.map(stack => stack.name), ['shop', 'blog']);
+    assert.equal(store.state.stacks.local.loaded, true);
+    eq([store.state.stacks.h_nas.error.code, store.state.stacks.h_nas.error.data.api_version, store.state.stacks.h_nas.listing], ['api_too_old', '1.38', null]);
+    assert.equal(sm.hostStacksState(store.state.stacks.h_nas), 'api_too_old');
+    mode = 'down';
+    await store.loadStacks('local');
+    eq([store.state.stacks.local.error.reason, store.state.stacks.local.listing.stacks.length], ['timeout', 2], 'an unreachable host keeps the stacks it showed last');
+    mode = 'unprepared';
+    await store.loadStacks('local');
+    eq([store.state.stacks.local.listing, store.state.stacks.local.error.data.helpers.runner_image_present], [null, false], 'a host that answers "not prepared" shows nothing stale, and the answer names what is missing');
+    mode = 'ok';
+    await store.loadStacks('local', true);
+    assert.equal(api.calls.filter(call => call.key === 'GET ' + B + '/hosts/local/stacks').pop().url, B + '/hosts/local/stacks?refresh=1');
+    assert.equal(store.state.stacks.local.error, null, 'a recovered host clears its error');
+    store.dispose();
+}
+
+{
+    // the Stacks section loads the listings with the containers; the Containers section leaves the lister alone
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]),
+        ['GET ' + B + '/operations']: { operations: [opFixture({ state: 'running' })] }, ['GET ' + B + '/operations/op_a1/stream']: {}
+    });
+    const store = Store.create({ api, section: 'containers', eventSource: url => new FakeEventSource(url) });
+    FakeEventSource.all = [];
+    store.setVisible(true);
+    await tick(); await tick(); await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/stacks'), 0, 'the Containers section does not list stacks');
+    assert.equal(api.calls.find(call => call.key === 'GET ' + B + '/operations').url, B + '/operations?active=1', 'opening the window asks for the operations that run on the engine');
+    assert.equal(store.state.ops.length, 1, 'a running operation found on the engine joins the drawer');
+    assert.equal(FakeEventSource.all.length, 1, 'and its stream is followed');
+    store.setSection('stacks');
+    await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/stacks'), 1, 'switching to the Stacks section lists the stacks');
+    store.setSection('nonsense');
+    assert.equal(store.state.section, 'stacks');
+    assert.equal(store.pollOnce(), true);
+    await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/stacks'), 2, 'the poll lists the stacks again');
+    store.dispose();
+    assert.equal(FakeEventSource.all[0].closed, true, 'closing the window closes the streams');
+}
+
+{
+    // the open stack: loaded, saved with the revision it is based on, a revision conflict names the host's version
+    let putCalls = 0;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/hosts/local/stacks/shop']: () => ({ stack: detailFixture() }),
+        ['PUT ' + B + '/hosts/local/stacks/shop/files']: () => {
+            putCalls += 1;
+            if (putCalls === 2) throw httpError(409, { code: 'revision_conflict', message: 'changed', file: 'compose', current: { name: 'compose.yaml', content: 'host text', revision: 'r9', exists: true } });
+            return { revisions: putCalls === 1 ? { compose: 'r2', env: 'e1' } : { compose: 'r10' } };
+        },
+        ['GET ' + B + '/hosts/local/stacks/ghost']: () => { throw httpError(404, { code: 'stack_not_found', message: 'no such stack' }); }
+    });
+    const store = Store.create({ api });
+    await store.loadHosts();
+    store.openStack('local', 'shop', 'compose');
+    assert.equal(store.state.stack.status, 'loading');
+    await tick(); await tick();
+    eq([store.state.stack.status, store.state.stack.tab, store.state.stack.detail.compose.revision], ['ok', 'compose', 'r1']);
+    store.setStackTab('env');
+    store.setStackTab('bogus');
+    assert.equal(store.state.stack.tab, 'env');
+    const revisions = await store.saveFiles('local', 'shop', { compose: { content: 'new', revision: 'r1' }, env: { content: 'A=1\n', revision: '' } });
+    eq(plain(revisions), { compose: 'r2', env: 'e1' });
+    assert.deepStrictEqual(plain(api.calls.find(call => call.method === 'PUT').body), { compose: { content: 'new', revision: 'r1' }, env: { content: 'A=1\n', revision: '' } });
+    eq([store.state.stack.detail.compose.content, store.state.stack.detail.compose.revision, store.state.stack.detail.env.exists, store.state.stack.detail.has_env], ['new', 'r2', true, true], 'a saved file becomes the loaded one');
+    await assert.rejects(store.saveFiles('local', 'shop', { compose: { content: 'again', revision: 'r1' } }), error => error.dm.code === 'revision_conflict' && error.dm.data.file === 'compose' && error.dm.data.current.revision === 'r9' && error.dm.data.current.content === 'host text');
+    assert.equal(store.state.stack.detail.compose.revision, 'r2', 'a refused save changes nothing');
+    store.openStack('local', 'ghost');
+    await tick(); await tick();
+    eq([store.state.stack.status, store.state.stack.error.code], ['error', 'stack_not_found']);
+    const late = store.loadStack();
+    store.closeStack();
+    await late;
+    assert.equal(store.state.stack, null, 'closing the pane drops a late answer');
+    store.dispose();
+}
+
+{
+    // an operation: started, followed through its stream, finished; the listing and the open stack are reloaded
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/hosts/local/stacks/shop']: () => ({ stack: detailFixture() }),
+        ['POST ' + B + '/hosts/local/stacks/shop/ops']: () => ({ operation: opFixture() }),
+        ['GET ' + B + '/operations']: () => ({ operations: [opFixture({ state: 'health_wait' })] })
+    });
+    FakeEventSource.all = [];
+    const store = Store.create({ api, eventSource: url => new FakeEventSource(url) });
+    await store.loadHosts();
+    store.openStack('local', 'shop');
+    await tick(); await tick();
+    const finishedIds = [];
+    store.onOperationDone(entry => finishedIds.push(entry.id + ':' + entry.op.state));
+    const started = await store.startOp('local', 'shop', 'up');
+    assert.equal(started.ok, true);
+    assert.deepStrictEqual(plain(api.calls.find(call => call.method === 'POST').body), { kind: 'up' }, 'volumes is sent only when asked for');
+    await store.startOp('local', 'shop', 'down', { volumes: true });
+    assert.deepStrictEqual(plain(api.calls.filter(call => call.method === 'POST').pop().body), { kind: 'down', volumes: true });
+    const stream = FakeEventSource.all[0];
+    assert.equal(stream.url, B + '/operations/op_a1/stream');
+    assert.equal(FakeEventSource.all.length, 1, 'one stream per operation: the second start joined the same id');
+    const entry = store.state.ops[0];
+    stream.emit('snapshot', opFixture({ state: 'running', output: 'pulling\n' }));
+    stream.emit('output', { type: 'output', seq: 1, text: 'more\n' });
+    stream.emit('progress', { type: 'progress', seq: 2, progress: { id: 'web', current: 1, total: 4 } });
+    stream.emit('state', { type: 'state', seq: 3, operation: opFixture({ state: 'health_wait' }) });
+    eq([entry.op.state, entry.output, entry.stream, sm.progressBars(entry)[0].percent], ['health_wait', 'pulling\nmore\n', 'live', 25]);
+    assert.equal(store.activeOps().length, 1);
+    stream.emit('output', 'this is not json');
+    assert.equal(entry.output, 'pulling\nmore\n', 'a broken event is ignored');
+    await store.loadActiveOperations();
+    eq([entry.output, entry.stream, sm.progressBars(entry).map(bar => bar.percent), entry.op.state, store.state.ops.length], ['pulling\nmore\n', 'live', [25], 'health_wait', 1], 'the list of active operations carries no output: it never wipes the output and the progress the stream delivered');
+    const listBefore = api.count('GET ' + B + '/hosts/local/stacks'), detailBefore = api.count('GET ' + B + '/hosts/local/stacks/shop');
+    stream.emit('done', opFixture({ state: 'succeeded', output: 'final\n', ports: [{ service: 'web', public_port: 8080, private_port: 80, protocol: 'tcp' }] }));
+    await tick(); await tick();
+    eq([stream.closed, entry.stream, entry.op.state, entry.output, finishedIds], [true, 'closed', 'succeeded', 'final\n', ['op_a1:succeeded']], 'done closes the stream and tells the listeners once');
+    assert.equal(store.activeOps().length, 0);
+    assert.ok(api.count('GET ' + B + '/hosts/local/stacks') > listBefore, 'the listing is refreshed after the operation');
+    assert.equal(api.calls.filter(call => call.key === 'GET ' + B + '/hosts/local/stacks').pop().url, B + '/hosts/local/stacks?refresh=1');
+    assert.ok(api.count('GET ' + B + '/hosts/local/stacks/shop') > detailBefore, 'and so is the open stack');
+    store.dispose();
+}
+
+{
+    // a busy stack attaches to the running operation; a broken stream is read again and followed again with a growing delay
+    let state = 'running';
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['POST ' + B + '/hosts/local/stacks/shop/ops']: () => { throw httpError(409, { code: 'operation_in_progress', message: 'busy', operation_id: 'op_old', kind: 'update' }); },
+        ['GET ' + B + '/operations/op_old']: () => ({ operation: opFixture({ id: 'op_old', kind: 'update', state, output: 'seen so far\n' }) })
+    });
+    FakeEventSource.all = [];
+    const store = Store.create({ api, eventSource: url => new FakeEventSource(url), reconnectMs: [10, 20] });
+    await store.loadHosts();
+    const busy = await store.startOp('local', 'shop', 'up');
+    eq([busy.ok, busy.busy, busy.error.code], [false, 'op_old', 'operation_in_progress']);
+    await sleep(120);
+    eq([store.state.ops.length, store.state.ops[0].id, FakeEventSource.all.length], [1, 'op_old', 1], 'the running operation is attached and followed');
+    const first = FakeEventSource.all[0];
+    first.emit('snapshot', opFixture({ id: 'op_old', kind: 'update', state: 'running', output: 'seen so far\n' }));
+    first.fail();
+    assert.equal(first.closed, true);
+    assert.equal(store.state.ops[0].stream, 'retry');
+    await sleep(150);
+    assert.equal(FakeEventSource.all.length, 2, 'the operation is read again and the stream reopened');
+    const second = FakeEventSource.all[1];
+    state = 'succeeded';
+    second.fail();
+    await sleep(150);
+    eq([FakeEventSource.all.length, store.state.ops[0].op.state, store.state.ops[0].stream], [2, 'succeeded', 'closed'], 'an operation that ended while the stream was down is finished without a new stream');
+    store.dispose();
+}
+
+{
+    // an operation named by the listing is picked up; create with deploy, delete, prepare, convert, lint, volumes, project actions
+    let lintCalls = 0, deployFails = false;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop', { operation: { id: 'op_x', kind: 'update', state: 'running' } })]),
+        ['GET ' + B + '/operations/op_x']: () => ({ operation: opFixture({ id: 'op_x', kind: 'update', state: 'running' }) }),
+        ['POST ' + B + '/hosts/local/stacks']: () => (deployFails
+            ? { stack: detailFixture({ name: 'blog3' }), deploy_error: { code: 'host_not_prepared', message: 'prepare first' } }
+            : { stack: detailFixture({ name: 'blog' }), operation: opFixture({ id: 'op_c1', stack: 'blog' }) }),
+        ['DELETE ' + B + '/hosts/local/stacks/shop']: () => ({ operation: opFixture({ id: 'op_d1', kind: 'delete' }) }),
+        ['POST ' + B + '/hosts/local/prepare']: () => ({ operation: opFixture({ id: 'op_p1', stack: '', kind: 'prepare' }) }),
+        ['POST ' + B + '/convert/docker-run']: () => ({ compose: 'services:\n  web:\n    image: nginx\n', service: 'web', warnings: [{ code: 'flag_ignored', flag: '--rm', message: 'x' }] }),
+        ['POST ' + B + '/hosts/local/lint']: () => {
+            lintCalls += 1;
+            if (lintCalls === 1) return new Promise(() => {});
+            return { diagnostics: [{ line: 1, severity: 'hint', code: 'image_latest', message: 'x' }], preview: { services: [], named_volumes: [], variables: [] } };
+        },
+        ['GET ' + B + '/hosts/local/stacks/shop/volumes']: { volumes: [{ name: 'shop_db', driver: 'local', size: 1048576 }] },
+        ['POST ' + B + '/hosts/local/projects/legacy/restart']: {},
+        ['GET ' + B + '/hosts/local/helpers']: { helpers: { runner_image: 'docker:29.9.2-cli', prepared: true } },
+        ['GET ' + B + '/operations']: { operations: [opFixture()] }, ['GET ' + B + '/operations/op_a1']: { operation: opFixture({ state: 'succeeded' }) }
+    });
+    FakeEventSource.all = [];
+    const store = Store.create({ api, eventSource: url => new FakeEventSource(url) });
+    await store.loadHosts();
+    await store.loadStacks('local');
+    await tick(); await tick();
+    eq([store.state.ops.map(entry => entry.id), FakeEventSource.all.length], [['op_x'], 1], 'the operation the listing names joins the drawer');
+    const created = await store.createStack('local', { name: 'blog', compose: 'services: {}\n', env: '', deploy: true });
+    assert.deepStrictEqual(plain(api.calls.find(call => call.key === 'POST ' + B + '/hosts/local/stacks').body), { name: 'blog', compose: 'services: {}\n', deploy: true }, 'no .env is sent for an empty one');
+    eq([created.stack.name, store.state.ops[0].id], ['blog', 'op_c1'], 'a deploying create follows its operation');
+    deployFails = true;
+    const opsBefore = store.state.ops.length;
+    const refused = await store.createStack('local', { name: 'blog3', compose: 'x', deploy: true });
+    eq([refused.stack.name, refused.deploy_error.code, refused.operation, store.state.ops.length], ['blog3', 'host_not_prepared', undefined, opsBefore], 'a deploy that could not start answers with deploy_error and no operation: the files are written and nothing is followed');
+    deployFails = false;
+    await store.createStack('local', { name: 'blog2', compose: 'x', env: 'A=1\n' });
+    assert.deepStrictEqual(plain(api.calls.filter(call => call.key === 'POST ' + B + '/hosts/local/stacks').pop().body), { name: 'blog2', compose: 'x', env: 'A=1\n' });
+    assert.equal((await store.deleteStack('local', 'shop', true)).ok, true);
+    assert.equal(api.calls.find(call => call.method === 'DELETE').url, B + '/hosts/local/stacks/shop?volumes=1');
+    assert.equal((await store.prepareHost('local')).entry.op.kind, 'prepare');
+    const converted = await store.convertDockerRun('docker run nginx');
+    eq([converted.service, converted.warnings[0].flag], ['web', '--rm']);
+    assert.equal(api.calls.find(call => call.key === 'POST ' + B + '/convert/docker-run').body.command, 'docker run nginx');
+    const stale = store.lint('local', { compose: 'a' }, 'editor');
+    const fresh = await store.lint('local', { compose: 'b' }, 'editor');
+    await assert.rejects(stale, error => error.dm.code === 'aborted');
+    assert.equal(fresh.diagnostics[0].code, 'image_latest');
+    eq(plain(await store.loadVolumes('local', 'shop')), [{ name: 'shop_db', driver: 'local', size: 1048576 }]);
+    await store.projectAction('local', 'legacy', 'restart');
+    assert.equal((await store.loadHelpers('local')).prepared, true);
+    eq((await store.loadOperations({ host: 'local', stack: 'shop', active: true, limit: 5 })).length, 1);
+    assert.equal(api.calls.filter(call => call.method === 'GET' && call.key === 'GET ' + B + '/operations').pop().url, B + '/operations?host=local&stack=shop&active=1&limit=5');
+    assert.equal((await store.loadOperation('op_a1')).state, 'succeeded');
+    store.dispose();
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
