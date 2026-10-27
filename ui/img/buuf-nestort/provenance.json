@@ -3719,6 +3719,27 @@
       }
     ]
   },
+  "img/buuf-nestort/icons/docker-manager.svg": {
+    "authors": [
+      "AuraGo contributors"
+    ],
+    "license": "MIT",
+    "sha256": "0add4ccd7e2dc6c3ea6b7903ff9a3dbf3ca6c1c0c6365e05434cce5389cdba8b",
+    "uses": [
+      {
+        "changes": [
+          "Original AuraGo supplement; no upstream artwork used"
+        ],
+        "key": "docker-manager",
+        "requested_source": null,
+        "resolved_links": [],
+        "role": "icons",
+        "source": "AuraGo original: container-stack",
+        "source_sha256": "3a6a1d7a7f378fc9ed6ebc307d57e84c82129c493b7e9db23f5af3764161eeec",
+        "variant": ""
+      }
+    ]
+  },
   "img/buuf-nestort/icons/documents.png": {
     "authors": [
       "Paul Davey (Mattahan)",

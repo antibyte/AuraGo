@@ -44,6 +44,7 @@
     "desktop": "img/windows-xp/icons/computer.svg",
     "desktop-symbolic": "img/windows-xp/icons/computer.svg",
     "documents": "img/windows-xp/icons/documents.svg",
+    "docker-manager": "img/papirus/icons/docker-manager.svg",
     "dozzle": "img/papirus/icons/dozzle.svg",
     "download": "img/papirus/icons/download.svg",
     "downloads": "img/papirus/icons/downloads.svg",

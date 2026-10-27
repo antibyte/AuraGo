@@ -10771,6 +10771,27 @@
       }
     ]
   },
+  "img/fluent/icons/docker-manager.svg": {
+    "authors": [
+      "AuraGo contributors"
+    ],
+    "license": "MIT",
+    "sha256": "4fc77c47d65d026689cff58e042b15ecd48d08de7f6523dfd222096f3c27182b",
+    "uses": [
+      {
+        "changes": [
+          "Original AuraGo supplement; no upstream artwork used"
+        ],
+        "key": "docker-manager",
+        "requested_source": null,
+        "resolved_links": [],
+        "role": "icons",
+        "source": "AuraGo original: container-stack",
+        "source_sha256": "3a6a1d7a7f378fc9ed6ebc307d57e84c82129c493b7e9db23f5af3764161eeec",
+        "variant": ""
+      }
+    ]
+  },
   "img/fluent/icons/documents.svg": {
     "authors": [
       "Vince Liuice",

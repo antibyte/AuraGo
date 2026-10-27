@@ -514,6 +514,7 @@
     "database": "img/candy/icons/database.svg",
     "desktop": "img/candy/icons/desktop.svg",
     "desktop-symbolic": "img/candy/icons/desktop.svg",
+    "docker-manager": "img/candy/icons/docker-manager.svg",
     "documents": "img/candy/icons/documents.svg",
     "download": "img/candy/icons/download.svg",
     "downloads": "img/candy/icons/download.svg",
@@ -632,9 +633,9 @@
   },
   "inputs": {
     "LICENSE": "1e689ef000adc4774f0cb41fdebbbfe1147a0f47cc62bb2c80ebfa5cc43ad4da",
-    "assets/desktop-icon-themes/candy.json": "a2f7d777c1cec76187e9d2f3d2146a17ed22c7a09353b4411243dc1e480356cb",
+    "assets/desktop-icon-themes/candy.json": "97a5f0fea98490bf8c3a8054e99daa124a7ea8cea4cc9406af55fa1f8bf07902",
     "assets/desktop-icon-themes/sources.json": "691e0654df326f98289e8fb86ccc01e3d73130258d1684a724253fe69fcb4e90",
-    "assets/desktop-icon-themes/supplements.json": "7f0010af66c3e9a329ea366dfb44cbdb6ad582c0c6cbebe0551fce0b6a5d73bd",
+    "assets/desktop-icon-themes/supplements.json": "e25237ad7334ad634fac49846659e160a5b3de9766d2c38263a2d3a30acbe7a3",
     "licences/texts/CC-BY-NC-SA-2.5.txt": "f8a2cab6123734325c1dade12d0e7eb621bbefefdc055920bacccca5081583bc",
     "scripts/import-desktop-icon-themes.py": "f8a93463a41d69710cb31b79a3273133d1425dbc1226960f687322b8c2897a15",
     "ui/img/desktop-mini/symbols.svg": "6973ce7804312e7a4e6d40c9a315d5508d7beef8160457992660e3ee51d46304"

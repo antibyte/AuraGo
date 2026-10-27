@@ -4725,6 +4725,27 @@
       }
     ]
   },
+  "img/candy/icons/docker-manager.svg": {
+    "authors": [
+      "AuraGo contributors"
+    ],
+    "license": "MIT",
+    "sha256": "096afe1d0007b122ffac69745fddd62d63e0c7995bf27e14211274708087753d",
+    "uses": [
+      {
+        "changes": [
+          "Original AuraGo supplement; no upstream artwork used"
+        ],
+        "key": "docker-manager",
+        "requested_source": null,
+        "resolved_links": [],
+        "role": "icons",
+        "source": "AuraGo original: container-stack",
+        "source_sha256": "3a6a1d7a7f378fc9ed6ebc307d57e84c82129c493b7e9db23f5af3764161eeec",
+        "variant": ""
+      }
+    ]
+  },
   "img/candy/icons/documents.svg": {
     "authors": [
       "Eliver Lara"
