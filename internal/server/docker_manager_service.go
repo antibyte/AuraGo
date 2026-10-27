@@ -7,6 +7,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/dockerhost"
+	"aurago/internal/dockerstacks"
 	"aurago/internal/security"
 )
 
@@ -59,13 +60,33 @@ func (s *Server) initDockerHosts() {
 	}
 	s.dockerHostStore = store
 	s.DockerHosts = dockerhost.NewRegistry(store, vault, s.dockerLocalEndpoint)
+	s.initDockerStacks(store)
 }
 
-// closeDockerHosts stops the background status checks, releases the cached
-// Engine connections and closes the store. It is safe to call without a
-// registry.
+// initDockerStacks opens the stacks service on the store's database handle (its
+// operation journal lives in docker_manager.db). Operations that were running
+// when AuraGo last stopped are reattached by Open in the background. A failure
+// is logged and leaves DockerStacks nil: the stack routes then answer 503
+// stacks_unavailable while hosts, containers and the other resources keep working.
+func (s *Server) initDockerStacks(store *dockerhost.Store) {
+	stacks, err := dockerstacks.Open(store.DB(), s.DockerHosts, dockerstacks.Options{Logger: s.Logger})
+	if err != nil {
+		s.logDockerManager("Docker stacks service could not be opened", err)
+		return
+	}
+	s.DockerStacks = stacks
+}
+
+// closeDockerHosts stops the background status checks, stops the stacks
+// service (running operations keep going in their runner containers and are
+// reattached by the next start), releases the cached Engine connections and
+// closes the store. The stacks service goes first: its followers use the
+// registry. It is safe to call without a registry.
 func (s *Server) closeDockerHosts() {
 	s.dockerStatus.close()
+	if s.DockerStacks != nil {
+		s.DockerStacks.Close()
+	}
 	if s.DockerHosts != nil {
 		s.DockerHosts.Close()
 	}

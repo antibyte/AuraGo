@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"aurago/internal/dockerhost"
+	"aurago/internal/dockerstacks"
 )
 
 func TestInitDockerHostsOpensTheStoreInTheDataDir(t *testing.T) {
@@ -52,5 +55,60 @@ func TestInitDockerHostsLeavesTheRegistryNilWhenTheStoreCannotOpen(t *testing.T)
 	t.Cleanup(s.closeDockerHosts)
 	if s.DockerHosts != nil {
 		t.Fatal("DockerHosts is set although the store directory is unusable")
+	}
+	if s.DockerStacks != nil {
+		t.Fatal("DockerStacks is set without a host registry")
+	}
+}
+
+func TestInitDockerHostsOpensAndClosesTheStacksServiceWithTheRegistry(t *testing.T) {
+	s := testContainerServer(true, false)
+	dir := t.TempDir()
+	s.Cfg.Directories.DataDir = dir
+
+	s.initDockerHosts()
+	t.Cleanup(s.closeDockerHosts)
+	if s.DockerHosts == nil || s.DockerStacks == nil {
+		t.Fatalf("registry open = %v, stacks service open = %v; want both", s.DockerHosts != nil, s.DockerStacks != nil)
+	}
+	// The operation journal is a table of the registry's own database file.
+	ops, err := s.DockerStacks.Operations(context.Background(), dockerstacks.OperationFilter{})
+	if err != nil || len(ops) != 0 {
+		t.Fatalf("operations = %v, %v; want an empty journal", ops, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "docker_manager.db")); err != nil {
+		t.Fatalf("docker_manager.db is not in the data directory: %v", err)
+	}
+
+	s.closeDockerHosts()
+	// The built-in host resolves without the store, so this refusal comes from the service itself.
+	if _, err := s.DockerStacks.Prepare(context.Background(), dockerhost.LocalHostID); err == nil || err.Error() != "the stacks service is closed" {
+		t.Fatalf("Prepare after closeDockerHosts = %v, want the closed-service refusal", err)
+	}
+}
+
+func TestInitDockerHostsKeepsTheRegistryWhenTheStacksServiceCannotOpen(t *testing.T) {
+	s := testContainerServer(true, false)
+	dir := t.TempDir()
+	s.Cfg.Directories.DataDir = dir
+	// A journal table with a foreign schema makes the service's schema step fail (its index needs the columns).
+	store, err := dockerhost.OpenStore(filepath.Join(dir, "docker_manager.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.DB().Exec(`CREATE TABLE docker_operations (id TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s.initDockerHosts()
+	t.Cleanup(s.closeDockerHosts)
+	if s.DockerHosts == nil {
+		t.Fatal("a failing stacks service took the host registry down")
+	}
+	if s.DockerStacks != nil {
+		t.Fatal("DockerStacks is set although its journal could not be created")
 	}
 }

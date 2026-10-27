@@ -70,6 +70,7 @@ type dmRequest struct {
 	w        http.ResponseWriter
 	r        *http.Request
 	readOnly bool
+	stacks   dmStackService // nil while the stacks service is not open (stackService answers 503)
 }
 
 func (dm *dmRequest) registry() *dockerhost.Registry { return dm.s.DockerHosts }
@@ -190,6 +191,9 @@ func handleDockerManager(s *Server) http.HandlerFunc {
 			return
 		}
 		dm := &dmRequest{s: s, w: w, r: r, readOnly: readOnly}
+		if s.DockerStacks != nil { // never wrap a nil pointer in the interface
+			dm.stacks = s.DockerStacks
+		}
 		dm.route(dockerManagerSegments(r.URL.Path))
 	}
 }

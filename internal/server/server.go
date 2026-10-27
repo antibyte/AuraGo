@@ -38,6 +38,7 @@ import (
 	"aurago/internal/detective"
 	"aurago/internal/discord"
 	"aurago/internal/dockerhost"
+	"aurago/internal/dockerstacks"
 	"aurago/internal/dockerutil"
 	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
@@ -354,8 +355,10 @@ type Server struct {
 	videoStudioConfigRevoking atomic.Bool
 
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
-	// DockerHosts stays nil when the store could not be opened.
+	// DockerHosts stays nil when the store could not be opened; DockerStacks (the
+	// stacks service on the same database) stays nil when it could not be opened.
 	DockerHosts     *dockerhost.Registry
+	DockerStacks    *dockerstacks.Service
 	dockerHostStore *dockerhost.Store
 	dockerStatus    dockerStatusRefresher
 
