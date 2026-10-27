@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Guardado",
   "docker_manager.editor_saved_toast": "Guardado: {{files}}",
   "docker_manager.editor_stale": "Cambiado en el host",
-  "docker_manager.editor_tab_hint": "Tab sangra. Pulse Ctrl+M para que Tab mueva el foco.",
+  "docker_manager.editor_tab_hint": "Tab sangra. Esc sale del editor. Pulse Ctrl+M para que Tab mueva el foco.",
   "docker_manager.editor_unsaved": "Cambios sin guardar",
   "docker_manager.env_missing_note": "Este stack aún no tiene archivo .env. Se crea al guardar.",
   "docker_manager.fix_env_done": "Se añadió {{name}} con un valor aleatorio a .env",

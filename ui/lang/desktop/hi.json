@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "सहेजा गया",
   "docker_manager.editor_saved_toast": "सहेजा गया: {{files}}",
   "docker_manager.editor_stale": "होस्ट पर बदला गया",
-  "docker_manager.editor_tab_hint": "Tab इंडेंट करता है। Tab से फ़ोकस बदलने के लिए Ctrl+M दबाएँ।",
+  "docker_manager.editor_tab_hint": "Tab इंडेंट करता है। Esc संपादक से बाहर निकलता है। Tab से फ़ोकस बदलने के लिए Ctrl+M दबाएँ।",
   "docker_manager.editor_unsaved": "बिना सहेजे बदलाव",
   "docker_manager.env_missing_note": "इस स्टैक में अभी .env फ़ाइल नहीं है। सहेजने पर वह बन जाएगी।",
   "docker_manager.fix_env_done": "{{name}} को रैंडम मान के साथ .env में जोड़ा गया",

@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "已保存",
   "docker_manager.editor_saved_toast": "已保存：{{files}}",
   "docker_manager.editor_stale": "主机上已更改",
-  "docker_manager.editor_tab_hint": "Tab 用于缩进。按 Ctrl+M 可让 Tab 改为移动焦点。",
+  "docker_manager.editor_tab_hint": "Tab 用于缩进。按 Esc 可离开编辑器。按 Ctrl+M 可让 Tab 改为移动焦点。",
   "docker_manager.editor_unsaved": "有未保存的更改",
   "docker_manager.env_missing_note": "此堆栈还没有 .env 文件，保存时会创建。",
   "docker_manager.fix_env_done": "已将 {{name}} 以随机值添加到 .env",

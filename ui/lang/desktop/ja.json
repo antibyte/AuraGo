@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "保存済み",
   "docker_manager.editor_saved_toast": "保存しました: {{files}}",
   "docker_manager.editor_stale": "ホストで変更されました",
-  "docker_manager.editor_tab_hint": "Tab はインデントします。Tab でフォーカスを移動するには Ctrl+M を押します。",
+  "docker_manager.editor_tab_hint": "Tab はインデントします。Esc でエディターを抜けます。Tab でフォーカスを移動するには Ctrl+M を押します。",
   "docker_manager.editor_unsaved": "未保存の変更",
   "docker_manager.env_missing_note": "このスタックにはまだ .env ファイルがありません。保存すると作成されます。",
   "docker_manager.fix_env_done": "{{name}} をランダムな値で .env に追加しました",

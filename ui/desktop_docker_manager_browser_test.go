@@ -443,6 +443,13 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	page.MustWait(`()=>!!document.querySelector('[data-ed-surface="compose"] .cm-editor') && document.querySelector('[data-ed-surface="compose"] .cm-content').textContent.includes('nginx:latest')`)
 	page.MustWait(`()=>!!document.querySelector('[data-ed-surface="compose"] .cm-lint-marker') && !!document.querySelector('[data-ed-surface="compose"] .dm-problem[data-severity="hint"]')`)
 
+	// Tab indents in the editor, so Escape is the way out: it hands the focus to the open tab of the pane and leaves the pane open.
+	page.MustElement(`[data-ed-surface="compose"] .cm-content`).MustClick()
+	if err := page.Keyboard.Type(input.Escape); err != nil {
+		t.Fatal(err)
+	}
+	page.MustWait(`()=>document.activeElement?.matches('[data-stack-pane] [role="tab"][aria-selected="true"]') && !document.querySelector('[data-stack-pane]').hidden`)
+
 	// Edit and save (Ctrl+S): the file goes to the host with the revision it was loaded with.
 	page.MustElement(`[data-ed-surface="compose"] .cm-content`).MustClick()
 	page.KeyActions().Press(input.ControlLeft).Type(input.Home).MustDo()
@@ -596,6 +603,10 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	page.MustElement(`[data-ns-compose] .cm-content`).MustClick()
 	page.MustInsertText("services:\n  web:\n    image: nginx:1.27\n")
 	page.MustWait(`()=>[...document.querySelectorAll('[data-ns-preview] .dm-pv-list strong')].some(e=>e.textContent==='web')`)
+	if err := page.Keyboard.Type(input.Escape); err != nil {
+		t.Fatal(err)
+	}
+	page.MustWait(`()=>document.activeElement?.matches('[data-newstack] [data-ns-tab][aria-selected="true"]') && !document.querySelector('[data-newstack]').hidden`)
 	page.MustEval(`()=>document.querySelector('[data-ns="save"]').click()`)
 	page.MustWait(`()=>document.querySelector('[data-newstack]').hidden && document.querySelector('[data-stack-pane] h2')?.textContent==='notes'`)
 	if body := fixture.body("POST /hosts/local/stacks"); !strings.Contains(body, `"name":"notes"`) || strings.Contains(body, "deploy") || !strings.Contains(body, "nginx:1.27") {

@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Gemt",
   "docker_manager.editor_saved_toast": "Gemt: {{files}}",
   "docker_manager.editor_stale": "Ændret på værten",
-  "docker_manager.editor_tab_hint": "Tab indrykker. Tryk Ctrl+M for at lade Tab flytte fokus i stedet.",
+  "docker_manager.editor_tab_hint": "Tab indrykker. Esc forlader editoren. Tryk Ctrl+M for at lade Tab flytte fokus i stedet.",
   "docker_manager.editor_unsaved": "Ikke-gemte ændringer",
   "docker_manager.env_missing_note": "Denne stack har ingen .env-fil endnu. Den oprettes, når du gemmer.",
   "docker_manager.fix_env_done": "{{name}} blev tilføjet til .env med en tilfældig værdi",

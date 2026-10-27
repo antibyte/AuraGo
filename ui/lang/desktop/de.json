@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Gespeichert",
   "docker_manager.editor_saved_toast": "Gespeichert: {{files}}",
   "docker_manager.editor_stale": "Auf dem Host geändert",
-  "docker_manager.editor_tab_hint": "Tab rückt ein. Mit Strg+M bewegt Tab stattdessen den Fokus.",
+  "docker_manager.editor_tab_hint": "Tab rückt ein. Esc verlässt den Editor. Mit Strg+M bewegt Tab stattdessen den Fokus.",
   "docker_manager.editor_unsaved": "Nicht gespeicherte Änderungen",
   "docker_manager.env_missing_note": "Dieser Stack hat noch keine .env-Datei. Sie wird beim Speichern angelegt.",
   "docker_manager.fix_env_done": "{{name}} mit Zufallswert zur .env hinzugefügt",

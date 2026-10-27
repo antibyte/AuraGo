@@ -3,7 +3,8 @@
    - mount(host, options) shows a plain textarea at once, loads CodeMirror (the shared vendored ESM bundle, a dynamic import
      like Code Studio) in the background and swaps it in; when the bundle cannot load, the textarea stays. Both have Ctrl/Cmd+S
      (save) and Ctrl/Cmd+Enter (save and deploy), the lint diagnostics as gutter marks (CodeMirror) and as a list below the
-     editor (always), and a way to mark the line an operation failed on.
+     editor (always), and a way to mark the line an operation failed on. Tab indents in CodeMirror, so Escape is the way out
+     of it: it calls options.onEscape(), which moves the focus to the tab of the pane around the editor.
    - createLinter debounces the lint requests (400 ms) and drops the answer of a request that a newer one replaced.
    - createWorkbench keeps the drafts of the compose file and the .env of the open stack while the tabs switch, saves them with
      the revision they are based on, resolves a revision conflict through the dialogs and feeds the diagnostics to the editors. */
@@ -64,7 +65,7 @@
         const load = deps.load || loadCodeMirror;
         let counter = 0;
 
-        // options: {label, text, language: 'yaml'|'plain', readOnly, wrap, onChange(text), onSave(), onDeploy(), onFix(diagnostic)}
+        // options: {label, text, language: 'yaml'|'plain', readOnly, wrap, onChange(text), onSave(), onDeploy(), onEscape(), onFix(diagnostic)}
         // Diagnostics given to setDiagnostics are {line, column, severity, code, message, fix?}; message is already localized.
         function mount(host, options) {
             const o = options || {}, id = uid + '-ed' + (counter += 1), ac = new AbortController(), signal = ac.signal;
@@ -167,6 +168,8 @@
                 const keys = [
                     { key: 'Mod-s', preventDefault: true, run: () => { if (o.onSave) o.onSave(); return true; } },
                     { key: 'Mod-Enter', preventDefault: true, run: () => { if (o.onDeploy) o.onDeploy(); return true; } },
+                    // Tab indents, so without this the keyboard could never leave the editor.
+                    { key: 'Escape', run: () => { if (!o.onEscape) return false; o.onEscape(); return true; } },
                     cm.indentWithTab, ...(cm.closeBracketsKeymap || []), ...(cm.defaultKeymap || []), ...(cm.searchKeymap || []), ...(cm.historyKeymap || []), ...(cm.lintKeymap || [])
                 ].filter(Boolean);
                 const extensions = [
@@ -260,7 +263,7 @@
 
         // ---- the workbench of the open stack -------------------------------------------------------------------------
 
-        // w = {store, dialogs, toast, announce, canMutate(), onChange(), onDeploy(), onGoto(file)}. One workbench lives while a
+        // w = {store, dialogs, toast, announce, canMutate(), onChange(), onDeploy(), onEscape()}. One workbench lives while a
         // stack is open; open(pane, stack) binds it to the pane built by Stacks.shell().
         function createWorkbench(w) {
             let pane = null, key = '', ids = { hostId: '', name: '' }, linter = null, saving = false, disposed = false;
@@ -316,6 +319,7 @@
                     onChange: text => { drafts[file].text = text; if (linter) linter.schedule(); paintState(); w.onChange(); },
                     onSave: () => { void save([file], false); },
                     onDeploy: () => { void save(FILES.filter(dirty), true); },
+                    onEscape: () => { if (w.onEscape) w.onEscape(); },
                     onFix: file === 'compose' ? diagnostic => fixVariable(diagnostic) : undefined
                 });
                 if (linter) linter.flush();

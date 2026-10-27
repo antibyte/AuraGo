@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Enregistré",
   "docker_manager.editor_saved_toast": "Enregistré : {{files}}",
   "docker_manager.editor_stale": "Modifié sur l’hôte",
-  "docker_manager.editor_tab_hint": "Tab indente. Appuyez sur Ctrl+M pour que Tab déplace le focus.",
+  "docker_manager.editor_tab_hint": "Tab indente. Échap quitte l'éditeur. Appuyez sur Ctrl+M pour que Tab déplace le focus.",
   "docker_manager.editor_unsaved": "Modifications non enregistrées",
   "docker_manager.env_missing_note": "Ce stack n’a pas encore de fichier .env. Il est créé à l’enregistrement.",
   "docker_manager.fix_env_done": "{{name}} ajouté à .env avec une valeur aléatoire",

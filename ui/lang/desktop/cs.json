@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Uloženo",
   "docker_manager.editor_saved_toast": "Uloženo: {{files}}",
   "docker_manager.editor_stale": "Změněno na hostiteli",
-  "docker_manager.editor_tab_hint": "Tab odsazuje. Stiskněte Ctrl+M, aby Tab místo toho přesouval fokus.",
+  "docker_manager.editor_tab_hint": "Tab odsazuje. Esc opustí editor. Stiskněte Ctrl+M, aby Tab místo toho přesouval fokus.",
   "docker_manager.editor_unsaved": "Neuložené změny",
   "docker_manager.env_missing_note": "Tento stack zatím nemá soubor .env. Vytvoří se při uložení.",
   "docker_manager.fix_env_done": "Proměnná {{name}} byla přidána do .env s náhodnou hodnotou",

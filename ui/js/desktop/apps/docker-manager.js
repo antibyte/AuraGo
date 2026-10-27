@@ -144,7 +144,9 @@
         const editorFactory = Editor.create({ t, esc, stackModel: sm, views, uid });
         const ops = Ops.create({ t, esc, model, stackModel: sm, views, store, toast, announce, uid });
         const palette = Palette.create({ t, esc, stackModel: sm, views, root, uid });
-        const workbench = editorFactory.createWorkbench({ store, dialogs, toast, announce, canMutate: () => store.canMutate(), onChange: () => schedulePaint(), onDeploy: () => void stackOp(state.stack && state.stack.key, 'deploy') });
+        const workbench = editorFactory.createWorkbench({ store, dialogs, toast, announce, canMutate: () => store.canMutate(), onChange: () => schedulePaint(), onDeploy: () => void stackOp(state.stack && state.stack.key, 'deploy'),
+            // Escape in a CodeMirror editor (where Tab indents) hands the focus to the open tab of the pane.
+            onEscape: () => topEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true }) });
         const newStack = NewStack.create({
             t, esc, model, stackModel: sm, views, editor: editorFactory, createLinter: Editor.createLinter, store, dialogs, toast, announce, uid, el: newstackEl,
             canMutate: () => store.canMutate(), requestClose: () => closeNewStack(), onClosed: () => schedulePaint(), onPrepare: hostId => ops.prepare(hostId),

@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Sparad",
   "docker_manager.editor_saved_toast": "Sparat: {{files}}",
   "docker_manager.editor_stale": "Ändrad på värden",
-  "docker_manager.editor_tab_hint": "Tab indenterar. Tryck Ctrl+M så att Tab flyttar fokus i stället.",
+  "docker_manager.editor_tab_hint": "Tab indenterar. Esc lämnar editorn. Tryck Ctrl+M så att Tab flyttar fokus i stället.",
   "docker_manager.editor_unsaved": "Osparade ändringar",
   "docker_manager.env_missing_note": "Den här stacken har ingen .env-fil än. Den skapas när du sparar.",
   "docker_manager.fix_env_done": "{{name}} lades till i .env med ett slumpvärde",

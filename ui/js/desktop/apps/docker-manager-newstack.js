@@ -164,17 +164,19 @@
         }
 
         function mountEditors() {
+            // Escape in a CodeMirror editor (where Tab indents) hands the focus to the selected source tab above it.
+            const leaveEditor = () => q('[data-ns-tab][tabindex="0"]')?.focus({ preventScroll: true });
             compose = editor.mount(q('[data-ns-compose]'), {
                 label: t('editor_compose_label'), text: '', language: 'yaml', readOnly: !deps.canMutate(),
                 onChange: text => { s.lint = text.trim() ? s.lint : null; linter.schedule(); suggestName(sm.firstServiceName(text)); paintPreview(); },
-                onSave: () => { void submit(false); }, onDeploy: () => { void submit(true); }, onFix: diagnostic => fix(diagnostic.fix && diagnostic.fix.variable)
+                onSave: () => { void submit(false); }, onDeploy: () => { void submit(true); }, onEscape: leaveEditor, onFix: diagnostic => fix(diagnostic.fix && diagnostic.fix.variable)
             });
             const details = q('[data-ns-env]');
             const mountEnv = () => {
                 if (env || !details.open) return;
                 env = editor.mount(q('[data-ns-envsurface]'), {
                     label: t('editor_env_label'), text: s.pendingEnv || '', language: 'plain', wrap: true, readOnly: !deps.canMutate(),
-                    onChange: () => { linter.schedule(); paintPreview(); }, onSave: () => { void submit(false); }, onDeploy: () => { void submit(true); }
+                    onChange: () => { linter.schedule(); paintPreview(); }, onSave: () => { void submit(false); }, onDeploy: () => { void submit(true); }, onEscape: leaveEditor
                 });
                 s.pendingEnv = '';
             };

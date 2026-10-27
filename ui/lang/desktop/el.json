@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Αποθηκεύτηκε",
   "docker_manager.editor_saved_toast": "Αποθηκεύτηκε: {{files}}",
   "docker_manager.editor_stale": "Άλλαξε στον υπολογιστή",
-  "docker_manager.editor_tab_hint": "Το Tab κάνει εσοχή. Πατήστε Ctrl+M ώστε το Tab να μετακινεί την εστίαση.",
+  "docker_manager.editor_tab_hint": "Το Tab κάνει εσοχή. Το Esc βγαίνει από τον επεξεργαστή. Πατήστε Ctrl+M ώστε το Tab να μετακινεί την εστίαση.",
   "docker_manager.editor_unsaved": "Μη αποθηκευμένες αλλαγές",
   "docker_manager.env_missing_note": "Αυτό το stack δεν έχει ακόμη αρχείο .env. Δημιουργείται όταν αποθηκεύσετε.",
   "docker_manager.fix_env_done": "Το {{name}} προστέθηκε στο .env με τυχαία τιμή",

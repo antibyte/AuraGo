@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Zapisano",
   "docker_manager.editor_saved_toast": "Zapisano: {{files}}",
   "docker_manager.editor_stale": "Zmieniono na hoście",
-  "docker_manager.editor_tab_hint": "Tab wcina tekst. Naciśnij Ctrl+M, aby Tab przenosił fokus.",
+  "docker_manager.editor_tab_hint": "Tab wcina tekst. Esc opuszcza edytor. Naciśnij Ctrl+M, aby Tab przenosił fokus.",
   "docker_manager.editor_unsaved": "Niezapisane zmiany",
   "docker_manager.env_missing_note": "Ten stos nie ma jeszcze pliku .env. Zostanie utworzony przy zapisie.",
   "docker_manager.fix_env_done": "Dodano {{name}} z losową wartością do .env",

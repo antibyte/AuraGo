@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Opgeslagen",
   "docker_manager.editor_saved_toast": "Opgeslagen: {{files}}",
   "docker_manager.editor_stale": "Op de host gewijzigd",
-  "docker_manager.editor_tab_hint": "Tab springt in. Druk op Ctrl+M om met Tab de focus te verplaatsen.",
+  "docker_manager.editor_tab_hint": "Tab springt in. Esc verlaat de editor. Druk op Ctrl+M om met Tab de focus te verplaatsen.",
   "docker_manager.editor_unsaved": "Niet-opgeslagen wijzigingen",
   "docker_manager.env_missing_note": "Deze stack heeft nog geen .env-bestand. Het wordt bij het opslaan aangemaakt.",
   "docker_manager.fix_env_done": "{{name}} met een willekeurige waarde aan .env toegevoegd",

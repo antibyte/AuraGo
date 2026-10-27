@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Saved",
   "docker_manager.editor_saved_toast": "Saved: {{files}}",
   "docker_manager.editor_stale": "Changed on the host",
-  "docker_manager.editor_tab_hint": "Tab indents. Press Ctrl+M to let Tab move the focus instead.",
+  "docker_manager.editor_tab_hint": "Tab indents. Esc leaves the editor. Press Ctrl+M to let Tab move the focus instead.",
   "docker_manager.editor_unsaved": "Unsaved changes",
   "docker_manager.env_missing_note": "This stack has no .env file yet. It is created when you save.",
   "docker_manager.fix_env_done": "Added {{name}} with a random value to .env",

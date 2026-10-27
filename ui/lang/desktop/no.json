@@ -10280,7 +10280,7 @@
   "docker_manager.editor_saved": "Lagret",
   "docker_manager.editor_saved_toast": "Lagret: {{files}}",
   "docker_manager.editor_stale": "Endret på verten",
-  "docker_manager.editor_tab_hint": "Tab rykker inn. Trykk Ctrl+M for at Tab i stedet flytter fokus.",
+  "docker_manager.editor_tab_hint": "Tab rykker inn. Esc forlater editoren. Trykk Ctrl+M for at Tab i stedet flytter fokus.",
   "docker_manager.editor_unsaved": "Ulagrede endringer",
   "docker_manager.env_missing_note": "Denne stacken har ingen .env-fil ennå. Den opprettes når du lagrer.",
   "docker_manager.fix_env_done": "{{name}} ble lagt til i .env med en tilfeldig verdi",
