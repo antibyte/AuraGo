@@ -20,6 +20,7 @@ import (
 type ActionDescriptor struct {
 	targets       []string
 	targetUnknown bool
+	egressSecret  bool   // A registered secret value sits in the arguments of an egress call.
 	Tool          string `json:"tool"`
 	Operation     string `json:"operation"`
 	Target        string `json:"target"`
@@ -135,6 +136,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 			}
 		}
 	}
+	applyExtendedActionRisk(&a, tc, args)
 	a.targets, a.targetUnknown = canonicalActionTargets(tc, dc)
 	a.Target = actionTargetSummary(a.targets)
 	return a
@@ -321,6 +323,11 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 				return actionPolicyRefusal("action_policy_denied", "An administrator action rule denies this operation and target.", ToolResultDenied)
 			}
 		}
+	}
+	// A registered secret never leaves through an egress call, with policy off, an
+	// allow rule or an approval alike.
+	if a.egressSecret {
+		return egressSecretRefusal(dc, a)
 	}
 	// A copied isolated span waits even when policy is off and even when an allow rule matches.
 	if stop, refusal := gateCopiedIsolatedSpan(ctx, tc, dc, a); stop {

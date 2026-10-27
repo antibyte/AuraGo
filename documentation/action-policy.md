@@ -94,6 +94,50 @@ state and diagnosis. Review the rule and retry explicitly. The system never
 generates repeated unattended approval dialogs or automatically replays an
 action with an uncertain external outcome.
 
+## What counts as high-risk
+
+Operation names containing destructive or outbound words (delete, remove, kill,
+reboot, restart, send, upload, publish, deploy and similar) are high-risk. So are
+these calls, which a keyword cannot see. Interactively each opens the approval
+dialog. Unattended runs stop with `action_rule_required` until a rule covers them.
+
+- **Scheduling.** `manage_missions` create, add, update, edit, run, run_now and
+  execute, `cron_scheduler` and `manage_schedule` add, enable and update, and every
+  `schedule_cron` call. A stored mission or cron prompt runs later with the full
+  tool catalog and nobody watching. Rules and previews name these calls with the
+  operation `schedule`. These tools have no decoded target, so the preview shows
+  `tool:manage_missions` and similar; copy it into the rule. Listing, history and
+  disabling stay ordinary.
+- **Actuators.** `home_assistant` `call_service`/`service` on the domains `lock`,
+  `alarm_control_panel`, `cover`, `script`, `automation`, `shell_command`, `siren`
+  and `valve`, and on the generic `homeassistant`, `hassio`, `rest_command`,
+  `python_script` and `pyscript` domains, which reach any entity or run code.
+  Lights, switches, media players, climate and fans keep working without a prompt.
+  `docker` `stop` and `pause` (`restart` and `exec` already were).
+- **Reaching outside the host.** A per-tool table in `action_policy_risk.go` names
+  the operations that publish, share, expose a local service, create a remote object
+  that carries text, point a remote service at a new endpoint, hand work to an
+  external agent or start a call. Examples: `here_now_site` update, duplicate,
+  update_access and set_password; `onedrive` share and write; `github`
+  create_issue and create_or_update_file; `netlify`/`vercel` set_env and hooks or
+  domains; `cloudflare_tunnel` start; `manage_outgoing_webhooks` create and update.
+  A bare `update` or `create` is not a keyword: private and local state stays
+  ordinary. A new tool operation of this kind has to be added to the table.
+- **DNS side channel.** `dns_lookup`, `network_ping` and `port_scanner` are
+  high-risk when a label of the host is longer than 24 characters, looks like hex
+  or base32 (letters and digits mixed in 16 or more characters, or hex of 12 or
+  more), or the whole name is longer than 64 characters. The resolver forwards each
+  label to the zone's authoritative server, so such a name can carry data out.
+  Ordinary hostnames, IP literals and reverse-lookup names are not affected.
+- **Secrets in arguments.** For calls that send something off the host
+  (`api_request`, `send_*`, `call_webhook`, mail sending, `dns_lookup`,
+  `network_ping`, `port_scanner`, web fetch and browser tools), a registered secret
+  value in any string argument refuses the call with `egress_secret_refused`. No
+  rule, approval or disabled policy lifts it; the log keeps the arguments hash and
+  never the value. A value that only looks like a credential (`token=...`, a bearer
+  token, `user:password@` in a URL) makes the call high-risk instead. Recipient
+  fields are not scanned, because an SMTP user name is a registered value.
+
 ## Interactive decisions
 
 An interactive high-risk call without a matching rule opens an administrator
