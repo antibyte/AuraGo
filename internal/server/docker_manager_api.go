@@ -216,8 +216,12 @@ func (dm *dmRequest) route(segs []string) {
 	switch {
 	case len(segs) == 1 && segs[0] == "hosts":
 		dm.hostCollection()
+	case len(segs) == 1 && segs[0] == "nests":
+		dm.nestList()
 	case len(segs) == 2 && segs[0] == "hosts" && segs[1] == "test":
 		dm.hostDraftTest()
+	case len(segs) == 3 && segs[0] == "hosts" && segs[1] == "import-nest":
+		dm.nestImport(segs[2])
 	case len(segs) == 2 && segs[0] == "hosts":
 		dm.hostItem(segs[1])
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "test":
