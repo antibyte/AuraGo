@@ -12818,6 +12818,8 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 }
 [data-theme="galaxy"] body:has(#radialMenu) .app-header { padding-right: 72px; }
 [data-theme="galaxy"] .radial-menu { top: 32px; right: 32px; z-index: 61; }
+/* The lowered menu needs its blurring backdrop directly beneath it, not at the shared 9998 above it. */
+[data-theme="galaxy"] .radial-backdrop { z-index: 60; }
 [data-theme="galaxy"] #radialTrigger { width: 44px; height: 44px; min-width: 44px; border: 1px solid #8589cd; border-radius: 12px; color: #edf0ff; background: #070c1ccf; box-shadow: inset 0 1px 2px #b9acff55; }
 [data-theme="galaxy"] .app-header > .logo { position: relative; flex: 0 0 auto; display: flex; align-items: flex-start; gap: 0; margin: 0; padding: 2px 0 0; height: 52px; min-width: 0; text-decoration: none; }
 [data-theme="galaxy"] .logo-icon { width: 44px; height: 44px; margin: 2px 10px 0 0; background: var(--galaxy-mark, none) center / contain no-repeat; box-shadow: none; border: 0; border-radius: 0; animation: none; filter: drop-shadow(0 0 10px #9f7aff55); transition: filter 220ms ease, transform 220ms ease; }
