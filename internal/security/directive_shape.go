@@ -21,55 +21,87 @@ const (
 	directiveMaxBytes = 1 << 20
 )
 
-// directiveMarkers say the text should outlive this answer (durability) or
-// apply beyond it (scope). A trailing * matches any word ending; every other
-// phrase is matched as whole words.
-var directiveMarkers = []string{
+// directiveScopeMarkers say the text applies beyond this answer. They are rare
+// in ordinary prose and phrase a standing order, so a target is enough. A
+// trailing * matches any word ending; every other phrase is matched as whole
+// words.
+var directiveScopeMarkers = []string{
 	"from now on", "from here on", "from this point on", "going forward", "henceforth",
-	"always", "whenever", "every time", "each time",
 	"before replying", "before you reply", "before answering", "before you answer", "before responding",
-	"permanently", "standing instruction", "standing instructions", "standing order",
+	"standing instruction", "standing instructions", "standing order",
 	"for future chats", "for future conversations", "for future sessions", "for all future", "in all future",
-	"remember to",
-	"ab jetzt", "ab sofort", "von nun an", "immer", "jedes mal", "jedesmal",
-	"bevor du antwortest", "vor jeder antwort", "dauerhaft", "merke dir", "merk dir", "in zukunft",
+	"ab jetzt", "ab sofort", "von nun an", "bevor du antwortest", "vor jeder antwort",
 }
 
-// directiveTargets are the tools and secrets such a standing instruction goes
-// after. Tool names are the names the agent dispatches.
-var directiveTargets = []string{
+// directiveRepeatMarkers say something recurs ("always", "whenever", "immer").
+// Documentation, logs and reminders are full of them ("Remember to rotate the
+// API key quarterly", "Der Tresor ist immer verschlossen"), so they count only
+// next to a tool name or an outbound action on a secret or a destination.
+var directiveRepeatMarkers = []string{
+	"always", "whenever", "every time", "each time", "permanently", "remember to",
+	"immer", "jedes mal", "jedesmal", "dauerhaft", "merke dir", "merk dir", "in zukunft",
+}
+
+// directiveTools are the tool names such a standing instruction invokes, the
+// names the agent dispatches. A bare "shell" or "terminal" is an everyday word
+// and no tool name.
+var directiveTools = []string{
 	"execute_*", "run_tool", "api_request", "send_email", "send_telegram", "send_discord", "send_sms",
 	"manage_missions", "manage_webhooks", "call_webhook", "save_tool",
-	"shell", "terminal", "vault", "api key", "api keys", "api-key", "api-keys", "apikey", "apikeys",
+}
+
+// directiveSecrets are the secrets it goes after. A secret word alone is no
+// hit: "Always validate the token" and "Remember to change your password" are
+// advice. It counts next to an outbound or reading action (below).
+var directiveSecrets = []string{
+	"vault", "api key", "api keys", "api-key", "api-keys", "apikey", "apikeys",
 	"token", "tokens", "password", "passwords", "passphrase", "secret", "secrets", "private key",
 	"credential*", "exfiltrat*",
 	"passwort", "passwörter", "kennwort", "kennwörter", "geheim*", "zugangsdaten", "anmeldedaten", "tresor",
 	"api-schlüssel", "api schlüssel",
 }
 
-// directiveVerbs send something away. They count only next to a destination.
+// directiveVerbs send something away. With a secret or a destination they make
+// the instruction an exfiltration order.
 var directiveVerbs = []string{
-	"send", "forward", "post", "upload", "transmit",
+	"send", "forward", "post", "upload", "transmit", "exfiltrat*",
 	"sende", "senden", "schick", "schicke", "schicken", "leite", "weiterleiten",
 	"poste", "posten", "lade", "hochladen", "übermittle", "übermitteln",
+}
+
+// directiveReadVerbs reach a secret without sending it anywhere yet. After a
+// scope marker ("From now on read the vault") they make the order too.
+var directiveReadVerbs = []string{
+	"read", "reveal", "disclose", "share", "show", "print", "output", "include", "append", "leak",
+	"copy", "dump", "export", "attach", "expose", "extract", "retrieve", "fetch",
+	"lies", "lese", "zeige", "zeigen", "offenlegen", "verrate", "kopiere", "kopieren", "anhängen", "hänge",
 }
 
 // directiveDestination matches a URL or an e-mail address in lowercase text.
 var directiveDestination = regexp.MustCompile(`(?:https?|ftp|wss?)://\S+|\bwww\.[a-z0-9-]+\.[a-z]{2,}|[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+`)
 
 var directiveMinMarkerLen = func() int {
-	n := len(directiveMarkers[0])
-	for _, m := range directiveMarkers {
-		n = min(n, len(m))
+	n := len(directiveScopeMarkers[0])
+	for _, markers := range [][]string{directiveScopeMarkers, directiveRepeatMarkers} {
+		for _, m := range markers {
+			n = min(n, len(m))
+		}
 	}
 	return n
 }()
 
 // DirectiveShape reports whether text reads like a standing instruction that
-// reaches for a tool, a secret or an outbound channel: a durability or scope
-// marker ("from now on", "whenever", "immer") together with a tool name, a
-// secret word or a send verb aimed at a URL or e-mail address, in one sentence.
-// "Always send me the weekly report" has no target and is no hit.
+// reaches for a tool, a secret or an outbound channel, in one sentence:
+//
+//   - a scope marker ("from now on", "going forward", "before replying",
+//     "standing instruction", "ab jetzt") with a tool name, with a send verb
+//     aimed at a secret or a URL or e-mail address, or with a read verb aimed at
+//     a secret;
+//   - a repeat marker ("always", "whenever", "immer") with a tool name, or with a
+//     send verb aimed at a secret or a destination.
+//
+// "Always send me the weekly report" has no target and "Remember to change your
+// password every 90 days" no outbound action: neither is a hit.
 //
 // It is a local, deterministic heuristic over the text as a reader sees it
 // (invisible characters and compatibility letters folded, case and spacing
@@ -84,7 +116,7 @@ func DirectiveShape(text string) (category string, hit bool) {
 		text = text[:cut]
 	}
 	lower := strings.ToLower(directiveNormalize(text))
-	if !hasPhrase(lower, directiveMarkers) {
+	if !hasPhrase(lower, directiveScopeMarkers) && !hasPhrase(lower, directiveRepeatMarkers) {
 		return "", false
 	}
 	start := 0
@@ -172,13 +204,20 @@ func directiveSegmentHit(seg string) bool {
 }
 
 func directiveWindowHit(window string) bool {
-	if !hasPhrase(window, directiveMarkers) {
+	scope := hasPhrase(window, directiveScopeMarkers)
+	if !scope && !hasPhrase(window, directiveRepeatMarkers) {
 		return false
 	}
-	if hasPhrase(window, directiveTargets) {
+	// The markers themselves are no targets or verbs ("going forward").
+	rest := maskPhrases(maskPhrases(window, directiveScopeMarkers), directiveRepeatMarkers)
+	if hasPhrase(rest, directiveTools) {
 		return true
 	}
-	return hasPhrase(window, directiveVerbs) && directiveDestination.MatchString(window)
+	secret := hasPhrase(rest, directiveSecrets)
+	if hasPhrase(rest, directiveVerbs) && (secret || directiveDestination.MatchString(rest)) {
+		return true
+	}
+	return scope && secret && hasPhrase(rest, directiveReadVerbs)
 }
 
 // hasPhrase reports whether s holds any phrase as whole words (see
@@ -226,4 +265,33 @@ func isDirectiveWordRune(r rune) bool {
 		return r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
 	}
 	return unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// maskPhrases blanks every whole-word occurrence of phrases in s, so a marker
+// cannot double as a target ("going forward" holds the verb "forward").
+func maskPhrases(s string, phrases []string) string {
+	var b []byte
+	for _, phrase := range phrases {
+		prefix := strings.HasSuffix(phrase, "*")
+		phrase = strings.TrimSuffix(phrase, "*")
+		for from := 0; from < len(s); {
+			i := strings.Index(s[from:], phrase)
+			if i < 0 {
+				break
+			}
+			i += from
+			end := i + len(phrase)
+			if wordEdgeBefore(s, i) && (prefix || wordEdgeAfter(s, end)) {
+				if b == nil {
+					b = []byte(s)
+				}
+				for k := i; k < end; k++ {
+					b[k] = ' '
+				}
+				s = string(b)
+			}
+			from = i + 1
+		}
+	}
+	return s
 }
