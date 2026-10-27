@@ -149,7 +149,11 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 			// The schema is third-party text as well (an MCP server writes every
 			// parameter description) and get_tool_info is classified trusted, so the
 			// fence has to come from here. The catalog schema stays untouched.
-			result.Parameters = fenceToolSchema(entry, result.Parameters)
+			var guardian *security.Guardian
+			if dc != nil {
+				guardian = dc.Guardian
+			}
+			result.Parameters = fenceToolSchema(guardian, entry, result.Parameters)
 			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
 				entry.Schema.Function != nil && catalogEntryAllowed(dc, entry) {
 				// The lookup above queued the schema for the next request, so the
@@ -438,7 +442,11 @@ func callInstructionForEntry(entry *ToolCatalogEntry, method string) string {
 	case "activate_agent_skill":
 		return fmt.Sprintf("Use activate_agent_skill with name=%q to load the package instructions and resources. Scripts remain subject to the active skill scope.", entry.Routing.SkillName)
 	case "invoke_tool":
-		return fmt.Sprintf("Use invoke_tool with tool_name=%q and arguments matching the parameters shown here. Do not use execute_skill for native tools.", entry.Name)
+		instruction := fmt.Sprintf("Use invoke_tool with tool_name=%q and arguments matching the parameters shown here. Do not use execute_skill for native tools.", entry.Name)
+		if entry.HiddenReason == mcpFlaggedReason {
+			instruction += " " + mcpFlaggedNotice
+		}
+		return instruction
 	case "execute_skill":
 		return fmt.Sprintf("Use execute_skill with skill=%q and skill_args matching the parameters shown here.", entry.Routing.SkillName)
 	case "run_tool":

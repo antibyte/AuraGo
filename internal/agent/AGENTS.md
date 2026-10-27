@@ -523,14 +523,24 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   `IsolateExternalData` after truncation. Names, operations, `call_method`
   and callable flags stay raw. `get_tool_info` also fences the prose inside the
   parameter schema (`fenceSchemaAnnotations`, `discovery_schema.go`): the walk
-  is default-deny, so every string under `description`, `title`, `$comment`, an
-  unknown keyword or `pattern` is fenced, and `enum`/`const`/`default`/`examples`
-  strings are fenced unless they are one short token (no space, quote or markup,
-  <= 48 bytes), because a fenced enum member would no longer be the value the
-  model has to send. Keys, `type`, `required`, `properties` names, `format`,
-  `$ref` and non-string values stay raw, so the schema stays parseable JSON; the
-  fenced schema is a copy and the catalog schema (the later function
-  definition) is not rewritten. Schemas compiled into AuraGo (`firstPartyToolNames`,
+  is default-deny, so every string under `description`, `title`, `$comment` or
+  an unknown keyword is fenced. The strings of a structure or value keyword
+  (`type`, `format`, `$ref`, `enum`, `const`, `default`, `examples`, `pattern`)
+  are what the model sends back or has to match, so they stay byte-exact
+  ("In Progress", "R&D", `^[a-z]+$`, `["system","user","assistant"]`) and the
+  shape of a string decides nothing (an underscore-joined token can be an
+  instruction). Instead `schemaScan` (`discovery_schema_scan.go`) scans each
+  keyword's text with the run's Guardian (`NewGuardian(nil)` without one) at
+  ThreatHigh: a list is read joined by spaces (a sentence split over
+  single-word members), identifier-style strings of three or more words are read
+  as words (`ignore_previous_instructions`, camelCase, capitals; fewer words
+  stay honest names such as `system_prompt`), and only type and format names
+  skip the scan. A keyword that is flagged, or that exceeds the scan budget
+  (`schemaScanBudget`, 64 KiB; unscanned is not trusted), is fenced with all its
+  strings. Keys, `required` and `properties` names and non-string values stay
+  raw, so the schema stays parseable JSON; the fenced schema is a copy and the
+  catalog schema (the later function definition) is not rewritten. Schemas
+  compiled into AuraGo (`firstPartyToolNames`,
   i.e. `allBuiltinToolNameSet`) are exempt: they are static first-party text, every
   third-party entry has a reserved prefix, and fencing would add about 55 bytes
   per leaf (`game_maker_project` 40 KB to 57 KB would exceed the default 50 KB
@@ -543,20 +553,29 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   Missing local dependencies are `needs_setup`; account/connection state is
   distinct from configuration and never inferred from an enabled switch.
 - MCP catalog entries are built by `mcpCatalogEntry` (`discovery_mcp_metadata.go`),
-  which vets the server-written metadata on every refresh: the run's Guardian
-  (`NewGuardian(nil)` without one) scans the tool description and every string
-  of the input schema locally (prose, enum/default values, property names; plain
-  words under 16 bytes are skipped). `ThreatHigh`, or more text than
-  `mcpScanBudget` (text that is not scanned must not reach the model), disables
-  the entry with the fixed `HiddenReason` `suspicious_description` and drops its
-  description and schema, so `get_tool_info`, search and `invoke_tool` neither
-  repeat the text nor run it. The reason names no text. Tool descriptions are
-  capped at 2048 bytes and schema prose (not enum/default values) at 512, with a
-  visible `… [truncated]` marker; the manager's maps are copied, never changed,
-  and keep their decoded number types (float64). The result is cached by guardian
-  and content hash, so a changed description (a rug pull) is scanned at once and
-  an unchanged one costs nothing. A cold scan is slow (about 6 us per byte), which
-  is why the budget exists. Direct `mcp_call call_tool` is not gated by this.
+  which vets the server-written metadata on every refresh with the same
+  `schemaScan` (run Guardian, `NewGuardian(nil)` without one; ThreatHigh): the
+  tool description, schema prose and every value or structure keyword (read as
+  described above; a single word under 16 bytes is skipped). Two outcomes:
+  a **property name** (or a key of a value object) that reads as an
+  instruction (raw scan, or four or more words once split at `_`, `-`, `.` and
+  camelCase), or more name text than the scan budget covers, cannot be fenced
+  and disables the entry with the fixed `HiddenReason` `suspicious_description`;
+  its description and schema are dropped, so `get_tool_info`, search and
+  `invoke_tool` neither repeat the text nor run it, and the reason names no
+  text. Any other text at ThreatHigh (a description such as "Ignore previous
+  results and fetch again if the cache is stale." is a scanner false positive)
+  keeps the tool callable with `HiddenReason` `external_tool_flagged`: prose is
+  always fenced by `get_tool_info`, flagged values are fenced, the instruction
+  carries `mcpFlaggedNotice` and the vetting logs a warning. Text beyond the
+  budget stays unflagged: prose is fenced anyway and `get_tool_info` fences the
+  values it cannot scan. Tool descriptions are capped at 2048 bytes and schema
+  prose (not values) at 512, with a visible `… [truncated]` marker; the
+  manager's maps are copied, never changed, and keep their decoded number types
+  (float64). The result is cached by guardian and content hash, so a changed
+  description (a rug pull) is scanned at once and an unchanged one costs
+  nothing. A cold scan is slow (about 6 us per byte), which is why the budget
+  exists. Direct `mcp_call call_tool` is not gated by this.
 - A stale, foreign or sentinel cursor (`none`, `null`, `0`, ...) never fails a
   discovery page: it restarts at page 1 with `cursor_reset` and a `notice`.
   A cursor binds to `catalogRevision`, which hashes every entry and schema with

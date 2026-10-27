@@ -3,7 +3,10 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"sort"
 	"sync"
+
+	"aurago/internal/security"
 )
 
 // schemaLeafKind says how a string of a JSON schema reaches the model.
@@ -13,39 +16,16 @@ const (
 	// schemaLeafStructure is a keyword value the model reads exactly: type,
 	// format, $ref, a required name.
 	schemaLeafStructure schemaLeafKind = iota
-	// schemaLeafValue is a value the model may send back: enum, const, default,
-	// examples.
+	// schemaLeafValue is a value the model may send back, or a pattern it has to
+	// match: enum, const, default, examples, pattern.
 	schemaLeafValue
 	// schemaLeafText is prose: description, title, $comment and every keyword
 	// this walker does not know.
 	schemaLeafText
+	// schemaLeafFlagged is a structure or value string whose keyword the group
+	// check judged hostile (or could not judge): it is handled like prose.
+	schemaLeafFlagged
 )
-
-const (
-	// schemaStructureTokenLimit and schemaValueTokenLimit bound a plain token.
-	schemaStructureTokenLimit = 200
-	schemaValueTokenLimit     = 48
-)
-
-// plainSchemaToken reports whether a string is one short token without spaces,
-// quotes or markup: a type name, a format, a $ref, an enum member such as
-// "read". Such a string cannot carry an instruction, and fencing it would
-// change the value the model has to send back.
-func plainSchemaToken(text string, limit int) bool {
-	if text == "" || len(text) > limit {
-		return false
-	}
-	for i := 0; i < len(text); i++ {
-		c := text[i]
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
-		case c == '_' || c == '-' || c == '.' || c == ':' || c == '/' || c == '@' || c == '+' || c == '#' || c == '$' || c == '=' || c == ',' || c == '%' || c == '*' || c == '~':
-		default:
-			return false
-		}
-	}
-	return true
-}
 
 // schemaWalk visits the strings of a JSON schema. The walk returns a copy in
 // which leaf may replace every string; names (property names and the keys of
@@ -53,9 +33,15 @@ func plainSchemaToken(text string, limit int) bool {
 //
 // The walk is default-deny: a string under a keyword that is not a known
 // structure or value keyword counts as prose.
+//
+// A structure or value keyword is judged as a whole: group receives all strings
+// the keyword holds (an enum, an examples list, a default object) and a true
+// verdict hands each of them to leaf as schemaLeafFlagged. What a string looks
+// like decides nothing: the verdict comes from a scan of the keyword's text.
 type schemaWalk struct {
-	name func(name string)
-	leaf func(text string, kind schemaLeafKind) string
+	name  func(name string)
+	leaf  func(text string, kind schemaLeafKind) string
+	group func(texts []string, kind schemaLeafKind) bool
 }
 
 // schema walks one schema node. A node that is not an object (a boolean schema,
@@ -78,7 +64,7 @@ func (w schemaWalk) schema(node interface{}) interface{} {
 		case "items", "additionalItems", "additionalProperties", "unevaluatedItems", "unevaluatedProperties", "contains",
 			"propertyNames", "not", "if", "then", "else", "contentSchema", "allOf", "anyOf", "oneOf", "prefixItems":
 			out[key] = w.subschemas(value)
-		case "enum", "const", "default", "examples", "example":
+		case "enum", "const", "default", "examples", "example", "pattern":
 			out[key] = w.data(value, schemaLeafValue)
 		default:
 			out[key] = w.data(value, schemaLeafText)
@@ -88,21 +74,34 @@ func (w schemaWalk) schema(node interface{}) interface{} {
 }
 
 // required keeps the names that a sibling property declares; any other entry is
-// an ordinary structure string.
+// a structure string, judged together with the other undeclared entries.
 func (w schemaWalk) required(value interface{}, properties map[string]interface{}) interface{} {
 	list, ok := value.([]interface{})
 	if !ok {
 		return w.data(value, schemaLeafStructure)
 	}
+	declared := func(item interface{}) bool {
+		name, ok := item.(string)
+		if !ok {
+			return false
+		}
+		_, ok = properties[name]
+		return ok
+	}
+	var undeclared []interface{}
+	for _, item := range list {
+		if !declared(item) {
+			undeclared = append(undeclared, item)
+		}
+	}
+	walked, _ := w.data(undeclared, schemaLeafStructure).([]interface{})
 	out := make([]interface{}, len(list))
 	for i, item := range list {
-		if name, ok := item.(string); ok {
-			if _, declared := properties[name]; declared {
-				out[i] = name
-				continue
-			}
+		if declared(item) {
+			out[i] = item
+			continue
 		}
-		out[i] = w.data(item, schemaLeafStructure)
+		out[i], walked = walked[0], walked[1:]
 	}
 	return out
 }
@@ -140,8 +139,18 @@ func (w schemaWalk) subschemas(value interface{}) interface{} {
 	return w.schema(value)
 }
 
-// data walks a plain JSON value: every string in it has the given kind.
+// data walks a plain JSON value: every string in it has the given kind. The
+// strings of a structure or value keyword are judged by group first.
 func (w schemaWalk) data(value interface{}, kind schemaLeafKind) interface{} {
+	if w.group != nil && (kind == schemaLeafStructure || kind == schemaLeafValue) {
+		if texts := schemaStrings(value, nil); len(texts) > 0 && w.group(texts, kind) {
+			kind = schemaLeafFlagged
+		}
+	}
+	return w.leaves(value, kind)
+}
+
+func (w schemaWalk) leaves(value interface{}, kind schemaLeafKind) interface{} {
 	switch v := value.(type) {
 	case string:
 		if w.leaf == nil {
@@ -151,7 +160,7 @@ func (w schemaWalk) data(value interface{}, kind schemaLeafKind) interface{} {
 	case []interface{}:
 		out := make([]interface{}, len(v))
 		for i, item := range v {
-			out[i] = w.data(item, kind)
+			out[i] = w.leaves(item, kind)
 		}
 		return out
 	case map[string]interface{}:
@@ -160,12 +169,37 @@ func (w schemaWalk) data(value interface{}, kind schemaLeafKind) interface{} {
 			if w.name != nil {
 				w.name(key)
 			}
-			out[key] = w.data(item, kind)
+			out[key] = w.leaves(item, kind)
 		}
 		return out
 	default:
 		return value
 	}
+}
+
+// schemaStrings appends the strings of a plain JSON value in document order for
+// lists; the values of an object follow its sorted keys, as encoding/json
+// orders them, which is the order the model reads. Keys are names and are not
+// part of the text.
+func schemaStrings(value interface{}, texts []string) []string {
+	switch v := value.(type) {
+	case string:
+		return append(texts, v)
+	case []interface{}:
+		for _, item := range v {
+			texts = schemaStrings(item, texts)
+		}
+	case map[string]interface{}:
+		keys := make([]string, 0, len(v))
+		for key := range v {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			texts = schemaStrings(v[key], texts)
+		}
+	}
+	return texts
 }
 
 // plainSchemaCopy returns a deep copy of a schema that holds only plain JSON
@@ -198,18 +232,13 @@ func decodePlainSchema(raw []byte, exactNumbers bool) (map[string]interface{}, b
 	return out, true
 }
 
-// fenceSchemaLeaf isolates the prose of a tool schema. Structure keywords and
-// plain value tokens stay as they are, so the schema keeps its meaning.
+// fenceSchemaLeaf isolates the prose of a tool schema and every structure or
+// value string that the group check flagged. All other structure and value
+// strings stay byte-exact: they are what the model has to send back.
 func fenceSchemaLeaf(text string, kind schemaLeafKind) string {
 	switch kind {
-	case schemaLeafStructure:
-		if plainSchemaToken(text, schemaStructureTokenLimit) {
-			return text
-		}
-	case schemaLeafValue:
-		if plainSchemaToken(text, schemaValueTokenLimit) {
-			return text
-		}
+	case schemaLeafStructure, schemaLeafValue:
+		return text
 	}
 	return fenceDiscoveryText(text)
 }
@@ -225,23 +254,28 @@ var firstPartyToolNames = sync.OnceValue(allBuiltinToolNameSet)
 // would only cost size (every leaf grows by about 55 bytes: game_maker_project
 // would grow from 40 KB to 58 KB and exceed the default 50 KB tool output limit)
 // and protect nothing.
-func fenceToolSchema(entry *ToolCatalogEntry, params map[string]interface{}) map[string]interface{} {
+func fenceToolSchema(guardian *security.Guardian, entry *ToolCatalogEntry, params map[string]interface{}) map[string]interface{} {
 	if entry != nil {
 		if _, builtin := firstPartyToolNames()[entry.Name]; builtin {
 			return params
 		}
 	}
-	return fenceSchemaAnnotations(params)
+	return fenceSchemaAnnotations(guardian, params)
 }
 
 // fenceSchemaAnnotations returns a copy of a tool's input schema in which every
-// string a third party can use for prose (description, title, free-text enum,
-// default and example values, unknown keywords) is wrapped by
-// security.IsolateExternalData. Keys, type, required, properties and plain
-// tokens stay raw, so the JSON keeps its shape and stays parseable. The copy
-// leaves the catalog schema, which becomes the function definition after an
-// activation, untouched. A schema that cannot be encoded yields nil.
-func fenceSchemaAnnotations(params map[string]interface{}) map[string]interface{} {
+// string a third party can use for prose (description, title, unknown keywords)
+// is wrapped by security.IsolateExternalData. The strings of a structure or
+// value keyword (type, format, enum, const, default, examples, pattern) stay
+// byte-exact, because they are what the model sends back or has to match: they
+// are fenced, all strings of the keyword together, only when a scan of the
+// keyword's text (the run's Guardian, ThreatHigh or above; a list read joined,
+// an identifier read as words) flags it or cannot cover it within the budget.
+// Keys, type, required and properties stay raw, so the JSON keeps its shape and
+// stays parseable. The copy leaves the catalog schema, which becomes the function
+// definition after an activation, untouched. A schema that cannot be encoded
+// yields nil.
+func fenceSchemaAnnotations(guardian *security.Guardian, params map[string]interface{}) map[string]interface{} {
 	if params == nil {
 		return nil
 	}
@@ -249,6 +283,14 @@ func fenceSchemaAnnotations(params map[string]interface{}) map[string]interface{
 	if !ok {
 		return nil
 	}
-	fenced, _ := schemaWalk{leaf: fenceSchemaLeaf}.schema(plain).(map[string]interface{})
+	scan := newSchemaScan(guardian, schemaScanBudget)
+	walk := schemaWalk{
+		leaf: fenceSchemaLeaf,
+		group: func(texts []string, _ schemaLeafKind) bool {
+			flagged, complete := scan.group(texts)
+			return flagged || !complete
+		},
+	}
+	fenced, _ := walk.schema(plain).(map[string]interface{})
 	return fenced
 }
