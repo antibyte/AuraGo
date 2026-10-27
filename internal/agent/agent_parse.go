@@ -38,26 +38,44 @@ var (
 	}
 )
 
-func guardianBlockNextStep(reason string) string {
+// guardianBlockClass is what the model is told about a block: a fixed category and
+// a fixed next step. The judge's own reason is free text shaped by the call it
+// judged, so it selects a class here and goes no further than the log.
+type guardianBlockClass struct{ category, nextStep string }
+
+func classifyGuardianBlock(reason string) guardianBlockClass {
 	lower := strings.ToLower(strings.TrimSpace(reason))
 	switch {
+	case reason == guardianQuarantineNotice:
+		return guardianBlockClass{guardianQuarantineNotice, "Do not repeat the blocked action blindly. Re-check the tool manual, choose a safer built-in workflow, or ask the user for an alternative approach."}
 	case strings.Contains(lower, "remote code execution"), strings.Contains(lower, "curl pipe sh"), strings.Contains(lower, "wget pipe sh"), strings.Contains(lower, "pipe sh"):
-		return "Do not retry with curl|sh, wget|sh, or similar remote-install patterns. Use a built-in tool/manual-driven workflow instead, or ask the user for an alternative approach."
+		return guardianBlockClass{"remote code execution pattern", "Do not retry with curl|sh, wget|sh, or similar remote-install patterns. Use a built-in tool/manual-driven workflow instead, or ask the user for an alternative approach."}
 	case strings.Contains(lower, "credentials"), strings.Contains(lower, "token"), strings.Contains(lower, "secret"):
-		return "Do not guess or hardcode credentials. Use the vault-backed workflow or ask the user to provide/store the required secret safely."
+		return guardianBlockClass{"credential handling", "Do not guess or hardcode credentials. Use the vault-backed workflow or ask the user to provide/store the required secret safely."}
 	default:
-		return "Do not repeat the blocked action blindly. Re-check the tool manual, choose a safer built-in workflow, or ask the user for an alternative approach."
+		return guardianBlockClass{"action not permitted", "Do not repeat the blocked action blindly. Re-check the tool manual, choose a safer built-in workflow, or ask the user for an alternative approach."}
 	}
 }
 
+func guardianBlockNextStep(reason string) string {
+	return classifyGuardianBlock(reason).nextStep
+}
+
+// formatGuardianBlockedMessage words a block for the model with fixed text only.
 func formatGuardianBlockedMessage(action, reason string, risk float64, _ bool, _ bool) string {
-	base := fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%).", action, reason, risk*100)
-	return base + " The block is final for this call. " + guardianBlockNextStep(reason)
+	class := classifyGuardianBlock(reason)
+	base := fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%).", echoedToolName(action), class.category, risk*100)
+	return base + " The block is final for this call. " + class.nextStep
 }
 
 // guardianQuarantineNotice is the only model-facing reason for a quarantine
 // verdict. The scanner's own reason stays in the log.
 const guardianQuarantineNotice = "security check quarantined this call before execution"
+
+// fallbackToolOutputGuardian is the regex guardian a dispatch uses when its
+// context carries none. One shared instance: building a guardian compiles scan
+// rules.
+var fallbackToolOutputGuardian = sync.OnceValue(func() *security.Guardian { return security.NewGuardian(nil) })
 
 // ToolDispatchResult preserves the model-facing output together with a
 // machine-readable execution status for protocol bridges such as MCP.
@@ -121,18 +139,19 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 	cfg := dc.Cfg
 	logger := dc.Logger
+	// Tool output is never handed to the model unsanitised: a dispatch built
+	// without a Guardian falls back to the default regex guardian.
 	guardian := dc.Guardian
+	if guardian == nil {
+		guardian = fallbackToolOutputGuardian()
+	}
 	llmGuardian := dc.LLMGuardian
 	dc.UserContext = userContext
 
 	// LLM Guardian: pre-execution security check
 	if llmGuardian != nil {
 		subject := guardianSubjectCall(*tc)
-		var regexLevel security.ThreatLevel
-		if guardian != nil {
-			scanText := toolCallScanText(subject)
-			regexLevel = guardian.ScanForInjection(scanText).Level
-		}
+		regexLevel := guardian.ScanForInjection(toolCallScanText(subject)).Level
 		// Build guardian context: prefer the triggering user message over tc.Content
 		guardianCtx := userContext
 		if guardianCtx == "" {
@@ -153,7 +172,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 				logger.Warn("[LLM Guardian] Blocked tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
 				tc.GuardianBlocked = true
-				tc.GuardianBlockReason = result.Reason
+				tc.GuardianBlockReason = classifyGuardianBlock(result.Reason).category
 				return ToolDispatchResult{
 					Status:  ToolResultDenied,
 					Output:  formatGuardianBlockedMessage(tc.Action, result.Reason, result.RiskScore, cfg.LLMGuardian.AllowClarification, false),
@@ -210,9 +229,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 
 	// Guardian: Sanitize tool output (isolation + role-marker stripping)
-	if guardian != nil {
-		sanitized = guardian.SanitizeToolOutput(tc.Action, sanitized)
-	}
+	sanitized = guardian.SanitizeToolOutput(tc.Action, sanitized)
 
 	// Make sure errors from execute_python are preserved for context
 	if tc.Action == "execute_python" {
