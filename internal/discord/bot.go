@@ -758,6 +758,12 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		}
 	}
 
+	// A message that forwards or replies to someone else's message gets a fixed
+	// marker inside the isolated block; the scan below reads the author name too.
+	if marker := discordReferenceMarker(m.Message, botUserID); marker != "" {
+		inputText = marker + "\n" + inputText
+	}
+
 	// Security: Block prompt injection attempts (not just log them)
 	if guardian != nil {
 		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {

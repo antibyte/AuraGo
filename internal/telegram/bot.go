@@ -505,11 +505,24 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		return
 	}
 
+	// A forwarded message arrives from the owner's account, but a third party
+	// wrote it. The fixed marker goes inside the isolated block (and before the
+	// injection scan, which then reads the origin name too), the text no longer
+	// counts as the owner's own words, and it cannot answer a pending question or
+	// run a slash command.
+	forwardMarker := telegramForwardMarker(msg)
+	if forwardMarker != "" {
+		inputText = forwardMarker + "\n" + inputText
+		humanInput = nil
+	}
+
 	if tools.HasPendingQuestion(sessionID) {
-		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
-			response.Source = tools.QuestionSourceTelegram
-			tools.CompleteQuestion(sessionID, response)
-			return
+		if forwardMarker == "" {
+			if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
+				response.Source = tools.QuestionSourceTelegram
+				tools.CompleteQuestion(sessionID, response)
+				return
+			}
 		}
 		deliverMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.", "reply prompt", logger)
 		return
@@ -525,7 +538,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// Phase: Command Interception
 	// Check for slash commands
-	if strings.HasPrefix(msg.Text, "/") {
+	if forwardMarker == "" && strings.HasPrefix(msg.Text, "/") {
 		cmdCtx := commands.Context{
 			STM:           shortTermMem,
 			SessionID:     sessionID,

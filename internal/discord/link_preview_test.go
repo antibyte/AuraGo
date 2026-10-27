@@ -40,11 +40,11 @@ func newDiscordRESTRecorder(t *testing.T) *discordRESTRecorder {
 	recorder := &discordRESTRecorder{}
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
-		var body map[string]any
-		if err := json.Unmarshal(raw, &body); err != nil {
-			t.Errorf("decode the Discord request %s: %v", r.URL.Path, err)
-		}
 		if strings.HasSuffix(r.URL.Path, "/messages") {
+			var body map[string]any
+			if err := json.Unmarshal(raw, &body); err != nil {
+				t.Errorf("decode the Discord request %s: %v", r.URL.Path, err)
+			}
 			recorder.mu.Lock()
 			recorder.bodies = append(recorder.bodies, body)
 			recorder.mu.Unlock()
