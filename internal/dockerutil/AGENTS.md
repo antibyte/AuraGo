@@ -11,6 +11,7 @@ Agent and service authorization stays with each caller.
 
 - Negotiate `GET /version` before a versioned operation, selecting the supported intersection (minimum 1.25 for managed-container Init, maximum `APIVersion`). Reject malformed, inaccessible or incompatible version metadata before mutation. Socket proxies need `VERSION=1`.
 - `NewVersionTransportWithProbeTimeout` gives transports with slow connection setup (an Engine socket reached through SSH) a longer `/version` probe budget; `NewVersionTransport` keeps 5 s.
+- `NewClientWithDialer` builds a pooled client over a caller-supplied dial function (TLS with client certificates, SSH tunnels) for the Docker Manager's hosts. Requests keep the `http://docker/v1.45/` URL for every kind, idle connections are reaped after a minute, `probeTimeout <= 0` keeps the 5 s probe and a nil dial function fails the request instead of panicking. Host records and secrets belong to `../dockerhost/AGENTS.md`.
 - Bind negotiation state to one Engine transport. Honour cancellation while probing or waiting on another probe; failed probes must not poison future attempts. Forward idle-connection cleanup.
 - A transport failure the caller did not cancel, or an HTTP 400 answer, clears the negotiated version so the next request probes again; the failed request itself is returned unchanged and never resent.
 - Never replay a mutation after network, body-read or server failure. Only safe reads may retry. Streaming exec uses its caller context; cancellation does not prove remote process termination.
