@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/danielthedm/promptsec"
 	"github.com/danielthedm/promptsec/guard/taint"
@@ -868,12 +869,45 @@ func neutralizeRoleMarkers(text string) string {
 // return take four and twenty times that, all on the dispatch goroutine. Text
 // dense in escapes or entities adds up to twice its size in decode shadows. A
 // Guardian without a logger skips the advisory ScanExternalContent altogether, so
-// the scraper's own pass no longer adds a third read of a page. The agent clips
-// what the model sees only after this call, and the output vault pages the rest
-// back, so a prefix scan would let unscanned text through. Longer external
-// output is therefore withheld as incomplete; longer source output takes the
-// escaped form without a scan.
+// the scraper's own pass no longer adds a third read of a page. The model only
+// ever sees a prefix of a tool result (the agent clips it after this call, an
+// over-limit isolated result becomes an envelope, and the output vault pages the
+// archived rest back through read_tool_output, which is external and scanned per
+// page), so longer external output is clipped to a prefix of this size, told so
+// by scanClipNote, and that prefix is scanned and isolated like any other output.
+// The text beyond it is never delivered, so no unscanned external text reaches
+// the model while a 300 KiB shell or API result stays usable. Longer source
+// output takes the escaped form without a scan.
 const maxScanOutputBytes = 256 * 1024
+
+// scanClipNote closes external output that was clipped at maxScanOutputBytes.
+const scanClipNote = "[Tool output clipped at the 256 KiB scan limit; the rest was not delivered.]"
+
+// scanClipTailBytes is how far back from the cap a clip looks for a line break
+// to cut after, so ordinary text is not cut in the middle of a line.
+const scanClipTailBytes = 4 * 1024
+
+// clipToScanLimit returns the prefix of output that SanitizeToolOutput scans
+// and delivers, followed by scanClipNote. The prefix is at most
+// maxScanOutputBytes, ends on a UTF-8 boundary, and ends after the last newline
+// in its final scanClipTailBytes when there is one.
+func clipToScanLimit(output string) string {
+	if len(output) <= maxScanOutputBytes {
+		return output
+	}
+	cut := maxScanOutputBytes
+	for back := 0; back < utf8.UTFMax && cut > 0 && !utf8.RuneStart(output[cut]); back++ {
+		cut--
+	}
+	prefix := output[:cut]
+	if i := strings.LastIndexByte(prefix[max(0, cut-scanClipTailBytes):], '\n'); i >= 0 {
+		prefix = prefix[:max(0, cut-scanClipTailBytes)+i+1]
+	}
+	if !strings.HasSuffix(prefix, "\n") {
+		prefix += "\n"
+	}
+	return prefix + scanClipNote
+}
 
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
@@ -889,11 +923,14 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	trust := classifyToolOutput(toolName)
 	oversize := trust != toolOutputTrusted && len(output) > maxScanOutputBytes
 	if oversize && trust == toolOutputExternal {
+		// Only a prefix of a result ever reaches the model, so the prefix is what
+		// gets scanned; the rest is dropped and the note says so.
 		if g.logger != nil {
-			g.logger.Warn("[Guardian] Withheld external tool output beyond the scan limit",
+			g.logger.Info("[Guardian] Clipped external tool output at the scan limit",
 				"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
 		}
-		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineIncomplete))
+		output = clipToScanLimit(output)
+		oversize = false
 	}
 	var scan ScanResult
 	var leaves []jsonLeaf
@@ -1076,9 +1113,9 @@ func (g *Guardian) ScanExternalContent(source, content string) string {
 		return IsolateExternalData(content)
 	}
 	if len(content) > maxScanOutputBytes {
-		// The scan here only logs. The tool output carrying this content is
-		// withheld by SanitizeToolOutput beyond the same limit, so reading it
-		// again would repeat minutes of work for a log line.
+		// The scan here only logs. SanitizeToolOutput clips the tool output
+		// carrying this content to a scanned prefix at the same limit, so reading
+		// it again would repeat minutes of work for a log line.
 		if g.logger != nil {
 			g.logger.Info("[Guardian] External content beyond the scan limit, not scanned",
 				"source", source, "bytes", len(content), "limit", maxScanOutputBytes)
