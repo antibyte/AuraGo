@@ -98,6 +98,32 @@
             gl_FragColor = vec4(col, rim * (0.23 + lit * 0.6 + aurora * 0.07));
         }
     `;
+    // The Earth's moon borrows the cloud map as noise: broad dark maria and finer crater rims.
+    const moonFragment = `
+        precision highp float;
+        uniform vec3 uSun;
+        uniform sampler2D uCloud;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorld;
+        void main() {
+            float n1 = texture2D(uCloud, vUv * vec2(2.0, 1.0)).r;
+            // The map repeats horizontally only; fold the finer sample vertically so it never clamps to the pole row.
+            vec2 rimUv = vec2(vUv.x * 5.0 + 0.37, 1.0 - abs(mod(vUv.y * 2.5 + 0.37, 2.0) - 1.0));
+            float n2 = texture2D(uCloud, rimUv).r;
+            float maria = smoothstep(0.45, 0.75, n1);
+            float rims = smoothstep(0.55, 0.9, n2) * 0.3;
+            vec3 col = mix(vec3(0.56, 0.55, 0.53), vec3(0.33, 0.33, 0.35), maria) + rims;
+            vec3 N = normalize(vNormal);
+            // The shared sun sits behind the Earth; tilt the light towards the camera so the moon reads as gibbous, not a black disc.
+            vec3 L = normalize(uSun + vec3(-0.4, 0.3, 1.7));
+            float lit = max(0.0, dot(N, L));
+            col *= 0.09 + lit * 0.95;
+            vec3 V = normalize(cameraPosition - vWorld);
+            col += vec3(0.45, 0.58, 0.9) * pow(1.0 - max(0.0, dot(N, V)), 4.0) * 0.14;
+            gl_FragColor = vec4(col, 1.0);
+        }
+    `;
 
     function shader(fragmentShader, uniforms, options) {
         return new THREE.ShaderMaterial(Object.assign({ vertexShader: surfaceVertex, fragmentShader, uniforms }, options));
@@ -175,6 +201,29 @@
                             col += mix(vec3(0.45, 0.82, 1.0), vec3(0.95, 0.98, 1.0), along / max(0.001, tailLen)) * (core + halo) * env;
                         }
                     }
+                    // A slow comet with an ion tail crosses high above the nebula about every two and a half minutes.
+                    {
+                        float period = 150.0;
+                        float t = uTime + 37.0;
+                        float cycle = floor(t / period);
+                        float phase = mod(t, period);
+                        if (phase < 14.0) {
+                            float prog = phase / 14.0;
+                            float h = fract(sin(cycle * 41.7) * 43758.5453);
+                            vec2 startPos = vec2(1.12, 0.52 + h * 0.22);
+                            vec2 dir = normalize(vec2(-1.0, -0.22 - h * 0.18));
+                            vec2 head = startPos + dir * prog * 1.35;
+                            vec2 rel = vUv - head;
+                            float along = dot(rel, -dir);
+                            float perp = length(rel - (-dir) * along);
+                            float trail = smoothstep(0.3, 0.0, along) * step(0.0, along);
+                            float width = 0.004 + max(along, 0.0) * 0.07;
+                            float ion = exp(-perp * perp / (width * width)) * trail;
+                            float headGlow = exp(-dot(rel, rel) * 12000.0) * 1.2 + exp(-dot(rel, rel) * 1200.0) * 0.35;
+                            float env = smoothstep(0.0, 0.12, prog) * (1.0 - smoothstep(0.88, 1.0, prog));
+                            col += (vec3(0.55, 0.8, 1.0) * ion * 0.42 + vec3(0.95, 0.97, 1.0) * headGlow) * env;
+                        }
+                    }
                     gl_FragColor = vec4(col, 1.0);
                 }
             `
@@ -233,6 +282,12 @@
         rt.distant.rotation.z = 0.3;
         rt.scene.add(rt.distant);
 
+        // The Earth's moon: opaque, so the depth test hides it behind the planet on the far side of its orbit.
+        rt.moon = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20), shader(moonFragment, { uSun: { value: sun }, uCloud: { value: cloud } }));
+        // Its orbit leaves the viewport for part of the cycle; never cull it, so the draw count stays constant.
+        rt.moon.frustumCulled = false;
+        rt.scene.add(rt.moon);
+
         let seed = 7341;
         const random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
         const count = rt.mobile ? 850 : 3500;
@@ -264,9 +319,10 @@
             vertexShader: `
                 attribute float aSize; attribute vec3 color; attribute float aTwinkle;
                 uniform vec2 uDrift; uniform float uPixelRatio; uniform float uTime;
-                varying vec3 vColor;
+                varying vec3 vColor; varying float vSpark;
                 void main(){
                     vColor=color;
+                    vSpark=0.0;
                     if(aTwinkle>0.0){
                         float clock=uTime+aTwinkle;
                         float cycle=floor(clock/6.0);
@@ -274,22 +330,85 @@
                         float pulse=clamp((mod(clock,6.0)-delay)/1.4,0.0,1.0);
                         float envelope=sin(pulse*3.14159265);
                         vColor*=1.0+envelope*(0.12+0.16*sin(clock*13.0+aTwinkle));
+                        vSpark=envelope;
                     }
                     gl_Position=vec4(position.xy+uDrift*(0.3+position.z),0.98,1.0);
-                    gl_PointSize=aSize*uPixelRatio;
+                    // A pulsing star swells so its diffraction cross has room to flare.
+                    gl_PointSize=aSize*uPixelRatio*(1.0+vSpark*2.2);
                 }
             `,
             fragmentShader: `
-                precision mediump float; varying vec3 vColor;
+                precision mediump float; varying vec3 vColor; varying float vSpark;
                 void main(){
-                    float d=length(gl_PointCoord-0.5)*2.0;
-                    gl_FragColor=vec4(vColor,(1.0-smoothstep(0.0,1.0,d))*0.6);
+                    vec2 pc=gl_PointCoord-0.5;
+                    float d=length(pc)*2.0;
+                    float core=1.0-smoothstep(0.0,1.0,d);
+                    // Two thin crossed spikes, strongest at the peak of the pulse.
+                    float flare=(exp(-abs(pc.x)*9.0)*exp(-abs(pc.y)*40.0)+exp(-abs(pc.y)*9.0)*exp(-abs(pc.x)*40.0))*vSpark;
+                    gl_FragColor=vec4(vColor,min(1.0,(core+flare*0.9)*0.6));
                 }
             `
         }));
         rt.stars.frustumCulled = false;
         rt.stars.renderOrder = -5;
         rt.scene.add(rt.stars);
+
+        // Three tiny satellites cross the sky on slow clip-space routes with blinking beacons.
+        // Each route is start, direction (spanning past the opposite edge), period, phase and blink rate;
+        // the vertex shader derives every position from the clock alone.
+        const satRoutes = [
+            [-1.1, 0.35, 2.2, 0.25, 75, 0.1, 2.4],
+            [1.1, 0.75, -2.2, -0.5, 96, 0.55, 1.9],
+            [-0.5, 1.1, 0.9, -2.2, 64, 0.8, 2.9]
+        ];
+        const satStart = new Float32Array(satRoutes.length * 2);
+        const satDir = new Float32Array(satRoutes.length * 2);
+        const satPeriod = new Float32Array(satRoutes.length);
+        const satPhase = new Float32Array(satRoutes.length);
+        const satBlink = new Float32Array(satRoutes.length);
+        satRoutes.forEach((route, i) => {
+            satStart.set([route[0], route[1]], i * 2);
+            satDir.set([route[2], route[3]], i * 2);
+            satPeriod[i] = route[4];
+            satPhase[i] = route[5];
+            satBlink[i] = route[6];
+        });
+        const satellites = new THREE.BufferGeometry();
+        // Three sizes the draw call from the position attribute, so keep an unused one.
+        satellites.setAttribute('position', new THREE.BufferAttribute(new Float32Array(satRoutes.length * 3), 3));
+        satellites.setAttribute('aStart', new THREE.BufferAttribute(satStart, 2));
+        satellites.setAttribute('aDir', new THREE.BufferAttribute(satDir, 2));
+        satellites.setAttribute('aPeriod', new THREE.BufferAttribute(satPeriod, 1));
+        satellites.setAttribute('aPhase', new THREE.BufferAttribute(satPhase, 1));
+        satellites.setAttribute('aBlink', new THREE.BufferAttribute(satBlink, 1));
+        rt.satellites = new THREE.Points(satellites, new THREE.ShaderMaterial({
+            transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+            uniforms: { uTime: { value: 0 }, uPixelRatio: { value: 1 }, uDrift: { value: new THREE.Vector2() } },
+            vertexShader: `
+                attribute vec2 aStart; attribute vec2 aDir; attribute float aPeriod; attribute float aPhase; attribute float aBlink;
+                uniform float uTime; uniform float uPixelRatio; uniform vec2 uDrift;
+                varying float vBlink; varying float vFade;
+                void main(){
+                    float t=fract(uTime/aPeriod+aPhase);
+                    vFade=smoothstep(0.0,0.08,t)*(1.0-smoothstep(0.92,1.0,t));
+                    vBlink=pow(0.5+0.5*sin(uTime*aBlink+aPhase*40.0),18.0);
+                    gl_Position=vec4(aStart+aDir*t+uDrift*0.6,0.97,1.0);
+                    gl_PointSize=(2.2+vBlink*2.6)*uPixelRatio;
+                }
+            `,
+            fragmentShader: `
+                precision mediump float; varying float vBlink; varying float vFade;
+                void main(){
+                    float d=length(gl_PointCoord-0.5)*2.0;
+                    float core=1.0-smoothstep(0.0,1.0,d);
+                    vec3 col=mix(vec3(0.85,0.9,1.0),vec3(1.0,0.45,0.35),vBlink);
+                    gl_FragColor=vec4(col,core*(0.55+vBlink*0.45)*vFade);
+                }
+            `
+        }));
+        rt.satellites.frustumCulled = false;
+        rt.satellites.renderOrder = -4;
+        rt.scene.add(rt.satellites);
 
         createFleet(rt, sun);
     }
@@ -413,9 +532,11 @@
         if (!rt.ready) return;
         rt.planet.position.set(aspect * (aspect < 1 ? 0.88 : 1.04), -0.77, 1);
         rt.planet.scale.setScalar(aspect < 1 ? 0.64 : 1.08);
+        rt.moon.scale.setScalar(rt.planet.scale.x * 0.06);
         rt.distant.position.set(-aspect * 0.78, -0.18, -2);
         rt.backdrop.material.uniforms.uAspect.value = aspect;
         rt.stars.material.uniforms.uPixelRatio.value = ratio;
+        rt.satellites.material.uniforms.uPixelRatio.value = ratio;
     }
 
     function updateQuality(rt, delta) {
@@ -440,11 +561,23 @@
         if (rt.atmosphere) rt.atmosphere.material.uniforms.uTime.value = rt.time;
         rt.distant.rotation.y = rt.time * 0.0025;
         rt.distant.material.uniforms.uTime.value = rt.time;
+        // The moon circles the Earth on a tilted, slow orbit. Its depth swings through the planet's own
+        // (scaled with it), so it passes in front of the disc and then behind it, where the depth test hides it.
+        const orbit = rt.time * Math.PI * 2 / 420 + 1.9;
+        const moonReach = rt.planet.scale.x * 1.42;
+        rt.moon.position.set(
+            rt.planet.position.x + Math.cos(orbit) * moonReach,
+            rt.planet.position.y + 0.12 + Math.sin(orbit) * moonReach * 0.34,
+            rt.planet.position.z + Math.sin(orbit) * rt.planet.scale.x * 1.3
+        );
+        rt.moon.rotation.y = rt.time * 0.02;
         const phase = rt.time * Math.PI * 2 / 180;
         rt.backdrop.material.uniforms.uTime.value = rt.time;
         rt.backdrop.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.004 + px * 0.0035, Math.sin(phase * 0.7) * 0.002 + py * 0.0025);
         rt.stars.material.uniforms.uDrift.value.set(Math.sin(phase) * 0.009 + px * 0.008, Math.sin(phase * 0.7) * 0.004 + py * 0.006);
         rt.stars.material.uniforms.uTime.value = rt.time;
+        rt.satellites.material.uniforms.uTime.value = rt.time;
+        rt.satellites.material.uniforms.uDrift.value.copy(rt.stars.material.uniforms.uDrift.value);
         if (rt.fleetTime) rt.fleetTime.value = rt.time;
         rt.shipRoutes.forEach((route, i) => {
             const progress = (rt.time / route.duration + route.phase) % 1;

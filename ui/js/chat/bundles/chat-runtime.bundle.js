@@ -6696,6 +6696,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     let animationFrameIndex = 0;
     let robotState = 'idle';
     let launchTimer = null;
+    // A theme may own the robot's position (e.g. Galaxy docks it in the navigation rail).
+    let placementResolver = null;
+
+    // state: 'greeting' | 'anchored'. Returns null (theme has no opinion), { parked: true }
+    // (theme hides the robot) or { left, top, size }.
+    function resolvePlacement(state) {
+        if (typeof placementResolver !== 'function') return null;
+        let m = null;
+        try { m = placementResolver(state); } catch (_) { m = null; }
+        if (!m) return null;
+        if (m.parked) return { parked: true };
+        if (![m.left, m.top, m.size].every(Number.isFinite)) return null;
+        return m;
+    }
 
     function setFrame(rowIndex, colIndex = 0) {
         const row = Math.max(0, Math.min(animations.length - 1, Number(rowIndex) || 0));
@@ -6737,7 +6751,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function placeRobot(metrics) {
-        if (!metrics) return;
+        mascot.classList.toggle('is-parked', !!(metrics && metrics.parked));
+        if (!metrics || metrics.parked) return;
         mascot.style.left = `${Math.round(metrics.left)}px`;
         mascot.style.top = `${Math.round(metrics.top)}px`;
         mascot.style.bottom = 'auto';
@@ -6827,20 +6842,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         mascot.style.setProperty('--chat-robot-footer-offset', `${footerHeight + extraClearance}px`);
     }
 
+    // Plays a named sprite animation once (e.g. 'wave', 'happy'), then returns to the idle rotation.
+    function cue(name) {
+        if (document.hidden || (reduceMotion && reduceMotion.matches)) return;
+        const animation = animations.find(item => item.name === name);
+        if (!animation) return;
+        activeAnimation = animation;
+        animationFrameIndex = 0;
+        window.clearTimeout(timer);
+        tick();
+    }
+
     function syncPlacement(forceAnchor = false) {
         updateFooterOffset();
-        const metrics = (!forceAnchor && greetingActive()) ? greetingMetrics() : anchorMetrics();
-        applyRobotState((!forceAnchor && greetingActive()) ? 'greeting' : 'anchored');
+        const wantsGreeting = !forceAnchor && greetingActive();
+        const themed = resolvePlacement(wantsGreeting ? 'greeting' : 'anchored');
+        if (themed) {
+            // The theme's dock is never the floating "greeting" state.
+            applyRobotState('anchored');
+            placeRobot(themed);
+            return;
+        }
+        const metrics = wantsGreeting ? greetingMetrics() : anchorMetrics();
+        applyRobotState(wantsGreeting ? 'greeting' : 'anchored');
         placeRobot(metrics);
     }
 
     function anchorImmediately() {
         window.clearTimeout(launchTimer);
         applyRobotState('anchored');
-        placeRobot(anchorMetrics());
+        placeRobot(resolvePlacement('anchored') || anchorMetrics());
     }
 
     function launchToAnchor() {
+        const themed = resolvePlacement('anchored');
+        if (themed) {
+            window.clearTimeout(launchTimer);
+            applyRobotState('anchored');
+            placeRobot(themed);
+            cue('wave');
+            return;
+        }
         if (robotState === 'launching' || !greetingActive()) {
             anchorImmediately();
             return;
@@ -6858,7 +6900,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.clearTimeout(launchTimer);
         window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-                placeRobot(endMetrics);
+                // Under load this frame can arrive after the timer anchored the robot (or after a
+                // theme docked it); a stale frame must not move it back to the base anchor.
+                if (robotState !== 'launching') return;
+                placeRobot(resolvePlacement('anchored') || endMetrics);
             });
         });
 
@@ -6887,11 +6932,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         observer.observe(chatContent);
     }
 
-    window.addEventListener('resize', () => {
+    function refresh() {
         if (robotState !== 'launching') {
             syncPlacement(robotState !== 'greeting');
         }
-    }, { passive: true });
+    }
+
+    window.addEventListener('resize', refresh, { passive: true });
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             window.clearTimeout(timer);
@@ -6917,7 +6964,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         setPersonaKey,
         resetGreeting() {
             syncPlacement(false);
-        }
+        },
+        // A theme registers (or clears with null) a function that returns the robot's
+        // placement for 'greeting' | 'anchored': { left, top, size }, { parked: true } or null.
+        setPlacement(resolver) {
+            placementResolver = typeof resolver === 'function' ? resolver : null;
+            // A launch in flight is superseded: the dock/anchor is applied right now, and the
+            // pending frame is ignored by its robotState guard.
+            if (robotState === 'launching') window.clearTimeout(launchTimer);
+            syncPlacement(false);
+        },
+        refresh,
+        cue
     };
 
     setPersonaKey(window._activePersonaIconKey || 'custom');

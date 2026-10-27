@@ -142,7 +142,7 @@ document.getElementById('warnings-badge').classList.remove('is-hidden');
 document.getElementById('warnings-badge').textContent='3';
 document.getElementById('chat-form').addEventListener('submit',e=>{e.preventDefault();window.__submitted=document.getElementById('user-input').value});
 SessionDrawer.init();initTheme();initChatThemePicker();
-</script><script src="/js/chat/theme-effects.js"></script>`
+</script><script src="/js/chat/robot-mascot.js"></script><script src="/js/chat/theme-effects.js"></script>`
 	html = strings.Replace(html, "</body>", fixture+"</body>", 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -292,6 +292,13 @@ SessionDrawer.init();initTheme();initChatThemePicker();
             const controls=[...document.querySelectorAll('#chat-form > button')].map(b=>b.id);
             return controls.join(',')==='voice-btn,realtime-speech-btn,upload-btn,composer-more-btn,send-btn' && document.querySelector('#realtime-speech-btn .galaxy-control-label').textContent==='Live' && !document.querySelector('.galaxy-agents');
         }`, "Galaxy primary control order or Live label changed")
+		// The dock slides in over 720 ms; measure the settled position.
+		p.MustEval(`() => Promise.all(document.getAnimations().filter(a => a.transitionProperty && a.effect?.target?.id === 'chat-robot-mascot').map(a => a.finished.catch(() => {})))`)
+		check(`() => {
+            const m=document.getElementById('chat-robot-mascot'),nav=document.querySelector('.galaxy-nav');
+            const r=m.getBoundingClientRect(),n=nav.getBoundingClientRect(),last=nav.lastElementChild.getBoundingClientRect();
+            return m.parentElement===document.body && !m.classList.contains('is-parked') && r.width>=44 && r.top>=last.bottom && r.bottom<=n.bottom && Math.abs((r.left+r.right)/2-(n.left+n.right)/2)<2 && parseInt(getComputedStyle(m).zIndex)>parseInt(getComputedStyle(nav).zIndex);
+        }`, fmt.Sprintf("robot is not docked in the navigation rail at %v", size))
 		artifact(fmt.Sprintf("galaxy-greeting-%dx%d", size[0], size[1]))
 		p.MustElement("#chat-theme-btn").MustClick()
 		check(`() => {const d=document.getElementById('chat-theme-dropdown'),r=d.getBoundingClientRect();return !d.hidden && r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight && r.height>100}`, "Galaxy theme menu must remain reachable inside a scrolling header")
@@ -300,6 +307,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		check(`() => document.getElementById('user-input').value===t('chat.galaxy_ideas') && document.activeElement.id==='user-input' && !window.__submitted`, "suggestion must prepare a draft without sending")
 		p.Timeout(10 * time.Second).MustElement("#composer-more-btn").MustClick()
 		check(`() => !document.getElementById('composer-panel').classList.contains('is-hidden') && document.getElementById('composer-more-btn').getAttribute('aria-expanded')==='true' && document.getElementById('upload-btn').parentElement.id==='chat-form' && document.getElementById('realtime-speech-btn').parentElement.id==='chat-form'`, "Galaxy tools or live speech placement failed")
+		check(`() => {const b=document.querySelector('#composer-panel > button'),r=b.getBoundingClientRect();const hit=document.elementFromPoint(r.left+4,r.top+r.height/2);return !!hit && b.contains(hit)}`, "composer panel is covered by the navigation rail")
 		artifact(fmt.Sprintf("galaxy-tools-%dx%d", size[0], size[1]))
 		p.Keyboard.MustType(input.Escape)
 		check(`() => document.getElementById('composer-panel').classList.contains('is-hidden')`, "Escape did not close Galaxy tools")
@@ -369,7 +377,7 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 		// Three keeps an internal fallback texture in its counters after disposal;
 		// context loss confirms that the driver has released all GPU allocations.
 		check(`() => {window.__old=__galaxy.runtime;setChatTheme('dark');return __galaxy.runtime===null && __pending.size===0 && !document.querySelector('#galaxy-scene') && __old.renderer.getContext().isContextLost() && __old.renderer.info.memory.geometries===0 && __old.renderer.info.programs.length===0}`, "theme exit leaked GPU resources")
-		check(`() => !document.querySelector('.galaxy-nav,.galaxy-clock,.galaxy-welcome,.galaxy-glyph') && document.getElementById('upload-btn').parentElement.id==='composer-panel' && document.getElementById('composer-more-btn').previousElementSibling.id==='send-btn' && document.getElementById('realtime-speech-btn').previousElementSibling.id==='voice-btn' && !document.querySelector('#realtime-speech-btn .galaxy-control-label') && !document.getElementById('composer-panel').classList.contains('is-hidden')`, "Galaxy controls were not restored to the default arrangement")
+		check(`() => !document.querySelector('.galaxy-nav,.galaxy-clock,.galaxy-welcome,.galaxy-glyph') && document.getElementById('upload-btn').parentElement.id==='composer-panel' && document.getElementById('composer-more-btn').previousElementSibling.id==='send-btn' && document.getElementById('realtime-speech-btn').previousElementSibling.id==='voice-btn' && !document.querySelector('#realtime-speech-btn .galaxy-control-label') && !document.getElementById('composer-panel').classList.contains('is-hidden') && document.getElementById('chat-robot-mascot').parentElement.id==='chat-box'`, "Galaxy controls were not restored to the default arrangement")
 		p.MustEval(`() => setChatTheme('galaxy')`)
 		ready()
 		check(`() => {const s=__galaxy.stats(),b=__baselineResources;return __pending.size===1 && document.querySelectorAll('#galaxy-scene').length===1 && s.textures===b.textures && s.geometries===b.geometries && s.calls===b.calls}`, "theme restart grew resources")

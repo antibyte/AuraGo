@@ -7,6 +7,9 @@
     const asset = name => '/img/galaxy/' + name + '?v=' + encodeURIComponent(window.BUILD_VERSION || 'galaxy-2');
     let active = false, moves = [], owned = [], observer = null, headerObserver = null, clockTimer = null;
     let originalPlaceholder = '';
+    // Robot dock, rail/footer metrics, send reaction and status-pill activity glow.
+    let navRail = null, railObserver = null, statusObserver = null, sendTimer = null, submitHandler = null;
+    const pillTimers = new Map();
     function element(tag, className, text) {
         const node = document.createElement(tag);
         node.className = className;
@@ -108,9 +111,10 @@
         copy.append(element('p', '', translate('chat.galaxy_subtitle')));
         card.append(copy);
         const choices = element('div', 'galaxy-suggestions');
-        for (const [key, symbol] of [['ideas', 'mood-creative'], ['write', 'document'], ['analyze', 'mood-analytical'], ['other', 'generic']]) {
+        for (const [index, [key, symbol]] of [['ideas', 'mood-creative'], ['write', 'document'], ['analyze', 'mood-analytical'], ['other', 'generic']].entries()) {
             const button = element('button', 'galaxy-suggestion');
             button.type = 'button';
+            button.style.setProperty('--galaxy-chip-index', String(index));
             button.append(icon(symbol), element('span', '', translate('chat.galaxy_' + key)));
             button.addEventListener('click', () => {
                 const input = byId('user-input');
@@ -125,11 +129,41 @@
         own(card, row);
         updateHeader();
     }
+    // The robot stands centred in the empty space under the last navigation item. Without room
+    // (short viewports where the rail scrolls) it is parked, i.e. hidden.
+    function robotDock() {
+        if (!navRail || !navRail.lastElementChild) return null;
+        const rail = navRail.getBoundingClientRect();
+        const last = navRail.lastElementChild.getBoundingClientRect();
+        if (!rail.height) return null;
+        const limit = window.innerWidth <= 767 ? 60 : 92;
+        let size = Math.min(limit, Math.round(rail.width + 12));
+        // Empty rail space under the last item; the extra headroom keeps the robot's 4px idle float off the item.
+        const free = Math.floor(rail.bottom - 8 - (last.bottom + 8));
+        size = Math.min(size, free);
+        if (size < 44) return { parked: true };
+        return { left: rail.left + (rail.width - size) / 2, top: rail.bottom - 8 - size, size };
+    }
+    function syncBarMetrics() {
+        const footer = document.querySelector('.app-footer');
+        if (footer) root.style.setProperty('--galaxy-footer-height', Math.round(footer.getBoundingClientRect().height) + 'px');
+        window.ChatRobotMascot?.refresh?.();
+    }
+    function pulsePill(pill) {
+        pill.classList.add('is-updated');
+        clearTimeout(pillTimers.get(pill));
+        pillTimers.set(pill, setTimeout(() => {
+            pill.classList.remove('is-updated');
+            pillTimers.delete(pill);
+        }, 800));
+    }
     function mount() {
         if (active || !byId('chat-form')) return;
         active = true;
         const form = byId('chat-form'), input = form.querySelector('.input-wrap');
         const panel = byId('composer-panel');
+        // Leave #chat-box's stacking context: the rails would otherwise cover the robot.
+        move(byId('chat-robot-mascot'), document.body);
         move(byId('upload-btn'), form, input);
         move(byId('composer-more-btn'), form, input);
         move(panel, form, input);
@@ -140,6 +174,7 @@
         own(element('small', 'galaxy-brand-tag', 'YOUR AI AGENT\nFOR A BRIGHTER TOMORROW'), logo);
         // Left rail: navigation with icon + caption. The two drawer toggles keep their handlers.
         const nav = own(element('nav', 'galaxy-nav'), document.body);
+        navRail = nav;
         nav.setAttribute('aria-label', translate('common.nav_aria_label'));
         nav.append(link('/desktop', 'home', 'common.nav_desktop'));
         move(byId('integrations-toggle-btn'), nav);
@@ -172,6 +207,38 @@
         observer.observe(byId('chat-content'), {childList: true});
         document.querySelectorAll('#chat-form [data-chat-icon], .galaxy-nav [data-chat-icon], .galaxy-status [data-chat-icon]').forEach(decorateIcon);
         updateHeader();
+
+        // Status pills glow briefly when their content changes. Attributes are not observed,
+        // so the class toggles below cannot re-trigger the observer.
+        statusObserver = new MutationObserver(records => {
+            for (const record of records) {
+                const pill = (record.target.nodeType === 3 ? record.target.parentElement : record.target)?.closest('.pill');
+                if (pill) pulsePill(pill);
+            }
+        });
+        statusObserver.observe(status, {childList: true, characterData: true, subtree: true});
+
+        // Submit reaction: the send glyph launches, and the robot cheers when it is already docked.
+        submitHandler = () => {
+            const draft = byId('user-input');
+            if (!draft || !draft.value.trim()) return;
+            form.classList.add('is-launching');
+            clearTimeout(sendTimer);
+            sendTimer = setTimeout(() => form.classList.remove('is-launching'), 600);
+            // While the greeting is still shown, launchToAnchor makes the robot wave instead.
+            if (!byId('chat-content')?.querySelector('[data-greeting]')) window.ChatRobotMascot?.cue('happy');
+        };
+        form.addEventListener('submit', submitHandler, {capture: true});
+
+        // Dock the robot in the rail and keep it, plus the scroll button lane, in step with the bars.
+        window.ChatRobotMascot?.setPlacement?.(robotDock);
+        if (typeof ResizeObserver !== 'undefined') {
+            railObserver = new ResizeObserver(syncBarMetrics);
+            railObserver.observe(nav);
+            const footer = document.querySelector('.app-footer');
+            if (footer) railObserver.observe(footer);
+        }
+        syncBarMetrics();
     }
     function unmount() {
         if (!active) return;
@@ -180,11 +247,26 @@
         observer = null;
         headerObserver?.disconnect();
         headerObserver = null;
+        statusObserver?.disconnect();
+        statusObserver = null;
+        pillTimers.forEach((timer, pill) => { clearTimeout(timer); pill.classList.remove('is-updated'); });
+        pillTimers.clear();
+        railObserver?.disconnect();
+        railObserver = null;
+        const form = byId('chat-form');
+        if (form && submitHandler) form.removeEventListener('submit', submitHandler, {capture: true});
+        submitHandler = null;
+        clearTimeout(sendTimer);
+        form?.classList.remove('is-launching');
         clearTimeout(clockTimer);
+        navRail = null;
         moves.reverse().forEach(([node, anchor]) => { anchor.replaceWith(node); });
         moves = [];
         owned.forEach(node => node.remove());
         owned = [];
+        root.style.removeProperty('--galaxy-footer-height');
+        // The robot is back in #chat-box; hand its placement back to the default anchor/greeting logic.
+        window.ChatRobotMascot?.setPlacement?.(null);
         byId('chat-content')?.classList.remove('galaxy-welcome-only');
         byId('user-input').placeholder = originalPlaceholder;
         document.querySelector('.app-header .logo')?.style.removeProperty('--galaxy-mark');
