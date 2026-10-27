@@ -21,6 +21,7 @@
     "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
     "test:sheets": "node scripts/test-sheets-data.mjs",
     "test:easydrag": "node scripts/test-easydrag.mjs",
+    "test:docker-manager": "node scripts/test-docker-manager-ui.mjs",
     "test:cyd-creator-shell": "node scripts/test-cyd-creator-shell.mjs",
     "test:cyd-creator-flash": "node scripts/test-cyd-creator-flash.mjs",
     "test:cyd-creator-designer": "node scripts/test-cyd-creator-designer.mjs",
