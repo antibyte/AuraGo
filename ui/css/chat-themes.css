@@ -4508,9 +4508,10 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
 }
 
 [data-theme="ocean"] #chat-box {
+    /* No stacking context: the sea life and caustic canvases (z 2) sit under #chat-content (z 3). */
     isolation: auto;
     position: relative;
-    z-index: 1;
+    z-index: auto;
     background:
         /* Animated caustic light patterns (subtle, drifting) */
         radial-gradient(ellipse at 22% 18%, rgba(61, 201, 232, 0.06), transparent 45%),
@@ -4589,6 +4590,13 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
     opacity: 1 !important;
     mix-blend-mode: screen !important;
     filter: saturate(1.3) brightness(1.22) !important;
+}
+
+[data-theme="ocean"] #ocean-life-overlay {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 1;
 }
 
 [data-theme="ocean"] #chat-content {
@@ -5060,6 +5068,10 @@ html[data-darksun="flare"][data-theme="dark-sun"] .chat-robot-mascot {
     [data-theme="ocean"] #chat-box::before {
         background-size: 300% 100%, 240% 100%;
         opacity: 0.5;
+    }
+
+    [data-theme="ocean"] #ocean-life-overlay {
+        opacity: 0.85;
     }
 
     [data-theme="ocean"] .bubble {
