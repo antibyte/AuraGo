@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"math"
 	"net"
+	"regexp"
 	"strings"
 
 	"aurago/internal/security"
@@ -95,7 +96,8 @@ const (
 	probeCarrierMin    = 24  // Shortest run of several labels judged by its letters.
 	probeDigitsMin     = 16  // Digits only: no name has this many (a dashed IP has 12).
 	probeHexMin        = 12  // Hex with both letters and digits.
-	probeSwitchMin     = 4   // Letter/digit changes inside one segment of 8 or more characters.
+	probeSwitchMin     = 4   // Letter/digit changes inside one segment of probeSwitchTextMin or more characters.
+	probeSwitchTextMin = 10  // An ISP name such as p5b2c3d4e is nine characters and a name.
 	probeEntropyMin    = 3.3 // Bits per character below which a text is a word or a repeat.
 	probeVowelMax      = 0.25
 	probeVowelFloor    = 0.10
@@ -145,7 +147,7 @@ func applyExtendedActionRisk(a *ActionDescriptor, tc ToolCall, dc *DispatchConte
 	if _, ok := unattendedReachOperations[tool][a.Operation]; ok && a.RunType != "interactive" {
 		a.Mutating, a.HighRisk = true, true
 	}
-	if egressPolicyTool(*a) {
+	if egressPolicyTool(*a, args) {
 		registered, matching := egressArgumentSecrets(args)
 		a.egressSecret = registered
 		a.HighRisk = a.HighRisk || registered || matching
@@ -262,7 +264,7 @@ func probeHostName(raw string) string {
 // when it is, in order:
 //   - 16 or more digits and nothing else,
 //   - hex with both letters and digits, 12 or more characters,
-//   - a segment of 8 or more characters that changes between letters and digits at
+//   - a segment of 10 or more characters that changes between letters and digits at
 //     least 4 times ("k3j9x0q7w2z"),
 //   - at least textMin characters of letters and digits whose vowels are rare among the
 //     letters (language has about a third; base32, base36 and random letters about a
@@ -311,7 +313,7 @@ func probeTextLooksEncoded(segments []string, textMin int) bool {
 				switches++
 			}
 		}
-		if len(segment) >= probeTextMin && switches >= probeSwitchMin {
+		if len(segment) >= probeSwitchTextMin && switches >= probeSwitchMin {
 			return true
 		}
 	}
@@ -340,27 +342,45 @@ func textEntropy(text string) float64 {
 }
 
 // egressPolicyTool reports a call that sends something it was given to a party
-// outside the host: HTTP, messages, webhooks, DNS and ping probes, web fetches.
-func egressPolicyTool(a ActionDescriptor) bool {
+// outside the host: HTTP, messages, webhooks, DNS and ping probes, web fetches, and
+// the services that take a command or a task (composio, manus, MCP). Any other tool
+// counts as soon as an argument names a destination: a url, a host or a domain
+// (fetchTargetsFromArguments), so a tool added later is covered without being listed.
+func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 	switch a.Tool {
 	case "api_request", "call_webhook", "telnyx_sms",
 		"send_email", "send_telegram", "send_discord", "send_rocketchat", "send_push", "send_push_notification",
 		"send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video",
 		"dns_lookup", "network_ping", "port_scanner", "whois_lookup",
 		"web_scraper", "web_capture", "web_performance_audit", "site_crawler", "browser_automation", "form_automation",
-		"virtual_browser", "yepapi_scrape":
+		"virtual_browser", "yepapi_scrape", "composio_call", "manus", "mcp_call":
 		return true
 	case "agentmail", "agentmail_messages", "agentmail_drafts":
 		return a.HighRisk // Only the sending operations are high-risk here.
 	}
-	return false
+	return len(fetchTargetsFromArguments(a.Tool, args)) > 0
 }
+
+// mailboxAddressPattern finds e-mail addresses. The SMTP and IMAP user name is
+// registered with the scrubber like a password and is normally the user's own
+// address, so an address in an argument is treated as an identity (see
+// egressArgumentSecrets) rather than as a credential.
+var mailboxAddressPattern = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}`)
 
 // egressArgumentSecrets scans the string values of a call. registered is true when
 // a value the scrubber registry knows (vault and integration secrets) appears in
 // one. matching is true when only the redaction patterns (key=value, bearer tokens,
-// URL credentials) fire. A short map entry (a header) is also tested as "name: value".
-// The skipped keys apply to the top level only, so nothing hides in a nested object.
+// URL credentials) fire, or when the only registered value in the text is a mailbox
+// address: that is the user's own identity, which an e-mail body or a URL may
+// legitimately mention, so it goes through the approval path and is not refused.
+// A short map entry (a header) is also tested as "name: value". The skipped keys
+// apply to the top level only, so nothing hides in a nested object.
+//
+// The scrubber registry does not say which kind of value matched. Until identities
+// have a registry of their own (internal/security, internal/mailer), an address-shaped
+// token is set aside before the registry is asked: a credential that is itself shaped
+// like an address would be treated as an identity, and every other credential is still
+// refused.
 func egressArgumentSecrets(args map[string]interface{}) (registered, matching bool) {
 	const pairMaxBytes = 512
 	test := func(text string) {
@@ -368,6 +388,10 @@ func egressArgumentSecrets(args map[string]interface{}) (registered, matching bo
 			return
 		}
 		if security.Scrub(text) != text {
+			if bare := mailboxAddressPattern.ReplaceAllString(text, "[address]"); bare != text && security.Scrub(bare) == bare {
+				matching = true
+				return
+			}
 			registered = true
 		} else if security.RedactSensitiveInfo(text) != text {
 			matching = true

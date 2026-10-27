@@ -63,8 +63,11 @@ Existing endpoint/method/path/action grants in treg remain authoritative.
 
 Outbound fetches and probes (`api_request`, `web_scraper`, `web_capture`, the
 browser, crawler and monitor tools, `dns_lookup`, `network_ping`, `port_scanner`,
-`whois_lookup`) are mostly not high-risk, but the destination sees their URL or
-host name. In an unattended run the same 48-character test therefore covers that
+`whois_lookup`, and any other tool with a `url`, `host` or `domain` argument, such
+as `video_download`, `document_creator`, `chromecast` or `qr_code`'s `logo_url`)
+are mostly not high-risk, but the destination sees their URL or host name. The
+arguments decide, not the tool's name, so a new tool with a URL parameter is
+covered without being listed. In an unattended run the same 48-character test therefore covers that
 URL or host. Case and percent-encoding are ignored. A target that appears whole
 in an earlier output is a link the model followed and passes. A target that
 carries a span of earlier output (a query string built from a mail, a host name
@@ -194,8 +197,12 @@ dialog. Unattended runs stop with `action_rule_required` until a rule covers the
   value in any string argument refuses the call with `egress_secret_refused`. No
   rule, approval or disabled policy lifts it; the log keeps the arguments hash and
   never the value. A value that only looks like a credential (`token=...`, a bearer
-  token, `user:password@` in a URL) makes the call high-risk instead. Recipient
-  fields are not scanned, because an SMTP user name is a registered value.
+  token, `user:password@` in a URL) makes the call high-risk instead. So does a
+  mailbox address, such as the account's own SMTP user name: it is an identity
+  that a mail body or a URL may mention, so it goes to approval and is not
+  refused. A credential next to it is still refused. `composio_call`, `manus`,
+  `mcp_call` and every tool with a url, host or domain argument count as sending.
+  Recipient fields are not scanned.
 
 ## Interactive decisions
 
