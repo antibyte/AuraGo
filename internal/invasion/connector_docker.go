@@ -15,12 +15,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"aurago/internal/dockerhost/transport"
 	"aurago/internal/dockerutil"
-	"aurago/internal/remote"
-	"golang.org/x/crypto/ssh"
 	"gopkg.in/yaml.v3"
 )
 
@@ -446,7 +444,8 @@ const dockerSSHDialBudget = 10 * time.Second
 // dockerSSHProbeTimeout bounds the Engine version probe for docker_ssh. Its
 // first dial includes a full SSH login, so it covers the SSH dial budget and
 // leaves 10 s for the socket open and /version (other transports: 5 s total).
-const dockerSSHProbeTimeout = 20 * time.Second
+// The value lives in transport.SSHProbeTimeout so the Docker Manager shares it.
+const dockerSSHProbeTimeout = transport.SSHProbeTimeout
 
 // dockerSSHEngineSocket is the Engine socket a docker_ssh nest reaches through SSH.
 const dockerSSHEngineSocket = "/var/run/docker.sock"
@@ -465,36 +464,16 @@ var dockerSSHSocketOpenTimeout = dockerSSHSocketOpenBudget
 // dialDockerEngineOverSSH opens one SSH connection (known_hosts verification
 // and finite dial/handshake budget via remote.DialSSH) and forwards a stream
 // to the remote Engine socket. Closing the returned conn closes the SSH client.
+// The dialer is transport.DialEngineOverSSH; the socket-open budget is passed
+// in so tests that shorten dockerSSHSocketOpenTimeout keep working.
 func dialDockerEngineOverSSH(ctx context.Context, nest NestRecord, secret []byte) (net.Conn, error) {
-	port := nest.Port
-	if port <= 0 {
-		port = 22
-	}
-	client, err := remote.DialSSH(ctx, nest.Host, port, nest.Username, secret)
-	if err != nil {
-		return nil, fmt.Errorf("docker over SSH: %w", err)
-	}
-	openCtx, cancel := context.WithTimeout(ctx, dockerSSHSocketOpenTimeout)
-	defer cancel()
-	conn, err := client.DialContext(openCtx, "unix", dockerSSHEngineSocket)
-	if err != nil {
-		_ = client.Close()
-		return nil, fmt.Errorf("docker over SSH: open %s: %w", dockerSSHEngineSocket, err)
-	}
-	return &sshTunnelConn{Conn: conn, client: client}, nil
-}
-
-// sshTunnelConn is a forwarded Engine stream that owns its SSH client.
-type sshTunnelConn struct {
-	net.Conn
-	client *ssh.Client
-	once   sync.Once
-}
-
-func (c *sshTunnelConn) Close() error {
-	err := c.Conn.Close()
-	c.once.Do(func() { _ = c.client.Close() })
-	return err
+	return transport.DialEngineOverSSH(ctx, transport.SSHTarget{
+		Host:   nest.Host,
+		Port:   nest.Port,
+		User:   nest.Username,
+		Secret: secret,
+		Socket: dockerSSHEngineSocket,
+	}, dockerSSHSocketOpenTimeout)
 }
 
 func dockerLocalHost() string {
