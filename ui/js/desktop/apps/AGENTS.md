@@ -295,6 +295,52 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   has none, so a poll never speaks. A failing poll reports once (`loadSnapshot`, `explicit` always reports). The only
   `role="toolbar"` is the canvas tools, with a roving tab stop and arrows, Home and End.
 
+## Docker Manager
+
+- Load order (module-loader `docker-manager`): `docker-manager-model.js` (pure: container status and problem derivation,
+  grouping by compose project, search and state filters, the multi-host merge, host health, the host form rules,
+  error normalisation), `docker-manager-store.js` (every request through the desktop `api()` against `/api/docker-manager`,
+  one request in flight per key, per-host container cache, polling only while the window is visible),
+  `docker-manager-views.js` (HTML builders: rail, banners, table, empty states, detail drawer),
+  `docker-manager-dialogs.js` (one native `<dialog>` with a view stack: host manager, add/edit form with Test connection,
+  import from nest, confirmations), then `docker-manager.js` (composition root: skeleton, focus, keyboard, context menu,
+  window menus, toasts). Style: `css/desktop-app-docker-manager.css`. Every file stays below 1100 lines and no file touches
+  the DOM at load (`scripts/test-docker-manager-ui.mjs` runs them in a vm). Phase 1 shows Containers only; Stacks, Images,
+  Volumes, Networks and Templates come in later phases, and no placeholder is rendered for them.
+- The app appears only while Docker is enabled (`docker` capability, `desktopCapabilities` in `internal/server`). `ctx.readonly`
+  (read-only desktop) hides container actions and host editing; a `read_only` answer from the API (`docker.readonly`) hides the
+  container actions only, host management stays. Docker disabled answers 503 `docker_disabled` on every route and shows one
+  explanatory state with a link to `/config#docker`.
+- Repaints compare the new HTML with the last one and skip equal markup; controls carry `data-focus-id` and `keepFocus`
+  restores the focus on the same control, so a poll never steals it. Do not re-render the table from a timer. The table is a
+  `treegrid` with a roving tab stop: arrows move, Left/Right collapse and expand a group, Enter opens the drawer, Delete asks to
+  remove, Escape closes the drawer, `/` focuses the search, Shift+F10 opens the row menu.
+- A failed container list keeps the last containers of that host and shows a banner with the reason code
+  (`dns`, `refused`, `timeout`, `tls`, `auth`, `ssh_host_key`, `socket_missing`, `api_too_old`, `unknown`, texts
+  `docker_manager.reason_*`); the browser giving up after 35 s counts as `host_unreachable` with reason `timeout`. A host
+  status whose `checked_at` is the zero time (`0001-01-01…`) is "not checked yet", never a date. `GET /hosts` answers from cached
+  statuses and refreshes stale ones in the background, so it is polled together with the container lists.
+- Secrets are write-only. An edited host with stored credentials shows "stored" and a Replace action instead of empty secret
+  fields; blank fields keep the stored value, the TLS PEM fields are sent only when typed (the server merges them one by one),
+  and Test connection posts the draft with the host's `id` so the server reuses the stored secrets. Plain TCP carries a visible
+  warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
+- Protected containers (lock icon) ask before stop, restart, pause, kill and remove. The server never confirms the first four;
+  a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message`, the dialog shows that
+  message and the request is repeated with `?confirm=protected` (plus `&force=1` when forcing).
+- Host colours are the eight `data-host-color` values mapped to theme tokens in the stylesheet; no literal colours, no
+  uppercase labels, motion only inside `prefers-reduced-motion: no-preference` on `body:not([data-animations="false"])` (the
+  Node test guards this like the Infra test). A modal `<dialog>` sits in the top layer, so toasts raised while it is open are
+  moved inside it.
+- Strings: `desktop.app_docker_manager` and `docker_manager.*` in all 16 `lang/desktop/*.json` files, local helper `t` with the
+  `docker_manager.` prefix (registered in `desktopLocalI18nHelpers`; the key families built at run time are in
+  `desktopDynamicI18nPrefixes` in `ui/i18n_lint_test.go`). A new string needs its key in all 16 files with the same
+  `{{placeholders}}`; `TestDockerManagerLocalesAreComplete` and the Node test check this.
+- Verify: `node scripts/test-docker-manager-ui.mjs` (or `npm run test:docker-manager`),
+  `go test ./ui -run DockerManager -count=1`, and
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopDockerManagerBrowser -count=1`. After editing a core file
+  (`module-loader.js`, `menus-and-routing.js`, `desktop-foundation.js`, `window-shell-runtime.js`) run `npm run build:ui` and
+  `npm run check:ui`. API contract: `internal/server` (`/api/docker-manager`), host registry: `internal/dockerhost`.
+
 ## Synth Studio
 
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
