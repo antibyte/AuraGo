@@ -279,6 +279,9 @@ function appendMessage(role, text, timestamp) {
     const newMessage = chatContent.lastElementChild;
     appendMessageTimestamp(newMessage, isUser ? 'user' : 'bot', timestamp);
     const renderedBubble = newMessage && newMessage.querySelector('.bubble');
+    if (renderedBubble && window.CodeBlocks) {
+        window.CodeBlocks.enhance(renderedBubble);
+    }
     if (renderedBubble && shouldDecorateEmojiGlyphs(displayContent, finalHTML)) {
         decorateEmojiGlyphs(renderedBubble);
     }

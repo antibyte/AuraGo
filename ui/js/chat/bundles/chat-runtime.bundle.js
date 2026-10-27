@@ -1696,49 +1696,66 @@ if (typeof module !== 'undefined' && module.exports) {
             window.copyCodeBlock = this.copyCodeBlock.bind(this);
         },
 
+        // Returns block markup without layout whitespace: the code body keeps
+        // white-space: pre, so template indentation would render as empty lines.
         createCodeBlock(code, lang) {
-            const lines = code.split('\n');
-            const lineNumbers = lines.map((_, i) => i + 1).join('\n');
+            // markdown-it fence content ends with the newline before the closing fence.
+            const source = String(code == null ? '' : code).replace(/\n$/, '');
+            const language = String(lang || '').trim();
+            const lineNumbers = source.split('\n').map((_, i) => i + 1).join('\n');
 
             // Syntax highlighting
-            let highlighted = code;
-            if (lang && window.hljs && hljs.getLanguage(lang)) {
+            let highlighted = source;
+            if (language && window.hljs && hljs.getLanguage(language)) {
                 try {
-                    highlighted = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+                    highlighted = hljs.highlight(source, { language, ignoreIllegals: true }).value;
                 } catch (e) {
-                    highlighted = this.escapeHtml(code);
+                    highlighted = this.escapeHtml(source);
                 }
             } else {
-                highlighted = this.escapeHtml(code);
+                highlighted = this.escapeHtml(source);
             }
 
-            return `
-                <div class="code-block-wrapper">
-                    <div class="code-header">
-                        <span class="code-lang">${lang || 'text'}</span>
-                        <button class="copy-btn" onclick="copyCodeBlock(this)" data-code="${this.encodeHtml(code)}">
-                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('clipboard', 'copy-icon') : ''}
-                            <span class="copy-text">${t('chat.code_copy')}</span>
-                        </button>
-                    </div>
-                    <div class="code-body">
-                        <div class="line-numbers">${lineNumbers}</div>
-                        <pre><code class="hljs ${lang || ''}">${highlighted}</code></pre>
-                    </div>
-                </div>
-            `;
+            return [
+                '<div class="code-block-wrapper">',
+                `<div class="code-header"><span class="code-lang">${this.encodeHtml(language || 'text')}</span></div>`,
+                '<div class="code-body">',
+                `<div class="line-numbers">${lineNumbers}</div>`,
+                `<pre><code class="hljs ${this.encodeHtml(language)}">${highlighted}</code></pre>`,
+                '</div>',
+                '</div>'
+            ].join('');
+        },
+
+        // The chat sanitizer drops <button> elements and inline handlers, so
+        // copy buttons are attached to the rendered blocks afterwards.
+        enhance(root) {
+            if (!root || !root.querySelectorAll) return;
+            root.querySelectorAll('.code-block-wrapper > .code-header').forEach((header) => {
+                if (header.querySelector('.copy-btn')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'copy-btn';
+                btn.innerHTML = this.copyLabelMarkup('clipboard', 'chat.code_copy');
+                btn.addEventListener('click', () => this.copyCodeBlock(btn));
+                header.appendChild(btn);
+            });
+        },
+
+        copyLabelMarkup(icon, labelKey) {
+            const iconMarkup = window.chatUiIconMarkup ? window.chatUiIconMarkup(icon, 'copy-icon') : '';
+            return `${iconMarkup}<span class="copy-text">${this.escapeHtml(t(labelKey))}</span>`;
         },
 
         copyCodeBlock(btn) {
-            const code = this.decodeHtml(btn.dataset.code);
+            const wrapper = btn.closest('.code-block-wrapper');
+            const codeEl = wrapper && wrapper.querySelector('.code-body code');
+            const code = codeEl ? codeEl.textContent : '';
 
             navigator.clipboard.writeText(code).then(() => {
                 const originalHTML = btn.innerHTML;
                 btn.classList.add('copied');
-                btn.innerHTML = `
-                    ${window.chatUiIconMarkup ? window.chatUiIconMarkup('complete', 'copy-icon') : ''}
-                    <span class="copy-text">${t('chat.code_copied')}</span>
-                `;
+                btn.innerHTML = this.copyLabelMarkup('complete', 'chat.code_copied');
 
                 setTimeout(() => {
                     btn.classList.remove('copied');
@@ -1784,12 +1801,6 @@ if (typeof module !== 'undefined' && module.exports) {
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
-        },
-
-        decodeHtml(html) {
-            const textarea = document.createElement('textarea');
-            textarea.innerHTML = html;
-            return textarea.value;
         }
     };
 
@@ -7196,6 +7207,9 @@ function appendMessage(role, text, timestamp) {
     const newMessage = chatContent.lastElementChild;
     appendMessageTimestamp(newMessage, isUser ? 'user' : 'bot', timestamp);
     const renderedBubble = newMessage && newMessage.querySelector('.bubble');
+    if (renderedBubble && window.CodeBlocks) {
+        window.CodeBlocks.enhance(renderedBubble);
+    }
     if (renderedBubble && shouldDecorateEmojiGlyphs(displayContent, finalHTML)) {
         decorateEmojiGlyphs(renderedBubble);
     }

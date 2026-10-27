@@ -10018,6 +10018,14 @@ html[data-theme="8bit"]::after {
     box-shadow: inset 2px 2px 0 rgba(93, 190, 93, 0.1);
 }
 
+[data-theme="8bit"] .code-body code {
+    background: transparent;
+}
+
+[data-theme="8bit"] .bubble .line-numbers {
+    font-size: 0.78em;
+}
+
 /* ── Buttons ────────────────────────────────────────────────────── */
 [data-theme="8bit"] button,
 [data-theme="8bit"] .btn-header,

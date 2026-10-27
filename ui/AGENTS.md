@@ -91,6 +91,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
   forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
   `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
+- Chat code fences: with a `codeBlockFactory`, `js/shared/render-markdown.js`
+  emits code, Mermaid and chart blocks verbatim; markdown-it must not wrap them
+  in `<pre><code>`, where layout whitespace renders as empty bands.
+  `CodeBlocks.createCodeBlock` returns whitespace-free markup without a button;
+  the sanitizer drops `<button>` and inline handlers, so `CodeBlocks.enhance`
+  attaches copy buttons after insertion. Line numbers match the code's font
+  size. Verify `TestChatCodeBlocksRenderCompactBrowser` (all chat themes).
 - Chat YouTube players are DOM-built in `js/chat/chat-messages.js`. They use
   `referrerpolicy="no-referrer"`, omit `clipboard-write` and `web-share`, and
   set the youtube-nocookie `src` only after a local play click. They do not use

@@ -5433,6 +5433,7 @@ html[data-theme="retro-crt"]::before {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
     padding: 8px 12px;
     background: rgba(0, 0, 0, 0.2);
     border-bottom: 1px solid var(--border-accent, rgba(45, 212, 191, 0.1));
@@ -5490,14 +5491,20 @@ html[data-theme="retro-crt"]::before {
     padding: 12px 8px;
     background: rgba(0, 0, 0, 0.1);
     color: var(--text-secondary, #64748b);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.6;
+    white-space: pre;
     text-align: right;
     user-select: none;
     border-right: 1px solid var(--border-accent, rgba(45, 212, 191, 0.1));
     font-family: 'SF Mono', 'Fira Code', monospace;
     min-width: 36px;
     flex-shrink: 0;
+}
+
+/* Matches `.bubble pre code`, so every number stays on its code line. */
+.bubble .line-numbers {
+    font-size: 0.8em;
 }
 
 .code-body pre {
@@ -5507,6 +5514,15 @@ html[data-theme="retro-crt"]::before {
     overflow-x: auto;
     background: transparent;
     min-width: 0;
+}
+
+/* The wrapper draws the frame. Theme rules for standalone `.bubble pre` and
+   inline `.bubble code` must not add a second one inside it. */
+.bubble .code-block-wrapper .code-body pre,
+.bubble .code-block-wrapper .code-body code {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .code-body code {
@@ -17609,6 +17625,14 @@ html[data-theme="8bit"]::after {
     background: #0f1820;
     color: var(--8bit-green);
     box-shadow: inset 2px 2px 0 rgba(93, 190, 93, 0.1);
+}
+
+[data-theme="8bit"] .code-body code {
+    background: transparent;
+}
+
+[data-theme="8bit"] .bubble .line-numbers {
+    font-size: 0.78em;
 }
 
 /* ── Buttons ────────────────────────────────────────────────────── */
