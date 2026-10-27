@@ -308,3 +308,34 @@ func TestListAttachesTheRunningOperationToItsStack(t *testing.T) {
 		t.Fatalf("operation refs: web=%+v db=%+v", web.Operation, listing.Stacks[0].Operation)
 	}
 }
+
+func TestAListerThatNeverFinishesIsStoppedAndListAnswersWithAnError(t *testing.T) {
+	prev := listerTimeout
+	listerTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { listerTimeout = prev })
+	env := newTestEnv(t, true)
+	seedComposeStack(env, "web")
+	env.fe.mu.Lock()
+	env.fe.listerGate = make(chan struct{}) // the find hangs, as on a stalled mount
+	env.fe.mu.Unlock()
+
+	// The caller's context has no deadline, as with a request that sets none.
+	started := time.Now()
+	_, err := env.svc.List(context.Background(), testHostID, true)
+	if CodeOf(err) != CodeStacksDirInvalid || !strings.Contains(err.Error(), "could not be listed within") {
+		t.Fatalf("a hung lister = %v, want stacks_dir_unavailable that names the time", err)
+	}
+	if took := time.Since(started); took > 5*time.Second {
+		t.Fatalf("List took %s; the lister must be bounded by its own deadline", took)
+	}
+	kills := 0
+	for _, r := range env.fe.requests() {
+		if strings.HasPrefix(r, "POST /v1.45/containers/") && strings.HasSuffix(r, "/kill") {
+			kills++
+		}
+	}
+	if kills != 1 {
+		t.Fatalf("the lister must be killed once: %v", env.fe.requests())
+	}
+	waitUntil(t, "the lister to be removed", 5*time.Second, func() bool { return len(env.fe.containersWithRole(RoleLister)) == 0 })
+}

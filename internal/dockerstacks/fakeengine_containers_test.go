@@ -137,7 +137,7 @@ func (fe *fakeEngine) behave(fc *fakeContainer, role string) {
 				paths = append(paths, p)
 			}
 		}
-		listerExit, listerErr := fe.listerExit, fe.listerErr
+		listerExit, listerErr, gate := fe.listerExit, fe.listerErr, fe.listerGate
 		fe.mu.Unlock()
 		sort.Strings(paths)
 		if len(paths) > 0 {
@@ -145,6 +145,12 @@ func (fe *fakeEngine) behave(fc *fakeContainer, role string) {
 		}
 		if listerErr != "" {
 			fe.emit(fc, 2, listerErr)
+		}
+		if gate != nil {
+			select {
+			case <-gate:
+			case <-fc.done: // killed
+			}
 		}
 		fe.finish(fc, listerExit)
 	case RoleRunner:

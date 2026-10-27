@@ -9,6 +9,10 @@ import (
 // context of its own because the caller's may already be cancelled.
 const cleanupTimeout = 30 * time.Second
 
+// listerTimeout bounds one lister run (a find over a stalled mount would never
+// end). A variable only so that a test can shorten it.
+var listerTimeout = 60 * time.Second
+
 // firstNonBlankLine returns the first non-blank line of s, trimmed.
 func firstNonBlankLine(s string) string {
 	for _, line := range strings.Split(s, "\n") {

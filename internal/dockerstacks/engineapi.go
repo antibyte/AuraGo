@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"aurago/internal/dockerhost"
 	"aurago/internal/dockerutil"
@@ -272,16 +273,70 @@ func readJSONMessages(r io.Reader, fn func(jsonMessage)) error {
 	return nil
 }
 
+// imageIdleTimeout ends an image pull or load that has received nothing (no
+// message of the pull, no chunk of the upload) for this long, so that a stalled
+// stream does not hold the host's preparation lock for the whole operation
+// budget. A variable only so that a test can shorten it.
+var imageIdleTimeout = 2 * time.Minute
+
+var errStreamIdle = errors.New("stream idle")
+
+// idleContext derives a context that is cancelled with errStreamIdle when touch
+// has not been called for idle. stop releases it.
+func idleContext(parent context.Context, idle time.Duration) (ctx context.Context, touch func(), stop func()) {
+	ctx, cancel := context.WithCancelCause(parent)
+	timer := time.AfterFunc(idle, func() { cancel(errStreamIdle) })
+	touch = func() {
+		if ctx.Err() == nil {
+			timer.Reset(idle)
+		}
+	}
+	return ctx, touch, func() {
+		timer.Stop()
+		cancel(nil)
+	}
+}
+
+// idleFailure names a stream that ended because it went idle; any other error is returned as it is.
+func idleFailure(ctx context.Context, err error, what string) error {
+	if err != nil && errors.Is(context.Cause(ctx), errStreamIdle) {
+		return fmt.Errorf("%s stalled: nothing was received for %s", what, imageIdleTimeout)
+	}
+	return err
+}
+
+// touchReader reports every read that returned data.
+type touchReader struct {
+	r     io.Reader
+	touch func()
+}
+
+func (t touchReader) Read(p []byte) (int, error) {
+	n, err := t.r.Read(p)
+	if n > 0 {
+		t.touch()
+	}
+	return n, err
+}
+
 // pullImage pulls fromImage:tag (tag may be a digest) and hands every message
-// of the pull stream to fn.
+// of the pull stream to fn. A pull that goes silent for imageIdleTimeout fails.
 func (e engine) pullImage(ctx context.Context, fromImage, tag string, fn func(jsonMessage)) error {
+	ctx, touch, stop := idleContext(ctx, imageIdleTimeout)
+	defer stop()
 	path := "images/create?fromImage=" + url.QueryEscape(fromImage) + "&tag=" + url.QueryEscape(tag)
 	resp, err := e.request(ctx, http.MethodPost, path, nil, "", true)
 	if err != nil {
-		return err
+		return idleFailure(ctx, err, "the image pull")
 	}
 	defer resp.Body.Close()
-	return readJSONMessages(resp.Body, fn)
+	err = readJSONMessages(resp.Body, func(m jsonMessage) {
+		touch()
+		if fn != nil {
+			fn(m)
+		}
+	})
+	return idleFailure(ctx, err, "the image pull")
 }
 
 // saveImage opens GET /images/<ref>/get, the image as a tar stream.
@@ -295,15 +350,19 @@ func (e engine) saveImage(ctx context.Context, ref string) (io.ReadCloser, error
 
 // loadImage sends a tar stream to POST /images/load and returns what the
 // Engine reported as loaded ("sha256:..." image id or a reference), "" when it
-// said nothing recognizable.
+// said nothing recognizable. A load that neither takes data nor answers for
+// imageIdleTimeout fails.
 func (e engine) loadImage(ctx context.Context, tarStream io.Reader) (string, error) {
-	resp, err := e.request(ctx, http.MethodPost, "images/load?quiet=1", tarStream, "application/x-tar", true)
+	ctx, touch, stop := idleContext(ctx, imageIdleTimeout)
+	defer stop()
+	resp, err := e.request(ctx, http.MethodPost, "images/load?quiet=1", touchReader{tarStream, touch}, "application/x-tar", true)
 	if err != nil {
-		return "", err
+		return "", idleFailure(ctx, err, "the image load")
 	}
 	defer resp.Body.Close()
 	loaded := ""
 	err = readJSONMessages(resp.Body, func(m jsonMessage) {
+		touch()
 		const idPrefix, refPrefix = "Loaded image ID: ", "Loaded image: "
 		text := strings.TrimSpace(m.Stream)
 		switch {
@@ -313,7 +372,7 @@ func (e engine) loadImage(ctx context.Context, tarStream io.Reader) (string, err
 			loaded = strings.TrimSpace(strings.TrimPrefix(text, refPrefix))
 		}
 	})
-	return loaded, err
+	return loaded, idleFailure(ctx, err, "the image load")
 }
 
 // tagImage sends POST /images/<ref>/tag?repo=...&tag=....

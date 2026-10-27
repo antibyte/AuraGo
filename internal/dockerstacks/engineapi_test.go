@@ -238,3 +238,26 @@ func TestEngineRequestKeepsNonSuccessAsStatusError(t *testing.T) {
 		t.Fatalf("request = %v, want a 404 StatusError with the Engine's message", err)
 	}
 }
+
+func TestAnImagePullOrLoadThatGoesSilentEndsAfterTheIdleTimeout(t *testing.T) {
+	prev := imageIdleTimeout
+	imageIdleTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { imageIdleTimeout = prev })
+	fe := newFakeEngine(t)
+	fe.addImage(RunnerImage, "sha256:runnerimage")
+	e := newEngine(fe.client(t))
+	ctx := context.Background() // no deadline of its own: only the idle timeout can end the call
+
+	fe.pullStall = true
+	messages := 0
+	err := e.pullImage(ctx, runnerImageRepo, runnerImagePullTag, func(jsonMessage) { messages++ })
+	if err == nil || !strings.Contains(err.Error(), "stalled") || messages != 1 {
+		t.Fatalf("a pull that went silent = %v after %d message(s), want a stalled error after the first one", err, messages)
+	}
+
+	fe.loadStall = true
+	_, err = e.loadImage(ctx, strings.NewReader("FAKE-IMAGE-TAR"))
+	if err == nil || !strings.Contains(err.Error(), "stalled") {
+		t.Fatalf("a load that never answers = %v, want a stalled error", err)
+	}
+}

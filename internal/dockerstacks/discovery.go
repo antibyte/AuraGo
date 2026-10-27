@@ -65,14 +65,30 @@ func parseListerOutput(dir, stdout string) (map[string]scanFolder, []IgnoredFold
 // when it cannot read a data folder of some stack; that is no failure as long as
 // it found something. An Engine that refuses the container (a stacks directory
 // it cannot bind) or a find that found nothing and complained is
-// CodeStacksDirInvalid.
-func (s *Service) runLister(ctx context.Context, e engine, h dockerhost.Host, image string) (string, error) {
+// CodeStacksDirInvalid. The run has a deadline of its own (listerTimeout) on top
+// of the caller's: a find that hangs on a stalled mount is killed, and the
+// answer is CodeStacksDirInvalid too.
+func (s *Service) runLister(caller context.Context, e engine, h dockerhost.Host, image string) (out string, err error) {
+	ctx, cancel := context.WithTimeout(caller, listerTimeout)
+	defer cancel()
+	defer func() {
+		if err != nil && ctx.Err() != nil && caller.Err() == nil {
+			out, err = "", newError(CodeStacksDirInvalid, "the stacks directory %s could not be listed within %s; a mount of it may be stalled", h.StacksDir, listerTimeout)
+		}
+	}()
 	name := listerNamePrefix + newShortID()
 	id, err := e.createContainer(ctx, name, listerSpec(image, h))
 	if err != nil {
 		return "", err
 	}
-	defer s.removeQuietly(e, id)
+	defer func() {
+		if ctx.Err() != nil { // the deadline or a cancelled caller: stop the find before the container goes
+			killCtx, cancelKill := context.WithTimeout(context.Background(), cleanupTimeout)
+			_ = e.killContainer(killCtx, id)
+			cancelKill()
+		}
+		s.removeQuietly(e, id)
+	}()
 	if err := e.startContainer(ctx, id); err != nil {
 		if dockerhost.StatusOf(err) >= 400 {
 			return "", stacksDirError(h, err)

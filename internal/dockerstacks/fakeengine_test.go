@@ -64,8 +64,11 @@ type fakeEngine struct {
 	runnerErr   string // written to stderr before the exit
 	listerExit  int
 	listerErr   string
-	startFails  string // non-empty: POST .../start of a lister answers 500
-	dfStatus    int    // non-zero: GET /system/df answers this status
+	listerGate  chan struct{} // non-nil: a lister does not finish until it is closed or the lister is killed
+	pullStall   bool          // POST /images/create sends one message and then goes silent
+	loadStall   bool          // POST /images/load reads the body and then never answers
+	startFails  string        // non-empty: POST .../start of a lister answers 500
+	dfStatus    int           // non-zero: GET /system/df answers this status
 	putQueries  []string
 	nextID      int
 }

@@ -42,6 +42,17 @@ func (fe *fakeEngine) handleImagePull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	fe.mu.Lock()
+	stall := fe.pullStall
+	fe.mu.Unlock()
+	if stall {
+		_, _ = io.WriteString(w, `{"status":"Pulling fs layer","progressDetail":{},"id":"layer1"}`+"\n")
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		<-r.Context().Done()
+		return
+	}
 	for _, line := range []string{
 		`{"status":"Pulling from library/` + from + `","id":"` + tag + `"}`,
 		`{"status":"Pulling fs layer","progressDetail":{},"id":"layer1"}`,
@@ -74,9 +85,13 @@ func (fe *fakeEngine) handleImageLoad(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	fe.mu.Lock()
 	fe.loadedBody = body
-	reply := fe.loadReply
+	reply, stall := fe.loadReply, fe.loadStall
 	fe.images["sha256:loadedimage"] = "sha256:loadedimage"
 	fe.mu.Unlock()
+	if stall {
+		<-r.Context().Done()
+		return
+	}
 	if ct := r.Header.Get("Content-Type"); ct != "application/x-tar" {
 		fe.t.Errorf("image load Content-Type = %q, want application/x-tar", ct)
 	}
