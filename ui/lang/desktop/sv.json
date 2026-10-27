@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Variabler",
   "docker_manager.sv_name_empty": "Ange ett namn för stacken.",
   "docker_manager.sv_name_invalid": "Använd 1 till 63 små bokstäver, siffror, - eller _, och börja med en bokstav eller siffra.",
-  "docker_manager.sv_name_taken": "Det finns redan en stack med det här namnet på värden."
+  "docker_manager.sv_name_taken": "Det finns redan en stack med det här namnet på värden.",
+  "docker_manager.action_delete": "Ta bort stack…",
+  "docker_manager.action_down": "Stoppa och ta bort",
+  "docker_manager.action_down_volumes": "Stoppa och ta bort, inklusive volymer…",
+  "docker_manager.action_pull": "Hämta avbilder",
+  "docker_manager.count_stacks": "{{shown}} av {{total}} stackar",
+  "docker_manager.discard_body": "{{name}} har osparade ändringar. Lämna och kassera dem?",
+  "docker_manager.discard_confirm": "Kassera ändringar",
+  "docker_manager.discard_new_body": "Den nya stacken har inte sparats. Kassera den?",
+  "docker_manager.discard_title": "Kassera ändringarna?",
+  "docker_manager.down_body": "Stoppar och tar bort containrarna och näten för {{name}} på {{host}}. Volymer, avbilder och stackmappen finns kvar.",
+  "docker_manager.down_title": "Stoppa och ta bort {{name}}?",
+  "docker_manager.ops_label": "Åtgärder",
+  "docker_manager.palette_button": "Kommandopalett",
+  "docker_manager.search_label_stacks": "Sök stackar",
+  "docker_manager.search_placeholder_stacks": "Sök stackar, portar, värdar…"
 }

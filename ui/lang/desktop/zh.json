@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "变量",
   "docker_manager.sv_name_empty": "请输入堆栈名称。",
   "docker_manager.sv_name_invalid": "请使用 1 到 63 个小写字母、数字、- 或 _，并以字母或数字开头。",
-  "docker_manager.sv_name_taken": "此主机上已存在同名堆栈。"
+  "docker_manager.sv_name_taken": "此主机上已存在同名堆栈。",
+  "docker_manager.action_delete": "删除堆栈…",
+  "docker_manager.action_down": "停止并移除",
+  "docker_manager.action_down_volumes": "停止并移除，包括卷…",
+  "docker_manager.action_pull": "拉取镜像",
+  "docker_manager.count_stacks": "共 {{total}} 个堆栈，显示 {{shown}} 个",
+  "docker_manager.discard_body": "{{name}} 有未保存的更改。要离开并放弃它们吗？",
+  "docker_manager.discard_confirm": "放弃更改",
+  "docker_manager.discard_new_body": "新堆栈尚未保存。要放弃吗？",
+  "docker_manager.discard_title": "放弃更改？",
+  "docker_manager.down_body": "停止并移除 {{host}} 上 {{name}} 的容器和网络。卷、镜像和堆栈文件夹会保留。",
+  "docker_manager.down_title": "停止并移除 {{name}}？",
+  "docker_manager.ops_label": "操作",
+  "docker_manager.palette_button": "命令面板",
+  "docker_manager.search_label_stacks": "搜索堆栈",
+  "docker_manager.search_placeholder_stacks": "搜索堆栈、端口、主机…"
 }

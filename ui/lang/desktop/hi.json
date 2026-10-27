@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "वेरिएबल",
   "docker_manager.sv_name_empty": "स्टैक के लिए नाम लिखें।",
   "docker_manager.sv_name_invalid": "1 से 63 छोटे अक्षर, अंक, - या _ इस्तेमाल करें, शुरुआत अक्षर या अंक से हो।",
-  "docker_manager.sv_name_taken": "इस होस्ट पर इस नाम का स्टैक पहले से मौजूद है।"
+  "docker_manager.sv_name_taken": "इस होस्ट पर इस नाम का स्टैक पहले से मौजूद है।",
+  "docker_manager.action_delete": "स्टैक हटाएँ…",
+  "docker_manager.action_down": "रोकें और हटाएँ",
+  "docker_manager.action_down_volumes": "रोकें और हटाएँ, वॉल्यूम सहित…",
+  "docker_manager.action_pull": "इमेज डाउनलोड करें",
+  "docker_manager.count_stacks": "{{total}} में से {{shown}} स्टैक",
+  "docker_manager.discard_body": "{{name}} में बिना सहेजे बदलाव हैं। छोड़कर उन्हें रद्द करें?",
+  "docker_manager.discard_confirm": "बदलाव रद्द करें",
+  "docker_manager.discard_new_body": "नया स्टैक सहेजा नहीं गया है। इसे रद्द करें?",
+  "docker_manager.discard_title": "बदलाव रद्द करें?",
+  "docker_manager.down_body": "{{host}} पर {{name}} के कंटेनर और नेटवर्क रोकता और हटाता है। वॉल्यूम, इमेज और स्टैक फ़ोल्डर बने रहते हैं।",
+  "docker_manager.down_title": "{{name}} को रोकें और हटाएँ?",
+  "docker_manager.ops_label": "क्रियाएँ",
+  "docker_manager.palette_button": "कमांड पैलेट",
+  "docker_manager.search_label_stacks": "स्टैक खोजें",
+  "docker_manager.search_placeholder_stacks": "स्टैक, पोर्ट, होस्ट खोजें…"
 }

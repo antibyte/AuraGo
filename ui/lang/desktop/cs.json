@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Proměnné",
   "docker_manager.sv_name_empty": "Zadejte název stacku.",
   "docker_manager.sv_name_invalid": "Použijte 1 až 63 malých písmen, číslic, - nebo _, začínajících písmenem nebo číslicí.",
-  "docker_manager.sv_name_taken": "Stack s tímto názvem na tomto hostiteli již existuje."
+  "docker_manager.sv_name_taken": "Stack s tímto názvem na tomto hostiteli již existuje.",
+  "docker_manager.action_delete": "Smazat stack…",
+  "docker_manager.action_down": "Zastavit a odebrat",
+  "docker_manager.action_down_volumes": "Zastavit a odebrat, včetně svazků…",
+  "docker_manager.action_pull": "Stáhnout image",
+  "docker_manager.count_stacks": "{{shown}} z {{total}} stacků",
+  "docker_manager.discard_body": "{{name}} má neuložené změny. Opustit a zahodit je?",
+  "docker_manager.discard_confirm": "Zahodit změny",
+  "docker_manager.discard_new_body": "Nový stack nebyl uložen. Zahodit jej?",
+  "docker_manager.discard_title": "Zahodit změny?",
+  "docker_manager.down_body": "Zastaví a odebere kontejnery a sítě stacku {{name}} na hostiteli {{host}}. Svazky, image a složka stacku zůstanou.",
+  "docker_manager.down_title": "Zastavit a odebrat {{name}}?",
+  "docker_manager.ops_label": "Operace",
+  "docker_manager.palette_button": "Paleta příkazů",
+  "docker_manager.search_label_stacks": "Hledat stacky",
+  "docker_manager.search_placeholder_stacks": "Hledat stacky, porty, hostitele…"
 }

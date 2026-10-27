@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Zmienne",
   "docker_manager.sv_name_empty": "Wpisz nazwę stosu.",
   "docker_manager.sv_name_invalid": "Użyj od 1 do 63 małych liter, cyfr, - lub _, zaczynając od litery lub cyfry.",
-  "docker_manager.sv_name_taken": "Stos o tej nazwie już istnieje na tym hoście."
+  "docker_manager.sv_name_taken": "Stos o tej nazwie już istnieje na tym hoście.",
+  "docker_manager.action_delete": "Usuń stos…",
+  "docker_manager.action_down": "Zatrzymaj i usuń",
+  "docker_manager.action_down_volumes": "Zatrzymaj i usuń, razem z woluminami…",
+  "docker_manager.action_pull": "Pobierz obrazy",
+  "docker_manager.count_stacks": "{{shown}} z {{total}} stosów",
+  "docker_manager.discard_body": "{{name}} ma niezapisane zmiany. Wyjść i je odrzucić?",
+  "docker_manager.discard_confirm": "Odrzuć zmiany",
+  "docker_manager.discard_new_body": "Nowy stos nie został zapisany. Odrzucić go?",
+  "docker_manager.discard_title": "Odrzucić zmiany?",
+  "docker_manager.down_body": "Zatrzymuje i usuwa kontenery oraz sieci stosu {{name}} na hoście {{host}}. Woluminy, obrazy i katalog stosu pozostają.",
+  "docker_manager.down_title": "Zatrzymać i usunąć {{name}}?",
+  "docker_manager.ops_label": "Operacje",
+  "docker_manager.palette_button": "Paleta poleceń",
+  "docker_manager.search_label_stacks": "Szukaj stosów",
+  "docker_manager.search_placeholder_stacks": "Szukaj stosów, portów, hostów…"
 }

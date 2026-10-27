@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Variabler",
   "docker_manager.sv_name_empty": "Skriv inn et navn på stacken.",
   "docker_manager.sv_name_invalid": "Bruk 1 til 63 små bokstaver, sifre, - eller _, og begynn med en bokstav eller et siffer.",
-  "docker_manager.sv_name_taken": "Det finnes allerede en stack med dette navnet på verten."
+  "docker_manager.sv_name_taken": "Det finnes allerede en stack med dette navnet på verten.",
+  "docker_manager.action_delete": "Slett stack…",
+  "docker_manager.action_down": "Stopp og fjern",
+  "docker_manager.action_down_volumes": "Stopp og fjern, inkludert volumer…",
+  "docker_manager.action_pull": "Hent images",
+  "docker_manager.count_stacks": "{{shown}} av {{total}} stacks",
+  "docker_manager.discard_body": "{{name}} har ulagrede endringer. Forlate og forkaste dem?",
+  "docker_manager.discard_confirm": "Forkast endringer",
+  "docker_manager.discard_new_body": "Den nye stacken er ikke lagret. Forkaste den?",
+  "docker_manager.discard_title": "Forkaste endringene?",
+  "docker_manager.down_body": "Stopper og fjerner containerne og nettverkene for {{name}} på {{host}}. Volumer, images og stackmappen blir værende.",
+  "docker_manager.down_title": "Stoppe og fjerne {{name}}?",
+  "docker_manager.ops_label": "Handlinger",
+  "docker_manager.palette_button": "Kommandopalett",
+  "docker_manager.search_label_stacks": "Søk i stacks",
+  "docker_manager.search_placeholder_stacks": "Søk etter stacks, porter, verter…"
 }

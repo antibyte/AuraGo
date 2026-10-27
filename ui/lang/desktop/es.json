@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Variables",
   "docker_manager.sv_name_empty": "Escriba un nombre para el stack.",
   "docker_manager.sv_name_invalid": "Use de 1 a 63 letras minúsculas, dígitos, - o _, empezando por una letra o un dígito.",
-  "docker_manager.sv_name_taken": "Ya existe un stack con este nombre en este host."
+  "docker_manager.sv_name_taken": "Ya existe un stack con este nombre en este host.",
+  "docker_manager.action_delete": "Eliminar stack…",
+  "docker_manager.action_down": "Detener y eliminar",
+  "docker_manager.action_down_volumes": "Detener y eliminar, con volúmenes…",
+  "docker_manager.action_pull": "Descargar imágenes",
+  "docker_manager.count_stacks": "{{shown}} de {{total}} stacks",
+  "docker_manager.discard_body": "{{name}} tiene cambios sin guardar. ¿Salir y descartarlos?",
+  "docker_manager.discard_confirm": "Descartar cambios",
+  "docker_manager.discard_new_body": "El nuevo stack no se ha guardado. ¿Descartarlo?",
+  "docker_manager.discard_title": "¿Descartar los cambios?",
+  "docker_manager.down_body": "Detiene y elimina los contenedores y redes de {{name}} en {{host}}. Los volúmenes, las imágenes y la carpeta del stack permanecen.",
+  "docker_manager.down_title": "¿Detener y eliminar {{name}}?",
+  "docker_manager.ops_label": "Operaciones",
+  "docker_manager.palette_button": "Paleta de comandos",
+  "docker_manager.search_label_stacks": "Buscar stacks",
+  "docker_manager.search_placeholder_stacks": "Buscar stacks, puertos, hosts…"
 }

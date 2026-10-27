@@ -297,16 +297,24 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Docker Manager
 
-- Load order (module-loader `docker-manager`): `docker-manager-model.js` (pure: container status and problem derivation,
-  grouping by compose project, search and state filters, the multi-host merge, host health, the host form rules,
-  error normalisation), `docker-manager-store.js` (every request through the desktop `api()` against `/api/docker-manager`,
-  one request in flight per key, per-host container cache, polling only while the window is visible),
-  `docker-manager-views.js` (HTML builders: rail, banners, table, empty states, detail drawer),
-  `docker-manager-dialogs.js` (one native `<dialog>` with a view stack: host manager, add/edit form with Test connection,
-  import from nest, confirmations), then `docker-manager.js` (composition root: skeleton, focus, keyboard, context menu,
-  window menus, toasts). Style: `css/desktop-app-docker-manager.css`. Every file stays below 1100 lines and no file touches
-  the DOM at load (`scripts/test-docker-manager-ui.mjs` runs them in a vm). Phase 1 shows Containers only; Stacks, Images,
-  Volumes, Networks and Templates come in later phases, and no placeholder is rendered for them.
+- Load order (module-loader `docker-manager`, pinned by `TestDockerManagerWiring`): `docker-manager-model.js` (pure: container
+  status and problem derivation, grouping by compose project, search and state filters, the multi-host merge, host health,
+  the host form rules, error normalisation; `normalizeError` keeps the answer body in `data`), `docker-manager-stack-model.js`
+  (pure: stack status and tone, rows and groups of the stack list, port links, lint helpers, the line diff, command palette
+  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-store.js`
+  (every request through the desktop `api()` against `/api/docker-manager`, one request in flight per key, per-host container
+  and stack listings, the open stack, the operations with one `EventSource` each, polling only while the window is visible),
+  `docker-manager-views.js` (HTML builders: rail with the Stacks and Containers sections, banners, table, empty states, detail
+  drawer, line diff), `docker-manager-stacks.js` (HTML builders: stack list with its three groups and the host cards, stack
+  pane header, overview, editor shell), `docker-manager-editor.js` (the YAML/.env editor, the debounced lint scheduler and the
+  workbench that keeps the drafts of the open stack), `docker-manager-ops.js` (progress drawer and the commands that start an
+  operation), `docker-manager-palette.js` (command palette), `docker-manager-dialogs.js` (one native `<dialog>` with a view
+  stack: host manager, add/edit form with Test connection, import from nest, confirmations, delete and down-with-volumes lists,
+  the revision-conflict diff), `docker-manager-newstack.js` (the new-stack flow), then `docker-manager.js` (composition root:
+  skeleton, focus, keyboard, drop, context menus, window menus, toasts). Style: `css/desktop-app-docker-manager.css`. Every file
+  stays below 1100 lines and no file touches the DOM at load (`scripts/test-docker-manager-ui.mjs` runs them in a vm). Phase 2
+  adds Stacks (the default section, remembered as `section` in the prefs); Images, Volumes, Networks and Templates come in later
+  phases, and no placeholder is rendered for them.
 - The app appears only while Docker is enabled (`docker` capability, `desktopCapabilities` in `internal/server`). `ctx.readonly`
   (read-only desktop) hides container actions and host editing. `docker.readonly` hides the container actions only (host management
   stays): every `GET /hosts` answer carries `docker_readonly` (read per request), `loadHosts` sets and clears
@@ -341,14 +349,64 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Host colours are the eight `data-host-color` values mapped to theme tokens in the stylesheet; no literal colours, no
   uppercase labels, motion only inside `prefers-reduced-motion: no-preference` on `body:not([data-animations="false"])` (the
   Node test guards this like the Infra test). A modal `<dialog>` sits in the top layer, so toasts raised while it is open are
-  moved inside it.
+  moved inside it. Code surfaces (editor, diff, preview code) use
+  `--dm-mono`; every other label keeps the UI font.
+- Stacks section: the list has three groups (own stacks, external compose projects, single containers; the latter open the
+  container drawer and a helper container of the Stacks feature carries the lock and "Docker Manager helper"). A host that
+  answers 409 `host_not_prepared` shows a card with the helper image and a Prepare host button (a prepare operation), one that
+  answers `api_too_old` or an unusable stacks folder shows its reason, and an unreachable host is explained by the banner. The
+  Stacks section polls the stack listings with the container lists (every 5 s while visible); the Containers section never
+  starts the lister container. The Refresh button, the end of an operation, a create and a project action ask the server to rescan
+  (`?refresh=1`); polls and section switches use its 30 s cache. An external project is only started,
+  stopped or restarted (`POST .../projects/{p}/{action}`); its row opens the Containers section filtered by the project name.
+- Stack pane: header (name, host, folder, age), restart and stop icons, one accent button (Deploy for draft, stopped, partial and
+  error, Update for running; the palette offers both for a partial stack), the more menu (pull, stop and remove, stop and remove
+  with volumes, delete) and the tabs Overview, Compose and .env. The panels and the editors in them are built once
+  per opened stack and only shown or hidden, so a poll never repaints an editor; `docker-manager-editor.js` keeps the drafts.
+  Leaving a stack with unsaved edits asks (the stack list, the palette and the host scope all go through `leaveStack`). Deploy
+  and Update save unsaved edits first; Ctrl/Cmd+S saves, Ctrl/Cmd+Enter saves and runs `up`. A save sends the revision the edit
+  is based on; 409 `revision_conflict` opens the diff dialog (Overwrite with mine = resend with the host's revision, Take the
+  host version, Keep editing). Delete lists the folder and the named volumes (`GET .../volumes`), needs the stack name typed
+  and deletes the volumes only when asked; "stop and remove with volumes" lists the volumes and needs no typing.
+- Editor: CodeMirror comes from `/js/vendor/codemirror-bundle.esm.js` (dynamic import like Code Studio) with `yaml()`,
+  `lintGutter()`, `linter(null)` and `setDiagnostics`; a plain textarea is shown at once and is what stays when the bundle fails
+  to load. Lint (`POST /hosts/{h}/lint`, 400 ms after the last edit, the newest request wins) feeds the gutter and a problems
+  list below the editor. The file is decided by the code: `env_syntax` belongs to the .env editor (its `params.file` is `.env`
+  too), every other code to the compose file. Texts are `lint_<code>` with the `service` of the diagnostic and `params` as
+  placeholders (`detail`, `value`, `port`, `container`, `variable`); when a placeholder stays open or the code is unknown the
+  server's English `message` is shown. A failed
+  operation with `error_line` reopens the Compose tab with that line marked until the text changes.
+- Progress drawer: a bottom panel that is a status line while nothing runs. It lists the operations started in this window,
+  those found with `GET /operations?active=1` when the window opens and those a stack listing names (`operation`). That list
+  has its output blanked by the server: for an operation already followed it only updates the state and never the output or
+  the progress. One `EventSource` per active operation (`snapshot`, `output`, `progress`, `state`, `done`), closed on `done`; after an error the
+  operation is read again and the stream reopened with a growing delay, and a finished operation is never streamed. A busy stack
+  (409 `operation_in_progress`) attaches to the running operation. Output has the terminal colour codes removed. When an
+  operation ends the listing and the open stack are reloaded.
+- New stack: the view replaces the list and the pane (Back asks when the view is filled). The name is checked like the server
+  (`^[a-z0-9][a-z0-9_-]{0,62}$`), the host is fixed under a host scope and a picker under All hosts; sources are Paste and
+  Convert docker run (`POST /convert/docker-run`, warnings listed). The preview comes from the lint answer (services, ports and
+  the containers that use them, storage by kind, variables with "Create random value in .env", hints). Files dropped on the
+  window (`.yaml`, `.yml`, `.env`) fill the editors; a drag with files is claimed (`preventDefault` + `stopPropagation`, so the
+  desktop does not upload it to the Desktop folder) only while the window may change things. Deploy answers 201 with
+  `deploy_error` (`{code, message}`) and no operation when the files were written but the deployment could not start: the
+  stack opens as a draft and an error toast names the reason (`error_<code>`, the server message only for unknown codes).
+- Keyboard: Ctrl/Cmd+K opens the palette from inside the app and stops the event so Spotlight (a document keydown handler)
+  does not open; the palette is a combobox with a listbox and refuses to open over a dialog. Escape closes the innermost of: the
+  palette, a dialog, the operations drawer, the new-stack view, the container drawer, the stack pane (never from inside an
+  editor). A button that opens a desktop context menu (`stack-more`) must stop its click: the desktop closes its menu on
+  every click it sees.
 - Strings: `desktop.app_docker_manager` and `docker_manager.*` in all 16 `lang/desktop/*.json` files, local helper `t` with the
   `docker_manager.` prefix (registered in `desktopLocalI18nHelpers`; the key families built at run time are in
-  `desktopDynamicI18nPrefixes` in `ui/i18n_lint_test.go`). A new string needs its key in all 16 files with the same
-  `{{placeholders}}`; `TestDockerManagerLocalesAreComplete` and the Node test check this.
+  `desktopDynamicI18nPrefixes` in `ui/i18n_lint_test.go` and in the families table of the Node test, which also lists the keys
+  passed through a conditional expression). A new string needs its key in all 16 files with the same `{{placeholders}}`;
+  `TestDockerManagerLocalesAreComplete` and the Node test check this.
 - Verify: `node scripts/test-docker-manager-ui.mjs` (or `npm run test:docker-manager`),
   `go test ./ui -run DockerManager -count=1`, and
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopDockerManagerBrowser -count=1`. After editing a core file
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopDockerManager -count=1` (two tests: the app, and the editor without the CodeMirror bundle; the page has a 30 s budget for the
+  whole run: keep the fake streams short). The CodeMirror bundle is built by `npm run build:codemirror` from
+  `scripts/codemirror-entry.js`; phase 2 only added exports (`yaml`, `linter`, `lintGutter`, `setDiagnostics`), so Code Studio,
+  OpenSCAD, notes, CYD Creator and skills keep working. After editing a core file
   (`module-loader.js`, `menus-and-routing.js`, `desktop-foundation.js`, `window-shell-runtime.js`) run `npm run build:ui` and
   `npm run check:ui`. API contract: `internal/server` (`/api/docker-manager`), host registry: `internal/dockerhost`.
 

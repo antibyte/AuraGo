@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Variables",
   "docker_manager.sv_name_empty": "Enter a name for the stack.",
   "docker_manager.sv_name_invalid": "Use 1 to 63 lowercase letters, digits, - or _, starting with a letter or digit.",
-  "docker_manager.sv_name_taken": "A stack with this name already exists on this host."
+  "docker_manager.sv_name_taken": "A stack with this name already exists on this host.",
+  "docker_manager.action_delete": "Delete stack…",
+  "docker_manager.action_down": "Stop and remove",
+  "docker_manager.action_down_volumes": "Stop and remove, including volumes…",
+  "docker_manager.action_pull": "Pull images",
+  "docker_manager.count_stacks": "{{shown}} of {{total}} stacks",
+  "docker_manager.discard_body": "{{name}} has unsaved changes. Leave and discard them?",
+  "docker_manager.discard_confirm": "Discard changes",
+  "docker_manager.discard_new_body": "The new stack has not been saved. Discard it?",
+  "docker_manager.discard_title": "Discard changes?",
+  "docker_manager.down_body": "Stops and removes the containers and networks of {{name}} on {{host}}. Volumes, images and the stack folder stay.",
+  "docker_manager.down_title": "Stop and remove {{name}}?",
+  "docker_manager.ops_label": "Operations",
+  "docker_manager.palette_button": "Command palette",
+  "docker_manager.search_label_stacks": "Search stacks",
+  "docker_manager.search_placeholder_stacks": "Search stacks, ports, hosts…"
 }

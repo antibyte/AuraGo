@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "Μεταβλητές",
   "docker_manager.sv_name_empty": "Εισαγάγετε ένα όνομα για το stack.",
   "docker_manager.sv_name_invalid": "Χρησιμοποιήστε 1 έως 63 πεζά γράμματα, ψηφία, - ή _, ξεκινώντας με γράμμα ή ψηφίο.",
-  "docker_manager.sv_name_taken": "Υπάρχει ήδη stack με αυτό το όνομα σε αυτόν τον υπολογιστή."
+  "docker_manager.sv_name_taken": "Υπάρχει ήδη stack με αυτό το όνομα σε αυτόν τον υπολογιστή.",
+  "docker_manager.action_delete": "Διαγραφή stack…",
+  "docker_manager.action_down": "Διακοπή και αφαίρεση",
+  "docker_manager.action_down_volumes": "Διακοπή και αφαίρεση, μαζί με τους τόμους…",
+  "docker_manager.action_pull": "Λήψη images",
+  "docker_manager.count_stacks": "{{shown}} από {{total}} stacks",
+  "docker_manager.discard_body": "Το {{name}} έχει μη αποθηκευμένες αλλαγές. Έξοδος και απόρριψή τους;",
+  "docker_manager.discard_confirm": "Απόρριψη αλλαγών",
+  "docker_manager.discard_new_body": "Το νέο stack δεν αποθηκεύτηκε. Απόρριψη;",
+  "docker_manager.discard_title": "Απόρριψη αλλαγών;",
+  "docker_manager.down_body": "Σταματά και αφαιρεί τα κοντέινερ και τα δίκτυα του {{name}} στον υπολογιστή {{host}}. Οι τόμοι, τα images και ο φάκελος του stack παραμένουν.",
+  "docker_manager.down_title": "Διακοπή και αφαίρεση του {{name}};",
+  "docker_manager.ops_label": "Λειτουργίες",
+  "docker_manager.palette_button": "Παλέτα εντολών",
+  "docker_manager.search_label_stacks": "Αναζήτηση stacks",
+  "docker_manager.search_placeholder_stacks": "Αναζήτηση stacks, θυρών, υπολογιστών…"
 }

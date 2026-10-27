@@ -10424,5 +10424,20 @@
   "docker_manager.preview_variables": "変数",
   "docker_manager.sv_name_empty": "スタック名を入力してください。",
   "docker_manager.sv_name_invalid": "小文字、数字、- または _ を 1〜63 文字で、先頭は英字か数字にしてください。",
-  "docker_manager.sv_name_taken": "このホストには同じ名前のスタックがすでにあります。"
+  "docker_manager.sv_name_taken": "このホストには同じ名前のスタックがすでにあります。",
+  "docker_manager.action_delete": "スタックを削除…",
+  "docker_manager.action_down": "停止して削除",
+  "docker_manager.action_down_volumes": "ボリュームも含めて停止して削除…",
+  "docker_manager.action_pull": "イメージを取得",
+  "docker_manager.count_stacks": "{{total}}件中{{shown}}件のスタック",
+  "docker_manager.discard_body": "{{name}} に未保存の変更があります。破棄して移動しますか？",
+  "docker_manager.discard_confirm": "変更を破棄",
+  "docker_manager.discard_new_body": "新しいスタックは保存されていません。破棄しますか？",
+  "docker_manager.discard_title": "変更を破棄しますか？",
+  "docker_manager.down_body": "{{host}} 上の {{name}} のコンテナとネットワークを停止して削除します。ボリューム、イメージ、スタックのフォルダーは残ります。",
+  "docker_manager.down_title": "{{name}} を停止して削除しますか？",
+  "docker_manager.ops_label": "操作",
+  "docker_manager.palette_button": "コマンドパレット",
+  "docker_manager.search_label_stacks": "スタックを検索",
+  "docker_manager.search_placeholder_stacks": "スタック、ポート、ホストを検索…"
 }
