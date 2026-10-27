@@ -51,6 +51,7 @@ func TestTargetReasonsKeepTheRawTokenAndAddPlainLanguage(t *testing.T) {
 		"blocked":     "no free path",
 		"unsupported": "does not expose this target",
 		"inactive":    "not active during the test",
+		"host_hidden": "Studio preview was hidden or in the background",
 	} {
 		observation := GameObservation{ID: scenario.ID, Before: map[string]float64{"pickup_events": 0}, After: map[string]float64{"pickup_events": 0},
 			TargetRuns: []TargetRun{{Target: "item", Mode: "reach", Samples: 3, Inputs: 1, Reason: reason}}}
