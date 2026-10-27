@@ -20,19 +20,34 @@ func resolveAlias(n *yaml.Node) *yaml.Node {
 	return n
 }
 
-// mapPairs returns the pairs of a mapping node: its own keys first, then the keys that "<<" merges in (an own key
-// wins over a merged one). Aliases are resolved. A node that is not a mapping yields nil.
-func mapPairs(n *yaml.Node) []yamlPair {
-	budget := maxMergedPairs
-	return collectPairs(n, 0, &budget)
+// pairWalker reads the pairs of mapping nodes for one Lint call. It remembers the pairs of every mapping node it has
+// expanded, and charges every merge source it visits to one budget (maxMergedPairs for the whole call), so that a
+// document built from merge keys that fan out cannot cost more than the budget no matter how often it is asked.
+type pairWalker struct {
+	budget int
+	cache  map[*yaml.Node][]yamlPair
 }
 
-func collectPairs(n *yaml.Node, depth int, budget *int) []yamlPair {
+func newPairWalker() *pairWalker {
+	return &pairWalker{budget: maxMergedPairs, cache: map[*yaml.Node][]yamlPair{}}
+}
+
+// mapPairs returns the pairs of a mapping node: its own keys first, then the keys that "<<" merges in (an own key
+// wins over a merged one). Aliases are resolved. A node that is not a mapping yields nil. Once the budget is spent,
+// merge sources that were not expanded yet are skipped.
+func (w *pairWalker) mapPairs(n *yaml.Node) []yamlPair { return w.collect(n, 0) }
+
+func (w *pairWalker) collect(n *yaml.Node, depth int) []yamlPair {
 	n = resolveAlias(n)
-	if n == nil || n.Kind != yaml.MappingNode || depth > maxAliasDepth || *budget <= 0 {
+	if n == nil || n.Kind != yaml.MappingNode || depth > maxAliasDepth {
 		return nil
 	}
-	*budget -= len(n.Content) / 2
+	if pairs, ok := w.cache[n]; ok {
+		return pairs
+	}
+	if depth > 0 {
+		w.budget -= len(n.Content) / 2 // the pairs a merge source brings in
+	}
 	var own []yamlPair
 	var merges []*yaml.Node
 	seen := map[string]bool{}
@@ -51,7 +66,10 @@ func collectPairs(n *yaml.Node, depth int, budget *int) []yamlPair {
 			sources = r.Content
 		}
 		for _, src := range sources {
-			for _, p := range collectPairs(src, depth+1, budget) {
+			if w.budget--; w.budget <= 0 { // every source visited is charged, expanded or not
+				break
+			}
+			for _, p := range w.collect(src, depth+1) {
 				if !seen[p.Key.Value] {
 					seen[p.Key.Value] = true
 					own = append(own, p)
@@ -59,12 +77,13 @@ func collectPairs(n *yaml.Node, depth int, budget *int) []yamlPair {
 			}
 		}
 	}
+	w.cache[n] = own
 	return own
 }
 
 // mapGet returns the key and (alias-resolved) value node of key in a mapping.
-func mapGet(n *yaml.Node, key string) (k, v *yaml.Node) {
-	for _, p := range mapPairs(n) {
+func (w *pairWalker) mapGet(n *yaml.Node, key string) (k, v *yaml.Node) {
+	for _, p := range w.mapPairs(n) {
 		if p.Key.Kind == yaml.ScalarNode && p.Key.Value == key {
 			return p.Key, p.Value
 		}
@@ -73,8 +92,8 @@ func mapGet(n *yaml.Node, key string) (k, v *yaml.Node) {
 }
 
 // mapValue is mapGet without the key node.
-func mapValue(n *yaml.Node, key string) *yaml.Node {
-	_, v := mapGet(n, key)
+func (w *pairWalker) mapValue(n *yaml.Node, key string) *yaml.Node {
+	_, v := w.mapGet(n, key)
 	return v
 }
 

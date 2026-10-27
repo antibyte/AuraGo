@@ -72,6 +72,23 @@ func TestDockerManagerLintReadsThePortsOfTheHost(t *testing.T) {
 	f.expectError(code, body, http.StatusBadRequest, "bad_request")
 }
 
+func TestDockerManagerLintRefusesFilesThatAStackCouldNotHold(t *testing.T) {
+	f := newDMStackFixture(t)
+	big := strings.Repeat("a", dockerstacks.MaxFileBytes+1)
+	f.fake.calls = nil
+	code, body := f.do(http.MethodPost, "/hosts/local/lint", map[string]any{"compose": big})
+	f.expectError(code, body, http.StatusRequestEntityTooLarge, "file_too_large")
+	code, body = f.do(http.MethodPost, "/hosts/local/lint", map[string]any{"compose": dmLintCompose, "env": big})
+	f.expectError(code, body, http.StatusRequestEntityTooLarge, "file_too_large")
+	if f.fake.callCount() != 0 {
+		t.Fatalf("calls = %v, an oversized file must not reach the service", f.fake.calls)
+	}
+	exact := strings.Repeat("#", dockerstacks.MaxFileBytes)
+	if code, _ := f.do(http.MethodPost, "/hosts/local/lint", map[string]any{"compose": dmLintCompose, "env": exact}); code != http.StatusOK {
+		t.Fatalf("a .env of exactly %d bytes must be linted, got %d", dockerstacks.MaxFileBytes, code)
+	}
+}
+
 func TestDockerManagerConvertDockerRun(t *testing.T) {
 	f := newDMStackFixture(t)
 	f.readOnly = true // converting changes nothing

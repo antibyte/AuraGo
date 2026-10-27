@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"aurago/internal/dockerhost"
@@ -42,6 +43,12 @@ func (dm *dmRequest) lintStack(hostID string) {
 	}
 	var in dockerstacks.LintInput
 	if !dm.decodeSized(&in, dmStackBodyLimit) {
+		return
+	}
+	// As create and the file writes: a file the stack could not hold is not linted either.
+	if len(in.Compose) > dockerstacks.MaxFileBytes || len(in.Env) > dockerstacks.MaxFileBytes {
+		dmWriteError(dm.w, http.StatusRequestEntityTooLarge, dockerstacks.CodeFileTooLarge,
+			fmt.Sprintf("the compose file and the .env are each limited to %d KiB", dockerstacks.MaxFileBytes>>10), nil)
 		return
 	}
 	var published []dockerstacks.PublishedPort

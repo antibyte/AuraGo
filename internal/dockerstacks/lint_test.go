@@ -337,3 +337,96 @@ func TestLintSurvivesAMergeKeyBomb(t *testing.T) {
 		t.Fatalf("services = %+v, want the one service", res.Preview.Services)
 	}
 }
+
+// manyMergeSources is a compose file whose service merges n aliases of a mapping that itself merges n aliases.
+func manyMergeSources(n int) string {
+	list := strings.TrimSuffix(strings.Repeat("*e, ", n), ", ")
+	return "e: &e {}\nm: &m {<<: [" + list + "]}\nservices:\n  web:\n    <<: [" + strings.TrimSuffix(strings.Repeat("*m, ", n), ", ") + "]\n"
+}
+
+func TestLintChargesEveryMergeSourceToOneBudget(t *testing.T) {
+	start := time.Now()
+	res := Lint(LintInput{Compose: manyMergeSources(5000)}, nil) // 5000 x 5000 sources if nothing bounded them
+	if elapsed := time.Since(start); elapsed > 1500*time.Millisecond {
+		t.Fatalf("lint took %v on a file of 10000 merge sources", elapsed)
+	}
+	if len(res.Preview.Services) != 1 {
+		t.Fatalf("services = %+v, want the one service", res.Preview.Services)
+	}
+}
+
+func TestLintKeepsItsAnswerBoundedForAliasedPortLists(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("x: &p\n")
+	for i := 0; i < 800; i++ {
+		fmt.Fprintf(&b, "  - \"%d:80\"\n", 8000+i)
+	}
+	b.WriteString("services:\n")
+	for j := 0; j < 200; j++ { // every service repeats every port of the anchored list
+		fmt.Fprintf(&b, "  s%d: {image: nginx:1.27, restart: always, ports: *p}\n", j)
+	}
+	res := Lint(LintInput{Compose: b.String()}, nil)
+	if len(res.Diagnostics) != maxLintDiagnostics {
+		t.Fatalf("diagnostics = %d, want the %d that are kept", len(res.Diagnostics), maxLintDiagnostics)
+	}
+	ports := 0
+	for _, svc := range res.Preview.Services {
+		ports += len(svc.Ports)
+	}
+	if ports > maxLintedEntries {
+		t.Fatalf("the preview lists %d ports, want at most %d", ports, maxLintedEntries)
+	}
+	if out, _ := json.Marshal(res); len(out) > 8<<20 {
+		t.Fatalf("the answer is %d bytes", len(out))
+	}
+	broken := Lint(LintInput{Compose: cleanCompose, Env: strings.Repeat("not an assignment\n", 3000)}, nil)
+	if len(broken.Diagnostics) != maxEnvWarnings {
+		t.Fatalf("env warnings = %d, want %d", len(broken.Diagnostics), maxEnvWarnings)
+	}
+}
+
+func TestLintComparesWideHostRangesOnManyAddressesWithoutPerPortWork(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("services:\n  web:\n    image: nginx:1.27\n    restart: always\n    ports:\n")
+	for i := 0; i < 800; i++ { // 800 addresses with a 4096-port range each: nothing is duplicated
+		fmt.Fprintf(&b, "      - \"10.%d.%d.1:8000-12095:8000-12095\"\n", i/256, i%256)
+	}
+	start := time.Now()
+	res := Lint(LintInput{Compose: b.String()}, nil)
+	if elapsed := time.Since(start); elapsed > 1500*time.Millisecond {
+		t.Fatalf("lint took %v on 800 port ranges", elapsed)
+	}
+	if len(res.Diagnostics) != 0 {
+		t.Fatalf("diagnostics = %v, want none: the addresses differ", diagKeys(res))
+	}
+}
+
+func TestLintChecksWholePortRanges(t *testing.T) {
+	published := []PublishedPort{{Port: 9003, Protocol: "tcp", Container: "late"}, {Port: 9002, Protocol: "tcp", Container: "early"}}
+	compose := `services:
+  web:
+    image: nginx:1.27
+    restart: always
+    ports:
+      - "8000-8010:8000-8010"
+      - "8005:80"
+      - "127.0.0.1:8008:80"
+      - "8011:80"
+      - "9000-9010:9000-9010"
+`
+	res := Lint(LintInput{Compose: compose}, published)
+	dup := findDiag(t, res, "port_duplicate", 7)
+	if dup.Params["port"] != "8005" || dup.Params["first_line"] != "6" {
+		t.Fatalf("duplicate = %+v, want port 8005 first used at line 6", dup)
+	}
+	if again := findDiag(t, res, "port_duplicate", 8); again.Params["port"] != "8008" {
+		t.Fatalf("duplicate on an address inside the wildcard range = %+v, want port 8008", again)
+	}
+	conflict := findDiag(t, res, "port_conflict", 10)
+	if conflict.Params["port"] != "9002" || conflict.Params["container"] != "early" {
+		t.Fatalf("conflict = %+v, want the lowest published port of the range (9002, early)", conflict)
+	}
+	if got := diagKeys(res); len(got) != 3 {
+		t.Fatalf("diagnostics = %v, want exactly the two duplicates and the one conflict", got)
+	}
+}

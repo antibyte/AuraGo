@@ -9,6 +9,9 @@ import (
 // problemOpenQuote marks a value whose opening quote is never closed; such a line defines nothing.
 const problemOpenQuote = "the quote is never closed"
 
+// maxEnvWarnings bounds the env_syntax warnings of one file; a .env with more broken lines than this is not worth listing.
+const maxEnvWarnings = 1000
+
 // envKeyPattern is what a .env key may look like (Compose's reader is a little wider than interpolation itself).
 var envKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]*$`)
 
@@ -22,6 +25,9 @@ func parseEnvFile(src string) (map[string]string, []Diagnostic) {
 	src = strings.TrimPrefix(src, "\xef\xbb\xbf") // UTF-8 byte order mark
 	lines := strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n")
 	warn := func(line int, detail string) {
+		if len(diags) >= maxEnvWarnings {
+			return
+		}
 		diags = append(diags, Diagnostic{
 			Line: line, Severity: "warning", Code: "env_syntax",
 			Message: ".env line " + strconv.Itoa(line) + " is not KEY=VALUE, a comment or blank: " + detail,

@@ -15,17 +15,17 @@ const (
 	sevWarning = "warning"
 	sevHint    = "hint"
 
-	maxLintedPortRange = 4096 // host ports checked per binding; a range wider than this is only checked at its start
+	// Bounds of one Lint call, so that a hostile or mistaken file cannot make the answer grow without limit:
+	maxLintDiagnostics   = 10000 // diagnostics kept; later findings are dropped
+	maxLintedEntries     = 16384 // port and storage entries examined, over all services (aliased lists count every use)
+	maxPortRegistrations = 8192  // host port intervals remembered for the duplicate check
 )
 
-type portKey struct {
-	port  int
-	proto string
-}
-
-type portUse struct {
-	ip   string
-	line int
+// portReg is one host port interval (one binding of a service) that the duplicate check remembers.
+type portReg struct {
+	ip     string
+	lo, hi int
+	line   int
 }
 
 type varUse struct {
@@ -38,16 +38,19 @@ type varUse struct {
 }
 
 type linter struct {
-	env       map[string]string
-	stack     string
-	published []PublishedPort
-	diags     []Diagnostic
-	preview   Preview
+	*pairWalker // mapPairs, mapGet and mapValue, with one merge budget and one cache for the whole call
+	env         map[string]string
+	stack       string
+	published   []PublishedPort
+	diags       []Diagnostic
+	preview     Preview
 
 	vars      map[string]*varUse
 	varOrder  []string
-	ports     map[portKey][]portUse
+	ports     map[string][]portReg // by protocol, in the order the bindings were read
+	entries   int                  // port and storage entries still allowed (maxLintedEntries)
 	usedNamed []string
+	usedSet   map[string]bool
 	declared  map[string]bool // top-level volumes: name -> created by compose (not external)
 }
 
@@ -57,10 +60,13 @@ type linter struct {
 func Lint(in LintInput, published []PublishedPort) LintResult {
 	env, diags := parseEnvFile(in.Env)
 	l := &linter{
-		env: env, stack: in.Stack, published: published, diags: diags,
+		pairWalker: newPairWalker(),
+		env:        env, stack: in.Stack, published: published, diags: diags,
 		preview:  Preview{Services: []ServicePreview{}, NamedVolumes: []string{}, Variables: []VariablePreview{}},
 		vars:     map[string]*varUse{},
-		ports:    map[portKey][]portUse{},
+		ports:    map[string][]portReg{},
+		entries:  maxLintedEntries,
+		usedSet:  map[string]bool{},
 		declared: map[string]bool{},
 	}
 	var doc yaml.Node
@@ -69,7 +75,7 @@ func Lint(in LintInput, published []PublishedPort) LintResult {
 		if last := strings.Count(in.Compose, "\n") + 1; line > last {
 			line = last // an error at the end of the stream may name the line after the last one
 		}
-		l.diags = append(l.diags, Diagnostic{
+		l.push(Diagnostic{
 			Line: line, Severity: sevError, Code: "yaml_syntax",
 			Message: "YAML syntax error: " + detail, Params: map[string]string{"detail": detail},
 		})
@@ -118,7 +124,27 @@ func (l *linter) add(n *yaml.Node, svc, severity, code, message string, params m
 	if n != nil {
 		d.Line, d.Column = n.Line, n.Column
 	}
-	l.diags = append(l.diags, d)
+	l.push(d)
+}
+
+// push keeps a diagnostic unless maxLintDiagnostics are there already.
+func (l *linter) push(d Diagnostic) {
+	if !l.full() {
+		l.diags = append(l.diags, d)
+	}
+}
+
+// full reports that no more diagnostics are kept; callers may skip building the next one.
+func (l *linter) full() bool { return len(l.diags) >= maxLintDiagnostics }
+
+// spend takes one port or storage entry from the budget of the call; false means the budget is gone and the
+// entry is not examined.
+func (l *linter) spend() bool {
+	if l.entries <= 0 {
+		return false
+	}
+	l.entries--
+	return true
 }
 
 func nonNull(n *yaml.Node) bool { return n != nil && !(n.Kind == yaml.ScalarNode && n.Tag == "!!null") }
@@ -139,7 +165,7 @@ func (l *linter) checkDocument(doc *yaml.Node) {
 	}
 	l.collectVariables(top)
 	l.collectDeclaredVolumes(top)
-	sk, sv := mapGet(top, "services")
+	sk, sv := l.mapGet(top, "services")
 	switch {
 	case sk == nil:
 		l.add(nil, "", sevError, "no_services", "The compose file has no services.", nil)
@@ -149,7 +175,7 @@ func (l *linter) checkDocument(doc *yaml.Node) {
 		l.add(sv, "", sevError, "not_a_mapping", "services must be a mapping of service names.",
 			map[string]string{"what": "services"})
 	default:
-		for _, p := range mapPairs(sv) {
+		for _, p := range l.mapPairs(sv) {
 			l.checkService(p.Key, p.Value)
 		}
 	}
@@ -157,9 +183,9 @@ func (l *linter) checkDocument(doc *yaml.Node) {
 }
 
 func (l *linter) collectDeclaredVolumes(top *yaml.Node) {
-	_, vols := mapGet(top, "volumes")
-	for _, p := range mapPairs(vols) {
-		_, ext := mapGet(p.Value, "external")
+	_, vols := l.mapGet(top, "volumes")
+	for _, p := range l.mapPairs(vols) {
+		_, ext := l.mapGet(p.Value, "external")
 		l.declared[p.Key.Value] = !nonNull(ext) || !(ext.Kind == yaml.MappingNode || scalarBool(ext))
 	}
 }
@@ -218,7 +244,7 @@ func (l *linter) finishPreview() {
 		if !u.missingReq {
 			d.Fix = &Fix{Kind: "env_random", Variable: name}
 		}
-		l.diags = append(l.diags, d)
+		l.push(d)
 	}
 	for _, name := range l.usedNamed {
 		if l.declared[name] {
@@ -236,11 +262,11 @@ func (l *linter) checkService(k, v *yaml.Node) {
 			map[string]string{"what": "service"})
 		return
 	}
-	_, imgNode := mapGet(v, "image")
+	_, imgNode := l.mapGet(v, "image")
 	image, _ := scalarText(imgNode)
 	image = strings.TrimSpace(image)
-	_, buildNode := mapGet(v, "build")
-	_, extends := mapGet(v, "extends")
+	_, buildNode := l.mapGet(v, "build")
+	_, extends := l.mapGet(v, "extends")
 	sp.Image, sp.Build = image, nonNull(buildNode)
 	switch {
 	case image == "" && !sp.Build && !nonNull(extends):
@@ -249,36 +275,42 @@ func (l *linter) checkService(k, v *yaml.Node) {
 	case image != "" && !sp.Build:
 		l.checkImage(name, imgNode, image)
 	}
-	if pk, pv := mapGet(v, "privileged"); pk != nil && scalarBool(pv) {
+	if pk, pv := l.mapGet(v, "privileged"); pk != nil && scalarBool(pv) {
 		l.add(pk, name, sevHint, "privileged", "A privileged container has full access to the host.", nil)
 	}
-	if nk, nv := mapGet(v, "network_mode"); nk != nil {
+	if nk, nv := l.mapGet(v, "network_mode"); nk != nil {
 		if mode, _ := scalarText(nv); mode == "host" {
 			l.add(nk, name, sevHint, "network_mode_host", "network_mode host shares the host's network stack.", nil)
 		}
 	}
-	if ck, cv := mapGet(v, "cap_add"); ck != nil {
+	if ck, cv := l.mapGet(v, "cap_add"); ck != nil {
 		if caps := scalarList(cv); len(caps) > 0 {
 			l.add(ck, name, sevHint, "cap_add", "Extra Linux capabilities: "+strings.Join(caps, ", "),
 				map[string]string{"caps": strings.Join(caps, ", ")})
 		}
 	}
-	if rk, _ := mapGet(v, "restart"); rk == nil && !nonNull(extends) {
-		_, deploy := mapGet(v, "deploy")
-		if dk, _ := mapGet(deploy, "restart_policy"); dk == nil {
+	if rk, _ := l.mapGet(v, "restart"); rk == nil && !nonNull(extends) {
+		_, deploy := l.mapGet(v, "deploy")
+		if dk, _ := l.mapGet(deploy, "restart_policy"); dk == nil {
 			l.add(k, name, sevHint, "restart_missing",
 				fmt.Sprintf("Service %s has no restart policy, so it stays down after a reboot.", name), nil)
 		}
 	}
-	_, ports := mapGet(v, "ports")
+	_, ports := l.mapGet(v, "ports")
 	for _, item := range seqItems(ports) {
+		if !l.spend() {
+			break
+		}
 		l.checkPort(name, item, &sp)
 	}
-	_, vols := mapGet(v, "volumes")
+	_, vols := l.mapGet(v, "volumes")
 	for _, item := range seqItems(vols) {
+		if !l.spend() {
+			break
+		}
 		l.checkVolume(name, item, &sp)
 	}
-	_, tmpfs := mapGet(v, "tmpfs")
+	_, tmpfs := l.mapGet(v, "tmpfs")
 	for _, target := range scalarList(tmpfs) {
 		if expanded, unresolved := interpolate(target, l.env, nil); !unresolved {
 			path, _, _ := strings.Cut(expanded, ":")
@@ -326,19 +358,27 @@ func (l *linter) checkImage(svc string, n *yaml.Node, image string) {
 	}
 }
 
-func (l *linter) findConflict(port int, proto, ip string) *PublishedPort {
+// findConflict returns the container that already publishes one of the host ports lo..hi on an overlapping
+// address: the one with the lowest such port (the first listed on a tie), and that port. nil when there is none.
+func (l *linter) findConflict(lo, hi int, proto, ip string) (*PublishedPort, int) {
+	var found *PublishedPort
 	for i := range l.published {
 		p := &l.published[i]
 		pp := strings.ToLower(p.Protocol)
 		if pp == "" {
 			pp = "tcp"
 		}
-		if (l.stack != "" && p.Project == l.stack) || p.Port != port || pp != proto || !ipsOverlap(p.HostIP, ip) {
+		if (l.stack != "" && p.Project == l.stack) || p.Port < lo || p.Port > hi || pp != proto || !ipsOverlap(p.HostIP, ip) {
 			continue
 		}
-		return p
+		if found == nil || p.Port < found.Port {
+			found = p
+		}
 	}
-	return nil
+	if found == nil {
+		return nil, 0
+	}
+	return found, found.Port
 }
 
 // portSpecOf reads one entry of a service's ports list (short or long syntax). ok is false when the entry cannot
@@ -356,7 +396,7 @@ func (l *linter) portSpecOf(item *yaml.Node) (spec portSpec, raw string, ok bool
 		return spec, raw, true, err
 	case yaml.MappingNode:
 		field := func(key string) (string, bool) {
-			text, _ := scalarText(mapValue(item, key))
+			text, _ := scalarText(l.mapValue(item, key))
 			return expand(text)
 		}
 		target, u1 := field("target")
@@ -394,36 +434,35 @@ func (l *linter) checkPort(svc string, item *yaml.Node, sp *ServicePreview) {
 }
 
 // checkHostPorts looks for the same host port twice in the file and for ports other containers already publish.
+// A binding is remembered as one interval, not one entry per port, so a range costs the same as a single port.
 func (l *linter) checkHostPorts(svc string, item *yaml.Node, spec portSpec, pv *PortPreview) {
-	dupReported := false
-	width := spec.HostHi - spec.HostLo + 1
-	if width > maxLintedPortRange {
-		width = maxLintedPortRange
-	}
-	for port := spec.HostLo; port < spec.HostLo+width; port++ {
-		key := portKey{port, spec.Protocol}
-		if !dupReported {
-			for _, prev := range l.ports[key] {
-				if !ipsOverlap(prev.ip, spec.HostIP) {
-					continue
-				}
-				dupReported = true
-				l.add(item, svc, sevError, "port_duplicate",
-					fmt.Sprintf("Host port %d/%s is published twice (first at line %d).", port, spec.Protocol, prev.line),
-					map[string]string{"port": fmt.Sprint(port), "protocol": spec.Protocol, "first_line": fmt.Sprint(prev.line)})
-				break
-			}
-		}
-		l.ports[key] = append(l.ports[key], portUse{ip: spec.HostIP, line: item.Line})
-		if pv.Conflict != "" {
+	lo, hi := spec.HostLo, spec.HostHi
+	// The lowest host port of this binding that an earlier binding uses as well (the earliest one on a tie).
+	var dup *portReg
+	dupPort := 0
+	regs := l.ports[spec.Protocol]
+	for i := range regs {
+		prev := &regs[i]
+		if prev.lo > hi || prev.hi < lo || !ipsOverlap(prev.ip, spec.HostIP) {
 			continue
 		}
-		if c := l.findConflict(port, spec.Protocol, spec.HostIP); c != nil {
-			pv.Conflict = c.Container
-			l.add(item, svc, sevWarning, "port_conflict",
-				fmt.Sprintf("Host port %d/%s is already published by container %s.", port, spec.Protocol, c.Container),
-				map[string]string{"port": fmt.Sprint(port), "protocol": spec.Protocol, "container": c.Container, "project": c.Project})
+		if port := max(lo, prev.lo); dup == nil || port < dupPort {
+			dup, dupPort = prev, port
 		}
+	}
+	if dup != nil && !l.full() {
+		l.add(item, svc, sevError, "port_duplicate",
+			fmt.Sprintf("Host port %d/%s is published twice (first at line %d).", dupPort, spec.Protocol, dup.line),
+			map[string]string{"port": fmt.Sprint(dupPort), "protocol": spec.Protocol, "first_line": fmt.Sprint(dup.line)})
+	}
+	if len(regs) < maxPortRegistrations {
+		l.ports[spec.Protocol] = append(regs, portReg{ip: spec.HostIP, lo: lo, hi: hi, line: item.Line})
+	}
+	if c, port := l.findConflict(lo, hi, spec.Protocol, spec.HostIP); c != nil {
+		pv.Conflict = c.Container
+		l.add(item, svc, sevWarning, "port_conflict",
+			fmt.Sprintf("Host port %d/%s is already published by container %s.", port, spec.Protocol, c.Container),
+			map[string]string{"port": fmt.Sprint(port), "protocol": spec.Protocol, "container": c.Container, "project": c.Project})
 	}
 }
 
@@ -439,7 +478,7 @@ func (l *linter) checkVolume(svc string, item *yaml.Node, sp *ServicePreview) {
 		spec, err = parseVolumeShort(text)
 	case yaml.MappingNode:
 		field := func(key string) (string, bool) {
-			text, _ := scalarText(mapValue(item, key))
+			text, _ := scalarText(l.mapValue(item, key))
 			return interpolate(text, l.env, nil)
 		}
 		typ, u1 := field("type")
@@ -448,7 +487,7 @@ func (l *linter) checkVolume(svc string, item *yaml.Node, sp *ServicePreview) {
 		if u1 || u2 || u3 {
 			return
 		}
-		spec, err = volumeFromLong(typ, source, target, scalarBool(mapValue(item, "read_only")))
+		spec, err = volumeFromLong(typ, source, target, scalarBool(l.mapValue(item, "read_only")))
 	default:
 		return
 	}
@@ -458,7 +497,8 @@ func (l *linter) checkVolume(svc string, item *yaml.Node, sp *ServicePreview) {
 	sp.Volumes = append(sp.Volumes, VolumePreview{Kind: spec.Kind, Source: spec.Source, Target: spec.Target, ReadOnly: spec.ReadOnly})
 	switch {
 	case spec.Kind == "named":
-		if !stringIn(l.usedNamed, spec.Source) {
+		if !l.usedSet[spec.Source] {
+			l.usedSet[spec.Source] = true
 			l.usedNamed = append(l.usedNamed, spec.Source)
 		}
 	case strings.Contains(spec.Source, "docker.sock") || strings.Contains(spec.Source, "docker_engine"):
