@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Bewerkingen",
   "docker_manager.palette_button": "Opdrachtenpalet",
   "docker_manager.search_label_stacks": "Stacks doorzoeken",
-  "docker_manager.search_placeholder_stacks": "Zoek stacks, poorten, hosts…"
+  "docker_manager.search_placeholder_stacks": "Zoek stacks, poorten, hosts…",
+  "docker_manager.discard_dialog_body": "Dit formulier bevat niet-opgeslagen invoer. Sluiten en de invoer weggooien?"
 }

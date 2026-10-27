@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Handlinger",
   "docker_manager.palette_button": "Kommandopalet",
   "docker_manager.search_label_stacks": "Søg i stacks",
-  "docker_manager.search_placeholder_stacks": "Søg efter stacks, porte, værter…"
+  "docker_manager.search_placeholder_stacks": "Søg efter stacks, porte, værter…",
+  "docker_manager.discard_dialog_body": "Formularen indeholder indtastninger, der ikke er gemt. Luk den og kassér dem?"
 }

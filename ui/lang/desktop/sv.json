@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Åtgärder",
   "docker_manager.palette_button": "Kommandopalett",
   "docker_manager.search_label_stacks": "Sök stackar",
-  "docker_manager.search_placeholder_stacks": "Sök stackar, portar, värdar…"
+  "docker_manager.search_placeholder_stacks": "Sök stackar, portar, värdar…",
+  "docker_manager.discard_dialog_body": "Formuläret har inmatning som inte sparats. Stänga det och kassera inmatningen?"
 }

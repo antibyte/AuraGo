@@ -349,7 +349,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Host colours are the eight `data-host-color` values mapped to theme tokens in the stylesheet; no literal colours, no
   uppercase labels, motion only inside `prefers-reduced-motion: no-preference` on `body:not([data-animations="false"])` (the
   Node test guards this like the Infra test). A modal `<dialog>` sits in the top layer, so toasts raised while it is open are
-  moved inside it. Code surfaces (editor, diff, preview code) use
+  moved inside it and moved back into the app when the dialog closes. Code surfaces (editor, diff, preview code) use
   `--dm-mono`; every other label keeps the UI font.
 - Stacks section: the list has three groups (own stacks, external compose projects, single containers; the latter open the
   container drawer and a helper container of the Stacks feature carries the lock and "Docker Manager helper"). A host that
@@ -394,7 +394,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Keyboard: Ctrl/Cmd+K opens the palette from inside the app and stops the event so Spotlight (a document keydown handler)
   does not open; the palette is a combobox with a listbox and refuses to open over a dialog. Escape closes the innermost of: the
   palette, a dialog, the operations drawer, the new-stack view, the container drawer, the stack pane (never from inside an
-  editor). A button that opens a desktop context menu (`stack-more`) must stop its click: the desktop closes its menu on
+  editor). A button that opens a desktop context menu (`more`, `stack-more`) must stop its click: the desktop closes its menu on
   every click it sees.
 - Strings: `desktop.app_docker_manager` and `docker_manager.*` in all 16 `lang/desktop/*.json` files, local helper `t` with the
   `docker_manager.` prefix (registered in `desktopLocalI18nHelpers`; the key families built at run time are in

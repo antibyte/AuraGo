@@ -991,6 +991,46 @@ const opFixture = (extra = {}) => ({ id: 'op_a1', host_id: 'local', stack: 'shop
     store.dispose();
 }
 
+// ---- model: null entries in the container data --------------------------------------------------------------------------
+assert.equal(model.portItems([null, undefined, { private: 80, public: 8080, type: 'tcp' }, 'x']).length, 1, 'a null port entry is skipped, not dereferenced');
+assert.equal(model.buildRows([hostA], { local: { containers: [null, container('ok')] } }, 'all').length, 1, 'a null container is skipped');
+assert.equal(model.filterRows(model.buildRows([hostA], { local: { containers: [container('web', { ports: [null, { private: 80, public: 8080 }] })] } }, 'all'), { query: '8080' }).length, 1, 'the search survives a null port entry');
+eq(plain(model.totalCounts([hostA], { local: { containers: [null, container('a')] } })), { running: 1, total: 1 });
+
+// ---- store: recovery and failed actions -----------------------------------------------------------------------------------
+{
+    // Docker switched on again: the poll asks for the host list and the app recovers without a manual refresh
+    let docker = false;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: () => { if (!docker) throw httpError(503, { code: 'docker_disabled', message: 'off' }); return { hosts: [hostA] }; },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([])
+    });
+    const store = Store.create({ api });
+    store.setVisible(true);
+    await tick(); await tick(); await tick();
+    assert.equal(store.state.disabled, true);
+    docker = true;
+    assert.equal(store.pollOnce(), true, 'a disabled app keeps polling');
+    await tick(); await tick(); await tick(); await tick();
+    eq([store.state.disabled, store.state.hosts.length, store.state.byHost.local.loaded], [false, 1, true]);
+    store.dispose();
+}
+
+{
+    // a failed container action reloads the list at once
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        ['POST ' + B + '/hosts/local/containers/abc/stop']: () => { throw httpError(500, { code: 'docker_error', message: 'boom' }); }
+    });
+    const store = Store.create({ api, section: 'containers' });
+    await store.refresh();
+    const before = api.count('GET ' + B + '/hosts/local/containers');
+    const result = await store.act('local', 'abc', 'stop');
+    await tick();
+    eq([result.ok, result.error.code, api.count('GET ' + B + '/hosts/local/containers') - before], [false, 'docker_error', 1], 'the list is reloaded after a failed action, not 5 s later');
+    store.dispose();
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------

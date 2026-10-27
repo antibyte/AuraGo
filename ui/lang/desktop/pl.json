@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Operacje",
   "docker_manager.palette_button": "Paleta poleceń",
   "docker_manager.search_label_stacks": "Szukaj stosów",
-  "docker_manager.search_placeholder_stacks": "Szukaj stosów, portów, hostów…"
+  "docker_manager.search_placeholder_stacks": "Szukaj stosów, portów, hostów…",
+  "docker_manager.discard_dialog_body": "Ten formularz zawiera niezapisane dane. Zamknąć go i odrzucić dane?"
 }

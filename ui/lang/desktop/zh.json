@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "操作",
   "docker_manager.palette_button": "命令面板",
   "docker_manager.search_label_stacks": "搜索堆栈",
-  "docker_manager.search_placeholder_stacks": "搜索堆栈、端口、主机…"
+  "docker_manager.search_placeholder_stacks": "搜索堆栈、端口、主机…",
+  "docker_manager.discard_dialog_body": "此表单中有未保存的输入。要关闭并放弃输入吗？"
 }

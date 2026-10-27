@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Opérations",
   "docker_manager.palette_button": "Palette de commandes",
   "docker_manager.search_label_stacks": "Rechercher des stacks",
-  "docker_manager.search_placeholder_stacks": "Rechercher stacks, ports, hôtes…"
+  "docker_manager.search_placeholder_stacks": "Rechercher stacks, ports, hôtes…",
+  "docker_manager.discard_dialog_body": "Ce formulaire contient des saisies non enregistrées. Le fermer et les abandonner ?"
 }

@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Operaciones",
   "docker_manager.palette_button": "Paleta de comandos",
   "docker_manager.search_label_stacks": "Buscar stacks",
-  "docker_manager.search_placeholder_stacks": "Buscar stacks, puertos, hosts…"
+  "docker_manager.search_placeholder_stacks": "Buscar stacks, puertos, hosts…",
+  "docker_manager.discard_dialog_body": "Este formulario tiene datos sin guardar. ¿Cerrarlo y descartarlos?"
 }

@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Operations",
   "docker_manager.palette_button": "Command palette",
   "docker_manager.search_label_stacks": "Search stacks",
-  "docker_manager.search_placeholder_stacks": "Search stacks, ports, hosts…"
+  "docker_manager.search_placeholder_stacks": "Search stacks, ports, hosts…",
+  "docker_manager.discard_dialog_body": "This form has input that is not saved. Close it and discard the input?"
 }

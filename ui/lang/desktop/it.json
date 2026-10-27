@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Operazioni",
   "docker_manager.palette_button": "Tavolozza dei comandi",
   "docker_manager.search_label_stacks": "Cerca stack",
-  "docker_manager.search_placeholder_stacks": "Cerca stack, porte, host…"
+  "docker_manager.search_placeholder_stacks": "Cerca stack, porte, host…",
+  "docker_manager.discard_dialog_body": "Questo modulo contiene dati non salvati. Chiuderlo e scartarli?"
 }

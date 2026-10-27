@@ -603,6 +603,15 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-action="pick-section"][data-section="containers"]').click()`)
 	page.MustWait(`()=>document.querySelectorAll('.dm-row').length===5`)
 
+	// The menu button of a row opens the row menu and the menu stays open: the desktop closes menus on every click it sees, so the
+	// click that opens one must not reach it.
+	page.MustElement(`.dm-row [data-action="more"]`).MustClick()
+	page.MustWait(`()=>document.querySelectorAll('.vd-context-menu [data-context-action]').length>=3`)
+	if err := page.Keyboard.Type(input.Escape); err != nil {
+		t.Fatal(err)
+	}
+	page.MustWait(`()=>!document.querySelector('.vd-context-menu')`)
+
 	// Rail: All hosts and three hosts; the unreachable one says so and gets a banner with the reason.
 	if got := page.MustEval(`()=>document.querySelectorAll('.dm-host-btn').length`).Int(); got != 4 {
 		t.Fatalf("rail entries = %d, want All hosts + 3 hosts", got)
@@ -686,7 +695,12 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
 		}},
 		{"close button", func() { page.MustEval(`()=>document.querySelector('dialog[open] [data-dialog-dismiss]').click()`) }},
-		{"backdrop", func() { page.MustEval(`()=>document.querySelector('dialog[open]').click()`) }},
+		{"backdrop", func() {
+			// A click beside the dialog with typed input asks before it throws the input away.
+			page.MustEval(`()=>document.querySelector('dialog[open]').click()`)
+			page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="yes"]')`)
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="yes"]').click()`)
+		}},
 	}
 	for _, closer := range closers {
 		page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
@@ -700,6 +714,16 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 			t.Fatalf("closing the host form with %s left its content or the typed secrets in the page", closer.name)
 		}
 	}
+
+	// A toast raised while a dialog is open goes inside it; once the dialog closes it is back in the app.
+	page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="test"][data-host-id="local"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="test"][data-host-id="local"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-toast')`)
+	if err := page.Keyboard.Type(input.Escape); err != nil {
+		t.Fatal(err)
+	}
+	page.MustWait(`()=>!document.querySelector('dialog[open]') && document.querySelector('[data-toasts]').parentNode===document.querySelector('[data-dm-app]')`)
 
 	// Editing the stored SSH host: its credentials stay tucked away until the address changes, then the secret is asked for
 	// again and the form says why (the text is localised, so only its presence is checked); putting the address back keeps

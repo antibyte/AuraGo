@@ -215,7 +215,9 @@
                 || !!(root && typeof root.checkVisibility === 'function' && !root.checkVisibility());
         }
         function pollOnce() {
-            if (state.disposed || !state.visible || state.disabled || hiddenNow()) return false;
+            if (state.disposed || !state.visible || hiddenNow()) return false;
+            // Docker switched off: ask for the host list only, so the app recovers by itself once Docker is enabled again.
+            if (state.disabled) { void refresh(); return true; }
             // GET /hosts answers from cached statuses and refreshes stale ones in the background, so it is polled like the lists.
             const jobs = scopeIds().map(loadContainers);
             jobs.push(loadHosts());
@@ -291,6 +293,9 @@
                 await reloadContainers(hostId);
                 return { ok: true };
             } catch (error) {
+                // The action may have worked in part, or the engine's state may have moved on: show the list as it is now,
+                // not 5 s later.
+                if (!state.disposed) void reloadContainers(hostId);
                 return { ok: false, error: noteError(error) || { code: 'aborted' } };
             } finally {
                 state.busy.delete(key);

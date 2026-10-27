@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Operações",
   "docker_manager.palette_button": "Paleta de comandos",
   "docker_manager.search_label_stacks": "Pesquisar stacks",
-  "docker_manager.search_placeholder_stacks": "Pesquisar stacks, portas, hosts…"
+  "docker_manager.search_placeholder_stacks": "Pesquisar stacks, portas, hosts…",
+  "docker_manager.discard_dialog_body": "Este formulário tem dados não salvos. Fechar e descartá-los?"
 }

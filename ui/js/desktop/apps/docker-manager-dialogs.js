@@ -2,8 +2,8 @@
    manager list, the add/edit form with "Test connection", the import-from-nest list and the confirmations (remove a
    container, act on a protected one, delete a host) and, for stacks, the destructive confirmations (delete a stack, down
    with volumes: they list what disappears), the revision-conflict dialog with a line diff, and the prepare-host question.
-   Escape or Back pops one view; the close button and a click on the backdrop close all. A classic script
-   (window.DockerManagerDialogs) with no DOM work at load. Secrets typed into the
+   Escape or Back pops one view; the close button closes all; a click on the backdrop closes all too, but asks first when a
+   view holds unsaved input. A classic script (window.DockerManagerDialogs) with no DOM work at load. Secrets typed into the
    form live only in the form fields: they are sent with Save or Test and never rendered back. */
 (function () {
     'use strict';
@@ -17,7 +17,7 @@
         const dialog = root.querySelector('[data-dialog]'), content = root.querySelector('[data-dialog-content]');
         const stack = [];
         const testing = new Set();
-        let opener = null, disposed = false;
+        let opener = null, disposed = false, asking = false;
         const fieldId = name => uid + '-f-' + name;
 
         // ---- the view stack --------------------------------------------------------------------------------------
@@ -75,8 +75,20 @@
             opener = null;
             app.restoreFocus(target);
         });
+        // A click beside the dialog is easy to make by accident: when a view holds unsaved input (view.dirty()), ask first.
+        async function dismissBackdrop() {
+            if (asking) return;
+            if (stack.some(view => view.dirty && view.dirty())) {
+                asking = true;
+                const discard = await confirm({ title: t('discard_title'), message: t('discard_dialog_body'), confirmLabel: t('discard_confirm'), danger: true });
+                asking = false;
+                if (!discard || disposed) return;
+            }
+            closeAll();
+        }
         dialog.addEventListener('click', event => {
-            if (event.target === dialog || event.target.closest('[data-dialog-dismiss]')) closeAll();
+            if (event.target.closest('[data-dialog-dismiss]')) closeAll();
+            else if (event.target === dialog) void dismissBackdrop();
         });
 
         const actions = (left, right) => '<div class="dm-dialog-actions">' + (left || '') + '<span class="dm-spacer"></span>' + (right || '') + '</div>';
@@ -371,7 +383,13 @@
             error.textContent = message;
             error.hidden = !message;
             const el = inputName ? c.querySelector('[name="' + inputName + '"]') : null;
-            if (el) { el.setAttribute('aria-invalid', 'true'); el.focus({ preventScroll: false }); }
+            if (el) {
+                // A field inside a closed <details> cannot take the focus: open its section first.
+                const closed = el.closest('details:not([open])');
+                if (closed) closed.open = true;
+                el.setAttribute('aria-invalid', 'true');
+                el.focus({ preventScroll: false });
+            }
         }
 
         // Shows what the chosen connection needs. ui.replacing is true once the admin pressed Replace on stored credentials.
@@ -465,12 +483,17 @@
         function openHostForm(host) {
             if (!store.canEditHosts()) { toast(t('readonly_chip'), 'error'); return null; }
             const base = host ? model.hostToForm(host) : model.emptyHostForm(store.state.hosts);
+            let form = null, initial = '';
+            const signature = () => JSON.stringify([...new FormData(form).entries()]);
             return push({
                 title: host ? t('host_edit_title') : t('host_add'),
                 html: () => formHtml(base),
+                dirty: () => !!form && form.isConnected && signature() !== initial,
                 bind(c) {
                     const f = c.querySelector('[data-host-form]'), ui = { replacing: false };
+                    form = f;
                     syncKind(c, base, ui);
+                    initial = signature();
                     f.addEventListener('input', () => syncKind(c, base, ui));
                     f.addEventListener('change', () => syncKind(c, base, ui));
                     f.addEventListener('submit', event => { event.preventDefault(); void saveForm(c, base, ui); });

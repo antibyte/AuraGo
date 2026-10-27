@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "操作",
   "docker_manager.palette_button": "コマンドパレット",
   "docker_manager.search_label_stacks": "スタックを検索",
-  "docker_manager.search_placeholder_stacks": "スタック、ポート、ホストを検索…"
+  "docker_manager.search_placeholder_stacks": "スタック、ポート、ホストを検索…",
+  "docker_manager.discard_dialog_body": "このフォームには保存されていない入力があります。閉じて入力を破棄しますか？"
 }

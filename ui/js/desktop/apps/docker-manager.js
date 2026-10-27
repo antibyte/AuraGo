@@ -111,6 +111,8 @@
             while (toastsEl.children.length > 3) removeToast(toastsEl.firstElementChild);
             toastTimers.set(el, setTimeout(() => removeToast(el), tone === 'error' ? 8000 : 4000));
         }
+        // ...and back into the app when the dialog closes, so the toasts raised meanwhile do not stay hidden in a closed dialog.
+        dialogEl.addEventListener('close', () => { if (toastsEl.parentNode !== root) root.append(toastsEl); }, { signal });
         const currentPrefs = () => ({ scope: state.scope, filter: ui.filter, collapsed: [...ui.collapsed].slice(0, 200), section: ui.section });
         function savePrefsSoon() {
             clearTimeout(prefsTimer);
@@ -640,7 +642,8 @@
                 case 'act': void performAction(key, el.dataset.act); break;
                 case 'remove': void removeRow(key); break;
                 case 'logs': openDetail(key, 'logs', true); break;
-                case 'more': { const rect = el.getBoundingClientRect(); showRowMenu(key, rect.left, rect.bottom + 4); break; }
+                // The desktop closes its context menu on every click it sees, so the click that opens one must not reach it.
+                case 'more': { event.stopPropagation(); const rect = el.getBoundingClientRect(); showRowMenu(key, rect.left, rect.bottom + 4); break; }
                 case 'close-detail': closeDetail(); break;
                 case 'tab': store.setDetailTab(el.dataset.tab); break;
                 case 'logs-reload': void store.loadLogs(); break;
@@ -658,7 +661,6 @@
                 case 'project-action': void projectAction(el.dataset.hostId, el.dataset.project, el.dataset.act); break;
                 case 'prepare-host': void ops.prepare(el.dataset.hostId); break;
                 case 'stack-op': void stackOp(el.dataset.stackKey, el.dataset.op); break;
-                // The desktop closes its context menu on every click it sees, so the click that opens one must not reach it.
                 case 'stack-more': { event.stopPropagation(); const rect = el.getBoundingClientRect(); showStackMenu(el.dataset.stackKey, rect.left, rect.bottom + 4); break; }
                 case 'close-stack': void closeStackPane(); break;
                 case 'stack-tab': store.setStackTab(el.dataset.tab); break;

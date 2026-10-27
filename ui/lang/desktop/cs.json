@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Operace",
   "docker_manager.palette_button": "Paleta příkazů",
   "docker_manager.search_label_stacks": "Hledat stacky",
-  "docker_manager.search_placeholder_stacks": "Hledat stacky, porty, hostitele…"
+  "docker_manager.search_placeholder_stacks": "Hledat stacky, porty, hostitele…",
+  "docker_manager.discard_dialog_body": "Formulář obsahuje neuložený vstup. Zavřít jej a zahodit vstup?"
 }

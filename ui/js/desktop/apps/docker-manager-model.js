@@ -122,6 +122,7 @@
     function portItems(ports) {
         const seen = new Set(), items = [];
         for (const port of array(ports)) {
+            if (!port || typeof port !== 'object') continue;
             const type = text(port.type || 'tcp'), published = Number(port.public) || 0, internal = Number(port.private) || 0;
             const label = (published ? published + '→' : '') + internal + '/' + type;
             if (seen.has(label)) continue;
@@ -160,6 +161,7 @@
             if (scope && scope !== 'all' && host.id !== scope) continue;
             const entry = (byHost || {})[host.id];
             for (const c of array(entry && entry.containers)) {
+                if (!c || typeof c !== 'object') continue;
                 rows.push({ key: host.id + '/' + containerId(c), hostId: host.id, hostName: text(host.name), hostColor: colorOf(host.color), c });
             }
         }
@@ -168,7 +170,7 @@
 
     function haystack(row) {
         const c = row.c;
-        const ports = array(c.ports).map(port => [port.public, port.private].filter(Boolean).join(' ')).join(' ');
+        const ports = array(c.ports).filter(port => port && typeof port === 'object').map(port => [port.public, port.private].filter(Boolean).join(' ')).join(' ');
         return lower([containerName(c), array(c.names).join(' '), c.image, c.id, c.full_id, c.compose_project, c.compose_service, c.state, row.hostName, ports].join(' '));
     }
 
@@ -291,7 +293,7 @@
     }
 
     function hostCounts(hostId, byHost) {
-        const list = array(byHost && byHost[hostId] && byHost[hostId].containers);
+        const list = array(byHost && byHost[hostId] && byHost[hostId].containers).filter(c => c && typeof c === 'object');
         return { running: list.filter(c => lower(c.state) === 'running').length, total: list.length };
     }
 

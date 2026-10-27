@@ -10439,5 +10439,6 @@
   "docker_manager.ops_label": "Handlinger",
   "docker_manager.palette_button": "Kommandopalett",
   "docker_manager.search_label_stacks": "Søk i stacks",
-  "docker_manager.search_placeholder_stacks": "Søk etter stacks, porter, verter…"
+  "docker_manager.search_placeholder_stacks": "Søk etter stacks, porter, verter…",
+  "docker_manager.discard_dialog_body": "Skjemaet har inndata som ikke er lagret. Lukke det og forkaste inndataene?"
 }
