@@ -395,13 +395,34 @@ func (c *converter) environment() {
 		case key == "":
 		case hasVal:
 			env.set(key, strNode(val))
+		case isVariableName(key):
+			// `-e KEY` copies KEY from the shell docker run was started in. The runner that deploys the stack has no
+			// such shell, so a bare KEY would be passed through as nothing: read it from the stack's .env instead.
+			env.set(key, strNode("${"+key+"}"))
+			c.warn(warnValueInvalid, "--env", fmt.Sprintf(
+				"-e %s has no value: docker run took it from the shell. It is written as ${%s} here, so set %s in .env.", key, key, key))
 		default:
-			env.set(key, nullNode()) // passed through from the environment Compose runs in
+			env.set(key, nullNode())
+			c.warn(warnValueInvalid, "--env", fmt.Sprintf(
+				"-e %s has no value: docker run took it from the shell, which Compose does not have, so it stays unset. Give it a value.", key))
 		}
 	}
 	if !env.empty() {
 		c.svc.add("environment", env.n)
 	}
+}
+
+// isVariableName reports whether s can be written as ${s} in a compose file.
+func isVariableName(s string) bool {
+	if s == "" || !isNameStart(s[0]) {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if !isNameChar(s[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *converter) labels() {

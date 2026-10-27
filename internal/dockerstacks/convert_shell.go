@@ -2,6 +2,7 @@ package dockerstacks
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -70,6 +71,13 @@ func splitCommand(s string) ([]string, error) {
 			}
 			inWord = true
 			i = next
+		case c == '$' && i+1 < len(s) && s[i+1] == '\'':
+			end, err := ansiQuoted(s, i+2, literal)
+			if err != nil {
+				return nil, err
+			}
+			inWord = true
+			i = end
 		case c == '$' && i+1 < len(s) && s[i+1] == '(':
 			end := closingParen(s, i+1)
 			cur.WriteString(s[i:end])
@@ -107,6 +115,36 @@ func escapable(next, esc byte) bool {
 		return next == '`' || next == '"' || next == '\'' || next == '$'
 	}
 	return strings.IndexByte(" \t\"'\\$`#()&;|<>*?[]{}!~", next) >= 0
+}
+
+// ansiQuoted reads the content of a bash $'...' section that starts at s[from], hands every character to literal and
+// returns the index of the closing quote. Only the escapes \n \t \r \\ \' and \" are decoded; any other escape is an
+// error, because guessing at \x41 or \e would change the value silently.
+func ansiQuoted(s string, from int, literal func(byte)) (int, error) {
+	for i := from; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '\'':
+			return i, nil
+		case c == '\\' && i+1 < len(s):
+			i++
+			switch s[i] {
+			case 'n':
+				literal('\n')
+			case 't':
+				literal('\t')
+			case 'r':
+				literal('\r')
+			case '\\', '\'', '"':
+				literal(s[i])
+			default:
+				return 0, fmt.Errorf("unsupported escape sequence \\%c in $'...' quoting", s[i])
+			}
+		default:
+			literal(c)
+		}
+	}
+	return 0, errors.New("unbalanced single quote")
 }
 
 // doubleQuoted appends the content of a double-quoted section that starts at s[from] to cur and returns the index of

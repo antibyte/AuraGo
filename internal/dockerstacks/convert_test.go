@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestConvertDockerRunCompose(t *testing.T) {
@@ -46,9 +48,10 @@ volumes:
     environment:
       TZ: UTC
       PASS: pa$$word
-      KEY:
+      KEY: ${KEY}
       FLAG: "true"
 `,
+			warnings: []string{"flag_value_invalid --env"},
 		},
 		{
 			name:    "values attached to short flags",
@@ -365,6 +368,68 @@ func TestConvertDockerRunErrors(t *testing.T) {
 				t.Fatalf("ConvertDockerRun(%q) = %+v, %v; want an *Error with code %s", command, res, err, CodeConvertFailed)
 			}
 		})
+	}
+}
+
+func TestConvertTellsWhereAValueWithoutAnAssignmentComesFrom(t *testing.T) {
+	res, err := ConvertDockerRun("docker run -e TZ -e 'bad.name' nginx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Compose, "TZ: ${TZ}\n") {
+		t.Fatalf("compose =\n%s\nwant TZ read from the .env of the stack", res.Compose)
+	}
+	var tz, bad bool
+	for _, w := range res.Warnings {
+		if w.Code != warnValueInvalid || w.Flag != "--env" {
+			t.Fatalf("warning %+v, want flag_value_invalid for --env", w)
+		}
+		if strings.Contains(w.Message, "TZ") {
+			tz = true
+			if !strings.Contains(w.Message, "set TZ in .env") {
+				t.Fatalf("warning %+v, want it to point at the .env", w)
+			}
+		}
+		bad = bad || strings.Contains(w.Message, "bad.name")
+	}
+	if !tz || !bad {
+		t.Fatalf("warnings = %+v, want one for TZ and one for bad.name", res.Warnings)
+	}
+	// The linter then offers the .env fix for the variable.
+	found := false
+	for _, d := range Lint(LintInput{Compose: res.Compose}, nil).Diagnostics {
+		found = found || (d.Code == "variable_missing" && d.Params["variable"] == "TZ")
+	}
+	if !found {
+		t.Fatal("lint must report TZ as missing from .env")
+	}
+}
+
+func TestConvertReadsBashAnsiCQuoting(t *testing.T) {
+	res, err := ConvertDockerRun(`docker run -e $'A=line1\nline2\t$X' -e $'B=it\'s' nginx`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Services map[string]struct {
+			Environment map[string]string `yaml:"environment"`
+		} `yaml:"services"`
+	}
+	if err := yaml.Unmarshal([]byte(res.Compose), &doc); err != nil {
+		t.Fatalf("compose is not YAML: %v\n%s", err, res.Compose)
+	}
+	env := doc.Services["nginx"].Environment
+	if len(env) != 2 || env["A"] != "line1\nline2\t$$X" || env["B"] != "it's" {
+		t.Fatalf("environment = %q, want A and B with the escapes decoded and no key like $A", env)
+	}
+
+	// An escape that is not decoded is refused, never guessed.
+	for _, command := range []string{`docker run -e $'A=\x41' nginx`, `docker run -e $'A=b nginx`} {
+		_, err := ConvertDockerRun(command)
+		var coded *Error
+		if !errors.As(err, &coded) || coded.Code != CodeConvertFailed {
+			t.Fatalf("ConvertDockerRun(%q) = %v, want %s", command, err, CodeConvertFailed)
+		}
 	}
 }
 
