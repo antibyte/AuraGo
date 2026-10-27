@@ -214,6 +214,14 @@ func dockerManagerSegments(path string) []string {
 // come before the host-id patterns; generated host ids never equal them.
 func (dm *dmRequest) route(segs []string) {
 	switch {
+	case len(segs) == 1 && segs[0] == "hosts":
+		dm.hostCollection()
+	case len(segs) == 2 && segs[0] == "hosts" && segs[1] == "test":
+		dm.hostDraftTest()
+	case len(segs) == 2 && segs[0] == "hosts":
+		dm.hostItem(segs[1])
+	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "test":
+		dm.hostTest(segs[1])
 	default:
 		dm.notFound()
 	}
