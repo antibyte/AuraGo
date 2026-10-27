@@ -785,6 +785,13 @@ func sourceBoundaryRisk(content string) bool {
 // as a system or user message boundary.
 var roleMarkers = regexp.MustCompile(`(?im)^(system|user|assistant|human|ai)\s*:`)
 
+// neutralizeRoleMarkers rewrites "system:" style markers at line starts.
+func neutralizeRoleMarkers(text string) string {
+	return roleMarkers.ReplaceAllStringFunc(text, func(match string) string {
+		return "[" + strings.TrimSuffix(match, ":") + "]:"
+	})
+}
+
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
 // Execution output is also external: a local command can read attacker-controlled data.
@@ -798,8 +805,17 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	// External bodies at ThreatHigh or above are withheld entirely.
 	trust := classifyToolOutput(toolName)
 	var scan ScanResult
+	var leaves []jsonLeaf
 	if trust == toolOutputSourceData || trust == toolOutputExternal {
 		scan = g.ScanForInjection(output)
+		// A JSON envelope escapes line breaks and quotes, which splits a phrase
+		// the regexes need whole. Scan the decoded string values joined by
+		// newlines as well and keep the higher verdict.
+		if leaves = jsonStringLeaves(output); len(leaves) > 0 {
+			if joined := joinJSONLeaves(leaves); joined != "" {
+				scan = mergeScanResults(scan, g.ScanForInjection(joined))
+			}
+		}
 	}
 	if trust == toolOutputExternal && scan.Level >= ThreatHigh {
 		if g.logger != nil {
@@ -808,10 +824,12 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		}
 		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineSuspicious))
 	}
-	// Strip role impersonation markers (e.g. "system:" at line start).
-	output = roleMarkers.ReplaceAllStringFunc(output, func(match string) string {
-		return "[" + strings.TrimSuffix(match, ":") + "]:"
-	})
+	// Strip role impersonation markers (e.g. "system:" at line start), in the
+	// decoded JSON string values too: their line starts are escaped newlines.
+	if len(leaves) > 0 {
+		output = neutralizeLeafRoleMarkers(output, leaves)
+	}
+	output = neutralizeRoleMarkers(output)
 
 	switch trust {
 	case toolOutputExternal:
