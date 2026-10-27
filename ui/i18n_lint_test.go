@@ -1082,6 +1082,11 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/ruview-model.js":            {name: "t", prefix: "ruview."},
 	"js/desktop/apps/ruview-store.js":            {name: "t", prefix: "ruview."},
 	"js/desktop/apps/ruview-views.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/docker-manager.js":          {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-model.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-store.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-views.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-dialogs.js":  {name: "t", prefix: "docker_manager."},
 	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }
 
@@ -1101,6 +1106,19 @@ var desktopDynamicI18nPrefixes = []string{
 	"homepage_studio.history_filter_",
 	"homepage_studio.annotate_error_",
 	"homepage_studio.target_",
+	"docker_manager.status_",
+	"docker_manager.action_",
+	"docker_manager.reason_",
+	"docker_manager.error_",
+	"docker_manager.filter_",
+	"docker_manager.kind_",
+	"docker_manager.color_",
+	"docker_manager.col_",
+	"docker_manager.host_",
+	"docker_manager.protected_",
+	"docker_manager.tab_",
+	"docker_manager.nest_method_",
+	"docker_manager.v_",
 }
 
 // desktopDynamicI18nPrefixKeys returns every merged English key that belongs to
