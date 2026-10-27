@@ -514,7 +514,27 @@
         };
         Object.assign(state.modal, window.NetworkCamerasMedia.defaults(stream));
         drawModal(state);
-        if (!state.sourceTypes) ensureSourceTypes(state).then(() => { if (state.modal && state.modal.type === 'manage' && state.modal.streamID === streamID && !state.modal.sourceForm.type) drawModal(state); }).catch(() => {});
+        if (!state.sourceTypes) ensureSourceTypes(state).then(() => refreshSourceChoices(state, streamID)).catch(() => {});
+    }
+
+    function manageSourceFormMarkup(state, modal) {
+        return window.AuraGoSourceForm.markup(state.sourceTypes || [], modal.sourceForm, { t: state.ctx.t, emptyLabel: state.ctx.t('common.go2rtc_source.keep_current') });
+    }
+
+    function bindSourceForm(state, root) {
+        if (root && state.modal.sourceForm) window.AuraGoSourceForm.bind(root, state.modal.sourceForm, redraw => { if (redraw) drawModal(state); });
+    }
+
+    // Re-render only the source fieldset once the catalog arrives, so the name input keeps focus and typed text.
+    function refreshSourceChoices(state, streamID) {
+        const modal = state.modal;
+        if (!modal || modal.type !== 'manage' || modal.streamID !== streamID || modal.sourceForm.type) return;
+        const host = state.host.querySelector('[data-role="modal"]');
+        const fieldset = host && host.querySelector('.nc-source-fieldset');
+        if (!fieldset) return;
+        const legend = fieldset.querySelector('legend');
+        fieldset.innerHTML = (legend ? legend.outerHTML : '') + manageSourceFormMarkup(state, modal);
+        bindSourceForm(state, fieldset.querySelector('[data-source-form]'));
     }
 
     function detectionTabAvailable(state) {
@@ -535,7 +555,7 @@
 
     function manageMarkup(state, modal, detectionStream) {
         const ctx = state.ctx;
-        const sourceField = modal.tuya_account_id ? '' : '<fieldset class="nc-source-fieldset"><legend>' + ctx.esc(text(ctx, 'replace_source')) + '</legend>' + window.AuraGoSourceForm.markup(state.sourceTypes || [], modal.sourceForm, { t: ctx.t, emptyLabel: ctx.t('common.go2rtc_source.keep_current') }) + '</fieldset>';
+        const sourceField = modal.tuya_account_id ? '' : '<fieldset class="nc-source-fieldset"><legend>' + ctx.esc(text(ctx, 'replace_source')) + '</legend>' + manageSourceFormMarkup(state, modal) + '</fieldset>';
         const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label>' + sourceField + window.NetworkCamerasMedia.fields(state, modal) + '</div>';
         if (!detectionStream) return general;
         const tab = (id, label) => '<button type="button" role="tab" data-modal-tab="' + id + '" aria-selected="' + (modal.tab === id) + '" tabindex="' + (modal.tab === id ? '0' : '-1') + '" class="' + (modal.tab === id ? 'is-active' : '') + '">' + ctx.esc(label) + '</button>';
@@ -644,7 +664,7 @@
             });
         });
         const sourceRoot = host.querySelector('[data-source-form]');
-        if (sourceRoot && state.modal.sourceForm) window.AuraGoSourceForm.bind(sourceRoot, state.modal.sourceForm, redraw => { if (redraw) drawModal(state); });
+        bindSourceForm(state, sourceRoot);
     }
 
     async function ensureSourceTypes(state) {
