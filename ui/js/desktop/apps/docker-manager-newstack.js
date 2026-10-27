@@ -143,6 +143,9 @@
                 button.disabled = s.busy || !deps.canMutate();
                 if (s.busy) button.setAttribute('aria-busy', 'true'); else button.removeAttribute('aria-busy');
             }
+            // The host of a request in flight cannot be changed under it.
+            const picker = q('[name="host"]');
+            if (picker) picker.disabled = s.busy;
         }
 
         function setTab(tab) {
@@ -235,9 +238,11 @@
             if (!composeText().trim()) { showError(t('ns_compose_empty')); setTab('paste'); compose.focus(); return; }
             s.busy = true;
             paintBusy();
-            const name = nameValue();
+            // The host and the name are read once: whatever the picker says while the request is out, this stack is created
+            // on (and opened on) the host it was sent to.
+            const name = nameValue(), hostId = s.hostId;
             try {
-                const body = await store.createStack(s.hostId, { name, compose: composeText(), env: envText(), deploy });
+                const body = await store.createStack(hostId, { name, compose: composeText(), env: envText(), deploy });
                 if (!s.open) return;
                 s.busy = false;
                 if (deploy && body && body.deploy_error) {
@@ -250,17 +255,17 @@
                     toast(t(deploy ? 'ns_deployed' : 'ns_saved', { name }), 'success');
                 }
                 close(true);
-                if (deps.onCreated) deps.onCreated(s.hostId, name, body);
+                if (deps.onCreated) deps.onCreated(hostId, name, body);
             } catch (error) {
                 s.busy = false;
                 if (!s.open) return;
                 paintBusy();
                 const info = error.dm || {};
                 if (info.code === 'host_not_prepared' || info.code === 'runner_image_missing') {
-                    const entry = store.state.stacks[s.hostId], helpers = entry && entry.error && entry.error.data && entry.error.data.helpers;
+                    const entry = store.state.stacks[hostId], helpers = entry && entry.error && entry.error.data && entry.error.data.helpers;
                     const data = info.data || {};
                     showError(views.errorText(info));
-                    if (info.code === 'host_not_prepared' && await dialogs.confirmPrepare({ hostName: hostName(s.hostId), image: (data.helpers || helpers || {}).runner_image || 'docker:29.9.2-cli' })) void deps.onPrepare(s.hostId);
+                    if (info.code === 'host_not_prepared' && await dialogs.confirmPrepare({ hostName: hostName(hostId), image: (data.helpers || helpers || {}).runner_image || 'docker:29.9.2-cli' })) void deps.onPrepare(hostId);
                 } else if (info.code === 'stack_name_invalid' || info.code === 'stack_exists') { nameProblem(); showError(views.errorText(info), 'name'); }
                 else showError(views.errorText(info));
             }

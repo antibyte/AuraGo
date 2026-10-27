@@ -34,6 +34,7 @@ type dockerManagerFixture struct {
 	held         string
 	release      chan struct{}
 	holdVolumes  chan struct{} // while set, GET .../volumes answers only after it is closed
+	holdCreate   chan struct{} // while set, POST /hosts/local/stacks answers only after it is closed
 }
 
 type dockerManagerOperation struct{ host, stack, kind string }
@@ -322,6 +323,17 @@ func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request)
 			Deploy  bool   `json:"deploy"`
 		}
 		_ = json.Unmarshal(rawBody, &in)
+		f.mu.Lock()
+		gate := f.holdCreate
+		f.mu.Unlock()
+		if gate != nil {
+			select {
+			case <-gate:
+			case <-r.Context().Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
+		}
 		f.mu.Lock()
 		f.created[in.Name] = in.Compose
 		f.mu.Unlock()
@@ -661,6 +673,27 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	if body := fixture.body("POST /hosts/local/stacks"); !strings.Contains(body, `"name":"notes"`) || strings.Contains(body, "deploy") || !strings.Contains(body, "nginx:1.27") {
 		t.Fatalf("create request = %s, want the draft of notes without deploy", body)
 	}
+
+	// The host picker is locked while the create request is out, and a change that slips in anyway (a script, a late event) does not
+	// move the stack: it is created on and opened on the host the request went to.
+	createGate := make(chan struct{})
+	fixture.mu.Lock()
+	fixture.holdCreate = createGate
+	fixture.mu.Unlock()
+	page.MustEval(`()=>document.querySelector('[data-new-stack]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-newstack]').hidden && !!document.querySelector('[data-ns-compose] .cm-editor') && !!document.querySelector('[data-newstack] select[name="host"]')`)
+	page.MustEval(`()=>{const i=document.querySelector('[data-newstack] input[name="name"]');i.value='late';i.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustElement(`[data-ns-compose] .cm-content`).MustClick()
+	page.MustInsertText("services:\n  web:\n    image: nginx:1.27\n")
+	page.MustWait(`()=>[...document.querySelectorAll('[data-ns-preview] .dm-pv-list strong')].some(e=>e.textContent==='web')`)
+	page.MustEval(`()=>document.querySelector('[data-ns="save"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-newstack] select[name="host"]')?.disabled===true`)
+	page.MustEval(`()=>{const s=document.querySelector('[data-newstack] select[name="host"]');s.value='h_nas';s.dispatchEvent(new Event('change',{bubbles:true}))}`)
+	close(createGate)
+	page.MustWait(`()=>document.querySelector('[data-newstack]').hidden && document.querySelector('[data-stack-pane] h2')?.textContent==='late' && !!document.querySelector('[data-stack-pane] [data-action="stack-tab"][data-tab="compose"]')`)
+	fixture.mu.Lock()
+	fixture.holdCreate = nil
+	fixture.mu.Unlock()
 
 	// A deploy that could not start answers 201 with deploy_error and no operation: the stack opens as a draft and the toast names
 	// the reason in the language of the page, not the server's English message.
