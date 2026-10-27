@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Open:",
   "docker_manager.ops_progress": "Download progress",
   "docker_manager.ops_show_line": "Show line {{line}}",
-  "docker_manager.ops_show_output": "Show output"
+  "docker_manager.ops_show_output": "Show output",
+  "docker_manager.palette_count": "{{count}} commands",
+  "docker_manager.palette_deploy": "Deploy {{stack}}",
+  "docker_manager.palette_empty": "No matching command",
+  "docker_manager.palette_new_stack": "New stack on {{host}}",
+  "docker_manager.palette_open": "Open {{stack}}",
+  "docker_manager.palette_placeholder": "Type a command, a stack or a host…",
+  "docker_manager.palette_prepare": "Prepare {{host}}",
+  "docker_manager.palette_refresh": "Refresh",
+  "docker_manager.palette_restart": "Restart {{stack}}",
+  "docker_manager.palette_stop": "Stop {{stack}}",
+  "docker_manager.palette_switch_all": "Switch to all hosts",
+  "docker_manager.palette_switch_host": "Switch to {{host}}",
+  "docker_manager.palette_title": "Command palette",
+  "docker_manager.palette_update": "Update {{stack}}"
 }

@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Åbn:",
   "docker_manager.ops_progress": "Downloadforløb",
   "docker_manager.ops_show_line": "Vis linje {{line}}",
-  "docker_manager.ops_show_output": "Vis output"
+  "docker_manager.ops_show_output": "Vis output",
+  "docker_manager.palette_count": "{{count}} kommandoer",
+  "docker_manager.palette_deploy": "Udrul {{stack}}",
+  "docker_manager.palette_empty": "Ingen matchende kommando",
+  "docker_manager.palette_new_stack": "Ny stack på {{host}}",
+  "docker_manager.palette_open": "Åbn {{stack}}",
+  "docker_manager.palette_placeholder": "Skriv en kommando, en stack eller en vært…",
+  "docker_manager.palette_prepare": "Forbered {{host}}",
+  "docker_manager.palette_refresh": "Opdatér",
+  "docker_manager.palette_restart": "Genstart {{stack}}",
+  "docker_manager.palette_stop": "Stop {{stack}}",
+  "docker_manager.palette_switch_all": "Skift til alle værter",
+  "docker_manager.palette_switch_host": "Skift til {{host}}",
+  "docker_manager.palette_title": "Kommandopalet",
+  "docker_manager.palette_update": "Opdatér {{stack}}"
 }

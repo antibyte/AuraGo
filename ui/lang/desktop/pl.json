@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Otwórz:",
   "docker_manager.ops_progress": "Postęp pobierania",
   "docker_manager.ops_show_line": "Pokaż wiersz {{line}}",
-  "docker_manager.ops_show_output": "Pokaż wynik"
+  "docker_manager.ops_show_output": "Pokaż wynik",
+  "docker_manager.palette_count": "Poleceń: {{count}}",
+  "docker_manager.palette_deploy": "Wdróż {{stack}}",
+  "docker_manager.palette_empty": "Brak pasującego polecenia",
+  "docker_manager.palette_new_stack": "Nowy stos na hoście {{host}}",
+  "docker_manager.palette_open": "Otwórz {{stack}}",
+  "docker_manager.palette_placeholder": "Wpisz polecenie, stos lub host…",
+  "docker_manager.palette_prepare": "Przygotuj {{host}}",
+  "docker_manager.palette_refresh": "Odśwież",
+  "docker_manager.palette_restart": "Uruchom ponownie {{stack}}",
+  "docker_manager.palette_stop": "Zatrzymaj {{stack}}",
+  "docker_manager.palette_switch_all": "Przełącz na wszystkie hosty",
+  "docker_manager.palette_switch_host": "Przełącz na {{host}}",
+  "docker_manager.palette_title": "Paleta poleceń",
+  "docker_manager.palette_update": "Zaktualizuj {{stack}}"
 }

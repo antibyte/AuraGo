@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Öffnen:",
   "docker_manager.ops_progress": "Download-Fortschritt",
   "docker_manager.ops_show_line": "Zeile {{line}} anzeigen",
-  "docker_manager.ops_show_output": "Ausgabe anzeigen"
+  "docker_manager.ops_show_output": "Ausgabe anzeigen",
+  "docker_manager.palette_count": "{{count}} Befehle",
+  "docker_manager.palette_deploy": "{{stack}} bereitstellen",
+  "docker_manager.palette_empty": "Kein passender Befehl",
+  "docker_manager.palette_new_stack": "Neuer Stack auf {{host}}",
+  "docker_manager.palette_open": "{{stack}} öffnen",
+  "docker_manager.palette_placeholder": "Befehl, Stack oder Host eingeben…",
+  "docker_manager.palette_prepare": "{{host}} vorbereiten",
+  "docker_manager.palette_refresh": "Aktualisieren",
+  "docker_manager.palette_restart": "{{stack}} neu starten",
+  "docker_manager.palette_stop": "{{stack}} stoppen",
+  "docker_manager.palette_switch_all": "Zu allen Hosts wechseln",
+  "docker_manager.palette_switch_host": "Zu {{host}} wechseln",
+  "docker_manager.palette_title": "Befehlspalette",
+  "docker_manager.palette_update": "{{stack}} aktualisieren"
 }

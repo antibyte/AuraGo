@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "開く:",
   "docker_manager.ops_progress": "ダウンロードの進行状況",
   "docker_manager.ops_show_line": "{{line}} 行目を表示",
-  "docker_manager.ops_show_output": "出力を表示"
+  "docker_manager.ops_show_output": "出力を表示",
+  "docker_manager.palette_count": "{{count}} 件のコマンド",
+  "docker_manager.palette_deploy": "{{stack}} をデプロイ",
+  "docker_manager.palette_empty": "一致するコマンドはありません",
+  "docker_manager.palette_new_stack": "{{host}} に新規スタック",
+  "docker_manager.palette_open": "{{stack}} を開く",
+  "docker_manager.palette_placeholder": "コマンド、スタック、ホスト名を入力…",
+  "docker_manager.palette_prepare": "{{host}} を準備",
+  "docker_manager.palette_refresh": "更新",
+  "docker_manager.palette_restart": "{{stack}} を再起動",
+  "docker_manager.palette_stop": "{{stack}} を停止",
+  "docker_manager.palette_switch_all": "すべてのホストに切り替え",
+  "docker_manager.palette_switch_host": "{{host}} に切り替え",
+  "docker_manager.palette_title": "コマンドパレット",
+  "docker_manager.palette_update": "{{stack}} を更新"
 }

@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Otevřít:",
   "docker_manager.ops_progress": "Průběh stahování",
   "docker_manager.ops_show_line": "Zobrazit řádek {{line}}",
-  "docker_manager.ops_show_output": "Zobrazit výstup"
+  "docker_manager.ops_show_output": "Zobrazit výstup",
+  "docker_manager.palette_count": "Příkazů: {{count}}",
+  "docker_manager.palette_deploy": "Nasadit {{stack}}",
+  "docker_manager.palette_empty": "Žádný odpovídající příkaz",
+  "docker_manager.palette_new_stack": "Nový stack na hostiteli {{host}}",
+  "docker_manager.palette_open": "Otevřít {{stack}}",
+  "docker_manager.palette_placeholder": "Zadejte příkaz, stack nebo hostitele…",
+  "docker_manager.palette_prepare": "Připravit {{host}}",
+  "docker_manager.palette_refresh": "Obnovit",
+  "docker_manager.palette_restart": "Restartovat {{stack}}",
+  "docker_manager.palette_stop": "Zastavit {{stack}}",
+  "docker_manager.palette_switch_all": "Přepnout na všechny hostitele",
+  "docker_manager.palette_switch_host": "Přepnout na {{host}}",
+  "docker_manager.palette_title": "Paleta příkazů",
+  "docker_manager.palette_update": "Aktualizovat {{stack}}"
 }

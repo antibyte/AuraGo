@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "打开：",
   "docker_manager.ops_progress": "下载进度",
   "docker_manager.ops_show_line": "显示第 {{line}} 行",
-  "docker_manager.ops_show_output": "显示输出"
+  "docker_manager.ops_show_output": "显示输出",
+  "docker_manager.palette_count": "{{count}} 条命令",
+  "docker_manager.palette_deploy": "部署 {{stack}}",
+  "docker_manager.palette_empty": "没有匹配的命令",
+  "docker_manager.palette_new_stack": "在 {{host}} 上新建堆栈",
+  "docker_manager.palette_open": "打开 {{stack}}",
+  "docker_manager.palette_placeholder": "输入命令、堆栈或主机…",
+  "docker_manager.palette_prepare": "准备 {{host}}",
+  "docker_manager.palette_refresh": "刷新",
+  "docker_manager.palette_restart": "重启 {{stack}}",
+  "docker_manager.palette_stop": "停止 {{stack}}",
+  "docker_manager.palette_switch_all": "切换到所有主机",
+  "docker_manager.palette_switch_host": "切换到 {{host}}",
+  "docker_manager.palette_title": "命令面板",
+  "docker_manager.palette_update": "更新 {{stack}}"
 }

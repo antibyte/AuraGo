@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Άνοιγμα:",
   "docker_manager.ops_progress": "Πρόοδος λήψης",
   "docker_manager.ops_show_line": "Εμφάνιση γραμμής {{line}}",
-  "docker_manager.ops_show_output": "Εμφάνιση εξόδου"
+  "docker_manager.ops_show_output": "Εμφάνιση εξόδου",
+  "docker_manager.palette_count": "{{count}} εντολές",
+  "docker_manager.palette_deploy": "Ανάπτυξη του {{stack}}",
+  "docker_manager.palette_empty": "Καμία αντίστοιχη εντολή",
+  "docker_manager.palette_new_stack": "Νέο stack στον {{host}}",
+  "docker_manager.palette_open": "Άνοιγμα του {{stack}}",
+  "docker_manager.palette_placeholder": "Πληκτρολογήστε εντολή, stack ή υπολογιστή…",
+  "docker_manager.palette_prepare": "Προετοιμασία του {{host}}",
+  "docker_manager.palette_refresh": "Ανανέωση",
+  "docker_manager.palette_restart": "Επανεκκίνηση του {{stack}}",
+  "docker_manager.palette_stop": "Διακοπή του {{stack}}",
+  "docker_manager.palette_switch_all": "Μετάβαση σε όλους τους υπολογιστές",
+  "docker_manager.palette_switch_host": "Μετάβαση στον {{host}}",
+  "docker_manager.palette_title": "Παλέτα εντολών",
+  "docker_manager.palette_update": "Ενημέρωση του {{stack}}"
 }

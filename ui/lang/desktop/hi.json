@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "खोलें:",
   "docker_manager.ops_progress": "डाउनलोड की प्रगति",
   "docker_manager.ops_show_line": "पंक्ति {{line}} दिखाएँ",
-  "docker_manager.ops_show_output": "आउटपुट दिखाएँ"
+  "docker_manager.ops_show_output": "आउटपुट दिखाएँ",
+  "docker_manager.palette_count": "{{count}} कमांड",
+  "docker_manager.palette_deploy": "{{stack}} डिप्लॉय करें",
+  "docker_manager.palette_empty": "कोई मेल खाती कमांड नहीं",
+  "docker_manager.palette_new_stack": "{{host}} पर नया स्टैक",
+  "docker_manager.palette_open": "{{stack}} खोलें",
+  "docker_manager.palette_placeholder": "कमांड, स्टैक या होस्ट लिखें…",
+  "docker_manager.palette_prepare": "{{host}} तैयार करें",
+  "docker_manager.palette_refresh": "रीफ़्रेश करें",
+  "docker_manager.palette_restart": "{{stack}} पुनः आरंभ करें",
+  "docker_manager.palette_stop": "{{stack}} रोकें",
+  "docker_manager.palette_switch_all": "सभी होस्ट पर जाएँ",
+  "docker_manager.palette_switch_host": "{{host}} पर जाएँ",
+  "docker_manager.palette_title": "कमांड पैलेट",
+  "docker_manager.palette_update": "{{stack}} अपडेट करें"
 }

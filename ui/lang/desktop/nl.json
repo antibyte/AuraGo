@@ -10331,5 +10331,19 @@
   "docker_manager.ops_ports": "Openen:",
   "docker_manager.ops_progress": "Voortgang van de download",
   "docker_manager.ops_show_line": "Regel {{line}} tonen",
-  "docker_manager.ops_show_output": "Uitvoer tonen"
+  "docker_manager.ops_show_output": "Uitvoer tonen",
+  "docker_manager.palette_count": "{{count}} opdrachten",
+  "docker_manager.palette_deploy": "{{stack}} uitrollen",
+  "docker_manager.palette_empty": "Geen passende opdracht",
+  "docker_manager.palette_new_stack": "Nieuwe stack op {{host}}",
+  "docker_manager.palette_open": "{{stack}} openen",
+  "docker_manager.palette_placeholder": "Typ een opdracht, stack of host…",
+  "docker_manager.palette_prepare": "{{host}} voorbereiden",
+  "docker_manager.palette_refresh": "Vernieuwen",
+  "docker_manager.palette_restart": "{{stack}} herstarten",
+  "docker_manager.palette_stop": "{{stack}} stoppen",
+  "docker_manager.palette_switch_all": "Naar alle hosts schakelen",
+  "docker_manager.palette_switch_host": "Naar {{host}} schakelen",
+  "docker_manager.palette_title": "Opdrachtenpalet",
+  "docker_manager.palette_update": "{{stack}} bijwerken"
 }
