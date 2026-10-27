@@ -95,10 +95,67 @@ func decodeJSONEscapes(text string) string {
 	return out.String()
 }
 
+// percentDecode resolves %XX escapes and form-encoded plus signs. An invalid escape
+// stays as written, so a stray percent sign cannot keep the rest from being decoded
+// (url.QueryUnescape gives up on the whole text at the first one).
+func percentDecode(text string) string {
+	if !strings.ContainsAny(text, "%+") {
+		return text
+	}
+	hexValue := func(c byte) (byte, bool) {
+		switch {
+		case c >= '0' && c <= '9':
+			return c - '0', true
+		case c >= 'a' && c <= 'f':
+			return c - 'a' + 10, true
+		case c >= 'A' && c <= 'F':
+			return c - 'A' + 10, true
+		}
+		return 0, false
+	}
+	var out strings.Builder
+	out.Grow(len(text))
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if c == '+' {
+			out.WriteByte(' ')
+			continue
+		}
+		if c == '%' && i+2 < len(text) {
+			hi, okHi := hexValue(text[i+1])
+			lo, okLo := hexValue(text[i+2])
+			if okHi && okLo {
+				out.WriteByte(hi<<4 | lo)
+				i += 2
+				continue
+			}
+		}
+		out.WriteByte(c)
+	}
+	return out.String()
+}
+
+// percentDecodedRounds returns what text becomes after one, two and three rounds of
+// percent decoding, stopping when a round changes nothing. A model that wants to
+// hide a copy can encode it more than once.
+func percentDecodedRounds(text string) []string {
+	var rounds []string
+	for range 3 {
+		next := percentDecode(text)
+		if next == text {
+			break
+		}
+		rounds = append(rounds, next)
+		text = next
+	}
+	return rounds
+}
+
 // copiedSpanArgumentText is the text of a call that would be executed or sent:
 // every string value and object key of its JSON form, decoded, in one normalised
-// line. The session todo and the guardian notes ride along on the call without
-// being part of it.
+// line. A value that holds percent-encoding (a form-encoded body, a query string)
+// also contributes its decoded forms, because the receiver reads those. The session
+// todo and the guardian notes ride along on the call without being part of it.
 func copiedSpanArgumentText(tc ToolCall) string {
 	tc.Todo = ""
 	tc.GuardianJustification = ""
@@ -122,6 +179,10 @@ func copiedSpanArgumentText(tc ToolCall) string {
 		case string:
 			text.WriteString(value)
 			text.WriteByte('\n')
+			for _, decoded := range percentDecodedRounds(value) {
+				text.WriteString(decoded)
+				text.WriteByte('\n')
+			}
 		case []interface{}:
 			for _, item := range value {
 				walk(item, depth+1)

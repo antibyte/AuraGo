@@ -14,6 +14,7 @@ const (
 	// outputs are evicted first; one output larger than the budget keeps its start.
 	copiedSpanSessionBytes = 256 << 10
 	// copiedSpanTotalBytes bounds all sessions together, copiedSpanMaxSessions their number.
+	// The session unused for the longest time goes first (see touchLocked).
 	copiedSpanTotalBytes  = 16 << 20
 	copiedSpanMaxSessions = 256
 	// untrustedReadMax and untrustedReadTTL bound the record of external tools whose
@@ -28,7 +29,7 @@ const (
 // only after it returns, so it cannot block itself.
 type isolatedBodyStore struct {
 	mu       sync.Mutex
-	order    []string
+	order    []string // Least recently used first.
 	sessions map[string]*isolatedSession
 	total    int
 	now      func() time.Time
@@ -122,12 +123,27 @@ func (s *isolatedBodyStore) sessionLocked(sessionID string) *isolatedSession {
 		session = &isolatedSession{}
 		s.sessions[sessionID] = session
 		s.order = append(s.order, sessionID)
+	} else {
+		s.touchLocked(sessionID)
 	}
 	return session
 }
 
-// evictLocked drops the oldest sessions, never keep, until the count and the byte
-// total fit.
+// touchLocked marks a session as just used by moving it to the back of the order.
+// Recording an output, noting a read and checking a call all count as use, so a
+// session that is still working is never the one evicted for a crowd of idle ones.
+func (s *isolatedBodyStore) touchLocked(sessionID string) {
+	for i, id := range s.order {
+		if id == sessionID {
+			copy(s.order[i:], s.order[i+1:])
+			s.order[len(s.order)-1] = sessionID
+			return
+		}
+	}
+}
+
+// evictLocked drops the least recently used sessions, never keep, until the count
+// and the byte total fit.
 func (s *isolatedBodyStore) evictLocked(keep string) {
 	for (len(s.sessions) > copiedSpanMaxSessions || s.total > copiedSpanTotalBytes) && len(s.order) > 1 {
 		at := 0
@@ -204,6 +220,7 @@ func (s *isolatedBodyStore) views(sessionID string) []string {
 	if session == nil {
 		return nil
 	}
+	s.touchLocked(sessionID)
 	var out []string
 	for _, entry := range session.entries {
 		out = append(out, entry...)
@@ -219,6 +236,7 @@ func (s *isolatedBodyStore) recentReads(sessionID string) []string {
 	if session == nil {
 		return nil
 	}
+	s.touchLocked(sessionID)
 	now := s.clock()
 	var out []string
 	for i := len(session.reads) - 1; i >= 0; i-- {

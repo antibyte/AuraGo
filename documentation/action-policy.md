@@ -50,7 +50,10 @@ entities resolved and every run of whitespace, line breaks included, collapsed
 to one space, so a hard-wrapped or re-flowed copy still matches. Each session
 keeps the full isolated output of its recent tool calls, up to 256 KiB of text,
 and drops the oldest first; one output beyond that keeps its start. The session
-todo and guardian bookkeeping fields do not count. An unattended copy stays
+todo and guardian bookkeeping fields do not count. A value that holds
+percent-encoding, such as a form-encoded body, is compared in its decoded form
+too; other encodings such as Base64 are not covered. When many sessions are
+active, the one unused for the longest time loses its record first. An unattended copy stays
 blocked, and the refusal does not offer an allow rule as the remedy. An
 interactive copy up to 256 KiB can still be approved once. The dialog preview is
 shortened to 8 KiB and begins with the size and SHA-256 of the whole call and of

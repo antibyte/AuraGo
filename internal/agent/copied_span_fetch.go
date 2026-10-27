@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"net/url"
 	"strings"
 	"unicode/utf8"
 )
@@ -44,20 +43,17 @@ func copiedFetchTargets(tc ToolCall) []string {
 
 // copiedFetchForms are the spellings of a target compared with the indexed texts:
 // as written, and with percent-encoding resolved (text copied into a query string is
-// encoded). All are lowercase, because host names and schemes ignore case.
+// encoded). All are lowercase, because host names and schemes ignore case. A stray
+// percent sign in the target does not stop the rest from being decoded.
 func copiedFetchForms(target string) []string {
 	plain := strings.ToLower(normalizeCopiedText(target))
 	forms := []string{plain}
-	decoded := plain
-	for range 3 {
-		next, err := url.QueryUnescape(decoded)
-		if err != nil || next == decoded {
-			break
-		}
-		decoded = strings.ToLower(normalizeCopiedText(next))
+	decoded := target
+	if rounds := percentDecodedRounds(target); len(rounds) > 0 {
+		decoded = rounds[len(rounds)-1]
 	}
-	if decoded != plain {
-		forms = append(forms, decoded)
+	if form := strings.ToLower(normalizeCopiedText(decoded)); form != plain {
+		forms = append(forms, form)
 	}
 	return forms
 }
