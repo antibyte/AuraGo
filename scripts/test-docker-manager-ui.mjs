@@ -532,6 +532,11 @@ const B = '/api/docker-manager';
     store.dispose();
 }
 
+// ---- model: helper containers and error data --------------------------------------------------------------------------
+eq(plain(model.protectedReason({ aurago_helper: 'runner' })), { kind: 'helper', owner: 'runner' }, 'a Docker Manager helper container is protected');
+eq(plain(model.protectedReason({ aurago_helper: 'io', protected_owner: 'docker_manager' })), { kind: 'helper', owner: 'io' }, 'the server also names docker_manager as the owner of a helper: the helper text wins');
+assert.equal(model.normalizeError(Object.assign(new Error('x'), { status: 409, body: { code: 'revision_conflict', file: 'compose', current: { revision: 'abc' } } })).data.current.revision, 'abc', 'the answer body travels with the error');
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------

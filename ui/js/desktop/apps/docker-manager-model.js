@@ -41,6 +41,9 @@
     // Why a container is protected, or null. The server decides what is protected; the UI only explains it.
     function protectedReason(container) {
         const c = container || {};
+        // A runner, IO or lister container of the Stacks feature (role in aurago_helper); removing one needs the confirmation. The
+        // server reports it with the protected owner docker_manager as well, so the role is checked first and the helper text shows.
+        if (c.aurago_helper) return { kind: 'helper', owner: text(c.aurago_helper) };
         if (c.protected_owner) return { kind: 'owner', owner: text(c.protected_owner) };
         if (c.self) return { kind: 'self', owner: '' };
         if (c.docker_endpoint) return { kind: 'endpoint', owner: '' };
@@ -396,16 +399,18 @@
 
     // ---- errors ------------------------------------------------------------------------------------------------------
 
-    // One shape for every failure: {code, message, reason, owner, field, status}. The desktop api() throws an Error that
-    // carries the response body and status; a failed fetch carries neither.
+    // One shape for every failure: {code, message, reason, owner, field, status, data}. The desktop api() throws an Error
+    // that carries the response body and status; a failed fetch carries neither. `data` is the whole answer body: the
+    // stack routes put more in it (file and current of a revision_conflict, operation_id of a busy stack, helpers of an
+    // unprepared host, command of a missing runner image).
     function normalizeError(error) {
         const e = error || {};
         const body = e.body && typeof e.body === 'object' ? e.body : {};
         const status = Number(e.status) || 0;
-        if (e.name === 'AbortError' || e.code === 'aborted') return { code: 'aborted', message: '', reason: '', owner: '', field: '', status };
+        if (e.name === 'AbortError' || e.code === 'aborted') return { code: 'aborted', message: '', reason: '', owner: '', field: '', status, data: {} };
         let code = text(body.code || e.code);
         if (!code) code = status === 403 ? 'forbidden' : status === 0 ? 'network' : 'unknown';
-        return { code, message: text(body.message || e.message), reason: text(body.reason), owner: text(body.owner), field: text(body.field), status };
+        return { code, message: text(body.message || e.message), reason: text(body.reason), owner: text(body.owner), field: text(body.field), status, data: body };
     }
 
     window.DockerManagerModel = {
