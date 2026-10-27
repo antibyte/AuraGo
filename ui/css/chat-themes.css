@@ -8764,6 +8764,7 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     --input-border: rgba(126, 134, 129, 0.28);
     --text-primary: #edf2ed;
     --text-secondary: #aab3ab;
+    --text-muted: #7c877d;
     --strong-color: #ffffff;
     --border-subtle: rgba(126, 134, 129, 0.18);
     --border-accent: rgba(148, 242, 109, 0.34);
@@ -8781,8 +8782,15 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     --page-orb-opacity: 1;
     --chat-image-opacity: 0.04;
     --bg-logo-filter: grayscale(1) contrast(1.18) brightness(0.7);
+    --matrix-signal: 148, 242, 109;
     --matrix-font-ui: 'Exo 2', 'Geist', system-ui, sans-serif;
     --matrix-font-copy: 'Exo 2', 'Geist', system-ui, sans-serif;
+    --matrix-font-mono: 'Geist Mono', 'Cascadia Code', ui-monospace, monospace;
+    --matrix-ease: cubic-bezier(0.22, 0.8, 0.3, 1);
+    --matrix-focus-ring:
+        0 0 0 2px rgba(3, 5, 4, 0.96),
+        0 0 0 4px rgba(148, 242, 109, 0.62),
+        0 0 18px rgba(148, 242, 109, 0.2);
     --matrix-emboss:
         0 1px 0 rgba(255, 255, 255, 0.16),
         0 -1px 0 rgba(0, 0, 0, 0.8),
@@ -8837,18 +8845,38 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     display: none;
 }
 
+/* Signal line: a soft highlight runs along the header edge now and then. */
 [data-theme="black-matrix"] .app-header::after {
     height: 2px;
     opacity: 0.88;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.2) 14%,
-        rgba(148, 242, 109, 0.84) 50%,
-        rgba(255, 255, 255, 0.2) 86%,
-        transparent 100%);
+    background:
+        linear-gradient(90deg,
+            rgba(232, 255, 222, 0) 0%,
+            rgba(232, 255, 222, 0.92) 50%,
+            rgba(232, 255, 222, 0) 100%) no-repeat,
+        linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.2) 14%,
+            rgba(148, 242, 109, 0.84) 50%,
+            rgba(255, 255, 255, 0.2) 86%,
+            transparent 100%);
+    background-size: 18% 100%, 100% 100%;
+    background-position: -24% 0, 0 0;
     box-shadow:
         0 0 24px rgba(148, 242, 109, 0.16),
         0 0 42px rgba(255, 255, 255, 0.08);
+    animation: bm-signal-sweep 11s var(--matrix-ease) 1.2s infinite;
+}
+
+@keyframes bm-signal-sweep {
+    0% {
+        background-position: -24% 0, 0 0;
+    }
+
+    42%,
+    100% {
+        background-position: 124% 0, 0 0;
+    }
 }
 
 [data-theme="black-matrix"] .logo .logo-wordmark-accent {
@@ -8954,6 +8982,17 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     transform: translateY(-50%);
 }
 
+/* One keyboard focus ring for every control the theme restyles. */
+[data-theme="black-matrix"] :is(.chat-theme-btn, .session-edge-tab, .integrations-edge-tab,
+        .btn-speaker, .btn-warnings, .select-personality, .mood-toggle, .btn-header,
+        .btn-header-link, #logout-btn, .session-new-btn, .session-drawer-close,
+        .integrations-drawer-close, .btn-send, .btn-voice, .btn-more, .composer-tool-btn,
+        .modal-btn, .scroll-to-bottom-btn, .chat-theme-option, .personality-option,
+        .session-item):focus-visible {
+    outline: none;
+    box-shadow: var(--matrix-focus-ring);
+}
+
 [data-theme="black-matrix"] .chat-theme-icon,
 [data-theme="black-matrix"] .personality-chevron,
 [data-theme="black-matrix"] .mood-chevron {
@@ -8998,6 +9037,17 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         linear-gradient(180deg, rgba(24, 29, 25, 0.96), rgba(10, 12, 11, 0.98));
 }
 
+/* The current selection carries a lit edge so it reads at a glance. */
+[data-theme="black-matrix"] .chat-theme-option.active,
+[data-theme="black-matrix"] .personality-option.active,
+[data-theme="black-matrix"] .session-item.active {
+    color: #ffffff;
+    box-shadow:
+        inset 2px 0 0 rgba(148, 242, 109, 0.9),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        -4px 0 14px -6px rgba(148, 242, 109, 0.45);
+}
+
 [data-theme="black-matrix"] .app-header .pill {
     background: var(--matrix-panel);
     border: 1px solid rgba(164, 171, 166, 0.18);
@@ -9006,12 +9056,15 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         inset 0 -2px 4px rgba(0, 0, 0, 0.58),
         0 10px 18px rgba(0, 0, 0, 0.22);
     color: #f0f4f1;
+    font-variant-numeric: tabular-nums;
 }
 
+/* No stacking context here: the rain canvas (z 2) has to slot between the
+   chat background and #chat-content (z 3) instead of covering the messages. */
 [data-theme="black-matrix"] #chat-box {
     isolation: auto;
     position: relative;
-    z-index: 1;
+    z-index: auto;
     background:
         radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.05), transparent 18%),
         radial-gradient(circle at 85% 16%, rgba(140, 255, 110, 0.07), transparent 22%),
@@ -9019,11 +9072,14 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         linear-gradient(180deg, #010101 0%, #050706 100%);
     background-size: 110% 110%;
     animation: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(126, 134, 129, 0.4) transparent;
 }
 
 [data-theme="black-matrix"] #chat-box::before {
     display: block;
     background:
+        radial-gradient(ellipse 120% 92% at 50% 42%, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.4) 100%),
         linear-gradient(180deg,
             rgba(255, 255, 255, 0.05) 0%,
             rgba(255, 255, 255, 0) 12%,
@@ -9067,11 +9123,70 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         0 16px 30px rgba(0, 0, 0, 0.34);
 }
 
+[data-theme="black-matrix"] .avatar.bot {
+    border-color: rgba(148, 242, 109, 0.3);
+}
+
 [data-theme="black-matrix"] .greeting-text,
 [data-theme="black-matrix"] .mood-emotion,
 [data-theme="black-matrix"] .trait-label,
 [data-theme="black-matrix"] .trait-value {
     color: #b3bbb4;
+}
+
+/* The welcome line reads like a terminal prompt waiting for input. */
+[data-theme="black-matrix"] .greeting-text {
+    font-family: var(--matrix-font-mono);
+    font-size: 0.94rem;
+    letter-spacing: 0.01em;
+}
+
+[data-theme="black-matrix"] .greeting-text::after {
+    content: '';
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    margin-left: 0.35em;
+    vertical-align: -0.18em;
+    background: rgba(148, 242, 109, 0.85);
+    box-shadow: 0 0 10px rgba(148, 242, 109, 0.45);
+    animation: bm-cursor-blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes bm-cursor-blink {
+    0%,
+    49% {
+        opacity: 1;
+    }
+
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* New messages resolve out of a brief overexposed flash. */
+[data-theme="black-matrix"] .msg-row {
+    animation: bm-row-in 0.46s var(--matrix-ease) backwards;
+}
+
+@keyframes bm-row-in {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+        filter: brightness(1.8) saturate(0.3) blur(1.5px);
+    }
+
+    55% {
+        opacity: 1;
+        filter: brightness(1.15) saturate(0.85) blur(0);
+    }
+
+    100% {
+        opacity: 1;
+        transform: none;
+        filter: none;
+    }
 }
 
 [data-theme="black-matrix"] .bubble {
@@ -9085,18 +9200,67 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         inset 0 -4px 10px rgba(0, 0, 0, 0.64);
 }
 
+/* Gloss plus a short lit notch on the top edge (and a signal rail for the agent). */
 [data-theme="black-matrix"] .bubble::after {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
+    border-radius: inherit;
     background:
+        linear-gradient(90deg, rgba(var(--matrix-signal), 0), rgba(var(--matrix-signal), 0.75), rgba(var(--matrix-signal), 0)) right 22px top 0 / 54px 1px no-repeat,
         linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 24%),
         linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0) 36%);
     mix-blend-mode: screen;
 }
 
+[data-theme="black-matrix"] .bubble.bot::after {
+    background:
+        linear-gradient(90deg, rgba(var(--matrix-signal), 0), rgba(var(--matrix-signal), 0.75), rgba(var(--matrix-signal), 0)) left 22px top 0 / 54px 1px no-repeat,
+        linear-gradient(180deg, rgba(var(--matrix-signal), 0.5), rgba(var(--matrix-signal), 0.06) 70%, rgba(var(--matrix-signal), 0)) left 0 top 16px / 1px calc(100% - 32px) no-repeat,
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 24%),
+        linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0) 36%);
+}
+
+/* The speech tails are clipped by the rounded panel, so ::before carries a
+   one-time scan line that sweeps down a bubble when it appears. */
+[data-theme="black-matrix"] .bubble.bot::before,
+[data-theme="black-matrix"] .bubble.user::before {
+    inset: 0;
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg,
+            rgba(var(--matrix-signal), 0) 38%,
+            rgba(var(--matrix-signal), 0.12) 48%,
+            rgba(232, 255, 222, 0.2) 50%,
+            rgba(var(--matrix-signal), 0) 52%) 0 100% / 100% 240% no-repeat;
+    mix-blend-mode: screen;
+    opacity: 0;
+    animation: bm-bubble-scan 0.95s var(--matrix-ease) 0.06s 1 both;
+}
+
+@keyframes bm-bubble-scan {
+    0% {
+        opacity: 1;
+        background-position: 0 100%;
+    }
+
+    80% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        background-position: 0 0;
+    }
+}
+
 [data-theme="black-matrix"] .bubble.bot {
+    border-radius: 18px 18px 18px 6px;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 22%),
         repeating-linear-gradient(135deg,
@@ -9106,11 +9270,8 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     color: var(--text-primary);
 }
 
-[data-theme="black-matrix"] .bubble.bot::before {
-    border-color: transparent transparent rgba(9, 12, 10, 0.98) transparent;
-}
-
 [data-theme="black-matrix"] .bubble.user {
+    border-radius: 18px 18px 6px 18px;
     background:
         linear-gradient(180deg, rgba(150, 242, 109, 0.12), rgba(150, 242, 109, 0) 18%),
         repeating-linear-gradient(135deg,
@@ -9126,10 +9287,7 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         0 0 24px rgba(148, 242, 109, 0.08);
 }
 
-[data-theme="black-matrix"] .bubble.user::before {
-    border-color: transparent transparent rgba(14, 20, 15, 0.98) transparent;
-}
-
+/* Body copy keeps only a dark drop shadow; the bright emboss blurred small text. */
 [data-theme="black-matrix"] .bubble,
 [data-theme="black-matrix"] .bubble p,
 [data-theme="black-matrix"] .bubble li,
@@ -9138,9 +9296,7 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
 [data-theme="black-matrix"] .bubble h1,
 [data-theme="black-matrix"] .bubble h2,
 [data-theme="black-matrix"] .bubble h3 {
-    text-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.12),
-        0 -1px 0 rgba(0, 0, 0, 0.7);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
 }
 
 [data-theme="black-matrix"] .bubble code,
@@ -9155,6 +9311,43 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     color: #9ef772;
 }
 
+[data-theme="black-matrix"] .bubble a {
+    text-decoration-color: rgba(148, 242, 109, 0.45);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: color 0.18s ease, text-decoration-color 0.18s ease, text-shadow 0.18s ease;
+}
+
+[data-theme="black-matrix"] .bubble a:hover {
+    color: #d8ffc6;
+    text-decoration-color: currentColor;
+    text-shadow: 0 0 12px rgba(148, 242, 109, 0.35);
+}
+
+[data-theme="black-matrix"] .bubble h1::before,
+[data-theme="black-matrix"] .bubble h2::before,
+[data-theme="black-matrix"] .bubble h3::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 0.86em;
+    margin-right: 0.5em;
+    vertical-align: -0.06em;
+    border-radius: 1px;
+    background: #94f26d;
+    box-shadow: 0 0 10px rgba(148, 242, 109, 0.5);
+}
+
+[data-theme="black-matrix"] .bubble :not(pre) > code {
+    font-family: var(--matrix-font-mono);
+    font-size: 0.88em;
+    color: #c9f7b4;
+    background: rgba(148, 242, 109, 0.08);
+    border: 1px solid rgba(148, 242, 109, 0.18);
+    border-radius: 6px;
+    padding: 0.08em 0.38em;
+}
+
 [data-theme="black-matrix"] .bubble blockquote,
 [data-theme="black-matrix"] .code-block-wrapper,
 [data-theme="black-matrix"] .copy-btn,
@@ -9165,9 +9358,45 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     border-color: rgba(148, 242, 109, 0.2);
 }
 
+[data-theme="black-matrix"] .bubble blockquote {
+    border-left: 2px solid rgba(148, 242, 109, 0.6);
+}
+
 [data-theme="black-matrix"] .code-header,
 [data-theme="black-matrix"] .line-numbers {
     background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="black-matrix"] .code-lang {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    font-family: var(--matrix-font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+[data-theme="black-matrix"] .code-lang::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94f26d;
+    box-shadow: 0 0 8px rgba(148, 242, 109, 0.7);
+}
+
+[data-theme="black-matrix"] .message-timestamp {
+    font-family: var(--matrix-font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+[data-theme="black-matrix"] .msg-row:hover .message-timestamp {
+    color: #a7c39f;
 }
 
 [data-theme="black-matrix"] .app-footer {
@@ -9192,6 +9421,7 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         inset 0 -3px 8px rgba(0, 0, 0, 0.65),
         0 14px 28px rgba(0, 0, 0, 0.22);
     color: var(--text-primary);
+    caret-color: #94f26d;
     text-shadow:
         0 1px 0 rgba(255, 255, 255, 0.08),
         0 -1px 0 rgba(0, 0, 0, 0.7);
@@ -9211,10 +9441,47 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
         0 0 22px rgba(148, 242, 109, 0.08);
 }
 
+/* Focus draws a carrier line along the bottom of the input. */
+[data-theme="black-matrix"] .input-wrap::after {
+    content: '';
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        rgba(148, 242, 109, 0),
+        rgba(148, 242, 109, 0.85) 30%,
+        rgba(232, 255, 222, 0.95) 50%,
+        rgba(148, 242, 109, 0.85) 70%,
+        rgba(148, 242, 109, 0));
+    box-shadow: 0 0 10px rgba(148, 242, 109, 0.4);
+    transform: scaleX(0);
+    opacity: 0;
+    transition: transform 0.45s var(--matrix-ease), opacity 0.3s ease;
+    pointer-events: none;
+}
+
+[data-theme="black-matrix"] .input-wrap:focus-within::after {
+    transform: scaleX(1);
+    opacity: 1;
+}
+
 [data-theme="black-matrix"] .btn-send {
     background: var(--matrix-panel-accent);
     border-color: rgba(148, 242, 109, 0.34);
     color: #f6fff5;
+}
+
+/* Send arms itself once there is something to send. */
+[data-theme="black-matrix"] .input-row:has(.input-wrap textarea:not(:placeholder-shown)) .btn-send:not(:disabled) {
+    border-color: rgba(148, 242, 109, 0.62);
+    color: #ffffff;
+    box-shadow:
+        inset 0 1px 0 rgba(210, 255, 193, 0.22),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.6),
+        0 12px 26px rgba(0, 0, 0, 0.32),
+        0 0 18px rgba(148, 242, 109, 0.24);
 }
 
 [data-theme="black-matrix"] .status-pill,
@@ -9222,6 +9489,23 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     background: var(--matrix-panel-accent);
     border-color: rgba(148, 242, 109, 0.34);
     color: #f7fff5;
+}
+
+[data-theme="black-matrix"] .status-pill {
+    font-family: var(--matrix-font-mono);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    box-shadow:
+        inset 0 1px 0 rgba(210, 255, 193, 0.14),
+        0 10px 24px rgba(0, 0, 0, 0.4),
+        0 0 18px rgba(148, 242, 109, 0.1);
+}
+
+[data-theme="black-matrix"] .pulsing-dot {
+    background: #b8ff94;
+    box-shadow:
+        0 0 0 3px rgba(148, 242, 109, 0.14),
+        0 0 12px rgba(148, 242, 109, 0.6);
 }
 
 [data-theme="black-matrix"] .trait-bar-bg {
@@ -9234,9 +9518,14 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     background: rgba(0, 0, 0, 0.8);
 }
 
-[data-theme="black-matrix"] ::selection,
+/* Kept as two rules: an unknown pseudo-element would void a shared selector list. */
+[data-theme="black-matrix"] ::selection {
+    background: rgba(148, 242, 109, 0.26);
+    color: #ffffff;
+}
+
 [data-theme="black-matrix"] ::-moz-selection {
-    background: rgba(148, 242, 109, 0.24);
+    background: rgba(148, 242, 109, 0.26);
     color: #ffffff;
 }
 
@@ -9253,19 +9542,38 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     }
 }
 
+/* Reduced motion keeps the look: the rain renders as a still frame and the
+   one-shot and looping accents stay off. */
 @media (prefers-reduced-motion: reduce) {
     [data-theme="black-matrix"] #black-matrix-overlay {
-        display: none !important;
+        opacity: 0.62;
+    }
+
+    [data-theme="black-matrix"] .app-header::after,
+    [data-theme="black-matrix"] .greeting-text::after,
+    [data-theme="black-matrix"] .msg-row {
+        animation: none;
+    }
+
+    [data-theme="black-matrix"] .bubble.bot::before,
+    [data-theme="black-matrix"] .bubble.user::before {
+        display: none;
+    }
+
+    [data-theme="black-matrix"] .input-wrap::after {
+        transition: none;
     }
 }
 
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
+[data-theme="black-matrix"] #chat-box::-webkit-scrollbar,
 [data-theme="black-matrix"] #chat-content::-webkit-scrollbar,
 [data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar,
 [data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
+[data-theme="black-matrix"] #chat-box::-webkit-scrollbar-thumb,
 [data-theme="black-matrix"] #chat-content::-webkit-scrollbar-thumb,
 [data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-thumb,
 [data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar-thumb {
@@ -9274,6 +9582,13 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     border: 2px solid transparent;
     background-clip: padding-box;
 }
+[data-theme="black-matrix"] #chat-box::-webkit-scrollbar-thumb:hover,
+[data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-thumb:hover,
+[data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(148, 242, 109, 0.42), rgba(100, 160, 84, 0.5));
+    background-clip: padding-box;
+}
+[data-theme="black-matrix"] #chat-box::-webkit-scrollbar-track,
 [data-theme="black-matrix"] #chat-content::-webkit-scrollbar-track,
 [data-theme="black-matrix"] .session-drawer ::-webkit-scrollbar-track,
 [data-theme="black-matrix"] .integrations-drawer ::-webkit-scrollbar-track {
@@ -9301,15 +9616,19 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
 
 /* ── Polish: Bubble hover (digital glow) ───────────────────────────────── */
 [data-theme="black-matrix"] .bubble {
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 [data-theme="black-matrix"] .msg-row:hover .bubble {
     transform: translateY(-1px);
+    border-color: rgba(148, 242, 109, 0.24);
     box-shadow:
         0 20px 40px rgba(0, 0, 0, 0.54),
         inset 0 1px 0 rgba(255, 255, 255, 0.16),
         inset 0 -4px 10px rgba(0, 0, 0, 0.64),
         0 0 16px rgba(148, 242, 109, 0.06);
+}
+[data-theme="black-matrix"] .msg-row.user:hover .bubble {
+    border-color: rgba(148, 242, 109, 0.38);
 }
 
 /* ── Polish: Button active press ───────────────────────────────────────── */

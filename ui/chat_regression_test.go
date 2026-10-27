@@ -817,6 +817,42 @@ func TestChatFrontend_BlackMatrixEdgeTabsStayAnchoredOnHover(t *testing.T) {
 	}
 }
 
+func TestChatFrontend_BlackMatrixRainStaysBehindMessages(t *testing.T) {
+	t.Parallel()
+
+	matrixCSS := readChatThemeSectionCSS(t, "chat-black-matrix.css")
+	for _, marker := range []string{
+		// The rain canvas (z 2) only slots under #chat-content (z 3) while #chat-box forms no stacking context.
+		"[data-theme=\"black-matrix\"] #chat-box {\n    isolation: auto;\n    position: relative;\n    z-index: auto;",
+		// #chat-box is the scroll container, not #chat-content.
+		`[data-theme="black-matrix"] #chat-box::-webkit-scrollbar-thumb`,
+		"[data-theme=\"black-matrix\"] ::selection {",
+	} {
+		if !strings.Contains(matrixCSS, marker) {
+			t.Fatalf("black matrix CSS missing marker %q", marker)
+		}
+	}
+	// Chrome drops a whole selector list that names ::-moz-selection.
+	if strings.Contains(matrixCSS, "::selection,\n[data-theme=\"black-matrix\"] ::-moz-selection") {
+		t.Fatal("black matrix ::selection must not share a selector list with ::-moz-selection")
+	}
+
+	content, err := os.ReadFile(filepath.Join("js", "chat", "black-matrix-shader.js"))
+	if err != nil {
+		t.Fatalf("read black-matrix-shader.js: %v", err)
+	}
+	shader := normalizeAssetText(content)
+	for _, marker := range []string{
+		`'visibilitychange'`,
+		`getElementById('agentStatusContainer')`,
+		`globalCompositeOperation = 'destination-out'`,
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("black matrix shader missing marker %q", marker)
+		}
+	}
+}
+
 func TestChatFrontend_ThreeDeeImpactsUseCinematicParticleBurst(t *testing.T) {
 	t.Parallel()
 
