@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/config"
+	"aurago/internal/testutil"
 
 	"golang.org/x/net/html"
 )
@@ -395,6 +396,9 @@ func c102FakeGotenberg(t *testing.T) (*config.DocumentCreatorConfig, func() []c1
 	var mu sync.Mutex
 	var calls []c102GotenbergCall
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if testutil.ServeGotenbergDebug(w, r) {
+			return
+		}
 		if err := r.ParseMultipartForm(8 << 20); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -444,6 +448,7 @@ func TestDocumentCreatorBlockRemoteContentReachesEveryChromiumRender(t *testing.
 		t.Run(tc.operation, func(t *testing.T) {
 			for _, block := range []bool{false, true} {
 				cfg, calls := c102FakeGotenberg(t)
+				cfg.AllowRemoteResources = true
 				var raw string
 				if block {
 					raw = ExecuteDocumentCreator(context.Background(), cfg, tc.operation, "T", tc.content, "", "", "A4", false, tc.sections, "",

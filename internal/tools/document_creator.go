@@ -79,6 +79,10 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 	if refusal := blockRemoteContentRefusal(operation, options); refusal != "" {
 		return refusal
 	}
+	switch operation {
+	case "create_pdf", "html_to_pdf", "markdown_to_pdf", "screenshot_html":
+		options.BlockRemoteContent = options.BlockRemoteContent || !cfg.AllowRemoteResources
+	}
 	outputDir := cfg.OutputDir
 	if outputDir == "" {
 		outputDir = "data/documents"

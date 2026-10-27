@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/testutil"
 
 	"github.com/johnfercher/maroto/v2"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
@@ -242,7 +245,7 @@ func TestDocumentCreatorParallelPublications(t *testing.T) {
 }
 
 func TestDocumentCreatorOutputNamesArePortable(t *testing.T) {
-	for _, name := range []string{"a:b.pdf", "CON", "nul.pdf", "LPT1.txt", "COM¹.pdf", "x\r.pdf", "x\n.pdf", "x\x00.pdf", "a.", "a ", ".."} {
+	for _, name := range []string{"a:b.pdf", "CON", "CON .pdf", "nul.pdf", "LPT1.txt", "COM¹.pdf", "x\r.pdf", "x\n.pdf", "x\x00.pdf", "x\n/file.pdf", "a.", "a ", ".."} {
 		if _, err := documentOutputName(name, ".pdf"); err == nil {
 			t.Errorf("accepted %q", name)
 		}
@@ -279,20 +282,31 @@ func TestGotenbergClientUsesCurrentTimeout(t *testing.T) {
 }
 
 func TestGotenbergMultipartNamesAndRedirects(t *testing.T) {
-	var gotName string
+	names := make(chan string, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if testutil.ServeGotenbergDebug(w, r) {
+			return
+		}
 		reader, err := r.MultipartReader()
 		if err != nil {
 			t.Error(err)
+			http.Error(w, "invalid multipart", http.StatusBadRequest)
 			return
 		}
 		part, err := reader.NextPart()
 		if err != nil {
 			t.Error(err)
+			http.Error(w, "missing part", http.StatusBadRequest)
 			return
 		}
 		defer part.Close()
-		gotName = part.FileName()
+		_, params, err := mime.ParseMediaType(part.Header.Get("Content-Disposition"))
+		if err != nil {
+			t.Error(err)
+			http.Error(w, "invalid disposition", http.StatusBadRequest)
+			return
+		}
+		names <- params["filename"]
 		if part.Header.Get("X-Injected") != "" {
 			t.Error("injected header")
 		}
@@ -301,9 +315,12 @@ func TestGotenbergMultipartNamesAndRedirects(t *testing.T) {
 	defer server.Close()
 	cfg, _ := c102FakeGotenberg(t)
 	cfg.Gotenberg.URL = server.URL
-	name := `source-0.do"cx`
-	if _, err := gotenbergRequest(t.Context(), &cfg.Gotenberg, "/probe", nil, map[string][]byte{name: []byte("body")}); err != nil || gotName != name {
-		t.Fatalf("name=%q error=%v", gotName, err)
+	name := `source-0.do\"cx`
+	if _, err := gotenbergRequest(t.Context(), &cfg.Gotenberg, "/probe", nil, map[string][]byte{name: []byte("body")}); err != nil {
+		t.Fatal(err)
+	}
+	if gotName := <-names; gotName != name {
+		t.Fatalf("name=%q want=%q", gotName, name)
 	}
 	for _, name := range []string{"x.pdf\r\nX-Injected: yes", "x\x00.pdf"} {
 		if _, err := gotenbergRequest(t.Context(), &cfg.Gotenberg, "/probe", nil, map[string][]byte{name: nil}); err == nil {

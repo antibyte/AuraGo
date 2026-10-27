@@ -59,6 +59,11 @@ and tool dispatch; Desktop adapters own UI state.
   and emoji rather than emitting a damaged file. `Options.PDF` (artifacts.go) may
   replace it with the Document Creator/Gotenberg renderer, which covers every script;
   `/capabilities` reports that as `pdf_backend: "gotenberg"` and `pdf_scripts: true`.
+- Gotenberg report exports always apply the offline HTML restriction, independent
+  of Document Creator's admin public-resource grant. The shared request path
+  requires fresh private `/debug` network-policy proof before upload. Preserve
+  the immutable revision and cancellation gates; verify `TestRenderReportHTMLPDF*`
+  and existing Detective export tests. See `documentation/document-creator.md`.
 - The server scheduler shares the single research queue. An enabled case starts
   only after a completed baseline report; each completion schedules from now,
   with at most one overdue catchup. Interrupted automatic runs keep their ID,

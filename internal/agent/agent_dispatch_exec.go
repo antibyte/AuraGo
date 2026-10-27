@@ -1786,7 +1786,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			docResult := tools.ExecuteDocumentCreatorInWorkspace(ctx, &cfg.Tools.DocumentCreator, cfg.Directories.WorkspaceDir, req.Operation, req.Title, req.Content, req.URL, req.Filename, req.PaperSize, req.Landscape, req.Sections, req.SourceFiles,
 				tools.DocumentCreatorOptions{BlockRemoteContent: req.BlockRemoteContent})
 			// Auto-register every successfully created document in the media registry
-			if mediaRegistryDB != nil {
+			if mediaRegistryDB != nil && ctx.Err() == nil {
 				var parsed struct {
 					Status   string `json:"status"`
 					FilePath string `json:"file_path"`
@@ -1803,6 +1803,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						fileSize = fi.Size()
 					}
 					docHash, _ := tools.ComputeMediaFileHash(parsed.FilePath)
+					if ctx.Err() != nil {
+						return docResult
+					}
 					if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 						MediaType:   mediaType,
 						SourceTool:  "document_creator",

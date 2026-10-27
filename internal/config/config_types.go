@@ -256,10 +256,11 @@ type GotenbergConfig struct {
 
 // DocumentCreatorConfig holds settings for the document_creator tool.
 type DocumentCreatorConfig struct {
-	Enabled   bool            `yaml:"enabled"`    // enable document_creator tool
-	Backend   string          `yaml:"backend"`    // "maroto" (default, built-in) or "gotenberg" (Docker sidecar)
-	OutputDir string          `yaml:"output_dir"` // directory for generated documents (default: "data/documents")
-	Gotenberg GotenbergConfig `yaml:"gotenberg"`
+	AllowRemoteResources bool            `yaml:"allow_remote_resources"` // allow public resources in supplied HTML/Markdown; default false
+	Enabled              bool            `yaml:"enabled"`                // enable document_creator tool
+	Backend              string          `yaml:"backend"`                // "maroto" (default, built-in) or "gotenberg" (Docker sidecar)
+	OutputDir            string          `yaml:"output_dir"`             // directory for generated documents (default: "data/documents")
+	Gotenberg            GotenbergConfig `yaml:"gotenberg"`
 }
 
 // MediaConversionConfig holds settings for the media_conversion tool.

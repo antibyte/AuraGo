@@ -1602,7 +1602,11 @@ func Start(opts StartOptions) error {
 	if cfg.Docker.Enabled {
 		// Auto-start Gotenberg container if document_creator is enabled with gotenberg backend
 		if cfg.Tools.DocumentCreator.Enabled && strings.EqualFold(cfg.Tools.DocumentCreator.Backend, "gotenberg") {
-			go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
+			go func() {
+				if err := tools.EnsureGotenbergRunning(serverCtx, cfg, true, logger); err != nil {
+					logger.Warn("[Gotenberg] Sidecar startup refused or failed", "error", err)
+				}
+			}()
 		}
 
 		// Auto-start Browser Automation sidecar whenever the integration is active in sidecar mode and auto_start is enabled.

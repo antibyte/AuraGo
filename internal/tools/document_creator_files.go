@@ -64,9 +64,9 @@ func openDocumentSources(ctx context.Context, paths []string, workspace *config.
 		}
 		var file *os.File
 		if workspace != nil {
-			file, err = rootedToolOpen(path)
+			file, err = rootedToolOpenFile(path, os.O_RDONLY|outgoingOpenNonblock, 0)
 		} else {
-			file, err = os.Open(path)
+			file, err = os.OpenFile(path, os.O_RDONLY|outgoingOpenNonblock, 0)
 		}
 		if err != nil {
 			return files, fmt.Errorf("open source file: %w", err)
@@ -137,17 +137,17 @@ func documentOutputName(filename, ext string) (string, error) {
 	if strings.ContainsRune(filename, ':') {
 		return "", fmt.Errorf("document filename must not contain a drive or NTFS stream")
 	}
-	filename = filepath.Base(strings.ReplaceAll(filename, "\\", "/"))
-	if !utf8.ValidString(filename) || filename == "." || filename == ".." ||
-		strings.ContainsAny(filename, `<>:"|?*`) || strings.TrimRight(filename, ". ") != filename {
-		return "", fmt.Errorf("invalid document filename")
-	}
 	for _, r := range filename {
 		if unicode.IsControl(r) {
 			return "", fmt.Errorf("document filename must not contain control characters")
 		}
 	}
-	base := strings.ToUpper(strings.SplitN(filename, ".", 2)[0])
+	filename = filepath.Base(strings.ReplaceAll(filename, "\\", "/"))
+	if !utf8.ValidString(filename) || filename == "." || filename == ".." ||
+		strings.ContainsAny(filename, `<>:"|?*`) || strings.TrimRight(filename, ". ") != filename {
+		return "", fmt.Errorf("invalid document filename")
+	}
+	base := strings.ToUpper(strings.TrimRight(strings.SplitN(filename, ".", 2)[0], " "))
 	switch base {
 	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$", "CLOCK$":
 		return "", fmt.Errorf("reserved document filename")

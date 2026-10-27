@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/testutil"
 )
 
 func TestRenderReportHTMLPDFConfiguredRenderer(t *testing.T) {
@@ -16,6 +17,9 @@ func TestRenderReportHTMLPDFConfiguredRenderer(t *testing.T) {
 	var validPDF atomic.Bool
 	validPDF.Store(true)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if testutil.ServeGotenbergDebug(w, r) {
+			return
+		}
 		if r.URL.Path != "/forms/chromium/convert/html" || r.Method != "POST" {
 			t.Errorf("unexpected renderer request: %s %s", r.Method, r.URL.Path)
 		}
@@ -31,7 +35,7 @@ func TestRenderReportHTMLPDFConfiguredRenderer(t *testing.T) {
 		}
 		defer file.Close()
 		data, _ := io.ReadAll(file)
-		if header.Filename != "index.html" || string(data) != content || r.FormValue("preferCssPageSize") != "true" {
+		if header.Filename != "index.html" || string(data) != restrictRemoteContent(content) || r.FormValue("preferCssPageSize") != "true" {
 			t.Error("report content or print options changed")
 		}
 		if validPDF.Load() {

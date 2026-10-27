@@ -58,6 +58,23 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+### Document Creator
+
+- Configuration GET projects the normalized saved Gotenberg URL and default-off
+  `allow_remote_resources` into the raw YAML response, retaining other fields.
+  The admin connection test uses saved settings only and reports `reachable`,
+  `security_verified` and `restart_required` separately; raw `/debug` content
+  never reaches a response. Preserve central admin bearer/session authorization.
+- Native managed sidecar reconciliation takes a config snapshot and server
+  context. Startup may migrate an unambiguously owned outdated container;
+  runtime saves may create a missing one but require restart for replacement.
+  Pull/start end on shutdown and honor Docker permissions/read-only. Never adopt
+  Compose, remote targets or ambiguous containers. Every conversion, including
+  Detective reports, re-verifies runtime network protection before upload.
+- Verify `TestDocumentCreator*`, `TestGotenbergConnectionTest*`, shared tools
+  security/lifecycle tests and existing Flow/Detective regressions. Operational
+  contracts and recovery: `documentation/document-creator.md`.
+
 ### Managed RustFS S3
 
 - `/api/rustfs` routes are admin-only; browser mutations require same-origin CSRF validation, an empty JSON object, strict methods and at most 1 KiB. Lifecycle POSTs return accepted operation receipts; status and preflight never start a service. Codes are sanitized and credentials are never returned.

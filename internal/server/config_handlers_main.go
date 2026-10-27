@@ -67,6 +67,23 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		removeDeprecatedSpeechLabVoice(rawCfg)
 		rawCfg["llm_router"] = s.ConfigSnapshot().LLMRouter
 		rawCfg["decisions"] = s.ConfigSnapshot().Decisions
+		dc := s.ConfigSnapshot().Tools.DocumentCreator
+		dcSection := rawCfg
+		for _, key := range []string{"tools", "document_creator"} {
+			child, ok := dcSection[key].(map[string]interface{})
+			if !ok {
+				child = make(map[string]interface{})
+				dcSection[key] = child
+			}
+			dcSection = child
+		}
+		dcSection["allow_remote_resources"] = dc.AllowRemoteResources
+		gotenberg, ok := dcSection["gotenberg"].(map[string]interface{})
+		if !ok {
+			gotenberg = make(map[string]interface{})
+			dcSection["gotenberg"] = gotenberg
+		}
+		gotenberg["url"] = dc.Gotenberg.URL
 
 		// Inject personality section from in-memory config when it is absent
 		// from the raw YAML (migration scenario: old config only has agent.personality_*).
@@ -1173,8 +1190,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Auto-start Gotenberg container if document_creator just became active
 			if newCfg.Docker.Enabled && newCfg.Tools.DocumentCreator.Enabled && strings.EqualFold(newCfg.Tools.DocumentCreator.Backend, "gotenberg") {
-				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") {
-					go tools.EnsureGotenbergRunning(newCfg.Docker.Host, s.Logger)
+				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") ||
+					oldCfg.Tools.DocumentCreator.Gotenberg.URL != newCfg.Tools.DocumentCreator.Gotenberg.URL || oldCfg.Docker.Host != newCfg.Docker.Host ||
+					!oldCfg.Docker.Enabled || oldCfg.Docker.ReadOnly != newCfg.Docker.ReadOnly {
+					if s.integrationCtx != nil {
+						go func() {
+							if err := tools.EnsureGotenbergRunning(s.integrationCtx, newCfg, false, s.Logger); err != nil {
+								s.Logger.Warn("[Gotenberg] Sidecar configuration pending or refused", "error", err)
+							}
+						}()
+					}
 				}
 			}
 

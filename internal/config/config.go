@@ -1207,6 +1207,10 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	cfg.Tools.DocumentCreator.Gotenberg.URL = NormalizeLegacySidecarURL(cfg.Tools.DocumentCreator.Gotenberg.URL, runningInDocker, "gotenberg", 3000)
+	if strings.TrimSpace(cfg.Tools.DocumentCreator.Gotenberg.URL) == "" {
+		cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)
+	}
 	if err := ValidateRuViewConfig(cfg.RuView, runningInDocker); err != nil {
 		return nil, fmt.Errorf("invalid ruview configuration: %w", err)
 	}
@@ -3103,6 +3107,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"personality", "core_personality"}, c.Personality.CorePersonality},
 		{[]string{"server", "ui_language"}, c.Server.UILanguage},
 		{[]string{"llm_router"}, c.LLMRouter},
+		{[]string{"tools", "document_creator", "allow_remote_resources"}, c.Tools.DocumentCreator.AllowRemoteResources},
 		{[]string{"auth", "enabled"}, c.Auth.Enabled},
 		{[]string{"webhooks", "outgoing"}, c.Webhooks.Outgoing},
 		{[]string{"uptime_kuma", "enabled"}, c.UptimeKuma.Enabled},
