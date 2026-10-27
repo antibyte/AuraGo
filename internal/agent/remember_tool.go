@@ -4,25 +4,29 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"unicode"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 )
 
 // handleRemember routes a "remember" tool call to the appropriate memory subsystem
 // based on an optional type hint or automatic classification.
 // This reduces cognitive load on the LLM by providing a single entry point for all memory writes.
+// guardian is the dispatch Guardian whose local scan screens the content; nil
+// falls back to the shared default regex guardian.
 func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph,
-	sessionID string) string {
+	sessionID string, guardian *security.Guardian) string {
 	if shortTermMem == nil {
 		return `Tool Output: {"status":"error","message":"Memory storage not available"}`
 	}
 	var output string
 	err := shortTermMem.WithSessionWrite(context.Background(), sessionID, func() error {
-		output = handleRememberWritable(tc, cfg, logger, shortTermMem, kg, sessionID)
+		output = handleRememberWritable(tc, cfg, logger, shortTermMem, kg, sessionID, guardian)
 		return nil
 	})
 	if err != nil {
@@ -31,7 +35,91 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	return output
 }
 
-func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID string) string {
+// rememberScreenDenied is the fixed answer for a write the content screen
+// refuses. It never echoes the content or the finding.
+const rememberScreenDenied = `Tool Output: {"status":"policy_denied","message":"This content reads like a standing instruction or an injection attempt, so it was not stored. Memory keeps plain facts and preferences only."}`
+
+// promptsec names its findings by these types (see ScanResult.Patterns).
+const (
+	rememberEncodingPattern = "encoding_attack"
+	rememberRolePattern     = "role_manipulation"
+)
+
+// rememberBenignRolePhrase is the one wording promptsec's role heuristic
+// mistakes for a jailbreak although it is everyday preference text ("always
+// answer in German", "always provide short answers").
+var rememberBenignRolePhrase = regexp.MustCompile(`(?i)\balways\s+(answer|provide)\b`)
+
+// rememberScanFindings lists what a local scan reports at or above limit. The
+// sanitizer's encoding_attack is left out: ordinary Cyrillic, Greek or fullwidth
+// text raises it (up to High) without naming an attack, and a hidden payload
+// shows up under its own pattern, because the scan also reads the decoded and
+// the invisible-character-free view. A result that reaches limit without any
+// pattern still counts.
+func rememberScanFindings(scan security.ScanResult, limit security.ThreatLevel) []string {
+	if scan.Level < limit {
+		return nil
+	}
+	if len(scan.Patterns) == 0 {
+		return []string{"unspecified"}
+	}
+	var findings []string
+	for _, pattern := range scan.Patterns {
+		if pattern != rememberEncodingPattern {
+			findings = append(findings, pattern)
+		}
+	}
+	return findings
+}
+
+// rememberContentRefused screens the text of a model-authored durable write with
+// the dispatch Guardian's local scan, which runs whether or not the LLM Guardian
+// is enabled, so the write tools do not depend on a default-off feature. Core
+// and fact entries are injected into every later run: they are refused at
+// ThreatMedium or when the text has a directive shape (security.DirectiveShape).
+// Journal, task and note entries are refused at ThreatHigh. The knowledge-graph
+// target is not screened here. It returns the sanitized finding names for the
+// log; the content itself is never logged.
+func rememberContentRefused(guardian *security.Guardian, target, content, title string) (findings []string, refused bool) {
+	durable := false
+	switch target {
+	case "fact", "preference", "core":
+		durable = true
+	case "relationship", "entity", "graph":
+		return nil, false
+	}
+	if guardian == nil {
+		guardian = fallbackToolOutputGuardian()
+	}
+	limit := security.ThreatHigh
+	texts := []string{content, title}
+	if durable {
+		limit = security.ThreatMedium
+		texts = texts[:1] // a fact has no title
+	}
+	for _, text := range texts {
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		found := rememberScanFindings(guardian.ScanForInjectionLocal(text), limit)
+		if durable && len(found) == 1 && found[0] == rememberRolePattern && rememberBenignRolePhrase.MatchString(text) {
+			// Judge the text again without that phrase: any other trigger is still there.
+			reduced := rememberBenignRolePhrase.ReplaceAllString(text, "$1")
+			found = rememberScanFindings(guardian.ScanForInjectionLocal(reduced), limit)
+		}
+		if len(found) > 0 {
+			return found, true
+		}
+		if durable {
+			if category, hit := security.DirectiveShape(text); hit {
+				return []string{category}, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID string, guardian *security.Guardian) string {
 
 	content := tc.Content
 	if content == "" {
@@ -59,6 +147,10 @@ func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger
 	}
 	if memory.HasDurableCredential(content) {
 		return `Tool Output: {"status":"policy_denied","message":"Credentials must be stored in the Vault."}`
+	}
+	if findings, refused := rememberContentRefused(guardian, target, content, tc.Title); refused {
+		logger.Warn("remember refused by the content screen", "target", target, "findings", findings, "content_len", len(content))
+		return rememberScreenDenied
 	}
 
 	logger.Info("remember tool routing", "target", target, "content_len", len(content))

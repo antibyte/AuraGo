@@ -1593,7 +1593,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Tools.Memory.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Memory is in read-only mode."}`
 			}
-			return handleRemember(tc, cfg, logger, shortTermMem, kg, sessionID)
+			return handleRemember(tc, cfg, logger, shortTermMem, kg, sessionID, dc.Guardian)
 
 		case "manage_plan":
 			req := decodePlanManagementArgs(tc)
