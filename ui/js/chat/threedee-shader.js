@@ -436,6 +436,8 @@
     const ROBOT_EMP_COOLDOWN = 20;
     const ROBOT_EMP_RANGE = 5.5;
     // --- Battle Overdrive: surface proximity mines, white fuel slick & red cryo-EMP stasis trap ---
+    // Mines are naval-mine style floaters (half submerged, tilting with the wave, blinking beacon, sonar pulse);
+    // fuel slicks are iridescent oil films whose mesh hugs the rendered water. Both are children of `surface`.
     const MAX_SURFACE_MINES = 4;
     const ROBOT_MINE_COOLDOWN = 9.5;
     const ROBOT_MINE_ARM_DELAY = 0.75;
@@ -463,6 +465,88 @@
     const surfaceMinePool = [];
     const fuelSlicks = [];
     const fuelSlickPool = [];
+    const _hazardQuat = new THREE.Quaternion();
+    const _hazardNormal = new THREE.Vector3();
+    // The slick is a re-skinned window of the water grid itself (PATCH_CELLS x PATCH_CELLS cells), so its
+    // triangles are exactly coplanar with the water's triangles, just lifted a hair.
+    const FUEL_SLICK_PATCH_CELLS = 8;
+    const FUEL_SLICK_PATCH_VERTEX_COUNT = (FUEL_SLICK_PATCH_CELLS + 1) * (FUEL_SLICK_PATCH_CELLS + 1);
+
+    // Oil film: the vertex stage only places the water patch and derives the slick-local coordinates from
+    // the heightfield position; the fragment stage cuts the organic outline, paints the muted iridescence,
+    // the sun glint and (when ignited) the burning front.
+    const FUEL_SLICK_VERTEX_SHADER = [
+        'uniform vec2 center;',
+        'uniform float spread;',
+        'varying vec2 vUnit;',
+        'varying vec3 vWorldPos;',
+        'void main() {',
+        '    vUnit = (position.xz - center) / spread;',
+        '    vec4 wp = modelMatrix * vec4(position, 1.0);',
+        '    vWorldPos = wp.xyz;',
+        '    gl_Position = projectionMatrix * viewMatrix * wp;',
+        '}'
+    ].join('\n');
+
+    const FUEL_SLICK_FRAGMENT_SHADER = [
+        'precision highp float;',
+        'uniform float time;',
+        'uniform float fade;',
+        'uniform float burn;',
+        'uniform float seed;',
+        'uniform vec3 lightDir;',
+        'varying vec2 vUnit;',
+        'varying vec3 vWorldPos;',
+        'float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
+        'float vnoise(vec2 p) {',
+        '    vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);',
+        '    float a = hash21(i); float b = hash21(i + vec2(1.0, 0.0));',
+        '    float c = hash21(i + vec2(0.0, 1.0)); float d = hash21(i + vec2(1.0, 1.0));',
+        '    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);',
+        '}',
+        'float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return v; }',
+        'void main() {',
+        '    vec2 uv = vUnit;',
+        '    float r = length(uv);',
+        '    // The patch is a square window; everything beyond the outline (max edge 0.98) is transparent anyway.',
+        '    if (r > 1.0) discard;',
+        '    float tt = time * 0.1;',
+        '    vec2 q = uv * 2.4 + seed;',
+        '    vec2 warp = vec2(fbm(q + tt), fbm(q + vec2(5.2, 1.3) - tt));',
+        '    float marble = fbm(q * 1.5 + warp * 1.6);',
+        '    float rimNoise = fbm(uv * 1.7 + seed * 0.37 + tt * 0.6);',
+        '    float edge = 0.8 + (rimNoise - 0.5) * 0.36;',
+        '    float body = 1.0 - smoothstep(edge - 0.24, edge, r);',
+        '    vec3 V = normalize(cameraPosition - vWorldPos);',
+        '    vec3 N = vec3(0.0, 1.0, 0.0);',
+        '    float ndv = clamp(dot(N, V), 0.0, 1.0);',
+        '    float film = fract(marble * 1.7 + (1.0 - ndv) * 1.1 + r * 0.5 + seed * 0.13);',
+        '    float sheen = pow(1.0 - ndv, 1.4);',
+        '    vec3 L = normalize(lightDir);',
+        '    vec3 H = normalize(L + V);',
+        '    float spec = pow(max(dot(N, H), 0.0), 110.0);',
+        '    vec3 base = vec3(0.012, 0.016, 0.03);',
+        '    float bands = smoothstep(0.32, 0.78, marble);',
+        '    float fringe = smoothstep(0.3, 0.95, r);',
+        '    vec3 rainbow = 0.5 + 0.5 * cos(6.28318 * (film + vec3(0.0, 0.33, 0.67)));',
+        '    rainbow = mix(vec3(dot(rainbow, vec3(0.3333))), rainbow, 0.6);',
+        '    float sheenWeight = 0.07 + 0.22 * sheen + 0.14 * fringe;',
+        '    vec3 col = base + rainbow * sheenWeight * (0.35 + 0.65 * bands);',
+        '    col += vec3(0.9, 0.95, 1.0) * spec * 0.7;',
+        '    float alpha = body * (0.68 + 0.18 * marble);',
+        '    if (burn > 0.0) {',
+        '        float ember = fbm(uv * 5.0 + seed - vec2(0.0, time * 1.7));',
+        '        ember = smoothstep(0.42, 0.85, ember + 0.12 * sin(time * 9.0 + seed + r * 6.0));',
+        '        vec3 fire = mix(vec3(1.0, 0.26, 0.02), vec3(1.0, 0.82, 0.3), ember);',
+        '        float front = smoothstep(edge - 0.2, edge - 0.03, r);',
+        '        vec3 burning = vec3(0.012, 0.008, 0.006) + fire * (0.3 + ember * 1.4 + front * 1.0);',
+        '        col = mix(col, burning, burn);',
+        '        alpha = mix(alpha, body * 0.95, burn);',
+        '    }',
+        '    gl_FragColor = vec4(col, alpha * fade);',
+        '    #include <colorspace_fragment>',
+        '}'
+    ].join('\n');
 
     const AURA_VERTEX_SHADER = [
         'uniform float time;',
@@ -684,9 +768,12 @@
             'robotScorchGeometry',
             'beamCoreGeom',
             'beamHaloGeom',
-            'mineCoreGeom',
-            'mineRingGeom',
-            'fuelSlickGeom'
+            'mineHullGeom',
+            'mineHornGeom',
+            'mineBandGeom',
+            'mineBeaconGeom',
+            'mineWaterlineGeom',
+            'mineRingGeom'
         ].forEach(disposeWindowThreeAsset);
         if (smokeTexture && typeof smokeTexture.dispose === 'function') smokeTexture.dispose();
         smokeTexture = null;
@@ -726,13 +813,14 @@
 
     function disposePooledHazardGroup(entry) {
         if (!entry) return;
-        if (entry.group) {
-            if (scene) scene.remove(entry.group);
-            else if (entry.group.parent) entry.group.parent.remove(entry.group);
+        // Hazards are children of the water mesh, so detach them from whatever parent they have.
+        const root = entry.group || entry.mesh;
+        if (root && root.parent) root.parent.remove(root);
+        if (entry.disposables) {
+            entry.disposables.forEach(function (item) {
+                if (item && typeof item.dispose === 'function') item.dispose();
+            });
         }
-        ['coreMat', 'ringMat', 'discMat'].forEach(function (key) {
-            if (entry[key] && typeof entry[key].dispose === 'function') entry[key].dispose();
-        });
     }
 
     function clearThreeDeeRuntimeState() {
@@ -953,14 +1041,26 @@
         if (!window.superGrenadeGeom) {
             window.superGrenadeGeom = new THREE.SphereGeometry(0.24, 24, 24);
         }
-        if (!window.mineCoreGeom) {
-            window.mineCoreGeom = new THREE.OctahedronGeometry(0.22, 0);
+        if (!window.mineHullGeom) {
+            window.mineHullGeom = new THREE.SphereGeometry(0.2, 28, 18);
+        }
+        if (!window.mineHornGeom) {
+            // Horn base sits on the origin and points along +Y so it can be placed on the hull surface.
+            window.mineHornGeom = new THREE.CylinderGeometry(0.02, 0.05, 0.15, 10);
+            window.mineHornGeom.translate(0, 0.075, 0);
+        }
+        if (!window.mineBandGeom) {
+            window.mineBandGeom = new THREE.TorusGeometry(0.2, 0.013, 8, 48);
+            window.mineBandGeom.rotateX(Math.PI / 2);
+        }
+        if (!window.mineBeaconGeom) {
+            window.mineBeaconGeom = new THREE.SphereGeometry(0.04, 12, 10);
+        }
+        if (!window.mineWaterlineGeom) {
+            window.mineWaterlineGeom = new THREE.RingGeometry(0.2, 0.3, 48);
         }
         if (!window.mineRingGeom) {
-            window.mineRingGeom = new THREE.RingGeometry(0.32, 0.44, 24);
-        }
-        if (!window.fuelSlickGeom) {
-            window.fuelSlickGeom = new THREE.CircleGeometry(0.92, 24);
+            window.mineRingGeom = new THREE.RingGeometry(0.3, 0.42, 48);
         }
     }
 
@@ -986,6 +1086,9 @@
         const b = opts.blending || THREE.AdditiveBlending;
         const sprite = acquireSprite(x, y, z, color, opacity, b);
         sprite.scale.setScalar(scale);
+        // Pooled sprites are reused, so always reset the order. Hazard effects ask for a later pass so
+        // they are drawn over the water and the oil film instead of being dimmed by them.
+        sprite.renderOrder = opts.renderOrder || 0;
 
         sprites.push({
             sprite,
@@ -2286,6 +2389,54 @@
         const front = heightAt(x, clamp(z + eps, -robotBounds.z, robotBounds.z), t, sampleOptions);
         targetNormal.set(left - right, eps * 2, back - front).normalize();
         return targetNormal;
+    }
+
+    // Water height exactly as the rendered mesh shows it (robot hover dips and thruster ripples included):
+    // lookup in the per-vertex height cache that updateSurface fills every frame. The cell is split along the
+    // same diagonal as PlaneGeometry (vertex 01 - vertex 10), so this reproduces the triangles the GPU draws;
+    // a plain bilinear mix would differ from the mesh by up to a quarter of the cell's twist on sharp ripples.
+    function renderedWaterHeight(x, z, t) {
+        const cols = GRID.cols;
+        const rows = GRID.rows;
+        if (!heightCache || !basePositions || heightCache.length < (cols + 1) * (rows + 1)) {
+            return heightAt(x, z, t);
+        }
+        const x0 = basePositions[0];
+        const z0 = basePositions[2];
+        const stepX = basePositions[3] - basePositions[0];
+        const stepZ = basePositions[(cols + 1) * 3 + 2] - basePositions[2];
+        if (!stepX || !stepZ) return heightAt(x, z, t);
+        const fx = (x - x0) / stepX;
+        const fz = (z - z0) / stepZ;
+        const ix = clamp(Math.floor(fx), 0, cols - 1);
+        const iz = clamp(Math.floor(fz), 0, rows - 1);
+        const tx = clamp(fx - ix, 0, 1);
+        const tz = clamp(fz - iz, 0, 1);
+        const i00 = iz * (cols + 1) + ix;
+        const i01 = i00 + cols + 1;
+        const h00 = heightCache[i00];
+        const h10 = heightCache[i00 + 1];
+        const h01 = heightCache[i01];
+        const h11 = heightCache[i01 + 1];
+        if (tx + tz <= 1) {
+            return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
+        }
+        return h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
+    }
+
+    // Surface normal of the rendered water (heightfield-local frame), for tilting floating hazards.
+    function hazardSurfaceNormal(x, z, t, target) {
+        const out = target || _hazardNormal;
+        const eps = 0.2;
+        const minX = robotBounds ? -robotBounds.x : -Infinity;
+        const maxX = robotBounds ? robotBounds.x : Infinity;
+        const minZ = robotBounds ? -robotBounds.z : -Infinity;
+        const maxZ = robotBounds ? robotBounds.z : Infinity;
+        const left = renderedWaterHeight(clamp(x - eps, minX, maxX), z, t);
+        const right = renderedWaterHeight(clamp(x + eps, minX, maxX), z, t);
+        const back = renderedWaterHeight(x, clamp(z - eps, minZ, maxZ), t);
+        const front = renderedWaterHeight(x, clamp(z + eps, minZ, maxZ), t);
+        return out.set(left - right, eps * 2, back - front).normalize();
     }
 
     function bounceFloatingRobotWithinBounds(t, bot) {
@@ -4593,48 +4744,121 @@
         }
     }
 
+    // Fixed (PATCH_CELLS + 1)^2 vertex window that is re-skinned onto the water grid every frame. The index
+    // buffer uses exactly the PlaneGeometry split (a, b, d) + (b, c, d) so every slick triangle lies in the
+    // plane of a water triangle.
+    function createFuelSlickGeometry() {
+        const cells = FUEL_SLICK_PATCH_CELLS;
+        const side = cells + 1;
+        const positions = new Float32Array(FUEL_SLICK_PATCH_VERTEX_COUNT * 3);
+        const indices = [];
+        for (let jz = 0; jz < cells; jz++) {
+            for (let jx = 0; jx < cells; jx++) {
+                const a = jx + side * jz;
+                const b = jx + side * (jz + 1);
+                const c = (jx + 1) + side * (jz + 1);
+                const d = (jx + 1) + side * jz;
+                indices.push(a, b, d, b, c, d);
+            }
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        const positionAttr = new THREE.BufferAttribute(positions, 3);
+        positionAttr.setUsage(THREE.DynamicDrawUsage);
+        geometry.setAttribute('position', positionAttr);
+        geometry.setIndex(indices);
+        return geometry;
+    }
+
     function acquireFuelSlickEntry() {
-        ensureImpactAssets();
         let entry = fuelSlickPool.pop();
         if (!entry) {
-            const group = new THREE.Group();
-            const discMat = new THREE.MeshBasicMaterial({
-                color: 0x22d3ee,
+            const geometry = createFuelSlickGeometry();
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    fade: { value: 0 },
+                    burn: { value: 0 },
+                    seed: { value: 0 },
+                    center: { value: new THREE.Vector2() },
+                    spread: { value: 1 },
+                    lightDir: { value: new THREE.Vector3(-5, 8, 2).normalize() }
+                },
+                vertexShader: FUEL_SLICK_VERTEX_SHADER,
+                fragmentShader: FUEL_SLICK_FRAGMENT_SHADER,
                 transparent: true,
-                opacity: 0.42,
-                blending: THREE.AdditiveBlending,
                 depthWrite: false,
-                side: THREE.DoubleSide
+                side: THREE.DoubleSide,
+                blending: THREE.NormalBlending,
+                polygonOffset: true,
+                polygonOffsetFactor: -2,
+                polygonOffsetUnits: -2
             });
-            const ringMat = new THREE.MeshBasicMaterial({
-                color: 0xf59e0b,
-                transparent: true,
-                opacity: 0.55,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-                side: THREE.DoubleSide
-            });
-            const disc = new THREE.Mesh(window.fuelSlickGeom, discMat);
-            const ring = new THREE.Mesh(window.empRingGeom, ringMat);
-            disc.rotation.x = -Math.PI / 2;
-            ring.rotation.x = -Math.PI / 2;
-            ring.scale.setScalar(2.35);
-            group.add(disc);
-            group.add(ring);
-            group.visible = false;
-            scene.add(group);
-            entry = { group, disc, ring, discMat, ringMat };
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.renderOrder = 2;
+            mesh.frustumCulled = false;
+            mesh.visible = false;
+            entry = {
+                mesh,
+                geometry,
+                material,
+                positions: geometry.getAttribute('position').array,
+                disposables: [material, geometry],
+                worldPos: new THREE.Vector3(),
+                spread: 0.42,
+                burnMix: 0,
+                waterH: 0
+            };
         }
-        entry.group.visible = true;
-        entry.discMat.color.setHex(0x22d3ee);
-        entry.ringMat.color.setHex(0xf59e0b);
+        if (entry.mesh.parent !== surface) surface.add(entry.mesh);
+        entry.material.uniforms.seed.value = Math.random() * 100;
+        entry.material.uniforms.burn.value = 0;
+        entry.material.uniforms.fade.value = 0;
+        entry.mesh.visible = true;
         return entry;
     }
 
     function releaseFuelSlickEntry(entry) {
         if (!entry) return;
-        if (entry.group) entry.group.visible = false;
+        if (entry.mesh) entry.mesh.visible = false;
         fuelSlickPool.push(entry);
+    }
+
+    // Re-skin the slick's patch onto the water grid vertices around the slick (heightfield-local space, child
+    // of `surface`). The slick outline itself is cut in the fragment shader from `center` and `spread`.
+    function layFuelSlickOnWater(slick, t) {
+        slick.waterH = renderedWaterHeight(slick.x, slick.z, t);
+        surface.localToWorld(slick.worldPos.set(slick.x, slick.waterH + 0.03, slick.z));
+        const uniforms = slick.material.uniforms;
+        uniforms.center.value.set(slick.x, slick.z);
+        uniforms.spread.value = slick.spread;
+        if (!basePositions) return;
+
+        const cols = GRID.cols;
+        const rows = GRID.rows;
+        const cells = FUEL_SLICK_PATCH_CELLS;
+        const side = cells + 1;
+        const x0 = basePositions[0];
+        const z0 = basePositions[2];
+        const stepX = basePositions[3] - x0;
+        const stepZ = basePositions[(cols + 1) * 3 + 2] - z0;
+        if (!stepX || !stepZ) return;
+        const ix0 = clamp(Math.round((slick.x - x0) / stepX) - cells / 2, 0, cols - cells);
+        const iz0 = clamp(Math.round((slick.z - z0) / stepZ) - cells / 2, 0, rows - cells);
+        const useCache = !!heightCache && heightCache.length >= (cols + 1) * (rows + 1);
+        const positions = slick.positions;
+        for (let jz = 0; jz < side; jz++) {
+            for (let jx = 0; jx < side; jx++) {
+                const gi = (iz0 + jz) * (cols + 1) + (ix0 + jx);
+                const px = basePositions[gi * 3];
+                const pz = basePositions[gi * 3 + 2];
+                const k = jz * side + jx;
+                positions[k * 3] = px;
+                positions[k * 3 + 1] = (useCache ? heightCache[gi] : heightAt(px, pz, t)) + 0.022;
+                positions[k * 3 + 2] = pz;
+            }
+        }
+        slick.geometry.attributes.position.needsUpdate = true;
     }
 
     function spawnRobotFuelSlick(bot, t) {
@@ -4645,9 +4869,6 @@
         const entry = acquireFuelSlickEntry();
         const backX = clamp(bot.state.x - bot.forward.x * 0.55, -robotBounds.x, robotBounds.x);
         const backZ = clamp(bot.state.z - bot.forward.z * 0.55, -robotBounds.z, robotBounds.z);
-        const waterH = heightAt(backX, backZ, t, { ignoreRobotFeedbackWaves: true });
-        entry.group.position.set(backX, surface.position.y + waterH + 0.05, backZ + surface.position.z);
-        entry.group.scale.setScalar(0.72);
         entry.x = backX;
         entry.z = backZ;
         entry.owner = bot;
@@ -4658,27 +4879,36 @@
         entry.burnUntil = -999;
         entry.lastFlameAt = -999;
         entry.seed = Math.random() * Math.PI * 2;
+        entry.spread = 0.42;
+        entry.burnMix = 0;
+        entry.waterH = renderedWaterHeight(backX, backZ, t);
+        entry.material.uniforms.time.value = t;
+        // Write the first set of vertices now so the very first frame is not a degenerate stack at the origin.
+        layFuelSlickOnWater(entry, t);
         fuelSlicks.push(entry);
         bot.state.lastFuelDropAt = t;
         addImpulse(backX, backZ, 0.24);
 
-        for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2 + entry.seed;
+        const wp = entry.worldPos;
+        for (let i = 0; i < 7; i++) {
+            const a = (i / 7) * Math.PI * 2 + entry.seed;
             createSmokeSprite(
-                entry.group.position.x + Math.cos(a) * 0.35,
-                entry.group.position.y + 0.08,
-                entry.group.position.z + Math.sin(a) * 0.35,
-                i % 2 === 0 ? 0x22d3ee : 0xfbbf24,
-                0.14 + Math.random() * 0.08,
-                0.45 + Math.random() * 0.25,
+                wp.x + Math.cos(a) * 0.2,
+                wp.y + 0.12,
+                wp.z + Math.sin(a) * 0.2,
+                0x0b1020,
+                0.07 + Math.random() * 0.06,
+                0.35 + Math.random() * 0.2,
                 {
-                    vx: Math.cos(a) * 0.35,
-                    vy: 0.16 + Math.random() * 0.18,
-                    vz: Math.sin(a) * 0.35,
+                    vx: Math.cos(a) * 0.9,
+                    vy: 0.5 + Math.random() * 0.5,
+                    vz: Math.sin(a) * 0.9,
                     spin: (Math.random() - 0.5) * 4,
-                    opacity: 0.68,
-                    expansion: 1.5,
-                    fadePower: 1.4,
+                    opacity: 0.7,
+                    expansion: 0.6,
+                    fadePower: 1.3,
+                    blending: THREE.NormalBlending,
+                    renderOrder: 3,
                     kind: 'fuelVaporDrop'
                 }
             );
@@ -4698,7 +4928,7 @@
         cancelRobotActiveBeams(victim);
 
         if (!alreadyBurning) {
-            const pos = slick && slick.group ? slick.group.position.clone() : victim.group.position.clone();
+            const pos = slick && slick.worldPos ? slick.worldPos.clone() : victim.group.position.clone();
             const recoil = victim.group.position.clone().sub(pos);
             recoil.y = 0;
             if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
@@ -4719,10 +4949,8 @@
             slick.ignited = true;
             slick.burnUntil = t + ROBOT_FUEL_BURN_DURATION;
             slick.life = Math.min(slick.life, ROBOT_FUEL_BURN_DURATION);
-            slick.discMat.color.setHex(0xff5a00);
-            slick.ringMat.color.setHex(0xffd166);
             addImpulse(slick.x, slick.z, 0.92);
-            const pos = slick.group.position.clone();
+            const pos = slick.worldPos.clone();
             flashImpactLight(pos, 0xff6a00, 16, 15, 0.55);
             for (let ring = 0; ring < 2; ring++) {
                 const shock = acquireShockwave(pos.clone().addScaledVector(UP_AXIS, 0.03 + ring * 0.02), ring === 0 ? 0xff6a00 : 0xffd166, 0.65 - ring * 0.15, UP_AXIS);
@@ -4753,6 +4981,7 @@
                         opacity: 0.94,
                         expansion: 2.2,
                         fadePower: 1.35,
+                        renderOrder: 3,
                         kind: 'fuelIgniteFlame'
                     }
                 );
@@ -4775,17 +5004,18 @@
                 continue;
             }
             const age = t - slick.bornAt;
-            const waterH = heightAt(slick.x, slick.z, t, { ignoreRobotFeedbackWaves: true });
-            slick.group.position.set(slick.x, surface.position.y + waterH + 0.045, slick.z + surface.position.z);
-            const spread = clamp(0.75 + age * 0.14, 0.75, 1.38);
-            const pulse = 1 + Math.sin(t * (slick.ignited ? 18 : 5) + slick.seed) * (slick.ignited ? 0.12 : 0.05);
-            slick.group.scale.setScalar(spread * pulse);
-            slick.ring.rotation.z = t * (slick.ignited ? 3.2 : 0.9) + slick.seed;
+            const targetSpread = clamp(0.75 + age * 0.14, 0.75, 1.38) * (slick.ignited ? 1.08 : 1);
+            slick.spread += (targetSpread - slick.spread) * (1 - Math.exp(-dt * 2.2));
+            const uniforms = slick.material.uniforms;
+            const fadeIn = clamp(age / 0.45, 0, 1);
+            const fadeOut = slick.ignited ? clamp((slick.burnUntil - t) / 0.6, 0, 1) : clamp(slick.life / 1.5, 0, 1);
+            uniforms.fade.value = fadeIn * fadeOut;
+            slick.burnMix += ((slick.ignited ? 1 : 0) - slick.burnMix) * (1 - Math.exp(-dt * 6));
+            uniforms.burn.value = slick.burnMix;
+            uniforms.time.value = t;
+            layFuelSlickOnWater(slick, t);
 
             if (!slick.ignited) {
-                const fade = clamp(slick.life / 1.5, 0, 1);
-                slick.discMat.opacity = (0.34 + Math.sin(t * 4.2 + slick.seed) * 0.08) * fade;
-                slick.ringMat.opacity = (0.48 + Math.cos(t * 5.4 + slick.seed) * 0.12) * fade;
                 if (redRobot && redRobot.loaded && redRobot.group && !robotIsBlinking(redRobot)) {
                     const dx = redRobot.state.x - slick.x;
                     const dz = redRobot.state.z - slick.z;
@@ -4794,17 +5024,14 @@
                     }
                 }
             } else {
-                const burnRatio = clamp((slick.burnUntil - t) / ROBOT_FUEL_BURN_DURATION, 0, 1);
-                slick.discMat.opacity = 0.68 * burnRatio;
-                slick.ringMat.opacity = 0.82 * burnRatio;
                 if (t - (slick.lastFlameAt || -999) >= 0.08) {
                     slick.lastFlameAt = t;
                     const a = Math.random() * Math.PI * 2;
-                    const r = Math.random() * 0.75 * spread;
+                    const r = Math.random() * 0.75 * slick.spread;
                     createSmokeSprite(
-                        slick.group.position.x + Math.cos(a) * r,
-                        slick.group.position.y + 0.06,
-                        slick.group.position.z + Math.sin(a) * r,
+                        slick.worldPos.x + Math.cos(a) * r,
+                        slick.worldPos.y + 0.06,
+                        slick.worldPos.z + Math.sin(a) * r,
                         Math.random() < 0.4 ? 0xfff099 : 0xff5a00,
                         0.2 + Math.random() * 0.16,
                         0.34 + Math.random() * 0.22,
@@ -4816,6 +5043,7 @@
                             opacity: 0.88,
                             expansion: 1.75,
                             fadePower: 1.4,
+                            renderOrder: 3,
                             kind: 'fuelIgniteFlame'
                         }
                     );
@@ -4841,39 +5069,123 @@
         }
     }
 
-    function acquireSurfaceMineEntry(mineType) {
+    // Naval-mine style floater. The group origin is the water-surface point (it tilts to the wave normal);
+    // the body sits just above it so roughly half of the hull shows and the translucent water dims the rest.
+    function buildSurfaceMineEntry() {
         ensureImpactAssets();
-        let entry = surfaceMinePool.pop();
-        if (!entry) {
-            const group = new THREE.Group();
-            const coreMat = new THREE.MeshBasicMaterial({
-                color: 0x38bdf8,
-                transparent: true,
-                opacity: 0.92,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-            const ringMat = new THREE.MeshBasicMaterial({
-                color: 0xc084fc,
-                transparent: true,
-                opacity: 0.68,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-                side: THREE.DoubleSide
-            });
-            const core = new THREE.Mesh(window.mineCoreGeom, coreMat);
-            const ring = new THREE.Mesh(window.mineRingGeom, ringMat);
-            ring.rotation.x = -Math.PI / 2;
-            group.add(core);
-            group.add(ring);
-            group.visible = false;
-            scene.add(group);
-            entry = { group, core, ring, coreMat, ringMat };
+        if (!smokeTexture) smokeTexture = createSmokeTexture();
+
+        const hullMat = new THREE.MeshStandardMaterial({ color: 0x242c3a, metalness: 0.82, roughness: 0.38, emissive: 0x38bdf8, emissiveIntensity: 0.12 });
+        const hornMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.75, roughness: 0.48 });
+        const bandMat = new THREE.MeshStandardMaterial({ color: 0xa3adbd, metalness: 0.92, roughness: 0.28 });
+        const beaconMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.95 });
+        const glowMat = new THREE.SpriteMaterial({
+            map: smokeTexture,
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const waterlineMat = new THREE.MeshBasicMaterial({
+            color: 0xdbeafe,
+            transparent: true,
+            opacity: 0.2,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xc084fc,
+            transparent: true,
+            opacity: 0.68,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+
+        const group = new THREE.Group();
+        const waterline = new THREE.Mesh(window.mineWaterlineGeom, waterlineMat);
+        waterline.rotation.x = -Math.PI / 2;
+        waterline.position.y = 0.012;
+        const ring = new THREE.Mesh(window.mineRingGeom, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.02;
+        // Additive hazard overlays must be drawn after the (transparent) water, not sorted before it.
+        waterline.renderOrder = 2;
+        ring.renderOrder = 2;
+        group.add(waterline);
+        group.add(ring);
+
+        const body = new THREE.Group();
+        body.position.y = 0.035;
+        const hull = new THREE.Mesh(window.mineHullGeom, hullMat);
+        hull.castShadow = true;
+        body.add(hull);
+        body.add(new THREE.Mesh(window.mineBandGeom, bandMat));
+
+        const hornElevation = (38 * Math.PI) / 180;
+        for (let k = 0; k < 6; k++) {
+            const a = k * (Math.PI / 3) + 0.26;
+            const dirX = Math.cos(a) * Math.cos(hornElevation);
+            const dirY = Math.sin(hornElevation);
+            const dirZ = Math.sin(a) * Math.cos(hornElevation);
+            const horn = new THREE.Mesh(window.mineHornGeom, hornMat);
+            horn.position.set(dirX * 0.19, dirY * 0.19, dirZ * 0.19);
+            horn.quaternion.setFromUnitVectors(UP_AXIS, new THREE.Vector3(dirX, dirY, dirZ));
+            horn.castShadow = true;
+            body.add(horn);
         }
+        const topHorn = new THREE.Mesh(window.mineHornGeom, hornMat);
+        topHorn.position.set(0, 0.19, 0);
+        topHorn.castShadow = true;
+        body.add(topHorn);
+
+        const beacon = new THREE.Mesh(window.mineBeaconGeom, beaconMat);
+        beacon.position.set(0, 0.19 + 0.15 + 0.03, 0);
+        beacon.renderOrder = 2;
+        body.add(beacon);
+        const glow = new THREE.Sprite(glowMat);
+        glow.position.copy(beacon.position);
+        glow.scale.setScalar(0.34);
+        glow.renderOrder = 2;
+        body.add(glow);
+        group.add(body);
+        group.visible = false;
+
+        return {
+            group,
+            body,
+            hull,
+            beacon,
+            glow,
+            ring,
+            waterline,
+            hullMat,
+            hornMat,
+            bandMat,
+            beaconMat,
+            glowMat,
+            waterlineMat,
+            ringMat,
+            disposables: [hullMat, hornMat, bandMat, beaconMat, glowMat, waterlineMat, ringMat],
+            worldPos: new THREE.Vector3(),
+            normal: new THREE.Vector3()
+        };
+    }
+
+    function acquireSurfaceMineEntry(mineType) {
+        const entry = surfaceMinePool.pop() || buildSurfaceMineEntry();
         const isStasis = mineType === 'stasis';
-        entry.coreMat.color.setHex(isStasis ? 0x38bdf8 : 0xffae3b);
+        const typeColor = isStasis ? 0x38bdf8 : 0xffae3b;
+        entry.hullMat.emissive.setHex(typeColor);
+        entry.beaconMat.color.setHex(typeColor);
+        entry.glowMat.color.setHex(typeColor);
         entry.ringMat.color.setHex(isStasis ? 0xc084fc : 0xff3b6d);
         entry.group.visible = true;
+        entry.group.quaternion.identity();
+        entry.body.rotation.set(0, 0, 0);
+        if (entry.group.parent !== surface) surface.add(entry.group);
         return entry;
     }
 
@@ -4893,9 +5205,6 @@
         const offsetAngle = Math.atan2(bot.forward.z, bot.forward.x) + Math.PI + (Math.random() - 0.5) * 0.9;
         const dropX = clamp(bot.state.x + Math.cos(offsetAngle) * 0.65, -robotBounds.x * 0.92, robotBounds.x * 0.92);
         const dropZ = clamp(bot.state.z + Math.sin(offsetAngle) * 0.65, -robotBounds.z * 0.92, robotBounds.z * 0.92);
-        const waterH = heightAt(dropX, dropZ, t, { ignoreRobotFeedbackWaves: true });
-        entry.group.position.set(dropX, surface.position.y + waterH + 0.16, dropZ + surface.position.z);
-        entry.group.scale.setScalar(1.0);
         entry.x = dropX;
         entry.z = dropZ;
         entry.owner = bot;
@@ -4904,9 +5213,17 @@
         entry.armedAt = t + ROBOT_MINE_ARM_DELAY;
         entry.life = ROBOT_MINE_LIFETIME;
         entry.seed = Math.random() * Math.PI * 2;
+        // The mine is dropped from just above the water; the splash (ripple, spray) happens when it lands.
+        entry.dropHeight = 0.55;
+        entry.yOff = entry.dropHeight;
+        entry.fallTime = Math.sqrt(2 * 0.55 / 9.8);
+        entry.splashed = false;
+        entry.rippleAt = t + 1.2;
+        entry.waterH = renderedWaterHeight(dropX, dropZ, t);
+        entry.group.position.set(dropX, entry.waterH + entry.dropHeight, dropZ);
+        surface.localToWorld(entry.worldPos.set(dropX, entry.waterH + entry.dropHeight, dropZ));
         surfaceMines.push(entry);
         bot.state.lastMineAt = t;
-        addImpulse(dropX, dropZ, 0.28);
         return true;
     }
 
@@ -4920,7 +5237,7 @@
         victim.state.evasionUntil = -999;
         cancelRobotActiveBeams(victim);
 
-        const pos = mine && mine.group ? mine.group.position.clone() : victim.group.position.clone();
+        const pos = mine && mine.worldPos ? mine.worldPos.clone() : victim.group.position.clone();
         const recoil = victim.group.position.clone().sub(pos);
         recoil.y = 0;
         if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
@@ -4935,7 +5252,7 @@
 
     function detonateSurfaceMine(mine, victim, t) {
         if (!mine || !scene) return;
-        const pos = mine.group.position.clone();
+        const pos = mine.worldPos.clone();
         const isStasis = mine.mineType === 'stasis';
         const color = isStasis ? 0x38bdf8 : 0xff7a18;
         addImpulse(mine.x, mine.z, isStasis ? 1.05 : 1.28);
@@ -4982,6 +5299,30 @@
             );
         }
 
+        // Water column thrown up by the blast
+        for (let i = 0; i < 10; i++) {
+            const a = Math.random() * Math.PI * 2;
+            createSmokeSprite(
+                pos.x + Math.cos(a) * 0.12,
+                pos.y + 0.06,
+                pos.z + Math.sin(a) * 0.12,
+                0xe0f2fe,
+                0.14 + Math.random() * 0.12,
+                0.5 + Math.random() * 0.35,
+                {
+                    vx: Math.cos(a) * (0.4 + Math.random() * 0.9),
+                    vy: 1.8 + Math.random() * 1.6,
+                    vz: Math.sin(a) * (0.4 + Math.random() * 0.9),
+                    spin: (Math.random() - 0.5) * 6,
+                    opacity: 0.75,
+                    expansion: 1.2,
+                    fadePower: 1.5,
+                    renderOrder: 3,
+                    kind: 'mineSplash'
+                }
+            );
+        }
+
         if (victim && victim.loaded && victim.group) {
             if (isStasis) {
                 stunRobotWithStasisMine(victim, mine, t);
@@ -5006,19 +5347,85 @@
         for (let i = surfaceMines.length - 1; i >= 0; i--) {
             const mine = surfaceMines[i];
             mine.life -= dt;
-            const waterH = heightAt(mine.x, mine.z, t, { ignoreRobotFeedbackWaves: true });
-            const bob = Math.sin(t * 4.2 + mine.seed) * 0.04;
-            mine.group.position.set(mine.x, surface.position.y + waterH + 0.16 + bob, mine.z + surface.position.z);
-            mine.core.rotation.y += dt * 2.4;
-            mine.core.rotation.x += dt * 1.5;
+            const age = t - mine.bornAt;
+            const waterH = renderedWaterHeight(mine.x, mine.z, t);
+            mine.waterH = waterH;
+            const falling = age < mine.fallTime;
+
+            // Vertical offset of the mine's water-surface point: free fall, then a damped dip and a slow bob.
+            let yOff;
+            if (falling) {
+                yOff = mine.dropHeight - 4.9 * age * age;
+                mine.body.rotation.y += dt * 2.5;
+            } else {
+                const settle = age - mine.fallTime;
+                yOff = -0.07 * Math.exp(-settle * 3.2) * Math.cos(settle * 12.0) + Math.sin(t * 2.1 + mine.seed) * 0.012;
+            }
+            mine.yOff = yOff;
+            mine.group.position.set(mine.x, waterH + yOff, mine.z);
+            surface.localToWorld(mine.worldPos.set(mine.x, waterH + yOff, mine.z));
+            // The foam line and sonar pulse stay glued to the water while the hull falls, dips and bobs.
+            mine.waterline.position.y = 0.012 - yOff;
+            mine.ring.position.y = 0.02 - yOff;
+
+            if (!falling) {
+                if (!mine.splashed) {
+                    mine.splashed = true;
+                    addImpulse(mine.x, mine.z, 0.3);
+                    cameraShake = Math.max(cameraShake, 0.02);
+                    const wp = mine.worldPos;
+                    for (let s = 0; s < 8; s++) {
+                        const a = (s / 8) * Math.PI * 2 + Math.random() * 0.6;
+                        createSmokeSprite(
+                            wp.x + Math.cos(a) * 0.12,
+                            wp.y + 0.06,
+                            wp.z + Math.sin(a) * 0.12,
+                            0xe0f2fe,
+                            0.08 + Math.random() * 0.08,
+                            0.35 + Math.random() * 0.25,
+                            {
+                                vx: Math.cos(a) * (0.6 + Math.random() * 0.8),
+                                vy: 1.2 + Math.random() * 1.2,
+                                vz: Math.sin(a) * (0.6 + Math.random() * 0.8),
+                                spin: (Math.random() - 0.5) * 6,
+                                opacity: 0.75,
+                                expansion: 1.2,
+                                fadePower: 1.5,
+                                renderOrder: 3,
+                                kind: 'mineSplash'
+                            }
+                        );
+                    }
+                }
+
+                // Settle onto the wave: tilt to the water normal, rock gently, keep making small ripples.
+                hazardSurfaceNormal(mine.x, mine.z, t, mine.normal);
+                _hazardQuat.setFromUnitVectors(UP_AXIS, mine.normal);
+                mine.group.quaternion.slerp(_hazardQuat, 1 - Math.exp(-dt * 7));
+                mine.body.rotation.x = Math.sin(t * 1.6 + mine.seed) * 0.06;
+                mine.body.rotation.z = Math.cos(t * 1.3 + mine.seed) * 0.05;
+                mine.body.rotation.y += dt * 0.35;
+                if (t >= mine.rippleAt) {
+                    addImpulse(mine.x, mine.z, 0.055);
+                    mine.rippleAt = t + 1.7 + Math.random() * 0.9;
+                }
+            }
 
             const armed = t >= mine.armedAt;
-            const beaconPulse = armed ? (1 + Math.sin(t * 14.0 + mine.seed) * 0.25) : 0.7;
-            mine.ring.scale.setScalar(beaconPulse * 1.45);
-            mine.ringMat.opacity = armed ? (0.55 + Math.sin(t * 14.0 + mine.seed) * 0.25) : 0.28;
+            const blink = armed
+                ? Math.pow(Math.max(0, Math.sin(t * 6.5 + mine.seed)), 8)
+                : 0.35 + 0.15 * Math.sin(t * 2.0 + mine.seed);
+            mine.beaconMat.opacity = 0.45 + 0.55 * blink;
+            mine.glowMat.opacity = 0.18 + 0.6 * blink;
+            mine.glow.scale.setScalar(0.26 + 0.22 * blink);
+            mine.hullMat.emissiveIntensity = 0.06 + 0.32 * blink;
+            const sonarPhase = (((t * 0.85 + mine.seed) % 1) + 1) % 1;
+            mine.ring.scale.setScalar(0.55 + sonarPhase * 3.1);
+            mine.ringMat.opacity = armed ? (1 - sonarPhase) * (1 - sonarPhase) * 0.55 : 0.12;
+            mine.waterlineMat.opacity = 0.14 + 0.08 * Math.sin(t * 3 + mine.seed);
 
             let triggeredVictim = null;
-            if (armed) {
+            if (armed && mine.splashed) {
                 const targetBot = mine.owner && mine.owner.opponent ? mine.owner.opponent : null;
                 if (targetBot && targetBot.loaded && targetBot.group && !robotIsBlinking(targetBot)) {
                     const dx = targetBot.state.x - mine.x;
@@ -5034,6 +5441,22 @@
                 releaseSurfaceMineEntry(mine);
                 surfaceMines.splice(i, 1);
             }
+        }
+    }
+
+    // updateSurface runs after the hazard updates, so they were laid on last frame's water. Re-seat them on
+    // the freshly written height cache before drawing; otherwise they trail the water by one frame, which
+    // lets slicks sink into (or float off) sharp ripple fronts.
+    function syncHazardsToWater(t) {
+        if (!surface) return;
+        for (let i = 0; i < fuelSlicks.length; i++) {
+            layFuelSlickOnWater(fuelSlicks[i], t);
+        }
+        for (let i = 0; i < surfaceMines.length; i++) {
+            const mine = surfaceMines[i];
+            mine.waterH = renderedWaterHeight(mine.x, mine.z, t);
+            mine.group.position.y = mine.waterH + mine.yOff;
+            surface.localToWorld(mine.worldPos.set(mine.x, mine.group.position.y, mine.z));
         }
     }
 
@@ -5655,6 +6078,7 @@
         updateFloatingRobot(dt, t);
         updateParticles(dt, t);
         updateSurface(t);
+        syncHazardsToWater(t);
         updateLightning(dt, t);
 
         if (camera) {
