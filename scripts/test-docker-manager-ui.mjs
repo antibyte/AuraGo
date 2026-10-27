@@ -1049,7 +1049,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1060,7 +1060,7 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
-    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerOps && full.DockerManagerPalette && full.DockerManagerDialogs && full.DockerManagerApp, 'all 10 modules publish their global');
+    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerOps && full.DockerManagerPalette && full.DockerManagerDialogs && full.DockerManagerNewStack && full.DockerManagerApp, 'all 11 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
     assert.equal(typeof full.DockerManagerViews.create, 'function');
@@ -1227,10 +1227,14 @@ const full = {};
         op_kind_: [...sm.OP_KINDS],
         lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint'],
         op_state_: [...sm.OP_STATES],
-        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh']
+        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh'],
+        sv_name_: ['empty', 'invalid', 'taken'],
+        convert_: [...sm.CONVERT_WARNINGS],
+        preview_kind_: [...sm.VOLUME_KINDS],
+        preview_var_: ['set', 'default', 'required', 'missing']
     };
     // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
-    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing']) used.add(prefix + name);
+    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved']) used.add(prefix + name);
     for (const [family, names] of Object.entries(families)) for (const name of names) used.add(prefix + family + name);
     used.add('desktop.app_docker_manager');
     assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
