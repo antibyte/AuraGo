@@ -1,7 +1,9 @@
 /* Docker Manager dialogs: one native <dialog> (provided by docker-manager.js) that shows a stack of views: the host
    manager list, the add/edit form with "Test connection", the import-from-nest list and the confirmations (remove a
-   container, act on a protected one, delete a host). Escape or Back pops one view; the close button and a click on the
-   backdrop close all. A classic script (window.DockerManagerDialogs) with no DOM work at load. Secrets typed into the
+   container, act on a protected one, delete a host) and, for stacks, the destructive confirmations (delete a stack, down
+   with volumes: they list what disappears), the revision-conflict dialog with a line diff, and the prepare-host question.
+   Escape or Back pops one view; the close button and a click on the backdrop close all. A classic script
+   (window.DockerManagerDialogs) with no DOM work at load. Secrets typed into the
    form live only in the form fields: they are sent with Save or Test and never rendered back. */
 (function () {
     'use strict';
@@ -11,7 +13,7 @@
     const RUNNING_STATES = ['running', 'paused', 'restarting'];
 
     function create(app) {
-        const { t, dt, esc, model, store, root, views, toast, announce, uid } = app;
+        const { t, dt, esc, model, stackModel: sm, store, root, views, toast, announce, uid } = app;
         const dialog = root.querySelector('[data-dialog]'), content = root.querySelector('[data-dialog-content]');
         const stack = [];
         const testing = new Set();
@@ -121,6 +123,119 @@
                 title: t('protected_confirm_title'), message: t('protected_confirm_body', { name, action: label }),
                 note, confirmLabel: label, danger: true
             });
+        }
+
+        // ---- stacks: destructive confirmations, conflicts, prepare ------------------------------------------------------
+
+        function volumesHtml(data) {
+            if (data.status === 'loading') return '<p class="dm-muted" role="status">' + esc(t('volumes_loading')) + '</p>';
+            if (data.status === 'error') return '<p class="dm-error" role="alert">' + esc(t('volumes_failed')) + ' ' + esc(views.errorText(data.error)) + '</p>';
+            if (!data.list.length) return '<p class="dm-muted">' + esc(t('volumes_none')) + '</p>';
+            return '<ul class="dm-lose-list">' + data.list.map(volume => '<li><strong>' + esc(volume.name) + '</strong> <span class="dm-muted">'
+                + esc([volume.driver, volume.size >= 0 ? sm.formatBytes(volume.size) : ''].filter(Boolean).join(' · ')) + '</span></li>').join('') + '</ul>';
+        }
+
+        // Shared by delete and down -v: loads the named volumes of the stack (GET .../volumes) and keeps them in data.
+        function loadVolumes(info, data, view) {
+            data.status = 'loading';
+            view.update();
+            store.loadVolumes(info.hostId, info.name).then(list => { data.status = 'ok'; data.list = list; view.update(); },
+                error => { data.status = 'error'; data.error = error.dm; view.update(); });
+        }
+
+        // Delete a stack: names the folder and the volumes, offers to delete the volumes too, and needs the stack name typed.
+        // Resolves {volumes: boolean} or null.
+        function confirmDelete(info) {
+            return new Promise(resolve => {
+                let settled = false;
+                const settle = value => { if (!settled) { settled = true; resolve(value); } };
+                const data = { status: 'loading', list: [], error: null }, choice = { volumes: false };
+                const view = {
+                    title: t('delete_title', { name: info.name }),
+                    html: () => '<p class="dm-dialog-copy">' + esc(t('delete_body', { name: info.name, host: info.hostName })) + '</p>'
+                        + '<ul class="dm-lose-list"><li>' + views.glyph('folder') + ' <span>' + esc(t('delete_folder', { path: info.dir })) + '</span></li></ul>'
+                        + '<h3 class="dm-lose-title">' + esc(t('volumes_title')) + '</h3><div data-volumes>' + volumesHtml(data) + '</div>'
+                        + '<label class="dm-check"><input type="checkbox" name="volumes" data-focus-id="delete:volumes"><span>' + esc(t('delete_volumes_too')) + '</span></label>'
+                        + '<p class="dm-hint" data-volumes-note>' + esc(t('delete_volumes_stay')) + '</p>'
+                        + '<p class="dm-note">' + views.glyph('lock') + '<span>' + esc(t('delete_images_stay')) + '</span></p>'
+                        + '<div class="dm-field"><label for="' + fieldId('confirm-name') + '">' + esc(t('delete_type', { name: info.name })) + '</label><input id="' + fieldId('confirm-name') + '" name="confirm-name" autocomplete="off" spellcheck="false" autocapitalize="off" data-autofocus></div>'
+                        + actions('', button('no', dt('desktop.cancel')) + button('yes', t('delete_confirm'), { danger: true, disabled: true })),
+                    update() {
+                        refreshPart(view, '[data-volumes]', volumesHtml(data));
+                        const note = content.querySelector('[data-volumes-note]');
+                        if (note) note.textContent = choice.volumes ? t('delete_volumes_go') : t('delete_volumes_stay');
+                    },
+                    bind(c) {
+                        const yes = c.querySelector('[data-dact="yes"]'), typed = c.querySelector('[name="confirm-name"]'), box = c.querySelector('[name="volumes"]');
+                        yes.removeAttribute('aria-busy');
+                        typed.addEventListener('input', () => { yes.disabled = typed.value.trim() !== info.name; });
+                        box.addEventListener('change', () => { choice.volumes = box.checked; view.update(); });
+                        c.querySelector('[data-dact="no"]').addEventListener('click', () => { settle(null); pop(false); });
+                        yes.addEventListener('click', () => { settle({ volumes: choice.volumes }); pop(true); });
+                    },
+                    onClose() { settle(null); }
+                };
+                push(view);
+                loadVolumes(info, data, view);
+            });
+        }
+
+        // Down with volumes: lists the volumes that are deleted with the containers. Resolves true or false.
+        function confirmDownVolumes(info) {
+            return new Promise(resolve => {
+                let settled = false;
+                const settle = value => { if (!settled) { settled = true; resolve(value); } };
+                const data = { status: 'loading', list: [], error: null };
+                const view = {
+                    title: t('down_volumes_title', { name: info.name }),
+                    html: () => '<p class="dm-dialog-copy">' + esc(t('down_volumes_body', { name: info.name, host: info.hostName })) + '</p>'
+                        + '<h3 class="dm-lose-title">' + esc(t('volumes_title')) + '</h3><div data-volumes>' + volumesHtml(data) + '</div>'
+                        + '<p class="dm-note">' + views.glyph('lock') + '<span>' + esc(t('down_volumes_stay', { path: info.dir })) + '</span></p>'
+                        + actions('', button('no', dt('desktop.cancel'), { auto: true }) + button('retry', t('banner_retry'), { glyph: 'refresh' }) + button('yes', t('down_volumes_confirm'), { danger: true, disabled: true })),
+                    update() {
+                        refreshPart(view, '[data-volumes]', volumesHtml(data));
+                        const yes = content.querySelector('[data-dact="yes"]'), retry = content.querySelector('[data-dact="retry"]');
+                        if (yes) { yes.disabled = data.status !== 'ok'; yes.removeAttribute('aria-busy'); }
+                        if (retry) retry.hidden = data.status !== 'error';
+                    },
+                    bind(c) {
+                        c.querySelector('[data-dact="no"]').addEventListener('click', () => { settle(false); pop(false); });
+                        c.querySelector('[data-dact="yes"]').addEventListener('click', () => { settle(true); pop(true); });
+                        c.querySelector('[data-dact="retry"]').addEventListener('click', () => loadVolumes(info, data, view));
+                        view.update();
+                    },
+                    onClose() { settle(false); }
+                };
+                push(view);
+                loadVolumes(info, data, view);
+            });
+        }
+
+        // The file changed on the host since it was loaded: a line diff from the host version to yours. Resolves 'mine'
+        // (save over it), 'theirs' (take the host version) or null (keep editing).
+        function confirmConflict(info) {
+            return new Promise(resolve => {
+                let settled = false;
+                const settle = value => { if (!settled) { settled = true; resolve(value); } };
+                const rows = sm.lineDiff(info.theirs, info.mine), same = !sm.diffChanged(rows);
+                push({
+                    title: t('conflict_title', { file: info.name }), wide: true,
+                    html: () => '<p class="dm-dialog-copy">' + esc(t('conflict_body', { file: info.name })) + '</p>'
+                        + (same ? '<p class="dm-muted">' + esc(t('conflict_same')) + '</p>' : '<p class="dm-hint">' + esc(t('conflict_legend')) + '</p>' + views.diffHtml(rows))
+                        + actions(button('no', t('conflict_keep'), { auto: true }), button('theirs', t('conflict_take_host')) + button('mine', t('conflict_overwrite'), { danger: true })),
+                    bind(c) {
+                        c.querySelector('[data-dact="no"]').addEventListener('click', () => { settle(null); pop(false); });
+                        c.querySelector('[data-dact="theirs"]').addEventListener('click', () => { settle('theirs'); pop(true); });
+                        c.querySelector('[data-dact="mine"]').addEventListener('click', () => { settle('mine'); pop(true); });
+                    },
+                    onClose() { settle(null); }
+                });
+            });
+        }
+
+        // Preparing a host pulls the helper image (about 64 MB) and creates the IO container. Resolves true or false.
+        function confirmPrepare(info) {
+            return confirm({ title: t('prepare_title'), message: t('prepare_body', { image: info.image }) + ' ' + t('prepare_question', { host: info.hostName }), confirmLabel: t('prepare_button') });
         }
 
         // ---- host manager --------------------------------------------------------------------------------------------
@@ -428,7 +543,7 @@
             disposed = true;
         }
 
-        return { openHosts, openHostForm, openNests, confirm, confirmRemove, confirmProtectedAction, closeAll, dispose, isOpen: () => dialog.open };
+        return { openHosts, openHostForm, openNests, confirm, confirmRemove, confirmProtectedAction, confirmDelete, confirmDownVolumes, confirmConflict, confirmPrepare, closeAll, dispose, isOpen: () => dialog.open };
     }
 
     window.DockerManagerDialogs = { create };
