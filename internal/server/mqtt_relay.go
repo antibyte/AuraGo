@@ -247,12 +247,14 @@ func (s *Server) newMQTTRelayHandler() func(ctx context.Context, topic, payload 
 		// owner: scan what the model would read, locally and whatever the LLM
 		// Guardian toggle says. At ThreatHigh the delivery is dropped and only
 		// the fixed notice goes through the same route (the webhook pattern).
-		prompt := mqttRelayPrompt(topic, payload, frigateKind)
+		var prompt string
 		if scan := s.Guardian.ScanForInjectionLocal(mqttRelayText(topic, payload)); scan.Level >= security.ThreatHigh {
 			if s.Logger != nil {
 				s.Logger.Warn("[MQTT] Relay message quarantined after prompt-injection scan", "source", messageSource, "topic", topic, "level", scan.Level.String(), "patterns", scan.Patterns)
 			}
 			prompt = mqttRelayQuarantineNotice(messageSource, topic, payload, scan)
+		} else {
+			prompt = mqttRelayPrompt(topic, payload, frigateKind)
 		}
 		// The source label doubles as the session ID: MQTT and Frigate relays
 		// run in the internal "mqtt" and "frigate" sessions, so renaming a
