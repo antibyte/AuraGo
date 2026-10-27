@@ -483,6 +483,9 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	var msgs []string
 	judgeContext := &promptsec.Context{RawInput: text, Input: text, Metadata: make(map[string]any)}
 
+	// primary marks the windows of the original text. Only they may supply the
+	// sanitized message; the view and decode shadows are read-only samples.
+	primary := true
 	mergeAnalysis := func(analysis *promptsec.Result) {
 		if _, structured := analysis.Metadata["structured_prompt"].(string); structured {
 			result.StructuredPrompt = true
@@ -491,7 +494,7 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 		// Only a complete-input transformation may replace a message. Scan
 		// windows are diagnostic samples and would silently drop user content.
 		// Structure provenance comes from guard metadata, not prompt text matching.
-		if !chunked && (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
+		if primary && !chunked && (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
 			result.Sanitized = analysis.Output
 		}
 		if result.TaintSource == "" {
@@ -525,11 +528,44 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 			result.Level = ThreatMedium
 		}
 	}
-	for _, scanText := range scanWindows {
-		analysis := protector.Analyze(scanText)
-		mergeAnalysis(analysis)
-		if judge != nil {
-			judgeContext.Threats = append(judgeContext.Threats, analysis.Threats...)
+	scanAll := func(windows []string, lift bool) {
+		for _, scanText := range windows {
+			analysis := protector.Analyze(scanText)
+			if lift {
+				analysis = liftShadowAnalysis(analysis)
+			}
+			mergeAnalysis(analysis)
+			if judge != nil {
+				judgeContext.Threats = append(judgeContext.Threats, analysis.Threats...)
+			}
+		}
+	}
+	scanAll(scanWindows, false)
+
+	// The scan view reads zero-width and format characters as the word breaks
+	// they act as and folds compatibility letters; the decode shadows carry
+	// what the sanitizer cannot decode. Each window gets its own view, so a
+	// window the view leaves unchanged costs nothing beyond the scan above.
+	primary = false
+	shadowBytes, shadowCount := 0, 0
+	seenShadows := make(map[string]bool)
+viewScan:
+	for _, window := range scanWindows {
+		view := scanView(window)
+		if view != window {
+			scanAll([]string{view}, false)
+		}
+		for _, shadow := range decodeShadows(view) {
+			if seenShadows[shadow] {
+				continue
+			}
+			if shadowCount >= maxDecodeShadows || shadowBytes+len(shadow) > maxDecodeShadowWindows*maxScanBytes {
+				break viewScan
+			}
+			seenShadows[shadow] = true
+			shadowCount++
+			shadowBytes += len(shadow)
+			scanAll([]string{shadow}, true)
 		}
 	}
 	if judge != nil {
