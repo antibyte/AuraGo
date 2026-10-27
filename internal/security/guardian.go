@@ -833,13 +833,14 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	trust := classifyToolOutput(toolName)
 	var scan ScanResult
 	var leaves []jsonLeaf
+	var joined string
 	if trust == toolOutputSourceData || trust == toolOutputExternal {
 		scan = g.ScanForInjection(output)
 		// A JSON envelope escapes line breaks and quotes, which splits a phrase
 		// the regexes need whole. Scan the decoded string values joined by
 		// newlines as well and keep the higher verdict.
 		if leaves = jsonStringLeaves(output); len(leaves) > 0 {
-			if joined := joinJSONLeaves(leaves); joined != "" {
+			if joined = joinJSONLeaves(leaves); joined != "" {
 				scan = mergeScanResults(scan, g.ScanForInjection(joined))
 			}
 		}
@@ -850,6 +851,12 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 				"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
 		}
 		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineSuspicious))
+	}
+	// External output that is delivered anyway but looks flagged gets a warning
+	// line; source output keeps the validator's line alone.
+	var flagged []string
+	if trust == toolOutputExternal {
+		flagged = g.externalWarningCategories(toolName, scan, output, joined)
 	}
 	// Strip role impersonation markers (e.g. "system:" at line start), in the
 	// decoded JSON string values too: their line starts are escaped newlines.
@@ -882,7 +889,9 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	protector := g.protector
 	g.mu.RUnlock()
 	validation := protector.ValidateOutput(output, nil)
+	var threats []promptsec.Threat
 	if !validation.Safe {
+		threats = validation.Threats
 		if g.logger != nil {
 			msgs := make([]string, 0, len(validation.Threats))
 			for _, thr := range validation.Threats {
@@ -893,10 +902,48 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 			g.logger.Warn("[Guardian] Promptsec validation failed",
 				"tool", toolName, "recommendation", strings.Join(msgs, "; "))
 		}
-		output += formatToolOutputWarning(validation.Threats)
+	}
+	if !validation.Safe || len(flagged) > 0 {
+		output += formatToolOutputWarningWith(threats, flagged)
 	}
 
 	return output
+}
+
+// externalWarningCategories names why external output that is delivered anyway
+// gets a SECURITY WARNING line: a Medium scan finding (the detector's own
+// category names; payload text stays out) and a standing-instruction shape in
+// the text, decoded JSON values first. Neither withholds. It logs the
+// categories only.
+func (g *Guardian) externalWarningCategories(toolName string, scan ScanResult, output, joined string) []string {
+	var cats []string
+	if scan.Level >= ThreatMedium {
+		cats = append(cats, scan.Patterns...)
+		if len(cats) == 0 {
+			cats = append(cats, "unspecified")
+		}
+	}
+	directive := false
+	if joined != "" {
+		_, directive = DirectiveShape(joined)
+	}
+	if !directive {
+		_, directive = DirectiveShape(output)
+	}
+	if directive {
+		cats = append(cats, DirectiveShapeCategory)
+	}
+	if len(cats) == 0 {
+		return nil
+	}
+	for i, cat := range cats {
+		cats[i] = sanitizeThreatCategory(cat)
+	}
+	if g.logger != nil {
+		g.logger.Info("[Guardian] Flagged external tool output",
+			"tool", toolName, "threat", scan.Level.String(), "categories", cats)
+	}
+	return cats
 }
 
 // ScanUserInput analyzes a user message for injection attempts.
