@@ -79,6 +79,18 @@ function ccRenderDiscoveryResults(area, devices) {
 
         infoDiv.appendChild(nameSpan);
         infoDiv.appendChild(metaSpan);
+        if (d.group) {
+            const groupSpan = document.createElement('span');
+            groupSpan.className = 'cfgdev-discovery-added';
+            groupSpan.textContent = t('config.chromecast.group_label');
+            infoDiv.appendChild(groupSpan);
+        }
+        if (d.audio_only) {
+            const audioSpan = document.createElement('span');
+            audioSpan.className = 'cfgdev-discovery-meta';
+            audioSpan.textContent = t('config.chromecast.audio_only_label');
+            infoDiv.appendChild(audioSpan);
+        }
         item.appendChild(infoDiv);
 
         if (alreadyAdded) {
@@ -146,6 +158,23 @@ function renderChromecastSection(section) {
     html += '<input class="field-input" type="text" data-path="chromecast.media_host_allowlist" data-type="array" value="' + escapeAttr(mediaAllowlist) + '" placeholder="192.168.1.10, media.lan:8096, 192.168.1.0/24">';
     html += '</div>';
 
+    const helpAdvertise = t('help.chromecast.advertise_host');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.chromecast.advertise_host_label') + '</div>';
+    if (helpAdvertise) html += '<div class="field-help">' + helpAdvertise + '</div>';
+    html += '<input class="field-input" type="text" data-path="chromecast.advertise_host" value="' + escapeAttr(data.advertise_host || '') + '" placeholder="192.168.1.20">';
+    html += '</div>';
+
+    const readOnlyOn = data.read_only === true;
+    const helpReadOnly = t('help.chromecast.read_only');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.chromecast.read_only_label') + '</div>';
+    if (helpReadOnly) html += '<div class="field-help">' + helpReadOnly + '</div>';
+    html += '<div class="toggle-wrap">';
+    html += '<div class="toggle' + (readOnlyOn ? ' on' : '') + '" data-path="chromecast.read_only" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + (readOnlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
+    html += '</div></div>';
+
     // ── Devices section ──
     html += '<div class="field-group">';
     html += '<div class="field-group-title">📺 ' + t('config.chromecast.devices_title') + '</div>';
@@ -159,6 +188,7 @@ function renderChromecastSection(section) {
 
     // Discovery results area (hidden initially)
     html += '<div id="cfgdev-discover-area" class="cfgdev-discover-area is-hidden"></div>';
+    html += '<div id="cfgdev-test-status" class="field-help"></div>';
 
     // Device table
     html += `
@@ -253,6 +283,38 @@ async function ccLoadDevices() {
     ccRenderRows(ccDevicesCache);
 }
 
+function ccChromecastMutable() {
+    const data = configData.chromecast || {};
+    return data.enabled === true && data.read_only !== true;
+}
+
+function ccSetTestStatus(message) {
+    const status = document.getElementById('cfgdev-test-status');
+    if (status) status.textContent = message || '';
+}
+
+async function ccTestDevice(id) {
+    if (!ccChromecastMutable()) {
+        ccSetTestStatus(t('config.chromecast.test_disabled'));
+        return;
+    }
+    ccSetTestStatus(t('config.chromecast.test_working'));
+    try {
+        const resp = await fetch('/api/chromecast/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: id })
+        });
+        if (!resp.ok) {
+            ccSetTestStatus(t('config.chromecast.test_failed'));
+            return;
+        }
+        ccSetTestStatus(t('config.chromecast.test_ok'));
+    } catch (e) {
+        ccSetTestStatus(t('config.chromecast.test_failed'));
+    }
+}
+
 function ccRenderRows(devices) {
     const tbody = document.getElementById('cfgdev-tbody');
     tbody.innerHTML = '';
@@ -266,6 +328,7 @@ function ccRenderRows(devices) {
             <td class="cfgdev-cell">${d.port || 8009}</td>
             <td class="cfgdev-cell cfgdev-cell-desc">${escapeHtml(d.description || '—')}</td>
             <td class="cfgdev-cell cfgdev-cell-actions">
+                <button onclick="ccTestDevice('${escapeAttr(d.id)}')" class="cfgdev-icon-btn" ${ccChromecastMutable() ? '' : 'disabled'} title="${escapeAttr(t('config.chromecast.test_button'))}">${escapeHtml(t('config.chromecast.test_button'))}</button>
                 <button onclick="ccShowEditModal('${escapeAttr(d.id)}')" class="cfgdev-icon-btn" title="${t('config.chromecast.edit_tooltip')}">✏️</button>
                 <button onclick="ccDeleteDevice('${escapeAttr(d.id)}','${escapeAttr(d.name)}')" class="cfgdev-icon-btn cfgdev-icon-btn-danger" title="${t('config.chromecast.delete_tooltip')}">🗑️</button>
             </td>`;

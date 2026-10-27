@@ -572,16 +572,19 @@ Chromecast-Geräte im Netzwerk entdecken und steuern (Play, TTS, Discover). Loka
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | discover, play, speak, stop, volume, status |
-| `device_name` | string | Anzeigename des Geräts (Auflösung über das Geräteregister) |
-| `device_addr` | string | IP-Adresse des Chromecast-Geräts |
-| `device_port` | integer | Port des Chromecast-Geräts (Standard: 8009) |
-| `url` | string | Direkte HTTP(S)-Medien-URL für `play`; private LAN-URLs brauchen `chromecast.media_host_allowlist`, außer AuraGo hat die `/tts/`- oder `/cast-media/`-URL erzeugt |
-| `local_path` | string | Lokale Workspace-Audio-/Video-/Bilddatei für `play`; wird unter `/cast-media/` bereitgestellt |
+| `operation` | enum | discover, play, speak, stop, volume, pause, resume, seek, mute, status |
+| `device_name` | string | Anzeigename aus dem Inventar oder der letzten Suche |
+| `device_addr` | string | Private IP eines bekannten Geräts. Eine unbekannte oder öffentliche Adresse wird abgelehnt |
+| `device_port` | integer | Port des Chromecast-Geräts (Standard: 8009). Erlaubt sind 8009 oder der gespeicherte Port |
+| `url` | string | Direkte HTTP(S)-Mediendatei für `play`. YouTube-Seiten werden abgelehnt. Private LAN-URLs brauchen `chromecast.media_host_allowlist`, außer AuraGo hat die `/tts/`- oder `/cast-media/`-URL erzeugt |
+| `local_path` | string | Lokale Workspace-Audio-/Video-/Bilddatei für `play`, 3 Stunden unter `/cast-media/` bereitgestellt. Dateien über 1 GiB werden abgelehnt |
 | `content_type` | string | MIME-Typ der Medien für `play` (z. B. 'audio/mpeg', 'video/mp4', 'video/webm'); Standard ist `audio/mpeg` |
-| `text` | string | Text, der per TTS gesprochen wird (für `speak`) |
+| `stream_type` | string | Optionaler Hinweis `live` für `play`. Er wird zurückgegeben und ändert die Wiedergabeart nicht |
+| `text` | string | Text, der per TTS gesprochen wird (für `speak`). Mehr als 500 Zeichen werden gekürzt |
 | `language` | string | Sprachcode für TTS (für `speak`) |
-| `volume` | number | Lautstärke 0.0-1.0 (für `volume`) |
+| `volume` | number | Lautstärke 0.0–1.0 für `volume`. Pflicht. 0 ist ein echter Wert |
+| `position` | number | Zielposition in Sekunden für `seek` |
+| `muted` | boolean | Stummschaltung für `mute`. Pflicht |
 
 ### `jellyfin`
 Jellyfin Media Server steuern (Bibliotheken, Sessions, Wiedergabe).

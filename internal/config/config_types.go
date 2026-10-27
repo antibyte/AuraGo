@@ -1959,6 +1959,8 @@ type Config struct {
 		Enabled            bool     `yaml:"enabled"`
 		TTSPort            int      `yaml:"tts_port"`
 		MediaHostAllowlist []string `yaml:"media_host_allowlist"`
+		AdvertiseHost      string   `yaml:"advertise_host"` // LAN host Cast devices use for AuraGo media; empty picks one and never publishes loopback
+		ReadOnly           bool     `yaml:"read_only"`      // blocks playback changes; discover and status stay available
 	} `yaml:"chromecast"`
 	MeshCore      meshcore.Config     `yaml:"meshcore" json:"meshcore"`
 	Bluetooth     BluetoothConfig     `yaml:"bluetooth" json:"bluetooth"`

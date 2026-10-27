@@ -3,6 +3,7 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -331,6 +332,12 @@ type chromecastArgs struct {
 	Text        string
 	Language    string
 	Volume      float64
+	VolumeSet   bool
+	Position    float64
+	PositionSet bool
+	Muted       bool
+	MutedSet    bool
+	StreamType  string
 }
 
 type obsidianArgs struct {
@@ -378,6 +385,41 @@ func toolArgFloat64(args map[string]interface{}, keys ...string) float64 {
 		}
 	}
 	return 0
+}
+
+func toolArgFloat64Present(args map[string]interface{}, keys ...string) (float64, bool) {
+	if len(args) == 0 {
+		return 0, false
+	}
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok || raw == nil {
+			continue
+		}
+		switch value := raw.(type) {
+		case float64:
+			return value, true
+		case float32:
+			return float64(value), true
+		case int:
+			return float64(value), true
+		case int32:
+			return float64(value), true
+		case int64:
+			return float64(value), true
+		case json.Number:
+			parsed, err := value.Float64()
+			if err == nil {
+				return parsed, true
+			}
+		case string:
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+			if err == nil {
+				return parsed, true
+			}
+		}
+	}
+	return 0, false
 }
 
 func decodeCoAgentArgs(tc ToolCall) coAgentArgs {
@@ -473,6 +515,13 @@ func decodeTTSArgs(tc ToolCall) ttsArgs {
 }
 
 func decodeChromecastArgs(tc ToolCall) chromecastArgs {
+	volume, volumeSet := toolArgFloat64Present(tc.Params, "volume")
+	if !volumeSet && tc.Volume != 0 {
+		volume = tc.Volume
+		volumeSet = true
+	}
+	position, positionSet := toolArgFloat64Present(tc.Params, "position")
+	muted, mutedSet := toolArgBool(tc.Params, "muted")
 	return chromecastArgs{
 		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		DeviceAddr:  firstNonEmptyToolString(tc.DeviceAddr, toolArgString(tc.Params, "device_addr")),
@@ -483,7 +532,13 @@ func decodeChromecastArgs(tc ToolCall) chromecastArgs {
 		ContentType: firstNonEmptyToolString(tc.ContentType, toolArgString(tc.Params, "content_type")),
 		Text:        firstNonEmptyToolString(tc.Text, tc.Content, toolArgString(tc.Params, "text", "content")),
 		Language:    firstNonEmptyToolString(tc.Language, toolArgString(tc.Params, "language")),
-		Volume:      max(tc.Volume, toolArgFloat64(tc.Params, "volume")),
+		Volume:      volume,
+		VolumeSet:   volumeSet,
+		Position:    position,
+		PositionSet: positionSet,
+		Muted:       muted,
+		MutedSet:    mutedSet,
+		StreamType:  toolArgString(tc.Params, "stream_type"),
 	}
 }
 

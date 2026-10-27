@@ -18,11 +18,15 @@ var castTicketKey struct {
 	valid bool
 }
 
-const CastMediaTicketLifetime = 3 * time.Hour
+const (
+	CastMediaTicketLifetime = 3 * time.Hour
+	CastTTSTicketLifetime   = 10 * time.Minute
+)
 
 // SignCastMediaURL grants GET/HEAD access to one file for this process lifetime.
+// A lifetime below or equal to zero, or above CastMediaTicketLifetime, uses the 3-hour cap.
 // Restarting AuraGo invalidates outstanding tickets. No persistent secret is exposed.
-func SignCastMediaURL(raw string) string {
+func SignCastMediaURL(raw string, lifetime time.Duration) string {
 	u, err := url.Parse(raw)
 	if err != nil || !castTicketPath(u.Path) {
 		return ""
@@ -31,8 +35,11 @@ func SignCastMediaURL(raw string) string {
 	if !castTicketKey.valid {
 		return ""
 	}
+	if lifetime <= 0 || lifetime > CastMediaTicketLifetime {
+		lifetime = CastMediaTicketLifetime
+	}
 	q := u.Query()
-	expires := strconv.FormatInt(time.Now().Add(CastMediaTicketLifetime).Unix(), 10)
+	expires := strconv.FormatInt(time.Now().Add(lifetime).Unix(), 10)
 	q.Set("cast_expires", expires)
 	q.Set("cast_ticket", castTicketSignature(u.EscapedPath(), expires))
 	u.RawQuery = q.Encode()
