@@ -78,6 +78,15 @@ func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		write(http.StatusBadGateway, map[string]any{"status": "error", "code": "host_unreachable", "reason": "timeout", "message": "dial tcp 192.0.2.50:2375: i/o timeout"})
 	case r.Method == http.MethodGet && strings.HasSuffix(path, "/logs"):
 		write(http.StatusOK, map[string]any{"status": "ok", "logs": "2026-10-26T10:00:01Z starting\n2026-10-26T10:00:02Z listening on :80\n"})
+	case r.Method == http.MethodPost && path == "/hosts/test":
+		// A draft the server cannot test at all: the same 400 a rejected save answers.
+		write(http.StatusBadRequest, map[string]any{"status": "error", "code": "invalid_host", "field": "stacks_dir", "message": "must not contain blanks, control characters or any of : , = quotes"})
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/hosts/local/containers/"):
+		if r.URL.Query().Get("confirm") != "protected" {
+			write(http.StatusConflict, map[string]any{"status": "error", "code": "container_protected_confirmation_required", "owner": "ruview", "message": "AuraGo manages this container (ruview). Repeat the request with confirm=protected to continue."})
+			return
+		}
+		write(http.StatusOK, map[string]any{"status": "ok"})
 	default:
 		write(http.StatusNotFound, map[string]any{"status": "error", "code": "not_found", "message": "no route " + r.Method + " " + path})
 	}
@@ -211,6 +220,41 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-hostlist')`)
 	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
 	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+
+	// A draft test the server rejects for a field (400 invalid_host) is shown on that field like a rejected save: the
+	// Advanced section opens, the input is marked, and no "Connection failed" result is left behind.
+	page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="add"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="add"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-host-form]')`)
+	page.MustEval(`()=>{const f=document.querySelector('[data-host-form]');f.elements.name.value='Draft';f.elements.kind.value='tcp';f.elements.kind.dispatchEvent(new Event('change',{bubbles:true}));f.elements.address.value='192.0.2.77';f.elements.address.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-dact="test-form"]').click()}`)
+	page.MustWait(`()=>{const e=document.querySelector('[data-form-error]');return !!e&&!e.hidden}`)
+	if got := page.MustEval(`()=>{const f=document.querySelector('[data-host-form]');return [f.querySelector('.dm-advanced').open,f.elements.stacks_dir.getAttribute('aria-invalid'),f.querySelector('[data-test-result]').textContent.trim()===''].join('|')}`).String(); got != "true|true|true" {
+		t.Fatalf("rejected draft test = %q, want the Advanced section open, stacks_dir marked and no connection result", got)
+	}
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="back"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-hostlist')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+
+	// A remove the server wants confirmed (409 with an owner) shows the translated sentence for that owner in the second
+	// dialog, not the server's English message with its confirm=protected instruction.
+	page.MustEval(`()=>[...document.querySelectorAll('.dm-row')].find(r=>r.querySelector('.dm-name').textContent==='tools').focus()`)
+	if err := page.Keyboard.Type(input.Enter); err != nil {
+		t.Fatal(err)
+	}
+	page.MustWait(`()=>!document.querySelector('[data-drawer]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-drawer] [data-action="remove"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="yes"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="yes"]').click()`)
+	page.MustWait(`()=>{const n=document.querySelector('dialog[open] .dm-note');return !!n&&/ruview/.test(n.textContent)}`)
+	if note := page.MustEval(`()=>document.querySelector('dialog[open] .dm-note').textContent`).String(); strings.Contains(note, "confirm=protected") || strings.Contains(note, "Repeat the request") {
+		t.Fatalf("protected remove note = %q, want the translated owner sentence, not the server's message", note)
+	}
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="no"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="close-detail"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-drawer]').hidden`)
 
 	// docker.readonly arrives with the host list: the actions and the chip follow it up and down, without any refusal.
 	const readonlyState = `()=>document.querySelector('[data-dm-app]').dataset.readonly+'|'+document.querySelector('[data-readonly-chip]').hidden`

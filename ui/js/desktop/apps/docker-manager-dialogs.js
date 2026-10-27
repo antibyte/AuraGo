@@ -111,11 +111,12 @@
                 note: views.protectedText(c), confirmLabel: t('action_remove'), danger: true
             });
         }
-        // `info` is the server's 409 container_protected_confirmation_required answer when there is one: its message and owner
-        // say what is protected; without it the client's own knowledge of the container explains the lock.
+        // `info` is the server's 409 container_protected_confirmation_required answer when there is one. Its owner says what is
+        // protected and gets the same translated sentence as a lock the client already knew about; the server's message is
+        // not shown (it is English and ends with the instruction to repeat the request with confirm=protected).
         function confirmProtectedAction(row, action, info) {
             const name = model.containerName(row.c), label = views.actionLabel(action), answer = info || {};
-            const note = answer.message || (answer.owner ? t('protected_owner', { owner: answer.owner }) : '') || views.protectedText(row.c);
+            const note = views.protectedLabelText(answer.owner) || views.protectedText(row.c);
             return confirm({
                 title: t('protected_confirm_title'), message: t('protected_confirm_body', { name, action: label }),
                 note, confirmLabel: label, danger: true
@@ -273,9 +274,11 @@
             if (again.textContent !== why) again.textContent = why;
         }
 
-        // The secret inputs are tucked away behind Replace while credentials are stored; a problem on one of them opens them.
-        function revealSecrets(c, base, ui, inputName) {
+        // The secret inputs are tucked away behind Replace while credentials are stored, and the folder and socket inputs sit in
+        // the collapsed Advanced section: a problem on one of them opens its hiding place, so it can be seen and focused.
+        function revealField(c, base, ui, inputName) {
             if (!ui.replacing && ['ssh_password', 'ssh_key', 'tls_ca', 'tls_cert', 'tls_key'].includes(inputName)) { ui.replacing = true; syncKind(c, base, ui); }
+            if (['stacks_dir', 'host_socket_path'].includes(inputName)) { const advanced = c.querySelector('.dm-advanced'); if (advanced) advanced.open = true; }
         }
 
         function resultHtml(status) {
@@ -292,7 +295,7 @@
         async function testForm(c, base, ui) {
             const form = readForm(c, base), out = c.querySelector('[data-test-result]'), btn = c.querySelector('[data-dact="test-form"]');
             const problem = model.validateHostForm(form, store.state.hosts);
-            if (problem) { revealSecrets(c, base, ui, PROBLEM_INPUT[problem.field]); showProblem(c, PROBLEM_INPUT[problem.field], t('v_' + problem.code)); return; }
+            if (problem) { revealField(c, base, ui, PROBLEM_INPUT[problem.field]); showProblem(c, PROBLEM_INPUT[problem.field], t('v_' + problem.code)); return; }
             showProblem(c, '', '');
             btn.disabled = true;
             btn.setAttribute('aria-busy', 'true');
@@ -301,7 +304,15 @@
                 const status = await store.testDraft(model.hostPayload(form), form.id);
                 if (out.isConnected) out.innerHTML = resultHtml(status);
             } catch (error) {
-                if (out.isConnected) out.innerHTML = '<span class="dm-result is-bad">' + views.dot('bad') + '<span>' + esc(views.errorText(error.dm)) + '</span></span>';
+                if (!out.isConnected) return;
+                const info = error.dm || {};
+                if (info.code === 'invalid_host') {
+                    // The server could not test the draft at all (a rejected field, credentials missing): same as a rejected save.
+                    const input = serverInput(info, form.kind);
+                    out.innerHTML = '';
+                    revealField(c, base, ui, input);
+                    showProblem(c, input, views.errorText(info));
+                } else out.innerHTML = '<span class="dm-result is-bad">' + views.dot('bad') + '<span>' + esc(views.errorText(info)) + '</span></span>';
             } finally {
                 btn.disabled = false;
                 btn.removeAttribute('aria-busy');
@@ -317,7 +328,7 @@
         async function saveForm(c, base, ui) {
             const form = readForm(c, base), submit = c.querySelector('[type="submit"]');
             const problem = model.validateHostForm(form, store.state.hosts);
-            if (problem) { revealSecrets(c, base, ui, PROBLEM_INPUT[problem.field]); showProblem(c, PROBLEM_INPUT[problem.field], t('v_' + problem.code)); return; }
+            if (problem) { revealField(c, base, ui, PROBLEM_INPUT[problem.field]); showProblem(c, PROBLEM_INPUT[problem.field], t('v_' + problem.code)); return; }
             showProblem(c, '', '');
             submit.disabled = true;
             submit.setAttribute('aria-busy', 'true');
@@ -331,7 +342,7 @@
                 submit.removeAttribute('aria-busy');
                 const info = error.dm || {};
                 const input = info.code === 'invalid_host' ? serverInput(info, form.kind) : '';
-                revealSecrets(c, base, ui, input);
+                revealField(c, base, ui, input);
                 showProblem(c, input, views.errorText(info));
             }
         }

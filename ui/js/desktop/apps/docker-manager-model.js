@@ -371,7 +371,8 @@
         if (kind === 'mtls' && !(text(f.tlsCert).trim() && text(f.tlsKey).trim()) && !storedSecretUsable(f)) return { field: 'tlsCert', code: 'tls_cert' };
         for (const [field, value] of [['stacksDir', f.stacksDir], ['socketPath', f.socketPath]]) {
             const path = text(value).trim();
-            if (path && (!path.startsWith('/') || path.split('/').includes('..'))) return { field, code: 'path' };
+            // The server rejects the same characters: they would split or reshape the bind-mount strings built from these paths.
+            if (path && (!path.startsWith('/') || path.split('/').includes('..') || /[\s:,=\x22'`\\\x00-\x1f\x7f-\x9f]/.test(path))) return { field, code: 'path' };
         }
         return null;
     }

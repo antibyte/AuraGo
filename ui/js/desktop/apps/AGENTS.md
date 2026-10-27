@@ -324,15 +324,20 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   statuses and refreshes stale ones in the background, so it is polled together with the container lists.
 - Secrets are write-only. An edited host with stored credentials shows "stored" and a Replace action instead of empty secret
   fields; blank fields keep the stored value, the TLS PEM fields are sent only when typed (the server merges them one by one),
-  and Test connection posts the draft with the host's `id` so the server reuses the stored secrets. A stored SSH secret follows the
+  and Test connection posts the draft with the host's `id` so the server reuses the stored secrets. A draft the server cannot test
+  (400 `invalid_host` with a `field`, e.g. `ssh_secret` or `stacks_dir`) is shown on that field exactly like a rejected save
+  (`revealField` opens the Replace secret inputs or the Advanced section); only a connection outcome is a test result. A stored SSH secret follows the
   endpoint it was saved for: when the address (trimmed, case-insensitive, no IPv6 brackets), the effective port (empty = 22) or the
   SSH user changes, or the kind becomes SSH, the server refuses to reuse it (`invalid_host`, field `ssh_secret`) and the form
   (`storedSecretUsable`) asks for it again up front and says why; TLS material is kept. The dialog content is emptied whenever the
   view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`; `docker-manager.ui.v1` holds prefs only.
   Plain TCP carries a visible warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
 - Protected containers (lock icon) ask before stop, restart, pause, kill and remove. The server never confirms the first four;
-  a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message`, the dialog shows that
-  message and the request is repeated with `?confirm=protected` (plus `&force=1` when forcing).
+  a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message` (the shared text of
+  `/api/containers`, English, ending in the confirm=protected instruction). The dialog does not show that message: it maps the
+  `owner` (`self`, `docker-endpoint`, `shared-network`, `unverified`, or an AuraGo owner name) to the same translated
+  `protected_*` sentence a lock the client already knew about gets (`views.protectedLabelText`), and the request is repeated with
+  `?confirm=protected` (plus `&force=1` when forcing).
 - Host colours are the eight `data-host-color` values mapped to theme tokens in the stylesheet; no literal colours, no
   uppercase labels, motion only inside `prefers-reduced-motion: no-preference` on `body:not([data-animations="false"])` (the
   Node test guards this like the Infra test). A modal `<dialog>` sits in the top layer, so toasts raised while it is open are

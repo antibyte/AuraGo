@@ -33,6 +33,9 @@
     const ACTION_GLYPH = { start: 'play', unpause: 'play', stop: 'stop', restart: 'restart', pause: 'pause', kill: 'kill', remove: 'remove' };
     const ERROR_KEYS = ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden'];
     const DETAIL_ERROR_CODES = ['invalid_host'];
+    // The labels of AuraGo's container protection ("owner" of the 409 answer) that are no AuraGo owner name, and the
+    // docker_manager.protected_<kind> sentence of each.
+    const PROTECTED_LABEL_KINDS = { self: 'self', 'docker-endpoint': 'endpoint', 'shared-network': 'network', unverified: 'unverified' };
     const PORTS_SHOWN = 2;
     const TABS = ['overview', 'logs', 'inspect'];
     // Terminal colour codes in container logs would show as stray characters.
@@ -54,6 +57,13 @@
             const reason = model.protectedReason(container);
             if (!reason) return '';
             return reason.kind === 'owner' ? t('protected_owner', { owner: reason.owner }) : t('protected_' + reason.kind);
+        }
+        // The same sentences for the `owner` of a 409 container_protected_confirmation_required answer: the server names the most
+        // specific reason by a label (self, docker-endpoint, shared-network, unverified) or by the AuraGo owner of the container.
+        function protectedLabelText(label) {
+            const kind = PROTECTED_LABEL_KINDS[label];
+            if (kind) return t('protected_' + kind);
+            return label ? t('protected_owner', { owner: label }) : '';
         }
         // A user-facing sentence for a failure. Codes without their own text show the generic sentence plus the server's message,
         // because that message names the cause (an engine error, a validation problem).
@@ -279,7 +289,7 @@
                 + '<div class="dm-drawer-body" role="tabpanel" id="' + uid + '-tabpanel" aria-labelledby="' + uid + '-tab-' + detail.tab + '" data-tab-body="' + detail.tab + '">' + body + '</div>';
         }
 
-        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, errorText, stripAnsi, rail, banners, tbody, empty, drawer, keyOf, TABS };
+        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, banners, tbody, empty, drawer, keyOf, TABS };
     }
 
     window.DockerManagerViews = { create, TABS, ACTION_GLYPH };

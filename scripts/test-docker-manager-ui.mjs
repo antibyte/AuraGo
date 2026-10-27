@@ -171,6 +171,10 @@ assert.equal(model.validateHostForm(storedSsh({ id: 'h_x' }), [{ id: 'h_x', name
 assert.equal(model.validateHostForm(form({ kind: 'mtls', tlsCert: 'C', tlsKey: 'K' })), null);
 assert.equal(model.validateHostForm(form({ stacksDir: 'stacks' })).code, 'path');
 assert.equal(model.validateHostForm(form({ socketPath: '/var/../run/docker.sock' })).code, 'path');
+for (const bad of ['/opt/my stacks', '/opt/a:b', '/opt/a,b', '/opt/a=b', '/opt/"x"', "/opt/it's", '/opt/a`b', '/opt/a\\b', '/opt/a\x1fb']) {
+    eq(model.validateHostForm(form({ stacksDir: bad })), { field: 'stacksDir', code: 'path' }, 'the server rejects ' + JSON.stringify(bad) + ' in a path, so does the form');
+}
+assert.equal(model.validateHostForm(form({ stacksDir: '/srv/compose-stacks/prod_1', socketPath: '/run/user/1000/docker.sock' })), null);
 {
     const usable = overrides => model.storedSecretUsable(storedSsh(overrides));
     assert.equal(usable({}), true, 'the same endpoint keeps the stored SSH secret');
@@ -518,6 +522,16 @@ const B = '/api/docker-manager';
     store.dispose();
 }
 
+{
+    // a draft the server cannot test (a rejected field, missing credentials) is a 400 that rejects with the field, as a save does
+    const api = fakeApi({
+        ['POST ' + B + '/hosts/test']: () => Promise.reject(httpError(400, { code: 'invalid_host', field: 'ssh_secret', message: 'an SSH password or private key is required' }))
+    });
+    const store = Store.create({ api });
+    await assert.rejects(store.testDraft({ name: 'x', kind: 'ssh' }), error => error.dm.code === 'invalid_host' && error.dm.field === 'ssh_secret' && error.dm.status === 400);
+    store.dispose();
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -594,6 +608,14 @@ const full = {};
     assert.equal(typeof full.DockerManagerDialogs.create, 'function');
 }
 
+// ---- the owner of a 409 protected-confirmation answer gets the translated sentence, never the server's message -----------------
+{
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const views = full.DockerManagerViews.create({ t, esc: String, model: full.DockerManagerModel, lang: 'en', uid: 'x' });
+    eq(['self', 'docker-endpoint', 'shared-network', 'unverified', 'ruview', ''].map(views.protectedLabelText),
+        ['protected_self', 'protected_endpoint', 'protected_network', 'protected_unverified', 'protected_owner{"owner":"ruview"}', '']);
+}
+
 // ---- translations: every key the code can ask for exists in all sixteen locales with the same placeholders -------------------
 {
     const LANGS = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
@@ -618,7 +640,7 @@ const full = {};
         color_: [...model.HOST_COLORS],
         col_: ['status', 'name', 'image', 'ports', 'actions'],
         host_: ['ok', 'error', 'unknown'],
-        protected_: ['owner', 'self', 'endpoint', 'network'],
+        protected_: ['owner', 'self', 'endpoint', 'network', 'unverified'],
         tab_: [...full.DockerManagerViews.TABS],
         nest_method_: [...model.NEST_METHODS],
         v_: ['name', 'name_taken', 'name_reserved', 'address', 'address_scheme', 'port', 'ssh_user', 'ssh_secret', 'tls_cert', 'path']
