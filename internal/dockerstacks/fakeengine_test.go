@@ -380,3 +380,10 @@ func (fe *fakeEngine) isRunning(fc *fakeContainer) bool {
 	defer fe.mu.Unlock()
 	return fc.state == "running"
 }
+
+// setWorkingDir sets the compose working directory label of a project container.
+func (fe *fakeEngine) setWorkingDir(fc *fakeContainer, dir string) {
+	fe.mu.Lock()
+	defer fe.mu.Unlock()
+	fc.labels["com.docker.compose.project.working_dir"] = dir
+}

@@ -211,7 +211,22 @@ func (s *Service) List(ctx context.Context, hostID string, refresh bool) (Listin
 }
 
 func (s *Service) buildListing(h dockerhost.Host, scan *scanCache, cached bool, containers []dockerhost.ContainerSummary) Listing {
-	groups := projectGroups(containers)
+	// The containers of a compose project belong to the stack of that name only
+	// when they come from its folder; the others (a project of the same name that
+	// runs from elsewhere) are listed with the external projects.
+	owned := map[string][]dockerhost.ContainerSummary{}
+	external := map[string][]dockerhost.ContainerSummary{}
+	for project, members := range projectGroups(containers) {
+		if f, isStack := scan.folders[project]; isStack && f.composeFile != "" {
+			own, foreign := splitProject(members, stackDir(h, project))
+			owned[project] = own
+			if len(foreign) > 0 {
+				external[project] = foreign
+			}
+			continue
+		}
+		external[project] = members
+	}
 	refs := s.operationRefs(h.ID)
 
 	names := make([]string, 0, len(scan.folders))
@@ -233,7 +248,7 @@ func (s *Service) buildListing(h dockerhost.Host, scan *scanCache, cached bool, 
 	}
 	for _, name := range names {
 		f := scan.folders[name]
-		members := groups[name]
+		members := owned[name]
 		status, count := DeriveStatus(members)
 		summary := StackSummary{
 			Name:         name,
@@ -253,15 +268,13 @@ func (s *Service) buildListing(h dockerhost.Host, scan *scanCache, cached bool, 
 		listing.Stacks = append(listing.Stacks, summary)
 	}
 
-	projects := make([]string, 0, len(groups))
-	for project := range groups {
-		if f, isStack := scan.folders[project]; !isStack || f.composeFile == "" {
-			projects = append(projects, project)
-		}
+	projects := make([]string, 0, len(external))
+	for project := range external {
+		projects = append(projects, project)
 	}
 	sort.Strings(projects)
 	for _, project := range projects {
-		members := groups[project]
+		members := external[project]
 		status, count := DeriveStatus(members)
 		listing.External = append(listing.External, ProjectSummary{
 			Name:         project,

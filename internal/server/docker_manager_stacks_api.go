@@ -77,6 +77,7 @@ var dmStackStatus = map[string]int{
 	dockerstacks.CodeRunnerImageMissing: http.StatusConflict,
 	dockerstacks.CodeAPITooOld:          http.StatusConflict,
 	dockerstacks.CodeStacksDirInvalid:   http.StatusConflict,
+	dockerstacks.CodeProjectConflict:    http.StatusConflict,
 	dockerstacks.CodeConvertFailed:      http.StatusBadRequest,
 }
 

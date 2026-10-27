@@ -22,12 +22,16 @@ func (s *Service) Prepare(ctx context.Context, hostID string) (Operation, error)
 // Start starts a stack operation. It returns at once with the operation in state
 // queued (or running); follow it with Subscribe or Operation. A second operation
 // on the same stack gets a *BusyError that names the running one. Options.Volumes
-// only has a meaning for down and delete.
+// only has a meaning for down and delete. A stack whose name a compose project of
+// another folder uses is refused with CodeProjectConflict, whatever the kind.
 func (s *Service) Start(ctx context.Context, hostID, name, kind string, opts OpOptions) (Operation, error) {
 	if !slices.Contains(StackOperationKinds, kind) {
 		return Operation{}, newError(CodeInvalidOperation, "%q is not a stack operation", kind)
 	}
 	if err := ValidateName(name); err != nil {
+		return Operation{}, err
+	}
+	if err := s.refuseForeignProject(ctx, hostID, name); err != nil {
 		return Operation{}, err
 	}
 	if kind != KindDown && kind != KindDelete {
@@ -171,6 +175,11 @@ func (s *Service) drivePrepare(ctx context.Context, run *opRun, e engine, h dock
 func (s *Service) driveStack(ctx context.Context, run *opRun, op Operation, e engine, h dockerhost.Host) outcome {
 	image, err := s.ensureHost(ctx, run, e, h, false)
 	if err != nil {
+		return s.failure(ctx, err)
+	}
+	// Start refused a foreign project of this name when the host answered; ask
+	// again here, where the Engine is at hand and the answer is final.
+	if err := s.checkProjectConflict(ctx, e, h, op.Stack); err != nil {
 		return s.failure(ctx, err)
 	}
 	composeFile := ""

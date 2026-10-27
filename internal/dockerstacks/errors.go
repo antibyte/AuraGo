@@ -19,6 +19,7 @@ const (
 	CodeRunnerImageMissing = "runner_image_missing"   // 409, fields: command ("docker pull docker:29.9.2-cli@sha256:...")
 	CodeAPITooOld          = "api_too_old"            // 409, fields: api_version
 	CodeStacksDirInvalid   = "stacks_dir_unavailable" // 409, the lister or IO container could not use the directory
+	CodeProjectConflict    = "project_conflict"       // 409, fields: working_dir (the other folder of the compose project of that name)
 	CodeConvertFailed      = "convert_failed"         // 400
 )
 

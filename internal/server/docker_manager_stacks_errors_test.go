@@ -38,6 +38,7 @@ func TestDockerManagerStackFailureMapping(t *testing.T) {
 		{"runner image missing", coded(dockerstacks.CodeRunnerImageMissing, map[string]any{"command": "docker pull " + dockerstacks.RunnerImageTag}), http.StatusConflict, "runner_image_missing", "command"},
 		{"api too old", coded(dockerstacks.CodeAPITooOld, map[string]any{"api_version": "1.40"}), http.StatusConflict, "api_too_old", "api_version"},
 		{"stacks dir", coded(dockerstacks.CodeStacksDirInvalid, nil), http.StatusConflict, "stacks_dir_unavailable", ""},
+		{"project conflict", coded(dockerstacks.CodeProjectConflict, map[string]any{"working_dir": "/home/andi/web"}), http.StatusConflict, "project_conflict", "working_dir"},
 		{"convert failed", coded(dockerstacks.CodeConvertFailed, nil), http.StatusBadRequest, "convert_failed", ""},
 		{"revision conflict", fmt.Errorf("write: %w", &dockerstacks.ConflictError{File: "compose", Current: dockerstacks.FileContent{Name: "compose.yaml", Content: "services: {}", Revision: "abc", Exists: true}}), http.StatusConflict, "revision_conflict", "current"},
 		{"busy", &dockerstacks.BusyError{OperationID: "op_0123456789abcdef", Kind: "up"}, http.StatusConflict, "operation_in_progress", "operation_id"},

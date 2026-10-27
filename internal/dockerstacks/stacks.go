@@ -226,7 +226,8 @@ func (s *Service) Get(ctx context.Context, hostID, name string) (StackDetail, er
 	if err != nil {
 		return StackDetail{}, err
 	}
-	members := projectGroups(containers)[name]
+	// A compose project of the same name that runs from another folder is not this stack.
+	members, _ := splitProject(projectGroups(containers)[name], stackDir(h, name))
 
 	status, count := DeriveStatus(members)
 	detail := StackDetail{
@@ -318,6 +319,9 @@ func (s *Service) Create(ctx context.Context, hostID string, in CreateInput) (St
 					"the folder of stack %q already holds a %s that would be overwritten; remove it or create the stack without one", in.Name, EnvFileName)
 			}
 		}
+	}
+	if err := s.checkProjectConflict(ctx, e, h, in.Name); err != nil {
+		return StackDetail{}, err
 	}
 
 	files := []tarEntry{{name: ComposeFileNames[0], mode: composeFileMode, content: []byte(in.Compose)}}
