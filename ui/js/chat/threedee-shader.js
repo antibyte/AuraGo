@@ -248,6 +248,28 @@
                     }
                 }
             }
+            if (active && bot.group && bot.state && (bot.state.stunnedUntil || -999) > t) {
+                const center = robotAimPoint(bot);
+                const stunColor = 0x38bdf8;
+                for (let arc = 0; arc < 3; arc++) {
+                    const a1 = t * 7.5 + arc * 2.1;
+                    const a2 = a1 + 1.3 + Math.sin(t * 11.0 + arc) * 0.5;
+                    const r = 0.52;
+                    const pStart = new THREE.Vector3(
+                        center.x + Math.cos(a1) * r,
+                        center.y + (arc - 1) * 0.28,
+                        center.z + Math.sin(a1) * r
+                    );
+                    const pEnd = new THREE.Vector3(
+                        center.x + Math.cos(a2) * r,
+                        center.y + ((arc + 1) % 3 - 1) * 0.28,
+                        center.z + Math.sin(a2) * r
+                    );
+                    if (activeVertices + 6 * 2 < maxVertices) {
+                        activeVertices = generateLightning(pStart, pEnd, arc % 2 === 0 ? stunColor : 0xc084fc, positionArray, colorsArray, activeVertices, 5);
+                    }
+                }
+            }
         });
 
         if (activeVertices > 0) {
@@ -413,6 +435,20 @@
     const ROBOT_HELIX_CHANCE = 0.3;
     const ROBOT_EMP_COOLDOWN = 20;
     const ROBOT_EMP_RANGE = 5.5;
+    // --- Battle Overdrive: surface proximity mines, white fuel slick & red cryo-EMP stasis trap ---
+    const MAX_SURFACE_MINES = 4;
+    const ROBOT_MINE_COOLDOWN = 9.5;
+    const ROBOT_MINE_ARM_DELAY = 0.75;
+    const ROBOT_MINE_LIFETIME = 8.8;
+    const ROBOT_MINE_TRIGGER_RADIUS = 1.65;
+    const ROBOT_MINE_STASIS_DURATION = 2.75;
+    const MAX_FUEL_SLICKS = 5;
+    const ROBOT_FUEL_DROP_COOLDOWN = 8.4;
+    const ROBOT_FUEL_SLICK_LIFETIME = 9.2;
+    const ROBOT_FUEL_IGNITE_RADIUS = 1.72;
+    const ROBOT_FUEL_BURN_DURATION = 2.85;
+    const ROBOT_INCAPACITATED_FIRE_INTERVAL = 0.065;
+    const MAX_ROBOT_LOAD_RETRIES = 4;
 
     const UP_AXIS = new THREE.Vector3(0, 1, 0);
     let worldTimeScale = 1;
@@ -423,6 +459,10 @@
     const blinkGhosts = [];
     const activeBeams = [];
     const beamMeshPool = [];
+    const surfaceMines = [];
+    const surfaceMinePool = [];
+    const fuelSlicks = [];
+    const fuelSlickPool = [];
 
     const AURA_VERTEX_SHADER = [
         'uniform float time;',
@@ -643,7 +683,10 @@
             'robotScorchTexture',
             'robotScorchGeometry',
             'beamCoreGeom',
-            'beamHaloGeom'
+            'beamHaloGeom',
+            'mineCoreGeom',
+            'mineRingGeom',
+            'fuelSlickGeom'
         ].forEach(disposeWindowThreeAsset);
         if (smokeTexture && typeof smokeTexture.dispose === 'function') smokeTexture.dispose();
         smokeTexture = null;
@@ -651,6 +694,7 @@
 
     function resetRobotRuntime(bot) {
         if (!bot) return;
+        const wasLoading = !!bot.loading;
         bot.disposed = true;
         bot.loadGeneration = -1;
         bot.group = null;
@@ -658,6 +702,8 @@
         bot.thrusterLight = null;
         bot.loading = false;
         bot.loaded = false;
+        bot.loadRetryCount = 0;
+        bot.nextLoadRetryAt = 0;
         bot.materials = [];
         bot.damageMeshes = [];
         bot.damageScorchMarks = [];
@@ -669,8 +715,24 @@
             bot.state.blinkUntilReal = -999;
             bot.state.rollUntil = -999;
             bot.state.dashUntil = -999;
+            bot.state.burningUntil = -999;
+            bot.state.stunnedUntil = -999;
+            bot.state.lastBurnTickAt = -999;
         }
-        disposeRobotLoader(bot);
+        if (!wasLoading) {
+            disposeRobotLoader(bot);
+        }
+    }
+
+    function disposePooledHazardGroup(entry) {
+        if (!entry) return;
+        if (entry.group) {
+            if (scene) scene.remove(entry.group);
+            else if (entry.group.parent) entry.group.parent.remove(entry.group);
+        }
+        ['coreMat', 'ringMat', 'discMat'].forEach(function (key) {
+            if (entry[key] && typeof entry[key].dispose === 'function') entry[key].dispose();
+        });
     }
 
     function clearThreeDeeRuntimeState() {
@@ -699,6 +761,18 @@
                 else if (mesh.parent) mesh.parent.remove(mesh);
                 if (mesh.material && typeof mesh.material.dispose === 'function') mesh.material.dispose();
             });
+        }
+        while (surfaceMines.length) {
+            disposePooledHazardGroup(surfaceMines.pop());
+        }
+        while (surfaceMinePool.length) {
+            disposePooledHazardGroup(surfaceMinePool.pop());
+        }
+        while (fuelSlicks.length) {
+            disposePooledHazardGroup(fuelSlicks.pop());
+        }
+        while (fuelSlickPool.length) {
+            disposePooledHazardGroup(fuelSlickPool.pop());
         }
         worldTimeScale = 1;
         worldTimeSlowUntil = -999;
@@ -878,6 +952,15 @@
         }
         if (!window.superGrenadeGeom) {
             window.superGrenadeGeom = new THREE.SphereGeometry(0.24, 24, 24);
+        }
+        if (!window.mineCoreGeom) {
+            window.mineCoreGeom = new THREE.OctahedronGeometry(0.22, 0);
+        }
+        if (!window.mineRingGeom) {
+            window.mineRingGeom = new THREE.RingGeometry(0.32, 0.44, 24);
+        }
+        if (!window.fuelSlickGeom) {
+            window.fuelSlickGeom = new THREE.CircleGeometry(0.92, 24);
         }
     }
 
@@ -1719,6 +1802,8 @@
             loadGeneration: -1,
             dracoLoader: null,
             loadWarned: false,
+            loadRetryCount: 0,
+            nextLoadRetryAt: 0,
             state: {
                 x: options.x,
                 z: options.z,
@@ -1768,6 +1853,11 @@
                 dashUntil: -999,
                 dashReadyAt: 3.0,
                 dashVector: new THREE.Vector2(0, 0),
+                burningUntil: -999,
+                stunnedUntil: -999,
+                lastBurnTickAt: -999,
+                lastMineAt: options.id === 'red' ? 2.2 : 4.8,
+                lastFuelDropAt: 1.8,
                 px: options.x,
                 pz: options.z
             },
@@ -2048,10 +2138,29 @@
         aliasPrimaryRobot(robotFleet[0]);
     }
 
+    function resolveThreeDeeAssetURL(url) {
+        const value = String(url || '').trim();
+        if (!value || !value.startsWith('/') || value.startsWith('//') || /(?:[?&])v=/.test(value)) {
+            return value;
+        }
+        const version = window.BUILD_VERSION || '';
+        if (!version) return value;
+        return value + (value.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(version);
+    }
+
     function loadRobotAsset(bot) {
         if (!bot || bot.loaded || bot.loading || !scene) return;
+        const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if ((bot.loadRetryCount || 0) >= MAX_ROBOT_LOAD_RETRIES || nowMs < (bot.nextLoadRetryAt || 0)) return;
         bot.disposed = false;
         if (!THREE.GLTFLoader || !THREE.DRACOLoader) {
+            if (window.AuraChatThemeEffects && typeof window.AuraChatThemeEffects.ensure === 'function') {
+                if (!bot.requestedThemeEffects) {
+                    bot.requestedThemeEffects = true;
+                    window.AuraChatThemeEffects.ensure('threedee');
+                }
+                return;
+            }
             if (!bot.loadWarned) {
                 console.warn('[ThreeDeeShader] GLTFLoader or DRACOLoader unavailable for ' + bot.url);
                 bot.loadWarned = true;
@@ -2072,6 +2181,12 @@
 
         const loader = new THREE.GLTFLoader();
         const dracoLoader = new THREE.DRACOLoader();
+        if (loader.manager && typeof loader.manager.setURLModifier === 'function') {
+            loader.manager.setURLModifier(resolveThreeDeeAssetURL);
+        }
+        if (dracoLoader.manager && typeof dracoLoader.manager.setURLModifier === 'function') {
+            dracoLoader.manager.setURLModifier(resolveThreeDeeAssetURL);
+        }
         dracoLoader.setDecoderPath('/js/vendor/draco/');
         loader.setDRACOLoader(dracoLoader);
         bot.dracoLoader = dracoLoader;
@@ -2128,6 +2243,8 @@
             group.visible = true;
             bot.loaded = true;
             bot.loading = false;
+            bot.loadRetryCount = 0;
+            bot.nextLoadRetryAt = 0;
             if (bot.id === 'blue') {
                 robotModel = model;
                 robotLoaded = true;
@@ -2140,7 +2257,14 @@
             if (bot.id === 'blue') robotLoading = false;
             if (scene) scene.remove(group);
             bot.group = null;
-            console.warn('[ThreeDeeShader] Could not load floating robot ' + bot.url + ':', err);
+            if (!bot.disposed && loadGeneration === sceneGeneration) {
+                bot.loadRetryCount = (bot.loadRetryCount || 0) + 1;
+                const retryDelay = Math.min(4800, 950 * bot.loadRetryCount);
+                bot.nextLoadRetryAt = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + retryDelay;
+                if (bot.loadRetryCount >= MAX_ROBOT_LOAD_RETRIES) {
+                    console.warn('[ThreeDeeShader] Could not load floating robot ' + bot.url + ':', err);
+                }
+            }
         };
 
         if (bot.id === 'blue') {
@@ -2364,13 +2488,36 @@
         robotThrusterRipples.length = write;
     }
 
+    function robotIsBurning(bot, t) {
+        const now = typeof t === 'number' ? t : globalTime;
+        return !!(bot && bot.state && (bot.state.burningUntil || -999) > now);
+    }
+
+    function robotIsStunned(bot, t) {
+        const now = typeof t === 'number' ? t : globalTime;
+        return !!(bot && bot.state && (bot.state.stunnedUntil || -999) > now);
+    }
+
+    function robotIsIncapacitated(bot, t) {
+        return robotIsBurning(bot, t) || robotIsStunned(bot, t);
+    }
+
     function updateRobotPositionPhase(bot, dt, t, index) {
         if (!bot) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
-        if (!bot.group) return;
+        if (!bot.loaded || !bot.group) return;
+        const incapacitated = robotIsIncapacitated(bot, t);
         const wasFlightActive = bot.state.flightWasActive === true;
         let pendingThrusterRipple = Math.max(0, bot.state.pendingThrusterRipple || 0);
         updateRobotFlight(bot, t);
+        if (incapacitated) {
+            bot.state.isAiming = false;
+            bot.state.isSuperweaponCharging = false;
+            bot.state.isBeamCharging = false;
+            bot.state.dashUntil = -999;
+            bot.state.evasionUntil = -999;
+            bot.state.flightLift = Math.max(0, (bot.state.flightLift || 0) * Math.max(0, 1 - dt * 3.8));
+        }
         const isFlightActive = (bot.state.flightLift || 0) > 0.06 || bot.state.flightStartedAt >= 0;
         if (!bot.state.thrusterRipplePrimed) {
             pendingThrusterRipple = Math.max(pendingThrusterRipple, 0.55);
@@ -2388,7 +2535,15 @@
         const driftZ = Math.cos(t * 0.49 + bot.state.x * 0.61 + index * 0.9) * 0.14;
         bot.velocity.x += driftX * dt;
         bot.velocity.y += driftZ * dt;
-        steerRobotTowardDuel(bot, dt, t);
+        if (!incapacitated) {
+            steerRobotTowardDuel(bot, dt, t);
+        } else {
+            bot.velocity.multiplyScalar(Math.max(0, 1 - dt * 3.2));
+            if (robotIsBurning(bot, t)) {
+                bot.velocity.x += Math.sin(t * 14.0 + bot.state.seed) * dt * 0.45;
+                bot.velocity.y += Math.cos(t * 12.5 + bot.state.seed) * dt * 0.45;
+            }
+        }
 
         if (bot.state.evasionUntil > t) {
             const evasionFade = clamp((bot.state.evasionUntil - t) / ROBOT_SUPERWEAPON_EVASION_DURATION, 0, 1);
@@ -2431,10 +2586,12 @@
     }
 
     function updateRobotVisualsPhase(bot, dt, t, index) {
-        if (!bot || !bot.group) return;
+        if (!bot || !bot.loaded || !bot.group) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
         const pendingThrusterRipple = bot.state.pendingThrusterRipple || 0;
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
+        const burning = robotIsBurning(bot, t);
+        const stunned = robotIsStunned(bot, t);
 
         const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id, ignoreRobotFeedbackWaves: true } : { ignoreRobotFeedbackWaves: true };
         const sampledWaterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
@@ -2449,20 +2606,92 @@
             const baseEmissive = bot.id === 'red' ? 0.24 : 0.18;
             const superChargingIntensity = (bot.state.isAiming && bot.state.isSuperweaponCharging) ? 4.5 : 0.0;
             const beamChargingIntensity = (bot.state.isAiming && bot.state.isBeamCharging) ? 2.8 : 0.0;
+            const statusBoost = burning ? (1.6 + Math.sin(t * 28.0) * 0.55) : (stunned ? (1.2 + Math.sin(t * 36.0) * 0.45) : 0.0);
             bot.materials.forEach(function (mat) {
                 if ('emissiveIntensity' in mat) {
-                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8 + superChargingIntensity + beamChargingIntensity;
+                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8 + superChargingIntensity + beamChargingIntensity + statusBoost;
                 }
             });
         }
 
         if (bot.auraMesh && bot.auraMesh.material.uniforms) {
-            const hitScale = 1.0 + bot.state.hitFlash * 0.22;
+            const statusFlash = burning ? 0.85 : (stunned ? 0.72 : 0);
+            const effectiveFlash = Math.max(bot.state.hitFlash, statusFlash);
+            const hitScale = 1.0 + effectiveFlash * 0.22;
             bot.auraMesh.scale.set(hitScale, hitScale, hitScale);
             const pulse = Math.sin(t * 15) * 0.15;
-            bot.auraMesh.material.uniforms.intensity.value = bot.state.hitFlash * 0.95 + (bot.state.hitFlash > 0.01 ? pulse * bot.state.hitFlash : 0);
-            bot.auraMesh.material.uniforms.hitIntensity.value = bot.state.hitFlash;
+            bot.auraMesh.material.uniforms.color.value.setHex(burning ? 0xff5a00 : (stunned ? 0x38bdf8 : bot.projectileHex));
+            bot.auraMesh.material.uniforms.intensity.value = effectiveFlash * 0.95 + (effectiveFlash > 0.01 ? pulse * effectiveFlash : 0);
+            bot.auraMesh.material.uniforms.hitIntensity.value = effectiveFlash;
             bot.auraMesh.material.uniforms.time.value = t;
+        }
+
+        if ((burning || stunned) && t - (bot.state.lastBurnTickAt || -999) >= ROBOT_INCAPACITATED_FIRE_INTERVAL) {
+            bot.state.lastBurnTickAt = t;
+            const center = robotAimPoint(bot);
+            if (burning) {
+                const flameColor = Math.random() < 0.38 ? 0xfff099 : (Math.random() < 0.65 ? 0xff5a00 : 0xff2200);
+                createSmokeSprite(
+                    center.x + (Math.random() - 0.5) * 0.52,
+                    center.y - 0.15 + (Math.random() - 0.5) * 0.36,
+                    center.z + (Math.random() - 0.5) * 0.52,
+                    flameColor,
+                    0.22 + Math.random() * 0.18,
+                    0.36 + Math.random() * 0.24,
+                    {
+                        vx: (Math.random() - 0.5) * 0.55,
+                        vy: 0.85 + Math.random() * 1.15,
+                        vz: (Math.random() - 0.5) * 0.55,
+                        spin: (Math.random() - 0.5) * 8,
+                        opacity: 0.92,
+                        expansion: 1.85,
+                        fadePower: 1.35,
+                        kind: 'robotBurnFlame'
+                    }
+                );
+                if (Math.random() < 0.55) {
+                    createSmokeSprite(
+                        center.x + (Math.random() - 0.5) * 0.44,
+                        center.y + 0.18 + Math.random() * 0.22,
+                        center.z + (Math.random() - 0.5) * 0.44,
+                        0x374151,
+                        0.24 + Math.random() * 0.16,
+                        0.85 + Math.random() * 0.45,
+                        {
+                            vx: (Math.random() - 0.5) * 0.32,
+                            vy: 0.45 + Math.random() * 0.45,
+                            vz: (Math.random() - 0.5) * 0.32,
+                            spin: (Math.random() - 0.5) * 2.4,
+                            opacity: 0.46,
+                            expansion: 2.3,
+                            fadePower: 1.4,
+                            blending: THREE.NormalBlending,
+                            kind: 'robotBurnSmoke'
+                        }
+                    );
+                }
+            } else if (stunned) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 0.25 + Math.random() * 0.38;
+                createSmokeSprite(
+                    center.x + Math.cos(angle) * r,
+                    center.y + (Math.random() - 0.5) * 0.42,
+                    center.z + Math.sin(angle) * r,
+                    Math.random() < 0.45 ? 0xe0f2fe : (Math.random() < 0.6 ? 0x38bdf8 : 0xc084fc),
+                    0.065 + Math.random() * 0.06,
+                    0.22 + Math.random() * 0.18,
+                    {
+                        vx: (Math.random() - 0.5) * 0.9,
+                        vy: (Math.random() - 0.5) * 0.7,
+                        vz: (Math.random() - 0.5) * 0.9,
+                        spin: (Math.random() - 0.5) * 14,
+                        opacity: 0.94,
+                        expansion: 0.55,
+                        fadePower: 1.5,
+                        kind: 'robotStasisSpark'
+                    }
+                );
+            }
         }
 
         if (bot.state.isAiming && bot.opponent && bot.opponent.group) {
@@ -2774,6 +3003,7 @@
     function tryRobotSuperweaponEvasion(projectile, t) {
         const bot = projectile && projectile.target;
         if (!bot || !bot.state || !bot.group || !projectile || !projectile.mesh) return;
+        if (robotIsIncapacitated(bot, t)) return;
         if (!projectile.isSuper || projectile.target !== bot) return;
 
         const state = bot.state;
@@ -3330,7 +3560,7 @@
     function startRobotBarrelRoll(bot, t, direction) {
         if (!bot || !bot.state || !bot.group) return;
         const state = bot.state;
-        if (state.rollUntil > t || robotIsBlinking(bot)) return;
+        if (state.rollUntil > t || robotIsBlinking(bot) || robotIsIncapacitated(bot, t)) return;
         state.rollUntil = t + ROBOT_BARREL_ROLL_DURATION;
         state.rollDirection = direction >= 0 ? 1 : -1;
         if (bot.opponent && bot.opponent.state) {
@@ -3843,7 +4073,7 @@
     function startRobotBlink(bot, t, sideX, sideZ) {
         if (!bot || !bot.state || !bot.group) return false;
         const state = bot.state;
-        if (robotIsBlinking(bot) || t < (state.blinkReadyAt || 0)) return false;
+        if (robotIsBlinking(bot) || robotIsIncapacitated(bot, t) || t < (state.blinkReadyAt || 0)) return false;
         state.blinkReadyAt = t + 16 + Math.random() * 10;
         // Break any charge or aim so the blink stays purely defensive
         state.isAiming = false;
@@ -4352,11 +4582,491 @@
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Battle Overdrive: White Robot Fuel Slick & Red Robot Cryo-EMP Mines
+    // ---------------------------------------------------------------------
+    function cancelRobotActiveBeams(bot) {
+        for (let i = activeBeams.length - 1; i >= 0; i--) {
+            if (activeBeams[i].bot !== bot) continue;
+            releaseBeamMeshes(activeBeams[i].pair);
+            activeBeams.splice(i, 1);
+        }
+    }
+
+    function acquireFuelSlickEntry() {
+        ensureImpactAssets();
+        let entry = fuelSlickPool.pop();
+        if (!entry) {
+            const group = new THREE.Group();
+            const discMat = new THREE.MeshBasicMaterial({
+                color: 0x22d3ee,
+                transparent: true,
+                opacity: 0.42,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xf59e0b,
+                transparent: true,
+                opacity: 0.55,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const disc = new THREE.Mesh(window.fuelSlickGeom, discMat);
+            const ring = new THREE.Mesh(window.empRingGeom, ringMat);
+            disc.rotation.x = -Math.PI / 2;
+            ring.rotation.x = -Math.PI / 2;
+            ring.scale.setScalar(2.35);
+            group.add(disc);
+            group.add(ring);
+            group.visible = false;
+            scene.add(group);
+            entry = { group, disc, ring, discMat, ringMat };
+        }
+        entry.group.visible = true;
+        entry.discMat.color.setHex(0x22d3ee);
+        entry.ringMat.color.setHex(0xf59e0b);
+        return entry;
+    }
+
+    function releaseFuelSlickEntry(entry) {
+        if (!entry) return;
+        if (entry.group) entry.group.visible = false;
+        fuelSlickPool.push(entry);
+    }
+
+    function spawnRobotFuelSlick(bot, t) {
+        if (!scene || !surface || !bot || !bot.group || !bot.state) return false;
+        while (fuelSlicks.length >= MAX_FUEL_SLICKS) {
+            releaseFuelSlickEntry(fuelSlicks.shift());
+        }
+        const entry = acquireFuelSlickEntry();
+        const backX = clamp(bot.state.x - bot.forward.x * 0.55, -robotBounds.x, robotBounds.x);
+        const backZ = clamp(bot.state.z - bot.forward.z * 0.55, -robotBounds.z, robotBounds.z);
+        const waterH = heightAt(backX, backZ, t, { ignoreRobotFeedbackWaves: true });
+        entry.group.position.set(backX, surface.position.y + waterH + 0.05, backZ + surface.position.z);
+        entry.group.scale.setScalar(0.72);
+        entry.x = backX;
+        entry.z = backZ;
+        entry.owner = bot;
+        entry.bornAt = t;
+        entry.life = ROBOT_FUEL_SLICK_LIFETIME;
+        entry.maxLife = ROBOT_FUEL_SLICK_LIFETIME;
+        entry.ignited = false;
+        entry.burnUntil = -999;
+        entry.lastFlameAt = -999;
+        entry.seed = Math.random() * Math.PI * 2;
+        fuelSlicks.push(entry);
+        bot.state.lastFuelDropAt = t;
+        addImpulse(backX, backZ, 0.24);
+
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + entry.seed;
+            createSmokeSprite(
+                entry.group.position.x + Math.cos(a) * 0.35,
+                entry.group.position.y + 0.08,
+                entry.group.position.z + Math.sin(a) * 0.35,
+                i % 2 === 0 ? 0x22d3ee : 0xfbbf24,
+                0.14 + Math.random() * 0.08,
+                0.45 + Math.random() * 0.25,
+                {
+                    vx: Math.cos(a) * 0.35,
+                    vy: 0.16 + Math.random() * 0.18,
+                    vz: Math.sin(a) * 0.35,
+                    spin: (Math.random() - 0.5) * 4,
+                    opacity: 0.68,
+                    expansion: 1.5,
+                    fadePower: 1.4,
+                    kind: 'fuelVaporDrop'
+                }
+            );
+        }
+        return true;
+    }
+
+    function igniteRobotWithFuel(victim, slick, t) {
+        if (!victim || !victim.state || !victim.group) return;
+        const alreadyBurning = robotIsBurning(victim, t);
+        victim.state.burningUntil = Math.max(victim.state.burningUntil || -999, t + ROBOT_FUEL_BURN_DURATION);
+        victim.state.isAiming = false;
+        victim.state.isSuperweaponCharging = false;
+        victim.state.isBeamCharging = false;
+        victim.state.dashUntil = -999;
+        victim.state.evasionUntil = -999;
+        cancelRobotActiveBeams(victim);
+
+        if (!alreadyBurning) {
+            const pos = slick && slick.group ? slick.group.position.clone() : victim.group.position.clone();
+            const recoil = victim.group.position.clone().sub(pos);
+            recoil.y = 0;
+            if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
+            recoil.normalize();
+            victim.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 2.4;
+            victim.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 2.4;
+            victim.state.recoil = Math.max(victim.state.recoil || 0, 0.95);
+            victim.state.hitFlash = Math.max(victim.state.hitFlash || 0, 1.55);
+            victim.state.hits = (victim.state.hits || 0) + 1;
+            applyRobotDamage(victim, victim.group.position.clone(), recoil, true);
+            cameraShake = Math.max(cameraShake, 0.26);
+        }
+    }
+
+    function igniteFuelSlick(slick, victim, t) {
+        if (!slick || !scene) return;
+        if (!slick.ignited) {
+            slick.ignited = true;
+            slick.burnUntil = t + ROBOT_FUEL_BURN_DURATION;
+            slick.life = Math.min(slick.life, ROBOT_FUEL_BURN_DURATION);
+            slick.discMat.color.setHex(0xff5a00);
+            slick.ringMat.color.setHex(0xffd166);
+            addImpulse(slick.x, slick.z, 0.92);
+            const pos = slick.group.position.clone();
+            flashImpactLight(pos, 0xff6a00, 16, 15, 0.55);
+            for (let ring = 0; ring < 2; ring++) {
+                const shock = acquireShockwave(pos.clone().addScaledVector(UP_AXIS, 0.03 + ring * 0.02), ring === 0 ? 0xff6a00 : 0xffd166, 0.65 - ring * 0.15, UP_AXIS);
+                shockwaves.push({
+                    mesh: shock,
+                    life: 0.45 + ring * 0.12,
+                    maxLife: 0.45 + ring * 0.12,
+                    maxScale: 3.6 + ring * 1.4,
+                    baseOpacity: 0.65 - ring * 0.15,
+                    kind: 'fuelIgniteRing'
+                });
+            }
+            for (let i = 0; i < 16; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const r = Math.random() * 0.75;
+                createSmokeSprite(
+                    pos.x + Math.cos(a) * r,
+                    pos.y + 0.08,
+                    pos.z + Math.sin(a) * r,
+                    i % 3 === 0 ? 0xfff099 : (i % 2 === 0 ? 0xff5a00 : 0xff2200),
+                    0.26 + Math.random() * 0.22,
+                    0.48 + Math.random() * 0.32,
+                    {
+                        vx: Math.cos(a) * (0.4 + Math.random() * 0.9),
+                        vy: 1.1 + Math.random() * 1.8,
+                        vz: Math.sin(a) * (0.4 + Math.random() * 0.9),
+                        spin: (Math.random() - 0.5) * 9,
+                        opacity: 0.94,
+                        expansion: 2.2,
+                        fadePower: 1.35,
+                        kind: 'fuelIgniteFlame'
+                    }
+                );
+            }
+        }
+        if (victim) {
+            igniteRobotWithFuel(victim, slick, t);
+        }
+    }
+
+    function updateFuelSlicks(dt, t) {
+        if (!surface || !fuelSlicks.length) return;
+        const redRobot = robotFleet.length > 1 ? robotFleet[1] : null;
+        for (let i = fuelSlicks.length - 1; i >= 0; i--) {
+            const slick = fuelSlicks[i];
+            slick.life -= dt;
+            if (slick.life <= 0 || (slick.ignited && t >= slick.burnUntil)) {
+                releaseFuelSlickEntry(slick);
+                fuelSlicks.splice(i, 1);
+                continue;
+            }
+            const age = t - slick.bornAt;
+            const waterH = heightAt(slick.x, slick.z, t, { ignoreRobotFeedbackWaves: true });
+            slick.group.position.set(slick.x, surface.position.y + waterH + 0.045, slick.z + surface.position.z);
+            const spread = clamp(0.75 + age * 0.14, 0.75, 1.38);
+            const pulse = 1 + Math.sin(t * (slick.ignited ? 18 : 5) + slick.seed) * (slick.ignited ? 0.12 : 0.05);
+            slick.group.scale.setScalar(spread * pulse);
+            slick.ring.rotation.z = t * (slick.ignited ? 3.2 : 0.9) + slick.seed;
+
+            if (!slick.ignited) {
+                const fade = clamp(slick.life / 1.5, 0, 1);
+                slick.discMat.opacity = (0.34 + Math.sin(t * 4.2 + slick.seed) * 0.08) * fade;
+                slick.ringMat.opacity = (0.48 + Math.cos(t * 5.4 + slick.seed) * 0.12) * fade;
+                if (redRobot && redRobot.loaded && redRobot.group && !robotIsBlinking(redRobot)) {
+                    const dx = redRobot.state.x - slick.x;
+                    const dz = redRobot.state.z - slick.z;
+                    if (dx * dx + dz * dz <= ROBOT_FUEL_IGNITE_RADIUS * ROBOT_FUEL_IGNITE_RADIUS && (redRobot.state.flightLift || 0) < 2.35) {
+                        igniteFuelSlick(slick, redRobot, t);
+                    }
+                }
+            } else {
+                const burnRatio = clamp((slick.burnUntil - t) / ROBOT_FUEL_BURN_DURATION, 0, 1);
+                slick.discMat.opacity = 0.68 * burnRatio;
+                slick.ringMat.opacity = 0.82 * burnRatio;
+                if (t - (slick.lastFlameAt || -999) >= 0.08) {
+                    slick.lastFlameAt = t;
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * 0.75 * spread;
+                    createSmokeSprite(
+                        slick.group.position.x + Math.cos(a) * r,
+                        slick.group.position.y + 0.06,
+                        slick.group.position.z + Math.sin(a) * r,
+                        Math.random() < 0.4 ? 0xfff099 : 0xff5a00,
+                        0.2 + Math.random() * 0.16,
+                        0.34 + Math.random() * 0.22,
+                        {
+                            vx: (Math.random() - 0.5) * 0.35,
+                            vy: 0.75 + Math.random() * 1.1,
+                            vz: (Math.random() - 0.5) * 0.35,
+                            spin: (Math.random() - 0.5) * 7,
+                            opacity: 0.88,
+                            expansion: 1.75,
+                            fadePower: 1.4,
+                            kind: 'fuelIgniteFlame'
+                        }
+                    );
+                }
+                if (redRobot && redRobot.loaded && redRobot.group && !robotIsBlinking(redRobot)) {
+                    const dx = redRobot.state.x - slick.x;
+                    const dz = redRobot.state.z - slick.z;
+                    if (dx * dx + dz * dz <= ROBOT_FUEL_IGNITE_RADIUS * ROBOT_FUEL_IGNITE_RADIUS && (redRobot.state.flightLift || 0) < 2.35) {
+                        igniteRobotWithFuel(redRobot, slick, t);
+                    }
+                }
+                // Chain-ignite nearby fuel slicks
+                for (let j = 0; j < fuelSlicks.length; j++) {
+                    const other = fuelSlicks[j];
+                    if (other === slick || other.ignited) continue;
+                    const cdx = other.x - slick.x;
+                    const cdz = other.z - slick.z;
+                    if (cdx * cdx + cdz * cdz <= 5.2) {
+                        igniteFuelSlick(other, null, t);
+                    }
+                }
+            }
+        }
+    }
+
+    function acquireSurfaceMineEntry(mineType) {
+        ensureImpactAssets();
+        let entry = surfaceMinePool.pop();
+        if (!entry) {
+            const group = new THREE.Group();
+            const coreMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.92,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xc084fc,
+                transparent: true,
+                opacity: 0.68,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const core = new THREE.Mesh(window.mineCoreGeom, coreMat);
+            const ring = new THREE.Mesh(window.mineRingGeom, ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            group.add(core);
+            group.add(ring);
+            group.visible = false;
+            scene.add(group);
+            entry = { group, core, ring, coreMat, ringMat };
+        }
+        const isStasis = mineType === 'stasis';
+        entry.coreMat.color.setHex(isStasis ? 0x38bdf8 : 0xffae3b);
+        entry.ringMat.color.setHex(isStasis ? 0xc084fc : 0xff3b6d);
+        entry.group.visible = true;
+        return entry;
+    }
+
+    function releaseSurfaceMineEntry(entry) {
+        if (!entry) return;
+        if (entry.group) entry.group.visible = false;
+        surfaceMinePool.push(entry);
+    }
+
+    function spawnSurfaceMine(bot, t, mineType) {
+        if (!scene || !surface || !bot || !bot.group || !bot.state) return false;
+        while (surfaceMines.length >= MAX_SURFACE_MINES) {
+            releaseSurfaceMineEntry(surfaceMines.shift());
+        }
+        const resolvedType = mineType || (bot.id === 'red' ? 'stasis' : 'blast');
+        const entry = acquireSurfaceMineEntry(resolvedType);
+        const offsetAngle = Math.atan2(bot.forward.z, bot.forward.x) + Math.PI + (Math.random() - 0.5) * 0.9;
+        const dropX = clamp(bot.state.x + Math.cos(offsetAngle) * 0.65, -robotBounds.x * 0.92, robotBounds.x * 0.92);
+        const dropZ = clamp(bot.state.z + Math.sin(offsetAngle) * 0.65, -robotBounds.z * 0.92, robotBounds.z * 0.92);
+        const waterH = heightAt(dropX, dropZ, t, { ignoreRobotFeedbackWaves: true });
+        entry.group.position.set(dropX, surface.position.y + waterH + 0.16, dropZ + surface.position.z);
+        entry.group.scale.setScalar(1.0);
+        entry.x = dropX;
+        entry.z = dropZ;
+        entry.owner = bot;
+        entry.mineType = resolvedType;
+        entry.bornAt = t;
+        entry.armedAt = t + ROBOT_MINE_ARM_DELAY;
+        entry.life = ROBOT_MINE_LIFETIME;
+        entry.seed = Math.random() * Math.PI * 2;
+        surfaceMines.push(entry);
+        bot.state.lastMineAt = t;
+        addImpulse(dropX, dropZ, 0.28);
+        return true;
+    }
+
+    function stunRobotWithStasisMine(victim, mine, t) {
+        if (!victim || !victim.state || !victim.group) return;
+        victim.state.stunnedUntil = Math.max(victim.state.stunnedUntil || -999, t + ROBOT_MINE_STASIS_DURATION);
+        victim.state.isAiming = false;
+        victim.state.isSuperweaponCharging = false;
+        victim.state.isBeamCharging = false;
+        victim.state.dashUntil = -999;
+        victim.state.evasionUntil = -999;
+        cancelRobotActiveBeams(victim);
+
+        const pos = mine && mine.group ? mine.group.position.clone() : victim.group.position.clone();
+        const recoil = victim.group.position.clone().sub(pos);
+        recoil.y = 0;
+        if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
+        recoil.normalize();
+        victim.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 1.8;
+        victim.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 1.8;
+        victim.state.recoil = Math.max(victim.state.recoil || 0, 0.9);
+        victim.state.hitFlash = Math.max(victim.state.hitFlash || 0, 1.45);
+        victim.state.hits = (victim.state.hits || 0) + 1;
+        applyRobotDamage(victim, victim.group.position.clone(), recoil, true);
+    }
+
+    function detonateSurfaceMine(mine, victim, t) {
+        if (!mine || !scene) return;
+        const pos = mine.group.position.clone();
+        const isStasis = mine.mineType === 'stasis';
+        const color = isStasis ? 0x38bdf8 : 0xff7a18;
+        addImpulse(mine.x, mine.z, isStasis ? 1.05 : 1.28);
+        flashImpactLight(pos, color, isStasis ? 18 : 20, 16, 0.52);
+        cameraShake = Math.max(cameraShake, victim ? 0.28 : 0.16);
+
+        for (let ring = 0; ring < 3; ring++) {
+            const ringColor = isStasis ? (ring % 2 === 0 ? 0x38bdf8 : 0xc084fc) : (ring % 2 === 0 ? 0xffae3b : 0xff3b6d);
+            const shock = acquireShockwave(pos.clone().addScaledVector(UP_AXIS, 0.03 + ring * 0.02), ringColor, 0.72 - ring * 0.16, UP_AXIS);
+            shockwaves.push({
+                mesh: shock,
+                life: 0.48 + ring * 0.12,
+                maxLife: 0.48 + ring * 0.12,
+                maxScale: (isStasis ? 4.4 : 4.8) + ring * 1.5,
+                baseOpacity: 0.72 - ring * 0.16,
+                kind: isStasis ? 'stasisMineRing' : 'blastMineRing'
+            });
+        }
+
+        const particleCount = victim ? 20 : 12;
+        for (let i = 0; i < particleCount; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const speed = 0.7 + Math.random() * 2.2;
+            const pColor = isStasis
+                ? (i % 3 === 0 ? 0xe0f2fe : (i % 2 === 0 ? 0x38bdf8 : 0xc084fc))
+                : (i % 3 === 0 ? 0xfff099 : (i % 2 === 0 ? 0xff7a18 : 0xff3b6d));
+            createSmokeSprite(
+                pos.x,
+                pos.y + 0.06,
+                pos.z,
+                pColor,
+                0.1 + Math.random() * 0.14,
+                0.36 + Math.random() * 0.28,
+                {
+                    vx: Math.cos(a) * speed,
+                    vy: 0.55 + Math.random() * 1.4,
+                    vz: Math.sin(a) * speed,
+                    spin: (Math.random() - 0.5) * 12,
+                    opacity: 0.92,
+                    expansion: 1.45,
+                    fadePower: 1.45,
+                    kind: isStasis ? 'stasisMineSpark' : 'blastMineSpark'
+                }
+            );
+        }
+
+        if (victim && victim.loaded && victim.group) {
+            if (isStasis) {
+                stunRobotWithStasisMine(victim, mine, t);
+            } else {
+                const recoil = victim.group.position.clone().sub(pos);
+                recoil.y = 0;
+                if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
+                recoil.normalize();
+                victim.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 3.8;
+                victim.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 3.8;
+                victim.state.recoil = Math.max(victim.state.recoil || 0, 1.05);
+                victim.state.hitFlash = Math.max(victim.state.hitFlash || 0, 1.5);
+                victim.state.hits = (victim.state.hits || 0) + 1;
+                applyRobotDamage(victim, victim.group.position.clone(), recoil, true);
+                bounceFloatingRobotWithinBounds(t, victim);
+            }
+        }
+    }
+
+    function updateSurfaceMines(dt, t) {
+        if (!surface || !surfaceMines.length) return;
+        for (let i = surfaceMines.length - 1; i >= 0; i--) {
+            const mine = surfaceMines[i];
+            mine.life -= dt;
+            const waterH = heightAt(mine.x, mine.z, t, { ignoreRobotFeedbackWaves: true });
+            const bob = Math.sin(t * 4.2 + mine.seed) * 0.04;
+            mine.group.position.set(mine.x, surface.position.y + waterH + 0.16 + bob, mine.z + surface.position.z);
+            mine.core.rotation.y += dt * 2.4;
+            mine.core.rotation.x += dt * 1.5;
+
+            const armed = t >= mine.armedAt;
+            const beaconPulse = armed ? (1 + Math.sin(t * 14.0 + mine.seed) * 0.25) : 0.7;
+            mine.ring.scale.setScalar(beaconPulse * 1.45);
+            mine.ringMat.opacity = armed ? (0.55 + Math.sin(t * 14.0 + mine.seed) * 0.25) : 0.28;
+
+            let triggeredVictim = null;
+            if (armed) {
+                const targetBot = mine.owner && mine.owner.opponent ? mine.owner.opponent : null;
+                if (targetBot && targetBot.loaded && targetBot.group && !robotIsBlinking(targetBot)) {
+                    const dx = targetBot.state.x - mine.x;
+                    const dz = targetBot.state.z - mine.z;
+                    if (dx * dx + dz * dz <= ROBOT_MINE_TRIGGER_RADIUS * ROBOT_MINE_TRIGGER_RADIUS && (targetBot.state.flightLift || 0) < 2.2) {
+                        triggeredVictim = targetBot;
+                    }
+                }
+            }
+
+            if (triggeredVictim || mine.life <= 0) {
+                detonateSurfaceMine(mine, triggeredVictim, t);
+                releaseSurfaceMineEntry(mine);
+                surfaceMines.splice(i, 1);
+            }
+        }
+    }
+
     function updateRobotDuel(dt, t) {
         if (robotFleet.length < 2) return;
         const blueRobot = robotFleet[0];
         const redRobot = robotFleet[1];
-        if (!blueRobot.group || !redRobot.group) return;
+        if (!blueRobot.loaded || !redRobot.loaded || !blueRobot.group || !redRobot.group) return;
+
+        const blueIncapacitated = robotIsIncapacitated(blueRobot, t);
+        const redIncapacitated = robotIsIncapacitated(redRobot, t);
+        if (blueIncapacitated) {
+            blueRobot.state.isAiming = false;
+            blueRobot.state.isSuperweaponCharging = false;
+            blueRobot.state.isBeamCharging = false;
+            cancelRobotActiveBeams(blueRobot);
+        }
+        if (redIncapacitated) {
+            redRobot.state.isAiming = false;
+            redRobot.state.isSuperweaponCharging = false;
+            redRobot.state.isBeamCharging = false;
+            cancelRobotActiveBeams(redRobot);
+        }
+
+        // Tactical hazard deployment: White Robot releases fuel slicks; Red Robot deploys Cryo/EMP Stasis Mines
+        if (!blueIncapacitated && !robotIsBlinking(blueRobot) && t - (blueRobot.state.lastFuelDropAt || -999) > ROBOT_FUEL_DROP_COOLDOWN) {
+            spawnRobotFuelSlick(blueRobot, t);
+        }
+        if (!redIncapacitated && !robotIsBlinking(redRobot) && t - (redRobot.state.lastMineAt || -999) > ROBOT_MINE_COOLDOWN) {
+            spawnSurfaceMine(redRobot, t, Math.random() < 0.72 ? 'stasis' : 'blast');
+        } else if (!blueIncapacitated && !robotIsBlinking(blueRobot) && t - (blueRobot.state.lastMineAt || -999) > ROBOT_MINE_COOLDOWN * 1.35) {
+            spawnSurfaceMine(blueRobot, t, 'blast');
+        }
 
         const dx = redRobot.state.x - blueRobot.state.x;
         const dz = redRobot.state.z - blueRobot.state.z;
@@ -4365,7 +5075,7 @@
         const ROBOT_SUPER_DISTANCE = 8.85;
 
         const blueAimTime = blueRobot.state.isSuperweaponCharging ? 0.85 : (blueRobot.state.isBeamCharging ? ROBOT_BEAM_CHARGE_TIME : 0.42);
-        if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > blueAimTime) {
+        if (!blueIncapacitated && blueRobot.state.isAiming && t - blueRobot.state.aimStart > blueAimTime) {
             const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
             if (blueRobot.forward.dot(toOpponent) > 0.96) {
                 if (blueRobot.state.isBeamCharging) {
@@ -4379,7 +5089,7 @@
             }
         }
         const redAimTime = redRobot.state.isSuperweaponCharging ? 0.85 : (redRobot.state.isBeamCharging ? ROBOT_BEAM_CHARGE_TIME : 0.42);
-        if (redRobot.state.isAiming && t - redRobot.state.aimStart > redAimTime) {
+        if (!redIncapacitated && redRobot.state.isAiming && t - redRobot.state.aimStart > redAimTime) {
             const toOpponent = new THREE.Vector3(-dx, 0, -dz).normalize();
             if (redRobot.forward.dot(toOpponent) > 0.96) {
                 if (redRobot.state.isBeamCharging) {
@@ -4419,7 +5129,7 @@
         const blueCooldown = ROBOT_DUEL_COOLDOWN + Math.sin(t * 0.8) * 0.1;
         const redCooldown = ROBOT_DUEL_COOLDOWN * 1.12 + Math.cos(t * 0.7) * 0.08;
 
-        if (t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
+        if (!blueIncapacitated && t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
             const superWeaponReady = (t - blueRobot.state.lastSuperweaponAt > 15.0);
             const beamReady = (t - blueRobot.state.lastBeamAt > ROBOT_BEAM_COOLDOWN);
             if (superWeaponReady) {
@@ -4439,7 +5149,7 @@
                 blueRobot.state.isBeamCharging = true;
             }
         }
-        if (t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
+        if (!redIncapacitated && t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
             const superWeaponReady = (t - redRobot.state.lastSuperweaponAt > 15.0);
             const beamReady = (t - redRobot.state.lastBeamAt > ROBOT_BEAM_COOLDOWN);
             if (superWeaponReady) {
@@ -4463,7 +5173,7 @@
         if (distance < ROBOT_DASH_RANGE && distance > 0.001) {
             robotFleet.forEach(function (bot) {
                 const state = bot.state;
-                if (state.dashUntil > t || t < (state.dashReadyAt || 0)) return;
+                if (robotIsIncapacitated(bot, t) || state.dashUntil > t || t < (state.dashReadyAt || 0)) return;
                 if (state.isAiming || robotIsBlinking(bot) || state.shieldUntil > t) return;
                 state.dashUntil = t + ROBOT_DASH_DURATION;
                 state.dashReadyAt = t + ROBOT_DASH_COOLDOWN;
@@ -4481,7 +5191,7 @@
         // Showcase blink: threatened robots flash-step sideways on their own rhythm
         robotFleet.forEach(function (bot) {
             const state = bot.state;
-            if (robotIsBlinking(bot) || t < (state.blinkReadyAt || 0)) return;
+            if (robotIsIncapacitated(bot, t) || robotIsBlinking(bot) || t < (state.blinkReadyAt || 0)) return;
             if (state.isAiming || state.shieldUntil > t || state.dashUntil > t) return;
             if (!bot.opponent.state.isAiming) return;
             const dx = bot.opponent.state.x - state.x;
@@ -4513,6 +5223,8 @@
         });
         updateRobotThrusterRipples(t);
         updateRobotDamageSmoke(t);
+        updateFuelSlicks(dt, t);
+        updateSurfaceMines(dt, t);
         updateRobotCounterpulse(t);
         updateNovaClash(dt, t);
         updateRobotDuel(dt, t);
@@ -5009,6 +5721,16 @@
         const observer = new MutationObserver(sync);
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         window.addEventListener('aurago:themechange', sync);
+        window.addEventListener('aurago:theme-effects-loaded', function () {
+            robotFleet.forEach(function (bot) {
+                bot.loadWarned = false;
+                bot.nextLoadRetryAt = 0;
+            });
+            sync();
+            if (active && scene) {
+                loadFloatingRobot();
+            }
+        });
         window.addEventListener('resize', function () {
             if (active) resize();
             sync();
@@ -5072,7 +5794,12 @@
                 robotShields: robotFleet.map(function (bot) { return (bot.state.shieldUntil || -999) > globalTime; }),
                 robotBlinks: robotFleet.map(function (bot) { return robotIsBlinking(bot); }),
                 blinkGhosts: blinkGhosts.length,
-                novaClashReadyIn: Math.max(0, novaClashReadyAt - globalTime)
+                novaClashReadyIn: Math.max(0, novaClashReadyAt - globalTime),
+                surfaceMines: surfaceMines.length,
+                fuelSlicks: fuelSlicks.length,
+                robotBurning: robotFleet.map(function (bot) { return robotIsBurning(bot, globalTime); }),
+                robotStunned: robotFleet.map(function (bot) { return robotIsStunned(bot, globalTime); }),
+                robotIncapacitated: robotFleet.map(function (bot) { return robotIsIncapacitated(bot, globalTime); })
             };
         }
     };

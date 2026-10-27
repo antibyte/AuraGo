@@ -748,12 +748,18 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   pointer-light target list in `ui/js/desktop/core/polish-runtime.js` must
   match the CSS (`desktop_polish_layer_test.go`).
 - ThreeDee combat uses a fixed four-light impact pool, at most 240 sprites
-  (40 slots reserved for smoke/debris), and six unlit, shadow-free blink ghosts.
-  Continuous particle emission follows simulation time; cinematic slow motion
-  expires on wall time, and every blink entry point enforces its cooldown.
-  Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
-  cleanup and respect the existing 18-projectile limit. EMP must not interrupt
-  a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
+  (40 slots reserved for smoke/debris), six unlit, shadow-free blink ghosts,
+  four surface mines, and five fuel slicks. The white robot deploys fuel slicks
+  that ignite and incapacitate the red robot (`burningUntil`); the red robot
+  counters with stasis mines (`mineType: 'stasis'`) that stun and incapacitate
+  the white robot (`stunnedUntil`) with lightning arcs. Continuous particle
+  emission follows simulation time; cinematic slow motion expires on wall time,
+  and every blink entry point enforces its cooldown. Helix volleys and
+  damage-triggered EMP counterpulses reuse projectile/effect cleanup and
+  respect the existing 18-projectile limit. EMP must not interrupt a paired
+  nova clash. Robot GLTF/Draco assets resolve through `BUILD_VERSION`, retain
+  live Draco workers across in-flight theme resets, and retry failed loads with
+  bounded backoff. Keep reduced-motion and theme-exit disposal intact.
 - Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
   cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
   Keep the image position fixed in the scanline keyframes and retain readable

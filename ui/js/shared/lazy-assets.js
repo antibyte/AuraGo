@@ -31,7 +31,7 @@
         const key = cacheKey(src);
         if (scriptPromises.has(key)) return scriptPromises.get(key);
         const existing = Array.from(document.scripts || []).find(script => cacheKey(script.getAttribute('src') || '') === key);
-        if (existing) {
+        if (existing && (!existing.dataset.auragoLazyAsset || existing.dataset.auragoLoaded === 'true')) {
             existing.dataset.auragoLoaded = 'true';
             const resolved = Promise.resolve();
             scriptPromises.set(key, resolved);
@@ -40,15 +40,20 @@
         const promise = new Promise((resolve, reject) => {
             const script = existing || document.createElement('script');
             script.dataset.auragoLazyAsset = 'script';
-            script.onload = () => {
+            const onLoad = () => {
                 script.dataset.auragoLoaded = 'true';
                 resolve();
             };
-            script.onerror = () => {
+            const onError = () => {
                 scriptPromises.delete(key);
                 reject(new Error('Failed to load script: ' + src));
             };
-            if (!existing) {
+            if (existing) {
+                script.addEventListener('load', onLoad, { once: true });
+                script.addEventListener('error', onError, { once: true });
+            } else {
+                script.onload = onLoad;
+                script.onerror = onError;
                 script.src = url;
                 document.head.appendChild(script);
             }

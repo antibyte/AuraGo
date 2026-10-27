@@ -7895,8 +7895,8 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     --bg-primary: #070b14;
     --bg-secondary: rgba(13, 20, 36, 0.94);
     --bg-tertiary: rgba(19, 29, 51, 0.94);
-    --bg-glass: linear-gradient(145deg, rgba(30, 41, 72, 0.72), rgba(8, 13, 25, 0.9));
-    --header-bg: rgba(7, 11, 20, 0.82);
+    --bg-glass: linear-gradient(145deg, rgba(26, 37, 68, 0.76), rgba(7, 12, 24, 0.92));
+    --header-bg: rgba(7, 11, 20, 0.84);
     --modal-bg: rgba(3, 6, 14, 0.76);
     --modal-surface: rgba(10, 16, 31, 0.95);
     --modal-border: rgba(129, 140, 248, 0.28);
@@ -7905,6 +7905,29 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     --code-bg: rgba(5, 8, 18, 0.94);
     --inline-code-bg: rgba(129, 140, 248, 0.12);
     --input-bg: rgba(8, 13, 25, 0.92);
+    --input-border: rgba(129, 140, 248, 0.26);
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --strong-color: #ffffff;
+    --border-subtle: rgba(129, 140, 248, 0.15);
+    --border-accent: rgba(129, 140, 248, 0.3);
+    --user-bubble: linear-gradient(145deg, rgba(129, 140, 248, 0.96), rgba(79, 70, 229, 0.98) 52%, rgba(34, 211, 238, 0.86));
+    --user-bubble-tail: rgba(82, 77, 218, 0.98);
+    --user-bubble-shadow: rgba(79, 70, 229, 0.36);
+    --bot-bubble: linear-gradient(150deg, rgba(19, 29, 52, 0.95), rgba(8, 13, 26, 0.98));
+    --bot-bubble-tail: rgba(13, 20, 36, 0.98);
+    --surface-shadow: 0 24px 70px rgba(0, 0, 0, 0.52);
+    --surface-shadow-strong: 0 38px 110px rgba(0, 0, 0, 0.72);
+    --surface-highlight: rgba(255, 255, 255, 0.12);
+    --page-orb-1: rgba(129, 140, 248, 0.14);
+    --page-orb-2: rgba(34, 211, 238, 0.12);
+    --page-orb-3: rgba(255, 59, 109, 0.08);
+    --page-orb-opacity: 1;
+    --chat-image-opacity: 0.035;
+    --bg-logo-filter: saturate(1.35) brightness(0.8);
+    --threedee-duel-cyan: rgba(34, 211, 238, 0.22);
+    --threedee-duel-crimson: rgba(255, 59, 109, 0.16);
+    --threedee-panel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 1px 0 0 rgba(34, 211, 238, 0.1), inset -1px 0 0 rgba(255, 59, 109, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.55);
 
     /* Virtual Desktop 3D tilt tuning (for windows in threedee theme) */
     --threedee-vd-perspective: 1600px;
@@ -7933,45 +7956,22 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     perspective: 2400px !important;
 }
 
-    /* Virtual Desktop window 3D tilt tuning for threedee theme */
-    --input-border: rgba(129, 140, 248, 0.26);
-    --text-primary: #e2e8f0;
-    --text-secondary: #94a3b8;
-    --strong-color: #ffffff;
-    --border-subtle: rgba(129, 140, 248, 0.15);
-    --border-accent: rgba(129, 140, 248, 0.3);
-    --user-bubble: linear-gradient(145deg, rgba(129, 140, 248, 0.97), rgba(79, 70, 229, 0.99) 48%, rgba(45, 212, 191, 0.88));
-    --user-bubble-tail: rgba(82, 77, 218, 0.98);
-    --user-bubble-shadow: rgba(79, 70, 229, 0.36);
-    --bot-bubble: linear-gradient(145deg, rgba(19, 29, 51, 0.97), rgba(8, 13, 25, 1));
-    --bot-bubble-tail: rgba(13, 20, 36, 0.98);
-    --surface-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
-    --surface-shadow-strong: 0 38px 110px rgba(0, 0, 0, 0.7);
-    --surface-highlight: rgba(255, 255, 255, 0.12);
-    --page-orb-1: rgba(129, 140, 248, 0.14);
-    --page-orb-2: rgba(34, 211, 238, 0.12);
-    --page-orb-3: rgba(192, 132, 252, 0.1);
-    --page-orb-opacity: 1;
-    --chat-image-opacity: 0.035;
-    --bg-logo-filter: saturate(1.35) brightness(0.8);
-    --threedee-panel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.55);
-}
-
 /* ── body background ──────────────────────────────────────────────── */
 [data-theme="threedee"] body {
     background:
-        radial-gradient(circle at 14% 12%, rgba(129, 140, 248, 0.2), transparent 28%),
-        radial-gradient(circle at 88% 18%, rgba(34, 211, 238, 0.14), transparent 28%),
-        radial-gradient(circle at 50% 112%, rgba(192, 132, 252, 0.13), transparent 34%),
-        linear-gradient(180deg, #070b14 0%, #090f1d 48%, #050812 100%);
+        radial-gradient(circle at 14% 16%, rgba(34, 211, 238, 0.15), transparent 32%),
+        radial-gradient(circle at 86% 18%, rgba(255, 59, 109, 0.11), transparent 30%),
+        radial-gradient(circle at 50% 42%, rgba(7, 11, 20, 0.42), transparent 64%),
+        radial-gradient(circle at 50% 112%, rgba(129, 140, 248, 0.14), transparent 36%),
+        linear-gradient(180deg, #060a13 0%, #09101f 48%, #040710 100%);
     color: var(--text-primary);
 }
 
 [data-theme="threedee"] body::before {
     opacity: 0.72;
     background:
-        linear-gradient(115deg, transparent 0 42%, rgba(129, 140, 248, 0.055) 42% 43%, transparent 43% 100%),
-        linear-gradient(65deg, transparent 0 48%, rgba(34, 211, 238, 0.04) 48% 49%, transparent 49% 100%);
+        linear-gradient(115deg, transparent 0 42%, rgba(34, 211, 238, 0.048) 42% 43%, transparent 43% 100%),
+        linear-gradient(65deg, transparent 0 48%, rgba(255, 59, 109, 0.036) 48% 49%, transparent 49% 100%);
 }
 
 /* ── shared glass panel styles ────────────────────────────────────── */
@@ -7986,8 +7986,8 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     border-color: var(--border-accent);
     background: var(--bg-glass);
     box-shadow: var(--surface-shadow), var(--threedee-panel-edge);
-    backdrop-filter: blur(18px) saturate(1.15);
-    -webkit-backdrop-filter: blur(18px) saturate(1.15);
+    backdrop-filter: blur(20px) saturate(1.18);
+    -webkit-backdrop-filter: blur(20px) saturate(1.18);
 }
 
 /* ── header ───────────────────────────────────────────────────────── */
@@ -7998,8 +7998,8 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
 }
 
 [data-theme="threedee"] .app-header::after {
-    background: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.85), rgba(34, 211, 238, 0.65), transparent);
-    box-shadow: 0 0 28px rgba(129, 140, 248, 0.4);
+    background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.78), rgba(129, 140, 248, 0.85), rgba(255, 59, 109, 0.68), transparent);
+    box-shadow: 0 0 28px rgba(129, 140, 248, 0.36);
 }
 
 [data-theme="threedee"] .logo,
@@ -8068,19 +8068,21 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
 }
 
 [data-theme="threedee"] .msg-row:hover .bubble {
-    transform: translateZ(22px) rotateX(-2deg);
+    transform: translateZ(20px) rotateX(-1.6deg);
     box-shadow:
-        0 28px 56px rgba(0, 0, 0, 0.5),
-        0 0 36px rgba(129, 140, 248, 0.16);
+        0 28px 56px rgba(0, 0, 0, 0.52),
+        0 0 32px rgba(34, 211, 238, 0.14),
+        0 0 22px rgba(255, 59, 109, 0.08);
 }
 
 [data-theme="threedee"] .bubble.bot {
     border: 2px solid transparent;
     background-clip: padding-box;
     box-shadow:
-        0 14px 34px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08),
-        0 0 16px rgba(129, 140, 248, 0.12);
+        0 14px 36px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 1px 0 0 rgba(34, 211, 238, 0.12),
+        0 0 18px rgba(34, 211, 238, 0.1);
     animation: threedeeBotBubblePulse 4s ease-in-out infinite alternate;
 }
 
@@ -8110,10 +8112,10 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     border-radius: inherit;
     background: linear-gradient(
         90deg,
-        rgba(129, 140, 248, 0.7),
-        rgba(34, 211, 238, 0.7),
-        rgba(192, 132, 252, 0.7),
-        rgba(129, 140, 248, 0.7)
+        rgba(34, 211, 238, 0.72),
+        rgba(129, 140, 248, 0.68),
+        rgba(255, 59, 109, 0.52),
+        rgba(34, 211, 238, 0.72)
     ) border-box;
     background-size: 200% 200%;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -8130,6 +8132,7 @@ html[data-sandstorm="storm"][data-theme="sandstorm"] .chat-robot-mascot {
     box-shadow:
         0 16px 36px rgba(79, 70, 229, 0.24),
         inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        inset -1px 0 0 rgba(255, 59, 109, 0.14),
         0 0 16px rgba(45, 212, 191, 0.12);
     animation: threedeeUserBubblePulse 4s ease-in-out infinite alternate;
 }

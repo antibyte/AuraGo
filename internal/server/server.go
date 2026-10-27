@@ -2271,6 +2271,9 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 				strings.HasSuffix(path, ".woff") ||
 				strings.HasSuffix(path, ".woff2") ||
 				strings.HasSuffix(path, ".ttf") ||
+				strings.HasSuffix(path, ".glb") ||
+				strings.HasSuffix(path, ".wasm") ||
+				strings.HasSuffix(path, ".webp") ||
 				strings.HasSuffix(path, ".map"))
 		if path == "/js/desktop/aura-desktop-sdk.js" {
 			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")
