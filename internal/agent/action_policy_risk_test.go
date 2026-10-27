@@ -327,7 +327,7 @@ func TestEgressCallWithSecretLikeArgumentIsRefused(t *testing.T) {
 	const secret = "tok_B10_registered_value_7f3a9c2e41"
 	const identity = "mailbox-user-b10@example.invalid"
 	security.RegisterSensitive(secret)
-	security.RegisterSensitive(identity)
+	security.RegisterIdentity(identity)
 
 	calls := 0
 	dc := actionSecurityFixture(t, func(context.Context, ToolCall) (string, bool) { calls++; return `{"status":"success"}`, true })
@@ -819,7 +819,7 @@ func TestMailboxAddressIsAnIdentityNotASecret(t *testing.T) {
 	const secret = "tok_B10_identity_test_value_4d8e1a"
 	const identity = "mailbox-owner-b10@example.invalid"
 	security.RegisterSensitive(secret)
-	security.RegisterSensitive(identity) // The SMTP and IMAP user name is registered like a password.
+	security.RegisterIdentity(identity) // internal/mailer registers the SMTP and IMAP user name this way.
 
 	calls := 0
 	dc := actionSecurityFixture(t, func(context.Context, ToolCall) (string, bool) { calls++; return `{"status":"success"}`, true })
@@ -857,6 +857,24 @@ func TestMailboxAddressIsAnIdentityNotASecret(t *testing.T) {
 		if result := DispatchToolCallResult(context.Background(), &refused, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, "egress_secret_refused") {
 			t.Fatalf("a credential in %q was not refused: %+v", mixed, result)
 		}
+	}
+	// A registered password inside an api_request URL is refused, next to an identity or not.
+	for _, rawURL := range []string{
+		"https://api.example.invalid/v1?p=" + secret,
+		"https://api.example.invalid/v1?mail=" + identity + "&p=" + secret,
+	} {
+		leak := ToolCall{Action: "api_request", Params: map[string]interface{}{"method": "GET", "url": rawURL}}
+		if result := DispatchToolCallResult(context.Background(), &leak, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, "egress_secret_refused") {
+			t.Fatalf("a password in the URL %q was not refused: %+v", rawURL, result)
+		}
+	}
+	// What decides is how a value was registered, not its shape: a credential that looks
+	// like an address is still a credential.
+	const addressShaped = "svc-token-b10-4d8e@example.invalid"
+	security.RegisterSensitive(addressShaped)
+	odd := ToolCall{Action: "send_email", To: "ops@example.invalid", Subject: "report", Body: "token " + addressShaped}
+	if result := DispatchToolCallResult(context.Background(), &odd, dc, "fixture"); result.Status != ToolResultDenied || !strings.Contains(result.Output, "egress_secret_refused") {
+		t.Fatalf("an address-shaped credential was not refused: %+v", result)
 	}
 	if calls != 0 {
 		t.Fatalf("a refused or deferred call reached the handler: calls=%d", calls)

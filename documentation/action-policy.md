@@ -197,10 +197,11 @@ dialog. Unattended runs stop with `action_rule_required` until a rule covers the
   value in any string argument refuses the call with `egress_secret_refused`. No
   rule, approval or disabled policy lifts it; the log keeps the arguments hash and
   never the value. A value that only looks like a credential (`token=...`, a bearer
-  token, `user:password@` in a URL) makes the call high-risk instead. So does a
-  mailbox address, such as the account's own SMTP user name: it is an identity
-  that a mail body or a URL may mention, so it goes to approval and is not
-  refused. A credential next to it is still refused. `composio_call`, `manus`,
+  token, `user:password@` in a URL) makes the call high-risk instead. So does an
+  identity, such as the account's own SMTP user name (a mailbox address that the
+  mailer registers as an identity, not as a secret): a mail body or a URL may
+  mention it, so it goes to approval and is not refused. A credential next to it
+  is still refused, whatever it looks like. `composio_call`, `manus`,
   `mcp_call` and every tool with a url, host or domain argument count as sending.
   Recipient fields are not scanned.
 

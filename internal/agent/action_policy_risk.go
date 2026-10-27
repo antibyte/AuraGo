@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"math"
 	"net"
-	"regexp"
 	"strings"
 
 	"aurago/internal/security"
@@ -361,26 +360,15 @@ func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 	return len(fetchTargetsFromArguments(a.Tool, args)) > 0
 }
 
-// mailboxAddressPattern finds e-mail addresses. The SMTP and IMAP user name is
-// registered with the scrubber like a password and is normally the user's own
-// address, so an address in an argument is treated as an identity (see
-// egressArgumentSecrets) rather than as a credential.
-var mailboxAddressPattern = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}`)
-
 // egressArgumentSecrets scans the string values of a call. registered is true when
-// a value the scrubber registry knows (vault and integration secrets) appears in
-// one. matching is true when only the redaction patterns (key=value, bearer tokens,
-// URL credentials) fire, or when the only registered value in the text is a mailbox
-// address: that is the user's own identity, which an e-mail body or a URL may
+// a secret the scrubber registry knows (vault and integration secrets, passwords)
+// appears in one. matching is true when only the redaction patterns (key=value,
+// bearer tokens, URL credentials) fire, or when the only registered value in the
+// text is an identity (security.RegisterIdentity: the mailbox address the SMTP and
+// IMAP user name is). That is the user's own name, which an e-mail body or a URL may
 // legitimately mention, so it goes through the approval path and is not refused.
 // A short map entry (a header) is also tested as "name: value". The skipped keys
 // apply to the top level only, so nothing hides in a nested object.
-//
-// The scrubber registry does not say which kind of value matched. Until identities
-// have a registry of their own (internal/security, internal/mailer), an address-shaped
-// token is set aside before the registry is asked: a credential that is itself shaped
-// like an address would be treated as an identity, and every other credential is still
-// refused.
 func egressArgumentSecrets(args map[string]interface{}) (registered, matching bool) {
 	const pairMaxBytes = 512
 	test := func(text string) {
@@ -388,11 +376,12 @@ func egressArgumentSecrets(args map[string]interface{}) (registered, matching bo
 			return
 		}
 		if security.Scrub(text) != text {
-			if bare := mailboxAddressPattern.ReplaceAllString(text, "[address]"); bare != text && security.Scrub(bare) == bare {
+			// Scrub knows secrets and identities; the secrets-only form says which it was.
+			if security.ScrubSecrets(text) != text {
+				registered = true
+			} else {
 				matching = true
-				return
 			}
-			registered = true
 		} else if security.RedactSensitiveInfo(text) != text {
 			matching = true
 		}

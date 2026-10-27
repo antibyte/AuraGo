@@ -129,9 +129,17 @@ func TestIMAPAuth(ctx context.Context, cfg TransportConfig) error {
 	return WithIMAPClient(ctx, cfg, func(c *imapclient.Client) error { return c.Noop() })
 }
 
+// registerLogin registers an account's login with the output scrubber: the user name
+// as an identity and the password as a secret. The user name is normally the mailbox
+// address, which a mail body or a URL the agent sends may legitimately quote; the
+// password never may be. Both are redacted from output either way.
+func registerLogin(username, password string) {
+	security.RegisterIdentity(username)
+	security.RegisterSensitive(password)
+}
+
 func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net.Conn, func(), error) {
-	security.RegisterSensitive(cfg.Username)
-	security.RegisterSensitive(cfg.Password)
+	registerLogin(cfg.Username, cfg.Password)
 	receiveTLS := strings.ToLower(strings.TrimSpace(cfg.ReceiveTLS))
 	if receiveTLS == "" {
 		receiveTLS = "tls"
@@ -277,8 +285,7 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 	} else if strings.EqualFold(cfg.SMTPAuthMethod, "xoauth2") {
 		return SendResult{}, fmt.Errorf("SMTP OAuth token source unavailable")
 	}
-	security.RegisterSensitive(username)
-	security.RegisterSensitive(password)
+	registerLogin(username, password)
 	addr := net.JoinHostPort(host, fmt.Sprint(port))
 	conn, err := dialTransport(ctx, cfg, "tcp", addr, 10*time.Second)
 	if err != nil {
@@ -402,8 +409,7 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 			return e
 		}
 	}
-	security.RegisterSensitive(username)
-	security.RegisterSensitive(password)
+	registerLogin(username, password)
 	conn, err := dialTransport(ctx, cfg, "tcp", net.JoinHostPort(host, fmt.Sprint(port)), 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("connect SMTP: %w", err)

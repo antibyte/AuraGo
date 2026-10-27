@@ -61,7 +61,10 @@ const minimumGlobalSensitiveLiteralBytes = 8
 // permanently registered value. Keeping these forms with the deduplicated
 // value avoids recompiling regular expressions on every Scrub call.
 type sensitiveEntry struct {
-	value      string
+	value string
+	// identity marks a name registered with RegisterIdentity: redacted like any
+	// other entry, but not reported as a secret by ScrubSecrets.
+	identity   bool
 	fragmented *regexp.Regexp
 	hex        *regexp.Regexp
 	base64     []string
@@ -96,8 +99,32 @@ func RegisterSensitive(value string) {
 	if sensitiveValues == nil {
 		sensitiveValues = make(map[string]sensitiveEntry)
 	}
-	if _, exists := sensitiveValues[value]; !exists {
+	// A secret wins over an identity registered under the same text.
+	if existing, exists := sensitiveValues[value]; !exists || existing.identity {
 		sensitiveValues[value] = prepareSensitiveEntry(value)
+	}
+	sensitiveMu.Unlock()
+}
+
+// RegisterIdentity registers a name that must stay out of outputs like a secret,
+// so Scrub redacts it everywhere, but that is not a credential: the user's own
+// mailbox address (the SMTP and IMAP user name) is the model case, a name a mail
+// body or a URL may legitimately mention. ScrubSecrets does not report it, which
+// is what lets an egress check tell an identity from a password. The same
+// minimum length as RegisterSensitive applies. A value that is also registered
+// with RegisterSensitive, before or after, stays a secret.
+func RegisterIdentity(value string) {
+	if len(value) < minimumGlobalSensitiveLiteralBytes {
+		return
+	}
+	sensitiveMu.Lock()
+	if sensitiveValues == nil {
+		sensitiveValues = make(map[string]sensitiveEntry)
+	}
+	if _, exists := sensitiveValues[value]; !exists {
+		entry := prepareSensitiveEntry(value)
+		entry.identity = true
+		sensitiveValues[value] = entry
 	}
 	sensitiveMu.Unlock()
 }
@@ -141,17 +168,33 @@ func RegisterScopedSensitiveExact(value string) func() {
 // It also catches simple fragmented, hex-encoded, and base64-encoded renderings of
 // the registered values so chat-visible output does not leak secrets indirectly.
 func Scrub(text string) string {
+	return scrubRegistered(text, true)
+}
+
+// ScrubSecrets is Scrub without the identities registered with RegisterIdentity.
+// Text it changes holds a registered secret; text only Scrub changes holds at
+// most a name the user may mention. It is the query for deciding whether text
+// carries a credential, never the redaction to apply to output.
+func ScrubSecrets(text string) string {
+	return scrubRegistered(text, false)
+}
+
+func scrubRegistered(text string, identities bool) string {
 	if text == "" {
 		return ""
 	}
 	sensitiveMu.RLock()
 	entries := make([]sensitiveEntry, 0, len(sensitiveValues))
 	for _, entry := range sensitiveValues {
+		if entry.identity && !identities {
+			continue
+		}
 		entries = append(entries, entry)
 	}
 	scoped := make([]string, 0, len(scopedSensitiveValues))
 	for value := range scopedSensitiveValues {
-		if _, permanent := sensitiveValues[value]; !permanent {
+		// A scoped value is a secret even when the same text is also an identity.
+		if existing, permanent := sensitiveValues[value]; !permanent || (existing.identity && !identities) {
 			scoped = append(scoped, value)
 		}
 	}
