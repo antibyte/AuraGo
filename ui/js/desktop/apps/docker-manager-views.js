@@ -39,9 +39,9 @@
     const ACTION_GLYPH = { start: 'play', unpause: 'play', stop: 'stop', restart: 'restart', pause: 'pause', kill: 'kill', remove: 'remove' };
     const ERROR_KEYS = ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'host_not_prepared', 'api_too_old', 'stacks_unavailable',
         'stack_name_invalid', 'stack_not_found', 'stack_exists', 'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
-        'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request'];
+        'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'];
     // Codes whose own sentence is followed by the server's message, because the message names the cause.
-    const DETAIL_ERROR_CODES = ['invalid_host', 'stacks_dir_unavailable', 'convert_failed', 'docker_error', 'bad_request'];
+    const DETAIL_ERROR_CODES = ['invalid_host', 'stacks_dir_unavailable', 'convert_failed', 'docker_error', 'bad_request', 'project_conflict'];
     // The labels of AuraGo's container protection ("owner" of the 409 answer) that are no AuraGo owner name, and the
     // docker_manager.protected_<kind> sentence of each.
     const PROTECTED_LABEL_KINDS = { self: 'self', 'docker-endpoint': 'endpoint', 'shared-network': 'network', unverified: 'unverified', docker_manager: 'helper' };

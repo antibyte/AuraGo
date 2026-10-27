@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Den handling er ikke tilgængelig for dette stack.",
   "docker_manager.error_operation_in_progress": "Der kører allerede en anden handling på denne stack.",
   "docker_manager.error_operation_not_found": "Den handling findes ikke længere.",
+  "docker_manager.error_project_conflict": "Et andet Compose-projekt med dette navn kører fra en anden mappe. Omdøb stacken, eller stop det projekt først.",
   "docker_manager.error_revision_conflict": "Filen blev ændret på værten.",
   "docker_manager.error_runner_image_missing": "Hjælpe-imaget mangler på værten og kunne ikke hentes. Kør på værten: {{command}}",
   "docker_manager.error_stack_exists": "Der findes allerede en stack med dette navn.",

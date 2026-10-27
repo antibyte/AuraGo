@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Tato operace není pro tento stack dostupná.",
   "docker_manager.error_operation_in_progress": "Na tomto stacku již běží jiná operace.",
   "docker_manager.error_operation_not_found": "Tato operace již neexistuje.",
+  "docker_manager.error_project_conflict": "Jiný projekt Compose se stejným názvem běží z jiné složky. Přejmenujte stack, nebo nejprve zastavte tento projekt.",
   "docker_manager.error_revision_conflict": "Soubor se na hostiteli změnil.",
   "docker_manager.error_runner_image_missing": "Pomocný image na hostiteli chybí a nepodařilo se jej stáhnout. Spusťte na hostiteli: {{command}}",
   "docker_manager.error_stack_exists": "Stack s tímto názvem již existuje.",

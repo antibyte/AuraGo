@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Questa operazione non è disponibile per questo stack.",
   "docker_manager.error_operation_in_progress": "Un’altra operazione è già in corso su questo stack.",
   "docker_manager.error_operation_not_found": "Quell’operazione non esiste più.",
+  "docker_manager.error_project_conflict": "Un altro progetto Compose con questo nome è in esecuzione da una cartella diversa. Rinomina lo stack o ferma prima quel progetto.",
   "docker_manager.error_revision_conflict": "Il file è cambiato sull’host.",
   "docker_manager.error_runner_image_missing": "L’immagine ausiliaria manca sull’host e non è stato possibile scaricarla. Esegui sull’host: {{command}}",
   "docker_manager.error_stack_exists": "Esiste già uno stack con questo nome.",

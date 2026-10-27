@@ -1272,9 +1272,10 @@ const full = {};
 {
     const t = (key, params) => key + (params ? JSON.stringify(params) : '');
     const views = full.DockerManagerViews.create({ t, esc: String, model: full.DockerManagerModel, lang: 'en', uid: 'x' });
-    for (const code of ['invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request']) {
+    for (const code of ['invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict']) {
         assert.ok(views.errorText({ code, message: 'English' }).startsWith('error_' + code), code + ' has its own text');
     }
+    assert.ok(views.errorText({ code: 'project_conflict', message: 'runs from /srv/shop' }).endsWith(' runs from /srv/shop'), 'the message of a project conflict names the other folder');
     assert.ok(views.errorText({ code: 'docker_error', message: 'cause' }).endsWith(' cause'), 'the message of a Docker error names the cause');
     assert.ok(!views.errorText({ code: 'internal_error', message: 'The deployment could not be started' }).includes('deployment'), 'the code decides, the English message of a deploy_error does not show');
     assert.equal(views.errorText({ code: 'brand_new', message: 'English' }), 'error_unknown English', 'an unknown code shows the generic sentence and the message');
@@ -1300,7 +1301,7 @@ const full = {};
         reason_: [...model.REASONS],
         error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown', 'host_not_prepared', 'api_too_old', 'stacks_unavailable', 'stack_name_invalid', 'stack_not_found', 'stack_exists',
             'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
-            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request'],
+            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'],
         filter_: [...model.STATE_FILTERS],
         kind_: ['local', ...model.HOST_KINDS],
         color_: [...model.HOST_COLORS],

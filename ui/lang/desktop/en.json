@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "That operation is not available for this stack.",
   "docker_manager.error_operation_in_progress": "Another operation is already running on this stack.",
   "docker_manager.error_operation_not_found": "That operation no longer exists.",
+  "docker_manager.error_project_conflict": "Another compose project with this name runs from a different folder. Rename the stack or stop that project first.",
   "docker_manager.error_revision_conflict": "The file changed on the host.",
   "docker_manager.error_runner_image_missing": "The helper image is missing on the host and could not be pulled. Run this on the host: {{command}}",
   "docker_manager.error_stack_exists": "A stack with this name already exists.",

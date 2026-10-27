@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "このスタックではその操作は使えません。",
   "docker_manager.error_operation_in_progress": "このスタックでは別の操作がすでに実行中です。",
   "docker_manager.error_operation_not_found": "その操作はもう存在しません。",
+  "docker_manager.error_project_conflict": "同じ名前の別の Compose プロジェクトが別のフォルダーから実行されています。スタックの名前を変更するか、先にそのプロジェクトを停止してください。",
   "docker_manager.error_revision_conflict": "ファイルがホストで変更されました。",
   "docker_manager.error_runner_image_missing": "ホストに補助イメージがなく、取得できませんでした。ホストで次を実行してください: {{command}}",
   "docker_manager.error_stack_exists": "この名前のスタックはすでに存在します。",

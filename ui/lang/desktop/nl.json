@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Die bewerking is niet beschikbaar voor deze stack.",
   "docker_manager.error_operation_in_progress": "Er loopt al een andere bewerking op deze stack.",
   "docker_manager.error_operation_not_found": "Die bewerking bestaat niet meer.",
+  "docker_manager.error_project_conflict": "Een ander Compose-project met deze naam draait vanuit een andere map. Hernoem de stack of stop dat project eerst.",
   "docker_manager.error_revision_conflict": "Het bestand is op de host gewijzigd.",
   "docker_manager.error_runner_image_missing": "De hulp-image ontbreekt op de host en kon niet worden opgehaald. Voer op de host uit: {{command}}",
   "docker_manager.error_stack_exists": "Er bestaat al een stack met deze naam.",

@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Ta operacja nie jest dostępna dla tego stosu.",
   "docker_manager.error_operation_in_progress": "Na tym stosie trwa już inna operacja.",
   "docker_manager.error_operation_not_found": "Ta operacja już nie istnieje.",
+  "docker_manager.error_project_conflict": "Inny projekt Compose o tej nazwie działa z innego katalogu. Zmień nazwę stosu lub najpierw zatrzymaj ten projekt.",
   "docker_manager.error_revision_conflict": "Plik zmienił się na hoście.",
   "docker_manager.error_runner_image_missing": "Obrazu pomocniczego brakuje na hoście i nie udało się go pobrać. Uruchom na hoście: {{command}}",
   "docker_manager.error_stack_exists": "Stos o tej nazwie już istnieje.",

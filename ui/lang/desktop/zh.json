@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "此堆栈不支持该操作。",
   "docker_manager.error_operation_in_progress": "此堆栈上已有另一项操作在运行。",
   "docker_manager.error_operation_not_found": "该操作已不存在。",
+  "docker_manager.error_project_conflict": "另一个同名的 Compose 项目正在从不同的文件夹运行。请重命名堆栈，或先停止该项目。",
   "docker_manager.error_revision_conflict": "文件在主机上已更改。",
   "docker_manager.error_runner_image_missing": "主机上缺少辅助镜像且无法拉取。请在主机上运行：{{command}}",
   "docker_manager.error_stack_exists": "已存在同名堆栈。",

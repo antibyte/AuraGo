@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "यह क्रिया इस स्टैक के लिए उपलब्ध नहीं है।",
   "docker_manager.error_operation_in_progress": "इस स्टैक पर पहले से कोई दूसरी क्रिया चल रही है।",
   "docker_manager.error_operation_not_found": "वह क्रिया अब मौजूद नहीं है।",
+  "docker_manager.error_project_conflict": "इसी नाम का एक और Compose प्रोजेक्ट किसी दूसरे फ़ोल्डर से चल रहा है। स्टैक का नाम बदलें या पहले उस प्रोजेक्ट को रोकें।",
   "docker_manager.error_revision_conflict": "फ़ाइल होस्ट पर बदल गई।",
   "docker_manager.error_runner_image_missing": "होस्ट पर सहायक इमेज नहीं है और उसे डाउनलोड नहीं किया जा सका। होस्ट पर चलाएँ: {{command}}",
   "docker_manager.error_stack_exists": "इस नाम का स्टैक पहले से मौजूद है।",

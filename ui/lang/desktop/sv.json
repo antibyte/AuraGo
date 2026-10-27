@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Den åtgärden är inte tillgänglig för den här stacken.",
   "docker_manager.error_operation_in_progress": "En annan åtgärd körs redan på den här stacken.",
   "docker_manager.error_operation_not_found": "Den åtgärden finns inte längre.",
+  "docker_manager.error_project_conflict": "Ett annat Compose-projekt med det här namnet körs från en annan mapp. Byt namn på stacken eller stoppa det projektet först.",
   "docker_manager.error_revision_conflict": "Filen ändrades på värden.",
   "docker_manager.error_runner_image_missing": "Hjälpavbilden saknas på värden och kunde inte hämtas. Kör på värden: {{command}}",
   "docker_manager.error_stack_exists": "Det finns redan en stack med det här namnet.",

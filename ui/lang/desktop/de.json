@@ -10210,6 +10210,7 @@
   "docker_manager.error_invalid_operation": "Dieser Vorgang ist für diesen Stack nicht verfügbar.",
   "docker_manager.error_operation_in_progress": "Auf diesem Stack läuft bereits ein anderer Vorgang.",
   "docker_manager.error_operation_not_found": "Dieser Vorgang existiert nicht mehr.",
+  "docker_manager.error_project_conflict": "Ein anderes Compose-Projekt mit diesem Namen läuft aus einem anderen Ordner. Benennen Sie den Stack um oder stoppen Sie dieses Projekt zuerst.",
   "docker_manager.error_revision_conflict": "Die Datei wurde auf dem Host geändert.",
   "docker_manager.error_runner_image_missing": "Das Hilfs-Image fehlt auf dem Host und konnte nicht geladen werden. Führen Sie auf dem Host aus: {{command}}",
   "docker_manager.error_stack_exists": "Ein Stack mit diesem Namen gibt es bereits.",
