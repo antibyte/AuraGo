@@ -556,50 +556,28 @@ func isLowRiskRoutine(check GuardianCheck) bool {
 	return false
 }
 
+// isLowRiskShellCommand reports whether command is one read-only shape of
+// routineShellShape. The dangerous-marker list stays as a second filter.
 func isLowRiskShellCommand(command string) bool {
 	lc := strings.ToLower(strings.TrimSpace(command))
-	if lc == "" {
+	if lc == "" || containsDangerousShellMarkers(lc) {
 		return false
 	}
-	if containsDangerousShellMarkers(lc) {
-		return false
-	}
-	prefixes := []string{
-		"ls", "pwd", "cat ", "head ", "tail ", "wc ", "stat ", "find ", "rg ", "grep ",
-		"docker ps", "docker logs", "docker inspect", "docker images", "docker network ls",
-	}
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(lc, prefix) {
-			return true
-		}
-	}
-	return false
+	argv, globbed, ok := splitRoutineArgv(command)
+	return ok && routineShellShape(argv, globbed)
 }
 
 // isLowRiskSudoCommand returns true for execute_sudo commands that are purely
-// read-only system queries (id, whoami, uptime, status checks).
-// Mutating root operations (iptables -A, systemctl restart, etc.) are still evaluated.
+// read-only system queries (id, whoami, uptime, status checks), matched as
+// exact argv shapes (routineSudoShape). Mutating root operations (iptables -A,
+// ip route add, hostname NAME, systemctl restart, etc.) are still evaluated.
 func isLowRiskSudoCommand(command string) bool {
 	lc := strings.ToLower(strings.TrimSpace(command))
-	if lc == "" {
+	if lc == "" || containsDangerousShellMarkers(lc) {
 		return false
 	}
-	if containsDangerousShellMarkers(lc) {
-		return false
-	}
-	readOnlyPrefixes := []string{
-		"id", "whoami", "uptime", "hostname", "uname",
-		"cat /proc/", "cat /sys/", "ls ", "stat ",
-		"iptables -l", "iptables -s", "iptables -n",
-		"ip addr", "ip link", "ip route",
-		"ss -", "netstat ",
-	}
-	for _, prefix := range readOnlyPrefixes {
-		if strings.HasPrefix(lc, prefix) {
-			return true
-		}
-	}
-	return false
+	argv, globbed, ok := splitRoutineArgv(command)
+	return ok && routineSudoShape(argv, globbed)
 }
 
 func containsDangerousShellMarkers(command string) bool {
