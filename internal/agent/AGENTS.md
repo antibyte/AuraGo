@@ -542,6 +542,21 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   of every eligible route; report output and context limits separately.
   Missing local dependencies are `needs_setup`; account/connection state is
   distinct from configuration and never inferred from an enabled switch.
+- MCP catalog entries are built by `mcpCatalogEntry` (`discovery_mcp_metadata.go`),
+  which vets the server-written metadata on every refresh: the run's Guardian
+  (`NewGuardian(nil)` without one) scans the tool description and every string
+  of the input schema locally (prose, enum/default values, property names; plain
+  words under 16 bytes are skipped). `ThreatHigh`, or more text than
+  `mcpScanBudget` (text that is not scanned must not reach the model), disables
+  the entry with the fixed `HiddenReason` `suspicious_description` and drops its
+  description and schema, so `get_tool_info`, search and `invoke_tool` neither
+  repeat the text nor run it. The reason names no text. Tool descriptions are
+  capped at 2048 bytes and schema prose (not enum/default values) at 512, with a
+  visible `… [truncated]` marker; the manager's maps are copied, never changed,
+  and keep their decoded number types (float64). The result is cached by guardian
+  and content hash, so a changed description (a rug pull) is scanned at once and
+  an unchanged one costs nothing. A cold scan is slow (about 6 us per byte), which
+  is why the budget exists. Direct `mcp_call call_tool` is not gated by this.
 - A stale, foreign or sentinel cursor (`none`, `null`, `0`, ...) never fails a
   discovery page: it restarts at page 1 with `cursor_reset` and a `notice`.
   A cursor binds to `catalogRevision`, which hashes every entry and schema with
