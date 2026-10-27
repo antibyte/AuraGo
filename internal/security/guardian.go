@@ -819,6 +819,17 @@ func neutralizeRoleMarkers(text string) string {
 	})
 }
 
+// maxScanOutputBytes is the most text one SanitizeToolOutput call (and the
+// advisory ScanExternalContent) runs through the regex tier. The promptsec chain
+// reads roughly 20 to 60 KiB per second: on the development host 256 KiB took
+// 4 to 8 s, 1 MiB 17 to 64 s and the 5 MiB a scraper may return over 3 minutes,
+// twice when the output is JSON (raw and decoded view), all on the dispatch
+// goroutine. The agent clips what the model sees only after this call, and the
+// output vault pages the rest back, so a prefix scan would let unscanned text
+// through. Longer external output is therefore withheld as incomplete; longer
+// source output takes the escaped form without a scan.
+const maxScanOutputBytes = 256 * 1024
+
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
 // Execution output is also external: a local command can read attacker-controlled data.
@@ -831,10 +842,18 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	// remains copyable; only a critical verdict selects the escaped form.
 	// External bodies at ThreatHigh or above are withheld entirely.
 	trust := classifyToolOutput(toolName)
+	oversize := trust != toolOutputTrusted && len(output) > maxScanOutputBytes
+	if oversize && trust == toolOutputExternal {
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] Withheld external tool output beyond the scan limit",
+				"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
+		}
+		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineIncomplete))
+	}
 	var scan ScanResult
 	var leaves []jsonLeaf
 	var joined string
-	if trust == toolOutputSourceData || trust == toolOutputExternal {
+	if (trust == toolOutputSourceData || trust == toolOutputExternal) && !oversize {
 		scan = g.ScanForInjection(output)
 		// A JSON envelope escapes line breaks and quotes, which splits a phrase
 		// the regexes need whole. Scan the decoded string values joined by
@@ -878,6 +897,12 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 			if g.logger != nil {
 				g.logger.Warn("[Guardian] Injection patterns in project source, escaping",
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
+			}
+			output = IsolateExternalData(output)
+		} else if oversize {
+			if g.logger != nil {
+				g.logger.Info("[Guardian] Project source beyond the scan limit, escaping",
+					"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
 			}
 			output = IsolateExternalData(output)
 		} else {
@@ -984,8 +1009,20 @@ func StripInternalMissionAdvisoryForScan(text string) string {
 }
 
 // ScanExternalContent scans content from external sources (web, API, files) for injection.
-// Always isolates the content regardless of scan result, but logs threats.
+// Always isolates the content regardless of scan result, but logs threats. The
+// scan is advisory (SanitizeToolOutput is the gate) and skipped beyond
+// maxScanOutputBytes.
 func (g *Guardian) ScanExternalContent(source, content string) string {
+	if len(content) > maxScanOutputBytes {
+		// The scan here only logs. The tool output carrying this content is
+		// withheld by SanitizeToolOutput beyond the same limit, so reading it
+		// again would repeat minutes of work for a log line.
+		if g.logger != nil {
+			g.logger.Info("[Guardian] External content beyond the scan limit, not scanned",
+				"source", source, "bytes", len(content), "limit", maxScanOutputBytes)
+		}
+		return IsolateExternalData(content)
+	}
 	scan := g.ScanForInjectionWithSource(content, source, promptsec.Untrusted)
 	if scan.Level >= ThreatLow && g.logger != nil {
 		g.logger.Warn("[Guardian] Injection patterns in external content",
