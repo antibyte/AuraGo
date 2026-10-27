@@ -213,6 +213,7 @@ agentmail:
   poll_interval_seconds: 120
   relay_to_agent: false
   relay_cheatsheet_id: ""
+  allowed_senders: []      # Adressen oder @Domain-Einträge, deren Mails das Relay an den Agenten geben darf
   max_attachment_mb: 10
   base_url: https://api.agentmail.to
   websocket_url: wss://ws.agentmail.to/v0
@@ -221,6 +222,8 @@ agentmail:
 > 🔒 Der API-Key wird im Vault als `agentmail_api_key` gespeichert, nicht in der `config.yaml`.
 
 Nutze die fokussierten Tools `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads` und `agentmail_drafts` im Chat. Der alte Toolname `agentmail` bleibt als Kompatibilitätsalias akzeptiert.
+
+Das Relay gibt Mails nur an den Agenten, wenn der Absender in `allowed_senders` steht (eine vollständige Adresse oder `@example.com` für genau diese Domain; ohne Beachtung der Groß-/Kleinschreibung, geprüft an der `From`-Adresse). Solange die Liste leer ist, erreicht keine Mail den Agenten: Für jede Nachricht erhält der Besitzer stattdessen einen festen Quarantänehinweis, sodass ein scheinbar stilles Relay durch diesen Hinweis und eine Warnung im Sicherheitscheck erklärt wird. Sobald die Liste Einträge hat, werden Mails aller anderen Absender ohne Hinweis ignoriert. Der `From`-Header lässt sich fälschen: Die Liste schränkt ein, wer den Agenten erreichen kann, beweist aber keine Identität. Halte sie kurz und aktiviere zusätzlich `llm_guardian.scan_emails` (der Sicherheitscheck warnt, solange das Relay ohne diese Prüfung läuft).
 
 Bei aktivierter E-Mail-Prüfung ersetzt ein Quarantänehinweis den Inhalt einer AgentMail-Nachricht. Der Status eines Tool-Vorgangs bleibt erhalten, aber quarantänisierter Inhalt wird nicht zurückgegeben oder weitergeleitet. Lesestatus und Labels bleiben unverändert. Die Quarantäne erlaubt weder Antworten noch Änderungen an Labels.
 

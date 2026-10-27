@@ -226,6 +226,11 @@ type AgentMailConfig struct {
 	MaxAttachmentMB     int    `yaml:"max_attachment_mb" json:"max_attachment_mb"`
 	BaseURL             string `yaml:"base_url" json:"base_url"`
 	WebSocketURL        string `yaml:"websocket_url" json:"websocket_url"`
+	// AllowedSenders limits whose mail the relay hands to the agent: full
+	// addresses or "@domain" entries, compared case-insensitively. With
+	// relay_to_agent on and the list empty no mail reaches the agent, the owner
+	// only gets a quarantine notice; with entries, other senders are ignored.
+	AllowedSenders []string `yaml:"allowed_senders" json:"allowed_senders"`
 }
 
 type WebhookParameter struct {

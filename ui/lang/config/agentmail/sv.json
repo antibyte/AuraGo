@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Tillåtna avsändare",
   "config.agentmail.api_key_empty": "Ange en API-nyckel först.",
   "config.agentmail.api_key_label": "API-nyckel (Vault)",
   "config.agentmail.api_key_placeholder": "Ange AgentMail API-nyckel…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "Använd WebSocket",
   "config.agentmail.websocket_url_label": "WebSocket-URL",
   "config.agentmail.yes": "Ja",
+  "help.agentmail.allowed_senders": "En post per rad: en fullständig adress (anna@example.com) eller en hel domän (@example.com). Bara e-post från dessa avsändare når agenten; e-post från alla andra ignoreras. Så länge listan är tom når ingen e-post agenten och bara ett karantänmeddelande levereras per meddelande. From-huvudet kan förfalskas, så håll listan kort och låt LLM-skanningen av e-post vara påslagen.",
   "help.agentmail.api_key": "AgentMail API-nyckel. Sparas säkert i det krypterade Vault.",
   "help.agentmail.auto_create_inbox": "Låter konfigurationsflöden skapa inkorgen automatiskt när det stöds.",
   "help.agentmail.base_url": "Bas-URL för AgentMail REST API.",

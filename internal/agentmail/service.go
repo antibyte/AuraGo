@@ -376,7 +376,18 @@ func (s *Service) handleMessage(ctx context.Context, msg Message) error {
 	if msg.ID == "" || s.isSeen(msg.ID) {
 		return nil
 	}
-	msg, quarantine := s.sanitizeMessage(ctx, msg)
+	msg, err := s.withSender(ctx, msg)
+	if err != nil {
+		return err
+	}
+	msg, quarantine, ignore := s.sanitizeMessage(ctx, msg)
+	if ignore {
+		// Not the owner's correspondent: no notice, no label, no agent turn. The
+		// address is attacker-controlled and stays out of the log.
+		s.logger.Warn("[AgentMail] Message from a sender outside agentmail.allowed_senders ignored", "message_id", msg.ID)
+		s.markSeen(msg.ID)
+		return nil
+	}
 	var prompt string
 	if quarantine != nil {
 		prompt = security.QuarantineNotice("agentmail", msg.ID, *quarantine)
@@ -418,20 +429,48 @@ func (s *Service) retryLabels(ctx context.Context) {
 	}
 }
 
-func (s *Service) sanitizeMessage(ctx context.Context, msg Message) (Message, *security.GuardianResult) {
+// withSender completes a message that arrived without a sender (a WebSocket
+// event may carry only the message id) when an allowlist needs one. A lookup
+// that fails is an error, so the message is tried again.
+func (s *Service) withSender(ctx context.Context, msg Message) (Message, error) {
+	if len(s.cfg.AllowedSenders) == 0 || strings.TrimSpace(msg.From.Email) != "" || s.client == nil {
+		return msg, nil
+	}
+	full, err := s.client.GetMessage(ctx, s.cfg.InboxID, msg.ID)
+	if err != nil {
+		return msg, fmt.Errorf("look up the sender of message %s: %w", msg.ID, err)
+	}
+	msg.From = full.From
+	return msg, nil
+}
+
+// sanitizeMessage decides what the relay may do with a message. ignore means the
+// message is dropped (an allowlist exists and the sender is not on it). Otherwise
+// a non-nil quarantine result means only the fixed notice may be sent: the sender
+// check comes first (no allowlist, no mail reaches the agent), then the local
+// scan, then the optional LLM scan. A nil result is a message that may be relayed
+// with its text sanitized.
+func (s *Service) sanitizeMessage(ctx context.Context, msg Message) (out Message, quarantine *security.GuardianResult, ignore bool) {
+	switch s.senderVerdict(msg) {
+	case senderIgnored:
+		return msg, nil, true
+	case senderUnconfigured:
+		result := security.ContentScanQuarantine(security.QuarantineSuspicious)
+		return msg, &result, false
+	}
 	combined := fmt.Sprintf("From: %s <%s>\nSubject: %s\nText: %s\nSnippet: %s\nLabels: %s",
 		msg.From.Name, msg.From.Email, msg.Subject, msg.Text, msg.Snippet, strings.Join(msg.Labels, ", "))
 	if s.guardian != nil {
 		scan := s.guardian.ScanForInjectionLocal(combined)
 		if scan.Level >= security.ThreatHigh {
 			result := security.ContentScanQuarantine(security.QuarantineSuspicious)
-			return msg, &result
+			return msg, &result, false
 		}
 	}
 	if s.scanEmails {
 		if s.guardian == nil || s.llmGuardian == nil {
 			result := security.ContentScanQuarantine(security.QuarantineUnavailable)
-			return msg, &result
+			return msg, &result, false
 		}
 		llmResult := s.llmGuardian.EvaluateContent(ctx, "email", combined)
 		if llmResult.Decision != security.DecisionAllow {
@@ -440,14 +479,14 @@ func (s *Service) sanitizeMessage(ctx context.Context, msg Message) (Message, *s
 				reason = security.QuarantineSuspicious
 			}
 			result := security.ContentScanQuarantine(reason)
-			return msg, &result
+			return msg, &result, false
 		}
 	}
 	if s.guardian != nil {
 		msg.Text = s.guardian.SanitizeToolOutput("agentmail", msg.Text)
 		msg.Snippet = s.guardian.SanitizeToolOutput("agentmail", msg.Snippet)
 	}
-	return msg, nil
+	return msg, nil, false
 }
 
 func (s *Service) isSeen(id string) bool {

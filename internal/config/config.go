@@ -915,6 +915,7 @@ func Load(path string) (*Config, error) {
 	cfg.AgentMail.UseWebSocket = true
 	cfg.AgentMail.PollIntervalSeconds = 120
 	cfg.AgentMail.MaxAttachmentMB = 10
+	cfg.AgentMail.AllowedSenders = []string{}
 
 	// Grafana defaults: read-only observability access when explicitly enabled.
 	cfg.Grafana.RequestTimeout = 15
@@ -3132,6 +3133,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"agentmail", "max_attachment_mb"}, c.AgentMail.MaxAttachmentMB},
 		{[]string{"agentmail", "base_url"}, c.AgentMail.BaseURL},
 		{[]string{"agentmail", "websocket_url"}, c.AgentMail.WebSocketURL},
+		{[]string{"agentmail", "allowed_senders"}, c.AgentMail.AllowedSenders},
 		{[]string{"grafana", "enabled"}, c.Grafana.Enabled},
 		{[]string{"grafana", "base_url"}, c.Grafana.BaseURL},
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},

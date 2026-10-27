@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Remetentes permitidos",
   "config.agentmail.api_key_empty": "Insira primeiro uma chave de API.",
   "config.agentmail.api_key_label": "Chave de API (Vault)",
   "config.agentmail.api_key_placeholder": "Insira a chave de API do AgentMail…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "Usar WebSocket",
   "config.agentmail.websocket_url_label": "URL WebSocket",
   "config.agentmail.yes": "Sim",
+  "help.agentmail.allowed_senders": "Uma entrada por linha: um endereço completo (anna@example.com) ou um domínio inteiro (@example.com). Só o e-mail destes remetentes chega ao agente; o de todos os outros é ignorado. Enquanto a lista estiver vazia, nenhum e-mail chega ao agente e só é entregue um aviso de quarentena por mensagem. O cabeçalho From pode ser falsificado, por isso convém manter a lista curta e deixar a análise de e-mail por LLM ativada.",
   "help.agentmail.api_key": "Chave de API do AgentMail. Armazenada com segurança no Vault criptografado.",
   "help.agentmail.auto_create_inbox": "Permite que fluxos de configuração criem a caixa automaticamente quando houver suporte.",
   "help.agentmail.base_url": "URL base da API REST do AgentMail.",

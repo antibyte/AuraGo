@@ -455,6 +455,11 @@ agentmail:
     poll_interval_seconds: 120
     relay_to_agent: false
     relay_cheatsheet_id: "" # optional cheatsheet appended as instructions to relayed new-mail prompts
+    # Who may reach the agent through the relay: full addresses or "@domain" entries, compared
+    # case-insensitively. With relay_to_agent on and this list empty, no mail reaches the agent;
+    # the owner only gets a quarantine notice per message. With entries, mail from any other
+    # sender is ignored (logged, never relayed). Keep llm_guardian.scan_emails on as well.
+    allowed_senders: []
     max_attachment_mb: 10
     base_url: https://api.agentmail.to
     websocket_url: wss://ws.agentmail.to/v0

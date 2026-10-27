@@ -702,6 +702,33 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
+	// 24f. agentmail_relay_unscanned / agentmail_relay_no_senders — the AgentMail
+	// relay wakes the agent on inbound mail. Without the model scan only the
+	// local regex scan stands between a stranger's text and the model; without
+	// agentmail.allowed_senders no mail reaches the agent at all, the owner gets
+	// a quarantine notice per message.
+	if cfg.AgentMail.Enabled && cfg.AgentMail.RelayToAgent && !cfg.EggMode.Enabled {
+		if !cfg.LLMGuardian.ScanEmails {
+			hints = append(hints, SecurityHint{
+				ID: "agentmail_relay_unscanned", Severity: SevWarning,
+				Title: "AgentMail: relayed mail is scanned by the local filter only",
+				Description: "agentmail.relay_to_agent is on, but llm_guardian.scan_emails is off. Mail from an allowed sender still reaches the agent after nothing more than the local pattern scan, " +
+					"and an instruction phrased below that scan's threshold goes through. Turn on llm_guardian.scan_emails (it needs a configured LLM Guardian provider) " +
+					"and keep agentmail.allowed_senders short.",
+				AutoFixable: false,
+			})
+		}
+		if len(cfg.AgentMail.AllowedSenders) == 0 {
+			hints = append(hints, SecurityHint{
+				ID: "agentmail_relay_no_senders", Severity: SevWarning,
+				Title: "AgentMail: relay has no allowed senders",
+				Description: "agentmail.relay_to_agent is on, but agentmail.allowed_senders is empty, so no mail reaches the agent: the owner only gets a quarantine notice for every message. " +
+					"List the addresses or @domain entries whose mail the agent may act on; mail from anyone else is then ignored.",
+				AutoFixable: false,
+			})
+		}
+	}
+
 	// 24a. frigate_mqtt_prefix — a relay that cannot name a literal topic must not subscribe.
 	if cfg.Frigate.Enabled && (cfg.Frigate.EventRelay || cfg.Frigate.ReviewRelay) {
 		if _, ok := mqtt.FrigateLiteralPrefix(cfg); !ok {

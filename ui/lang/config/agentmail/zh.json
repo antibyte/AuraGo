@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "允许的发件人",
   "config.agentmail.api_key_empty": "请先输入 API 密钥。",
   "config.agentmail.api_key_label": "API 密钥 (Vault)",
   "config.agentmail.api_key_placeholder": "输入 AgentMail API 密钥…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "使用 WebSocket",
   "config.agentmail.websocket_url_label": "WebSocket URL",
   "config.agentmail.yes": "是",
+  "help.agentmail.allowed_senders": "每行一项：完整地址 (anna@example.com) 或整个域名 (@example.com)。只有这些发件人的邮件会送达代理，其他所有人的邮件都会被忽略。列表为空时，没有任何邮件会送达代理，每封邮件只会收到一条隔离通知。From 头可以伪造，因此请保持列表简短，并保持开启 LLM 邮件扫描。",
   "help.agentmail.api_key": "AgentMail API 密钥。安全存储在加密 Vault 中。",
   "help.agentmail.auto_create_inbox": "在支持时允许设置流程自动创建配置的收件箱。",
   "help.agentmail.base_url": "AgentMail REST API 的基础 URL。",

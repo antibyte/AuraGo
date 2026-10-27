@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Povolení odesílatelé",
   "config.agentmail.api_key_empty": "Nejprve zadejte API klíč.",
   "config.agentmail.api_key_label": "API klíč (Vault)",
   "config.agentmail.api_key_placeholder": "Zadejte API klíč AgentMail…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "Použít WebSocket",
   "config.agentmail.websocket_url_label": "URL WebSocketu",
   "config.agentmail.yes": "Ano",
+  "help.agentmail.allowed_senders": "Jeden záznam na řádek: úplná adresa (anna@example.com) nebo celá doména (@example.com). Agenta dosáhne jen pošta od těchto odesílatelů, pošta od všech ostatních se ignoruje. Dokud je seznam prázdný, žádná pošta agenta nedosáhne a za každou zprávu přijde jen upozornění na karanténu. Hlavičku From lze podvrhnout, proto seznam udržujte krátký a nechte zapnuté skenování pošty pomocí LLM.",
   "help.agentmail.api_key": "API klíč AgentMail. Bezpečně uložen v šifrovaném Vaultu.",
   "help.agentmail.auto_create_inbox": "Umožní průvodcům nastavením automaticky vytvořit schránku, pokud je to podporováno.",
   "help.agentmail.base_url": "Základní URL pro AgentMail REST API.",

@@ -1005,7 +1005,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if !reflect.DeepEqual(oldCfg.Discord, newCfg.Discord) {
 				discordChanged = true
 			}
-			if oldCfg.AgentMail != newCfg.AgentMail || oldCfg.LLMGuardian.ScanEmails != newCfg.LLMGuardian.ScanEmails || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled {
+			if agentMailConfigChanged(oldCfg.AgentMail, newCfg.AgentMail) || oldCfg.LLMGuardian.ScanEmails != newCfg.LLMGuardian.ScanEmails || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled {
 				restartAgentMailAfterUnlock = true
 			}
 			if oldCfg.SQLite != newCfg.SQLite {
@@ -2879,4 +2879,17 @@ func normalizeDetectiveYAMLSection(rawCfg map[string]interface{}) {
 		}
 	}
 	section["extra_read_operations"] = cleaned
+}
+
+// agentMailConfigChanged compares two AgentMail sections. The struct carries a
+// slice (allowed_senders), so == does not compile; a nil list and an empty list
+// mean the same and must not restart the relay.
+func agentMailConfigChanged(oldCfg, newCfg config.AgentMailConfig) bool {
+	if len(oldCfg.AllowedSenders) == 0 {
+		oldCfg.AllowedSenders = nil
+	}
+	if len(newCfg.AllowedSenders) == 0 {
+		newCfg.AllowedSenders = nil
+	}
+	return !reflect.DeepEqual(oldCfg, newCfg)
 }

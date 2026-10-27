@@ -81,7 +81,7 @@ func (e quarantineEvaluator) EvaluateContent(context.Context, string, string) se
 func TestQuarantinedAgentMailSendsOnlySafeNoticeAndKeepsLabels(t *testing.T) {
 	var got string
 	svc := NewService(ServiceConfig{
-		Config:          Config{InboxID: "inbox-1"},
+		Config:          Config{InboxID: "inbox-1", AllowedSenders: []string{"@example.test"}},
 		Guardian:        security.NewGuardian(nil),
 		LLMGuardian:     quarantineEvaluator{result: security.GuardianResult{Decision: security.DecisionBlock, Reason: "attacker-authored model prose"}},
 		ScanEmails:      true,
@@ -113,13 +113,13 @@ func TestQuarantinedAgentMailSendsOnlySafeNoticeAndKeepsLabels(t *testing.T) {
 
 func TestQuarantinedAgentMailNoticeFailureDoesNotMarkSeen(t *testing.T) {
 	svc := NewService(ServiceConfig{
-		Config:      Config{InboxID: "inbox-1"},
+		Config:      Config{InboxID: "inbox-1", AllowedSenders: []string{"@example.test"}},
 		ScanEmails:  true,
 		Guardian:    security.NewGuardian(nil),
 		LLMGuardian: quarantineEvaluator{result: security.GuardianResult{Decision: security.DecisionQuarantine, QuarantineReason: security.QuarantineIncomplete}},
 		Notify:      func(context.Context, string) error { return context.DeadlineExceeded },
 	})
-	msg := Message{ID: "msg-retry", Subject: "secret", Text: "content"}
+	msg := Message{ID: "msg-retry", From: Address{Email: "sender@example.test"}, Subject: "secret", Text: "content"}
 	if err := svc.handleMessage(context.Background(), msg); err == nil {
 		t.Fatal("handleMessage() error = nil, want failed notice delivery")
 	}

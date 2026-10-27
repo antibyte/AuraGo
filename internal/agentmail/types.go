@@ -31,6 +31,9 @@ type Config struct {
 	MaxAttachmentMB     int
 	BaseURL             string
 	WebSocketURL        string
+	// AllowedSenders are full addresses or "@domain" entries (lower case). The
+	// relay hands only mail from them to the agent; see Service.senderVerdict.
+	AllowedSenders []string
 }
 
 // ConfigFromAppConfig converts AuraGo's YAML config type into the package-local
@@ -53,11 +56,13 @@ func ConfigFromAppConfig(src config.AgentMailConfig) Config {
 		MaxAttachmentMB:     src.MaxAttachmentMB,
 		BaseURL:             strings.TrimSpace(src.BaseURL),
 		WebSocketURL:        strings.TrimSpace(src.WebSocketURL),
+		AllowedSenders:      src.AllowedSenders,
 	}
 	return normalizeConfig(cfg)
 }
 
 func normalizeConfig(cfg Config) Config {
+	cfg.AllowedSenders = normalizeAllowedSenders(cfg.AllowedSenders)
 	if strings.TrimSpace(cfg.BaseURL) == "" {
 		cfg.BaseURL = DefaultBaseURL
 	}
