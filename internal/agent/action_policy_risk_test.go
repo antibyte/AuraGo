@@ -29,6 +29,10 @@ func TestManageMissionsAndCronMutationsAreHighRisk(t *testing.T) {
 		{"cron_scheduler", "remove", true}, {"cron_scheduler", "list", false}, {"cron_scheduler", "disable", false},
 		{"manage_schedule", "add", true}, {"manage_schedule", "enable", true}, {"manage_schedule", "list", false},
 		{"schedule_cron", "", true},
+		// follow_up and wait_for_event are high-risk only in unattended runs (this table
+		// has no run, so it is the interactive case); TestFollowUpAndWaitForEventNeedARuleWhenUnattended
+		// covers the rest.
+		{"follow_up", "", false}, {"wait_for_event", "", false},
 	} {
 		t.Run(test.tool+"/"+test.operation, func(t *testing.T) {
 			a := DescribeAction(ToolCall{Action: test.tool, Operation: test.operation}, nil)
