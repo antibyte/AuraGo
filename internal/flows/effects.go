@@ -143,6 +143,64 @@ func secretTargetFixed(raw any) bool {
 	return strings.IndexAny(rest, "/?#") > 0
 }
 
+// urlOrigin says which template roots a web address reads where they can change its
+// origin (urlOriginOf). all is set when the address is not text the lint can place.
+type urlOrigin struct {
+	roots map[string]bool
+	all   bool
+}
+
+func (o urlOrigin) reads(root string) bool { return o.all || o.roots[root] }
+
+// urlOriginOf finds the template expressions of a web address that sit before the end of
+// its authority, so data behind them can change the scheme, the user info, the host or
+// the port. The authority ends at the first "/", "?" or "#" after the scheme and some host
+// text, as net/url reads it; a leading literal "http://" or "https://" is skipped, an
+// expression counts as host text, and text before the first expression that does not
+// start with a web scheme is host text like any other. Data after that point is the path,
+// the query or the fragment. An address that is not text, or whose template does not
+// parse, is placed nowhere: every reference counts (the parse problem is the validator's).
+// secretTargetFixed is the stricter rule for a request that carries a secret: it asks the
+// literal start alone to fix the origin.
+func urlOriginOf(raw any) urlOrigin {
+	s, ok := raw.(string)
+	if !ok {
+		return urlOrigin{all: true}
+	}
+	tpl, err := ParseTemplate(s)
+	if err != nil {
+		return urlOrigin{all: true}
+	}
+	out := urlOrigin{roots: map[string]bool{}}
+	ended, hostText := false, false
+	for i, part := range tpl.parts {
+		if ended {
+			break
+		}
+		if part.expr != nil {
+			out.roots[part.expr.Root] = true
+			hostText = true
+			continue
+		}
+		lit := part.literal
+		if i == 0 {
+			lit = strings.TrimLeftFunc(lit, unicode.IsSpace)
+			if hasWebScheme(lit) {
+				lit = lit[strings.Index(lit, "://")+len("://"):]
+			}
+		}
+		// A "/" with no host text before it is an empty host ("https:///x"), not the end
+		// of the authority.
+		if k := strings.IndexAny(lit, "/?#"); k >= 0 && (k > 0 || hostText) {
+			ended = true
+		}
+		if lit != "" {
+			hostText = true
+		}
+	}
+	return out
+}
+
 // LintUntrustedData warns when data from an untrusted source (untrusted triggers,
 // nodes with UntrustedOutput, and anything derived from them) reaches a parameter
 // flagged SensitiveSink. Taint flows through template references in topological
@@ -154,6 +212,15 @@ func secretTargetFixed(raw any) bool {
 // address) instead of a warning for a parameter flagged SecretTarget while the node has
 // a secret_ref parameter set: that data decides where the vault secret is sent. The
 // caller turns an error into a warning for a draft, as it does for every publish rule.
+//
+// A web address (ParamSpec.URLTarget, SensitiveSink) is an error of its own
+// (IssueUntrustedURLTarget) when untrusted data is read where it can change the scheme, the
+// user info, the host or the port (urlOriginOf), with or without a secret: the node then
+// connects where the data says. Data in the path, the query or the fragment keeps the
+// plain warning, and so does every other sink (command, code, path, delete, device; the
+// decision of 2026-10-25). Unlike IssueUntrustedSecretTarget the engine does not refuse a
+// run for it: a live revision published before the rule keeps running, and a test run
+// validates with draft rules.
 //
 // A SecretTarget whose literal start fixes the target (secretTargetFixed: "https://host/" before
 // the first data reference) is not one: the data behind it can fill the path, the query or the
@@ -279,6 +346,16 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 				}
 			}
 		}
+		// The web addresses of the node, where data that can reach the origin is an error
+		// whether or not a secret goes along (a secret target above already is one).
+		urlTargets := map[string]bool{}
+		for _, spec := range def.Params {
+			if spec.SensitiveSink && spec.URLTarget && !secretTargets[spec.Name] {
+				urlTargets[spec.Name] = true
+			}
+		}
+		// originRoots caches, per web address, the roots read where they can change the origin.
+		originRoots := map[string]urlOrigin{}
 		reported := map[string]bool{}
 		warned := map[string]bool{}
 		refs, problems := CollectTemplateRefs(n.Params)
@@ -322,6 +399,21 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 					})
 					continue
 				}
+				if urlTargets[param] {
+					origin, seen := originRoots[param]
+					if !seen {
+						origin = urlOriginOf(n.Params[param])
+						originRoots[param] = origin
+					}
+					if origin.reads(root) {
+						issues = append(issues, Issue{
+							Code: IssueUntrustedURLTarget, Severity: SeverityError, NodeID: n.ID, Param: param,
+							Message: fmt.Sprintf("unchecked data from %s can change the scheme or host of %s.%s; write a fixed https://host/ before the data",
+								truncateForError(root), nodeKey, echoKey(param)),
+						})
+						continue
+					}
+				}
 				issues = append(issues, Issue{
 					Code: IssueUntrustedData, Severity: SeverityWarning, NodeID: n.ID, Param: param,
 					Message: fmt.Sprintf("unchecked data from %s flows into %s.%s", truncateForError(root), nodeKey, echoKey(param)),
@@ -339,6 +431,14 @@ func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 					issues = append(issues, Issue{
 						Code: IssueUntrustedSecretTarget, Severity: SeverityError, NodeID: n.ID, Param: spec.Name,
 						Message: fmt.Sprintf("%s has more than %d template expressions, so they are not checked; assuming unchecked data decides where the secret is sent through %s; use a fixed address",
+							nodeKey, maxTemplateRefs, echoKey(spec.Name)),
+					})
+					continue
+				}
+				if urlTargets[spec.Name] {
+					issues = append(issues, Issue{
+						Code: IssueUntrustedURLTarget, Severity: SeverityError, NodeID: n.ID, Param: spec.Name,
+						Message: fmt.Sprintf("%s has more than %d template expressions, so they are not checked; assuming unchecked data can change the scheme or host of %s; write a fixed https://host/ before the data",
 							nodeKey, maxTemplateRefs, echoKey(spec.Name)),
 					})
 					continue

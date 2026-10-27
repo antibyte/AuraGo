@@ -49,7 +49,8 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   a 1b catalog API calling `AvailabilityFunc`) must go through `catchPanic`.
 - Set `UntrustedOutput` on a def whose output an attacker can influence (web, mail, webhook, chat) and
   `SensitiveSink` on a `ParamSpec` where such data is dangerous (command, code, script, path, url,
-  recipient, device). The lint follows only template refs and `passesInputs`: no flag, no warning.
+  recipient, device); a text param that holds one web address also gets `URLTarget` (host and scheme position is
+  a publish error, see the lint). The lint follows only template refs and `passesInputs`: no flag, no warning.
 - Set `OutputIndependent` on a `ParamSpec` that reaches only the node's effect and is never copied into its
   output (the text of a message, the content of a document or file): a ref there does not taint the node's
   output, so "untrusted text goes into a PDF, the PDF's path goes on" is not warned about at every step.
@@ -140,7 +141,26 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
 - `PARAM_LITERAL_CREDENTIAL` (`IssueLiteralCredential`) is a warning (never an error) on `http.request` `headers`
   with a typed-in credential header (`credentialHeaderName`); exports redact such values (`RedactCredentials`,
   templates kept) and the run view redacts them (`redactCredentialHeaders`). S2 stays a warning: untrusted data in
-  command, code, path, delete or device sinks never blocks publishing (decision 2026-10-25).
+  command, code, path, delete or device sinks never blocks publishing (decision 2026-10-25); the one exception is
+  the scheme or host of a web address (next bullet).
+- Web addresses (`ParamSpec.URLTarget` together with `SensitiveSink`: the `url` of `http.request` and `web.read`,
+  and generic text params named `url`, `uri`, `endpoint` or `*_url`; plural names hold lists and stay plain
+  sinks) get an error of their own, `UNTRUSTED_URL_TARGET`, scoped to that param, with or without a secret, when
+  untrusted data can reach the scheme, user info, host or port: the node would connect where the data says
+  (a mail-triggered flow that sends `{{ai.text}}` to `http.request` fetches whatever the mail steered the model
+  to write). `urlOriginOf` places every template expression: the authority ends at the first `/`, `?` or `#`
+  after the scheme (a leading literal `http://` or `https://` is skipped) and some host text, an expression
+  counts as host text, and a `/` with no host text before it is an empty host, not an end. So `{{x}}`, `{{x}}/p`,
+  `https://{{x}}/p`, `https://h{{x}}`, `https://h:{{x}}/`, `https://u{{x}}@h/` and `{{base}}{{x}}` are errors for
+  an untrusted `x`, while `https://h/{{x}}`, `https://h?q={{x}}`, `https://h/p#{{x}}`, a trusted `{{base}}/p/{{x}}`
+  and any body or header keep the plain warning (`secretTargetFixed` is stricter, it asks the literal start alone
+  to fix the origin, and still decides a secret target). A secret target keeps `UNTRUSTED_SECRET_TARGET` and gets
+  no second finding; a value that is not text, or a template that does not parse, counts every reference; past
+  the 1000-reference cap the address is assumed tainted and is the error too. Like every lint error it is a
+  warning in `ModeDraft`. Unlike the secret target the engine does not refuse such a run: a revision published
+  before the rule keeps running, and test runs validate with draft rules. Verify `TestLintUntrustedHostPositionIsError`,
+  `TestLintURLWithoutUntrustedDataIsQuiet`, `TestLintUntrustedBodyStaysAWarningAndSecretTargetKeepsItsCode`
+  and `TestGenericURLParamsAreURLTargets`.
 - A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`.
 
 ## Engine semantics

@@ -424,7 +424,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		{Value: "PATCH", Label: "PATCH"}, {Value: "DELETE", Label: "DELETE"}}
 	def.Params = []ParamSpec{
 		{Name: "method", Kind: ParamSelect, LabelKey: "easydrag.param.http_method", Default: "GET", Options: methods},
-		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true, SecretTarget: true},
+		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true, SecretTarget: true, URLTarget: true},
 		{Name: "headers", Kind: ParamKeyValue, LabelKey: "easydrag.param.http_headers", Templatable: true, SensitiveSink: true},
 		{Name: "body", Kind: ParamTextarea, LabelKey: "easydrag.param.http_body", Templatable: true, SensitiveSink: true,
 			VisibleIf: &Visibility{Param: "method", Equals: []string{"POST", "PUT", "PATCH", "DELETE"}}},

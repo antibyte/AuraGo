@@ -77,6 +77,14 @@ var genericSinkNames = map[string]bool{
 
 var genericSinkSuffixes = []string{"_path", "_paths", "_dir", "_file", "_files", "_url", "_urls"}
 
+// isGenericURLName reports whether a text parameter of this name holds one web address
+// (URLTarget): "url", "uri", "endpoint" and names ending in "_url". The plural names hold
+// lists, whose items the lint cannot place, and stay plain sinks.
+func isGenericURLName(name string) bool {
+	name = strings.ToLower(name)
+	return name == "url" || name == "uri" || name == "endpoint" || strings.HasSuffix(name, "_url")
+}
+
 func isGenericSinkName(name string) bool {
 	name = strings.ToLower(name)
 	if genericSinkNames[name] {
@@ -400,6 +408,7 @@ func paramsFromSchema(schema map[string]any) ([]ParamSpec, map[string]bool) {
 		default:
 			spec.Kind = ParamText
 		}
+		spec.URLTarget = spec.SensitiveSink && (spec.Kind == ParamText || spec.Kind == ParamTextarea) && isGenericURLName(name)
 		params = append(params, spec)
 	}
 	return params, jsonStrings

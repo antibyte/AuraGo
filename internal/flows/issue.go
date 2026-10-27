@@ -70,6 +70,11 @@ const (
 	// a vault secret is sent (ParamSpec.SecretTarget while the node has a secret set): a
 	// publish error, not a warning.
 	IssueUntrustedSecretTarget = "UNTRUSTED_SECRET_TARGET"
+	// IssueUntrustedURLTarget is IssueUntrustedData for a web address (ParamSpec.URLTarget)
+	// where unchecked data can reach the scheme, the user info, the host or the port: it
+	// decides where the node connects, so it is a publish error, not a warning. Data in
+	// the path, the query or the fragment keeps the warning.
+	IssueUntrustedURLTarget = "UNTRUSTED_URL_TARGET"
 	// IssueLiteralCredential warns about a credential header (Authorization, X-Api-Key, Cookie, ...)
 	// whose value is typed into the node: it sits in clear text in the draft and its versions.
 	IssueLiteralCredential = "PARAM_LITERAL_CREDENTIAL"

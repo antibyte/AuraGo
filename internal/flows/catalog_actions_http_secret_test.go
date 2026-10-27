@@ -56,8 +56,10 @@ func TestSecretRefParamRefusesATemplate(t *testing.T) {
 // Where a vault secret is sent must not depend on outside data: with an auth_secret set,
 // untrusted data that can reach the url's scheme, user info, host or port is an error when
 // publishing (a warning in a draft, like every publish rule), with its own code, and Publish
-// refuses the flow. The same flow without a secret, and data in the headers, keep the plain
-// warning. Test runs validate with draft rules, so they only see the warning.
+// refuses the flow. Data in the headers keeps the plain warning, and the same flow without a
+// secret gets the error of the web address instead (IssueUntrustedURLTarget, see
+// TestLintUntrustedHostPositionIsError). Test runs validate with draft rules, so they only see
+// the warning.
 func TestUntrustedDataCannotChooseWhereASecretGoes(t *testing.T) {
 	reg := catalogRegistry(t, fullEnv())
 	for _, c := range []struct {
@@ -99,11 +101,24 @@ func TestUntrustedDataCannotChooseWhereASecretGoes(t *testing.T) {
 		}
 	}
 
-	// Without a secret the data still only draws the plain warning, and outside data that
-	// reaches neither the url nor the headers does not matter for the secret.
+	// Without a secret there is nothing to leak, but the node still connects where the data
+	// says: the web address gets its own error, not the secret's.
 	for name, params := range map[string]map[string]any{
-		"no secret":        {"url": "{{trigger.data.link}}"},
-		"blank secret":     {"url": "{{trigger.data.link}}", "auth_secret": "  "},
+		"no secret":    {"url": "{{trigger.data.link}}"},
+		"blank secret": {"url": "{{trigger.data.link}}", "auth_secret": "  "},
+	} {
+		f, call := secretCallFlow(params)
+		issues := Validate(f, reg, publishCtx())
+		if is := findIssue(issues, IssueUntrustedSecretTarget, call); is != nil {
+			t.Errorf("%s: %+v reported", name, is)
+		}
+		if is := findIssue(issues, IssueUntrustedURLTarget, call); is == nil || is.Severity != SeverityError || is.Param != "url" {
+			t.Errorf("%s: url target issue = %+v, want an error on url", name, is)
+		}
+	}
+
+	// Outside data that reaches neither the url nor a secret target only draws the plain warning.
+	for name, params := range map[string]map[string]any{
 		"data in a header": {"url": "https://api.example.org/v1", "headers": map[string]any{"X-Next": "{{trigger.data.link}}"}, "auth_secret": "partner_token"},
 	} {
 		f, call := secretCallFlow(params)

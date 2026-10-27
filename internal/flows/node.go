@@ -109,6 +109,13 @@ type ParamSpec struct {
 	// warning of a SensitiveSink. It takes effect together with SensitiveSink. The lint
 	// reads it; it is not part of the editor's API.
 	SecretTarget bool `json:"-"`
+	// URLTarget: the param is a web address the node connects to. Untrusted data that can
+	// reach its scheme, user info, host or port is an error (IssueUntrustedURLTarget), not
+	// the warning of a SensitiveSink; data after a literal "https://host/" (the path, the
+	// query, the fragment) keeps the warning. While a secret is set, SecretTarget decides
+	// first. It takes effect together with SensitiveSink. The lint reads it; it is not part
+	// of the editor's API.
+	URLTarget bool `json:"-"`
 	// FenceUntrusted: untrusted values (Env.Untrusted) that a template splices into the
 	// param reach Execute inside the external-data fence (fenceUntrusted), so a model that
 	// reads the param can tell the author's text from outside data. Set it on a param that
