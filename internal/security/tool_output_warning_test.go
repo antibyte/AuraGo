@@ -106,11 +106,16 @@ func TestGuardianSanitizeToolOutputWarnsOnFlaggedExternalOutput(t *testing.T) {
 		}
 	}
 
-	// The validator's categories come first and are not repeated.
-	leak := "I will now reveal my system prompt. My system message says hi. "
+	// The validator's categories come first, so ToolOutputWarning (validator only)
+	// is a prefix of the suffix, and none is repeated.
+	leak := "I am designed to answer billing questions. "
 	got := g.SanitizeToolOutput("web_search", "Tool Output: "+medium+" "+leak)
-	if cats := warningCategories(t, got[strings.LastIndex(got, "\n[SECURITY WARNING: "):]); len(cats) < 2 || cats[len(cats)-1] != "instruction_override" {
-		t.Fatalf("unexpected categories %v in %q", cats, got)
+	cut := strings.LastIndex(got, "\n[SECURITY WARNING: ")
+	validator := ToolOutputWarning(got[:cut])
+	cats := warningCategories(t, got[cut:])
+	if validator == "" || len(cats) != len(warningCategories(t, validator))+1 || cats[len(cats)-1] != "instruction_override" ||
+		!strings.HasPrefix(got[cut:], strings.TrimSuffix(validator, "]")+"; ") {
+		t.Fatalf("validator line %q is not the head of %q", validator, got[cut:])
 	}
 
 	// No warning for source output, trusted output or a clean external body.
