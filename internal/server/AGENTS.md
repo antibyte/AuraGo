@@ -145,6 +145,7 @@ Server-owned HTTP and cross-component integration contracts.
   The agent executor never relocks this gate. Verify
   `TestServerIngressSharesMemoryTurnGateAndCancelsQueue` and channel ingress tests.
 - Telegram, Discord and Rocket.Chat receive the server-owned budget tracker and the shared isolated context recap formatter. Telegram worker admission, transcription, typing and agent execution inherit the polling owner context; cancellation stops queued work and ongoing model work.
+- Text the agent sends to Telegram or Discord never unfurls: `sendTelegramMessage` sets `DisableWebPagePreview`, and Discord builds every answer, command result, broker event and `send_discord` text with `agentTextMessage` (`discordgo.MessageFlagsSuppressEmbeds`, sent through `ChannelMessageSendComplex`). The platform fetches a preview URL itself, so a URL carrying conversation data in its query would otherwise leak with no tool call. Only the fixed notices (busy, error and block replies) may use the plain `ChannelMessageSend`. Verify `TestTelegramTextSendsDisableLinkPreviews`, `TestDiscordSendMessageSuppressesEmbeds` and the two source guards beside them.
 - Long-lived chat bots capture `chatRuntimeSnapshot` once per new message so
   configuration and client come from the same publication; accepted turns stay
   frozen. Telegram and Discord startup require both this callback and the

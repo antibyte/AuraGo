@@ -792,10 +792,16 @@ func shouldBlockTelegramPromptInjection(inputText string, guardian *security.Gua
 	return true
 }
 
+// sendTelegramMessage sends text, in chunks, with link previews switched off.
+// Telegram fetches the URL of a preview itself, so a URL in an answer that
+// carries data from the conversation (an injected "end your answer with this
+// link") would reach the URL's owner with no tool call and no approval.
 func sendTelegramMessage(bot *tgbotapi.BotAPI, chatID int64, text string) error {
 	text = security.Scrub(text)
 	for _, part := range telegramTextChunks(text) {
-		if _, err := bot.Send(tgbotapi.NewMessage(chatID, part)); err != nil {
+		message := tgbotapi.NewMessage(chatID, part)
+		message.DisableWebPagePreview = true
+		if _, err := bot.Send(message); err != nil {
 			return err
 		}
 	}

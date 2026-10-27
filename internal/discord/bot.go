@@ -420,6 +420,15 @@ func GetSession() *discordgo.Session {
 	return session
 }
 
+// agentTextMessage wraps text the agent produced (answers, command results,
+// status events, the send_discord tool) with embeds suppressed. Discord fetches
+// the URL of an embed itself, so an answer that ends in an attacker's URL with
+// conversation data in its query would leak without any tool call. Every such
+// text has to be built here; a plain ChannelMessageSend would embed links.
+func agentTextMessage(content string) *discordgo.MessageSend {
+	return &discordgo.MessageSend{Content: content, Flags: discordgo.MessageFlagsSuppressEmbeds}
+}
+
 // SendMessage sends a message to a Discord channel. Used by the agent's send_discord tool.
 func SendMessage(channelID, content string, logger *slog.Logger) error {
 	content = security.Scrub(content)
@@ -462,7 +471,7 @@ func SendMessage(channelID, content string, logger *slog.Logger) error {
 			content = ""
 		}
 
-		if _, err := s.ChannelMessageSend(channelID, chunk); err != nil {
+		if _, err := s.ChannelMessageSendComplex(channelID, agentTextMessage(chunk)); err != nil {
 			return fmt.Errorf("failed to send Discord message: %w", err)
 		}
 	}
@@ -1112,7 +1121,7 @@ func (b *DiscordBroker) Send(event, message string) {
 // message is invisible to the user, so it is logged and counted in the health
 // endpoint.
 func (b *DiscordBroker) deliver(text, what string) {
-	if _, err := b.session.ChannelMessageSend(b.channelID, text); err != nil {
+	if _, err := b.session.ChannelMessageSendComplex(b.channelID, agentTextMessage(text)); err != nil {
 		markDeliveryFailure(time.Now())
 		if b.logger != nil {
 			b.logger.Warn("[Discord] Failed to send "+what, "error", err)
