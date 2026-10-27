@@ -110,21 +110,43 @@ func (c *GuardianCache) Size() int {
 }
 
 // GenerateCacheKey creates a deterministic hash from operation + parameters.
+// It is injective over both: the operation is length-prefixed like every
+// parameter name and value, so operation text can never pass for parameters.
 func GenerateCacheKey(operation string, params map[string]string) string {
-	// Sort keys for deterministic ordering
+	return generateCacheKey([]string{operation}, params)
+}
+
+// generateToolCacheKey keys one tool-call verdict. The operation and the
+// context snippet (raw, attacker-influenced user text) are separate fields, so
+// no context can spell a parameter list or another operation.
+func generateToolCacheKey(operation, contextSnippet string, params map[string]string) string {
+	return generateCacheKey([]string{operation, contextSnippet}, params)
+}
+
+// generateCacheKey hashes a field count, the fixed fields and the sorted
+// parameters. Every field is "<length>:<bytes>", so the encoding parses back
+// to exactly one (fields, params) pair; the count keeps keys of different
+// shapes apart. e.g. {a="b:c", d=""} and {a="b", c="d"} must hash differently.
+func generateCacheKey(fields []string, params map[string]string) string {
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	// Use length-prefixed encoding to prevent key/value collisions.
-	// e.g. {a="b:c", d=""} and {a="b", c="d"} must hash differently.
 	var sb strings.Builder
-	sb.WriteString(operation)
+	fmt.Fprintf(&sb, "%d;", len(fields))
+	for _, field := range fields {
+		writeCacheKeyField(&sb, field)
+	}
 	for _, k := range keys {
-		fmt.Fprintf(&sb, ":%d:%s=%d:%s", len(k), k, len(params[k]), params[k])
+		writeCacheKeyField(&sb, k)
+		writeCacheKeyField(&sb, params[k])
 	}
 	hash := sha256.Sum256([]byte(sb.String()))
 	return fmt.Sprintf("%x", hash[:16]) // 128-bit key is sufficient
+}
+
+func writeCacheKeyField(sb *strings.Builder, field string) {
+	fmt.Fprintf(sb, "%d:%s", len(field), field)
 }

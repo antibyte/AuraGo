@@ -32,6 +32,10 @@ const (
 	contentScanChunkBytes        = 4 * 1024
 	contentScanChunkOverlapBytes = 512
 	contentScanMaxChunks         = 8
+
+	// Lowest threat severity a judge verdict may carry (see LLMGuardian.Judge).
+	judgeBlockSeverityFloor      = 0.8
+	judgeQuarantineSeverityFloor = 0.5
 )
 
 // GuardianLevel defines the protection intensity.
@@ -226,7 +230,7 @@ func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) Guardia
 	// most user-context variance so repeated read-only commands can reuse the same
 	// verdict instead of paying the full LLM cost every time.
 	ctxSnippet := cacheContextSnippet(check)
-	cacheKey := GenerateCacheKey(check.Operation+"|"+ctxSnippet, check.Parameters)
+	cacheKey := generateToolCacheKey(check.Operation, ctxSnippet, check.Parameters)
 	if result, hit := g.cache.Get(cacheKey); hit {
 		result.Duration = time.Since(start)
 		g.Metrics.Record(result)
@@ -1105,19 +1109,26 @@ func (g *LLMGuardian) Judge(ctx context.Context, req promptsec.LLMJudgeRequest) 
 		return promptsec.LLMJudgeDecision{Verdict: promptsec.LLMJudgeVerdictUnknown}, err
 	}
 
+	// promptsec uses the score as the threat severity, and the model's own number
+	// is not trustworthy ("dangerous 20" would score Low and stay deliverable), so
+	// the verdict sets a floor: block reads as ThreatCritical, quarantine as
+	// ThreatHigh, the level at which external output is withheld.
 	var verdict promptsec.LLMJudgeVerdict
+	score := result.RiskScore
 	switch result.Decision {
 	case DecisionBlock:
 		verdict = promptsec.LLMJudgeVerdictUnsafe
+		score = max(score, judgeBlockSeverityFloor)
 	case DecisionAllow:
 		verdict = promptsec.LLMJudgeVerdictSafe
 	default:
 		verdict = promptsec.LLMJudgeVerdictUnsafe
+		score = max(score, judgeQuarantineSeverityFloor)
 	}
 
 	return promptsec.LLMJudgeDecision{
 		Verdict:    verdict,
-		Score:      result.RiskScore,
+		Score:      score,
 		Reason:     result.Reason,
 		ThreatType: promptsec.ThreatInstructionOverride,
 	}, nil
