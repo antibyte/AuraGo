@@ -1049,7 +1049,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1060,7 +1060,7 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
-    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerDialogs && full.DockerManagerApp, 'all 7 modules publish their global');
+    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerDialogs && full.DockerManagerApp, 'all 8 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
     assert.equal(typeof full.DockerManagerViews.create, 'function');
@@ -1109,6 +1109,34 @@ const full = {};
     const shell = stacks.shell(snap.state.stack);
     assert.ok(shell.includes('data-ed-surface="compose"') && shell.includes('data-ed-surface="env"') && shell.includes('data-action="save-deploy"'), 'the shell holds the two editors and their toolbars');
     assert.ok(stacks.problem(Object.assign({}, snap, { state: Object.assign({}, snap.state, { stack: { key: 'local/gone', name: 'gone', status: 'error', error: { code: 'stack_not_found' } } }) })).includes('stack_gone'), 'a vanished stack says so');
+}
+
+// ---- the lint scheduler: one request per quiet period, the newest answer wins, aborted requests are silent ------------------------
+{
+    const { createLinter, LINT_DELAY_MS } = full.DockerManagerEditor;
+    assert.equal(LINT_DELAY_MS, 400, 'the editors lint 400 ms after the last edit');
+    const delivered = [];
+    let calls = 0;
+    const linter = createLinter(() => { calls += 1; const mine = calls; return new Promise(resolve => setTimeout(() => resolve({ n: mine }), mine === 1 ? 150 : 5)); }, (result, error) => delivered.push(error ? 'error' : result.n), 20);
+    linter.schedule();
+    linter.schedule();
+    await sleep(70);
+    assert.equal(calls, 1, 'two edits in a row make one request');
+    linter.schedule();
+    await sleep(300);
+    eq(delivered, [2], 'the answer of a request that a newer one replaced is dropped');
+    const failures = [];
+    const failing = createLinter(() => Promise.reject(Object.assign(new Error('x'), { dm: { code: failures.length ? 'aborted' : 'timeout' } })), (result, error) => failures.push(error ? error.dm.code : 'result'), 5);
+    await failing.flush();
+    await failing.flush();
+    eq(failures, ['timeout'], 'a failure is delivered, an aborted request is silent');
+    const cancelled = [];
+    const quiet = createLinter(() => Promise.resolve({ n: 1 }), result => cancelled.push(result), 5);
+    quiet.schedule();
+    quiet.cancel();
+    await sleep(80);
+    quiet.dispose();
+    eq(cancelled, [], 'a cancelled lint never runs');
 }
 
 // ---- the owner of a 409 protected-confirmation answer gets the translated sentence, never the server's message -----------------
@@ -1166,7 +1194,8 @@ const full = {};
         age_: ['days', 'hours', 'minutes', 'seconds'],
         svc_state_: [...sm.SERVICE_STATES],
         svc_health_: ['healthy', 'unhealthy', 'starting', 'none'],
-        op_kind_: [...sm.OP_KINDS]
+        op_kind_: [...sm.OP_KINDS],
+        lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint']
     };
     // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
     for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing']) used.add(prefix + name);
