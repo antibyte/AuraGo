@@ -149,8 +149,9 @@ Studio stream has delivered output, reasoning or a tool-call start, it may stay
 silent for up to 120 s before it counts as stalled (a larger configured
 `circuit_breaker.llm_stream_chunk_timeout_seconds` applies). Some gateways send
 nothing while the model writes a large tool-call argument such as a complete source
-file. The first token still waits for the whole call budget, and one stalled stream
-is retried once.
+file. The first token still waits for the whole call budget. In the agent loop's tool
+rounds one stalled stream per run is retried once; a stall in the bounded starter
+source generation fails that attempt.
 StepFun's top-level `usage.cached_tokens` is normalized for both JSON and SSE;
 OpenAI uses `prompt_tokens_details.cached_tokens`. Anthropic cached reads/writes
 are included in total input, and repeated cumulative SSE counters count once.
