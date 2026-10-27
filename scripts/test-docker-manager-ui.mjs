@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-store.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-store.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -537,6 +537,212 @@ eq(plain(model.protectedReason({ aurago_helper: 'runner' })), { kind: 'helper', 
 eq(plain(model.protectedReason({ aurago_helper: 'io', protected_owner: 'docker_manager' })), { kind: 'helper', owner: 'io' }, 'the server also names docker_manager as the owner of a helper: the helper text wins');
 assert.equal(model.normalizeError(Object.assign(new Error('x'), { status: 409, body: { code: 'revision_conflict', file: 'compose', current: { revision: 'abc' } } })).data.current.revision, 'abc', 'the answer body travels with the error');
 
+// ---- stack model: names, status, rows, groups --------------------------------------------------------------------------
+const sm = window.DockerManagerStackModel;
+assert.ok(sm, 'the stack model publishes its global');
+{
+    eq(sm.validateName('immich'), null);
+    eq(sm.validateName(''), { code: 'empty' });
+    eq(sm.validateName('Immich'), { code: 'invalid' });
+    eq(sm.validateName('-x'), { code: 'invalid' });
+    eq(sm.validateName('a'.repeat(63)), null);
+    eq(sm.validateName('a'.repeat(64)), { code: 'invalid' });
+    eq(sm.validateName('shop', ['shop', 'media']), { code: 'taken' });
+    assert.equal(sm.sanitizeName('My App v2!'), 'my-app-v2');
+    assert.equal(sm.sanitizeName('--nginx'), 'nginx');
+    assert.equal(sm.firstServiceName('services:\n  immich-server:\n    image: x\n  db:\n    image: y\n'), 'immich-server');
+    assert.equal(sm.firstServiceName('version: "3"\nservices:\n  # first\n\n  Web:\n    image: x'), 'web');
+    assert.equal(sm.firstServiceName('image: x'), '');
+
+    const stack = (name, extra = {}) => ({ name, host_id: 'local', dir: '/opt/stacks/' + name, compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 2, running: 2 }, ports: [], container_ids: [], created: 1760000000, ...extra });
+    const listing = (stacks, extra = {}) => ({ host_id: 'local', stacks_dir: '/opt/stacks', stacks, external: [], ignored: [], ...extra });
+    const stacksByHost = {
+        local: { loaded: true, listing: listing([stack('shop'), stack('blog', { status: 'draft', services: { total: 0, running: 0 } })], { external: [{ name: 'legacy', working_dir: '/srv/legacy', status: 'partial', services: { total: 2, running: 1 }, ports: [], container_ids: [] }] }) },
+        h_nas: { loaded: true, listing: listing([stack('media', { host_id: 'h_nas', ports: [{ service: 'plex', public_port: 32400, private_port: 32400, protocol: 'tcp' }] })]) }
+    };
+    const hs = [hostA, hostB];
+    eq(sm.stackRows(hs, stacksByHost, 'all').map(row => row.key), ['local/shop', 'local/blog', 'h_nas/media']);
+    eq(sm.stackRows(hs, stacksByHost, 'h_nas').map(row => row.key), ['h_nas/media'], 'a host scope shows only that host');
+    eq(sm.externalRows(hs, stacksByHost, 'all').map(row => row.key), ['x:local/legacy']);
+    const containerRows = model.buildRows(hs, { local: { containers: [container('shop-web', { compose_project: 'shop' }), container('tools')] }, h_nas: { containers: [container('loose')] } }, 'all');
+    const groups = sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: '' });
+    eq(groups.stacks.map(row => row.stack.name), ['blog', 'media', 'shop'], 'own stacks sort by name across hosts');
+    eq(groups.singles.map(row => model.containerName(row.c)), ['loose', 'tools'], 'only containers without a compose project are single');
+    eq(sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: 'nas plex' }).stacks.length, 0, 'the search words must all match (plex is a service, not a stack field)');
+    eq(sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: '32400' }).stacks.map(row => row.stack.name), ['media'], 'a published port matches');
+    eq(sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: 'legacy' }).external.length, 1);
+    eq(plain(sm.stackCounts(hs, stacksByHost, 'all')), { stacks: 3, external: 1, total: 4 });
+    assert.equal(sm.stackTone({ status: 'running' }), 'ok');
+    assert.equal(sm.stackTone({ status: 'partial' }), 'warn');
+    assert.equal(sm.stackTone({ status: 'error' }), 'bad');
+    assert.equal(sm.stackTone({ status: 'draft' }), 'idle');
+    assert.equal(sm.stackStatusId({ status: 'weird' }), 'stopped', 'an unknown status reads as stopped');
+    assert.equal(sm.hostStacksState(undefined), 'loading');
+    assert.equal(sm.hostStacksState({ loaded: true, error: null }), 'ok');
+    assert.equal(sm.hostStacksState({ error: { code: 'host_not_prepared' } }), 'not_prepared');
+    assert.equal(sm.hostStacksState({ error: { code: 'api_too_old' } }), 'api_too_old');
+    assert.equal(sm.hostStacksState({ loaded: true, error: { code: 'host_unreachable' } }), 'unreachable');
+    assert.equal(sm.hostStacksState({ error: { code: 'stacks_dir_unavailable' } }), 'unavailable');
+    assert.equal(sm.hostStacksState({ error: { code: 'docker_error' }, loaded: false }), 'error');
+    eq(plain(sm.stackActions({ status: 'running' })), { primary: 'update', restart: true, stop: true, pull: true, down: true, remove: true });
+    eq(plain(sm.stackActions({ status: 'draft' })), { primary: 'deploy', restart: false, stop: false, pull: false, down: false, remove: true });
+    assert.equal(sm.stackActions({ status: 'stopped' }).primary, 'deploy');
+    assert.equal(sm.serviceTone({ state: 'exited', exit_code: 1 }), 'bad');
+    assert.equal(sm.serviceTone({ state: 'exited', exit_code: 0 }), 'idle');
+    assert.equal(sm.serviceTone({ state: 'running', health: 'unhealthy' }), 'warn');
+    assert.equal(sm.serviceStateId({ state: 'gone' }), 'missing');
+}
+
+// ---- stack model: port links, time, bytes ------------------------------------------------------------------------------
+{
+    const ports = [
+        { service: 'web', ip: '0.0.0.0', public_port: 8080, private_port: 80, protocol: 'tcp' },
+        { service: 'web', ip: '::', public_port: 8080, private_port: 80, protocol: 'tcp' },
+        { service: 'dns', ip: '', public_port: 53, private_port: 53, protocol: 'udp' },
+        { service: 'admin', ip: '127.0.0.1', public_port: 9000, private_port: 9000, protocol: 'tcp' },
+        { service: 'db', private_port: 5432, protocol: 'tcp' }
+    ];
+    eq(sm.portLinks(ports, '192.0.2.20').map(link => [link.label, link.url]), [['53', ''], ['8080', 'http://192.0.2.20:8080'], ['9000', '']], 'IPv4 and IPv6 bindings show once; UDP and loopback-only ports are not links; unpublished ports are skipped');
+    assert.equal(sm.portLinks([ports[0]], '2001:db8::1')[0].url, 'http://[2001:db8::1]:8080', 'an IPv6 address is bracketed');
+    assert.equal(sm.portLinks([ports[0]], '')[0].url, '', 'no address, no link');
+    assert.equal(sm.linkAddress({ kind: 'local', address: 'unix:///var/run/docker.sock' }, 'desk.lan'), 'desk.lan', 'the local engine is reached under the name of the page');
+    assert.equal(sm.linkAddress({ kind: 'ssh', address: '[2001:db8::1]' }, 'desk.lan'), '2001:db8::1');
+    assert.equal(sm.linkAddress({ kind: 'tcp', address: 'docker.lan:2375' }, 'desk.lan'), 'docker.lan');
+    const now = 1760000000 * 1000 + 3 * 86400 * 1000 + 5000;
+    eq(sm.age(1760000000, now), { unit: 'days', n: 3 });
+    eq(sm.age(1760000000, 1760000000 * 1000 + 2 * 3600 * 1000), { unit: 'hours', n: 2 });
+    eq(sm.age(1760000000, 1760000000 * 1000 + 90 * 1000), { unit: 'minutes', n: 1 });
+    eq(sm.age(1760000000, 1760000000 * 1000 + 5000), { unit: 'seconds', n: 5 });
+    assert.equal(sm.age(0, now), null, 'a draft has no age');
+    assert.equal(sm.clock(75), '1:15');
+    assert.equal(sm.clock(3725), '1:02:05');
+    assert.equal(sm.elapsed({ started_at: '2026-10-27T10:00:00Z', finished_at: '2026-10-27T10:01:05Z' }, 0), '1:05');
+    assert.equal(sm.elapsed({ created_at: '2026-10-27T10:00:00Z' }, Date.parse('2026-10-27T10:00:09Z')), '0:09', 'a running operation counts from created_at');
+    assert.equal(sm.elapsed({}, 0), '');
+    eq([sm.formatBytes(0), sm.formatBytes(1536), sm.formatBytes(15 * 1024 * 1024), sm.formatBytes(-1), sm.formatBytes(3 * 1024 ** 3)], ['0 B', '1.5 KB', '15 MB', '', '3.0 GB']);
+}
+
+// ---- stack model: lint, .env, dropped files ----------------------------------------------------------------------------
+{
+    const diags = [
+        { line: 5, severity: 'hint', code: 'image_latest', message: 'English', service: 'web' },
+        { line: 2, severity: 'error', code: 'service_no_image', message: 'English', service: 'db' },
+        { line: 2, severity: 'warning', code: 'variable_missing', message: 'English', params: { variable: 'DB_PASSWORD' }, fix: { kind: 'env_random', variable: 'DB_PASSWORD' } },
+        { line: 3, severity: 'warning', code: 'env_syntax', message: 'English', params: { file: '.env', detail: 'expected KEY=value' } },
+        { line: 7, severity: 'warning', code: 'brand_new_code', message: 'Only the server knows this' }
+    ];
+    eq(sm.sortDiagnostics(diags).map(d => d.code), ['service_no_image', 'variable_missing', 'env_syntax', 'image_latest', 'brand_new_code'], 'by line, then severity');
+    eq(sm.splitDiagnostics(diags).env.map(d => d.code), ['env_syntax'], 'env_syntax belongs to the .env editor');
+    eq(sm.splitDiagnostics(diags).compose.length, 4);
+    eq(plain(sm.lintCounts(diags)), { error: 1, warning: 3, hint: 1 });
+    assert.equal(sm.worstSeverity(diags), 'error');
+    assert.equal(sm.worstSeverity([]), '');
+    const t = (key, params) => key.replace('lint_', 'L:') + (params ? JSON.stringify(params) : '');
+    assert.equal(sm.diagnosticText(diags[1], t), 'L:service_no_image{"service":"db"}', 'the service of the diagnostic fills {{service}}');
+    assert.equal(sm.diagnosticText(diags[2], t), 'L:variable_missing{"variable":"DB_PASSWORD"}', 'the params of the diagnostic fill the text');
+    assert.equal(sm.diagnosticText(diags[4], t), 'Only the server knows this', 'an unknown code keeps the server message');
+    assert.equal(sm.diagnosticText(diags[0], key => 'Pin the tag of {{service}}'), 'English', 'a text whose placeholder stayed open falls back to the server message');
+    eq(sm.randomFixes(diags), ['DB_PASSWORD']);
+    eq(sm.randomFixes([{ fix: { kind: 'env_random', variable: 'bad name' } }]), [], 'a variable name that is no valid env name is never offered');
+    const index = sm.lineIndex('a: 1\n  b: 2\r\n\nlast');
+    eq(plain(sm.lineRange(index, 1)), { line: 1, from: 0, to: 4 });
+    eq(plain(sm.lineRange(index, 2)), { line: 2, from: 7, to: 11 }, 'the range starts at the first non-blank character and ends before the line break');
+    eq(plain(sm.lineRange(index, 2, 4)), { line: 2, from: 8, to: 11 }, 'a column moves the start');
+    eq(plain(sm.lineRange(index, 99)), { line: 4, from: 14, to: 18 }, 'a line beyond the end is the last line');
+    eq(plain(sm.lineRange(index, 0)), { line: 1, from: 0, to: 4 }, 'line 0 (the whole file) is the first line');
+    assert.equal(sm.envHas('A=1\nexport DB_PASSWORD = x\n', 'DB_PASSWORD'), true);
+    assert.equal(sm.envHas('#DB_PASSWORD=1\n', 'DB_PASSWORD'), false, 'a comment defines nothing');
+    assert.equal(sm.appendEnvVariable('A=1', 'B', 'x'), 'A=1\nB=x\n');
+    assert.equal(sm.appendEnvVariable('', 'B', 'x'), 'B=x\n');
+    assert.equal(sm.appendEnvVariable('B=old\n', 'B', 'x'), 'B=old\n', 'an existing variable is never overwritten');
+    assert.equal(sm.appendEnvVariable('A=1\n', 'bad name', 'x'), 'A=1\n');
+    const fake = { getRandomValues: bytes => { for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 37 + 11) % 256; return bytes; } };
+    const value = sm.randomValue(32, fake);
+    assert.match(value, /^[A-Za-z0-9]{32}$/);
+    assert.equal(sm.randomValue(200, fake).length, 128, 'the length is capped');
+    eq([sm.classifyDroppedFile('compose.yaml'), sm.classifyDroppedFile('docker-compose.yml'), sm.classifyDroppedFile('C:\\x\\immich.YML'), sm.classifyDroppedFile('.env'), sm.classifyDroppedFile('prod.env'), sm.classifyDroppedFile('notes.txt')], ['compose', 'compose', 'compose', 'env', 'env', '']);
+    const preview = { services: [{ name: 'db', volumes: [{ kind: 'named', source: 'pg', target: '/var/lib/postgresql' }, { kind: 'relative', source: './data', target: '/data', read_only: true }] }, { name: 'web', volumes: [{ kind: 'tmpfs', target: '/tmp' }] }] };
+    eq(plain(sm.storageGroups(preview)), { named: [{ service: 'db', source: 'pg', target: '/var/lib/postgresql', readOnly: false }], bind: [], relative: [{ service: 'db', source: './data', target: '/data', readOnly: true }], anonymous: [], tmpfs: [{ service: 'web', source: '', target: '/tmp', readOnly: false }] });
+}
+
+// ---- stack model: line diff ----------------------------------------------------------------------------------------------
+{
+    const rows = sm.lineDiff('a\nb\nc\nd\n', 'a\nB\nc\nd\ne\n');
+    eq(rows.map(row => row.type + ':' + row.text), ['same:a', 'del:b', 'add:B', 'same:c', 'same:d', 'add:e']);
+    eq(rows.map(row => [row.oldNo, row.newNo]), [[1, 1], [2, 0], [0, 2], [3, 3], [4, 4], [0, 5]]);
+    assert.equal(sm.diffChanged(rows), true);
+    assert.equal(sm.diffChanged(sm.lineDiff('x\ny', 'x\ny\n')), false, 'a final line break alone is no difference');
+    assert.equal(sm.diffChanged(sm.lineDiff('', '')), false);
+    eq(sm.lineDiff('', 'a').map(row => row.type), ['add']);
+    const long = Array.from({ length: 30 }, (unused, index) => 'line' + index).join('\n');
+    const collapsed = sm.collapseDiff(sm.lineDiff(long, long.replace('line15', 'LINE15')), 2);
+    eq(collapsed.map(row => row.type), ['skip', 'same', 'same', 'del', 'add', 'same', 'same', 'skip']);
+    assert.equal(collapsed[0].count, 13);
+    const big = Array.from({ length: 2500 }, (unused, index) => 'a' + index).join('\n'), other = Array.from({ length: 2500 }, (unused, index) => 'b' + index).join('\n');
+    assert.equal(sm.lineDiff(big, other).length, 5000, 'a huge middle falls back to "all removed, all added" instead of a slow table');
+}
+
+// ---- stack model: palette --------------------------------------------------------------------------------------------------
+{
+    assert.ok(sm.fuzzyScore('Restart immich', 'rest imm') > sm.fuzzyScore('Deploy my-immich', 'imm'), 'a hit at the start of a word ranks higher');
+    assert.equal(sm.fuzzyScore('Restart immich', 'zzz'), 0);
+    assert.ok(sm.fuzzyScore('Restart immich', 'rsti') > 0, 'a subsequence of two or more letters matches');
+    assert.equal(sm.fuzzyScore('Restart immich', 'r z'), 0, 'every word must match');
+    assert.equal(sm.fuzzyScore('anything', ''), 1);
+    const items = [{ label: 'Deploy shop' }, { label: 'Open shop' }, { label: 'Restart shopping-list' }, { label: 'Prepare NAS' }];
+    eq(sm.rankItems(items, 'shop').map(item => item.label), ['Deploy shop', 'Open shop', 'Restart shopping-list'], 'equal scores keep the original order');
+    eq(sm.rankItems(items, 'open sh').map(item => item.label), ['Open shop']);
+    assert.equal(sm.rankItems(items, '', 2).length, 2, 'the limit applies');
+    eq(sm.highlight('Restart immich', 'imm'), [{ text: 'Restart ', hit: false }, { text: 'imm', hit: true }, { text: 'ich', hit: false }]);
+    const hs2 = [{ id: 'local', name: 'Local' }, { id: 'h_nas', name: 'NAS' }];
+    const row = (hostId, name, status) => ({ key: hostId + '/' + name, hostId, hostName: hostId === 'local' ? 'Local' : 'NAS', stack: { name, status } });
+    const label = (action, params) => action + ':' + (params.stack || params.host || '');
+    const data = { hosts: hs2, stackRows: [row('local', 'shop', 'running'), row('h_nas', 'blog', 'stopped'), row('local', 'wip', 'partial')], multi: true, hostStates: { local: 'ok', h_nas: 'not_prepared' }, scope: 'all', canMutate: true, label };
+    eq(sm.paletteItems(data).map(item => item.id), [
+        'open:local/shop', 'deploy:local/shop', 'restart:local/shop', 'stop:local/shop', 'open:h_nas/blog', 'deploy:h_nas/blog',
+        'open:local/wip', 'deploy:local/wip', 'update:local/wip', 'restart:local/wip', 'stop:local/wip',
+        'new:local', 'switch:local', 'new:h_nas', 'prepare:h_nas', 'switch:h_nas', 'refresh'
+    ], 'actions follow the status; an unprepared host offers Prepare');
+    assert.equal(sm.paletteItems(data)[1].action, 'update', 'a running stack offers Update, not Deploy');
+    assert.equal(sm.paletteItems(data)[0].label, 'open:shop (Local)', 'several hosts: the host is part of the name');
+    eq(sm.paletteItems(Object.assign({}, data, { canMutate: false })).map(item => item.action), ['open', 'open', 'open', 'switch_host', 'switch_host', 'refresh'], 'a read-only window gets no mutating command');
+    const inside = sm.paletteItems(Object.assign({}, data, { scope: 'h_nas', stackRows: [], multi: false })).map(item => item.id);
+    eq(inside.slice(-2), ['switch:all', 'refresh'], 'inside one host there is a way back to all hosts');
+    assert.ok(inside.includes('switch:local') && !inside.includes('switch:h_nas'), 'and a way to the other host, but not to the one already shown');
+}
+
+// ---- stack model: folding the stream of an operation -------------------------------------------------------------------
+{
+    const op = { id: 'op_1', host_id: 'local', stack: 'shop', kind: 'up', state: 'running', output: 'hello\n', created_at: '2026-10-27T10:00:00Z' };
+    const entry = sm.newOpEntry(op, 1000);
+    assert.equal(entry.output, 'hello\n');
+    sm.applyOpEvent(entry, { type: 'output', text: 'world\n' });
+    assert.equal(entry.output, 'hello\nworld\n');
+    sm.applyOpEvent(entry, { type: 'progress', progress: { id: 'db Pulling', status: 'Downloading', current: 50, total: 200 } });
+    sm.applyOpEvent(entry, { type: 'progress', progress: { id: 'web Pulling', status: 'Waiting' } });
+    sm.applyOpEvent(entry, { type: 'progress', progress: { id: 'db Pulling', current: 100 } });
+    eq(sm.progressBars(entry).map(item => [item.id, item.percent]), [['db Pulling', 50]], 'only items with a total get a bar; a later event updates its item');
+    assert.equal(entry.progress.length, 2);
+    sm.applyOpEvent(entry, { type: 'state', operation: { id: 'op_1', state: 'health_wait' } });
+    assert.equal(entry.op.state, 'health_wait');
+    assert.equal(entry.op.stack, 'shop', 'a state event updates, it does not replace');
+    assert.equal(entry.output, 'hello\nworld\n', 'a state event carries no output');
+    assert.equal(sm.isActiveOp(entry.op), true);
+    sm.applyOpEvent(entry, { type: 'done', operation: { id: 'op_1', state: 'failed', output: 'full output\n', error: 'boom', error_line: 4 } });
+    assert.equal(sm.isActiveOp(entry.op), false);
+    assert.equal(entry.output, 'full output\n', 'done carries the whole output');
+    sm.applySnapshot(entry, { id: 'op_1', state: 'running', output: 'again\n' });
+    eq([entry.output, entry.progress.length], ['again\n', 0], 'a snapshot replaces the output and the progress seen so far');
+    const huge = sm.capOutput('x'.repeat(70 * 1024) + '\nlast line');
+    assert.ok(huge.length <= sm.OUTPUT_CAP && huge.endsWith('last line'), 'the output keeps its tail');
+    const e = n => ({ op: { state: n } });
+    eq(sm.trimEntries([e('running'), e('succeeded'), e('failed'), e('queued'), e('succeeded')], 1).map(x => x.op.state), ['running', 'succeeded', 'queued'], 'active entries stay, finished ones are cut to the newest few');
+    eq(plain(sm.parseJSON('{"a":1}')), { a: 1 });
+    assert.equal(sm.parseJSON('not json'), null);
+    assert.equal(sm.draftDirty({ text: 'a' }, { content: 'a' }), false);
+    assert.equal(sm.draftDirty({ text: 'a' }, { content: 'b' }), true);
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -594,7 +800,7 @@ console.log('docker-manager ui tests: model and store ok');
     eq(ungated, [], 'motion must sit inside @media (prefers-reduced-motion: no-preference) with body:not([data-animations="false"])');
 }
 
-// ---- load contract: all five modules, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
+// ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
 const uiFiles = ['docker-manager-views.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
 const full = {};
 {
@@ -606,7 +812,7 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
-    assert.ok(full.DockerManagerModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerDialogs && full.DockerManagerApp, 'all five modules publish their global');
+    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerDialogs && full.DockerManagerApp, 'all 6 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
     assert.equal(typeof full.DockerManagerViews.create, 'function');
