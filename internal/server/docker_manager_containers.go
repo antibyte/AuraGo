@@ -210,44 +210,51 @@ func dmTruthy(value string) bool {
 }
 
 // removeAllowed applies the confirmation rule of DELETE /api/containers/{id}.
-// The local host runs the full classification of containerActionAllowed (self,
-// Docker endpoint, shared network, owner). A remote host has only the owner
-// from names and labels. It writes the 409 and returns false when the request
-// stops.
+// The local host, and a remote host that is the Engine AuraGo itself uses (its
+// address and port equal docker.host, e.g. a tcp socket proxy), run the full
+// classification of containerActionAllowed (self, Docker endpoint, shared
+// network, owner). Any other remote host has its own Engine and its own
+// containers: the owner from names and labels, plus the self check on the
+// container's full ID (an Engine reached by another route, such as an SSH or
+// tcp host on AuraGo's own machine, can still hold the container AuraGo runs
+// in). It writes the 409 and returns false when the request stops.
 func (dm *dmRequest) removeAllowed(ctx context.Context, host dockerhost.Host, client *dockerutil.Client, ref string) bool {
-	if host.ID == dockerhost.LocalHostID {
-		cfg, _, _ := containerDockerConfig(dm.s)
+	cfg, _, _ := containerDockerConfig(dm.s)
+	if host.ID == dockerhost.LocalHostID || host.ReachesEngineAt(cfg.Host) {
 		return containerActionAllowed(dm.s, cfg, ref, "remove", dm.w, dm.r)
 	}
-	owner, err := remoteContainerOwner(ctx, client, ref)
+	p, err := dm.remoteContainerProtection(ctx, client, ref)
 	if err != nil {
 		dm.engineFailure(err, "")
 		return false
 	}
-	if owner != "" && dm.r.URL.Query().Get(containerConfirmParam) != containerConfirmProtected {
-		p := containerProtection{Owner: owner}
+	if p.protected() && dm.r.URL.Query().Get(containerConfirmParam) != containerConfirmProtected {
 		dmWriteError(dm.w, http.StatusConflict, containerCodeConfirmationRequired, p.confirmationMessage(), dmFields{"owner": p.label()})
 		return false
 	}
 	return true
 }
 
-// remoteContainerOwner finds the container by name, full ID or ID prefix and
-// returns the AuraGo owner its names and labels name. An unknown reference
-// keeps the reserved-name check, like classifyContainerForAction; the remove
-// then reports the 404.
-func remoteContainerOwner(ctx context.Context, client *dockerutil.Client, ref string) (string, error) {
+// remoteContainerProtection finds the container by name, full ID or ID prefix
+// and returns the AuraGo owner its names and labels name, and whether AuraGo's
+// own self signals name its full ID. An unknown reference keeps the
+// reserved-name check, like classifyContainerForAction; the remove then reports
+// the 404.
+func (dm *dmRequest) remoteContainerProtection(ctx context.Context, client *dockerutil.Client, ref string) (containerProtection, error) {
 	list, err := dockerhost.ListContainers(ctx, client)
 	if err != nil {
-		return "", err
+		return containerProtection{}, err
 	}
 	needle := strings.ToLower(ref)
 	for _, container := range list {
 		if dmContainerMatches(container, needle) {
-			return firstContainerOwner(container.Names, container.Labels), nil
+			return containerProtection{
+				Owner: firstContainerOwner(container.Names, container.Labels),
+				Self:  containerIsSelf(containerRuntimeIsDocker(dm.s), container.FullID),
+			}, nil
 		}
 	}
-	return firstContainerOwner([]string{ref}, nil), nil
+	return containerProtection{Owner: firstContainerOwner([]string{ref}, nil)}, nil
 }
 
 func dmContainerMatches(container dockerhost.ContainerSummary, needle string) bool {

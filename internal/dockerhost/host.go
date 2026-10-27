@@ -10,8 +10,10 @@ import (
 	"net"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"aurago/internal/dockerhost/transport"
@@ -129,13 +131,18 @@ func hasDotDot(p string) bool {
 }
 
 // ValidateHost checks a normalized host that is about to be stored or tested:
-// name 1..64 runes; kind one of tcp, tls, mtls, ssh (the local host is built
-// in); a host name or IP address without scheme, path or port; port 0..65535;
-// stacks_dir and host_socket_path absolute POSIX paths without ".." segments
-// and not the root; a color from Colors; ssh_user for ssh.
+// name 1..64 runes without control characters; kind one of tcp, tls, mtls, ssh
+// (the local host is built in); a host name or IP address without scheme, path
+// or port; port 0..65535; stacks_dir and host_socket_path absolute POSIX paths
+// without ".." segments, not the root, and without blanks, control characters
+// or any of : , = ' " ` and \ (they end up in bind-mount strings, where those
+// would split or reshape the mount); a color from Colors; ssh_user for ssh.
 func ValidateHost(h Host) error {
 	if n := utf8.RuneCountInString(h.Name); n < 1 || n > 64 {
 		return invalid("name", "must be 1 to 64 characters")
+	}
+	if strings.IndexFunc(h.Name, unicode.IsControl) >= 0 {
+		return invalid("name", "must not contain control characters")
 	}
 	switch h.Kind {
 	case KindTCP, KindTLS, KindMTLS, KindSSH:
@@ -173,12 +180,22 @@ func validateAbsPath(field, p string) error {
 		return invalid(field, "must be an absolute path")
 	case len(p) > 4096 || strings.ContainsAny(p, "\x00\\"):
 		return invalid(field, "must be a POSIX path without backslashes")
+	case strings.IndexFunc(p, unsafePathRune) >= 0:
+		return invalid(field, "must not contain blanks, control characters or any of : , = quotes")
 	case hasDotDot(p):
 		return invalid(field, "must not contain .. segments")
 	case path.Clean(p) == "/":
 		return invalid(field, "must not be the filesystem root")
 	}
 	return nil
+}
+
+// unsafePathRune reports a rune that must not appear in a stacks directory or
+// socket path: it would split or reshape a bind-mount string
+// ("src:dst:opts", comma separated --mount options) or the shell and compose
+// lines built from it.
+func unsafePathRune(r rune) bool {
+	return unicode.IsSpace(r) || unicode.IsControl(r) || strings.ContainsRune(":,=\"'`\\", r)
 }
 
 // validAddress accepts a DNS name, an IPv4 address, or an IPv6 address bare or
@@ -216,6 +233,64 @@ func bareAddress(a string) string {
 		return a[1 : len(a)-1]
 	}
 	return a
+}
+
+// ReachesEngineAt reports whether the host is the Engine AuraGo itself uses,
+// reached over the network: a tcp, tls or mtls host whose address and effective
+// port equal those of dockerHost (the configured docker.host: tcp://host:port,
+// http:// or https:// likewise, or a bare host:port; a missing port is the
+// default of the scheme). Names compare ignoring case and a trailing dot,
+// addresses by value (IPv6 bare or bracketed), and every loopback name or
+// address (localhost, 127.0.0.1, ::1) counts as the same one. Sockets, named
+// pipes and SSH hosts never match: they have no address to compare.
+func (h Host) ReachesEngineAt(dockerHost string) bool {
+	switch h.Kind {
+	case KindTCP, KindTLS, KindMTLS:
+	default:
+		return false
+	}
+	endpoint := strings.TrimSpace(dockerHost)
+	lower := strings.ToLower(endpoint)
+	if strings.HasPrefix(lower, "unix://") || strings.HasPrefix(lower, "npipe://") {
+		return false
+	}
+	port := defaultTCPPort
+	for _, scheme := range []string{"tcp://", "http://", "https://"} {
+		if strings.HasPrefix(lower, scheme) {
+			endpoint = endpoint[len(scheme):]
+			if scheme == "https://" {
+				port = defaultTLSPort
+			}
+			break
+		}
+	}
+	endpoint = strings.TrimRight(endpoint, "/")
+	host := endpoint
+	if name, portText, err := net.SplitHostPort(endpoint); err == nil {
+		n, convErr := strconv.Atoi(portText)
+		if convErr != nil {
+			return false
+		}
+		host, port = name, n
+	}
+	host = strings.TrimSuffix(bareAddress(host), ".")
+	if host == "" || port != effectivePort(h) {
+		return false
+	}
+	own := strings.TrimSuffix(bareAddress(h.Address), ".")
+	if isLoopbackName(host) && isLoopbackName(own) {
+		return true
+	}
+	return sameAddress(host, own)
+}
+
+// isLoopbackName reports localhost or a loopback IP address.
+func isLoopbackName(name string) bool {
+	if strings.EqualFold(name, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(name)
+	return ip != nil && ip.IsLoopback()
 }
 
 // effectivePort is the stored port or the default of the kind.

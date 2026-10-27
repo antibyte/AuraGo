@@ -143,6 +143,44 @@ func TestDockerManagerRemoveAsksForProtectedConfirmation(t *testing.T) {
 	}
 }
 
+// A stored remote host can be the Engine AuraGo itself uses (a tcp socket proxy at docker.host), or an Engine on
+// AuraGo's own machine reached another way. Removing AuraGo's own container there must ask like the Containers page.
+func TestDockerManagerRemoveOnTheEngineAuraGoUsesAsksForConfirmation(t *testing.T) {
+	f := newDMFixture(t)
+
+	// The remote host's address and port equal docker.host: the local classification decides.
+	code, body := f.do(http.MethodPost, "/hosts", map[string]any{"name": "Proxy", "kind": "tcp", "address": "127.0.0.1", "port": f.local.port()})
+	if code != http.StatusCreated {
+		t.Fatalf("create proxy host: %d %s", code, f.lastRaw)
+	}
+	proxy := dmString(t, body["host"], "id")
+	restore := replaceContainerProtection(containerProtection{DockerEndpoint: true})
+	code, body = f.do(http.MethodDelete, "/hosts/"+proxy+"/containers/web1", nil)
+	restore()
+	dmExpectError(t, f, code, body, http.StatusConflict, containerCodeConfirmationRequired)
+	if body["owner"] != "docker-endpoint" || f.local.called("DELETE /containers/web1") {
+		t.Fatalf("unconfirmed remove on the docker.host engine = %s, calls %v; want docker-endpoint and no engine delete", f.lastRaw, f.local.calls)
+	}
+
+	// Any other remote Engine: the container that AuraGo's self signals name is protected too.
+	other := f.addRemote("NAS")
+	f.s.CfgMu.Lock()
+	f.s.Cfg.Runtime.IsDocker = true
+	f.s.CfgMu.Unlock()
+	defer replaceContainerSelfHostname(strings.Repeat("e", 12))()
+	code, body = f.do(http.MethodDelete, "/hosts/"+other+"/containers/web1", nil)
+	dmExpectError(t, f, code, body, http.StatusConflict, containerCodeConfirmationRequired)
+	if body["owner"] != "self" || f.remote.called("DELETE /containers/web1") {
+		t.Fatalf("unconfirmed remove of the self container = %s, calls %v; want self and no engine delete", f.lastRaw, f.remote.calls)
+	}
+	if code, _ = f.do(http.MethodDelete, "/hosts/"+other+"/containers/web1?confirm=protected", nil); code != http.StatusOK || !f.remote.called("DELETE /containers/web1") {
+		t.Fatalf("confirmed remove = %d %s", code, f.lastRaw)
+	}
+	if code, _ = f.do(http.MethodDelete, "/hosts/"+other+"/containers/blog", nil); code != http.StatusOK {
+		t.Fatalf("remove of an unrelated container = %d %s, want it unconfirmed", code, f.lastRaw)
+	}
+}
+
 func TestDockerManagerUnreachableHostIsABadGateway(t *testing.T) {
 	f := newDMFixture(t)
 	id := f.addRemote("NAS")
