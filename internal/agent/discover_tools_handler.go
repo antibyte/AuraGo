@@ -146,6 +146,10 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 		if entry, ok := catalog.Get(resolveDiscoverToolName(name)); ok {
 			result := discoverResultFromEntry(entry, sessionID, true)
 			result.Description = fenceDiscoveryText(result.Description)
+			// The schema is third-party text as well (an MCP server writes every
+			// parameter description) and get_tool_info is classified trusted, so the
+			// fence has to come from here. The catalog schema stays untouched.
+			result.Parameters = fenceToolSchema(entry, result.Parameters)
 			if dc != nil && dc.discoveryReinjects && entry.Kind == ToolKindNative && entry.Enabled && entry.Status == ToolStatusHidden &&
 				entry.Schema.Function != nil && catalogEntryAllowed(dc, entry) {
 				// The lookup above queued the schema for the next request, so the
@@ -382,8 +386,9 @@ func discoverToolsLogInfo(logger *slog.Logger, msg string, args ...any) {
 	}
 }
 
-// fenceDiscoveryText isolates catalog, MCP and skill blurbs. Names, call
-// methods and schema parameter JSON stay outside this fence.
+// fenceDiscoveryText isolates catalog, MCP and skill blurbs. Names and call
+// methods stay outside this fence; get_tool_info fences the prose inside the
+// schema leaf by leaf (fenceSchemaAnnotations) and keeps its JSON structure.
 func fenceDiscoveryText(text string) string {
 	text = strings.TrimSpace(text)
 	if text == "" {

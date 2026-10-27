@@ -520,8 +520,24 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   `get_manual` reads revision-bound pages. Discovery descriptions
   (`list_categories` purpose, `get_tool_info` description, summary pages,
   Composio service text, group short descriptions) are fenced with
-  `IsolateExternalData` after truncation. Names, operations, `call_method`,
-  callable flags and schema JSON stay raw. `get_manual` stays raw. Never byte-slice structured results.
+  `IsolateExternalData` after truncation. Names, operations, `call_method`
+  and callable flags stay raw. `get_tool_info` also fences the prose inside the
+  parameter schema (`fenceSchemaAnnotations`, `discovery_schema.go`): the walk
+  is default-deny, so every string under `description`, `title`, `$comment`, an
+  unknown keyword or `pattern` is fenced, and `enum`/`const`/`default`/`examples`
+  strings are fenced unless they are one short token (no space, quote or markup,
+  <= 48 bytes), because a fenced enum member would no longer be the value the
+  model has to send. Keys, `type`, `required`, `properties` names, `format`,
+  `$ref` and non-string values stay raw, so the schema stays parseable JSON; the
+  fenced schema is a copy and the catalog schema (the later function
+  definition) is not rewritten. Schemas compiled into AuraGo (`firstPartyToolNames`,
+  i.e. `allBuiltinToolNameSet`) are exempt: they are static first-party text, every
+  third-party entry has a reserved prefix, and fencing would add about 55 bytes
+  per leaf (`game_maker_project` 40 KB to 57 KB would exceed the default 50 KB
+  `tool_output_limit`; `TestDiscoverToolInfoKeepsBuiltInSchemasRaw`). A built-in
+  tool missing from the set is fenced, never skipped. A new schema keyword that carries prose needs no
+  change (unknown means prose); one that carries structure goes into the
+  structure list in `schemaWalk.schema`. `get_manual` stays raw. Never byte-slice structured results.
   Detail schemas use `agent.tool_output_limit` and the remaining request capacity
   of every eligible route; report output and context limits separately.
   Missing local dependencies are `needs_setup`; account/connection state is
