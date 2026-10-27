@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Diese benannten Volumes werden mit dem Stack gelöscht. Ihre Daten lassen sich nicht wiederherstellen.",
   "docker_manager.delete_volumes_stay": "Die benannten Volumes bleiben auf dem Host.",
   "docker_manager.delete_volumes_too": "Auch die benannten Volumes löschen",
-  "docker_manager.down_volumes_body": "Stoppt und entfernt die Container von {{name}} auf {{host}} und löscht die unten aufgeführten Volumes.",
+  "docker_manager.down_volumes_body": "Stoppt und entfernt die Container von {{name}} auf {{host}} und löscht die unten aufgeführten Volumes sowie die anonymen Volumes seiner Container (diese sind nicht aufgelistet).",
   "docker_manager.down_volumes_confirm": "Mit Volumes entfernen",
   "docker_manager.down_volumes_stay": "Der Stack-Ordner {{path}} und die heruntergeladenen Images bleiben erhalten.",
   "docker_manager.down_volumes_title": "{{name}} samt Volumes entfernen?",

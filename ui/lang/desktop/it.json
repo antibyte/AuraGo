@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Questi volumi con nome vengono eliminati insieme allo stack. I loro dati non sono recuperabili.",
   "docker_manager.delete_volumes_stay": "I volumi con nome restano sull’host.",
   "docker_manager.delete_volumes_too": "Elimina anche i volumi con nome",
-  "docker_manager.down_volumes_body": "Ferma e rimuove i container di {{name}} su {{host}} ed elimina i volumi elencati sotto.",
+  "docker_manager.down_volumes_body": "Ferma e rimuove i container di {{name}} su {{host}} ed elimina i volumi elencati sotto, oltre ai volumi anonimi dei suoi container (questi non sono elencati).",
   "docker_manager.down_volumes_confirm": "Rimuovi con i volumi",
   "docker_manager.down_volumes_stay": "La cartella dello stack {{path}} e le immagini scaricate restano.",
   "docker_manager.down_volumes_title": "Rimuovere {{name}} insieme ai suoi volumi?",

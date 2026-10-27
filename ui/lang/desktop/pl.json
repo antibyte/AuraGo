@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Te nazwane woluminy zostaną usunięte razem ze stosem. Ich danych nie da się odzyskać.",
   "docker_manager.delete_volumes_stay": "Nazwane woluminy pozostają na hoście.",
   "docker_manager.delete_volumes_too": "Usuń także nazwane woluminy",
-  "docker_manager.down_volumes_body": "Zatrzymuje i usuwa kontenery stosu {{name}} na hoście {{host}} oraz kasuje woluminy wymienione poniżej.",
+  "docker_manager.down_volumes_body": "Zatrzymuje i usuwa kontenery stosu {{name}} na hoście {{host}} oraz kasuje woluminy wymienione poniżej i anonimowe woluminy tych kontenerów (tych nie ma na liście).",
   "docker_manager.down_volumes_confirm": "Usuń razem z woluminami",
   "docker_manager.down_volumes_stay": "Katalog stosu {{path}} i pobrane obrazy pozostają.",
   "docker_manager.down_volumes_title": "Usunąć {{name}} razem z woluminami?",

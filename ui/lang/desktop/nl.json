@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Deze benoemde volumes worden samen met de stack verwijderd. Hun gegevens zijn niet te herstellen.",
   "docker_manager.delete_volumes_stay": "De benoemde volumes blijven op de host staan.",
   "docker_manager.delete_volumes_too": "Ook de benoemde volumes verwijderen",
-  "docker_manager.down_volumes_body": "Stopt en verwijdert de containers van {{name}} op {{host}} en wist de hieronder genoemde volumes.",
+  "docker_manager.down_volumes_body": "Stopt en verwijdert de containers van {{name}} op {{host}} en wist de hieronder genoemde volumes, plus de anonieme volumes van de containers (die staan niet in de lijst).",
   "docker_manager.down_volumes_confirm": "Verwijderen met volumes",
   "docker_manager.down_volumes_stay": "De stackmap {{path}} en de gedownloade images blijven staan.",
   "docker_manager.down_volumes_title": "{{name}} verwijderen inclusief volumes?",

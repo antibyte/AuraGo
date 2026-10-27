@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "这些命名卷将随堆栈一起删除，其数据无法恢复。",
   "docker_manager.delete_volumes_stay": "命名卷会保留在主机上。",
   "docker_manager.delete_volumes_too": "同时删除命名卷",
-  "docker_manager.down_volumes_body": "停止并移除 {{host}} 上 {{name}} 的容器，并删除下列卷。",
+  "docker_manager.down_volumes_body": "停止并移除 {{host}} 上 {{name}} 的容器，并删除下列卷以及这些容器的匿名卷（匿名卷不在列表中）。",
   "docker_manager.down_volumes_confirm": "连同卷一起移除",
   "docker_manager.down_volumes_stay": "堆栈文件夹 {{path}} 和已下载的镜像会保留。",
   "docker_manager.down_volumes_title": "连同卷一起移除 {{name}}？",

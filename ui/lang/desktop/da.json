@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Disse navngivne volumener slettes sammen med stacken. Deres data kan ikke gendannes.",
   "docker_manager.delete_volumes_stay": "De navngivne volumener bliver på værten.",
   "docker_manager.delete_volumes_too": "Slet også de navngivne volumener",
-  "docker_manager.down_volumes_body": "Stopper og fjerner containerne for {{name}} på {{host}} og sletter volumenerne nedenfor.",
+  "docker_manager.down_volumes_body": "Stopper og fjerner containerne for {{name}} på {{host}} og sletter volumenerne nedenfor samt containernes anonyme volumener (dem vises ikke på listen).",
   "docker_manager.down_volumes_confirm": "Fjern med volumener",
   "docker_manager.down_volumes_stay": "Stackmappen {{path}} og de downloadede images bliver.",
   "docker_manager.down_volumes_title": "Fjerne {{name}} inklusive volumener?",

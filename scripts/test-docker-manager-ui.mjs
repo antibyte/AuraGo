@@ -1332,6 +1332,7 @@ const full = {};
     assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
     eq([...used].filter(key => !(typeof en[key] === 'string' && en[key].trim() !== '')).sort(), [], 'en.json is missing keys the code asks for');
     const tokens = value => [...String(value).matchAll(/\{\{(\w+)\}\}/g)].map(match => match[1]).sort().join(',');
+    assert.ok(/anonymous/.test(en['docker_manager.down_volumes_body']), 'down --volumes also removes the anonymous volumes of the containers, and the copy must say so');
     const own = Object.keys(en).filter(key => key.startsWith(prefix));
     eq(own.filter(key => !used.has(key)).sort(), [], 'en.json has keys that no code asks for');
     for (const lang of LANGS) {

@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "These named volumes are deleted with the stack. Their data cannot be recovered.",
   "docker_manager.delete_volumes_stay": "The named volumes stay on the host.",
   "docker_manager.delete_volumes_too": "Also delete the named volumes",
-  "docker_manager.down_volumes_body": "Stops and removes the containers of {{name}} on {{host}} and deletes the volumes listed below.",
+  "docker_manager.down_volumes_body": "Stops and removes the containers of {{name}} on {{host}} and deletes the volumes listed below, as well as the anonymous volumes of its containers (these are not listed).",
   "docker_manager.down_volumes_confirm": "Remove with volumes",
   "docker_manager.down_volumes_stay": "The stack folder {{path}} and the downloaded images stay.",
   "docker_manager.down_volumes_title": "Remove {{name}} including its volumes?",

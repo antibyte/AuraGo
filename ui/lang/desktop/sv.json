@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "De här namngivna volymerna tas bort tillsammans med stacken. Deras data kan inte återställas.",
   "docker_manager.delete_volumes_stay": "De namngivna volymerna finns kvar på värden.",
   "docker_manager.delete_volumes_too": "Ta även bort de namngivna volymerna",
-  "docker_manager.down_volumes_body": "Stoppar och tar bort containrarna för {{name}} på {{host}} och raderar volymerna som listas nedan.",
+  "docker_manager.down_volumes_body": "Stoppar och tar bort containrarna för {{name}} på {{host}} och raderar volymerna som listas nedan samt containrarnas anonyma volymer (de listas inte).",
   "docker_manager.down_volumes_confirm": "Ta bort med volymer",
   "docker_manager.down_volumes_stay": "Stackmappen {{path}} och de nedladdade avbilderna finns kvar.",
   "docker_manager.down_volumes_title": "Ta bort {{name}} inklusive volymer?",

@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Αυτοί οι ονομασμένοι τόμοι διαγράφονται μαζί με το stack. Τα δεδομένα τους δεν μπορούν να ανακτηθούν.",
   "docker_manager.delete_volumes_stay": "Οι ονομασμένοι τόμοι παραμένουν στον υπολογιστή.",
   "docker_manager.delete_volumes_too": "Διαγραφή και των ονομασμένων τόμων",
-  "docker_manager.down_volumes_body": "Σταματά και αφαιρεί τα κοντέινερ του {{name}} στον υπολογιστή {{host}} και διαγράφει τους τόμους που αναφέρονται παρακάτω.",
+  "docker_manager.down_volumes_body": "Σταματά και αφαιρεί τα κοντέινερ του {{name}} στον υπολογιστή {{host}} και διαγράφει τους τόμους που αναφέρονται παρακάτω, καθώς και τους ανώνυμους τόμους των κοντέινερ του (αυτοί δεν αναφέρονται στη λίστα).",
   "docker_manager.down_volumes_confirm": "Αφαίρεση με τους τόμους",
   "docker_manager.down_volumes_stay": "Ο φάκελος του stack {{path}} και τα images που κατεβάστηκαν παραμένουν.",
   "docker_manager.down_volumes_title": "Αφαίρεση του {{name}} μαζί με τους τόμους του;",

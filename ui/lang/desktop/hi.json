@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "ये नामित वॉल्यूम स्टैक के साथ हटाए जाते हैं। उनका डेटा वापस नहीं मिल सकता।",
   "docker_manager.delete_volumes_stay": "नामित वॉल्यूम होस्ट पर रहते हैं।",
   "docker_manager.delete_volumes_too": "नामित वॉल्यूम भी हटाएँ",
-  "docker_manager.down_volumes_body": "{{host}} पर {{name}} के कंटेनर रोकता और हटाता है और नीचे सूचीबद्ध वॉल्यूम मिटा देता है।",
+  "docker_manager.down_volumes_body": "{{host}} पर {{name}} के कंटेनर रोकता और हटाता है और नीचे सूचीबद्ध वॉल्यूम के साथ उसके कंटेनरों के अनाम वॉल्यूम भी मिटा देता है (ये सूची में नहीं हैं)।",
   "docker_manager.down_volumes_confirm": "वॉल्यूम सहित हटाएँ",
   "docker_manager.down_volumes_stay": "स्टैक फ़ोल्डर {{path}} और डाउनलोड की गई इमेज बनी रहती हैं।",
   "docker_manager.down_volumes_title": "{{name}} को उसके वॉल्यूम सहित हटाएँ?",

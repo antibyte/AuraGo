@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "これらの名前付きボリュームはスタックと一緒に削除されます。データは復元できません。",
   "docker_manager.delete_volumes_stay": "名前付きボリュームはホストに残ります。",
   "docker_manager.delete_volumes_too": "名前付きボリュームも削除する",
-  "docker_manager.down_volumes_body": "{{host}} 上の {{name}} のコンテナを停止して削除し、以下のボリュームを削除します。",
+  "docker_manager.down_volumes_body": "{{host}} 上の {{name}} のコンテナを停止して削除し、以下のボリュームと、そのコンテナの匿名ボリュームを削除します（匿名ボリュームは一覧に表示されません）。",
   "docker_manager.down_volumes_confirm": "ボリュームも削除",
   "docker_manager.down_volumes_stay": "スタックのフォルダー {{path}} とダウンロード済みのイメージは残ります。",
   "docker_manager.down_volumes_title": "{{name}} をボリュームも含めて削除しますか？",

@@ -10363,7 +10363,7 @@
   "docker_manager.delete_volumes_go": "Tyto pojmenované svazky se smažou spolu se stackem. Jejich data nelze obnovit.",
   "docker_manager.delete_volumes_stay": "Pojmenované svazky zůstanou na hostiteli.",
   "docker_manager.delete_volumes_too": "Smazat i pojmenované svazky",
-  "docker_manager.down_volumes_body": "Zastaví a odebere kontejnery stacku {{name}} na hostiteli {{host}} a smaže svazky uvedené níže.",
+  "docker_manager.down_volumes_body": "Zastaví a odebere kontejnery stacku {{name}} na hostiteli {{host}} a smaže svazky uvedené níže i anonymní svazky těchto kontejnerů (ty v seznamu nejsou).",
   "docker_manager.down_volumes_confirm": "Odebrat se svazky",
   "docker_manager.down_volumes_stay": "Složka stacku {{path}} a stažené image zůstanou.",
   "docker_manager.down_volumes_title": "Odebrat {{name}} včetně svazků?",
