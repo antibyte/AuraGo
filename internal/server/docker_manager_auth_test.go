@@ -85,7 +85,12 @@ func TestDockerManagerRoutesStayInTheAdminBearerCatchAll(t *testing.T) {
 		tokens[scope] = raw
 	}
 
-	for _, path := range []string{"/api/docker-manager/", "/api/docker-manager/hosts", "/api/docker-manager/hosts/local/containers", "/api/docker-manager/hosts/import-nest/n1"} {
+	for _, path := range []string{
+		"/api/docker-manager/", "/api/docker-manager/hosts", "/api/docker-manager/hosts/local/containers", "/api/docker-manager/hosts/import-nest/n1",
+		// Stacks: files, operations (the SSE stream included), lint and the converter.
+		"/api/docker-manager/hosts/local/stacks/web/files", "/api/docker-manager/hosts/local/lint",
+		"/api/docker-manager/operations/op_0123456789abcdef/stream", "/api/docker-manager/convert/docker-run",
+	} {
 		if isDesktopScopedAPIPath(path) {
 			t.Fatalf("%s must not become a desktop-scoped path: desktop:read/write tokens would reach Docker", path)
 		}
