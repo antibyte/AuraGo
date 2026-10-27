@@ -61,6 +61,11 @@ func OpenStore(path string) (*Store, error) {
 // Close closes the database.
 func (s *Store) Close() error { return s.db.Close() }
 
+// DB exposes the shared docker_manager.db handle so internal/dockerstacks can
+// keep its tables in the same file. The Store owns the handle: callers must not
+// close it.
+func (s *Store) DB() *sql.DB { return s.db }
+
 // List returns the stored hosts ordered by sort, then name (case-insensitive).
 func (s *Store) List(ctx context.Context) ([]Host, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT "+hostColumns+" FROM docker_hosts ORDER BY sort, name COLLATE NOCASE")

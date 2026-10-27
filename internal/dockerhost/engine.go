@@ -343,7 +343,35 @@ func readLogs(r io.Reader, tty bool) (string, error) {
 // verbatim, so a proxy that already demultiplexed it still works. A stream cut
 // short ends quietly.
 func demuxLogs(r io.Reader, w io.Writer) error {
+	return demuxFrames(r, func(byte) io.Writer { return w })
+}
+
+// DemuxStreams splits a non-TTY Engine log or attach stream into stdout and
+// stderr. Either writer may be nil, which discards that stream. A frame of
+// stream 0 (stdin) goes to stdout, like Docker's own StdCopy. It shares the
+// frame parser of demuxLogs: a stream that does not start like a frame is
+// copied verbatim to stdout, and a stream cut short ends quietly.
+func DemuxStreams(r io.Reader, stdout, stderr io.Writer) error {
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	if stderr == nil {
+		stderr = io.Discard
+	}
+	return demuxFrames(r, func(stream byte) io.Writer {
+		if stream == 2 {
+			return stderr
+		}
+		return stdout
+	})
+}
+
+// demuxFrames is the frame parser behind demuxLogs and DemuxStreams. pick
+// chooses the writer of a frame by its stream byte; the writer of stream 1
+// also receives a stream that is not framed at all.
+func demuxFrames(r io.Reader, pick func(stream byte) io.Writer) error {
 	br := bufio.NewReader(r)
+	plain := pick(1)
 	var header [8]byte
 	for {
 		n, err := io.ReadFull(br, header[:])
@@ -351,20 +379,20 @@ func demuxLogs(r io.Reader, w io.Writer) error {
 		case err == io.EOF: // no bytes left: a clean end
 			return nil
 		case err == io.ErrUnexpectedEOF: // fewer than 8 bytes cannot be a frame; keep them as text
-			_, werr := w.Write(header[:n])
+			_, werr := plain.Write(header[:n])
 			return werr
 		case err != nil:
 			return err
 		}
 		if header[0] > 2 || header[1] != 0 || header[2] != 0 || header[3] != 0 {
-			if _, werr := w.Write(header[:]); werr != nil {
+			if _, werr := plain.Write(header[:]); werr != nil {
 				return werr
 			}
-			_, cerr := io.Copy(w, br)
+			_, cerr := io.Copy(plain, br)
 			return cerr
 		}
 		size := int64(binary.BigEndian.Uint32(header[4:]))
-		if _, err := io.CopyN(w, br, size); err != nil {
+		if _, err := io.CopyN(pick(header[0]), br, size); err != nil {
 			if err == io.EOF {
 				return nil
 			}
