@@ -1049,7 +1049,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1060,19 +1060,75 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
-    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerDialogs && full.DockerManagerApp, 'all 6 modules publish their global');
+    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerDialogs && full.DockerManagerApp, 'all 7 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
     assert.equal(typeof full.DockerManagerViews.create, 'function');
     assert.equal(typeof full.DockerManagerDialogs.create, 'function');
 }
 
+// ---- the stack builders: the rail names the sections, the list groups the rows, user data never reaches the markup unescaped -----
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, lang: 'en', uid: 'x' });
+    const stacks = full.DockerManagerStacks.create({ t, esc, model: model2, stackModel: sm2, views, uid: 'x' });
+    const evil = '<img src=x onerror=alert(1)>';
+    const stack = (name, extra = {}) => ({ name, host_id: 'local', dir: '/opt/stacks/' + name, compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 2, running: 2 }, ports: [{ service: 'web', public_port: 8080, private_port: 80, protocol: 'tcp' }], container_ids: [], created: 1760000000, ...extra });
+    const hosts = [hostA, hostB];
+    const stacksByHost = {
+        local: { loaded: true, listing: { stacks: [stack(evil), stack('blog', { status: 'draft', services: { total: 0, running: 0 }, ports: [] })], external: [{ name: 'legacy', working_dir: '/srv/<b>', status: 'partial', services: { total: 2, running: 1 }, ports: [], container_ids: [] }], ignored: [{ name: evil }] } },
+        h_nas: { loaded: false, error: { code: 'host_not_prepared', data: { helpers: { runner_image: 'docker:29.9.2-cli', runner_image_present: false, io_container: 'missing' } } } }
+    };
+    const byHost = { local: { containers: [container('tools'), container('aurago-dm-op-1', { aurago_helper: 'runner' })], loaded: true }, h_nas: { containers: [], loaded: true } };
+    const rows = model2.buildRows(hosts, byHost, 'all');
+    const detail = {
+        ...stack('shop'), service_list: [{ name: '<b>web</b>', image: 'nginx:1.27', state: 'running', health: 'healthy', ports: [{ service: 'web', ip: '0.0.0.0', public_port: 8080, private_port: 80, protocol: 'tcp' }] }, { name: 'db', image: 'postgres:16', state: 'exited', exit_code: 1, ports: [] }],
+        compose: { name: 'compose.yaml', content: 'services: {}', revision: 'r1', exists: true }, env: { name: '.env', content: '', revision: '', exists: false }
+    };
+    const snap = {
+        state: { scope: 'all', stacks: stacksByHost, byHost, hostsLoaded: true, detail: null, stack: { key: 'local/shop', hostId: 'local', name: 'shop', tab: 'overview', status: 'ok', detail, error: null }, busy: new Set(), ops: [] },
+        hosts, scopeHosts: hosts, multi: true, canMutate: true, section: 'stacks', query: '', hostStates: { local: 'ok', h_nas: 'not_prepared' }, prepareActive: {}, stackOps: {}, dirty: { compose: true },
+        pageHost: 'desk.lan', now: 1760000000000 + 86400000, sgroups: sm2.stackGroups(hosts, stacksByHost, rows, { scope: 'all', query: '' }), stackCounts: sm2.stackCounts(hosts, stacksByHost, 'all')
+    };
+    const list = stacks.list(snap);
+    assert.ok(!list.includes('<img') && !list.includes('<b>') && list.includes('&lt;img'), 'names, folders and ignored folders are escaped');
+    assert.ok(list.indexOf('data-sgroup="stacks"') < list.indexOf('data-sgroup="external"') && list.indexOf('data-sgroup="external"') < list.indexOf('data-sgroup="singles"'), 'own stacks, external projects, single containers');
+    assert.ok(list.includes('data-action="prepare-host"') && list.includes('data-host-id="h_nas"') && list.includes('docker:29.9.2-cli') && list.includes('prepare_image_missing'), 'an unprepared host offers Prepare host and names what is missing');
+    assert.ok(list.includes('data-action="project-action"') && list.includes('data-act="restart"'), 'an external project can be started, stopped and restarted');
+    assert.ok(list.includes('class="dm-lock"'), 'a helper container shows its lock');
+    assert.ok(!stacks.list(Object.assign({}, snap, { canMutate: false })).includes('prepare-host'), 'a read-only window offers no Prepare host');
+    const rail = views.rail(snap);
+    assert.ok(rail.includes('data-section="stacks"') && /data-section="stacks"[^>]*aria-current="page"/.test(rail) && !/data-section="containers"[^>]*aria-current/.test(rail), 'the rail marks the current section');
+    const head = stacks.head(snap), overview = stacks.overview(snap);
+    assert.ok(head.includes('data-op="update"') && head.includes('data-op="restart"') && head.includes('class="dm-dirty"'), 'a running stack offers Update, and an unsaved compose tab is marked');
+    assert.ok(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } })).includes('data-op="update"') && /data-op="update"[^>]*disabled/.test(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } }))), 'a stack with a running operation cannot start another');
+    assert.ok(!stacks.head(Object.assign({}, snap, { canMutate: false })).includes('data-op='), 'a read-only window shows no operation buttons');
+    assert.ok(overview.includes('href="http://desk.lan:8080"') && overview.includes('rel="noopener noreferrer"') && !overview.includes('<b>web'), 'ports are links to the page host name, services are escaped');
+    const shell = stacks.shell(snap.state.stack);
+    assert.ok(shell.includes('data-ed-surface="compose"') && shell.includes('data-ed-surface="env"') && shell.includes('data-action="save-deploy"'), 'the shell holds the two editors and their toolbars');
+    assert.ok(stacks.problem(Object.assign({}, snap, { state: Object.assign({}, snap.state, { stack: { key: 'local/gone', name: 'gone', status: 'error', error: { code: 'stack_not_found' } } }) })).includes('stack_gone'), 'a vanished stack says so');
+}
+
 // ---- the owner of a 409 protected-confirmation answer gets the translated sentence, never the server's message -----------------
 {
     const t = (key, params) => key + (params ? JSON.stringify(params) : '');
     const views = full.DockerManagerViews.create({ t, esc: String, model: full.DockerManagerModel, lang: 'en', uid: 'x' });
-    eq(['self', 'docker-endpoint', 'shared-network', 'unverified', 'ruview', ''].map(views.protectedLabelText),
-        ['protected_self', 'protected_endpoint', 'protected_network', 'protected_unverified', 'protected_owner{"owner":"ruview"}', '']);
+    eq(['self', 'docker-endpoint', 'shared-network', 'unverified', 'docker_manager', 'ruview', ''].map(views.protectedLabelText),
+        ['protected_self', 'protected_endpoint', 'protected_network', 'protected_unverified', 'protected_helper', 'protected_owner{"owner":"ruview"}', ''], 'a helper container of the Stacks feature names itself, not an owner');
+}
+
+// ---- error texts: the codes of the host and operation routes, and the deploy that could not start -------------------------------
+{
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const views = full.DockerManagerViews.create({ t, esc: String, model: full.DockerManagerModel, lang: 'en', uid: 'x' });
+    for (const code of ['invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request']) {
+        assert.ok(views.errorText({ code, message: 'English' }).startsWith('error_' + code), code + ' has its own text');
+    }
+    assert.ok(views.errorText({ code: 'docker_error', message: 'cause' }).endsWith(' cause'), 'the message of a Docker error names the cause');
+    assert.ok(!views.errorText({ code: 'internal_error', message: 'The deployment could not be started' }).includes('deployment'), 'the code decides, the English message of a deploy_error does not show');
+    assert.equal(views.errorText({ code: 'brand_new', message: 'English' }), 'error_unknown English', 'an unknown code shows the generic sentence and the message');
 }
 
 // ---- translations: every key the code can ask for exists in all sixteen locales with the same placeholders -------------------
@@ -1091,26 +1147,36 @@ const full = {};
     for (const key of [...used]) if (key.endsWith('_')) used.delete(key);
     const families = {
         status_: ['running', 'paused', 'restarting', 'exited_code', 'created', 'dead', 'removing', 'unhealthy', 'starting', 'unknown'],
-        action_: [...model.ACTIONS, 'remove', 'logs', 'inspect', 'more', 'open_details', 'done', 'failed'],
+        action_: [...model.ACTIONS, 'remove', 'logs', 'inspect', 'more', 'open_details', 'done', 'failed', 'deploy', 'update'],
         reason_: [...model.REASONS],
-        error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown'],
+        error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown', 'host_not_prepared', 'api_too_old', 'stacks_unavailable', 'stack_name_invalid', 'stack_not_found', 'stack_exists',
+            'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
+            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request'],
         filter_: [...model.STATE_FILTERS],
         kind_: ['local', ...model.HOST_KINDS],
         color_: [...model.HOST_COLORS],
         col_: ['status', 'name', 'image', 'ports', 'actions'],
         host_: ['ok', 'error', 'unknown'],
-        protected_: ['owner', 'self', 'endpoint', 'network', 'unverified'],
+        protected_: ['owner', 'self', 'endpoint', 'network', 'unverified', 'helper'],
         tab_: [...full.DockerManagerViews.TABS],
         nest_method_: [...model.NEST_METHODS],
-        v_: ['name', 'name_taken', 'name_reserved', 'address', 'address_scheme', 'port', 'ssh_user', 'ssh_secret', 'tls_cert', 'path']
+        v_: ['name', 'name_taken', 'name_reserved', 'address', 'address_scheme', 'port', 'ssh_user', 'ssh_secret', 'tls_cert', 'path'],
+        stack_status_: [...sm.STACK_STATUSES],
+        stab_: [...sm.STACK_TABS],
+        age_: ['days', 'hours', 'minutes', 'seconds'],
+        svc_state_: [...sm.SERVICE_STATES],
+        svc_health_: ['healthy', 'unhealthy', 'starting', 'none'],
+        op_kind_: [...sm.OP_KINDS]
     };
+    // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
+    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing']) used.add(prefix + name);
     for (const [family, names] of Object.entries(families)) for (const name of names) used.add(prefix + family + name);
     used.add('desktop.app_docker_manager');
     assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
-    for (const key of used) assert.ok(typeof en[key] === 'string' && en[key].trim() !== '', 'en.json is missing ' + key);
+    eq([...used].filter(key => !(typeof en[key] === 'string' && en[key].trim() !== '')).sort(), [], 'en.json is missing keys the code asks for');
     const tokens = value => [...String(value).matchAll(/\{\{(\w+)\}\}/g)].map(match => match[1]).sort().join(',');
     const own = Object.keys(en).filter(key => key.startsWith(prefix));
-    for (const key of own) assert.ok(used.has(key), 'en.json has the unused key ' + key);
+    eq(own.filter(key => !used.has(key)).sort(), [], 'en.json has keys that no code asks for');
     for (const lang of LANGS) {
         const ownKeys = Object.keys(locales[lang]).filter(key => key.startsWith(prefix));
         eq(ownKeys.sort(), [...own].sort(), lang + '.json has a different docker_manager key set');
