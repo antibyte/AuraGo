@@ -184,10 +184,46 @@ func secretTargetFixed(raw any) bool {
 // SensitiveSink, OutputIndependent and SecretTarget) and calls none of its hooks,
 // so a crashing hook cannot affect it.
 func LintUntrustedData(f *Flow, reg *Registry) []Issue {
+	issues, _ := lintUntrusted(f, reg)
+	return issues
+}
+
+// untrustedRoots are the template roots that hold data an attacker can influence, as the
+// lint finds them: the trigger when an enabled trigger has UntrustedOutput, and the key of
+// every tainted node.
+type untrustedRoots struct {
+	trigger bool
+	nodes   map[string]bool
+}
+
+// env returns the roots as Env.Untrusted names them, nil when there are none.
+func (u untrustedRoots) env() map[string]bool {
+	var out map[string]bool
+	add := func(root string) {
+		if out == nil {
+			out = map[string]bool{}
+		}
+		out[root] = true
+	}
+	if u.trigger {
+		add("trigger")
+	}
+	for key, tainted := range u.nodes {
+		if tainted {
+			add(key)
+		}
+	}
+	return out
+}
+
+// lintUntrusted is LintUntrustedData together with the taint it computed along the way,
+// so the engine, which needs both once per run, walks the flow once. A cyclic flow gets
+// neither.
+func lintUntrusted(f *Flow, reg *Registry) ([]Issue, untrustedRoots) {
 	g := buildGraph(f)
 	order, cyclic := g.topoOrder()
 	if len(cyclic) > 0 {
-		return nil
+		return nil, untrustedRoots{}
 	}
 	triggerUntrusted := false
 	for i := range f.Nodes {
@@ -327,7 +363,7 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 			anyTainted = true
 		}
 	}
-	return issues
+	return issues, untrustedRoots{trigger: triggerUntrusted, nodes: tainted}
 }
 
 // secretTargetRefusals returns, by node id, the failure a run gives each node that
@@ -340,8 +376,13 @@ func LintUntrustedData(f *Flow, reg *Registry) []Issue {
 // with several findings gets the first. nil when no node is refused. The taint rules
 // are the lint's alone; this only reads its result.
 func secretTargetRefusals(f *Flow, reg *Registry) map[string]*NodeError {
+	return refusalsOf(LintUntrustedData(f, reg))
+}
+
+// refusalsOf is secretTargetRefusals for lint issues the caller already has.
+func refusalsOf(issues []Issue) map[string]*NodeError {
 	var refusals map[string]*NodeError
-	for _, is := range LintUntrustedData(f, reg) {
+	for _, is := range issues {
 		if is.Code != IssueUntrustedSecretTarget || is.NodeID == "" || refusals[is.NodeID] != nil {
 			continue
 		}

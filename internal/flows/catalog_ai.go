@@ -69,7 +69,10 @@ func RegisterAINodes(reg *Registry, decisionAvailability ...func() Availability)
 // it: UntrustedOutput makes the lint treat the result like web data (the same
 // decision as for the mission_completed trigger). The prompt itself is deliberately
 // not a sensitive sink: summarising untrusted text is the node's main job, and a
-// warning for it would be noise. The instructions are a sink: they become the system
+// warning for it would be noise. Instead the prompt is FenceUntrusted: a value that a
+// tainted node or an untrusted trigger splices in reaches the model inside the
+// <external_data> fence the agent loop uses, and the server scans the whole prompt
+// before the call (flowLLM.Step). The instructions are a sink: they become the system
 // message, after the adapter's guard against instructions found in the data, and carry
 // the author's authority there, so untrusted data belongs in the prompt. The node has
 // no outward effect of its own.
@@ -80,7 +83,7 @@ func aiStepDef() *NodeDef {
 		SummaryKey: "easydrag.node.ai_step.summary", UntrustedOutput: true, DefaultTimeout: 300 * time.Second,
 		PrimaryInput: "prompt",
 		Params: []ParamSpec{
-			{Name: "prompt", Kind: ParamTextarea, LabelKey: "easydrag.param.ai_prompt", Required: true, Templatable: true},
+			{Name: "prompt", Kind: ParamTextarea, LabelKey: "easydrag.param.ai_prompt", Required: true, Templatable: true, FenceUntrusted: true},
 			{Name: "instructions", Kind: ParamTextarea, LabelKey: "easydrag.param.ai_instructions", Templatable: true, SensitiveSink: true},
 			{Name: "output_mode", Kind: ParamSegmented, LabelKey: "easydrag.param.ai_output_mode", Default: "text",
 				Options: []Option{option("text", "ai_output_text"), option("fields", "ai_output_fields")}},

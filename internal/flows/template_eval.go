@@ -89,6 +89,9 @@ func evalExpr(e *Expr, env *Env) (any, error) {
 		}
 		v = out
 	}
+	if env.fencesRoot(e.Root) {
+		v = fenceUntrusted(v)
+	}
 	return v, nil
 }
 
@@ -174,9 +177,28 @@ func resolveValue(v any, env *Env, depth int) (any, error) {
 // rules of ResolveValue, including the aliasing contract; the parameter map
 // itself counts as the first nesting level.
 func ResolveParams(params map[string]any, env *Env) (map[string]any, error) {
+	return resolveParams(params, env, nil)
+}
+
+// resolveParams is ResolveParams for a node whose parameters named in fenced
+// (ParamSpec.FenceUntrusted) get the untrusted values they splice in as fenced text:
+// those parameters resolve against a copy of env with the fence on. Everything else,
+// the order of evaluation and the error a failing key reports included, is as in
+// ResolveParams.
+func resolveParams(params map[string]any, env *Env, fenced map[string]bool) (map[string]any, error) {
+	var fencedEnv *Env
 	out := make(map[string]any, len(params))
 	for _, k := range sortedKeys(params) {
-		resolved, err := resolveValue(params[k], env, 2)
+		use := env
+		if fenced[k] && env != nil && len(env.Untrusted) > 0 {
+			if fencedEnv == nil {
+				copied := *env
+				copied.fence = true
+				fencedEnv = &copied
+			}
+			use = fencedEnv
+		}
+		resolved, err := resolveValue(params[k], use, 2)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", echoKey(k), err)
 		}

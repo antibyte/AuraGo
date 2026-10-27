@@ -51,12 +51,15 @@ type runState struct {
 	queued   map[string]bool
 	outputs  map[string]map[string]any
 	trigger  map[string]any
-	steps    []StepRecord
-	inScope  map[string]bool
-	running  int
-	failure  *NodeError
-	failedID string
-	stop     *StopSignal
+	// untrusted names the template roots with attacker-influenced data (Env.Untrusted),
+	// found once per run by the lint; nil when there are none.
+	untrusted map[string]bool
+	steps     []StepRecord
+	inScope   map[string]bool
+	running   int
+	failure   *NodeError
+	failedID  string
+	stop      *StopSignal
 	// outputBytes is the encoded size of all accepted outputs (see MaxRunOutputBytes).
 	outputBytes int
 	// storedBytes is what the run log keeps of the run so far (MaxStoredRunBytes).
@@ -128,7 +131,9 @@ func (s *runState) checkFlow() (code, msg, nodeID string) {
 		info.hasEffects = declaresEffects(info.def, s.g.nodes[id])
 		s.info[id] = info
 	}
-	for id, ne := range secretTargetRefusals(f, s.e.reg) {
+	issues, roots := lintUntrusted(f, s.e.reg)
+	s.untrusted = roots.env()
+	for id, ne := range refusalsOf(issues) {
 		if info, ok := s.info[id]; ok {
 			info.refusal = ne
 			s.info[id] = info
@@ -591,7 +596,7 @@ func (s *runState) env() *Env {
 		"mode": string(s.req.Mode), "revision": float64(s.req.Revision),
 	}
 	roots["flow"] = map[string]any{"id": s.req.Flow.ID, "name": s.req.Flow.Name}
-	return &Env{Roots: roots, Location: s.e.services.Loc()}
+	return &Env{Roots: roots, Location: s.e.services.Loc(), Untrusted: s.untrusted}
 }
 
 // closeOpenNodes gives every node that has no final status yet, queued or
