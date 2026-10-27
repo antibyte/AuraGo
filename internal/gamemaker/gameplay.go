@@ -66,7 +66,7 @@ func validateGameReport(report PreviewReport) error {
 		}
 		for _, run := range o.TargetRuns {
 			if len(run.Target) == 0 || len(run.Target) > 96 || !slices.Contains(targetModes, run.Mode) ||
-				!slices.Contains([]string{"complete", "no_target", "blocked", "timeout", "unsupported", "inactive"}, run.Reason) ||
+				!slices.Contains([]string{"complete", "no_target", "blocked", "timeout", "unsupported", "inactive", "host_hidden"}, run.Reason) ||
 				run.Samples < 0 || run.Samples > 160 || run.Inputs < 0 || run.Inputs > 1000 || run.Contacts < 0 || run.Contacts > run.Samples || run.Effects < 0 || run.Effects > run.Samples {
 				return fmt.Errorf("invalid targeted observation")
 			}
@@ -322,10 +322,41 @@ func customScenarioCoverage(scenarios []GameScenario) (input, primary, rules boo
 	return input, primary, rules
 }
 
+// scenarioExpectation prints what a check expects. Comparisons against the
+// before value (increased, decreased, changed) have no threshold, so no value is
+// printed; "increased 0" read like a required minimum.
+func scenarioExpectation(scenario GameScenario) string {
+	switch scenario.Compare {
+	case "increased", "decreased", "changed":
+		return fmt.Sprintf("%s %s", scenario.Metric, scenario.Compare)
+	}
+	return fmt.Sprintf("%s %s %g", scenario.Metric, scenario.Compare, scenario.Value)
+}
+
+// targetReasonNote explains a driver reason code in plain language. It is
+// appended after the unchanged raw code so parsers and tests keep their token.
+func targetReasonNote(reason string) string {
+	switch reason {
+	case "no_target":
+		return ": no object with this role was visible in the running game"
+	case "timeout":
+		return ": the target was seen but the test ran out of time before the effect happened"
+	case "blocked":
+		return ": no free path to the target was found"
+	case "unsupported":
+		return ": the running game does not expose this target or its geometry to the test"
+	case "inactive":
+		return ": the game itself was not active during the test (paused or finished)"
+	case "host_hidden":
+		return ": the Studio preview was hidden or in the background, so the test could not observe the game; keep the preview visible"
+	}
+	return ""
+}
+
 func compareGameObservations(scenarios []GameScenario, observations []GameObservation) []CheckResult {
 	out := make([]CheckResult, 0, len(scenarios))
 	for _, scenario := range scenarios {
-		check := CheckResult{ID: scenario.ID, Status: "unavailable", Expected: fmt.Sprintf("%s %s %g", scenario.Metric, scenario.Compare, scenario.Value), Observed: "No complete observation", Steps: scenario.Steps}
+		check := CheckResult{ID: scenario.ID, Status: "unavailable", Expected: scenarioExpectation(scenario), Observed: "No complete observation", Steps: scenario.Steps}
 		var found *GameObservation
 		for i := range observations {
 			if observations[i].ID == scenario.ID {
@@ -434,7 +465,7 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 					contacts, effects := 0, 0
 					// A missing measurement or an undriven run is a harness gap unless
 					// the driver names a reason the running game itself caused.
-					harness, sourceDefect := !measured, false
+					harness, sourceDefect, hostHidden := !measured, false, false
 					for i, run := range found.TargetRuns {
 						if run.Target != targetSteps[i].Target || run.Mode != targetSteps[i].Mode {
 							check.Status = "unavailable"
@@ -443,6 +474,12 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 							break
 						}
 						contacts += run.Contacts
+						if run.Reason == "host_hidden" {
+							// The Studio window, not the game, stopped the run: the evidence is
+							// incomplete and no source edit can supply it.
+							check.Status = "unavailable"
+							hostHidden = true
+						}
 						gameReason := run.Reason == "unsupported" || run.Reason == "inactive" || run.Reason == "no_target" || run.Reason == "blocked"
 						if gameReason {
 							check.Status = "unavailable"
@@ -457,17 +494,17 @@ func compareGameObservations(scenarios []GameScenario, observations []GameObserv
 						if run.Inputs > 0 && run.Samples >= 2 {
 							effects += run.Effects
 						}
-						check.Observed += fmt.Sprintf("; target=%s %s (inputs=%d, contacts=%d, effects=%d)", run.Target, run.Reason, run.Inputs, run.Contacts, run.Effects)
+						check.Observed += fmt.Sprintf("; target=%s %s (inputs=%d, contacts=%d, effects=%d)", run.Target, run.Reason, run.Inputs, run.Contacts, run.Effects) + targetReasonNote(run.Reason)
 					}
 					if effects >= 0 && (check.Status == "passed" && effects == 0 || check.Status == "failed" && (contacts == 0 || scenario.Metric != "hits" && scenario.Metric != "actions" && scenario.Metric != "player_distance")) {
 						check.Status = "unavailable"
 					}
-					check.Repairable = check.Status == "unavailable" && effects >= 0 && (sourceDefect || !harness)
+					check.Repairable = check.Status == "unavailable" && effects >= 0 && !hostHidden && (sourceDefect || !harness)
 				}
 			} else if check.Status == "failed" && slices.Contains([]string{"hits", "hit_events", "pickup_events", "health", "lives", "goal_remaining", "outcome", "win_events", "lose_events"}, scenario.Metric) && scenario.ID != "required_end" {
 				check.Status = "unavailable"
 				check.Repairable = true
-				check.Observed += "; blind input did not establish the required gameplay opportunity; use an observed target and the metric for the actual action"
+				check.Observed += "; blind input did not establish the required gameplay opportunity; use an observed target and the metric for the actual action; blind input means the test only pressed generic controls and never saw a target to act on"
 			}
 		}
 		if scenario.inputNote != "" {

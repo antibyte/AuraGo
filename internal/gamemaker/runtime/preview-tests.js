@@ -5,6 +5,11 @@
   const keys = { LEFT:37,RIGHT:39,UP:38,DOWN:40,W:87,A:65,S:83,D:68,SPACE:32,R:82,P:80,ESC:27,ENTER:13,F:70,Q:81,E:69 };
   const names = { LEFT:'ArrowLeft',RIGHT:'ArrowRight',UP:'ArrowUp',DOWN:'ArrowDown',SPACE:' ',ESC:'Escape',ENTER:'Enter' };
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  // The Studio parent says whether the preview is visible and in the foreground. This host
+  // flag is not the game's own pause state (view.active also covers that), so a hidden
+  // window is reported as host_hidden, never as a game defect.
+  let hostActive = true;
+  window.addEventListener('message', e => { if (e.source === parent && e.data?.type === 'aurago:game:active' && typeof e.data.active === 'boolean') hostActive = e.data.active; });
   function keyEvent(name, down) {
     if (!keys[name]) throw Error('Unsupported test key');
     const event = new KeyboardEvent(down ? 'keydown' : 'keyup', {key:names[name] || name.toLowerCase(),code: name==='SPACE'?'Space':names[name] || 'Key'+name,keyCode:keys[name],which:keys[name],bubbles:true});
@@ -193,10 +198,10 @@
     const begin=performance.now();
     try{
       while(performance.now()-begin<command.ms&&!expired()&&result.samples<160){
-        if(document.hidden){result.reason='inactive';break;}
+        if(document.hidden||!hostActive){result.reason='host_hidden';break;}
         const view=targetView();result.samples++;
         if(!view?.player||view.truncated){result.reason='unsupported';break;}
-        if(view.active===false){result.reason='inactive';break;}
+        if(view.active===false){result.reason='inactive';break;} // the game paused itself or ended
         if(command.mode==='move'){
           if(command.target!=='player'){result.reason='unsupported';break;}
           const p=view.player,moved=Math.hypot(snapshot(inspectAssets).player_x-baseline.player_x,snapshot(inspectAssets).player_y-baseline.player_y);

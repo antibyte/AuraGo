@@ -167,6 +167,7 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.validating_preview_hint", "game_maker.leave_validating_title", "game_maker.leave_validating",
 		"game_maker.sources", "game_maker.sources_builtin",
 		"game_maker.failure_hint_internal", "game_maker.failure_hint_cancelled",
+		"game_maker.failure_hint_preview", "game_maker.failure_hint_planning", "game_maker.failure_hint_planning_protocol",
 		// Model limits, retry with another model and the repair extension.
 		"game_maker.model_limits_line", "game_maker.model_limits_warning",
 		"game_maker.small_model_title", "game_maker.small_model_confirm", "game_maker.small_model_blocked",

@@ -265,7 +265,11 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		return actionPolicyRefusal("policy_unavailable", "Execution policy is unavailable.", ToolResultDenied)
 	}
 	if !dispatchToolAllowed(dc, tc.Action) || tc.TransportAction != "" && !dispatchToolAllowed(dc, tc.TransportAction) {
-		return actionPolicyRefusal("tool_scope_denied", "The tool is outside this run's scope.", ToolResultDenied)
+		denied := tc.Action
+		if dispatchToolAllowed(dc, denied) {
+			denied = tc.TransportAction
+		}
+		return scopeDeniedRefusal(dc, denied)
 	}
 	if reason := roleToolRestriction(tc, dc); reason != "" {
 		return &ToolDispatchResult{Output: reason, Status: ToolResultDenied, IsError: true}

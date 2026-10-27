@@ -797,7 +797,11 @@ returns relative paths and counts only. `GET /projects/{id}` also returns
 `latest_job` and, when one was stored, `plan_summary`. SSE event IDs are
 monotonic and support reconnecting with `Last-Event-ID`. `plan_summary` is
 one of those events. A finished `job_status` includes `error_code` and the
-check counts. When `prompt_usage` calls exist, the nested job also carries
+check counts. Codes are `planning`, `planning_protocol`, `validation`,
+`preview`, `timeout`, `cancelled`, `model` and `internal`. `planning_protocol`
+means the model never submitted a design through the Game Maker tools, so no
+correction budget was spent; `planning` means submitted designs were rejected.
+When `prompt_usage` calls exist, the nested job also carries
 `usage` with `calls`, plus `tokens` or `cost_usd` only when every call reported
 that measurement. Start-job accepts `adopt_workspace: true` alone to test the
 current workspace and publish it without a model.

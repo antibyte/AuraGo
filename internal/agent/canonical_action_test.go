@@ -432,7 +432,7 @@ func TestUnknownToolNamesRouteOrGuide(t *testing.T) {
 		hooked = nil
 		result, fields := dispatch(&scoped, ToolCall{Action: "invoke_tool", Params: map[string]interface{}{"tool_name": "execute_shell", "arguments": map[string]interface{}{"command": "id"}}})
 		if result.Status != ToolResultDenied || fields.Code != "tool_scope_denied" || fields.HiddenReason != "" || strings.Contains(result.Output, "hidden_reason") ||
-			strings.Contains(result.Output, "enabled") || result.Output != toolScopeDeniedOutput("execute_shell") || len(hooked) != 0 {
+			strings.Contains(result.Output, "enabled") || result.Output != toolScopeDeniedFor(&scoped, "execute_shell") || len(hooked) != 0 {
 			t.Fatalf("out-of-scope invoke target must be scope-denied without a reason: %+v %+v hooks=%d", result, fields, len(hooked))
 		}
 

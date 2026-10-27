@@ -138,8 +138,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 - MiniMax M3/M3.1 routes, including `minimax/` model IDs, retain native tool
   schemas when the provider supports tools. Do not apply the legacy MiniMax
-  text-tool fallback; strict schemas remain disabled. Verify
-  `TestMiniMaxM3PreparedToolsReachAgentRequest` with the Game Maker planning tools.
+  text-tool fallback; strict schemas remain disabled. In
+  `resolveModelCapabilities` only the MiniMax exemptions match the model name with
+  spaces and underscores normalised to `-` ("MiniMax M3" and `minimax_m3` are M3);
+  the GLM and abab rules match the name as configured. Verify
+  `TestMiniMaxM3PreparedToolsReachAgentRequest` with the Game Maker planning tools
+  and `TestResolveModelCapabilitiesNormalisesModelNameSeparators`.
 
 - Email and AgentMail content reaches the model only after enabled checks allow
   it completely. A quarantined result contains a safe local notice instead of
@@ -533,6 +537,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   tracking see `discover_tools`. It skips builtin names and exact run-catalog
   entries and sets no `TransportAction`: a run without `discover_tools` still
   denies the call. Verify `TestUnknownToolNamesRouteOrGuide`.
+- `canonicalizeGameMakerOperationCall` runs first in `canonicalizeLeafCall` and only when `dc.Ctx` carries a bound Game Maker job: an operation name used as a tool name (`set_design`, `get_plan`, `search_assets`, `search`, `validate`) or an operation sent to the wrong Game Maker tool (`game_maker_file` `list_files`) is rewritten to the owning tool, and flat `set_design` fields are wrapped into `design`. The operation-to-tool map comes from the schema enums (disjoint, tested). It never widens scope (an owner outside `AllowedTools` keeps the ordinary denial) and skips builtin or run-catalog names; rewritten JSON results carry `normalized_call`. Verify `TestGameMakerOperation*`.
+- A `tool_scope_denied` refusal of a restricted run (`toolScopeDeniedFor` in `dispatchInner`/`prepareToolCall`, `scopeDeniedRefusal` in `checkDispatchActionPolicy`) keeps `status`/`code`/`message` and adds `allowed_tools` (sorted `dc.AllowedTools`, at most 12 names, then `"…"`) and a `hint`; a Game Maker operation name whose owning tool is out of scope names that owner. An unrestricted run keeps the byte-identical refusal. Verify `TestScopeRefusal*`.
+- In a Studio run (restricted, non-empty tool scope holding only `game_maker_*` tools; the main agent and mixed scopes stay generic) the text-only and XML-format recovery nudges come from `game_maker_recovery_nudge.go`: the run's tools, the exact call shape for the mode and what a text-only reply does in that phase; no `<done/>`, `discover_tools` or `file_editor`. `FormatAnnouncementFeedback` stays unchanged for every other run. Verify `TestGameMaker*Nudge*`.
 - A name outside the effective catalog answers `unknown_tool` with discovery
   advice and the closest enabled tools (`unknownToolGuidance`), while a known
   native capability that is off answers `tool_disabled` with `hidden_reason` and
