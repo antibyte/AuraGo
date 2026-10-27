@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "Les marques ont été ignorées, car le site ou la cible a changé.",
   "homepage_studio.annotate_done": "Terminé",
   "homepage_studio.annotate_error_browser_unavailable": "La capture de page n'est pas disponible, car AuraGo ne peut pas démarrer de navigateur headless.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "La capture de page ne peut pas démarrer Chromium, car les paramètres AppArmor de ce système bloquent son bac à sable. Exécutez update.sh une fois dans un terminal (il demande votre mot de passe sudo), puis réessayez.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "La capture de page ne peut pas démarrer Chromium, car ce système bloque son bac à sable. Sous Ubuntu 23.10 ou version ultérieure, exécutez update.sh une fois dans un terminal (il demande votre mot de passe sudo) ; sur les autres systèmes, consultez « Headless browser sandbox » dans le guide d'installation.",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo ne capture que l'aperçu local et les déploiements publics.",
   "homepage_studio.annotate_error_capture_busy": "Une autre capture est en cours. Réessayez dans un instant.",
   "homepage_studio.annotate_error_capture_failed": "La page n'a pas pu être capturée.",

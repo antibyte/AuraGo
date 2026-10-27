@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "साइट या लक्ष्य बदलने के कारण चिह्न छोड़ दिए गए।",
   "homepage_studio.annotate_done": "हो गया",
   "homepage_studio.annotate_error_browser_unavailable": "पेज कैप्चर उपलब्ध नहीं है, क्योंकि AuraGo हेडलेस ब्राउज़र शुरू नहीं कर सकता।",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "पेज कैप्चर Chromium शुरू नहीं कर सकता, क्योंकि इस सिस्टम की AppArmor सेटिंग्स उसका सैंडबॉक्स रोक रही हैं। टर्मिनल में update.sh एक बार चलाएँ (यह आपका sudo पासवर्ड माँगेगा), फिर दोबारा कोशिश करें।",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "पेज कैप्चर Chromium शुरू नहीं कर सकता, क्योंकि यह सिस्टम उसका सैंडबॉक्स रोक रहा है। Ubuntu 23.10 या उसके बाद के संस्करण पर टर्मिनल में update.sh एक बार चलाएँ (यह आपका sudo पासवर्ड माँगेगा); अन्य सिस्टम पर इंस्टॉलेशन गाइड में “Headless browser sandbox” देखें।",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo केवल स्थानीय पूर्वावलोकन और सार्वजनिक डिप्लॉयमेंट कैप्चर करता है।",
   "homepage_studio.annotate_error_capture_busy": "दूसरा कैप्चर चल रहा है। कुछ देर बाद फिर कोशिश करें।",
   "homepage_studio.annotate_error_capture_failed": "पेज कैप्चर नहीं किया जा सका।",

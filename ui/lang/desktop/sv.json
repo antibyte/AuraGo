@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "Markeringarna förkastades eftersom webbplatsen eller målet ändrades.",
   "homepage_studio.annotate_done": "Klar",
   "homepage_studio.annotate_error_browser_unavailable": "Sidfångst är inte tillgänglig eftersom AuraGo inte kan starta en headless-webbläsare.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "Sidfångst kan inte starta Chromium eftersom AppArmor-inställningarna på det här systemet blockerar dess sandbox. Kör update.sh en gång i en terminal (den frågar efter ditt sudo-lösenord) och försök igen.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "Sidfångst kan inte starta Chromium eftersom det här systemet blockerar dess sandbox. På Ubuntu 23.10 eller senare kör du update.sh en gång i en terminal (den frågar efter ditt sudo-lösenord); på andra system, se ”Headless browser sandbox” i installationsguiden.",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo fångar bara den lokala förhandsvisningen och offentliga driftsättningar.",
   "homepage_studio.annotate_error_capture_busy": "En annan fångst pågår. Försök igen om en stund.",
   "homepage_studio.annotate_error_capture_failed": "Sidan kunde inte fångas.",

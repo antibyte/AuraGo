@@ -1444,40 +1444,46 @@ systemd_serial_groups_line() {
 # Ubuntu 23.10+ lets only programs with an AppArmor profile create user
 # namespaces. The Chromium that AuraGo's headless browser tools download into
 # ~/.cache/rod then aborts with "No usable sandbox". Keep its sandbox on and
-# grant it userns through a profile instead of switching the sandbox off.
+# give that one path a profile instead of switching the sandbox off.
 chromium_sandbox_profile_text() {
-    local home="$1"
+    local user="$1" home="$2"
     cat <<EOF
-# Managed by AuraGo install.sh/update.sh. Lets the Chromium that AuraGo's
-# headless browser tools download create its sandbox (user namespaces).
+# Managed by AuraGo install.sh/update.sh. The Chromium that AuraGo's headless
+# browser tools download runs unconfined under this profile, so it can create
+# its sandbox (user namespaces).
 abi <abi/4.0>,
 include <tunables/global>
 
-profile aurago-chromium ${home}/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
+profile aurago-chromium-${user} ${home}/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
   userns,
 
   # Site-specific additions and overrides. See local/README for details.
-  include if exists <local/aurago-chromium>
+  include if exists <local/aurago-chromium-${user}>
 }
 EOF
 }
 
 # Installs that profile for <service-user> when the host restricts user
-# namespaces. Never fails the caller: a problem only produces a warning.
+# namespaces. One profile per user, so several AuraGo instances on one host
+# do not overwrite each other. Never fails the caller: a problem only
+# produces a warning.
 apply_chromium_sandbox_profile() {
     local user="${1:-}"
     local sysctl_file="${CHROMIUM_USERNS_SYSCTL:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}"
     local dir="${CHROMIUM_APPARMOR_DIR:-/etc/apparmor.d}"
-    local profile="$dir/aurago-chromium"
-    local hint="See documentation/installation.md (Headless browser sandbox on Ubuntu 23.10+)."
+    local hint="See documentation/installation.md (Headless browser sandbox)."
     local PATH="$PATH:/usr/sbin:/sbin"
-    local home="" tmp=""
+    local home="" profile="" tmp=""
 
     [ -r "$sysctl_file" ] && [ "$(cat "$sysctl_file" 2>/dev/null || true)" = "1" ] || return 0
     case "$user" in ''|root) return 0 ;; esac
 
-    # The home goes into an AppArmor path: a space or glob character would
-    # break or widen it.
+    # The user and the home go into a file name and an AppArmor path: a space
+    # or glob character would break or widen them.
+    if ! printf '%s\n' "$user" | LC_ALL=C grep -Eq '^[A-Za-z0-9._-]+$'; then
+        warn "AppArmor blocks Chromium's sandbox, but the user name '$user' cannot be used in a profile name. $hint"
+        return 0
+    fi
     home="$(getent passwd "$user" 2>/dev/null | cut -d: -f6 || true)"
     if ! printf '%s\n' "$home" | LC_ALL=C grep -Eq '^/[A-Za-z0-9._/-]+$'; then
         warn "AppArmor blocks Chromium's sandbox, but the home directory of '$user' is unusable for a profile. $hint"
@@ -1487,9 +1493,10 @@ apply_chromium_sandbox_profile() {
         warn "AppArmor blocks Chromium's sandbox, but apparmor_parser or $dir/abi/4.0 is missing. $hint"
         return 0
     fi
+    profile="$dir/aurago-chromium-$user"
 
     # Already in place: no sudo prompt on every update.
-    if [ -f "$profile" ] && [ "$(cat "$profile" 2>/dev/null || true)" = "$(chromium_sandbox_profile_text "$home")" ]; then
+    if [ -f "$profile" ] && [ "$(cat "$profile" 2>/dev/null || true)" = "$(chromium_sandbox_profile_text "$user" "$home")" ]; then
         return 0
     fi
 
@@ -1498,13 +1505,18 @@ apply_chromium_sandbox_profile() {
         warn "AppArmor blocks Chromium's sandbox, but no temporary file could be created. $hint"
         return 0
     fi
-    chromium_sandbox_profile_text "$home" > "$tmp" || true
+    chromium_sandbox_profile_text "$user" "$home" > "$tmp" || true
     if ! apparmor_parser -Q -K "$tmp" >/dev/null 2>&1; then
         warn "AppArmor blocks Chromium's sandbox, but the generated profile did not validate. $hint"
-    elif $SUDO install -m 0644 "$tmp" "$profile" && $SUDO apparmor_parser -r "$profile"; then
-        ok "AppArmor profile $profile lets AuraGo's headless Chromium use its sandbox."
-    else
+    elif ! $SUDO install -m 0644 "$tmp" "$profile"; then
         warn "AppArmor blocks Chromium's sandbox, and installing $profile failed (it needs sudo). $hint"
+    elif ! $SUDO apparmor_parser -r "$profile"; then
+        # -Q -K never reached the kernel: a file it refuses would fail
+        # apparmor.service on every boot and be skipped as "unchanged" here.
+        $SUDO rm -f "$profile" || true
+        warn "AppArmor blocks Chromium's sandbox, and loading $profile failed, so it was removed again. $hint"
+    else
+        ok "AppArmor profile $profile lets AuraGo's headless Chromium use its sandbox."
     fi
     rm -f "$tmp"
     return 0

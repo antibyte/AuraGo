@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "Markeringen verworpen, omdat de site of het doel is gewijzigd.",
   "homepage_studio.annotate_done": "Klaar",
   "homepage_studio.annotate_error_browser_unavailable": "Paginavastlegging is niet beschikbaar, omdat AuraGo geen headless browser kan starten.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "Paginavastlegging kan Chromium niet starten, omdat de AppArmor-instellingen van dit systeem de sandbox ervan blokkeren. Voer update.sh één keer uit in een terminal (het vraagt om je sudo-wachtwoord) en probeer het daarna opnieuw.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "Paginavastlegging kan Chromium niet starten, omdat dit systeem de sandbox ervan blokkeert. Voer op Ubuntu 23.10 of nieuwer update.sh één keer uit in een terminal (het vraagt om je sudo-wachtwoord); zie op andere systemen “Headless browser sandbox” in de installatiehandleiding.",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo legt alleen het lokale voorbeeld en openbare implementaties vast.",
   "homepage_studio.annotate_error_capture_busy": "Er loopt al een andere vastlegging. Probeer het zo meteen opnieuw.",
   "homepage_studio.annotate_error_capture_failed": "De pagina kon niet worden vastgelegd.",

@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "Markierungen verworfen, weil sich Website oder Ziel geändert hat.",
   "homepage_studio.annotate_done": "Fertig",
   "homepage_studio.annotate_error_browser_unavailable": "Die Seitenerfassung ist nicht verfügbar, weil AuraGo keinen Headless-Browser starten kann.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "Die Seitenerfassung kann Chromium nicht starten, weil die AppArmor-Einstellungen dieses Systems seine Sandbox blockieren. Führe update.sh einmal in einem Terminal aus (es fragt nach deinem sudo-Passwort) und versuche es dann erneut.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "Die Seitenerfassung kann Chromium nicht starten, weil dieses System seine Sandbox blockiert. Führe unter Ubuntu 23.10 oder neuer update.sh einmal in einem Terminal aus (es fragt nach deinem sudo-Passwort); auf anderen Systemen findest du Hinweise unter „Headless browser sandbox“ in der Installationsanleitung.",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo erfasst nur die lokale Vorschau und öffentliche Deployments.",
   "homepage_studio.annotate_error_capture_busy": "Eine andere Erfassung läuft. Versuche es gleich noch einmal.",
   "homepage_studio.annotate_error_capture_failed": "Die Seite konnte nicht erfasst werden.",

@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "Znaczniki odrzucono, ponieważ zmieniła się witryna lub cel.",
   "homepage_studio.annotate_done": "Gotowe",
   "homepage_studio.annotate_error_browser_unavailable": "Przechwytywanie strony jest niedostępne, ponieważ AuraGo nie może uruchomić przeglądarki headless.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "Przechwytywanie strony nie może uruchomić Chromium, ponieważ ustawienia AppArmor tego systemu blokują jego piaskownicę. Uruchom raz update.sh w terminalu (zapyta o hasło sudo), a potem spróbuj ponownie.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "Przechwytywanie strony nie może uruchomić Chromium, ponieważ ten system blokuje jego piaskownicę. W Ubuntu 23.10 lub nowszym uruchom raz update.sh w terminalu (zapyta o hasło sudo); w innych systemach zajrzyj do sekcji „Headless browser sandbox” w przewodniku instalacji.",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo przechwytuje tylko lokalny podgląd i publiczne deploymenty.",
   "homepage_studio.annotate_error_capture_busy": "Trwa inne przechwytywanie. Spróbuj ponownie za chwilę.",
   "homepage_studio.annotate_error_capture_failed": "Nie udało się przechwycić strony.",

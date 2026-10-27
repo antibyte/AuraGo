@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "Οι επισημάνσεις απορρίφθηκαν επειδή άλλαξε ο ιστότοπος ή ο στόχος.",
   "homepage_studio.annotate_done": "Τέλος",
   "homepage_studio.annotate_error_browser_unavailable": "Η λήψη σελίδας δεν είναι διαθέσιμη, επειδή το AuraGo δεν μπορεί να ξεκινήσει πρόγραμμα περιήγησης headless.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "Η λήψη σελίδας δεν μπορεί να ξεκινήσει το Chromium, επειδή οι ρυθμίσεις AppArmor αυτού του συστήματος μπλοκάρουν το sandbox του. Εκτελέστε το update.sh μία φορά σε ένα τερματικό (ζητά τον κωδικό πρόσβασης sudo) και δοκιμάστε ξανά.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "Η λήψη σελίδας δεν μπορεί να ξεκινήσει το Chromium, επειδή αυτό το σύστημα μπλοκάρει το sandbox του. Στο Ubuntu 23.10 ή νεότερο, εκτελέστε το update.sh μία φορά σε ένα τερματικό (ζητά τον κωδικό πρόσβασης sudo)· σε άλλα συστήματα, δείτε την ενότητα «Headless browser sandbox» στον οδηγό εγκατάστασης.",
   "homepage_studio.annotate_error_capture_blocked": "Το AuraGo καταγράφει μόνο την τοπική προεπισκόπηση και τις δημόσιες αναπτύξεις.",
   "homepage_studio.annotate_error_capture_busy": "Εκτελείται άλλη λήψη. Δοκιμάστε ξανά σε λίγο.",
   "homepage_studio.annotate_error_capture_failed": "Δεν ήταν δυνατή η λήψη της σελίδας.",

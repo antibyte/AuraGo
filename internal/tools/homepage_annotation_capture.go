@@ -236,9 +236,10 @@ func homepageAnnotationError(ctx context.Context, kind, err error) error {
 	return fmt.Errorf("%w: %v", kind, err)
 }
 
-// homepageAnnotationLaunchError names a blocked Chromium sandbox: Ubuntu 23.10+
-// refuses user namespaces to programs without an AppArmor profile and Chromium
-// then dies with "No usable sandbox". install.sh and update.sh add that profile.
+// homepageAnnotationLaunchError names a blocked Chromium sandbox. Chromium dies
+// with "No usable sandbox" wherever unprivileged user namespaces are refused:
+// Ubuntu 23.10+ to programs without an AppArmor profile (install.sh and
+// update.sh add one), Debian-style sysctls, seccomp-restricted containers.
 func homepageAnnotationLaunchError(ctx context.Context, err error) error {
 	mapped := homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
 	if errors.Is(mapped, ErrHomepageAnnotationTimeout) || !strings.Contains(err.Error(), "No usable sandbox") {

@@ -70,13 +70,14 @@ trap 'rm -rf -- "$root"' EXIT
 SUDO=''
 CHROMIUM_USERNS_SYSCTL="$root/sysctl"
 CHROMIUM_APPARMOR_DIR="$root/etc"
-profile="$root/etc/aurago-chromium"
+profile="$root/etc/aurago-chromium-aurago"
 calls="$root/calls"; warns="$root/warns"; oks="$root/oks"
-parser_fail=0; install_fail=0
+parser_fail=0; install_fail=0; reload_fail=0
 
 getent() {
     case "$2" in
         aurago) echo 'aurago:x:998:998::/home/aurago:/usr/sbin/nologin' ;;
+        other.user) echo 'other.user:x:999:999::/srv/other/home:/usr/sbin/nologin' ;;
         spaced) echo 'spaced:x:1001:1001::/home/with space:/bin/bash' ;;
         glob) echo 'glob:x:1002:1002::/home/*:/bin/bash' ;;
         root) echo 'root:x:0:0::/root:/bin/bash' ;;
@@ -85,7 +86,10 @@ getent() {
 }
 apparmor_parser() {
     printf 'apparmor_parser %s\n' "$*" >> "$calls"
-    if [ "$1" = -Q ]; then [ "$parser_fail" != 1 ]; fi
+    case "$1" in
+        -Q) [ "$parser_fail" != 1 ] ;;
+        -r) [ "$reload_fail" != 1 ] ;;
+    esac
 }
 install() {
     printf 'install %s\n' "$*" >> "$calls"
@@ -101,22 +105,24 @@ reset() {
     : > "$root/etc/abi/4.0"
     printf '1\n' > "$root/sysctl"
     : > "$calls"; : > "$warns"; : > "$oks"
-    parser_fail=0; install_fail=0
+    parser_fail=0; install_fail=0; reload_fail=0
 }
-silent() { [ ! -e "$profile" ] && [ ! -s "$calls" ] && [ ! -s "$warns" ] && [ ! -s "$oks" ]; }
+nofiles() { ! compgen -G "$root/etc/aurago-chromium*" > /dev/null; }
+silent() { nofiles && [ ! -s "$calls" ] && [ ! -s "$warns" ] && [ ! -s "$oks" ]; }
 one_warning() { [ "$(grep -c '' "$warns")" = 1 ] && grep -q 'documentation/installation.md' "$warns"; }
 
 expected=$(cat <<'PROFILE'
-# Managed by AuraGo install.sh/update.sh. Lets the Chromium that AuraGo's
-# headless browser tools download create its sandbox (user namespaces).
+# Managed by AuraGo install.sh/update.sh. The Chromium that AuraGo's headless
+# browser tools download runs unconfined under this profile, so it can create
+# its sandbox (user namespaces).
 abi <abi/4.0>,
 include <tunables/global>
 
-profile aurago-chromium /home/aurago/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
+profile aurago-chromium-aurago /home/aurago/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
   userns,
 
   # Site-specific additions and overrides. See local/README for details.
-  include if exists <local/aurago-chromium>
+  include if exists <local/aurago-chromium-aurago>
 }
 PROFILE
 )
@@ -138,7 +144,7 @@ silent || fail "an empty user must be a silent no-op"
 reset
 apply_chromium_sandbox_profile aurago
 [ "$(cat "$profile")" = "$expected" ] || fail "profile text differs"
-grep -Fxq 'profile aurago-chromium /home/aurago/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {' "$profile" || fail "profile line missing"
+grep -Fxq 'profile aurago-chromium-aurago /home/aurago/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {' "$profile" || fail "profile line missing"
 [ "$(grep -c '' "$calls")" = 3 ] || fail "want validate, install, reload"
 sed -n 1p "$calls" | grep -q '^apparmor_parser -Q -K ' || fail "first call must validate"
 sed -n 2p "$calls" | grep -q '^install -m 0644 ' || fail "second call must install"
@@ -157,22 +163,44 @@ apply_chromium_sandbox_profile aurago
 
 reset; parser_fail=1
 apply_chromium_sandbox_profile aurago
-[ ! -e "$profile" ] && one_warning || fail "an invalid profile must warn once and not be installed"
+nofiles && one_warning || fail "an invalid profile must warn once and not be installed"
 if grep -q '^install ' "$calls"; then fail "an invalid profile must not reach install"; fi
 
 reset; install_fail=1
 apply_chromium_sandbox_profile aurago
-one_warning && [ ! -s "$oks" ] || fail "a failed install must warn once"
+one_warning && [ ! -s "$oks" ] && nofiles || fail "a failed install must warn once"
+
+# A kernel-side refusal must not leave an unloadable file behind.
+reset; reload_fail=1
+apply_chromium_sandbox_profile aurago
+[ "$(sed -n 3p "$calls")" = "apparmor_parser -r $profile" ] || fail "the failing reload was not attempted"
+nofiles && one_warning && [ ! -s "$oks" ] || fail "a failed reload must remove the profile and warn once"
+grep -q 'removed again' "$warns" || fail "the warning must say the file was removed"
+
+# Two service users on one host keep separate profiles.
+reset
+apply_chromium_sandbox_profile aurago
+apply_chromium_sandbox_profile other.user
+[ "$(cat "$profile")" = "$expected" ] || fail "a second user must not touch the first profile"
+grep -Fxq 'profile aurago-chromium-other.user /srv/other/home/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {' "$root/etc/aurago-chromium-other.user" || fail "second user profile line missing"
+grep -Fxq '  include if exists <local/aurago-chromium-other.user>' "$root/etc/aurago-chromium-other.user" || fail "second user local include missing"
+[ ! -s "$warns" ] || fail "two valid users must not warn"
 
 for user in spaced glob nosuchuser; do
     reset
     apply_chromium_sandbox_profile "$user"
-    [ ! -e "$profile" ] && [ ! -s "$calls" ] && one_warning || fail "home of $user must warn once and write nothing"
+    nofiles && [ ! -s "$calls" ] && one_warning || fail "home of $user must warn once and write nothing"
+done
+
+for user in 'bad/user' 'a b' '../x' 'star*'; do
+    reset
+    apply_chromium_sandbox_profile "$user"
+    nofiles && [ ! -s "$calls" ] && one_warning || fail "user name '$user' must warn once and write nothing"
 done
 
 reset; rm -rf "$root/etc/abi"
 apply_chromium_sandbox_profile aurago
-[ ! -e "$profile" ] && [ ! -s "$calls" ] && one_warning || fail "a missing abi/4.0 must warn once and write nothing"
+nofiles && [ ! -s "$calls" ] && one_warning || fail "a missing abi/4.0 must warn once and write nothing"
 
 echo CHROMIUM_SANDBOX_HARNESS_OK
 `
@@ -189,8 +217,12 @@ func TestChromiumSandboxProfileBehaviour(t *testing.T) {
 		t.Run(path, func(t *testing.T) {
 			block := chromiumSandboxBlock(t, readRepoFile(t, path), path)
 			// The functions run under the installers' own strict mode.
-			script := "set -euo pipefail\n" + block + chromiumSandboxHarness
-			output, err := exec.Command(bash, "-c", script).CombinedOutput()
+			// A file, not -c: Git Bash on Windows cuts a command-line argument at 8 KB.
+			script := filepath.Join(t.TempDir(), "harness.sh")
+			if err := os.WriteFile(script, []byte("set -euo pipefail\n"+block+chromiumSandboxHarness), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			output, err := exec.Command(bash, filepath.ToSlash(script)).CombinedOutput()
 			if err != nil || !strings.Contains(string(output), "CHROMIUM_SANDBOX_HARNESS_OK") {
 				t.Fatalf("chromium sandbox helpers failed: %v\n%s", err, output)
 			}

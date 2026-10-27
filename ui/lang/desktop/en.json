@@ -4583,7 +4583,7 @@
   "homepage_studio.annotate_discarded_context": "Marks discarded because the site or target changed.",
   "homepage_studio.annotate_done": "Done",
   "homepage_studio.annotate_error_browser_unavailable": "Page capture isn't available because AuraGo can't start a headless browser.",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "Page capture can't start Chromium because this system's AppArmor settings block its sandbox. Run update.sh once in a terminal (it asks for your sudo password), then try again.",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "Page capture can't start Chromium because this system blocks its sandbox. On Ubuntu 23.10 or later, run update.sh once in a terminal (it asks for your sudo password); on other systems, see “Headless browser sandbox” in the installation guide.",
   "homepage_studio.annotate_error_capture_blocked": "AuraGo only captures the local preview and public deployments.",
   "homepage_studio.annotate_error_capture_busy": "Another capture is running. Try again in a moment.",
   "homepage_studio.annotate_error_capture_failed": "The page couldn't be captured.",

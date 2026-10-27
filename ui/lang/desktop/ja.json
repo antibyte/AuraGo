@@ -4582,7 +4582,7 @@
   "homepage_studio.annotate_discarded_context": "サイトまたはターゲットが変更されたため、マークを破棄しました。",
   "homepage_studio.annotate_done": "完了",
   "homepage_studio.annotate_error_browser_unavailable": "AuraGoがヘッドレスブラウザを起動できないため、ページをキャプチャできません。",
-  "homepage_studio.annotate_error_browser_sandbox_blocked": "このシステムのAppArmor設定がChromiumのサンドボックスをブロックしているため、ページをキャプチャできません。ターミナルでupdate.shを一度実行し（sudoパスワードの入力を求められます）、もう一度お試しください。",
+  "homepage_studio.annotate_error_browser_sandbox_blocked": "このシステムがChromiumのサンドボックスをブロックしているため、ページをキャプチャできません。Ubuntu 23.10以降では、ターミナルでupdate.shを一度実行してください（sudoパスワードの入力を求められます）。それ以外のシステムでは、インストールガイドの「Headless browser sandbox」をご覧ください。",
   "homepage_studio.annotate_error_capture_blocked": "AuraGoがキャプチャできるのは、ローカルのプレビューと公開デプロイメントのみです。",
   "homepage_studio.annotate_error_capture_busy": "別のキャプチャを実行中です。しばらくしてからもう一度お試しください。",
   "homepage_studio.annotate_error_capture_failed": "ページをキャプチャできませんでした。",
