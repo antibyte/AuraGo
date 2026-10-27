@@ -148,9 +148,13 @@
         const newStack = NewStack.create({
             t, esc, model, stackModel: sm, views, editor: editorFactory, createLinter: Editor.createLinter, store, dialogs, toast, announce, uid, el: newstackEl,
             canMutate: () => store.canMutate(), requestClose: () => closeNewStack(), onClosed: () => schedulePaint(), onPrepare: hostId => ops.prepare(hostId),
-            onCreated: (hostId, name, body) => {
+            // Opening the new stack replaces the open one: a stack with unsaved drafts is left only when the admin agrees.
+            onCreated: async (hostId, name, body) => {
                 if (body && body.operation) ops.setOpen(true);
                 setSection('stacks');
+                schedulePaint();
+                if (state.stack && state.stack.key !== hostId + '/' + name && !await leaveStack()) return;
+                if (disposed) return;
                 store.openStack(hostId, name, 'overview');
                 schedulePaint();
             }
@@ -676,26 +680,31 @@
                 case 'op-output': ops.toggleOutput(el.dataset.opId); schedulePaint(); break;
                 case 'op-goto-line': {
                     const entry = state.ops.find(item => item.id === el.dataset.opId);
-                    if (entry) showErrorLine(entry);
+                    if (entry) void showErrorLine(entry);
                     break;
                 }
                 default: break;
             }
         }
 
-        // A failed operation names a line of the compose file: reopen the stack on the Compose tab with that line marked.
-        function showErrorLine(entry) {
+        // A failed operation names a line of the compose file: reopen the stack on the Compose tab with that line marked. That
+        // replaces the open stack, so another stack with unsaved drafts is left only when the admin agrees.
+        async function showErrorLine(entry) {
             const op = entry.op;
             if (!op.stack || !(op.error_line > 0)) return;
+            const key = op.host_id + '/' + op.stack;
+            if (state.stack && state.stack.key !== key && !await leaveStack()) return;
+            if (disposed) return;
             setSection('stacks');
-            ui.mark = { key: op.host_id + '/' + op.stack, line: op.error_line, message: op.error };
+            ui.mark = { key, line: op.error_line, message: op.error };
             ui.focusStack = false;
             store.openStack(op.host_id, op.stack, 'compose');
             schedulePaint();
         }
         const unsubscribeDone = store.onOperationDone(entry => {
             ops.done(entry);
-            if (entry.op.state === 'failed' && entry.op.error_line > 0 && entry.op.kind !== 'delete') showErrorLine(entry);
+            // Never jump on its own while a stack holds unsaved drafts: the error toast and the "Show line" button of the drawer stay.
+            if (entry.op.state === 'failed' && entry.op.error_line > 0 && entry.op.kind !== 'delete' && !workbench.anyDirty()) void showErrorLine(entry);
             schedulePaint();
         });
 

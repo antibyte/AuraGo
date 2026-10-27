@@ -525,6 +525,51 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	page.MustWait(`()=>!!document.querySelector('li.dm-op[data-state="failed"] .dm-op-error')`)
 	page.MustWait(`()=>!document.querySelector('[data-panel="compose"]').hidden && !!document.querySelector('[data-ed-surface="compose"] .cm-lint-marker-error')`)
 
+	// Unsaved edits of the open stack survive what happens to other stacks: a failed deploy of blog does not jump to its line, creating
+	// a stack does not open it, and "Show line" asks before it replaces the open stack.
+	const shopKept = `()=>!document.querySelector('dialog[open]') && document.querySelector('[data-stack-pane] h2')?.textContent==='shop' && !!document.querySelector('[data-ed-surface="compose"] .cm-content')?.textContent.includes('# keep me') && document.querySelector('[data-action="save-file"][data-file="compose"]')?.disabled===false`
+	page.MustEval(`()=>document.querySelector('.dm-srow-main[data-stack-key="local/shop"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-stack-pane] h2')?.textContent==='shop' && document.querySelectorAll('[data-stack-pane] .dm-svc').length===2`)
+	page.MustEval(`()=>document.querySelector('[data-action="stack-tab"][data-tab="compose"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-ed-surface="compose"] .cm-editor') && document.querySelector('[data-ed-surface="compose"] .cm-content').textContent.includes('nginx')`)
+	page.MustElement(`[data-ed-surface="compose"] .cm-content`).MustClick()
+	page.MustInsertText("# keep me\n")
+	page.MustWait(`()=>!document.querySelector('[data-action="save-file"][data-file="compose"]').disabled`)
+	page.MustEval(`()=>document.querySelector('.dm-srow-main[data-stack-key="local/shop"]').focus()`)
+	dockerManagerPress(page, 'k')
+	page.MustWait(`()=>!!document.querySelector('[data-palette] input')`)
+	page.MustElement(`[data-palette] input`).MustInput("blog bereitstellen")
+	page.MustWait(`()=>{const items=[...document.querySelectorAll('[data-palette] .dm-palette-item')];return items.length===1 && items[0].textContent.includes('blog')}`)
+	if err := page.Keyboard.Type(input.Enter); err != nil {
+		t.Fatal(err)
+	}
+	page.MustWait(`()=>document.querySelectorAll('li.dm-op[data-state="failed"]').length===2`)
+	time.Sleep(500 * time.Millisecond)
+	if !page.MustEval(shopKept).Bool() {
+		t.Fatal("a failed deploy of blog took the screen from shop and its unsaved edit")
+	}
+	page.MustEval(`()=>document.querySelector('[data-new-stack]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-newstack]').hidden && !!document.querySelector('[data-ns-compose] .cm-editor')`)
+	page.MustEval(`()=>{const i=document.querySelector('[data-newstack] input[name="name"]');i.value='kept';i.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustElement(`[data-ns-compose] .cm-content`).MustClick()
+	page.MustInsertText("services:\n  web:\n    image: nginx:1.27\n")
+	page.MustWait(`()=>[...document.querySelectorAll('[data-ns-preview] .dm-pv-list strong')].some(e=>e.textContent==='web')`)
+	page.MustEval(`()=>document.querySelector('[data-ns="save"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="yes"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="no"]').click()`)
+	page.MustWait(shopKept)
+	if got := page.MustEval(`()=>document.querySelector('[data-newstack]').hidden`).Bool(); !got || !strings.Contains(fixture.body("POST /hosts/local/stacks"), `"name":"kept"`) {
+		t.Fatalf("creating a stack with another stack's edits open must create it and leave the open stack alone: %s", fixture.body("POST /hosts/local/stacks"))
+	}
+	page.MustEval(`()=>document.querySelector('[data-action="op-goto-line"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="yes"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="no"]').click()`)
+	page.MustWait(shopKept)
+	page.MustEval(`()=>document.querySelector('[data-action="op-goto-line"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="yes"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="yes"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]') && document.querySelector('[data-stack-pane] h2')?.textContent==='blog' && document.querySelector('[data-panel="compose"]')?.hidden===false && !!document.querySelector('[data-ed-surface="compose"] .cm-lint-marker-error')`)
+
 	// Delete a stack: the dialog names the folder and the volumes, and needs the stack name typed.
 	page.MustWait(`()=>!!document.querySelector('[data-stack-pane] [data-action="stack-more"]')`)
 	page.MustEval(`()=>document.querySelector('[data-stack-pane] [data-action="stack-more"]').click()`)
