@@ -1,0 +1,171 @@
+{
+  "kit": "aurago-chat-ocean-life",
+  "version": 1,
+  "license": "MIT",
+  "generator": "assets/chat-ocean-life/build_ocean_life.py",
+  "generator_sha256": "f5772e0c7df5a8cdce38eb58833c6ce953fe7e426adb43eacfe1e60c2c434c95",
+  "uv0": "along, part",
+  "uv1": "height, side",
+  "assets": [
+    {
+      "id": "fish_tang",
+      "file": "fish-tang.glb",
+      "bytes": 42136,
+      "sha256": "a6b1ebe2887882e8b66a63101aa6145d8eb5df37f4750fcc4af8d2a14a758da3",
+      "triangles": 1398,
+      "length": 0.3,
+      "bounds": {
+        "min": [
+          -0.0349,
+          -0.0854,
+          -0.174
+        ],
+        "max": [
+          0.0349,
+          0.101,
+          0.13
+        ]
+      }
+    },
+    {
+      "id": "fish_clown",
+      "file": "fish-clown.glb",
+      "bytes": 40192,
+      "sha256": "17ed7e30dee227996dca916d1b4bd35c0aa0154d04d425a7d04b1873e96d878d",
+      "triangles": 1320,
+      "length": 0.12,
+      "bounds": {
+        "min": [
+          -0.022,
+          -0.0348,
+          -0.07
+        ],
+        "max": [
+          0.022,
+          0.0429,
+          0.05
+        ]
+      }
+    },
+    {
+      "id": "fish_butterfly",
+      "file": "fish-butterfly.glb",
+      "bytes": 42604,
+      "sha256": "4f2bd371fce622c52637e3ce244ae8133fa9a82088d8ed7593a273831d18214d",
+      "triangles": 1414,
+      "length": 0.2,
+      "bounds": {
+        "min": [
+          -0.0197,
+          -0.0802,
+          -0.114
+        ],
+        "max": [
+          0.0197,
+          0.0893,
+          0.085
+        ]
+      }
+    },
+    {
+      "id": "fish_sardine",
+      "file": "fish-sardine.glb",
+      "bytes": 36144,
+      "sha256": "b57c0a2d4720e98441945f6a833a354989476022b9f79d059593df09bad464aa",
+      "triangles": 1158,
+      "length": 0.15,
+      "bounds": {
+        "min": [
+          -0.0175,
+          -0.026,
+          -0.085
+        ],
+        "max": [
+          0.0175,
+          0.0263,
+          0.065
+        ]
+      }
+    },
+    {
+      "id": "shark_reef",
+      "file": "shark-reef.glb",
+      "bytes": 64208,
+      "sha256": "1681aaecfcb1783a2bd8148be57fedd876a9e1d536a9c3d8f780575298d7ed12",
+      "triangles": 2198,
+      "length": 1.8,
+      "bounds": {
+        "min": [
+          -0.3578,
+          -0.2011,
+          -0.992
+        ],
+        "max": [
+          0.3578,
+          0.3702,
+          0.81
+        ]
+      }
+    },
+    {
+      "id": "shark_hammer",
+      "file": "shark-hammer.glb",
+      "bytes": 88968,
+      "sha256": "ad8a094d7d8a9f2387093e6f1b52ba07a15073c5bb28b25ade05a915a5d64e61",
+      "triangles": 3150,
+      "length": 2.6,
+      "bounds": {
+        "min": [
+          -0.4432,
+          -0.2487,
+          -1.501
+        ],
+        "max": [
+          0.4432,
+          0.603,
+          1.1
+        ]
+      }
+    },
+    {
+      "id": "turtle",
+      "file": "turtle.glb",
+      "bytes": 105432,
+      "sha256": "0c3b10e1f560b0753ce176c13d9b1e7deb0c30f4f4e6925e8c3565aa51a78d3d",
+      "triangles": 3814,
+      "length": 1.0,
+      "bounds": {
+        "min": [
+          -0.7406,
+          -0.0558,
+          -0.4628
+        ],
+        "max": [
+          0.7406,
+          0.1901,
+          0.5372
+        ]
+      }
+    },
+    {
+      "id": "whale",
+      "file": "whale.glb",
+      "bytes": 147680,
+      "sha256": "84c4491505f92e2dc2f95b298b8935cc740ee88cb2d8be64ddc05896ba1b14d8",
+      "triangles": 5388,
+      "length": 12.0,
+      "bounds": {
+        "min": [
+          -3.768,
+          -2.7532,
+          -6.6
+        ],
+        "max": [
+          3.768,
+          1.3264,
+          5.4
+        ]
+      }
+    }
+  ]
+}
