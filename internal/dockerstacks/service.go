@@ -155,7 +155,9 @@ func (s *Service) markReady(hostID, image string) {
 }
 
 // Open creates the journal table in db (the shared docker_manager.db handle,
-// see dockerhost.Store.DB) and returns a service.
+// see dockerhost.Store.DB) and returns a service. Operations that were queued,
+// running or waiting for health when the previous process ended are registered
+// at once, so they keep their locks, and are resumed in the background (see resume).
 func Open(db *sql.DB, hosts Hosts, opts Options) (*Service, error) {
 	if db == nil {
 		return nil, errors.New("dockerstacks: a database is required")
@@ -180,6 +182,25 @@ func Open(db *sql.DB, hosts Hosts, opts Options) (*Service, error) {
 		fileLocks: map[lockKey]*sync.Mutex{},
 		swept:     map[string]bool{},
 		parked:    map[string]*opRun{},
+	}
+	// Operations the previous process left unfinished keep their locks from the
+	// start; a background pass per operation reattaches or records what became of it.
+	active, err := j.active(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	adopted := make([]*opRun, 0, len(active))
+	for _, op := range active {
+		run := newOpRun(s, op)
+		s.runs[op.ID] = run
+		s.locks[lockKey{op.HostID, op.Stack}] = op.ID
+		adopted = append(adopted, run)
+	}
+	// Started only now: a resumed operation may finish and delete itself from s.runs.
+	for _, run := range adopted {
+		s.wg.Add(1)
+		go s.resume(run)
 	}
 	return s, nil
 }
@@ -214,7 +235,12 @@ func (s *Service) target(ctx context.Context, hostID string) (dockerhost.Host, e
 	if err != nil {
 		return dockerhost.Host{}, engine{}, err
 	}
-	return h, newEngine(c), nil
+	e := newEngine(c)
+	// The host answered a client request: try the operations that waited for it,
+	// and clean up what an earlier process left on it, once.
+	s.kickReattach(hostID)
+	s.sweepOnce(hostID, e)
+	return h, e, nil
 }
 
 // newOperationID returns "op_" plus 16 lowercase hex characters.

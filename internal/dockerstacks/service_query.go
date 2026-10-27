@@ -9,10 +9,15 @@ import (
 const queryTimeout = 10 * time.Second
 
 // activeRunByID returns the live run of an operation, if it has not finished.
+// Asking about an operation that waits for its host is a reason to try the host again.
 func (s *Service) activeRunByID(id string) *opRun {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.runs[id]
+	run := s.runs[id]
+	s.mu.Unlock()
+	if run != nil {
+		s.kickReattach(run.op.HostID)
+	}
+	return run
 }
 
 // Operation returns one operation. A running one is answered from memory (with
