@@ -832,4 +832,146 @@ func TestHomepageStudioWorkbenchBrowser(t *testing.T) {
 			t.Fatalf("a long mark tray must scroll within about 30%% of the column: %s", result.JSON("", ""))
 		}
 	})
+
+	t.Run("preview chrome leaves the previewed page uncovered", func(t *testing.T) {
+		// The URL pill, the toolbar and the site pill sit next to the preview
+		// panel, never on top of it: the top of the page (logo, navigation) must
+		// stay visible and, in mark mode, markable with the mouse.
+		result := page.MustEval(`async () => {
+			const root = document.getElementById('hp-root-test-window');
+			const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+			const zone = root.querySelector('.vd-hp-preview-zone');
+			const panel = root.querySelector('.vd-hp-preview-panel');
+			const head = root.querySelector('.vd-hp-viewport-head');
+			const footer = root.querySelector('.vd-hp-footer');
+			const pill = root.querySelector('.vd-hp-site-pill');
+			const annotate = root.querySelector('[data-hp-annotate]');
+			if (!zone || !panel || !head || !footer || !pill || !annotate) return { error: 'the preview zone parts are missing' };
+			if (!window.__hpSnapshot) {
+				const surface = document.createElement('canvas');
+				surface.width = 1280;
+				surface.height = 1600;
+				const g = surface.getContext('2d');
+				g.fillStyle = '#ffffff';
+				g.fillRect(0, 0, 1280, 1600);
+				window.__hpSnapshot = {
+					url: 'http://127.0.0.1:8080/', path: '/', viewport: { width: 1280, height: 800 },
+					page: { width: 1280, height: 1600, truncated: false },
+					image: surface.toDataURL('image/jpeg', 0.8),
+					elements: [{ i: 0, selector: 'body', tag: 'body', box: [0, 0, 1280, 1600], parent: -1 }]
+				};
+			}
+			// The device check above pins the panel size inline; measure the real
+			// layout.
+			panel.style.width = '';
+			panel.style.height = '';
+			const pillBefore = { hidden: pill.hidden, text: pill.textContent };
+			const box = el => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height }; };
+			const name = el => el ? el.tagName + '.' + String(el.className) : 'none';
+			const hitAt = (x, y) => document.elementFromPoint(x, y);
+			const clickable = el => {
+				const r = el.getBoundingClientRect();
+				return el.contains(hitAt(r.left + r.width / 2, r.top + r.height / 2));
+			};
+			const out = {};
+			for (const device of ['desktop', 'mobile']) {
+				root.querySelector('[data-hp-device="' + device + '"]').click();
+				await wait(450);
+				// The fixture shows raw i18n keys, so the toolbar is wider than the
+				// zone and a focus move can scroll the zone sideways; start unscrolled.
+				zone.scrollLeft = 0;
+				zone.scrollTop = 0;
+				const r = {};
+
+				pill.hidden = true;
+				pill.textContent = '';
+				const zoneStyle = getComputedStyle(zone);
+				r.footerDisplayHidden = getComputedStyle(footer).display;
+				r.footerHeightHidden = footer.getBoundingClientRect().height;
+				r.panelBottomHidden = panel.getBoundingClientRect().bottom;
+				r.zoneContentBottom = zone.getBoundingClientRect().bottom - parseFloat(zoneStyle.paddingBottom) - parseFloat(zoneStyle.borderBottomWidth);
+
+				pill.hidden = false;
+				pill.textContent = 'Second';
+				await wait(100);
+				r.footer = box(footer);
+				r.pill = box(pill);
+
+				const p = box(panel);
+				r.panel = p;
+				// The scaled device frame follows the panel when the footer takes room.
+				r.frameHeight = root.querySelector('.vd-hp-preview-frame').getBoundingClientRect().height;
+				r.head = box(head);
+				r.zone = box(zone);
+				const topHit = hitAt(p.left + p.width / 2, p.top + 10);
+				r.topHit = name(topHit);
+				r.topHitInPanel = !!topHit && panel.contains(topHit);
+				// The first device button: the fixture's raw i18n keys push the later
+				// toolbar buttons beyond the zone.
+				r.deviceButtonClickable = clickable(root.querySelector('[data-hp-device="desktop"]'));
+				r.urlPillClickable = clickable(root.querySelector('.vd-hp-viewport-title'));
+				r.sitePillClickable = clickable(pill);
+
+				annotate.click();
+				for (let i = 0; i < 40 && root.querySelector('.vd-hp-annotate-layer').hidden; i++) await wait(50);
+				const layer = root.querySelector('.vd-hp-annotate-layer');
+				r.layerOpen = !layer.hidden;
+				if (r.layerOpen) {
+					const l = box(layer);
+					const markHit = hitAt(l.left + l.width / 2, l.top + 10);
+					r.layer = l;
+					r.markHit = name(markHit);
+					r.markHitInLayer = !!markHit && layer.contains(markHit);
+					annotate.click();
+				}
+				out[device] = r;
+			}
+			pill.hidden = pillBefore.hidden;
+			pill.textContent = pillBefore.text;
+			root.querySelector('[data-hp-device="desktop"]').click();
+			await wait(450);
+			return out;
+		}`)
+		if result.Has("error") {
+			t.Fatal(result.Get("error").Str())
+		}
+
+		const slack = 0.75
+		for _, device := range []string{"desktop", "mobile"} {
+			got := result.Get(device)
+			dump := got.JSON("", "")
+			panelTop := got.Get("panel.top").Num()
+			panelBottom := got.Get("panel.bottom").Num()
+			if got.Get("panel.height").Num() < 150 {
+				t.Fatalf("%s: the preview panel needs a sensible height: %s", device, dump)
+			}
+			if headBottom := got.Get("head.bottom").Num(); headBottom > panelTop+slack {
+				t.Fatalf("%s: the viewport head (bottom %.1f) covers the top of the preview panel (top %.1f): %s", device, headBottom, panelTop, dump)
+			}
+			if drift := got.Get("frameHeight").Num() - got.Get("panel.height").Num(); drift > 1.5 || drift < -1.5 {
+				t.Fatalf("%s: the device frame (height %.1f) must follow the panel height %.1f: %s", device, got.Get("frameHeight").Num(), got.Get("panel.height").Num(), dump)
+			}
+			if !got.Get("topHitInPanel").Bool() {
+				t.Fatalf("%s: a point 10 px below the panel top lands on %s, not in the panel: %s", device, got.Get("topHit").Str(), dump)
+			}
+			if !got.Get("deviceButtonClickable").Bool() || !got.Get("urlPillClickable").Bool() || !got.Get("sitePillClickable").Bool() {
+				t.Fatalf("%s: the chrome pills must stay clickable: %s", device, dump)
+			}
+			if footerTop := got.Get("footer.top").Num(); footerTop < panelBottom-slack {
+				t.Fatalf("%s: the site pill footer (top %.1f) covers the bottom of the preview panel (bottom %.1f): %s", device, footerTop, panelBottom, dump)
+			}
+			if display := got.Get("footerDisplayHidden").Str(); display != "none" && got.Get("footerHeightHidden").Num() > 0 {
+				t.Fatalf("%s: an empty footer must take no space, display is %q: %s", device, display, dump)
+			}
+			if gap := got.Get("zoneContentBottom").Num() - got.Get("panelBottomHidden").Num(); gap > slack || gap < -slack {
+				t.Fatalf("%s: with the site pill hidden the panel must reach the bottom of the zone, gap %.1f: %s", device, gap, dump)
+			}
+			if !got.Get("layerOpen").Bool() {
+				t.Fatalf("%s: mark mode did not open: %s", device, dump)
+			}
+			if !got.Get("markHitInLayer").Bool() {
+				t.Fatalf("%s: a point 10 px below the top of the mark layer lands on %s, so the page header cannot be marked: %s", device, got.Get("markHit").Str(), dump)
+			}
+		}
+	})
 }
