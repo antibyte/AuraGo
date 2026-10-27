@@ -7,7 +7,7 @@ import (
 )
 
 // The loader, the shell routing, the window sizing and the generated main bundle know the Docker Manager app, and its
-// five modules load in the order they depend on each other. Behaviour is covered by scripts/test-docker-manager-ui.mjs
+// eleven modules load in the order they depend on each other. Behaviour is covered by scripts/test-docker-manager-ui.mjs
 // and TestDesktopDockerManagerBrowser.
 func TestDockerManagerWiring(t *testing.T) {
 	t.Parallel()
@@ -21,7 +21,10 @@ func TestDockerManagerWiring(t *testing.T) {
 	for _, match := range regexp.MustCompile(`'/js/desktop/apps/([a-z-]+\.js)'`).FindAllStringSubmatch(entry[1], -1) {
 		scripts = append(scripts, match[1])
 	}
-	want := []string{"docker-manager-model.js", "docker-manager-store.js", "docker-manager-views.js", "docker-manager-dialogs.js", "docker-manager.js"}
+	want := []string{
+		"docker-manager-model.js", "docker-manager-stack-model.js", "docker-manager-store.js", "docker-manager-views.js", "docker-manager-stacks.js", "docker-manager-editor.js",
+		"docker-manager-ops.js", "docker-manager-palette.js", "docker-manager-dialogs.js", "docker-manager-newstack.js", "docker-manager.js",
+	}
 	if strings.Join(scripts, ",") != strings.Join(want, ",") {
 		t.Fatalf("docker-manager scripts = %v, want %v", scripts, want)
 	}
