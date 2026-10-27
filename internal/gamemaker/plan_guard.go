@@ -63,16 +63,24 @@ func (s *Service) chargePlanAttemptLocked(jobID string, issues int) {
 // planningFailure names the honest cause of a failed planning phase. A job whose
 // model never reached set_design (calls==0) did not spend a correction budget:
 // its tool calls never arrived or never validated, which is a protocol problem
-// rather than rejected design content.
+// rather than rejected design content. The planning loop can also end after its
+// attempts with corrections left (for example prose-only replies after one
+// rejection), so the wording follows the real budget state.
 func (s *Service) planningFailure(jobID string, diagnostics []Diagnostic) *JobError {
 	s.mu.RLock()
 	budget := s.planBudgets[jobID]
-	submitted := budget != nil && budget.calls > 0
-	s.mu.RUnlock()
-	if !submitted {
-		return &JobError{Code: "planning_protocol", Err: fmt.Errorf("game planning failed: the model never submitted a design through the Game Maker tools (no valid set_design call was received)")}
+	submitted, charged := budget != nil && budget.calls > 0, 0
+	if budget != nil {
+		charged = budget.charged
 	}
-	return &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after the charged correction budget was spent: %s", diagnosticsText(diagnostics))}
+	s.mu.RUnlock()
+	switch {
+	case !submitted:
+		return &JobError{Code: "planning_protocol", Err: fmt.Errorf("game planning failed: the model never submitted a design through the Game Maker tools (no valid set_design call was received)")}
+	case charged >= planChargedLimit:
+		return &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after the charged correction budget was spent: %s", diagnosticsText(diagnostics))}
+	}
+	return &JobError{Code: "planning", Err: fmt.Errorf("game planning ended after its attempts without an accepted design (%d of %d corrections used): %s", charged, planChargedLimit, diagnosticsText(diagnostics))}
 }
 
 func (s *Service) planBudgetExhausted(jobID string) bool {
