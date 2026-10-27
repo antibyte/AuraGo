@@ -726,40 +726,11 @@ func dockerInspectContainer(cfg DockerConfig, containerID string, fullBindSource
 		return errJSON("Failed to parse inspect data: %v", err)
 	}
 
-	// Extract the most useful fields
-	result := map[string]interface{}{
-		"status": "ok",
-		"id":     full["Id"],
-		"name":   full["Name"],
-		"state":  full["State"],
-		"mounts": projectDockerInspectMounts(full["Mounts"], fullBindSources),
-		"config": nil,
-	}
-	if cfg, ok := full["Config"].(map[string]interface{}); ok {
-		result["config"] = map[string]interface{}{
-			"image":  cfg["Image"],
-			"env":    redactDockerInspectEnv(cfg["Env"]),
-			"cmd":    redactDockerInspectArgs(cfg["Cmd"]),
-			"labels": redactDockerInspectLabels(cfg["Labels"]),
-		}
-	}
-	if netSettings, ok := full["NetworkSettings"].(map[string]interface{}); ok {
-		result["network"] = map[string]interface{}{
-			"ip_address": netSettings["IPAddress"],
-			"ports":      netSettings["Ports"],
-		}
-	}
-	if hostConfig, ok := full["HostConfig"].(map[string]interface{}); ok {
-		if mode, ok := hostConfig["NetworkMode"].(string); ok {
-			result["network_mode"] = mode
-		}
-		if readonly, ok := hostConfig["ReadonlyRootfs"].(bool); ok && readonly {
-			result["readonly_rootfs"] = true
-		}
-		if tmpfs := dockerInspectTmpfs(hostConfig["Tmpfs"]); len(tmpfs) > 0 {
-			result["tmpfs"] = tmpfs
-		}
-	}
+	// Extract the most useful fields. dockerInspectProjection is shared with
+	// ProjectDockerInspect, which trims the inspect documents of the Docker
+	// Manager's hosts the same way.
+	result := dockerInspectProjection(full, fullBindSources)
+	result["status"] = "ok"
 	out, _ := json.Marshal(result)
 	return string(out)
 }
