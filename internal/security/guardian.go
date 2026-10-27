@@ -705,7 +705,7 @@ func IsolateExternalData(content string) string {
 // set so the HTML fence cannot be spelled with lookalike punctuation. It
 // leaves ordinary prose, including the words "external data", readable.
 // ASCII inputs that contain none of the encoded-angle or special-token
-// sequences stay byte-identical.
+// sequences (including the [TOOL_CALL] markers) stay byte-identical.
 func hardenExternalBoundary(content string) string {
 	content = strings.Map(func(r rune) rune {
 		if unicode.Is(unicode.Cf, r) {
@@ -724,6 +724,14 @@ func hardenExternalBoundary(content string) string {
 		return `\ ` + match[1:]
 	})
 	content = strings.ReplaceAll(content, "<|", "< |")
+	// The agent's bracket parser starts a tool call at a literal [TOOL_CALL]
+	// when the model echoes one back, so the marker is broken the way [INST] is.
+	content = toolCallDelimiter.ReplaceAllStringFunc(content, func(match string) string {
+		if match[1] == '/' {
+			return "[ /TOOL_CALL ]"
+		}
+		return "[ TOOL_CALL ]"
+	})
 	return instDelimiter.ReplaceAllString(content, "[ INST ]")
 }
 
@@ -754,19 +762,30 @@ func IsolatedPayload(body string) (string, bool) {
 var sourceClosingTag = regexp.MustCompile(`<[\s\p{Cf}]*/`)
 
 // encodedAngleEscape matches JSON/JS spellings of "<" that html.EscapeString
-// would leave intact. instDelimiter matches Llama-style role tokens.
+// would leave intact. instDelimiter matches Llama-style role tokens and
+// toolCallDelimiter the bracket tool-call markers, including the ")" closer the
+// parser also accepts. specialTokenShape matches the control tokens of common
+// chat templates: <|name|> (ChatML, Llama 3, <|endoftext|>) and Gemma's turn
+// markers. A bare "<|" (F# and Elm pipelines) is not a token.
 var (
 	encodedAngleEscape = regexp.MustCompile(`(?i)\\(?:u003c|u\{0*3c\}|x3c)`)
 	instDelimiter      = regexp.MustCompile(`(?i)\[/?INST\]`)
+	toolCallDelimiter  = regexp.MustCompile(`(?i)\[/?TOOL_CALL[\])]`)
+	specialTokenShape  = regexp.MustCompile(`<\|\w{1,40}\|>|<(?:start|end)_of_turn>`)
 )
 
 // sourceBoundaryRisk decodes JSON/JS escapes and up to three rounds of HTML
-// entities, then rejects any closing-tag shape or the boundary name spelled
-// with separators, invisible characters or letters in any case.
+// entities, then rejects any closing-tag shape, a chat-template control token
+// and the boundary name spelled with separators, invisible characters or
+// letters in any case.
 func sourceBoundaryRisk(content string) bool {
 	view := strings.ToLower(content)
 	for _, lt := range []string{`\u003c`, `\u{3c}`, `\u{003c}`, `\x3c`} {
 		view = strings.ReplaceAll(view, lt, "<")
+	}
+	// A control token needs both ends, so ">" is decoded the same way.
+	for _, gt := range []string{"\x5cu003e", "\x5cu{3e}", "\x5cu{003e}", "\x5cx3e"} {
+		view = strings.ReplaceAll(view, gt, ">")
 	}
 	for range 3 {
 		next := strings.ToLower(html.UnescapeString(view))
@@ -775,7 +794,7 @@ func sourceBoundaryRisk(content string) bool {
 		}
 		view = next
 	}
-	if sourceClosingTag.MatchString(view) {
+	if sourceClosingTag.MatchString(view) || specialTokenShape.MatchString(view) {
 		return true
 	}
 	var letters strings.Builder
