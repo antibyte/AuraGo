@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "SSH 密码",
   "docker_manager.f_ssh_key": "或 SSH 私钥（PEM）",
   "docker_manager.f_secret_stored": "凭据已保存。如需保留，请将这些字段留空。",
+  "docker_manager.f_secret_again": "请重新输入 SSH 密码或密钥：地址、端口或用户已更改。",
   "docker_manager.f_tls_ca": "CA 证书（PEM）",
   "docker_manager.f_tls_cert": "客户端证书（PEM）",
   "docker_manager.f_tls_key": "客户端密钥（PEM）",

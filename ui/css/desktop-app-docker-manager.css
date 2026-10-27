@@ -212,6 +212,7 @@
 .dm-swatch-opt input:focus-visible + .is-pick { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: 4px; }
 .dm-stored { display: flex; align-items: center; gap: var(--ds-space-2); margin-top: var(--ds-space-3); padding: 8px 10px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-panel-bg); }
 .dm-stored .dm-btn { min-height: 30px; margin-left: auto; }
+.dm-secret-again:not(:empty) { margin-top: var(--ds-space-3); color: var(--dm-warn-text); font-weight: 600; }
 .dm-working { width: 14px; height: 14px; vertical-align: -2px; }
 .dm-advanced { margin-top: var(--ds-space-3); }
 .dm-advanced summary { width: fit-content; color: var(--dm-link); cursor: pointer; }

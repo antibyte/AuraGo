@@ -142,6 +142,8 @@ assert.equal(model.protectedReason(container('a')), null);
 
 // ---- host form ---------------------------------------------------------------------------------------------------------
 const form = overrides => Object.assign(model.emptyHostForm([]), { name: 'NAS', address: '192.0.2.20', sshUser: 'root', sshSecret: 'secret' }, overrides);
+// an SSH host as the edit form loads it: stored secret, nothing typed, the endpoint it was saved with
+const storedSsh = overrides => form({ id: 'h_1', originalKind: 'ssh', originalAddress: '192.0.2.20', originalPort: '', originalSshUser: 'root', secretSet: true, sshSecret: '', ...overrides });
 assert.equal(model.validateHostForm(form({})), null);
 assert.equal(model.validateHostForm(form({ name: '  ' })).code, 'name');
 assert.equal(model.validateHostForm(form({ name: 'x'.repeat(65) })).code, 'name');
@@ -154,9 +156,9 @@ assert.equal(model.validateHostForm(form({ port: 'abc' })).code, 'port');
 assert.equal(model.validateHostForm(form({ port: '2222' })), null);
 assert.equal(model.validateHostForm(form({ sshUser: '' })).code, 'ssh_user');
 assert.equal(model.validateHostForm(form({ sshSecret: '' })).code, 'ssh_secret');
-assert.equal(model.validateHostForm(form({ id: 'h_1', originalKind: 'ssh', secretSet: true, sshSecret: '' })), null, 'editing keeps the stored secret');
+assert.equal(model.validateHostForm(storedSsh({})), null, 'editing keeps the stored secret');
 assert.equal(model.validateHostForm(form({ id: 'h_1', originalKind: 'tls', secretSet: true, sshSecret: '' })).code, 'ssh_secret', 'a stored TLS bundle is no SSH secret');
-assert.equal(model.validateHostForm(form({ id: 'h_1', originalKind: 'ssh', secretSet: true, clearSecret: true, sshSecret: '' })).code, 'ssh_secret', 'removing the secret needs a new one');
+assert.equal(model.validateHostForm(storedSsh({ clearSecret: true })).code, 'ssh_secret', 'removing the secret needs a new one');
 assert.equal(model.validateHostForm(form({ kind: 'tcp', sshUser: '', sshSecret: '' })), null, 'plain TCP has no credentials');
 assert.equal(model.validateHostForm(form({ kind: 'tls', sshUser: '', sshSecret: '' })), null, 'server TLS may use the system roots');
 assert.equal(model.validateHostForm(form({ kind: 'mtls', sshUser: '', sshSecret: '' })).code, 'tls_cert');
@@ -165,14 +167,45 @@ assert.equal(model.validateHostForm(form({ id: 'h_1', originalKind: 'mtls', secr
 assert.equal(model.validateHostForm(form({ name: 'local' })).code, 'name_reserved');
 assert.equal(model.validateHostForm(form({ name: ' LOCAL ' })).code, 'name_reserved');
 assert.equal(model.validateHostForm(form({ name: 'nas' }), [{ id: 'h_x', name: 'NAS' }]).code, 'name_taken', 'names are unique ignoring case');
-assert.equal(model.validateHostForm(form({ id: 'h_x', originalKind: 'ssh', secretSet: true, sshSecret: '' }), [{ id: 'h_x', name: 'NAS' }]), null, 'a host may keep its own name');
+assert.equal(model.validateHostForm(storedSsh({ id: 'h_x' }), [{ id: 'h_x', name: 'NAS' }]), null, 'a host may keep its own name');
 assert.equal(model.validateHostForm(form({ kind: 'mtls', tlsCert: 'C', tlsKey: 'K' })), null);
 assert.equal(model.validateHostForm(form({ stacksDir: 'stacks' })).code, 'path');
 assert.equal(model.validateHostForm(form({ socketPath: '/var/../run/docker.sock' })).code, 'path');
+{
+    const usable = overrides => model.storedSecretUsable(storedSsh(overrides));
+    assert.equal(usable({}), true, 'the same endpoint keeps the stored SSH secret');
+    assert.equal(usable({ address: '  192.0.2.20 ' }), true, 'the address is compared trimmed');
+    assert.equal(usable({ address: '192.0.2.21' }), false, 'another address needs the secret again');
+    assert.equal(usable({ originalAddress: 'NAS.lan', address: ' nas.LAN ' }), true, 'the address is compared ignoring case');
+    assert.equal(usable({ originalAddress: '2001:db8::1', address: '[2001:db8::1]' }), true, 'IPv6 brackets do not count as a change');
+    assert.equal(usable({ port: '22' }), true, 'an empty port and 22 are the same SSH port');
+    assert.equal(usable({ originalPort: '22', port: '' }), true, 'also the other way round');
+    assert.equal(usable({ port: '2222' }), false, 'another port needs the secret again');
+    assert.equal(usable({ originalPort: '2222', port: '2222' }), true);
+    assert.equal(usable({ sshUser: 'admin' }), false, 'another user needs the secret again');
+    assert.equal(usable({ sshUser: ' root ' }), true, 'the user is compared trimmed');
+    assert.equal(usable({ kind: 'tls', originalKind: 'tls' }), true, 'TLS material is not tied to the SSH endpoint');
+    assert.equal(model.storedSecretUsable(form({ id: 'h_1', kind: 'ssh', originalKind: 'tls', originalAddress: '192.0.2.20', originalSshUser: 'root', secretSet: true })), false, 'a stored TLS bundle is no SSH secret');
+    assert.equal(model.storedSecretUsable(form({ id: 'h_1', kind: 'tcp', originalKind: 'ssh', originalAddress: '192.0.2.20', secretSet: true })), false, 'another kind of secret cannot stay');
+    const tlsHost = { id: 'h_t', kind: 'tls', originalKind: 'tls', originalAddress: 'old.lan', originalPort: '2376', secretSet: true, address: 'new.lan', port: '4000', sshUser: '' };
+    assert.equal(model.storedSecretUsable(form(tlsHost)), true, 'a TLS host keeps its stored material when its address or port changes');
+    assert.equal(model.storedSecretUsable(form({ ...tlsHost, kind: 'mtls', originalKind: 'mtls' })), true);
+    assert.equal(model.validateHostForm(storedSsh({ address: '192.0.2.21' })).code, 'ssh_secret', 'saving or testing with a changed address and no secret is refused up front');
+    assert.equal(model.validateHostForm(storedSsh({ sshUser: 'admin' })).code, 'ssh_secret');
+    assert.equal(model.validateHostForm(storedSsh({ port: '2222', sshSecret: 'typed' })), null, 'a typed secret is enough after a change');
+    assert.equal(model.sshSecretNeedsReentry(storedSsh({ port: '2222' })), true);
+    assert.equal(model.sshSecretNeedsReentry(storedSsh({})), false);
+    assert.equal(model.sshSecretNeedsReentry(storedSsh({ port: '2222', clearSecret: true })), false, 'removing the secret is its own explanation');
+    assert.equal(model.sshSecretNeedsReentry(storedSsh({ port: '2222', kind: 'tcp' })), false, 'only an SSH form asks again');
+    const loaded = model.hostToForm({ id: 'h_1', name: 'NAS', kind: 'ssh', address: 'nas.lan', port: 2222, ssh_user: 'root', secret_set: true });
+    eq([loaded.originalAddress, loaded.originalPort, loaded.originalSshUser], ['nas.lan', '2222', 'root']);
+    assert.equal(model.storedSecretUsable(loaded), true, 'a loaded host form starts with its secret usable');
+    assert.equal(model.storedSecretUsable({ ...loaded, address: 'other.lan' }), false);
+}
 eq(plain(model.hostPayload(form({ port: '2222', color: 'coral' }))), {
     name: 'NAS', kind: 'ssh', address: '192.0.2.20', port: 2222, stacks_dir: '/opt/stacks', host_socket_path: '/var/run/docker.sock', color: 'coral', ssh_user: 'root', sort: 0, ssh_secret: 'secret'
 });
-const keep = model.hostPayload(form({ id: 'h_1', originalKind: 'ssh', secretSet: true, sshSecret: '' }));
+const keep = model.hostPayload(storedSsh({}));
 assert.ok(!('ssh_secret' in keep) && !('tls' in keep) && !('clear_secret' in keep), 'an empty secret field keeps the stored secret');
 eq(plain(model.hostPayload(form({ kind: 'tls', tlsCA: 'CA' })).tls), { ca: 'CA' }, 'only the typed PEM fields are sent');
 eq(plain(model.hostPayload(form({ kind: 'mtls', tlsCert: 'C', tlsKey: 'K' })).tls), { cert: 'C', key: 'K' });
@@ -295,6 +328,72 @@ const B = '/api/docker-manager';
     assert.equal(api.calls.find(call => call.method === 'DELETE').url, B + '/hosts/local/containers/abc?force=1&confirm=protected');
     await store.act('local', 'abc', 'restart').catch(() => {});
     assert.equal(api.calls.filter(call => call.method === 'POST').pop().url, B + '/hosts/local/containers/abc/restart', 'actions carry no confirmation, the server never asks for one');
+    store.dispose();
+}
+
+{
+    // docker.readonly comes with every host list: it hides the actions before the first refusal and clears when lifted
+    let readonly = true;
+    const api = fakeApi({ ['GET ' + B + '/hosts']: () => ({ hosts: [hostA], docker_readonly: readonly }) });
+    const store = Store.create({ api });
+    assert.equal(store.canMutate(), true, 'nothing is known before the first list');
+    await store.loadHosts();
+    assert.equal(store.state.dockerReadonly, true);
+    assert.equal(store.canMutate(), false, 'the actions are hidden without a prior refusal');
+    assert.equal(store.canEditHosts(), true, 'docker.readonly does not stop host management');
+    readonly = false;
+    await store.loadHosts();
+    assert.equal(store.state.dockerReadonly, false, 'lifting docker.readonly clears the flag');
+    assert.equal(store.canMutate(), true);
+    const old = Store.create({ api: fakeApi({ ['GET ' + B + '/hosts']: { hosts: [hostA] } }) });
+    old.state.dockerReadonly = true;
+    await old.loadHosts();
+    assert.equal(old.state.dockerReadonly, true, 'an answer without the field leaves what a 403 taught');
+    old.dispose();
+    store.dispose();
+}
+
+{
+    // the 403 path still works, and the next list may clear it again
+    let readonly = false, listed = 0;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: () => { listed += 1; return { hosts: [hostA], docker_readonly: readonly }; },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        ['POST ' + B + '/hosts/local/containers/abc/stop']: () => { throw httpError(403, { code: 'read_only', message: 'read only' }); }
+    });
+    const store = Store.create({ api });
+    await store.refresh();
+    assert.equal(store.canMutate(), true);
+    readonly = true;
+    const stopped = await store.act('local', 'abc', 'stop');
+    eq([stopped.ok, stopped.error.code, store.state.dockerReadonly], [false, 'read_only', true]);
+    readonly = false;
+    await store.loadHosts();
+    assert.equal(store.state.dockerReadonly, false);
+    assert.ok(listed >= 2);
+    store.dispose();
+}
+
+{
+    // the desktop policy event sets the desktop read-only flag from "readonly" only; "enabled" is the Virtual Desktop's own switch
+    const listeners = {};
+    const document = { hidden: false, addEventListener: (name, fn) => { listeners[name] = fn; }, removeEventListener: name => { delete listeners[name]; } };
+    const sandbox = { window: {}, document, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance };
+    vm.runInNewContext(files.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), sandbox);
+    const api = fakeApi({ ['GET ' + B + '/hosts']: { hosts: [] } });
+    const store = sandbox.window.DockerManagerStore.create({ api });
+    store.attach({});
+    const policy = detail => listeners['aurago:desktop-policy']({ detail });
+    policy({ enabled: false });
+    assert.equal(store.state.readonly, false, 'enabled: false does not make the app read-only');
+    policy({ readonly: true });
+    assert.equal(store.state.readonly, true);
+    policy({ enabled: true });
+    assert.equal(store.state.readonly, true, 'enabled: true does not lift read-only');
+    policy({ readonly: false, enabled: false });
+    assert.equal(store.state.readonly, false);
+    policy({});
+    assert.equal(store.state.readonly, false, 'an event without the flag changes nothing');
     store.dispose();
 }
 

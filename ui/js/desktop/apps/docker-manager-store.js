@@ -109,6 +109,9 @@
                     state.hostsLoaded = true;
                     state.hostsFailed = null;
                     state.disabled = false;
+                    // The server reports docker.readonly with every host list (read live, so lifting it shows within a poll);
+                    // a 403 read_only from a mutation still sets it at once (noteError).
+                    if (typeof body.docker_readonly === 'boolean') state.dockerReadonly = body.docker_readonly;
                     const ids = new Set(state.hosts.map(host => host.id));
                     for (const id of Object.keys(state.byHost)) if (!ids.has(id)) delete state.byHost[id];
                     if (state.scope !== 'all' && !ids.has(state.scope)) state.scope = 'all';
@@ -218,8 +221,9 @@
             if (intersection) { inView = false; intersection.observe(root); }
             const onPolicy = event => {
                 const detail = (event && event.detail) || {};
-                const readonly = detail.readonly === true || detail.read_only === true || detail.enabled === false ? true
-                    : detail.readonly === false || detail.read_only === false || detail.enabled === true ? false : null;
+                // Only the readonly flag counts: "enabled" belongs to the Virtual Desktop itself, not to this app's policy.
+                const readonly = detail.readonly === true || detail.read_only === true ? true
+                    : detail.readonly === false || detail.read_only === false ? false : null;
                 if (readonly !== null && readonly !== state.readonly) { state.readonly = readonly; emit(); }
             };
             document.addEventListener('aurago:desktop-policy', onPolicy);

@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "Κωδικός SSH",
   "docker_manager.f_ssh_key": "Ή ιδιωτικό κλειδί SSH (PEM)",
   "docker_manager.f_secret_stored": "Τα διαπιστευτήρια είναι αποθηκευμένα. Αφήστε τα πεδία κενά για να τα διατηρήσετε.",
+  "docker_manager.f_secret_again": "Εισαγάγετε ξανά τον κωδικό SSH ή το κλειδί: άλλαξε η διεύθυνση, η θύρα ή ο χρήστης.",
   "docker_manager.f_tls_ca": "Πιστοποιητικό CA (PEM)",
   "docker_manager.f_tls_cert": "Πιστοποιητικό πελάτη (PEM)",
   "docker_manager.f_tls_key": "Κλειδί πελάτη (PEM)",

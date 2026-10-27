@@ -308,8 +308,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   the DOM at load (`scripts/test-docker-manager-ui.mjs` runs them in a vm). Phase 1 shows Containers only; Stacks, Images,
   Volumes, Networks and Templates come in later phases, and no placeholder is rendered for them.
 - The app appears only while Docker is enabled (`docker` capability, `desktopCapabilities` in `internal/server`). `ctx.readonly`
-  (read-only desktop) hides container actions and host editing; a `read_only` answer from the API (`docker.readonly`) hides the
-  container actions only, host management stays. Docker disabled answers 503 `docker_disabled` on every route and shows one
+  (read-only desktop) hides container actions and host editing. `docker.readonly` hides the container actions only (host management
+  stays): every `GET /hosts` answer carries `docker_readonly` (read per request), `loadHosts` sets and clears
+  `state.dockerReadonly` from it, and a `read_only` 403 still sets it at once. The `aurago:desktop-policy` event counts only its
+  `readonly` flag, never `enabled`. Docker disabled answers 503 `docker_disabled` on every route and shows one
   explanatory state with a link to `/config#docker`.
 - Repaints compare the new HTML with the last one and skip equal markup; controls carry `data-focus-id` and `keepFocus`
   restores the focus on the same control, so a poll never steals it. Do not re-render the table from a timer. The table is a
@@ -322,8 +324,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   statuses and refreshes stale ones in the background, so it is polled together with the container lists.
 - Secrets are write-only. An edited host with stored credentials shows "stored" and a Replace action instead of empty secret
   fields; blank fields keep the stored value, the TLS PEM fields are sent only when typed (the server merges them one by one),
-  and Test connection posts the draft with the host's `id` so the server reuses the stored secrets. Plain TCP carries a visible
-  warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
+  and Test connection posts the draft with the host's `id` so the server reuses the stored secrets. A stored SSH secret follows the
+  endpoint it was saved for: when the address (trimmed, case-insensitive, no IPv6 brackets), the effective port (empty = 22) or the
+  SSH user changes, or the kind becomes SSH, the server refuses to reuse it (`invalid_host`, field `ssh_secret`) and the form
+  (`storedSecretUsable`) asks for it again up front and says why; TLS material is kept. The dialog content is emptied whenever the
+  view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`; `docker-manager.ui.v1` holds prefs only.
+  Plain TCP carries a visible warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
 - Protected containers (lock icon) ask before stop, restart, pause, kill and remove. The server never confirms the first four;
   a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message`, the dialog shows that
   message and the request is repeated with `?confirm=protected` (plus `&force=1` when forcing).

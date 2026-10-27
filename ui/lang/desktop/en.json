@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "SSH password",
   "docker_manager.f_ssh_key": "Or SSH private key (PEM)",
   "docker_manager.f_secret_stored": "Credentials are stored. Leave the fields empty to keep them.",
+  "docker_manager.f_secret_again": "Enter the SSH password or key again: the address, port or user changed.",
   "docker_manager.f_tls_ca": "CA certificate (PEM)",
   "docker_manager.f_tls_cert": "Client certificate (PEM)",
   "docker_manager.f_tls_key": "Client key (PEM)",

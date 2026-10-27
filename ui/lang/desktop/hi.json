@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "SSH पासवर्ड",
   "docker_manager.f_ssh_key": "या SSH निजी कुंजी (PEM)",
   "docker_manager.f_secret_stored": "क्रेडेंशियल सहेजे हुए हैं। उन्हें रखने के लिए फ़ील्ड खाली छोड़ें।",
+  "docker_manager.f_secret_again": "SSH पासवर्ड या कुंजी फिर से दर्ज करें: पता, पोर्ट या उपयोगकर्ता बदल गया है।",
   "docker_manager.f_tls_ca": "CA प्रमाणपत्र (PEM)",
   "docker_manager.f_tls_cert": "क्लाइंट प्रमाणपत्र (PEM)",
   "docker_manager.f_tls_key": "क्लाइंट कुंजी (PEM)",

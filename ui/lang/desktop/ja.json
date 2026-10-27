@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "SSH パスワード",
   "docker_manager.f_ssh_key": "または SSH 秘密鍵（PEM）",
   "docker_manager.f_secret_stored": "認証情報は保存済みです。そのまま使う場合は空欄にしてください。",
+  "docker_manager.f_secret_again": "SSH パスワードまたは鍵をもう一度入力してください。アドレス、ポート、またはユーザーが変更されました。",
   "docker_manager.f_tls_ca": "CA 証明書（PEM）",
   "docker_manager.f_tls_cert": "クライアント証明書（PEM）",
   "docker_manager.f_tls_key": "クライアント鍵（PEM）",

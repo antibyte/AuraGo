@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "SSH-lösenord",
   "docker_manager.f_ssh_key": "Eller privat SSH-nyckel (PEM)",
   "docker_manager.f_secret_stored": "Inloggningsuppgifterna är sparade. Lämna fälten tomma för att behålla dem.",
+  "docker_manager.f_secret_again": "Ange SSH-lösenordet eller nyckeln igen: adressen, porten eller användaren har ändrats.",
   "docker_manager.f_tls_ca": "CA-certifikat (PEM)",
   "docker_manager.f_tls_cert": "Klientcertifikat (PEM)",
   "docker_manager.f_tls_key": "Klientnyckel (PEM)",

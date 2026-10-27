@@ -40,14 +40,20 @@
             paint();
             return view;
         }
+        // A closed <dialog> keeps its DOM. Whatever was typed into the host form (SSH password, PEM key) must not stay in the
+        // hidden page, so the content goes away whenever the stack is empty.
+        function clearContent() { content.replaceChildren(); }
         function pop(result) {
             const view = stack.pop();
             view?.onClose?.(result);
-            if (stack.length) paint(); else if (dialog.open) dialog.close();
+            if (stack.length) { paint(); return; }
+            if (dialog.open) dialog.close();
+            clearContent();
         }
         function closeAll() {
             while (stack.length) stack.pop().onClose?.(false);
             if (dialog.open) dialog.close();
+            clearContent();
         }
         // Repaints a part of the top view in place and keeps the focus on the same control.
         function refreshPart(view, selector, html) {
@@ -62,6 +68,7 @@
         dialog.addEventListener('cancel', event => { event.preventDefault(); if (stack.length) pop(false); });
         dialog.addEventListener('close', () => {
             while (stack.length) stack.pop().onClose?.(false);
+            clearContent();
             const target = opener;
             opener = null;
             app.restoreFocus(target);
@@ -212,6 +219,8 @@
                 + '<div class="dm-warn" role="note" data-for="tcp">' + views.glyph('warning') + '<span>' + esc(t('warn_plain_tcp')) + '</span></div>'
                 + field('ssh_user', t('f_ssh_user'), input('ssh_user', form.sshUser, ''), '', '', 'ssh')
                 // A host with stored credentials shows "stored" and a Replace action; the secret fields appear only after Replace.
+                // The live region says why they are asked for again when the address, port or user of an SSH host changed.
+                + '<div class="dm-hint dm-secret-again" role="status" aria-live="polite" data-secret-again></div>'
                 + '<div class="dm-stored" data-for="ssh tls mtls" data-stored-row hidden>' + views.dot('ok') + '<span>' + esc(t('host_secret_set')) + '</span><button type="button" class="dm-btn" data-dact="replace" data-focus-id="replace-secret"><span>' + esc(t('f_replace')) + '</span></button></div>'
                 + '<div class="dm-group" data-for="ssh" data-secret>'
                 + field('ssh_password', t('f_ssh_password'), input('ssh_password', '', 'type="password" autocomplete="new-password"', !!keepHint), keepHint)
@@ -257,6 +266,11 @@
             const form = readForm(c, base), stored = model.storedSecretUsable(form), tucked = stored && !ui.replacing;
             for (const el of f.querySelectorAll('[data-secret]')) el.hidden = el.hidden || tucked;
             for (const el of f.querySelectorAll('[data-stored-row]')) el.hidden = el.hidden || !tucked;
+            // "Leave the fields empty to keep them" is true only while the server can still use the stored secret.
+            const keep = f.querySelector('#' + fieldId('ssh_password') + '-hint');
+            if (keep) keep.textContent = stored ? t('f_secret_stored') : '';
+            const again = f.querySelector('[data-secret-again]'), why = model.sshSecretNeedsReentry(form) ? t('f_secret_again') : '';
+            if (again.textContent !== why) again.textContent = why;
         }
 
         // The secret inputs are tucked away behind Replace while credentials are stored; a problem on one of them opens them.

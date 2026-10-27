@@ -96,7 +96,7 @@ func (dm *dmRequest) hostCollection() {
 
 // hostList answers with the cached status of every host and starts a
 // background test for stale ones, so the next poll shows fresh dots. It never
-// waits for an unreachable host.
+// waits for an unreachable host. The answer also carries docker_readonly.
 func (dm *dmRequest) hostList() {
 	ctx, cancel := dm.context(dmRegistryTimeout)
 	defer cancel()
@@ -106,7 +106,9 @@ func (dm *dmRequest) hostList() {
 		return
 	}
 	dm.s.dockerStatus.refreshStale(dm.registry(), hosts, time.Now())
-	dmWriteOK(dm.w, http.StatusOK, dmFields{"hosts": dm.hostViews(hosts)})
+	// docker_readonly is the switch the container mutations check (dm.readOnly, read per request), so the UI hides
+	// start/stop/remove before the first refusal and shows them again once the admin lifts it.
+	dmWriteOK(dm.w, http.StatusOK, dmFields{"hosts": dm.hostViews(hosts), "docker_readonly": dm.readOnly})
 }
 
 // hostCreate stores a host. The registry normalises and validates it (empty

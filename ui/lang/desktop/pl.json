@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "Hasło SSH",
   "docker_manager.f_ssh_key": "Albo klucz prywatny SSH (PEM)",
   "docker_manager.f_secret_stored": "Dane logowania są zapisane. Zostaw pola puste, aby je zachować.",
+  "docker_manager.f_secret_again": "Wpisz ponownie hasło SSH lub klucz: zmienił się adres, port lub użytkownik.",
   "docker_manager.f_tls_ca": "Certyfikat CA (PEM)",
   "docker_manager.f_tls_cert": "Certyfikat klienta (PEM)",
   "docker_manager.f_tls_key": "Klucz klienta (PEM)",

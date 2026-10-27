@@ -309,7 +309,8 @@
 
     function emptyHostForm(hosts) {
         return {
-            id: '', name: '', kind: 'ssh', originalKind: '', address: '', port: '', sshUser: '', sshSecret: '', tlsCA: '', tlsCert: '', tlsKey: '',
+            id: '', name: '', kind: 'ssh', originalKind: '', originalAddress: '', originalPort: '', originalSshUser: '',
+            address: '', port: '', sshUser: '', sshSecret: '', tlsCA: '', tlsCert: '', tlsKey: '',
             clearSecret: false, stacksDir: DEFAULT_STACKS_DIR, socketPath: DEFAULT_SOCKET, color: nextColor(hosts), sort: 0, secretSet: false
         };
     }
@@ -318,6 +319,7 @@
         const h = host || {};
         return Object.assign(emptyHostForm([]), {
             id: text(h.id), name: text(h.name), kind: text(h.kind || 'ssh'), originalKind: text(h.kind), address: text(h.address), port: h.port ? String(h.port) : '',
+            originalAddress: text(h.address), originalPort: h.port ? String(h.port) : '', originalSshUser: text(h.ssh_user),
             sshUser: text(h.ssh_user), stacksDir: text(h.stacks_dir) || DEFAULT_STACKS_DIR, socketPath: text(h.host_socket_path) || DEFAULT_SOCKET,
             color: colorOf(h.color), sort: Number(h.sort) || 0, secretSet: !!h.secret_set
         });
@@ -325,10 +327,29 @@
 
     const secretFamily = kind => (kind === 'ssh' ? 'ssh' : kind === 'tls' || kind === 'mtls' ? 'tls' : '');
 
-    // A stored secret can stay only for the same kind of secret and only when it is not being removed.
+    // The server's comparison of an SSH endpoint: address trimmed, case-insensitive, without IPv6 brackets; an empty port
+    // means 22; the user trimmed.
+    const addressKey = value => lower(text(value).trim()).replace(/^\[|\]$/g, '');
+    const sshPort = value => Number(text(value).trim()) || DEFAULT_PORTS.ssh;
+    function sshEndpointChanged(form) {
+        const f = form || {};
+        return addressKey(f.address) !== addressKey(f.originalAddress) || sshPort(f.port) !== sshPort(f.originalPort)
+            || text(f.sshUser).trim() !== text(f.originalSshUser).trim();
+    }
+
+    // True when an SSH host with a stored secret now points at another address, port or user: the server then refuses to
+    // reuse the secret (invalid_host, field ssh_secret), so the form asks for it again up front.
+    const sshSecretNeedsReentry = form => {
+        const f = form || {};
+        return !!f.id && !!f.secretSet && !f.clearSecret && text(f.kind) === 'ssh' && text(f.originalKind) === 'ssh' && sshEndpointChanged(f);
+    };
+
+    // A stored secret can stay only for the same kind of secret, only when it is not being removed, and an SSH secret only
+    // for the same endpoint. TLS material keeps working whatever else is edited.
     function storedSecretUsable(form) {
         const f = form || {};
-        return !!f.id && !!f.secretSet && !f.clearSecret && secretFamily(text(f.kind)) === secretFamily(text(f.originalKind));
+        if (!f.id || !f.secretSet || f.clearSecret || secretFamily(text(f.kind)) !== secretFamily(text(f.originalKind))) return false;
+        return text(f.kind) !== 'ssh' || !sshEndpointChanged(f);
     }
 
     // Returns null or {field, code}; code names the docker_manager.v_<code> message. `hosts` is the current host list: names
@@ -391,6 +412,6 @@
         colorOf, compareText, exitCode, containerId, containerName, protectedReason, isProtected, needsProtectedConfirm, problemOf, statusOf, stateGroup,
         matchesFilter, actionsFor, portItems, shortImage, formatCreated, mountLabel, buildRows, matchesQuery, filterRows, counts, groupRows,
         showGroupHeaders, navItems, reasonCode, normalizeStatus, hostHealth, hostAddress, hostCounts, totalCounts, defaultPort, nextColor, emptyHostForm,
-        hostToForm, storedSecretUsable, validateHostForm, hostPayload, normalizeError
+        hostToForm, storedSecretUsable, sshSecretNeedsReentry, validateHostForm, hostPayload, normalizeError
     };
 })();

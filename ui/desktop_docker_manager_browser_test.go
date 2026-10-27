@@ -15,6 +15,13 @@ import (
 type dockerManagerFixture struct {
 	mu       sync.Mutex
 	requests []string
+	readonly bool // the docker_readonly member of GET /hosts, as the server reads docker.readonly per request
+}
+
+func (f *dockerManagerFixture) setReadonly(on bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.readonly = on
 }
 
 func dockerManagerContainer(host, name string, extra map[string]any) map[string]any {
@@ -38,6 +45,7 @@ func (f *dockerManagerFixture) joined() string {
 func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests = append(f.requests, r.Method+" "+r.URL.RequestURI())
+	readonly := f.readonly
 	f.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	write := func(status int, body map[string]any) {
@@ -47,7 +55,7 @@ func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	path := strings.TrimPrefix(r.URL.Path, "/api/docker-manager")
 	switch {
 	case r.Method == http.MethodGet && path == "/hosts":
-		write(http.StatusOK, map[string]any{"status": "ok", "hosts": []map[string]any{
+		write(http.StatusOK, map[string]any{"status": "ok", "docker_readonly": readonly, "hosts": []map[string]any{
 			{"id": "local", "name": "Local", "kind": "local", "address": "unix:///var/run/docker.sock", "port": 0, "stacks_dir": "/opt/stacks", "host_socket_path": "/var/run/docker.sock", "color": "blue", "sort": -1, "builtin": true, "secret_set": false, "plaintext": false,
 				"status": map[string]any{"state": "ok", "checked_at": "2026-10-26T10:00:00Z", "engine_version": "27.3.1", "api_version": "1.47", "os": "linux", "arch": "amd64"}},
 			// Never tested: the server sends the zero time, which the app must read as "not checked yet".
@@ -136,6 +144,85 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+
+	// Host form: what was typed into the SSH password or key field must be gone from the page once the dialog is closed,
+	// however it is closed, and the prefs in localStorage never hold it.
+	const secretsGone = `()=>{const d=document.querySelector('[data-dialog]');return !d.open&&d.querySelector('[data-dialog-content]').childElementCount===0` +
+		`&&![...document.querySelectorAll('input,textarea')].some(e=>/hunter2-secret|pem-secret/.test(e.value))` +
+		`&&!Object.values(localStorage).some(v=>/hunter2-secret|pem-secret/.test(v))}`
+	pressEscape := func() {
+		if err := page.Keyboard.Type(input.Escape); err != nil {
+			t.Fatal(err)
+		}
+	}
+	closers := []struct {
+		name string
+		run  func()
+	}{
+		{"Escape twice", func() {
+			// Chrome closes a dialog on a second Escape without a user gesture in between, whatever cancel does; a real click first.
+			page.MustElement("dialog[open] [data-host-form] input[name=name]").MustClick()
+			pressEscape()
+			page.MustWait(`()=>!document.querySelector('dialog[open] [data-host-form]')&&!!document.querySelector('dialog[open] .dm-hostlist')`)
+			pressEscape()
+		}},
+		{"Back and Close", func() {
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="back"]').click()`)
+			page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-hostlist')`)
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
+		}},
+		{"close button", func() { page.MustEval(`()=>document.querySelector('dialog[open] [data-dialog-dismiss]').click()`) }},
+		{"backdrop", func() { page.MustEval(`()=>document.querySelector('dialog[open]').click()`) }},
+	}
+	for _, closer := range closers {
+		page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
+		page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="add"]')`)
+		page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="add"]').click()`)
+		page.MustWait(`()=>!!document.querySelector('dialog[open] [data-host-form]')`)
+		page.MustEval(`()=>{const f=document.querySelector('[data-host-form]');f.elements.ssh_password.value='hunter2-secret';f.elements.ssh_key.value='pem-secret';f.elements.ssh_key.dispatchEvent(new Event('input',{bubbles:true}))}`)
+		closer.run()
+		page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+		if !page.MustEval(secretsGone).Bool() {
+			t.Fatalf("closing the host form with %s left its content or the typed secrets in the page", closer.name)
+		}
+	}
+
+	// Editing the stored SSH host: its credentials stay tucked away until the address changes, then the secret is asked for
+	// again and the form says why (the text is localised, so only its presence is checked); putting the address back keeps
+	// the stored secret.
+	page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="edit"][data-host-id="h_nas"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="edit"][data-host-id="h_nas"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-host-form]')`)
+	const secretState = `()=>{const f=document.querySelector('[data-host-form]');return [!f.querySelector('[data-stored-row]').hidden,!f.querySelector('[data-for="ssh"][data-secret]').hidden,f.querySelector('[data-secret-again]').textContent.trim()!==''].join('|')}`
+	const setAddress = `(value)=>{const f=document.querySelector('[data-host-form]');f.elements.address.value=value;f.elements.address.dispatchEvent(new Event('input',{bubbles:true}))}`
+	if got := page.MustEval(secretState).String(); got != "true|false|false" {
+		t.Fatalf("stored SSH host form = %q, want the credentials tucked away behind Replace", got)
+	}
+	page.MustEval(setAddress, "192.0.2.99")
+	if got := page.MustEval(secretState).String(); got != "false|true|true" {
+		t.Fatalf("form after the address changed = %q, want the secret input and the reason", got)
+	}
+	page.MustEval(setAddress, "192.0.2.20")
+	if got := page.MustEval(secretState).String(); got != "true|false|false" {
+		t.Fatalf("form after the address was restored = %q, want the stored credentials again", got)
+	}
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="back"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-hostlist')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+
+	// docker.readonly arrives with the host list: the actions and the chip follow it up and down, without any refusal.
+	const readonlyState = `()=>document.querySelector('[data-dm-app]').dataset.readonly+'|'+document.querySelector('[data-readonly-chip]').hidden`
+	if got := page.MustEval(readonlyState).String(); got != "false|true" {
+		t.Fatalf("read-only state before the switch = %q, want actions shown and no chip", got)
+	}
+	fixture.setReadonly(true)
+	page.MustEval(`()=>document.querySelector('[data-refresh]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-dm-app]').dataset.readonly==='true'&&!document.querySelector('[data-readonly-chip]').hidden`)
+	fixture.setReadonly(false)
+	page.MustEval(`()=>document.querySelector('[data-refresh]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-dm-app]').dataset.readonly==='false'&&document.querySelector('[data-readonly-chip]').hidden`)
 
 	if errors := page.MustEval(`()=>window.fixtureErrors`).Arr(); len(errors) != 0 {
 		t.Fatalf("page errors: %v", errors)

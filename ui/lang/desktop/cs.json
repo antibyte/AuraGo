@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "Heslo SSH",
   "docker_manager.f_ssh_key": "Nebo soukromý klíč SSH (PEM)",
   "docker_manager.f_secret_stored": "Přihlašovací údaje jsou uloženy. Nechte pole prázdná, aby zůstaly zachovány.",
+  "docker_manager.f_secret_again": "Zadejte heslo SSH nebo klíč znovu: změnila se adresa, port nebo uživatel.",
   "docker_manager.f_tls_ca": "Certifikát CA (PEM)",
   "docker_manager.f_tls_cert": "Klientský certifikát (PEM)",
   "docker_manager.f_tls_key": "Klientský klíč (PEM)",

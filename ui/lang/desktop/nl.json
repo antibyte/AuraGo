@@ -10136,6 +10136,7 @@
   "docker_manager.f_ssh_password": "SSH-wachtwoord",
   "docker_manager.f_ssh_key": "Of privé SSH-sleutel (PEM)",
   "docker_manager.f_secret_stored": "Inloggegevens zijn opgeslagen. Laat de velden leeg om ze te behouden.",
+  "docker_manager.f_secret_again": "Voer het SSH-wachtwoord of de sleutel opnieuw in: het adres, de poort of de gebruiker is gewijzigd.",
   "docker_manager.f_tls_ca": "CA-certificaat (PEM)",
   "docker_manager.f_tls_cert": "Clientcertificaat (PEM)",
   "docker_manager.f_tls_key": "Clientsleutel (PEM)",

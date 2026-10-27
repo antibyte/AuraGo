@@ -186,6 +186,29 @@ func TestDockerManagerHostListStartsBackgroundTests(t *testing.T) {
 	}
 }
 
+// The host list tells the UI whether docker.readonly is on. It is read per request, so the actions are hidden before
+// the first refusal and come back when the admin lifts the switch.
+func TestDockerManagerHostListReportsDockerReadonly(t *testing.T) {
+	f := newDMFixture(t)
+	id := f.addRemote("NAS")
+	for _, readOnly := range []bool{false, true, false} {
+		f.setDocker(true, readOnly)
+		code, body := f.do(http.MethodGet, "/hosts", nil)
+		if code != http.StatusOK || body["docker_readonly"] != readOnly {
+			t.Fatalf("docker.readonly = %v: host list = %d %s, want docker_readonly %v next to hosts", readOnly, code, f.lastRaw, readOnly)
+		}
+		if len(dmArray(t, body, "hosts")) != 2 {
+			t.Fatalf("docker.readonly = %v: host list lost its hosts: %s", readOnly, f.lastRaw)
+		}
+		code, body = f.do(http.MethodPost, "/hosts/"+id+"/containers/web1/start", nil)
+		if readOnly {
+			dmExpectError(t, f, code, body, http.StatusForbidden, "read_only")
+		} else if code == http.StatusForbidden {
+			t.Fatalf("docker.readonly = false: start was refused: %s", f.lastRaw)
+		}
+	}
+}
+
 func TestDockerManagerRejectsMalformedBodies(t *testing.T) {
 	f := newDMFixture(t)
 	for _, path := range []string{"/hosts", "/hosts/test"} {
