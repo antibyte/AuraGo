@@ -475,3 +475,70 @@ console.log('docker-manager ui tests: model and store ok');
     eq(labels, [], 'the stylesheet has uppercase labels or monospace outside the log and technical-detail surfaces');
     eq(ungated, [], 'motion must sit inside @media (prefers-reduced-motion: no-preference) with body:not([data-animations="false"])');
 }
+
+// ---- load contract: all five modules, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
+const uiFiles = ['docker-manager-views.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
+const full = {};
+{
+    const all = [...files, ...uiFiles];
+    for (const file of all) {
+        const lines = read('ui/js/desktop/apps/' + file).split('\n').length;
+        assert.ok(lines < 1100, `${file} has ${lines} lines, want fewer than 1100`);
+    }
+    vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
+        window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
+    });
+    assert.ok(full.DockerManagerModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerDialogs && full.DockerManagerApp, 'all five modules publish their global');
+    assert.equal(typeof full.DockerManagerApp.render, 'function');
+    assert.equal(typeof full.DockerManagerApp.dispose, 'function');
+    assert.equal(typeof full.DockerManagerViews.create, 'function');
+    assert.equal(typeof full.DockerManagerDialogs.create, 'function');
+}
+
+// ---- translations: every key the code can ask for exists in all sixteen locales with the same placeholders -------------------
+{
+    const LANGS = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
+    const locales = Object.fromEntries(LANGS.map(lang => [lang, JSON.parse(read('ui/lang/desktop/' + lang + '.json'))]));
+    const en = locales.en;
+    const prefix = 'docker_manager.';
+    const used = new Set();
+    for (const file of uiFiles) {
+        const source = read('ui/js/desktop/apps/' + file);
+        for (const match of source.matchAll(/(?<![\w.])t\(\s*'([a-zA-Z0-9_]+)'/g)) used.add(prefix + match[1]);
+        for (const match of source.matchAll(/\bdt\(\s*'(desktop\.[a-z_]+)'/g)) used.add(match[1]);
+    }
+    // Keys the code builds from a prefix, taken from the lists that drive them. The prefix-only matches above are removed.
+    for (const key of [...used]) if (key.endsWith('_')) used.delete(key);
+    const families = {
+        status_: ['running', 'paused', 'restarting', 'exited_code', 'created', 'dead', 'removing', 'unhealthy', 'starting', 'unknown'],
+        action_: [...model.ACTIONS, 'remove', 'logs', 'inspect', 'more', 'open_details', 'done', 'failed'],
+        reason_: [...model.REASONS],
+        error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown'],
+        filter_: [...model.STATE_FILTERS],
+        kind_: ['local', ...model.HOST_KINDS],
+        color_: [...model.HOST_COLORS],
+        col_: ['status', 'name', 'image', 'ports', 'actions'],
+        host_: ['ok', 'error', 'unknown'],
+        protected_: ['owner', 'self', 'endpoint', 'network'],
+        tab_: [...full.DockerManagerViews.TABS],
+        nest_method_: [...model.NEST_METHODS],
+        v_: ['name', 'name_taken', 'name_reserved', 'address', 'address_scheme', 'port', 'ssh_user', 'ssh_secret', 'tls_cert', 'path']
+    };
+    for (const [family, names] of Object.entries(families)) for (const name of names) used.add(prefix + family + name);
+    used.add('desktop.app_docker_manager');
+    assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
+    for (const key of used) assert.ok(typeof en[key] === 'string' && en[key].trim() !== '', 'en.json is missing ' + key);
+    const tokens = value => [...String(value).matchAll(/\{\{(\w+)\}\}/g)].map(match => match[1]).sort().join(',');
+    const own = Object.keys(en).filter(key => key.startsWith(prefix));
+    for (const key of own) assert.ok(used.has(key), 'en.json has the unused key ' + key);
+    for (const lang of LANGS) {
+        const ownKeys = Object.keys(locales[lang]).filter(key => key.startsWith(prefix));
+        eq(ownKeys.sort(), [...own].sort(), lang + '.json has a different docker_manager key set');
+        for (const key of [...own, 'desktop.app_docker_manager']) {
+            assert.ok(String(locales[lang][key] || '').trim() !== '', lang + '.json has an empty ' + key);
+            assert.equal(tokens(locales[lang][key]), tokens(en[key]), lang + '.json changes the placeholders of ' + key);
+        }
+    }
+}
+
+console.log('docker-manager ui tests: stylesheet, load contract and translations ok');
