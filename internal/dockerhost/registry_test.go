@@ -17,19 +17,25 @@ import (
 )
 
 // memVault is an in-memory SecretVault. Writes to keys with a prefix in
-// failWritePrefix fail.
+// failWritePrefix fail. onRead, when set, runs after every ReadSecret returned
+// its value and before the caller sees it, outside the vault lock.
 type memVault struct {
 	mu              sync.Mutex
 	secrets         map[string]string
 	failWritePrefix string
+	onRead          func(key string)
 }
 
 func newMemVault() *memVault { return &memVault{secrets: map[string]string{}} }
 
 func (v *memVault) ReadSecret(key string) (string, error) {
 	v.mu.Lock()
-	defer v.mu.Unlock()
 	value, ok := v.secrets[key]
+	hook := v.onRead
+	v.mu.Unlock()
+	if hook != nil {
+		hook(key)
+	}
 	if !ok {
 		return "", security.ErrSecretNotFound
 	}

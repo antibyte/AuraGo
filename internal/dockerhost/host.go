@@ -64,6 +64,14 @@ type Host struct {
 // SecretInput is write-only. nil fields keep what is stored; Clear removes both
 // secrets first. A blank SSHSecret or an empty TLS field also keeps the stored
 // value, so a form that leaves the secret fields untouched changes nothing.
+//
+// One exception protects the SSH secret: it is kept only while the host's
+// address, port and user are unchanged (and the host stays an SSH host). When an
+// edit or a draft test moves the host to another address, port or user, the
+// stored SSH secret is not reused and SSHSecret must be set again, so a stored
+// password is never sent to a machine the user did not enter it for. TLS
+// material keeps merging, because it only verifies the Engine and signs the
+// handshake.
 type SecretInput struct {
 	SSHSecret *string                // ssh only
 	TLS       *transport.TLSMaterial // tls/mtls only

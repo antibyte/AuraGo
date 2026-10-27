@@ -65,10 +65,31 @@ func (b secretBundle) tlsJSON() string {
 	return string(raw)
 }
 
+// String and GoString keep the SSH secret out of a stray %v or %+v.
+func (b secretBundle) String() string {
+	return fmt.Sprintf("secretBundle{ssh:%s tls:%s}", setOrUnset(b.ssh != ""), setOrUnset(b.tls != nil))
+}
+
+func (b secretBundle) GoString() string { return b.String() }
+
+func setOrUnset(set bool) string {
+	if set {
+		return "set"
+	}
+	return "unset"
+}
+
 type cachedClient struct {
 	fingerprint string
 	client      *dockerutil.Client
 }
+
+// clientBuildAttempts bounds how often clientFor rebuilds a client that an
+// Update or Delete overtook while it was being built.
+const clientBuildAttempts = 3
+
+// errRegistryClosed is returned for a client requested after Close.
+var errRegistryClosed = errors.New("the Docker host registry is closed")
 
 // Registry is the list of Docker hosts: the built-in local host plus the stored
 // remote hosts, their secrets in the vault, one cached Engine client per host
@@ -78,10 +99,22 @@ type Registry struct {
 	vault         SecretVault
 	localEndpoint LocalEndpointFunc
 
+	// now and dialSSH are fields so tests can drive the SSH login protection
+	// without a clock or an SSH server.
+	now     func() time.Time
+	dialSSH func(ctx context.Context, target transport.SSHTarget, socketOpenTimeout time.Duration) (net.Conn, error)
+
+	// writeMu serializes Create, Update and Delete, which hold it across vault and
+	// store I/O. mu guards only the caches below and is never held across I/O.
+	writeMu sync.Mutex
+
 	mu         sync.Mutex
 	clients    map[string]cachedClient
 	status     map[string]HostStatus
 	secretFlag map[string]bool
+	guards     map[string]*sshGuard // SSH hosts: login breaker and dial gate
+	generation map[string]uint64    // bumped by forget; a client built across a bump is discarded
+	closed     bool
 }
 
 // NewRegistry returns a registry over a store and a vault. localEndpoint may be
@@ -91,9 +124,13 @@ func NewRegistry(store *Store, vault SecretVault, localEndpoint LocalEndpointFun
 		store:         store,
 		vault:         vault,
 		localEndpoint: localEndpoint,
+		now:           time.Now,
+		dialSSH:       transport.DialEngineOverSSH,
 		clients:       map[string]cachedClient{},
 		status:        map[string]HostStatus{},
 		secretFlag:    map[string]bool{},
+		guards:        map[string]*sshGuard{},
+		generation:    map[string]uint64{},
 	}
 }
 
@@ -134,6 +171,8 @@ func (r *Registry) Host(ctx context.Context, id string) (Host, error) {
 // Create validates and stores a host and its secrets. A failure while writing
 // the secrets removes the host again.
 func (r *Registry) Create(ctx context.Context, h Host, sec SecretInput) (Host, error) {
+	r.writeMu.Lock()
+	defer r.writeMu.Unlock()
 	h = h.Normalized()
 	h.ID = ""
 	if h.Color == "" {
@@ -154,18 +193,25 @@ func (r *Registry) Create(ctx context.Context, h Host, sec SecretInput) (Host, e
 		return Host{}, err
 	}
 	if _, err := r.applySecrets(created.ID, secretBundle{}, next); err != nil {
-		_ = r.store.Delete(ctx, created.ID)
+		if delErr := r.store.Delete(ctx, created.ID); delErr != nil {
+			err = errors.Join(err, fmt.Errorf("the half-created host could not be removed again: %w", delErr))
+		}
 		return Host{}, err
 	}
 	return created, nil
 }
 
 // Update replaces a stored host and merges the secret input into its stored
-// secrets. The cached client and the cached status are dropped.
+// secrets. The cached client, the cached status and the SSH login pause are
+// dropped. A stored SSH secret only carries over while the address, port and
+// user stay the same; otherwise the SSH secret must be entered again (a
+// ValidationError for ssh_secret), so it is never sent to another machine.
 func (r *Registry) Update(ctx context.Context, id string, h Host, sec SecretInput) (Host, error) {
 	if id == LocalHostID {
 		return Host{}, ErrLocalHostFixed
 	}
+	r.writeMu.Lock()
+	defer r.writeMu.Unlock()
 	current, err := r.store.Get(ctx, id)
 	if err != nil {
 		return Host{}, err
@@ -185,7 +231,11 @@ func (r *Registry) Update(ctx context.Context, id string, h Host, sec SecretInpu
 	if err != nil {
 		return Host{}, err
 	}
-	next, err := resolveSecrets(h, prev, sec)
+	base, err := reusableSecrets(current, h, prev, sec)
+	if err != nil {
+		return Host{}, err
+	}
+	next, err := resolveSecrets(h, base, sec)
 	if err != nil {
 		return Host{}, err
 	}
@@ -207,6 +257,8 @@ func (r *Registry) Delete(ctx context.Context, id string) error {
 	if id == LocalHostID {
 		return ErrLocalHostFixed
 	}
+	r.writeMu.Lock()
+	defer r.writeMu.Unlock()
 	if err := r.store.Delete(ctx, id); err != nil {
 		return err
 	}
@@ -260,40 +312,83 @@ func (r *Registry) SecretSet(id string) bool {
 // Client returns the Engine client of a host. It is cached per host and rebuilt
 // when the host's connection settings change.
 func (r *Registry) Client(ctx context.Context, id string) (*dockerutil.Client, error) {
-	h, err := r.Host(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return r.clientFor(h)
+	return r.clientFor(ctx, id)
 }
 
-func (r *Registry) clientFor(h Host) (*dockerutil.Client, error) {
-	fingerprint := hostFingerprint(h)
-	r.mu.Lock()
-	cached, ok := r.clients[h.ID]
-	r.mu.Unlock()
-	if ok && cached.fingerprint == fingerprint {
-		return cached.client, nil
-	}
-	bundle, err := r.bundleForClient(h)
-	if err != nil {
-		return nil, err
-	}
-	client, err := newClient(h, bundle)
-	if err != nil {
-		return nil, err
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if existing, found := r.clients[h.ID]; found {
-		if existing.fingerprint == fingerprint { // another goroutine built it first
-			client.CloseIdleConnections()
-			return existing.client, nil
+// clientFor returns the cached client of a host or builds one. The host's
+// generation is read before the host record and the vault, and a built client
+// is only cached when the generation is still the same: an Update, a secret
+// change or a Delete that ran in between (forget bumps the generation) makes
+// the client stale, so it is closed and rebuilt from the new state.
+func (r *Registry) clientFor(ctx context.Context, id string) (*dockerutil.Client, error) {
+	for attempt := 0; attempt < clientBuildAttempts; attempt++ {
+		r.mu.Lock()
+		if r.closed {
+			r.mu.Unlock()
+			return nil, errRegistryClosed
 		}
-		existing.client.CloseIdleConnections() // the host's settings changed
+		generation := r.generation[id]
+		r.mu.Unlock()
+
+		h, err := r.Host(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		fingerprint := hostFingerprint(h)
+		r.mu.Lock()
+		cached, ok := r.clients[id]
+		var guard *sshGuard
+		if h.Kind == KindSSH {
+			guard = r.guardLocked(id)
+		}
+		r.mu.Unlock()
+		if ok && cached.fingerprint == fingerprint {
+			return cached.client, nil
+		}
+
+		bundle, err := r.bundleForClient(h)
+		if err != nil {
+			return nil, err
+		}
+		client, err := r.newClient(h, bundle, guard)
+		if err != nil {
+			return nil, err
+		}
+
+		r.mu.Lock()
+		if r.closed {
+			r.mu.Unlock()
+			client.CloseIdleConnections()
+			return nil, errRegistryClosed
+		}
+		if r.generation[id] != generation {
+			r.mu.Unlock()
+			client.CloseIdleConnections() // built from state that has been replaced
+			continue
+		}
+		if existing, found := r.clients[id]; found {
+			if existing.fingerprint == fingerprint { // another goroutine built it first
+				r.mu.Unlock()
+				client.CloseIdleConnections()
+				return existing.client, nil
+			}
+			existing.client.CloseIdleConnections() // the host's settings changed
+		}
+		r.clients[id] = cachedClient{fingerprint: fingerprint, client: client}
+		r.mu.Unlock()
+		return client, nil
 	}
-	r.clients[h.ID] = cachedClient{fingerprint: fingerprint, client: client}
-	return client, nil
+	return nil, errors.New("the host was changed while its connection was being prepared; try again")
+}
+
+// guardLocked returns the SSH login guard of a host; callers hold r.mu.
+func (r *Registry) guardLocked(id string) *sshGuard {
+	guard, ok := r.guards[id]
+	if !ok {
+		guard = newSSHGuard(r.now)
+		r.guards[id] = guard
+	}
+	return guard
 }
 
 // Status returns the last connection test result of a host; State "unknown"
@@ -309,17 +404,21 @@ func (r *Registry) Status(id string) HostStatus {
 
 // Test checks the connection of a stored host (GET /version, then /info) and
 // caches the result.
+//
+// An SSH host whose login was rejected is not dialed again while its pause runs
+// (see sshGuard); the test then reports the pause as an auth failure. Use
+// TestNow for a deliberate attempt.
 func (r *Registry) Test(ctx context.Context, id string) HostStatus {
-	h, err := r.Host(ctx, id)
-	if err != nil {
-		return errorStatus(err) // an unknown id is not cached
-	}
 	ctx, cancel := context.WithTimeout(ctx, testBudget)
 	defer cancel()
 	var status HostStatus
-	if client, err := r.clientFor(h); err != nil {
+	client, err := r.clientFor(ctx, id)
+	switch {
+	case errors.Is(err, ErrHostNotFound):
+		return errorStatus(err) // an unknown id is not cached
+	case err != nil:
 		status = errorStatus(err)
-	} else {
+	default:
 		status = probeHost(ctx, client)
 	}
 	r.mu.Lock()
@@ -328,9 +427,23 @@ func (r *Registry) Test(ctx context.Context, id string) HostStatus {
 	return status
 }
 
+// TestNow is Test as a deliberate user action: it first lifts the SSH login
+// pause of the host, so exactly one login is attempted even after a rejected
+// password. Background tests use Test.
+func (r *Registry) TestNow(ctx context.Context, id string) HostStatus {
+	r.mu.Lock()
+	if guard, ok := r.guards[id]; ok {
+		guard.breaker.reset()
+	}
+	r.mu.Unlock()
+	return r.Test(ctx, id)
+}
+
 // TestDraft checks the connection of a host that is not saved. Secrets the
-// input leaves out come from the stored host when h.ID names one. The client is
-// not cached and is closed afterwards.
+// input leaves out come from the stored host when h.ID names one, except a
+// stored SSH secret when the address, port or user differs from the stored host
+// (the same rule as Update). The client is not cached, is closed afterwards and
+// neither consults nor changes the SSH login pause: it is a manual action.
 func (r *Registry) TestDraft(ctx context.Context, h Host, sec SecretInput) HostStatus {
 	h = h.Normalized()
 	if h.Color == "" {
@@ -341,8 +454,11 @@ func (r *Registry) TestDraft(ctx context.Context, h Host, sec SecretInput) HostS
 	}
 	var prev secretBundle
 	if h.ID != "" && h.ID != LocalHostID {
-		if _, err := r.store.Get(ctx, h.ID); err == nil {
+		if stored, err := r.store.Get(ctx, h.ID); err == nil {
 			if prev, err = r.loadBundle(h.ID); err != nil {
+				return errorStatus(err)
+			}
+			if prev, err = reusableSecrets(stored, h, prev, sec); err != nil {
 				return errorStatus(err)
 			}
 		}
@@ -351,7 +467,7 @@ func (r *Registry) TestDraft(ctx context.Context, h Host, sec SecretInput) HostS
 	if err != nil {
 		return errorStatus(err)
 	}
-	client, err := newClient(h, bundle)
+	client, err := r.newClient(h, bundle, nil)
 	if err != nil {
 		return errorStatus(err)
 	}
@@ -362,20 +478,29 @@ func (r *Registry) TestDraft(ctx context.Context, h Host, sec SecretInput) HostS
 }
 
 // Close closes the idle connections of the cached clients, which also ends the
-// SSH sessions they hold.
+// SSH sessions they hold. A closed registry builds no further clients.
 func (r *Registry) Close() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.closed = true
 	for id, cached := range r.clients {
 		cached.client.CloseIdleConnections()
 		delete(r.clients, id)
 	}
 }
 
-// forget drops everything cached for a host.
+// forget drops everything cached for a host: the client, the status, the SSH
+// login pause and gate. It bumps the host's generation so that a client that is
+// being built right now (possibly from the secret that was just replaced or
+// removed) is discarded instead of cached.
 func (r *Registry) forget(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.generation[id]++
+	if guard, ok := r.guards[id]; ok {
+		guard.breaker.reset()
+		delete(r.guards, id)
+	}
 	if cached, ok := r.clients[id]; ok {
 		cached.client.CloseIdleConnections()
 		delete(r.clients, id)
@@ -397,6 +522,43 @@ func checkLocalName(name string) error {
 		return invalid("name", "another host already uses this name")
 	}
 	return nil
+}
+
+// errSSHSecretIdentity is what an edit that moves an SSH host gets back.
+const errSSHSecretIdentity = "Enter the SSH password or key again: the address, port or user changed."
+
+// sshSecretCarriesOver reports whether the SSH secret stored for the stored host
+// may be used for the edited one: only for the same SSH machine and login (the
+// address compared bare and ignoring case, the effective port and the user).
+func sshSecretCarriesOver(stored, next Host) bool {
+	return stored.Kind == KindSSH && next.Kind == KindSSH &&
+		sameAddress(stored.Address, next.Address) &&
+		effectivePort(stored) == effectivePort(next) &&
+		stored.SSHUser == next.SSHUser
+}
+
+func sameAddress(a, b string) bool {
+	a, b = bareAddress(strings.TrimSpace(a)), bareAddress(strings.TrimSpace(b))
+	if ipA, ipB := net.ParseIP(a), net.ParseIP(b); ipA != nil && ipB != nil {
+		return ipA.Equal(ipB)
+	}
+	return strings.EqualFold(a, b)
+}
+
+// reusableSecrets returns the stored secrets an edit of the stored host into
+// next may build on. A stored SSH secret is dropped when it would reach a
+// different machine or login than the one it was stored for; the edit must then
+// bring a new one, else the ssh_secret ValidationError is returned. TLS
+// material keeps merging: it only signs or verifies and is never sent as such.
+func reusableSecrets(stored, next Host, prev secretBundle, in SecretInput) (secretBundle, error) {
+	if next.Kind != KindSSH || prev.ssh == "" || sshSecretCarriesOver(stored, next) {
+		return prev, nil
+	}
+	prev.ssh = ""
+	if in.SSHSecret == nil || strings.TrimSpace(*in.SSHSecret) == "" {
+		return prev, invalid("ssh_secret", "%s", errSSHSecretIdentity)
+	}
+	return prev, nil
 }
 
 // resolveSecrets merges the input into the stored secrets for the kind of h and
@@ -594,8 +756,9 @@ func endpointLabel(h Host) string {
 }
 
 // newClient builds the Engine client of a host from its settings and secrets.
-// Nothing is dialed until the first request.
-func newClient(h Host, b secretBundle) (*dockerutil.Client, error) {
+// Nothing is dialed until the first request. guard (SSH only, may be nil)
+// pauses logins after authentication failures and lets one login run at a time.
+func (r *Registry) newClient(h Host, b secretBundle, guard *sshGuard) (*dockerutil.Client, error) {
 	var dial func(ctx context.Context) (net.Conn, error)
 	var probeTimeout time.Duration
 	hostPort := net.JoinHostPort(bareAddress(h.Address), strconv.Itoa(effectivePort(h)))
@@ -625,8 +788,12 @@ func newClient(h Host, b secretBundle) (*dockerutil.Client, error) {
 			Secret: []byte(b.ssh),
 			Socket: h.HostSocketPath,
 		}
-		dial = func(ctx context.Context) (net.Conn, error) {
-			return transport.DialEngineOverSSH(ctx, target, sshSocketOpenWait)
+		login := func(ctx context.Context) (net.Conn, error) {
+			return r.dialSSH(ctx, target, sshSocketOpenWait)
+		}
+		dial = login
+		if guard != nil {
+			dial = func(ctx context.Context) (net.Conn, error) { return guard.dial(ctx, login) }
 		}
 		probeTimeout = transport.SSHProbeTimeout
 	default:

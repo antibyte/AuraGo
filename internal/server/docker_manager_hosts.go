@@ -188,7 +188,9 @@ func (dm *dmRequest) hostDelete(id string) {
 
 // hostTest serves POST /hosts/{id}/test: it connects, caches the result and
 // answers with the refreshed host. An unreachable host is still a 200; the
-// failure is the test's result.
+// failure is the test's result. The button is a deliberate attempt, so it lifts
+// the pause that follows a rejected SSH login (Registry.TestNow); the background
+// refresh keeps respecting it.
 func (dm *dmRequest) hostTest(id string) {
 	if !dm.allow(http.MethodPost) {
 		return
@@ -199,7 +201,7 @@ func (dm *dmRequest) hostTest(id string) {
 	if !ok {
 		return
 	}
-	status := dm.registry().Test(ctx, host.ID)
+	status := dm.registry().TestNow(ctx, host.ID)
 	dmWriteOK(dm.w, http.StatusOK, dmFields{"host": dm.hostView(host, status)})
 }
 
