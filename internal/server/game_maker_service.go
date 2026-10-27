@@ -467,6 +467,21 @@ func gameMakerPhaseTemperature(cfg *config.Config, stage string) float32 {
 // Streams under three tokens per second look stalled and get no extension.
 var gameMakerStreamThroughput = llm.ThroughputPolicy{MinTokensPerSecond: 3, MaxFactor: 4, MinSample: 5 * time.Second}
 
+// gameMakerStreamIdleSeconds is how long a Game Maker stream may stay silent
+// once it has shown progress. Some gateways send nothing while the model writes
+// a large tool-call argument such as a complete source file. The first token
+// keeps the whole call budget, and a larger configured
+// circuit_breaker.llm_stream_chunk_timeout_seconds is kept.
+const gameMakerStreamIdleSeconds = 120
+
+// applyGameMakerStreamIdle raises the stream idle window of a job's config copy
+// to gameMakerStreamIdleSeconds and never lowers a larger configured value.
+func applyGameMakerStreamIdle(cfg *config.Config) {
+	if cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds < gameMakerStreamIdleSeconds {
+		cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = gameMakerStreamIdleSeconds
+	}
+}
+
 // gameMakerOutputTokens returns the answer reserve plus the reasoning allowance,
 // clamped to the route's output limit. Routes below 64K context or without room
 // beyond the general reasoning reserve return 0 and keep the agent's reserve.
@@ -608,6 +623,7 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	if strings.TrimSpace(cfg.LLM.Model) == "" {
 		return fmt.Errorf("selected Game Maker model is empty")
 	}
+	applyGameMakerStreamIdle(&cfg)
 	if strings.TrimSpace(run.Job.ProviderID) != "" || strings.TrimSpace(run.Job.Model) != "" {
 		// The global failover client overwrites request.Model with its system route.
 		cfg.FallbackLLM.Enabled = false

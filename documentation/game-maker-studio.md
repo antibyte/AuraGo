@@ -144,6 +144,13 @@ when a stream times out despite continued output. The server's `[Stream] Complet
 summary` distinguishes answer bytes, private reasoning bytes and tool calls without
 logging their contents. Continued reasoning alone does not establish game progress
 or justify raising the timeout.
+This concerns the per-call deadline, not the silence window inside a stream: once a
+Studio stream has delivered output, reasoning or a tool-call start, it may stay
+silent for up to 120 s before it counts as stalled (a larger configured
+`circuit_breaker.llm_stream_chunk_timeout_seconds` applies). Some gateways send
+nothing while the model writes a large tool-call argument such as a complete source
+file. The first token still waits for the whole call budget, and one stalled stream
+is retried once.
 StepFun's top-level `usage.cached_tokens` is normalized for both JSON and SSE;
 OpenAI uses `prompt_tokens_details.cached_tokens`. Anthropic cached reads/writes
 are included in total input, and repeated cumulative SSE counters count once.
