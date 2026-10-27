@@ -97,7 +97,7 @@ func TestClipToScanLimitCutsOnBoundaries(t *testing.T) {
 	}
 
 	// Three-byte runes with no newline: the cap falls inside a rune.
-	runes := strings.Repeat("€", maxScanOutputBytes) // 3 bytes each
+	runes := strings.Repeat("\xe2\x82\xac", maxScanOutputBytes) // a euro sign: 3 bytes each
 	got := clipToScanLimit(runes)
 	prefix := strings.TrimSuffix(got, "\n"+scanClipNote)
 	if prefix == got || !utf8.ValidString(prefix) || len(prefix) > maxScanOutputBytes || len(prefix) < maxScanOutputBytes-utf8.UTFMax {
