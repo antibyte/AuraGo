@@ -35,13 +35,15 @@
     "check:desktop-themes": "node scripts/build-desktop-cursors.mjs --check && node scripts/build-desktop-windows-xp-icons.mjs --check && node scripts/build-desktop-theme-vendor.mjs --check && node scripts/build-ui-bundles.js --check && node scripts/test-desktop-theme-orbit-assets.mjs",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",
-    "check:ui": "node scripts/build-ui-bundles.js --check",
+    "check:ui": "node scripts/build-ui-bundles.js --check && node scripts/build-chat-ocean-life.js --check",
     "test:realtime-speech": "node scripts/test-realtime-speech.mjs",
     "test:ui-regressions": "node scripts/test-ui-regressions.mjs",
     "build:system-world": "node scripts/build-system-world.js",
     "test:system-world": "node scripts/test-system-world.mjs",
     "build:screensaver-abyss": "node scripts/build-screensaver-abyss.js",
     "test:screensaver-glbs": "node scripts/validate-screensaver-glbs.mjs",
+    "build:chat-ocean-life": "node scripts/build-chat-ocean-life.js",
+    "test:chat-ocean-glbs": "node scripts/validate-screensaver-glbs.mjs ui/3d/chat-ocean-life/v1/",
     "build:browser-vendor": "node scripts/build-browser-vendor.js"
   },
   "dependencies": {
