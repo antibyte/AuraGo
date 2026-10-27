@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -107,5 +108,26 @@ func TestTLSClientConfigBuildsVerifyingConfigs(t *testing.T) {
 				t.Fatalf("roots set = %v, client certificates = %d; want %v and %d", cfg.RootCAs != nil, len(cfg.Certificates), tc.wantRoots, tc.wantPairs)
 			}
 		})
+	}
+}
+
+func TestTLSMaterialNeverPrintsItsPEM(t *testing.T) {
+	certPEM, keyPEM := selfSignedPEM(t)
+	m := TLSMaterial{CA: certPEM, Cert: certPEM, Key: keyPEM}
+	holder := struct{ Material TLSMaterial }{m}
+	for _, out := range []string{
+		fmt.Sprintf("%v %+v %#v", m, m, m),
+		fmt.Sprintf("%v %+v %#v", &m, &m, &m),
+		fmt.Sprintf("%v %+v %#v", holder, holder, holder),
+	} {
+		if strings.Contains(out, "BEGIN") || strings.Contains(out, "PRIVATE") || strings.Contains(out, keyPEM[40:80]) {
+			t.Fatalf("formatted TLSMaterial leaks PEM text: %q", out)
+		}
+		if !strings.Contains(out, "ca:set cert:set key:set") {
+			t.Fatalf("formatted TLSMaterial = %q, want the presence summary", out)
+		}
+	}
+	if got := fmt.Sprint(TLSMaterial{}); got != "TLSMaterial{ca:unset cert:unset key:unset}" {
+		t.Fatalf("empty material formats as %q", got)
 	}
 }

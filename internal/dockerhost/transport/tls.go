@@ -25,6 +25,23 @@ type TLSMaterial struct {
 	Key  string `json:"key,omitempty"`
 }
 
+// String and GoString never print the PEM blocks, so a stray %v, %+v or %#v of
+// the material (or of a struct holding it) cannot leak the private key into a
+// log or an error message.
+func (m TLSMaterial) String() string {
+	return fmt.Sprintf("TLSMaterial{ca:%s cert:%s key:%s}", presence(m.CA), presence(m.Cert), presence(m.Key))
+}
+
+// GoString implements fmt.GoStringer; see String.
+func (m TLSMaterial) GoString() string { return m.String() }
+
+func presence(pem string) string {
+	if strings.TrimSpace(pem) == "" {
+		return "unset"
+	}
+	return "set"
+}
+
 // TLSClientConfig builds the client TLS configuration of an encrypted Engine
 // connection: TLS 1.2 or newer, the stored CA (system roots when none is
 // stored) and, for mtls, the client certificate. Verification is never
