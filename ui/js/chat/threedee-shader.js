@@ -438,15 +438,18 @@
     // --- Battle Overdrive: surface proximity mines, white fuel slick & red cryo-EMP stasis trap ---
     // Mines are naval-mine style floaters (half submerged, tilting with the wave, blinking beacon, sonar pulse);
     // fuel slicks are iridescent oil films whose mesh hugs the rendered water. Both are children of `surface`.
-    const MAX_SURFACE_MINES = 4;
-    const ROBOT_MINE_COOLDOWN = 9.5;
+    // Each hazard lives a random 30-120 s; new ones only spawn into a free slot (existing ones are never evicted).
+    const MAX_SURFACE_MINES = 6;
+    const ROBOT_MINE_COOLDOWN = 14;
     const ROBOT_MINE_ARM_DELAY = 0.75;
-    const ROBOT_MINE_LIFETIME = 8.8;
+    const ROBOT_MINE_LIFETIME_MIN = 30;
+    const ROBOT_MINE_LIFETIME_MAX = 120;
     const ROBOT_MINE_TRIGGER_RADIUS = 1.65;
     const ROBOT_MINE_STASIS_DURATION = 2.75;
-    const MAX_FUEL_SLICKS = 5;
-    const ROBOT_FUEL_DROP_COOLDOWN = 8.4;
-    const ROBOT_FUEL_SLICK_LIFETIME = 9.2;
+    const MAX_FUEL_SLICKS = 6;
+    const ROBOT_FUEL_DROP_COOLDOWN = 12;
+    const ROBOT_FUEL_SLICK_LIFETIME_MIN = 30;
+    const ROBOT_FUEL_SLICK_LIFETIME_MAX = 120;
     const ROBOT_FUEL_IGNITE_RADIUS = 1.72;
     const ROBOT_FUEL_BURN_DURATION = 2.85;
     const ROBOT_INCAPACITATED_FIRE_INTERVAL = 0.065;
@@ -4861,11 +4864,15 @@
         slick.geometry.attributes.position.needsUpdate = true;
     }
 
+    function randomHazardLifetime(min, max) {
+        return min + Math.random() * (max - min);
+    }
+
     function spawnRobotFuelSlick(bot, t) {
         if (!scene || !surface || !bot || !bot.group || !bot.state) return false;
-        while (fuelSlicks.length >= MAX_FUEL_SLICKS) {
-            releaseFuelSlickEntry(fuelSlicks.shift());
-        }
+        // No free slot: keep every existing slick for its full lifetime. lastFuelDropAt is only set on success,
+        // so the duel loop simply retries until one expires.
+        if (fuelSlicks.length >= MAX_FUEL_SLICKS) return false;
         const entry = acquireFuelSlickEntry();
         const backX = clamp(bot.state.x - bot.forward.x * 0.55, -robotBounds.x, robotBounds.x);
         const backZ = clamp(bot.state.z - bot.forward.z * 0.55, -robotBounds.z, robotBounds.z);
@@ -4873,8 +4880,8 @@
         entry.z = backZ;
         entry.owner = bot;
         entry.bornAt = t;
-        entry.life = ROBOT_FUEL_SLICK_LIFETIME;
-        entry.maxLife = ROBOT_FUEL_SLICK_LIFETIME;
+        entry.life = randomHazardLifetime(ROBOT_FUEL_SLICK_LIFETIME_MIN, ROBOT_FUEL_SLICK_LIFETIME_MAX);
+        entry.maxLife = entry.life;
         entry.ignited = false;
         entry.burnUntil = -999;
         entry.lastFlameAt = -999;
@@ -5197,9 +5204,9 @@
 
     function spawnSurfaceMine(bot, t, mineType) {
         if (!scene || !surface || !bot || !bot.group || !bot.state) return false;
-        while (surfaceMines.length >= MAX_SURFACE_MINES) {
-            releaseSurfaceMineEntry(surfaceMines.shift());
-        }
+        // No free slot: keep every existing mine for its full lifetime. lastMineAt is only set on success,
+        // so the duel loop simply retries until one is gone.
+        if (surfaceMines.length >= MAX_SURFACE_MINES) return false;
         const resolvedType = mineType || (bot.id === 'red' ? 'stasis' : 'blast');
         const entry = acquireSurfaceMineEntry(resolvedType);
         const offsetAngle = Math.atan2(bot.forward.z, bot.forward.x) + Math.PI + (Math.random() - 0.5) * 0.9;
@@ -5211,7 +5218,8 @@
         entry.mineType = resolvedType;
         entry.bornAt = t;
         entry.armedAt = t + ROBOT_MINE_ARM_DELAY;
-        entry.life = ROBOT_MINE_LIFETIME;
+        entry.life = randomHazardLifetime(ROBOT_MINE_LIFETIME_MIN, ROBOT_MINE_LIFETIME_MAX);
+        entry.maxLife = entry.life;
         entry.seed = Math.random() * Math.PI * 2;
         // The mine is dropped from just above the water; the splash (ripple, spray) happens when it lands.
         entry.dropHeight = 0.55;
@@ -5407,7 +5415,7 @@
                 mine.body.rotation.y += dt * 0.35;
                 if (t >= mine.rippleAt) {
                     addImpulse(mine.x, mine.z, 0.055);
-                    mine.rippleAt = t + 1.7 + Math.random() * 0.9;
+                    mine.rippleAt = t + 2.6 + Math.random() * 1.6;
                 }
             }
 
