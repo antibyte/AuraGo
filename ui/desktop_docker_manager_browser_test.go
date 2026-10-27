@@ -33,6 +33,7 @@ type dockerManagerFixture struct {
 	opSeq        int
 	held         string
 	release      chan struct{}
+	holdVolumes  chan struct{} // while set, GET .../volumes answers only after it is closed
 }
 
 type dockerManagerOperation struct{ host, stack, kind string }
@@ -343,6 +344,17 @@ func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/hosts/local/stacks/"):
 		write(http.StatusAccepted, map[string]any{"status": "ok", "operation": f.newOperation("local", strings.TrimPrefix(path, "/hosts/local/stacks/"), "delete")})
 	case r.Method == http.MethodGet && strings.HasSuffix(path, "/volumes"):
+		f.mu.Lock()
+		gate := f.holdVolumes
+		f.mu.Unlock()
+		if gate != nil {
+			select {
+			case <-gate:
+			case <-r.Context().Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
+		}
 		write(http.StatusOK, map[string]any{"status": "ok", "volumes": []map[string]any{{"name": "blog_data", "driver": "local", "size": 2048}}})
 	case r.Method == http.MethodPost && path == "/hosts/local/projects/legacy/restart":
 		write(http.StatusOK, map[string]any{"status": "ok"})
@@ -512,6 +524,35 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	dockerManagerPress(page, 'k')
 	page.MustWait(`()=>!!document.getElementById('vd-spotlight-backdrop')`)
 	page.MustEval(`()=>auditTest.closeSpotlight()`)
+
+	// The volume list of a dialog that is already closed arrives late and must not touch the dialog that is open now: Delete keeps
+	// waiting for the typed name although the cancelled "remove with volumes" dialog was about to enable its confirm button.
+	gate := make(chan struct{})
+	fixture.mu.Lock()
+	fixture.holdVolumes = gate
+	fixture.mu.Unlock()
+	openStackMenu := func(pick string) {
+		page.MustEval(`()=>document.querySelector('[data-stack-pane] [data-action="stack-more"]').click()`)
+		page.MustWait(`()=>document.querySelectorAll('.vd-context-menu [data-context-action]').length>=2`)
+		page.MustEval(`(pick)=>{const items=[...document.querySelectorAll('.vd-context-menu [data-context-action]')];(pick==='last'?items[items.length-1]:items.find(i=>new RegExp(pick).test(i.textContent))).click()}`, pick)
+	}
+	openStackMenu("Volumes")
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [data-volumes]') && !!document.querySelector('dialog[open] [data-dact="retry"]')`)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="no"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+	openStackMenu("last")
+	page.MustWait(`()=>!!document.querySelector('dialog[open] [name="confirm-name"]')`)
+	close(gate)
+	page.MustWait(`()=>document.querySelector('dialog[open] [data-volumes]')?.textContent.includes('blog_data')`)
+	time.Sleep(300 * time.Millisecond)
+	if !page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="yes"]').disabled`).Bool() {
+		t.Fatal("a late volume list of a closed dialog enabled the Delete button of the open one before the stack name was typed")
+	}
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="no"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+	fixture.mu.Lock()
+	fixture.holdVolumes = nil
+	fixture.mu.Unlock()
 
 	// Leaving a stack with unsaved edits asks; Cancel keeps the edit, Discard moves on.
 	page.MustElement(`[data-ed-surface="compose"] .cm-content`).MustClick()

@@ -177,6 +177,7 @@
                 let settled = false;
                 const settle = value => { if (!settled) { settled = true; resolve(value); } };
                 const data = { status: 'loading', list: [], error: null }, choice = { volumes: false };
+                let closed = false;
                 const view = {
                     title: t('delete_title', { name: info.name }),
                     html: () => '<p class="dm-dialog-copy">' + esc(t('delete_body', { name: info.name, host: info.hostName })) + '</p>'
@@ -188,6 +189,8 @@
                         + '<div class="dm-field"><label for="' + fieldId('confirm-name') + '">' + esc(t('delete_type', { name: info.name })) + '</label><input id="' + fieldId('confirm-name') + '" name="confirm-name" autocomplete="off" spellcheck="false" autocapitalize="off" data-autofocus></div>'
                         + actions('', button('no', dt('desktop.cancel')) + button('yes', t('delete_confirm'), { danger: true, disabled: true })),
                     update() {
+                        // A late volume list must not reach a dialog that is closed or covered, nor the one that replaced it.
+                        if (closed || top() !== view) return;
                         refreshPart(view, '[data-volumes]', volumesHtml(data));
                         const note = content.querySelector('[data-volumes-note]');
                         if (note) note.textContent = choice.volumes ? t('delete_volumes_go') : t('delete_volumes_stay');
@@ -200,7 +203,7 @@
                         c.querySelector('[data-dact="no"]').addEventListener('click', () => { settle(null); pop(false); });
                         yes.addEventListener('click', () => { settle({ volumes: choice.volumes }); pop(true); });
                     },
-                    onClose() { settle(null); }
+                    onClose() { closed = true; settle(null); }
                 };
                 push(view);
                 loadVolumes(info, data, view);
@@ -213,6 +216,7 @@
                 let settled = false;
                 const settle = value => { if (!settled) { settled = true; resolve(value); } };
                 const data = { status: 'loading', list: [], error: null };
+                let closed = false;
                 const view = {
                     title: t('down_volumes_title', { name: info.name }),
                     html: () => '<p class="dm-dialog-copy">' + esc(t('down_volumes_body', { name: info.name, host: info.hostName })) + '</p>'
@@ -220,6 +224,8 @@
                         + '<p class="dm-note">' + views.glyph('lock') + '<span>' + esc(t('down_volumes_stay', { path: info.dir })) + '</span></p>'
                         + actions('', button('no', dt('desktop.cancel'), { auto: true }) + button('retry', t('banner_retry'), { glyph: 'refresh' }) + button('yes', t('down_volumes_confirm'), { danger: true, disabled: true })),
                     update() {
+                        // The confirm button belongs to whatever dialog is open: only this dialog, while it is on top, may switch it.
+                        if (closed || top() !== view) return;
                         refreshPart(view, '[data-volumes]', volumesHtml(data));
                         const yes = content.querySelector('[data-dact="yes"]'), retry = content.querySelector('[data-dact="retry"]');
                         if (yes) { yes.disabled = data.status !== 'ok'; yes.removeAttribute('aria-busy'); }
@@ -231,7 +237,7 @@
                         c.querySelector('[data-dact="retry"]').addEventListener('click', () => loadVolumes(info, data, view));
                         view.update();
                     },
-                    onClose() { settle(false); }
+                    onClose() { closed = true; settle(false); }
                 };
                 push(view);
                 loadVolumes(info, data, view);
