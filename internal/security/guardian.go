@@ -137,7 +137,12 @@ type Guardian struct {
 }
 
 // NewGuardian creates a Guardian with pre-compiled injection detection patterns.
-// Patterns cover English, German, and common multilingual injection techniques.
+// The promptsec rules cover English, German, Spanish, French and Croatian
+// instruction overrides plus the common delimiter, encoding and fuzzy-keyword
+// techniques; AuraGo adds override and prompt-disclosure phrases for Italian,
+// Portuguese, Polish, Dutch, Turkish, Russian, Chinese, Japanese and Korean and
+// the Llama 3, Gemma, GPT and tool-call template tokens (injection_patterns.go).
+// Other languages are covered only by the opt-in judge.
 func NewGuardian(logger *slog.Logger) *Guardian {
 	return NewGuardianWithOptions(logger, GuardianOptions{})
 }
@@ -261,7 +266,10 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 	}
 
 	psOpts = append(psOpts,
-		promptsec.WithHeuristics(&promptsec.HeuristicOptions{Preset: preset}),
+		promptsec.WithHeuristics(&promptsec.HeuristicOptions{
+			Preset:         preset,
+			CustomPatterns: auraGoInjectionPatterns(),
+		}),
 		promptsec.WithOutputValidator(&promptsec.OutputOptions{}),
 	)
 
