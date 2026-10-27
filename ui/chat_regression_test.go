@@ -2,7 +2,9 @@ package ui
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"hash/fnv"
 	"image/png"
@@ -3927,5 +3929,123 @@ func TestChatYouTubeParserReadsFragmentStart(t *testing.T) {
 	}
 	if strings.Contains(fallback, "parsed.hash") {
 		t.Fatal("chat-messages.js reimplemented the fragment parser")
+	}
+}
+
+func TestChatFrontend_OceanSeaLifeStaysBehindMessages(t *testing.T) {
+	t.Parallel()
+
+	oceanCSS := readChatThemeSectionCSS(t, "chat-ocean.css")
+	for _, marker := range []string{
+		// Both canvases (z 2) slot under #chat-content (z 3) only while #chat-box forms no stacking context.
+		"[data-theme=\"ocean\"] #chat-box {\n    /* No stacking context: the sea life and caustic canvases (z 2) sit under #chat-content (z 3). */\n    isolation: auto;\n    position: relative;\n    z-index: auto;",
+		"[data-theme=\"ocean\"] #ocean-life-overlay {\n    position: fixed;\n    pointer-events: none;\n    z-index: 2;",
+		"[data-theme=\"ocean\"] #chat-content {\n    position: relative;\n    z-index: 3;",
+	} {
+		if !strings.Contains(oceanCSS, marker) {
+			t.Fatalf("ocean CSS missing marker %q", marker)
+		}
+	}
+
+	shader, err := os.ReadFile(filepath.Join("js", "chat", "ocean-shader.js"))
+	if err != nil {
+		t.Fatalf("read ocean-shader.js: %v", err)
+	}
+	if !strings.Contains(normalizeAssetText(shader), "'/js/chat/ocean-life.js'") {
+		t.Fatal("ocean shader must load the sea life bridge")
+	}
+
+	bridgeContent, err := os.ReadFile(filepath.Join("js", "chat", "ocean-life.js"))
+	if err != nil {
+		t.Fatalf("read ocean-life.js: %v", err)
+	}
+	bridge := normalizeAssetText(bridgeContent)
+	for _, marker := range []string{
+		"'/js/vendor/chat-ocean-life/ocean-life.esm.js'",
+		"'/3d/chat-ocean-life/v1/'",
+		"'/3d/screensaver/abyss/v1/'",
+		"import(versioned(BUNDLE))",
+		"'visibilitychange'",
+		"'webglcontextlost'",
+		"getElementById('agentStatusContainer')",
+		"getElementById('ocean-overlay')",
+		"scene.stillFrame()",
+		"window.__auraOceanLife",
+	} {
+		if !strings.Contains(bridge, marker) {
+			t.Fatalf("ocean sea life bridge missing marker %q", marker)
+		}
+	}
+
+	var kit struct {
+		Kit    string `json:"kit"`
+		Assets []struct {
+			ID        string  `json:"id"`
+			File      string  `json:"file"`
+			Bytes     int     `json:"bytes"`
+			SHA256    string  `json:"sha256"`
+			Triangles int     `json:"triangles"`
+			Length    float64 `json:"length"`
+		} `json:"assets"`
+	}
+	manifest, err := os.ReadFile(filepath.Join("3d", "chat-ocean-life", "v1", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read sea life manifest: %v", err)
+	}
+	if err := json.Unmarshal(manifest, &kit); err != nil {
+		t.Fatal(err)
+	}
+	wantIDs := []string{"fish_tang", "fish_clown", "fish_butterfly", "fish_sardine", "shark_reef", "shark_hammer", "turtle", "whale"}
+	if kit.Kit != "aurago-chat-ocean-life" || len(kit.Assets) != len(wantIDs) {
+		t.Fatalf("unexpected sea life kit %q with %d assets", kit.Kit, len(kit.Assets))
+	}
+	total := 0
+	for i, asset := range kit.Assets {
+		if asset.ID != wantIDs[i] {
+			t.Fatalf("asset %d is %q, want %q", i, asset.ID, wantIDs[i])
+		}
+		data, err := os.ReadFile(filepath.Join("3d", "chat-ocean-life", "v1", asset.File))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(data)
+		if len(data) != asset.Bytes || hex.EncodeToString(sum[:]) != asset.SHA256 {
+			t.Fatalf("%s does not match its manifest entry", asset.File)
+		}
+		budget := 8000
+		if strings.HasPrefix(asset.ID, "fish_") {
+			budget = 3000
+		}
+		if asset.Triangles > budget || asset.Triangles <= 0 {
+			t.Fatalf("%s has %d triangles, budget %d", asset.File, asset.Triangles, budget)
+		}
+		if asset.Length <= 0 {
+			t.Fatalf("%s has no length", asset.File)
+		}
+		total += len(data)
+	}
+	if total > 1536*1024 {
+		t.Fatalf("sea life kit uses %d bytes; budget is 1.5 MiB", total)
+	}
+
+	var bundle struct {
+		Three  string `json:"three"`
+		Bytes  int    `json:"bytes"`
+		SHA256 string `json:"sha256"`
+	}
+	bundleManifest, err := os.ReadFile(filepath.Join("js", "vendor", "chat-ocean-life", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read sea life bundle manifest: %v", err)
+	}
+	if err := json.Unmarshal(bundleManifest, &bundle); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join("js", "vendor", "chat-ocean-life", "ocean-life.esm.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	if bundle.Three != "0.186.1" || bundle.Bytes != len(data) || bundle.SHA256 != hex.EncodeToString(sum[:]) {
+		t.Fatal("sea life renderer bundle is stale; run node scripts/build-chat-ocean-life.js")
 	}
 }
