@@ -293,7 +293,11 @@ Co-agents **cannot** use:
 - `manage_notes` (create/update/delete)
 - `co_agent` (no nested co-agents)
 - `follow_up` (no self-scheduling)
-- `cron_scheduler`
+- `cron_scheduler`, `manage_schedule`, `schedule_cron`
+- `manage_webhooks`
+- `save_tool`, `create_skill_from_template`, `set_skill_documentation` (no new persistent tools or skills)
+
+Requests that arrive over A2A run as co-agents too, with two more limits: they cannot change files (the file tools keep only their read operations) and their text is passed to the agent as isolated external data, never as the owner's request.
 
 They **can** use:
 - Read operations (query_memory, search)

@@ -369,7 +369,11 @@ Co-Agenten können folgende Tools **NICHT** nutzen:
 | `manage_notes` | Kein Erstellen/Ändern von Notizen |
 | `co_agent` | Keine Rekursion (keine Sub-Co-Agenten) |
 | `follow_up` | Kein Self-Scheduling |
-| `cron_scheduler` | Kein Cron-Zugriff |
+| `cron_scheduler`, `manage_schedule`, `schedule_cron` | Kein Cron-Zugriff |
+| `manage_webhooks` | Keine Webhook-Verwaltung |
+| `save_tool`, `create_skill_from_template`, `set_skill_documentation` | Keine neuen persistenten Tools oder Skills |
+
+A2A-Anfragen laufen ebenfalls als Co-Agenten, mit zwei weiteren Grenzen: Sie dürfen keine Dateien ändern (die Datei-Tools behalten nur ihre Lese-Operationen), und ihr Text erreicht den Agenten als isolierte externe Daten, nie als Anfrage des Besitzers.
 
 ### Zeitliche Limits
 
