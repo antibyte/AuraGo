@@ -723,36 +723,80 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// A form with input asks before any way of closing it takes the input away, inside the form: the form element stays, nothing
+	// is repainted, and "Keep editing" (a button, or a second Escape that needs no click in between) leaves it as it was typed.
+	const (
+		asking     = `()=>{const a=document.querySelector('dialog[open] [data-discard-ask]');return !!a&&!a.hidden&&document.activeElement===a.querySelector('[data-dact="keep"]')}`
+		notAsked   = `()=>{const a=document.querySelector('dialog[open] [data-discard-ask]');return !!a&&a.hidden}`
+		stillTyped = `()=>{const f=document.querySelector('dialog[open] [data-host-form]');return !!f&&f.dataset.same==='1'&&f.elements.ssh_password.value==='hunter2-secret'&&f.elements.ssh_key.value==='pem-secret'}`
+	)
+	openHostForm := func() {
+		page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
+		page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="add"]')`)
+		page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="add"]').click()`)
+		page.MustWait(`()=>!!document.querySelector('dialog[open] [data-host-form]')`)
+		page.MustEval(`()=>{const f=document.querySelector('[data-host-form]');f.dataset.same='1';f.elements.ssh_password.value='hunter2-secret';f.elements.ssh_key.value='pem-secret';f.elements.ssh_key.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	}
+	openHostForm()
+	page.MustElement("dialog[open] [data-host-form] input[name=name]").MustClick()
+	pressEscape()
+	page.MustWait(asking)
+	pressEscape()
+	page.MustWait(notAsked)
+	if !page.MustEval(stillTyped).Bool() {
+		t.Fatal("a second Escape on the discard question must keep the form and what was typed into it")
+	}
+	for name, ask := range map[string]string{
+		"Back":     `()=>document.querySelector('dialog[open] [data-dact="back"]').click()`,
+		"close":    `()=>document.querySelector('dialog[open] [data-dialog-dismiss]').click()`,
+		"backdrop": `()=>document.querySelector('dialog[open]').click()`,
+	} {
+		page.MustEval(ask)
+		page.MustWait(asking)
+		page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="keep"]').click()`)
+		page.MustWait(notAsked)
+		if !page.MustEval(stillTyped).Bool() {
+			t.Fatalf("Keep editing after %s must leave the form with what was typed into it", name)
+		}
+	}
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dialog-dismiss]').click()`)
+	page.MustWait(asking)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="discard"]').click()`)
+	page.MustWait(`()=>!document.querySelector('dialog[open]')`)
+
 	closers := []struct {
 		name string
 		run  func()
 	}{
 		{"Escape twice", func() {
-			// Chrome closes a dialog on a second Escape without a user gesture in between, whatever cancel does; a real click first.
-			page.MustElement("dialog[open] [data-host-form] input[name=name]").MustClick()
+			// No click is needed between the Escapes: the form asks, Discard leaves it, the next Escape closes the host list.
 			pressEscape()
+			page.MustWait(asking)
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="discard"]').click()`)
 			page.MustWait(`()=>!document.querySelector('dialog[open] [data-host-form]')&&!!document.querySelector('dialog[open] .dm-hostlist')`)
 			pressEscape()
 		}},
 		{"Back and Close", func() {
 			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="back"]').click()`)
+			page.MustWait(asking)
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="discard"]').click()`)
 			page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-hostlist')`)
 			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
 		}},
-		{"close button", func() { page.MustEval(`()=>document.querySelector('dialog[open] [data-dialog-dismiss]').click()`) }},
+		{"close button", func() {
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dialog-dismiss]').click()`)
+			page.MustWait(asking)
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="discard"]').click()`)
+		}},
 		{"backdrop", func() {
 			// A click beside the dialog with typed input asks before it throws the input away.
 			page.MustEval(`()=>document.querySelector('dialog[open]').click()`)
-			page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="yes"]')`)
-			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="yes"]').click()`)
+			page.MustWait(asking)
+			page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="discard"]').click()`)
 		}},
 	}
 	for _, closer := range closers {
-		page.MustEval(`()=>document.querySelector('[data-action="manage-hosts"]').click()`)
-		page.MustWait(`()=>!!document.querySelector('dialog[open] [data-dact="add"]')`)
-		page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="add"]').click()`)
-		page.MustWait(`()=>!!document.querySelector('dialog[open] [data-host-form]')`)
-		page.MustEval(`()=>{const f=document.querySelector('[data-host-form]');f.elements.ssh_password.value='hunter2-secret';f.elements.ssh_key.value='pem-secret';f.elements.ssh_key.dispatchEvent(new Event('input',{bubbles:true}))}`)
+		openHostForm()
 		closer.run()
 		page.MustWait(`()=>!document.querySelector('dialog[open]')`)
 		if !page.MustEval(secretsGone).Bool() {
@@ -807,6 +851,8 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 		t.Fatalf("rejected draft test = %q, want the Advanced section open, stacks_dir marked and no connection result", got)
 	}
 	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="back"]').click()`)
+	page.MustWait(asking)
+	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="discard"]').click()`)
 	page.MustWait(`()=>!!document.querySelector('dialog[open] .dm-hostlist')`)
 	page.MustEval(`()=>document.querySelector('dialog[open] [data-dact="close"]').click()`)
 	page.MustWait(`()=>!document.querySelector('dialog[open]')`)

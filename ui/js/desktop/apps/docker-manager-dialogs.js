@@ -2,9 +2,10 @@
    manager list, the add/edit form with "Test connection", the import-from-nest list and the confirmations (remove a
    container, act on a protected one, delete a host) and, for stacks, the destructive confirmations (delete a stack, down
    with volumes: they list what disappears), the revision-conflict dialog with a line diff, and the prepare-host question.
-   Escape or Back pops one view; the close button closes all; a click on the backdrop closes all too, but asks first when a
-   view holds unsaved input. A classic script (window.DockerManagerDialogs) with no DOM work at load. Secrets typed into the
-   form live only in the form fields: they are sent with Save or Test and never rendered back. */
+   Escape and Back pop one view; the close button and a click on the backdrop close all. All four go through requestClose():
+   a view that holds unsaved input asks first, inline in its own form, so the form is never repainted and what was typed
+   stays. A classic script (window.DockerManagerDialogs) with no DOM work at load. Secrets typed into the form live only in
+   the form fields: they are sent with Save or Test and never rendered back. */
 (function () {
     'use strict';
 
@@ -67,7 +68,14 @@
             if (focusId) content.querySelector('[data-focus-id="' + CSS.escape(focusId) + '"]')?.focus({ preventScroll: true });
         }
 
-        dialog.addEventListener('cancel', event => { event.preventDefault(); if (stack.length) pop(false); });
+        dialog.addEventListener('cancel', event => { event.preventDefault(); requestClose(false, true); });
+        // Escape is answered here as well: a second Escape without a click in between is not cancelable, so the browser would
+        // close the dialog whatever the cancel handler says, together with what was typed. Preventing the keydown stops that.
+        dialog.addEventListener('keydown', event => {
+            if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return;
+            event.preventDefault();
+            requestClose(false, true);
+        });
         dialog.addEventListener('close', () => {
             while (stack.length) stack.pop().onClose?.(false);
             clearContent();
@@ -75,20 +83,27 @@
             opener = null;
             app.restoreFocus(target);
         });
-        // A click beside the dialog is easy to make by accident: when a view holds unsaved input (view.dirty()), ask first.
-        async function dismissBackdrop() {
+        // The one door for Escape, Back, the close button and the backdrop (all: the whole dialog, else the top view). A view with
+        // unsaved input (view.dirty()) asks first, in its own markup (view.ask(leave), view.keepEditing()), so its DOM stays as it
+        // is; a second Escape answers that question with "keep editing". Only a dirty view that is not on top falls back to a
+        // confirmation view pushed above it.
+        function requestClose(all, viaEscape) {
+            const view = top();
+            if (!view) return;
+            if (viaEscape && view.keepEditing && view.keepEditing()) return;
+            const leave = () => { if (all) closeAll(); else pop(false); };
+            const holdsInput = candidate => !!candidate.dirty && candidate.dirty();
+            if (!(all ? stack : [view]).some(holdsInput)) { leave(); return; }
+            if (holdsInput(view) && view.ask) { view.ask(leave); return; }
             if (asking) return;
-            if (stack.some(view => view.dirty && view.dirty())) {
-                asking = true;
-                const discard = await confirm({ title: t('discard_title'), message: t('discard_dialog_body'), confirmLabel: t('discard_confirm'), danger: true });
+            asking = true;
+            void confirm({ title: t('discard_title'), message: t('discard_dialog_body'), confirmLabel: t('discard_confirm'), danger: true }).then(discard => {
                 asking = false;
-                if (!discard || disposed) return;
-            }
-            closeAll();
+                if (discard && !disposed) leave();
+            });
         }
         dialog.addEventListener('click', event => {
-            if (event.target.closest('[data-dialog-dismiss]')) closeAll();
-            else if (event.target === dialog) void dismissBackdrop();
+            if (event.target.closest('[data-dialog-dismiss]') || event.target === dialog) requestClose(true);
         });
 
         const actions = (left, right) => '<div class="dm-dialog-actions">' + (left || '') + '<span class="dm-spacer"></span>' + (right || '') + '</div>';
@@ -363,6 +378,9 @@
                 + '<div class="dm-test-row"><button type="button" class="dm-btn" data-dact="test-form" data-focus-id="test-form">' + views.glyph('check') + '<span>' + esc(t('f_test')) + '</span></button><span class="dm-hint">' + esc(t('f_test_hint')) + '</span></div>'
                 + '<div class="dm-test-result" role="status" aria-live="polite" data-test-result></div>'
                 + '<p class="dm-form-error" role="alert" data-form-error hidden></p>'
+                // Closing a form that holds input asks here, inside the form, so nothing is repainted and nothing typed is lost.
+                + '<div class="dm-discard-ask" role="alert" data-discard-ask hidden><p class="dm-dialog-copy">' + esc(t('discard_dialog_body')) + '</p>'
+                + actions('', button('keep', t('conflict_keep')) + button('discard', t('discard_confirm'), { danger: true })) + '</div>'
                 + actions(button('back', dt('desktop.back')), '<button type="submit" class="dm-btn is-primary" data-focus-id="save-form"><span>' + esc(dt('desktop.save')) + '</span></button>') + '</form>';
         }
 
@@ -483,21 +501,40 @@
         function openHostForm(host) {
             if (!store.canEditHosts()) { toast(t('readonly_chip'), 'error'); return null; }
             const base = host ? model.hostToForm(host) : model.emptyHostForm(store.state.hosts);
-            let form = null, initial = '';
+            let form = null, initial = '', question = null, leave = null, lastField = null;
             const signature = () => JSON.stringify([...new FormData(form).entries()]);
-            return push({
+            const hideQuestion = () => { if (question) question.hidden = true; leave = null; };
+            const view = {
                 title: host ? t('host_edit_title') : t('host_add'),
                 html: () => formHtml(base),
                 dirty: () => !!form && form.isConnected && signature() !== initial,
+                // Shows the discard question inside the form; go() runs when the admin chooses to discard.
+                ask(go) {
+                    if (!question) return;
+                    leave = go;
+                    question.hidden = false;
+                    question.querySelector('[data-dact="keep"]').focus({ preventScroll: true });
+                },
+                // True when the question was showing: it goes away, the form stays as typed and gets its focus back.
+                keepEditing() {
+                    if (!question || question.hidden) return false;
+                    hideQuestion();
+                    (lastField && lastField.isConnected ? lastField : form.elements.name).focus({ preventScroll: true });
+                    return true;
+                },
                 bind(c) {
                     const f = c.querySelector('[data-host-form]'), ui = { replacing: false };
                     form = f;
+                    question = c.querySelector('[data-discard-ask]');
                     syncKind(c, base, ui);
                     initial = signature();
+                    f.addEventListener('focusin', event => { if (!question.contains(event.target)) lastField = event.target; });
                     f.addEventListener('input', () => syncKind(c, base, ui));
                     f.addEventListener('change', () => syncKind(c, base, ui));
-                    f.addEventListener('submit', event => { event.preventDefault(); void saveForm(c, base, ui); });
-                    f.querySelector('[data-dact="back"]').addEventListener('click', () => pop(false));
+                    f.addEventListener('submit', event => { event.preventDefault(); hideQuestion(); void saveForm(c, base, ui); });
+                    f.querySelector('[data-dact="back"]').addEventListener('click', () => requestClose(false));
+                    question.querySelector('[data-dact="keep"]').addEventListener('click', () => { view.keepEditing(); });
+                    question.querySelector('[data-dact="discard"]').addEventListener('click', () => { const go = leave; hideQuestion(); if (go) go(); });
                     f.querySelector('[data-dact="test-form"]').addEventListener('click', () => void testForm(c, base, ui));
                     f.querySelector('[data-dact="replace"]').addEventListener('click', () => {
                         ui.replacing = true;
@@ -506,7 +543,8 @@
                         if (first) first.focus();
                     });
                 }
-            });
+            };
+            return push(view);
         }
 
         // ---- import from nest -----------------------------------------------------------------------------------------

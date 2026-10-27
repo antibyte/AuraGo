@@ -228,6 +228,9 @@
 .dm-result.is-ok { color: var(--dm-ok-text); }
 .dm-result.is-bad { color: var(--dm-bad-text); }
 .dm-form-error { margin: var(--ds-space-3) 0 0; color: var(--dm-bad-text); font-weight: 600; }
+.dm-discard-ask { margin-top: var(--ds-space-3); padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--dm-bad) 45%, var(--vd-theme-border)); border-radius: var(--ds-radius-sm); background: color-mix(in srgb, var(--dm-bad) 8%, var(--vd-theme-panel-bg)); }
+.dm-discard-ask .dm-dialog-copy { margin: 0; }
+.dm-discard-ask .dm-dialog-actions { margin-top: var(--ds-space-2); }
 
 /* Toasts */
 .dm-toasts { position: absolute; right: var(--ds-space-3); bottom: var(--ds-space-3); z-index: 40; display: grid; gap: var(--ds-space-2); max-width: min(420px, calc(100% - 24px)); pointer-events: none; }
