@@ -1657,6 +1657,11 @@
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
+        if (appId === 'docker-manager' && window.DockerManagerApp) {
+            return window.DockerManagerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly()
+            }));
+        }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }

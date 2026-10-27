@@ -588,6 +588,7 @@
             'ha-switchboard': 'HASwitchboardApp',
             infra: 'InfraApp',
             'ruview': 'RuViewApp',
+            'docker-manager': 'DockerManagerApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',
