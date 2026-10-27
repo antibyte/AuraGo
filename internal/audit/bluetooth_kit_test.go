@@ -496,8 +496,8 @@ func TestUpdateShAppliesBluetoothChoice(t *testing.T) {
 		"# >>> AURAGO-BLUETOOTH-KIT",
 		`BT_STORED="$(btk_read_state "$DIR")"`,
 		`BT_CHOICE="$(btk_resolve_choice "$DIR" "$BT_FLAG" "$_bt_may_prompt")"`,
-		"no files or services were changed.\"\n        bluetooth_apply_without_update\n        exit 0",
-		"no files or services were changed.\"\n            bluetooth_apply_without_update\n            exit 0",
+		"no files or services were changed.\"\n        apply_chromium_sandbox_profile \"$(bluetooth_service_user)\"\n        bluetooth_apply_without_update\n        exit 0",
+		"no files or services were changed.\"\n            apply_chromium_sandbox_profile \"$(bluetooth_service_user)\"\n            bluetooth_apply_without_update\n            exit 0",
 		"bluetooth_apply_choice\n\n# Keep systemd's stop deadline",
 		"# ── Service restart",
 	)

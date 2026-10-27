@@ -30,6 +30,7 @@ const (
 var (
 	ErrHomepageAnnotationBusy       = errors.New("another page capture is running")
 	ErrHomepageAnnotationBrowser    = errors.New("headless browser unavailable")
+	ErrHomepageAnnotationSandbox    = errors.New("browser sandbox is blocked by the host")
 	ErrHomepageAnnotationTimeout    = errors.New("page did not load in time")
 	ErrHomepageAnnotationBlocked    = errors.New("page address is not allowed")
 	ErrHomepageAnnotationNavigation = errors.New("page could not be loaded")
@@ -134,7 +135,7 @@ func CaptureHomepageAnnotationSnapshot(ctx context.Context, opts HomepageAnnotat
 	}
 	controlURL, err := l.Launch()
 	if err != nil {
-		return nil, homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
+		return nil, homepageAnnotationLaunchError(ctx, err)
 	}
 	defer func() { l.Kill(); l.Cleanup() }()
 
@@ -233,6 +234,17 @@ func homepageAnnotationError(ctx context.Context, kind, err error) error {
 		return fmt.Errorf("%w: %v", ErrHomepageAnnotationTimeout, err)
 	}
 	return fmt.Errorf("%w: %v", kind, err)
+}
+
+// homepageAnnotationLaunchError names a blocked Chromium sandbox: Ubuntu 23.10+
+// refuses user namespaces to programs without an AppArmor profile and Chromium
+// then dies with "No usable sandbox". install.sh and update.sh add that profile.
+func homepageAnnotationLaunchError(ctx context.Context, err error) error {
+	mapped := homepageAnnotationError(ctx, ErrHomepageAnnotationBrowser, err)
+	if errors.Is(mapped, ErrHomepageAnnotationTimeout) || !strings.Contains(err.Error(), "No usable sandbox") {
+		return mapped
+	}
+	return fmt.Errorf("%w: %w: %v", ErrHomepageAnnotationSandbox, ErrHomepageAnnotationBrowser, err)
 }
 
 // clipHomepageAnnotationElements drops elements outside the captured height,

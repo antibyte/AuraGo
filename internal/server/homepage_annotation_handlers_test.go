@@ -278,3 +278,14 @@ func TestHomepageAnnotationSnapshotErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestHomepageAnnotationFailureNamesABlockedSandbox(t *testing.T) {
+	sandbox := fmt.Errorf("%w: %w: No usable sandbox", tools.ErrHomepageAnnotationSandbox, tools.ErrHomepageAnnotationBrowser)
+	if status, code := homepageAnnotationFailure(sandbox); status != http.StatusServiceUnavailable || code != "browser_sandbox_blocked" {
+		t.Fatalf("sandbox failure = %d %q, want 503 browser_sandbox_blocked", status, code)
+	}
+	plain := fmt.Errorf("%w: chrome not found", tools.ErrHomepageAnnotationBrowser)
+	if status, code := homepageAnnotationFailure(plain); status != http.StatusServiceUnavailable || code != "browser_unavailable" {
+		t.Fatalf("browser failure = %d %q, want 503 browser_unavailable", status, code)
+	}
+}

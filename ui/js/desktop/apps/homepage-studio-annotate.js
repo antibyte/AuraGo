@@ -17,7 +17,7 @@
     const MARK_COLOR = '#e8590c';
     const DEVICE_WIDTHS = { desktop: 1280, tablet: 768, mobile: 390 };
     const SNAPSHOT_ENDPOINT = '/api/desktop/integrations/homepage/annotation-snapshot';
-    const ERROR_CODES = ['capture_busy', 'browser_unavailable', 'capture_timeout', 'preview_unavailable', 'invalid_path', 'invalid_viewport', 'invalid_target', 'capture_blocked', 'capture_failed'];
+    const ERROR_CODES = ['capture_busy', 'browser_unavailable', 'browser_sandbox_blocked', 'capture_timeout', 'preview_unavailable', 'invalid_path', 'invalid_viewport', 'invalid_target', 'capture_blocked', 'capture_failed'];
 
     function boxArea(box) {
         return Math.max(0, box[2]) * Math.max(0, box[3]);

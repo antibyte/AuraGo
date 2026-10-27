@@ -1477,6 +1477,76 @@ apply_aurago_setcap_if_available() {
         warn "setcap failed on ${binary} — run manually if you need HTTPS on privileged ports."
 }
 
+# ── Chromium sandbox (AppArmor) ────────────────────────────────────────
+# Ubuntu 23.10+ lets only programs with an AppArmor profile create user
+# namespaces. The Chromium that AuraGo's headless browser tools download into
+# ~/.cache/rod then aborts with "No usable sandbox". Keep its sandbox on and
+# grant it userns through a profile instead of switching the sandbox off.
+chromium_sandbox_profile_text() {
+    local home="$1"
+    cat <<EOF
+# Managed by AuraGo install.sh/update.sh. Lets the Chromium that AuraGo's
+# headless browser tools download create its sandbox (user namespaces).
+abi <abi/4.0>,
+include <tunables/global>
+
+profile aurago-chromium ${home}/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/aurago-chromium>
+}
+EOF
+}
+
+# Installs that profile for <service-user> when the host restricts user
+# namespaces. Never fails the caller: a problem only produces a warning.
+apply_chromium_sandbox_profile() {
+    local user="${1:-}"
+    local sysctl_file="${CHROMIUM_USERNS_SYSCTL:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}"
+    local dir="${CHROMIUM_APPARMOR_DIR:-/etc/apparmor.d}"
+    local profile="$dir/aurago-chromium"
+    local hint="See documentation/installation.md (Headless browser sandbox on Ubuntu 23.10+)."
+    local PATH="$PATH:/usr/sbin:/sbin"
+    local home="" tmp=""
+
+    [ -r "$sysctl_file" ] && [ "$(cat "$sysctl_file" 2>/dev/null || true)" = "1" ] || return 0
+    case "$user" in ''|root) return 0 ;; esac
+
+    # The home goes into an AppArmor path: a space or glob character would
+    # break or widen it.
+    home="$(getent passwd "$user" 2>/dev/null | cut -d: -f6 || true)"
+    if ! printf '%s\n' "$home" | LC_ALL=C grep -Eq '^/[A-Za-z0-9._/-]+$'; then
+        warn "AppArmor blocks Chromium's sandbox, but the home directory of '$user' is unusable for a profile. $hint"
+        return 0
+    fi
+    if ! command -v apparmor_parser >/dev/null 2>&1 || [ ! -e "$dir/abi/4.0" ]; then
+        warn "AppArmor blocks Chromium's sandbox, but apparmor_parser or $dir/abi/4.0 is missing. $hint"
+        return 0
+    fi
+
+    # Already in place: no sudo prompt on every update.
+    if [ -f "$profile" ] && [ "$(cat "$profile" 2>/dev/null || true)" = "$(chromium_sandbox_profile_text "$home")" ]; then
+        return 0
+    fi
+
+    tmp="$(mktemp 2>/dev/null || true)"
+    if [ -z "$tmp" ]; then
+        warn "AppArmor blocks Chromium's sandbox, but no temporary file could be created. $hint"
+        return 0
+    fi
+    chromium_sandbox_profile_text "$home" > "$tmp" || true
+    if ! apparmor_parser -Q -K "$tmp" >/dev/null 2>&1; then
+        warn "AppArmor blocks Chromium's sandbox, but the generated profile did not validate. $hint"
+    elif $SUDO install -m 0644 "$tmp" "$profile" && $SUDO apparmor_parser -r "$profile"; then
+        ok "AppArmor profile $profile lets AuraGo's headless Chromium use its sandbox."
+    else
+        warn "AppArmor blocks Chromium's sandbox, and installing $profile failed (it needs sudo). $hint"
+    fi
+    rm -f "$tmp"
+    return 0
+}
+
 # ── Find installation directory ────────────────────────────────────────
 # _AU_ORIG_DIR is exported when re-execing from a temp copy (see below).
 # In that case BASH_SOURCE[0] points to /tmp/... so we must use the saved path.
@@ -2248,6 +2318,7 @@ if $BINARY_ONLY; then
     fi
     if [ "$INSTALLED_RELEASE" = "$RELEASE_TAG" ] && ! $REBUILD; then
         ok "AuraGo is already at ${RELEASE_TAG}; no files or services were changed."
+        apply_chromium_sandbox_profile "$(bluetooth_service_user)"
         bluetooth_apply_without_update
         exit 0
     fi
@@ -2275,6 +2346,7 @@ else
         fi
         if ! $REBUILD; then
             ok "No rebuild requested; no files or services were changed."
+            apply_chromium_sandbox_profile "$(bluetooth_service_user)"
             bluetooth_apply_without_update
             exit 0
         fi
@@ -3510,6 +3582,7 @@ for _exe in \
     mark_executable_if_present "$_exe"
 done
 apply_aurago_setcap_if_available
+apply_chromium_sandbox_profile "$(bluetooth_service_user)"
 
 # ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──
 SVC_FILE="/etc/systemd/system/aurago.service"

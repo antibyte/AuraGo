@@ -262,6 +262,36 @@ rm -rf ~/aurago
 | Service install fails on Linux | Run `sudo ./aurago --setup` (systemd requires root for `/etc/systemd/system/`) |
 | Port already in use | Change `server.port` in `config.yaml` |
 | Python venv creation fails | Install Python 3.9+: `sudo apt install python3 python3-venv` |
+| Page capture or the browser tools report `No usable sandbox` | See [Headless browser sandbox on Ubuntu 23.10+ (AppArmor)](#headless-browser-sandbox-on-ubuntu-2310-apparmor) |
+
+---
+
+## Headless browser sandbox on Ubuntu 23.10+ (AppArmor)
+
+**Symptom:** Homepage Studio says the page capture can't start Chromium because AppArmor blocks its sandbox, and the AuraGo log contains `No usable sandbox`. The scraper, web capture, form and performance tools fail the same way.
+
+**Cause:** Ubuntu 23.10+ sets `kernel.apparmor_restrict_unprivileged_userns = 1`. Only programs with an AppArmor profile that grants `userns` may create the user namespace Chromium's sandbox needs. The Chromium that AuraGo downloads into `~/.cache/rod/browser/` has no such profile. AuraGo keeps Chromium's sandbox on rather than starting it with `--no-sandbox`.
+
+**Fix:** `install.sh` and `update.sh` write `/etc/apparmor.d/aurago-chromium` for the AuraGo service user when the setting above is `1` (they ask for your sudo password). Run `./update.sh` once, even if AuraGo is already up to date.
+
+**Other setups** (manual installs, a different home directory): replace `/home/aurago` with the home directory of the user that runs AuraGo, then load the profile.
+
+```bash
+sudo tee /etc/apparmor.d/aurago-chromium >/dev/null <<'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile aurago-chromium /home/aurago/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
+  userns,
+
+  include if exists <local/aurago-chromium>
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/aurago-chromium
+sysctl kernel.apparmor_restrict_unprivileged_userns   # 1 = restricted, the profile is needed
+```
+
+**Trade-off:** the profile lets programs at that path create user namespaces. The AuraGo user can write to that path, so any program it places there gets the same permission. This is the same trade-off as Puppeteer's documented profile for its cached Chrome, and it keeps Chromium's own sandbox active instead of switching it off.
 
 ---
 

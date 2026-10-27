@@ -326,3 +326,23 @@ func TestHomepageAnnotationNavigateErrorMapping(t *testing.T) {
 		}
 	}
 }
+
+func TestHomepageAnnotationLaunchErrorNamesABlockedSandbox(t *testing.T) {
+	sandbox := errors.New("[launcher] Failed to get the debug url: FATAL:zygote_host_impl_linux.cc(126)] No usable sandbox! You can try --no-sandbox")
+	got := homepageAnnotationLaunchError(context.Background(), sandbox)
+	if !errors.Is(got, ErrHomepageAnnotationSandbox) || !errors.Is(got, ErrHomepageAnnotationBrowser) {
+		t.Fatalf("sandbox failure mapped to %v, want both the sandbox and the browser error", got)
+	}
+
+	plain := homepageAnnotationLaunchError(context.Background(), errors.New("exec: chrome not found"))
+	if !errors.Is(plain, ErrHomepageAnnotationBrowser) || errors.Is(plain, ErrHomepageAnnotationSandbox) {
+		t.Fatalf("plain launch failure mapped to %v, want only the browser error", plain)
+	}
+
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	late := homepageAnnotationLaunchError(expired, sandbox)
+	if !errors.Is(late, ErrHomepageAnnotationTimeout) || errors.Is(late, ErrHomepageAnnotationSandbox) {
+		t.Fatalf("expired launch mapped to %v, want only the timeout error", late)
+	}
+}

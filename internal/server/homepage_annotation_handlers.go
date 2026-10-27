@@ -257,6 +257,8 @@ func homepageAnnotationFailure(err error) (int, string) {
 	switch {
 	case errors.Is(err, tools.ErrHomepageAnnotationBusy):
 		return http.StatusConflict, "capture_busy"
+	case errors.Is(err, tools.ErrHomepageAnnotationSandbox):
+		return http.StatusServiceUnavailable, "browser_sandbox_blocked"
 	case errors.Is(err, tools.ErrHomepageAnnotationBrowser):
 		return http.StatusServiceUnavailable, "browser_unavailable"
 	case errors.Is(err, tools.ErrHomepageAnnotationTimeout):
