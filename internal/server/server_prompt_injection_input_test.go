@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/voice"
@@ -145,6 +147,40 @@ func TestIncomingSMSQuarantinePreparationWithholdsPayloadAndSender(t *testing.T)
 	normal, normalAddenda := prepareIncomingSMSAgentInput("+15551234567", "hello", nil, false)
 	if normalAddenda != nil || !strings.Contains(normal, "+15551234567") || !strings.Contains(normal, "hello") {
 		t.Fatalf("normal SMS preparation changed: message=%q addenda=%+v", normal, normalAddenda)
+	}
+}
+
+// The contract lives in prepareIncomingSMSAgentInput itself: a caller that
+// forgot to swap the text for the notice still cannot bring the raw SMS back.
+func TestPrepareIncomingSMSAgentInputNeverReturnsRawTextWhenQuarantined(t *testing.T) {
+	const from, body, media = "+1555SENDER_SENTINEL", "SMS_RAW_BODY_SENTINEL", "https://files.invalid/SMS_RAW_MEDIA_SENTINEL"
+	msg, addenda := prepareIncomingSMSAgentInput(from, body, []string{media}, true)
+	if msg != incomingSMSQuarantineNotice() || !strings.Contains(msg, "[QUARANTINE NOTICE]") {
+		t.Fatalf("quarantined SMS message = %q, want the fixed notice", msg)
+	}
+	for _, leaked := range []string{from, body, media} {
+		if strings.Contains(msg, leaked) {
+			t.Fatalf("quarantined SMS message leaked %q: %q", leaked, msg)
+		}
+	}
+	if len(addenda) != 1 || addenda[0].ID != "sms_security_quarantine" {
+		t.Fatalf("quarantine guidance = %+v", addenda)
+	}
+}
+
+// An allowed phone number is not authentication: the SMS run records no human
+// evidence, quarantined or not.
+func TestIncomingSMSRunLeavesHumanInputNil(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}}
+	routing := "hello"
+	for _, addenda := range [][]prompts.PromptAddendum{nil, {{ID: "sms_security_quarantine", Text: "withheld"}}} {
+		run := s.incomingSMSRunConfig("session-1", &routing, addenda)
+		if run.HumanInput != nil {
+			t.Fatalf("SMS run carries HumanInput %+v, want nil", run.HumanInput)
+		}
+		if run.MessageSource != "sms" || run.SessionID != "session-1" || len(run.TrustedPromptAddenda) != len(addenda) {
+			t.Fatalf("SMS run config = source %q session %q addenda %d", run.MessageSource, run.SessionID, len(run.TrustedPromptAddenda))
+		}
 	}
 }
 
