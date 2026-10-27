@@ -26,6 +26,7 @@ const expectedExports = [
   '@codemirror/lang-html',
   '@codemirror/lang-css',
   '@codemirror/lang-markdown',
+  '@codemirror/lang-yaml',
   '@codemirror/theme-one-dark',
   '@codemirror/language',
   '@codemirror/autocomplete',
