@@ -339,7 +339,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Long lists (a host with thousands of containers; the app was measured with 3,306): nothing is rendered without a bound. The stopped single
   containers (no compose project, not running, paused or restarting, and neither protected nor a helper: those keep their own row and lock) of one image fold into ONE group entry from 5 of them on
   (`docker-manager-groups.js` `entries`; grouped after the search and filter, so fewer than 5 matches show as plain rows; running containers are
-  never grouped; plain rows come first, then the groups by image). In the table the group is a treegrid parent row (`tr.dm-image-row`,
+  never grouped; plain rows come first, then the groups by image; a list longer than one page is ranked first: running, paused, restarting and
+  failed containers, then the groups that hold a failure, then the other rows, then the other groups, so the 200-entry cap hides only stopped
+  containers that are fine). In the table the group is a treegrid parent row (`tr.dm-image-row`,
   `aria-expanded`, one `aria-level` below its section, its members one more; Enter, Space, Right open it, Left closes it, Left on a member goes to
   it); in the Stacks list it is a `li` with a button and a nested list (Right/Left work there too). A group is closed until opened; while a
   search (or, in the Containers section, a state filter) is active every group with matches is open and holds only the matches, until the admin

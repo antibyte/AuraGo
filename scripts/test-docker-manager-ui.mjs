@@ -2691,6 +2691,48 @@ const full = {};
     assert.equal((capped.match(/data-action="open-stack"/g) || []).length, 200, 'the stack list is capped too');
     assert.ok(capped.includes('data-more-key="sec:stacks"') && capped.includes('hidden&quot;:&quot;250&quot;'), 'with its own show-more');
     G.toggle(grp, false, 'i:ci:1');
+    // The cap hides the end of a list, so a list longer than a page leads with what is running or failed: 250 stopped containers of 250
+    // images named ci-job-* sort before 40 running svc-* by name, and the first page would have shown only stopped ones
+    {
+        const stoppedOnes = Array.from({ length: 250 }, (_, i) => container('ci-job-' + String(i).padStart(3, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'job-image-' + i + ':1', created: 1760000000 + i }));
+        const failedOnes = [0, 1, 2].map(i => container('zz-failed-' + i, { state: 'exited', status: 'Exited (1) 1 hour ago', image: 'failed-image-' + i + ':1' }));
+        const runningOnes = Array.from({ length: 40 }, (_, i) => container('svc-' + String(i).padStart(2, '0'), { image: 'svc-image:1' }));
+        const fresh = G.state(), listed = [...stoppedOnes, ...failedOnes, ...runningOnes];
+        const rows2 = model2.buildRows(hosts, { local: { containers: listed, loaded: true } }, 'all');
+        const groups2 = model2.groupRows(rows2, { hostOrder: ['local'] });
+        for (const group of groups2) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+        const baseSnap = Object.assign(snapFor(false), {
+            state: Object.assign({}, snapFor(false).state, { byHost: { local: { containers: listed, loaded: true } } }), rows: rows2, visible: rows2, groups: groups2, open: G.view(fresh, false).open, limit: G.view(fresh, false).limit,
+
+        });
+        const rendered = items => items.filter(item => item.key.startsWith('local/')).map(item => (item.html.match(/class="dm-name">([^<]+)</) || [])[1]);
+
+        // the table: 43 leading rows are the running and the failed ones, then 157 stopped ones, then "show more" with 93 hidden
+        const tableItems = views.tbodyItems(baseSnap), names2 = rendered(tableItems);
+        eq([names2.length, tableItems[tableItems.length - 1].key], [200, 'more:' + groups2[0].key], 'one page of rows and the show-more row');
+        eq(names2.slice(0, 43).sort(), [...runningOnes.map(c => c.names[0]), ...failedOnes.map(c => c.names[0])].sort(), 'the first 43 rows are the running and the failed containers');
+        eq(names2.slice(43, 46), ['ci-job-000', 'ci-job-001', 'ci-job-002'], 'the stopped ones that are fine follow in name order');
+        assert.ok(!names2.includes('ci-job-157') && tableItems[tableItems.length - 1].html.includes('show_more{&quot;count&quot;:&quot;93&quot;,&quot;hidden&quot;:&quot;93&quot;}'), 'only stopped rows are behind the cap');
+
+        // the Stacks list: the same page
+        const singles2 = rows2.filter(row => !row.c.compose_project);
+        const listHtml = stacks.list(Object.assign({}, baseSnap, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles2, singleEntries: G.entries(singles2, { image: true }) } }));
+        const shownNames = [...listHtml.matchAll(/class="dm-name">([^<]+)</g)].map(match => match[1]).filter(name => !name.startsWith('show_more'));
+        eq([shownNames.length, runningOnes.every(c => shownNames.includes(c.names[0])), failedOnes.every(c => shownNames.includes(c.names[0])), shownNames.includes('ci-job-157')], [200, true, true, false], 'the Stacks list shows every running and failed container within its first 200');
+        assert.ok(listHtml.includes('data-more-key="sec:singles"') && listHtml.includes('hidden&quot;:&quot;93&quot;'), 'and offers the other 93');
+
+        // a list that fits keeps its order; groups with a failure rank above ordinary rows, ordinary groups last
+        const small = G.entries(model2.buildRows(hosts, { local: { containers: [container('b-stopped', { state: 'exited', status: 'Exited (0) 1 hour ago' }), container('a-run')], loaded: true } }, 'all'), { image: true });
+        eq(small.map(entry => entry.row.c.names[0]), ['b-stopped', 'a-run'], 'a list within one page is not reordered');
+        const ranking = G.entries(model2.buildRows(hosts, { local: { containers: [
+            ...Array.from({ length: 200 }, (_, i) => container('plain-' + String(i).padStart(3, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'p' + i + ':1' })),
+            ...Array.from({ length: 5 }, (_, i) => container('fine-' + i, { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'fine:1' })),
+            ...Array.from({ length: 5 }, (_, i) => container('broken-' + i, { state: 'exited', status: i ? 'Exited (0) 1 hour ago' : 'Exited (2) 1 hour ago', image: 'broken:1' })),
+            container('paused-one', { state: 'paused', status: 'Up 1 hour (Paused)' })
+        ], loaded: true } }, 'all'), { image: true });
+        eq([ranking[0].row.c.names[0], ranking[1].key, ranking[2].row.c.names[0], ranking[ranking.length - 1].key], ['paused-one', 'i:broken:1', 'plain-000', 'i:fine:1'], 'paused first, then the group with a failure, then the plain stopped rows, the quiet group last');
+    }
+
     // a snapshot without the new members (older callers) renders as before
     assert.ok(views.tbody({ groups, headers: false, collapsed: new Set(), state: { busy: new Set(), detail: null }, canMutate: true, multi: false }).length > 0);
 }

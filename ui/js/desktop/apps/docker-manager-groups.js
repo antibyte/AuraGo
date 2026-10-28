@@ -30,12 +30,27 @@
     }
     const imageKey = image => 'i:' + text(image);
 
+    // The cap hides what comes last, so a list longer than one page is ranked first: running, paused and restarting containers and
+    // those with a problem (exited with an error, dead, unhealthy) lead, then the image groups that hold a failed container, then the
+    // other rows, then the other groups. The sort is stable (the name order stays inside a rank), so the cap only ever hides stopped
+    // containers that are fine. A list that fits on a page is left in its order.
+    function ranked(list) {
+        if (list.length <= PAGE) return list;
+        const model = window.DockerManagerModel;
+        const rank = entry => {
+            if (entry.type === 'image') return entry.counts.problem ? 1 : 3;
+            const c = entry.row.c;
+            return ACTIVE.includes(lower(c.state)) || model.problemOf(c) ? 0 : 2;
+        };
+        return list.map((entry, index) => ({ entry, index, rank: rank(entry) })).sort((a, b) => a.rank - b.rank || a.index - b.index).map(item => item.entry);
+    }
+
     // rows: the container rows of one section in display order. options.image switches the image grouping on (the single containers).
     // Returns [{type: 'row', row} ..., {type: 'image', key, image, rows, counts: {total, problem}, newest}]; newest is the largest
-    // `created` (seconds) of the group.
+    // `created` (seconds) of the group. Longer than a page, the list is ranked (see ranked()).
     function entries(rows, options) {
         const list = array(rows), o = options || {};
-        if (!o.image) return asRows(list);
+        if (!o.image) return ranked(asRows(list));
         const model = window.DockerManagerModel, min = o.min > 1 ? o.min : MIN_GROUP, buckets = new Map();
         for (const row of list) {
             if (!row || !groupable(row.c)) continue;
@@ -45,7 +60,7 @@
             bucket.rows.push(row);
         }
         const groups = [...buckets.values()].filter(bucket => bucket.rows.length >= min);
-        if (!groups.length) return asRows(list);
+        if (!groups.length) return ranked(asRows(list));
         const taken = new Set();
         for (const group of groups) {
             let problem = 0, newest = 0;
@@ -58,7 +73,7 @@
             group.newest = newest;
         }
         groups.sort((a, b) => model.compareText(model.shortImage(a.image), model.shortImage(b.image)) || model.compareText(a.image, b.image));
-        return asRows(list.filter(row => !taken.has(row))).concat(groups);
+        return ranked(asRows(list.filter(row => !taken.has(row))).concat(groups));
     }
 
     const moreOf = (key, hidden) => (hidden > 0 ? { key, hidden, count: Math.min(PAGE, hidden) } : null);
