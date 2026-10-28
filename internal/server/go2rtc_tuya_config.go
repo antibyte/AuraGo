@@ -118,8 +118,14 @@ func prepareTuyaChanges(old config.Go2RTCConfig, next *config.Go2RTCConfig, vaul
 			}
 			if value != "" && value != "••••••••" {
 				*dst = value
-				security.RegisterSensitive(value)
-				security.RegisterSensitive(url.QueryEscape(value))
+				if field == "email" {
+					// The account e-mail is a name the agent may legitimately mention, not a credential.
+					security.RegisterIdentity(value)
+					security.RegisterIdentity(url.QueryEscape(value))
+				} else {
+					security.RegisterSensitive(value)
+					security.RegisterSensitive(url.QueryEscape(value))
+				}
 			}
 		}
 		if err := config.ValidateGo2RTCTuyaCredentials(a.Method, c); err != nil {

@@ -270,7 +270,7 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 	}
 	username := strings.TrimSpace(request.Username)
 	password := request.Password
-	security.RegisterSensitive(username)
+	security.RegisterIdentity(username)
 	security.RegisterSensitive(password)
 	now := s.now()
 	s.mu.Lock()

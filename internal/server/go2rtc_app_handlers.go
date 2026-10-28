@@ -435,7 +435,7 @@ func handleGo2RTCDiscoveryProfiles(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		security.RegisterSensitive(payload.Username)
+		security.RegisterIdentity(payload.Username)
 		security.RegisterSensitive(payload.Password)
 		service := go2RTCDiscoveryService(s)
 		if service == nil {

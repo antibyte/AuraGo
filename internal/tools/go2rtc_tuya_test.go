@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestGo2RTCTuyaPrivateRequestAndCapability(t *testing.T) {
@@ -54,6 +55,20 @@ func TestGo2RTCTuyaPrivateRequestAndCapability(t *testing.T) {
 	result = m.TuyaDiscover(context.Background(), a, c)
 	if result.ErrorCode != "tuya_auth_failed" || calls != 1 || strings.Contains(go2RTCJSON(result), "secretABC") {
 		t.Fatal("unexpected or unsafe Tuya result")
+	}
+}
+
+func TestGo2RTCTuyaDiscoverRegistersTheEmailAsAnIdentityAndThePasswordAsASecret(t *testing.T) {
+	m := NewGo2RTCManager(&config.Config{}, nil, nil, nil)
+	defer m.Close()
+	const email, password = "tuya-login-check@example.org", "tuya-password-check-9f2"
+	m.TuyaDiscover(context.Background(), config.Go2RTCTuyaAccount{ID: "identity-check", Method: "smart", Region: "eu-central"},
+		config.Go2RTCTuyaCredentials{Email: email, Password: password})
+	if security.Scrub("mail "+email) == "mail "+email || security.ScrubSecrets("mail "+email) != "mail "+email {
+		t.Fatal("the Tuya account e-mail must be redacted from output but not reported as a secret")
+	}
+	if security.ScrubSecrets("pw "+password) == "pw "+password {
+		t.Fatal("the Tuya password must stay a secret")
 	}
 }
 

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/security"
 )
 
 func TestDiscoveryCapabilityGateAndSenderAddressNormalization(t *testing.T) {
@@ -56,6 +58,14 @@ func TestProfilesUseUsernameTokenAndSetupTokenIsSingleUse(t *testing.T) {
 	}
 	if len(result.Profiles) != 1 || result.Profiles[0].Codec != "H264" || result.Profiles[0].Width != 1920 {
 		t.Fatalf("unexpected profiles: %#v", result.Profiles)
+	}
+	// The camera user name is an identity (redacted, not a secret that refuses an egress call);
+	// the password stays a secret.
+	if security.Scrub("login camera-user") == "login camera-user" || security.ScrubSecrets("login camera-user") != "login camera-user" {
+		t.Fatal("camera user name is not registered as an identity")
+	}
+	if security.ScrubSecrets("pass camera-password") == "pass camera-password" {
+		t.Fatal("camera password is not registered as a secret")
 	}
 	if result.ProbeBackend != "direct" || result.SnapshotAvailable == nil || !*result.SnapshotAvailable {
 		t.Fatalf("unexpected probe metadata: %#v", result)

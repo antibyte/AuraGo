@@ -108,7 +108,7 @@ func (m *Go2RTCManager) TuyaDiscover(ctx context.Context, a config.Go2RTCTuyaAcc
 	if a.Method != "smart" || config.ValidateGo2RTCTuyaCredentials(a.Method, c) != nil {
 		return Go2RTCTuyaResult{Status: "error", ErrorCode: "tuya_invalid_configuration"}
 	}
-	security.RegisterSensitive(c.Email)
+	security.RegisterIdentity(c.Email)
 	security.RegisterSensitive(c.Password)
 	return m.tuyaRequest(ctx, map[string]string{"action": "discover", "region": config.Go2RTCTuyaHost(a.Method, a.Region), "email": c.Email, "password": c.Password})
 }
