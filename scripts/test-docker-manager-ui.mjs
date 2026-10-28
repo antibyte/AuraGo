@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -1074,6 +1074,294 @@ eq(plain(model.totalCounts([hostA], { local: { containers: [null, container('a')
     const young = charts.loadCell([{ t: 1, cpu: 1, mem: 1 }, { t: 2, cpu: 2, mem: 2 }, { t: 3, cpu: 3, mem: 3 }], { lang: 'en' }).match(/class="dm-spark-line" d="M([\d.]+) /);
     assert.ok(young && Number(young[1]) < 45, 'a series of three points fills the sparkline instead of hugging the right edge, first x = ' + (young && young[1]));
     assert.ok(Number(charts.loadCell(Array.from({ length: 60 }, (_, i) => ({ t: i, cpu: 1, mem: 1 })), { lang: 'en' }).match(/class="dm-spark-line" d="M([\d.]+) /)[1]) < 3, 'a full ring spans the whole width');
+}
+
+// ---- live stream client: fake EventSource, fake api, fake timers ---------------------------------------------------------
+function fakeTimers() {
+    let clock = 0, seq = 0;
+    const jobs = new Map();
+    return {
+        setTimeout: (fn, ms) => { const id = ++seq; jobs.set(id, { fn, at: clock + ms }); return id; },
+        clearTimeout: id => { jobs.delete(id); },
+        // Runs every timer due within `ms`, in order; a timer may arm the next one inside the window.
+        advance(ms) {
+            const end = clock + ms;
+            for (;;) {
+                const next = [...jobs].filter(([, job]) => job.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+                if (!next) break;
+                clock = next[1].at;
+                jobs.delete(next[0]);
+                next[1].fn();
+            }
+            clock = end;
+        },
+        now: () => clock,
+        pending: () => jobs.size
+    };
+}
+class FakeSource {
+    constructor(url, list) { this.url = url; this.handlers = {}; this.closed = false; list.push(this); }
+    addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+    close() { this.closed = true; }
+    emit(type, data) { for (const fn of this.handlers[type] || []) fn({ data: typeof data === 'string' ? data : JSON.stringify(data) }); }
+    fail() { this.onerror?.(new Error('boom')); }
+}
+function liveHarness(extra = {}) {
+    const timers = fakeTimers(), sources = [], puts = [], log = [];
+    let putResult = () => ({ status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] });
+    const api = async (url, init) => {
+        puts.push({ url, method: init.method, body: JSON.parse(init.body) });
+        return putResult(init);
+    };
+    const live = window.DockerManagerLive.create({
+        api, eventSource: url => new FakeSource(url, sources), now: timers.now, setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout,
+        onConnection: (up, info) => log.push(['connection', up, !!(info && info.resumed)]), onStatus: (host, status) => log.push(['status', host, status.state]),
+        onEvent: ev => log.push(['event', ev.action]), onResync: ev => log.push(['resync', ev.host, ev.reason]), onOperation: (host, op) => log.push(['operation', host, op.id]),
+        onStats: (host, id, ring) => log.push(['stats', host, id, ring.length]), onHostStats: (host, data) => log.push(['host_stats', host, data.cpu]),
+        ...extra
+    });
+    return { live, timers, sources, puts, log, setPut: fn => { putResult = fn; } };
+}
+const hello = (source, id = 's'.repeat(32)) => source.emit('hello', { stream_id: id, heartbeat_ms: 15000, limits: { stats_ids: 50, hosts: 20 } });
+const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx: 0, net_tx: 0, blk_r: 0, blk_w: 0, pids: 1 });
+
+{
+    // hello names the stream; a wish made before it is sent at once, one request
+    const h = liveHarness();
+    h.live.start();
+    eq(h.sources.map(s => s.url), [B + '/stream']);
+    h.live.setWant({ hosts: ['local'], stats: { local: ['abcdef0123456789zz'] }, hostStats: ['local'] });
+    h.timers.advance(1000);
+    assert.equal(h.puts.length, 0, 'nothing is sent before the stream has a name');
+    hello(h.sources[0]);
+    await tick();
+    assert.equal(h.live.connected(), true);
+    assert.equal(h.live.streamId(), 's'.repeat(32));
+    eq(h.puts.map(p => [p.method, p.url, p.body]), [['PUT', B + '/stream/subscriptions', { stream_id: 's'.repeat(32), hosts: ['local'], stats: { local: ['abcdef012345'] }, host_stats: ['local'] }]], 'container ids are cut to the 12-character short id');
+    eq(h.log.filter(entry => entry[0] === 'connection'), [['connection', true, false]]);
+    // changes are collected for 250 ms and sent once; the same wish again sends nothing
+    h.live.setWant({ hosts: ['local', 'nas'] });
+    h.live.setWant({ hosts: ['local', 'nas'], stats: { nas: ['n1'] } });
+    h.timers.advance(249);
+    await tick();
+    assert.equal(h.puts.length, 1, 'still debouncing');
+    h.timers.advance(2);
+    await tick();
+    assert.equal(h.puts.length, 2);
+    eq(h.puts[1].body, { stream_id: 's'.repeat(32), hosts: ['local', 'nas'], stats: { nas: ['n1'] }, host_stats: [] });
+    h.live.setWant({ hosts: ['nas', 'local'], stats: { nas: ['n1'] } });
+    h.timers.advance(1000);
+    await tick();
+    assert.equal(h.puts.length, 2, 'the same wish in another order is no change');
+    h.live.stop();
+    assert.equal(h.sources[0].closed, true);
+    assert.equal(h.timers.pending(), 0, 'stop clears every timer');
+}
+
+{
+    // limits: 50 containers per host and 20 hosts; duplicates and blanks go; the rest keep their order
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    const ids = Array.from({ length: 60 }, (_, i) => 'c' + String(i).padStart(11, '0'));
+    const hosts = Array.from({ length: 25 }, (_, i) => 'h' + i);
+    h.live.setWant({ hosts: hosts.concat(['h1', '']), stats: { h0: ids.concat(ids[0]), empty: [] }, hostStats: ['h0', 'h0'] });
+    h.timers.advance(300);
+    await tick();
+    eq([h.puts[0].body.hosts.length, h.puts[0].body.stats.h0.length, h.puts[0].body.stats.h0[0], Object.keys(h.puts[0].body.stats), h.puts[0].body.host_stats], [20, 50, ids[0], ['h0'], ['h0']]);
+    h.live.stop();
+}
+
+{
+    // messages: status, event, resync and operation go to the callbacks; the status of a host is kept
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    const s = h.sources[0];
+    s.emit('host_status', { host: 'local', state: 'live', reason: '', t: 5 });
+    s.emit('event', { host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'web-1', project: '', service: '', t: 6 });
+    s.emit('resync', { host: 'local', reason: 'reconnect' });
+    s.emit('operation', { host: 'local', operation: { id: 'op_1', state: 'running' } });
+    s.emit('host_stats', { host: 'local', t: 9, cpu: 12.5, ncpu: 8, mem_used: 1, mem_total: 2, running: 3, sampled: 3, partial: false });
+    s.emit('event', '{not json');
+    eq(h.log.slice(1), [['status', 'local', 'live'], ['event', 'die'], ['resync', 'local', 'reconnect'], ['operation', 'local', 'op_1'], ['host_stats', 'local', 12.5]]);
+    eq([h.live.status('local').state, h.live.status('nas'), h.live.hostStats('local').cpu, h.live.hostStats('nas')], ['live', null, 12.5, null]);
+    h.live.stop();
+}
+
+{
+    // stats: a ring of 60 points per wanted container; old or repeated points are ignored; history replaces; gone clears
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    const s = h.sources[0];
+    h.live.setWant({ hosts: ['local'], stats: { local: ['aaaaaaaaaaaa'] } });
+    s.emit('stats', { host: 'local', id: 'bbbbbbbbbbbb', point: point(1) });
+    assert.equal(h.live.ring('local', 'bbbbbbbbbbbb').length, 0, 'a container nobody asked for is ignored');
+    for (let t = 1; t <= 70; t += 1) s.emit('stats', { host: 'local', id: 'aaaaaaaaaaaa', point: point(t) });
+    s.emit('stats', { host: 'local', id: 'aaaaaaaaaaaa', point: point(70) });
+    s.emit('stats', { host: 'local', id: 'aaaaaaaaaaaa', point: point(3) });
+    const ring = h.live.ring('local', 'aaaaaaaaaaaa');
+    eq([ring.length, ring[0].t, ring[59].t], [60, 11, 70], 'sixty points, the oldest dropped, a repeated or older point ignored');
+    s.emit('stats_history', { host: 'local', id: 'aaaaaaaaaaaa', points: [point(100), point(101), point(102)] });
+    eq(h.live.ring('local', 'aaaaaaaaaaaa').map(p => p.t), [100, 101, 102], 'the history replaces the ring');
+    s.emit('stats_gone', { host: 'local', id: 'aaaaaaaaaaaa' });
+    assert.equal(h.live.ring('local', 'aaaaaaaaaaaa').length, 0);
+    eq(h.log.filter(entry => entry[0] === 'stats').slice(-1), [['stats', 'local', 'aaaaaaaaaaaa', 0]], 'gone is reported as an empty ring');
+    // dropping a container from the wish frees its ring
+    s.emit('stats_history', { host: 'local', id: 'aaaaaaaaaaaa', points: [point(1)] });
+    h.live.setWant({ hosts: ['local'] });
+    assert.equal(h.live.ring('local', 'aaaaaaaaaaaa').length, 0);
+    h.live.stop();
+}
+
+{
+    // a broken stream is closed and opened again after 1, 2, 4 s; the wish is sent again on the new stream; hello resets the delay
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0], 'a'.repeat(32));
+    h.live.setWant({ hosts: ['local'] });
+    h.timers.advance(300);
+    await tick();
+    h.sources[0].emit('host_status', { host: 'local', state: 'live' });
+    h.sources[0].fail();
+    assert.equal(h.sources[0].closed, true, 'the browser retry is not used');
+    eq([h.live.connected(), h.live.failed(), h.live.status('local'), h.sources.length], [false, true, null, 1]);
+    h.timers.advance(999);
+    assert.equal(h.sources.length, 1);
+    h.timers.advance(2);
+    assert.equal(h.sources.length, 2, 'first retry after 1 s');
+    h.sources[1].fail();
+    h.timers.advance(1999);
+    assert.equal(h.sources.length, 2);
+    h.timers.advance(2);
+    assert.equal(h.sources.length, 3, 'second retry after 2 s');
+    hello(h.sources[2], 'b'.repeat(32));
+    await tick();
+    eq(h.puts.map(p => p.body.stream_id), ['a'.repeat(32), 'b'.repeat(32)], 'the wish is sent again to the new stream');
+    eq(h.log.filter(entry => entry[0] === 'connection'), [['connection', true, false], ['connection', false, false], ['connection', true, true]], 'one report per change; the second hello is a resume');
+    h.sources[2].fail();
+    h.timers.advance(1001);
+    assert.equal(h.sources.length, 4, 'after a hello the delay starts at 1 s again');
+    h.live.stop();
+}
+
+{
+    // the backoff stops at 30 s
+    const h = liveHarness();
+    h.live.start();
+    for (let i = 0; i < 9; i += 1) { h.sources[h.sources.length - 1].fail(); h.timers.advance(31000); }
+    assert.equal(h.sources.length, 10);
+    h.sources[9].fail();
+    h.timers.advance(29999);
+    assert.equal(h.sources.length, 10);
+    h.timers.advance(2);
+    assert.equal(h.sources.length, 11, 'never longer than 30 s');
+    h.live.stop();
+}
+
+{
+    // unknown stream (404 stream_not_found) and a dropped slow client both reconnect; rejected hosts are kept
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    h.setPut(() => { throw Object.assign(new Error('gone'), { status: 404, body: { code: 'stream_not_found' } }); });
+    h.live.setWant({ hosts: ['local'] });
+    h.timers.advance(300);
+    await tick();
+    assert.equal(h.sources[0].closed, true, 'an unknown stream is replaced');
+    h.timers.advance(1001);
+    assert.equal(h.sources.length, 2);
+    h.setPut(() => ({ status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [{ host: 'ghost', reason: 'unknown_host' }] }));
+    hello(h.sources[1]);
+    await tick();
+    eq(h.live.rejected(), [{ host: 'ghost', reason: 'unknown_host' }]);
+    h.sources[1].emit('dropped', { reason: 'slow_client' });
+    eq([h.live.connected(), h.live.failed(), h.sources[1].closed], [false, true, true]);
+    h.live.stop();
+}
+
+{
+    // another request error is tried again a few times, then left alone until the wish changes
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    let calls = 0;
+    h.setPut(() => { calls += 1; throw Object.assign(new Error('x'), { status: 500, body: { code: 'internal_error' } }); });
+    h.live.setWant({ hosts: ['local'] });
+    for (let i = 0; i < 10; i += 1) { h.timers.advance(3500); await tick(); }
+    assert.equal(calls, 4, 'one request and three retries');
+    assert.equal(h.live.connected(), true, 'a failed subscription does not close the stream');
+    h.live.stop();
+}
+
+{
+    // watchdog: EventSource shows no heartbeat comments, so a silent stream is asked whether the server still has it
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    await tick();
+    h.timers.advance(44000);
+    await tick();
+    eq([h.puts.length, h.live.connected()], [0, true], 'nothing before three heartbeats (45 s) have passed');
+    h.sources[0].emit('event', { host: 'local', type: 'container', action: 'start' });
+    h.timers.advance(44000);
+    await tick();
+    eq([h.puts.length, h.live.connected()], [0, true], 'every message starts the window again');
+    h.timers.advance(1001);
+    await tick();
+    eq([h.puts.length, h.puts[0].body.stream_id, h.live.connected()], [1, 's'.repeat(32), true], 'a silent stream is asked whether the server still knows it, and an answer keeps it');
+    h.timers.advance(45001);
+    await tick();
+    assert.equal(h.puts.length, 2, 'and the next window starts');
+    // the server lost the stream: the probe is answered 404 and the stream is reopened with the usual backoff
+    h.setPut(() => { throw Object.assign(new Error('gone'), { status: 404, body: { code: 'stream_not_found' } }); });
+    h.timers.advance(45001);
+    await tick();
+    eq([h.live.connected(), h.live.failed()], [false, true]);
+    h.timers.advance(1001);
+    assert.equal(h.sources.length, 2);
+    // an answer that never comes counts as lost after 10 s
+    h.setPut(init => new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))));
+    hello(h.sources[1], 'c'.repeat(32));
+    await tick();
+    h.timers.advance(45001);
+    await tick();
+    assert.equal(h.live.connected(), true, 'still waiting for the answer');
+    h.timers.advance(10001);
+    await tick();
+    eq([h.live.connected(), h.live.failed()], [false, true], 'no answer within 10 s');
+    h.live.stop();
+    assert.equal(h.timers.pending(), 0, 'stop clears the watchdog');
+    // the window follows the heartbeat of the server: three times, at least 45 s
+    const slow = liveHarness();
+    slow.live.start();
+    slow.sources[0].emit('hello', { stream_id: 'd'.repeat(32), heartbeat_ms: 30000, limits: {} });
+    await tick();
+    slow.timers.advance(89000);
+    await tick();
+    assert.equal(slow.puts.length, 0);
+    slow.timers.advance(1001);
+    await tick();
+    assert.equal(slow.puts.length, 1);
+    slow.live.stop();
+}
+
+{
+    // an empty wish is not sent at all, and neither is a stop that never started
+    const h = liveHarness();
+    h.live.stop();
+    h.live.start();
+    h.live.start();
+    assert.equal(h.sources.length, 1, 'start twice opens one stream');
+    hello(h.sources[0]);
+    h.live.setWant({});
+    h.timers.advance(1000);
+    await tick();
+    assert.equal(h.puts.length, 0);
+    h.live.stop();
+    h.sources[0].emit('host_status', { host: 'local', state: 'live' });
+    assert.equal(h.live.status('local'), null, 'a stopped client ignores late messages');
 }
 
 console.log('docker-manager ui tests: model and store ok');
