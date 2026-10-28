@@ -302,7 +302,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   status and problem derivation, grouping by compose project, search and state filters, the multi-host merge, host health,
   the host form rules, error normalisation; `normalizeError` keeps the answer body in `data`), `docker-manager-stack-model.js`
   (pure: stack status and tone, rows and groups of the stack list, port links, lint helpers, the line diff, command palette
-  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-charts.js` (pure
+  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-groups.js` (pure: the image groups and the 200-entry caps of long
+  lists, see "Long lists" below), `docker-manager-charts.js` (pure
   SVG and text: `sparkline`, `gauge`, `bytes`, `percent`, `loadCell`), `docker-manager-store.js`
   (every request through the desktop `api()` against `/api/docker-manager`, one request in flight per key, per-host container
   and stack listings, the open stack and the open external project, the operations with one `EventSource` each, the live stream,
@@ -326,9 +327,36 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `readonly` flag, never `enabled`. Docker disabled answers 503 `docker_disabled` on every route and shows one
   explanatory state with a link to `/config#docker`.
 - Repaints compare the new HTML with the last one and skip equal markup; controls carry `data-focus-id` and `keepFocus`
-  restores the focus on the same control, so a poll never steals it. Do not re-render the table from a timer. The table is a
+  restores the focus on the same control, so a poll never steals it (it calls `focus()` only when the focused element was removed by the repaint:
+  `focus()` forces a synchronous style and layout pass). The numbers of the rail are `[data-rail-count]` slots (`views.railParts`: markup with empty slots plus
+  their texts) written in place when only they changed, so a reload never replaces the rail buttons. Do not re-render the table from a timer. Sorting uses one cached `Intl.Collator` (`compareText` in the
+  model and the stack model; `localeCompare` builds a collator per call, 250 ms for 3,000 containers), and `snapshot()` memoises the rows, the filtered and
+  sorted groups, the chip counts and the stack groups on the identity of the listings they come from (the store replaces a host's entry on every load),
+  the host list, the scope, the search and the filter (`model.memo`): a paint for anything else sorts nothing. `findRow` (drawer, actions, panes)
+  reads a `Map` by container key that is rebuilt on the same terms, not all rows per call. The table is a
   `treegrid` with a roving tab stop: arrows move, Left/Right collapse and expand a group, Enter opens the drawer, Delete asks to
   remove, Escape closes the drawer, `/` focuses the search, Shift+F10 opens the row menu.
+- Long lists (a host with thousands of containers; the app was measured with 3,306): nothing is rendered without a bound. The stopped single
+  containers (no compose project, not running, paused or restarting, and neither protected nor a helper: those keep their own row and lock) of one image fold into ONE group entry from 5 of them on
+  (`docker-manager-groups.js` `entries`; grouped after the search and filter, so fewer than 5 matches show as plain rows; running containers are
+  never grouped; plain rows come first, then the groups by image; a list longer than one page is ranked first: running, paused, restarting and
+  failed containers, then the groups that hold a failure, then the other rows, then the other groups, so the 200-entry cap hides only stopped
+  containers that are fine). In the table the group is a treegrid parent row (`tr.dm-image-row`,
+  `aria-expanded`, one `aria-level` below its section, its members one more; Enter, Space, Right open it, Left closes it, Left on a member goes to
+  it); in the Stacks list it is a `li` with a button and a nested list (Right/Left work there too). A group is closed until opened; while a
+  search (or, in the Containers section, a state filter) is active the groups with matches open by themselves and hold only the matches, but they share
+  one page of rows (about 200 including the section's own rows: the groups with the most matches open first, the rest stay closed with their match
+  counts, `autoOpen`); a click opens or closes one whatever the budget says and moves no other group, and that choice ends with the next change of the
+  search or filter. The open state is shared by both sections, not saved, and
+  `Groups.sync` ends the closings and the "show more" steps whenever the section, search or filter changes. Every section (project group,
+  single containers, stacks, external projects) and every opened group renders at most 200 entries and ends with "Show 200 more (N hidden)"
+  (`data-action="show-more"`; a row of its own in the table, a nested item in the list); Enter on that row works too. The table is patched row
+  by row from `views.tbodyItems` (`panes.patchRows`: an unchanged row keeps its element, the roving tab stop and the load cells follow); the
+  Stacks list, bounded now, is still replaced as a whole. Group-level bulk actions come with the cleanup assistant (phase 4).
+  The drawer never sits on a row that is not on the page: `openDetail` (row menu, palette Logs and Terminal, service link) first opens the image
+  group that holds the container (`Groups.reveal`), the open drawer's row is pinned (listed after the first 200 of its group or section, left out of
+  the hidden count), closing a group that holds the drawer's row closes the drawer, and closing the drawer focuses the row, or its group row or the
+  show-more control when the row is not on the page. `Groups.layout` is the list of sections of the last paint that these lookups read.
 - A failed container list keeps the last containers of that host and shows a banner with the reason code
   (`dns`, `refused`, `timeout`, `tls`, `auth`, `ssh_host_key`, `socket_missing`, `api_too_old`, `unknown`, texts
   `docker_manager.reason_*`); the browser giving up after 35 s counts as `host_unreachable` with reason `timeout`. A host
@@ -403,11 +431,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   heartbeats (at least 45 s; EventSource hides comment lines) is asked first: the wish is sent again, and only a 404, an error or no
   answer within 10 s counts as dead (so an idle stream does not flap); a `host_status` per host says `live`,
   `paused`, `unreachable` or `connecting`. A host that is `live` is polled only every 60 s (`stale()` in `pollOnce`); any other
-  host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (containers, the
-  stacks in the Stacks section, the open stack when its project is named), coalesced to one reload per 300 ms; `operation`
+  host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (the containers;
+  the stacks in the Stacks section only for an event that names a compose project or a resync, because a container without a project
+  cannot change a stack; the open stack when its project is named), coalesced to one reload per 300 ms and started at most every 2 s per host (the
+  last event of a burst still leads to one; a reload that runs, or a poll in flight, is waited for, never cancelled by it: the containers and the stacks each wait for their own request, then ask again, because `loadStacks` joins a request that is in flight and would keep a state older than the event); `operation`
   messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
   unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
-  patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`) and repaints only the gauge area; the markup of the table
+  patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`, only in the table, the stack or project pane and the drawer body, never in the
+  whole app) and repaints only the gauge area; the markup of the table
   and of the stack overview holds empty placeholders, never numbers, so a stats message never repaints them. `panes.visibleLoads`
   collects the rendered cells inside the viewport (at most 50 ids per host, 12-character ids) after every paint and scroll.
 - Follow panels: the container drawer (tabs Overview, Logs, Terminal, Inspect), the stack pane (Overview, Compose, .env, Logs,

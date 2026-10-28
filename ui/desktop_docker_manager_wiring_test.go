@@ -7,7 +7,7 @@ import (
 )
 
 // The loader, the shell routing, the window sizing and the generated main bundle know the Docker Manager app, and its
-// sixteen modules load in the order they depend on each other, after the two xterm files the terminal panel needs (no WebGL
+// seventeen modules load in the order they depend on each other, after the two xterm files the terminal panel needs (no WebGL
 // renderer). Behaviour is covered by scripts/test-docker-manager-ui.mjs and TestDesktopDockerManagerBrowser.
 func TestDockerManagerWiring(t *testing.T) {
 	t.Parallel()
@@ -22,7 +22,7 @@ func TestDockerManagerWiring(t *testing.T) {
 		scripts = append(scripts, match[1])
 	}
 	want := []string{
-		"docker-manager-model.js", "docker-manager-stack-model.js", "docker-manager-charts.js", "docker-manager-store.js", "docker-manager-live.js", "docker-manager-views.js",
+		"docker-manager-model.js", "docker-manager-stack-model.js", "docker-manager-groups.js", "docker-manager-charts.js", "docker-manager-store.js", "docker-manager-live.js", "docker-manager-views.js",
 		"docker-manager-stacks.js", "docker-manager-editor.js", "docker-manager-ops.js", "docker-manager-logs.js", "docker-manager-terminal.js", "docker-manager-panes.js",
 		"docker-manager-palette.js", "docker-manager-dialogs.js", "docker-manager-newstack.js", "docker-manager.js",
 	}

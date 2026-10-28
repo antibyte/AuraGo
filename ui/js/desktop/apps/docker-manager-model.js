@@ -21,7 +21,22 @@
     const lower = value => text(value).toLowerCase();
     const array = value => (Array.isArray(value) ? value : []);
     const colorOf = value => (HOST_COLORS.includes(lower(value)) ? lower(value) : 'gray');
-    const compareText = (a, b) => text(a).localeCompare(text(b), undefined, { numeric: true, sensitivity: 'base' });
+    // One collator for every sort: String.prototype.localeCompare builds a new one per call, which cost a quarter of a second for 3,000
+    // containers. Same locale and options, so the order is the one localeCompare gave.
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const compareText = (a, b) => collator.compare(text(a), text(b));
+
+    // A one-slot memo: compute() runs again only when one of the keys is not === the one of the previous call. The app memoises the
+    // sorted rows and groups on the identity of the listings they come from, so a paint without new data sorts nothing.
+    function memo() {
+        let last = null, value;
+        return (keys, compute) => {
+            if (last && last.length === keys.length && keys.every((key, index) => key === last[index])) return value;
+            value = compute();
+            last = keys;
+            return value;
+        };
+    }
 
     // ---- containers ------------------------------------------------------------------------------------------------
 
@@ -176,30 +191,38 @@
         return rows;
     }
 
+    // The searchable text of a row is built once per row object (rows are rebuilt only when a listing changes).
+    const haystacks = new WeakMap();
     function haystack(row) {
-        const c = row.c;
-        const ports = array(c.ports).filter(port => port && typeof port === 'object').map(port => [port.public, port.private].filter(Boolean).join(' ')).join(' ');
-        return lower([containerName(c), array(c.names).join(' '), c.image, c.id, c.full_id, c.compose_project, c.compose_service, c.state, row.hostName, ports].join(' '));
+        let hay = haystacks.get(row);
+        if (hay === undefined) {
+            const c = row.c;
+            const ports = array(c.ports).filter(port => port && typeof port === 'object').map(port => [port.public, port.private].filter(Boolean).join(' ')).join(' ');
+            hay = lower([containerName(c), array(c.names).join(' '), c.image, c.id, c.full_id, c.compose_project, c.compose_service, c.state, row.hostName, ports].join(' '));
+            haystacks.set(row, hay);
+        }
+        return hay;
     }
 
-    // Every word of the query must appear somewhere in the row (name, image, project, service, id, host, ports, state).
-    function matchesQuery(row, query) {
-        const terms = lower(query).split(/\s+/).filter(Boolean);
+    const queryTerms = query => lower(query).split(/\s+/).filter(Boolean);
+    const matchesTerms = (row, terms) => {
         if (!terms.length) return true;
         const hay = haystack(row);
         return terms.every(term => hay.includes(term));
-    }
+    };
+    // Every word of the query must appear somewhere in the row (name, image, project, service, id, host, ports, state).
+    const matchesQuery = (row, query) => matchesTerms(row, queryTerms(query));
 
     function filterRows(rows, options) {
-        const o = options || {};
-        return array(rows).filter(row => matchesQuery(row, o.query) && matchesFilter(row.c, o.filter));
+        const o = options || {}, terms = queryTerms(o.query);
+        return array(rows).filter(row => matchesTerms(row, terms) && matchesFilter(row.c, o.filter));
     }
 
     // The chip counts follow the search but not the state filter, so a chip always shows what it would give.
     function counts(rows, query) {
-        const out = { all: 0, running: 0, stopped: 0, problem: 0 };
+        const out = { all: 0, running: 0, stopped: 0, problem: 0 }, terms = queryTerms(query);
         for (const row of array(rows)) {
-            if (!matchesQuery(row, query)) continue;
+            if (!matchesTerms(row, terms)) continue;
             out.all += 1;
             if (matchesFilter(row.c, 'running')) out.running += 1;
             if (matchesFilter(row.c, 'stopped')) out.stopped += 1;
@@ -425,7 +448,7 @@
 
     window.DockerManagerModel = {
         HOST_COLORS, HOST_KINDS, DEFAULT_PORTS, STATE_FILTERS, ACTIONS, REASONS, NEST_METHODS, DEFAULT_STACKS_DIR, DEFAULT_SOCKET, TONE_RANK,
-        colorOf, compareText, exitCode, containerId, containerName, protectedReason, isProtected, needsProtectedConfirm, problemOf, statusOf, stateGroup,
+        colorOf, compareText, memo, exitCode, containerId, containerName, protectedReason, isProtected, needsProtectedConfirm, problemOf, statusOf, stateGroup,
         matchesFilter, actionsFor, terminalState, portItems, shortImage, formatCreated, mountLabel, buildRows, matchesQuery, filterRows, counts, groupRows,
         showGroupHeaders, navItems, reasonCode, normalizeStatus, hostHealth, hostAddress, hostCounts, totalCounts, defaultPort, nextColor, emptyHostForm,
         hostToForm, storedSecretUsable, sshSecretNeedsReentry, validateHostForm, hostPayload, normalizeError

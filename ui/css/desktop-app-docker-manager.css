@@ -119,7 +119,7 @@
 .dm-row:hover { background: var(--vd-theme-control-hover); }
 .dm-row[aria-selected="true"] { background: var(--vd-theme-accent-soft); }
 .dm-row[aria-busy="true"] { opacity: .72; }
-.dm-row:focus-visible, .dm-group-row:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: -2px; }
+.dm-row:focus-visible, .dm-group-row:focus-visible, .dm-more-row:focus-visible { outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus); outline-offset: -2px; }
 .dm-cell-status > * { vertical-align: middle; }
 .dm-cell-status .dm-dot { margin-right: var(--ds-space-2); }
 .dm-status { display: inline-grid; max-width: calc(100% - 20px); }
@@ -143,6 +143,9 @@
 .dm-group-row[aria-expanded="true"] .dm-chevron { transform: rotate(90deg); }
 .dm-group-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dm-group-count { color: var(--vd-theme-muted); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Long lists: "Show 200 more" ends a section and an opened image group (table and stack list). */
+.dm-more-row > td { padding: 6px var(--ds-space-3); border-bottom: 1px solid color-mix(in srgb, var(--vd-theme-border) 70%, transparent); text-align: center; }
+.dm-more-row .dm-btn { min-height: 30px; }
 
 /* Empty and loading states */
 .dm-empty { display: grid; place-items: center; min-height: 240px; padding: var(--ds-space-6); }
@@ -300,6 +303,12 @@
 .dm-srow[data-tone="warn"] { --row-tone: var(--dm-warn); }
 .dm-srow[data-tone="bad"] { --row-tone: var(--dm-bad); }
 .dm-srow-main[aria-current="true"] { background: var(--vd-theme-accent-soft); }
+.dm-srow-main[aria-expanded="true"] .dm-chevron { transform: rotate(90deg); }
+.dm-srow.is-group { flex-wrap: wrap; }
+.dm-srow.is-group:hover { background: transparent; }
+.dm-srow.is-group > .dm-srow-main:hover { background: var(--vd-theme-control-hover); }
+.dm-slist.is-nested { flex: 1 0 100%; padding-left: var(--ds-space-4); }
+.dm-smore .dm-srow-main { justify-content: center; min-height: 36px; font-weight: 600; }
 .dm-srow-text { display: grid; flex: 1 1 auto; min-width: 0; }
 .dm-srow-ports { display: inline-flex; flex: 0 0 auto; gap: 2px; }
 .dm-srow-actions { display: flex; flex: 0 0 auto; gap: 2px; padding-right: var(--ds-space-2); }

@@ -122,9 +122,12 @@ type engineContainer struct {
 		PublicPort  int    `json:"PublicPort"`
 		Type        string `json:"Type"`
 	} `json:"Ports"`
-	Labels          map[string]string `json:"Labels"`
-	State           string            `json:"State"`
-	Status          string            `json:"Status"`
+	Labels     map[string]string `json:"Labels"`
+	State      string            `json:"State"`
+	Status     string            `json:"Status"`
+	HostConfig struct {
+		NetworkMode string `json:"NetworkMode"`
+	} `json:"HostConfig"`
 	NetworkSettings struct {
 		Networks map[string]json.RawMessage `json:"Networks"`
 	} `json:"NetworkSettings"`
@@ -138,11 +141,54 @@ type engineContainer struct {
 
 // ListContainers returns every container of the Engine, running or not.
 func ListContainers(ctx context.Context, c *dockerutil.Client) ([]ContainerSummary, error) {
+	out, _, err := listContainers(ctx, c, false)
+	return out, err
+}
+
+// ListContainersWithEntries is ListContainers plus, from the same Engine answer, the compact entries the Containers page's
+// protection classification reads: the full ID, the labels unmasked, the addresses of the container and its network mode. The
+// entries equal what tools.DockerListContainerEntries(cfg, true) returns for the same Engine, so the local host's list needs one
+// listing instead of two.
+func ListContainersWithEntries(ctx context.Context, c *dockerutil.Client) ([]ContainerSummary, []tools.DockerContainerListEntry, error) {
+	return listContainers(ctx, c, true)
+}
+
+// engineEndpoint is the part of a container's network endpoint the protection classification reads.
+type engineEndpoint struct {
+	IPAddress         string `json:"IPAddress"`
+	GlobalIPv6Address string `json:"GlobalIPv6Address"`
+}
+
+// listEntry is the tools.DockerListContainerEntries entry of one container of the list.
+func listEntry(rc engineContainer, id string) tools.DockerContainerListEntry {
+	entry := tools.DockerContainerListEntry{
+		ID: id, Names: rc.Names, Image: rc.Image, State: rc.State, Status: rc.Status, FullID: rc.ID, Labels: rc.Labels,
+		NetworkMode: strings.TrimSpace(rc.HostConfig.NetworkMode),
+	}
+	for _, raw := range rc.NetworkSettings.Networks {
+		var endpoint engineEndpoint
+		if json.Unmarshal(raw, &endpoint) != nil {
+			continue
+		}
+		for _, ip := range []string{endpoint.IPAddress, endpoint.GlobalIPv6Address} {
+			if ip = strings.TrimSpace(ip); ip != "" {
+				entry.NetworkIPs = append(entry.NetworkIPs, ip)
+			}
+		}
+	}
+	return entry
+}
+
+func listContainers(ctx context.Context, c *dockerutil.Client, withEntries bool) ([]ContainerSummary, []tools.DockerContainerListEntry, error) {
 	var raw []engineContainer
 	if err := engineJSON(ctx, c, http.MethodGet, "containers/json?all=true", &raw); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := make([]ContainerSummary, 0, len(raw))
+	var entries []tools.DockerContainerListEntry
+	if withEntries {
+		entries = make([]tools.DockerContainerListEntry, 0, len(raw))
+	}
 	for _, rc := range raw {
 		s := ContainerSummary{
 			FullID:            rc.ID,
@@ -196,8 +242,11 @@ func ListContainers(ctx context.Context, c *dockerutil.Client) ([]ContainerSumma
 		}
 		slices.Sort(s.Networks)
 		out = append(out, s)
+		if withEntries {
+			entries = append(entries, listEntry(rc, s.ID))
+		}
 	}
-	return out, nil
+	return out, entries, nil
 }
 
 // healthFromStatus reads the health state out of the list's status text

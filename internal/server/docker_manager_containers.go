@@ -11,6 +11,7 @@ import (
 	"aurago/internal/dockerhost"
 	"aurago/internal/dockerstacks"
 	"aurago/internal/dockerutil"
+	"aurago/internal/tools"
 )
 
 // dmHelperOwner is the protected owner of the Docker Manager's own helper
@@ -53,30 +54,26 @@ type dockerContainerView struct {
 }
 
 // localProtectionFlags reuses the Containers page's own computation
-// (adminContainerListJSON: self, shared network, Docker endpoint and owner) for
+// (adminContainerEntries: self, shared network, Docker endpoint and owner) for
 // the local engine, keyed by the 12-character container ID, so the two views
-// can never disagree. A failed lookup returns nil; the owner then still comes
-// from the container's names and labels.
-func (dm *dmRequest) localProtectionFlags(ctx context.Context) map[string]adminContainerEntry {
+// can never disagree. It classifies the entries of the listing the request
+// already made (dockerhost.ListContainersWithEntries) and lists nothing itself.
+func (dm *dmRequest) localProtectionFlags(ctx context.Context, entries []tools.DockerContainerListEntry) map[string]adminContainerEntry {
 	cfg, _, _ := containerDockerConfig(dm.s)
-	var parsed struct {
-		Status     string                `json:"status"`
-		Containers []adminContainerEntry `json:"containers"`
-	}
-	if json.Unmarshal([]byte(adminContainerListJSON(ctx, dm.s, cfg)), &parsed) != nil || parsed.Status != "ok" {
-		return nil
-	}
-	flags := make(map[string]adminContainerEntry, len(parsed.Containers))
-	for _, entry := range parsed.Containers {
+	classified := adminContainerEntries(ctx, dm.s, cfg, entries)
+	flags := make(map[string]adminContainerEntry, len(classified))
+	for _, entry := range classified {
 		flags[entry.ID] = entry
 	}
 	return flags
 }
 
-func (dm *dmRequest) containerViews(ctx context.Context, host dockerhost.Host, list []dockerhost.ContainerSummary) []dockerContainerView {
+// containerViews turns a listing into the API's ContainerView rows. entries are the classification entries of the same
+// listing (dockerhost.ListContainersWithEntries); only the local host reads them.
+func (dm *dmRequest) containerViews(ctx context.Context, host dockerhost.Host, list []dockerhost.ContainerSummary, entries []tools.DockerContainerListEntry) []dockerContainerView {
 	var local map[string]adminContainerEntry
 	if host.ID == dockerhost.LocalHostID {
-		local = dm.localProtectionFlags(ctx)
+		local = dm.localProtectionFlags(ctx, entries)
 	}
 	views := make([]dockerContainerView, 0, len(list))
 	for _, container := range list {
@@ -112,12 +109,20 @@ func (dm *dmRequest) containerList(hostID string) {
 	if !ok {
 		return
 	}
-	list, err := dockerhost.ListContainers(ctx, client)
+	// The local host is classified from the entries of this very listing: one Engine call per request.
+	var list []dockerhost.ContainerSummary
+	var entries []tools.DockerContainerListEntry
+	var err error
+	if host.ID == dockerhost.LocalHostID {
+		list, entries, err = dockerhost.ListContainersWithEntries(ctx, client)
+	} else {
+		list, err = dockerhost.ListContainers(ctx, client)
+	}
 	if err != nil {
 		dm.engineFailure(err, "")
 		return
 	}
-	dmWriteOK(dm.w, http.StatusOK, dmFields{"containers": dm.containerViews(ctx, host, list)})
+	dmWriteOK(dm.w, http.StatusOK, dmFields{"containers": dm.containerViews(ctx, host, list, entries)})
 }
 
 // containerSub serves /hosts/{id}/containers/{ref}/{inspect|logs|terminal|action}.

@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js', 'docker-manager-terminal.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-groups.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js', 'docker-manager-terminal.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -1433,12 +1433,23 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     assert.equal(n(C), reloadBase, 'nothing before the delay is over');
     timers.advance(2);
     await tick(); await tick();
-    eq([n(C) - reloadBase, n(S) - stacksBase], [1, 1], 'three container events make one reload of the containers and one of the stacks');
+    eq([n(C) - reloadBase, n(S) - stacksBase], [1, 0], 'three events of containers without a compose project make one reload of the containers and none of the stacks');
+    // a container of a compose project (or a resync) can change a stack: the stack listing is read again, once, whatever else the batch holds
+    const projectBase = [n(C), n(S)];
+    sources[0].emit('event', die({ project: 'shop', service: 'web' })); sources[0].emit('event', die());
+    timers.advance(2100);
+    await tick(); await tick();
+    eq([n(C) - projectBase[0], n(S) - projectBase[1]], [1, 1], 'an event of a compose project reloads the containers and the stacks');
+    const resyncBase = [n(C), n(S)];
+    sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
+    timers.advance(2100);
+    await tick(); await tick();
+    eq([n(C) - resyncBase[0], n(S) - resyncBase[1]], [1, 1], 'a resync reloads the containers and the stacks');
     store.setSection('containers');
     await tick(); await tick();
     const switchedC = n(C), stacksFixed = n(S);
     sources[0].emit('event', die());
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     eq([n(C) - switchedC, n(S) - stacksFixed], [1, 0], 'the Containers section does not reload the stacks');
     store.setSection('stacks');
@@ -1449,15 +1460,15 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     await tick(); await tick();
     const stackBase = n('GET ' + B + '/hosts/local/stacks/shop');
     sources[0].emit('event', die({ project: 'other' }));
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 0, 'an event of another project leaves the open stack alone');
     sources[0].emit('event', die({ project: 'shop' }));
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 1);
     sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 2, 'a resync reloads the open stack too');
     store.closeStack();
@@ -1517,6 +1528,124 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     store.setVisible(false);
     assert.equal(sources[sources.length - 1].closed, true);
     eq([store.liveStatus('local'), store.state.live.connected], ['off', false]);
+    store.dispose();
+}
+
+{
+    // event reloads are throttled per host: one reload starts at most every 2 s, the last event of a burst still leads to one,
+    // and a host is never asked a second time while its first request runs
+    const sources = [], timers = fakeTimers();
+    let gate = null, active = 0, widest = 0;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] },
+        ['GET ' + B + '/hosts/local/containers']: async () => {
+            active += 1; widest = Math.max(widest, active);
+            try { if (gate) await gate.promise; } finally { active -= 1; }
+            return { containers: [container('web')] };
+        },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/operations']: { operations: [] },
+        ['PUT ' + B + '/stream/subscriptions']: { status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] }
+    });
+    const store = Store.create({ api, section: 'containers', eventSource: url => new FakeSource(url, sources), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, now: timers.now, reloadMs: 300 });
+    const C = 'GET ' + B + '/hosts/local/containers', n = () => api.count(C);
+    store.setVisible(true);
+    for (let i = 0; i < 8; i += 1) await tick();
+    hello(sources[0]);
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 1 });
+    const event = (extra = {}) => sources[0].emit('event', { host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'web-1', project: '', service: '', t: 5, ...extra });
+    const settle = async () => { for (let i = 0; i < 4; i += 1) await tick(); };
+    const base = n();
+
+    // the first event after a quiet spell is answered after the usual 300 ms; later events of the burst wait for the 2 s spacing
+    event();
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 1, 'the first reload comes after 300 ms');
+    timers.advance(100); event();
+    timers.advance(500); event(); event();
+    timers.advance(600); event({ action: 'start' });
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 1, 'four more events within the 2 s do not reload yet');
+    timers.advance(499); await settle();
+    assert.equal(n() - base, 1, 'the spacing is counted from the start of the last reload: 1999 ms later it has not come');
+    timers.advance(2); await settle();
+    assert.equal(n() - base, 2, 'the last event of the burst leads to exactly one more reload');
+    timers.advance(10000); await settle();
+    assert.equal(n() - base, 2, 'no event, no reload');
+
+    // an event after the spacing is answered after the usual 300 ms again
+    event();
+    timers.advance(301); await settle();
+    assert.equal(n() - base, 3);
+
+    // a reload that is still running is never joined by a second request: the next batch waits for its end, then for the spacing
+    gate = {}; gate.promise = new Promise(resolve => { gate.open = resolve; });
+    timers.advance(2000);
+    event();
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 4, 'the reload starts');
+    event(); timers.advance(5000); await settle();
+    eq([n() - base, active, widest], [4, 1, 1], 'while it runs, further events start no second request');
+    gate.open(); gate = null;
+    await settle();
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 5, 'the events that came meanwhile get their reload once the first ended');
+    assert.equal(widest, 1, 'never two requests for the host at once');
+
+    // a poll that is on its way is waited for, not cancelled
+    gate = {}; gate.promise = new Promise(resolve => { gate.open = resolve; });
+    timers.advance(3000);
+    store.state.byHost.local.at = 0;
+    store.pollOnce(); await settle();
+    eq([n() - base, active], [6, 1], 'the safety poll of a live host is on its way');
+    event(); timers.advance(300); await settle();
+    eq([n() - base, widest], [6, 1], 'the event reload waits for the poll instead of cancelling it');
+    gate.open(); gate = null;
+    await settle();
+    timers.advance(300); await settle();
+    eq([n() - base, widest], [7, 1], 'after the poll the events are answered by one reload');
+    store.dispose();
+}
+
+{
+    // an event-driven stacks reload never joins a listing that started before the event (loadStacks joins whatever is in flight):
+    // it waits for it, then asks again, and the newer answer is the one the app keeps
+    const sources = [], timers = fakeTimers();
+    let gate = null, status = 'running';
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        // the host answers with its state at the moment the request arrives, and may hold the answer back
+        ['GET ' + B + '/hosts/local/stacks']: async () => {
+            const seen = status, held = gate;
+            if (held) await held.promise;
+            return listingBody([stackFixture('shop', { status: seen })]);
+        },
+        ['GET ' + B + '/operations']: { operations: [] },
+        ['PUT ' + B + '/stream/subscriptions']: { status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] }
+    });
+    const store = Store.create({ api, section: 'stacks', eventSource: url => new FakeSource(url, sources), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, now: timers.now, reloadMs: 300 });
+    const S = 'GET ' + B + '/hosts/local/stacks', C = 'GET ' + B + '/hosts/local/containers', settle = async () => { for (let i = 0; i < 4; i += 1) await tick(); };
+    store.setVisible(true);
+    for (let i = 0; i < 8; i += 1) await tick();
+    hello(sources[0]);
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 1 });
+    const shown = () => store.state.stacks.local.listing.stacks[0].status;
+    assert.equal(shown(), 'running');
+    const base = [api.count(S), api.count(C)];
+
+    // the safety poll starts and is held; meanwhile the stack stops and the engine says so
+    gate = {}; gate.promise = new Promise(resolve => { gate.open = resolve; });
+    store.state.stacks.local.at = 0;
+    store.pollOnce(); await settle();
+    eq([api.count(S) - base[0], shown()], [1, 'running'], 'the poll of the stacks is on its way with the old state');
+    status = 'stopped';
+    sources[0].emit('event', { host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'shop-web-1', project: 'shop', service: 'web', t: 5 });
+    timers.advance(300); await settle();
+    eq([api.count(C) - base[1], api.count(S) - base[0]], [1, 1], 'the containers are read at once, the stacks wait for the poll instead of joining it');
+    const release = gate; gate = null;
+    release.open(); await settle();
+    eq([api.count(S) - base[0], shown()], [2, 'stopped'], 'after the poll the stacks are asked again and the newer state wins');
     store.dispose();
 }
 
@@ -1741,6 +1870,193 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
 }
 
 
+// ---- sorting: one collator, the same order as localeCompare, memoised per data change ---------------------------------------------
+{
+    const reference = (a, b) => String(a == null ? '' : a).localeCompare(String(b == null ? '' : b), undefined, { numeric: true, sensitivity: 'base' });
+    const names = ['web-10', 'web-2', 'Web-3', 'web-02', 'api', 'API', 'Äpfel', 'apfel', 'zeta', 'Zeta-1', 'db_1', 'db-1', '10-last', '9-first', '', null, undefined, 'straße', 'strasse', 'Ünder', 'under', 'x'.repeat(40) + '2', 'x'.repeat(40) + '10'];
+    for (const a of names) for (const b of names) assert.equal(Math.sign(model.compareText(a, b)), Math.sign(reference(a, b)), JSON.stringify([a, b]) + ' sorts as localeCompare did');
+    const sorted = (list, compare) => [...list].sort(compare).map(String);
+    eq(sorted(names, model.compareText), sorted(names, reference), 'the same list in the same order');
+
+    // the groups of the table and the single containers of the stack list keep that order
+    const hs = [{ id: 'local', name: 'Local' }];
+    const listed = ['web-10', 'web-2', 'Web-3', 'api', 'Äpfel', 'apfel', 'db_1', 'db-1', 'zeta', '10-last', '9-first'];
+    const listedRows = model.buildRows(hs, { local: { containers: listed.map(name => container(name)) } }, 'all');
+    const grouped = model.groupRows(listedRows, { hostOrder: ['local'] });
+    eq(grouped[0].rows.map(row => model.containerName(row.c)), [...listed].sort(reference), 'the rows of a group are sorted by name as before');
+    eq(model.groupRows(model.buildRows(hs, { local: { containers: [container('b1', { compose_project: 'Zoo-10' }), container('b2', { compose_project: 'zoo-2' }), container('b3', { compose_project: 'alpha' })] } }, 'all'), {}).map(group => group.project),
+        ['alpha', 'zoo-2', 'Zoo-10'], 'projects sort by name, numbers by value');
+    const singles = sm.stackGroups(hs, {}, listedRows, { scope: 'all', query: '' }).singles;
+    eq(singles.map(row => row.c.names[0]), [...listed].sort(reference), 'the single containers of the stack list are sorted as before');
+    eq(sm.stackGroups(hs, {}, listedRows, { scope: 'all', query: 'web  -2' }).singles.map(row => row.c.names[0]), ['web-2'], 'the words of a search are all needed');
+
+    // memo: runs again only when a key changed (compared with ===)
+    const memoised = model.memo();
+    let runs = 0;
+    const compute = () => { runs += 1; return { runs }; };
+    const keysA = ['x', 1, listedRows];
+    const first = memoised(keysA, compute);
+    assert.equal(memoised(['x', 1, listedRows], compute), first, 'the same keys give the same value');
+    assert.equal(runs, 1);
+    assert.notEqual(memoised(['x', 2, listedRows], compute), first);
+    assert.notEqual(memoised(['x', 2, listedRows.slice()], compute).runs, 2, 'a new array is new data');
+    assert.equal(memoised(['x', 2], compute).runs, 4, 'a different number of keys is a change');
+}
+
+// ---- groups: image groups of stopped single containers, the 200-entry caps and "show more" ----------------------------------------
+{
+    const G = window.DockerManagerGroups;
+    assert.ok(G, 'the groups module publishes its global');
+    eq([G.MIN_GROUP, G.PAGE], [5, 200]);
+    const hs = [{ id: 'local', name: 'Local' }];
+    const stopped = (name, extra = {}) => container(name, { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'ci:1', ...extra });
+    const rowsOf = list => model.buildRows(hs, { local: { containers: list } }, 'all');
+    const names = list => list.map(entry => (entry.type === 'row' ? model.containerName(entry.row.c) : '[' + entry.image + ' x' + entry.rows.length + ']'));
+    const make = (prefix, n, extra) => Array.from({ length: n }, (_, i) => stopped(prefix + String(i).padStart(4, '0'), extra));
+
+    // the threshold: from five stopped containers of one image on; fewer stay rows
+    eq(names(G.entries(rowsOf(make('job', 4)), { image: true })), ['job0000', 'job0001', 'job0002', 'job0003'], 'four stopped containers of one image stay rows');
+    eq(names(G.entries(rowsOf(make('job', 5)), { image: true })), ['[ci:1 x5]'], 'five of them become one group');
+    eq(names(G.entries(rowsOf(make('job', 5)), {})), ['job0000', 'job0001', 'job0002', 'job0003', 'job0004'], 'without the image option (project groups) nothing is grouped');
+
+    // running, paused and restarting containers are never grouped, nor are containers of a compose project or other images
+    const mixed = [
+        ...make('job', 6), container('web-a', { image: 'ci:1' }), container('web-b', { image: 'ci:1', state: 'paused', status: 'Up 1 hour (Paused)' }), container('web-c', { image: 'ci:1', state: 'restarting', status: 'Restarting (1) 5 seconds ago' }),
+        stopped('proj-1', { compose_project: 'shop' }), stopped('proj-2', { compose_project: 'shop' }), ...make('odd', 3, { image: 'other:2' }), ...make('zed', 5, { image: 'alpine:3' })
+    ];
+    const entries = G.entries(rowsOf(mixed), { image: true });
+    eq(names(entries), ['web-a', 'web-b', 'web-c', 'proj-1', 'proj-2', 'odd0000', 'odd0001', 'odd0002', '[alpine:3 x5]', '[ci:1 x6]'], 'plain rows keep their order, the groups follow');
+    eq(entries.filter(entry => entry.type === 'image').map(entry => entry.key), ['i:alpine:3', 'i:ci:1'], 'groups follow the plain rows, ordered by image');
+    eq(entries.filter(entry => entry.type === 'row').map(entry => model.containerName(entry.row.c)).sort(), ['odd0000', 'odd0001', 'odd0002', 'proj-1', 'proj-2', 'web-a', 'web-b', 'web-c'], 'running, paused, restarting, project and other-image containers stay rows');
+    const ci = entries.find(entry => entry.key === 'i:ci:1');
+    eq([ci.counts.total, ci.counts.problem, ci.rows.every(row => model.containerName(row.c).startsWith('job'))], [6, 0, true]);
+    const failing = G.entries(rowsOf([...make('ok', 4), stopped('bad-1', { status: 'Exited (137) 1 hour ago' }), stopped('bad-2', { status: 'Exited (1) 2 hours ago', created: 1760000500 })]), { image: true })[0];
+    eq([failing.counts.total, failing.counts.problem, failing.newest], [6, 2, 1760000500], 'a group counts its problems and knows its newest container');
+    eq(G.groupable(stopped('dead', { state: 'dead' })) && G.groupable(stopped('made', { state: 'created' })) && !G.groupable(container('up')), true);
+
+    // protected containers and the helpers of the Stacks feature keep their own row (and their lock), whatever the group around them
+    const guarded = [
+        stopped('helper-runner', { aurago_helper: 'runner', protected_owner: 'docker_manager' }), stopped('owned-by-ruview', { protected_owner: 'ruview' }), stopped('self-copy', { self: true }),
+        stopped('at-endpoint', { docker_endpoint: true }), stopped('shared-net', { shared_network: true })
+    ];
+    eq(guarded.map(c => G.groupable(c)), [false, false, false, false, false], 'a helper, an owned, the self, an endpoint and a shared-network container are not groupable');
+    eq(names(G.entries(rowsOf([...make('job', 4), ...guarded]), { image: true })).sort(), ['at-endpoint', 'helper-runner', 'job0000', 'job0001', 'job0002', 'job0003', 'owned-by-ruview', 'self-copy', 'shared-net'], 'four unprotected ones are below the threshold: nine rows, no group');
+    const mixedGuard = G.entries(rowsOf([...make('job', 6), ...guarded]), { image: true });
+    eq(names(mixedGuard), ['helper-runner', 'owned-by-ruview', 'self-copy', 'at-endpoint', 'shared-net', '[ci:1 x6]'], 'six unprotected ones form the group; the protected five stay rows before it');
+
+    // search and filter act inside the groups: a matching member is shown, the group opens (or, below five matches, the rows show)
+    const ten = [...make('job', 10), ...make('batch', 3)];
+    const all = rowsOf(ten);
+    const matchesFor = query => G.entries(model.filterRows(all, { query, filter: 'all' }), { image: true });
+    eq(names(matchesFor('job000')), ['[ci:1 x10]'], 'ten members match "job000" (job0000-job0009): still one group');
+    eq(names(matchesFor('job0003')), ['job0003'], 'one match is one row');
+    eq(names(matchesFor('batch')), ['batch0000', 'batch0001', 'batch0002'], 'fewer than five matches show as rows');
+    const state = G.state(), oneGroup = matchesFor('job000');
+    const isOpen = narrowed => G.plan(oneGroup, 'sec', G.view(state, narrowed)).items[0].open;
+    const click = narrowed => G.toggle(state, narrowed, 'i:ci:1', isOpen(narrowed));
+    G.sync(state, 'ci|all');
+    assert.equal(isOpen(false), false, 'an image group is closed by default');
+    assert.equal(isOpen(true), true, 'a search or filter opens every group with matches (while the budget lasts)');
+    click(true);
+    assert.equal(isOpen(true), false, 'the admin can close it again while the search is active');
+    assert.equal(isOpen(false), false, 'and that does not open it for good');
+    G.sync(state, 'ci|all');
+    assert.equal(isOpen(true), false, 'the same search keeps the choice');
+    G.sync(state, 'ci2|all');
+    assert.equal(isOpen(true), true, 'a new search ends the choice');
+    click(false);
+    assert.equal(isOpen(false), true, 'without a search a click opens the group');
+    click(false);
+    assert.equal(isOpen(false), false, 'and closes it again');
+
+    // the cap: a section and an opened group show 200 entries, "show more" adds 200 more
+    const big = G.entries(rowsOf([container('web'), ...make('job', 450)]), { image: true });
+    const planOf = s => G.plan(big, 'sec:big', G.view(s, false));
+    const calm = G.state();
+    let shown = planOf(calm);
+    eq([shown.items.length, shown.more, shown.items[1].open, shown.items[1].members.length], [2, null, false, 0], 'a closed group shows no members');
+    G.toggle(calm, false, 'i:ci:1');
+    shown = planOf(calm);
+    eq([shown.items[1].members.length, shown.items[1].more], [200, { key: 'i:ci:1', hidden: 250, count: 200 }], 'an opened group shows 200 members and says how many are hidden');
+    G.showMore(calm, 'i:ci:1');
+    shown = planOf(calm);
+    eq([shown.items[1].members.length, shown.items[1].more], [400, { key: 'i:ci:1', hidden: 50, count: 50 }], '"show more" adds 200, the last step only what is left');
+    G.showMore(calm, 'i:ci:1');
+    shown = planOf(calm);
+    eq([shown.items[1].members.length, shown.items[1].more], [450, null], 'nothing hidden, no button');
+    const distinct = G.entries(rowsOf(Array.from({ length: 450 }, (_, i) => stopped('solo' + String(i).padStart(4, '0'), { image: 'img' + i + ':1' }))), { image: true });
+    const sectionState = G.state();
+    let section = G.plan(distinct, 'sec:singles', G.view(sectionState, false));
+    eq([section.items.length, section.more], [200, { key: 'sec:singles', hidden: 250, count: 200 }], 'a section of plain rows is capped at 200 too');
+    G.showMore(sectionState, 'sec:singles');
+    section = G.plan(distinct, 'sec:singles', G.view(sectionState, false));
+    eq([section.items.length, section.more.hidden, section.items[399].type], [400, 50, 'row']);
+    eq(G.page(['a', 'b', 'c'], 'k', () => 2), { items: ['a', 'b'], more: { key: 'k', hidden: 1, count: 1 } });
+    // a change of the search ends the "show more" steps
+    G.sync(sectionState, 'x|all'); G.sync(sectionState, 'y|all');
+    assert.equal(G.view(sectionState, false).limit('sec:singles'), 200);
+
+    // while a search or filter opens groups on its own they share one page of rows: "Stopped" on 3,000 containers of 60 images is not 3,000 rows
+    {
+        const pad = n => String(n).padStart(2, '0');
+        const imagesOf = sizes => sizes.flatMap((size, image) => Array.from({ length: size }, (_, i) => stopped('img' + pad(image) + '-job' + String(i).padStart(3, '0'), { image: 'img-' + pad(image) + ':1' })));
+        const openIn = (list, s = G.state()) => G.plan(list, 'sec:singles', G.view(s, true)).items.filter(item => item.type === 'image' && item.open).map(item => item.group.key);
+        const rowsShown = (list, s = G.state()) => { const planned = G.plan(list, 'sec:singles', G.view(s, true)); return planned.items.length + planned.items.reduce((n, item) => n + (item.members ? item.members.length : 0), 0); };
+        const sixty = G.entries(rowsOf(imagesOf(Array(60).fill(50))), { image: true });
+        eq([sixty.length, openIn(sixty), rowsShown(sixty)], [60, ['i:img-00:1', 'i:img-01:1', 'i:img-02:1'], 210], 'sixty groups of 50 matches: three open, the others wait with their counts, 210 rows in all');
+        const uneven = G.entries(rowsOf(imagesOf([50, 120, 90, 60, 150])), { image: true });
+        eq(openIn(uneven).sort(), ['i:img-01:1', 'i:img-04:1'], 'the groups with the most matches open first while the budget lasts (150, then 120)');
+        // a group the admin opens opens whatever the budget says and moves no other group; closing one opens none in its place
+        const chosen = G.state();
+        G.toggle(chosen, true, 'i:img-00:1', false);
+        eq(openIn(uneven, chosen).sort(), ['i:img-00:1', 'i:img-01:1', 'i:img-04:1'], 'a click opens a group the budget left closed');
+        G.toggle(chosen, true, 'i:img-04:1', true);
+        eq(openIn(uneven, chosen).sort(), ['i:img-00:1', 'i:img-01:1'], 'closing a group opens no other one in its place');
+        G.showMore(chosen, 'i:img-01:1');
+        eq(openIn(uneven, chosen).sort(), ['i:img-00:1', 'i:img-01:1'], 'neither does "show more"');
+        eq(rowsShown(G.entries(rowsOf(imagesOf([3000])), { image: true })), 201, 'one group of 3,000 matches shows its first page');
+        // without a search nothing opens by itself
+        eq(G.plan(sixty, 'sec:singles', G.view(G.state(), false)).items.filter(item => item.open).length, 0);
+    }
+
+    // finding a container on screen, opening its group for a drawer, and the row of the open drawer that the cap must not hide
+    {
+        const runningTwo = [container('web-a'), container('web-b')];
+        const stoppedJobs = make('job', 3000);
+        const sections = G.layout({ section: 'containers', groups: [{ key: 's:local', rows: rowsOf([...runningTwo, ...stoppedJobs]) }].map(group => Object.assign(group, { entries: G.entries(group.rows, { image: true }) })) });
+        const deep = 'local/' + 'job1500'.padEnd(64, '0'), plain = 'local/' + 'web-b'.padEnd(64, '0');
+        eq([G.locate(sections, deep), G.locate(sections, plain), G.locate(sections, 'local/nothing')], [{ section: 's:local', group: 'i:ci:1' }, { section: 's:local', group: '' }, null], 'a member knows its group, a plain row has none');
+        eq([G.holds(sections, 'i:ci:1', deep), G.holds(sections, 'i:ci:1', plain), G.holds(sections, 'i:other:1', deep)], [true, false, false]);
+        // the Stacks list lays out its single containers as one section
+        eq(G.layout({ section: 'stacks', sgroups: { singles: [], singleEntries: sections[0].entries } }).map(section => section.key), ['sec:singles']);
+
+        // opening the group: the admin's choice, whatever the search budget says
+        const calm = G.state();
+        assert.equal(G.reveal(calm, false, sections, plain), false, 'a plain row needs no group');
+        assert.equal(G.reveal(calm, false, sections, deep), true);
+        assert.equal(G.plan(sections[0].entries, 's:local', G.view(calm, false)).items.some(item => item.open), true, 'the group is open');
+        const searching = G.state();
+        G.toggle(searching, true, 'i:ci:1', true);
+        G.reveal(searching, true, sections, deep);
+        assert.equal(G.plan(sections[0].entries, 's:local', G.view(searching, true)).items.some(item => item.open), true, 'a closed group of a search opens too');
+
+        // the row of the open drawer is on the page although it sits at 1500 of 3000: after the first 200, outside the hidden count
+        const pinned = G.plan(sections[0].entries, 's:local', G.view(calm, false, deep)).items.find(item => item.type === 'image');
+        eq([pinned.members.length, pinned.members[pinned.members.length - 1].key, pinned.more], [201, deep, { key: 'i:ci:1', hidden: 2799, count: 200 }], 'the page plus the pinned row; the hidden count leaves it out');
+        const unpinned = G.plan(sections[0].entries, 's:local', G.view(calm, false)).items.find(item => item.type === 'image');
+        eq([unpinned.members.length, unpinned.more.hidden], [200, 2800], 'without a drawer the page is 200');
+        G.showMore(calm, 'i:ci:1');
+        for (let i = 0; i < 7; i += 1) G.showMore(calm, 'i:ci:1');
+        const widened = G.plan(sections[0].entries, 's:local', G.view(calm, false, deep)).items.find(item => item.type === 'image');
+        eq([widened.members.length, widened.members.filter(row => row.key === deep).length], [1800, 1], 'once the page reaches the row it is listed once, in its place');
+        // a plain row behind the cap of its section: 250 unique-image stopped containers, the drawer is open on the last
+        const lonely = G.entries(rowsOf(Array.from({ length: 250 }, (_, i) => stopped('solo' + String(i).padStart(3, '0'), { image: 'solo' + i + ':1' }))), { image: true });
+        const last = 'local/' + 'solo249'.padEnd(64, '0');
+        const lonelyPlan = G.plan(lonely, 'sec:singles', G.view(G.state(), false, last));
+        eq([lonelyPlan.items.length, lonelyPlan.items[200].row.key, lonelyPlan.more.hidden], [201, last, 49], 'a plain row behind the section cap is pinned too');
+    }
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -1852,6 +2168,15 @@ const full = {};
     assert.ok(!stacks.list(Object.assign({}, snap, { canMutate: false })).includes('prepare-host'), 'a read-only window offers no Prepare host');
     const rail = views.rail(snap);
     assert.ok(rail.includes('data-section="stacks"') && /data-section="stacks"[^>]*aria-current="page"/.test(rail) && !/data-section="containers"[^>]*aria-current/.test(rail), 'the rail marks the current section');
+    // the numbers of the rail are slots: a change of the counts alone leaves the markup (and so the buttons and their focus) as it is
+    {
+        const parts = views.railParts(snap), more = Object.assign({}, snap, { state: Object.assign({}, snap.state, { byHost: Object.assign({}, snap.state.byHost, { local: { containers: [...snap.state.byHost.local.containers, container('extra')], loaded: true } }) }) });
+        const next = views.railParts(more);
+        assert.equal(parts.html, next.html, 'a new container changes no markup of the rail');
+        assert.notDeepEqual(plain(parts.counts), plain(next.counts), 'but its counts');
+        assert.ok(!/class="dm-count"[^>]*>\d/.test(parts.html) && (parts.html.match(/data-rail-count/g) || []).length === parts.counts.length, 'every count is an empty slot with a text of its own');
+        assert.equal(views.rail(snap), parts.html.replace(/ data-rail-count><\/span>/g, () => '>' + esc(parts.counts.shift()) + '</span>'), 'rail() is the markup with the slots filled');
+    }
     const head = stacks.head(snap), overview = stacks.overview(snap);
     assert.ok(head.includes('data-op="update"') && head.includes('data-op="restart"') && head.includes('class="dm-dirty"'), 'a running stack offers Update, and an unsaved compose tab is marked');
     assert.ok(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } })).includes('data-op="update"') && /data-op="update"[^>]*disabled/.test(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } }))), 'a stack with a running operation cannot start another');
@@ -2356,6 +2681,156 @@ const full = {};
             assert.equal(tokens(locales[lang][key]), tokens(en[key]), lang + '.json changes the placeholders of ' + key);
         }
     }
+}
+
+// ---- bounded lists: the table and the stack list render at most 200 entries per section and group --------------------------------
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel, G = full.DockerManagerGroups;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, charts: full.DockerManagerCharts, groups: G, lang: 'en', uid: 'x' });
+    const stacks = full.DockerManagerStacks.create({ t, esc, model: model2, stackModel: sm2, views, groups: G, uid: 'x' });
+    const hosts = [hostA];
+    const jobs = Array.from({ length: 450 }, (_, i) => container('job' + String(i).padStart(4, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'ci:1', created: 1760000000 + i }));
+    const running = Array.from({ length: 3 }, (_, i) => container('web' + i));
+    const byHost = { local: { containers: [...running, ...jobs], loaded: true } };
+    const rows = model2.buildRows(hosts, byHost, 'all');
+    const groups = model2.groupRows(rows, { hostOrder: ['local'] });
+    for (const group of groups) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+    const grp = G.state();
+    const snapFor = (open, extra = {}) => Object.assign({
+        state: { scope: 'all', stacks: { local: { loaded: true, listing: { stacks: [], external: [], ignored: [] } } }, byHost, hostsLoaded: true, detail: null, stack: null, project: null, busy: new Set(), ops: [], df: {} },
+        hosts, scopeHosts: hosts, rows, visible: rows, multi: false, canMutate: true, headers: false, collapsed: new Set(), groups, section: 'containers', hostStates: { local: 'ok' }, now: 1760100000000,
+        groupView: G.view(grp, open), query: ''
+    }, extra);
+
+    // Containers: 3 running rows and one collapsed group row
+    let items = views.tbodyItems(snapFor(false));
+    eq(items.map(item => item.key), ['local/' + running[0].full_id, 'local/' + running[1].full_id, 'local/' + running[2].full_id, 'g:i:ci:1'], 'running rows, then the group');
+    assert.equal(items.length, 4);
+    const head = items[3].html;
+    assert.ok(/data-action="toggle-group"/.test(head) && /aria-expanded="false"/.test(head) && /aria-level="1"/.test(head) && head.includes('data-group-key="i:ci:1"'), 'the group row is a collapsed treegrid parent that toggles');
+    assert.ok(head.includes('image_group_count{&quot;count&quot;:&quot;450&quot;}') && head.includes('image_group_newest') && head.includes('<strong class="dm-group-name" title="ci:1">ci:1</strong>'), 'it shows the image, the count and the newest age');
+    assert.ok(!items.some(item => item.html.includes('job0000')), 'closed: no member is rendered');
+
+    // opened: 200 members one level deeper, then "show 200 more (250 hidden)"
+    G.toggle(grp, false, 'i:ci:1');
+    items = views.tbodyItems(snapFor(false));
+    assert.equal(items.length, 3 + 1 + 200 + 1, 'three rows, the group, 200 members and the show-more row');
+    assert.ok(/aria-expanded="true"/.test(items[3].html) && /aria-level="2"/.test(items[4].html) && items[4].html.includes('data-row-key="local/job0000'), 'members sit one level below the group');
+    const more = items[items.length - 1];
+    assert.ok(more.key === 'more:i:ci:1' && more.html.includes('data-action="show-more"') && more.html.includes('data-more-key="i:ci:1"') && more.html.includes('show_more{&quot;count&quot;:&quot;200&quot;,&quot;hidden&quot;:&quot;250&quot;}') && /aria-level="2"/.test(more.html), 'the show-more row names how many it adds and how many are hidden');
+    assert.equal(new Set(items.map(item => item.key)).size, items.length, 'every key is unique (the table is patched by key)');
+    G.showMore(grp, 'i:ci:1');
+    assert.equal(views.tbodyItems(snapFor(false)).length, 3 + 1 + 400 + 1);
+    G.showMore(grp, 'i:ci:1');
+    assert.equal(views.tbodyItems(snapFor(false)).length, 3 + 1 + 450, 'all shown: no show-more row');
+    assert.equal(views.tbody(snapFor(false)), views.tbodyItems(snapFor(false)).map(item => item.html).join(''), 'tbody() is the joined items');
+    G.toggle(grp, false, 'i:ci:1');
+    G.sync(grp, 'a'); G.sync(grp, 'b');
+
+    // with group headers (several groups) the levels shift by one
+    const withProject = model2.groupRows(model2.buildRows(hosts, { local: { containers: [...running, ...jobs, container('shop-web', { compose_project: 'shop', compose_service: 'web' })], loaded: true } }, 'all'), { hostOrder: ['local'] });
+    for (const group of withProject) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+    G.toggle(grp, false, 'i:ci:1');
+    const headed = views.tbodyItems(snapFor(false, { groups: withProject, headers: true }));
+    assert.ok(/aria-level="2"/.test(headed.find(item => item.key === 'g:i:ci:1').html) && /aria-level="3"/.test(headed.find(item => item.html.includes('data-row-key="local/job0000')).html), 'under a group header the image group is level 2, its members level 3');
+    G.toggle(grp, false, 'i:ci:1');
+
+    // Stacks: the single containers fold the same way; every list is capped
+    const singleRows = rows.filter(row => !row.c.compose_project);
+    const sgroups = { stacks: [], external: [], singles: singleRows, singleEntries: G.entries(singleRows, { image: true }) };
+    const listSnap = extra => Object.assign(snapFor(false), { sgroups, section: 'stacks', scopeHosts: hosts }, extra);
+    let list = stacks.list(listSnap());
+    assert.equal((list.match(/<li class="dm-srow/g) || []).length, 4, '3 running containers and one group item');
+    assert.ok(list.includes('data-action="toggle-group"') && list.includes('data-group-key="i:ci:1"') && /aria-expanded="false"/.test(list) && !list.includes('job0000'), 'a closed group item');
+    G.toggle(grp, false, 'i:ci:1');
+    list = stacks.list(listSnap());
+    assert.equal((list.match(/data-action="open-container"/g) || []).length, 3 + 200, 'an opened group lists 200 members');
+    assert.ok(list.includes('<ul class="dm-slist is-nested"') && list.includes('data-more-key="i:ci:1"') && list.includes('show_more{&quot;count&quot;:&quot;200&quot;,&quot;hidden&quot;:&quot;250&quot;}'), 'in a nested list that ends with show more');
+    const manyStacks = Array.from({ length: 450 }, (_, i) => ({ key: 'local/s' + i, hostId: 'local', hostName: 'Local', hostColor: 'blue', stack: { name: 's' + i, status: 'running', services: { total: 1, running: 1 }, ports: [] } }));
+    const capped = stacks.list(listSnap({ sgroups: { stacks: manyStacks, external: [], singles: [] } }));
+    assert.equal((capped.match(/data-action="open-stack"/g) || []).length, 200, 'the stack list is capped too');
+    assert.ok(capped.includes('data-more-key="sec:stacks"') && capped.includes('hidden&quot;:&quot;250&quot;'), 'with its own show-more');
+    G.toggle(grp, false, 'i:ci:1');
+    // The cap hides the end of a list, so a list longer than a page leads with what is running or failed: 250 stopped containers of 250
+    // images named ci-job-* sort before 40 running svc-* by name, and the first page would have shown only stopped ones
+    {
+        const stoppedOnes = Array.from({ length: 250 }, (_, i) => container('ci-job-' + String(i).padStart(3, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'job-image-' + i + ':1', created: 1760000000 + i }));
+        const failedOnes = [0, 1, 2].map(i => container('zz-failed-' + i, { state: 'exited', status: 'Exited (1) 1 hour ago', image: 'failed-image-' + i + ':1' }));
+        const runningOnes = Array.from({ length: 40 }, (_, i) => container('svc-' + String(i).padStart(2, '0'), { image: 'svc-image:1' }));
+        const fresh = G.state(), listed = [...stoppedOnes, ...failedOnes, ...runningOnes];
+        const rows2 = model2.buildRows(hosts, { local: { containers: listed, loaded: true } }, 'all');
+        const groups2 = model2.groupRows(rows2, { hostOrder: ['local'] });
+        for (const group of groups2) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+        const baseSnap = Object.assign(snapFor(false), {
+            state: Object.assign({}, snapFor(false).state, { byHost: { local: { containers: listed, loaded: true } } }), rows: rows2, visible: rows2, groups: groups2, groupView: G.view(fresh, false),
+
+        });
+        const rendered = items => items.filter(item => item.key.startsWith('local/')).map(item => (item.html.match(/class="dm-name">([^<]+)</) || [])[1]);
+
+        // the table: 43 leading rows are the running and the failed ones, then 157 stopped ones, then "show more" with 93 hidden
+        const tableItems = views.tbodyItems(baseSnap), names2 = rendered(tableItems);
+        eq([names2.length, tableItems[tableItems.length - 1].key], [200, 'more:' + groups2[0].key], 'one page of rows and the show-more row');
+        eq(names2.slice(0, 43).sort(), [...runningOnes.map(c => c.names[0]), ...failedOnes.map(c => c.names[0])].sort(), 'the first 43 rows are the running and the failed containers');
+        eq(names2.slice(43, 46), ['ci-job-000', 'ci-job-001', 'ci-job-002'], 'the stopped ones that are fine follow in name order');
+        assert.ok(!names2.includes('ci-job-157') && tableItems[tableItems.length - 1].html.includes('show_more{&quot;count&quot;:&quot;93&quot;,&quot;hidden&quot;:&quot;93&quot;}'), 'only stopped rows are behind the cap');
+
+        // the Stacks list: the same page
+        const singles2 = rows2.filter(row => !row.c.compose_project);
+        const listHtml = stacks.list(Object.assign({}, baseSnap, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles2, singleEntries: G.entries(singles2, { image: true }) } }));
+        const shownNames = [...listHtml.matchAll(/class="dm-name">([^<]+)</g)].map(match => match[1]).filter(name => !name.startsWith('show_more'));
+        eq([shownNames.length, runningOnes.every(c => shownNames.includes(c.names[0])), failedOnes.every(c => shownNames.includes(c.names[0])), shownNames.includes('ci-job-157')], [200, true, true, false], 'the Stacks list shows every running and failed container within its first 200');
+        assert.ok(listHtml.includes('data-more-key="sec:singles"') && listHtml.includes('hidden&quot;:&quot;93&quot;'), 'and offers the other 93');
+
+        // a list that fits keeps its order; groups with a failure rank above ordinary rows, ordinary groups last
+        const small = G.entries(model2.buildRows(hosts, { local: { containers: [container('b-stopped', { state: 'exited', status: 'Exited (0) 1 hour ago' }), container('a-run')], loaded: true } }, 'all'), { image: true });
+        eq(small.map(entry => entry.row.c.names[0]), ['b-stopped', 'a-run'], 'a list within one page is not reordered');
+        const ranking = G.entries(model2.buildRows(hosts, { local: { containers: [
+            ...Array.from({ length: 200 }, (_, i) => container('plain-' + String(i).padStart(3, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'p' + i + ':1' })),
+            ...Array.from({ length: 5 }, (_, i) => container('fine-' + i, { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'fine:1' })),
+            ...Array.from({ length: 5 }, (_, i) => container('broken-' + i, { state: 'exited', status: i ? 'Exited (0) 1 hour ago' : 'Exited (2) 1 hour ago', image: 'broken:1' })),
+            container('paused-one', { state: 'paused', status: 'Up 1 hour (Paused)' })
+        ], loaded: true } }, 'all'), { image: true });
+        eq([ranking[0].row.c.names[0], ranking[1].key, ranking[2].row.c.names[0], ranking[ranking.length - 1].key], ['paused-one', 'i:broken:1', 'plain-000', 'i:fine:1'], 'paused first, then the group with a failure, then the plain stopped rows, the quiet group last');
+    }
+
+    // "Stopped" on 3,000 stopped containers of 60 images opens the groups only while the shared budget lasts: about 210 rows, not 3,000
+    {
+        const stoppedOnes = Array.from({ length: 3000 }, (_, i) => container('img' + String(i % 60).padStart(2, '0') + '-job' + String(Math.floor(i / 60)).padStart(3, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'img-' + String(i % 60).padStart(2, '0') + ':1' }));
+        const fresh = G.state(), narrowedView = G.view(fresh, true);
+        const rows3 = model2.buildRows(hosts, { local: { containers: stoppedOnes, loaded: true } }, 'all');
+        const visible3 = model2.filterRows(rows3, { query: '', filter: 'stopped' });
+        const groups3 = model2.groupRows(visible3, { hostOrder: ['local'] });
+        for (const group of groups3) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+        const snap3 = Object.assign(snapFor(true), { rows: rows3, visible: visible3, groups: groups3, groupView: narrowedView });
+        const tableRows = views.tbodyItems(snap3);
+        eq([visible3.length, tableRows.length <= 250, tableRows.length >= 200, tableRows.filter(item => item.key.startsWith('g:i:')).length, tableRows.filter(item => /aria-expanded="true"/.test(item.html)).length], [3000, true, true, 60, 3], 'the table: 60 group rows, 3 of them open, at most about 250 rows');
+        const singles3 = visible3.filter(row => !row.c.compose_project);
+        const list3 = stacks.list(Object.assign({}, snap3, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles3, singleEntries: G.entries(singles3, { image: true }) } }));
+        const counted = pattern => (list3.match(pattern) || []).length;
+        eq([counted(/<li class="dm-srow/g) <= 250, counted(/data-group-key=/g), counted(/aria-expanded="true"/g), counted(/data-action="open-container"/g)], [true, 60, 3, 150], 'the Stacks list: the same 60 groups, 3 open with 150 members in all');
+    }
+
+    // the open drawer's row stays on the table and in the list although it sits behind the cap of its group
+    {
+        const stoppedOnes = Array.from({ length: 450 }, (_, i) => container('job' + String(i).padStart(4, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'ci:1' }));
+        const rows4 = model2.buildRows(hosts, { local: { containers: stoppedOnes, loaded: true } }, 'all');
+        const groups4 = model2.groupRows(rows4, { hostOrder: ['local'] });
+        for (const group of groups4) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+        const pin = rows4[400].key, opened = G.state();
+        G.toggle(opened, false, 'i:ci:1', false);
+        const snap4 = Object.assign(snapFor(false), { rows: rows4, visible: rows4, groups: groups4, groupView: G.view(opened, false, pin) });
+        const items4 = views.tbodyItems(snap4);
+        eq([items4.length, items4[items4.length - 2].key, items4[items4.length - 1].html.includes('hidden&quot;:&quot;249&quot;')], [1 + 200 + 1 + 1, pin, true], 'the table lists the group, its first 200, the pinned row and a show-more row that leaves it out');
+        assert.ok(items4.find(item => item.key === pin).html.includes('aria-selected="false"'), 'it is a normal row');
+        const singles4 = rows4.filter(row => !row.c.compose_project);
+        const list4 = stacks.list(Object.assign({}, snap4, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles4, singleEntries: G.entries(singles4, { image: true }) } }));
+        assert.ok(list4.includes('data-row-key="' + pin + '"') && (list4.match(/data-action="open-container"/g) || []).length === 201, 'and so does the Stacks list');
+    }
+
+    // a snapshot without the new members (older callers) renders as before
+    assert.ok(views.tbody({ groups, headers: false, collapsed: new Set(), state: { busy: new Set(), detail: null }, canMutate: true, multi: false }).length > 0);
 }
 
 console.log('docker-manager ui tests: stylesheet, load contract and translations ok');

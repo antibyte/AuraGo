@@ -59,6 +59,9 @@
     function create(deps) {
         const { t, esc, model, lang, uid } = deps;
         const charts = deps.charts || window.DockerManagerCharts;
+        const Groups = deps.groups || window.DockerManagerGroups;
+        const numberFormat = (() => { try { return new Intl.NumberFormat(lang); } catch (error) { return new Intl.NumberFormat(); } })();
+        const num = value => numberFormat.format(value);
         const glyph = (name, cls) => '<svg class="dm-glyph' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (GLYPHS[name] || '') + '</svg>';
         const dot = tone => '<span class="dm-dot" data-tone="' + esc(tone) + '" aria-hidden="true"></span>';
         const chip = (name, color) => '<span class="dm-chip" data-host-color="' + esc(color) + '"><span class="dm-chip-dot" aria-hidden="true"></span>' + esc(name) + '</span>';
@@ -94,33 +97,44 @@
 
         // ---- rail --------------------------------------------------------------------------------------------------
 
-        function hostLine(host, entry, health) {
+        // The numbers of the rail are slots (<span data-rail-count>) in the markup and arrive as texts in document order, so the app can
+        // write them in place when only the numbers changed: a poll or an event never replaces the rail buttons (and the focus on one).
+        function hostLine(host, entry, health, slot) {
             if (health.state === 'error') return '<span class="dm-host-sub" data-tone="' + health.tone + '">' + esc(t('host_error')) + '</span>';
             if (!entry || !entry.loaded) return '<span class="dm-host-sub">' + esc(health.state === 'ok' ? t('loading') : t('host_unknown')) + '</span>';
-            const counts = model.hostCounts(host.id, { [host.id]: entry });
-            return '<span class="dm-host-sub">' + esc(t('count_running_total', counts)) + '</span>';
+            return slot('dm-host-sub', t('count_running_total', model.hostCounts(host.id, { [host.id]: entry })));
         }
 
-        function rail(snap) {
-            const s = snap.state, scope = s.scope, totals = model.totalCounts(snap.hosts, s.byHost);
+        // {html, counts}: the rail markup with empty count slots, and the text of every slot.
+        function railParts(snap) {
+            const s = snap.state, scope = s.scope, totals = model.totalCounts(snap.hosts, s.byHost), counts = [];
+            const slot = (cls, text) => { counts.push(String(text)); return '<span class="' + cls + '" data-rail-count></span>'; };
             const option = (id, color, name, titleText, line, tone, word) => {
                 const selected = scope === id;
                 return '<button type="button" role="option" class="dm-host-btn" data-action="pick-host" data-host-id="' + esc(id) + '" data-focus-id="host:' + esc(id) + '" aria-selected="' + selected
                     + '" tabindex="' + (selected ? '0' : '-1') + '" title="' + esc(titleText) + '"><span class="dm-swatch" data-host-color="' + esc(color) + '" aria-hidden="true"></span>'
                     + '<span class="dm-host-text"><span class="dm-host-name">' + esc(name) + '</span>' + line + '</span>' + (tone ? dot(tone) + '<span class="dm-sr-only">' + esc(word) + '</span>' : '') + '</button>';
             };
-            const allLine = '<span class="dm-host-sub">' + esc(t('count_running_total', totals)) + '</span>';
+            const allLine = slot('dm-host-sub', t('count_running_total', totals));
             const items = [option('all', 'all', t('all_hosts'), t('all_hosts'), allLine, '', '')];
             for (const host of snap.hosts) {
                 const entry = s.byHost[host.id], health = model.hostHealth(host, entry);
-                items.push(option(host.id, model.colorOf(host.color), host.name, host.name + ' · ' + model.hostAddress(host), hostLine(host, entry, health), health.tone, t('host_' + health.state)));
+                items.push(option(host.id, model.colorOf(host.color), host.name, host.name + ' · ' + model.hostAddress(host), hostLine(host, entry, health, slot), health.tone, t('host_' + health.state)));
             }
             const navButton = (section, glyphName, label, count) => '<button type="button" class="dm-nav-btn" data-action="pick-section" data-section="' + section + '" data-focus-id="nav:' + section + '"'
-                + (snap.section === section ? ' aria-current="page"' : '') + '>' + glyph(glyphName) + '<span class="dm-nav-label">' + esc(label) + '</span><span class="dm-count">' + count + '</span></button>';
-            return '<div class="dm-rail-section"><h2 class="dm-rail-title" id="' + uid + '-hosts">' + esc(t('hosts_heading')) + '</h2>'
+                + (snap.section === section ? ' aria-current="page"' : '') + '>' + glyph(glyphName) + '<span class="dm-nav-label">' + esc(label) + '</span>' + slot('dm-count', count) + '</button>';
+            const html = '<div class="dm-rail-section"><h2 class="dm-rail-title" id="' + uid + '-hosts">' + esc(t('hosts_heading')) + '</h2>'
                 + '<div class="dm-hosts" role="listbox" aria-labelledby="' + uid + '-hosts" data-host-list>' + items.join('') + '</div></div>'
                 + '<nav class="dm-nav" aria-label="' + esc(t('nav_label')) + '">' + navButton('stacks', 'stacks', t('nav_stacks'), snap.stackCounts.total) + navButton('containers', 'containers', t('nav_containers'), totals.total) + '</nav>'
                 + '<div class="dm-rail-foot"><button type="button" class="dm-link-btn" data-action="manage-hosts" data-focus-id="manage">' + glyph('server') + '<span>' + esc(t('manage_hosts')) + '</span></button></div>';
+            return { html, counts };
+        }
+
+        // The rail with its numbers filled in.
+        function rail(snap) {
+            const parts = railParts(snap);
+            let index = 0;
+            return parts.html.replace(/ data-rail-count><\/span>/g, () => '>' + esc(parts.counts[index++]) + '</span>');
         }
 
         // ---- host gauges (a single host in scope) -----------------------------------------------------------------------
@@ -195,7 +209,8 @@
             return shown + (rest.length ? '<span class="dm-port is-more" title="' + esc(rest.map(item => item.label).join(', ')) + '">+' + rest.length + '</span>' : '');
         }
 
-        function row(snap, r) {
+        // level: the aria-level of the row (members of an image group sit one deeper than the rows beside the group).
+        function row(snap, r, level) {
             const c = r.c, status = model.statusOf(c), name = model.containerName(c), id = model.containerId(c);
             const actions = model.actionsFor(c, !snap.canMutate), busy = snap.state.busy.has(r.hostId + '/' + id);
             const open = !!(snap.state.detail && snap.state.detail.key === r.key);
@@ -210,7 +225,7 @@
             buttons.push(iconButton('logs', '', t('action_logs'), 'logs', { key: r.key, name, busy: false, focus: 'act:' + esc(r.key) + ':logs' }));
             buttons.push(iconButton('more', '', t('action_more'), 'more', { key: r.key, name, busy: false, focus: 'act:' + esc(r.key) + ':more' }));
             return '<tr class="dm-row" role="row" data-nav-key="' + esc(r.key) + '" data-row-key="' + esc(r.key) + '" data-focus-id="row:' + esc(r.key) + '" data-tone="' + status.tone + '" aria-level="'
-                + (snap.headers ? 2 : 1) + '" aria-selected="' + open + '" aria-busy="' + busy + '" tabindex="-1">'
+                + (level || (snap.headers ? 2 : 1)) + '" aria-selected="' + open + '" aria-busy="' + busy + '" tabindex="-1">'
                 + '<td role="gridcell" class="dm-cell-status">' + dot(status.tone) + '<span class="dm-status"><span class="dm-status-text">' + esc(statusLabel(status)) + '</span><span class="dm-status-sub">' + esc(c.status) + '</span></span></td>'
                 + '<td role="gridcell" class="dm-cell-name"><span class="dm-name-line"><span class="dm-name">' + esc(name) + '</span>' + lock + (snap.multi ? chip(r.hostName, r.hostColor) : '') + '</span><span class="dm-sub">' + esc(sub) + '</span></td>'
                 + '<td role="gridcell" class="dm-cell-image"><span class="dm-image" title="' + esc(c.image) + '">' + esc(model.shortImage(c.image)) + '</span></td>'
@@ -228,15 +243,54 @@
                 + (snap.multi && group.kind === 'project' ? chip(group.hostName, group.hostColor) : '') + '<span class="dm-group-count">' + esc(text) + '</span></span></td></tr>';
         }
 
-        function tbody(snap) {
-            const parts = [];
-            for (const group of snap.groups) {
-                const collapsed = snap.headers && snap.collapsed.has(group.key);
-                if (snap.headers) parts.push(groupRow(snap, group, collapsed));
-                if (!collapsed) for (const r of group.rows) parts.push(row(snap, r));
-            }
-            return parts.join('');
+        // "3,257 stopped · 40 with problems · newest 3 d ago": the facts of an image group (the single containers of one image).
+        function imageSummary(snap, group) {
+            const parts = [t('image_group_count', { count: num(group.counts.total) })];
+            if (group.counts.problem) parts.push(t('group_problems', { count: num(group.counts.problem) }));
+            const age = group.newest ? (deps.stackModel || window.DockerManagerStackModel).age(group.newest, snap.now) : null;
+            if (age) parts.push(t('image_group_newest', { age: t('age_' + age.unit, { count: age.n }) }));
+            return parts.join(' · ');
         }
+        const moreText = more => t('show_more', { count: num(more.count), hidden: num(more.hidden) });
+        const imageTone = group => (group.counts.problem ? 'bad' : 'idle');
+
+        // The group row of an image: a treegrid parent that opens by click, Enter, Space and Right (and closes with Left).
+        function imageRow(snap, item, level) {
+            const group = item.group, name = model.shortImage(group.image) || '—';
+            return '<tr class="dm-group-row dm-image-row" role="row" data-nav-key="g:' + esc(group.key) + '" data-group-key="' + esc(group.key) + '" data-focus-id="group:' + esc(group.key) + '" data-action="toggle-group" aria-level="'
+                + level + '" aria-expanded="' + item.open + '" tabindex="-1"><td role="gridcell" colspan="6"><span class="dm-group-main">' + glyph('chevron', 'dm-chevron') + dot(imageTone(group))
+                + '<strong class="dm-group-name" title="' + esc(group.image) + '">' + esc(name) + '</strong><span class="dm-group-count">' + esc(imageSummary(snap, group)) + '</span></span></td></tr>';
+        }
+
+        // "Show 200 more (3,057 hidden)": a row of its own, so the keyboard reaches it like any other row of the treegrid.
+        function moreRow(more, level) {
+            return '<tr class="dm-more-row" role="row" data-nav-key="more:' + esc(more.key) + '" data-focus-id="morerow:' + esc(more.key) + '" aria-level="' + level + '" tabindex="-1"><td role="gridcell" colspan="6">'
+                + '<button type="button" class="dm-btn" data-action="show-more" data-more-key="' + esc(more.key) + '" data-row-btn data-focus-id="more:' + esc(more.key) + '" tabindex="-1">' + esc(moreText(more)) + '</button></td></tr>';
+        }
+
+        // The rows of the table, bounded: [{key, html}] in display order. Every section and every opened image group shows at most
+        // 200 entries (snap.limit) and ends with a "show more" row. snap.open(key) says whether an image group is open. The app
+        // patches the table from this list, row by row.
+        function tbodyItems(snap) {
+            const items = [], headers = snap.headers, base = headers ? 2 : 1;
+            const view = snap.groupView || Groups.view(Groups.state(), false);
+            const more = (entry, level) => items.push({ key: 'more:' + entry.key, html: moreRow(entry, level) });
+            for (const group of snap.groups) {
+                const collapsed = headers && snap.collapsed.has(group.key);
+                if (headers) items.push({ key: 'g:' + group.key, html: groupRow(snap, group, collapsed) });
+                if (collapsed) continue;
+                const shown = Groups.plan(group.entries || Groups.entries(group.rows), group.key, view);
+                for (const item of shown.items) {
+                    if (item.type === 'row') { items.push({ key: item.row.key, html: row(snap, item.row, base) }); continue; }
+                    items.push({ key: 'g:' + item.group.key, html: imageRow(snap, item, base) });
+                    for (const member of item.members) items.push({ key: member.key, html: row(snap, member, base + 1) });
+                    if (item.more) more(item.more, base + 1);
+                }
+                if (shown.more) more(shown.more, base);
+            }
+            return items;
+        }
+        const tbody = snap => tbodyItems(snap).map(item => item.html).join('');
 
         // ---- empty states ------------------------------------------------------------------------------------------------
 
@@ -353,7 +407,7 @@
             };
         }
 
-        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railGauges, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
+        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railParts, railGauges, banners, tbody, tbodyItems, imageSummary, imageTone, moreText, gate, empty, drawer, diffHtml, keyOf, TABS };
     }
 
     window.DockerManagerViews = { create, TABS, LIVE_TABS, ACTION_GLYPH };

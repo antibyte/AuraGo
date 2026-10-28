@@ -31,7 +31,7 @@
         dispose(id);
         const w = window;
         const model = w.DockerManagerModel, sm = w.DockerManagerStackModel, Views = w.DockerManagerViews, Stacks = w.DockerManagerStacks, Editor = w.DockerManagerEditor, Ops = w.DockerManagerOps;
-        const Palette = w.DockerManagerPalette, NewStack = w.DockerManagerNewStack, Dialogs = w.DockerManagerDialogs, Store = w.DockerManagerStore;
+        const Palette = w.DockerManagerPalette, NewStack = w.DockerManagerNewStack, Dialogs = w.DockerManagerDialogs, Store = w.DockerManagerStore, Groups = w.DockerManagerGroups;
         const Logs = w.DockerManagerLogs, Terminal = w.DockerManagerTerminal, Panes = w.DockerManagerPanes, charts = w.DockerManagerCharts;
         const esc = ctx.esc;
         // A missing key shows its own name and is reported once, never a misleading label.
@@ -47,9 +47,9 @@
         const lifetime = new AbortController(), signal = lifetime.signal;
         const store = Store.create({ api: ctx.api, readonly: !!ctx.readonly, scope: prefs.scope, section: prefs.section });
         const state = store.state;
-        const views = Views.create({ t, esc, model, stackModel: sm, charts, lang, uid });
-        const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, uid });
-        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', gauges: '', banners: '', tbody: '', empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
+        const views = Views.create({ t, esc, model, stackModel: sm, charts, groups: Groups, lang, uid });
+        const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, groups: Groups, uid });
+        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', railCounts: [], gauges: '', banners: '', rows: new Map(), grp: Groups.state(), layout: [], moreFocus: null, empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
             focusDrawer: false, focusStack: false, pendingFocus: '', opener: '', stackOpener: '', mark: null, count: '' };
         let disposed = false, frame = 0, announceTimer = 0, prefsTimer = 0, lastCount = '', liveFrame = 0, loadFrame = 0, gaugeFrame = 0;
         const dirtyLoads = new Set();
@@ -123,12 +123,14 @@
             clearTimeout(prefsTimer);
             prefsTimer = setTimeout(() => savePrefs(currentPrefs()), 300);
         }
-        // Keeps the focus on the same control when a part of the app is repainted (controls carry data-focus-id).
+        // Keeps the focus on the same control when a part of the app is repainted (controls carry data-focus-id). Focus that survived the
+        // repaint (the element is still in the page and still focused) is left alone: focus() forces a synchronous style and layout pass,
+        // which took 1.5 s on a page with thousands of rows.
         function keepFocus(container, mutate) {
             const active = document.activeElement;
             const focusId = active && container.contains(active) ? active.dataset.focusId || '' : '';
             mutate();
-            if (!focusId) return;
+            if (!focusId || (active.isConnected && document.activeElement === active)) return;
             const find = value => container.querySelector('[data-focus-id="' + CSS.escape(value) + '"]');
             let next = find(focusId);
             if (!next && focusId.startsWith('act:')) next = find('row:' + focusId.slice(4, focusId.lastIndexOf(':')));
@@ -139,7 +141,9 @@
             if (target && target.isConnected && typeof target.focus === 'function') { target.focus({ preventScroll: true }); return; }
             (tbodyEl.querySelector('[data-nav-key][tabindex="0"]') || searchEl).focus({ preventScroll: true });
         }
-        const findRow = key => model.buildRows(state.hosts, state.byHost, 'all').find(row => row.key === key) || null;
+        // The row of a container key, from a map that is rebuilt only when a listing or the host list changed (it was all rows per call).
+        const rowIndex = model.memo();
+        const findRow = key => rowIndex([state.hosts].concat(state.hosts.map(item => state.byHost[item.id])), () => new Map(model.buildRows(state.hosts, state.byHost, 'all').map(row => [row.key, row]))).get(key) || null;
         const rowEl = key => tbodyEl.querySelector('[data-nav-key="' + CSS.escape(key) + '"]');
         const isTextField = el => !!el && (el.matches?.('input, textarea, select') || el.isContentEditable);
         const splitKey = key => ({ hostId: key.slice(0, key.indexOf('/')), name: key.slice(key.indexOf('/') + 1) });
@@ -183,13 +187,37 @@
             return { liveStatus, hostStats };
         }
 
+        // The rows, the sorted groups and the stack groups are rebuilt only when what they come from changed: a new listing of a host in
+        // scope (the store replaces the entry on every load), the host list, the scope, the search or the filter. A paint for anything
+        // else (the drawer, a toast, an operation) reuses them and sorts nothing.
+        const memos = { rows: model.memo(), view: model.memo(), counts: model.memo(), sgroups: model.memo() };
+
+        // A search, or a state filter in the Containers section, opens every image group that has matches.
+        const isNarrowed = () => !!ui.query.trim() || (ui.section === 'containers' && ui.filter !== 'all');
+
         function snapshot() {
+            Groups.sync(ui.grp, ui.section + '|' + ui.query + '|' + ui.filter);
+            const groupView = Groups.view(ui.grp, isNarrowed(), state.detail ? state.detail.key : '');
             const hosts = state.hosts;
             const scopeHosts = state.scope === 'all' ? hosts : hosts.filter(item => item.id === state.scope);
-            const rows = model.buildRows(hosts, state.byHost, state.scope);
-            const visible = model.filterRows(rows, { query: ui.query, filter: ui.filter });
+            const hostKey = JSON.stringify(hosts.map(item => [item.id, item.name, item.color]));
+            const rows = memos.rows([hostKey, state.scope].concat(scopeHosts.map(item => state.byHost[item.id])), () => model.buildRows(hosts, state.byHost, state.scope));
             const multi = state.scope === 'all' && hosts.length > 1;
-            const groups = model.groupRows(visible, { multiHost: multi, hostOrder: hosts.map(item => item.id) });
+            const view = memos.view([rows, ui.query, ui.filter, multi, hostKey, ui.section === 'containers'], () => {
+                const visible = model.filterRows(rows, { query: ui.query, filter: ui.filter });
+                const groups = ui.section === 'containers' ? model.groupRows(visible, { multiHost: multi, hostOrder: hosts.map(item => item.id) }) : [];
+                // The stopped single containers of one image fold into a group entry (docker-manager-groups.js).
+                for (const group of groups) group.entries = Groups.entries(group.rows, { image: group.kind === 'single' });
+                return { visible, groups };
+            });
+            const sgroups = ui.section === 'stacks'
+                ? memos.sgroups([hostKey, state.scope, rows, ui.query].concat(scopeHosts.map(item => state.stacks[item.id])), () => {
+                    const found = sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query });
+                    found.singleEntries = Groups.entries(found.singles, { image: true });
+                    return found;
+                })
+                : { stacks: [], external: [], singles: [] };
+            const visible = view.visible, groups = view.groups;
             const hostStates = {}, stackOps = {}, prepareActive = {};
             for (const item of scopeHosts) hostStates[item.id] = sm.hostStacksState(state.stacks[item.id]);
             for (const entry of state.ops) {
@@ -198,30 +226,37 @@
                 else if (entry.op.stack) stackOps[entry.op.host_id + '/' + entry.op.stack] = entry;
             }
             return Object.assign(liveInfo(), {
-                state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: model.counts(rows, ui.query),
+                state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: memos.counts([rows, ui.query], () => model.counts(rows, ui.query)),
                 canMutate: store.canMutate(), canEditHosts: store.canEditHosts(), section: ui.section, query: ui.query, hostStates, stackOps, prepareActive,
-                sgroups: sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query }), stackCounts: sm.stackCounts(hosts, state.stacks, state.scope),
+                sgroups, stackCounts: sm.stackCounts(hosts, state.stacks, state.scope), groupView,
                 dirty: workbench.dirtyState(), pageHost: window.location.hostname, now: Date.now()
             });
         }
 
+        // The roving tab stop: one row (and its buttons) is in the tab order. Only what differs is written.
         function applyRoving() {
-            const items = [...tbodyEl.querySelectorAll('[data-nav-key]')];
+            const items = tbodyEl.querySelectorAll('[data-nav-key]');
             if (!items.length) return;
-            const active = items.find(el => el.dataset.navKey === ui.activeKey) || items[0];
+            let active = items[0];
+            for (const el of items) if (el.dataset.navKey === ui.activeKey) { active = el; break; }
             ui.activeKey = active.dataset.navKey;
             for (const el of items) {
-                const on = el === active;
-                el.tabIndex = on ? 0 : -1;
-                for (const button of el.querySelectorAll('[data-row-btn]')) button.tabIndex = on ? 0 : -1;
+                const index = el === active ? 0 : -1;
+                if (el.tabIndex === index) continue;
+                el.tabIndex = index;
+                for (const button of el.querySelectorAll('[data-row-btn]')) button.tabIndex = index;
             }
         }
         function applyStackRoving() {
-            const items = [...stackListEl.querySelectorAll('[data-snav]')];
+            const items = stackListEl.querySelectorAll('[data-snav]');
             if (!items.length) return;
-            const active = items.find(el => el.dataset.snav === ui.stackNav) || items[0];
+            let active = items[0];
+            for (const el of items) if (el.dataset.snav === ui.stackNav) { active = el; break; }
             ui.stackNav = active.dataset.snav;
-            for (const el of items) el.tabIndex = el === active ? 0 : -1;
+            for (const el of items) {
+                const index = el === active ? 0 : -1;
+                if (el.tabIndex !== index) el.tabIndex = index;
+            }
         }
 
         function paintToolbar(snap) {
@@ -257,7 +292,7 @@
                 panes.drawer(drawerLiveEl, null);
                 return;
             }
-            const row = snap.rows.find(item => item.key === detail.key);
+            const found = findRow(detail.key), row = found && (state.scope === 'all' || found.hostId === state.scope) ? found : null;
             if (!row) { store.closeDetail(); return; }
             const parts = views.drawer(snap, row);
             const opening = drawerEl.hidden;
@@ -273,19 +308,24 @@
             }
         }
 
+        // The table holds only the bounded rows (views.tbodyItems); a repaint replaces just the rows whose markup changed.
         function paintContainers(snap) {
             const emptyHtml = views.empty(snap);
-            const bodyHtml = emptyHtml || !snap.visible.length ? '' : views.tbody(snap);
-            if (bodyHtml !== ui.tbody) { ui.tbody = bodyHtml; keepFocus(tbodyEl, () => { tbodyEl.innerHTML = bodyHtml; }); applyRoving(); panes.patchLoads(tbodyEl); }
-            tableEl.hidden = !bodyHtml;
+            const items = emptyHtml || !snap.visible.length ? [] : views.tbodyItems(snap);
+            let changed = false;
+            keepFocus(tbodyEl, () => { changed = panes.patchRows(tbodyEl, items, ui.rows); });
+            if (changed) { applyRoving(); panes.patchLoads(tbodyEl); }
+            tableEl.hidden = !items.length;
             if (emptyHtml !== ui.empty) { ui.empty = emptyHtml; keepFocus(emptyEl, () => { emptyEl.innerHTML = emptyHtml; }); }
             emptyEl.hidden = !emptyHtml;
+            settleMoreFocus(false);
             if (ui.pendingFocus) { rowEl(ui.pendingFocus)?.focus({ preventScroll: false }); ui.pendingFocus = ''; }
         }
 
         function paintStacks(snap) {
             const html = views.gate(snap) || stacks.list(snap);
             if (html !== ui.list) { ui.list = html; keepFocus(stackListEl, () => { stackListEl.innerHTML = html; }); applyStackRoving(); }
+            settleMoreFocus(true);
         }
 
         // The pane of the open stack: header and tabs repaint when their markup changes; the panels (and the editors in them)
@@ -349,6 +389,17 @@
             if (shown && ui.focusStack) { topEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true }); ui.focusStack = false; }
         }
 
+        // The rail is rebuilt when its structure changes (hosts, scope, section, health); when only the numbers changed they are written
+        // into their slots, so the buttons (and the focus on one) stay.
+        function paintRail(snap) {
+            const parts = views.railParts(snap);
+            if (parts.html !== ui.rail) { ui.rail = parts.html; ui.railCounts = []; keepFocus(railEl, () => { railEl.innerHTML = parts.html; }); }
+            if (parts.counts.length === ui.railCounts.length && parts.counts.every((text, index) => text === ui.railCounts[index])) return;
+            const slots = railEl.querySelectorAll('[data-rail-count]');
+            parts.counts.forEach((text, index) => { if (slots[index] && ui.railCounts[index] !== text) slots[index].textContent = text; });
+            ui.railCounts = parts.counts;
+        }
+
         function paintGauges(snap) {
             const html = views.railGauges(snap);
             if (html !== ui.gauges) { ui.gauges = html; keepFocus(gaugesEl, () => { gaugesEl.innerHTML = html; }); }
@@ -382,13 +433,13 @@
             frame = 0;
             if (disposed) return;
             const snap = snapshot(), creating = newStack.isOpen(), stacksView = ui.section === 'stacks';
+            ui.layout = Groups.layout(snap);
             root.dataset.readonly = String(!snap.canMutate);
             root.dataset.multi = String(snap.multi);
             root.dataset.disabled = String(state.disabled);
             root.dataset.section = ui.section;
             root.dataset.creating = String(creating);
-            const railHtml = views.rail(snap);
-            if (railHtml !== ui.rail) { ui.rail = railHtml; keepFocus(railEl, () => { railEl.innerHTML = railHtml; }); }
+            paintRail(snap);
             paintGauges(snap);
             paintToolbar(snap);
             const bannerHtml = state.disabled ? '' : views.banners(snap);
@@ -450,22 +501,60 @@
             schedulePaint();
         }
         function toggleGroup(key) {
+            if (key.startsWith('i:')) {
+                // Whether the group is open now is what the page shows (while a search is active the row budget decides).
+                const shown = root.querySelector('[data-group-key="' + CSS.escape(key) + '"]'), openNow = !!shown && shown.getAttribute('aria-expanded') === 'true';
+                Groups.toggle(ui.grp, isNarrowed(), key, openNow);
+                schedulePaint();
+                // The drawer of one of its containers would stay open on a row that is no longer on the page: closing the group closes it.
+                if (openNow && state.detail && Groups.holds(ui.layout, key, state.detail.key)) closeDetail();
+                return;
+            }
             if (ui.collapsed.has(key)) ui.collapsed.delete(key); else ui.collapsed.add(key);
             savePrefsSoon();
             schedulePaint();
+        }
+        // "Show 200 more": the section or group shows 200 entries more. When nothing is left hidden the button goes away; the focus then
+        // moves to the entry before it (settleMoreFocus), never to the page.
+        function showMore(key) {
+            const inStacks = ui.section === 'stacks', button = (inStacks ? stackListEl : tbodyEl).querySelector('[data-action="show-more"][data-more-key="' + CSS.escape(key) + '"]');
+            const before = inStacks ? button?.closest('li')?.previousElementSibling?.querySelector('[data-snav]') : button?.closest('tr')?.previousElementSibling;
+            ui.moreFocus = before ? (inStacks ? { stacks: true, nav: before.dataset.snav } : { stacks: false, nav: before.dataset.navKey }) : null;
+            Groups.showMore(ui.grp, key);
+            schedulePaint();
+        }
+        function settleMoreFocus(inStacks) {
+            const pending = ui.moreFocus;
+            if (!pending || pending.stacks !== inStacks) return;
+            ui.moreFocus = null;
+            if (document.activeElement && document.activeElement !== document.body && root.contains(document.activeElement)) return;
+            (inStacks ? stackListEl.querySelector('[data-snav="' + CSS.escape(pending.nav) + '"]') : rowEl(pending.nav))?.focus({ preventScroll: true });
         }
         function openDetail(key, tab, focus) {
             const row = findRow(key);
             if (!row) return;
             ui.opener = key;
             ui.focusDrawer = !!focus;
+            // The drawer opens next to a row that is on the page: open the image group that holds it (the open drawer pins the row itself).
+            Groups.reveal(ui.grp, isNarrowed(), ui.layout, key);
             store.openDetail(row, tab);
+        }
+        // Where the focus goes when the drawer closes: the row it was opened from; when that row is not on the page (its group is closed,
+        // or it sits behind "show more") its group row or the show-more control; else the search box.
+        function closeTarget(key) {
+            const inStacks = ui.section === 'stacks', quote = value => CSS.escape(value);
+            const row = inStacks ? stackListEl.querySelector('[data-action="open-container"][data-row-key="' + quote(key) + '"]') : rowEl(key);
+            if (row) return row;
+            const at = Groups.locate(ui.layout, key);
+            if (!at) return searchEl;
+            const group = at.group ? (inStacks ? stackListEl.querySelector('[data-group-key="' + quote(at.group) + '"]') : rowEl('g:' + at.group)) : null;
+            return group || (inStacks ? stackListEl.querySelector('[data-more-key="' + quote(at.section) + '"]') : rowEl('more:' + at.section)) || searchEl;
         }
         function closeDetail() {
             if (!state.detail) return;
             const key = ui.opener || state.detail.key;
             store.closeDetail();
-            requestAnimationFrame(() => { if (!disposed) (rowEl(key) || stackListEl.querySelector('[data-action="open-container"][data-row-key="' + CSS.escape(key) + '"]') || searchEl).focus({ preventScroll: true }); });
+            requestAnimationFrame(() => { if (!disposed) closeTarget(key).focus({ preventScroll: true }); });
         }
 
         // ---- containers ------------------------------------------------------------------------------------------
@@ -729,6 +818,7 @@
                 case 'manage-hosts': dialogs.openHosts(); break;
                 case 'refresh': void store.refresh({ force: true }); break;
                 case 'toggle-group': toggleGroup(el.dataset.groupKey); break;
+                case 'show-more': showMore(el.dataset.moreKey); break;
                 case 'act': void performAction(key, el.dataset.act); break;
                 case 'remove': void removeRow(key); break;
                 case 'logs': openDetail(key, 'logs', true); break;
@@ -824,16 +914,16 @@
             if (!nav || event.ctrlKey || event.metaKey || event.altKey) return;
             const items = [...tbodyEl.querySelectorAll('[data-nav-key]')], index = items.indexOf(nav);
             const onControl = event.target !== nav;
-            const isGroup = nav.classList.contains('dm-group-row');
+            const isGroup = nav.classList.contains('dm-group-row'), isRow = nav.classList.contains('dm-row'), expanded = nav.getAttribute('aria-expanded') === 'true';
             switch (event.key) {
                 case 'ArrowDown': event.preventDefault(); moveFocus(index + 1); break;
                 case 'ArrowUp': event.preventDefault(); moveFocus(index - 1); break;
                 case 'Home': event.preventDefault(); moveFocus(0); break;
                 case 'End': event.preventDefault(); moveFocus(items.length - 1); break;
-                case 'ArrowRight': if (isGroup && !onControl) { event.preventDefault(); if (ui.collapsed.has(nav.dataset.groupKey)) toggleGroup(nav.dataset.groupKey); } break;
+                case 'ArrowRight': if (isGroup && !onControl) { event.preventDefault(); if (!expanded) toggleGroup(nav.dataset.groupKey); } break;
                 case 'ArrowLeft':
-                    if (isGroup && !onControl) { event.preventDefault(); if (!ui.collapsed.has(nav.dataset.groupKey)) toggleGroup(nav.dataset.groupKey); }
-                    else if (!isGroup && !onControl) {
+                    if (isGroup && !onControl) { event.preventDefault(); if (expanded) toggleGroup(nav.dataset.groupKey); }
+                    else if (isRow && !onControl) {
                         const group = items.slice(0, index).reverse().find(el => el.classList.contains('dm-group-row'));
                         if (group) { event.preventDefault(); group.focus(); }
                     }
@@ -841,12 +931,12 @@
                 case 'Enter': case ' ':
                     if (onControl) break;
                     event.preventDefault();
-                    if (isGroup) toggleGroup(nav.dataset.groupKey); else openDetail(nav.dataset.rowKey, undefined, true);
+                    if (isGroup) toggleGroup(nav.dataset.groupKey); else if (isRow) openDetail(nav.dataset.rowKey, undefined, true); else showMore(nav.dataset.navKey.slice('more:'.length));
                     break;
-                case 'Delete': if (!isGroup) { event.preventDefault(); void removeRow(nav.dataset.rowKey); } break;
+                case 'Delete': if (isRow) { event.preventDefault(); void removeRow(nav.dataset.rowKey); } break;
                 case 'ContextMenu': case 'F10':
                     if (event.key === 'F10' && !event.shiftKey) break;
-                    if (!isGroup) { event.preventDefault(); const rect = nav.getBoundingClientRect(); showRowMenu(nav.dataset.rowKey, rect.left + 24, rect.bottom - 4); }
+                    if (isRow) { event.preventDefault(); const rect = nav.getBoundingClientRect(); showRowMenu(nav.dataset.rowKey, rect.left + 24, rect.bottom - 4); }
                     break;
                 default: break;
             }
@@ -859,6 +949,17 @@
             const items = [...stackListEl.querySelectorAll('[data-snav]')], index = items.indexOf(nav);
             const to = { ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: items.length - 1 }[event.key];
             if (to !== undefined) { event.preventDefault(); items[Math.max(0, Math.min(items.length - 1, to))]?.focus(); return; }
+            // An image group opens with Right and closes with Left; Left on one of its members goes back to the group.
+            if ((event.key === 'ArrowRight' || event.key === 'ArrowLeft') && nav.dataset.groupKey) {
+                event.preventDefault();
+                if ((nav.getAttribute('aria-expanded') === 'true') === (event.key === 'ArrowLeft')) toggleGroup(nav.dataset.groupKey);
+                return;
+            }
+            if (event.key === 'ArrowLeft' && nav.closest('ul.is-nested')) {
+                event.preventDefault();
+                nav.closest('ul.is-nested').parentElement.querySelector(':scope > [data-snav]')?.focus();
+                return;
+            }
             if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && nav.dataset.stackKey) {
                 event.preventDefault();
                 const rect = nav.getBoundingClientRect();
@@ -937,7 +1038,8 @@
                 loadFrame = 0;
                 const keys = new Set(dirtyLoads);
                 dirtyLoads.clear();
-                if (!disposed) panes.patchLoads(root, keys);
+                // Only these three hold load cells: the table, the open stack or project and the container drawer.
+                if (!disposed) for (const scope of [tbodyEl, shellEl, drawerBodyEl]) panes.patchLoads(scope, keys);
             });
         });
         const unsubscribeHostStats = store.onHostStats(() => {

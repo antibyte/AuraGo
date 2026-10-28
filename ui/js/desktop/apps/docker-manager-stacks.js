@@ -14,6 +14,7 @@
         const { t, esc, model, stackModel, views, uid } = deps;
         const { glyph, dot, chip } = views;
         const sm = stackModel;
+        const Groups = deps.groups || window.DockerManagerGroups;
 
         const statusText = stack => t('stack_status_' + sm.stackStatusId(stack));
         const button = (action, label, o) => {
@@ -109,6 +110,30 @@
                 + '</span><span class="dm-sub">' + esc(sub) + '</span></span></button></li>';
         }
 
+        // "Show 200 more (N hidden)" at the end of a bounded list; a list item of its own so that the arrow keys reach it.
+        function moreRow(more) {
+            return '<li class="dm-srow dm-smore"><button type="button" class="dm-srow-main" data-action="show-more" data-more-key="' + esc(more.key) + '" data-snav="more:' + esc(more.key) + '" data-focus-id="smore:' + esc(more.key)
+                + '" tabindex="-1"><span class="dm-srow-text"><span class="dm-name">' + esc(views.moreText(more)) + '</span></span></button></li>';
+        }
+
+        // The stopped single containers of one image as one list item: a button that opens the members (a nested list) and closes them.
+        function imageRow(snap, item) {
+            const group = item.group, name = model.shortImage(group.image) || '—', tone = views.imageTone(group);
+            const head = '<button type="button" class="dm-srow-main" data-action="toggle-group" data-group-key="' + esc(group.key) + '" data-snav="g:' + esc(group.key) + '" data-focus-id="sgroup:' + esc(group.key)
+                + '" aria-expanded="' + item.open + '" tabindex="-1">' + glyph('chevron', 'dm-chevron') + dot(tone) + '<span class="dm-srow-text"><span class="dm-name-line"><span class="dm-name" title="' + esc(group.image) + '">' + esc(name)
+                + '</span></span><span class="dm-sub">' + esc(views.imageSummary(snap, group)) + '</span></span></button>';
+            const members = item.open ? '<ul class="dm-slist is-nested" aria-label="' + esc(name) + '">' + item.members.map(row => singleRow(snap, row)).join('') + (item.more ? moreRow(item.more) : '') + '</ul>' : '';
+            return '<li class="dm-srow is-group" data-tone="' + tone + '">' + head + members + '</li>';
+        }
+
+        // The items of the single containers section: rows and image groups, at most 200 of them, then "show more".
+        function singleItems(snap, groups, view) {
+            const shown = Groups.plan(groups.singleEntries || Groups.entries(groups.singles), 'sec:singles', view), out = [];
+            for (const item of shown.items) out.push(item.type === 'row' ? singleRow(snap, item.row) : imageRow(snap, item));
+            if (shown.more) out.push(moreRow(shown.more));
+            return out;
+        }
+
         function group(key, title, count, items) {
             const id = uid + '-g-' + key;
             return '<section class="dm-sgroup" data-sgroup="' + key + '" aria-labelledby="' + id + '"><h3 class="dm-sgroup-title" id="' + id + '">' + esc(title) + '<span class="dm-count">' + count + '</span></h3><ul class="dm-slist">' + items.join('') + '</ul></section>';
@@ -136,9 +161,12 @@
             }
             const g = snap.sgroups, shown = g.stacks.length + g.external.length + g.singles.length;
             const parts = cards.slice();
-            if (g.stacks.length) parts.push(group('stacks', t('group_stacks'), g.stacks.length, g.stacks.map(row => stackRow(snap, row))));
-            if (g.external.length) parts.push(group('external', t('group_external'), g.external.length, g.external.map(row => externalRow(snap, row))));
-            if (g.singles.length) parts.push(group('singles', t('group_single'), g.singles.length, g.singles.map(row => singleRow(snap, row))));
+            // Every section shows at most 200 entries (snap.limit), the single containers of one image fold into a group (snap.open).
+            const view = snap.groupView || Groups.view(Groups.state(), false);
+            const bounded = (key, rows, render) => { const shownRows = Groups.page(rows, key, view.limit); return shownRows.items.map(render).concat(shownRows.more ? [moreRow(shownRows.more)] : []); };
+            if (g.stacks.length) parts.push(group('stacks', t('group_stacks'), g.stacks.length, bounded('sec:stacks', g.stacks, row => stackRow(snap, row))));
+            if (g.external.length) parts.push(group('external', t('group_external'), g.external.length, bounded('sec:external', g.external, row => externalRow(snap, row))));
+            if (g.singles.length) parts.push(group('singles', t('group_single'), g.singles.length, singleItems(snap, g, view)));
             const listed = snap.scopeHosts.length > 0 && snap.scopeHosts.every(host => snap.hostStates[host.id] === 'ok');
             if (!shown && !cards.length) {
                 if (loading || !snap.state.hostsLoaded) return spinner();

@@ -11,8 +11,9 @@
    reconnected with a growing delay), and the calls for files, lint, convert, volumes and project actions. The
    EventSource comes from the `eventSource` option so that the Node test can fake the streams.
    Live data (phase 3): while the window is visible one DockerManagerLive client listens to /stream. A host whose status is
-   "live" is polled only every 60 s as a safety net; events and resyncs of that host reload its lists (coalesced: at most one
-   reload per 300 ms); a host that is paused or whose stream is down goes back to the 5 s poll. Stats and host stats never go
+   "live" is polled only every 60 s as a safety net; events and resyncs of that host reload its lists (collected for 300 ms, started
+   at most every 2 s per host, the last event of a burst still reloads, never two requests for one host at once); a host that is
+   paused or whose stream is down goes back to the 5 s poll. Stats and host stats never go
    through emit(): they reach the app by their own listeners, which patch cells in place. The app tells the store which
    containers are on screen (setLiveStats); the store adds the hosts in scope and the host whose gauges show. The open
    external project (state.project), the disk usage of the selected host (state.df) and the terminal diagnosis live here too. */
@@ -26,6 +27,8 @@
     const DF_MS = 300000;
     const DF_TIMEOUT_MS = 65000;
     const RELOAD_MS = 300;
+    // The event-driven reload of one host starts at most this often, however many events arrive.
+    const RELOAD_MIN_MS = 2000;
     const DIAGNOSE_MS = 8000;
     // An unreachable host can take the server up to 30 s to give up, so the browser waits longer than that.
     const REQUEST_TIMEOUT_MS = 35000;
@@ -64,7 +67,11 @@
         const setT = typeof opts.setTimeout === 'function' ? opts.setTimeout : (fn, ms) => setTimeout(fn, ms);
         const clearT = typeof opts.clearTimeout === 'function' ? opts.clearTimeout : id => clearTimeout(id);
         const reloadDelay = Number(opts.reloadMs) >= 0 ? Number(opts.reloadMs) : RELOAD_MS;
+        const reloadSpacing = Number(opts.reloadMinMs) >= 0 ? Number(opts.reloadMinMs) : RELOAD_MIN_MS;
+        const clock = typeof opts.now === 'function' ? opts.now : () => Date.now();
+        // reloads: host -> the batch of events waiting for its reload; reloadRuns: host -> {busy, last} (a reload is running, when the last one started).
         const reloads = new Map();
+        const reloadRuns = new Map();
         const statsListeners = new Set();
         const hostStatsListeners = new Set();
         let wantStats = {}, live = null;
@@ -652,22 +659,51 @@
             syncLive();
         }
 
-        // One reload per host at most every 300 ms, however many events arrive: the containers, the stacks when that section is
-        // open, and the open stack when the event belongs to it (or a resync says anything may have changed).
+        // The events of a host are collected into one batch and answered by one reload: the containers, the stacks when that section
+        // is open and the batch holds an event of a compose project (or a resync), and the open stack when the event belongs to it (or a
+        // resync says anything may have changed). A container without a compose project cannot change a stack, so its events leave
+        // the stack listing (the lister container, the 30 s cache) alone. The first event after a quiet spell waits 300 ms to collect
+        // its neighbours; a reload starts at most every 2 s per host (an event storm of a busy engine would otherwise read the whole
+        // list every 300 ms), the last event of a burst always leads to one (trailing), and there is never a second request for the
+        // host while the first runs: the next batch waits for it instead of cancelling it.
         function queueReload(hostId, project, all) {
             if (state.disposed || !hostId || !scopeIds().includes(hostId)) return;
             let entry = reloads.get(hostId);
-            if (!entry) { entry = { timer: 0, all: false, projects: new Set() }; reloads.set(hostId, entry); }
+            if (!entry) { entry = { timer: 0, all: false, stacks: false, projects: new Set() }; reloads.set(hostId, entry); }
             if (all) entry.all = true;
             if (project) entry.projects.add(project);
-            if (entry.timer) return;
-            entry.timer = setT(() => {
-                reloads.delete(hostId);
-                if (state.disposed) return;
-                void reloadContainers(hostId);
-                if (state.section === 'stacks') void loadStacks(hostId);
-                if (state.stack && state.stack.hostId === hostId && (entry.all || entry.projects.has(state.stack.name))) void loadStack(true);
-            }, reloadDelay);
+            if (all || project) entry.stacks = true;
+            armReload(hostId);
+        }
+        function armReload(hostId) {
+            const entry = reloads.get(hostId), run = reloadRuns.get(hostId);
+            if (!entry || entry.timer || state.disposed || (run && run.busy)) return;
+            const wait = Math.max(reloadDelay, run ? run.last + reloadSpacing - clock() : 0);
+            entry.timer = setT(() => { entry.timer = 0; void runReload(hostId); }, wait);
+        }
+        async function runReload(hostId) {
+            const entry = reloads.get(hostId);
+            reloads.delete(hostId);
+            if (!entry || state.disposed) return;
+            const run = { busy: true, last: clock() };
+            reloadRuns.set(hostId, run);
+            try {
+                // A poll or refresh is on its way: let it end, then read again (its answer may predate the events). The containers and the
+                // stacks wait for their own request only, so a slow lister never holds back the containers. loadStacks joins a request that is
+                // in flight, which is why it must not start before that one is over.
+                const afterRunning = async (key, start) => {
+                    const running = inflight.get(key);
+                    if (running) await running;
+                    return state.disposed ? false : start();
+                };
+                const jobs = [afterRunning('c:' + hostId, () => { run.last = clock(); return reloadContainers(hostId); })];
+                if (state.section === 'stacks' && entry.stacks) jobs.push(afterRunning('s:' + hostId, () => loadStacks(hostId)));
+                if (state.stack && state.stack.hostId === hostId && (entry.all || entry.projects.has(state.stack.name))) jobs.push(loadStack(true));
+                await Promise.all(jobs);
+            } finally {
+                run.busy = false;
+                if (!state.disposed && reloads.has(hostId)) armReload(hostId);
+            }
         }
 
         const dfStale = hostId => { const entry = state.df[hostId]; return !entry || (!entry.busy && Date.now() - (entry.at || 0) >= DF_MS); };
@@ -916,6 +952,7 @@
             for (const entry of state.ops) { closeSource(entry); clearTimeout(entry.timer); entry.timer = 0; }
             for (const entry of reloads.values()) clearT(entry.timer);
             reloads.clear();
+            reloadRuns.clear();
             live?.stop();
             lifetime.abort();
             detach();
