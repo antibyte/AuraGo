@@ -8,6 +8,7 @@ package dockerwatch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -31,6 +32,13 @@ const (
 	MaxHostSample      = 100 // containers sampled for the host gauges
 	MaxSubscribedHosts = 20  // hosts per subscription list
 )
+
+// MaxProjectFollowsPerHost is how many project and stack log follows a host
+// serves at once (each also holds a stream slot per followed container). A
+// follow starts with a history read of every container of the project, which
+// is the expensive part; one more is refused with ErrTooManyProjectFollows
+// before that read begins.
+const MaxProjectFollowsPerHost = 4
 
 // Host states of a HostStatus.
 const (
@@ -68,6 +76,10 @@ var (
 	ErrClientClosed        = errors.New("the stream is closed")
 	ErrHubClosed           = errors.New("the live data hub is closed")
 )
+
+// ErrTooManyProjectFollows is an ErrTooManyStreams (errors.Is): the host
+// already has MaxProjectFollowsPerHost project or stack log follows.
+var ErrTooManyProjectFollows = fmt.Errorf("%w: too many project log follows", ErrTooManyStreams)
 
 // Options configure a Hub. Zero values take the defaults.
 type Options struct {

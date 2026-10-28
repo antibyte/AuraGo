@@ -355,3 +355,139 @@ func TestFollowProjectReportsAnUnreadableProjectAtTheStart(t *testing.T) {
 		t.Fatal("a selector without a project must be refused")
 	}
 }
+
+// The merged history is bounded by MaxLogHistory, not by the number of containers
+// times what each log holds: whatever the order the reads end in, the result is
+// the newest MaxLogHistory lines in the order a stable sort of the concatenated
+// histories gives, and the merge never holds more than the cap.
+func TestHistoryMergeKeepsTheNewestLinesWhateverTheContainerCount(t *testing.T) {
+	const containers, perContainer = 40, 5000
+	histories := make([][]LogEntry, containers)
+	var concatenated []LogEntry
+	for ci := range histories {
+		for j := 0; j < perContainer; j++ {
+			// Time-ordered per container; the containers share many timestamps.
+			e := LogEntry{T: logsBase.Add(time.Duration(j*(ci%5+1)) * time.Second), S: "out", Text: fmt.Sprintf("%d:%d", ci, j)}
+			histories[ci] = append(histories[ci], e)
+		}
+		concatenated = append(concatenated, histories[ci]...)
+	}
+	slices.SortStableFunc(concatenated, func(a, b LogEntry) int { return a.T.Compare(b.T) })
+	want := concatenated[len(concatenated)-MaxLogHistory:]
+
+	order := []int{3, 0, 39, 17, 1, 2} // the reads end in any order: a few first, out of order
+	for ci := range histories {
+		if !slices.Contains(order, ci) {
+			order = append(order, ci)
+		}
+	}
+	var merge historyMerge
+	for _, ci := range order {
+		merge.add(ci, histories[ci])
+		if len(merge.kept) > MaxLogHistory {
+			t.Fatalf("the merge holds %d lines after container %d, want at most %d", len(merge.kept), ci, MaxLogHistory)
+		}
+	}
+	got, truncated := merge.result()
+	if !truncated || len(got) != MaxLogHistory {
+		t.Fatalf("merged %d lines (truncated %v), want %d and truncated", len(got), truncated, MaxLogHistory)
+	}
+	for i := range want {
+		if got[i].Text != want[i].Text {
+			t.Fatalf("line %d = %q, want %q (the order of a stable sort by time)", i, got[i].Text, want[i].Text)
+		}
+	}
+
+	var small historyMerge
+	small.add(0, histories[0][:10])
+	if got, truncated := small.result(); truncated || len(got) != 10 {
+		t.Fatalf("a short history = %d lines (truncated %v), want 10 and not truncated", len(got), truncated)
+	}
+}
+
+// Many containers of one project: the history sent is the newest MaxLogHistory
+// lines of all of them, in order.
+func TestFollowProjectMergesManyContainersWithinTheHistoryCap(t *testing.T) {
+	fe := newLogsFakeEngine()
+	var concatenated []string
+	for i := 0; i < 12; i++ {
+		ctr := logsCtrOf(string(rune('a'+i)), "shop", fmt.Sprintf("svc%d", i), logsStackDir, "exited")
+		fe.containers = append(fe.containers, ctr)
+		for j := 0; j < 600; j++ {
+			fe.history[ctr.FullID] = append(fe.history[ctr.FullID], logsLine(j*12+i, "out", fmt.Sprintf("%d/%d", i, j)))
+		}
+	}
+	for j := 0; j < 600; j++ { // the order of the times above: line j of container i is second j*12+i
+		for i := 0; i < 12; i++ {
+			concatenated = append(concatenated, fmt.Sprintf("%d/%d", i, j))
+		}
+	}
+	want := concatenated[len(concatenated)-MaxLogHistory:]
+	sink := &logsSink{}
+	cancel, done := startLogsProject(t, fe, ProjectSelector{Project: "shop", WorkingDir: logsStackDir}, FollowOptions{Tail: 600}, sink)
+
+	sink.waitNotice(t, NoticeTruncatedHistory, 1)
+	sink.waitLines(t, MaxLogHistory)
+	if got := sink.texts(); !slices.Equal(got, want) {
+		t.Fatalf("history of %d lines starts %q ends %q, want the newest %d in time order (%q ... %q)", len(got), got[0], got[len(got)-1], MaxLogHistory, want[0], want[len(want)-1])
+	}
+	stopLogsProject(t, cancel, done, fe)
+}
+
+// A host serves MaxProjectFollowsPerHost project and stack follows at once; the
+// next one is refused before it lists or reads any history, and a follow that
+// ends gives its place back. The cap is per host.
+func TestFollowProjectIsCappedPerHostBeforeAnyHistoryRead(t *testing.T) {
+	hub := New(logsFakeHosts{}, Options{})
+	t.Cleanup(hub.Close)
+	fe := newLogsFakeEngine()
+	fe.containers = []dockerhost.ContainerSummary{logsCtrOf("a", "shop", "web", logsStackDir, "exited")}
+	env := fe.env()
+	env.acquireProject = hub.acquireProjectFollow
+	sel := ProjectSelector{Project: "shop", WorkingDir: logsStackDir}
+
+	sink := &logsSink{}
+	start := func(host string) (cancel context.CancelFunc, done chan error) {
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		done = make(chan error, 1)
+		go func() { done <- env.followProject(ctx, host, sel, FollowOptions{}, sink.out, sink.notice) }()
+		return cancel, done
+	}
+	var cancels []context.CancelFunc
+	var dones []chan error
+	for i := 0; i < MaxProjectFollowsPerHost; i++ {
+		cancel, done := start("h1")
+		cancels, dones = append(cancels, cancel), append(dones, done)
+	}
+	logsWaitFor(t, "the followers to have listed the project", func() bool { return fe.listCount() == MaxProjectFollowsPerHost })
+
+	lists, reads := fe.listCount(), len(fe.callList())
+	opened := false
+	err := env.followProject(context.Background(), "h1", sel, FollowOptions{Tail: 100, Opened: func() { opened = true }}, sink.out, sink.notice)
+	if !errors.Is(err, ErrTooManyProjectFollows) || !errors.Is(err, ErrTooManyStreams) {
+		t.Fatalf("follow beyond the cap = %v, want ErrTooManyProjectFollows (an ErrTooManyStreams)", err)
+	}
+	if opened || fe.listCount() != lists || len(fe.callList()) != reads {
+		t.Fatalf("the refused follow did work: opened %v, %d lists (was %d), %d reads (was %d)", opened, fe.listCount(), lists, len(fe.callList()), reads)
+	}
+
+	// Another host is not affected, and a place frees up when a follow ends.
+	cancelOther, otherDone := start("h2")
+	logsWaitFor(t, "a follow on the other host", func() bool { return fe.listCount() == lists+1 })
+	cancelOther()
+	if err := <-otherDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("follow on another host = %v, want it to run until canceled", err)
+	}
+
+	cancels[0]()
+	if err := <-dones[0]; !errors.Is(err, context.Canceled) {
+		t.Fatalf("first follow = %v, want context.Canceled", err)
+	}
+	cancelAgain, againDone := start("h1")
+	logsWaitFor(t, "a follow to take the place that was freed", func() bool { return fe.listCount() == lists+2 })
+	cancelAgain()
+	if err := <-againDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("follow in the freed place = %v, want context.Canceled", err)
+	}
+}

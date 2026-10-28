@@ -19,10 +19,11 @@ type logEnv struct {
 	list    func(ctx context.Context, c *dockerutil.Client) ([]dockerhost.ContainerSummary, error)
 	after   func(d time.Duration, f func()) logTimer
 
-	flushEvery     time.Duration // a batch leaves this long after its first line ...
-	flushLines     int           // ... or when it has this many lines
-	settle         time.Duration // pause before a project re-checks its containers after a stream ended
-	historyTimeout time.Duration // a history read of a project follower is given up after this long
+	flushEvery     time.Duration                                 // a batch leaves this long after its first line ...
+	flushLines     int                                           // ... or when it has this many lines
+	settle         time.Duration                                 // pause before a project re-checks its containers after a stream ended
+	historyTimeout time.Duration                                 // a history read of a project follower is given up after this long
+	acquireProject func(host string) (release func(), err error) // a project or stack follow takes one of the host's project follows; nil means no cap
 }
 
 // logEnv returns the environment of the hub's followers.
@@ -38,6 +39,7 @@ func (h *Hub) logEnv() logEnv {
 		flushLines:     logFlushLines,
 		settle:         logSettle,
 		historyTimeout: logHistoryTimeout,
+		acquireProject: h.acquireProjectFollow,
 	}
 }
 

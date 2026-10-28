@@ -33,6 +33,7 @@ type Hub struct {
 
 	budgetMu sync.Mutex
 	streams  map[string]int
+	projects map[string]int // project and stack log follows per host
 
 	dfMu sync.Mutex
 	df   map[string]*dfEntry
@@ -55,15 +56,16 @@ func New(hosts Hosts, opts Options) *Hub {
 	opts = opts.withDefaults()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Hub{
-		hosts:   hosts,
-		opts:    opts,
-		log:     opts.Logger,
-		ctx:     ctx,
-		cancel:  cancel,
-		clients: map[string]*Client{},
-		rts:     map[string]*hostRT{},
-		streams: map[string]int{},
-		df:      map[string]*dfEntry{},
+		hosts:    hosts,
+		opts:     opts,
+		log:      opts.Logger,
+		ctx:      ctx,
+		cancel:   cancel,
+		clients:  map[string]*Client{},
+		rts:      map[string]*hostRT{},
+		streams:  map[string]int{},
+		projects: map[string]int{},
+		df:       map[string]*dfEntry{},
 	}
 }
 

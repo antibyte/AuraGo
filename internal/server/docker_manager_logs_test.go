@@ -301,3 +301,72 @@ func TestDockerManagerContainerLogsFollowReadsTheEnginesLog(t *testing.T) {
 	}
 	ls.open(http.MethodGet, "/hosts/local/containers/web/logs?follow=1", nil, nil).expectError(http.StatusTooManyRequests, "too_many_streams")
 }
+
+// A stack or project follow starts with a history read of every container, so a
+// host serves only MaxProjectFollowsPerHost of them at once. The next one is a
+// plain 429 too_many_streams before the stream is up (the stack route too: both
+// end in the same hub call).
+func TestDockerManagerProjectAndStackLogsAreCappedPerHost(t *testing.T) {
+	f := newDMLiveFixture(t)
+	f.stacks.listing = dockerstacks.Listing{Stacks: []dockerstacks.StackSummary{{Name: "shop", HostID: "local", Dir: "/opt/stacks/shop"}}}
+	f.live.follow = func(context.Context, dmFollowCall, func(dockerwatch.LogBatch) error, func(dockerwatch.Notice) error) error {
+		return dockerwatch.ErrTooManyProjectFollows
+	}
+	for _, path := range []string{"/hosts/local/stacks/shop/logs?follow=1", "/hosts/local/projects/shop/logs?follow=1"} {
+		stream := f.open(http.MethodGet, path, nil)
+		body := stream.expectError(http.StatusTooManyRequests, "too_many_streams")
+		if got := stream.resp.Header.Get("Content-Type"); strings.Contains(got, "event-stream") {
+			t.Fatalf("%s: Content-Type = %q: a refused follow is not an event stream", path, got)
+		}
+		if msg, _ := body["message"].(string); !strings.Contains(msg, "stack or project") {
+			t.Fatalf("%s: message = %q, want the project follow limit named", path, msg)
+		}
+	}
+}
+
+// TestDockerManagerProjectLogsFollowCapEndToEnd runs the cap through the real hub:
+// four open project follows of a host, a fifth refused as JSON, container logs of
+// the same host unaffected, and a place back when a follow ends.
+func TestDockerManagerProjectLogsFollowCapEndToEnd(t *testing.T) {
+	shop := map[string]string{"com.docker.compose.project": "shop"}
+	ls := newDMLiveServer(t, dmContainersJSON(t, dmContainerJSON('a', "web", "sha256:img1", "running", "bridge", shop, nil)))
+	path := "/hosts/local/projects/shop/logs?follow=1&tail=5"
+	// The follower reads the log by full ID, and the fake Engine inspects by name.
+	ls.engine.resolve(strings.Repeat("a", 64), dmLiveResolved{id: strings.Repeat("a", 64), name: "web", running: true})
+
+	var open []*dmStream
+	for i := 0; i < dockerwatch.MaxProjectFollowsPerHost; i++ {
+		stream := ls.open(http.MethodGet, path, nil, nil)
+		if frame := stream.nextEvent(); frame.event != "lines" {
+			t.Fatalf("follow %d: frame = %s %s, want the history lines", i, frame.event, frame.data)
+		}
+		open = append(open, stream)
+	}
+	refused := ls.open(http.MethodGet, path, nil, nil)
+	refused.expectError(http.StatusTooManyRequests, "too_many_streams")
+	if got := refused.resp.Header.Get("Content-Type"); strings.Contains(got, "event-stream") {
+		t.Fatalf("Content-Type = %q: a refused follow is not an event stream", got)
+	}
+
+	// The cap is for project and stack follows; a container's log is not counted.
+	if frame := ls.open(http.MethodGet, "/hosts/local/containers/web/logs?follow=1&tail=5", nil, nil).nextEvent(); frame.event != "lines" {
+		t.Fatalf("container follow beside four project follows = %s %s, want its lines", frame.event, frame.data)
+	}
+
+	open[0].close() // the client leaves: the follow ends and its place is free again
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		stream := ls.open(http.MethodGet, path, nil, nil)
+		if stream.resp.StatusCode == http.StatusOK {
+			if frame := stream.nextEvent(); frame.event != "lines" {
+				t.Fatalf("follow in the freed place = %s %s", frame.event, frame.data)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("no place came back after a project follow ended (last answer %d)", stream.resp.StatusCode)
+		}
+		stream.close()
+		time.Sleep(20 * time.Millisecond)
+	}
+}

@@ -80,6 +80,8 @@ func (dm *dmRequest) liveService() (dmLive, bool) {
 // engineFailureOf knows.
 func dmLiveFailureOf(err error, notFoundCode string) dmFailure {
 	switch {
+	case errors.Is(err, dockerwatch.ErrTooManyProjectFollows): // an ErrTooManyStreams too, so this case comes first
+		return dmFailure{http.StatusTooManyRequests, dmCodeTooManyStreams, "Too many stack or project logs of this Docker host are being followed; close one and try again", nil}
 	case errors.Is(err, dockerwatch.ErrTooManyStreams):
 		return dmFailure{http.StatusTooManyRequests, dmCodeTooManyStreams, "Too many live connections to this Docker host are open; close a log or terminal panel and try again", nil}
 	case errors.Is(err, dockerwatch.ErrTooManyClients):

@@ -1,6 +1,7 @@
 package dockerwatch
 
 import (
+	"container/heap"
 	"context"
 	"errors"
 	"fmt"
@@ -97,6 +98,14 @@ type projectFollower struct {
 func (e logEnv) followProject(ctx context.Context, host string, sel ProjectSelector, opt FollowOptions, out func(LogBatch) error, notice func(Notice) error) error {
 	if sel.Project == "" {
 		return errors.New("project name is empty")
+	}
+	// Before anything else, so a refused follow does no work: no list, no history.
+	if e.acquireProject != nil {
+		release, err := e.acquireProject(host)
+		if err != nil {
+			return err
+		}
+		defer release()
 	}
 	c, err := e.hosts.Client(ctx, host)
 	if err != nil {
@@ -246,13 +255,100 @@ func (h *logHistory) add(e LogEntry) {
 	}
 }
 
+// historyItem is one history line while it is being merged: its entry and the
+// place it comes from, which together give a total order (time, then the
+// container's position in the selection, then the line's position in its log).
+type historyItem struct {
+	e       LogEntry
+	ci, seq int
+}
+
+func (a historyItem) before(b historyItem) bool {
+	if c := a.e.T.Compare(b.e.T); c != 0 {
+		return c < 0
+	}
+	if a.ci != b.ci {
+		return a.ci < b.ci
+	}
+	return a.seq < b.seq
+}
+
+// historyHeap is a min-heap of history lines: the oldest is at the root.
+type historyHeap []historyItem
+
+func (h historyHeap) Len() int           { return len(h) }
+func (h historyHeap) Less(i, j int) bool { return h[i].before(h[j]) }
+func (h historyHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *historyHeap) Push(x any)        { *h = append(*h, x.(historyItem)) }
+func (h *historyHeap) Pop() any {
+	old := *h
+	last := old[len(old)-1]
+	old[len(old)-1] = historyItem{}
+	*h = old[:len(old)-1]
+	return last
+}
+
+// historyMerge merges the histories of the containers of a project and keeps
+// only the newest MaxLogHistory lines of them, so what a project follow holds is
+// bounded by that cap and not by the number of containers times what each log
+// holds (up to logHistoryBytes). A container's lines go in with add as soon as
+// its read has ended, in log order; the result is the lines in time order, a
+// tie broken by the container's position and then the line's, which is the order
+// a stable sort of the concatenated histories gives. Safe for concurrent use.
+type historyMerge struct {
+	mu    sync.Mutex
+	kept  historyHeap
+	total int // every line added, kept or not
+}
+
+func (m *historyMerge) add(ci int, lines []LogEntry) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for seq, e := range lines {
+		m.total++
+		item := historyItem{e: e, ci: ci, seq: seq}
+		switch {
+		case len(m.kept) < MaxLogHistory:
+			heap.Push(&m.kept, item)
+		case m.kept[0].before(item): // newer than the oldest line kept: it takes its place
+			m.kept[0] = item
+			heap.Fix(&m.kept, 0)
+		}
+	}
+}
+
+// result returns the kept lines oldest first, and whether older ones were dropped.
+func (m *historyMerge) result() (entries []LogEntry, truncated bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	items := slices.Clone(m.kept)
+	slices.SortFunc(items, func(a, b historyItem) int {
+		switch {
+		case a.before(b):
+			return -1
+		case b.before(a):
+			return 1
+		}
+		return 0
+	})
+	entries = make([]LogEntry, len(items))
+	for i, item := range items {
+		entries[i] = item.e
+	}
+	return entries, m.total > len(m.kept)
+}
+
 // readHistory reads the tail of every container (a few at a time, without a
 // stream slot: the reads end by themselves, or after historyTimeout), merges the
-// lines by timestamp and sends the newest MaxLogHistory of them. A container
-// whose read fails or hangs is reported as not followed.
+// lines by timestamp and sends the newest MaxLogHistory of them. A container's
+// lines are merged (historyMerge) and dropped as soon as its read has ended, so
+// at most logHistoryParallel container histories plus the newest MaxLogHistory
+// lines are held at any time. A container whose read fails or hangs is reported
+// as not followed.
 func (p *projectFollower) readHistory(selected []dockerhost.ContainerSummary) {
 	opt := dockerhost.LogOptions{Tail: p.opt.tail(), Since: p.opt.Since}
 	results := make([]*logHistory, len(selected))
+	var merge historyMerge
 	sem := make(chan struct{}, logHistoryParallel)
 	var wg sync.WaitGroup
 	for i, s := range selected {
@@ -277,6 +373,8 @@ func (p *projectFollower) readHistory(selected []dockerhost.ContainerSummary) {
 				h.add(p.entry(ctr, l))
 				return nil
 			})
+			merge.add(i, h.lines)
+			h.lines = nil // merged: only the newest MaxLogHistory lines of all are kept
 			results[i] = h
 		}(i, ctr)
 	}
@@ -285,11 +383,6 @@ func (p *projectFollower) readHistory(selected []dockerhost.ContainerSummary) {
 		return
 	}
 
-	type tagged struct {
-		e  LogEntry
-		ci int
-	}
-	var all []tagged
 	var problems []Notice
 	for i, h := range results {
 		if h == nil {
@@ -299,9 +392,6 @@ func (p *projectFollower) readHistory(selected []dockerhost.ContainerSummary) {
 		ctr := p.ctrs[selected[i].FullID]
 		ctr.last = h.last
 		p.mu.Unlock()
-		for _, e := range h.lines {
-			all = append(all, tagged{e, i})
-		}
 		if h.err == nil {
 			continue
 		}
@@ -314,20 +404,7 @@ func (p *projectFollower) readHistory(selected []dockerhost.ContainerSummary) {
 		}
 		p.mu.Unlock()
 	}
-	slices.SortStableFunc(all, func(a, b tagged) int {
-		if c := a.e.T.Compare(b.e.T); c != 0 {
-			return c
-		}
-		return a.ci - b.ci
-	})
-	truncated := len(all) > MaxLogHistory
-	if truncated {
-		all = all[len(all)-MaxLogHistory:]
-	}
-	entries := make([]LogEntry, len(all))
-	for i, t := range all {
-		entries[i] = t.e
-	}
+	entries, truncated := merge.result()
 	if err := p.b.addAll(entries); err != nil {
 		p.fail(err)
 		return
