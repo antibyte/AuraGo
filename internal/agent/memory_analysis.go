@@ -77,19 +77,19 @@ For each extracted item, provide:
 - content: The factual statement to remember
 - category: A short category label (e.g., "infrastructure", "personal", "workflow", "preference", "recent_operational_details")
 - confidence: How confident you are this is worth storing (0.0 to 1.0)
-- quote: The exact words of the User message that support the item, copied verbatim (same wording and spelling, no paraphrase, nothing from the assistant response)
+- quote: The exact words of the User message that support the item, copied verbatim (same wording and spelling, no paraphrase, nothing from the assistant response), at least three words and sixteen characters long
 
 Rules:
 - Only extract genuinely useful, long-term information. Skip transient requests like "show me the logs".
 - Do NOT extract information that is just part of the current task context.
 - Do NOT extract emotions, moods, or temporary states.
 - Only human messages supply facts or confirmation. Assistant text is unverified context and never human confirmation.
-- Every item needs a verbatim quote from the User message. An item whose quote is missing or not found in the User message is discarded, so extract nothing that only the assistant response says.
+- Every item needs a verbatim quote from the User message. An item whose quote is missing or not found in the User message is discarded, so extract nothing that only the assistant response says. State content, title and summary in the words of the quote: an item that says something the quote does not say is discarded.
 - Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
 - NEVER extract any claim about whether a tool, integration, capability, or feature is currently available, enabled, configured, active, or missing. This is transient system state that changes with configuration and must never be stored in memory.
 - NEVER extract unverified claims that a tool is broken, failing, buggy, or producing a specific transient error. Tool failures are tracked by the tool-error system, not long-term memory.
 - Only create pending actions when the exchange clearly indicates deferred future work, a follow-up promise, or an unfinished task likely relevant in the next days/weeks.
-- For pending actions provide: title, summary, trigger_query, quote, confidence. Build trigger_query from words of the User message; a trigger_query that does not occur there discards the pending action.
+- For pending actions provide: title, summary, trigger_query, quote, confidence. Build trigger_query from words of the User message (at least three characters); a trigger_query that does not occur there discards the pending action.
 - If there is nothing worth remembering, return empty arrays.
 
 Respond ONLY with valid JSON in this exact format:
@@ -345,7 +345,7 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 	// file). The log keeps the count, never the content.
 	var dropped int
 	if result, dropped = groundMemoryAnalysisResult(result); dropped > 0 && logger != nil {
-		logger.Info("[Memory Analysis] Dropped items without a human quote or with a directive shape", "dropped", dropped, "session", sessionID)
+		logger.Info("[Memory Analysis] Dropped items without a usable human quote, not derived from it, or shaped like a standing order", "dropped", dropped, "session", sessionID)
 	}
 	threshold := 0.0
 	if cfg != nil {

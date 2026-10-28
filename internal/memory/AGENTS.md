@@ -25,11 +25,22 @@ Memory retrieval, hygiene, indexing, and maintenance.
   corrections, shared evidence and numeric development. Keep additive counts and
   unknown legacy state accurate. Explicit profile deletion fences old analyses.
 - A profile value is a fact about the user, written by the helper model that may
-  have read a web page in the same turn: `applyPersonalityProfilesTx` drops an
-  update whose key and value read as a standing order for a tool, a secret or an
-  outbound channel (`security.DirectiveShape`), after the credential and PII
-  checks and whatever the human turn said. Verify
-  `TestPersonalityProfileDropsDirectiveShapedValue`.
+  have read a web page in the same turn. A valid human turn proves that the human
+  spoke, not that the value is theirs, so `applyPersonalityProfilesTx` drops an
+  update, after the credential and PII checks, when its key and value read as a
+  standing order (`StandingOrder`) or when the value is not derived from
+  `HumanInput.Text` (`DerivedFrom`: three of five distinctive words occur in the
+  human text; a value without a distinctive word, such as `vim`, passes). Verify
+  `TestPersonalityProfileDropsDirectiveShapedValue` and
+  `TestPersonalityProfileValueMustBeSaidByTheHuman`.
+- `DerivedFrom(text, source)` (`grounding.go`) is the shared "says what the human
+  said" test: distinctive words are four or more letters or a digit, no stop word
+  (`groundingStopWords`, which holds the filler of a stored claim such as "user"
+  and "wants"); an inflection counts as the same word (`sameGroundingWord`: common
+  prefix of three letters, at most one letter left on the shorter and two on the
+  longer word; a digit or Han/Kana word must match exactly, Han/Kana text is
+  compared as two-character words). Automatic memory extraction in `internal/agent`
+  and profile updates use it with `NormalizeGroundingText`. Verify `TestDerivedFrom`.
 
 ### Session ingress turns
 

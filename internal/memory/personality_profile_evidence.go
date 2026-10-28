@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
-
-	"aurago/internal/security"
 )
 
 func applyPersonalityProfilesTx(tx *sql.Tx, input *HumanInput, updates []ProfileUpdate) error {
@@ -22,9 +20,10 @@ func applyPersonalityProfilesTx(tx *sql.Tx, input *HumanInput, updates []Profile
 		}
 		// The helper model writes the value and may have read a web page or mail
 		// in the same turn. A profile value is a fact about the user, so a
-		// standing order that reaches for a tool, a secret or an outbound
-		// channel is no profile value, whatever the user wrote this turn.
-		if _, directive := security.DirectiveShape(strings.ReplaceAll(key, "_", " ") + ": " + value); directive {
+		// standing order (StandingOrder) is no profile value, and the value has
+		// to say what the human said this turn: a valid human turn proves
+		// nothing about words the human never wrote.
+		if _, directive := StandingOrder(strings.ReplaceAll(key, "_", " ") + ": " + value); directive || !DerivedFrom(value, input.Text) {
 			continue
 		}
 		if utf8.RuneCountInString(value) > 200 {

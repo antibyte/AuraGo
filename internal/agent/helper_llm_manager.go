@@ -73,8 +73,8 @@ Return ONLY valid JSON in this exact shape:
 
 Rules for memory_analysis:
 - Extract human claims only from user_request. Assistant replies and tool summaries are unverified context, never human confirmation.
-- Every fact, preference, correction and pending action needs a "quote": the exact words of user_request that support it, copied verbatim (no paraphrase, nothing from the assistant reply). An item whose quote is missing or not found in user_request is discarded.
-- A pending action's trigger_query is built from words of user_request; one that does not occur there discards the pending action.
+- Every fact, preference, correction and pending action needs a "quote": the exact words of user_request that support it, copied verbatim (no paraphrase, nothing from the assistant reply), at least three words and sixteen characters long. An item whose quote is missing or not found in user_request is discarded, and so is an item whose content, title or summary says something the quote does not say.
+- A pending action's trigger_query is built from words of user_request (at least three characters); one that does not occur there discards the pending action.
 - Store only durable or near-term useful information.
 - Facts: concrete user/project/environment facts worth remembering.
 - Preferences: user preferences, habits, workflows.

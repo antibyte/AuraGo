@@ -268,9 +268,9 @@ func TestApplyMemoryAnalysisResultStoresPendingActionsWithoutCorrections(t *test
 		PendingActions: []pendingAction{
 			{
 				Title:      "Review backup schedule",
-				Summary:    "Follow up on the nightly backup schedule later this week.",
+				Summary:    "Follow up on the backup schedule later this week.",
 				Trigger:    "backup schedule",
-				Quote:      "review the backup schedule",
+				Quote:      "review the backup schedule later this week",
 				Confidence: 0.80,
 			},
 		},
