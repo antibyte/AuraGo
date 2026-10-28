@@ -82,8 +82,9 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 	// Without one the reply keeps the original's isolation by itself.
 	isolate := isolated && (dc.Guardian == nil)
 	reply := fitReadToolOutputReply(resp, content, req, false, readToolOutputBudget(dc))
-	checked := dc.Guardian.ProtectExternal(ctx, security.ExternalToolSource(out.ToolName, ""), strings.TrimPrefix(reply, "Tool Output: "))
-	if security.ExternalToolSource(out.ToolName, "") != "" && !checked.Quarantined {
+	source := security.ExternalToolSource(out.ToolName, out.ToolOperation)
+	checked := dc.Guardian.ProtectExternal(ctx, source, strings.TrimPrefix(reply, "Tool Output: "))
+	if source != "" && !checked.Quarantined {
 		modelIsolatedBodies.noteExternalContact(dc.SessionID)
 	}
 	content = checked.Text
@@ -219,8 +220,9 @@ func handleRetrieveOriginalOutput(ctx context.Context, tc ToolCall, dc *Dispatch
 	if reason != "" && dc.Logger != nil {
 		dc.Logger.Debug("Output vault retrieval", "tool_call_id", toolCallID, "output_ref", out.OutputRef, "reason", reason, "filter", out.FilterUsed)
 	}
-	checked := dc.Guardian.ProtectExternal(ctx, security.ExternalToolSource(out.ToolName, ""), content)
-	if security.ExternalToolSource(out.ToolName, "") != "" && !checked.Quarantined {
+	source := security.ExternalToolSource(out.ToolName, out.ToolOperation)
+	checked := dc.Guardian.ProtectExternal(ctx, source, content)
+	if source != "" && !checked.Quarantined {
 		modelIsolatedBodies.noteExternalContact(dc.SessionID)
 	}
 	if checked.Datamarked {

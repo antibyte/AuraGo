@@ -57,12 +57,12 @@ var modelIsolatedBodies = &isolatedBodyStore{sessions: map[string]*isolatedSessi
 
 // recordIsolatedModelBody indexes one tool output for the copied-span check.
 func recordIsolatedModelBody(sessionID, output string) {
-	recordIsolatedModelOutput(sessionID, "", output)
+	recordIsolatedModelOutput(sessionID, "", "", output)
 }
 
 // recordIsolatedModelOutput indexes one tool output and, when tool is set, notes that
 // this external tool's content reached the model. A quarantine notice is neither.
-func recordIsolatedModelOutput(sessionID, tool, output string) {
+func recordIsolatedModelOutput(sessionID, tool, operation, output string) {
 	if sessionID == "" {
 		return
 	}
@@ -73,7 +73,7 @@ func recordIsolatedModelOutput(sessionID, tool, output string) {
 	if name := untrustedReadName(tool); name != "" {
 		modelIsolatedBodies.noteRead(sessionID, name)
 	}
-	source := security.ExternalToolSource(tool, "")
+	source := security.ExternalToolSource(tool, operation)
 	if source != "" {
 		modelIsolatedBodies.noteExternalContact(sessionID)
 	}

@@ -2,7 +2,6 @@ package security
 
 import (
 	"context"
-	"encoding/json"
 	"html"
 	"math"
 	"strings"
@@ -106,24 +105,11 @@ func (g *Guardian) ProtectExternal(ctx context.Context, source ExternalSource, t
 		return quarantine(QuarantineSuspicious)
 	}
 	result.Datamarked = true
-	if len(leaves) == 0 {
-		result.Text = Datamark(text)
-		return result
+	var complete bool
+	result.Text, complete = datamarkContent(text, 0)
+	if !complete {
+		return quarantine(QuarantineIncomplete)
 	}
-	var b strings.Builder
-	last := 0
-	for _, leaf := range leaves {
-		if leaf.key {
-			continue
-		}
-		marked := Datamark(leaf.value)
-		encoded, _ := json.Marshal(marked)
-		b.WriteString(text[last:leaf.start])
-		b.Write(encoded)
-		last = leaf.end
-	}
-	b.WriteString(text[last:])
-	result.Text = b.String()
 	return result
 }
 
@@ -150,7 +136,8 @@ func ExternalToolSource(tool, operation string) ExternalSource {
 	case "email", "fetch_email", "check_email", "agentmail", "agentmail_messages", "agentmail_threads", "agentmail_drafts", "gog_gmail":
 		return ExternalEmail
 	case "google_workspace", "gworkspace":
-		if strings.HasPrefix(operation, "gmail") || strings.HasPrefix(operation, "mail") {
+		// Legacy archives have no operation; they may contain mail and must be checked.
+		if operation == "" || strings.HasPrefix(operation, "gmail") || strings.HasPrefix(operation, "mail") {
 			return ExternalEmail
 		}
 	}

@@ -248,7 +248,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 
 	output := formatToolOutputForModel(*tc, sanitized)
-	recordIsolatedModelOutput(dc.SessionID, tc.Action, output)
+	recordIsolatedModelOutput(dc.SessionID, tc.Action, tc.Operation, output)
 	return ToolDispatchResult{
 		Output:  output,
 		Status:  status,

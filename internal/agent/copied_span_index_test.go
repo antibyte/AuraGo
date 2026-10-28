@@ -184,7 +184,7 @@ func TestQuarantineNoticeWordsInAPageDoNotStopRecording(t *testing.T) {
 
 	clearIsolatedModelBodies(dc.SessionID)
 	notice := security.QuarantineNotice("web_scraper", "", security.ContentScanQuarantine(security.QuarantineSuspicious))
-	recordIsolatedModelOutput(dc.SessionID, "web_scraper", "[Tool Output]\n"+notice)
+	recordIsolatedModelOutput(dc.SessionID, "web_scraper", "", "[Tool Output]\n"+notice)
 	if views := modelIsolatedBodies.views(dc.SessionID); len(views) != 0 || untrustedReadsNote(dc.SessionID) != "" {
 		t.Fatalf("a quarantine notice was recorded: views=%d note=%q", len(views), untrustedReadsNote(dc.SessionID))
 	}
@@ -420,7 +420,7 @@ func TestCopiedSpanStoreKeepsASessionThatIsStillInUse(t *testing.T) {
 		if i%2 == 0 {
 			modelIsolatedBodies.views(victim)
 		} else {
-			recordIsolatedModelOutput(victim, "web_scraper", isolatedToolOutput(text("more"+id)))
+			recordIsolatedModelOutput(victim, "web_scraper", "", isolatedToolOutput(text("more"+id)))
 		}
 	}
 	copyOf := func(source string) ToolCall { return ToolCall{Action: "send_email", Body: source[100:300]} }

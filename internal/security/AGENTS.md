@@ -14,7 +14,12 @@ This package owns reusable primitives; server owns session and HTTP policy.
   the source; never infer it from payload tags. Run before helper LLM calls and before
   escaping/Unicode cleanup. Hard rules precede the optional local classifier, whose
   errors and incomplete/over-limit input always quarantine. Datamarking changes natural
-  JSON values, preserves keys/structure/code and never relaxes hard blocks. No paragraph
+  JSON prose values, preserves keys/structure/code and machine fields (paths, URLs,
+  identifiers and operation/status values), including isolated and JSON-encoded
+  archive envelopes. Field names never exempt content from scanning. Ambiguous or
+  excessive nested formatting fails closed. Hard directive rules require an addressed
+  instruction or a concrete response order, not AI/obligation keyword co-occurrence.
+  Datamarking never relaxes hard blocks. No paragraph
   deletion. Cached Guardians carry the configured enablement bit; missing runtime fails
   closed when enabled. `RegisterExternalContentScanner` is server-owned lifecycle state.
   See `../injectionguard/AGENTS.md` and `documentation/prompt-injection-protection.md`.

@@ -118,6 +118,12 @@ Memory retrieval, hygiene, indexing, and maintenance.
   `TestAddModelCoreFactRefusesStandingDirective`.
 
 ### Memory System
+- **Tool output provenance**: `CompressedToolOutput` retains the trusted tool name
+  and operation on insert/replacement and both retrieval paths. Schema version 16
+  adds `tool_operation` through the normal backed-up transaction; an empty legacy
+  operation remains unknown. Content must never infer or overwrite this metadata.
+  Verify `TestMemorySchemaToolOperationMigrationBacksUpAndPreservesArchive` and
+  `TestCompressedOutputStorePreservesOperationAndReplacementSource`.
 - **Schema lifecycle**: Read `user_version` before schema writes and reject newer
   versions. Version 12 is the one-time legacy bridge; later steps commit their
   changes and version atomically. Back up existing stores before migration,

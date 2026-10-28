@@ -39,7 +39,7 @@ and SHA-256 pins are in `internal/injectionguard/model.go`.
 | Model disabled | Ordinary Guardian rules and isolation |
 | Model score below 0.5 | Content continues through ordinary isolation |
 | Model hit, quarantine | Original content withheld |
-| Model hit, datamark | Natural text marked with `^`; JSON structure and code preserved |
+| Model hit, datamark | Natural text marked with `^`; JSON structure, code and machine fields preserved |
 | Enabled model unavailable, cancelled, timed out or incomplete | Original withheld with a fixed reason |
 
 Datamarking still sends suspicious text to the language model. It is weaker than
@@ -50,6 +50,11 @@ even if returned content is withheld; do not repeat them.
 Classification happens before isolation on web/search/browser and email adapters and
 before summary helpers. Archived web/mail results are checked again when read.
 Source identity comes from server/tool metadata, never tags printed in content.
+Archives retain the tool operation as well as its name. Older Google Workspace
+archives without an operation are conservatively checked as mail. The additive
+archive migration backs up the existing database before changing its schema.
+Datamarking preserves paths, URLs, identifiers and operation/status fields, including
+within archived JSON and repeated isolation; these fields still undergo all scans.
 The classifier sees unnormalized text and decoded JSON strings. Every forwarded window
 is evaluated: 2048 tokens including special tokens, 512-token overlap, maximum score.
 Inputs over 256 KiB are withheld; callers may select a bounded page first. One job runs
@@ -72,6 +77,9 @@ six in a path, or a private email address cause `possible_exfiltration`. An exac
 provided by the authenticated human may pass the copy check; links printed by a web
 page cannot grant that exception. Registered secrets remain blocked. Generic allow
 rules do not bypass the check. Ordinary link following is retained.
+Private email addresses remain protected when they occur inside source URLs,
+including encoded query values. Checks inspect destination arguments and literal
+URLs in executable input. A URL merely saved in a local file is not a network request.
 
 The session index is bounded to 256 KiB per session, 16 MiB total and 256 sessions;
 external-contact records expire after one hour. Evicted data cannot be compared.

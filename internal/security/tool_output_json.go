@@ -12,6 +12,7 @@ type jsonLeaf struct {
 	start, end int
 	value      string
 	key        bool
+	field      string // Containing property, inherited by array items; never scan authority.
 }
 
 // jsonBodyStart returns the offset of the JSON object, array or string in a
@@ -51,7 +52,10 @@ func jsonStringLeaves(body string) []jsonLeaf {
 		return nil
 	}
 	dec := json.NewDecoder(strings.NewReader(body[base:]))
-	type frame struct{ object, wantKey bool }
+	type frame struct {
+		object, wantKey bool
+		field, member   string
+	}
 	var stack []frame
 	var leaves []jsonLeaf
 	for {
@@ -62,13 +66,20 @@ func jsonStringLeaves(body string) []jsonLeaf {
 		}
 		end := dec.InputOffset()
 		top := len(stack) - 1
+		field := ""
+		if top >= 0 {
+			field = stack[top].field
+			if stack[top].object {
+				field = stack[top].member
+			}
+		}
 		switch v := tok.(type) {
 		case json.Delim:
 			switch v {
 			case '{':
-				stack = append(stack, frame{object: true, wantKey: true})
+				stack = append(stack, frame{object: true, wantKey: true, field: field})
 			case '[':
-				stack = append(stack, frame{})
+				stack = append(stack, frame{field: field})
 			default:
 				if top < 0 {
 					return leaves
@@ -82,9 +93,10 @@ func jsonStringLeaves(body string) []jsonLeaf {
 			isKey := top >= 0 && stack[top].object && stack[top].wantKey
 			if isKey {
 				stack[top].wantKey = false
+				stack[top].member = v
 			}
 			if q := strings.IndexByte(body[base+int(prev):base+int(end)], '"'); q >= 0 {
-				leaves = append(leaves, jsonLeaf{start: base + int(prev) + q, end: base + int(end), value: v, key: isKey})
+				leaves = append(leaves, jsonLeaf{start: base + int(prev) + q, end: base + int(end), value: v, key: isKey, field: field})
 			}
 			if !isKey && top >= 0 && stack[top].object {
 				stack[top].wantKey = true
