@@ -49,7 +49,7 @@
         const state = store.state;
         const views = Views.create({ t, esc, model, stackModel: sm, charts, lang, uid });
         const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, uid });
-        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', gauges: '', banners: '', tbody: '', empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
+        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', railCounts: [], gauges: '', banners: '', tbody: '', empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
             focusDrawer: false, focusStack: false, pendingFocus: '', opener: '', stackOpener: '', mark: null, count: '' };
         let disposed = false, frame = 0, announceTimer = 0, prefsTimer = 0, lastCount = '', liveFrame = 0, loadFrame = 0, gaugeFrame = 0;
         const dirtyLoads = new Set();
@@ -123,12 +123,14 @@
             clearTimeout(prefsTimer);
             prefsTimer = setTimeout(() => savePrefs(currentPrefs()), 300);
         }
-        // Keeps the focus on the same control when a part of the app is repainted (controls carry data-focus-id).
+        // Keeps the focus on the same control when a part of the app is repainted (controls carry data-focus-id). Focus that survived the
+        // repaint (the element is still in the page and still focused) is left alone: focus() forces a synchronous style and layout pass,
+        // which took 1.5 s on a page with thousands of rows.
         function keepFocus(container, mutate) {
             const active = document.activeElement;
             const focusId = active && container.contains(active) ? active.dataset.focusId || '' : '';
             mutate();
-            if (!focusId) return;
+            if (!focusId || (active.isConnected && document.activeElement === active)) return;
             const find = value => container.querySelector('[data-focus-id="' + CSS.escape(value) + '"]');
             let next = find(focusId);
             if (!next && focusId.startsWith('act:')) next = find('row:' + focusId.slice(4, focusId.lastIndexOf(':')));
@@ -361,6 +363,17 @@
             if (shown && ui.focusStack) { topEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true }); ui.focusStack = false; }
         }
 
+        // The rail is rebuilt when its structure changes (hosts, scope, section, health); when only the numbers changed they are written
+        // into their slots, so the buttons (and the focus on one) stay.
+        function paintRail(snap) {
+            const parts = views.railParts(snap);
+            if (parts.html !== ui.rail) { ui.rail = parts.html; ui.railCounts = []; keepFocus(railEl, () => { railEl.innerHTML = parts.html; }); }
+            if (parts.counts.length === ui.railCounts.length && parts.counts.every((text, index) => text === ui.railCounts[index])) return;
+            const slots = railEl.querySelectorAll('[data-rail-count]');
+            parts.counts.forEach((text, index) => { if (slots[index] && ui.railCounts[index] !== text) slots[index].textContent = text; });
+            ui.railCounts = parts.counts;
+        }
+
         function paintGauges(snap) {
             const html = views.railGauges(snap);
             if (html !== ui.gauges) { ui.gauges = html; keepFocus(gaugesEl, () => { gaugesEl.innerHTML = html; }); }
@@ -399,8 +412,7 @@
             root.dataset.disabled = String(state.disabled);
             root.dataset.section = ui.section;
             root.dataset.creating = String(creating);
-            const railHtml = views.rail(snap);
-            if (railHtml !== ui.rail) { ui.rail = railHtml; keepFocus(railEl, () => { railEl.innerHTML = railHtml; }); }
+            paintRail(snap);
             paintGauges(snap);
             paintToolbar(snap);
             const bannerHtml = state.disabled ? '' : views.banners(snap);

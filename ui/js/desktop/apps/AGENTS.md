@@ -326,7 +326,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `readonly` flag, never `enabled`. Docker disabled answers 503 `docker_disabled` on every route and shows one
   explanatory state with a link to `/config#docker`.
 - Repaints compare the new HTML with the last one and skip equal markup; controls carry `data-focus-id` and `keepFocus`
-  restores the focus on the same control, so a poll never steals it. Do not re-render the table from a timer. Sorting uses one cached `Intl.Collator` (`compareText` in the
+  restores the focus on the same control, so a poll never steals it (it calls `focus()` only when the focused element was removed by the repaint:
+  `focus()` forces a synchronous style and layout pass). The numbers of the rail are `[data-rail-count]` slots (`views.railParts`: markup with empty slots plus
+  their texts) written in place when only they changed, so a reload never replaces the rail buttons. Do not re-render the table from a timer. Sorting uses one cached `Intl.Collator` (`compareText` in the
   model and the stack model; `localeCompare` builds a collator per call, 250 ms for 3,000 containers), and `snapshot()` memoises the rows, the filtered and
   sorted groups, the chip counts and the stack groups on the identity of the listings they come from (the store replaces a host's entry on every load),
   the host list, the scope, the search and the filter (`model.memo`): a paint for anything else sorts nothing. The table is a

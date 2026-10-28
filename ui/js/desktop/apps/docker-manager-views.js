@@ -94,33 +94,44 @@
 
         // ---- rail --------------------------------------------------------------------------------------------------
 
-        function hostLine(host, entry, health) {
+        // The numbers of the rail are slots (<span data-rail-count>) in the markup and arrive as texts in document order, so the app can
+        // write them in place when only the numbers changed: a poll or an event never replaces the rail buttons (and the focus on one).
+        function hostLine(host, entry, health, slot) {
             if (health.state === 'error') return '<span class="dm-host-sub" data-tone="' + health.tone + '">' + esc(t('host_error')) + '</span>';
             if (!entry || !entry.loaded) return '<span class="dm-host-sub">' + esc(health.state === 'ok' ? t('loading') : t('host_unknown')) + '</span>';
-            const counts = model.hostCounts(host.id, { [host.id]: entry });
-            return '<span class="dm-host-sub">' + esc(t('count_running_total', counts)) + '</span>';
+            return slot('dm-host-sub', t('count_running_total', model.hostCounts(host.id, { [host.id]: entry })));
         }
 
-        function rail(snap) {
-            const s = snap.state, scope = s.scope, totals = model.totalCounts(snap.hosts, s.byHost);
+        // {html, counts}: the rail markup with empty count slots, and the text of every slot.
+        function railParts(snap) {
+            const s = snap.state, scope = s.scope, totals = model.totalCounts(snap.hosts, s.byHost), counts = [];
+            const slot = (cls, text) => { counts.push(String(text)); return '<span class="' + cls + '" data-rail-count></span>'; };
             const option = (id, color, name, titleText, line, tone, word) => {
                 const selected = scope === id;
                 return '<button type="button" role="option" class="dm-host-btn" data-action="pick-host" data-host-id="' + esc(id) + '" data-focus-id="host:' + esc(id) + '" aria-selected="' + selected
                     + '" tabindex="' + (selected ? '0' : '-1') + '" title="' + esc(titleText) + '"><span class="dm-swatch" data-host-color="' + esc(color) + '" aria-hidden="true"></span>'
                     + '<span class="dm-host-text"><span class="dm-host-name">' + esc(name) + '</span>' + line + '</span>' + (tone ? dot(tone) + '<span class="dm-sr-only">' + esc(word) + '</span>' : '') + '</button>';
             };
-            const allLine = '<span class="dm-host-sub">' + esc(t('count_running_total', totals)) + '</span>';
+            const allLine = slot('dm-host-sub', t('count_running_total', totals));
             const items = [option('all', 'all', t('all_hosts'), t('all_hosts'), allLine, '', '')];
             for (const host of snap.hosts) {
                 const entry = s.byHost[host.id], health = model.hostHealth(host, entry);
-                items.push(option(host.id, model.colorOf(host.color), host.name, host.name + ' · ' + model.hostAddress(host), hostLine(host, entry, health), health.tone, t('host_' + health.state)));
+                items.push(option(host.id, model.colorOf(host.color), host.name, host.name + ' · ' + model.hostAddress(host), hostLine(host, entry, health, slot), health.tone, t('host_' + health.state)));
             }
             const navButton = (section, glyphName, label, count) => '<button type="button" class="dm-nav-btn" data-action="pick-section" data-section="' + section + '" data-focus-id="nav:' + section + '"'
-                + (snap.section === section ? ' aria-current="page"' : '') + '>' + glyph(glyphName) + '<span class="dm-nav-label">' + esc(label) + '</span><span class="dm-count">' + count + '</span></button>';
-            return '<div class="dm-rail-section"><h2 class="dm-rail-title" id="' + uid + '-hosts">' + esc(t('hosts_heading')) + '</h2>'
+                + (snap.section === section ? ' aria-current="page"' : '') + '>' + glyph(glyphName) + '<span class="dm-nav-label">' + esc(label) + '</span>' + slot('dm-count', count) + '</button>';
+            const html = '<div class="dm-rail-section"><h2 class="dm-rail-title" id="' + uid + '-hosts">' + esc(t('hosts_heading')) + '</h2>'
                 + '<div class="dm-hosts" role="listbox" aria-labelledby="' + uid + '-hosts" data-host-list>' + items.join('') + '</div></div>'
                 + '<nav class="dm-nav" aria-label="' + esc(t('nav_label')) + '">' + navButton('stacks', 'stacks', t('nav_stacks'), snap.stackCounts.total) + navButton('containers', 'containers', t('nav_containers'), totals.total) + '</nav>'
                 + '<div class="dm-rail-foot"><button type="button" class="dm-link-btn" data-action="manage-hosts" data-focus-id="manage">' + glyph('server') + '<span>' + esc(t('manage_hosts')) + '</span></button></div>';
+            return { html, counts };
+        }
+
+        // The rail with its numbers filled in.
+        function rail(snap) {
+            const parts = railParts(snap);
+            let index = 0;
+            return parts.html.replace(/ data-rail-count><\/span>/g, () => '>' + esc(parts.counts[index++]) + '</span>');
         }
 
         // ---- host gauges (a single host in scope) -----------------------------------------------------------------------
@@ -353,7 +364,7 @@
             };
         }
 
-        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railGauges, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
+        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railParts, railGauges, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
     }
 
     window.DockerManagerViews = { create, TABS, LIVE_TABS, ACTION_GLYPH };

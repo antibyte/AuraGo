@@ -1972,6 +1972,15 @@ const full = {};
     assert.ok(!stacks.list(Object.assign({}, snap, { canMutate: false })).includes('prepare-host'), 'a read-only window offers no Prepare host');
     const rail = views.rail(snap);
     assert.ok(rail.includes('data-section="stacks"') && /data-section="stacks"[^>]*aria-current="page"/.test(rail) && !/data-section="containers"[^>]*aria-current/.test(rail), 'the rail marks the current section');
+    // the numbers of the rail are slots: a change of the counts alone leaves the markup (and so the buttons and their focus) as it is
+    {
+        const parts = views.railParts(snap), more = Object.assign({}, snap, { state: Object.assign({}, snap.state, { byHost: Object.assign({}, snap.state.byHost, { local: { containers: [...snap.state.byHost.local.containers, container('extra')], loaded: true } }) }) });
+        const next = views.railParts(more);
+        assert.equal(parts.html, next.html, 'a new container changes no markup of the rail');
+        assert.notDeepEqual(plain(parts.counts), plain(next.counts), 'but its counts');
+        assert.ok(!/class="dm-count"[^>]*>\d/.test(parts.html) && (parts.html.match(/data-rail-count/g) || []).length === parts.counts.length, 'every count is an empty slot with a text of its own');
+        assert.equal(views.rail(snap), parts.html.replace(/ data-rail-count><\/span>/g, () => '>' + esc(parts.counts.shift()) + '</span>'), 'rail() is the markup with the slots filled');
+    }
     const head = stacks.head(snap), overview = stacks.overview(snap);
     assert.ok(head.includes('data-op="update"') && head.includes('data-op="restart"') && head.includes('class="dm-dirty"'), 'a running stack offers Update, and an unsaved compose tab is marked');
     assert.ok(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } })).includes('data-op="update"') && /data-op="update"[^>]*disabled/.test(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } }))), 'a stack with a running operation cannot start another');
