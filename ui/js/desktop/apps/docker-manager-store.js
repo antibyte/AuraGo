@@ -26,6 +26,7 @@
     const DF_MS = 300000;
     const DF_TIMEOUT_MS = 65000;
     const RELOAD_MS = 300;
+    const DIAGNOSE_MS = 8000;
     // An unreachable host can take the server up to 30 s to give up, so the browser waits longer than that.
     const REQUEST_TIMEOUT_MS = 35000;
     const TEST_TIMEOUT_MS = 45000;
@@ -690,12 +691,15 @@
             });
         }
 
-        // A browser hides the answer of a refused WebSocket handshake, so after a failed attempt the terminal panel asks with a
-        // plain GET (no Upgrade header): the server answers with its JSON error (read_only, container_not_running, helper_container,
-        // container_protected_confirmation_required, ...) before it would create a shell. Resolves the error info, or null.
-        async function diagnoseTerminal(hostId, ref) {
-            try { await request('/hosts/' + enc(hostId) + '/containers/' + enc(ref) + '/terminal', {}, 'terminal-check'); return null; } catch (error) { return noteError(error); }
+        // A browser hides the answer of a refused WebSocket handshake and of an EventSource request that fails, so after a failed
+        // attempt the panel asks for the same path with a plain GET: the server answers with its JSON error (read_only,
+        // container_not_running, helper_container, container_protected_confirmation_required, stack_not_found, too_many_streams, ...)
+        // before it would open a stream or create a shell. `path` is below /api/docker-manager. Resolves the error info (a request
+        // that is still open after 8 s counts as code "timeout"), or null.
+        async function diagnose(path) {
+            try { await request(path, { timeout: DIAGNOSE_MS }, 'diagnose:' + path); return null; } catch (error) { return noteError(error); }
         }
+        const diagnoseTerminal = (hostId, ref) => diagnose('/hosts/' + enc(hostId) + '/containers/' + enc(ref) + '/terminal');
 
         // ---- the open external compose project (a pane with overview and logs) --------------------------------------------
 
@@ -919,7 +923,7 @@
         return {
             state, subscribe, attach, setVisible, setScope, setSection, refresh, loadHosts, loadContainers, reloadContainers, pollOnce, pending,
             act, remove, openDetail, closeDetail, setDetailTab, loadInspect, canMutate, canEditHosts,
-            liveStatus, setLiveStats, loadDf, diagnoseTerminal, openProject, closeProject, setProjectTab, scopeIds,
+            liveStatus, setLiveStats, loadDf, diagnose, diagnoseTerminal, openProject, closeProject, setProjectTab, scopeIds,
             liveRing: (host, id) => (live ? live.ring(host, id) : []), liveHostStats: host => (live ? live.hostStats(host) : null), liveRejected: () => (live ? live.rejected() : []),
             onStats: listener => { statsListeners.add(listener); return () => statsListeners.delete(listener); },
             onHostStats: listener => { hostStatsListeners.add(listener); return () => hostStatsListeners.delete(listener); },

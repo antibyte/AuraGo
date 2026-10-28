@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js', 'docker-manager-terminal.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -1690,6 +1690,41 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     }
 }
 
+// ---- terminal: the pure helpers of the panel, and the generic diagnosis of the store -----------------------------------------
+{
+    const Term = window.DockerManagerTerminal;
+    assert.ok(Term && typeof Term.create === 'function', 'the terminal module publishes its global');
+    eq(Term.socketUrl({ protocol: 'http:', host: 'desk.lan:8443' }, 'local', 'abc', false), 'ws://desk.lan:8443/api/docker-manager/hosts/local/containers/abc/terminal');
+    eq(Term.socketUrl({ protocol: 'https:', host: 'desk.lan' }, 'h 1', 'a/b', true), 'wss://desk.lan/api/docker-manager/hosts/h%201/containers/a%2Fb/terminal?confirm=protected', 'https uses wss, the confirmation is a query, parts are escaped');
+
+    const web = container('web'), stopped = container('old', { state: 'exited', status: 'Exited (0) 1 hour ago' });
+    const helper = container('aurago-dm-op-1', { aurago_helper: 'runner', protected_owner: 'docker_manager' }), lock = container('ruview', { protected_owner: 'ruview' });
+    eq(plain(Term.targetOf(web)), { ref: web.full_id, label: 'web', c: web, state: 'ok', protected: false }, 'a target names the full id of its container');
+    eq([Term.targetOf(stopped).state, Term.targetOf(helper).state, Term.targetOf(lock).protected, Term.targetOf(web, 'service').label], ['not_running', 'helper', true, 'service']);
+    const detail = { service_list: [{ name: 'web', state: 'running', container_id: web.id }, { name: 'db', state: 'exited', container_id: stopped.id }, { name: 'gone', state: 'running', container_id: 'ffffffffffff' }, { name: 'bare', state: 'running' }, null] };
+    eq(Term.stackTargets(detail, [web, stopped]).map(item => [item.label, item.ref, item.state]), [['web', web.full_id, 'ok']], 'a stack offers its running services whose container the list knows');
+    const cache = container('cache');
+    eq(Term.stackTargets({ service_list: [{ name: 'cache', state: 'running', container_id: cache.full_id }] }, [web, cache]).map(item => [item.label, item.ref]), [['cache', cache.full_id]], 'a 64-character container id of the stack matches the 12-character id of the list');
+    eq(Term.stackTargets(null, null), []);
+    eq([Term.diagnosePath('local', 'abc', false), Term.diagnosePath('h 1', 'a/b', true)], ['/hosts/local/containers/abc/terminal', '/hosts/h%201/containers/a%2Fb/terminal?confirm=protected'], 'after the confirmation the diagnosis carries it, so a later 429 or 502 is not read as the protection');
+    eq([Term.blockedBy(Term.targetOf(web), false), Term.blockedBy(Term.targetOf(web), true), Term.blockedBy(null, false), Term.blockedBy(Term.targetOf(helper), false), Term.blockedBy(Term.targetOf(stopped), false)],
+        ['', 'term_readonly', 'term_none_running', 'term_helper', 'term_not_running'], 'read-only wins, then a missing target, a helper, a stopped container');
+}
+{
+    // diagnose is the generic form of diagnoseTerminal: any path below /api/docker-manager, the error info or null
+    const api = fakeApi({
+        ['GET ' + B + '/hosts/local/stacks/ghost/logs']: () => { throw httpError(404, { code: 'stack_not_found', message: 'no such stack' }); },
+        ['GET ' + B + '/hosts/local/containers/web/logs']: () => { throw httpError(429, { code: 'too_many_streams', message: 'full' }); },
+        ['GET ' + B + '/hosts/local/containers/ok/logs']: {}
+    });
+    const store = Store.create({ api, live: false });
+    eq((await store.diagnose('/hosts/local/stacks/ghost/logs?follow=1&tail=100')).code, 'stack_not_found');
+    eq((await store.diagnose('/hosts/local/containers/web/logs?follow=1&tail=200')).code, 'too_many_streams');
+    assert.equal(await store.diagnose('/hosts/local/containers/ok/logs?follow=1'), null, 'a plain answer is no diagnosis');
+    assert.equal(api.calls[0].url, B + '/hosts/local/stacks/ghost/logs?follow=1&tail=100', 'the query is kept');
+    store.dispose();
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -1748,7 +1783,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-logs.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-logs.js', 'docker-manager-terminal.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1984,10 +2019,11 @@ const full = {};
         preview_kind_: [...sm.VOLUME_KINDS],
         preview_var_: ['set', 'default', 'required', 'missing'],
         logs_state_: ['idle', 'connecting', 'live', 'reconnecting', 'ended', 'error'],
-        logs_notice_: ['not_followed', 'attached', 'detached', 'truncated_history']
+        logs_notice_: ['not_followed', 'attached', 'detached', 'truncated_history'],
+        term_status_: ['idle', 'connecting', 'connected', 'closed', 'error']
     };
     // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
-    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved']) used.add(prefix + name);
+    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved', 'term_readonly', 'term_helper', 'term_not_running', 'term_none_running']) used.add(prefix + name);
     for (const [family, names] of Object.entries(families)) for (const name of names) used.add(prefix + family + name);
     used.add('desktop.app_docker_manager');
     assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
