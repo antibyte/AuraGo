@@ -39,6 +39,9 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
 - Synthetic IQ acceptance verifies the default FileInput source created with its
   Rx device set instead of reselecting it. Only this initialization read gets
   120 seconds for native ARM64 cold starts; failure prints bounded decoder log tails.
+- Publication reuses both native builds after offline IQ acceptance. Push by
+  digest, retain SBOM/provenance, and assemble/sign the version manifest only
+  after both architectures pass; PRs never publish.
 - Runtime patches retain LF and unified-diff context whitespace on every host;
   `.gitattributes` owns their Windows checkout normalization.
 
