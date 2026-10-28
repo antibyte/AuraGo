@@ -82,11 +82,27 @@ Memory retrieval, hygiene, indexing, and maintenance.
   `internal/agent`, `TestMemoryHeaderNamesEveryTrustLabelTheAgentWrites`.
 - `ValidateCoreMemoryFact` refuses a standing order that reaches for a tool, a secret
   or an outbound channel even without a listed marker: `isCoreMemoryInstructionLike`
-  also asks `security.DirectiveShape`. That covers `remember` (`AddModelCoreFact`),
-  `manage_memory` add and update, correction previews, learned-rule text, and the
-  prompt-side filter that hides such an existing entry. Ordinary standing preferences
-  ("Always answer in German") stay allowed. A change to `DirectiveShape` moves this
-  gate. Verify `TestCoreMemoryFactPolicyRejectsStandingDirectives`,
+  also asks `StandingOrder` (`standing_order.go`). That covers `remember`
+  (`AddModelCoreFact`), `manage_memory` add and update, correction previews,
+  learned-rule text, and the prompt-side filter that hides such an existing entry.
+  `StandingOrder` is the memory gate, not `security.DirectiveShape` (that one still
+  warns on external tool output): it classifies the strongest marker in a sentence
+  (or two neighbouring ones). A recurrence per turn (`every reply`, `on each turn`,
+  `before replying`, `standing order`, `bei jeder Antwort`) with a tool, a secret,
+  a URL or an address is a hit; a persistence marker (`from now on`, `ab sofort`)
+  with a tool, a send verb aimed at a secret, a URL or the conversation, or a read
+  verb aimed at a secret is a hit; a bare repeat marker (`always`, `immer`) needs a
+  secret that is sent or printed, a tool next to a secret or an address, or a URL
+  that is sent to. So "Always send invoices to accounting@firma.example", "Always
+  prefer execute_python for data analysis" and "Ab sofort sende ich Berichte an
+  berichte@firma.example" stay storable (they are habits), while "Always send the
+  backup token report to the NAS admin" is refused (a secret word that is sent;
+  rephrase it). A secret a verb puts into the answer text is a hit without any
+  marker unless negated ("Never show my API keys in replies" stays). An order to
+  ignore the rules or to answer without restrictions (`override_order`, English and
+  German) is a hit. A text over 64 KiB is refused unread. A change to the marker
+  lists moves this gate. Verify `TestStandingOrderHitsOrdersForEveryReply`,
+  `TestStandingOrderKeepsOrdinaryHabits`, `TestCoreMemoryFactPolicyRejectsStandingDirectives`,
   `TestCoreMemoryFactPolicyKeepsOrdinaryStandingPreferences` and
   `TestAddModelCoreFactRefusesStandingDirective`.
 

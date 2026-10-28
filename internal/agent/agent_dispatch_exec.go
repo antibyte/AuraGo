@@ -947,6 +947,17 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Profile entry %s/%s deleted."}`, cat, key)
 			}
 
+			// add and update write core memory, which every later run receives:
+			// the same local content screen as remember (whatever the LLM
+			// Guardian setting), then ValidateCoreMemoryFact inside the tool.
+			switch req.Operation {
+			case "add", "save", "store", "set", "update":
+				if findings, refused := rememberContentRefused(dc.Guardian, "fact", fact, ToolCall{}); refused {
+					logger.Warn("manage_memory refused by the content screen", "op", req.Operation, "findings", findings, "content_len", len(fact))
+					return rememberScreenDenied
+				}
+			}
+
 			var memID int64
 			fmt.Sscanf(req.ID, "%d", &memID)
 			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage, dc.SessionID)
