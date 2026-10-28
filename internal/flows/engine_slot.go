@@ -21,13 +21,14 @@ type SlotParker interface {
 // guards the counters and held; acq serializes Unparks that wait for a slot, so a run never asks
 // for two. Lock order: mu, then Runner.mu (through Release).
 type slotGate struct {
-	slot   RunSlot
-	ctx    context.Context
-	acq    sync.Mutex
-	mu     sync.Mutex
-	active int
-	parked int
-	held   bool
+	slot        RunSlot
+	ctx         context.Context
+	acq         sync.Mutex
+	mu          sync.Mutex
+	active      int
+	parked      int
+	held        bool
+	dispatching bool // Ready siblings have not all been registered yet.
 }
 
 // newSlotGate returns nil without a slot; every method copes with a nil gate.
@@ -35,7 +36,7 @@ func newSlotGate(slot RunSlot, ctx context.Context) *slotGate {
 	if slot == nil {
 		return nil
 	}
-	return &slotGate{slot: slot, ctx: ctx, held: true}
+	return &slotGate{slot: slot, ctx: ctx, held: true, dispatching: true}
 }
 
 func (g *slotGate) launched() {
@@ -52,6 +53,7 @@ func (g *slotGate) received() {
 		return
 	}
 	g.mu.Lock()
+	g.dispatching = true
 	g.active--
 	g.mu.Unlock()
 }
@@ -62,12 +64,13 @@ func (g *slotGate) idle() {
 		return
 	}
 	g.mu.Lock()
+	g.dispatching = false
 	g.releaseLocked()
 	g.mu.Unlock()
 }
 
 func (g *slotGate) releaseLocked() {
-	if g.held && g.active == 0 && g.parked > 0 && g.slot.Release() {
+	if g.held && !g.dispatching && g.active == 0 && g.parked > 0 && g.slot.Release() {
 		g.held = false
 	}
 }

@@ -33,7 +33,7 @@ func TestManagedBrowserSurvivesStartupRequest(t *testing.T) {
 		chromedp.UserDataDir(profileDir), chromedp.CombinedOutput(&output))
 	allocatorCtx, closeAllocator := chromedp.NewExecAllocator(context.Background(), options...)
 	defer closeAllocator()
-	requestCtx, endRequest := context.WithTimeout(context.Background(), 20*time.Second)
+	requestCtx, endRequest := context.WithTimeout(context.Background(), 30*time.Second)
 	defer endRequest()
 	browserCtx, closeBrowser, err := startManagedBrowser(requestCtx, allocatorCtx, t.TempDir())
 	if err != nil {

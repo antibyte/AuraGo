@@ -177,6 +177,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   (`SlotParker`, `slotGate`; test runs park too) once no other node of the run is busy, and takes one again before
   it returns, in FIFO turn with waiting runs and on the run's context (cancel, shutdown and the run time limit
   apply; the node timeout does not).
+  The coordinator keeps the slot until every ready sibling in its launch batch has been registered.
   `logic.wait` until looks for the next real minute with that wall-clock time within one hour. Timer rules
   for the spring gap and the autumn overlap stay as they are (see Timers).
 - Run-start checks: nil flow `FLOW_INVALID`; over the limits `FLOW_TOO_LARGE`; a loop `FLOW_CYCLE`; a
