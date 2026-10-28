@@ -1499,6 +1499,11 @@ func BuildImageContextWait(ctx context.Context, cfg DockerConfig, image, dockerf
 	query := url.Values{}
 	query.Set("t", image)
 	query.Set("dockerfile", dockerfileName)
+	// The classic builder keeps the intermediate container of a failed step
+	// unless forcerm is set: a build that fails and is retried would pile up one
+	// exited container per attempt. rm is the default but is sent explicitly.
+	query.Set("rm", "1")
+	query.Set("forcerm", "1")
 	if len(buildArgs) > 0 {
 		query.Set("buildargs", string(argsJSON))
 	}
