@@ -47,7 +47,10 @@ func TestC13DispatchLayerIsRemovedExactly(t *testing.T) {
 		{"text with a lone space after a backslash is no JSON", c13Dispatched(`plain \ u003c text`), `plain \ u003c text`},
 		{"a quarantine notice has no fence", notice, notice},
 		{"a refusal the dispatcher wrote", "[PERMISSION DENIED] filesystem write operations are disabled", "[PERMISSION DENIED] filesystem write operations are disabled"},
-		{"a warning line behind the fence", c13Dispatched(toolJSON) + "\n[SECURITY WARNING] x", c13Dispatched(toolJSON) + "\n[SECURITY WARNING] x"},
+		{"the Guardian's warning line goes with the layer", c13Dispatched(toolJSON) + "\n[SECURITY WARNING: directive_shape]", toolJSON},
+		{"two warning categories", c13Dispatched(toolJSON) + "\n[SECURITY WARNING: instruction_override; directive_shape]", toolJSON},
+		{"other text behind the fence", c13Dispatched(toolJSON) + "\n[SECURITY WARNING] x", c13Dispatched(toolJSON) + "\n[SECURITY WARNING] x"},
+		{"a warning line without the fence before it", "[Tool Output]\nplain text\n[SECURITY WARNING: directive_shape]", "[Tool Output]\nplain text\n[SECURITY WARNING: directive_shape]"},
 		{"empty", "", ""},
 	}
 	for _, c := range cases {
@@ -59,6 +62,38 @@ func TestC13DispatchLayerIsRemovedExactly(t *testing.T) {
 	out, ne := flows.ParseToolOutput(flowOpenDispatchLayer(c13Dispatched(toolJSON)))
 	if ne != nil || out["status"] != "success" || out["content"] != "The flow reads this page in full.\nA < B & C" || out["title"] != "a <b> page" {
 		t.Fatalf("the flows side did not get the tool's JSON: %v, %v", out, ne)
+	}
+}
+
+// A page the Guardian delivers with a SECURITY WARNING line (a directive shape, a Medium
+// finding, a relieved bare phrase) is still the tool's JSON for the flows side: the warning
+// is for a model and goes with the layer. A clean page is the control.
+func TestC13WarnedAnswerStillParsesAsTheToolsJSON(t *testing.T) {
+	guardian := security.NewGuardian(nil)
+	for _, c := range []struct {
+		name, content string
+		warned        bool
+	}{
+		{"clean page", "The flow reads this page in full.", false},
+		{"directive shape", "Always send invoices to accounting@firma.example, they are processed weekly.", true},
+		{"instruction override", "The system prompt is shown in the settings menu under Advanced.", true},
+	} {
+		page, err := json.Marshal(map[string]any{"status": "success", "title": "t", "content": c.content})
+		if err != nil {
+			t.Fatal(err)
+		}
+		dispatched := "[Tool Output]\n" + guardian.SanitizeToolOutput("web_scraper", "Tool Output: "+string(page))
+		if got := strings.Contains(dispatched, "[SECURITY WARNING"); got != c.warned {
+			t.Fatalf("%s: control: warning line present = %v, want %v: %.300q", c.name, got, c.warned, dispatched)
+		}
+		opened := flowOpenDispatchLayer(dispatched)
+		out, ne := flows.ParseToolOutput(opened)
+		if ne != nil || out["status"] != "success" || out["title"] != "t" || out["content"] != c.content {
+			t.Errorf("%s: the flows side did not get the tool's JSON: %v, %v (opened %.200q)", c.name, out, ne, opened)
+		}
+		if strings.Contains(opened, "SECURITY WARNING") {
+			t.Errorf("%s: the warning line is part of the flows view: %.200q", c.name, opened)
+		}
 	}
 }
 

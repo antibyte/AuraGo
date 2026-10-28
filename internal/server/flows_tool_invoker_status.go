@@ -183,16 +183,25 @@ func flowUnwrapExternal(text string) (string, bool) {
 // <external_data> marking inside a value, any page text with a tag) no longer parses.
 var flowBrokenAngleEscape = regexp.MustCompile(`(?i)\\ (u003c|u\{0*3c\}|x3c)`)
 
+// flowGuardianWarning matches the "[SECURITY WARNING: a; b]" line(s) security.SanitizeToolOutput
+// appends behind the fence of a delivered answer it flagged (a Medium finding, a directive
+// shape, a relieved bare phrase, the output validator): fixed category names of letters,
+// digits and underscores, joined by "; ", never payload text.
+var flowGuardianWarning = regexp.MustCompile(`(?:\n\[SECURITY WARNING: [A-Za-z0-9_]+(?:; [A-Za-z0-9_]+)*\])+\z`)
+
 // flowOpenDispatchLayer removes the one isolation layer agent.DispatchToolCallResult puts
 // around a tool answer: the "[Tool Output]" label, the <external_data> fence and its HTML
-// escaping. An answer that does not have the fence from end to end (a refusal the dispatcher
-// wrote itself, a quarantine notice, an answer with a warning line behind the fence) is
-// returned as it is. The hardening of the fence is undone where it broke JSON
+// escaping, and the Guardian's SECURITY WARNING line behind the fence. The warning is for a
+// model that reads the answer; a flow node gets the tool's answer, so the line goes with the
+// layer and is not part of the flows view. An answer that does not have the fence from end to
+// end (a refusal the dispatcher wrote itself, a quarantine notice, any other text behind the
+// fence) is returned as it is. The hardening of the fence is undone where it broke JSON
 // (flowRestoreAngleEscapes), so the flows side parses the tool's answer as the tool wrote it.
 // Only this layer goes: the tool's own marking inside stays for the flows side and for
 // flowToolText.
 func flowOpenDispatchLayer(output string) string {
-	inner, wrapped := flowUnwrapExternal(flowStripToolPrefixes(output))
+	text := flowGuardianWarning.ReplaceAllString(flowStripToolPrefixes(output), "")
+	inner, wrapped := flowUnwrapExternal(text)
 	if !wrapped {
 		return output
 	}
