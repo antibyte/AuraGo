@@ -2018,6 +2018,43 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
         // without a search nothing opens by itself
         eq(G.plan(sixty, 'sec:singles', G.view(G.state(), false)).items.filter(item => item.open).length, 0);
     }
+
+    // finding a container on screen, opening its group for a drawer, and the row of the open drawer that the cap must not hide
+    {
+        const runningTwo = [container('web-a'), container('web-b')];
+        const stoppedJobs = make('job', 3000);
+        const sections = G.layout({ section: 'containers', groups: [{ key: 's:local', rows: rowsOf([...runningTwo, ...stoppedJobs]) }].map(group => Object.assign(group, { entries: G.entries(group.rows, { image: true }) })) });
+        const deep = 'local/' + 'job1500'.padEnd(64, '0'), plain = 'local/' + 'web-b'.padEnd(64, '0');
+        eq([G.locate(sections, deep), G.locate(sections, plain), G.locate(sections, 'local/nothing')], [{ section: 's:local', group: 'i:ci:1' }, { section: 's:local', group: '' }, null], 'a member knows its group, a plain row has none');
+        eq([G.holds(sections, 'i:ci:1', deep), G.holds(sections, 'i:ci:1', plain), G.holds(sections, 'i:other:1', deep)], [true, false, false]);
+        // the Stacks list lays out its single containers as one section
+        eq(G.layout({ section: 'stacks', sgroups: { singles: [], singleEntries: sections[0].entries } }).map(section => section.key), ['sec:singles']);
+
+        // opening the group: the admin's choice, whatever the search budget says
+        const calm = G.state();
+        assert.equal(G.reveal(calm, false, sections, plain), false, 'a plain row needs no group');
+        assert.equal(G.reveal(calm, false, sections, deep), true);
+        assert.equal(G.plan(sections[0].entries, 's:local', G.view(calm, false)).items.some(item => item.open), true, 'the group is open');
+        const searching = G.state();
+        G.toggle(searching, true, 'i:ci:1', true);
+        G.reveal(searching, true, sections, deep);
+        assert.equal(G.plan(sections[0].entries, 's:local', G.view(searching, true)).items.some(item => item.open), true, 'a closed group of a search opens too');
+
+        // the row of the open drawer is on the page although it sits at 1500 of 3000: after the first 200, outside the hidden count
+        const pinned = G.plan(sections[0].entries, 's:local', G.view(calm, false, deep)).items.find(item => item.type === 'image');
+        eq([pinned.members.length, pinned.members[pinned.members.length - 1].key, pinned.more], [201, deep, { key: 'i:ci:1', hidden: 2799, count: 200 }], 'the page plus the pinned row; the hidden count leaves it out');
+        const unpinned = G.plan(sections[0].entries, 's:local', G.view(calm, false)).items.find(item => item.type === 'image');
+        eq([unpinned.members.length, unpinned.more.hidden], [200, 2800], 'without a drawer the page is 200');
+        G.showMore(calm, 'i:ci:1');
+        for (let i = 0; i < 7; i += 1) G.showMore(calm, 'i:ci:1');
+        const widened = G.plan(sections[0].entries, 's:local', G.view(calm, false, deep)).items.find(item => item.type === 'image');
+        eq([widened.members.length, widened.members.filter(row => row.key === deep).length], [1800, 1], 'once the page reaches the row it is listed once, in its place');
+        // a plain row behind the cap of its section: 250 unique-image stopped containers, the drawer is open on the last
+        const lonely = G.entries(rowsOf(Array.from({ length: 250 }, (_, i) => stopped('solo' + String(i).padStart(3, '0'), { image: 'solo' + i + ':1' }))), { image: true });
+        const last = 'local/' + 'solo249'.padEnd(64, '0');
+        const lonelyPlan = G.plan(lonely, 'sec:singles', G.view(G.state(), false, last));
+        eq([lonelyPlan.items.length, lonelyPlan.items[200].row.key, lonelyPlan.more.hidden], [201, last, 49], 'a plain row behind the section cap is pinned too');
+    }
 }
 
 console.log('docker-manager ui tests: model and store ok');
@@ -2773,6 +2810,23 @@ const full = {};
         const list3 = stacks.list(Object.assign({}, snap3, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles3, singleEntries: G.entries(singles3, { image: true }) } }));
         const counted = pattern => (list3.match(pattern) || []).length;
         eq([counted(/<li class="dm-srow/g) <= 250, counted(/data-group-key=/g), counted(/aria-expanded="true"/g), counted(/data-action="open-container"/g)], [true, 60, 3, 150], 'the Stacks list: the same 60 groups, 3 open with 150 members in all');
+    }
+
+    // the open drawer's row stays on the table and in the list although it sits behind the cap of its group
+    {
+        const stoppedOnes = Array.from({ length: 450 }, (_, i) => container('job' + String(i).padStart(4, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'ci:1' }));
+        const rows4 = model2.buildRows(hosts, { local: { containers: stoppedOnes, loaded: true } }, 'all');
+        const groups4 = model2.groupRows(rows4, { hostOrder: ['local'] });
+        for (const group of groups4) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+        const pin = rows4[400].key, opened = G.state();
+        G.toggle(opened, false, 'i:ci:1', false);
+        const snap4 = Object.assign(snapFor(false), { rows: rows4, visible: rows4, groups: groups4, groupView: G.view(opened, false, pin) });
+        const items4 = views.tbodyItems(snap4);
+        eq([items4.length, items4[items4.length - 2].key, items4[items4.length - 1].html.includes('hidden&quot;:&quot;249&quot;')], [1 + 200 + 1 + 1, pin, true], 'the table lists the group, its first 200, the pinned row and a show-more row that leaves it out');
+        assert.ok(items4.find(item => item.key === pin).html.includes('aria-selected="false"'), 'it is a normal row');
+        const singles4 = rows4.filter(row => !row.c.compose_project);
+        const list4 = stacks.list(Object.assign({}, snap4, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles4, singleEntries: G.entries(singles4, { image: true }) } }));
+        assert.ok(list4.includes('data-row-key="' + pin + '"') && (list4.match(/data-action="open-container"/g) || []).length === 201, 'and so does the Stacks list');
     }
 
     // a snapshot without the new members (older callers) renders as before

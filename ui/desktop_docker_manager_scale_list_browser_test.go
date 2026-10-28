@@ -106,6 +106,24 @@ func TestDesktopDockerManagerScaleBrowser(t *testing.T) {
 		t.Fatalf("the table body holds %d elements, want a few hundred rows' worth", got)
 	}
 
+	// The palette's Logs for a container inside the closed group (3,000 deep): the group opens, the row is on the page although it sits
+	// behind the first 200, and the page stays bounded. Closing the group then closes the drawer and puts the focus on the group row.
+	page.MustElement(`[data-search]`).MustClick()
+	dockerManagerPress(page, 'k')
+	dmScaleWait(t, page, `()=>!!document.querySelector('[data-palette] input')`)
+	page.MustElement(`[data-palette] input`).MustInput("ci-job-3000")
+	dmScaleWait(t, page, `()=>{const items=[...document.querySelectorAll('[data-palette] .dm-palette-item')];return items.length>=1 && items.every(i=>i.textContent.includes('ci-job-3000'))}`)
+	page.Keyboard.MustType(input.Enter)
+	dmScaleWait(t, page, `()=>!document.querySelector('[data-drawer]').hidden && document.querySelector('[data-drawer] h2')?.textContent==='ci-job-3000'`)
+	dmScaleWait(t, page, `()=>`+dmScaleGroupRow+`?.getAttribute('aria-expanded')==='true' && [...document.querySelectorAll('[data-tbody] .dm-name')].some(e=>e.textContent==='ci-job-3000')`)
+	if got := count(dmScaleTableRows); got < 250 || got > 262 {
+		t.Fatalf("the table with the palette's container revealed has %d rows, want the page of 200, the row itself and the rest of the table", got)
+	}
+	must("the revealed row is the one the drawer shows, listed after the first 200", `()=>{const names=[...document.querySelectorAll('[data-tbody] tr.dm-row .dm-name')].map(e=>e.textContent);return names.indexOf('ci-job-3000')===names.length-1 && names.length===50+200+1}`)
+	page.MustEval(`()=>` + dmScaleGroupRow + `.click()`)
+	dmScaleWait(t, page, `()=>document.querySelector('[data-drawer]').hidden && `+dmScaleGroupRow+`.getAttribute('aria-expanded')==='false' && document.activeElement===`+dmScaleGroupRow)
+	dmScaleWait(t, page, dmScaleMembersIs(50))
+
 	// Search inside the group: its matches show, the group opens by itself; fewer than five matches are plain rows; clearing closes it again
 	search := page.MustElement(`[data-search]`)
 	search.MustInput("ci-job-004")
@@ -151,7 +169,7 @@ func TestDesktopDockerManagerScaleBrowser(t *testing.T) {
 	page.Keyboard.MustType(input.Enter)
 	dmScaleWait(t, page, dmScaleMembersIs(50+600))
 
-	// A member of the group opens the drawer (click); a paint without new data sorts nothing; the drawer stays when its group is closed
+	// A member of the group opens the drawer (click); a paint without new data sorts nothing; closing the group closes the drawer
 	page.MustEval(`()=>{window.__groupCalls=0;const m=DockerManagerModel,g=m.groupRows;m.groupRows=function(){window.__groupCalls++;return g.apply(this,arguments)}}`)
 	// The window counts only while the host answers no listing (a poll of the other hosts is new data and may sort); it is repeated until quiet.
 	listings := func() int {
@@ -180,8 +198,7 @@ func TestDesktopDockerManagerScaleBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>` + dmScaleGroupRow + `.click()`)
 	dmScaleWait(t, page, dmScaleMembersIs(50))
-	must("the drawer of a member stays when its group is closed", `()=>!document.querySelector('[data-drawer]').hidden`)
-	page.MustEval(`()=>document.querySelector('[data-action="close-detail"]').click()`)
+	must("closing a group closes the drawer of one of its containers", `()=>document.querySelector('[data-drawer]').hidden`)
 
 	// A reload replaces only the rows that changed: the element of an unchanged row survives, the new container shows
 	page.MustEval(`()=>{window.__web=document.querySelector('[data-tbody] tr.dm-row[data-row-key*="000000000003"]');window.__web.dataset.mark='kept'}`)

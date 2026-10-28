@@ -353,6 +353,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   (`data-action="show-more"`; a row of its own in the table, a nested item in the list); Enter on that row works too. The table is patched row
   by row from `views.tbodyItems` (`panes.patchRows`: an unchanged row keeps its element, the roving tab stop and the load cells follow); the
   Stacks list, bounded now, is still replaced as a whole. Group-level bulk actions come with the cleanup assistant (phase 4).
+  The drawer never sits on a row that is not on the page: `openDetail` (row menu, palette Logs and Terminal, service link) first opens the image
+  group that holds the container (`Groups.reveal`), the open drawer's row is pinned (listed after the first 200 of its group or section, left out of
+  the hidden count), closing a group that holds the drawer's row closes the drawer, and closing the drawer focuses the row, or its group row or the
+  show-more control when the row is not on the page. `Groups.layout` is the list of sections of the last paint that these lookups read.
 - A failed container list keeps the last containers of that host and shows a banner with the reason code
   (`dns`, `refused`, `timeout`, `tls`, `auth`, `ssh_host_key`, `socket_missing`, `api_too_old`, `unknown`, texts
   `docker_manager.reason_*`); the browser giving up after 35 s counts as `host_unreachable` with reason `timeout`. A host

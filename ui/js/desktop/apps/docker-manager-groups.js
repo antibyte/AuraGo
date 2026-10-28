@@ -78,10 +78,21 @@
 
     const moreOf = (key, hidden) => (hidden > 0 ? { key, hidden, count: Math.min(PAGE, hidden) } : null);
 
-    // The rendered part of a plain list (stacks, external projects): {items, more}. more = {key, hidden, count} or null.
-    function page(list, key, limit) {
-        const all = array(list), cap = limit(key);
-        return { items: all.slice(0, cap), more: moreOf(key, all.length - cap) };
+    // Whether a list item is, or holds, the container with this key: a row, an entry of a section (a row or an image group) or a bare row.
+    const holdsKey = (item, key) => (item.type === 'image' ? item.rows.some(row => row.key === key) : (item.type === 'row' ? item.row : item).key === key);
+
+    // The rendered part of a plain list (stacks, external projects): {items, more}. more = {key, hidden, count} or null. `pin` is the
+    // key of the container whose drawer is open: when it sits behind the cap it is shown after the page (the cap never hides the row the
+    // admin is working on), and the hidden count leaves it out.
+    function page(list, key, limit, pin) {
+        const all = array(list), cap = limit(key), items = all.slice(0, cap);
+        let pinned = 0;
+        if (pin) {
+            for (let index = cap; index < all.length; index += 1) {
+                if (holdsKey(all[index], pin)) { items.push(all[index]); pinned = 1; break; }
+            }
+        }
+        return { items, more: moreOf(key, all.length - cap - pinned) };
     }
 
     // While a search or a state filter is active the groups with matches open on their own, but they share one page of rows (the
@@ -103,10 +114,10 @@
     // members and a `more` of its own; a closed one none. Returns {items, more}: items are rows or
     // {type: 'image', group, open, members, more}.
     function plan(list, section, view) {
-        const shown = page(list, section, view.limit), items = [], auto = view.narrowed ? autoOpen(shown.items) : null;
+        const shown = page(list, section, view.limit, view.pinned), items = [], auto = view.narrowed ? autoOpen(shown.items) : null;
         for (const entry of shown.items) {
             if (entry.type !== 'image') { items.push(entry); continue; }
-            const open = !!view.isOpen(entry.key, auto), members = open ? page(entry.rows, entry.key, view.limit) : { items: [], more: null };
+            const open = !!view.isOpen(entry.key, auto), members = open ? page(entry.rows, entry.key, view.limit, view.pinned) : { items: [], more: null };
             items.push({ type: 'image', group: entry, open, members: members.items, more: members.more });
         }
         return { items, more: shown.more };
@@ -126,9 +137,11 @@
         s.opened.clear();
         s.limits.clear();
     }
-    function view(s, narrowed) {
+    // pinned: the key of the container whose drawer is open (its row is always on the page while its group is open).
+    function view(s, narrowed, pinned) {
         return {
             narrowed: !!narrowed,
+            pinned: pinned || '',
             limit: key => s.limits.get(key) || PAGE,
             // auto: the keys autoOpen chose (narrowed only); the admin's choice beats it either way
             isOpen: (key, auto) => (narrowed ? !s.closed.has(key) && (s.opened.has(key) || !!(auto && auto.has(key))) : s.expanded.has(key))
@@ -148,5 +161,32 @@
     }
     function showMore(s, key) { s.limits.set(key, (s.limits.get(key) || PAGE) + PAGE); }
 
-    window.DockerManagerGroups = { MIN_GROUP, PAGE, groupable, imageKey, entries, page, plan, state, sync, view, toggle, showMore };
+    // ---- finding a container in what is on screen ---------------------------------------------------------------------------
+    // The sections of the view on screen as [{key, entries}]: the groups of the table, or the single containers of the Stacks list.
+    function layout(snap) {
+        if (snap.section === 'stacks') {
+            const g = snap.sgroups || {};
+            return [{ key: 'sec:singles', entries: g.singleEntries || asRows(g.singles) }];
+        }
+        return array(snap.groups).map(group => ({ key: group.key, entries: group.entries || asRows(group.rows) }));
+    }
+    // {section, group}: the section that lists the container and the image group it sits in ('' for a plain row), or null.
+    function locate(sections, rowKey) {
+        for (const section of array(sections)) {
+            for (const entry of section.entries) {
+                if (holdsKey(entry, rowKey)) return { section: section.key, group: entry.type === 'image' ? entry.key : '' };
+            }
+        }
+        return null;
+    }
+    const holds = (sections, groupKey, rowKey) => { const at = locate(sections, rowKey); return !!at && at.group === groupKey; };
+    // Opens the image group that holds the container (by the admin's own say, so no budget closes it); false when it sits in none.
+    function reveal(s, narrowed, sections, rowKey) {
+        const at = locate(sections, rowKey);
+        if (!at || !at.group) return false;
+        if (narrowed) { s.closed.delete(at.group); s.opened.add(at.group); } else s.expanded.add(at.group);
+        return true;
+    }
+
+    window.DockerManagerGroups = { MIN_GROUP, PAGE, groupable, imageKey, entries, page, plan, state, sync, view, toggle, showMore, layout, locate, holds, reveal };
 })();

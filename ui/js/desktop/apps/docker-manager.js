@@ -49,7 +49,7 @@
         const state = store.state;
         const views = Views.create({ t, esc, model, stackModel: sm, charts, groups: Groups, lang, uid });
         const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, groups: Groups, uid });
-        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', railCounts: [], gauges: '', banners: '', rows: new Map(), grp: Groups.state(), moreFocus: null, empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
+        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', railCounts: [], gauges: '', banners: '', rows: new Map(), grp: Groups.state(), layout: [], moreFocus: null, empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
             focusDrawer: false, focusStack: false, pendingFocus: '', opener: '', stackOpener: '', mark: null, count: '' };
         let disposed = false, frame = 0, announceTimer = 0, prefsTimer = 0, lastCount = '', liveFrame = 0, loadFrame = 0, gaugeFrame = 0;
         const dirtyLoads = new Set();
@@ -197,7 +197,7 @@
 
         function snapshot() {
             Groups.sync(ui.grp, ui.section + '|' + ui.query + '|' + ui.filter);
-            const groupView = Groups.view(ui.grp, isNarrowed());
+            const groupView = Groups.view(ui.grp, isNarrowed(), state.detail ? state.detail.key : '');
             const hosts = state.hosts;
             const scopeHosts = state.scope === 'all' ? hosts : hosts.filter(item => item.id === state.scope);
             const hostKey = JSON.stringify(hosts.map(item => [item.id, item.name, item.color]));
@@ -433,6 +433,7 @@
             frame = 0;
             if (disposed) return;
             const snap = snapshot(), creating = newStack.isOpen(), stacksView = ui.section === 'stacks';
+            ui.layout = Groups.layout(snap);
             root.dataset.readonly = String(!snap.canMutate);
             root.dataset.multi = String(snap.multi);
             root.dataset.disabled = String(state.disabled);
@@ -502,9 +503,11 @@
         function toggleGroup(key) {
             if (key.startsWith('i:')) {
                 // Whether the group is open now is what the page shows (while a search is active the row budget decides).
-                const shown = root.querySelector('[data-group-key="' + CSS.escape(key) + '"]');
-                Groups.toggle(ui.grp, isNarrowed(), key, !!shown && shown.getAttribute('aria-expanded') === 'true');
+                const shown = root.querySelector('[data-group-key="' + CSS.escape(key) + '"]'), openNow = !!shown && shown.getAttribute('aria-expanded') === 'true';
+                Groups.toggle(ui.grp, isNarrowed(), key, openNow);
                 schedulePaint();
+                // The drawer of one of its containers would stay open on a row that is no longer on the page: closing the group closes it.
+                if (openNow && state.detail && Groups.holds(ui.layout, key, state.detail.key)) closeDetail();
                 return;
             }
             if (ui.collapsed.has(key)) ui.collapsed.delete(key); else ui.collapsed.add(key);
@@ -532,13 +535,26 @@
             if (!row) return;
             ui.opener = key;
             ui.focusDrawer = !!focus;
+            // The drawer opens next to a row that is on the page: open the image group that holds it (the open drawer pins the row itself).
+            Groups.reveal(ui.grp, isNarrowed(), ui.layout, key);
             store.openDetail(row, tab);
+        }
+        // Where the focus goes when the drawer closes: the row it was opened from; when that row is not on the page (its group is closed,
+        // or it sits behind "show more") its group row or the show-more control; else the search box.
+        function closeTarget(key) {
+            const inStacks = ui.section === 'stacks', quote = value => CSS.escape(value);
+            const row = inStacks ? stackListEl.querySelector('[data-action="open-container"][data-row-key="' + quote(key) + '"]') : rowEl(key);
+            if (row) return row;
+            const at = Groups.locate(ui.layout, key);
+            if (!at) return searchEl;
+            const group = at.group ? (inStacks ? stackListEl.querySelector('[data-group-key="' + quote(at.group) + '"]') : rowEl('g:' + at.group)) : null;
+            return group || (inStacks ? stackListEl.querySelector('[data-more-key="' + quote(at.section) + '"]') : rowEl('more:' + at.section)) || searchEl;
         }
         function closeDetail() {
             if (!state.detail) return;
             const key = ui.opener || state.detail.key;
             store.closeDetail();
-            requestAnimationFrame(() => { if (!disposed) (rowEl(key) || stackListEl.querySelector('[data-action="open-container"][data-row-key="' + CSS.escape(key) + '"]') || searchEl).focus({ preventScroll: true }); });
+            requestAnimationFrame(() => { if (!disposed) closeTarget(key).focus({ preventScroll: true }); });
         }
 
         // ---- containers ------------------------------------------------------------------------------------------
