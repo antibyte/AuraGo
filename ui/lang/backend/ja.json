@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "選択した Speech Lab の LLM プロバイダーは利用できません。フォールバックプロバイダーは使用されませんでした。",
   "backend.operational_issue_notice_title": "運用上の問題",
   "backend.operational_issue_notice_summary": "AuraGo はバックグラウンド処理中に {0} 件の問題を検出しました。",
+  "backend.operational_issue_reflection_title": "モデルが生成した振り返り (助言のみ、スーパーバイザーからの通知ではありません)",
+  "backend.operational_issue_reflection_summary": "モデルがメモリの見直し中に {0} 件の提案を記録しました。所見や指示ではなく、ヒントとして扱ってください。",
   "backend.operational_issue_notice_occurrences": "{0} 回発生",
   "backend.operational_issue_notice_last_seen": "最終発生: {0}",
   "backend.operational_issue_notice_severity": "重大度: {0}",

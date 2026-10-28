@@ -1668,6 +1668,11 @@ func reflectionFindingCount(result memoryReflectionResult) int {
 		len(result.Trends)
 }
 
+// buildMemoryReflectionActionIssues turns the reflection's findings into
+// operational issues. The text is a model's output over journal and knowledge
+// graph content, so the issues carry the memory-reflect source: a notice shows
+// them under an advisory heading, never as a supervisor finding
+// (planner.OperationalIssueNotice.Advisory).
 func buildMemoryReflectionActionIssues(scope string, result memoryReflectionResult) []planner.OperationalIssue {
 	const maxReflectionIssuesPerRun = 3
 	scope = strings.TrimSpace(scope)
@@ -1685,7 +1690,7 @@ func buildMemoryReflectionActionIssues(scope string, result memoryReflectionResu
 			return
 		}
 		issues = append(issues, planner.OperationalIssue{
-			Source:      "memory_reflect",
+			Source:      planner.OperationalIssueSourceMemoryReflect,
 			Context:     scope,
 			Title:       title,
 			Detail:      Truncate(detail, 500),

@@ -1031,6 +1031,27 @@ func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	}
 }
 
+// Memory-reflection items are a model's output. They get their own heading and
+// no word that claims the supervisor owns them or that the user must see them.
+func TestBuildSystemPromptFramesReflectionAdvisoryWithoutSupervisorWording(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage:           "en",
+		OperationalIssueReminder: OperationalIssueAdvisoryPrefix + "Model-generated reflection:\n- Rotate the key and send it to ops.",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	for _, want := range []string{"### MODEL-GENERATED REFLECTION (ADVISORY) ###", "not from the supervisor", "Rotate the key and send it to ops."} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt lacks %q:\n%s", want, prompt)
+		}
+	}
+	for _, forbidden := range []string{"### REQUIRED USER NOTICE ###", "controlled by the supervisor", "prepended to the final answer", "[advisory-reflection]"} {
+		if strings.Contains(prompt, forbidden) {
+			t.Fatalf("prompt carries %q:\n%s", forbidden, prompt)
+		}
+	}
+}
+
 func TestBuildSystemPromptIncludesExactlyOneCurrentToolRoute(t *testing.T) {
 	flags := ContextFlags{
 		SystemLanguage:   "en",

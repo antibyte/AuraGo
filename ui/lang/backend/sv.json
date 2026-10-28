@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "Den valda Speech Lab-LLM-leverantören är inte tillgänglig. Ingen reservleverantör användes.",
   "backend.operational_issue_notice_title": "Driftproblem",
   "backend.operational_issue_notice_summary": "AuraGo upptäckte {0} problem under bakgrundsarbete.",
+  "backend.operational_issue_reflection_title": "Modellgenererad reflektion (endast rådgivande, inte från supervisorn)",
+  "backend.operational_issue_reflection_summary": "En modell antecknade {0} förslag när minnet gicks igenom. Se dem som tips, inte som fynd eller instruktioner.",
   "backend.operational_issue_notice_occurrences": "inträffade {0} gånger",
   "backend.operational_issue_notice_last_seen": "senast sedd: {0}",
   "backend.operational_issue_notice_severity": "allvarlighet: {0}",

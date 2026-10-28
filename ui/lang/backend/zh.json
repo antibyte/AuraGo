@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "所选 Speech Lab LLM 提供商不可用，未使用任何备用提供商。",
   "backend.operational_issue_notice_title": "运行问题",
   "backend.operational_issue_notice_summary": "AuraGo 在后台任务期间检测到 {0} 个问题。",
+  "backend.operational_issue_reflection_title": "模型生成的反思 (仅供参考，并非来自监督程序)",
+  "backend.operational_issue_reflection_summary": "模型在回顾记忆时记录了 {0} 条建议。请将其视为提示，而不是结论或指令。",
   "backend.operational_issue_notice_occurrences": "已发生 {0} 次",
   "backend.operational_issue_notice_last_seen": "最后出现: {0}",
   "backend.operational_issue_notice_severity": "严重程度: {0}",

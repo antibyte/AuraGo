@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "चुना गया Speech Lab LLM प्रदाता उपलब्ध नहीं है। किसी फ़ॉलबैक प्रदाता का उपयोग नहीं किया गया।",
   "backend.operational_issue_notice_title": "परिचालन समस्याएँ",
   "backend.operational_issue_notice_summary": "AuraGo ने पृष्ठभूमि कार्य के दौरान {0} समस्या(एँ) पाई हैं।",
+  "backend.operational_issue_reflection_title": "मॉडल द्वारा बनाया गया चिंतन (केवल सलाह, सुपरवाइज़र की ओर से नहीं)",
+  "backend.operational_issue_reflection_summary": "एक मॉडल ने मेमोरी की समीक्षा के दौरान {0} सुझाव दर्ज किए। इन्हें संकेत मानें, निष्कर्ष या निर्देश नहीं।",
   "backend.operational_issue_notice_occurrences": "{0} बार हुआ",
   "backend.operational_issue_notice_last_seen": "अंतिम बार देखा: {0}",
   "backend.operational_issue_notice_severity": "गंभीरता: {0}",

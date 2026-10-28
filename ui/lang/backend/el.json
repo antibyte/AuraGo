@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "Ο επιλεγμένος πάροχος LLM του Speech Lab δεν είναι διαθέσιμος. Δεν χρησιμοποιήθηκε εναλλακτικός πάροχος.",
   "backend.operational_issue_notice_title": "Λειτουργικά προβλήματα",
   "backend.operational_issue_notice_summary": "Το AuraGo εντόπισε {0} πρόβλημα/προβλήματα κατά την εργασία στο παρασκήνιο.",
+  "backend.operational_issue_reflection_title": "Αναστοχασμός που δημιουργήθηκε από το μοντέλο (μόνο συμβουλευτικός, δεν προέρχεται από τον επόπτη)",
+  "backend.operational_issue_reflection_summary": "Ένα μοντέλο σημείωσε {0} πρόταση/προτάσεις κατά την ανασκόπηση της μνήμης. Αντιμετωπίστε τις ως υποδείξεις, όχι ως ευρήματα ή οδηγίες.",
   "backend.operational_issue_notice_occurrences": "εμφανίστηκε {0} φορές",
   "backend.operational_issue_notice_last_seen": "τελευταία εμφάνιση: {0}",
   "backend.operational_issue_notice_severity": "σοβαρότητα: {0}",

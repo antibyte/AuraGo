@@ -259,6 +259,7 @@ const (
 	promptSectionPlannerContext        = "### PLANNER CONTEXT"
 	promptSectionDailyTodo             = "### DAILY TODO REMINDER"
 	promptSectionOperationalNotice     = "### REQUIRED USER NOTICE"
+	promptSectionReflectionAdvisory    = "### MODEL-GENERATED REFLECTION (ADVISORY)"
 	promptSectionActiveTasks           = "### ACTIVE TASK LIST"
 	promptSectionOutgoingWebhooks      = "# OUTGOING WEBHOOKS"
 	promptSectionTaskRules             = "# TASK RULES"
@@ -289,6 +290,8 @@ func canonicalPromptSectionID(id string) string {
 		return promptSectionDailyTodo
 	case id == "### REQUIRED USER NOTICE ###":
 		return promptSectionOperationalNotice
+	case id == operationalIssueAdvisoryHeading:
+		return promptSectionReflectionAdvisory
 	case id == "### ACTIVE TASK LIST ###":
 		return promptSectionActiveTasks
 	default:
@@ -383,6 +386,7 @@ func promptOptionalHeaders(unifiedMemory bool) []string {
 		promptSectionPlannerContext,
 		promptSectionDailyTodo,
 		promptSectionOperationalNotice,
+		promptSectionReflectionAdvisory,
 		promptSectionActiveTasks,
 		promptSectionOutgoingWebhooks,
 		promptSectionHomepageDesign,

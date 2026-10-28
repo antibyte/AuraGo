@@ -755,6 +755,59 @@ func TestOperationalIssueNoticeHidesInternalMemoryReflectionUnlessBlocked(t *tes
 	}
 }
 
+// The memory reflection's text is a model's output. Its notices carry the
+// advisory marker, whatever kind was stored with the record, so the agent never
+// presents them as supervisor findings; every other source stays unmarked.
+func TestOperationalIssueNoticeMarksMemoryReflectionAdvisory(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	now := time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC)
+	for _, issue := range []OperationalIssue{
+		{Source: "memory_reflect", Context: "recent", Title: "Memory update blocked", Detail: "Approval required before replacing a Core Memory fact.", Severity: "warning", Reference: "memory_reflect", Kind: OperationalIssueKindRuntimeFailure, OccurredAt: now},
+		{Source: "maintenance", Context: "nightly", Title: "Maintenance timed out", Detail: "The background maintenance run timed out.", Severity: "warning", Reference: "maintenance", OccurredAt: now.Add(time.Minute)},
+	} {
+		if _, err := RecordOperationalIssue(db, issue); err != nil {
+			t.Fatalf("RecordOperationalIssue(%s): %v", issue.Source, err)
+		}
+	}
+	notices, err := ListPendingOperationalIssueNotices(db, now.Add(2*time.Minute), 2)
+	if err != nil || len(notices) != 2 {
+		t.Fatalf("notices = %#v, err %v, want both issues", notices, err)
+	}
+	for _, notice := range notices {
+		if want := strings.Contains(notice.Title, "Memory update blocked"); notice.Advisory != want {
+			t.Fatalf("notice %q Advisory = %v, want %v", notice.Title, notice.Advisory, want)
+		}
+	}
+}
+
+// An advisory is shown only where typed notices exist, so newer advisories must
+// not crowd an older supervisor finding out of the two-item batch.
+func TestOperationalIssueNoticeListsSupervisorFindingsBeforeReflectionAdvisories(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	now := time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC)
+	for i, issue := range []OperationalIssue{
+		{Source: "maintenance", Context: "nightly", Title: "Maintenance timed out", Detail: "The background maintenance run timed out.", Severity: "warning", Reference: "maintenance"},
+		{Source: "memory_reflect", Context: "recent", Title: "Reflection one", Detail: "Approval required for the first change.", Severity: "warning", Reference: "memory_reflect", Fingerprint: "memory_reflect|recent|action_item|0"},
+		{Source: "memory_reflect", Context: "recent", Title: "Reflection two", Detail: "Approval required for the second change.", Severity: "warning", Reference: "memory_reflect", Fingerprint: "memory_reflect|recent|action_item|1"},
+	} {
+		issue.OccurredAt = now.Add(time.Duration(i) * time.Minute)
+		if _, err := RecordOperationalIssue(db, issue); err != nil {
+			t.Fatalf("RecordOperationalIssue(%s): %v", issue.Title, err)
+		}
+	}
+	notices, err := ListPendingOperationalIssueNotices(db, now.Add(5*time.Minute), 2)
+	if err != nil || len(notices) != 2 {
+		t.Fatalf("notices = %#v, err %v, want two", notices, err)
+	}
+	if notices[0].Advisory || !strings.Contains(notices[0].Title, "Maintenance") || !notices[1].Advisory {
+		t.Fatalf("notices = %#v, want the supervisor finding first", notices)
+	}
+}
+
 func TestOperationalIssueNoticeSanitizesInstructionsAndCredentialFragments(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()

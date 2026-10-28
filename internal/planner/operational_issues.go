@@ -59,6 +59,11 @@ type operationalIssueRecord struct {
 	UpdatedAt        string
 }
 
+// OperationalIssueSourceMemoryReflect is the Source of the issues the memory
+// reflection raises. Their text is a model's output over journal and knowledge
+// graph content, so they are advisory, never a supervisor finding.
+const OperationalIssueSourceMemoryReflect = "memory_reflect"
+
 // OperationalIssueNotice is the safe, versioned representation used by the
 // supervisor for deterministic user notifications.
 type OperationalIssueNotice struct {
@@ -69,6 +74,10 @@ type OperationalIssueNotice struct {
 	Detail      string
 	LastSeen    string
 	Occurrences int
+	// Advisory marks an issue whose Title and Detail were written by a model
+	// (memory reflection). A notice shows it under an advisory heading, never as
+	// a supervisor notice, and never prepends it to an answer.
+	Advisory bool
 }
 
 // OperationalIssueNoticeRef identifies the exact revision that was delivered.
@@ -212,6 +221,11 @@ func ListPendingOperationalIssueNotices(db *sql.DB, now time.Time, limit int) ([
 	}
 	sort.SliceStable(records, func(i, j int) bool {
 		left, right := records[i], records[j]
+		// A reflection advisory is never delivered on a channel without typed
+		// notices, so it must not crowd supervisor findings out of the batch.
+		if leftAdvisory, rightAdvisory := operationalIssueIsAdvisory(left), operationalIssueIsAdvisory(right); leftAdvisory != rightAdvisory {
+			return rightAdvisory
+		}
 		if operationalIssueSeverityRank(left.Severity) != operationalIssueSeverityRank(right.Severity) {
 			return operationalIssueSeverityRank(left.Severity) < operationalIssueSeverityRank(right.Severity)
 		}
@@ -235,6 +249,7 @@ func ListPendingOperationalIssueNotices(db *sql.DB, now time.Time, limit int) ([
 			Detail:      sanitizeOperationalIssueText(record.Detail, 240),
 			LastSeen:    record.LastSeen,
 			Occurrences: record.Occurrences,
+			Advisory:    operationalIssueIsAdvisory(record),
 		})
 	}
 	return notices, nil
@@ -649,10 +664,17 @@ func sanitizeOperationalIssueText(value string, maxRunes int) string {
 }
 
 func operationalIssueVisibleToUser(record operationalIssueRecord) bool {
-	if !strings.EqualFold(strings.TrimSpace(record.Source), "memory_reflect") {
+	if !operationalIssueIsAdvisory(record) {
 		return true
 	}
 	return operationalIssueRequiresUserAction(record)
+}
+
+// operationalIssueIsAdvisory reports whether a record came from the memory
+// reflection. The source, not the stored kind, decides: it also covers records
+// written before this marker existed, and the kind is shown to administrators.
+func operationalIssueIsAdvisory(record operationalIssueRecord) bool {
+	return strings.EqualFold(strings.TrimSpace(record.Source), OperationalIssueSourceMemoryReflect)
 }
 
 func operationalIssueNoticeDue(record operationalIssueRecord, now time.Time) bool {
