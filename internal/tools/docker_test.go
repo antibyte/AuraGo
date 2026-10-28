@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -116,6 +117,48 @@ func TestBuildImageContextWaitIncludesAdditionalFiles(t *testing.T) {
 	}
 	if !sawHelper {
 		t.Fatal("fake Docker build endpoint did not receive helper file")
+	}
+}
+
+// A failing build step leaves its intermediate container behind unless the
+// Engine is told to remove it: rm covers a successful build, forcerm a failed
+// one. Both outcomes must send both flags, or a retried build piles up exited
+// containers.
+func TestBuildImageContextWaitRemovesIntermediateContainersEvenOnFailure(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+		fail bool
+	}{
+		{name: "success", body: `{"stream":"ok"}` + "\n"},
+		{name: "failed step", body: `{"errorDetail":{"message":"exit 127"},"error":"The command returned a non-zero code: 127"}` + "\n", fail: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var query url.Values
+			server := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				query = r.URL.Query()
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+
+			host := "tcp://" + strings.TrimPrefix(server.URL, "http://")
+			err := BuildImageContextWait(context.Background(), DockerConfig{Host: host}, "aurago/cleanup:test", "Dockerfile", []byte("FROM alpine\n"), nil, map[string]string{"A": "b"}, nil)
+			if (err != nil) != tc.fail {
+				t.Fatalf("BuildImageContextWait error = %v, want failure %v", err, tc.fail)
+			}
+			if query == nil {
+				t.Fatal("fake Docker build endpoint was not called")
+			}
+			for key, want := range map[string]string{"rm": "1", "forcerm": "1", "t": "aurago/cleanup:test", "dockerfile": "Dockerfile"} {
+				if got := query.Get(key); got != want {
+					t.Errorf("build query %s = %q, want %q (query %q)", key, got, want, query.Encode())
+				}
+			}
+			if query.Get("buildargs") == "" {
+				t.Error("build query lost its buildargs")
+			}
+		})
 	}
 }
 
