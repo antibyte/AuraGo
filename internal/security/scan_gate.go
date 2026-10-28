@@ -123,3 +123,14 @@ func GateScan(g *Guardian, text string) (scan ScanResult, withhold bool) {
 	}
 	return relieveBarePhrases(text, scan, ThreatHigh, g.ScanForInjectionLocal)
 }
+
+// RelieveBarePhrases is the relief rule of GateScan and SanitizeToolOutput (relieveBarePhrases)
+// for a gate of another package whose bar is not ThreatHigh: the model-authored memory
+// writes, which refuse a durable entry already at ThreatMedium. scan is the local scan of
+// text, which reached threshold; the caller has dealt with an incomplete scan. It returns the
+// scan that decides (the rescan of the text with its bare role and time phrases blanked
+// when they were the only reason) and whether text stays hostile. rescan reads the blanked
+// text; the Guardian's ScanForInjectionLocal is the usual one, a caller may wrap it.
+func RelieveBarePhrases(text string, scan ScanResult, threshold ThreatLevel, rescan func(string) ScanResult) (ScanResult, bool) {
+	return relieveBarePhrases(text, scan, threshold, rescan)
+}

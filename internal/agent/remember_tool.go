@@ -109,6 +109,32 @@ func rememberGraphTexts(tc ToolCall, content string) []string {
 	return texts
 }
 
+// rememberTextFindings lists what the local scan of one text reports at limit. A text that
+// reaches limit only through bare role or time phrases ("From now on I prefer short
+// answers", "From now on, reply in German") is judged without them, the rule GateScan and
+// the tool-output scan apply (security.RelieveBarePhrases): the rest still has to stay below
+// limit, and a directive shape or a phrase that hands over a role, a mode or an order keeps
+// the finding. A durable text is read for that with its benign "always answer in German"
+// forms reduced, as rememberContentRefused does for a text with no bare phrase.
+func rememberTextFindings(guardian *security.Guardian, text string, limit security.ThreatLevel, durable bool) []string {
+	scan := guardian.ScanForInjectionLocal(text)
+	if scan.Level >= limit && !scan.Incomplete {
+		rescan := guardian.ScanForInjectionLocal
+		if durable {
+			rescan = func(blanked string) security.ScanResult {
+				if reduced, ok := rememberReduceBenignRole(blanked); ok {
+					blanked = reduced
+				}
+				return guardian.ScanForInjectionLocal(blanked)
+			}
+		}
+		if relieved, held := security.RelieveBarePhrases(text, scan, limit, rescan); !held {
+			scan = relieved
+		}
+	}
+	return rememberScanFindings(scan, limit)
+}
+
 // rememberContentRefused screens the text of a model-authored durable write with
 // the dispatch Guardian's local scan, which runs whether or not the LLM Guardian
 // is enabled, so the write tools do not depend on a default-off feature. Core
@@ -116,9 +142,12 @@ func rememberGraphTexts(tc ToolCall, content string) []string {
 // edge (the graph reaches the prompt through KnowledgeContext), are injected
 // into later runs: they are refused at ThreatMedium or when the text is a
 // standing order (memory.StandingOrder). Journal, task and note entries are
-// refused at ThreatHigh. manage_memory add and update pass target "fact" with
-// the fact as content. It returns the sanitized finding names for the log; the
-// content itself is never logged.
+// refused at ThreatHigh. A text that only trips bare role or time phrases
+// ("From now on I prefer short answers") is not refused for them
+// (rememberTextFindings); memory.StandingOrder stays the durable gate for what
+// a "from now on" order would do. manage_memory add and update pass target
+// "fact" with the fact as content. It returns the sanitized finding names for
+// the log; the content itself is never logged.
 func rememberContentRefused(guardian *security.Guardian, target, content string, tc ToolCall) (findings []string, refused bool) {
 	durable := false
 	texts := []string{content, tc.Title}
@@ -141,11 +170,11 @@ func rememberContentRefused(guardian *security.Guardian, target, content string,
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
-		found := rememberScanFindings(guardian.ScanForInjectionLocal(text), limit)
+		found := rememberTextFindings(guardian, text, limit, durable)
 		if durable && len(found) == 1 && found[0] == rememberRolePattern {
 			if reduced, ok := rememberReduceBenignRole(text); ok {
 				// Judge the text again without that phrase: any other trigger is still there.
-				found = rememberScanFindings(guardian.ScanForInjectionLocal(reduced), limit)
+				found = rememberTextFindings(guardian, reduced, limit, durable)
 			}
 		}
 		if len(found) > 0 {
