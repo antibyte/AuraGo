@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Το έργο δεν έχει κοντέινερ.",
   "docker_manager.error_forbidden_origin": "Το αίτημα προήλθε από άλλη προέλευση και απορρίφθηκε.",
   "docker_manager.error_docker_hosts_unavailable": "Οι υπολογιστές Docker δεν είναι διαθέσιμοι αυτή τη στιγμή.",
-  "docker_manager.error_docker_disabled": "Το Docker είναι απενεργοποιημένο."
+  "docker_manager.error_docker_disabled": "Το Docker είναι απενεργοποιημένο.",
+  "docker_manager.term_protected_body": "Το {{name}} είναι προστατευμένο. Να ανοίξει παρ’ όλα αυτά ένα κέλυφος σε αυτό;",
+  "docker_manager.palette_logs": "Αρχεία καταγραφής: {{name}}",
+  "docker_manager.palette_terminal": "Τερματικό: {{name}}"
 }

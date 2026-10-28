@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "प्रोजेक्ट में कोई कंटेनर नहीं है।",
   "docker_manager.error_forbidden_origin": "यह अनुरोध किसी दूसरे ओरिजिन से आया था और अस्वीकार कर दिया गया।",
   "docker_manager.error_docker_hosts_unavailable": "Docker होस्ट इस समय उपलब्ध नहीं हैं।",
-  "docker_manager.error_docker_disabled": "Docker बंद है।"
+  "docker_manager.error_docker_disabled": "Docker बंद है।",
+  "docker_manager.term_protected_body": "{{name}} सुरक्षित है। फिर भी उसमें शेल खोलें?",
+  "docker_manager.palette_logs": "लॉग: {{name}}",
+  "docker_manager.palette_terminal": "टर्मिनल: {{name}}"
 }

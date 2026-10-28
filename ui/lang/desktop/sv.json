@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Projektet har inga containrar.",
   "docker_manager.error_forbidden_origin": "Begäran kom från ett annat ursprung och nekades.",
   "docker_manager.error_docker_hosts_unavailable": "Docker-värdarna är inte tillgängliga just nu.",
-  "docker_manager.error_docker_disabled": "Docker är avstängt."
+  "docker_manager.error_docker_disabled": "Docker är avstängt.",
+  "docker_manager.term_protected_body": "{{name}} är skyddad. Öppna ändå ett skal i den?",
+  "docker_manager.palette_logs": "Loggar: {{name}}",
+  "docker_manager.palette_terminal": "Terminal: {{name}}"
 }

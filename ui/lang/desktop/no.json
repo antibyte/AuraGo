@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Prosjektet har ingen containere.",
   "docker_manager.error_forbidden_origin": "Forespørselen kom fra en annen opprinnelse og ble avvist.",
   "docker_manager.error_docker_hosts_unavailable": "Docker-vertene er ikke tilgjengelige akkurat nå.",
-  "docker_manager.error_docker_disabled": "Docker er slått av."
+  "docker_manager.error_docker_disabled": "Docker er slått av.",
+  "docker_manager.term_protected_body": "{{name}} er beskyttet. Åpne likevel et skall i den?",
+  "docker_manager.palette_logs": "Logger: {{name}}",
+  "docker_manager.palette_terminal": "Terminal: {{name}}"
 }

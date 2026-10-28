@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Il progetto non ha container.",
   "docker_manager.error_forbidden_origin": "Questa richiesta proviene da un’altra origine ed è stata rifiutata.",
   "docker_manager.error_docker_hosts_unavailable": "Gli host Docker non sono al momento disponibili.",
-  "docker_manager.error_docker_disabled": "Docker è disattivato."
+  "docker_manager.error_docker_disabled": "Docker è disattivato.",
+  "docker_manager.term_protected_body": "{{name}} è protetto. Aprire comunque una shell al suo interno?",
+  "docker_manager.palette_logs": "Log: {{name}}",
+  "docker_manager.palette_terminal": "Terminale: {{name}}"
 }

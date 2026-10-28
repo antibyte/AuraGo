@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Het project heeft geen containers.",
   "docker_manager.error_forbidden_origin": "Dit verzoek kwam van een andere herkomst en is geweigerd.",
   "docker_manager.error_docker_hosts_unavailable": "De Docker-hosts zijn op dit moment niet beschikbaar.",
-  "docker_manager.error_docker_disabled": "Docker staat uit."
+  "docker_manager.error_docker_disabled": "Docker staat uit.",
+  "docker_manager.term_protected_body": "{{name}} is beschermd. Toch een shell erin openen?",
+  "docker_manager.palette_logs": "Logboek: {{name}}",
+  "docker_manager.palette_terminal": "Terminal: {{name}}"
 }

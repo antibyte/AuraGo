@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Projekt nie ma kontenerów.",
   "docker_manager.error_forbidden_origin": "To żądanie pochodzi z innego źródła i zostało odrzucone.",
   "docker_manager.error_docker_hosts_unavailable": "Hosty Dockera są w tej chwili niedostępne.",
-  "docker_manager.error_docker_disabled": "Docker jest wyłączony."
+  "docker_manager.error_docker_disabled": "Docker jest wyłączony.",
+  "docker_manager.term_protected_body": "{{name}} jest chroniony. Otworzyć w nim powłokę mimo to?",
+  "docker_manager.palette_logs": "Logi: {{name}}",
+  "docker_manager.palette_terminal": "Terminal: {{name}}"
 }

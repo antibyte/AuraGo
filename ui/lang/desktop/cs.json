@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Projekt nemá žádné kontejnery.",
   "docker_manager.error_forbidden_origin": "Požadavek přišel z jiného původu a byl odmítnut.",
   "docker_manager.error_docker_hosts_unavailable": "Hostitelé Dockeru nejsou momentálně dostupní.",
-  "docker_manager.error_docker_disabled": "Docker je vypnutý."
+  "docker_manager.error_docker_disabled": "Docker je vypnutý.",
+  "docker_manager.term_protected_body": "{{name}} je chráněn. Přesto v něm otevřít shell?",
+  "docker_manager.palette_logs": "Logy: {{name}}",
+  "docker_manager.palette_terminal": "Terminál: {{name}}"
 }

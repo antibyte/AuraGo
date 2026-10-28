@@ -2205,7 +2205,7 @@ const full = {};
         op_kind_: [...sm.OP_KINDS],
         lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint'],
         op_state_: [...sm.OP_STATES],
-        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh'],
+        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh', 'logs', 'terminal'],
         sv_name_: ['empty', 'invalid', 'taken'],
         convert_: [...sm.CONVERT_WARNINGS],
         preview_kind_: [...sm.VOLUME_KINDS],

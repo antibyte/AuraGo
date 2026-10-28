@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "プロジェクトにコンテナがありません。",
   "docker_manager.error_forbidden_origin": "このリクエストは別のオリジンから送られたため拒否されました。",
   "docker_manager.error_docker_hosts_unavailable": "Docker ホストは現在利用できません。",
-  "docker_manager.error_docker_disabled": "Docker は無効になっています。"
+  "docker_manager.error_docker_disabled": "Docker は無効になっています。",
+  "docker_manager.term_protected_body": "{{name}} は保護されています。それでもシェルを開きますか？",
+  "docker_manager.palette_logs": "ログ: {{name}}",
+  "docker_manager.palette_terminal": "ターミナル: {{name}}"
 }

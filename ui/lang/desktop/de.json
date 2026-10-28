@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Das Projekt hat keine Container.",
   "docker_manager.error_forbidden_origin": "Diese Anfrage stammt von einer anderen Herkunft und wurde abgelehnt.",
   "docker_manager.error_docker_hosts_unavailable": "Die Docker-Hosts sind im Moment nicht verfügbar.",
-  "docker_manager.error_docker_disabled": "Docker ist ausgeschaltet."
+  "docker_manager.error_docker_disabled": "Docker ist ausgeschaltet.",
+  "docker_manager.term_protected_body": "{{name}} ist geschützt. Trotzdem eine Shell darin öffnen?",
+  "docker_manager.palette_logs": "Logs: {{name}}",
+  "docker_manager.palette_terminal": "Terminal: {{name}}"
 }

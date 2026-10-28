@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "The project has no containers.",
   "docker_manager.error_forbidden_origin": "This request came from another origin and was refused.",
   "docker_manager.error_docker_hosts_unavailable": "The Docker hosts are not available right now.",
-  "docker_manager.error_docker_disabled": "Docker is switched off."
+  "docker_manager.error_docker_disabled": "Docker is switched off.",
+  "docker_manager.term_protected_body": "{{name}} is protected. Open a shell in it anyway?",
+  "docker_manager.palette_logs": "Logs: {{name}}",
+  "docker_manager.palette_terminal": "Terminal: {{name}}"
 }

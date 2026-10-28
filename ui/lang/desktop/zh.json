@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "该项目没有容器。",
   "docker_manager.error_forbidden_origin": "此请求来自其他来源，已被拒绝。",
   "docker_manager.error_docker_hosts_unavailable": "Docker 主机当前不可用。",
-  "docker_manager.error_docker_disabled": "Docker 已关闭。"
+  "docker_manager.error_docker_disabled": "Docker 已关闭。",
+  "docker_manager.term_protected_body": "{{name}} 受到保护。仍要在其中打开 shell 吗？",
+  "docker_manager.palette_logs": "日志：{{name}}",
+  "docker_manager.palette_terminal": "终端：{{name}}"
 }

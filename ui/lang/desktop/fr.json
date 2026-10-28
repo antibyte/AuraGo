@@ -10511,5 +10511,8 @@
   "docker_manager.error_project_not_found": "Le projet n’a aucun conteneur.",
   "docker_manager.error_forbidden_origin": "Cette requête provient d’une autre origine et a été refusée.",
   "docker_manager.error_docker_hosts_unavailable": "Les hôtes Docker ne sont pas disponibles pour le moment.",
-  "docker_manager.error_docker_disabled": "Docker est désactivé."
+  "docker_manager.error_docker_disabled": "Docker est désactivé.",
+  "docker_manager.term_protected_body": "{{name}} est protégé. Ouvrir tout de même un shell dedans ?",
+  "docker_manager.palette_logs": "Journaux : {{name}}",
+  "docker_manager.palette_terminal": "Terminal : {{name}}"
 }
