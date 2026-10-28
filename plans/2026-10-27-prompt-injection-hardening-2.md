@@ -428,6 +428,10 @@ What was run:
   the base too, and the `go vet` lostcancel finding in `internal/llm/retry.go` is on the base.
 - Review repairs (head `55dff579d`): full security, flows, server (`-skip Browser`) and agent packages pass
   apart from `TestToolSearchTermsCoverEveryBuiltinTool`.
+- Rebased onto main `21034a61c` without conflicts: full security, agent, flows, config, telegram, discord, a2a,
+  agentmail, mailer, memory, server (`-skip Browser`) and tools suites show no failure from the rebase. Beyond the
+  known items above, seven tests fail when GOTMPDIR is written with forward slashes, on main and on the
+  pre-rebase tip alike, and pass with a backslash GOTMPDIR (`t.TempDir()` keeps the raw prefix).
 - Documentation (this pass): names, thresholds (DNS rule, ThreatHigh for schema fences, 256 KiB clip,
   12000-byte summary part), test names, HiddenReason strings and the warning-line format were checked against
   the code by reading and grep.
