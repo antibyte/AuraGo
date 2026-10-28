@@ -1,10 +1,14 @@
 package dockerhost
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -231,4 +235,157 @@ func FollowLogs(ctx context.Context, c *dockerutil.Client, ref string, opt LogOp
 		return err
 	}
 	return stderr.finish()
+}
+
+// execStartBody is the body of POST /exec/{id}/start.
+type execStartBody struct {
+	Detach bool `json:"Detach"`
+	Tty    bool `json:"Tty"`
+}
+
+type execCreateBody struct {
+	AttachStdin  bool     `json:"AttachStdin"`
+	AttachStdout bool     `json:"AttachStdout"`
+	AttachStderr bool     `json:"AttachStderr"`
+	Tty          bool     `json:"Tty"`
+	Cmd          []string `json:"Cmd"`
+	Env          []string `json:"Env,omitempty"`
+}
+
+// ErrInvalidExecID is returned for an exec id that is unsafe in an API path.
+var ErrInvalidExecID = errors.New("invalid exec id")
+
+func validateExecID(id string) error {
+	if validateContainerRef(id) != nil {
+		return ErrInvalidExecID
+	}
+	return nil
+}
+
+// execJSON is Client.DoJSON with a request body that wraps a non-2xx answer in
+// a *StatusError.
+func execJSON(ctx context.Context, c *dockerutil.Client, method, path string, body, out any) error {
+	status, err := c.DoJSON(ctx, method, path, body, out)
+	if err != nil && status != 0 && (status < 200 || status >= 300) {
+		return &StatusError{Status: status, Err: err}
+	}
+	return err
+}
+
+// ExecCreate creates an exec in a running container and returns its id. With
+// tty it is an interactive session: a pseudo terminal with stdin, stdout and
+// stderr attached. Without tty nothing is attached (a helper to be started
+// with ExecStartDetached). Env entries are "NAME=value".
+func ExecCreate(ctx context.Context, c *dockerutil.Client, ref string, cmd, env []string, tty bool) (string, error) {
+	if err := validateContainerRef(ref); err != nil {
+		return "", err
+	}
+	if len(cmd) == 0 {
+		return "", errors.New("exec command is empty")
+	}
+	body := execCreateBody{AttachStdin: tty, AttachStdout: tty, AttachStderr: tty, Tty: tty, Cmd: cmd, Env: env}
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if err := execJSON(ctx, c, http.MethodPost, "containers/"+url.PathEscape(ref)+"/exec", body, &created); err != nil {
+		return "", err
+	}
+	if created.ID == "" {
+		return "", errors.New("Docker exec create returned no id")
+	}
+	return created.ID, nil
+}
+
+// ExecStart hijacks POST /exec/{id}/start ({"Detach":false,"Tty":true}). The
+// connection is dialled with c.Dial and the request is written with the API
+// version c.APIVersion negotiated, so TLS, mutual TLS and SSH hosts work like
+// the local socket. The result is the raw terminal stream; Read is buffered (it
+// returns bytes the Engine sent right behind the response header) and Close
+// closes the connection. ctx bounds the handshake only: the stream outlives it.
+// An Engine refusal is a *StatusError (404 unknown exec, 409 container not
+// running or paused).
+func ExecStart(ctx context.Context, c *dockerutil.Client, execID string) (io.ReadWriteCloser, error) {
+	if err := validateExecID(execID); err != nil {
+		return nil, err
+	}
+	version, err := c.APIVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := c.Dial(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("connect to Docker engine: %w", err)
+	}
+	// A peer that never answers must not hold the handshake past ctx.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	stream, err := execUpgrade(ctx, conn, version, execID)
+	if err != nil {
+		stop()
+		_ = conn.Close()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, err
+	}
+	if !stop() { // ctx ended while the handshake finished: the connection is closed
+		_ = conn.Close()
+		return nil, ctx.Err()
+	}
+	return stream, nil
+}
+
+func execUpgrade(ctx context.Context, conn net.Conn, version, execID string) (*execStream, error) {
+	body, _ := json.Marshal(execStartBody{Detach: false, Tty: true})
+	target := "http://docker/v" + strings.TrimPrefix(version, "v") + "/exec/" + url.PathEscape(execID) + "/start"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("build docker exec start request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "tcp")
+	if err := req.Write(conn); err != nil {
+		return nil, fmt.Errorf("send docker exec start request: %w", err)
+	}
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, req)
+	if err != nil {
+		return nil, fmt.Errorf("read docker exec start response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusSwitchingProtocols {
+		defer resp.Body.Close()
+		message := dockerutil.SanitizeOneLine(dockerutil.EngineErrorMessage(dockerutil.ReadErrorBody(resp.Body)), 512)
+		return nil, &StatusError{Status: resp.StatusCode, Err: fmt.Errorf("Docker API returned %d: %s", resp.StatusCode, message)}
+	}
+	return &execStream{Conn: conn, reader: reader}, nil
+}
+
+// execStream is a hijacked exec connection. Reads go through the buffer that
+// parsed the response header; everything else (Write, Close, the deadlines)
+// is the connection's.
+type execStream struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+func (s *execStream) Read(p []byte) (int, error) { return s.reader.Read(p) }
+
+// ExecResize sets the size of an exec's terminal.
+func ExecResize(ctx context.Context, c *dockerutil.Client, execID string, cols, rows int) error {
+	if err := validateExecID(execID); err != nil {
+		return err
+	}
+	if cols <= 0 || rows <= 0 {
+		return fmt.Errorf("invalid terminal size %dx%d", cols, rows)
+	}
+	return engineJSON(ctx, c, http.MethodPost, fmt.Sprintf("exec/%s/resize?h=%d&w=%d", url.PathEscape(execID), rows, cols), nil)
+}
+
+// ExecStartDetached starts an exec in the background ({"Detach":true,"Tty":false});
+// the Engine answers when the process has started.
+func ExecStartDetached(ctx context.Context, c *dockerutil.Client, execID string) error {
+	if err := validateExecID(execID); err != nil {
+		return err
+	}
+	return execJSON(ctx, c, http.MethodPost, "exec/"+url.PathEscape(execID)+"/start", execStartBody{Detach: true, Tty: false}, nil)
 }
