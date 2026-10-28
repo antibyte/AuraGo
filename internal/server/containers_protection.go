@@ -716,6 +716,16 @@ func adminContainerListJSON(ctx context.Context, s *Server, cfg tools.DockerConf
 	if failure != "" {
 		return failure
 	}
+	out := adminContainerEntries(ctx, s, cfg, entries)
+	encoded, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(out), "containers": out})
+	return string(encoded)
+}
+
+// adminContainerEntries classifies a listed container set: the protection
+// flags of every entry (self, shared network, Docker endpoint, owner). It
+// lists nothing itself, so a caller that already holds the entries of the
+// Engine's answer (the Docker Manager's local list) does not list twice.
+func adminContainerEntries(ctx context.Context, s *Server, cfg tools.DockerConfig, entries []tools.DockerContainerListEntry) []adminContainerEntry {
 	// Hostname and /proc are read once per request; the endpoint lookup is
 	// shared between lists for containerEndpointCacheTTL.
 	self, shared := containerSelfInList(entries, readContainerSelfSignals(containerRuntimeIsDocker(s)))
@@ -754,6 +764,5 @@ func adminContainerListJSON(ctx context.Context, s *Server, cfg tools.DockerConf
 			SharedNetwork:            shared[id],
 		})
 	}
-	encoded, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(out), "containers": out})
-	return string(encoded)
+	return out
 }
