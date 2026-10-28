@@ -684,6 +684,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := validateInjectionGuardActivation(s, &validateCfg); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.ValidateActionPolicy(validateCfg.Agent.ActionPolicy); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

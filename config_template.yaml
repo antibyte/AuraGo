@@ -1904,6 +1904,9 @@ llm_guardian:
     scan_documents: false
     scan_emails: false
 guardian:
+    injection_guard:
+        enabled: false                                      # optional local Horizon classifier; install through Config first
+        action: quarantine                                  # quarantine | datamark (web content and email only)
     max_scan_bytes: 16384                 # regex guardian scans larger inputs in a bounded window
     scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
     promptsec:

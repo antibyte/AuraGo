@@ -1,5 +1,15 @@
 # Externe Projekte und Lizenzbedingungen
 
+## Optionaler Horizon-Schutz
+
+`Horizon-Labs/prompt-injection-guard-small`, Revision
+`0e3774536debbcd71dbb8534ef71451b583853b8`: Apache-2.0. Unveränderter offizieller
+quantisierter ONNX-Export und Tokenizer, nur nach Download durch den Administrator.
+Größen und SHA-256 stehen in `internal/injectionguard/model.go`; Lizenztext:
+`texts/Apache-2.0.txt`. Die CPU-Laufzeit ONNX Runtime 1.26.0 steht unter MIT und wird
+mit anderen ONNX-Funktionen geteilt. Herkunft und Betrieb: `THIRD_PARTY_NOTICES.md`
+und `documentation/prompt-injection-protection.md`.
+
 ## Phonon-Sprachausgabe
 
 Gradium Phonon wird als getrenntes lokales Sprachpaket mitgeliefert. Die Laufzeit

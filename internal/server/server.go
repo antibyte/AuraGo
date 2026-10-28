@@ -45,6 +45,7 @@ import (
 	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
 	"aurago/internal/i18n"
+	"aurago/internal/injectionguard"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/localllm"
@@ -260,6 +261,7 @@ type Server struct {
 	InventoryDB               *sql.DB
 	InvasionDB                *sql.DB
 	Guardian                  *security.Guardian
+	InjectionGuard            *injectionguard.Manager
 	LLMGuardian               *security.LLMGuardian
 	CoAgentRegistry           *agent.CoAgentRegistry
 	BudgetTracker             *budget.Tracker
@@ -522,6 +524,9 @@ func (s *Server) newRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Lo
 func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
+	}
+	if s.InjectionGuard != nil {
+		s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
 	}
 	if s.RustFS != nil {
 		cfg.AcquireS3 = s.RustFS.AcquireS3
@@ -856,6 +861,11 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	s.InjectionGuard = injectionguard.NewManager(serverCtx, cfg.Directories.DataDir, "")
+	s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
+	releaseInjectionGuard := security.RegisterExternalContentScanner(s.InjectionGuard)
+	defer func() { releaseInjectionGuard(); s.InjectionGuard.Close() }()
+	s.InjectionGuard.Inspect()
 	s.RustFS = rustfs.NewManager(serverCtx, cfg, s.Vault, logger)
 	cfg.AcquireS3 = s.RustFS.AcquireS3
 	cfg.S3Availability = s.RustFS.Availability

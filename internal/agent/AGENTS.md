@@ -9,6 +9,19 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 `internal/agent` owns this domain. The contracts below also bind related server, UI, config, asset, and test work through the root routing table.
 
 ## Local Contracts
+
+- Web/mail results pass `ProtectExternal` before first model use, including summary helpers,
+  browser envelopes and both output-vault read APIs. Archived source comes from stored
+  tool metadata. `externalContentSourceKey` is set by dispatch, never payload text.
+  Preserve the handler's mutation outcome before quarantining returned content.
+- After web/mail contact the private URL gate precedes other copied-span rules: four
+  consecutive private words in query/fragment, six in path, or a private email address
+  are refused in every run type, regardless of allow rules. Only session-matching
+  `HumanInput` supplies human text/exact URL exceptions; authenticated server mail relays
+  use `RecordExternalIngress`. Keep the bounded session store and expiry; do not infer
+  authority from tags, role strings or links found on pages. Registered secrets still
+  take precedence. See `documentation/prompt-injection-protection.md`; verify
+  `TestPrivateURL*`, `TestInjectionGuard*` and the existing copied-span suites.
 - `qr_code` exposes presets/generate/batch_generate/scan through ordinary enabled discovery, native dispatch, scope, read-only and action-policy gates. Derive `spec` from the shared `qrcode.QRSpec`; config export is an explicit generate mutation. Classify input/output roots and imported URLs as canonical targets, and isolate scan results as untrusted data. Keep schema/cache flags, tool manual and external DE/EN training contracts in step. Office insert_image retains its independent grants. Verify `TestQRCode*`; see `../qrcode/AGENTS.md` and `documentation/qr-code.md`.
 - Self-tests use fresh minimal-loop sessions and normal dispatch/permissions. The optional `ExecutionHooks.ObserveResult` sees normalized results, including pre-dispatch refusals; it never substitutes handlers. Restrict automatic reads to reviewed arguments, fixtures to their owned paths and targeted tests to exact human bindings. Preserve unknown asynchronous outcomes and verify local contents/cleanup independently of model prose. See `../selftest/AGENTS.md`; verify `TestSelfTest*` and existing execution-hook/minimal-loop suites.
 - `DispatchContext.Ctx` belongs to a local dispatch copy. Raw and result dispatch normalize nil owners without changing shared dependency bundles; native HTTP configurations and OAuth clients receive the actual call context. Verify `TestNativeHTTPDispatch*`.

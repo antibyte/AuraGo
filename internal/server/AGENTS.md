@@ -6,6 +6,15 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- The optional injection guard is owned by `serverCtx`; construction/status/startup never
+  download. Register its scanner before integrations start and close/unregister on exit.
+  Config publication calls `Configure` to revoke pending decisions. False-to-true saves
+  require verified readiness. `/api/guardian/injection-guard/{status,download,cancel,test}`
+  uses `requireAdmin`, existing auth/CSRF and fixed error categories. Install jobs outlive
+  requests, not the server. Mail origin requires a valid process loopback token plus
+  server-set source/follow-up headers; browser headers never create that provenance.
+  Verify `TestInjectionGuard*`; see `../injectionguard/AGENTS.md`.
+
 - `/api/qr/` shares the native `internal/qrcode` core and expensive-work admission with the agent tool. Use existing Desktop auth/CSRF/scopes: render/batch/import-image require write, presets/scan/config require read; human access is independent of agent QR enablement. Bound strict JSON/raw images, return no-store/nosniff/sandbox responses and never persist previews. Public image import additionally requires network permission and the shared SSRF-safe transport. Preserve cancellation and row errors; invalid batches never return ZIP bytes. Verify `TestQRCode*`; `internal/qrcode/AGENTS.md` and `documentation/qr-code.md` own format/limits.
 
 - Decisions is constructed passively from the saved snapshot and trusted install

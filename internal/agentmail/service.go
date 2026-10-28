@@ -458,8 +458,23 @@ func (s *Service) sanitizeMessage(ctx context.Context, msg Message) (out Message
 		result := security.ContentScanQuarantine(security.QuarantineSuspicious)
 		return msg, &result, false
 	}
-	combined := fmt.Sprintf("From: %s <%s>\nSubject: %s\nText: %s\nSnippet: %s\nLabels: %s",
-		msg.From.Name, msg.From.Email, msg.Subject, msg.Text, msg.Snippet, strings.Join(msg.Labels, ", "))
+	combined := fmt.Sprintf("Inbox: %s\nMessage: %s\nThread: %s\nFrom: %s <%s>\nSubject: %s\nText: %s\nSnippet: %s\nLabels: %s",
+		s.cfg.InboxID, msg.ID, msg.ThreadID, msg.From.Name, msg.From.Email, msg.Subject, msg.Text, msg.Snippet, strings.Join(msg.Labels, ", "))
+	checked := s.guardian.ProtectExternal(ctx, security.ExternalEmail, combined)
+	if checked.Quarantined {
+		result := security.ContentScanQuarantine(checked.Reason)
+		return msg, &result, false
+	}
+	if checked.Datamarked {
+		msg.From.Name = security.Datamark(msg.From.Name)
+		msg.Subject = security.Datamark(msg.Subject)
+		msg.Text = security.Datamark(msg.Text) + "\n" + security.DatamarkNotice
+		msg.Snippet = security.Datamark(msg.Snippet)
+		msg.Labels = append([]string(nil), msg.Labels...)
+		for i := range msg.Labels {
+			msg.Labels[i] = security.Datamark(msg.Labels[i])
+		}
+	}
 	if s.guardian != nil {
 		scan := s.guardian.ScanForInjectionLocal(combined)
 		if scan.Level >= security.ThreatHigh {

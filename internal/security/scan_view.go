@@ -85,8 +85,8 @@ func scanView(text string) string {
 // sanitizer's own severity for a decoded block, while a shadow with no signal
 // adds nothing.
 //
-// A window yields at most three shadows (all base64 runs, all percent-escape
-// clusters, all entity clusters), none longer than the window. No shadow is
+// A window yields at most four shadows (base64, percent escapes, entities and
+// anchored ROT13), none longer than the window. No shadow is
 // ever dropped for its position or for an earlier one. The shadows of one scan
 // are budgeted (maxDecodeShadowTextFactor times the scanned text plus a few
 // windows), which bounds the cost at about four reads of the text: as written,
@@ -137,8 +137,21 @@ func decodeShadows(view string) []string {
 	add(strings.Join(runs, "\n"))
 	add(escapeClusterShadow(view, percentEscape, percentDecode))
 	add(escapeClusterShadow(view, numericEntity, html.UnescapeString))
+	if rot13Anchor.MatchString(view) {
+		add(strings.Map(func(r rune) rune {
+			switch {
+			case r >= 'a' && r <= 'z':
+				return 'a' + (r-'a'+13)%26
+			case r >= 'A' && r <= 'Z':
+				return 'A' + (r-'A'+13)%26
+			}
+			return r
+		}, view))
+	}
 	return shadows
 }
+
+var rot13Anchor = regexp.MustCompile(`(?i)\b(?:vtaber|vtabevrer|vtaberm|cerivbhf|vafgehpgvbaf|flfgrz|cebzcg|nffvfgnag|pungtcg|najrvfhatra)\b`)
 
 // decodeBase64Run decodes a run with the raw alphabet it uses (URL-safe when it
 // holds '-' or '_', standard otherwise); padding is optional. A run one

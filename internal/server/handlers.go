@@ -379,6 +379,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 		defer unlockSession()
 		r = r.WithContext(turnCtx)
+		if isFollowUp && trustedMailIngress(r, s) {
+			agent.RecordExternalIngress(sessionID, security.ExternalEmail, lastUserMsg.Content)
+		}
 
 		// Phase: Command Interception
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && strings.HasPrefix(lastUserMsg.Content, "/") {

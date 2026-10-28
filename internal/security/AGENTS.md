@@ -10,6 +10,20 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
+- `ProtectExternal(ctx, source, text)` is the common web/email gate. Trusted adapters choose
+  the source; never infer it from payload tags. Run before helper LLM calls and before
+  escaping/Unicode cleanup. Hard rules precede the optional local classifier, whose
+  errors and incomplete/over-limit input always quarantine. Datamarking changes natural
+  JSON values, preserves keys/structure/code and never relaxes hard blocks. No paragraph
+  deletion. Cached Guardians carry the configured enablement bit; missing runtime fails
+  closed when enabled. `RegisterExternalContentScanner` is server-owned lifecycle state.
+  See `../injectionguard/AGENTS.md` and `documentation/prompt-injection-protection.md`.
+- The control-token catalog is versioned by `ControlTokenCatalogVersion`. Keep plural
+  Mistral bracket tokens and tag/turn tokens neutralized, including on source-boundary
+  fallback. Preserve ZWJ/ZWNJ in delivered text; normalization is a separate scan view.
+  ROT13 adds only an anchored, bounded shadow under the existing completeness budget.
+  Verify `TestExternalContent*`, `TestDatamark*`, `TestControlToken*`, `TestROT13*`.
+
 - Startup may read the unchanged master key from `AURAGO_MASTER_KEY_FILE`; an explicit environment key takes precedence. Initialize the Vault before child processes, retain the key only in the private trusted-updater store, then remove `AURAGO_MASTER_KEY` from the environment and config snapshot. No automatic rotation. Generic Vault mutation APIs must reject reserved authentication/session/master/internal keys; the server route remains administrator-only.
 
 - OAuth rotation uses compare-and-swap against the exact previous Vault value under both process mutex and file lock; revocation or a new login cannot be overwritten. Rotated values remain agent-hidden.

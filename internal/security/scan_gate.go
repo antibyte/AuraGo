@@ -19,9 +19,10 @@ func guardianOptionsFromConfig(cfg *config.Config) GuardianOptions {
 	}
 	promptsec := cfg.Guardian.PromptSec
 	return GuardianOptions{
-		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
-		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
-		Preset:        promptsec.Preset,
+		InjectionGuardEnabled: cfg.Guardian.InjectionGuard.Enabled,
+		MaxScanBytes:          cfg.Guardian.MaxScanBytes,
+		ScanEdgeBytes:         cfg.Guardian.ScanEdgeBytes,
+		Preset:                promptsec.Preset,
 		Sanitizer: PromptSecSanitizerOptions{
 			Normalize:   promptsec.Sanitizer.Normalize,
 			Dehomoglyph: promptsec.Sanitizer.Dehomoglyph,

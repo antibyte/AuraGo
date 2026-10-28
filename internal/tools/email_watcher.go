@@ -326,6 +326,11 @@ func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAc
 		}
 		content := fmt.Sprintf("From: %s | Subject: %s | Snippet: %s | Body: %s", msg.From, msg.Subject, msg.Snippet, msg.Body)
 		var blocked *security.GuardianResult
+		checked := ew.guardian.ProtectExternal(ctx, security.ExternalEmail, content)
+		if checked.Quarantined {
+			result := security.ContentScanQuarantine(checked.Reason)
+			blocked = &result
+		}
 		if ew.guardian != nil && ew.guardian.ScanForInjectionLocal(content).Level >= security.ThreatHigh {
 			result := security.ContentScanQuarantine(security.QuarantineSuspicious)
 			blocked = &result
@@ -356,7 +361,11 @@ func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAc
 		}
 		processedUIDs[msg.UID] = true
 		ordinaryCount++
-		summary += fmt.Sprintf("\n%d. %s", ordinaryCount, content)
+		summary += fmt.Sprintf("\n%d. %s", ordinaryCount, checked.Text)
+		if checked.Datamarked {
+			summary += "\n" + security.DatamarkNotice
+			continue
+		}
 
 		// Quarantined mail exits above; only ordinary mail can trigger missions.
 		ew.mu.Lock()
@@ -491,6 +500,7 @@ func (ew *EmailWatcher) notifyAgent(ctx context.Context, prompt string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Internal-FollowUp", "true")
+	req.Header.Set("X-External-Source", string(security.ExternalEmail))
 	if internalToken != "" {
 		req.Header.Set("X-Internal-Token", internalToken)
 	}

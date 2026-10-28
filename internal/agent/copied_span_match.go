@@ -157,6 +157,10 @@ func percentDecodedRounds(text string) []string {
 // also contributes its decoded forms, because the receiver reads those. The session
 // todo and the guardian notes ride along on the call without being part of it.
 func copiedSpanArgumentText(tc ToolCall) string {
+	return copiedSpanArguments(tc, true)
+}
+
+func copiedSpanArguments(tc ToolCall, decodePercent bool) string {
 	tc.Todo = ""
 	tc.GuardianJustification = ""
 	tc.GuardianBlocked = false
@@ -179,9 +183,11 @@ func copiedSpanArgumentText(tc ToolCall) string {
 		case string:
 			text.WriteString(value)
 			text.WriteByte('\n')
-			for _, decoded := range percentDecodedRounds(value) {
-				text.WriteString(decoded)
-				text.WriteByte('\n')
+			if decodePercent {
+				for _, decoded := range percentDecodedRounds(value) {
+					text.WriteString(decoded)
+					text.WriteByte('\n')
+				}
 			}
 		case []interface{}:
 			for _, item := range value {
@@ -196,7 +202,10 @@ func copiedSpanArgumentText(tc ToolCall) string {
 		}
 	}
 	walk(node, 0)
-	return normalizeCopiedText(text.String())
+	if decodePercent {
+		return normalizeCopiedText(text.String())
+	}
+	return text.String()
 }
 
 // copiedSpanViews are the normalised texts an isolated output is indexed by: the

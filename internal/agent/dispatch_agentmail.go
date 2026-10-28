@@ -93,6 +93,11 @@ func dispatchAgentMailCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 func sanitizeAgentMailToolResult(ctx context.Context, guardian *security.Guardian, scanner emailContentEvaluator, scanEmails bool, reference string, data map[string]interface{}) string {
 	output := agentMailSuccess(data)
 	var held *security.GuardianResult
+	checked := guardian.ProtectExternal(ctx, security.ExternalEmail, output)
+	if checked.Quarantined {
+		result := security.ContentScanQuarantine(checked.Reason)
+		held = &result
+	}
 	if guardian != nil && guardian.ScanForInjectionLocal(output).Level >= security.ThreatHigh {
 		result := security.ContentScanQuarantine(security.QuarantineSuspicious)
 		held = &result
@@ -113,7 +118,7 @@ func sanitizeAgentMailToolResult(ctx context.Context, guardian *security.Guardia
 			"notice":      security.QuarantineNotice("agentmail-tool", reference, *held),
 		})
 	}
-	return output
+	return checked.Text
 }
 
 func executeAgentMailOperation(ctx context.Context, client *agentmail.Client, cfg agentmail.Config, req agentMailArgs, workspaceDir string) (map[string]interface{}, error) {

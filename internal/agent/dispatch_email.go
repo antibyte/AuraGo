@@ -87,6 +87,17 @@ func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *s
 				msg := messages[idx]
 				combined := msg.From + " " + msg.To + " " + msg.Subject + " " + msg.Date + " " + msg.Snippet + " " + msg.Body
 				var quarantine *security.GuardianResult
+				checked := guardian.ProtectExternal(ctx, security.ExternalEmail, combined)
+				if checked.Quarantined {
+					result := security.ContentScanQuarantine(checked.Reason)
+					quarantine = &result
+				} else if checked.Datamarked {
+					msg.From = security.Datamark(msg.From)
+					msg.To = security.Datamark(msg.To)
+					msg.Subject = security.Datamark(msg.Subject)
+					msg.Snippet = security.Datamark(msg.Snippet)
+					msg.Body = security.Datamark(msg.Body) + "\n" + security.DatamarkNotice
+				}
 				if guardian != nil {
 					scanRes := guardian.ScanForInjectionLocal(combined)
 					if scanRes.Level >= security.ThreatHigh {

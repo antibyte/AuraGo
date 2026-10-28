@@ -1,5 +1,16 @@
 # Third-party notices
 
+## Optional Horizon Labs prompt-injection guard
+
+The unchanged `Horizon-Labs/prompt-injection-guard-small` quantized ONNX export and
+tokenizer are downloaded only on administrator request. Revision
+`0e3774536debbcd71dbb8534ef71451b583853b8`, Apache-2.0; provenance:
+[official model repository](https://huggingface.co/Horizon-Labs/prompt-injection-guard-small/tree/0e3774536debbcd71dbb8534ef71451b583853b8).
+The full license is retained in `licences/texts/Apache-2.0.txt`. Exact artifact sizes
+and hashes are in `internal/injectionguard/model.go`. Inference uses the separately
+verified MIT-licensed ONNX Runtime 1.26.0 CPU bundles described below. See
+`documentation/prompt-injection-protection.md` for operation and limitations.
+
 ## Optional RustFS storage server
 
 RustFS 1.0.4 is an unmodified optional Docker dependency, pinned by manifest digest in `internal/rustfs/types.go`. Copyright 2024–2026 RustFS, Inc.; [Apache License 2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE). The license text is retained in `licences/texts/Apache-2.0.txt`. See `documentation/rustfs.md` for operation and image qualification. This separate server does not change AuraGo's own license.

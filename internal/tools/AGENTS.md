@@ -10,6 +10,13 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Web/RSS/selector/search adapters and summary helpers call the shared Guardian content
+  gate before isolation or LLM use. Main and structured HTML share `scraper.CleanHiddenHTML`;
+  preserve accessible panels/short labels/noscript. Mail watchers quarantine failures
+  and never invoke mission callbacks for datamarked mail. Their external-source header
+  has meaning only with the process loopback token. See `../injectionguard/AGENTS.md`;
+  verify `TestInjectionGuard*`, scraper/search/summary and email-watcher suites.
+
 - `qr_code` shares `internal/qrcode` with Desktop. Its off-by-default enable/read-only gates cover discovery and dispatch; read-only allows presets/scan only. Use effective run/server filesystem/network grants, current Desktop agent-control snapshots and bounded rooted references; Notes cannot be read through QR/Office image inputs. Publish complete artifacts atomically and create-only, or conditionally by the existing artifact SHA-256. Recheck revocation/cancellation at publication. Explicit `export_config` contains payload/resources and obeys the same write gates. Public image imports remain uncredentialed and SSRF-checked. Shared admission is two expensive HTTP/native jobs. See `documentation/qr-code.md`; verify `TestQRCode*`.
 - Office `insert_image` uses the shared bounded image reader/normaliser and byte-only preservation helpers in `internal/office`; require the existing Office version ETag and current Office/Desktop write grants. Never replace this with a workbook/document decode/re-encode that discards opaque parts. Read `../office/AGENTS.md` for host/preservation contracts.
 

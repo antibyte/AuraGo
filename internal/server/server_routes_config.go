@@ -21,6 +21,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	if !s.Cfg.WebConfig.Enabled {
 		return
 	}
+	for _, operation := range []string{"status", "download", "cancel", "test"} {
+		mux.Handle("/api/guardian/injection-guard/"+operation, requireAdmin(s, handleInjectionGuard(s, operation)))
+	}
 
 	// Security audit — list hints and apply auto-fixable hardening measures
 	mux.HandleFunc("/api/security/hints", handleSecurityHints(s))

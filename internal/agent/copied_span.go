@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/security"
 	"context"
 	"strings"
 	"sync"
@@ -36,9 +37,15 @@ type isolatedBodyStore struct {
 }
 
 type isolatedSession struct {
-	entries [][]string // Oldest first; one entry per output, one text per view.
-	bytes   int
-	reads   []untrustedRead // Oldest first, one per tool.
+	entries         []isolatedEntry // Oldest first; trusted provenance travels with the text.
+	bytes           int
+	reads           []untrustedRead // Oldest first, one per tool.
+	externalContact time.Time
+}
+
+type isolatedEntry struct {
+	views          []string
+	private, human bool
 }
 
 type untrustedRead struct {
@@ -66,14 +73,18 @@ func recordIsolatedModelOutput(sessionID, tool, output string) {
 	if name := untrustedReadName(tool); name != "" {
 		modelIsolatedBodies.noteRead(sessionID, name)
 	}
+	source := security.ExternalToolSource(tool, "")
+	if source != "" {
+		modelIsolatedBodies.noteExternalContact(sessionID)
+	}
 	var views []string
 	for _, view := range copiedSpanViews(payload) {
-		if utf8.RuneCountInString(view) >= copiedSpanRunes {
+		if view != "" {
 			views = append(views, view)
 		}
 	}
 	if len(views) > 0 {
-		modelIsolatedBodies.add(sessionID, views)
+		modelIsolatedBodies.addWithSource(sessionID, views, source != security.ExternalWeb, false)
 	}
 }
 
@@ -170,6 +181,13 @@ func truncateCopiedView(view string, limit int) string {
 }
 
 func (s *isolatedBodyStore) add(sessionID string, views []string) {
+	s.addWithSource(sessionID, views, false, false)
+}
+
+func (s *isolatedBodyStore) addWithSource(sessionID string, views []string, private, human bool) {
+	if len(views) == 0 || sessionID == "" {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	session := s.sessionLocked(sessionID)
@@ -179,12 +197,12 @@ func (s *isolatedBodyStore) add(sessionID string, views []string) {
 		entry[i] = truncateCopiedView(view, copiedSpanSessionBytes/len(views))
 		size += len(entry[i])
 	}
-	session.entries = append(session.entries, entry)
+	session.entries = append(session.entries, isolatedEntry{entry, private, human})
 	session.bytes += size
 	s.total += size
 	for session.bytes > copiedSpanSessionBytes && len(session.entries) > 1 {
 		dropped := 0
-		for _, view := range session.entries[0] {
+		for _, view := range session.entries[0].views {
 			dropped += len(view)
 		}
 		session.entries = session.entries[1:]
@@ -223,7 +241,9 @@ func (s *isolatedBodyStore) views(sessionID string) []string {
 	s.touchLocked(sessionID)
 	var out []string
 	for _, entry := range session.entries {
-		out = append(out, entry...)
+		if !entry.human {
+			out = append(out, entry.views...)
+		}
 	}
 	return out
 }

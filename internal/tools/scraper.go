@@ -105,7 +105,7 @@ func executeWebScraperAuto(rawURL, waitForSelector string, contexts ...context.C
 	}
 	if rssResponseLooksLikeFeed(contentType, body) {
 		if feed, parseErr := parseRSSOrAtom(body); parseErr == nil {
-			return formatRSSFeedResult(rawURL, feed)
+			return formatRSSFeedResult(rawURL, feed, ctx)
 		}
 	}
 	s := scraper.New(scraperGuardian).WithContext(ctx)
@@ -168,41 +168,41 @@ func executeWebScraperRSS(rawURL string, contexts ...context.Context) string {
 	if err != nil {
 		return formatScrapeError(err)
 	}
-	return formatRSSFeedResult(rawURL, feed)
+	return formatRSSFeedResult(rawURL, feed, requestContext(contexts))
 }
 
-func formatRSSFeedResult(rawURL string, feed parsedRSSFeed) string {
-	safeFeed := isolateRSSFeedText(rawURL, feed)
+func formatRSSFeedResult(rawURL string, feed parsedRSSFeed, contexts ...context.Context) string {
+	safeFeed := isolateRSSFeedText(rawURL, feed, contexts...)
 	out := map[string]interface{}{
 		"status":  "success",
 		"mode":    "rss",
 		"title":   safeFeed.Title,
-		"content": scraperGuardian.ScanExternalContent(rawURL, rssItemsContent(feed.Items)),
+		"content": scraperGuardian.ProtectWeb(requestContext(contexts), rawURL, rssItemsContent(feed.Items)),
 		"items":   safeFeed.Items,
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
 }
 
-func isolateRSSFeedText(rawURL string, feed parsedRSSFeed) parsedRSSFeed {
+func isolateRSSFeedText(rawURL string, feed parsedRSSFeed, contexts ...context.Context) parsedRSSFeed {
 	safe := parsedRSSFeed{
-		Title: isolateRSSField(rawURL, feed.Title),
+		Title: isolateRSSField(rawURL, feed.Title, contexts...),
 		Items: make([]webScraperRSSItem, 0, len(feed.Items)),
 	}
 	for _, item := range feed.Items {
-		item.Title = isolateRSSField(rawURL, item.Title)
-		item.Description = isolateRSSField(rawURL, item.Description)
+		item.Title = isolateRSSField(rawURL, item.Title, contexts...)
+		item.Description = isolateRSSField(rawURL, item.Description, contexts...)
 		safe.Items = append(safe.Items, item)
 	}
 	return safe
 }
 
-func isolateRSSField(rawURL, value string) string {
+func isolateRSSField(rawURL, value string, contexts ...context.Context) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return ""
 	}
-	return scraperGuardian.ScanExternalContent(rawURL, value)
+	return scraperGuardian.ProtectWeb(requestContext(contexts), rawURL, value)
 }
 
 type parsedRSSFeed struct {
@@ -401,7 +401,7 @@ func executeWebScraperStructuredAuto(rawURL string, options WebScraperOptions) s
 }
 
 func extractStructuredHTML(rawHTML, rawURL string, options WebScraperOptions, mode string) string {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(rawHTML))
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(scraper.CleanHiddenHTML(rawHTML)))
 	if err != nil {
 		return formatError(fmt.Sprintf("failed to parse HTML: %v", err))
 	}
@@ -440,30 +440,30 @@ func extractStructuredHTML(rawHTML, rawURL string, options WebScraperOptions, mo
 
 	switch outputFormat {
 	case "text":
-		matches := isolateStrings(rawURL, extractTextList(doc, selector, limit))
+		matches := isolateStrings(rawURL, extractTextList(doc, selector, limit), options.Context)
 		out["count"] = len(matches)
 		out["matches"] = matches
 	case "html":
-		matches := isolateStrings(rawURL, extractHTMLList(doc, selector, limit))
+		matches := isolateStrings(rawURL, extractHTMLList(doc, selector, limit), options.Context)
 		out["count"] = len(matches)
 		out["matches"] = matches
 	case "list":
 		attribute := strings.TrimSpace(options.Attribute)
-		matches := isolateStrings(rawURL, extractAttributeList(doc, selector, attribute, limit))
+		matches := isolateStrings(rawURL, extractAttributeList(doc, selector, attribute, limit), options.Context)
 		out["count"] = len(matches)
 		out["attribute"] = attribute
 		out["matches"] = matches
 	case "rows":
 		fields := normalizeFields(options.Fields)
-		matches := isolateRows(rawURL, extractRows(doc, selector, fields, limit))
+		matches := isolateRows(rawURL, extractRows(doc, selector, fields, limit), options.Context)
 		out["count"] = len(matches)
 		out["fields"] = fieldKeys(fields)
 		out["matches"] = matches
 	case "table":
 		headers, rows := extractTable(doc, selector, limit)
 		out["count"] = len(rows)
-		out["headers"] = isolateStrings(rawURL, headers)
-		out["rows"] = isolateTableRows(rawURL, rows)
+		out["headers"] = isolateStrings(rawURL, headers, options.Context)
+		out["rows"] = isolateTableRows(rawURL, rows, options.Context)
 	default:
 		return formatError(fmt.Sprintf("unsupported output_format: %s", outputFormat))
 	}
@@ -619,33 +619,33 @@ func withWarning(resultJSON, warning string) string {
 	return string(b)
 }
 
-func isolateValue(rawURL, value string) string {
+func isolateValue(rawURL, value string, contexts ...context.Context) string {
 	if value == "" {
 		return ""
 	}
-	return scraperGuardian.ScanExternalContent(rawURL, value)
+	return scraperGuardian.ProtectWeb(requestContext(contexts), rawURL, value)
 }
 
-func isolateStrings(rawURL string, values []string) []string {
+func isolateStrings(rawURL string, values []string, contexts ...context.Context) []string {
 	for i, v := range values {
-		values[i] = isolateValue(rawURL, v)
+		values[i] = isolateValue(rawURL, v, contexts...)
 	}
 	return values
 }
 
-func isolateRows(rawURL string, rows []map[string]string) []map[string]string {
+func isolateRows(rawURL string, rows []map[string]string, contexts ...context.Context) []map[string]string {
 	for i, row := range rows {
 		for k, v := range row {
-			row[k] = isolateValue(rawURL, v)
+			row[k] = isolateValue(rawURL, v, contexts...)
 		}
 		rows[i] = row
 	}
 	return rows
 }
 
-func isolateTableRows(rawURL string, rows [][]string) [][]string {
+func isolateTableRows(rawURL string, rows [][]string, contexts ...context.Context) [][]string {
 	for i, row := range rows {
-		rows[i] = isolateStrings(rawURL, row)
+		rows[i] = isolateStrings(rawURL, row, contexts...)
 	}
 	return rows
 }

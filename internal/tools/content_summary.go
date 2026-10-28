@@ -138,6 +138,21 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 	// call). The scan uses the operator's Guardian options (security.GuardianFromConfig)
 	// and lets a page that says "You are now logged in" through (security.GateScan).
 	rawContent = trimForSummary(rawContent, maxSummaryPromptContentChars)
+	switch sourceName {
+	case "web page", "Wikipedia article", "search results", "email":
+		source := security.ExternalWeb
+		if sourceName == "email" {
+			source = security.ExternalEmail
+		}
+		checked := security.GuardianFromConfig(llmCfg.Config).ProtectExternal(ctx, source, rawContent)
+		if checked.Quarantined {
+			return checked.Text, nil
+		}
+		rawContent = checked.Text
+		if checked.Datamarked {
+			rawContent += "\n" + security.DatamarkNotice
+		}
+	}
 	if scan, withhold := security.GateScan(security.GuardianFromConfig(llmCfg.Config), rawContent); withhold {
 		reason := security.QuarantineSuspicious
 		if scan.Incomplete {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"unicode/utf8"
 
 	"aurago/internal/memory"
@@ -80,7 +81,19 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 	// The Guardian isolates every read_tool_output reply (external output).
 	// Without one the reply keeps the original's isolation by itself.
 	isolate := isolated && (dc.Guardian == nil)
-	return fitReadToolOutputReply(resp, content, req, isolate, readToolOutputBudget(dc))
+	reply := fitReadToolOutputReply(resp, content, req, false, readToolOutputBudget(dc))
+	checked := dc.Guardian.ProtectExternal(ctx, security.ExternalToolSource(out.ToolName, ""), strings.TrimPrefix(reply, "Tool Output: "))
+	if security.ExternalToolSource(out.ToolName, "") != "" && !checked.Quarantined {
+		modelIsolatedBodies.noteExternalContact(dc.SessionID)
+	}
+	content = checked.Text
+	if isolate {
+		content = isolateToolPayload(content, false)
+	}
+	if checked.Datamarked {
+		content += "\n" + security.DatamarkNotice
+	}
+	return "Tool Output: " + content
 }
 
 // normalizeReadToolOutputViewRequest defaults the view to full (paged from
@@ -206,7 +219,14 @@ func handleRetrieveOriginalOutput(ctx context.Context, tc ToolCall, dc *Dispatch
 	if reason != "" && dc.Logger != nil {
 		dc.Logger.Debug("Output vault retrieval", "tool_call_id", toolCallID, "output_ref", out.OutputRef, "reason", reason, "filter", out.FilterUsed)
 	}
-	return header + content
+	checked := dc.Guardian.ProtectExternal(ctx, security.ExternalToolSource(out.ToolName, ""), content)
+	if security.ExternalToolSource(out.ToolName, "") != "" && !checked.Quarantined {
+		modelIsolatedBodies.noteExternalContact(dc.SessionID)
+	}
+	if checked.Datamarked {
+		checked.Text += "\n" + security.DatamarkNotice
+	}
+	return header + checked.Text
 }
 
 func readToolOutputError(message string) string {

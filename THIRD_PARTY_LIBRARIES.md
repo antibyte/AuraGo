@@ -1,5 +1,12 @@
 # Third-Party Libraries and Assets
 
+Optional Horizon Labs `prompt-injection-guard-small` (Apache-2.0), revision
+`0e3774536debbcd71dbb8534ef71451b583853b8`: unchanged official quantized ONNX model
+and tokenizer, administrator-initiated download, size/SHA-256 pins in
+`internal/injectionguard/model.go`. Uses the shared ONNX Runtime 1.26.0 CPU bundles
+(MIT). Full Apache text: `licences/texts/Apache-2.0.txt`; provenance and operation:
+[prompt-injection protection](documentation/prompt-injection-protection.md).
+
 Gradium Phonon `ptts` 0.4.0 (MIT/Apache-2.0), its Apache-2.0 voice catalog and
 the CC BY-NC 4.0, noncommercial-only Phonon 40m multilingual weights are delivered
 as separate local speech resources. See [provenance and attribution](documentation/phonon.md).

@@ -282,7 +282,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	a := DescribeAction(tc, dc)
 	if a.Mutating && strings.Contains(tc.Action, "config") {
 		payload, _ := json.Marshal(tc)
-		if strings.Contains(strings.ToLower(string(payload)), "action_policy") {
+		if strings.Contains(strings.ToLower(string(payload)), "action_policy") || strings.Contains(strings.ToLower(string(payload)), "injection_guard") {
 			return actionPolicyRefusal("operator_configuration_required", "Action policy rules can only be changed through the administrator configuration UI/API.", ToolResultDenied)
 		}
 	}
@@ -328,6 +328,9 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	// allow rule or an approval alike.
 	if a.egressSecret {
 		return egressSecretRefusal(dc, a)
+	}
+	if privateURLExfiltration(tc, dc) {
+		return actionPolicyRefusal("possible_exfiltration", "The URL contains private conversation, file or email content after an external read. Use web_search for research; an exact URL must be supplied by the authenticated user.", ToolResultDenied)
 	}
 	// A copied isolated span waits even when policy is off and even when an allow rule matches.
 	if stop, refusal := gateCopiedIsolatedSpan(ctx, tc, dc, a); stop {

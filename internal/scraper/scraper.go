@@ -8,7 +8,6 @@ package scraper
 
 import (
 	"aurago/internal/security"
-	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -91,7 +90,7 @@ func (a *AgentScraper) ScrapeHTML(rawURL string, body []byte) (*ScrapeResult, er
 	if err != nil {
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(CleanHiddenHTML(string(body))))
 	if err != nil {
 		return nil, fmt.Errorf("parse html: %w", err)
 	}
@@ -119,7 +118,7 @@ func (a *AgentScraper) ScrapeHTML(rawURL string, body []byte) (*ScrapeResult, er
 		}
 	})
 	result.Links = dedupLinks(links)
-	if err := processForLLM(result, rawURL, a.guardian); err != nil {
+	if err := processForLLM(result, rawURL, a.guardian, a.ctx); err != nil {
 		result.Title = rawURL
 	}
 	return result, nil
@@ -159,8 +158,6 @@ func releaseDynamicScrape() {
 // FetchDynamic launches a headless Chromium instance, navigates to the URL, optionally
 // waits for a CSS selector, then captures the fully-rendered HTML.
 func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*ScrapeResult, error) {
-	result := &ScrapeResult{}
-
 	if err := security.ValidateSSRF(rawURL); err != nil {
 		return nil, fmt.Errorf("URL not allowed: %w", err)
 	}
@@ -206,29 +203,12 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 		}
 	}
 
-	// Collect all <a href> links via JavaScript evaluation.
-	rawLinks, err := page.Eval(`() => Array.from(document.querySelectorAll('a[href]')).map(a => a.href)`)
-	if err == nil {
-		for _, v := range rawLinks.Value.Arr() {
-			if href := v.Str(); href != "" {
-				result.Links = append(result.Links, href)
-			}
-		}
-		result.Links = dedupLinks(result.Links)
-	}
-
 	// Capture the fully-rendered outer HTML.
 	html, err := page.HTML()
 	if err != nil {
 		return nil, fmt.Errorf("rod get HTML: %w", err)
 	}
-	result.RawHTML = html
-
-	if err := processForLLM(result, rawURL, a.guardian); err != nil {
-		result.Title = rawURL
-	}
-
-	return result, nil
+	return a.ScrapeHTML(rawURL, []byte(html))
 }
 
 // ── processForLLM ─────────────────────────────────────────────────────────────
@@ -238,7 +218,11 @@ func (a *AgentScraper) FetchDynamic(rawURL string, waitForSelector string) (*Scr
 // in <external_data> isolation tags. This mirrors the Guardian.ScanExternalContent
 // contract used throughout the agent framework: third-party content is always
 // isolated so the LLM cannot be tricked into treating it as trusted instructions.
-func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) error {
+func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian, contexts ...context.Context) error {
+	ctx := context.Background()
+	if len(contexts) > 0 && contexts[0] != nil {
+		ctx = contexts[0]
+	}
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("parse url: %w", err)
@@ -251,7 +235,7 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 	}
 
 	article, err := readability.FromReader(
-		strings.NewReader(result.RawHTML),
+		strings.NewReader(CleanHiddenHTML(result.RawHTML)),
 		parsedURL,
 	)
 	if err != nil {
@@ -285,7 +269,7 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 	// deliberate prompt injection ("ignore previous instructions", role spoofing, etc.).
 	// ScanExternalContent always wraps in <external_data> tags and logs any threats.
 	if g != nil {
-		result.Markdown = g.ScanExternalContent(rawURL, md)
+		result.Markdown = g.ProtectWeb(ctx, rawURL, md)
 	} else {
 		// No guardian provided (e.g. unit tests): still isolate, just don't scan.
 		result.Markdown = security.IsolateExternalData(md)

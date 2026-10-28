@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/agentmail"
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -167,6 +168,7 @@ func (s *Server) notifyAgentMailLoopback(ctx context.Context, prompt string) err
 	// internal rather than an admin web turn, and let it through when web auth
 	// is enabled instead of being answered with 401.
 	headers.Set("X-Internal-FollowUp", "true")
+	headers.Set("X-External-Source", string(security.ExternalEmail))
 	headers.Set("X-Internal-Token", s.internalToken)
 	client := NewInternalHTTPClient(3 * time.Minute)
 	resp, err := DoInternalRequestWithStartupRetry(ctx, client, http.MethodPost, url, payload, headers, 10*time.Second)

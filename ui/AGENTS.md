@@ -21,6 +21,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- The Guardian local-protection card keeps download and saved activation separate.
+  Passive status cannot install/start work. Only verified readiness permits enablement;
+  an unavailable enabled model must remain disableable. Preserve boolean/action drafts
+  across polls, cancel polling on navigation/logout/pagehide and ignore detached replies.
+  Explain that datamarking still forwards suspicious content. Translate all 16 locales;
+  verify `TestInjectionGuardLocales` and `TestInjectionGuardConfigBrowser` (both themes,
+  narrow layouts, download/cancel/test/save). Runtime: `../internal/injectionguard/AGENTS.md`.
+
 - Document Creator uses a native boolean checkbox for the default-off saved
   public-resource grant. Its help names images, fonts, stylesheets and scripts;
   all 16 locales carry the same policy. Native checkbox drafts/discard/save use

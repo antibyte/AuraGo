@@ -211,6 +211,7 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	// Run-scoped gates travel with this dispatch only. They narrow the
 	// server-owned process snapshot and are never written process-wide.
 	ctx = tools.WithRuntimePermissions(ctx, tools.RuntimePermissionsFromConfig(dc.Cfg))
+	ctx = context.WithValue(ctx, externalContentSourceKey{}, security.ExternalToolSource(tc.Action, tc.Operation))
 	rawResult := dispatchInner(ctx, *tc, dc)
 	status := classifyLegacyToolResult(rawResult)
 	if trustedStatus != "" {
@@ -232,7 +233,12 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 
 	// Guardian: Sanitize tool output (isolation + role-marker stripping)
+	checked := guardian.ProtectExternal(ctx, security.ExternalToolSource(tc.Action, tc.Operation), sanitized)
+	sanitized = checked.Text
 	sanitized = guardian.SanitizeToolOutput(tc.Action, sanitized)
+	if checked.Datamarked {
+		sanitized += "\n" + security.DatamarkNotice
+	}
 
 	// Make sure errors from execute_python are preserved for context
 	if tc.Action == "execute_python" {

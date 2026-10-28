@@ -9,6 +9,7 @@ import (
 )
 
 type toolOutcomeKey struct{}
+type externalContentSourceKey struct{}
 
 // setToolOutcome records a handler-owned execution result. This keeps success
 // and failure semantics independent from the model-facing prose returned by
@@ -25,10 +26,19 @@ func setToolOutcome(ctx context.Context, status ToolResultStatus) {
 // externalToolOutput receives a locally constructed result envelope, before any
 // presentation escaping. Remote payloads must remain nested inside that envelope.
 func externalToolOutput(ctx context.Context, raw string) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if status := classifyLegacyToolResult(raw); status != ToolResultUnknown {
 		setToolOutcome(ctx, status)
 	}
-	return "Tool Output: " + security.IsolateExternalData(security.Scrub(raw))
+	source, _ := ctx.Value(externalContentSourceKey{}).(security.ExternalSource)
+	checked := fallbackToolOutputGuardian().ProtectExternal(ctx, source, raw)
+	out := "Tool Output: " + security.IsolateExternalData(security.Scrub(checked.Text))
+	if checked.Datamarked {
+		out += "\n" + security.DatamarkNotice
+	}
+	return out
 }
 
 // ToolResultStatus describes execution, independently of output presentation.

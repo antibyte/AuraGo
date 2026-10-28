@@ -880,6 +880,7 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.ScanEmails = false
 	cfg.Guardian.MaxScanBytes = 16 * 1024
 	cfg.Guardian.ScanEdgeBytes = 6 * 1024
+	cfg.Guardian.InjectionGuard.Action = "quarantine"
 	cfg.Guardian.PromptSec.Preset = "strict"
 	cfg.Guardian.PromptSec.Spotlight = false
 	cfg.Guardian.PromptSec.Canary = false
@@ -1848,6 +1849,9 @@ func Load(path string) (*Config, error) {
 
 	// Fill defaults for expanded guardian.promptsec options.
 	cfg.MigratePromptSecDefaults(data)
+	if err := ValidateInjectionGuardConfig(&cfg); err != nil {
+		return nil, err
+	}
 
 	// Resolve provider references → populates all yaml:"-" fields.
 	// Legacy migration creates provider entries from inline fields if Providers is empty.

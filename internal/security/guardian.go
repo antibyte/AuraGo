@@ -119,39 +119,41 @@ type PromptSecLLMJudgeOptions struct {
 
 // GuardianOptions controls bounded regex scanning behavior and promptsec guard selection.
 type GuardianOptions struct {
-	MaxScanBytes       int
-	ScanEdgeBytes      int
-	Preset             string
-	Spotlight          bool // Deprecated: ignored.
-	Canary             bool // Deprecated: ignored.
-	Sanitizer          PromptSecSanitizerOptions
-	Embedding          PromptSecEmbeddingOptions
-	Policy             string
-	CustomPolicy       PromptSecCustomPolicyOptions
-	Taint              PromptSecTaintOptions
-	Structure          PromptSecStructureOptions // Deprecated: ignored.
-	LLMJudge           PromptSecLLMJudgeOptions
-	LLMJudgeClient     promptsec.LLMJudge
-	UseSanitizedOutput bool
-	SystemPrompt       string
+	InjectionGuardEnabled bool
+	MaxScanBytes          int
+	ScanEdgeBytes         int
+	Preset                string
+	Spotlight             bool // Deprecated: ignored.
+	Canary                bool // Deprecated: ignored.
+	Sanitizer             PromptSecSanitizerOptions
+	Embedding             PromptSecEmbeddingOptions
+	Policy                string
+	CustomPolicy          PromptSecCustomPolicyOptions
+	Taint                 PromptSecTaintOptions
+	Structure             PromptSecStructureOptions // Deprecated: ignored.
+	LLMJudge              PromptSecLLMJudgeOptions
+	LLMJudgeClient        promptsec.LLMJudge
+	UseSanitizedOutput    bool
+	SystemPrompt          string
 }
 
 // Guardian provides multi-layer prompt injection defense.
 // It scans text for known injection patterns, wraps external data for isolation,
 // and strips dangerous role-impersonation markers from tool output.
 type Guardian struct {
-	mu            sync.RWMutex
-	logger        *slog.Logger
-	maxScanBytes  int
-	scanEdgeBytes int
-	protector     *promptsec.Protector
-	useSanitized  bool
-	psOpts        []promptsec.Guard
-	taintOpts     PromptSecTaintOptions
-	llmJudgeOpts  PromptSecLLMJudgeOptions
-	llmJudge      promptsec.LLMJudge
-	llmJudgeGuard promptsec.Guard
-	systemPrompt  string
+	injectionGuardEnabled bool
+	mu                    sync.RWMutex
+	logger                *slog.Logger
+	maxScanBytes          int
+	scanEdgeBytes         int
+	protector             *promptsec.Protector
+	useSanitized          bool
+	psOpts                []promptsec.Guard
+	taintOpts             PromptSecTaintOptions
+	llmJudgeOpts          PromptSecLLMJudgeOptions
+	llmJudge              promptsec.LLMJudge
+	llmJudgeGuard         promptsec.Guard
+	systemPrompt          string
 }
 
 // NewGuardian creates a Guardian with pre-compiled injection detection patterns.
@@ -183,14 +185,15 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 	}
 
 	g := &Guardian{
-		logger:        logger,
-		maxScanBytes:  maxScanBytes,
-		scanEdgeBytes: scanEdgeBytes,
-		useSanitized:  opts.UseSanitizedOutput,
-		taintOpts:     opts.Taint,
-		llmJudge:      opts.LLMJudgeClient,
-		llmJudgeOpts:  opts.LLMJudge,
-		systemPrompt:  opts.SystemPrompt,
+		injectionGuardEnabled: opts.InjectionGuardEnabled,
+		logger:                logger,
+		maxScanBytes:          maxScanBytes,
+		scanEdgeBytes:         scanEdgeBytes,
+		useSanitized:          opts.UseSanitizedOutput,
+		taintOpts:             opts.Taint,
+		llmJudge:              opts.LLMJudgeClient,
+		llmJudgeOpts:          opts.LLMJudge,
+		systemPrompt:          opts.SystemPrompt,
 	}
 
 	g.psOpts = g.buildPromptSecGuards(opts)
@@ -244,16 +247,17 @@ func (g *Guardian) WithSystemPrompt(systemPrompt string) *Guardian {
 	}
 	g.mu.RLock()
 	clone := &Guardian{
-		logger:        g.logger,
-		maxScanBytes:  g.maxScanBytes,
-		scanEdgeBytes: g.scanEdgeBytes,
-		useSanitized:  g.useSanitized,
-		psOpts:        append([]promptsec.Guard(nil), g.psOpts...),
-		taintOpts:     g.taintOpts,
-		llmJudgeOpts:  g.llmJudgeOpts,
-		llmJudge:      g.llmJudge,
-		llmJudgeGuard: g.llmJudgeGuard,
-		systemPrompt:  g.systemPrompt,
+		injectionGuardEnabled: g.injectionGuardEnabled,
+		logger:                g.logger,
+		maxScanBytes:          g.maxScanBytes,
+		scanEdgeBytes:         g.scanEdgeBytes,
+		useSanitized:          g.useSanitized,
+		psOpts:                append([]promptsec.Guard(nil), g.psOpts...),
+		taintOpts:             g.taintOpts,
+		llmJudgeOpts:          g.llmJudgeOpts,
+		llmJudge:              g.llmJudge,
+		llmJudgeGuard:         g.llmJudgeGuard,
+		systemPrompt:          g.systemPrompt,
 	}
 	g.mu.RUnlock()
 
@@ -748,7 +752,7 @@ func IsolateExternalData(content string) string {
 // sequences (including the [TOOL_CALL] markers) stay byte-identical.
 func hardenExternalBoundary(content string) string {
 	content = strings.Map(func(r rune) rune {
-		if unicode.Is(unicode.Cf, r) {
+		if unicode.Is(unicode.Cf, r) && r != '\u200C' && r != '\u200D' {
 			return -1
 		}
 		switch r {
@@ -772,6 +776,7 @@ func hardenExternalBoundary(content string) string {
 		}
 		return "[ TOOL_CALL ]"
 	})
+	content = modelBracketDelimiter.ReplaceAllStringFunc(content, func(s string) string { return "[ " + s[1:len(s)-1] + " ]" })
 	return instDelimiter.ReplaceAllString(content, "[ INST ]")
 }
 
@@ -807,11 +812,14 @@ var sourceClosingTag = regexp.MustCompile(`<[\s\p{Cf}]*/`)
 // parser also accepts. specialTokenShape matches the control tokens of common
 // chat templates: <|name|> (ChatML, Llama 3, <|endoftext|>) and Gemma's turn
 // markers. A bare "<|" (F# and Elm pipelines) is not a token.
+const ControlTokenCatalogVersion = "2026-10-28"
+
 var (
-	encodedAngleEscape = regexp.MustCompile(`(?i)\\(?:u003c|u\{0*3c\}|x3c)`)
-	instDelimiter      = regexp.MustCompile(`(?i)\[/?INST\]`)
-	toolCallDelimiter  = regexp.MustCompile(`(?i)\[/?TOOL_CALL[\])]`)
-	specialTokenShape  = regexp.MustCompile(`<\|\w{1,40}\|>|<(?:start|end)_of_turn>`)
+	encodedAngleEscape    = regexp.MustCompile(`(?i)\\(?:u003c|u\{0*3c\}|x3c)`)
+	instDelimiter         = regexp.MustCompile(`(?i)\[/?INST\]`)
+	toolCallDelimiter     = regexp.MustCompile(`(?i)\[/?TOOL_CALL[\])]`)
+	modelBracketDelimiter = regexp.MustCompile(`(?i)\[/?(?:TOOL_CALLS|AVAILABLE_TOOLS|SYSTEM_PROMPT|SYSTEM|USER|ASSISTANT)\]`)
+	specialTokenShape     = regexp.MustCompile(`(?i)<[|｜][^<>\s]{1,40}[|｜]>|</?(?:(?:start|end)_of_turn|role|think|tool_calls?|tool_responses?|arg_key|system|user|assistant|s)>|<(?:turn|channel)\|>|<eos:[^>\s]{1,80}>|<(?:(?:function|param)(?:=|\s|>))`)
 )
 
 // sourceBoundaryRisk decodes JSON/JS escapes and up to three rounds of HTML
@@ -834,7 +842,7 @@ func sourceBoundaryRisk(content string) bool {
 		}
 		view = next
 	}
-	if sourceClosingTag.MatchString(view) || specialTokenShape.MatchString(view) {
+	if sourceClosingTag.MatchString(view) || specialTokenShape.MatchString(view) || modelBracketDelimiter.MatchString(view) {
 		return true
 	}
 	var letters strings.Builder
