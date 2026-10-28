@@ -11,6 +11,6 @@ options = re.findall(r"option\((ENABLE_[\w.]+)\s", pathlib.Path("CMakeLists.txt"
 subprocess.run([
     "cmake", "-S", ".", "-B", "out", "-DCMAKE_BUILD_TYPE=Release",
     "-DCMAKE_INSTALL_PREFIX=/opt/sdrangel", "-DBUILD_GUI=OFF", "-DBUILD_SERVER=ON",
-    "-DBUILD_BENCH=OFF", "-DRX_SAMPLE_24BIT=OFF",
+    "-DBUILD_BENCH=OFF", "-DRX_SAMPLE_24BIT=OFF", "-DDEBUG_OUTPUT=ON",
     *[f"-D{option}={'ON' if option in allowed else 'OFF'}" for option in options],
 ], check=True)

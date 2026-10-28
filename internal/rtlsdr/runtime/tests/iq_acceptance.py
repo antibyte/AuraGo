@@ -64,6 +64,8 @@ def analog_file(mode):
 
 
 def file_request(port, path, method="GET", data=None, timeout=3):
+    if port == 8091 and path == "/sdrangel/audio" and method == "GET":
+        REAL_REQUEST(port, "/sdrangel/logging", "PUT", {"consoleLevel": "debug", "dumpToFile": 0})
     if port == 8091 and path == "/sdrangel/deviceset/0/device" and method == "PUT":
         # Creating an Rx device set already selects FileInput; do not switch it twice.
         selected = REAL_REQUEST(port, path + "/settings", timeout=max(timeout, 120))
