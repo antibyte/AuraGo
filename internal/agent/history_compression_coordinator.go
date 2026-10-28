@@ -326,6 +326,17 @@ func compressPersistentHistory(
 		recordHistoryCompressionFailure(runCfg, "empty_or_oversized_summary")
 		return result
 	}
+	if reason, patterns := screenGeneratedSummary(summary); reason != "" {
+		// Nothing has been mutated yet: the previous summary stays, the source
+		// messages stay active, and request trimming keeps the prompt in budget.
+		// Only the category is logged, because the summary is derived from
+		// attacker-influenced text.
+		if logger != nil {
+			logger.Warn("[Compression] Generated summary rejected, the previous summary is kept", "reason", reason, "patterns", patterns)
+		}
+		recordHistoryCompressionFailure(runCfg, "summary_rejected")
+		return result
+	}
 	if ctx.Err() != nil {
 		// Never start the SQLite/history mutation once shutdown has begun.
 		return result
