@@ -332,7 +332,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   their texts) written in place when only they changed, so a reload never replaces the rail buttons. Do not re-render the table from a timer. Sorting uses one cached `Intl.Collator` (`compareText` in the
   model and the stack model; `localeCompare` builds a collator per call, 250 ms for 3,000 containers), and `snapshot()` memoises the rows, the filtered and
   sorted groups, the chip counts and the stack groups on the identity of the listings they come from (the store replaces a host's entry on every load),
-  the host list, the scope, the search and the filter (`model.memo`): a paint for anything else sorts nothing. The table is a
+  the host list, the scope, the search and the filter (`model.memo`): a paint for anything else sorts nothing. `findRow` (drawer, actions, panes)
+  reads a `Map` by container key that is rebuilt on the same terms, not all rows per call. The table is a
   `treegrid` with a roving tab stop: arrows move, Left/Right collapse and expand a group, Enter opens the drawer, Delete asks to
   remove, Escape closes the drawer, `/` focuses the search, Shift+F10 opens the row menu.
 - Long lists (a host with thousands of containers; the app was measured with 3,306): nothing is rendered without a bound. The stopped single
@@ -428,7 +429,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   last event of a burst still leads to one; a reload that runs, or a poll in flight, is waited for, never cancelled by it); `operation`
   messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
   unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
-  patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`) and repaints only the gauge area; the markup of the table
+  patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`, only in the table, the stack or project pane and the drawer body, never in the
+  whole app) and repaints only the gauge area; the markup of the table
   and of the stack overview holds empty placeholders, never numbers, so a stats message never repaints them. `panes.visibleLoads`
   collects the rendered cells inside the viewport (at most 50 ids per host, 12-character ids) after every paint and scroll.
 - Follow panels: the container drawer (tabs Overview, Logs, Terminal, Inspect), the stack pane (Overview, Compose, .env, Logs,

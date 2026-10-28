@@ -141,7 +141,9 @@
             if (target && target.isConnected && typeof target.focus === 'function') { target.focus({ preventScroll: true }); return; }
             (tbodyEl.querySelector('[data-nav-key][tabindex="0"]') || searchEl).focus({ preventScroll: true });
         }
-        const findRow = key => model.buildRows(state.hosts, state.byHost, 'all').find(row => row.key === key) || null;
+        // The row of a container key, from a map that is rebuilt only when a listing or the host list changed (it was all rows per call).
+        const rowIndex = model.memo();
+        const findRow = key => rowIndex([state.hosts].concat(state.hosts.map(item => state.byHost[item.id])), () => new Map(model.buildRows(state.hosts, state.byHost, 'all').map(row => [row.key, row]))).get(key) || null;
         const rowEl = key => tbodyEl.querySelector('[data-nav-key="' + CSS.escape(key) + '"]');
         const isTextField = el => !!el && (el.matches?.('input, textarea, select') || el.isContentEditable);
         const splitKey = key => ({ hostId: key.slice(0, key.indexOf('/')), name: key.slice(key.indexOf('/') + 1) });
@@ -290,7 +292,7 @@
                 panes.drawer(drawerLiveEl, null);
                 return;
             }
-            const row = snap.rows.find(item => item.key === detail.key);
+            const found = findRow(detail.key), row = found && (state.scope === 'all' || found.hostId === state.scope) ? found : null;
             if (!row) { store.closeDetail(); return; }
             const parts = views.drawer(snap, row);
             const opening = drawerEl.hidden;
@@ -1014,7 +1016,8 @@
                 loadFrame = 0;
                 const keys = new Set(dirtyLoads);
                 dirtyLoads.clear();
-                if (!disposed) panes.patchLoads(root, keys);
+                // Only these three hold load cells: the table, the open stack or project and the container drawer.
+                if (!disposed) for (const scope of [tbodyEl, shellEl, drawerBodyEl]) panes.patchLoads(scope, keys);
             });
         });
         const unsubscribeHostStats = store.onHostStats(() => {
