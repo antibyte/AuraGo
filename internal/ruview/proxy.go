@@ -84,7 +84,13 @@ func (m *Manager) Proxy(w http.ResponseWriter, r *http.Request, p string) {
 		r.ContentLength = int64(len(data))
 	}
 	if p == "/api/v1/recording/start" && c.RuView.Mode != "external" {
-		if storageLimited(c) {
+		limited, err := m.storageCheck(r.Context(), c)
+		if err != nil {
+			// An unreadable directory is not a full one: say so instead of guessing.
+			http.Error(w, "RuView storage could not be checked", http.StatusServiceUnavailable)
+			return
+		}
+		if limited {
 			http.Error(w, "RuView storage budget reached", 507)
 			return
 		}

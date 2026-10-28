@@ -125,14 +125,18 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		strings.HasPrefix(lowerModel, "ernie")
 
 	// Keep the legacy text-tool fallback without disabling native MiniMax M2.7/M3 calls.
+	// Configured names vary in spelling ("MiniMax M3", "minimax_m3"), so only the
+	// MiniMax exemptions match the name with spaces and underscores normalised to
+	// "-"; the GLM and abab rules keep matching the name as configured.
+	ruleModel := strings.NewReplacer(" ", "-", "_", "-").Replace(lowerModel)
 	isGLMFamily := strings.HasPrefix(lowerModel, "glm-") ||
 		strings.Contains(lowerModel, "/glm-") ||
 		strings.Contains(lowerModel, "zhipuai/") ||
 		strings.HasPrefix(lowerModel, "abab") ||
 		(strings.HasPrefix(lowerModel, "minimax") &&
-			!strings.Contains(lowerModel, "m2.7") &&
-			!strings.HasPrefix(strings.TrimPrefix(lowerModel, "minimax/"), "minimax-m3") &&
-			!strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
+			!strings.Contains(ruleModel, "m2.7") &&
+			!strings.HasPrefix(strings.TrimPrefix(ruleModel, "minimax/"), "minimax-m3") &&
+			!strings.Contains(ruleModel, "minimax-m1") && !strings.Contains(ruleModel, "/text-"))
 
 	return ModelCapabilities{
 		ProviderType:                 providerType,
@@ -448,11 +452,12 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		VirtualComputersEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled,
 		VirtualWorkspaceEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled && cfg.VirtualComputers.AgentControl.Enabled,
 		OpenSCADEnabled:              cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.VirtualDesktop.OpenSCAD.Enabled,
+		QRCodeEnabled:                cfg.Tools.QRCode.Enabled,
 		OfficeDocumentEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeDocument.Enabled,
 		OfficeWorkbookEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeWorkbook.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
 		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
-		S3Enabled:                    cfg.S3.Enabled,
+		S3Enabled:                    tools.S3AgentEnabled(cfg),
 		NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
 		FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
 		UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
@@ -495,6 +500,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	// Use the shared config-only helper as the base.
 	// Then apply runtime-specific conditions that require database handles or runtime context.
 	toolFlags := buildToolFlagsFromConfig(cfg)
+	toolFlags.S3Enabled = toolFlags.S3Enabled && tools.S3RuntimeAvailability(cfg).Available
 
 	// Apply runtime handle availability checks (these are the ONLY runtime conditions).
 	// All other flags (config-based, cfg.Runtime-based) are already set by buildToolFlagsFromConfig.
@@ -832,7 +838,7 @@ func buildToolFeatureFlags(runCfg RunConfig, policy ToolingPolicy) ToolFeatureFl
 	flags := resolveToolFeatureState(runCfg, policy).ToolFlags
 	if flags.Go2RTCEnabled {
 		manager := tools.DefaultGo2RTCManager()
-		flags.Go2RTCEnabled = manager != nil && manager.Available()
+		flags.Go2RTCEnabled = manager != nil
 	}
 	return flags
 }

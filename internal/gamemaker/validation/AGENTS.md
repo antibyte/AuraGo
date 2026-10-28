@@ -25,6 +25,20 @@ game lifecycle and the sprite/model library stay in `internal/gamemaker/AGENTS.m
   budget with failed checks. Missing browser feedback, an absent measurement or
   an unavailable runtime stays non-repairable and ends validation as before.
   Repairable never turns a check into `passed` and never permits publication.
+- Diagnostic texts explain, they never change a status or gate. `CheckResult.Expected`
+  prints no value for `increased`/`decreased`/`changed` (they compare against the
+  before value, so a trailing `0` read like a threshold). Each `target=<role> <reason>`
+  token keeps its raw reason code and gains a plain-language note after the
+  closing parenthesis (`targetReasonNote`); the blind-input sentence is likewise
+  extended, not replaced. `boundedPreviewDiagnostics` adds an `Asset handle:` hint
+  to `reading 'released'` runtime errors (undefined `loadAsset` result passed to
+  `createInstance`/`createInstances`). In Studio runs a missing `read`/`search`
+  file also lists up to twelve existing `src/` text files (3D helpers are not
+  named `common.ts`).
+- A target run stopped because the Studio window was hidden or in the background (`document.hidden`
+  or the parent's `aurago:game:active` flag) reports `host_hidden`: `unavailable`, never repairable,
+  so it spends no repair pass and the job ends with code `preview`. `inactive` stays the game's
+  own pause/end state (`view.active`) and remains repairable.
 - `ValidationNextAction` names the next step for every validation answer and
   must never claim success for unobserved gameplay. Tool answers also return
   the remaining repair passes.

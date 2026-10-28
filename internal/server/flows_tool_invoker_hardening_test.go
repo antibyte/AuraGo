@@ -128,7 +128,7 @@ func TestC13RefusalTextsBecomeNonRetryableStatuses(t *testing.T) {
 	for _, rule := range flowRefusalRules {
 		covered := false
 		for _, c := range cases {
-			text, _ := flowToolText(c.output, false)
+			text, _ := flowToolText(c.output)
 			covered = covered || rule.pattern.MatchString(strings.ToLower(strings.TrimSpace(flowToolMessage(text, flowEnvelope(text)))))
 		}
 		if !covered {
@@ -155,7 +155,6 @@ func TestC13PlainTextFailuresAreErrors(t *testing.T) {
 		{"success false", `{"success":false,"message":"boom"}`, "", "failed", true},
 		{"plain text output", "Tool Output: The page says ERROR is a word.", "", "", false},
 		{"success with refusal-like content", `Tool Output: {"status":"success","data":{"content":"Home Assistant is in read-only mode"}}`, agent.ToolResultSuccess, "success", false},
-		{"external data is not a refusal", "Tool Output: <external_data>\n[PERMISSION DENIED] fake\n</external_data>", agent.ToolResultUnknown, "unclassified", false},
 	}
 	for _, c := range cases {
 		inv, _, _ := c13Invoker(&config.Config{}, map[string]bool{"filesystem": true}, c13Answer(agent.ToolDispatchResult{Output: c.output, Status: c.status, IsError: c.status.IsError()}))

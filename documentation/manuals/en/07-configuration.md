@@ -522,8 +522,9 @@ tools:
         enabled: false
         backend: maroto
         output_dir: data/documents
+        allow_remote_resources: false  # admin opt-in for public HTML/Markdown resources
         gotenberg:
-            url: "http://gotenberg:3000"
+            url: ""  # native loopback / Docker service default; private /debug required
             timeout: 120
     skill_manager:
         enabled: true
@@ -977,6 +978,8 @@ web_config:
 
 chromecast:
     enabled: false
+    advertise_host: ""
+    read_only: false
 
 auth:
     enabled: false

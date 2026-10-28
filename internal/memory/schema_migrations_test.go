@@ -186,3 +186,57 @@ func TestMemorySchemaCurrentDoesNotReplayInitializers(t *testing.T) {
 		t.Fatalf("incomplete versioned schema silently repaired: store=%v error=%v", s, err)
 	}
 }
+
+func TestMemorySchemaToolOperationMigrationBacksUpAndPreservesArchive(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "archive-v15.db")
+	s, err := NewSQLiteMemory(path, migrationTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if err := s.StoreCompressedOutput(ctx, &CompressedToolOutput{SessionID: "fixture", ToolCallID: "mail", ToolName: "google_workspace", OriginalContent: "preserved mail", CompressedContent: "compact", FilterUsed: "vault"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE compressed_tool_outputs DROP COLUMN tool_operation; PRAGMA user_version=15`); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = NewSQLiteMemory(path, migrationTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.RetrieveCompressedOutput(ctx, "fixture", "mail")
+	if err != nil || out.ToolOperation != "" || out.ToolName != "google_workspace" || out.OriginalContent != "preserved mail" {
+		t.Fatalf("legacy archive changed: %+v err=%v", out, err)
+	}
+	s.Close()
+	backups, err := filepath.Glob(path + ".schema-v16-*.bak")
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("migration backup missing: %v %v", backups, err)
+	}
+	db, err := dbutil.Open(backups[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	var content, integrity string
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 15 {
+		t.Fatalf("backup version=%d err=%v", version, err)
+	}
+	if err := db.QueryRow(`SELECT original_content FROM compressed_tool_outputs WHERE tool_call_id='mail'`).Scan(&content); err != nil || content != "preserved mail" {
+		t.Fatalf("backup content=%q err=%v", content, err)
+	}
+	if err := db.QueryRow(`PRAGMA integrity_check`).Scan(&integrity); err != nil || integrity != "ok" {
+		t.Fatalf("backup integrity=%q err=%v", integrity, err)
+	}
+	db.Close()
+	s, err = NewSQLiteMemory(path, migrationTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	after, _ := filepath.Glob(path + ".schema-v16-*.bak")
+	if len(after) != 1 {
+		t.Fatal("restart repeated migration")
+	}
+}

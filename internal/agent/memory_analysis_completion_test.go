@@ -16,7 +16,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const validRealtimeExtraction = `{"facts":[{"content":"The NAS uses XFS.","category":"infrastructure","confidence":0.99}],"preferences":[],"corrections":[],"pending_actions":[]}`
+// The quote placeholder is replaced by a verbatim slice of the human message of the case.
+const validRealtimeExtraction = `{"facts":[{"content":"The NAS uses XFS.","category":"infrastructure","confidence":0.99,"quote":"%QUOTE%"}],"preferences":[],"corrections":[],"pending_actions":[]}`
 const emptyRealtimeExtraction = `{"facts":[],"preferences":[],"corrections":[],"pending_actions":[]}`
 
 type realtimeExtractionCase struct {
@@ -32,6 +33,7 @@ type realtimeExtractionCase struct {
 	cancelBefore bool
 	cancelDuring bool
 	longSource   bool
+	quote        string
 }
 
 func TestAuditMemoryAnalysisRejectsTruncatedCompletion(t *testing.T) {
@@ -49,6 +51,7 @@ func TestRealtimeMemoryAnalysisCompletionBoundaries(t *testing.T) {
 		{name: "null arrays", content: `{"facts":null,"preferences":[],"corrections":[],"pending_actions":[]}`, wantCalls: 2},
 		{name: "missing arrays", content: `{}`, wantCalls: 2},
 		{name: "invalid fact", content: `{"facts":[{"content":"","category":"fact","confidence":2}],"preferences":[],"corrections":[],"pending_actions":[]}`, wantCalls: 2},
+		{name: "quote only in the assistant text", content: validRealtimeExtraction, quote: "Assistant source marker", wantCalls: 1},
 		{name: "normalized", content: "<think>private reasoning</think>\n```json\n" + validRealtimeExtraction + "\n```", wantCalls: 1, wantWrites: 1},
 		{name: "bounded recovery", content: validRealtimeExtraction, finish: openai.FinishReasonLength, recover: true, wantCalls: 2, wantWrites: 1},
 		{name: "reasoning budget", content: validRealtimeExtraction, model: "o3-mini", outputLimit: 4096, wantCalls: 1, wantWrites: 1},
@@ -72,6 +75,13 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 		t.Fatal(err)
 	}
 	defer stm.Close()
+	quote := "The NAS uses XFS"
+	if test.longSource {
+		quote = "Full user source"
+	}
+	if test.quote != "" {
+		quote = test.quote
+	}
 	var calls atomic.Int32
 	requests := make(chan openai.ChatCompletionRequest, 10)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +99,7 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 			finish = openai.FinishReasonStop
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: finish, Message: openai.ChatCompletionMessage{Role: "assistant", Content: test.content}}}})
+		_ = json.NewEncoder(w).Encode(openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: finish, Message: openai.ChatCompletionMessage{Role: "assistant", Content: strings.ReplaceAll(test.content, "%QUOTE%", quote)}}}})
 	}))
 	defer server.Close()
 	model := test.model

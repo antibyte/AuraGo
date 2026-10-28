@@ -84,9 +84,9 @@ func TestAcceptedRelaySurvivesFailedLabel(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls atomic.Int32
-	s := NewService(ServiceConfig{Config: Config{InboxID: "inbox"}, Client: c, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Notify: func(context.Context, string) error { calls.Add(1); return nil }})
-	_ = s.handleMessage(context.Background(), Message{ID: "m1", Text: "fixture"})
-	_ = s.handleMessage(context.Background(), Message{ID: "m1", Text: "fixture"})
+	s := NewService(ServiceConfig{Config: Config{InboxID: "inbox", AllowedSenders: []string{"@example.test"}}, Client: c, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Notify: func(context.Context, string) error { calls.Add(1); return nil }})
+	_ = s.handleMessage(context.Background(), Message{ID: "m1", From: Address{Email: "sender@example.test"}, Text: "fixture"})
+	_ = s.handleMessage(context.Background(), Message{ID: "m1", From: Address{Email: "sender@example.test"}, Text: "fixture"})
 	if calls.Load() != 1 {
 		t.Fatalf("relay delivered %d times", calls.Load())
 	}

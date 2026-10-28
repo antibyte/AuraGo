@@ -152,16 +152,24 @@ services:
   # Set tools.document_creator.backend="gotenberg" in config.yaml to use.
   #
   # URL config:
-  #   • AuraGo running in Docker:    http://gotenberg:3000   (default, internal)
-  #   • AuraGo running bare-metal:   http://localhost:3000   (change in config)
+  #   • AuraGo running in Docker:    http://gotenberg:3000   (default)
+  #   • AuraGo running bare-metal:   http://127.0.0.1:3000   (default)
   #
-  # SECURITY: Gotenberg is only accessible from AuraGo container (internal network).
-  #           The localhost port binding is ONLY for bare-metal AuraGo installations.
+  # SECURITY: the API/debug route is unauthenticated. Keep this Compose network
+  #           trusted and the host port loopback-only. This bridge permits egress;
+  #           runtime private-IP filters protect outbound requests.
   # ============================================================================
   gotenberg:
-    image: gotenberg/gotenberg:8
+    image: gotenberg/gotenberg:8.38.0@sha256:c36cdd730893e3941d27a196ff8b68675e473642d067ec7ee3668b9adaa37b75
     container_name: aurago_gotenberg
     restart: unless-stopped
+    # Keep /debug private: AuraGo verifies these runtime flags before each upload.
+    environment:
+      API_ENABLE_DEBUG_ROUTE: "true"
+      CHROMIUM_DENY_PRIVATE_IPS: "true"
+      LIBREOFFICE_DENY_PRIVATE_IPS: "true"
+      WEBHOOK_DENY_PRIVATE_IPS: "true"
+      API_DOWNLOAD_FROM_DENY_PRIVATE_IPS: "true"
     security_opt:
       - no-new-privileges:true
     # Drop all capabilities and only add what Gotenberg needs for file ownership.

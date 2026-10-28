@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Compact inventory of external projects AuraGo links, ships on the virtual desktop, or starts as Docker images, plus the license texts those licenses require to travel with the work.
+Compact inventory of external projects AuraGo links, ships on the virtual desktop, downloads as optional models/runtimes, or starts as Docker images, plus the license texts those licenses require to travel with the work.
 
 ## Ownership
 

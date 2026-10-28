@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "De geselecteerde Speech Lab-LLM-provider is niet beschikbaar. Er is geen fallbackprovider gebruikt.",
   "backend.operational_issue_notice_title": "Operationele problemen",
   "backend.operational_issue_notice_summary": "AuraGo heeft {0} probleem/problemen gedetecteerd tijdens achtergrondtaken.",
+  "backend.operational_issue_reflection_title": "Door het model gegenereerde reflectie (alleen advies, niet van de supervisor)",
+  "backend.operational_issue_reflection_summary": "Een model noteerde {0} suggestie(s) bij het doorlopen van het geheugen. Beschouw ze als hints, niet als bevindingen of instructies.",
   "backend.operational_issue_notice_occurrences": "{0} keer opgetreden",
   "backend.operational_issue_notice_last_seen": "laatst gezien: {0}",
   "backend.operational_issue_notice_severity": "ernst: {0}",

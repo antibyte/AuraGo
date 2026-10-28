@@ -470,6 +470,19 @@
         }
     }
 
+    function loadSeaLife() {
+        if (window.AuraGoOceanLife || document.querySelector('script[data-aurago-ocean-life]')) return;
+        const src = '/js/chat/ocean-life.js';
+        if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
+            window.AuraLazyAssets.loadScript(src).catch(function () { });
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src + '?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev');
+        script.dataset.auragoOceanLife = 'true';
+        document.head.appendChild(script);
+    }
+
     function init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init, { once: true });
@@ -533,6 +546,7 @@
         }
 
         sync();
+        loadSeaLife();
     }
 
     window.AuraGoOcean = { start, stop, sync };

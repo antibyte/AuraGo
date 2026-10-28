@@ -3,11 +3,7 @@ package ruview
 import (
 	"context"
 	"encoding/json"
-	"regexp"
-	"strings"
 	"time"
-
-	"aurago/internal/security"
 )
 
 // payloadRead is one live GET plus the status observed around it.
@@ -44,8 +40,6 @@ type presenceNode struct {
 	RSSIRetained bool     `json:"rssi_retained"`
 	RSSI         *float64 `json:"rssi_dbm,omitempty"`
 }
-
-var statusErrorURL = regexp.MustCompile(`(?i)\b(?:https?|wss?)://\S+`)
 
 func (m *Manager) readPresence(ctx context.Context) (presenceRead, error) {
 	list, err := m.Nodes(ctx)
@@ -105,16 +99,14 @@ func presenceFresh(source string, simulated bool, state string, node Node) bool 
 	return age >= 0 && age <= 10000
 }
 
+// readStatusError describes a failed status probe for the agent. It is bounded
+// and carries no secret, URL or path (scrubDetail).
 func readStatusError(err error) string {
 	if err == nil {
 		return ""
 	}
-	text := strings.Join(strings.Fields(statusErrorURL.ReplaceAllString(security.Scrub(err.Error()), "")), " ")
-	if text == "" {
-		return "RuView status could not be read"
+	if text := scrubDetail(err.Error(), 160); text != "" {
+		return text
 	}
-	if len(text) > 160 {
-		text = strings.TrimSpace(text[:160])
-	}
-	return text
+	return "RuView status could not be read"
 }

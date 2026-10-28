@@ -714,7 +714,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		}
 	}
 	if plan == nil {
-		s.terminateJob(job, ctx, &JobError{Code: "planning", Err: fmt.Errorf("game planning failed after the charged correction budget was spent: %s", diagnosticsText(planDiagnostics))})
+		s.terminateJob(job, ctx, s.planningFailure(job.ID, planDiagnostics))
 		return
 	}
 	// The accepted base decides rewrite versus adapt; record it before any

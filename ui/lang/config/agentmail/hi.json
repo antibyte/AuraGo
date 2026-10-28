@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "अनुमत प्रेषक",
   "config.agentmail.api_key_empty": "कृपया पहले API कुंजी दर्ज करें।",
   "config.agentmail.api_key_label": "API कुंजी (Vault)",
   "config.agentmail.api_key_placeholder": "AgentMail API कुंजी दर्ज करें…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "WebSocket उपयोग करें",
   "config.agentmail.websocket_url_label": "WebSocket URL",
   "config.agentmail.yes": "हाँ",
+  "help.agentmail.allowed_senders": "प्रति पंक्ति एक प्रविष्टि: पूरा पता (anna@example.com) या पूरा डोमेन (@example.com)। केवल इन प्रेषकों के मेल एजेंट तक पहुँचते हैं; बाकी सभी के मेल अनदेखे किए जाते हैं। सूची खाली रहने पर कोई भी मेल एजेंट तक नहीं पहुँचता और हर संदेश के लिए केवल क्वारंटीन सूचना मिलती है। From हेडर को नकली बनाया जा सकता है, इसलिए सूची छोटी रखें और LLM मेल स्कैन चालू रखें।",
   "help.agentmail.api_key": "AgentMail API कुंजी। यह एन्क्रिप्टेड Vault में सुरक्षित रूप से संग्रहीत होती है।",
   "help.agentmail.auto_create_inbox": "समर्थित होने पर सेटअप फ्लो को कॉन्फ़िगर किया इनबॉक्स स्वतः बनाने देता है।",
   "help.agentmail.base_url": "AgentMail REST API का बेस URL।",

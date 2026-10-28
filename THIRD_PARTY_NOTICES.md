@@ -1,5 +1,20 @@
 # Third-party notices
 
+## Optional Horizon Labs prompt-injection guard
+
+The unchanged `Horizon-Labs/prompt-injection-guard-small` quantized ONNX export and
+tokenizer are downloaded only on administrator request. Revision
+`0e3774536debbcd71dbb8534ef71451b583853b8`, Apache-2.0; provenance:
+[official model repository](https://huggingface.co/Horizon-Labs/prompt-injection-guard-small/tree/0e3774536debbcd71dbb8534ef71451b583853b8).
+The full license is retained in `licences/texts/Apache-2.0.txt`. Exact artifact sizes
+and hashes are in `internal/injectionguard/model.go`. Inference uses the separately
+verified MIT-licensed ONNX Runtime 1.26.0 CPU bundles described below. See
+`documentation/prompt-injection-protection.md` for operation and limitations.
+
+## Optional RustFS storage server
+
+RustFS 1.0.4 is an unmodified optional Docker dependency, pinned by manifest digest in `internal/rustfs/types.go`. Copyright 2024–2026 RustFS, Inc.; [Apache License 2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE). The license text is retained in `licences/texts/Apache-2.0.txt`. See `documentation/rustfs.md` for operation and image qualification. This separate server does not change AuraGo's own license.
+
 ## Gradium Phonon speech resources
 
 The separate local speech package contains Gradium's Phonon `ptts` 0.4.0 runtime
@@ -282,6 +297,36 @@ size and SHA-256 before it is used. AuraGo loads the files unmodified and does n
   is the "AI precise" engine.
 - Both models run in an isolated worker process on the CPU ONNX Runtime listed above. Images go
   to the AuraGo server only; no external service receives them.
+
+## Shared QR codes
+
+- `github.com/makiuchi-d/gozxing` v0.1.1: Copyright (c) 2018 Daisuke MAKIUCHI (MakKi; makki_d), MIT. Its original ZXing portions are Copyright 2007-2018 ZXing authors, Apache License 2.0. [Source](https://github.com/makiuchi-d/gozxing/tree/v0.1.1).
+- `github.com/go-text/typesetting` v0.3.5: Copyright 2021 The go-text authors, Unlicense OR BSD-3-Clause. [Source](https://github.com/go-text/typesetting/tree/v0.3.5). The HarfBuzz translation retains the following MIT copyright lines:
+
+```text
+Copyright (c) 2021 B. KUGLER
+Copyright © 2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020  Google, Inc.
+Copyright © 2018,2019,2020  Ebrahim Byagowi
+Copyright © 2019,2020  Facebook, Inc.
+Copyright © 2012  Mozilla Foundation
+Copyright © 2011  Codethink Limited
+Copyright © 2008,2010  Nokia Corporation and/or its subsidiary(-ies)
+Copyright © 2009  Keith Stribley
+Copyright © 2009  Martin Hosken and SIL International
+Copyright © 2007  Chris Wilson
+Copyright © 2006  Behdad Esfahbod
+Copyright © 2005  David Turner
+Copyright © 2004,2007,2008,2009,2010  Red Hat, Inc.
+Copyright © 1998-2004  David Turner and Werner Lemberg
+```
+
+The complete MIT, BSD-3-Clause, Unlicense and Apache-2.0 texts are retained under `licences/texts/`.
+
+The verified external QR font set contains Noto Sans Arabic and Devanagari (Copyright 2022 The Noto Project Authors), Noto Sans CJK SC, Noto Emoji (Copyright 2013 Google LLC), and Liberation Serif (digitised data Copyright 2010 Google Corporation, reserved names Arimo/Tinos/Cousine; Copyright 2012 Red Hat, Inc., reserved name Liberation). All retain their original OFL-1.1 texts alongside the font bytes. Exact font sources, immutable revisions, hashes and lengths are in [`ui/fonts/qr/manifest.json`](ui/fonts/qr/manifest.json). Go Sans/Mono are supplied by the already pinned `golang.org/x/image/font/gofont` dependency.
+
+Go Sans/Mono: Copyright (c) 2016 Bigelow & Holmes Inc., all rights reserved. The original BSD-style font terms (including the Google/contributor endorsement clause) are preserved in `ui/fonts/qr/Go-fonts-LICENSE.txt` and accompany the resource set.
+
+The independent browser test uses `jsqr` 1.4.0, Apache-2.0 ([source](https://github.com/cozmo/jsQR)); it is a development dependency and is not a production QR runtime. [Mini QR](https://github.com/lyqht/mini-qr) is the functional reference; AuraGo's implementation/presets contain no copied Mini QR source or assets.
 
 ## Ziro Designer (Software Store)
 

@@ -803,6 +803,13 @@ func buildKGActivityInput(turns []memory.ActivityTurn) string {
 	return strings.TrimSpace(sb.String())
 }
 
+// buildKGConversationExcerpt renders the recent turns for knowledge-graph
+// extraction. Assistant lines often relay web pages, mails and tool output, so
+// they are kept only as context and carry source=false; the extraction prompts
+// take entities from the role="user" lines (a model that follows a planted line
+// in the assistant text must not turn it into graph facts). An assistant line
+// is flattened to one line so that its text cannot start a line of its own that
+// poses as a user line.
 func buildKGConversationExcerpt(messages []openai.ChatCompletionMessage) string {
 	var sb strings.Builder
 	for _, m := range messages {
@@ -810,10 +817,17 @@ func buildKGConversationExcerpt(messages []openai.ChatCompletionMessage) string 
 			continue
 		}
 		content := m.Content
+		if m.Role == "assistant" {
+			content = strings.Join(strings.Fields(content), " ")
+		}
 		if len(content) > 500 {
 			content = truncateUTF8ToLimit(content, 503, "...")
 		}
-		sb.WriteString(fmt.Sprintf("[role=%q session=%q]: %s\n", m.Role, m.Name, content))
+		if m.Role == "assistant" {
+			sb.WriteString(fmt.Sprintf("[role=%q session=%q source=false]: %s\n", m.Role, m.Name, content))
+		} else {
+			sb.WriteString(fmt.Sprintf("[role=%q session=%q]: %s\n", m.Role, m.Name, content))
+		}
 		if sb.Len() > 8000 {
 			break
 		}

@@ -29,6 +29,7 @@ import (
 	"aurago/internal/credentials"
 	"aurago/internal/dockerutil"
 	"aurago/internal/embeddings"
+	"aurago/internal/injectionguard"
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
@@ -138,6 +139,8 @@ func runIsolatedWorker(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return embeddings.RunONNXWorker(args[2:], stdin, stdout, stderr), true
 	case persondetect.WorkerFlag:
 		return persondetect.RunWorker(args[2:], stdin, stdout, stderr), true
+	case injectionguard.WorkerFlag:
+		return injectionguard.RunWorker(args[2:], stdin, stdout, stderr), true
 	case pixelmatte.WorkerFlag:
 		return pixelmatte.RunWorker(args[2:], stdin, stdout, stderr), true
 	default:

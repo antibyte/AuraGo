@@ -16117,6 +16117,27 @@
       }
     ]
   },
+  "img/tela/icons/docker-manager.svg": {
+    "authors": [
+      "AuraGo contributors"
+    ],
+    "license": "MIT",
+    "sha256": "c8c6a57bb2bb0bb04879e747f2d1f774eaae507608ddf91e7909f2db27c19924",
+    "uses": [
+      {
+        "changes": [
+          "Original AuraGo supplement; no upstream artwork used"
+        ],
+        "key": "docker-manager",
+        "requested_source": null,
+        "resolved_links": [],
+        "role": "icons",
+        "source": "AuraGo original: container-stack",
+        "source_sha256": "3a6a1d7a7f378fc9ed6ebc307d57e84c82129c493b7e9db23f5af3764161eeec",
+        "variant": ""
+      }
+    ]
+  },
   "img/tela/icons/documents.svg": {
     "authors": [
       "Vince Liuice",

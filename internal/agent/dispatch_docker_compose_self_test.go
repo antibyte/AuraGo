@@ -94,10 +94,12 @@ func TestDockerComposePolicyRefusesAuraGosDataVolumeInContainers(t *testing.T) {
 	model := `{"name":"steal","services":{"thief":{"image":"alpine","volumes":[{"type":"volume","source":"loot","target":"/loot"}]}},"volumes":{"loot":{"name":"aurago_aurago_data","external":true}}}`
 	stubDockerComposeResolver(t, func(string) (string, error) { return model, nil })
 	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	host := rustFSAbsentDockerVolumeHost(t)
 	cfg.Docker.AllowHostAccess = true
 	useRuntimePermissionsForTest(t, cfg)
 	policy := func(command string) string {
-		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "steal/compose.yml", Command: command})
+		return dockerComposePolicy(context.Background(), cfg, tools.DockerConfig{Host: host, WorkspaceDir: workspace}, dockerArgs{Operation: "compose", File: "steal/compose.yml", Command: command})
 	}
 	if got := policy("up -d"); got != "" {
 		t.Fatalf("native install refused: %s", got)

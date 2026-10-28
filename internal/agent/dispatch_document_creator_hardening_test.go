@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/testutil"
 )
 
 const c102PolicyMarker = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">`
@@ -66,6 +67,9 @@ func TestDispatchDocumentCreatorPassesBlockRemoteContent(t *testing.T) {
 	var mu sync.Mutex
 	var pages []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if testutil.ServeGotenbergDebug(w, r) {
+			return
+		}
 		if err := r.ParseMultipartForm(8 << 20); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -92,6 +96,7 @@ func TestDispatchDocumentCreatorPassesBlockRemoteContent(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Directories.WorkspaceDir = t.TempDir()
 	cfg.Tools.DocumentCreator.Enabled = true
+	cfg.Tools.DocumentCreator.AllowRemoteResources = true
 	cfg.Tools.DocumentCreator.Backend = "gotenberg"
 	cfg.Tools.DocumentCreator.OutputDir = t.TempDir()
 	cfg.Tools.DocumentCreator.Gotenberg.URL = server.URL

@@ -423,14 +423,39 @@
             for(const el of root.querySelectorAll('.writer-views button'))el.setAttribute('aria-pressed',String([leftPanel,rightPanel].includes(el.dataset.action)));
             refresh();
         }
-        async function insertImage(file) {
+        async function insertImage(file, options = {}) {
             if(!editor || ctx.readonly || !/^image\/(png|jpeg|webp)$/.test(file.type))throw new Error(tr('image_format'));
             if(editor.snapshot().editingMode==='suggesting')throw new Error(tr('tracking_unsupported'));
             if(file.size>20*1024*1024)throw new Error(tr('image_large'));
-            const active=editor,revision=editor.getDocumentHandle().revision,bitmap=await createImageBitmap(file);
-            const command={type:'insertImage',data:new Uint8Array(await file.arrayBuffer()),mime:file.type,widthPoints:bitmap.width*.75,heightPoints:bitmap.height*.75,expectedPackageRevision:revision,description:file.name || ''};
+            const active=editor,revision=options.expectedRevision ?? editor.getDocumentHandle().revision;
+            if(options.expectedEditor && (editor!==options.expectedEditor || revision!==editor.getDocumentHandle().revision))throw new Error(ctx.t('desktop.qr_stale'));
+            const bitmap=await createImageBitmap(file);
+            const command={type:'insertImage',data:new Uint8Array(await file.arrayBuffer()),mime:file.type,widthPoints:options.widthPoints ?? bitmap.width*.75,heightPoints:options.heightPoints ?? bitmap.height*.75,expectedPackageRevision:revision,description:file.name || ''};
             bitmap.close();if(disposed || editor!==active)return;
+            if(options.selection) {
+                if(ctx.readonly || editor.snapshot().editingMode==='suggesting' || editor.getDocumentHandle().revision!==revision)throw new Error(ctx.t('desktop.qr_stale'));
+                // Native image insertion needs a caret; keep the selected text and insert at its captured start.
+                const restored=editor.exec({type:'setSelection',range:{anchor:options.selection.anchor,head:options.selection.anchor}});
+                if(!restored.ok)throw new Error(ctx.t('desktop.qr_stale'));
+            }
             const result=await editor.executeImageCommand(command);if(!result.ok)throw new Error(result.reason || tr('command_unavailable'));
+        }
+        let qrOpening=false;
+        async function insertQR() {
+            if(qrOpening || !editor || ctx.readonly)return;
+            if(editor.snapshot().editingMode==='suggesting')throw new Error(tr('tracking_unsupported'));
+            const source=editor,revision=source.getDocumentHandle().revision,selection=structuredClone(source.surface.state().selection);
+            const retained=source.retainSelection(),signal=documentLife.signal;
+            const current=()=>!disposed && !signal.aborted && editor===source && !ctx.readonly && source.getDocumentHandle().revision===revision && source.snapshot().editingMode!=='suggesting';
+            qrOpening=true;
+            try {
+                await window.AuraDesktopModules.loadAppAssets('qr');
+                if(!current())return;
+                const dialog=window.AuraQRDialog.open({host:root,windowId,t:ctx.t,signal,isCurrent:current,
+                    insertion:{unit:'mm',width:40},onInsert:result=>insertImage(result.file,{expectedEditor:source,expectedRevision:revision,selection,
+                        widthPoints:result.physicalWidthMM*72/25.4,heightPoints:result.physicalHeightMM*72/25.4})});
+                await dialog.closed;
+            } finally { if(retained)source.releaseSelection(retained);qrOpening=false; }
         }
         async function act(action) {
             try {
@@ -462,6 +487,7 @@
                     case 'zoomIn':case 'zoomOut':editor?.setZoom(Math.max(.25,Math.min(3,editor.getZoom()+(action==='zoomIn'?.1:-.1))));refresh();break;
                     case 'page':{const value=await ctx.promptDialog(tr('go_page'),String(editor?.getCurrentPage() || 1));if(value && editor)editor.scrollToPage(Math.max(1,Math.min(editor.getTotalPages(),Number(value)||1)));break;}
                     case 'image':find('[data-image]').click();break;
+                    case 'qr':await insertQR();break;
                     case 'print':if(editor)await panels.print(await editor.save(),lib,documentFonts);break;
                     case 'docx':if(editor)download(await editor.save(),MIME,basename(path));break;
                     case 'html':case 'md':case 'txt':await exportSimple(action);break;
@@ -502,6 +528,8 @@
                     {id:'undo',label:tr('undo'),icon:'undo',shortcut:'Ctrl+Z',action:()=>run({type:'undo'})},
                     {id:'redo',label:tr('redo'),icon:'redo',shortcut:'Ctrl+Y',action:()=>run({type:'redo'})},
                     item('search','find','Ctrl+F'),item('review','review'),item('format','format'),item('insert','insert')]},
+                {id:'insert',label:tr('insert'),items:[item('image','image',null,ctx.readonly || !editor),
+                    {id:'qr',label:ctx.t('desktop.qr_insert'),icon:'image',disabled:ctx.readonly || !editor || editor.snapshot().editingMode==='suggesting',action:()=>act('qr')}]},
                 {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist')]},
                 {id:'view',label:tr('view'),items:[item('outline','outline'),item('focus','focus_mode'),item('fit','fit')]}
             ]);

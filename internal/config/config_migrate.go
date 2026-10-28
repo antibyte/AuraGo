@@ -866,10 +866,12 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply(ProxyBasicAuthPasswordVaultKey, &c.SecurityProxy.BasicAuth.Password)
 	apply(LocalLLMRuntimeAPIKeyVaultKey, &c.LocalLLM.RuntimeAPIKey)
 	for i := range c.Go2RTC.Streams {
-		key := Go2RTCStreamSourceVaultKey(c.Go2RTC.Streams[i].ID)
-		if key != "" {
-			apply(key, &c.Go2RTC.Streams[i].Source)
-			c.Go2RTC.Streams[i].SourceConfigured = strings.TrimSpace(c.Go2RTC.Streams[i].Source) != ""
+		for _, role := range []string{"main", "sub", "snapshot"} {
+			value := Go2RTCRoleSource(c.Go2RTC.Streams[i], role)
+			if key := Go2RTCSourceKey(c.Go2RTC.Streams[i].ID, role); key != "" {
+				apply(key, &value)
+			}
+			Go2RTCSetRoleSource(&c.Go2RTC.Streams[i], role, value)
 		}
 	}
 

@@ -395,7 +395,8 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		inputText = text
 	}
 
-	// Pin the caption or voice transcription before adding image/file contents.
+	// Pin the caption or voice transcription before adding image/file contents
+	// (a forwarded message gets its marker below, the same one the model reads).
 	routingText := inputText
 	humanInput := memory.NewHumanInputEvent(inputText, sessionID, fmt.Sprintf("telegram:%d:%d", msg.Chat.ID, msg.MessageID), time.Time{})
 	if msg.Date > 0 {
@@ -505,11 +506,25 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		return
 	}
 
+	// A forwarded message arrives from the owner's account, but a third party
+	// wrote it. The fixed marker goes inside the isolated block (and before the
+	// injection scan, which then reads the origin name too), task routing reads
+	// the marked text too, the text no longer counts as the owner's own words,
+	// and it cannot answer a pending question or run a slash command.
+	forwardMarker := telegramForwardMarker(msg)
+	if forwardMarker != "" {
+		inputText = forwardMarker + "\n" + inputText
+		routingText = telegramForwardedRoutingText(forwardMarker, routingText)
+		humanInput = nil
+	}
+
 	if tools.HasPendingQuestion(sessionID) {
-		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
-			response.Source = tools.QuestionSourceTelegram
-			tools.CompleteQuestion(sessionID, response)
-			return
+		if forwardMarker == "" {
+			if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
+				response.Source = tools.QuestionSourceTelegram
+				tools.CompleteQuestion(sessionID, response)
+				return
+			}
 		}
 		deliverMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.", "reply prompt", logger)
 		return
@@ -525,7 +540,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// Phase: Command Interception
 	// Check for slash commands
-	if strings.HasPrefix(msg.Text, "/") {
+	if forwardMarker == "" && strings.HasPrefix(msg.Text, "/") {
 		cmdCtx := commands.Context{
 			STM:           shortTermMem,
 			SessionID:     sessionID,
@@ -792,10 +807,16 @@ func shouldBlockTelegramPromptInjection(inputText string, guardian *security.Gua
 	return true
 }
 
+// sendTelegramMessage sends text, in chunks, with link previews switched off.
+// Telegram fetches the URL of a preview itself, so a URL in an answer that
+// carries data from the conversation (an injected "end your answer with this
+// link") would reach the URL's owner with no tool call and no approval.
 func sendTelegramMessage(bot *tgbotapi.BotAPI, chatID int64, text string) error {
 	text = security.Scrub(text)
 	for _, part := range telegramTextChunks(text) {
-		if _, err := bot.Send(tgbotapi.NewMessage(chatID, part)); err != nil {
+		message := tgbotapi.NewMessage(chatID, part)
+		message.DisableWebPagePreview = true
+		if _, err := bot.Send(message); err != nil {
 			return err
 		}
 	}

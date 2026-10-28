@@ -420,6 +420,29 @@ func GetSession() *discordgo.Session {
 	return session
 }
 
+// agentTextMessage wraps text the agent produced (answers, command results,
+// status events, the send_discord tool) with embeds suppressed. Discord fetches
+// the URL of an embed itself, so an answer that ends in an attacker's URL with
+// conversation data in its query would leak without any tool call. Every such
+// text has to be built here (or by agentFileMessage, for a caption); a plain
+// ChannelMessageSend would embed links.
+func agentTextMessage(content string) *discordgo.MessageSend {
+	return &discordgo.MessageSend{Content: content, Flags: discordgo.MessageFlagsSuppressEmbeds}
+}
+
+// agentFileMessage wraps a file the agent sends (an answer's markdown image, a
+// spoken audio file, a person detection photo) with its caption. The caption is
+// text the agent or a tool wrote (the alt text of an image, an audio title) and
+// Discord embeds a URL in it like in an answer, so the flag is set here too. The
+// attachment itself still shows: suppressing embeds only drops link embeds.
+func agentFileMessage(name string, file *os.File, caption string) *discordgo.MessageSend {
+	return &discordgo.MessageSend{
+		Content: caption,
+		Files:   []*discordgo.File{{Name: name, Reader: file}},
+		Flags:   discordgo.MessageFlagsSuppressEmbeds,
+	}
+}
+
 // SendMessage sends a message to a Discord channel. Used by the agent's send_discord tool.
 func SendMessage(channelID, content string, logger *slog.Logger) error {
 	content = security.Scrub(content)
@@ -462,7 +485,7 @@ func SendMessage(channelID, content string, logger *slog.Logger) error {
 			content = ""
 		}
 
-		if _, err := s.ChannelMessageSend(channelID, chunk); err != nil {
+		if _, err := s.ChannelMessageSendComplex(channelID, agentTextMessage(chunk)); err != nil {
 			return fmt.Errorf("failed to send Discord message: %w", err)
 		}
 	}
@@ -483,18 +506,7 @@ func SendDiscordImage(channelID, localPath, caption string, logger *slog.Logger)
 	}
 	defer f.Close()
 
-	msg := &discordgo.MessageSend{
-		Files: []*discordgo.File{
-			{
-				Name:   filepath.Base(localPath),
-				Reader: f,
-			},
-		},
-	}
-	if caption != "" {
-		msg.Content = caption
-	}
-	_, err = s.ChannelMessageSendComplex(channelID, msg)
+	_, err = s.ChannelMessageSendComplex(channelID, agentFileMessage(filepath.Base(localPath), f, caption))
 	if err != nil {
 		return fmt.Errorf("failed to send Discord image: %w", err)
 	}
@@ -514,18 +526,7 @@ func SendDiscordAudio(channelID, localPath, title string, logger *slog.Logger) e
 	}
 	defer f.Close()
 
-	msg := &discordgo.MessageSend{
-		Files: []*discordgo.File{
-			{
-				Name:   filepath.Base(localPath),
-				Reader: f,
-			},
-		},
-	}
-	if title != "" {
-		msg.Content = title
-	}
-	_, err = s.ChannelMessageSendComplex(channelID, msg)
+	_, err = s.ChannelMessageSendComplex(channelID, agentFileMessage(filepath.Base(localPath), f, title))
 	if err != nil {
 		return fmt.Errorf("failed to send Discord audio: %w", err)
 	}
@@ -747,6 +748,12 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 			SendMessage(m.ChannelID, cmdResult, logger)
 			return
 		}
+	}
+
+	// A message that forwards or replies to someone else's message gets a fixed
+	// marker inside the isolated block; the scan below reads the author name too.
+	if marker := discordReferenceMarker(m.Message, botUserID); marker != "" {
+		inputText = marker + "\n" + inputText
 	}
 
 	// Security: Block prompt injection attempts (not just log them)
@@ -1112,7 +1119,7 @@ func (b *DiscordBroker) Send(event, message string) {
 // message is invisible to the user, so it is logged and counted in the health
 // endpoint.
 func (b *DiscordBroker) deliver(text, what string) {
-	if _, err := b.session.ChannelMessageSend(b.channelID, text); err != nil {
+	if _, err := b.session.ChannelMessageSendComplex(b.channelID, agentTextMessage(text)); err != nil {
 		markDeliveryFailure(time.Now())
 		if b.logger != nil {
 			b.logger.Warn("[Discord] Failed to send "+what, "error", err)

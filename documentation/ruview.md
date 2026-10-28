@@ -10,9 +10,15 @@ The embedded Dashboard's Hardware tab no longer shows simulated real-time CSI: a
 
 Live Demo uses the separate `/api/v1/stream/pose` WebSocket through AuraGo. The pinned Rust service accepts no zone, confidence or frame-rate query filters on this stream; the bundled client omits them. AuraGo supplies upstream authentication from the Vault. A connected sensor stream alone does not prove that the pose stream is connected or that pose frames have arrived.
 
-The Devices view refreshes every three seconds while visible, without overlapping requests. **Last measurement** is a relative age and advances between replies; measurements older than ten seconds and failed refreshes are marked stale. An offline board can keep its previous RSSI, labelled as the last value, only for the same receiver. A measurement time the reply left empty stays blank. Each known board can open setup with that node ID. Previously received values remain visible. The overview uses the same visible-only refresh for service status and known boards. Closing the app cancels requests and timers. Pose Fusion starts in **CSI Only**; camera and video modes are unavailable.
+The **Boards** view lists every board AuraGo knows. It is shown only for the ESP32 source. It reads the board list every three seconds while visible, without overlapping requests. **Last measurement** is a relative age and advances between replies. Measurements older than ten seconds and failed refreshes are marked stale. An offline board can keep its previous RSSI, labelled as the last value, for the same receiver only. A measurement time that the reply left empty shows a dash. **Set up this board** opens setup with that node ID. **Add board** opens setup for a new node ID. Previously received values remain visible. Closing the app cancels requests and timers.
 
-The overview shows the service state, sensing, source, whether the pinned artifact was verified for a runtime AuraGo started, and whether managed storage is inside the configured budget. It also shows the last recording action this AuraGo process confirmed. A disabled button names the missing step: enable and save, wait for the current action, turn off read-only, or use the external service's own computer. Install is only offered for the native runtime. When RuView is enabled and writable but this session has not started a managed runtime, the overview says so and leaves **Start** as the action. Opening the app does not start a service, and the status read never contacts RuView. While Overview or Devices is visible, the board list is read every three seconds. For an ESP32 source, that contacts a running managed runtime or an external instance; a managed runtime that is not running is not contacted. A first failed status request shows **Status unavailable** instead of **Disabled**. The Sensing card shows **Waiting for first data** while a connected sensor has not sent its first frame. Five checks cover the service, UDP reception, the receiver address, a known board and fresh CSI. External UDP belongs to that RuView instance; it is not shown as a failure. Wi-Fi and demo sources do not need UDP, a receiver address or fresh CSI. For a managed runtime, UDP is done only when it is ready with a private bind and an allowlist; switched-off UDP needs attention, and UDP that is on while the service is not ready stays unchecked. A successful empty board list stays unchecked. A failed board read marks the board and CSI checks as needing attention and keeps the last list. A source without a board list marks the board and CSI checks as not needed. A managed runtime that is not running leaves them unchecked, not as needing attention. While RuView is disabled, AuraGo does not contact RuView for the board list, and the checks stay unchecked except where the source does not use them.
+The **Status** view answers one question first: is it working? A headline states the state in one sentence. One button offers the next step when there is one. A visible reason explains a blocked button. A setup list shows what is still missing: turned on, changes allowed, service running, receiver and UDP set, first board and data arriving. Each open step has its own fix button. The list disappears once real sensor data has arrived. **Details** is collapsed by default. It shows the service and revision, the source, storage used against the budget, the last recording action this AuraGo session confirmed, and open hints. **Copy diagnostics** copies the same facts as plain `key=value` lines. The copy has no token, URL, file path or legacy error sentence. Install is only offered for the native runtime. When RuView is enabled and writable but this session has not started a managed runtime, the headline says so and **Start service** is the next step. Opening the app does not start a service.
+
+The status read is passive, so Status never contacts an external service. For an external instance, use **Check now** in the **⋯** menu or as the next step. The check result appears in the headline. Ten seconds later, unless the check failed, the headline says when the service was last checked and offers **Check now** again.
+
+**Allow changes…** appears when read-only blocks a start. After you confirm, AuraGo saves only `ruview.readonly` set to off, through the normal administrator config save. Nothing else is sent. On a read-only desktop the button opens the settings instead.
+
+The **Lab** view shows one card each for Observatory, Pose fusion and the original Dashboard. A page loads only when you choose **Open**. **Back** or **Close** removes it, and so does leaving the Lab view. Pose Fusion starts in **CSI Only**; camera and video modes are unavailable.
 
 Known board IDs are stored under AuraGo's `data/ruview/`, separately for each receiver. Managed runtime health checks also discover boards while the app is closed. A successful empty reply, lost connection, upstream eviction or restart no longer removes known boards: they remain visible without claiming fresh measurements. Only IDs are persisted, not measurements or Wi-Fi credentials. Older installations populate this list on the next reception/discovery; boards that have never been observed or confirmed cannot be reconstructed from an empty upstream response. The administrative `GET /api/ruview/nodes` merges live and saved IDs and reports `live_state` (`ok`, `not_applicable` when the source has no board list, `not_running` when the managed runtime is not running in this process, `unreachable` or `invalid`). `available` is true exactly for `ok`; `POST` accepts only a `node_id` after confirmed board setup, with the normal admin, origin and write gates. Desktop uses the equivalent integration routes. Agent and upstream proxy APIs keep their live-data semantics.
 
@@ -28,15 +34,15 @@ Read-only blocks starts, changes and deletions. Administrators may still stop a 
 
 Open **Configuration → RuView**, enable the integration, select a runtime and source, then save. The integration and agent access are disabled by default; read-only starts enabled. At AuraGo startup, an enabled, writable managed runtime starts once in the background. Docker also requires its existing write permission; native packages must already be installed and verified. External services are never started automatically. Enabling RuView during an existing AuraGo session still requires **Start** or the next AuraGo startup.
 
-Managed runtimes receive non-overlapping health checks about every three seconds while running, so the overview follows readiness, connection failures and recovery without a manual test. Startup failures remain visible and are not retried automatically. Manual stop and native process exit remain stopped until an explicit start or the next AuraGo startup. A failed stop (`stop_failed`) and a process that exited (`process_exited`) stay visible across probes and configuration changes until an explicit Start or Stop. **Not checked** and pending startup are shown separately from unavailable. Opening or reopening the app never starts a service. While Overview or Devices is visible, the board list is read every three seconds; for an external instance with an ESP32 source, that reads the external service. A managed runtime that is not running is not contacted. Explicit connection tests still use the saved target and Vault token; external services are otherwise probed only by these tests, the board list or explicit data reads. A connection test reports success only for fresh sensor data. A connected service without its first frame reports `waiting_for_frames` and shows **Waiting for first data** as a warning. Stale, source-mismatch and unexpected-simulation results are never shown as success.
+Managed runtimes receive non-overlapping health checks about every three seconds while running, so the Status view follows readiness, connection failures and recovery without a manual test. Startup failures remain visible and are not retried automatically. A start reports its progress as `phase`: preparing, pulling the image (only when it is missing), creating the service and waiting for the first answer. **Stop service** works during a start and cancels it. A second start or install while one is running answers `busy`. A manual stop remains stopped until an explicit start or the next AuraGo startup. A managed service that ends on its own, as a native process or a Docker container, shows **RuView stopped unexpectedly** (`process_exited`) and is not restarted. A failed stop (`stop_failed`) and a service that exited (`process_exited`) stay visible across probes and configuration changes until an explicit Start or Stop replaces them. **Not checked**, starting and stopping each have their own headline. None of them is shown as unavailable. Opening or reopening the app never starts a service. The Boards view reads the board list every three seconds while it is visible. Status reads the board list only for a managed ESP32 service, and a managed runtime that is not running is never contacted for it. An external instance is contacted only by **Check now**, by the Boards view, or by an explicit data read. Connection tests still use the saved target and Vault token. A connection test reports success only for fresh sensor data. A connected service without its first frame reports `waiting_for_frames`. Status shows it as waiting (*RuView is running and waiting for data from the boards.*), not as success. Stale, source-mismatch and unexpected-simulation results are never shown as success.
 
-The configuration shows external credentials only for external instances, and board networking only for ESP32 sensing. Switching modes preserves unsaved fields. Read-only stays visible under Operation, with a notice explaining the blocked actions; Permissions contains the agent switch. Advanced contains the managed HTTP port and storage budget. Save before testing or setting up a board. Disabled actions explain the missing step. Use **Open RuView** to install or start a managed runtime, and **Set up board** for USB firmware and Wi-Fi provisioning.
+The configuration shows external credentials only for external instances, and board networking only for ESP32 sensing. Switching modes preserves unsaved fields. Read-only stays visible under Operation, with a notice explaining the blocked actions; Permissions contains the agent switch. Advanced contains the managed HTTP port and storage budget. Save before testing or setting up a board. Disabled actions explain the missing step. Use **Open RuView** to open the app, where **Install** and **Start service** manage a managed runtime. Use **Set up board** for USB firmware and Wi-Fi provisioning.
 
 Managed Docker connects to RuView automatically; the receiver IP is only for optional ESP32 boards sending UDP over the LAN. The form offers a private IPv4 address from the LAN binding, configured endpoint or browser URL when available. Confirm that it is the RuView host reachable from the board, particularly behind a proxy or tunnel. Accepting the suggestion fills empty receiver and managed LAN-bind fields in the draft; it does not overwrite existing values, enable UDP, grant write access, save or test a connection.
 
 The board dialog opens from Config or Desktop even when no receiver IP has been saved. It loads the saved receiver and UDP port through the administrative, read-only `board-setup` endpoint. It also offers LAN candidates from the configured binding, a literal private endpoint, or the active local interfaces of a native/local-Docker host. It never resolves DNS or probes the network, and never presents AuraGo's container interfaces as the Docker host. Common container/VPN interfaces are excluded. Candidates require an explicit selection; they do not prove that the board can reach the receiver. Late results preserve typed values. If the host cannot be determined (for example an external hostname or container placement), the dialog explains how to find the RuView machine in the router's device list. It shows a separate warning while managed UDP reception is disabled; choosing an address does not enable reception or save configuration.
 
-If starting Docker fails, the overview retains the concrete Engine error across status refreshes. A registry `denied` response means the pinned image is inaccessible; changing the receiver IP does not fix it. The reviewed image must be published and readable by AuraGo before managed Docker can start. Failed connection checks remain disconnected; only previously observed live measurements become stale. The timestamp records the last check, not proof of a received sensor frame.
+If starting Docker fails, Status keeps the failure as its headline until the next explicit Start, Stop or Install, or until a runtime setting changes. The headline names the cause in plain words, for example **RuView can't start: the registry denied the service image.** (`image_denied`). The Engine's own text is under **Technical details**, scrubbed of paths, URLs and addresses. A registry `denied` response means the pinned image is inaccessible; changing the receiver IP does not fix it. The reviewed image must be published and readable by AuraGo before managed Docker can start. A failed connection check shows its own cause, for example `unreachable`. The last-checked time records the last check, not proof of a received sensor frame.
 
 | Runtime | Intended use |
 | --- | --- |
@@ -50,17 +56,89 @@ Disable read-only to install/start a runtime, provision a board, calibrate, reco
 
 ## Network and storage
 
-The external URL must be an origin, without credentials, path, query or fragment. Credentialed requests never follow redirects. DNS is checked on every dial; environment proxies cannot bypass the private-network grant. Only reviewed methods and paths pass through `/api/ruview/proxy/`. Desktop uses `/api/desktop/integrations/ruview/` and retains its own policy gates. Mutations require administrator access, same-origin checks and writable RuView configuration. Pure data WebSockets remain readable in read-only mode; configuration changes cancel active proxy requests.
+The external URL must be an origin, without credentials, path, query or fragment. Credentialed requests never follow redirects. DNS is checked on every dial; environment proxies cannot bypass the private-network grant. Only reviewed methods and paths pass through `/api/ruview/proxy/`. Desktop uses `/api/desktop/integrations/ruview/` and retains its own policy gates. Mutations require administrator access, same-origin checks and writable RuView configuration. Pure data WebSockets remain readable in read-only mode. Only runtime-relevant configuration changes cancel active proxy requests, pulls and starts. Those are the RuView settings that define the runtime (enabled, mode, source, URL, ports, receiver and UDP settings), the data directory, and the Docker host and switches. Such a change also stops a running managed service, with the stop reason *Stopped after a settings change*. Agent access, read-only and the storage budget change nothing.
 
 The Desktop frame is sandboxed without the page origin. It cannot open its own network connections, and it has no serial, camera, or microphone permission. The Desktop page relays reviewed API calls and sensing sockets for that frame. A fetch from the frame to any other path does not leave the browser. The frame loads its pinned scripts and fonts as static files. Those files do not use the session cookie. The proxy and status routes still require an administrator.
 
 Managed HTTP binds to loopback, or the AuraGo application Docker network. The separate WebSocket port is not published; data WebSockets use the HTTP listener. Container limits are two CPUs, 2 GiB memory and 128 PIDs, a read-only root, dropped capabilities and no additional privileges. A writable Docker integration is necessary; Docker image builds are never performed by the user's AuraGo process. The standard socket proxy can retain `BUILD=0`.
 
+Stop removes the container that AuraGo created, so a stopped service leaves nothing behind. A container named `aurago-ruview` that AuraGo did not create is never stopped or removed. Stop then succeeds and logs a warning, and Start reports `container_conflict` with the fix. While a managed Docker service runs, AuraGo asks the Engine about its container every five seconds. A container that exited, was removed or was replaced is shown as exited (`process_exited`). That check has its own five-second timeout and does not hold the lifecycle lock.
+
 ESP32 reception needs explicit UDP publication: a concrete RFC1918 IPv4 LAN bind address and an allowlist of private IPv4 sources/CIDRs. The default port is 5005. The receiver address in board setup must reach the **RuView machine** from the board; it is not necessarily the AuraGo server or browser computer. Docker NAT and the host firewall must allow that path. Passive status reports this without contacting RuView: `udp_scope` is `managed`, `external` or `off`; `udp_enabled` follows the saved flag and is never set for an external service; `udp_ready` requires a running managed runtime, UDP on, a private bind and at least one allowlist entry. `receiver_configured` means the saved receiver is a private IPv4 address.
 
-Managed recordings and models live below `data/ruview/data`; native executables live in `data/ruview/runtime/<revision>/<platform>`. An external service keeps its own storage. The managed storage watcher checks once per second, refuses recording starts when the budget is exhausted and requests a recording stop when it reaches the configured budget (default 1024 MiB). This is a controlled recording stop, not a filesystem quota; data written between checks can exceed the budget. AuraGo does not delete recordings automatically.
+Managed recordings and models live below `data/ruview/data`; native executables live in `data/ruview/runtime/<revision>/<platform>`. An external service keeps its own storage. The storage check measures the managed data folder at most every 30 seconds. A recording start uses a measurement that is at most 30 seconds old, or measures again. When the budget (default 1024 MiB) is reached, recording starts are refused with HTTP 507, and the watcher requests a recording stop. This is a controlled recording stop, not a filesystem quota; data written between measurements can exceed the budget. A folder that cannot be measured is `storage_unreadable`: a permission error, a link, a special file or more than 200,000 entries. Recording starts are then refused with HTTP 503, and the budget is not treated as full. A missing folder counts as empty. AuraGo does not delete recordings automatically.
 
 Recording creation validates any requested ID as a filename prefix and appends a random suffix. Use the returned ID for later operations: reusing a prefix cannot overwrite an existing recording. External model statistics render as text, and embedded documents allow inline scripts only with an AuraGo-generated nonce. Observatory and the legacy 3D visualization require explicit demo selection for generated frames; stalled live data expires after ten seconds.
+
+## Status fields and error codes
+
+`GET /api/ruview/status` (administrator) returns the fields below next to the existing ones. The desktop reads the same data through `/api/desktop/integrations/ruview/status`. The legacy `error` field stays for compatibility. It is a scrubbed English sentence, and the Status view does not show it.
+
+| Field | Meaning |
+| --- | --- |
+| `runtime` | `external`, `not_started`, `starting`, `running`, `stopping`, `stopped`, `exited` or `stop_unconfirmed`. Always set. |
+| `phase` | The step of a long start or install. Empty when idle. |
+| `phase_since` | When `phase` was entered. `null` when `phase` is empty. |
+| `error_code` | One stable code from the table below. Empty when there is none. |
+| `error_detail` | Scrubbed detail, at most 240 bytes. No URL, path or address. |
+| `last_fresh_at` | Last stored probe with fresh, non-simulated data. Only a runtime-relevant settings change resets it. |
+| `stop_reason` | `user`, `config_changed`, `process_exit` or `aurago_shutdown`. Empty while the runtime runs. |
+| `stopped_at` | When `stop_reason` was recorded. |
+| `storage_used_bytes` | Size of the last successful walk of the managed data folder. `null` for an external service, before the first walk, or after a failed walk. |
+| `storage_budget_bytes` | `storage_mb` in bytes for a managed service. `null` for an external service. |
+| `recording_at` | When the last forwarded recording start or stop got a 2xx answer. |
+| `hints` | Open hint names, sorted: `sensing_stale`, `storage_limit`, `stop_unconfirmed`. Always an array. |
+
+Phase order:
+
+- Docker start: `preparing`, then `pulling_image` only when the image is missing, then `creating`, then `waiting_ready`.
+- Native start: `preparing`, `verifying`, `creating`, then `waiting_ready`.
+- Install: `downloading`.
+
+`waiting_ready` ends at the first stored probe that reports ready, or after 30 seconds.
+
+`error_code` takes the first match from this list: lifecycle errors (`stop_failed`, `process_exited`), then a start or install failure, then probe results (`source_mismatch`, `unexpected_simulation` and the connection codes). `storage_unreadable` is set only when nothing else is.
+
+Errors from the RuView routes use the HTTP status of their code and this body:
+
+```json
+{"error_code":"image_denied","error":"RuView image pull returned HTTP 403: registry denied","detail":"HTTP 403: registry denied"}
+```
+
+`error` is the scrubbed English sentence, and `detail` is the scrubbed technical text. Neither contains a token, URL, file path or address. The raw Engine text goes only to the server log. A refused recording start through `/api/ruview/proxy/` is plain text instead: 503 when the storage folder cannot be checked, and 507 when the budget is full.
+
+| Code | HTTP | Meaning |
+| --- | --- | --- |
+| `disabled` | 403 | RuView is turned off. |
+| `readonly` | 403 | Read-only blocks the change. |
+| `external_runtime` | 403 | An external service is started and stopped by its operator. |
+| `docker_readonly` | 403 | The Docker integration is off or read-only. |
+| `already_running` | 409 | The service is already running. Stop it first. |
+| `not_installed` | 409 | The native package is not installed or failed its check. |
+| `busy` | 409 | Another start or install holds the lifecycle slot. |
+| `cancelled` | 409 | A stop, a settings change or a shutdown cancelled the action. |
+| `container_conflict` | 409 | A container named `aurago-ruview` belongs to another workload. |
+| `platform_unsupported` | 409 | No verified native package for this platform in this release. |
+| `invalid_node_id` | 400 | The board number is outside 1 to 255. |
+| `invalid_config` | 400 | The settings do not allow the action. |
+| `unreachable` | 502 | The RuView service could not be reached. |
+| `upstream_auth` | 502 | RuView rejected the access token (401 or 403). |
+| `upstream_error` | 502 | RuView answered with another error. |
+| `docker_unavailable` | 502 | The Docker Engine could not be reached. |
+| `image_denied` | 502 | The registry denied the service image. |
+| `image_pull_failed` | 502 | The service image could not be downloaded. |
+| `contract_unsupported` | 502 | RuView answered in a format this AuraGo version does not support. |
+| `download_failed` | 502 | The native package could not be downloaded or failed its check. |
+| `start_failed` | 502 | Any other start failure, for example the data folder, the Vault or container placement. |
+| `stop_failed` | 502 | Stopping was not confirmed. |
+| `process_exited` | 502 | The service ended on its own. Status only. |
+| `source_mismatch` | 502 | RuView uses a different signal source than set in AuraGo. Status only. |
+| `unexpected_simulation` | 502 | RuView sends simulated data although real sensing is set. Status only. |
+| `timeout` | 504 | RuView or Docker did not answer in time. |
+| `storage_unreadable` | 503 | The data folder cannot be measured. |
+| `storage_full` | 507 | The storage budget is reached. |
+| `artifact_missing` | 500 | This release has no verified digest or package for the service. |
+| `unknown` | 500 | Any other failure. |
 
 ## ESP32 browser setup
 
@@ -114,7 +192,7 @@ node scripts/ruview/check-artifacts.mjs --release
 node scripts/ruview/vendor-ui.mjs --check
 node scripts/build-browser-vendor.js --check
 node scripts/build-ui-bundles.js --check
-node --test scripts/ruview/protocol.test.mjs scripts/ruview/upstream.test.mjs
+node --test scripts/ruview/model.test.mjs scripts/ruview/protocol.test.mjs scripts/ruview/upstream.test.mjs
 ```
 
 The release check intentionally rejects an incomplete platform catalog. For a new artifact revision, publish the reviewed multi-architecture image as a separate authorized release step, record its real manifest digest and platforms, and rebuild AuraGo and its version-bound resource package. Publishing the existing pinned image does not require changing the catalog or rebuilding AuraGo. Never substitute a floating tag or invent a digest. The independent artifact names, target profiles, build metadata and hashes support repeat builds; bit-for-bit reproducibility across CI operating-system/toolchain images has not been established.

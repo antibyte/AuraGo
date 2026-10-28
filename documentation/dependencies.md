@@ -18,6 +18,8 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+Shared QR codes pin `github.com/makiuchi-d/gozxing` v0.1.1 (MIT plus upstream ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 (Unlicense OR BSD-3-Clause; HarfBuzz translation MIT). Both run with CGO disabled. Keep payload/geometry, exact final-byte decoding and independent Chromium/jsQR acceptance when updating either dependency. `jsqr` 1.4.0 (Apache-2.0) is a test-only npm pin, not a production decoder. Caption fallback fonts are pinned by URL, revision, byte length and SHA-256 in `ui/fonts/qr/manifest.json`, retain their OFL texts, and ship through verified web assets. See [qr-code.md](qr-code.md).
+
 Owner WebAuthn verification pins `github.com/go-webauthn/webauthn` v0.18.2
 (BSD-3-Clause). It supports the pinned Go compiler and CGO-free builds; protocol
 verification stays in that library. Its server/client contract and focused
@@ -51,6 +53,8 @@ See [AuraGolf](minigolf.md).
 | CYD builder certifi | >=2026.10.19 (hash-pinned lock) | Removes compromised emSign trust roots (GHSA-6q48-6c7w-9gw2). Preserve this floor when refreshing PlatformIO's transitive dependencies. |
 | markdown-it | 15.0.3 exact pin | Fixes quadratic parsing in multiline link references and inline HTML (GHSA-gfr2-rv44-r23c, GHSA-vfgh-jcmw-g37q). Rebuild the browser vendor and chat bundles together. |
 | cloudflared | 2026.10.0; Docker manifest digest and Linux amd64/arm64 SHA-256 pins | Reviewed release metadata in `internal/tools/cloudflare_install.go` and `cloudflare_tunnel.go`; no moving latest URL or checksum sidecar. Run Cloudflare/HomepageQuick tests when refreshing. See [Cloudflare Tunnel](cloudflare-tunnel.md). |
+| RustFS | 1.0.4; multi-architecture image digest in `internal/rustfs/types.go` | Optional managed S3 server. Qualify native IAM privilege denials, S3 operations, revocation and retained-volume lifecycle against each new pin. See [Managed RustFS](rustfs.md). |
+| Gotenberg | Docker 8.38.0, multi-architecture digest in Compose and `internal/tools/gotenberg_lifecycle.go`; external instances >=8.38.0 and <9 | Every conversion requires private `/debug` proof of the four private-IP filters and absence of bypasses. Keep both managed profiles aligned and run isolated Docker acceptance on upgrades. The [8.38.1 release](https://github.com/gotenberg/gotenberg/releases/tag/v8.38.1) fixes Go module metadata and uses the same code as Docker 8.38.0. See [Document Creator](document-creator.md). |
 | gRPC Go | 1.83.2 | 1.84.0 is affected by GO-2026-6443; use a fixed stable successor when available. |
 | Excelize | 2.11.1-0.20261003002531-6258dcebc4e2 | Security exception to stable releases: 2.11.0 remains affected by 15 workbook-parsing advisories. This exact upstream commit contains all their fixes; move to a fixed stable release when available and rerun the Office preservation and security tests. |
 | pdfcpu | 0.15.0 | 0.16 changes `MergeRaw`; Maroto 2.4.3 still calls the previous API. |

@@ -36,7 +36,7 @@
         const key = cacheKey(src);
         if (scriptPromises.has(key)) return scriptPromises.get(key);
         const existing = Array.from(document.scripts || []).find(script => cacheKey(script.getAttribute('src') || '') === key);
-        if (existing) {
+        if (existing && (!existing.dataset.auragoLazyAsset || existing.dataset.auragoLoaded === 'true')) {
             existing.dataset.auragoLoaded = 'true';
             const resolved = Promise.resolve();
             scriptPromises.set(key, resolved);
@@ -45,15 +45,20 @@
         const promise = new Promise((resolve, reject) => {
             const script = existing || document.createElement('script');
             script.dataset.auragoLazyAsset = 'script';
-            script.onload = () => {
+            const onLoad = () => {
                 script.dataset.auragoLoaded = 'true';
                 resolve();
             };
-            script.onerror = () => {
+            const onError = () => {
                 scriptPromises.delete(key);
                 reject(new Error('Failed to load script: ' + src));
             };
-            if (!existing) {
+            if (existing) {
+                script.addEventListener('load', onLoad, { once: true });
+                script.addEventListener('error', onError, { once: true });
+            } else {
+                script.onload = onLoad;
+                script.onerror = onError;
                 script.src = url;
                 document.head.appendChild(script);
             }
@@ -1691,49 +1696,66 @@ if (typeof module !== 'undefined' && module.exports) {
             window.copyCodeBlock = this.copyCodeBlock.bind(this);
         },
 
+        // Returns block markup without layout whitespace: the code body keeps
+        // white-space: pre, so template indentation would render as empty lines.
         createCodeBlock(code, lang) {
-            const lines = code.split('\n');
-            const lineNumbers = lines.map((_, i) => i + 1).join('\n');
+            // markdown-it fence content ends with the newline before the closing fence.
+            const source = String(code == null ? '' : code).replace(/\n$/, '');
+            const language = String(lang || '').trim();
+            const lineNumbers = source.split('\n').map((_, i) => i + 1).join('\n');
 
             // Syntax highlighting
-            let highlighted = code;
-            if (lang && window.hljs && hljs.getLanguage(lang)) {
+            let highlighted = source;
+            if (language && window.hljs && hljs.getLanguage(language)) {
                 try {
-                    highlighted = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+                    highlighted = hljs.highlight(source, { language, ignoreIllegals: true }).value;
                 } catch (e) {
-                    highlighted = this.escapeHtml(code);
+                    highlighted = this.escapeHtml(source);
                 }
             } else {
-                highlighted = this.escapeHtml(code);
+                highlighted = this.escapeHtml(source);
             }
 
-            return `
-                <div class="code-block-wrapper">
-                    <div class="code-header">
-                        <span class="code-lang">${lang || 'text'}</span>
-                        <button class="copy-btn" onclick="copyCodeBlock(this)" data-code="${this.encodeHtml(code)}">
-                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('clipboard', 'copy-icon') : ''}
-                            <span class="copy-text">${t('chat.code_copy')}</span>
-                        </button>
-                    </div>
-                    <div class="code-body">
-                        <div class="line-numbers">${lineNumbers}</div>
-                        <pre><code class="hljs ${lang || ''}">${highlighted}</code></pre>
-                    </div>
-                </div>
-            `;
+            return [
+                '<div class="code-block-wrapper">',
+                `<div class="code-header"><span class="code-lang">${this.encodeHtml(language || 'text')}</span></div>`,
+                '<div class="code-body">',
+                `<div class="line-numbers">${lineNumbers}</div>`,
+                `<pre><code class="hljs ${this.encodeHtml(language)}">${highlighted}</code></pre>`,
+                '</div>',
+                '</div>'
+            ].join('');
+        },
+
+        // The chat sanitizer drops <button> elements and inline handlers, so
+        // copy buttons are attached to the rendered blocks afterwards.
+        enhance(root) {
+            if (!root || !root.querySelectorAll) return;
+            root.querySelectorAll('.code-block-wrapper > .code-header').forEach((header) => {
+                if (header.querySelector('.copy-btn')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'copy-btn';
+                btn.innerHTML = this.copyLabelMarkup('clipboard', 'chat.code_copy');
+                btn.addEventListener('click', () => this.copyCodeBlock(btn));
+                header.appendChild(btn);
+            });
+        },
+
+        copyLabelMarkup(icon, labelKey) {
+            const iconMarkup = window.chatUiIconMarkup ? window.chatUiIconMarkup(icon, 'copy-icon') : '';
+            return `${iconMarkup}<span class="copy-text">${this.escapeHtml(t(labelKey))}</span>`;
         },
 
         copyCodeBlock(btn) {
-            const code = this.decodeHtml(btn.dataset.code);
+            const wrapper = btn.closest('.code-block-wrapper');
+            const codeEl = wrapper && wrapper.querySelector('.code-body code');
+            const code = codeEl ? codeEl.textContent : '';
 
             navigator.clipboard.writeText(code).then(() => {
                 const originalHTML = btn.innerHTML;
                 btn.classList.add('copied');
-                btn.innerHTML = `
-                    ${window.chatUiIconMarkup ? window.chatUiIconMarkup('complete', 'copy-icon') : ''}
-                    <span class="copy-text">${t('chat.code_copied')}</span>
-                `;
+                btn.innerHTML = this.copyLabelMarkup('complete', 'chat.code_copied');
 
                 setTimeout(() => {
                     btn.classList.remove('copied');
@@ -1779,12 +1801,6 @@ if (typeof module !== 'undefined' && module.exports) {
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
-        },
-
-        decodeHtml(html) {
-            const textarea = document.createElement('textarea');
-            textarea.innerHTML = html;
-            return textarea.value;
         }
     };
 
@@ -6680,6 +6696,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     let animationFrameIndex = 0;
     let robotState = 'idle';
     let launchTimer = null;
+    // A theme may own the robot's position (e.g. Galaxy docks it in the navigation rail).
+    let placementResolver = null;
+
+    // state: 'greeting' | 'anchored'. Returns null (theme has no opinion), { parked: true }
+    // (theme hides the robot) or { left, top, size }.
+    function resolvePlacement(state) {
+        if (typeof placementResolver !== 'function') return null;
+        let m = null;
+        try { m = placementResolver(state); } catch (_) { m = null; }
+        if (!m) return null;
+        if (m.parked) return { parked: true };
+        if (![m.left, m.top, m.size].every(Number.isFinite)) return null;
+        return m;
+    }
 
     function setFrame(rowIndex, colIndex = 0) {
         const row = Math.max(0, Math.min(animations.length - 1, Number(rowIndex) || 0));
@@ -6721,7 +6751,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function placeRobot(metrics) {
-        if (!metrics) return;
+        mascot.classList.toggle('is-parked', !!(metrics && metrics.parked));
+        if (!metrics || metrics.parked) return;
         mascot.style.left = `${Math.round(metrics.left)}px`;
         mascot.style.top = `${Math.round(metrics.top)}px`;
         mascot.style.bottom = 'auto';
@@ -6811,20 +6842,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         mascot.style.setProperty('--chat-robot-footer-offset', `${footerHeight + extraClearance}px`);
     }
 
+    // Plays a named sprite animation once (e.g. 'wave', 'happy'), then returns to the idle rotation.
+    function cue(name) {
+        if (document.hidden || (reduceMotion && reduceMotion.matches)) return;
+        const animation = animations.find(item => item.name === name);
+        if (!animation) return;
+        activeAnimation = animation;
+        animationFrameIndex = 0;
+        window.clearTimeout(timer);
+        tick();
+    }
+
     function syncPlacement(forceAnchor = false) {
         updateFooterOffset();
-        const metrics = (!forceAnchor && greetingActive()) ? greetingMetrics() : anchorMetrics();
-        applyRobotState((!forceAnchor && greetingActive()) ? 'greeting' : 'anchored');
+        const wantsGreeting = !forceAnchor && greetingActive();
+        const themed = resolvePlacement(wantsGreeting ? 'greeting' : 'anchored');
+        if (themed) {
+            // The theme's dock is never the floating "greeting" state.
+            applyRobotState('anchored');
+            placeRobot(themed);
+            return;
+        }
+        const metrics = wantsGreeting ? greetingMetrics() : anchorMetrics();
+        applyRobotState(wantsGreeting ? 'greeting' : 'anchored');
         placeRobot(metrics);
     }
 
     function anchorImmediately() {
         window.clearTimeout(launchTimer);
         applyRobotState('anchored');
-        placeRobot(anchorMetrics());
+        placeRobot(resolvePlacement('anchored') || anchorMetrics());
     }
 
     function launchToAnchor() {
+        const themed = resolvePlacement('anchored');
+        if (themed) {
+            window.clearTimeout(launchTimer);
+            applyRobotState('anchored');
+            placeRobot(themed);
+            cue('wave');
+            return;
+        }
         if (robotState === 'launching' || !greetingActive()) {
             anchorImmediately();
             return;
@@ -6842,7 +6900,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.clearTimeout(launchTimer);
         window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-                placeRobot(endMetrics);
+                // Under load this frame can arrive after the timer anchored the robot (or after a
+                // theme docked it); a stale frame must not move it back to the base anchor.
+                if (robotState !== 'launching') return;
+                placeRobot(resolvePlacement('anchored') || endMetrics);
             });
         });
 
@@ -6871,11 +6932,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         observer.observe(chatContent);
     }
 
-    window.addEventListener('resize', () => {
+    function refresh() {
         if (robotState !== 'launching') {
             syncPlacement(robotState !== 'greeting');
         }
-    }, { passive: true });
+    }
+
+    window.addEventListener('resize', refresh, { passive: true });
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             window.clearTimeout(timer);
@@ -6901,7 +6964,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         setPersonaKey,
         resetGreeting() {
             syncPlacement(false);
-        }
+        },
+        // A theme registers (or clears with null) a function that returns the robot's
+        // placement for 'greeting' | 'anchored': { left, top, size }, { parked: true } or null.
+        setPlacement(resolver) {
+            placementResolver = typeof resolver === 'function' ? resolver : null;
+            // A launch in flight is superseded: the dock/anchor is applied right now, and the
+            // pending frame is ignored by its robotState guard.
+            if (robotState === 'launching') window.clearTimeout(launchTimer);
+            syncPlacement(false);
+        },
+        refresh,
+        cue
     };
 
     setPersonaKey(window._activePersonaIconKey || 'custom');
@@ -7191,6 +7265,9 @@ function appendMessage(role, text, timestamp) {
     const newMessage = chatContent.lastElementChild;
     appendMessageTimestamp(newMessage, isUser ? 'user' : 'bot', timestamp);
     const renderedBubble = newMessage && newMessage.querySelector('.bubble');
+    if (renderedBubble && window.CodeBlocks) {
+        window.CodeBlocks.enhance(renderedBubble);
+    }
     if (renderedBubble && shouldDecorateEmojiGlyphs(displayContent, finalHTML)) {
         decorateEmojiGlyphs(renderedBubble);
     }

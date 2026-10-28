@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Toegestane afzenders",
   "config.agentmail.api_key_empty": "Voer eerst een API-sleutel in.",
   "config.agentmail.api_key_label": "API-sleutel (Vault)",
   "config.agentmail.api_key_placeholder": "Voer AgentMail API-sleutel in…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "WebSocket gebruiken",
   "config.agentmail.websocket_url_label": "WebSocket-URL",
   "config.agentmail.yes": "Ja",
+  "help.agentmail.allowed_senders": "Eén invoer per regel: een volledig adres (anna@example.com) of een heel domein (@example.com). Alleen e-mail van deze afzenders bereikt de agent; e-mail van anderen wordt genegeerd. Zolang de lijst leeg is, bereikt geen enkele e-mail de agent en komt er per bericht alleen een quarantainemelding. De From-header kan vervalst worden, dus houd de lijst kort en laat de LLM-mailscan ingeschakeld.",
   "help.agentmail.api_key": "AgentMail API-sleutel. Veilig opgeslagen in de versleutelde Vault.",
   "help.agentmail.auto_create_inbox": "Laat setupflows de geconfigureerde inbox automatisch maken wanneer dit wordt ondersteund.",
   "help.agentmail.base_url": "Basis-URL voor de AgentMail REST API.",

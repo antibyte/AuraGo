@@ -142,6 +142,10 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 	m.manualStop = false
 	m.mu.Unlock()
 	cfg := m.Config()
+	cfg.Image = Go2RTCImageFor(cfg)
+	if err := config.ValidateGo2RTCMedia(cfg); err != nil {
+		return err
+	}
 	if !cfg.Enabled {
 		return fmt.Errorf("go2rtc integration is disabled")
 	}
@@ -169,6 +173,9 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 	dockerCfg := m.docker
 	m.mu.RUnlock()
 
+	if err := validateGo2RTCGPUHost(dockerCfg, cfg); err != nil {
+		return err
+	}
 	inspect, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(cfg.ContainerName)+"/json", "")
 	if err != nil {
 		return fmt.Errorf("inspect go2rtc container: %w", err)
@@ -223,7 +230,7 @@ func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 		return fmt.Errorf("inspect go2rtc container returned HTTP %d", code)
 	}
 
-	if err := ensureGo2RTCImage(ctx, m.pullLifetime(), dockerCfg, cfg.Image); err != nil {
+	if err := m.ensureManagedSidecarImage(ctx, dockerCfg, cfg.Image); err != nil {
 		return err
 	}
 
@@ -332,6 +339,7 @@ func (m *Go2RTCManager) StopContainer() error {
 }
 
 func (m *Go2RTCManager) stopContainerLocked() error {
+	m.cancelMedia()
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
@@ -529,6 +537,7 @@ func (m *Go2RTCManager) ApplyConfigured(ctx context.Context, forceStart bool) er
 }
 
 func (m *Go2RTCManager) removeContainer() error {
+	m.cancelMedia()
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
@@ -607,6 +616,7 @@ func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPa
 		"Image": cfg.Image,
 		"User":  "65532:65532",
 		"Env":   []string{"AURAGO_GO2RTC_API_PASSWORD=" + password},
+		"Cmd":   []string{"/bin/sh", "-c", "umask 077; cp /config/go2rtc.yaml /tmp/aurago-go2rtc.yaml && exec go2rtc -config /tmp/aurago-go2rtc.yaml"},
 		"Labels": map[string]string{
 			"aurago.managed":       "go2rtc",
 			go2RTCFingerprintLabel: fingerprint,
@@ -615,6 +625,11 @@ func (m *Go2RTCManager) go2RTCContainerPayload(cfg config.Go2RTCConfig, configPa
 		"ExposedPorts": exposed,
 		"HostConfig":   hostConfig,
 	}
+	payload["Image"] = Go2RTCImageFor(cfg)
+	if go2RTCManagedBase(Go2RTCImageFor(cfg)) != "" {
+		payload["Cmd"] = []string{"/bin/sh", "-c", "umask 077; cp /config/go2rtc.yaml /tmp/aurago-go2rtc.yaml && exec /usr/local/bin/aurago-go2rtc -config /tmp/aurago-go2rtc.yaml"}
+	}
+	addGo2RTCGPUDevices(hostConfig, payload, cfg)
 	if browserAutomationRunsInDocker() {
 		networkName, configMount, err := go2RTCCurrentContainerPlacement(dockerCfg, filepath.Dir(configPath))
 		if err != nil {
@@ -794,7 +809,8 @@ func renderGo2RTCConfig(cfg config.Go2RTCConfig) []byte {
 		webrtcListen = `":8555"`
 		candidates = fmt.Sprintf("[\"%s:%d\"]", cfg.WebRTC.BindAddress, cfg.WebRTC.Port)
 	}
-	return []byte(fmt.Sprintf(`api:
+	return []byte(fmt.Sprintf(`# AuraGo camera media runtime v2
+api:
   listen: ":1984"
   base_path: "/api/go2rtc/proxy"
   username: "aurago"
@@ -804,7 +820,9 @@ func renderGo2RTCConfig(cfg config.Go2RTCConfig) []byte {
     - "/api/go2rtc/proxy/"
     - "/api/go2rtc/proxy/api"
     - "/api/go2rtc/proxy/api/streams"
-    - "/api/go2rtc/proxy/api/webrtc"
+    - "/api/go2rtc/proxy/api/preload"
+    - "/api/go2rtc/proxy/api/aurago/tuya"
+    - "/api/go2rtc/proxy/api/ffmpeg/hardware"
     - "/api/go2rtc/proxy/api/frame.jpeg"
     - "/api/go2rtc/proxy/api/ws"
     - "/api/go2rtc/proxy/api/stream.m3u8"
@@ -848,19 +866,18 @@ func validateGo2RTCWebRTC(cfg config.Go2RTCWebRTCConfig) error {
 }
 
 func go2RTCFingerprint(cfg config.Go2RTCConfig, rendered []byte, owner string) string {
-	input := append([]byte(cfg.Image+"\x00"+cfg.URL+"\x00"+strconv.Itoa(cfg.APIHostPort)+"\x00"+owner+"\x00"), rendered...)
+	hardware, _ := json.Marshal(cfg.Hardware)
+	input := append([]byte(Go2RTCImageFor(cfg)+"\x00"+cfg.URL+"\x00"+strconv.Itoa(cfg.APIHostPort)+"\x00"+owner+"\x00"), rendered...)
+	if cfg.Hardware.Backend != "" && cfg.Hardware.Backend != "software" {
+		input = append(input, hardware...)
+	}
 	// Raised limits join the identity only while person detection runs, so
 	// installations without detection keep their fingerprint (no recreate on upgrade).
-	if resources := Go2RTCResourcesFor(cfg); resources.DetectingCameras > 0 {
+	if resources := Go2RTCResourcesFor(cfg); resources.NanoCPUs != go2RTCBaseNanoCPUs || resources.MemoryBytes != go2RTCBaseMemoryBytes {
 		input = append(input, []byte("\x00limits:"+strconv.FormatInt(resources.NanoCPUs, 10)+":"+strconv.FormatInt(resources.MemoryBytes, 10))...)
 	}
 	sum := sha256.Sum256(input)
 	return hex.EncodeToString(sum[:])
-}
-
-func go2RTCContainerRunning(dockerCfg DockerConfig, containerName, owner string) bool {
-	running, _ := go2RTCInspectRunning(dockerCfg, containerName, owner)
-	return running
 }
 
 // go2RTCInspectRunning reports whether the named container is the running
@@ -869,10 +886,14 @@ func go2RTCContainerRunning(dockerCfg DockerConfig, containerName, owner string)
 // container whose labels are not this owner's); a missing container is a known
 // "not running".
 func go2RTCInspectRunning(dockerCfg DockerConfig, containerName, owner string) (running, known bool) {
+	return go2RTCInspectRunningContext(context.Background(), dockerCfg, containerName, owner)
+}
+
+func go2RTCInspectRunningContext(ctx context.Context, dockerCfg DockerConfig, containerName, owner string) (running, known bool) {
 	if strings.TrimSpace(containerName) == "" {
 		return false, true
 	}
-	data, code, err := dockerRequest(dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerName)+"/json", "")
+	data, code, err := DockerRequestContext(ctx, dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerName)+"/json", "")
 	if err != nil {
 		return false, false
 	}

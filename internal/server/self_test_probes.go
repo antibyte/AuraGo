@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -77,6 +78,12 @@ func (s *Server) executeSelfTestProbe(ctx context.Context, c selftest.Case, emit
 	sum := sha256.Sum256(w.body.Bytes())
 	e := selftest.Evidence{ID: c.TemplateID + "-probe", Tool: c.Tool, Status: "failed", OutputHash: hex.EncodeToString(sum[:]), DurationMS: time.Since(start).Milliseconds()}
 	out := selftest.Execution{Verdict: "FAIL", Code: selfTestDiagnosis(w.body.String()), Cleanup: "not_needed"}
+	var probeResult struct {
+		Code string `json:"code"`
+	}
+	if json.Unmarshal(w.body.Bytes(), &probeResult) == nil && probeResult.Code == "read_verification_unavailable" {
+		out.Verdict, out.Code = "BLOCKED_ACCESS", probeResult.Code
+	}
 	e.Executed = w.code == http.StatusOK || w.code == http.StatusBadGateway
 	if w.code >= 200 && w.code < 300 {
 		e.Status = "success"

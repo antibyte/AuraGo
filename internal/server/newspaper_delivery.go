@@ -28,6 +28,21 @@ import (
 
 var errNewspaperAgentMailBounce = errors.New("AgentMail blocked the recipient after a bounce")
 
+// newspaperTelegramEndpoint is the Bot API URL format of the Telegram delivery; tests
+// point it to a local server.
+var newspaperTelegramEndpoint = tgbotapi.APIEndpoint
+
+// newspaperTelegramText builds one text message of the Telegram delivery with link
+// previews off. The edition text carries source URLs and headlines that third-party pages
+// wrote, and Telegram fetches the URL of a preview itself, so a URL that a hostile page
+// got into the edition would be requested with no tool call and no approval. Every text
+// message of the delivery has to be built here; the link itself stays clickable.
+func newspaperTelegramText(chatID int64, text string) tgbotapi.MessageConfig {
+	message := tgbotapi.NewMessage(chatID, text)
+	message.DisableWebPagePreview = true
+	return message
+}
+
 func newspaperAgentMailBounceRejected(apiErr *agentmail.APIError) bool {
 	if apiErr == nil || apiErr.StatusCode != http.StatusForbidden {
 		return false
@@ -241,7 +256,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 		}
 	}
 	client := &http.Client{Timeout: 90 * time.Second}
-	bot, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, client)
+	bot, err := tgbotapi.NewBotAPIWithClient(token, newspaperTelegramEndpoint, client)
 	if err != nil {
 		return "", newspaper.SafeDelivery(fmt.Errorf("Telegram client failed: %w", err))
 	}
@@ -255,7 +270,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 	if len([]rune(intro)) > 3000 {
 		return "", newspaper.SafeDelivery(errors.New("Telegram digest exceeds message limit"))
 	}
-	digestMessage, err := bot.Send(tgbotapi.NewMessage(chatID, intro))
+	digestMessage, err := bot.Send(newspaperTelegramText(chatID, intro))
 	if err != nil {
 		return "", fmt.Errorf("Telegram digest failed: %w", err)
 	}
@@ -274,7 +289,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 		if ctx.Err() != nil {
 			return lastID, ctx.Err()
 		}
-		message, sendErr := bot.Send(tgbotapi.NewMessage(chatID, chunk))
+		message, sendErr := bot.Send(newspaperTelegramText(chatID, chunk))
 		if sendErr != nil {
 			return lastID, fmt.Errorf("Telegram text outcome unknown: %w", sendErr)
 		}

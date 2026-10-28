@@ -327,6 +327,7 @@ func TestHomepageStudioModuleSplitAndLoadOrder(t *testing.T) {
 		"/js/desktop/apps/homepage-studio-preview.js",
 		"/js/desktop/apps/homepage-studio-sites.js",
 		"/js/desktop/apps/homepage-studio-history.js",
+		"/js/desktop/apps/homepage-studio-annotate.js",
 		"/js/desktop/apps/homepage-studio.js",
 	}
 	lastIndex := -1
@@ -342,10 +343,11 @@ func TestHomepageStudioModuleSplitAndLoadOrder(t *testing.T) {
 	}
 
 	for global, file := range map[string]string{
-		"window.HomepageStudioPreview": "js/desktop/apps/homepage-studio-preview.js",
-		"window.HomepageStudioSites":   "js/desktop/apps/homepage-studio-sites.js",
-		"window.HomepageStudioHistory": "js/desktop/apps/homepage-studio-history.js",
-		"window.HomepageStudioApp":     "js/desktop/apps/homepage-studio.js",
+		"window.HomepageStudioPreview":  "js/desktop/apps/homepage-studio-preview.js",
+		"window.HomepageStudioSites":    "js/desktop/apps/homepage-studio-sites.js",
+		"window.HomepageStudioHistory":  "js/desktop/apps/homepage-studio-history.js",
+		"window.HomepageStudioAnnotate": "js/desktop/apps/homepage-studio-annotate.js",
+		"window.HomepageStudioApp":      "js/desktop/apps/homepage-studio.js",
 	} {
 		source := readDesktopAssetText(t, file)
 		if !strings.Contains(source, global) {
@@ -400,6 +402,7 @@ func TestHomepageStudioSitesPanelMarkers(t *testing.T) {
 	for _, want := range []string{
 		"window.HomepageStudioSites.create",
 		"window.HomepageStudioHistory.create",
+		"window.HomepageStudioAnnotate.create",
 		"window.HomepageStudioPreview.create",
 		"onSiteSelected",
 	} {
@@ -417,6 +420,7 @@ func TestHomepageStudioHasNoNativeDialogs(t *testing.T) {
 		"js/desktop/apps/homepage-studio-preview.js",
 		"js/desktop/apps/homepage-studio-sites.js",
 		"js/desktop/apps/homepage-studio-history.js",
+		"js/desktop/apps/homepage-studio-annotate.js",
 	}
 	for _, file := range files {
 		source := readDesktopAssetText(t, file)
@@ -593,10 +597,11 @@ function countOf(text, needle) { return text.split(needle).length - 1; }
 func homepageStudioNodeSources(t *testing.T) string {
 	t.Helper()
 	sources := map[string]string{
-		"main":    readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js"),
-		"sites":   readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js"),
-		"preview": readDesktopAssetText(t, "js/desktop/apps/homepage-studio-preview.js"),
-		"shared":  readDesktopAssetText(t, "js/shared/shared-core.js"),
+		"main":     readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js"),
+		"sites":    readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js"),
+		"preview":  readDesktopAssetText(t, "js/desktop/apps/homepage-studio-preview.js"),
+		"annotate": readDesktopAssetText(t, "js/desktop/apps/homepage-studio-annotate.js"),
+		"shared":   readDesktopAssetText(t, "js/shared/shared-core.js"),
 	}
 	encoded, err := json.Marshal(sources)
 	if err != nil {
@@ -953,4 +958,93 @@ assert.ok(sitesList, 'the site list must exist');
 assert.equal(sitesList.attrs['role'], 'listbox');
 `)
 	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioAnnotateHelpers executes the annotate module's pure helpers.
+func TestHomepageStudioAnnotateHelpers(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const A = loadModule(SRC.annotate, 'HomepageStudioAnnotate');
+const elements = [
+	{ i: 0, selector: 'body', tag: 'body', box: [0, 0, 1280, 2000], parent: -1 },
+	{ i: 1, selector: 'main', tag: 'main', box: [0, 100, 1280, 900], parent: 0, tab: true },
+	{ i: 2, selector: '#cta', tag: 'a', text: 'Get started', attrs: { href: '/signup' }, box: [100, 200, 200, 50], parent: 1, tab: true },
+	{ i: 3, selector: 'main > div:nth-of-type(2)', tag: 'div', text: 'Card', box: [400, 300, 200, 100], parent: 1 },
+	{ i: 4, selector: 'h1', tag: 'h1', text: 'Welcome', box: [100, 120, 600, 60], parent: 1, tab: true }
+];
+assert.equal(A.hitTest(elements, 150, 220), 2);
+assert.equal(A.hitTest(elements, 1200, 1500), 0);
+assert.equal(A.hitTest(elements, 5000, 5), -1);
+assert.deepEqual(A.normalizeBox(300, 400, 100, 250), [100, 250, 200, 150]);
+assert.deepEqual(A.overlapping(elements, [380, 280, 260, 140]), [3]);
+assert.deepEqual(A.tabOrder(elements), [1, 4, 2]);
+
+const marks = [
+	{ n: 1, kind: 'element', comment: 'Make it  green', box: [100, 200, 200, 50], elementIndex: 2 },
+	{ n: 2, kind: 'area', comment: 'Add an image', box: [380, 280, 260, 140], overlapIndexes: [3] }
+];
+const labels = { defaultMessage: 'Apply the marked changes.', heading: 'Marks:' };
+assert.equal(A.composeMessage('', marks, labels), 'Apply the marked changes.\n\nMarks:\n1. Make it green\n2. Add an image');
+assert.equal(A.composeMessage(' Please ', [], labels), 'Please');
+
+const payload = A.annotationPayload({ path: '/about', viewport: { width: 1280 }, elements }, marks);
+assert.equal(payload.page_path, '/about');
+assert.equal(payload.viewport_width, 1280);
+assert.deepEqual(payload.items[0], { n: 1, kind: 'element', comment: 'Make it  green', box: [100, 200, 200, 50], selector: '#cta', tag: 'a', text: 'Get started', attrs: { href: '/signup' } });
+assert.deepEqual(payload.items[1].elements, [{ selector: 'main > div:nth-of-type(2)', tag: 'div', text: 'Card' }]);
+assert.equal(payload.items[1].selector, undefined);
+
+const layout = A.cropLayout(marks, { width: 1280, height: 2000 });
+assert.equal(layout.crops.length, 2);
+assert.deepEqual(layout.crops[0].src, [52, 152, 296, 146]);
+assert.ok(layout.width <= 1000 && layout.height <= 1600);
+const many = Array.from({ length: 20 }, (_, i) => ({ n: i + 1, kind: 'area', comment: 'x', box: [0, i * 90, 1280, 80] }));
+const big = A.cropLayout(many, { width: 1280, height: 2000 });
+assert.ok(big.height <= 1600, 'stacked crops fit the height budget: ' + big.height);
+assert.ok(big.width <= 1000, 'crops fit the width budget: ' + big.width);
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioSitePillRendersDrift executes the site pill renderer.
+func TestHomepageStudioSitePillRendersDrift(t *testing.T) {
+	t.Parallel()
+
+	script := homepageStudioNodeScript(t, `
+const Sites = loadModule(SRC.sites, 'HomepageStudioSites');
+const pill = fakeElement();
+pill.hidden = true;
+const esc = value => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const tr = (key, fallback) => fallback;
+Sites.renderSitePill(pill, { name: '<Shop>', drift_status: 'local_changed' }, { esc, tr });
+assert.equal(pill.hidden, false);
+assert.ok(pill.innerHTML.includes('&lt;Shop&gt;'));
+assert.ok(pill.innerHTML.includes('vd-hp-drift-local-changed'));
+Sites.renderSitePill(pill, { name: 'x', drift_status: 'bogus' }, { esc, tr });
+assert.ok(pill.innerHTML.includes('vd-hp-drift-not-deployed'));
+Sites.renderSitePill(pill, null, { esc, tr });
+assert.equal(pill.hidden, true);
+assert.equal(pill.textContent, '');
+`)
+	runHomepageStudioNode(t, script)
+}
+
+// TestHomepageStudioAnnotateWiring pins the integration points in the main module.
+func TestHomepageStudioAnnotateWiring(t *testing.T) {
+	t.Parallel()
+
+	main := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"state.modules.annotate.takeForSend(message)",
+		"state.modules.annotate.attachThumbnail(chatLog, marks)",
+		"...(marks ? marks.context : {})",
+		"state.modules.annotate.setAvailable(hasUrl)",
+		"state.modules.annotate.contextChanged()",
+		"state.modules.annotate.count()",
+	} {
+		if !strings.Contains(main, want) {
+			t.Fatalf("homepage studio misses annotate wiring %q", want)
+		}
+	}
 }

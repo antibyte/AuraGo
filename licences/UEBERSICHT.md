@@ -1,5 +1,15 @@
 # Externe Projekte und Lizenzbedingungen
 
+## Optionaler Horizon-Schutz
+
+`Horizon-Labs/prompt-injection-guard-small`, Revision
+`0e3774536debbcd71dbb8534ef71451b583853b8`: Apache-2.0. Unveränderter offizieller
+quantisierter ONNX-Export und Tokenizer, nur nach Download durch den Administrator.
+Größen und SHA-256 stehen in `internal/injectionguard/model.go`; Lizenztext:
+`texts/Apache-2.0.txt`. Die CPU-Laufzeit ONNX Runtime 1.26.0 steht unter MIT und wird
+mit anderen ONNX-Funktionen geteilt. Herkunft und Betrieb: `THIRD_PARTY_NOTICES.md`
+und `documentation/prompt-injection-protection.md`.
+
 ## Phonon-Sprachausgabe
 
 Gradium Phonon wird als getrenntes lokales Sprachpaket mitgeliefert. Die Laufzeit
@@ -34,6 +44,10 @@ eingefrorenen Digest. Vor einer Veröffentlichung den konkreten Image-Digest
 gegen diese Liste prüfen.
 
 ## Was die üblichen Lizenzen verlangen
+
+Das gemeinsame QR-Modul verwendet `github.com/makiuchi-d/gozxing` v0.1.1 (MIT, Copyright 2018 Daisuke MAKIUCHI; ursprüngliche ZXing-Anteile Apache-2.0, Copyright 2007–2018 ZXing authors) und `github.com/go-text/typesetting` v0.3.5 (Unlicense ODER BSD-3-Clause, Copyright 2021 The go-text authors; HarfBuzz-Übersetzung MIT). Die vollständigen Urheberzeilen stehen in `THIRD_PARTY_NOTICES.md`, die Lizenztexte in `texts/MIT.txt`, `texts/Apache-2.0.txt`, `texts/BSD-3-Clause.txt` und `texts/Unlicense.txt`.
+
+Die QR-Schriften Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji und Liberation Serif stehen unter OFL-1.1. Originaltexte und exakte Herkunft mit Hashes liegen in `ui/fonts/qr/`. Go Sans/Mono stammen aus der vorhandenen `golang.org/x/image/font/gofont`-Abhängigkeit. `jsqr` 1.4.0 (Apache-2.0) dient ausschließlich als unabhängiger Decoder in Entwicklungstests. Mini QR dient als Funktionsvorlage; dessen Quellcode und Assets werden nicht mitgeliefert.
 
 | Lizenz | Bedingung für die Weitergabe |
 | --- | --- |
@@ -166,6 +180,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 
 | Produkt | Referenz | Lizenz |
 | --- | --- | --- |
+| RustFS 1.0.4 | `docker.io/rustfs/rustfs:1.0.4`, Digest in `internal/rustfs/types.go` | [Apache-2.0](https://github.com/rustfs/rustfs/blob/1.0.4/LICENSE), Copyright 2024–2026 RustFS, Inc.; unverändertes optionales Image |
 | Gotenberg 8 | `gotenberg/gotenberg:8` | MIT |
 | Docker Socket Proxy | `tecnativa/docker-socket-proxy:v0.5.0` mit Digest in `docker-compose.yml` | HAProxy GPL-2.0 im Image |
 | go2rtc 1.9.14 | `alexxit/go2rtc`, Digest in der Config | MIT |

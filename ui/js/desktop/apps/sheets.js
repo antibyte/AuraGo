@@ -29,12 +29,12 @@
             '<div class="sheets-tabsbar"><div data-tabs class="sheets-tabs" role="tablist" aria-label="'+esc(tr('navigation'))+'"></div>'+button('addSheet','add_sheet','+')+button('sheetMenu','sheet_options','•••')+'</div><footer class="sheets-statusbar"><span data-selection></span><span class="sheets-status-spacer"></span><span data-stats></span>'+button('zoomOut','zoom_out','−')+'<button data-action="zoomReset" data-zoom>100%</button>'+button('zoomIn','zoom_in','+')+'</footer></div>';
         const root=host.firstElementChild,find=selector=>root.querySelector(selector),mount=find('[data-engine]');
         const lifecycle=new AbortController();
-        let documentLife=new AbortController(),engine,api,book,lib,queue,bridge,panels,chartView;
+        let documentLife=new AbortController(),engine,api,book,lib,queue,bridge,panels,chartView,imageView;
         let path=ctx.path||newPath(),etag=null,loading=true,disposed=false,generation=0,leftPanel='',rightPanel='',refreshTimer;
-        let aux={charts:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null;
+        let aux={charts:[],images:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null;
         const disposables=[],locale=document.documentElement.lang||'en';
         const state={ctx,esc,tr,root,find,locale,act,notice,fail,refresh,run,selected,selection,commitFormula,snapshot,prepareOutput,
-            get api(){return api;},get book(){return book;},get charts(){return chartView;},get lib(){return lib;},get readonly(){return !!ctx.readonly;},
+            get api(){return api;},get book(){return book;},get charts(){return chartView;},get images(){return imageView;},get lib(){return lib;},get readonly(){return !!ctx.readonly;},
             get revision(){return queue?.revision||0;},get signal(){return documentLife.signal;},get aux(){return aux;},
             setAux(value){if(!ctx.readonly)bridge.commit(value,book.getId());},
             format(type,value){return api.executeCommand('sheet.command.set-style',{unitId:book.getId(),subUnitId:sheet().getSheetId(),style:{type,value}});},
@@ -70,7 +70,7 @@
             for(const id of workbook.sheetOrder){const active=book.getSheetBySheetId(id);for(const [row,columns]of Object.entries(workbook.sheets[id].cellData||{}))for(const [col,cell]of Object.entries(columns))if(cell?.si){cell.f=active.getRange(+row,+col).getFormula();delete cell.si;}}
 
             workbook.custom={...(workbook.custom||{}),auragoPrint:aux.print};
-            return {schema_version:2,workbook,charts:structuredClone(aux.charts),operations:structuredClone(operations)};
+            return {schema_version:2,workbook,charts:structuredClone(aux.charts),images:structuredClone(aux.images),operations:structuredClone(operations)};
         }
         async function write(value,target=path,expected=etag){
             if(recoveryConflict&&(target===path||!sourceData)){const e=new Error(tr('draft_conflict'));e.status=412;throw e;}
@@ -90,7 +90,7 @@
         async function load(target,template){
             const token=++generation;
             releaseDocument();documentLife=new AbortController();path=target;etag=null;sourceData=null;recoveryConflict=false;nativeEdit=null;loading=true;loadingFailed=false;operations=[];lastDraft=null;pin=null;formulaTarget=null;formulaChanged=false;
-            aux={charts:[],print:{}};mount.replaceChildren();find('[data-charts]').replaceChildren();
+            aux={charts:[],images:[],print:{}};mount.replaceChildren();find('[data-charts]').replaceChildren();
             find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;notice('');
             find('[data-save-state]').textContent=tr('loading');find('[data-save-state]').dataset.state='loading';find('[data-notice] [data-action="saveAs"]').hidden=true;
             ctx.updateWindowContext?.(windowId,{path});
@@ -106,12 +106,12 @@
                 let restored=false;
                 if(recovery&&!ctx.readonly&&await ctx.confirmDialog(tr('restore_draft'))){
                     restored=true;
-                    doc.workbook=recovery.snapshot.workbook;doc.charts=recovery.snapshot.charts;operations=recovery.snapshot.operations||[];lastDraft=recovery;
+                    doc.workbook=recovery.snapshot.workbook;doc.charts=recovery.snapshot.charts;doc.images=recovery.snapshot.images??doc.images;operations=recovery.snapshot.operations||[];lastDraft=recovery;
                     if(recovery.etag!==etag&&recovery.etag){recoveryConflict=true;sourceData=recovery.sourceData||null;notice(tr('draft_conflict'),true);}
                     else sourceData=recovery.sourceData||sourceData;
                 }
                 if(disposed||token!==generation)return;
-                aux={charts:doc.charts||[],print:doc.workbook.custom?.auragoPrint||{}};
+                aux={charts:doc.charts||[],images:doc.images||[],print:doc.workbook.custom?.auragoPrint||{}};
                 structuralLocked=!!doc.structural_locked;
                 const localeName=({de:'de-DE',es:'es-ES',fr:'fr-FR',it:'it-IT',ja:'ja-JP',pl:'pl-PL',pt:'pt-BR',zh:'zh-CN'})[locale.split('-')[0]]||'en-US',localeID=localeName.replace('-','');
                 const created=lib.createUniver({locale:localeID,locales:{[localeID]:localeName==='en-US'&&!locale.startsWith('en')?SheetsData.nativeLocale(lib.locales[localeName],tr,locale):lib.locales[localeName]},logLevel:4,presets:[
@@ -121,19 +121,23 @@
                 engine=created.univer;api=created.univerAPI;api.toggleDarkMode(false);api.getFormula().setFormulaReturnDependencyTree(true);
                 await Promise.all(['11px Arial','bold 11px Arial','italic 11px Arial','11px Calibri','11px Carlito','11px "Times New Roman"','11px "Courier New"'].map(font=>document.fonts.load(font)));
                 if(disposed||token!==generation)return;
-                bridge=lib.installSheetActions(engine,{book:()=>book,get:()=>aux,set:value=>{aux=value;chartView?.refresh();},parse:(cell,context)=>{
+                bridge=lib.installSheetActions(engine,{book:()=>book,get:()=>aux,set:value=>{aux=value;chartView?.refresh();imageView?.refresh();},parse:(cell,context)=>{
                     if(!nativeEdit||nativeEdit.row!==context.row||nativeEdit.column!==context.col)return cell;
                     const value=SheetsData.parseInput(nativeEdit.text,locale);if(value.t===1)value.t=4;nativeEdit=null;
                     return {...cell,...value,...(value.s?{s:{...book.getSheetBySheetId(context.subUnitId).getRange(context.row,context.col).getCellStyleData(),...value.s}}:{}),...(!value.f?{f:null,si:null}:{}),p:null};
                 }});
                 doc.workbook.id='sheets-'+windowId;doc.workbook.locale=localeID;
                 book=api.createWorkbook(doc.workbook);book.setEditable(!ctx.readonly);book.setNumfmtLocal(locale.split('-')[0]==='zh'?'zh_CN':locale.replace('-','_'));
-                panels=window.SheetsPanels.create(state);chartView=window.SheetsCharts.create(state);
+                panels=window.SheetsPanels.create(state);chartView=window.SheetsCharts.create(state);imageView=window.SheetsImages.create(state);
                 loading=false;makeQueue();
                 disposables.push(api.addEvent(api.Event.BeforeSheetEditEnd,event=>{nativeEdit=event.isConfirm?{row:event.row,column:event.column,text:event.value.toPlainText().replace(/\r?\n$/,'')}:null;}));
                 const structureTypes={'sheet.mutation.insert-row':'insertRows','sheet.mutation.remove-rows':'deleteRows','sheet.mutation.insert-col':'insertColumns','sheet.mutation.remove-col':'deleteColumns'};
                 disposables.push(api.addEvent(api.Event.BeforeCommandExecute,event=>{
-                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
+                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|copy-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
+                    if(event.id==='sheet.command.copy-sheet'){
+                        const images=aux.images||[],copies=images.filter(image=>image.sheet===(event.params?.subUnitId||sheet().getSheetId()));
+                        if(images.length+copies.length>256||[...images,...copies].reduce((total,image)=>total+(image.data?.length||0)*.75,0)>16*1024*1024){event.cancel=true;notice(ctx.t('desktop.qr_image_copy_limit'),true);}
+                    }
                 }));
                 disposables.push(api.addEvent(api.Event.CommandExecuted,event=>{
                     if(loading||disposed)return;
@@ -145,7 +149,7 @@
                     refreshSoon();
                 }));
                 disposables.push(api.addEvent(api.Event.SelectionChanged,()=>{pin=null;if(!formulaChanged)formulaTarget=null;refreshSoon();}));
-                disposables.push(api.addEvent(api.Event.Scroll,()=>chartView?.position()));
+                disposables.push(api.addEvent(api.Event.Scroll,()=>{chartView?.position();imageView?.position();}));
                 disposables.push(api.addEvent(api.Event.LifeCycleChanged,()=>refreshSoon()));
                 disposables.push(api.getFormula().calculationEnd(()=>{refreshSoon();chartView.refresh();}));
                 if(template||restored||/\.csv$/i.test(target)){queue.changed();scheduleBackup();}
@@ -179,7 +183,7 @@
             find('[data-zoom]').textContent=Math.round(active.getZoom()*100)+'%';
             const tabs=book.getSheets().map(s=>({id:s.getSheetId(),name:s.getSheetName()})),signature=JSON.stringify([tabs,active.getSheetId()]);
             if(find('[data-tabs]').dataset.signature!==signature){find('[data-tabs]').dataset.signature=signature;find('[data-tabs]').innerHTML=tabs.map(s=>'<button type="button" role="tab" data-sheet="'+esc(s.id)+'" aria-selected="'+(s.id===active.getSheetId())+'">'+esc(s.name)+'</button>').join('');}
-            panels?.refresh();chartView?.refresh();
+            panels?.refresh();chartView?.refresh();imageView?.refresh();
         }
         function commitFormula(){
             if(!formulaChanged||!book||ctx.readonly)return;
@@ -227,6 +231,7 @@
                 if(action==='new'){if(await guard())await load(newPath(),'blank');return;}
                 if(action==='open'){if(!await guard())return;const result=await ctx.openFileDialog({title:tr('open'),filters:[{label:'Excel / CSV',extensions:['.xlsx','.xlsm','.csv']}]});if(result)await load(typeof result==='string'?result:result.path);return;}
                 if(!book||loading)return;
+                if(action==='qr'){await insertQR();return;}
                 if(action==='chartSelected'){rightPanel='chart';panels.showRight('chart');return;}
                 if(['navigation','search','format','data','chart','assist','function','more','borders','fill','sheetMenu'].includes(action)){
                     pinSelection();const left=['navigation','search'].includes(action),key=({more:'format',borders:'format',fill:'format',function:'function',sheetMenu:'sheets'})[action]||action;
@@ -259,11 +264,23 @@
                 if(result?.file?.path&&!disposed)await load(result.file.path);
             }catch(error){fail(error);}
         }
+        async function insertQR(){
+            if(ctx.readonly||!book||loading||!imageView)return;
+            await book.endEditingAsync(true);commitFormula();
+            const signal=documentLife.signal,revision=state.revision,selectedSheet=sheet().getSheetId(),range=JSON.stringify(selection());
+            const current=()=>!signal.aborted&&!disposed&&documentLife.signal===signal&&state.revision===revision&&sheet()?.getSheetId()===selectedSheet&&JSON.stringify(selection())===range&&!ctx.readonly;
+            await window.AuraDesktopModules.loadAppAssets('qr');if(!current())return;
+            window.AuraQRDialog.open({host:root,windowId,t:ctx.t,signal,isCurrent:current,insertion:{unit:'mm',width:50},onInsert:async value=>{
+                if(!current())throw Error(ctx.t('desktop.qr_stale'));
+                await imageView.add(value.file,{width:value.physicalWidthMM*96/25.4,height:value.physicalHeightMM*96/25.4});
+            }});
+        }
         function renderMenus(){
             const item=(label,action,icon,shortcut)=>({id:action,label:tr(label),icon:icons[icon||action]||icon||action,shortcut,action:()=>act(action)});
             ctx.setWindowMenus?.(windowId,[
                 {id:'file',labelKey:'desktop.menu_file',items:[item('new','new','new','Ctrl+N'),item('open','open','open','Ctrl+O'),item('save','save','save','Ctrl+S'),item('save_as','saveAs','saveAs'),{id:'gog-import',label:ctx.t('desktop.gog.import'),disabled:ctx.readonly,action:()=>gogOffice('import')},{id:'gog-export',label:ctx.t('desktop.gog.export'),disabled:ctx.readonly||!book,action:()=>gogOffice('export')},{type:'separator'},item('download_xlsx','xlsx','file'),item('export_csv','csv','file-text'),item('print','print','print','Ctrl+P')]},
                 {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo','undo','undo','Ctrl+Z'),item('redo','redo','redo','Ctrl+Y'),{type:'separator'},item('find','search','search','Ctrl+F'),item('copy','copy','copy'),item('cut','cut','scissors'),item('paste','paste','clipboard'),item('paste_special','pasteSpecial','clipboard')]},
+                {id:'insert',labelKey:'desktop.menu_insert',items:[{id:'qr',label:ctx.t('desktop.qr_insert'),icon:'image',disabled:ctx.readonly||!book,action:()=>act('qr')}]},
                 {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist')]},
                 {id:'view',label:tr('view'),items:[item('navigation','navigation'),item('format','format'),item('data','data'),item('chart','chart'),item('assist','assist')]}
             ]);
@@ -285,10 +302,10 @@
             const action={s:event.shiftKey?'saveAs':'save',o:'open',n:'new',p:'print',f:'search'}[event.key.toLowerCase()];if(action){event.preventDefault();event.stopPropagation();act(action);}
         },{signal:lifecycle.signal});
         if(ctx.readonly){find('[data-formula]').readOnly=true;root.querySelectorAll('.sheets-toolbar button,.sheets-toolbar input,.sheets-toolbar select,[data-action="addSheet"]').forEach(control=>control.disabled=true);}
-        const resize=new ResizeObserver(()=>{root.dataset.narrow=String(root.clientWidth<900);chartView?.position();});resize.observe(root);
+        const resize=new ResizeObserver(()=>{root.dataset.narrow=String(root.clientWidth<900);chartView?.position();imageView?.position();});resize.observe(root);
         window.addEventListener('beforeunload',event=>{if(queue?.dirty){event.preventDefault();event.returnValue='';}},{signal:lifecycle.signal});
         function releaseDocument(){
-            documentLife.abort();queue?.dispose();queue=null;panels?.dispose();chartView?.dispose();panels=chartView=null;
+            documentLife.abort();queue?.dispose();queue=null;panels?.dispose();chartView?.dispose();imageView?.dispose();panels=chartView=imageView=null;
             for(const item of disposables.splice(0))item?.dispose();engine?.dispose();engine=api=book=null;
             clearTimeout(refreshTimer);clearTimeout(backupTimer);clearTimeout(backupDeadline);backupTimer=backupDeadline=null;
         }

@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"aurago/internal/scraper"
 	"aurago/internal/security"
 	"context"
 	"encoding/json"
@@ -138,7 +139,7 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 		if len(r.Body) == security.MaxSSRFResponseBytes {
 			preview = "page skipped because it exceeds 5 MiB"
 		} else {
-			bodyStr := string(r.Body)
+			bodyStr := scraper.CleanHiddenHTML(string(r.Body))
 			if idx := strings.Index(bodyStr, "<title"); idx >= 0 {
 				if start := strings.Index(bodyStr[idx:], ">"); start >= 0 {
 					if end := strings.Index(bodyStr[idx+start:], "</title>"); end >= 0 {
@@ -154,8 +155,8 @@ func ExecuteCrawler(startURL string, maxDepth, maxPages int, allowedDomains, sel
 			preview = cutPreviewRunes(preview, 500)
 		}
 		source := r.Request.URL.String()
-		page.Title = crawlerGuardian.ScanExternalContent(source, title)
-		page.ContentPreview = crawlerGuardian.ScanExternalContent(source, preview)
+		page.Title = crawlerGuardian.ProtectWeb(requestContext(contexts), source, title)
+		page.ContentPreview = crawlerGuardian.ProtectWeb(requestContext(contexts), source, preview)
 
 		mu.Lock()
 		pages = append(pages, page)

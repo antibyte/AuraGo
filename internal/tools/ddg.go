@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
-	"aurago/internal/security"
 )
 
 // Pre-compiled regexps for DDG result parsing.
@@ -80,9 +78,9 @@ func ExecuteDDGSearch(query string, maxResults int, contexts ...context.Context)
 		}
 
 		results = append(results, map[string]interface{}{
-			"title":   security.IsolateExternalData(titleLinks[i].title),
+			"title":   scraperGuardian.ProtectWeb(requestContext(contexts), "ddg", titleLinks[i].title),
 			"link":    titleLinks[i].link,
-			"snippet": security.IsolateExternalData(snippet),
+			"snippet": scraperGuardian.ProtectWeb(requestContext(contexts), "ddg", snippet),
 		})
 	}
 

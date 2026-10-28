@@ -71,7 +71,7 @@ func TestGo2RTCContainerSpecIsHardenedAndLoopbackOnly(t *testing.T) {
 	encoded, _ := json.Marshal(payload)
 	spec := string(encoded)
 	for _, required := range []string{
-		config.Go2RTCDefaultImage,
+		Go2RTCImageFor(cfg.Go2RTC),
 		`"User":"65532:65532"`,
 		`"ReadonlyRootfs":true`,
 		`"no-new-privileges:true"`,

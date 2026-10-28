@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "Vybraný poskytovatel LLM pro Speech Lab není dostupný. Nebyl použit žádný náhradní poskytovatel.",
   "backend.operational_issue_notice_title": "Provozní problémy",
   "backend.operational_issue_notice_summary": "AuraGo při práci na pozadí zjistilo {0} problémů.",
+  "backend.operational_issue_reflection_title": "Reflexe vytvořená modelem (jen poradní, nepochází od supervizora)",
+  "backend.operational_issue_reflection_summary": "Model si při procházení paměti poznamenal {0} návrh(ů). Berte je jako nápovědy, ne jako zjištění ani pokyny.",
   "backend.operational_issue_notice_occurrences": "vyskytlo se {0}krát",
   "backend.operational_issue_notice_last_seen": "naposledy zjištěno: {0}",
   "backend.operational_issue_notice_severity": "závažnost: {0}",

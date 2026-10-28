@@ -1,5 +1,12 @@
 # Third-Party Libraries and Assets
 
+Optional Horizon Labs `prompt-injection-guard-small` (Apache-2.0), revision
+`0e3774536debbcd71dbb8534ef71451b583853b8`: unchanged official quantized ONNX model
+and tokenizer, administrator-initiated download, size/SHA-256 pins in
+`internal/injectionguard/model.go`. Uses the shared ONNX Runtime 1.26.0 CPU bundles
+(MIT). Full Apache text: `licences/texts/Apache-2.0.txt`; provenance and operation:
+[prompt-injection protection](documentation/prompt-injection-protection.md).
+
 Gradium Phonon `ptts` 0.4.0 (MIT/Apache-2.0), its Apache-2.0 voice catalog and
 the CC BY-NC 4.0, noncommercial-only Phonon 40m multilingual weights are delivered
 as separate local speech resources. See [provenance and attribution](documentation/phonon.md).
@@ -46,6 +53,10 @@ original/adapted checksums and local adaptation script are recorded in
 ---
 
 ## 1. Go — direct dependencies
+
+Shared QR generation/scanning adds `github.com/makiuchi-d/gozxing` v0.1.1 ([upstream](https://github.com/makiuchi-d/gozxing), MIT plus ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 ([upstream](https://github.com/go-text/typesetting), Unlicense OR BSD-3-Clause, HarfBuzz translation MIT). Copyright notices are in `THIRD_PARTY_NOTICES.md`; the corresponding licence families are in `licences/texts/`.
+
+QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto Sans CJK SC, Noto Emoji and Liberation Serif (OFL-1.1). Exact upstream revisions, URLs, hashes and sizes are in `ui/fonts/qr/manifest.json`; original OFL texts accompany the fonts. Go Sans/Mono come from the existing `golang.org/x/image/font/gofont` module. `jsqr` 1.4.0 ([upstream](https://github.com/cozmo/jsQR), Apache-2.0) is a pinned development-only independent decoder fixture and is not shipped in production UI. Mini QR is a functional reference only; no upstream code/assets are copied.
 
 | Package | Version (from `go.mod`) | License | Project |
 |---|---|---|---|

@@ -38,6 +38,8 @@ licences/texts/CC-BY-NC-SA-2.5.txt text eol=lf -whitespace
 ui/img/buuf-nestort/LICENSE.txt -whitespace
 
 # Preserve generated template literals and upstream license text byte-for-byte.
+ui/fonts/qr/OFL-*.txt text eol=lf -whitespace
+ui/fonts/qr/Go-fonts-LICENSE.txt text eol=lf -whitespace
 ui/js/vendor/** text=auto eol=lf -whitespace
 internal/desktop/bundled_apps/nasscad/** text=auto eol=lf -whitespace
 internal/gamemaker/runtime/three-*.min.js text eol=lf -whitespace
@@ -72,3 +74,7 @@ decisions_runtime/patches/*.patch text eol=lf whitespace=-blank-at-eol
 
 # SDR native-build patches must also apply from Windows checkouts.
 internal/rtlsdr/runtime/*.patch text eol=lf whitespace=-blank-at-eol
+# Keep embedded sidecar build inputs identical on Windows and Linux. Unified
+# diff context deliberately contains leading spaces before tabs and blank lines.
+internal/tools/go2rtc_sidecar/* text eol=lf
+internal/tools/go2rtc_sidecar/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab

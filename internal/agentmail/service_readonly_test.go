@@ -8,10 +8,10 @@ import (
 func TestReadOnlyRelayDoesNotMarkMessageRead(t *testing.T) {
 	notified := false
 	service := NewService(ServiceConfig{
-		Config: Config{InboxID: "inbox-1", ReadOnly: true},
+		Config: Config{InboxID: "inbox-1", ReadOnly: true, AllowedSenders: []string{"@example.test"}},
 		Notify: func(context.Context, string) error { notified = true; return nil },
 	})
-	if err := service.handleMessage(context.Background(), Message{ID: "message-1"}); err != nil {
+	if err := service.handleMessage(context.Background(), Message{ID: "message-1", From: Address{Email: "sender@example.test"}}); err != nil {
 		t.Fatal(err)
 	}
 	if !notified {

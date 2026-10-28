@@ -367,7 +367,7 @@ func TestExecuteAgentLoopCameraRetryUsesExactlyOneTrustedVisionRoute(t *testing.
 	}()
 
 	const password = "internal-password"
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	jpeg := visionFixtureJPEG()
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, gotPassword, ok := r.BasicAuth()
 		if !ok || gotPassword != password {

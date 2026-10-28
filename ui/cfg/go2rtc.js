@@ -2,10 +2,39 @@
 
 let _go2rtcSection = null;
 
+function go2rtcTuyaOpen(mode) {
+	window.AuraGoTuya.open({ mode, t,
+		onCreated(result) { showToast(t('common.go2rtc_tuya.' + (result.runtime_reconciled === false ? 'saved_pending' : 'saved')), result.runtime_reconciled === false ? 'warning' : 'success'); },
+		onChanged(result) {
+			const data = go2rtcEnsureData();
+			const state = window.AuraConfigState;
+			if (state && state.syncFromDOM) state.syncFromDOM();
+			if (result.accounts) {
+				data.tuya_accounts = result.accounts;
+				if (state && state.markSaved) state.markSaved('go2rtc.tuya_accounts', result.accounts);
+			}
+			if (result.stream) {
+				const draft = JSON.parse(JSON.stringify(go2rtcStreams()));
+				const saved = JSON.parse(JSON.stringify(state && state.get('go2rtc.streams', { saved: true }) || []));
+				for (const list of [draft, saved]) if (!list.some(s => s.id === result.stream.id)) list.push(result.stream);
+				if (state && state.markSaved) state.markSaved('go2rtc.streams', saved);
+				data.streams = draft;
+				if (state && state.replace) state.replace('go2rtc.streams', draft, () => renderGo2RTCSection(null));
+			}
+		},
+		onClose() { if (window.AuraConfigState && window.AuraConfigState.syncFromDOM) window.AuraConfigState.syncFromDOM(); renderGo2RTCSection(null); }
+	});
+}
+
 function go2rtcEnsureData() {
     if (!configData.go2rtc) configData.go2rtc = {};
     const data = configData.go2rtc;
     if (!data.webrtc) data.webrtc = {};
+    if (!data.hardware) data.hardware = { backend: 'software', render_node: '/dev/dri/renderD128', render_group: '', device_id: '0' };
+    if (!data.hardware.backend) data.hardware.backend = 'software';
+    const state = window.AuraConfigState;
+    const backendPath = 'go2rtc.hardware.backend';
+    if (state && state.markSaved && [undefined, ''].includes(state.get(backendPath, { saved: true })) && [undefined, ''].includes(state.get(backendPath))) state.markSaved(backendPath, 'software');
     if (!Array.isArray(data.streams)) data.streams = [];
     if (!data.image) data.image = 'alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae';
     if (!data.container_name) data.container_name = 'aurago_go2rtc';
@@ -25,6 +54,18 @@ function go2rtcStreams() {
         const draft = state.get('go2rtc.streams');
         if (Array.isArray(draft)) data.streams = JSON.parse(JSON.stringify(draft));
     }
+    // Legacy server models serialize unset media enums as empty strings. Give
+    // neutral defaults the same baseline without accepting any actual edits.
+    const saved = state && state.get ? state.get('go2rtc.streams', { saved: true }) : null;
+    data.streams.forEach((stream, index) => {
+        for (const [key, value] of Object.entries(go2rtcStreamDefaults())) {
+            const neutral = value => value === undefined || (value === '' && !!go2rtcMediaChoices[key]);
+            if (!neutral(stream[key])) continue;
+            stream[key] = value;
+            const path = 'go2rtc.streams.' + index + '.' + key;
+            if (state && state.markSaved && saved && saved[index] && saved[index].id === stream.id && neutral(saved[index][key]) && neutral(state.get(path))) state.markSaved(path, value);
+        }
+    });
     return data.streams;
 }
 
@@ -38,7 +79,7 @@ function go2rtcSetStreams(streams) {
 }
 
 function renderGo2RTCSection(section) {
-    if (section) _go2rtcSection = section;
+    if (section) { _go2rtcSection = section; go2rtcSourceForms = {}; }
     section = section || _go2rtcSection;
     const data = go2rtcEnsureData();
     const streams = go2rtcStreams();
@@ -67,6 +108,7 @@ function renderGo2RTCSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.go2rtc.streams_title') + '</div>';
+	 html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="go2rtcTuyaOpen(\'accounts\')">' + t('common.go2rtc_tuya.accounts') + '</button> <button type="button" class="btn-secondary" onclick="go2rtcTuyaOpen(\'setup\')">' + t('common.go2rtc_tuya.add_camera') + '</button></div>';
     html += '<div class="field-help">' + t('help.go2rtc.streams') + '</div>';
     streams.forEach((stream, index) => {
         const base = 'go2rtc.streams.' + index;
@@ -76,10 +118,29 @@ function renderGo2RTCSection(section) {
         html += go2rtcToggle(base + '.enabled', stream.enabled !== false, 'config.go2rtc.stream_enabled', 'help.go2rtc.stream_enabled');
         html += go2rtcField(base + '.id', stream.id || '', 'config.go2rtc.stream_id', 'help.go2rtc.stream_id', 'front-door', lockedID);
         html += go2rtcField(base + '.name', stream.name || '', 'config.go2rtc.stream_name', 'help.go2rtc.stream_name', t('config.go2rtc.stream_name_placeholder'), false);
-        html += go2rtcSecret(base + '.source', stream.source || '', 'config.go2rtc.source', 'help.go2rtc.source', 'rtsp://camera.example/stream');
+		if (stream.tuya) {
+			html += go2rtcSelect(base + '.tuya.account_id', stream.tuya.account_id, 'common.go2rtc_tuya.account', (data.tuya_accounts || []).map(a => [a.id, a.name]));
+			html += go2rtcSelect(base + '.tuya.main_resolution', stream.tuya.main_resolution, 'common.go2rtc_tuya.main', [['hd', 'HD'], ['sd', 'SD']]);
+			html += go2rtcSelect(base + '.tuya.sub_resolution', stream.tuya.sub_resolution || '', 'common.go2rtc_tuya.sub', [['', t('common.go2rtc_tuya.none')], ['sd', 'SD'], ['hd', 'HD']]);
+			html += '<p class="field-help">' + t('common.go2rtc_tuya.cloud_notice') + '</p>';
+		} else html += go2rtcSourceBlock(stream, index, base);
+        html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">' + t('config.go2rtc.media_settings') + '</summary><div class="cfg-advanced-body">';
+        for (const key of ['sub_source', 'snapshot_source']) {
+			if (stream.tuya) continue;
+            html += go2rtcSecret(base + '.' + key, stream[key] || '', 'config.go2rtc.' + key, '', t('config.go2rtc.keep_source'));
+            html += go2rtcToggle(base + '.clear_' + key, stream['clear_' + key] === true, 'config.go2rtc.clear_' + key, '');
+        }
+		for (const [key, options] of Object.entries(go2rtcMediaChoices)) {
+			if (stream.tuya && key === 'transport') continue;
+			html += go2rtcSelect(base + '.' + key, stream[key] || options[0][0], 'config.go2rtc.' + key, options.filter(([value]) => !(stream.tuya && key === 'snapshot_mode' && value === 'camera')));
+		}
+        html += go2rtcToggle(base + '.preload', stream.preload === true, 'config.go2rtc.preload', '');
+        html += go2rtcToggle(base + '.talk_enabled', stream.talk_enabled === true, 'config.go2rtc.talk_enabled', '');
+        html += '</div></details>';
         html += '<div class="field-group">';
         html += '<button type="button" class="btn-save" onclick="go2rtcSnapshot(' + index + ')">' + t('config.go2rtc.snapshot') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="go2rtcOpenViewer(' + index + ')">' + t('config.go2rtc.viewer') + '</button> ';
+        html += '<button type="button" class="btn-secondary" onclick="go2rtcDiagnose(' + index + ')">' + t('config.go2rtc.diagnose') + '</button> ';
         html += '<button type="button" class="btn-secondary" onclick="go2rtcRemoveStream(' + index + ')">' + t('config.go2rtc.remove') + '</button>';
         html += '<div id="go2rtc-stream-result-' + index + '" class="adg-test-result"></div>';
         html += '<div id="go2rtc-stream-preview-' + index + '"></div>';
@@ -88,6 +149,14 @@ function renderGo2RTCSection(section) {
     html += '<div class="field-group"><button type="button" class="btn-save" onclick="go2rtcAddStream()">' + t('config.go2rtc.add_stream') + '</button></div>';
 
     html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">⚙️ ' + t('config.go2rtc.advanced') + '</summary><div class="cfg-advanced-body">';
+    html += go2rtcSelect('go2rtc.hardware.backend', data.hardware.backend || 'software', 'config.go2rtc.hardware_backend', [['software', 'CPU'], ['vaapi', 'VAAPI'], ['cuda', 'CUDA / NVENC']], true);
+    html += '<div class="field-help">' + t('config.go2rtc.hardware_help') + '</div>';
+    if (data.hardware.backend === 'vaapi') {
+        html += go2rtcField('go2rtc.hardware.render_node', data.hardware.render_node || '/dev/dri/renderD128', 'config.go2rtc.hardware_node', '', '/dev/dri/renderD128', false);
+        html += go2rtcField('go2rtc.hardware.render_group', data.hardware.render_group || '', 'config.go2rtc.hardware_group', '', '993', false);
+    }
+    if (data.hardware.backend === 'cuda') html += go2rtcField('go2rtc.hardware.device_id', data.hardware.device_id || '0', 'config.go2rtc.hardware_device', '', '0', false);
+    html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="go2rtcHardwareTest()">' + t('config.go2rtc.hardware_test') + '</button><output id="go2rtc-hardware-result" class="adg-test-result"></output></div>';
     html += go2rtcField('go2rtc.image', data.image, 'config.go2rtc.image', 'help.go2rtc.image', '', false);
     html += go2rtcField('go2rtc.container_name', data.container_name, 'config.go2rtc.container_name', 'help.go2rtc.container_name', 'aurago_go2rtc', false);
     html += go2rtcToggle('go2rtc.webrtc.enabled', data.webrtc.enabled === true, 'config.go2rtc.webrtc_enabled', 'help.go2rtc.webrtc_enabled', true);
@@ -99,46 +168,133 @@ function renderGo2RTCSection(section) {
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    go2rtcBindSourceForms();
     go2rtcRefreshStatus();
+    if (go2rtcSourceTypes === null) {
+        go2rtcSourceTypes = [];
+        go2rtcLoadSourceTypes().then(types => {
+            go2rtcSourceTypes = types;
+            if (!go2rtcIsActive()) return;
+            if (window.AuraConfigState && window.AuraConfigState.syncFromDOM) window.AuraConfigState.syncFromDOM();
+            renderGo2RTCSection(null);
+        }).catch(() => {
+            go2rtcSourceTypes = null;
+            if (!go2rtcLoadFailureShown) { go2rtcLoadFailureShown = true; showToast(t('common.go2rtc_source.load_failed'), 'error'); }
+        });
+    }
+}
+
+let go2rtcSourceTypes = null;
+let go2rtcLoadFailureShown = false;
+
+function go2rtcIsActive() {
+    return (typeof activeSection === 'undefined' || activeSection === 'go2rtc') && !!document.querySelector('[data-go2rtc-source]');
+}
+let go2rtcSourceForms = {};
+
+function go2rtcLoadSourceTypes() {
+    return window.AuraGoSourceForm.loadCatalog(() => fetch('/api/go2rtc/source-types', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
+}
+
+// The main source is a guided form. The hidden data-path input carries the value
+// the config save already understands: the saved (masked) source until the form
+// builds a new URL. Secrets typed into the form live only in the form's memory.
+function go2rtcSourceBlock(stream, index, base) {
+    const state = go2rtcSourceForms[index] || (go2rtcSourceForms[index] = window.AuraGoSourceForm.newState(''));
+    const saved = window.AuraConfigState && window.AuraConfigState.get ? window.AuraConfigState.get('go2rtc.streams', { saved: true }) : null;
+    const savedStream = Array.isArray(saved) ? saved.find(item => item && item.id === stream.id) : null;
+    const original = savedStream ? (savedStream.source || '') : (stream.source || '');
+    const badge = stream.source_type ? '<span class="go2rtc-source-badge">' + escapeHtml(window.AuraGoSourceForm.label(go2rtcSourceTypes, stream.source_type)) + '</span>' : '';
+    return '<div class="field-group"><div class="field-label">' + t('config.go2rtc.source') + badge + '</div><div class="field-help">' + t('help.go2rtc.source') + '</div>' +
+        '<input type="hidden" data-path="' + escapeAttr(base + '.source') + '" data-original="' + escapeAttr(original) + '" value="">' +
+        '<div data-go2rtc-source="' + index + '">' + go2rtcSourceMarkup(index, state) + '</div></div>';
+}
+
+function go2rtcSourceMarkup(index, state) {
+    const stream = (go2rtcEnsureData().streams || [])[index] || {};
+    const empty = t(stream.source_configured ? 'common.go2rtc_source.keep_current' : 'common.go2rtc_source.choose_type');
+    return window.AuraGoSourceForm.markup(go2rtcSourceTypes || [], state, { t, emptyLabel: empty, classes: { field: 'field-group', label: 'field-label', input: 'field-input' } });
+}
+
+function go2rtcApplySource(index) {
+    const state = go2rtcSourceForms[index];
+    const hidden = document.querySelector('[data-path="go2rtc.streams.' + index + '.source"]');
+    const root = document.querySelector('[data-go2rtc-source="' + index + '"]');
+    if (!state || !hidden || !root) return;
+    const built = state.type ? window.AuraGoSourceForm.buildURL(go2rtcSourceTypes || [], state) : null;
+    hidden.value = built && built.url ? built.url : hidden.dataset.original;
+    const error = root.querySelector('.go2rtc-source-error');
+    if (error) {
+        error.textContent = built && built.error ? window.AuraGoSourceForm.errorText(t, built) : '';
+        error.hidden = !(built && built.error);
+    }
+    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Binds one camera's form; a type change redraws and rebinds only that form.
+function go2rtcBindSourceForm(root) {
+    const index = Number(root.dataset.go2rtcSource);
+    const state = go2rtcSourceForms[index];
+    const form = root.querySelector('[data-source-form]');
+    if (!state || !form) return;
+    window.AuraGoSourceForm.bind(form, state, redraw => {
+        if (redraw) {
+            root.innerHTML = go2rtcSourceMarkup(index, state);
+            go2rtcBindSourceForm(root);
+        }
+        go2rtcApplySource(index);
+    });
+}
+
+function go2rtcBindSourceForms() {
+    // The draft value (possibly a just-built plaintext URL) is set as a DOM property, never in markup.
+    const streams = go2rtcEnsureData().streams || [];
+    streams.forEach((stream, index) => {
+        const hidden = document.querySelector('[data-path="go2rtc.streams.' + index + '.source"]');
+        if (hidden) hidden.value = stream.source || '';
+    });
+    document.querySelectorAll('[data-go2rtc-source]').forEach(go2rtcBindSourceForm);
 }
 
 function go2rtcToggle(path, on, labelKey, helpKey, rerender) {
     let html = '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>';
-    html += '<div class="field-help">' + t(helpKey) + '</div>';
+    if (helpKey) html += '<div class="field-help">' + t(helpKey) + '</div>';
     html += '<div class="toggle-wrap"><div class="toggle' + (on ? ' on' : '') + '" data-path="' + escapeAttr(path) + '" onclick="toggleBool(this);setNestedValue(configData,\'' + path + '\',this.classList.contains(\'on\'));' + (rerender ? 'renderGo2RTCSection(null);' : '') + '"></div>';
     html += '<span class="toggle-label">' + (on ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
     return html;
 }
 
 function go2rtcField(path, value, labelKey, helpKey, placeholder, readonly) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') +
         '<input class="field-input" type="text" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '"' + (readonly ? ' readonly' : '') + '></div>';
 }
 
 function go2rtcSecret(path, value, labelKey, helpKey, placeholder) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') +
         '<input class="field-input" type="password" autocomplete="off" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '"></div>';
 }
 
 function go2rtcNumber(path, value, labelKey, helpKey, min, max) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') +
         '<input class="field-input" type="number" min="' + min + '" max="' + max + '" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value) + '"></div>';
 }
 
 function go2rtcAddStream() {
     const streams = go2rtcStreams();
+    go2rtcSourceForms = {};
     let suffix = streams.length + 1;
     let id = 'camera-' + suffix;
     while (streams.some(stream => stream.id === id)) {
         suffix += 1;
         id = 'camera-' + suffix;
     }
-    streams.push({ id, name: t('config.go2rtc.stream_name_placeholder'), enabled: true, source: '', source_configured: false });
+    streams.push(Object.assign(go2rtcStreamDefaults(), { id, name: t('config.go2rtc.stream_name_placeholder'), enabled: true, source: '', source_configured: false }));
     go2rtcSetStreams(streams);
 }
 
 function go2rtcRemoveStream(index) {
     const streams = go2rtcStreams();
+    go2rtcSourceForms = {};
     streams.splice(index, 1);
     go2rtcSetStreams(streams);
 }
@@ -231,4 +387,53 @@ function go2rtcOpenViewer(index) {
     const result = document.getElementById('go2rtc-stream-result-' + index);
     if (!go2rtcSavedOnly(result)) return;
     window.open('/api/go2rtc/viewer/' + encodeURIComponent(stream.id), '_blank', 'noopener');
+}
+
+const go2rtcMediaChoices = {
+    preview_source: [['auto', 'automatic'], ['main', 'main_stream'], ['sub', 'sub_stream']],
+    detection_source: [['auto', 'automatic'], ['main', 'main_stream'], ['sub', 'sub_stream']],
+    snapshot_mode: [['auto', 'automatic'], ['camera', 'snapshot_source'], ['stream', 'stream_image']],
+    codec_profile: [['original', 'original'], ['h264_opus', 'H.264 / Opus'], ['h264_aac', 'H.264 / AAC']],
+    transport: [['inherit', 'automatic'], ['tcp', 'TCP'], ['udp', 'UDP']],
+    playback_mode: [['auto', 'automatic'], ['webrtc_tcp', 'WebRTC / TCP'], ['mse', 'MSE'], ['hls', 'HLS'], ['mp4', 'MP4'], ['mjpeg', 'MJPEG']]
+};
+
+function go2rtcStreamDefaults() {
+    const values = { sub_source: '', snapshot_source: '', clear_sub_source: false, clear_snapshot_source: false, preload: false, talk_enabled: false };
+    for (const [key, options] of Object.entries(go2rtcMediaChoices)) values[key] = options[0][0];
+    return values;
+}
+
+function go2rtcSelect(path, value, label, choices, rerender) {
+	const literalCaptions = path.includes('.tuya.');
+    return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(literalCaptions || /[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select></div>';
+}
+
+async function go2rtcHardwareTest() {
+    const output = document.getElementById('go2rtc-hardware-result');
+    if (!go2rtcSavedOnly(output)) return;
+    output.textContent = t('config.go2rtc.working');
+    try {
+        const response = await fetch('/api/go2rtc/hardware/test', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+        const result = await response.json();
+        const verified = response.ok && result.verified;
+        output.textContent = t(verified ? 'config.go2rtc.hardware_verified' : 'config.go2rtc.hardware_failed');
+        output.className = 'adg-test-result ' + (verified ? 'is-success' : 'is-danger');
+    } catch (_) { output.textContent = t('config.go2rtc.hardware_failed'); output.className = 'adg-test-result is-danger'; }
+}
+
+async function go2rtcDiagnose(index) {
+    const output = document.getElementById('go2rtc-stream-result-' + index);
+    if (!go2rtcSavedOnly(output)) return;
+    const stream = go2rtcEnsureData().streams[index];
+    output.textContent = t('config.go2rtc.working');
+    try {
+        const response = await fetch('/api/go2rtc/diagnostics/' + encodeURIComponent(stream.id), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        if (!response.ok) throw new Error('diagnosis');
+        const result = await response.json();
+        output.textContent = t(result.status === 'ok' ? 'config.go2rtc.diagnostics_success' : 'config.go2rtc.diagnostics_failed').replace('{width}', result.width || 0).replace('{height}', result.height || 0).replace('{ms}', result.duration_ms || 0);
+        if (result.error_code) output.textContent += ' (' + result.error_code + ')';
+        if (result.effective_transcoding_backend) output.textContent += ' · ' + (result.effective_transcoding_backend === 'software' ? 'CPU' : result.effective_transcoding_backend);
+        output.className = 'adg-test-result ' + (result.status === 'ok' ? 'is-success' : 'is-danger');
+    } catch (_) { output.textContent = t('config.go2rtc.diagnostics_failed'); output.className = 'adg-test-result is-danger'; }
 }

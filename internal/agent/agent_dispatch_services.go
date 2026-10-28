@@ -639,6 +639,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Docker integration is not enabled. Set docker.enabled=true in config.yaml."}`
 			}
 			req := decodeDockerArgs(tc)
+			if dockerCreateRunOperation(req.Operation) && dockerutil.IsRustFSContainerName(req.Name) || dockerVolumeOperation(req.Operation) && dockerutil.IsRustFSVolumeName(req.Name) {
+				return dockerComposeOwnerDenial(dockerutil.RustFSOwner)
+			}
+			for _, bind := range req.Volumes {
+				if tools.DockerBindUsesRustFSVolume(bind) {
+					return dockerComposeOwnerDenial(dockerutil.RustFSOwner)
+				}
+			}
 			if dockerRequestTargetsManagedHomepage(req) {
 				return dockerAgentError("docker_managed_homepage_resource", "AuraGo-managed homepage containers and the aurago-homepage image repository cannot be managed through the generic docker tool. Use homepage_project, homepage_file, or homepage_deploy.")
 			}
@@ -689,7 +697,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
+			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.RustFSOwner] {
+				return dockerComposeOwnerDenial(dockerutil.RustFSOwner)
+			}
 			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.OllamaOwner] {
 				return dockerAgentError("docker_managed_ollama_resource", "Managed Ollama containers belong to the administrator. Use the ollama tool for model operations.")
 			}
@@ -788,7 +799,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -843,7 +854,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
@@ -1567,21 +1578,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"S3 is in read-only mode. Disable s3.readonly to allow changes."}`
 				}
 			}
-			s3Cfg := tools.S3Config{
-				Endpoint:             cfg.S3.Endpoint,
-				Region:               cfg.S3.Region,
-				Bucket:               cfg.S3.Bucket,
-				AccessKey:            cfg.S3.AccessKey,
-				SecretKey:            cfg.S3.SecretKey,
-				UsePathStyle:         cfg.S3.UsePathStyle,
-				Insecure:             cfg.S3.Insecure,
-				ReadOnly:             cfg.S3.ReadOnly,
-				WorkspaceDir:         cfg.Directories.WorkspaceDir,
-				DataDir:              cfg.Directories.DataDir,
-				AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
-			}
+			s3Cfg := tools.S3ConfigFromConfig(cfg)
 			logger.Info("LLM requested S3 operation", "op", req.Operation, "bucket", req.Bucket, "key", req.Key)
-			return "Tool Output: " + tools.ExecuteS3(s3Cfg, req.Operation, req.Bucket, req.Key, req.LocalPath, req.Prefix, req.DestinationBucket, req.DestinationKey)
+			return "Tool Output: " + tools.ExecuteS3Context(ctx, s3Cfg, req.Operation, req.Bucket, req.Key, req.LocalPath, req.Prefix, req.DestinationBucket, req.DestinationKey)
 
 		case "paperless", "paperless_ngx":
 			if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {

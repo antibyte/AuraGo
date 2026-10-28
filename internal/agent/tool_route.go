@@ -180,7 +180,7 @@ func safeExplicitRetryTool(toolName, operation string) bool {
 	case "analyze_image", "query_memory", "recall_memory", "context_memory", "web_search":
 		return true
 	case "go2rtc":
-		return stringInSet(operation, "status", "list_streams", "stream_status", "snapshot", "analyze_snapshot",
+		return stringInSet(operation, "status", "list_streams", "stream_status", "diagnose_stream", "snapshot", "analyze_snapshot",
 			"detection_status", "list_detection_events", "analyze_detection_event", "show_detection_event")
 	case "workspace_search":
 		return stringInSet(operation, "find", "grep", "glob", "recent", "status", "rescan")

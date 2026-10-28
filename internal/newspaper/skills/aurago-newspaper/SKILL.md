@@ -21,8 +21,9 @@ The capability snapshot is authoritative. Brave Search is usable only when
 enabled and configured with a key. Prefer Brave News with the server's freshness
 filter, then targeted Web searches. DuckDuckGo is a fallback under the existing
 network permission, with no separate activation switch. Configured RSS/Atom
-feeds and selected Google News, Hacker News and Techmeme overviews provide
-additional leads. Use server-provided headline/publisher IDs to plan targeted
+feeds and selected built-in news, technology, business, science, space,
+environment, sport and culture overviews provide additional leads. Use
+server-provided headline/publisher IDs to plan targeted
 original-source searches. Aggregator links and submission dates are never
 article evidence or original publication dates. Enabled web scraping reads original pages.
 Disabled, unconfigured, blocked and failed capabilities differ: do not request

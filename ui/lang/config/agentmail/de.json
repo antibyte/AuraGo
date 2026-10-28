@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Erlaubte Absender",
   "config.agentmail.api_key_empty": "Bitte zuerst einen API-Key eingeben.",
   "config.agentmail.api_key_label": "API-Key (Vault)",
   "config.agentmail.api_key_placeholder": "AgentMail API-Key eingeben…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "WebSocket verwenden",
   "config.agentmail.websocket_url_label": "WebSocket-URL",
   "config.agentmail.yes": "Ja",
+  "help.agentmail.allowed_senders": "Ein Eintrag pro Zeile: eine vollständige Adresse (anna@example.com) oder eine ganze Domain (@example.com). Nur Mails dieser Absender erreichen den Agenten; Mails aller anderen werden ignoriert. Solange die Liste leer ist, erreicht keine Mail den Agenten, und pro Nachricht kommt nur ein Quarantäne-Hinweis. Der From-Header lässt sich fälschen: Die Liste kurz halten und den LLM-Mail-Scan eingeschaltet lassen.",
   "help.agentmail.api_key": "AgentMail API-Key. Er wird sicher im verschlüsselten Vault gespeichert.",
   "help.agentmail.auto_create_inbox": "Erlaubt Setup-Flows, das konfigurierte Postfach automatisch zu erstellen, wenn unterstützt.",
   "help.agentmail.base_url": "Basis-URL für die AgentMail REST-API.",

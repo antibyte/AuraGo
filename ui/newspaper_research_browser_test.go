@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 )
 
@@ -41,6 +42,7 @@ func TestNewspaperResearchTranslations(t *testing.T) {
 			budgetKeys := []string{"budget_mode", "budget_auto", "budget_fixed", "effective_budget_summary", "monetary_budget_enabled", "monetary_budget_disabled", "fixed_budget_note"}
 			if area == "config/newspaper" {
 				budgetKeys = append(budgetKeys, "overview_sources", "overview_sources_help", "source_google_news", "source_hacker_news", "source_techmeme", "preset_recommended", "preset_none", "budget_preview", "budget_preview_loading", "budget_preview_failed", "budget_mode_help", "fixed_limits_only")
+				budgetKeys = append(budgetKeys, "source_tagesschau", "source_bbc_business", "source_science_daily", "source_nasa", "source_guardian_environment", "source_bbc_sport", "source_guardian_culture")
 			} else {
 				budgetKeys = append(budgetKeys, "budget_title", "budget_intro", "budget_preview_loading", "budget_preview_failed", "research_progress", "research_activity")
 			}
@@ -101,7 +103,9 @@ func TestNewspaperConfigResearchBrowser(t *testing.T) {
 	})
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html lang="de"><meta charset="utf-8"><div id="content"></div><script>var configData={newspaper:{enabled:true,budget_mode:'auto',overview_sources:['google_news'],max_pages:60,max_searches:32,max_minutes:60}},labels={};window.previewRequests=[];const originalFetch=window.fetch.bind(window);window.fetch=(url,opts={})=>{if(String(url).includes('/budget-preview'))window.previewRequests.push(JSON.parse(opts.body||'{}'));return originalFetch(url,opts)};function t(k){return labels[k]||k}function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}function attachChangeListeners(){}function toggleBool(){}</script><script src="/cfg/newspaper.js"></script><script>(async()=>{labels=await(await fetch('/lang/config/newspaper/de.json')).json();renderNewspaperSection({label:'Newspaper',desc:'Recherche'});})();</script></html>`)
+		fmt.Fprint(w, `<!doctype html><html lang="de" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-utilities.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/config.css"><link rel="stylesheet" href="/css/enhancements.css"><link rel="stylesheet" href="/css/precision-workspace.css"><link rel="stylesheet" href="/css/precision-pages.css"><link rel="stylesheet" href="/css/config-workspace.css">
+</head><body class="pw-page" data-workspace-page="config" data-density="comfortable"><main class="cfg-content pw-page-frame" id="content"></main><script>var configData={newspaper:{enabled:true,budget_mode:'auto',overview_sources:['google_news'],max_pages:60,max_searches:32,max_minutes:60}},labels={};window.previewRequests=[];const originalFetch=window.fetch.bind(window);window.fetch=(url,opts={})=>{if(String(url).includes('/budget-preview'))window.previewRequests.push(JSON.parse(opts.body||'{}'));return originalFetch(url,opts)};function t(k){return labels[k]||k}function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}function attachChangeListeners(){}function toggleBool(){}</script><script src="/cfg/newspaper.js"></script><script>(async()=>{labels=await(await fetch('/lang/config/newspaper/de.json')).json();renderNewspaperSection({label:'Newspaper',desc:'Recherche'});})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -135,6 +139,43 @@ func TestNewspaperConfigResearchBrowser(t *testing.T) {
 	page.MustWait(`() => JSON.stringify(window.previewRequests.at(-1)?.overview_sources) === JSON.stringify(['google_news','hacker_news','techmeme'])`)
 	if !page.MustEval(`()=>document.querySelector('[data-path="newspaper.overview_sources"]').value==='google_news, hacker_news, techmeme'`).Bool() {
 		t.Fatal("recommended overview preset did not update the saved config value")
+	}
+	if got := page.MustElements("[data-overview-source]"); len(got) != 10 {
+		t.Fatalf("overview source choices=%d, want 10", len(got))
+	}
+	for _, source := range []string{"tagesschau", "bbc_business", "science_daily", "nasa", "guardian_environment", "bbc_sport", "guardian_culture"} {
+		page.MustElement(`[data-overview-source="` + source + `"]`).MustClick()
+	}
+	page.MustWait(`() => window.previewRequests.at(-1)?.overview_sources?.length === 10`)
+	if !page.MustEval(`()=>document.querySelector('[data-path="newspaper.overview_sources"]').value.split(', ').length===10`).Bool() {
+		t.Fatal("new overview choices were not included in the saved config value")
+	}
+	page.MustElement(`[data-overview-source="nasa"]`).MustFocus()
+	page.Keyboard.MustType(input.Space)
+	page.MustWait(`() => window.previewRequests.at(-1)?.overview_sources?.length === 9`)
+	page.Keyboard.MustType(input.Space)
+	page.MustWait(`() => window.previewRequests.at(-1)?.overview_sources?.length === 10`)
+	for _, width := range []int{390, 1280} {
+		page.MustSetViewport(width, 1100, 1, width == 390)
+		for _, theme := range []string{"dark", "light"} {
+			page.MustEval(`theme => {document.documentElement.dataset.theme=theme;document.body.dataset.theme=theme}`, theme)
+			page.MustElement("#newspaper-overview-sources").MustScrollIntoView()
+			if !page.MustEval(`()=>{
+const grid=document.querySelector('#newspaper-overview-sources'), choices=[...grid.querySelectorAll('label')], actions=grid.nextElementSibling, buttons=[...actions.querySelectorAll('button')], rect=grid.getBoundingClientRect();
+return getComputedStyle(grid).display==='grid' && choices.every((choice,i)=>{const r=choice.getBoundingClientRect();return r.height>=44&&r.left>=rect.left-1&&r.right<=rect.right+1&&choices.slice(i+1).every(other=>{const b=other.getBoundingClientRect();return r.right+7<=b.left||b.right+7<=r.left||r.bottom+7<=b.top||b.bottom+7<=r.top})})
+&& getComputedStyle(actions).flexWrap==='wrap' && parseFloat(getComputedStyle(actions).gap)>=8 && buttons.every(button=>button.getBoundingClientRect().right<=innerWidth+1) && document.documentElement.scrollWidth<=innerWidth+1;
+}`).Bool() {
+				t.Fatalf("overview sources or preset actions overlap/overflow: %s %d", theme, width)
+			}
+			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("newspaper-sources-%s-%d.png", theme, width)), page.MustScreenshot(), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
 	}
 	page.MustElement("button.dc-test-btn").MustClick()
 	page.MustElement("#newspaper-config-status li")

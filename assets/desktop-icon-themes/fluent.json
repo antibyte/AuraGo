@@ -596,6 +596,9 @@
     "desktop-symbolic": {
       "source": "links/scalable/places/user-desktop.svg"
     },
+    "docker-manager": {
+      "supplement": "container-stack"
+    },
     "documents": {
       "source": "src/scalable/mimetypes/x-office-document.svg"
     },

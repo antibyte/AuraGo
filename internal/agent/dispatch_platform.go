@@ -23,7 +23,7 @@ import (
 )
 
 var _ = (*slog.Logger)(nil)
-var discoverChromecastDevices = tools.DiscoverChromecastDevices
+var discoverChromecastDevices = tools.CachedDiscoverChromecastDevices
 
 func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) error {
 	if req == nil || strings.TrimSpace(req.LocalPath) == "" {
@@ -46,6 +46,13 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 		return fmt.Errorf("open local media: %w", err)
 	}
 	defer source.Close()
+	info, err := source.Stat()
+	if err != nil {
+		return fmt.Errorf("stat local media: %w", err)
+	}
+	if info.Size() > tools.CastMediaMaxBytes {
+		return fmt.Errorf("cast media file exceeds %d bytes", tools.CastMediaMaxBytes)
+	}
 
 	baseName := filepath.Base(resolved)
 	baseName = strings.ReplaceAll(baseName, " ", "_")
@@ -62,6 +69,7 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("create cast media dir: %w", err)
 	}
+	_ = tools.PruneExpiredCastMedia(destDir, time.Now())
 	destFile, err := os.CreateTemp(destDir, "cast-*"+filepath.Ext(baseName))
 	if err != nil {
 		return fmt.Errorf("create cast media file: %w", err)
@@ -88,7 +96,11 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 	if port == 0 {
 		port = cfg.Server.Port
 	}
-	req.URL = security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/cast-media/%s", getLocalIP(cfg), port, url.PathEscape(filepath.Base(destPath))))
+	host, err := chromecastAdvertiseHost(cfg)
+	if err != nil {
+		return err
+	}
+	req.URL = security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/cast-media/%s", host, port, url.PathEscape(filepath.Base(destPath))), security.CastMediaTicketLifetime)
 	if req.URL == "" {
 		return fmt.Errorf("create cast media ticket")
 	}
@@ -521,8 +533,13 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.Chromecast.Enabled && cfg.Chromecast.TTSPort > 0 {
 				ttsPort = cfg.Chromecast.TTSPort // Chromecast has its own dedicated TTS server
 			}
-			audioURL := security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, url.PathEscape(filename)))
+			audioURL := security.SignCastMediaURL(fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, url.PathEscape(filename)), security.CastMediaTicketLifetime)
 			webPath := "/tts/" + filename
+			if cfg == nil || !cfg.Auth.Enabled {
+				if signed, err := url.Parse(audioURL); err == nil && signed.RawQuery != "" {
+					webPath = signed.EscapedPath() + "?" + signed.RawQuery
+				}
+			}
 			absLocalPath, _ := filepath.Abs(filepath.Join(cfg.Directories.DataDir, "tts", filename))
 			absLocalPath = filepath.ToSlash(absLocalPath)
 			return fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s", "web_path": "%s", "local_path": "%s"}`, filename, audioURL, webPath, absLocalPath)
@@ -544,36 +561,45 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					data, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
 					return "Tool Output: " + string(data)
 				}
-				mediaPort := cfg.Chromecast.TTSPort
-				if mediaPort == 0 {
-					mediaPort = cfg.Server.Port
+				host, err := chromecastAdvertiseHost(cfg)
+				if err != nil {
+					data, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+					return "Tool Output: " + string(data)
 				}
-				ccCfg := tools.ChromecastConfig{Context: ctx,
-					ServerHost:         getLocalIP(cfg),
-					ServerPort:         mediaPort,
-					MediaHostAllowlist: cfg.Chromecast.MediaHostAllowlist,
-				}
-				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, ccCfg, logger)
+				ccCfg := chromecastControlConfig(ctx, cfg, host, inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, req.StreamType, ccCfg, logger)
 			case "speak":
+				host, err := chromecastAdvertiseHost(cfg)
+				if err != nil {
+					data, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+					return "Tool Output: " + string(data)
+				}
 				ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
-				ttsPort := cfg.Chromecast.TTSPort
-				if ttsPort == 0 {
-					ttsPort = cfg.Server.Port
-				}
-				ccCfg := tools.ChromecastConfig{Context: ctx,
-					ServerHost:         cfg.Server.Host,
-					ServerPort:         ttsPort,
-					MediaHostAllowlist: cfg.Chromecast.MediaHostAllowlist,
-				}
+				ccCfg := chromecastControlConfig(ctx, cfg, host, inventoryDB, logger)
 				return "Tool Output: " + tools.ChromecastSpeak(req.DeviceAddr, req.DevicePort, req.Text, ttsCfg, ccCfg, logger)
 			case "stop":
-				return "Tool Output: " + tools.ChromecastStop(req.DeviceAddr, req.DevicePort, logger)
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastStop(req.DeviceAddr, req.DevicePort, ccCfg, logger)
 			case "volume":
-				return "Tool Output: " + tools.ChromecastVolume(req.DeviceAddr, req.DevicePort, req.Volume, logger)
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastVolume(req.DeviceAddr, req.DevicePort, req.Volume, req.VolumeSet, ccCfg, logger)
+			case "pause":
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastPause(req.DeviceAddr, req.DevicePort, ccCfg, logger)
+			case "resume":
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastResume(req.DeviceAddr, req.DevicePort, ccCfg, logger)
+			case "seek":
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastSeek(req.DeviceAddr, req.DevicePort, req.Position, req.PositionSet, ccCfg, logger)
+			case "mute":
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastMute(req.DeviceAddr, req.DevicePort, req.Muted, req.MutedSet, ccCfg, logger)
 			case "status":
-				return "Tool Output: " + tools.ChromecastStatus(req.DeviceAddr, req.DevicePort, logger)
+				ccCfg := chromecastControlConfig(ctx, cfg, "", inventoryDB, logger)
+				return "Tool Output: " + tools.ChromecastStatus(req.DeviceAddr, req.DevicePort, ccCfg, logger)
 			default:
-				return `Tool Output: {"status": "error", "message": "Unknown chromecast operation. Use: discover, play, speak, stop, volume, status"}`
+				return `Tool Output: {"status": "error", "message": "Unknown chromecast operation. Use: discover, play, speak, stop, volume, pause, resume, seek, mute, status"}`
 			}
 
 		case "manage_webhooks":
@@ -690,12 +716,15 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return "Tool Output: " + string(data)
 		case "go2rtc":
 			manager := tools.DefaultGo2RTCManager()
-			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess || !manager.Available() {
+			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess {
 				return `Tool Output: {"status":"error","message":"go2rtc is not enabled for agent access or its API is unavailable."}`
 			}
 			operation := strings.ToLower(strings.TrimSpace(tc.Operation))
 			if operation == "" {
 				operation = strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "operation")))
+			}
+			if operation != "status" && operation != "diagnose_stream" && (!cfg.Go2RTC.Enabled || !manager.Available()) {
+				return `Tool Output: {"status":"error","message":"go2rtc API is unavailable."}`
 			}
 			if isGo2RTCDetectionOperation(operation) {
 				return dispatchGo2RTCDetection(ctx, operation, tc, dc)
@@ -711,6 +740,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch operation {
 			case "status":
 				return encode(manager.Status(ctx))
+			case "diagnose_stream":
+				return encode(manager.Diagnose(ctx, streamID))
 			case "list_streams":
 				streams, err := manager.ListStreams(ctx)
 				if err != nil {

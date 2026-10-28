@@ -500,19 +500,20 @@ func sseWriteDone(w http.ResponseWriter) {
 }
 
 type desktopChatContext struct {
-	Source          string                `json:"source"`
-	OriginApp       string                `json:"origin_app,omitempty"`
-	HomepageMode    bool                  `json:"homepage_mode,omitempty"`
-	Target          string                `json:"target,omitempty"`
-	CurrentFile     string                `json:"current_file"`
-	CurrentLanguage string                `json:"current_language"`
-	CurrentContent  string                `json:"current_content"`
-	CursorLine      int                   `json:"cursor_line"`
-	CursorColumn    int                   `json:"cursor_column"`
-	SelectedText    string                `json:"selected_text"`
-	OpenFiles       []string              `json:"open_files"`
-	ImageBase64     string                `json:"image_base64,omitempty"`
-	WindowContext   *desktopWindowContext `json:"window_context,omitempty"`
+	Source          string                  `json:"source"`
+	OriginApp       string                  `json:"origin_app,omitempty"`
+	HomepageMode    bool                    `json:"homepage_mode,omitempty"`
+	Target          string                  `json:"target,omitempty"`
+	CurrentFile     string                  `json:"current_file"`
+	CurrentLanguage string                  `json:"current_language"`
+	CurrentContent  string                  `json:"current_content"`
+	CursorLine      int                     `json:"cursor_line"`
+	CursorColumn    int                     `json:"cursor_column"`
+	SelectedText    string                  `json:"selected_text"`
+	OpenFiles       []string                `json:"open_files"`
+	ImageBase64     string                  `json:"image_base64,omitempty"`
+	Annotations     *desktopChatAnnotations `json:"annotations,omitempty"`
+	WindowContext   *desktopWindowContext   `json:"window_context,omitempty"`
 }
 
 type desktopWindowContext struct {
@@ -677,8 +678,18 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		return turn, err
 	}
 	cfg, llmClient = *routingRun.Config, routingRun.LLMClient
+	// Annotation turns keep working without the image: the element details
+	// alone locate the marks.
+	annotationTurn := isHomepageStudioChatContext(chatContext) && chatContext.Annotations.hasItems()
+	if annotationTurn && strings.TrimSpace(chatContext.ImageBase64) == "" {
+		chatContext.Annotations.ImageOmitted = true
+	}
 	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderRequiresPublicImageURL(&cfg) {
-		return turn, fmt.Errorf("%s", tools.VisionPublicURLRequiredMessage)
+		if !annotationTurn {
+			return turn, fmt.Errorf("%s", tools.VisionPublicURLRequiredMessage)
+		}
+		chatContext.ImageBase64 = ""
+		chatContext.Annotations.ImageOmitted = true
 	}
 	if err := validateCurrentMainProviderImageInput(&cfg, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
@@ -727,13 +738,21 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 				return turn, fmt.Errorf("close camera photo: %w", err)
 			}
 			analysis, _, _, err := analyzeImageForFallback(photoPath, message, &cfg)
-			if err != nil {
+			switch {
+			case annotationTurn && (err != nil || strings.TrimSpace(analysis) == ""):
+				requestPrompt = message + "\n\n" + homepageAnnotationImageUnavailableNote
+			case err != nil:
 				return turn, err
-			}
-			if strings.TrimSpace(analysis) == "" {
+			case strings.TrimSpace(analysis) == "":
 				return turn, fmt.Errorf("camera photo could not be analyzed")
+			case annotationTurn:
+				// The marks image is a screenshot of an agent- or third-party-
+				// authored page, so whatever the vision model read from it is
+				// untrusted page text and must not reach the user turn raw.
+				requestPrompt = message + "\n\n" + desktopScannedExternalData(s.Guardian, "homepage_image_analysis", analysis, 8000)
+			default:
+				requestPrompt = message + "\n\n" + analysis
 			}
-			requestPrompt = message + "\n\n" + analysis
 		}
 	}
 
@@ -1093,6 +1112,7 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 		b.WriteString("\n")
 		b.WriteString(desktopExternalData("desktop_window_context", windowContext, 12000))
 	}
+	b.WriteString(homepageAnnotationsPrompt(chatContext.Annotations))
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
 		b.WriteString("\n\nThe user attached a photo taken with the Camera app for this turn. If the provider supports multimodal input, the image is supplied separately as an image_url data URI. Do not store or request the raw image bytes.")
 	}
@@ -1171,6 +1191,18 @@ func desktopExternalData(kind, value string, maxBytes int) string {
 		return ""
 	}
 	return kind + " (untrusted):\n" + security.IsolateExternalData(value)
+}
+
+// desktopScannedExternalData wraps untrusted text like desktopExternalData and
+// also runs it through the Guardian's external-content scan, which logs
+// injection patterns. The wrapping is what protects the prompt; the scan never
+// blocks. A nil Guardian only wraps.
+func desktopScannedExternalData(g *security.Guardian, kind, value string, maxBytes int) string {
+	wrapped := desktopExternalData(kind, value, maxBytes)
+	if wrapped != "" && g != nil {
+		_ = g.ScanExternalContent(kind, value)
+	}
+	return wrapped
 }
 
 type desktopReplyBroker struct {

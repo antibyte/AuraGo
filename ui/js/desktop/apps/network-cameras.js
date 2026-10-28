@@ -50,16 +50,17 @@
             const value = JSON.parse(localStorage.getItem(preferenceKey) || '{}');
             return {
                 mode: coerceMode(value.mode),
-                selected: String(value.selected || '')
+                selected: String(value.selected || ''),
+                sourceRoles: value.sourceRoles && typeof value.sourceRoles === 'object' ? value.sourceRoles : {}
             };
         } catch (_) {
-            return { mode: 'snapshots', selected: '' };
+            return { mode: 'snapshots', selected: '', sourceRoles: {} };
         }
     }
 
     function savePreferences(state) {
         try {
-            localStorage.setItem(preferenceKey, JSON.stringify({ mode: state.mode, selected: state.selected }));
+            localStorage.setItem(preferenceKey, JSON.stringify({ mode: state.mode, selected: state.selected, sourceRoles: state.sourceRoles }));
         } catch (_) {}
     }
 
@@ -74,6 +75,8 @@
             error: '',
             filter: '',
             selected: preferences.selected,
+            sourceRoles: preferences.sourceRoles,
+            savePreferences: () => savePreferences(instances.get(windowId)),
             mode: launchContext(ctx) ? (launchContext(ctx).event_id ? 'detections' : 'snapshots') : preferences.mode,
             focus: false,
             modal: null,
@@ -82,6 +85,8 @@
             controllers: new Set(),
             objectURLs: new Map(),
             thumbnailTimer: null,
+            statusTimer: null,
+            stateRequest: null,
             intersection: null,
             visibilityObserver: null,
             documentVisibilityHandler: null,
@@ -166,7 +171,7 @@
                     '<button type="button" data-mode="detections" aria-pressed="' + (state.mode === 'detections') + '" class="' + (state.mode === 'detections' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'detection.mode')) + '</button>' +
                 '</div>' +
                 '<button class="nc-icon-button" type="button" data-action="refresh" title="' + ctx.esc(text(ctx, 'refresh')) + '">' + appIcon(ctx, 'refresh', 'R', 17) + '</button>' +
-                (canManage ? '<button class="nc-primary" type="button" data-action="add">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
+                (canManage ? '<button type="button" data-action="tuya">' + ctx.esc(ctx.t('common.go2rtc_tuya.accounts')) + '</button><button class="nc-primary" type="button" data-action="add" aria-label="' + ctx.esc(text(ctx, 'add_camera')) + '">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
             '</div></header>';
     }
 
@@ -210,13 +215,13 @@
         const deleting = state.deletingID === stream.id;
         const codecs = Array.isArray(stream.codecs) && stream.codecs.length ? stream.codecs.join(' · ') : text(ctx, enabled ? 'waiting_codec' : 'disabled');
         const media = live
-            ? '<iframe title="' + ctx.esc(stream.name || stream.id) + '" src="/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id) + '" loading="lazy"></iframe>'
+            ? '<iframe data-camera="' + ctx.esc(stream.id) + '" data-revision="' + Number(stream.revision || 0) + '" data-source-role="preview" title="' + ctx.esc(stream.name || stream.id) + '" src="' + window.NetworkCamerasMedia.viewerURL(state, stream, 'preview') + '" loading="lazy"></iframe>'
             : (enabled ? '<img data-thumbnail="' + ctx.esc(stream.id) + '" alt="' + ctx.esc(stream.name || stream.id) + '"><div class="nc-image-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '</div>' : '<div class="nc-disabled-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '<span>' + ctx.esc(text(ctx, 'disabled')) + '</span></div>');
         return '<article class="nc-card ' + (selected ? 'is-selected ' : '') + (!enabled ? 'is-disabled' : '') + '" data-stream-card="' + ctx.esc(stream.id) + '">' +
             '<button type="button" class="nc-card-select" data-select="' + ctx.esc(stream.id) + '" ' + (!enabled ? 'disabled' : '') + ' aria-label="' + ctx.esc(stream.name || stream.id) + '"></button>' +
             '<div class="nc-card-media">' + media + '<span class="nc-live-badge">' + ctx.esc(live ? text(ctx, 'live') : '') + '</span></div>' +
-            '<div class="nc-card-copy"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(codecs) + '</small></div>' +
-                '<div class="nc-card-state ' + (stream.reachable ? 'is-online' : '') + '"><span></span>' + ctx.esc(enabled ? (stream.reachable ? text(ctx, 'online') : text(ctx, 'connecting')) : text(ctx, 'disabled')) + '</div></div>' +
+            '<div class="nc-card-copy"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(codecs) + (stream.source_type ? '<span class="go2rtc-source-badge">' + ctx.esc(window.AuraGoSourceForm.label(state.sourceTypes, stream.source_type)) + '</span>' : '') + '</small></div>' +
+                '<div class="nc-card-state ' + (stream.reachable ? 'is-online' : '') + '"><span></span>' + ctx.esc(enabled ? (stream.reachable ? text(ctx, 'online') : text(ctx, stream.state === 'connecting' ? 'connecting' : 'idle')) : text(ctx, 'disabled')) + '</div></div>' +
             '<div class="nc-card-meta"><span>' + ctx.esc(text(ctx, 'viewers', { count: Number(stream.consumers || 0) })) + '</span>' + (state.data.can_manage ? '<span class="nc-card-admin-actions"><button type="button" data-edit="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'manage')) + '" ' + (deleting ? 'disabled' : '') + '>' + appIcon(ctx, 'settings', 'M', 15) + '</button><button class="is-danger" type="button" data-delete="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'delete')) + '" ' + (deleting ? 'disabled' : '') + '>' + (deleting ? '<span class="nc-spinner is-small"></span>' : appIcon(ctx, 'trash', 'X', 15)) + '</button></span>' : '') + '</div>' +
             '</article>';
     }
@@ -225,16 +230,16 @@
         const ctx = state.ctx;
         const stream = selectedStream(state);
         if (!stream) return '<div class="nc-detail-empty">' + ctx.esc(text(ctx, 'select_camera')) + '</div>';
-        const viewerURL = '/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id);
+        const viewerURL = window.NetworkCamerasMedia.viewerURL(state, stream);
         const deleting = state.deletingID === stream.id;
         return '<section class="nc-detail">' +
             '<div class="nc-detail-header"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(stream.id) + '</small></div><div class="nc-detail-actions">' +
-                '<button type="button" data-action="snapshot">' + appIcon(ctx, 'camera', 'C', 15) + '<span>' + ctx.esc(text(ctx, 'take_snapshot')) + '</span></button>' +
-                '<button type="button" data-action="reconnect">' + appIcon(ctx, 'refresh', 'R', 15) + '<span>' + ctx.esc(text(ctx, 'reconnect')) + '</span></button>' +
-                '<button type="button" data-action="focus">' + appIcon(ctx, state.focus ? 'minimize' : 'maximize', 'F', 15) + '<span>' + ctx.esc(text(ctx, state.focus ? 'leave_focus' : 'focus')) + '</span></button>' +
-                '<button type="button" data-action="fullscreen">' + appIcon(ctx, 'maximize', 'F', 15) + '<span>' + ctx.esc(text(ctx, 'fullscreen')) + '</span></button>' +
-                (state.data.can_manage ? '<button class="nc-danger-action" type="button" data-delete="' + ctx.esc(stream.id) + '" ' + (deleting ? 'disabled' : '') + '>' + (deleting ? '<span class="nc-spinner is-small"></span>' : appIcon(ctx, 'trash', 'X', 15)) + '<span>' + ctx.esc(text(ctx, 'delete')) + '</span></button>' : '') +
-            '</div></div><div class="nc-detail-video" data-role="detail-video"><iframe title="' + ctx.esc(stream.name || stream.id) + '" src="' + viewerURL + '" allow="fullscreen; autoplay" referrerpolicy="same-origin"></iframe></div></section>';
+                '<button type="button" data-action="snapshot" aria-label="' + ctx.esc(text(ctx, 'take_snapshot')) + '">' + appIcon(ctx, 'camera', 'C', 15) + '<span>' + ctx.esc(text(ctx, 'take_snapshot')) + '</span></button>' +
+                '<button type="button" data-action="reconnect" aria-label="' + ctx.esc(text(ctx, 'reconnect')) + '">' + appIcon(ctx, 'refresh', 'R', 15) + '<span>' + ctx.esc(text(ctx, 'reconnect')) + '</span></button>' +
+                '<button type="button" data-action="focus" aria-label="' + ctx.esc(text(ctx, state.focus ? 'leave_focus' : 'focus')) + '">' + appIcon(ctx, state.focus ? 'minimize' : 'maximize', 'F', 15) + '<span>' + ctx.esc(text(ctx, state.focus ? 'leave_focus' : 'focus')) + '</span></button>' +
+                '<button type="button" data-action="fullscreen" aria-label="' + ctx.esc(text(ctx, 'fullscreen')) + '">' + appIcon(ctx, 'maximize', 'F', 15) + '<span>' + ctx.esc(text(ctx, 'fullscreen')) + '</span></button>' +
+                (state.data.can_manage ? '<button class="nc-danger-action" type="button" aria-label="' + ctx.esc(text(ctx, 'delete')) + '" data-delete="' + ctx.esc(stream.id) + '" ' + (deleting ? 'disabled' : '') + '>' + (deleting ? '<span class="nc-spinner is-small"></span>' : appIcon(ctx, 'trash', 'X', 15)) + '<span>' + ctx.esc(text(ctx, 'delete')) + '</span></button>' : '') +
+            '</div></div><div class="nc-media-toolbar" data-role="media-toolbar"></div><div class="nc-detail-video" data-role="detail-video"><iframe data-camera="' + ctx.esc(stream.id) + '" data-revision="' + Number(stream.revision || 0) + '" title="' + ctx.esc(stream.name || stream.id) + '" src="' + viewerURL + '" allow="fullscreen; autoplay" referrerpolicy="same-origin"></iframe></div><div class="nc-media-stats" data-role="media-stats"></div><div class="nc-media-diagnosis" data-role="media-error" aria-live="polite"></div><output class="nc-media-diagnosis" data-role="media-diagnosis" aria-live="polite"></output></section>';
     }
 
     function mainMarkup(state) {
@@ -244,7 +249,7 @@
         // AuraGo serves the detection API itself: history, arming, deletion and settings keep
         // working while go2rtc is stopped or its container is being recreated.
         if (state.mode === 'detections' && runtime && runtime.enabled && allStreams(state).length > 0) return '<div class="nc-detection-host" data-role="detection"></div>';
-        if (!runtime || !runtime.enabled || !runtime.api_usable || allStreams(state).length === 0) return emptyMarkup(state);
+        if (!runtime || !runtime.enabled || allStreams(state).length === 0) return emptyMarkup(state);
         const streams = filteredStreams(state);
         const liveIDs = liveGridIDs(state, streams);
         const liveGrid = state.mode === 'live';
@@ -254,6 +259,7 @@
 
     function draw(state) {
         if (state.disposed) return;
+        window.NetworkCamerasMedia.stop(state);
         disconnectIntersection(state);
         state.host.innerHTML = '<div class="network-cameras-app">' + toolbarMarkup(state) + '<main class="nc-content">' + mainMarkup(state) + '</main><div class="nc-modal-host" data-role="modal"></div></div>';
         bindMainEvents(state);
@@ -262,6 +268,7 @@
         scheduleThumbnails(state, true);
         setWindowMenus(state);
         syncDetection(state);
+        window.NetworkCamerasMedia.update(state);
     }
 
     function detectionModule() {
@@ -286,7 +293,7 @@
             streams: allStreams(state).map(stream => ({ id: stream.id, name: stream.name || stream.id, enabled: stream.enabled !== false })),
             detectionSettings: state.data && state.data.detection_settings ? state.data.detection_settings : null,
             openCameraSettings: streamID => openManageModal(state, streamID, 'detection'),
-            reloadAppState: () => loadState(state, false)
+            reloadAppState: () => reloadState(state, false)
         });
     }
 
@@ -319,6 +326,7 @@
     async function handleAction(state, action) {
         if (action === 'refresh') return loadState(state, true);
         if (action === 'add') return openSetupModal(state);
+        if (action === 'tuya') return openTuya(state, 'accounts');
         if (action === 'enable') return enableIntegration(state);
         if (action === 'focus') {
             if (state.mode === 'detections') state.mode = 'snapshots';
@@ -340,7 +348,7 @@
         try {
             const result = await request(state, '/api/desktop/integrations/go2rtc/setup/enable', { method: 'POST', body: {} });
             notify(state, text(state.ctx, mutationNoticeKey(result, 'enabled_notice')));
-            await loadState(state, true);
+            await reloadState(state, true);
         } catch (error) {
             const requirements = error.body && Array.isArray(error.body.requirements) ? error.body.requirements.map(item => requirementText(state.ctx, item)).join(' · ') : '';
             state.error = requirements || error.message;
@@ -351,7 +359,7 @@
     function reconnectViewer(state) {
         const frame = state.host.querySelector('.nc-detail-video iframe');
         const stream = selectedStream(state);
-        if (frame && stream) frame.src = '/api/desktop/integrations/go2rtc/viewer/' + encodeURIComponent(stream.id) + '?retry=' + Date.now();
+        if (frame && stream) frame.src = window.NetworkCamerasMedia.viewerURL(state, stream) + '&retry=' + Date.now();
     }
 
     async function takeSnapshot(state) {
@@ -366,20 +374,50 @@
         }
     }
 
-    async function loadState(state, redraw) {
-        if (state.disposed) return;
+    function structure(data) {
+        if (!data) return '';
+        return JSON.stringify([!!data.can_manage, !!data.detection_enabled, data.integration && data.integration.enabled, (data.streams || []).concat(data.disabled_streams || []).map(s => [s.id, s.name, s.enabled])]);
+    }
+
+    function scheduleStatus(state) {
+        clearTimeout(state.statusTimer);
+        state.statusTimer = null;
+        if (!state.disposed && state.visible) state.statusTimer = setTimeout(() => loadState(state, false), refreshInterval);
+    }
+
+    function loadState(state, redraw) {
+        if (state.disposed || !state.visible) return Promise.resolve();
+        if (state.stateRequest) return state.stateRequest;
+        const previous = structure(state.data);
         if (!state.data) state.loading = true;
-        state.error = '';
-        if (redraw) draw(state);
-        try {
-            state.data = await request(state, '/api/desktop/integrations/go2rtc/app/state');
-            ensureSelection(state);
-        } catch (error) {
-            if (error.name !== 'AbortError') state.error = error.message || text(state.ctx, 'load_error');
-        } finally {
-            state.loading = false;
-            draw(state);
-        }
+        if (redraw && !state.data) draw(state);
+        state.stateRequest = (async () => {
+            try {
+                state.data = await request(state, '/api/desktop/integrations/go2rtc/app/state');
+                state.error = '';
+                ensureSelection(state);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    state.error = error.message || text(state.ctx, 'load_error');
+                    if (state.data && state.data.integration) state.data.integration.api_usable = false;
+                }
+            } finally {
+                state.loading = false;
+                state.stateRequest = null;
+                if (!state.disposed && state.visible) {
+                    if (!state.data || previous !== structure(state.data)) draw(state);
+                    else window.NetworkCamerasMedia.update(state);
+                }
+                scheduleStatus(state);
+            }
+        })();
+        return state.stateRequest;
+    }
+
+    async function reloadState(state, redraw) {
+        // A pre-mutation poll may still carry the previous configuration.
+        if (state.stateRequest) await state.stateRequest;
+        return loadState(state, redraw);
     }
 
     function observeCards(state) {
@@ -439,13 +477,14 @@
 
     async function loadThumbnail(state, node) {
         const id = node.dataset.thumbnail;
+        const revision = (activeStreams(state).find(stream => stream.id === id) || {}).revision;
         const controller = new AbortController();
         state.controllers.add(controller);
         try {
             const response = await fetch('/api/desktop/integrations/go2rtc/thumbnail/' + encodeURIComponent(id) + '.jpg?width=640&height=360&cache=5', { credentials: 'same-origin', signal: controller.signal });
             if (!response.ok) throw new Error('thumbnail');
             const blob = await response.blob();
-            if (state.disposed || !node.isConnected) return;
+            if (state.disposed || !node.isConnected || revision !== (activeStreams(state).find(stream => stream.id === id) || {}).revision) return;
             const previous = state.objectURLs.get(id);
             const objectURL = URL.createObjectURL(blob);
             state.objectURLs.set(id, objectURL);
@@ -460,7 +499,7 @@
     }
 
     function openSetupModal(state) {
-        state.modal = { type: 'setup', step: 1, method: '', candidates: [], selectedCandidate: '', address: '', username: '', password: '', profiles: [], setupToken: '', profileID: '', snapshotAvailable: null, name: '', id: '', source: '', busy: false, error: '' };
+        state.modal = { type: 'setup', step: 1, method: '', candidates: [], selectedCandidate: '', address: '', username: '', password: '', profiles: [], setupToken: '', profileID: '', subProfileID: '', useSnapshot: false, snapshotAvailable: null, name: '', id: '', source: '', sourceForm: null, busy: false, error: '' };
         drawModal(state);
     }
 
@@ -468,12 +507,34 @@
         const stream = allStreams(state).find(item => item.id === streamID);
         if (!stream) return;
         state.modal = {
-            type: 'manage', streamID, name: stream.name || stream.id, enabled: stream.enabled !== false, originalEnabled: stream.enabled !== false, source: '', busy: false, error: '',
+            type: 'manage', streamID, name: stream.name || stream.id, enabled: stream.enabled !== false, originalEnabled: stream.enabled !== false, source: '', sourceForm: window.AuraGoSourceForm.newState(''), busy: false, error: '',
             tab: tab === 'detection' && detectionTabAvailable(state) ? 'detection' : 'general',
             detection: stream.detection ? JSON.parse(JSON.stringify(stream.detection)) : null,
             detectionDirty: false
         };
+        Object.assign(state.modal, window.NetworkCamerasMedia.defaults(stream));
         drawModal(state);
+        if (!state.sourceTypes) ensureSourceTypes(state).then(() => refreshSourceChoices(state, streamID)).catch(() => {});
+    }
+
+    function manageSourceFormMarkup(state, modal) {
+        return window.AuraGoSourceForm.markup(state.sourceTypes || [], modal.sourceForm, { t: state.ctx.t, emptyLabel: state.ctx.t('common.go2rtc_source.keep_current') });
+    }
+
+    function bindSourceForm(state, root) {
+        if (root && state.modal.sourceForm) window.AuraGoSourceForm.bind(root, state.modal.sourceForm, redraw => { if (redraw) drawModal(state); });
+    }
+
+    // Re-render only the source fieldset once the catalog arrives, so the name input keeps focus and typed text.
+    function refreshSourceChoices(state, streamID) {
+        const modal = state.modal;
+        if (!modal || modal.type !== 'manage' || modal.streamID !== streamID || modal.sourceForm.type) return;
+        const host = state.host.querySelector('[data-role="modal"]');
+        const fieldset = host && host.querySelector('.nc-source-fieldset');
+        if (!fieldset) return;
+        const legend = fieldset.querySelector('legend');
+        fieldset.innerHTML = (legend ? legend.outerHTML : '') + manageSourceFormMarkup(state, modal);
+        bindSourceForm(state, fieldset.querySelector('[data-source-form]'));
     }
 
     function detectionTabAvailable(state) {
@@ -494,7 +555,8 @@
 
     function manageMarkup(state, modal, detectionStream) {
         const ctx = state.ctx;
-        const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label><label>' + ctx.esc(text(ctx, 'replace_source')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="' + ctx.esc(text(ctx, 'keep_source')) + '"></label></div>';
+        const sourceField = modal.tuya_account_id ? '' : '<fieldset class="nc-source-fieldset"><legend>' + ctx.esc(text(ctx, 'replace_source')) + '</legend>' + manageSourceFormMarkup(state, modal) + '</fieldset>';
+        const general = '<div class="nc-form" role="tabpanel" data-tab-panel="general"' + (detectionStream && modal.tab === 'detection' ? ' hidden' : '') + '><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '"></label><label class="nc-check"><input data-field="enabled" type="checkbox" ' + (modal.enabled ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'camera_enabled')) + '</span></label>' + sourceField + window.NetworkCamerasMedia.fields(state, modal) + '</div>';
         if (!detectionStream) return general;
         const tab = (id, label) => '<button type="button" role="tab" data-modal-tab="' + id + '" aria-selected="' + (modal.tab === id) + '" tabindex="' + (modal.tab === id ? '0' : '-1') + '" class="' + (modal.tab === id ? 'is-active' : '') + '">' + ctx.esc(label) + '</button>';
         return '<div class="nc-tabs" role="tablist" aria-label="' + ctx.esc(text(ctx, 'manage_title')) + '">' + tab('general', text(ctx, 'tab_general')) + tab('detection', text(ctx, 'detection.tab')) + '</div>' + general +
@@ -520,8 +582,11 @@
         if (modal.step === 1) return '<div class="nc-methods">' +
             setupMethod(ctx, 'discover', 'radar', 'method_discover', 'method_discover_help', state.data.discovery && state.data.discovery.available, state.data.discovery && state.data.discovery.available ? '' : text(ctx, 'discovery_unavailable')) +
             setupMethod(ctx, 'address', 'network', 'method_address', 'method_address_help', true, '') +
+            setupMethod(ctx, 'tuya', 'camera', 'method_tuya', 'method_tuya_help', true, '') +
+            setupMethod(ctx, 'type', 'camera', 'method_type', 'method_type_help', true, '') +
             setupMethod(ctx, 'url', 'link', 'method_url', 'method_url_help', true, '') + '</div>';
         if (modal.step === 2) {
+            if (modal.method === 'type') return '<div class="nc-form">' + window.AuraGoSourceForm.markup(state.sourceTypes || [], modal.sourceForm, { t: ctx.t }) + '</div>';
             if (modal.method === 'discover' && modal.busy) {
                 return '<div class="nc-discovery-progress" role="status" aria-live="polite"><span class="nc-spinner"></span><strong>' + ctx.esc(text(ctx, 'method_discover')) + '</strong><small>' + ctx.esc(text(ctx, 'method_discover_help')) + '</small></div>';
             }
@@ -531,9 +596,10 @@
         if (modal.step === 3) {
             const notices = [];
             if (modal.snapshotAvailable === true) notices.push('<div class="nc-probe-notice is-success">' + ctx.esc(text(ctx, 'snapshot_available')) + '</div>');
-            return '<div class="nc-form"><label>' + ctx.esc(text(ctx, 'profile')) + '<select data-field="profileID">' + modal.profiles.map(profile => '<option value="' + ctx.esc(profile.id) + '" ' + (profile.id === modal.profileID ? 'selected' : '') + '>' + ctx.esc(profile.name + profileSummary(profile)) + '</option>').join('') + '</select></label>' + notices.join('') + '</div>';
+            const options = selected => modal.profiles.map(profile => '<option value="' + ctx.esc(profile.id) + '" ' + (profile.id === selected ? 'selected' : '') + '>' + ctx.esc(profile.name + profileSummary(profile)) + '</option>').join('');
+            return '<div class="nc-form"><label>' + ctx.esc(text(ctx, 'main_stream')) + '<select data-field="profileID">' + options(modal.profileID) + '</select></label><label>' + ctx.esc(text(ctx, 'sub_stream')) + '<select data-field="subProfileID"><option value="">' + ctx.esc(text(ctx, 'no_substream')) + '</option>' + options(modal.subProfileID) + '</select></label>' + (modal.snapshotAvailable ? '<label class="nc-check"><input type="checkbox" data-field="useSnapshot" ' + (modal.useSnapshot ? 'checked' : '') + '><span>' + ctx.esc(text(ctx, 'use_camera_snapshot')) + '</span></label>' : '') + notices.join('') + '</div>';
         }
-        return '<div class="nc-form"><div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '" placeholder="' + ctx.esc(text(ctx, 'camera_name_placeholder')) + '"></label><label>' + ctx.esc(text(ctx, 'stream_id')) + '<input data-field="id" value="' + ctx.esc(modal.id) + '" placeholder="front-door"></label></div>' + (modal.method === 'url' ? '<label>' + ctx.esc(text(ctx, 'stream_url')) + '<input data-field="source" type="password" autocomplete="off" value="' + ctx.esc(modal.source) + '" placeholder="rtsp://…"></label>' : '') + '</div>';
+        return '<div class="nc-form"><div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '" placeholder="' + ctx.esc(text(ctx, 'camera_name_placeholder')) + '"></label><label>' + ctx.esc(text(ctx, 'stream_id')) + '<input data-field="id" value="' + ctx.esc(modal.id) + '" placeholder="front-door"></label></div>' + (modal.method === 'url' ? '<label>' + ctx.esc(text(ctx, 'stream_url')) + '<input data-field="source" type="password" autocomplete="off" value="" placeholder="rtsp://…"></label>' : '') + '</div>';
     }
 
     function setupMethod(ctx, method, icon, title, help, enabled, reason) {
@@ -577,9 +643,13 @@
     function bindModalEvents(state) {
         const host = state.host.querySelector('[data-role="modal"]');
         if (!host || !state.modal) return;
-        host.querySelectorAll('[data-field]').forEach(field => field.addEventListener('input', () => {
-            state.modal[field.dataset.field] = field.type === 'checkbox' ? field.checked : field.value;
-        }));
+        host.querySelectorAll('[data-field]').forEach(field => {
+            // The pasted URL is restored through the DOM property, never written into markup.
+            if (field.dataset.field === 'source' && state.modal.source) field.value = state.modal.source;
+            field.addEventListener('input', () => {
+                state.modal[field.dataset.field] = field.type === 'checkbox' ? field.checked : field.value;
+            });
+        });
         host.querySelectorAll('[data-method-choice]').forEach(button => button.addEventListener('click', () => chooseSetupMethod(state, button.dataset.methodChoice)));
         host.querySelectorAll('[data-modal-action]').forEach(button => button.addEventListener('click', () => modalAction(state, button.dataset.modalAction)));
         host.querySelectorAll('[data-modal-tab]').forEach(button => {
@@ -593,13 +663,46 @@
                 if (target) target.focus();
             });
         });
+        const sourceRoot = host.querySelector('[data-source-form]');
+        bindSourceForm(state, sourceRoot);
+    }
+
+    async function ensureSourceTypes(state) {
+        if (!state.sourceTypes) state.sourceTypes = await window.AuraGoSourceForm.loadCatalog(() => request(state, '/api/desktop/integrations/go2rtc/source-types'));
+        return state.sourceTypes;
+    }
+
+    function openTuya(state, mode) {
+        if (!window.AuraGoTuya) return;
+        if (state.tuyaDialog) state.tuyaDialog.close();
+        state.tuyaDialog = window.AuraGoTuya.open({ mode, t: state.ctx.t,
+            api: (path, init) => state.ctx.api(path, init),
+            onCreated: result => { if (!state.disposed && result.stream) { state.selected = result.stream.id; savePreferences(state); notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_saved'))); } },
+            onClose: () => { state.tuyaDialog = null; if (!state.disposed) reloadState(state, false); }
+        });
     }
 
     async function chooseSetupMethod(state, method) {
         const modal = state.modal;
+        if (method === 'tuya') { state.modal = null; drawModal(state); return openTuya(state, 'setup'); }
         modal.method = method;
         modal.error = '';
+        modal.source = '';
         if (method === 'url') { modal.step = 4; return drawModal(state); }
+        if (method === 'type') {
+            modal.step = 2;
+            modal.sourceForm = window.AuraGoSourceForm.newState('');
+            modal.busy = true;
+            drawModal(state);
+            try {
+                await ensureSourceTypes(state);
+            } catch (error) {
+                modal.error = text(state.ctx, 'source_types_failed');
+            } finally {
+                modal.busy = false;
+            }
+            return drawModal(state);
+        }
         modal.step = 2;
         if (method === 'discover') {
             modal.busy = true;
@@ -621,7 +724,7 @@
         const modal = state.modal;
         if (!modal) return;
         if (action === 'cancel') { state.modal = null; return drawModal(state); }
-        if (action === 'back') { modal.step = Math.max(1, modal.step - 1); return drawModal(state); }
+        if (action === 'back') { if (modal.method === 'type' && modal.step === 4) modal.source = ''; modal.step = modal.method === 'type' && modal.step === 4 ? 2 : Math.max(1, modal.step - 1); return drawModal(state); }
         if (action === 'next') return advanceSetup(state);
         if (action === 'save') return saveManagedStream(state);
         if (action === 'delete') return deleteManagedStream(state);
@@ -630,6 +733,13 @@
     async function advanceSetup(state) {
         const modal = state.modal;
         modal.error = '';
+        if (modal.step === 2 && modal.method === 'type') {
+            const built = window.AuraGoSourceForm.buildURL(state.sourceTypes || [], modal.sourceForm);
+            if (built.error) { modal.error = window.AuraGoSourceForm.errorText(state.ctx.t, built); return drawModal(state); }
+            modal.source = built.url;
+            modal.step = 4;
+            return drawModal(state);
+        }
         if (modal.step === 2) {
             if (modal.method === 'discover' && !modal.selectedCandidate) { modal.error = text(state.ctx, 'choose_device_error'); return drawModal(state); }
             if (modal.method === 'address' && !modal.address.trim()) { modal.error = text(state.ctx, 'address_required'); return drawModal(state); }
@@ -640,7 +750,10 @@
                 modal.password = '';
                 modal.setupToken = result.setup_token;
                 modal.profiles = result.profiles || [];
-                modal.profileID = modal.profiles[0] ? modal.profiles[0].id : '';
+                const ordered = modal.profiles.slice().sort((a, b) => (Number(b.width || 0) * Number(b.height || 0)) - (Number(a.width || 0) * Number(a.height || 0)) || String(a.id).localeCompare(String(b.id)));
+                modal.profileID = ordered.length ? ordered[0].id : '';
+                const small = ordered.filter(profile => profile.id !== modal.profileID && /H.?264|AVC/i.test(profile.codec || '')).pop() || ordered.filter(profile => profile.id !== modal.profileID).pop();
+                modal.subProfileID = small ? small.id : '';
                 modal.snapshotAvailable = typeof result.snapshot_available === 'boolean' ? result.snapshot_available : null;
                 modal.name = modal.name || result.name || result.model || '';
                 modal.step = 3;
@@ -668,17 +781,18 @@
     async function createStream(state) {
         const modal = state.modal;
         if (!modal.name.trim() || !modal.id.trim()) { modal.error = text(state.ctx, 'name_id_required'); return drawModal(state); }
-        if (modal.method === 'url' && !modal.source.trim()) { modal.error = text(state.ctx, 'source_required'); return drawModal(state); }
+        if ((modal.method === 'url' || modal.method === 'type') && !modal.source.trim()) { modal.error = text(state.ctx, 'source_required'); return drawModal(state); }
         modal.busy = true;
         drawModal(state);
         try {
-            const result = await request(state, '/api/desktop/integrations/go2rtc/streams', { method: 'POST', body: { id: modal.id, name: modal.name, source: modal.method === 'url' ? modal.source : '', setup_token: modal.setupToken, profile_id: modal.profileID } });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams', { method: 'POST', body: { id: modal.id, name: modal.name, source: modal.method === 'url' || modal.method === 'type' ? modal.source : '', setup_token: modal.setupToken, profile_id: modal.profileID, sub_profile_id: modal.subProfileID, use_camera_snapshot: modal.useSnapshot } });
             modal.source = '';
             state.selected = result.stream && result.stream.id ? result.stream.id : modal.id;
             state.modal = null;
+            drawModal(state);
             savePreferences(state);
             notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_saved')));
-            await loadState(state, false);
+            await reloadState(state, false);
         } catch (error) {
             modal.error = error.message;
             modal.busy = false;
@@ -705,9 +819,15 @@
                 return drawModal(state);
             }
         }
+        modal.source = '';
+        if (modal.sourceForm && modal.sourceForm.type) {
+            const built = window.AuraGoSourceForm.buildURL(state.sourceTypes || [], modal.sourceForm);
+            if (built.error) { modal.error = window.AuraGoSourceForm.errorText(state.ctx.t, built); modal.tab = 'general'; return drawModal(state); }
+            modal.source = built.url;
+        }
         const confirmations = [];
         if (modal.originalEnabled && !modal.enabled) confirmations.push(text(state.ctx, 'disable_confirm_message'));
-        if (modal.source.trim()) confirmations.push(text(state.ctx, 'replace_confirm_message'));
+        if (modal.source.trim() || modal.sub_source.trim() || modal.snapshot_source.trim() || modal.clear_sub_source || modal.clear_snapshot_source) confirmations.push(text(state.ctx, 'replace_confirm_message'));
         if (confirmations.length) {
             const confirmed = await state.ctx.confirmDialog(text(state.ctx, 'change_confirm_title'), confirmations.join(' '));
             if (!confirmed) return;
@@ -715,11 +835,12 @@
         modal.busy = true;
         drawModal(state);
         try {
-            const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: Object.assign({ name: modal.name, enabled: modal.enabled, source: modal.source }, modal.detectionDirty && modal.detection ? { detection: modal.detection } : {}) });
+            const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: Object.assign({ name: modal.name, enabled: modal.enabled, source: modal.source }, window.NetworkCamerasMedia.patch(modal), modal.detectionDirty && modal.detection ? { detection: modal.detection } : {}) });
             modal.source = '';
             state.modal = null;
+            drawModal(state);
             notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_updated')));
-            await loadState(state, false);
+            await reloadState(state, false);
         } catch (error) {
             // A 400 on the detection block names its field: show the localized text on its tab.
             const field = error && error.body && typeof error.body.field === 'string' ? error.body.field : '';
@@ -754,11 +875,12 @@
         try {
             const result = await request(state, '/api/desktop/integrations/go2rtc/streams/' + encodeURIComponent(streamID), { method: 'DELETE' });
             state.modal = null;
+            drawModal(state);
             if (state.selected === streamID) state.selected = '';
             savePreferences(state);
             notify(state, text(state.ctx, mutationNoticeKey(result, 'camera_deleted')));
             state.deletingID = '';
-            await loadState(state, false);
+            await reloadState(state, false);
         } catch (error) {
             if (modal && state.modal === modal) {
                 modal.error = error.message;
@@ -783,6 +905,9 @@
     }
 
     function stopActivity(state) {
+        window.NetworkCamerasMedia.stop(state);
+        clearTimeout(state.statusTimer);
+        state.statusTimer = null;
         if (state.thumbnailTimer) clearTimeout(state.thumbnailTimer);
         state.thumbnailTimer = null;
         state.controllers.forEach(controller => controller.abort());
@@ -798,7 +923,7 @@
             const visible = document.visibilityState !== 'hidden' && (!windowElement || windowElement.style.display !== 'none');
             if (visible === state.visible) return;
             state.visible = visible;
-            if (visible) draw(state);
+            if (visible) { draw(state); loadState(state, false); }
             else stopActivity(state);
         };
         if (windowElement) {
@@ -813,7 +938,9 @@
         const state = instances.get(windowId);
         if (!state) return;
         state.disposed = true;
+        if (state.tuyaDialog) state.tuyaDialog.close();
         stopActivity(state);
+        window.NetworkCamerasMedia.stop(state, true);
         disposeDetectionSettings(state);
         const detection = detectionModule();
         if (detection) detection.unmount(windowId);

@@ -1,0 +1,3 @@
+# The upstream fixtures are verified byte-for-byte by SHA-256 on every platform.
+*.js text eol=lf -whitespace
+LICENSE text eol=lf

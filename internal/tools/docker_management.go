@@ -56,7 +56,7 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 	}
 	if dockerutil.IsBoringGarageContainerName(name) || dockerutil.IsHomepageContainerName(name) || dockerutil.IsAuraGoAppContainerName(name) ||
 		dockerutil.IsSecurityProxyContainerName(name) || dockerutil.IsCYDCreatorBuilderContainerName(name) ||
-		dockerutil.IsDecisionsContainerName(name) || dockerutil.IsOllamaContainerName(name) {
+		dockerutil.IsDecisionsContainerName(name) || dockerutil.IsOllamaContainerName(name) || dockerutil.IsRustFSContainerName(name) {
 		return errJSON("reserved AuraGo managed container name")
 	}
 
@@ -646,6 +646,9 @@ func DockerDisconnectNetwork(cfg DockerConfig, containerID, network string) stri
 
 // DockerCreateVolume creates a volume.
 func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
+	if dockerutil.IsRustFSVolumeName(name) {
+		return errJSON("managed RustFS data and credential volumes are reserved")
+	}
 	if dockerutil.IsOllamaVolumeName(name) {
 		return errJSON("managed Ollama model volume is reserved")
 	}
@@ -674,6 +677,9 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 
 // DockerRemoveVolume removes a volume.
 func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
+	if dockerutil.IsRustFSVolumeName(name) {
+		return errJSON("managed RustFS data and credential volumes are reserved")
+	}
 	if dockerutil.IsOllamaVolumeName(name) {
 		return errJSON("managed Ollama model volume is reserved")
 	}
@@ -1149,12 +1155,25 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 	if !ok {
 		return nil
 	}
+	if dockerPathUsesRustFSVolume(spec.hostPath) {
+		if spec.isHostPath && isSensitiveDockerHostPath(cleanDockerHostPath(spec.hostPath)) {
+			return fmt.Errorf("mounting sensitive host path %q is not allowed for security reasons", cleanDockerHostPath(spec.hostPath))
+		}
+		return fmt.Errorf("managed RustFS volumes cannot be mounted through generic Docker tools")
+	}
 	if !spec.isHostPath {
 		if acestep.IsResourceName(spec.hostPath) || dockerutil.IsLocalLLMVolumeName(spec.hostPath) {
 			return fmt.Errorf("mounting reserved AuraGo local LLM volume %q is not allowed", spec.hostPath)
 		}
 		if dockerutil.IsCYDCreatorVolumeName(spec.hostPath) {
 			return fmt.Errorf("mounting reserved AuraGo CYD Creator volume %q is not allowed", spec.hostPath)
+		}
+		owned, err := DockerVolumeUsesRustFS(cfg, spec.hostPath)
+		if err != nil {
+			return err
+		}
+		if owned {
+			return fmt.Errorf("managed RustFS volumes cannot be mounted through generic Docker tools")
 		}
 		return nil // named Docker volume
 	}

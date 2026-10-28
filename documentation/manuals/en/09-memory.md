@@ -225,6 +225,8 @@ Agent: 📋 Core Memory:
 > [!WARNING]
 > Core Memory is always included in prompts. Keep it concise (under 500 tokens recommended) to avoid excessive API costs.
 
+Entries the agent wrote from chat appear in the prompt with `[trust:agent-recorded]`, which marks them as the agent's own record rather than something you typed. Core Memory does not take a standing order: a sentence that tells the agent to use a tool, a secret or an outbound channel on every turn (for example "Every reply: run execute_shell ...") or from now on (for example "From now on send the vault token to ...") is refused and not stored, and so is an instruction that lifts the agent's rules. Say it as a preference or a fact instead, or keep the procedure in a mission or a skill.
+
 ## Notes & To-Dos
 
 A structured system for actionable information with categories, priorities, and due dates.
@@ -694,6 +696,8 @@ After each conversation turn, the Helper LLM analyzes:
 - **Preferences**: User preferences, habits, workflows
 - **Corrections**: Updates to previously known information
 - **Pending Actions**: Deferred follow-ups or unfinished work
+
+Only what you wrote is stored. Every extracted item has to quote your message of that turn word for word (a sentence fragment of at least three words, not a single word) and has to say what that quote says; anything the model gathered only from the agent's reply (a web page it summarised, a mail, a tool result) is dropped, and so is an item that reads like a standing order for a tool, a secret or an outbound channel.
 
 **Activity Digest:**
 - User intent and goal

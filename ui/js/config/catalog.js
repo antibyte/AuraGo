@@ -42,7 +42,8 @@
         'integration-home-assistant-test-btn': { requiredPaths: ['home_assistant.url'], credentialPaths: ['home_assistant.access_token'] },
         'integration-proxmox-test-btn': { requiredPaths: ['proxmox.url', 'proxmox.token_id'], credentialPaths: ['proxmox.secret'] },
         'integration-rocketchat-test-btn': { requiredPaths: ['rocketchat.url', 'rocketchat.user_id'], credentialPaths: ['rocketchat.auth_token'] },
-        'integration-s3-test-btn': { requiredPaths: ['s3.bucket'], credentialPaths: ['s3.access_key', 's3.secret_key'] },
+        // The S3 renderer registers provider-specific requirements.
+        'integration-s3-test-btn': {},
         'integration-telegram-test-btn': { credentialPaths: ['telegram.bot_token'] },
         'sqlconn-test-btn': { requiredSelectors: ['#sqlconn-field-name', '#sqlconn-field-database'] },
         'telnyx-test-btn': { requiredPaths: ['telnyx.phone_number'], credentialPaths: ['telnyx.api_key'] },

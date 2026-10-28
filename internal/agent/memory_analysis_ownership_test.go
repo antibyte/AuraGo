@@ -71,8 +71,8 @@ func TestMemoryAnalysisPreservesHumanCuration(t *testing.T) {
 					} else {
 						vdb.result.UnknownIDs = []string{"existing"}
 					}
-					fact := []extractedFact{{Content: "User prefers German", Category: "preference", Confidence: .96}}
-					result := memoryAnalysisResult{}
+					fact := []extractedFact{{Content: "User prefers German", Category: "preference", Confidence: .96, Quote: "I prefer German answers"}}
+					result := memoryAnalysisResult{human: "Please remember that I prefer German answers."}
 					switch kind {
 					case "fact":
 						result.Facts = fact

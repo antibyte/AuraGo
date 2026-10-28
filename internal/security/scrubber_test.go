@@ -1,6 +1,7 @@
 package security
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 )
@@ -227,4 +228,62 @@ func TestVisiblePlaceholderHelpers(t *testing.T) {
 
 func containsRedacted(value string) bool {
 	return strings.Contains(value, "[redacted]")
+}
+
+// An identity is redacted from output like any registered value, but the secrets-only
+// query does not report it, so an egress check can tell a mailbox address from a
+// password. A secret registered under the same text stays a secret, in either order.
+func TestRegisterIdentityIsRedactedButNotASecret(t *testing.T) {
+	sensitiveMu.Lock()
+	sensitiveValues = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
+	sensitiveMu.Unlock()
+
+	const identity = "owner-mailbox@example.invalid"
+	const password = "pw-mailbox-secret-91"
+	RegisterIdentity(identity)
+	RegisterSensitive(password)
+	RegisterIdentity("short")
+
+	output := "login " + identity + " with " + password + " failed"
+	if got := Scrub(output); strings.Contains(got, identity) || strings.Contains(got, password) {
+		t.Fatalf("Scrub left a registered value in the output: %q", got)
+	}
+	if got := ScrubSecrets("mail me at " + identity); got != "mail me at "+identity {
+		t.Fatalf("an identity was reported as a secret: %q", got)
+	}
+	if got := ScrubSecrets("mail me at " + identity + " " + password); strings.Contains(got, password) || !strings.Contains(got, identity) {
+		t.Fatalf("a secret next to an identity was not the only thing reported: %q", got)
+	}
+	if got := ScrubSecrets("a " + base64Of(identity) + " b"); strings.Contains(got, "[redacted]") {
+		t.Fatalf("an encoded identity was reported as a secret: %q", got)
+	}
+	if got := Scrub("x short y"); got != "x short y" {
+		t.Fatalf("an identity under the minimum length was registered: %q", got)
+	}
+
+	const both = "shared-name-and-password-7"
+	RegisterIdentity(both)
+	RegisterSensitive(both)
+	const other = "secret-then-identity-name-8"
+	RegisterSensitive(other)
+	RegisterIdentity(other)
+	for _, value := range []string{both, other} {
+		if got := ScrubSecrets("v " + value); strings.Contains(got, value) {
+			t.Fatalf("%q registered as both was not a secret: %q", value, got)
+		}
+	}
+
+	release := RegisterScopedSensitiveExact(identity)
+	if got := ScrubSecrets("v " + identity); strings.Contains(got, identity) {
+		t.Fatalf("a scoped secret with an identity's text was not a secret: %q", got)
+	}
+	release()
+	if got := ScrubSecrets("v " + identity); !strings.Contains(got, identity) {
+		t.Fatalf("the identity stayed a secret after the scope ended: %q", got)
+	}
+}
+
+func base64Of(value string) string {
+	return base64.StdEncoding.EncodeToString([]byte(value))
 }

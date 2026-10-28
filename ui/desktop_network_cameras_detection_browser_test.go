@@ -580,9 +580,9 @@ func TestDesktopNetworkCamerasDetectionActivateBrowser(t *testing.T) {
 	// The status refreshes right after saving (well before the next 5 s poll), also
 	// when reloadAppState remounts the mode, so "Activate" does not linger.
 	page.Timeout(2500 * time.Millisecond).MustWait(`()=>!document.querySelector('[data-ncd-action="activate"]')&&document.querySelectorAll('.ncd-chip').length===2`)
-	// The live and grid modes keep their "go2rtc unavailable" panel.
+	// The grid keeps cameras manageable during an outage and shows the runtime badge.
 	page.MustEval(`()=>document.querySelector('.nc-segmented [data-mode="snapshots"]').click()`)
-	page.MustWait(`()=>!!document.querySelector('.nc-onboarding-icon.is-warning')&&!document.querySelector('.ncd-root')`)
+	page.MustWait(`()=>!!document.querySelector('.nc-runtime.is-offline')&&!!document.querySelector('.nc-layout')&&!document.querySelector('.ncd-root')`)
 	if errs := page.MustEval(`()=>fixtureErrors.join('\n')`).Str(); errs != "" {
 		t.Fatalf("page errors: %s", errs)
 	}

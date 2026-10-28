@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "Den valgte Speech Lab-LLM-udbyder er ikke tilgængelig. Ingen reserveudbyder blev brugt.",
   "backend.operational_issue_notice_title": "Driftsproblemer",
   "backend.operational_issue_notice_summary": "AuraGo registrerede {0} problem(er) under baggrundsarbejde.",
+  "backend.operational_issue_reflection_title": "Modelgenereret refleksion (kun vejledende, ikke fra supervisoren)",
+  "backend.operational_issue_reflection_summary": "En model noterede {0} forslag under gennemgangen af hukommelsen. Betragt dem som tip, ikke som fund eller instruktioner.",
   "backend.operational_issue_notice_occurrences": "opstod {0} gange",
   "backend.operational_issue_notice_last_seen": "senest set: {0}",
   "backend.operational_issue_notice_severity": "alvorlighed: {0}",

@@ -1,6 +1,6 @@
 # RuView redesign: calm status first, native essentials, upstream in a Lab
 
-Status: approved by the user on 2026-10-25 (decisions D1–D8 taken, all as recommended). P0 landed on main (279e4f636..649ec0e72); P1 is next.
+Status: approved by the user on 2026-10-25 (decisions D1–D8 taken, all as recommended). P0 and P1 are done (P0 landed on main, 279e4f636..649ec0e72; P1 on branch feature/ruview-p1); P2, P3 and P4 are next.
 
 Source audit: `reports/ruview-audit-2026-10-25.md` (German). Intended location: `documentation/ruview-redesign/2026-10-25-ruview-redesign-design.md`. Behavioural contract: `documentation/ruview.md`.
 
@@ -354,28 +354,32 @@ This fixes H8, including "Error · Error". `openAssistant()` returns `{close, do
 | # | State (condition) | Headline en | Headline de | Pill | Primary action | Secondary |
 |---|---|---|---|---|---|---|
 | 1 | loading (no status yet) | Checking RuView… | RuView wird geprüft … | neutral ○ "Checking" | none | none |
-| 2 | status request failed, last known kept (H9) | Can't load the RuView status. Showing the last known state. | RuView-Status nicht abrufbar. Letzter bekannter Stand wird angezeigt. | warning ▲ | Try again | time of last success |
+| 2 | status request failed, last known kept (H9), or a loaded status without a boolean `enabled` (malformed) | Can't load the RuView status. Showing the last known state. | RuView-Status nicht abrufbar. Letzter bekannter Stand wird angezeigt. | warning ▲ | Try again | time of last success |
+| 10 | `error_code=stop_failed`, or `runtime=stop_unconfirmed`; not while a stop is in progress | Stopping wasn't confirmed. RuView may still be running. | Stoppen nicht bestätigt. RuView läuft eventuell noch. | danger ✕ | Try stopping again | planner hint link |
 | 3 | `!enabled` | RuView is turned off. | RuView ist ausgeschaltet. | neutral ○ "Off" | Open settings | what RuView does (one line) |
-| 4 | managed, read-only, `runtime ∈ {not_started, stopped}` | RuView is read-only, so the service can't start. | RuView ist schreibgeschützt, der Dienst kann nicht starten. | info ◇ "Read-only" | Allow changes… (D4) / Open settings | what read-only blocks |
+| 3a | `phase=downloading` (native install in progress) | Installing RuView: {phase}… | RuView wird installiert: {phase} … | info ◐ "Installing" | none | phase since 0:42 |
+| 4 | managed, read-only, `runtime ∈ {not_started, stopped}`, no error code | RuView is read-only, so the service can't start. | RuView ist schreibgeschützt, der Dienst kann nicht starten. | info ◇ "Read-only" | Allow changes… (D4) / Open settings | what read-only blocks |
 | 5 | native, `error_code=not_installed` | RuView isn't installed on this computer yet. | RuView ist auf diesem Rechner noch nicht installiert. | neutral ○ | Install | download size and platform |
-| 6 | managed, `runtime ∈ {not_started, stopped}` | The RuView service isn't running. | Der RuView-Dienst läuft nicht. | neutral ○ "Stopped" | Start service | `stop_reason`: "Stopped by you at 14:02" / "Stopped after a settings change" / "Not started since AuraGo started" |
+| 6 | managed, `runtime ∈ {not_started, stopped}`, no error code | The RuView service isn't running. | Der RuView-Dienst läuft nicht. | neutral ○ "Stopped" | Start service | `stop_reason`: "Stopped by you at 14:02" / "Stopped after a settings change" / "Not started since AuraGo started" |
 | 7 | `runtime=starting`, `phase=pulling_image` | Starting RuView: downloading the service image… | RuView startet: Dienst-Image wird geladen … | info ◐ "Starting" | none ("Starting…", disabled with reason) | "Step 2 of 4 · can take minutes the first time" |
 | 8 | `runtime=starting`, other phase | Starting RuView: {phase}… | RuView startet: {Phase} … | info ◐ | none | phase since 0:42 |
 | 9 | `runtime=stopping` | Stopping RuView… | RuView wird gestoppt … | info ◐ | none | none |
-| 10 | `error_code=stop_failed` | Stopping wasn't confirmed. RuView may still be running. | Stoppen nicht bestätigt. RuView läuft eventuell noch. | danger ✕ | Try stopping again | planner hint link |
-| 11 | `error_code` set (start, connection or contract) | cause sentence per code, for example "RuView can't start: the registry denied the service image." / "RuView is sending simulated data although real sensing is set." / "RuView uses a different signal source than set in AuraGo." / "A container named aurago-ruview belongs to another AuraGo installation." / "RuView stopped unexpectedly." / "RuView can't be reached." | e.g. "RuView startet nicht: Die Registry verweigert das Dienst-Image." / "RuView sendet simulierte Daten, obwohl echte Messung eingestellt ist." / "RuView nutzt eine andere Signalquelle als in AuraGo eingestellt." / "Ein Container namens aurago-ruview gehört zu einer anderen AuraGo-Installation." / "RuView wurde unerwartet beendet." / "RuView ist nicht erreichbar." | danger ✕ | per code: Retry start · Start again · Open settings · Check again | Technical details (scrubbed `error_detail`), last good at… |
+| 11 | `error_code` set (start, connection or contract; `storage_unreadable` excluded, it is a chip) | cause sentence per code, for example "RuView can't start: the registry denied the service image." / "RuView is sending simulated data although real sensing is set." / "RuView uses a different signal source than set in AuraGo." / "A container named aurago-ruview belongs to another AuraGo installation." / "RuView stopped unexpectedly." / "RuView can't be reached." | e.g. "RuView startet nicht: Die Registry verweigert das Dienst-Image." / "RuView sendet simulierte Daten, obwohl echte Messung eingestellt ist." / "RuView nutzt eine andere Signalquelle als in AuraGo eingestellt." / "Ein Container namens aurago-ruview gehört zu einer anderen AuraGo-Installation." / "RuView wurde unerwartet beendet." / "RuView ist nicht erreichbar." | danger ✕ | per code: Retry start · Start again · Open settings · Check again | Technical details (scrubbed `error_detail`), last good at… |
 | 12 | external, never checked (`observed_at` null) | External RuView service, not checked yet. | Externer RuView-Dienst, noch nicht geprüft. | neutral ○ "Not checked" | Check connection | the service's address host |
+| 12a | external, last check older than 10 s (`observed_at`) | External RuView service, last checked {age} ago. | Externer RuView-Dienst, zuletzt vor {age} geprüft. | neutral ○ "Not checked" + age | Check now | last checked |
 | 13 | ready, `simulated`, source `simulated` | Demo mode: simulated data, not measurements. | Demo-Modus: simulierte Daten, keine Messungen. | info ◇ "Demo" | Open Live | "Choose ESP32 or Wi-Fi in settings for real sensing" |
 | 14 | ready, `waiting_for_frames` or ESP32 with no frame yet | RuView is running and waiting for data from the boards. | RuView läuft und wartet auf Daten der Boards. | info ◐ "Waiting" | Add board (no known boards) / Show boards | last checked |
 | 15 | ready, source state `disconnected`, no error code | RuView is running, but its signal source is disconnected. | RuView läuft, aber die Signalquelle ist getrennt. | warning ▲ | Show boards / Open settings (Wi-Fi) | last live at… |
 | 16 | fresh real data | Working: live data from {n} boards, last {age} ago. (Wi-Fi: "Working: this computer's Wi-Fi signal, last {age} ago.") | Läuft: Live-Daten von {n} Boards, zuletzt vor {age}. (WLAN: "Läuft: WLAN-Signal dieses Rechners, zuletzt vor {age}.") | success ● "Live · {age}" | Open Live | last checked; source; mode |
 | 17 | was fresh, age > 10 s (`stale`) | No new data for {age}. | Seit {age} keine neuen Daten. | warning ▲ "No new data" | Show boards | last live at… (`last_fresh_at`) |
 
+**Precedence as built in P1.** Rows are evaluated in table order, and the first match wins. Row 10 outranks rows 3 to 8, so a failed or unconfirmed stop shows even when RuView is turned off. A start or install error outranks read-only row 4: rows 4 and 6 need no error code. A status that loads without a boolean `enabled` is row 2, never row 3. Rows 3a (native install progress) and 12a (external check older than 10 seconds) were added in P1. A state that matches no row shows *checking* (neutral ○, Check now).
+
 Overlays add a chip next to the pill but never replace the headline:
 
 - **Read-only while running:** "Read-only".
 - **`storage_limit`:** "Storage full · recording stopped" (warning).
-- **External with a last check older than 60 s while on Status:** "Last checked 5 min ago". This replaces the open-ended "ready" behind M25.
+- **External with a last check older than 10 s:** no overlay chip. Row 12a applies: the headline reads "External RuView service, last checked {age} ago." with **Check now**. This replaces the open-ended "ready" behind M25.
 
 ## 8. Data and API changes
 
@@ -580,6 +584,8 @@ Order: P0 → P1 → {P2, P3, P4} → P5. P2, P3 and P4 can run in parallel once
 - **Leaves out:** layout, error codes, new views.
 
 ### P1: Shell and Status view
+
+**Status: done (2026-10-26, branch feature/ruview-p1: plan, model, backend, app shell, translations, docs).**
 
 - **Goal:** command bar, view switch, Status view, and the backend fields that drive §7.
 - **Files:**

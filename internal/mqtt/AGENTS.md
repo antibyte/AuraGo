@@ -56,6 +56,23 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   and planner-reminder effects. Keep explicit authorized tools and operational
   issue recording available. Relay registration is synchronized and delivery
   uses the controller's cancellable context and bounded queue.
+- The relay sink (`newMQTTRelayHandler`, `internal/server/mqtt_relay.go`) scans
+  what the model would read, the topic and the payload cut to the prompt limit
+  (`mqttRelayText`), with the server Guardian's `ScanForInjectionLocal`,
+  after the debounce limiter and whatever `llm_guardian` says. At `ThreatHigh`
+  (an incomplete scan reads High) the delivery is dropped and the same
+  autonomous run receives only `security.QuarantineNotice` with a sha256
+  reference of the message (`mqttRelayQuarantineNotice`: no topic, no
+  payload), the webhook pattern. Anything below High keeps the isolated prompt.
+  MQTT mission triggers pass the same local scan in the adapter's `admit`
+  (`missionMQTTAdapter.admitDelivery`, `internal/server/mission_adapters.go`,
+  after the relay gate and before the interval claim) over the topic and the
+  whole payload (`mqttMissionTriggerText`: the mission path does not cut the
+  payload as the relay prompt does, so nothing unscanned reaches the trigger
+  data). At `ThreatHigh` the trigger is dropped and logged, the mission does not
+  start and the delivery does not consume the interval. Verify
+  `TestMQTTRelayHandlerQuarantinesInjectedBrokerMessages` and
+  `TestMissionMQTTAdapterDropsInjectedBrokerMessages`.
 - Generic and Frigate relays and MQTT mission triggers start agent runs only
   through the server's `mqttRelayAuthorized` gate: trusted TLS with a broker
   login (`config.MQTTBrokerAuthenticated` and `config.MQTTRelayTransportTrusted`),

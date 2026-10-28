@@ -1,7 +1,6 @@
 package security
 
 import (
-	"encoding/json"
 	"html"
 	"log/slog"
 	"regexp"
@@ -9,6 +8,7 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/danielthedm/promptsec"
 	"github.com/danielthedm/promptsec/guard/taint"
@@ -51,6 +51,9 @@ func (t ThreatLevel) String() string {
 	}
 }
 
+// scanIncompletePattern is the category an incomplete scan reports.
+const scanIncompletePattern = "scan_incomplete"
+
 // ScanResult contains the analysis of a text for injection patterns.
 type ScanResult struct {
 	Level            ThreatLevel
@@ -60,6 +63,20 @@ type ScanResult struct {
 	StructuredPrompt bool     // output is a complete prompt envelope, never a user-message replacement
 	TaintSource      string   // promptsec taint provenance source, when enabled
 	TaintLevel       string   // promptsec taint trust level, when enabled
+	Incomplete       bool     // the decode shadows exceeded the scan budget, so part of the text was not scanned
+
+	// signal is set when a finding is more than the sanitizer's note on what it
+	// normalized (see isNormalizationNote). A Medium result without it is plain
+	// non-ASCII or invisible-character text, not a hint of an attack.
+	signal bool
+}
+
+// isNormalizationNote reports whether thr is the sanitizer saying it stripped
+// invisible characters or swapped confusable letters (encoding_attack at 0.3).
+// That happens for ordinary Cyrillic, Greek, fullwidth or emoji-joined text, and
+// the scan view reads such text for real injection signals separately.
+func isNormalizationNote(thr promptsec.Threat) bool {
+	return thr.Guard == "sanitizer" && thr.Type == promptsec.ThreatEncodingAttack && thr.Severity < 0.5
 }
 
 // PromptSecSanitizerOptions mirrors the sanitizer configuration.
@@ -102,43 +119,50 @@ type PromptSecLLMJudgeOptions struct {
 
 // GuardianOptions controls bounded regex scanning behavior and promptsec guard selection.
 type GuardianOptions struct {
-	MaxScanBytes       int
-	ScanEdgeBytes      int
-	Preset             string
-	Spotlight          bool // Deprecated: ignored.
-	Canary             bool // Deprecated: ignored.
-	Sanitizer          PromptSecSanitizerOptions
-	Embedding          PromptSecEmbeddingOptions
-	Policy             string
-	CustomPolicy       PromptSecCustomPolicyOptions
-	Taint              PromptSecTaintOptions
-	Structure          PromptSecStructureOptions // Deprecated: ignored.
-	LLMJudge           PromptSecLLMJudgeOptions
-	LLMJudgeClient     promptsec.LLMJudge
-	UseSanitizedOutput bool
-	SystemPrompt       string
+	InjectionGuardEnabled bool
+	MaxScanBytes          int
+	ScanEdgeBytes         int
+	Preset                string
+	Spotlight             bool // Deprecated: ignored.
+	Canary                bool // Deprecated: ignored.
+	Sanitizer             PromptSecSanitizerOptions
+	Embedding             PromptSecEmbeddingOptions
+	Policy                string
+	CustomPolicy          PromptSecCustomPolicyOptions
+	Taint                 PromptSecTaintOptions
+	Structure             PromptSecStructureOptions // Deprecated: ignored.
+	LLMJudge              PromptSecLLMJudgeOptions
+	LLMJudgeClient        promptsec.LLMJudge
+	UseSanitizedOutput    bool
+	SystemPrompt          string
 }
 
 // Guardian provides multi-layer prompt injection defense.
 // It scans text for known injection patterns, wraps external data for isolation,
 // and strips dangerous role-impersonation markers from tool output.
 type Guardian struct {
-	mu            sync.RWMutex
-	logger        *slog.Logger
-	maxScanBytes  int
-	scanEdgeBytes int
-	protector     *promptsec.Protector
-	useSanitized  bool
-	psOpts        []promptsec.Guard
-	taintOpts     PromptSecTaintOptions
-	llmJudgeOpts  PromptSecLLMJudgeOptions
-	llmJudge      promptsec.LLMJudge
-	llmJudgeGuard promptsec.Guard
-	systemPrompt  string
+	injectionGuardEnabled bool
+	mu                    sync.RWMutex
+	logger                *slog.Logger
+	maxScanBytes          int
+	scanEdgeBytes         int
+	protector             *promptsec.Protector
+	useSanitized          bool
+	psOpts                []promptsec.Guard
+	taintOpts             PromptSecTaintOptions
+	llmJudgeOpts          PromptSecLLMJudgeOptions
+	llmJudge              promptsec.LLMJudge
+	llmJudgeGuard         promptsec.Guard
+	systemPrompt          string
 }
 
 // NewGuardian creates a Guardian with pre-compiled injection detection patterns.
-// Patterns cover English, German, and common multilingual injection techniques.
+// The promptsec rules cover English, German, Spanish, French and Croatian
+// instruction overrides plus the common delimiter, encoding and fuzzy-keyword
+// techniques; AuraGo adds override and prompt-disclosure phrases for Italian,
+// Portuguese, Polish, Dutch, Turkish, Russian, Chinese, Japanese and Korean and
+// the Llama 3, Gemma, GPT and tool-call template tokens (injection_patterns.go).
+// Other languages are covered only by the opt-in judge.
 func NewGuardian(logger *slog.Logger) *Guardian {
 	return NewGuardianWithOptions(logger, GuardianOptions{})
 }
@@ -161,14 +185,15 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 	}
 
 	g := &Guardian{
-		logger:        logger,
-		maxScanBytes:  maxScanBytes,
-		scanEdgeBytes: scanEdgeBytes,
-		useSanitized:  opts.UseSanitizedOutput,
-		taintOpts:     opts.Taint,
-		llmJudge:      opts.LLMJudgeClient,
-		llmJudgeOpts:  opts.LLMJudge,
-		systemPrompt:  opts.SystemPrompt,
+		injectionGuardEnabled: opts.InjectionGuardEnabled,
+		logger:                logger,
+		maxScanBytes:          maxScanBytes,
+		scanEdgeBytes:         scanEdgeBytes,
+		useSanitized:          opts.UseSanitizedOutput,
+		taintOpts:             opts.Taint,
+		llmJudge:              opts.LLMJudgeClient,
+		llmJudgeOpts:          opts.LLMJudge,
+		systemPrompt:          opts.SystemPrompt,
 	}
 
 	g.psOpts = g.buildPromptSecGuards(opts)
@@ -222,16 +247,17 @@ func (g *Guardian) WithSystemPrompt(systemPrompt string) *Guardian {
 	}
 	g.mu.RLock()
 	clone := &Guardian{
-		logger:        g.logger,
-		maxScanBytes:  g.maxScanBytes,
-		scanEdgeBytes: g.scanEdgeBytes,
-		useSanitized:  g.useSanitized,
-		psOpts:        append([]promptsec.Guard(nil), g.psOpts...),
-		taintOpts:     g.taintOpts,
-		llmJudgeOpts:  g.llmJudgeOpts,
-		llmJudge:      g.llmJudge,
-		llmJudgeGuard: g.llmJudgeGuard,
-		systemPrompt:  g.systemPrompt,
+		injectionGuardEnabled: g.injectionGuardEnabled,
+		logger:                g.logger,
+		maxScanBytes:          g.maxScanBytes,
+		scanEdgeBytes:         g.scanEdgeBytes,
+		useSanitized:          g.useSanitized,
+		psOpts:                append([]promptsec.Guard(nil), g.psOpts...),
+		taintOpts:             g.taintOpts,
+		llmJudgeOpts:          g.llmJudgeOpts,
+		llmJudge:              g.llmJudge,
+		llmJudgeGuard:         g.llmJudgeGuard,
+		systemPrompt:          g.systemPrompt,
 	}
 	g.mu.RUnlock()
 
@@ -262,7 +288,10 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 	}
 
 	psOpts = append(psOpts,
-		promptsec.WithHeuristics(&promptsec.HeuristicOptions{Preset: preset}),
+		promptsec.WithHeuristics(&promptsec.HeuristicOptions{
+			Preset:         preset,
+			CustomPatterns: auraGoInjectionPatterns(),
+		}),
 		promptsec.WithOutputValidator(&promptsec.OutputOptions{}),
 	)
 
@@ -484,6 +513,9 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	var msgs []string
 	judgeContext := &promptsec.Context{RawInput: text, Input: text, Metadata: make(map[string]any)}
 
+	// primary marks the windows of the original text. Only they may supply the
+	// sanitized message; the view and decode shadows are read-only samples.
+	primary := true
 	mergeAnalysis := func(analysis *promptsec.Result) {
 		if _, structured := analysis.Metadata["structured_prompt"].(string); structured {
 			result.StructuredPrompt = true
@@ -492,7 +524,7 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 		// Only a complete-input transformation may replace a message. Scan
 		// windows are diagnostic samples and would silently drop user content.
 		// Structure provenance comes from guard metadata, not prompt text matching.
-		if !chunked && (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
+		if primary && !chunked && (useSanitized || opts.returnSanitized) && result.Sanitized == "" {
 			result.Sanitized = analysis.Output
 		}
 		if result.TaintSource == "" {
@@ -519,6 +551,9 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 
 			result.Patterns = appendUniqueString(result.Patterns, string(thr.Type))
 			msgs = appendUniqueString(msgs, thr.Message)
+			if !isNormalizationNote(thr) {
+				result.signal = true
+			}
 		}
 
 		// If promptsec marks unsafe, ensure at least ThreatMedium
@@ -526,12 +561,64 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 			result.Level = ThreatMedium
 		}
 	}
-	for _, scanText := range scanWindows {
-		analysis := protector.Analyze(scanText)
-		mergeAnalysis(analysis)
-		if judge != nil {
-			judgeContext.Threats = append(judgeContext.Threats, analysis.Threats...)
+	scanAll := func(windows []string, lift bool) {
+		for _, scanText := range windows {
+			analysis := protector.Analyze(scanText)
+			if lift {
+				analysis = liftShadowAnalysis(analysis)
+			}
+			mergeAnalysis(analysis)
+			if judge != nil {
+				judgeContext.Threats = append(judgeContext.Threats, analysis.Threats...)
+			}
 		}
+	}
+	scanAll(scanWindows, false)
+
+	// The scan view reads zero-width and format characters as the word breaks
+	// they act as and folds compatibility letters; the decode shadows carry
+	// what the sanitizer cannot decode. Each window gets its own view, so a
+	// window the view leaves unchanged costs nothing beyond the scan above.
+	// Every window is read whatever the earlier ones cost: when the shadows
+	// outgrow their budget, only further shadows are skipped and the scan is
+	// marked incomplete (see below), never a later window's view.
+	primary = false
+	shadowBytes := 0
+	scanned := 0
+	for _, window := range scanWindows {
+		scanned += len(window)
+	}
+	shadowBudget := maxDecodeShadowTextFactor*scanned + maxDecodeShadowWindows*maxScanBytes
+	seenShadows := make(map[string]bool)
+	for _, window := range scanWindows {
+		view := scanView(window)
+		if view != window {
+			scanAll([]string{view}, false)
+		}
+		if result.Incomplete {
+			continue
+		}
+		for _, shadow := range decodeShadows(view) {
+			if seenShadows[shadow] {
+				continue
+			}
+			if shadowBytes+len(shadow) > shadowBudget {
+				result.Incomplete = true
+				break
+			}
+			seenShadows[shadow] = true
+			shadowBytes += len(shadow)
+			scanAll([]string{shadow}, true)
+		}
+	}
+	if result.Incomplete {
+		// Text was left unread, so it cannot be called clean: the scan reads as
+		// High, which withholds external output and stops an inbound message.
+		if result.Level < ThreatHigh {
+			result.Level = ThreatHigh
+		}
+		result.Patterns = appendUniqueString(result.Patterns, scanIncompletePattern)
+		msgs = appendUniqueString(msgs, "decoded text exceeded the scan budget")
 	}
 	if judge != nil {
 		// Preserve the configured escalation mode using all local findings,
@@ -662,10 +749,10 @@ func IsolateExternalData(content string) string {
 // set so the HTML fence cannot be spelled with lookalike punctuation. It
 // leaves ordinary prose, including the words "external data", readable.
 // ASCII inputs that contain none of the encoded-angle or special-token
-// sequences stay byte-identical.
+// sequences (including the [TOOL_CALL] markers) stay byte-identical.
 func hardenExternalBoundary(content string) string {
 	content = strings.Map(func(r rune) rune {
-		if unicode.Is(unicode.Cf, r) {
+		if unicode.Is(unicode.Cf, r) && r != '\u200C' && r != '\u200D' {
 			return -1
 		}
 		switch r {
@@ -681,6 +768,15 @@ func hardenExternalBoundary(content string) string {
 		return `\ ` + match[1:]
 	})
 	content = strings.ReplaceAll(content, "<|", "< |")
+	// The agent's bracket parser starts a tool call at a literal [TOOL_CALL]
+	// when the model echoes one back, so the marker is broken the way [INST] is.
+	content = toolCallDelimiter.ReplaceAllStringFunc(content, func(match string) string {
+		if match[1] == '/' {
+			return "[ /TOOL_CALL ]"
+		}
+		return "[ TOOL_CALL ]"
+	})
+	content = modelBracketDelimiter.ReplaceAllStringFunc(content, func(s string) string { return "[ " + s[1:len(s)-1] + " ]" })
 	return instDelimiter.ReplaceAllString(content, "[ INST ]")
 }
 
@@ -711,19 +807,33 @@ func IsolatedPayload(body string) (string, bool) {
 var sourceClosingTag = regexp.MustCompile(`<[\s\p{Cf}]*/`)
 
 // encodedAngleEscape matches JSON/JS spellings of "<" that html.EscapeString
-// would leave intact. instDelimiter matches Llama-style role tokens.
+// would leave intact. instDelimiter matches Llama-style role tokens and
+// toolCallDelimiter the bracket tool-call markers, including the ")" closer the
+// parser also accepts. specialTokenShape matches the control tokens of common
+// chat templates: <|name|> (ChatML, Llama 3, <|endoftext|>) and Gemma's turn
+// markers. A bare "<|" (F# and Elm pipelines) is not a token.
+const ControlTokenCatalogVersion = "2026-10-28"
+
 var (
-	encodedAngleEscape = regexp.MustCompile(`(?i)\\(?:u003c|u\{0*3c\}|x3c)`)
-	instDelimiter      = regexp.MustCompile(`(?i)\[/?INST\]`)
+	encodedAngleEscape    = regexp.MustCompile(`(?i)\\(?:u003c|u\{0*3c\}|x3c)`)
+	instDelimiter         = regexp.MustCompile(`(?i)\[/?INST\]`)
+	toolCallDelimiter     = regexp.MustCompile(`(?i)\[/?TOOL_CALL[\])]`)
+	modelBracketDelimiter = regexp.MustCompile(`(?i)\[/?(?:TOOL_CALLS|AVAILABLE_TOOLS|SYSTEM_PROMPT|SYSTEM|USER|ASSISTANT)\]`)
+	specialTokenShape     = regexp.MustCompile(`(?i)<[|｜][^<>\s]{1,40}[|｜]>|</?(?:(?:start|end)_of_turn|role|think|tool_calls?|tool_responses?|arg_key|system|user|assistant|s)>|<(?:turn|channel)\|>|<eos:[^>\s]{1,80}>|<(?:(?:function|param)(?:=|\s|>))`)
 )
 
 // sourceBoundaryRisk decodes JSON/JS escapes and up to three rounds of HTML
-// entities, then rejects any closing-tag shape or the boundary name spelled
-// with separators, invisible characters or letters in any case.
+// entities, then rejects any closing-tag shape, a chat-template control token
+// and the boundary name spelled with separators, invisible characters or
+// letters in any case.
 func sourceBoundaryRisk(content string) bool {
 	view := strings.ToLower(content)
 	for _, lt := range []string{`\u003c`, `\u{3c}`, `\u{003c}`, `\x3c`} {
 		view = strings.ReplaceAll(view, lt, "<")
+	}
+	// A control token needs both ends, so ">" is decoded the same way.
+	for _, gt := range []string{"\x5cu003e", "\x5cu{3e}", "\x5cu{003e}", "\x5cx3e"} {
+		view = strings.ReplaceAll(view, gt, ">")
 	}
 	for range 3 {
 		next := strings.ToLower(html.UnescapeString(view))
@@ -732,7 +842,7 @@ func sourceBoundaryRisk(content string) bool {
 		}
 		view = next
 	}
-	if sourceClosingTag.MatchString(view) {
+	if sourceClosingTag.MatchString(view) || specialTokenShape.MatchString(view) || modelBracketDelimiter.MatchString(view) {
 		return true
 	}
 	var letters strings.Builder
@@ -750,6 +860,63 @@ func sourceBoundaryRisk(content string) bool {
 // as a system or user message boundary.
 var roleMarkers = regexp.MustCompile(`(?im)^(system|user|assistant|human|ai)\s*:`)
 
+// neutralizeRoleMarkers rewrites "system:" style markers at line starts.
+func neutralizeRoleMarkers(text string) string {
+	return roleMarkers.ReplaceAllStringFunc(text, func(match string) string {
+		return "[" + strings.TrimSuffix(match, ":") + "]:"
+	})
+}
+
+// maxScanOutputBytes is the most text one SanitizeToolOutput call (and the
+// advisory ScanExternalContent) runs through the regex tier. The promptsec chain
+// reads roughly 50 to 100 KiB per second of plain text: on the development host
+// (measured 2026-10-27, with the scan view and decode shadows, which cost nothing
+// on text without escapes or invisible characters) 256 KiB of English took 4 to
+// 5 s and of Russian 2.5 to 3 s, and as a JSON output (raw and decoded view,
+// plus the keys) 8 to 9 s and 5.5 to 6 s; 1 MiB and the 5 MiB a scraper may
+// return take four and twenty times that, all on the dispatch goroutine. Text
+// dense in escapes or entities adds up to twice its size in decode shadows. A
+// Guardian without a logger skips the advisory ScanExternalContent altogether, so
+// the scraper's own pass no longer adds a third read of a page. The model only
+// ever sees a prefix of a tool result (the agent clips it after this call, an
+// over-limit isolated result becomes an envelope, and the output vault pages the
+// archived rest back through read_tool_output, which is external and scanned per
+// page), so longer external and project source output is clipped to a prefix of
+// this size, told so by scanClipNote, and that prefix is scanned and isolated like
+// any other output. The text beyond it is never delivered, so no unscanned text
+// reaches the model while a 300 KiB shell or API result stays usable. A clipped
+// source takes the escaped form (IsolateExternalData), not the copyable one.
+const maxScanOutputBytes = 256 * 1024
+
+// scanClipNote closes external output that was clipped at maxScanOutputBytes.
+const scanClipNote = "[Tool output clipped at the 256 KiB scan limit; the rest was not delivered.]"
+
+// scanClipTailBytes is how far back from the cap a clip looks for a line break
+// to cut after, so ordinary text is not cut in the middle of a line.
+const scanClipTailBytes = 4 * 1024
+
+// clipToScanLimit returns the prefix of output that SanitizeToolOutput scans
+// and delivers, followed by scanClipNote. The prefix is at most
+// maxScanOutputBytes, ends on a UTF-8 boundary, and ends after the last newline
+// in its final scanClipTailBytes when there is one.
+func clipToScanLimit(output string) string {
+	if len(output) <= maxScanOutputBytes {
+		return output
+	}
+	cut := maxScanOutputBytes
+	for back := 0; back < utf8.UTFMax && cut > 0 && !utf8.RuneStart(output[cut]); back++ {
+		cut--
+	}
+	prefix := output[:cut]
+	if i := strings.LastIndexByte(prefix[max(0, cut-scanClipTailBytes):], '\n'); i >= 0 {
+		prefix = prefix[:max(0, cut-scanClipTailBytes)+i+1]
+	}
+	if !strings.HasSuffix(prefix, "\n") {
+		prefix += "\n"
+	}
+	return prefix + scanClipNote
+}
+
 // SanitizeToolOutput processes tool output to prevent injection.
 // It strips role impersonation markers and wraps output from external-facing tools in isolation tags.
 // Execution output is also external: a local command can read attacker-controlled data.
@@ -760,31 +927,89 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 
 	// Scan the original body before rewriting role markers. Ordinary source
 	// remains copyable; only a critical verdict selects the escaped form.
-	// External bodies at ThreatHigh or above are withheld entirely.
+	// External bodies at ThreatHigh or above are withheld entirely, except a
+	// text that reaches that level only through bare role or time phrases
+	// (relieveBarePhrases, the rule GateScan applies as well).
 	trust := classifyToolOutput(toolName)
-	var scan ScanResult
-	if trust == toolOutputSourceData || trust == toolOutputExternal {
-		scan = g.ScanForInjection(output)
+	clipped := false
+	if trust != toolOutputTrusted && len(output) > maxScanOutputBytes {
+		// Only a prefix of a result ever reaches the model, so the prefix is what
+		// gets scanned; the rest is dropped and the note says so. Project source is
+		// clipped like external output: no unscanned text is delivered.
+		if g.logger != nil {
+			kind := "external"
+			if trust == toolOutputSourceData {
+				kind = "project source"
+			}
+			g.logger.Info("[Guardian] Clipped "+kind+" tool output at the scan limit",
+				"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
+		}
+		output = clipToScanLimit(output)
+		clipped = true
 	}
-	if trust == toolOutputExternal && scan.Level < ThreatHigh {
-		// JSON transport escapes must not hide markup from local guards or trigger a second remote judge.
-		if decoded := toolOutputJSONStrings(output); decoded != "" {
-			if decodedScan := g.ScanForInjectionLocal(decoded); decodedScan.Level > scan.Level {
-				scan = decodedScan
+	var scan ScanResult
+	var leaves []jsonLeaf
+	var joined string
+	// hostile is set when a scanned text still reaches the bar after bare
+	// phrases are let through: ThreatHigh withholds external output,
+	// ThreatCritical sends source output to the escaped form. scan keeps the
+	// merged verdict of the texts as written, so a relieved text still names
+	// its categories on the warning line.
+	hostile := false
+	if trust == toolOutputSourceData || trust == toolOutputExternal {
+		bar := ThreatHigh
+		if trust == toolOutputSourceData {
+			bar = ThreatCritical
+		}
+		scanPart := func(text string) {
+			part := g.ScanForInjection(text)
+			scan = mergeScanResults(scan, part)
+			if part.Level >= bar && !part.Incomplete {
+				if _, held := relieveBarePhrases(text, part, bar, g.ScanForInjection); held {
+					hostile = true
+				}
+			}
+		}
+		scanPart(output)
+		// A JSON envelope escapes line breaks and quotes, which splits a phrase
+		// the regexes need whole. Scan the decoded string values joined by
+		// newlines as well, and the object keys (distinct ones, joined the
+		// same way), and keep the higher verdict.
+		if leaves = jsonStringLeaves(output); len(leaves) > 0 {
+			if joined = joinJSONLeaves(leaves, false); joined != "" {
+				scanPart(joined)
+			}
+			if keys := joinJSONLeaves(leaves, true); keys != "" {
+				scanPart(keys)
 			}
 		}
 	}
-	if trust == toolOutputExternal && scan.Level >= ThreatHigh {
+	if trust == toolOutputExternal && scan.Incomplete {
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] Withheld external tool output, the scan was incomplete",
+				"tool", toolName, "bytes", len(output))
+		}
+		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineIncomplete))
+	}
+	if trust == toolOutputExternal && hostile {
 		if g.logger != nil {
 			g.logger.Warn("[Guardian] Withheld external tool output",
 				"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
 		}
 		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineSuspicious))
 	}
-	// Strip role impersonation markers (e.g. "system:" at line start).
-	output = roleMarkers.ReplaceAllStringFunc(output, func(match string) string {
-		return "[" + strings.TrimSuffix(match, ":") + "]:"
-	})
+	// External output that is delivered anyway but looks flagged gets a warning
+	// line; source output keeps the validator's line alone.
+	var flagged []string
+	if trust == toolOutputExternal {
+		flagged = g.externalWarningCategories(toolName, scan, output, joined)
+	}
+	// Strip role impersonation markers (e.g. "system:" at line start), in the
+	// decoded JSON string values too: their line starts are escaped newlines.
+	if len(leaves) > 0 {
+		output = neutralizeLeafRoleMarkers(output, leaves)
+	}
+	output = neutralizeRoleMarkers(output)
 
 	switch trust {
 	case toolOutputExternal:
@@ -795,10 +1020,18 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		// forge the boundary; escaping cannot neutralise injection prose, and the
 		// scanner rates ordinary game templates high, so only critical findings
 		// keep the legacy escaped form.
-		if scan.Level >= ThreatCritical {
+		if hostile {
 			if g.logger != nil {
 				g.logger.Warn("[Guardian] Injection patterns in project source, escaping",
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
+			}
+			output = IsolateExternalData(output)
+		} else if clipped || scan.Incomplete {
+			// A clipped source is a prefix with a note, no file to copy from, and an
+			// incomplete scan has not read all of it.
+			if g.logger != nil {
+				g.logger.Info("[Guardian] Project source clipped or not fully scanned, escaping",
+					"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
 			}
 			output = IsolateExternalData(output)
 		} else {
@@ -810,7 +1043,9 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	protector := g.protector
 	g.mu.RUnlock()
 	validation := protector.ValidateOutput(output, nil)
+	var threats []promptsec.Threat
 	if !validation.Safe {
+		threats = validation.Threats
 		if g.logger != nil {
 			msgs := make([]string, 0, len(validation.Threats))
 			for _, thr := range validation.Threats {
@@ -821,30 +1056,50 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 			g.logger.Warn("[Guardian] Promptsec validation failed",
 				"tool", toolName, "recommendation", strings.Join(msgs, "; "))
 		}
-		output += formatToolOutputWarning(validation.Threats)
+	}
+	if !validation.Safe || len(flagged) > 0 {
+		output += formatToolOutputWarningWith(threats, flagged)
 	}
 
 	return output
 }
 
-func toolOutputJSONStrings(output string) string {
-	if !json.Valid([]byte(output)) {
-		return ""
-	}
-	decoder := json.NewDecoder(strings.NewReader(output))
-	decoder.UseNumber()
-	var decoded strings.Builder
-	for {
-		token, err := decoder.Token()
-		if err != nil {
-			break
+// externalWarningCategories names why external output that is delivered anyway
+// gets a SECURITY WARNING line: a Medium scan finding (the detector's own
+// category names; payload text stays out), the findings of a text that reached
+// High only through bare phrases and was let through (scan is the verdict of
+// the text as written), and a standing-instruction shape in the text. None
+// withholds. A Medium that is only the sanitizer's note on normalized
+// characters (ordinary Cyrillic, Greek or emoji-joined text) names no
+// attack and warns about nothing. The shape is read from the decoded JSON string
+// values when the output has them, so keys and braces cannot join sentences,
+// and from the output itself otherwise. It logs the categories only.
+func (g *Guardian) externalWarningCategories(toolName string, scan ScanResult, output, joined string) []string {
+	var cats []string
+	if scan.Level >= ThreatMedium && scan.signal {
+		cats = append(cats, scan.Patterns...)
+		if len(cats) == 0 {
+			cats = append(cats, "unspecified")
 		}
-		if text, ok := token.(string); ok {
-			decoded.WriteString(text)
-			decoded.WriteByte('\n')
-		}
 	}
-	return decoded.String()
+	text := output
+	if joined != "" {
+		text = joined
+	}
+	if _, directive := DirectiveShape(text); directive {
+		cats = append(cats, DirectiveShapeCategory)
+	}
+	if len(cats) == 0 {
+		return nil
+	}
+	for i, cat := range cats {
+		cats[i] = sanitizeThreatCategory(cat)
+	}
+	if g.logger != nil {
+		g.logger.Info("[Guardian] Flagged external tool output",
+			"tool", toolName, "threat", scan.Level.String(), "categories", cats)
+	}
+	return cats
 }
 
 // ScanUserInput analyzes a user message for injection attempts.
@@ -885,8 +1140,26 @@ func StripInternalMissionAdvisoryForScan(text string) string {
 }
 
 // ScanExternalContent scans content from external sources (web, API, files) for injection.
-// Always isolates the content regardless of scan result, but logs threats.
+// Always isolates the content regardless of scan result, but logs threats. The
+// scan is advisory (SanitizeToolOutput is the gate) and skipped beyond
+// maxScanOutputBytes.
 func (g *Guardian) ScanExternalContent(source, content string) string {
+	if g.logger == nil {
+		// The scan only logs. Without a logger its result is dropped, and the
+		// tool output that carries this content is scanned again at dispatch, so
+		// a Guardian without one (the scraper's and the crawler's) reads nothing.
+		return IsolateExternalData(content)
+	}
+	if len(content) > maxScanOutputBytes {
+		// The scan here only logs. SanitizeToolOutput clips the tool output
+		// carrying this content to a scanned prefix at the same limit, so reading
+		// it again would repeat minutes of work for a log line.
+		if g.logger != nil {
+			g.logger.Info("[Guardian] External content beyond the scan limit, not scanned",
+				"source", source, "bytes", len(content), "limit", maxScanOutputBytes)
+		}
+		return IsolateExternalData(content)
+	}
 	scan := g.ScanForInjectionWithSource(content, source, promptsec.Untrusted)
 	if scan.Level >= ThreatLow && g.logger != nil {
 		g.logger.Warn("[Guardian] Injection patterns in external content",

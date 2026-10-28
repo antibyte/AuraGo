@@ -486,24 +486,28 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.ChromecastEnabled {
 		tools = append(tools, tool("chromecast",
-			"Control Chromecast and Google Cast devices on the local network. "+
-				"Discover devices, play media URLs, speak text via TTS, stop playback, adjust volume, and query status. "+
-				"Specify a device by name (resolved via inventory) or directly by IP address and port.",
+			"Control Chromecast devices that are in the inventory or the latest discovery. "+
+				"discover and status stay available in read-only mode. "+
+				"play, speak, stop, volume, pause, resume, seek, and mute change the device. "+
+				"Groups are labeled and not controllable. YouTube pages are unsupported. stream_type live is only a hint.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Chromecast operation to perform",
-					"enum":        []string{"discover", "play", "speak", "stop", "volume", "status"},
+					"enum":        []string{"discover", "play", "speak", "stop", "volume", "pause", "resume", "seek", "mute", "status"},
 				},
-				"device_name":  prop("string", "Friendly device name (resolved via device registry, e.g. 'Living Room'). Use when device_addr is unknown."),
-				"device_addr":  prop("string", "IP address of the Chromecast device (e.g. '192.168.1.42')."),
-				"device_port":  map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009)."},
-				"url":          prop("string", "Direct HTTP(S) media URL to cast (for 'play'). Public URLs are SSRF-protected; private LAN media requires chromecast.media_host_allowlist unless it is AuraGo-generated /tts/ or /cast-media/."),
+				"device_name":  prop("string", "Friendly device name from inventory or the latest discovery, e.g. 'Living Room'."),
+				"device_addr":  prop("string", "Private IP of an inventory device or a device from the latest discovery. An arbitrary address is rejected."),
+				"device_port":  map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009). Only 8009 or the stored inventory port is accepted."},
+				"url":          prop("string", "Direct HTTP(S) media file URL for play. YouTube pages are unsupported. Private LAN media requires chromecast.media_host_allowlist unless it is AuraGo-generated /tts/ or /cast-media/."),
 				"local_path":   prop("string", "Local workspace audio/video/image file to cast (for 'play'). AuraGo publishes it on /cast-media/ automatically, e.g. 'workdir/song.mp3' or 'workdir/clip.mp4'."),
 				"content_type": prop("string", "MIME type of the media (for 'play', e.g. 'audio/mpeg', 'video/mp4', 'video/webm'). Direct video URLs should specify this. Default: 'audio/mpeg'."),
-				"text":         prop("string", "Text to speak aloud via TTS (for 'speak' operation)."),
+				"stream_type":  prop("string", "Optional hint for play. 'live' is echoed back and does not change the receiver load."),
+				"text":         prop("string", "Text to speak aloud via TTS (for 'speak'). Longer than 500 runes is truncated."),
 				"language":     prop("string", "Language code for TTS speech (for 'speak', e.g. 'de', 'en'). Defaults to system language."),
-				"volume":       map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 (for 'volume' operation)."},
+				"volume":       map[string]interface{}{"type": "number", "description": "Volume level 0.0–1.0 for volume. Required for that operation. 0 is a real level, not an omitted value."},
+				"position":     map[string]interface{}{"type": "number", "description": "Seek target in seconds for seek. Required for that operation."},
+				"muted":        map[string]interface{}{"type": "boolean", "description": "Mute flag for mute. Required for that operation."},
 			}, "operation"),
 		))
 	}
@@ -1095,7 +1099,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform. Only set_arm_mode changes state (person detection alerts off, on or by schedule).",
-					"enum": []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream",
+					"enum": []string{"status", "list_streams", "stream_status", "diagnose_stream", "snapshot", "analyze_snapshot", "show_live_stream",
 						"detection_status", "set_arm_mode", "list_detection_events", "analyze_detection_event", "show_detection_event"},
 				},
 				"stream_id":     prop("string", "Configured stable stream ID. Required for stream-specific operations; optional camera filter for list_detection_events."),
@@ -2310,6 +2314,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.QRCodeEnabled {
+		tools = append(tools, qrCodeToolSchema())
+	}
 	if ff.OfficeDocumentEnabled {
 		tools = append(tools, tool("office_document",
 			"Create, read, patch, and export Writer documents inside AuraGo's virtual desktop workspace. "+
@@ -2318,18 +2325,24 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Document operation to perform.",
-					"enum":        []string{"read", "write", "patch", "export"},
+					"enum":        []string{"read", "write", "patch", "export", "insert_image"},
 				},
-				"path":         prop("string", "Workspace-relative document path, e.g. 'Documents/report.docx'."),
-				"file_path":    prop("string", "Alias for path."),
-				"output_path":  prop("string", "Workspace-relative target path for export."),
-				"format":       prop("string", "Export format: docx, html, md, or txt."),
-				"title":        prop("string", "Document title for write or patch."),
-				"content":      prop("string", "Plain document text for write, or seed text for patch when the file does not exist."),
-				"text":         prop("string", "Alias for content."),
-				"html":         prop("string", "Optional HTML representation for write."),
-				"prepend_text": prop("string", "Text to prepend during patch."),
-				"append_text":  prop("string", "Text to append during patch."),
+				"path":             prop("string", "Workspace-relative document path, e.g. 'Documents/report.docx'."),
+				"file_path":        prop("string", "Alias for path."),
+				"output_path":      prop("string", "Workspace-relative target path for export."),
+				"format":           prop("string", "Export format: docx, html, md, or txt."),
+				"title":            prop("string", "Document title for write or patch."),
+				"content":          prop("string", "Plain document text for write, or seed text for patch when the file does not exist."),
+				"text":             prop("string", "Alias for content."),
+				"html":             prop("string", "Optional HTML representation for write."),
+				"image_ref":        officeImageReferenceSchema(),
+				"expected_version": prop("string", "Required for insert_image: exact office_version.etag from read. A stale version never overwrites the file."),
+				"anchor":           prop("string", "For insert_image use end to append an inline image without changing original document content."),
+				"width":            prop("integer", "Inserted image width in 96-DPI pixels; omit for its intrinsic width."),
+				"height":           prop("integer", "Inserted image height in 96-DPI pixels; omit for its intrinsic height."),
+				"alt":              prop("string", "Accessible image description; avoid embedding private QR content."),
+				"prepend_text":     prop("string", "Text to prepend during patch."),
+				"append_text":      prop("string", "Text to append during patch."),
 				"replacements": map[string]interface{}{
 					"type":        "array",
 					"description": "Patch replacements, each item {find, replace}.",
@@ -2352,17 +2365,23 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Workbook operation to perform.",
-					"enum":        []string{"read", "write", "set_cell", "set_range", "evaluate_formula", "export"},
+					"enum":        []string{"read", "write", "set_cell", "set_range", "evaluate_formula", "export", "insert_image"},
 				},
-				"path":        prop("string", "Workspace-relative workbook path, e.g. 'Documents/budget.xlsx'."),
-				"file_path":   prop("string", "Alias for path."),
-				"output_path": prop("string", "Workspace-relative target path for export."),
-				"format":      prop("string", "Export format: xlsx or csv."),
-				"sheet":       prop("string", "Sheet name for workbook operations."),
-				"cell":        prop("string", "A1-style cell reference for set_cell, e.g. B3."),
-				"start_cell":  prop("string", "A1-style top-left cell reference for set_range, e.g. A1."),
-				"value":       prop("string", "Cell value for set_cell."),
-				"formula":     prop("string", "Cell formula for set_cell/evaluate_formula, with or without a leading '='."),
+				"path":             prop("string", "Workspace-relative workbook path, e.g. 'Documents/budget.xlsx'."),
+				"file_path":        prop("string", "Alias for path."),
+				"output_path":      prop("string", "Workspace-relative target path for export."),
+				"format":           prop("string", "Export format: xlsx or csv."),
+				"sheet":            prop("string", "Sheet name for workbook operations."),
+				"image_ref":        officeImageReferenceSchema(),
+				"expected_version": prop("string", "Required for insert_image: exact office_version.etag from read. A stale version never overwrites the file."),
+				"anchor":           prop("string", "A1-style anchor cell for insert_image, e.g. B3. The sheet name is required."),
+				"width":            prop("integer", "Inserted image width in 96-DPI pixels; omit for intrinsic width."),
+				"height":           prop("integer", "Inserted image height in 96-DPI pixels; omit for intrinsic height."),
+				"alt":              prop("string", "Accessible image description; avoid embedding private QR content."),
+				"cell":             prop("string", "A1-style cell reference for set_cell, e.g. B3."),
+				"start_cell":       prop("string", "A1-style top-left cell reference for set_range, e.g. A1."),
+				"value":            prop("string", "Cell value for set_cell."),
+				"formula":          prop("string", "Cell formula for set_cell/evaluate_formula, with or without a leading '='."),
 				"values": map[string]interface{}{
 					"type":        "array",
 					"description": "2D array for set_range. Cells may be strings or objects with value/formula.",

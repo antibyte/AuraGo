@@ -36,7 +36,6 @@ func TestC13RemoteTextPicksNoStatus(t *testing.T) {
 		{"redirect location echoed by a transport error",
 			`Tool Output: {"status":"error","message":"Request failed: Get \"http://blocked.invalid/x?m=Feature is not enabled here\": access to internal address is blocked (SSRF protection)"}`,
 			agent.ToolResultFailed, "failed"},
-		{"tool-marked external text", "Tool Output: <external_data>\nERROR remote says: this API is in read-only mode\n</external_data>", agent.ToolResultFailed, "failed"},
 		{"refusal text after another subject", `Tool Output: {"status":"error","message":"ERROR remote says: Home Assistant is in read-only mode"}`, agent.ToolResultFailed, "failed"},
 		{"broker error", `Tool Output: {"status":"error","message":"MQTT publish failed: broker says MQTT is in read-only mode"}`, agent.ToolResultFailed, "failed"},
 		{"Home Assistant echo", `Tool Output: {"status":"error","message":"Home Assistant API error (HTTP 403): Home Assistant integration is not enabled"}`, agent.ToolResultFailed, "failed"},
@@ -84,11 +83,11 @@ func TestC13RefusalsMapThroughTheGuardiansWrapper(t *testing.T) {
 		t.Fatalf("MQTT shared disabled-tool gate: %+v, %v", resp, err)
 	}
 
-	wrapped := "[Tool Output]\n" + security.IsolateExternalData(`Tool Output: {"status":"error","message":"Home Assistant is in read-only mode"}`)
-	inv, s, _ = c13Invoker(cfg, map[string]bool{"home_assistant": true}, c13Answer(agent.ToolDispatchResult{Output: wrapped, Status: agent.ToolResultFailed, IsError: true}))
+	answer := `Tool Output: {"status":"error","message":"Home Assistant is in read-only mode"}`
+	inv, s, _ = c13Invoker(cfg, map[string]bool{"home_assistant": true}, c13Answer(agent.ToolDispatchResult{Output: c13Dispatched(answer), Status: agent.ToolResultFailed, IsError: true}))
 	s.Guardian = security.NewGuardian(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	resp, err = inv.InvokeTool(context.Background(), c13Request("home_assistant", map[string]any{"operation": "get_state", "entity_id": "light.a"}))
-	if err != nil || resp.Status != "denied" || resp.Output != wrapped {
+	if err != nil || resp.Status != "denied" || resp.Output != answer {
 		t.Fatalf("dispatched refusal through the Guardian: %+v, %v", resp, err)
 	}
 
@@ -101,18 +100,19 @@ func TestC13RefusalsMapThroughTheGuardiansWrapper(t *testing.T) {
 	}
 }
 
-// Re-review (c): the Guardian of the dispatch that ran decides, not a second read of the
-// server's field.
-func TestC13GuardianLayerFollowsTheDispatchedContext(t *testing.T) {
-	wrapped := "[Tool Output]\n" + security.IsolateExternalData(`Tool Output: {"status":"error","message":"Home Assistant is in read-only mode"}`)
+// Re-review (c), after the dispatch stopped skipping the sanitiser: a dispatch whose
+// context carries no Guardian runs the fallback Guardian, so its one layer is the
+// dispatch's whatever the context says, and the refusal maps.
+func TestC13GuardianLayerDoesNotDependOnTheDispatchedContext(t *testing.T) {
+	answer := `Tool Output: {"status":"error","message":"Home Assistant is in read-only mode"}`
 	inv, s, _ := c13Invoker(&config.Config{}, map[string]bool{"home_assistant": true},
 		func(_ context.Context, _ *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult {
-			dc.Guardian = nil // this dispatch ran without a Guardian: the one layer is the tool's
-			return agent.ToolDispatchResult{Output: wrapped, Status: agent.ToolResultFailed, IsError: true}
+			dc.Guardian = nil // no Guardian in the context: the dispatch still isolates once
+			return agent.ToolDispatchResult{Output: c13Dispatched(answer), Status: agent.ToolResultFailed, IsError: true}
 		})
 	s.Guardian = security.NewGuardian(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	resp, err := inv.InvokeTool(context.Background(), c13Request("home_assistant", map[string]any{"operation": "get_state", "entity_id": "light.a"}))
-	if err != nil || resp.Status != "failed" {
+	if err != nil || resp.Status != "denied" || resp.Output != answer {
 		t.Fatalf("%+v, %v", resp, err)
 	}
 }

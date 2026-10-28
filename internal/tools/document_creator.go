@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,9 +72,16 @@ func blockRemoteContentRefusal(operation string, opts DocumentCreatorOptions) st
 // ExecuteDocumentCreator is the unified entry point called from agent dispatch. opts is
 // optional; when several are given, any one that blocks remote content does.
 func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConfig, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string, opts ...DocumentCreatorOptions) string {
+	if err := ctx.Err(); err != nil {
+		return documentCreatorError(err.Error())
+	}
 	options := mergeDocumentCreatorOptions(opts)
 	if refusal := blockRemoteContentRefusal(operation, options); refusal != "" {
 		return refusal
+	}
+	switch operation {
+	case "create_pdf", "html_to_pdf", "markdown_to_pdf", "screenshot_html":
+		options.BlockRemoteContent = options.BlockRemoteContent || !cfg.AllowRemoteResources
 	}
 	outputDir := cfg.OutputDir
 	if outputDir == "" {
@@ -121,8 +127,8 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 			if err != nil {
 				return documentCreatorError(err.Error())
 			}
-			if len(paths) == 0 {
-				return `{"status":"error","message":"source_files (JSON array with one file path) is required for convert_document"}`
+			if err := validateDocumentSourceCount(operation, len(paths)); err != nil {
+				return documentCreatorError(err.Error())
 			}
 			return GotenbergConvertDocument(ctx, &cfg.Gotenberg, outputDir, paths[0], filename, paperSize, landscape)
 		})
@@ -132,8 +138,8 @@ func ExecuteDocumentCreator(ctx context.Context, cfg *config.DocumentCreatorConf
 			if err != nil {
 				return documentCreatorError(err.Error())
 			}
-			if len(paths) < 2 {
-				return `{"status":"error","message":"source_files (JSON array with at least 2 PDF paths) is required for merge_pdfs"}`
+			if err := validateDocumentSourceCount(operation, len(paths)); err != nil {
+				return documentCreatorError(err.Error())
 			}
 			return GotenbergMergePDFs(ctx, &cfg.Gotenberg, outputDir, paths, filename)
 		})
@@ -172,6 +178,9 @@ const (
 // before invoking document conversion operations. opts is passed on to ExecuteDocumentCreator;
 // an operation that block_remote_content cannot protect is refused before any staging.
 func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.DocumentCreatorConfig, workspaceDir, operation, title, content, url, filename, paperSize string, landscape bool, sectionsJSON, sourceFilesJSON string, opts ...DocumentCreatorOptions) string {
+	if err := ctx.Err(); err != nil {
+		return documentCreatorError(err.Error())
+	}
 	if refusal := blockRemoteContentRefusal(operation, mergeDocumentCreatorOptions(opts)); refusal != "" {
 		return refusal
 	}
@@ -181,34 +190,32 @@ func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.Document
 		if err != nil {
 			return documentCreatorError(err.Error())
 		}
-		if len(paths) > 0 {
+		if err := validateDocumentSourceCount(operation, len(paths)); err != nil {
+			return documentCreatorError(err.Error())
+		}
+		{
+			tmpCfg := &config.Config{}
+			tmpCfg.Directories.WorkspaceDir = workspaceDir
+			inputs, err := openDocumentSources(ctx, paths, tmpCfg)
+			if err != nil {
+				return documentCreatorError(truncateStr(err.Error(), maxEchoedDocumentErrorRunes))
+			}
+			defer closeDocumentSources(inputs)
 			stagingDir, err := os.MkdirTemp("", "aurago-document-source-*")
 			if err != nil {
 				return documentCreatorError(fmt.Sprintf("cannot stage source files: %v", err))
 			}
 			defer os.RemoveAll(stagingDir)
 			resolved := make([]string, 0, len(paths))
-			tmpCfg := &config.Config{}
-			tmpCfg.Directories.WorkspaceDir = workspaceDir
-			for index, p := range paths {
-				rp, err := resolveToolInputPath(p, tmpCfg)
-				if err != nil {
-					return documentCreatorError(fmt.Sprintf("invalid source path %q: %s",
-						truncateStr(p, maxEchoedDocumentPathRunes), truncateStr(err.Error(), maxEchoedDocumentErrorRunes)))
-				}
-				input, err := rootedToolOpen(rp)
-				if err != nil {
-					return documentCreatorError(fmt.Sprintf("cannot open source file: %v", err))
-				}
-				stagedPath := filepath.Join(stagingDir, fmt.Sprintf("source-%d%s", index, filepath.Ext(rp)))
+			remaining := int64(documentSourceTotalLimit)
+			for index, input := range inputs {
+				stagedPath := filepath.Join(stagingDir, fmt.Sprintf("source-%d%s", index, filepath.Ext(input.Name())))
 				staged, err := os.OpenFile(stagedPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 				if err != nil {
-					input.Close()
 					return documentCreatorError(fmt.Sprintf("cannot stage source file: %v", err))
 				}
-				_, copyErr := io.Copy(staged, input)
+				copyErr := copyDocumentSource(ctx, staged, input, &remaining)
 				closeErr := staged.Close()
-				input.Close()
 				if copyErr != nil || closeErr != nil {
 					return documentCreatorError(fmt.Sprintf("cannot stage source file: %v %v", copyErr, closeErr))
 				}
@@ -224,14 +231,18 @@ func ExecuteDocumentCreatorInWorkspace(ctx context.Context, cfg *config.Document
 // executeCreatePDF handles the create_pdf operation which supports both backends.
 // opts.BlockRemoteContent only affects the gotenberg backend; Maroto renders no HTML.
 func executeCreatePDF(ctx context.Context, cfg *config.DocumentCreatorConfig, backend, outputDir, title, content, filename, paperSize string, landscape bool, sectionsJSON string, opts DocumentCreatorOptions) string {
+	sections, err := parseDocumentSections(sectionsJSON)
+	if err != nil {
+		return documentCreatorError(err.Error())
+	}
 	switch backend {
 	case "gotenberg":
 		// For Gotenberg, convert content/sections to HTML and use html_to_pdf
-		html := buildHTMLFromSections(title, content, sectionsJSON)
+		html := buildHTMLFromSections(title, content, sections)
 		return GotenbergHTMLToPDF(ctx, &cfg.Gotenberg, outputDir, html, filename, paperSize, landscape, opts)
 	default:
 		// Maroto backend
-		return createPDFMaroto(outputDir, title, content, filename, paperSize, landscape, sectionsJSON)
+		return createPDFMaroto(ctx, outputDir, title, content, filename, paperSize, landscape, sections)
 	}
 }
 
@@ -245,38 +256,21 @@ func executeGotenbergOnly(ctx context.Context, cfg *config.DocumentCreatorConfig
 
 // ── Maroto PDF creation ──────────────────────────────────────────────────────
 
-func createPDFMaroto(outputDir, title, content, filename, paperSize string, landscape bool, sectionsJSON string) string {
-	if filename == "" {
-		filename = defaultDocumentName()
-	}
-	filename = filepath.Base(filename)
-	if !strings.HasSuffix(strings.ToLower(filename), ".pdf") {
-		filename += ".pdf"
-	}
-
-	// Parse sections if provided
-	var sections []PDFSection
-	if sectionsJSON != "" {
-		if err := json.Unmarshal([]byte(sectionsJSON), &sections); err != nil {
-			return documentCreatorError(fmt.Sprintf("invalid sections JSON: %v", err))
-		}
-	}
-
+func createPDFMaroto(ctx context.Context, outputDir, title, content, filename, paperSize string, landscape bool, sections []PDFSection) string {
 	// Build Maroto document
 	cfg := buildMarotoConfig(paperSize, landscape)
 	m := maroto.New(cfg)
-	doc, err := buildMarotoDocument(m, title, content, sections)
+	doc, err := buildMarotoDocument(ctx, m, title, content, sections)
 	if err != nil {
 		return documentCreatorError(fmt.Sprintf("generate PDF: %v", err))
 	}
 
-	outPath := filepath.Join(outputDir, filename)
-	if err := doc.Save(outPath); err != nil {
+	outPath, webPath, err := saveDocumentOutput(ctx, doc.GetBytes(), outputDir, filename, ".pdf")
+	if err != nil {
 		return documentCreatorError(fmt.Sprintf("save PDF: %v", err))
 	}
 
-	webPath := "/files/documents/" + filename
-	return documentSuccessJSON(outPath, webPath, filename, "maroto")
+	return documentSuccessJSON(outPath, webPath, filepath.Base(outPath), "maroto")
 }
 
 // documentSuccessJSON encodes a successful document_creator result. json.Marshal keeps
@@ -317,7 +311,10 @@ func buildMarotoConfig(paperSize string, landscape bool) *entity.Config {
 	return builder.Build()
 }
 
-func buildMarotoDocument(m core.Maroto, title, content string, sections []PDFSection) (core.Document, error) {
+func buildMarotoDocument(ctx context.Context, m core.Maroto, title, content string, sections []PDFSection) (core.Document, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	// Title page
 	if title != "" {
 		m.AddPages(page.New().Add(
@@ -346,6 +343,9 @@ func buildMarotoDocument(m core.Maroto, title, content string, sections []PDFSec
 
 	// Structured sections
 	for _, sec := range sections {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		var rows []core.Row
 
 		if sec.Header != "" {
@@ -360,10 +360,17 @@ func buildMarotoDocument(m core.Maroto, title, content string, sections []PDFSec
 
 		switch sec.Type {
 		case "table":
-			rows = append(rows, buildTableRows(sec.Rows)...)
+			tableRows, err := buildTableRows(ctx, sec.Rows)
+			if err != nil {
+				return nil, err
+			}
+			rows = append(rows, tableRows...)
 		case "list":
 			items := strings.Split(sec.Body, "\n")
 			for _, item := range items {
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
 				item = strings.TrimSpace(item)
 				if item == "" {
 					continue
@@ -377,12 +384,11 @@ func buildMarotoDocument(m core.Maroto, title, content string, sections []PDFSec
 				))
 			}
 		default: // "text" or "heading"
-			bodyText := sec.Body
-			if bodyText == "" {
-				bodyText = sec.Header
+			if sec.Body == "" {
+				break
 			}
 			rows = append(rows, row.New(0).Add(
-				text.NewCol(12, bodyText, props.Text{
+				text.NewCol(12, sec.Body, props.Text{
 					Size: 10,
 					Top:  2,
 				}),
@@ -394,14 +400,23 @@ func buildMarotoDocument(m core.Maroto, title, content string, sections []PDFSec
 		}
 	}
 
-	return m.Generate()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	doc, err := m.Generate()
+	if err == nil {
+		err = ctx.Err()
+	}
+	return doc, err
 }
 
-func buildTableRows(data [][]string) []core.Row {
+func buildTableRows(ctx context.Context, data [][]string) ([]core.Row, error) {
 	if len(data) == 0 {
-		return nil
+		return nil, nil
 	}
-
+	if err := validateDocumentTable(data); err != nil {
+		return nil, err
+	}
 	var rows []core.Row
 
 	// Header row
@@ -423,6 +438,9 @@ func buildTableRows(data [][]string) []core.Row {
 
 	// Data rows
 	for i := 1; i < len(data); i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		dataCols := make([]core.Col, 0, len(data[i]))
 		colSize := 12 / len(data[i])
 		if colSize < 1 {
@@ -437,12 +455,45 @@ func buildTableRows(data [][]string) []core.Row {
 		rows = append(rows, row.New(7).Add(dataCols...))
 	}
 
-	return rows
+	return rows, ctx.Err()
+}
+
+func parseDocumentSections(raw string) ([]PDFSection, error) {
+	var sections []PDFSection
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &sections); err != nil {
+			return nil, fmt.Errorf("invalid sections JSON: %w", err)
+		}
+	}
+	for index, sec := range sections {
+		if sec.Type == "table" {
+			if err := validateDocumentTable(sec.Rows); err != nil {
+				return nil, fmt.Errorf("section %d: %w", index+1, err)
+			}
+		}
+	}
+	return sections, nil
+}
+
+func validateDocumentTable(rows [][]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	width := len(rows[0])
+	if width < 1 || width > 12 {
+		return fmt.Errorf("table row 1 must contain between 1 and 12 columns")
+	}
+	for index, row := range rows {
+		if len(row) != width {
+			return fmt.Errorf("table row %d must contain %d columns, got %d", index+1, width, len(row))
+		}
+	}
+	return nil
 }
 
 // ── HTML builder for Gotenberg create_pdf ────────────────────────────────────
 
-func buildHTMLFromSections(title, content, sectionsJSON string) string {
+func buildHTMLFromSections(title, content string, sections []PDFSection) string {
 	var sb strings.Builder
 	sb.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 2cm; line-height: 1.6; color: #333; }
@@ -463,55 +514,50 @@ th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
 		sb.WriteString("</h1>")
 	}
 
-	if content != "" {
+	if content != "" && len(sections) == 0 {
 		sb.WriteString(`<div class="plain-content">`)
 		sb.WriteString(escapeHTML(content))
 		sb.WriteString("</div>")
 	}
 
-	var sections []PDFSection
-	if sectionsJSON != "" {
-		if err := json.Unmarshal([]byte(sectionsJSON), &sections); err == nil {
-			for _, sec := range sections {
-				if sec.Header != "" {
-					sb.WriteString("<h2>")
-					sb.WriteString(escapeHTML(sec.Header))
-					sb.WriteString("</h2>")
+	for _, sec := range sections {
+		if sec.Header != "" {
+			sb.WriteString("<h2>")
+			sb.WriteString(escapeHTML(sec.Header))
+			sb.WriteString("</h2>")
+		}
+		switch sec.Type {
+		case "table":
+			sb.WriteString("<table>")
+			for i, r := range sec.Rows {
+				sb.WriteString("<tr>")
+				tag := "td"
+				if i == 0 {
+					tag = "th"
 				}
-				switch sec.Type {
-				case "table":
-					sb.WriteString("<table>")
-					for i, r := range sec.Rows {
-						sb.WriteString("<tr>")
-						tag := "td"
-						if i == 0 {
-							tag = "th"
-						}
-						for _, cell := range r {
-							sb.WriteString("<" + tag + ">")
-							sb.WriteString(escapeHTML(cell))
-							sb.WriteString("</" + tag + ">")
-						}
-						sb.WriteString("</tr>")
-					}
-					sb.WriteString("</table>")
-				case "list":
-					sb.WriteString("<ul>")
-					for _, item := range strings.Split(sec.Body, "\n") {
-						item = strings.TrimSpace(item)
-						if item != "" {
-							sb.WriteString("<li>")
-							sb.WriteString(escapeHTML(item))
-							sb.WriteString("</li>")
-						}
-					}
-					sb.WriteString("</ul>")
-				default:
-					sb.WriteString("<p>")
-					sb.WriteString(escapeHTML(sec.Body))
-					sb.WriteString("</p>")
+				for _, cell := range r {
+					sb.WriteString("<" + tag + ">")
+					sb.WriteString(escapeHTML(cell))
+					sb.WriteString("</" + tag + ">")
+				}
+				sb.WriteString("</tr>")
+			}
+			sb.WriteString("</table>")
+		case "list":
+			sb.WriteString("<ul>")
+			for _, item := range strings.Split(sec.Body, "\n") {
+				item = strings.TrimSpace(item)
+				if item != "" {
+					sb.WriteString("<li>")
+					sb.WriteString(escapeHTML(item))
+					sb.WriteString("</li>")
 				}
 			}
+			sb.WriteString("</ul>")
+		default:
+			sb.WriteString("<p>")
+			sb.WriteString(escapeHTML(sec.Body))
+			sb.WriteString("</p>")
 		}
 	}
 

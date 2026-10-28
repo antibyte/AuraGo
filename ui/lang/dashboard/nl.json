@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Gebruik alleen voorbereide testdoelen. Geef test-ID, tool, exacte argumenten en verwachte JSON-velden op. Acties vereisen allow_effects: true; bestaande rechten blijven gelden. Bindingswaarden worden niet in het rapport opgeslagen.",
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Tool",
-  "dashboard.selftest_connections": "Verbindingen"
+  "dashboard.selftest_connections": "Verbindingen",
+  "dashboard.rustfs_running_unready": "Draait, nog niet gereed"
 }

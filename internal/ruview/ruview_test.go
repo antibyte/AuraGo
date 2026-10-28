@@ -247,7 +247,7 @@ func TestReconfigurationCancelsLiveRequests(t *testing.T) {
 	// Replace the immutable snapshot only after the request has captured it.
 	next := *c
 	next.RuView = c.RuView
-	next.RuView.ReadOnly = false
+	next.RuView.Source = "wifi"
 	m.config = func() *config.Config { return &next }
 	m.Configure()
 	select {

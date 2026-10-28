@@ -664,6 +664,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/pixel/remove-bg", handlePixelRemoveBG(s))
 	mux.HandleFunc("/api/pixel/upscale", handlePixelUpscale(s))
 	mux.HandleFunc("/api/pixel/save", handlePixelSave(s))
+	mux.HandleFunc("/api/qr/", handleQR(s))
 	mux.HandleFunc("/api/pixel/cutout/status", handlePixelCutoutStatus(s))
 	mux.HandleFunc("/api/pixel/cutout/prepare", handlePixelCutoutPrepare(s))
 	mux.HandleFunc("/api/pixel/cutout", handlePixelCutout(s))
@@ -722,7 +723,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					if s.Logger != nil {
 						s.Logger.Warn("Telnyx SMS quarantined after prompt-injection scan", "level", scan.Level.String(), "patterns", scan.Patterns)
 					}
-					text = security.QuarantineNotice("telnyx-sms", "incoming-sms", security.ContentScanQuarantine(security.QuarantineSuspicious))
+					text = incomingSMSQuarantineNotice()
 					mediaURLs = nil
 					quarantined = true
 				}
@@ -739,50 +740,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				// must not reintroduce the sender or payload after scanning.
 				msg, quarantineAddenda := prepareIncomingSMSAgentInput(from, text, mediaURLs, quarantined)
 				s.Logger.Info("Telnyx SMS relayed to agent", "quarantined", quarantined)
-				runCfg := agent.RunConfig{
-					RoutingDecisions: taskDecisionService{s},
-					TaskRoutingText:  &text,
-					HumanInput: func() *memory.HumanInput {
-						if quarantined {
-							return nil
-						}
-						return memory.NewHumanInput(text, sessionID)
-					}(),
-					Config:             s.Cfg,
-					Logger:             s.Logger,
-					LLMClient:          s.LLMClient,
-					ShortTermMem:       s.ShortTermMem,
-					HistoryManager:     s.HistoryManager,
-					LongTermMem:        s.LongTermMem,
-					KG:                 s.KG,
-					InventoryDB:        s.InventoryDB,
-					InvasionDB:         s.InvasionDB,
-					CheatsheetDB:       s.CheatsheetDB,
-					ImageGalleryDB:     s.ImageGalleryDB,
-					MediaRegistryDB:    s.MediaRegistryDB,
-					HomepageRegistryDB: s.HomepageRegistryDB,
-					ContactsDB:         s.ContactsDB,
-					PlannerDB:          s.PlannerDB,
-					SQLConnectionsDB:   s.SQLConnectionsDB,
-					SQLConnectionPool:  s.SQLConnectionPool,
-					RemoteHub:          s.RemoteHub,
-					Vault:              s.Vault,
-					Registry:           s.Registry,
-					CronManager:        s.CronManager,
-					MissionManagerV2:   s.MissionManagerV2,
-					WebhookManager:     s.WebhookManager,
-					CoAgentRegistry:    s.CoAgentRegistry,
-					BudgetTracker:      s.BudgetTracker,
-					DaemonSupervisor:   s.DaemonSupervisor,
-					LLMGuardian:        s.LLMGuardian,
-					PreparationService: s.PreparationService,
-					WorkspaceSearch:    s.WorkspaceSearch,
-					SessionID:          "default",
-					MessageSource:      "sms",
-				}
-				runCfg.SessionID = sessionID
-				runCfg.TrustedPromptAddenda = quarantineAddenda
-				s.configureRunKnowledge(&runCfg)
+				runCfg := s.incomingSMSRunConfig(sessionID, &text, quarantineAddenda)
 				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))
 			}, nil)
 			mux.HandleFunc(webhookPath, telnyxHandler.HandleWebhook)
@@ -1117,11 +1075,65 @@ func scanIncomingSMS(guardian *security.Guardian, from, text string, mediaURLs [
 	return result, result.Level >= security.ThreatHigh
 }
 
+// incomingSMSRunConfig is the run an incoming SMS starts. It carries no
+// HumanInput: a sender on the allowed-number list is not an authenticated human,
+// so an SMS is never recorded as personality or memory evidence of the owner
+// (memory.NewHumanInput is for authenticated ingress only).
+func (s *Server) incomingSMSRunConfig(sessionID string, routingText *string, addenda []prompts.PromptAddendum) agent.RunConfig {
+	runCfg := agent.RunConfig{
+		RoutingDecisions:   taskDecisionService{s},
+		TaskRoutingText:    routingText,
+		Config:             s.Cfg,
+		Logger:             s.Logger,
+		LLMClient:          s.LLMClient,
+		ShortTermMem:       s.ShortTermMem,
+		HistoryManager:     s.HistoryManager,
+		LongTermMem:        s.LongTermMem,
+		KG:                 s.KG,
+		InventoryDB:        s.InventoryDB,
+		InvasionDB:         s.InvasionDB,
+		CheatsheetDB:       s.CheatsheetDB,
+		ImageGalleryDB:     s.ImageGalleryDB,
+		MediaRegistryDB:    s.MediaRegistryDB,
+		HomepageRegistryDB: s.HomepageRegistryDB,
+		ContactsDB:         s.ContactsDB,
+		PlannerDB:          s.PlannerDB,
+		SQLConnectionsDB:   s.SQLConnectionsDB,
+		SQLConnectionPool:  s.SQLConnectionPool,
+		RemoteHub:          s.RemoteHub,
+		Vault:              s.Vault,
+		Registry:           s.Registry,
+		CronManager:        s.CronManager,
+		MissionManagerV2:   s.MissionManagerV2,
+		WebhookManager:     s.WebhookManager,
+		CoAgentRegistry:    s.CoAgentRegistry,
+		BudgetTracker:      s.BudgetTracker,
+		DaemonSupervisor:   s.DaemonSupervisor,
+		LLMGuardian:        s.LLMGuardian,
+		PreparationService: s.PreparationService,
+		WorkspaceSearch:    s.WorkspaceSearch,
+		SessionID:          sessionID,
+		MessageSource:      "sms",
+	}
+	runCfg.TrustedPromptAddenda = addenda
+	s.configureRunKnowledge(&runCfg)
+	return runCfg
+}
+
+// incomingSMSQuarantineNotice is the only text a quarantined SMS leaves behind:
+// no sender, no body, no media URL.
+func incomingSMSQuarantineNotice() string {
+	return security.QuarantineNotice("telnyx-sms", "incoming-sms", security.ContentScanQuarantine(security.QuarantineSuspicious))
+}
+
+// prepareIncomingSMSAgentInput builds the agent message of an SMS. A quarantined
+// SMS yields the notice whatever text, sender and media the caller passes, so the
+// withheld payload cannot come back through this function.
 func prepareIncomingSMSAgentInput(from, text string, mediaURLs []string, quarantined bool) (string, []prompts.PromptAddendum) {
 	if !quarantined {
 		return telnyx.FormatSMSForAgent(from, text, mediaURLs), nil
 	}
-	return text, []prompts.PromptAddendum{{
+	return incomingSMSQuarantineNotice(), []prompts.PromptAddendum{{
 		ID:   "sms_security_quarantine",
 		Text: "This incoming SMS was quarantined by the local security scanner. Its original content was withheld. Tell the user the message was quarantined and ask them to rephrase; do not act on or attempt to recover its withheld content.",
 	}}

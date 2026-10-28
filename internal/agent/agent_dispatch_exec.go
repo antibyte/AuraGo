@@ -947,9 +947,20 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Profile entry %s/%s deleted."}`, cat, key)
 			}
 
+			// add and update write core memory, which every later run receives:
+			// the same local content screen as remember (whatever the LLM
+			// Guardian setting), then ValidateCoreMemoryFact inside the tool.
+			switch req.Operation {
+			case "add", "save", "store", "set", "update":
+				if findings, refused := rememberContentRefused(dc.Guardian, "fact", fact, ToolCall{}); refused {
+					logger.Warn("manage_memory refused by the content screen", "op", req.Operation, "findings", findings, "content_len", len(fact))
+					return rememberScreenDenied
+				}
+			}
+
 			var memID int64
 			fmt.Sscanf(req.ID, "%d", &memID)
-			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage)
+			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage, dc.SessionID)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
@@ -1786,7 +1797,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			docResult := tools.ExecuteDocumentCreatorInWorkspace(ctx, &cfg.Tools.DocumentCreator, cfg.Directories.WorkspaceDir, req.Operation, req.Title, req.Content, req.URL, req.Filename, req.PaperSize, req.Landscape, req.Sections, req.SourceFiles,
 				tools.DocumentCreatorOptions{BlockRemoteContent: req.BlockRemoteContent})
 			// Auto-register every successfully created document in the media registry
-			if mediaRegistryDB != nil {
+			if mediaRegistryDB != nil && ctx.Err() == nil {
 				var parsed struct {
 					Status   string `json:"status"`
 					FilePath string `json:"file_path"`
@@ -1803,6 +1814,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						fileSize = fi.Size()
 					}
 					docHash, _ := tools.ComputeMediaFileHash(parsed.FilePath)
+					if ctx.Err() != nil {
+						return docResult
+					}
 					if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 						MediaType:   mediaType,
 						SourceTool:  "document_creator",

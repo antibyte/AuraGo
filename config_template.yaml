@@ -146,6 +146,8 @@ chromecast:
     enabled: false
     tts_port: 8090
     media_host_allowlist: []
+    advertise_host: ""             # empty: pick a LAN address; 127.0.0.1 is never published
+    read_only: false               # true blocks play, speak, stop, volume, pause, seek, and mute
 meshcore:
     enabled: false
     transport: usb                    # usb (Linux/Windows/macOS), ble (native Linux BlueZ)
@@ -453,6 +455,11 @@ agentmail:
     poll_interval_seconds: 120
     relay_to_agent: false
     relay_cheatsheet_id: "" # optional cheatsheet appended as instructions to relayed new-mail prompts
+    # Who may reach the agent through the relay: full addresses or "@domain" entries, compared
+    # case-insensitively. With relay_to_agent on and this list empty, no mail reaches the agent;
+    # the owner only gets a quarantine notice per message. With entries, mail from any other
+    # sender is ignored (logged, never relayed). Keep llm_guardian.scan_emails on as well.
+    allowed_senders: []
     max_attachment_mb: 10
     base_url: https://api.agentmail.to
     websocket_url: wss://ws.agentmail.to/v0
@@ -652,8 +659,9 @@ tools:
         enabled: false
         backend: maroto  # maroto (built-in) or gotenberg (Docker sidecar)
         output_dir: data/documents
+        allow_remote_resources: false  # supplied HTML/Markdown stays offline unless an admin opts in
         gotenberg:
-            url: "http://gotenberg:3000"
+            url: ""  # native: http://127.0.0.1:3000; Docker: http://gotenberg:3000; private /debug required
             timeout: 120
     media_conversion:
         enabled: false
@@ -683,6 +691,9 @@ tools:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
     virtual_computers:
         enabled: false                                     # enable virtual_computers tool; also requires virtual_computers.enabled
+    qr_code:
+        enabled: false                                     # agent QR generation/scanning; desktop dialog is independent
+        readonly: true                                     # permit presets/scan, block generate/batch_generate
     office_document:
         enabled: false                                     # enable office_document tool; also requires virtual_desktop.enabled and allow_agent_control
         readonly: false                                    # read-only mode: allow read only; block write, patch, and export
@@ -729,6 +740,7 @@ mission_preparation:
     auto_prepare_scheduled: true                            # auto-prepare scheduled missions on change
 # ── S3-compatible storage ──────────────────────────────────────────────────────
 s3:
+    provider: external                                     # external or rustfs (managed installation)
     enabled: false
     readonly: false                                         # true = only list/download, no upload/delete/copy
     endpoint: ""                                            # e.g. https://s3.amazonaws.com or http://minio.local:9000
@@ -737,6 +749,17 @@ s3:
     use_path_style: true                                    # required for MinIO and most S3-compatible services
     insecure: false                                         # allow HTTP (non-TLS) endpoints
     # access_key and secret_key are stored in the encrypted vault — configure via Config UI
+# Optional managed RustFS server. Install and operate through the S3 Config UI.
+rustfs:
+    enabled: false
+    bucket: aurago                                         # initial bucket; data survives stop/removal
+    agent_access: false
+    permissions:
+        allow_read: false
+        allow_write: false
+        allow_delete: false
+        allowed_locations: []                              # e.g. [{bucket: aurago, prefixes: ["agent/"]}]
+    # Credentials and runtime identity are private Vault state, never YAML.
 # LLM Providers — configure via the Setup Wizard or Config UI
 # Supported types: openai, openrouter, ollama, anthropic, google, minimax, agnes,
 # workers-ai, manifest, omniroute, yepapi, custom, deepseek, groq, mistral, xai,
@@ -1597,15 +1620,44 @@ go2rtc:
     container_name: "aurago_go2rtc"
     url: ""                         # default: http://go2rtc:1984 in Docker, otherwise http://127.0.0.1:1984
     api_host_port: 1984             # native AuraGo only; always bound to 127.0.0.1
+    # Manage central Tuya credentials through Config / Network Cameras; Vault-only.
+    # Metadata fields: id, name, method (smart/cloud), region, server-owned revision.
+    # Smart regions: eu-central, eu-east, us-west, us-east, china, india.
+    # Cloud regions: eu-central, eu-west, us-west, us-east, china, india, singapore.
+    tuya_accounts: []
     webrtc:
         enabled: false
         bind_address: ""            # required concrete private LAN IP when enabled
         port: 8555
+    hardware:
+        backend: "software"         # software (default), vaapi or cuda; GPU requires Linux/amd64 Docker
+        render_node: ""             # vaapi: selected host /dev/dri/renderD128 (mapped individually)
+        render_group: ""            # vaapi: numeric non-root host render group ID
+        device_id: ""               # cuda: one NVIDIA GPU index or GPU UUID
+    # GPU profiles require an explicit successful hardware test in Config.
+    # Standard images automatically select the digest-pinned 1.9.14-hardware build.
     # Source URLs are entered through the Config UI and stored only in the Vault.
     # streams:
     #   - id: "front-door"
     #     name: "Front Door"
     #     enabled: true
+    #     # source, sub_source and snapshot_source are write-only Vault values.
+    #     # Empty or masked input preserves them; clear_sub_source and
+    #     # clear_snapshot_source explicitly remove an optional source.
+    #     preview_source: "auto"     # auto (prefer substream), main or sub
+    #     detection_source: "auto"   # auto (prefer substream), main or sub
+    #     snapshot_mode: "auto"      # auto (prefer camera snapshot), camera or stream
+    #     codec_profile: "original"  # original, h264_opus or h264_aac (at most 2 active transcoders)
+    #     transport: "inherit"       # inherit existing URL settings, tcp or udp
+    #     playback_mode: "auto"      # auto, webrtc_tcp, mse, hls, mp4 or mjpeg
+    #     preload: false            # keep main stream warm through internal API
+    #     talk_enabled: false       # requires go2rtc.talk/admin and enabled LAN WebRTC
+    #     # Optional binding for an account-managed Tuya camera. Device ID and
+    #     # generated source URLs are written by the setup dialog to the Vault.
+    #     # tuya:
+    #     #   account_id: "tuya-home"
+    #     #   main_resolution: "hd"
+    #     #   sub_resolution: "sd"  # empty disables substream; must differ from main
     #     # Person detection for this camera (Network Cameras app). Keys left out take
     #     # the defaults shown here, except the zones: the Driveway zone is only an
     #     # example, the default is no zones (the whole frame is watched).
@@ -1852,6 +1904,9 @@ llm_guardian:
     scan_documents: false
     scan_emails: false
 guardian:
+    injection_guard:
+        enabled: false                                      # optional local Horizon classifier; install through Config first
+        action: quarantine                                  # quarantine | datamark (web content and email only)
     max_scan_bytes: 16384                 # regex guardian scans larger inputs in a bounded window
     scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
     promptsec:

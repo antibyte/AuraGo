@@ -3,11 +3,13 @@ package server
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/newspaper"
 )
 
@@ -45,6 +47,71 @@ func TestNewspaperOverviewURLsAndTechmemePrimaryLink(t *testing.T) {
 	}
 	if primary, _ := newspaperTechmemePrimaryURL(`<a href="https://publisher.example/unrelated">New company</a>`, "Company unveils new battery platform"); primary != "" {
 		t.Fatalf("generic title overlap was accepted as the primary story: %q", primary)
+	}
+}
+
+func TestNewspaperPublisherOverviewsRespectTopicsAndSelection(t *testing.T) {
+	for _, tc := range []struct {
+		source, url, section, interest, headline string
+	}{
+		{config.NewspaperOverviewTagesschau, "https://www.tagesschau.de/xml/rss2/", "politics", "election", "Government announces election date"},
+		{config.NewspaperOverviewBBCBusiness, "https://feeds.bbci.co.uk/news/business/rss.xml", "economy", "battery", "Battery company opens new factory"},
+		{config.NewspaperOverviewScienceDaily, "https://www.sciencedaily.com/rss/all.xml", "science", "battery", "Researchers develop improved battery materials"},
+		{config.NewspaperOverviewNASA, "https://www.nasa.gov/news-release/feed/", "science", "moon", "NASA announces new Moon mission"},
+		{config.NewspaperOverviewGuardianEnvironment, "https://www.theguardian.com/environment/rss", "environment", "climate", "Scientists report climate milestone"},
+		{config.NewspaperOverviewBBCSport, "https://feeds.bbci.co.uk/sport/rss.xml", "sport", "football", "Football club wins league title"},
+		{config.NewspaperOverviewGuardianCulture, "https://www.theguardian.com/culture/rss", "culture", "museum", "Museum opens new exhibition"},
+	} {
+		t.Run(tc.source, func(t *testing.T) {
+			p := newspaper.DefaultProfile()
+			p.Sections = []string{tc.section, "technology"}
+			p.Interests = []string{tc.interest, "unrelated"}
+			caps := newspaperResearchCapabilities{Ready: true, Tools: []newspaperResearchTool{{ID: "rss", State: "ready"}, {ID: "web_scraper", State: "ready"}}}
+			var calls atomic.Int32
+			r := &newspaperResearchRun{
+				profile: p, topics: newspaperTopics(p), cutoff: time.Now(), initial: caps, progress: func(newspaper.Progress) {},
+				io: newspaperResearchIO{
+					Capabilities: func() newspaperResearchCapabilities { return caps },
+					Feed: func(_ context.Context, raw string) ([]newspaperHit, error) {
+						calls.Add(1)
+						if raw != tc.url {
+							t.Errorf("feed URL=%q, want %q", raw, tc.url)
+						}
+						return []newspaperHit{{Title: tc.headline, URL: "https://publisher.example/original", Published: time.Now().UTC().Format(time.RFC3339)}}, nil
+					},
+				},
+				budget: newspaper.Budget{Pages: 20, Overviews: 10}, maxPages: 20,
+				stats: newspaper.ResearchStats{Rejected: map[string]int{}, Coverage: map[string]int{}, Tools: map[string]string{}},
+				seen:  map[[32]byte]bool{}, recent: map[string]bool{}, overviewSeen: map[string]bool{},
+			}
+			if got := r.initialOverviewRequests(); len(got) != 0 {
+				t.Fatalf("unselected source generated requests: %+v", got)
+			}
+			r.io.OverviewSources = []string{tc.source}
+			r.overviews(context.Background(), 0)
+			r.overviews(context.Background(), 1)
+			if calls.Load() != 1 || r.stats.Overviews != 1 || len(r.pending) != 1 || len(r.draft.Sources) != 0 || len(r.overviewLeads) != 1 {
+				t.Fatalf("expected one bounded fetch and an original lead without evidence: calls=%d stats=%+v pending=%+v leads=%+v", calls.Load(), r.stats, r.pending, r.overviewLeads)
+			}
+			lead := r.overviewLeads[0]
+			if lead.Source != tc.source || len(lead.TopicIDs) != 2 || !slices.Contains(lead.TopicIDs, tc.section) || slices.Contains(lead.TopicIDs, "technology") {
+				t.Fatalf("overview was not scoped to its section and matching interest: %+v", lead)
+			}
+			for _, topic := range r.topics {
+				if slices.Contains(lead.TopicIDs, topic.ID) != (topic.Section == tc.section || topic.Label == tc.interest) {
+					t.Fatalf("incorrect association for topic %+v: %+v", topic, lead)
+				}
+			}
+			r.io.LiveOverviewSources = func() []string { return nil }
+			if got := r.initialOverviewRequests(); len(got) != 0 {
+				t.Fatalf("revoked source generated requests: %+v", got)
+			}
+			r.io.LiveOverviewSources = nil
+			r.topics = []newspaperTopic{{ID: "technology", Section: "technology"}}
+			if got := r.initialOverviewRequests(); len(got) != 0 {
+				t.Fatalf("unrelated section generated requests: %+v", got)
+			}
+		})
 	}
 }
 

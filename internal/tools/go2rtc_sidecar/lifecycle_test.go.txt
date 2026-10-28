@@ -1,0 +1,58 @@
+package webrtc
+
+import (
+    "net/http/httptest"
+    "testing"
+
+    "github.com/AlexxIT/go2rtc/internal/api/ws"
+    "github.com/AlexxIT/go2rtc/internal/streams"
+    "github.com/AlexxIT/go2rtc/pkg/core"
+    pion "github.com/pion/webrtc/v4"
+)
+
+type auraGoTestProducer struct { core.Connection }
+func (p *auraGoTestProducer) Start() error { return nil }
+
+// Exercise the actual pinned upstream handler, with real Pion offer/answer
+// processing and a synthetic H264 source. No camera, STUN or GPU is contacted.
+func TestAuraGoSocketCloseTerminatesPeer(t *testing.T) {
+    original := PeerConnection
+    defer func() { PeerConnection = original }()
+    var peer *pion.PeerConnection
+    PeerConnection = func(bool) (*pion.PeerConnection, error) {
+        var err error
+        peer, err = pion.NewPeerConnection(pion.Configuration{ICEServers: []pion.ICEServer{}})
+        return peer, err
+    }
+    stream, err := streams.New("aurago-lifecycle-test")
+    if err != nil { t.Fatal(err) }
+    defer streams.Delete("aurago-lifecycle-test")
+    stream.AddProducer(&auraGoTestProducer{core.Connection{Medias: []*core.Media{{Kind: core.KindVideo, Direction: core.DirectionRecvonly, Codecs: []*core.Codec{{Name: core.CodecH264, ClockRate: 90000}}}}}})
+    client, err := pion.NewPeerConnection(pion.Configuration{ICEServers: []pion.ICEServer{}})
+    if err != nil { t.Fatal(err) }
+    defer client.Close()
+    if _, err = client.AddTransceiverFromKind(pion.RTPCodecTypeVideo, pion.RTPTransceiverInit{Direction: pion.RTPTransceiverDirectionRecvonly}); err != nil { t.Fatal(err) }
+    offer, err := client.CreateOffer(nil)
+    if err != nil { t.Fatal(err) }
+    transport := &ws.Transport{Request: httptest.NewRequest("GET", "http://localhost/api/ws?src=aurago-lifecycle-test", nil)}
+    transport.OnWrite(func(any) error { return nil })
+    if err := asyncHandler(transport, &ws.Message{Type: "webrtc/offer", Value: offer.SDP}); err != nil { t.Fatal(err) }
+    if peer.SignalingState() == pion.SignalingStateClosed { t.Fatal("peer closed before revocation") }
+    transport.Close()
+    if peer.SignalingState() != pion.SignalingStateClosed { t.Fatal("socket close left the media peer alive") }
+}
+
+func TestAuraGoInvalidOfferClosesPeer(t *testing.T) {
+    original := PeerConnection
+    defer func() { PeerConnection = original }()
+    peer, err := pion.NewPeerConnection(pion.Configuration{ICEServers: []pion.ICEServer{}})
+    if err != nil { t.Fatal(err) }
+    defer peer.Close()
+    PeerConnection = func(bool) (*pion.PeerConnection, error) { return peer, nil }
+    _, _ = streams.New("aurago-invalid-offer")
+    defer streams.Delete("aurago-invalid-offer")
+    transport := &ws.Transport{Request: httptest.NewRequest("GET", "http://localhost/api/ws?src=aurago-invalid-offer", nil)}
+    transport.OnWrite(func(any) error { return nil })
+    if asyncHandler(transport, &ws.Message{Type: "webrtc/offer", Value: "not SDP"}) == nil { t.Fatal("invalid offer accepted") }
+    if peer.SignalingState() != pion.SignalingStateClosed { t.Fatal("failed offer leaked a peer") }
+}

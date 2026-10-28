@@ -398,6 +398,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	var cfg Config
+	cfg.Tools.QRCode.ReadOnly = true
 	cfg.Agent.ActionPolicy.Enabled = true
 	cfg.Sandbox.Enabled = true
 	cfg.Agent.MaxCronJobs = 1000
@@ -879,6 +880,7 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.ScanEmails = false
 	cfg.Guardian.MaxScanBytes = 16 * 1024
 	cfg.Guardian.ScanEdgeBytes = 6 * 1024
+	cfg.Guardian.InjectionGuard.Action = "quarantine"
 	cfg.Guardian.PromptSec.Preset = "strict"
 	cfg.Guardian.PromptSec.Spotlight = false
 	cfg.Guardian.PromptSec.Canary = false
@@ -914,6 +916,7 @@ func Load(path string) (*Config, error) {
 	cfg.AgentMail.UseWebSocket = true
 	cfg.AgentMail.PollIntervalSeconds = 120
 	cfg.AgentMail.MaxAttachmentMB = 10
+	cfg.AgentMail.AllowedSenders = []string{}
 
 	// Grafana defaults: read-only observability access when explicitly enabled.
 	cfg.Grafana.RequestTimeout = 15
@@ -1206,6 +1209,10 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	cfg.Tools.DocumentCreator.Gotenberg.URL = NormalizeLegacySidecarURL(cfg.Tools.DocumentCreator.Gotenberg.URL, runningInDocker, "gotenberg", 3000)
+	if strings.TrimSpace(cfg.Tools.DocumentCreator.Gotenberg.URL) == "" {
+		cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)
+	}
 	if err := ValidateRuViewConfig(cfg.RuView, runningInDocker); err != nil {
 		return nil, fmt.Errorf("invalid ruview configuration: %w", err)
 	}
@@ -1225,6 +1232,9 @@ func Load(path string) (*Config, error) {
 	// Person detection: defaults for unset values, then the same validation the
 	// config UI and the camera app apply before they write the file.
 	NormalizeGo2RTCDetection(&cfg.Go2RTC)
+	if err := ValidateGo2RTCMedia(cfg.Go2RTC); err != nil {
+		return nil, err
+	}
 	if err := ValidateGo2RTCDetection(cfg.Go2RTC); err != nil {
 		return nil, fmt.Errorf("invalid go2rtc detection config: %w", err)
 	}
@@ -1839,6 +1849,9 @@ func Load(path string) (*Config, error) {
 
 	// Fill defaults for expanded guardian.promptsec options.
 	cfg.MigratePromptSecDefaults(data)
+	if err := ValidateInjectionGuardConfig(&cfg); err != nil {
+		return nil, err
+	}
 
 	// Resolve provider references → populates all yaml:"-" fields.
 	// Legacy migration creates provider entries from inline fields if Providers is empty.
@@ -2322,6 +2335,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Koofr.BaseURL == "" {
 		cfg.Koofr.BaseURL = "https://app.koofr.net"
+	}
+	if err := NormalizeRustFSConfig(&cfg); err != nil {
+		return nil, fmt.Errorf("invalid S3/RustFS configuration: %w", err)
 	}
 	if cfg.S3.Region == "" {
 		cfg.S3.Region = "us-east-1"
@@ -3096,6 +3112,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"personality", "core_personality"}, c.Personality.CorePersonality},
 		{[]string{"server", "ui_language"}, c.Server.UILanguage},
 		{[]string{"llm_router"}, c.LLMRouter},
+		{[]string{"tools", "document_creator", "allow_remote_resources"}, c.Tools.DocumentCreator.AllowRemoteResources},
 		{[]string{"auth", "enabled"}, c.Auth.Enabled},
 		{[]string{"webhooks", "outgoing"}, c.Webhooks.Outgoing},
 		{[]string{"uptime_kuma", "enabled"}, c.UptimeKuma.Enabled},
@@ -3120,6 +3137,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"agentmail", "max_attachment_mb"}, c.AgentMail.MaxAttachmentMB},
 		{[]string{"agentmail", "base_url"}, c.AgentMail.BaseURL},
 		{[]string{"agentmail", "websocket_url"}, c.AgentMail.WebSocketURL},
+		{[]string{"agentmail", "allowed_senders"}, c.AgentMail.AllowedSenders},
 		{[]string{"grafana", "enabled"}, c.Grafana.Enabled},
 		{[]string{"grafana", "base_url"}, c.Grafana.BaseURL},
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},
@@ -3180,6 +3198,8 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "webrtc", "bind_address"}, c.Go2RTC.WebRTC.BindAddress},
 		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
+		{[]string{"go2rtc", "tuya_accounts"}, c.Go2RTC.TuyaAccounts},
+		{[]string{"go2rtc", "hardware"}, c.Go2RTC.Hardware},
 		{[]string{"go2rtc", "detection"}, c.Go2RTC.Detection},
 		{[]string{"decisions", "enabled"}, c.Decisions.Enabled},
 		{[]string{"decisions", "backend"}, c.Decisions.Backend},

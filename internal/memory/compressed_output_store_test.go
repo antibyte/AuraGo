@@ -103,6 +103,36 @@ func TestCompressedOutputStore(t *testing.T) {
 	}
 }
 
+func TestCompressedOutputStorePreservesOperationAndReplacementSource(t *testing.T) {
+	stm, err := NewSQLiteMemory(":memory:", migrationTestLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stm.Close()
+	ctx := context.Background()
+	out := &CompressedToolOutput{SessionID: "fixture", ToolCallID: "same-call", ToolName: "filesystem", ToolOperation: "read_file", OriginalContent: "ordinary file", CompressedContent: "compact"}
+	for _, operation := range []string{"read_file", "gmail_read", "drive_list"} {
+		if operation != "read_file" {
+			out.ToolName = "google_workspace"
+		}
+		out.ToolOperation = operation
+		if err := stm.StoreCompressedOutput(ctx, out); err != nil {
+			t.Fatal(err)
+		}
+		for _, byRef := range []bool{false, true} {
+			var got *CompressedToolOutput
+			if byRef {
+				got, err = stm.RetrieveCompressedOutputByRef(ctx, out.SessionID, out.OutputRef)
+			} else {
+				got, err = stm.RetrieveCompressedOutput(ctx, out.SessionID, out.ToolCallID)
+			}
+			if err != nil || got.ToolName != out.ToolName || got.ToolOperation != operation {
+				t.Fatalf("archive source mismatch: %+v err=%v", got, err)
+			}
+		}
+	}
+}
+
 func TestCompressedOutputStore_PreservesProvidedOutputRefAndSummary(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	stm, err := NewSQLiteMemory(":memory:", logger)

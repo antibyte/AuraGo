@@ -263,7 +263,7 @@ func (e *Engine) executeNode(ctx context.Context, def *NodeDef, n *Node, in Exec
 	if refusal != nil {
 		return fail(refusal)
 	}
-	params, err := ResolveParams(withDefaults(def, n.Params), in.Env)
+	params, err := resolveParams(withDefaults(def, n.Params), in.Env, def.fencedParams())
 	if err != nil {
 		return fail(&NodeError{Code: "FLOW_TEMPLATE_ERROR", Message: err.Error()})
 	}

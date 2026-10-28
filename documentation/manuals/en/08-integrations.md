@@ -209,6 +209,7 @@ agentmail:
     poll_interval_seconds: 120
     relay_to_agent: false
     relay_cheatsheet_id: ""
+    allowed_senders: []      # addresses or @domain entries whose mail the relay may hand to the agent
     max_attachment_mb: 10
     base_url: https://api.agentmail.to
     websocket_url: wss://ws.agentmail.to/v0
@@ -217,6 +218,8 @@ agentmail:
 > 🔒 The API key is stored in the Vault as `agentmail_api_key`, not in `config.yaml`.
 
 Use the focused `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads`, and `agentmail_drafts` tools in chat. The legacy `agentmail` name remains accepted as a compatibility alias.
+
+The relay only hands mail to the agent when its sender is listed in `allowed_senders` (a full address, or `@example.com` for that exact domain; case-insensitive, matched on the `From` address). While the list is empty, no mail reaches the agent: for every message the owner gets a fixed quarantine notice instead, so a relay that seems silent is explained by the notice and by a warning in the security check. Once the list has entries, mail from any other sender is ignored without a notice. The `From` header can be forged, so the list narrows who can reach the agent but does not prove identity: keep it short and turn on `llm_guardian.scan_emails` as well (the security check warns while the relay runs without it).
 
 When email scanning is enabled, a quarantined AgentMail result contains a safe notice instead of message content. For tool operations, the operation status is preserved, but quarantined content is not returned or relayed; quarantine does not authorize replying or changing labels.
 
@@ -687,6 +690,8 @@ Use `operation: "play"` for direct HTTP(S) audio or video URLs. Direct videos sh
 chromecast:
     enabled: true
     tts_port: 8090
+    advertise_host: ""
+    read_only: false
     media_host_allowlist:
         - "192.168.1.10"
         - "media.lan:8096"
@@ -2575,7 +2580,7 @@ virtual_desktop:
 
 **RuView** integrates Wi-Fi sensing ([RuView v3122](https://github.com/ruvnet/RuView)) including its dashboard, observatory, pose fusion, calibration, recording and training views. AuraGo's management speaks all 16 languages; upstream views keep their original language. Wi-Fi sensing is experimental — connectivity proves nothing about measurement, presence or pose accuracy.
 
-**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** opens the desktop app, where **Install runtime** and **Start** manage a managed runtime; **Configure board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi. Walkthrough: [Chapter 30](30-ruview.md).
+**Web UI:** **Config → RuView** — enable the integration, pick a runtime and source, save. Start and agent access are disabled by default; read-only starts enabled. **Open RuView** opens the desktop app, where the next step in the Status view (**Install** or **Start service**) and the **⋯** menu (**Install service**) manage a managed runtime; **Configure board** flashes ESP32 firmware over USB (Web Serial) and provisions Wi-Fi. Walkthrough: [Chapter 30](30-ruview.md).
 
 **Runtimes:**
 

@@ -146,6 +146,9 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 		mux.HandleFunc("/api/containers", handleContainersList(s))
 		mux.HandleFunc("/api/containers/", handleContainerAction(s))
 
+		// ── Docker Manager API ──
+		mux.HandleFunc("/api/docker-manager/", handleDockerManager(s))
+
 		// ── Daemon Skills API ──
 		// Always register daemon routes so the frontend gets proper JSON errors
 		// instead of a 404 when daemon_skills.enabled = false (the default).

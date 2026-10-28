@@ -12,7 +12,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const shortTermSchemaVersion = 15
+const shortTermSchemaVersion = 16
 const legacyMemorySchemaVersion = 12
 
 type memorySchemaStep struct {
@@ -105,6 +105,14 @@ func memorySchemaSteps() []memorySchemaStep {
 		{version: 13, apply: migratePrivacyScrub},
 		{version: 14, apply: migrateMaintenanceProgress},
 		{version: 15, apply: migrateMemoryArchives},
+		{version: 16, apply: func(ctx context.Context, tx *sql.Tx) error {
+			var exists bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM pragma_table_info('compressed_tool_outputs') WHERE name='tool_operation')`).Scan(&exists); err != nil || exists {
+				return err
+			}
+			_, err := tx.ExecContext(ctx, `ALTER TABLE compressed_tool_outputs ADD COLUMN tool_operation TEXT NOT NULL DEFAULT ''`)
+			return err
+		}},
 	}
 }
 

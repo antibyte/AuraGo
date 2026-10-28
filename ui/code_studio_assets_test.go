@@ -84,3 +84,33 @@ func readEmbeddedText(t *testing.T, path string) string {
 	}
 	return string(raw)
 }
+
+// The shared CodeMirror bundle keeps every export the other editors use and adds YAML and the lint pieces of the Docker Manager.
+func TestCodeMirrorBundleExportsYAMLAndLint(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := Content.ReadFile("js/vendor/codemirror-bundle.esm.js")
+	if err != nil {
+		t.Fatalf("CodeMirror bundle missing from embedded UI: %v", err)
+	}
+	text := string(bundle)
+	start := strings.LastIndex(text, "\nexport {")
+	if start < 0 {
+		t.Fatal("CodeMirror bundle has no export list")
+	}
+	list := strings.TrimSpace(text[start:])
+	list = strings.TrimSuffix(strings.TrimPrefix(list, "export {"), "};")
+	exported := map[string]bool{}
+	for _, name := range strings.Split(list, ",") {
+		exported[strings.TrimSpace(name)] = true
+	}
+	for _, want := range []string{
+		"EditorView", "EditorState", "Compartment", "keymap", "lineNumbers", "history", "defaultKeymap", "indentWithTab", "javascript", "python", "go", "rust", "cpp", "json", "html", "css", "markdown",
+		"oneDark", "syntaxHighlighting", "defaultHighlightStyle", "autocompletion", "closeBrackets", "lintKeymap",
+		"yaml", "linter", "lintGutter", "setDiagnostics",
+	} {
+		if !exported[want] {
+			t.Errorf("CodeMirror bundle does not export %q", want)
+		}
+	}
+}

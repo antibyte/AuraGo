@@ -130,6 +130,33 @@ func canonicalActionTargets(tc ToolCall, dc *DispatchContext) ([]string, bool) {
 		add("server_id", selector)
 	}
 	switch tc.Action {
+	case "qr_code":
+		qrRef := func(root, value string) {
+			if value == "" {
+				return
+			}
+			if root == "" || root == "workspace" {
+				file(value)
+			} else if root == "desktop" {
+				add("desktop_file", filepath.ToSlash(filepath.Clean(value)))
+			} else {
+				unknown = true
+			}
+		}
+		qrRef(toolArgString(tc.Params, "output_root"), toolArgString(tc.Params, "output_path"))
+		for _, key := range []string{"input_ref", "config_ref", "logo_ref", "frame_image_ref", "csv_ref"} {
+			if ref, ok := tc.Params[key].(map[string]interface{}); ok {
+				qrRef(toolArgString(ref, "root"), toolArgString(ref, "path"))
+			}
+		}
+		for _, key := range []string{"logo_url", "frame_image_url"} {
+			if value := toolArgString(tc.Params, key); value != "" {
+				endpoint(value)
+			}
+		}
+		if len(targets) == 0 {
+			add("tool", "qr_code")
+		}
 	case "execute_shell", "execute_python", "execute_sudo", "run_tool", "execute_skill", "run_agent_skill_script":
 		add("host", "local")
 	case "docker":
@@ -148,6 +175,43 @@ func canonicalActionTargets(tc ToolCall, dc *DispatchContext) ([]string, bool) {
 				unknown = true // Host/container path semantics depend on direction.
 			}
 		} else {
+			unknown = true
+		}
+	case "s3_storage", "s3":
+		req := decodeS3Args(tc)
+		provider, bucket := "external", req.Bucket
+		if dc != nil && dc.Cfg != nil {
+			if dc.Cfg.S3.Provider != "" {
+				provider = dc.Cfg.S3.Provider
+			}
+			if bucket == "" {
+				if provider == "rustfs" {
+					bucket = dc.Cfg.RustFS.Bucket
+				} else {
+					bucket = dc.Cfg.S3.Bucket
+				}
+			}
+		}
+		add("s3_provider", provider)
+		object := func(b, k string) { add("s3_object", provider+"/"+b+"/"+url.PathEscape(k)) }
+		switch req.Operation {
+		case "list_buckets":
+		case "list", "list_objects":
+			add("s3_prefix", provider+"/"+bucket+"/"+url.PathEscape(req.Prefix))
+		default:
+			object(bucket, req.Key)
+		}
+		if req.Operation == "copy" || req.Operation == "move" {
+			dest := req.DestinationBucket
+			if strings.TrimSpace(dest) == "" {
+				dest = bucket
+			}
+			object(dest, req.DestinationKey)
+		}
+		if req.Operation == "upload" || req.Operation == "download" {
+			file(req.LocalPath)
+		}
+		if bucket == "" && req.Operation != "list_buckets" {
 			unknown = true
 		}
 	case "execute_remote_shell":

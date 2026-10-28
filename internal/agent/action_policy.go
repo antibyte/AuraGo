@@ -20,6 +20,7 @@ import (
 type ActionDescriptor struct {
 	targets       []string
 	targetUnknown bool
+	egressSecret  bool   // A registered secret value sits in the arguments of an egress call.
 	Tool          string `json:"tool"`
 	Operation     string `json:"operation"`
 	Target        string `json:"target"`
@@ -71,6 +72,8 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	}
 	a.Mutating = !readActionOperation(a.Operation)
 	switch tc.Action {
+	case "qr_code":
+		a.Mutating = a.Operation != "presets" && a.Operation != "scan"
 	case "discover_tools", "read_tool_manual", "query_inventory", "query_memory", "context_memory", "context_manager", "web_capture", "brave_search", "web_search", "web_scraper":
 		a.Mutating = false
 	case "execute_shell", "execute_python", "run_tool", "execute_skill", "run_agent_skill_script":
@@ -133,6 +136,7 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 			}
 		}
 	}
+	applyExtendedActionRisk(&a, tc, dc, args)
 	a.targets, a.targetUnknown = canonicalActionTargets(tc, dc)
 	a.Target = actionTargetSummary(a.targets)
 	return a
@@ -263,7 +267,11 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		return actionPolicyRefusal("policy_unavailable", "Execution policy is unavailable.", ToolResultDenied)
 	}
 	if !dispatchToolAllowed(dc, tc.Action) || tc.TransportAction != "" && !dispatchToolAllowed(dc, tc.TransportAction) {
-		return actionPolicyRefusal("tool_scope_denied", "The tool is outside this run's scope.", ToolResultDenied)
+		denied := tc.Action
+		if dispatchToolAllowed(dc, denied) {
+			denied = tc.TransportAction
+		}
+		return scopeDeniedRefusal(dc, denied)
 	}
 	if reason := roleToolRestriction(tc, dc); reason != "" {
 		return &ToolDispatchResult{Output: reason, Status: ToolResultDenied, IsError: true}
@@ -274,7 +282,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	a := DescribeAction(tc, dc)
 	if a.Mutating && strings.Contains(tc.Action, "config") {
 		payload, _ := json.Marshal(tc)
-		if strings.Contains(strings.ToLower(string(payload)), "action_policy") {
+		if strings.Contains(strings.ToLower(string(payload)), "action_policy") || strings.Contains(strings.ToLower(string(payload)), "injection_guard") {
 			return actionPolicyRefusal("operator_configuration_required", "Action policy rules can only be changed through the administrator configuration UI/API.", ToolResultDenied)
 		}
 	}
@@ -316,6 +324,14 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			}
 		}
 	}
+	// A registered secret never leaves through an egress call, with policy off, an
+	// allow rule or an approval alike.
+	if a.egressSecret {
+		return egressSecretRefusal(dc, a)
+	}
+	if privateURLExfiltration(tc, dc) {
+		return actionPolicyRefusal("possible_exfiltration", "The URL contains private conversation, file or email content after an external read. Use web_search for research; an exact URL must be supplied by the authenticated user.", ToolResultDenied)
+	}
 	// A copied isolated span waits even when policy is off and even when an allow rule matches.
 	if stop, refusal := gateCopiedIsolatedSpan(ctx, tc, dc, a); stop {
 		return refusal
@@ -331,7 +347,10 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	if tc.Action == "treg_call" {
 		return nil
 	}
-	if !a.HighRisk {
+	// An unattended fetch or probe is not high-risk, but when its URL or host carries
+	// text copied from earlier isolated output it needs a rule that names it.
+	fetchCopy := !a.HighRisk && a.RunType != "interactive" && copiedFetchSpan(tc, dc)
+	if !a.HighRisk && !fetchCopy {
 		return nil
 	}
 	if grant, ok := ctx.Value(approvedActionKey{}).(approvedActionGrant); ok && grant.SessionID == dc.SessionID && grant.ArgumentsHash == a.ArgumentsHash {
@@ -342,6 +361,9 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	}
 	if preview, _ := ctx.Value(actionPreviewKey{}).(bool); preview {
 		return actionPolicyRefusal("action_rule_required", "A matching administrator rule or one-shot approval is required.", ToolResultDenied)
+	}
+	if fetchCopy {
+		return actionPolicyRefusal("action_rule_required", "This unattended request carries text copied from earlier isolated tool output in its URL or host. It needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)
 	}
 	if a.RunType != "interactive" {
 		return actionPolicyRefusal("action_rule_required", "This high-risk unattended action needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)

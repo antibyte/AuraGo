@@ -275,6 +275,18 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Launchpad** | Managed URL collections as a desktop app: links with categories and icons (search in the icon catalog, icon download) |
 | **God's Eye View** | Store app: a Cesium-based 3D globe in a managed container. The Store setup dialog takes optional provider keys (Vault only) and allowed AuraGo origins; start/stop stays in the Store, the frame starts maximized and grants microphone capability to itself only |
 
+#### Homepage Studio: marking changes in the preview
+
+Select **Annotate page** (pen icon) in the preview toolbar. The button is disabled when no preview is available. AuraGo captures the page at the width of the selected device (1280, 768 or 390 px) and shows it as a still image. Click an element or drag over an area, type what should change and press Enter. An empty comment cancels the mark. Each mark gets a number and appears as a chip above the chat input. You can add up to 20 marks.
+
+Your next message sends the marks along: the agent receives your comments, the numbered crops and the element details (selector, text, attributes, position). You can send marks without typing a message. The sent message lists your comments by number and shows a thumbnail of the marked image.
+
+Use **Page path** and **Recapture** to capture a sub-page. If marks exist, Recapture asks for confirmation and then discards them. **Done** returns to the live preview and keeps the marks as chips.
+
+With the keyboard, Tab and Shift+Tab move between the page's elements, and Enter adds a mark to the focused element. Tab past the last element moves on to **Page path**, **Recapture** and **Done**. Esc closes an open comment box first; a second Esc leaves annotate mode. Delete on a chip removes its mark.
+
+AuraGo captures the local preview and public deployments. Marks are discarded when you change the target. With a deployed target, switching to another site discards them too. Marks are not saved, so reloading the page removes them.
+
 ### Retro-Net in the Terminal
 
 **Retro-Net** turns the Desktop terminal into a dialing directory for text services that are still online: Telnet bulletin board systems, Commodore 64 boards, multi-user dungeons, Telehack, an ASCII world map, the Star Wars ASCII animation, the Free Internet Chess Server and a few anonymous SSH games. You pick an entry, the terminal "dials" with a short modem sequence, and the session runs inside the chosen retro terminal style.

@@ -1048,8 +1048,9 @@ func uniqueStrings(values []string) []string {
 // localI18nHelper is a file-local translation helper that prepends a fixed
 // prefix to a bare key, such as `tr = key => ctx.t('desktop.gog.' + key)`.
 type localI18nHelper struct {
-	name   string
-	prefix string
+	name        string
+	prefix      string
+	skipContext bool
 }
 
 // desktopLocalI18nHelpers registers Desktop app files whose local helper the
@@ -1057,6 +1058,11 @@ type localI18nHelper struct {
 // Register every new prefix helper here so its keys stay verified. Config page
 // scripts under cfg/ are scanned by the same check (path form: cfg/ruview.js).
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/go2rtc-tuya.js":                          {name: "translate", prefix: "common.go2rtc_tuya."},
+	"js/go2rtc-source-form.js":                   {name: "t", prefix: "common.go2rtc_source."},
+	"js/desktop/apps/network-cameras.js":         {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
+	"js/desktop/apps/network-cameras-media.js":   {name: "text", prefix: "desktop.network_cameras.", skipContext: true},
+	"js/desktop/shared/qr-dialog.js":             {name: "tr", prefix: "desktop.qr_"},
 	"js/desktop/apps/minigolf-game.js":           {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-views.js":          {name: "tr", prefix: "minigolf."},
 	"js/desktop/apps/minigolf-hud.js":            {name: "tr", prefix: "minigolf."},
@@ -1073,6 +1079,22 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/rtl-sdr-runtime.js":         {name: "tr", prefix: "rtlSdr."},
 	"js/desktop/apps/rtl-sdr.js":                 {name: "t", prefix: "rtlSdr."},
 	"js/desktop/apps/ruview.js":                  {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-model.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-store.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/ruview-views.js":            {name: "t", prefix: "ruview."},
+	"js/desktop/apps/docker-manager.js":          {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-model.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-store.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-views.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-dialogs.js":  {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-stacks.js":   {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-editor.js":   {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-ops.js":      {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-palette.js":  {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-logs.js":     {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-terminal.js": {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-panes.js":    {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-newstack.js": {name: "t", prefix: "docker_manager."},
 	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }
 
@@ -1082,6 +1104,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 // the literal prefix, so every family needs its own "exists in every locale"
 // guarantee.
 var desktopDynamicI18nPrefixes = []string{
+	"desktop.qr_",
 	"homepage_studio.sites_drift_",
 	"homepage_studio.sites_origin_",
 	"homepage_studio.sites_target_",
@@ -1089,7 +1112,37 @@ var desktopDynamicI18nPrefixes = []string{
 	"homepage_studio.sites_reason_",
 	"homepage_studio.history_type_",
 	"homepage_studio.history_filter_",
+	"homepage_studio.annotate_error_",
 	"homepage_studio.target_",
+	"docker_manager.status_",
+	"docker_manager.action_",
+	"docker_manager.reason_",
+	"docker_manager.error_",
+	"docker_manager.filter_",
+	"docker_manager.kind_",
+	"docker_manager.color_",
+	"docker_manager.col_",
+	"docker_manager.host_",
+	"docker_manager.protected_",
+	"docker_manager.tab_",
+	"docker_manager.nest_method_",
+	"docker_manager.v_",
+	"docker_manager.stack_status_",
+	"docker_manager.stab_",
+	"docker_manager.age_",
+	"docker_manager.svc_state_",
+	"docker_manager.svc_health_",
+	"docker_manager.op_kind_",
+	"docker_manager.lint_",
+	"docker_manager.op_state_",
+	"docker_manager.palette_",
+	"docker_manager.sv_name_",
+	"docker_manager.convert_",
+	"docker_manager.preview_kind_",
+	"docker_manager.preview_var_",
+	"docker_manager.logs_state_",
+	"docker_manager.logs_notice_",
+	"docker_manager.term_status_",
 }
 
 // desktopDynamicI18nPrefixKeys returns every merged English key that belongs to
@@ -1137,7 +1190,11 @@ func localI18nHelperKeys(relPath, content string) []string {
 	if !ok {
 		return nil
 	}
-	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(helper.name) + `\(\s*['"]([a-zA-Z0-9_]+)['"]\s*[,)]`)
+	contextPattern := ""
+	if helper.skipContext {
+		contextPattern = `[^,()]+,\s*`
+	}
+	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(helper.name) + `\(\s*` + contextPattern + `['"]([a-zA-Z0-9_]+)['"]\s*[,)]`)
 	var keys []string
 	for _, match := range pattern.FindAllStringSubmatch(content, -1) {
 		keys = append(keys, helper.prefix+match[1])

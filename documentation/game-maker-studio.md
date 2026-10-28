@@ -144,6 +144,14 @@ when a stream times out despite continued output. The server's `[Stream] Complet
 summary` distinguishes answer bytes, private reasoning bytes and tool calls without
 logging their contents. Continued reasoning alone does not establish game progress
 or justify raising the timeout.
+This concerns the per-call deadline, not the silence window inside a stream: once a
+Studio stream has delivered output, reasoning or a tool-call start, it may stay
+silent for up to 120 s before it counts as stalled (a larger configured
+`circuit_breaker.llm_stream_chunk_timeout_seconds` applies). Some gateways send
+nothing while the model writes a large tool-call argument such as a complete source
+file. The first token still waits for the whole call budget. In the agent loop's tool
+rounds one stalled stream per run is retried once; a stall in the bounded starter
+source generation fails that attempt.
 StepFun's top-level `usage.cached_tokens` is normalized for both JSON and SSE;
 OpenAI uses `prompt_tokens_details.cached_tokens`. Anthropic cached reads/writes
 are included in total input, and repeated cumulative SSE counters count once.
@@ -797,7 +805,11 @@ returns relative paths and counts only. `GET /projects/{id}` also returns
 `latest_job` and, when one was stored, `plan_summary`. SSE event IDs are
 monotonic and support reconnecting with `Last-Event-ID`. `plan_summary` is
 one of those events. A finished `job_status` includes `error_code` and the
-check counts. When `prompt_usage` calls exist, the nested job also carries
+check counts. Codes are `planning`, `planning_protocol`, `validation`,
+`preview`, `timeout`, `cancelled`, `model` and `internal`. `planning_protocol`
+means the model never submitted a design through the Game Maker tools, so no
+correction budget was spent; `planning` means submitted designs were rejected.
+When `prompt_usage` calls exist, the nested job also carries
 `usage` with `calls`, plus `tokens` or `cost_usd` only when every call reported
 that measurement. Start-job accepts `adopt_workspace: true` alone to test the
 current workspace and publish it without a model.

@@ -1,0 +1,4 @@
+# Unified diff context contains a required leading space before Go tabs.
+lifecycle.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
+Dockerfile text eol=lf
+*.txt text eol=lf

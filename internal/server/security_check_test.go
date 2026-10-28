@@ -1069,3 +1069,47 @@ func TestCheckSecurityWarnsOnMeshCentralPlaintextAndInsecure(t *testing.T) {
 		t.Fatalf("expected meshcentral_insecure hint, got %#v", hints)
 	}
 }
+
+// The AgentMail relay wakes the agent on inbound mail: the hints say when only
+// the local scan guards it and when an empty sender list silences it.
+func TestCheckSecurityAgentMailRelayHints(t *testing.T) {
+	base := func() *config.Config {
+		cfg := &config.Config{}
+		cfg.AgentMail.Enabled, cfg.AgentMail.RelayToAgent = true, true
+		return cfg
+	}
+	cases := []struct {
+		name                         string
+		mutate                       func(*config.Config)
+		wantUnscanned, wantNoSenders bool
+	}{
+		{"relay without scan and senders", func(*config.Config) {}, true, true},
+		{"scan on, no senders", func(cfg *config.Config) { cfg.LLMGuardian.ScanEmails = true }, false, true},
+		{"senders listed, scan off", func(cfg *config.Config) { cfg.AgentMail.AllowedSenders = []string{"@example.test"} }, true, false},
+		{"scan on and senders listed", func(cfg *config.Config) {
+			cfg.LLMGuardian.ScanEmails = true
+			cfg.AgentMail.AllowedSenders = []string{"anna@example.test"}
+		}, false, false},
+		{"relay off", func(cfg *config.Config) { cfg.AgentMail.RelayToAgent = false }, false, false},
+		{"integration off", func(cfg *config.Config) { cfg.AgentMail.Enabled = false }, false, false},
+		{"egg mode", func(cfg *config.Config) { cfg.EggMode.Enabled = true }, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := base()
+			tc.mutate(cfg)
+			hints := CheckSecurity(cfg)
+			if got := hasSecurityHint(hints, "agentmail_relay_unscanned"); got != tc.wantUnscanned {
+				t.Fatalf("agentmail_relay_unscanned = %v, want %v", got, tc.wantUnscanned)
+			}
+			if got := hasSecurityHint(hints, "agentmail_relay_no_senders"); got != tc.wantNoSenders {
+				t.Fatalf("agentmail_relay_no_senders = %v, want %v", got, tc.wantNoSenders)
+			}
+			for _, id := range []string{"agentmail_relay_unscanned", "agentmail_relay_no_senders"} {
+				if hint := findSecurityHint(hints, id); hint != nil && (hint.Severity != SevWarning || hint.AutoFixable) {
+					t.Fatalf("%s = %#v, want a manual warning", id, hint)
+				}
+			}
+		})
+	}
+}

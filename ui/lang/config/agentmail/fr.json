@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Expéditeurs autorisés",
   "config.agentmail.api_key_empty": "Veuillez d'abord saisir une clé API.",
   "config.agentmail.api_key_label": "Clé API (Vault)",
   "config.agentmail.api_key_placeholder": "Saisir la clé API AgentMail…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "Utiliser WebSocket",
   "config.agentmail.websocket_url_label": "URL WebSocket",
   "config.agentmail.yes": "Oui",
+  "help.agentmail.allowed_senders": "Une entrée par ligne : une adresse complète (anna@example.com) ou un domaine entier (@example.com). Seuls les e-mails de ces expéditeurs parviennent à l'agent ; ceux de tous les autres sont ignorés. Tant que la liste est vide, aucun e-mail n'atteint l'agent et seul un avis de quarantaine est remis pour chaque message. L'en-tête From peut être falsifié : gardez la liste courte et laissez l'analyse des e-mails par LLM activée.",
   "help.agentmail.api_key": "Clé API AgentMail. Elle est stockée de façon sécurisée dans le Vault chiffré.",
   "help.agentmail.auto_create_inbox": "Permet aux flux de configuration de créer automatiquement la boîte si pris en charge.",
   "help.agentmail.base_url": "URL de base de l'API REST AgentMail.",

@@ -29,6 +29,9 @@ func TestValidateGo2RTCSourceAllowsOnlyNetworkSources(t *testing.T) {
 		"http://camera.local/snapshot",
 		"https://camera.local/stream",
 		"onvif://camera.local",
+		"tapo://cloud-password@192.168.1.123",
+		"ring:?device_id=1&refresh_token=x",
+		"webrtc:wss://example.org/ws",
 	} {
 		if err := ValidateGo2RTCSource(allowed); err != nil {
 			t.Fatalf("ValidateGo2RTCSource(%q): %v", allowed, err)
@@ -42,6 +45,9 @@ func TestValidateGo2RTCSourceAllowsOnlyNetworkSources(t *testing.T) {
 		"device:/dev/video0",
 		"ftp://camera.local/live",
 		"http:///missing-host",
+		"echo:python3 x.py",
+		"xiaomi://1:cn@192.168.1.123?did=1",
+		"hass:Camera1",
 	} {
 		if err := ValidateGo2RTCSource(blocked); err == nil {
 			t.Fatalf("ValidateGo2RTCSource(%q) unexpectedly succeeded", blocked)
@@ -193,7 +199,7 @@ func TestGo2RTCBackgroundRetriesPendingRecreateAgainstDesiredConfig(t *testing.T
 
 func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 	const password = "internal-password"
-	var patchedSource string
+	var patchedSource, patchedName string
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, gotPassword, ok := r.BasicAuth()
 		if !ok || username != go2RTCAPIUser || gotPassword != password {
@@ -207,10 +213,19 @@ func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPatch && r.URL.Path == "/api/go2rtc/proxy/api/streams":
 			patchedSource = r.URL.Query().Get("src")
+			patchedName = r.URL.Query().Get("name")
 			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/go2rtc/proxy/api/streams":
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/api/go2rtc/proxy/api/preload":
+			if r.Method == http.MethodGet {
+				_, _ = w.Write([]byte(`{}`))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api/streams":
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
-				"aurago_front-door": map[string]interface{}{
+				patchedName: map[string]interface{}{
 					"producers": []interface{}{
 						map[string]interface{}{
 							"url":   "rtsp://user:password@camera.local/live",
@@ -330,7 +345,7 @@ func TestGo2RTCConcurrentCredentialInitializationReturnsOnePassword(t *testing.T
 
 func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	const password = "internal-password"
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	var calls atomic.Int32
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, gotPassword, ok := r.BasicAuth()
@@ -342,7 +357,7 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		if r.URL.Query().Get("src") != "aurago_front-door" || r.URL.Query().Get("width") != "640" || r.URL.Query().Get("rotate") != "90" {
+		if r.URL.Query().Get("src") != "aurago_front-door" || r.URL.Query().Get("width") != "" || r.URL.Query().Get("rotate") != "" {
 			http.Error(w, "bad query", http.StatusBadRequest)
 			return
 		}
@@ -365,13 +380,13 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	if first.Stored || first.Cached || !second.Cached || calls.Load() != 1 {
 		t.Fatalf("unexpected snapshot/cache results: first=%+v second=%+v calls=%d", first, second, calls.Load())
 	}
-	if string(firstData) != string(jpeg) || string(secondData) != string(jpeg) || first.SHA256 == "" {
+	if string(firstData) != string(secondData) || first.SHA256 == "" {
 		t.Fatal("snapshot bytes or hash mismatch")
 	}
 }
 
 func TestGo2RTCSnapshotCacheIsBounded(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
@@ -460,7 +475,7 @@ func TestGo2RTCSnapshotRejectsUnexpectedContent(t *testing.T) {
 
 func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 	const password = "internal-password"
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)
@@ -495,7 +510,7 @@ func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 }
 
 func TestGo2RTCSnapshotBytesNeverStoresMedia(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := go2RTCTestJPEG(80, 40)
 	upstream := newDockerAPITestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		_, _ = w.Write(jpeg)

@@ -20,12 +20,14 @@
     }
 
     const DESKTOP_APP_ASSETS = {
+        qr: { styles: ['/css/desktop-qr.css'], scripts: ['/js/desktop/shared/qr-dialog.js'] },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
         },
         infra: { styles: appStyles('/css/desktop-app-infra.css', '/css/desktop-app-infra-canvas.css'), scripts: ['/js/desktop/apps/infra-model.js', '/js/desktop/apps/infra-lanes.js', '/js/desktop/apps/infra-store.js', '/js/desktop/apps/infra-picker.js', '/js/desktop/apps/infra-canvas.js', '/js/desktop/apps/infra-gestures.js', '/js/desktop/apps/infra-library.js', '/js/desktop/apps/infra-cleanup.js', '/js/desktop/apps/infra-inspector-forms.js', '/js/desktop/apps/infra-inspector.js', '/js/desktop/apps/infra-table.js', '/js/desktop/apps/infra-dialogs.js', '/js/desktop/apps/infra-import.js', '/js/desktop/apps/infra-menus.js', '/js/desktop/apps/infra.js'] },
-        'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview.js'] },
+        'ruview': { styles: appStyles('/css/ruview.css'), scripts: ['/js/desktop/apps/ruview-model.js', '/js/desktop/apps/ruview-store.js', '/js/desktop/apps/ruview-views.js', '/js/desktop/apps/ruview.js'] },
+        'docker-manager': { styles: appStyles('/css/xterm.css', '/css/desktop-app-docker-manager.css'), scripts: ['/js/vendor/xterm.min.js', '/js/vendor/xterm-addon-fit.min.js', '/js/desktop/apps/docker-manager-model.js', '/js/desktop/apps/docker-manager-stack-model.js', '/js/desktop/apps/docker-manager-charts.js', '/js/desktop/apps/docker-manager-store.js', '/js/desktop/apps/docker-manager-live.js', '/js/desktop/apps/docker-manager-views.js', '/js/desktop/apps/docker-manager-stacks.js', '/js/desktop/apps/docker-manager-editor.js', '/js/desktop/apps/docker-manager-ops.js', '/js/desktop/apps/docker-manager-logs.js', '/js/desktop/apps/docker-manager-terminal.js', '/js/desktop/apps/docker-manager-panes.js', '/js/desktop/apps/docker-manager-palette.js', '/js/desktop/apps/docker-manager-dialogs.js', '/js/desktop/apps/docker-manager-newstack.js', '/js/desktop/apps/docker-manager.js'] },
         'ha-switchboard': {
             styles: appStyles('/css/ha-switchboard.css'),
             scripts: ['/js/desktop/apps/ha-switchboard.js']
@@ -43,7 +45,7 @@
         },
         'sheets': {
             styles: appStyles('/js/vendor/sheets/engine.css', '/css/desktop-app-sheets.css'),
-            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets.js']
+            scripts: ['/chart.min.js', '/js/desktop/apps/writer-session.js', '/js/desktop/apps/sheets-data.js', '/js/desktop/apps/sheets-panels.js', '/js/desktop/apps/sheets-charts.js', '/js/desktop/apps/sheets-images.js', '/js/desktop/apps/sheets.js']
         },
         'settings': {
             styles: appStyles('/css/desktop-app-settings.css'),
@@ -268,11 +270,14 @@
             scripts: ['/js/desktop/apps/sip-phone.js']
         },
         'network-cameras': {
-            styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css'),
+            styles: appStyles('/css/desktop-app-network-cameras.css', '/css/desktop-app-network-cameras-detection.css', '/css/go2rtc-tuya.css', '/css/go2rtc-source-form.css'),
             scripts: [
+                '/js/go2rtc-tuya.js',
+                '/js/go2rtc-source-form.js',
                 '/js/desktop/apps/network-cameras-detection-views.js',
                 '/js/desktop/apps/network-cameras-detection-zones.js',
                 '/js/desktop/apps/network-cameras-detection.js',
+                '/js/desktop/apps/network-cameras-media.js',
                 '/js/desktop/apps/network-cameras.js'
             ]
         },
@@ -312,6 +317,7 @@
                 '/js/desktop/apps/pixel-lib-cutout.js',
                 '/js/desktop/apps/pixel-lib-inpaint.js',
                 '/js/desktop/apps/pixel-core.js',
+                '/js/desktop/apps/pixel-qrcode.js',
                 '/js/desktop/apps/pixel-view.js',
                 '/js/desktop/apps/pixel-canvas.js',
                 '/js/desktop/apps/pixel-tools.js',
@@ -501,7 +507,7 @@
             scripts: ['/js/desktop/apps/retro-games-views.js', '/js/desktop/apps/retro-games-player.js', '/js/desktop/apps/retro-games.js']
         },
         'homepage-studio': {
-            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
+            styles: appStyles('/css/desktop-app-homepage-studio.css', '/css/desktop-app-homepage-studio-annotate.css', '/css/chat-modules.css', '/css/hljs-github-dark.min.css'),
             scripts: [
                 '/js/vendor/markdown-it.min.js',
                 '/js/vendor/highlight.min.js',
@@ -512,6 +518,7 @@
                 '/js/desktop/apps/homepage-studio-preview.js',
                 '/js/desktop/apps/homepage-studio-sites.js',
                 '/js/desktop/apps/homepage-studio-history.js',
+                '/js/desktop/apps/homepage-studio-annotate.js',
                 '/js/desktop/apps/homepage-studio.js'
             ]
         },
@@ -632,6 +639,7 @@
         'minigolf': ['minigolf'],
         infra: [],
         'ruview': ['ruview'],
+        'docker-manager': ['docker_manager'],
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
         'cyd-creator': ['cyd_creator'],

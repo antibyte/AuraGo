@@ -20,6 +20,7 @@ type CompressedToolOutput struct {
 	ToolCallID        string
 	OutputRef         string
 	ToolName          string
+	ToolOperation     string
 	OriginalContent   string
 	CompressedContent string
 	SummaryContent    string
@@ -124,10 +125,12 @@ func (s *SQLiteMemory) StoreCompressedOutput(ctx context.Context, out *Compresse
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO compressed_tool_outputs
-			(session_id, tool_call_id, output_ref, tool_name, original_content, compressed_content, summary_content, view_content, compression_ratio, filter_used)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(session_id, tool_call_id, output_ref, tool_name, tool_operation, original_content, compressed_content, summary_content, view_content, compression_ratio, filter_used)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(session_id, tool_call_id) DO UPDATE SET
 			output_ref = excluded.output_ref,
+			tool_name = excluded.tool_name,
+			tool_operation = excluded.tool_operation,
 			original_content = excluded.original_content,
 			compressed_content = excluded.compressed_content,
 			summary_content = excluded.summary_content,
@@ -141,6 +144,7 @@ func (s *SQLiteMemory) StoreCompressedOutput(ctx context.Context, out *Compresse
 		out.ToolCallID,
 		outputRef,
 		out.ToolName,
+		out.ToolOperation,
 		original,
 		compressed,
 		summary,
@@ -164,7 +168,7 @@ func StableToolOutputRef(sessionID, toolCallID string) string {
 // RetrieveCompressedOutput fetches a previously archived original by tool_call_id.
 func (s *SQLiteMemory) RetrieveCompressedOutput(ctx context.Context, sessionID, toolCallID string) (*CompressedToolOutput, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, session_id, tool_call_id, output_ref, tool_name, original_content, compressed_content,
+		SELECT id, session_id, tool_call_id, output_ref, tool_name, tool_operation, original_content, compressed_content,
 			summary_content, view_content,
 			compression_ratio, filter_used, created_at, accessed_at, access_count
 		FROM compressed_tool_outputs
@@ -178,6 +182,7 @@ func (s *SQLiteMemory) RetrieveCompressedOutput(ctx context.Context, sessionID, 
 	var viewContent sql.NullString
 	err := row.Scan(
 		&out.ID, &out.SessionID, &out.ToolCallID, &storedOutputRef, &out.ToolName,
+		&out.ToolOperation,
 		&out.OriginalContent, &out.CompressedContent, &summaryContent, &viewContent,
 		&out.CompressionRatio, &out.FilterUsed,
 		&out.CreatedAt, &accessed, &out.AccessCount,
@@ -206,7 +211,7 @@ func (s *SQLiteMemory) RetrieveCompressedOutput(ctx context.Context, sessionID, 
 // RetrieveCompressedOutputByRef fetches a previously archived original by stable output_ref.
 func (s *SQLiteMemory) RetrieveCompressedOutputByRef(ctx context.Context, sessionID, outputRef string) (*CompressedToolOutput, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, session_id, tool_call_id, output_ref, tool_name, original_content, compressed_content,
+		SELECT id, session_id, tool_call_id, output_ref, tool_name, tool_operation, original_content, compressed_content,
 			summary_content, view_content,
 			compression_ratio, filter_used, created_at, accessed_at, access_count
 		FROM compressed_tool_outputs
@@ -220,6 +225,7 @@ func (s *SQLiteMemory) RetrieveCompressedOutputByRef(ctx context.Context, sessio
 	var viewContent sql.NullString
 	err := row.Scan(
 		&out.ID, &out.SessionID, &out.ToolCallID, &storedOutputRef, &out.ToolName,
+		&out.ToolOperation,
 		&out.OriginalContent, &out.CompressedContent, &summaryContent, &viewContent,
 		&out.CompressionRatio, &out.FilterUsed,
 		&out.CreatedAt, &accessed, &out.AccessCount,

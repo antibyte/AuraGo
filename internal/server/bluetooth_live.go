@@ -29,6 +29,9 @@ func (c desktopCapabilities) HasCapability(name string) bool {
 		return cfg != nil && cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled
 	case "cyd_creator":
 		return c.s.cydCreatorCapability()
+	case "docker":
+		cfg := c.s.ConfigSnapshot()
+		return cfg != nil && cfg.Docker.Enabled
 	default:
 		return false
 	}

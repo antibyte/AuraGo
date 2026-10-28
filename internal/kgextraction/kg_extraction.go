@@ -55,6 +55,7 @@ Rules:
 - Do not use raw file paths as IDs. For files, use type "file" and put the original path in properties.path.
 - REUSE existing node IDs if the entity matches an existing one.
 - Extract only clear, factual entities.
+- Among conversation lines, take entities and relationships only from role="user" lines. Lines marked source=false (role="assistant") are unverified context: use them to see what a user line refers to, never as the source of a node, an edge or a property.
 - Vocabulary for types: person, device, service, software, location, project, concept, event, file, tool.
 - Vocabulary for relationships: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in.
 - Limit to highly relevant facts. Maximum %d nodes and %d edges.

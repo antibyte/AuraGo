@@ -21,7 +21,7 @@ func TestDocumentSuccessJSONKeepsWindowsPathsValid(t *testing.T) {
 
 func TestCreatePDFMarotoReturnsParsableResult(t *testing.T) {
 	dir := t.TempDir()
-	raw := createPDFMaroto(dir, "Titel", "Hallo Welt", "bericht", "A4", false, "")
+	raw := createPDFMaroto(t.Context(), dir, "Titel", "Hallo Welt", "bericht", "A4", false, nil)
 	var out map[string]string
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
 		t.Fatalf("invalid JSON %q: %v", raw, err)

@@ -262,6 +262,44 @@ rm -rf ~/aurago
 | Service install fails on Linux | Run `sudo ./aurago --setup` (systemd requires root for `/etc/systemd/system/`) |
 | Port already in use | Change `server.port` in `config.yaml` |
 | Python venv creation fails | Install Python 3.9+: `sudo apt install python3 python3-venv` |
+| Page capture or the browser tools report `No usable sandbox` | See [Headless browser sandbox](#headless-browser-sandbox) |
+
+---
+
+## Headless browser sandbox
+
+**Symptom:** Homepage Studio says page capture can't start Chromium because the system blocks its sandbox, and the AuraGo log contains `No usable sandbox`. The scraper, web capture, form and performance tools fail the same way.
+
+**Cause:** Chromium builds its sandbox from unprivileged user namespaces. AuraGo keeps that sandbox on instead of starting Chromium with `--no-sandbox`, so Chromium refuses to start where the host forbids those namespaces.
+
+### Ubuntu 23.10+ (AppArmor)
+
+Ubuntu 23.10+ sets `kernel.apparmor_restrict_unprivileged_userns = 1`. Only programs with an AppArmor profile that grants `userns` may create user namespaces, and the Chromium that AuraGo downloads into `~/.cache/rod/browser/` has no such profile.
+
+**Fix:** `install.sh` and `update.sh` write `/etc/apparmor.d/aurago-chromium-<user>` for the AuraGo service user when the setting above is `1` (they ask for your sudo password). There is one profile per user, so several AuraGo instances on one host do not overwrite each other. Run `./update.sh` once, even if AuraGo is already up to date. An already-current update repairs a missing or stale profile without rebuilding or restarting AuraGo; an unchanged profile needs no privileged command.
+
+**Other setups** (manual installs, a different user or home directory): replace `aurago` in the file name, the profile name and the `local/` include with the user that runs AuraGo, and `/home/aurago` with that user's home directory, then load the profile.
+
+```bash
+sudo tee /etc/apparmor.d/aurago-chromium-aurago >/dev/null <<'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile aurago-chromium-aurago /home/aurago/.cache/rod/browser/chromium-*/chrome flags=(unconfined) {
+  userns,
+
+  include if exists <local/aurago-chromium-aurago>
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/aurago-chromium-aurago
+sysctl kernel.apparmor_restrict_unprivileged_userns   # 1 = restricted, the profile is needed
+```
+
+**Trade-off:** `flags=(unconfined)` means the Chromium at that path runs without AppArmor confinement, like every program without a profile on a stock Ubuntu host, and may create user namespaces. The AuraGo user can write to that path, so any program it places there is treated the same way. This is the same trade-off as Puppeteer's documented profile for its cached Chrome, and it keeps Chromium's own sandbox active instead of switching it off.
+
+### Other systems
+
+The same `No usable sandbox` error appears wherever unprivileged user namespaces are disabled: Debian-style kernels with `kernel.unprivileged_userns_clone = 0`, or containers whose seccomp profile blocks `clone` with `CLONE_NEWUSER`. Allow them for AuraGo's Chromium (for example `sudo sysctl -w kernel.unprivileged_userns_clone=1`, made permanent in `/etc/sysctl.d/`, or a seccomp profile that permits user namespaces), or run AuraGo in its Docker image: inside a container the browser launcher switches Chromium's sandbox off by itself.
 
 ---
 

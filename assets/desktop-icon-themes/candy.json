@@ -598,6 +598,9 @@
       "rejected_source": "places/48/user-desktop.svg",
       "supplement": "monitor"
     },
+    "docker-manager": {
+      "supplement": "container-stack"
+    },
     "documents": {
       "source": "mimetypes/scalable/x-office-document.svg"
     },

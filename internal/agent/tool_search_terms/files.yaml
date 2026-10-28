@@ -1,4 +1,8 @@
 # files search terms
+qr_code:
+  en: ["qr code", "create qr code", "scan qr code", "wifi qr code", "style qr code", "batch qr codes", "qr code template", "insert qr code"]
+  de: ["QR-Code", "QR-Code erstellen", "QR-Code scannen", "WLAN-QR-Code", "QR-Code gestalten", "QR-Codes im Stapel", "QR-Code-Vorlage", "QR-Code einfügen"]
+
 archive:
   en: ["zip files", "create zip archive", "unzip file", "extract zip", "tar.gz", "list zip contents", "compress folder to zip", "unpack tarball"]
   de: ["ZIP-Datei erstellen", "Zip entpacken", "Archiv entpacken", "Ordner zippen", "tar.gz entpacken", "Archivinhalt anzeigen", "Dateien packen", "ZIP-Archiv auflisten"]

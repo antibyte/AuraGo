@@ -26,24 +26,25 @@ type DockerComposeService struct {
 	// Profiles are the service's profiles (only in the all-profiles model the
 	// list matters: it decides which optional dependencies a named service
 	// activates).
-	Profiles      []string              `json:"profiles"`
-	ContainerName string                `json:"container_name"`
-	Image         string                `json:"image"`
-	Labels        map[string]string     `json:"labels"`
-	Environment   map[string]*string    `json:"environment"`
-	Volumes       []DockerComposeMount  `json:"volumes"`
-	VolumesFrom   []string              `json:"volumes_from"`
-	Privileged    bool                  `json:"privileged"`
-	NetworkMode   string                `json:"network_mode"`
-	Pid           string                `json:"pid"`
-	Ipc           string                `json:"ipc"`
-	UsernsMode    string                `json:"userns_mode"`
-	Uts           string                `json:"uts"`
-	Cgroup        string                `json:"cgroup"`
-	CapAdd        []string              `json:"cap_add"`
-	SecurityOpt   []string              `json:"security_opt"`
-	Devices       []DockerComposeDevice `json:"devices"`
-	Build         *DockerComposeBuild   `json:"build"`
+	Profiles      []string                               `json:"profiles"`
+	ContainerName string                                 `json:"container_name"`
+	Networks      map[string]DockerComposeServiceNetwork `json:"networks"`
+	Image         string                                 `json:"image"`
+	Labels        map[string]string                      `json:"labels"`
+	Environment   map[string]*string                     `json:"environment"`
+	Volumes       []DockerComposeMount                   `json:"volumes"`
+	VolumesFrom   []string                               `json:"volumes_from"`
+	Privileged    bool                                   `json:"privileged"`
+	NetworkMode   string                                 `json:"network_mode"`
+	Pid           string                                 `json:"pid"`
+	Ipc           string                                 `json:"ipc"`
+	UsernsMode    string                                 `json:"userns_mode"`
+	Uts           string                                 `json:"uts"`
+	Cgroup        string                                 `json:"cgroup"`
+	CapAdd        []string                               `json:"cap_add"`
+	SecurityOpt   []string                               `json:"security_opt"`
+	Devices       []DockerComposeDevice                  `json:"devices"`
+	Build         *DockerComposeBuild                    `json:"build"`
 	// EnvFile is present only in the `--no-env-resolution` (all-profiles)
 	// model; the default model inlines env files into Environment.
 	EnvFile  []DockerComposeEnvFileRef `json:"env_file"`
@@ -56,6 +57,12 @@ type DockerComposeService struct {
 	DeviceCgroupRules DockerComposeList   `json:"device_cgroup_rules"`
 	Gpus              DockerComposeList   `json:"gpus"`
 	Deploy            DockerComposeDeploy `json:"deploy"`
+}
+
+// DockerComposeServiceNetwork contains the service aliases Compose publishes
+// on one of its networks.
+type DockerComposeServiceNetwork struct {
+	Aliases DockerComposeList `json:"aliases"`
 }
 
 // DockerComposeEnvFileRef is one env_file entry: the {path, required} object

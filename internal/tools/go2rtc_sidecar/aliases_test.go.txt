@@ -1,0 +1,26 @@
+package streams
+
+import (
+    "net/http/httptest"
+    "sync"
+    "testing"
+)
+
+// AuraGo polls status while independently registering/revoking camera aliases.
+// The native API must snapshot the stream map and use its mutation lock.
+func TestAuraGoConcurrentAliasAndStatus(t *testing.T) {
+    var workers sync.WaitGroup
+    workers.Add(2)
+    go func() {
+        defer workers.Done()
+        for i:=0;i<1000;i++ {
+            _, _ = New("aurago-concurrent-alias")
+            apiStreams(httptest.NewRecorder(),httptest.NewRequest("DELETE","http://localhost/api/streams?src=aurago-concurrent-alias",nil))
+        }
+    }()
+    go func() {
+        defer workers.Done()
+        for i:=0;i<1000;i++ { apiStreams(httptest.NewRecorder(),httptest.NewRequest("GET","http://localhost/api/streams",nil)) }
+    }()
+    workers.Wait()
+}

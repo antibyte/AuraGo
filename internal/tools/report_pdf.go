@@ -14,7 +14,7 @@ func RenderReportHTMLPDF(ctx context.Context, cfg *config.GotenbergConfig, html 
 	if cfg == nil || cfg.URL == "" {
 		return nil, fmt.Errorf("report renderer is not configured")
 	}
-	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/convert/html", map[string]string{"printBackground": "true", "preferCssPageSize": "true"}, map[string][]byte{"index.html": []byte(html)})
+	data, err := gotenbergRequest(ctx, cfg, "/forms/chromium/convert/html", map[string]string{"printBackground": "true", "preferCssPageSize": "true"}, map[string][]byte{"index.html": []byte(restrictRemoteContent(html))})
 	if err != nil {
 		return nil, err
 	}

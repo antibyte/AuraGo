@@ -1,0 +1,237 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"aurago/internal/tools"
+	"github.com/gorilla/websocket"
+	"github.com/pion/sdp/v3"
+)
+
+type go2RTCWireMessage struct {
+	Type  string          `json:"type"`
+	Value json.RawMessage `json:"value,omitempty"`
+}
+
+func validateGo2RTCOffer(raw string, talk bool) error {
+	if len(raw) > 128<<10 {
+		return fmt.Errorf("SDP is too large")
+	}
+	var offer sdp.SessionDescription
+	if err := offer.Unmarshal([]byte(raw)); err != nil || len(offer.MediaDescriptions) == 0 {
+		return fmt.Errorf("invalid SDP offer")
+	}
+	direction := func(attrs []sdp.Attribute, fallback string) string {
+		for _, a := range attrs {
+			switch a.Key {
+			case "recvonly", "sendonly", "sendrecv", "inactive":
+				return a.Key
+			}
+		}
+		return fallback
+	}
+	sessionDirection := direction(offer.Attributes, "sendrecv")
+	validDirections := func(attrs []sdp.Attribute) bool {
+		count := 0
+		for _, a := range attrs {
+			switch a.Key {
+			case "recvonly", "sendonly", "sendrecv", "inactive":
+				count++
+			}
+		}
+		return count <= 1
+	}
+	if !validDirections(offer.Attributes) {
+		return fmt.Errorf("ambiguous SDP direction")
+	}
+	for _, media := range offer.MediaDescriptions {
+		if !validDirections(media.Attributes) {
+			return fmt.Errorf("ambiguous SDP direction")
+		}
+		if media.MediaName.Media != "audio" && media.MediaName.Media != "video" {
+			return fmt.Errorf("unsupported media")
+		}
+		d := direction(media.Attributes, sessionDirection)
+		if talk {
+			if media.MediaName.Media != "audio" || (d != "sendonly" && d != "inactive") {
+				return fmt.Errorf("talk sessions permit microphone audio only")
+			}
+		} else if d != "recvonly" && d != "inactive" {
+			return fmt.Errorf("viewer sessions may only receive media")
+		}
+	}
+	return nil
+}
+
+func validateGo2RTCMessage(data []byte, talk bool) (go2RTCWireMessage, error) {
+	var msg go2RTCWireMessage
+	if len(data) > 256<<10 || json.Unmarshal(data, &msg) != nil {
+		return msg, fmt.Errorf("invalid player message")
+	}
+	var value string
+	if len(msg.Value) > 0 && json.Unmarshal(msg.Value, &value) != nil {
+		return msg, fmt.Errorf("player value must be a string")
+	}
+	switch msg.Type {
+	case "webrtc/offer":
+		return msg, validateGo2RTCOffer(value, talk)
+	case "webrtc/candidate":
+		if len(value) > 4096 || strings.ContainsAny(value, "\r\n") {
+			return msg, fmt.Errorf("invalid ICE candidate")
+		}
+	case "mse", "hls", "mp4":
+		if talk || len(value) > 2048 {
+			return msg, fmt.Errorf("unsupported player message")
+		}
+		for _, ch := range value {
+			if ch < 32 || ch > 126 {
+				return msg, fmt.Errorf("invalid codec list")
+			}
+		}
+	case "mjpeg":
+		if talk {
+			return msg, fmt.Errorf("unsupported player message")
+		}
+	default:
+		return msg, fmt.Errorf("unsupported player message")
+	}
+	return msg, nil
+}
+
+// bridgeGo2RTCWebSocket terminates the public protocol boundary: no caller
+// parameters or arbitrary upstream JSON are forwarded without validation.
+func bridgeGo2RTCWebSocket(s *Server, w http.ResponseWriter, r *http.Request, lease *tools.Go2RTCMediaLease, talk *go2RTCTalkSession) {
+	target, err := s.Go2RTC.ProxyTarget()
+	if err != nil {
+		jsonError(w, "Camera upstream unavailable", 503)
+		return
+	}
+	user, password, err := s.Go2RTC.ProxyCredentials()
+	if err != nil {
+		jsonError(w, "Camera credential unavailable", 503)
+		return
+	}
+	target.Scheme = "ws"
+	target.Path = "/api/go2rtc/proxy/api/ws"
+	target.RawQuery = url.Values{"src": {lease.Alias}}.Encode()
+	headers := make(http.Header)
+	auth := &http.Request{Header: headers}
+	auth.SetBasicAuth(user, password)
+	headers.Set("Origin", "http://"+target.Host)
+	headers.Set("User-Agent", "AuraGo Camera Viewer")
+	if talk != nil {
+		headers.Set("User-Agent", "AuraGo Camera Microphone")
+	}
+	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
+	upstream, response, err := dialer.DialContext(r.Context(), target.String(), headers)
+	if response != nil && response.Body != nil {
+		response.Body.Close()
+	}
+	if err != nil {
+		jsonError(w, "Camera signaling unavailable", 502)
+		return
+	}
+	defer upstream.Close()
+	upgrade := websocket.Upgrader{CheckOrigin: sameOriginOrNoOrigin}
+	client, err := upgrade.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer client.Close()
+	client.SetReadLimit(256 << 10)
+	upstream.SetReadLimit(20 << 20)
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	go func() { <-ctx.Done(); client.Close(); upstream.Close() }()
+	done := make(chan struct{})
+	seen := map[string]bool{}
+	candidates := 0
+	go func() {
+		defer close(done)
+		defer cancel()
+		for {
+			kind, data, err := client.ReadMessage()
+			if err != nil || kind != websocket.TextMessage {
+				return
+			}
+			if talk != nil {
+				var heartbeat go2RTCWireMessage
+				if json.Unmarshal(data, &heartbeat) != nil {
+					return
+				}
+				if heartbeat.Type == "talk/keepalive" {
+					if !talk.heartbeat(r) {
+						return
+					}
+					continue
+				}
+				if !go2RTCRequestCanTalk(s, r) {
+					return
+				}
+			}
+			msg, err := validateGo2RTCMessage(data, talk != nil)
+			if strings.HasPrefix(msg.Type, "webrtc/") && (!s.Go2RTC.Config().WebRTC.Enabled || !s.Go2RTC.SupportsBoundWebRTC()) {
+				return
+			}
+			if err != nil {
+				return
+			}
+			if msg.Type == "webrtc/candidate" {
+				candidates++
+				if candidates > 256 {
+					return
+				}
+			} else {
+				if seen[msg.Type] {
+					return
+				}
+				seen[msg.Type] = true
+			}
+			clean, _ := json.Marshal(msg)
+			upstream.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if upstream.WriteMessage(kind, clean) != nil {
+				return
+			}
+		}
+	}()
+	for {
+		kind, data, err := upstream.ReadMessage()
+		if err != nil {
+			break
+		}
+		if kind == websocket.TextMessage {
+			var msg go2RTCWireMessage
+			if json.Unmarshal(data, &msg) != nil {
+				break
+			}
+			if msg.Type == "hls" {
+				var playlist string
+				if json.Unmarshal(msg.Value, &playlist) != nil || rememberGo2RTCHLS(s.Go2RTC, lease, []byte(playlist)) != nil {
+					break
+				}
+			}
+			if msg.Type == "error" {
+				var detail string
+				_ = json.Unmarshal(msg.Value, &detail)
+				prefix, _, _ := strings.Cut(detail, ":")
+				if prefix != "mse" && prefix != "hls" && prefix != "mp4" && prefix != "mjpeg" && prefix != "webrtc/offer" {
+					prefix = "media"
+				}
+				msg.Value, _ = json.Marshal(prefix + ": camera media unavailable")
+				data, _ = json.Marshal(msg)
+			}
+		}
+		client.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		if client.WriteMessage(kind, data) != nil {
+			break
+		}
+	}
+	cancel()
+	<-done
+}

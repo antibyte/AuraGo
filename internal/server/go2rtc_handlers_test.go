@@ -32,7 +32,7 @@ func TestGo2RTCProxyAllowlistBlocksMutationAndSensitiveAPIs(t *testing.T) {
 	}{
 		{"video-rtc.js", http.MethodGet, false, true},
 		{"api/frame.jpeg", http.MethodGet, false, true},
-		{"api/webrtc", http.MethodPost, false, true},
+		{"api/webrtc", http.MethodPost, false, false},
 		{"api/hls/playlist.m3u8", http.MethodGet, false, true},
 		{"api/hls/segment.m4s", http.MethodGet, false, true},
 		{"api/hls/arbitrary", http.MethodGet, false, false},
@@ -232,14 +232,14 @@ func TestGo2RTCRecreateDecisionKeepsRuntimePatchForAddsAndChanges(t *testing.T) 
 	disabled := base
 	disabled.Streams = append([]config.Go2RTCStreamConfig(nil), base.Streams...)
 	disabled.Streams[0].Enabled = false
-	if !go2RTCRequiresRecreate(base, disabled) {
-		t.Fatal("stream disable must recreate the container to evict the old runtime source")
+	if go2RTCRequiresRecreate(base, disabled) {
+		t.Fatal("stream disable must use per-camera retirement")
 	}
 
 	removed := base
 	removed.Streams = nil
-	if !go2RTCRequiresRecreate(base, removed) {
-		t.Fatal("stream removal must recreate the container to evict the old runtime source")
+	if go2RTCRequiresRecreate(base, removed) {
+		t.Fatal("stream removal must use per-camera retirement")
 	}
 }
 
@@ -328,7 +328,7 @@ func TestGo2RTCProxyEnforcesOriginStreamScopeAndUpstreamAuth(t *testing.T) {
 			t.Errorf("upstream src = %q, want internal alias", got)
 		}
 		w.Header().Set("Content-Type", "image/jpeg")
-		_, _ = w.Write([]byte{0xff, 0xd8, 0xff, 0xd9})
+		_, _ = w.Write(cameraTestJPEG())
 	}))
 	defer upstream.Close()
 	parsed, _ := url.Parse(upstream.URL)
@@ -352,8 +352,8 @@ func TestGo2RTCProxyEnforcesOriginStreamScopeAndUpstreamAuth(t *testing.T) {
 	viewerRecorder := httptest.NewRecorder()
 	handleGo2RTCViewer(server).ServeHTTP(viewerRecorder, viewerRequest)
 	if viewerRecorder.Code != http.StatusOK ||
-		!strings.Contains(viewerRecorder.Body.String(), `document.createElement("video-stream")`) ||
-		!strings.Contains(viewerRecorder.Body.String(), `/api/go2rtc/proxy/api/ws?src=`) ||
+		!strings.Contains(viewerRecorder.Body.String(), `/js/go2rtc-viewer.js`) ||
+		!strings.Contains(viewerRecorder.Body.String(), `mountGo2RTCViewer({stream:"front-door"`) ||
 		strings.Contains(viewerRecorder.Body.String(), "camera.local") {
 		t.Fatalf("unsafe or incomplete viewer response: status=%d body=%s", viewerRecorder.Code, viewerRecorder.Body.String())
 	}
@@ -466,6 +466,18 @@ func TestGo2RTCConfigProjectionAndVaultExtractionNeverExposeSource(t *testing.T)
 	if !strings.Contains(string(projected), `"source_configured":true`) || !strings.Contains(string(projected), `"source":"••••••••"`) {
 		t.Fatalf("config projection omitted masked source state: %s", projected)
 	}
+	if !strings.Contains(string(projected), `"source_type":"rtsp"`) {
+		t.Fatalf("config projection omitted the source type: %s", projected)
+	}
+
+	// The type also resolves when only the Vault holds the source.
+	cfg.Go2RTC.Streams[0].Source = ""
+	raw = map[string]interface{}{"go2rtc": map[string]interface{}{}}
+	injectGo2RTCConfig(raw, cfg, vault)
+	projected, _ = json.Marshal(raw)
+	if !strings.Contains(string(projected), `"source_type":"rtsp"`) || strings.Contains(string(projected), "camera-password") {
+		t.Fatalf("vault-only projection wrong: %s", projected)
+	}
 }
 
 func TestGo2RTCVaultMaskPreservationAndRemovedStreamCleanup(t *testing.T) {
@@ -547,7 +559,7 @@ func TestGo2RTCAppStateNeverExposesSourcesOrDisabledStreamsToViewer(t *testing.T
 }
 
 func TestGo2RTCThumbnailUsesPrivateCacheAndETag(t *testing.T) {
-	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	jpeg := cameraTestJPEG()
 	upstreamCalls := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamCalls++
@@ -731,6 +743,9 @@ func TestManagedGo2RTCConfigUpdateKeepsSourcesVaultOnlyAndRollsBackValidationFai
 	const secondSource = "rtsp://camera-user:second-password@192.168.40.20/live"
 	var patchedSources []string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if go2RTCFixtureCleanup(w, r) {
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
 			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
@@ -898,6 +913,9 @@ func TestGo2RTCCameraMutationStatusContract(t *testing.T) {
 	const source = "rtsp://camera-user:contract-password@192.168.40.22/live"
 	t.Run("create and update succeed with 201 and 200", func(t *testing.T) {
 		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if go2RTCFixtureCleanup(w, r) {
+				return
+			}
 			switch {
 			case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
 				_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
@@ -995,6 +1013,24 @@ func TestGo2RTCCameraMutationStatusContract(t *testing.T) {
 			t.Fatalf("config failure status = %d, want 500; body=%s", recorder.Code, recorder.Body.String())
 		}
 	})
+}
+
+// These fixtures have no preloads. Match upstream's absent-preload response so
+// the manager must confirm inventory before considering cleanup successful.
+func go2RTCFixtureCleanup(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/api/go2rtc/proxy/api/preload" {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`{}`))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return true
+	}
+	if r.URL.Path == "/api/go2rtc/proxy/api/streams" && r.Method == http.MethodDelete {
+		w.WriteHeader(http.StatusOK)
+		return true
+	}
+	return false
 }
 
 func TestGo2RTCCreateReservesSetupTokenUntilConfigPublication(t *testing.T) {

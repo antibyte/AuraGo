@@ -9,6 +9,8 @@ async function renderGuardianSection(section) {
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
+    html += renderInjectionGuardCard(cfg.injection_guard || {});
+
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.guardian.scan_title')}</div>
         <div class="field-group-desc">${t('config.guardian.scan_desc')}</div>`;
@@ -172,6 +174,109 @@ async function renderGuardianSection(section) {
     html += `</div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    bindInjectionGuardCard(document.getElementById('injection-guard-card'));
+}
+
+function renderInjectionGuardCard(cfg) {
+    const tr = key => escapeHtml(t('config.guardian.local_' + key));
+    return `<div class="field-group" id="injection-guard-card">
+        <div class="field-group-title">${tr('title')}</div>
+        <div class="field-group-desc">${tr('desc')}</div>
+        <p>Horizon-Labs/prompt-injection-guard-small · Apache-2.0</p>
+        <p data-guard-size></p>
+        <p data-guard-status role="status" aria-live="polite">${tr('loading')}</p>
+        <progress data-guard-progress max="100" value="0" hidden aria-label="${tr('download')}"></progress>
+        <div class="cfg-actions-row">
+            <button type="button" class="btn" data-guard-action="download" disabled>${tr('download')}</button>
+            <button type="button" class="btn" data-guard-action="cancel" hidden>${tr('cancel')}</button>
+            <button type="button" class="btn" data-guard-action="test" disabled>${tr('test')}</button>
+        </div>
+        <div class="field-group">
+            <label class="field-label"><input type="checkbox" data-path="guardian.injection_guard.enabled" ${cfg.enabled ? 'checked' : ''} disabled> ${tr('enabled')}</label>
+            <div class="field-help">${tr('enable_help')}</div>
+        </div>
+        <div class="field-group">
+            <label class="field-label" for="injection-guard-action">${tr('action')}</label>
+            <select id="injection-guard-action" class="field-select" data-path="guardian.injection_guard.action">
+                <option value="quarantine" ${cfg.action !== 'datamark' ? 'selected' : ''}>${tr('quarantine')}</option>
+                <option value="datamark" ${cfg.action === 'datamark' ? 'selected' : ''}>${tr('datamark')}</option>
+            </select>
+            <div class="field-help">${tr('datamark_help')}</div>
+        </div>
+        <p data-guard-result role="status" aria-live="polite"></p>
+    </div>`;
+}
+
+function bindInjectionGuardCard(root) {
+    if (!root) return;
+    const lifetime = new AbortController();
+    const tr = key => t('config.guardian.local_' + key);
+    const enabled = root.querySelector('input[type="checkbox"]');
+    const result = root.querySelector('[data-guard-result]');
+    const buttons = [...root.querySelectorAll('[data-guard-action]')];
+    let timer = null, request = null, status = null, busy = false, generation = 0;
+    const live = () => root.isConnected && !lifetime.signal.aborted;
+    const paint = () => {
+        if (!live() || !status) return;
+        const installing = ['downloading', 'verifying'].includes(status.state);
+        enabled.disabled = busy || (!enabled.checked && (!status.available || !status.ready));
+        const state = status.error === 'cancelled' ? 'cancelled' : status.state === 'ready' && status.enabled ? 'active' : status.state;
+        root.querySelector('[data-guard-status]').textContent = tr('state_' + state);
+        root.querySelector('[data-guard-size]').textContent = tr('size') + ': ' + Math.ceil(status.size_bytes / 1000000).toLocaleString() + ' MB + ' + Math.ceil(status.runtime_size_bytes / 1000000).toLocaleString() + ' MB ONNX Runtime';
+        const progress = root.querySelector('[data-guard-progress]');
+        progress.hidden = !installing;
+        progress.value = Math.max(0, Math.min(100, Number(status.progress?.percent) || 0));
+        buttons.forEach(button => {
+            const action = button.dataset.guardAction;
+            button.hidden = action === 'cancel' && !installing;
+            button.classList.toggle('is-hidden', button.hidden);
+            button.disabled = busy || !status.available || (action === 'download' && installing) || (action === 'test' && !status.ready);
+        });
+    };
+    const refresh = async () => {
+        clearTimeout(timer);
+        if (!live() || busy || document.hidden) return;
+        request?.abort(); request = new AbortController();
+        const mine = ++generation;
+        try {
+            const response = await fetch('/api/guardian/injection-guard/status', {signal: request.signal});
+            if (response.status === 401 || response.status === 403) { dispose(); return; }
+            if (!response.ok) throw new Error('status');
+            const next = await response.json();
+            if (!live() || mine !== generation) return;
+            status = next; paint();
+        } catch (error) {
+            if (live() && mine === generation && error.name !== 'AbortError') root.querySelector('[data-guard-status]').textContent = tr('failed');
+        } finally {
+            if (live() && mine === generation) timer = setTimeout(refresh, 1500);
+        }
+    };
+    const run = async action => {
+        if (!live() || busy) return;
+        busy = true; ++generation; request?.abort(); clearTimeout(timer); paint(); result.textContent = '';
+        try {
+            const response = await fetch('/api/guardian/injection-guard/' + action, {method: 'POST', signal: lifetime.signal});
+            if (!response.ok) throw new Error('action');
+            const next = await response.json();
+            if (!live()) return;
+            status = next;
+            if (action === 'test') result.textContent = tr('test_ok');
+        } catch (error) { if (live() && error.name !== 'AbortError') result.textContent = tr('failed'); }
+        finally { busy = false; if (live()) { paint(); refresh(); } }
+    };
+    const dispose = () => { lifetime.abort(); request?.abort(); clearTimeout(timer); observer.disconnect(); };
+    const observer = new MutationObserver(() => { if (!root.isConnected) dispose(); });
+    observer.observe(document.body, {childList: true, subtree: true});
+    buttons.forEach(button => button.addEventListener('click', () => run(button.dataset.guardAction), {signal: lifetime.signal}));
+    enabled.addEventListener('change', () => {
+        setNestedValue(configData, 'guardian.injection_guard.enabled', enabled.checked);
+        setDirty(true); paint();
+    }, {signal: lifetime.signal});
+    window.addEventListener('cfg:section-leave', dispose, {signal: lifetime.signal, once: true});
+    window.addEventListener('pagehide', dispose, {signal: lifetime.signal, once: true});
+    document.addEventListener('visibilitychange', () => { if (document.hidden) {request?.abort();clearTimeout(timer);} else refresh(); }, {signal: lifetime.signal});
+    document.addEventListener('aurago:config-saved', refresh, {signal: lifetime.signal});
+    refresh();
 }
 
 function renderGuardianToggle(path, on, label, help) {

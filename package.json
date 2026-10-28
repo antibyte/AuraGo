@@ -21,6 +21,7 @@
     "build:sheets-vendor": "node scripts/build-sheets-vendor.js",
     "test:sheets": "node scripts/test-sheets-data.mjs",
     "test:easydrag": "node scripts/test-easydrag.mjs",
+    "test:docker-manager": "node scripts/test-docker-manager-ui.mjs",
     "test:cyd-creator-shell": "node scripts/test-cyd-creator-shell.mjs",
     "test:cyd-creator-flash": "node scripts/test-cyd-creator-flash.mjs",
     "test:cyd-creator-designer": "node scripts/test-cyd-creator-designer.mjs",
@@ -34,13 +35,15 @@
     "check:desktop-themes": "node scripts/build-desktop-cursors.mjs --check && node scripts/build-desktop-windows-xp-icons.mjs --check && node scripts/build-desktop-theme-vendor.mjs --check && node scripts/build-ui-bundles.js --check && node scripts/test-desktop-theme-orbit-assets.mjs",
     "build:game-maker-3d": "node scripts/build-game-maker-3d.js",
     "test:game-maker-glbs": "node scripts/validate-game-maker-glbs.mjs",
-    "check:ui": "node scripts/build-ui-bundles.js --check",
+    "check:ui": "node scripts/build-ui-bundles.js --check && node scripts/build-chat-ocean-life.js --check",
     "test:realtime-speech": "node scripts/test-realtime-speech.mjs",
     "test:ui-regressions": "node scripts/test-ui-regressions.mjs",
     "build:system-world": "node scripts/build-system-world.js",
     "test:system-world": "node scripts/test-system-world.mjs",
     "build:screensaver-abyss": "node scripts/build-screensaver-abyss.js",
     "test:screensaver-glbs": "node scripts/validate-screensaver-glbs.mjs",
+    "build:chat-ocean-life": "node scripts/build-chat-ocean-life.js",
+    "test:chat-ocean-glbs": "node scripts/validate-screensaver-glbs.mjs ui/3d/chat-ocean-life/v1/",
     "build:browser-vendor": "node scripts/build-browser-vendor.js"
   },
   "dependencies": {
@@ -55,6 +58,7 @@
     "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/lang-rust": "^6.0.2",
+    "@codemirror/lang-yaml": "^6.1.3",
     "@codemirror/language": "^6.13.1",
     "@codemirror/lint": "^6.9.7",
     "@codemirror/search": "^6.7.2",
@@ -109,7 +113,8 @@
     "webamp": "2.3.1"
   },
   "devDependencies": {
-    "gltf-validator": "2.0.0-dev.3.10"
+    "gltf-validator": "2.0.0-dev.3.10",
+    "jsqr": "1.4.0"
   },
   "overrides": {
     "katex": "0.18.9",

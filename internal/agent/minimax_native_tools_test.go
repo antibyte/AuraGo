@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"aurago/internal/config"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -36,6 +38,37 @@ func TestMiniMaxM3PreparedToolsReachAgentRequest(t *testing.T) {
 			}
 			if len(client.lastReq.Tools) != 3 || !reflect.DeepEqual(client.lastReq.Tools, profile.Tools()) {
 				t.Fatalf("planning tools changed or missing: got %d tools", len(client.lastReq.Tools))
+			}
+		})
+	}
+}
+
+// The text-tool fallback rules match a normalised model name: a configured
+// "MiniMax M3" is the M3 route, not a legacy text-mode MiniMax.
+func TestResolveModelCapabilitiesNormalisesModelNameSeparators(t *testing.T) {
+	for _, tc := range []struct {
+		model    string
+		textMode bool
+	}{
+		{"MiniMax M3", false},
+		{"minimax_m3", false},
+		{"MiniMax-M3", false},
+		{"MiniMax M2.7", false},
+		{"abab6.5", true},
+		{"glm-4", true},
+		{"GLM 4.6", false}, // separator normalisation only repairs the MiniMax exemptions
+		{"glm_4.6", false},
+		{"hf:zai-org/GLM-5.3-Flash", true},
+		{"minimax-text-01", true},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.LLM.ProviderType, cfg.LLM.Model, cfg.LLM.UseNativeFunctions = "minimax", tc.model, true
+			if got := resolveModelCapabilities(cfg).DisableNativeFunctionCalling; got != tc.textMode {
+				t.Fatalf("DisableNativeFunctionCalling = %v, want %v", got, tc.textMode)
+			}
+			if policy := buildToolingPolicy(cfg, ""); policy.UseNativeFunctions == tc.textMode {
+				t.Fatalf("UseNativeFunctions = %v for text mode %v", policy.UseNativeFunctions, tc.textMode)
 			}
 		})
 	}

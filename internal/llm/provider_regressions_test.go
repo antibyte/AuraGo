@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"aurago/internal/config"
@@ -75,6 +76,29 @@ type cancelledAttemptStream struct{ closed atomic.Bool }
 func (s *cancelledAttemptStream) Close() error { s.closed.Store(true); return nil }
 func (s *cancelledAttemptStream) Recv() (openai.ChatCompletionStreamResponse, error) {
 	return openai.ChatCompletionStreamResponse{}, io.EOF
+}
+
+type lateStreamClient struct {
+	mockRetryClient
+	stream *cancelledAttemptStream
+}
+
+func (c *lateStreamClient) CreateChatCompletionStream(ctx context.Context, _ openai.ChatCompletionRequest) (CompletionStream, error) {
+	<-ctx.Done()
+	return c.stream, nil
+}
+
+func TestStreamOpeningClosesLateSuccessfulAttempt(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		client := &lateStreamClient{stream: &cancelledAttemptStream{}}
+		stream, cancel, err := executeStreamRetry(context.Background(), client, openai.ChatCompletionRequest{}, nil, nil,
+			RetryPolicy{TotalTimeout: time.Minute, PerAttemptTimeout: time.Second})
+		defer cancel()
+		var timeout *TransportTimeoutError
+		if stream != nil || !errors.As(err, &timeout) || timeout.Stage != "stream opening attempt" || !client.stream.closed.Load() {
+			t.Fatalf("late stream = %v, error = %v, closed = %v", stream, err, client.stream.closed.Load())
+		}
+	})
 }
 
 type cancellationHealthReporter struct{ errors, successes atomic.Int32 }

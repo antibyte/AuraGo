@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -16,29 +15,34 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 	"aurago/internal/security"
 )
 
-// gotenbergClient is the shared HTTP client for Gotenberg requests.
-var gotenbergClient *http.Client
-
-// getGotenbergClient returns a lazily-initialised HTTP client with the configured timeout.
+// Each call keeps its timeout; the default transport shares connection pools.
 func getGotenbergClient(timeoutSec int) *http.Client {
-	if gotenbergClient != nil {
-		return gotenbergClient
-	}
 	t := 120
 	if timeoutSec > 0 {
 		t = timeoutSec
 	}
-	gotenbergClient = &http.Client{Timeout: time.Duration(t) * time.Second}
-	return gotenbergClient
+	return httporigin.NewClient(time.Duration(t) * time.Second)
 }
 
 // gotenbergRequest sends a multipart/form-data request to a Gotenberg endpoint.
 // formFields are simple key-value pairs; files maps filename → content.
 // Returns the response body (typically a PDF or image) on success.
 func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route string, formFields map[string]string, files map[string][]byte) ([]byte, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("Gotenberg URL is not configured")
+	}
+	client := getGotenbergClient(cfg.Timeout)
+	// A redirect must not replay a conversion upload, even on the same origin.
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	ctx, cancel := context.WithTimeout(ctx, client.Timeout)
+	defer cancel()
+	if _, err := verifyGotenbergSecurity(ctx, cfg); err != nil {
+		return nil, err
+	}
 	url := strings.TrimRight(cfg.URL, "/") + route
 
 	var buf bytes.Buffer
@@ -53,10 +57,10 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 
 	// Write file parts
 	for name, data := range files {
-		h := make(textproto.MIMEHeader)
-		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="files"; filename="%s"`, name))
-		h.Set("Content-Type", "application/octet-stream")
-		part, err := writer.CreatePart(h)
+		if strings.ContainsAny(name, "\r\n\x00") {
+			return nil, fmt.Errorf("multipart filename contains control characters")
+		}
+		part, err := writer.CreateFormFile("files", name)
 		if err != nil {
 			return nil, fmt.Errorf("create file part %s: %w", name, err)
 		}
@@ -75,7 +79,7 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := getGotenbergClient(cfg.Timeout).Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("gotenberg request failed: %w", err)
 	}
@@ -83,7 +87,7 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 
 	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
-		return nil, fmt.Errorf("read gotenberg response: %w", err)
+		return nil, fmt.Errorf("read Gotenberg PDF/image output (maximum 10 MiB): %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("gotenberg returned HTTP %d: %s", resp.StatusCode, gotenbergTruncate(string(body), 500))
@@ -92,131 +96,16 @@ func gotenbergRequest(ctx context.Context, cfg *config.GotenbergConfig, route st
 }
 
 // saveGotenbergOutput writes response bytes to the output directory and returns metadata.
-func saveGotenbergOutput(data []byte, outputDir, filename, ext string) (filePath, webPath string, err error) {
-	if filename == "" {
-		filename = defaultDocumentName()
-	}
-	// Sanitise filename to prevent path traversal
-	filename = filepath.Base(filename)
-	if !strings.HasSuffix(strings.ToLower(filename), ext) {
-		filename += ext
-	}
-
+func saveGotenbergOutput(ctx context.Context, data []byte, outputDir, filename, ext string) (filePath, webPath string, err error) {
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return "", "", fmt.Errorf("create output dir: %w", err)
 	}
-
-	outPath := filepath.Join(outputDir, filename)
-	if err := os.WriteFile(outPath, data, 0640); err != nil {
-		return "", "", fmt.Errorf("write file: %w", err)
-	}
-
-	webPath = "/files/documents/" + filename
-	return outPath, webPath, nil
+	return saveDocumentOutput(ctx, data, outputDir, filename, ext)
 }
 
 // ── Gotenberg operations ─────────────────────────────────────────────────────
 
-const gotenbergContainerName = "aurago_gotenberg"
-const gotenbergImage = "gotenberg/gotenberg:8"
-
-// EnsureGotenbergRunning ensures the Gotenberg container is running.
-// It checks the container state via the Docker API and, if missing or stopped,
-// creates/starts it. Safe to call multiple times.
-func EnsureGotenbergRunning(dockerHost string, logger interface {
-	Info(string, ...any)
-	Warn(string, ...any)
-	Error(string, ...any)
-}) {
-	dockerCfg := DockerConfig{Host: dockerHost}
-
-	// Check if ANY gotenberg container (any name) is already running.
-	// This prevents creating a duplicate when the user already has a gotenberg
-	// container running via docker-compose or another means.
-	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
-		`/containers/json?filters={"status":["running"],"ancestor":["gotenberg/gotenberg:8"]}`, "")
-	if listErr == nil && listCode == 200 {
-		var containers []map[string]interface{}
-		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
-			logger.Info("[Gotenberg] Container already running (external)", "count", len(containers))
-			return
-		}
-	}
-
-	// Inspect our own managed container
-	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+gotenbergContainerName+"/json", "")
-	if err != nil {
-		logger.Warn("[Gotenberg] Docker unavailable, skipping auto-start", "error", err)
-		return
-	}
-
-	if code == 200 {
-		// Container exists — check if it's running
-		var info map[string]interface{}
-		if json.Unmarshal(data, &info) == nil {
-			if state, ok := info["State"].(map[string]interface{}); ok {
-				if running, _ := state["Running"].(bool); running {
-					logger.Info("[Gotenberg] Container already running")
-					return
-				}
-			}
-		}
-		// Exists but stopped — just start it
-		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+gotenbergContainerName+"/start", "")
-		if startErr != nil || (startCode != 204 && startCode != 304) {
-			logger.Error("[Gotenberg] Failed to start existing container", "code", startCode, "error", startErr)
-			return
-		}
-		logger.Info("[Gotenberg] Container started")
-		return
-	}
-
-	if code != 404 {
-		logger.Warn("[Gotenberg] Unexpected Docker inspect response, skipping auto-start", "code", code)
-		return
-	}
-
-	// Container does not exist — create and start it
-	payload := map[string]interface{}{
-		"Image": gotenbergImage,
-		"HostConfig": map[string]interface{}{
-			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
-			"CapAdd":        []string{"SYS_ADMIN"},
-			"ShmSize":       268435456, // 256 MiB
-			"PortBindings": map[string]interface{}{
-				"3000/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "3000"}},
-			},
-		},
-		"ExposedPorts": map[string]interface{}{
-			"3000/tcp": struct{}{},
-		},
-	}
-	body, _ := json.Marshal(payload)
-	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+gotenbergContainerName, string(body))
-	if createCode == 404 {
-		// Image not present locally — pull it, then retry the create once.
-		logger.Info("[Gotenberg] Image not found locally, pulling...", "image", gotenbergImage)
-		if pullErr := pullDockerImage(dockerCfg, gotenbergImage); pullErr != nil {
-			logger.Error("[Gotenberg] Image pull failed", "image", gotenbergImage, "error", pullErr)
-			return
-		}
-		logger.Info("[Gotenberg] Image pulled successfully", "image", gotenbergImage)
-		_, createCode, createErr = dockerRequest(dockerCfg, "POST", "/containers/create?name="+gotenbergContainerName, string(body))
-	}
-	if createErr != nil || createCode != 201 {
-		logger.Error("[Gotenberg] Failed to create container", "code", createCode, "error", createErr)
-		return
-	}
-
-	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+gotenbergContainerName+"/start", "")
-	if startErr != nil || (startCode != 204 && startCode != 304) {
-		logger.Error("[Gotenberg] Failed to start new container", "code", startCode, "error", startErr)
-		return
-	}
-	logger.Info("[Gotenberg] Container created and started", "image", gotenbergImage)
-}
-
-// pullDockerImage pulls image for the Gotenberg and managed Ollama sidecars.
+// pullDockerImage pulls tagged images for the managed Ollama sidecars.
 // A reference without a tag is pulled as ":latest" (the Engine would pull
 // every tag otherwise). The pull reads the Engine's progress stream to its end
 // on the streaming pull client, bounded to dockerPullFallbackTimeout.
@@ -259,19 +148,26 @@ func gotenbergOKJSON(filePath, webPath, filename string) string {
 
 // GotenbergHealth checks if the Gotenberg sidecar is reachable.
 func GotenbergHealth(ctx context.Context, cfg *config.GotenbergConfig) string {
+	probeError := func(message string, reachable bool) string {
+		out, _ := json.Marshal(map[string]interface{}{"status": "error", "message": message, "reachable": reachable, "security_verified": false})
+		return string(out)
+	}
+	if cfg == nil || cfg.URL == "" {
+		return probeError("Gotenberg URL is not configured", false)
+	}
 	url := strings.TrimRight(cfg.URL, "/") + "/health"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return gotenbergErrJSON("create request: " + err.Error())
+		return probeError("Cannot create Gotenberg health request", false)
 	}
 	resp, err := getGotenbergClient(cfg.Timeout).Do(req)
 	if err != nil {
-		return gotenbergErrJSON("Gotenberg unreachable: " + err.Error())
+		return probeError("Gotenberg unreachable", false)
 	}
 	defer resp.Body.Close()
 	body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
-		return gotenbergErrJSON("Failed to read health response: " + err.Error())
+		return probeError("Failed to read health response: "+err.Error(), true)
 	}
 	if resp.StatusCode == 200 {
 		// body is already valid JSON from Gotenberg; embed it as-is under "details".
@@ -280,14 +176,28 @@ func GotenbergHealth(ctx context.Context, cfg *config.GotenbergConfig) string {
 		if json.Unmarshal(body, &detailsRaw) != nil {
 			detailsRaw, _ = json.Marshal(string(body))
 		}
+		version, securityErr := verifyGotenbergSecurity(ctx, cfg)
+		if securityErr != nil {
+			out, _ := json.Marshal(map[string]interface{}{
+				"status": "error", "message": securityErr.Error(), "reachable": true, "security_verified": false,
+			})
+			return string(out)
+		}
 		out, _ := json.Marshal(map[string]interface{}{
-			"status":  "success",
-			"message": "Gotenberg is healthy",
-			"details": detailsRaw,
+			"status":            "success",
+			"message":           "Gotenberg is healthy",
+			"details":           detailsRaw,
+			"reachable":         true,
+			"security_verified": true,
+			"version":           version,
 		})
 		return string(out)
 	}
-	return gotenbergErrJSON(fmt.Sprintf("Gotenberg returned HTTP %d: %s", resp.StatusCode, gotenbergTruncate(string(body), 300)))
+	out, _ := json.Marshal(map[string]interface{}{
+		"status": "error", "message": fmt.Sprintf("Gotenberg returned HTTP %d", resp.StatusCode),
+		"reachable": true, "security_verified": false,
+	})
+	return string(out)
 }
 
 // GotenbergURLToPDF converts a URL to PDF via Chromium.
@@ -307,7 +217,7 @@ func GotenbergURLToPDF(ctx context.Context, cfg *config.GotenbergConfig, outputD
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -335,7 +245,7 @@ func GotenbergHTMLToPDF(ctx context.Context, cfg *config.GotenbergConfig, output
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -379,7 +289,7 @@ th { background: #f2f2f2; }
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -389,7 +299,7 @@ th { background: #f2f2f2; }
 // GotenbergConvertDocument converts office documents (docx, xlsx, pptx, etc.) to PDF via LibreOffice.
 func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, outputDir, sourceFilePath, filename, paperSize string, landscape bool) string {
 	// Read the source file
-	srcData, err := os.ReadFile(sourceFilePath)
+	sources, err := readDocumentSources(ctx, "convert_document", []string{sourceFilePath})
 	if err != nil {
 		return gotenbergErrJSON("read source file: " + err.Error())
 	}
@@ -401,7 +311,7 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 
 	srcName := filepath.Base(sourceFilePath)
 	files := map[string][]byte{
-		srcName: srcData,
+		srcName: sources[0],
 	}
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/libreoffice/convert", fields, files)
@@ -413,7 +323,7 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 		filename = strings.TrimSuffix(srcName, filepath.Ext(srcName))
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -429,19 +339,16 @@ func GotenbergConvertDocument(ctx context.Context, cfg *config.GotenbergConfig, 
 
 // GotenbergMergePDFs merges multiple PDF files into one.
 func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, outputDir string, sourcePaths []string, filename string) string {
-	if len(sourcePaths) < 2 {
-		return `{"status":"error","message":"merge_pdfs requires at least 2 PDF files"}`
+	sources, err := readDocumentSources(ctx, "merge_pdfs", sourcePaths)
+	if err != nil {
+		return gotenbergErrJSON(err.Error())
 	}
 
 	files := make(map[string][]byte, len(sourcePaths))
 	for i, p := range sourcePaths {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return gotenbergErrJSON("read file " + filepath.Base(p) + ": " + err.Error())
-		}
 		// Gotenberg merges in alphabetical order of filenames
 		name := fmt.Sprintf("%02d_%s", i+1, filepath.Base(p))
-		files[name] = data
+		files[name] = sources[i]
 	}
 
 	data, err := gotenbergRequest(ctx, cfg, "/forms/pdf-engines/merge", nil, files)
@@ -449,7 +356,7 @@ func GotenbergMergePDFs(ctx context.Context, cfg *config.GotenbergConfig, output
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".pdf")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".pdf")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -478,7 +385,7 @@ func GotenbergScreenshotURL(ctx context.Context, cfg *config.GotenbergConfig, ou
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".png")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".png")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}
@@ -504,7 +411,7 @@ func GotenbergScreenshotHTML(ctx context.Context, cfg *config.GotenbergConfig, o
 		return gotenbergErrJSON(err.Error())
 	}
 
-	filePath, webPath, err := saveGotenbergOutput(data, outputDir, filename, ".png")
+	filePath, webPath, err := saveGotenbergOutput(ctx, data, outputDir, filename, ".png")
 	if err != nil {
 		return gotenbergErrJSON(err.Error())
 	}

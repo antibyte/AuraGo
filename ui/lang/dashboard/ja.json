@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "準備済みのテスト対象だけを使用してください。テストID、ツール、正確な引数、期待するJSONフィールドを指定します。操作の実行には allow_effects: true が必要です。既存の権限は維持され、設定値はレポートに保存されません。",
   "dashboard.selftest_case": "テスト",
   "dashboard.selftest_tool": "ツール",
-  "dashboard.selftest_connections": "接続"
+  "dashboard.selftest_connections": "接続",
+  "dashboard.rustfs_running_unready": "実行中・未準備"
 }

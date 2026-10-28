@@ -650,7 +650,7 @@ func TestGameObservationsCannotSelfCertifyOrOmitEvidence(t *testing.T) {
 
 func TestTargetEvidenceCannotCertifyMissingOrInactiveActions(t *testing.T) {
 	scenario := requiredScenarios("shooter")[2]
-	for _, kind := range []string{"missing", "mismatch", "counter", "no_input", "blocked", "inactive", "unsupported"} {
+	for _, kind := range []string{"missing", "mismatch", "counter", "no_input", "blocked", "inactive", "unsupported", "host_hidden"} {
 		t.Run(kind, func(t *testing.T) {
 			observations := successfulObservationFixture([]GameScenario{scenario})
 			run := &observations[0].TargetRuns[0]

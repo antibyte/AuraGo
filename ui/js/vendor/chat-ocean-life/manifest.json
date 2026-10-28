@@ -1,0 +1,7 @@
+{
+  "three": "0.186.1",
+  "license": "MIT",
+  "entry": "ui/js/chat/ocean-life-scene.js",
+  "bytes": 650386,
+  "sha256": "0ab1d64b131cd7227181286042fd024a39aa37825065115d9169b44b9b140235"
+}

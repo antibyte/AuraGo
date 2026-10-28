@@ -312,7 +312,7 @@ func decodeWebDAVArgs(tc ToolCall) webDAVArgs {
 
 func decodeS3Args(tc ToolCall) s3Args {
 	return s3Args{
-		Operation:         firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Operation:         strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")))),
 		Bucket:            firstNonEmptyToolString(tc.Bucket, toolArgString(tc.Params, "bucket")),
 		Key:               firstNonEmptyToolString(tc.Key, toolArgString(tc.Params, "key")),
 		LocalPath:         firstNonEmptyToolString(tc.LocalPath, toolArgString(tc.Params, "local_path")),

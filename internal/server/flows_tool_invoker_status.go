@@ -29,13 +29,14 @@ import (
 // Remote text must not pick a status: a refusal rule matches only AuraGo's own wording at
 // the start of the tool's message, with the integration named as the subject, never a
 // message that starts with a transport error (which echoes what a server sent), and never an
-// answer the tool itself marked as third-party data. The server's Guardian wraps every tool
-// answer in <external_data> (security.SanitizeToolOutput, default "external"); that outer
-// layer is presentation and is removed first. A second layer, or a single one when no
-// Guardian runs, is the tool's own marking of remote content (agent externalToolOutput).
+// answer the tool itself marked as third-party data. agent.DispatchToolCallResult wraps every
+// tool answer in exactly one <external_data> layer (security.SanitizeToolOutput, default
+// "external"; since the dispatch falls back to a regex Guardian when its context carries none,
+// also then). That layer is presentation: InvokeTool removes it first (flowOpenDispatchLayer).
+// A layer that is left is the tool's own marking of remote content (agent externalToolOutput).
 //
-// It never changes the output of a call that succeeded, and it never parses a large
-// output: refusals are short, and the flows side parses every output again anyway.
+// Apart from that layer it never changes the output of a call that succeeded, and it never
+// parses a large output: refusals are short, and the flows side parses every output again anyway.
 
 // flowStatusParseLimit is the largest output flowToolOutcome looks into.
 const flowStatusParseLimit = 64 << 10
@@ -176,20 +177,61 @@ func flowUnwrapExternal(text string) (string, bool) {
 	return html.UnescapeString(strings.Trim(inner, "\n")), true
 }
 
-// flowToolText returns the tool's own text without prefixes and without the Guardian's
-// outer <external_data> layer. remote reports that what is left is third-party data the
-// tool marked as such: a second layer, or any layer when guardian is false.
-func flowToolText(output string, guardian bool) (text string, remote bool) {
-	text = flowStripToolPrefixes(output)
+// flowBrokenAngleEscape matches what the boundary hardening of security.IsolateExternalData
+// (hardenExternalBoundary) makes of a "\u003c" spelling of "<": a space after the backslash,
+// which is no JSON escape, so a JSON answer whose strings hold a "<" (the tool's own
+// <external_data> marking inside a value, any page text with a tag) no longer parses.
+var flowBrokenAngleEscape = regexp.MustCompile(`(?i)\\ (u003c|u\{0*3c\}|x3c)`)
+
+// flowGuardianWarning matches the "[SECURITY WARNING: a; b]" line(s) security.SanitizeToolOutput
+// appends behind the fence of a delivered answer it flagged (a Medium finding, a directive
+// shape, a relieved bare phrase, the output validator): fixed category names of letters,
+// digits and underscores, joined by "; ", never payload text.
+var flowGuardianWarning = regexp.MustCompile(`(?:\n\[SECURITY WARNING: [A-Za-z0-9_]+(?:; [A-Za-z0-9_]+)*\])+\z`)
+
+// flowOpenDispatchLayer removes the one isolation layer agent.DispatchToolCallResult puts
+// around a tool answer: the "[Tool Output]" label, the <external_data> fence and its HTML
+// escaping, and the Guardian's SECURITY WARNING line behind the fence. The warning is for a
+// model that reads the answer; a flow node gets the tool's answer, so the line goes with the
+// layer and is not part of the flows view. An answer that does not have the fence from end to
+// end (a refusal the dispatcher wrote itself, a quarantine notice, any other text behind the
+// fence) is returned as it is. The hardening of the fence is undone where it broke JSON
+// (flowRestoreAngleEscapes), so the flows side parses the tool's answer as the tool wrote it.
+// Only this layer goes: the tool's own marking inside stays for the flows side and for
+// flowToolText.
+func flowOpenDispatchLayer(output string) string {
+	text := flowGuardianWarning.ReplaceAllString(flowStripToolPrefixes(output), "")
 	inner, wrapped := flowUnwrapExternal(text)
 	if !wrapped {
-		return text, false
+		return output
 	}
-	if !guardian {
+	return flowRestoreAngleEscapes(inner)
+}
+
+// flowRestoreAngleEscapes puts the backslash back in an escape that the boundary hardening
+// broke, but only when that turns a body that is not JSON into JSON: in valid JSON a
+// backslash is never followed by a space, so for a JSON answer the repair is exact, and
+// text that was no JSON to begin with is left alone.
+func flowRestoreAngleEscapes(text string) string {
+	if json.Valid([]byte(flowStripToolPrefixes(text))) {
+		return text
+	}
+	fixed := flowBrokenAngleEscape.ReplaceAllString(text, `\${1}`)
+	if fixed != text && json.Valid([]byte(flowStripToolPrefixes(fixed))) {
+		return fixed
+	}
+	return text
+}
+
+// flowToolText returns the tool's own text without prefixes. remote reports that what is
+// left is third-party data the tool marked as such: an <external_data> layer behind the
+// dispatch's, which flowOpenDispatchLayer has already removed.
+func flowToolText(output string) (text string, remote bool) {
+	text = flowStripToolPrefixes(output)
+	if _, wrapped := flowUnwrapExternal(text); wrapped {
 		return text, true
 	}
-	inner = flowStripToolPrefixes(inner)
-	return inner, strings.HasPrefix(inner, flowExternalOpen)
+	return text, false
 }
 
 // flowToolMessage is the tool's own description of a failure: the message or error field of
@@ -273,22 +315,22 @@ func flowNotifyRefusal(envelope map[string]any) (agent.ToolResultStatus, string)
 }
 
 // flowToolOutcome turns a dispatcher result into the response a flow node gets (see the
-// comment at the top of this file). tool is the logical flow tool name; guardian tells
-// whether the dispatch ran with a Guardian, which wraps every answer once.
-func flowToolOutcome(tool string, res agent.ToolDispatchResult, guardian bool) flows.ToolResponse {
+// comment at the top of this file). tool is the logical flow tool name. res.Output is the
+// answer without the dispatch's layer (flowOpenDispatchLayer).
+func flowToolOutcome(tool string, res agent.ToolDispatchResult) flows.ToolResponse {
 	out := flows.ToolResponse{Output: res.Output, IsError: res.IsError, Status: string(res.Status)}
 	if len(res.Output) > flowStatusParseLimit {
 		return out
 	}
 	status := agent.ToolResultStatus(strings.ToLower(strings.TrimSpace(string(res.Status))))
-	text, remote := flowToolText(res.Output, guardian)
+	text, remote := flowToolText(res.Output)
 	if remote {
 		return out
 	}
 	envelope := flowEnvelope(text)
 	if status == "" || status == agent.ToolResultUnknown {
 		// The dispatcher's own classifier (exit_code, pending and deferred answers, the
-		// plain-text failure markers), applied to the text behind the Guardian's layer.
+		// plain-text failure markers), applied to the tool's own text.
 		if shape := agent.ClassifyToolResult(text); shape != agent.ToolResultUnknown {
 			status = shape
 		}

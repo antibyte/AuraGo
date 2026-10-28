@@ -183,7 +183,8 @@ func dockerComposeKeepEnd(text string, limit int) string {
 }
 
 // DockerComposeModelOwner reports the first AuraGo owner whose resources the
-// resolved model names, or "". It checks container_name, aurago.managed labels
+// resolved model names, or "". RustFS service names and network aliases are
+// reserved globally. It checks container_name, aurago.managed labels
 // (canonical and legacy) on services, top-level volumes and networks, the
 // homepage image repository, named and bind volume sources, local bind volume
 // devices, volumes_from and container: namespace references. Owners: acestep.Owner, dockerutil.LocalLLMOwner,
@@ -195,6 +196,9 @@ func dockerComposeKeepEnd(text string, limit int) string {
 func DockerComposeModelOwner(model DockerComposeModel) string {
 	for _, name := range sortedDockerComposeKeys(model.Services) {
 		service := model.Services[name]
+		if dockerComposeRustFSAlias(name, service) != "" {
+			return dockerutil.RustFSOwner
+		}
 		if owner := dockerComposeContainerOwner(service.ContainerName); owner != "" {
 			return owner
 		}
@@ -236,6 +240,9 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		if owner := dockerComposeVolumeOwner(volume.Name); owner != "" {
 			return owner
 		}
+		if dockerPathUsesRustFSVolume(volume.DriverOpts["device"]) {
+			return dockerutil.RustFSOwner
+		}
 		if dockerutil.IsBoringGarageDataPath(volume.DriverOpts["device"]) {
 			return dockerutil.BoringGarageOwner
 		}
@@ -249,6 +256,25 @@ func DockerComposeModelOwner(model DockerComposeModel) string {
 		}
 	}
 	return ""
+}
+
+// dockerComposeRustFSAlias reports a reserved RustFS service name or DNS alias.
+func dockerComposeRustFSAlias(serviceName string, service DockerComposeService) string {
+	if dockerutil.IsRustFSContainerName(normalizeDockerComposeDNSName(serviceName)) {
+		return serviceName
+	}
+	for _, networkName := range sortedDockerComposeKeys(service.Networks) {
+		for _, alias := range service.Networks[networkName].Aliases {
+			if dockerutil.IsRustFSContainerName(normalizeDockerComposeDNSName(alias)) {
+				return alias
+			}
+		}
+	}
+	return ""
+}
+
+func normalizeDockerComposeDNSName(name string) string {
+	return strings.TrimSuffix(strings.TrimSpace(name), ".")
 }
 
 // dockerComposeServiceUsesImage reports whether matches accepts the service's
@@ -335,7 +361,7 @@ func dockerComposeVolumesFromTarget(ref string) (target string, isContainer bool
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
 // aurago.managed labels on a service, volume or network.
 func dockerComposeLabelOwner(labels map[string]string) string {
-	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.DecisionsOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner} {
+	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.DecisionsOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner} {
 		if dockerutil.ManagedBy(labels, owner) {
 			return owner
 		}
@@ -346,6 +372,8 @@ func dockerComposeLabelOwner(labels map[string]string) string {
 func dockerComposeContainerOwner(name string) string {
 	name = strings.TrimSpace(name)
 	switch {
+	case dockerutil.IsRustFSContainerName(name):
+		return dockerutil.RustFSOwner
 	case dockerutil.IsOllamaContainerName(name):
 		return dockerutil.OllamaOwner
 	case name == "":
@@ -374,6 +402,8 @@ func dockerComposeContainerOwner(name string) string {
 func dockerComposeVolumeOwner(name string) string {
 	name = strings.TrimSpace(name)
 	switch {
+	case dockerutil.IsRustFSVolumeName(name):
+		return dockerutil.RustFSOwner
 	case dockerutil.IsOllamaVolumeName(name):
 		return dockerutil.OllamaOwner
 	case name == "":
@@ -400,6 +430,9 @@ func dockerComposeMountOwner(model DockerComposeModel, mount DockerComposeMount)
 			return dockerComposeVolumeOwner(volume.Name)
 		}
 	case "bind":
+		if dockerPathUsesRustFSVolume(mount.Source) {
+			return dockerutil.RustFSOwner
+		}
 		if dockerutil.IsBoringGarageDataPath(mount.Source) {
 			return dockerutil.BoringGarageOwner
 		}

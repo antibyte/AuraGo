@@ -36,6 +36,20 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ### Contracts
 
+- **QR insertion.** `pixel-qrcode.js` registers immediately after `pixel-core.js`
+  and adds Generate/menu-palette entries. It lazily opens shared key `qr`, captures
+  the document, layers, history entry and selection, and rejects stale results.
+  Insert a normal named document-sized raster layer with `commitLayerPixels`
+  (`respectSelection:false`, `history:false`), then one `pushHistory`; existing
+  layers and the selection descriptor survive. Placement uses bounded pixel
+  dimensions/offsets and the preview aspect ratio. Existing transforms and
+  OpenRaster own later editing/persistence; never add a parametric QR layer type.
+  Decode the scaled PNG and original preview with the shared scanner before
+  creating the layer; their complete payloads must match. Reject unreadable sizes
+  without changing layers/history and recheck document and cancellation after
+  verification. Commit the same verified pixels without resampling again.
+  Wrap the existing `disposeCore` to abort the dialog before core cleanup.
+
 - **Layers.** `layer = { id, name, canvas, visible, opacity, blend, lockPixels, lockAlpha, lockPosition, maskCanvas,
   maskEnabled, clip, rev, maskRev, sticker?, stickerImage? }`. Every layer owns a document-sized canvas. Create layers with
   `createLayer`, mark them with `markLayerDirty(layer, { mask })`, read through `getActiveReadCtx()` and write through
@@ -87,7 +101,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `pixel-generators.js`, `pixel-lib-gen.js`; cutout → `pixel-cutout.js`, `pixel-lib-cutout.js`; selection →
   `pixel-selection.js`; brush and retouch → `pixel-brush.js`, `pixel-tools-pro.js`; transform → `pixel-transform.js`;
   intelligence → `pixel-smart.js`, `pixel-commands.js`, `pixel-lib-inpaint.js`; project files → `pixel-ora.js`; stickers →
-  `pixel-stickers.js`. Styles are `ui/css/pixel*.css`, one per feature area.
+  `pixel-stickers.js`; QR insertion → `pixel-qrcode.js`. Styles are
+  `ui/css/pixel*.css`, one per feature area; QR chrome uses shared lazy
+  `ui/css/desktop-qr.css`.
 - Files that other apps read: `menus-and-routing.js` (`desktopIsImageFile`, bundled into
   `ui/js/desktop/bundles/main.bundle.js`) and `editor-filemenu.js` (`isPixelImageFile`). After editing either, run
   `npm run build:ui` and `npm run check:ui`.
@@ -278,6 +294,162 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `[data-layout-chip]`, the draft and review banners (`role="status"`) and the inline errors (`role="alert"`); `[data-live]`
   has none, so a poll never speaks. A failing poll reports once (`loadSnapshot`, `explicit` always reports). The only
   `role="toolbar"` is the canvas tools, with a roving tab stop and arrows, Home and End.
+
+## Docker Manager
+
+- Load order (module-loader `docker-manager`, pinned by `TestDockerManagerWiring`; `xterm.css`, `xterm.min.js` and `xterm-addon-fit.min.js`
+  come first, no WebGL renderer): `docker-manager-model.js` (pure: container
+  status and problem derivation, grouping by compose project, search and state filters, the multi-host merge, host health,
+  the host form rules, error normalisation; `normalizeError` keeps the answer body in `data`), `docker-manager-stack-model.js`
+  (pure: stack status and tone, rows and groups of the stack list, port links, lint helpers, the line diff, command palette
+  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-charts.js` (pure
+  SVG and text: `sparkline`, `gauge`, `bytes`, `percent`, `loadCell`), `docker-manager-store.js`
+  (every request through the desktop `api()` against `/api/docker-manager`, one request in flight per key, per-host container
+  and stack listings, the open stack and the open external project, the operations with one `EventSource` each, the live stream,
+  the disk usage of the selected host, polling only while the window is visible), `docker-manager-live.js` (the client of
+  `/stream`, held by the store), `docker-manager-views.js` (HTML builders: rail with the Stacks and Containers sections and the
+  host gauges, banners, table, empty states, detail drawer, line diff), `docker-manager-stacks.js` (HTML builders: stack list with its three groups and the host cards, stack
+  pane header, overview, editor shell, the external project pane), `docker-manager-editor.js` (the YAML/.env editor, the debounced
+  lint scheduler and the workbench that keeps the drafts of the open stack), `docker-manager-ops.js` (progress drawer and the
+  commands that start an operation), `docker-manager-logs.js` (log model and follow panel), `docker-manager-terminal.js` (xterm
+  panel), `docker-manager-panes.js` (mounts the follow panels, fills the load cells), `docker-manager-palette.js` (command palette), `docker-manager-dialogs.js` (one native `<dialog>` with a view
+  stack: host manager, add/edit form with Test connection, import from nest, confirmations, delete and down-with-volumes lists,
+  the revision-conflict diff), `docker-manager-newstack.js` (the new-stack flow), then `docker-manager.js` (composition root:
+  skeleton, focus, keyboard, drop, context menus, window menus, toasts). Style: `css/desktop-app-docker-manager.css`. Every file
+  stays below 1100 lines and no file touches the DOM at load (`scripts/test-docker-manager-ui.mjs` runs them in a vm). Phase 2
+  adds Stacks (the default section, remembered as `section` in the prefs), phase 3 the live data (below); Images, Volumes,
+  Networks and Templates come in later phases, and no placeholder is rendered for them.
+- The app appears only while Docker is enabled (`docker` capability, `desktopCapabilities` in `internal/server`). `ctx.readonly`
+  (read-only desktop) hides container actions and host editing. `docker.readonly` hides the container actions only (host management
+  stays): every `GET /hosts` answer carries `docker_readonly` (read per request), `loadHosts` sets and clears
+  `state.dockerReadonly` from it, and a `read_only` 403 still sets it at once. The `aurago:desktop-policy` event counts only its
+  `readonly` flag, never `enabled`. Docker disabled answers 503 `docker_disabled` on every route and shows one
+  explanatory state with a link to `/config#docker`.
+- Repaints compare the new HTML with the last one and skip equal markup; controls carry `data-focus-id` and `keepFocus`
+  restores the focus on the same control, so a poll never steals it. Do not re-render the table from a timer. The table is a
+  `treegrid` with a roving tab stop: arrows move, Left/Right collapse and expand a group, Enter opens the drawer, Delete asks to
+  remove, Escape closes the drawer, `/` focuses the search, Shift+F10 opens the row menu.
+- A failed container list keeps the last containers of that host and shows a banner with the reason code
+  (`dns`, `refused`, `timeout`, `tls`, `auth`, `ssh_host_key`, `socket_missing`, `api_too_old`, `unknown`, texts
+  `docker_manager.reason_*`); the browser giving up after 35 s counts as `host_unreachable` with reason `timeout`. A host
+  status whose `checked_at` is the zero time (`0001-01-01…`) is "not checked yet", never a date. `GET /hosts` answers from cached
+  statuses and refreshes stale ones in the background, so it is polled together with the container lists.
+- Secrets are write-only. An edited host with stored credentials shows "stored" and a Replace action instead of empty secret
+  fields; blank fields keep the stored value, the TLS PEM fields are sent only when typed (the server merges them one by one),
+  and Test connection posts the draft with the host's `id` so the server reuses the stored secrets. A draft the server cannot test
+  (400 `invalid_host` with a `field`, e.g. `ssh_secret` or `stacks_dir`) is shown on that field exactly like a rejected save
+  (`revealField` opens the Replace secret inputs or the Advanced section); only a connection outcome is a test result. A stored SSH secret follows the
+  endpoint it was saved for: when the address (trimmed, case-insensitive, no IPv6 brackets), the effective port (empty = 22) or the
+  SSH user changes, or the kind becomes SSH, the server refuses to reuse it (`invalid_host`, field `ssh_secret`) and the form
+  (`storedSecretUsable`) asks for it again up front and says why; TLS material is kept. The dialog content is emptied whenever the
+  view stack is empty, so a typed password or PEM key never stays in the closed `<dialog>`; `docker-manager.ui.v1` holds prefs only.
+  Plain TCP carries a visible warning. Names are unique ignoring case and "Local" is reserved (checked in the form, enforced by the server).
+- Protected containers (lock icon) ask before stop, restart, pause, kill and remove. The server never confirms the first four;
+  a protected remove answers 409 `container_protected_confirmation_required` with `owner` and `message` (the shared text of
+  `/api/containers`, English, ending in the confirm=protected instruction). The dialog does not show that message: it maps the
+  `owner` (`self`, `docker-endpoint`, `shared-network`, `unverified`, or an AuraGo owner name) to the same translated
+  `protected_*` sentence a lock the client already knew about gets (`views.protectedLabelText`), and the request is repeated with
+  `?confirm=protected` (plus `&force=1` when forcing).
+- Host colours are the eight `data-host-color` values mapped to theme tokens in the stylesheet; no literal colours, no
+  uppercase labels, motion only inside `prefers-reduced-motion: no-preference` on `body:not([data-animations="false"])` (the
+  Node test guards this like the Infra test). A modal `<dialog>` sits in the top layer, so toasts raised while it is open are
+  moved inside it and moved back into the app when the dialog closes. Code surfaces (editor, diff, preview code) use
+  `--dm-mono`; every other label keeps the UI font.
+- Stacks section: the list has three groups (own stacks, external compose projects, single containers; the latter open the
+  container drawer and a helper container of the Stacks feature carries the lock and "Docker Manager helper"). A host that
+  answers 409 `host_not_prepared` shows a card with the helper image and a Prepare host button (a prepare operation), one that
+  answers `api_too_old` or an unusable stacks folder shows its reason, and an unreachable host is explained by the banner. The
+  Stacks section polls the stack listings with the container lists (every 5 s while visible); the Containers section never
+  starts the lister container. The Refresh button, the end of an operation, a create and a project action ask the server to rescan
+  (`?refresh=1`); polls and section switches use its 30 s cache. An external project is only started,
+  stopped or restarted (`POST .../projects/{p}/{action}`); its row opens the Containers section filtered by the project name.
+- Stack pane: header (name, host, folder, age), restart and stop icons, one accent button (Deploy for draft, stopped, partial and
+  error, Update for running; the palette offers both for a partial stack), the more menu (pull, stop and remove, stop and remove
+  with volumes, delete) and the tabs Overview, Compose and .env. The panels and the editors in them are built once
+  per opened stack and only shown or hidden, so a poll never repaints an editor; `docker-manager-editor.js` keeps the drafts.
+  Leaving a stack with unsaved edits asks (the stack list, the palette and the host scope all go through `leaveStack`). Deploy
+  and Update save unsaved edits first; Ctrl/Cmd+S saves, Ctrl/Cmd+Enter saves and runs `up`. A save sends the revision the edit
+  is based on; 409 `revision_conflict` opens the diff dialog (Overwrite with mine = resend with the host's revision, Take the
+  host version, Keep editing). Delete lists the folder and the named volumes (`GET .../volumes`), needs the stack name typed
+  and deletes the volumes only when asked; "stop and remove with volumes" lists the volumes and needs no typing.
+- Editor: CodeMirror comes from `/js/vendor/codemirror-bundle.esm.js` (dynamic import like Code Studio) with `yaml()`,
+  `lintGutter()`, `linter(null)` and `setDiagnostics`; a plain textarea is shown at once and is what stays when the bundle fails
+  to load. Lint (`POST /hosts/{h}/lint`, 400 ms after the last edit, the newest request wins) feeds the gutter and a problems
+  list below the editor. The file is decided by the code: `env_syntax` belongs to the .env editor (its `params.file` is `.env`
+  too), every other code to the compose file. Texts are `lint_<code>` with the `service` of the diagnostic and `params` as
+  placeholders (`detail`, `value`, `port`, `container`, `variable`); when a placeholder stays open or the code is unknown the
+  server's English `message` is shown. A failed
+  operation with `error_line` reopens the Compose tab with that line marked until the text changes.
+- Progress drawer: a bottom panel that is a status line while nothing runs. It lists the operations started in this window,
+  those found with `GET /operations?active=1` when the window opens and those a stack listing names (`operation`). That list
+  has its output blanked by the server: for an operation already followed it only updates the state and never the output or
+  the progress. One `EventSource` per active operation (`snapshot`, `output`, `progress`, `state`, `done`), closed on `done`; after an error the
+  operation is read again and the stream reopened with a growing delay, and a finished operation is never streamed. A busy stack
+  (409 `operation_in_progress`) attaches to the running operation. Output has the terminal colour codes removed. When an
+  operation ends the listing and the open stack are reloaded.
+- New stack: the view replaces the list and the pane (Back asks when the view is filled). The name is checked like the server
+  (`^[a-z0-9][a-z0-9_-]{0,62}$`), the host is fixed under a host scope and a picker under All hosts; sources are Paste and
+  Convert docker run (`POST /convert/docker-run`, warnings listed). The preview comes from the lint answer (services, ports and
+  the containers that use them, storage by kind, variables with "Create random value in .env", hints). Files dropped on the
+  window (`.yaml`, `.yml`, `.env`) fill the editors; a drag with files is claimed (`preventDefault` + `stopPropagation`, so the
+  desktop does not upload it to the Desktop folder) only while the window may change things. Deploy answers 201 with
+  `deploy_error` (`{code, message}`) and no operation when the files were written but the deployment could not start: the
+  stack opens as a draft and an error toast names the reason (`error_<code>`, the server message only for unknown codes).
+- Live data (phase 3): while the window is visible the store keeps one `DockerManagerLive` client on `GET /stream` (the `eventSource`
+  option fakes it in tests, `live: false` switches it off). `hello` names the stream; what the window listens to (`syncLive`: the hosts
+  in scope for events, status and operations, the containers whose load cells are on screen for 3 s stats, the selected host for the
+  gauges) goes to `PUT /stream/subscriptions` 250 ms after the last change and again after every reconnect (a new stream starts
+  empty). The client closes a broken stream itself and reopens it after 1, 2, 4, 8, 16, 30 s; a stream without any message for three
+  heartbeats (at least 45 s; EventSource hides comment lines) is asked first: the wish is sent again, and only a 404, an error or no
+  answer within 10 s counts as dead (so an idle stream does not flap); a `host_status` per host says `live`,
+  `paused`, `unreachable` or `connecting`. A host that is `live` is polled only every 60 s (`stale()` in `pollOnce`); any other
+  host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (containers, the
+  stacks in the Stacks section, the open stack when its project is named), coalesced to one reload per 300 ms; `operation`
+  messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
+  unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
+  patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`) and repaints only the gauge area; the markup of the table
+  and of the stack overview holds empty placeholders, never numbers, so a stats message never repaints them. `panes.visibleLoads`
+  collects the rendered cells inside the viewport (at most 50 ids per host, 12-character ids) after every paint and scroll.
+- Follow panels: the container drawer (tabs Overview, Logs, Terminal, Inspect), the stack pane (Overview, Compose, .env, Logs,
+  Terminal) and the external project pane (Overview, Logs; opened by the project row, closed with Escape like a stack) keep one log
+  panel and one terminal panel per container, stack or project (`panes.drawer/stack/project`). A panel is built when its tab is first
+  shown, kept while the pane stays on the same thing, and the log panel is told to follow only while its tab is visible, the pane is
+  not covered and the window is visible. A connected terminal shell is the exception: it stays open while its pane exists (tab
+  switch, covered pane, minimised or hidden window) and is ended (`end` frame, socket closed) when the pane, the container or the
+  window closes or read-only is switched on. The log panel (`docker-manager-logs.js`) opens one `EventSource` on `.../logs?follow=1&tail=N` (container 200,
+  stack and project 100 per container), keeps a ring of 5000 lines, filters by text and service chips, pauses following when the view
+  is scrolled up ("New lines: n" resumes), strips ANSI, and after a broken connection asks for `tail=5000&since=<newest line>` and
+  drops what it already has; an EventSource hides why a request failed, so `store.diagnose(path)` repeats it as a plain GET: any 4xx answer
+  (and `docker_disabled`, `docker_hosts_unavailable`, `stacks_unavailable`) ends the retries, a 5xx answer, a timeout and a network
+  failure are retried. The server's `not_followed` notices (one per failed container, one for the services the budget left out) are
+  one line with every service once; `attached` and `detached` name the service. The terminal panel (`docker-manager-terminal.js`) uses
+  xterm and the fit addon on `.../terminal` (binary frames, `{"type":"resize"}`, `{"type":"end"}` before it closes); it is created
+  only when `window.Terminal` exists, never for a helper or stopped container or in read-only mode (messages instead), asks first for
+  a protected container (`?confirm=protected`, also after a 409 found by `store.diagnose`), and takes its colours from the
+  `--dm-term-*` properties of the stylesheet. Every keydown in the terminal stays inside it (Escape and Ctrl+K reach the shell);
+  Ctrl+] or the Leave terminal button moves the focus to the toolbar. The old one-shot logs view (`loadLogs`) is gone; the route
+  `GET .../logs` without `follow` stays on the server.
+- Keyboard: Ctrl/Cmd+K opens the palette from inside the app and stops the event so Spotlight (a document keydown handler)
+  does not open; the palette is a combobox with a listbox and refuses to open over a dialog. Escape closes the innermost of: the
+  palette, a dialog, the operations drawer, the new-stack view, the container drawer, the stack pane (never from inside an
+  editor). A button that opens a desktop context menu (`more`, `stack-more`) must stop its click: the desktop closes its menu on
+  every click it sees. The palette also offers "Logs: <stack or container>" and, outside read-only mode, "Terminal: <container>".
+- Strings: `desktop.app_docker_manager` and `docker_manager.*` in all 16 `lang/desktop/*.json` files, local helper `t` with the
+  `docker_manager.` prefix (registered in `desktopLocalI18nHelpers`; the key families built at run time are in
+  `desktopDynamicI18nPrefixes` in `ui/i18n_lint_test.go` and in the families table of the Node test, which also lists the keys
+  passed through a conditional expression). A new string needs its key in all 16 files with the same `{{placeholders}}`;
+  `TestDockerManagerLocalesAreComplete` and the Node test check this.
+- Verify: `node scripts/test-docker-manager-ui.mjs` (or `npm run test:docker-manager`),
+  `go test ./ui -run DockerManager -count=1`, and
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopDockerManager -count=1` (four tests: the app, the editor without the CodeMirror bundle,
+  `...LiveBrowser` for the stream, stats, gauges and list updates and `...FollowBrowser` for logs, terminals, project pane and palette; the
+  page has a 30 s budget for the whole run: keep the fake streams short). The fixture routes `/stream`, the follow streams, `/df` and a
+  gorilla WebSocket terminal in `desktop_docker_manager_live_browser_test.go`; the audit shell replaces `window.WebSocket` with a stub, so
+  the live tests take the native one back from a fresh iframe. The CodeMirror bundle is built by `npm run build:codemirror` from
+  `scripts/codemirror-entry.js`; phase 2 only added exports (`yaml`, `linter`, `lintGutter`, `setDiagnostics`), so Code Studio,
+  OpenSCAD, notes, CYD Creator and skills keep working. After editing a core file
+  (`module-loader.js`, `menus-and-routing.js`, `desktop-foundation.js`, `window-shell-runtime.js`) run `npm run build:ui` and
+  `npm run check:ui`. API contract: `internal/server` (`/api/docker-manager`), host registry: `internal/dockerhost`.
 
 ## Synth Studio
 
@@ -3420,6 +3592,24 @@ registration lives in `internal/desktop/types.go`.
   window owns its engine/worker, requests, panels, chart canvases, operation
   journal and save queue. Load OfficeSession, data, panels and charts before
   sheets.js. The local vendor build imports only Apache-2.0 Univer OSS 1.0.4.
+- Load `sheets-images.js` after charts and before `sheets.js`.
+  `SheetsImages.create(state)` owns per-window image nodes in the existing charts
+  overlay. `aux.images` stores ID, sheet ID/A1 anchor, offsets, dimensions, MIME,
+  embedded data, alt text and readonly state on the same native auxiliary undo
+  command as charts and print. Row/column operations transform/remove anchors in
+  that transaction; sheet renames preserve stable IDs. Unsupported pictures stay
+  readonly/opaque and unsafe unknown drawing references lock structural edits.
+  Sheet copies give managed images new IDs and the copied sheet's ID in the
+  native copy undo/redo transaction. Check aggregate image limits before copying;
+  preserve existing chart references and reject unsupported structural copies.
+- Sheets QR insertion captures document revision/signal and selected sheet/range
+  before loading the shared dialog. Images preserve aspect ratio while dragging
+  or resizing; arrows move one pixel, Shift+arrows resize four pixels, Delete
+  removes. Existing snapshots, drafts, conditional writes, Save As, recovery and
+  print retain image bytes; CSV warns about omitted images. Dispose removes image
+  nodes and pointer listeners. Verify `TestDesktopSheetsImagesBrowser`,
+  `TestDesktopSheetsQRDialogBrowser` (actual dialog/selection and XLSX QR decode) and the
+  existing Sheets engine/app/recovery/versioned-assets browser checks.
 - Resolve the engine import and formula worker through `AuraLazyAssets.versionedURL`
   so both match the desktop build, including after a cached pre-1.0 resource set.
   Verify `TestDesktopSheetsVersionedAssetsBrowser` alongside the app/recovery checks.
@@ -3463,6 +3653,13 @@ registration lives in `internal/desktop/types.go`.
   option. Format indent, hex color, highlight and image fields follow the
   selection. Keep the async close guard installed until cleanup and never
   replace failed loads with blank content.
+- Writer Insert QR captures the native retained selection, document identity and
+  package revision before lazy loading. Native image insertion requires a caret:
+  collapse to the captured anchor and retain selected text. Pass generated PNG
+  through the existing `insertImage`/native image command with requested physical
+  millimetres converted to points independently of export pixels. Readonly and
+  suggestion-mode restrictions apply again at insertion; document replacement
+  closes the dialog. Keep native undo, serial saves, DOCX/print/export and recovery.
 - Writer exposes New/Open after load failures and clears the persisted window
   path only on a confirmed 404. Transient errors retain it for Retry. Verify
   `TestDesktopFileLoadRecoveryBrowser` alongside the Sheets recovery check.
@@ -4144,6 +4341,43 @@ registration lives in `internal/desktop/types.go`.
   (`targets.collect/add/normalize/external`), and the history panel
   (`window.HomepageStudioHistory { create }`) receives their dependencies
   via a deps object like `NoisemakerLibrary`.
+- `homepage-studio-annotate.js` (`window.HomepageStudioAnnotate { create,
+  hitTest, overlapping, normalizeBox, tabOrder, composeMessage,
+  annotationPayload, cropLayout, MAX_MARKS }`) owns annotate mode. It injects
+  the toolbar button (`data-hp-annotate`), the snapshot layer inside
+  `.vd-hp-preview-frame` (scaled with the device), the mode bar and the mark
+  popover on `.vd-hp-preview-panel`, and the mark chips before the chat form;
+  styles live in `css/desktop-app-homepage-studio-annotate.css`. Snapshots come
+  from `POST /api/desktop/integrations/homepage/annotation-snapshot`
+  (`internal/server/homepage_annotation_handlers.go`, capture in
+  `internal/tools/homepage_annotation_capture.go`). The client sends site id,
+  target, path, viewport and `preview_url` (the URL its iframe shows). The
+  server uses `preview_url` only for deployed targets, and only when it matches
+  a URL registered for a managed site; otherwise it answers
+  `preview_unavailable`. The capture Chrome runs through a per-capture filtering
+  forward proxy (`internal/security/capture_proxy.go`, `--proxy-server` and
+  `--proxy-bypass-list=<-loopback>`). The proxy dials only the local preview
+  origin `127.0.0.1:<WebServerPort>` directly and checks every other destination
+  with the SSRF rules. It caps 16 concurrent connections, 600 connections and
+  64 MiB per capture. `GuardRodPageSSRF` is unchanged. Captures use a
+  desktop-style viewport at every width (`Mobile: false`). Keyboard: Tab and
+  Shift+Tab step through `tabOrder`; Tab past the last element goes on to Path,
+  Recapture and Done, Shift+Tab before the first element leaves the snapshot,
+  and neither wraps. Escape closes the popover, then the mode, and stops
+  propagation so the studio's Escape handler does not run. `takeForSend` returns
+  the message with the localized "Marks:" list (user comments only),
+  `context.annotations` (element details, rendered as untrusted external data by
+  `buildHomepageStudioAgentContext`) and `context.image_base64` (numbered crops,
+  at most 1000 × 1600 px and 1.4 MB of base64, below the 2 MiB chat body limit).
+  If the image cannot be used (too large, a provider that needs public image
+  URLs, or a failed vision fallback), the turn is still sent and the prompt says
+  so. On a text-only provider, the vision-fallback description of the marks
+  image enters the prompt only as untrusted external data
+  (`homepage_image_analysis`). Marks are not part of the draft. They are
+  dropped when the target changes, and for a deployed target also when the site
+  or the preview URL changes. The site pill renderer lives in the sites module
+  (`renderSitePill`), which keeps `homepage-studio.js` under the 1100-line
+  budget.
 - Homepage Studio accessibility contract: the chat log is a transcript, not a
   live region — it carries `aria-busy` and **no** `aria-live`; a dedicated
   `role="status"` node announces the finished message, the agent start and the
@@ -4188,6 +4422,14 @@ registration lives in `internal/desktop/types.go`.
   vendored chess package versions or copied Stockfish assets.
 
 ## Verification
+
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestQRDialogWriterPixelBrowser -count=1`
+  covers the shared real-core dialog and decodes QR media after native DOCX/ORA
+  save/reopen, plus undo/redo, selection fencing, all sixteen locales and viewport
+  cases. `node scripts/test-pixel-qrcode.mjs` covers raster insertion, bounds,
+  readonly, document changes and disposal; `npm run test:pixel` includes it.
+  Shared QR use and limitations are documented in
+  [QR codes](../../../../documentation/qr-code.md).
 
 - `node scripts/test-sheets-data.mjs`, `node scripts/test-writer-session.mjs`
 - `node scripts/build-sheets-vendor.js --check`
@@ -4478,8 +4720,15 @@ registration lives in `internal/desktop/types.go`.
   administrator-only ONVIF/manual setup and stream management, and cleanup on
   minimize or close. It must use AuraGo viewer/thumbnail APIs only, must never
   receive or persist camera credentials, and stores only non-sensitive grid
-  mode and selected-stream preferences. Loaded lazily by `module-loader.js` and
-  exposes `window.NetworkCamerasApp { render, dispose, open }`. An empty visible-ID
+  mode, selected-stream and non-sensitive main/substream role preferences. Loaded lazily by `module-loader.js` and
+  exposes `window.NetworkCamerasApp { render, dispose, open }`. `network-cameras-media.js`
+  owns shared media settings, role switching, diagnostics, incremental telemetry
+  and deliberate push-to-talk. Load it before the app. Visible windows poll state
+  every 5 seconds with at most one request; unchanged structures retain iframes,
+  inputs and modal state. Revisions reload only that camera. Hold/release,
+  pointer cancellation, blur, hiding and disposal stop microphone tracks, peer,
+  heartbeat and the identity-bound server lease. Never start the microphone on a
+  status update. Verify `TestDesktopNetworkCamerasMediaBrowser` in Standard/Fruity. An empty visible-ID
   set means no thumbnail requests; the no-`IntersectionObserver` fallback must
   explicitly mark all cards visible, and focus mode must stop grid polling.
   HTTP 202 mutation responses are saved partial successes: close the dialog,
@@ -5065,6 +5314,15 @@ registration lives in `internal/desktop/types.go`.
   --check and OfficeSession tests. The API, permission and packaging contracts are in
   documentation/desktop-notes.md. No child DOX file needed.
 
+## Tuya camera setup
+- `js/go2rtc-tuya.js` owns the shared account/setup dialog used by Config and Network Cameras; load it before the camera modules with `css/go2rtc-tuya.css`. Strings use `common.go2rtc_tuya.*` in all 16 common locales. Config adopts committed account/camera metadata without replacing other drafts.
+- Entered credentials exist only in dialog drafts until save or disposal. Discovery selections are opaque; account checks test saved inputs explicitly. Probe each selected HD/SD quality; failed HD offers an explicit SD choice. Cancel/close/window disposal abort requests, drop late results and clear drafts.
+- Tuya role settings hide RTSP transport/manual source controls. Talk is disabled without a confirmed source backchannel; reconcile `source_type` and `talk_supported` changes in the toolbar, stopping active talk if capability disappears. State refresh never recreates a microphone or unchanged viewer. Verify `TestGo2RTCTuya*Browser`, existing media browser smokes and `node scripts/test-ui-regressions.mjs`.
+
+## Camera source types
+- Shared module `js/go2rtc-source-form.js` + `css/go2rtc-source-form.css`, loaded by Network Cameras (module-loader) and the config page (`config.html`). Strings use `common.go2rtc_source.*` in all 16 common locales; the catalog comes from `GET /api/go2rtc/source-types` (`internal/config/go2rtc_source_types.go`).
+- Secrets and built URLs live only in memory (form state) and are restored into inputs via DOM properties after redraws; they never appear in markup, attributes, localStorage or preferences. Tuya stays in its own dialog.
+- Test: `node scripts/test-ui-regressions.mjs` ("go2rtc source form builds URLs").
 
 ### Homepage Studio managed website evidence
 

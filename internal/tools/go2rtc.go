@@ -38,27 +38,50 @@ const (
 
 // Go2RTCStreamStatus is the deliberately sanitized public stream view.
 type Go2RTCStreamStatus struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	Reachable bool     `json:"reachable"`
-	Codecs    []string `json:"codecs"`
-	Producers int      `json:"producers"`
-	Consumers int      `json:"consumers"`
+	SourceType        string              `json:"source_type,omitempty"`
+	TalkSupported     bool                `json:"talk_supported"`
+	Revision          uint64              `json:"revision"`
+	MediaReady        bool                `json:"media_ready"`
+	SourcePending     bool                `json:"source_pending"`
+	HasSubstream      bool                `json:"has_substream"`
+	HasCameraSnapshot bool                `json:"has_camera_snapshot"`
+	LastSnapshotAt    string              `json:"last_snapshot_at,omitempty"`
+	LastError         string              `json:"last_error,omitempty"`
+	State             string              `json:"state"`
+	VideoCodecs       []string            `json:"video_codecs"`
+	AudioCodecs       []string            `json:"audio_codecs"`
+	ReceivedBytes     uint64              `json:"received_bytes"`
+	SentBytes         uint64              `json:"sent_bytes"`
+	SourceRoles       []string            `json:"source_roles"`
+	Video             Go2RTCMediaCounters `json:"video"`
+	Audio             Go2RTCMediaCounters `json:"audio"`
+	Media             Go2RTCMediaSettings `json:"media"`
+	ID                string              `json:"id"`
+	Name              string              `json:"name"`
+	Reachable         bool                `json:"reachable"`
+	Codecs            []string            `json:"codecs"`
+	Producers         int                 `json:"producers"`
+	Consumers         int                 `json:"consumers"`
 }
 
 // Go2RTCStatus distinguishes configuration, container, and API state.
 type Go2RTCStatus struct {
-	Configured       bool   `json:"configured"`
-	Enabled          bool   `json:"enabled"`
-	ContainerRunning bool   `json:"container_running"`
-	APIUsable        bool   `json:"api_usable"`
-	Version          string `json:"version,omitempty"`
-	LastError        string `json:"last_error,omitempty"`
-	LastChecked      string `json:"last_checked,omitempty"`
+	TuyaSetup          bool   `json:"tuya_setup"`
+	Configured         bool   `json:"configured"`
+	Enabled            bool   `json:"enabled"`
+	ContainerRunning   bool   `json:"container_running"`
+	ContainerState     string `json:"container_state"`
+	APIUsable          bool   `json:"api_usable"`
+	Version            string `json:"version,omitempty"`
+	WebRTCSessionBound bool   `json:"webrtc_session_bound"`
+	LastError          string `json:"last_error,omitempty"`
+	LastChecked        string `json:"last_checked,omitempty"`
 }
 
 // Go2RTCSnapshotOptions contains safe, bounded snapshot transformations.
 type Go2RTCSnapshotOptions struct {
+	SourceRole   string
+	Purpose      string
 	Width        int
 	Height       int
 	Rotate       int
@@ -68,6 +91,7 @@ type Go2RTCSnapshotOptions struct {
 
 // Go2RTCSnapshotResult describes a verified JPEG snapshot.
 type Go2RTCSnapshotResult struct {
+	Revision    uint64 `json:"revision"`
 	Status      string `json:"status"`
 	StreamID    string `json:"stream_id"`
 	ContentType string `json:"content_type"`
@@ -88,27 +112,43 @@ type go2RTCSnapshotCacheEntry struct {
 
 // Go2RTCManager owns AuraGo's client, sidecar lifecycle, and runtime reconciliation.
 type Go2RTCManager struct {
-	lifecycleMu     sync.Mutex
-	credentialMu    sync.Mutex
-	mu              sync.RWMutex
-	cfg             config.Go2RTCConfig
-	docker          DockerConfig
-	dataDir         string
-	configDir       string
-	vault           *security.Vault
-	mediaDB         *sql.DB
-	logger          *slog.Logger
-	client          *http.Client
-	status          Go2RTCStatus
-	cache           map[string]go2RTCSnapshotCacheEntry
-	cacheBytes      int64
-	cancel          context.CancelFunc
-	lifetime        context.Context // background lifetime; ends at shutdown or Close
-	inDocker        bool
-	manualStop      bool
-	pendingStart    bool
-	pendingStop     bool
-	pendingRecreate bool
+	tuyaMu             sync.Mutex
+	tuyaBusy           map[string]bool
+	hardwareVerifiedAt string
+	hardwareBackend    string
+	hardwareKey        string
+	hardwareGeneration uint64
+	hardwareVerified   bool
+	mediaMu            sync.Mutex
+	mediaClosed        bool
+	media              map[string]*go2RTCMediaRuntime
+	mediaEpoch         string
+	mediaRevision      uint64
+	retiredAliases     []string
+	preloaded          map[string]string
+	transcodes         map[string]int
+	hls                map[string]*go2RTCHLSSession
+	lifecycleMu        sync.Mutex
+	credentialMu       sync.Mutex
+	mu                 sync.RWMutex
+	cfg                config.Go2RTCConfig
+	docker             DockerConfig
+	dataDir            string
+	configDir          string
+	vault              *security.Vault
+	mediaDB            *sql.DB
+	logger             *slog.Logger
+	client             *http.Client
+	status             Go2RTCStatus
+	cache              map[string]go2RTCSnapshotCacheEntry
+	cacheBytes         int64
+	cancel             context.CancelFunc
+	lifetime           context.Context // background lifetime; ends at shutdown or Close
+	inDocker           bool
+	manualStop         bool
+	pendingStart       bool
+	pendingStop        bool
+	pendingRecreate    bool
 }
 
 var defaultGo2RTCManager atomic.Pointer[Go2RTCManager]
@@ -145,6 +185,7 @@ func NewGo2RTCManager(cfg *config.Config, vault *security.Vault, mediaDB *sql.DB
 		cache: make(map[string]go2RTCSnapshotCacheEntry),
 	}
 	m.Configure(cfg)
+	m.loadHardwareVerification()
 	return m
 }
 
@@ -163,6 +204,7 @@ func (m *Go2RTCManager) configureLocked(cfg *config.Config) {
 	defer m.credentialMu.Unlock()
 
 	goCfg := cfg.Go2RTC
+	goCfg.Streams = append([]config.Go2RTCStreamConfig(nil), cfg.Go2RTC.Streams...)
 	if strings.TrimSpace(goCfg.Image) == "" {
 		goCfg.Image = config.Go2RTCDefaultImage
 	}
@@ -176,14 +218,18 @@ func (m *Go2RTCManager) configureLocked(cfg *config.Config) {
 		goCfg.WebRTC.Port = 8555
 	}
 	for i := range goCfg.Streams {
-		if m.vault != nil {
-			if value, err := m.vault.ReadSecret(config.Go2RTCStreamSourceVaultKey(goCfg.Streams[i].ID)); err == nil {
-				goCfg.Streams[i].Source = strings.TrimSpace(value)
-				goCfg.Streams[i].SourceConfigured = goCfg.Streams[i].Source != ""
-				security.RegisterSensitive(goCfg.Streams[i].Source)
+		for _, role := range []string{"main", "sub", "snapshot"} {
+			value := config.Go2RTCRoleSource(goCfg.Streams[i], role)
+			if m.vault != nil {
+				if secret, err := m.vault.ReadSecret(config.Go2RTCSourceKey(goCfg.Streams[i].ID, role)); err == nil {
+					value = strings.TrimSpace(secret)
+				}
 			}
+			config.Go2RTCSetRoleSource(&goCfg.Streams[i], role, value)
+			security.RegisterSensitive(value)
 		}
 	}
+
 	if m.vault != nil {
 		if value, err := m.vault.ReadSecret(config.Go2RTCAPIPasswordVaultKey); err == nil {
 			goCfg.APIPassword = strings.TrimSpace(value)
@@ -194,6 +240,10 @@ func (m *Go2RTCManager) configureLocked(cfg *config.Config) {
 	}
 	m.mu.Lock()
 	wasEnabled := m.cfg.Enabled
+	if !goCfg.Enabled || Go2RTCImageFor(m.cfg) != Go2RTCImageFor(goCfg) || m.cfg.URL != goCfg.URL || m.docker.Host != cfg.Docker.Host {
+		m.status.WebRTCSessionBound = false
+		m.status.APIUsable = false
+	}
 	m.cfg = goCfg
 	m.docker = DockerConfig{Host: cfg.Docker.Host}
 	m.dataDir = cfg.Directories.DataDir
@@ -210,6 +260,7 @@ func (m *Go2RTCManager) configureLocked(cfg *config.Config) {
 		m.manualStop = false
 	}
 	m.mu.Unlock()
+	m.syncMediaConfig(goCfg)
 }
 
 // StartBackground launches lifecycle monitoring and performs the initial reconcile.
@@ -226,6 +277,7 @@ func (m *Go2RTCManager) StartBackground(parent context.Context) {
 	m.cancel = cancel
 	m.lifetime = ctx
 	m.mu.Unlock()
+	m.cancelMedia()
 	go func() {
 		m.reconcileTick(ctx)
 		ticker := time.NewTicker(30 * time.Second)
@@ -253,7 +305,7 @@ func (m *Go2RTCManager) pullLifetime() context.Context {
 	return m.lifetime
 }
 
-// Close stops background reconciliation.
+// Close stops background reconciliation and camera media.
 func (m *Go2RTCManager) Close() {
 	if m == nil {
 		return
@@ -264,6 +316,15 @@ func (m *Go2RTCManager) Close() {
 	m.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+	m.mediaMu.Lock()
+	m.mediaClosed = true
+	m.mediaMu.Unlock()
+	m.cancelMedia()
+	ctx, done := context.WithTimeout(context.Background(), 2*time.Second)
+	defer done()
+	if err := m.clearPreloads(ctx); err != nil {
+		m.logger.Warn("[go2rtc] Warm connections could not be removed during shutdown")
 	}
 }
 
@@ -386,11 +447,23 @@ func (m *Go2RTCManager) Status(ctx context.Context) Go2RTCStatus {
 	status.Enabled = cfg.Enabled
 	status.Configured = len(cfg.Streams) > 0
 	owner := m.go2RTCOwner()
-	status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
 	if ctx != nil && cfg.Enabled {
 		tested, _ := m.Test(ctx)
 		status = tested
-		status.ContainerRunning = go2RTCContainerRunning(docker, cfg.ContainerName, owner)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	probe, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	running, known := go2RTCInspectRunningContext(probe, docker, cfg.ContainerName, owner)
+	status.ContainerRunning = running
+	status.ContainerState = "unknown"
+	if known {
+		status.ContainerState = "stopped"
+		if running {
+			status.ContainerState = "running"
+		}
 	}
 	return status
 }
@@ -399,6 +472,11 @@ func (m *Go2RTCManager) Status(ctx context.Context) Go2RTCStatus {
 func (m *Go2RTCManager) Test(ctx context.Context) (Go2RTCStatus, error) {
 	var raw interface{}
 	err := m.requestJSON(ctx, http.MethodGet, "/api", nil, &raw, 1<<20)
+	// An abandoned caller supplies no health sample. Keep the last confirmed
+	// status, including capability flags, for other cameras and callers.
+	if ctx.Err() != nil {
+		return m.currentStatus(), ctx.Err()
+	}
 	version := ""
 	if object, ok := raw.(map[string]interface{}); ok {
 		version = sanitizeGo2RTCToken(firstString(object, "version", "go2rtc"), 32)
@@ -410,6 +488,16 @@ func (m *Go2RTCManager) Test(ctx context.Context) (Go2RTCStatus, error) {
 		m.setAPIStatus(false, "", err.Error())
 		return m.currentStatus(), err
 	}
+	bound := false
+	if object, ok := raw.(map[string]interface{}); ok {
+		bound = firstString(object, "aurago_webrtc_lifecycle") == "ws-close-v1"
+	}
+	m.mu.Lock()
+	m.status.WebRTCSessionBound = bound
+	if object, ok := raw.(map[string]interface{}); ok {
+		m.status.TuyaSetup = firstString(object, "aurago_tuya") == "post-v1"
+	}
+	m.mu.Unlock()
 	m.setAPIStatus(true, version, "")
 	return m.currentStatus(), nil
 }
@@ -439,28 +527,7 @@ func (m *Go2RTCManager) ReconcileStreams(ctx context.Context) (int, error) {
 }
 
 func (m *Go2RTCManager) reconcileStreamsLocked(ctx context.Context) (int, error) {
-	cfg := m.Config()
-	if !cfg.Enabled {
-		return 0, fmt.Errorf("go2rtc integration is disabled")
-	}
-	count := 0
-	for _, stream := range cfg.Streams {
-		if !stream.Enabled {
-			continue
-		}
-		if err := ValidateGo2RTCStreamID(stream.ID); err != nil {
-			return count, err
-		}
-		if err := ValidateGo2RTCSource(stream.Source); err != nil {
-			return count, fmt.Errorf("stream %q source: %w", stream.ID, err)
-		}
-		query := url.Values{"name": {Go2RTCRuntimeStreamName(stream.ID)}, "src": {stream.Source}}
-		if err := m.request(ctx, http.MethodPatch, "/api/streams?"+query.Encode(), nil, 1<<20, nil); err != nil {
-			return count, fmt.Errorf("reconcile stream %q: %w", stream.ID, err)
-		}
-		count++
-	}
-	return count, nil
+	return m.reconcileMediaStreams(ctx)
 }
 
 // ListStreams returns only configured, enabled streams and sanitized telemetry.
@@ -476,14 +543,30 @@ func (m *Go2RTCManager) ListStreams(ctx context.Context) ([]Go2RTCStreamStatus, 
 			continue
 		}
 		entry := Go2RTCStreamStatus{ID: stream.ID, Name: stream.Name, Codecs: []string{}}
-		if raw, ok := upstream[Go2RTCRuntimeStreamName(stream.ID)].(map[string]interface{}); ok {
-			entry.Producers = sliceLength(raw["producers"])
-			entry.Consumers = sliceLength(raw["consumers"])
-			entry.Codecs = collectGo2RTCCodecs(raw)
-			// A configured go2rtc source already appears as one producer even before
-			// it has connected. Runtime codec metadata is the passive signal that a
-			// producer has actually been initialized successfully.
-			entry.Reachable = len(entry.Codecs) > 0
+		entry.SourceType = config.Go2RTCStreamSourceType(stream)
+		m.applyMediaStatus(&entry, stream)
+		aliases := m.mediaAliases(stream.ID)
+		seen := map[string]bool{}
+		for _, alias := range aliases {
+			if seen[alias] {
+				continue
+			}
+			seen[alias] = true
+			if raw, ok := upstream[alias].(map[string]interface{}); ok {
+				entry.TalkSupported = entry.TalkSupported || go2RTCTuyaTalkSupported(raw)
+				entry.Producers += sliceLength(raw["producers"])
+				entry.Consumers += go2RTCViewerCount(raw["consumers"])
+				readGo2RTCTelemetry(raw, &entry)
+				entry.Codecs = append(entry.Codecs, collectGo2RTCCodecs(raw)...)
+			}
+		}
+		entry.Codecs = uniqueGo2RTCStrings(entry.Codecs)
+		entry.VideoCodecs = uniqueGo2RTCStrings(entry.VideoCodecs)
+		entry.AudioCodecs = uniqueGo2RTCStrings(entry.AudioCodecs)
+		entry.Reachable = len(entry.VideoCodecs)+len(entry.AudioCodecs) > 0
+
+		if entry.Reachable && entry.State == "idle" {
+			entry.State = "online"
 		}
 		result = append(result, entry)
 	}
@@ -507,11 +590,19 @@ func (m *Go2RTCManager) StreamStatus(ctx context.Context, streamID string) (Go2R
 
 // Snapshot fetches, validates, optionally stores, and registers a JPEG snapshot.
 func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2RTCSnapshotOptions) (Go2RTCSnapshotResult, []byte, error) {
+	revision := m.StreamRevision(streamID)
 	stream, data, cached, err := m.fetchSnapshotBytes(ctx, streamID, opts)
 	if err != nil {
 		return Go2RTCSnapshotResult{}, nil, err
 	}
-	result, err := m.buildSnapshotResult(stream, data, opts)
+	if !m.MediaRevisionCurrent(streamID, revision) {
+		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("camera source changed during snapshot")
+	}
+	result, err := m.buildSnapshotResult(stream, data, opts, revision)
+	result.Revision = revision
+	if !m.MediaRevisionCurrent(streamID, revision) {
+		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("camera source changed during snapshot")
+	}
 	result.Cached = cached
 	return result, data, err
 }
@@ -519,11 +610,16 @@ func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2R
 // SnapshotBytes fetches and validates a JPEG without ever persisting it. It is
 // used by high-frequency thumbnail views even when store_media is enabled.
 func (m *Go2RTCManager) SnapshotBytes(ctx context.Context, streamID string, opts Go2RTCSnapshotOptions) (Go2RTCSnapshotResult, []byte, error) {
+	revision := m.StreamRevision(streamID)
 	stream, data, cached, err := m.fetchSnapshotBytes(ctx, streamID, opts)
 	if err != nil {
 		return Go2RTCSnapshotResult{}, nil, err
 	}
 	result := snapshotMetadata(stream.ID, data)
+	result.Revision = revision
+	if !m.MediaRevisionCurrent(streamID, revision) {
+		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("camera source changed during snapshot")
+	}
 	result.Cached = cached
 	return result, data, nil
 }
@@ -531,65 +627,94 @@ func (m *Go2RTCManager) SnapshotBytes(ctx context.Context, streamID string, opts
 func (m *Go2RTCManager) fetchSnapshotBytes(ctx context.Context, streamID string, opts Go2RTCSnapshotOptions) (config.Go2RTCStreamConfig, []byte, bool, error) {
 	stream, err := m.findEnabledStream(streamID)
 	if err != nil {
-		return config.Go2RTCStreamConfig{}, nil, false, err
+		return stream, nil, false, err
 	}
 	if opts.Width < 0 || opts.Width > 7680 || opts.Height < 0 || opts.Height > 4320 {
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("snapshot size is outside the supported bounds")
+		return stream, nil, false, fmt.Errorf("snapshot dimensions exceed supported bounds")
 	}
-	switch opts.Rotate {
-	case 0, 90, 180, 270:
-	default:
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("rotation must be 0, 90, 180, or 270")
+	if opts.Rotate != 0 && opts.Rotate != 90 && opts.Rotate != 180 && opts.Rotate != 270 {
+		return stream, nil, false, fmt.Errorf("rotation must be 0, 90, 180, or 270")
 	}
 	if opts.CacheSeconds < 0 || opts.CacheSeconds > 3600 {
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("cache duration must be between 0 and 3600 seconds")
+		return stream, nil, false, fmt.Errorf("cache duration must be between 0 and 3600 seconds")
 	}
-	cacheKey := fmt.Sprintf("%s:%d:%d:%d", stream.ID, opts.Width, opts.Height, opts.Rotate)
+	purpose := opts.SourceRole
+	if purpose == "" || purpose == "auto" {
+		purpose = opts.Purpose
+		if purpose == "" {
+			purpose = "preview"
+		}
+		if stream.SnapshotMode != "stream" && stream.SnapshotSource != "" {
+			purpose = "snapshot"
+		}
+	}
+	lease, err := m.AcquireMedia(ctx, streamID, purpose, false)
+	if err != nil {
+		return stream, nil, false, err
+	}
+	defer lease.Release()
+	cacheKey := fmt.Sprintf("%s:%d:%s:%d:%d:%d", streamID, lease.Revision, purpose, opts.Width, opts.Height, opts.Rotate)
 	if opts.CacheSeconds > 0 {
 		now := time.Now()
 		m.mu.Lock()
 		m.pruneSnapshotCacheLocked(now, 0)
 		cached, ok := m.cache[cacheKey]
-		if ok && now.Before(cached.expiresAt) {
-			cached.lastUsed = now
-			m.cache[cacheKey] = cached
-		}
 		m.mu.Unlock()
-		if ok && now.Before(cached.expiresAt) {
+		if ok && now.Before(cached.expiresAt) && lease.Context.Err() == nil {
 			return stream, append([]byte(nil), cached.data...), true, nil
 		}
 	}
-	query := url.Values{"src": {Go2RTCRuntimeStreamName(stream.ID)}}
-	if opts.Width > 0 {
-		query.Set("width", strconv.Itoa(opts.Width))
+	fetch := func(l *Go2RTCMediaLease) ([]byte, error) {
+		var contentType string
+		data, err := m.requestBytes(l.Context, http.MethodGet, "/api/frame.jpeg?"+url.Values{"src": {l.Alias}}.Encode(), nil, go2RTCMaxResponseBytes, &contentType)
+		if err != nil {
+			return nil, err
+		}
+		if kind, _, _ := strings.Cut(strings.ToLower(contentType), ";"); kind != "" && kind != "image/jpeg" {
+			return nil, fmt.Errorf("go2rtc returned unexpected snapshot content type %q", kind)
+		}
+		if len(data) < 4 || data[0] != 255 || data[1] != 216 || data[len(data)-2] != 255 || data[len(data)-1] != 217 {
+			return nil, fmt.Errorf("camera returned invalid JPEG data")
+		}
+		return transformGo2RTCJPEG(data, opts)
 	}
-	if opts.Height > 0 {
-		query.Set("height", strconv.Itoa(opts.Height))
+	data, err := fetch(lease)
+	fallback := false
+	if err != nil && purpose == "snapshot" && stream.SnapshotMode != "camera" && lease.Context.Err() == nil {
+		other := opts.Purpose
+		if other == "" {
+			other = "preview"
+		}
+		next, e := m.AcquireMedia(ctx, streamID, other, false)
+		if e == nil {
+			defer next.Release()
+			data, err = fetch(next)
+			fallback = err == nil
+		}
 	}
-	if opts.Rotate != 0 {
-		query.Set("rotate", strconv.Itoa(opts.Rotate))
-	}
-	var contentType string
-	data, err := m.requestBytes(ctx, http.MethodGet, "/api/frame.jpeg?"+query.Encode(), nil, go2RTCMaxResponseBytes, &contentType)
 	if err != nil {
-		return config.Go2RTCStreamConfig{}, nil, false, err
+		m.recordCameraSnapshot(streamID, lease.Revision, false, false)
+		return stream, nil, false, err
 	}
-	if mediaType, _, _ := strings.Cut(strings.ToLower(contentType), ";"); mediaType != "" && mediaType != "image/jpeg" {
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned unexpected snapshot content type %q", mediaType)
+	if lease.Context.Err() != nil || !m.MediaRevisionCurrent(streamID, lease.Revision) {
+		return stream, nil, false, fmt.Errorf("camera source changed during snapshot")
 	}
-	if len(data) < 4 || data[0] != 0xff || data[1] != 0xd8 || data[len(data)-2] != 0xff || data[len(data)-1] != 0xd9 {
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned invalid JPEG data (%d bytes)", len(data))
-	}
+	m.recordCameraSnapshot(streamID, lease.Revision, true, fallback)
 	if opts.CacheSeconds > 0 {
 		now := time.Now()
-		m.mu.Lock()
-		m.putSnapshotCacheLocked(cacheKey, data, now.Add(time.Duration(opts.CacheSeconds)*time.Second), now)
-		m.mu.Unlock()
+		m.mediaMu.Lock()
+		current := m.media[streamID]
+		if current != nil && current.revision == lease.Revision && current.ctx.Err() == nil {
+			m.mu.Lock()
+			m.putSnapshotCacheLocked(cacheKey, data, now.Add(time.Duration(opts.CacheSeconds)*time.Second), now)
+			m.mu.Unlock()
+		}
+		m.mediaMu.Unlock()
 	}
 	return stream, data, false, nil
 }
 
-func (m *Go2RTCManager) buildSnapshotResult(stream config.Go2RTCStreamConfig, data []byte, opts Go2RTCSnapshotOptions) (Go2RTCSnapshotResult, error) {
+func (m *Go2RTCManager) buildSnapshotResult(stream config.Go2RTCStreamConfig, data []byte, opts Go2RTCSnapshotOptions, revision uint64) (Go2RTCSnapshotResult, error) {
 	result := snapshotMetadata(stream.ID, data)
 	cfg := m.Config()
 	if !opts.Store && !cfg.StoreMedia {
@@ -638,6 +763,15 @@ func (m *Go2RTCManager) buildSnapshotResult(stream config.Go2RTCStreamConfig, da
 	if err := tmp.Close(); err != nil {
 		return result, fmt.Errorf("close temporary go2rtc snapshot: %w", err)
 	}
+	// Serialize publication with camera revision changes. Preparing the file is
+	// outside the lock; only rename/registration belong to the commit boundary.
+	m.mediaMu.Lock()
+	runtime := m.media[stream.ID]
+	if runtime == nil || !runtime.ready || runtime.ctx.Err() != nil || runtime.revision != revision {
+		m.mediaMu.Unlock()
+		return Go2RTCSnapshotResult{}, fmt.Errorf("camera source changed during snapshot")
+	}
+	defer m.mediaMu.Unlock()
 	if err := os.Rename(tmpPath, localPath); err != nil {
 		return result, fmt.Errorf("publish go2rtc snapshot: %w", err)
 	}
@@ -814,11 +948,12 @@ func (m *Go2RTCManager) ProxyCredentials() (string, string, error) {
 
 // EnabledStreamAlias maps a public stream ID to its internal runtime alias.
 func (m *Go2RTCManager) EnabledStreamAlias(streamID string) (string, error) {
-	stream, err := m.findEnabledStream(streamID)
+	lease, err := m.AcquireMedia(context.Background(), streamID, "main", false)
 	if err != nil {
 		return "", err
 	}
-	return Go2RTCRuntimeStreamName(stream.ID), nil
+	defer lease.Release()
+	return lease.Alias, nil
 }
 
 func (m *Go2RTCManager) findEnabledStream(streamID string) (config.Go2RTCStreamConfig, error) {
@@ -826,10 +961,10 @@ func (m *Go2RTCManager) findEnabledStream(streamID string) (config.Go2RTCStreamC
 	if err := ValidateGo2RTCStreamID(streamID); err != nil {
 		return config.Go2RTCStreamConfig{}, err
 	}
-	for _, stream := range m.Config().Streams {
-		if stream.ID == streamID && stream.Enabled {
-			return stream, nil
-		}
+	m.mediaMu.Lock()
+	defer m.mediaMu.Unlock()
+	if r := m.media[streamID]; r != nil {
+		return r.config, nil
 	}
 	return config.Go2RTCStreamConfig{}, fmt.Errorf("stream %q is not configured or enabled", streamID)
 }
@@ -848,18 +983,10 @@ func ValidateGo2RTCStreamID(streamID string) error {
 	return nil
 }
 
-// ValidateGo2RTCSource enforces the v1 network-only source contract.
+// ValidateGo2RTCSource enforces the camera source catalog (config.ValidateGo2RTCSourceURL).
 func ValidateGo2RTCSource(raw string) error {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed == nil || strings.TrimSpace(parsed.Host) == "" {
-		return fmt.Errorf("a complete network URL is required")
-	}
-	switch strings.ToLower(parsed.Scheme) {
-	case "rtsp", "rtsps", "rtspx", "http", "https", "onvif":
-		return nil
-	default:
-		return fmt.Errorf("source scheme %q is not allowed", parsed.Scheme)
-	}
+	_, err := config.ValidateGo2RTCSourceURL(raw)
+	return err
 }
 
 // ValidateGo2RTCInternalURL prevents the managed client/proxy from becoming an SSRF primitive.
@@ -961,7 +1088,21 @@ func (m *Go2RTCManager) requestBytes(ctx context.Context, method, path string, b
 		return nil, fmt.Errorf("create go2rtc request")
 	}
 	req.SetBasicAuth(go2RTCAPIUser, password)
-	resp, err := m.client.Do(req)
+	req.Header.Set("User-Agent", "AuraGo Camera Snapshot")
+	client := m.client
+	if strings.HasPrefix(path, "/api/aurago/tuya") {
+		copy := *client
+		copy.Timeout = 45 * time.Second
+		if transport, ok := copy.Transport.(*http.Transport); ok {
+			cloned := transport.Clone()
+			cloned.ResponseHeaderTimeout = 45 * time.Second
+			copy.Transport = cloned
+		}
+		client = &copy
+		defer client.CloseIdleConnections()
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		var requestErr *url.Error
 		if errors.As(err, &requestErr) && requestErr.Err != nil {

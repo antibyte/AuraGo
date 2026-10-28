@@ -108,6 +108,8 @@
   "help.chromecast.enabled": "启用音频输出的 Chromecast 集成。",
   "help.chromecast.tts_port": "TTS 文件服务器流式传输到 Chromecast 的本地端口。",
   "help.chromecast.media_host_allowlist": "AuraGo 可投放的私有媒体主机，使用逗号分隔，例如 192.168.1.10, media.lan:8096, 192.168.1.0/24。留空会阻止私有媒体 URL。",
+  "help.chromecast.advertise_host": "Chromecast 用于 AuraGo 媒体的主机或 IP。留空时 AuraGo 会选择一个局域网地址。绝不会使用 127.0.0.1。",
+  "help.chromecast.read_only": "阻止播放、朗读、停止、音量、暂停、跳转和静音。发现和状态仍然可用。",
   "help.circuit_breaker.llm_timeout_seconds": "LLM 请求超时（以秒为单位）。",
   "help.circuit_breaker.maintenance_timeout_minutes": "维护任务的最长持续时间（以分钟为单位）。也是代理自动从维护模式返回之前无用户活动的时间。",
   "help.circuit_breaker.max_tool_calls": "工具调用次数超过此值时，任务会被中止。这可防止无限循环和不受控制的 token 消耗。",

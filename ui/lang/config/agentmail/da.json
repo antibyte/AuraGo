@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Tilladte afsendere",
   "config.agentmail.api_key_empty": "Indtast først en API-nøgle.",
   "config.agentmail.api_key_label": "API-nøgle (Vault)",
   "config.agentmail.api_key_placeholder": "Indtast AgentMail API-nøgle…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "Brug WebSocket",
   "config.agentmail.websocket_url_label": "WebSocket-URL",
   "config.agentmail.yes": "Ja",
+  "help.agentmail.allowed_senders": "Én post pr. linje: en fuld adresse (anna@example.com) eller et helt domæne (@example.com). Kun mail fra disse afsendere når agenten; mail fra alle andre ignoreres. Så længe listen er tom, når ingen mail agenten, og der kommer kun en karantænemeddelelse for hver mail. Fra-headeren kan forfalskes, så hold listen kort og lad LLM-mailscanningen være slået til.",
   "help.agentmail.api_key": "AgentMail API-nøgle. Gemmes sikkert i det krypterede Vault.",
   "help.agentmail.auto_create_inbox": "Lader opsætningsflows oprette den konfigurerede indbakke automatisk, når det understøttes.",
   "help.agentmail.base_url": "Base-URL for AgentMail REST API.",

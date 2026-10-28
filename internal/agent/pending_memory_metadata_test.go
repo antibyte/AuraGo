@@ -22,8 +22,8 @@ func TestAuditQueuedAnalysisPreservesExtractionConfidence(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			result := memoryAnalysisResult{}
-			fact := extractedFact{Content: "The NAS uses an XFS filesystem.", Category: "fact", Confidence: .99}
+			result := memoryAnalysisResult{human: "FYI the NAS uses an XFS filesystem."}
+			fact := extractedFact{Content: "The NAS uses an XFS filesystem.", Category: "fact", Confidence: .99, Quote: "the NAS uses an XFS filesystem"}
 			switch kind {
 			case "fact":
 				result.Facts = []extractedFact{fact}

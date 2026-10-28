@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "केवल तैयार परीक्षण लक्ष्य उपयोग करो। परीक्षण ID, टूल, सटीक तर्क और अपेक्षित JSON फ़ील्ड दो। प्रभाव वाली कार्रवाइयों के लिए allow_effects: true चाहिए; मौजूदा अनुमतियाँ लागू रहेंगी। बाइंडिंग मान रिपोर्ट में सहेजे नहीं जाते।",
   "dashboard.selftest_case": "परीक्षण",
   "dashboard.selftest_tool": "टूल",
-  "dashboard.selftest_connections": "कनेक्शन"
+  "dashboard.selftest_connections": "कनेक्शन",
+  "dashboard.rustfs_running_unready": "चल रहा है, अभी तैयार नहीं"
 }

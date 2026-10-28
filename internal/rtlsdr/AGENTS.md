@@ -36,6 +36,8 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
 
 - Device-plugin initialization has one bounded 30-second request; ordinary
   SDRangel calls retain their 3-second budget. Never retry an uncertain device PUT.
+- Synthetic IQ acceptance grants only FileInput device initialization 120 seconds
+  for native ARM64 cold starts and prints bounded decoder log tails on failure.
 - Runtime patches retain LF and unified-diff context whitespace on every host;
   `.gitattributes` owns their Windows checkout normalization.
 

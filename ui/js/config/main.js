@@ -3450,6 +3450,7 @@ const SECTION_MODULES = {
     ldap: { m: 'ldap', fn: 'renderLDAPSection' },
     webdav: { m: 'webdav', fn: 'renderWebDAVSection' },
     koofr: { m: 'koofr', fn: 'renderKoofrSection' },
+    s3: { m: 's3', fn: 'renderS3Section' },
     telnyx: { m: 'telnyx', fn: 'renderTelnyxSection' },
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },

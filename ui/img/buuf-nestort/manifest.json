@@ -514,6 +514,7 @@
     "database": "img/buuf-nestort/icons/database.png",
     "desktop": "img/buuf-nestort/icons/desktop.png",
     "desktop-symbolic": "img/buuf-nestort/icons/desktop.png",
+    "docker-manager": "img/buuf-nestort/icons/docker-manager.svg",
     "documents": "img/buuf-nestort/icons/documents.png",
     "download": "img/buuf-nestort/icons/download.png",
     "downloads": "img/buuf-nestort/icons/download.png",
@@ -632,9 +633,9 @@
   },
   "inputs": {
     "LICENSE": "1e689ef000adc4774f0cb41fdebbbfe1147a0f47cc62bb2c80ebfa5cc43ad4da",
-    "assets/desktop-icon-themes/buuf_nestort.json": "5071cb21c0038cf074db527708458c92dd5cc4778344cae7c0da4d888fe358f1",
+    "assets/desktop-icon-themes/buuf_nestort.json": "d09b3fa1080a70b587dcfb94c56943c80d668597ed31d64cdbba9abff833c69a",
     "assets/desktop-icon-themes/sources.json": "691e0654df326f98289e8fb86ccc01e3d73130258d1684a724253fe69fcb4e90",
-    "assets/desktop-icon-themes/supplements.json": "7f0010af66c3e9a329ea366dfb44cbdb6ad582c0c6cbebe0551fce0b6a5d73bd",
+    "assets/desktop-icon-themes/supplements.json": "e25237ad7334ad634fac49846659e160a5b3de9766d2c38263a2d3a30acbe7a3",
     "licences/texts/CC-BY-NC-SA-2.5.txt": "f8a2cab6123734325c1dade12d0e7eb621bbefefdc055920bacccca5081583bc",
     "scripts/import-desktop-icon-themes.py": "f8a93463a41d69710cb31b79a3273133d1425dbc1226960f687322b8c2897a15",
     "ui/img/desktop-mini/symbols.svg": "6973ce7804312e7a4e6d40c9a315d5508d7beef8160457992660e3ee51d46304"

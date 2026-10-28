@@ -239,9 +239,47 @@ func TestThreeDeeBattleOverdriveResourcesAreDisposed(t *testing.T) {
 		"activeBeams: activeBeams.length",
 		"blinkGhosts: blinkGhosts.length",
 		"novaClashReadyIn: Math.max(0, novaClashReadyAt - globalTime)",
+		"surfaceMines: surfaceMines.length",
+		"fuelSlicks: fuelSlicks.length",
 	} {
 		if !strings.Contains(shader, marker) {
 			t.Fatalf("threedee-shader.js missing battle overdrive cleanup/debug marker %q", marker)
+		}
+	}
+}
+
+func TestThreeDeeRobotsDeployMinesFuelSlickAndStasisCounterSystem(t *testing.T) {
+	t.Parallel()
+
+	shader := readDesktopAssetText(t, "js/chat/threedee-shader.js")
+	for _, marker := range []string{
+		"const MAX_SURFACE_MINES =",
+		"const ROBOT_MINE_COOLDOWN =",
+		"const ROBOT_MINE_STASIS_DURATION =",
+		"const MAX_FUEL_SLICKS =",
+		"const ROBOT_FUEL_DROP_COOLDOWN =",
+		"const ROBOT_FUEL_BURN_DURATION =",
+		"function robotIsBurning",
+		"function robotIsStunned",
+		"function robotIsIncapacitated",
+		"function spawnRobotFuelSlick",
+		"function igniteFuelSlick",
+		"function igniteRobotWithFuel",
+		"function updateFuelSlicks",
+		"function spawnSurfaceMine",
+		"function detonateSurfaceMine",
+		"function stunRobotWithStasisMine",
+		"function updateSurfaceMines",
+		"kind: 'fuelIgniteFlame'",
+		"kind: 'robotBurnFlame'",
+		"kind: 'robotBurnSmoke'",
+		"kind: 'robotStasisSpark'",
+		"kind: isStasis ? 'stasisMineSpark' : 'blastMineSpark'",
+		"aurago:theme-effects-loaded",
+		"resolveThreeDeeAssetURL",
+	} {
+		if !strings.Contains(shader, marker) {
+			t.Fatalf("threedee-shader.js missing mine/fuel/stasis marker %q", marker)
 		}
 	}
 }

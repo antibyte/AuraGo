@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import validator from 'gltf-validator';
 
-const root = 'ui/3d/screensaver/abyss/v1/';
+const root = (process.argv[2] || 'ui/3d/screensaver/abyss/v1/').replace(/\/?$/, '/');
 const manifest = JSON.parse(await fs.readFile(root + 'manifest.json', 'utf8'));
 let errors = 0;
 let warnings = 0;
@@ -18,5 +18,5 @@ for (const asset of manifest.assets) {
     console.error(asset.file + ': ' + message.code + ' ' + message.message);
   }
 }
-console.log(manifest.assets.length + ' Tiefsee GLBs: ' + errors + ' errors, ' + warnings + ' warnings (' + validator.version() + ')');
+console.log(manifest.assets.length + ' ' + root + ' GLBs: ' + errors + ' errors, ' + warnings + ' warnings (' + validator.version() + ')');
 if (errors) process.exitCode = 1;

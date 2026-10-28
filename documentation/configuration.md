@@ -343,6 +343,7 @@ AgentMail API inboxes, messages, labels, drafts, attachments, and optional inbou
 | `poll_interval_seconds` | `120` | Poll interval used as fallback or when WebSockets are disabled. |
 | `relay_to_agent` | `false` | Wake the agent when new messages arrive in `inbox_id`. Disabled in egg mode. |
 | `relay_cheatsheet_id` | `""` | Optional cheat sheet whose content is appended as instructions to each relayed new-mail prompt. |
+| `allowed_senders` | `[]` | Who may reach the agent through the relay: full addresses or `@domain` entries (that exact domain), compared case-insensitively on the `From` address. With `relay_to_agent` on and the list empty, no mail reaches the agent and the owner gets a quarantine notice per message; with entries, mail from any other sender is ignored (logged by message ID, no notice, no label). The `From` header can be forged: keep the list short and `llm_guardian.scan_emails` on. The security check warns while the relay runs without either. |
 | `max_attachment_mb` | `10` | Maximum size for attachments sent through AgentMail tools. |
 | `base_url` | `"https://api.agentmail.to"` | AgentMail REST API base URL. |
 | `websocket_url` | `"wss://ws.agentmail.to/v0"` | AgentMail WebSocket endpoint. |

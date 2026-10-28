@@ -14,6 +14,7 @@
   "clipboard": "<rect x=\"5\" y=\"5\" width=\"14\" height=\"16\" rx=\"2\"/><rect x=\"8\" y=\"3\" width=\"8\" height=\"4\" rx=\"1\"/><path d=\"M8 11h8 M8 15h6\"/>",
   "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 6v6l4 2\"/>",
   "code": "<path d=\"m8 6-6 6 6 6 M16 6l6 6-6 6 M14 3l-4 18\"/>",
+  "container-stack": "<rect x=\"6\" y=\"3\" width=\"15\" height=\"5\" rx=\"1\"/><rect x=\"3\" y=\"9.5\" width=\"15\" height=\"5\" rx=\"1\"/><rect x=\"7\" y=\"16\" width=\"14\" height=\"5\" rx=\"1\"/><path d=\"M13.5 3.5v4M10.5 10v4M14 16.5v4\"/>",
   "copy": "<path d=\"M8 7V3h13v14h-4\"/><rect x=\"3\" y=\"7\" width=\"13\" height=\"14\" rx=\"1\"/>",
   "cpu": "<rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"2\"/><rect x=\"9\" y=\"9\" width=\"6\" height=\"6\" rx=\"0\"/><path d=\"M9 2v4 M15 2v4 M9 18v4 M15 18v4 M2 9h4 M2 15h4 M18 9h4 M18 15h4\"/>",
   "crop": "<path d=\"M6 2v16h16 M2 6h16v16 M9 6h9 M6 9v9\"/>",

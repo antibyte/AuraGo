@@ -1,0 +1,254 @@
+package tuya
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"image/jpeg"
+	"io"
+	"net/http"
+	"net/url"
+	"os/exec"
+	"strconv"
+	"time"
+
+	"github.com/AlexxIT/go2rtc/internal/api"
+	"github.com/AlexxIT/go2rtc/internal/app"
+	"github.com/AlexxIT/go2rtc/internal/streams"
+	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/AlexxIT/go2rtc/pkg/magic"
+	"github.com/AlexxIT/go2rtc/pkg/tuya"
+)
+
+func initAuraGoTuya() {
+	app.Info["aurago_tuya"] = "post-v1"
+	api.HandleFunc("api/aurago/tuya", auragoTuya)
+}
+
+var auragoDial = tuya.DialContext
+
+func auragoTuya(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost || r.URL.RawQuery != "" {
+		http.Error(w, "POST required", 405)
+		return
+	}
+	var input struct {
+		Action   string `json:"action"`
+		Region   string `json:"region"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Source   string `json:"source"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF {
+		http.Error(w, "Invalid request", 400)
+		return
+	}
+	budget := 20 * time.Second
+	if input.Action == "test" {
+		budget = 45 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), budget)
+	defer cancel()
+	var result any
+	var err error
+	switch input.Action {
+	case "discover":
+		result, err = auragoDiscover(ctx, input.Region, input.Email, input.Password)
+	case "test":
+		result, err = auragoProbe(ctx, r, input.Source)
+	default:
+		http.Error(w, "Unsupported action", 400)
+		return
+	}
+	if err != nil {
+		result = map[string]any{"status": "error", "error_code": tuya.TuyaErrorCode(err)}
+	}
+	api.ResponseJSON(w, result)
+}
+
+func auragoDiscover(ctx context.Context, region, email, password string) (any, error) {
+	var selected *tuya.Region
+	for _, r := range tuya.AvailableRegions {
+		if r.Host == region {
+			selected = &r
+			break
+		}
+	}
+	if selected == nil || email == "" || password == "" || len(email) > 4096 || len(password) > 4096 {
+		return nil, errors.New("invalid Tuya region or login")
+	}
+	client := tuya.BoundHTTPClient(ctx, tuya.CreateHTTPClientWithSession(), 36)
+	if _, err := login(client, selected.Host, email, password, selected.Continent); err != nil {
+		return nil, err
+	}
+	service, err := tuya.NewTuyaSmartApiClient(client, selected.Host, email, password, "")
+	if err != nil {
+		return nil, err
+	}
+	type candidate struct {
+		DeviceID string `json:"device_id"`
+		Name     string `json:"name"`
+	}
+	devices := make([]candidate, 0)
+	seen := map[string]bool{}
+	partial := false
+	add := func(d tuya.Device) {
+		if (d.Category != "sp" && d.Category != "dghsxj") || seen[d.DeviceId] || d.DeviceId == "" {
+			return
+		}
+		if len(devices) >= 128 {
+			partial = true
+			return
+		}
+		seen[d.DeviceId] = true
+		name := d.DeviceName
+		if len(name) > 192 {
+			name = name[:192]
+		}
+		devices = append(devices, candidate{DeviceID: d.DeviceId, Name: name})
+	}
+	homes, err := service.GetHomeList()
+	if err != nil {
+		partial = true
+	}
+	households := 0
+	if homes != nil {
+		for _, home := range homes.Result {
+			if households >= 32 {
+				partial = true
+				break
+			}
+			households++
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			rooms, err := service.GetRoomList(strconv.Itoa(home.Gid))
+			if err != nil {
+				partial = true
+				continue
+			}
+			for _, room := range rooms.Result {
+				for _, device := range room.DeviceList {
+					add(device)
+				}
+			}
+		}
+	}
+	shared, err := service.GetSharedHomeList()
+	if err != nil {
+		partial = true
+	}
+	if shared != nil {
+		for _, home := range shared.Result.SecurityWebCShareInfoList {
+			if households >= 32 {
+				partial = true
+				break
+			}
+			households++
+			for _, device := range home.DeviceInfoList {
+				add(device)
+			}
+		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return map[string]any{"status": "ok", "candidates": devices, "incomplete": partial}, nil
+}
+
+type boundedFrame struct{ bytes.Buffer }
+
+func (b *boundedFrame) Write(p []byte) (int, error) {
+	if b.Len()+len(p) > 16<<20 {
+		return 0, errors.New("camera frame exceeds limit")
+	}
+	return b.Buffer.Write(p)
+}
+
+type firstFrame struct{ boundedFrame }
+
+func (b *firstFrame) Write(p []byte) (int, error) {
+	n, err := b.boundedFrame.Write(p)
+	if err != nil {
+		return n, err
+	}
+	return n, io.EOF
+}
+
+func auragoProbe(ctx context.Context, r *http.Request, source string) (any, error) {
+	u, err := url.Parse(source)
+	if err != nil || u.Scheme != "tuya" {
+		return nil, errors.New("invalid Tuya source")
+	}
+	conn, err := auragoDial(ctx, source)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Stop()
+	video, audio := []string{}, []string{}
+	for _, media := range conn.GetMedias() {
+		for _, codec := range media.Codecs {
+			if media.Kind == core.KindVideo {
+				video = append(video, codec.Name)
+			} else if media.Kind == core.KindAudio {
+				audio = append(audio, codec.Name)
+			}
+		}
+	}
+	talk := false
+	if c, ok := conn.(interface{ TalkSupported() bool }); ok {
+		talk = c.TalkSupported()
+	}
+	stream := streams.NewStream(nil)
+	stream.AddProducer(conn)
+	consumer := magic.NewKeyframe()
+	consumer.WithRequest(r.WithContext(ctx))
+	defer stream.RemoveConsumer(consumer)
+	if err := stream.AddConsumer(consumer); err != nil {
+		return nil, err
+	}
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = consumer.Stop()
+			_ = conn.Stop()
+		case <-done:
+		}
+	}()
+	go conn.Start()
+	var first firstFrame
+	if _, err := consumer.WriteTo(&first); err != nil && err != io.EOF {
+		return nil, err
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	frame := first.boundedFrame
+	if consumer.CodecName() == core.CodecH264 || consumer.CodecName() == core.CodecH265 {
+		format := "h264"
+		if consumer.CodecName() == core.CodecH265 {
+			format = "hevc"
+		}
+		cmd := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", format, "-max_pixels", "33554432", "-i", "pipe:0", "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1")
+		cmd.Stdin = bytes.NewReader(frame.Bytes())
+		var output boundedFrame
+		cmd.Stdout = &output
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+		frame = output
+	}
+	image, err := jpeg.DecodeConfig(bytes.NewReader(frame.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+	if image.Width <= 0 || image.Height <= 0 || image.Width > 8192 || image.Height > 8192 || int64(image.Width)*int64(image.Height) > 32<<20 {
+		return nil, errors.New("invalid camera dimensions")
+	}
+	return map[string]any{"status": "ok", "width": image.Width, "height": image.Height, "video_codecs": video, "audio_codecs": audio, "talk_supported": talk}, nil
+}

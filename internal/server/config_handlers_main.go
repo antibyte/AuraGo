@@ -13,13 +13,13 @@ import (
 	"aurago/internal/tools"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"math"
 	"net"
 	"net/http"
-	neturl "net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -67,6 +67,23 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		removeDeprecatedSpeechLabVoice(rawCfg)
 		rawCfg["llm_router"] = s.ConfigSnapshot().LLMRouter
 		rawCfg["decisions"] = s.ConfigSnapshot().Decisions
+		dc := s.ConfigSnapshot().Tools.DocumentCreator
+		dcSection := rawCfg
+		for _, key := range []string{"tools", "document_creator"} {
+			child, ok := dcSection[key].(map[string]interface{})
+			if !ok {
+				child = make(map[string]interface{})
+				dcSection[key] = child
+			}
+			dcSection = child
+		}
+		dcSection["allow_remote_resources"] = dc.AllowRemoteResources
+		gotenberg, ok := dcSection["gotenberg"].(map[string]interface{})
+		if !ok {
+			gotenberg = make(map[string]interface{})
+			dcSection["gotenberg"] = gotenberg
+		}
+		gotenberg["url"] = dc.Gotenberg.URL
 
 		// Inject personality section from in-memory config when it is absent
 		// from the raw YAML (migration scenario: old config only has agent.personality_*).
@@ -222,6 +239,7 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 	section["web_ui_enabled"] = cfg.Go2RTC.WebUIEnabled
 	section["agent_access"] = cfg.Go2RTC.AgentAccess
 	section["store_media"] = cfg.Go2RTC.StoreMedia
+	section["tuya_accounts"] = safeTuyaAccounts(cfg.Go2RTC)
 	section["image"] = cfg.Go2RTC.Image
 	section["container_name"] = cfg.Go2RTC.ContainerName
 	section["url"] = cfg.Go2RTC.URL
@@ -233,30 +251,37 @@ func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault
 	}
 	streams := make([]interface{}, 0, len(cfg.Go2RTC.Streams))
 	for _, configured := range cfg.Go2RTC.Streams {
-		sourceConfigured := strings.TrimSpace(configured.Source) != ""
-		if !sourceConfigured && vault != nil {
-			if key := config.Go2RTCStreamSourceVaultKey(configured.ID); key != "" {
-				if value, err := vault.ReadSecret(key); err == nil && strings.TrimSpace(value) != "" {
-					sourceConfigured = true
+		entry := go2RTCMediaProjection(configured)
+		mainSource := configured.Source
+		for _, role := range []string{"main", "sub", "snapshot"} {
+			field := "source"
+			if role != "main" {
+				field = role + "_source"
+			}
+			value := config.Go2RTCRoleSource(configured, role)
+			if strings.TrimSpace(value) == "" && vault != nil {
+				if stored, err := vault.ReadSecret(config.Go2RTCSourceKey(configured.ID, role)); err == nil {
+					value = stored
 				}
 			}
+			present := strings.TrimSpace(value) != ""
+			if role == "main" {
+				mainSource = value
+			}
+			entry[field+"_configured"] = present
+			entry[field] = ""
+			if present {
+				entry[field] = "••••••••"
+			}
 		}
-		entry := map[string]interface{}{
-			"id":                configured.ID,
-			"name":              configured.Name,
-			"enabled":           configured.Enabled,
-			"source_configured": sourceConfigured,
-		}
-		if sourceConfigured {
-			entry["source"] = "••••••••"
-		} else {
-			entry["source"] = ""
-		}
-		// A config save replaces go2rtc.streams wholesale (mergeConfigArrayValue);
-		// without the detection object, saving the shown streams would erase it.
+		withSource := configured
+		withSource.Source = mainSource
+		entry["source_type"] = config.Go2RTCStreamSourceType(withSource)
 		entry["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCStreamDetection(configured.Detection))
 		streams = append(streams, entry)
 	}
+	section["hardware"] = go2RTCDetectionProjection(cfg.Go2RTC.Hardware)
+
 	section["streams"] = streams
 	section["detection"] = go2RTCDetectionProjection(config.NormalizeGo2RTCDetectionSettings(cfg.Go2RTC.Detection))
 }
@@ -560,6 +585,15 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := prepareTuyaConfigPatch(s, rawCfg, patch, go2RTCSourceTxn); err != nil {
+			var mutation *go2RTCMutationError
+			if errors.As(err, &mutation) {
+				writeGo2RTCMutationFailure(w, err)
+			} else {
+				jsonError(w, security.Scrub(err.Error()), http.StatusBadRequest)
+			}
+			return
+		}
 		if err := validateAIGatewayConfigPatch(rawCfg, patch); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -647,6 +681,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := config.ValidateLLMRouterConfig(&validateCfg, true); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := validateInjectionGuardActivation(s, &validateCfg); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -870,6 +908,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		rustfsFinish, err := s.prepareRustFSConfigSave(r.Context(), &validateCfg)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		defer rustfsFinish(false, nil)
 		_, cfExplicit := patch["cloudflare_tunnel"]
 		cfFinish, cfErr := prepareCloudflareConfigSave(s, &validateCfg, cfExplicit)
 		if cfErr != nil {
@@ -891,6 +935,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
 		}
+		rustfsFinish(true, nil)
 		go2RTCSourceTxn.Commit()
 
 		// Snapshot old config under read lock, then do file I/O without holding any lock.
@@ -964,7 +1009,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if !reflect.DeepEqual(oldCfg.Discord, newCfg.Discord) {
 				discordChanged = true
 			}
-			if oldCfg.AgentMail != newCfg.AgentMail || oldCfg.LLMGuardian.ScanEmails != newCfg.LLMGuardian.ScanEmails || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled {
+			if agentMailConfigChanged(oldCfg.AgentMail, newCfg.AgentMail) || oldCfg.LLMGuardian.ScanEmails != newCfg.LLMGuardian.ScanEmails || oldCfg.EggMode.Enabled != newCfg.EggMode.Enabled {
 				restartAgentMailAfterUnlock = true
 			}
 			if oldCfg.SQLite != newCfg.SQLite {
@@ -1149,8 +1194,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Auto-start Gotenberg container if document_creator just became active
 			if newCfg.Docker.Enabled && newCfg.Tools.DocumentCreator.Enabled && strings.EqualFold(newCfg.Tools.DocumentCreator.Backend, "gotenberg") {
-				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") {
-					go tools.EnsureGotenbergRunning(newCfg.Docker.Host, s.Logger)
+				if !oldCfg.Tools.DocumentCreator.Enabled || !strings.EqualFold(oldCfg.Tools.DocumentCreator.Backend, "gotenberg") ||
+					oldCfg.Tools.DocumentCreator.Gotenberg.URL != newCfg.Tools.DocumentCreator.Gotenberg.URL || oldCfg.Docker.Host != newCfg.Docker.Host ||
+					!oldCfg.Docker.Enabled || oldCfg.Docker.ReadOnly != newCfg.Docker.ReadOnly {
+					if s.integrationCtx != nil {
+						go func() {
+							if err := tools.EnsureGotenbergRunning(s.integrationCtx, newCfg, false, s.Logger); err != nil {
+								s.Logger.Warn("[Gotenberg] Sidecar configuration pending or refused", "error", err)
+							}
+						}()
+					}
 				}
 			}
 
@@ -1711,19 +1764,10 @@ func go2RTCRequiresRecreate(oldCfg, newCfg config.Go2RTCConfig) bool {
 		oldCfg.ContainerName != newCfg.ContainerName ||
 		oldCfg.URL != newCfg.URL ||
 		oldCfg.APIHostPort != newCfg.APIHostPort ||
-		!reflect.DeepEqual(oldCfg.WebRTC, newCfg.WebRTC) {
+		!reflect.DeepEqual(oldCfg.WebRTC, newCfg.WebRTC) || !reflect.DeepEqual(oldCfg.Hardware, newCfg.Hardware) {
 		return true
 	}
-	newStreams := make(map[string]config.Go2RTCStreamConfig, len(newCfg.Streams))
-	for _, stream := range newCfg.Streams {
-		newStreams[stream.ID] = stream
-	}
-	for _, previous := range oldCfg.Streams {
-		current, exists := newStreams[previous.ID]
-		if !exists || (previous.Enabled && !current.Enabled) {
-			return true
-		}
-	}
+
 	return false
 }
 
@@ -1851,6 +1895,29 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 }
 
 func validateGo2RTCSettings(cfg config.Go2RTCConfig, rt config.Runtime, vault *security.Vault) error {
+	if err := config.ValidateGo2RTCMedia(cfg); err != nil {
+		return err
+	}
+	for _, stream := range cfg.Streams {
+		for _, role := range []string{"sub", "snapshot"} {
+			value := config.Go2RTCRoleSource(stream, role)
+			if vault != nil {
+				if secret, err := vault.ReadSecret(config.Go2RTCSourceKey(stream.ID, role)); err == nil {
+					value = secret
+				}
+			}
+			if value != "" {
+				if err := tools.ValidateGo2RTCSource(value); err != nil {
+					return fmt.Errorf("invalid camera %s source", role)
+				}
+			}
+			required := (role == "sub" && (stream.PreviewSource == "sub" || stream.DetectionSource == "sub")) || (role == "snapshot" && stream.SnapshotMode == "camera")
+			if required && value == "" {
+				return fmt.Errorf("camera %q requires its %s source", stream.ID, role)
+			}
+		}
+	}
+
 	// Detection settings are validated even while go2rtc is off: config.Load
 	// rejects invalid ones unconditionally.
 	if err := validateGo2RTCDetectionSettings(cfg); err != nil {
@@ -2650,66 +2717,38 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault configSecret
 }
 
 func extractGo2RTCStreamSourcesToVault(items []interface{}, vault configSecretWriter, logger *slog.Logger) error {
-	var firstErr error
-	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		stream, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		raw, exists := stream["source"]
-		delete(stream, "source")
-		delete(stream, "source_configured")
-		id := strings.TrimSpace(fmt.Sprint(stream["id"]))
-		key := config.Go2RTCStreamSourceVaultKey(id)
-		if err := tools.ValidateGo2RTCStreamID(id); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("go2rtc %w", err)
-			}
-			continue
-		}
-		if _, duplicate := seen[key]; duplicate {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("go2rtc stream id %q is duplicated", id)
-			}
-			continue
-		}
-		seen[key] = struct{}{}
-		if !exists {
-			continue
-		}
-		value, ok := raw.(string)
-		if !ok {
-			continue
-		}
-		value = strings.TrimSpace(value)
-		if value == "" || value == "••••••••" {
-			continue
-		}
-		if err := validateGo2RTCSourceURL(value); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("invalid source for go2rtc stream %q: %w", id, err)
-			}
-			continue
-		}
-		if configSecretWriterMissing(vault) {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("go2rtc stream source for %q cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
-			}
-			continue
-		}
-		if err := vault.WriteSecret(key, value); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("failed to save go2rtc source for stream %q: %w", id, err)
-			}
-			continue
-		}
-		security.RegisterSensitive(value)
-		if logger != nil {
-			logger.Info("[Config] go2rtc stream source accepted for Vault storage", "stream_id", id)
-		}
+	changes, err := go2RTCSourceChanges(items, true)
+	if err != nil {
+		return err
 	}
-	return firstErr
+	if staged, ok := vault.(*configSecretMutations); ok && staged != nil && len(changes) > 0 {
+		// Setup stages its writes; the shared config transaction publishes them
+		// after the YAML is saved.
+		for _, change := range changes {
+			key := go2RTCChangeKey(change)
+			if key == "" {
+				return fmt.Errorf("invalid camera or account ID")
+			}
+			if !change.Delete {
+				security.RegisterSensitive(change.Value)
+			}
+			*staged = append(*staged, vaultMutation{key: key, value: change.Value, delete: change.Delete})
+		}
+		return nil
+	}
+	if len(changes) == 0 {
+		return nil
+	}
+	store, _ := vault.(*security.Vault)
+	if store == nil {
+		return fmt.Errorf("camera sources require the secrets vault")
+	}
+	txn, err := stageGo2RTCSourceChanges(&Server{Vault: store}, changes)
+	if err != nil {
+		return err
+	}
+	txn.Commit()
+	return nil
 }
 
 type go2RTCSourceVaultSnapshot struct {
@@ -2739,34 +2778,25 @@ func captureGo2RTCSourceVaultState(patch map[string]interface{}, vault *security
 	case map[string]interface{}:
 		items, _ = numericKeyedMapToSlice(streams)
 	}
-	for _, item := range items {
-		stream, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		source, ok := stream["source"].(string)
-		if !ok || strings.TrimSpace(source) == "" || source == "••••••••" {
-			continue
-		}
-		id := strings.TrimSpace(fmt.Sprint(stream["id"]))
-		if tools.ValidateGo2RTCStreamID(id) != nil {
-			continue
-		}
-		key := config.Go2RTCStreamSourceVaultKey(id)
+	changes, err := go2RTCSourceChanges(items, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, change := range changes {
+		key := config.Go2RTCSourceKey(change.ID, change.Role)
 		if _, captured := txn.previous[key]; captured {
 			continue
 		}
 		value, err := vault.ReadSecret(key)
 		if err == nil {
 			txn.previous[key] = go2RTCSourceVaultSnapshot{value: value, exists: true}
-			continue
-		}
-		if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
+		} else if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
 			txn.previous[key] = go2RTCSourceVaultSnapshot{}
-			continue
+		} else {
+			return nil, fmt.Errorf("read previous camera source: %w", err)
 		}
-		return nil, fmt.Errorf("read previous go2rtc source for stream %q: %w", id, err)
 	}
+
 	return txn, nil
 }
 
@@ -2796,41 +2826,20 @@ func (t *go2RTCSourceVaultTransaction) Rollback() error {
 	return firstErr
 }
 
-func validateGo2RTCSourceURL(raw string) error {
-	u, err := neturl.Parse(strings.TrimSpace(raw))
-	if err != nil || u == nil || strings.TrimSpace(u.Host) == "" {
-		return fmt.Errorf("a complete network URL is required")
-	}
-	switch strings.ToLower(u.Scheme) {
-	case "rtsp", "rtsps", "rtspx", "http", "https", "onvif":
-		return nil
-	default:
-		return fmt.Errorf("unsupported scheme %q", u.Scheme)
-	}
-}
-
 func cleanupRemovedGo2RTCStreamSecrets(oldStreams, newStreams []config.Go2RTCStreamConfig, vault *security.Vault, logger *slog.Logger) {
 	if vault == nil {
 		return
 	}
-	remaining := make(map[string]struct{}, len(newStreams))
+	remaining := map[string]bool{}
 	for _, stream := range newStreams {
-		if key := config.Go2RTCStreamSourceVaultKey(stream.ID); key != "" {
-			remaining[key] = struct{}{}
-		}
+		remaining[stream.ID] = true
 	}
 	for _, stream := range oldStreams {
-		key := config.Go2RTCStreamSourceVaultKey(stream.ID)
-		if key == "" {
+		if remaining[stream.ID] {
 			continue
 		}
-		if _, ok := remaining[key]; ok {
-			continue
-		}
-		if err := vault.DeleteSecret(key); err != nil && !strings.Contains(strings.ToLower(err.Error()), "not found") {
-			if logger != nil {
-				logger.Warn("[Config] Failed to remove obsolete go2rtc stream source", "stream_id", stream.ID, "error", err)
-			}
+		for _, role := range []string{"main", "sub", "snapshot"} {
+			_ = vault.DeleteSecret(config.Go2RTCSourceKey(stream.ID, role))
 		}
 	}
 }
@@ -2874,4 +2883,17 @@ func normalizeDetectiveYAMLSection(rawCfg map[string]interface{}) {
 		}
 	}
 	section["extra_read_operations"] = cleaned
+}
+
+// agentMailConfigChanged compares two AgentMail sections. The struct carries a
+// slice (allowed_senders), so == does not compile; a nil list and an empty list
+// mean the same and must not restart the relay.
+func agentMailConfigChanged(oldCfg, newCfg config.AgentMailConfig) bool {
+	if len(oldCfg.AllowedSenders) == 0 {
+		oldCfg.AllowedSenders = nil
+	}
+	if len(newCfg.AllowedSenders) == 0 {
+		newCfg.AllowedSenders = nil
+	}
+	return !reflect.DeepEqual(oldCfg, newCfg)
 }

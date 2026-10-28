@@ -213,6 +213,7 @@ agentmail:
   poll_interval_seconds: 120
   relay_to_agent: false
   relay_cheatsheet_id: ""
+  allowed_senders: []      # Adressen oder @Domain-Einträge, deren Mails das Relay an den Agenten geben darf
   max_attachment_mb: 10
   base_url: https://api.agentmail.to
   websocket_url: wss://ws.agentmail.to/v0
@@ -221,6 +222,8 @@ agentmail:
 > 🔒 Der API-Key wird im Vault als `agentmail_api_key` gespeichert, nicht in der `config.yaml`.
 
 Nutze die fokussierten Tools `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads` und `agentmail_drafts` im Chat. Der alte Toolname `agentmail` bleibt als Kompatibilitätsalias akzeptiert.
+
+Das Relay gibt Mails nur an den Agenten, wenn der Absender in `allowed_senders` steht (eine vollständige Adresse oder `@example.com` für genau diese Domain; ohne Beachtung der Groß-/Kleinschreibung, geprüft an der `From`-Adresse). Solange die Liste leer ist, erreicht keine Mail den Agenten: Für jede Nachricht erhält der Besitzer stattdessen einen festen Quarantänehinweis, sodass ein scheinbar stilles Relay durch diesen Hinweis und eine Warnung im Sicherheitscheck erklärt wird. Sobald die Liste Einträge hat, werden Mails aller anderen Absender ohne Hinweis ignoriert. Der `From`-Header lässt sich fälschen: Die Liste schränkt ein, wer den Agenten erreichen kann, beweist aber keine Identität. Halte sie kurz und aktiviere zusätzlich `llm_guardian.scan_emails` (der Sicherheitscheck warnt, solange das Relay ohne diese Prüfung läuft).
 
 Bei aktivierter E-Mail-Prüfung ersetzt ein Quarantänehinweis den Inhalt einer AgentMail-Nachricht. Der Status eines Tool-Vorgangs bleibt erhalten, aber quarantänisierter Inhalt wird nicht zurückgegeben oder weitergeleitet. Lesestatus und Labels bleiben unverändert. Die Quarantäne erlaubt weder Antworten noch Änderungen an Labels.
 
@@ -653,6 +656,8 @@ Nutze `operation: "play"` für direkte HTTP(S)-Audio- oder Video-URLs. Direkte V
 chromecast:
   enabled: true
   tts_port: 8090
+  advertise_host: ""
+  read_only: false
   media_host_allowlist:
     - "192.168.1.10"
     - "media.lan:8096"
@@ -2366,7 +2371,7 @@ virtual_desktop:
 
 **RuView** integriert Wi-Fi-Sensing ([RuView v3122](https://github.com/ruvnet/RuView)) inklusive Dashboard, Observatory, Pose Fusion, Kalibrierung, Aufnahme und Training. Die Verwaltung durch AuraGo spricht alle 16 Sprachen; die Upstream-Ansichten behalten ihre Originalsprache. Wi-Fi-Sensing ist experimentell — Verbindung bedeutet keine Aussage über Mess-, Präsenz- oder Posen-Genauigkeit.
 
-**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **RuView öffnen** öffnet die Desktop-App; dort verwalten **Laufzeit installieren** und **Starten** eine verwaltete Runtime. **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein. Anleitung: [Kapitel 30](30-ruview.md).
+**Web-UI:** **Config → RuView** — Integration aktivieren, Runtime und Quelle wählen, speichern. Start und Agent-Zugriff sind standardmäßig aus; Read-only startet aktiviert. **RuView öffnen** öffnet die Desktop-App; dort verwalten der nächste Schritt in der Status-Ansicht (**Installieren** oder **Dienst starten**) und das Menü **⋯** (**Dienst installieren**) eine verwaltete Runtime. **Board einrichten** flasht ESP32-Firmware über USB (Web Serial) und richtet Wi-Fi ein. Anleitung: [Kapitel 30](30-ruview.md).
 
 **Runtimes:**
 

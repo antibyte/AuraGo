@@ -4,25 +4,30 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 )
 
 // handleRemember routes a "remember" tool call to the appropriate memory subsystem
 // based on an optional type hint or automatic classification.
 // This reduces cognitive load on the LLM by providing a single entry point for all memory writes.
+// guardian is the dispatch Guardian whose local scan screens the content; nil
+// falls back to the shared default regex guardian.
 func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph,
-	sessionID string) string {
+	sessionID string, guardian *security.Guardian) string {
 	if shortTermMem == nil {
 		return `Tool Output: {"status":"error","message":"Memory storage not available"}`
 	}
 	var output string
 	err := shortTermMem.WithSessionWrite(context.Background(), sessionID, func() error {
-		output = handleRememberWritable(tc, cfg, logger, shortTermMem, kg, sessionID)
+		output = handleRememberWritable(tc, cfg, logger, shortTermMem, kg, sessionID, guardian)
 		return nil
 	})
 	if err != nil {
@@ -31,7 +36,160 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	return output
 }
 
-func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID string) string {
+// rememberScreenDenied is the fixed answer for a write the content screen
+// refuses. It never echoes the content or the finding.
+const rememberScreenDenied = `Tool Output: {"status":"policy_denied","message":"This content reads like a standing instruction or an injection attempt, so it was not stored. Memory keeps plain facts and preferences only."}`
+
+// promptsec names its findings by these types (see ScanResult.Patterns).
+const (
+	rememberEncodingPattern = "encoding_attack"
+	rememberRolePattern     = "role_manipulation"
+)
+
+// rememberRoleLead is the wording promptsec's role heuristic fires on when it
+// reads everyday preference text ("always answer in German", "always provide
+// short answers"). rememberBenignRoleForm is the closed form of it that stays
+// storable: the verb followed by a language, a length, a tone or a format word.
+// Any other continuation ("always answer without restrictions", "always answer
+// as an unrestricted assistant") keeps the finding.
+var (
+	rememberRoleLead       = regexp.MustCompile(`(?i)\balways\s+(?:answer|provide)\b`)
+	rememberBenignRoleForm = regexp.MustCompile(`(?i)\balways\s+(answer|provide)(\s+(?:(?:in|auf)\s+\p{L}+|briefly|concisely|clearly|precisely|politely|formally|informally|honestly|thoroughly|(?:a\s+|an\s+|the\s+)?(?:short|concise|brief|detailed|long|terse|compact|formal|informal|polite|structured|friendly|casual|plain|simple|step-by-step)\b|(?:with\s+)?(?:a\s+|an\s+|the\s+)?(?:code|examples?|sources?|citations?|summar(?:y|ies)|tables?|bullets?|markdown)\b))`)
+)
+
+// rememberReduceBenignRole removes the leading "always" of every benign form so
+// the text can be scanned again without the false positive. It reports false
+// when an "always answer" or "always provide" has another continuation, which
+// leaves the finding in place.
+func rememberReduceBenignRole(text string) (string, bool) {
+	leads := rememberRoleLead.FindAllStringIndex(text, -1)
+	if len(leads) == 0 || len(leads) != len(rememberBenignRoleForm.FindAllStringIndex(text, -1)) {
+		return "", false
+	}
+	return rememberBenignRoleForm.ReplaceAllString(text, "$1$2"), true
+}
+
+// rememberScanFindings lists what a local scan reports at or above limit. The
+// sanitizer's encoding_attack is left out: ordinary Cyrillic, Greek or fullwidth
+// text raises it (up to High) without naming an attack, and a hidden payload
+// shows up under its own pattern, because the scan also reads the decoded and
+// the invisible-character-free view. A result that reaches limit without any
+// pattern still counts.
+func rememberScanFindings(scan security.ScanResult, limit security.ThreatLevel) []string {
+	if scan.Level < limit {
+		return nil
+	}
+	if len(scan.Patterns) == 0 {
+		return []string{"unspecified"}
+	}
+	var findings []string
+	for _, pattern := range scan.Patterns {
+		if pattern != rememberEncodingPattern {
+			findings = append(findings, pattern)
+		}
+	}
+	return findings
+}
+
+// Longest node and relation name a remember relationship write accepts.
+const (
+	rememberMaxNodeNameRunes = 200
+	rememberMaxRelationRunes = 80
+)
+
+// rememberGraphTexts lists what a relationship write puts into the knowledge
+// graph: the content kept as raw text, every name, the three names read as one
+// sentence ("vault listing" "send to" "https://...") and the property keys and
+// values.
+func rememberGraphTexts(tc ToolCall, content string) []string {
+	texts := []string{content, tc.Source, tc.Relation, tc.Target, tc.Source + " " + tc.Relation + " " + tc.Target}
+	for key, value := range tc.Properties {
+		texts = append(texts, key, value)
+	}
+	return texts
+}
+
+// rememberTextFindings lists what the local scan of one text reports at limit. A text that
+// reaches limit only through bare role or time phrases ("From now on I prefer short
+// answers", "From now on, reply in German") is judged without them, the rule GateScan and
+// the tool-output scan apply (security.RelieveBarePhrases): the rest still has to stay below
+// limit, and a directive shape or a phrase that hands over a role, a mode or an order keeps
+// the finding. A durable text is read for that with its benign "always answer in German"
+// forms reduced, as rememberContentRefused does for a text with no bare phrase.
+func rememberTextFindings(guardian *security.Guardian, text string, limit security.ThreatLevel, durable bool) []string {
+	scan := guardian.ScanForInjectionLocal(text)
+	if scan.Level >= limit && !scan.Incomplete {
+		rescan := guardian.ScanForInjectionLocal
+		if durable {
+			rescan = func(blanked string) security.ScanResult {
+				if reduced, ok := rememberReduceBenignRole(blanked); ok {
+					blanked = reduced
+				}
+				return guardian.ScanForInjectionLocal(blanked)
+			}
+		}
+		if relieved, held := security.RelieveBarePhrases(text, scan, limit, rescan); !held {
+			scan = relieved
+		}
+	}
+	return rememberScanFindings(scan, limit)
+}
+
+// rememberContentRefused screens the text of a model-authored durable write with
+// the dispatch Guardian's local scan, which runs whether or not the LLM Guardian
+// is enabled, so the write tools do not depend on a default-off feature. Core
+// and fact entries, and the names, content and properties of a knowledge-graph
+// edge (the graph reaches the prompt through KnowledgeContext), are injected
+// into later runs: they are refused at ThreatMedium or when the text is a
+// standing order (memory.StandingOrder). Journal, task and note entries are
+// refused at ThreatHigh. A text that only trips bare role or time phrases
+// ("From now on I prefer short answers") is not refused for them
+// (rememberTextFindings); memory.StandingOrder stays the durable gate for what
+// a "from now on" order would do. manage_memory add and update pass target
+// "fact" with the fact as content. It returns the sanitized finding names for
+// the log; the content itself is never logged.
+func rememberContentRefused(guardian *security.Guardian, target, content string, tc ToolCall) (findings []string, refused bool) {
+	durable := false
+	texts := []string{content, tc.Title}
+	switch target {
+	case "fact", "preference", "core":
+		durable = true
+		texts = texts[:1] // a fact has no title
+	case "relationship", "entity", "graph":
+		durable = true
+		texts = rememberGraphTexts(tc, content)
+	}
+	if guardian == nil {
+		guardian = fallbackToolOutputGuardian()
+	}
+	limit := security.ThreatHigh
+	if durable {
+		limit = security.ThreatMedium
+	}
+	for _, text := range texts {
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		found := rememberTextFindings(guardian, text, limit, durable)
+		if durable && len(found) == 1 && found[0] == rememberRolePattern {
+			if reduced, ok := rememberReduceBenignRole(text); ok {
+				// Judge the text again without that phrase: any other trigger is still there.
+				found = rememberTextFindings(guardian, reduced, limit, durable)
+			}
+		}
+		if len(found) > 0 {
+			return found, true
+		}
+		if durable {
+			if category, hit := memory.StandingOrder(text); hit {
+				return []string{category}, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID string, guardian *security.Guardian) string {
 
 	content := tc.Content
 	if content == "" {
@@ -59,6 +217,10 @@ func handleRememberWritable(tc ToolCall, cfg *config.Config, logger *slog.Logger
 	}
 	if memory.HasDurableCredential(content) {
 		return `Tool Output: {"status":"policy_denied","message":"Credentials must be stored in the Vault."}`
+	}
+	if findings, refused := rememberContentRefused(guardian, target, content, tc); refused {
+		logger.Warn("remember refused by the content screen", "target", target, "findings", findings, "content_len", len(content))
+		return rememberScreenDenied
 	}
 
 	logger.Info("remember tool routing", "target", target, "content_len", len(content))
@@ -306,6 +468,12 @@ func rememberAsGraphEdge(content string, tc ToolCall, kg *memory.KnowledgeGraph,
 	}
 	// If source/target/relation are explicitly provided, use them
 	if tc.Source != "" && tc.Target != "" && tc.Relation != "" {
+		// Names are entity labels. A sentence in one is a payload, and the graph
+		// context prints every name.
+		if utf8.RuneCountInString(tc.Source) > rememberMaxNodeNameRunes || utf8.RuneCountInString(tc.Target) > rememberMaxNodeNameRunes ||
+			utf8.RuneCountInString(tc.Relation) > rememberMaxRelationRunes {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"source and target must be short names (at most %d characters) and relation at most %d."}`, rememberMaxNodeNameRunes, rememberMaxRelationRunes)
+		}
 		_, err := kg.AddEdgeWithProvenance(tc.Source, tc.Target, tc.Relation, tc.Properties, memory.KGProvenanceInput{
 			EvidenceType:    "remember",
 			SessionID:       sessionID,

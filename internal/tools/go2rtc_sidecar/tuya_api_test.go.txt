@@ -1,0 +1,77 @@
+package tuya
+
+import (
+	"bytes"
+	"context"
+	"image"
+	"image/jpeg"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/pion/rtp"
+)
+
+type auraGoJPEG struct {
+	receiver *core.Receiver
+	media    *core.Media
+	data     []byte
+	stopped  atomic.Bool
+}
+
+func (p *auraGoJPEG) GetMedias() []*core.Media { return []*core.Media{p.media} }
+func (p *auraGoJPEG) GetTrack(*core.Media, *core.Codec) (*core.Receiver, error) {
+	return p.receiver, nil
+}
+func (p *auraGoJPEG) Start() error {
+	if p.data != nil {
+		p.receiver.WriteRTP(&rtp.Packet{Payload: p.data})
+	}
+	return nil
+}
+func (p *auraGoJPEG) Stop() error { p.stopped.Store(true); return nil }
+
+func TestAuraGoTuyaProbeJPEGAndCancellation(t *testing.T) {
+	var encoded bytes.Buffer
+	if err := jpeg.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 12, 8)), nil); err != nil {
+		t.Fatal(err)
+	}
+	codec := &core.Codec{Name: core.CodecJPEG, PayloadType: core.PayloadTypeRAW}
+	media := &core.Media{Kind: core.KindVideo, Direction: core.DirectionRecvonly, Codecs: []*core.Codec{codec}}
+	p := &auraGoJPEG{receiver: core.NewReceiver(media, codec), media: media, data: encoded.Bytes()}
+	original := auragoDial
+	defer func() { auragoDial = original }()
+	auragoDial = func(context.Context, string) (core.Producer, error) { return p, nil }
+	r := httptest.NewRequest("POST", "/", nil)
+	result, err := auragoProbe(context.Background(), r, "tuya://fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	object := result.(map[string]any)
+	if object["width"] != 12 || object["height"] != 8 || !p.stopped.Load() {
+		t.Fatal("probe did not verify/release JPEG", object)
+	}
+	p = &auraGoJPEG{receiver: core.NewReceiver(media, codec), media: media}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := auragoProbe(ctx, r, "tuya://fixture"); err == nil || !p.stopped.Load() {
+		t.Fatal("cancelled frame probe stayed active", err)
+	}
+}
+
+func TestAuraGoTuyaSetupUsesPOSTAndSanitizedErrors(t *testing.T) {
+	for _, method := range []string{"GET", "POST"} {
+		r := httptest.NewRequest(method, "/", strings.NewReader(`{"action":"discover","region":"invalid-secret-host","email":"secret@example.org","password":"secret-password"}`))
+		w := httptest.NewRecorder()
+		auragoTuya(w, r)
+		if method == "GET" && w.Code != 405 {
+			t.Fatal("credential GET accepted")
+		}
+		if strings.Contains(w.Body.String(), "secret") {
+			t.Fatal("raw provider information exposed")
+		}
+	}
+}

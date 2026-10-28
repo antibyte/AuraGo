@@ -191,7 +191,7 @@ test('opaque relay matches the reviewed endpoint list and refuses other paths',a
  assert.match(adapter,/postMessage/);
  assert.match(adapter,/origin === 'null'/);
  assert.equal(tourFrameName,'aurago-tour-done');
- const app=readFileSync('ui/js/desktop/apps/ruview.js','utf8');
+ const app=readFileSync('ui/js/desktop/apps/ruview-views.js','utf8');
  assert.match(app,/frame\.sandbox='allow-scripts'/);
  assert.doesNotMatch(app,/allow-same-origin/);
  assert.match(app,/tourFrameName/);
@@ -252,6 +252,33 @@ test('vendored output keeps AuraGo gate strings',()=>{
  }
  for(const section of ['<div class="key-benefits">','<div class="system-stats">'])assert.ok(index.includes(claim+'\n                '+section),'unlabelled claims before '+section);
  assert.ok(read('style.css').includes('.aurago-upstream-claim {'));
+});
+
+test('a hung status read drops the simulation gate',async()=>{
+ const source=readFileSync('ui/js/ruview/upstream-adapter.js','utf8');
+ const settle=()=>new Promise(resolve=>setImmediate(resolve));
+ const timeouts=new Map(),intervals=[],listeners={};let timerID=0,calls=0;
+ // Call 1 is the status read (a demo source), call 2 the capabilities; every later status read never settles unless its signal aborts.
+ const fetch=(url,options={})=>{
+  calls++;
+  if(calls===1)return Promise.resolve({ok:true,json:async()=>({enabled:true,readonly:false,source:'simulated'})});
+  if(calls===2)return Promise.resolve({ok:true,json:async()=>({unavailable:[]})});
+  return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(Object.assign(Error('aborted'),{name:'AbortError'})),{once:true}));
+ };
+ const window={fetch,WebSocket:class {},origin:'http://aurago.test'};
+ vm.runInNewContext(source,{window,location:{pathname:'/api/ruview/ui/index.html',href:'http://aurago.test/api/ruview/ui/index.html'},AbortController,
+  addEventListener:(type,fn)=>{listeners[type]=fn},document:{addEventListener(){},querySelectorAll:()=>[],body:{}},MutationObserver:class {observe(){}disconnect(){}},
+  setTimeout:fn=>{const id=++timerID;timeouts.set(id,fn);return id},clearTimeout:id=>{timeouts.delete(id)},setInterval:fn=>{intervals.push(fn);return ++timerID},clearInterval(){}});
+ listeners.DOMContentLoaded();await settle();
+ assert.equal(window.auragoRuViewSimulationAllowed(),true);
+ assert.equal(timeouts.size,0,'a settled read clears its timeout');
+ intervals[0]();await settle();
+ assert.equal(calls,3);assert.equal(timeouts.size,1,'the hung read arms a 10 s timeout');
+ assert.equal(window.auragoRuViewSimulationAllowed(),true,'still waiting');
+ [...timeouts.values()][0]();await settle();
+ assert.equal(window.auragoRuViewSimulationAllowed(),false,'a timed-out read withdraws the demo gate');
+ intervals[0]();await settle();
+ assert.equal(calls,4,'the busy flag was released, so the next poll runs');
 });
 
 test('honesty patches fail loudly when an upstream anchor disappears',async()=>{

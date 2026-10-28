@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // BraveSearchOptions extends server-owned research without changing the native
@@ -155,6 +157,15 @@ func SearchBrave(ctx context.Context, apiKey string, opts BraveSearchOptions) (B
 	for i := range page.Results {
 		page.Results[i].Title = braveStripHTML(page.Results[i].Title)
 		page.Results[i].Description = braveStripHTML(page.Results[i].Description)
+		hit := &page.Results[i]
+		checked := scraperGuardian.ProtectExternal(ctx, security.ExternalWeb, hit.Title+"\n"+hit.Description+"\n"+hit.URL+"\n"+hit.Published)
+		if checked.Quarantined {
+			return BraveSearchPage{}, &BraveSearchError{Code: "content_quarantined", nativeMessage: checked.Text}
+		}
+		if checked.Datamarked {
+			hit.Title = security.Datamark(hit.Title)
+			hit.Description = security.Datamark(hit.Description) + "\n" + security.DatamarkNotice
+		}
 	}
 	return page, nil
 }

@@ -2242,6 +2242,44 @@ func TestLoadAgentMailDefaults(t *testing.T) {
 	}
 }
 
+func TestAgentMailAllowedSendersDefaultLoadAndSave(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.AgentMail.AllowedSenders == nil || len(cfg.AgentMail.AllowedSenders) != 0 {
+		t.Fatalf("allowed_senders = %#v, want an empty list by default", cfg.AgentMail.AllowedSenders)
+	}
+
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\nagentmail:\n  allowed_senders:\n    - Anna@Example.test\n    - \"@partner.test\"\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+	cfg, err = Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if got := cfg.AgentMail.AllowedSenders; len(got) != 2 || got[0] != "Anna@Example.test" || got[1] != "@partner.test" {
+		t.Fatalf("allowed_senders = %#v", got)
+	}
+
+	cfg.AgentMail.AllowedSenders = []string{"bob@example.test"}
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	if !strings.Contains(string(raw), "bob@example.test") || strings.Contains(string(raw), "partner.test") {
+		t.Fatalf("expected allowed_senders to be replaced on save, got:\n%s", string(raw))
+	}
+}
+
 func TestLoadEmailRelayCheatsheetDefault(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {

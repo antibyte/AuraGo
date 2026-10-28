@@ -432,6 +432,7 @@ func executeStreamRetry(ctx context.Context, client ChatClient, req openai.ChatC
 			stopAttempt()
 			stopTotal()
 			if attemptCtx.Err() != nil {
+				attemptCancel()
 				_ = stream.Close()
 				return nil, noCancel, context.Cause(attemptCtx)
 			}

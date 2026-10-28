@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -149,8 +150,17 @@ func maybeEmitChatVoiceOutputFallback(ctx context.Context, cfg *config.Config, l
 		return
 	}
 
+	audioPath, err := chatVoiceOutputMediaPath(cfg, filename)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("Chat voice output fallback failed", "error", err)
+		}
+		emitChatTTSNotice(cfg, broker, "tts_failed", "backend.tts_failed")
+		return
+	}
+
 	payload, err := json.Marshal(map[string]interface{}{
-		"path":      "/tts/" + filename,
+		"path":      audioPath,
 		"title":     "TTS Audio",
 		"mime_type": chatVoiceAudioMIMEType(filename),
 		"filename":  filename,
@@ -164,6 +174,41 @@ func maybeEmitChatVoiceOutputFallback(ctx context.Context, cfg *config.Config, l
 		return
 	}
 	broker.Send("audio", string(payload))
+}
+
+// chatVoiceOutputMediaPath is the browser path for one synthesized file.
+// With login disabled the main /tts/ listener requires a cast ticket, so the
+// path carries that query. A failed signature is not published unsigned.
+func chatVoiceOutputMediaPath(cfg *config.Config, filename string) (string, error) {
+	if cfg != nil && cfg.Auth.Enabled {
+		return "/tts/" + filename, nil
+	}
+	signed := security.SignCastMediaURL("http://localhost/tts/"+url.PathEscape(filename), security.CastMediaTicketLifetime)
+	parsed, err := url.Parse(signed)
+	if signed == "" || err != nil || parsed.RawQuery == "" {
+		return "", fmt.Errorf("sign chat voice audio")
+	}
+	return parsed.EscapedPath() + "?" + parsed.RawQuery, nil
+}
+
+func emitChatTTSNotice(cfg *config.Config, broker *chatVoiceOutputTrackingBroker, code, key string) {
+	if broker == nil {
+		return
+	}
+	message := i18n.T(chatVoiceOutputLanguage(cfg), key)
+	if message == key {
+		switch code {
+		case "phonon_fallback_sanotts":
+			message = "Phonon has no package for this language. Speaking with sanoTTS instead."
+		default:
+			message = "Speech output failed. The text response remains available."
+		}
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"code":    code,
+		"message": message,
+	})
+	broker.Send("tts_notice", string(payload))
 }
 
 func emitChatSpeechLabError(cfg *config.Config, broker *chatVoiceOutputTrackingBroker, err error) {

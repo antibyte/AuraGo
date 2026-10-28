@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "Utilise uniquement des cibles de test préparées. Indique l’identifiant du test, l’outil, les arguments exacts et les champs JSON attendus. Les actions nécessitent allow_effects: true ; les autorisations existantes restent applicables. Les valeurs ne sont pas enregistrées dans le rapport.",
   "dashboard.selftest_case": "Test",
   "dashboard.selftest_tool": "Outil",
-  "dashboard.selftest_connections": "Connexions"
+  "dashboard.selftest_connections": "Connexions",
+  "dashboard.rustfs_running_unready": "En cours, pas encore prêt"
 }

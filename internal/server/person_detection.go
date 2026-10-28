@@ -128,7 +128,7 @@ func (f go2RTCFrameSource) Frame(ctx context.Context, cameraID string) ([]byte, 
 	if f.s == nil || f.s.Go2RTC == nil {
 		return nil, errors.New("go2rtc manager is not initialized")
 	}
-	_, data, err := f.s.Go2RTC.SnapshotBytes(ctx, cameraID, tools.Go2RTCSnapshotOptions{Width: personDetectionFrameWidth})
+	_, data, err := f.s.Go2RTC.SnapshotBytes(ctx, cameraID, tools.Go2RTCSnapshotOptions{Width: personDetectionFrameWidth, Purpose: "detection"})
 	return data, err
 }
 

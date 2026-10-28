@@ -17,6 +17,11 @@ The trusted supervisor has its own Python environment at
 With `sandbox.auto_install: true`, trusted system Python creates this private
 environment and installs the pinned package. Otherwise provision that exact
 environment explicitly; installing into the agent venv does not make it ready.
+Private provisioning repairs a missing pip with the interpreter's bundled
+`ensurepip`. Linux isolation includes read-only access to Debian/Ubuntu's
+distribution wheels at `/usr/share/python-wheels` and pip's public distribution
+metadata at `/etc/debian_version` and `/etc/mime.types`; no host-execution grant
+or additional writable system path is required.
 Supervisor probes and launches use Python's isolated `-I` mode, so the current
 directory, `PYTHONPATH` and user-site hooks cannot inject host code. Native tools,
 archives and their rooted wrappers cannot read or modify the private runtime or

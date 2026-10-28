@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "許可する送信者",
   "config.agentmail.api_key_empty": "先に API キーを入力してください。",
   "config.agentmail.api_key_label": "API キー (Vault)",
   "config.agentmail.api_key_placeholder": "AgentMail API キーを入力…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "WebSocket を使用",
   "config.agentmail.websocket_url_label": "WebSocket URL",
   "config.agentmail.yes": "はい",
+  "help.agentmail.allowed_senders": "1 行に 1 件ずつ、完全なアドレス (anna@example.com) またはドメイン全体 (@example.com) を入力します。これらの送信者からのメールだけがエージェントに届き、それ以外の送信者のメールは無視されます。リストが空の間は、どのメールもエージェントに届かず、メッセージごとに隔離通知だけが届きます。From ヘッダーは偽装できるため、リストは短く保ち、LLM によるメールスキャンを有効にしておいてください。",
   "help.agentmail.api_key": "AgentMail API キー。暗号化された Vault に安全に保存されます。",
   "help.agentmail.auto_create_inbox": "対応している場合、設定フローが受信箱を自動作成できます。",
   "help.agentmail.base_url": "AgentMail REST API のベース URL。",

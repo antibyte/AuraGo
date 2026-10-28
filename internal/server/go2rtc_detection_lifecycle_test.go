@@ -123,6 +123,9 @@ func newGo2RTCLifecycleServer(t *testing.T, autoStart, detecting bool) (*Server,
 			http.Error(w, "go2rtc is not running", http.StatusServiceUnavailable)
 			return
 		}
+		if go2RTCFixtureCleanup(w, r) {
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
 			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))

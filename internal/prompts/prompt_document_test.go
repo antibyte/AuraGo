@@ -91,6 +91,7 @@ func TestBudgetShedRecognizesAllDynamicOptionalHeadings(t *testing.T) {
 		"### PLANNER CONTEXT ###",
 		"### DAILY TODO REMINDER ###",
 		"### REQUIRED USER NOTICE ###",
+		"### MODEL-GENERATED REFLECTION (ADVISORY) ###",
 		"### ACTIVE TASK LIST ###",
 		"# AVAILABLE CONTEXT INDEX",
 	}

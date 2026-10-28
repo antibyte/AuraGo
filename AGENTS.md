@@ -58,6 +58,7 @@ Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.b
 - Wrap errors (`fmt.Errorf("context: %w", err)`); use structured `slog` (`log.Info("message", "key", value)`). Packages: short/lowercase/no underscores. Files: `snake_case.go`; exported types/constants/functions: `PascalCase`; unexported names/variables: `camelCase`. One responsibility per file; split oversized files.
 - Windows/PowerShell: never undo a broken edit with `git checkout <file>` (discards others' work); inspect the diff and revert only the failed edit. `[System.Text.Encoding]::UTF8` adds a BOM; use `[System.Text.UTF8Encoding]::new($false)` or another BOM-free writer; inspect the first three bytes when relevant (BOM breaks Go `encoding/json`). Normalize mixed CRLF/LF to LF per `.gitattributes`.
 - Before tests check encoding and `git diff --check`; JS: `node --check <file.js>`; JSON: `python -m json.tool <file.json>` or another parser. Windows isolated build/release checks use `scripts/invoke-clean-worktree.ps1` (`finally` removes worktree/prunes metadata), not ad-hoc `%TEMP%` worktrees.
+- GitHub Pages renders `docs/` with Jekyll 3.10. Wrap literal Liquid-like code in `{% raw %}` / `{% endraw %}`; Security Gates build the same documentation without deployment.
 - Commit completed changes locally with a descriptive message, only intended files. Before each commit inspect `git diff --cached`, run `git diff --cached --check` and scan contextually for secrets without exposing values. Temporary scripts/files go in `disposable/`; clean up temporary files/logs and never push them.
 
 ### Configuration
@@ -192,6 +193,10 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | God's Eye View Store | `internal/desktopstore/AGENTS.md` | Store app config/runtime/assets/publication. |
 | Detective | `internal/detective/AGENTS.md` | Isolated Desktop research cases/evidence/budgets/revisions/exports. |
 | Docker Engine | `internal/dockerutil/AGENTS.md` | Transport/API negotiation, mutation retry, streaming cancellation. |
+| Docker Manager hosts | `internal/dockerhost/AGENTS.md` | Host registry, vault secrets, TLS/SSH transport shared with Invasion, Engine reads and container actions behind `/api/docker-manager`. |
+| Docker Manager stacks | `internal/dockerstacks/AGENTS.md` | Stack folders per host, compose runner/lister/IO containers, file revisions, operations journal, reattach after restart, lint and `docker run` converter behind `/api/docker-manager`. |
+| Docker Manager live data | `internal/dockerwatch/AGENTS.md` | Engine events watcher per host, container stats rings and host gauges, disk-usage cache, stream budget and the stream-client hub behind `/api/docker-manager/stream`. |
+| Managed RustFS S3 | `internal/rustfs/AGENTS.md` | Optional Docker storage lifecycle, private IAM credentials, scoped S3 leases and retained-volume recovery; server/UI/config/tool integration. |
 | File utilities | `internal/fileutil/AGENTS.md` | Shared file replacement/free-space probe. |
 | EasyDrag | `internal/flows/AGENTS.md` | Flows and Decisions media authorization. |
 | Fritz!Box | `internal/fritzbox/AGENTS.md` | TR-064 integration/Desktop widget. |
@@ -209,6 +214,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Network shares | `internal/networkshares/AGENTS.md` | SMB/NFS capability/ownership/mutation policy. |
 | Newspaper | `internal/newspaper/AGENTS.md` | Daily publication/source validation/scheduler/delivery receipts. |
 | Desktop Office | `internal/office/AGENTS.md` | Workbook/document preservation/editing/assist. |
+| Shared QR codes | `internal/qrcode/AGENTS.md`, `internal/office/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Shared renderer/templates/scanner/config/batch, native tool and Writer/Tabellen/Pixel insertion; font child contract `ui/fonts/qr/AGENTS.md`. |
 | ONNX Runtime | `internal/onnxrt/AGENTS.md` | Purego binding/verified pinned asset cache/native workers shared by embeddings/person detection. |
 | Personal Radio | `internal/personalradio/AGENTS.md` | Stations/durable audio library/rotation/news/provider quotas/Desktop playback. |
 | Person detection | `internal/persondetect/AGENTS.md` | D-FINE pinned models/WebGPU patcher/`--person-detect-worker` protocol/backend selection/supervision. |
@@ -221,6 +227,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | RuView | `internal/ruview/AGENTS.md` | Pinned sensing runtime/passive status/UDP readiness/this-process recording acknowledgement. |
 | Default speech | `internal/phonon/AGENTS.md`, `internal/sanotts/AGENTS.md` | Bundled Phonon CPU runtime/catalog/downloads and the sanoTTS local fallback. |
 | Security | `internal/security/AGENTS.md` | Primitives/Vault-token persistence/import grants/public URL trust/Guardian caching/Cast tickets. |
+| Local prompt-injection model | `internal/injectionguard/AGENTS.md`, `internal/security/AGENTS.md`, `internal/onnxrt/AGENTS.md` | Optional Horizon CPU model, verified downloads, isolated worker, web/mail gates and administrative Config controls. |
 | Serial ports | `internal/serialutil/AGENTS.md` | Shared enumeration/canonical reservations/cancellation-safe leases. |
 | HTTP/integrations | `internal/server/AGENTS.md` | HTTP/cross-component contracts: System World Tower Voice, 3D Printer, go2rtc, AI Gateway, here.now, GitHub, Homepage Managed Website Ledger, Configuration UI Integration Test Contract. |
 | Workspace search | `internal/services/AGENTS.md` | Background services/search. |

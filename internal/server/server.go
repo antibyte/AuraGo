@@ -37,12 +37,16 @@ import (
 	"aurago/internal/desktopstore"
 	"aurago/internal/detective"
 	"aurago/internal/discord"
+	"aurago/internal/dockerhost"
+	"aurago/internal/dockerstacks"
 	"aurago/internal/dockerutil"
+	"aurago/internal/dockerwatch"
 	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
 	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
 	"aurago/internal/i18n"
+	"aurago/internal/injectionguard"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/localllm"
@@ -63,6 +67,7 @@ import (
 	"aurago/internal/retronet"
 	"aurago/internal/rocketchat"
 	"aurago/internal/rtlsdr"
+	"aurago/internal/rustfs"
 	"aurago/internal/ruview"
 	"aurago/internal/security"
 	"aurago/internal/selftest"
@@ -154,6 +159,7 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
+	RustFS               *rustfs.Manager
 	selfTestMu           sync.Mutex
 	selfTests            *selftest.Manager
 	knowledge            projectKnowledge
@@ -217,6 +223,11 @@ type Server struct {
 	CronManager               *tools.CronManager
 	BackgroundTasks           *tools.BackgroundTaskManager
 	Go2RTC                    *tools.Go2RTCManager
+	go2RTCTalkMu              sync.Mutex
+	go2RTCTuyaMu              sync.Mutex
+	go2RTCTuyaSessions        map[string]*go2RTCTuyaSession
+	go2RTCTuyaBusy            map[string]bool
+	go2RTCTalks               map[string]*go2RTCTalkSession
 	RuView                    *ruview.Manager
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService
@@ -251,6 +262,7 @@ type Server struct {
 	InventoryDB               *sql.DB
 	InvasionDB                *sql.DB
 	Guardian                  *security.Guardian
+	InjectionGuard            *injectionguard.Manager
 	LLMGuardian               *security.LLMGuardian
 	CoAgentRegistry           *agent.CoAgentRegistry
 	BudgetTracker             *budget.Tracker
@@ -344,6 +356,20 @@ type Server struct {
 	videoStudio               *videoStudioManager
 	videoStudioClosed         bool
 	videoStudioConfigRevoking atomic.Bool
+
+	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
+	// DockerHosts stays nil when the store could not be opened; DockerStacks (the
+	// stacks service on the same database) stays nil when it could not be opened.
+	// DockerWatch is the live data hub (events, stats, log follow); it exists
+	// whenever DockerHosts does. dockerOpsBridge stops the forwarding of stack
+	// operation state changes to it.
+	DockerHosts     *dockerhost.Registry
+	DockerStacks    *dockerstacks.Service
+	DockerWatch     *dockerwatch.Hub
+	dockerOpsBridge func()
+	dockerHostStore *dockerhost.Store
+	dockerStatus    dockerStatusRefresher
+
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -504,6 +530,14 @@ func (s *Server) newRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Lo
 func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	if s == nil || cfg == nil {
 		return
+	}
+	if s.InjectionGuard != nil {
+		s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
+	}
+	if s.RustFS != nil {
+		cfg.AcquireS3 = s.RustFS.AcquireS3
+		cfg.S3Availability = s.RustFS.Availability
+		s.RustFS.Configure(cfg)
 	}
 	if s.integrationCtx != nil {
 		tools.ConfigureOllamaRuntime(s.integrationCtx, cfg)
@@ -833,6 +867,21 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	s.InjectionGuard = injectionguard.NewManager(serverCtx, cfg.Directories.DataDir, "")
+	s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
+	releaseInjectionGuard := security.RegisterExternalContentScanner(s.InjectionGuard)
+	defer func() { releaseInjectionGuard(); s.InjectionGuard.Close() }()
+	s.InjectionGuard.Inspect()
+	s.RustFS = rustfs.NewManager(serverCtx, cfg, s.Vault, logger)
+	cfg.AcquireS3 = s.RustFS.AcquireS3
+	cfg.S3Availability = s.RustFS.Availability
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := s.RustFS.Shutdown(ctx); err != nil {
+			logger.Warn("[RustFS] Shutdown drain did not complete")
+		}
+	}()
 	defer s.closeSelfTests()
 	if s.BackgroundTasks != nil {
 		s.BackgroundTasks.SetIsolatedCodeAuthorizer(func(ctx context.Context, action tools.BackgroundCodeAction) error {
@@ -940,6 +989,7 @@ func Start(opts StartOptions) error {
 		if s.Newspaper != nil {
 			_ = s.Newspaper.Close()
 		}
+		s.closeDockerHosts()
 		if s.Mailer != nil {
 			_ = s.Mailer.Close()
 		}
@@ -1075,6 +1125,7 @@ func Start(opts StartOptions) error {
 	s.initCYDCreator()
 	s.initDetective()
 	s.initNewspaper()
+	s.initDockerHosts()
 	s.initMailer(serverCtx)
 	s.initPersonalRadio()
 	s.initRTLSDR()
@@ -1399,7 +1450,7 @@ func Start(opts StartOptions) error {
 	// Register desired mission filters even while MQTT is disabled. The
 	// controller activates them when the integration is enabled later; each
 	// delivery passes the relay gate against the live config.
-	s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger, config: s.ConfigSnapshot})
+	s.MissionManagerV2.SetMQTTManager(&missionMQTTAdapter{logger: logger, config: s.ConfigSnapshot, guardian: func() *security.Guardian { return s.Guardian }})
 
 	// Set cheatsheet DB for mission prompt expansion
 	if s.CheatsheetDB != nil {
@@ -1570,7 +1621,11 @@ func Start(opts StartOptions) error {
 	if cfg.Docker.Enabled {
 		// Auto-start Gotenberg container if document_creator is enabled with gotenberg backend
 		if cfg.Tools.DocumentCreator.Enabled && strings.EqualFold(cfg.Tools.DocumentCreator.Backend, "gotenberg") {
-			go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
+			go func() {
+				if err := tools.EnsureGotenbergRunning(serverCtx, cfg, true, logger); err != nil {
+					logger.Warn("[Gotenberg] Sidecar startup refused or failed", "error", err)
+				}
+			}()
 		}
 
 		// Auto-start Browser Automation sidecar whenever the integration is active in sidecar mode and auto_start is enabled.
@@ -1799,41 +1854,10 @@ func newServerFromOptions(opts StartOptions) *Server {
 	}
 
 	// Build the server-wide Guardian with the same promptsec options as the agent loop.
-	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
-		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
-		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
-		Preset:        cfg.Guardian.PromptSec.Preset,
-		Sanitizer: security.PromptSecSanitizerOptions{
-			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
-			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
-			Decode:      cfg.Guardian.PromptSec.Sanitizer.Decode,
-		},
-		Embedding: security.PromptSecEmbeddingOptions{
-			Enabled:   cfg.Guardian.PromptSec.Embedding.Enabled,
-			Threshold: cfg.Guardian.PromptSec.Embedding.Threshold,
-		},
-		Policy:       cfg.Guardian.PromptSec.Policy,
-		CustomPolicy: security.PromptSecCustomPolicyOptions{DisallowedTasks: cfg.Guardian.PromptSec.CustomPolicy.DisallowedTasks},
-		Taint: security.PromptSecTaintOptions{
-			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
-			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
-		},
-		LLMJudge: security.PromptSecLLMJudgeOptions{
-			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
-			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
-			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
-			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
-		},
-		UseSanitizedOutput: cfg.Guardian.PromptSec.UseSanitizedOutput,
-	})
+	guardian := security.NewGuardianFromConfig(logger, cfg)
 	llmGuardian := security.NewLLMGuardian(cfg, logger)
 	if cfg.Guardian.PromptSec.LLMJudge.Enabled {
-		guardian.AttachLLMJudge(llmGuardian, security.PromptSecLLMJudgeOptions{
-			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
-			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
-			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
-			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
-		})
+		guardian.AttachLLMJudge(llmGuardian, security.LLMJudgeOptionsFromConfig(cfg))
 	}
 
 	budgetTracker := opts.BudgetTracker
@@ -2249,6 +2273,9 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 				strings.HasSuffix(path, ".woff") ||
 				strings.HasSuffix(path, ".woff2") ||
 				strings.HasSuffix(path, ".ttf") ||
+				strings.HasSuffix(path, ".glb") ||
+				strings.HasSuffix(path, ".wasm") ||
+				strings.HasSuffix(path, ".webp") ||
 				strings.HasSuffix(path, ".map"))
 		if path == "/js/desktop/aura-desktop-sdk.js" {
 			w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, private")

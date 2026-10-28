@@ -1,4 +1,5 @@
 {
+  "config.agentmail.allowed_senders_label": "Allowed Senders",
   "config.agentmail.api_key_empty": "Please enter an API key first.",
   "config.agentmail.api_key_label": "API Key (Vault)",
   "config.agentmail.api_key_placeholder": "Enter AgentMail API key…",
@@ -42,6 +43,7 @@
   "config.agentmail.websocket_label": "Use WebSocket",
   "config.agentmail.websocket_url_label": "WebSocket URL",
   "config.agentmail.yes": "Yes",
+  "help.agentmail.allowed_senders": "One entry per line: a full address (anna@example.com) or a whole domain (@example.com). Only mail from these senders reaches the agent; mail from anyone else is ignored. While the list is empty, no mail reaches the agent and you only get a quarantine notice for each message. The From header can be forged, so keep the list short and keep the LLM mail scan on.",
   "help.agentmail.api_key": "AgentMail API key. Stored securely in the encrypted vault.",
   "help.agentmail.auto_create_inbox": "Allows setup flows to create the configured inbox automatically when supported.",
   "help.agentmail.base_url": "Base URL for the AgentMail REST API.",

@@ -17,7 +17,15 @@ import (
 
 func learningResult(t *testing.T, output string) map[string]any {
 	t.Helper()
-	raw := html.UnescapeString(output)
+	// The answer can be isolated twice, by the handler and by the dispatcher.
+	raw := output
+	for range 3 {
+		next := html.UnescapeString(raw)
+		if next == raw {
+			break
+		}
+		raw = next
+	}
 	start, end := strings.IndexByte(raw, '{'), strings.LastIndexByte(raw, '}')
 	if start < 0 || end < start {
 		t.Fatal(output)

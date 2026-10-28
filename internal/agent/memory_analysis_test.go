@@ -182,7 +182,8 @@ func TestApplyMemoryAnalysisResultQueuesFailedVectorWrite(t *testing.T) {
 	cfg.Tools.KnowledgeGraph.Enabled = true
 
 	stored := applyMemoryAnalysisResult(cfg, logger, stm, vdb, "session-1", memoryAnalysisResult{
-		Facts: []extractedFact{{Content: "The build failed", Category: "fact", Confidence: 1}},
+		Facts: []extractedFact{{Content: "The build failed", Category: "fact", Confidence: 1, Quote: "the build failed"}},
+		human: "FYI: The build failed again on the NAS.",
 	})
 	if stored != 0 {
 		t.Fatalf("stored = %d, want 0 while queued", stored)
@@ -267,11 +268,13 @@ func TestApplyMemoryAnalysisResultStoresPendingActionsWithoutCorrections(t *test
 		PendingActions: []pendingAction{
 			{
 				Title:      "Review backup schedule",
-				Summary:    "Follow up on the nightly backup schedule later this week.",
-				Trigger:    "backup schedule review",
+				Summary:    "Follow up on the backup schedule later this week.",
+				Trigger:    "backup schedule",
+				Quote:      "review the backup schedule later this week",
 				Confidence: 0.80,
 			},
 		},
+		human: "Please remind me to review the backup schedule later this week.",
 	}
 
 	applyMemoryAnalysisResult(cfg, logger, stm, nil, "sess-1", result)

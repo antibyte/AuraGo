@@ -669,7 +669,9 @@
 
 .vd-hp-preview-zone {
     position: relative;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -685,8 +687,8 @@
 .vd-hp-stage {
     display: flex;
     justify-content: center;
+    flex: 1 1 auto;
     width: 100%;
-    height: 100%;
     min-height: 0;
 }
 
@@ -720,14 +722,12 @@
     background: #f8fafc;
 }
 
-/* Floating viewport chrome */
+/* Viewport chrome: sits above and below the preview panel, never on top of the
+   previewed page. The head comes after the stage in the DOM, so order lifts it. */
 
 .vd-hp-viewport-head {
-    position: absolute;
-    z-index: 5;
-    top: 22px;
-    left: 22px;
-    right: 22px;
+    order: -1;
+    flex: 0 0 auto;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -859,16 +859,17 @@
 }
 
 .vd-hp-footer {
-    position: absolute;
-    z-index: 5;
-    left: 22px;
-    right: 22px;
-    bottom: 22px;
+    flex: 0 0 auto;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 8px;
     pointer-events: none;
+}
+
+/* No visible pill: no row, so the panel keeps the full height. */
+.vd-hp-footer:not(:has(> :not([hidden]))) {
+    display: none;
 }
 
 .vd-hp-site-pill,
@@ -1663,18 +1664,6 @@
 @media (max-width: 560px) {
     .vd-hp-preview-zone {
         padding: 8px;
-    }
-
-    .vd-hp-viewport-head {
-        top: 14px;
-        left: 14px;
-        right: 14px;
-    }
-
-    .vd-hp-footer {
-        left: 14px;
-        right: 14px;
-        bottom: 14px;
     }
 
     .vd-hp-viewport-title > span {

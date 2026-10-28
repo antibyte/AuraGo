@@ -7,12 +7,49 @@ AuraGo can manage [go2rtc](https://github.com/AlexxIT/go2rtc) as an optional Doc
 - The reviewed default image is `alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae`.
 - The go2rtc API and Web UI are never bound directly to the LAN. Native AuraGo binds API port 1984 only to `127.0.0.1`; Docker deployments use an internal network alias.
 - Camera source URLs and the internal go2rtc API password are stored only in AuraGo's encrypted Vault. Generated `data/go2rtc/go2rtc.yaml` contains no camera sources or plaintext password.
-- Sources are injected through go2rtc's runtime stream API after startup. Only `rtsp`, `rtsps`, `rtspx`, `http`, `https`, and `onvif` network URLs are accepted.
+- Sources are injected through go2rtc's runtime stream API after startup. Only the camera types listed under [Camera types](#camera-types) are accepted.
 - The container runs as a non-root user with a read-only root filesystem, no capabilities, `no-new-privileges`, a restricted `/tmp`, and CPU, memory, and PID limits.
 - AuraGo's proxy removes caller cookies and authorization headers, applies its own internal Basic authentication, and restricts media access to configured, enabled stream IDs.
 - Credential-bearing ONVIF SOAP requests use a direct private-network transport and never honor `HTTP_PROXY` or `HTTPS_PROXY` from the environment.
 - Upstream go2rtc logging is disabled because producer warnings can contain runtime source URLs. AuraGo exposes sanitized lifecycle and stream status instead.
 - Snapshot memory is bounded to 16 entries and 64 MiB. Stored snapshots retain at most 1,000 files or 2 GiB and remove the oldest files first.
+
+## Camera types
+
+Every source is validated against one catalog (`internal/config/go2rtc_source_types.go`). The Network Cameras app and the config page offer guided forms for most types; Tuya keeps its own setup dialog (see [go2rtc-tuya.md](go2rtc-tuya.md)).
+
+| Type | Scheme | Entry |
+|---|---|---|
+| RTSP | `rtsp`, `rtsps`, `rtspx` | form |
+| HTTP (JPEG, MJPEG, FLV, MPEG-TS) | `http`, `https` | form |
+| ONVIF | `onvif` | form |
+| RTMP | `rtmp` | form |
+| Tuya | `tuya` | dialog |
+| TP-Link Tapo | `tapo` | form |
+| TP-Link Kasa | `kasa` | form |
+| DVR-IP (XMeye) | `dvrip` | form |
+| Bubble | `bubble` | form |
+| EseeCloud | `eseecloud` | form |
+| DoorBird | `doorbird` | form |
+| GoPro | `gopro` | form |
+| Home Assistant | `hass://host:port?entity_id=...&token=...` | form |
+| Ring | `ring:?device_id=...&refresh_token=...` | form |
+| Google Nest | `nest:?client_id=...` | form |
+| Apple HomeKit | `homekit` | URL |
+| Roborock | `roborock` | URL |
+| Wyze | `wyze` | URL |
+| Ivideon | `ivideon:<id>` | URL |
+| WebRTC (WHEP, Kinesis, OpenIPC, SwitchBot) | `webrtc:http(s)\|ws(s)://...` | URL |
+| WebTorrent (another go2rtc) | `webtorrent:?share=...&pwd=...` | URL |
+
+Not offered, on purpose:
+
+- `exec:`, `echo:`, `expr:`, `ffmpeg:`, `device:` and `file:` run programs or read the host. Use the managed codec profiles for transcoding.
+- `xiaomi` needs an account login inside go2rtc, which AuraGo's read-only rendered config cannot hold.
+- `isapi` only provides two-way audio and cannot be a video source.
+- Host-less `hass:<entity>` assumes a Home Assistant add-on; AuraGo's sidecar is not one.
+
+`GET /api/go2rtc/source-types` returns the form description (admin only, no secrets). Every camera in the app state and the config projection carries a non-secret `source_type` derived from its Vault source.
 
 ## Proxy and WebRTC
 
@@ -190,4 +227,8 @@ The optional administrator Web UI is a read-only subset of the original go2rtc i
 
 ## License
 
-go2rtc is Copyright AlexxIT and contributors and is distributed under the MIT License. AuraGo does not modify or rebuild the upstream image; it pulls the pinned published image at runtime. Review the upstream [license](https://github.com/AlexxIT/go2rtc/blob/v1.9.14/LICENSE) and [release notes](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.14) before overriding the pinned image.
+go2rtc is Copyright AlexxIT and contributors and is distributed under the MIT License. AuraGo builds its managed sidecar from pinned upstream sources and base images, adding the reviewed private lifecycle and Tuya patches. Review the upstream [license](https://github.com/AlexxIT/go2rtc/blob/v1.9.14/LICENSE) and [release notes](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.14) before overriding the pinned image.
+
+## Tuya cameras
+
+The shared Tuya account editor supports Smart discovery and Cloud device-ID setup, with HD/SD probes and Vault-only credentials. See [Tuya setup, security and acceptance](go2rtc-tuya.md).

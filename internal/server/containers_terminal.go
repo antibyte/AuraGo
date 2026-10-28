@@ -177,7 +177,29 @@ func rejectNonWebSocketTerminalRequest(w http.ResponseWriter, r *http.Request) b
 	return true
 }
 
+// containerTerminalServeOptions are extras of one terminal route. The zero
+// value is the behaviour of /api/containers/{id}/terminal and of the Store and
+// Code Studio terminals: no read limit, no pings.
+type containerTerminalServeOptions struct {
+	// ReadLimit is the largest WebSocket message the browser may send; a larger
+	// one ends the session. 0 = no limit.
+	ReadLimit int64
+	// PingInterval is the period of the server's WebSocket pings; 0 = no pings.
+	PingInterval time.Duration
+	// PongWait is how long the server waits for any frame from the browser (a
+	// pong counts) before it ends the session; 0 = never. It is armed before
+	// every read, so a long wait for the exec stream's stdin does not use it up.
+	PongWait time.Duration
+}
+
+// containerTerminalPingWriteWait bounds one ping write.
+const containerTerminalPingWriteWait = 10 * time.Second
+
 func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, session containerTerminalSession) {
+	serveContainerTerminalSessionWith(ctx, conn, session, containerTerminalServeOptions{})
+}
+
+func serveContainerTerminalSessionWith(ctx context.Context, conn *websocket.Conn, session containerTerminalSession, opts containerTerminalServeOptions) {
 	ctx, cancel := context.WithCancel(ctx)
 	var closeOnce sync.Once
 	closeBoth := func() {
@@ -192,6 +214,30 @@ func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, se
 		closeBoth()
 		stopContextClose()
 	}()
+
+	if opts.ReadLimit > 0 {
+		conn.SetReadLimit(opts.ReadLimit)
+	}
+	if opts.PongWait > 0 {
+		conn.SetPongHandler(func(string) error { return conn.SetReadDeadline(time.Now().Add(opts.PongWait)) })
+	}
+	if opts.PingInterval > 0 {
+		go func() {
+			ticker := time.NewTicker(opts.PingInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(containerTerminalPingWriteWait)); err != nil {
+						closeBoth()
+						return
+					}
+				}
+			}
+		}()
+	}
 
 	var writeMu sync.Mutex
 	backendDone := make(chan struct{})
@@ -217,6 +263,9 @@ func serveContainerTerminalSession(ctx context.Context, conn *websocket.Conn, se
 	}()
 
 	for {
+		if opts.PongWait > 0 {
+			_ = conn.SetReadDeadline(time.Now().Add(opts.PongWait))
+		}
 		messageType, payload, err := conn.ReadMessage()
 		if err != nil {
 			break

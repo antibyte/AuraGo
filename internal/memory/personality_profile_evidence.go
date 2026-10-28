@@ -18,6 +18,14 @@ func applyPersonalityProfilesTx(tx *sql.Tx, input *HumanInput, updates []Profile
 		if !isValidProfileCategory(category) || !isValidProfileKey(key) || isRejectedProfileKey(key) || value == "" || containsProfilePII(value) || HasDurableCredential(key+"="+value) {
 			continue
 		}
+		// The helper model writes the value and may have read a web page or mail
+		// in the same turn. A profile value is a fact about the user, so a
+		// standing order (StandingOrder) is no profile value, and the value has
+		// to say what the human said this turn: a valid human turn proves
+		// nothing about words the human never wrote.
+		if _, directive := StandingOrder(strings.ReplaceAll(key, "_", " ") + ": " + value); directive || !DerivedFrom(value, input.Text) {
+			continue
+		}
 		if utf8.RuneCountInString(value) > 200 {
 			value = string([]rune(value)[:200])
 		}

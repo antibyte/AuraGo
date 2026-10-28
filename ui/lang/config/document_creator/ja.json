@@ -1,4 +1,5 @@
 {
+  "config.document_creator.allow_remote_resources_label": "外部リソースを許可",
   "config.document_creator.backend_gotenberg": "Gotenberg（Dockerサイドカー）",
   "config.document_creator.backend_label": "バックエンド",
   "config.document_creator.backend_maroto": "Maroto（組み込みGoライブラリ）",
@@ -10,6 +11,8 @@
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "読み込み中…",
   "config.document_creator.output_dir_label": "出力ディレクトリ",
+  "config.document_creator.restart_required": "管理対象の Gotenberg サービスを安全に再作成するには、AuraGo を再起動してください。",
+  "config.document_creator.save_before_test": "テストの前に変更を保存してください。",
   "config.document_creator.seconds": "秒",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
@@ -17,9 +20,14 @@
   "config.document_creator.test_fail": "接続失敗",
   "config.document_creator.test_gotenberg": "接続テスト",
   "config.document_creator.test_ok": "接続成功",
+  "config.document_creator.test_saved_settings": "テストには保存済みの設定が使われます。",
+  "config.document_creator.test_unreachable": "サービスに接続できません。",
+  "config.document_creator.test_unverified": "接続できますが、ネットワーク保護を確認できません。",
+  "config.document_creator.test_verified": "接続とネットワーク保護を確認しました。",
   "config.document_creator.url_required": "Gotenberg URLが必要です",
+  "help.document_creator.allow_remote_resources": "HTML と Markdown は既定ではオフラインで描画されます。許可すると、公開された画像、フォント、スタイルシート、スクリプトを利用できます。内部ネットワークのアドレスは引き続きブロックされます。",
   "help.document_creator.backend": "Marotoは外部依存のない純粋なGo PDFライブラリです。GotenbergはDockerサービスで、完全なドキュメント変換、スクリーンショット、Officeフォーマットをサポートします。",
   "help.document_creator.gotenberg_timeout": "ドキュメント生成の最大待機時間（秒）。",
-  "help.document_creator.gotenberg_url": "GotenbergサービスのベースURL（例: http://gotenberg:3000）。",
+  "help.document_creator.gotenberg_url": "Gotenberg サービスのベース URL。空欄の場合はローカルアドレスを使います。Docker ではサービス名 gotenberg を使います。",
   "help.document_creator.output_dir": "生成されたドキュメントが保存されるディレクトリ。"
 }

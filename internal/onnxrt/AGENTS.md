@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Shared ONNX Runtime layer of `internal/embeddings` and `internal/persondetect`: a CGO-free purego binding
+Shared ONNX Runtime layer of embeddings, person detection, Pixel matting and injection guard: a CGO-free purego binding
 of the ONNX Runtime C API, a verified cache for pinned runtime and model downloads, the pinned runtime
 manifest, and the helpers that start native worker processes. Design: spec
 `docs/superpowers/specs/2026-10-11-network-cameras-person-detection-design.md` and plans
@@ -24,6 +24,10 @@ adapts D-FINE). The audit `NetworkClientInventory` lists `internal/onnxrt/` as t
 - Native code runs only in worker subprocesses (`--embedding-worker`, `--person-detect-worker`), never in
   the server process, and only one ORT library per process: two builds export the same symbols and
   interpose. Tests that load a real runtime in-process say so and skip when another build is loaded.
+- The optional injection guard uses `--injection-guard-worker` and the shared CPU cache.
+  `VerifyRuntime` hashes both archive and extracted manifest without download or repair;
+  passive security startup/evaluation must use it instead of `EnsureRuntime`. Verify
+  `TestVerifyRuntimeNeverRepairsOrDownloads`. Feature ownership: `../injectionguard/AGENTS.md`.
 - C API version 26 (`APIVersion`) is served by the ORT 1.26.0 CPU/CUDA bundles and the 1.27.0 WebGPU wheels.
   The `struct OrtApi` indices in `runtime.go` count members from 0 in `onnxruntime_c_api.h` of the pinned
   release; verify any new index there before adding it.

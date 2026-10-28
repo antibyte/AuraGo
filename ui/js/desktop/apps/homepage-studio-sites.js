@@ -17,6 +17,22 @@
         return DRIFT_STATUSES.includes(status) ? status : 'not_deployed';
     }
 
+    /* The site pill in the preview footer shows the selected site and its drift. */
+    function renderSitePill(el, detail, deps) {
+        if (!el) return;
+        if (!detail) {
+            el.hidden = true;
+            el.textContent = '';
+            return;
+        }
+        const name = detail.name || detail.project_dir || '';
+        const status = driftStatus(detail.drift_status);
+        const key = DRIFT_KEYS[status] || status.replace(/_/g, '-');
+        el.innerHTML = `<span class="vd-hp-site-pill-name">${deps.esc(name)}</span>` +
+            `<span class="vd-hp-drift vd-hp-drift-${key}">${deps.esc(deps.tr('homepage_studio.sites_drift_' + status, status))}</span>`;
+        el.hidden = false;
+    }
+
     /* Deployment target collection: the sites panel owns the deployment data,
        so it also owns the provider normalisation and the target list. */
     function firstString(...values) {
@@ -467,6 +483,7 @@
         create,
         DRIFT_KEYS,
         driftStatus,
+        renderSitePill,
         targets: { collect: collectTargets, add: addTarget, normalize: normalizeTargetProvider, external: externalTargetURL }
     };
 })();

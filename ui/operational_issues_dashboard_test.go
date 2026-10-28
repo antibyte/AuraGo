@@ -67,6 +67,8 @@ func TestOperationalIssuesTranslationsExistInEveryLocale(t *testing.T) {
 	}
 	backendKeys := []string{
 		"backend.operational_issue_notice_title",
+		"backend.operational_issue_reflection_title",
+		"backend.operational_issue_reflection_summary",
 		"backend.operational_issue_notice_last_seen",
 		"backend.operational_issue_notice_severity",
 		"backend.operational_issue_severity_error",

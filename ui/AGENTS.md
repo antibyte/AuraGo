@@ -21,6 +21,26 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- The Guardian local-protection card keeps download and saved activation separate.
+  Passive status cannot install/start work. Only verified readiness permits enablement;
+  an unavailable enabled model must remain disableable. Preserve boolean/action drafts
+  across polls, cancel polling on navigation/logout/pagehide and ignore detached replies.
+  Explain that datamarking still forwards suspicious content. Translate all 16 locales;
+  verify `TestInjectionGuardLocales` and `TestInjectionGuardConfigBrowser` (both themes,
+  narrow layouts, download/cancel/test/save). Runtime: `../internal/injectionguard/AGENTS.md`.
+
+- Document Creator uses a native boolean checkbox for the default-off saved
+  public-resource grant. Its help names images, fonts, stylesheets and scripts;
+  all 16 locales carry the same policy. Native checkbox drafts/discard/save use
+  boolean `checked`, never the string `value`. The connection test refuses dirty
+  drafts, uses saved settings and distinguishes unreachable, unverified,
+  verified and restart-required states. Ignore detached results and announce
+  status accessibly. Verify `TestDocumentCreatorPolicyAndDiagnosticsBrowser`,
+  `TestDocumentCreatorLocales*` and config rerender/draft browser tests; runtime
+  contract: `../documentation/document-creator.md`.
+
+- `cfg/s3.js` owns external S3 settings and optional managed RustFS. Preserve external fields on provider changes; bucket/prefix rows replace one atomic list in the shared draft. Lifecycle and probes use saved settings; polling is fenced by view and saved-generation identity and ends on navigation. Docker read-only disables lifecycle actions, not observations. Dashboard distinguishes configured from observed runtime readiness and links to `/config#s3`. Verify `TestRustFSS3SettingsBrowser`, `TestRustFSS3LocalesAreComplete` and `TestRustFSDashboardSeparatesConfiguredAndObservedState`; runtime contract: `../internal/rustfs/AGENTS.md`.
+
 - Provider editors own the revision and draft they opened. Save with that revision, disable duplicate saves, retain drafts on conflicts and require explicit reload. Background refresh must not lend a newer revision to an old draft. Modal close cancels/ignores its requests and picker results; model selection never mutates another settings section's budget draft.
 - Credentials have explicit removal actions; masks only retain stored values. Allow incomplete drafts and valid custom/local HTTP(S) hosts. Diagnostics are passive; metadata/generation tests use saved settings, with a separate cost confirmation for generation and no automatic generation fallback. Keep all changed copy translated across 16 locales. Verify `TestProviderRevisionAndSavedTestsBrowser`, `TestProviderSafetyLocalesComplete` and provider usage round-trip coverage.
 - Explicit credential removal survives a change of authentication type in the same modal. Verify `TestProviderClearKeySurvivesAuthTypeChangeBrowser` in addition to same-authentication removal.
@@ -89,6 +109,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Chat HTML sanitizer (`js/shared/chat-core.js`) may keep `iframe` only with a
   forced `sandbox="allow-scripts"`. Never `allow-same-origin`. Protocol-relative
   `//` URLs are rejected. Rebuild `chat-runtime.bundle.js` after sanitizer edits.
+- Chat code fences: with a `codeBlockFactory`, `js/shared/render-markdown.js`
+  emits code, Mermaid and chart blocks verbatim; markdown-it must not wrap them
+  in `<pre><code>`, where layout whitespace renders as empty bands.
+  `CodeBlocks.createCodeBlock` returns whitespace-free markup without a button;
+  the sanitizer drops `<button>` and inline handlers, so `CodeBlocks.enhance`
+  attaches copy buttons after insertion. Line numbers match the code's font
+  size. Verify `TestChatCodeBlocksRenderCompactBrowser` (all chat themes).
 - Chat YouTube players are DOM-built in `js/chat/chat-messages.js`. They use
   `referrerpolicy="no-referrer"`, omit `clipboard-write` and `web-share`, and
   set the youtube-nocookie `src` only after a local play click. They do not use
@@ -96,6 +123,43 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestChatFrontend_VideoPlayerFlowRemainsPresent`.
 
 ## Local Contracts
+
+- Shared QR editing is lazy key `qr`: `js/desktop/shared/qr-dialog.js` and
+  `css/desktop-qr.css`. Writer, Sheets and Pixel use the same local Go renderer,
+  scanner, configuration normalizer and CSV batch service. Payloads stay in POST
+  bodies, never URLs; previews do not publish files. `desktop.qr_*` and QR agent
+  Config/help keys live in all sixteen Desktop locale files.
+- Calendar QR drafts capture one RFC3339 creation timestamp for stable DTSTAMP
+  bytes across preview, styling and export; configuration import retains the
+  normalized timestamp. vCards expose separate work/private/mobile numbers;
+  local telephone numbers are retained with the core's country-context warning.
+- A QR dialog belongs to its initiating window and captured document/selection.
+  Preview, export and insertion use the same configuration revision; superseded
+  responses cannot replace a preview or mutate another document. Close/dispose
+  aborts requests and file readers, clears drafts/listeners/timers, revokes blob
+  URLs and stops all camera tracks, including a permission request that resolves
+  after close. Scanned content is text only and never executes.
+- QR localStorage contains only compact/full-view and pinned-control preferences.
+  Full configuration files include content, captions and embedded resources only
+  after explicit save; `/api/qr/config` normalizes images before download. Raster
+  and restricted SVG logo/background uploads are normalized by Go, never browser
+  SVG execution; scanning accepts PNG/JPEG/GIF/WebP. Explicit guarded URL imports
+  never create rendering-time network dependencies. Fonts use the fixed local
+  catalog in `fonts/qr/AGENTS.md`.
+- QR agent exposure (`tools.qr_code.enabled`, default off; `readonly`, default on)
+  is separate from human editor access. Read-only agent access permits scanning
+  and catalog reads; publication remains disabled. Existing editor restrictions
+  still govern insertion. Verify `TestQRDialogWriterPixelBrowser`,
+  `node scripts/test-pixel-qrcode.mjs`, `node scripts/test-qr-config.mjs`, the
+  Pixel suite and Desktop i18n checks;
+  actual camera hardware and printed-page scanning remain separate acceptance.
+  Operator workflow and input/output limits are in
+  [QR codes](../documentation/qr-code.md).
+- QR CSV file imports decode UTF-8 strictly, accept an optional UTF-8 BOM and
+  retain the prior draft on invalid encoding. Late file reads cannot replace a
+  newer selection or edits. Insertion callbacks receive the operation's abort
+  signal; closing or changing the dialog must cancel pending insertion work.
+
 - Dashboard Tools owns the self-test card (`js/dashboard/self-tests.js`): explicit Start/Stop, read/fixture/exact-binding profiles, KPI summary before a closed details table and fixed same-origin Markdown/JSON downloads. Dynamic values use `textContent`; prevent duplicate starts, discard stale requests and stop polling while hidden. Keep `dashboard.selftest_*` aligned in all 16 locales. Verify `TestSelfTestDashboard*` and `node ui/testdata/selftests.cjs`; backend/evidence contracts belong to `internal/selftest/AGENTS.md`.
 
 - Speech Output defaults to `phonon` with automatic language/voice on fresh setup.
@@ -195,6 +259,15 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   keeping skill `tags` and the masked agent credentials), both
   `three_d_printers.*.printers` (`cfg/three_d_printers.js`). Verify the Config
   list cases in `node scripts/test-ui-regressions.mjs`.
+
+- go2rtc Config treats both absent media enums and legacy empty strings as their
+  neutral defaults in the draft and saved comparison baseline. Opening a section
+  or undoing edits must leave it clean; normalization must preserve actual draft
+  changes and masked sources. Verify `TestGo2RTCLegacyMediaConfigStaysCleanBrowser`.
+  Auto playback uses separate RTC-signaling and alternative-media sockets: the
+  losing media socket closes on RTC selection, while signaling loss still stops
+  the peer. Explicit disconnect clears pending reconnects. Verify
+  `TestGo2RTCPlayerProtocolsBrowser` against the pinned fixtures.
 
 - Newspaper is a lazy built-in Desktop reader with a separate editorial paper surface and Config/Dashboard entry. Keep all sixteen Desktop, Config and Dashboard locale keys aligned, both icon manifests registered, and the generated main Desktop bundle current. Config exposes the search cap (32 by default, 1–64 including retries); shared capability responses distinguish setup reasons from last-attempt failures. The reader preserves optional research counters and topic gaps, including legacy runs without them. A bounce-suppression message must not imply that the recipient address is invalid without the original SMTP evidence. Verify `TestNewspaperResearchTranslations`, `TestNewspaperConfigResearchBrowser` and `TestDesktopNewspaperBrowser` at wide/narrow sizes in both themes; backend contracts live in `internal/newspaper/AGENTS.md`.
 
@@ -700,12 +773,18 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   pointer-light target list in `ui/js/desktop/core/polish-runtime.js` must
   match the CSS (`desktop_polish_layer_test.go`).
 - ThreeDee combat uses a fixed four-light impact pool, at most 240 sprites
-  (40 slots reserved for smoke/debris), and six unlit, shadow-free blink ghosts.
-  Continuous particle emission follows simulation time; cinematic slow motion
-  expires on wall time, and every blink entry point enforces its cooldown.
-  Helix volleys and damage-triggered EMP counterpulses reuse projectile/effect
-  cleanup and respect the existing 18-projectile limit. EMP must not interrupt
-  a paired nova clash. Keep reduced-motion and theme-exit disposal intact.
+  (40 slots reserved for smoke/debris), six unlit, shadow-free blink ghosts,
+  four surface mines, and five fuel slicks. The white robot deploys fuel slicks
+  that ignite and incapacitate the red robot (`burningUntil`); the red robot
+  counters with stasis mines (`mineType: 'stasis'`) that stun and incapacitate
+  the white robot (`stunnedUntil`) with lightning arcs. Continuous particle
+  emission follows simulation time; cinematic slow motion expires on wall time,
+  and every blink entry point enforces its cooldown. Helix volleys and
+  damage-triggered EMP counterpulses reuse projectile/effect cleanup and
+  respect the existing 18-projectile limit. EMP must not interrupt a paired
+  nova clash. Robot GLTF/Draco assets resolve through `BUILD_VERSION`, retain
+  live Draco workers across in-flight theme resets, and retry failed loads with
+  bounded backoff. Keep reduced-motion and theme-exit disposal intact.
 - Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
   cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
   Keep the image position fixed in the scanline keyframes and retain readable
@@ -752,13 +831,33 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   resolution. Canvas bounds must not transition. Preserve the 2D fallback,
   hidden-tab pause and reduced-motion and narrow-screen gates. Static
   contract: `TestChatFrontend_SandstormSceneStaysPolished`.
+- Sandstorm desert life: `ui/js/chat/sandstorm-life.js` (exports
+  `window.AuraGoSandstormLife`) loads lazily (`loadDesertLife()`, again in
+  `start()`); a failed load removes its script element and the scene runs without it.
+  No timers or frames: the engine's RAF loop calls `update` and `draw`, the latter
+  between the dune layers. Draws: worm, heat shimmer, crest wisps, vultures,
+  tumbleweed, beetle, caravan. The worm, beetle and caravan pick spots against the
+  live bubble, avatar and mascot rectangles (`#chat-content .msg-row .bubble` and
+  `.avatar`, clipped to `#chat-box`) and `#chat-robot-mascot`, read once per spawn.
+  The vultures' thermal is picked against the sky-band rectangles, re-checked every
+  15 s; it drifts there at most 24 px/s. Nothing reads the chat per frame. A storm
+  fades every creature, sends the vultures off, dissolves the caravan and makes the
+  beetle burrow; a running worm finishes. Calm ahead needed: worm 9 s, beetle and
+  caravan 6 s. Fixed pools (`MAX_*` caps). Harness: `stats()`, `force*()`,
+  `debug.where()`. Tests: `TestSandstormDesertLifeCompanionStaysWired`,
+  `TestSandstormDesertLifeVulturesAvoidTheChat` and
+  `TestSandstormDesertLifeBrowserSmoke`.
 - Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
   four distinct low-poly ships (saucer cruiser, cargo freighter, ring explorer,
-  shuttle) each bake their lit hull, bridge and engines into one mesh. Keep
-  diagonal courses visible at every aspect ratio and wrap fully offscreen.
-  Both effects use scene time and the existing pause/disposal lifecycle.
+  shuttle) each bake their lit hull, bridge, engines and thruster plumes into
+  one mesh with shader-driven thruster/strobe glow. Keep diagonal courses
+  visible at every aspect ratio and wrap fully offscreen. Planet/backdrop
+  shaders include subtle aurora, city-light shimmer, storm lightning and
+  micro-meteors; pointer movement drives gentle parallax and `--galaxy-mx` /
+  `--galaxy-my` glass highlights. All effects use scene time and the existing
+  pause/disposal lifecycle.
   No full-screen postprocessing. Start desktop at high quality with
   at most 1.5 DPR / 3840x2160 pixels, then lower resolution after sustained
   slow frames. Calibrate the idle display cadence during the first-frame fade;
@@ -934,6 +1033,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   96 frames per renderer at 10 FPS for visual motion review.
   `AURAGO_SANDSTORM_BENCHMARK=1` measures 120 native-RAF frames at 1920x1080
   with synchronized WebGL completion for each renderer.
+- Sandstorm desert life (worm, storm response, critters, occluder-aware spots):
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run SandstormDesertLife`.
 - Galaxy picker, real rendering, responsive controls, drawers, dialogs,
   disposal and failure modes:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run GalaxyBrowserSmoke`.
@@ -1006,6 +1107,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   authenticator browser tests. See `../documentation/webauthn.md`.
 
 ## Child DOX Index
+
+- `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
+  integrity manifests and OFL notices; runtime schema/rendering belongs to
+  `../internal/qrcode/AGENTS.md`.
 
 - `3d/screensaver/AGENTS.md` — Compact Tiefsee screensaver creature GLBs and their shader-facing UV contract.
 - `3d/chess/AGENTS.md` — Versioned AuraGo chess piece GLBs and their manifest contract for the Desktop 3D board.

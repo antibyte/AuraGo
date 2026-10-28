@@ -173,6 +173,14 @@ func newGo2RTCLifecycleHarness(t *testing.T, autoStart bool, detectingCameras in
 			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
 		case r.Method == http.MethodPatch && r.URL.Path == "/api/go2rtc/proxy/api/streams":
 			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/go2rtc/proxy/api/streams":
+			w.WriteHeader(http.StatusOK)
+		case r.URL.Path == "/api/go2rtc/proxy/api/preload":
+			if r.Method == http.MethodGet {
+				_, _ = w.Write([]byte(`{}`))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 		default:
 			http.NotFound(w, r)
 		}

@@ -26,6 +26,12 @@ os.makedirs(os.environ["XDG_RUNTIME_DIR"], mode=0o700, exist_ok=True)
 REAL_REQUEST = receiver.request
 
 
+def fixture_spawn(args, **kwargs):
+    with (ROOT / (pathlib.Path(args[0]).name + ".log")).open("ab") as log:
+        return subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=log,
+                                stderr=subprocess.STDOUT, **kwargs)
+
+
 def command(args):
     with (ROOT / "generation.log").open("ab") as log:
         subprocess.run(args, check=True, stdout=log, stderr=log, timeout=120)
@@ -60,6 +66,8 @@ def analog_file(mode):
 def file_request(port, path, method="GET", data=None, timeout=3):
     if port == 8091 and path == "/sdrangel/deviceset/0/device" and method == "PUT":
         data = {"hwType": "FileInput", "direction": 0}
+        # FileInput loads the synthetic recording during cold ARM64 initialization.
+        timeout = max(timeout, 120)
     if port == 8091 and path == "/sdrangel/deviceset/0/device/settings" and method == "PATCH":
         data = {"deviceHwType": "FileInput", "direction": 0,
                 "fileInputSettings": {"fileName": str(ROOT / "analog.sdriq"), "loop": 1, "accelerationFactor": 1}}
@@ -170,6 +178,7 @@ format=u8
 
 def main():
     receiver.request = file_request
+    receiver.spawn = fixture_spawn
     radio = FixtureReceiver()
     tuning = dict(frequency_hz=100000000, bandwidth_hz=180000, gain_db=0,
                   agc=True, ppm=0, squelch_db=-100, stereo=True)
@@ -199,6 +208,14 @@ def main():
         assert all(abs(p - 1000) < 5 for p in audio["peaks_hz"]), audio
         assert len(radio.snapshot().get("spectrum", [])) == 1024, "Missing DAB spectrum"
         print(json.dumps({"mode": "dab+", "audio": audio, "stations": len(stations), "spectrum": True}), flush=True)
+    except Exception:
+        for name in ("sdrangelsrv.log", "welle-cli.log", "generation.log"):
+            log = ROOT / name
+            if log.is_file():
+                with log.open("rb") as source:
+                    source.seek(max(0, log.stat().st_size - 8192))
+                    print(f"{name}:\n{source.read().decode(errors='replace')}", file=sys.stderr)
+        raise
     finally:
         radio.stop()
 

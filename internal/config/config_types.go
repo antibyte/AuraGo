@@ -226,6 +226,11 @@ type AgentMailConfig struct {
 	MaxAttachmentMB     int    `yaml:"max_attachment_mb" json:"max_attachment_mb"`
 	BaseURL             string `yaml:"base_url" json:"base_url"`
 	WebSocketURL        string `yaml:"websocket_url" json:"websocket_url"`
+	// AllowedSenders limits whose mail the relay hands to the agent: full
+	// addresses or "@domain" entries, compared case-insensitively. With
+	// relay_to_agent on and the list empty no mail reaches the agent, the owner
+	// only gets a quarantine notice; with entries, other senders are ignored.
+	AllowedSenders []string `yaml:"allowed_senders" json:"allowed_senders"`
 }
 
 type WebhookParameter struct {
@@ -256,10 +261,11 @@ type GotenbergConfig struct {
 
 // DocumentCreatorConfig holds settings for the document_creator tool.
 type DocumentCreatorConfig struct {
-	Enabled   bool            `yaml:"enabled"`    // enable document_creator tool
-	Backend   string          `yaml:"backend"`    // "maroto" (default, built-in) or "gotenberg" (Docker sidecar)
-	OutputDir string          `yaml:"output_dir"` // directory for generated documents (default: "data/documents")
-	Gotenberg GotenbergConfig `yaml:"gotenberg"`
+	AllowRemoteResources bool            `yaml:"allow_remote_resources"` // allow public resources in supplied HTML/Markdown; default false
+	Enabled              bool            `yaml:"enabled"`                // enable document_creator tool
+	Backend              string          `yaml:"backend"`                // "maroto" (default, built-in) or "gotenberg" (Docker sidecar)
+	OutputDir            string          `yaml:"output_dir"`             // directory for generated documents (default: "data/documents")
+	Gotenberg            GotenbergConfig `yaml:"gotenberg"`
 }
 
 // MediaConversionConfig holds settings for the media_conversion tool.
@@ -389,12 +395,25 @@ type Go2RTCStreamDetectionConfig struct {
 
 // Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
 type Go2RTCStreamConfig struct {
-	ID               string                      `yaml:"id" json:"id"`
-	Name             string                      `yaml:"name" json:"name"`
-	Enabled          bool                        `yaml:"enabled" json:"enabled"`
-	Source           string                      `yaml:"-" json:"-"`
-	SourceConfigured bool                        `yaml:"-" json:"source_configured"`
-	Detection        Go2RTCStreamDetectionConfig `yaml:"detection" json:"detection"`
+	Tuya                     *Go2RTCTuyaBinding          `yaml:"tuya,omitempty" json:"tuya,omitempty"`
+	ID                       string                      `yaml:"id" json:"id"`
+	Name                     string                      `yaml:"name" json:"name"`
+	Enabled                  bool                        `yaml:"enabled" json:"enabled"`
+	Source                   string                      `yaml:"-" json:"-"`
+	SourceConfigured         bool                        `yaml:"-" json:"source_configured"`
+	SubSource                string                      `yaml:"-" json:"-"`
+	SubSourceConfigured      bool                        `yaml:"-" json:"sub_source_configured"`
+	SnapshotSource           string                      `yaml:"-" json:"-"`
+	SnapshotSourceConfigured bool                        `yaml:"-" json:"snapshot_source_configured"`
+	PreviewSource            string                      `yaml:"preview_source,omitempty" json:"preview_source"`
+	DetectionSource          string                      `yaml:"detection_source,omitempty" json:"detection_source"`
+	SnapshotMode             string                      `yaml:"snapshot_mode,omitempty" json:"snapshot_mode"`
+	CodecProfile             string                      `yaml:"codec_profile,omitempty" json:"codec_profile"`
+	Transport                string                      `yaml:"transport,omitempty" json:"transport"`
+	PlaybackMode             string                      `yaml:"playback_mode,omitempty" json:"playback_mode"`
+	Preload                  bool                        `yaml:"preload" json:"preload"`
+	TalkEnabled              bool                        `yaml:"talk_enabled" json:"talk_enabled"`
+	Detection                Go2RTCStreamDetectionConfig `yaml:"detection" json:"detection"`
 }
 
 // Go2RTCWebRTCConfig controls the optional direct LAN media listener.
@@ -406,6 +425,7 @@ type Go2RTCWebRTCConfig struct {
 
 // Go2RTCConfig holds settings for AuraGo's managed go2rtc sidecar.
 type Go2RTCConfig struct {
+	TuyaAccounts  []Go2RTCTuyaAccount   `yaml:"tuya_accounts,omitempty" json:"tuya_accounts"`
 	Enabled       bool                  `yaml:"enabled" json:"enabled"`
 	AutoStart     bool                  `yaml:"auto_start" json:"auto_start"`
 	WebUIEnabled  bool                  `yaml:"web_ui_enabled" json:"web_ui_enabled"`
@@ -418,7 +438,15 @@ type Go2RTCConfig struct {
 	WebRTC        Go2RTCWebRTCConfig    `yaml:"webrtc" json:"webrtc"`
 	Streams       []Go2RTCStreamConfig  `yaml:"streams" json:"streams"`
 	Detection     Go2RTCDetectionConfig `yaml:"detection" json:"detection"`
+	Hardware      Go2RTCHardwareConfig  `yaml:"hardware" json:"hardware"`
 	APIPassword   string                `yaml:"-" json:"-"`
+}
+
+type Go2RTCHardwareConfig struct {
+	Backend     string `yaml:"backend" json:"backend"`
+	RenderNode  string `yaml:"render_node,omitempty" json:"render_node"`
+	RenderGroup string `yaml:"render_group,omitempty" json:"render_group"`
+	DeviceID    string `yaml:"device_id,omitempty" json:"device_id"`
 }
 
 const (
@@ -1107,7 +1135,11 @@ type NetworkSharesConfig struct {
 }
 
 type Config struct {
-	Gog GogConfig `yaml:"gog" json:"gog"`
+	// Callbacks retain server-owned runtime identity through Config.Clone.
+	AcquireS3      func(context.Context, *Config, bool) (*RustFSS3Lease, error) `yaml:"-" json:"-"`
+	S3Availability func(*Config) FeatureAvailability                            `yaml:"-" json:"-"`
+	RustFS         RustFSConfig                                                 `yaml:"rustfs" json:"rustfs"`
+	Gog            GogConfig                                                    `yaml:"gog" json:"gog"`
 	// RegisterEvomapNode is server-owned and serializes registration with config/Vault writes.
 	RegisterEvomapNode func(context.Context) (nodeID, claimURL string, secretConfigured bool, err error) `yaml:"-" json:"-"`
 	// AuthorizationSnapshots preserves publication identity across scoped copies.
@@ -1549,6 +1581,10 @@ type Config struct {
 		ResolvedModel      string            `yaml:"-" json:"-"`            // resolved
 	} `yaml:"llm_guardian"`
 	Guardian struct {
+		InjectionGuard struct {
+			Enabled bool   `yaml:"enabled"`
+			Action  string `yaml:"action"`
+		} `yaml:"injection_guard"`
 		MaxScanBytes  int `yaml:"max_scan_bytes"`  // max bytes scanned by regex guardian before windowing (default 16384)
 		ScanEdgeBytes int `yaml:"scan_edge_bytes"` // bytes kept from start and end when windowing large inputs (default 6144)
 		PromptSec     struct {
@@ -1859,6 +1895,7 @@ type Config struct {
 		BaseURL           string `yaml:"base_url"` // default: https://app.koofr.net
 	} `yaml:"koofr"`
 	S3 struct {
+		Provider     string `yaml:"provider"`
 		Enabled      bool   `yaml:"enabled"`
 		ReadOnly     bool   `yaml:"readonly"`             // true = only list/download, block upload/delete/copy/move
 		Endpoint     string `yaml:"endpoint"`             // e.g. https://s3.amazonaws.com or http://minio.local:9000
@@ -1932,6 +1969,8 @@ type Config struct {
 		Enabled            bool     `yaml:"enabled"`
 		TTSPort            int      `yaml:"tts_port"`
 		MediaHostAllowlist []string `yaml:"media_host_allowlist"`
+		AdvertiseHost      string   `yaml:"advertise_host"` // LAN host Cast devices use for AuraGo media; empty picks one and never publishes loopback
+		ReadOnly           bool     `yaml:"read_only"`      // blocks playback changes; discover and status stay available
 	} `yaml:"chromecast"`
 	MeshCore      meshcore.Config     `yaml:"meshcore" json:"meshcore"`
 	Bluetooth     BluetoothConfig     `yaml:"bluetooth" json:"bluetooth"`
@@ -2393,6 +2432,10 @@ type Config struct {
 		VirtualComputers struct {
 			Enabled bool `yaml:"enabled"` // enable virtual_computers tool (microVM control plane)
 		} `yaml:"virtual_computers"`
+		QRCode struct {
+			Enabled  bool `yaml:"enabled"`
+			ReadOnly bool `yaml:"readonly"`
+		} `yaml:"qr_code"`
 		OfficeDocument struct {
 			Enabled  bool `yaml:"enabled"`  // enable office_document tool (agent-safe Writer document operations)
 			ReadOnly bool `yaml:"readonly"` // true = only read documents, block write/patch/export

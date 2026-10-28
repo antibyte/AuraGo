@@ -144,8 +144,8 @@ func TestWriteS3DownloadAtomicKeepsExistingFileOnCopyError(t *testing.T) {
 		t.Fatalf("write original: %v", err)
 	}
 
-	_, err := writeS3DownloadAtomic(dest, failingReader{})
-	if err == nil || !strings.Contains(err.Error(), "copy") {
+	_, err := writeS3DownloadRooted(S3Config{WorkspaceDir: dir}, dest, failingReader{}, 0)
+	if err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("writeS3DownloadAtomic error = %v, want copy error", err)
 	}
 
@@ -157,7 +157,7 @@ func TestWriteS3DownloadAtomicKeepsExistingFileOnCopyError(t *testing.T) {
 		t.Fatalf("destination content = %q, want original", content)
 	}
 
-	matches, err := filepath.Glob(filepath.Join(dir, ".out.txt.*.tmp"))
+	matches, err := filepath.Glob(filepath.Join(dir, ".aurago_edit_*"))
 	if err != nil {
 		t.Fatalf("glob temp files: %v", err)
 	}

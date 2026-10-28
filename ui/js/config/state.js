@@ -140,6 +140,7 @@
 
     function controlValue(element) {
         if (element.classList.contains('toggle')) return element.classList.contains('on');
+        if (element.type === 'checkbox') return element.checked;
         if (element.type === 'radio') return element.checked ? element.value : read(draftConfig, element.dataset.path);
         if (element.tagName === 'SELECT' && element.value === 'Other / Custom') {
             const custom = element.nextElementSibling;
@@ -195,6 +196,8 @@
                 element.setAttribute('aria-checked', value === true ? 'true' : 'false');
             } else if (element.type === 'radio') {
                 element.checked = String(value) === element.value;
+            } else if (element.type === 'checkbox') {
+                element.checked = value === true;
             } else if (element.dataset.type === 'array') {
                 element.value = Array.isArray(value) ? value.join(', ') : (value == null ? '' : value);
             } else if (element.dataset.type === 'array-lines') {

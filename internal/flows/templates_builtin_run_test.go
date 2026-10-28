@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // Runs of the starter templates against fake tools and a fake model, and the size of the
@@ -242,9 +244,10 @@ func TestStarterTemplatesRun(t *testing.T) {
 		if !reflect.DeepEqual(search["count"], 5) {
 			t.Errorf("count = %#v, want the int 5", search["count"])
 		}
-		// The snippets, unwrapped and unescaped. The third result has none, which leaves an empty
-		// last line that the ai.step trims with the rest of the prompt.
-		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"ai_news_pdf_telegram.text_2\n\n"+tplSnippet1+"\n"+tplSnippet2)
+		// The snippets, unwrapped and unescaped by the tool reader and then fenced again, as the
+		// untrusted web data they are, when the template splices them into the prompt. The third
+		// result has none, which leaves an empty last line inside the fence.
+		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"ai_news_pdf_telegram.text_2\n\n"+security.IsolateExternalData(tplSnippet1+"\n"+tplSnippet2+"\n"))
 		pdf := o.call(t, "document_creator")
 		tplWant(t, "pdf content", pdf["content"], "SUMMARY")
 		tplWant(t, "pdf title", pdf["title"], key+"ai_news_pdf_telegram.text_3 03.10.2026")
@@ -257,7 +260,8 @@ func TestStarterTemplatesRun(t *testing.T) {
 		data := NormalizeTriggerData("webhook", `{"text":"Hallo"}`)
 		o := tplRun(t, "webhook_summary_email", tplIdentity, map[string]map[string]any{
 			"hook": {"webhook": "wh_1"}, "mail": {"to": "me@example.com"}}, data)
-		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"webhook_summary_email.text_1\n\n"+`{"text":"Hallo"}`)
+		// The webhook body is untrusted: it reaches the prompt inside the fence.
+		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"webhook_summary_email.text_1\n\n"+security.IsolateExternalData(`{"text":"Hallo"}`))
 		mail := o.call(t, "send_email")
 		tplWant(t, "to", mail["to"], "me@example.com")
 		tplWant(t, "subject", mail["subject"], key+"webhook_summary_email.text_2")
@@ -329,8 +333,9 @@ func TestStarterTemplatesRun(t *testing.T) {
 		feed := o.call(t, "web_scraper")
 		tplWant(t, "url", feed["url"], "https://example.org/feed")
 		tplWant(t, "mode", feed["mode"], "rss")
-		// The titles, unwrapped and unescaped; the item without a title is an empty line.
-		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"rss_digest.text_1\n\n"+tplTitleA+"\n\n"+tplTitleC)
+		// The titles, unwrapped and unescaped by the tool reader and fenced again in the prompt;
+		// the item without a title is an empty line.
+		tplWant(t, "prompt", o.llm.callAt(0).Prompt, key+"rss_digest.text_1\n\n"+security.IsolateExternalData(tplTitleA+"\n\n"+tplTitleC))
 		mail := o.call(t, "send_email")
 		tplWant(t, "body", mail["body"], "SUMMARY")
 		tplWant(t, "subject", mail["subject"], key+"rss_digest.text_2")

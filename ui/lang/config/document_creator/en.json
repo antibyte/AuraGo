@@ -1,4 +1,5 @@
 {
+  "config.document_creator.allow_remote_resources_label": "Allow external resources",
   "config.document_creator.backend_gotenberg": "Gotenberg (Docker sidecar)",
   "config.document_creator.backend_label": "Backend",
   "config.document_creator.backend_maroto": "Maroto (built-in Go library)",
@@ -10,6 +11,8 @@
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "Loading…",
   "config.document_creator.output_dir_label": "Output Directory",
+  "config.document_creator.restart_required": "Restart AuraGo to safely recreate the managed Gotenberg service.",
+  "config.document_creator.save_before_test": "Save your changes before testing.",
   "config.document_creator.seconds": "seconds",
   "config.document_creator.status_error": "❌",
   "config.document_creator.status_success": "✅",
@@ -17,9 +20,14 @@
   "config.document_creator.test_fail": "Connection failed",
   "config.document_creator.test_gotenberg": "Test Connection",
   "config.document_creator.test_ok": "Connection successful",
+  "config.document_creator.test_saved_settings": "The test uses saved settings.",
+  "config.document_creator.test_unreachable": "Service unreachable.",
+  "config.document_creator.test_unverified": "Reachable, but network protection is not verified.",
+  "config.document_creator.test_verified": "Reachable and network protection verified.",
   "config.document_creator.url_required": "Gotenberg URL is required",
+  "help.document_creator.allow_remote_resources": "HTML and Markdown stay offline by default. Allow public images, fonts, stylesheets and scripts. Internal network addresses remain blocked.",
   "help.document_creator.backend": "Maroto is a pure Go PDF library with no external dependencies. Gotenberg is a Docker service with full document conversion, screenshots, and office format support.",
   "help.document_creator.gotenberg_timeout": "Maximum time in seconds to wait for document generation.",
-  "help.document_creator.gotenberg_url": "Base URL of the Gotenberg service (e.g. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_url": "Base URL of the Gotenberg service. Leave empty for the local address; Docker uses the gotenberg service name.",
   "help.document_creator.output_dir": "Directory where generated documents are saved."
 }

@@ -36,6 +36,7 @@ const (
 // same way: for security-proxy it only refuses create/run of the reserved
 // name. The app owner comes first so the app container names itself.
 var containerProtectedOwners = []string{
+	dockerutil.RustFSOwner,
 	dockerutil.AppOwner,
 	dockerutil.OllamaOwner,
 	acestep.Owner,

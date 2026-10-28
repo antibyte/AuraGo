@@ -167,8 +167,9 @@ func addIntegrationCatalogEntries(catalog *ToolCatalog, dc *DispatchContext) {
 	if parent, ok := catalog.Get("mcp_call"); ok && parent.Enabled && dispatchToolAllowed(dc, "mcp_call") {
 		if manager := tools.GetMCPManager(); manager != nil {
 			for _, item := range manager.CachedTools("") {
-				name := fmt.Sprintf("mcp__%x__%x", item.Server, item.Name)
-				catalog.add(&ToolCatalogEntry{Name: name, Kind: ToolKindMCP, Aliases: []string{item.Server + "/" + item.Name}, Category: "mcp", Description: item.Description, Enabled: true, Status: ToolStatusHidden, HiddenReason: "external_tool", ManualPath: parent.ManualPath, Routing: ToolRouting{NativeAction: "mcp_call", MCPServer: item.Server, MCPTool: item.Name}, Schema: openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{Name: name, Description: item.Description, Parameters: item.InputSchema}}})
+				// The server writes the description and the schema: every refresh
+				// vets them (cached by content) before the model can read them.
+				catalog.add(mcpCatalogEntry(dc, parent, item))
 			}
 		}
 	}

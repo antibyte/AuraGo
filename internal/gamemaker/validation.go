@@ -50,6 +50,11 @@ func boundedPreviewDiagnostics(input []Diagnostic) []Diagnostic {
 		if strings.Contains(message, ".removeAll is not a function") && !strings.Contains(message, "\nPhaser Group:") {
 			message += "\nPhaser Group: inspect the object's creation. For physics.add.group/staticGroup use group.clear(true,true) to remove and destroy children. removeAll belongs to Containers. Preserve collider registrations when rebuilding a level."
 		}
+		// The minified asset runtime reads handle.released first in
+		// createInstance/createInstances, so this error means an undefined handle.
+		if strings.Contains(message, "reading 'released'") && !strings.Contains(message, "\nAsset handle:") {
+			message += "\nAsset handle: an asset handle is undefined. Call createInstance/createInstances only with the result of `await loadAsset(...)` for a role that exists in the plan (see runtime.api_reference)."
+		}
 		runes := []rune(message)
 		if len(runes) > 1000 {
 			message = string(runes[:1000])

@@ -34,6 +34,7 @@ function renderAgentMailSection(section) {
             form.field({ label: t('config.agentmail.display_name_label'), help: t('help.agentmail.display_name'), path: 'agentmail.display_name', value: data.display_name || '', placeholder: 'AuraGo' }),
         ] }, { titleKey: 'config.refresh.runtime', fields: [
             form.toggle({ label: t('config.agentmail.relay_label'), help: t('help.agentmail.relay_to_agent'), path: 'agentmail.relay_to_agent', value: relayOn }),
+            agentMailAllowedSendersField(data.allowed_senders),
             agentMailCheatsheetSelect(data.relay_cheatsheet_id || ''),
             form.toggle({ label: t('config.agentmail.websocket_label'), help: t('help.agentmail.use_websocket'), path: 'agentmail.use_websocket', value: wsOn }),
             form.number({ label: t('config.agentmail.poll_interval_label'), help: t('help.agentmail.poll_interval_seconds'), path: 'agentmail.poll_interval_seconds', value: String(data.poll_interval_seconds || 120), min: 30, step: 1 }),
@@ -54,6 +55,18 @@ function renderAgentMailSection(section) {
     document.getElementById('content').innerHTML = html;
     agentMailLoadCheatsheets(data.relay_cheatsheet_id || '');
     agentMailCheckStatus();
+}
+
+// One address or @domain per line; the shared draft reads the textarea as a list of lines.
+function agentMailAllowedSendersField(senders) {
+    return window.AuraConfigForm.textarea({
+        label: t('config.agentmail.allowed_senders_label'),
+        help: t('help.agentmail.allowed_senders'),
+        path: 'agentmail.allowed_senders',
+        value: Array.isArray(senders) ? senders.join('\n') : '',
+        rows: 4,
+        placeholder: 'anna@example.com\n@partner.example'
+    }).replace('<textarea ', '<textarea data-type="array-lines" ');
 }
 
 function agentMailCheatsheetSelect(selectedID) {

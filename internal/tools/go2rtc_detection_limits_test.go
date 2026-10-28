@@ -76,12 +76,12 @@ func TestGo2RTCContainerSpecRaisesLimitsWhileDetecting(t *testing.T) {
 	}
 }
 
-func TestGo2RTCFingerprintKeepsLegacyValueWithoutDetection(t *testing.T) {
+func TestGo2RTCFingerprintUsesManagedImageWithoutExtraLimits(t *testing.T) {
 	cfg := detectingGo2RTCConfig(2)
 	cfg.Detection.Enabled = false
 	rendered := renderGo2RTCConfig(cfg)
-	legacy := sha256.Sum256(append([]byte(cfg.Image+"\x00"+cfg.URL+"\x00"+"1984"+"\x00"+"owner"+"\x00"), rendered...))
-	if got := go2RTCFingerprint(cfg, rendered, "owner"); got != hex.EncodeToString(legacy[:]) {
+	base := sha256.Sum256(append([]byte(Go2RTCImageFor(cfg)+"\x00"+cfg.URL+"\x00"+"1984"+"\x00"+"owner"+"\x00"), rendered...))
+	if got := go2RTCFingerprint(cfg, rendered, "owner"); got != hex.EncodeToString(base[:]) {
 		t.Fatalf("fingerprint without active detection changed: %s", got)
 	}
 }

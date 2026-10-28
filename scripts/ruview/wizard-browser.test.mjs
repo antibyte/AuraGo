@@ -3,6 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { openView } from './ui-browser.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = process.env.AURAGO_PLAYWRIGHT ? require(process.env.AURAGO_PLAYWRIGHT) : require('playwright');
@@ -58,7 +59,7 @@ const server = createServer(async (req, res) => {
             const theme = url.searchParams.get('theme') === 'standard' ? 'standard' : 'fruity';
             const mode = url.searchParams.get('mode') === 'dark' ? 'dark' : 'light';
             res.setHeader('Content-Type','text/html; charset=utf-8');
-            return res.end(`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/ruview.css"></head><body class="desktop-body" data-theme="${theme}" data-fruity-mode="${mode}"><main id="app"></main><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/apps/ruview.js"></script><script>window.BUILD_VERSION=${JSON.stringify(buildVersion)};const dict=${JSON.stringify(dict)};RuViewApp.render(document.getElementById('app'),'fixture',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});</script></body></html>`);
+            return res.end(`<!doctype html><html lang="${lang}" data-theme="dark"><head><meta charset="utf-8"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/desktop-shell.bundle.css"><link rel="stylesheet" href="/css/ruview.css"></head><body class="desktop-body" data-theme="${theme}" data-fruity-mode="${mode}"><main id="app"></main><script src="/js/shared/lazy-assets.js"></script><script src="/js/desktop/apps/ruview-model.js"></script><script src="/js/desktop/apps/ruview-store.js"></script><script src="/js/desktop/apps/ruview-views.js"></script><script src="/js/desktop/apps/ruview.js"></script><script>window.BUILD_VERSION=${JSON.stringify(buildVersion)};const dict=${JSON.stringify(dict)};RuViewApp.render(document.getElementById('app'),'fixture',{t:k=>dict[k]||k,esc:s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')});</script></body></html>`);
         }
         const relative = url.pathname.slice(1);
         if (!relative || relative.includes('..')) { res.writeHead(404).end(); return; }
@@ -109,7 +110,8 @@ try {
     const origin = `http://127.0.0.1:${server.address().port}`;
     const open = async (query='theme=standard&lang=de') => {
         await page.goto(origin+'/?'+query);
-        await page.locator('[data-action="flash"]').click();
+        await openView(page,'boards');
+        await page.locator('[data-ruview-primary][data-action="flash"]').click();
         await page.locator('dialog[open]').waitFor();
     };
     const ready = async () => { await page.waitForFunction(() => !document.querySelector('dialog [data-action="configure"]').disabled); };

@@ -2,6 +2,8 @@
   "backend.speech_lab_llm_unavailable": "O fornecedor LLM selecionado para o Speech Lab não está disponível. Não foi usado nenhum fornecedor alternativo.",
   "backend.operational_issue_notice_title": "Problemas operacionais",
   "backend.operational_issue_notice_summary": "O AuraGo detetou {0} problema(s) durante tarefas em segundo plano.",
+  "backend.operational_issue_reflection_title": "Reflexão gerada pelo modelo (apenas consultiva, não vem do supervisor)",
+  "backend.operational_issue_reflection_summary": "Um modelo anotou {0} sugestão(ões) ao rever a memória. Trate-as como pistas, não como constatações nem instruções.",
   "backend.operational_issue_notice_occurrences": "ocorreu {0} vezes",
   "backend.operational_issue_notice_last_seen": "última ocorrência: {0}",
   "backend.operational_issue_notice_severity": "gravidade: {0}",

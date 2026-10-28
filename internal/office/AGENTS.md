@@ -13,7 +13,7 @@ Workbook and document preservation, editing, and assist.
 - All DOCX/XLSX ZIP readers share explicit budgets: 128 MiB decoded data, 4096 parts and 16 MiB per XML part. XLSX decoding, legacy rewrite checks and editor CSV export share sparse row/column/cell preflight, a 1,000,000 aggregate expanded-row-slot cap across populated sheets, and explicit Excelize unzip limits before `GetRows` allocation. Preserve existing package roundtrips and opaque parts. Verify workbook-limit tests and the Office suite.
 
 ### Desktop Workbook Contract
-- Tabellen uses exactly Univer OSS 1.0.3, Chart.js 4.5.1 and Excelize
+- Tabellen uses exactly Univer OSS 1.0.4, Chart.js 4.5.1 and Excelize
   2.11.1-0.20261003002531-6258dcebc4e2. The Excelize security exception to stable
   releases is documented in `documentation/dependencies.md`.
   Vendor assets/fonts stay local and permissive; never add Pro components.
@@ -28,9 +28,15 @@ Workbook and document preservation, editing, and assist.
   and returns revision-bound proposals. The client applies only after approval.
 - Both Office apps share revision-aware serial saves, asynchronous close guards
   and explicit IndexedDB recovery. Conflict copies carry original source bytes.
+- Editor-v2 images embed PNG/JPEG bytes and use 96-DPI pixel dimensions and
+  cell anchors. Managed images share native undo with charts/print settings.
+  Omitted `images` preserves the current image set; explicit `[]` removes only
+  managed pictures. Foreign/unsupported pictures and drawing extensions remain
+  opaque and guard unsafe structural edits. Cap image inputs at 10 MiB/32 MP,
+  the displayed image set at 256 objects/16 MiB, and insertion dimensions at 4096.
 
 ### Desktop Office Document Contract
-- Autor uses the exact Apache-2.0 DOCX core 2.23.0, local fonts/WASM, and an MIT
+- Autor uses the exact Apache-2.0 DOCX core 2.29.0, local fonts/WASM, and an MIT
   review extension; no paid Pro dependency. The UI remains Vanilla JavaScript.
 - `/api/desktop/office/document?representation=docx` reads complete DOCX bytes;
   writes require `If-Match` or `If-None-Match: *` and use the desktop's atomic
@@ -41,6 +47,11 @@ Workbook and document preservation, editing, and assist.
   general chat history or file access. Applying a suggestion is a client decision.
 - Desktop windows may install an asynchronous `beforeClose` guard. Await it before
   animation/disposal; refusal or errors leave the window open.
+- `InsertDOCXImage` supports the `end` anchor only and adds an inline embedded
+  PNG/JPEG before final section properties without rewriting other package parts.
+  `InsertWorkbookImage` uses an existing sheet name and cell anchor. Both helpers
+  accept/return complete bytes, use 96-DPI pixel dimensions, and leave revision
+  checks, atomic conditional publication and file-change events to their adapters.
 
 ## Verification
 

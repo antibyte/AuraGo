@@ -493,6 +493,9 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	if path == "/api/rustfs" || strings.HasPrefix(path, "/api/rustfs/") {
+		return true
+	}
 	if path == "/api/self-tests" || strings.HasPrefix(path, "/api/self-tests/") {
 		return true
 	}
@@ -1183,6 +1186,11 @@ func validRouteBearer(s *Server, token, path, method string) bool {
 		if _, ok := tm.Validate(token, "admin"); ok {
 			return true
 		}
+		if strings.HasPrefix(path, "/api/go2rtc/talk/") {
+			_, ok := tm.Validate(token, go2RTCTalkScope)
+			return ok
+		}
+
 		if isSafeMethod(method) {
 			_, ok := tm.Validate(token, go2RTCViewScope)
 			return ok

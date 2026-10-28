@@ -95,43 +95,7 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		historyMgr := memory.NewEphemeralHistoryManager()
 		sessionID := fmt.Sprintf("a2a-%s", execCtx.TaskID)
 
-		// Build config with A2A-specific overrides
-		a2aCfg := *e.deps.Config
-		a2aCfg.LLM.Provider = resolvedA2AProviderID(e.deps.Config)
-		a2aCfg.LLM.ProviderType = e.deps.Config.A2A.LLM.ProviderType
-		a2aCfg.LLM.APIKey = e.deps.Config.A2A.LLM.APIKey
-		a2aCfg.LLM.BaseURL = e.deps.Config.A2A.LLM.BaseURL
-		a2aCfg.LLM.Model = model
-		a2aCfg.Personality.Engine = false
-		a2aCfg.FallbackLLM.Enabled = false
-		if a2aCfg.CircuitBreaker.MaxToolCalls <= 0 {
-			a2aCfg.CircuitBreaker.MaxToolCalls = 10
-		}
-
-		runCfg := agent.RunConfig{
-			Config:               &a2aCfg,
-			Logger:               logger,
-			LLMClient:            a2aClient,
-			ShortTermMem:         e.deps.ShortTermMem,
-			HistoryManager:       historyMgr,
-			LongTermMem:          e.deps.LongTermMem,
-			KG:                   e.deps.KG,
-			InventoryDB:          e.deps.InventoryDB,
-			Vault:                e.deps.Vault,
-			Registry:             e.deps.Registry,
-			Manifest:             e.deps.Manifest,
-			CronManager:          nil, // A2A agents cannot manage cron
-			CoAgentRegistry:      nil, // A2A agents cannot spawn co-agents
-			BudgetTracker:        e.deps.Budget,
-			PreparationService:   nil,
-			SessionID:            sessionID,
-			UserIntent:           userIntent,
-			TrustedPromptAddenda: trustedAddenda,
-			IsMaintenance:        false,
-			IsCoAgent:            true,
-			MessageSource:        "a2a",
-			WebhookManager:       e.deps.WebhookManager,
-		}
+		runCfg := e.buildRunConfig(logger, a2aClient, historyMgr, sessionID, model, userText, trustedAddenda)
 
 		broker := &agent.NoopBroker{}
 		resp, err := agent.ExecuteAgentLoop(ctx, llmReq, runCfg, false, broker)
@@ -165,6 +129,54 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		completedMsg := a2a.NewMessage(a2a.MessageRoleAgent, a2a.NewTextPart(result))
 		completedEvt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateCompleted, completedMsg)
 		yield(completedEvt, nil)
+	}
+}
+
+// buildRunConfig builds the agent run of one A2A task. userText is the peer's
+// text after IsolateExternalData and is also the run's UserIntent: the peer is
+// not the owner, so its words must never reach routing, recall or learning as
+// the human-authored request (RunConfig.UserIntent is that contract).
+func (e *Executor) buildRunConfig(logger *slog.Logger, client llm.ChatClient, historyMgr *memory.HistoryManager, sessionID, model, userText string, trustedAddenda []prompts.PromptAddendum) agent.RunConfig {
+	// Build config with A2A-specific overrides
+	a2aCfg := *e.deps.Config
+	a2aCfg.LLM.Provider = resolvedA2AProviderID(e.deps.Config)
+	a2aCfg.LLM.ProviderType = e.deps.Config.A2A.LLM.ProviderType
+	a2aCfg.LLM.APIKey = e.deps.Config.A2A.LLM.APIKey
+	a2aCfg.LLM.BaseURL = e.deps.Config.A2A.LLM.BaseURL
+	a2aCfg.LLM.Model = model
+	a2aCfg.Personality.Engine = false
+	a2aCfg.FallbackLLM.Enabled = false
+	// A remote peer may read the workspace, never change it: this copy of the
+	// config turns off every file-writing tool, not only the filesystem family
+	// that the co-agent denylist names.
+	a2aCfg.Agent.AllowFilesystemWrite = false
+	if a2aCfg.CircuitBreaker.MaxToolCalls <= 0 {
+		a2aCfg.CircuitBreaker.MaxToolCalls = 10
+	}
+
+	return agent.RunConfig{
+		Config:               &a2aCfg,
+		Logger:               logger,
+		LLMClient:            client,
+		ShortTermMem:         e.deps.ShortTermMem,
+		HistoryManager:       historyMgr,
+		LongTermMem:          e.deps.LongTermMem,
+		KG:                   e.deps.KG,
+		InventoryDB:          e.deps.InventoryDB,
+		Vault:                e.deps.Vault,
+		Registry:             e.deps.Registry,
+		Manifest:             e.deps.Manifest,
+		CronManager:          nil, // A2A agents cannot manage cron
+		CoAgentRegistry:      nil, // A2A agents cannot spawn co-agents
+		BudgetTracker:        e.deps.Budget,
+		PreparationService:   nil,
+		SessionID:            sessionID,
+		UserIntent:           userText,
+		TrustedPromptAddenda: trustedAddenda,
+		IsMaintenance:        false,
+		IsCoAgent:            true,
+		MessageSource:        "a2a",
+		WebhookManager:       e.deps.WebhookManager,
 	}
 }
 
@@ -254,5 +266,5 @@ func buildA2ASystemPrompt(cfg *config.Config) string {
 You are being invoked by another AI agent or system. Respond concisely and precisely.
 Focus on completing the requested task and returning structured, useful results.
 Do not include pleasantries or conversational filler.
-Runtime policy restricts A2A tool use: no secrets access, no memory or knowledge mutations, no nested agents, no follow-ups, no cron access, and no mission creation or execution.`, name)
+Runtime policy restricts A2A tool use: no secrets access, no memory or knowledge mutations, no nested agents, no follow-ups, no cron access, no mission creation or execution, no webhook, tool or skill changes, no file, virtual desktop or homepage changes, and no shell, Python, skill or saved-tool execution.`, name)
 }

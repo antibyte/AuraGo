@@ -248,6 +248,28 @@
                     }
                 }
             }
+            if (active && bot.group && bot.state && (bot.state.stunnedUntil || -999) > t) {
+                const center = robotAimPoint(bot);
+                const stunColor = 0x38bdf8;
+                for (let arc = 0; arc < 3; arc++) {
+                    const a1 = t * 7.5 + arc * 2.1;
+                    const a2 = a1 + 1.3 + Math.sin(t * 11.0 + arc) * 0.5;
+                    const r = 0.52;
+                    const pStart = new THREE.Vector3(
+                        center.x + Math.cos(a1) * r,
+                        center.y + (arc - 1) * 0.28,
+                        center.z + Math.sin(a1) * r
+                    );
+                    const pEnd = new THREE.Vector3(
+                        center.x + Math.cos(a2) * r,
+                        center.y + ((arc + 1) % 3 - 1) * 0.28,
+                        center.z + Math.sin(a2) * r
+                    );
+                    if (activeVertices + 6 * 2 < maxVertices) {
+                        activeVertices = generateLightning(pStart, pEnd, arc % 2 === 0 ? stunColor : 0xc084fc, positionArray, colorsArray, activeVertices, 5);
+                    }
+                }
+            }
         });
 
         if (activeVertices > 0) {
@@ -413,6 +435,25 @@
     const ROBOT_HELIX_CHANCE = 0.3;
     const ROBOT_EMP_COOLDOWN = 20;
     const ROBOT_EMP_RANGE = 5.5;
+    // --- Battle Overdrive: surface proximity mines, white fuel slick & red cryo-EMP stasis trap ---
+    // Mines are naval-mine style floaters (half submerged, tilting with the wave, blinking beacon, sonar pulse);
+    // fuel slicks are iridescent oil films whose mesh hugs the rendered water. Both are children of `surface`.
+    // Each hazard lives a random 30-120 s; new ones only spawn into a free slot (existing ones are never evicted).
+    const MAX_SURFACE_MINES = 6;
+    const ROBOT_MINE_COOLDOWN = 14;
+    const ROBOT_MINE_ARM_DELAY = 0.75;
+    const ROBOT_MINE_LIFETIME_MIN = 30;
+    const ROBOT_MINE_LIFETIME_MAX = 120;
+    const ROBOT_MINE_TRIGGER_RADIUS = 1.65;
+    const ROBOT_MINE_STASIS_DURATION = 2.75;
+    const MAX_FUEL_SLICKS = 6;
+    const ROBOT_FUEL_DROP_COOLDOWN = 12;
+    const ROBOT_FUEL_SLICK_LIFETIME_MIN = 30;
+    const ROBOT_FUEL_SLICK_LIFETIME_MAX = 120;
+    const ROBOT_FUEL_IGNITE_RADIUS = 1.72;
+    const ROBOT_FUEL_BURN_DURATION = 2.85;
+    const ROBOT_INCAPACITATED_FIRE_INTERVAL = 0.065;
+    const MAX_ROBOT_LOAD_RETRIES = 4;
 
     const UP_AXIS = new THREE.Vector3(0, 1, 0);
     let worldTimeScale = 1;
@@ -423,6 +464,92 @@
     const blinkGhosts = [];
     const activeBeams = [];
     const beamMeshPool = [];
+    const surfaceMines = [];
+    const surfaceMinePool = [];
+    const fuelSlicks = [];
+    const fuelSlickPool = [];
+    const _hazardQuat = new THREE.Quaternion();
+    const _hazardNormal = new THREE.Vector3();
+    // The slick is a re-skinned window of the water grid itself (PATCH_CELLS x PATCH_CELLS cells), so its
+    // triangles are exactly coplanar with the water's triangles, just lifted a hair.
+    const FUEL_SLICK_PATCH_CELLS = 8;
+    const FUEL_SLICK_PATCH_VERTEX_COUNT = (FUEL_SLICK_PATCH_CELLS + 1) * (FUEL_SLICK_PATCH_CELLS + 1);
+
+    // Oil film: the vertex stage only places the water patch and derives the slick-local coordinates from
+    // the heightfield position; the fragment stage cuts the organic outline, paints the muted iridescence,
+    // the sun glint and (when ignited) the burning front.
+    const FUEL_SLICK_VERTEX_SHADER = [
+        'uniform vec2 center;',
+        'uniform float spread;',
+        'varying vec2 vUnit;',
+        'varying vec3 vWorldPos;',
+        'void main() {',
+        '    vUnit = (position.xz - center) / spread;',
+        '    vec4 wp = modelMatrix * vec4(position, 1.0);',
+        '    vWorldPos = wp.xyz;',
+        '    gl_Position = projectionMatrix * viewMatrix * wp;',
+        '}'
+    ].join('\n');
+
+    const FUEL_SLICK_FRAGMENT_SHADER = [
+        'precision highp float;',
+        'uniform float time;',
+        'uniform float fade;',
+        'uniform float burn;',
+        'uniform float seed;',
+        'uniform vec3 lightDir;',
+        'varying vec2 vUnit;',
+        'varying vec3 vWorldPos;',
+        'float hash21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
+        'float vnoise(vec2 p) {',
+        '    vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);',
+        '    float a = hash21(i); float b = hash21(i + vec2(1.0, 0.0));',
+        '    float c = hash21(i + vec2(0.0, 1.0)); float d = hash21(i + vec2(1.0, 1.0));',
+        '    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);',
+        '}',
+        'float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return v; }',
+        'void main() {',
+        '    vec2 uv = vUnit;',
+        '    float r = length(uv);',
+        '    // The patch is a square window; everything beyond the outline (max edge 0.98) is transparent anyway.',
+        '    if (r > 1.0) discard;',
+        '    float tt = time * 0.1;',
+        '    vec2 q = uv * 2.4 + seed;',
+        '    vec2 warp = vec2(fbm(q + tt), fbm(q + vec2(5.2, 1.3) - tt));',
+        '    float marble = fbm(q * 1.5 + warp * 1.6);',
+        '    float rimNoise = fbm(uv * 1.7 + seed * 0.37 + tt * 0.6);',
+        '    float edge = 0.8 + (rimNoise - 0.5) * 0.36;',
+        '    float body = 1.0 - smoothstep(edge - 0.24, edge, r);',
+        '    vec3 V = normalize(cameraPosition - vWorldPos);',
+        '    vec3 N = vec3(0.0, 1.0, 0.0);',
+        '    float ndv = clamp(dot(N, V), 0.0, 1.0);',
+        '    float film = fract(marble * 1.7 + (1.0 - ndv) * 1.1 + r * 0.5 + seed * 0.13);',
+        '    float sheen = pow(1.0 - ndv, 1.4);',
+        '    vec3 L = normalize(lightDir);',
+        '    vec3 H = normalize(L + V);',
+        '    float spec = pow(max(dot(N, H), 0.0), 110.0);',
+        '    vec3 base = vec3(0.012, 0.016, 0.03);',
+        '    float bands = smoothstep(0.32, 0.78, marble);',
+        '    float fringe = smoothstep(0.3, 0.95, r);',
+        '    vec3 rainbow = 0.5 + 0.5 * cos(6.28318 * (film + vec3(0.0, 0.33, 0.67)));',
+        '    rainbow = mix(vec3(dot(rainbow, vec3(0.3333))), rainbow, 0.6);',
+        '    float sheenWeight = 0.07 + 0.22 * sheen + 0.14 * fringe;',
+        '    vec3 col = base + rainbow * sheenWeight * (0.35 + 0.65 * bands);',
+        '    col += vec3(0.9, 0.95, 1.0) * spec * 0.7;',
+        '    float alpha = body * (0.68 + 0.18 * marble);',
+        '    if (burn > 0.0) {',
+        '        float ember = fbm(uv * 5.0 + seed - vec2(0.0, time * 1.7));',
+        '        ember = smoothstep(0.42, 0.85, ember + 0.12 * sin(time * 9.0 + seed + r * 6.0));',
+        '        vec3 fire = mix(vec3(1.0, 0.26, 0.02), vec3(1.0, 0.82, 0.3), ember);',
+        '        float front = smoothstep(edge - 0.2, edge - 0.03, r);',
+        '        vec3 burning = vec3(0.012, 0.008, 0.006) + fire * (0.3 + ember * 1.4 + front * 1.0);',
+        '        col = mix(col, burning, burn);',
+        '        alpha = mix(alpha, body * 0.95, burn);',
+        '    }',
+        '    gl_FragColor = vec4(col, alpha * fade);',
+        '    #include <colorspace_fragment>',
+        '}'
+    ].join('\n');
 
     const AURA_VERTEX_SHADER = [
         'uniform float time;',
@@ -643,7 +770,13 @@
             'robotScorchTexture',
             'robotScorchGeometry',
             'beamCoreGeom',
-            'beamHaloGeom'
+            'beamHaloGeom',
+            'mineHullGeom',
+            'mineHornGeom',
+            'mineBandGeom',
+            'mineBeaconGeom',
+            'mineWaterlineGeom',
+            'mineRingGeom'
         ].forEach(disposeWindowThreeAsset);
         if (smokeTexture && typeof smokeTexture.dispose === 'function') smokeTexture.dispose();
         smokeTexture = null;
@@ -651,6 +784,7 @@
 
     function resetRobotRuntime(bot) {
         if (!bot) return;
+        const wasLoading = !!bot.loading;
         bot.disposed = true;
         bot.loadGeneration = -1;
         bot.group = null;
@@ -658,6 +792,8 @@
         bot.thrusterLight = null;
         bot.loading = false;
         bot.loaded = false;
+        bot.loadRetryCount = 0;
+        bot.nextLoadRetryAt = 0;
         bot.materials = [];
         bot.damageMeshes = [];
         bot.damageScorchMarks = [];
@@ -669,8 +805,25 @@
             bot.state.blinkUntilReal = -999;
             bot.state.rollUntil = -999;
             bot.state.dashUntil = -999;
+            bot.state.burningUntil = -999;
+            bot.state.stunnedUntil = -999;
+            bot.state.lastBurnTickAt = -999;
         }
-        disposeRobotLoader(bot);
+        if (!wasLoading) {
+            disposeRobotLoader(bot);
+        }
+    }
+
+    function disposePooledHazardGroup(entry) {
+        if (!entry) return;
+        // Hazards are children of the water mesh, so detach them from whatever parent they have.
+        const root = entry.group || entry.mesh;
+        if (root && root.parent) root.parent.remove(root);
+        if (entry.disposables) {
+            entry.disposables.forEach(function (item) {
+                if (item && typeof item.dispose === 'function') item.dispose();
+            });
+        }
     }
 
     function clearThreeDeeRuntimeState() {
@@ -699,6 +852,18 @@
                 else if (mesh.parent) mesh.parent.remove(mesh);
                 if (mesh.material && typeof mesh.material.dispose === 'function') mesh.material.dispose();
             });
+        }
+        while (surfaceMines.length) {
+            disposePooledHazardGroup(surfaceMines.pop());
+        }
+        while (surfaceMinePool.length) {
+            disposePooledHazardGroup(surfaceMinePool.pop());
+        }
+        while (fuelSlicks.length) {
+            disposePooledHazardGroup(fuelSlicks.pop());
+        }
+        while (fuelSlickPool.length) {
+            disposePooledHazardGroup(fuelSlickPool.pop());
         }
         worldTimeScale = 1;
         worldTimeSlowUntil = -999;
@@ -879,6 +1044,27 @@
         if (!window.superGrenadeGeom) {
             window.superGrenadeGeom = new THREE.SphereGeometry(0.24, 24, 24);
         }
+        if (!window.mineHullGeom) {
+            window.mineHullGeom = new THREE.SphereGeometry(0.2, 28, 18);
+        }
+        if (!window.mineHornGeom) {
+            // Horn base sits on the origin and points along +Y so it can be placed on the hull surface.
+            window.mineHornGeom = new THREE.CylinderGeometry(0.02, 0.05, 0.15, 10);
+            window.mineHornGeom.translate(0, 0.075, 0);
+        }
+        if (!window.mineBandGeom) {
+            window.mineBandGeom = new THREE.TorusGeometry(0.2, 0.013, 8, 48);
+            window.mineBandGeom.rotateX(Math.PI / 2);
+        }
+        if (!window.mineBeaconGeom) {
+            window.mineBeaconGeom = new THREE.SphereGeometry(0.04, 12, 10);
+        }
+        if (!window.mineWaterlineGeom) {
+            window.mineWaterlineGeom = new THREE.RingGeometry(0.2, 0.3, 48);
+        }
+        if (!window.mineRingGeom) {
+            window.mineRingGeom = new THREE.RingGeometry(0.3, 0.42, 48);
+        }
     }
 
     function createSmokeTexture() {
@@ -903,6 +1089,9 @@
         const b = opts.blending || THREE.AdditiveBlending;
         const sprite = acquireSprite(x, y, z, color, opacity, b);
         sprite.scale.setScalar(scale);
+        // Pooled sprites are reused, so always reset the order. Hazard effects ask for a later pass so
+        // they are drawn over the water and the oil film instead of being dimmed by them.
+        sprite.renderOrder = opts.renderOrder || 0;
 
         sprites.push({
             sprite,
@@ -1719,6 +1908,8 @@
             loadGeneration: -1,
             dracoLoader: null,
             loadWarned: false,
+            loadRetryCount: 0,
+            nextLoadRetryAt: 0,
             state: {
                 x: options.x,
                 z: options.z,
@@ -1768,6 +1959,11 @@
                 dashUntil: -999,
                 dashReadyAt: 3.0,
                 dashVector: new THREE.Vector2(0, 0),
+                burningUntil: -999,
+                stunnedUntil: -999,
+                lastBurnTickAt: -999,
+                lastMineAt: options.id === 'red' ? 2.2 : 4.8,
+                lastFuelDropAt: 1.8,
                 px: options.x,
                 pz: options.z
             },
@@ -2048,10 +2244,29 @@
         aliasPrimaryRobot(robotFleet[0]);
     }
 
+    function resolveThreeDeeAssetURL(url) {
+        const value = String(url || '').trim();
+        if (!value || !value.startsWith('/') || value.startsWith('//') || /(?:[?&])v=/.test(value)) {
+            return value;
+        }
+        const version = window.BUILD_VERSION || '';
+        if (!version) return value;
+        return value + (value.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(version);
+    }
+
     function loadRobotAsset(bot) {
         if (!bot || bot.loaded || bot.loading || !scene) return;
+        const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if ((bot.loadRetryCount || 0) >= MAX_ROBOT_LOAD_RETRIES || nowMs < (bot.nextLoadRetryAt || 0)) return;
         bot.disposed = false;
         if (!THREE.GLTFLoader || !THREE.DRACOLoader) {
+            if (window.AuraChatThemeEffects && typeof window.AuraChatThemeEffects.ensure === 'function') {
+                if (!bot.requestedThemeEffects) {
+                    bot.requestedThemeEffects = true;
+                    window.AuraChatThemeEffects.ensure('threedee');
+                }
+                return;
+            }
             if (!bot.loadWarned) {
                 console.warn('[ThreeDeeShader] GLTFLoader or DRACOLoader unavailable for ' + bot.url);
                 bot.loadWarned = true;
@@ -2072,6 +2287,12 @@
 
         const loader = new THREE.GLTFLoader();
         const dracoLoader = new THREE.DRACOLoader();
+        if (loader.manager && typeof loader.manager.setURLModifier === 'function') {
+            loader.manager.setURLModifier(resolveThreeDeeAssetURL);
+        }
+        if (dracoLoader.manager && typeof dracoLoader.manager.setURLModifier === 'function') {
+            dracoLoader.manager.setURLModifier(resolveThreeDeeAssetURL);
+        }
         dracoLoader.setDecoderPath('/js/vendor/draco/');
         loader.setDRACOLoader(dracoLoader);
         bot.dracoLoader = dracoLoader;
@@ -2128,6 +2349,8 @@
             group.visible = true;
             bot.loaded = true;
             bot.loading = false;
+            bot.loadRetryCount = 0;
+            bot.nextLoadRetryAt = 0;
             if (bot.id === 'blue') {
                 robotModel = model;
                 robotLoaded = true;
@@ -2140,7 +2363,14 @@
             if (bot.id === 'blue') robotLoading = false;
             if (scene) scene.remove(group);
             bot.group = null;
-            console.warn('[ThreeDeeShader] Could not load floating robot ' + bot.url + ':', err);
+            if (!bot.disposed && loadGeneration === sceneGeneration) {
+                bot.loadRetryCount = (bot.loadRetryCount || 0) + 1;
+                const retryDelay = Math.min(4800, 950 * bot.loadRetryCount);
+                bot.nextLoadRetryAt = (typeof performance !== 'undefined' ? performance.now() : Date.now()) + retryDelay;
+                if (bot.loadRetryCount >= MAX_ROBOT_LOAD_RETRIES) {
+                    console.warn('[ThreeDeeShader] Could not load floating robot ' + bot.url + ':', err);
+                }
+            }
         };
 
         if (bot.id === 'blue') {
@@ -2162,6 +2392,54 @@
         const front = heightAt(x, clamp(z + eps, -robotBounds.z, robotBounds.z), t, sampleOptions);
         targetNormal.set(left - right, eps * 2, back - front).normalize();
         return targetNormal;
+    }
+
+    // Water height exactly as the rendered mesh shows it (robot hover dips and thruster ripples included):
+    // lookup in the per-vertex height cache that updateSurface fills every frame. The cell is split along the
+    // same diagonal as PlaneGeometry (vertex 01 - vertex 10), so this reproduces the triangles the GPU draws;
+    // a plain bilinear mix would differ from the mesh by up to a quarter of the cell's twist on sharp ripples.
+    function renderedWaterHeight(x, z, t) {
+        const cols = GRID.cols;
+        const rows = GRID.rows;
+        if (!heightCache || !basePositions || heightCache.length < (cols + 1) * (rows + 1)) {
+            return heightAt(x, z, t);
+        }
+        const x0 = basePositions[0];
+        const z0 = basePositions[2];
+        const stepX = basePositions[3] - basePositions[0];
+        const stepZ = basePositions[(cols + 1) * 3 + 2] - basePositions[2];
+        if (!stepX || !stepZ) return heightAt(x, z, t);
+        const fx = (x - x0) / stepX;
+        const fz = (z - z0) / stepZ;
+        const ix = clamp(Math.floor(fx), 0, cols - 1);
+        const iz = clamp(Math.floor(fz), 0, rows - 1);
+        const tx = clamp(fx - ix, 0, 1);
+        const tz = clamp(fz - iz, 0, 1);
+        const i00 = iz * (cols + 1) + ix;
+        const i01 = i00 + cols + 1;
+        const h00 = heightCache[i00];
+        const h10 = heightCache[i00 + 1];
+        const h01 = heightCache[i01];
+        const h11 = heightCache[i01 + 1];
+        if (tx + tz <= 1) {
+            return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
+        }
+        return h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
+    }
+
+    // Surface normal of the rendered water (heightfield-local frame), for tilting floating hazards.
+    function hazardSurfaceNormal(x, z, t, target) {
+        const out = target || _hazardNormal;
+        const eps = 0.2;
+        const minX = robotBounds ? -robotBounds.x : -Infinity;
+        const maxX = robotBounds ? robotBounds.x : Infinity;
+        const minZ = robotBounds ? -robotBounds.z : -Infinity;
+        const maxZ = robotBounds ? robotBounds.z : Infinity;
+        const left = renderedWaterHeight(clamp(x - eps, minX, maxX), z, t);
+        const right = renderedWaterHeight(clamp(x + eps, minX, maxX), z, t);
+        const back = renderedWaterHeight(x, clamp(z - eps, minZ, maxZ), t);
+        const front = renderedWaterHeight(x, clamp(z + eps, minZ, maxZ), t);
+        return out.set(left - right, eps * 2, back - front).normalize();
     }
 
     function bounceFloatingRobotWithinBounds(t, bot) {
@@ -2364,13 +2642,36 @@
         robotThrusterRipples.length = write;
     }
 
+    function robotIsBurning(bot, t) {
+        const now = typeof t === 'number' ? t : globalTime;
+        return !!(bot && bot.state && (bot.state.burningUntil || -999) > now);
+    }
+
+    function robotIsStunned(bot, t) {
+        const now = typeof t === 'number' ? t : globalTime;
+        return !!(bot && bot.state && (bot.state.stunnedUntil || -999) > now);
+    }
+
+    function robotIsIncapacitated(bot, t) {
+        return robotIsBurning(bot, t) || robotIsStunned(bot, t);
+    }
+
     function updateRobotPositionPhase(bot, dt, t, index) {
         if (!bot) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
-        if (!bot.group) return;
+        if (!bot.loaded || !bot.group) return;
+        const incapacitated = robotIsIncapacitated(bot, t);
         const wasFlightActive = bot.state.flightWasActive === true;
         let pendingThrusterRipple = Math.max(0, bot.state.pendingThrusterRipple || 0);
         updateRobotFlight(bot, t);
+        if (incapacitated) {
+            bot.state.isAiming = false;
+            bot.state.isSuperweaponCharging = false;
+            bot.state.isBeamCharging = false;
+            bot.state.dashUntil = -999;
+            bot.state.evasionUntil = -999;
+            bot.state.flightLift = Math.max(0, (bot.state.flightLift || 0) * Math.max(0, 1 - dt * 3.8));
+        }
         const isFlightActive = (bot.state.flightLift || 0) > 0.06 || bot.state.flightStartedAt >= 0;
         if (!bot.state.thrusterRipplePrimed) {
             pendingThrusterRipple = Math.max(pendingThrusterRipple, 0.55);
@@ -2388,7 +2689,15 @@
         const driftZ = Math.cos(t * 0.49 + bot.state.x * 0.61 + index * 0.9) * 0.14;
         bot.velocity.x += driftX * dt;
         bot.velocity.y += driftZ * dt;
-        steerRobotTowardDuel(bot, dt, t);
+        if (!incapacitated) {
+            steerRobotTowardDuel(bot, dt, t);
+        } else {
+            bot.velocity.multiplyScalar(Math.max(0, 1 - dt * 3.2));
+            if (robotIsBurning(bot, t)) {
+                bot.velocity.x += Math.sin(t * 14.0 + bot.state.seed) * dt * 0.45;
+                bot.velocity.y += Math.cos(t * 12.5 + bot.state.seed) * dt * 0.45;
+            }
+        }
 
         if (bot.state.evasionUntil > t) {
             const evasionFade = clamp((bot.state.evasionUntil - t) / ROBOT_SUPERWEAPON_EVASION_DURATION, 0, 1);
@@ -2431,10 +2740,12 @@
     }
 
     function updateRobotVisualsPhase(bot, dt, t, index) {
-        if (!bot || !bot.group) return;
+        if (!bot || !bot.loaded || !bot.group) return;
         if (bot.id === 'blue') aliasPrimaryRobot(bot);
         const pendingThrusterRipple = bot.state.pendingThrusterRipple || 0;
         const flightWaveInfluence = robotWaveInfluenceForFlightHeight(bot.state.flightLift || 0);
+        const burning = robotIsBurning(bot, t);
+        const stunned = robotIsStunned(bot, t);
 
         const sampleOptions = bot && bot.id ? { ignoreRobotOwner: bot.id, ignoreRobotFeedbackWaves: true } : { ignoreRobotFeedbackWaves: true };
         const sampledWaterY = bot.id === 'blue' ? heightAt(robotState.x, robotState.z, t, sampleOptions) : heightAt(bot.state.x, bot.state.z, t, sampleOptions);
@@ -2449,20 +2760,92 @@
             const baseEmissive = bot.id === 'red' ? 0.24 : 0.18;
             const superChargingIntensity = (bot.state.isAiming && bot.state.isSuperweaponCharging) ? 4.5 : 0.0;
             const beamChargingIntensity = (bot.state.isAiming && bot.state.isBeamCharging) ? 2.8 : 0.0;
+            const statusBoost = burning ? (1.6 + Math.sin(t * 28.0) * 0.55) : (stunned ? (1.2 + Math.sin(t * 36.0) * 0.45) : 0.0);
             bot.materials.forEach(function (mat) {
                 if ('emissiveIntensity' in mat) {
-                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8 + superChargingIntensity + beamChargingIntensity;
+                    mat.emissiveIntensity = baseEmissive + bot.state.hitFlash * 3.8 + superChargingIntensity + beamChargingIntensity + statusBoost;
                 }
             });
         }
 
         if (bot.auraMesh && bot.auraMesh.material.uniforms) {
-            const hitScale = 1.0 + bot.state.hitFlash * 0.22;
+            const statusFlash = burning ? 0.85 : (stunned ? 0.72 : 0);
+            const effectiveFlash = Math.max(bot.state.hitFlash, statusFlash);
+            const hitScale = 1.0 + effectiveFlash * 0.22;
             bot.auraMesh.scale.set(hitScale, hitScale, hitScale);
             const pulse = Math.sin(t * 15) * 0.15;
-            bot.auraMesh.material.uniforms.intensity.value = bot.state.hitFlash * 0.95 + (bot.state.hitFlash > 0.01 ? pulse * bot.state.hitFlash : 0);
-            bot.auraMesh.material.uniforms.hitIntensity.value = bot.state.hitFlash;
+            bot.auraMesh.material.uniforms.color.value.setHex(burning ? 0xff5a00 : (stunned ? 0x38bdf8 : bot.projectileHex));
+            bot.auraMesh.material.uniforms.intensity.value = effectiveFlash * 0.95 + (effectiveFlash > 0.01 ? pulse * effectiveFlash : 0);
+            bot.auraMesh.material.uniforms.hitIntensity.value = effectiveFlash;
             bot.auraMesh.material.uniforms.time.value = t;
+        }
+
+        if ((burning || stunned) && t - (bot.state.lastBurnTickAt || -999) >= ROBOT_INCAPACITATED_FIRE_INTERVAL) {
+            bot.state.lastBurnTickAt = t;
+            const center = robotAimPoint(bot);
+            if (burning) {
+                const flameColor = Math.random() < 0.38 ? 0xfff099 : (Math.random() < 0.65 ? 0xff5a00 : 0xff2200);
+                createSmokeSprite(
+                    center.x + (Math.random() - 0.5) * 0.52,
+                    center.y - 0.15 + (Math.random() - 0.5) * 0.36,
+                    center.z + (Math.random() - 0.5) * 0.52,
+                    flameColor,
+                    0.22 + Math.random() * 0.18,
+                    0.36 + Math.random() * 0.24,
+                    {
+                        vx: (Math.random() - 0.5) * 0.55,
+                        vy: 0.85 + Math.random() * 1.15,
+                        vz: (Math.random() - 0.5) * 0.55,
+                        spin: (Math.random() - 0.5) * 8,
+                        opacity: 0.92,
+                        expansion: 1.85,
+                        fadePower: 1.35,
+                        kind: 'robotBurnFlame'
+                    }
+                );
+                if (Math.random() < 0.55) {
+                    createSmokeSprite(
+                        center.x + (Math.random() - 0.5) * 0.44,
+                        center.y + 0.18 + Math.random() * 0.22,
+                        center.z + (Math.random() - 0.5) * 0.44,
+                        0x374151,
+                        0.24 + Math.random() * 0.16,
+                        0.85 + Math.random() * 0.45,
+                        {
+                            vx: (Math.random() - 0.5) * 0.32,
+                            vy: 0.45 + Math.random() * 0.45,
+                            vz: (Math.random() - 0.5) * 0.32,
+                            spin: (Math.random() - 0.5) * 2.4,
+                            opacity: 0.46,
+                            expansion: 2.3,
+                            fadePower: 1.4,
+                            blending: THREE.NormalBlending,
+                            kind: 'robotBurnSmoke'
+                        }
+                    );
+                }
+            } else if (stunned) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 0.25 + Math.random() * 0.38;
+                createSmokeSprite(
+                    center.x + Math.cos(angle) * r,
+                    center.y + (Math.random() - 0.5) * 0.42,
+                    center.z + Math.sin(angle) * r,
+                    Math.random() < 0.45 ? 0xe0f2fe : (Math.random() < 0.6 ? 0x38bdf8 : 0xc084fc),
+                    0.065 + Math.random() * 0.06,
+                    0.22 + Math.random() * 0.18,
+                    {
+                        vx: (Math.random() - 0.5) * 0.9,
+                        vy: (Math.random() - 0.5) * 0.7,
+                        vz: (Math.random() - 0.5) * 0.9,
+                        spin: (Math.random() - 0.5) * 14,
+                        opacity: 0.94,
+                        expansion: 0.55,
+                        fadePower: 1.5,
+                        kind: 'robotStasisSpark'
+                    }
+                );
+            }
         }
 
         if (bot.state.isAiming && bot.opponent && bot.opponent.group) {
@@ -2774,6 +3157,7 @@
     function tryRobotSuperweaponEvasion(projectile, t) {
         const bot = projectile && projectile.target;
         if (!bot || !bot.state || !bot.group || !projectile || !projectile.mesh) return;
+        if (robotIsIncapacitated(bot, t)) return;
         if (!projectile.isSuper || projectile.target !== bot) return;
 
         const state = bot.state;
@@ -3330,7 +3714,7 @@
     function startRobotBarrelRoll(bot, t, direction) {
         if (!bot || !bot.state || !bot.group) return;
         const state = bot.state;
-        if (state.rollUntil > t || robotIsBlinking(bot)) return;
+        if (state.rollUntil > t || robotIsBlinking(bot) || robotIsIncapacitated(bot, t)) return;
         state.rollUntil = t + ROBOT_BARREL_ROLL_DURATION;
         state.rollDirection = direction >= 0 ? 1 : -1;
         if (bot.opponent && bot.opponent.state) {
@@ -3843,7 +4227,7 @@
     function startRobotBlink(bot, t, sideX, sideZ) {
         if (!bot || !bot.state || !bot.group) return false;
         const state = bot.state;
-        if (robotIsBlinking(bot) || t < (state.blinkReadyAt || 0)) return false;
+        if (robotIsBlinking(bot) || robotIsIncapacitated(bot, t) || t < (state.blinkReadyAt || 0)) return false;
         state.blinkReadyAt = t + 16 + Math.random() * 10;
         // Break any charge or aim so the blink stays purely defensive
         state.isAiming = false;
@@ -4352,11 +4736,768 @@
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Battle Overdrive: White Robot Fuel Slick & Red Robot Cryo-EMP Mines
+    // ---------------------------------------------------------------------
+    function cancelRobotActiveBeams(bot) {
+        for (let i = activeBeams.length - 1; i >= 0; i--) {
+            if (activeBeams[i].bot !== bot) continue;
+            releaseBeamMeshes(activeBeams[i].pair);
+            activeBeams.splice(i, 1);
+        }
+    }
+
+    // Fixed (PATCH_CELLS + 1)^2 vertex window that is re-skinned onto the water grid every frame. The index
+    // buffer uses exactly the PlaneGeometry split (a, b, d) + (b, c, d) so every slick triangle lies in the
+    // plane of a water triangle.
+    function createFuelSlickGeometry() {
+        const cells = FUEL_SLICK_PATCH_CELLS;
+        const side = cells + 1;
+        const positions = new Float32Array(FUEL_SLICK_PATCH_VERTEX_COUNT * 3);
+        const indices = [];
+        for (let jz = 0; jz < cells; jz++) {
+            for (let jx = 0; jx < cells; jx++) {
+                const a = jx + side * jz;
+                const b = jx + side * (jz + 1);
+                const c = (jx + 1) + side * (jz + 1);
+                const d = (jx + 1) + side * jz;
+                indices.push(a, b, d, b, c, d);
+            }
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        const positionAttr = new THREE.BufferAttribute(positions, 3);
+        positionAttr.setUsage(THREE.DynamicDrawUsage);
+        geometry.setAttribute('position', positionAttr);
+        geometry.setIndex(indices);
+        return geometry;
+    }
+
+    function acquireFuelSlickEntry() {
+        let entry = fuelSlickPool.pop();
+        if (!entry) {
+            const geometry = createFuelSlickGeometry();
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    fade: { value: 0 },
+                    burn: { value: 0 },
+                    seed: { value: 0 },
+                    center: { value: new THREE.Vector2() },
+                    spread: { value: 1 },
+                    lightDir: { value: new THREE.Vector3(-5, 8, 2).normalize() }
+                },
+                vertexShader: FUEL_SLICK_VERTEX_SHADER,
+                fragmentShader: FUEL_SLICK_FRAGMENT_SHADER,
+                transparent: true,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                blending: THREE.NormalBlending,
+                polygonOffset: true,
+                polygonOffsetFactor: -2,
+                polygonOffsetUnits: -2
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.renderOrder = 2;
+            mesh.frustumCulled = false;
+            mesh.visible = false;
+            entry = {
+                mesh,
+                geometry,
+                material,
+                positions: geometry.getAttribute('position').array,
+                disposables: [material, geometry],
+                worldPos: new THREE.Vector3(),
+                spread: 0.42,
+                burnMix: 0,
+                waterH: 0
+            };
+        }
+        if (entry.mesh.parent !== surface) surface.add(entry.mesh);
+        entry.material.uniforms.seed.value = Math.random() * 100;
+        entry.material.uniforms.burn.value = 0;
+        entry.material.uniforms.fade.value = 0;
+        entry.mesh.visible = true;
+        return entry;
+    }
+
+    function releaseFuelSlickEntry(entry) {
+        if (!entry) return;
+        if (entry.mesh) entry.mesh.visible = false;
+        fuelSlickPool.push(entry);
+    }
+
+    // Re-skin the slick's patch onto the water grid vertices around the slick (heightfield-local space, child
+    // of `surface`). The slick outline itself is cut in the fragment shader from `center` and `spread`.
+    function layFuelSlickOnWater(slick, t) {
+        slick.waterH = renderedWaterHeight(slick.x, slick.z, t);
+        surface.localToWorld(slick.worldPos.set(slick.x, slick.waterH + 0.03, slick.z));
+        const uniforms = slick.material.uniforms;
+        uniforms.center.value.set(slick.x, slick.z);
+        uniforms.spread.value = slick.spread;
+        if (!basePositions) return;
+
+        const cols = GRID.cols;
+        const rows = GRID.rows;
+        const cells = FUEL_SLICK_PATCH_CELLS;
+        const side = cells + 1;
+        const x0 = basePositions[0];
+        const z0 = basePositions[2];
+        const stepX = basePositions[3] - x0;
+        const stepZ = basePositions[(cols + 1) * 3 + 2] - z0;
+        if (!stepX || !stepZ) return;
+        const ix0 = clamp(Math.round((slick.x - x0) / stepX) - cells / 2, 0, cols - cells);
+        const iz0 = clamp(Math.round((slick.z - z0) / stepZ) - cells / 2, 0, rows - cells);
+        const useCache = !!heightCache && heightCache.length >= (cols + 1) * (rows + 1);
+        const positions = slick.positions;
+        for (let jz = 0; jz < side; jz++) {
+            for (let jx = 0; jx < side; jx++) {
+                const gi = (iz0 + jz) * (cols + 1) + (ix0 + jx);
+                const px = basePositions[gi * 3];
+                const pz = basePositions[gi * 3 + 2];
+                const k = jz * side + jx;
+                positions[k * 3] = px;
+                positions[k * 3 + 1] = (useCache ? heightCache[gi] : heightAt(px, pz, t)) + 0.022;
+                positions[k * 3 + 2] = pz;
+            }
+        }
+        slick.geometry.attributes.position.needsUpdate = true;
+    }
+
+    function randomHazardLifetime(min, max) {
+        return min + Math.random() * (max - min);
+    }
+
+    function spawnRobotFuelSlick(bot, t) {
+        if (!scene || !surface || !bot || !bot.group || !bot.state) return false;
+        // No free slot: keep every existing slick for its full lifetime. lastFuelDropAt is only set on success,
+        // so the duel loop simply retries until one expires.
+        if (fuelSlicks.length >= MAX_FUEL_SLICKS) return false;
+        const entry = acquireFuelSlickEntry();
+        const backX = clamp(bot.state.x - bot.forward.x * 0.55, -robotBounds.x, robotBounds.x);
+        const backZ = clamp(bot.state.z - bot.forward.z * 0.55, -robotBounds.z, robotBounds.z);
+        entry.x = backX;
+        entry.z = backZ;
+        entry.owner = bot;
+        entry.bornAt = t;
+        entry.life = randomHazardLifetime(ROBOT_FUEL_SLICK_LIFETIME_MIN, ROBOT_FUEL_SLICK_LIFETIME_MAX);
+        entry.maxLife = entry.life;
+        entry.ignited = false;
+        entry.burnUntil = -999;
+        entry.lastFlameAt = -999;
+        entry.seed = Math.random() * Math.PI * 2;
+        entry.spread = 0.42;
+        entry.burnMix = 0;
+        entry.waterH = renderedWaterHeight(backX, backZ, t);
+        entry.material.uniforms.time.value = t;
+        // Write the first set of vertices now so the very first frame is not a degenerate stack at the origin.
+        layFuelSlickOnWater(entry, t);
+        fuelSlicks.push(entry);
+        bot.state.lastFuelDropAt = t;
+        addImpulse(backX, backZ, 0.24);
+
+        const wp = entry.worldPos;
+        for (let i = 0; i < 7; i++) {
+            const a = (i / 7) * Math.PI * 2 + entry.seed;
+            createSmokeSprite(
+                wp.x + Math.cos(a) * 0.2,
+                wp.y + 0.12,
+                wp.z + Math.sin(a) * 0.2,
+                0x0b1020,
+                0.07 + Math.random() * 0.06,
+                0.35 + Math.random() * 0.2,
+                {
+                    vx: Math.cos(a) * 0.9,
+                    vy: 0.5 + Math.random() * 0.5,
+                    vz: Math.sin(a) * 0.9,
+                    spin: (Math.random() - 0.5) * 4,
+                    opacity: 0.7,
+                    expansion: 0.6,
+                    fadePower: 1.3,
+                    blending: THREE.NormalBlending,
+                    renderOrder: 3,
+                    kind: 'fuelVaporDrop'
+                }
+            );
+        }
+        return true;
+    }
+
+    function igniteRobotWithFuel(victim, slick, t) {
+        if (!victim || !victim.state || !victim.group) return;
+        const alreadyBurning = robotIsBurning(victim, t);
+        victim.state.burningUntil = Math.max(victim.state.burningUntil || -999, t + ROBOT_FUEL_BURN_DURATION);
+        victim.state.isAiming = false;
+        victim.state.isSuperweaponCharging = false;
+        victim.state.isBeamCharging = false;
+        victim.state.dashUntil = -999;
+        victim.state.evasionUntil = -999;
+        cancelRobotActiveBeams(victim);
+
+        if (!alreadyBurning) {
+            const pos = slick && slick.worldPos ? slick.worldPos.clone() : victim.group.position.clone();
+            const recoil = victim.group.position.clone().sub(pos);
+            recoil.y = 0;
+            if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
+            recoil.normalize();
+            victim.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 2.4;
+            victim.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 2.4;
+            victim.state.recoil = Math.max(victim.state.recoil || 0, 0.95);
+            victim.state.hitFlash = Math.max(victim.state.hitFlash || 0, 1.55);
+            victim.state.hits = (victim.state.hits || 0) + 1;
+            applyRobotDamage(victim, victim.group.position.clone(), recoil, true);
+            cameraShake = Math.max(cameraShake, 0.26);
+        }
+    }
+
+    function igniteFuelSlick(slick, victim, t) {
+        if (!slick || !scene) return;
+        if (!slick.ignited) {
+            slick.ignited = true;
+            slick.burnUntil = t + ROBOT_FUEL_BURN_DURATION;
+            slick.life = Math.min(slick.life, ROBOT_FUEL_BURN_DURATION);
+            addImpulse(slick.x, slick.z, 0.92);
+            const pos = slick.worldPos.clone();
+            flashImpactLight(pos, 0xff6a00, 16, 15, 0.55);
+            for (let ring = 0; ring < 2; ring++) {
+                const shock = acquireShockwave(pos.clone().addScaledVector(UP_AXIS, 0.03 + ring * 0.02), ring === 0 ? 0xff6a00 : 0xffd166, 0.65 - ring * 0.15, UP_AXIS);
+                shockwaves.push({
+                    mesh: shock,
+                    life: 0.45 + ring * 0.12,
+                    maxLife: 0.45 + ring * 0.12,
+                    maxScale: 3.6 + ring * 1.4,
+                    baseOpacity: 0.65 - ring * 0.15,
+                    kind: 'fuelIgniteRing'
+                });
+            }
+            for (let i = 0; i < 16; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const r = Math.random() * 0.75;
+                createSmokeSprite(
+                    pos.x + Math.cos(a) * r,
+                    pos.y + 0.08,
+                    pos.z + Math.sin(a) * r,
+                    i % 3 === 0 ? 0xfff099 : (i % 2 === 0 ? 0xff5a00 : 0xff2200),
+                    0.26 + Math.random() * 0.22,
+                    0.48 + Math.random() * 0.32,
+                    {
+                        vx: Math.cos(a) * (0.4 + Math.random() * 0.9),
+                        vy: 1.1 + Math.random() * 1.8,
+                        vz: Math.sin(a) * (0.4 + Math.random() * 0.9),
+                        spin: (Math.random() - 0.5) * 9,
+                        opacity: 0.94,
+                        expansion: 2.2,
+                        fadePower: 1.35,
+                        renderOrder: 3,
+                        kind: 'fuelIgniteFlame'
+                    }
+                );
+            }
+        }
+        if (victim) {
+            igniteRobotWithFuel(victim, slick, t);
+        }
+    }
+
+    function updateFuelSlicks(dt, t) {
+        if (!surface || !fuelSlicks.length) return;
+        const redRobot = robotFleet.length > 1 ? robotFleet[1] : null;
+        for (let i = fuelSlicks.length - 1; i >= 0; i--) {
+            const slick = fuelSlicks[i];
+            slick.life -= dt;
+            if (slick.life <= 0 || (slick.ignited && t >= slick.burnUntil)) {
+                releaseFuelSlickEntry(slick);
+                fuelSlicks.splice(i, 1);
+                continue;
+            }
+            const age = t - slick.bornAt;
+            const targetSpread = clamp(0.75 + age * 0.14, 0.75, 1.38) * (slick.ignited ? 1.08 : 1);
+            slick.spread += (targetSpread - slick.spread) * (1 - Math.exp(-dt * 2.2));
+            const uniforms = slick.material.uniforms;
+            const fadeIn = clamp(age / 0.45, 0, 1);
+            const fadeOut = slick.ignited ? clamp((slick.burnUntil - t) / 0.6, 0, 1) : clamp(slick.life / 1.5, 0, 1);
+            uniforms.fade.value = fadeIn * fadeOut;
+            slick.burnMix += ((slick.ignited ? 1 : 0) - slick.burnMix) * (1 - Math.exp(-dt * 6));
+            uniforms.burn.value = slick.burnMix;
+            uniforms.time.value = t;
+            layFuelSlickOnWater(slick, t);
+
+            if (!slick.ignited) {
+                if (redRobot && redRobot.loaded && redRobot.group && !robotIsBlinking(redRobot)) {
+                    const dx = redRobot.state.x - slick.x;
+                    const dz = redRobot.state.z - slick.z;
+                    if (dx * dx + dz * dz <= ROBOT_FUEL_IGNITE_RADIUS * ROBOT_FUEL_IGNITE_RADIUS && (redRobot.state.flightLift || 0) < 2.35) {
+                        igniteFuelSlick(slick, redRobot, t);
+                    }
+                }
+            } else {
+                if (t - (slick.lastFlameAt || -999) >= 0.08) {
+                    slick.lastFlameAt = t;
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * 0.75 * slick.spread;
+                    createSmokeSprite(
+                        slick.worldPos.x + Math.cos(a) * r,
+                        slick.worldPos.y + 0.06,
+                        slick.worldPos.z + Math.sin(a) * r,
+                        Math.random() < 0.4 ? 0xfff099 : 0xff5a00,
+                        0.2 + Math.random() * 0.16,
+                        0.34 + Math.random() * 0.22,
+                        {
+                            vx: (Math.random() - 0.5) * 0.35,
+                            vy: 0.75 + Math.random() * 1.1,
+                            vz: (Math.random() - 0.5) * 0.35,
+                            spin: (Math.random() - 0.5) * 7,
+                            opacity: 0.88,
+                            expansion: 1.75,
+                            fadePower: 1.4,
+                            renderOrder: 3,
+                            kind: 'fuelIgniteFlame'
+                        }
+                    );
+                }
+                if (redRobot && redRobot.loaded && redRobot.group && !robotIsBlinking(redRobot)) {
+                    const dx = redRobot.state.x - slick.x;
+                    const dz = redRobot.state.z - slick.z;
+                    if (dx * dx + dz * dz <= ROBOT_FUEL_IGNITE_RADIUS * ROBOT_FUEL_IGNITE_RADIUS && (redRobot.state.flightLift || 0) < 2.35) {
+                        igniteRobotWithFuel(redRobot, slick, t);
+                    }
+                }
+                // Chain-ignite nearby fuel slicks
+                for (let j = 0; j < fuelSlicks.length; j++) {
+                    const other = fuelSlicks[j];
+                    if (other === slick || other.ignited) continue;
+                    const cdx = other.x - slick.x;
+                    const cdz = other.z - slick.z;
+                    if (cdx * cdx + cdz * cdz <= 5.2) {
+                        igniteFuelSlick(other, null, t);
+                    }
+                }
+            }
+        }
+    }
+
+    // Naval-mine style floater. The group origin is the water-surface point (it tilts to the wave normal);
+    // the body sits just above it so roughly half of the hull shows and the translucent water dims the rest.
+    function buildSurfaceMineEntry() {
+        ensureImpactAssets();
+        if (!smokeTexture) smokeTexture = createSmokeTexture();
+
+        const hullMat = new THREE.MeshStandardMaterial({ color: 0x242c3a, metalness: 0.82, roughness: 0.38, emissive: 0x38bdf8, emissiveIntensity: 0.12 });
+        const hornMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.75, roughness: 0.48 });
+        const bandMat = new THREE.MeshStandardMaterial({ color: 0xa3adbd, metalness: 0.92, roughness: 0.28 });
+        const beaconMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.95 });
+        const glowMat = new THREE.SpriteMaterial({
+            map: smokeTexture,
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const waterlineMat = new THREE.MeshBasicMaterial({
+            color: 0xdbeafe,
+            transparent: true,
+            opacity: 0.2,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xc084fc,
+            transparent: true,
+            opacity: 0.68,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+
+        const group = new THREE.Group();
+        const waterline = new THREE.Mesh(window.mineWaterlineGeom, waterlineMat);
+        waterline.rotation.x = -Math.PI / 2;
+        waterline.position.y = 0.012;
+        const ring = new THREE.Mesh(window.mineRingGeom, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.02;
+        // Additive hazard overlays must be drawn after the (transparent) water, not sorted before it.
+        waterline.renderOrder = 2;
+        ring.renderOrder = 2;
+        group.add(waterline);
+        group.add(ring);
+
+        const body = new THREE.Group();
+        body.position.y = 0.035;
+        const hull = new THREE.Mesh(window.mineHullGeom, hullMat);
+        hull.castShadow = true;
+        body.add(hull);
+        body.add(new THREE.Mesh(window.mineBandGeom, bandMat));
+
+        const hornElevation = (38 * Math.PI) / 180;
+        for (let k = 0; k < 6; k++) {
+            const a = k * (Math.PI / 3) + 0.26;
+            const dirX = Math.cos(a) * Math.cos(hornElevation);
+            const dirY = Math.sin(hornElevation);
+            const dirZ = Math.sin(a) * Math.cos(hornElevation);
+            const horn = new THREE.Mesh(window.mineHornGeom, hornMat);
+            horn.position.set(dirX * 0.19, dirY * 0.19, dirZ * 0.19);
+            horn.quaternion.setFromUnitVectors(UP_AXIS, new THREE.Vector3(dirX, dirY, dirZ));
+            horn.castShadow = true;
+            body.add(horn);
+        }
+        const topHorn = new THREE.Mesh(window.mineHornGeom, hornMat);
+        topHorn.position.set(0, 0.19, 0);
+        topHorn.castShadow = true;
+        body.add(topHorn);
+
+        const beacon = new THREE.Mesh(window.mineBeaconGeom, beaconMat);
+        beacon.position.set(0, 0.19 + 0.15 + 0.03, 0);
+        beacon.renderOrder = 2;
+        body.add(beacon);
+        const glow = new THREE.Sprite(glowMat);
+        glow.position.copy(beacon.position);
+        glow.scale.setScalar(0.34);
+        glow.renderOrder = 2;
+        body.add(glow);
+        group.add(body);
+        group.visible = false;
+
+        return {
+            group,
+            body,
+            hull,
+            beacon,
+            glow,
+            ring,
+            waterline,
+            hullMat,
+            hornMat,
+            bandMat,
+            beaconMat,
+            glowMat,
+            waterlineMat,
+            ringMat,
+            disposables: [hullMat, hornMat, bandMat, beaconMat, glowMat, waterlineMat, ringMat],
+            worldPos: new THREE.Vector3(),
+            normal: new THREE.Vector3()
+        };
+    }
+
+    function acquireSurfaceMineEntry(mineType) {
+        const entry = surfaceMinePool.pop() || buildSurfaceMineEntry();
+        const isStasis = mineType === 'stasis';
+        const typeColor = isStasis ? 0x38bdf8 : 0xffae3b;
+        entry.hullMat.emissive.setHex(typeColor);
+        entry.beaconMat.color.setHex(typeColor);
+        entry.glowMat.color.setHex(typeColor);
+        entry.ringMat.color.setHex(isStasis ? 0xc084fc : 0xff3b6d);
+        entry.group.visible = true;
+        entry.group.quaternion.identity();
+        entry.body.rotation.set(0, 0, 0);
+        if (entry.group.parent !== surface) surface.add(entry.group);
+        return entry;
+    }
+
+    function releaseSurfaceMineEntry(entry) {
+        if (!entry) return;
+        if (entry.group) entry.group.visible = false;
+        surfaceMinePool.push(entry);
+    }
+
+    function spawnSurfaceMine(bot, t, mineType) {
+        if (!scene || !surface || !bot || !bot.group || !bot.state) return false;
+        // No free slot: keep every existing mine for its full lifetime. lastMineAt is only set on success,
+        // so the duel loop simply retries until one is gone.
+        if (surfaceMines.length >= MAX_SURFACE_MINES) return false;
+        const resolvedType = mineType || (bot.id === 'red' ? 'stasis' : 'blast');
+        const entry = acquireSurfaceMineEntry(resolvedType);
+        const offsetAngle = Math.atan2(bot.forward.z, bot.forward.x) + Math.PI + (Math.random() - 0.5) * 0.9;
+        const dropX = clamp(bot.state.x + Math.cos(offsetAngle) * 0.65, -robotBounds.x * 0.92, robotBounds.x * 0.92);
+        const dropZ = clamp(bot.state.z + Math.sin(offsetAngle) * 0.65, -robotBounds.z * 0.92, robotBounds.z * 0.92);
+        entry.x = dropX;
+        entry.z = dropZ;
+        entry.owner = bot;
+        entry.mineType = resolvedType;
+        entry.bornAt = t;
+        entry.armedAt = t + ROBOT_MINE_ARM_DELAY;
+        entry.life = randomHazardLifetime(ROBOT_MINE_LIFETIME_MIN, ROBOT_MINE_LIFETIME_MAX);
+        entry.maxLife = entry.life;
+        entry.seed = Math.random() * Math.PI * 2;
+        // The mine is dropped from just above the water; the splash (ripple, spray) happens when it lands.
+        entry.dropHeight = 0.55;
+        entry.yOff = entry.dropHeight;
+        entry.fallTime = Math.sqrt(2 * 0.55 / 9.8);
+        entry.splashed = false;
+        entry.rippleAt = t + 1.2;
+        entry.waterH = renderedWaterHeight(dropX, dropZ, t);
+        entry.group.position.set(dropX, entry.waterH + entry.dropHeight, dropZ);
+        surface.localToWorld(entry.worldPos.set(dropX, entry.waterH + entry.dropHeight, dropZ));
+        surfaceMines.push(entry);
+        bot.state.lastMineAt = t;
+        return true;
+    }
+
+    function stunRobotWithStasisMine(victim, mine, t) {
+        if (!victim || !victim.state || !victim.group) return;
+        victim.state.stunnedUntil = Math.max(victim.state.stunnedUntil || -999, t + ROBOT_MINE_STASIS_DURATION);
+        victim.state.isAiming = false;
+        victim.state.isSuperweaponCharging = false;
+        victim.state.isBeamCharging = false;
+        victim.state.dashUntil = -999;
+        victim.state.evasionUntil = -999;
+        cancelRobotActiveBeams(victim);
+
+        const pos = mine && mine.worldPos ? mine.worldPos.clone() : victim.group.position.clone();
+        const recoil = victim.group.position.clone().sub(pos);
+        recoil.y = 0;
+        if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
+        recoil.normalize();
+        victim.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 1.8;
+        victim.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 1.8;
+        victim.state.recoil = Math.max(victim.state.recoil || 0, 0.9);
+        victim.state.hitFlash = Math.max(victim.state.hitFlash || 0, 1.45);
+        victim.state.hits = (victim.state.hits || 0) + 1;
+        applyRobotDamage(victim, victim.group.position.clone(), recoil, true);
+    }
+
+    function detonateSurfaceMine(mine, victim, t) {
+        if (!mine || !scene) return;
+        const pos = mine.worldPos.clone();
+        const isStasis = mine.mineType === 'stasis';
+        const color = isStasis ? 0x38bdf8 : 0xff7a18;
+        addImpulse(mine.x, mine.z, isStasis ? 1.05 : 1.28);
+        flashImpactLight(pos, color, isStasis ? 18 : 20, 16, 0.52);
+        cameraShake = Math.max(cameraShake, victim ? 0.28 : 0.16);
+
+        for (let ring = 0; ring < 3; ring++) {
+            const ringColor = isStasis ? (ring % 2 === 0 ? 0x38bdf8 : 0xc084fc) : (ring % 2 === 0 ? 0xffae3b : 0xff3b6d);
+            const shock = acquireShockwave(pos.clone().addScaledVector(UP_AXIS, 0.03 + ring * 0.02), ringColor, 0.72 - ring * 0.16, UP_AXIS);
+            shockwaves.push({
+                mesh: shock,
+                life: 0.48 + ring * 0.12,
+                maxLife: 0.48 + ring * 0.12,
+                maxScale: (isStasis ? 4.4 : 4.8) + ring * 1.5,
+                baseOpacity: 0.72 - ring * 0.16,
+                kind: isStasis ? 'stasisMineRing' : 'blastMineRing'
+            });
+        }
+
+        const particleCount = victim ? 20 : 12;
+        for (let i = 0; i < particleCount; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const speed = 0.7 + Math.random() * 2.2;
+            const pColor = isStasis
+                ? (i % 3 === 0 ? 0xe0f2fe : (i % 2 === 0 ? 0x38bdf8 : 0xc084fc))
+                : (i % 3 === 0 ? 0xfff099 : (i % 2 === 0 ? 0xff7a18 : 0xff3b6d));
+            createSmokeSprite(
+                pos.x,
+                pos.y + 0.06,
+                pos.z,
+                pColor,
+                0.1 + Math.random() * 0.14,
+                0.36 + Math.random() * 0.28,
+                {
+                    vx: Math.cos(a) * speed,
+                    vy: 0.55 + Math.random() * 1.4,
+                    vz: Math.sin(a) * speed,
+                    spin: (Math.random() - 0.5) * 12,
+                    opacity: 0.92,
+                    expansion: 1.45,
+                    fadePower: 1.45,
+                    kind: isStasis ? 'stasisMineSpark' : 'blastMineSpark'
+                }
+            );
+        }
+
+        // Water column thrown up by the blast
+        for (let i = 0; i < 10; i++) {
+            const a = Math.random() * Math.PI * 2;
+            createSmokeSprite(
+                pos.x + Math.cos(a) * 0.12,
+                pos.y + 0.06,
+                pos.z + Math.sin(a) * 0.12,
+                0xe0f2fe,
+                0.14 + Math.random() * 0.12,
+                0.5 + Math.random() * 0.35,
+                {
+                    vx: Math.cos(a) * (0.4 + Math.random() * 0.9),
+                    vy: 1.8 + Math.random() * 1.6,
+                    vz: Math.sin(a) * (0.4 + Math.random() * 0.9),
+                    spin: (Math.random() - 0.5) * 6,
+                    opacity: 0.75,
+                    expansion: 1.2,
+                    fadePower: 1.5,
+                    renderOrder: 3,
+                    kind: 'mineSplash'
+                }
+            );
+        }
+
+        if (victim && victim.loaded && victim.group) {
+            if (isStasis) {
+                stunRobotWithStasisMine(victim, mine, t);
+            } else {
+                const recoil = victim.group.position.clone().sub(pos);
+                recoil.y = 0;
+                if (recoil.lengthSq() < 0.001) recoil.set(victim.id === 'red' ? 1 : -1, 0, 0);
+                recoil.normalize();
+                victim.velocity.x += recoil.x * ROBOT_HIT_RECOIL * 3.8;
+                victim.velocity.y += recoil.z * ROBOT_HIT_RECOIL * 3.8;
+                victim.state.recoil = Math.max(victim.state.recoil || 0, 1.05);
+                victim.state.hitFlash = Math.max(victim.state.hitFlash || 0, 1.5);
+                victim.state.hits = (victim.state.hits || 0) + 1;
+                applyRobotDamage(victim, victim.group.position.clone(), recoil, true);
+                bounceFloatingRobotWithinBounds(t, victim);
+            }
+        }
+    }
+
+    function updateSurfaceMines(dt, t) {
+        if (!surface || !surfaceMines.length) return;
+        for (let i = surfaceMines.length - 1; i >= 0; i--) {
+            const mine = surfaceMines[i];
+            mine.life -= dt;
+            const age = t - mine.bornAt;
+            const waterH = renderedWaterHeight(mine.x, mine.z, t);
+            mine.waterH = waterH;
+            const falling = age < mine.fallTime;
+
+            // Vertical offset of the mine's water-surface point: free fall, then a damped dip and a slow bob.
+            let yOff;
+            if (falling) {
+                yOff = mine.dropHeight - 4.9 * age * age;
+                mine.body.rotation.y += dt * 2.5;
+            } else {
+                const settle = age - mine.fallTime;
+                yOff = -0.07 * Math.exp(-settle * 3.2) * Math.cos(settle * 12.0) + Math.sin(t * 2.1 + mine.seed) * 0.012;
+            }
+            mine.yOff = yOff;
+            mine.group.position.set(mine.x, waterH + yOff, mine.z);
+            surface.localToWorld(mine.worldPos.set(mine.x, waterH + yOff, mine.z));
+            // The foam line and sonar pulse stay glued to the water while the hull falls, dips and bobs.
+            mine.waterline.position.y = 0.012 - yOff;
+            mine.ring.position.y = 0.02 - yOff;
+
+            if (!falling) {
+                if (!mine.splashed) {
+                    mine.splashed = true;
+                    addImpulse(mine.x, mine.z, 0.3);
+                    cameraShake = Math.max(cameraShake, 0.02);
+                    const wp = mine.worldPos;
+                    for (let s = 0; s < 8; s++) {
+                        const a = (s / 8) * Math.PI * 2 + Math.random() * 0.6;
+                        createSmokeSprite(
+                            wp.x + Math.cos(a) * 0.12,
+                            wp.y + 0.06,
+                            wp.z + Math.sin(a) * 0.12,
+                            0xe0f2fe,
+                            0.08 + Math.random() * 0.08,
+                            0.35 + Math.random() * 0.25,
+                            {
+                                vx: Math.cos(a) * (0.6 + Math.random() * 0.8),
+                                vy: 1.2 + Math.random() * 1.2,
+                                vz: Math.sin(a) * (0.6 + Math.random() * 0.8),
+                                spin: (Math.random() - 0.5) * 6,
+                                opacity: 0.75,
+                                expansion: 1.2,
+                                fadePower: 1.5,
+                                renderOrder: 3,
+                                kind: 'mineSplash'
+                            }
+                        );
+                    }
+                }
+
+                // Settle onto the wave: tilt to the water normal, rock gently, keep making small ripples.
+                hazardSurfaceNormal(mine.x, mine.z, t, mine.normal);
+                _hazardQuat.setFromUnitVectors(UP_AXIS, mine.normal);
+                mine.group.quaternion.slerp(_hazardQuat, 1 - Math.exp(-dt * 7));
+                mine.body.rotation.x = Math.sin(t * 1.6 + mine.seed) * 0.06;
+                mine.body.rotation.z = Math.cos(t * 1.3 + mine.seed) * 0.05;
+                mine.body.rotation.y += dt * 0.35;
+                if (t >= mine.rippleAt) {
+                    addImpulse(mine.x, mine.z, 0.055);
+                    mine.rippleAt = t + 2.6 + Math.random() * 1.6;
+                }
+            }
+
+            const armed = t >= mine.armedAt;
+            const blink = armed
+                ? Math.pow(Math.max(0, Math.sin(t * 6.5 + mine.seed)), 8)
+                : 0.35 + 0.15 * Math.sin(t * 2.0 + mine.seed);
+            mine.beaconMat.opacity = 0.45 + 0.55 * blink;
+            mine.glowMat.opacity = 0.18 + 0.6 * blink;
+            mine.glow.scale.setScalar(0.26 + 0.22 * blink);
+            mine.hullMat.emissiveIntensity = 0.06 + 0.32 * blink;
+            const sonarPhase = (((t * 0.85 + mine.seed) % 1) + 1) % 1;
+            mine.ring.scale.setScalar(0.55 + sonarPhase * 3.1);
+            mine.ringMat.opacity = armed ? (1 - sonarPhase) * (1 - sonarPhase) * 0.55 : 0.12;
+            mine.waterlineMat.opacity = 0.14 + 0.08 * Math.sin(t * 3 + mine.seed);
+
+            let triggeredVictim = null;
+            if (armed && mine.splashed) {
+                const targetBot = mine.owner && mine.owner.opponent ? mine.owner.opponent : null;
+                if (targetBot && targetBot.loaded && targetBot.group && !robotIsBlinking(targetBot)) {
+                    const dx = targetBot.state.x - mine.x;
+                    const dz = targetBot.state.z - mine.z;
+                    if (dx * dx + dz * dz <= ROBOT_MINE_TRIGGER_RADIUS * ROBOT_MINE_TRIGGER_RADIUS && (targetBot.state.flightLift || 0) < 2.2) {
+                        triggeredVictim = targetBot;
+                    }
+                }
+            }
+
+            if (triggeredVictim || mine.life <= 0) {
+                detonateSurfaceMine(mine, triggeredVictim, t);
+                releaseSurfaceMineEntry(mine);
+                surfaceMines.splice(i, 1);
+            }
+        }
+    }
+
+    // updateSurface runs after the hazard updates, so they were laid on last frame's water. Re-seat them on
+    // the freshly written height cache before drawing; otherwise they trail the water by one frame, which
+    // lets slicks sink into (or float off) sharp ripple fronts.
+    function syncHazardsToWater(t) {
+        if (!surface) return;
+        for (let i = 0; i < fuelSlicks.length; i++) {
+            layFuelSlickOnWater(fuelSlicks[i], t);
+        }
+        for (let i = 0; i < surfaceMines.length; i++) {
+            const mine = surfaceMines[i];
+            mine.waterH = renderedWaterHeight(mine.x, mine.z, t);
+            mine.group.position.y = mine.waterH + mine.yOff;
+            surface.localToWorld(mine.worldPos.set(mine.x, mine.group.position.y, mine.z));
+        }
+    }
+
     function updateRobotDuel(dt, t) {
         if (robotFleet.length < 2) return;
         const blueRobot = robotFleet[0];
         const redRobot = robotFleet[1];
-        if (!blueRobot.group || !redRobot.group) return;
+        if (!blueRobot.loaded || !redRobot.loaded || !blueRobot.group || !redRobot.group) return;
+
+        const blueIncapacitated = robotIsIncapacitated(blueRobot, t);
+        const redIncapacitated = robotIsIncapacitated(redRobot, t);
+        if (blueIncapacitated) {
+            blueRobot.state.isAiming = false;
+            blueRobot.state.isSuperweaponCharging = false;
+            blueRobot.state.isBeamCharging = false;
+            cancelRobotActiveBeams(blueRobot);
+        }
+        if (redIncapacitated) {
+            redRobot.state.isAiming = false;
+            redRobot.state.isSuperweaponCharging = false;
+            redRobot.state.isBeamCharging = false;
+            cancelRobotActiveBeams(redRobot);
+        }
+
+        // Tactical hazard deployment: White Robot releases fuel slicks; Red Robot deploys Cryo/EMP Stasis Mines
+        if (!blueIncapacitated && !robotIsBlinking(blueRobot) && t - (blueRobot.state.lastFuelDropAt || -999) > ROBOT_FUEL_DROP_COOLDOWN) {
+            spawnRobotFuelSlick(blueRobot, t);
+        }
+        if (!redIncapacitated && !robotIsBlinking(redRobot) && t - (redRobot.state.lastMineAt || -999) > ROBOT_MINE_COOLDOWN) {
+            spawnSurfaceMine(redRobot, t, Math.random() < 0.72 ? 'stasis' : 'blast');
+        } else if (!blueIncapacitated && !robotIsBlinking(blueRobot) && t - (blueRobot.state.lastMineAt || -999) > ROBOT_MINE_COOLDOWN * 1.35) {
+            spawnSurfaceMine(blueRobot, t, 'blast');
+        }
 
         const dx = redRobot.state.x - blueRobot.state.x;
         const dz = redRobot.state.z - blueRobot.state.z;
@@ -4365,7 +5506,7 @@
         const ROBOT_SUPER_DISTANCE = 8.85;
 
         const blueAimTime = blueRobot.state.isSuperweaponCharging ? 0.85 : (blueRobot.state.isBeamCharging ? ROBOT_BEAM_CHARGE_TIME : 0.42);
-        if (blueRobot.state.isAiming && t - blueRobot.state.aimStart > blueAimTime) {
+        if (!blueIncapacitated && blueRobot.state.isAiming && t - blueRobot.state.aimStart > blueAimTime) {
             const toOpponent = new THREE.Vector3(dx, 0, dz).normalize();
             if (blueRobot.forward.dot(toOpponent) > 0.96) {
                 if (blueRobot.state.isBeamCharging) {
@@ -4379,7 +5520,7 @@
             }
         }
         const redAimTime = redRobot.state.isSuperweaponCharging ? 0.85 : (redRobot.state.isBeamCharging ? ROBOT_BEAM_CHARGE_TIME : 0.42);
-        if (redRobot.state.isAiming && t - redRobot.state.aimStart > redAimTime) {
+        if (!redIncapacitated && redRobot.state.isAiming && t - redRobot.state.aimStart > redAimTime) {
             const toOpponent = new THREE.Vector3(-dx, 0, -dz).normalize();
             if (redRobot.forward.dot(toOpponent) > 0.96) {
                 if (redRobot.state.isBeamCharging) {
@@ -4419,7 +5560,7 @@
         const blueCooldown = ROBOT_DUEL_COOLDOWN + Math.sin(t * 0.8) * 0.1;
         const redCooldown = ROBOT_DUEL_COOLDOWN * 1.12 + Math.cos(t * 0.7) * 0.08;
 
-        if (t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
+        if (!blueIncapacitated && t - blueRobot.state.lastShot > blueCooldown && !blueRobot.state.isAiming) {
             const superWeaponReady = (t - blueRobot.state.lastSuperweaponAt > 15.0);
             const beamReady = (t - blueRobot.state.lastBeamAt > ROBOT_BEAM_COOLDOWN);
             if (superWeaponReady) {
@@ -4439,7 +5580,7 @@
                 blueRobot.state.isBeamCharging = true;
             }
         }
-        if (t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
+        if (!redIncapacitated && t - redRobot.state.lastShot > redCooldown && !redRobot.state.isAiming) {
             const superWeaponReady = (t - redRobot.state.lastSuperweaponAt > 15.0);
             const beamReady = (t - redRobot.state.lastBeamAt > ROBOT_BEAM_COOLDOWN);
             if (superWeaponReady) {
@@ -4463,7 +5604,7 @@
         if (distance < ROBOT_DASH_RANGE && distance > 0.001) {
             robotFleet.forEach(function (bot) {
                 const state = bot.state;
-                if (state.dashUntil > t || t < (state.dashReadyAt || 0)) return;
+                if (robotIsIncapacitated(bot, t) || state.dashUntil > t || t < (state.dashReadyAt || 0)) return;
                 if (state.isAiming || robotIsBlinking(bot) || state.shieldUntil > t) return;
                 state.dashUntil = t + ROBOT_DASH_DURATION;
                 state.dashReadyAt = t + ROBOT_DASH_COOLDOWN;
@@ -4481,7 +5622,7 @@
         // Showcase blink: threatened robots flash-step sideways on their own rhythm
         robotFleet.forEach(function (bot) {
             const state = bot.state;
-            if (robotIsBlinking(bot) || t < (state.blinkReadyAt || 0)) return;
+            if (robotIsIncapacitated(bot, t) || robotIsBlinking(bot) || t < (state.blinkReadyAt || 0)) return;
             if (state.isAiming || state.shieldUntil > t || state.dashUntil > t) return;
             if (!bot.opponent.state.isAiming) return;
             const dx = bot.opponent.state.x - state.x;
@@ -4513,6 +5654,8 @@
         });
         updateRobotThrusterRipples(t);
         updateRobotDamageSmoke(t);
+        updateFuelSlicks(dt, t);
+        updateSurfaceMines(dt, t);
         updateRobotCounterpulse(t);
         updateNovaClash(dt, t);
         updateRobotDuel(dt, t);
@@ -4943,6 +6086,7 @@
         updateFloatingRobot(dt, t);
         updateParticles(dt, t);
         updateSurface(t);
+        syncHazardsToWater(t);
         updateLightning(dt, t);
 
         if (camera) {
@@ -5009,6 +6153,16 @@
         const observer = new MutationObserver(sync);
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
         window.addEventListener('aurago:themechange', sync);
+        window.addEventListener('aurago:theme-effects-loaded', function () {
+            robotFleet.forEach(function (bot) {
+                bot.loadWarned = false;
+                bot.nextLoadRetryAt = 0;
+            });
+            sync();
+            if (active && scene) {
+                loadFloatingRobot();
+            }
+        });
         window.addEventListener('resize', function () {
             if (active) resize();
             sync();
@@ -5072,7 +6226,12 @@
                 robotShields: robotFleet.map(function (bot) { return (bot.state.shieldUntil || -999) > globalTime; }),
                 robotBlinks: robotFleet.map(function (bot) { return robotIsBlinking(bot); }),
                 blinkGhosts: blinkGhosts.length,
-                novaClashReadyIn: Math.max(0, novaClashReadyAt - globalTime)
+                novaClashReadyIn: Math.max(0, novaClashReadyAt - globalTime),
+                surfaceMines: surfaceMines.length,
+                fuelSlicks: fuelSlicks.length,
+                robotBurning: robotFleet.map(function (bot) { return robotIsBurning(bot, globalTime); }),
+                robotStunned: robotFleet.map(function (bot) { return robotIsStunned(bot, globalTime); }),
+                robotIncapacitated: robotFleet.map(function (bot) { return robotIsIncapacitated(bot, globalTime); })
             };
         }
     };

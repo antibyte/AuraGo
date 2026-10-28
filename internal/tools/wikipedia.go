@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"aurago/internal/i18n"
-	"aurago/internal/security"
 )
 
 // wikipediaHTTPClient is a shared client with connection pooling.
@@ -69,13 +68,14 @@ func ExecuteWikipediaSearch(query, lang string, contexts ...context.Context) str
 		}
 	}
 	summary, _ := data["extract"].(string)
+	safeSummary := scraperGuardian.ProtectWeb(requestContext(contexts), "wikipedia", summary)
 
 	result := map[string]interface{}{
 		"status":  "success",
-		"title":   security.IsolateExternalData(title),
+		"title":   scraperGuardian.ProtectWeb(requestContext(contexts), "wikipedia", title),
 		"url":     pageURL,
-		"summary": security.IsolateExternalData(summary),
-		"content": security.IsolateExternalData(summary), // Summary acts as content, limit is well within 15k
+		"summary": safeSummary,
+		"content": safeSummary, // Summary acts as content, limit is well within 15k
 	}
 
 	b, _ := json.Marshal(result)

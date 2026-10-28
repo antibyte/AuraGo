@@ -86,20 +86,22 @@
             const metrics = foldMetricsForRow(row, rect);
 
             if (aboveBy > 0) {
-                const foldAngle = clamp(2, 6, aboveBy / metrics.fullFoldDivisor);
+                const foldAngle = clamp(1.8, 5.4, aboveBy / metrics.fullFoldDivisor);
+                const depthShift = clamp(2, 10, foldAngle * 1.6);
                 row.classList.add('folding', 'folded');
                 row.classList.remove('unfolding');
-                row.style.transform = `perspective(1400px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-2px) scale(0.995)`;
-                row.style.opacity = String(clamp(0.72, 0.94, 1 - foldAngle / 54));
-                row.style.filter = `blur(${clamp(0, 0.28, foldAngle / 42).toFixed(2)}px)`;
+                row.style.transform = `perspective(1480px) rotateX(-${foldAngle.toFixed(2)}deg) translateY(-2px) translateZ(-${depthShift.toFixed(1)}px) scale(0.995)`;
+                row.style.opacity = String(clamp(0.74, 0.95, 1 - foldAngle / 56));
+                row.style.filter = `blur(${clamp(0, 0.24, foldAngle / 46).toFixed(2)}px)`;
             } else if (partial > metrics.partialDelay && rect.height > 0) {
                 const progress = clamp(0, 1, (partial - metrics.partialDelay) / metrics.progressSpan);
                 const foldAngle = progress * metrics.maxPartialAngle;
+                const depthShift = progress * 4.5;
                 row.classList.add('folding');
                 row.classList.remove('folded', 'unfolding');
-                row.style.transform = `perspective(1400px) rotateX(-${foldAngle.toFixed(2)}deg) scale(${(1 - progress * 0.003).toFixed(3)})`;
-                row.style.opacity = String(clamp(0.88, 1, 1 - progress * 0.08));
-                row.style.filter = progress > 0.72 ? `blur(${((progress - 0.72) * 0.35).toFixed(2)}px)` : '';
+                row.style.transform = `perspective(1480px) rotateX(-${foldAngle.toFixed(2)}deg) translateZ(-${depthShift.toFixed(1)}px) scale(${(1 - progress * 0.003).toFixed(3)})`;
+                row.style.opacity = String(clamp(0.89, 1, 1 - progress * 0.075));
+                row.style.filter = progress > 0.74 ? `blur(${((progress - 0.74) * 0.3).toFixed(2)}px)` : '';
             } else {
                 const wasFolded = row.classList.contains('folded') || row.style.transform;
                 row.classList.remove('folding', 'folded');

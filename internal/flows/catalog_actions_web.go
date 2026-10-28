@@ -303,7 +303,7 @@ func webReadDef(env CatalogEnv) *NodeDef {
 	def.UntrustedOutput = true
 	def.PrimaryInput = "url"
 	def.Params = []ParamSpec{
-		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true},
+		{Name: "url", Kind: ParamText, LabelKey: "easydrag.param.url", Required: true, Templatable: true, SensitiveSink: true, URLTarget: true},
 		{Name: "mode", Kind: ParamSelect, LabelKey: "easydrag.param.scrape_mode", Default: "auto",
 			Options: []Option{option("auto", "scrape_auto"), option("static", "scrape_static"), option("dynamic", "scrape_dynamic"), option("rss", "scrape_rss")}},
 		{Name: "selector", Kind: ParamText, LabelKey: "easydrag.param.css_selector", Templatable: true},

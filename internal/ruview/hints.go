@@ -1,6 +1,10 @@
 package ruview
 
-import "aurago/internal/config"
+import (
+	"sort"
+
+	"aurago/internal/config"
+)
 
 const (
 	hintSensingStale    = "sensing_stale"
@@ -9,7 +13,8 @@ const (
 )
 
 // SetOperationalHint registers an edge-triggered callback. The same state does
-// not call it again. The callback runs outside the manager lock and must not
+// not call it again. The callback runs outside mu and opMu (under hintMu, which
+// orders deliveries) and must not
 // call the manager. A nil callback clears it. Disabled configuration does not
 // resolve an open hint; only the matching success transition does.
 func (m *Manager) SetOperationalHint(fn func(event string, open bool)) {
@@ -18,7 +23,31 @@ func (m *Manager) SetOperationalHint(fn func(event string, open bool)) {
 	m.mu.Unlock()
 }
 
+// openHintsLocked returns the names of the open hints, sorted; [] when none.
+// Called with mu held.
+func (m *Manager) openHintsLocked() []string {
+	open := []string{}
+	for name, isOpen := range m.hintOpen {
+		if isOpen {
+			open = append(open, name)
+		}
+	}
+	sort.Strings(open)
+	return open
+}
+
+// emitHint changes one hint's state and delivers the callback as a single step
+// under hintMu, so two goroutines cannot deliver "open" after "close" (a stale
+// probe racing a fresh one). hintMu is taken with neither mu nor opMu held,
+// and the callback must not call the manager.
 func (m *Manager) emitHint(event string, open bool) {
+	m.hintMu.Lock()
+	defer m.hintMu.Unlock()
+	m.emitHintLocked(event, open)
+}
+
+// emitHintLocked requires hintMu.
+func (m *Manager) emitHintLocked(event string, open bool) {
 	m.mu.Lock()
 	if m.hintOpen[event] == open {
 		m.mu.Unlock()
@@ -81,6 +110,9 @@ func (m *Manager) noteStorage(mode string, limited bool) {
 	if mode == "external" {
 		return
 	}
+	// The budget state and its delivery are one step, like emitHint.
+	m.hintMu.Lock()
+	defer m.hintMu.Unlock()
 	m.mu.Lock()
 	was := m.budgetLimited
 	m.budgetLimited = limited
@@ -88,7 +120,7 @@ func (m *Manager) noteStorage(mode string, limited bool) {
 	if was == limited {
 		return
 	}
-	m.emitHint(hintStorageLimit, limited)
+	m.emitHintLocked(hintStorageLimit, limited)
 }
 
 func (m *Manager) noteStop(confirmed bool, mode string) {

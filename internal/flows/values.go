@@ -19,6 +19,13 @@ import (
 type Env struct {
 	Roots    map[string]any
 	Location *time.Location
+	// Untrusted names the roots whose data an attacker can influence: "trigger" for an
+	// untrusted trigger and the key of every tainted node (the lint's taint, see
+	// LintUntrustedData). The engine sets it; nil fences nothing. It takes effect only in
+	// parameters flagged ParamSpec.FenceUntrusted (see resolveParams).
+	Untrusted map[string]bool
+	// fence is set on the copy of the Env that resolves a FenceUntrusted parameter.
+	fence bool
 }
 
 // loc returns the location used for zone-less dates: the Env's own location, or

@@ -59,6 +59,18 @@ jobs:
       - name: Run browser sidecar auth tests
         run: node browser_automation_sidecar/test_auth.js
 
+  pages-build:
+    name: GitHub Pages build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build documentation without deployment
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./docs
+          destination: ./tmp/pages-site
+
   go-security:
     name: Go tests
     runs-on: ubuntu-latest

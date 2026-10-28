@@ -30,6 +30,9 @@ import (
 //   - document_creator always gets block_remote_content, and Home Assistant services of the
 //     script, shell_command, python_script and hassio domains are refused unless
 //     home_assistant.allowed_services lists them (flowHAServiceRefusal).
+//   - The dispatch wraps every answer in one <external_data> layer, also without a Guardian in
+//     its context; the invoker removes exactly that layer (flowOpenDispatchLayer) and leaves
+//     the tool's own marking of remote content to the flows side.
 //   - The outcome is classified for the flow engine (flowToolOutcome): known refusals become
 //     denied or needs_setup, which the engine does not retry. A call whose context ended
 //     without success returns the context's error, so the engine sees a cancel or a timeout
@@ -235,13 +238,16 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	if res.Status == agent.ToolResultDenied && strings.Contains(res.Output, `"code":"action_rule_required"`) {
 		return flows.ToolResponse{}, flows.NewNodeError("FLOW_ACTION_RULE_REQUIRED", "An administrator action rule is required for this tool, operation and target")
 	}
-	res.Output = flowRedactSecrets(res.Output, secrets)
+	// The dispatch isolates every answer in one <external_data> layer, with a Guardian in the
+	// context or without (the fallback Guardian). The layer is removed before anything reads
+	// the answer, so a secret with a character the layer escapes is still found and the
+	// flows side gets the tool's JSON; a layer that is left is the tool's own marking.
+	res.Output = flowRedactSecrets(flowOpenDispatchLayer(res.Output), secrets)
 	textSent := sentKey != "" && flowTelegramTextSent(res.Output)
 	if textSent {
 		i.rememberTextSent(sentKey, time.Now())
 	}
-	// The Guardian that actually ran decides how many <external_data> layers are its own.
-	resp := flowToolOutcome(req.Tool, res, dc.Guardian != nil)
+	resp := flowToolOutcome(req.Tool, res)
 	if err := ctx.Err(); err != nil && resp.Status != string(agent.ToolResultSuccess) {
 		return flows.ToolResponse{}, err
 	}

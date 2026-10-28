@@ -95,13 +95,13 @@ func (m *Manager) client(c *config.Config) (*http.Client, *url.URL, string, erro
 func (m *Manager) request(ctx context.Context, c *config.Config, method, path string, body io.Reader) (json.RawMessage, error) {
 	client, base, token, err := m.client(c)
 	if err != nil {
-		return nil, err
+		return nil, fail(CodeInvalidConfig, err.Error(), err)
 	}
 	defer client.CloseIdleConnections()
 	base.Path = path
 	req, err := http.NewRequestWithContext(ctx, method, base.String(), body)
 	if err != nil {
-		return nil, fmt.Errorf("RuView request: %w", err)
+		return nil, fail(CodeInvalidConfig, "RuView request: "+err.Error(), err)
 	}
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
@@ -112,18 +112,36 @@ func (m *Manager) request(ctx context.Context, c *config.Config, method, path st
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("RuView service could not be reached")
+		var netErr net.Error
+		switch {
+		case ctx.Err() != nil:
+			return nil, ctxError(ctx.Err())
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			return nil, ctxError(err)
+		case errors.As(err, &netErr) && netErr.Timeout():
+			return nil, &Error{Code: CodeTimeout, HTTP: HTTPStatus(CodeTimeout), msg: "RuView service did not answer in time"}
+		}
+		return nil, fail(CodeUnreachable, "RuView service could not be reached", nil)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("RuView returned HTTP %d", resp.StatusCode)
+		code := CodeUpstreamError
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			code = CodeUpstreamAuth
+		}
+		e := fail(code, fmt.Sprintf("RuView returned HTTP %d", resp.StatusCode), nil)
+		e.Detail = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		return nil, e
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
-		return nil, fmt.Errorf("RuView response is incomplete or invalid")
+		if ctx.Err() != nil {
+			return nil, ctxError(ctx.Err())
+		}
+		return nil, &Error{Code: CodeContractUnsupported, HTTP: HTTPStatus(CodeContractUnsupported), msg: errInvalidReply.Error(), cause: errInvalidReply}
 	}
 	if len(data) > maxResponseBytes || !json.Valid(data) {
-		return nil, fmt.Errorf("%w", errInvalidReply)
+		return nil, &Error{Code: CodeContractUnsupported, HTTP: HTTPStatus(CodeContractUnsupported), msg: errInvalidReply.Error(), cause: errInvalidReply}
 	}
 	return json.RawMessage(security.Scrub(string(data))), nil
 }

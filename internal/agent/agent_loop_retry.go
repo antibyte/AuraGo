@@ -100,7 +100,9 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 				"If a tool is not in your current tool list, use discover_tools first so it can be re-added "+
 				"to your active tool list on the next turn.",
 			tc.Action)
-		if len(content) > xmlFallbackContentMaxBytes {
+		if s.gameMakerRun() {
+			xmlFeedback = formatGameMakerXMLFallbackFeedback(tc.Action, s.useNativeFunctions)
+		} else if len(content) > xmlFallbackContentMaxBytes {
 			xmlFeedback += " IMPORTANT: To edit existing files, use the `file_editor` tool with" +
 				" `str_replace` or `insert_after` — it modifies only the targeted section and" +
 				" never requires sending the complete file content."
@@ -253,7 +255,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		} else if s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			s.announcementCount++
 			currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", s.announcementCount, "content_preview", Truncate(announcementContent, 120))
-			feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(s.useNativeFunctions, s.recentTools), emotionPolicy)
+			feedbackMsg := applyEmotionRecoveryNudge(s.announcementFeedback(), emotionPolicy)
 			msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 				SessionID:        sessionID,
 				AssistantContent: content,
@@ -298,7 +300,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			"attempt", s.announcementCount,
 			"last_user_msg", Truncate(s.lastUserMsg, 120),
 			"content_preview", Truncate(announcementContent, 120))
-		feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(s.useNativeFunctions, s.recentTools), emotionPolicy)
+		feedbackMsg := applyEmotionRecoveryNudge(s.announcementFeedback(), emotionPolicy)
 		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 			SessionID:        sessionID,
 			AssistantContent: content,
@@ -315,7 +317,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 			"attempt", s.announcementCount,
 			"last_user_msg", Truncate(s.lastUserMsg, 120),
 			"content_preview", Truncate(announcementContent, 120))
-		feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(s.useNativeFunctions, s.recentTools), emotionPolicy)
+		feedbackMsg := applyEmotionRecoveryNudge(s.announcementFeedback(), emotionPolicy)
 		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 			SessionID:        sessionID,
 			AssistantContent: content,

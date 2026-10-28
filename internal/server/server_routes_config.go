@@ -21,6 +21,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	if !s.Cfg.WebConfig.Enabled {
 		return
 	}
+	for _, operation := range []string{"status", "download", "cancel", "test"} {
+		mux.Handle("/api/guardian/injection-guard/"+operation, requireAdmin(s, handleInjectionGuard(s, operation)))
+	}
 
 	// Security audit — list hints and apply auto-fixable hardening measures
 	mux.HandleFunc("/api/security/hints", handleSecurityHints(s))
@@ -143,8 +146,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.Handle("/api/backup/create", requireAdmin(s, handleBackupCreate(s)))
 	mux.Handle("/api/backup/import", requireAdmin(s, handleBackupImport(s)))
 
-	// Chromecast mDNS discovery
-	mux.HandleFunc("/api/chromecast/discover", handleChromecastDiscover(s))
+	// Chromecast discovery and the saved-device test announcement are admin-only.
+	mux.Handle("/api/chromecast/discover", requireAdmin(s, handleChromecastDiscover(s)))
+	mux.Handle("/api/chromecast/test", requireAdmin(s, handleChromecastTest(s)))
 
 	// Linux Bluetooth / BlueZ administration. All routes require an
 	// authenticated admin identity, including status and discovery.
@@ -179,6 +183,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/homepage/history", handleHomepageHistory(s))
 	mux.HandleFunc("/api/homepage/sites", handleHomepageSites(s))
 	mux.HandleFunc("/api/homepage/sites/", handleHomepageSiteByID(s))
+	mux.HandleFunc("/api/homepage/annotation-snapshot", handleHomepageAnnotationSnapshot(s))
 
 	// Cloudflare Tunnel endpoints
 	mux.HandleFunc("/api/tunnel/status", handleTunnelStatus(s))
@@ -207,6 +212,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Music Generation endpoints
 	mux.Handle("/api/music-generation/test", requireAdmin(s, handleMusicGenerationTest(s)))
 	registerLocalMusicRoutes(mux, s)
+	registerRustFSRoutes(mux, s)
 
 	// Video Generation endpoints
 	mux.HandleFunc("/api/video-generation/test", handleVideoGenerationTest(s))

@@ -9,6 +9,30 @@
 .pw-page[data-workspace-page="config"] .field-grid.two-cols { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 .pw-page[data-workspace-page="config"] .field-grid.two-cols > .cfg-toggle-row-compact { min-width:0; }
 .pw-page[data-workspace-page="config"] .cfg-actions-row { display:flex; flex-wrap:wrap; gap:var(--space-3); align-items:center; }
+.pw-page[data-workspace-page="config"] #newspaper-overview-sources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 10px;
+    margin: 12px 0 16px;
+}
+.pw-page[data-workspace-page="config"] .np-source-choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid var(--pw-line);
+    border-radius: 8px;
+    color: var(--pw-text);
+    background: var(--input-bg);
+    line-height: 1.45;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.pw-page[data-workspace-page="config"] .np-source-choice:has(input:checked) { border-color: var(--pw-accent); }
+.pw-page[data-workspace-page="config"] .np-source-choice:focus-within { outline: 2px solid var(--pw-accent); outline-offset: 2px; }
+.pw-page[data-workspace-page="config"] .np-source-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: var(--pw-accent); }
 .pw-page[data-workspace-page="config"] .secrets-modal-card { max-width:min(480px,90vw); width:100%; max-height:85vh; overflow-y:auto; }
 .pw-page[data-workspace-page="config"] .email-modal-card { max-width:min(560px,92vw); width:100%; max-height:85vh; overflow-y:auto; }
 .pw-page[data-workspace-page="config"] .field-input.is-readonly { opacity:0.55; cursor:not-allowed; }

@@ -1935,8 +1935,12 @@ function testNetworkCamerasDesktopContracts() {
   assert.match(dashboard, /href="\/desktop\?app=network-cameras"/);
 
   const preferenceSource = sourceBetween(app, 'function savePreferences(state)', 'function createState');
-  assert.match(preferenceSource, /\{ mode: state\.mode, selected: state\.selected \}/);
-  assert.doesNotMatch(preferenceSource, /password|username|source|token/i);
+  let cameraPreferences;
+  const preferenceContext = { preferenceKey: 'fixture', localStorage: { setItem: (_, value) => { cameraPreferences = JSON.parse(value); } } };
+  vm.createContext(preferenceContext);
+  vm.runInContext(`${preferenceSource}; globalThis.save = savePreferences;`, preferenceContext);
+  preferenceContext.save({ mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' }, source: 'rtsp://private/', username: 'secret', password: 'secret', token: 'secret' });
+  assert.deepEqual(cameraPreferences, { mode: 'snapshots', selected: 'one', sourceRoles: { one: 'sub' } }, 'only non-secret viewing preferences are stored');
 
   const gridSource = sourceBetween(app, 'function liveGridIDs(state, streams)', 'function cardMarkup');
   const gridContext = { Set };
@@ -2298,11 +2302,98 @@ function testNetworkCamerasDetectionRuntime() {
   assert.doesNotMatch(read('ui/js/desktop/apps/network-cameras-detection-views.js'), /RUNTIME_MB/, 'no single runtime size');
 }
 
+function go2rtcSourceFormContext() {
+  const context = { window: {}, TextEncoder, btoa };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/go2rtc-source-form.js'), context);
+  return context.window.AuraGoSourceForm;
+}
+
+function testGo2RTCSourceFormBuildsURLs() {
+  const form = go2rtcSourceFormContext();
+  const host = { name: 'host', kind: 'host', required: true, placement: 'host' };
+  const types = [
+    { id: 'rtsp', label: 'RTSP', schemes: ['rtsp', 'rtsps', 'rtspx'], mode: 'form', fields: [
+      { name: 'scheme', kind: 'select', required: true, default: 'rtsp', options: ['rtsp', 'rtsps', 'rtspx'], placement: 'scheme' }, host,
+      { name: 'port', kind: 'port', placement: 'port' }, { name: 'username', kind: 'text', placement: 'user' },
+      { name: 'password', kind: 'secret', placement: 'password' }, { name: 'path', kind: 'text', placement: 'path' }] },
+    { id: 'tapo', label: 'Tapo', schemes: ['tapo'], mode: 'form', password_only_userinfo: true, fields: [host,
+      { name: 'password', kind: 'secret', required: true, placement: 'password' }, { name: 'username', kind: 'text', placement: 'user' },
+      { name: 'subtype', kind: 'select', options: ['', '0', '1'], placement: 'query:subtype' }] },
+    { id: 'kasa', label: 'Kasa', schemes: ['kasa'], mode: 'form', fields: [host, { name: 'port', kind: 'port', default: '19443', placement: 'port' },
+      { name: 'username', kind: 'text', required: true, placement: 'user' }, { name: 'password', kind: 'secret', required: true, placement: 'password', encode: 'base64' },
+      { name: 'path', kind: 'text', default: '/https/stream/mixed', required: true, placement: 'path' }] },
+    { id: 'ring', label: 'Ring', schemes: ['ring'], mode: 'form', fields: [
+      { name: 'device_id', kind: 'text', required: true, placement: 'query:device_id' }, { name: 'refresh_token', kind: 'secret', required: true, placement: 'query:refresh_token' }] },
+    { id: 'homekit', label: 'HomeKit', schemes: ['homekit'], mode: 'url', template: 'homekit://…' },
+    { id: 'tuya', label: 'Tuya', schemes: ['tuya'], mode: 'dialog' },
+  ];
+  const build = (type, values) => JSON.parse(JSON.stringify(form.buildURL(types, { type, values, error: '' })));
+
+  assert.deepEqual(build('rtsp', { host: '192.168.1.20', port: '554', username: 'ad min', password: 'p@ss:w/rd#1', path: 'stream1' }),
+    { url: 'rtsp://ad%20min:p%40ss%3Aw%2Frd%231@192.168.1.20:554/stream1' });
+  assert.deepEqual(build('rtsp', { scheme: 'rtsps', host: 'fe80::1' }), { url: 'rtsps://[fe80::1]' });
+  assert.deepEqual(build('rtsp', { host: 'cam.local:554' }), { error: 'invalid_host', field: 'host' }, 'a port typed into the host field is rejected');
+  assert.deepEqual(build('rtsp', { host: 'cam.local', port: '70000' }), { error: 'invalid_port', field: 'port' });
+  assert.deepEqual(build('rtsp', { host: 'cam.local', password: 'x' }), { error: 'required', field: 'username' }, 'a password needs a user unless the type allows password-only');
+  assert.deepEqual(build('rtsp', { host: 'cam.local', path: '/a#raw=-i' }), { error: 'invalid_path', field: 'path' });
+  assert.deepEqual(build('tapo', { host: '192.168.1.123', password: 'cloud pw', subtype: '1' }), { url: 'tapo://cloud%20pw@192.168.1.123?subtype=1' });
+  assert.deepEqual(build('tapo', { host: '192.168.1.123', password: 'HASH', username: 'admin' }), { url: 'tapo://admin:HASH@192.168.1.123' });
+  assert.deepEqual(build('kasa', { host: '192.168.1.123', username: 'alex@gmail.com', password: 'secret1' }),
+    { url: 'kasa://alex%40gmail.com:c2VjcmV0MQ%3D%3D@192.168.1.123:19443/https/stream/mixed' });
+  assert.deepEqual(build('ring', { device_id: '12', refresh_token: 'a&b' }), { url: 'ring:?device_id=12&refresh_token=a%26b' });
+  assert.deepEqual(build('ring', { device_id: '12' }), { error: 'required', field: 'refresh_token' });
+  assert.deepEqual(build('homekit', { url: '  homekit://x?y=1 ' }), { url: 'homekit://x?y=1' });
+  assert.deepEqual(build('homekit', {}), { error: 'required', field: 'url' });
+  assert.deepEqual(build('tuya', {}), { error: 'choose_type' });
+  assert.deepEqual(build('', {}), { error: 'choose_type' });
+
+  const t = key => key;
+  const html = form.markup(types, { type: 'rtsp', values: { password: 'should-not-render' }, error: '' }, { t, emptyLabel: 'keep' });
+  assert.doesNotMatch(html, /should-not-render/, 'secrets are never written back into markup');
+  assert.doesNotMatch(html, /value="tuya"/, 'Tuya is not offered by the guided form');
+  assert.match(html, /<option value="">keep<\/option>/);
+  assert.match(html, /data-source-field="host"/);
+  assert.match(html, /type="password"[^>]*data-source-field="password"|data-source-field="password"[^>]*type="password"/);
+  const kept = { type: 'rtsp', values: { password: 'kept-secret' }, error: '' };
+  form.markup(types, kept, { t });
+  assert.equal(kept.values.password, 'kept-secret', 'markup does not delete typed values');
+  const urlState = { type: 'homekit', values: { url: 'homekit://secret' }, error: '' };
+  assert.doesNotMatch(form.markup(types, urlState, { t }), /homekit:\/\/secret/);
+  assert.equal(urlState.values.url, 'homekit://secret');
+  assert.doesNotMatch(form.markup([{ id: 'x', label: 'X', schemes: ['x'], mode: 'url', docs_url: 'javascript:alert(1)' }], { type: 'x', values: {}, error: '' }, { t }), /javascript:/, 'only https docs links render');
+  // bind() restores typed values through the DOM property
+  const listeners = {};
+  const secretInput = { dataset: { sourceField: 'password' }, value: '', addEventListener: (name, fn) => { listeners[name] = fn; } };
+  const root = { querySelector: () => null, querySelectorAll: () => [secretInput] };
+  const restored = { type: 'rtsp', values: { password: 'kept-secret' }, error: '' };
+  form.bind(root, restored, () => {});
+  assert.equal(secretInput.value, 'kept-secret', 'bind restores the secret into the input');
+  secretInput.value = 'changed';
+  listeners.input();
+  assert.equal(restored.values.password, 'changed');
+  const escaped = form.markup([{ id: 'x', label: '<b>', schemes: ['x'], mode: 'url', template: '"><script>' }], { type: 'x', values: {}, error: '' }, { t });
+  assert.doesNotMatch(escaped, /<b>|"><script>/, 'catalog strings are escaped');
+}
+
 function testNetworkCamerasDetectionAppContracts() {
   const app = read('ui/js/desktop/apps/network-cameras.js');
   const loader = read('ui/js/desktop/core/module-loader.js');
 
-  assert.match(loader, /'network-cameras': \{\s*styles: appStyles\('\/css\/desktop-app-network-cameras\.css', '\/css\/desktop-app-network-cameras-detection\.css'\),\s*scripts: \[\s*'\/js\/desktop\/apps\/network-cameras-detection-views\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection-zones\.js',\s*'\/js\/desktop\/apps\/network-cameras-detection\.js',\s*'\/js\/desktop\/apps\/network-cameras\.js'\s*\]/, 'the detection modules and stylesheet must load before the Network Cameras app');
+  const cameraLoader = sourceBetween(loader, "'network-cameras': {", "'meshcore': {");
+  const cameraScripts = [...cameraLoader.matchAll(/'([^']+\.js)'/g)].map(match => match[1]);
+  const expectedScripts = ['/js/go2rtc-tuya.js', '/js/go2rtc-source-form.js', '/js/desktop/apps/network-cameras-detection-views.js', '/js/desktop/apps/network-cameras-detection-zones.js', '/js/desktop/apps/network-cameras-detection.js', '/js/desktop/apps/network-cameras-media.js', '/js/desktop/apps/network-cameras.js'];
+  let previousScript = -1;
+  for (const script of expectedScripts) { const index = cameraScripts.indexOf(script); assert.ok(index > previousScript, 'camera dependencies must load before the app: ' + script); previousScript = index; }
+  assert.ok(cameraLoader.includes('/css/go2rtc-tuya.css'), 'Tuya dialog styles must load with the camera app');
+  assert.ok(cameraLoader.includes('/css/go2rtc-source-form.css'), 'source form styles must load with the camera app');
+  const cams = read('ui/js/desktop/apps/network-cameras.js');
+  assert.match(cams, /setupMethod\(ctx, 'type', /, 'setup offers the camera type method');
+  assert.match(cams, /\/api\/desktop\/integrations\/go2rtc\/source-types/);
+  assert.match(sourceBetween(cams, 'async function advanceSetup(state)', 'function slugify'), /modal\.method === 'type'[\s\S]*AuraGoSourceForm\.buildURL/);
+  assert.match(sourceBetween(cams, 'async function createStream(state)', 'async function saveManagedStream'), /modal\.method === 'url' \|\| modal\.method === 'type'/);
+  assert.match(sourceBetween(cams, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /AuraGoSourceForm\.buildURL[\s\S]*confirmDialog/, 'the replacement source is built before the confirmation');
+  assert.match(cams, /stream\.source_type/, 'cards show the source type');
 
   const modeSource = sourceBetween(app, 'function coerceMode(value)', 'function readPreferences');
   const modeContext = {};
@@ -2324,7 +2415,7 @@ function testNetworkCamerasDetectionAppContracts() {
   assert.match(app, /state\.mode = coerceMode\(button\.dataset\.mode\)/, 'the segmented control must accept the detection mode');
   assert.match(app, /mode: launchContext\(ctx\) \? \(launchContext\(ctx\).event_id \? 'detections' : 'snapshots'\) : preferences\.mode/, 'event launches open detection; camera launches open snapshots');
   assert.match(app, /data-mode="detections"/);
-  assert.match(app, /if \(state\.mode === 'detections' && runtime && runtime\.enabled && allStreams\(state\)\.length > 0\) return '<div class="nc-detection-host" data-role="detection"><\/div>';\s*if \(!runtime \|\| !runtime\.enabled \|\| !runtime\.api_usable/, 'the detection mode does not need a running go2rtc (4B review 2)');
+  assert.match(app, /if \(state\.mode === 'detections' && runtime && runtime\.enabled && allStreams\(state\)\.length > 0\) return '<div class="nc-detection-host" data-role="detection"><\/div>';\s*if \(!runtime \|\| !runtime\.enabled \|\| allStreams\(state\)\.length === 0/, 'camera management and detection remain available during a sidecar outage');
   assert.match(sourceBetween(app, 'async function saveManagedStream(state)', 'async function deleteManagedStream'), /views\.fieldErrorKey\(field\)[\s\S]*modal\.error = key \? text\(state\.ctx, 'detection\.' \+ key\) : error\.message;\s*if \(field\.startsWith\('detection\.'\) && detectionTabAvailable\(state\)\) modal\.tab = 'detection';/, 'a PATCH 400 on the detection block is localized and opens its tab (4B review 3f)');
   assert.match(app, /module\.unmount\(state\.windowId, \{ keepState: true \}\)/, 'hidden windows and other modes must stop detection polling');
   assert.match(sourceBetween(app, 'function syncDetection(state)', 'function bindMainEvents'), /const launch = state\.pendingLaunch;\s*state\.pendingLaunch = null;/, 'the launch context is consumed by exactly one mount');
@@ -4059,7 +4150,11 @@ function configSectionContext(configData, modules, { regions = [], globals = {} 
 }
 
 function configGo2RTCContext(go2rtc) {
-  return configSectionContext({ go2rtc }, ['ui/cfg/go2rtc.js']);
+  // The catalog request never settles here, so the section keeps its first render.
+  const context = configSectionContext({ go2rtc }, ['ui/js/go2rtc-source-form.js', 'ui/cfg/go2rtc.js'], { globals: { fetch: () => new Promise(() => {}), showToast() {}, TextEncoder, btoa } });
+  context.document.querySelectorAll = () => [];
+  context.document.querySelector = selector => { const match = /^\[data-path="([^"]+)"\]$/.exec(selector); return match ? context.content.control(match[1]) : null; };
+  return context;
 }
 
 // Reads the complete lists a save would send; any other patched key fails the check.
@@ -4194,8 +4289,17 @@ function testConfigThreeDPrinterListsSaveAsCompleteLists() {
 // keeps typed edits and never shifts one camera's fields onto another.
 function testConfigGo2RTCStreamsSaveAsCompleteList() {
   const plain = value => JSON.parse(JSON.stringify(value));
+  const legacy = configGo2RTCContext({ enabled: false, auto_start: true, agent_access: true, store_media: true, web_ui_enabled: false,
+    image: 'alexxit/go2rtc:test', container_name: 'aurago_go2rtc', api_host_port: 1984, webrtc: { enabled: false, port: 8555 },
+    streams: [{ id: 'legacy', name: 'Legacy', enabled: true, source: '', source_configured: false }] });
+  legacy.renderGo2RTCSection({ label: 'go2rtc', desc: 'Cameras' });
+  legacy.window.AuraConfigState.syncFromDOM(legacy.content);
+  assert.equal(legacy.window.AuraConfigState.isDirty(), false, 'neutral media defaults do not dirty an existing camera');
+  const media = { sub_source: '', snapshot_source: '', clear_sub_source: false, clear_snapshot_source: false, preload: false, talk_enabled: false,
+    preview_source: 'auto', detection_source: 'auto', snapshot_mode: 'auto', codec_profile: 'original', transport: 'inherit', playback_mode: 'auto' };
   const stream = (id, name) => ({
     id, name, enabled: true, source: '••••••••', source_configured: true,
+    ...media,
     detection: { enabled: true, zones: [{ name: id + '-zone', points: [[0, 0], [1, 0], [1, 1]] }] }
   });
   const context = configGo2RTCContext({
@@ -4217,6 +4321,17 @@ function testConfigGo2RTCStreamsSaveAsCompleteList() {
 
   context.renderGo2RTCSection({ label: 'go2rtc', desc: 'Cameras' });
   assert.equal(state.isDirty(), false);
+  // The main source is the guided form; its hidden data-path input carries the built URL through the existing save path.
+  const cfg = read('ui/cfg/go2rtc.js');
+  const html = read('ui/config.html');
+  assert.match(html, /<script src="\/js\/go2rtc-source-form\.js\?v=\{\{\.BuildVersion\}\}"><\/script>/);
+  assert.match(html, /go2rtc-source-form\.css/);
+  assert.match(cfg, /type="hidden" data-path="' \+ escapeAttr\(base \+ '\.source'\)/, 'the built URL travels through the existing source path');
+  assert.match(cfg, /\/api\/go2rtc\/source-types/);
+  assert.doesNotMatch(sourceBetween(cfg, 'function go2rtcSourceBlock', 'function go2rtcApplySource'), /go2rtcSecret\(base \+ '\.source'/, 'the main source no longer uses the raw secret field');
+  const sourceInput = context.content.control('go2rtc.streams.0.source');
+  assert.equal(sourceInput.type, 'hidden');
+  assert.equal(sourceInput.value, '••••••••', 'the masked saved source is kept until the form builds a new URL');
 
   typeName(1, 'Garage side');
   const edited = [stream('front-door', 'Front door'), stream('garage', 'Garage side'), stream('backyard', 'Backyard')];
@@ -4228,7 +4343,7 @@ function testConfigGo2RTCStreamsSaveAsCompleteList() {
 
   context.go2rtcAddStream();
   state.syncFromDOM(context.content); // saveConfig reads the controls again
-  const added = { id: 'camera-4', name: 'config.go2rtc.stream_name_placeholder', enabled: true, source: '', source_configured: false };
+  const added = { ...media, id: 'camera-4', name: 'config.go2rtc.stream_name_placeholder', enabled: true, source: '', source_configured: false };
   assert.equal(context.content.control('go2rtc.streams.1.name').value, 'Garage side', 'the re-render shows the typed edit');
   assert.deepEqual(patchStreams('an added camera'), [...edited, added], 'an added camera keeps the typed edit and the other cameras');
 
@@ -5185,6 +5300,7 @@ const tests = [
   ['Network Cameras person detection views', testNetworkCamerasDetectionViews],
   ['Network Cameras person detection zone editor', testNetworkCamerasDetectionZones],
   ['Network Cameras person detection mode', testNetworkCamerasDetectionRuntime],
+  ['go2rtc source form builds URLs', testGo2RTCSourceFormBuildsURLs],
   ['Network Cameras person detection app wiring', testNetworkCamerasDetectionAppContracts],
   ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['Speech Lab recorder resumes audio and routes fallbacks safely', testSpeechLabRecorderLifecycleAndFallbacks],

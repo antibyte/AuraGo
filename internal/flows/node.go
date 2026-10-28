@@ -108,8 +108,22 @@ type ParamSpec struct {
 	// untrusted data reaching it is an error (IssueUntrustedSecretTarget), not the
 	// warning of a SensitiveSink. It takes effect together with SensitiveSink. The lint
 	// reads it; it is not part of the editor's API.
-	SecretTarget bool        `json:"-"`
-	Fields       []ParamSpec `json:"fields,omitempty"`
+	SecretTarget bool `json:"-"`
+	// URLTarget: the param is a web address the node connects to. Untrusted data that can
+	// reach its scheme, user info, host or port is an error (IssueUntrustedURLTarget), not
+	// the warning of a SensitiveSink; data after a literal "https://host/" (the path, the
+	// query, the fragment) keeps the warning. While a secret is set, SecretTarget decides
+	// first. It takes effect together with SensitiveSink. The lint reads it; it is not part
+	// of the editor's API.
+	URLTarget bool `json:"-"`
+	// FenceUntrusted: untrusted values (Env.Untrusted) that a template splices into the
+	// param reach Execute inside the external-data fence (fenceUntrusted), so a model that
+	// reads the param can tell the author's text from outside data. Set it on a param that
+	// goes to a model as material (the prompt and the instructions of ai.step), never on
+	// one that Execute parses or compares. The resolved param, and so the run log, shows
+	// the fenced text. It is not part of the editor's API.
+	FenceUntrusted bool        `json:"-"`
+	Fields         []ParamSpec `json:"fields,omitempty"`
 }
 
 // FieldSpec describes one declared output field.
@@ -361,6 +375,21 @@ func (d *NodeDef) Timeout(n *Node) time.Duration {
 		return d.DefaultTimeout
 	}
 	return DefaultNodeTimeout
+}
+
+// fencedParams names the params that resolve with untrusted values fenced
+// (ParamSpec.FenceUntrusted), nil when there are none.
+func (d *NodeDef) fencedParams() map[string]bool {
+	var out map[string]bool
+	for _, spec := range d.Params {
+		if spec.FenceUntrusted {
+			if out == nil {
+				out = map[string]bool{}
+			}
+			out[spec.Name] = true
+		}
+	}
+	return out
 }
 
 // Registry holds the node definitions. It is safe for concurrent use; the

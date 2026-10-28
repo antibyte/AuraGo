@@ -1150,5 +1150,6 @@
   "dashboard.selftest_bindings_hint": "仅使用准备好的测试目标。提供测试 ID、工具、精确参数和预期 JSON 字段。产生实际操作需设置 allow_effects: true；现有权限仍然有效。绑定值不会保存在报告中。",
   "dashboard.selftest_case": "测试",
   "dashboard.selftest_tool": "工具",
-  "dashboard.selftest_connections": "连接"
+  "dashboard.selftest_connections": "连接",
+  "dashboard.rustfs_running_unready": "正在运行，尚未就绪"
 }

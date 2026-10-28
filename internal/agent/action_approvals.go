@@ -3,10 +3,12 @@ package agent
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -133,6 +135,13 @@ func (m *actionApprovalManager) request(tc ToolCall, dc *DispatchContext, action
 		if value == nil || value == "" || value == false || value == float64(0) {
 			delete(preview, key)
 		}
+	}
+	// The added keys sort ahead of the call's own, so a shortened preview keeps them.
+	if copiedSpan {
+		preview[approvalCopiedSpanKey] = copiedSpanDigest(payload, preview)
+	}
+	if note := untrustedReadsNote(dc.SessionID); note != "" {
+		preview[approvalUntrustedReadsKey] = note
 	}
 	previewBytes, _ := json.MarshalIndent(preview, "", "  ")
 	m.mu.Lock()
@@ -374,4 +383,60 @@ func PreviewActionPolicy(tc ToolCall, dc *DispatchContext) (ActionDescriptor, st
 		return a, "denied"
 	}
 	return a, "allowed"
+}
+
+const (
+	// approvalCopiedSpanKey and approvalUntrustedReadsKey are added to the preview of
+	// an approval. They sort before every key of the call, so a shortened preview keeps them.
+	approvalCopiedSpanKey     = "_approval_copied_span"
+	approvalUntrustedReadsKey = "_approval_untrusted_reads"
+	// copiedSpanDigestFieldMin is the size from which a text field is listed on its
+	// own: shorter ones are shown whole in the preview.
+	copiedSpanDigestFieldMin = 1 << 10
+	copiedSpanDigestFields   = 4
+)
+
+// copiedSpanDigest tells the approver how much of the call the shortened preview
+// leaves out: the size and SHA-256 of the whole call and of each long text field,
+// the copied body usually among them. preview is the call's decoded JSON.
+func copiedSpanDigest(payload []byte, preview map[string]interface{}) map[string]interface{} {
+	type field struct {
+		name string
+		size int
+		hash string
+	}
+	var fields []field
+	collect := func(prefix string, object map[string]interface{}) {
+		for key, value := range object {
+			if text, ok := value.(string); ok && len(text) >= copiedSpanDigestFieldMin {
+				sum := sha256.Sum256([]byte(text))
+				fields = append(fields, field{prefix + key, len(text), hex.EncodeToString(sum[:])})
+			}
+		}
+	}
+	collect("", preview)
+	for key, value := range preview {
+		if object, ok := value.(map[string]interface{}); ok {
+			collect(key+".", object)
+		}
+	}
+	sort.Slice(fields, func(i, j int) bool {
+		if fields[i].size != fields[j].size {
+			return fields[i].size > fields[j].size
+		}
+		return fields[i].name < fields[j].name
+	})
+	if len(fields) > copiedSpanDigestFields {
+		fields = fields[:copiedSpanDigestFields]
+	}
+	sum := sha256.Sum256(payload)
+	digest := map[string]interface{}{"call_bytes": len(payload), "call_sha256": hex.EncodeToString(sum[:])}
+	if len(fields) > 0 {
+		listed := make([]map[string]interface{}, len(fields))
+		for i, item := range fields {
+			listed[i] = map[string]interface{}{"field": item.name, "bytes": item.size, "sha256": item.hash}
+		}
+		digest["long_text_fields"] = listed
+	}
+	return digest
 }

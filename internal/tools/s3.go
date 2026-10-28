@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"aurago/internal/config"
+	"aurago/internal/security"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -28,13 +30,20 @@ type S3Config struct {
 	WorkspaceDir         string
 	DataDir              string
 	AllowFilesystemWrite bool
+	Config               *config.Config
+	MaxDownloadBytes     int64
+	MaxOutputBytes       int
+	ctx                  context.Context
+	lease                *config.RustFSS3Lease
 }
 
 // s3Result is the JSON payload returned by S3 operations.
 type s3Result struct {
-	Status  string      `json:"status"`
-	Message string      `json:"message,omitempty"`
-	Data    interface{} `json:"data,omitempty"`
+	Status    string      `json:"status"`
+	Code      string      `json:"code,omitempty"`
+	Truncated bool        `json:"truncated,omitempty"`
+	Message   string      `json:"message,omitempty"`
+	Data      interface{} `json:"data,omitempty"`
 }
 
 // s3BucketInfo represents a bucket in list results.
@@ -52,8 +61,9 @@ type s3ObjectInfo struct {
 }
 
 func s3Encode(r s3Result) string {
+	r.Message = security.Scrub(r.Message)
 	b, _ := json.Marshal(r)
-	return string(b)
+	return security.Scrub(string(b))
 }
 
 // parseEndpoint strips an http/https scheme and enforces explicit opt-in for HTTP.
@@ -74,6 +84,8 @@ func parseEndpoint(endpoint string, insecure bool) (string, bool, error) {
 
 // newS3Client creates a configured minio client from the given config.
 func newS3Client(cfg S3Config) (*minio.Client, error) {
+	security.RegisterSensitive(cfg.AccessKey)
+	security.RegisterSensitive(cfg.SecretKey)
 	endpoint := cfg.Endpoint
 	if endpoint == "" {
 		endpoint = "s3.amazonaws.com"
@@ -96,48 +108,71 @@ func newS3Client(cfg S3Config) (*minio.Client, error) {
 		BucketLookup: lookup,
 	}
 
+	if cfg.managed() {
+		opts.MaxRetries = 1
+	} // The SDK defines one attempt as retries disabled.
 	return minio.New(host, opts)
 }
 
 // ExecuteS3 dispatches S3 operations.
 // Operations: list_buckets, list_objects, upload, download, delete, copy, move.
 func ExecuteS3(cfg S3Config, operation, bucket, key, localPath, prefix, destBucket, destKey string) string {
-	operation = strings.ToLower(strings.TrimSpace(operation))
-	if cfg.ReadOnly {
-		switch operation {
-		case "upload", "delete", "copy", "move":
-			return s3Encode(s3Result{Status: "error", Message: "S3 is in read-only mode. Disable s3.readonly to allow changes."})
-		}
-	}
+	return ExecuteS3Context(context.Background(), cfg, operation, bucket, key, localPath, prefix, destBucket, destKey)
+}
 
+// ExecuteS3Context keeps one target and permission generation for the whole operation.
+func ExecuteS3Context(ctx context.Context, cfg S3Config, operation, bucket, key, localPath, prefix, destBucket, destKey string) string {
+	operation = strings.ToLower(strings.TrimSpace(operation))
+	if operation == "list" {
+		operation = "list_objects"
+	}
+	switch operation {
+	case "list_buckets", "list_objects", "upload", "download", "delete", "copy", "move":
+	default:
+		return s3Encode(s3Result{Status: "error", Message: "operation must be: list_buckets, list_objects, upload, download, delete, copy, or move"})
+	}
+	if cfg.ReadOnly && s3Mutation(operation) {
+		return s3Encode(s3Result{Status: "error", Message: "S3 is in read-only mode. Disable s3.readonly to allow changes."})
+	}
+	cfg, release, err := acquireS3Config(ctx, cfg, true)
+	if err != nil {
+		return s3Encode(s3Result{Status: "error", Code: "s3_access_unavailable", Message: err.Error()})
+	}
+	defer release()
+	if cfg.ReadOnly && s3Mutation(operation) {
+		return s3Encode(s3Result{Status: "policy_denied", Code: "s3_readonly", Message: "S3 is in read-only mode"})
+	}
+	bucket = resolveBucket(bucket, cfg.Bucket)
+	destBucket = resolveS3DestinationBucket(bucket, destBucket)
+	prefix, err = authorizeS3Operation(cfg, operation, bucket, key, prefix, destBucket, destKey)
+	if err != nil {
+		return s3Encode(s3Result{Status: "policy_denied", Code: "s3_permission_denied", Message: err.Error()})
+	}
+	if cfg.managed() && operation == "list_buckets" {
+		return s3ManagedBuckets(cfg)
+	}
 	if cfg.AccessKey == "" || cfg.SecretKey == "" {
 		return s3Encode(s3Result{Status: "error", Message: "S3 credentials not configured. Store 's3_access_key' and 's3_secret_key' in the secrets vault."})
 	}
-
 	client, err := newS3Client(cfg)
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("S3 client init failed: %v", err)})
 	}
-
 	switch operation {
 	case "list_buckets":
-		return s3ListBuckets(client)
-	case "list_objects", "list":
-		return s3ListObjects(client, resolveBucket(bucket, cfg.Bucket), prefix)
+		return s3ListBuckets(client, cfg)
+	case "list_objects":
+		return s3ListObjects(client, cfg, bucket, prefix)
 	case "upload":
-		return s3Upload(client, cfg, resolveBucket(bucket, cfg.Bucket), key, localPath)
+		return s3Upload(client, cfg, bucket, key, localPath)
 	case "download":
-		return s3Download(client, cfg, resolveBucket(bucket, cfg.Bucket), key, localPath)
+		return s3Download(client, cfg, bucket, key, localPath)
 	case "delete":
-		return s3Delete(client, resolveBucket(bucket, cfg.Bucket), key)
+		return s3Delete(client, cfg, bucket, key)
 	case "copy":
-		srcBucket := resolveBucket(bucket, cfg.Bucket)
-		return s3Copy(client, srcBucket, key, resolveS3DestinationBucket(srcBucket, destBucket), destKey)
-	case "move":
-		srcBucket := resolveBucket(bucket, cfg.Bucket)
-		return s3Move(client, srcBucket, key, resolveS3DestinationBucket(srcBucket, destBucket), destKey)
+		return s3Copy(client, cfg, bucket, key, destBucket, destKey)
 	default:
-		return s3Encode(s3Result{Status: "error", Message: "operation must be: list_buckets, list_objects, upload, download, delete, copy, or move"})
+		return s3Move(client, cfg, bucket, key, destBucket, destKey)
 	}
 }
 
@@ -156,7 +191,8 @@ func resolveS3DestinationBucket(srcBucket, explicitDestBucket string) string {
 }
 
 func resolveS3DownloadDestination(cfg S3Config, key, localPath string) (string, error) {
-	if !cfg.AllowFilesystemWrite {
+	perms, configured := EffectiveRuntimePermissions(cfg.requestContext())
+	if !cfg.AllowFilesystemWrite || configured && !perms.AllowFilesystemWrite {
 		return "", fmt.Errorf("filesystem write is disabled by runtime permissions")
 	}
 	if strings.TrimSpace(cfg.WorkspaceDir) == "" {
@@ -276,8 +312,8 @@ func s3PathWithinRoot(root, path string) bool {
 
 // ── Operations ───────────────────────────────────────────────────────────────
 
-func s3ListBuckets(client *minio.Client) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func s3ListBuckets(client *minio.Client, cfg S3Config) string {
+	ctx, cancel := context.WithTimeout(cfg.requestContext(), 30*time.Second)
 	defer cancel()
 
 	list, err := client.ListBuckets(ctx)
@@ -295,12 +331,12 @@ func s3ListBuckets(client *minio.Client) string {
 	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("%d bucket(s)", len(buckets)), Data: buckets})
 }
 
-func s3ListObjects(client *minio.Client, bucket, prefix string) string {
+func s3ListObjects(client *minio.Client, cfg S3Config, bucket, prefix string) string {
 	if bucket == "" {
 		return s3Encode(s3Result{Status: "error", Message: "bucket is required"})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(cfg.requestContext(), 60*time.Second)
 	defer cancel()
 
 	opts := minio.ListObjectsOptions{
@@ -309,9 +345,14 @@ func s3ListObjects(client *minio.Client, bucket, prefix string) string {
 	}
 
 	objects := make([]s3ObjectInfo, 0, 64)
+	outputBytes := 0
+	truncated := false
 	for obj := range client.ListObjects(ctx, bucket, opts) {
 		if obj.Err != nil {
 			return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("list objects: %v", obj.Err)})
+		}
+		if cfg.managed() && !cfg.allows(bucket, obj.Key, "read") {
+			return s3Encode(s3Result{Status: "policy_denied", Code: "s3_permission_denied", Message: "S3 returned an object outside the permitted prefix"})
 		}
 		info := s3ObjectInfo{
 			Key:          obj.Key,
@@ -321,14 +362,26 @@ func s3ListObjects(client *minio.Client, bucket, prefix string) string {
 		if !obj.LastModified.IsZero() {
 			info.LastModified = obj.LastModified.Format(time.RFC3339)
 		}
+		if cfg.managed() {
+			encoded, _ := json.Marshal(info)
+			if len(objects) >= 1000 || outputBytes+len(encoded)+1 > cfg.outputBudget() {
+				truncated = true
+				cancel()
+				break
+			}
+			outputBytes += len(encoded) + 1
+		}
 		objects = append(objects, info)
 	}
 
 	msg := fmt.Sprintf("%d object(s) in %s", len(objects), bucket)
-	if prefix != "" {
+	if prefix != "" && !cfg.managed() {
 		msg += fmt.Sprintf(" (prefix: %s)", prefix)
 	}
-	return s3Encode(s3Result{Status: "success", Message: msg, Data: objects})
+	if truncated {
+		msg += "; results truncated, use a narrower allowed prefix"
+	}
+	return s3Encode(s3Result{Status: "success", Message: msg, Data: objects, Truncated: truncated})
 }
 
 func s3Upload(client *minio.Client, cfg S3Config, bucket, key, localPath string) string {
@@ -338,15 +391,36 @@ func s3Upload(client *minio.Client, cfg S3Config, bucket, key, localPath string)
 	if key == "" {
 		return s3Encode(s3Result{Status: "error", Message: "key is required"})
 	}
-	sourcePath, err := resolveS3UploadSource(cfg, localPath)
-	if err != nil {
-		return s3Encode(s3Result{Status: "error", Message: err.Error()})
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(cfg.requestContext(), 5*time.Minute)
 	defer cancel()
-
-	_, err = client.FPutObject(ctx, bucket, key, sourcePath, minio.PutObjectOptions{})
+	var sourcePath string
+	var err error
+	if cfg.managed() {
+		var source *os.File
+		if normalized := normalizeS3WorkspacePath(localPath); !filepath.IsAbs(normalized) && normalized != filepath.Clean(strings.TrimSpace(localPath)) {
+			localPath = filepath.Join(cfg.WorkspaceDir, normalized)
+		}
+		source, sourcePath, err = OpenOutgoingAttachment(localPath, cfg.Config)
+		if err == nil {
+			defer source.Close()
+			var info os.FileInfo
+			info, err = source.Stat()
+			if err == nil {
+				err = cfg.check()
+			}
+			if err == nil {
+				_, err = client.PutObject(ctx, bucket, key, source, info.Size(), minio.PutObjectOptions{})
+			}
+		}
+	} else {
+		sourcePath, err = resolveS3UploadSource(cfg, localPath)
+		if err == nil {
+			err = cfg.check()
+		}
+		if err == nil {
+			_, err = client.FPutObject(ctx, bucket, key, sourcePath, minio.PutObjectOptions{})
+		}
+	}
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("upload: %v", err)})
 	}
@@ -365,7 +439,7 @@ func s3Download(client *minio.Client, cfg S3Config, bucket, key, localPath strin
 		return s3Encode(s3Result{Status: "error", Message: err.Error()})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(cfg.requestContext(), 5*time.Minute)
 	defer cancel()
 
 	obj, err := client.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
@@ -374,82 +448,18 @@ func s3Download(client *minio.Client, cfg S3Config, bucket, key, localPath strin
 	}
 	defer obj.Close()
 
-	if _, err := obj.Stat(); err != nil {
+	info, err := obj.Stat()
+	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("download stat: %v", err)})
 	}
-
-	written, err := writeS3DownloadAtomic(destPath, obj)
+	written, err := writeS3DownloadRooted(cfg, destPath, obj, info.Size)
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("write file: %v", err)})
 	}
 	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("downloaded s3://%s/%s → %s (%d bytes)", bucket, key, destPath, written)})
 }
 
-func writeS3DownloadAtomic(destPath string, src io.Reader) (int64, error) {
-	dir := filepath.Dir(destPath)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return 0, fmt.Errorf("mkdir: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(destPath)+".*.tmp")
-	if err != nil {
-		return 0, fmt.Errorf("create temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	cleanup := true
-	defer func() {
-		if cleanup {
-			_ = os.Remove(tmpPath)
-		}
-	}()
-
-	written, copyErr := io.Copy(tmp, src)
-	closeErr := tmp.Close()
-	if copyErr != nil {
-		return written, fmt.Errorf("copy download: %w", copyErr)
-	}
-	if closeErr != nil {
-		return written, fmt.Errorf("close temp file: %w", closeErr)
-	}
-	if err := replaceS3DownloadFile(tmpPath, destPath); err != nil {
-		return written, err
-	}
-	cleanup = false
-	return written, nil
-}
-
-func replaceS3DownloadFile(tmpPath, destPath string) error {
-	if err := os.Rename(tmpPath, destPath); err == nil {
-		return nil
-	} else if _, statErr := os.Stat(destPath); statErr != nil {
-		return fmt.Errorf("replace destination: %w", err)
-	}
-
-	dir := filepath.Dir(destPath)
-	backup, err := os.CreateTemp(dir, "."+filepath.Base(destPath)+".*.bak")
-	if err != nil {
-		return fmt.Errorf("create destination backup: %w", err)
-	}
-	backupPath := backup.Name()
-	if err := backup.Close(); err != nil {
-		_ = os.Remove(backupPath)
-		return fmt.Errorf("close destination backup: %w", err)
-	}
-	if err := os.Remove(backupPath); err != nil {
-		return fmt.Errorf("prepare destination backup: %w", err)
-	}
-	if err := os.Rename(destPath, backupPath); err != nil {
-		return fmt.Errorf("backup existing destination: %w", err)
-	}
-	if err := os.Rename(tmpPath, destPath); err != nil {
-		_ = os.Rename(backupPath, destPath)
-		return fmt.Errorf("replace destination: %w", err)
-	}
-	_ = os.Remove(backupPath)
-	return nil
-}
-
-func s3Delete(client *minio.Client, bucket, key string) string {
+func s3Delete(client *minio.Client, cfg S3Config, bucket, key string) string {
 	if bucket == "" {
 		return s3Encode(s3Result{Status: "error", Message: "bucket is required"})
 	}
@@ -457,9 +467,12 @@ func s3Delete(client *minio.Client, bucket, key string) string {
 		return s3Encode(s3Result{Status: "error", Message: "key is required"})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(cfg.requestContext(), 30*time.Second)
 	defer cancel()
 
+	if err := cfg.check(); err != nil {
+		return s3Encode(s3Result{Status: "error", Message: err.Error()})
+	}
 	err := client.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{})
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("delete: %v", err)})
@@ -467,7 +480,7 @@ func s3Delete(client *minio.Client, bucket, key string) string {
 	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("deleted s3://%s/%s", bucket, key)})
 }
 
-func s3Copy(client *minio.Client, srcBucket, srcKey, dstBucket, dstKey string) string {
+func s3Copy(client *minio.Client, cfg S3Config, srcBucket, srcKey, dstBucket, dstKey string) string {
 	if srcBucket == "" || srcKey == "" {
 		return s3Encode(s3Result{Status: "error", Message: "source bucket and key are required"})
 	}
@@ -475,11 +488,14 @@ func s3Copy(client *minio.Client, srcBucket, srcKey, dstBucket, dstKey string) s
 		return s3Encode(s3Result{Status: "error", Message: "destination_bucket and destination_key are required"})
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(cfg.requestContext(), 2*time.Minute)
 	defer cancel()
 
 	dst := minio.CopyDestOptions{Bucket: dstBucket, Object: dstKey}
 	src := minio.CopySrcOptions{Bucket: srcBucket, Object: srcKey}
+	if err := cfg.check(); err != nil {
+		return s3Encode(s3Result{Status: "error", Message: err.Error()})
+	}
 	_, err := client.CopyObject(ctx, dst, src)
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("copy: %v", err)})
@@ -487,15 +503,15 @@ func s3Copy(client *minio.Client, srcBucket, srcKey, dstBucket, dstKey string) s
 	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("copied s3://%s/%s → s3://%s/%s", srcBucket, srcKey, dstBucket, dstKey)})
 }
 
-func s3Move(client *minio.Client, srcBucket, srcKey, dstBucket, dstKey string) string {
+func s3Move(client *minio.Client, cfg S3Config, srcBucket, srcKey, dstBucket, dstKey string) string {
 	// Copy then delete
-	result := s3Copy(client, srcBucket, srcKey, dstBucket, dstKey)
+	result := s3Copy(client, cfg, srcBucket, srcKey, dstBucket, dstKey)
 	var r s3Result
 	if err := json.Unmarshal([]byte(result), &r); err != nil || r.Status != "success" {
 		return result
 	}
 
-	delResult := s3Delete(client, srcBucket, srcKey)
+	delResult := s3Delete(client, cfg, srcBucket, srcKey)
 	var dr s3Result
 	if err := json.Unmarshal([]byte(delResult), &dr); err != nil || dr.Status != "success" {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("copy succeeded but delete failed: %s", dr.Message)})

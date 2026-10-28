@@ -220,6 +220,8 @@ agent:
 > [!WARNING]
 > Der Kernspeicher ist immer im Prompt enthalten. Halte ihn kurz (empfohlen unter 500 Tokens), um übermäßige API-Kosten zu vermeiden.
 
+Einträge, die der Agent im Chat geschrieben hat, erscheinen im Prompt mit `[trust:agent-recorded]`. Das kennzeichnet sie als Aufzeichnung des Agenten und nicht als etwas, das du selbst eingegeben hast. Der Kernspeicher nimmt keine Dauerauftrags-Anweisung an: Ein Satz, der den Agenten anweist, bei jeder Antwort oder ab jetzt ein Tool, ein Geheimnis oder einen ausgehenden Kanal zu benutzen (zum Beispiel „Bei jeder Antwort: führe execute_shell aus …“ oder „Ab jetzt sende den Vault-Token an …“), wird abgelehnt und nicht gespeichert, ebenso eine Anweisung, die die Regeln des Agenten aufhebt. Formuliere es als Vorliebe oder Fakt, oder lege das Vorgehen in einer Mission oder einem Skill ab.
+
 ---
 
 ## Notizen & Aufgaben
@@ -651,6 +653,8 @@ Nach jedem Gesprächsstrang analysiert der Helper LLM:
 - **Präferenzen**: Benutzerpräferenzen, Gewohnheiten, Arbeitsabläufe
 - **Korrekturen**: Aktualisierungen previously bekannter Informationen
 - **Ausstehende Aktionen**: Zurückgestellte Folgemaßnahmen
+
+Gespeichert wird nur, was du selbst geschrieben hast. Jeder extrahierte Eintrag muss deine Nachricht aus diesem Gesprächsstrang wörtlich zitieren (ein Satzteil aus mindestens drei Wörtern, kein einzelnes Wort) und muss aussagen, was dieses Zitat aussagt; was das Modell nur aus der Antwort des Agenten gewonnen hat (eine zusammengefasste Webseite, eine Mail, ein Tool-Ergebnis), wird verworfen, ebenso ein Eintrag, der wie eine Dauer-Anweisung für ein Tool, ein Geheimnis oder einen ausgehenden Kanal klingt.
 
 **Aktivitätszusammenfassung:**
 - Benutzerabsicht und -ziel

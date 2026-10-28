@@ -483,6 +483,8 @@ func TestDispatchToolCallPropagatesUserContextToCoAgentStopGuard(t *testing.T) {
 		Logger:          logger,
 		CoAgentRegistry: registry,
 	}, "lasse den autor co agent eine scifi kurzgeschichte erstellen")
+	// Without a Guardian the dispatcher still isolates the result.
+	out, _ = toolResultPayload(out)
 	if !strings.Contains(out, `"status":"blocked"`) {
 		t.Fatalf("expected DispatchToolCall to propagate user context and block stop, got: %s", out)
 	}
