@@ -653,19 +653,22 @@
         }
 
         // One reload per host at most every 300 ms, however many events arrive: the containers, the stacks when that section is
-        // open, and the open stack when the event belongs to it (or a resync says anything may have changed).
+        // open and the batch holds an event of a compose project (or a resync), and the open stack when the event belongs to it (or a
+        // resync says anything may have changed). A container without a compose project cannot change a stack, so its events leave
+        // the stack listing (the lister container, the 30 s cache) alone.
         function queueReload(hostId, project, all) {
             if (state.disposed || !hostId || !scopeIds().includes(hostId)) return;
             let entry = reloads.get(hostId);
-            if (!entry) { entry = { timer: 0, all: false, projects: new Set() }; reloads.set(hostId, entry); }
+            if (!entry) { entry = { timer: 0, all: false, stacks: false, projects: new Set() }; reloads.set(hostId, entry); }
             if (all) entry.all = true;
             if (project) entry.projects.add(project);
+            if (all || project) entry.stacks = true;
             if (entry.timer) return;
             entry.timer = setT(() => {
                 reloads.delete(hostId);
                 if (state.disposed) return;
                 void reloadContainers(hostId);
-                if (state.section === 'stacks') void loadStacks(hostId);
+                if (state.section === 'stacks' && entry.stacks) void loadStacks(hostId);
                 if (state.stack && state.stack.hostId === hostId && (entry.all || entry.projects.has(state.stack.name))) void loadStack(true);
             }, reloadDelay);
         }

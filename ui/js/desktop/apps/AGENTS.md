@@ -403,8 +403,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   heartbeats (at least 45 s; EventSource hides comment lines) is asked first: the wish is sent again, and only a 404, an error or no
   answer within 10 s counts as dead (so an idle stream does not flap); a `host_status` per host says `live`,
   `paused`, `unreachable` or `connecting`. A host that is `live` is polled only every 60 s (`stale()` in `pollOnce`); any other
-  host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (containers, the
-  stacks in the Stacks section, the open stack when its project is named), coalesced to one reload per 300 ms; `operation`
+  host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (the containers;
+  the stacks in the Stacks section only for an event that names a compose project or a resync, because a container without a project
+  cannot change a stack; the open stack when its project is named), coalesced to one reload per 300 ms; `operation`
   messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
   unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
   patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`) and repaints only the gauge area; the markup of the table

@@ -1433,7 +1433,18 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     assert.equal(n(C), reloadBase, 'nothing before the delay is over');
     timers.advance(2);
     await tick(); await tick();
-    eq([n(C) - reloadBase, n(S) - stacksBase], [1, 1], 'three container events make one reload of the containers and one of the stacks');
+    eq([n(C) - reloadBase, n(S) - stacksBase], [1, 0], 'three events of containers without a compose project make one reload of the containers and none of the stacks');
+    // a container of a compose project (or a resync) can change a stack: the stack listing is read again, once, whatever else the batch holds
+    const projectBase = [n(C), n(S)];
+    sources[0].emit('event', die({ project: 'shop', service: 'web' })); sources[0].emit('event', die());
+    timers.advance(400);
+    await tick(); await tick();
+    eq([n(C) - projectBase[0], n(S) - projectBase[1]], [1, 1], 'an event of a compose project reloads the containers and the stacks');
+    const resyncBase = [n(C), n(S)];
+    sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
+    timers.advance(400);
+    await tick(); await tick();
+    eq([n(C) - resyncBase[0], n(S) - resyncBase[1]], [1, 1], 'a resync reloads the containers and the stacks');
     store.setSection('containers');
     await tick(); await tick();
     const switchedC = n(C), stacksFixed = n(S);
