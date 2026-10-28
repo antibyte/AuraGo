@@ -32,6 +32,7 @@ type dmLiveEngine struct {
 	logQueries []string
 	events     int
 	statsCalls int
+	resolves   map[string]dmLiveResolved
 }
 
 // dmLiveInspect is the inspect answer per container name: running or not, and labels.
@@ -118,7 +119,46 @@ func (e *dmLiveEngine) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// dmLiveResolved is what the Engine's inspect answers for one reference the
+// way dockerd resolves it: a short ID prefix or a container the list does not
+// show. A non-zero status is an Engine failure instead of a document.
+type dmLiveResolved struct {
+	status  int
+	id      string
+	name    string
+	running bool
+	labels  map[string]string
+}
+
+// resolve makes the Engine answer the inspect of ref with the document of res,
+// before the fixed table dmLiveInspect.
+func (e *dmLiveEngine) resolve(ref string, res dmLiveResolved) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.resolves == nil {
+		e.resolves = map[string]dmLiveResolved{}
+	}
+	e.resolves[ref] = res
+}
+
 func (e *dmLiveEngine) inspect(w http.ResponseWriter, name string) {
+	e.mu.Lock()
+	res, resolved := e.resolves[name]
+	e.mu.Unlock()
+	if resolved {
+		if res.status != 0 {
+			w.WriteHeader(res.status)
+			_, _ = io.WriteString(w, `{"message":"engine failure"}`)
+			return
+		}
+		doc, _ := json.Marshal(map[string]any{
+			"Id": res.id, "Name": "/" + res.name,
+			"State":  map[string]any{"Running": res.running, "Status": map[bool]string{true: "running", false: "exited"}[res.running]},
+			"Config": map[string]any{"Image": "img:1", "Tty": false, "Env": []string{"PATH=/bin"}, "Cmd": []string{"sh"}, "Labels": res.labels},
+		})
+		_, _ = w.Write(doc)
+		return
+	}
 	info, ok := dmLiveInspect[name]
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)

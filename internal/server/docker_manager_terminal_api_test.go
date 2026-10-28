@@ -170,6 +170,66 @@ func TestDockerManagerTerminalPlainGETNeverCreatesAnExecOrKeepsASlot(t *testing.
 	}
 }
 
+// The Engine takes any unique prefix of a container ID (one character will do) and
+// resolves names before prefixes. The protection of a remote host must follow the
+// container the Engine resolves, so a short reference cannot reach a protected
+// container without ?confirm=protected, on the terminal and on remove alike.
+func TestDockerManagerShortRefsOnARemoteHostKeepTheProtection(t *testing.T) {
+	ls := newDMLiveServer(t, "[]")
+	owned := map[string]string{"aurago.managed": "ruview"}
+	remote := newDMLiveEngine(t, dmContainersJSON(t,
+		dmContainerJSON('w', "web", "sha256:img1", "running", "bridge", owned, nil),
+		dmContainerJSON('x', "plain", "sha256:img1", "running", "bridge", nil, nil)))
+	nas := ls.addTCPHost("NAS", remote)
+	web := dmLiveResolved{id: strings.Repeat("w", 64), name: "web", running: true, labels: owned}
+	for _, ref := range []string{"w", "ww", "www"} { // the Engine resolves every prefix
+		remote.resolve(ref, web)
+	}
+	// A reference the list does not place: the Engine's inspect names the container.
+	remote.resolve("zz", dmLiveResolved{id: strings.Repeat("z", 64), name: "fresh", running: true, labels: owned})
+	remote.resolve("boom", dmLiveResolved{status: http.StatusInternalServerError})
+
+	remove := func(ref, query string) (int, map[string]any) {
+		st := ls.open(http.MethodDelete, "/hosts/"+nas+"/containers/"+ref+query, nil, nil)
+		return st.resp.StatusCode, st.body()
+	}
+	for _, ref := range []string{"w", "ww", "www", "zz"} {
+		t.Run(ref, func(t *testing.T) {
+			if got := ls.diagnose("/hosts/"+nas+"/containers/"+ref+"/terminal", nil); got.status != http.StatusConflict ||
+				got.body["code"] != "container_protected_confirmation_required" || got.body["owner"] != "ruview" {
+				t.Fatalf("terminal of %q = %d %v, want 409 container_protected_confirmation_required (ruview)", ref, got.status, got.body)
+			}
+			if status, body := remove(ref, ""); status != http.StatusConflict ||
+				body["code"] != "container_protected_confirmation_required" || body["owner"] != "ruview" {
+				t.Fatalf("remove of %q = %d %v, want 409 container_protected_confirmation_required (ruview)", ref, status, body)
+			}
+			if sent := remote.term.find(http.MethodDelete, "/containers/"+ref); len(sent) != 0 {
+				t.Fatalf("remove of %q reached the Engine without the confirmation", ref)
+			}
+			remove(ref, "?confirm=protected")
+			if sent := remote.term.find(http.MethodDelete, "/containers/"+ref); len(sent) != 1 {
+				t.Fatalf("confirmed remove of %q sent %d DELETE(s) to the Engine, want 1", ref, len(sent))
+			}
+		})
+	}
+
+	// A container without an owner is still removed unconfirmed, and so is a reference
+	// the Engine reports as gone (the Engine's own 404 answers).
+	if status, body := remove("x", ""); status == http.StatusConflict {
+		t.Fatalf("remove of an unowned container = %d %v, want no confirmation", status, body)
+	}
+	if status, body := remove("ghost", ""); status != http.StatusNotFound || body["code"] != "container_not_found" {
+		t.Fatalf("remove of a gone container = %d %v, want 404 container_not_found", status, body)
+	}
+	// An Engine that cannot say what the reference is stops the removal.
+	if status, body := remove("boom", ""); status != http.StatusBadGateway || body["code"] != "docker_error" {
+		t.Fatalf("remove with a failing inspect = %d %v, want 502 docker_error", status, body)
+	}
+	if sent := remote.term.find(http.MethodDelete, "/containers/boom"); len(sent) != 0 {
+		t.Fatal("a reference the Engine failed to resolve reached the Engine's remove")
+	}
+}
+
 // An Engine that accepts the exec start and never answers must not pin the stream
 // slot until the browser leaves: the request fails within the setup timeout.
 func TestDockerManagerTerminalStalledHandshakeFailsInTimeAndFreesTheSlot(t *testing.T) {

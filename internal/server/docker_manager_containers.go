@@ -259,7 +259,9 @@ func (dm *dmRequest) removeAllowed(ctx context.Context, host dockerhost.Host, cl
 // containers: the owner from names and labels, plus the self check on the
 // container's full ID (an Engine reached by another route, such as an SSH or
 // tcp host on AuraGo's own machine, can still hold the container AuraGo runs
-// in). It writes the 409 and returns false when the request stops.
+// in), for the container the Engine resolves the reference to, whatever its
+// length (remoteContainerProtection). It writes the 409 and returns false when
+// the request stops.
 func (dm *dmRequest) protectionAllowed(ctx context.Context, host dockerhost.Host, client *dockerutil.Client, ref, action string) bool {
 	cfg, _, _ := containerDockerConfig(dm.s)
 	if host.ID == dockerhost.LocalHostID || host.ReachesEngineAt(cfg.Host) {
@@ -305,32 +307,89 @@ func (dm *dmRequest) helperRemoveAllowed(ctx context.Context, client *dockerutil
 	return true
 }
 
-// remoteContainerProtection finds the container by name, full ID or ID prefix
-// and returns the AuraGo owner its names and labels name, and whether AuraGo's
-// own self signals name its full ID. An unknown reference keeps the
-// reserved-name check, like classifyContainerForAction; the remove then reports
-// the 404.
+// remoteContainerProtection finds the container ref names the way the Engine
+// resolves it and returns the AuraGo owner its names and labels name, and
+// whether AuraGo's own self signals name its full ID. The host's container list
+// places the reference first (dmResolveListed); a reference the list cannot
+// place (a prefix several containers share, a container created since the list)
+// is inspected, and the Engine's answer is classified by the full ID, name and
+// labels it returns. A reference is never taken for unprotected because it was
+// not found: the Engine saying the container is gone keeps the reserved-name
+// check, like classifyContainerForAction, and the action then reports the 404;
+// any other failure is returned and stops the request.
 func (dm *dmRequest) remoteContainerProtection(ctx context.Context, client *dockerutil.Client, ref string) (containerProtection, error) {
 	list, err := dockerhost.ListContainers(ctx, client)
 	if err != nil {
 		return containerProtection{}, err
 	}
-	needle := strings.ToLower(ref)
-	for _, container := range list {
-		if dmContainerMatches(container, needle) {
-			return containerProtection{
-				Owner: firstContainerOwner(container.Names, container.Labels),
-				Self:  containerIsSelf(containerRuntimeIsDocker(dm.s), container.FullID),
-			}, nil
-		}
+	if container, ok := dmResolveListed(list, ref); ok {
+		return containerProtection{
+			Owner: firstContainerOwner(container.Names, container.Labels),
+			Self:  containerIsSelf(containerRuntimeIsDocker(dm.s), container.FullID),
+		}, nil
 	}
-	return containerProtection{Owner: firstContainerOwner([]string{ref}, nil)}, nil
+	raw, err := dockerhost.InspectContainer(ctx, client, ref)
+	if err != nil {
+		if dockerhost.StatusOf(err) == http.StatusNotFound {
+			return containerProtection{Owner: firstContainerOwner([]string{ref}, nil)}, nil
+		}
+		return containerProtection{}, err
+	}
+	var info struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		Config struct {
+			Labels map[string]string `json:"labels"`
+		} `json:"config"`
+	}
+	if json.Unmarshal(raw, &info) != nil || info.ID == "" {
+		// The Engine resolved the reference but the answer cannot be classified:
+		// ask instead of allowing.
+		return containerProtection{Owner: firstContainerOwner([]string{ref}, nil), Unverified: true}, nil
+	}
+	return containerProtection{
+		Owner: firstContainerOwner([]string{info.Name, ref}, info.Config.Labels),
+		Self:  containerIsSelf(containerRuntimeIsDocker(dm.s), info.ID),
+	}, nil
 }
 
-// dmHelperMatches is dmContainerMatches for the helper guard, which must not be
-// narrower than the Engine: the Engine takes any unique prefix of the full ID
-// (one character will do), so every non-empty prefix counts here. The owner
-// rules keep dmContainerMatches and its four-character minimum.
+// dmResolveListed finds the listed container the Engine would resolve ref to:
+// the full ID, else a name, else a prefix of the full ID of any length (one
+// character will do) that exactly one container has. A prefix several
+// containers share is no match: the Engine refuses it, and the caller asks the
+// Engine. Comparing is case-insensitive, which can only widen the match.
+func dmResolveListed(list []dockerhost.ContainerSummary, ref string) (dockerhost.ContainerSummary, bool) {
+	needle := strings.ToLower(ref)
+	if needle == "" {
+		return dockerhost.ContainerSummary{}, false
+	}
+	for _, container := range list {
+		if strings.ToLower(container.FullID) == needle {
+			return container, true
+		}
+	}
+	for _, container := range list {
+		for _, name := range container.Names {
+			if strings.ToLower(strings.TrimPrefix(name, "/")) == needle {
+				return container, true
+			}
+		}
+	}
+	var found dockerhost.ContainerSummary
+	matches := 0
+	for _, container := range list {
+		if strings.HasPrefix(strings.ToLower(container.FullID), needle) {
+			found = container
+			matches++
+		}
+	}
+	return found, matches == 1
+}
+
+// dmHelperMatches is the match of the helper guard, which must not be narrower
+// than the Engine: the Engine takes any unique prefix of the full ID (one
+// character will do), so every non-empty prefix counts here, shared prefixes
+// included.
 func dmHelperMatches(container dockerhost.ContainerSummary, needle string) bool {
 	if needle == "" {
 		return false
@@ -341,13 +400,4 @@ func dmHelperMatches(container dockerhost.ContainerSummary, needle string) bool 
 		}
 	}
 	return strings.HasPrefix(strings.ToLower(container.FullID), needle)
-}
-
-func dmContainerMatches(container dockerhost.ContainerSummary, needle string) bool {
-	for _, name := range container.Names {
-		if strings.ToLower(strings.TrimPrefix(name, "/")) == needle {
-			return true
-		}
-	}
-	return len(needle) >= 4 && strings.HasPrefix(strings.ToLower(container.FullID), needle)
 }
