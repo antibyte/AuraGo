@@ -41,6 +41,9 @@
     // Why a container is protected, or null. The server decides what is protected; the UI only explains it.
     function protectedReason(container) {
         const c = container || {};
+        // A runner, IO or lister container of the Stacks feature (role in aurago_helper); removing one needs the confirmation. The
+        // server reports it with the protected owner docker_manager as well, so the role is checked first and the helper text shows.
+        if (c.aurago_helper) return { kind: 'helper', owner: text(c.aurago_helper) };
         if (c.protected_owner) return { kind: 'owner', owner: text(c.protected_owner) };
         if (c.self) return { kind: 'self', owner: '' };
         if (c.docker_endpoint) return { kind: 'endpoint', owner: '' };
@@ -119,6 +122,7 @@
     function portItems(ports) {
         const seen = new Set(), items = [];
         for (const port of array(ports)) {
+            if (!port || typeof port !== 'object') continue;
             const type = text(port.type || 'tcp'), published = Number(port.public) || 0, internal = Number(port.private) || 0;
             const label = (published ? published + '→' : '') + internal + '/' + type;
             if (seen.has(label)) continue;
@@ -157,6 +161,7 @@
             if (scope && scope !== 'all' && host.id !== scope) continue;
             const entry = (byHost || {})[host.id];
             for (const c of array(entry && entry.containers)) {
+                if (!c || typeof c !== 'object') continue;
                 rows.push({ key: host.id + '/' + containerId(c), hostId: host.id, hostName: text(host.name), hostColor: colorOf(host.color), c });
             }
         }
@@ -165,7 +170,7 @@
 
     function haystack(row) {
         const c = row.c;
-        const ports = array(c.ports).map(port => [port.public, port.private].filter(Boolean).join(' ')).join(' ');
+        const ports = array(c.ports).filter(port => port && typeof port === 'object').map(port => [port.public, port.private].filter(Boolean).join(' ')).join(' ');
         return lower([containerName(c), array(c.names).join(' '), c.image, c.id, c.full_id, c.compose_project, c.compose_service, c.state, row.hostName, ports].join(' '));
     }
 
@@ -288,7 +293,7 @@
     }
 
     function hostCounts(hostId, byHost) {
-        const list = array(byHost && byHost[hostId] && byHost[hostId].containers);
+        const list = array(byHost && byHost[hostId] && byHost[hostId].containers).filter(c => c && typeof c === 'object');
         return { running: list.filter(c => lower(c.state) === 'running').length, total: list.length };
     }
 
@@ -396,16 +401,18 @@
 
     // ---- errors ------------------------------------------------------------------------------------------------------
 
-    // One shape for every failure: {code, message, reason, owner, field, status}. The desktop api() throws an Error that
-    // carries the response body and status; a failed fetch carries neither.
+    // One shape for every failure: {code, message, reason, owner, field, status, data}. The desktop api() throws an Error
+    // that carries the response body and status; a failed fetch carries neither. `data` is the whole answer body: the
+    // stack routes put more in it (file and current of a revision_conflict, operation_id of a busy stack, helpers of an
+    // unprepared host, command of a missing runner image).
     function normalizeError(error) {
         const e = error || {};
         const body = e.body && typeof e.body === 'object' ? e.body : {};
         const status = Number(e.status) || 0;
-        if (e.name === 'AbortError' || e.code === 'aborted') return { code: 'aborted', message: '', reason: '', owner: '', field: '', status };
+        if (e.name === 'AbortError' || e.code === 'aborted') return { code: 'aborted', message: '', reason: '', owner: '', field: '', status, data: {} };
         let code = text(body.code || e.code);
         if (!code) code = status === 403 ? 'forbidden' : status === 0 ? 'network' : 'unknown';
-        return { code, message: text(body.message || e.message), reason: text(body.reason), owner: text(body.owner), field: text(body.field), status };
+        return { code, message: text(body.message || e.message), reason: text(body.reason), owner: text(body.owner), field: text(body.field), status, data: body };
     }
 
     window.DockerManagerModel = {

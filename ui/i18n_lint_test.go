@@ -1087,6 +1087,11 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/docker-manager-store.js":    {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-views.js":    {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-dialogs.js":  {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-stacks.js":   {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-editor.js":   {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-ops.js":      {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-palette.js":  {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-newstack.js": {name: "t", prefix: "docker_manager."},
 	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }
 
@@ -1119,6 +1124,19 @@ var desktopDynamicI18nPrefixes = []string{
 	"docker_manager.tab_",
 	"docker_manager.nest_method_",
 	"docker_manager.v_",
+	"docker_manager.stack_status_",
+	"docker_manager.stab_",
+	"docker_manager.age_",
+	"docker_manager.svc_state_",
+	"docker_manager.svc_health_",
+	"docker_manager.op_kind_",
+	"docker_manager.lint_",
+	"docker_manager.op_state_",
+	"docker_manager.palette_",
+	"docker_manager.sv_name_",
+	"docker_manager.convert_",
+	"docker_manager.preview_kind_",
+	"docker_manager.preview_var_",
 }
 
 // desktopDynamicI18nPrefixKeys returns every merged English key that belongs to

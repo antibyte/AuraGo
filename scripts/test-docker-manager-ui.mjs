@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-store.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-store.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -532,6 +532,505 @@ const B = '/api/docker-manager';
     store.dispose();
 }
 
+// ---- model: helper containers and error data --------------------------------------------------------------------------
+eq(plain(model.protectedReason({ aurago_helper: 'runner' })), { kind: 'helper', owner: 'runner' }, 'a Docker Manager helper container is protected');
+eq(plain(model.protectedReason({ aurago_helper: 'io', protected_owner: 'docker_manager' })), { kind: 'helper', owner: 'io' }, 'the server also names docker_manager as the owner of a helper: the helper text wins');
+assert.equal(model.normalizeError(Object.assign(new Error('x'), { status: 409, body: { code: 'revision_conflict', file: 'compose', current: { revision: 'abc' } } })).data.current.revision, 'abc', 'the answer body travels with the error');
+
+// ---- stack model: names, status, rows, groups --------------------------------------------------------------------------
+const sm = window.DockerManagerStackModel;
+assert.ok(sm, 'the stack model publishes its global');
+{
+    eq(sm.validateName('immich'), null);
+    eq(sm.validateName(''), { code: 'empty' });
+    eq(sm.validateName('Immich'), { code: 'invalid' });
+    eq(sm.validateName('-x'), { code: 'invalid' });
+    eq(sm.validateName('a'.repeat(63)), null);
+    eq(sm.validateName('a'.repeat(64)), { code: 'invalid' });
+    eq(sm.validateName('shop', ['shop', 'media']), { code: 'taken' });
+    assert.equal(sm.sanitizeName('My App v2!'), 'my-app-v2');
+    assert.equal(sm.sanitizeName('--nginx'), 'nginx');
+    assert.equal(sm.firstServiceName('services:\n  immich-server:\n    image: x\n  db:\n    image: y\n'), 'immich-server');
+    assert.equal(sm.firstServiceName('version: "3"\nservices:\n  # first\n\n  Web:\n    image: x'), 'web');
+    assert.equal(sm.firstServiceName('image: x'), '');
+
+    const stack = (name, extra = {}) => ({ name, host_id: 'local', dir: '/opt/stacks/' + name, compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 2, running: 2 }, ports: [], container_ids: [], created: 1760000000, ...extra });
+    const listing = (stacks, extra = {}) => ({ host_id: 'local', stacks_dir: '/opt/stacks', stacks, external: [], ignored: [], ...extra });
+    const stacksByHost = {
+        local: { loaded: true, listing: listing([stack('shop'), stack('blog', { status: 'draft', services: { total: 0, running: 0 } })], { external: [{ name: 'legacy', working_dir: '/srv/legacy', status: 'partial', services: { total: 2, running: 1 }, ports: [], container_ids: [] }] }) },
+        h_nas: { loaded: true, listing: listing([stack('media', { host_id: 'h_nas', ports: [{ service: 'plex', public_port: 32400, private_port: 32400, protocol: 'tcp' }] })]) }
+    };
+    const hs = [hostA, hostB];
+    eq(sm.stackRows(hs, stacksByHost, 'all').map(row => row.key), ['local/shop', 'local/blog', 'h_nas/media']);
+    eq(sm.stackRows(hs, stacksByHost, 'h_nas').map(row => row.key), ['h_nas/media'], 'a host scope shows only that host');
+    eq(sm.externalRows(hs, stacksByHost, 'all').map(row => row.key), ['x:local/legacy']);
+    const containerRows = model.buildRows(hs, { local: { containers: [container('shop-web', { compose_project: 'shop' }), container('tools')] }, h_nas: { containers: [container('loose')] } }, 'all');
+    const groups = sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: '' });
+    eq(groups.stacks.map(row => row.stack.name), ['blog', 'media', 'shop'], 'own stacks sort by name across hosts');
+    eq(groups.singles.map(row => model.containerName(row.c)), ['loose', 'tools'], 'only containers without a compose project are single');
+    eq(sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: 'nas plex' }).stacks.length, 0, 'the search words must all match (plex is a service, not a stack field)');
+    eq(sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: '32400' }).stacks.map(row => row.stack.name), ['media'], 'a published port matches');
+    eq(sm.stackGroups(hs, stacksByHost, containerRows, { scope: 'all', query: 'legacy' }).external.length, 1);
+    eq(plain(sm.stackCounts(hs, stacksByHost, 'all')), { stacks: 3, external: 1, total: 4 });
+    assert.equal(sm.stackTone({ status: 'running' }), 'ok');
+    assert.equal(sm.stackTone({ status: 'partial' }), 'warn');
+    assert.equal(sm.stackTone({ status: 'error' }), 'bad');
+    assert.equal(sm.stackTone({ status: 'draft' }), 'idle');
+    assert.equal(sm.stackStatusId({ status: 'weird' }), 'stopped', 'an unknown status reads as stopped');
+    assert.equal(sm.hostStacksState(undefined), 'loading');
+    assert.equal(sm.hostStacksState({ loaded: true, error: null }), 'ok');
+    assert.equal(sm.hostStacksState({ error: { code: 'host_not_prepared' } }), 'not_prepared');
+    assert.equal(sm.hostStacksState({ error: { code: 'api_too_old' } }), 'api_too_old');
+    assert.equal(sm.hostStacksState({ loaded: true, error: { code: 'host_unreachable' } }), 'unreachable');
+    assert.equal(sm.hostStacksState({ error: { code: 'stacks_dir_unavailable' } }), 'unavailable');
+    assert.equal(sm.hostStacksState({ error: { code: 'docker_error' }, loaded: false }), 'error');
+    eq(plain(sm.stackActions({ status: 'running' })), { primary: 'update', restart: true, stop: true, pull: true, down: true, remove: true });
+    eq(plain(sm.stackActions({ status: 'draft' })), { primary: 'deploy', restart: false, stop: false, pull: false, down: false, remove: true });
+    assert.equal(sm.stackActions({ status: 'stopped' }).primary, 'deploy');
+    assert.equal(sm.serviceTone({ state: 'exited', exit_code: 1 }), 'bad');
+    assert.equal(sm.serviceTone({ state: 'exited', exit_code: 0 }), 'idle');
+    assert.equal(sm.serviceTone({ state: 'running', health: 'unhealthy' }), 'warn');
+    assert.equal(sm.serviceStateId({ state: 'gone' }), 'missing');
+}
+
+// ---- stack model: port links, time, bytes ------------------------------------------------------------------------------
+{
+    const ports = [
+        { service: 'web', ip: '0.0.0.0', public_port: 8080, private_port: 80, protocol: 'tcp' },
+        { service: 'web', ip: '::', public_port: 8080, private_port: 80, protocol: 'tcp' },
+        { service: 'dns', ip: '', public_port: 53, private_port: 53, protocol: 'udp' },
+        { service: 'admin', ip: '127.0.0.1', public_port: 9000, private_port: 9000, protocol: 'tcp' },
+        { service: 'db', private_port: 5432, protocol: 'tcp' }
+    ];
+    eq(sm.portLinks(ports, '192.0.2.20').map(link => [link.label, link.url]), [['53', ''], ['8080', 'http://192.0.2.20:8080'], ['9000', '']], 'IPv4 and IPv6 bindings show once; UDP and loopback-only ports are not links; unpublished ports are skipped');
+    assert.equal(sm.portLinks([ports[0]], '2001:db8::1')[0].url, 'http://[2001:db8::1]:8080', 'an IPv6 address is bracketed');
+    assert.equal(sm.portLinks([ports[0]], '')[0].url, '', 'no address, no link');
+    assert.equal(sm.linkAddress({ kind: 'local', address: 'unix:///var/run/docker.sock' }, 'desk.lan'), 'desk.lan', 'the local engine is reached under the name of the page');
+    assert.equal(sm.linkAddress({ kind: 'ssh', address: '[2001:db8::1]' }, 'desk.lan'), '2001:db8::1');
+    assert.equal(sm.linkAddress({ kind: 'tcp', address: 'docker.lan:2375' }, 'desk.lan'), 'docker.lan');
+    const now = 1760000000 * 1000 + 3 * 86400 * 1000 + 5000;
+    eq(sm.age(1760000000, now), { unit: 'days', n: 3 });
+    eq(sm.age(1760000000, 1760000000 * 1000 + 2 * 3600 * 1000), { unit: 'hours', n: 2 });
+    eq(sm.age(1760000000, 1760000000 * 1000 + 90 * 1000), { unit: 'minutes', n: 1 });
+    eq(sm.age(1760000000, 1760000000 * 1000 + 5000), { unit: 'seconds', n: 5 });
+    assert.equal(sm.age(0, now), null, 'a draft has no age');
+    assert.equal(sm.clock(75), '1:15');
+    assert.equal(sm.clock(3725), '1:02:05');
+    assert.equal(sm.elapsed({ started_at: '2026-10-27T10:00:00Z', finished_at: '2026-10-27T10:01:05Z' }, 0), '1:05');
+    assert.equal(sm.elapsed({ created_at: '2026-10-27T10:00:00Z' }, Date.parse('2026-10-27T10:00:09Z')), '0:09', 'a running operation counts from created_at');
+    assert.equal(sm.elapsed({}, 0), '');
+    eq([sm.formatBytes(0), sm.formatBytes(1536), sm.formatBytes(15 * 1024 * 1024), sm.formatBytes(-1), sm.formatBytes(3 * 1024 ** 3)], ['0 B', '1.5 KB', '15 MB', '', '3.0 GB']);
+}
+
+// ---- stack model: lint, .env, dropped files ----------------------------------------------------------------------------
+{
+    const diags = [
+        { line: 5, severity: 'hint', code: 'image_latest', message: 'English', service: 'web' },
+        { line: 2, severity: 'error', code: 'service_no_image', message: 'English', service: 'db' },
+        { line: 2, severity: 'warning', code: 'variable_missing', message: 'English', params: { variable: 'DB_PASSWORD' }, fix: { kind: 'env_random', variable: 'DB_PASSWORD' } },
+        { line: 3, severity: 'warning', code: 'env_syntax', message: 'English', params: { file: '.env', detail: 'expected KEY=value' } },
+        { line: 7, severity: 'warning', code: 'brand_new_code', message: 'Only the server knows this' }
+    ];
+    eq(sm.sortDiagnostics(diags).map(d => d.code), ['service_no_image', 'variable_missing', 'env_syntax', 'image_latest', 'brand_new_code'], 'by line, then severity');
+    eq(sm.splitDiagnostics(diags).env.map(d => d.code), ['env_syntax'], 'env_syntax belongs to the .env editor');
+    eq(sm.splitDiagnostics(diags).compose.length, 4);
+    eq(plain(sm.lintCounts(diags)), { error: 1, warning: 3, hint: 1 });
+    assert.equal(sm.worstSeverity(diags), 'error');
+    assert.equal(sm.worstSeverity([]), '');
+    const t = (key, params) => key.replace('lint_', 'L:') + (params ? JSON.stringify(params) : '');
+    assert.equal(sm.diagnosticText(diags[1], t), 'L:service_no_image{"service":"db"}', 'the service of the diagnostic fills {{service}}');
+    assert.equal(sm.diagnosticText(diags[2], t), 'L:variable_missing{"variable":"DB_PASSWORD"}', 'the params of the diagnostic fill the text');
+    assert.equal(sm.diagnosticText(diags[4], t), 'Only the server knows this', 'an unknown code keeps the server message');
+    assert.equal(sm.diagnosticText(diags[0], key => 'Pin the tag of {{service}}'), 'English', 'a text whose placeholder stayed open falls back to the server message');
+    eq(sm.randomFixes(diags), ['DB_PASSWORD']);
+    eq(sm.randomFixes([{ fix: { kind: 'env_random', variable: 'bad name' } }]), [], 'a variable name that is no valid env name is never offered');
+    const index = sm.lineIndex('a: 1\n  b: 2\r\n\nlast');
+    eq(plain(sm.lineRange(index, 1)), { line: 1, from: 0, to: 4 });
+    eq(plain(sm.lineRange(index, 2)), { line: 2, from: 7, to: 11 }, 'the range starts at the first non-blank character and ends before the line break');
+    eq(plain(sm.lineRange(index, 2, 4)), { line: 2, from: 8, to: 11 }, 'a column moves the start');
+    eq(plain(sm.lineRange(index, 99)), { line: 4, from: 14, to: 18 }, 'a line beyond the end is the last line');
+    eq(plain(sm.lineRange(index, 0)), { line: 1, from: 0, to: 4 }, 'line 0 (the whole file) is the first line');
+    assert.equal(sm.envHas('A=1\nexport DB_PASSWORD = x\n', 'DB_PASSWORD'), true);
+    assert.equal(sm.envHas('#DB_PASSWORD=1\n', 'DB_PASSWORD'), false, 'a comment defines nothing');
+    assert.equal(sm.appendEnvVariable('A=1', 'B', 'x'), 'A=1\nB=x\n');
+    assert.equal(sm.appendEnvVariable('', 'B', 'x'), 'B=x\n');
+    assert.equal(sm.appendEnvVariable('B=old\n', 'B', 'x'), 'B=old\n', 'an existing variable is never overwritten');
+    assert.equal(sm.appendEnvVariable('A=1\n', 'bad name', 'x'), 'A=1\n');
+    const fake = { getRandomValues: bytes => { for (let i = 0; i < bytes.length; i += 1) bytes[i] = (i * 37 + 11) % 256; return bytes; } };
+    const value = sm.randomValue(32, fake);
+    assert.match(value, /^[A-Za-z0-9]{32}$/);
+    assert.equal(sm.randomValue(200, fake).length, 128, 'the length is capped');
+    eq([sm.classifyDroppedFile('compose.yaml'), sm.classifyDroppedFile('docker-compose.yml'), sm.classifyDroppedFile('C:\\x\\immich.YML'), sm.classifyDroppedFile('.env'), sm.classifyDroppedFile('prod.env'), sm.classifyDroppedFile('notes.txt')], ['compose', 'compose', 'compose', 'env', 'env', '']);
+    const preview = { services: [{ name: 'db', volumes: [{ kind: 'named', source: 'pg', target: '/var/lib/postgresql' }, { kind: 'relative', source: './data', target: '/data', read_only: true }] }, { name: 'web', volumes: [{ kind: 'tmpfs', target: '/tmp' }] }] };
+    eq(plain(sm.storageGroups(preview)), { named: [{ service: 'db', source: 'pg', target: '/var/lib/postgresql', readOnly: false }], bind: [], relative: [{ service: 'db', source: './data', target: '/data', readOnly: true }], anonymous: [], tmpfs: [{ service: 'web', source: '', target: '/tmp', readOnly: false }] });
+}
+
+// ---- stack model: line diff ----------------------------------------------------------------------------------------------
+{
+    const rows = sm.lineDiff('a\nb\nc\nd\n', 'a\nB\nc\nd\ne\n');
+    eq(rows.map(row => row.type + ':' + row.text), ['same:a', 'del:b', 'add:B', 'same:c', 'same:d', 'add:e']);
+    eq(rows.map(row => [row.oldNo, row.newNo]), [[1, 1], [2, 0], [0, 2], [3, 3], [4, 4], [0, 5]]);
+    assert.equal(sm.diffChanged(rows), true);
+    assert.equal(sm.diffChanged(sm.lineDiff('x\ny', 'x\ny\n')), false, 'a final line break alone is no difference');
+    assert.equal(sm.diffChanged(sm.lineDiff('', '')), false);
+    eq(sm.lineDiff('', 'a').map(row => row.type), ['add']);
+    const long = Array.from({ length: 30 }, (unused, index) => 'line' + index).join('\n');
+    const collapsed = sm.collapseDiff(sm.lineDiff(long, long.replace('line15', 'LINE15')), 2);
+    eq(collapsed.map(row => row.type), ['skip', 'same', 'same', 'del', 'add', 'same', 'same', 'skip']);
+    assert.equal(collapsed[0].count, 13);
+    const big = Array.from({ length: 2500 }, (unused, index) => 'a' + index).join('\n'), other = Array.from({ length: 2500 }, (unused, index) => 'b' + index).join('\n');
+    assert.equal(sm.lineDiff(big, other).length, 5000, 'a huge middle falls back to "all removed, all added" instead of a slow table');
+}
+
+// ---- stack model: palette --------------------------------------------------------------------------------------------------
+{
+    assert.ok(sm.fuzzyScore('Restart immich', 'rest imm') > sm.fuzzyScore('Deploy my-immich', 'imm'), 'a hit at the start of a word ranks higher');
+    assert.equal(sm.fuzzyScore('Restart immich', 'zzz'), 0);
+    assert.ok(sm.fuzzyScore('Restart immich', 'rsti') > 0, 'a subsequence of two or more letters matches');
+    assert.equal(sm.fuzzyScore('Restart immich', 'r z'), 0, 'every word must match');
+    assert.equal(sm.fuzzyScore('anything', ''), 1);
+    const items = [{ label: 'Deploy shop' }, { label: 'Open shop' }, { label: 'Restart shopping-list' }, { label: 'Prepare NAS' }];
+    eq(sm.rankItems(items, 'shop').map(item => item.label), ['Deploy shop', 'Open shop', 'Restart shopping-list'], 'equal scores keep the original order');
+    eq(sm.rankItems(items, 'open sh').map(item => item.label), ['Open shop']);
+    assert.equal(sm.rankItems(items, '', 2).length, 2, 'the limit applies');
+    eq(sm.highlight('Restart immich', 'imm'), [{ text: 'Restart ', hit: false }, { text: 'imm', hit: true }, { text: 'ich', hit: false }]);
+    const hs2 = [{ id: 'local', name: 'Local' }, { id: 'h_nas', name: 'NAS' }];
+    const row = (hostId, name, status) => ({ key: hostId + '/' + name, hostId, hostName: hostId === 'local' ? 'Local' : 'NAS', stack: { name, status } });
+    const label = (action, params) => action + ':' + (params.stack || params.host || '');
+    const data = { hosts: hs2, stackRows: [row('local', 'shop', 'running'), row('h_nas', 'blog', 'stopped'), row('local', 'wip', 'partial')], multi: true, hostStates: { local: 'ok', h_nas: 'not_prepared' }, scope: 'all', canMutate: true, label };
+    eq(sm.paletteItems(data).map(item => item.id), [
+        'open:local/shop', 'deploy:local/shop', 'restart:local/shop', 'stop:local/shop', 'open:h_nas/blog', 'deploy:h_nas/blog',
+        'open:local/wip', 'deploy:local/wip', 'update:local/wip', 'restart:local/wip', 'stop:local/wip',
+        'new:local', 'switch:local', 'new:h_nas', 'prepare:h_nas', 'switch:h_nas', 'refresh'
+    ], 'actions follow the status; an unprepared host offers Prepare');
+    assert.equal(sm.paletteItems(data)[1].action, 'update', 'a running stack offers Update, not Deploy');
+    assert.equal(sm.paletteItems(data)[0].label, 'open:shop (Local)', 'several hosts: the host is part of the name');
+    eq(sm.paletteItems(Object.assign({}, data, { canMutate: false })).map(item => item.action), ['open', 'open', 'open', 'switch_host', 'switch_host', 'refresh'], 'a read-only window gets no mutating command');
+    const inside = sm.paletteItems(Object.assign({}, data, { scope: 'h_nas', stackRows: [], multi: false })).map(item => item.id);
+    eq(inside.slice(-2), ['switch:all', 'refresh'], 'inside one host there is a way back to all hosts');
+    assert.ok(inside.includes('switch:local') && !inside.includes('switch:h_nas'), 'and a way to the other host, but not to the one already shown');
+}
+
+// ---- stack model: folding the stream of an operation -------------------------------------------------------------------
+{
+    const op = { id: 'op_1', host_id: 'local', stack: 'shop', kind: 'up', state: 'running', output: 'hello\n', created_at: '2026-10-27T10:00:00Z' };
+    const entry = sm.newOpEntry(op, 1000);
+    assert.equal(entry.output, 'hello\n');
+    sm.applyOpEvent(entry, { type: 'output', text: 'world\n' });
+    assert.equal(entry.output, 'hello\nworld\n');
+    sm.applyOpEvent(entry, { type: 'progress', progress: { id: 'db Pulling', status: 'Downloading', current: 50, total: 200 } });
+    sm.applyOpEvent(entry, { type: 'progress', progress: { id: 'web Pulling', status: 'Waiting' } });
+    sm.applyOpEvent(entry, { type: 'progress', progress: { id: 'db Pulling', current: 100 } });
+    eq(sm.progressBars(entry).map(item => [item.id, item.percent]), [['db Pulling', 50]], 'only items with a total get a bar; a later event updates its item');
+    assert.equal(entry.progress.length, 2);
+    sm.applyOpEvent(entry, { type: 'state', operation: { id: 'op_1', state: 'health_wait' } });
+    assert.equal(entry.op.state, 'health_wait');
+    assert.equal(entry.op.stack, 'shop', 'a state event updates, it does not replace');
+    assert.equal(entry.output, 'hello\nworld\n', 'a state event carries no output');
+    assert.equal(sm.isActiveOp(entry.op), true);
+    sm.applyOpEvent(entry, { type: 'done', operation: { id: 'op_1', state: 'failed', output: 'full output\n', error: 'boom', error_line: 4 } });
+    assert.equal(sm.isActiveOp(entry.op), false);
+    assert.equal(entry.output, 'full output\n', 'done carries the whole output');
+    sm.applySnapshot(entry, { id: 'op_1', state: 'running', output: 'again\n' });
+    eq([entry.output, entry.progress.length], ['again\n', 0], 'a snapshot replaces the output and the progress seen so far');
+    const huge = sm.capOutput('x'.repeat(70 * 1024) + '\nlast line');
+    assert.ok(huge.length <= sm.OUTPUT_CAP && huge.endsWith('last line'), 'the output keeps its tail');
+    const e = n => ({ op: { state: n } });
+    eq(sm.trimEntries([e('running'), e('succeeded'), e('failed'), e('queued'), e('succeeded')], 1).map(x => x.op.state), ['running', 'succeeded', 'queued'], 'active entries stay, finished ones are cut to the newest few');
+    eq(plain(sm.parseJSON('{"a":1}')), { a: 1 });
+    assert.equal(sm.parseJSON('not json'), null);
+    assert.equal(sm.draftDirty({ text: 'a' }, { content: 'a' }), false);
+    assert.equal(sm.draftDirty({ text: 'a' }, { content: 'b' }), true);
+}
+
+// ---- store: stacks ---------------------------------------------------------------------------------------------------------
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+class FakeEventSource {
+    static all = [];
+    constructor(url) { this.url = url; this.listeners = {}; this.closed = false; FakeEventSource.all.push(this); }
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    close() { this.closed = true; }
+    emit(type, data) { for (const fn of this.listeners[type] || []) fn({ data: typeof data === 'string' ? data : JSON.stringify(data) }); }
+    fail() { if (this.onerror) this.onerror(); }
+}
+const stackFixture = (name, extra = {}) => ({ name, host_id: 'local', dir: '/opt/stacks/' + name, compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 1, running: 1 }, ports: [], container_ids: [], created: 1760000000, ...extra });
+const listingBody = (stacks, extra = {}) => ({ status: 'ok', host_id: 'local', stacks_dir: '/opt/stacks', stacks, external: [], ignored: [], scanned_at: '2026-10-27T10:00:00Z', cached: false, ...extra });
+const detailFixture = (extra = {}) => ({
+    ...stackFixture('shop'), service_list: [{ name: 'web', image: 'nginx:1.27', state: 'running', ports: [] }],
+    compose: { name: 'compose.yaml', content: 'services:\n  web:\n    image: nginx:1.27\n', revision: 'r1', exists: true }, env: { name: '.env', content: '', revision: '', exists: false }, ...extra
+});
+const opFixture = (extra = {}) => ({ id: 'op_a1', host_id: 'local', stack: 'shop', kind: 'up', options: {}, state: 'queued', output: '', created_at: '2026-10-27T10:00:00Z', ...extra });
+
+{
+    // listing: a host that is not prepared, a host with an old API and an unreachable host keep their own state; a refresh asks the server to rescan
+    let mode = 'ok';
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA, hostB] },
+        ['GET ' + B + '/hosts/local/stacks']: () => {
+            if (mode === 'unprepared') throw httpError(409, { code: 'host_not_prepared', message: 'prepare first', helpers: { runner_image: 'docker:29.9.2-cli', runner_image_present: false, io_container: 'missing' } });
+            if (mode === 'down') throw httpError(502, { code: 'host_unreachable', reason: 'timeout', message: 'dial timeout' });
+            return listingBody([stackFixture('shop'), stackFixture('blog', { status: 'draft' })]);
+        },
+        ['GET ' + B + '/hosts/h_nas/stacks']: () => { throw httpError(409, { code: 'api_too_old', message: 'old engine', api_version: '1.38' }); }
+    });
+    const store = Store.create({ api });
+    assert.equal(store.state.section, 'stacks', 'the Stacks section is the default');
+    await store.loadHosts();
+    await Promise.all([store.loadStacks('local'), store.loadStacks('h_nas')]);
+    eq(store.state.stacks.local.listing.stacks.map(stack => stack.name), ['shop', 'blog']);
+    assert.equal(store.state.stacks.local.loaded, true);
+    eq([store.state.stacks.h_nas.error.code, store.state.stacks.h_nas.error.data.api_version, store.state.stacks.h_nas.listing], ['api_too_old', '1.38', null]);
+    assert.equal(sm.hostStacksState(store.state.stacks.h_nas), 'api_too_old');
+    mode = 'down';
+    await store.loadStacks('local');
+    eq([store.state.stacks.local.error.reason, store.state.stacks.local.listing.stacks.length], ['timeout', 2], 'an unreachable host keeps the stacks it showed last');
+    mode = 'unprepared';
+    await store.loadStacks('local');
+    eq([store.state.stacks.local.listing, store.state.stacks.local.error.data.helpers.runner_image_present], [null, false], 'a host that answers "not prepared" shows nothing stale, and the answer names what is missing');
+    mode = 'ok';
+    await store.loadStacks('local', true);
+    assert.equal(api.calls.filter(call => call.key === 'GET ' + B + '/hosts/local/stacks').pop().url, B + '/hosts/local/stacks?refresh=1');
+    assert.equal(store.state.stacks.local.error, null, 'a recovered host clears its error');
+    store.dispose();
+}
+
+{
+    // the Stacks section loads the listings with the containers; the Containers section leaves the lister alone
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]),
+        ['GET ' + B + '/operations']: { operations: [opFixture({ state: 'running' })] }, ['GET ' + B + '/operations/op_a1/stream']: {}
+    });
+    const store = Store.create({ api, section: 'containers', eventSource: url => new FakeEventSource(url) });
+    FakeEventSource.all = [];
+    store.setVisible(true);
+    await tick(); await tick(); await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/stacks'), 0, 'the Containers section does not list stacks');
+    assert.equal(api.calls.find(call => call.key === 'GET ' + B + '/operations').url, B + '/operations?active=1', 'opening the window asks for the operations that run on the engine');
+    assert.equal(store.state.ops.length, 1, 'a running operation found on the engine joins the drawer');
+    assert.equal(FakeEventSource.all.length, 1, 'and its stream is followed');
+    store.setSection('stacks');
+    await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/stacks'), 1, 'switching to the Stacks section lists the stacks');
+    store.setSection('nonsense');
+    assert.equal(store.state.section, 'stacks');
+    assert.equal(store.pollOnce(), true);
+    await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/stacks'), 2, 'the poll lists the stacks again');
+    store.dispose();
+    assert.equal(FakeEventSource.all[0].closed, true, 'closing the window closes the streams');
+}
+
+{
+    // the open stack: loaded, saved with the revision it is based on, a revision conflict names the host's version
+    let putCalls = 0;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/hosts/local/stacks/shop']: () => ({ stack: detailFixture() }),
+        ['PUT ' + B + '/hosts/local/stacks/shop/files']: () => {
+            putCalls += 1;
+            if (putCalls === 2) throw httpError(409, { code: 'revision_conflict', message: 'changed', file: 'compose', current: { name: 'compose.yaml', content: 'host text', revision: 'r9', exists: true } });
+            return { revisions: putCalls === 1 ? { compose: 'r2', env: 'e1' } : { compose: 'r10' } };
+        },
+        ['GET ' + B + '/hosts/local/stacks/ghost']: () => { throw httpError(404, { code: 'stack_not_found', message: 'no such stack' }); }
+    });
+    const store = Store.create({ api });
+    await store.loadHosts();
+    store.openStack('local', 'shop', 'compose');
+    assert.equal(store.state.stack.status, 'loading');
+    await tick(); await tick();
+    eq([store.state.stack.status, store.state.stack.tab, store.state.stack.detail.compose.revision], ['ok', 'compose', 'r1']);
+    store.setStackTab('env');
+    store.setStackTab('bogus');
+    assert.equal(store.state.stack.tab, 'env');
+    const revisions = await store.saveFiles('local', 'shop', { compose: { content: 'new', revision: 'r1' }, env: { content: 'A=1\n', revision: '' } });
+    eq(plain(revisions), { compose: 'r2', env: 'e1' });
+    assert.deepStrictEqual(plain(api.calls.find(call => call.method === 'PUT').body), { compose: { content: 'new', revision: 'r1' }, env: { content: 'A=1\n', revision: '' } });
+    eq([store.state.stack.detail.compose.content, store.state.stack.detail.compose.revision, store.state.stack.detail.env.exists, store.state.stack.detail.has_env], ['new', 'r2', true, true], 'a saved file becomes the loaded one');
+    await assert.rejects(store.saveFiles('local', 'shop', { compose: { content: 'again', revision: 'r1' } }), error => error.dm.code === 'revision_conflict' && error.dm.data.file === 'compose' && error.dm.data.current.revision === 'r9' && error.dm.data.current.content === 'host text');
+    assert.equal(store.state.stack.detail.compose.revision, 'r2', 'a refused save changes nothing');
+    store.openStack('local', 'ghost');
+    await tick(); await tick();
+    eq([store.state.stack.status, store.state.stack.error.code], ['error', 'stack_not_found']);
+    const late = store.loadStack();
+    store.closeStack();
+    await late;
+    assert.equal(store.state.stack, null, 'closing the pane drops a late answer');
+    store.dispose();
+}
+
+{
+    // an operation: started, followed through its stream, finished; the listing and the open stack are reloaded
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/hosts/local/stacks/shop']: () => ({ stack: detailFixture() }),
+        ['POST ' + B + '/hosts/local/stacks/shop/ops']: () => ({ operation: opFixture() }),
+        ['GET ' + B + '/operations']: () => ({ operations: [opFixture({ state: 'health_wait' })] })
+    });
+    FakeEventSource.all = [];
+    const store = Store.create({ api, eventSource: url => new FakeEventSource(url) });
+    await store.loadHosts();
+    store.openStack('local', 'shop');
+    await tick(); await tick();
+    const finishedIds = [];
+    store.onOperationDone(entry => finishedIds.push(entry.id + ':' + entry.op.state));
+    const started = await store.startOp('local', 'shop', 'up');
+    assert.equal(started.ok, true);
+    assert.deepStrictEqual(plain(api.calls.find(call => call.method === 'POST').body), { kind: 'up' }, 'volumes is sent only when asked for');
+    await store.startOp('local', 'shop', 'down', { volumes: true });
+    assert.deepStrictEqual(plain(api.calls.filter(call => call.method === 'POST').pop().body), { kind: 'down', volumes: true });
+    const stream = FakeEventSource.all[0];
+    assert.equal(stream.url, B + '/operations/op_a1/stream');
+    assert.equal(FakeEventSource.all.length, 1, 'one stream per operation: the second start joined the same id');
+    const entry = store.state.ops[0];
+    stream.emit('snapshot', opFixture({ state: 'running', output: 'pulling\n' }));
+    stream.emit('output', { type: 'output', seq: 1, text: 'more\n' });
+    stream.emit('progress', { type: 'progress', seq: 2, progress: { id: 'web', current: 1, total: 4 } });
+    stream.emit('state', { type: 'state', seq: 3, operation: opFixture({ state: 'health_wait' }) });
+    eq([entry.op.state, entry.output, entry.stream, sm.progressBars(entry)[0].percent], ['health_wait', 'pulling\nmore\n', 'live', 25]);
+    assert.equal(store.activeOps().length, 1);
+    stream.emit('output', 'this is not json');
+    assert.equal(entry.output, 'pulling\nmore\n', 'a broken event is ignored');
+    await store.loadActiveOperations();
+    eq([entry.output, entry.stream, sm.progressBars(entry).map(bar => bar.percent), entry.op.state, store.state.ops.length], ['pulling\nmore\n', 'live', [25], 'health_wait', 1], 'the list of active operations carries no output: it never wipes the output and the progress the stream delivered');
+    const listBefore = api.count('GET ' + B + '/hosts/local/stacks'), detailBefore = api.count('GET ' + B + '/hosts/local/stacks/shop');
+    stream.emit('done', opFixture({ state: 'succeeded', output: 'final\n', ports: [{ service: 'web', public_port: 8080, private_port: 80, protocol: 'tcp' }] }));
+    await tick(); await tick();
+    eq([stream.closed, entry.stream, entry.op.state, entry.output, finishedIds], [true, 'closed', 'succeeded', 'final\n', ['op_a1:succeeded']], 'done closes the stream and tells the listeners once');
+    assert.equal(store.activeOps().length, 0);
+    assert.ok(api.count('GET ' + B + '/hosts/local/stacks') > listBefore, 'the listing is refreshed after the operation');
+    assert.equal(api.calls.filter(call => call.key === 'GET ' + B + '/hosts/local/stacks').pop().url, B + '/hosts/local/stacks?refresh=1');
+    assert.ok(api.count('GET ' + B + '/hosts/local/stacks/shop') > detailBefore, 'and so is the open stack');
+    store.dispose();
+}
+
+{
+    // a busy stack attaches to the running operation; a broken stream is read again and followed again with a growing delay
+    let state = 'running';
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['POST ' + B + '/hosts/local/stacks/shop/ops']: () => { throw httpError(409, { code: 'operation_in_progress', message: 'busy', operation_id: 'op_old', kind: 'update' }); },
+        ['GET ' + B + '/operations/op_old']: () => ({ operation: opFixture({ id: 'op_old', kind: 'update', state, output: 'seen so far\n' }) })
+    });
+    FakeEventSource.all = [];
+    const store = Store.create({ api, eventSource: url => new FakeEventSource(url), reconnectMs: [10, 20] });
+    await store.loadHosts();
+    const busy = await store.startOp('local', 'shop', 'up');
+    eq([busy.ok, busy.busy, busy.error.code], [false, 'op_old', 'operation_in_progress']);
+    await sleep(120);
+    eq([store.state.ops.length, store.state.ops[0].id, FakeEventSource.all.length], [1, 'op_old', 1], 'the running operation is attached and followed');
+    const first = FakeEventSource.all[0];
+    first.emit('snapshot', opFixture({ id: 'op_old', kind: 'update', state: 'running', output: 'seen so far\n' }));
+    first.fail();
+    assert.equal(first.closed, true);
+    assert.equal(store.state.ops[0].stream, 'retry');
+    await sleep(150);
+    assert.equal(FakeEventSource.all.length, 2, 'the operation is read again and the stream reopened');
+    const second = FakeEventSource.all[1];
+    state = 'succeeded';
+    second.fail();
+    await sleep(150);
+    eq([FakeEventSource.all.length, store.state.ops[0].op.state, store.state.ops[0].stream], [2, 'succeeded', 'closed'], 'an operation that ended while the stream was down is finished without a new stream');
+    store.dispose();
+}
+
+{
+    // an operation named by the listing is picked up; create with deploy, delete, prepare, convert, lint, volumes, project actions
+    let lintCalls = 0, deployFails = false;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop', { operation: { id: 'op_x', kind: 'update', state: 'running' } })]),
+        ['GET ' + B + '/operations/op_x']: () => ({ operation: opFixture({ id: 'op_x', kind: 'update', state: 'running' }) }),
+        ['POST ' + B + '/hosts/local/stacks']: () => (deployFails
+            ? { stack: detailFixture({ name: 'blog3' }), deploy_error: { code: 'host_not_prepared', message: 'prepare first' } }
+            : { stack: detailFixture({ name: 'blog' }), operation: opFixture({ id: 'op_c1', stack: 'blog' }) }),
+        ['DELETE ' + B + '/hosts/local/stacks/shop']: () => ({ operation: opFixture({ id: 'op_d1', kind: 'delete' }) }),
+        ['POST ' + B + '/hosts/local/prepare']: () => ({ operation: opFixture({ id: 'op_p1', stack: '', kind: 'prepare' }) }),
+        ['POST ' + B + '/convert/docker-run']: () => ({ compose: 'services:\n  web:\n    image: nginx\n', service: 'web', warnings: [{ code: 'flag_ignored', flag: '--rm', message: 'x' }] }),
+        ['POST ' + B + '/hosts/local/lint']: () => {
+            lintCalls += 1;
+            if (lintCalls === 1) return new Promise(() => {});
+            return { diagnostics: [{ line: 1, severity: 'hint', code: 'image_latest', message: 'x' }], preview: { services: [], named_volumes: [], variables: [] } };
+        },
+        ['GET ' + B + '/hosts/local/stacks/shop/volumes']: { volumes: [{ name: 'shop_db', driver: 'local', size: 1048576 }] },
+        ['POST ' + B + '/hosts/local/projects/legacy/restart']: {},
+        ['GET ' + B + '/hosts/local/helpers']: { helpers: { runner_image: 'docker:29.9.2-cli', prepared: true } },
+        ['GET ' + B + '/operations']: { operations: [opFixture()] }, ['GET ' + B + '/operations/op_a1']: { operation: opFixture({ state: 'succeeded' }) }
+    });
+    FakeEventSource.all = [];
+    const store = Store.create({ api, eventSource: url => new FakeEventSource(url) });
+    await store.loadHosts();
+    await store.loadStacks('local');
+    await tick(); await tick();
+    eq([store.state.ops.map(entry => entry.id), FakeEventSource.all.length], [['op_x'], 1], 'the operation the listing names joins the drawer');
+    const created = await store.createStack('local', { name: 'blog', compose: 'services: {}\n', env: '', deploy: true });
+    assert.deepStrictEqual(plain(api.calls.find(call => call.key === 'POST ' + B + '/hosts/local/stacks').body), { name: 'blog', compose: 'services: {}\n', deploy: true }, 'no .env is sent for an empty one');
+    eq([created.stack.name, store.state.ops[0].id], ['blog', 'op_c1'], 'a deploying create follows its operation');
+    deployFails = true;
+    const opsBefore = store.state.ops.length;
+    const refused = await store.createStack('local', { name: 'blog3', compose: 'x', deploy: true });
+    eq([refused.stack.name, refused.deploy_error.code, refused.operation, store.state.ops.length], ['blog3', 'host_not_prepared', undefined, opsBefore], 'a deploy that could not start answers with deploy_error and no operation: the files are written and nothing is followed');
+    deployFails = false;
+    await store.createStack('local', { name: 'blog2', compose: 'x', env: 'A=1\n' });
+    assert.deepStrictEqual(plain(api.calls.filter(call => call.key === 'POST ' + B + '/hosts/local/stacks').pop().body), { name: 'blog2', compose: 'x', env: 'A=1\n' });
+    assert.equal((await store.deleteStack('local', 'shop', true)).ok, true);
+    assert.equal(api.calls.find(call => call.method === 'DELETE').url, B + '/hosts/local/stacks/shop?volumes=1');
+    assert.equal((await store.prepareHost('local')).entry.op.kind, 'prepare');
+    const converted = await store.convertDockerRun('docker run nginx');
+    eq([converted.service, converted.warnings[0].flag], ['web', '--rm']);
+    assert.equal(api.calls.find(call => call.key === 'POST ' + B + '/convert/docker-run').body.command, 'docker run nginx');
+    const stale = store.lint('local', { compose: 'a' }, 'editor');
+    const fresh = await store.lint('local', { compose: 'b' }, 'editor');
+    await assert.rejects(stale, error => error.dm.code === 'aborted');
+    assert.equal(fresh.diagnostics[0].code, 'image_latest');
+    eq(plain(await store.loadVolumes('local', 'shop')), [{ name: 'shop_db', driver: 'local', size: 1048576 }]);
+    await store.projectAction('local', 'legacy', 'restart');
+    assert.equal((await store.loadHelpers('local')).prepared, true);
+    eq((await store.loadOperations({ host: 'local', stack: 'shop', active: true, limit: 5 })).length, 1);
+    assert.equal(api.calls.filter(call => call.method === 'GET' && call.key === 'GET ' + B + '/operations').pop().url, B + '/operations?host=local&stack=shop&active=1&limit=5');
+    assert.equal((await store.loadOperation('op_a1')).state, 'succeeded');
+    store.dispose();
+}
+
+// ---- model: null entries in the container data --------------------------------------------------------------------------
+assert.equal(model.portItems([null, undefined, { private: 80, public: 8080, type: 'tcp' }, 'x']).length, 1, 'a null port entry is skipped, not dereferenced');
+assert.equal(model.buildRows([hostA], { local: { containers: [null, container('ok')] } }, 'all').length, 1, 'a null container is skipped');
+assert.equal(model.filterRows(model.buildRows([hostA], { local: { containers: [container('web', { ports: [null, { private: 80, public: 8080 }] })] } }, 'all'), { query: '8080' }).length, 1, 'the search survives a null port entry');
+eq(plain(model.totalCounts([hostA], { local: { containers: [null, container('a')] } })), { running: 1, total: 1 });
+
+// ---- store: recovery and failed actions -----------------------------------------------------------------------------------
+{
+    // Docker switched on again: the poll asks for the host list and the app recovers without a manual refresh
+    let docker = false;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: () => { if (!docker) throw httpError(503, { code: 'docker_disabled', message: 'off' }); return { hosts: [hostA] }; },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([])
+    });
+    const store = Store.create({ api });
+    store.setVisible(true);
+    await tick(); await tick(); await tick();
+    assert.equal(store.state.disabled, true);
+    docker = true;
+    assert.equal(store.pollOnce(), true, 'a disabled app keeps polling');
+    await tick(); await tick(); await tick(); await tick();
+    eq([store.state.disabled, store.state.hosts.length, store.state.byHost.local.loaded], [false, 1, true]);
+    store.dispose();
+}
+
+{
+    // a failed container action reloads the list at once
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        ['POST ' + B + '/hosts/local/containers/abc/stop']: () => { throw httpError(500, { code: 'docker_error', message: 'boom' }); }
+    });
+    const store = Store.create({ api, section: 'containers' });
+    await store.refresh();
+    const before = api.count('GET ' + B + '/hosts/local/containers');
+    const result = await store.act('local', 'abc', 'stop');
+    await tick();
+    eq([result.ok, result.error.code, api.count('GET ' + B + '/hosts/local/containers') - before], [false, 'docker_error', 1], 'the list is reloaded after a failed action, not 5 s later');
+    store.dispose();
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -589,8 +1088,8 @@ console.log('docker-manager ui tests: model and store ok');
     eq(ungated, [], 'motion must sit inside @media (prefers-reduced-motion: no-preference) with body:not([data-animations="false"])');
 }
 
-// ---- load contract: all five modules, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-dialogs.js', 'docker-manager.js'];
+// ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -601,19 +1100,185 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
-    assert.ok(full.DockerManagerModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerDialogs && full.DockerManagerApp, 'all five modules publish their global');
+    assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerOps && full.DockerManagerPalette && full.DockerManagerDialogs && full.DockerManagerNewStack && full.DockerManagerApp, 'all 11 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
     assert.equal(typeof full.DockerManagerViews.create, 'function');
     assert.equal(typeof full.DockerManagerDialogs.create, 'function');
 }
 
+// ---- the stack builders: the rail names the sections, the list groups the rows, user data never reaches the markup unescaped -----
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, lang: 'en', uid: 'x' });
+    const stacks = full.DockerManagerStacks.create({ t, esc, model: model2, stackModel: sm2, views, uid: 'x' });
+    const evil = '<img src=x onerror=alert(1)>';
+    const stack = (name, extra = {}) => ({ name, host_id: 'local', dir: '/opt/stacks/' + name, compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 2, running: 2 }, ports: [{ service: 'web', public_port: 8080, private_port: 80, protocol: 'tcp' }], container_ids: [], created: 1760000000, ...extra });
+    const hosts = [hostA, hostB];
+    const stacksByHost = {
+        local: { loaded: true, listing: { stacks: [stack(evil), stack('blog', { status: 'draft', services: { total: 0, running: 0 }, ports: [] })], external: [{ name: 'legacy', working_dir: '/srv/<b>', status: 'partial', services: { total: 2, running: 1 }, ports: [], container_ids: [] }], ignored: [{ name: evil }] } },
+        h_nas: { loaded: false, error: { code: 'host_not_prepared', data: { helpers: { runner_image: 'docker:29.9.2-cli', runner_image_present: false, io_container: 'missing' } } } }
+    };
+    const byHost = { local: { containers: [container('tools'), container('aurago-dm-op-1', { aurago_helper: 'runner' })], loaded: true }, h_nas: { containers: [], loaded: true } };
+    const rows = model2.buildRows(hosts, byHost, 'all');
+    const detail = {
+        ...stack('shop'), service_list: [{ name: '<b>web</b>', image: 'nginx:1.27', state: 'running', health: 'healthy', ports: [{ service: 'web', ip: '0.0.0.0', public_port: 8080, private_port: 80, protocol: 'tcp' }] }, { name: 'db', image: 'postgres:16', state: 'exited', exit_code: 1, ports: [] }],
+        compose: { name: 'compose.yaml', content: 'services: {}', revision: 'r1', exists: true }, env: { name: '.env', content: '', revision: '', exists: false }
+    };
+    const snap = {
+        state: { scope: 'all', stacks: stacksByHost, byHost, hostsLoaded: true, detail: null, stack: { key: 'local/shop', hostId: 'local', name: 'shop', tab: 'overview', status: 'ok', detail, error: null }, busy: new Set(), ops: [] },
+        hosts, scopeHosts: hosts, multi: true, canMutate: true, section: 'stacks', query: '', hostStates: { local: 'ok', h_nas: 'not_prepared' }, prepareActive: {}, stackOps: {}, dirty: { compose: true },
+        pageHost: 'desk.lan', now: 1760000000000 + 86400000, sgroups: sm2.stackGroups(hosts, stacksByHost, rows, { scope: 'all', query: '' }), stackCounts: sm2.stackCounts(hosts, stacksByHost, 'all')
+    };
+    const list = stacks.list(snap);
+    assert.ok(!list.includes('<img') && !list.includes('<b>') && list.includes('&lt;img'), 'names, folders and ignored folders are escaped');
+    assert.ok(list.indexOf('data-sgroup="stacks"') < list.indexOf('data-sgroup="external"') && list.indexOf('data-sgroup="external"') < list.indexOf('data-sgroup="singles"'), 'own stacks, external projects, single containers');
+    assert.ok(list.includes('data-action="prepare-host"') && list.includes('data-host-id="h_nas"') && list.includes('docker:29.9.2-cli') && list.includes('prepare_image_missing'), 'an unprepared host offers Prepare host and names what is missing');
+    assert.ok(list.includes('data-action="project-action"') && list.includes('data-act="restart"'), 'an external project can be started, stopped and restarted');
+    assert.ok(list.includes('class="dm-lock"'), 'a helper container shows its lock');
+    assert.ok(!stacks.list(Object.assign({}, snap, { canMutate: false })).includes('prepare-host'), 'a read-only window offers no Prepare host');
+    const rail = views.rail(snap);
+    assert.ok(rail.includes('data-section="stacks"') && /data-section="stacks"[^>]*aria-current="page"/.test(rail) && !/data-section="containers"[^>]*aria-current/.test(rail), 'the rail marks the current section');
+    const head = stacks.head(snap), overview = stacks.overview(snap);
+    assert.ok(head.includes('data-op="update"') && head.includes('data-op="restart"') && head.includes('class="dm-dirty"'), 'a running stack offers Update, and an unsaved compose tab is marked');
+    assert.ok(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } })).includes('data-op="update"') && /data-op="update"[^>]*disabled/.test(stacks.head(Object.assign({}, snap, { stackOps: { 'local/shop': { op: { kind: 'up', state: 'running' } } } }))), 'a stack with a running operation cannot start another');
+    assert.ok(!stacks.head(Object.assign({}, snap, { canMutate: false })).includes('data-op='), 'a read-only window shows no operation buttons');
+    assert.ok(overview.includes('href="http://desk.lan:8080"') && overview.includes('rel="noopener noreferrer"') && !overview.includes('<b>web'), 'ports are links to the page host name, services are escaped');
+    const shell = stacks.shell(snap.state.stack);
+    assert.ok(shell.includes('data-ed-surface="compose"') && shell.includes('data-ed-surface="env"') && shell.includes('data-action="save-deploy"'), 'the shell holds the two editors and their toolbars');
+    assert.ok(stacks.problem(Object.assign({}, snap, { state: Object.assign({}, snap.state, { stack: { key: 'local/gone', name: 'gone', status: 'error', error: { code: 'stack_not_found' } } }) })).includes('stack_gone'), 'a vanished stack says so');
+}
+
+// ---- the lint scheduler: one request per quiet period, the newest answer wins, aborted requests are silent ------------------------
+{
+    const { createLinter, LINT_DELAY_MS } = full.DockerManagerEditor;
+    assert.equal(LINT_DELAY_MS, 400, 'the editors lint 400 ms after the last edit');
+    const delivered = [];
+    let calls = 0;
+    const linter = createLinter(() => { calls += 1; const mine = calls; return new Promise(resolve => setTimeout(() => resolve({ n: mine }), mine === 1 ? 150 : 5)); }, (result, error) => delivered.push(error ? 'error' : result.n), 20);
+    linter.schedule();
+    linter.schedule();
+    await sleep(70);
+    assert.equal(calls, 1, 'two edits in a row make one request');
+    linter.schedule();
+    await sleep(300);
+    eq(delivered, [2], 'the answer of a request that a newer one replaced is dropped');
+    const failures = [];
+    const failing = createLinter(() => Promise.reject(Object.assign(new Error('x'), { dm: { code: failures.length ? 'aborted' : 'timeout' } })), (result, error) => failures.push(error ? error.dm.code : 'result'), 5);
+    await failing.flush();
+    await failing.flush();
+    eq(failures, ['timeout'], 'a failure is delivered, an aborted request is silent');
+    const cancelled = [];
+    const quiet = createLinter(() => Promise.resolve({ n: 1 }), result => cancelled.push(result), 5);
+    quiet.schedule();
+    quiet.cancel();
+    await sleep(80);
+    quiet.dispose();
+    eq(cancelled, [], 'a cancelled lint never runs');
+}
+
+// ---- the workbench: a save started for one stack never writes into the drafts of another or deploys it -------------------------------
+{
+    // The smallest DOM the editor needs to mount its plain text area (CodeMirror never loads here).
+    const element = () => ({
+        className: '', id: '', hidden: false, dataset: {}, children: [], textContent: '', innerHTML: '', value: '', readOnly: false, spellcheck: false, listeners: {},
+        append(...nodes) { this.children.push(...nodes); }, replaceChildren(...nodes) { this.children = nodes; }, setAttribute() {},
+        addEventListener(type, handler) { (this.listeners[type] = this.listeners[type] || []).push(handler); }
+    });
+    const editorWindow = {};
+    vm.runInNewContext(read('ui/js/desktop/apps/docker-manager-editor.js'), { window: editorWindow, document: { createElement: element }, console, setTimeout, clearTimeout, AbortController, Map, Set, JSON, Math, Date, Promise });
+    const t2 = key => key, never = () => new Promise(() => {});
+    const sm2 = full.DockerManagerStackModel;
+    const factory = editorWindow.DockerManagerEditor.create({ t: t2, esc: String, stackModel: sm2, views: { errorText: () => 'error', dot: () => '' }, uid: 'x', load: never });
+    const stackOf = (name, content) => ({ key: 'local/' + name, hostId: 'local', name, detail: { compose: { content, revision: 'r-' + name, exists: true }, env: { content: '', revision: '', exists: false } } });
+    const store = { state: { stack: null }, lint: () => Promise.resolve({ diagnostics: [] }), saves: [], saveFiles(hostId, name, payload) { return new Promise(resolve => this.saves.push({ hostId, name, payload, resolve })); } };
+    const deployed = [], toasts = [];
+    const bench = factory.createWorkbench({ store, dialogs: {}, toast: (message, tone) => toasts.push(tone), announce() {}, canMutate: () => true, onChange() {}, onDeploy: key => deployed.push(key) });
+    const surface = element(), pane = { querySelector: selector => (selector === '[data-ed-surface="compose"]' ? surface : null), querySelectorAll: () => [] };
+    const openStack = stack => { store.state.stack = stack; bench.open(pane, stack); bench.showTab('compose'); };
+    const edit = text => {
+        const area = surface.children[0].children[0].children[0];
+        area.value = text;
+        for (const handler of area.listeners.input) handler({});
+    };
+
+    openStack(stackOf('a', 'a: 1'));
+    edit('a: 2');
+    assert.equal(bench.anyDirty(), true, 'an edited draft is dirty');
+    const own = bench.save(['compose'], true);
+    store.saves[0].resolve({ compose: 'r-a2' });
+    assert.equal(await own, true, 'a save of the open stack succeeds');
+    eq(deployed, ['local/a'], 'a save with deploy hands the key of the stack it saved to onDeploy');
+    eq([store.saves[0].name, store.saves[0].payload.compose.revision], ['a', 'r-a'], 'the save went to stack a with the revision its draft was based on');
+
+    edit('a: 3');
+    const stale = bench.save(['compose'], true);
+    openStack(stackOf('b', 'b: 1'));
+    toasts.length = 0;
+    store.saves[1].resolve({ compose: 'r-a3' });
+    assert.equal(await stale, false, 'a save that finished after another stack was opened reports failure');
+    eq(deployed, ['local/a'], 'and deploys nothing');
+    eq(bench.dirtyState(), { compose: false, env: false }, 'the drafts of stack b were not written into');
+    eq(toasts, [], 'and nothing is reported as saved');
+    edit('b: 2');
+    const second = bench.save(['compose'], false);
+    store.saves[2].resolve({ compose: 'r-b2' });
+    assert.equal(await second, true, 'the workbench saves for the new stack once the stale save is over');
+    eq([store.saves[2].name, store.saves[2].payload.compose.revision], ['b', 'r-b'], 'the next save goes to stack b');
+    bench.close();
+}
+
+// ---- the progress drawer: a status line, entries with bars, output without colour codes, everything escaped --------------------
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, lang: 'en', uid: 'x' });
+    const store2 = { state: { ops: [] } };
+    const ops = full.DockerManagerOps.create({ t, esc, model: model2, stackModel: sm2, views, store: store2, toast: () => {}, announce: () => {}, uid: 'x' });
+    const snap = { state: store2.state, hosts: [hostA], multi: false, pageHost: 'desk.lan', now: Date.parse('2026-10-27T10:00:30Z') };
+    assert.ok(ops.html(snap).includes('ops_idle'), 'nothing running: the status line says so');
+    const entry = sm2.newOpEntry({ id: 'op_1', host_id: 'local', stack: '<b>shop</b>', kind: 'up', state: 'running', created_at: '2026-10-27T10:00:00Z', output: '\x1b[32mhello <i>\x1b[0m\n' }, 0);
+    sm2.applyOpEvent(entry, { type: 'progress', progress: { id: 'db layer', current: 1, total: 4 } });
+    store2.state.ops = [entry];
+    const closed = ops.html(snap);
+    assert.ok(/aria-expanded="false"/.test(closed) && /dm-ops-body" id="x-ops-body" hidden/.test(closed), 'collapsed: only the status line shows');
+    ops.setOpen(true);
+    const html = ops.html(snap);
+    assert.ok(!html.includes('<b>shop') && html.includes('&lt;b&gt;shop'), 'the stack name is escaped');
+    assert.ok(!html.includes('\x1b') && html.includes('hello &lt;i&gt;'), 'terminal colour codes are removed and the output is escaped');
+    assert.ok(html.includes('<progress') && html.includes('value="25"') && html.includes('db layer'), 'a bar per image that reported a total');
+    assert.ok(html.includes('data-elapsed="op_1"') && html.includes('0:30'), 'the elapsed time counts from the start');
+    assert.equal(ops.tick({ querySelectorAll: () => [] }), true, 'the ticker keeps going while an operation runs');
+    entry.op.state = 'failed';
+    entry.op.error = 'line 3: bad';
+    entry.op.error_line = 3;
+    const failed = ops.html(snap);
+    assert.ok(failed.includes('data-action="op-goto-line"') && failed.includes('line 3: bad') && failed.includes('data-op-output'), 'a failed operation shows its error, a way to the line and its output');
+    assert.equal(ops.tick({ querySelectorAll: () => [] }), false, 'the ticker stops when nothing runs');
+}
+
 // ---- the owner of a 409 protected-confirmation answer gets the translated sentence, never the server's message -----------------
 {
     const t = (key, params) => key + (params ? JSON.stringify(params) : '');
     const views = full.DockerManagerViews.create({ t, esc: String, model: full.DockerManagerModel, lang: 'en', uid: 'x' });
-    eq(['self', 'docker-endpoint', 'shared-network', 'unverified', 'ruview', ''].map(views.protectedLabelText),
-        ['protected_self', 'protected_endpoint', 'protected_network', 'protected_unverified', 'protected_owner{"owner":"ruview"}', '']);
+    eq(['self', 'docker-endpoint', 'shared-network', 'unverified', 'docker_manager', 'ruview', ''].map(views.protectedLabelText),
+        ['protected_self', 'protected_endpoint', 'protected_network', 'protected_unverified', 'protected_helper', 'protected_owner{"owner":"ruview"}', ''], 'a helper container of the Stacks feature names itself, not an owner');
+}
+
+// ---- error texts: the codes of the host and operation routes, and the deploy that could not start -------------------------------
+{
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const views = full.DockerManagerViews.create({ t, esc: String, model: full.DockerManagerModel, lang: 'en', uid: 'x' });
+    for (const code of ['invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict']) {
+        assert.ok(views.errorText({ code, message: 'English' }).startsWith('error_' + code), code + ' has its own text');
+    }
+    assert.ok(views.errorText({ code: 'project_conflict', message: 'runs from /srv/shop' }).endsWith(' runs from /srv/shop'), 'the message of a project conflict names the other folder');
+    assert.ok(views.errorText({ code: 'docker_error', message: 'cause' }).endsWith(' cause'), 'the message of a Docker error names the cause');
+    assert.ok(!views.errorText({ code: 'internal_error', message: 'The deployment could not be started' }).includes('deployment'), 'the code decides, the English message of a deploy_error does not show');
+    assert.equal(views.errorText({ code: 'brand_new', message: 'English' }), 'error_unknown English', 'an unknown code shows the generic sentence and the message');
 }
 
 // ---- translations: every key the code can ask for exists in all sixteen locales with the same placeholders -------------------
@@ -632,26 +1297,44 @@ const full = {};
     for (const key of [...used]) if (key.endsWith('_')) used.delete(key);
     const families = {
         status_: ['running', 'paused', 'restarting', 'exited_code', 'created', 'dead', 'removing', 'unhealthy', 'starting', 'unknown'],
-        action_: [...model.ACTIONS, 'remove', 'logs', 'inspect', 'more', 'open_details', 'done', 'failed'],
+        action_: [...model.ACTIONS, 'remove', 'logs', 'inspect', 'more', 'open_details', 'done', 'failed', 'deploy', 'update', 'pull', 'down', 'down_volumes', 'delete'],
         reason_: [...model.REASONS],
-        error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown'],
+        error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown', 'host_not_prepared', 'api_too_old', 'stacks_unavailable', 'stack_name_invalid', 'stack_not_found', 'stack_exists',
+            'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
+            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'],
         filter_: [...model.STATE_FILTERS],
         kind_: ['local', ...model.HOST_KINDS],
         color_: [...model.HOST_COLORS],
         col_: ['status', 'name', 'image', 'ports', 'actions'],
         host_: ['ok', 'error', 'unknown'],
-        protected_: ['owner', 'self', 'endpoint', 'network', 'unverified'],
+        protected_: ['owner', 'self', 'endpoint', 'network', 'unverified', 'helper'],
         tab_: [...full.DockerManagerViews.TABS],
         nest_method_: [...model.NEST_METHODS],
-        v_: ['name', 'name_taken', 'name_reserved', 'address', 'address_scheme', 'port', 'ssh_user', 'ssh_secret', 'tls_cert', 'path']
+        v_: ['name', 'name_taken', 'name_reserved', 'address', 'address_scheme', 'port', 'ssh_user', 'ssh_secret', 'tls_cert', 'path'],
+        stack_status_: [...sm.STACK_STATUSES],
+        stab_: [...sm.STACK_TABS],
+        age_: ['days', 'hours', 'minutes', 'seconds'],
+        svc_state_: [...sm.SERVICE_STATES],
+        svc_health_: ['healthy', 'unhealthy', 'starting', 'none'],
+        op_kind_: [...sm.OP_KINDS],
+        lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint'],
+        op_state_: [...sm.OP_STATES],
+        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh'],
+        sv_name_: ['empty', 'invalid', 'taken'],
+        convert_: [...sm.CONVERT_WARNINGS],
+        preview_kind_: [...sm.VOLUME_KINDS],
+        preview_var_: ['set', 'default', 'required', 'missing']
     };
+    // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
+    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved']) used.add(prefix + name);
     for (const [family, names] of Object.entries(families)) for (const name of names) used.add(prefix + family + name);
     used.add('desktop.app_docker_manager');
     assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
-    for (const key of used) assert.ok(typeof en[key] === 'string' && en[key].trim() !== '', 'en.json is missing ' + key);
+    eq([...used].filter(key => !(typeof en[key] === 'string' && en[key].trim() !== '')).sort(), [], 'en.json is missing keys the code asks for');
     const tokens = value => [...String(value).matchAll(/\{\{(\w+)\}\}/g)].map(match => match[1]).sort().join(',');
+    assert.ok(/anonymous/.test(en['docker_manager.down_volumes_body']), 'down --volumes also removes the anonymous volumes of the containers, and the copy must say so');
     const own = Object.keys(en).filter(key => key.startsWith(prefix));
-    for (const key of own) assert.ok(used.has(key), 'en.json has the unused key ' + key);
+    eq(own.filter(key => !used.has(key)).sort(), [], 'en.json has keys that no code asks for');
     for (const lang of LANGS) {
         const ownKeys = Object.keys(locales[lang]).filter(key => key.startsWith(prefix));
         eq(ownKeys.sort(), [...own].sort(), lang + '.json has a different docker_manager key set');

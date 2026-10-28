@@ -28,14 +28,23 @@
         search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
         warning: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',
         check: '<path d="M5 12l5 5 9-10"/>',
-        download: '<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>'
+        download: '<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',
+        stacks: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 17l9 5 9-5"/>',
+        deploy: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+        link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+        folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+        command: '<path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/>',
+        file: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/>'
     };
     const ACTION_GLYPH = { start: 'play', unpause: 'play', stop: 'stop', restart: 'restart', pause: 'pause', kill: 'kill', remove: 'remove' };
-    const ERROR_KEYS = ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden'];
-    const DETAIL_ERROR_CODES = ['invalid_host'];
+    const ERROR_KEYS = ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'host_not_prepared', 'api_too_old', 'stacks_unavailable',
+        'stack_name_invalid', 'stack_not_found', 'stack_exists', 'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
+        'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'];
+    // Codes whose own sentence is followed by the server's message, because the message names the cause.
+    const DETAIL_ERROR_CODES = ['invalid_host', 'stacks_dir_unavailable', 'convert_failed', 'docker_error', 'bad_request', 'project_conflict'];
     // The labels of AuraGo's container protection ("owner" of the 409 answer) that are no AuraGo owner name, and the
     // docker_manager.protected_<kind> sentence of each.
-    const PROTECTED_LABEL_KINDS = { self: 'self', 'docker-endpoint': 'endpoint', 'shared-network': 'network', unverified: 'unverified' };
+    const PROTECTED_LABEL_KINDS = { self: 'self', 'docker-endpoint': 'endpoint', 'shared-network': 'network', unverified: 'unverified', docker_manager: 'helper' };
     const PORTS_SHOWN = 2;
     const TABS = ['overview', 'logs', 'inspect'];
     // Terminal colour codes in container logs would show as stray characters.
@@ -68,9 +77,9 @@
         // A user-facing sentence for a failure. Codes without their own text show the generic sentence plus the server's message,
         // because that message names the cause (an engine error, a validation problem).
         function errorText(info) {
-            const e = info || {};
+            const e = info || {}, data = e.data || {};
             if (e.code === 'host_unreachable') return reasonText(e.reason);
-            const known = ERROR_KEYS.includes(e.code), base = known ? t('error_' + e.code) : t('error_unknown');
+            const known = ERROR_KEYS.includes(e.code), base = known ? t('error_' + e.code, { version: String(data.api_version || ''), command: String(data.command || '') }) : t('error_unknown');
             return (!known || DETAIL_ERROR_CODES.includes(e.code)) && e.message ? base + ' ' + e.message : base;
         }
         function stripAnsi(value) { return String(value || '').replace(ANSI, ''); }
@@ -98,10 +107,11 @@
                 const entry = s.byHost[host.id], health = model.hostHealth(host, entry);
                 items.push(option(host.id, model.colorOf(host.color), host.name, host.name + ' · ' + model.hostAddress(host), hostLine(host, entry, health), health.tone, t('host_' + health.state)));
             }
+            const navButton = (section, glyphName, label, count) => '<button type="button" class="dm-nav-btn" data-action="pick-section" data-section="' + section + '" data-focus-id="nav:' + section + '"'
+                + (snap.section === section ? ' aria-current="page"' : '') + '>' + glyph(glyphName) + '<span class="dm-nav-label">' + esc(label) + '</span><span class="dm-count">' + count + '</span></button>';
             return '<div class="dm-rail-section"><h2 class="dm-rail-title" id="' + uid + '-hosts">' + esc(t('hosts_heading')) + '</h2>'
                 + '<div class="dm-hosts" role="listbox" aria-labelledby="' + uid + '-hosts" data-host-list>' + items.join('') + '</div></div>'
-                + '<nav class="dm-nav" aria-label="' + esc(t('nav_label')) + '"><button type="button" class="dm-nav-btn" aria-current="page">' + glyph('containers')
-                + '<span class="dm-nav-label">' + esc(t('nav_containers')) + '</span><span class="dm-count">' + totals.total + '</span></button></nav>'
+                + '<nav class="dm-nav" aria-label="' + esc(t('nav_label')) + '">' + navButton('stacks', 'stacks', t('nav_stacks'), snap.stackCounts.total) + navButton('containers', 'containers', t('nav_containers'), totals.total) + '</nav>'
                 + '<div class="dm-rail-foot"><button type="button" class="dm-link-btn" data-action="manage-hosts" data-focus-id="manage">' + glyph('server') + '<span>' + esc(t('manage_hosts')) + '</span></button></div>';
         }
 
@@ -190,14 +200,21 @@
         }
         const actionButton = (action, label, primary) => '<button type="button" class="dm-btn' + (primary ? ' is-primary' : '') + '" data-action="' + action + '" data-focus-id="' + action + '">' + esc(label) + '</button>';
 
-        // '' when the table has rows. Unreachable hosts are explained by their banners, so an all-unreachable scope shows no extra message.
-        function empty(snap) {
+        // What replaces both sections while Docker is switched off or the host list has not loaded (yet); '' otherwise.
+        function gate(snap) {
             const s = snap.state;
             if (s.disabled) return panel('server', t('disabled_title'), t('disabled_body'), actionButton('open-settings', t('open_settings'), true));
             if (!s.hostsLoaded) {
                 if (s.hostsFailed) return panel('warning', t('load_error_title'), errorText(s.hostsFailed), actionButton('refresh', t('banner_retry'), true));
                 return '<div class="dm-empty-inner is-loading" role="status"><span class="dm-spinner" aria-hidden="true"></span><p>' + esc(t('loading')) + '</p></div>';
             }
+            return '';
+        }
+
+        // '' when the table has rows. Unreachable hosts are explained by their banners, so an all-unreachable scope shows no extra message.
+        function empty(snap) {
+            const s = snap.state, gated = gate(snap);
+            if (gated) return gated;
             if (snap.visible.length) return '';
             if (snap.rows.length === 0) {
                 if (snap.scopeHosts.some(host => !s.byHost[host.id])) return '<div class="dm-empty-inner is-loading" role="status"><span class="dm-spinner" aria-hidden="true"></span><p>' + esc(t('loading')) + '</p></div>';
@@ -205,6 +222,20 @@
                 return panel('containers', t('empty_title'), snap.multi ? t('empty_all_body') : t('empty_body'));
             }
             return panel('search', t('no_match_title'), t('no_match_body'), actionButton('clear-filters', t('clear_filters'), false));
+        }
+
+        // ---- line diff (the revision-conflict dialog) -------------------------------------------------------------------
+
+        // rows come from stackModel.lineDiff; unchanged runs collapse into one "N unchanged lines" row.
+        function diffHtml(rows) {
+            const body = deps.stackModel.collapseDiff(rows, 2).map(row => {
+                if (row.type === 'skip') return '<div class="dm-diff-skip" role="row">' + esc(t('diff_skipped', { count: row.count })) + '</div>';
+                const mark = row.type === 'add' ? '+' : row.type === 'del' ? '-' : '';
+                const word = row.type === 'add' ? t('diff_added') : row.type === 'del' ? t('diff_removed') : '';
+                return '<div class="dm-diff-row" role="row" data-diff="' + row.type + '"><span class="dm-diff-no" aria-hidden="true">' + (row.oldNo || '') + '</span><span class="dm-diff-no" aria-hidden="true">' + (row.newNo || '') + '</span>'
+                    + '<span class="dm-diff-mark" aria-hidden="true">' + mark + '</span>' + (word ? '<span class="dm-sr-only">' + esc(word) + '</span>' : '') + '<code class="dm-diff-text">' + esc(row.text) + '</code></div>';
+            }).join('');
+            return '<div class="dm-diff" role="table" aria-label="' + esc(t('diff_label')) + '" tabindex="0">' + body + '</div>';
         }
 
         // ---- detail drawer -----------------------------------------------------------------------------------------------
@@ -289,7 +320,7 @@
                 + '<div class="dm-drawer-body" role="tabpanel" id="' + uid + '-tabpanel" aria-labelledby="' + uid + '-tab-' + detail.tab + '" data-tab-body="' + detail.tab + '">' + body + '</div>';
         }
 
-        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, banners, tbody, empty, drawer, keyOf, TABS };
+        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
     }
 
     window.DockerManagerViews = { create, TABS, ACTION_GLYPH };
