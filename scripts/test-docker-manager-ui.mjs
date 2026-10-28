@@ -1608,6 +1608,48 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
 }
 
 {
+    // an event-driven stacks reload never joins a listing that started before the event (loadStacks joins whatever is in flight):
+    // it waits for it, then asks again, and the newer answer is the one the app keeps
+    const sources = [], timers = fakeTimers();
+    let gate = null, status = 'running';
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        // the host answers with its state at the moment the request arrives, and may hold the answer back
+        ['GET ' + B + '/hosts/local/stacks']: async () => {
+            const seen = status, held = gate;
+            if (held) await held.promise;
+            return listingBody([stackFixture('shop', { status: seen })]);
+        },
+        ['GET ' + B + '/operations']: { operations: [] },
+        ['PUT ' + B + '/stream/subscriptions']: { status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] }
+    });
+    const store = Store.create({ api, section: 'stacks', eventSource: url => new FakeSource(url, sources), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, now: timers.now, reloadMs: 300 });
+    const S = 'GET ' + B + '/hosts/local/stacks', C = 'GET ' + B + '/hosts/local/containers', settle = async () => { for (let i = 0; i < 4; i += 1) await tick(); };
+    store.setVisible(true);
+    for (let i = 0; i < 8; i += 1) await tick();
+    hello(sources[0]);
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 1 });
+    const shown = () => store.state.stacks.local.listing.stacks[0].status;
+    assert.equal(shown(), 'running');
+    const base = [api.count(S), api.count(C)];
+
+    // the safety poll starts and is held; meanwhile the stack stops and the engine says so
+    gate = {}; gate.promise = new Promise(resolve => { gate.open = resolve; });
+    store.state.stacks.local.at = 0;
+    store.pollOnce(); await settle();
+    eq([api.count(S) - base[0], shown()], [1, 'running'], 'the poll of the stacks is on its way with the old state');
+    status = 'stopped';
+    sources[0].emit('event', { host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'shop-web-1', project: 'shop', service: 'web', t: 5 });
+    timers.advance(300); await settle();
+    eq([api.count(C) - base[1], api.count(S) - base[0]], [1, 1], 'the containers are read at once, the stacks wait for the poll instead of joining it');
+    const release = gate; gate = null;
+    release.open(); await settle();
+    eq([api.count(S) - base[0], shown()], [2, 'stopped'], 'after the poll the stacks are asked again and the newer state wins');
+    store.dispose();
+}
+
+{
     // no live client: without EventSource nothing is opened and the 5 s poll stays what it was
     const api = fakeApi({ ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]), ['GET ' + B + '/operations']: { operations: [] } });
     const store = Store.create({ api, eventSource: null, live: false });

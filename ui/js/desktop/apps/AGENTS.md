@@ -426,7 +426,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (the containers;
   the stacks in the Stacks section only for an event that names a compose project or a resync, because a container without a project
   cannot change a stack; the open stack when its project is named), coalesced to one reload per 300 ms and started at most every 2 s per host (the
-  last event of a burst still leads to one; a reload that runs, or a poll in flight, is waited for, never cancelled by it); `operation`
+  last event of a burst still leads to one; a reload that runs, or a poll in flight, is waited for, never cancelled by it: the containers and the stacks each wait for their own request, then ask again, because `loadStacks` joins a request that is in flight and would keep a state older than the event); `operation`
   messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
   unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
   patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`, only in the table, the stack or project pane and the drawer body, never in the

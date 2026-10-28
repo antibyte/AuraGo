@@ -688,12 +688,16 @@
             const run = { busy: true, last: clock() };
             reloadRuns.set(hostId, run);
             try {
-                // A poll or refresh is on its way: let it end, then read again (its answer may predate the events).
-                const running = inflight.get('c:' + hostId);
-                if (running) { await running; run.last = clock(); }
-                if (state.disposed) return;
-                const jobs = [reloadContainers(hostId)];
-                if (state.section === 'stacks' && entry.stacks) jobs.push(loadStacks(hostId));
+                // A poll or refresh is on its way: let it end, then read again (its answer may predate the events). The containers and the
+                // stacks wait for their own request only, so a slow lister never holds back the containers. loadStacks joins a request that is
+                // in flight, which is why it must not start before that one is over.
+                const afterRunning = async (key, start) => {
+                    const running = inflight.get(key);
+                    if (running) await running;
+                    return state.disposed ? false : start();
+                };
+                const jobs = [afterRunning('c:' + hostId, () => { run.last = clock(); return reloadContainers(hostId); })];
+                if (state.section === 'stacks' && entry.stacks) jobs.push(afterRunning('s:' + hostId, () => loadStacks(hostId)));
                 if (state.stack && state.stack.hostId === hostId && (entry.all || entry.projects.has(state.stack.name))) jobs.push(loadStack(true));
                 await Promise.all(jobs);
             } finally {
