@@ -114,9 +114,13 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 		t.Fatal("/api/docker-manager/ must have an explicit session-admin route contract")
 	}
 	for _, contract := range contracts {
-		// The operation stream (GET /api/docker-manager/operations/{id}/stream) is an event stream.
+		// The operation stream (GET /api/docker-manager/operations/{id}/stream), the live stream and the log
+		// follows are event streams; the container terminal is a WebSocket.
 		if contract.Pattern == "/api/docker-manager/" && !slices.Contains(contract.ContentTypes, "text/event-stream") {
 			t.Fatalf("/api/docker-manager/ contract %+v must list text/event-stream", contract)
+		}
+		if contract.Pattern == "/api/docker-manager/" && !slices.Contains(contract.ContentTypes, "websocket") {
+			t.Fatalf("/api/docker-manager/ contract %+v must list websocket", contract)
 		}
 	}
 	if !routeContractExists(contracts, "/api/manus/", "session") {

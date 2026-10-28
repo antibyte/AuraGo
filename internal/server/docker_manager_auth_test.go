@@ -23,6 +23,11 @@ func TestDockerManagerRoutesKeepAdminScopeThroughAuthMiddleware(t *testing.T) {
 		func() *http.Request {
 			return httptest.NewRequest(http.MethodDelete, "/api/docker-manager/hosts/local/containers/web1", nil)
 		},
+		// The live stream (SSE) and the terminal (WebSocket) sit behind the same gate.
+		func() *http.Request { return httptest.NewRequest(http.MethodGet, "/api/docker-manager/stream", nil) },
+		func() *http.Request {
+			return newContainerTerminalUpgradeRequest("/api/docker-manager/hosts/local/containers/web1/terminal")
+		},
 	}
 	for _, build := range requests {
 		for _, tc := range []struct {
@@ -87,6 +92,10 @@ func TestDockerManagerRoutesStayInTheAdminBearerCatchAll(t *testing.T) {
 
 	for _, path := range []string{
 		"/api/docker-manager/", "/api/docker-manager/hosts", "/api/docker-manager/hosts/local/containers", "/api/docker-manager/hosts/import-nest/n1",
+		// Live data: the event stream and its subscriptions, the log follows, the disk usage and the terminal.
+		"/api/docker-manager/stream", "/api/docker-manager/stream/subscriptions", "/api/docker-manager/hosts/local/df",
+		"/api/docker-manager/hosts/local/containers/web1/logs", "/api/docker-manager/hosts/local/stacks/web/logs",
+		"/api/docker-manager/hosts/local/projects/shop/logs", "/api/docker-manager/hosts/local/containers/web1/terminal",
 		// Stacks: files, operations (the SSE stream included), lint and the converter.
 		"/api/docker-manager/hosts/local/stacks/web/files", "/api/docker-manager/hosts/local/lint",
 		"/api/docker-manager/operations/op_0123456789abcdef/stream", "/api/docker-manager/convert/docker-run",
