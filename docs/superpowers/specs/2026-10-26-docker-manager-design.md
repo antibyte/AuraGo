@@ -160,13 +160,22 @@ Agent tool docker_stacks ───┴─▶ HTTP API /api/docker-manager
 
 - **Events**:
   - One long-lived `GET /events` per host that has a subscriber (types container, image, volume, network), with
-    reconnect plus backoff and a full resync after a reconnect.
-  - If events fail repeatedly, the host falls back to a 10 s list poll and the UI shows "live updates paused".
+    reconnect plus backoff and a full resync after a reconnect. The watcher runs only while a stream client or a
+    project log follower needs it and stops 30 s after the last one.
+  - If events fail repeatedly while the host itself answers, the host falls back to a 10 s list poll and the UI shows
+    "live updates paused"; a host that does not answer is `unreachable` with the classified reason.
 - **Stats**:
-  - The UI subscribes with the container ids it currently shows. The server samples only those, with one-shot
-    `/containers/{id}/stats?stream=false` every 3 s, and keeps a 60-sample ring per container.
-  - Host load comes from `/info` and the container sums. `/system/df` is fetched only on demand and at most every
-    5 min.
+  - The UI subscribes with the container ids it currently shows (at most 50 per host). The server samples only those,
+    with `/containers/{id}/stats?stream=false` (plus `one-shot=true` on API 1.41 and later) every 3 s, at most 4 calls
+    in flight per host, and keeps a 60-sample ring per container. Container CPU is a percent of one core, as in
+    `docker stats`.
+  - Host load comes from `/info` and the container sums (every running container, at most 100, every 10 s while the
+    gauges are open). `/system/df` is fetched only on demand and at most every 5 min; the disk gauge shows Docker's own
+    usage in bytes, because the Engine reports no file-system size.
+- **Streams**: at most 16 streaming Engine connections per host (events, followed logs, terminals). Logs are followed
+  per container and merged for a stack or project (new containers are attached from the watcher's `start` events);
+  lines are capped at 16 KiB and batched. The terminal opens its exec through the host's own transport, so it works on
+  TLS and SSH hosts too.
 - **Update check**:
   - For each image used by a stack service, the local `RepoDigests` entry is compared with the registry manifest
     digest from a `HEAD /v2/<repo>/manifests/<tag>`, using the anonymous token flow, or credentials from the vault for
@@ -194,14 +203,14 @@ AuraGo containers reuse `containerActionAllowed` and `?confirm=protected`
 
 | Area | Routes |
 | --- | --- |
-| Hosts | `GET/POST /hosts`, `PUT/DELETE /hosts/{host}`, `POST /hosts/{host}/test` (engine, runner, IO container), `POST /hosts/import-nest/{nest}`, `GET /hosts/{host}/overview`, `GET /hosts/{host}/helpers`, `POST /hosts/{host}/prepare` |
-| Stacks | `GET/POST /hosts/{host}/stacks`, `GET/DELETE /hosts/{host}/stacks/{name}`, `PUT /hosts/{host}/stacks/{name}/files`, `GET /hosts/{host}/stacks/{name}/volumes`, `POST /hosts/{host}/lint`, `POST /hosts/{host}/stacks/{name}/ops`, `POST /hosts/{host}/projects/{project}/{start,stop,restart}`, `POST /hosts/{host}/stacks/{name}/adopt` (phase 4) |
+| Hosts | `GET/POST /hosts`, `PUT/DELETE /hosts/{host}`, `POST /hosts/{host}/test` (engine, runner, IO container), `POST /hosts/import-nest/{nest}`, `GET /hosts/{host}/overview`, `GET /hosts/{host}/helpers`, `POST /hosts/{host}/prepare`, `GET /hosts/{host}/df` (Docker disk usage, cached 5 min) |
+| Stacks | `GET/POST /hosts/{host}/stacks`, `GET/DELETE /hosts/{host}/stacks/{name}`, `PUT /hosts/{host}/stacks/{name}/files`, `GET /hosts/{host}/stacks/{name}/volumes`, `GET /hosts/{host}/stacks/{name}/logs?follow=1` (SSE), `POST /hosts/{host}/lint`, `POST /hosts/{host}/stacks/{name}/ops`, `POST /hosts/{host}/projects/{project}/{start,stop,restart}`, `GET /hosts/{host}/projects/{project}/logs?follow=1` (SSE), `POST /hosts/{host}/stacks/{name}/adopt` (phase 4) |
 | Operations | `GET /operations`, `GET /operations/{id}`, `GET /operations/{id}/stream` (SSE) |
-| Containers | `GET /hosts/{host}/containers`, `POST .../containers/{id}/{start,stop,restart,pause,unpause,kill}`, `DELETE .../containers/{id}`, `GET .../inspect` (secret env redacted), `GET .../logs?follow=1` (SSE), `GET .../terminal` (WebSocket, same protocol as `containers_terminal.go`) |
+| Containers | `GET /hosts/{host}/containers`, `POST .../containers/{id}/{start,stop,restart,pause,unpause,kill}`, `DELETE .../containers/{id}`, `GET .../inspect` (secret env redacted), `GET .../logs?follow=1` (SSE), `GET .../terminal` (WebSocket, same protocol as `containers_terminal.go`; refused under `docker.readonly`) |
 | Resources | `GET /hosts/{host}/{images,volumes,networks}`, `POST .../images/pull`, `DELETE .../images/{id}`, `DELETE .../volumes/{name}`, `POST/DELETE .../networks` |
 | Cleanup | `POST /hosts/{host}/cleanup/preview`, `POST /hosts/{host}/cleanup` (explicit ids only) |
 | Updates | `GET /updates`, `POST /updates/check` |
-| Live | `GET /stream` (SSE: events, stats, host status, operation progress), `PUT /stream/subscriptions` |
+| Live | `GET /stream` (SSE: events, stats, host stats, host status, operation state changes; one per desktop client, identified by its `stream_id`), `PUT /stream/subscriptions` |
 | Helpers | `POST /convert/docker-run`, `POST /assist`, `GET/POST/DELETE /templates` |
 
 Errors follow the existing envelope (`{status:"error", code, message}`) with stable codes, for example
@@ -215,8 +224,11 @@ Errors follow the existing envelope (`{status:"error", code, message}`) with sta
   - `docker-manager-store.js`: API calls, SSE, subscriptions, optimistic state.
   - `docker-manager-views.js`: rail, list, detail.
   - `docker-manager-editor.js`: CodeMirror with YAML, lint gutter, diff.
-  - `docker-manager-logs.js`
-  - `docker-manager-terminal.js`
+  - `docker-manager-live.js`: the live stream client (subscriptions, stats rings, host stats).
+  - `docker-manager-charts.js`: sparklines and gauges as SVG.
+  - `docker-manager-logs.js`: the log follow panel.
+  - `docker-manager-terminal.js`: the xterm terminal panel.
+  - `docker-manager-panes.js`: stack, project and container panes with their live parts.
   - `docker-manager-resources.js`: images, volumes, networks, cleanup.
   - `docker-manager-dialogs.js`: hosts, new stack, confirmations, conflicts.
   - `docker-manager-palette.js`
@@ -372,6 +384,9 @@ registry management beyond stored credentials; per-user permissions; backups of 
   `docker:29.9.2-cli`, index digest `sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14809346814bbfdb`,
   about 64 MB compressed per arch, Compose 5.6.1; the `--progress json` field names are confirmed by the plan 2 live
   test. Stack routes need Engine API 1.41.
-- Docker Desktop (Windows, macOS): behaviour of a host-path stacks directory inside the Desktop VM; verified in the
-  plan 2 live test.
+- Docker Desktop (Windows, macOS): behaviour of a host-path stacks directory inside the Desktop VM. Still open: the
+  plan 2 live test ran on a Linux engine (aurago-test, Engine 29.8.2), where it passed.
+- Live data (*plan 3*): that the Engine flushes the `/events` headers before the first event, the stats JSON on
+  cgroup v1 and v2 and with `one-shot`, `tail=N&since=T` and `tail=0&follow=1` on log follow, and an exec round trip
+  over each transport kind; checked by the plan 3 live tests.
 - Rootless Docker: socket path detection, or a documented per-host setting.
