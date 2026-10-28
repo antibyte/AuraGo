@@ -194,6 +194,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Docker Engine | `internal/dockerutil/AGENTS.md` | Transport/API negotiation, mutation retry, streaming cancellation. |
 | Docker Manager hosts | `internal/dockerhost/AGENTS.md` | Host registry, vault secrets, TLS/SSH transport shared with Invasion, Engine reads and container actions behind `/api/docker-manager`. |
 | Docker Manager stacks | `internal/dockerstacks/AGENTS.md` | Stack folders per host, compose runner/lister/IO containers, file revisions, operations journal, reattach after restart, lint and `docker run` converter behind `/api/docker-manager`. |
+| Docker Manager live data | `internal/dockerwatch/AGENTS.md` | Engine events watcher per host, container stats rings and host gauges, disk-usage cache, stream budget and the stream-client hub behind `/api/docker-manager/stream`. |
 | Managed RustFS S3 | `internal/rustfs/AGENTS.md` | Optional Docker storage lifecycle, private IAM credentials, scoped S3 leases and retained-volume recovery; server/UI/config/tool integration. |
 | File utilities | `internal/fileutil/AGENTS.md` | Shared file replacement/free-space probe. |
 | EasyDrag | `internal/flows/AGENTS.md` | Flows and Decisions media authorization. |
