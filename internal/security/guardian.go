@@ -873,11 +873,11 @@ func neutralizeRoleMarkers(text string) string {
 // ever sees a prefix of a tool result (the agent clips it after this call, an
 // over-limit isolated result becomes an envelope, and the output vault pages the
 // archived rest back through read_tool_output, which is external and scanned per
-// page), so longer external output is clipped to a prefix of this size, told so
-// by scanClipNote, and that prefix is scanned and isolated like any other output.
-// The text beyond it is never delivered, so no unscanned external text reaches
-// the model while a 300 KiB shell or API result stays usable. Longer source
-// output takes the escaped form without a scan.
+// page), so longer external and project source output is clipped to a prefix of
+// this size, told so by scanClipNote, and that prefix is scanned and isolated like
+// any other output. The text beyond it is never delivered, so no unscanned text
+// reaches the model while a 300 KiB shell or API result stays usable. A clipped
+// source takes the escaped form (IsolateExternalData), not the copyable one.
 const maxScanOutputBytes = 256 * 1024
 
 // scanClipNote closes external output that was clipped at maxScanOutputBytes.
@@ -923,16 +923,21 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	// text that reaches that level only through bare role or time phrases
 	// (relieveBarePhrases, the rule GateScan applies as well).
 	trust := classifyToolOutput(toolName)
-	oversize := trust != toolOutputTrusted && len(output) > maxScanOutputBytes
-	if oversize && trust == toolOutputExternal {
+	clipped := false
+	if trust != toolOutputTrusted && len(output) > maxScanOutputBytes {
 		// Only a prefix of a result ever reaches the model, so the prefix is what
-		// gets scanned; the rest is dropped and the note says so.
+		// gets scanned; the rest is dropped and the note says so. Project source is
+		// clipped like external output: no unscanned text is delivered.
 		if g.logger != nil {
-			g.logger.Info("[Guardian] Clipped external tool output at the scan limit",
+			kind := "external"
+			if trust == toolOutputSourceData {
+				kind = "project source"
+			}
+			g.logger.Info("[Guardian] Clipped "+kind+" tool output at the scan limit",
 				"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
 		}
 		output = clipToScanLimit(output)
-		oversize = false
+		clipped = true
 	}
 	var scan ScanResult
 	var leaves []jsonLeaf
@@ -943,7 +948,7 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	// merged verdict of the texts as written, so a relieved text still names
 	// its categories on the warning line.
 	hostile := false
-	if (trust == toolOutputSourceData || trust == toolOutputExternal) && !oversize {
+	if trust == toolOutputSourceData || trust == toolOutputExternal {
 		bar := ThreatHigh
 		if trust == toolOutputSourceData {
 			bar = ThreatCritical
@@ -1013,9 +1018,11 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
 			}
 			output = IsolateExternalData(output)
-		} else if oversize || scan.Incomplete {
+		} else if clipped || scan.Incomplete {
+			// A clipped source is a prefix with a note, no file to copy from, and an
+			// incomplete scan has not read all of it.
 			if g.logger != nil {
-				g.logger.Info("[Guardian] Project source not fully scanned, escaping",
+				g.logger.Info("[Guardian] Project source clipped or not fully scanned, escaping",
 					"tool", toolName, "bytes", len(output), "limit", maxScanOutputBytes)
 			}
 			output = IsolateExternalData(output)
