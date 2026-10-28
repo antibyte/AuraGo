@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Opdrachtenpalet",
   "docker_manager.search_label_stacks": "Stacks doorzoeken",
   "docker_manager.search_placeholder_stacks": "Zoek stacks, poorten, hosts…",
-  "docker_manager.discard_dialog_body": "Dit formulier bevat niet-opgeslagen invoer. Sluiten en de invoer weggooien?"
+  "docker_manager.discard_dialog_body": "Dit formulier bevat niet-opgeslagen invoer. Sluiten en de invoer weggooien?",
+  "docker_manager.stab_logs": "Logboek",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "Deze host bestaat niet meer."
 }

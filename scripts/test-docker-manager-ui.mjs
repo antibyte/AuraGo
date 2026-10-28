@@ -458,11 +458,10 @@ const B = '/api/docker-manager';
 }
 
 {
-    // detail drawer: logs and inspect on demand, stale answers dropped
+    // detail drawer: inspect on demand, stale answers dropped; the log tab is a follow panel and fetches nothing here
     const api = fakeApi({
         ['GET ' + B + '/hosts']: { hosts: [hostA] },
         ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
-        ['GET ' + B + '/hosts/local/containers/' + 'web'.padEnd(64, '0') + '/logs']: (url) => ({ logs: 'line from ' + url.split('tail=')[1] }),
         ['GET ' + B + '/hosts/local/containers/' + 'web'.padEnd(64, '0') + '/inspect']: { inspect: { Id: 'x' } }
     });
     const store = Store.create({ api });
@@ -470,19 +469,14 @@ const B = '/api/docker-manager';
     const row = model.buildRows(store.state.hosts, store.state.byHost, 'all')[0];
     store.openDetail(row);
     assert.equal(store.state.detail.tab, 'overview');
-    assert.equal(api.count('GET ' + B + '/hosts/local/containers/' + 'web'.padEnd(64, '0') + '/logs'), 0, 'logs load only when the tab opens');
     store.setDetailTab('logs');
+    store.setDetailTab('terminal');
     await tick(); await tick();
-    assert.equal(store.state.detail.logs.status, 'ok');
-    assert.equal(store.state.detail.logs.text, 'line from 200');
-    await store.loadLogs(500);
-    assert.equal(store.state.detail.logs.text, 'line from 500');
-    await store.loadLogs(7);
-    assert.equal(store.state.detail.logs.text, 'line from 500', 'an unsupported tail keeps the current one');
+    eq([store.state.detail.tab, api.calls.filter(call => /inspect|logs|terminal/.test(call.url)).length], ['terminal', 0], 'the log and terminal tabs fetch nothing through the store');
     store.setDetailTab('inspect');
     await tick(); await tick();
     eq(plain(store.state.detail.inspect.data), { Id: 'x' });
-    const stale = store.loadLogs(100);
+    const stale = store.loadInspect();
     store.closeDetail();
     await stale;
     assert.equal(store.state.detail, null, 'closing the drawer drops a late answer');
@@ -800,7 +794,7 @@ const opFixture = (extra = {}) => ({ id: 'op_a1', host_id: 'local', stack: 'shop
         ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]),
         ['GET ' + B + '/operations']: { operations: [opFixture({ state: 'running' })] }, ['GET ' + B + '/operations/op_a1/stream']: {}
     });
-    const store = Store.create({ api, section: 'containers', eventSource: url => new FakeEventSource(url) });
+    const store = Store.create({ api, section: 'containers', live: false, eventSource: url => new FakeEventSource(url) });
     FakeEventSource.all = [];
     store.setVisible(true);
     await tick(); await tick(); await tick(); await tick();
@@ -1362,6 +1356,240 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     h.live.stop();
     h.sources[0].emit('host_status', { host: 'local', state: 'live' });
     assert.equal(h.live.status('local'), null, 'a stopped client ignores late messages');
+}
+
+// ---- model and stack model: terminal state, tabs, palette commands for logs and terminals ---------------------------------
+{
+    const web = container('web'), stopped = container('old', { state: 'exited', status: 'Exited (0) 1 hour ago' }), helper = container('aurago-dm-op-1', { aurago_helper: 'runner', protected_owner: 'docker_manager' });
+    eq([model.terminalState(web), model.terminalState(stopped), model.terminalState(helper), model.terminalState(null)], ['ok', 'not_running', 'helper', 'not_running'], 'a shell needs a running container that is no helper');
+    eq(sm.STACK_TABS, ['overview', 'compose', 'env', 'logs', 'terminal']);
+    eq(sm.PROJECT_TABS, ['overview', 'logs']);
+    eq([model.reasonCode('host_not_found'), model.reasonCode('weird'), model.REASONS.includes('host_not_found')], ['host_not_found', 'unknown', true], 'a host deleted while it was watched has its own reason');
+    const hs = [{ id: 'local', name: 'Local' }];
+    const stackRows = [{ key: 'local/shop', hostId: 'local', hostName: 'Local', stack: { name: 'shop', status: 'running' } }];
+    const containers = model.buildRows(hs, { local: { containers: [web, stopped, helper] } }, 'all');
+    const label = (action, params) => action + ':' + (params.name || params.stack || params.host || '');
+    const data = { hosts: hs, stackRows, containers, logs: true, canTerminal: true, canMutate: true, multi: false, hostStates: { local: 'ok' }, scope: 'local', label };
+    const items = sm.paletteItems(data);
+    eq(items.map(item => item.id), [
+        'open:local/shop', 'logs:local/shop', 'deploy:local/shop', 'restart:local/shop', 'stop:local/shop', 'new:local', 'refresh',
+        'clogs:local/' + 'web'.padEnd(64, '0'), 'term:local/' + 'web'.padEnd(64, '0'), 'clogs:local/' + 'old'.padEnd(64, '0'), 'clogs:local/' + 'aurago-dm-op-1'.padEnd(64, '0')
+    ], 'Logs for every stack and container, Terminal only for running containers that are no helpers');
+    eq(items.slice(7).map(item => [item.action, item.label, item.hostId]), [['logs_container', 'logs:web', 'local'], ['terminal', 'terminal:web', 'local'], ['logs_container', 'logs:old', 'local'], ['logs_container', 'logs:aurago-dm-op-1', 'local']]);
+    eq(items[1].label, 'logs:shop');
+    eq(sm.paletteItems(Object.assign({}, data, { canMutate: false })).filter(item => item.action === 'terminal'), [], 'a read-only window gets no Terminal command');
+    eq(sm.paletteItems(Object.assign({}, data, { containers: undefined, logs: false })).map(item => item.action), ['open', 'update', 'restart', 'stop', 'new_stack', 'refresh'], 'without the new data the palette is what it was');
+    eq(sm.paletteItems(Object.assign({}, data, { multi: true })).filter(item => item.action === 'logs_container')[0].label, 'logs:web (Local)', 'several hosts: the host is part of the name');
+}
+
+// ---- store: live stream -----------------------------------------------------------------------------------------------------
+{
+    const sources = [], timers = fakeTimers();
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA, hostB] },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        ['GET ' + B + '/hosts/h_nas/containers']: { containers: [container('media')] },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/hosts/h_nas/stacks']: listingBody([]),
+        ['GET ' + B + '/hosts/local/stacks/shop']: { stack: detailFixture() },
+        ['GET ' + B + '/operations']: { operations: [] },
+        ['GET ' + B + '/operations/op_a1/stream']: {},
+        ['PUT ' + B + '/stream/subscriptions']: { status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] }
+    });
+    const store = Store.create({ api, section: 'stacks', eventSource: url => new FakeSource(url, sources), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, reloadMs: 300 });
+    const n = key => api.count(key), C = 'GET ' + B + '/hosts/local/containers', S = 'GET ' + B + '/hosts/local/stacks', H = 'GET ' + B + '/hosts';
+    assert.equal(store.liveStatus('local'), 'off', 'no stream before the window is visible');
+    store.setVisible(true);
+    for (let i = 0; i < 8; i += 1) await tick();
+    eq(sources.map(s => s.url), [B + '/stream'], 'a visible window opens the stream');
+    hello(sources[0]);
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 1 });
+    sources[0].emit('host_status', { host: 'h_nas', state: 'connecting', reason: '', t: 1 });
+    eq([store.liveStatus('local'), store.liveStatus('h_nas'), store.state.live.connected], ['live', 'connecting', true]);
+    // the hosts in scope are subscribed (events and status); no gauges while all hosts are shown
+    timers.advance(300);
+    await tick();
+    eq(api.calls.filter(call => call.method === 'PUT').pop().body, { stream_id: 's'.repeat(32), hosts: ['local', 'h_nas'], stats: {}, host_stats: [] });
+
+    // a live host is read again only after about a minute; any other host on every tick
+    const containersBefore = n(C), nasBefore = n('GET ' + B + '/hosts/h_nas/containers');
+    store.pollOnce();
+    await tick(); await tick();
+    eq([n(C) - containersBefore, n('GET ' + B + '/hosts/h_nas/containers') - nasBefore], [0, 1], 'a live host is skipped by the 5 s poll, a connecting host is not');
+    store.state.byHost.local.at = Date.now() - 58000;
+    store.state.stacks.local.at = Date.now() - 58000;
+    store.pollOnce();
+    await tick(); await tick();
+    eq([n(C) - containersBefore, n(S) > 1], [1, true], 'the safety poll of a live host runs once its data is a minute old');
+
+    // events: one reload per host and 300 ms however many events come; other types and other hosts are ignored
+    const reloadBase = n(C), stacksBase = n(S);
+    const die = (extra = {}) => ({ host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'web-1', project: '', service: '', t: 5, ...extra });
+    sources[0].emit('event', die()); sources[0].emit('event', die({ action: 'start' })); sources[0].emit('event', die({ action: 'health_status', health: 'healthy' }));
+    sources[0].emit('event', die({ type: 'image', action: 'pull' }));
+    sources[0].emit('event', die({ host: 'elsewhere' }));
+    timers.advance(299);
+    await tick();
+    assert.equal(n(C), reloadBase, 'nothing before the delay is over');
+    timers.advance(2);
+    await tick(); await tick();
+    eq([n(C) - reloadBase, n(S) - stacksBase], [1, 1], 'three container events make one reload of the containers and one of the stacks');
+    store.setSection('containers');
+    await tick(); await tick();
+    const switchedC = n(C), stacksFixed = n(S);
+    sources[0].emit('event', die());
+    timers.advance(400);
+    await tick(); await tick();
+    eq([n(C) - switchedC, n(S) - stacksFixed], [1, 0], 'the Containers section does not reload the stacks');
+    store.setSection('stacks');
+    await tick(); await tick();
+
+    // an event of the open stack's project reloads that stack; a resync reloads it whatever the project
+    store.openStack('local', 'shop', 'overview');
+    await tick(); await tick();
+    const stackBase = n('GET ' + B + '/hosts/local/stacks/shop');
+    sources[0].emit('event', die({ project: 'other' }));
+    timers.advance(400);
+    await tick(); await tick();
+    assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 0, 'an event of another project leaves the open stack alone');
+    sources[0].emit('event', die({ project: 'shop' }));
+    timers.advance(400);
+    await tick(); await tick();
+    assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 1);
+    sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
+    timers.advance(400);
+    await tick(); await tick();
+    assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 2, 'a resync reloads the open stack too');
+    store.closeStack();
+
+    // operation messages join the drawer and are followed through their own stream
+    sources[0].emit('operation', { host: 'local', operation: opFixture({ state: 'running' }) });
+    eq([store.state.ops.length, store.state.ops[0].op.state, sources.filter(s => s.url.endsWith('/operations/op_a1/stream')).length], [1, 'running', 1]);
+
+    // stats and host stats reach their own listeners and never repaint the app
+    let repaints = 0;
+    store.subscribe(() => { repaints += 1; });
+    const seen = [];
+    const off1 = store.onStats((host, id, points) => seen.push(['stats', host, id, points.length]));
+    const off2 = store.onHostStats((host, data) => seen.push(['host', host, data.cpu]));
+    store.setLiveStats({ local: ['abcdef012345ffff'], elsewhere: ['zzz'] });
+    timers.advance(300);
+    await tick();
+    eq(api.calls.filter(call => call.method === 'PUT').pop().body.stats, { local: ['abcdef012345'] }, 'only containers of hosts in scope are subscribed, cut to the short id');
+    repaints = 0;
+    sources[0].emit('stats', { host: 'local', id: 'abcdef012345', point: point(1, 4) });
+    sources[0].emit('host_stats', { host: 'local', t: 1, cpu: 7, ncpu: 2, mem_used: 1, mem_total: 2, running: 1, sampled: 1, partial: false });
+    eq(seen, [['stats', 'local', 'abcdef012345', 1], ['host', 'local', 7]]);
+    assert.equal(repaints, 0, 'stats do not repaint the app');
+    eq([store.liveRing('local', 'abcdef012345').length, store.liveHostStats('local').cpu], [1, 7]);
+    off1(); off2();
+    sources[0].emit('stats', { host: 'local', id: 'abcdef012345', point: point(2, 5) });
+    assert.equal(seen.length, 2, 'a removed listener hears nothing');
+
+    // gauges are asked for under a single host
+    store.setScope('local');
+    timers.advance(300);
+    await tick();
+    eq(api.calls.filter(call => call.method === 'PUT').pop().body.host_stats, ['local']);
+    store.setScope('all');
+    await tick(); await tick();
+
+    // paused host: the 5 s poll is back and the status says so
+    sources[0].emit('host_status', { host: 'local', state: 'paused', reason: '', t: 9 });
+    assert.equal(store.liveStatus('local'), 'paused');
+    const pausedBase = n(C);
+    store.pollOnce();
+    await tick(); await tick();
+    assert.equal(n(C) - pausedBase, 1, 'a paused host is polled on every tick again');
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 10 });
+
+    // the stream breaks: every host is paused, and the reconnect reads everything once
+    sources[0].fail();
+    eq([store.state.live.failed, store.liveStatus('local'), store.liveStatus('h_nas')], [true, 'paused', 'paused']);
+    const downBase = n(C);
+    timers.advance(1001);
+    assert.equal(sources.filter(s => s.url === B + '/stream').length, 2);
+    hello(sources[sources.length - 1], 'r'.repeat(32));
+    await tick(); await tick();
+    eq([store.state.live.failed, store.state.live.connected, n(C) - downBase >= 1], [false, true, true], 'the reconnect reloads what may have changed meanwhile');
+
+    // hiding the window ends the stream
+    store.setVisible(false);
+    assert.equal(sources[sources.length - 1].closed, true);
+    eq([store.liveStatus('local'), store.state.live.connected], ['off', false]);
+    store.dispose();
+}
+
+{
+    // no live client: without EventSource nothing is opened and the 5 s poll stays what it was
+    const api = fakeApi({ ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]), ['GET ' + B + '/operations']: { operations: [] } });
+    const store = Store.create({ api, eventSource: null, live: false });
+    store.setVisible(true);
+    for (let i = 0; i < 6; i += 1) await tick();
+    assert.equal(store.liveStatus('local'), 'off');
+    const before = api.count('GET ' + B + '/hosts/local/containers');
+    store.pollOnce();
+    await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/containers') - before, 1);
+    store.setLiveStats({ local: ['a'] });
+    assert.deepEqual(plain(store.liveRing('local', 'a')), []);
+    store.dispose();
+}
+
+// ---- store: disk usage, external project, terminal diagnosis --------------------------------------------------------------
+{
+    let mode = 'ok';
+    const df = { images: { count: 3, active: 2, size: 1000, reclaimable: 100 }, containers: { count: 2, active: 1, size: 10, reclaimable: 0 }, volumes: { count: 1, active: 1, size: 500, reclaimable: 0 }, build_cache: { count: 0, active: 0, size: 0, reclaimable: 0 }, total: 1510 };
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA, hostB] },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/h_nas/containers']: { containers: [] },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([]), ['GET ' + B + '/hosts/h_nas/stacks']: listingBody([]), ['GET ' + B + '/operations']: { operations: [] },
+        ['GET ' + B + '/hosts/local/df']: () => { if (mode === 'fail') throw httpError(502, { code: 'host_unreachable', reason: 'timeout', message: 'slow' }); return { status: 'ok', df, fetched_at: '2026-10-28T10:00:00Z', cached: mode === 'cached' }; },
+        ['GET ' + B + '/hosts/local/containers/ruview/terminal']: () => { throw httpError(409, { code: 'container_protected_confirmation_required', owner: 'ruview', message: 'confirm' }); },
+        ['GET ' + B + '/hosts/local/containers/ro/terminal']: () => { throw httpError(403, { code: 'read_only', message: 'read only' }); },
+        ['GET ' + B + '/hosts/local/containers/odd/terminal']: {}
+    });
+    const store = Store.create({ api, scope: 'local', section: 'containers', live: false });
+    await store.refresh();
+    const D = 'GET ' + B + '/hosts/local/df';
+    eq([api.count(D), store.state.df.local.status, store.state.df.local.df.total, store.state.df.local.cached], [1, 'ok', 1510, false], 'a single host scope reads its disk usage once');
+    await store.refresh();
+    assert.equal(api.count(D), 1, 'a fresh reading is not read again');
+    mode = 'cached';
+    await store.loadDf('local', { refresh: true });
+    eq([api.calls.filter(call => call.key === D).pop().url, store.state.df.local.cached], [B + '/hosts/local/df?refresh=1', true], 'the gauge refresh asks the server to read again');
+    mode = 'fail';
+    await store.loadDf('local', { refresh: true });
+    eq([store.state.df.local.status, store.state.df.local.df.total, store.state.df.local.error.code, store.state.df.local.busy], ['ok', 1510, 'host_unreachable', false], 'a failed reading keeps the last numbers and records the error');
+    store.setScope('all');
+    const allBase = api.count(D);
+    await store.refresh();
+    assert.equal(api.count(D), allBase, 'all hosts have no gauge and read no disk usage');
+    store.dispose();
+
+    // the external project pane and the stack pane exclude each other; tabs are checked
+    const store2 = Store.create({ api, live: false, scope: 'all' });
+    await store2.refresh();
+    store2.openProject('local', 'legacy', 'logs');
+    eq([store2.state.project.key, store2.state.project.tab], ['x:local/legacy', 'logs']);
+    store2.setProjectTab('compose');
+    assert.equal(store2.state.project.tab, 'logs', 'an unknown tab is ignored');
+    store2.openStack('local', 'shop', 'overview');
+    eq([store2.state.project, store2.state.stack.key], [null, 'local/shop'], 'opening a stack closes the project pane');
+    store2.openProject('local', 'legacy');
+    eq([store2.state.stack, store2.state.project.tab], [null, 'overview'], 'opening a project closes the stack pane');
+    store2.closeProject();
+    assert.equal(store2.state.project, null);
+    store2.dispose();
+
+    // a refused terminal handshake is explained by a plain GET
+    const store3 = Store.create({ api, live: false });
+    const protectedInfo = await store3.diagnoseTerminal('local', 'ruview');
+    eq([protectedInfo.code, protectedInfo.data.owner], ['container_protected_confirmation_required', 'ruview']);
+    const readonlyInfo = await store3.diagnoseTerminal('local', 'ro');
+    eq([readonlyInfo.code, store3.state.dockerReadonly], ['read_only', true], 'a read_only answer switches the app to read-only');
+    assert.equal(await store3.diagnoseTerminal('local', 'odd'), null, 'an answer without an error is no diagnosis');
+    store3.dispose();
 }
 
 console.log('docker-manager ui tests: model and store ok');

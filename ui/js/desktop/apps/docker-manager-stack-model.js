@@ -7,7 +7,8 @@
     'use strict';
 
     const SECTIONS = ['stacks', 'containers'];
-    const STACK_TABS = ['overview', 'compose', 'env'];
+    const STACK_TABS = ['overview', 'compose', 'env', 'logs', 'terminal'];
+    const PROJECT_TABS = ['overview', 'logs'];
     const STACK_STATUSES = ['running', 'partial', 'stopped', 'error', 'draft'];
     const STACK_TONE = { running: 'ok', partial: 'warn', error: 'bad', stopped: 'idle', draft: 'idle' };
     const OP_KINDS = ['prepare', 'config', 'up', 'down', 'stop', 'restart', 'pull', 'update', 'delete'];
@@ -431,14 +432,17 @@
         return out;
     }
 
-    // The commands for the current data. `label(action, params)` returns the translated label. Own stacks come first.
+    // The commands for the current data. `label(action, params)` returns the translated label. Own stacks come first. With
+    // `logs: true` every stack also gets a Logs command; the container commands (Logs for every container, Terminal for the
+    // running ones unless `canTerminal` is false) come last and only when `containers` (the rows of model.buildRows) is given.
     function paletteItems(data) {
         const d = data || {}, label = d.label, items = [];
         const add = (id, action, params, extra) => items.push(Object.assign({ id, action, label: label(action, params || {}) }, extra));
         for (const row of objects(d.stackRows)) {
             const name = d.multi ? row.stack.name + ' (' + row.hostName + ')' : row.stack.name, base = { stackKey: row.key, hostId: row.hostId };
-            const params = { stack: name };
+            const params = { stack: name, name };
             add('open:' + row.key, 'open', params, base);
+            if (d.logs) add('logs:' + row.key, 'logs', params, base);
             if (!d.canMutate) continue;
             const a = stackActions(row.stack);
             add('deploy:' + row.key, a.primary, params, base);
@@ -454,6 +458,12 @@
         }
         if (d.scope !== 'all' && objects(d.hosts).length > 1) add('switch:all', 'switch_all', {}, { hostId: 'all' });
         add('refresh', 'refresh', {});
+        for (const row of objects(d.containers)) {
+            const c = row.c || {}, own = array(c.names)[0] || c.id, name = text(d.multi ? own + ' (' + row.hostName + ')' : own).replace(/^\//, '');
+            const extra = { rowKey: row.key, hostId: row.hostId };
+            items.push(Object.assign({ id: 'clogs:' + row.key, action: 'logs_container', label: label('logs', { name }) }, extra));
+            if (d.canTerminal !== false && d.canMutate && lower(c.state) === 'running' && !c.aurago_helper) items.push(Object.assign({ id: 'term:' + row.key, action: 'terminal', label: label('terminal', { name }) }, extra));
+        }
         return items;
     }
 
@@ -521,7 +531,7 @@
     const draftDirty = (draft, file) => !!draft && text(draft.text) !== text(file && file.content);
 
     window.DockerManagerStackModel = {
-        SECTIONS, STACK_TABS, STACK_STATUSES, STACK_TONE, OP_KINDS, OP_STATES, ACTIVE_STATES, OP_TONE, SERVICE_STATES, LINT_CODES, VOLUME_KINDS, CONVERT_WARNINGS,
+        SECTIONS, STACK_TABS, PROJECT_TABS, STACK_STATUSES, STACK_TONE, OP_KINDS, OP_STATES, ACTIVE_STATES, OP_TONE, SERVICE_STATES, LINT_CODES, VOLUME_KINDS, CONVERT_WARNINGS,
         OUTPUT_CAP, OP_FOR_ACTION,
         validateName, sanitizeName, firstServiceName, stackStatusId, stackTone, stackRows, externalRows, singleContainerRows, matchesStackQuery, stackGroups,
         hostStacksState, stackCounts, primaryAction, stackActions, serviceTone, serviceStateId, linkAddress, portLinks, age, formatBytes, clock, elapsed,

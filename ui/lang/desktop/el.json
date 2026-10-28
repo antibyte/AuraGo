@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Παλέτα εντολών",
   "docker_manager.search_label_stacks": "Αναζήτηση stacks",
   "docker_manager.search_placeholder_stacks": "Αναζήτηση stacks, θυρών, υπολογιστών…",
-  "docker_manager.discard_dialog_body": "Η φόρμα έχει δεδομένα που δεν αποθηκεύτηκαν. Κλείσιμο και απόρριψή τους;"
+  "docker_manager.discard_dialog_body": "Η φόρμα έχει δεδομένα που δεν αποθηκεύτηκαν. Κλείσιμο και απόρριψή τους;",
+  "docker_manager.stab_logs": "Αρχεία καταγραφής",
+  "docker_manager.stab_terminal": "Τερματικό",
+  "docker_manager.reason_host_not_found": "Αυτός ο υπολογιστής δεν υπάρχει πια."
 }

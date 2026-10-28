@@ -10,7 +10,7 @@
     const DEFAULT_PORTS = { tcp: 2375, tls: 2376, mtls: 2376, ssh: 22 };
     const STATE_FILTERS = ['all', 'running', 'stopped', 'problem'];
     const ACTIONS = ['start', 'stop', 'restart', 'pause', 'unpause', 'kill'];
-    const REASONS = ['dns', 'refused', 'timeout', 'tls', 'auth', 'ssh_host_key', 'socket_missing', 'api_too_old', 'unknown'];
+    const REASONS = ['dns', 'refused', 'timeout', 'tls', 'auth', 'ssh_host_key', 'socket_missing', 'api_too_old', 'host_not_found', 'unknown'];
     const NEST_METHODS = ['docker_local', 'docker_remote', 'docker_ssh'];
     const PROTECTED_ACTIONS = ['stop', 'restart', 'pause', 'kill', 'remove'];
     const DEFAULT_STACKS_DIR = '/opt/stacks';
@@ -114,6 +114,14 @@
         else if (state === 'restarting') { out.toggle = 'stop'; out.menu = ['kill']; }
         else if (state === 'exited' || state === 'created') out.toggle = 'start';
         return out;
+    }
+
+    // Whether a shell can be opened in the container: 'ok', 'helper' (AuraGo's own runner, IO and lister containers) or
+    // 'not_running'. The server decides again (409 helper_container, container_not_running); this only saves the round trip.
+    function terminalState(container) {
+        const c = container || {};
+        if (c.aurago_helper) return 'helper';
+        return lower(c.state) === 'running' ? 'ok' : 'not_running';
     }
 
     // ---- ports, images, dates ----------------------------------------------------------------------------------------
@@ -418,7 +426,7 @@
     window.DockerManagerModel = {
         HOST_COLORS, HOST_KINDS, DEFAULT_PORTS, STATE_FILTERS, ACTIONS, REASONS, NEST_METHODS, DEFAULT_STACKS_DIR, DEFAULT_SOCKET, TONE_RANK,
         colorOf, compareText, exitCode, containerId, containerName, protectedReason, isProtected, needsProtectedConfirm, problemOf, statusOf, stateGroup,
-        matchesFilter, actionsFor, portItems, shortImage, formatCreated, mountLabel, buildRows, matchesQuery, filterRows, counts, groupRows,
+        matchesFilter, actionsFor, terminalState, portItems, shortImage, formatCreated, mountLabel, buildRows, matchesQuery, filterRows, counts, groupRows,
         showGroupHeaders, navItems, reasonCode, normalizeStatus, hostHealth, hostAddress, hostCounts, totalCounts, defaultPort, nextColor, emptyHostForm,
         hostToForm, storedSecretUsable, sshSecretNeedsReentry, validateHostForm, hostPayload, normalizeError
     };

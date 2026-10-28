@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Kommandopalett",
   "docker_manager.search_label_stacks": "Sök stackar",
   "docker_manager.search_placeholder_stacks": "Sök stackar, portar, värdar…",
-  "docker_manager.discard_dialog_body": "Formuläret har inmatning som inte sparats. Stänga det och kassera inmatningen?"
+  "docker_manager.discard_dialog_body": "Formuläret har inmatning som inte sparats. Stänga det och kassera inmatningen?",
+  "docker_manager.stab_logs": "Loggar",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "Den här värden finns inte längre."
 }

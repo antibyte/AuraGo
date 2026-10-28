@@ -9,18 +9,28 @@
    Stacks (phase 2) follow the same rules: one listing per host (state.stacks), the open stack (state.stack), the
    operations of this window and of the engine (state.ops, one EventSource per active operation, closed on "done",
    reconnected with a growing delay), and the calls for files, lint, convert, volumes and project actions. The
-   EventSource comes from the `eventSource` option so that the Node test can fake the streams. */
+   EventSource comes from the `eventSource` option so that the Node test can fake the streams.
+   Live data (phase 3): while the window is visible one DockerManagerLive client listens to /stream. A host whose status is
+   "live" is polled only every 60 s as a safety net; events and resyncs of that host reload its lists (coalesced: at most one
+   reload per 300 ms); a host that is paused or whose stream is down goes back to the 5 s poll. Stats and host stats never go
+   through emit(): they reach the app by their own listeners, which patch cells in place. The app tells the store which
+   containers are on screen (setLiveStats); the store adds the hosts in scope and the host whose gauges show. The open
+   external project (state.project), the disk usage of the selected host (state.df) and the terminal diagnosis live here too. */
 (function () {
     'use strict';
 
     const BASE = '/api/docker-manager';
     const POLL_MS = 5000;
+    // With a live stream the lists are only a safety net; the gauge for the Docker disk is read again every 5 minutes.
+    const LIVE_POLL_MS = 60000;
+    const DF_MS = 300000;
+    const DF_TIMEOUT_MS = 65000;
+    const RELOAD_MS = 300;
     // An unreachable host can take the server up to 30 s to give up, so the browser waits longer than that.
     const REQUEST_TIMEOUT_MS = 35000;
     const TEST_TIMEOUT_MS = 45000;
     // Listing, reading and linting a stack may start the lister container: the server allows 45 s.
     const STACK_TIMEOUT_MS = 50000;
-    const LOG_TAILS = [100, 200, 500, 1000, 5000];
     const RECONNECT_MS = [1000, 2000, 4000, 8000, 15000];
     const KEEP_FINISHED = 12;
     const enc = encodeURIComponent;
@@ -42,14 +52,21 @@
             hosts: [], hostsLoaded: false, hostsFailed: null, disabled: false,
             scope: typeof opts.scope === 'string' && opts.scope ? opts.scope : 'all', byHost: {}, detail: null, busy: new Set(),
             section: stackModel.SECTIONS.includes(opts.section) ? opts.section : 'stacks', stacks: {}, stack: null, ops: [],
-            readonly: !!opts.readonly, dockerReadonly: false,
-            visible: false, disposed: false, lastRefreshAt: 0
+            readonly: !!opts.readonly, dockerReadonly: false, project: null, df: {}, live: { connected: false, failed: false },
+            visible: false, disposed: false, lastRefreshAt: 0, hostsAt: 0
         };
         const inflight = new Map();
         const controllers = new Map();
         const sequence = new Map();
         const stackSequence = new Map();
         let timer = 0, win = null, root = null, inView = true, detach = () => {}, detailGen = 0, stackGen = 0;
+        const setT = typeof opts.setTimeout === 'function' ? opts.setTimeout : (fn, ms) => setTimeout(fn, ms);
+        const clearT = typeof opts.clearTimeout === 'function' ? opts.clearTimeout : id => clearTimeout(id);
+        const reloadDelay = Number(opts.reloadMs) >= 0 ? Number(opts.reloadMs) : RELOAD_MS;
+        const reloads = new Map();
+        const statsListeners = new Set();
+        const hostStatsListeners = new Set();
+        let wantStats = {}, live = null;
 
         function emit() {
             if (state.disposed) return;
@@ -131,7 +148,10 @@
                     for (const id of Object.keys(state.byHost)) if (!ids.has(id)) delete state.byHost[id];
                     for (const id of Object.keys(state.stacks)) if (!ids.has(id)) delete state.stacks[id];
                     if (state.stack && !ids.has(state.stack.hostId)) closeStack();
+                    if (state.project && !ids.has(state.project.hostId)) closeProject();
                     if (state.scope !== 'all' && !ids.has(state.scope)) state.scope = 'all';
+                    state.hostsAt = Date.now();
+                    syncLive();
                     return true;
                 } catch (error) {
                     const info = noteError(error);
@@ -182,6 +202,7 @@
             const ids = scopeIds(), force = !!(o && o.force);
             const jobs = ids.map(loadContainers);
             if (state.section === 'stacks') for (const id of ids) jobs.push(loadStacks(id, force));
+            if (state.scope !== 'all' && dfStale(state.scope)) jobs.push(loadDf(state.scope));
             jobs.push(loadActiveOperations());
             await Promise.all(jobs);
             state.lastRefreshAt = Date.now();
@@ -191,12 +212,14 @@
         function loadScope() {
             const jobs = scopeIds().map(loadContainers);
             if (state.section === 'stacks') for (const id of scopeIds()) jobs.push(loadStacks(id));
+            if (state.scope !== 'all' && dfStale(state.scope)) jobs.push(loadDf(state.scope));
             return Promise.all(jobs);
         }
         function setScope(scope) {
             const next = scope !== 'all' && state.hosts.some(host => host.id === scope) ? scope : 'all';
             if (next === state.scope) return;
             state.scope = next;
+            syncLive();
             emit();
             if (state.visible) void loadScope();
         }
@@ -214,17 +237,22 @@
             return state.disposed || (typeof document !== 'undefined' && document.hidden)
                 || !!(root && typeof root.checkVisibility === 'function' && !root.checkVisibility());
         }
+        // A host the live stream reports as "live" only needs its lists every 60 s (events and resyncs reload them sooner); any
+        // other host is polled on every tick.
+        const stale = (at, hostId) => liveStatus(hostId) !== 'live' || Date.now() - (Number(at) || 0) >= LIVE_POLL_MS - POLL_MS / 2;
         function pollOnce() {
             if (state.disposed || !state.visible || hiddenNow()) return false;
             // Docker switched off: ask for the host list only, so the app recovers by itself once Docker is enabled again.
             if (state.disabled) { void refresh(); return true; }
             // GET /hosts answers from cached statuses and refreshes stale ones in the background, so it is polled like the lists.
-            const jobs = scopeIds().map(loadContainers);
-            jobs.push(loadHosts());
+            const ids = scopeIds(), jobs = [];
+            for (const id of ids) if (stale(state.byHost[id] && state.byHost[id].at, id)) jobs.push(loadContainers(id));
+            if (!ids.length || ids.some(id => liveStatus(id) !== 'live') || Date.now() - state.hostsAt >= LIVE_POLL_MS - POLL_MS / 2) jobs.push(loadHosts());
             if (state.section === 'stacks') {
-                for (const id of scopeIds()) jobs.push(loadStacks(id));
-                if (state.stack) jobs.push(loadStack(true));
+                for (const id of ids) if (stale(state.stacks[id] && state.stacks[id].at, id)) jobs.push(loadStacks(id));
+                if (state.stack && stale(state.stack.at, state.stack.hostId)) jobs.push(loadStack(true));
             }
+            if (state.scope !== 'all' && dfStale(state.scope)) jobs.push(loadDf(state.scope));
             void Promise.all(jobs);
             return true;
         }
@@ -240,8 +268,8 @@
         function setVisible(next) {
             if (state.disposed || next === state.visible) return;
             state.visible = next;
-            if (!next) { clearTimeout(timer); timer = 0; abortPolls(); }
-            else { void refresh(); schedule(); }
+            if (!next) { clearTimeout(timer); timer = 0; abortPolls(); live?.stop(); state.live = { connected: false, failed: false }; }
+            else { void refresh(); schedule(); if (!live) live = createLive(); live?.start(); syncLive(); }
             emit();
         }
         function attach(target) {
@@ -318,13 +346,11 @@
 
         // ---- detail drawer: overview comes from the list, logs and inspect are fetched on demand -------------------
 
-        function abortDetail() { controllers.get('logs')?.abort(); controllers.get('inspect')?.abort(); detailGen += 1; }
+        function abortDetail() { controllers.get('inspect')?.abort(); detailGen += 1; }
 
         function ensureDetailData() {
             const d = state.detail;
-            if (!d) return;
-            if (d.tab === 'logs' && d.logs.status === 'idle') void loadLogs();
-            if (d.tab === 'inspect' && d.inspect.status === 'idle') void loadInspect();
+            if (d && d.tab === 'inspect' && d.inspect.status === 'idle') void loadInspect();
         }
 
         function openDetail(row, tab) {
@@ -334,7 +360,7 @@
                 abortDetail();
                 state.detail = {
                     key: row.key, hostId: row.hostId, id: row.c.full_id || row.c.id, tab: tab || 'overview',
-                    logs: { status: 'idle', text: '', tail: 200, error: null }, inspect: { status: 'idle', data: null, error: null }
+                    inspect: { status: 'idle', data: null, error: null }
                 };
             } else if (tab) state.detail.tab = tab;
             emit();
@@ -374,11 +400,6 @@
             }
             emit();
             return true;
-        }
-        function loadLogs(tail) {
-            if (state.detail && LOG_TAILS.includes(tail)) state.detail.logs.tail = tail;
-            const lines = state.detail ? state.detail.logs.tail : 200;
-            return loadDetailPart('logs', '/logs?tail=' + lines, (d, body) => { d.logs.text = typeof body.logs === 'string' ? body.logs : ''; });
         }
         function loadInspect() {
             return loadDetailPart('inspect', '/inspect', (d, body) => { d.inspect.data = body.inspect === undefined ? null : body.inspect; });
@@ -483,7 +504,8 @@
                 return;
             }
             abortStack();
-            state.stack = { key, hostId, name, tab: wanted || 'overview', status: 'loading', detail: null, error: null };
+            if (state.project) state.project = null;
+            state.stack = { key, hostId, name, tab: wanted || 'overview', status: 'loading', detail: null, error: null, at: 0 };
             emit();
             void loadStack();
         }
@@ -509,6 +531,7 @@
                 const body = await request('/hosts/' + enc(target.hostId) + '/stacks/' + enc(target.name), { timeout: STACK_TIMEOUT_MS }, 'stack');
                 if (state.disposed || state.stack !== target || gen !== stackGen) return false;
                 target.detail = body.stack || null;
+                target.at = Date.now();
                 target.status = target.detail ? 'ok' : 'error';
                 target.error = target.detail ? null : { code: 'unknown', message: '' };
             } catch (error) {
@@ -575,6 +598,128 @@
             await guarded(() => request('/hosts/' + enc(hostId) + '/projects/' + enc(project) + '/' + enc(action), { method: 'POST' }));
             void reloadContainers(hostId);
             void loadStacks(hostId, true);
+        }
+
+        // ---- live stream -------------------------------------------------------------------------------------------------
+
+        function createLive() {
+            const Live = window.DockerManagerLive;
+            if (opts.live === false || !Live) return null;
+            return Live.create(Object.assign({
+                api, eventSource: openStream, setTimeout: setT, clearTimeout: clearT,
+                onConnection(up, info) {
+                    if (state.disposed) return;
+                    state.live = { connected: up, failed: !up && !!(info && info.failed) };
+                    // Events may have been missed while the stream was down: read everything once.
+                    if (up && info && info.resumed) void loadScope();
+                    emit();
+                },
+                onStatus() { emit(); },
+                onEvent(event) { if (event && event.type === 'container') queueReload(event.host, event.project, false); },
+                onResync(event) { if (event) queueReload(event.host, '', true); },
+                onOperation(host, operation) { trackOperation(operation); },
+                onStats(host, id, points) { for (const listener of [...statsListeners]) listener(host, id, points); },
+                onHostStats(host, data) { for (const listener of [...hostStatsListeners]) listener(host, data); }
+            }, opts.liveOptions || {}));
+        }
+
+        // 'live' | 'paused' | 'connecting' | 'off'. 'off' means no stream (window hidden, stream not up yet, no EventSource);
+        // 'paused' is a host whose events the server cannot follow, or a stream that broke and is being reopened.
+        function liveStatus(hostId) {
+            if (!live || state.disposed) return 'off';
+            if (!state.live.connected) return state.live.failed ? 'paused' : 'off';
+            const status = live.status(hostId);
+            if (!status) return 'connecting';
+            if (status.state === 'live') return 'live';
+            return status.state === 'paused' || status.state === 'unreachable' ? 'paused' : 'connecting';
+        }
+
+        // What the window listens to: the hosts in scope (events, status, operations), the containers on screen (stats) and,
+        // under a single host, that host's gauges.
+        function syncLive() {
+            if (!live) return;
+            const ids = scopeIds(), stats = {};
+            for (const id of ids) if (wantStats[id] && wantStats[id].length) stats[id] = wantStats[id];
+            live.setWant({ hosts: ids, stats, hostStats: state.scope !== 'all' && ids.includes(state.scope) ? [state.scope] : [] });
+        }
+        // byHost = {host: [container id]}: the running containers whose rows or service lines are on screen.
+        function setLiveStats(byHost) {
+            wantStats = byHost && typeof byHost === 'object' ? byHost : {};
+            syncLive();
+        }
+
+        // One reload per host at most every 300 ms, however many events arrive: the containers, the stacks when that section is
+        // open, and the open stack when the event belongs to it (or a resync says anything may have changed).
+        function queueReload(hostId, project, all) {
+            if (state.disposed || !hostId || !scopeIds().includes(hostId)) return;
+            let entry = reloads.get(hostId);
+            if (!entry) { entry = { timer: 0, all: false, projects: new Set() }; reloads.set(hostId, entry); }
+            if (all) entry.all = true;
+            if (project) entry.projects.add(project);
+            if (entry.timer) return;
+            entry.timer = setT(() => {
+                reloads.delete(hostId);
+                if (state.disposed) return;
+                void reloadContainers(hostId);
+                if (state.section === 'stacks') void loadStacks(hostId);
+                if (state.stack && state.stack.hostId === hostId && (entry.all || entry.projects.has(state.stack.name))) void loadStack(true);
+            }, reloadDelay);
+        }
+
+        const dfStale = hostId => { const entry = state.df[hostId]; return !entry || (!entry.busy && Date.now() - (entry.at || 0) >= DF_MS); };
+        // Docker's own disk usage of one host (GET /hosts/{h}/df); refresh asks the server to read it again when its cache is older
+        // than a minute. A failure keeps the last numbers and is not repeated before the next 5 minutes.
+        function loadDf(hostId, o) {
+            const refreshNow = !!(o && o.refresh), key = 'df:' + hostId;
+            if (refreshNow) { controllers.get(key)?.abort(); inflight.delete(key); }
+            return once(key, async () => {
+                state.df[hostId] = Object.assign({ status: 'loading', df: null, error: null, at: 0 }, state.df[hostId], { busy: true });
+                emit();
+                try {
+                    const body = await request('/hosts/' + enc(hostId) + '/df' + (refreshNow ? '?refresh=1' : ''), { timeout: DF_TIMEOUT_MS }, key);
+                    if (state.disposed) return false;
+                    state.df[hostId] = { status: 'ok', df: body.df || null, fetchedAt: String(body.fetched_at || ''), cached: !!body.cached, error: null, at: Date.now(), busy: false };
+                    return true;
+                } catch (error) {
+                    const info = noteError(error);
+                    if (state.disposed) return false;
+                    const previous = state.df[hostId] || {};
+                    state.df[hostId] = Object.assign({}, previous, { status: previous.df ? 'ok' : 'error', error: info || previous.error || null, at: Date.now(), busy: false });
+                    return false;
+                } finally { emit(); }
+            });
+        }
+
+        // A browser hides the answer of a refused WebSocket handshake, so after a failed attempt the terminal panel asks with a
+        // plain GET (no Upgrade header): the server answers with its JSON error (read_only, container_not_running, helper_container,
+        // container_protected_confirmation_required, ...) before it would create a shell. Resolves the error info, or null.
+        async function diagnoseTerminal(hostId, ref) {
+            try { await request('/hosts/' + enc(hostId) + '/containers/' + enc(ref) + '/terminal', {}, 'terminal-check'); return null; } catch (error) { return noteError(error); }
+        }
+
+        // ---- the open external compose project (a pane with overview and logs) --------------------------------------------
+
+        function openProject(hostId, name, tab) {
+            if (state.disposed || !hostId || !name) return;
+            const key = 'x:' + hostId + '/' + name, wanted = stackModel.PROJECT_TABS.includes(tab) ? tab : '';
+            if (state.project && state.project.key === key) {
+                if (wanted) state.project.tab = wanted;
+                emit();
+                return;
+            }
+            if (state.stack) closeStack();
+            state.project = { key, hostId, name, tab: wanted || 'overview' };
+            emit();
+        }
+        function closeProject() {
+            if (!state.project) return;
+            state.project = null;
+            emit();
+        }
+        function setProjectTab(tab) {
+            if (!state.project || !stackModel.PROJECT_TABS.includes(tab) || state.project.tab === tab) return;
+            state.project.tab = tab;
+            emit();
         }
 
         // ---- operations -------------------------------------------------------------------------------------------
@@ -760,20 +905,29 @@
             clearTimeout(timer);
             timer = 0;
             for (const entry of state.ops) { closeSource(entry); clearTimeout(entry.timer); entry.timer = 0; }
+            for (const entry of reloads.values()) clearT(entry.timer);
+            reloads.clear();
+            live?.stop();
             lifetime.abort();
             detach();
             listeners.clear();
             doneListeners.clear();
+            statsListeners.clear();
+            hostStatsListeners.clear();
         }
 
         return {
             state, subscribe, attach, setVisible, setScope, setSection, refresh, loadHosts, loadContainers, reloadContainers, pollOnce, pending,
-            act, remove, openDetail, closeDetail, setDetailTab, loadLogs, loadInspect, canMutate, canEditHosts,
+            act, remove, openDetail, closeDetail, setDetailTab, loadInspect, canMutate, canEditHosts,
+            liveStatus, setLiveStats, loadDf, diagnoseTerminal, openProject, closeProject, setProjectTab, scopeIds,
+            liveRing: (host, id) => (live ? live.ring(host, id) : []), liveHostStats: host => (live ? live.hostStats(host) : null), liveRejected: () => (live ? live.rejected() : []),
+            onStats: listener => { statsListeners.add(listener); return () => statsListeners.delete(listener); },
+            onHostStats: listener => { hostStatsListeners.add(listener); return () => hostStatsListeners.delete(listener); },
             testDraft, saveHost, deleteHost, testHost, loadNests, importNest,
             loadStacks, openStack, closeStack, setStackTab, loadStack, saveFiles, createStack, loadHelpers, loadVolumes, lint, convertDockerRun, projectAction,
             startOp, prepareHost, deleteStack, loadOperations, loadOperation, loadActiveOperations, attachOperation, trackOperation, onOperationDone, activeOps, dispose
         };
     }
 
-    window.DockerManagerStore = { create, LOG_TAILS, POLL_MS, STACK_TIMEOUT_MS };
+    window.DockerManagerStore = { create, POLL_MS, LIVE_POLL_MS, DF_MS, STACK_TIMEOUT_MS };
 })();

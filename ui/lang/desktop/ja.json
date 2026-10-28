@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "コマンドパレット",
   "docker_manager.search_label_stacks": "スタックを検索",
   "docker_manager.search_placeholder_stacks": "スタック、ポート、ホストを検索…",
-  "docker_manager.discard_dialog_body": "このフォームには保存されていない入力があります。閉じて入力を破棄しますか？"
+  "docker_manager.discard_dialog_body": "このフォームには保存されていない入力があります。閉じて入力を破棄しますか？",
+  "docker_manager.stab_logs": "ログ",
+  "docker_manager.stab_terminal": "ターミナル",
+  "docker_manager.reason_host_not_found": "このホストはもう存在しません。"
 }

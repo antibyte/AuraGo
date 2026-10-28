@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Palette de commandes",
   "docker_manager.search_label_stacks": "Rechercher des stacks",
   "docker_manager.search_placeholder_stacks": "Rechercher stacks, ports, hôtes…",
-  "docker_manager.discard_dialog_body": "Ce formulaire contient des saisies non enregistrées. Le fermer et les abandonner ?"
+  "docker_manager.discard_dialog_body": "Ce formulaire contient des saisies non enregistrées. Le fermer et les abandonner ?",
+  "docker_manager.stab_logs": "Journaux",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "Cet hôte n’existe plus."
 }

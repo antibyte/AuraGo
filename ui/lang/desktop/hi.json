@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "कमांड पैलेट",
   "docker_manager.search_label_stacks": "स्टैक खोजें",
   "docker_manager.search_placeholder_stacks": "स्टैक, पोर्ट, होस्ट खोजें…",
-  "docker_manager.discard_dialog_body": "इस फ़ॉर्म में बिना सहेजा इनपुट है। इसे बंद करके इनपुट रद्द करें?"
+  "docker_manager.discard_dialog_body": "इस फ़ॉर्म में बिना सहेजा इनपुट है। इसे बंद करके इनपुट रद्द करें?",
+  "docker_manager.stab_logs": "लॉग",
+  "docker_manager.stab_terminal": "टर्मिनल",
+  "docker_manager.reason_host_not_found": "यह होस्ट अब मौजूद नहीं है।"
 }

@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Paleta příkazů",
   "docker_manager.search_label_stacks": "Hledat stacky",
   "docker_manager.search_placeholder_stacks": "Hledat stacky, porty, hostitele…",
-  "docker_manager.discard_dialog_body": "Formulář obsahuje neuložený vstup. Zavřít jej a zahodit vstup?"
+  "docker_manager.discard_dialog_body": "Formulář obsahuje neuložený vstup. Zavřít jej a zahodit vstup?",
+  "docker_manager.stab_logs": "Logy",
+  "docker_manager.stab_terminal": "Terminál",
+  "docker_manager.reason_host_not_found": "Tento hostitel již neexistuje."
 }

@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "命令面板",
   "docker_manager.search_label_stacks": "搜索堆栈",
   "docker_manager.search_placeholder_stacks": "搜索堆栈、端口、主机…",
-  "docker_manager.discard_dialog_body": "此表单中有未保存的输入。要关闭并放弃输入吗？"
+  "docker_manager.discard_dialog_body": "此表单中有未保存的输入。要关闭并放弃输入吗？",
+  "docker_manager.stab_logs": "日志",
+  "docker_manager.stab_terminal": "终端",
+  "docker_manager.reason_host_not_found": "此主机已不存在。"
 }

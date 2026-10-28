@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Command palette",
   "docker_manager.search_label_stacks": "Search stacks",
   "docker_manager.search_placeholder_stacks": "Search stacks, ports, hosts…",
-  "docker_manager.discard_dialog_body": "This form has input that is not saved. Close it and discard the input?"
+  "docker_manager.discard_dialog_body": "This form has input that is not saved. Close it and discard the input?",
+  "docker_manager.stab_logs": "Logs",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "This host no longer exists."
 }

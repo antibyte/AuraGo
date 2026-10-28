@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Befehlspalette",
   "docker_manager.search_label_stacks": "Stacks durchsuchen",
   "docker_manager.search_placeholder_stacks": "Stacks, Ports, Hosts suchen…",
-  "docker_manager.discard_dialog_body": "In diesem Formular stehen nicht gespeicherte Eingaben. Schließen und die Eingaben verwerfen?"
+  "docker_manager.discard_dialog_body": "In diesem Formular stehen nicht gespeicherte Eingaben. Schließen und die Eingaben verwerfen?",
+  "docker_manager.stab_logs": "Logs",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "Dieser Host existiert nicht mehr."
 }

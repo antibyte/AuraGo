@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Paleta poleceń",
   "docker_manager.search_label_stacks": "Szukaj stosów",
   "docker_manager.search_placeholder_stacks": "Szukaj stosów, portów, hostów…",
-  "docker_manager.discard_dialog_body": "Ten formularz zawiera niezapisane dane. Zamknąć go i odrzucić dane?"
+  "docker_manager.discard_dialog_body": "Ten formularz zawiera niezapisane dane. Zamknąć go i odrzucić dane?",
+  "docker_manager.stab_logs": "Logi",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "Ten host już nie istnieje."
 }

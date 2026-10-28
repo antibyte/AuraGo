@@ -10441,5 +10441,8 @@
   "docker_manager.palette_button": "Paleta de comandos",
   "docker_manager.search_label_stacks": "Pesquisar stacks",
   "docker_manager.search_placeholder_stacks": "Pesquisar stacks, portas, hosts…",
-  "docker_manager.discard_dialog_body": "Este formulário tem dados não salvos. Fechar e descartá-los?"
+  "docker_manager.discard_dialog_body": "Este formulário tem dados não salvos. Fechar e descartá-los?",
+  "docker_manager.stab_logs": "Logs",
+  "docker_manager.stab_terminal": "Terminal",
+  "docker_manager.reason_host_not_found": "Este host não existe mais."
 }
