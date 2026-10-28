@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js', 'docker-manager-terminal.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-groups.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js', 'docker-manager-terminal.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -1861,6 +1861,88 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     assert.equal(memoised(['x', 2], compute).runs, 4, 'a different number of keys is a change');
 }
 
+// ---- groups: image groups of stopped single containers, the 200-entry caps and "show more" ----------------------------------------
+{
+    const G = window.DockerManagerGroups;
+    assert.ok(G, 'the groups module publishes its global');
+    eq([G.MIN_GROUP, G.PAGE], [5, 200]);
+    const hs = [{ id: 'local', name: 'Local' }];
+    const stopped = (name, extra = {}) => container(name, { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'ci:1', ...extra });
+    const rowsOf = list => model.buildRows(hs, { local: { containers: list } }, 'all');
+    const names = list => list.map(entry => (entry.type === 'row' ? model.containerName(entry.row.c) : '[' + entry.image + ' x' + entry.rows.length + ']'));
+    const make = (prefix, n, extra) => Array.from({ length: n }, (_, i) => stopped(prefix + String(i).padStart(4, '0'), extra));
+
+    // the threshold: from five stopped containers of one image on; fewer stay rows
+    eq(names(G.entries(rowsOf(make('job', 4)), { image: true })), ['job0000', 'job0001', 'job0002', 'job0003'], 'four stopped containers of one image stay rows');
+    eq(names(G.entries(rowsOf(make('job', 5)), { image: true })), ['[ci:1 x5]'], 'five of them become one group');
+    eq(names(G.entries(rowsOf(make('job', 5)), {})), ['job0000', 'job0001', 'job0002', 'job0003', 'job0004'], 'without the image option (project groups) nothing is grouped');
+
+    // running, paused and restarting containers are never grouped, nor are containers of a compose project or other images
+    const mixed = [
+        ...make('job', 6), container('web-a', { image: 'ci:1' }), container('web-b', { image: 'ci:1', state: 'paused', status: 'Up 1 hour (Paused)' }), container('web-c', { image: 'ci:1', state: 'restarting', status: 'Restarting (1) 5 seconds ago' }),
+        stopped('proj-1', { compose_project: 'shop' }), stopped('proj-2', { compose_project: 'shop' }), ...make('odd', 3, { image: 'other:2' }), ...make('zed', 5, { image: 'alpine:3' })
+    ];
+    const entries = G.entries(rowsOf(mixed), { image: true });
+    eq(names(entries), ['web-a', 'web-b', 'web-c', 'proj-1', 'proj-2', 'odd0000', 'odd0001', 'odd0002', '[alpine:3 x5]', '[ci:1 x6]'], 'plain rows keep their order, the groups follow');
+    eq(entries.filter(entry => entry.type === 'image').map(entry => entry.key), ['i:alpine:3', 'i:ci:1'], 'groups follow the plain rows, ordered by image');
+    eq(entries.filter(entry => entry.type === 'row').map(entry => model.containerName(entry.row.c)).sort(), ['odd0000', 'odd0001', 'odd0002', 'proj-1', 'proj-2', 'web-a', 'web-b', 'web-c'], 'running, paused, restarting, project and other-image containers stay rows');
+    const ci = entries.find(entry => entry.key === 'i:ci:1');
+    eq([ci.counts.total, ci.counts.problem, ci.rows.every(row => model.containerName(row.c).startsWith('job'))], [6, 0, true]);
+    const failing = G.entries(rowsOf([...make('ok', 4), stopped('bad-1', { status: 'Exited (137) 1 hour ago' }), stopped('bad-2', { status: 'Exited (1) 2 hours ago', created: 1760000500 })]), { image: true })[0];
+    eq([failing.counts.total, failing.counts.problem, failing.newest], [6, 2, 1760000500], 'a group counts its problems and knows its newest container');
+    eq(G.groupable(stopped('dead', { state: 'dead' })) && G.groupable(stopped('made', { state: 'created' })) && !G.groupable(container('up')), true);
+
+    // search and filter act inside the groups: a matching member is shown, the group opens (or, below five matches, the rows show)
+    const ten = [...make('job', 10), ...make('batch', 3)];
+    const all = rowsOf(ten);
+    const matchesFor = query => G.entries(model.filterRows(all, { query, filter: 'all' }), { image: true });
+    eq(names(matchesFor('job000')), ['[ci:1 x10]'], 'ten members match "job000" (job0000-job0009): still one group');
+    eq(names(matchesFor('job0003')), ['job0003'], 'one match is one row');
+    eq(names(matchesFor('batch')), ['batch0000', 'batch0001', 'batch0002'], 'fewer than five matches show as rows');
+    const state = G.state();
+    G.sync(state, 'ci|all');
+    assert.equal(G.view(state, false).open('i:ci:1'), false, 'an image group is closed by default');
+    assert.equal(G.view(state, true).open('i:ci:1'), true, 'a search or filter opens every group with matches');
+    G.toggle(state, true, 'i:ci:1');
+    assert.equal(G.view(state, true).open('i:ci:1'), false, 'the admin can close it again while the search is active');
+    assert.equal(G.view(state, false).open('i:ci:1'), false, 'and that does not open it for good');
+    G.sync(state, 'ci|all');
+    assert.equal(G.view(state, true).open('i:ci:1'), false, 'the same search keeps the choice');
+    G.sync(state, 'ci2|all');
+    assert.equal(G.view(state, true).open('i:ci:1'), true, 'a new search ends the choice');
+    G.toggle(state, false, 'i:ci:1');
+    assert.equal(G.view(state, false).open('i:ci:1'), true, 'without a search a click opens the group');
+    G.toggle(state, false, 'i:ci:1');
+    assert.equal(G.view(state, false).open('i:ci:1'), false, 'and closes it again');
+
+    // the cap: a section and an opened group show 200 entries, "show more" adds 200 more
+    const big = G.entries(rowsOf([container('web'), ...make('job', 450)]), { image: true });
+    const planOf = s => G.plan(big, 'sec:big', G.view(s, false));
+    const calm = G.state();
+    let shown = planOf(calm);
+    eq([shown.items.length, shown.more, shown.items[1].open, shown.items[1].members.length], [2, null, false, 0], 'a closed group shows no members');
+    G.toggle(calm, false, 'i:ci:1');
+    shown = planOf(calm);
+    eq([shown.items[1].members.length, shown.items[1].more], [200, { key: 'i:ci:1', hidden: 250, count: 200 }], 'an opened group shows 200 members and says how many are hidden');
+    G.showMore(calm, 'i:ci:1');
+    shown = planOf(calm);
+    eq([shown.items[1].members.length, shown.items[1].more], [400, { key: 'i:ci:1', hidden: 50, count: 50 }], '"show more" adds 200, the last step only what is left');
+    G.showMore(calm, 'i:ci:1');
+    shown = planOf(calm);
+    eq([shown.items[1].members.length, shown.items[1].more], [450, null], 'nothing hidden, no button');
+    const distinct = G.entries(rowsOf(Array.from({ length: 450 }, (_, i) => stopped('solo' + String(i).padStart(4, '0'), { image: 'img' + i + ':1' }))), { image: true });
+    const sectionState = G.state();
+    let section = G.plan(distinct, 'sec:singles', G.view(sectionState, false));
+    eq([section.items.length, section.more], [200, { key: 'sec:singles', hidden: 250, count: 200 }], 'a section of plain rows is capped at 200 too');
+    G.showMore(sectionState, 'sec:singles');
+    section = G.plan(distinct, 'sec:singles', G.view(sectionState, false));
+    eq([section.items.length, section.more.hidden, section.items[399].type], [400, 50, 'row']);
+    eq(G.page(['a', 'b', 'c'], 'k', () => 2), { items: ['a', 'b'], more: { key: 'k', hidden: 1, count: 1 } });
+    // a change of the search ends the "show more" steps
+    G.sync(sectionState, 'x|all'); G.sync(sectionState, 'y|all');
+    assert.equal(G.view(sectionState, false).limit('sec:singles'), 200);
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -2485,6 +2567,80 @@ const full = {};
             assert.equal(tokens(locales[lang][key]), tokens(en[key]), lang + '.json changes the placeholders of ' + key);
         }
     }
+}
+
+// ---- bounded lists: the table and the stack list render at most 200 entries per section and group --------------------------------
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel, G = full.DockerManagerGroups;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, charts: full.DockerManagerCharts, groups: G, lang: 'en', uid: 'x' });
+    const stacks = full.DockerManagerStacks.create({ t, esc, model: model2, stackModel: sm2, views, groups: G, uid: 'x' });
+    const hosts = [hostA];
+    const jobs = Array.from({ length: 450 }, (_, i) => container('job' + String(i).padStart(4, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'ci:1', created: 1760000000 + i }));
+    const running = Array.from({ length: 3 }, (_, i) => container('web' + i));
+    const byHost = { local: { containers: [...running, ...jobs], loaded: true } };
+    const rows = model2.buildRows(hosts, byHost, 'all');
+    const groups = model2.groupRows(rows, { hostOrder: ['local'] });
+    for (const group of groups) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+    const grp = G.state();
+    const snapFor = (open, extra = {}) => Object.assign({
+        state: { scope: 'all', stacks: { local: { loaded: true, listing: { stacks: [], external: [], ignored: [] } } }, byHost, hostsLoaded: true, detail: null, stack: null, project: null, busy: new Set(), ops: [], df: {} },
+        hosts, scopeHosts: hosts, rows, visible: rows, multi: false, canMutate: true, headers: false, collapsed: new Set(), groups, section: 'containers', hostStates: { local: 'ok' }, now: 1760100000000,
+        open: G.view(grp, open).open, limit: G.view(grp, open).limit, query: ''
+    }, extra);
+
+    // Containers: 3 running rows and one collapsed group row
+    let items = views.tbodyItems(snapFor(false));
+    eq(items.map(item => item.key), ['local/' + running[0].full_id, 'local/' + running[1].full_id, 'local/' + running[2].full_id, 'g:i:ci:1'], 'running rows, then the group');
+    assert.equal(items.length, 4);
+    const head = items[3].html;
+    assert.ok(/data-action="toggle-group"/.test(head) && /aria-expanded="false"/.test(head) && /aria-level="1"/.test(head) && head.includes('data-group-key="i:ci:1"'), 'the group row is a collapsed treegrid parent that toggles');
+    assert.ok(head.includes('image_group_count{&quot;count&quot;:&quot;450&quot;}') && head.includes('image_group_newest') && head.includes('<strong class="dm-group-name" title="ci:1">ci:1</strong>'), 'it shows the image, the count and the newest age');
+    assert.ok(!items.some(item => item.html.includes('job0000')), 'closed: no member is rendered');
+
+    // opened: 200 members one level deeper, then "show 200 more (250 hidden)"
+    G.toggle(grp, false, 'i:ci:1');
+    items = views.tbodyItems(snapFor(false));
+    assert.equal(items.length, 3 + 1 + 200 + 1, 'three rows, the group, 200 members and the show-more row');
+    assert.ok(/aria-expanded="true"/.test(items[3].html) && /aria-level="2"/.test(items[4].html) && items[4].html.includes('data-row-key="local/job0000'), 'members sit one level below the group');
+    const more = items[items.length - 1];
+    assert.ok(more.key === 'more:i:ci:1' && more.html.includes('data-action="show-more"') && more.html.includes('data-more-key="i:ci:1"') && more.html.includes('show_more{&quot;count&quot;:&quot;200&quot;,&quot;hidden&quot;:&quot;250&quot;}') && /aria-level="2"/.test(more.html), 'the show-more row names how many it adds and how many are hidden');
+    assert.equal(new Set(items.map(item => item.key)).size, items.length, 'every key is unique (the table is patched by key)');
+    G.showMore(grp, 'i:ci:1');
+    assert.equal(views.tbodyItems(snapFor(false)).length, 3 + 1 + 400 + 1);
+    G.showMore(grp, 'i:ci:1');
+    assert.equal(views.tbodyItems(snapFor(false)).length, 3 + 1 + 450, 'all shown: no show-more row');
+    assert.equal(views.tbody(snapFor(false)), views.tbodyItems(snapFor(false)).map(item => item.html).join(''), 'tbody() is the joined items');
+    G.toggle(grp, false, 'i:ci:1');
+    G.sync(grp, 'a'); G.sync(grp, 'b');
+
+    // with group headers (several groups) the levels shift by one
+    const withProject = model2.groupRows(model2.buildRows(hosts, { local: { containers: [...running, ...jobs, container('shop-web', { compose_project: 'shop', compose_service: 'web' })], loaded: true } }, 'all'), { hostOrder: ['local'] });
+    for (const group of withProject) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+    G.toggle(grp, false, 'i:ci:1');
+    const headed = views.tbodyItems(snapFor(false, { groups: withProject, headers: true }));
+    assert.ok(/aria-level="2"/.test(headed.find(item => item.key === 'g:i:ci:1').html) && /aria-level="3"/.test(headed.find(item => item.html.includes('data-row-key="local/job0000')).html), 'under a group header the image group is level 2, its members level 3');
+    G.toggle(grp, false, 'i:ci:1');
+
+    // Stacks: the single containers fold the same way; every list is capped
+    const singleRows = rows.filter(row => !row.c.compose_project);
+    const sgroups = { stacks: [], external: [], singles: singleRows, singleEntries: G.entries(singleRows, { image: true }) };
+    const listSnap = extra => Object.assign(snapFor(false), { sgroups, section: 'stacks', scopeHosts: hosts }, extra);
+    let list = stacks.list(listSnap());
+    assert.equal((list.match(/<li class="dm-srow/g) || []).length, 4, '3 running containers and one group item');
+    assert.ok(list.includes('data-action="toggle-group"') && list.includes('data-group-key="i:ci:1"') && /aria-expanded="false"/.test(list) && !list.includes('job0000'), 'a closed group item');
+    G.toggle(grp, false, 'i:ci:1');
+    list = stacks.list(listSnap());
+    assert.equal((list.match(/data-action="open-container"/g) || []).length, 3 + 200, 'an opened group lists 200 members');
+    assert.ok(list.includes('<ul class="dm-slist is-nested"') && list.includes('data-more-key="i:ci:1"') && list.includes('show_more{&quot;count&quot;:&quot;200&quot;,&quot;hidden&quot;:&quot;250&quot;}'), 'in a nested list that ends with show more');
+    const manyStacks = Array.from({ length: 450 }, (_, i) => ({ key: 'local/s' + i, hostId: 'local', hostName: 'Local', hostColor: 'blue', stack: { name: 's' + i, status: 'running', services: { total: 1, running: 1 }, ports: [] } }));
+    const capped = stacks.list(listSnap({ sgroups: { stacks: manyStacks, external: [], singles: [] } }));
+    assert.equal((capped.match(/data-action="open-stack"/g) || []).length, 200, 'the stack list is capped too');
+    assert.ok(capped.includes('data-more-key="sec:stacks"') && capped.includes('hidden&quot;:&quot;250&quot;'), 'with its own show-more');
+    G.toggle(grp, false, 'i:ci:1');
+    // a snapshot without the new members (older callers) renders as before
+    assert.ok(views.tbody({ groups, headers: false, collapsed: new Set(), state: { busy: new Set(), detail: null }, canMutate: true, multi: false }).length > 0);
 }
 
 console.log('docker-manager ui tests: stylesheet, load contract and translations ok');

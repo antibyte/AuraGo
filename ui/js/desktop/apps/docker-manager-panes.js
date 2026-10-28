@@ -127,9 +127,44 @@
             return out;
         }
 
+        // ---- rows --------------------------------------------------------------------------------------------------------
+
+        // Brings the children of `parent` (the rows of a table body) in line with items = [{key, html}] without rebuilding the rows that did
+        // not change. `cache` is a Map the caller keeps: it remembers the markup and the element of every key. Only new and changed rows
+        // are parsed (one template for all of them); a row that stays keeps its element, so the focus on it and its load cell stay, and
+        // is moved only when the order changed. Returns whether the DOM changed.
+        function patchRows(parent, items, cache) {
+            const next = new Map(), fresh = [];
+            for (const item of items) {
+                const known = cache.get(item.key);
+                if (known && known.html === item.html && known.el.parentNode === parent && !next.has(item.key)) next.set(item.key, known); else fresh.push(item);
+            }
+            if (fresh.length) {
+                const template = document.createElement('template');
+                template.innerHTML = fresh.map(item => item.html).join('');
+                const parsed = template.content.children;
+                if (parsed.length !== fresh.length) throw new Error('Docker Manager: rows did not parse one to one');
+                fresh.forEach((item, index) => next.set(item.key, { html: item.html, el: parsed[index] }));
+            }
+            const keep = new Set();
+            for (const entry of next.values()) keep.add(entry.el);
+            let changed = fresh.length > 0, cursor = parent.firstElementChild;
+            for (const item of items) {
+                const el = next.get(item.key).el;
+                // Elements that are no longer wanted (gone rows, the old element of a changed row) are dropped as the walk passes them.
+                while (cursor && cursor !== el && !keep.has(cursor)) { const stale = cursor; cursor = cursor.nextElementSibling; stale.remove(); changed = true; }
+                if (cursor === el) cursor = cursor.nextElementSibling;
+                else { parent.insertBefore(el, cursor); changed = true; }
+            }
+            while (cursor) { const stale = cursor; cursor = cursor.nextElementSibling; stale.remove(); changed = true; }
+            cache.clear();
+            for (const [key, entry] of next) cache.set(key, entry);
+            return changed;
+        }
+
         function dispose() { for (const name of [...slots.keys()]) release(name); }
 
-        return { drawer, stack, project, release, patchLoads, visibleLoads, dispose };
+        return { drawer, stack, project, release, patchLoads, patchRows, visibleLoads, dispose };
     }
 
     window.DockerManagerPanes = { create, MAX_IDS };

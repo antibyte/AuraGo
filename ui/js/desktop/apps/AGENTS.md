@@ -302,7 +302,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   status and problem derivation, grouping by compose project, search and state filters, the multi-host merge, host health,
   the host form rules, error normalisation; `normalizeError` keeps the answer body in `data`), `docker-manager-stack-model.js`
   (pure: stack status and tone, rows and groups of the stack list, port links, lint helpers, the line diff, command palette
-  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-charts.js` (pure
+  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-groups.js` (pure: the image groups and the 200-entry caps of long
+  lists, see "Long lists" below), `docker-manager-charts.js` (pure
   SVG and text: `sparkline`, `gauge`, `bytes`, `percent`, `loadCell`), `docker-manager-store.js`
   (every request through the desktop `api()` against `/api/docker-manager`, one request in flight per key, per-host container
   and stack listings, the open stack and the open external project, the operations with one `EventSource` each, the live stream,
@@ -334,6 +335,19 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   the host list, the scope, the search and the filter (`model.memo`): a paint for anything else sorts nothing. The table is a
   `treegrid` with a roving tab stop: arrows move, Left/Right collapse and expand a group, Enter opens the drawer, Delete asks to
   remove, Escape closes the drawer, `/` focuses the search, Shift+F10 opens the row menu.
+- Long lists (a host with thousands of containers; the app was measured with 3,306): nothing is rendered without a bound. The stopped single
+  containers (no compose project, not running, paused or restarting) of one image fold into ONE group entry from 5 of them on
+  (`docker-manager-groups.js` `entries`; grouped after the search and filter, so fewer than 5 matches show as plain rows; running containers are
+  never grouped; plain rows come first, then the groups by image). In the table the group is a treegrid parent row (`tr.dm-image-row`,
+  `aria-expanded`, one `aria-level` below its section, its members one more; Enter, Space, Right open it, Left closes it, Left on a member goes to
+  it); in the Stacks list it is a `li` with a button and a nested list (Right/Left work there too). A group is closed until opened; while a
+  search (or, in the Containers section, a state filter) is active every group with matches is open and holds only the matches, until the admin
+  closes it (that choice ends with the next change of the search or filter). The open state is shared by both sections, not saved, and
+  `Groups.sync` ends the closings and the "show more" steps whenever the section, search or filter changes. Every section (project group,
+  single containers, stacks, external projects) and every opened group renders at most 200 entries and ends with "Show 200 more (N hidden)"
+  (`data-action="show-more"`; a row of its own in the table, a nested item in the list); Enter on that row works too. The table is patched row
+  by row from `views.tbodyItems` (`panes.patchRows`: an unchanged row keeps its element, the roving tab stop and the load cells follow); the
+  Stacks list, bounded now, is still replaced as a whole. Group-level bulk actions come with the cleanup assistant (phase 4).
 - A failed container list keeps the last containers of that host and shows a banner with the reason code
   (`dns`, `refused`, `timeout`, `tls`, `auth`, `ssh_host_key`, `socket_missing`, `api_too_old`, `unknown`, texts
   `docker_manager.reason_*`); the browser giving up after 35 s counts as `host_unreachable` with reason `timeout`. A host

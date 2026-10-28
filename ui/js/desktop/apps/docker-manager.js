@@ -31,7 +31,7 @@
         dispose(id);
         const w = window;
         const model = w.DockerManagerModel, sm = w.DockerManagerStackModel, Views = w.DockerManagerViews, Stacks = w.DockerManagerStacks, Editor = w.DockerManagerEditor, Ops = w.DockerManagerOps;
-        const Palette = w.DockerManagerPalette, NewStack = w.DockerManagerNewStack, Dialogs = w.DockerManagerDialogs, Store = w.DockerManagerStore;
+        const Palette = w.DockerManagerPalette, NewStack = w.DockerManagerNewStack, Dialogs = w.DockerManagerDialogs, Store = w.DockerManagerStore, Groups = w.DockerManagerGroups;
         const Logs = w.DockerManagerLogs, Terminal = w.DockerManagerTerminal, Panes = w.DockerManagerPanes, charts = w.DockerManagerCharts;
         const esc = ctx.esc;
         // A missing key shows its own name and is reported once, never a misleading label.
@@ -47,9 +47,9 @@
         const lifetime = new AbortController(), signal = lifetime.signal;
         const store = Store.create({ api: ctx.api, readonly: !!ctx.readonly, scope: prefs.scope, section: prefs.section });
         const state = store.state;
-        const views = Views.create({ t, esc, model, stackModel: sm, charts, lang, uid });
-        const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, uid });
-        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', railCounts: [], gauges: '', banners: '', tbody: '', empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
+        const views = Views.create({ t, esc, model, stackModel: sm, charts, groups: Groups, lang, uid });
+        const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, groups: Groups, uid });
+        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', railCounts: [], gauges: '', banners: '', rows: new Map(), grp: Groups.state(), moreFocus: null, empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
             focusDrawer: false, focusStack: false, pendingFocus: '', opener: '', stackOpener: '', mark: null, count: '' };
         let disposed = false, frame = 0, announceTimer = 0, prefsTimer = 0, lastCount = '', liveFrame = 0, loadFrame = 0, gaugeFrame = 0;
         const dirtyLoads = new Set();
@@ -190,7 +190,12 @@
         // else (the drawer, a toast, an operation) reuses them and sorts nothing.
         const memos = { rows: model.memo(), view: model.memo(), counts: model.memo(), sgroups: model.memo() };
 
+        // A search, or a state filter in the Containers section, opens every image group that has matches.
+        const isNarrowed = () => !!ui.query.trim() || (ui.section === 'containers' && ui.filter !== 'all');
+
         function snapshot() {
+            Groups.sync(ui.grp, ui.section + '|' + ui.query + '|' + ui.filter);
+            const groupView = Groups.view(ui.grp, isNarrowed());
             const hosts = state.hosts;
             const scopeHosts = state.scope === 'all' ? hosts : hosts.filter(item => item.id === state.scope);
             const hostKey = JSON.stringify(hosts.map(item => [item.id, item.name, item.color]));
@@ -198,10 +203,17 @@
             const multi = state.scope === 'all' && hosts.length > 1;
             const view = memos.view([rows, ui.query, ui.filter, multi, hostKey, ui.section === 'containers'], () => {
                 const visible = model.filterRows(rows, { query: ui.query, filter: ui.filter });
-                return { visible, groups: ui.section === 'containers' ? model.groupRows(visible, { multiHost: multi, hostOrder: hosts.map(item => item.id) }) : [] };
+                const groups = ui.section === 'containers' ? model.groupRows(visible, { multiHost: multi, hostOrder: hosts.map(item => item.id) }) : [];
+                // The stopped single containers of one image fold into a group entry (docker-manager-groups.js).
+                for (const group of groups) group.entries = Groups.entries(group.rows, { image: group.kind === 'single' });
+                return { visible, groups };
             });
             const sgroups = ui.section === 'stacks'
-                ? memos.sgroups([hostKey, state.scope, rows, ui.query].concat(scopeHosts.map(item => state.stacks[item.id])), () => sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query }))
+                ? memos.sgroups([hostKey, state.scope, rows, ui.query].concat(scopeHosts.map(item => state.stacks[item.id])), () => {
+                    const found = sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query });
+                    found.singleEntries = Groups.entries(found.singles, { image: true });
+                    return found;
+                })
                 : { stacks: [], external: [], singles: [] };
             const visible = view.visible, groups = view.groups;
             const hostStates = {}, stackOps = {}, prepareActive = {};
@@ -214,28 +226,35 @@
             return Object.assign(liveInfo(), {
                 state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: memos.counts([rows, ui.query], () => model.counts(rows, ui.query)),
                 canMutate: store.canMutate(), canEditHosts: store.canEditHosts(), section: ui.section, query: ui.query, hostStates, stackOps, prepareActive,
-                sgroups, stackCounts: sm.stackCounts(hosts, state.stacks, state.scope),
+                sgroups, stackCounts: sm.stackCounts(hosts, state.stacks, state.scope), open: groupView.open, limit: groupView.limit,
                 dirty: workbench.dirtyState(), pageHost: window.location.hostname, now: Date.now()
             });
         }
 
+        // The roving tab stop: one row (and its buttons) is in the tab order. Only what differs is written.
         function applyRoving() {
-            const items = [...tbodyEl.querySelectorAll('[data-nav-key]')];
+            const items = tbodyEl.querySelectorAll('[data-nav-key]');
             if (!items.length) return;
-            const active = items.find(el => el.dataset.navKey === ui.activeKey) || items[0];
+            let active = items[0];
+            for (const el of items) if (el.dataset.navKey === ui.activeKey) { active = el; break; }
             ui.activeKey = active.dataset.navKey;
             for (const el of items) {
-                const on = el === active;
-                el.tabIndex = on ? 0 : -1;
-                for (const button of el.querySelectorAll('[data-row-btn]')) button.tabIndex = on ? 0 : -1;
+                const index = el === active ? 0 : -1;
+                if (el.tabIndex === index) continue;
+                el.tabIndex = index;
+                for (const button of el.querySelectorAll('[data-row-btn]')) button.tabIndex = index;
             }
         }
         function applyStackRoving() {
-            const items = [...stackListEl.querySelectorAll('[data-snav]')];
+            const items = stackListEl.querySelectorAll('[data-snav]');
             if (!items.length) return;
-            const active = items.find(el => el.dataset.snav === ui.stackNav) || items[0];
+            let active = items[0];
+            for (const el of items) if (el.dataset.snav === ui.stackNav) { active = el; break; }
             ui.stackNav = active.dataset.snav;
-            for (const el of items) el.tabIndex = el === active ? 0 : -1;
+            for (const el of items) {
+                const index = el === active ? 0 : -1;
+                if (el.tabIndex !== index) el.tabIndex = index;
+            }
         }
 
         function paintToolbar(snap) {
@@ -287,19 +306,24 @@
             }
         }
 
+        // The table holds only the bounded rows (views.tbodyItems); a repaint replaces just the rows whose markup changed.
         function paintContainers(snap) {
             const emptyHtml = views.empty(snap);
-            const bodyHtml = emptyHtml || !snap.visible.length ? '' : views.tbody(snap);
-            if (bodyHtml !== ui.tbody) { ui.tbody = bodyHtml; keepFocus(tbodyEl, () => { tbodyEl.innerHTML = bodyHtml; }); applyRoving(); panes.patchLoads(tbodyEl); }
-            tableEl.hidden = !bodyHtml;
+            const items = emptyHtml || !snap.visible.length ? [] : views.tbodyItems(snap);
+            let changed = false;
+            keepFocus(tbodyEl, () => { changed = panes.patchRows(tbodyEl, items, ui.rows); });
+            if (changed) { applyRoving(); panes.patchLoads(tbodyEl); }
+            tableEl.hidden = !items.length;
             if (emptyHtml !== ui.empty) { ui.empty = emptyHtml; keepFocus(emptyEl, () => { emptyEl.innerHTML = emptyHtml; }); }
             emptyEl.hidden = !emptyHtml;
+            settleMoreFocus(false);
             if (ui.pendingFocus) { rowEl(ui.pendingFocus)?.focus({ preventScroll: false }); ui.pendingFocus = ''; }
         }
 
         function paintStacks(snap) {
             const html = views.gate(snap) || stacks.list(snap);
             if (html !== ui.list) { ui.list = html; keepFocus(stackListEl, () => { stackListEl.innerHTML = html; }); applyStackRoving(); }
+            settleMoreFocus(true);
         }
 
         // The pane of the open stack: header and tabs repaint when their markup changes; the panels (and the editors in them)
@@ -474,9 +498,26 @@
             schedulePaint();
         }
         function toggleGroup(key) {
+            if (key.startsWith('i:')) { Groups.toggle(ui.grp, isNarrowed(), key); schedulePaint(); return; }
             if (ui.collapsed.has(key)) ui.collapsed.delete(key); else ui.collapsed.add(key);
             savePrefsSoon();
             schedulePaint();
+        }
+        // "Show 200 more": the section or group shows 200 entries more. When nothing is left hidden the button goes away; the focus then
+        // moves to the entry before it (settleMoreFocus), never to the page.
+        function showMore(key) {
+            const inStacks = ui.section === 'stacks', button = (inStacks ? stackListEl : tbodyEl).querySelector('[data-action="show-more"][data-more-key="' + CSS.escape(key) + '"]');
+            const before = inStacks ? button?.closest('li')?.previousElementSibling?.querySelector('[data-snav]') : button?.closest('tr')?.previousElementSibling;
+            ui.moreFocus = before ? (inStacks ? { stacks: true, nav: before.dataset.snav } : { stacks: false, nav: before.dataset.navKey }) : null;
+            Groups.showMore(ui.grp, key);
+            schedulePaint();
+        }
+        function settleMoreFocus(inStacks) {
+            const pending = ui.moreFocus;
+            if (!pending || pending.stacks !== inStacks) return;
+            ui.moreFocus = null;
+            if (document.activeElement && document.activeElement !== document.body && root.contains(document.activeElement)) return;
+            (inStacks ? stackListEl.querySelector('[data-snav="' + CSS.escape(pending.nav) + '"]') : rowEl(pending.nav))?.focus({ preventScroll: true });
         }
         function openDetail(key, tab, focus) {
             const row = findRow(key);
@@ -753,6 +794,7 @@
                 case 'manage-hosts': dialogs.openHosts(); break;
                 case 'refresh': void store.refresh({ force: true }); break;
                 case 'toggle-group': toggleGroup(el.dataset.groupKey); break;
+                case 'show-more': showMore(el.dataset.moreKey); break;
                 case 'act': void performAction(key, el.dataset.act); break;
                 case 'remove': void removeRow(key); break;
                 case 'logs': openDetail(key, 'logs', true); break;
@@ -848,16 +890,16 @@
             if (!nav || event.ctrlKey || event.metaKey || event.altKey) return;
             const items = [...tbodyEl.querySelectorAll('[data-nav-key]')], index = items.indexOf(nav);
             const onControl = event.target !== nav;
-            const isGroup = nav.classList.contains('dm-group-row');
+            const isGroup = nav.classList.contains('dm-group-row'), isRow = nav.classList.contains('dm-row'), expanded = nav.getAttribute('aria-expanded') === 'true';
             switch (event.key) {
                 case 'ArrowDown': event.preventDefault(); moveFocus(index + 1); break;
                 case 'ArrowUp': event.preventDefault(); moveFocus(index - 1); break;
                 case 'Home': event.preventDefault(); moveFocus(0); break;
                 case 'End': event.preventDefault(); moveFocus(items.length - 1); break;
-                case 'ArrowRight': if (isGroup && !onControl) { event.preventDefault(); if (ui.collapsed.has(nav.dataset.groupKey)) toggleGroup(nav.dataset.groupKey); } break;
+                case 'ArrowRight': if (isGroup && !onControl) { event.preventDefault(); if (!expanded) toggleGroup(nav.dataset.groupKey); } break;
                 case 'ArrowLeft':
-                    if (isGroup && !onControl) { event.preventDefault(); if (!ui.collapsed.has(nav.dataset.groupKey)) toggleGroup(nav.dataset.groupKey); }
-                    else if (!isGroup && !onControl) {
+                    if (isGroup && !onControl) { event.preventDefault(); if (expanded) toggleGroup(nav.dataset.groupKey); }
+                    else if (isRow && !onControl) {
                         const group = items.slice(0, index).reverse().find(el => el.classList.contains('dm-group-row'));
                         if (group) { event.preventDefault(); group.focus(); }
                     }
@@ -865,12 +907,12 @@
                 case 'Enter': case ' ':
                     if (onControl) break;
                     event.preventDefault();
-                    if (isGroup) toggleGroup(nav.dataset.groupKey); else openDetail(nav.dataset.rowKey, undefined, true);
+                    if (isGroup) toggleGroup(nav.dataset.groupKey); else if (isRow) openDetail(nav.dataset.rowKey, undefined, true); else showMore(nav.dataset.navKey.slice('more:'.length));
                     break;
-                case 'Delete': if (!isGroup) { event.preventDefault(); void removeRow(nav.dataset.rowKey); } break;
+                case 'Delete': if (isRow) { event.preventDefault(); void removeRow(nav.dataset.rowKey); } break;
                 case 'ContextMenu': case 'F10':
                     if (event.key === 'F10' && !event.shiftKey) break;
-                    if (!isGroup) { event.preventDefault(); const rect = nav.getBoundingClientRect(); showRowMenu(nav.dataset.rowKey, rect.left + 24, rect.bottom - 4); }
+                    if (isRow) { event.preventDefault(); const rect = nav.getBoundingClientRect(); showRowMenu(nav.dataset.rowKey, rect.left + 24, rect.bottom - 4); }
                     break;
                 default: break;
             }
@@ -883,6 +925,17 @@
             const items = [...stackListEl.querySelectorAll('[data-snav]')], index = items.indexOf(nav);
             const to = { ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: items.length - 1 }[event.key];
             if (to !== undefined) { event.preventDefault(); items[Math.max(0, Math.min(items.length - 1, to))]?.focus(); return; }
+            // An image group opens with Right and closes with Left; Left on one of its members goes back to the group.
+            if ((event.key === 'ArrowRight' || event.key === 'ArrowLeft') && nav.dataset.groupKey) {
+                event.preventDefault();
+                if ((nav.getAttribute('aria-expanded') === 'true') === (event.key === 'ArrowLeft')) toggleGroup(nav.dataset.groupKey);
+                return;
+            }
+            if (event.key === 'ArrowLeft' && nav.closest('ul.is-nested')) {
+                event.preventDefault();
+                nav.closest('ul.is-nested').parentElement.querySelector(':scope > [data-snav]')?.focus();
+                return;
+            }
             if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && nav.dataset.stackKey) {
                 event.preventDefault();
                 const rect = nav.getBoundingClientRect();

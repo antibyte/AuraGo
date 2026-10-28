@@ -59,6 +59,9 @@
     function create(deps) {
         const { t, esc, model, lang, uid } = deps;
         const charts = deps.charts || window.DockerManagerCharts;
+        const Groups = deps.groups || window.DockerManagerGroups;
+        const numberFormat = (() => { try { return new Intl.NumberFormat(lang); } catch (error) { return new Intl.NumberFormat(); } })();
+        const num = value => numberFormat.format(value);
         const glyph = (name, cls) => '<svg class="dm-glyph' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (GLYPHS[name] || '') + '</svg>';
         const dot = tone => '<span class="dm-dot" data-tone="' + esc(tone) + '" aria-hidden="true"></span>';
         const chip = (name, color) => '<span class="dm-chip" data-host-color="' + esc(color) + '"><span class="dm-chip-dot" aria-hidden="true"></span>' + esc(name) + '</span>';
@@ -206,7 +209,8 @@
             return shown + (rest.length ? '<span class="dm-port is-more" title="' + esc(rest.map(item => item.label).join(', ')) + '">+' + rest.length + '</span>' : '');
         }
 
-        function row(snap, r) {
+        // level: the aria-level of the row (members of an image group sit one deeper than the rows beside the group).
+        function row(snap, r, level) {
             const c = r.c, status = model.statusOf(c), name = model.containerName(c), id = model.containerId(c);
             const actions = model.actionsFor(c, !snap.canMutate), busy = snap.state.busy.has(r.hostId + '/' + id);
             const open = !!(snap.state.detail && snap.state.detail.key === r.key);
@@ -221,7 +225,7 @@
             buttons.push(iconButton('logs', '', t('action_logs'), 'logs', { key: r.key, name, busy: false, focus: 'act:' + esc(r.key) + ':logs' }));
             buttons.push(iconButton('more', '', t('action_more'), 'more', { key: r.key, name, busy: false, focus: 'act:' + esc(r.key) + ':more' }));
             return '<tr class="dm-row" role="row" data-nav-key="' + esc(r.key) + '" data-row-key="' + esc(r.key) + '" data-focus-id="row:' + esc(r.key) + '" data-tone="' + status.tone + '" aria-level="'
-                + (snap.headers ? 2 : 1) + '" aria-selected="' + open + '" aria-busy="' + busy + '" tabindex="-1">'
+                + (level || (snap.headers ? 2 : 1)) + '" aria-selected="' + open + '" aria-busy="' + busy + '" tabindex="-1">'
                 + '<td role="gridcell" class="dm-cell-status">' + dot(status.tone) + '<span class="dm-status"><span class="dm-status-text">' + esc(statusLabel(status)) + '</span><span class="dm-status-sub">' + esc(c.status) + '</span></span></td>'
                 + '<td role="gridcell" class="dm-cell-name"><span class="dm-name-line"><span class="dm-name">' + esc(name) + '</span>' + lock + (snap.multi ? chip(r.hostName, r.hostColor) : '') + '</span><span class="dm-sub">' + esc(sub) + '</span></td>'
                 + '<td role="gridcell" class="dm-cell-image"><span class="dm-image" title="' + esc(c.image) + '">' + esc(model.shortImage(c.image)) + '</span></td>'
@@ -239,15 +243,54 @@
                 + (snap.multi && group.kind === 'project' ? chip(group.hostName, group.hostColor) : '') + '<span class="dm-group-count">' + esc(text) + '</span></span></td></tr>';
         }
 
-        function tbody(snap) {
-            const parts = [];
-            for (const group of snap.groups) {
-                const collapsed = snap.headers && snap.collapsed.has(group.key);
-                if (snap.headers) parts.push(groupRow(snap, group, collapsed));
-                if (!collapsed) for (const r of group.rows) parts.push(row(snap, r));
-            }
-            return parts.join('');
+        // "3,257 stopped · 40 with problems · newest 3 d ago": the facts of an image group (the single containers of one image).
+        function imageSummary(snap, group) {
+            const parts = [t('image_group_count', { count: num(group.counts.total) })];
+            if (group.counts.problem) parts.push(t('group_problems', { count: num(group.counts.problem) }));
+            const age = group.newest ? (deps.stackModel || window.DockerManagerStackModel).age(group.newest, snap.now) : null;
+            if (age) parts.push(t('image_group_newest', { age: t('age_' + age.unit, { count: age.n }) }));
+            return parts.join(' · ');
         }
+        const moreText = more => t('show_more', { count: num(more.count), hidden: num(more.hidden) });
+        const imageTone = group => (group.counts.problem ? 'bad' : 'idle');
+
+        // The group row of an image: a treegrid parent that opens by click, Enter, Space and Right (and closes with Left).
+        function imageRow(snap, item, level) {
+            const group = item.group, name = model.shortImage(group.image) || '—';
+            return '<tr class="dm-group-row dm-image-row" role="row" data-nav-key="g:' + esc(group.key) + '" data-group-key="' + esc(group.key) + '" data-focus-id="group:' + esc(group.key) + '" data-action="toggle-group" aria-level="'
+                + level + '" aria-expanded="' + item.open + '" tabindex="-1"><td role="gridcell" colspan="6"><span class="dm-group-main">' + glyph('chevron', 'dm-chevron') + dot(imageTone(group))
+                + '<strong class="dm-group-name" title="' + esc(group.image) + '">' + esc(name) + '</strong><span class="dm-group-count">' + esc(imageSummary(snap, group)) + '</span></span></td></tr>';
+        }
+
+        // "Show 200 more (3,057 hidden)": a row of its own, so the keyboard reaches it like any other row of the treegrid.
+        function moreRow(more, level) {
+            return '<tr class="dm-more-row" role="row" data-nav-key="more:' + esc(more.key) + '" data-focus-id="morerow:' + esc(more.key) + '" aria-level="' + level + '" tabindex="-1"><td role="gridcell" colspan="6">'
+                + '<button type="button" class="dm-btn" data-action="show-more" data-more-key="' + esc(more.key) + '" data-row-btn data-focus-id="more:' + esc(more.key) + '" tabindex="-1">' + esc(moreText(more)) + '</button></td></tr>';
+        }
+
+        // The rows of the table, bounded: [{key, html}] in display order. Every section and every opened image group shows at most
+        // 200 entries (snap.limit) and ends with a "show more" row. snap.open(key) says whether an image group is open. The app
+        // patches the table from this list, row by row.
+        function tbodyItems(snap) {
+            const items = [], headers = snap.headers, base = headers ? 2 : 1;
+            const view = { open: snap.open || (() => false), limit: snap.limit || (() => Groups.PAGE) };
+            const more = (entry, level) => items.push({ key: 'more:' + entry.key, html: moreRow(entry, level) });
+            for (const group of snap.groups) {
+                const collapsed = headers && snap.collapsed.has(group.key);
+                if (headers) items.push({ key: 'g:' + group.key, html: groupRow(snap, group, collapsed) });
+                if (collapsed) continue;
+                const shown = Groups.plan(group.entries || Groups.entries(group.rows), group.key, view);
+                for (const item of shown.items) {
+                    if (item.type === 'row') { items.push({ key: item.row.key, html: row(snap, item.row, base) }); continue; }
+                    items.push({ key: 'g:' + item.group.key, html: imageRow(snap, item, base) });
+                    for (const member of item.members) items.push({ key: member.key, html: row(snap, member, base + 1) });
+                    if (item.more) more(item.more, base + 1);
+                }
+                if (shown.more) more(shown.more, base);
+            }
+            return items;
+        }
+        const tbody = snap => tbodyItems(snap).map(item => item.html).join('');
 
         // ---- empty states ------------------------------------------------------------------------------------------------
 
@@ -364,7 +407,7 @@
             };
         }
 
-        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railParts, railGauges, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
+        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railParts, railGauges, banners, tbody, tbodyItems, imageSummary, imageTone, moreText, gate, empty, drawer, diffHtml, keyOf, TABS };
     }
 
     window.DockerManagerViews = { create, TABS, LIVE_TABS, ACTION_GLYPH };
