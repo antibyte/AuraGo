@@ -9,6 +9,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/webhooks"
 )
@@ -42,6 +43,9 @@ type missionMQTTAdapter struct {
 	// register installs admit and the mission callback in the mqtt package;
 	// nil uses registerMQTTMissionTrigger. Tests set it to capture both.
 	register func(key, topicFilter, payloadContains string, minIntervalSeconds int, admit func(topic, payload string) bool, callback func(topic, payload string))
+	// guardian returns the server Guardian that scans every admitted delivery
+	// before a mission starts; nil (or a nil result) scans with a default one.
+	guardian func() *security.Guardian
 	gate     mqttRelayGate
 }
 
@@ -50,16 +54,53 @@ func (a *missionMQTTAdapter) RegisterMissionTrigger(topicFilter string, payloadC
 	a.RegisterMissionTriggerForKey("", topicFilter, payloadContains, minIntervalSeconds, callback)
 }
 
+// admitDelivery decides whether one broker delivery may start a mission. It
+// must pass mqttRelayAuthorized (trusted TLS with a broker login,
+// allow_unauthenticated_relay, or allow_untrusted_transport) against the live
+// config, then the local injection scan.
+func (a *missionMQTTAdapter) admitDelivery(topic, payload string) bool {
+	var cfg *config.Config
+	if a.config != nil {
+		cfg = a.config()
+	}
+	if !a.gate.admit(cfg, a.logger, mqttRelayPathMissionTrigger) {
+		return false
+	}
+	return a.passesInjectionScan(topic, payload)
+}
+
+// mqttMissionTriggerText is the topic and the whole payload as the mission run
+// reads them in its trigger data. Unlike the relay prompt the mission path does
+// not cut the payload, so the scan reads all of it.
+func mqttMissionTriggerText(topic, payload string) string {
+	return fmt.Sprintf("topic: %s\npayload: %s", topic, payload)
+}
+
+// passesInjectionScan scans what the mission run would read, locally and
+// whatever the LLM Guardian toggle says: a broker client with publish rights on
+// the subscribed topic is not the owner. At ThreatHigh (an incomplete scan reads
+// High) the trigger is dropped and logged, so the mission does not start and
+// the delivery does not consume the trigger interval.
+func (a *missionMQTTAdapter) passesInjectionScan(topic, payload string) bool {
+	var guardian *security.Guardian
+	if a.guardian != nil {
+		guardian = a.guardian()
+	}
+	scan := guardian.ScanForInjectionLocal(mqttMissionTriggerText(topic, payload))
+	if scan.Level < security.ThreatHigh {
+		return true
+	}
+	if a.logger != nil {
+		a.logger.Warn("[MQTT] Mission trigger dropped after prompt-injection scan", "topic", topic, "level", scan.Level.String(), "patterns", scan.Patterns)
+	}
+	return false
+}
+
 // gateMissionTrigger wraps a mission callback so that broker traffic starts
-// the mission only while mqttRelayAuthorized allows it: trusted TLS with a
-// broker login, allow_unauthenticated_relay, or allow_untrusted_transport.
+// the mission only while admitDelivery allows it.
 func (a *missionMQTTAdapter) gateMissionTrigger(callback func(topic, payload string)) func(topic, payload string) {
 	return func(topic, payload string) {
-		var cfg *config.Config
-		if a.config != nil {
-			cfg = a.config()
-		}
-		if !a.gate.admit(cfg, a.logger, mqttRelayPathMissionTrigger) {
+		if !a.admitDelivery(topic, payload) {
 			return
 		}
 		callback(topic, payload)
@@ -81,13 +122,7 @@ func (a *missionMQTTAdapter) RegisterMissionTriggerForKey(key string, topicFilte
 	// The controller resolves the default interval from its current snapshot.
 	// Capturing the startup config here would ignore later interval changes.
 	// admit reads the live snapshot; the mission callback stays unwrapped.
-	register(key, topicFilter, payloadContains, minIntervalSeconds, func(string, string) bool {
-		var cfg *config.Config
-		if a.config != nil {
-			cfg = a.config()
-		}
-		return a.gate.admit(cfg, a.logger, mqttRelayPathMissionTrigger)
-	}, callback)
+	register(key, topicFilter, payloadContains, minIntervalSeconds, a.admitDelivery, callback)
 	a.logger.Info("[MissionMQTTAdapter] Registered mission trigger", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval_seconds", minIntervalSeconds)
 }
 

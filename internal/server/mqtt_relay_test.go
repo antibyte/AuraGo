@@ -538,3 +538,55 @@ func TestMQTTRelayHandlerQuarantinesInjectedBrokerMessages(t *testing.T) {
 		t.Fatalf("quarantine was not logged:\n%s", logs.String())
 	}
 }
+
+// MQTT mission triggers start autonomous runs on broker traffic too, so they
+// pass the same local scan as the relay: a ThreatHigh topic or payload (also the
+// part of a payload the relay prompt would have cut) neither starts the mission
+// nor reaches its trigger data. A benign delivery starts it once.
+func TestMissionMQTTAdapterDropsInjectedBrokerMessages(t *testing.T) {
+	type registration struct {
+		admit    func(topic, payload string) bool
+		callback func(topic, payload string)
+	}
+	var installed []registration
+	logger, logs := newMQTTRelayTestLogger()
+	current := anonymousMQTTRelayConfig()
+	current.MQTT.AllowUnauthenticatedRelay = true
+	current.Frigate.Enabled = false
+	adapter := &missionMQTTAdapter{
+		logger: logger,
+		config: func() *config.Config { return current },
+		register: func(_, _, _ string, _ int, admit func(topic, payload string) bool, callback func(topic, payload string)) {
+			installed = append(installed, registration{admit: admit, callback: callback})
+		},
+	}
+	started := 0
+	adapter.RegisterMissionTriggerForKey("mission-1|mqtt_message", "home/#", "", 0, func(string, string) { started++ })
+	trigger := adapter.gateMissionTrigger(func(string, string) { started++ })
+	deliver := func(topic, payload string) {
+		for _, reg := range installed {
+			if reg.admit(topic, payload) {
+				reg.callback(topic, payload)
+			}
+		}
+		trigger(topic, payload)
+	}
+
+	deliver("home/door", `{"state":"open"}`)
+	if started != 2 {
+		t.Fatalf("benign delivery started %d missions, want 2 (registered trigger and gate wrapper)", started)
+	}
+
+	started = 0
+	deliver("home/door", highThreatPromptInjection)
+	deliver("home/"+highThreatPromptInjection, "open")
+	// The relay prompt cuts a payload at 16 KiB; the mission path does not, so the
+	// scan must reach a directive behind the cut.
+	deliver("home/door", strings.Repeat("A", mqttRelayPromptPayloadLimit+1024)+" "+highThreatPromptInjection)
+	if started != 0 {
+		t.Fatalf("injected broker messages started %d missions, want 0", started)
+	}
+	if got := strings.Count(logs.String(), "Mission trigger dropped after prompt-injection scan"); got != 6 {
+		t.Fatalf("dropped deliveries logged %d times, want 6:\n%s", got, logs.String())
+	}
+}
