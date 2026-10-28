@@ -64,12 +64,11 @@ def analog_file(mode):
 
 
 def file_request(port, path, method="GET", data=None, timeout=3):
-    if port == 8091 and path == "/sdrangel/audio" and method == "GET":
-        REAL_REQUEST(port, "/sdrangel/logging", "PUT", {"consoleLevel": "debug", "dumpToFile": 0})
     if port == 8091 and path == "/sdrangel/deviceset/0/device" and method == "PUT":
-        data = {"hwType": "FileInput", "direction": 0}
-        # FileInput loads the synthetic recording during cold ARM64 initialization.
-        timeout = max(timeout, 120)
+        # Creating an Rx device set already selects FileInput; do not switch it twice.
+        selected = REAL_REQUEST(port, path + "/settings", timeout=max(timeout, 120))
+        assert selected.get("deviceHwType") == "FileInput", selected
+        return selected
     if port == 8091 and path == "/sdrangel/deviceset/0/device/settings" and method == "PATCH":
         data = {"deviceHwType": "FileInput", "direction": 0,
                 "fileInputSettings": {"fileName": str(ROOT / "analog.sdriq"), "loop": 1, "accelerationFactor": 1}}
