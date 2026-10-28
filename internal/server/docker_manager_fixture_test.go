@@ -157,6 +157,14 @@ func newDMFixture(t *testing.T) *dmFixture {
 		dmContainerJSON('d', "cams", "sha256:img2", "running", "bridge", map[string]string{"aurago.managed": "ruview"}, nil),
 		dmContainerJSON('e', "web1", "sha256:img1", "running", "bridge", nil, nil),
 	))
+	return &dmFixture{t: t, s: newDMServer(t, local.endpoint()), local: local, remote: remote}
+}
+
+// newDMServer is a server with Docker enabled, a vault and the host registry
+// (with the stacks service and the live data hub) open on the local Engine at
+// endpoint (docker.host). It is closed when the test ends.
+func newDMServer(t *testing.T, endpoint string) *Server {
+	t.Helper()
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
 	t.Cleanup(tools.ClearRuntimePermissionsForTest)
 
@@ -166,7 +174,7 @@ func newDMFixture(t *testing.T) *dmFixture {
 		t.Fatalf("NewVault: %v", err)
 	}
 	s := testContainerServer(true, false)
-	s.Cfg.Docker.Host = local.endpoint()
+	s.Cfg.Docker.Host = endpoint
 	s.Cfg.Directories.DataDir = dir
 	s.Vault = vault
 	s.initDockerHosts()
@@ -174,7 +182,7 @@ func newDMFixture(t *testing.T) *dmFixture {
 	if s.DockerHosts == nil {
 		t.Fatal("initDockerHosts left DockerHosts nil")
 	}
-	return &dmFixture{t: t, s: s, local: local, remote: remote}
+	return s
 }
 
 // do calls the Docker Manager handler directly and decodes the JSON answer.
