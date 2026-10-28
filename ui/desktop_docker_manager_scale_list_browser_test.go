@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -152,11 +153,30 @@ func TestDesktopDockerManagerScaleBrowser(t *testing.T) {
 
 	// A member of the group opens the drawer (click); a paint without new data sorts nothing; the drawer stays when its group is closed
 	page.MustEval(`()=>{window.__groupCalls=0;const m=DockerManagerModel,g=m.groupRows;m.groupRows=function(){window.__groupCalls++;return g.apply(this,arguments)}}`)
-	page.MustEval(`()=>document.querySelector('[data-tbody] tr.dm-row[data-row-key*="000000000100"] .dm-cell-name').click()`)
-	dmScaleWait(t, page, `()=>!document.querySelector('[data-drawer]').hidden && /^ci-job-/.test(document.querySelector('[data-drawer] h2')?.textContent||'')`)
-	time.Sleep(300 * time.Millisecond)
-	if calls := count(`()=>window.__groupCalls`); calls != 0 {
-		t.Fatalf("a paint without new data sorted the groups %d times, want none", calls)
+	// The window counts only while the host answers no listing (a poll of the other hosts is new data and may sort); it is repeated until quiet.
+	listings := func() int {
+		return fixture.listCount() + len(regexp.MustCompile(`GET /api/docker-manager/hosts/[a-z_]+/containers(\?| |$)`).FindAllString(fixture.joined(), -1))
+	}
+	quiet := false
+	for attempt := 0; attempt < 6 && !quiet; attempt++ {
+		page.MustEval(`()=>{window.__groupCalls=0}`)
+		before := listings()
+		page.MustEval(`()=>document.querySelector('[data-tbody] tr.dm-row[data-row-key*="000000000100"] .dm-cell-name').click()`)
+		dmScaleWait(t, page, `()=>!document.querySelector('[data-drawer]').hidden && /^ci-job-/.test(document.querySelector('[data-drawer] h2')?.textContent||'')`)
+		time.Sleep(300 * time.Millisecond)
+		calls := count(`()=>window.__groupCalls`)
+		if listings() != before {
+			page.MustEval(`()=>document.querySelector('[data-action="close-detail"]').click()`)
+			dmScaleWait(t, page, `()=>document.querySelector('[data-drawer]').hidden`)
+			continue
+		}
+		if calls != 0 {
+			t.Fatalf("a paint without new data sorted the groups %d times, want none", calls)
+		}
+		quiet = true
+	}
+	if !quiet {
+		t.Fatal("the host kept answering listings: no quiet window to check the sorting")
 	}
 	page.MustEval(`()=>` + dmScaleGroupRow + `.click()`)
 	dmScaleWait(t, page, dmScaleMembersIs(50))
