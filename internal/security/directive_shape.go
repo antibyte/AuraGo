@@ -34,9 +34,11 @@ var directiveScopeMarkers = []string{
 }
 
 // directiveRepeatMarkers say something recurs ("always", "whenever", "immer").
-// Documentation, logs and reminders are full of them ("Remember to rotate the
-// API key quarterly", "Der Tresor ist immer verschlossen"), so they count only
-// next to a tool name or an outbound action on a secret or a destination.
+// Documentation, logs, reminders and recaps are full of them ("Remember to
+// rotate the API key quarterly", "Der Tresor ist immer verschlossen", "The
+// assistant always uses execute_python"), so they count only next to a tool
+// name the sentence commands (directiveCommandsTool) or an outbound action on a
+// secret or a destination.
 var directiveRepeatMarkers = []string{
 	"always", "whenever", "every time", "each time", "permanently", "remember to",
 	"immer", "jedes mal", "jedesmal", "dauerhaft", "merke dir", "merk dir", "in zukunft",
@@ -48,6 +50,30 @@ var directiveRepeatMarkers = []string{
 var directiveTools = []string{
 	"execute_*", "run_tool", "api_request", "send_email", "send_telegram", "send_discord", "send_sms",
 	"manage_missions", "manage_webhooks", "call_webhook", "save_tool",
+}
+
+// directiveSecondPerson address the reader. A sentence that says "you" or "your"
+// next to a repeat marker and a tool name is an order, not a recap.
+var directiveSecondPerson = []string{"you", "your", "yours", "yourself", "du", "dich", "dein*"}
+
+// directiveCallVerbs invoke a tool. Opening a clause ("Always use execute_python
+// for plots", "whenever the user says hello, call api_request") they command it;
+// "uses", "called" or "wants to use" describe.
+var directiveCallVerbs = []string{
+	"call", "run", "use", "invoke", "execute", "trigger", "launch", "start", "fire",
+	"rufe", "ruf", "führe", "nutze", "verwende", "benutze", "starte",
+}
+
+// directiveTrailingVerbs are the German infinitives that close an order after the
+// tool name ("Immer execute_python verwenden"). The descriptive present
+// ("verwendet immer execute_python") puts its verb before the tool.
+var directiveTrailingVerbs = []string{"verwenden", "nutzen", "benutzen", "aufrufen", "ausführen", "starten", "einsetzen"}
+
+// directiveConnectors may stand between a clause break and a command ("first run
+// execute_shell", "then call api_request").
+var directiveConnectors = []string{
+	"first", "then", "next", "also", "and", "please", "just", "simply", "immediately",
+	"zuerst", "dann", "bitte", "und", "einfach", "sofort",
 }
 
 // directiveSecrets are the secrets it goes after. A secret word alone is no
@@ -97,11 +123,13 @@ var directiveMinMarkerLen = func() int {
 //     "standing instruction", "ab jetzt") with a tool name, with a send verb
 //     aimed at a secret or a URL or e-mail address, or with a read verb aimed at
 //     a secret;
-//   - a repeat marker ("always", "whenever", "immer") with a tool name, or with a
-//     send verb aimed at a secret or a destination.
+//   - a repeat marker ("always", "whenever", "immer") with a tool name that the
+//     sentence commands ("Always use execute_python", "Every time you answer,
+//     call send_email"), or with a send verb aimed at a secret or a destination.
 //
-// "Always send me the weekly report" has no target and "Remember to change your
-// password every 90 days" no outbound action: neither is a hit.
+// "Always send me the weekly report" has no target, "Remember to change your
+// password every 90 days" no outbound action, and "The assistant always uses
+// execute_python to plot the data" only describes a habit: none is a hit.
 //
 // It is a local, deterministic heuristic over the text as a reader sees it
 // (invisible characters and compatibility letters folded, case and spacing
@@ -210,7 +238,7 @@ func directiveWindowHit(window string) bool {
 	}
 	// The markers themselves are no targets or verbs ("going forward").
 	rest := maskPhrases(maskPhrases(window, directiveScopeMarkers), directiveRepeatMarkers)
-	if hasPhrase(rest, directiveTools) {
+	if hasPhrase(rest, directiveTools) && (scope || directiveCommandsTool(rest)) {
 		return true
 	}
 	secret := hasPhrase(rest, directiveSecrets)
@@ -218,6 +246,72 @@ func directiveWindowHit(window string) bool {
 		return true
 	}
 	return scope && secret && hasPhrase(rest, directiveReadVerbs)
+}
+
+// directiveCommandsTool reports whether a sentence with a repeat marker and a
+// tool name orders the tool: it speaks to the reader ("you", "du"), a call
+// verb opens a clause (sentence start, after a comma, colon or dash, or after a
+// connector such as "first") and a tool name follows it, or a German infinitive
+// closes the sentence after the tool name. A third-person recap
+// ("The agent always called save_tool", "The user always wants the
+// manage_missions tool used") is neither. rest is lowercase with the markers
+// masked.
+func directiveCommandsTool(rest string) bool {
+	if hasPhrase(rest, directiveSecondPerson) {
+		return true
+	}
+	words := directiveWords(rest)
+	for i, w := range words {
+		if hasPhrase(w.text, directiveTrailingVerbs) && hasPhrase(rest[:w.end], directiveTools) {
+			return true
+		}
+		if !hasPhrase(w.text, directiveCallVerbs) {
+			continue
+		}
+		if i > 0 && !w.afterBreak && !hasPhrase(words[i-1].text, directiveConnectors) {
+			continue
+		}
+		if hasPhrase(rest[w.end:], directiveTools) {
+			return true
+		}
+	}
+	return false
+}
+
+// directiveWord is one word of directiveWords: its end offset in the text and
+// whether anything but spaces (punctuation) separates it from the word before.
+type directiveWord struct {
+	text       string
+	end        int
+	afterBreak bool
+}
+
+// directiveWords splits s into words (see isDirectiveWordRune). The first word
+// counts as following a break.
+func directiveWords(s string) []directiveWord {
+	var words []directiveWord
+	start, brk := -1, true
+	flush := func(end int) {
+		if start >= 0 {
+			words = append(words, directiveWord{text: s[start:end], end: end, afterBreak: brk})
+			start, brk = -1, false
+		}
+	}
+	for i, r := range s {
+		switch {
+		case isDirectiveWordRune(r):
+			if start < 0 {
+				start = i
+			}
+		case unicode.IsSpace(r):
+			flush(i)
+		default:
+			flush(i)
+			brk = true
+		}
+	}
+	flush(len(s))
+	return words
 }
 
 // hasPhrase reports whether s holds any phrase as whole words (see
