@@ -162,7 +162,7 @@
             const g = snap.sgroups, shown = g.stacks.length + g.external.length + g.singles.length;
             const parts = cards.slice();
             // Every section shows at most 200 entries (snap.limit), the single containers of one image fold into a group (snap.open).
-            const view = { open: snap.open || (() => false), limit: snap.limit || (() => Groups.PAGE) };
+            const view = snap.groupView || Groups.view(Groups.state(), false);
             const bounded = (key, rows, render) => { const shownRows = Groups.page(rows, key, view.limit); return shownRows.items.map(render).concat(shownRows.more ? [moreRow(shownRows.more)] : []); };
             if (g.stacks.length) parts.push(group('stacks', t('group_stacks'), g.stacks.length, bounded('sec:stacks', g.stacks, row => stackRow(snap, row))));
             if (g.external.length) parts.push(group('external', t('group_external'), g.external.length, bounded('sec:external', g.external, row => externalRow(snap, row))));

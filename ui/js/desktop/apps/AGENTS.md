@@ -344,8 +344,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   containers that are fine). In the table the group is a treegrid parent row (`tr.dm-image-row`,
   `aria-expanded`, one `aria-level` below its section, its members one more; Enter, Space, Right open it, Left closes it, Left on a member goes to
   it); in the Stacks list it is a `li` with a button and a nested list (Right/Left work there too). A group is closed until opened; while a
-  search (or, in the Containers section, a state filter) is active every group with matches is open and holds only the matches, until the admin
-  closes it (that choice ends with the next change of the search or filter). The open state is shared by both sections, not saved, and
+  search (or, in the Containers section, a state filter) is active the groups with matches open by themselves and hold only the matches, but they share
+  one page of rows (about 200 including the section's own rows: the groups with the most matches open first, the rest stay closed with their match
+  counts, `autoOpen`); a click opens or closes one whatever the budget says and moves no other group, and that choice ends with the next change of the
+  search or filter. The open state is shared by both sections, not saved, and
   `Groups.sync` ends the closings and the "show more" steps whenever the section, search or filter changes. Every section (project group,
   single containers, stacks, external projects) and every opened group renders at most 200 entries and ends with "Show 200 more (N hidden)"
   (`data-action="show-more"`; a row of its own in the table, a nested item in the list); Enter on that row works too. The table is patched row

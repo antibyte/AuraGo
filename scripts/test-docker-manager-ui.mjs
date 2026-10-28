@@ -1951,21 +1951,23 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     eq(names(matchesFor('job000')), ['[ci:1 x10]'], 'ten members match "job000" (job0000-job0009): still one group');
     eq(names(matchesFor('job0003')), ['job0003'], 'one match is one row');
     eq(names(matchesFor('batch')), ['batch0000', 'batch0001', 'batch0002'], 'fewer than five matches show as rows');
-    const state = G.state();
+    const state = G.state(), oneGroup = matchesFor('job000');
+    const isOpen = narrowed => G.plan(oneGroup, 'sec', G.view(state, narrowed)).items[0].open;
+    const click = narrowed => G.toggle(state, narrowed, 'i:ci:1', isOpen(narrowed));
     G.sync(state, 'ci|all');
-    assert.equal(G.view(state, false).open('i:ci:1'), false, 'an image group is closed by default');
-    assert.equal(G.view(state, true).open('i:ci:1'), true, 'a search or filter opens every group with matches');
-    G.toggle(state, true, 'i:ci:1');
-    assert.equal(G.view(state, true).open('i:ci:1'), false, 'the admin can close it again while the search is active');
-    assert.equal(G.view(state, false).open('i:ci:1'), false, 'and that does not open it for good');
+    assert.equal(isOpen(false), false, 'an image group is closed by default');
+    assert.equal(isOpen(true), true, 'a search or filter opens every group with matches (while the budget lasts)');
+    click(true);
+    assert.equal(isOpen(true), false, 'the admin can close it again while the search is active');
+    assert.equal(isOpen(false), false, 'and that does not open it for good');
     G.sync(state, 'ci|all');
-    assert.equal(G.view(state, true).open('i:ci:1'), false, 'the same search keeps the choice');
+    assert.equal(isOpen(true), false, 'the same search keeps the choice');
     G.sync(state, 'ci2|all');
-    assert.equal(G.view(state, true).open('i:ci:1'), true, 'a new search ends the choice');
-    G.toggle(state, false, 'i:ci:1');
-    assert.equal(G.view(state, false).open('i:ci:1'), true, 'without a search a click opens the group');
-    G.toggle(state, false, 'i:ci:1');
-    assert.equal(G.view(state, false).open('i:ci:1'), false, 'and closes it again');
+    assert.equal(isOpen(true), true, 'a new search ends the choice');
+    click(false);
+    assert.equal(isOpen(false), true, 'without a search a click opens the group');
+    click(false);
+    assert.equal(isOpen(false), false, 'and closes it again');
 
     // the cap: a section and an opened group show 200 entries, "show more" adds 200 more
     const big = G.entries(rowsOf([container('web'), ...make('job', 450)]), { image: true });
@@ -1993,6 +1995,29 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     // a change of the search ends the "show more" steps
     G.sync(sectionState, 'x|all'); G.sync(sectionState, 'y|all');
     assert.equal(G.view(sectionState, false).limit('sec:singles'), 200);
+
+    // while a search or filter opens groups on its own they share one page of rows: "Stopped" on 3,000 containers of 60 images is not 3,000 rows
+    {
+        const pad = n => String(n).padStart(2, '0');
+        const imagesOf = sizes => sizes.flatMap((size, image) => Array.from({ length: size }, (_, i) => stopped('img' + pad(image) + '-job' + String(i).padStart(3, '0'), { image: 'img-' + pad(image) + ':1' })));
+        const openIn = (list, s = G.state()) => G.plan(list, 'sec:singles', G.view(s, true)).items.filter(item => item.type === 'image' && item.open).map(item => item.group.key);
+        const rowsShown = (list, s = G.state()) => { const planned = G.plan(list, 'sec:singles', G.view(s, true)); return planned.items.length + planned.items.reduce((n, item) => n + (item.members ? item.members.length : 0), 0); };
+        const sixty = G.entries(rowsOf(imagesOf(Array(60).fill(50))), { image: true });
+        eq([sixty.length, openIn(sixty), rowsShown(sixty)], [60, ['i:img-00:1', 'i:img-01:1', 'i:img-02:1'], 210], 'sixty groups of 50 matches: three open, the others wait with their counts, 210 rows in all');
+        const uneven = G.entries(rowsOf(imagesOf([50, 120, 90, 60, 150])), { image: true });
+        eq(openIn(uneven).sort(), ['i:img-01:1', 'i:img-04:1'], 'the groups with the most matches open first while the budget lasts (150, then 120)');
+        // a group the admin opens opens whatever the budget says and moves no other group; closing one opens none in its place
+        const chosen = G.state();
+        G.toggle(chosen, true, 'i:img-00:1', false);
+        eq(openIn(uneven, chosen).sort(), ['i:img-00:1', 'i:img-01:1', 'i:img-04:1'], 'a click opens a group the budget left closed');
+        G.toggle(chosen, true, 'i:img-04:1', true);
+        eq(openIn(uneven, chosen).sort(), ['i:img-00:1', 'i:img-01:1'], 'closing a group opens no other one in its place');
+        G.showMore(chosen, 'i:img-01:1');
+        eq(openIn(uneven, chosen).sort(), ['i:img-00:1', 'i:img-01:1'], 'neither does "show more"');
+        eq(rowsShown(G.entries(rowsOf(imagesOf([3000])), { image: true })), 201, 'one group of 3,000 matches shows its first page');
+        // without a search nothing opens by itself
+        eq(G.plan(sixty, 'sec:singles', G.view(G.state(), false)).items.filter(item => item.open).length, 0);
+    }
 }
 
 console.log('docker-manager ui tests: model and store ok');
@@ -2639,7 +2664,7 @@ const full = {};
     const snapFor = (open, extra = {}) => Object.assign({
         state: { scope: 'all', stacks: { local: { loaded: true, listing: { stacks: [], external: [], ignored: [] } } }, byHost, hostsLoaded: true, detail: null, stack: null, project: null, busy: new Set(), ops: [], df: {} },
         hosts, scopeHosts: hosts, rows, visible: rows, multi: false, canMutate: true, headers: false, collapsed: new Set(), groups, section: 'containers', hostStates: { local: 'ok' }, now: 1760100000000,
-        open: G.view(grp, open).open, limit: G.view(grp, open).limit, query: ''
+        groupView: G.view(grp, open), query: ''
     }, extra);
 
     // Containers: 3 running rows and one collapsed group row
@@ -2702,7 +2727,7 @@ const full = {};
         const groups2 = model2.groupRows(rows2, { hostOrder: ['local'] });
         for (const group of groups2) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
         const baseSnap = Object.assign(snapFor(false), {
-            state: Object.assign({}, snapFor(false).state, { byHost: { local: { containers: listed, loaded: true } } }), rows: rows2, visible: rows2, groups: groups2, open: G.view(fresh, false).open, limit: G.view(fresh, false).limit,
+            state: Object.assign({}, snapFor(false).state, { byHost: { local: { containers: listed, loaded: true } } }), rows: rows2, visible: rows2, groups: groups2, groupView: G.view(fresh, false),
 
         });
         const rendered = items => items.filter(item => item.key.startsWith('local/')).map(item => (item.html.match(/class="dm-name">([^<]+)</) || [])[1]);
@@ -2731,6 +2756,23 @@ const full = {};
             container('paused-one', { state: 'paused', status: 'Up 1 hour (Paused)' })
         ], loaded: true } }, 'all'), { image: true });
         eq([ranking[0].row.c.names[0], ranking[1].key, ranking[2].row.c.names[0], ranking[ranking.length - 1].key], ['paused-one', 'i:broken:1', 'plain-000', 'i:fine:1'], 'paused first, then the group with a failure, then the plain stopped rows, the quiet group last');
+    }
+
+    // "Stopped" on 3,000 stopped containers of 60 images opens the groups only while the shared budget lasts: about 210 rows, not 3,000
+    {
+        const stoppedOnes = Array.from({ length: 3000 }, (_, i) => container('img' + String(i % 60).padStart(2, '0') + '-job' + String(Math.floor(i / 60)).padStart(3, '0'), { state: 'exited', status: 'Exited (0) 1 hour ago', image: 'img-' + String(i % 60).padStart(2, '0') + ':1' }));
+        const fresh = G.state(), narrowedView = G.view(fresh, true);
+        const rows3 = model2.buildRows(hosts, { local: { containers: stoppedOnes, loaded: true } }, 'all');
+        const visible3 = model2.filterRows(rows3, { query: '', filter: 'stopped' });
+        const groups3 = model2.groupRows(visible3, { hostOrder: ['local'] });
+        for (const group of groups3) group.entries = G.entries(group.rows, { image: group.kind === 'single' });
+        const snap3 = Object.assign(snapFor(true), { rows: rows3, visible: visible3, groups: groups3, groupView: narrowedView });
+        const tableRows = views.tbodyItems(snap3);
+        eq([visible3.length, tableRows.length <= 250, tableRows.length >= 200, tableRows.filter(item => item.key.startsWith('g:i:')).length, tableRows.filter(item => /aria-expanded="true"/.test(item.html)).length], [3000, true, true, 60, 3], 'the table: 60 group rows, 3 of them open, at most about 250 rows');
+        const singles3 = visible3.filter(row => !row.c.compose_project);
+        const list3 = stacks.list(Object.assign({}, snap3, { section: 'stacks', sgroups: { stacks: [], external: [], singles: singles3, singleEntries: G.entries(singles3, { image: true }) } }));
+        const counted = pattern => (list3.match(pattern) || []).length;
+        eq([counted(/<li class="dm-srow/g) <= 250, counted(/data-group-key=/g), counted(/aria-expanded="true"/g), counted(/data-action="open-container"/g)], [true, 60, 3, 150], 'the Stacks list: the same 60 groups, 3 open with 150 members in all');
     }
 
     // a snapshot without the new members (older callers) renders as before

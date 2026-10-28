@@ -228,7 +228,7 @@
             return Object.assign(liveInfo(), {
                 state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: memos.counts([rows, ui.query], () => model.counts(rows, ui.query)),
                 canMutate: store.canMutate(), canEditHosts: store.canEditHosts(), section: ui.section, query: ui.query, hostStates, stackOps, prepareActive,
-                sgroups, stackCounts: sm.stackCounts(hosts, state.stacks, state.scope), open: groupView.open, limit: groupView.limit,
+                sgroups, stackCounts: sm.stackCounts(hosts, state.stacks, state.scope), groupView,
                 dirty: workbench.dirtyState(), pageHost: window.location.hostname, now: Date.now()
             });
         }
@@ -500,7 +500,13 @@
             schedulePaint();
         }
         function toggleGroup(key) {
-            if (key.startsWith('i:')) { Groups.toggle(ui.grp, isNarrowed(), key); schedulePaint(); return; }
+            if (key.startsWith('i:')) {
+                // Whether the group is open now is what the page shows (while a search is active the row budget decides).
+                const shown = root.querySelector('[data-group-key="' + CSS.escape(key) + '"]');
+                Groups.toggle(ui.grp, isNarrowed(), key, !!shown && shown.getAttribute('aria-expanded') === 'true');
+                schedulePaint();
+                return;
+            }
             if (ui.collapsed.has(key)) ui.collapsed.delete(key); else ui.collapsed.add(key);
             savePrefsSoon();
             schedulePaint();

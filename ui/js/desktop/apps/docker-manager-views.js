@@ -273,7 +273,7 @@
         // patches the table from this list, row by row.
         function tbodyItems(snap) {
             const items = [], headers = snap.headers, base = headers ? 2 : 1;
-            const view = { open: snap.open || (() => false), limit: snap.limit || (() => Groups.PAGE) };
+            const view = snap.groupView || Groups.view(Groups.state(), false);
             const more = (entry, level) => items.push({ key: 'more:' + entry.key, html: moreRow(entry, level) });
             for (const group of snap.groups) {
                 const collapsed = headers && snap.collapsed.has(group.key);

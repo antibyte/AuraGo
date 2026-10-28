@@ -84,41 +84,67 @@
         return { items: all.slice(0, cap), more: moreOf(key, all.length - cap) };
     }
 
-    // The rendered part of a section made of entries(). view = {limit(key), open(key)} (state().view). An opened image group shows its
-    // first `limit` members and a `more` of its own; a closed one none. Returns {items, more}: items are rows or
+    // While a search or a state filter is active the groups with matches open on their own, but they share one page of rows (the
+    // section's own rows included), so "Stopped" on 60 images of 50 containers is not 3,000 rows. The groups with the most matches
+    // open first (equal sizes keep the name order) while the budget lasts; the rest stay closed with their match counts. The walk
+    // looks at sizes only (a group costs at most one page), so opening, closing or "show more" never moves another group.
+    function autoOpen(items) {
+        const open = new Set();
+        let used = items.length;
+        for (const group of items.filter(entry => entry.type === 'image').sort((a, b) => b.rows.length - a.rows.length)) {
+            if (used >= PAGE) break;
+            open.add(group.key);
+            used += Math.min(group.rows.length, PAGE);
+        }
+        return open;
+    }
+
+    // The rendered part of a section made of entries(). view = state().view(...). An opened image group shows its first `limit`
+    // members and a `more` of its own; a closed one none. Returns {items, more}: items are rows or
     // {type: 'image', group, open, members, more}.
     function plan(list, section, view) {
-        const shown = page(list, section, view.limit), items = [];
+        const shown = page(list, section, view.limit), items = [], auto = view.narrowed ? autoOpen(shown.items) : null;
         for (const entry of shown.items) {
             if (entry.type !== 'image') { items.push(entry); continue; }
-            const open = !!view.open(entry.key), members = open ? page(entry.rows, entry.key, view.limit) : { items: [], more: null };
+            const open = !!view.isOpen(entry.key, auto), members = open ? page(entry.rows, entry.key, view.limit) : { items: [], more: null };
             items.push({ type: 'image', group: entry, open, members: members.items, more: members.more });
         }
         return { items, more: shown.more };
     }
 
-    // The state the app keeps. expanded: image groups the admin opened; closed: groups the admin closed while a search or filter opens
-    // them all; limits: key -> how many entries a section or group shows; narrowKey: what the search and filter were when closed and
-    // limits were last reset.
-    function state() { return { expanded: new Set(), closed: new Set(), limits: new Map(), narrowKey: '' }; }
+    // The state the app keeps. expanded: image groups the admin opened; closed and opened: what the admin closed or opened while a
+    // search or filter is active; limits: key -> how many entries a section or group shows; narrowKey: what the section, search and
+    // filter were when closed, opened and limits were last reset.
+    function state() { return { expanded: new Set(), closed: new Set(), opened: new Set(), limits: new Map(), narrowKey: '' }; }
 
-    // Call before every paint with the current search/filter. A change of it ends the admin's closings and the "show more" steps.
+    // Call before every paint with the current section/search/filter. A change of it ends the admin's closings and openings during a
+    // search and the "show more" steps.
     function sync(s, narrowKey) {
         if (s.narrowKey === narrowKey) return;
         s.narrowKey = narrowKey;
         s.closed.clear();
+        s.opened.clear();
         s.limits.clear();
     }
     function view(s, narrowed) {
         return {
             narrowed: !!narrowed,
-            open: key => (narrowed ? !s.closed.has(key) : s.expanded.has(key)),
-            limit: key => s.limits.get(key) || PAGE
+            limit: key => s.limits.get(key) || PAGE,
+            // auto: the keys autoOpen chose (narrowed only); the admin's choice beats it either way
+            isOpen: (key, auto) => (narrowed ? !s.closed.has(key) && (s.opened.has(key) || !!(auto && auto.has(key))) : s.expanded.has(key))
         };
     }
-    function toggle(s, narrowed, key) {
-        const set = narrowed ? s.closed : s.expanded;
-        if (set.has(key)) set.delete(key); else set.add(key);
+    // openNow: whether the group shows open at the moment of the click (the budget decides that while a search is active).
+    function toggle(s, narrowed, key, openNow) {
+        if (!narrowed) {
+            if (s.expanded.has(key)) s.expanded.delete(key); else s.expanded.add(key);
+        } else if (openNow) {
+            s.opened.delete(key);
+            s.closed.add(key);
+        } else {
+            s.closed.delete(key);
+            s.opened.add(key);
+        }
     }
     function showMore(s, key) { s.limits.set(key, (s.limits.get(key) || PAGE) + PAGE); }
 
