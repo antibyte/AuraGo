@@ -69,6 +69,8 @@ The updater owns transaction manifests; this package verifies them before collec
 ## Work Guidance
 
 Keep `update.sh`, the maintenance CLI and the release build flags aligned.
+Already-current updates may repair the service user's Chromium AppArmor profile;
+they report that AuraGo was not rebuilt or restarted, rather than claiming no files changed.
 Both Windows builders must reject dirty source trees and link the reviewed commit
 and generated UI pins into main binaries; pass linker flags as one native argument.
 The PowerShell publisher pushes reviewed HEAD even when already committed, pins

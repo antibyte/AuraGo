@@ -102,6 +102,9 @@ func TestGo2RTCTuyaRemovingCameraClearsVaultAndCannotDetachSilently(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The remaining assertions cover config/Vault changes without runtime reconciliation.
+	s.Go2RTC.Close()
+	s.Go2RTC = nil
 	request := func(body string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
 		handleUpdateConfig(s)(w, httptest.NewRequest("PUT", "/api/config", strings.NewReader(body)))

@@ -108,6 +108,8 @@
   "help.chromecast.enabled": "Chromecast-integratie inschakelen.",
   "help.chromecast.tts_port": "Lokale poort voor de TTS-bestandsserver om naar Chromecast te streamen.",
   "help.chromecast.media_host_allowlist": "Kommagescheiden private mediahosts waarvandaan AuraGo mag casten, bijv. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Laat leeg om private media-URL's te blokkeren.",
+  "help.chromecast.advertise_host": "Host of IP die Chromecast voor AuraGo-media gebruikt. Laat leeg en AuraGo kiest een LAN-adres. 127.0.0.1 wordt nooit gebruikt.",
+  "help.chromecast.read_only": "Blokkeert afspelen, spraak, stop, volume, pauze, zoeken en dempen. Ontdekken en status blijven beschikbaar.",
   "help.circuit_breaker.llm_timeout_seconds": "Maximale wachttijd voor een LLM-antwoord in seconden. Het verzoek wordt afgebroken als die tijd wordt overschreden.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Maximale duur van onderhoudstaken in minuten. Ook: tijd zonder gebruikersactiviteit voordat de agent automatisch uit de onderhoudsmodus terugkeert.",
   "help.circuit_breaker.max_tool_calls": "Breekt de taak af als er meer tool-aanroepen zijn dan deze waarde. Voorkomt oneindige lussen en ongecontroleerd tokenverbruik.",

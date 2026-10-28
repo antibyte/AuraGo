@@ -108,6 +108,8 @@
   "help.chromecast.enabled": "Aktiverar Chromecast-integrationen för ljudutgång.",
   "help.chromecast.tts_port": "Lokal port för TTS-filservern för att strömma till Chromecast.",
   "help.chromecast.media_host_allowlist": "Kommaseparerade privata medievärdar som AuraGo får casta från, t.ex. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Lämna tomt för att blockera privata media-URL:er.",
+  "help.chromecast.advertise_host": "Värd eller IP som Chromecast använder för AuraGo-media. Lämna tomt så väljer AuraGo en LAN-adress. 127.0.0.1 används aldrig.",
+  "help.chromecast.read_only": "Blockerar uppspelning, tal, stopp, volym, paus, sökning och ljudavstängning. Upptäckt och status förblir tillgängliga.",
   "help.circuit_breaker.llm_timeout_seconds": "Maximal väntetid för ett LLM-svar i sekunder. Förfrågan avbryts om den överskrids.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Maximal varaktighet för underhållsuppgifter i minuter. Även den tid utan användaraktivitet innan agenten automatiskt återgår från underhållsläge.",
   "help.circuit_breaker.max_tool_calls": "Avbryter uppgiften om fler verktygsanrop än detta värde sker. Förhindrar oändliga slingor och okontrollerad tokenförbrukning.",

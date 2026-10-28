@@ -67,7 +67,7 @@ const chromiumSandboxHarness = `
 set -euo pipefail
 root=$(mktemp -d)
 trap 'rm -rf -- "$root"' EXIT
-SUDO=''
+SUDO=sudo
 CHROMIUM_USERNS_SYSCTL="$root/sysctl"
 CHROMIUM_APPARMOR_DIR="$root/etc"
 profile="$root/etc/aurago-chromium-aurago"
@@ -98,6 +98,13 @@ install() {
 ok() { printf '%s\n' "$*" >> "$oks"; }
 warn() { printf '%s\n' "$*" >> "$warns"; }
 fail() { echo "FAIL: $1" >&2; exit 1; }
+sudo() {
+    case "${1:-}" in
+        install|apparmor_parser|rm) "$@" ;;
+        *) fail "unexpected privileged command: $*" ;;
+    esac
+}
+systemctl() { fail "profile repair must not change services"; }
 
 reset() {
     rm -rf "$root/etc" "$root/sysctl"

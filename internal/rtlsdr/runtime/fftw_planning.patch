@@ -1,0 +1,9 @@
+--- a/sdrbase/dsp/fftwengine.cpp
++++ b/sdrbase/dsp/fftwengine.cpp
+@@ -84,3 +84,5 @@
+ 
+-	m_currentPlan->plan = fftwf_plan_dft_1d(n, m_currentPlan->in, m_currentPlan->out, inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_PATIENT);
++    // Bound cold-start optimization while retaining the best available PATIENT plan.
++    fftwf_set_timelimit(1.0);
++    m_currentPlan->plan = fftwf_plan_dft_1d(n, m_currentPlan->in, m_currentPlan->out, inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_PATIENT);
+     m_globalPlanMutex.unlock();

@@ -34,6 +34,20 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
 - Linux is the supported native host. Other builds keep the app available but
   report `sdr_linux_required` for receiver setup. Browser clients are portable.
 
+- SDRangel retains FFTW PATIENT planning with its optimization budget limited to
+  approximately one second per plan under the existing global planner mutex.
+  Preserve transform settings and audio calibration; IQ acceptance covers every mode.
+- Device-plugin initialization has one bounded 30-second request; ordinary
+  SDRangel calls retain their 3-second budget. Never retry an uncertain device PUT.
+- Synthetic IQ acceptance verifies the default FileInput source created with its
+  Rx device set instead of reselecting it. Only this initialization read gets
+  120 seconds for native ARM64 cold starts; failure prints bounded decoder log tails.
+- Publication reuses both native builds after offline IQ acceptance. Push by
+  digest, retain SBOM/provenance, and assemble/sign the version manifest only
+  after both architectures pass; PRs never publish.
+- Runtime patches retain LF and unified-diff context whitespace on every host;
+  `.gitattributes` owns their Windows checkout normalization.
+
 Validate with the package tests, server `TestRTLSDR*`, agent `TestRTLSDR*`, the
 headless runtime unit tests, `Dockerfile.fixtures` IQ decoder acceptance, and
 opt-in real-hardware acceptance. Changing any runtime file requires a new

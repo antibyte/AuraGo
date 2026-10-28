@@ -108,7 +108,7 @@ QR caption resources under `ui/fonts/qr/` are Noto Sans Arabic/Devanagari, Noto 
 | `github.com/xuri/excelize/v2` | v2.11.1-0.20261003002531-6258dcebc4e2 | BSD-3-Clause | https://github.com/qax-os/excelize |
 | `golang.org/x/crypto` | v0.58.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/crypto |
 | `golang.org/x/image` | v0.47.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/image |
-| `golang.org/x/net` | v0.61.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/net |
+| `golang.org/x/net` | v0.62.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/net |
 | `golang.org/x/sync` | v0.24.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sync |
 | `golang.org/x/sys` | v0.49.0 | BSD-3-Clause | https://pkg.go.dev/golang.org/x/sys |
 | `google.golang.org/grpc` | v1.83.2 | Apache-2.0 | https://github.com/grpc/grpc-go |

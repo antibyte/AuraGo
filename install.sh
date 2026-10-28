@@ -11,7 +11,7 @@
 #      curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | bash
 #
 #  Two installation modes:
-#    A) Source build  — clones repo, requires Go 1.27.2+, builds from source
+#    A) Source build  — clones repo, requires Go 1.27.3+, builds from source
 #    B) Binary install — downloads pre-built binaries + resources from
 #       GitHub Releases. No git clone, no Go required.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -41,7 +41,7 @@ INSTALL_DIR="${AURAGO_DIR:-$HOME/aurago}"
 EXISTING_CONFIG=false
 [ ! -f "$INSTALL_DIR/config.yaml" ] || EXISTING_CONFIG=true
 SYSTEMD_SERVICE="aurago"
-GO_VERSION="1.27.2"
+GO_VERSION="1.27.3"
 GO_INSTALL_DIR="/usr/local"
 
 # ── UI & Typography ──────────────────────────────────────────────────────

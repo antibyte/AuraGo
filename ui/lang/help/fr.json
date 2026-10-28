@@ -108,6 +108,8 @@
   "help.chromecast.enabled": "Permet l'intégration de Chromecast pour la sortie audio.",
   "help.chromecast.tts_port": "Port local permettant au serveur de fichiers TTS de diffuser sur Chromecast.",
   "help.chromecast.media_host_allowlist": "Hôtes média privés séparés par des virgules depuis lesquels AuraGo peut caster, par ex. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Laisse vide pour bloquer les URL média privées.",
+  "help.chromecast.advertise_host": "Hôte ou IP que Chromecast utilise pour les médias AuraGo. Laisse vide et AuraGo choisit une adresse LAN. 127.0.0.1 n'est jamais utilisée.",
+  "help.chromecast.read_only": "Bloque la lecture, la voix, l'arrêt, le volume, la pause, la recherche et la sourdine. La découverte et l'état restent disponibles.",
   "help.circuit_breaker.llm_timeout_seconds": "Délai d'expiration des requêtes LLM en secondes.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Durée en minutes sans activité de l'utilisateur avant que l'agent ne quitte automatiquement le mode maintenance.",
   "help.circuit_breaker.max_tool_calls": "Interrompt la tâche si le nombre d'appels d'outils dépasse cette valeur. Empêche les boucles infinies et une consommation de jetons incontrôlée.",

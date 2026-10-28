@@ -108,6 +108,8 @@
   "help.chromecast.enabled": "Aktiverer Chromecast integration for audio output.",
   "help.chromecast.tts_port": "Lokal port til TTS-filserveren til streaming til Chromecast.",
   "help.chromecast.media_host_allowlist": "Kommaseparerede private medieværter, som AuraGo må caste fra, f.eks. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Lad feltet være tomt for at blokere private medie-URL'er.",
+  "help.chromecast.advertise_host": "Vært eller IP, som Chromecast bruger til AuraGo-medier. Lad feltet være tomt, så vælger AuraGo en LAN-adresse. 127.0.0.1 bruges aldrig.",
+  "help.chromecast.read_only": "Blokerer afspilning, tale, stop, lydstyrke, pause, søgning og lydløs. Opdagelse og status forbliver mulige.",
   "help.circuit_breaker.llm_timeout_seconds": "Maksimal ventetid på et LLM-svar i sekunder. Anmodningen afbrydes, hvis grænsen overskrides.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Maksimal varighed for vedligeholdelsesopgaver i minutter. Også: tid uden brugeraktivitet, før agenten automatisk vender tilbage fra vedligeholdelsestilstand.",
   "help.circuit_breaker.max_tool_calls": "Afbryder opgaven, hvis der sker flere værktøjskald end denne værdi. Forhindrer uendelige løkker og ukontrolleret tokenforbrug.",

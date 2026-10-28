@@ -59,6 +59,18 @@ jobs:
       - name: Run browser sidecar auth tests
         run: node browser_automation_sidecar/test_auth.js
 
+  pages-build:
+    name: GitHub Pages build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build documentation without deployment
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1.0.13
+        with:
+          source: ./docs
+          destination: ./tmp/pages-site
+
   go-security:
     name: Go tests
     runs-on: ubuntu-latest
@@ -112,7 +124,7 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/agent -timeout=30m
+        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/agent -p 1 -timeout=30m
 
   windows-runtime:
     name: Windows focused runtime contracts
@@ -215,6 +227,10 @@ jobs:
           npm ci --no-audit --no-fund
           node scripts/build-codemirror.js
 
+      - name: Prepare verified Phonon resources for the AuraGo image
+        if: matrix.id == 'aurago'
+        run: python3 scripts/prepare-phonon.py --from-release latest --target linux_amd64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -240,7 +256,7 @@ jobs:
 
       - name: Verify Code Studio Go toolchain
         if: matrix.id == 'code-studio'
-        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.2"
+        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.27.3"
 
       - name: Verify Supertonic non-root cache
         if: matrix.id == 'supertonic'

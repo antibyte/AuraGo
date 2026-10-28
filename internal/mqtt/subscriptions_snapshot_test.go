@@ -2,6 +2,7 @@ package mqtt
 
 import (
 	"testing"
+	"time"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -52,5 +53,50 @@ func TestMQTTReconciliationKeepsPublishedMapsSeparateFromBrokerResults(t *testin
 	status := controller.Status()
 	if len(status.Subscriptions) != 1 || status.Subscriptions[0].Filter != added || status.Subscriptions[0].Pending || status.Subscriptions[0].GrantedQoS != 1 {
 		t.Fatalf("completed reconciliation did not publish the broker results: %+v", status.Subscriptions)
+	}
+}
+
+func TestMQTTBrokerReplyCannotOverwriteNewSubscriptionOwners(t *testing.T) {
+	const oldFilter, newFilter = "mission/home/#", "mission/garage/#"
+	client := &subscriptionSnapshotClient{Client: newSubscriptionRegressionClient(map[string]byte{oldFilter: 1})}
+	cfg := subscriptionRegressionConfig(oldFilter)
+	controller, gen := newSubscriptionRegressionFixture(t, cfg, client)
+	pending, release := make(chan struct{}), make(chan struct{})
+	client.onSubscribe = func() {
+		close(pending)
+		<-release
+	}
+	reconciled, updated := make(chan struct{}), make(chan struct{})
+	go func() {
+		controller.reconcileGenerationSubscriptions(gen, cfg)
+		close(reconciled)
+	}()
+	<-pending
+	go func() {
+		controller.updateGenerationSubscriptions(gen, subscriptionRegressionConfig(newFilter))
+		close(updated)
+	}()
+	// Give an unsynchronized update a chance to publish while the old reply is held.
+	select {
+	case <-updated:
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	for _, done := range []<-chan struct{}{reconciled, updated} {
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("subscription update did not finish after the broker reply")
+		}
+	}
+	status := subscriptionRegressionStatus(t, gen, newFilter)
+	if status.Filter != newFilter || len(status.Owners) != 1 || !status.Pending {
+		t.Fatalf("broker reply replaced newer ownership: %+v", status)
+	}
+	gen.subscriptionMu.Lock()
+	_, stale := gen.subscriptions[oldFilter]
+	gen.subscriptionMu.Unlock()
+	if stale {
+		t.Fatal("old ownership survived the configuration update")
 	}
 }

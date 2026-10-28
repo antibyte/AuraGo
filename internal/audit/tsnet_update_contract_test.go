@@ -183,12 +183,13 @@ exit 0`)
 				"PATH="+fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"),
 				"AURAGO_TEST_MARKER="+marker,
 				"AURAGO_TEST_COUNTS="+test.counts,
+				"CHROMIUM_USERNS_SYSCTL="+filepath.Join(root, "no-userns-restriction"),
 			)
 			output, err := command.CombinedOutput()
 			if err != nil {
 				t.Fatalf("no-op updater failed: %v\n%s", err, output)
 			}
-			if !strings.Contains(string(output), test.want) || !strings.Contains(string(output), "no files or services were changed") {
+			if !strings.Contains(string(output), test.want) || !strings.Contains(string(output), "no application rebuild or restart was needed") {
 				t.Fatalf("no-op updater did not report the expected relationship:\n%s", output)
 			}
 			if _, err := os.Stat(marker); !os.IsNotExist(err) {

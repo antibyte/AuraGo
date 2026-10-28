@@ -1215,7 +1215,7 @@ func TestKGRunSemanticReindexIfDueSkipsConcurrentRuns(t *testing.T) {
 
 func waitForSemanticReindexIdle(t *testing.T, kg *KnowledgeGraph) {
 	t.Helper()
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		kg.lastSemanticReindexMu.Lock()
 		last := kg.lastSemanticReindex

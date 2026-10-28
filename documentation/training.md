@@ -35,11 +35,17 @@ exact agotrain commit in `.github/agotrain-revision`, and verifies regeneration
 against the candidate AuraGo code. agotrain's own CI checks the exact AuraGo
 commit in its `aurago-revision`. Both use ordinary read-only public checkouts.
 
-For a tool change, reconcile agotrain's curated contracts and regenerate using
-the new AuraGo source. Commit the compatible pack, then update
-`.github/agotrain-revision` here. After the AuraGo change is published, advance
-agotrain's `aurago-revision`. These sequential pins avoid circular commit IDs;
-there is no submodule or automatic cross-repository push.
+For a tool change, publish the reviewed AuraGo code candidate first. Point
+agotrain's `aurago-revision` at that candidate, reconcile its curated contracts,
+regenerate and independently validate the pack, then publish the training commit.
+Finally update only `.github/agotrain-revision` here and rerun both gates. Merge
+agotrain before AuraGo, retaining both exact pins and commit histories. These
+sequential pins avoid circular commit IDs; there is no submodule or automatic
+cross-repository push.
+
+The synthetic pack contains 5,070 rows, including DE/EN direct coverage for every
+operation and selector-free tool, at least 500 multi-call scenarios and all negative
+cases. Review the fixed budget before catalog growth would reduce those minima.
 
 ## Migration and retained material
 

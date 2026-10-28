@@ -85,8 +85,8 @@ func newCYDAgentService(t *testing.T) (*cydcreator.Service, *cydAgentBuilder, cy
 	previous := cydcreator.DefaultService()
 	cydcreator.SetDefaultService(svc)
 	t.Cleanup(func() {
-		cydcreator.SetDefaultService(previous)
 		_ = svc.Close()
+		cydcreator.SetDefaultService(previous)
 	})
 	p, err := svc.CreateProject(context.Background(), cydcreator.CreateProjectInput{Name: "Agent", Board: "esp32-2432s028r"})
 	if err != nil {
@@ -112,10 +112,14 @@ func cydOutput(t *testing.T, out string) map[string]any {
 
 func waitCYDJob(t *testing.T, svc *cydcreator.Service, jobID string, statuses ...string) cydcreator.Job {
 	t.Helper()
-	// Generous: under -race the paging tests run their whole job (dozens of
-	// tool calls) in about 10 s, and a timeout here closes the service under
-	// the still-running job.
-	deadline := time.Now().Add(60 * time.Second)
+	job, err := svc.GetJob(context.Background(), jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	events, unsubscribe := svc.Subscribe(job.ProjectID)
+	defer unsubscribe()
+	timer := time.NewTimer(120 * time.Second)
+	defer timer.Stop()
 	for {
 		j, err := svc.GetJob(context.Background(), jobID)
 		for _, s := range statuses {
@@ -124,10 +128,16 @@ func waitCYDJob(t *testing.T, svc *cydcreator.Service, jobID string, statuses ..
 				return j
 			}
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("job = %+v, %v", j, err)
+		select {
+		case _, ok := <-events:
+			if ok {
+				continue
+			}
+		case <-timer.C:
 		}
-		time.Sleep(5 * time.Millisecond)
+		_ = svc.CancelJob(context.Background(), jobID)
+		_ = svc.Close()
+		t.Fatalf("job did not reach %v: %+v, %v", statuses, j, err)
 	}
 }
 

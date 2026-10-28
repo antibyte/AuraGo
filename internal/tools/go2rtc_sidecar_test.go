@@ -46,6 +46,9 @@ func TestGo2RTCManagedSidecarBuildIsPinned(t *testing.T) {
 		if !strings.Contains(files["Dockerfile"], "78aa79bcedec8f155e4060a379613979b0b3ee48ff62ee5164bafc0ac6532386") || !strings.Contains(files["lifecycle.patch"], "tr.OnClose") || !strings.Contains(files["lifecycle_test.go.txt"], "TestAuraGoSocketCloseTerminatesPeer") {
 			t.Error("build omitted source pin, patch or actual upstream regression")
 		}
+		if !strings.Contains(files["Dockerfile"], "FROM golang:1.27.3-alpine@sha256:") {
+			t.Error("managed sidecar lost the fixed, digest-pinned Go compiler")
+		}
 		if !strings.Contains(files["tuya.patch"], "DialContext") || !strings.Contains(files["tuya_api.go.txt"], "post-v1") || !strings.Contains(files["tuya_runtime.go.txt"], "BoundHTTPClient") || !strings.Contains(files["tuya_api_test.go.txt"], "TestAuraGoTuyaProbeJPEGAndCancellation") {
 			t.Error("Tuya runtime or pinned regressions missing from image")
 		}

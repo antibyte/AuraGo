@@ -108,6 +108,8 @@
   "help.chromecast.enabled": "Povoluje Chromecast integraci.",
   "help.chromecast.tts_port": "Místní port souborového serveru TTS pro streamování do Chromecastu.",
   "help.chromecast.media_host_allowlist": "Čárkami oddělené privátní mediální hostitele, ze kterých smí AuraGo castovat, např. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Nech prázdné pro blokování privátních mediálních URL.",
+  "help.chromecast.advertise_host": "Hostitel nebo IP, kterou Chromecast používá pro média AuraGo. Nech prázdné a AuraGo vybere adresu v LAN. 127.0.0.1 se nikdy nepoužije.",
+  "help.chromecast.read_only": "Blokuje přehrávání, řeč, zastavení, hlasitost, pozastavení, posun a ztlumení. Objevování a stav zůstávají dostupné.",
   "help.circuit_breaker.llm_timeout_seconds": "Maximální čekání na odpověď LLM v sekundách. Při překročení se požadavek přeruší.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Maximální doba úloh údržby v minutách. Zároveň doba bez aktivity uživatele, po které se agent automaticky vrátí z režimu údržby.",
   "help.circuit_breaker.max_tool_calls": "Úlohu přeruší, pokud počet volání nástrojů překročí tuto hodnotu. Brání nekonečným smyčkám a nekontrolované spotřebě tokenů.",

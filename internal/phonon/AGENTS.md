@@ -32,6 +32,9 @@ Use the standard-library preparation helper. Do not add Python or heavy ML runti
 requirements to Phonon inference; the packaging helper is maintainer-only.
 Keep prepared `deploy/phonon` inputs through release cleanup; clean worktrees must
 receive these ignored inputs before running a release builder.
+The AuraGo Docker job in Security Gates prepares the manifest-verified
+`linux_amd64` resources with `--from-release latest` before building the image;
+the Dockerfile still performs its own offline `--check`.
 
 ## Verification
 `go test ./internal/phonon` covers catalog defaults, download integrity/cancellation

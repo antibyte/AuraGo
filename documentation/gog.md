@@ -101,7 +101,7 @@ methods and Google SDK resumable upload retries on the admitted Drive upload
 paths. Do not upgrade the CLI independently of its catalog and these tests.
 Review new commands for their own SDK retries and secondary network calls.
 
-Run `go run scripts/build-gog.go` with Go 1.27.2. The builder requires an exact,
+Run `go run scripts/build-gog.go` with Go 1.27.3. The builder requires an exact,
 clean source checkout, applies the patch, runs transport/upload retry tests,
 builds Linux/Windows/macOS on amd64/arm64 and generates deterministic ZIPs and
 `internal/gog/build/artifacts.json`. The regular release scripts run this before

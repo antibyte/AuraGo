@@ -1856,7 +1856,7 @@ select_release_bins_for_arch() {
         REQUIRED_BINS=("aurago_linux" "config-merger_linux")
         OPTIONAL_BINS=("aurago-remote_linux")
     else
-        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.27.2+ to build from source."
+        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.27.3+ to build from source."
     fi
 }
 
@@ -2329,7 +2329,7 @@ if $BINARY_ONLY; then
         INSTALLED_RELEASE="$(tr -d '\r\n' < "$DIR/.version")"
     fi
     if [ "$INSTALLED_RELEASE" = "$RELEASE_TAG" ] && ! $REBUILD; then
-        ok "AuraGo is already at ${RELEASE_TAG}; no files or services were changed."
+        ok "AuraGo is already at ${RELEASE_TAG}; no application rebuild or restart was needed."
         apply_chromium_sandbox_profile "$(bluetooth_service_user)"
         bluetooth_apply_without_update
         exit 0
@@ -2357,7 +2357,7 @@ else
             ok "Local checkout already contains origin/main and preserves ${GIT_LOCAL_AHEAD} local commit(s)."
         fi
         if ! $REBUILD; then
-            ok "No rebuild requested; no files or services were changed."
+            ok "No rebuild requested; no application rebuild or restart was needed."
             apply_chromium_sandbox_profile "$(bluetooth_service_user)"
             bluetooth_apply_without_update
             exit 0

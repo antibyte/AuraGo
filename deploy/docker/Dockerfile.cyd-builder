@@ -13,7 +13,7 @@
 # read-only root filesystem (writable: /work, /cache, /tmp) as uid 1000.
 FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392
 
-ARG CYD_BUILDER_VERSION=1.0.3
+ARG CYD_BUILDER_VERSION=1.0.4
 # The licences label names the main licences of what the image ships (AuraGo's
 # scripts are MIT; the toolchains, esptool, the Arduino core, NeoPixel, certifi,
 # Python and the Debian packages bring the rest). The per-component list with

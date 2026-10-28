@@ -83,7 +83,7 @@ func build() {
 	test, e := os.ReadFile(filepath.Join(root, "internal", "gog", "build", "single_attempt_test.go.txt"))
 	fatal(e)
 	fatal(os.WriteFile(filepath.Join(src, "internal", "googleapi", "aurago_single_attempt_test.go"), test, 0600))
-	env := []string{"GOTOOLCHAIN=go1.27.2", "CGO_ENABLED=0", "GOWORK=off", "GOFLAGS=", "GOEXPERIMENT=", "GOAMD64=v1", "GOARM64=v8.0"}
+	env := []string{"GOTOOLCHAIN=go1.27.3", "CGO_ENABLED=0", "GOWORK=off", "GOFLAGS=", "GOEXPERIMENT=", "GOAMD64=v1", "GOARM64=v8.0"}
 	fmt.Println("Verifying single-attempt transport and SDK uploads")
 	run(src, env, "go", "test", "./internal/googleapi", "-run", "TestAuraGo", "-count=1")
 	fatal(os.MkdirAll(*out, 0755))

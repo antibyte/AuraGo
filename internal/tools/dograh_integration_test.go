@@ -71,6 +71,8 @@ func TestEnsureDograhStackRunningUsesCurrentImagesForLegacyRuntimeConfig(t *test
 		switch {
 		case r.Method == http.MethodGet && path == "/"+dockerAPIVersion+"/networks/aurago_dograh":
 			writeDograhTestJSON(w, http.StatusOK, map[string]any{"Name": "aurago_dograh"})
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/"+dockerAPIVersion+"/volumes/"):
+			writeDograhTestJSON(w, http.StatusNotFound, map[string]string{"message": "no such volume"})
 		case r.Method == http.MethodPost && path == "/"+dockerAPIVersion+"/images/create":
 			pulledImages[r.URL.Query().Get("fromImage")] = true
 			w.WriteHeader(http.StatusOK)

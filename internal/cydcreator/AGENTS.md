@@ -342,7 +342,7 @@ OTA updates and the ZIP export and import.
 ### Builder image
 
 - The builder image pins PlatformIO Core 6.2.0 (hash-pinned `requirements.txt`, generated from
-  `requirements.in`, with Starlette >=1.3.1, setuptools >=83.0.0 and certifi >=2026.10.19 security floors), the platform
+  `requirements.in`, with Starlette >=1.3.1, setuptools >=84.1.0 and certifi >=2026.10.19 security floors), the platform
   `espressif32@6.13.0`, every platform package at an exact version (framework-arduinoespressif32
   3.20017.241212 = Arduino-ESP32 2.0.17, tool-esptoolpy, tool-scons 4.41101.0 and the 8.4.0+2021r2-patch5
   toolchains), the template libraries (LVGL 9.5.0, LovyanGFX 1.2.30, WiFiManager 2.0.17,
@@ -415,8 +415,9 @@ OTA updates and the ZIP export and import.
   two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`
   (4 CPUs, volumes `cyd-ci-work` and `cyd-ci-cache`). The path filters include `generate*.go` and
   `testdata/golden/**`, and the build job's checkout keeps no credentials (`persist-credentials: false`; the publish
-  job's checkout does not set it). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
-  digest, then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
+  job's checkout does not set it). Pushes to `main` and `v*` tags, or an explicit manual dispatch with
+  `publish: true` from a reviewed candidate branch, push by digest after both native checks pass. Publish
+  before activating a new image version. Then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
   `:<CYD_BUILDER_VERSION>`, and signs the manifest with cosign. A changed image under an unchanged
   `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
   A generator-only push to `main` also runs the workflow and republishes `:1` with unchanged inputs.

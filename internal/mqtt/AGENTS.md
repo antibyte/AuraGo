@@ -39,6 +39,9 @@ Broker configuration, subscriptions, relays, and mission dispatch.
   `subscriptionMu` before broker waits. Its subsequent unlocked result updates
   must never share those maps with status or ledger readers. Status remains
   available while SUBACK or unsubscribe replies are pending.
+- Serialize desired-owner snapshot replacement with broker reconciliation using
+  `subscriptionOpMu`; an older reply must never overwrite newer owners. Verify
+  `TestMQTTBrokerReplyCannotOverwriteNewSubscriptionOwners`.
 - Persistent-session ledgers contain ownership and confirmed/pending filter
   changes only. Persist atomically per broker/client identity; never store
   credentials or payloads. Restore confirmed manual owners, reconcile managed

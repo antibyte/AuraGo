@@ -29,6 +29,9 @@ and signature policy remain owned by `internal/upkeep/AGENTS.md`.
 
 Regenerate bootstrap blocks through their generator; do not hand-edit generated pins.
 Keep bootstrap source, compiler and build flags stable for reproducibility.
+The generator uses a temporary stdlib-only module file with the pinned bootstrap
+compiler version, independently of the application's Go minimum. All six hashes
+must still match; never repin existing published assets during application updates.
 
 ## Verification
 

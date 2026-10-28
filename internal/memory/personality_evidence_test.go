@@ -522,6 +522,8 @@ func TestPersonalityManualProfileWinsAndDeletionRejectsOldAnalysis(t *testing.T)
 		t.Fatal("old analysis resurrected a deleted field")
 	}
 	fresh := NewHumanInput("I now use emacs", "chat")
+	// A fresh event must follow the deletion even on coarse Windows wall clocks.
+	fresh.OccurredAt = time.Now().UTC().Add(time.Second)
 	if _, err := stm.ApplyPersonalityObservation(PersonalityObservation{ID: "fresh", Input: fresh, ProfileUpdates: update}); err != nil {
 		t.Fatal(err)
 	}

@@ -276,7 +276,7 @@ rm -rf ~/aurago
 
 Ubuntu 23.10+ sets `kernel.apparmor_restrict_unprivileged_userns = 1`. Only programs with an AppArmor profile that grants `userns` may create user namespaces, and the Chromium that AuraGo downloads into `~/.cache/rod/browser/` has no such profile.
 
-**Fix:** `install.sh` and `update.sh` write `/etc/apparmor.d/aurago-chromium-<user>` for the AuraGo service user when the setting above is `1` (they ask for your sudo password). There is one profile per user, so several AuraGo instances on one host do not overwrite each other. Run `./update.sh` once, even if AuraGo is already up to date.
+**Fix:** `install.sh` and `update.sh` write `/etc/apparmor.d/aurago-chromium-<user>` for the AuraGo service user when the setting above is `1` (they ask for your sudo password). There is one profile per user, so several AuraGo instances on one host do not overwrite each other. Run `./update.sh` once, even if AuraGo is already up to date. An already-current update repairs a missing or stale profile without rebuilding or restarting AuraGo; an unchanged profile needs no privileged command.
 
 **Other setups** (manual installs, a different user or home directory): replace `aurago` in the file name, the profile name and the `local/` include with the user that runs AuraGo, and `/home/aurago` with that user's home directory, then load the profile.
 

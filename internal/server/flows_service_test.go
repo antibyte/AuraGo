@@ -51,7 +51,10 @@ func newFlowsTestServer(t *testing.T) (*Server, string) {
 		t.Fatalf("missions: %v", err)
 	}
 	t.Cleanup(s.MissionManagerV2.Stop)
-	s.startFlows(context.Background())
+	if err := flowsStart(context.Background(), s.Flows); err != nil {
+		t.Fatalf("flows: %v", err)
+	}
+	s.afterFlowsStart(context.Background(), s.Flows, s.Logger)
 	t.Cleanup(func() { s.shutdownFlows(context.Background()) })
 	token, _, err := s.TokenManager.Create("flows test", []string{desktopScopeRead, desktopScopeWrite, desktopScopeAdmin}, nil)
 	if err != nil {

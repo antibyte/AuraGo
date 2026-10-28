@@ -8,6 +8,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 PINS = ROOT / "scripts/release-verifier.json"
@@ -58,18 +59,22 @@ def main():
     }
     if not args.scripts_only:
         args.out.mkdir(parents=True, exist_ok=True)
-        for target in TARGETS:
-            system, arch = target.split("/")
-            name = f"release-verifier_{system}_{arch}" + (".exe" if system == "windows" else "")
-            output = args.out / name
-            env = os.environ | {"GOTOOLCHAIN": pins["toolchain"], "GOOS": system, "GOARCH": arch, "CGO_ENABLED": "0", "GOAMD64": "v1", "GOARM64": "v8.0", "GOFLAGS": "", "GOEXPERIMENT": ""}
-            subprocess.run(["go", "build", "-buildvcs=false", "-trimpath", "-ldflags=-s -w -buildid=", "-o", str(output), "./cmd/release-verifier"], cwd=ROOT, env=env, check=True)
-            asset = {"name": name, "size": output.stat().st_size, "sha256": hashlib.sha256(output.read_bytes()).hexdigest()}
-            if args.pin:
-                pins["assets"][target] = asset
-            elif asset != pins["assets"].get(target):
-                raise SystemExit(f"Bootstrap differs from reviewed pins: {target}; review source/toolchain before repinning.")
-            print(f"{target}: {asset['size']} bytes, SHA-256 verified")
+        # The stdlib-only bootstrap must reproduce independently of the application's Go floor.
+        with tempfile.TemporaryDirectory(prefix="aurago-release-verifier-") as temporary:
+            modfile = Path(temporary) / "verifier.mod"
+            modfile.write_text(f'module aurago\n\ngo {pins["toolchain"].removeprefix("go")}\n', encoding="utf-8", newline="\n")
+            for target in TARGETS:
+                system, arch = target.split("/")
+                name = f"release-verifier_{system}_{arch}" + (".exe" if system == "windows" else "")
+                output = args.out / name
+                env = os.environ | {"GOTOOLCHAIN": pins["toolchain"], "GOOS": system, "GOARCH": arch, "CGO_ENABLED": "0", "GOAMD64": "v1", "GOARM64": "v8.0", "GOFLAGS": "", "GOEXPERIMENT": "", "GOWORK": "off"}
+                subprocess.run(["go", "build", f"-modfile={modfile}", "-buildvcs=false", "-trimpath", "-ldflags=-s -w -buildid=", "-o", str(output), "./cmd/release-verifier"], cwd=ROOT, env=env, check=True)
+                asset = {"name": name, "size": output.stat().st_size, "sha256": hashlib.sha256(output.read_bytes()).hexdigest()}
+                if args.pin:
+                    pins["assets"][target] = asset
+                elif asset != pins["assets"].get(target):
+                    raise SystemExit(f"Bootstrap differs from reviewed pins: {target}; review source/toolchain before repinning.")
+                print(f"{target}: {asset['size']} bytes, SHA-256 verified")
         expected = {asset["name"] for asset in pins["assets"].values()}
         if {path.name for path in args.out.glob("release-verifier_*")} != expected:
             raise SystemExit("Unexpected verifier artifacts in output directory; refusing to package them.")

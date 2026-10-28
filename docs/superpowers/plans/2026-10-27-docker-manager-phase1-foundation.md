@@ -1,3 +1,4 @@
+{% raw %}
 # Docker Manager phase 1 (foundation) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -12554,3 +12555,4 @@ git add ui/js/desktop/apps/AGENTS.md
 npx gitnexus detect-changes --scope staged --repo AuraGo
 git commit -m "docs(docker-manager): document the Docker Manager desktop app module" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
+{% endraw %}
