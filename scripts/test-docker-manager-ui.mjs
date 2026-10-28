@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -1592,6 +1592,104 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     store3.dispose();
 }
 
+// ---- logs: the model of the follow panel ------------------------------------------------------------------------------------
+{
+    const Logs = window.DockerManagerLogs;
+    assert.ok(Logs && typeof Logs.create === 'function', 'the logs module publishes its global');
+    const ESC = String.fromCharCode(27);
+    eq([Logs.cleanText(ESC + '[31mred' + ESC + '[0m text'), Logs.cleanText('50%\r75%\r100%'), Logs.cleanText('line\r'), Logs.cleanText(null)], ['red text', '100%', 'line', ''], 'colour codes go, a progress bar keeps its last state');
+    const stamp = (n, extra = {}) => ({ t: '2026-10-28T07:33:' + String(n).padStart(2, '0') + '.123456789Z', s: 'out', text: 'line ' + n, trunc: false, ...extra });
+
+    {
+        const m = Logs.createModel({ max: 5 });
+        const first = m.append([stamp(1), stamp(2, { s: 'err' }), stamp(3)]);
+        eq([first.added.length, first.shown, first.dropped.length, m.count()], [3, 3, 0, 3]);
+        assert.equal(m.all()[1].s, 'err', 'the stderr flag is kept');
+        const second = m.append([stamp(4), stamp(5), stamp(6), stamp(7)]);
+        eq([second.dropped.map(e => e.text), m.all().map(e => e.text)], [['line 1', 'line 2'], ['line 3', 'line 4', 'line 5', 'line 6', 'line 7']], 'the ring keeps the newest lines and reports what fell off');
+        assert.equal(m.lastTime(), stamp(7).t, 'since is the time of the newest line');
+        m.setQuery('  LINE 5 ');
+        eq(m.visible().map(e => e.text), ['line 5'], 'the filter ignores case and surrounding blanks');
+        eq([m.append([stamp(8)]).shown, m.visible().length], [0, 1], 'a new line that does not match the filter is not shown');
+        m.setQuery('');
+        m.clear();
+        eq([m.count(), m.lastTime()], [0, stamp(8).t], 'clear empties the screen but remembers where the stream stood');
+        m.reset();
+        eq([m.count(), m.lastTime()], [0, ''], 'reset forgets the resume point too');
+        assert.equal(Logs.createModel().max, 5000, 'the ring holds 5000 lines');
+    }
+    {
+        // services: the filter, the names seen so far, a text filter that also matches the service
+        const m = Logs.createModel();
+        m.append([stamp(1, { svc: 'web', ctr: 'aaaaaaaaaaaa' }), stamp(2, { svc: 'db', ctr: 'bbbbbbbbbbbb', text: 'ready' }), stamp(3, { svc: 'web', ctr: 'aaaaaaaaaaaa' })]);
+        eq(m.services(), ['web', 'db']);
+        assert.equal(m.toggleService('db'), false);
+        eq(m.visible().map(e => e.svc), ['web', 'web'], 'a hidden service is not shown');
+        assert.equal(m.serviceShown('db'), false);
+        assert.equal(m.toggleService('db'), true);
+        m.setQuery('db');
+        eq(m.visible().map(e => e.text), ['ready'], 'the filter matches the service name');
+        m.setQuery('');
+        eq(m.text().split('\n'), ['[web] line 1', '[db] ready', '[web] line 3'], 'copy gives the visible lines with the service');
+        assert.ok(m.text({ timestamps: true }).startsWith(stamp(1).t + ' [web] line 1'), 'and the timestamps when they are on');
+        m.addService('cache');
+        eq(m.services(), ['web', 'db', 'cache']);
+    }
+    {
+        // follow: pausing counts the lines that arrive; following again clears the counter
+        const m = Logs.createModel();
+        assert.equal(m.isFollowing(), true);
+        m.setFollow(false);
+        m.addUnseen(3);
+        m.addUnseen(2);
+        eq([m.isFollowing(), m.unseen()], [false, 5]);
+        m.setFollow(true);
+        eq([m.isFollowing(), m.unseen()], [true, 0]);
+    }
+    {
+        // a reconnect repeats the newest second: lines already seen are skipped, new ones are kept, and the filter ends with the first new line
+        const m = Logs.createModel();
+        m.append([stamp(1), stamp(2), stamp(2, { text: 'second at the same time' })]);
+        m.beginResume();
+        const r = m.append([stamp(1), stamp(2), stamp(2, { text: 'second at the same time' }), stamp(2, { text: 'new at the same time' }), stamp(3)]);
+        eq(r.added.map(e => e.text), ['new at the same time', 'line 3'], 'older lines and exact repeats are skipped');
+        eq(m.all().length, 5);
+        m.beginResume();
+        eq(m.append([stamp(3, { text: 'late' })]).added.length, 1, 'a line of the same second that was not seen before is kept');
+        // lines without a parseable time cannot be told apart: nothing to resume from
+        const plain = Logs.createModel();
+        plain.append([{ t: '', text: 'x' }]);
+        plain.beginResume();
+        eq([plain.lastTime(), plain.append([{ t: '', text: 'x' }]).added.length], ['', 1]);
+    }
+    {
+        // notices: every not_followed notice of the server is one line with all the services, each once; attached and detached name the service
+        let list = [];
+        list = Logs.mergeNotice(list, { code: 'not_followed', message: 'history of db failed', container: 'abcdef012345' });
+        list = Logs.mergeNotice(list, { code: 'attached', message: 'started', services: ['web'], container: '111111111111' });
+        list = Logs.mergeNotice(list, { code: 'not_followed', message: 'no free slot', services: ['cache', 'worker'] });
+        list = Logs.mergeNotice(list, { code: 'not_followed', message: 'again', services: ['cache'], container: 'abcdef012345' });
+        eq(list.map(item => item.code), ['not_followed', 'attached'], 'all not_followed notices are one entry, at the place of the first');
+        eq(list[0], { code: 'not_followed', message: 'history of db failed', services: ['abcdef012345', 'cache', 'worker'] });
+        for (const code of ['detached', 'attached', 'truncated_history', 'detached']) list = Logs.mergeNotice(list, { code, message: code });
+        eq(list.length, 4, 'at most four notices are kept');
+        eq([Logs.noticeName({ services: ['web'], container: 'abc' }), Logs.noticeName({ container: 'abc' }), Logs.noticeName({})], ['web', 'abc', ''], 'the service first, else the container');
+        // a failed stream request ends the retries for any 4xx answer and for the codes that mean "not now"; a 5xx, a timeout and the network are tried again
+        eq([{ code: 'too_many_streams', status: 429 }, { code: 'weird', status: 404 }, { code: 'bad_request', status: 400 }, { code: 'docker_disabled', status: 503 }, { code: 'docker_hosts_unavailable', status: 503 },
+            { code: 'docker_error', status: 502 }, { code: 'timeout', status: 0 }, { code: 'network', status: 0 }, null].map(Logs.isFinalDiagnosis), [true, true, true, true, true, false, false, false, false]);
+    }
+    {
+        eq(Logs.followUrl({ kind: 'container', hostId: 'h 1', ref: 'abc' }, { tail: 500 }), '/api/docker-manager/hosts/h%201/containers/abc/logs?follow=1&tail=500');
+        eq(Logs.followUrl({ kind: 'container', hostId: 'local', ref: 'abc' }, {}), '/api/docker-manager/hosts/local/containers/abc/logs?follow=1&tail=200', 'a container starts with 200 lines');
+        eq(Logs.followUrl({ kind: 'stack', hostId: 'local', name: 'shop' }, { tail: 7 }), '/api/docker-manager/hosts/local/stacks/shop/logs?follow=1&tail=100', 'a stack starts with 100 lines per container, an unsupported tail falls back');
+        eq(Logs.followUrl({ kind: 'project', hostId: 'local', name: 'legacy' }, { tail: 1000 }), '/api/docker-manager/hosts/local/projects/legacy/logs?follow=1&tail=1000');
+        eq(Logs.followUrl({ kind: 'container', hostId: 'local', ref: 'abc' }, { since: '2026-10-28T07:33:01.5Z', tail: 100 }), '/api/docker-manager/hosts/local/containers/abc/logs?follow=1&tail=5000&since=2026-10-28T07%3A33%3A01.5Z', 'a reconnect asks for everything since the newest line');
+        eq(Logs.TAILS, [100, 200, 500, 1000, 5000]);
+        const hues = new Set(['web', 'db', 'cache', 'worker', 'proxy', 'x'].map(Logs.hueOf));
+        assert.ok([...hues].every(h => h >= 0 && h < 6) && Logs.hueOf('web') === Logs.hueOf('web'), 'a service always gets the same one of six hues');
+    }
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -1650,7 +1748,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-logs.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1884,7 +1982,9 @@ const full = {};
         sv_name_: ['empty', 'invalid', 'taken'],
         convert_: [...sm.CONVERT_WARNINGS],
         preview_kind_: [...sm.VOLUME_KINDS],
-        preview_var_: ['set', 'default', 'required', 'missing']
+        preview_var_: ['set', 'default', 'required', 'missing'],
+        logs_state_: ['idle', 'connecting', 'live', 'reconnecting', 'ended', 'error'],
+        logs_notice_: ['not_followed', 'attached', 'detached', 'truncated_history']
     };
     // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
     for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved']) used.add(prefix + name);
