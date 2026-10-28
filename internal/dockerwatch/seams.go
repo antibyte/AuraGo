@@ -1,15 +1,7 @@
 package dockerwatch
 
-// Seams for the parts of the hub that later tasks add: the events watcher and
-// the stats sampler. They do nothing; the tasks that add those parts replace
-// them.
-
-// watcher follows the events of one host.
-type watcher struct{}
-
-func (w *watcher) stop() {}
-
-func (h *Hub) startWatcherLocked(rt *hostRT) {}
+// Seam for the part of the hub that a later task adds: the stats sampler. It
+// does nothing; the task that adds the sampler replaces it.
 
 // statsState is the stats side of a host runtime.
 type statsState struct {
