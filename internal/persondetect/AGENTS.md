@@ -217,7 +217,9 @@ worker. ONNX Runtime is loaded only in worker subprocesses; the one in-process l
   `TestPersonAlertIsolationMatchesSecurity` in `internal/server`); the admin's `agent_instruction` follows
   outside the block, bounded to 500 runes.
 - `AnnotateJPEG` returns an annotated copy; stored frames stay unannotated. Photos go only to the `telegram`,
-  `discord` and `all` channels.
+  `discord` and `all` channels. This package sends nothing itself, so link previews are the server sinks'
+  senders' job: the Discord photo upload (`discord.SendDiscordImage`) suppresses embeds in its caption
+  (`TestDiscordFileSendsSuppressEmbeds`), and a Telegram photo caption never unfurls.
 
 ## Work Guidance
 

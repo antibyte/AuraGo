@@ -79,6 +79,19 @@ func telegramForwardMarker(msg *tgbotapi.Message) string {
 	return ForwardedContentMarker(origin)
 }
 
+// telegramForwardedRoutingText heads the pinned routing text of a forwarded
+// message with the marker the model reads, so the task classifier (rules, the
+// Decisions service or the helper model) does not take the third party's words
+// for the owner's request. Without a caption or transcription (a forwarded image
+// or file) the routing text stays empty, which routes by nothing instead of by
+// the marker alone; an ordinary message never gets here.
+func telegramForwardedRoutingText(marker, routingText string) string {
+	if strings.TrimSpace(routingText) == "" {
+		return routingText
+	}
+	return marker + "\n" + routingText
+}
+
 func telegramUserLabel(user *tgbotapi.User) string {
 	name := strings.TrimSpace(user.FirstName + " " + user.LastName)
 	switch {

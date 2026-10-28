@@ -395,7 +395,8 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		inputText = text
 	}
 
-	// Pin the caption or voice transcription before adding image/file contents.
+	// Pin the caption or voice transcription before adding image/file contents
+	// (a forwarded message gets its marker below, the same one the model reads).
 	routingText := inputText
 	humanInput := memory.NewHumanInputEvent(inputText, sessionID, fmt.Sprintf("telegram:%d:%d", msg.Chat.ID, msg.MessageID), time.Time{})
 	if msg.Date > 0 {
@@ -507,12 +508,13 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	// A forwarded message arrives from the owner's account, but a third party
 	// wrote it. The fixed marker goes inside the isolated block (and before the
-	// injection scan, which then reads the origin name too), the text no longer
-	// counts as the owner's own words, and it cannot answer a pending question or
-	// run a slash command.
+	// injection scan, which then reads the origin name too), task routing reads
+	// the marked text too, the text no longer counts as the owner's own words,
+	// and it cannot answer a pending question or run a slash command.
 	forwardMarker := telegramForwardMarker(msg)
 	if forwardMarker != "" {
 		inputText = forwardMarker + "\n" + inputText
+		routingText = telegramForwardedRoutingText(forwardMarker, routingText)
 		humanInput = nil
 	}
 
