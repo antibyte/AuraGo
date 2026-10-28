@@ -186,8 +186,9 @@ func a2aDesktopWrite(tc ToolCall) bool {
 }
 
 // a2aHomepageWrite reports a homepage call that changes a project, a container
-// or a published site. The dispatcher also accepts a homepage operation named as
-// the tool ("write_file", "deploy_netlify"), so those names are held to the same
+// or a published site. prepareToolCall rewrites a homepage operation named as the
+// tool ("deploy_netlify") into its focused tool before this runs; discovery asks
+// before that, and "write_file" stays a name, so those names are held to the same
 // rule.
 func a2aHomepageWrite(tc ToolCall) bool {
 	switch tc.Action {

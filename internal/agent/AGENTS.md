@@ -23,10 +23,26 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   its outer scope and can resolve the full enabled catalog even when adaptive
   presentation omits a tool. Fixed git aliases retain their private transport
   identity and never turn an alias-only grant into arbitrary shell access.
-  Ambiguous file-operation names must not be guessed into Homepage operations.
+  Ambiguous file-operation names (`list_files`, `read_file`, `write_file`) must
+  not be guessed into Homepage operations: they stay unknown actions with a hint.
+  `dispatchInner` redirects nothing after the gates. Every other rewrite happens
+  in `prepareToolCall`, so a rewritten call passes each gate exactly once, as the
+  call it becomes: the git aliases and `exec` with a command become `execute_shell`
+  with the built command; a Homepage operation named as a tool
+  (`homepageAliasOperations`: `deploy_netlify`, `publish_local`, `build`,
+  `edit_file`, `save_revision`, ...) becomes the focused tool that publishes it
+  (`canonicalizeHomepageAliasCall`: `homepage_project`, `homepage_file`,
+  `homepage_quality`, `homepage_deploy` or `homepage_git`) with that operation.
+  An operation two focused tools publish goes to the first the run's scope allows
+  (else the first), and the alias name itself grants nothing: a scope that lists
+  only `deploy` denies it. Rules, approvals, the copy gate, scope, role, learning
+  and hooks therefore see the focused tool, not the alias. A builtin or an exact
+  catalog entry of the run keeps its name. A new alias must publish through a
+  focused tool and belong to no dispatcher (`TestHomepageAliasNamesAreNoToolOfTheirOwn`).
   Verify `TestCanonicalVirusTotalWrapperCannotBypassUploadApproval`,
-  `TestCanonicalNativeSkillWrapperRequiresWrapperAndLeafScope` and
-  `TestCanonicalInvokeUsesFullEnabledCatalogDespiteAdaptiveSubset`.
+  `TestCanonicalNativeSkillWrapperRequiresWrapperAndLeafScope`,
+  `TestCanonicalInvokeUsesFullEnabledCatalogDespiteAdaptiveSubset`,
+  `TestHomepageAlias*` and `TestGitAlias*`.
 
 - MCP ask_aurago inherits the caller's explicit tool scope and unique session. Never default it to an unrestricted run or a shared IDE conversation. Preserve the configuration authorization resolver so revoked runtime gates and changed allowlists stop subsequent dispatch; nested invoke_tool cannot widen the inherited scope.
 

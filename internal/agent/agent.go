@@ -1302,79 +1302,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 		return result
 	}
 
-	// Alias resolution: LLMs (especially reasoning models) sometimes call homepage
-	// sub-operations as top-level actions. Redirect transparently before failing.
-	homepageSubOps := map[string]bool{
-		"optimize_images": true, "test_connection": true, "screenshot": true,
-		"lighthouse": true, "tunnel": true, "dev": true, "build": true,
-		"rebuild": true, "install_deps": true, "lint": true, "webserver_start": true,
-		"webserver_stop": true, "webserver_status": true, "init_project": true,
-		"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
-		"deploy_netlify": true, "deploy_here_now": true, "deploy_vercel": true, "publish_local": true, "deploy": true,
-		"list_files": true, "read_file": true, "write_file": true,
-		"save_revision": true, "list_revisions": true, "get_revision": true,
-		"diff_revision": true, "restore_revision": true, "revision_status": true,
-	}
-	if homepageSubOps[tc.Action] {
-		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
-		if tc.Action == "deploy" {
-			tc.Operation = "deploy"
-		} else if tc.Action == "save_revision" {
-			tc.Operation = "save_revision"
-		} else if tc.Action == "list_revisions" {
-			tc.Operation = "list_revisions"
-		} else if tc.Action == "get_revision" {
-			tc.Operation = "get_revision"
-		} else if tc.Action == "diff_revision" {
-			tc.Operation = "diff_revision"
-		} else if tc.Action == "restore_revision" {
-			tc.Operation = "restore_revision"
-		} else if tc.Action == "revision_status" {
-			tc.Operation = "revision_status"
-		} else {
-			tc.Operation = tc.Action
-		}
-		tc.Action = "homepage"
-		if result, ok := dispatchServices(ctx, tc, dc); ok {
-			return result
-		}
-	}
-	// Redirect top-level git commands to execute_shell
-	gitAliases := map[string]string{
-		"git_status":   "git status",
-		"git_log":      "git log --oneline -10",
-		"git_diff":     "git diff",
-		"git_push":     "git push",
-		"git_pull":     "git pull",
-		"git_rollback": "git reset --hard HEAD~1",
-	}
-	// git_commit is built separately to safely shell-quote the commit message.
-	if tc.Action == "git_commit" {
-		safeMsg := "'" + strings.ReplaceAll(tc.Message, "'", `'"'"'`) + "'"
-		gitAliases["git_commit"] = "git add -A && git commit -m " + safeMsg
-	}
-	if gitCmd, ok := gitAliases[tc.Action]; ok {
-		logger.Info("Redirecting git alias to execute_shell", "action", tc.Action)
-		if tc.Path != "" {
-			safePath := "'" + strings.ReplaceAll(tc.Path, "'", `'"'"'`) + "'"
-			tc.Command = "cd " + safePath + " && " + gitCmd
-		} else {
-			tc.Command = gitCmd
-		}
-		tc.Action = "execute_shell"
-		if result, ok := dispatchExec(ctx, tc, dc); ok {
-			return result
-		}
-	}
-	// Redirect bare "exec" to execute_shell when a command is provided
-	if tc.Action == "exec" && tc.Command != "" {
-		logger.Info("Redirecting exec alias to execute_shell")
-		tc.Action = "execute_shell"
-		if result, ok := dispatchExec(ctx, tc, dc); ok {
-			return result
-		}
-	}
-
+	// Homepage operations, the git aliases and "exec" with a command named as tools
+	// were rewritten by prepareToolCall, so every gate above judged the call they
+	// stand for. Nothing is redirected here: a rewrite after the gates would run a
+	// call no gate has seen.
 	logger.Warn("LLM requested unknown action", "action", tc.Action)
 	hint := ""
 	switch tc.Action {
@@ -1382,6 +1313,8 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) (outpu
 		hint = " Use execute_shell with a 'command' field to run shell commands."
 	case "git", "git_status", "git_log", "git_diff", "git_commit", "git_push", "git_pull":
 		hint = " Use execute_shell with the git command in the 'command' field."
+	case "list_files", "read_file", "write_file":
+		hint = " Use homepage_file with operation " + tc.Action + " for homepage project files, or filesystem for other files."
 	}
 	if guidance, _ := unknownToolGuidance(dc, tc.Action); guidance != "" {
 		hint += " " + guidance

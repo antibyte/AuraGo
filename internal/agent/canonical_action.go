@@ -229,11 +229,81 @@ func canonicalizeGameMakerOperationCall(tc ToolCall, dc *DispatchContext) ToolCa
 	return tc
 }
 
+// homepageAliasOperations are the homepage operations that models call as a tool
+// of their own ("deploy_netlify", "publish_local", "edit_file"). list_files,
+// read_file and write_file are left out on purpose: each is as much an operation
+// of the filesystem, the virtual desktop, remote control and Game Maker, and a
+// guess would judge the call as a tool the model did not name.
+var homepageAliasOperations = map[string]bool{
+	"optimize_images": true, "test_connection": true, "screenshot": true,
+	"lighthouse": true, "tunnel": true, "dev": true, "build": true,
+	"rebuild": true, "install_deps": true, "lint": true, "webserver_start": true,
+	"webserver_stop": true, "webserver_status": true, "init_project": true,
+	"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
+	"deploy_netlify": true, "deploy_here_now": true, "deploy_vercel": true, "publish_local": true, "deploy": true,
+	"save_revision": true, "list_revisions": true, "get_revision": true,
+	"diff_revision": true, "restore_revision": true, "revision_status": true,
+}
+
+// homepageFocusedToolOrder is the order in which an alias looks for the focused
+// homepage tool that publishes its operation (focusedHomepageToolOperations).
+var homepageFocusedToolOrder = []string{"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git"}
+
+// canonicalizeHomepageAliasCall turns a homepage operation named as a tool into
+// the call it stands for: the focused homepage tool that publishes the operation,
+// carrying the operation. Every gate then judges it exactly like a direct call of
+// that tool: scope, role, learning, action policy, effect tracking and hooks. An
+// operation two focused tools publish goes to the first the run may call, so the
+// rewrite never widens a scope; when the run may call none, the first one is
+// named and the scope refusal that follows names a real tool. A real tool keeps
+// its name: a builtin or an exact catalog entry of the run is left alone.
+func canonicalizeHomepageAliasCall(tc ToolCall, dc *DispatchContext) ToolCall {
+	operation := tc.Action
+	if !homepageAliasOperations[operation] {
+		return tc
+	}
+	if _, builtin := allBuiltinToolNameSet()[operation]; builtin {
+		return tc
+	}
+	if dc != nil {
+		if entry, ok := GetToolCatalogState(dc.discoveryKey()).Get(operation); ok && entry.Name == operation {
+			return tc
+		}
+	}
+	tool := ""
+	for _, candidate := range homepageFocusedToolOrder {
+		if !focusedHomepageToolOperations[candidate][operation] {
+			continue
+		}
+		if tool == "" {
+			tool = candidate
+		}
+		if dispatchToolAllowed(dc, candidate) {
+			tool = candidate
+			break
+		}
+	}
+	if tool == "" {
+		return tc
+	}
+	args := map[string]interface{}{}
+	if tc.Params != nil {
+		args = cloneJSONSchemaValue(tc.Params).(map[string]interface{})
+	}
+	args["operation"] = operation
+	if dc != nil && dc.Logger != nil {
+		dc.Logger.Info("Homepage sub-operation call normalized", "from", operation, "tool", tool)
+	}
+	tc.Params, tc.Operation, tc.Action = args, operation, tool
+	return tc
+}
+
 // canonicalizeLeafCall runs before Guardian, role, scope, learning and action
 // policy checks. It only rewrites known routes and never performs an action.
 func canonicalizeLeafCall(tc ToolCall, dc *DispatchContext) ToolCall {
 	tc = canonicalizeGameMakerOperationCall(tc, dc)
 	tc = canonicalizeDiscoverOperationCall(tc, dc)
+	tc = canonicalizeHomepageAliasCall(tc, dc)
 	if tc.Action == "execute_skill" {
 		tc = canonicalizeNativeSkillWrapper(tc, dc)
 		if tc.PreparationError != "" {
