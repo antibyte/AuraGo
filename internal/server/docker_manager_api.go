@@ -37,6 +37,14 @@ const (
 	dmCodeContainerNotFound = "container_not_found"
 	dmCodeInvalidAction     = "invalid_action"
 	dmCodeDockerError       = "docker_error"
+	// Live data (phase 3).
+	dmCodeStreamNotFound    = "stream_not_found"
+	dmCodeTooManyStreams    = "too_many_streams"
+	dmCodeWebSocketRequired = "websocket_required"
+	dmCodeNotRunning        = "container_not_running"
+	dmCodeHelperContainer   = "helper_container"
+	dmCodeProjectNotFound   = "project_not_found"
+	dmCodeForbiddenOrigin   = "forbidden_origin"
 	// Not in the contract table; they cover requests that reach no feature route.
 	dmCodeUnavailable = "docker_hosts_unavailable"
 	dmCodeNotFound    = "not_found"
@@ -71,6 +79,7 @@ type dmRequest struct {
 	r        *http.Request
 	readOnly bool
 	stacks   dmStackService // nil while the stacks service is not open (stackService answers 503)
+	live     dmLive         // nil while the live data hub is not open (liveService answers 503)
 }
 
 func (dm *dmRequest) registry() *dockerhost.Registry { return dm.s.DockerHosts }
@@ -155,30 +164,39 @@ func (dm *dmRequest) hostFailure(err error) {
 }
 
 // engineFailure answers an error from an Engine call or from the client of a
-// host. dockerhost.StatusOf separates the cases: a rejected action or container
-// reference is a 400; 404 with notFoundCode (when given) is "no such object";
-// any other Engine status is docker_error; status 0 means nothing answered
-// (dial, TLS, SSH, timeout or a client that could not be built) and becomes
-// host_unreachable with the classified reason.
+// host (see engineFailureOf).
 func (dm *dmRequest) engineFailure(err error, notFoundCode string) {
+	dm.writeFailure(engineFailureOf(err, notFoundCode))
+}
+
+// engineFailureOf classifies an error from an Engine call or from the client of
+// a host. dockerhost.StatusOf separates the cases: a rejected action or
+// container reference is a 400; 404 with notFoundCode (when given) is "no such
+// object"; any other Engine status is docker_error; status 0 means nothing
+// answered (dial, TLS, SSH, timeout or a client that could not be built) and
+// becomes host_unreachable with the classified reason. The live routes use it
+// for the closing event of a stream as well.
+func engineFailureOf(err error, notFoundCode string) dmFailure {
 	message := dockerutil.SanitizeOneLine(err.Error(), 512)
 	status := dockerhost.StatusOf(err)
 	switch {
 	case errors.Is(err, dockerhost.ErrInvalidAction):
-		dmWriteError(dm.w, http.StatusBadRequest, dmCodeInvalidAction, message, nil)
+		return dmFailure{http.StatusBadRequest, dmCodeInvalidAction, message, nil}
 	case errors.Is(err, dockerhost.ErrInvalidContainerRef):
-		dmWriteError(dm.w, http.StatusBadRequest, dmCodeBadRequest, message, nil)
+		return dmFailure{http.StatusBadRequest, dmCodeBadRequest, message, nil}
 	case status == http.StatusNotFound && notFoundCode != "":
-		dmWriteError(dm.w, http.StatusNotFound, notFoundCode, message, nil)
+		return dmFailure{http.StatusNotFound, notFoundCode, message, nil}
 	case status > 0:
-		dmWriteError(dm.w, http.StatusBadGateway, dmCodeDockerError, message, nil)
+		return dmFailure{http.StatusBadGateway, dmCodeDockerError, message, nil}
 	default:
-		dmWriteError(dm.w, http.StatusBadGateway, dmCodeHostUnreachable, message, dmFields{"reason": dockerhost.ClassifyError(err)})
+		return dmFailure{http.StatusBadGateway, dmCodeHostUnreachable, message, dmFields{"reason": dockerhost.ClassifyError(err)}}
 	}
 }
 
 // handleDockerManager serves /api/docker-manager/. Docker disabled answers 503
-// for every route; docker.readonly blocks only the container mutations.
+// for every route; docker.readonly blocks the container mutations and the
+// terminal, and leaves the live reads (stream, subscriptions, log follow, disk
+// usage) alone.
 func handleDockerManager(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, enabled, readOnly := containerDockerConfig(s)
@@ -193,6 +211,9 @@ func handleDockerManager(s *Server) http.HandlerFunc {
 		dm := &dmRequest{s: s, w: w, r: r, readOnly: readOnly}
 		if s.DockerStacks != nil { // never wrap a nil pointer in the interface
 			dm.stacks = s.DockerStacks
+		}
+		if s.DockerWatch != nil { // likewise
+			dm.live = dmWatchHub{s.DockerWatch}
 		}
 		dm.route(dockerManagerSegments(r.URL.Path))
 	}
@@ -232,6 +253,8 @@ func (dm *dmRequest) route(segs []string) {
 		dm.hostTest(segs[1])
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "overview":
 		dm.overview(segs[1])
+	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "df":
+		dm.diskUsage(segs[1])
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "containers":
 		dm.containerList(segs[1])
 	case len(segs) == 4 && segs[0] == "hosts" && segs[2] == "containers":

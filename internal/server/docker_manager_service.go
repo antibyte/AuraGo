@@ -61,6 +61,7 @@ func (s *Server) initDockerHosts() {
 	s.dockerHostStore = store
 	s.DockerHosts = dockerhost.NewRegistry(store, vault, s.dockerLocalEndpoint)
 	s.initDockerStacks(store)
+	s.initDockerWatch()
 }
 
 // initDockerStacks opens the stacks service on the store's database handle (its
@@ -77,13 +78,15 @@ func (s *Server) initDockerStacks(store *dockerhost.Store) {
 	s.DockerStacks = stacks
 }
 
-// closeDockerHosts stops the background status checks, stops the stacks
-// service (running operations keep going in their runner containers and are
-// reattached by the next start), releases the cached Engine connections and
-// closes the store. The stacks service goes first: its followers use the
-// registry. It is safe to call without a registry.
+// closeDockerHosts stops the background status checks, closes the live data
+// hub (every open stream ends), stops the stacks service (running operations
+// keep going in their runner containers and are reattached by the next start),
+// releases the cached Engine connections and closes the store. The hub and the
+// stacks service go before the registry: their followers use it. It is safe to
+// call without a registry.
 func (s *Server) closeDockerHosts() {
 	s.dockerStatus.close()
+	s.closeDockerWatch()
 	if s.DockerStacks != nil {
 		s.DockerStacks.Close()
 	}

@@ -40,6 +40,7 @@ import (
 	"aurago/internal/dockerhost"
 	"aurago/internal/dockerstacks"
 	"aurago/internal/dockerutil"
+	"aurago/internal/dockerwatch"
 	"aurago/internal/flows"
 	"aurago/internal/fritzbox"
 	"aurago/internal/gamemaker"
@@ -359,8 +360,13 @@ type Server struct {
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
 	// DockerHosts stays nil when the store could not be opened; DockerStacks (the
 	// stacks service on the same database) stays nil when it could not be opened.
+	// DockerWatch is the live data hub (events, stats, log follow); it exists
+	// whenever DockerHosts does. dockerOpsBridge stops the forwarding of stack
+	// operation state changes to it.
 	DockerHosts     *dockerhost.Registry
 	DockerStacks    *dockerstacks.Service
+	DockerWatch     *dockerwatch.Hub
+	dockerOpsBridge func()
 	dockerHostStore *dockerhost.Store
 	dockerStatus    dockerStatusRefresher
 
