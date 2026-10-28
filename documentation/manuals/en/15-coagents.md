@@ -297,7 +297,7 @@ Co-agents **cannot** use:
 - `manage_webhooks`
 - `save_tool`, `create_skill_from_template`, `set_skill_documentation` (no new persistent tools or skills)
 
-Requests that arrive over A2A run as co-agents too, with two more limits: they cannot change files (the file tools keep only their read operations) and their text is passed to the agent as isolated external data, never as the owner's request.
+Requests that arrive over A2A run as co-agents too, with more limits: they cannot change files, the virtual desktop or homepage projects (those tools keep only their read operations), they cannot run shell commands, Python code, skills or saved tools, and their text is passed to the agent as isolated external data, never as the owner's request. Reading memory, the knowledge graph, the journal and notes, web tools and the other read operations stay open to a remote agent, so enable the A2A server only for peers you trust with that read access.
 
 They **can** use:
 - Read operations (query_memory, search)

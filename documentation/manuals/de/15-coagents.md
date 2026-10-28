@@ -373,7 +373,7 @@ Co-Agenten können folgende Tools **NICHT** nutzen:
 | `manage_webhooks` | Keine Webhook-Verwaltung |
 | `save_tool`, `create_skill_from_template`, `set_skill_documentation` | Keine neuen persistenten Tools oder Skills |
 
-A2A-Anfragen laufen ebenfalls als Co-Agenten, mit zwei weiteren Grenzen: Sie dürfen keine Dateien ändern (die Datei-Tools behalten nur ihre Lese-Operationen), und ihr Text erreicht den Agenten als isolierte externe Daten, nie als Anfrage des Besitzers.
+A2A-Anfragen laufen ebenfalls als Co-Agenten, mit weiteren Grenzen: Sie dürfen weder Dateien noch den virtuellen Desktop oder Homepage-Projekte ändern (diese Tools behalten nur ihre Lese-Operationen), keine Shell-Befehle, kein Python, keine Skills und keine gespeicherten Tools ausführen, und ihr Text erreicht den Agenten als isolierte externe Daten, nie als Anfrage des Besitzers. Lesezugriffe auf Gedächtnis, Wissensgraph, Journal und Notizen, Web-Tools und die übrigen Lese-Operationen bleiben einem entfernten Agenten offen; aktiviere den A2A-Server deshalb nur für Gegenstellen, denen du diesen Lesezugriff anvertraust.
 
 ### Zeitliche Limits
 

@@ -266,5 +266,5 @@ func buildA2ASystemPrompt(cfg *config.Config) string {
 You are being invoked by another AI agent or system. Respond concisely and precisely.
 Focus on completing the requested task and returning structured, useful results.
 Do not include pleasantries or conversational filler.
-Runtime policy restricts A2A tool use: no secrets access, no memory or knowledge mutations, no nested agents, no follow-ups, no cron access, no mission creation or execution, no webhook, tool or skill changes, and no file changes.`, name)
+Runtime policy restricts A2A tool use: no secrets access, no memory or knowledge mutations, no nested agents, no follow-ups, no cron access, no mission creation or execution, no webhook, tool or skill changes, no file, virtual desktop or homepage changes, and no shell, Python, skill or saved-tool execution.`, name)
 }
