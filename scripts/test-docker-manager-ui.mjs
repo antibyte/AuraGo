@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-store.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -1029,6 +1029,51 @@ eq(plain(model.totalCounts([hostA], { local: { containers: [null, container('a')
     await tick();
     eq([result.ok, result.error.code, api.count('GET ' + B + '/hosts/local/containers') - before], [false, 'docker_error', 1], 'the list is reloaded after a failed action, not 5 s later');
     store.dispose();
+}
+
+// ---- charts: pure SVG and text helpers -----------------------------------------------------------------------------------
+{
+    const charts = window.DockerManagerCharts;
+    assert.ok(charts, 'the charts module publishes its global');
+    eq([charts.bytes(0, 'en'), charts.bytes(1023, 'en'), charts.bytes(1536, 'en'), charts.bytes(10 * 1048576, 'en'), charts.bytes(2147483648, 'en')], ['0 B', '1023 B', '1.5 KB', '10 MB', '2.0 GB']);
+    eq([charts.bytes(-1), charts.bytes(NaN), charts.bytes(undefined), charts.bytes('x')], ['–', '–', '–', '–'], 'unknown sizes are an en dash');
+    eq([charts.percent(0.01, 'en'), charts.percent(3.24, 'en'), charts.percent(42.4, 'en'), charts.percent(250, 'en'), charts.percent(-1), charts.percent(null)], ['0%', '3.2%', '42%', '250%', '–', '–'], 'a percent keeps one decimal below 10, -1 is unknown');
+    eq(charts.series([{ cpu: 1 }, { cpu: -1 }, null, { cpu: 3 }], 'cpu'), [1, null, null, 3]);
+    assert.equal(charts.rate([{ t: 1000, net_rx: 100 }, { t: 3000, net_rx: 300 }], 'net_rx'), 100, 'bytes per second between the last two points');
+    assert.equal(charts.rate([{ t: 1000, net_rx: 500 }, { t: 3000, net_rx: 20 }], 'net_rx'), 0, 'a counter reset is no negative rate');
+    assert.equal(charts.rate([{ t: 1000, net_rx: 1 }], 'net_rx'), null, 'one point has no rate');
+
+    const flat = charts.sparkline([1, 2, 3], { width: 60, height: 20, label: 'CPU' });
+    assert.ok(flat.startsWith('<svg class="dm-spark"') && flat.includes('role="img"') && flat.includes('aria-label="CPU"') && flat.includes('class="dm-spark-line"') && flat.includes('class="dm-spark-area"'), 'a series draws a line and an area');
+    assert.ok(charts.sparkline([1, 2]).includes('aria-hidden="true"') && !charts.sparkline([1, 2]).includes('role="img"'), 'without a label the sparkline is decorative');
+    assert.ok(charts.sparkline([], {}).includes('is-empty') && charts.sparkline([null, -1], {}).includes('dm-spark-base'), 'no known value draws only the baseline');
+    assert.equal((charts.sparkline([1, 2, null, 3, 4], {}).match(/M/g) || []).length, 2 + 2, 'a gap splits the line (and its area) in two');
+    assert.ok(charts.sparkline([5], {}).includes('M') && !charts.sparkline([5], {}).includes('dm-spark-area'), 'a single point is a dot, not an area');
+    assert.ok(charts.sparkline([1], { label: 'a"b<c' }).includes('aria-label="a&quot;b&lt;c"'), 'the label is escaped');
+    // right-aligned in the window: the last point sits at the right edge, the first of three in a 60-slot window near the right
+    const aligned = charts.sparkline([0, 10], { width: 100, height: 10, max: 10, window: 60 }).match(/class="dm-spark-line" d="M([\d.]+) /);
+    assert.ok(aligned && Number(aligned[1]) > 95, 'a short series hugs the right edge of the window, got ' + (aligned && aligned[1]));
+    // values above max are clamped to the top
+    assert.ok(charts.sparkline([500], { height: 20, max: 100 }).includes(' 1.5'), 'a value above max is drawn at the top');
+
+    const meter = charts.gauge(42, 100, { label: 'CPU', unit: 'percent', lang: 'en' });
+    assert.ok(meter.includes('data-level="ok"') && meter.includes('role="meter"') && meter.includes('aria-valuenow="42"') && meter.includes('aria-valuetext="42%"') && meter.includes('width="42"'), 'a percent gauge fills to its share');
+    assert.ok(charts.gauge(80, 100, { label: 'x', unit: 'percent' }).includes('data-level="warn"') && charts.gauge(95, 100, { label: 'x', unit: 'percent' }).includes('data-level="bad"'), 'warn from 75 percent, bad from 90');
+    const memory = charts.gauge(1073741824, 4294967296, { label: 'RAM', unit: 'bytes', lang: 'en' });
+    assert.ok(memory.includes('1.0 GB / 4.0 GB') && memory.includes('width="25"'), 'a bytes gauge shows used and total');
+    const disk = charts.gauge(5368709120, 0, { label: 'Disk', unit: 'bytes', lang: 'en' });
+    assert.ok(disk.includes('data-level="plain"') && !disk.includes('<svg') && !disk.includes('role="meter"') && disk.includes('5.0 GB'), 'without a ceiling there is no bar, only the value');
+    assert.ok(charts.gauge(-1, 100, { label: 'CPU', unit: 'percent' }).includes('data-level="none"'), 'an unknown value has no level');
+    assert.ok(charts.gauge(1, 100, { label: '<b>', unit: 'percent' }).includes('&lt;b&gt;') && !charts.gauge(1, 100, { label: '<b>', unit: 'percent' }).includes('<b>'), 'labels are escaped');
+    assert.ok(charts.gauge(3, 10, { label: 'x', text: '3 of 10 shown' }).includes('3 of 10 shown'), 'text replaces the generated value text');
+
+    assert.equal(charts.loadCell([]), '', 'no points, no cell');
+    const cell = charts.loadCell([{ t: 1, cpu: 5, mem: 1048576 }, { t: 2, cpu: 12.4, mem: 2097152 }], { lang: 'en' });
+    assert.ok(cell.includes('>12%<') && cell.includes('>2.0 MB<') && (cell.match(/<svg/g) || []).length === 2, 'the cell has CPU and memory, each with a sparkline');
+    assert.ok(charts.loadCell([{ t: 1, cpu: -1, mem: 5 }], { lang: 'en' }).includes('>–<'), 'an unknown CPU shows a dash');
+    const young = charts.loadCell([{ t: 1, cpu: 1, mem: 1 }, { t: 2, cpu: 2, mem: 2 }, { t: 3, cpu: 3, mem: 3 }], { lang: 'en' }).match(/class="dm-spark-line" d="M([\d.]+) /);
+    assert.ok(young && Number(young[1]) < 45, 'a series of three points fills the sparkline instead of hugging the right edge, first x = ' + (young && young[1]));
+    assert.ok(Number(charts.loadCell(Array.from({ length: 60 }, (_, i) => ({ t: i, cpu: 1, mem: 1 })), { lang: 'en' }).match(/class="dm-spark-line" d="M([\d.]+) /)[1]) < 3, 'a full ring spans the whole width');
 }
 
 console.log('docker-manager ui tests: model and store ok');
