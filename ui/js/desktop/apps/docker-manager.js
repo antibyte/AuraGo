@@ -247,8 +247,9 @@
             lastCount = text;
         }
 
-        // The drawer repaints its header, tabs and the Overview or Inspect panel; the Logs and Terminal panels are persistent (panes.js)
-        // and follow only while their tab is shown, the drawer is not covered and the window is visible.
+        // The drawer repaints its header, tabs and the Overview or Inspect panel; the Logs and Terminal panels are persistent (panes.js).
+        // The log panel follows only while its tab is shown, the drawer is not covered and the window is visible; a connected shell stays
+        // open meanwhile and ends with the pane.
         function paintDrawer(snap) {
             const detail = state.detail;
             if (!detail) {

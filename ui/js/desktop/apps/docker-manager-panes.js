@@ -1,9 +1,11 @@
 /* Docker Manager panes: the glue between the app and the things that live as long as a pane is open. A classic script
    (window.DockerManagerPanes) with no DOM work at load.
    - Follow panels: the log panel and the terminal panel of the container drawer, the stack pane and the external project pane are
-     created the first time their tab is shown, kept (hidden) while the pane stays on the same container, stack or project, shut
-     down when it changes or closes, and told to follow only while their tab is visible. A panel whose mount element was replaced
-     is built again.
+     created the first time their tab is shown, kept (hidden) while the pane stays on the same container, stack or project, and shut
+     down when it changes or closes. A log panel follows only while its tab is visible (the pane is not covered, the window is shown).
+     A terminal panel keeps a connected shell open for as long as its pane exists (other tab, covered pane, minimised or hidden window)
+     and ends it (end frame, socket closed) when the pane, the container or the window closes, or when read-only is switched on.
+     A panel whose mount element was replaced is built again.
    - Load cells: [data-load="host/containerid"] placeholders (table rows, service lines) are filled in place with the CPU and
      memory sparklines of the live stream. Nothing here repaints a table; a stats message touches only the cells of its container.
    - visibleLoads: which of those cells are on screen, for the subscription of the stream (at most 50 containers per host). */
@@ -31,7 +33,8 @@
             slots.delete(name);
         }
 
-        // Creates the panels of a slot on demand and follows only the one whose tab is `tab` ('' = the pane is not shown).
+        // Creates the panels of a slot on demand and activates only the one whose tab is `tab` ('' = the pane is not shown). Activating
+        // makes a log panel follow; a terminal panel only fits and focuses, its shell stays open while it is inactive.
         function sync(name, key, tab, mounts, make, focus) {
             const slot = slotFor(name, key);
             if (slot.logs && slot.logsEl !== mounts.logs) { slot.logs.dispose(); slot.logs = null; }

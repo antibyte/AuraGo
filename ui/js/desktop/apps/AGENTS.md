@@ -413,8 +413,10 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Follow panels: the container drawer (tabs Overview, Logs, Terminal, Inspect), the stack pane (Overview, Compose, .env, Logs,
   Terminal) and the external project pane (Overview, Logs; opened by the project row, closed with Escape like a stack) keep one log
   panel and one terminal panel per container, stack or project (`panes.drawer/stack/project`). A panel is built when its tab is first
-  shown, kept while the pane stays on the same thing, and told to follow only while its tab is visible, the pane is not covered and
-  the window is visible. The log panel (`docker-manager-logs.js`) opens one `EventSource` on `.../logs?follow=1&tail=N` (container 200,
+  shown, kept while the pane stays on the same thing, and the log panel is told to follow only while its tab is visible, the pane is
+  not covered and the window is visible. A connected terminal shell is the exception: it stays open while its pane exists (tab
+  switch, covered pane, minimised or hidden window) and is ended (`end` frame, socket closed) when the pane, the container or the
+  window closes or read-only is switched on. The log panel (`docker-manager-logs.js`) opens one `EventSource` on `.../logs?follow=1&tail=N` (container 200,
   stack and project 100 per container), keeps a ring of 5000 lines, filters by text and service chips, pauses following when the view
   is scrolled up ("New lines: n" resumes), strips ANSI, and after a broken connection asks for `tail=5000&since=<newest line>` and
   drops what it already has; an EventSource hides why a request failed, so `store.diagnose(path)` repeats it as a plain GET: any 4xx answer
