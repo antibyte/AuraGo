@@ -637,6 +637,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
+- Tool Permissions descriptions use the exact config field paths, including
+  `readonly`, in all sixteen help locales. Keep every rendered field covered;
+  verify `TestToolPermissionHelpCoversRenderedFields` and
+  `TestToolPermissionHelpIsVisibleBrowser` after changing fields or their routing.
 - Keep one canonical section definition per locale key where possible. If a key
   occurs in multiple sections, its values must agree in every language; verify
   with `TestTranslations_NoConflictingCrossSectionValues`.
