@@ -64,6 +64,8 @@ def analog_file(mode):
 
 
 def file_request(port, path, method="GET", data=None, timeout=3):
+    if port == 8091 and path == "/sdrangel/audio" and method == "GET":
+        REAL_REQUEST(port, "/sdrangel/logging", "PUT", {"consoleLevel": "debug", "dumpToFile": 0})
     if port == 8091 and path == "/sdrangel/deviceset/0/device" and method == "PUT":
         data = {"hwType": "FileInput", "direction": 0}
         # FileInput loads the synthetic recording during cold ARM64 initialization.

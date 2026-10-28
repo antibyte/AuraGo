@@ -52,6 +52,7 @@ func jsonStringLeaves(body string) []jsonLeaf {
 		return nil
 	}
 	dec := json.NewDecoder(strings.NewReader(body[base:]))
+	dec.UseNumber()
 	type frame struct {
 		object, wantKey bool
 		field, member   string

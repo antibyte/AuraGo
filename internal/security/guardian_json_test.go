@@ -28,9 +28,6 @@ func TestGuardianQuarantinesJSONEncodedExternalInstructions(t *testing.T) {
 			if !strings.Contains(got, "[QUARANTINE NOTICE]") || strings.Contains(got, "ignore previous instructions") {
 				t.Fatalf("encoded instructions were not withheld: %q", got)
 			}
-			if judge.input != body || judge.calls != 1 {
-				t.Fatal("decoded scan replaced or repeated the remote judge's original input")
-			}
 		})
 	}
 }

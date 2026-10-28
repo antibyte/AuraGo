@@ -18,6 +18,9 @@ the consuming library or reintroduces a vulnerability.
 
 ## Compatibility bounds
 
+`golang.org/x/net` must be at least v0.62.0: its HTML parser and renderer fix
+GO-2026-6860 and GO-2026-6866, reachable through Office and mail sanitization.
+
 Shared QR codes pin `github.com/makiuchi-d/gozxing` v0.1.1 (MIT plus upstream ZXing Apache-2.0) and `github.com/go-text/typesetting` v0.3.5 (Unlicense OR BSD-3-Clause; HarfBuzz translation MIT). Both run with CGO disabled. Keep payload/geometry, exact final-byte decoding and independent Chromium/jsQR acceptance when updating either dependency. `jsqr` 1.4.0 (Apache-2.0) is a test-only npm pin, not a production decoder. Caption fallback fonts are pinned by URL, revision, byte length and SHA-256 in `ui/fonts/qr/manifest.json`, retain their OFL texts, and ship through verified web assets. See [qr-code.md](qr-code.md).
 
 Owner WebAuthn verification pins `github.com/go-webauthn/webauthn` v0.18.2

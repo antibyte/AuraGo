@@ -415,8 +415,9 @@ OTA updates and the ZIP export and import.
   two boards, `all_widgets_portrait` and the seven `theme_*` cases) strictly with `TestGenerateCompilesInBuilder`
   (4 CPUs, volumes `cyd-ci-work` and `cyd-ci-cache`). The path filters include `generate*.go` and
   `testdata/golden/**`, and the build job's checkout keeps no credentials (`persist-credentials: false`; the publish
-  job's checkout does not set it). Pushes to `main` and `v*` tags (or a manual dispatch with `publish`) push by
-  digest, then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
+  job's checkout does not set it). Pushes to `main` and `v*` tags, or an explicit manual dispatch with
+  `publish: true` from a reviewed candidate branch, push by digest after both native checks pass. Publish
+  before activating a new image version. Then one job creates the multi-arch `:1` and, only when it does not exist yet, the immutable
   `:<CYD_BUILDER_VERSION>`, and signs the manifest with cosign. A changed image under an unchanged
   `CYD_BUILDER_VERSION` therefore moves only `:1`: bump the version for every pin, template or builder-script change.
   A generator-only push to `main` also runs the workflow and republishes `:1` with unchanged inputs.
