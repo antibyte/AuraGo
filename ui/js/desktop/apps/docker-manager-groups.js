@@ -22,10 +22,11 @@
     const array = value => (Array.isArray(value) ? value : []);
     const asRows = rows => array(rows).map(row => ({ type: 'row', row }));
 
-    // A container the image grouping may take. Running, paused and restarting containers are never grouped.
+    // A container the image grouping may take. Running, paused and restarting containers are never grouped, nor is a protected one
+    // (the lock must stay visible on its own row) or a helper container of the Stacks feature.
     function groupable(container) {
         const c = container || {};
-        return !text(c.compose_project) && !ACTIVE.includes(lower(c.state));
+        return !text(c.compose_project) && !ACTIVE.includes(lower(c.state)) && !window.DockerManagerModel.isProtected(c);
     }
     const imageKey = image => 'i:' + text(image);
 

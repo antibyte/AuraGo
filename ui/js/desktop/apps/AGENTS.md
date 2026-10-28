@@ -337,7 +337,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `treegrid` with a roving tab stop: arrows move, Left/Right collapse and expand a group, Enter opens the drawer, Delete asks to
   remove, Escape closes the drawer, `/` focuses the search, Shift+F10 opens the row menu.
 - Long lists (a host with thousands of containers; the app was measured with 3,306): nothing is rendered without a bound. The stopped single
-  containers (no compose project, not running, paused or restarting) of one image fold into ONE group entry from 5 of them on
+  containers (no compose project, not running, paused or restarting, and neither protected nor a helper: those keep their own row and lock) of one image fold into ONE group entry from 5 of them on
   (`docker-manager-groups.js` `entries`; grouped after the search and filter, so fewer than 5 matches show as plain rows; running containers are
   never grouped; plain rows come first, then the groups by image). In the table the group is a treegrid parent row (`tr.dm-image-row`,
   `aria-expanded`, one `aria-level` below its section, its members one more; Enter, Space, Right open it, Left closes it, Left on a member goes to

@@ -1934,6 +1934,16 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     eq([failing.counts.total, failing.counts.problem, failing.newest], [6, 2, 1760000500], 'a group counts its problems and knows its newest container');
     eq(G.groupable(stopped('dead', { state: 'dead' })) && G.groupable(stopped('made', { state: 'created' })) && !G.groupable(container('up')), true);
 
+    // protected containers and the helpers of the Stacks feature keep their own row (and their lock), whatever the group around them
+    const guarded = [
+        stopped('helper-runner', { aurago_helper: 'runner', protected_owner: 'docker_manager' }), stopped('owned-by-ruview', { protected_owner: 'ruview' }), stopped('self-copy', { self: true }),
+        stopped('at-endpoint', { docker_endpoint: true }), stopped('shared-net', { shared_network: true })
+    ];
+    eq(guarded.map(c => G.groupable(c)), [false, false, false, false, false], 'a helper, an owned, the self, an endpoint and a shared-network container are not groupable');
+    eq(names(G.entries(rowsOf([...make('job', 4), ...guarded]), { image: true })).sort(), ['at-endpoint', 'helper-runner', 'job0000', 'job0001', 'job0002', 'job0003', 'owned-by-ruview', 'self-copy', 'shared-net'], 'four unprotected ones are below the threshold: nine rows, no group');
+    const mixedGuard = G.entries(rowsOf([...make('job', 6), ...guarded]), { image: true });
+    eq(names(mixedGuard), ['helper-runner', 'owned-by-ruview', 'self-copy', 'at-endpoint', 'shared-net', '[ci:1 x6]'], 'six unprotected ones form the group; the protected five stay rows before it');
+
     // search and filter act inside the groups: a matching member is shown, the group opens (or, below five matches, the rows show)
     const ten = [...make('job', 10), ...make('batch', 3)];
     const all = rowsOf(ten);
