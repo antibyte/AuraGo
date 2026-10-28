@@ -405,7 +405,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `paused`, `unreachable` or `connecting`. A host that is `live` is polled only every 60 s (`stale()` in `pollOnce`); any other
   host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (the containers;
   the stacks in the Stacks section only for an event that names a compose project or a resync, because a container without a project
-  cannot change a stack; the open stack when its project is named), coalesced to one reload per 300 ms; `operation`
+  cannot change a stack; the open stack when its project is named), coalesced to one reload per 300 ms and started at most every 2 s per host (the
+  last event of a burst still leads to one; a reload that runs, or a poll in flight, is waited for, never cancelled by it); `operation`
   messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
   unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
   patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`) and repaints only the gauge area; the markup of the table

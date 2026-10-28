@@ -1437,19 +1437,19 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     // a container of a compose project (or a resync) can change a stack: the stack listing is read again, once, whatever else the batch holds
     const projectBase = [n(C), n(S)];
     sources[0].emit('event', die({ project: 'shop', service: 'web' })); sources[0].emit('event', die());
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     eq([n(C) - projectBase[0], n(S) - projectBase[1]], [1, 1], 'an event of a compose project reloads the containers and the stacks');
     const resyncBase = [n(C), n(S)];
     sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     eq([n(C) - resyncBase[0], n(S) - resyncBase[1]], [1, 1], 'a resync reloads the containers and the stacks');
     store.setSection('containers');
     await tick(); await tick();
     const switchedC = n(C), stacksFixed = n(S);
     sources[0].emit('event', die());
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     eq([n(C) - switchedC, n(S) - stacksFixed], [1, 0], 'the Containers section does not reload the stacks');
     store.setSection('stacks');
@@ -1460,15 +1460,15 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     await tick(); await tick();
     const stackBase = n('GET ' + B + '/hosts/local/stacks/shop');
     sources[0].emit('event', die({ project: 'other' }));
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 0, 'an event of another project leaves the open stack alone');
     sources[0].emit('event', die({ project: 'shop' }));
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 1);
     sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
-    timers.advance(400);
+    timers.advance(2100);
     await tick(); await tick();
     assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 2, 'a resync reloads the open stack too');
     store.closeStack();
@@ -1528,6 +1528,82 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     store.setVisible(false);
     assert.equal(sources[sources.length - 1].closed, true);
     eq([store.liveStatus('local'), store.state.live.connected], ['off', false]);
+    store.dispose();
+}
+
+{
+    // event reloads are throttled per host: one reload starts at most every 2 s, the last event of a burst still leads to one,
+    // and a host is never asked a second time while its first request runs
+    const sources = [], timers = fakeTimers();
+    let gate = null, active = 0, widest = 0;
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA] },
+        ['GET ' + B + '/hosts/local/containers']: async () => {
+            active += 1; widest = Math.max(widest, active);
+            try { if (gate) await gate.promise; } finally { active -= 1; }
+            return { containers: [container('web')] };
+        },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/operations']: { operations: [] },
+        ['PUT ' + B + '/stream/subscriptions']: { status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] }
+    });
+    const store = Store.create({ api, section: 'containers', eventSource: url => new FakeSource(url, sources), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, now: timers.now, reloadMs: 300 });
+    const C = 'GET ' + B + '/hosts/local/containers', n = () => api.count(C);
+    store.setVisible(true);
+    for (let i = 0; i < 8; i += 1) await tick();
+    hello(sources[0]);
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 1 });
+    const event = (extra = {}) => sources[0].emit('event', { host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'web-1', project: '', service: '', t: 5, ...extra });
+    const settle = async () => { for (let i = 0; i < 4; i += 1) await tick(); };
+    const base = n();
+
+    // the first event after a quiet spell is answered after the usual 300 ms; later events of the burst wait for the 2 s spacing
+    event();
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 1, 'the first reload comes after 300 ms');
+    timers.advance(100); event();
+    timers.advance(500); event(); event();
+    timers.advance(600); event({ action: 'start' });
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 1, 'four more events within the 2 s do not reload yet');
+    timers.advance(499); await settle();
+    assert.equal(n() - base, 1, 'the spacing is counted from the start of the last reload: 1999 ms later it has not come');
+    timers.advance(2); await settle();
+    assert.equal(n() - base, 2, 'the last event of the burst leads to exactly one more reload');
+    timers.advance(10000); await settle();
+    assert.equal(n() - base, 2, 'no event, no reload');
+
+    // an event after the spacing is answered after the usual 300 ms again
+    event();
+    timers.advance(301); await settle();
+    assert.equal(n() - base, 3);
+
+    // a reload that is still running is never joined by a second request: the next batch waits for its end, then for the spacing
+    gate = {}; gate.promise = new Promise(resolve => { gate.open = resolve; });
+    timers.advance(2000);
+    event();
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 4, 'the reload starts');
+    event(); timers.advance(5000); await settle();
+    eq([n() - base, active, widest], [4, 1, 1], 'while it runs, further events start no second request');
+    gate.open(); gate = null;
+    await settle();
+    timers.advance(300); await settle();
+    assert.equal(n() - base, 5, 'the events that came meanwhile get their reload once the first ended');
+    assert.equal(widest, 1, 'never two requests for the host at once');
+
+    // a poll that is on its way is waited for, not cancelled
+    gate = {}; gate.promise = new Promise(resolve => { gate.open = resolve; });
+    timers.advance(3000);
+    store.state.byHost.local.at = 0;
+    store.pollOnce(); await settle();
+    eq([n() - base, active], [6, 1], 'the safety poll of a live host is on its way');
+    event(); timers.advance(300); await settle();
+    eq([n() - base, widest], [6, 1], 'the event reload waits for the poll instead of cancelling it');
+    gate.open(); gate = null;
+    await settle();
+    timers.advance(300); await settle();
+    eq([n() - base, widest], [7, 1], 'after the poll the events are answered by one reload');
     store.dispose();
 }
 
