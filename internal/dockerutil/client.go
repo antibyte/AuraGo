@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -17,6 +19,7 @@ import (
 type Client struct {
 	host       string
 	httpClient *http.Client
+	dial       func(ctx context.Context) (net.Conn, error) // what the transport dials with; see Dial
 }
 
 // NewClient creates a Docker Engine client for unix sockets, named pipes, or TCP.
@@ -25,9 +28,10 @@ func NewClient(host string, timeout time.Duration) *Client {
 		timeout = 30 * time.Second
 	}
 	host = NormalizeHost(host)
+	dial := func(ctx context.Context) (net.Conn, error) { return DialContext(ctx, host) }
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return DialContext(ctx, host)
+			return dial(ctx)
 		},
 	}
 	return &Client{
@@ -36,6 +40,7 @@ func NewClient(host string, timeout time.Duration) *Client {
 			Transport: NewVersionTransport(transport),
 			Timeout:   timeout,
 		},
+		dial: dial,
 	}
 }
 
@@ -56,13 +61,16 @@ func NewClientWithDialer(name string, dial func(ctx context.Context) (net.Conn, 
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
+	checked := func(ctx context.Context) (net.Conn, error) {
+		if dial == nil {
+			return nil, fmt.Errorf("docker client %q has no dial function", name)
+		}
+		return dial(ctx)
+	}
 	transport := &http.Transport{
 		IdleConnTimeout: dialerIdleConnTimeout,
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			if dial == nil {
-				return nil, fmt.Errorf("docker client %q has no dial function", name)
-			}
-			return dial(ctx)
+			return checked(ctx)
 		},
 	}
 	return &Client{
@@ -71,6 +79,7 @@ func NewClientWithDialer(name string, dial func(ctx context.Context) (net.Conn, 
 			Transport: NewVersionTransportWithProbeTimeout(transport, probeTimeout),
 			Timeout:   timeout,
 		},
+		dial: checked,
 	}
 }
 
@@ -145,6 +154,50 @@ func (c *Client) HTTPClientWithTimeout(timeout time.Duration) *http.Client {
 		client.Timeout = timeout
 	}
 	return &client
+}
+
+// StreamingHTTPClient returns a client on the same transport (and so the same
+// version negotiation and dial function) without a total timeout, for
+// requests that stay open as long as their context lives: the events feed and
+// followed logs. The caller bounds every request with its context.
+func (c *Client) StreamingHTTPClient() *http.Client {
+	if c == nil || c.httpClient == nil {
+		return nil
+	}
+	client := *c.httpClient
+	client.Timeout = 0
+	return &client
+}
+
+// Dial opens a raw connection to the Engine with the client's own transport:
+// the endpoint dialer of NewClient (unix socket, named pipe, TCP) or the
+// caller's dial function of NewClientWithDialer (TLS, mutual TLS, SSH). The
+// caller owns the connection and closes it. Raw upgraded streams (exec attach)
+// use it so they reach the same Engine the pooled requests do.
+func (c *Client) Dial(ctx context.Context) (net.Conn, error) {
+	if c == nil || c.dial == nil {
+		return nil, errors.New("docker client has no dial function")
+	}
+	return c.dial(ctx)
+}
+
+// APIVersion returns the Engine API version the client's version transport
+// negotiated, without the "v" ("1.45"). It probes GET /version once when the
+// client has not negotiated yet, and again after a stale-version signal.
+func (c *Client) APIVersion(ctx context.Context) (string, error) {
+	if c == nil || c.httpClient == nil {
+		return "", errors.New("docker client is not initialised")
+	}
+	transport, ok := c.httpClient.Transport.(*VersionTransport)
+	if !ok {
+		return "", errors.New("docker client has no version transport")
+	}
+	origin, _ := url.Parse("http://docker")
+	version, err := transport.versionFor(ctx, origin)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimPrefix(version, "v"), nil
 }
 
 // CloseIdleConnections releases pooled connections without interrupting
