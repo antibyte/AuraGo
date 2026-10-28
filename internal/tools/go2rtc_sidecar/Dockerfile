@@ -1,6 +1,9 @@
 # Reviewed go2rtc v1.9.14 source + a single WebRTC lease-lifecycle fix.
 ARG BASE_IMAGE
 FROM golang:1.26.0-alpine@sha256:d4c4845f5d60c6a974c6000ce58ae079328d03ab7f721a0734277e69905473e5 AS build
+# The golang alpine image ships no patch(1) and no busybox applet for it; the
+# RUN that applies the patches below fails with exit 127 without this.
+RUN apk add --no-cache patch
 ADD https://codeload.github.com/AlexxIT/go2rtc/tar.gz/b5948cfb25404cc5cb37b166ecaa2dca20b11d4b /source.tgz
 RUN echo "78aa79bcedec8f155e4060a379613979b0b3ee48ff62ee5164bafc0ac6532386  /source.tgz" | sha256sum -c - && mkdir /src && tar xzf /source.tgz -C /src --strip-components=1
 WORKDIR /src
