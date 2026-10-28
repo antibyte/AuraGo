@@ -120,7 +120,7 @@ func (dm *dmRequest) containerList(hostID string) {
 	dmWriteOK(dm.w, http.StatusOK, dmFields{"containers": dm.containerViews(ctx, host, list)})
 }
 
-// containerSub serves /hosts/{id}/containers/{ref}/{inspect|logs|action}.
+// containerSub serves /hosts/{id}/containers/{ref}/{inspect|logs|terminal|action}.
 // logs answers the one-shot JSON of phase 1, or the live SSE stream with follow=1.
 func (dm *dmRequest) containerSub(hostID, ref, sub string) {
 	switch {
@@ -130,6 +130,8 @@ func (dm *dmRequest) containerSub(hostID, ref, sub string) {
 		dm.containerLogsFollow(hostID, ref)
 	case sub == "logs":
 		dm.containerLogs(hostID, ref)
+	case sub == "terminal":
+		dm.containerTerminal(hostID, ref)
 	case dmContainerActions[sub]:
 		dm.containerAction(hostID, ref, sub)
 	default:
@@ -238,7 +240,18 @@ func dmTruthy(value string) bool {
 	return false
 }
 
-// removeAllowed applies the confirmation rule of DELETE /api/containers/{id}.
+// removeAllowed applies the confirmation rule of DELETE /api/containers/{id}
+// (protectionAllowed). The Docker Manager's helper containers are checked first,
+// on every host. It writes the 409 and returns false when the request stops.
+func (dm *dmRequest) removeAllowed(ctx context.Context, host dockerhost.Host, client *dockerutil.Client, ref string) bool {
+	if !dm.helperRemoveAllowed(ctx, client, ref) {
+		return false
+	}
+	return dm.protectionAllowed(ctx, host, client, ref, "remove")
+}
+
+// protectionAllowed applies the protected-container rule of /api/containers for
+// action (remove, terminal): a protected container needs ?confirm=protected.
 // The local host, and a remote host that is the Engine AuraGo itself uses (its
 // address and port equal docker.host, e.g. a tcp socket proxy), run the full
 // classification of containerActionAllowed (self, Docker endpoint, shared
@@ -246,15 +259,11 @@ func dmTruthy(value string) bool {
 // containers: the owner from names and labels, plus the self check on the
 // container's full ID (an Engine reached by another route, such as an SSH or
 // tcp host on AuraGo's own machine, can still hold the container AuraGo runs
-// in). The Docker Manager's helper containers are checked first, on every
-// host. It writes the 409 and returns false when the request stops.
-func (dm *dmRequest) removeAllowed(ctx context.Context, host dockerhost.Host, client *dockerutil.Client, ref string) bool {
-	if !dm.helperRemoveAllowed(ctx, client, ref) {
-		return false
-	}
+// in). It writes the 409 and returns false when the request stops.
+func (dm *dmRequest) protectionAllowed(ctx context.Context, host dockerhost.Host, client *dockerutil.Client, ref, action string) bool {
 	cfg, _, _ := containerDockerConfig(dm.s)
 	if host.ID == dockerhost.LocalHostID || host.ReachesEngineAt(cfg.Host) {
-		return containerActionAllowed(dm.s, cfg, ref, "remove", dm.w, dm.r)
+		return containerActionAllowed(dm.s, cfg, ref, action, dm.w, dm.r)
 	}
 	p, err := dm.remoteContainerProtection(ctx, client, ref)
 	if err != nil {
