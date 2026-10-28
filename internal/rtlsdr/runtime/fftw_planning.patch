@@ -1,0 +1,11 @@
+--- a/sdrbase/dsp/fftwengine.cpp
++++ b/sdrbase/dsp/fftwengine.cpp
+@@ -82,6 +82,8 @@
+         qDebug("FFTWEngine::configure: no FFTW wisdom file");
+     }
+ 
++    // Bound cold-start optimization while retaining the best available PATIENT plan.
++    fftwf_set_timelimit(1.0);
+ 	m_currentPlan->plan = fftwf_plan_dft_1d(n, m_currentPlan->in, m_currentPlan->out, inverse ? FFTW_BACKWARD : FFTW_FORWARD, FFTW_PATIENT);
+     m_globalPlanMutex.unlock();
+ 

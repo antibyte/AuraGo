@@ -34,6 +34,9 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
 - Linux is the supported native host. Other builds keep the app available but
   report `sdr_linux_required` for receiver setup. Browser clients are portable.
 
+- SDRangel retains FFTW PATIENT planning with its optimization budget limited to
+  approximately one second per plan under the existing global planner mutex.
+  Preserve transform settings and audio calibration; IQ acceptance covers every mode.
 - Device-plugin initialization has one bounded 30-second request; ordinary
   SDRangel calls retain their 3-second budget. Never retry an uncertain device PUT.
 - Synthetic IQ acceptance verifies the default FileInput source created with its

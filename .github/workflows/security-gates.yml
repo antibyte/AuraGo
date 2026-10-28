@@ -124,7 +124,7 @@ jobs:
           cache: true
 
       - name: Run targeted race tests
-        run: go test -race ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/agent -timeout=30m
+        run: go test -race -p 1 ./internal/llm ./internal/server ./internal/memory ./internal/tools ./internal/telegram ./internal/agent -timeout=30m
 
   windows-runtime:
     name: Windows focused runtime contracts

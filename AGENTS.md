@@ -59,6 +59,7 @@ Production releases must use `./make_deploy.sh` (Linux/macOS) or `make_release.b
 - Windows/PowerShell: never undo a broken edit with `git checkout <file>` (discards others' work); inspect the diff and revert only the failed edit. `[System.Text.Encoding]::UTF8` adds a BOM; use `[System.Text.UTF8Encoding]::new($false)` or another BOM-free writer; inspect the first three bytes when relevant (BOM breaks Go `encoding/json`). Normalize mixed CRLF/LF to LF per `.gitattributes`.
 - Before tests check encoding and `git diff --check`; JS: `node --check <file.js>`; JSON: `python -m json.tool <file.json>` or another parser. Windows isolated build/release checks use `scripts/invoke-clean-worktree.ps1` (`finally` removes worktree/prunes metadata), not ad-hoc `%TEMP%` worktrees.
 - GitHub Pages renders `docs/` with Jekyll 3.10. Wrap literal Liquid-like code in `{% raw %}` / `{% endraw %}`; Security Gates build the same documentation without deployment.
+- The Linux Security Gates race run retains all six packages and a 30-minute per-package timeout; serialize packages (`-p 1`) so instrumentation does not oversubscribe the runner or consume job-fixture wait budgets.
 - Commit completed changes locally with a descriptive message, only intended files. Before each commit inspect `git diff --cached`, run `git diff --cached --check` and scan contextually for secrets without exposing values. Temporary scripts/files go in `disposable/`; clean up temporary files/logs and never push them.
 
 ### Configuration

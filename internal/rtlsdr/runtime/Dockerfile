@@ -40,6 +40,11 @@ RUN cd /build/sdrangel && git apply --check /build/tuner_agc.patch \
     && git apply /build/tuner_agc.patch \
     && cmake --build out --target inputrtlsdrsrv -j2 \
     && cmake --install out/pluginssrv/samplesource/rtlsdr
+# PATIENT planning is unbounded upstream and can stall cold ARM64 initialization.
+COPY internal/rtlsdr/runtime/fftw_planning.patch /build/fftw_planning.patch
+RUN cd /build/sdrangel && git apply --check /build/fftw_planning.patch \
+    && git apply /build/fftw_planning.patch \
+    && cmake --build out --target sdrbase -j2 && cmake --install out/sdrbase
 ENV PATH="/opt/sdrangel/bin:/opt/welle/bin:/usr/local/bin:${PATH}" \
     LD_LIBRARY_PATH="/opt/sdrangel/lib:/usr/local/lib" \
     HOME=/tmp/rtl-sdr XDG_RUNTIME_DIR=/tmp/rtl-sdr/run QT_QPA_PLATFORM=offscreen
