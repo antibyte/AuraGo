@@ -258,6 +258,7 @@ func (r *opRun) setState(state string) {
 	r.persistLocked()
 	snap := r.snapshotLocked(false)
 	r.publishLocked(Event{Type: EventState, Operation: &snap})
+	r.s.notify(snap)
 }
 
 // finish records the outcome, publishes the done event, ends every subscriber's
@@ -291,6 +292,7 @@ func (r *opRun) finish(out outcome) {
 	done := r.snapshotLocked(true)
 	r.closed = true
 	r.publishLocked(Event{Type: EventDone, Operation: &done})
+	s.notify(done)
 	r.closeSubscribersLocked()
 
 	delete(s.runs, done.ID)

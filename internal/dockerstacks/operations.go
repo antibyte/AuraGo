@@ -77,6 +77,7 @@ func (s *Service) begin(ctx context.Context, hostID, name, kind string, opts OpO
 	s.wg.Add(1)
 	s.mu.Unlock()
 
+	s.notify(run.snapshot()) // queued, before the goroutine can report running
 	go s.execute(run)
 	return run.snapshot(), nil
 }

@@ -88,6 +88,11 @@ type Service struct {
 	swept     map[string]bool         // hosts whose leftover helper containers were cleaned up
 	parked    map[string]*opRun       // adopted operations waiting for their host to answer, by id
 
+	// Observers of operation state changes (see Observe); obsMu is a leaf lock.
+	obsMu        sync.Mutex
+	nextObserver int
+	observers    map[int]func(Operation)
+
 	// rawLine, when set by a test, sees every raw line of a runner's output.
 	rawLine func(operationID, line string)
 }
