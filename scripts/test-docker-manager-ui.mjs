@@ -1725,6 +1725,22 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
     store.dispose();
 }
 
+{
+    // a diagnosis only looks at the status and the error body: an answer that would be a stream (200, its body still pending) is cancelled
+    // once it arrived, so the server keeps no log follower or stream slot open; an ordinary request is left alone after its answer
+    const signals = [], pendingBody = new Promise(() => {});
+    const api = (url, init = {}) => { signals.push([url, init.signal]); return Promise.resolve(url.endsWith('/hosts') ? { status: 'ok', hosts: [] } : { followed: pendingBody }); };
+    const store = Store.create({ api, live: false });
+    assert.equal(await store.diagnose('/hosts/local/containers/web/logs?follow=1&tail=200'), null, 'a 200 answer is no diagnosis');
+    const diagnosis = signals.find(([url]) => url.includes('/logs'))[1];
+    assert.equal(diagnosis.aborted, true, 'the request of a diagnosis is aborted once its answer was read');
+    await store.loadHosts();
+    const ordinary = signals.find(([url]) => url.endsWith('/hosts'))[1];
+    assert.equal(ordinary.aborted, false, 'an ordinary request is not aborted after its answer');
+    store.dispose();
+}
+
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------

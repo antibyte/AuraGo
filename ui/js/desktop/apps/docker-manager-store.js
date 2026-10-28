@@ -80,7 +80,9 @@
         // ---- requests --------------------------------------------------------------------------------------------
 
         // Resolves with the response body. Rejects with an Error whose .dm is {code, message, reason, owner, field, status}.
-        // A request registered under `key` can be aborted by that key (hiding the window, closing the drawer).
+        // A request registered under `key` can be aborted by that key (hiding the window, closing the drawer). `discard: true` is for a
+        // request whose answer is only looked at, never followed: the controller is aborted once the answer has been read, so a 200
+        // text/event-stream whose body nobody consumes does not keep a stream open on the server.
         function request(path, init, key) {
             const o = init || {};
             const controller = new AbortController();
@@ -102,6 +104,7 @@
                     clearTimeout(timeout);
                     lifetime.signal.removeEventListener('abort', onEnd);
                     if (key && controllers.get(key) === controller) controllers.delete(key);
+                    if (o.discard) controller.abort();
                 }
             })();
         }
@@ -695,9 +698,11 @@
         // attempt the panel asks for the same path with a plain GET: the server answers with its JSON error (read_only,
         // container_not_running, helper_container, container_protected_confirmation_required, stack_not_found, too_many_streams, ...)
         // before it would open a stream or create a shell. `path` is below /api/docker-manager. Resolves the error info (a request
-        // that is still open after 8 s counts as code "timeout"), or null.
+        // that is still open after 8 s counts as code "timeout"), or null. Only the status and the error body matter: for a path that would
+        // stream (a log follower, a shell) and answers 200, the request is aborted as soon as the answer arrived (`discard`), so the
+        // server does not keep a follower or a stream slot open for a diagnosis.
         async function diagnose(path) {
-            try { await request(path, { timeout: DIAGNOSE_MS }, 'diagnose:' + path); return null; } catch (error) { return noteError(error); }
+            try { await request(path, { timeout: DIAGNOSE_MS, discard: true }, 'diagnose:' + path); return null; } catch (error) { return noteError(error); }
         }
         const diagnoseTerminal = (hostId, ref) => diagnose('/hosts/' + enc(hostId) + '/containers/' + enc(ref) + '/terminal');
 
