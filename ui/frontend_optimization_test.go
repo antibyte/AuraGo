@@ -359,6 +359,7 @@ func TestChatInitialLoadDefersThemeEffectsAndThreeJS(t *testing.T) {
 		`src="/js/chat/dark-sun-shader.js`,
 		`src="/js/chat/ocean-shader.js`,
 		`src="/js/chat/sandstorm-particles.js`,
+		`src="/js/chat/sandstorm-life.js`,
 		`src="/js/chat/threedee-shader.js`,
 		`src="/js/chat/threedee-fold.js`,
 		`src="/js/chat/black-matrix-shader.js`,

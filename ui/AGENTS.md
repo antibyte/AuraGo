@@ -823,6 +823,22 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   resolution. Canvas bounds must not transition. Preserve the 2D fallback,
   hidden-tab pause and reduced-motion and narrow-screen gates. Static
   contract: `TestChatFrontend_SandstormSceneStaysPolished`.
+- Sandstorm desert life: `ui/js/chat/sandstorm-life.js` (exports
+  `window.AuraGoSandstormLife`) loads lazily (`loadDesertLife()`, again in
+  `start()`); a failed load removes its script element and the scene runs without it.
+  No timers or frames: the engine's RAF loop calls `update` and `draw`, the latter
+  between the dune layers. Draws: worm, heat shimmer, crest wisps, vultures,
+  tumbleweed, beetle, caravan. The worm, beetle and caravan pick spots against the
+  live bubble, avatar and mascot rectangles (`#chat-content .msg-row .bubble` and
+  `.avatar`, clipped to `#chat-box`) and `#chat-robot-mascot`, read once per spawn.
+  The vultures' thermal is picked against the sky-band rectangles, re-checked every
+  15 s; it drifts there at most 24 px/s. Nothing reads the chat per frame. A storm
+  fades every creature, sends the vultures off, dissolves the caravan and makes the
+  beetle burrow; a running worm finishes. Calm ahead needed: worm 9 s, beetle and
+  caravan 6 s. Fixed pools (`MAX_*` caps). Harness: `stats()`, `force*()`,
+  `debug.where()`. Tests: `TestSandstormDesertLifeCompanionStaysWired`,
+  `TestSandstormDesertLifeVulturesAvoidTheChat` and
+  `TestSandstormDesertLifeBrowserSmoke`.
 - Galaxy uses the shared Three.js 0.186.1 and a single lazy renderer/RAF loop.
   Keep the ten draw calls, shared sphere geometry and fixed 3500/850-star
   buffers. Exactly 20 stars flicker subtly with individually randomized pauses;
@@ -1009,6 +1025,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   96 frames per renderer at 10 FPS for visual motion review.
   `AURAGO_SANDSTORM_BENCHMARK=1` measures 120 native-RAF frames at 1920x1080
   with synchronized WebGL completion for each renderer.
+- Sandstorm desert life (worm, storm response, critters, occluder-aware spots):
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run SandstormDesertLife`.
 - Galaxy picker, real rendering, responsive controls, drawers, dialogs,
   disposal and failure modes:
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; go test -count=1 ./ui -run GalaxyBrowserSmoke`.

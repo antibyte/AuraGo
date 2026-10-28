@@ -72,6 +72,17 @@ let seed=17;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
 			_, _ = w.Write([]byte(source))
 			return
 		}
+		if r.URL.Path == "/js/chat/sandstorm-life.js" {
+			// The desert-life companion the engine loads on demand; the ?v= query is irrelevant.
+			life, err := os.ReadFile(filepath.Join("js", "chat", "sandstorm-life.js"))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/javascript")
+			_, _ = w.Write(life)
+			return
+		}
 		http.FileServer(http.FS(Content)).ServeHTTP(w, r)
 	}))
 	defer server.Close()

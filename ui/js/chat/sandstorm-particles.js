@@ -14,6 +14,8 @@
     //                               sand resting on message bubbles
     //  Weather state for CSS: html[data-sandstorm="calm"|"storm"] while live,
     //  --sandstorm-flash on .app-header/.app-footer during dry lightning.
+    //  Desert life (worm, heat shimmer, wisps, vultures, tumbleweed, beetle,
+    //  caravan): companion sandstorm-life.js.
     // ═══════════════════════════════════════════════════════════════
 
     // ─── 2D Particle Config ───
@@ -43,6 +45,7 @@
     const POINTER_RADIUS = 110;
     const FLASH_PULSE_MS = 170;
     const FLASH_SECOND_MS = 140;
+    const LIFE_SCRIPT = '/js/chat/sandstorm-life.js';   // desert life companion, loaded on demand
 
     // ─── WebGL Fog Config ───
     const FOG_VERTEX = `
@@ -793,6 +796,13 @@
         }
         rebuildPools(w, h);
         buildDunes(w, h, dpr);
+
+        // The ridges just changed: whatever the desert life measured on them is void.
+        const life = lifeLayer();
+        if (life) {
+            fillLifeGeom(w, h, lastTime || performance.now());
+            life.resize(lifeGeom);
+        }
         buildRays(h, dpr);
 
         // Resize WebGL fog canvas
@@ -922,7 +932,9 @@
                 c.globalCompositeOperation = 'source-over';
             }
 
-            duneLayers.push({ image: image, top: top, crest: crest, width: imgW, height: imgH });
+            // dx/dy are the offsets drawDunes used for this layer in the latest frame; the
+            // desert life reads them (lifeRidgeAt) to stand exactly on the painted ridge.
+            duneLayers.push({ image: image, top: top, crest: crest, width: imgW, height: imgH, dx: -DUNE_MARGIN, dy: 0 });
         }
     }
 
@@ -959,11 +971,16 @@
     function drawDunes(width, height) {
         if (!sctx || !duneLayers.length) return;
         const scroll = chatBox ? chatBox.scrollTop || 0 : 0;
+        const life = lifeLayer();
         for (let i = 0; i < duneLayers.length; i++) {
             const d = duneLayers[i];
             const dx = -DUNE_MARGIN + Math.sin(weatherTime * 0.05 + i * 1.7) * DUNE_PARALLAX_X[i] + Math.sin(windDrift * 0.3) * DUNE_PARALLAX_X[i];
             const dy = Math.max(-40, Math.min(40, -scroll * DUNE_PARALLAX_Y[i]));
             sctx.drawImage(d.image, dx, d.top + dy, d.width, d.height);
+            d.dx = dx;
+            d.dy = dy;
+            // Creatures of this ridge go on top of it; the nearer ridges painted next hide them.
+            if (life) life.draw(sctx, lifeGeom, i);
         }
         // Storm dust settles over the ridges and the afterglow warms their crests.
         if (stormIntensity > 0.01 || afterglow > 0.01) {
@@ -1032,6 +1049,93 @@
                 sctx.fillRect(bx - br, by - br, br * 2, br * 2);
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  DESERT LIFE (companion script)
+    //  js/chat/sandstorm-life.js owns the creatures that live on the ridges. The
+    //  engine keeps the only animation loop and hands the companion this geometry
+    //  once per frame, so the companion never reaches into engine state.
+    // ═══════════════════════════════════════════════════════════════
+
+    // Absolute scene y of dune layer i's ridge at scene x. It repeats exactly what
+    // drawDunes paints: the cached image is drawn at (dx, top + dy) and its ridge at
+    // image x u is crest - top + duneProfile(layer, u - DUNE_MARGIN).
+    function lifeRidgeAt(i, x) {
+        const d = duneLayers[i];
+        if (!d) return groundLine;
+        return d.crest + d.dy + duneProfile(i, x - d.dx - DUNE_MARGIN);
+    }
+
+    function lifeLayerTop(i) {
+        const d = duneLayers[i];
+        return d ? d.top + d.dy : 0;
+    }
+
+    // One reused object, refilled every frame by fillLifeGeom (nothing is allocated per frame).
+    const lifeGeom = {
+        width: 0, height: 0, dpr: 1, groundLine: 0,
+        sunX: 0, sunY: 0,
+        windSpeed: BASE_WIND, windDirection: 1, gustStrength: 0,
+        stormIntensity: 0, stormActive: false, frontProgress: 0, afterglow: 0, stormDirection: 1,
+        weatherTime: 0,
+        calmLeft: 0,                 // ms until the next storm, 0 during one
+        baseWind: BASE_WIND,
+        canvas: null,                // the scene canvas: the companion measures page elements against it
+        layers: 0,
+        ridgeAt: lifeRidgeAt,
+        layerTop: lifeLayerTop,
+        palette: DUNE_PALETTE
+    };
+
+    function fillLifeGeom(width, height, time) {
+        const g = lifeGeom;
+        g.width = width;
+        g.height = height;
+        g.dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+        g.groundLine = groundLine;
+        g.sunX = width * SUN_X;
+        g.sunY = height * SUN_Y;
+        g.windSpeed = windSpeed;
+        g.windDirection = windDirection;
+        g.gustStrength = gustStrength;
+        g.stormIntensity = stormIntensity;
+        g.stormActive = stormActive;
+        g.frontProgress = frontProgress;
+        g.afterglow = afterglow;
+        g.stormDirection = stormDirection;
+        g.weatherTime = weatherTime;
+        g.calmLeft = stormActive ? 0 : nextStormTime - time;
+        g.canvas = sceneCanvas;
+        g.layers = duneLayers.length;
+        return g;
+    }
+
+    function lifeLayer() {
+        return window.AuraGoSandstormLife || null;
+    }
+
+    // A script that failed to load would block every later attempt (the loader finds
+    // its element and waits for a load event that never comes), so it is removed.
+    function dropFailedLifeScript() {
+        if (window.AuraGoSandstormLife) return;
+        const scripts = document.querySelectorAll('script[src*="sandstorm-life.js"]');
+        for (let i = 0; i < scripts.length; i++) scripts[i].remove();
+    }
+
+    // Loaded the way the Ocean theme loads its sea life. Calling it again is harmless,
+    // and start() does, so a theme switch after a failed load retries.
+    function loadDesertLife() {
+        if (window.AuraGoSandstormLife || document.querySelector('script[data-aurago-sandstorm-life]')) return;
+        if (window.AuraLazyAssets && typeof window.AuraLazyAssets.loadScript === 'function') {
+            window.AuraLazyAssets.loadScript(LIFE_SCRIPT).catch(dropFailedLifeScript);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = LIFE_SCRIPT + '?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev');
+        script.dataset.auragoSandstormLife = 'true';
+        script.onerror = dropFailedLifeScript;
+        document.head.appendChild(script);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1511,6 +1615,13 @@
         handleScrollErosion();
         updateBubbleSandPhysics(dt);
 
+        // Desert life (companion script): hand it this frame's weather and ridges first
+        const life = lifeLayer();
+        if (life) {
+            fillLifeGeom(width, height, time);
+            life.update(dt, time, lifeGeom);
+        }
+
         // WebGL sky and dust (behind the chat)
         renderFog(time);
 
@@ -1521,6 +1632,7 @@
             drawClouds(width, height, time);
             updateClouds(dt, width, height);
             drawDustRolls(height);
+            if (life) life.draw(sctx, lifeGeom, -1);   // sky stage; the ridge stages follow inside drawDunes
             drawDunes(width, height);
             if (stormActive) drawStormHaze(width, height, time);
             drawLightning(width, height);
@@ -1605,6 +1717,7 @@
         if (active || !shouldRun()) return;
         ensureCanvas();
         if (!ctx) return;
+        loadDesertLife();   // harmless when already loaded; retries a failed load after a theme switch
 
         // Try to init WebGL fog (graceful fallback if it fails)
         if (initFogGL()) {
@@ -1617,6 +1730,8 @@
         if (fogCanvas) fogCanvas.style.display = 'block';
         for (let i = 0; i < dunePhases.length; i++) dunePhases[i] = rand(0, Math.PI * 2);
         resize();
+        const life = lifeLayer();
+        if (life) life.reset(performance.now());   // a fresh run: new schedules, empty pools
         stormActive = false;
         stormIntensity = 0;
         frontProgress = 0;
@@ -1651,6 +1766,8 @@
         bolt = null;
         if (flashApplied) applyFlashVariable(0);
         setWeatherState(null);
+        const life = lifeLayer();
+        if (life) life.reset();
     }
 
     function sync() {
@@ -1712,6 +1829,7 @@
             });
         }
 
+        loadDesertLife();
         sync();
     }
 
