@@ -148,6 +148,11 @@ dialog. Unattended runs stop with `action_rule_required` until a rule covers the
   `action_rule_required` unless a rule for the tool, the operation `schedule` and
   the target `tool:follow_up` (or `tool:wait_for_event`) exists. A chain that
   continues itself from a follow-up run therefore needs that rule.
+  Upgrade note: before this change these calls had other operation names, so an
+  allow rule for `cron_scheduler` with operation `add`, or for `manage_missions`
+  with operation `create`, no longer matches. Re-create it with operation
+  `schedule` and the target from the preview, or the call stops with
+  `action_rule_required` in an unattended run.
 - **Actuators.** `home_assistant` `call_service`/`service` on the domains `lock`,
   `alarm_control_panel`, `cover`, `script`, `automation`, `shell_command`, `siren`
   and `valve`, and on the generic `homeassistant`, `hassio`, `rest_command`,
@@ -177,13 +182,14 @@ dialog. Unattended runs stop with `action_rule_required` until a rule covers the
   those commands could otherwise reach any host.
 - **DNS side channel.** `dns_lookup`, `network_ping` and `port_scanner` are
   high-risk when the host looks like data rather than a name: a label longer than
-  24 characters; a label of 16 or more characters made of digits only, of hex, of
-  letters and digits that alternate, or of letters that are spread widely and have
-  few vowels (base32, base36, random letters); the labels left of the last two read
-  as one text when there are several short ones; or a whole name longer than 64
-  characters. A hyphen does not hide anything: `mfrg-ggzd-fmzt-wq2l-knnw` is read as
-  one label, and whole numeric parts of up to three digits (`ec2-203-0-113-25`) are
-  ignored. A host that copies 48 characters of earlier isolated tool output is
+  24 characters; a label that reads as encoded text, which is 16 or more digits
+  only, hex with both letters and digits of 12 or more characters, a run of 10 or
+  more characters whose letters and digits alternate at least four times, or 16 or
+  more characters with few vowels (a tenth or fewer of the letters, or a quarter
+  or fewer with a high spread: base32, base36, random letters); with more than three labels, the labels left of the last two read as
+  one text of 24 characters or more; or a whole name longer than 64 characters. A
+  hyphen does not hide anything: `mfrg-ggzd-fmzt-wq2l-knnw` is read as one label,
+  and whole numeric parts of up to three digits (`ec2-203-0-113-25`) are ignored. A host that copies 48 characters of earlier isolated tool output is
   high-risk in every run type: interactively it opens the approval dialog, and an
   unattended run is refused even with an allow rule. A name that appears whole in an
   earlier output is a name the model followed and passes. The resolver forwards each

@@ -294,10 +294,11 @@ Co-agents **cannot** use:
 - `co_agent` (no nested co-agents)
 - `follow_up` (no self-scheduling)
 - `cron_scheduler`, `manage_schedule`, `schedule_cron`
+- `manage_missions` (only `list`, `get` and `status` are allowed)
 - `manage_webhooks`
 - `save_tool`, `create_skill_from_template`, `set_skill_documentation` (no new persistent tools or skills)
 
-Requests that arrive over A2A run as co-agents too, with more limits: they cannot change files, the virtual desktop or homepage projects (those tools keep only their read operations), they cannot run shell commands, Python code, skills or saved tools, and their text is passed to the agent as isolated external data, never as the owner's request. Reading memory, the knowledge graph, the journal and notes, web tools and the other read operations stay open to a remote agent, so enable the A2A server only for peers you trust with that read access.
+Requests that arrive over A2A run as co-agents too, with more limits: they cannot write files with the file tools or the editors, the archive, PDF, image and media tools lose their write operations, and they cannot change the virtual desktop's generated code or homepage projects (those tools keep only their read operations), they cannot run shell commands, Python code, skills or saved tools, and their text is passed to the agent as isolated external data, never as the owner's request. Reading memory, the knowledge graph, the journal and notes, web tools and the other read operations stay open to a remote agent, other tools without a restriction, such as the Office tools, desktop notes and QR codes, stay open to a peer as well, so enable the A2A server only for peers you trust with that access.
 
 They **can** use:
 - Read operations (query_memory, search)

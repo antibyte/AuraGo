@@ -208,7 +208,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   run log shows the fenced prompt and instructions, which are the text the model gets. Fence and HTML escaping
   can make a value several times longer (`"` becomes `&#34;`), which counts against the 256 KiB prompt cap. A new node that hands a param to a
   model as material sets `FenceUntrusted`; a param that `Execute` parses or compares must not. `ai.decision`
-  `state` is structured data for the decision service and is not fenced. Verify `TestAIStepPromptFences*`,
+  `state` is structured data for the decision service and is not fenced; that is a known gap, not a contract. Verify `TestAIStepPromptFences*`,
   `TestAIStepInstructions*`, `TestResolveParamsFencesOnlyFlaggedParams` and `TestStarterTemplatesRun`.
 - Scheduling follows topological order. A node runs when all incoming edges are resolved and at least
   one delivered; otherwise it is skipped and its outgoing edges are skipped (this is how If/Switch and
@@ -396,6 +396,13 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   `execute_skill`) and `document_creator:gotenberg` (availability only, never called).
 - What the server's invoker adds to a tool call (summary modes off, forced `block_remote_content`, refused Home
   Assistant script domains, the documents bridge, refusal mapping) is under Integration.
+- Layers of a tool result. A tool answer passes five stages. Each stage either adds one `<external_data>` layer or removes exactly the layer an earlier stage added, so a flow prompt never carries the dispatch fence:
+  1. The tool's own marking: some tools wrap remote text in `<external_data>` inside a JSON value (`web_scraper`'s `content`, the PDF skill). That is the tool's marking, not the dispatcher's.
+  2. The dispatch layer: `agent.DispatchToolCallResult` (through `SanitizeToolOutput`) puts one fence around a delivered answer, with the `[Tool Output]` label (text-mode calls only) and, behind the fence, a `[SECURITY WARNING: ...]` line when a warning applies. Source output may take the copyable form of the same wrapper. A withheld answer is a `QuarantineNotice` with no fence. Only the agent loop's model reads this layer.
+  3. The flows invoker removes exactly layer 2 (`flowOpenDispatchLayer`: label, warning line, fence and its HTML escaping; a broken JSON escape is put back only when that makes the body valid JSON). Layer 1 stays, and an answer that is not fenced from end to end is returned unchanged.
+  4. The flows engine removes layer 1 too (`ParseToolOutput`: the outer wrapper and the wrappers around single string values), so a node output is the tool's plain JSON or text.
+  5. The render-time fence (`ai.step`, below) adds one layer per untrusted template value where it is spliced into `prompt` or `instructions`. It never stacks on layer 2, which the invoker removed.
+  The `ai.step` system message is the guard instruction followed by the node's instructions. `flowLLM.Step` scans the instructions and the rendered prompt (`GateScan`) before any provider call, so a refused step adds no layer. Verify `TestC13DispatchLayerIsRemovedExactly` and `TestC13WarnedAnswerStillParsesAsTheToolsJSON`, and the `ai.step` tests listed below.
 - `ParseToolOutput` strips the `[Tool Output]`/`Tool Output:` prefixes (whole output only) and the
   `<external_data>` wrappers (around the whole output and every nested string value) and un-escapes their HTML
   escaping. Untrusted web, RSS or webhook text is therefore plain text in a node output; the engine fences it
@@ -694,7 +701,7 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     `document_creator`, refuses Home Assistant `script`, `shell_command`, `python_script` and `hassio` services
     unless `home_assistant.allowed_services` lists them, registers the call's credentials with the output
     scrubber and redacts them from the output, and never logs arguments (`flowLogHandler`).
-  - `agent.DispatchToolCallResult` wraps every answer in exactly one `<external_data>` layer, with a Guardian in
+  - `agent.DispatchToolCallResult` wraps every delivered answer in exactly one `<external_data>` layer (layer 2 under "Layers of a tool result"), with a Guardian in
     the context or without (the fallback regex Guardian), and the fence's boundary hardening rewrites the JSON
     escape for `<` into one with a space after the backslash, which is no JSON. The invoker therefore removes that
     layer itself (`flowOpenDispatchLayer`: label, fence, HTML escaping, the broken escape put back when that

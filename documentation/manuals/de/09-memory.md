@@ -220,6 +220,8 @@ agent:
 > [!WARNING]
 > Der Kernspeicher ist immer im Prompt enthalten. Halte ihn kurz (empfohlen unter 500 Tokens), um übermäßige API-Kosten zu vermeiden.
 
+Einträge, die der Agent im Chat geschrieben hat, erscheinen im Prompt mit `[trust:agent-recorded]`. Das kennzeichnet sie als Aufzeichnung des Agenten und nicht als etwas, das du selbst eingegeben hast. Der Kernspeicher nimmt keine Dauerauftrags-Anweisung an: Ein Satz, der den Agenten anweist, bei jeder Antwort oder ab jetzt ein Tool, ein Geheimnis oder einen ausgehenden Kanal zu benutzen (zum Beispiel „Bei jeder Antwort: führe execute_shell aus …“ oder „Ab jetzt sende den Vault-Token an …“), wird abgelehnt und nicht gespeichert, ebenso eine Anweisung, die die Regeln des Agenten aufhebt. Formuliere es als Vorliebe oder Fakt, oder lege das Vorgehen in einer Mission oder einem Skill ab.
+
 ---
 
 ## Notizen & Aufgaben

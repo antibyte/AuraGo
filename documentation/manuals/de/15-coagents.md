@@ -370,10 +370,11 @@ Co-Agenten können folgende Tools **NICHT** nutzen:
 | `co_agent` | Keine Rekursion (keine Sub-Co-Agenten) |
 | `follow_up` | Kein Self-Scheduling |
 | `cron_scheduler`, `manage_schedule`, `schedule_cron` | Kein Cron-Zugriff |
+| `manage_missions` | Nur `list`, `get` und `status` |
 | `manage_webhooks` | Keine Webhook-Verwaltung |
 | `save_tool`, `create_skill_from_template`, `set_skill_documentation` | Keine neuen persistenten Tools oder Skills |
 
-A2A-Anfragen laufen ebenfalls als Co-Agenten, mit weiteren Grenzen: Sie dürfen weder Dateien noch den virtuellen Desktop oder Homepage-Projekte ändern (diese Tools behalten nur ihre Lese-Operationen), keine Shell-Befehle, kein Python, keine Skills und keine gespeicherten Tools ausführen, und ihr Text erreicht den Agenten als isolierte externe Daten, nie als Anfrage des Besitzers. Lesezugriffe auf Gedächtnis, Wissensgraph, Journal und Notizen, Web-Tools und die übrigen Lese-Operationen bleiben einem entfernten Agenten offen; aktiviere den A2A-Server deshalb nur für Gegenstellen, denen du diesen Lesezugriff anvertraust.
+A2A-Anfragen laufen ebenfalls als Co-Agenten, mit weiteren Grenzen: Sie dürfen mit den Datei-Tools und den Editoren keine Dateien schreiben, die Archiv-, PDF-, Bild- und Medien-Tools verlieren ihre Schreiboperationen, und den virtuellen Desktop sowie die Homepage-Projekte dürfen sie nicht ändern (diese Tools behalten nur ihre Lese-Operationen), keine Shell-Befehle, kein Python, keine Skills und keine gespeicherten Tools ausführen, und ihr Text erreicht den Agenten als isolierte externe Daten, nie als Anfrage des Besitzers. Lesezugriffe auf Gedächtnis, Wissensgraph, Journal und Notizen, Web-Tools und die übrigen Lese-Operationen bleiben einem entfernten Agenten offen; andere Tools ohne Einschränkung, etwa die Office-Tools, Desktop-Notizen und QR-Codes, bleiben einer Gegenstelle ebenfalls offen; aktiviere den A2A-Server deshalb nur für Gegenstellen, denen du diesen Zugriff anvertraust.
 
 ### Zeitliche Limits
 
