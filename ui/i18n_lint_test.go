@@ -1093,6 +1093,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/docker-manager-palette.js":  {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-logs.js":     {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-terminal.js": {name: "t", prefix: "docker_manager."},
+	"js/desktop/apps/docker-manager-panes.js":    {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-newstack.js": {name: "t", prefix: "docker_manager."},
 	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
 }

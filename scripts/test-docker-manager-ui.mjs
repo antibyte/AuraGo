@@ -1783,7 +1783,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-logs.js', 'docker-manager-terminal.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-logs.js', 'docker-manager-terminal.js', 'docker-manager-panes.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1794,6 +1794,7 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
+    assert.ok(full.DockerManagerCharts && full.DockerManagerLive && full.DockerManagerLogs && full.DockerManagerTerminal && full.DockerManagerPanes, 'the five live modules publish their global');
     assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerOps && full.DockerManagerPalette && full.DockerManagerDialogs && full.DockerManagerNewStack && full.DockerManagerApp, 'all 11 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
@@ -1843,6 +1844,195 @@ const full = {};
     const shell = stacks.shell(snap.state.stack);
     assert.ok(shell.includes('data-ed-surface="compose"') && shell.includes('data-ed-surface="env"') && shell.includes('data-action="save-deploy"'), 'the shell holds the two editors and their toolbars');
     assert.ok(stacks.problem(Object.assign({}, snap, { state: Object.assign({}, snap.state, { stack: { key: 'local/gone', name: 'gone', status: 'error', error: { code: 'stack_not_found' } } }) })).includes('stack_gone'), 'a vanished stack says so');
+}
+
+// ---- live views: load cells, host gauges, paused banner, drawer parts, follow-panel mounts, the external project pane -------
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel, charts = full.DockerManagerCharts;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, charts, lang: 'en', uid: 'x' });
+    const stacks = full.DockerManagerStacks.create({ t, esc, model: model2, stackModel: sm2, views, uid: 'x' });
+    const hosts = [hostA, hostB];
+    const web = container('web', { compose_project: 'shop', compose_service: 'web' }), idle = container('old', { state: 'exited', status: 'Exited (0) 1 hour ago' });
+    const byHost = { local: { containers: [web, idle, container('legacy-app', { compose_project: 'legacy', compose_service: 'app', compose_working_dir: '/srv/legacy' }), container('legacy-db', { compose_project: 'legacy', compose_service: 'db', compose_working_dir: '/srv/other' })], loaded: true }, h_nas: { containers: [], loaded: true } };
+    const external = [{ name: 'legacy', working_dir: '/srv/legacy', status: 'partial', services: { total: 2, running: 1 }, ports: [], container_ids: [] }];
+    const stacksByHost = { local: { loaded: true, listing: { stacks: [], external, ignored: [] } } };
+    const rows = model2.buildRows(hosts, byHost, 'all');
+    const snapBase = {
+        state: { scope: 'all', stacks: stacksByHost, byHost, hostsLoaded: true, detail: null, stack: null, project: null, busy: new Set(), ops: [], df: {} },
+        hosts, scopeHosts: hosts, rows, multi: true, canMutate: true, headers: false, collapsed: new Set(), groups: [], section: 'containers',
+        liveStatus: { local: 'live', h_nas: 'connecting' }, hostStats: {}, hostStatsFor: {}, pageHost: 'desk.lan', now: 1760000000000
+    };
+
+    // the table: running containers get an empty load placeholder (filled in place), stopped ones an empty cell, group rows span six columns
+    const groups = model2.groupRows(rows, { multiHost: true, hostOrder: ['local', 'h_nas'] });
+    const body = views.tbody(Object.assign({}, snapBase, { groups, headers: true }));
+    assert.ok(body.includes('class="dm-cell-load" data-load="local/' + web.id + '"></td>'), 'a running container has a load placeholder keyed by host and short id');
+    assert.equal((body.match(/data-load=/g) || []).length, 3, 'only the running containers have one');
+    assert.ok(body.includes('colspan="6"') && !body.includes('colspan="5"'), 'group rows span all six columns');
+    assert.ok(!/<td[^>]*class="dm-cell-load"[^>]*>[^<]+</.test(body), 'the markup of the table never holds numbers: they are patched in place');
+
+    // the drawer: top and body apart; the follow tabs have no body
+    const drawerSnap = tab => Object.assign({}, snapBase, { state: Object.assign({}, snapBase.state, { detail: { key: rows[0].key, hostId: 'local', id: web.full_id, tab, inspect: { status: 'idle', data: null, error: null } } }) });
+    const row0 = rows[0];
+    const overviewParts = views.drawer(drawerSnap('overview'), row0);
+    assert.ok(overviewParts.top.includes('data-tab="terminal"') && overviewParts.top.includes('aria-controls="x-tabpanel-terminal"') && overviewParts.body.includes('id="x-tabpanel-overview"') && overviewParts.live === '', 'four tabs, the Overview body');
+    const logsParts = views.drawer(drawerSnap('logs'), row0), termParts = views.drawer(drawerSnap('terminal'), row0);
+    eq([logsParts.body, logsParts.live, termParts.body, termParts.live], ['', 'logs', '', 'terminal'], 'the follow tabs are persistent panels, not part of the repainted body');
+    assert.ok(/data-tab="logs"[^>]*aria-selected="true"/.test(logsParts.top) && /data-tab="overview"[^>]*aria-selected="false"/.test(logsParts.top), 'the open tab is the selected one');
+    const hostile = views.drawer(drawerSnap('"><img src=x onerror=alert(1)>'), row0);
+    assert.ok(!hostile.body.includes('<img') && hostile.body.includes('data-tab-body="&quot;&gt;&lt;img'), 'the tab name never reaches an attribute unescaped');
+    assert.ok(hostile.body.includes('id="x-tabpanel-overview"'), 'an unknown tab shows the overview');
+    assert.deepStrictEqual([...full.DockerManagerViews.TABS], ['overview', 'logs', 'terminal', 'inspect']);
+    assert.equal(views.errorText({ code: 'too_many_streams' }), 'error_too_many_streams{"version":"","command":""}', 'the new codes have their own sentences');
+    assert.ok(views.errorText({ code: 'helper_container' }).startsWith('error_helper_container') && views.errorText({ code: 'project_not_found' }).startsWith('error_project_not_found'));
+    eq(['forbidden_origin', 'docker_hosts_unavailable', 'docker_disabled'].map(code => views.errorText({ code }).startsWith('error_' + code)), [true, true, true], 'a refused origin, unavailable hosts and a switched-off Docker have sentences');
+    assert.equal(views.errorText({ code: 'host_unreachable', message: 'dial tcp 10.0.0.2:2375: connect: refused' }), 'reason_unknown dial tcp 10.0.0.2:2375: connect: refused', 'a host_unreachable without a classified reason (an ended log stream) names the cause');
+    assert.equal(views.errorText({ code: 'host_unreachable', reason: 'refused', message: 'dial tcp x' }), 'reason_refused', 'a classified reason is the whole sentence, as before');
+
+    // the rail gauges: one host only
+    assert.equal(views.railGauges(snapBase), '', 'no gauges under All hosts');
+    const gauged = (stateExtra, extra = {}) => Object.assign({}, snapBase, { state: Object.assign({}, snapBase.state, { scope: 'local' }, stateExtra) }, extra);
+    const stats = { host: 'local', t: 1, cpu: 42.5, ncpu: 8, mem_used: 1073741824, mem_total: 4294967296, running: 3, sampled: 3, partial: false };
+    const df = { images: { size: 1000 }, containers: { size: 10 }, volumes: { size: 500 }, build_cache: { size: 0 }, total: 1510 };
+    const full1 = views.railGauges(gauged({ df: { local: { status: 'ok', df, busy: false } } }, { hostStats: { local: stats } }));
+    assert.ok(full1.includes('>gauge_cpu<') && full1.includes('>43%<') && full1.includes('1.0 GB / 4.0 GB') && full1.includes('1.5 KB'), 'CPU as a percent, memory used of total, Docker disk in bytes');
+    assert.ok(full1.includes('data-action="refresh-df"') && full1.includes('data-host-id="local"') && !full1.includes('gauge_partial') && !full1.includes('gauge_paused'), 'a refresh button and no hint while everything is fine');
+    assert.ok(views.railGauges(gauged({ df: { local: { status: 'ok', df, busy: true } } }, { hostStats: { local: stats } })).includes('disabled aria-busy="true"'), 'the refresh button is busy while the disk usage is read');
+    assert.ok(views.railGauges(gauged({}, { hostStats: { local: Object.assign({}, stats, { partial: true, sampled: 100, running: 140 }) } })).includes('gauge_partial{&quot;sampled&quot;:100,&quot;running&quot;:140}'), 'a partial sample says how many containers it covers');
+    const waiting = views.railGauges(gauged({}));
+    assert.ok(waiting.includes('gauge_waiting') && waiting.includes('data-level="none"'), 'before the first sample the gauges are empty and say so');
+    assert.ok(views.railGauges(gauged({}, { hostStats: { local: stats }, liveStatus: { local: 'paused' } })).includes('gauge_paused'), 'paused live data is named');
+    assert.ok(views.railGauges(gauged({ df: { local: { status: 'error', df: null, error: { code: 'host_unreachable' }, busy: false } } }, { hostStats: { local: stats } })).includes('gauge_failed'), 'a failed disk reading is named');
+    assert.ok(!views.railGauges(gauged({ scope: 'h_gone' })).length, 'a host that is not in the list has no gauges');
+
+    // the banner for paused live updates: not for a live host, not for one that is unreachable (its own banner says that)
+    const bannerSnap = (liveStatus, nasEntry) => Object.assign({}, snapBase, { liveStatus, state: Object.assign({}, snapBase.state, { byHost: Object.assign({}, byHost, { h_nas: nasEntry || byHost.h_nas }) }) });
+    const paused = views.banners(bannerSnap({ local: 'live', h_nas: 'paused' }));
+    assert.ok(paused.includes('data-live-banner="h_nas"') && paused.includes('live_paused{&quot;host&quot;:&quot;NAS&quot;}') && !paused.includes('data-live-banner="local"') && paused.includes('role="status"'), 'a paused host gets a polite banner');
+    assert.ok(!views.banners(bannerSnap({ local: 'live', h_nas: 'paused' }, { containers: [], loaded: false, error: { code: 'host_unreachable', reason: 'timeout' } })).includes('data-live-banner'), 'an unreachable host keeps only its own banner');
+    assert.ok(!views.banners(bannerSnap({ local: 'connecting', h_nas: 'off' })).includes('data-live-banner'), 'no banner while the stream is still coming up');
+
+    // stack pane: five tabs, mounts for the follow panels, load placeholders on running services
+    const detail = {
+        name: 'shop', host_id: 'local', dir: '/opt/stacks/shop', compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 2, running: 1 }, ports: [], created: 1760000000,
+        service_list: [{ name: 'web', image: 'nginx', state: 'running', container_id: web.id, ports: [] }, { name: 'db', image: 'postgres', state: 'exited', exit_code: 1, container_id: idle.id, ports: [] }]
+    };
+    const stackSnap = tab => Object.assign({}, snapBase, { section: 'stacks', dirty: {}, canMutate: true, stackOps: {}, state: Object.assign({}, snapBase.state, { stack: { key: 'local/shop', hostId: 'local', name: 'shop', tab, status: 'ok', detail, error: null } }) });
+    const head = stacks.head(stackSnap('logs'));
+    assert.ok(['overview', 'compose', 'env', 'logs', 'terminal'].every(tab => head.includes('data-action="stack-tab" data-tab="' + tab + '"')) && /data-tab="logs"[^>]*aria-selected="true"/.test(head), 'five stack tabs');
+    const shell = stacks.shell(stackSnap('overview').state.stack);
+    assert.ok(shell.includes('data-panel="logs"') && shell.includes('data-mount="logs"') && shell.includes('data-panel="terminal"') && shell.includes('data-mount="terminal"') && /data-panel="logs"[^>]*hidden/.test(shell), 'the shell holds a mount per follow panel, hidden until its tab opens');
+    const overview = stacks.overview(stackSnap('overview'));
+    assert.ok(overview.includes('data-load="local/' + web.id + '"') && (overview.match(/data-load=/g) || []).length === 1, 'only the running service has a load placeholder');
+    const withFullId = Object.assign({}, stackSnap('overview'), { state: Object.assign({}, stackSnap('overview').state, { stack: Object.assign({}, stackSnap('overview').state.stack, { detail: Object.assign({}, detail, { service_list: [{ name: 'web', image: 'nginx', state: 'running', container_id: web.full_id, ports: [] }] }) }) }) });
+    const fullOverview = stacks.overview(withFullId);
+    assert.ok(fullOverview.includes('data-load="local/' + web.id + '"') && fullOverview.includes('data-container-id="' + web.id + '"') && !fullOverview.includes(web.full_id), 'a service container that comes with its 64-character id is keyed by the 12-character id of the stream and of the container list');
+
+    // the external project pane
+    const projectSnap = tab => Object.assign({}, snapBase, { section: 'stacks', canMutate: true, state: Object.assign({}, snapBase.state, { project: { key: 'x:local/legacy', hostId: 'local', name: 'legacy', tab } }) });
+    const phead = stacks.projectHead(projectSnap('overview'));
+    assert.ok(phead.includes('data-action="project-tab" data-tab="overview"') && phead.includes('data-action="project-tab" data-tab="logs"') && !phead.includes('data-tab="compose"') && phead.includes('data-act="restart"') && phead.includes('data-action="close-project"') && phead.includes('title="/srv/legacy"'), 'two tabs, start/stop/restart, close, the working directory');
+    assert.ok(!stacks.projectHead(Object.assign({}, projectSnap('overview'), { canMutate: false })).includes('data-act='), 'a read-only window shows no project actions');
+    const pshell = stacks.projectShell({ key: 'x:local/legacy', tab: 'logs' });
+    assert.ok(/data-panel="overview"[^>]*hidden/.test(pshell) && !/data-panel="logs"[^>]*hidden/.test(pshell) && pshell.includes('data-mount="logs"'), 'the project shell shows the open tab');
+    const poverview = stacks.projectOverview(projectSnap('overview'));
+    assert.ok(poverview.includes('legacy-app') && !poverview.includes('legacy-db') && poverview.includes('data-action="show-project"') && (poverview.match(/data-load=/g) || []).length === 1, 'the containers of this project and working directory only, with a load placeholder and a way to the Containers section');
+    const gone = Object.assign({}, projectSnap('overview'), { state: Object.assign({}, projectSnap('overview').state, { stacks: {}, byHost: { local: { containers: [], loaded: true } } }) });
+    assert.ok(stacks.projectHead(gone).includes('project_gone') && stacks.projectOverview(gone).includes('project_gone'), 'a project that left the listing says so');
+    const list = stacks.list(Object.assign({}, snapBase, { section: 'stacks', hostStates: { local: 'ok', h_nas: 'ok' }, prepareActive: {}, sgroups: sm2.stackGroups(hosts, stacksByHost, rows, { scope: 'all', query: '' }), stackCounts: { total: 1 } }));
+    assert.ok(list.includes('data-action="open-project" data-host-id="local" data-project="legacy"') && !list.includes('data-action="show-project"'), 'an external row opens the project pane');
+}
+
+// ---- panes: follow panels follow their tab, load cells are patched in place, the visible ones are subscribed -------------
+{
+    // a tiny DOM: just enough for the panes module (querySelector(All), dataset, hidden, getBoundingClientRect, getClientRects)
+    const makeEl = (props = {}) => {
+        const el = Object.assign({ hidden: false, dataset: {}, children: [], innerHTML: '', title: '', rect: { top: 0, bottom: 20 }, shown: true }, props);
+        el.getBoundingClientRect = () => el.rect;
+        el.getClientRects = () => (el.shown ? [el.rect] : []);
+        el.querySelector = selector => { const match = /\[data-(live-panel|mount)="(\w+)"\]/.exec(selector); return match ? (el.mounts && el.mounts[match[2]]) || null : null; };
+        el.querySelectorAll = selector => (selector === '[data-load]' ? el.cells || [] : []);
+        return el;
+    };
+    const calls = [];
+    const makePanel = kind => { const panel = { kind, active: false, disposed: false, updates: 0, focused: 0, setActive(v) { panel.active = v; calls.push([kind, 'active', v]); }, update() { panel.updates += 1; }, focus() { panel.focused += 1; }, dispose() { panel.disposed = true; calls.push([kind, 'dispose']); } }; return panel; };
+    const opened = { logs: [], terminal: [] };
+    const logsApi = { open: (el, target) => { const p = makePanel('logs'); p.target = target; p.el = el; opened.logs.push(p); return p; } };
+    const termApi = { open: (el, config) => { const p = makePanel('terminal'); p.config = config; p.el = el; opened.terminal.push(p); return p; } };
+    const webRow = { key: 'local/' + 'web'.padEnd(64, '0'), c: container('web') };
+    const store = { state: { stack: null, byHost: { local: { containers: [webRow.c] } } }, canMutate: () => true, liveRing: (host, id) => (id === 'good' ? [{ t: 1, cpu: 5, mem: 1048576, net_rx: 0, net_tx: 0 }, { t: 2001, cpu: 7, mem: 2097152, net_rx: 2048, net_tx: 0 }] : []) };
+    const panes = full.DockerManagerPanes.create({ t: (key, params) => key + JSON.stringify(params || {}), model: model, charts: full.DockerManagerCharts, logs: logsApi, terminal: termApi, store, findRow: key => (key === webRow.key ? webRow : null), lang: 'en' });
+    const live = makeEl({ mounts: { logs: makeEl(), terminal: makeEl() } });
+
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'overview' }, false);
+    eq([opened.logs.length, opened.terminal.length], [0, 0], 'nothing is built before its tab is shown');
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'logs' }, false);
+    eq([opened.logs.length, opened.logs[0].active, live.mounts.logs.hidden, live.mounts.terminal.hidden], [1, true, false, true], 'the logs panel is built and follows');
+    eq(plain(opened.logs[0].target), { kind: 'container', hostId: 'local', ref: webRow.c.full_id, label: 'web', services: undefined }, 'it follows the container by its full id');
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'terminal' }, true);
+    eq([opened.logs[0].active, opened.terminal.length, opened.terminal[0].active, opened.terminal[0].focused, opened.terminal[0].config.autofocus], [false, 1, true, 1, true], 'switching tabs stops one and starts the other, the panels stay');
+    eq(plain(opened.terminal[0].config.targets().map(item => [item.ref, item.state])), [[webRow.c.full_id, 'ok']], 'the terminal asks the current container list');
+    assert.equal(opened.terminal[0].config.readonly(), false);
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'logs' }, false);
+    assert.equal(opened.logs.length, 1, 'coming back reuses the panel');
+    panes.drawer(live, { key: 'local/other', hostId: 'local', id: 'x', tab: 'logs' }, false);
+    eq([opened.logs[0].disposed, opened.terminal[0].disposed], [true, true], 'another container or a closed drawer shuts the panels down');
+    panes.drawer(live, null, false);
+
+    // the stack pane: the panel is built on its tab, services reach the chips, a replaced mount builds again, a covered pane follows nothing
+    const shellEl = makeEl({ mounts: { logs: makeEl(), terminal: makeEl() } });
+    const stackState = tab => ({ key: 'local/shop', hostId: 'local', name: 'shop', tab, status: 'ok', detail: { service_list: [{ name: 'web', state: 'running', container_id: webRow.c.id }, { name: 'db', state: 'exited', container_id: 'ffffffffffff' }] } });
+    store.state.stack = stackState('logs');
+    const before = opened.logs.length;
+    panes.stack(shellEl, store.state.stack, true, false);
+    const stackLogs = opened.logs[before];
+    eq([stackLogs.target.kind, stackLogs.target.name, stackLogs.target.services, stackLogs.active], ['stack', 'shop', ['web', 'db'], true]);
+    panes.stack(shellEl, store.state.stack, false, false);
+    assert.equal(stackLogs.active, false, 'a covered pane follows nothing');
+    shellEl.mounts.logs = makeEl();
+    panes.stack(shellEl, store.state.stack, true, false);
+    eq([stackLogs.disposed, opened.logs.length - before], [true, 2], 'a mount that was replaced gets a new panel');
+    store.state.stack = stackState('terminal');
+    panes.stack(shellEl, store.state.stack, true, false);
+    eq(plain(opened.terminal[opened.terminal.length - 1].config.targets().map(item => item.label)), ['web'], 'the stack terminal offers its running services');
+    panes.stack(shellEl, null, true, false);
+    assert.equal(opened.terminal[opened.terminal.length - 1].disposed, true, 'no stack, no panels');
+
+    // the project pane
+    const projectEl = makeEl({ mounts: { logs: makeEl() } });
+    panes.project(projectEl, { key: 'x:local/legacy', hostId: 'local', name: 'legacy', tab: 'logs' }, true);
+    const projectLogs = opened.logs[opened.logs.length - 1];
+    eq([projectLogs.target.kind, projectLogs.target.name, projectLogs.active], ['project', 'legacy', true]);
+    panes.project(projectEl, null, true);
+    assert.equal(projectLogs.disposed, true);
+
+    // load cells: filled from the ring, only the asked ones, nothing again for an unchanged ring
+    const cell = (key, extra = {}) => makeEl({ dataset: { load: key }, ...extra });
+    const good = cell('local/good'), other = cell('local/none');
+    const table = makeEl({ cells: [good, other] });
+    panes.patchLoads(table, new Set(['local/good']));
+    assert.ok(good.innerHTML.includes('dm-load-line') && good.innerHTML.includes('>7.0%<') && good.title.startsWith('stat_title') && good.title.includes('"rx":"1.0 KB"'), 'a cell shows CPU and memory and names the network rate in its title');
+    eq([other.innerHTML, other.dataset.sig], ['', undefined], 'a cell that was not asked for stays as it is');
+    good.innerHTML = 'marker';
+    panes.patchLoads(table);
+    assert.equal(good.innerHTML, 'marker', 'an unchanged ring is not painted again');
+    store.liveRing = () => [];
+    panes.patchLoads(table);
+    eq([good.innerHTML, other.innerHTML], ['', ''], 'a container without points shows no cell');
+
+    // which containers are on screen: rendered, inside the viewport, at most 50 per host, once each
+    const viewport = makeEl({ rect: { top: 100, bottom: 300 } });
+    const many = Array.from({ length: 60 }, (_, i) => cell('local/c' + String(i).padStart(11, '0'), { rect: { top: 150, bottom: 170 } }));
+    const entries = [
+        { root: makeEl({ cells: [cell('local/in', { rect: { top: 120, bottom: 140 } }), cell('local/above', { rect: { top: 10, bottom: 30 } }), cell('local/below', { rect: { top: 400, bottom: 420 } }), cell('local/hidden', { shown: false }), cell('h_nas/n1', { rect: { top: 200, bottom: 220 } }), cell('local/in', { rect: { top: 130, bottom: 150 } })] }), viewport },
+        { root: makeEl({ cells: many }), viewport }
+    ];
+    const visible = panes.visibleLoads(entries);
+    eq([visible['h_nas'], visible.local.slice(0, 2), visible.local.length], [['n1'], ['in', 'c00000000000'], 50], 'rendered, inside the viewport, once each, at most 50 per host');
+    eq(panes.visibleLoads([{ root: null, viewport }]), {});
+    panes.dispose();
 }
 
 // ---- the lint scheduler: one request per quiet period, the newest answer wins, aborted requests are silent ------------------------
@@ -1995,11 +2185,13 @@ const full = {};
         reason_: [...model.REASONS],
         error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown', 'host_not_prepared', 'api_too_old', 'stacks_unavailable', 'stack_name_invalid', 'stack_not_found', 'stack_exists',
             'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
-            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'],
+            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict',
+            'stream_not_found', 'too_many_streams', 'websocket_required', 'container_not_running', 'helper_container', 'project_not_found',
+            'forbidden_origin', 'docker_hosts_unavailable', 'docker_disabled'],
         filter_: [...model.STATE_FILTERS],
         kind_: ['local', ...model.HOST_KINDS],
         color_: [...model.HOST_COLORS],
-        col_: ['status', 'name', 'image', 'ports', 'actions'],
+        col_: ['status', 'name', 'image', 'ports', 'load', 'actions'],
         host_: ['ok', 'error', 'unknown'],
         protected_: ['owner', 'self', 'endpoint', 'network', 'unverified', 'helper'],
         tab_: [...full.DockerManagerViews.TABS],
