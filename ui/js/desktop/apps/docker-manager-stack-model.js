@@ -31,7 +31,9 @@
     const lower = value => text(value).toLowerCase();
     const array = value => (Array.isArray(value) ? value : []);
     const objects = value => array(value).filter(item => item && typeof item === 'object');
-    const compareText = (a, b) => text(a).localeCompare(text(b), undefined, { numeric: true, sensitivity: 'base' });
+    // One collator for every sort (localeCompare builds one per call); same locale and options as before.
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const compareText = (a, b) => collator.compare(text(a), text(b));
 
     // ---- names -------------------------------------------------------------------------------------------------------
 
@@ -113,10 +115,12 @@
         const sorter = byNameThenHost(order);
         const stacks = stackRows(hosts, byHost, o.scope).filter(row => matchesStackQuery(row, o.query)).sort(sorter);
         const external = externalRows(hosts, byHost, o.scope).filter(row => matchesStackQuery(row, o.query)).sort(sorter);
+        const terms = lower(o.query).split(/\s+/).filter(Boolean);
         const singles = singleContainerRows(containerRows).filter(row => {
+            if (!terms.length) return true;
             const c = row.c;
             const hay = lower([c.names && c.names[0], c.image, c.id, row.hostName, c.state].join(' '));
-            return lower(o.query).split(/\s+/).filter(Boolean).every(term => hay.includes(term));
+            return terms.every(term => hay.includes(term));
         });
         singles.sort((a, b) => compareText(a.c.names && a.c.names[0], b.c.names && b.c.names[0]) || compareText(a.hostName, b.hostName));
         return { stacks, external, singles };

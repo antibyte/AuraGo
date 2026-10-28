@@ -1828,6 +1828,39 @@ const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx
 }
 
 
+// ---- sorting: one collator, the same order as localeCompare, memoised per data change ---------------------------------------------
+{
+    const reference = (a, b) => String(a == null ? '' : a).localeCompare(String(b == null ? '' : b), undefined, { numeric: true, sensitivity: 'base' });
+    const names = ['web-10', 'web-2', 'Web-3', 'web-02', 'api', 'API', 'Äpfel', 'apfel', 'zeta', 'Zeta-1', 'db_1', 'db-1', '10-last', '9-first', '', null, undefined, 'straße', 'strasse', 'Ünder', 'under', 'x'.repeat(40) + '2', 'x'.repeat(40) + '10'];
+    for (const a of names) for (const b of names) assert.equal(Math.sign(model.compareText(a, b)), Math.sign(reference(a, b)), JSON.stringify([a, b]) + ' sorts as localeCompare did');
+    const sorted = (list, compare) => [...list].sort(compare).map(String);
+    eq(sorted(names, model.compareText), sorted(names, reference), 'the same list in the same order');
+
+    // the groups of the table and the single containers of the stack list keep that order
+    const hs = [{ id: 'local', name: 'Local' }];
+    const listed = ['web-10', 'web-2', 'Web-3', 'api', 'Äpfel', 'apfel', 'db_1', 'db-1', 'zeta', '10-last', '9-first'];
+    const listedRows = model.buildRows(hs, { local: { containers: listed.map(name => container(name)) } }, 'all');
+    const grouped = model.groupRows(listedRows, { hostOrder: ['local'] });
+    eq(grouped[0].rows.map(row => model.containerName(row.c)), [...listed].sort(reference), 'the rows of a group are sorted by name as before');
+    eq(model.groupRows(model.buildRows(hs, { local: { containers: [container('b1', { compose_project: 'Zoo-10' }), container('b2', { compose_project: 'zoo-2' }), container('b3', { compose_project: 'alpha' })] } }, 'all'), {}).map(group => group.project),
+        ['alpha', 'zoo-2', 'Zoo-10'], 'projects sort by name, numbers by value');
+    const singles = sm.stackGroups(hs, {}, listedRows, { scope: 'all', query: '' }).singles;
+    eq(singles.map(row => row.c.names[0]), [...listed].sort(reference), 'the single containers of the stack list are sorted as before');
+    eq(sm.stackGroups(hs, {}, listedRows, { scope: 'all', query: 'web  -2' }).singles.map(row => row.c.names[0]), ['web-2'], 'the words of a search are all needed');
+
+    // memo: runs again only when a key changed (compared with ===)
+    const memoised = model.memo();
+    let runs = 0;
+    const compute = () => { runs += 1; return { runs }; };
+    const keysA = ['x', 1, listedRows];
+    const first = memoised(keysA, compute);
+    assert.equal(memoised(['x', 1, listedRows], compute), first, 'the same keys give the same value');
+    assert.equal(runs, 1);
+    assert.notEqual(memoised(['x', 2, listedRows], compute), first);
+    assert.notEqual(memoised(['x', 2, listedRows.slice()], compute).runs, 2, 'a new array is new data');
+    assert.equal(memoised(['x', 2], compute).runs, 4, 'a different number of keys is a change');
+}
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------

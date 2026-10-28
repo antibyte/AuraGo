@@ -183,13 +183,25 @@
             return { liveStatus, hostStats };
         }
 
+        // The rows, the sorted groups and the stack groups are rebuilt only when what they come from changed: a new listing of a host in
+        // scope (the store replaces the entry on every load), the host list, the scope, the search or the filter. A paint for anything
+        // else (the drawer, a toast, an operation) reuses them and sorts nothing.
+        const memos = { rows: model.memo(), view: model.memo(), counts: model.memo(), sgroups: model.memo() };
+
         function snapshot() {
             const hosts = state.hosts;
             const scopeHosts = state.scope === 'all' ? hosts : hosts.filter(item => item.id === state.scope);
-            const rows = model.buildRows(hosts, state.byHost, state.scope);
-            const visible = model.filterRows(rows, { query: ui.query, filter: ui.filter });
+            const hostKey = JSON.stringify(hosts.map(item => [item.id, item.name, item.color]));
+            const rows = memos.rows([hostKey, state.scope].concat(scopeHosts.map(item => state.byHost[item.id])), () => model.buildRows(hosts, state.byHost, state.scope));
             const multi = state.scope === 'all' && hosts.length > 1;
-            const groups = model.groupRows(visible, { multiHost: multi, hostOrder: hosts.map(item => item.id) });
+            const view = memos.view([rows, ui.query, ui.filter, multi, hostKey, ui.section === 'containers'], () => {
+                const visible = model.filterRows(rows, { query: ui.query, filter: ui.filter });
+                return { visible, groups: ui.section === 'containers' ? model.groupRows(visible, { multiHost: multi, hostOrder: hosts.map(item => item.id) }) : [] };
+            });
+            const sgroups = ui.section === 'stacks'
+                ? memos.sgroups([hostKey, state.scope, rows, ui.query].concat(scopeHosts.map(item => state.stacks[item.id])), () => sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query }))
+                : { stacks: [], external: [], singles: [] };
+            const visible = view.visible, groups = view.groups;
             const hostStates = {}, stackOps = {}, prepareActive = {};
             for (const item of scopeHosts) hostStates[item.id] = sm.hostStacksState(state.stacks[item.id]);
             for (const entry of state.ops) {
@@ -198,9 +210,9 @@
                 else if (entry.op.stack) stackOps[entry.op.host_id + '/' + entry.op.stack] = entry;
             }
             return Object.assign(liveInfo(), {
-                state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: model.counts(rows, ui.query),
+                state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: memos.counts([rows, ui.query], () => model.counts(rows, ui.query)),
                 canMutate: store.canMutate(), canEditHosts: store.canEditHosts(), section: ui.section, query: ui.query, hostStates, stackOps, prepareActive,
-                sgroups: sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query }), stackCounts: sm.stackCounts(hosts, state.stacks, state.scope),
+                sgroups, stackCounts: sm.stackCounts(hosts, state.stacks, state.scope),
                 dirty: workbench.dirtyState(), pageHost: window.location.hostname, now: Date.now()
             });
         }
