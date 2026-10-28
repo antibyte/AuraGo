@@ -695,6 +695,8 @@ After each conversation turn, the Helper LLM analyzes:
 - **Corrections**: Updates to previously known information
 - **Pending Actions**: Deferred follow-ups or unfinished work
 
+Only what you wrote is stored. Every extracted item has to quote your message of that turn word for word; anything the model gathered only from the agent's reply (a web page it summarised, a mail, a tool result) is dropped, and so is an item that reads like a standing order for a tool, a secret or an outbound channel.
+
 **Activity Digest:**
 - User intent and goal
 - Actions taken by the agent

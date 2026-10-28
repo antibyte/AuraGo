@@ -123,8 +123,8 @@ func TestCancelledAnalysisWriteNeverEnqueuesDurableRetry(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			vector := &cancelAnalysisVector{cancel: cancel}
-			fact := extractedFact{Content: "The user prefers complete German explanations.", Category: "communication", Confidence: .99}
-			result := memoryAnalysisResult{}
+			fact := extractedFact{Content: "The user prefers complete German explanations.", Category: "communication", Confidence: .99, Quote: "complete German explanations"}
+			result := memoryAnalysisResult{human: "I want complete German explanations from now on."}
 			switch kind {
 			case "fact":
 				result.Facts = []extractedFact{fact}

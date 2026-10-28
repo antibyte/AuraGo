@@ -24,6 +24,12 @@ Memory retrieval, hygiene, indexing, and maintenance.
   recheck ownership/protection/fingerprints and fence late writes. Preserve manual
   corrections, shared evidence and numeric development. Keep additive counts and
   unknown legacy state accurate. Explicit profile deletion fences old analyses.
+- A profile value is a fact about the user, written by the helper model that may
+  have read a web page in the same turn: `applyPersonalityProfilesTx` drops an
+  update whose key and value read as a standing order for a tool, a secret or an
+  outbound channel (`security.DirectiveShape`), after the credential and PII
+  checks and whatever the human turn said. Verify
+  `TestPersonalityProfileDropsDirectiveShapedValue`.
 
 ### Session ingress turns
 

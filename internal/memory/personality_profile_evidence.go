@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"aurago/internal/security"
 )
 
 func applyPersonalityProfilesTx(tx *sql.Tx, input *HumanInput, updates []ProfileUpdate) error {
@@ -16,6 +18,13 @@ func applyPersonalityProfilesTx(tx *sql.Tx, input *HumanInput, updates []Profile
 	for _, update := range updates {
 		category, key, value := strings.ToLower(strings.TrimSpace(update.Category)), normalizeProfileKey(update.Key), normalizeProfileValue(update.Value)
 		if !isValidProfileCategory(category) || !isValidProfileKey(key) || isRejectedProfileKey(key) || value == "" || containsProfilePII(value) || HasDurableCredential(key+"="+value) {
+			continue
+		}
+		// The helper model writes the value and may have read a web page or mail
+		// in the same turn. A profile value is a fact about the user, so a
+		// standing order that reaches for a tool, a secret or an outbound
+		// channel is no profile value, whatever the user wrote this turn.
+		if _, directive := security.DirectiveShape(strings.ReplaceAll(key, "_", " ") + ": " + value); directive {
 			continue
 		}
 		if utf8.RuneCountInString(value) > 200 {

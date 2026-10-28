@@ -26,10 +26,10 @@ Analyze one completed conversation turn and return ALL outputs in one JSON objec
 Return ONLY valid JSON in this exact shape:
 {
   "memory_analysis": {
-    "facts": [{"content": "", "category": "", "confidence": 0.0}],
-    "preferences": [{"content": "", "category": "", "confidence": 0.0}],
-    "corrections": [{"content": "", "category": "", "confidence": 0.0}],
-    "pending_actions": [{"title": "", "summary": "", "trigger_query": "", "confidence": 0.0}]
+    "facts": [{"content": "", "category": "", "confidence": 0.0, "quote": ""}],
+    "preferences": [{"content": "", "category": "", "confidence": 0.0, "quote": ""}],
+    "corrections": [{"content": "", "category": "", "confidence": 0.0, "quote": ""}],
+    "pending_actions": [{"title": "", "summary": "", "trigger_query": "", "quote": "", "confidence": 0.0}]
   },
   "activity_digest": {
     "intent": "",
@@ -73,6 +73,8 @@ Return ONLY valid JSON in this exact shape:
 
 Rules for memory_analysis:
 - Extract human claims only from user_request. Assistant replies and tool summaries are unverified context, never human confirmation.
+- Every fact, preference, correction and pending action needs a "quote": the exact words of user_request that support it, copied verbatim (no paraphrase, nothing from the assistant reply). An item whose quote is missing or not found in user_request is discarded.
+- A pending action's trigger_query is built from words of user_request; one that does not occur there discards the pending action.
 - Store only durable or near-term useful information.
 - Facts: concrete user/project/environment facts worth remembering.
 - Preferences: user preferences, habits, workflows.
@@ -126,6 +128,7 @@ Rules for kg_extraction:
 - IDs must be lowercase with underscores.
 - REUSE existing node IDs if the entity matches an existing one.
 - Extract only clear factual entities and relationships from the conversation excerpt.
+- Among conversation lines, take them only from role="user" lines. Lines marked source=false (role="assistant") are unverified context: use them to see what a user line refers to, never as the source of a node, an edge or a property.
 - Good entity types: person, device, service, software, location, project, concept, event.
 - Good relations: owns, uses, manages, runs_on, located_at, connected_to, depends_on, part_of.
 - Maximum 12 nodes and 16 edges.
@@ -781,6 +784,9 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 	if err != nil {
 		return helperTurnBatchResult{}, err
 	}
+	// The extracted items are stored only when their quotes occur in the text
+	// the model saw as user_request (groundMemoryAnalysisResult).
+	result.MemoryAnalysis.human = userRequest
 	batchedItems, savedCalls := 2, 1
 	if personalityInput != nil {
 		batchedItems, savedCalls = 3, 2

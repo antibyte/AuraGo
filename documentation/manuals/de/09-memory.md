@@ -652,6 +652,8 @@ Nach jedem Gesprächsstrang analysiert der Helper LLM:
 - **Korrekturen**: Aktualisierungen previously bekannter Informationen
 - **Ausstehende Aktionen**: Zurückgestellte Folgemaßnahmen
 
+Gespeichert wird nur, was du selbst geschrieben hast. Jeder extrahierte Eintrag muss deine Nachricht aus diesem Gesprächsstrang wörtlich zitieren; was das Modell nur aus der Antwort des Agenten gewonnen hat (eine zusammengefasste Webseite, eine Mail, ein Tool-Ergebnis), wird verworfen, ebenso ein Eintrag, der wie eine Dauer-Anweisung für ein Tool, ein Geheimnis oder einen ausgehenden Kanal klingt.
+
 **Aktivitätszusammenfassung:**
 - Benutzerabsicht und -ziel
 - Vom Agenten durchgeführte Aktionen
