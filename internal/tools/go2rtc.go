@@ -149,6 +149,7 @@ type Go2RTCManager struct {
 	pendingStart       bool
 	pendingStop        bool
 	pendingRecreate    bool
+	buildBackoff       go2RTCBuildBackoff // failed managed image builds; see go2rtc_build_backoff.go
 }
 
 var defaultGo2RTCManager atomic.Pointer[Go2RTCManager]

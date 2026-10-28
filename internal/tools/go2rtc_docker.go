@@ -402,7 +402,10 @@ func (m *Go2RTCManager) backgroundStart(ctx context.Context, recreate bool) (ski
 			return false, err
 		}
 	}
-	if err := m.startContainerLocked(ctx); err != nil {
+	// Only the tick comes through here, so this is where an automatic attempt is
+	// told from an explicit start or restart: after a failed managed image build
+	// it waits out the backoff instead of rebuilding every 30 seconds.
+	if err := m.startContainerLocked(withGo2RTCAutomaticAttempt(ctx)); err != nil {
 		return false, err
 	}
 	_, err = m.reconcileStreamsLocked(ctx)
