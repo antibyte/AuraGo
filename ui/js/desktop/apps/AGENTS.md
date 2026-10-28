@@ -297,24 +297,28 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Docker Manager
 
-- Load order (module-loader `docker-manager`, pinned by `TestDockerManagerWiring`): `docker-manager-model.js` (pure: container
+- Load order (module-loader `docker-manager`, pinned by `TestDockerManagerWiring`; `xterm.css`, `xterm.min.js` and `xterm-addon-fit.min.js`
+  come first, no WebGL renderer): `docker-manager-model.js` (pure: container
   status and problem derivation, grouping by compose project, search and state filters, the multi-host merge, host health,
   the host form rules, error normalisation; `normalizeError` keeps the answer body in `data`), `docker-manager-stack-model.js`
   (pure: stack status and tone, rows and groups of the stack list, port links, lint helpers, the line diff, command palette
-  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-store.js`
+  ranking, `.env` helpers and the reducer that folds an operation's stream events into one entry), `docker-manager-charts.js` (pure
+  SVG and text: `sparkline`, `gauge`, `bytes`, `percent`, `loadCell`), `docker-manager-store.js`
   (every request through the desktop `api()` against `/api/docker-manager`, one request in flight per key, per-host container
-  and stack listings, the open stack, the operations with one `EventSource` each, polling only while the window is visible),
-  `docker-manager-views.js` (HTML builders: rail with the Stacks and Containers sections, banners, table, empty states, detail
-  drawer, line diff), `docker-manager-stacks.js` (HTML builders: stack list with its three groups and the host cards, stack
-  pane header, overview, editor shell), `docker-manager-editor.js` (the YAML/.env editor, the debounced lint scheduler and the
-  workbench that keeps the drafts of the open stack), `docker-manager-ops.js` (progress drawer and the commands that start an
-  operation), `docker-manager-palette.js` (command palette), `docker-manager-dialogs.js` (one native `<dialog>` with a view
+  and stack listings, the open stack and the open external project, the operations with one `EventSource` each, the live stream,
+  the disk usage of the selected host, polling only while the window is visible), `docker-manager-live.js` (the client of
+  `/stream`, held by the store), `docker-manager-views.js` (HTML builders: rail with the Stacks and Containers sections and the
+  host gauges, banners, table, empty states, detail drawer, line diff), `docker-manager-stacks.js` (HTML builders: stack list with its three groups and the host cards, stack
+  pane header, overview, editor shell, the external project pane), `docker-manager-editor.js` (the YAML/.env editor, the debounced
+  lint scheduler and the workbench that keeps the drafts of the open stack), `docker-manager-ops.js` (progress drawer and the
+  commands that start an operation), `docker-manager-logs.js` (log model and follow panel), `docker-manager-terminal.js` (xterm
+  panel), `docker-manager-panes.js` (mounts the follow panels, fills the load cells), `docker-manager-palette.js` (command palette), `docker-manager-dialogs.js` (one native `<dialog>` with a view
   stack: host manager, add/edit form with Test connection, import from nest, confirmations, delete and down-with-volumes lists,
   the revision-conflict diff), `docker-manager-newstack.js` (the new-stack flow), then `docker-manager.js` (composition root:
   skeleton, focus, keyboard, drop, context menus, window menus, toasts). Style: `css/desktop-app-docker-manager.css`. Every file
   stays below 1100 lines and no file touches the DOM at load (`scripts/test-docker-manager-ui.mjs` runs them in a vm). Phase 2
-  adds Stacks (the default section, remembered as `section` in the prefs); Images, Volumes, Networks and Templates come in later
-  phases, and no placeholder is rendered for them.
+  adds Stacks (the default section, remembered as `section` in the prefs), phase 3 the live data (below); Images, Volumes,
+  Networks and Templates come in later phases, and no placeholder is rendered for them.
 - The app appears only while Docker is enabled (`docker` capability, `desktopCapabilities` in `internal/server`). `ctx.readonly`
   (read-only desktop) hides container actions and host editing. `docker.readonly` hides the container actions only (host management
   stays): every `GET /hosts` answer carries `docker_readonly` (read per request), `loadHosts` sets and clears
@@ -391,11 +395,45 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   desktop does not upload it to the Desktop folder) only while the window may change things. Deploy answers 201 with
   `deploy_error` (`{code, message}`) and no operation when the files were written but the deployment could not start: the
   stack opens as a draft and an error toast names the reason (`error_<code>`, the server message only for unknown codes).
+- Live data (phase 3): while the window is visible the store keeps one `DockerManagerLive` client on `GET /stream` (the `eventSource`
+  option fakes it in tests, `live: false` switches it off). `hello` names the stream; what the window listens to (`syncLive`: the hosts
+  in scope for events, status and operations, the containers whose load cells are on screen for 3 s stats, the selected host for the
+  gauges) goes to `PUT /stream/subscriptions` 250 ms after the last change and again after every reconnect (a new stream starts
+  empty). The client closes a broken stream itself and reopens it after 1, 2, 4, 8, 16, 30 s; a stream without any message for three
+  heartbeats (at least 45 s; EventSource hides comment lines) is asked first: the wish is sent again, and only a 404, an error or no
+  answer within 10 s counts as dead (so an idle stream does not flap); a `host_status` per host says `live`,
+  `paused`, `unreachable` or `connecting`. A host that is `live` is polled only every 60 s (`stale()` in `pollOnce`); any other
+  host, and every host while the stream is down, every 5 s. A container `event` or a `resync` reloads that host (containers, the
+  stacks in the Stacks section, the open stack when its project is named), coalesced to one reload per 300 ms; `operation`
+  messages go through `trackOperation`. A paused host shows the compact "Live updates paused" banner (not for one that has its own
+  unreachable banner). Stats never go through `emit()`: the store hands them to `onStats` and `onHostStats` listeners and the app
+  patches `[data-load="host/id12"]` cells in place (`panes.patchLoads`) and repaints only the gauge area; the markup of the table
+  and of the stack overview holds empty placeholders, never numbers, so a stats message never repaints them. `panes.visibleLoads`
+  collects the rendered cells inside the viewport (at most 50 ids per host, 12-character ids) after every paint and scroll.
+- Follow panels: the container drawer (tabs Overview, Logs, Terminal, Inspect), the stack pane (Overview, Compose, .env, Logs,
+  Terminal) and the external project pane (Overview, Logs; opened by the project row, closed with Escape like a stack) keep one log
+  panel and one terminal panel per container, stack or project (`panes.drawer/stack/project`). A panel is built when its tab is first
+  shown, kept while the pane stays on the same thing, and the log panel is told to follow only while its tab is visible, the pane is
+  not covered and the window is visible. A connected terminal shell is the exception: it stays open while its pane exists (tab
+  switch, covered pane, minimised or hidden window) and is ended (`end` frame, socket closed) when the pane, the container or the
+  window closes or read-only is switched on. The log panel (`docker-manager-logs.js`) opens one `EventSource` on `.../logs?follow=1&tail=N` (container 200,
+  stack and project 100 per container), keeps a ring of 5000 lines, filters by text and service chips, pauses following when the view
+  is scrolled up ("New lines: n" resumes), strips ANSI, and after a broken connection asks for `tail=5000&since=<newest line>` and
+  drops what it already has; an EventSource hides why a request failed, so `store.diagnose(path)` repeats it as a plain GET: any 4xx answer
+  (and `docker_disabled`, `docker_hosts_unavailable`, `stacks_unavailable`) ends the retries, a 5xx answer, a timeout and a network
+  failure are retried. The server's `not_followed` notices (one per failed container, one for the services the budget left out) are
+  one line with every service once; `attached` and `detached` name the service. The terminal panel (`docker-manager-terminal.js`) uses
+  xterm and the fit addon on `.../terminal` (binary frames, `{"type":"resize"}`, `{"type":"end"}` before it closes); it is created
+  only when `window.Terminal` exists, never for a helper or stopped container or in read-only mode (messages instead), asks first for
+  a protected container (`?confirm=protected`, also after a 409 found by `store.diagnose`), and takes its colours from the
+  `--dm-term-*` properties of the stylesheet. Every keydown in the terminal stays inside it (Escape and Ctrl+K reach the shell);
+  Ctrl+] or the Leave terminal button moves the focus to the toolbar. The old one-shot logs view (`loadLogs`) is gone; the route
+  `GET .../logs` without `follow` stays on the server.
 - Keyboard: Ctrl/Cmd+K opens the palette from inside the app and stops the event so Spotlight (a document keydown handler)
   does not open; the palette is a combobox with a listbox and refuses to open over a dialog. Escape closes the innermost of: the
   palette, a dialog, the operations drawer, the new-stack view, the container drawer, the stack pane (never from inside an
   editor). A button that opens a desktop context menu (`more`, `stack-more`) must stop its click: the desktop closes its menu on
-  every click it sees.
+  every click it sees. The palette also offers "Logs: <stack or container>" and, outside read-only mode, "Terminal: <container>".
 - Strings: `desktop.app_docker_manager` and `docker_manager.*` in all 16 `lang/desktop/*.json` files, local helper `t` with the
   `docker_manager.` prefix (registered in `desktopLocalI18nHelpers`; the key families built at run time are in
   `desktopDynamicI18nPrefixes` in `ui/i18n_lint_test.go` and in the families table of the Node test, which also lists the keys
@@ -403,8 +441,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `TestDockerManagerLocalesAreComplete` and the Node test check this.
 - Verify: `node scripts/test-docker-manager-ui.mjs` (or `npm run test:docker-manager`),
   `go test ./ui -run DockerManager -count=1`, and
-  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopDockerManager -count=1` (two tests: the app, and the editor without the CodeMirror bundle; the page has a 30 s budget for the
-  whole run: keep the fake streams short). The CodeMirror bundle is built by `npm run build:codemirror` from
+  `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopDockerManager -count=1` (four tests: the app, the editor without the CodeMirror bundle,
+  `...LiveBrowser` for the stream, stats, gauges and list updates and `...FollowBrowser` for logs, terminals, project pane and palette; the
+  page has a 30 s budget for the whole run: keep the fake streams short). The fixture routes `/stream`, the follow streams, `/df` and a
+  gorilla WebSocket terminal in `desktop_docker_manager_live_browser_test.go`; the audit shell replaces `window.WebSocket` with a stub, so
+  the live tests take the native one back from a fresh iframe. The CodeMirror bundle is built by `npm run build:codemirror` from
   `scripts/codemirror-entry.js`; phase 2 only added exports (`yaml`, `linter`, `lintGutter`, `setDiagnostics`), so Code Studio,
   OpenSCAD, notes, CYD Creator and skills keep working. After editing a core file
   (`module-loader.js`, `menus-and-routing.js`, `desktop-foundation.js`, `window-shell-runtime.js`) run `npm run build:ui` and

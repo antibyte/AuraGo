@@ -1,6 +1,8 @@
-/* Docker Manager views: HTML builders for the rail, the banners, the container table, the empty states and the detail
-   drawer. A classic script (window.DockerManagerViews) with no DOM work at load. Every function takes a snapshot and
-   returns a string; docker-manager.js inserts it, keeps the focus and routes the events through data-action hooks.
+/* Docker Manager views: HTML builders for the rail (hosts, sections, host gauges), the banners (unreachable hosts, paused live
+   updates), the container table, the empty states and the detail drawer. A classic script (window.DockerManagerViews) with no
+   DOM work at load. Every function takes a snapshot and returns a string; docker-manager.js inserts it, keeps the focus and routes
+   the events through data-action hooks. Numbers that arrive by stream (the load cells of the table, the gauges) are never part of
+   the markup of the table: the cells are empty placeholders (data-load) that docker-manager-panes.js fills in place.
    User data (names, images, labels, log lines) always goes through esc(). Colour comes from data-tone and
    data-host-color attributes, never from inline styles. */
 (function () {
@@ -39,19 +41,24 @@
     const ACTION_GLYPH = { start: 'play', unpause: 'play', stop: 'stop', restart: 'restart', pause: 'pause', kill: 'kill', remove: 'remove' };
     const ERROR_KEYS = ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'host_not_prepared', 'api_too_old', 'stacks_unavailable',
         'stack_name_invalid', 'stack_not_found', 'stack_exists', 'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
-        'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'];
+        'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict',
+        'stream_not_found', 'too_many_streams', 'websocket_required', 'container_not_running', 'helper_container', 'project_not_found',
+        'forbidden_origin', 'docker_hosts_unavailable', 'docker_disabled'];
     // Codes whose own sentence is followed by the server's message, because the message names the cause.
     const DETAIL_ERROR_CODES = ['invalid_host', 'stacks_dir_unavailable', 'convert_failed', 'docker_error', 'bad_request', 'project_conflict'];
     // The labels of AuraGo's container protection ("owner" of the 409 answer) that are no AuraGo owner name, and the
     // docker_manager.protected_<kind> sentence of each.
     const PROTECTED_LABEL_KINDS = { self: 'self', 'docker-endpoint': 'endpoint', 'shared-network': 'network', unverified: 'unverified', docker_manager: 'helper' };
     const PORTS_SHOWN = 2;
-    const TABS = ['overview', 'logs', 'inspect'];
+    const TABS = ['overview', 'logs', 'terminal', 'inspect'];
+    // These two tabs are follow panels that live as long as the drawer is open; the drawer repaints around them.
+    const LIVE_TABS = ['logs', 'terminal'];
     // Terminal colour codes in container logs would show as stray characters.
     const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
 
     function create(deps) {
         const { t, esc, model, lang, uid } = deps;
+        const charts = deps.charts || window.DockerManagerCharts;
         const glyph = (name, cls) => '<svg class="dm-glyph' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (GLYPHS[name] || '') + '</svg>';
         const dot = tone => '<span class="dm-dot" data-tone="' + esc(tone) + '" aria-hidden="true"></span>';
         const chip = (name, color) => '<span class="dm-chip" data-host-color="' + esc(color) + '"><span class="dm-chip-dot" aria-hidden="true"></span>' + esc(name) + '</span>';
@@ -78,7 +85,8 @@
         // because that message names the cause (an engine error, a validation problem).
         function errorText(info) {
             const e = info || {}, data = e.data || {};
-            if (e.code === 'host_unreachable') return reasonText(e.reason);
+            // A log stream that ends with host_unreachable carries no classified reason: the server's message names the cause then.
+            if (e.code === 'host_unreachable') return reasonText(e.reason) + (!e.reason && e.message ? ' ' + e.message : '');
             const known = ERROR_KEYS.includes(e.code), base = known ? t('error_' + e.code, { version: String(data.api_version || ''), command: String(data.command || '') }) : t('error_unknown');
             return (!known || DETAIL_ERROR_CODES.includes(e.code)) && e.message ? base + ' ' + e.message : base;
         }
@@ -115,6 +123,34 @@
                 + '<div class="dm-rail-foot"><button type="button" class="dm-link-btn" data-action="manage-hosts" data-focus-id="manage">' + glyph('server') + '<span>' + esc(t('manage_hosts')) + '</span></button></div>';
         }
 
+        // ---- host gauges (a single host in scope) -----------------------------------------------------------------------
+
+        // CPU and memory of the selected host from the 10 s host stats of the stream, and Docker's own disk usage from GET /hosts/{h}/df.
+        // '' under All hosts. snap.hostStats = {host: data}, snap.liveStatus = {host: live|paused|connecting|off}, snap.state.df = {host: entry}.
+        function railGauges(snap) {
+            const s = snap.state, id = s.scope;
+            if (id === 'all' || !snap.hosts.some(host => host.id === id)) return '';
+            const stats = snap.hostStats[id], df = s.df[id], status = snap.liveStatus[id];
+            const hasStats = !!stats && stats.cpu >= 0;
+            const total = df && df.df ? df.df : null;
+            const detail = total ? t('gauge_disk_detail', {
+                images: charts.bytes(total.images && total.images.size, lang), containers: charts.bytes(total.containers && total.containers.size, lang),
+                volumes: charts.bytes(total.volumes && total.volumes.size, lang), cache: charts.bytes(total.build_cache && total.build_cache.size, lang)
+            }) : '';
+            const refresh = '<button type="button" class="dm-icon-btn" data-action="refresh-df" data-host-id="' + esc(id) + '" data-focus-id="refresh-df" aria-label="' + esc(t('gauge_refresh')) + '" title="' + esc(t('gauge_refresh')) + '"'
+                + (df && df.busy ? ' disabled aria-busy="true"' : '') + '>' + glyph('refresh') + '</button>';
+            const notes = [];
+            if (stats && stats.partial) notes.push(t('gauge_partial', { sampled: stats.sampled, running: stats.running }));
+            if (status === 'paused' || status === 'off') notes.push(t('gauge_paused'));
+            else if (!hasStats) notes.push(t('gauge_waiting'));
+            if (df && df.error && !total) notes.push(t('gauge_failed'));
+            return '<section class="dm-gauges" aria-labelledby="' + uid + '-gauges-title" data-gauges><h2 class="dm-rail-title" id="' + uid + '-gauges-title">' + esc(t('gauges_heading')) + '</h2>'
+                + charts.gauge(hasStats ? stats.cpu : -1, 100, { label: t('gauge_cpu'), unit: 'percent', lang })
+                + charts.gauge(stats && stats.mem_total > 0 ? stats.mem_used : -1, stats ? stats.mem_total : 0, { label: t('gauge_ram'), unit: 'bytes', lang })
+                + '<div class="dm-gauge-row" title="' + esc(detail) + '">' + charts.gauge(total ? total.total : -1, 0, { label: t('gauge_disk'), unit: 'bytes', lang }) + refresh + '</div>'
+                + (notes.length ? '<p class="dm-hint dm-gauge-note">' + esc(notes.join(' ')) + '</p>' : '') + '</section>';
+        }
+
         // ---- banners (one per unreachable host in scope) ----------------------------------------------------------------
 
         function banners(snap) {
@@ -131,6 +167,14 @@
                     + '<div class="dm-banner-actions"><button type="button" class="dm-btn" data-action="retry-host" data-host-id="' + esc(host.id) + '" data-focus-id="retry:' + esc(host.id) + '">' + glyph('refresh') + '<span>' + esc(t('banner_retry')) + '</span></button>'
                     + (snap.canEditHosts && !host.builtin ? '<button type="button" class="dm-btn" data-action="edit-host" data-host-id="' + esc(host.id) + '" data-focus-id="edit:' + esc(host.id) + '">' + glyph('edit') + '<span>' + esc(t('host_edit_title')) + '</span></button>' : '')
                     + '</div></section>');
+            }
+            // A host whose events cannot be followed is polled every few seconds instead; say so, without blocking anything. A host that
+            // is unreachable has its own banner above.
+            for (const host of snap.scopeHosts) {
+                const entry = snap.state.byHost[host.id];
+                if (snap.liveStatus[host.id] !== 'paused' || model.hostHealth(host, entry).state === 'error') continue;
+                out.push('<section class="dm-banner is-compact" data-tone="info" role="status" data-live-banner="' + esc(host.id) + '"><span class="dm-banner-icon">' + glyph('inspect') + '</span><div class="dm-banner-body"><p>'
+                    + esc(t('live_paused', { host: host.name })) + '</p></div></section>');
             }
             return out.join('');
         }
@@ -171,6 +215,7 @@
                 + '<td role="gridcell" class="dm-cell-name"><span class="dm-name-line"><span class="dm-name">' + esc(name) + '</span>' + lock + (snap.multi ? chip(r.hostName, r.hostColor) : '') + '</span><span class="dm-sub">' + esc(sub) + '</span></td>'
                 + '<td role="gridcell" class="dm-cell-image"><span class="dm-image" title="' + esc(c.image) + '">' + esc(model.shortImage(c.image)) + '</span></td>'
                 + '<td role="gridcell" class="dm-cell-ports">' + portsCell(c) + '</td>'
+                + '<td role="gridcell" class="dm-cell-load"' + (status.id === 'running' || status.id === 'unhealthy' || status.id === 'starting' ? ' data-load="' + esc(r.hostId + '/' + String(c.id).slice(0, 12)) + '"' : '') + '></td>'
                 + '<td role="gridcell" class="dm-cell-actions"><div class="dm-actions" role="group" aria-label="' + esc(t('row_actions_label', { name })) + '">' + buttons.join('') + '</div></td></tr>';
         }
 
@@ -179,7 +224,7 @@
             const counts = group.counts;
             const text = t('count_running_total', { running: counts.running, total: counts.total }) + (counts.problem ? ' · ' + t('group_problems', { count: counts.problem }) : '');
             return '<tr class="dm-group-row" role="row" data-nav-key="g:' + esc(group.key) + '" data-group-key="' + esc(group.key) + '" data-focus-id="group:' + esc(group.key) + '" data-action="toggle-group" aria-level="1" aria-expanded="' + !collapsed + '" tabindex="-1">'
-                + '<td role="gridcell" colspan="5"><span class="dm-group-main">' + glyph('chevron', 'dm-chevron') + (group.kind === 'project' ? dot(group.tone) : '') + '<strong class="dm-group-name">' + esc(name) + '</strong>'
+                + '<td role="gridcell" colspan="6"><span class="dm-group-main">' + glyph('chevron', 'dm-chevron') + (group.kind === 'project' ? dot(group.tone) : '') + '<strong class="dm-group-name">' + esc(name) + '</strong>'
                 + (snap.multi && group.kind === 'project' ? chip(group.hostName, group.hostColor) : '') + '<span class="dm-group-count">' + esc(text) + '</span></span></td></tr>';
         }
 
@@ -266,21 +311,6 @@
             return '<button type="button" class="dm-btn" data-action="' + action + '" data-focus-id="' + action + '">' + glyph('copy') + '<span>' + esc(t('copy')) + '</span></button>';
         }
 
-        function logsPanel(detail) {
-            const logs = detail.logs;
-            const tails = deps.logTails.map(n => '<option value="' + n + '"' + (n === logs.tail ? ' selected' : '') + '>' + n + '</option>').join('');
-            const tools = '<div class="dm-panel-tools"><label class="dm-inline"><span>' + esc(t('logs_tail')) + '</span><select data-log-tail data-focus-id="log-tail">' + tails + '</select></label>'
-                + '<button type="button" class="dm-btn" data-action="logs-reload" data-focus-id="logs-reload">' + glyph('refresh') + '<span>' + esc(t('logs_reload')) + '</span></button>' + copyButton('copy-logs') + '</div>';
-            let body;
-            if (logs.status === 'error') body = '<p class="dm-error" role="alert">' + esc(t('logs_failed')) + ' ' + esc(errorText(logs.error)) + '</p>';
-            else if (logs.status === 'ok' || (logs.status === 'loading' && logs.text)) {
-                body = logs.text
-                    ? '<pre class="dm-log' + (logs.status === 'loading' ? ' is-loading' : '') + '" tabindex="0" data-log aria-label="' + esc(t('tab_logs')) + '">' + esc(stripAnsi(logs.text)) + '</pre>'
-                    : '<p class="dm-muted">' + esc(t('logs_empty')) + '</p>';
-            } else body = '<p class="dm-muted" role="status">' + esc(t('logs_loading')) + '</p>';
-            return tools + body;
-        }
-
         function inspectPanel(detail) {
             const inspect = detail.inspect;
             let body;
@@ -304,24 +334,27 @@
             return '<div class="dm-drawer-actions">' + out.join('') + '</div>';
         }
 
+        // {top, body, live}: top is the header with the actions and the tabs, body the panel of the Overview and Inspect tabs. On the
+        // Logs and Terminal tabs body is '' and live names the persistent follow panel the app shows instead.
         function drawer(snap, r) {
             const detail = snap.state.detail, c = r.c, status = model.statusOf(c), name = model.containerName(c);
-            const tabs = TABS.map(tab => '<button type="button" role="tab" class="dm-tab" id="' + uid + '-tab-' + tab + '" data-action="tab" data-tab="' + tab + '" data-focus-id="tab:' + tab + '" aria-selected="' + (detail.tab === tab)
-                + '" aria-controls="' + uid + '-tabpanel" tabindex="' + (detail.tab === tab ? '0' : '-1') + '">' + esc(t('tab_' + tab)) + '</button>').join('');
-            let body;
-            if (detail.tab === 'logs') body = logsPanel(detail);
-            else if (detail.tab === 'inspect') body = inspectPanel(detail);
-            else body = overview(r);
-            return '<header class="dm-drawer-head"><div class="dm-drawer-title">' + dot(status.tone) + '<h2 id="' + uid + '-drawer-title">' + esc(name) + '</h2></div>'
+            const live = LIVE_TABS.includes(detail.tab) ? detail.tab : '', shown = live || (detail.tab === 'inspect' ? 'inspect' : 'overview');
+            const tabs = TABS.map(tab => '<button type="button" role="tab" class="dm-tab" id="' + uid + '-tab-' + tab + '" data-action="tab" data-tab="' + tab + '" data-focus-id="tab:' + tab + '" aria-selected="' + (shown === tab)
+                + '" aria-controls="' + uid + '-tabpanel-' + tab + '" tabindex="' + (shown === tab ? '0' : '-1') + '">' + esc(t('tab_' + tab)) + '</button>').join('');
+            const body = live ? '' : shown === 'inspect' ? inspectPanel(detail) : overview(r);
+            const top = '<header class="dm-drawer-head"><div class="dm-drawer-title">' + dot(status.tone) + '<h2 id="' + uid + '-drawer-title">' + esc(name) + '</h2></div>'
                 + '<button type="button" class="dm-icon-btn" data-action="close-detail" data-focus-id="close-detail" aria-label="' + esc(t('drawer_close')) + '" title="' + esc(t('drawer_close')) + '">' + glyph('close') + '</button></header>'
                 + '<p class="dm-drawer-sub">' + esc(statusLabel(status)) + ' · ' + esc(model.shortImage(c.image)) + '</p>'
                 + drawerActions(snap, r)
-                + '<div class="dm-tabs" role="tablist" aria-label="' + esc(t('tabs_label')) + '">' + tabs + '</div>'
-                + '<div class="dm-drawer-body" role="tabpanel" id="' + uid + '-tabpanel" aria-labelledby="' + uid + '-tab-' + detail.tab + '" data-tab-body="' + detail.tab + '">' + body + '</div>';
+                + '<div class="dm-tabs" role="tablist" aria-label="' + esc(t('tabs_label')) + '">' + tabs + '</div>';
+            return {
+                top, live,
+                body: live ? '' : '<div class="dm-drawer-body" role="tabpanel" id="' + uid + '-tabpanel-' + shown + '" aria-labelledby="' + uid + '-tab-' + shown + '" data-tab-body="' + esc(detail.tab) + '">' + body + '</div>'
+            };
         }
 
-        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
+        return { glyph, dot, chip, statusLabel, actionLabel, reasonText, protectedText, protectedLabelText, errorText, stripAnsi, rail, railGauges, banners, tbody, gate, empty, drawer, diffHtml, keyOf, TABS };
     }
 
-    window.DockerManagerViews = { create, TABS, ACTION_GLYPH };
+    window.DockerManagerViews = { create, TABS, LIVE_TABS, ACTION_GLYPH };
 })();

@@ -3,7 +3,9 @@
    views, keeps the focus across repaints and owns the keyboard handling, the context menus, the window menus, the file drop
    and the toasts. Pure logic lives in docker-manager-model.js and -stack-model.js, requests and polling in -store.js, markup
    in -views.js and -stacks.js, the editors in -editor.js, the progress drawer in -ops.js, the command palette in -palette.js,
-   the new-stack flow in -newstack.js and the dialogs in -dialogs.js. */
+   the new-stack flow in -newstack.js and the dialogs in -dialogs.js. The live parts: -live.js (the stream client, held by the store),
+   -charts.js (sparklines and gauges), -logs.js and -terminal.js (the follow panels) and -panes.js, which mounts those panels in the
+   container drawer, the stack pane and the external project pane and fills the load cells in place. */
 (function () {
     'use strict';
 
@@ -30,6 +32,7 @@
         const w = window;
         const model = w.DockerManagerModel, sm = w.DockerManagerStackModel, Views = w.DockerManagerViews, Stacks = w.DockerManagerStacks, Editor = w.DockerManagerEditor, Ops = w.DockerManagerOps;
         const Palette = w.DockerManagerPalette, NewStack = w.DockerManagerNewStack, Dialogs = w.DockerManagerDialogs, Store = w.DockerManagerStore;
+        const Logs = w.DockerManagerLogs, Terminal = w.DockerManagerTerminal, Panes = w.DockerManagerPanes, charts = w.DockerManagerCharts;
         const esc = ctx.esc;
         // A missing key shows its own name and is reported once, never a misleading label.
         const t = (key, vars) => {
@@ -44,21 +47,22 @@
         const lifetime = new AbortController(), signal = lifetime.signal;
         const store = Store.create({ api: ctx.api, readonly: !!ctx.readonly, scope: prefs.scope, section: prefs.section });
         const state = store.state;
-        const views = Views.create({ t, esc, model, stackModel: sm, lang, uid, logTails: Store.LOG_TAILS });
+        const views = Views.create({ t, esc, model, stackModel: sm, charts, lang, uid });
         const stacks = Stacks.create({ t, esc, model, stackModel: sm, views, uid });
-        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', banners: '', tbody: '', empty: '', drawer: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
-            logMark: '', focusDrawer: false, focusStack: false, pendingFocus: '', opener: '', stackOpener: '', mark: null, count: '' };
-        let disposed = false, frame = 0, announceTimer = 0, prefsTimer = 0, lastCount = '';
+        const ui = { query: '', filter: prefs.filter, section: prefs.section, collapsed: new Set(prefs.collapsed), activeKey: '', stackNav: '', rail: '', gauges: '', banners: '', tbody: '', empty: '', drawerTop: '', drawerBody: '', list: '', top: '', overview: '', shellKey: '', ops: '', menus: '',
+            focusDrawer: false, focusStack: false, pendingFocus: '', opener: '', stackOpener: '', mark: null, count: '' };
+        let disposed = false, frame = 0, announceTimer = 0, prefsTimer = 0, lastCount = '', liveFrame = 0, loadFrame = 0, gaugeFrame = 0;
+        const dirtyLoads = new Set();
         const toastTimers = new Map();
 
         // ---- skeleton --------------------------------------------------------------------------------------------
 
         const filterButtons = model.STATE_FILTERS.map(name => '<button type="button" class="dm-filter" data-filter="' + name + '" aria-pressed="false"><span>' + esc(t('filter_' + name)) + '</span><span class="dm-filter-count" data-count="' + name + '">0</span></button>').join('');
-        const columns = ['status', 'name', 'image', 'ports'].map(name => '<th scope="col" role="columnheader" class="dm-col-' + name + '">' + esc(t('col_' + name)) + '</th>').join('')
+        const columns = ['status', 'name', 'image', 'ports', 'load'].map(name => '<th scope="col" role="columnheader" class="dm-col-' + name + '">' + esc(t('col_' + name)) + '</th>').join('')
             + '<th scope="col" role="columnheader" class="dm-col-actions"><span class="dm-sr-only">' + esc(t('col_actions')) + '</span></th>';
         host.replaceChildren();
         host.innerHTML = '<div class="dm-app" data-dm-app data-drawer-state="closed" data-section="' + ui.section + '"><div class="dm-shell">'
-            + '<aside class="dm-rail" aria-label="' + esc(t('rail_label')) + '" data-rail></aside>'
+            + '<aside class="dm-rail" aria-label="' + esc(t('rail_label')) + '"><div class="dm-rail-body" data-rail></div><div class="dm-rail-gauges" data-rail-gauges></div></aside>'
             + '<section class="dm-main" aria-label="' + esc(t('nav_stacks')) + '" data-main>'
             + '<div class="dm-toolbar"><div class="dm-search">' + views.glyph('search') + '<input type="search" class="dm-search-input" data-search autocomplete="off" spellcheck="false" placeholder="' + esc(t('search_placeholder')) + '" aria-label="' + esc(t('search_label')) + '"></div>'
             + '<button type="button" class="dm-btn is-primary" data-action="new-stack" data-new-stack data-focus-id="new-stack">' + views.glyph('plus') + '<span>' + esc(t('new_stack')) + '</span></button>'
@@ -71,7 +75,8 @@
             + '<table class="dm-table" role="treegrid" aria-label="' + esc(t('nav_containers')) + '" data-table hidden><thead><tr role="row">' + columns + '</tr></thead><tbody data-tbody></tbody></table>'
             + '<div class="dm-empty" data-empty hidden></div></div>'
             + '<div class="dm-stack-scroll" data-stack-scroll hidden><div class="dm-stack-list" data-stack-list aria-label="' + esc(t('nav_stacks')) + '"></div></div>'
-            + '<section class="dm-drawer" data-drawer aria-labelledby="' + uid + '-drawer-title" hidden></section>'
+            + '<section class="dm-drawer" data-drawer aria-labelledby="' + uid + '-drawer-title" hidden><div data-drawer-top></div><div data-drawer-body></div>'
+            + '<div class="dm-drawer-live" data-drawer-live hidden>' + ['logs', 'terminal'].map(tab => '<div role="tabpanel" id="' + uid + '-tabpanel-' + tab + '" aria-labelledby="' + uid + '-tab-' + tab + '" data-live-panel="' + tab + '" hidden></div>').join('') + '</div></section>'
             + '<section class="dm-stackpane" data-stack-pane aria-labelledby="' + uid + '-stack-title" hidden><div data-stack-top></div><div class="dm-sd-body" data-stack-shell></div></section>'
             + '<section class="dm-ns-wrap" data-newstack hidden></section></div>'
             + '<section class="dm-ops" data-ops aria-label="' + esc(t('ops_label')) + '"></section></section></div>'
@@ -79,7 +84,7 @@
             + '<div class="dm-toasts" data-toasts></div><div class="dm-sr-only" role="status" aria-live="polite" data-live></div></div>';
         const root = host.querySelector('[data-dm-app]');
         const q = selector => root.querySelector(selector);
-        const railEl = q('[data-rail]'), searchEl = q('[data-search]'), bannersEl = q('[data-banners]'), scrollEl = q('[data-table-scroll]'), tableEl = q('[data-table]'), tbodyEl = q('[data-tbody]');
+        const railEl = q('[data-rail]'), gaugesEl = q('[data-rail-gauges]'), drawerTopEl = q('[data-drawer-top]'), drawerBodyEl = q('[data-drawer-body]'), drawerLiveEl = q('[data-drawer-live]'), searchEl = q('[data-search]'), bannersEl = q('[data-banners]'), scrollEl = q('[data-table-scroll]'), tableEl = q('[data-table]'), tbodyEl = q('[data-tbody]');
         const emptyEl = q('[data-empty]'), drawerEl = q('[data-drawer]'), toastsEl = q('[data-toasts]'), liveEl = q('[data-live]'), refreshEl = q('[data-refresh]');
         const countEl = q('[data-result-count]'), readonlyEl = q('[data-readonly-chip]'), mainEl = q('[data-main]'), filtersEl = q('[data-filters]'), newStackBtn = q('[data-new-stack]');
         const stackScrollEl = q('[data-stack-scroll]'), stackListEl = q('[data-stack-list]'), paneEl = q('[data-stack-pane]'), topEl = q('[data-stack-top]'), shellEl = q('[data-stack-shell]');
@@ -141,6 +146,13 @@
         const hostOf = hostId => state.hosts.find(item => item.id === hostId) || { id: hostId, name: hostId };
 
         const dialogs = Dialogs.create({ t, dt, esc, model, stackModel: sm, store, root, views, toast, announce, uid, restoreFocus });
+        // The follow panels. A refused handshake or stream is explained by the store with a plain GET (browsers hide the answer).
+        const logs = Logs.create({ t, esc, views, lang, copy: text => void copyText(text), diagnose: path => store.diagnose(path), eventSource: typeof w.EventSource === 'function' ? url => new w.EventSource(url) : null });
+        const terminal = Terminal.create({
+            t, esc, views, diagnose: path => store.diagnose(path),
+            confirmProtected: (target, info) => dialogs.confirm({ title: t('protected_confirm_title'), message: t('term_protected_body', { name: target.label }), note: views.protectedLabelText(info && info.owner) || views.protectedText(target.c), confirmLabel: t('term_open'), danger: true })
+        });
+        const panes = Panes.create({ t, model, charts, logs, terminal, store, findRow, lang });
         const editorFactory = Editor.create({ t, esc, stackModel: sm, views, uid });
         const ops = Ops.create({ t, esc, model, stackModel: sm, views, store, toast, announce, uid });
         const palette = Palette.create({ t, esc, stackModel: sm, views, root, uid });
@@ -164,6 +176,13 @@
 
         // ---- snapshot and painting -------------------------------------------------------------------------------
 
+        // The live status of every host (live | paused | connecting | off) and the last host stats: what the gauges and banners need.
+        function liveInfo() {
+            const liveStatus = {}, hostStats = {};
+            for (const item of state.hosts) { liveStatus[item.id] = store.liveStatus(item.id); hostStats[item.id] = store.liveHostStats(item.id); }
+            return { liveStatus, hostStats };
+        }
+
         function snapshot() {
             const hosts = state.hosts;
             const scopeHosts = state.scope === 'all' ? hosts : hosts.filter(item => item.id === state.scope);
@@ -178,12 +197,12 @@
                 if (entry.op.kind === 'prepare') prepareActive[entry.op.host_id] = true;
                 else if (entry.op.stack) stackOps[entry.op.host_id + '/' + entry.op.stack] = entry;
             }
-            return {
+            return Object.assign(liveInfo(), {
                 state, hosts, scopeHosts, rows, visible, groups, headers: model.showGroupHeaders(groups), collapsed: ui.collapsed, multi, counts: model.counts(rows, ui.query),
                 canMutate: store.canMutate(), canEditHosts: store.canEditHosts(), section: ui.section, query: ui.query, hostStates, stackOps, prepareActive,
                 sgroups: sm.stackGroups(hosts, state.stacks, rows, { scope: state.scope, query: ui.query }), stackCounts: sm.stackCounts(hosts, state.stacks, state.scope),
                 dirty: workbench.dirtyState(), pageHost: window.location.hostname, now: Date.now()
-            };
+            });
         }
 
         function applyRoving() {
@@ -228,26 +247,28 @@
             lastCount = text;
         }
 
+        // The drawer repaints its header, tabs and the Overview or Inspect panel; the Logs and Terminal panels are persistent (panes.js).
+        // The log panel follows only while its tab is shown, the drawer is not covered and the window is visible; a connected shell stays
+        // open meanwhile and ends with the pane.
         function paintDrawer(snap) {
             const detail = state.detail;
             if (!detail) {
-                if (!drawerEl.hidden) { drawerEl.hidden = true; drawerEl.innerHTML = ''; ui.drawer = ''; }
+                if (!drawerEl.hidden) { drawerEl.hidden = true; drawerTopEl.innerHTML = drawerBodyEl.innerHTML = ''; ui.drawerTop = ui.drawerBody = ''; }
+                panes.drawer(drawerLiveEl, null);
                 return;
             }
             const row = snap.rows.find(item => item.key === detail.key);
             if (!row) { store.closeDetail(); return; }
-            const html = views.drawer(snap, row);
+            const parts = views.drawer(snap, row);
             const opening = drawerEl.hidden;
-            if (html !== ui.drawer) {
-                ui.drawer = html;
-                keepFocus(drawerEl, () => { drawerEl.innerHTML = html; });
-            }
+            if (parts.top !== ui.drawerTop) { ui.drawerTop = parts.top; keepFocus(drawerTopEl, () => { drawerTopEl.innerHTML = parts.top; }); }
+            if (parts.body !== ui.drawerBody) { ui.drawerBody = parts.body; keepFocus(drawerBodyEl, () => { drawerBodyEl.innerHTML = parts.body; }); panes.patchLoads(drawerBodyEl); }
+            drawerBodyEl.hidden = !!parts.live;
+            drawerLiveEl.hidden = !parts.live;
             drawerEl.hidden = !!newStack.isOpen();
-            const log = drawerEl.querySelector('[data-log]');
-            const mark = detail.key + ':' + detail.logs.text.length;
-            if (log && mark !== ui.logMark) { ui.logMark = mark; log.scrollTop = log.scrollHeight; }
+            panes.drawer(drawerLiveEl, Object.assign({}, detail, { tab: parts.live && !drawerEl.hidden && state.visible ? detail.tab : '' }), ui.focusDrawer && parts.live === 'terminal');
             if (opening || ui.focusDrawer) {
-                if (ui.focusDrawer) drawerEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true });
+                if (ui.focusDrawer && parts.live !== 'terminal') drawerTopEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true });
                 ui.focusDrawer = false;
             }
         }
@@ -255,7 +276,7 @@
         function paintContainers(snap) {
             const emptyHtml = views.empty(snap);
             const bodyHtml = emptyHtml || !snap.visible.length ? '' : views.tbody(snap);
-            if (bodyHtml !== ui.tbody) { ui.tbody = bodyHtml; keepFocus(tbodyEl, () => { tbodyEl.innerHTML = bodyHtml; }); applyRoving(); }
+            if (bodyHtml !== ui.tbody) { ui.tbody = bodyHtml; keepFocus(tbodyEl, () => { tbodyEl.innerHTML = bodyHtml; }); applyRoving(); panes.patchLoads(tbodyEl); }
             tableEl.hidden = !bodyHtml;
             if (emptyHtml !== ui.empty) { ui.empty = emptyHtml; keepFocus(emptyEl, () => { emptyEl.innerHTML = emptyHtml; }); }
             emptyEl.hidden = !emptyHtml;
@@ -270,14 +291,18 @@
         // The pane of the open stack: header and tabs repaint when their markup changes; the panels (and the editors in them)
         // are built once per opened stack and only shown or hidden afterwards.
         function paintStackPane(snap) {
-            const stack = state.stack, show = !!stack && !state.detail && ui.section === 'stacks' && !newStack.isOpen();
-            paneEl.hidden = !show;
+            const stack = state.stack, project = state.project, covered = !!state.detail || ui.section !== 'stacks' || newStack.isOpen(), show = !!stack && !covered;
+            paneEl.hidden = !(stack || project) || covered;
+            if (!project) panes.project(shellEl, null, false);
+            if (project) { paintProjectPane(snap, !covered && state.visible); return; }
             if (!stack) {
                 if (ui.shellKey) { workbench.close(); ui.shellKey = ''; shellEl.replaceChildren(); topEl.replaceChildren(); ui.top = ui.overview = ''; }
+                panes.stack(shellEl, null, false, false);
                 return;
             }
             if (ui.shellKey && ui.shellKey !== stack.key) { workbench.close(); ui.shellKey = ''; shellEl.replaceChildren(); ui.top = ui.overview = ''; }
             if (stack.status !== 'ok') {
+                panes.stack(shellEl, stack, false, false);
                 if (ui.shellKey) { workbench.close(); ui.shellKey = ''; shellEl.replaceChildren(); ui.overview = ''; }
                 const problem = stacks.problem(snap);
                 if (problem !== ui.top) { ui.top = problem; keepFocus(topEl, () => { topEl.innerHTML = problem; }); }
@@ -293,15 +318,49 @@
             const headHtml = stacks.head(snap);
             if (headHtml !== ui.top) { ui.top = headHtml; keepFocus(topEl, () => { topEl.innerHTML = headHtml; }); }
             const overviewEl = shellEl.querySelector('[data-stack-overview]'), overviewHtml = stacks.overview(snap);
-            if (overviewEl && overviewHtml !== ui.overview) { ui.overview = overviewHtml; keepFocus(overviewEl, () => { overviewEl.innerHTML = overviewHtml; }); }
+            if (overviewEl && overviewHtml !== ui.overview) { ui.overview = overviewHtml; keepFocus(overviewEl, () => { overviewEl.innerHTML = overviewHtml; }); panes.patchLoads(overviewEl); }
             for (const panel of shellEl.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== stack.tab;
             if (show) workbench.showTab(stack.tab);
+            panes.stack(shellEl, stack, show && state.visible, ui.focusStack && stack.tab === 'terminal');
             if (show && ui.mark && ui.mark.key === stack.key) {
                 workbench.showTab('compose');
                 workbench.markLine(ui.mark.line, ui.mark.message);
                 ui.mark = null;
             }
             if (show && ui.focusStack) { topEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true }); ui.focusStack = false; }
+        }
+
+        // The pane of an external compose project: header and tabs, the overview (its containers) and the logs.
+        function paintProjectPane(snap, shown) {
+            const project = state.project;
+            if (ui.shellKey !== project.key) {
+                if (ui.shellKey && !ui.shellKey.startsWith('x:')) workbench.close();
+                panes.stack(shellEl, null, false, false);
+                shellEl.innerHTML = stacks.projectShell(project);
+                ui.shellKey = project.key;
+                ui.top = ui.overview = '';
+            }
+            const headHtml = stacks.projectHead(snap);
+            if (headHtml !== ui.top) { ui.top = headHtml; keepFocus(topEl, () => { topEl.innerHTML = headHtml; }); }
+            const overviewEl = shellEl.querySelector('[data-project-overview]'), overviewHtml = stacks.projectOverview(snap);
+            if (overviewEl && overviewHtml !== ui.overview) { ui.overview = overviewHtml; keepFocus(overviewEl, () => { overviewEl.innerHTML = overviewHtml; }); panes.patchLoads(overviewEl); }
+            for (const panel of shellEl.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== project.tab;
+            panes.project(shellEl, project, shown);
+            if (shown && ui.focusStack) { topEl.querySelector('[role="tab"][tabindex="0"]')?.focus({ preventScroll: true }); ui.focusStack = false; }
+        }
+
+        function paintGauges(snap) {
+            const html = views.railGauges(snap);
+            if (html !== ui.gauges) { ui.gauges = html; keepFocus(gaugesEl, () => { gaugesEl.innerHTML = html; }); }
+        }
+
+        // Tells the stream which containers are on screen (the load cells of the table and of the open pane), once per frame.
+        function scheduleLive() {
+            if (disposed || liveFrame) return;
+            liveFrame = requestAnimationFrame(() => {
+                liveFrame = 0;
+                if (!disposed) store.setLiveStats(panes.visibleLoads([{ root: tbodyEl, viewport: scrollEl }, { root: shellEl, viewport: paneEl }]));
+            });
         }
 
         function paintOps(snap) {
@@ -330,6 +389,7 @@
             root.dataset.creating = String(creating);
             const railHtml = views.rail(snap);
             if (railHtml !== ui.rail) { ui.rail = railHtml; keepFocus(railEl, () => { railEl.innerHTML = railHtml; }); }
+            paintGauges(snap);
             paintToolbar(snap);
             const bannerHtml = state.disabled ? '' : views.banners(snap);
             if (bannerHtml !== ui.banners) { ui.banners = bannerHtml; keepFocus(bannersEl, () => { bannersEl.innerHTML = bannerHtml; }); }
@@ -340,6 +400,7 @@
             root.dataset.drawerState = state.detail && !creating ? 'open' : 'closed';
             paintStackPane(snap);
             paintOps(snap);
+            scheduleLive();
             const menuSig = ui.section + '|' + ui.filter + '|' + snap.canEditHosts + '|' + snap.canMutate;
             if (menuSig !== ui.menus) { ui.menus = menuSig; syncMenus(); }
         }
@@ -383,6 +444,7 @@
         async function pickHost(hostId) {
             if (state.detail && hostId !== 'all' && state.detail.hostId !== hostId) store.closeDetail();
             if (state.stack && hostId !== 'all' && state.stack.hostId !== hostId) { if (!await leaveStack()) return; store.closeStack(); }
+            if (state.project && hostId !== 'all' && state.project.hostId !== hostId) store.closeProject();
             store.setScope(hostId);
             savePrefsSoon();
             schedulePaint();
@@ -480,6 +542,7 @@
                 { label: t('action_logs'), icon: 'terminal', action: () => openDetail(key, 'logs', true) },
                 { label: t('action_inspect'), icon: 'info', action: () => openDetail(key, 'inspect', true) }
             ];
+            if (store.canMutate() && model.terminalState(row.c) === 'ok') items.splice(2, 0, { label: t('tab_terminal'), icon: 'terminal', action: () => openDetail(key, 'terminal', true) });
             const mutating = [];
             if (actions.toggle) mutating.push(entry(actions.toggle));
             if (actions.restart) mutating.push(entry('restart'));
@@ -517,6 +580,23 @@
             store.openStack(ref.hostId, ref.name, tab);
             schedulePaint();
         }
+        // An external compose project opens a pane of its own. It replaces the open stack, so unsaved drafts are left only when the admin agrees.
+        async function openProject(hostId, name) {
+            if (state.stack && !await leaveStack()) return;
+            if (disposed) return;
+            if (newStack.isOpen() && !await closeNewStack()) return;
+            if (state.detail) store.closeDetail();
+            ui.stackOpener = 'x:' + hostId + '/' + name;
+            ui.focusStack = false;
+            store.openProject(hostId, name);
+            schedulePaint();
+        }
+        function closeProjectPane() {
+            if (!state.project) return;
+            const key = ui.stackOpener || state.project.key;
+            store.closeProject();
+            requestAnimationFrame(() => { if (!disposed) (stackListEl.querySelector('[data-snav="' + CSS.escape(key) + '"]') || searchEl).focus({ preventScroll: true }); });
+        }
         async function closeStackPane() {
             if (!state.stack || !await leaveStack() || disposed) return;
             const key = ui.stackOpener || state.stack.key;
@@ -546,7 +626,7 @@
         function stackMenuItems(key) {
             const ref = stackRef(key);
             if (!ref) return [];
-            const items = [{ label: t('action_open_details'), icon: 'info', action: () => void openStack(key, 'overview', true) }];
+            const items = [{ label: t('action_open_details'), icon: 'info', action: () => void openStack(key, 'overview', true) }, { label: t('stab_logs'), icon: 'terminal', action: () => void openStack(key, 'logs', true) }];
             if (!store.canMutate()) return items;
             const a = sm.stackActions(ref);
             items.push({ separator: true }, { label: t('action_' + a.primary), icon: 'run', action: () => void stackOp(key, a.primary) });
@@ -598,13 +678,17 @@
                 for (const item of state.hosts) hostStates[item.id] = sm.hostStacksState(state.stacks[item.id]);
                 return sm.paletteItems({
                     hosts: state.hosts, stackRows: sm.stackRows(state.hosts, state.stacks, state.scope), multi: state.scope === 'all' && state.hosts.length > 1, hostStates, scope: state.scope,
-                    canMutate: store.canMutate(), label: (action, params) => t('palette_' + action, params)
+                    canMutate: store.canMutate(), label: (action, params) => t('palette_' + action, params),
+                    logs: true, canTerminal: store.canMutate(), containers: model.buildRows(state.hosts, state.byHost, state.scope)
                 });
             }, runCommand);
         }
         function runCommand(item) {
             switch (item.action) {
                 case 'open': setSection('stacks'); void openStack(item.stackKey, 'overview', true); break;
+                case 'logs': setSection('stacks'); void openStack(item.stackKey, 'logs', true); break;
+                case 'logs_container': openDetail(item.rowKey, 'logs', true); break;
+                case 'terminal': openDetail(item.rowKey, 'terminal', true); break;
                 case 'deploy': case 'update': case 'restart': case 'stop': void stackOp(item.stackKey, item.action); break;
                 case 'new_stack': void openNewStack({ hostId: item.hostId, lockHost: false }); break;
                 case 'prepare': void ops.prepare(item.hostId); break;
@@ -652,8 +736,6 @@
                 case 'more': { event.stopPropagation(); const rect = el.getBoundingClientRect(); showRowMenu(key, rect.left, rect.bottom + 4); break; }
                 case 'close-detail': closeDetail(); break;
                 case 'tab': store.setDetailTab(el.dataset.tab); break;
-                case 'logs-reload': void store.loadLogs(); break;
-                case 'copy-logs': if (state.detail) void copyText(views.stripAnsi(state.detail.logs.text)); break;
                 case 'copy-inspect': if (state.detail && state.detail.inspect.status === 'ok') void copyText(JSON.stringify(state.detail.inspect.data, null, 2)); break;
                 case 'retry-host': void retryHost(el.dataset.hostId); break;
                 case 'edit-host': { const target = state.hosts.find(item => item.id === el.dataset.hostId); if (target) dialogs.openHostForm(target); break; }
@@ -663,7 +745,11 @@
                 case 'palette': openPalette(); break;
                 case 'open-stack': void openStack(el.dataset.stackKey, 'overview', false); break;
                 case 'open-container': openDetail(key, 'overview', false); break;
-                case 'show-project': ui.query = el.dataset.project; searchEl.value = ui.query; setSection('containers'); break;
+                case 'show-project': store.closeProject(); ui.query = el.dataset.project; searchEl.value = ui.query; setSection('containers'); break;
+                case 'open-project': void openProject(el.dataset.hostId, el.dataset.project); break;
+                case 'close-project': closeProjectPane(); break;
+                case 'project-tab': store.setProjectTab(el.dataset.tab); break;
+                case 'refresh-df': void store.loadDf(el.dataset.hostId, { refresh: true }); break;
                 case 'project-action': void projectAction(el.dataset.hostId, el.dataset.project, el.dataset.act); break;
                 case 'prepare-host': void ops.prepare(el.dataset.hostId); break;
                 case 'stack-op': void stackOp(el.dataset.stackKey, el.dataset.op); break;
@@ -719,9 +805,6 @@
             if (rowNode && !event.target.closest('button, a, input, select, summary')) openDetail(rowNode.dataset.rowKey, undefined, false);
         }, { signal });
         searchEl.addEventListener('input', () => { ui.query = searchEl.value; schedulePaint(); }, { signal });
-        root.addEventListener('change', event => {
-            if (event.target.matches('[data-log-tail]')) void store.loadLogs(Number(event.target.value));
-        }, { signal });
         tbodyEl.addEventListener('focusin', event => {
             const nav = event.target.closest('[data-nav-key]');
             if (nav && nav.dataset.navKey !== ui.activeKey) { ui.activeKey = nav.dataset.navKey; applyRoving(); }
@@ -807,7 +890,7 @@
             }, { signal });
         }
         tabKeys(drawerEl, tab => store.setDetailTab(tab));
-        tabKeys(topEl, tab => store.setStackTab(tab));
+        tabKeys(topEl, tab => (state.project ? store.setProjectTab(tab) : store.setStackTab(tab)));
 
         // Ctrl/Cmd+K belongs to the app while the focus is inside it: the desktop's Spotlight listens on the document, so the
         // event is stopped here. Escape closes the innermost thing: the drawer of operations, the new-stack view, a pane.
@@ -824,7 +907,7 @@
                 if (newStack.isOpen() && newstackEl.contains(event.target) && !inEditor) { event.preventDefault(); event.stopPropagation(); void closeNewStack(); return; }
                 if (event.target === searchEl && searchEl.value) { event.preventDefault(); searchEl.value = ''; ui.query = ''; schedulePaint(); return; }
                 if (state.detail && (drawerEl.contains(event.target) || scrollEl.contains(event.target) || stackListEl.contains(event.target))) { event.preventDefault(); event.stopPropagation(); closeDetail(); return; }
-                if (state.stack && !paneEl.hidden && paneEl.contains(event.target) && !inEditor && !isTextField(event.target)) { event.preventDefault(); event.stopPropagation(); void closeStackPane(); }
+                if ((state.stack || state.project) && !paneEl.hidden && paneEl.contains(event.target) && !inEditor && !isTextField(event.target)) { event.preventDefault(); event.stopPropagation(); if (state.project) closeProjectPane(); else void closeStackPane(); }
                 return;
             }
             if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey && !isTextField(event.target) && !dialogs.isOpen()) { event.preventDefault(); searchEl.focus(); }
@@ -846,6 +929,23 @@
         // ---- start -----------------------------------------------------------------------------------------------
 
         const unsubscribe = store.subscribe(schedulePaint);
+        // Stats go straight to the cells of their container, host stats to the gauges: no snapshot, no table repaint.
+        const unsubscribeStats = store.onStats((host, id) => {
+            dirtyLoads.add(host + '/' + id);
+            if (loadFrame) return;
+            loadFrame = requestAnimationFrame(() => {
+                loadFrame = 0;
+                const keys = new Set(dirtyLoads);
+                dirtyLoads.clear();
+                if (!disposed) panes.patchLoads(root, keys);
+            });
+        });
+        const unsubscribeHostStats = store.onHostStats(() => {
+            if (gaugeFrame) return;
+            gaugeFrame = requestAnimationFrame(() => { gaugeFrame = 0; if (!disposed) paintGauges(Object.assign(liveInfo(), { state, hosts: state.hosts })); });
+        });
+        scrollEl.addEventListener('scroll', scheduleLive, { passive: true, signal });
+        shellEl.addEventListener('scroll', scheduleLive, { passive: true, capture: true, signal });
         searchEl.value = ui.query;
         paint();
         store.attach({ root, win: host.closest('.vd-window') });
@@ -855,12 +955,18 @@
             disposed = true;
             lifetime.abort();
             cancelAnimationFrame(frame);
+            cancelAnimationFrame(liveFrame);
+            cancelAnimationFrame(loadFrame);
+            cancelAnimationFrame(gaugeFrame);
             clearTimeout(announceTimer);
             clearTimeout(prefsTimer);
             savePrefs(currentPrefs());
             for (const el of [...toastTimers.keys()]) removeToast(el);
             unsubscribe();
+            unsubscribeStats();
+            unsubscribeHostStats();
             unsubscribeDone();
+            panes.dispose();
             ops.stopTicker();
             palette.dispose();
             newStack.dispose();

@@ -35,6 +35,12 @@ type dockerManagerFixture struct {
 	release      chan struct{}
 	holdVolumes  chan struct{} // while set, GET .../volumes answers only after it is closed
 	holdCreate   chan struct{} // while set, POST /hosts/local/stacks answers only after it is closed
+
+	// the live tests (desktop_docker_manager_live_browser_test.go): the stream, the follow streams, the terminal
+	live             dockerManagerLive
+	protectedDB      bool // shop-db carries a protection (a terminal into it needs the confirmation)
+	legacyContainers bool // two containers of the external project "legacy"
+	webExited        bool // shop-web has died with exit code 137
 }
 
 type dockerManagerOperation struct{ host, stack, kind string }
@@ -86,7 +92,7 @@ func (f *dockerManagerFixture) stackDetail(name string) (map[string]any, bool) {
 	case name == "shop":
 		ports = []map[string]any{{"service": "web", "ip": "0.0.0.0", "public_port": 8080, "private_port": 80, "protocol": "tcp"}}
 		services = []map[string]any{
-			{"name": "web", "image": "nginx:latest", "state": "running", "health": "healthy", "container_id": "localshop-web", "ports": ports},
+			{"name": "web", "image": "nginx:latest", "state": "running", "health": "healthy", "container_id": "localshop-web" + strings.Repeat("0", 51), "ports": ports},
 			{"name": "db", "image": "postgres:16", "state": "exited", "exit_code": 1, "ports": []any{}},
 		}
 	case name == "blog":
@@ -226,7 +232,11 @@ func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	f.requests = append(f.requests, r.Method+" "+r.URL.RequestURI())
 	f.bodies[r.Method+" "+path] = string(rawBody)
 	readonly, nasPrepared, composeRev, conflict := f.readonly, f.nasPrepared, f.composeRev, f.conflictNext
+	protectedDB, legacy, webExited := f.protectedDB, f.legacyContainers, f.webExited
 	f.mu.Unlock()
+	if f.serveLive(w, r, path, rawBody) {
+		return
+	}
 	if strings.HasPrefix(path, "/operations/") && strings.HasSuffix(path, "/stream") && r.Method == http.MethodGet {
 		f.stream(w, r, strings.TrimSuffix(strings.TrimPrefix(path, "/operations/"), "/stream"))
 		return
@@ -248,12 +258,26 @@ func (f *dockerManagerFixture) ServeHTTP(w http.ResponseWriter, r *http.Request)
 				"status": map[string]any{"state": "error", "code": "timeout", "message": "dial tcp 192.0.2.50:2375: i/o timeout", "checked_at": "2026-10-26T10:00:00Z"}},
 		}})
 	case r.Method == http.MethodGet && path == "/hosts/local/containers":
-		write(http.StatusOK, map[string]any{"status": "ok", "containers": []map[string]any{
-			dockerManagerContainer("local", "shop-web", map[string]any{"compose_project": "shop", "compose_service": "web", "ports": []map[string]any{{"private": 80, "public": 8080, "type": "tcp"}}}),
-			dockerManagerContainer("local", "shop-db", map[string]any{"compose_project": "shop", "compose_service": "db", "image": "postgres:16", "health": "unhealthy", "status": "Up 3 hours (unhealthy)"}),
+		web := map[string]any{"compose_project": "shop", "compose_service": "web", "ports": []map[string]any{{"private": 80, "public": 8080, "type": "tcp"}}}
+		if webExited {
+			web["state"], web["status"] = "exited", "Exited (137) 1 second ago"
+		}
+		db := map[string]any{"compose_project": "shop", "compose_service": "db", "image": "postgres:16", "health": "unhealthy", "status": "Up 3 hours (unhealthy)"}
+		if protectedDB {
+			db["protected_owner"] = "ruview"
+		}
+		containers := []map[string]any{
+			dockerManagerContainer("local", "shop-web", web),
+			dockerManagerContainer("local", "shop-db", db),
 			dockerManagerContainer("local", "tools", map[string]any{"state": "exited", "status": "Exited (0) 2 days ago"}),
 			dockerManagerContainer("local", "aurago-dm-op-1", map[string]any{"aurago_helper": "runner", "protected_owner": "docker_manager"}),
-		}})
+		}
+		if legacy {
+			containers = append(containers,
+				dockerManagerContainer("local", "lg-app", map[string]any{"compose_project": "legacy", "compose_service": "app", "compose_working_dir": "/srv/legacy"}),
+				dockerManagerContainer("local", "lg-db", map[string]any{"compose_project": "legacy", "compose_service": "db", "compose_working_dir": "/srv/other"}))
+		}
+		write(http.StatusOK, map[string]any{"status": "ok", "containers": containers})
 	case r.Method == http.MethodGet && path == "/hosts/h_nas/containers":
 		write(http.StatusOK, map[string]any{"status": "ok", "containers": []map[string]any{
 			dockerManagerContainer("h_nas", "plex", map[string]any{"compose_project": "media", "compose_service": "plex", "image": "lscr.io/linuxserver/plex:latest"}),
@@ -789,13 +813,13 @@ func TestDesktopDockerManagerBrowser(t *testing.T) {
 	}
 	page.MustWait(`()=>!document.querySelector('[data-drawer]').hidden`)
 	page.MustEval(`()=>document.querySelector('[data-tab="logs"]').click()`)
-	page.MustWait(`()=>{const log=document.querySelector('[data-log]');return !!log && log.textContent.includes('listening on :80')}`)
+	page.MustWait(`()=>{const log=document.querySelector('[data-lp-view]');return !!log && log.textContent.includes('listening on :80')}`)
 	if err := page.Keyboard.Type(input.Escape); err != nil {
 		t.Fatal(err)
 	}
 	page.MustWait(`()=>document.querySelector('[data-drawer]').hidden`)
-	if !strings.Contains(fixture.joined(), "/logs?tail=200") {
-		t.Fatalf("the Logs tab must read the last 200 lines: %s", fixture.joined())
+	if !strings.Contains(fixture.joined(), "/logs?follow=1&tail=200") {
+		t.Fatalf("the Logs tab must follow the container, starting with the last 200 lines: %s", fixture.joined())
 	}
 
 	// Host manager: lists the three hosts, Escape closes it.

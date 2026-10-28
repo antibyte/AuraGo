@@ -1,6 +1,7 @@
 /* Docker Manager stacks: HTML builders for the Stacks section, the stack list with its three groups and the host cards
-   ("Prepare host", API too old, folder unavailable), and the stack detail pane (header, tabs, overview, the static shell
-   the editors are mounted into). A classic script (window.DockerManagerStacks) with no DOM work at load. Every function
+   ("Prepare host", API too old, folder unavailable), the stack detail pane (header, tabs, overview, the static shell the editors
+   and the follow panels are mounted into) and the pane of an external compose project (overview, logs). A classic script
+   (window.DockerManagerStacks) with no DOM work at load. Every function
    takes a snapshot and returns a string; docker-manager.js inserts it and routes the events through data-action hooks.
    User data (names, paths, images, messages) always goes through esc(); colour comes from data-tone and data-host-color. */
 (function () {
@@ -93,7 +94,8 @@
                 + iconButton('project-action', t('action_start') + ': ' + p.name, 'play', attrs + ' data-act="start"', { focus: 'xp:' + row.key + ':start', disabled: busy })
                 + iconButton('project-action', t('action_stop') + ': ' + p.name, 'stop', attrs + ' data-act="stop"', { focus: 'xp:' + row.key + ':stop', disabled: busy })
                 + iconButton('project-action', t('action_restart') + ': ' + p.name, 'restart', attrs + ' data-act="restart"', { focus: 'xp:' + row.key + ':restart', disabled: busy }) + '</div>' : '';
-            return '<li class="dm-srow" data-tone="' + tone + '"' + staleAttr(snap, row.hostId) + '><button type="button" class="dm-srow-main" data-action="show-project" data-project="' + esc(p.name) + '" data-snav="' + esc(row.key) + '" data-focus-id="srow:' + esc(row.key) + '" tabindex="-1">'
+            return '<li class="dm-srow" data-tone="' + tone + '"' + staleAttr(snap, row.hostId) + '><button type="button" class="dm-srow-main" data-action="open-project" data-host-id="' + esc(row.hostId) + '" data-project="' + esc(p.name) + '" data-snav="' + esc(row.key) + '" data-focus-id="srow:' + esc(row.key) + '" tabindex="-1"'
+                + (snap.state.project && snap.state.project.key === row.key && !snap.state.detail ? ' aria-current="true"' : '') + '>'
                 + dot(tone) + '<span class="dm-srow-text"><span class="dm-name-line"><span class="dm-name">' + esc(p.name) + '</span>' + (snap.multi ? chip(row.hostName, model.colorOf(row.hostColor)) : '')
                 + '</span><span class="dm-sub" title="' + esc(p.working_dir) + '">' + esc(sub) + '</span></span>' + portChips(p.ports) + '</button>' + actions + '</li>';
         }
@@ -160,10 +162,13 @@
             const ports = links.length ? '<span class="dm-svc-ports">' + links.map(link => (link.url
                 ? '<a class="dm-portlink" href="' + esc(link.url) + '" target="_blank" rel="noopener noreferrer" title="' + esc(link.url) + '">' + esc(link.label) + '</a>'
                 : '<span class="dm-port" title="' + esc(t('port_not_linked')) + '">' + esc(link.label) + '</span>')).join('') + '</span>' : '';
-            const open = service.container_id && snap.state.byHost[hostId] && snap.state.byHost[hostId].containers.some(c => c && c.id === service.container_id)
-                ? iconButton('open-service-container', t('svc_open_container', { name: service.name }), 'inspect', ' data-container-id="' + esc(service.container_id) + '"', { focus: 'svc:' + service.name }) : '';
+            // The service's container id may be the full one; the container list, the stream and its rings use the 12-character id.
+            const cid = String(service.container_id || '').slice(0, 12);
+            const open = cid && snap.state.byHost[hostId] && snap.state.byHost[hostId].containers.some(c => c && String(c.id).slice(0, 12) === cid)
+                ? iconButton('open-service-container', t('svc_open_container', { name: service.name }), 'inspect', ' data-container-id="' + esc(cid) + '"', { focus: 'svc:' + service.name }) : '';
+            const load = cid && state === 'running' ? '<span class="dm-svc-load" data-load="' + esc(hostId + '/' + cid) + '"></span>' : '';
             return '<li class="dm-svc" data-tone="' + tone + '">' + dot(tone) + '<div class="dm-svc-text"><span class="dm-name">' + esc(service.name) + '</span><span class="dm-sub" title="' + esc(service.image) + '">'
-                + esc([t('svc_state_' + state) + health + exit, model.shortImage(service.image)].filter(Boolean).join(' · ')) + '</span></div>' + ports + open + '</li>';
+                + esc([t('svc_state_' + state) + health + exit, model.shortImage(service.image)].filter(Boolean).join(' · ')) + '</span></div>' + load + ports + open + '</li>';
         }
 
         function overview(snap) {
@@ -216,7 +221,65 @@
             const panel = (tab, inner, hidden) => '<div role="tabpanel" class="dm-sd-panel" id="' + uid + '-spanel-' + tab + '" aria-labelledby="' + uid + '-stab-' + tab + '" data-panel="' + tab + '"' + (hidden ? ' hidden' : '') + '>' + inner + '</div>';
             return panel('overview', '<div class="dm-sd-overview" data-stack-overview></div>', stack.tab !== 'overview')
                 + panel('compose', bar('compose') + '<div class="dm-ed-surface" data-ed-surface="compose"></div>', stack.tab !== 'compose')
-                + panel('env', '<p class="dm-hint dm-env-note" data-env-note></p>' + bar('env') + '<div class="dm-ed-surface" data-ed-surface="env"></div>', stack.tab !== 'env');
+                + panel('env', '<p class="dm-hint dm-env-note" data-env-note></p>' + bar('env') + '<div class="dm-ed-surface" data-ed-surface="env"></div>', stack.tab !== 'env')
+                + panel('logs', '<div class="dm-mount" data-mount="logs"></div>', stack.tab !== 'logs')
+                + panel('terminal', '<div class="dm-mount" data-mount="terminal"></div>', stack.tab !== 'terminal');
+        }
+
+        // ---- the pane of an external compose project -------------------------------------------------------------------------
+
+        // The listing entry of the open project (GET /hosts/{h}/stacks, member "external"), or null once it is gone.
+        function projectOf(snap, project) {
+            const entry = snap.state.stacks[project.hostId], listing = entry && entry.listing;
+            return (listing && Array.isArray(listing.external) ? listing.external : []).find(item => item && item.name === project.name) || null;
+        }
+        // Its containers: the compose project name on that host, and the same working directory when the listing knows it.
+        function projectContainers(snap, project) {
+            const entry = snap.state.byHost[project.hostId], p = projectOf(snap, project);
+            return (entry && Array.isArray(entry.containers) ? entry.containers : []).filter(c => c && c.compose_project === project.name && (!p || !p.working_dir || !c.compose_working_dir || c.compose_working_dir === p.working_dir));
+        }
+
+        function projectHead(snap) {
+            const project = snap.state.project;
+            if (!project) return '';
+            const p = projectOf(snap, project), summary = p || { status: 'stopped' }, status = sm.stackStatusId(summary), tone = sm.STACK_TONE[status];
+            const host = snap.hosts.find(item => item.id === project.hostId) || { id: project.hostId, name: project.hostId };
+            const attrs = ' data-host-id="' + esc(project.hostId) + '" data-project="' + esc(project.name) + '"', busy = snap.state.busy.has(project.key);
+            const buttons = snap.canMutate && p ? iconButton('project-action', t('action_start') + ': ' + project.name, 'play', attrs + ' data-act="start"', { focus: 'pd:start', disabled: busy })
+                + iconButton('project-action', t('action_stop') + ': ' + project.name, 'stop', attrs + ' data-act="stop"', { focus: 'pd:stop', disabled: busy })
+                + iconButton('project-action', t('action_restart') + ': ' + project.name, 'restart', attrs + ' data-act="restart"', { focus: 'pd:restart', disabled: busy }) : '';
+            const tabs = sm.PROJECT_TABS.map(tab => '<button type="button" role="tab" class="dm-tab" id="' + uid + '-ptab-' + tab + '" data-action="project-tab" data-tab="' + tab + '" data-focus-id="ptab:' + tab + '" aria-selected="' + (project.tab === tab)
+                + '" aria-controls="' + uid + '-ppanel-' + tab + '" tabindex="' + (project.tab === tab ? '0' : '-1') + '">' + esc(t('stab_' + tab)) + '</button>').join('');
+            return '<header class="dm-sd-head"><div class="dm-sd-title">' + dot(tone) + '<h2 id="' + uid + '-stack-title">' + esc(project.name) + '</h2>' + chip(host.name, model.colorOf(host.color))
+                + '<span class="dm-sd-status">' + esc(p ? statusText(summary) : t('project_gone')) + '</span></div>'
+                + '<div class="dm-sd-actions">' + buttons + iconButton('close-project', t('drawer_close'), 'close', '', { focus: 'pd:close' }) + '</div>'
+                + (p && p.working_dir ? '<p class="dm-sd-meta" title="' + esc(p.working_dir) + '">' + esc(p.working_dir) + '</p>' : '') + '</header>'
+                + '<div class="dm-tabs" role="tablist" aria-label="' + esc(t('tabs_label')) + '">' + tabs + '</div>';
+        }
+
+        function projectShell(project) {
+            const panel = (tab, inner) => '<div role="tabpanel" class="dm-sd-panel" id="' + uid + '-ppanel-' + tab + '" aria-labelledby="' + uid + '-ptab-' + tab + '" data-panel="' + tab + '"' + (project.tab === tab ? '' : ' hidden') + '>' + inner + '</div>';
+            return panel('overview', '<div class="dm-sd-overview" data-project-overview></div>') + panel('logs', '<div class="dm-mount" data-mount="logs"></div>');
+        }
+
+        function projectRow(snap, project, c) {
+            const status = model.statusOf(c), name = model.containerName(c), key = project.hostId + '/' + model.containerId(c);
+            const ports = model.portItems(c.ports).filter(item => item.published).map(item => '<span class="dm-port">' + esc(item.label) + '</span>').join('');
+            const load = status.tone === 'ok' ? '<span class="dm-svc-load" data-load="' + esc(project.hostId + '/' + String(c.id).slice(0, 12)) + '"></span>' : '';
+            return '<li class="dm-svc" data-tone="' + status.tone + '">' + dot(status.tone) + '<div class="dm-svc-text"><span class="dm-name">' + esc(name) + '</span><span class="dm-sub" title="' + esc(c.image) + '">'
+                + esc([views.statusLabel(status), c.compose_service, model.shortImage(c.image)].filter(Boolean).join(' · ')) + '</span></div>' + load + (ports ? '<span class="dm-svc-ports">' + ports + '</span>' : '')
+                + iconButton('open-container', t('svc_open_container', { name }), 'inspect', ' data-row-key="' + esc(key) + '"', { focus: 'pc:' + c.id }) + '</li>';
+        }
+
+        function projectOverview(snap) {
+            const project = snap.state.project;
+            if (!project) return '';
+            const p = projectOf(snap, project), list = projectContainers(snap, project), parts = [];
+            parts.push('<p class="dm-note">' + glyph('folder') + '<span>' + esc(t('project_note')) + '</span></p>');
+            if (!list.length) parts.push('<p class="dm-muted">' + esc(p ? t('project_no_containers') : t('project_gone')) + '</p>');
+            else parts.push('<ul class="dm-svclist" aria-label="' + esc(t('nav_containers')) + '">' + list.map(c => projectRow(snap, project, c)).join('') + '</ul>');
+            parts.push(button('show-project', t('project_show_containers'), { glyph: 'containers', attrs: ' data-project="' + esc(project.name) + '"', focus: 'pd:show' }));
+            return parts.join('');
         }
 
         // Loading, failed or vanished stack: the pane says so instead of the shell.
@@ -230,7 +293,7 @@
                 + (gone ? '' : button('retry-stack', t('banner_retry'), { glyph: 'refresh' })) + '</div>';
         }
 
-        return { list, head, shell, overview, problem, statusText, ageText };
+        return { list, head, shell, overview, problem, statusText, ageText, projectOf, projectContainers, projectHead, projectShell, projectOverview };
     }
 
     window.DockerManagerStacks = { create, FILE_NAMES };

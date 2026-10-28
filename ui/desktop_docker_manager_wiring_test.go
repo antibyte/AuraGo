@@ -7,13 +7,13 @@ import (
 )
 
 // The loader, the shell routing, the window sizing and the generated main bundle know the Docker Manager app, and its
-// eleven modules load in the order they depend on each other. Behaviour is covered by scripts/test-docker-manager-ui.mjs
-// and TestDesktopDockerManagerBrowser.
+// sixteen modules load in the order they depend on each other, after the two xterm files the terminal panel needs (no WebGL
+// renderer). Behaviour is covered by scripts/test-docker-manager-ui.mjs and TestDesktopDockerManagerBrowser.
 func TestDockerManagerWiring(t *testing.T) {
 	t.Parallel()
 
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
-	entry := regexp.MustCompile(`'docker-manager': \{ styles: appStyles\('/css/desktop-app-docker-manager\.css'\), scripts: \[([^\]]*)\] \}`).FindStringSubmatch(loader)
+	entry := regexp.MustCompile(`'docker-manager': \{ styles: appStyles\('/css/xterm\.css', '/css/desktop-app-docker-manager\.css'\), scripts: \[([^\]]*)\] \}`).FindStringSubmatch(loader)
 	if entry == nil {
 		t.Fatal("module-loader.js must register the docker-manager assets")
 	}
@@ -22,11 +22,19 @@ func TestDockerManagerWiring(t *testing.T) {
 		scripts = append(scripts, match[1])
 	}
 	want := []string{
-		"docker-manager-model.js", "docker-manager-stack-model.js", "docker-manager-store.js", "docker-manager-views.js", "docker-manager-stacks.js", "docker-manager-editor.js",
-		"docker-manager-ops.js", "docker-manager-palette.js", "docker-manager-dialogs.js", "docker-manager-newstack.js", "docker-manager.js",
+		"docker-manager-model.js", "docker-manager-stack-model.js", "docker-manager-charts.js", "docker-manager-store.js", "docker-manager-live.js", "docker-manager-views.js",
+		"docker-manager-stacks.js", "docker-manager-editor.js", "docker-manager-ops.js", "docker-manager-logs.js", "docker-manager-terminal.js", "docker-manager-panes.js",
+		"docker-manager-palette.js", "docker-manager-dialogs.js", "docker-manager-newstack.js", "docker-manager.js",
 	}
 	if strings.Join(scripts, ",") != strings.Join(want, ",") {
 		t.Fatalf("docker-manager scripts = %v, want %v", scripts, want)
+	}
+	// The terminal panel needs xterm and its fit addon before the app modules; the WebGL renderer stays out.
+	if !strings.HasPrefix(strings.TrimSpace(entry[1]), "'/js/vendor/xterm.min.js', '/js/vendor/xterm-addon-fit.min.js', '/js/desktop/apps/docker-manager-model.js'") {
+		t.Fatalf("docker-manager must load xterm and the fit addon first: %s", entry[1])
+	}
+	if strings.Contains(entry[1], "webgl") {
+		t.Fatal("docker-manager must not load the xterm WebGL renderer")
 	}
 	if !strings.Contains(loader, "'docker-manager': ['docker_manager']") {
 		t.Fatal("module-loader.js must load the docker_manager translation section for the app")

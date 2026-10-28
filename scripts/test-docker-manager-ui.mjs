@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-store.js'];
+const files = ['docker-manager-model.js', 'docker-manager-stack-model.js', 'docker-manager-charts.js', 'docker-manager-store.js', 'docker-manager-live.js', 'docker-manager-logs.js', 'docker-manager-terminal.js'];
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 // The modules run in their own vm realm, so arrays and objects they return are compared as plain JSON.
@@ -458,11 +458,10 @@ const B = '/api/docker-manager';
 }
 
 {
-    // detail drawer: logs and inspect on demand, stale answers dropped
+    // detail drawer: inspect on demand, stale answers dropped; the log tab is a follow panel and fetches nothing here
     const api = fakeApi({
         ['GET ' + B + '/hosts']: { hosts: [hostA] },
         ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
-        ['GET ' + B + '/hosts/local/containers/' + 'web'.padEnd(64, '0') + '/logs']: (url) => ({ logs: 'line from ' + url.split('tail=')[1] }),
         ['GET ' + B + '/hosts/local/containers/' + 'web'.padEnd(64, '0') + '/inspect']: { inspect: { Id: 'x' } }
     });
     const store = Store.create({ api });
@@ -470,19 +469,14 @@ const B = '/api/docker-manager';
     const row = model.buildRows(store.state.hosts, store.state.byHost, 'all')[0];
     store.openDetail(row);
     assert.equal(store.state.detail.tab, 'overview');
-    assert.equal(api.count('GET ' + B + '/hosts/local/containers/' + 'web'.padEnd(64, '0') + '/logs'), 0, 'logs load only when the tab opens');
     store.setDetailTab('logs');
+    store.setDetailTab('terminal');
     await tick(); await tick();
-    assert.equal(store.state.detail.logs.status, 'ok');
-    assert.equal(store.state.detail.logs.text, 'line from 200');
-    await store.loadLogs(500);
-    assert.equal(store.state.detail.logs.text, 'line from 500');
-    await store.loadLogs(7);
-    assert.equal(store.state.detail.logs.text, 'line from 500', 'an unsupported tail keeps the current one');
+    eq([store.state.detail.tab, api.calls.filter(call => /inspect|logs|terminal/.test(call.url)).length], ['terminal', 0], 'the log and terminal tabs fetch nothing through the store');
     store.setDetailTab('inspect');
     await tick(); await tick();
     eq(plain(store.state.detail.inspect.data), { Id: 'x' });
-    const stale = store.loadLogs(100);
+    const stale = store.loadInspect();
     store.closeDetail();
     await stale;
     assert.equal(store.state.detail, null, 'closing the drawer drops a late answer');
@@ -800,7 +794,7 @@ const opFixture = (extra = {}) => ({ id: 'op_a1', host_id: 'local', stack: 'shop
         ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]),
         ['GET ' + B + '/operations']: { operations: [opFixture({ state: 'running' })] }, ['GET ' + B + '/operations/op_a1/stream']: {}
     });
-    const store = Store.create({ api, section: 'containers', eventSource: url => new FakeEventSource(url) });
+    const store = Store.create({ api, section: 'containers', live: false, eventSource: url => new FakeEventSource(url) });
     FakeEventSource.all = [];
     store.setVisible(true);
     await tick(); await tick(); await tick(); await tick();
@@ -1031,6 +1025,722 @@ eq(plain(model.totalCounts([hostA], { local: { containers: [null, container('a')
     store.dispose();
 }
 
+// ---- charts: pure SVG and text helpers -----------------------------------------------------------------------------------
+{
+    const charts = window.DockerManagerCharts;
+    assert.ok(charts, 'the charts module publishes its global');
+    eq([charts.bytes(0, 'en'), charts.bytes(1023, 'en'), charts.bytes(1536, 'en'), charts.bytes(10 * 1048576, 'en'), charts.bytes(2147483648, 'en')], ['0 B', '1023 B', '1.5 KB', '10 MB', '2.0 GB']);
+    eq([charts.bytes(-1), charts.bytes(NaN), charts.bytes(undefined), charts.bytes('x')], ['–', '–', '–', '–'], 'unknown sizes are an en dash');
+    eq([charts.percent(0.01, 'en'), charts.percent(3.24, 'en'), charts.percent(42.4, 'en'), charts.percent(250, 'en'), charts.percent(-1), charts.percent(null)], ['0%', '3.2%', '42%', '250%', '–', '–'], 'a percent keeps one decimal below 10, -1 is unknown');
+    eq(charts.series([{ cpu: 1 }, { cpu: -1 }, null, { cpu: 3 }], 'cpu'), [1, null, null, 3]);
+    assert.equal(charts.rate([{ t: 1000, net_rx: 100 }, { t: 3000, net_rx: 300 }], 'net_rx'), 100, 'bytes per second between the last two points');
+    assert.equal(charts.rate([{ t: 1000, net_rx: 500 }, { t: 3000, net_rx: 20 }], 'net_rx'), 0, 'a counter reset is no negative rate');
+    assert.equal(charts.rate([{ t: 1000, net_rx: 1 }], 'net_rx'), null, 'one point has no rate');
+
+    const flat = charts.sparkline([1, 2, 3], { width: 60, height: 20, label: 'CPU' });
+    assert.ok(flat.startsWith('<svg class="dm-spark"') && flat.includes('role="img"') && flat.includes('aria-label="CPU"') && flat.includes('class="dm-spark-line"') && flat.includes('class="dm-spark-area"'), 'a series draws a line and an area');
+    assert.ok(charts.sparkline([1, 2]).includes('aria-hidden="true"') && !charts.sparkline([1, 2]).includes('role="img"'), 'without a label the sparkline is decorative');
+    assert.ok(charts.sparkline([], {}).includes('is-empty') && charts.sparkline([null, -1], {}).includes('dm-spark-base'), 'no known value draws only the baseline');
+    assert.equal((charts.sparkline([1, 2, null, 3, 4], {}).match(/M/g) || []).length, 2 + 2, 'a gap splits the line (and its area) in two');
+    assert.ok(charts.sparkline([5], {}).includes('M') && !charts.sparkline([5], {}).includes('dm-spark-area'), 'a single point is a dot, not an area');
+    assert.ok(charts.sparkline([1], { label: 'a"b<c' }).includes('aria-label="a&quot;b&lt;c"'), 'the label is escaped');
+    // right-aligned in the window: the last point sits at the right edge, the first of three in a 60-slot window near the right
+    const aligned = charts.sparkline([0, 10], { width: 100, height: 10, max: 10, window: 60 }).match(/class="dm-spark-line" d="M([\d.]+) /);
+    assert.ok(aligned && Number(aligned[1]) > 95, 'a short series hugs the right edge of the window, got ' + (aligned && aligned[1]));
+    // values above max are clamped to the top
+    assert.ok(charts.sparkline([500], { height: 20, max: 100 }).includes(' 1.5'), 'a value above max is drawn at the top');
+
+    const meter = charts.gauge(42, 100, { label: 'CPU', unit: 'percent', lang: 'en' });
+    assert.ok(meter.includes('data-level="ok"') && meter.includes('role="meter"') && meter.includes('aria-valuenow="42"') && meter.includes('aria-valuetext="42%"') && meter.includes('width="42"'), 'a percent gauge fills to its share');
+    assert.ok(charts.gauge(80, 100, { label: 'x', unit: 'percent' }).includes('data-level="warn"') && charts.gauge(95, 100, { label: 'x', unit: 'percent' }).includes('data-level="bad"'), 'warn from 75 percent, bad from 90');
+    const memory = charts.gauge(1073741824, 4294967296, { label: 'RAM', unit: 'bytes', lang: 'en' });
+    assert.ok(memory.includes('1.0 GB / 4.0 GB') && memory.includes('width="25"'), 'a bytes gauge shows used and total');
+    const disk = charts.gauge(5368709120, 0, { label: 'Disk', unit: 'bytes', lang: 'en' });
+    assert.ok(disk.includes('data-level="plain"') && !disk.includes('<svg') && !disk.includes('role="meter"') && disk.includes('5.0 GB'), 'without a ceiling there is no bar, only the value');
+    assert.ok(charts.gauge(-1, 100, { label: 'CPU', unit: 'percent' }).includes('data-level="none"'), 'an unknown value has no level');
+    assert.ok(charts.gauge(1, 100, { label: '<b>', unit: 'percent' }).includes('&lt;b&gt;') && !charts.gauge(1, 100, { label: '<b>', unit: 'percent' }).includes('<b>'), 'labels are escaped');
+    assert.ok(charts.gauge(3, 10, { label: 'x', text: '3 of 10 shown' }).includes('3 of 10 shown'), 'text replaces the generated value text');
+
+    assert.equal(charts.loadCell([]), '', 'no points, no cell');
+    const cell = charts.loadCell([{ t: 1, cpu: 5, mem: 1048576 }, { t: 2, cpu: 12.4, mem: 2097152 }], { lang: 'en' });
+    assert.ok(cell.includes('>12%<') && cell.includes('>2.0 MB<') && (cell.match(/<svg/g) || []).length === 2, 'the cell has CPU and memory, each with a sparkline');
+    assert.ok(charts.loadCell([{ t: 1, cpu: -1, mem: 5 }], { lang: 'en' }).includes('>–<'), 'an unknown CPU shows a dash');
+    const young = charts.loadCell([{ t: 1, cpu: 1, mem: 1 }, { t: 2, cpu: 2, mem: 2 }, { t: 3, cpu: 3, mem: 3 }], { lang: 'en' }).match(/class="dm-spark-line" d="M([\d.]+) /);
+    assert.ok(young && Number(young[1]) < 45, 'a series of three points fills the sparkline instead of hugging the right edge, first x = ' + (young && young[1]));
+    assert.ok(Number(charts.loadCell(Array.from({ length: 60 }, (_, i) => ({ t: i, cpu: 1, mem: 1 })), { lang: 'en' }).match(/class="dm-spark-line" d="M([\d.]+) /)[1]) < 3, 'a full ring spans the whole width');
+}
+
+// ---- live stream client: fake EventSource, fake api, fake timers ---------------------------------------------------------
+function fakeTimers() {
+    let clock = 0, seq = 0;
+    const jobs = new Map();
+    return {
+        setTimeout: (fn, ms) => { const id = ++seq; jobs.set(id, { fn, at: clock + ms }); return id; },
+        clearTimeout: id => { jobs.delete(id); },
+        // Runs every timer due within `ms`, in order; a timer may arm the next one inside the window.
+        advance(ms) {
+            const end = clock + ms;
+            for (;;) {
+                const next = [...jobs].filter(([, job]) => job.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+                if (!next) break;
+                clock = next[1].at;
+                jobs.delete(next[0]);
+                next[1].fn();
+            }
+            clock = end;
+        },
+        now: () => clock,
+        pending: () => jobs.size
+    };
+}
+class FakeSource {
+    constructor(url, list) { this.url = url; this.handlers = {}; this.closed = false; list.push(this); }
+    addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); }
+    close() { this.closed = true; }
+    emit(type, data) { for (const fn of this.handlers[type] || []) fn({ data: typeof data === 'string' ? data : JSON.stringify(data) }); }
+    fail() { this.onerror?.(new Error('boom')); }
+}
+function liveHarness(extra = {}) {
+    const timers = fakeTimers(), sources = [], puts = [], log = [];
+    let putResult = () => ({ status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] });
+    const api = async (url, init) => {
+        puts.push({ url, method: init.method, body: JSON.parse(init.body) });
+        return putResult(init);
+    };
+    const live = window.DockerManagerLive.create({
+        api, eventSource: url => new FakeSource(url, sources), now: timers.now, setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout,
+        onConnection: (up, info) => log.push(['connection', up, !!(info && info.resumed)]), onStatus: (host, status) => log.push(['status', host, status.state]),
+        onEvent: ev => log.push(['event', ev.action]), onResync: ev => log.push(['resync', ev.host, ev.reason]), onOperation: (host, op) => log.push(['operation', host, op.id]),
+        onStats: (host, id, ring) => log.push(['stats', host, id, ring.length]), onHostStats: (host, data) => log.push(['host_stats', host, data.cpu]),
+        ...extra
+    });
+    return { live, timers, sources, puts, log, setPut: fn => { putResult = fn; } };
+}
+const hello = (source, id = 's'.repeat(32)) => source.emit('hello', { stream_id: id, heartbeat_ms: 15000, limits: { stats_ids: 50, hosts: 20 } });
+const point = (t, cpu = 1, mem = 100) => ({ t, cpu, mem, mem_limit: 1000, net_rx: 0, net_tx: 0, blk_r: 0, blk_w: 0, pids: 1 });
+
+{
+    // hello names the stream; a wish made before it is sent at once, one request
+    const h = liveHarness();
+    h.live.start();
+    eq(h.sources.map(s => s.url), [B + '/stream']);
+    h.live.setWant({ hosts: ['local'], stats: { local: ['abcdef0123456789zz'] }, hostStats: ['local'] });
+    h.timers.advance(1000);
+    assert.equal(h.puts.length, 0, 'nothing is sent before the stream has a name');
+    hello(h.sources[0]);
+    await tick();
+    assert.equal(h.live.connected(), true);
+    assert.equal(h.live.streamId(), 's'.repeat(32));
+    eq(h.puts.map(p => [p.method, p.url, p.body]), [['PUT', B + '/stream/subscriptions', { stream_id: 's'.repeat(32), hosts: ['local'], stats: { local: ['abcdef012345'] }, host_stats: ['local'] }]], 'container ids are cut to the 12-character short id');
+    eq(h.log.filter(entry => entry[0] === 'connection'), [['connection', true, false]]);
+    // changes are collected for 250 ms and sent once; the same wish again sends nothing
+    h.live.setWant({ hosts: ['local', 'nas'] });
+    h.live.setWant({ hosts: ['local', 'nas'], stats: { nas: ['n1'] } });
+    h.timers.advance(249);
+    await tick();
+    assert.equal(h.puts.length, 1, 'still debouncing');
+    h.timers.advance(2);
+    await tick();
+    assert.equal(h.puts.length, 2);
+    eq(h.puts[1].body, { stream_id: 's'.repeat(32), hosts: ['local', 'nas'], stats: { nas: ['n1'] }, host_stats: [] });
+    h.live.setWant({ hosts: ['nas', 'local'], stats: { nas: ['n1'] } });
+    h.timers.advance(1000);
+    await tick();
+    assert.equal(h.puts.length, 2, 'the same wish in another order is no change');
+    h.live.stop();
+    assert.equal(h.sources[0].closed, true);
+    assert.equal(h.timers.pending(), 0, 'stop clears every timer');
+}
+
+{
+    // limits: 50 containers per host and 20 hosts; duplicates and blanks go; the rest keep their order
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    const ids = Array.from({ length: 60 }, (_, i) => 'c' + String(i).padStart(11, '0'));
+    const hosts = Array.from({ length: 25 }, (_, i) => 'h' + i);
+    h.live.setWant({ hosts: hosts.concat(['h1', '']), stats: { h0: ids.concat(ids[0]), empty: [] }, hostStats: ['h0', 'h0'] });
+    h.timers.advance(300);
+    await tick();
+    eq([h.puts[0].body.hosts.length, h.puts[0].body.stats.h0.length, h.puts[0].body.stats.h0[0], Object.keys(h.puts[0].body.stats), h.puts[0].body.host_stats], [20, 50, ids[0], ['h0'], ['h0']]);
+    h.live.stop();
+}
+
+{
+    // messages: status, event, resync and operation go to the callbacks; the status of a host is kept
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    const s = h.sources[0];
+    s.emit('host_status', { host: 'local', state: 'live', reason: '', t: 5 });
+    s.emit('event', { host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'web-1', project: '', service: '', t: 6 });
+    s.emit('resync', { host: 'local', reason: 'reconnect' });
+    s.emit('operation', { host: 'local', operation: { id: 'op_1', state: 'running' } });
+    s.emit('host_stats', { host: 'local', t: 9, cpu: 12.5, ncpu: 8, mem_used: 1, mem_total: 2, running: 3, sampled: 3, partial: false });
+    s.emit('event', '{not json');
+    eq(h.log.slice(1), [['status', 'local', 'live'], ['event', 'die'], ['resync', 'local', 'reconnect'], ['operation', 'local', 'op_1'], ['host_stats', 'local', 12.5]]);
+    eq([h.live.status('local').state, h.live.status('nas'), h.live.hostStats('local').cpu, h.live.hostStats('nas')], ['live', null, 12.5, null]);
+    h.live.stop();
+}
+
+{
+    // stats: a ring of 60 points per wanted container; old or repeated points are ignored; history replaces; gone clears
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    const s = h.sources[0];
+    h.live.setWant({ hosts: ['local'], stats: { local: ['aaaaaaaaaaaa'] } });
+    s.emit('stats', { host: 'local', id: 'bbbbbbbbbbbb', point: point(1) });
+    assert.equal(h.live.ring('local', 'bbbbbbbbbbbb').length, 0, 'a container nobody asked for is ignored');
+    for (let t = 1; t <= 70; t += 1) s.emit('stats', { host: 'local', id: 'aaaaaaaaaaaa', point: point(t) });
+    s.emit('stats', { host: 'local', id: 'aaaaaaaaaaaa', point: point(70) });
+    s.emit('stats', { host: 'local', id: 'aaaaaaaaaaaa', point: point(3) });
+    const ring = h.live.ring('local', 'aaaaaaaaaaaa');
+    eq([ring.length, ring[0].t, ring[59].t], [60, 11, 70], 'sixty points, the oldest dropped, a repeated or older point ignored');
+    s.emit('stats_history', { host: 'local', id: 'aaaaaaaaaaaa', points: [point(100), point(101), point(102)] });
+    eq(h.live.ring('local', 'aaaaaaaaaaaa').map(p => p.t), [100, 101, 102], 'the history replaces the ring');
+    s.emit('stats_gone', { host: 'local', id: 'aaaaaaaaaaaa' });
+    assert.equal(h.live.ring('local', 'aaaaaaaaaaaa').length, 0);
+    eq(h.log.filter(entry => entry[0] === 'stats').slice(-1), [['stats', 'local', 'aaaaaaaaaaaa', 0]], 'gone is reported as an empty ring');
+    // dropping a container from the wish frees its ring
+    s.emit('stats_history', { host: 'local', id: 'aaaaaaaaaaaa', points: [point(1)] });
+    h.live.setWant({ hosts: ['local'] });
+    assert.equal(h.live.ring('local', 'aaaaaaaaaaaa').length, 0);
+    h.live.stop();
+}
+
+{
+    // a broken stream is closed and opened again after 1, 2, 4 s; the wish is sent again on the new stream; hello resets the delay
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0], 'a'.repeat(32));
+    h.live.setWant({ hosts: ['local'] });
+    h.timers.advance(300);
+    await tick();
+    h.sources[0].emit('host_status', { host: 'local', state: 'live' });
+    h.sources[0].fail();
+    assert.equal(h.sources[0].closed, true, 'the browser retry is not used');
+    eq([h.live.connected(), h.live.failed(), h.live.status('local'), h.sources.length], [false, true, null, 1]);
+    h.timers.advance(999);
+    assert.equal(h.sources.length, 1);
+    h.timers.advance(2);
+    assert.equal(h.sources.length, 2, 'first retry after 1 s');
+    h.sources[1].fail();
+    h.timers.advance(1999);
+    assert.equal(h.sources.length, 2);
+    h.timers.advance(2);
+    assert.equal(h.sources.length, 3, 'second retry after 2 s');
+    hello(h.sources[2], 'b'.repeat(32));
+    await tick();
+    eq(h.puts.map(p => p.body.stream_id), ['a'.repeat(32), 'b'.repeat(32)], 'the wish is sent again to the new stream');
+    eq(h.log.filter(entry => entry[0] === 'connection'), [['connection', true, false], ['connection', false, false], ['connection', true, true]], 'one report per change; the second hello is a resume');
+    h.sources[2].fail();
+    h.timers.advance(1001);
+    assert.equal(h.sources.length, 4, 'after a hello the delay starts at 1 s again');
+    h.live.stop();
+}
+
+{
+    // the backoff stops at 30 s
+    const h = liveHarness();
+    h.live.start();
+    for (let i = 0; i < 9; i += 1) { h.sources[h.sources.length - 1].fail(); h.timers.advance(31000); }
+    assert.equal(h.sources.length, 10);
+    h.sources[9].fail();
+    h.timers.advance(29999);
+    assert.equal(h.sources.length, 10);
+    h.timers.advance(2);
+    assert.equal(h.sources.length, 11, 'never longer than 30 s');
+    h.live.stop();
+}
+
+{
+    // unknown stream (404 stream_not_found) and a dropped slow client both reconnect; rejected hosts are kept
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    h.setPut(() => { throw Object.assign(new Error('gone'), { status: 404, body: { code: 'stream_not_found' } }); });
+    h.live.setWant({ hosts: ['local'] });
+    h.timers.advance(300);
+    await tick();
+    assert.equal(h.sources[0].closed, true, 'an unknown stream is replaced');
+    h.timers.advance(1001);
+    assert.equal(h.sources.length, 2);
+    h.setPut(() => ({ status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [{ host: 'ghost', reason: 'unknown_host' }] }));
+    hello(h.sources[1]);
+    await tick();
+    eq(h.live.rejected(), [{ host: 'ghost', reason: 'unknown_host' }]);
+    h.sources[1].emit('dropped', { reason: 'slow_client' });
+    eq([h.live.connected(), h.live.failed(), h.sources[1].closed], [false, true, true]);
+    h.live.stop();
+}
+
+{
+    // another request error is tried again a few times, then left alone until the wish changes
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    let calls = 0;
+    h.setPut(() => { calls += 1; throw Object.assign(new Error('x'), { status: 500, body: { code: 'internal_error' } }); });
+    h.live.setWant({ hosts: ['local'] });
+    for (let i = 0; i < 10; i += 1) { h.timers.advance(3500); await tick(); }
+    assert.equal(calls, 4, 'one request and three retries');
+    assert.equal(h.live.connected(), true, 'a failed subscription does not close the stream');
+    h.live.stop();
+}
+
+{
+    // watchdog: EventSource shows no heartbeat comments, so a silent stream is asked whether the server still has it
+    const h = liveHarness();
+    h.live.start();
+    hello(h.sources[0]);
+    await tick();
+    h.timers.advance(44000);
+    await tick();
+    eq([h.puts.length, h.live.connected()], [0, true], 'nothing before three heartbeats (45 s) have passed');
+    h.sources[0].emit('event', { host: 'local', type: 'container', action: 'start' });
+    h.timers.advance(44000);
+    await tick();
+    eq([h.puts.length, h.live.connected()], [0, true], 'every message starts the window again');
+    h.timers.advance(1001);
+    await tick();
+    eq([h.puts.length, h.puts[0].body.stream_id, h.live.connected()], [1, 's'.repeat(32), true], 'a silent stream is asked whether the server still knows it, and an answer keeps it');
+    h.timers.advance(45001);
+    await tick();
+    assert.equal(h.puts.length, 2, 'and the next window starts');
+    // the server lost the stream: the probe is answered 404 and the stream is reopened with the usual backoff
+    h.setPut(() => { throw Object.assign(new Error('gone'), { status: 404, body: { code: 'stream_not_found' } }); });
+    h.timers.advance(45001);
+    await tick();
+    eq([h.live.connected(), h.live.failed()], [false, true]);
+    h.timers.advance(1001);
+    assert.equal(h.sources.length, 2);
+    // an answer that never comes counts as lost after 10 s
+    h.setPut(init => new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))));
+    hello(h.sources[1], 'c'.repeat(32));
+    await tick();
+    h.timers.advance(45001);
+    await tick();
+    assert.equal(h.live.connected(), true, 'still waiting for the answer');
+    h.timers.advance(10001);
+    await tick();
+    eq([h.live.connected(), h.live.failed()], [false, true], 'no answer within 10 s');
+    h.live.stop();
+    assert.equal(h.timers.pending(), 0, 'stop clears the watchdog');
+    // the window follows the heartbeat of the server: three times, at least 45 s
+    const slow = liveHarness();
+    slow.live.start();
+    slow.sources[0].emit('hello', { stream_id: 'd'.repeat(32), heartbeat_ms: 30000, limits: {} });
+    await tick();
+    slow.timers.advance(89000);
+    await tick();
+    assert.equal(slow.puts.length, 0);
+    slow.timers.advance(1001);
+    await tick();
+    assert.equal(slow.puts.length, 1);
+    slow.live.stop();
+}
+
+{
+    // an empty wish is not sent at all, and neither is a stop that never started
+    const h = liveHarness();
+    h.live.stop();
+    h.live.start();
+    h.live.start();
+    assert.equal(h.sources.length, 1, 'start twice opens one stream');
+    hello(h.sources[0]);
+    h.live.setWant({});
+    h.timers.advance(1000);
+    await tick();
+    assert.equal(h.puts.length, 0);
+    h.live.stop();
+    h.sources[0].emit('host_status', { host: 'local', state: 'live' });
+    assert.equal(h.live.status('local'), null, 'a stopped client ignores late messages');
+}
+
+// ---- model and stack model: terminal state, tabs, palette commands for logs and terminals ---------------------------------
+{
+    const web = container('web'), stopped = container('old', { state: 'exited', status: 'Exited (0) 1 hour ago' }), helper = container('aurago-dm-op-1', { aurago_helper: 'runner', protected_owner: 'docker_manager' });
+    eq([model.terminalState(web), model.terminalState(stopped), model.terminalState(helper), model.terminalState(null)], ['ok', 'not_running', 'helper', 'not_running'], 'a shell needs a running container that is no helper');
+    eq(sm.STACK_TABS, ['overview', 'compose', 'env', 'logs', 'terminal']);
+    eq(sm.PROJECT_TABS, ['overview', 'logs']);
+    eq([model.reasonCode('host_not_found'), model.reasonCode('weird'), model.REASONS.includes('host_not_found')], ['host_not_found', 'unknown', true], 'a host deleted while it was watched has its own reason');
+    const hs = [{ id: 'local', name: 'Local' }];
+    const stackRows = [{ key: 'local/shop', hostId: 'local', hostName: 'Local', stack: { name: 'shop', status: 'running' } }];
+    const containers = model.buildRows(hs, { local: { containers: [web, stopped, helper] } }, 'all');
+    const label = (action, params) => action + ':' + (params.name || params.stack || params.host || '');
+    const data = { hosts: hs, stackRows, containers, logs: true, canTerminal: true, canMutate: true, multi: false, hostStates: { local: 'ok' }, scope: 'local', label };
+    const items = sm.paletteItems(data);
+    eq(items.map(item => item.id), [
+        'open:local/shop', 'logs:local/shop', 'deploy:local/shop', 'restart:local/shop', 'stop:local/shop', 'new:local', 'refresh',
+        'clogs:local/' + 'web'.padEnd(64, '0'), 'term:local/' + 'web'.padEnd(64, '0'), 'clogs:local/' + 'old'.padEnd(64, '0'), 'clogs:local/' + 'aurago-dm-op-1'.padEnd(64, '0')
+    ], 'Logs for every stack and container, Terminal only for running containers that are no helpers');
+    eq(items.slice(7).map(item => [item.action, item.label, item.hostId]), [['logs_container', 'logs:web', 'local'], ['terminal', 'terminal:web', 'local'], ['logs_container', 'logs:old', 'local'], ['logs_container', 'logs:aurago-dm-op-1', 'local']]);
+    eq(items[1].label, 'logs:shop');
+    eq(sm.paletteItems(Object.assign({}, data, { canMutate: false })).filter(item => item.action === 'terminal'), [], 'a read-only window gets no Terminal command');
+    eq(sm.paletteItems(Object.assign({}, data, { containers: undefined, logs: false })).map(item => item.action), ['open', 'update', 'restart', 'stop', 'new_stack', 'refresh'], 'without the new data the palette is what it was');
+    eq(sm.paletteItems(Object.assign({}, data, { multi: true })).filter(item => item.action === 'logs_container')[0].label, 'logs:web (Local)', 'several hosts: the host is part of the name');
+}
+
+// ---- store: live stream -----------------------------------------------------------------------------------------------------
+{
+    const sources = [], timers = fakeTimers();
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA, hostB] },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [container('web')] },
+        ['GET ' + B + '/hosts/h_nas/containers']: { containers: [container('media')] },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([stackFixture('shop')]),
+        ['GET ' + B + '/hosts/h_nas/stacks']: listingBody([]),
+        ['GET ' + B + '/hosts/local/stacks/shop']: { stack: detailFixture() },
+        ['GET ' + B + '/operations']: { operations: [] },
+        ['GET ' + B + '/operations/op_a1/stream']: {},
+        ['PUT ' + B + '/stream/subscriptions']: { status: 'ok', accepted: { hosts: 1, stats: 0, host_stats: 0 }, rejected: [] }
+    });
+    const store = Store.create({ api, section: 'stacks', eventSource: url => new FakeSource(url, sources), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, reloadMs: 300 });
+    const n = key => api.count(key), C = 'GET ' + B + '/hosts/local/containers', S = 'GET ' + B + '/hosts/local/stacks', H = 'GET ' + B + '/hosts';
+    assert.equal(store.liveStatus('local'), 'off', 'no stream before the window is visible');
+    store.setVisible(true);
+    for (let i = 0; i < 8; i += 1) await tick();
+    eq(sources.map(s => s.url), [B + '/stream'], 'a visible window opens the stream');
+    hello(sources[0]);
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 1 });
+    sources[0].emit('host_status', { host: 'h_nas', state: 'connecting', reason: '', t: 1 });
+    eq([store.liveStatus('local'), store.liveStatus('h_nas'), store.state.live.connected], ['live', 'connecting', true]);
+    // the hosts in scope are subscribed (events and status); no gauges while all hosts are shown
+    timers.advance(300);
+    await tick();
+    eq(api.calls.filter(call => call.method === 'PUT').pop().body, { stream_id: 's'.repeat(32), hosts: ['local', 'h_nas'], stats: {}, host_stats: [] });
+
+    // a live host is read again only after about a minute; any other host on every tick
+    const containersBefore = n(C), nasBefore = n('GET ' + B + '/hosts/h_nas/containers');
+    store.pollOnce();
+    await tick(); await tick();
+    eq([n(C) - containersBefore, n('GET ' + B + '/hosts/h_nas/containers') - nasBefore], [0, 1], 'a live host is skipped by the 5 s poll, a connecting host is not');
+    store.state.byHost.local.at = Date.now() - 58000;
+    store.state.stacks.local.at = Date.now() - 58000;
+    store.pollOnce();
+    await tick(); await tick();
+    eq([n(C) - containersBefore, n(S) > 1], [1, true], 'the safety poll of a live host runs once its data is a minute old');
+
+    // events: one reload per host and 300 ms however many events come; other types and other hosts are ignored
+    const reloadBase = n(C), stacksBase = n(S);
+    const die = (extra = {}) => ({ host: 'local', type: 'container', action: 'die', id: 'x'.repeat(64), short_id: 'x'.repeat(12), name: 'web-1', project: '', service: '', t: 5, ...extra });
+    sources[0].emit('event', die()); sources[0].emit('event', die({ action: 'start' })); sources[0].emit('event', die({ action: 'health_status', health: 'healthy' }));
+    sources[0].emit('event', die({ type: 'image', action: 'pull' }));
+    sources[0].emit('event', die({ host: 'elsewhere' }));
+    timers.advance(299);
+    await tick();
+    assert.equal(n(C), reloadBase, 'nothing before the delay is over');
+    timers.advance(2);
+    await tick(); await tick();
+    eq([n(C) - reloadBase, n(S) - stacksBase], [1, 1], 'three container events make one reload of the containers and one of the stacks');
+    store.setSection('containers');
+    await tick(); await tick();
+    const switchedC = n(C), stacksFixed = n(S);
+    sources[0].emit('event', die());
+    timers.advance(400);
+    await tick(); await tick();
+    eq([n(C) - switchedC, n(S) - stacksFixed], [1, 0], 'the Containers section does not reload the stacks');
+    store.setSection('stacks');
+    await tick(); await tick();
+
+    // an event of the open stack's project reloads that stack; a resync reloads it whatever the project
+    store.openStack('local', 'shop', 'overview');
+    await tick(); await tick();
+    const stackBase = n('GET ' + B + '/hosts/local/stacks/shop');
+    sources[0].emit('event', die({ project: 'other' }));
+    timers.advance(400);
+    await tick(); await tick();
+    assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 0, 'an event of another project leaves the open stack alone');
+    sources[0].emit('event', die({ project: 'shop' }));
+    timers.advance(400);
+    await tick(); await tick();
+    assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 1);
+    sources[0].emit('resync', { host: 'local', reason: 'reconnect' });
+    timers.advance(400);
+    await tick(); await tick();
+    assert.equal(n('GET ' + B + '/hosts/local/stacks/shop') - stackBase, 2, 'a resync reloads the open stack too');
+    store.closeStack();
+
+    // operation messages join the drawer and are followed through their own stream
+    sources[0].emit('operation', { host: 'local', operation: opFixture({ state: 'running' }) });
+    eq([store.state.ops.length, store.state.ops[0].op.state, sources.filter(s => s.url.endsWith('/operations/op_a1/stream')).length], [1, 'running', 1]);
+
+    // stats and host stats reach their own listeners and never repaint the app
+    let repaints = 0;
+    store.subscribe(() => { repaints += 1; });
+    const seen = [];
+    const off1 = store.onStats((host, id, points) => seen.push(['stats', host, id, points.length]));
+    const off2 = store.onHostStats((host, data) => seen.push(['host', host, data.cpu]));
+    store.setLiveStats({ local: ['abcdef012345ffff'], elsewhere: ['zzz'] });
+    timers.advance(300);
+    await tick();
+    eq(api.calls.filter(call => call.method === 'PUT').pop().body.stats, { local: ['abcdef012345'] }, 'only containers of hosts in scope are subscribed, cut to the short id');
+    repaints = 0;
+    sources[0].emit('stats', { host: 'local', id: 'abcdef012345', point: point(1, 4) });
+    sources[0].emit('host_stats', { host: 'local', t: 1, cpu: 7, ncpu: 2, mem_used: 1, mem_total: 2, running: 1, sampled: 1, partial: false });
+    eq(seen, [['stats', 'local', 'abcdef012345', 1], ['host', 'local', 7]]);
+    assert.equal(repaints, 0, 'stats do not repaint the app');
+    eq([store.liveRing('local', 'abcdef012345').length, store.liveHostStats('local').cpu], [1, 7]);
+    off1(); off2();
+    sources[0].emit('stats', { host: 'local', id: 'abcdef012345', point: point(2, 5) });
+    assert.equal(seen.length, 2, 'a removed listener hears nothing');
+
+    // gauges are asked for under a single host
+    store.setScope('local');
+    timers.advance(300);
+    await tick();
+    eq(api.calls.filter(call => call.method === 'PUT').pop().body.host_stats, ['local']);
+    store.setScope('all');
+    await tick(); await tick();
+
+    // paused host: the 5 s poll is back and the status says so
+    sources[0].emit('host_status', { host: 'local', state: 'paused', reason: '', t: 9 });
+    assert.equal(store.liveStatus('local'), 'paused');
+    const pausedBase = n(C);
+    store.pollOnce();
+    await tick(); await tick();
+    assert.equal(n(C) - pausedBase, 1, 'a paused host is polled on every tick again');
+    sources[0].emit('host_status', { host: 'local', state: 'live', reason: '', t: 10 });
+
+    // the stream breaks: every host is paused, and the reconnect reads everything once
+    sources[0].fail();
+    eq([store.state.live.failed, store.liveStatus('local'), store.liveStatus('h_nas')], [true, 'paused', 'paused']);
+    const downBase = n(C);
+    timers.advance(1001);
+    assert.equal(sources.filter(s => s.url === B + '/stream').length, 2);
+    hello(sources[sources.length - 1], 'r'.repeat(32));
+    await tick(); await tick();
+    eq([store.state.live.failed, store.state.live.connected, n(C) - downBase >= 1], [false, true, true], 'the reconnect reloads what may have changed meanwhile');
+
+    // hiding the window ends the stream
+    store.setVisible(false);
+    assert.equal(sources[sources.length - 1].closed, true);
+    eq([store.liveStatus('local'), store.state.live.connected], ['off', false]);
+    store.dispose();
+}
+
+{
+    // no live client: without EventSource nothing is opened and the 5 s poll stays what it was
+    const api = fakeApi({ ['GET ' + B + '/hosts']: { hosts: [hostA] }, ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/local/stacks']: listingBody([]), ['GET ' + B + '/operations']: { operations: [] } });
+    const store = Store.create({ api, eventSource: null, live: false });
+    store.setVisible(true);
+    for (let i = 0; i < 6; i += 1) await tick();
+    assert.equal(store.liveStatus('local'), 'off');
+    const before = api.count('GET ' + B + '/hosts/local/containers');
+    store.pollOnce();
+    await tick(); await tick();
+    assert.equal(api.count('GET ' + B + '/hosts/local/containers') - before, 1);
+    store.setLiveStats({ local: ['a'] });
+    assert.deepEqual(plain(store.liveRing('local', 'a')), []);
+    store.dispose();
+}
+
+// ---- store: disk usage, external project, terminal diagnosis --------------------------------------------------------------
+{
+    let mode = 'ok';
+    const df = { images: { count: 3, active: 2, size: 1000, reclaimable: 100 }, containers: { count: 2, active: 1, size: 10, reclaimable: 0 }, volumes: { count: 1, active: 1, size: 500, reclaimable: 0 }, build_cache: { count: 0, active: 0, size: 0, reclaimable: 0 }, total: 1510 };
+    const api = fakeApi({
+        ['GET ' + B + '/hosts']: { hosts: [hostA, hostB] },
+        ['GET ' + B + '/hosts/local/containers']: { containers: [] }, ['GET ' + B + '/hosts/h_nas/containers']: { containers: [] },
+        ['GET ' + B + '/hosts/local/stacks']: listingBody([]), ['GET ' + B + '/hosts/h_nas/stacks']: listingBody([]), ['GET ' + B + '/operations']: { operations: [] },
+        ['GET ' + B + '/hosts/local/df']: () => { if (mode === 'fail') throw httpError(502, { code: 'host_unreachable', reason: 'timeout', message: 'slow' }); return { status: 'ok', df, fetched_at: '2026-10-28T10:00:00Z', cached: mode === 'cached' }; },
+        ['GET ' + B + '/hosts/local/containers/ruview/terminal']: () => { throw httpError(409, { code: 'container_protected_confirmation_required', owner: 'ruview', message: 'confirm' }); },
+        ['GET ' + B + '/hosts/local/containers/ro/terminal']: () => { throw httpError(403, { code: 'read_only', message: 'read only' }); },
+        ['GET ' + B + '/hosts/local/containers/odd/terminal']: {}
+    });
+    const store = Store.create({ api, scope: 'local', section: 'containers', live: false });
+    await store.refresh();
+    const D = 'GET ' + B + '/hosts/local/df';
+    eq([api.count(D), store.state.df.local.status, store.state.df.local.df.total, store.state.df.local.cached], [1, 'ok', 1510, false], 'a single host scope reads its disk usage once');
+    await store.refresh();
+    assert.equal(api.count(D), 1, 'a fresh reading is not read again');
+    mode = 'cached';
+    await store.loadDf('local', { refresh: true });
+    eq([api.calls.filter(call => call.key === D).pop().url, store.state.df.local.cached], [B + '/hosts/local/df?refresh=1', true], 'the gauge refresh asks the server to read again');
+    mode = 'fail';
+    await store.loadDf('local', { refresh: true });
+    eq([store.state.df.local.status, store.state.df.local.df.total, store.state.df.local.error.code, store.state.df.local.busy], ['ok', 1510, 'host_unreachable', false], 'a failed reading keeps the last numbers and records the error');
+    store.setScope('all');
+    const allBase = api.count(D);
+    await store.refresh();
+    assert.equal(api.count(D), allBase, 'all hosts have no gauge and read no disk usage');
+    store.dispose();
+
+    // the external project pane and the stack pane exclude each other; tabs are checked
+    const store2 = Store.create({ api, live: false, scope: 'all' });
+    await store2.refresh();
+    store2.openProject('local', 'legacy', 'logs');
+    eq([store2.state.project.key, store2.state.project.tab], ['x:local/legacy', 'logs']);
+    store2.setProjectTab('compose');
+    assert.equal(store2.state.project.tab, 'logs', 'an unknown tab is ignored');
+    store2.openStack('local', 'shop', 'overview');
+    eq([store2.state.project, store2.state.stack.key], [null, 'local/shop'], 'opening a stack closes the project pane');
+    store2.openProject('local', 'legacy');
+    eq([store2.state.stack, store2.state.project.tab], [null, 'overview'], 'opening a project closes the stack pane');
+    store2.closeProject();
+    assert.equal(store2.state.project, null);
+    store2.dispose();
+
+    // a refused terminal handshake is explained by a plain GET
+    const store3 = Store.create({ api, live: false });
+    const protectedInfo = await store3.diagnoseTerminal('local', 'ruview');
+    eq([protectedInfo.code, protectedInfo.data.owner], ['container_protected_confirmation_required', 'ruview']);
+    const readonlyInfo = await store3.diagnoseTerminal('local', 'ro');
+    eq([readonlyInfo.code, store3.state.dockerReadonly], ['read_only', true], 'a read_only answer switches the app to read-only');
+    assert.equal(await store3.diagnoseTerminal('local', 'odd'), null, 'an answer without an error is no diagnosis');
+    store3.dispose();
+}
+
+// ---- logs: the model of the follow panel ------------------------------------------------------------------------------------
+{
+    const Logs = window.DockerManagerLogs;
+    assert.ok(Logs && typeof Logs.create === 'function', 'the logs module publishes its global');
+    const ESC = String.fromCharCode(27);
+    eq([Logs.cleanText(ESC + '[31mred' + ESC + '[0m text'), Logs.cleanText('50%\r75%\r100%'), Logs.cleanText('line\r'), Logs.cleanText(null)], ['red text', '100%', 'line', ''], 'colour codes go, a progress bar keeps its last state');
+    const stamp = (n, extra = {}) => ({ t: '2026-10-28T07:33:' + String(n).padStart(2, '0') + '.123456789Z', s: 'out', text: 'line ' + n, trunc: false, ...extra });
+
+    {
+        const m = Logs.createModel({ max: 5 });
+        const first = m.append([stamp(1), stamp(2, { s: 'err' }), stamp(3)]);
+        eq([first.added.length, first.shown, first.dropped.length, m.count()], [3, 3, 0, 3]);
+        assert.equal(m.all()[1].s, 'err', 'the stderr flag is kept');
+        const second = m.append([stamp(4), stamp(5), stamp(6), stamp(7)]);
+        eq([second.dropped.map(e => e.text), m.all().map(e => e.text)], [['line 1', 'line 2'], ['line 3', 'line 4', 'line 5', 'line 6', 'line 7']], 'the ring keeps the newest lines and reports what fell off');
+        assert.equal(m.lastTime(), stamp(7).t, 'since is the time of the newest line');
+        m.setQuery('  LINE 5 ');
+        eq(m.visible().map(e => e.text), ['line 5'], 'the filter ignores case and surrounding blanks');
+        eq([m.append([stamp(8)]).shown, m.visible().length], [0, 1], 'a new line that does not match the filter is not shown');
+        m.setQuery('');
+        m.clear();
+        eq([m.count(), m.lastTime()], [0, stamp(8).t], 'clear empties the screen but remembers where the stream stood');
+        m.reset();
+        eq([m.count(), m.lastTime()], [0, ''], 'reset forgets the resume point too');
+        assert.equal(Logs.createModel().max, 5000, 'the ring holds 5000 lines');
+    }
+    {
+        // services: the filter, the names seen so far, a text filter that also matches the service
+        const m = Logs.createModel();
+        m.append([stamp(1, { svc: 'web', ctr: 'aaaaaaaaaaaa' }), stamp(2, { svc: 'db', ctr: 'bbbbbbbbbbbb', text: 'ready' }), stamp(3, { svc: 'web', ctr: 'aaaaaaaaaaaa' })]);
+        eq(m.services(), ['web', 'db']);
+        assert.equal(m.toggleService('db'), false);
+        eq(m.visible().map(e => e.svc), ['web', 'web'], 'a hidden service is not shown');
+        assert.equal(m.serviceShown('db'), false);
+        assert.equal(m.toggleService('db'), true);
+        m.setQuery('db');
+        eq(m.visible().map(e => e.text), ['ready'], 'the filter matches the service name');
+        m.setQuery('');
+        eq(m.text().split('\n'), ['[web] line 1', '[db] ready', '[web] line 3'], 'copy gives the visible lines with the service');
+        assert.ok(m.text({ timestamps: true }).startsWith(stamp(1).t + ' [web] line 1'), 'and the timestamps when they are on');
+        m.addService('cache');
+        eq(m.services(), ['web', 'db', 'cache']);
+    }
+    {
+        // follow: pausing counts the lines that arrive; following again clears the counter
+        const m = Logs.createModel();
+        assert.equal(m.isFollowing(), true);
+        m.setFollow(false);
+        m.addUnseen(3);
+        m.addUnseen(2);
+        eq([m.isFollowing(), m.unseen()], [false, 5]);
+        m.setFollow(true);
+        eq([m.isFollowing(), m.unseen()], [true, 0]);
+    }
+    {
+        // a reconnect repeats the newest second: lines already seen are skipped, new ones are kept, and the filter ends with the first new line
+        const m = Logs.createModel();
+        m.append([stamp(1), stamp(2), stamp(2, { text: 'second at the same time' })]);
+        m.beginResume();
+        const r = m.append([stamp(1), stamp(2), stamp(2, { text: 'second at the same time' }), stamp(2, { text: 'new at the same time' }), stamp(3)]);
+        eq(r.added.map(e => e.text), ['new at the same time', 'line 3'], 'older lines and exact repeats are skipped');
+        eq(m.all().length, 5);
+        m.beginResume();
+        eq(m.append([stamp(3, { text: 'late' })]).added.length, 1, 'a line of the same second that was not seen before is kept');
+        // lines without a parseable time cannot be told apart: nothing to resume from
+        const plain = Logs.createModel();
+        plain.append([{ t: '', text: 'x' }]);
+        plain.beginResume();
+        eq([plain.lastTime(), plain.append([{ t: '', text: 'x' }]).added.length], ['', 1]);
+    }
+    {
+        // notices: every not_followed notice of the server is one line with all the services, each once; attached and detached name the service
+        let list = [];
+        list = Logs.mergeNotice(list, { code: 'not_followed', message: 'history of db failed', container: 'abcdef012345' });
+        list = Logs.mergeNotice(list, { code: 'attached', message: 'started', services: ['web'], container: '111111111111' });
+        list = Logs.mergeNotice(list, { code: 'not_followed', message: 'no free slot', services: ['cache', 'worker'] });
+        list = Logs.mergeNotice(list, { code: 'not_followed', message: 'again', services: ['cache'], container: 'abcdef012345' });
+        eq(list.map(item => item.code), ['not_followed', 'attached'], 'all not_followed notices are one entry, at the place of the first');
+        eq(list[0], { code: 'not_followed', message: 'history of db failed', services: ['abcdef012345', 'cache', 'worker'] });
+        for (const code of ['detached', 'attached', 'truncated_history', 'detached']) list = Logs.mergeNotice(list, { code, message: code });
+        eq(list.length, 4, 'at most four notices are kept');
+        eq([Logs.noticeName({ services: ['web'], container: 'abc' }), Logs.noticeName({ container: 'abc' }), Logs.noticeName({})], ['web', 'abc', ''], 'the service first, else the container');
+        // a failed stream request ends the retries for any 4xx answer and for the codes that mean "not now"; a 5xx, a timeout and the network are tried again
+        eq([{ code: 'too_many_streams', status: 429 }, { code: 'weird', status: 404 }, { code: 'bad_request', status: 400 }, { code: 'docker_disabled', status: 503 }, { code: 'docker_hosts_unavailable', status: 503 },
+            { code: 'docker_error', status: 502 }, { code: 'timeout', status: 0 }, { code: 'network', status: 0 }, null].map(Logs.isFinalDiagnosis), [true, true, true, true, true, false, false, false, false]);
+    }
+    {
+        eq(Logs.followUrl({ kind: 'container', hostId: 'h 1', ref: 'abc' }, { tail: 500 }), '/api/docker-manager/hosts/h%201/containers/abc/logs?follow=1&tail=500');
+        eq(Logs.followUrl({ kind: 'container', hostId: 'local', ref: 'abc' }, {}), '/api/docker-manager/hosts/local/containers/abc/logs?follow=1&tail=200', 'a container starts with 200 lines');
+        eq(Logs.followUrl({ kind: 'stack', hostId: 'local', name: 'shop' }, { tail: 7 }), '/api/docker-manager/hosts/local/stacks/shop/logs?follow=1&tail=100', 'a stack starts with 100 lines per container, an unsupported tail falls back');
+        eq(Logs.followUrl({ kind: 'project', hostId: 'local', name: 'legacy' }, { tail: 1000 }), '/api/docker-manager/hosts/local/projects/legacy/logs?follow=1&tail=1000');
+        eq(Logs.followUrl({ kind: 'container', hostId: 'local', ref: 'abc' }, { since: '2026-10-28T07:33:01.5Z', tail: 100 }), '/api/docker-manager/hosts/local/containers/abc/logs?follow=1&tail=5000&since=2026-10-28T07%3A33%3A01.5Z', 'a reconnect asks for everything since the newest line');
+        eq(Logs.TAILS, [100, 200, 500, 1000, 5000]);
+        const hues = new Set(['web', 'db', 'cache', 'worker', 'proxy', 'x'].map(Logs.hueOf));
+        assert.ok([...hues].every(h => h >= 0 && h < 6) && Logs.hueOf('web') === Logs.hueOf('web'), 'a service always gets the same one of six hues');
+    }
+}
+
+// ---- terminal: the pure helpers of the panel, and the generic diagnosis of the store -----------------------------------------
+{
+    const Term = window.DockerManagerTerminal;
+    assert.ok(Term && typeof Term.create === 'function', 'the terminal module publishes its global');
+    eq(Term.socketUrl({ protocol: 'http:', host: 'desk.lan:8443' }, 'local', 'abc', false), 'ws://desk.lan:8443/api/docker-manager/hosts/local/containers/abc/terminal');
+    eq(Term.socketUrl({ protocol: 'https:', host: 'desk.lan' }, 'h 1', 'a/b', true), 'wss://desk.lan/api/docker-manager/hosts/h%201/containers/a%2Fb/terminal?confirm=protected', 'https uses wss, the confirmation is a query, parts are escaped');
+
+    const web = container('web'), stopped = container('old', { state: 'exited', status: 'Exited (0) 1 hour ago' });
+    const helper = container('aurago-dm-op-1', { aurago_helper: 'runner', protected_owner: 'docker_manager' }), lock = container('ruview', { protected_owner: 'ruview' });
+    eq(plain(Term.targetOf(web)), { ref: web.full_id, label: 'web', c: web, state: 'ok', protected: false }, 'a target names the full id of its container');
+    eq([Term.targetOf(stopped).state, Term.targetOf(helper).state, Term.targetOf(lock).protected, Term.targetOf(web, 'service').label], ['not_running', 'helper', true, 'service']);
+    const detail = { service_list: [{ name: 'web', state: 'running', container_id: web.id }, { name: 'db', state: 'exited', container_id: stopped.id }, { name: 'gone', state: 'running', container_id: 'ffffffffffff' }, { name: 'bare', state: 'running' }, null] };
+    eq(Term.stackTargets(detail, [web, stopped]).map(item => [item.label, item.ref, item.state]), [['web', web.full_id, 'ok']], 'a stack offers its running services whose container the list knows');
+    const cache = container('cache');
+    eq(Term.stackTargets({ service_list: [{ name: 'cache', state: 'running', container_id: cache.full_id }] }, [web, cache]).map(item => [item.label, item.ref]), [['cache', cache.full_id]], 'a 64-character container id of the stack matches the 12-character id of the list');
+    eq(Term.stackTargets(null, null), []);
+    eq([Term.diagnosePath('local', 'abc', false), Term.diagnosePath('h 1', 'a/b', true)], ['/hosts/local/containers/abc/terminal', '/hosts/h%201/containers/a%2Fb/terminal?confirm=protected'], 'after the confirmation the diagnosis carries it, so a later 429 or 502 is not read as the protection');
+    eq([Term.blockedBy(Term.targetOf(web), false), Term.blockedBy(Term.targetOf(web), true), Term.blockedBy(null, false), Term.blockedBy(Term.targetOf(helper), false), Term.blockedBy(Term.targetOf(stopped), false)],
+        ['', 'term_readonly', 'term_none_running', 'term_helper', 'term_not_running'], 'read-only wins, then a missing target, a helper, a stopped container');
+}
+{
+    // diagnose is the generic form of diagnoseTerminal: any path below /api/docker-manager, the error info or null
+    const api = fakeApi({
+        ['GET ' + B + '/hosts/local/stacks/ghost/logs']: () => { throw httpError(404, { code: 'stack_not_found', message: 'no such stack' }); },
+        ['GET ' + B + '/hosts/local/containers/web/logs']: () => { throw httpError(429, { code: 'too_many_streams', message: 'full' }); },
+        ['GET ' + B + '/hosts/local/containers/ok/logs']: {}
+    });
+    const store = Store.create({ api, live: false });
+    eq((await store.diagnose('/hosts/local/stacks/ghost/logs?follow=1&tail=100')).code, 'stack_not_found');
+    eq((await store.diagnose('/hosts/local/containers/web/logs?follow=1&tail=200')).code, 'too_many_streams');
+    assert.equal(await store.diagnose('/hosts/local/containers/ok/logs?follow=1'), null, 'a plain answer is no diagnosis');
+    assert.equal(api.calls[0].url, B + '/hosts/local/stacks/ghost/logs?follow=1&tail=100', 'the query is kept');
+    store.dispose();
+}
+
+{
+    // a diagnosis only looks at the status and the error body: an answer that would be a stream (200, its body still pending) is cancelled
+    // once it arrived, so the server keeps no log follower or stream slot open; an ordinary request is left alone after its answer
+    const signals = [], pendingBody = new Promise(() => {});
+    const api = (url, init = {}) => { signals.push([url, init.signal]); return Promise.resolve(url.endsWith('/hosts') ? { status: 'ok', hosts: [] } : { followed: pendingBody }); };
+    const store = Store.create({ api, live: false });
+    assert.equal(await store.diagnose('/hosts/local/containers/web/logs?follow=1&tail=200'), null, 'a 200 answer is no diagnosis');
+    const diagnosis = signals.find(([url]) => url.includes('/logs'))[1];
+    assert.equal(diagnosis.aborted, true, 'the request of a diagnosis is aborted once its answer was read');
+    await store.loadHosts();
+    const ordinary = signals.find(([url]) => url.endsWith('/hosts'))[1];
+    assert.equal(ordinary.aborted, false, 'an ordinary request is not aborted after its answer');
+    store.dispose();
+}
+
+
 console.log('docker-manager ui tests: model and store ok');
 
 // ---- stylesheet rules (same contract as the Infra guard: tokens only, gated motion) --------------------------------------
@@ -1089,7 +1799,7 @@ console.log('docker-manager ui tests: model and store ok');
 }
 
 // ---- load contract: every module, each under 1100 lines, none touches the DOM at load, each publishes its global ----------
-const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
+const uiFiles = ['docker-manager-views.js', 'docker-manager-stacks.js', 'docker-manager-editor.js', 'docker-manager-ops.js', 'docker-manager-logs.js', 'docker-manager-terminal.js', 'docker-manager-panes.js', 'docker-manager-palette.js', 'docker-manager-dialogs.js', 'docker-manager-newstack.js', 'docker-manager.js'];
 const full = {};
 {
     const all = [...files, ...uiFiles];
@@ -1100,6 +1810,7 @@ const full = {};
     vm.runInNewContext(all.map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
         window: full, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, performance
     });
+    assert.ok(full.DockerManagerCharts && full.DockerManagerLive && full.DockerManagerLogs && full.DockerManagerTerminal && full.DockerManagerPanes, 'the five live modules publish their global');
     assert.ok(full.DockerManagerModel && full.DockerManagerStackModel && full.DockerManagerStore && full.DockerManagerViews && full.DockerManagerStacks && full.DockerManagerEditor && full.DockerManagerOps && full.DockerManagerPalette && full.DockerManagerDialogs && full.DockerManagerNewStack && full.DockerManagerApp, 'all 11 modules publish their global');
     assert.equal(typeof full.DockerManagerApp.render, 'function');
     assert.equal(typeof full.DockerManagerApp.dispose, 'function');
@@ -1149,6 +1860,303 @@ const full = {};
     const shell = stacks.shell(snap.state.stack);
     assert.ok(shell.includes('data-ed-surface="compose"') && shell.includes('data-ed-surface="env"') && shell.includes('data-action="save-deploy"'), 'the shell holds the two editors and their toolbars');
     assert.ok(stacks.problem(Object.assign({}, snap, { state: Object.assign({}, snap.state, { stack: { key: 'local/gone', name: 'gone', status: 'error', error: { code: 'stack_not_found' } } }) })).includes('stack_gone'), 'a vanished stack says so');
+}
+
+// ---- live views: load cells, host gauges, paused banner, drawer parts, follow-panel mounts, the external project pane -------
+{
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const t = (key, params) => key + (params ? JSON.stringify(params) : '');
+    const sm2 = full.DockerManagerStackModel, model2 = full.DockerManagerModel, charts = full.DockerManagerCharts;
+    const views = full.DockerManagerViews.create({ t, esc, model: model2, stackModel: sm2, charts, lang: 'en', uid: 'x' });
+    const stacks = full.DockerManagerStacks.create({ t, esc, model: model2, stackModel: sm2, views, uid: 'x' });
+    const hosts = [hostA, hostB];
+    const web = container('web', { compose_project: 'shop', compose_service: 'web' }), idle = container('old', { state: 'exited', status: 'Exited (0) 1 hour ago' });
+    const byHost = { local: { containers: [web, idle, container('legacy-app', { compose_project: 'legacy', compose_service: 'app', compose_working_dir: '/srv/legacy' }), container('legacy-db', { compose_project: 'legacy', compose_service: 'db', compose_working_dir: '/srv/other' })], loaded: true }, h_nas: { containers: [], loaded: true } };
+    const external = [{ name: 'legacy', working_dir: '/srv/legacy', status: 'partial', services: { total: 2, running: 1 }, ports: [], container_ids: [] }];
+    const stacksByHost = { local: { loaded: true, listing: { stacks: [], external, ignored: [] } } };
+    const rows = model2.buildRows(hosts, byHost, 'all');
+    const snapBase = {
+        state: { scope: 'all', stacks: stacksByHost, byHost, hostsLoaded: true, detail: null, stack: null, project: null, busy: new Set(), ops: [], df: {} },
+        hosts, scopeHosts: hosts, rows, multi: true, canMutate: true, headers: false, collapsed: new Set(), groups: [], section: 'containers',
+        liveStatus: { local: 'live', h_nas: 'connecting' }, hostStats: {}, hostStatsFor: {}, pageHost: 'desk.lan', now: 1760000000000
+    };
+
+    // the table: running containers get an empty load placeholder (filled in place), stopped ones an empty cell, group rows span six columns
+    const groups = model2.groupRows(rows, { multiHost: true, hostOrder: ['local', 'h_nas'] });
+    const body = views.tbody(Object.assign({}, snapBase, { groups, headers: true }));
+    assert.ok(body.includes('class="dm-cell-load" data-load="local/' + web.id + '"></td>'), 'a running container has a load placeholder keyed by host and short id');
+    assert.equal((body.match(/data-load=/g) || []).length, 3, 'only the running containers have one');
+    assert.ok(body.includes('colspan="6"') && !body.includes('colspan="5"'), 'group rows span all six columns');
+    assert.ok(!/<td[^>]*class="dm-cell-load"[^>]*>[^<]+</.test(body), 'the markup of the table never holds numbers: they are patched in place');
+
+    // the drawer: top and body apart; the follow tabs have no body
+    const drawerSnap = tab => Object.assign({}, snapBase, { state: Object.assign({}, snapBase.state, { detail: { key: rows[0].key, hostId: 'local', id: web.full_id, tab, inspect: { status: 'idle', data: null, error: null } } }) });
+    const row0 = rows[0];
+    const overviewParts = views.drawer(drawerSnap('overview'), row0);
+    assert.ok(overviewParts.top.includes('data-tab="terminal"') && overviewParts.top.includes('aria-controls="x-tabpanel-terminal"') && overviewParts.body.includes('id="x-tabpanel-overview"') && overviewParts.live === '', 'four tabs, the Overview body');
+    const logsParts = views.drawer(drawerSnap('logs'), row0), termParts = views.drawer(drawerSnap('terminal'), row0);
+    eq([logsParts.body, logsParts.live, termParts.body, termParts.live], ['', 'logs', '', 'terminal'], 'the follow tabs are persistent panels, not part of the repainted body');
+    assert.ok(/data-tab="logs"[^>]*aria-selected="true"/.test(logsParts.top) && /data-tab="overview"[^>]*aria-selected="false"/.test(logsParts.top), 'the open tab is the selected one');
+    const hostile = views.drawer(drawerSnap('"><img src=x onerror=alert(1)>'), row0);
+    assert.ok(!hostile.body.includes('<img') && hostile.body.includes('data-tab-body="&quot;&gt;&lt;img'), 'the tab name never reaches an attribute unescaped');
+    assert.ok(hostile.body.includes('id="x-tabpanel-overview"'), 'an unknown tab shows the overview');
+    assert.deepStrictEqual([...full.DockerManagerViews.TABS], ['overview', 'logs', 'terminal', 'inspect']);
+    assert.equal(views.errorText({ code: 'too_many_streams' }), 'error_too_many_streams{"version":"","command":""}', 'the new codes have their own sentences');
+    assert.ok(views.errorText({ code: 'helper_container' }).startsWith('error_helper_container') && views.errorText({ code: 'project_not_found' }).startsWith('error_project_not_found'));
+    eq(['forbidden_origin', 'docker_hosts_unavailable', 'docker_disabled'].map(code => views.errorText({ code }).startsWith('error_' + code)), [true, true, true], 'a refused origin, unavailable hosts and a switched-off Docker have sentences');
+    assert.equal(views.errorText({ code: 'host_unreachable', message: 'dial tcp 10.0.0.2:2375: connect: refused' }), 'reason_unknown dial tcp 10.0.0.2:2375: connect: refused', 'a host_unreachable without a classified reason (an ended log stream) names the cause');
+    assert.equal(views.errorText({ code: 'host_unreachable', reason: 'refused', message: 'dial tcp x' }), 'reason_refused', 'a classified reason is the whole sentence, as before');
+
+    // the rail gauges: one host only
+    assert.equal(views.railGauges(snapBase), '', 'no gauges under All hosts');
+    const gauged = (stateExtra, extra = {}) => Object.assign({}, snapBase, { state: Object.assign({}, snapBase.state, { scope: 'local' }, stateExtra) }, extra);
+    const stats = { host: 'local', t: 1, cpu: 42.5, ncpu: 8, mem_used: 1073741824, mem_total: 4294967296, running: 3, sampled: 3, partial: false };
+    const df = { images: { size: 1000 }, containers: { size: 10 }, volumes: { size: 500 }, build_cache: { size: 0 }, total: 1510 };
+    const full1 = views.railGauges(gauged({ df: { local: { status: 'ok', df, busy: false } } }, { hostStats: { local: stats } }));
+    assert.ok(full1.includes('>gauge_cpu<') && full1.includes('>43%<') && full1.includes('1.0 GB / 4.0 GB') && full1.includes('1.5 KB'), 'CPU as a percent, memory used of total, Docker disk in bytes');
+    assert.ok(full1.includes('data-action="refresh-df"') && full1.includes('data-host-id="local"') && !full1.includes('gauge_partial') && !full1.includes('gauge_paused'), 'a refresh button and no hint while everything is fine');
+    assert.ok(views.railGauges(gauged({ df: { local: { status: 'ok', df, busy: true } } }, { hostStats: { local: stats } })).includes('disabled aria-busy="true"'), 'the refresh button is busy while the disk usage is read');
+    assert.ok(views.railGauges(gauged({}, { hostStats: { local: Object.assign({}, stats, { partial: true, sampled: 100, running: 140 }) } })).includes('gauge_partial{&quot;sampled&quot;:100,&quot;running&quot;:140}'), 'a partial sample says how many containers it covers');
+    const waiting = views.railGauges(gauged({}));
+    assert.ok(waiting.includes('gauge_waiting') && waiting.includes('data-level="none"'), 'before the first sample the gauges are empty and say so');
+    assert.ok(views.railGauges(gauged({}, { hostStats: { local: stats }, liveStatus: { local: 'paused' } })).includes('gauge_paused'), 'paused live data is named');
+    assert.ok(views.railGauges(gauged({ df: { local: { status: 'error', df: null, error: { code: 'host_unreachable' }, busy: false } } }, { hostStats: { local: stats } })).includes('gauge_failed'), 'a failed disk reading is named');
+    assert.ok(!views.railGauges(gauged({ scope: 'h_gone' })).length, 'a host that is not in the list has no gauges');
+
+    // the banner for paused live updates: not for a live host, not for one that is unreachable (its own banner says that)
+    const bannerSnap = (liveStatus, nasEntry) => Object.assign({}, snapBase, { liveStatus, state: Object.assign({}, snapBase.state, { byHost: Object.assign({}, byHost, { h_nas: nasEntry || byHost.h_nas }) }) });
+    const paused = views.banners(bannerSnap({ local: 'live', h_nas: 'paused' }));
+    assert.ok(paused.includes('data-live-banner="h_nas"') && paused.includes('live_paused{&quot;host&quot;:&quot;NAS&quot;}') && !paused.includes('data-live-banner="local"') && paused.includes('role="status"'), 'a paused host gets a polite banner');
+    assert.ok(!views.banners(bannerSnap({ local: 'live', h_nas: 'paused' }, { containers: [], loaded: false, error: { code: 'host_unreachable', reason: 'timeout' } })).includes('data-live-banner'), 'an unreachable host keeps only its own banner');
+    assert.ok(!views.banners(bannerSnap({ local: 'connecting', h_nas: 'off' })).includes('data-live-banner'), 'no banner while the stream is still coming up');
+
+    // stack pane: five tabs, mounts for the follow panels, load placeholders on running services
+    const detail = {
+        name: 'shop', host_id: 'local', dir: '/opt/stacks/shop', compose_file: 'compose.yaml', has_env: false, status: 'running', services: { total: 2, running: 1 }, ports: [], created: 1760000000,
+        service_list: [{ name: 'web', image: 'nginx', state: 'running', container_id: web.id, ports: [] }, { name: 'db', image: 'postgres', state: 'exited', exit_code: 1, container_id: idle.id, ports: [] }]
+    };
+    const stackSnap = tab => Object.assign({}, snapBase, { section: 'stacks', dirty: {}, canMutate: true, stackOps: {}, state: Object.assign({}, snapBase.state, { stack: { key: 'local/shop', hostId: 'local', name: 'shop', tab, status: 'ok', detail, error: null } }) });
+    const head = stacks.head(stackSnap('logs'));
+    assert.ok(['overview', 'compose', 'env', 'logs', 'terminal'].every(tab => head.includes('data-action="stack-tab" data-tab="' + tab + '"')) && /data-tab="logs"[^>]*aria-selected="true"/.test(head), 'five stack tabs');
+    const shell = stacks.shell(stackSnap('overview').state.stack);
+    assert.ok(shell.includes('data-panel="logs"') && shell.includes('data-mount="logs"') && shell.includes('data-panel="terminal"') && shell.includes('data-mount="terminal"') && /data-panel="logs"[^>]*hidden/.test(shell), 'the shell holds a mount per follow panel, hidden until its tab opens');
+    const overview = stacks.overview(stackSnap('overview'));
+    assert.ok(overview.includes('data-load="local/' + web.id + '"') && (overview.match(/data-load=/g) || []).length === 1, 'only the running service has a load placeholder');
+    const withFullId = Object.assign({}, stackSnap('overview'), { state: Object.assign({}, stackSnap('overview').state, { stack: Object.assign({}, stackSnap('overview').state.stack, { detail: Object.assign({}, detail, { service_list: [{ name: 'web', image: 'nginx', state: 'running', container_id: web.full_id, ports: [] }] }) }) }) });
+    const fullOverview = stacks.overview(withFullId);
+    assert.ok(fullOverview.includes('data-load="local/' + web.id + '"') && fullOverview.includes('data-container-id="' + web.id + '"') && !fullOverview.includes(web.full_id), 'a service container that comes with its 64-character id is keyed by the 12-character id of the stream and of the container list');
+
+    // the external project pane
+    const projectSnap = tab => Object.assign({}, snapBase, { section: 'stacks', canMutate: true, state: Object.assign({}, snapBase.state, { project: { key: 'x:local/legacy', hostId: 'local', name: 'legacy', tab } }) });
+    const phead = stacks.projectHead(projectSnap('overview'));
+    assert.ok(phead.includes('data-action="project-tab" data-tab="overview"') && phead.includes('data-action="project-tab" data-tab="logs"') && !phead.includes('data-tab="compose"') && phead.includes('data-act="restart"') && phead.includes('data-action="close-project"') && phead.includes('title="/srv/legacy"'), 'two tabs, start/stop/restart, close, the working directory');
+    assert.ok(!stacks.projectHead(Object.assign({}, projectSnap('overview'), { canMutate: false })).includes('data-act='), 'a read-only window shows no project actions');
+    const pshell = stacks.projectShell({ key: 'x:local/legacy', tab: 'logs' });
+    assert.ok(/data-panel="overview"[^>]*hidden/.test(pshell) && !/data-panel="logs"[^>]*hidden/.test(pshell) && pshell.includes('data-mount="logs"'), 'the project shell shows the open tab');
+    const poverview = stacks.projectOverview(projectSnap('overview'));
+    assert.ok(poverview.includes('legacy-app') && !poverview.includes('legacy-db') && poverview.includes('data-action="show-project"') && (poverview.match(/data-load=/g) || []).length === 1, 'the containers of this project and working directory only, with a load placeholder and a way to the Containers section');
+    const gone = Object.assign({}, projectSnap('overview'), { state: Object.assign({}, projectSnap('overview').state, { stacks: {}, byHost: { local: { containers: [], loaded: true } } }) });
+    assert.ok(stacks.projectHead(gone).includes('project_gone') && stacks.projectOverview(gone).includes('project_gone'), 'a project that left the listing says so');
+    const list = stacks.list(Object.assign({}, snapBase, { section: 'stacks', hostStates: { local: 'ok', h_nas: 'ok' }, prepareActive: {}, sgroups: sm2.stackGroups(hosts, stacksByHost, rows, { scope: 'all', query: '' }), stackCounts: { total: 1 } }));
+    assert.ok(list.includes('data-action="open-project" data-host-id="local" data-project="legacy"') && !list.includes('data-action="show-project"'), 'an external row opens the project pane');
+}
+
+// ---- panes: follow panels follow their tab, load cells are patched in place, the visible ones are subscribed -------------
+{
+    // a tiny DOM: just enough for the panes module (querySelector(All), dataset, hidden, getBoundingClientRect, getClientRects)
+    const makeEl = (props = {}) => {
+        const el = Object.assign({ hidden: false, dataset: {}, children: [], innerHTML: '', title: '', rect: { top: 0, bottom: 20 }, shown: true }, props);
+        el.getBoundingClientRect = () => el.rect;
+        el.getClientRects = () => (el.shown ? [el.rect] : []);
+        el.querySelector = selector => { const match = /\[data-(live-panel|mount)="(\w+)"\]/.exec(selector); return match ? (el.mounts && el.mounts[match[2]]) || null : null; };
+        el.querySelectorAll = selector => (selector === '[data-load]' ? el.cells || [] : []);
+        return el;
+    };
+    const calls = [];
+    const makePanel = kind => { const panel = { kind, active: false, disposed: false, updates: 0, focused: 0, setActive(v) { panel.active = v; calls.push([kind, 'active', v]); }, update() { panel.updates += 1; }, focus() { panel.focused += 1; }, dispose() { panel.disposed = true; calls.push([kind, 'dispose']); } }; return panel; };
+    const opened = { logs: [], terminal: [] };
+    const logsApi = { open: (el, target) => { const p = makePanel('logs'); p.target = target; p.el = el; opened.logs.push(p); return p; } };
+    const termApi = { open: (el, config) => { const p = makePanel('terminal'); p.config = config; p.el = el; opened.terminal.push(p); return p; } };
+    const webRow = { key: 'local/' + 'web'.padEnd(64, '0'), c: container('web') };
+    const store = { state: { stack: null, byHost: { local: { containers: [webRow.c] } } }, canMutate: () => true, liveRing: (host, id) => (id === 'good' ? [{ t: 1, cpu: 5, mem: 1048576, net_rx: 0, net_tx: 0 }, { t: 2001, cpu: 7, mem: 2097152, net_rx: 2048, net_tx: 0 }] : []) };
+    const panes = full.DockerManagerPanes.create({ t: (key, params) => key + JSON.stringify(params || {}), model: model, charts: full.DockerManagerCharts, logs: logsApi, terminal: termApi, store, findRow: key => (key === webRow.key ? webRow : null), lang: 'en' });
+    const live = makeEl({ mounts: { logs: makeEl(), terminal: makeEl() } });
+
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'overview' }, false);
+    eq([opened.logs.length, opened.terminal.length], [0, 0], 'nothing is built before its tab is shown');
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'logs' }, false);
+    eq([opened.logs.length, opened.logs[0].active, live.mounts.logs.hidden, live.mounts.terminal.hidden], [1, true, false, true], 'the logs panel is built and follows');
+    eq(plain(opened.logs[0].target), { kind: 'container', hostId: 'local', ref: webRow.c.full_id, label: 'web', services: undefined }, 'it follows the container by its full id');
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'terminal' }, true);
+    eq([opened.logs[0].active, opened.terminal.length, opened.terminal[0].active, opened.terminal[0].focused, opened.terminal[0].config.autofocus], [false, 1, true, 1, true], 'switching tabs stops one and starts the other, the panels stay');
+    eq(plain(opened.terminal[0].config.targets().map(item => [item.ref, item.state])), [[webRow.c.full_id, 'ok']], 'the terminal asks the current container list');
+    assert.equal(opened.terminal[0].config.readonly(), false);
+    panes.drawer(live, { key: webRow.key, hostId: 'local', id: webRow.c.full_id, tab: 'logs' }, false);
+    assert.equal(opened.logs.length, 1, 'coming back reuses the panel');
+    panes.drawer(live, { key: 'local/other', hostId: 'local', id: 'x', tab: 'logs' }, false);
+    eq([opened.logs[0].disposed, opened.terminal[0].disposed], [true, true], 'another container or a closed drawer shuts the panels down');
+    panes.drawer(live, null, false);
+
+    // the stack pane: the panel is built on its tab, services reach the chips, a replaced mount builds again, a covered pane follows nothing
+    const shellEl = makeEl({ mounts: { logs: makeEl(), terminal: makeEl() } });
+    const stackState = tab => ({ key: 'local/shop', hostId: 'local', name: 'shop', tab, status: 'ok', detail: { service_list: [{ name: 'web', state: 'running', container_id: webRow.c.id }, { name: 'db', state: 'exited', container_id: 'ffffffffffff' }] } });
+    store.state.stack = stackState('logs');
+    const before = opened.logs.length;
+    panes.stack(shellEl, store.state.stack, true, false);
+    const stackLogs = opened.logs[before];
+    eq([stackLogs.target.kind, stackLogs.target.name, stackLogs.target.services, stackLogs.active], ['stack', 'shop', ['web', 'db'], true]);
+    panes.stack(shellEl, store.state.stack, false, false);
+    assert.equal(stackLogs.active, false, 'a covered pane follows nothing');
+    shellEl.mounts.logs = makeEl();
+    panes.stack(shellEl, store.state.stack, true, false);
+    eq([stackLogs.disposed, opened.logs.length - before], [true, 2], 'a mount that was replaced gets a new panel');
+    store.state.stack = stackState('terminal');
+    panes.stack(shellEl, store.state.stack, true, false);
+    eq(plain(opened.terminal[opened.terminal.length - 1].config.targets().map(item => item.label)), ['web'], 'the stack terminal offers its running services');
+    panes.stack(shellEl, null, true, false);
+    assert.equal(opened.terminal[opened.terminal.length - 1].disposed, true, 'no stack, no panels');
+
+    // the project pane
+    const projectEl = makeEl({ mounts: { logs: makeEl() } });
+    panes.project(projectEl, { key: 'x:local/legacy', hostId: 'local', name: 'legacy', tab: 'logs' }, true);
+    const projectLogs = opened.logs[opened.logs.length - 1];
+    eq([projectLogs.target.kind, projectLogs.target.name, projectLogs.active], ['project', 'legacy', true]);
+    panes.project(projectEl, null, true);
+    assert.equal(projectLogs.disposed, true);
+
+    // load cells: filled from the ring, only the asked ones, nothing again for an unchanged ring
+    const cell = (key, extra = {}) => makeEl({ dataset: { load: key }, ...extra });
+    const good = cell('local/good'), other = cell('local/none');
+    const table = makeEl({ cells: [good, other] });
+    panes.patchLoads(table, new Set(['local/good']));
+    assert.ok(good.innerHTML.includes('dm-load-line') && good.innerHTML.includes('>7.0%<') && good.title.startsWith('stat_title') && good.title.includes('"rx":"1.0 KB"'), 'a cell shows CPU and memory and names the network rate in its title');
+    eq([other.innerHTML, other.dataset.sig], ['', undefined], 'a cell that was not asked for stays as it is');
+    good.innerHTML = 'marker';
+    panes.patchLoads(table);
+    assert.equal(good.innerHTML, 'marker', 'an unchanged ring is not painted again');
+    store.liveRing = () => [];
+    panes.patchLoads(table);
+    eq([good.innerHTML, other.innerHTML], ['', ''], 'a container without points shows no cell');
+
+    // which containers are on screen: rendered, inside the viewport, at most 50 per host, once each
+    const viewport = makeEl({ rect: { top: 100, bottom: 300 } });
+    const many = Array.from({ length: 60 }, (_, i) => cell('local/c' + String(i).padStart(11, '0'), { rect: { top: 150, bottom: 170 } }));
+    const entries = [
+        { root: makeEl({ cells: [cell('local/in', { rect: { top: 120, bottom: 140 } }), cell('local/above', { rect: { top: 10, bottom: 30 } }), cell('local/below', { rect: { top: 400, bottom: 420 } }), cell('local/hidden', { shown: false }), cell('h_nas/n1', { rect: { top: 200, bottom: 220 } }), cell('local/in', { rect: { top: 130, bottom: 150 } })] }), viewport },
+        { root: makeEl({ cells: many }), viewport }
+    ];
+    const visible = panes.visibleLoads(entries);
+    eq([visible['h_nas'], visible.local.slice(0, 2), visible.local.length], [['n1'], ['in', 'c00000000000'], 50], 'rendered, inside the viewport, once each, at most 50 per host');
+    eq(panes.visibleLoads([{ root: null, viewport }]), {});
+    panes.dispose();
+}
+
+// ---- terminal panel: read-only ends an open shell; a hidden tab keeps it; closing the pane, another container and the window end it ----
+{
+    // A tiny DOM (just the elements the terminal module looks up), a fake xterm and a fake WebSocket, in a vm of their own that has a `document`.
+    const fakeMount = () => {
+        const parts = {}, node = () => ({ hidden: false, textContent: '', innerHTML: '', value: '', dataset: {}, clientWidth: 0, clientHeight: 0, style: {}, append() {}, remove() {}, focus() {}, addEventListener() {}, querySelector: () => ({ textContent: '' }) });
+        return { hidden: false, parts, replaceChildren() {}, querySelector(selector) { const key = /data-tp-[a-z-]+/.exec(selector)[0]; return parts[key] || (parts[key] = node()); } };
+    };
+    const harness = () => {
+        const win = {}, sockets = [], terms = [], ro = { on: false };
+        win.Terminal = class {
+            constructor() { this.cols = 80; this.rows = 24; terms.push(this); }
+            loadAddon() {} open() {} attachCustomKeyEventHandler() {} reset() {} write() {} focus() {}
+            onData(fn) { this.data = fn; }
+            onBinary(fn) { this.binary = fn; }
+            dispose() { this.disposed = true; }
+        };
+        vm.runInNewContext(['docker-manager-model.js', 'docker-manager-terminal.js', 'docker-manager-panes.js'].map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
+            window: win, console, Map, Set, JSON, Math, Date, URL, AbortController, setTimeout, clearTimeout, TextEncoder,
+            document: { createElement: () => ({ style: {}, className: '', remove() {}, getContext: () => null }) },
+            getComputedStyle: () => ({ fontFamily: 'sans-serif', color: 'rgb(0, 0, 0)' })
+        });
+        const openSocket = url => {
+            const socket = { url, readyState: 0, sent: [], closed: false };
+            socket.send = data => { socket.sent.push(typeof data === 'string' ? data : 'bin:' + Buffer.from(data).toString()); };
+            socket.close = () => { socket.readyState = 3; socket.closed = true; };
+            socket.open = () => { socket.readyState = 1; socket.onopen(); };
+            sockets.push(socket);
+            return socket;
+        };
+        const terminal = win.DockerManagerTerminal.create({
+            t: key => key, esc: String, views: { errorText: info => info.message }, diagnose: async () => null, confirmProtected: async () => true,
+            socket: openSocket, requestFrame: fn => fn(), location: { protocol: 'http:', host: 'desk.lan' }
+        });
+        return { win, Term: win.DockerManagerTerminal, terminal, sockets, terms, ro };
+    };
+    const END = '{"type":"end"}';
+    const web = container('web'), nas = container('nas-web');
+
+    // read-only switched on while a shell is open: the input stops at once, the next update() ends the session with the end frame
+    {
+        const h = harness(), el = fakeMount();
+        const panel = h.terminal.open(el, { hostId: 'local', targets: () => [h.Term.targetOf(web)], readonly: () => h.ro.on });
+        panel.setActive(true);
+        h.sockets[0].open();
+        h.terms[0].data('ls');
+        eq([panel.phase(), h.sockets[0].sent], ['connected', ['bin:ls']], 'a shell opens and takes input');
+        h.ro.on = true;
+        h.terms[0].data('rm');
+        eq(h.sockets[0].sent, ['bin:ls'], 'input is dropped as soon as read-only is on, even before the panel noticed');
+        panel.update();
+        eq([panel.phase(), h.sockets[0].sent, h.sockets[0].closed, el.parts['data-tp-msg'].textContent, el.parts['data-tp-screen'].hidden], ['idle', ['bin:ls', END], true, 'term_readonly', true], 'read-only ends the open shell and says why');
+        h.terms[0].data('x');
+        eq(h.sockets[0].sent, ['bin:ls', END], 'nothing is sent after the end');
+        h.ro.on = false;
+        panel.update();
+        eq([el.parts['data-tp-msg'].textContent, el.parts['data-tp-start'].hidden, h.sockets.length], ['', false, 1], 'lifting read-only offers the shell again, without opening one by itself');
+        panel.dispose();
+
+        // a handshake that is still open is closed too (there is no shell to end yet)
+        const el2 = fakeMount(), panel2 = h.terminal.open(el2, { hostId: 'local', targets: () => [h.Term.targetOf(web)], readonly: () => h.ro.on });
+        panel2.setActive(true);
+        const pending = h.sockets[1];
+        eq([panel2.phase(), pending.readyState], ['connecting', 0]);
+        h.ro.on = true;
+        panel2.update();
+        eq([panel2.phase(), pending.closed, pending.sent, el2.parts['data-tp-msg'].textContent], ['idle', true, [], 'term_readonly'], 'read-only also cancels a connecting shell');
+        panel2.dispose();
+    }
+
+    // the panes keep a shell while its pane exists (other tab, covered, minimised) and end it when the pane or the window closes
+    {
+        const setup = () => {
+            const h = harness(), rows = [{ key: 'local/' + web.full_id, c: web }, { key: 'h_nas/' + nas.full_id, c: nas }];
+            const store = { state: { stack: null, byHost: {} }, canMutate: () => !h.ro.on };
+            const logs = { open: () => ({ setActive() {}, update() {}, focus() {}, dispose() {} }) };
+            const panes = h.win.DockerManagerPanes.create({ t: key => key, model: h.win.DockerManagerModel, charts: {}, logs, terminal: h.terminal, store, findRow: key => rows.find(row => row.key === key) || null, lang: 'en' });
+            const mount = fakeMount(), live = { querySelector: selector => (selector.includes('"terminal"') ? mount : null) };
+            const detail = (index, tab) => ({ key: rows[index].key, hostId: index ? 'h_nas' : 'local', id: rows[index].c.full_id, tab });
+            panes.drawer(live, detail(0, 'terminal'), false);
+            h.sockets[0].open();
+            return { h, panes, live, detail };
+        };
+        {
+            const { h, panes, live, detail } = setup();
+            for (const tab of ['', 'overview', 'logs', 'terminal']) panes.drawer(live, detail(0, tab), false);
+            eq([h.sockets.length, h.sockets[0].sent, h.sockets[0].closed], [1, [], false], 'another tab, a covered drawer or a hidden window leave the shell open');
+            panes.drawer(live, null, false);
+            eq([h.sockets[0].sent, h.sockets[0].closed, h.terms[0].disposed], [[END], true, true], 'closing the pane ends the shell');
+        }
+        {
+            const { h, panes, live, detail } = setup();
+            panes.drawer(live, detail(1, 'terminal'), false);
+            eq([h.sockets[0].sent, h.sockets[0].closed, h.sockets.length, h.sockets[1].url.includes('/hosts/h_nas/')], [[END], true, 2, true], 'another container on another host ends the shell and opens its own');
+        }
+        {
+            const { h, panes } = setup();
+            panes.dispose();
+            eq([h.sockets[0].sent, h.sockets[0].closed], [[END], true], 'closing the window ends the shell');
+        }
+        {
+            const { h, panes, live, detail } = setup();
+            h.ro.on = true;
+            panes.drawer(live, detail(0, 'terminal'), false);
+            eq([h.sockets[0].sent, h.sockets[0].closed], [[END], true], 'a repaint after read-only was switched on reaches the panel and ends the shell');
+        }
+    }
 }
 
 // ---- the lint scheduler: one request per quiet period, the newest answer wins, aborted requests are silent ------------------------
@@ -1301,11 +2309,13 @@ const full = {};
         reason_: [...model.REASONS],
         error_: ['read_only', 'container_not_found', 'invalid_host', 'network', 'timeout', 'forbidden', 'unknown', 'host_not_prepared', 'api_too_old', 'stacks_unavailable', 'stack_name_invalid', 'stack_not_found', 'stack_exists',
             'operation_in_progress', 'file_too_large', 'runner_image_missing', 'stacks_dir_unavailable', 'convert_failed', 'revision_conflict',
-            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict'],
+            'invalid_operation', 'operation_not_found', 'docker_error', 'host_not_found', 'invalid_action', 'internal_error', 'bad_request', 'project_conflict',
+            'stream_not_found', 'too_many_streams', 'websocket_required', 'container_not_running', 'helper_container', 'project_not_found',
+            'forbidden_origin', 'docker_hosts_unavailable', 'docker_disabled'],
         filter_: [...model.STATE_FILTERS],
         kind_: ['local', ...model.HOST_KINDS],
         color_: [...model.HOST_COLORS],
-        col_: ['status', 'name', 'image', 'ports', 'actions'],
+        col_: ['status', 'name', 'image', 'ports', 'load', 'actions'],
         host_: ['ok', 'error', 'unknown'],
         protected_: ['owner', 'self', 'endpoint', 'network', 'unverified', 'helper'],
         tab_: [...full.DockerManagerViews.TABS],
@@ -1319,14 +2329,17 @@ const full = {};
         op_kind_: [...sm.OP_KINDS],
         lint_: [...sm.LINT_CODES, 'sev_error', 'sev_warning', 'sev_hint'],
         op_state_: [...sm.OP_STATES],
-        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh'],
+        palette_: ['open', 'deploy', 'update', 'restart', 'stop', 'new_stack', 'prepare', 'switch_host', 'switch_all', 'refresh', 'logs', 'terminal'],
         sv_name_: ['empty', 'invalid', 'taken'],
         convert_: [...sm.CONVERT_WARNINGS],
         preview_kind_: [...sm.VOLUME_KINDS],
-        preview_var_: ['set', 'default', 'required', 'missing']
+        preview_var_: ['set', 'default', 'required', 'missing'],
+        logs_state_: ['idle', 'connecting', 'live', 'reconnecting', 'ended', 'error'],
+        logs_notice_: ['not_followed', 'attached', 'detached', 'truncated_history'],
+        term_status_: ['idle', 'connecting', 'connected', 'closed', 'error']
     };
     // Keys passed to t() through a conditional expression, which the literal scan above cannot see.
-    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved']) used.add(prefix + name);
+    for (const name of ['prepare_image_ok', 'prepare_image_missing', 'prepare_io_ok', 'prepare_io_mismatch', 'prepare_io_missing', 'ns_deployed', 'ns_saved', 'term_readonly', 'term_helper', 'term_not_running', 'term_none_running']) used.add(prefix + name);
     for (const [family, names] of Object.entries(families)) for (const name of names) used.add(prefix + family + name);
     used.add('desktop.app_docker_manager');
     assert.ok(used.size > 150, 'the key scan found only ' + used.size + ' keys');
