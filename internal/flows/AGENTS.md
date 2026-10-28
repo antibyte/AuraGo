@@ -158,7 +158,14 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   no second finding; a value that is not text, or a template that does not parse, counts every reference; past
   the 1000-reference cap the address is assumed tainted and is the error too. Like every lint error it is a
   warning in `ModeDraft`. Unlike the secret target the engine does not refuse such a run: a revision published
-  before the rule keeps running, and test runs validate with draft rules. Verify `TestLintUntrustedHostPositionIsError`,
+  before the rule keeps running, and test runs validate with draft rules. That is the open half of the finding
+  (actions_exfil-7), deferred for a product call (owner: flows): refusing the node at run time
+  is one line (`IssueUntrustedURLTarget` in `refusalsOf`) but stops every already published flow that templates a
+  host, and every test run of a draft that does, and the lint taints a node whole, so a constant host field of a
+  tainted node would be refused too; it needs a decision and release notes. And `http.request`
+  has no egress classification of its own under `RunType` flow (its GET goes through `api_request`, which is not
+  high-risk), a change in the `internal/agent` action policy. Until both land, a flow published before the rule
+  can still be steered to a host by its untrusted data. Verify `TestLintUntrustedHostPositionIsError`,
   `TestLintURLWithoutUntrustedDataIsQuiet`, `TestLintUntrustedBodyStaysAWarningAndSecretTargetKeepsItsCode`
   and `TestGenericURLParamsAreURLTargets`.
 - A new node whose `Execute` copies `in.Inputs` into its output must be added to `passesInputs`.
