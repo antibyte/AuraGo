@@ -32,7 +32,7 @@ func (dm *dmRequest) stackRoute(segs []string) bool {
 	case len(segs) == 5 && segs[0] == "hosts" && segs[2] == "stacks":
 		dm.stackSub(segs[1], segs[3], segs[4])
 	case len(segs) == 5 && segs[0] == "hosts" && segs[2] == "projects":
-		dm.projectAction(segs[1], segs[3], segs[4])
+		dm.projectSub(segs[1], segs[3], segs[4])
 	default:
 		return dm.operationRoute(segs) || dm.lintRoute(segs)
 	}
@@ -216,9 +216,11 @@ func (dm *dmRequest) stackDelete(hostID, name string) {
 	dmWriteOK(dm.w, http.StatusAccepted, dmFields{"operation": op})
 }
 
-// stackSub serves /hosts/{id}/stacks/{name}/{files|volumes|ops}.
+// stackSub serves /hosts/{id}/stacks/{name}/{files|volumes|ops|logs}.
 func (dm *dmRequest) stackSub(hostID, name, sub string) {
 	switch sub {
+	case "logs":
+		dm.stackLogs(hostID, name)
 	case "files":
 		dm.stackFiles(hostID, name)
 	case "volumes":

@@ -121,10 +121,13 @@ func (dm *dmRequest) containerList(hostID string) {
 }
 
 // containerSub serves /hosts/{id}/containers/{ref}/{inspect|logs|action}.
+// logs answers the one-shot JSON of phase 1, or the live SSE stream with follow=1.
 func (dm *dmRequest) containerSub(hostID, ref, sub string) {
 	switch {
 	case sub == "inspect":
 		dm.containerInspect(hostID, ref)
+	case sub == "logs" && dmTruthy(dm.r.URL.Query().Get("follow")):
+		dm.containerLogsFollow(hostID, ref)
 	case sub == "logs":
 		dm.containerLogs(hostID, ref)
 	case dmContainerActions[sub]:
