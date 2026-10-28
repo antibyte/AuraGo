@@ -119,9 +119,9 @@ type ParamSpec struct {
 	// FenceUntrusted: untrusted values (Env.Untrusted) that a template splices into the
 	// param reach Execute inside the external-data fence (fenceUntrusted), so a model that
 	// reads the param can tell the author's text from outside data. Set it on a param that
-	// goes to a model as material (the prompt of ai.step), never on one that Execute parses
-	// or compares. The resolved param, and so the run log, shows the fenced text. It is
-	// not part of the editor's API.
+	// goes to a model as material (the prompt and the instructions of ai.step), never on
+	// one that Execute parses or compares. The resolved param, and so the run log, shows
+	// the fenced text. It is not part of the editor's API.
 	FenceUntrusted bool        `json:"-"`
 	Fields         []ParamSpec `json:"fields,omitempty"`
 }
