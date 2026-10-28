@@ -19,7 +19,6 @@ import (
 	"aurago/internal/llm/catalog"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
-	"aurago/internal/tools"
 )
 
 // Limits and names of one AI step call.
@@ -124,7 +123,7 @@ func (f *flowLLM) Step(ctx context.Context, req flows.LLMRequest) (flows.LLMResp
 // all, the step fails with FLOW_PARAM_INVALID, which no retry repeats, and no provider is
 // called, as a tool output at that level is withheld from the agent. A text that reaches
 // High only through bare phrases such as "you are now" or "from now on" is not refused
-// (tools.GateScan): a mail that says "From now on you will receive weekly updates" must not
+// (security.GateScan): a mail that says "From now on you will receive weekly updates" must not
 // fail the flow. The message names no part of the text; the categories go to the log.
 func (f *flowLLM) scanText(req flows.LLMRequest) error {
 	guardian := flowPromptGuardian
@@ -135,7 +134,7 @@ func (f *flowLLM) scanText(req flows.LLMRequest) error {
 		if strings.TrimSpace(part.text) == "" {
 			continue
 		}
-		scan, withhold := tools.GateScan(guardian, part.text)
+		scan, withhold := security.GateScan(guardian, part.text)
 		if !withhold {
 			continue
 		}

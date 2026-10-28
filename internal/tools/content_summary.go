@@ -135,10 +135,10 @@ func SummariseContent(ctx context.Context, llmCfg SummaryLLMConfig, logger *slog
 	// receive is scanned: the rest never reaches a model and the regex tier is
 	// too slow for a multi-megabyte page. ThreatHigh and an incomplete scan are
 	// withheld the way external tool output is (quarantine notice, no helper
-	// call). The scan uses the operator's Guardian options (GuardianFromConfig) and
-	// lets a page that says "You are now logged in" through (GateScan).
+	// call). The scan uses the operator's Guardian options (security.GuardianFromConfig)
+	// and lets a page that says "You are now logged in" through (security.GateScan).
 	rawContent = trimForSummary(rawContent, maxSummaryPromptContentChars)
-	if scan, withhold := GateScan(GuardianFromConfig(llmCfg.Config), rawContent); withhold {
+	if scan, withhold := security.GateScan(security.GuardianFromConfig(llmCfg.Config), rawContent); withhold {
 		reason := security.QuarantineSuspicious
 		if scan.Incomplete {
 			reason = security.QuarantineIncomplete

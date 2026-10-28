@@ -919,7 +919,9 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 
 	// Scan the original body before rewriting role markers. Ordinary source
 	// remains copyable; only a critical verdict selects the escaped form.
-	// External bodies at ThreatHigh or above are withheld entirely.
+	// External bodies at ThreatHigh or above are withheld entirely, except a
+	// text that reaches that level only through bare role or time phrases
+	// (relieveBarePhrases, the rule GateScan applies as well).
 	trust := classifyToolOutput(toolName)
 	oversize := trust != toolOutputTrusted && len(output) > maxScanOutputBytes
 	if oversize && trust == toolOutputExternal {
@@ -935,18 +937,37 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	var scan ScanResult
 	var leaves []jsonLeaf
 	var joined string
+	// hostile is set when a scanned text still reaches the bar after bare
+	// phrases are let through: ThreatHigh withholds external output,
+	// ThreatCritical sends source output to the escaped form. scan keeps the
+	// merged verdict of the texts as written, so a relieved text still names
+	// its categories on the warning line.
+	hostile := false
 	if (trust == toolOutputSourceData || trust == toolOutputExternal) && !oversize {
-		scan = g.ScanForInjection(output)
+		bar := ThreatHigh
+		if trust == toolOutputSourceData {
+			bar = ThreatCritical
+		}
+		scanPart := func(text string) {
+			part := g.ScanForInjection(text)
+			scan = mergeScanResults(scan, part)
+			if part.Level >= bar && !part.Incomplete {
+				if _, held := relieveBarePhrases(text, part, bar, g.ScanForInjection); held {
+					hostile = true
+				}
+			}
+		}
+		scanPart(output)
 		// A JSON envelope escapes line breaks and quotes, which splits a phrase
 		// the regexes need whole. Scan the decoded string values joined by
 		// newlines as well, and the object keys (distinct ones, joined the
 		// same way), and keep the higher verdict.
 		if leaves = jsonStringLeaves(output); len(leaves) > 0 {
 			if joined = joinJSONLeaves(leaves, false); joined != "" {
-				scan = mergeScanResults(scan, g.ScanForInjection(joined))
+				scanPart(joined)
 			}
 			if keys := joinJSONLeaves(leaves, true); keys != "" {
-				scan = mergeScanResults(scan, g.ScanForInjection(keys))
+				scanPart(keys)
 			}
 		}
 	}
@@ -957,7 +978,7 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		}
 		return QuarantineNotice(toolName, "", ContentScanQuarantine(QuarantineIncomplete))
 	}
-	if trust == toolOutputExternal && scan.Level >= ThreatHigh {
+	if trust == toolOutputExternal && hostile {
 		if g.logger != nil {
 			g.logger.Warn("[Guardian] Withheld external tool output",
 				"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
@@ -986,7 +1007,7 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		// forge the boundary; escaping cannot neutralise injection prose, and the
 		// scanner rates ordinary game templates high, so only critical findings
 		// keep the legacy escaped form.
-		if scan.Level >= ThreatCritical {
+		if hostile {
 			if g.logger != nil {
 				g.logger.Warn("[Guardian] Injection patterns in project source, escaping",
 					"tool", toolName, "threat", scan.Level.String(), "patterns", scan.Patterns)
@@ -1030,9 +1051,11 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 
 // externalWarningCategories names why external output that is delivered anyway
 // gets a SECURITY WARNING line: a Medium scan finding (the detector's own
-// category names; payload text stays out) and a standing-instruction shape in
-// the text. Neither withholds. A Medium that is only the sanitizer's note on
-// normalized characters (ordinary Cyrillic, Greek or emoji-joined text) names no
+// category names; payload text stays out), the findings of a text that reached
+// High only through bare phrases and was let through (scan is the verdict of
+// the text as written), and a standing-instruction shape in the text. None
+// withholds. A Medium that is only the sanitizer's note on normalized
+// characters (ordinary Cyrillic, Greek or emoji-joined text) names no
 // attack and warns about nothing. The shape is read from the decoded JSON string
 // values when the output has them, so keys and braces cannot join sentences,
 // and from the output itself otherwise. It logs the categories only.

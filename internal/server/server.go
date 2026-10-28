@@ -1835,41 +1835,10 @@ func newServerFromOptions(opts StartOptions) *Server {
 	}
 
 	// Build the server-wide Guardian with the same promptsec options as the agent loop.
-	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
-		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
-		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
-		Preset:        cfg.Guardian.PromptSec.Preset,
-		Sanitizer: security.PromptSecSanitizerOptions{
-			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
-			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
-			Decode:      cfg.Guardian.PromptSec.Sanitizer.Decode,
-		},
-		Embedding: security.PromptSecEmbeddingOptions{
-			Enabled:   cfg.Guardian.PromptSec.Embedding.Enabled,
-			Threshold: cfg.Guardian.PromptSec.Embedding.Threshold,
-		},
-		Policy:       cfg.Guardian.PromptSec.Policy,
-		CustomPolicy: security.PromptSecCustomPolicyOptions{DisallowedTasks: cfg.Guardian.PromptSec.CustomPolicy.DisallowedTasks},
-		Taint: security.PromptSecTaintOptions{
-			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
-			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
-		},
-		LLMJudge: security.PromptSecLLMJudgeOptions{
-			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
-			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
-			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
-			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
-		},
-		UseSanitizedOutput: cfg.Guardian.PromptSec.UseSanitizedOutput,
-	})
+	guardian := security.NewGuardianFromConfig(logger, cfg)
 	llmGuardian := security.NewLLMGuardian(cfg, logger)
 	if cfg.Guardian.PromptSec.LLMJudge.Enabled {
-		guardian.AttachLLMJudge(llmGuardian, security.PromptSecLLMJudgeOptions{
-			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
-			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
-			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
-			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
-		})
+		guardian.AttachLLMJudge(llmGuardian, security.LLMJudgeOptionsFromConfig(cfg))
 	}
 
 	budgetTracker := opts.BudgetTracker

@@ -301,8 +301,8 @@ func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage
 		// dispatch scan never sees this user-role text: scan it here and fence
 		// what stays, the way external tool output is treated. The promote helpers
 		// do not carry the server's Guardian, so the scan builds one from the same
-		// guardian options (tools.GuardianFromConfig).
-		if scan, withhold := tools.GateScan(tools.GuardianFromConfig(cfg), analysis); withhold {
+		// guardian options (security.GuardianFromConfig).
+		if scan, withhold := security.GateScan(security.GuardianFromConfig(cfg), analysis); withhold {
 			if logger != nil {
 				logger.Warn("Vision fallback analysis withheld by the injection scan",
 					"path", agentPath, "threat", scan.Level.String(), "patterns", scan.Patterns, "incomplete", scan.Incomplete)

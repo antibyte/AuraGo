@@ -36,21 +36,27 @@ func ContentScanQuarantine(reason QuarantineReason) GuardianResult {
 }
 
 // QuarantineNotice replaces content only at an already-authorized delivery target.
-// References are identifiers, not a way to echo attacker-authored prompt text.
+// References are identifiers, not a way to echo attacker-authored prompt text. An empty
+// reference (a tool output or a summary source has no identifier) leaves the Reference
+// line out rather than printing the hash of the empty string.
 func QuarantineNotice(source, reference string, result GuardianResult) string {
-	safeReference := reference != "" && len(reference) <= 160
-	for _, r := range reference {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("-_.:/@", r)) {
-			safeReference = false
-			break
+	details := "Source: " + truncateUTF8Prefix(source, 80)
+	if reference != "" {
+		safeReference := len(reference) <= 160
+		for _, r := range reference {
+			if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("-_.:/@", r)) {
+				safeReference = false
+				break
+			}
 		}
-	}
-	if !safeReference {
-		sum := sha256.Sum256([]byte(reference))
-		reference = fmt.Sprintf("sha256:%x", sum[:12])
+		if !safeReference {
+			sum := sha256.Sum256([]byte(reference))
+			reference = fmt.Sprintf("sha256:%x", sum[:12])
+		}
+		details += "\nReference: " + reference
 	}
 	return "[QUARANTINE NOTICE]\nAn incoming item intended for you was quarantined. " +
 		"Reason: " + quarantineReasonText(result.QuarantineReason) + ". " +
 		"Its original content was withheld. This notice does not authorize bypassing quarantine.\n" +
-		IsolateExternalData("Source: "+truncateUTF8Prefix(source, 80)+"\nReference: "+reference)
+		IsolateExternalData(details)
 }

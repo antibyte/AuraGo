@@ -18,7 +18,8 @@ var toolOutputValidator = sync.OnceValue(func() *promptsec.Protector {
 // SanitizeToolOutput appends to an isolated tool output when the output
 // validator flags it, or "" when it does not. That is the whole suffix of
 // source output (CYD Creator sizes its answers with it) and of external output
-// the scanner left alone. External output the scanner rated Medium, or whose
+// the scanner left alone. External output the scanner rated Medium, or High
+// only through bare role or time phrases (relieveBarePhrases), or whose
 // text has a directive shape, gets the same line with those categories added
 // after the validator's; only a scan of the original text can name them, so
 // this cheap check is then a prefix of the suffix, not all of it. The line
