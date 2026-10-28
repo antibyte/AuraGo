@@ -158,6 +158,33 @@ func TestExecStartHijacksTheConnectionWithTheNegotiatedVersion(t *testing.T) {
 	}
 }
 
+// ctx bounds the handshake only: the caller of a terminal gives ExecStart a
+// setup timeout and cancels it as soon as the session exists.
+func TestExecStartStreamOutlivesTheHandshakeContext(t *testing.T) {
+	fe := newFakeEngine(t)
+	var seen seenExec
+	hijackExec(t, fe, "/exec/e1e1e1/start", &seen, "prompt$ ")
+	c := fe.client(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	stream, err := ExecStart(ctx, c, "e1e1e1")
+	if err != nil {
+		cancel()
+		t.Fatalf("ExecStart: %v", err)
+	}
+	defer stream.Close()
+	cancel()
+	time.Sleep(50 * time.Millisecond) // let a stray AfterFunc close the connection
+
+	if _, err := stream.Write([]byte("ls\r")); err != nil {
+		t.Fatalf("write after the handshake context ended: %v", err)
+	}
+	got := make([]byte, len("prompt$ ls\r"))
+	if _, err := io.ReadFull(stream, got); err != nil || string(got) != "prompt$ ls\r" {
+		t.Fatalf("stream after the handshake context ended = %q, %v", got, err)
+	}
+}
+
 func TestExecStartReportsRefusalsAndHonoursTheContext(t *testing.T) {
 	fe := newFakeEngine(t)
 	fe.on("POST", "/exec/dead/start", func(w http.ResponseWriter, r *http.Request) {

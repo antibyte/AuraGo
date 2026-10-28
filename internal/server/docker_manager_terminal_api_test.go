@@ -170,6 +170,32 @@ func TestDockerManagerTerminalPlainGETNeverCreatesAnExecOrKeepsASlot(t *testing.
 	}
 }
 
+// An Engine that accepts the exec start and never answers must not pin the stream
+// slot until the browser leaves: the request fails within the setup timeout.
+func TestDockerManagerTerminalStalledHandshakeFailsInTimeAndFreesTheSlot(t *testing.T) {
+	prev := dmTerminalSessionTimeout
+	dmTerminalSessionTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { dmTerminalSessionTimeout = prev })
+
+	ls := newDMLiveServer(t, "[]")
+	ls.engine.term.stallStart.Store(true)
+
+	began := time.Now()
+	got := ls.handshake("/hosts/local/containers/web/terminal", nil)
+	if got.conn != nil || got.status != http.StatusBadGateway || got.body["code"] != "host_unreachable" || got.body["reason"] != "timeout" {
+		t.Fatalf("stalled handshake = %+v, want 502 host_unreachable (timeout)", got)
+	}
+	if took := time.Since(began); took > 10*time.Second {
+		t.Fatalf("the request waited %v for a stalled Engine", took)
+	}
+	if starts := ls.engine.term.find(http.MethodPost, "/exec/exec-1/start"); len(starts) != 1 {
+		t.Fatalf("%d exec start(s) reached the Engine, want the one that stalled", len(starts))
+	}
+	dmTermWaitFor(t, "the stream slot to come back", func() bool {
+		return dmTerminalSlots(t, ls.s.DockerWatch, "local") == dockerwatch.MaxStreamsPerHost
+	})
+}
+
 func TestDockerManagerTerminalServesTheSharedProtocolOnAnyHost(t *testing.T) {
 	ls := newDMLiveServer(t, "[]")
 	remote := newDMLiveEngine(t, dmContainersJSON(t,

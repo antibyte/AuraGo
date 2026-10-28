@@ -25,6 +25,11 @@ import (
 // protection lookup).
 const dmTerminalSetupTimeout = 30 * time.Second
 
+// dmTerminalSessionTimeout bounds creating the shell exec and attaching to it,
+// which happen after the stream slot is taken: a stalled Engine ends the request
+// with 502 and frees the slot. A variable so a test can shorten it.
+var dmTerminalSessionTimeout = dmTerminalSetupTimeout
+
 // dmTerminalInspect is the part of a projected inspect document the terminal
 // route reads (tools.ProjectDockerInspect keeps the Engine's own state object).
 type dmTerminalInspect struct {
@@ -42,7 +47,8 @@ type dmTerminalInspect struct {
 // container_protected_confirmation_required (the protection rule of
 // /api/containers: needs ?confirm=protected; the same rule for a remote host as for
 // removing a container), 429 too_many_streams, 400 websocket_required, then the
-// exec is created and the connection upgraded.
+// exec is created and attached within dmTerminalSessionTimeout (a stalled Engine
+// answers 502 host_unreachable and frees the slot) and the connection upgraded.
 func (dm *dmRequest) containerTerminal(hostID, ref string) {
 	if !dm.allow(http.MethodGet) {
 		return
@@ -98,7 +104,14 @@ func (dm *dmRequest) containerTerminal(hostID, ref string) {
 		return
 	}
 
-	session, err := newDockerManagerTerminalSession(dm.r.Context(), client, ref, 120, 30)
+	// The Engine (or a socket proxy in front of it) may accept the connection and
+	// never answer; the slot taken above must not wait for the browser to give
+	// up. The timeout guards the exec create and the hijack handshake only:
+	// ExecStart stops watching its context once the stream is attached, so the
+	// session outlives it.
+	setupCtx, cancelSetup := dm.context(dmTerminalSessionTimeout)
+	session, err := newDockerManagerTerminalSession(setupCtx, client, ref, 120, 30)
+	cancelSetup()
 	if err != nil {
 		if dockerhost.StatusOf(err) == http.StatusConflict {
 			dmWriteError(dm.w, http.StatusConflict, dmCodeNotRunning, "The container is not running", nil)

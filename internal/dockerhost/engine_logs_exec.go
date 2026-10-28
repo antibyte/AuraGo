@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -27,6 +28,10 @@ const MaxLogLineBytes = 16 << 10
 // logTimestampMax bounds the timestamp prefix the Engine puts in front of a line
 // (RFC 3339 with nanoseconds, "2026-10-28T07:33:29.123456789Z" is 30 bytes).
 const logTimestampMax = 48
+
+// logHeaderTimeout is how long FollowLogs waits for the Engine to answer the log
+// request. It is a variable so the tests can shorten it.
+var logHeaderTimeout = 30 * time.Second
 
 // LogOptions selects what FollowLogs reads.
 type LogOptions struct {
@@ -180,7 +185,9 @@ func logQuery(opt LogOptions) string {
 // are always requested and removed from the text. It returns nil when the log
 // ended, ctx.Err() when ctx ended, the error of fn when fn failed and a
 // *StatusError (404 gone, 409 and others) when the Engine refused the request.
-// The request uses the streaming client of c, which has no total timeout.
+// The request uses the streaming client of c, which has no total timeout; only
+// the wait for the response headers is bounded (logHeaderTimeout), and that
+// failure wraps context.DeadlineExceeded.
 func FollowLogs(ctx context.Context, c *dockerutil.Client, ref string, opt LogOptions, fn func(LogLine) error) error {
 	if err := validateContainerRef(ref); err != nil {
 		return err
@@ -194,11 +201,33 @@ func FollowLogs(ctx context.Context, c *dockerutil.Client, ref string, opt LogOp
 	if err := engineJSON(ctx, c, http.MethodGet, "containers/"+esc+"/json", &inspect); err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dockerutil.Endpoint("containers/"+esc+"/logs?"+logQuery(opt)), nil)
+	// The streaming client has no total timeout, so a stalled Engine or socket
+	// proxy would hold the request (and the stream slot of the caller) until ctx
+	// ends. The request is cancelled when no response headers arrive within
+	// logHeaderTimeout; once they are in, the follow itself has no limit.
+	reqCtx, cancelReq := context.WithCancel(ctx)
+	defer cancelReq()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, dockerutil.Endpoint("containers/"+esc+"/logs?"+logQuery(opt)), nil)
 	if err != nil {
 		return fmt.Errorf("create Docker request: %w", err)
 	}
+	var headers atomic.Int32 // 0 waiting for the headers, 1 they arrived, 2 the wait ran out
+	wait := time.AfterFunc(logHeaderTimeout, func() {
+		if headers.CompareAndSwap(0, 2) {
+			cancelReq()
+		}
+	})
 	resp, err := c.StreamingHTTPClient().Do(req)
+	wait.Stop()
+	if !headers.CompareAndSwap(0, 1) {
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("Docker did not answer the log request within %s: %w", logHeaderTimeout, context.DeadlineExceeded)
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()

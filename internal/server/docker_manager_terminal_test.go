@@ -36,6 +36,9 @@ type dmTermEngine struct {
 	execs  int
 	client *dockerutil.Client
 	hijack atomic.Int32 // hijacked streams that ended
+
+	// stallStart makes the hijacked exec start accept the request and never answer.
+	stallStart atomic.Bool
 }
 
 func newDMTermEngine(t *testing.T) *dmTermEngine {
@@ -72,6 +75,8 @@ func (fe *dmTermEngine) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/start") && strings.Contains(string(body), `"Detach":true`):
 		w.WriteHeader(http.StatusOK)
+	case r.Method == http.MethodPost && strings.HasSuffix(path, "/start") && fe.stallStart.Load():
+		<-r.Context().Done() // until the client gives up and closes the connection
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/start"):
 		conn, buf, err := w.(http.Hijacker).Hijack()
 		if err != nil {

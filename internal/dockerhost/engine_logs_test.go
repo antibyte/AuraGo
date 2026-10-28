@@ -171,6 +171,39 @@ func TestFollowLogsReturnsTheCallbackErrorAndStopsOnContext(t *testing.T) {
 	}
 }
 
+// A stalled Engine or socket proxy must not hold the request (and the caller's
+// stream slot) for ever: no headers within logHeaderTimeout ends the call, while
+// a followed log that has started may stay quiet for longer than that.
+func TestFollowLogsGivesUpWhenNoHeadersArriveButNotOnAQuietFollow(t *testing.T) {
+	prev := logHeaderTimeout
+	logHeaderTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { logHeaderTimeout = prev })
+
+	stalled := logsEngine(t, false, func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done() // accepts the request and never answers
+	})
+	began := time.Now()
+	_, err := collectLogs(t, stalled, LogOptions{Follow: true})
+	if !errors.Is(err, context.DeadlineExceeded) || ClassifyError(err) != CodeTimeout {
+		t.Fatalf("stalled Engine: %v, want a timeout error", err)
+	}
+	if took := time.Since(began); took > 5*time.Second {
+		t.Fatalf("FollowLogs held a stalled request for %v", took)
+	}
+
+	quiet := logsEngine(t, false, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.multiplexed-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush() // headers in, then a pause longer than the header wait
+		time.Sleep(3 * logHeaderTimeout)
+		_, _ = w.Write(muxFrame(1, logTS+" late line\n"))
+	})
+	lines, err := collectLogs(t, quiet, LogOptions{Follow: true})
+	if err != nil || len(lines) != 1 || lines[0].Text != "late line" {
+		t.Fatalf("quiet follow = %v, %v; the header wait must stop once the headers are in", lines, err)
+	}
+}
+
 func TestFollowLogsReportsEngineAnswers(t *testing.T) {
 	fe := newFakeEngine(t)
 	c := fe.client(t)
