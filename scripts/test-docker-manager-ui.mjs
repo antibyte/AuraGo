@@ -2035,6 +2035,114 @@ const full = {};
     panes.dispose();
 }
 
+// ---- terminal panel: read-only ends an open shell; a hidden tab keeps it; closing the pane, another container and the window end it ----
+{
+    // A tiny DOM (just the elements the terminal module looks up), a fake xterm and a fake WebSocket, in a vm of their own that has a `document`.
+    const fakeMount = () => {
+        const parts = {}, node = () => ({ hidden: false, textContent: '', innerHTML: '', value: '', dataset: {}, clientWidth: 0, clientHeight: 0, style: {}, append() {}, remove() {}, focus() {}, addEventListener() {}, querySelector: () => ({ textContent: '' }) });
+        return { hidden: false, parts, replaceChildren() {}, querySelector(selector) { const key = /data-tp-[a-z-]+/.exec(selector)[0]; return parts[key] || (parts[key] = node()); } };
+    };
+    const harness = () => {
+        const win = {}, sockets = [], terms = [], ro = { on: false };
+        win.Terminal = class {
+            constructor() { this.cols = 80; this.rows = 24; terms.push(this); }
+            loadAddon() {} open() {} attachCustomKeyEventHandler() {} reset() {} write() {} focus() {}
+            onData(fn) { this.data = fn; }
+            onBinary(fn) { this.binary = fn; }
+            dispose() { this.disposed = true; }
+        };
+        vm.runInNewContext(['docker-manager-model.js', 'docker-manager-terminal.js', 'docker-manager-panes.js'].map(file => read('ui/js/desktop/apps/' + file)).join('\n'), {
+            window: win, console, Map, Set, JSON, Math, Date, URL, AbortController, setTimeout, clearTimeout, TextEncoder,
+            document: { createElement: () => ({ style: {}, className: '', remove() {}, getContext: () => null }) },
+            getComputedStyle: () => ({ fontFamily: 'sans-serif', color: 'rgb(0, 0, 0)' })
+        });
+        const openSocket = url => {
+            const socket = { url, readyState: 0, sent: [], closed: false };
+            socket.send = data => { socket.sent.push(typeof data === 'string' ? data : 'bin:' + Buffer.from(data).toString()); };
+            socket.close = () => { socket.readyState = 3; socket.closed = true; };
+            socket.open = () => { socket.readyState = 1; socket.onopen(); };
+            sockets.push(socket);
+            return socket;
+        };
+        const terminal = win.DockerManagerTerminal.create({
+            t: key => key, esc: String, views: { errorText: info => info.message }, diagnose: async () => null, confirmProtected: async () => true,
+            socket: openSocket, requestFrame: fn => fn(), location: { protocol: 'http:', host: 'desk.lan' }
+        });
+        return { win, Term: win.DockerManagerTerminal, terminal, sockets, terms, ro };
+    };
+    const END = '{"type":"end"}';
+    const web = container('web'), nas = container('nas-web');
+
+    // read-only switched on while a shell is open: the input stops at once, the next update() ends the session with the end frame
+    {
+        const h = harness(), el = fakeMount();
+        const panel = h.terminal.open(el, { hostId: 'local', targets: () => [h.Term.targetOf(web)], readonly: () => h.ro.on });
+        panel.setActive(true);
+        h.sockets[0].open();
+        h.terms[0].data('ls');
+        eq([panel.phase(), h.sockets[0].sent], ['connected', ['bin:ls']], 'a shell opens and takes input');
+        h.ro.on = true;
+        h.terms[0].data('rm');
+        eq(h.sockets[0].sent, ['bin:ls'], 'input is dropped as soon as read-only is on, even before the panel noticed');
+        panel.update();
+        eq([panel.phase(), h.sockets[0].sent, h.sockets[0].closed, el.parts['data-tp-msg'].textContent, el.parts['data-tp-screen'].hidden], ['idle', ['bin:ls', END], true, 'term_readonly', true], 'read-only ends the open shell and says why');
+        h.terms[0].data('x');
+        eq(h.sockets[0].sent, ['bin:ls', END], 'nothing is sent after the end');
+        h.ro.on = false;
+        panel.update();
+        eq([el.parts['data-tp-msg'].textContent, el.parts['data-tp-start'].hidden, h.sockets.length], ['', false, 1], 'lifting read-only offers the shell again, without opening one by itself');
+        panel.dispose();
+
+        // a handshake that is still open is closed too (there is no shell to end yet)
+        const el2 = fakeMount(), panel2 = h.terminal.open(el2, { hostId: 'local', targets: () => [h.Term.targetOf(web)], readonly: () => h.ro.on });
+        panel2.setActive(true);
+        const pending = h.sockets[1];
+        eq([panel2.phase(), pending.readyState], ['connecting', 0]);
+        h.ro.on = true;
+        panel2.update();
+        eq([panel2.phase(), pending.closed, pending.sent, el2.parts['data-tp-msg'].textContent], ['idle', true, [], 'term_readonly'], 'read-only also cancels a connecting shell');
+        panel2.dispose();
+    }
+
+    // the panes keep a shell while its pane exists (other tab, covered, minimised) and end it when the pane or the window closes
+    {
+        const setup = () => {
+            const h = harness(), rows = [{ key: 'local/' + web.full_id, c: web }, { key: 'h_nas/' + nas.full_id, c: nas }];
+            const store = { state: { stack: null, byHost: {} }, canMutate: () => !h.ro.on };
+            const logs = { open: () => ({ setActive() {}, update() {}, focus() {}, dispose() {} }) };
+            const panes = h.win.DockerManagerPanes.create({ t: key => key, model: h.win.DockerManagerModel, charts: {}, logs, terminal: h.terminal, store, findRow: key => rows.find(row => row.key === key) || null, lang: 'en' });
+            const mount = fakeMount(), live = { querySelector: selector => (selector.includes('"terminal"') ? mount : null) };
+            const detail = (index, tab) => ({ key: rows[index].key, hostId: index ? 'h_nas' : 'local', id: rows[index].c.full_id, tab });
+            panes.drawer(live, detail(0, 'terminal'), false);
+            h.sockets[0].open();
+            return { h, panes, live, detail };
+        };
+        {
+            const { h, panes, live, detail } = setup();
+            for (const tab of ['', 'overview', 'logs', 'terminal']) panes.drawer(live, detail(0, tab), false);
+            eq([h.sockets.length, h.sockets[0].sent, h.sockets[0].closed], [1, [], false], 'another tab, a covered drawer or a hidden window leave the shell open');
+            panes.drawer(live, null, false);
+            eq([h.sockets[0].sent, h.sockets[0].closed, h.terms[0].disposed], [[END], true, true], 'closing the pane ends the shell');
+        }
+        {
+            const { h, panes, live, detail } = setup();
+            panes.drawer(live, detail(1, 'terminal'), false);
+            eq([h.sockets[0].sent, h.sockets[0].closed, h.sockets.length, h.sockets[1].url.includes('/hosts/h_nas/')], [[END], true, 2, true], 'another container on another host ends the shell and opens its own');
+        }
+        {
+            const { h, panes } = setup();
+            panes.dispose();
+            eq([h.sockets[0].sent, h.sockets[0].closed], [[END], true], 'closing the window ends the shell');
+        }
+        {
+            const { h, panes, live, detail } = setup();
+            h.ro.on = true;
+            panes.drawer(live, detail(0, 'terminal'), false);
+            eq([h.sockets[0].sent, h.sockets[0].closed], [[END], true], 'a repaint after read-only was switched on reaches the panel and ends the shell');
+        }
+    }
+}
+
 // ---- the lint scheduler: one request per quiet period, the newest answer wins, aborted requests are silent ------------------------
 {
     const { createLinter, LINT_DELAY_MS } = full.DockerManagerEditor;

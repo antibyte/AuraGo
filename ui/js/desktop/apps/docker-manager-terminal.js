@@ -158,7 +158,8 @@
                 if (typeof ResizeObserver === 'function') { resizeObserver = new ResizeObserver(() => queueFit()); resizeObserver.observe(screen); }
                 return true;
             }
-            function send(data) { if (socket && socket.readyState === 1) socket.send(data); }
+            // Input is dropped while read-only is on, even if the socket is still open (update() ends the session on the next paint).
+            function send(data) { if (!readonly() && socket && socket.readyState === 1) socket.send(data); }
             function doFit() {
                 fitQueued = false;
                 if (disposed || !term || !fit || !active || screen.clientWidth < 20 || screen.clientHeight < 20) return;
@@ -272,9 +273,18 @@
                     if (phase === 'idle' && !message && !opened) start();
                     else { queueFit(); frame(() => { doFit(); if (wantFocus && phase === 'connected' && term) { term.focus(); wantFocus = false; } }); }
                 },
-                // The list of containers changed: refresh the picker and the explanation; a running session is left alone.
+                // The list of containers changed: refresh the picker and the explanation; a running session is left alone, unless read-only is on.
                 update() {
                     if (disposed) return;
+                    // Read-only can be switched on while a shell is open (desktop policy, docker_readonly of the host list, a 403 read_only):
+                    // the session ends at once, with the "end" frame, instead of staying usable until the person leaves.
+                    if (readonly() && (phase === 'connecting' || phase === 'connected')) {
+                        closeSocket(true);
+                        phase = 'idle';
+                        message = t('term_readonly');
+                        paint();
+                        return;
+                    }
                     if ((phase === 'idle' || phase === 'error') && !targetFor(current) && targets().length) { current = targets()[0].ref; optionSig = ''; }
                     paintPicker();
                     if (phase === 'idle' || phase === 'error') {
