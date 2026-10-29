@@ -1543,6 +1543,14 @@ func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog
 	if stm == nil || ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+	if ltm != nil {
+		if expired, err := stm.ArchiveExpiredMemoriesContext(ctx, ltm); err != nil {
+			resultErr = errors.Join(resultErr, err)
+			logger.Warn("[Maintenance] Archiving expired memories failed", "error", err)
+		} else if expired > 0 {
+			logger.Info("[Maintenance] Archived expired memories", "archived", expired)
+		}
+	}
 	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 	if err != nil {
 		resultErr = errors.Join(resultErr, err)
