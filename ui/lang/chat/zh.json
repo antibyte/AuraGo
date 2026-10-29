@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "可选的本地防护",
+  "chat.horizon_optional_body": "Horizon Labs 分类器可额外检查网页和邮件内容中的提示注入。此功能默认关闭。模型约需 {{model_mb}} MB 下载空间，运行库约需 {{runtime_mb}} MB，并需要额外的 CPU 资源和大约 1–2 GiB 可用内存。是否有足够资源由你自行决定。下载和启用是在“设置 → PromptSec Guardian”中分别执行的两个步骤。",
+  "chat.horizon_optional_settings": "打开设置",
   "chat.sessions_delete_hint": "永久删除此聊天，包括计划和已归档的对话。",
   "chat.sessions_delete_memories": "同时删除相关记忆",
   "chat.sessions_delete_backups": "在计划清理之前，备份中可能仍保留已删除的数据。",

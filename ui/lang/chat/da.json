@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "Valgfri lokal beskyttelse",
+  "chat.horizon_optional_body": "Horizon Labs-klassifikatoren kan give ekstra kontrol af webindhold og e-mails for prompt-injektion. Den er slået fra som standard. Den kræver cirka {{model_mb}} MB til modellen og {{runtime_mb}} MB til kørselsmiljøet, ekstra CPU-kapacitet og omtrent 1–2 GiB ledig RAM. Du afgør selv, om dit system har nok ressourcer. Download og aktivering er separate trin i indstillingerne for PromptSec Guardian.",
+  "chat.horizon_optional_settings": "Åbn indstillinger",
   "chat.sessions_delete_hint": "Slet denne chat permanent, inklusive planer og arkiveret samtale.",
   "chat.sessions_delete_memories": "Slet også tilknyttede minder",
   "chat.sessions_delete_backups": "Sikkerhedskopier kan indeholde slettede data indtil den planlagte oprydning.",

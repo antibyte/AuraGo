@@ -47,9 +47,14 @@ func TestSystemNotificationTranslationsExistInEveryChatLocale(t *testing.T) {
 		if err := json.Unmarshal(raw, &values); err != nil {
 			t.Fatalf("parse %s: %v", path, err)
 		}
-		for _, key := range []string{"chat.system_briefing_prefix", "chat.system_notification_prefix"} {
+		for _, key := range []string{"chat.system_briefing_prefix", "chat.system_notification_prefix", "chat.horizon_optional_title", "chat.horizon_optional_body", "chat.horizon_optional_settings"} {
 			if strings.TrimSpace(values[key]) == "" {
 				t.Fatalf("%s missing non-empty %q", path, key)
+			}
+		}
+		for _, placeholder := range []string{"{{model_mb}}", "{{runtime_mb}}"} {
+			if !strings.Contains(values["chat.horizon_optional_body"], placeholder) {
+				t.Fatalf("%s is missing %s", path, placeholder)
 			}
 		}
 	}

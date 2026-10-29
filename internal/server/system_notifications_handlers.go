@@ -3,6 +3,9 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
+
+	"aurago/internal/memory"
 )
 
 func handleSystemNotifications(s *Server) http.HandlerFunc {
@@ -16,6 +19,11 @@ func handleSystemNotifications(s *Server) http.HandlerFunc {
 			s.Logger.Error("Failed to fetch typed system notifications", "error", err)
 			jsonError(w, "Internal server error", http.StatusInternalServerError)
 			return
+		}
+		if s.InjectionGuard == nil || !optionalInjectionGuardNoticeAvailable(s.InjectionGuard.Status()) {
+			notifications = slices.DeleteFunc(notifications, func(note memory.SystemNotification) bool {
+				return note.Type == "security_advisory" && note.SourceID == horizonOptionalNoticeSourceID
+			})
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{

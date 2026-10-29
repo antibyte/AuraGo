@@ -19,7 +19,10 @@ guardian:
     action: quarantine # quarantine | datamark
 ```
 
-Existing installations keep the model off. CPU runtimes support Windows and Linux
+The model is off by default and upgrades preserve the operator's explicit choice.
+The operator decides whether CPU capacity and available memory are sufficient;
+AuraGo never enables the model automatically based on a hardware probe.
+CPU runtimes support Windows and Linux
 amd64/arm64, macOS arm64. Unsupported platforms retain ordinary Guardian operation.
 No Python, CGO or GPU is required on the end-user machine.
 
@@ -30,6 +33,39 @@ files live in `data/injectionguard/models`. The official quantized export quanti
 embedding/Gather weights; it is not a fully int8 transformer. Allow roughly 1–2 GiB
 of available RAM and qualify the machine with real workloads. Exact artifact sizes
 and SHA-256 pins are in `internal/injectionguard/model.go`.
+
+Supported installations with the model disabled receive one informational Chat notice
+with an **Open settings** link to `/config#guardian`. It only opens settings; download
+and activation remain separate explicit actions. The existing typed notification store
+deduplicates `security:horizon_optional` across restarts and updates. Chat acknowledges
+only successfully displayed IDs. Failed delivery or acknowledgment leaves the notice
+available for another attempt; a read notice stays read across browsers and chats.
+An outstanding notice is hidden while the classifier is enabled or unavailable.
+The notice is display-only and never enters conversation history or model context.
+
+## Local scans and archived output
+
+`guardian.max_scan_bytes` bounds each local scan window, not total input coverage.
+Larger inputs use overlapping windows; `scan_edge_bytes` is their overlap and zero
+selects the default. Raw text, normalized scan views and decoded shadows are checked
+separately. Diagnostic normalization does not rewrite delivered source content.
+`use_sanitized_output` optionally replaces only the latest user message, and only
+when a complete sanitized version is available. Tool outputs retain their own checks.
+
+All normal dispatches select one effective Guardian, including the shared local
+fallback, and pass it through a request-local context to handlers. Both archive-read
+APIs then pass through the outer dispatch's scanning, isolation and warnings. An
+inner handler response is not the final model-facing result. Archived source identity
+comes from the stored tool name and operation; `web_search` remains a recognized
+legacy web identity. Unknown tools retain external isolation without gaining web/mail
+provenance. Project-source isolation keeps ordinary code copyable; escaping hostile
+markup alone is not a guarantee against instruction following.
+
+Taint attaches provenance metadata; it is not a semantic detector or a prerequisite
+for the optional LLM judge. Judge mode `uncertain` requires a non-blocking local
+signal and does not inspect text with no local signal. Model-backed checks stay
+opt-in and add latency and, for remote providers, API cost. Retired Structure,
+Spotlight and Canary options remain inert for legacy configuration compatibility.
 
 ## Decisions and failure behavior
 

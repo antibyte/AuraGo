@@ -869,6 +869,7 @@ func Start(opts StartOptions) error {
 	s.integrationCtx = serverCtx
 	s.InjectionGuard = injectionguard.NewManager(serverCtx, cfg.Directories.DataDir, "")
 	s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
+	queueOptionalInjectionGuardNotice(s)
 	releaseInjectionGuard := security.RegisterExternalContentScanner(s.InjectionGuard)
 	defer func() { releaseInjectionGuard(); s.InjectionGuard.Close() }()
 	s.InjectionGuard.Inspect()

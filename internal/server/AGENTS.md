@@ -6,6 +6,13 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- After passive injection-guard initialization, queue one `security_advisory` with
+  code `horizon_optional` and source ID `security:horizon_optional` for a supported,
+  disabled model. Reuse durable typed notifications; never download, start or enable
+  a model for the notice. Hide an outstanding hint while enabled or unavailable;
+  only Chat's displayed-ID acknowledgment consumes it. No warning broadcasts or
+  model-history injection. Verify `TestInjectionGuardNotice*`.
+
 - The optional injection guard is owned by `serverCtx`; construction/status/startup never
   download. Register its scanner before integrations start and close/unregister on exit.
   Config publication calls `Configure` to revoke pending decisions. False-to-true saves

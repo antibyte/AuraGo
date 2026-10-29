@@ -215,6 +215,69 @@ window.onSessionSwitch = async function (sessionId) {
     if (current()) await loadActivePlanForSession(sessionId, current);
 };
 
+function chatSystemNotificationText(note) {
+    if (note.type === 'security_advisory' && note.data && note.data.code === 'horizon_optional') {
+        const modelBytes = Number(note.data.download_bytes);
+        const runtimeBytes = Number(note.data.runtime_bytes);
+        if (Number.isFinite(modelBytes) && modelBytes > 0 && Number.isFinite(runtimeBytes) && runtimeBytes >= 0) {
+            const body = t('chat.horizon_optional_body')
+                .replace('{{model_mb}}', String(Math.ceil(modelBytes / 1e6)))
+                .replace('{{runtime_mb}}', String(Math.ceil(runtimeBytes / 1e6)));
+            return t('chat.system_notification_prefix') + '**' + t('chat.horizon_optional_title') + '**\n\n' + body;
+        }
+    }
+    const prefix = note.type === 'morning_briefing'
+        ? t('chat.system_briefing_prefix') : t('chat.system_notification_prefix');
+    const title = note.title ? `**${note.title}**\n\n` : '';
+    return prefix + title + note.message;
+}
+
+async function loadChatSystemNotifications(current = () => true) {
+    try {
+        const res = await fetch('/api/system/notifications');
+        if (!res.ok || !current()) return;
+        const payload = await res.json();
+        const notes = Array.isArray(payload.notifications) ? payload.notifications : [];
+        const ids = [];
+        for (const note of notes) {
+            if (!current()) break;
+            if (!note || typeof note.message !== 'string' || !note.message.trim()) continue;
+            try {
+                const previous = chatContent.lastElementChild;
+                // Display-only: system advisories never enter conversation or model history.
+                appendMessage('system', chatSystemNotificationText(note));
+                const id = Number(note.id);
+                if (chatContent.lastElementChild !== previous) {
+                    if (note.type === 'security_advisory' && note.data && note.data.code === 'horizon_optional') {
+                        // This application-owned action has a fixed destination, independent of source Markdown.
+                        const action = document.createElement('a');
+                        action.href = '/config#guardian';
+                        action.textContent = t('chat.horizon_optional_settings');
+                        action.target = '_blank';
+                        action.rel = 'noopener noreferrer';
+                        const paragraph = document.createElement('p');
+                        paragraph.appendChild(action);
+                        chatContent.lastElementChild.querySelector('.bubble').appendChild(paragraph);
+                    }
+                    if (Number.isInteger(id) && id > 0) ids.push(id);
+                }
+            } catch (err) {
+                console.warn('Failed to display system notification:', err);
+            }
+        }
+        if (ids.length > 0) {
+            const read = await fetch('/api/system/notifications/read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            });
+            if (!read.ok) console.warn('System notification acknowledgement failed:', read.status);
+        }
+    } catch (err) {
+        console.error('Failed to load notifications:', err);
+    }
+}
+
 async function initPage() {
     const generation = historyGeneration;
     applyI18n();
@@ -250,37 +313,7 @@ async function initPage() {
     }
     const planGeneration = historyGeneration;
     await loadActivePlanForSession(getActiveSessionId(), () => planGeneration === historyGeneration);
-    try {
-        const res = await fetch('/api/system/notifications');
-        if (res.ok) {
-            const payload = await res.json();
-            const notes = Array.isArray(payload.notifications) ? payload.notifications : [];
-            if (notes && notes.length > 0) {
-                const greet = chatContent.querySelector('[data-greeting]');
-                if (greet && window.ChatRobotMascot && typeof window.ChatRobotMascot.launchToAnchor === 'function') {
-                    window.ChatRobotMascot.launchToAnchor();
-                }
-                if (greet) greet.remove();
-                notes.forEach(note => {
-                    const prefix = note.type === 'morning_briefing'
-                        ? t('chat.system_briefing_prefix')
-                        : t('chat.system_notification_prefix');
-                    const title = note.title ? `**${note.title}**\n\n` : '';
-                    appendMessage('assistant', prefix + title + note.message);
-                });
-                const ids = notes.map(note => Number(note.id)).filter(id => Number.isInteger(id) && id > 0);
-                if (ids.length > 0) {
-                    fetch('/api/system/notifications/read', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ids })
-                    });
-                }
-            }
-        }
-    } catch (err) {
-        console.error("Failed to load notifications:", err);
-    }
+    await loadChatSystemNotifications(() => generation === historyGeneration);
     try {
         const res = await fetch('/api/personalities');
         if (res.ok) {

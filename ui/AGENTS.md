@@ -28,6 +28,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Explain that datamarking still forwards suspicious content. Translate all 16 locales;
   verify `TestInjectionGuardLocales` and `TestInjectionGuardConfigBrowser` (both themes,
   narrow layouts, download/cancel/test/save). Runtime: `../internal/injectionguard/AGENTS.md`.
+- Chat localizes `security_advisory` / `horizon_optional` from typed notifications,
+  including pinned download sizes and the user's resource decision. Its only action
+  opens `/config#guardian` through an application-owned DOM link. Display it outside
+  conversation/model history, and acknowledge only IDs that actually rendered. The database receipt survives browser
+  changes and restarts; no localStorage receipt or new warning broadcast is needed.
+  Scan-window help describes complete overlapping coverage (zero overlap setting
+  selects the default); `use_sanitized_output` describes the latest user message only.
 
 - Document Creator uses a native boolean checkbox for the default-off saved
   public-resource grant. Its help names images, fonts, stylesheets and scripts;

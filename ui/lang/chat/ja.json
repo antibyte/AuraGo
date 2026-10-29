@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "任意のローカル保護",
+  "chat.horizon_optional_body": "Horizon Labs の分類器で、ウェブやメールに含まれるプロンプトインジェクションを追加で検査できます。初期状態では無効です。モデルに約 {{model_mb}} MB、実行環境に {{runtime_mb}} MB、追加の CPU リソースと、目安として 1～2 GiB の空き RAM が必要です。リソースが十分かどうかは利用者自身で判断してください。ダウンロードと有効化は「設定 → PromptSec Guardian」で別々に行います。",
+  "chat.horizon_optional_settings": "設定を開く",
   "chat.sessions_delete_hint": "このチャットを計画と保存済みの会話履歴も含めて完全に削除します。",
   "chat.sessions_delete_memories": "関連する記憶も削除する",
   "chat.sessions_delete_backups": "バックアップには、予定されたクリーンアップまで削除済みデータが残る場合があります。",

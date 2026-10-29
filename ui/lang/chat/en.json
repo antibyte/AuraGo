@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "Optional local protection",
+  "chat.horizon_optional_body": "The Horizon Labs classifier can provide additional prompt-injection checks for web and email content. It is off by default. It needs about {{model_mb}} MB for the model and {{runtime_mb}} MB for its runtime, additional CPU capacity and roughly 1–2 GiB of available RAM. You decide whether your system has enough resources. Download and activation are separate steps in Config → PromptSec Guardian.",
+  "chat.horizon_optional_settings": "Open settings",
   "chat.sessions_delete_hint": "Delete this chat permanently, including its plans and archived transcript.",
   "chat.sessions_delete_memories": "Also delete associated memories",
   "chat.sessions_delete_backups": "Backups may retain deleted data until their scheduled cleanup.",

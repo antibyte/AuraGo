@@ -1907,8 +1907,8 @@ guardian:
     injection_guard:
         enabled: false                                      # optional local Horizon classifier; install through Config first
         action: quarantine                                  # quarantine | datamark (web content and email only)
-    max_scan_bytes: 16384                 # regex guardian scans larger inputs in a bounded window
-    scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
+    max_scan_bytes: 16384                 # maximum size of each regex scan window; larger inputs use overlapping windows
+    scan_edge_bytes: 6144                 # overlap between consecutive scan windows; no middle section is skipped
     promptsec:
         preset: strict                        # promptsec preset ("strict", "moderate", "lenient")
         sanitizer:
@@ -1929,7 +1929,7 @@ guardian:
             mode: uncertain                 # uncertain, always, threat_detected, no_threat
             timeout_secs: 2                 # max wait for judge response
             policy: ""                      # optional app-specific policy for the judge
-        use_sanitized_output: false         # feed promptsec sanitized output to the LLM
+        use_sanitized_output: false         # replace only the latest user message with its complete sanitized form
 netlify:
     enabled: false
     readonly: false

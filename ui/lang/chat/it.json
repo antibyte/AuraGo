@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "Protezione locale facoltativa",
+  "chat.horizon_optional_body": "Il classificatore di Horizon Labs può aggiungere controlli contro le istruzioni malevole nei contenuti web e nelle email. È disattivato per impostazione predefinita. Richiede circa {{model_mb}} MB per il modello e {{runtime_mb}} MB per l’ambiente di esecuzione, capacità CPU aggiuntiva e indicativamente 1–2 GiB di RAM disponibile. Decidi tu se il sistema ha risorse sufficienti. Download e attivazione sono passaggi separati in Impostazioni → PromptSec Guardian.",
+  "chat.horizon_optional_settings": "Apri impostazioni",
   "chat.sessions_delete_hint": "Elimina definitivamente questa chat, inclusi i piani e la conversazione archiviata.",
   "chat.sessions_delete_memories": "Elimina anche i ricordi associati",
   "chat.sessions_delete_backups": "I backup possono conservare dati eliminati fino alla pulizia programmata.",

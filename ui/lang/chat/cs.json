@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "Volitelná místní ochrana",
+  "chat.horizon_optional_body": "Klasifikátor Horizon Labs může dodatečně kontrolovat webový obsah a e-maily na podvržené pokyny. Ve výchozím stavu je vypnutý. Vyžaduje asi {{model_mb}} MB pro model a {{runtime_mb}} MB pro běhové prostředí, další výkon CPU a přibližně 1–2 GiB volné RAM. O dostatku prostředků rozhoduješ Ty. Stažení a aktivace jsou samostatné kroky v nastavení PromptSec Guardian.",
+  "chat.horizon_optional_settings": "Otevřít nastavení",
   "chat.sessions_delete_hint": "Trvale smazat tento chat včetně plánů a archivované konverzace.",
   "chat.sessions_delete_memories": "Smazat také související vzpomínky",
   "chat.sessions_delete_backups": "Zálohy mohou obsahovat smazaná data až do plánovaného vyčištění.",

@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "Optionaler lokaler Schutz",
+  "chat.horizon_optional_body": "Der Horizon-Labs-Klassifikator kann Web- und E-Mail-Inhalte zusätzlich auf Prompt Injection prüfen. Er ist standardmäßig ausgeschaltet. Er benötigt rund {{model_mb}} MB für das Modell und {{runtime_mb}} MB für die Laufzeitbibliothek, zusätzliche CPU-Ressourcen und als Richtwert 1–2 GiB verfügbaren RAM. Du entscheidest, ob Dein System genügend Ressourcen hat. Download und Aktivierung sind getrennte Schritte unter Einstellungen → PromptSec Guardian.",
+  "chat.horizon_optional_settings": "Einstellungen öffnen",
   "chat.sessions_delete_hint": "Diesen Chat samt Plänen und archiviertem Verlauf dauerhaft löschen.",
   "chat.sessions_delete_memories": "Zugehörige Erinnerungen ebenfalls löschen",
   "chat.sessions_delete_backups": "Sicherungen können gelöschte Daten bis zur geplanten Bereinigung enthalten.",

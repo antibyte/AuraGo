@@ -1,4 +1,7 @@
 {
+  "chat.horizon_optional_title": "Opcjonalna ochrona lokalna",
+  "chat.horizon_optional_body": "Klasyfikator Horizon Labs może dodatkowo sprawdzać treści internetowe i e-maile pod kątem złośliwych instrukcji dla modelu. Domyślnie jest wyłączony. Wymaga około {{model_mb}} MB na model i {{runtime_mb}} MB na środowisko uruchomieniowe, dodatkowych zasobów CPU oraz orientacyjnie 1–2 GiB dostępnej pamięci RAM. Samodzielnie decydujesz, czy system ma wystarczające zasoby. Pobranie i włączenie to osobne kroki w Ustawieniach → PromptSec Guardian.",
+  "chat.horizon_optional_settings": "Otwórz ustawienia",
   "chat.sessions_delete_hint": "Trwale usuń ten czat wraz z planami i zarchiwizowaną rozmową.",
   "chat.sessions_delete_memories": "Usuń również powiązane wspomnienia",
   "chat.sessions_delete_backups": "Kopie zapasowe mogą zawierać usunięte dane do czasu planowego czyszczenia.",

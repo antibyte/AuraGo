@@ -16,6 +16,9 @@ shared native runtime/cache contracts.
 - Default off. Only `Prepare` downloads. Construction, `Status`, `Inspect`, evaluation
   and self-tests never download. `Inspect` verifies an existing cache asynchronously.
   Activation requires verified files and a successful worker self-test.
+- Resource sufficiency is the user's decision; never auto-enable from CPU/RAM
+  detection. The server's once-per-installation Chat advisory reads passive status
+  and pinned sizes only; it cannot call preparation, evaluation or self-tests.
 - Keep revision, sizes and SHA-256 pins together. Model/tokenizer are Apache-2.0;
   update all three third-party inventories when pins change. Never commit weights.
 - Native code loads only in `--injection-guard-worker`, before application startup.
