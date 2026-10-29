@@ -144,6 +144,15 @@ Memory retrieval, hygiene, indexing, and maintenance.
   Context APIs bound lock/publication waits; compatibility wrappers use 30 seconds.
   Verify `TestArchive*`; operational limits are in
   `documentation/memory-persistence.md`.
+- **Memory expiry**: `memory_expiry(doc_id, expires_at)` holds the UTC end of
+  validity of time-bounded facts (`expires_on` from turn extraction, end of that
+  local day). `visibleCandidates` hides expired documents at once;
+  `ArchiveExpiredMemoriesContext` archives them in the nightly run with reason
+  `expired`, queues vector cleanup and, unlike budget archives, removes the
+  archive identity so the same short-lived fact can be learned again. A
+  restatement without expiry clears it. Protected and keep-forever memories only
+  lose the expiry. Verify `TestMemoryExpiry*`, `TestExpiredMemoriesStayOutOfRetrieval`
+  and `TestArchiveExpiredMemories*`.
 - **Resumable maintenance**: Consolidation checkpoints bind each archive message,
   source digest, part number and extractor/model version. Persist validated parts,
   extract at most one part per message in a round, and publish complete messages
