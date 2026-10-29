@@ -210,7 +210,7 @@ func TestMemorySchemaToolOperationMigrationBacksUpAndPreservesArchive(t *testing
 		t.Fatalf("legacy archive changed: %+v err=%v", out, err)
 	}
 	s.Close()
-	backups, err := filepath.Glob(path + ".schema-v16-*.bak")
+	backups, err := filepath.Glob(path + ".schema-v17-*.bak")
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("migration backup missing: %v %v", backups, err)
 	}
@@ -235,7 +235,7 @@ func TestMemorySchemaToolOperationMigrationBacksUpAndPreservesArchive(t *testing
 		t.Fatal(err)
 	}
 	s.Close()
-	after, _ := filepath.Glob(path + ".schema-v16-*.bak")
+	after, _ := filepath.Glob(path + ".schema-v17-*.bak")
 	if len(after) != 1 {
 		t.Fatal("restart repeated migration")
 	}

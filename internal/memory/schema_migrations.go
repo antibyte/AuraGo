@@ -12,7 +12,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const shortTermSchemaVersion = 16
+const shortTermSchemaVersion = 17
 const legacyMemorySchemaVersion = 12
 
 type memorySchemaStep struct {
@@ -113,6 +113,7 @@ func memorySchemaSteps() []memorySchemaStep {
 			_, err := tx.ExecContext(ctx, `ALTER TABLE compressed_tool_outputs ADD COLUMN tool_operation TEXT NOT NULL DEFAULT ''`)
 			return err
 		}},
+		{version: 17, apply: migrateMemoryExpiry},
 	}
 }
 
