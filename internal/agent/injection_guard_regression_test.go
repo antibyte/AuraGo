@@ -90,6 +90,40 @@ func TestInjectionGuardOutputVaultStoresWorkspaceOperation(t *testing.T) {
 
 type datamarkRegressionScanner struct{}
 
+func TestInjectionGuardCanonicalWrappersRetainExternalSource(t *testing.T) {
+	for _, tool := range []string{"api_request", "web_scraper", "gog_gmail"} {
+		for _, shape := range []string{"direct", "skill", "invoke"} {
+			t.Run(tool+"/"+shape, func(t *testing.T) {
+				dc := &DispatchContext{Cfg: &config.Config{}, SessionID: t.Name()}
+				dc.Cfg.Agent.AllowPython = true
+				dc.Cfg.Agent.AllowShell = true
+				dc.Cfg.Agent.AllowNetworkRequests = true
+				dc.Cfg.Tools.WebScraper.Enabled = true
+				dc.Cfg.Gog.Enabled = true
+				dc.Cfg.Gog.Accounts = []config.GogAccount{{ID: "fixture", Enabled: true, AgentAccess: true, Services: map[string]config.GogGrants{"gmail": {Read: true}}}}
+				setRunDiscoverToolsState(dc, dispatchCatalogSchemas(dc), nil)
+				t.Cleanup(func() { ClearDiscoverToolsState(dc.discoveryKey()) })
+				args := map[string]interface{}{"operation": "list", "query": "cache documentation"}
+				call := toolCallFromInvokeArgs(tool, args)
+				if shape == "skill" {
+					call = ToolCall{Action: "execute_skill", Skill: tool, SkillArgs: args}
+				}
+				if shape == "invoke" {
+					call = ToolCall{Action: "invoke_tool", Params: map[string]interface{}{"tool_name": tool, "arguments": args}}
+				}
+				prepared := prepareToolCall(call, dc)
+				want := security.ExternalWeb
+				if tool == "gog_gmail" {
+					want = security.ExternalEmail
+				}
+				if prepared.PreparationError != "" || prepared.Action != tool || security.ExternalToolSource(prepared.Action, prepared.Operation) != want {
+					t.Fatalf("wrapper lost its canonical origin: action=%s error=%s", prepared.Action, prepared.PreparationError)
+				}
+			})
+		}
+	}
+}
+
 func (datamarkRegressionScanner) Evaluate(context.Context, string) (float64, string, bool, error) {
 	return .9, "datamark", true, nil
 }

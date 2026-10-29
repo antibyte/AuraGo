@@ -13,9 +13,30 @@ import (
 type externalScannerFunc func(context.Context, string) (float64, string, bool, error)
 
 func TestExternalToolSourceCoversBrowserAdapters(t *testing.T) {
-	for _, tool := range []string{"web_scraper", "site_crawler", "site_monitor", "browser_automation", "virtual_browser", "form_automation", "web_capture", "brave_search", "ddg_search"} {
+	for _, tool := range []string{"web_scraper", "site_crawler", "site_monitor", "web_search", "browser_automation", "virtual_browser", "form_automation", "web_capture", "brave_search", "ddg_search", "fetch_url", "api_request", "rss_read", "wikipedia_search", "yepapi_scrape", "yepapi_serp", "yepapi_seo", "yepapi_amazon", "yepapi_instagram", "yepapi_tiktok", "yepapi_youtube"} {
 		if ExternalToolSource(tool, "read") != ExternalWeb {
 			t.Errorf("web adapter %s bypasses the classifier", tool)
+		}
+	}
+	for _, tool := range []string{"email", "fetch_email", "check_email", "agentmail", "agentmail_messages", "agentmail_threads", "agentmail_drafts", "gog_gmail"} {
+		if ExternalToolSource(tool, "read") != ExternalEmail {
+			t.Errorf("mail adapter %s bypasses the classifier", tool)
+		}
+	}
+	for _, tool := range []string{"google_workspace", "gworkspace"} {
+		for _, operation := range []string{"", "gmail_read", "mail_list", "drive_list", "calendar_list"} {
+			want := ExternalEmail
+			if operation == "drive_list" || operation == "calendar_list" {
+				want = ""
+			}
+			if got := ExternalToolSource(tool, operation); got != want {
+				t.Errorf("%s/%s = %q, want %q", tool, operation, got, want)
+			}
+		}
+	}
+	for _, tool := range []string{"unknown", "filesystem", "game_maker_file", "execute_skill", "mcp_call"} {
+		if got := ExternalToolSource(tool, "read"); got != "" {
+			t.Errorf("%s gained web/mail provenance", tool)
 		}
 	}
 	if ExternalToolSource("read_file", "<external_data>web</external_data>") != "" {

@@ -145,6 +145,8 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	if guardian == nil {
 		guardian = fallbackToolOutputGuardian()
 	}
+	// Handlers must see the same effective Guardian as the outer dispatch.
+	dc.Guardian = guardian
 	llmGuardian := dc.LLMGuardian
 	dc.UserContext = userContext
 

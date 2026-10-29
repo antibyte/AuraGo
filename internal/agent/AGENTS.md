@@ -10,6 +10,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Dispatch passes its selected Guardian (including `fallbackToolOutputGuardian`) to
+  handlers through the local `DispatchContext` copy, never by changing the caller.
+  Both output-vault read APIs keep scanning, isolation and warnings at the complete
+  dispatch boundary. Verify `TestArchivedOutputDispatchGuardianParity` and
+  `TestInjectionGuardCanonicalWrappersRetainExternalSource`.
+
 - Web/mail results pass `ProtectExternal` before first model use, including summary helpers,
   browser envelopes and both output-vault read APIs. Archived source comes from stored
   tool name and operation, including mixed Google Workspace operations. Legacy

@@ -10,6 +10,12 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
+- `ExternalToolSource` includes legacy `web_search`; canonical native wrappers and
+  archived tool operations keep their trusted source identity. Unknown tool names
+  gain no web/mail provenance and still use ordinary external-output isolation.
+  `FuzzIsolateSourceData` exercises one outer boundary for valid UTF-8 source,
+  encoded boundary forgeries and model control tokens without lowering thresholds.
+
 - `ProtectExternal(ctx, source, text)` is the common web/email gate. Trusted adapters choose
   the source; never infer it from payload tags. Run before helper LLM calls and before
   escaping/Unicode cleanup. Hard rules precede the optional local classifier, whose

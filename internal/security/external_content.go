@@ -131,7 +131,7 @@ func (g *Guardian) ProtectWeb(ctx context.Context, source, text string) string {
 // ExternalToolSource classifies trusted tool identity, not payload markers or a claimed source field.
 func ExternalToolSource(tool, operation string) ExternalSource {
 	switch tool {
-	case "web_scraper", "site_crawler", "site_monitor", "brave_search", "ddg_search", "browser_automation", "virtual_browser", "form_automation", "web_capture", "fetch_url", "api_request", "rss_read", "wikipedia_search", "yepapi_scrape", "yepapi_serp", "yepapi_seo", "yepapi_amazon", "yepapi_instagram", "yepapi_tiktok", "yepapi_youtube":
+	case "web_scraper", "site_crawler", "site_monitor", "web_search", "brave_search", "ddg_search", "browser_automation", "virtual_browser", "form_automation", "web_capture", "fetch_url", "api_request", "rss_read", "wikipedia_search", "yepapi_scrape", "yepapi_serp", "yepapi_seo", "yepapi_amazon", "yepapi_instagram", "yepapi_tiktok", "yepapi_youtube":
 		return ExternalWeb
 	case "email", "fetch_email", "check_email", "agentmail", "agentmail_messages", "agentmail_threads", "agentmail_drafts", "gog_gmail":
 		return ExternalEmail
