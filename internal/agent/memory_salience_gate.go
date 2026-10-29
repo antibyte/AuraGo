@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -14,6 +15,7 @@ import (
 // memoryQueryEmbedder is the part of the vector store the salience gate needs.
 type memoryQueryEmbedder interface {
 	EmbedQueries(ctx context.Context, texts []string) ([][]float32, error)
+	EmbedTexts(ctx context.Context, texts []string) ([][]float32, error)
 	EmbeddingFingerprint() string
 }
 
@@ -25,7 +27,11 @@ const (
 	salienceMaxGateRunes = 300
 	salienceGateTimeout  = 5 * time.Second
 	salienceMaxFillerLen = 8
+	// The prototype warm-up runs in the background, so it may outlast a turn.
+	salienceWarmupTimeout = 60 * time.Second
 )
+
+var errSaliencePrototypesWarming = errors.New("salience prototypes are still warming up")
 
 var salienceFillerWords = map[string]struct{}{}
 
@@ -82,6 +88,7 @@ var salienceCache struct {
 	fingerprint string
 	salient     [][]float32
 	filler      [][]float32
+	warming     bool
 }
 
 // memoryExtractionWorthwhile decides before the extraction LLM call whether a
@@ -97,12 +104,15 @@ func memoryExtractionWorthwhile(ctx context.Context, embedder memoryQueryEmbedde
 	}
 	ctx, cancel := context.WithTimeout(ctx, salienceGateTimeout)
 	defer cancel()
-	salient, filler, err := salienceProtoVectors(ctx, embedder)
+	salient, filler, err := salienceProtoVectors(embedder)
 	if err != nil {
 		return true, ""
 	}
 	vectors, err := embedder.EmbedQueries(ctx, []string{userMsg})
 	if err != nil || len(vectors) != 1 {
+		return true, ""
+	}
+	if len(salient) == 0 || len(filler) == 0 || len(vectors[0]) != len(salient[0]) || len(vectors[0]) != len(filler[0]) {
 		return true, ""
 	}
 	if maxCosine(vectors[0], filler)-maxCosine(vectors[0], salient) >= salienceSkipMargin {
@@ -126,26 +136,53 @@ func onlySalienceFillerWords(msg string) bool {
 	return true
 }
 
-// salienceProtoVectors embeds the prototypes once per embedding model.
-func salienceProtoVectors(ctx context.Context, embedder memoryQueryEmbedder) (salient, filler [][]float32, err error) {
+// salienceProtoVectors returns the prototype vectors of the current embedding
+// model. While they are missing it starts one background warm-up and returns
+// errSaliencePrototypesWarming, so the gate fails open without adding latency.
+func salienceProtoVectors(embedder memoryQueryEmbedder) (salient, filler [][]float32, err error) {
 	fingerprint := embedder.EmbeddingFingerprint()
 	salienceCache.mu.Lock()
 	defer salienceCache.mu.Unlock()
 	if salienceCache.fingerprint == fingerprint && salienceCache.salient != nil {
 		return salienceCache.salient, salienceCache.filler, nil
 	}
+	if !salienceCache.warming {
+		salienceCache.warming = true
+		go func() {
+			defer func() {
+				salienceCache.mu.Lock()
+				salienceCache.warming = false
+				salienceCache.mu.Unlock()
+			}()
+			ctx, cancel := context.WithTimeout(context.Background(), salienceWarmupTimeout)
+			defer cancel()
+			_ = warmSaliencePrototypes(ctx, embedder)
+		}()
+	}
+	return nil, nil, errSaliencePrototypesWarming
+}
+
+// warmSaliencePrototypes embeds the prototypes with the current model, never
+// through the query cache, and stores them unless the model changed meanwhile.
+func warmSaliencePrototypes(ctx context.Context, embedder memoryQueryEmbedder) error {
+	fingerprint := embedder.EmbeddingFingerprint()
 	texts := append(append([]string(nil), salientMemoryPrototypes...), fillerMemoryPrototypes...)
-	vectors, err := embedder.EmbedQueries(ctx, texts)
+	vectors, err := embedder.EmbedTexts(ctx, texts)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	if len(vectors) != len(texts) {
-		return nil, nil, fmt.Errorf("embedder returned %d prototype vectors for %d texts", len(vectors), len(texts))
+		return fmt.Errorf("embedder returned %d prototype vectors for %d texts", len(vectors), len(texts))
 	}
+	if embedder.EmbeddingFingerprint() != fingerprint {
+		return nil
+	}
+	salienceCache.mu.Lock()
+	defer salienceCache.mu.Unlock()
 	salienceCache.fingerprint = fingerprint
 	salienceCache.salient = vectors[:len(salientMemoryPrototypes)]
 	salienceCache.filler = vectors[len(salientMemoryPrototypes):]
-	return salienceCache.salient, salienceCache.filler, nil
+	return nil
 }
 
 func maxCosine(vector []float32, prototypes [][]float32) float64 {

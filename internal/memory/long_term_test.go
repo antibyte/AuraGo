@@ -499,6 +499,23 @@ func TestGetQueryEmbeddingSharedRequestSurvivesFirstCallerCancel(t *testing.T) {
 	}
 }
 
+func TestEmbedTextsBypassesQueryCache(t *testing.T) {
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return []float32{1, 2, 3}, nil
+	})
+	for range 2 {
+		vectors, err := cv.EmbedTexts(context.Background(), []string{"same text"})
+		if err != nil || len(vectors) != 1 {
+			t.Fatalf("EmbedTexts: %v %v", vectors, err)
+		}
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("embedding calls = %d, want 2 uncached calls", got)
+	}
+}
+
 func TestGetQueryEmbeddingReturnsCacheCopies(t *testing.T) {
 	var calls atomic.Int32
 	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {

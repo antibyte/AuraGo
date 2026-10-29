@@ -345,6 +345,24 @@ func (cv *ChromemVectorDB) EmbedQueries(ctx context.Context, texts []string) ([]
 	return vectors, nil
 }
 
+// EmbedTexts embeds texts with the current model, bypassing the query cache and
+// singleflight. It serves vectors that must not come from a stale model, such
+// as the salience prototypes.
+func (cv *ChromemVectorDB) EmbedTexts(ctx context.Context, texts []string) ([][]float32, error) {
+	if cv.IsDisabled() || !cv.IsReady() {
+		return nil, fmt.Errorf("embedding runtime is unavailable")
+	}
+	vectors := make([][]float32, 0, len(texts))
+	for _, text := range texts {
+		vector, err := cv.embeddingFunc(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		vectors = append(vectors, vector)
+	}
+	return vectors, nil
+}
+
 // RebenchmarkEmbeddings reruns local hardware selection when supported.
 func (cv *ChromemVectorDB) RebenchmarkEmbeddings(ctx context.Context) error {
 	benchmarkable, ok := cv.embedder.(interface {
