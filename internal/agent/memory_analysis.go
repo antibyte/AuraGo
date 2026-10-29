@@ -242,6 +242,13 @@ func runMemoryAnalysis(
 	if isAmbiguousShortCommand(userMsg) {
 		return
 	}
+	// The batched helper path is not gated: its one call also feeds the
+	// activity digest and the personality analysis.
+	embedder, _ := ltm.(memoryQueryEmbedder)
+	if worth, reason := memoryExtractionWorthwhile(ctx, embedder, userMsg); !worth {
+		logger.Info("[Memory Analysis] Salience gate skipped extraction", "reason", reason, "session", sessionID)
+		return
+	}
 
 	llmCfg := resolveMemoryAnalysisLLMConfig(cfg)
 	if llmCfg.model == "" {

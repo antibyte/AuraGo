@@ -35,6 +35,7 @@ type realtimeExtractionCase struct {
 	cancelDuring bool
 	longSource   bool
 	quote        string
+	user         string
 }
 
 func TestAuditMemoryAnalysisRejectsTruncatedCompletion(t *testing.T) {
@@ -44,6 +45,7 @@ func TestAuditMemoryAnalysisRejectsTruncatedCompletion(t *testing.T) {
 func TestRealtimeMemoryAnalysisCompletionBoundaries(t *testing.T) {
 	for _, test := range []realtimeExtractionCase{
 		{name: "valid", content: validRealtimeExtraction, wantCalls: 1, wantWrites: 1},
+		{name: "salience gate skips filler", content: validRealtimeExtraction, user: "Super, vielen Dank dafür!", wantCalls: 0},
 		{name: "complete long source retry", content: validRealtimeExtraction, finish: openai.FinishReasonLength, recover: true, longSource: true, wantCalls: 2, wantWrites: 1},
 		{name: "complete oversize source deferred", content: validRealtimeExtraction, longSource: true, contextLimit: 512, wantCalls: 0},
 		{name: "empty arrays", content: emptyRealtimeExtraction, wantCalls: 1},
@@ -128,6 +130,9 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 		cancel()
 	}
 	userSource, assistantSource := "The NAS uses XFS for the daily backup volume.", "Assistant source marker"
+	if test.user != "" {
+		userSource = test.user
+	}
 	if test.longSource {
 		userSource = strings.Repeat("Full user source <& 生日. ", 300) + "FINAL_REALTIME_USER"
 		assistantSource = strings.Repeat("Full assistant source. ", 300) + "FINAL_REALTIME_ASSISTANT Assistant source marker"
