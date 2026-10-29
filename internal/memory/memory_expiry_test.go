@@ -67,6 +67,33 @@ func TestExpiredMemoriesStayOutOfRetrieval(t *testing.T) {
 	}
 }
 
+func TestArchiveExpiredMemoriesSkipsCandidateWithUnreadableVector(t *testing.T) {
+	s := newInMemorySQLiteMemory(t)
+	ctx := t.Context()
+	vector := &fakeRepairVectorDB{docs: map[string]string{"good": "Maintenance window tonight"}}
+	for _, id := range []string{"good", "unreadable"} {
+		if err := s.UpsertMemoryMeta(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.SetMemoryExpiry(ctx, []string{"good", "unreadable"}, time.Now().Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	archived, err := s.ArchiveExpiredMemoriesContext(ctx, vector)
+	if err != nil || archived != 1 {
+		t.Fatalf("archived=%d err=%v", archived, err)
+	}
+	if meta, _ := s.GetMemoryMeta("good"); !IsMemoryArchived(meta) {
+		t.Fatal("readable expired memory not archived")
+	}
+	if meta, _ := s.GetMemoryMeta("unreadable"); IsMemoryArchived(meta) {
+		t.Fatal("unreadable memory archived")
+	}
+	if _, ok, _ := s.MemoryExpiry(ctx, "unreadable"); !ok {
+		t.Fatal("unreadable memory lost its expiry for the next run")
+	}
+}
+
 func TestArchiveExpiredMemoriesRemovesVectorAndAllowsRelearning(t *testing.T) {
 	s := newInMemorySQLiteMemory(t)
 	ctx := t.Context()

@@ -1545,7 +1545,7 @@ func loadNightlyMemoryMeta(ctx context.Context, cfg *config.Config, logger *slog
 	}
 	if ltm != nil {
 		if expired, err := stm.ArchiveExpiredMemoriesContext(ctx, ltm); err != nil {
-			resultErr = errors.Join(resultErr, err)
+			// Only logged: a failed expiry step must not skip the rest of nightly memory maintenance.
 			logger.Warn("[Maintenance] Archiving expired memories failed", "error", err)
 		} else if expired > 0 {
 			logger.Info("[Maintenance] Archived expired memories", "archived", expired)

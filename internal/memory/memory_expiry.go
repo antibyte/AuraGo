@@ -112,13 +112,20 @@ func (s *SQLiteMemory) ArchiveExpiredMemoriesContext(ctx context.Context, vector
 	}
 	candidates := make([]memoryArchiveCandidate, 0, len(ids))
 	for _, id := range ids {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
 		var candidate memoryArchiveCandidate
 		if err := scanMemoryMeta(s.db.QueryRowContext(ctx, `SELECT `+memoryMetaSelectColumns+` FROM memory_meta WHERE doc_id=?`, id), &candidate.meta); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
 			return 0, err
 		}
 		candidate.identity, candidate.hash, err = s.archiveDocumentIdentity(ctx, vector, id)
 		if err != nil {
-			return 0, err
+			// The retrieval filter keeps the document hidden; the next night retries it.
+			continue
 		}
 		candidates = append(candidates, candidate)
 	}
