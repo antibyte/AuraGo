@@ -616,11 +616,14 @@ func (cv *ChromemVectorDB) visibleCandidates(ctx context.Context, collection str
 			for start := 0; start < len(archiveCandidates); start += corpusSQLChunkSize {
 				end := min(start+corpusSQLChunkSize, len(archiveCandidates))
 				chunk := archiveCandidates[start:end]
-				args := make([]any, 0, len(chunk))
+				args := make([]any, 0, len(chunk)*2)
 				for _, index := range chunk {
 					args = append(args, results[index].ID)
 				}
-				rows, err := stm.db.QueryContext(ctx, `SELECT doc_id FROM memory_meta WHERE doc_id IN (`+corpusPlaceholders(len(chunk))+`) AND (verification_status='archived' OR COALESCE(archived_at,'')<>'')`, args...)
+				args = append(args, args...)
+				// Expired memories leave retrieval at once; the nightly run archives them.
+				rows, err := stm.db.QueryContext(ctx, `SELECT doc_id FROM memory_meta WHERE doc_id IN (`+corpusPlaceholders(len(chunk))+`) AND (verification_status='archived' OR COALESCE(archived_at,'')<>'')
+					UNION SELECT doc_id FROM memory_expiry WHERE doc_id IN (`+corpusPlaceholders(len(chunk))+`) AND expires_at<=CURRENT_TIMESTAMP`, args...)
 				if err != nil {
 					wrapped := fmt.Errorf("check archived memory candidates: %w", err)
 					for _, index := range chunk {
