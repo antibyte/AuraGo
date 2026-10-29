@@ -109,86 +109,28 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 }
 
 func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig {
-	provider := cfg.TTS.Provider
-	if provider == "" && cfg.TTS.Piper.Enabled {
-		provider = "piper"
-	}
-
-	ttsCfg := tools.TTSConfig{
-		Provider:            provider,
-		Language:            language,
-		DataDir:             cfg.Directories.DataDir,
-		CacheRetentionHours: cfg.TTS.CacheRetentionHours,
-		CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
-	}
-	if ttsCfg.Language == "" {
-		ttsCfg.Language = cfg.TTS.Language
-	}
-	if strings.EqualFold(provider, "sanotts") || strings.EqualFold(provider, "phonon") || strings.EqualFold(ttsCfg.Language, "auto") {
-		ttsCfg.Language = cfg.SanoTTSLanguage(language)
-	}
-	ttsCfg.Phonon.VoiceID = cfg.TTS.Phonon.VoiceID
-	ttsCfg.Phonon.Persona = cfg.Personality.CorePersonality
-	ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
-	ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
-	ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
-	ttsCfg.MiniMax.APIKey = cfg.TTS.MiniMax.APIKey
-	ttsCfg.MiniMax.VoiceID = cfg.TTS.MiniMax.VoiceID
-	ttsCfg.MiniMax.ModelID = cfg.TTS.MiniMax.ModelID
-	ttsCfg.MiniMax.Speed = cfg.TTS.MiniMax.Speed
-	ttsCfg.Mistral.APIKey = cfg.TTS.Mistral.APIKey
-	ttsCfg.Mistral.VoiceID = cfg.TTS.Mistral.VoiceID
-	ttsCfg.Mistral.ModelID = cfg.TTS.Mistral.ModelID
-	ttsCfg.XAI = cfg.TTS.XAI
-	ttsCfg.OpenAI = cfg.TTS.OpenAI
-	ttsCfg.StepFun = cfg.TTS.StepFun
-	ttsCfg.Resemble = cfg.TTS.Resemble
-	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
-	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
-	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
-	ttsCfg.Supertonic.URL = cfg.TTS.Supertonic.URL
-	ttsCfg.Supertonic.Model = cfg.TTS.Supertonic.Model
-	ttsCfg.Supertonic.Voice = cfg.TTS.Supertonic.Voice
-	ttsCfg.Supertonic.Speed = cfg.TTS.Supertonic.Speed
-	ttsCfg.Supertonic.Steps = cfg.TTS.Supertonic.Steps
-	ttsCfg.Supertonic.ResponseFormat = cfg.TTS.Supertonic.ResponseFormat
-	return ttsCfg
+	return tools.BuildTTSConfig(cfg, tools.TTSRouteTool, language)
 }
 
 func isTTSConfigured(cfg *config.Config) bool {
-	if cfg == nil {
-		return false
-	}
-	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
-	if provider == "" && cfg.TTS.Piper.Enabled {
-		provider = "piper"
-	}
+	return tools.TTSReady(cfg, tools.TTSRouteTool)
+}
 
-	switch provider {
-	case "google", "sanotts", "phonon":
-		return true
-	case "elevenlabs":
-		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
-	case "minimax":
-		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
-	case "mistral":
-		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
-			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
-	case "xai":
-		return strings.TrimSpace(cfg.TTS.XAI.APIKey) != ""
-	case "openai":
-		return strings.TrimSpace(cfg.TTS.OpenAI.APIKey) != ""
-	case "stepfun":
-		return strings.TrimSpace(cfg.TTS.StepFun.APIKey) != ""
-	case "resemble":
-		return strings.TrimSpace(cfg.TTS.Resemble.APIKey) != "" && strings.TrimSpace(cfg.TTS.Resemble.VoiceID) != ""
-	case "piper":
-		return cfg.TTS.Piper.Enabled
-	case "supertonic":
-		return strings.TrimSpace(cfg.TTS.Supertonic.URL) != ""
-	default:
-		return false
+func appendTTSSynthesisFields(result string, meta *tools.TTSSynthesisMeta) string {
+	if meta == nil {
+		return result
 	}
+	extra := ""
+	if meta.FallbackProvider != "" {
+		extra += fmt.Sprintf(`, "fallback_provider": %q`, meta.FallbackProvider)
+	}
+	if meta.Truncated {
+		extra += `, "truncated": true`
+	}
+	if extra == "" {
+		return result
+	}
+	return strings.TrimSuffix(result, "}") + extra + "}"
 }
 
 func userExplicitlyRequestedCoAgentStop(userContext string) bool {
@@ -524,9 +466,11 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			req := decodeTTSArgs(tc)
 			ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
+			var meta tools.TTSSynthesisMeta
+			ttsCfg.Result = &meta
 			filename, err := tools.TTSSynthesize(ttsCfg, req.Text)
 			if err != nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "TTS failed: %v"}`, err)
+				return toolErrorf("TTS failed: %v", err)
 			}
 
 			ttsPort := cfg.Server.Port // TTS is always served on the main server
@@ -542,7 +486,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			absLocalPath, _ := filepath.Abs(filepath.Join(cfg.Directories.DataDir, "tts", filename))
 			absLocalPath = filepath.ToSlash(absLocalPath)
-			return fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s", "web_path": "%s", "local_path": "%s"}`, filename, audioURL, webPath, absLocalPath)
+			result := fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s", "web_path": "%s", "local_path": "%s"}`, filename, audioURL, webPath, absLocalPath)
+			return appendTTSSynthesisFields(result, &meta)
 
 		case "chromecast":
 			if !cfg.Chromecast.Enabled {

@@ -395,3 +395,17 @@ func TestTelephoneTurnUsesExplicitProviderWithoutFallback(t *testing.T) {
 		t.Fatalf("telephone prompt = %q", turn.runCfg.Config.Agent.AdditionalPrompt)
 	}
 }
+
+func TestSpeechSynthesizerKeepsRadioOnTheChatRoute(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.TTS.Provider = "speech_lab"
+	cfg.TTS.Piper.Enabled = true
+	radio := (&sipSpeechSynthesizer{cfg: cfg}).chunkTTSConfig("de")
+	if radio.Provider != "piper" {
+		t.Fatalf("radio provider = %q, want piper", radio.Provider)
+	}
+	phone := (&sipSpeechSynthesizer{cfg: cfg, route: tools.TTSRouteTool}).chunkTTSConfig("de")
+	if phone.Provider != "speech_lab" {
+		t.Fatalf("telephone provider = %q, want speech_lab", phone.Provider)
+	}
+}

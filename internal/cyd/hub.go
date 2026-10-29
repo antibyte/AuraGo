@@ -45,6 +45,7 @@ type Hub struct {
 	brightness   int
 	led          string
 	speak        *Speaker
+	speechLang   string
 }
 
 func NewHub() *Hub {
@@ -162,7 +163,7 @@ func (h *Hub) notify(title, body, line, priority string, ttl int) Notify {
 		if strings.TrimSpace(line) != "" {
 			h.speak.QueueText(n.ID, line)
 		} else {
-			h.speak.Queue(n.ID, n.Title, n.Body)
+			h.speak.Queue(n.ID, n.Title, n.Body, h.speechLang)
 		}
 	} else if !inGoTest() {
 		h.speak.warnUnavailable()
@@ -196,6 +197,16 @@ func (h *Hub) Speech(id string) []byte {
 		return nil
 	}
 	return sp.Get(id)
+}
+
+// SetSpeechLanguage selects the language for an empty spoken title.
+func (h *Hub) SetSpeechLanguage(lang string) {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	h.speechLang = strings.TrimSpace(lang)
+	h.mu.Unlock()
 }
 
 func (h *Hub) Ack(id string) {
@@ -318,11 +329,22 @@ func (h *Hub) Heartbeat(tokenID, name string, hb Heartbeat) {
 	if name != "" {
 		dev.Name = name
 	}
-	dev.Firmware = hb.Firmware
-	dev.Variant = hb.Variant
-	dev.RSSI = hb.RSSI
-	dev.Width = hb.Width
-	dev.Height = hb.Height
+	// A websocket pong carries an empty heartbeat. Keep the last radio report.
+	if hb.Firmware != "" {
+		dev.Firmware = hb.Firmware
+	}
+	if hb.Variant != "" {
+		dev.Variant = hb.Variant
+	}
+	if hb.Width > 0 {
+		dev.Width = hb.Width
+	}
+	if hb.Height > 0 {
+		dev.Height = hb.Height
+	}
+	if hb.RSSI != 0 {
+		dev.RSSI = hb.RSSI
+	}
 	dev.LastSeen = time.Now()
 }
 

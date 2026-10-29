@@ -2,13 +2,18 @@ package cyd
 
 import (
 	"encoding/binary"
+	"io"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
+	"aurago/internal/i18n"
 	"aurago/internal/sanotts"
+	"aurago/ui"
 )
 
 func TestSpeakerUsesManagedRuntime(t *testing.T) {
@@ -31,12 +36,31 @@ func TestSpeakerUsesManagedRuntime(t *testing.T) {
 }
 
 func TestSpeakLineEnglish(t *testing.T) {
-	got := SpeakLine("Backup failed", "disk /data 98%")
+	got := SpeakLine("Backup failed", "disk /data 98%", "en")
 	if got != "Backup failed. disk data 98" {
 		t.Fatalf("got %q", got)
 	}
-	if got := SpeakLine("Tür", "offen"); got != "Tür. offen" {
+	if got := SpeakLine("Tür", "offen", "de"); got != "Tür. offen" {
 		t.Fatalf("german = %q", got)
+	}
+}
+
+func TestSpeakLineCutsInsideARune(t *testing.T) {
+	prefix := strings.Repeat("a", 139)
+	got := SpeakLine(prefix+"äzzzz", "", "en")
+	if !utf8.ValidString(got) || len(got) > 140 || strings.Contains(got, "ä") {
+		t.Fatalf("got %q len %d", got, len(got))
+	}
+	if got != prefix {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestSpeakLineEmptyGermanTitle(t *testing.T) {
+	i18n.Load(ui.Content, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	got := SpeakLine("###", "offen", "de")
+	if strings.Contains(got, "Notification") || !strings.HasPrefix(got, "Hinweis") {
+		t.Fatalf("got %q", got)
 	}
 }
 

@@ -56,6 +56,7 @@ type sipSpeechSynthesizer struct {
 	speechLab         *speechlab.Client
 	expectedTTSID     string
 	voice             string
+	route             string
 	synthesizeForTest func(context.Context, string, string) ([]int16, int, error)
 }
 
@@ -148,6 +149,19 @@ func (s *sipSpeechSynthesizer) SynthesizeStream(ctx context.Context, text, langu
 
 var _ voice.StreamingSpeechSynthesizer = (*sipSpeechSynthesizer)(nil)
 
+func (s *sipSpeechSynthesizer) chunkTTSConfig(language string) tools.TTSConfig {
+	route := tools.TTSRouteChat
+	if s != nil && strings.TrimSpace(s.route) != "" {
+		route = s.route
+	}
+	ttsCfg := tools.BuildTTSConfig(s.cfg, route, language)
+	// The telephone path always asks for a directly decodable WAV.
+	if strings.EqualFold(ttsCfg.Provider, "supertonic") {
+		ttsCfg.Supertonic.ResponseFormat = "wav"
+	}
+	return ttsCfg
+}
+
 func (s *sipSpeechSynthesizer) synthesizeChunk(ctx context.Context, text, language string) ([]int16, int, error) {
 	if s.synthesizeForTest != nil {
 		return s.synthesizeForTest(ctx, text, language)
@@ -159,11 +173,7 @@ func (s *sipSpeechSynthesizer) synthesizeChunk(ctx context.Context, text, langua
 		}
 		return voice.DecodeWAVPCM16Source(data)
 	}
-	ttsCfg := buildChatVoiceOutputTTSConfig(s.cfg, language)
-	// The telephone path always asks for a directly decodable WAV.
-	if strings.EqualFold(ttsCfg.Provider, "supertonic") {
-		ttsCfg.Supertonic.ResponseFormat = "wav"
-	}
+	ttsCfg := s.chunkTTSConfig(language)
 	data, extension, err := tools.TTSSynthesizeInMemoryContext(ctx, ttsCfg, text)
 	if err != nil {
 		return nil, 0, err
@@ -570,7 +580,7 @@ func (r *VoiceActionRunner) buildTelephoneBackendSnapshot(ctx context.Context, s
 		voiceSnapshot.TTS.Provider = cfg.Classic.TTSProvider
 		voiceSnapshot.SpeechLab.ChatOutputEnabled = false
 		recognizer := &sipSpeechRecognizer{cfg: &voiceSnapshot}
-		synthesizer := &sipSpeechSynthesizer{cfg: &voiceSnapshot}
+		synthesizer := &sipSpeechSynthesizer{cfg: &voiceSnapshot, route: tools.TTSRouteTool}
 		if useSpeechLabASR {
 			recognizer.speechLab = r.server.SpeechLab
 			recognizer.expectedASRID = speechLabReady.ASRID

@@ -94,13 +94,22 @@ func dispatchBluetooth(ctx context.Context, tc ToolCall, dc *DispatchContext) st
 			return bluetoothToolResult(nil, &bluetooth.CodedError{Code: bluetooth.ErrorInvalidArgument, Message: "text is required for speak"})
 		}
 		ttsCfg := buildRuntimeTTSConfig(dc.Cfg, request.Language)
+		var meta tools.TTSSynthesisMeta
+		ttsCfg.Result = &meta
 		filename, err := tools.TTSSynthesize(ttsCfg, request.Text)
 		if err != nil {
 			return bluetoothToolResult(nil, fmt.Errorf("synthesize Bluetooth TTS: %w", err))
 		}
 		source := filepath.Join(dc.Cfg.Directories.DataDir, "tts", filename)
 		playback, err := manager.Play(ctx, bluetooth.ActorAgent, source, request.Device)
-		return bluetoothToolResult(map[string]interface{}{"playback": playback}, err)
+		payload := map[string]interface{}{"playback": playback}
+		if meta.FallbackProvider != "" {
+			payload["fallback_provider"] = meta.FallbackProvider
+		}
+		if meta.Truncated {
+			payload["truncated"] = true
+		}
+		return bluetoothToolResult(payload, err)
 	case "playback_status":
 		if !dc.Cfg.Bluetooth.AllowPlayback || !dc.Cfg.Runtime.Bluetooth.Audio.Usable {
 			return bluetoothToolResult(nil, &bluetooth.CodedError{Code: bluetooth.ErrorPlaybackDisabled, Message: "Bluetooth playback is not enabled and usable."})

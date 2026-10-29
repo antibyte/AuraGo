@@ -73,6 +73,7 @@ func (s *Server) ensureCydHub() *cyd.Hub {
 		s.CydHub.SetSpeakDataDir(dataDir)
 		s.useActiveGlassSpeech(s.CydHub)
 	}
+	s.CydHub.SetSpeechLanguage(cydAnnounceLanguage(s.ConfigSnapshot()))
 	return s.CydHub
 }
 
@@ -361,13 +362,7 @@ func cydAnnounceLanguage(cfg *config.Config) string {
 	if cfg == nil {
 		return "en"
 	}
-	for _, lang := range []string{cfg.Agent.SystemLanguage, cfg.Server.UILanguage} {
-		lang = strings.TrimSpace(lang)
-		if lang != "" && !strings.EqualFold(lang, "auto") {
-			return lang
-		}
-	}
-	return cfg.SanoTTSLanguage("")
+	return cyd.AnnounceLanguage(cfg.Agent.SystemLanguage, cfg.Server.UILanguage, cfg.SanoTTSLanguage(""))
 }
 
 func meshIncomingSpeech(convos []meshcore.Conversation, conversationID string) (title, body string) {
@@ -658,9 +653,14 @@ func handleCYDWebSocket(s *Server) http.HandlerFunc {
 				return
 			}
 			var msg struct {
-				Type   string `json:"type"`
-				ID     string `json:"id"`
-				Action string `json:"action"`
+				Type     string `json:"type"`
+				ID       string `json:"id"`
+				Action   string `json:"action"`
+				Firmware string `json:"firmware"`
+				Variant  string `json:"variant"`
+				RSSI     int    `json:"rssi"`
+				Width    int    `json:"width"`
+				Height   int    `json:"height"`
 			}
 			if json.Unmarshal(payload, &msg) != nil {
 				continue
@@ -671,7 +671,13 @@ func handleCYDWebSocket(s *Server) http.HandlerFunc {
 			case "ack":
 				hub.Ack(msg.ID)
 			case "heartbeat":
-				hub.Heartbeat(tokenID, name, cyd.Heartbeat{})
+				hub.Heartbeat(tokenID, name, cyd.Heartbeat{
+					Firmware: msg.Firmware,
+					Variant:  msg.Variant,
+					RSSI:     msg.RSSI,
+					Width:    msg.Width,
+					Height:   msg.Height,
+				})
 			}
 		}
 	}

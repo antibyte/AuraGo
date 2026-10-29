@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -136,18 +137,30 @@ func maybeEmitChatVoiceOutputFallback(ctx context.Context, cfg *config.Config, l
 		ttsCfg.SpeechLab.ExpectedTTSID = ready.TTSID
 		ttsCfg.SpeechLab.Voice = ready.Voice
 	}
+	var meta tools.TTSSynthesisMeta
+	ttsCfg.Result = &meta
+	tools.NotePhononFallback(&ttsCfg)
 	filename, err := chatVoiceOutputSynthesize(ttsCfg, text)
 	if err != nil {
+		// A cancelled request stays quiet. The voice budget's own deadline still reports the failure.
+		if ctx.Err() != nil || errors.Is(err, context.Canceled) {
+			return
+		}
 		if logger != nil {
 			logger.Warn("Chat voice output fallback failed", "code", speechlab.ErrorCode(err))
 		}
 		if cfg.SpeechLab.ChatOutputEnabled {
 			emitChatSpeechLabError(cfg, broker, err)
+		} else {
+			emitChatTTSNotice(cfg, broker, "tts_failed", "backend.tts_failed")
 		}
 		return
 	}
 	if filename == "" {
 		return
+	}
+	if meta.FallbackProvider == "sanotts" {
+		emitChatTTSNotice(cfg, broker, "phonon_fallback_sanotts", "backend.tts_phonon_fallback")
 	}
 
 	audioPath, err := chatVoiceOutputMediaPath(cfg, filename)
@@ -191,6 +204,22 @@ func chatVoiceOutputMediaPath(cfg *config.Config, filename string) (string, erro
 	return parsed.EscapedPath() + "?" + parsed.RawQuery, nil
 }
 
+func emitChatSpeechLabError(cfg *config.Config, broker *chatVoiceOutputTrackingBroker, err error) {
+	if broker == nil {
+		return
+	}
+	message := i18n.T(chatVoiceOutputLanguage(cfg), "backend.speech_lab_audio_warning")
+	if message == "backend.speech_lab_audio_warning" {
+		message = "Speech Lab audio is unavailable. The text response is still available."
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"code":        speechlab.ErrorCode(err),
+		"message":     message,
+		"config_path": "/config#speech_lab",
+	})
+	broker.Send("speech_lab_error", string(payload))
+}
+
 func emitChatTTSNotice(cfg *config.Config, broker *chatVoiceOutputTrackingBroker, code, key string) {
 	if broker == nil {
 		return
@@ -209,22 +238,6 @@ func emitChatTTSNotice(cfg *config.Config, broker *chatVoiceOutputTrackingBroker
 		"message": message,
 	})
 	broker.Send("tts_notice", string(payload))
-}
-
-func emitChatSpeechLabError(cfg *config.Config, broker *chatVoiceOutputTrackingBroker, err error) {
-	if broker == nil {
-		return
-	}
-	message := i18n.T(chatVoiceOutputLanguage(cfg), "backend.speech_lab_audio_warning")
-	if message == "backend.speech_lab_audio_warning" {
-		message = "Speech Lab audio is unavailable. The text response is still available."
-	}
-	payload, _ := json.Marshal(map[string]string{
-		"code":        speechlab.ErrorCode(err),
-		"message":     message,
-		"config_path": "/config#speech_lab",
-	})
-	broker.Send("speech_lab_error", string(payload))
 }
 
 func chatVoiceOutputText(content string, language ...string) string {
@@ -417,109 +430,11 @@ func chatVoiceLimitRunes(text string, limit int) string {
 }
 
 func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string, clients ...*speechlab.Client) tools.TTSConfig {
-	provider := cfg.TTS.Provider
-	if isSpeechLabTTSProvider(provider) && !(cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled) {
-		provider = ""
-	}
-	if provider == "" && cfg.TTS.Piper.Enabled {
-		provider = "piper"
-	}
-	if cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled {
-		provider = "speech_lab"
-	}
-
-	ttsCfg := tools.TTSConfig{
-		Provider:            provider,
-		Language:            language,
-		DataDir:             cfg.Directories.DataDir,
-		CacheRetentionHours: cfg.TTS.CacheRetentionHours,
-		CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
-	}
-	if ttsCfg.Language == "" {
-		ttsCfg.Language = cfg.TTS.Language
-	}
-	if ttsCfg.Language == "" {
-		ttsCfg.Language = cfg.SpeechLab.Language
-	}
-	if strings.EqualFold(provider, "sanotts") || strings.EqualFold(provider, "phonon") || strings.EqualFold(ttsCfg.Language, "auto") {
-		ttsCfg.Language = cfg.SanoTTSLanguage(language)
-	}
-	ttsCfg.Phonon.VoiceID = cfg.TTS.Phonon.VoiceID
-	ttsCfg.Phonon.Persona = cfg.Personality.CorePersonality
-	ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
-	ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
-	ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
-	ttsCfg.MiniMax.APIKey = cfg.TTS.MiniMax.APIKey
-	ttsCfg.MiniMax.VoiceID = cfg.TTS.MiniMax.VoiceID
-	ttsCfg.MiniMax.ModelID = cfg.TTS.MiniMax.ModelID
-	ttsCfg.MiniMax.Speed = cfg.TTS.MiniMax.Speed
-	ttsCfg.Mistral.APIKey = cfg.TTS.Mistral.APIKey
-	ttsCfg.Mistral.VoiceID = cfg.TTS.Mistral.VoiceID
-	ttsCfg.Mistral.ModelID = cfg.TTS.Mistral.ModelID
-	ttsCfg.XAI = cfg.TTS.XAI
-	ttsCfg.OpenAI = cfg.TTS.OpenAI
-	ttsCfg.StepFun = cfg.TTS.StepFun
-	ttsCfg.Resemble = cfg.TTS.Resemble
-	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
-	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
-	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
-	ttsCfg.Supertonic.URL = cfg.TTS.Supertonic.URL
-	ttsCfg.Supertonic.Model = cfg.TTS.Supertonic.Model
-	ttsCfg.Supertonic.Voice = cfg.TTS.Supertonic.Voice
-	ttsCfg.Supertonic.Speed = cfg.TTS.Supertonic.Speed
-	ttsCfg.Supertonic.Steps = cfg.TTS.Supertonic.Steps
-	ttsCfg.Supertonic.ResponseFormat = cfg.TTS.Supertonic.ResponseFormat
-	ttsCfg.SpeechLab.BaseURL = cfg.SpeechLab.BaseURL
-	ttsCfg.SpeechLab.Language = cfg.SpeechLab.Language
-	ttsCfg.SpeechLab.TimeoutSeconds = cfg.SpeechLab.TimeoutSeconds
-	if len(clients) > 0 {
-		ttsCfg.SpeechLab.Client = clients[0]
-	}
-	return ttsCfg
+	return tools.BuildTTSConfig(cfg, tools.TTSRouteChat, language, clients...)
 }
 
 func chatVoiceOutputTTSConfigured(cfg *config.Config) bool {
-	if cfg == nil {
-		return false
-	}
-	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
-	if isSpeechLabTTSProvider(provider) && !(cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled) {
-		provider = ""
-	}
-	if provider == "" && cfg.TTS.Piper.Enabled {
-		provider = "piper"
-	}
-	if cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled {
-		provider = "speech_lab"
-	}
-
-	switch provider {
-	case "google", "sanotts", "phonon":
-		return true
-	case "elevenlabs":
-		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
-	case "minimax":
-		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
-	case "mistral":
-		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
-			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
-	case "xai":
-		return strings.TrimSpace(cfg.TTS.XAI.APIKey) != ""
-	case "openai":
-		return strings.TrimSpace(cfg.TTS.OpenAI.APIKey) != ""
-	case "stepfun":
-		return strings.TrimSpace(cfg.TTS.StepFun.APIKey) != ""
-	case "resemble":
-		return strings.TrimSpace(cfg.TTS.Resemble.APIKey) != "" && strings.TrimSpace(cfg.TTS.Resemble.VoiceID) != ""
-	case "piper":
-		return cfg.TTS.Piper.Enabled
-	case "supertonic":
-		return strings.TrimSpace(cfg.TTS.Supertonic.URL) != ""
-	case "s2s", "speech_lab", "s2s-lab":
-		return cfg.SpeechLab.Active()
-	default:
-		return false
-	}
+	return tools.TTSReady(cfg, tools.TTSRouteChat)
 }
 
 func isSpeechLabTTSProvider(provider string) bool {

@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Speech Lab の文字起こしに失敗しました。",
   "chat.speech_lab_transcribe": "文字起こし",
   "chat.speech_lab_audio_warning": "Speech Lab の音声を生成できませんでした。テキスト応答は引き続き利用できます。",
+  "chat.tts_phonon_fallback": "この言語の Phonon パッケージはありません。代わりに sanoTTS で話します。",
+  "chat.tts_failed": "音声出力に失敗しました。テキストの返信は引き続き利用できます。",
   "chat.speech_lab_capture_unavailable": "このブラウザーは Speech Lab 用の WAV 録音にも音声認識にも対応していません。",
   "chat.galaxy_title": "こんにちは！AuraGoです。",
   "chat.galaxy_subtitle": "どんなお手伝いをしましょうか？",

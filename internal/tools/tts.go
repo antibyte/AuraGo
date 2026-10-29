@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,7 +36,9 @@ type TTSConfig struct {
 	// NoProviderFallback keeps the selected provider. Glass alerts set this so a
 	// missing Phonon voice is not silently replaced by sanoTTS.
 	NoProviderFallback bool
-	Phonon              struct {
+	// Result receives truncation and Phonon-to-sanoTTS notes when non-nil.
+	Result *TTSSynthesisMeta
+	Phonon struct {
 		VoiceID string
 		Persona string
 		Root    string // internal resource override; empty uses the installation's package
@@ -87,8 +90,18 @@ type TTSConfig struct {
 // ttsHTTPClient carries provider credentials and never redirects to another origin.
 var ttsHTTPClient = httporigin.NewClient(30 * time.Second)
 
+const (
+	ttsFileRuneLimit   = 500
+	ttsGoogleRuneLimit = 200
+)
+
+// TTSSynthesisMeta reports file-path truncation and a Phonon fallback.
+type TTSSynthesisMeta struct {
+	FallbackProvider string
+	Truncated        bool
+}
+
 // TTSSynthesize generates speech audio from text and returns the filename (relative to data/tts/).
-// The file is saved as MP3 in {DataDir}/tts/{hash}.mp3.
 func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	if err := ttsRequestContext(cfg).Err(); err != nil {
 		return "", err
@@ -96,17 +109,24 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	if text == "" {
 		return "", fmt.Errorf("text is required")
 	}
-	// Enforce 500 character limit (rune-safe to handle multi-byte UTF-8)
-	if len([]rune(text)) > 500 {
-		text = string([]rune(text)[:500])
+	if runes := []rune(text); len(runes) > ttsFileRuneLimit {
+		text = string(runes[:ttsFileRuneLimit])
+		if cfg.Result != nil {
+			cfg.Result.Truncated = true
+		}
 	}
 	if strings.EqualFold(strings.TrimSpace(cfg.Provider), "phonon") {
 		if err := phonon.ValidateText(text); err != nil {
 			return "", err
 		}
 	}
+	requested := cfg.Provider
 	cfg = resolvePhononTTSConfig(cfg)
+	notePhononFallback(cfg.Result, requested, cfg.Provider)
 	if err := ttsRequestContext(cfg).Err(); err != nil {
+		return "", err
+	}
+	if err := ensureSpeechLabSnapshot(&cfg); err != nil {
 		return "", err
 	}
 
@@ -123,46 +143,27 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	filename := hash + ext
 	filePath := filepath.Join(ttsDir, filename)
 
-	// Return cached file if it exists
-	if _, err := os.Stat(filePath); err == nil {
+	// An empty file left by an older run is not a hit. Remove it and synthesize.
+	if info, err := os.Stat(filePath); err == nil && info.Size() > 0 && !info.IsDir() {
 		now := time.Now()
 		_ = os.Chtimes(filePath, now, now)
 		_ = cleanupTTSCache(cfg, filename, now)
 		return filename, nil
+	} else if err == nil {
+		_ = os.Remove(filePath)
 	}
 
-	var audioData []byte
-	var err error
-
-	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
-	case "phonon":
-		audioData, err = phonon.Synthesize(ttsRequestContext(cfg), cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
-		if phononFallbackAllowed(ttsRequestContext(cfg), err) && !cfg.NoProviderFallback {
-			cfg.Provider = "sanotts"
-			return TTSSynthesize(cfg, text)
-		}
-	case "sanotts":
-		audioData, err = ttsSano(cfg, text)
-	case "elevenlabs":
-		audioData, err = ttsElevenLabs(cfg, text)
-	case "minimax":
-		audioData, err = ttsMiniMax(cfg, text)
-	case "mistral":
-		audioData, err = ttsMistral(cfg, text)
-	case "xai", "openai", "stepfun", "resemble":
-		audioData, err = ttsCloud(cfg, text)
-	case "piper":
-		audioData, err = ttsPiper(cfg, text)
-	case "supertonic":
-		audioData, err = ttsSupertonic(cfg, text)
-	case "s2s", "speech_lab", "s2s-lab":
-		audioData, _, err = ttsSpeechLab(cfg, text)
-	default: // "google" or fallback
-		audioData, err = ttsGoogleContext(ttsRequestContext(cfg), text, cfg.Language)
+	audioData, err := synthesizeProvider(cfg, text)
+	if err != nil && phononRuntimeFallback(cfg, err) {
+		notePhononFallback(cfg.Result, "phonon", "sanotts")
+		cfg.Provider = "sanotts"
+		return TTSSynthesize(cfg, text)
 	}
-
 	if err != nil {
 		return "", err
+	}
+	if len(audioData) == 0 {
+		return "", fmt.Errorf("TTS provider returned empty audio")
 	}
 
 	if err := os.WriteFile(filePath, audioData, 0o644); err != nil {
@@ -363,7 +364,66 @@ func cleanupTTSCache(cfg TTSConfig, keepFilename string, now time.Time) error {
 	return nil
 }
 
-// ttsGoogle uses Google Translate's TTS endpoint (free, max ~200 chars).
+func synthesizeProvider(cfg TTSConfig, text string) ([]byte, error) {
+	var audioData []byte
+	var err error
+	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "phonon":
+		audioData, err = phonon.Synthesize(ttsRequestContext(cfg), cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
+	case "sanotts":
+		audioData, err = ttsSano(cfg, text)
+	case "elevenlabs":
+		audioData, err = ttsElevenLabs(cfg, text)
+	case "minimax":
+		audioData, err = ttsMiniMax(cfg, text)
+	case "mistral":
+		audioData, err = ttsMistral(cfg, text)
+	case "xai", "openai", "stepfun", "resemble":
+		audioData, err = ttsCloud(cfg, text)
+	case "piper":
+		audioData, err = ttsPiper(cfg, text)
+	case "supertonic":
+		audioData, err = ttsSupertonic(cfg, text)
+	case "s2s", "speech_lab", "s2s-lab":
+		audioData, _, err = ttsSpeechLab(cfg, text)
+	case "google":
+		audioData, err = ttsGoogleContext(ttsRequestContext(cfg), text, cfg.Language)
+	default:
+		return nil, fmt.Errorf("unsupported TTS provider %q", strings.TrimSpace(cfg.Provider))
+	}
+	return audioData, err
+}
+
+func phononRuntimeFallback(cfg TTSConfig, err error) bool {
+	return strings.EqualFold(strings.TrimSpace(cfg.Provider), "phonon") &&
+		phononFallbackAllowed(ttsRequestContext(cfg), err) &&
+		!cfg.NoProviderFallback
+}
+
+// NotePhononFallback records a Phonon-to-sanoTTS replacement without changing the provider.
+func NotePhononFallback(cfg *TTSConfig) {
+	if cfg == nil {
+		return
+	}
+	requested := cfg.Provider
+	resolved := resolvePhononTTSConfig(*cfg)
+	notePhononFallback(cfg.Result, requested, resolved.Provider)
+}
+
+func notePhononFallback(meta *TTSSynthesisMeta, from, to string) {
+	if !strings.EqualFold(strings.TrimSpace(from), "phonon") || !strings.EqualFold(strings.TrimSpace(to), "sanotts") {
+		return
+	}
+	if meta != nil {
+		if meta.FallbackProvider == "sanotts" {
+			return
+		}
+		meta.FallbackProvider = "sanotts"
+	}
+	slog.Warn("Phonon has no usable voice; speaking with sanoTTS")
+}
+
+// ttsGoogle uses Google Translate's TTS endpoint. Only provider "google" calls it.
 func ttsGoogle(text, lang string) ([]byte, error) {
 	return ttsGoogleContext(context.Background(), text, lang)
 }
@@ -371,6 +431,9 @@ func ttsGoogle(text, lang string) ([]byte, error) {
 func ttsGoogleContext(ctx context.Context, text, lang string) ([]byte, error) {
 	if lang == "" {
 		lang = "en"
+	}
+	if runes := []rune(text); len(runes) > ttsGoogleRuneLimit {
+		text = string(runes[:ttsGoogleRuneLimit])
 	}
 
 	u := fmt.Sprintf("https://translate.google.com/translate_tts?ie=UTF-8&tl=%s&client=tw-ob&q=%s",

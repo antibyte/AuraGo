@@ -33,36 +33,17 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 			return nil, "", err
 		}
 	}
+	requested := cfg.Provider
 	cfg = resolvePhononTTSConfig(cfg)
-	var (
-		data []byte
-		err  error
-	)
-	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
-	case "phonon":
-		data, err = phonon.Synthesize(ctx, cfg.Phonon.Root, cfg.DataDir, cfg.Language, cfg.Phonon.VoiceID, text)
-		if phononFallbackAllowed(ctx, err) && !cfg.NoProviderFallback {
-			cfg.Provider = "sanotts"
-			return TTSSynthesizeInMemoryContext(ctx, cfg, text)
-		}
-	case "sanotts":
-		data, err = ttsSano(cfg, text)
-	case "elevenlabs":
-		data, err = ttsElevenLabs(cfg, text)
-	case "minimax":
-		data, err = ttsMiniMax(cfg, text)
-	case "mistral":
-		data, err = ttsMistral(cfg, text)
-	case "xai", "openai", "stepfun", "resemble":
-		data, err = ttsCloud(cfg, text)
-	case "piper":
-		data, err = ttsPiper(cfg, text)
-	case "supertonic":
-		data, err = ttsSupertonic(cfg, text)
-	case "s2s", "speech_lab", "s2s-lab":
-		data, _, err = ttsSpeechLab(cfg, text)
-	default:
-		data, err = ttsGoogleContext(ctx, text, cfg.Language)
+	notePhononFallback(cfg.Result, requested, cfg.Provider)
+	if err := ensureSpeechLabSnapshot(&cfg); err != nil {
+		return nil, "", err
+	}
+	data, err := synthesizeProvider(cfg, text)
+	if err != nil && phononRuntimeFallback(cfg, err) {
+		notePhononFallback(cfg.Result, "phonon", "sanotts")
+		cfg.Provider = "sanotts"
+		return TTSSynthesizeInMemoryContext(ctx, cfg, text)
 	}
 	if err != nil {
 		return nil, "", err

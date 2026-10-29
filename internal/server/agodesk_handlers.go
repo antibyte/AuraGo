@@ -1111,38 +1111,7 @@ func agodeskServerTTSConfigured(s *Server) bool {
 }
 
 func agodeskTTSConfigured(cfg *config.Config) bool {
-	if cfg == nil {
-		return false
-	}
-	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
-	if provider == "" && cfg.TTS.Piper.Enabled {
-		provider = "piper"
-	}
-	switch provider {
-	case "google", "sanotts", "phonon":
-		return true
-	case "elevenlabs":
-		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
-	case "minimax":
-		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
-	case "mistral":
-		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
-			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
-	case "xai":
-		return strings.TrimSpace(cfg.TTS.XAI.APIKey) != ""
-	case "openai":
-		return strings.TrimSpace(cfg.TTS.OpenAI.APIKey) != ""
-	case "stepfun":
-		return strings.TrimSpace(cfg.TTS.StepFun.APIKey) != ""
-	case "resemble":
-		return strings.TrimSpace(cfg.TTS.Resemble.APIKey) != "" && strings.TrimSpace(cfg.TTS.Resemble.VoiceID) != ""
-	case "piper":
-		return cfg.TTS.Piper.Enabled
-	case "supertonic":
-		return strings.TrimSpace(cfg.TTS.Supertonic.URL) != ""
-	default:
-		return false
-	}
+	return tools.TTSReady(cfg, tools.TTSRouteTool)
 }
 
 func handleAgodeskPersonaAssetsRequest(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.PersonaAssetsRequestPayload) {

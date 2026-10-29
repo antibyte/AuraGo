@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Speech Lab 转写失败。",
   "chat.speech_lab_transcribe": "转写",
   "chat.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。",
+  "chat.tts_phonon_fallback": "Phonon 没有这种语言的语音包。我改用 sanoTTS 来说。",
+  "chat.tts_failed": "语音输出失败。文本回复仍然可用。",
   "chat.speech_lab_capture_unavailable": "此浏览器既不支持 Speech Lab 的 WAV 录音，也不支持语音识别。",
   "chat.galaxy_title": "你好！我是 AuraGo。",
   "chat.galaxy_subtitle": "有什么任务需要我来完成？",

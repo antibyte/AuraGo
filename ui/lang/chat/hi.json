@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Speech Lab ट्रांसक्रिप्शन विफल रहा।",
   "chat.speech_lab_transcribe": "ट्रांसक्राइब करें",
   "chat.speech_lab_audio_warning": "Speech Lab ऑडियो बनाया नहीं जा सका। टेक्स्ट उत्तर उपलब्ध है।",
+  "chat.tts_phonon_fallback": "इस भाषा के लिए Phonon का कोई पैकेज नहीं है। मैं इसकी जगह sanoTTS से बोल रहा हूँ।",
+  "chat.tts_failed": "वाक् आउटपुट विफल रहा। टेक्स्ट उत्तर उपलब्ध है।",
   "chat.speech_lab_capture_unavailable": "यह ब्राउज़र Speech Lab के लिए WAV रिकॉर्डिंग या वाक् पहचान का समर्थन नहीं करता।",
   "chat.galaxy_title": "नमस्ते! मैं AuraGo हूँ।",
   "chat.galaxy_subtitle": "मैं आपके लिए कौन-सा काम करूँ?",

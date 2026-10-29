@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Speech Lab-transskriptionen mislykkedes.",
   "chat.speech_lab_transcribe": "Transskriber",
   "chat.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er stadig tilgængeligt.",
+  "chat.tts_phonon_fallback": "Phonon har ingen pakke til dette sprog. Jeg taler i stedet med sanoTTS.",
+  "chat.tts_failed": "Taleoutput mislykkedes. Tekstsvar er stadig tilgængeligt.",
   "chat.speech_lab_capture_unavailable": "Denne browser understøtter hverken WAV-optagelse til Speech Lab eller talegenkendelse.",
   "chat.galaxy_title": "Hej! Jeg er AuraGo.",
   "chat.galaxy_subtitle": "Hvilken opgave skal jeg hjælpe dig med?",

@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "A transcrição do Speech Lab falhou.",
   "chat.speech_lab_transcribe": "Transcrever",
   "chat.speech_lab_audio_warning": "Não foi possível gerar o áudio do Speech Lab. A resposta de texto continua disponível.",
+  "chat.tts_phonon_fallback": "O Phonon não tem um pacote para este idioma. Falo com o sanoTTS em vez disso.",
+  "chat.tts_failed": "A saída de voz falhou. A resposta de texto continua disponível.",
   "chat.speech_lab_capture_unavailable": "Este navegador não suporta gravação WAV para o Speech Lab nem reconhecimento de voz.",
   "chat.galaxy_title": "Olá! Sou o AuraGo.",
   "chat.galaxy_subtitle": "Que tarefa posso realizar para ti?",

@@ -56,8 +56,13 @@ func TestHeartbeatAndRecentDevice(t *testing.T) {
 		t.Fatal("expected recent device")
 	}
 	devs := h.Devices()
-	if len(devs) != 1 || devs[0].Firmware != "0.1.0" {
+	if len(devs) != 1 || devs[0].Firmware != "0.1.0" || devs[0].RSSI != -40 {
 		t.Fatalf("devices = %+v", devs)
+	}
+	h.Heartbeat("tok1", "CYD kitchen", Heartbeat{})
+	devs = h.Devices()
+	if devs[0].Firmware != "0.1.0" || devs[0].RSSI != -40 {
+		t.Fatalf("empty heartbeat cleared the device: %+v", devs[0])
 	}
 }
 

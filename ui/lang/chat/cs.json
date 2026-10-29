@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Přepis v Speech Lab se nezdařil.",
   "chat.speech_lab_transcribe": "Přepsat",
   "chat.speech_lab_audio_warning": "Zvuk Speech Lab se nepodařilo vygenerovat. Textová odpověď zůstává dostupná.",
+  "chat.tts_phonon_fallback": "Phonon nemá pro tento jazyk balíček. Místo toho mluvím přes sanoTTS.",
+  "chat.tts_failed": "Hlasový výstup selhal. Textová odpověď zůstává dostupná.",
   "chat.speech_lab_capture_unavailable": "Tento prohlížeč nepodporuje nahrávání WAV pro Speech Lab ani rozpoznávání řeči.",
   "chat.galaxy_title": "Ahoj! Jsem AuraGo.",
   "chat.galaxy_subtitle": "S čím ti mohu pomoci?",

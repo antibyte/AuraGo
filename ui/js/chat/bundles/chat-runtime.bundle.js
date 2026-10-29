@@ -9139,14 +9139,16 @@ function handleSSEMessage(e) {
                 }
             } catch (e) { }
             return;
-		} else if (data.event === 'speech_lab_error') {
+		} else if (data.event === 'speech_lab_error' || data.event === 'tts_notice') {
 			try {
 				const warning = JSON.parse(data.detail || '{}');
-				const message = warning.message || t('chat.speech_lab_audio_warning');
+				const fallbackKey = data.event === 'tts_notice' ? 'chat.tts_failed' : 'chat.speech_lab_audio_warning';
+				const message = warning.message || t(fallbackKey);
 				if (window.showToast) window.showToast(message, 'warning');
 				else appendMessage('system', '\u26a0\ufe0f ' + message);
 			} catch (_) {
-				appendMessage('system', '\u26a0\ufe0f ' + t('chat.speech_lab_audio_warning'));
+				const fallbackKey = data.event === 'tts_notice' ? 'chat.tts_failed' : 'chat.speech_lab_audio_warning';
+				appendMessage('system', '\u26a0\ufe0f ' + t(fallbackKey));
 			}
 			return;
 		} else if (data.event === 'audio') {

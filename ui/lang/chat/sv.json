@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Speech Lab-transkriberingen misslyckades.",
   "chat.speech_lab_transcribe": "Transkribera",
   "chat.speech_lab_audio_warning": "Speech Lab-ljudet kunde inte skapas. Textsvaret är fortfarande tillgängligt.",
+  "chat.tts_phonon_fallback": "Phonon har inget paket för det här språket. Jag talar i stället med sanoTTS.",
+  "chat.tts_failed": "Röstutmatningen misslyckades. Textsvaret är fortfarande tillgängligt.",
   "chat.speech_lab_capture_unavailable": "Den här webbläsaren stöder varken WAV-inspelning för Speech Lab eller taligenkänning.",
   "chat.galaxy_title": "Hej! Jag är AuraGo.",
   "chat.galaxy_subtitle": "Vilken uppgift kan jag hjälpa dig med?",

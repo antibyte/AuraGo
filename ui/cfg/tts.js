@@ -40,6 +40,8 @@ function renderTTSSection(section) {
     html += '<option value="supertonic"' + (currentProvider === 'supertonic' ? ' selected' : '') + '>' + t('config.tts.provider_supertonic') + '</option>';
     html += '</select>';
     html += '<div class="field-help" id="tts-local-help">' + (currentProvider === 'sanotts' ? t('config.tts.sanotts_help') : '') + '</div>';
+    html += '<div id="tts-route-summary" class="field-help"></div>';
+    html += '<div class="field-help">' + t('config.tts.phone_voice_page') + '</div>';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -318,6 +320,7 @@ function renderTTSSection(section) {
     document.getElementById('content').innerHTML = html;
 
     if (currentProvider === 'phonon') ttsPhononLoadVoices();
+    ttsLoadRoutes();
 
     if (piperEnabled) {
         piperCheckStatus();
@@ -367,6 +370,26 @@ function ttsProviderChanged(val) {
     if (supertonicSection) {
         supertonicSection.classList.toggle('is-hidden', val !== 'supertonic');
         if (val === 'supertonic') supertonicCheckStatus();
+    }
+}
+
+async function ttsLoadRoutes() {
+    const box = document.getElementById('tts-route-summary');
+    if (!box) return;
+    box.replaceChildren();
+    try {
+        const response = await fetch('/api/tts/routes', {cache: 'no-store'});
+        if (!response.ok) throw new Error('routes');
+        const data = await response.json();
+        (data.routes || []).forEach(route => {
+            const line = document.createElement('div');
+            const provider = route.provider || t('config.tts.provider_none');
+            const state = route.ready ? t('config.tts.route_ready') : t('config.tts.route_not_ready');
+            line.textContent = t('config.tts.route_' + route.code) + ': ' + provider + ' — ' + state;
+            box.appendChild(line);
+        });
+    } catch (_) {
+        box.textContent = t('config.tts.route_unavailable');
     }
 }
 

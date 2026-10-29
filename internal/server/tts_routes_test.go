@@ -1,182 +1,89 @@
 package server
 
 import (
-	"context"
-	"log/slog"
-	"net"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
-func TestMainTTSRouteServesSupertonicAudioContentTypes(t *testing.T) {
-	dataDir := t.TempDir()
-	ttsDir := filepath.Join(dataDir, "tts")
-	if err := os.MkdirAll(ttsDir, 0o755); err != nil {
-		t.Fatalf("mkdir tts dir: %v", err)
+func TestTTSRoutes(t *testing.T) {
+	phonon := &config.Config{}
+	phonon.TTS.Provider = "phonon"
+	got := tools.EffectiveTTSRoutes(phonon)
+	if len(got) != 4 {
+		t.Fatalf("routes = %+v", got)
 	}
-	for _, filename := range []string{"voice.ogg", "voice.flac"} {
-		if err := os.WriteFile(filepath.Join(ttsDir, filename), []byte("audio-data"), 0o644); err != nil {
-			t.Fatalf("write %s: %v", filename, err)
+	for _, route := range got[:3] {
+		if route.Provider != "phonon" || !route.Ready {
+			t.Fatalf("phonon route = %+v", route)
 		}
 	}
-
-	cfg := &config.Config{}
-	cfg.Directories.DataDir = dataDir
-	cfg.Directories.WorkspaceDir = t.TempDir()
-	s := &Server{Cfg: cfg, Logger: slog.Default()}
-	mux := http.NewServeMux()
-	if _, err := s.registerUIRoutes(mux, make(chan struct{})); err != nil {
-		t.Fatalf("registerUIRoutes: %v", err)
+	if got[3].Code != "live_speech" || got[3].Ready || got[3].Provider != "" {
+		t.Fatalf("live speech = %+v", got[3])
 	}
 
-	tests := []struct {
-		path        string
-		contentType string
-	}{
-		{path: "/tts/voice.ogg", contentType: "audio/ogg"},
-		{path: "/tts/voice.flac", contentType: "audio/flac"},
+	lab := &config.Config{}
+	lab.TTS.Provider = "phonon"
+	lab.SpeechLab.Enabled = true
+	lab.SpeechLab.BaseURL = "http://127.0.0.1:9"
+	lab.SpeechLab.ChatOutputEnabled = true
+	got = tools.EffectiveTTSRoutes(lab)
+	if got[0].Code != "web_chat" || got[0].Provider != "speech_lab" || !got[0].Ready {
+		t.Fatalf("web chat = %+v", got[0])
 	}
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			signed := security.SignCastMediaURL("http://example.com"+tt.path, security.CastMediaTicketLifetime)
-			req := httptest.NewRequest(http.MethodGet, signed, nil)
-			rec := httptest.NewRecorder()
-			mux.ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusOK {
-				t.Fatalf("status = %d, body = %q; want 200", rec.Code, rec.Body.String())
-			}
-			if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, tt.contentType) {
-				t.Fatalf("Content-Type = %q, want %s", ct, tt.contentType)
-			}
-		})
-	}
-}
-
-func TestMainCastMediaRouteServesVideoContentType(t *testing.T) {
-	dataDir := t.TempDir()
-	castMediaDir := filepath.Join(dataDir, "cast_media")
-	if err := os.MkdirAll(castMediaDir, 0o755); err != nil {
-		t.Fatalf("mkdir cast media dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(castMediaDir, "clip.mp4"), []byte("video-data"), 0o644); err != nil {
-		t.Fatalf("write clip.mp4: %v", err)
+	if got[1].Provider != "phonon" || !got[1].Ready || got[2].Provider != "phonon" || !got[2].Ready {
+		t.Fatalf("tool/glass = %+v %+v", got[1], got[2])
 	}
 
-	cfg := &config.Config{}
-	cfg.Directories.DataDir = dataDir
-	cfg.Directories.WorkspaceDir = t.TempDir()
-	s := &Server{Cfg: cfg, Logger: slog.Default()}
-	mux := http.NewServeMux()
-	if _, err := s.registerUIRoutes(mux, make(chan struct{})); err != nil {
-		t.Fatalf("registerUIRoutes: %v", err)
+	unready := &config.Config{}
+	unready.TTS.Provider = "speech_lab"
+	unready.SpeechLab.BaseURL = "http://127.0.0.1:9"
+	got = tools.EffectiveTTSRoutes(unready)
+	if got[1].Ready || got[1].Provider != "speech_lab" {
+		t.Fatalf("unready tool = %+v", got[1])
 	}
 
-	signed := security.SignCastMediaURL("http://example.com/cast-media/clip.mp4", security.CastMediaTicketLifetime)
-	req := httptest.NewRequest(http.MethodGet, signed, nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %q; want 200", rec.Code, rec.Body.String())
-	}
-	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "video/mp4") {
-		t.Fatalf("Content-Type = %q, want video/mp4", ct)
-	}
-}
-
-func TestDedicatedChromecastMediaServerServesTTSAndCastMedia(t *testing.T) {
-	dataDir := t.TempDir()
-	ttsDir := filepath.Join(dataDir, "tts")
-	castMediaDir := filepath.Join(dataDir, "cast_media")
-	if err := os.MkdirAll(ttsDir, 0o755); err != nil {
-		t.Fatalf("mkdir tts dir: %v", err)
-	}
-	if err := os.MkdirAll(castMediaDir, 0o755); err != nil {
-		t.Fatalf("mkdir cast media dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(ttsDir, "voice.mp3"), []byte("audio-data"), 0o644); err != nil {
-		t.Fatalf("write voice.mp3: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(castMediaDir, "clip.mp4"), []byte("video-data"), 0o644); err != nil {
-		t.Fatalf("write clip.mp4: %v", err)
-	}
-
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	secret := &config.Config{}
+	secret.TTS.Provider = "openai"
+	secret.TTS.OpenAI.APIKey = "vault-secret-value"
+	secret.TTS.OpenAI.VoiceID = "coral"
+	secret.RealtimeSpeech.Enabled = true
+	secret.RealtimeSpeech.DefaultProfile = "room"
+	secret.RealtimeSpeech.Profiles = []config.RealtimeSpeechProfile{{
+		ID: "room", Provider: "openai", Voice: "marin", Enabled: true, APIKey: "live-secret-value",
+	}}
+	body, err := json.Marshal(tools.EffectiveTTSRoutes(secret))
 	if err != nil {
-		t.Skipf("IPv4 loopback listener unavailable in this test environment: %v", err)
+		t.Fatal(err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	_ = listener.Close()
-
-	cfg := &config.Config{}
-	cfg.Directories.DataDir = dataDir
-	cfg.Directories.WorkspaceDir = t.TempDir()
-	cfg.Server.Host = "127.0.0.1"
-	cfg.Chromecast.Enabled = true
-	cfg.Chromecast.TTSPort = port
-	s := &Server{Cfg: cfg, Logger: slog.Default()}
-	mux := http.NewServeMux()
-	mediaServer, err := s.registerUIRoutes(mux, make(chan struct{}))
-	if err != nil {
-		t.Fatalf("registerUIRoutes: %v", err)
-	}
-	if mediaServer == nil {
-		t.Fatal("expected dedicated Chromecast media server")
-	}
-	defer mediaServer.Shutdown(context.Background())
-
-	client := &http.Client{Timeout: 500 * time.Millisecond}
-	assertDedicatedMedia := func(path, wantContentType string) {
-		t.Helper()
-		url := security.SignCastMediaURL("http://127.0.0.1:"+mediaServer.Addr[strings.LastIndex(mediaServer.Addr, ":")+1:]+path, security.CastMediaTicketLifetime)
-		var resp *http.Response
-		var err error
-		for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); {
-			resp, err = client.Get(url)
-			if err == nil {
-				break
-			}
-			time.Sleep(25 * time.Millisecond)
-		}
-		if err != nil {
-			t.Fatalf("GET %s: %v", url, err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("GET %s status = %d, want 200", path, resp.StatusCode)
-		}
-		if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, wantContentType) {
-			t.Fatalf("GET %s Content-Type = %q, want %s", path, ct, wantContentType)
+	encoded := string(body)
+	for _, hidden := range []string{"vault-secret-value", "live-secret-value", "coral", "marin", "http"} {
+		if strings.Contains(encoded, hidden) {
+			t.Fatalf("route payload leaked %q: %s", hidden, encoded)
 		}
 	}
-
-	assertDedicatedMedia("/tts/voice.mp3", "audio/mpeg")
-	assertDedicatedMedia("/cast-media/clip.mp4", "video/mp4")
-}
-
-func TestChromecastMediaServerBindHostUsesLANCapableDefault(t *testing.T) {
-	tests := map[string]string{
-		"":             "0.0.0.0",
-		"0.0.0.0":      "0.0.0.0",
-		"127.0.0.1":    "0.0.0.0",
-		"localhost":    "0.0.0.0",
-		"::1":          "0.0.0.0",
-		"192.168.1.20": "192.168.1.20",
+	if routes := tools.EffectiveTTSRoutes(secret); !routes[3].Ready || routes[3].Provider != "openai" {
+		t.Fatalf("live speech with a key = %+v", routes[3])
 	}
-	for input, want := range tests {
-		t.Run(input, func(t *testing.T) {
-			if got := chromecastMediaServerBindHost(input); got != want {
-				t.Fatalf("chromecastMediaServerBindHost(%q) = %q, want %q", input, got, want)
-			}
-		})
+	secret.RealtimeSpeech.Profiles[0].APIKey = ""
+	if routes := tools.EffectiveTTSRoutes(secret); routes[3].Ready {
+		t.Fatalf("live speech without a key = %+v", routes[3])
+	}
+	secret.RealtimeSpeech.Profiles[0].Provider = "speech_lab"
+	if routes := tools.EffectiveTTSRoutes(secret); !routes[3].Ready || routes[3].Provider != "speech_lab" {
+		t.Fatalf("keyless live speech = %+v", routes[3])
+	}
+
+	s := &Server{}
+	s.Cfg = phonon
+	recorder := httptest.NewRecorder()
+	handleTTSRoutes(s).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/tts/routes", nil))
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("status %d cache %q", recorder.Code, recorder.Header().Get("Cache-Control"))
 	}
 }

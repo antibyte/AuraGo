@@ -549,6 +549,9 @@ func ChromecastSpeak(deviceAddr string, devicePort int, text string, ttsCfg TTSC
 		return jsonErr(err.Error())
 	}
 
+	if ttsCfg.Result == nil {
+		ttsCfg.Result = &TTSSynthesisMeta{}
+	}
 	filename, err := synthesizeChromecastSpeech(ttsCfg, text)
 	if err != nil {
 		return jsonErr("TTS failed: " + err.Error())
@@ -572,10 +575,17 @@ func ChromecastSpeak(deviceAddr string, devicePort int, text string, ttsCfg TTSC
 		return jsonErr("Failed to cast audio: " + err.Error())
 	}
 
-	return jsonOK(map[string]interface{}{
+	spoken := map[string]interface{}{
 		"message": fmt.Sprintf("Speaking on %s: %s", deviceAddr, text),
 		"audio":   chromecastPublicMediaURL(audioURL),
-	})
+	}
+	if ttsCfg.Result.FallbackProvider != "" {
+		spoken["fallback_provider"] = ttsCfg.Result.FallbackProvider
+	}
+	if ttsCfg.Result.Truncated {
+		spoken["truncated"] = true
+	}
+	return jsonOK(spoken)
 }
 
 // ChromecastStop stops playback on a Chromecast device.

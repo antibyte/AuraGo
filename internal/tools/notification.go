@@ -465,6 +465,7 @@ func sendCYDNotification(cfg *config.Config, title, message, priority string) er
 		return fmt.Errorf("no cyd device connected")
 	}
 	ttl := cfg.Cyd.OverlayTTLSeconds
+	hub.SetSpeechLanguage(cyd.AnnounceLanguage(cfg.Agent.SystemLanguage, cfg.Server.UILanguage, cfg.SanoTTSLanguage("")))
 	hub.Notify(title, message, priority, ttl)
 	return nil
 }

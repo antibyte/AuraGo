@@ -287,6 +287,8 @@
   "chat.speech_lab_transcription_failed": "Η μεταγραφή Speech Lab απέτυχε.",
   "chat.speech_lab_transcribe": "Μεταγραφή",
   "chat.speech_lab_audio_warning": "Δεν ήταν δυνατή η δημιουργία ήχου Speech Lab. Η απάντηση κειμένου παραμένει διαθέσιμη.",
+  "chat.tts_phonon_fallback": "Το Phonon δεν έχει πακέτο για αυτή τη γλώσσα. Μιλάω αντ' αυτού με το sanoTTS.",
+  "chat.tts_failed": "Η φωνητική έξοδος απέτυχε. Η απάντηση κειμένου παραμένει διαθέσιμη.",
   "chat.speech_lab_capture_unavailable": "Αυτό το πρόγραμμα περιήγησης δεν υποστηρίζει εγγραφή WAV για το Speech Lab ούτε αναγνώριση ομιλίας.",
   "chat.galaxy_title": "Γεια! Είμαι το AuraGo.",
   "chat.galaxy_subtitle": "Ποια εργασία να αναλάβω για σένα;",

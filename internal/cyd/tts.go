@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	mp3 "github.com/hajimehoshi/go-mp3"
 
@@ -102,8 +103,8 @@ func (s *Speaker) SetSynth(fn SpeechSynth, ready func() bool) {
 	s.mu.Unlock()
 }
 
-func (s *Speaker) Queue(id, title, body string) {
-	s.QueueText(id, SpeakLine(title, body))
+func (s *Speaker) Queue(id, title, body, lang string) {
+	s.QueueText(id, SpeakLine(title, body, lang))
 }
 
 // QueueText speaks line as written. Mesh alerts use it so the glass does not
@@ -259,16 +260,20 @@ func MeshAnnounce(lang string) string {
 }
 
 // SpeakLine is the sentence spoken for alerts other than MeshCore.
-func SpeakLine(title, body string) string {
+// The user's title and body stay untranslated. Only an empty title uses lang.
+func SpeakLine(title, body, lang string) string {
 	t := asciiEnglish(strings.TrimSpace(title))
 	b := asciiEnglish(strings.TrimSpace(body))
 	if t == "" {
-		t = "Notification"
+		t = asciiEnglish(i18n.T(lang, "cyd.speech_notification"))
+		if t == "" {
+			t = "Notification"
+		}
 	}
 	if b == "" {
-		return t
+		return trimSpeechBytes(t, 140)
 	}
-	return t + ". " + b
+	return trimSpeechBytes(t+". "+b, 140)
 }
 
 func asciiEnglish(s string) string {
@@ -281,11 +286,33 @@ func asciiEnglish(s string) string {
 			b.WriteByte(' ')
 		}
 	}
-	out := strings.Join(strings.Fields(b.String()), " ")
-	if len(out) > 140 {
-		out = out[:140]
+	return trimSpeechBytes(strings.Join(strings.Fields(b.String()), " "), 140)
+}
+
+func trimSpeechBytes(s string, max int) string {
+	if max <= 0 || s == "" {
+		return ""
 	}
-	return out
+	if len(s) <= max {
+		return s
+	}
+	s = s[:max]
+	for len(s) > 0 && !utf8.ValidString(s) {
+		s = s[:len(s)-1]
+	}
+	return strings.TrimSpace(s)
+}
+
+// AnnounceLanguage is the language MeshCore announcements and empty speech
+// titles share: system, then UI, then the effective voice language.
+func AnnounceLanguage(system, ui, voice string) string {
+	for _, lang := range []string{system, ui, voice} {
+		lang = strings.TrimSpace(lang)
+		if lang != "" && !strings.EqualFold(lang, "auto") {
+			return lang
+		}
+	}
+	return "en"
 }
 
 func synthesizeU8(bin, voice, text, cacheDir string) ([]byte, error) {

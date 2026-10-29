@@ -22,7 +22,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 - `phonon` is the fresh-install local default for en/fr/de/es/pt, with sanoTTS
   fallback before cache lookup and after native runtime failure. Cancellation
-  never starts fallback synthesis. Cached and transient dispatch carry the same
+  never starts fallback synthesis. Cached and transient dispatch share one provider switch: an unknown provider is an error and does not call Google, and empty audio is rejected before any cache write. An empty cached file is removed and synthesized again. A Phonon-to-sanoTTS replacement is logged once. The file path still truncates at 500 runes and reports that in the tool result; the memory path does not. Cached and transient dispatch carry the same
   snapshot language/manual voice/persona and key caches by effective voice/revision.
   The pinned native resource/download contract lives in `../phonon/AGENTS.md`.
 

@@ -22,6 +22,7 @@ keys are not reused implicitly.
 OpenAI documents shutdown of its Speech API models on **January 6, 2027**.
 Its recommended replacement uses the separate [Realtime API](https://developers.openai.com/api/docs/guides/realtime).
 The OpenAI entry here uses the Speech API until that shutdown.
+An unknown `tts.provider` is an error. AuraGo does not send that request to Google Translate.
 
 Resemble describes its hosted voice APIs as a [historical archive](https://docs.resemble.ai/voice-archive),
 which does not guarantee continued commercial availability. This adapter can only

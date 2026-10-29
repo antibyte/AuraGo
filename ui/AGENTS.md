@@ -358,7 +358,7 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   do not actuate arbitrary home devices for acceptance. App contracts live in
   `js/desktop/apps/AGENTS.md`.
 
-- Speech Output retains local CPU `sanotts` as a fallback, using English for unavailable
+- Speech Output lists the four effective routes under the provider. Each status says the route is configured, not that a live speech check succeeded. The classic telephone voice is chosen on the telephone page. It retains local CPU `sanotts` as a fallback, using English for unavailable
   local voices. Existing saved provider
   choices and the disabled option remain editable. Keep all `lang/config/tts/` locales
   aligned; verify with `TestTTSConfigSanoDefaultsBrowser`. Cloud choices include xAI,
