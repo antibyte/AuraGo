@@ -36,7 +36,7 @@ func TestMemoryExpiryRoundTripAndClear(t *testing.T) {
 func TestExpiredMemoriesStayOutOfRetrieval(t *testing.T) {
 	cv := newCorpusTestVectorDB(t, filepath.Join(t.TempDir(), "vectors"))
 	stm := cv.fileIndexMemory.Load()
-	for _, id := range []string{"expired", "active"} {
+	for _, id := range []string{"expired", "active", "pinned"} {
 		doc := chromem.Document{ID: id, Content: "topic\n\n" + id + " fact", Embedding: []float32{1, 0, 0}, Metadata: cv.addEmbeddingMetadata(nil)}
 		cv.mu.Lock()
 		err := cv.persistDocumentsLocked(t.Context(), cv.collection, []chromem.Document{doc})
@@ -48,15 +48,22 @@ func TestExpiredMemoriesStayOutOfRetrieval(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := stm.SetMemoryExpiry(t.Context(), []string{"expired"}, time.Now().Add(-time.Minute)); err != nil {
+	if err := stm.SetMemoryMetaProtection("pinned", true, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := stm.SetMemoryExpiry(t.Context(), []string{"expired", "pinned"}, time.Now().Add(-time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 	if err := stm.SetMemoryExpiry(t.Context(), []string{"active"}, time.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	results, err := cv.queryVisibleCollection(t.Context(), cv.collection, []float32{1, 0, 0}, 2)
-	if err != nil || len(results) != 1 || results[0].ID != "active" {
-		t.Fatalf("expired memory visible: %+v %v", results, err)
+	results, err := cv.queryVisibleCollection(t.Context(), cv.collection, []float32{1, 0, 0}, 3)
+	ids := map[string]bool{}
+	for _, r := range results {
+		ids[r.ID] = true
+	}
+	if err != nil || len(results) != 2 || !ids["active"] || !ids["pinned"] || ids["expired"] {
+		t.Fatalf("expired memory visible or protected memory hidden: %+v %v", results, err)
 	}
 }
 
