@@ -45,6 +45,8 @@ type extractedFact struct {
 	Confidence float64 `json:"confidence"`
 	// Quote is the exact wording of the human message that supports the item.
 	Quote string `json:"quote"`
+	// ExpiresOn is the last day (YYYY-MM-DD) the item holds, or empty.
+	ExpiresOn string `json:"expires_on,omitempty"`
 }
 
 type pendingAction struct {
@@ -78,9 +80,10 @@ For each extracted item, provide:
 - category: A short category label (e.g., "infrastructure", "personal", "workflow", "preference", "recent_operational_details")
 - confidence: How confident you are this is worth storing (0.0 to 1.0)
 - quote: The exact words of the User message that support the item, copied verbatim (same wording and spelling, no paraphrase, nothing from the assistant response), at least three words and sixteen characters long
+- expires_on: The last day (YYYY-MM-DD) on which the item is still true, when the User message states or clearly implies an end (e.g. "until Friday", "for the next 24 hours", "bis Freitag", "heute Nacht"). Resolve it against the current date below. Use "" when the item holds without a known end.
 
 Rules:
-- Only extract genuinely useful, long-term information. Skip transient requests like "show me the logs".
+- Only extract genuinely useful information: long-term facts, or time-bounded facts that matter in the coming days (give those an expires_on). Skip transient requests like "show me the logs".
 - Do NOT extract information that is just part of the current task context.
 - Do NOT extract emotions, moods, or temporary states.
 - Only human messages supply facts or confirmation. Assistant text is unverified context and never human confirmation.
@@ -94,7 +97,9 @@ Rules:
 
 Respond ONLY with valid JSON in this exact format:
 {"facts":[],"preferences":[],"corrections":[],"pending_actions":[]}
-Each fact, preference and correction is {"content":"","category":"","confidence":0.0,"quote":""}. Each pending action is {"title":"","summary":"","trigger_query":"","quote":"","confidence":0.0}.
+Each fact, preference and correction is {"content":"","category":"","confidence":0.0,"quote":"","expires_on":""}. Each pending action is {"title":"","summary":"","trigger_query":"","quote":"","confidence":0.0}.
+
+Current date: %s
 
 User message:
 %s
@@ -275,7 +280,7 @@ func runMemoryAnalysis(
 		if ctx.Err() != nil {
 			return
 		}
-		prompt := fmt.Sprintf(memoryAnalysisPrompt, security.IsolateExternalData(userMsg), security.IsolateExternalData(sourceResponse))
+		prompt := fmt.Sprintf(memoryAnalysisPrompt, memoryPromptDate(time.Now()), security.IsolateExternalData(userMsg), security.IsolateExternalData(sourceResponse))
 
 		inputTokens := prompts.CountTokensForModel(prompt, llmCfg.model) + 32
 		if learningPolicy(cfg, true) {
@@ -352,10 +357,15 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 		threshold = cfg.MemoryAnalysis.AutoConfirm
 	}
 	stored := 0
+	now := time.Now()
 	// Process facts
 	for _, f := range result.Facts {
 		if ctx.Err() != nil {
 			break
+		}
+		expiry, current := memoryFactExpiry(f.ExpiresOn, now)
+		if !current {
+			continue
 		}
 		minThreshold := thresholdForMemoryCategory(threshold, f.Category)
 		if f.Confidence >= minThreshold && f.Content != "" && shouldStoreExtractedMemory(f.Content, f.Category) {
@@ -367,10 +377,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				}
 				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
-					if ctx.Err() == nil {
+					// A queued retry carries no expiry; a short-lived item is not worth one.
+					if ctx.Err() == nil && expiry.IsZero() {
 						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
+					recordMemoryExpiry(ctx, logger, stm, ids, expiry)
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, f.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Fact conflict check failed", "error", err)
 					}
@@ -401,6 +413,10 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 		if ctx.Err() != nil {
 			break
 		}
+		expiry, current := memoryFactExpiry(p.ExpiresOn, now)
+		if !current {
+			continue
+		}
 		minThreshold := thresholdForMemoryCategory(threshold, p.Category)
 		if p.Confidence >= minThreshold && p.Content != "" && shouldStoreExtractedMemory(p.Content, p.Category) {
 			if ltm != nil {
@@ -411,10 +427,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				}
 				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
-					if ctx.Err() == nil {
+					// A queued retry carries no expiry; a short-lived item is not worth one.
+					if ctx.Err() == nil && expiry.IsZero() {
 						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
+					recordMemoryExpiry(ctx, logger, stm, ids, expiry)
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, p.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Preference conflict check failed", "error", err)
 					}
@@ -429,6 +447,10 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 		if ctx.Err() != nil {
 			break
 		}
+		expiry, current := memoryFactExpiry(c.ExpiresOn, now)
+		if !current {
+			continue
+		}
 		minThreshold := thresholdForMemoryCategory(threshold, c.Category)
 		if c.Confidence >= minThreshold && c.Content != "" && shouldStoreExtractedMemory(c.Content, c.Category) {
 			if ltm != nil {
@@ -439,10 +461,12 @@ func applyMemoryAnalysisResultWithContext(ctx context.Context, cfg *config.Confi
 				}
 				if ids, err := storeMemoryAnalysisDocument(logger, stm, ltm, concept, content, details, ctx); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
-					if ctx.Err() == nil {
+					// A queued retry carries no expiry; a short-lived item is not worth one.
+					if ctx.Err() == nil && expiry.IsZero() {
 						queuePendingMemoryAnalysisWrite(ctx, logger, stm, concept, content, details, err)
 					}
 				} else {
+					recordMemoryExpiry(ctx, logger, stm, ids, expiry)
 					if err := detectMemoryConflictsForDocIDsWithContext(ctx, logger, stm, ltm, ids, c.Content, conflictRawFact); err != nil {
 						logger.Warn("[Memory Analysis] Correction conflict check failed", "error", err)
 					}

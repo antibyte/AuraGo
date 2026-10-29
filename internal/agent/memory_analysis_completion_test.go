@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -145,6 +146,9 @@ func checkRealtimeExtraction(t *testing.T, test realtimeExtractionCase) {
 			firstPrompt = req.Messages[0].Content
 		} else if req.Messages[0].Content != firstPrompt {
 			t.Fatal("retry changed extraction source")
+		}
+		if !strings.Contains(req.Messages[0].Content, "Current date: "+time.Now().Format("2006-01-02")) {
+			t.Fatal("extraction prompt carries no current date")
 		}
 		if test.longSource && (!strings.Contains(req.Messages[0].Content, "FINAL_REALTIME_USER") || !strings.Contains(req.Messages[0].Content, "FINAL_REALTIME_ASSISTANT")) {
 			t.Fatal("source clipped before route budget check")

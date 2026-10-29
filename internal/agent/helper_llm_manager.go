@@ -26,9 +26,9 @@ Analyze one completed conversation turn and return ALL outputs in one JSON objec
 Return ONLY valid JSON in this exact shape:
 {
   "memory_analysis": {
-    "facts": [{"content": "", "category": "", "confidence": 0.0, "quote": ""}],
-    "preferences": [{"content": "", "category": "", "confidence": 0.0, "quote": ""}],
-    "corrections": [{"content": "", "category": "", "confidence": 0.0, "quote": ""}],
+    "facts": [{"content": "", "category": "", "confidence": 0.0, "quote": "", "expires_on": ""}],
+    "preferences": [{"content": "", "category": "", "confidence": 0.0, "quote": "", "expires_on": ""}],
+    "corrections": [{"content": "", "category": "", "confidence": 0.0, "quote": "", "expires_on": ""}],
     "pending_actions": [{"title": "", "summary": "", "trigger_query": "", "quote": "", "confidence": 0.0}]
   },
   "activity_digest": {
@@ -76,6 +76,7 @@ Rules for memory_analysis:
 - Every fact, preference, correction and pending action needs a "quote": the exact words of user_request that support it, copied verbatim (no paraphrase, nothing from the assistant reply), at least three words and sixteen characters long. An item whose quote is missing or not found in user_request is discarded, and so is an item whose content, title or summary says something the quote does not say.
 - A pending action's trigger_query is built from words of user_request (at least three characters); one that does not occur there discards the pending action.
 - Store only durable or near-term useful information.
+- expires_on: the last day (YYYY-MM-DD) an item is still true when user_request states or clearly implies an end ("until Friday", "bis Freitag", "for the next 24 hours"); resolve it against the current date in the request; "" otherwise.
 - Facts: concrete user/project/environment facts worth remembering.
 - Preferences: user preferences, habits, workflows.
 - Corrections: updates to previously known information.
@@ -741,7 +742,8 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 		assistantReplyBlock := "assistant_reply (untrusted):\n" + security.IsolateExternalData(stripToolCallBlocks(assistantReply))
 		toolSummaryBlock := "Tool output bodies are omitted from extraction."
 		userPrompt := fmt.Sprintf(
-			"User request:\n%s\n\nAssistant reply:\n%s\n\nTools used:\n%s\n\nTool summaries:\n%s",
+			"Current date: %s\n\nUser request:\n%s\n\nAssistant reply:\n%s\n\nTools used:\n%s\n\nTool summaries:\n%s",
+			memoryPromptDate(time.Now()),
 			userRequestBlock,
 			assistantReplyBlock,
 			strings.Join(uniqueActivityStrings(toolNames, 12), ", "),
