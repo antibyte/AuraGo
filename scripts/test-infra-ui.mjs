@@ -193,6 +193,18 @@ assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 400, y: 0 })), { x
 assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 0, y: 300 })), { x1: 0, y1: 32, x2: 0, y2: 268 });
 assert.deepEqual(plain(model.edgeSegment({ x: 0, y: 0 }, { x: 100, y: 0 })), { x1: 0, y1: 0, x2: 100, y2: 0 }, 'overlapping cards keep the centre line');
 assert.equal(model.edgeSegment({ x: 0, y: 0 }, { x: 1000, y: 0 }, undefined, { w: 300, h: 100 }).x2, 700, 'a region end stops at its own border');
+// edgeCurve: the EasyDrag-style spline along the axis with the wider gap, tangents along that axis, control offset gap / 2
+// (at least min(48, gap), at most 240); its midpoint is the middle of its ends.
+{
+    const side = model.edgeCurve({ x: 0, y: 0 }, { x: 400, y: 100 });
+    assert.deepEqual(plain(side), { curve: true, d: 'M108 0C200 0 200 100 292 100', x1: 108, y1: 0, x2: 292, y2: 100, mx: 200, my: 50 }, 'side by side: right edge to left edge');
+    assert.equal(model.edgeCurve({ x: 400, y: 100 }, { x: 0, y: 0 }).d, 'M292 100C200 100 200 0 108 0', 'reversed ends mirror the curve');
+    assert.equal(model.edgeCurve({ x: 0, y: 0 }, { x: 200, y: 400 }).d, 'M0 32C0 200 200 200 200 368', 'stacked: bottom edge to top edge');
+    assert.equal(model.edgeCurve({ x: 0, y: 0 }, { x: 0, y: 100 }).d, 'M0 32C0 68 0 32 0 68', 'a 36 px gap keeps its control inside the gap');
+    assert.equal(model.edgeCurve({ x: 0, y: 0 }, { x: 2000, y: 0 }).d, 'M108 0C348 0 1652 0 1892 0', 'the control offset caps at 240');
+    assert.deepEqual(plain(model.edgeCurve({ x: 0, y: 0 }, { x: 100, y: 0 })), { x1: 0, y1: 0, x2: 100, y2: 0, curve: false, d: 'M0 0L100 0', mx: 50, my: 0 }, 'overlapping cards keep the straight centre line');
+    assert.equal(model.edgeCurve({ x: 0, y: 0 }, { x: 1000, y: 0 }, undefined, { w: 300, h: 100 }).x2, 700, 'a region end stops at its own border');
+}
 assert.equal(model.edgeCaption({ from_port: 'ge-0/0/1', to_port: 'eth0', speed: '1G' }), 'ge-0/0/1 → eth0 · 1G');
 // A5: a connection label sits at the midpoint of the visible segment and is hidden when its box would touch a card.
 {
@@ -1918,9 +1930,11 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     const parallel = draw([['u', 0, 96], ['l', 0, 480]], [['e2', 'u', 'l'], ['e1', 'u', 'l']]);
     assert.equal(parallel.get('e1').d, 'M-32.4 128C-32.4 288 -32.4 288 -32.4 448');
     assert.equal(parallel.get('e2').d, 'M32.4 128C32.4 288 32.4 288 32.4 448');
-    // same lane: a straight line between the facing sides (the left card's right edge at -132, the right card's left edge at -108)
+    // same lane: the edgeCurve spline between the facing sides (the left card's right edge at -132, the right card's left
+    // edge at -108), flat on one row; a pinned card off the row bends it into an S
     const flat = draw([['a', -240, 480], ['b', 0, 480]], [['x', 'a', 'b']]);
-    assert.deepEqual(shape(flat.get('x')), { curve: false, d: 'M-132 480L-108 480', ends: [-132, 480, -108, 480] });
+    assert.deepEqual(shape(flat.get('x')), { curve: false, d: 'M-132 480C-108 480 -132 480 -108 480', ends: [-132, 480, -108, 480] });
+    assert.equal(draw([['a', -400, 480], ['b', 0, 520]], [['x', 'a', 'b']]).get('x').d, 'M-292 480C-200 480 -200 520 -108 520');
     // cards that overlap across a lane border have no room for a curve: straight, never a loop
     assert.equal(draw([['u', 0, 380], ['l', 0, 400]], [['x', 'u', 'l']]).get('x').curve, false);
     // the lane of a card is the lane its drawn y is in: a card dragged into the next lane is connected like any other
@@ -1949,7 +1963,7 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
 
     // direct neighbours (a 24 px gap) keep the straight segment, whether or not they have other neighbours
     const near = draw(row(-240, 0, 240), [['x', 'c0', 'c1'], ['y', 'c1', 'c2']]);
-    assert.deepEqual(shape(near.get('x')), { arc: false, curve: false, d: 'M-132 480L-108 480', ends: [-132, 480, -108, 480], mid: [-120, 480] });
+    assert.deepEqual(shape(near.get('x')), { arc: false, curve: false, d: 'M-132 480C-108 480 -132 480 -108 480', ends: [-132, 480, -108, 480], mid: [-120, 480] });
     assert.equal(near.get('y').curve, false);
     // a gap: c0 to c2 would run behind c1, so it leaves the top edges (y 448) and rises 56 px (dx 480 clamps to 56)
     const gap = draw(row(-240, 0, 240), [['x', 'c0', 'c2']]);

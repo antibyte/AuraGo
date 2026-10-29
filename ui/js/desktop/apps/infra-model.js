@@ -81,6 +81,27 @@
         if ((end.x - start.x) * (x2 - x1) + (end.y - start.y) * (y2 - y1) <= 0) return { x1, y1, x2, y2 };
         return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
     };
+    // edgeCurve is the EasyDrag-style spline between two shapes: along the axis with the wider gap it leaves the
+    // facing side of each shape at its centre, with tangents along that axis and a control offset of half the gap
+    // (at least min(48, gap), at most 240), so it never overshoots its ends. The curve is point-symmetric, so its
+    // midpoint (mx, my, the label anchor) is the middle of its ends. Overlapping shapes keep edgeSegment's straight line.
+    const edgeCurve = (a, b, halfA = CARD_HALF, halfB = CARD_HALF) => {
+        const x1 = Number(a.x), y1 = Number(a.y), x2 = Number(b.x), y2 = Number(b.y);
+        const gapX = Math.abs(x2 - x1) - halfA.w - halfB.w, gapY = Math.abs(y2 - y1) - halfA.h - halfB.h;
+        const tenth = value => Math.round(value * 10) / 10;
+        if (gapX < 0 && gapY < 0) {
+            const seg = edgeSegment(a, b, halfA, halfB);
+            return { ...seg, curve: false, d: `M${tenth(seg.x1)} ${tenth(seg.y1)}L${tenth(seg.x2)} ${tenth(seg.y2)}`, mx: (seg.x1 + seg.x2) / 2, my: (seg.y1 + seg.y2) / 2 };
+        }
+        const across = gapX >= gapY, s = Math.sign(across ? x2 - x1 : y2 - y1) || 1;
+        const start = across ? { x: x1 + s * halfA.w, y: y1 } : { x: x1, y: y1 + s * halfA.h };
+        const end = across ? { x: x2 - s * halfB.w, y: y2 } : { x: x2, y: y2 - s * halfB.h };
+        const gap = Math.max(gapX, gapY), c = s * Math.min(240, Math.max(gap / 2, Math.min(48, gap)));
+        const c1 = across ? { x: start.x + c, y: start.y } : { x: start.x, y: start.y + c };
+        const c2 = across ? { x: end.x - c, y: end.y } : { x: end.x, y: end.y - c };
+        const d = `M${tenth(start.x)} ${tenth(start.y)}C${tenth(c1.x)} ${tenth(c1.y)} ${tenth(c2.x)} ${tenth(c2.y)} ${tenth(end.x)} ${tenth(end.y)}`;
+        return { curve: true, d, x1: start.x, y1: start.y, x2: end.x, y2: end.y, mx: (start.x + end.x) / 2, my: (start.y + end.y) / 2 };
+    };
     // edgeLabelClash: would a label of size {w, h}, centred on the segment's midpoint and padded by pad, touch any of rects?
     // A path from InfraAppLanes.topologyPaths names its own label anchor (mx, my): the top of an arc is not the midpoint of its ends.
     const edgeLabelClash = (seg, size, rects, pad = 4) => {
@@ -435,7 +456,7 @@
             const from = endpoint(edge.from), to = endpoint(edge.to);
             if (!from || !to || from === to) continue;
             const a = shape(from), b = shape(to);
-            lines.push({ id: edge.id, kind: edge.kind, from, to, ...edgeSegment(a, b, a.half, b.half) });
+            lines.push({ id: edge.id, kind: edge.kind, from, to, ...edgeCurve(a, b, a.half, b.half) });
         }
         const regions = [...rects].map(([id, rect]) => ({ id, rect, depth: depth.get(id) || 0 })).sort((a, b) => a.depth - b.depth || String(a.id).localeCompare(String(b.id)));
         const drawn = unionRects([...cards.map(cardRect), ...rects.values()]);
@@ -900,7 +921,7 @@
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
         visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
-        edgeSegment, edgeCaption, edgeLabelClash, gridPositions, snapshotStamp,
+        edgeSegment, edgeCurve, edgeCaption, edgeLabelClash, gridPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,
         CARD_W, CARD_H, GRID, MIN_ZOOM, MAX_ZOOM, REGION_W, REGION_H, REGION_PAD, REGION_MIN_W, REGION_MIN_H,
         clampZoom, zoomLevels, labelScale, toWorld, toScreen, zoomAt, fitView, viewCenter, viewFromCenter, snap, cardRect, intersects, containsPoint,

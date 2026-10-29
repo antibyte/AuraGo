@@ -99,8 +99,10 @@
         const noMatchText = q('[data-no-match-text]'), showMatchButton = q('[data-action="show-match"]');
 
         const views = { atlas: null, topology: null }, initialized = { atlas: false, topology: false };
-        // viewSize is the viewport size each view was last placed for: a resize keeps the world point at the
-        // centre of that size, even when the view was set between the layout change and the observer callback.
+        // viewSize is the viewport placement ({w, h, left, top}, see placement) each view was last placed for: a resize
+        // keeps the world where it was inside the app, even when the view was set between the layout change and the
+        // observer callback. Opening the inspector or dragging a splitter on the right moves nothing; collapsing the
+        // library on the left shifts the view by the distance the viewport's left edge moved.
         const viewSize = { atlas: null, topology: null };
         const cardEls = new Map(), regionEls = new Map(), lineEls = new Map(), laneEls = new Map();
         let laneTarget = -1, laneShift = NaN, laneWidth = NaN, glideTimer = 0, autoMemo = { nodes: null, edges: null, sig: '', value: new Map() };
@@ -123,6 +125,13 @@
         const curKey = () => app.mapView();
         const getView = () => views[curKey()] || { x: 0, y: 0, zoom: 1 };
         const size = () => ({ w: viewport.clientWidth, h: viewport.clientHeight });
+        // placement is the viewport size plus its top-left corner inside the app root, in layout pixels (a scaled
+        // desktop window divides out).
+        const placement = () => {
+            const sz = size(), root = el.closest('.infra-app') || el, r = viewport.getBoundingClientRect(), o = root.getBoundingClientRect();
+            const scale = viewport.offsetWidth > 0 ? r.width / viewport.offsetWidth : 1;
+            return { ...sz, left: round1((r.left - o.left) / (scale || 1)), top: round1((r.top - o.top) / (scale || 1)) };
+        };
         const safeOf = id => String(id).replace(/[^a-zA-Z0-9_-]/g, '');
         const cardHalf = { w: model.CARD_W / 2, h: model.CARD_H / 2 };
         const minimapOn = () => minimapToggle.getAttribute('aria-pressed') !== 'false';
@@ -200,7 +209,7 @@
         function setView(next, { animate = false } = {}) {
             const finite = value => (Number.isFinite(value) ? value : 0);
             views[curKey()] = { x: finite(next?.x), y: finite(next?.y), zoom: model.clampZoom(next?.zoom) };
-            const placedFor = size();
+            const placedFor = placement();
             if (placedFor.w > 0 && placedFor.h > 0) viewSize[curKey()] = placedFor;
             if (animate && app.animationsEnabled()) {
                 scene.classList.add('is-animating');
@@ -460,7 +469,7 @@
             let rects = null;
             return () => rects || (rects = last.cards.map(card => model.cardRect(tempCards?.get(card.id) || card)));
         }
-        // applyLine draws a connection from seg: the straight segment of the scene or, in Topology, a path from
+        // applyLine draws a connection from seg: the spline of the scene (model.edgeCurve) or, in Topology, a path from
         // lanes.topologyPaths (a curve between lanes, an arc above a row). The label sits at the path's own midpoint
         // (seg.mx, seg.my), so the same A5 clash rule serves every shape. The hit area and the highlight share d.
         function applyLine(entry, seg, rectsOf) {
@@ -497,7 +506,7 @@
             const path = paths?.get(lineId);
             if (path) { applyLine(entry, path, rectsOf || blockersOf(cards)); return; }
             const a = shapeOf(geom.from, cards, regions), b = shapeOf(geom.to, cards, regions);
-            if (a && b) applyLine(entry, model.edgeSegment(a, b, a.half, b.half), rectsOf || blockersOf(cards));
+            if (a && b) applyLine(entry, model.edgeCurve(a, b, a.half, b.half), rectsOf || blockersOf(cards));
         }
         function patchLines(lines, force) {
             const edgeById = new Map(store.state.edges.map(edge => [edge.id, edge]));
@@ -829,8 +838,7 @@
         function showEdgePreview(fromId, point) {
             const from = point ? shapeOf(fromId) : null;
             if (!from) { edgePreview.setAttribute('d', ''); return; }
-            const seg = model.edgeSegment(from, point, from.half, { w: 0, h: 0 });
-            edgePreview.setAttribute('d', `M${round1(seg.x1)} ${round1(seg.y1)}L${round1(seg.x2)} ${round1(seg.y2)}`);
+            edgePreview.setAttribute('d', model.edgeCurve(from, point, from.half, { w: 0, h: 0 }).d);
         }
         function showMarquee(rect) {
             marquee.hidden = !rect;
@@ -875,12 +883,14 @@
 
         // ---- size changes and teardown ------------------------------------------------------------
         const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
-            const now = size();
+            const now = placement();
             if (now.w > 0 && now.h > 0) {
                 for (const key of Object.keys(views)) {
-                    const was = viewSize[key] || lastSize;
-                    if (!views[key] || !was || was.w <= 0 || was.h <= 0) continue;
-                    if (now.w !== was.w || now.h !== was.h) { views[key] = model.viewFromCenter(model.viewCenter(views[key], was), now) || views[key]; applyFrame.request(); }
+                    const was = viewSize[key] || lastSize, v = views[key];
+                    if (!v || !was || was.w <= 0 || was.h <= 0) continue;
+                    const dx = (was.left ?? now.left) - now.left, dy = (was.top ?? now.top) - now.top;
+                    if (dx || dy) views[key] = { ...v, x: v.x + dx, y: v.y + dy };
+                    if (dx || dy || now.w !== was.w || now.h !== was.h) applyFrame.request();
                     viewSize[key] = now;
                 }
             }

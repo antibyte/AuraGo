@@ -4,7 +4,7 @@
 (function () {
     'use strict';
 
-    const { CARD_W, CARD_H, snap, cardRect, freeSlot, isContainer, naturalCompare, edgeSegment } = window.InfraAppModel;
+    const { CARD_W, CARD_H, snap, cardRect, freeSlot, isContainer, naturalCompare, edgeSegment, edgeCurve } = window.InfraAppModel;
     const finite = value => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
 
     // ---- topology lanes and auto layout (spec §6) --------------------------------
@@ -165,16 +165,17 @@
     // ---- connection paths (A19, A28) -----------------------------------------------------------------------
     // topologyPaths draws every connection of the Topology view. A connection between two lanes is a cubic curve
     // from the bottom edge of the upper card to the top edge of the lower one with vertical tangents (control
-    // offset max(48, dy / 2)). A connection inside one lane is the straight segment between the facing sides while no
-    // other card is in its way; otherwise (A28) it is an arc above the row: it leaves the top edge of both cards
-    // and rises clamp(24 + 0.12 dx, 32, 56) px, so it never runs behind a card in between. A card is in the way when
+    // offset max(48, dy / 2)). A connection inside one lane is the model.edgeCurve spline between the facing sides (a
+    // straight line when both cards sit on one row) while no other card is in the straight segment's way; otherwise
+    // (A28) it is an arc above the row: it leaves the top edge of both cards and rises clamp(24 + 0.12 dx, 32, 56) px,
+    // so it never runs behind a card in between. A card is in the way when
     // its box, padded by 4 px, touches the straight segment, wherever it sits (pinned cards can be anywhere).
     // Connections that share a card edge spread over the middle 60% of it in equal slots. On a top edge the arcs to
     // the left come first, then the curves arriving from the lane above, then the arcs to the right, each group
     // ordered by the other end's x (then its id, then the connection's id), so the answer never depends on the input
     // order and an arc never crosses a curve that arrives on the same card. A connection whose cards leave no room
-    // (dy under 16) for a curve is straight. lines are {id, from, to} with card ids; cardAt(id) is {x, y} (the
-    // centre) or nothing; ids lists every drawn card (the obstacles; without it nothing is in the way). The answer
+    // (dy under 16) for a lane curve takes the edgeCurve spline too; `curve` marks the slotted lane curves and arcs.
+    // lines are {id, from, to} with card ids; cardAt(id) is {x, y} (the centre) or nothing; ids lists every drawn card (the obstacles; without it nothing is in the way). The answer
     // maps a connection id to {curve, arc, d, x1, y1, x2, y2, mx, my}: the ends of the path and its label anchor,
     // which is the midpoint of the path (the A5 clash rule). The same path serves the visible line, its hit area and
     // the selection highlight.
@@ -197,7 +198,7 @@
         const obstacles = [];
         for (const id of ids || []) { const card = cardAt(id); if (card) obstacles.push({ id, x: card.x, y: card.y }); }
         const join = (key, entry) => { const list = edges.get(key); if (list) list.push(entry); else edges.set(key, [entry]); };
-        const straight = (line, seg) => out.set(line.id, { curve: false, arc: false, d: `M${tenth(seg.x1)} ${tenth(seg.y1)}L${tenth(seg.x2)} ${tenth(seg.y2)}`, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2, mx: (seg.x1 + seg.x2) / 2, my: (seg.y1 + seg.y2) / 2 });
+        const straight = (line, a, b) => { const seg = edgeCurve(a, b, half, half); out.set(line.id, { curve: false, arc: false, d: seg.d, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2, mx: seg.mx, my: seg.my }); };
         for (const line of lines || []) {
             const a = cardAt(line.from), b = cardAt(line.to);
             if (!a || !b || line.from === line.to) continue;
@@ -206,12 +207,12 @@
             let first = upper, second = lower, arc = false;
             if (la === lb) {
                 const seg = edgeSegment(a, b, half, half);
-                if (!obstacles.some(card => card.id !== line.from && card.id !== line.to && blocks(seg, card))) { straight(line, seg); continue; }
+                if (!obstacles.some(card => card.id !== line.from && card.id !== line.to && blocks(seg, card))) { straight(line, a, b); continue; }
                 // an arc always runs from its left card to its right one
                 arc = true;
                 [first, second] = a.x < b.x || (a.x === b.x && String(line.from) <= String(line.to)) ? [{ id: line.from, card: a }, { id: line.to, card: b }] : [{ id: line.to, card: b }, { id: line.from, card: a }];
             } else if (lower.card.y - half.h - (upper.card.y + half.h) < MIN_DROP) {
-                straight(line, edgeSegment(a, b, half, half));
+                straight(line, a, b);
                 continue;
             }
             const entry = { line, arc, ends: [first, second] };

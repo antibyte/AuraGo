@@ -3,6 +3,8 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -136,10 +138,21 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	page.MustEval(`()=>{
 		window.infraPaths=()=>JSON.stringify(Object.fromEntries([...document.querySelectorAll('.infra-edge')].map(g=>[g.dataset.edge,[g.querySelector('.infra-edge-line').getAttribute('d'),g.querySelector('.infra-edge-hit').getAttribute('d')]])));
 	}`)
-	// The Map view keeps straight lines.
-	if got := page.MustEval(`()=>[...document.querySelectorAll('.infra-edge-line')].filter(path=>/C/.test(path.getAttribute('d'))).length`).Int(); got != 0 {
-		t.Fatalf("the Map view must draw straight connections; %d are curves", got)
+	// The Map view draws EasyDrag-style splines (model.edgeCurve) between cards that do not overlap.
+	if got := page.MustEval(`()=>{const ds=[...document.querySelectorAll('.infra-edge-line')].map(path=>path.getAttribute('d')||'');return JSON.stringify({all:ds.length,straight:ds.filter(d=>!/C/.test(d)).length});}`).Str(); got == `{"all":0,"straight":0}` || !regexp.MustCompile(`"straight":0}$`).MatchString(got) {
+		t.Fatalf("the Map view must draw its connections as splines: %s", got)
 	}
+	// Opening the inspector on the right leaves the map where it is: the leftmost card keeps its screen position.
+	page.MustEval(`()=>{const cards=[...document.querySelectorAll('[data-nodes] [data-node]')];cards.sort((a,b)=>a.getBoundingClientRect().left-b.getBoundingClientRect().left);cards.forEach(card=>card.removeAttribute('data-leftmost'));cards[0].setAttribute('data-leftmost','');}`)
+	beforeX, beforeY := infraPanelsCenter(page, "[data-leftmost]")
+	page.Mouse.MustMoveTo(beforeX, beforeY).MustClick(proto.InputMouseButtonLeft)
+	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='true'`)
+	page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))`)
+	if afterX, afterY := infraPanelsCenter(page, "[data-leftmost]"); math.Abs(afterX-beforeX) > 1 || math.Abs(afterY-beforeY) > 1 {
+		t.Fatalf("opening the inspector moved the map: card centre %.1f,%.1f -> %.1f,%.1f", beforeX, beforeY, afterX, afterY)
+	}
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='false'`)
 	page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
 	page.MustWait(`()=>document.querySelectorAll('[data-lanes] [data-lane]').length===4&&!!document.querySelector('[data-node="tv"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
@@ -150,9 +163,9 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	// top edge, -32.4 (switch) and 32.4 (nas) (the hidden power and dependency connections keep their slots, A29); lane-internal
 	// ones are straight between the facing sides, except e4: the router sits between switch and ap, so e4 is an arc over it.
 	want := map[string]string{
-		"e1": "M-12 96L12 96",
+		"e1": "M-12 96C12 96 -12 96 12 96",
 		"e2": "M120 128C120 288 0 288 0 448",
-		"e3": "M-108 480L-132 480",
+		"e3": "M-108 480C-132 480 -108 480 -132 480",
 		"e4": "M-240 448C-240 392 240 392 240 448",
 		"e5": "M-283.2 512C-283.2 672 -120 672 -120 832",
 		"e6": "M-196.8 512C-196.8 672 120 672 120 832",
@@ -189,14 +202,16 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	}`).Str(); got != `{"sameContext":true,"aboveEdges":true,"belowCards":true}` {
 		t.Fatalf("the lane labels must paint above the connections and below the cards in one stacking context: %s", got)
 	}
-	// A28: no straight connection runs behind a card (nine points along each one stay outside every card box).
+	// A28: no flat connection (a straight line or a spline along one row) runs behind a card (nine points along each one
+	// stay outside every card box).
 	if got := page.MustEval(`()=>{
 		const cards=[...document.querySelectorAll('[data-nodes] [data-node]')].map(el=>({x:parseFloat(el.style.left),y:parseFloat(el.style.top)}));
 		const behind=[];
 		for(const g of document.querySelectorAll('.infra-edge')){
-			const m=/^M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)$/.exec(g.querySelector('.infra-edge-line').getAttribute('d')||'');
+			const m=/^M(-?[\d.]+) (-?[\d.]+)(?:L|C-?[\d.]+ (-?[\d.]+) -?[\d.]+ (-?[\d.]+) )(-?[\d.]+) (-?[\d.]+)$/.exec(g.querySelector('.infra-edge-line').getAttribute('d')||'');
 			if(!m)continue;
-			const [x1,y1,x2,y2]=m.slice(1).map(Number);
+			const [x1,y1,c1,c2,x2,y2]=[m[1],m[2],m[3]??m[2],m[4]??m[2],m[5],m[6]].map(Number);
+			if(m[3]!==undefined&&(c1!==y1||c2!==y1||y2!==y1))continue;
 			for(let i=1;i<=9;i++){const x=x1+(x2-x1)*i/10,y=y1+(y2-y1)*i/10;if(cards.some(c=>Math.abs(x-c.x)<108&&Math.abs(y-c.y)<32))behind.push(g.dataset.edge);}
 		}
 		return JSON.stringify([...new Set(behind)]);

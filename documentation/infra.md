@@ -265,7 +265,7 @@ The styles are `ui/css/desktop-app-infra.css` (shell, panels, dialogs) and `ui/c
 
 - `topologyPaths` produces every Topology path, so the visible line, its hit area and the selection highlight always agree.
 - Between lanes: a cubic curve from the bottom edge of the upper card to the top edge of the lower card, with vertical tangents.
-- Inside one lane: the straight segment between facing sides when no other card is in the way. Otherwise it is an arc above the row, from the top edge of one card to the top edge of the other, so it never runs behind a card in between.
+- Inside one lane: a spline between facing sides (flat when both cards sit on one row) when no other card is in the way. Otherwise it is an arc above the row, from the top edge of one card to the top edge of the other, so it never runs behind a card in between.
 - Connections that share a card edge spread over the middle 60 % of that edge.
 - Ethernet, Fiber, Wi-Fi, Member of and Runs on are always drawn in Topology. Powered by and Depends on have no hit area and stay hidden until one of their ends is selected, hovered or focused, or the connection itself is selected. The Map draws every kind. The inspector's Connections tab lists all of them.
 - A selection makes the connections that touch it accent-coloured and draws them above the others; the other visible connections fade to 35 %. A connection with a dimmed (filtered-out) end is dimmed like the cards.

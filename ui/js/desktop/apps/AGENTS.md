@@ -187,6 +187,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     tools cluster; the shown count is the toggle's `title` and the cluster's `aria-description`.
   - A connection label that would sit on a card gets `is-label-clash` (`model.edgeLabelClash`) and shows on hover or
     selection only; labels are hidden with `visibility` so they can be measured.
+  - Map connections (and the connect preview) are EasyDrag-style splines from `model.edgeCurve`: along the axis with the
+    wider gap they leave the facing sides with tangents on that axis, control offset gap / 2 (at least min(48, gap), at
+    most 240, never past the ends); overlapping shapes keep the straight centre line. The label anchor is the midpoint.
+  - A viewport resize keeps the world where it was inside the app (`placement()`: size plus the viewport's top-left in
+    the app root): opening the inspector or dragging the right splitter moves nothing, collapsing the library shifts the
+    view by the distance the left edge moved. The stored viewport (`infra.viewport.v1.*`) still keeps the centre.
   - Command bar: `fitFilterChips` shows the chips that fit and a `+N` chip (`data-filter-overflow`) that opens the filter
     popover, the search keeps 220 px from 760 px up; below 560 px the search is the `open-search` icon and opens over the bar
     (`data-search-open`, `app.focusSearch()`, which Ctrl K calls and which keeps the event from the desktop's Spotlight).
@@ -217,7 +223,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     `app.animationsEnabled()`.
   - Connections (A19, A28): `topologyPaths(lines, cardAt, ids)` is the one source of every Topology path. Between lanes it is a
     cubic from the bottom edge of the upper card to the top edge of the lower one (control offset max(48, dy / 2)). Inside a
-    lane it is the straight segment between the facing sides while no other card is in the way (a drawn card whose box, padded
+    lane it is the `edgeCurve` spline between the facing sides (flat on one row) while no other card is in the straight segment's way (a drawn card whose box, padded
     by 4 px, touches the segment; `ids` lists every drawn card, so pinned cards count by position and direct neighbours
     stay straight); otherwise it is an arc above the row from the top edge of the left card to that of the right one, rising
     clamp(24 + 0.12 dx, 32, 56) px. The connections on one card edge spread over the middle 60% in slots; on a top edge the
@@ -225,7 +231,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     other end's x), so arcs never cross arrivals. A slot is kept for every connection of the view, so nothing moves when a
     hidden one appears (A29). The result carries the label anchor `mx, my` (the path's midpoint; `edgeLabelClash` reads it)
     for the A5 clash rule. The canvas draws it for the line, the hit area and the selection, and redraws all of them while a
-    card is dragged. Cross-lane curves do not avoid cards of the lanes between. The Map view stays straight.
+    card is dragged. Cross-lane curves do not avoid cards of the lanes between.
   - Gestures: a drag or keyboard move highlights its lane (`setLaneTarget`) and announces a lane change. The first move of
     an auto-laid card undoes back to the automatic layout (`{unplace: true}` in `previousIntent`; without unplace support it
     is not undoable). Arrange in Topology (A22) is no layout: it hands the selection, or every card with a saved pin, back to the
