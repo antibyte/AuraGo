@@ -183,6 +183,30 @@ func toolMessage(m map[string]any, fallback string) string {
 	return fallback
 }
 
+// toolQuarantineError reads only the fixed header of a whole-answer notice. A
+// source/reference or a notice quoted inside a result never supplies a verdict.
+func toolQuarantineError(text string) *NodeError {
+	header, details, _ := strings.Cut(text, "\n")
+	if strings.TrimSuffix(header, "\r") != "[QUARANTINE NOTICE]" {
+		return nil
+	}
+	code, message := "FLOW_TOOL_DENIED", "external content quarantined by the security check"
+	details, _, _ = strings.Cut(details, "\n")
+	if reason, ok := strings.CutPrefix(details, "An incoming item intended for you was quarantined. Reason: "); ok {
+		reason, _, _ = strings.Cut(reason, ". ")
+		switch reason {
+		case "the security inspection identified suspicious content":
+			message = "external content quarantined: suspicious content detected"
+		case "security inspection was incomplete or exceeded its size limit":
+			message = "external content quarantined: security inspection incomplete or size limit exceeded"
+		case "the security scanner was unavailable":
+			// An unavailable scanner may recover on the node's next attempt.
+			code, message = "FLOW_TOOL_ERROR", "external content quarantined: security scanner unavailable"
+		}
+	}
+	return &NodeError{Code: code, Message: message}
+}
+
 // invokeError converts an error returned by the tool invoker into a NodeError
 // whose message is valid UTF-8 and cut, and whose code is never empty (the code is
 // the UI's translation key; an empty one becomes FLOW_NODE_FAILED). It never
@@ -217,6 +241,8 @@ func nodeIDOf(in ExecInput) string {
 // give FLOW_TOOL_DENIED and "needs_setup" gives FLOW_NODE_UNAVAILABLE, whatever the body
 // says and even when IsError is unset. Then an error status in the body, or IsError,
 // give FLOW_TOOL_ERROR (or FLOW_TOOL_DENIED for a denied body status).
+// Whole-answer quarantine notices retain a concise local reason; suspicious or
+// incomplete inspections are denied, while an unavailable scanner may be retried.
 func callTool(ctx context.Context, in ExecInput, tool string, args map[string]any) (map[string]any, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, invokeError(err)
@@ -238,6 +264,9 @@ func callTool(ctx context.Context, in ExecInput, tool string, args map[string]an
 		return nil, NewNodeError("FLOW_OUTPUT_TOO_LARGE", "the tool returned %d bytes; the limit is %d", len(resp.Output), maxToolOutputBytes)
 	}
 	out, ne := ParseToolOutput(resp.Output)
+	if quarantine := toolQuarantineError(outText(out)); quarantine != nil {
+		out["message"], ne = quarantine.Message, quarantine
+	}
 	switch strings.ToLower(strings.TrimSpace(resp.Status)) {
 	case "denied", "policy_denied":
 		return out, &NodeError{Code: "FLOW_TOOL_DENIED", Message: toolMessage(out, "the tool call was denied")}

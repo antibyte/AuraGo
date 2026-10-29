@@ -63,6 +63,12 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
   output over 8 MiB (`FLOW_OUTPUT_TOO_LARGE`) before parsing, classifies by the response status first
   (`denied` gives `FLOW_TOOL_DENIED`, `needs_setup` gives `FLOW_NODE_UNAVAILABLE`) and cuts tool text echoed in
   errors to 300 runes. `Args` is read-only and may alias run data.
+  Whole-answer `[QUARANTINE NOTICE]` responses retain a concise, fixed local reason instead of a clipped
+  quotation: suspicious content, an incomplete inspection and unknown reasons are `FLOW_TOOL_DENIED`
+  (not retried); an unavailable scanner stays `FLOW_TOOL_ERROR` (retryable). Only the notice header supplies
+  the reason; source/reference text and notices inside individual result fields remain data. Response-status
+  refusals keep their existing priority. Verify `TestCallToolQuarantine*` and
+  `TestNewsPDFTemplateStopsAtQuarantinedSearch`.
 - `ParseToolOutput` limits: numbers decode as float64 engine-wide, so 64-bit ids must be strings.
 - `ParseToolOutput` limits: JSON followed by trailing text is not JSON and falls back to `{"text": …}`.
 - `ParseToolOutput` limits: nesting deeper than about 10000 levels falls back to text, and the engine fails
