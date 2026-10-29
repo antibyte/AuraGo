@@ -104,9 +104,16 @@ func (cv *ChromemVectorDB) addDocumentsInBatches(ctx context.Context, col *chrom
 		if len(pending) == 0 {
 			continue
 		}
-		batchCtx, cancel := context.WithTimeout(ctx, calculateBatchTimeout(len(pending)))
-		err := cv.addExistingDocumentsWithPrecomputedEmbeddings(batchCtx, col, pending)
-		cancel()
+		// The deadline of a batch covers its provider calls and its publication, not the
+		// wait for the store-side embedding slot behind another caller: the provider
+		// calls get theirs from the moment they hold the slot, the publication its own.
+		timeout := calculateBatchTimeout(len(pending))
+		err := cv.embedDocumentsWithin(ctx, pending, timeout)
+		if err == nil {
+			batchCtx, cancel := context.WithTimeout(ctx, timeout)
+			err = cv.addExistingDocumentsWithPrecomputedEmbeddings(batchCtx, col, pending)
+			cancel()
+		}
 		if err != nil {
 			return stats, fmt.Errorf("index batch %d/%d: %w", start/indexDocumentBatchSize+1, batches, err)
 		}

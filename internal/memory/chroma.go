@@ -391,7 +391,28 @@ func deleteRemovedMarkdownVectors(ctx context.Context, del vectorDocDeleter, tra
 	return deleteErr
 }
 
+// indexDirectoryMaxProviderFailures is how many files in a row may fail with a
+// provider-side embedding error before IndexDirectory ends its run. With a hanging
+// provider every file would otherwise spend its whole deadline, and the run holds
+// fileWriteMu throughout.
+const indexDirectoryMaxProviderFailures = 3
+
+// directoryStopReason says why a directory run cannot go on, or returns "" if it can.
+func (cv *ChromemVectorDB) directoryStopReason(ctx context.Context, providerFailures int) string {
+	switch {
+	case cv.closed.Load() || ctx.Err() != nil:
+		return "the vector DB is closing"
+	case cv.disabled.Load():
+		return "the vector DB was disabled"
+	case providerFailures >= indexDirectoryMaxProviderFailures:
+		return fmt.Sprintf("the embedding provider failed %d files in a row", providerFailures)
+	}
+	return ""
+}
+
 // IndexDirectory scans a directory for markdown files and indexes them if they've changed.
+// The run holds fileWriteMu, so it ends early (see directoryStopReason) instead of
+// blocking the file indexer; files it did not reach are indexed by the next run.
 func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLiteMemory, force bool) error {
 	doneIndex, err := cv.beginTrackedOperation(&cv.indexingWg)
 	if err != nil {
@@ -584,7 +605,17 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 	cv.logger.Info("Indexing directory...", "dir", dir, "total_docs", totalDocs)
 	updateErr := cleanupErr
-	for _, f := range indexedFiles {
+	providerFailures := 0 // files in a row whose embedding failed provider-side
+	for reached, f := range indexedFiles {
+		// The run holds fileWriteMu, which every other file writer waits on, so it
+		// ends as soon as it cannot go on: the vector DB is closing or was disabled
+		// meanwhile, or the provider has failed several files in a row. Files not
+		// reached keep their old index state, and the next run takes them up again.
+		if reason := cv.directoryStopReason(ctx, providerFailures); reason != "" {
+			cv.logger.Warn("Directory indexing stopped early; the remaining files keep their old index state", "dir", dir, "collection", collectionName,
+				"files_total", len(indexedFiles), "files_attempted", reached, "files_not_reached", len(indexedFiles)-reached, "consecutive_provider_failures", providerFailures, "reason", reason)
+			return errors.Join(updateErr, fmt.Errorf("directory indexing of %s stopped after %d of %d files: %s", dir, reached, len(indexedFiles), reason))
+		}
 		if stm != nil {
 			for i := range f.docs {
 				f.docs[i].Metadata["collection"] = collectionName
@@ -596,6 +627,18 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			_, err := cv.replaceIndexedDocuments(fileCtx, stm, collection, f.path, collectionName, state, f.docs)
 			cancelFile()
 			updateErr = errors.Join(updateErr, err)
+			switch {
+			case err == nil:
+				providerFailures = 0
+			case isProviderEmbeddingFailure(err):
+				providerFailures++
+			case errors.Is(err, ErrAutomaticMemorySkipped):
+				// Rejected by the credential policy before any provider call: it says
+				// nothing about the provider, so the streak stays as it is.
+			default:
+				// The provider answered (a rejected document, or a failure after embedding).
+				providerFailures = 0
+			}
 		} else if _, err := cv.addDocumentsInBatches(ctx, collection, f.docs, false); err != nil {
 			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
 		}

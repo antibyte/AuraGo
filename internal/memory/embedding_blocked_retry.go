@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"slices"
 	"time"
 
 	"aurago/internal/memory/kgsemantic"
@@ -90,6 +91,10 @@ func (cv *ChromemVectorDB) runBlockedEmbeddingRetryPass(ctx context.Context) err
 // policy moves to blockedCredentialReason without a provider call. The pass ends at
 // the first provider-wide refusal, after a few provider-side failures in a row, and
 // after blockedRetryMaxFailedAttempts failed attempts.
+//
+// A pass does not start at the first document: it resumes behind the document the
+// previous pass attempted last (see blockedRetrySegments), so documents that keep
+// opening the breaker do not keep the ones behind them from ever being tried.
 func (cv *ChromemVectorDB) retryBlockedEmbeddings(ctx context.Context) error {
 	var anyBlocked bool
 	if err := cv.corpus.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM documents WHERE pending<>0 AND blocked_reason=? AND collection<>?)`, blockedEmbeddingReason, kgsemantic.CollectionName).Scan(&anyBlocked); err != nil {
@@ -102,26 +107,30 @@ func (cv *ChromemVectorDB) retryBlockedEmbeddings(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	names = slices.DeleteFunc(names, func(name string) bool { return name == kgsemantic.CollectionName })
 	pass := newCorpusEmbeddingPass(cv, false, blockedRetryMaxFailedAttempts)
 	defer pass.logSummary("retry")
-	for _, name := range names {
-		if name == kgsemantic.CollectionName {
-			continue
+	defer func() {
+		if pass.attempted > 0 {
+			cv.corpusMemory.setResumePoint(pass.last)
 		}
+	}()
+	for _, segment := range blockedRetrySegments(names, cv.corpusMemory.resumePoint()) {
+		name := segment.collection
 		col, err := cv.db.GetOrCreateCollection(name, nil, cv.embeddingFunc)
 		if err != nil {
 			return errors.Join(pass.report(), err)
 		}
-		afterID := ""
+		afterID := segment.afterID
 		for {
-			page, err := cv.corpus.blockedDocumentPage(ctx, name, afterID, blockedEmbeddingReason)
+			page, err := cv.corpus.blockedDocumentPage(ctx, name, afterID, segment.throughID, blockedEmbeddingReason)
 			if err != nil {
 				return errors.Join(pass.report(), err)
 			}
 			if len(page) == 0 {
 				break
 			}
-			res, err := pass.embedPage(ctx, page)
+			res, err := pass.embedPage(ctx, name, page)
 			if err != nil {
 				return err
 			}
@@ -142,4 +151,31 @@ func (cv *ChromemVectorDB) retryBlockedEmbeddings(ctx context.Context) error {
 		}
 	}
 	return pass.report()
+}
+
+// blockedRetrySegment is a stretch of one collection's documents, in ID order:
+// those after afterID and, unless throughID is empty, up to throughID.
+type blockedRetrySegment struct{ collection, afterID, throughID string }
+
+// blockedRetrySegments lays the collections out as a ring ordered by collection name
+// and document ID, and returns the stretches a pass walks to cover it once, starting
+// right behind the resume point: the rest of the resume point's collection, the
+// other collections from there on and, wrapped around, the ones before it, and last
+// the beginning of the resume point's own collection up to the resume point. Without
+// a usable resume point the pass simply walks every collection from its first
+// document.
+func blockedRetrySegments(names []string, resume corpusCursor) []blockedRetrySegment {
+	segments := make([]blockedRetrySegment, 0, len(names)+1)
+	start := slices.Index(names, resume.collection)
+	if start < 0 || resume.id == "" {
+		for _, name := range names {
+			segments = append(segments, blockedRetrySegment{collection: name})
+		}
+		return segments
+	}
+	segments = append(segments, blockedRetrySegment{collection: names[start], afterID: resume.id})
+	for offset := 1; offset < len(names); offset++ {
+		segments = append(segments, blockedRetrySegment{collection: names[(start+offset)%len(names)]})
+	}
+	return append(segments, blockedRetrySegment{collection: names[start], throughID: resume.id})
 }

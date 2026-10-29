@@ -853,11 +853,14 @@ func (kg *KnowledgeGraph) indexSemanticEdgeAfterWrite(edge Edge) {
 	kg.markSemanticEdgeDirty(edge.Source, edge.Target, edge.Relation)
 }
 
-// semanticDocumentAllowed applies the credential policy of the main vector store
-// to a KG document that chromem is about to embed. Node and edge content can
-// carry credentials that a user or an agent wrote into the graph.
+// semanticDocumentAllowed applies the credential policy to a KG document that
+// chromem is about to embed. Node and edge content can carry credentials that a
+// user or an agent wrote into the graph. It is the policy of the main vector
+// store with one change: credential words used as ordinary property names or
+// prose ("pin: 17", "password: stored in vault") do not count (see
+// kg_semantic_policy.go).
 func semanticDocumentAllowed(doc chromem.Document) bool {
-	return validateNewVectorDocuments([]chromem.Document{doc}) == nil
+	return kgSemanticDocumentAllowed(doc) == nil
 }
 
 // removeSemanticDocumentsLocked drops the vectors and content-cache entries of

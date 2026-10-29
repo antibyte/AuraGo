@@ -167,9 +167,16 @@ func (c *documentCorpus) documentPage(ctx context.Context, collection, afterID s
 }
 
 // blockedDocumentPage pages the pending documents of one collection that are
-// blocked for a single reason, e.g. a failed embedding.
-func (c *documentCorpus) blockedDocumentPage(ctx context.Context, collection, afterID, reason string) ([]corpusDocumentSnapshot, error) {
-	rows, err := c.db.QueryContext(ctx, `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? AND pending<>0 AND blocked_reason=? ORDER BY id LIMIT ?`, collection, afterID, reason, corpusPageSize)
+// blocked for a single reason, e.g. a failed embedding. They are the ones with an
+// ID after afterID and, unless throughID is empty, up to and including throughID.
+func (c *documentCorpus) blockedDocumentPage(ctx context.Context, collection, afterID, throughID, reason string) ([]corpusDocumentSnapshot, error) {
+	query := `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? AND pending<>0 AND blocked_reason=? ORDER BY id LIMIT ?`
+	args := []any{collection, afterID, reason, corpusPageSize}
+	if throughID != "" {
+		query = `SELECT id,content,metadata,vector,dimension,fingerprint,pending,blocked_reason FROM documents WHERE collection=? AND id>? AND id<=? AND pending<>0 AND blocked_reason=? ORDER BY id LIMIT ?`
+		args = []any{collection, afterID, throughID, reason, corpusPageSize}
+	}
+	rows, err := c.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +448,7 @@ func (cv *ChromemVectorDB) reconcileCorpus(ctx context.Context) error {
 				}
 				embeddable = append(embeddable, snapshot)
 			}
-			result, err := pass.embedPage(ctx, embeddable)
+			result, err := pass.embedPage(ctx, name, embeddable)
 			if err != nil {
 				return err
 			}

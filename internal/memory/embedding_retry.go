@@ -108,13 +108,34 @@ func waitBeforeEmbeddingRetry(ctx context.Context, logger *slog.Logger, label st
 	return embeddingRetrySleep(ctx, wait)
 }
 
+// backgroundEmbeddingKey marks the context of a background corpus pass.
+type backgroundEmbeddingKey struct{}
+
+// withBackgroundEmbedding marks ctx as belonging to a background corpus pass
+// (startup reconcile, runtime retry loop). withEmbeddingRetry makes a single
+// attempt for such a context: the pass holds the store-side embedding slot for
+// the call, and the next pass is the retry, so sitting through backoff and
+// Retry-After waits would only keep foreground stores out.
+func withBackgroundEmbedding(ctx context.Context) context.Context {
+	return context.WithValue(ctx, backgroundEmbeddingKey{}, true)
+}
+
+func isBackgroundEmbedding(ctx context.Context) bool {
+	background, _ := ctx.Value(backgroundEmbeddingKey{}).(bool)
+	return background
+}
+
 func withEmbeddingRetry(ef chromem.EmbeddingFunc, logger *slog.Logger) chromem.EmbeddingFunc {
 	return func(ctx context.Context, text string) ([]float32, error) {
 		if ctx == nil {
 			ctx = context.Background()
 		}
+		attempts := embeddingRetryAttempts
+		if isBackgroundEmbedding(ctx) {
+			attempts = 1
+		}
 		var lastErr error
-		for attempt := 1; attempt <= embeddingRetryAttempts; attempt++ {
+		for attempt := 1; attempt <= attempts; attempt++ {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
@@ -123,7 +144,7 @@ func withEmbeddingRetry(ef chromem.EmbeddingFunc, logger *slog.Logger) chromem.E
 				return vec, nil
 			}
 			lastErr = err
-			if !shouldRetryEmbeddingError(ctx, err) || attempt == embeddingRetryAttempts {
+			if !shouldRetryEmbeddingError(ctx, err) || attempt == attempts {
 				return nil, err
 			}
 			if waitErr := waitBeforeEmbeddingRetry(ctx, logger, "Embedding request", attempt, err); waitErr != nil {

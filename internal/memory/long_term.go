@@ -175,7 +175,8 @@ type ChromemVectorDB struct {
 	fileIndexerCollections map[string]struct{}
 	fiColMu                sync.RWMutex
 	fileWriteMu            sync.Mutex // ponytail: serialize file generations; use per-collection locks if throughput requires it.
-	storeEmbedMu           sync.Mutex // serializes store-side provider calls (formerly implicit via cv.mu); searches never take it
+	storeEmbedSlot         embedSlot  // serializes store-side provider calls (formerly implicit via cv.mu); a waiter leaves with its context; searches never take it
+	corpusMemory           corpusPassMemory
 	fileIndexMemory        atomic.Pointer[SQLiteMemory]
 }
 
@@ -1073,30 +1074,48 @@ func (cv *ChromemVectorDB) rememberEmbeddingDimension(dim int) {
 // cv.mu. chromem would otherwise call the provider inside AddDocument(s) and hold
 // the write lock for the whole round trip, blocking every search. storeEmbedMu keeps
 // store-side provider calls one at a time, as cv.mu did, to respect rate limits.
+// A caller waiting for its turn leaves with its context error when ctx ends.
 // Callers keep their concept stripe, so dedupe and storage stay serialized per concept.
 func (cv *ChromemVectorDB) embedDocumentsOutsideLock(ctx context.Context, docs []chromem.Document) error {
-	needsEmbedding := false
-	for _, doc := range docs {
-		needsEmbedding = needsEmbedding || len(doc.Embedding) == 0
+	return cv.embedDocumentsWithin(ctx, docs, 0)
+}
+
+// embedDocumentsWithin is embedDocumentsOutsideLock with a deadline for the provider
+// calls that starts once the slot is held: time spent waiting behind another caller
+// is not charged to it. limit <= 0 adds no deadline beyond ctx.
+func (cv *ChromemVectorDB) embedDocumentsWithin(ctx context.Context, docs []chromem.Document, limit time.Duration) error {
+	first := -1
+	for i, doc := range docs {
+		if len(doc.Embedding) == 0 {
+			first = i
+			break
+		}
 	}
-	if !needsEmbedding {
+	if first < 0 {
 		return ctx.Err()
 	}
-	cv.storeEmbedMu.Lock()
-	defer cv.storeEmbedMu.Unlock()
+	if err := cv.storeEmbedSlot.acquire(ctx); err != nil {
+		return &documentEmbeddingError{docID: docs[first].ID, err: err}
+	}
+	defer cv.storeEmbedSlot.release()
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, limit)
+		defer cancel()
+	}
 	for i := range docs {
 		if len(docs[i].Embedding) > 0 {
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			return fmt.Errorf("couldn't create embedding of document %s: %w", docs[i].ID, err)
+			return &documentEmbeddingError{docID: docs[i].ID, err: err}
 		}
 		embedding, err := cv.embeddingFunc(ctx, docs[i].Content)
 		if err != nil {
-			return fmt.Errorf("couldn't create embedding of document %s: %w", docs[i].ID, err)
+			return &documentEmbeddingError{docID: docs[i].ID, err: err}
 		}
 		if len(embedding) == 0 {
-			return fmt.Errorf("couldn't create embedding of document %s: empty vector", docs[i].ID)
+			return &documentEmbeddingError{docID: docs[i].ID, err: errEmptyEmbeddingVector}
 		}
 		cv.rememberEmbeddingDimension(len(embedding))
 		docs[i].Embedding = embedding
