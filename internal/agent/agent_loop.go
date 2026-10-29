@@ -944,6 +944,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			var topMemories []string
 			var topRankedMemories []rankedMemory
 			failedMemorySearch := false
+			// The follow-up sections trail the memories in flags.RetrievedMemories.
+			// They are read first so memory packing leaves their room free.
+			var followUpSections []string
+			if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
+				var pendingActions []memory.EpisodicMemory
+				followUpSections, pendingActions = buildFollowUpPromptSections(shortTermMem, lastUserMsg)
+				turnPendingActions = append(turnPendingActions, pendingActions...)
+			}
 			if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshTurnMemory(memorySnapshotWasDirty, lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
 				ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 				useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
@@ -1029,13 +1037,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 					onDemandRetrieval := cfg.Tools.Memory.OnDemandRetrieval
 					servedRanked, availableRanked := selectRAGMemoriesForOnDemand(ranked, onDemandRetrieval, s.currentLogger)
-					if shortTermMem != nil {
-						for _, r := range servedRanked {
-							_ = shortTermMem.UpdateMemoryAccess(r.docID)
-							_ = shortTermMem.RecordMemoryUsage(r.docID, "ltm_retrieved", sessionID, r.score, false)
-						}
-					}
-					markMemoryDocIDsUsed(usedMemoryDocIDs, servedRanked)
 					if onDemandRetrieval.Enabled {
 						flags.AvailableMemoryContextIndex = appendAvailableContextIndex(
 							flags.AvailableMemoryContextIndex,
@@ -1044,9 +1045,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						)
 					}
 					wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
-					ragEntries := buildAggressiveRAGPromptEntries(servedRanked, wantsDeepDetails, func(docID string) (string, error) {
+					ragEntries := buildAggressiveRAGPromptEntriesWithin(servedRanked, wantsDeepDetails, func(docID string) (string, error) {
 						return longTermMem.GetByID(docID)
-					})
+					}, ragMemoryBudgetAfterSections(followUpSections))
+					// Only memories that made it into the prompt count as used.
+					recordPackedRAGMemories(shortTermMem, sessionID, usedMemoryDocIDs, servedRanked, ragEntries)
 					for _, entry := range ragEntries {
 						topMemories = append(topMemories, entry.text)
 						fusionMemory := rankedMemory{text: entry.text, docID: entry.docID}
@@ -1192,46 +1195,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Pending follow-ups use their own topic matcher. Generic retry phrases
 			// intentionally produce no match and cannot reactivate stale work.
-			if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
-				pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 1)
-				if pErr == nil && len(pendingActions) > 0 {
-					turnPendingActions = append(turnPendingActions, pendingActions...)
-					lines := make([]string, 0, len(pendingActions))
-					for _, action := range pendingActions {
-						line := action.EventDate + " | " + action.Title + " — " + action.Summary
-						if trigger := strings.TrimSpace(action.TriggerQuery); trigger != "" {
-							line += " | trigger: " + trigger
-						}
-						lines = append(lines, line)
-					}
-					prefix := compactMemoryForPrompt("[Pending Follow-Ups]\n- "+strings.Join(lines, "\n- "), 230)
-					if flags.RetrievedMemories == "" {
-						flags.RetrievedMemories = prefix
-					} else {
-						flags.RetrievedMemories += "\n---\n" + prefix
-					}
-				}
-				anchors, aErr := shortTermMem.GetRecentDayAnchors(5)
-				anchors = selectRelevantRecentMemoryLines(lastUserMsg, anchors, 1)
-				if aErr == nil && len(anchors) > 0 {
-					prefix := compactMemoryForPrompt("[Recent Day Anchors]\n- "+strings.Join(anchors, "\n- "), 230)
-					if flags.RetrievedMemories == "" {
-						flags.RetrievedMemories = prefix
-					} else {
-						flags.RetrievedMemories += "\n---\n" + prefix
-					}
-				}
-				episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 5)
-				episodic = selectRelevantRecentMemoryLines(lastUserMsg, episodic, 1)
-				if eErr == nil && len(episodic) > 0 {
-					prefix := compactMemoryForPrompt("[Last 72h Episodes]\n- "+strings.Join(episodic, "\n- "), 230)
-					if flags.RetrievedMemories == "" {
-						flags.RetrievedMemories = prefix
-					} else {
-						flags.RetrievedMemories += "\n---\n" + prefix
-					}
-				}
-			}
+			// The sections were read before the memories were packed (followUpSections),
+			// whose budget already reserves their room.
+			flags.RetrievedMemories = appendPromptSections(flags.RetrievedMemories, followUpSections)
 
 			if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
 				if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {

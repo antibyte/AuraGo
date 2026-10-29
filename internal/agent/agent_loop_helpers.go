@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/memory/kgquery"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
@@ -1890,13 +1891,21 @@ const (
 // section: once it is used up the remaining memories are dropped, and the
 // last kept memory is shortened to the space left.
 func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails bool, getFull func(string) (string, error)) []promptMemoryEntry {
-	if len(served) == 0 {
+	return buildAggressiveRAGPromptEntriesWithin(served, wantsDeepDetails, getFull, aggressiveRetrievedMemoriesChars)
+}
+
+// buildAggressiveRAGPromptEntriesWithin is buildAggressiveRAGPromptEntries with
+// an explicit byte budget for the joined entries. ExecuteAgentLoop passes
+// ragMemoryBudgetAfterSections so the follow-up sections that trail the
+// memories keep their room.
+func buildAggressiveRAGPromptEntriesWithin(served []rankedMemory, wantsDeepDetails bool, getFull func(string) (string, error), budget int) []promptMemoryEntry {
+	if len(served) == 0 || budget < minRAGPromptEntryBytes {
 		return nil
 	}
 	entries := make([]promptMemoryEntry, 0, len(served))
 	used := 0 // bytes of the entries so far, joined with ragPromptEntrySeparator
 	for i, item := range served {
-		room := aggressiveRetrievedMemoriesChars - used
+		room := budget - used
 		if len(entries) > 0 {
 			room -= len(ragPromptEntrySeparator)
 			if room < minRAGPromptEntryBytes {
@@ -1923,6 +1932,113 @@ func buildAggressiveRAGPromptEntries(served []rankedMemory, wantsDeepDetails boo
 		entries = append(entries, promptMemoryEntry{docID: item.docID, text: text})
 	}
 	return entries
+}
+
+// followUpPromptSectionChars caps each of the follow-up sections that trail the
+// retrieved memories in flags.RetrievedMemories.
+const followUpPromptSectionChars = 230
+
+// buildFollowUpPromptSections reads the pending follow-ups, the recent day
+// anchors and the last 72h episodes that are relevant to lastUserMsg and
+// renders each non-empty group as one section (see formatFollowUpPromptSections).
+// The pending actions are returned as well so the caller can resolve them later.
+// The sections are built before the memories are packed so that
+// ragMemoryBudgetAfterSections knows their real size.
+func buildFollowUpPromptSections(stm *memory.SQLiteMemory, lastUserMsg string) ([]string, []memory.EpisodicMemory) {
+	if stm == nil || lastUserMsg == "" {
+		return nil, nil
+	}
+	var pending []memory.EpisodicMemory
+	if actions, err := stm.GetPendingEpisodicActionsForQuery(lastUserMsg, 1); err == nil {
+		pending = actions
+	}
+	var anchors, episodes []string
+	if lines, err := stm.GetRecentDayAnchors(5); err == nil {
+		anchors = selectRelevantRecentMemoryLines(lastUserMsg, lines, 1)
+	}
+	if lines, err := stm.GetRecentEpisodicMemories(72, 5); err == nil {
+		episodes = selectRelevantRecentMemoryLines(lastUserMsg, lines, 1)
+	}
+	return formatFollowUpPromptSections(pending, anchors, episodes), pending
+}
+
+// formatFollowUpPromptSections renders "[Pending Follow-Ups]", "[Recent Day
+// Anchors]" and "[Last 72h Episodes]" (in this order, each capped at
+// followUpPromptSectionChars); a group without entries yields no section.
+func formatFollowUpPromptSections(pending []memory.EpisodicMemory, anchors, episodes []string) []string {
+	var sections []string
+	add := func(header string, lines []string) {
+		if len(lines) == 0 {
+			return
+		}
+		if section := compactMemoryForPrompt(header+"\n- "+strings.Join(lines, "\n- "), followUpPromptSectionChars); section != "" {
+			sections = append(sections, section)
+		}
+	}
+	pendingLines := make([]string, 0, len(pending))
+	for _, action := range pending {
+		line := action.EventDate + " | " + action.Title + " — " + action.Summary
+		if trigger := strings.TrimSpace(action.TriggerQuery); trigger != "" {
+			line += " | trigger: " + trigger
+		}
+		pendingLines = append(pendingLines, line)
+	}
+	add("[Pending Follow-Ups]", pendingLines)
+	add("[Recent Day Anchors]", anchors)
+	add("[Last 72h Episodes]", episodes)
+	return sections
+}
+
+// appendPromptSections appends the sections to the retrieved-memories text with
+// ragPromptEntrySeparator, keeping the memories first.
+func appendPromptSections(existing string, sections []string) string {
+	for _, section := range sections {
+		if existing == "" {
+			existing = section
+		} else {
+			existing += ragPromptEntrySeparator + section
+		}
+	}
+	return existing
+}
+
+// ragMemoryBudgetAfterSections returns what is left of
+// aggressiveRetrievedMemoriesChars for the memory entries once the sections
+// (each behind a ragPromptEntrySeparator) are reserved. Memories packed into
+// this budget plus the sections fit applyAggressivePromptContextBudgets without
+// the final fit cutting anything.
+func ragMemoryBudgetAfterSections(sections []string) int {
+	budget := aggressiveRetrievedMemoriesChars
+	for _, section := range sections {
+		budget -= len(ragPromptEntrySeparator) + len(section)
+	}
+	return max(budget, 0)
+}
+
+// recordPackedRAGMemories counts as used only the served memories that made it
+// into the prompt (entries): their access counter and usage record are updated
+// (when stm is set) and their IDs are added to the used-ID set. A memory the
+// packer dropped stays untouched so it can be served on a later turn.
+func recordPackedRAGMemories(stm *memory.SQLiteMemory, sessionID string, usedDocIDs map[string]int, served []rankedMemory, entries []promptMemoryEntry) {
+	packed := make([]rankedMemory, 0, len(entries))
+	for _, entry := range entries {
+		if entry.docID == "" {
+			continue
+		}
+		for _, item := range served {
+			if item.docID == entry.docID {
+				packed = append(packed, item)
+				break
+			}
+		}
+	}
+	if stm != nil {
+		for _, item := range packed {
+			_ = stm.UpdateMemoryAccess(item.docID)
+			_ = stm.RecordMemoryUsage(item.docID, "ltm_retrieved", sessionID, item.score, false)
+		}
+	}
+	markMemoryDocIDsUsed(usedDocIDs, packed)
 }
 
 func selectRAGMemoriesForOnDemand(ranked []rankedMemory, cfg config.MemoryOnDemandRetrievalConfig, logger *slog.Logger) ([]rankedMemory, []rankedMemory) {
