@@ -1251,3 +1251,18 @@ func TestChromemVectorDBBlocksStoreBeforeReady(t *testing.T) {
 		t.Fatalf("StoreDocument err = %v, want ErrVectorDBNotReady", err)
 	}
 }
+
+func TestEmbedQueriesReusesTheQueryCache(t *testing.T) {
+	calls := 0
+	cv := newTestChromemVectorDB(t, func(_ context.Context, text string) ([]float32, error) {
+		calls++
+		return []float32{float32(len(text)), 0, 0}, nil
+	})
+	vectors, err := cv.EmbedQueries(t.Context(), []string{"a", "bb", "a"})
+	if err != nil || len(vectors) != 3 || vectors[1][0] != 2 || vectors[2][0] != 1 {
+		t.Fatalf("vectors=%v err=%v", vectors, err)
+	}
+	if calls != 2 {
+		t.Fatalf("embedding calls=%d, want 2 (cache hit for the repeat)", calls)
+	}
+}

@@ -327,6 +327,24 @@ func (cv *ChromemVectorDB) TestEmbedding(ctx context.Context, text string) ([]fl
 	return vectors[0], nil
 }
 
+// EmbedQueries embeds texts through the shared query cache without writing
+// anything. The memory salience gate runs after a turn, when RAG has usually
+// cached the same user message already.
+func (cv *ChromemVectorDB) EmbedQueries(ctx context.Context, texts []string) ([][]float32, error) {
+	if cv.IsDisabled() || !cv.IsReady() {
+		return nil, fmt.Errorf("embedding runtime is unavailable")
+	}
+	vectors := make([][]float32, 0, len(texts))
+	for _, text := range texts {
+		vector, err := cv.getQueryEmbedding(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		vectors = append(vectors, vector)
+	}
+	return vectors, nil
+}
+
 // RebenchmarkEmbeddings reruns local hardware selection when supported.
 func (cv *ChromemVectorDB) RebenchmarkEmbeddings(ctx context.Context) error {
 	benchmarkable, ok := cv.embedder.(interface {
