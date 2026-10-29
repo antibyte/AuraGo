@@ -971,6 +971,9 @@ func cleanupDeletedVectorReferencesTx(ctx context.Context, tx *sql.Tx, docIDs []
 	if err := deleteMemoryIDsContext(ctx, tx, "file_embedding_docs", "doc_id", normalizedIDs); err != nil {
 		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
 	}
+	if err := deleteMemoryIDsContext(ctx, tx, "memory_expiry", "doc_id", normalizedIDs); err != nil {
+		return fmt.Errorf("cleanup memory_expiry: %w", err)
+	}
 
 	chunkSize := defaultInClauseChunkSize / 2
 	if chunkSize < 1 {

@@ -59,3 +59,57 @@ func TestExpiredMemoriesStayOutOfRetrieval(t *testing.T) {
 		t.Fatalf("expired memory visible: %+v %v", results, err)
 	}
 }
+
+func TestArchiveExpiredMemoriesRemovesVectorAndAllowsRelearning(t *testing.T) {
+	s := newInMemorySQLiteMemory(t)
+	ctx := t.Context()
+	vector := &fakeRepairVectorDB{docs: map[string]string{
+		"old":    "Maintenance window tonight",
+		"later":  "Vacation until next week",
+		"pinned": "Door code valid today",
+	}}
+	for id := range vector.docs {
+		if err := s.UpsertMemoryMeta(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.SetMemoryMetaProtection("pinned", true, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetMemoryExpiry(ctx, []string{"old", "pinned"}, time.Now().Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetMemoryExpiry(ctx, []string{"later"}, time.Now().Add(48*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	archived, err := s.ArchiveExpiredMemoriesContext(ctx, vector)
+	if err != nil || archived != 1 {
+		t.Fatalf("archived=%d err=%v", archived, err)
+	}
+	meta, err := s.GetMemoryMeta("old")
+	if err != nil || !IsMemoryArchived(meta) || meta.ArchivedReason != "expired" {
+		t.Fatalf("old meta=%+v err=%v", meta, err)
+	}
+	if _, ok := vector.docs["old"]; ok {
+		t.Fatal("expired vector kept")
+	}
+	var identities int
+	if err := s.db.QueryRow(`SELECT count(*) FROM memory_archive_identities WHERE doc_id='old'`).Scan(&identities); err != nil || identities != 0 {
+		t.Fatalf("expired fact blocks relearning: identities=%d err=%v", identities, err)
+	}
+	if _, ok, _ := s.MemoryExpiry(ctx, "old"); ok {
+		t.Fatal("expiry row of archived memory kept")
+	}
+	if meta, _ := s.GetMemoryMeta("later"); IsMemoryArchived(meta) {
+		t.Fatal("unexpired memory archived")
+	}
+	if _, ok, _ := s.MemoryExpiry(ctx, "later"); !ok {
+		t.Fatal("unexpired expiry removed")
+	}
+	if meta, _ := s.GetMemoryMeta("pinned"); IsMemoryArchived(meta) {
+		t.Fatal("protected memory archived")
+	}
+	if _, ok, _ := s.MemoryExpiry(ctx, "pinned"); ok {
+		t.Fatal("protected memory kept its expiry")
+	}
+}
