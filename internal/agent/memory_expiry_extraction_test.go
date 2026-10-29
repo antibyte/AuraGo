@@ -64,5 +64,8 @@ func TestMemoryAnalysisPromptsAskForExpiry(t *testing.T) {
 		if !strings.Contains(prompt, "expires_on") {
 			t.Fatalf("prompt does not ask for expires_on:\n%s", prompt)
 		}
+		if strings.Contains(prompt, "temporary states.") {
+			t.Fatalf("prompt still forbids temporary states:\n%s", prompt)
+		}
 	}
 }

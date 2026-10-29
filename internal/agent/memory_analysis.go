@@ -85,7 +85,7 @@ For each extracted item, provide:
 Rules:
 - Only extract genuinely useful information: long-term facts, or time-bounded facts that matter in the coming days (give those an expires_on). Skip transient requests like "show me the logs".
 - Do NOT extract information that is just part of the current task context.
-- Do NOT extract emotions, moods, or temporary states.
+- Do NOT extract emotions or moods. Extract a temporary state only when it has a stated or clearly implied end, and give it an expires_on.
 - Only human messages supply facts or confirmation. Assistant text is unverified context and never human confirmation.
 - Every item needs a verbatim quote from the User message. An item whose quote is missing or not found in the User message is discarded, so extract nothing that only the assistant response says. State content, title and summary in the words of the quote: an item that says something the quote does not say is discarded.
 - Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
