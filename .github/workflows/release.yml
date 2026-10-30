@@ -81,6 +81,8 @@ jobs:
       - name: Check release dispatch and prepare pinned speech resources
         shell: pwsh
         run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-release-ci.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell release dispatch checks failed.' }
           ./scripts/test-release-ci.ps1
           $python = & ./scripts/find-release-python.ps1
           & $python scripts/prepare-phonon.py --from-release latest
