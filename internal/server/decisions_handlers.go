@@ -239,6 +239,9 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	if code == decisions.CodeInvalidRequest || code == "invalid_image" || code == "image_invalid" || code == "image_limit_exceeded" || code == "image_minimum_unmet" || code == decisions.CodeInputTokenBudgetExceeded || code == decisions.CodeCandidateNotScorable {
 		status = http.StatusBadRequest
 	}
+	if code == decisions.CodeImagesUnsupported {
+		status = http.StatusUnprocessableEntity
+	}
 	if code == decisions.CodeInvalidRuntimeResponse || code == decisions.CodeInferenceFailed {
 		status = http.StatusBadGateway
 	}

@@ -255,7 +255,7 @@ func (client *OpenRouterClient) Evaluate(ctx context.Context, model string, requ
 		return Response{}, NewError(code, nil)
 	}
 	if len(request.Images) > 0 && !selected.SupportsImages {
-		return Response{}, NewError(CodeInvalidRequest, errors.New("selected model does not advertise image input"))
+		return Response{}, NewError(CodeImagesUnsupported, errors.New("selected model does not advertise image input"))
 	}
 
 	wireQuestions, candidates, err := makeOpenRouterQuestions(request.Questions)
