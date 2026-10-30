@@ -60,9 +60,10 @@ func (g *Guardian) ProtectExternal(ctx context.Context, source ExternalSource, t
 	if source != ExternalWeb && source != ExternalEmail {
 		return result
 	}
-	if len(text) > maxScanOutputBytes {
-		return ExternalContentResult{Text: QuarantineNotice(string(source), "", ContentScanQuarantine(QuarantineIncomplete)), Quarantined: true, Reason: QuarantineIncomplete}
-	}
+	// Only a prefix of a result ever reaches the model: scan and deliver the
+	// clipped prefix (the clip note says so) instead of quarantining it all.
+	text = clipToScanLimit(text)
+	result.Text = text
 	leaves := jsonStringLeaves(text)
 	view := text
 	if len(leaves) > 0 {

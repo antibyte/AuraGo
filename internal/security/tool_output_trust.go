@@ -10,9 +10,38 @@ const (
 	// toolOutputSourceData is untrusted project source that the model must copy
 	// exactly for edits; it stays isolated but unescaped unless it looks hostile.
 	toolOutputSourceData
+	// toolOutputInternal is output of AuraGo's own stores (memory, journal, notes,
+	// missions, the scheduler, the knowledge graph, plans, inventory, tool manuals
+	// and system telemetry), content that AuraGo or the operator wrote. It is
+	// scanned like external output and fenced, but never withheld: a verdict only
+	// adds a warning line.
+	toolOutputInternal
 )
 
+// internalToolOutputs lists the tools that return AuraGo's own store content.
+// Anything that can return fetched, third-party or local file content stays out.
+var internalToolOutputs = map[string]bool{
+	"manage_memory": true, "correct_memory": true, "remember": true, "remember_learning": true,
+	"query_memory": true, "context_memory": true, "recall_memory": true, "memory_reflect": true,
+	"knowledge_graph": true, "explore_kg": true,
+	"manage_notes": true, "manage_journal": true,
+	"manage_missions": true, "cron_scheduler": true, "schedule_cron": true,
+	"manage_plan": true, "manage_todos": true, "manage_appointments": true,
+	"query_inventory":  true,
+	"read_tool_manual": true, "get_skill_documentation": true,
+	"system_metrics": true, "get_system_metrics": true,
+}
+
+// IsInternalToolOutput reports whether tool returns AuraGo's own store content
+// (see toolOutputInternal).
+func IsInternalToolOutput(tool string) bool {
+	return internalToolOutputs[strings.ToLower(strings.TrimSpace(tool))]
+}
+
 func classifyToolOutput(action string) toolOutputTrust {
+	if IsInternalToolOutput(action) {
+		return toolOutputInternal
+	}
 	switch strings.ToLower(strings.TrimSpace(action)) {
 	case "activate_tools", "context_manager", "discover_tools", "get_tool_info":
 		return toolOutputTrusted

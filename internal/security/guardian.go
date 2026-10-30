@@ -960,7 +960,7 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	// merged verdict of the texts as written, so a relieved text still names
 	// its categories on the warning line.
 	hostile := false
-	if trust == toolOutputSourceData || trust == toolOutputExternal {
+	if trust == toolOutputSourceData || trust == toolOutputExternal || trust == toolOutputInternal {
 		bar := ThreatHigh
 		if trust == toolOutputSourceData {
 			bar = ThreatCritical
@@ -1005,8 +1005,27 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	// External output that is delivered anyway but looks flagged gets a warning
 	// line; source output keeps the validator's line alone.
 	var flagged []string
-	if trust == toolOutputExternal {
+	if trust == toolOutputExternal || trust == toolOutputInternal {
 		flagged = g.externalWarningCategories(toolName, scan, output, joined)
+	}
+	if trust == toolOutputInternal {
+		// Internal output is never withheld; what would have been withheld
+		// (or could not be scanned completely) is delivered with the categories.
+		if scan.Incomplete {
+			flagged = append(flagged, "scan_incomplete")
+		}
+		if hostile {
+			cats := scan.Patterns
+			if len(cats) == 0 {
+				cats = []string{"unspecified"}
+			}
+			flagged = append(flagged, cats...)
+		}
+		flagged = dedupeWarningCategories(flagged)
+		if len(flagged) > 0 && g.logger != nil {
+			g.logger.Info("[Guardian] Delivered internal tool output with a warning",
+				"tool", toolName, "threat", scan.Level.String(), "categories", flagged)
+		}
 	}
 	// Strip role impersonation markers (e.g. "system:" at line start), in the
 	// decoded JSON string values too: their line starts are escaped newlines.
@@ -1016,7 +1035,7 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	output = neutralizeRoleMarkers(output)
 
 	switch trust {
-	case toolOutputExternal:
+	case toolOutputExternal, toolOutputInternal:
 		// Always isolate: these tools inherently return third-party content
 		output = IsolateExternalData(output)
 	case toolOutputSourceData:
@@ -1066,6 +1085,21 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 	}
 
 	return output
+}
+
+// dedupeWarningCategories sanitizes and de-duplicates warning categories.
+func dedupeWarningCategories(cats []string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, c := range cats {
+		c = sanitizeThreatCategory(c)
+		if c == "" || seen[c] {
+			continue
+		}
+		seen[c] = true
+		out = append(out, c)
+	}
+	return out
 }
 
 // externalWarningCategories names why external output that is delivered anyway
