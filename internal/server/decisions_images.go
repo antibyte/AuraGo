@@ -46,6 +46,8 @@ func normalizeDecisionImage(data []byte, runtimeRemaining int64) (decisions.Imag
 	return decisions.Image{Data: data, MIME: mime}, nil
 }
 
+var consumerImageSlot = make(chan struct{}, 1)
+
 // prepareConsumerImage validates like the HTTP path and then bounds the longer
 // side to maxSide (never enlarging). Photos become JPEG q85; images with alpha
 // stay PNG. Pictures already small enough are returned unchanged.
@@ -53,6 +55,9 @@ func prepareConsumerImage(data []byte, maxSide int) (decisions.Image, error) {
 	if len(data) > decisionImageBytes || maxSide <= 0 {
 		return decisions.Image{}, errDecisionImage
 	}
+	// Full decodes of large pictures are memory heavy; one at a time.
+	consumerImageSlot <- struct{}{}
+	defer func() { <-consumerImageSlot }()
 	normalized, err := normalizeDecisionImage(data, decisionImageBytes)
 	if err != nil {
 		return decisions.Image{}, err
@@ -75,7 +80,7 @@ func prepareConsumerImage(data []byte, maxSide int) (decisions.Image, error) {
 	width, height := bounds.Dx(), bounds.Dy()
 	scale := float64(maxSide) / float64(max(width, height))
 	width, height = max(1, int(float64(width)*scale+.5)), max(1, int(float64(height)*scale+.5))
-	scaled := image.NewNRGBA(image.Rect(0, 0, width, height))
+	scaled := image.NewRGBA(image.Rect(0, 0, width, height))
 	xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), source, bounds, draw.Src, nil)
 	var out bytes.Buffer
 	if scaled.Opaque() {

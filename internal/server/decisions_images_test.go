@@ -75,3 +75,31 @@ func TestCatalogRefreshRateLimited(t *testing.T) {
 		t.Fatalf("catalog calls = %d", remote.catalogCalls.Load())
 	}
 }
+
+func TestConsumerImageConcurrentCalls(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 1280, 720))
+	for y := 0; y < 720; y++ {
+		for x := 0; x < 1280; x++ {
+			src.Set(x, y, color.RGBA{uint8(x), uint8(y), 90, 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, src, nil); err != nil {
+		t.Fatal(err)
+	}
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() {
+			got, err := prepareConsumerImage(buf.Bytes(), 448)
+			if err == nil && got.MIME != "image/jpeg" {
+				err = errDecisionImage
+			}
+			errs <- err
+		}()
+	}
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
