@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Webhook-Daten konnten nicht geladen werden",
   "config.webhooks.retry": "Erneut versuchen",
   "config.webhooks.not_running_notice": "Der Webhook-Server läuft nicht",
-  "config.webhooks.not_running_desc": "Der Webhook-Manager ist nicht aktiv, daher sind Webhooks und Tokens nicht verfügbar. Prüfe, ob Webhooks aktiviert sind, speichere und starte AuraGo bei Bedarf neu."
+  "config.webhooks.not_running_desc": "Der Webhook-Manager ist nicht aktiv, daher sind Webhooks und Tokens nicht verfügbar. Prüfe, ob Webhooks aktiviert sind, speichere und starte AuraGo bei Bedarf neu.",
+  "config.webhooks.decision_title": "Entscheidungsfrage (optional)",
+  "config.webhooks.decision_intro": "Stellt dem optionalen Decisions-Klassifikator zu jedem eingehenden Ereignis eine Ja/Nein-Frage. Die Antwort ist nur ein Hinweis für den Agenten und ersetzt nie die Sicherheitsprüfungen.",
+  "config.webhooks.decision_enable": "Frage aktivieren",
+  "config.webhooks.decision_question_label": "Frage",
+  "config.webhooks.decision_question_placeholder": "Braucht dieses Ereignis meine Aufmerksamkeit?",
+  "config.webhooks.decision_mode_label": "Verwendung der Antwort",
+  "config.webhooks.decision_mode_hint": "Hinweis: Antwort an die Nachricht anhängen",
+  "config.webhooks.decision_mode_gate": "Sperre: Nachricht bei sicherem Nein überspringen",
+  "config.webhooks.decision_gate_warning": "Der Sperrmodus kann Agent-Nachrichten unterdrücken. Nur eine eindeutig negative Antwort unterdrückt; das Ereignis wird weiterhin protokolliert und Missionen laufen weiter."
 }

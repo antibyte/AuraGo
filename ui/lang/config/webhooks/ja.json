@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Webhook データを読み込めませんでした",
   "config.webhooks.retry": "再試行",
   "config.webhooks.not_running_notice": "Webhook サーバーが動作していません",
-  "config.webhooks.not_running_desc": "Webhook マネージャーが有効でないため、Webhook とトークンは利用できません。Webhook が有効か確認し、保存して、必要なら AuraGo を再起動してください。"
+  "config.webhooks.not_running_desc": "Webhook マネージャーが有効でないため、Webhook とトークンは利用できません。Webhook が有効か確認し、保存して、必要なら AuraGo を再起動してください。",
+  "config.webhooks.decision_title": "判定の質問（任意）",
+  "config.webhooks.decision_intro": "受信したイベントごとに、任意の Decisions 分類器へ「はい/いいえ」の質問をします。回答はエージェントへのヒントにすぎず、セキュリティチェックの代わりにはなりません。",
+  "config.webhooks.decision_enable": "質問を有効にする",
+  "config.webhooks.decision_question_label": "質問",
+  "config.webhooks.decision_question_placeholder": "このイベントは私の対応が必要ですか？",
+  "config.webhooks.decision_mode_label": "回答の使い方",
+  "config.webhooks.decision_mode_hint": "ヒント: 回答をメッセージに追加する",
+  "config.webhooks.decision_mode_gate": "ゲート: 確実な「いいえ」ならメッセージを送らない",
+  "config.webhooks.decision_gate_warning": "ゲートモードはエージェントへのメッセージを抑止することがあります。抑止されるのは明確に否定的な回答の場合のみで、イベントは引き続き記録され、ミッションも実行されます。"
 }

@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Webhook-data kunne ikke lastes",
   "config.webhooks.retry": "Prøv igjen",
   "config.webhooks.not_running_notice": "Webhook-serveren kjører ikke",
-  "config.webhooks.not_running_desc": "Webhook-behandleren er ikke aktiv, så webhooks og tokens er utilgjengelige. Kontroller at webhooks er aktivert, lagre og start AuraGo på nytt ved behov."
+  "config.webhooks.not_running_desc": "Webhook-behandleren er ikke aktiv, så webhooks og tokens er utilgjengelige. Kontroller at webhooks er aktivert, lagre og start AuraGo på nytt ved behov.",
+  "config.webhooks.decision_title": "Beslutningsspørsmål (valgfritt)",
+  "config.webhooks.decision_intro": "Stiller den valgfrie Decisions-klassifisereren et ja/nei-spørsmål om hver innkommende hendelse. Svaret er bare et hint til agenten og erstatter aldri sikkerhetskontrollene.",
+  "config.webhooks.decision_enable": "Aktiver spørsmål",
+  "config.webhooks.decision_question_label": "Spørsmål",
+  "config.webhooks.decision_question_placeholder": "Trenger denne hendelsen oppmerksomheten min?",
+  "config.webhooks.decision_mode_label": "Bruk av svaret",
+  "config.webhooks.decision_mode_hint": "Hint: legg svaret til i meldingen",
+  "config.webhooks.decision_mode_gate": "Port: hopp over meldingen ved et sikkert Nei",
+  "config.webhooks.decision_gate_warning": "Portmodus kan undertrykke agentmeldinger. Bare et klart negativt svar undertrykker; hendelsen logges fortsatt, og oppdrag kjører fortsatt."
 }

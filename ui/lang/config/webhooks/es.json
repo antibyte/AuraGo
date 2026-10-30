@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "No se pudieron cargar los datos de webhooks",
   "config.webhooks.retry": "Reintentar",
   "config.webhooks.not_running_notice": "El servidor de webhooks no está en ejecución",
-  "config.webhooks.not_running_desc": "El gestor de webhooks no está activo, por lo que los webhooks y tokens no están disponibles. Comprueba que los webhooks estén activados, guarda y reinicia AuraGo si es necesario."
+  "config.webhooks.not_running_desc": "El gestor de webhooks no está activo, por lo que los webhooks y tokens no están disponibles. Comprueba que los webhooks estén activados, guarda y reinicia AuraGo si es necesario.",
+  "config.webhooks.decision_title": "Pregunta de decisión (opcional)",
+  "config.webhooks.decision_intro": "Plantea al clasificador opcional de Decisions una pregunta de sí/no sobre cada evento entrante. La respuesta es solo una pista para el agente y nunca sustituye las comprobaciones de seguridad.",
+  "config.webhooks.decision_enable": "Activar pregunta",
+  "config.webhooks.decision_question_label": "Pregunta",
+  "config.webhooks.decision_question_placeholder": "¿Este evento requiere mi atención?",
+  "config.webhooks.decision_mode_label": "Uso de la respuesta",
+  "config.webhooks.decision_mode_hint": "Pista: añadir la respuesta al mensaje",
+  "config.webhooks.decision_mode_gate": "Filtro: omitir el mensaje ante un No seguro",
+  "config.webhooks.decision_gate_warning": "El modo filtro puede suprimir mensajes del agente. Solo una respuesta claramente negativa suprime; el evento se sigue registrando y las misiones se ejecutan igualmente."
 }

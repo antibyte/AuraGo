@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Webhook-data kunne ikke indlæses",
   "config.webhooks.retry": "Prøv igen",
   "config.webhooks.not_running_notice": "Webhook-serveren kører ikke",
-  "config.webhooks.not_running_desc": "Webhook-manageren er ikke aktiv, så webhooks og tokens er utilgængelige. Kontroller at webhooks er aktiveret, gem og genstart AuraGo om nødvendigt."
+  "config.webhooks.not_running_desc": "Webhook-manageren er ikke aktiv, så webhooks og tokens er utilgængelige. Kontroller at webhooks er aktiveret, gem og genstart AuraGo om nødvendigt.",
+  "config.webhooks.decision_title": "Beslutningsspørgsmål (valgfrit)",
+  "config.webhooks.decision_intro": "Stiller den valgfri Decisions-klassifikator et ja/nej-spørgsmål om hver indkommende hændelse. Svaret er kun et fingerpeg til agenten og erstatter aldrig sikkerhedskontrollerne.",
+  "config.webhooks.decision_enable": "Aktivér spørgsmål",
+  "config.webhooks.decision_question_label": "Spørgsmål",
+  "config.webhooks.decision_question_placeholder": "Kræver denne hændelse min opmærksomhed?",
+  "config.webhooks.decision_mode_label": "Brug af svaret",
+  "config.webhooks.decision_mode_hint": "Fingerpeg: føj svaret til beskeden",
+  "config.webhooks.decision_mode_gate": "Port: spring beskeden over ved et sikkert Nej",
+  "config.webhooks.decision_gate_warning": "Portfunktionen kan undertrykke agentbeskeder. Kun et klart negativt svar undertrykker; hændelsen logges stadig, og missioner kører stadig."
 }

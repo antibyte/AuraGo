@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Could not load webhook data",
   "config.webhooks.retry": "Retry",
   "config.webhooks.not_running_notice": "Webhook server is not running",
-  "config.webhooks.not_running_desc": "The webhook manager is not active, so webhooks and tokens are unavailable. Check that webhooks are enabled, save, and restart AuraGo if needed."
+  "config.webhooks.not_running_desc": "The webhook manager is not active, so webhooks and tokens are unavailable. Check that webhooks are enabled, save, and restart AuraGo if needed.",
+  "config.webhooks.decision_title": "Decision question (optional)",
+  "config.webhooks.decision_intro": "Ask the optional Decisions classifier a yes/no question about each incoming event. The answer is only a hint for the agent and never replaces the security checks.",
+  "config.webhooks.decision_enable": "Enable question",
+  "config.webhooks.decision_question_label": "Question",
+  "config.webhooks.decision_question_placeholder": "Does this event need my attention?",
+  "config.webhooks.decision_mode_label": "Use of the answer",
+  "config.webhooks.decision_mode_hint": "Hint: add the answer to the message",
+  "config.webhooks.decision_mode_gate": "Gate: skip the message on a confident No",
+  "config.webhooks.decision_gate_warning": "Gate mode can suppress agent messages. Only a clearly negative answer suppresses; the event is still logged and missions still run."
 }

@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Δεν ήταν δυνατή η φόρτωση των δεδομένων webhook",
   "config.webhooks.retry": "Επανάληψη",
   "config.webhooks.not_running_notice": "Ο διακομιστής webhook δεν εκτελείται",
-  "config.webhooks.not_running_desc": "Ο διαχειριστής webhook δεν είναι ενεργός, επομένως τα webhooks και τα tokens δεν είναι διαθέσιμα. Ελέγξτε ότι τα webhooks είναι ενεργοποιημένα, αποθηκεύστε και επανεκκινήστε το AuraGo αν χρειάζεται."
+  "config.webhooks.not_running_desc": "Ο διαχειριστής webhook δεν είναι ενεργός, επομένως τα webhooks και τα tokens δεν είναι διαθέσιμα. Ελέγξτε ότι τα webhooks είναι ενεργοποιημένα, αποθηκεύστε και επανεκκινήστε το AuraGo αν χρειάζεται.",
+  "config.webhooks.decision_title": "Ερώτηση απόφασης (προαιρετική)",
+  "config.webhooks.decision_intro": "Θέτει στον προαιρετικό ταξινομητή Decisions μια ερώτηση ναι/όχι για κάθε εισερχόμενο συμβάν. Η απάντηση είναι μόνο υπόδειξη για τον πράκτορα και δεν αντικαθιστά ποτέ τους ελέγχους ασφαλείας.",
+  "config.webhooks.decision_enable": "Ενεργοποίηση ερώτησης",
+  "config.webhooks.decision_question_label": "Ερώτηση",
+  "config.webhooks.decision_question_placeholder": "Χρειάζεται αυτό το συμβάν την προσοχή μου;",
+  "config.webhooks.decision_mode_label": "Χρήση της απάντησης",
+  "config.webhooks.decision_mode_hint": "Υπόδειξη: προσθήκη της απάντησης στο μήνυμα",
+  "config.webhooks.decision_mode_gate": "Φίλτρο: παράλειψη του μηνύματος σε βέβαιο Όχι",
+  "config.webhooks.decision_gate_warning": "Η λειτουργία φίλτρου μπορεί να καταστείλει μηνύματα του πράκτορα. Καταστέλλει μόνο μια σαφώς αρνητική απάντηση· το συμβάν εξακολουθεί να καταγράφεται και οι αποστολές εκτελούνται."
 }

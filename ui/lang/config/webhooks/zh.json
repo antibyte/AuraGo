@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "无法加载 Webhook 数据",
   "config.webhooks.retry": "重试",
   "config.webhooks.not_running_notice": "Webhook 服务器未运行",
-  "config.webhooks.not_running_desc": "Webhook 管理器未启动，因此 Webhook 和令牌不可用。请确认已启用 Webhook，保存，必要时重启 AuraGo。"
+  "config.webhooks.not_running_desc": "Webhook 管理器未启动，因此 Webhook 和令牌不可用。请确认已启用 Webhook，保存，必要时重启 AuraGo。",
+  "config.webhooks.decision_title": "决策问题（可选）",
+  "config.webhooks.decision_intro": "针对每个传入事件，向可选的 Decisions 分类器提出一个是/否问题。答案仅作为给代理的提示，绝不会取代安全检查。",
+  "config.webhooks.decision_enable": "启用问题",
+  "config.webhooks.decision_question_label": "问题",
+  "config.webhooks.decision_question_placeholder": "这个事件需要我关注吗？",
+  "config.webhooks.decision_mode_label": "答案的用途",
+  "config.webhooks.decision_mode_hint": "提示：将答案附加到消息",
+  "config.webhooks.decision_mode_gate": "拦截：在确定为“否”时跳过消息",
+  "config.webhooks.decision_gate_warning": "拦截模式可能会抑制发给代理的消息。只有明确的否定答案才会抑制；事件仍会被记录，任务仍会运行。"
 }

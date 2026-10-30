@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Nie można wczytać danych webhooków",
   "config.webhooks.retry": "Spróbuj ponownie",
   "config.webhooks.not_running_notice": "Serwer webhooków nie działa",
-  "config.webhooks.not_running_desc": "Menedżer webhooków jest nieaktywny, więc webhooki i tokeny są niedostępne. Sprawdź, czy webhooki są włączone, zapisz i w razie potrzeby uruchom AuraGo ponownie."
+  "config.webhooks.not_running_desc": "Menedżer webhooków jest nieaktywny, więc webhooki i tokeny są niedostępne. Sprawdź, czy webhooki są włączone, zapisz i w razie potrzeby uruchom AuraGo ponownie.",
+  "config.webhooks.decision_title": "Pytanie decyzyjne (opcjonalne)",
+  "config.webhooks.decision_intro": "Zadaje opcjonalnemu klasyfikatorowi Decisions pytanie tak/nie o każde przychodzące zdarzenie. Odpowiedź jest tylko wskazówką dla agenta i nigdy nie zastępuje kontroli bezpieczeństwa.",
+  "config.webhooks.decision_enable": "Włącz pytanie",
+  "config.webhooks.decision_question_label": "Pytanie",
+  "config.webhooks.decision_question_placeholder": "Czy to zdarzenie wymaga mojej uwagi?",
+  "config.webhooks.decision_mode_label": "Użycie odpowiedzi",
+  "config.webhooks.decision_mode_hint": "Wskazówka: dodaj odpowiedź do wiadomości",
+  "config.webhooks.decision_mode_gate": "Bramka: pomiń wiadomość przy pewnym Nie",
+  "config.webhooks.decision_gate_warning": "Tryb bramki może tłumić wiadomości agenta. Tłumi tylko wyraźnie negatywna odpowiedź; zdarzenie nadal jest rejestrowane, a misje nadal działają."
 }
