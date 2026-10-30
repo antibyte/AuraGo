@@ -1168,10 +1168,13 @@ type RunConfig struct {
 	CoAgentSpecialist    string
 	CoAgentTokenLimit    int
 	ParentSessionID      string
-	IsMission            bool   // true when triggered by a mission (skips RAG, personality, profiling)
-	MissionID            string // mission ID for logging/tracking
-	MessageSource        string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
-	VoiceOutputActive    bool   // true when the user's speaker toggle is on
+	// UntrustedProvenance is set for a queued run (follow_up, wait_for_event) whose
+	// queuing session had read third-party content; the run's session starts tainted.
+	UntrustedProvenance bool
+	IsMission           bool   // true when triggered by a mission (skips RAG, personality, profiling)
+	MissionID           string // mission ID for logging/tracking
+	MessageSource       string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
+	VoiceOutputActive   bool   // true when the user's speaker toggle is on
 	// SuppressOperationalNotices leaves the daily notice for ordinary chat
 	// instead of interrupting an embedded app assistant.
 	SuppressOperationalNotices bool

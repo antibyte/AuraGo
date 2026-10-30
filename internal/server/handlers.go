@@ -528,6 +528,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MissionID:          missionID,
 			MessageSource:      msgSource,
 			VoiceOutputActive:  GetSpeakerMode(),
+
+			UntrustedProvenance: isFollowUp && trustedUntrustedProvenance(r, s),
 		}
 		if !isInternalRequestMessage && lastUserMsg.Role == openai.ChatMessageRoleUser {
 			runCfg.HumanInput = memory.NewHumanInputEvent(userIntent, sessionID, "", humanOccurredAt)

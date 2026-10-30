@@ -164,3 +164,31 @@ func TestBackgroundPromptOwnerSurvivesPendingUntilCancelOrCompletion(t *testing.
 		}
 	}
 }
+
+// A task queued from a tainted session hands the flag to the loopback executor;
+// a clean task does not, and the flag survives a restart of the manager.
+func TestBackgroundPromptCarriesUntrustedProvenance(t *testing.T) {
+	for _, untrusted := range []bool{true, false} {
+		dir := tempSystemTaskDir(t)
+		m := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
+		task, err := m.ScheduleFollowUp("check the report", BackgroundTaskScheduleOptions{UntrustedProvenance: untrusted})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = m.Close()
+		restarted := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
+		t.Cleanup(func() { _ = restarted.Close() })
+		if stored, ok := restarted.GetTask(task.ID); !ok || stored.UntrustedProvenance != untrusted {
+			t.Fatalf("flag lost across restart: %+v", stored)
+		}
+		var got []bool
+		restarted.SetLoopbackExecutorContext(func(ctx context.Context, _, _, _ string, _ time.Duration) error {
+			got = append(got, UntrustedProvenanceFromContext(ctx))
+			return nil
+		})
+		restarted.processDueTasks()
+		if len(got) != 1 || got[0] != untrusted {
+			t.Fatalf("executor saw %v, want [%v]", got, untrusted)
+		}
+	}
+}

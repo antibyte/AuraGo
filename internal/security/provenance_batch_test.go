@@ -17,7 +17,7 @@ func TestUntrustedContentTool(t *testing.T) {
 		{"nextcloud", "", true}, {"paperless_ngx", "", true}, {"mcp_call", "", true},
 		{"google_workspace", "drive_list", true}, {"gworkspace", "", true}, {"gog_sheets", "", true},
 		{"co_agent", "", true}, {"local_wikipedia", "", true}, {"virustotal_scan", "", true},
-		{"mqtt_get_messages", "", true},
+		{"mqtt_get_messages", "", true}, {"call_webhook", "", true}, {"google_calendar", "list", true},
 		{"execute_shell", "", false}, {"filesystem", "read", false}, {"docker", "", false},
 		{"home_assistant", "", false}, {"system_metrics", "", false}, {"manage_journal", "", false},
 	} {

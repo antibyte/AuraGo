@@ -871,6 +871,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				RetryDelay:         time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
 				Timeout:            timeout,
 				NotifyOnCompletion: req.NotifyOnCompletion,
+
+				UntrustedProvenance: taintedForQueuedRun(dc),
 			})
 			if err != nil {
 				logger.Error("Failed to schedule follow-up", "error", err)
@@ -920,6 +922,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				RetryDelay:         time.Duration(cfg.Agent.BackgroundTasks.RetryDelaySeconds) * time.Second,
 				Timeout:            time.Duration(cfg.Agent.BackgroundTasks.HTTPTimeoutSeconds) * time.Second,
 				NotifyOnCompletion: req.NotifyOnCompletion,
+
+				UntrustedProvenance: taintedForQueuedRun(dc),
 			})
 			if err != nil {
 				logger.Error("Failed to schedule wait_for_event", "error", err)

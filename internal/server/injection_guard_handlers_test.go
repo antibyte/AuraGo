@@ -79,3 +79,22 @@ func TestInjectionGuardMailProvenanceRequiresLoopbackToken(t *testing.T) {
 		t.Fatal("non-loopback source accepted")
 	}
 }
+
+func TestUntrustedProvenanceHeaderRequiresLoopbackToken(t *testing.T) {
+	s := &Server{internalToken: "fixture-token"}
+	r := httptest.NewRequest("POST", "/v1/chat/completions", nil)
+	r.RemoteAddr = "127.0.0.1:1234"
+	r.Header.Set("X-Internal-FollowUp", "true")
+	r.Header.Set("X-Untrusted-Provenance", "true")
+	if trustedUntrustedProvenance(r, s) {
+		t.Fatal("forged provenance header accepted")
+	}
+	r.Header.Set("X-Internal-Token", s.internalToken)
+	if !trustedUntrustedProvenance(r, s) {
+		t.Fatal("authenticated provenance header rejected")
+	}
+	r.Header.Del("X-Untrusted-Provenance")
+	if trustedUntrustedProvenance(r, s) {
+		t.Fatal("absent header read as untrusted")
+	}
+}

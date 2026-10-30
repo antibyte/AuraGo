@@ -857,6 +857,9 @@ func main() {
 		req.Header.Set("X-Internal-FollowUp", "true")
 		req.Header.Set("X-Internal-Token", loopbackToken)
 		req.Header.Set("X-Background-Execution-ID", executionID)
+		if tools.UntrustedProvenanceFromContext(ctx) {
+			req.Header.Set("X-Untrusted-Provenance", "true")
+		}
 		if taskType == tools.BackgroundTaskTypeCronPrompt {
 			req.Header.Set("X-Session-ID", "background-"+executionID)
 		}

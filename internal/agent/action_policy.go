@@ -369,8 +369,9 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 	if a.RunType != "interactive" {
 		// Scheduling is the one class a clean unattended run may do on its own:
 		// the operator wrote the mission or cron prompt, and a session that read
-		// third-party content within the taint window is the case to refuse.
-		if a.scheduling && !sessionHadUntrustedContact(dc.SessionID, untrustedTaintTTL) {
+		// third-party content within the taint window, or whose parent session did
+		// (a co-agent), is the case to refuse.
+		if a.scheduling && !taintedForQueuedRun(dc) {
 			return nil
 		}
 		return actionPolicyRefusal("action_rule_required", "This high-risk unattended action needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)

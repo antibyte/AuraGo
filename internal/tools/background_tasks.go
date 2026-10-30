@@ -58,8 +58,11 @@ type BackgroundTask struct {
 	RetryDelaySeconds  int             `json:"retry_delay_seconds,omitempty"`
 	TimeoutSeconds     int             `json:"timeout_seconds,omitempty"`
 	NotifyOnCompletion bool            `json:"notify_on_completion"`
-	LastError          string          `json:"last_error,omitempty"`
-	Result             string          `json:"result,omitempty"`
+	// UntrustedProvenance is set when the task was queued from a session that had
+	// read third-party content; its run starts tainted (see UntrustedProvenanceFromContext).
+	UntrustedProvenance bool   `json:"untrusted_provenance,omitempty"`
+	LastError           string `json:"last_error,omitempty"`
+	Result              string `json:"result,omitempty"`
 }
 
 type FollowUpTaskPayload struct {
@@ -91,6 +94,8 @@ type BackgroundTaskScheduleOptions struct {
 	RetryDelay         time.Duration
 	Timeout            time.Duration
 	NotifyOnCompletion bool
+	// UntrustedProvenance marks a task queued from a tainted session.
+	UntrustedProvenance bool
 }
 
 type BackgroundTaskSummary struct {
@@ -173,6 +178,25 @@ func NewBackgroundTaskManager(dataDir string, logger *slog.Logger) *BackgroundTa
 		logger.Warn("Failed to load background tasks", "error", err)
 	}
 	return mgr
+}
+
+type untrustedProvenanceKey struct{}
+
+// WithUntrustedProvenance marks the context handed to the loopback executor of a
+// task that was queued from a tainted session. The executor passes it on to the
+// run as an internal header.
+func WithUntrustedProvenance(ctx context.Context, untrusted bool) context.Context {
+	if !untrusted {
+		return ctx
+	}
+	return context.WithValue(ctx, untrustedProvenanceKey{}, true)
+}
+
+// UntrustedProvenanceFromContext reports whether the executing task was queued
+// from a session that had read third-party content.
+func UntrustedProvenanceFromContext(ctx context.Context) bool {
+	v, _ := ctx.Value(untrustedProvenanceKey{}).(bool)
+	return v
 }
 
 func (m *BackgroundTaskManager) SetLoopbackExecutor(fn func(executionID, taskType, prompt string, timeout time.Duration) error) {
@@ -533,6 +557,7 @@ func (m *BackgroundTaskManager) executePromptTask(task *BackgroundTask) {
 	if !ok {
 		return
 	}
+	owner = WithUntrustedProvenance(owner, task.UntrustedProvenance)
 	if err := executor(owner, executionID, task.Type, payload.Prompt, timeout); err != nil {
 		if owner.Err() != nil {
 			m.finishTask(task.ID, BackgroundTaskStatusCanceled, "", "background execution canceled")
@@ -836,6 +861,8 @@ func (m *BackgroundTaskManager) newTask(taskType string, payload json.RawMessage
 		RetryDelaySeconds:  int(maxDuration(opts.RetryDelay, time.Minute).Seconds()),
 		TimeoutSeconds:     int(maxDuration(opts.Timeout, 0).Seconds()),
 		NotifyOnCompletion: opts.NotifyOnCompletion,
+
+		UntrustedProvenance: opts.UntrustedProvenance,
 	}
 	return task
 }

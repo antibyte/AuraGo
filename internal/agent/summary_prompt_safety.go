@@ -121,6 +121,9 @@ func summarySourceUntrusted(sessionID string, history, selected []memory.History
 				name = names[m.ToolCallID]
 			}
 			if security.IsInternalToolOutput(name) {
+				if internalOutputWarned(m.Content) {
+					return true // a store can hold text from outside; the Guardian warned
+				}
 				continue
 			}
 			return true

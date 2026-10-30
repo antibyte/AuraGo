@@ -53,6 +53,9 @@ type isolatedSession struct {
 type isolatedEntry struct {
 	views          []string
 	private, human bool
+	// internal marks AuraGo's own store output. It stays private text for the URL
+	// exfiltration check but is no isolated third-party text for the copied-span views.
+	internal bool
 }
 
 type untrustedRead struct {
@@ -70,6 +73,17 @@ func recordIsolatedModelBody(sessionID, output string) {
 // recordIsolatedModelOutput indexes one tool output and, when tool is set, notes that
 // this external tool's content reached the model. A quarantine notice is neither.
 func recordIsolatedModelOutput(sessionID, tool, operation, output string) {
+	recordIsolatedModelOutputCall(sessionID, tool, operation, output, false)
+}
+
+// recordIsolatedToolCallOutput is recordIsolatedModelOutput for a dispatched call;
+// callUntrusted (see untrustedToolCall) adds what only the arguments show, such as
+// a shell command that fetched from the network.
+func recordIsolatedToolCallOutput(sessionID string, tc ToolCall, output string) {
+	recordIsolatedModelOutputCall(sessionID, tc.Action, tc.Operation, output, untrustedToolCall(tc))
+}
+
+func recordIsolatedModelOutputCall(sessionID, tool, operation, output string, callUntrusted bool) {
 	if sessionID == "" {
 		return
 	}
@@ -78,12 +92,16 @@ func recordIsolatedModelOutput(sessionID, tool, operation, output string) {
 		return
 	}
 	// AuraGo's own stores are neither indexed for the copied-span check nor
-	// noted as untrusted reads. Memory can still hold text that came from outside
+	// noted as untrusted reads, but their text is private: it is kept for the URL
+	// exfiltration check only. Memory can still hold text that came from outside
 	// (indexed files, recaps of earlier sessions): an internal output the Guardian
 	// delivered with a warning taints the session like an untrusted read.
 	if security.IsInternalToolOutput(tool) {
 		if internalOutputWarned(output) {
 			modelIsolatedBodies.noteExternalContact(sessionID)
+		}
+		if views := nonEmptyCopiedViews(payload); len(views) > 0 {
+			modelIsolatedBodies.addEntry(sessionID, views, true, false, true)
 		}
 		return
 	}
@@ -91,18 +109,22 @@ func recordIsolatedModelOutput(sessionID, tool, operation, output string) {
 		modelIsolatedBodies.noteRead(sessionID, name)
 	}
 	source := security.ExternalToolSource(tool, operation)
-	if security.UntrustedContentTool(tool, operation) {
+	if callUntrusted || security.UntrustedContentTool(tool, operation) {
 		modelIsolatedBodies.noteExternalContact(sessionID)
 	}
+	if views := nonEmptyCopiedViews(payload); len(views) > 0 {
+		modelIsolatedBodies.addWithSource(sessionID, views, source != security.ExternalWeb, false)
+	}
+}
+
+func nonEmptyCopiedViews(payload string) []string {
 	var views []string
 	for _, view := range copiedSpanViews(payload) {
 		if view != "" {
 			views = append(views, view)
 		}
 	}
-	if len(views) > 0 {
-		modelIsolatedBodies.addWithSource(sessionID, views, source != security.ExternalWeb, false)
-	}
+	return views
 }
 
 // isolatedModelPayload recovers the content the model saw from an isolated tool
@@ -202,6 +224,10 @@ func (s *isolatedBodyStore) add(sessionID string, views []string) {
 }
 
 func (s *isolatedBodyStore) addWithSource(sessionID string, views []string, private, human bool) {
+	s.addEntry(sessionID, views, private, human, false)
+}
+
+func (s *isolatedBodyStore) addEntry(sessionID string, views []string, private, human, internal bool) {
 	if len(views) == 0 || sessionID == "" {
 		return
 	}
@@ -214,7 +240,7 @@ func (s *isolatedBodyStore) addWithSource(sessionID string, views []string, priv
 		entry[i] = truncateCopiedView(view, copiedSpanSessionBytes/len(views))
 		size += len(entry[i])
 	}
-	session.entries = append(session.entries, isolatedEntry{entry, private, human})
+	session.entries = append(session.entries, isolatedEntry{views: entry, private: private, human: human, internal: internal})
 	session.bytes += size
 	s.total += size
 	for session.bytes > copiedSpanSessionBytes && len(session.entries) > 1 {
@@ -258,7 +284,7 @@ func (s *isolatedBodyStore) views(sessionID string) []string {
 	s.touchLocked(sessionID)
 	var out []string
 	for _, entry := range session.entries {
-		if !entry.human {
+		if !entry.human && !entry.internal {
 			out = append(out, entry.views...)
 		}
 	}

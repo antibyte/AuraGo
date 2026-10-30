@@ -212,6 +212,11 @@ func noteIngressProvenance(runCfg RunConfig, req openai.ChatCompletionRequest) {
 	if runCfg.SessionID == "" {
 		return
 	}
+	// A queued run (follow_up, wait_for_event) inherits the taint of the session
+	// that queued it; the flag came in over the authenticated internal headers.
+	if runCfg.UntrustedProvenance || requestCarriesUntrustedToolResult(req.Messages) {
+		modelIsolatedBodies.noteExternalContact(runCfg.SessionID)
+	}
 	source := strings.ToLower(strings.TrimSpace(runCfg.MessageSource))
 	if thirdPartyIngressSources[source] {
 		modelIsolatedBodies.noteExternalContact(runCfg.SessionID)
@@ -226,4 +231,58 @@ func noteIngressProvenance(runCfg RunConfig, req openai.ChatCompletionRequest) {
 			return
 		}
 	}
+}
+
+// taintedForQueuedRun reports whether work queued from this dispatch context
+// continues third-party influence: the session, or for a co-agent its parent
+// session, read untrusted content within the taint window.
+func taintedForQueuedRun(dc *DispatchContext) bool {
+	if dc == nil {
+		return false
+	}
+	return sessionHadUntrustedContact(dc.SessionID, untrustedTaintTTL) ||
+		(dc.ParentSessionID != "" && sessionHadUntrustedContact(dc.ParentSessionID, untrustedTaintTTL))
+}
+
+// requestCarriesUntrustedToolResult reports whether the messages hold a tool
+// result that is still in context and came from third-party content: a tool of
+// security.UntrustedContentTool, a shell or code call that fetched from the
+// network, or an internal store output the Guardian delivered with a warning.
+// A tool that cannot be named does not count. This restores the taint after a
+// restart or once the contact timestamp is older than the taint window.
+func requestCarriesUntrustedToolResult(messages []openai.ChatCompletionMessage) bool {
+	type call struct{ name, args string }
+	calls := map[string]call{}
+	for _, m := range messages {
+		for _, c := range m.ToolCalls {
+			if c.ID != "" {
+				calls[c.ID] = call{c.Function.Name, c.Function.Arguments}
+			}
+		}
+	}
+	for _, m := range messages {
+		if m.Role != openai.ChatMessageRoleTool {
+			continue
+		}
+		name, args := m.Name, ""
+		if c, ok := calls[m.ToolCallID]; ok {
+			if name == "" {
+				name = c.name
+			}
+			args = c.args
+		}
+		name = strings.ToLower(strings.TrimSpace(name))
+		switch {
+		case name == "":
+		case security.IsInternalToolOutput(name):
+			if internalOutputWarned(m.Content) {
+				return true
+			}
+		case security.UntrustedContentTool(name, ""):
+			return true
+		case networkCapableTools[name] && networkFetchPattern.MatchString(args):
+			return true
+		}
+	}
+	return false
 }

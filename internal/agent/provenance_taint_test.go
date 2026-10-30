@@ -179,6 +179,7 @@ func TestSummarySourceScreening(t *testing.T) {
 		{"human transcript", human, false},
 		{"internal tool result", []memory.HistoryMessage{assistantCall, toolMsg("c1")}, false},
 		{"external tool result", []memory.HistoryMessage{assistantCall, toolMsg("c2")}, true},
+		{"warned internal tool result", []memory.HistoryMessage{assistantCall, {ChatCompletionMessage: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleTool, ToolCallID: "c1", Content: isolatedToolOutput("x") + "\n[SECURITY WARNING: instruction_override]"}}}, true},
 		{"unknown tool result", []memory.HistoryMessage{toolMsg("zz")}, true},
 		{"fence", append([]memory.HistoryMessage{msg("user", "[Tool Output]\n<external_data>\nx\n</external_data>")}, human...), true},
 	} {
