@@ -2554,7 +2554,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							personalityBasis,
 						)
 					}
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
+					runMemoryAnalysis(withDecisionConsumers(analysisCtx, runCfg.DecisionConsumers), cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
 					captureActivityTurnContext(analysisCtx,
 						cfg,
 						s.currentLogger,
@@ -2664,7 +2664,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				_ = sideEffects.Go(func(taskCtx context.Context) {
 					analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
 					defer cancel()
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
+					runMemoryAnalysis(withDecisionConsumers(analysisCtx, runCfg.DecisionConsumers), cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
 				})
 			}
 
