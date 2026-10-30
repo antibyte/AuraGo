@@ -1021,7 +1021,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						}
 					} else {
 						// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
-						ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
+						ranked = rerankRecalled(ctx, runCfg, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
 					}
 
 					// For short queries (<40 bytes), drop memories below a soft score
