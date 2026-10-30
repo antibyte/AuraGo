@@ -232,6 +232,8 @@ type Server struct {
 	LocalLLM                  *localllm.Manager
 	Decisions                 decisionsService
 	routingDecisionEpoch      atomic.Uint64
+	decisionHubOnce           sync.Once
+	decisionHubInst           *decisionHub
 	decisionsHTTPAdmission    sync.Mutex // one HTTP install or start; not the manager lifecycle mutex
 	decisionsSetupMu          sync.Mutex
 	decisionsSetup            *decisionsSetupOperation
@@ -558,6 +560,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	previous := s.ConfigSnapshot()
 	if previous != nil && (previous.LLMRouter.Enabled != cfg.LLMRouter.Enabled || previous.LLMRouter.DecisionsFallback != cfg.LLMRouter.DecisionsFallback) {
 		s.routingDecisionEpoch.Add(1)
+	}
+	if previous != nil {
+		s.decisionHub().configChanged(previous, cfg)
 	}
 	if previous != nil {
 		if desktopInfraConfigChanged(s, previous, cfg) {
