@@ -1263,6 +1263,7 @@ func Load(path string) (*Config, error) {
 		cfg.LocalLLM.ListenPort = 18081
 	}
 	NormalizeDecisionsConfig(&cfg.Decisions)
+	cfg.DecisionConsumers = cfg.DecisionConsumers.Normalize()
 	if err := ValidateDecisionsConfig(cfg.Decisions); err != nil {
 		return nil, err
 	}
@@ -3206,6 +3207,17 @@ func (c *Config) Save(path string) error {
 		{[]string{"decisions", "model"}, c.Decisions.Model},
 		{[]string{"decisions", "deployment"}, c.Decisions.Deployment},
 		{[]string{"decisions", "cpu_fallback_allowed"}, c.Decisions.CPUFallbackAllowed},
+		{[]string{"decision_consumers", "memory_rerank", "enabled"}, c.DecisionConsumers.MemoryRerank.Enabled},
+		{[]string{"decision_consumers", "appraisal", "enabled"}, c.DecisionConsumers.Appraisal.Enabled},
+		{[]string{"decision_consumers", "salience_gate", "enabled"}, c.DecisionConsumers.SalienceGate.Enabled},
+		{[]string{"decision_consumers", "mail_triage", "enabled"}, c.DecisionConsumers.MailTriage.Enabled},
+		{[]string{"decision_consumers", "webhook_questions", "enabled"}, c.DecisionConsumers.WebhookQuestions.Enabled},
+		{[]string{"decision_consumers", "person_wake", "enabled"}, c.DecisionConsumers.PersonWake.Enabled},
+		{[]string{"decision_consumers", "person_wake", "allow_external_images"}, c.DecisionConsumers.PersonWake.AllowExternalImages},
+		{[]string{"decision_consumers", "indexer_images", "enabled"}, c.DecisionConsumers.IndexerImages.Enabled},
+		{[]string{"decision_consumers", "indexer_images", "allow_external_images"}, c.DecisionConsumers.IndexerImages.AllowExternalImages},
+		{[]string{"decision_consumers", "game_maker_visual", "enabled"}, c.DecisionConsumers.GameMakerVisual.Enabled},
+		{[]string{"decision_consumers", "game_maker_visual", "allow_external_images"}, c.DecisionConsumers.GameMakerVisual.AllowExternalImages},
 		{[]string{"local_llm", "enabled"}, c.LocalLLM.Enabled},
 		{[]string{"local_llm", "backend"}, c.LocalLLM.Backend},
 		{[]string{"local_llm", "model_family"}, c.LocalLLM.ModelFamily},
