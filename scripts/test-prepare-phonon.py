@@ -68,7 +68,7 @@ class PhononPreparationTests(unittest.TestCase):
                 if script.endswith(".bat"):
                     block = re.search(r'(set "RELEASE_PYTHON=".*?^echo     Python:[^\n]*\n)', source, re.M | re.S)
                     self.assertIsNotNone(block, "Python preflight block not found")
-                    pack = re.search(r'^"!RELEASE_PYTHON!"[^\n]*', source, re.M)
+                    pack = re.search(r'^"!RELEASE_PYTHON!"[^\n]*prepare-phonon\.py[^\n]*--pack[^\n]*', source, re.M)
                     self.assertIsNotNone(pack, "verified Python pack invocation not found")
                     runner = root / script
                     runner.write_text('@echo off\nsetlocal enabledelayedexpansion\n' + block[1] + pack[0] + '\nif errorlevel 1 exit /b 1\ndel "%~dp0keep.dat"\n', encoding="utf-8")
@@ -76,7 +76,7 @@ class PhononPreparationTests(unittest.TestCase):
                 else:
                     block = re.search(r'(^\$releasePython = .*?^Write-Host "    Python:[^\n]*\n)', source, re.M | re.S)
                     self.assertIsNotNone(block, "Python preflight block not found")
-                    pack = re.search(r'^& \$releasePython[^\n]*', source, re.M)
+                    pack = re.search(r'^& \$releasePython[^\n]*prepare-phonon\.py[^\n]*--pack[^\n]*', source, re.M)
                     self.assertIsNotNone(pack, "verified Python pack invocation not found")
                     runner = root / script
                     runner.write_text("$ErrorActionPreference = 'Stop'\n$scriptDir = $PSScriptRoot\n" + block[1] + pack[0] + "\nif ($LASTEXITCODE -ne 0) { exit 1 }\nRemove-Item -LiteralPath (Join-Path $PSScriptRoot 'keep.dat')\n", encoding="utf-8")

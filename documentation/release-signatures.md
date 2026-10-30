@@ -93,9 +93,40 @@ config, secrets or data. `--run` continues with the normal verified update after
 releasing the repair lock. No end-user tool, key or environment setup is needed.
 Concurrent repairs/updates and symlinked state or updater paths are rejected.
 
-## Windows maintainer setup
+## Default Windows release publication
 
-Run once under the Windows account used to build releases:
+The Windows entrypoints dispatch the native GitHub Actions release workflow:
+
+```powershell
+.\make_release.bat v2026.10.30
+# Or:
+.\make_release.ps1 -Version v2026.10.30
+```
+
+Run from the reviewed `main` branch with Git and an authenticated GitHub CLI.
+The dispatcher pushes committed HEAD, passes its exact SHA and waits for the
+workflow's result. Uncommitted drafts remain local. If main advances between push
+and dispatch, the workflow stops rather than releasing a different commit.
+
+The workflow requires the complete Security Gates run for that source commit.
+It checks out clean source, prepares the manifest-pinned Phonon resources and
+builds all six native platforms through the existing PowerShell builder. Cosign
+uses the short-lived GitHub Actions identity; no local private key, DPAPI password
+or signing secret is required. The finished checksum manifest is verified against
+the same repository identity and issuer used by installers before the completed
+draft becomes public. Existing bootstrap pins and the embedded key stay unchanged.
+
+CI preserves existing releases and tags. Docker publication is dispatched explicitly
+for the published tag because events created by `GITHUB_TOKEN` do not trigger tag
+push workflows. Docker publication continues in its own workflow.
+
+`make_release.ps1 -Local` or an explicit `AURAGO_RELEASE_SIGNING_KEY` selects the
+existing local build path instead. Local builds need the Go, Node.js, Python, tar and Cosign prerequisites
+and a clean source checkout. The default dispatcher needs none of those build tools.
+
+## Optional local Windows maintainer setup
+
+For local keyed signing, run once under the Windows account used to sign:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-release-signing.ps1
@@ -110,8 +141,9 @@ Private keys, passwords and the maintainer tool never enter the checkout or
 release assets. Repeating setup retains existing keys; incomplete profiles fail
 without replacement or rotation.
 
-Both Windows builders automatically discover `cosign.exe`, `release.key`,
-`release.pub` and `password.dpapi` in that profile. They check readiness before
+Local profile signing (`make_release.ps1 -Local`) automatically discovers
+`cosign.exe`, `release.key`, `release.pub` and `password.dpapi` in that profile.
+Local builds check readiness before
 cleanup and compilation, including in an already-open terminal with no Cosign on
 `PATH`. The signer only unlocks the password for signing and restores the caller's
 environment afterward. Explicit key/password environment settings retain priority;

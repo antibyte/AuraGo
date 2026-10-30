@@ -54,9 +54,18 @@ The updater owns transaction manifests; this package verifies them before collec
   optional `--run` releases the repair lock before invoking the repaired updater.
   Old binaries cannot discover this migration retroactively; operators deploy it
   through existing management access, without end-user crypto setup.
-- Windows maintainer setup pins Cosign and atomically creates the user-only
+- Windows entrypoints default to `scripts/start-release-ci.ps1`: publish committed
+  `main`, dispatch `release.yml` with the expected SHA and wait for its exit status.
+  Local drafts remain outside the build. CI checks out the exact source commit,
+  requires its complete Security Gates run, builds all native assets and signs
+  with GitHub OIDC. Keep local profiles and the embedded trust root unchanged.
+  CI retains all releases/tags and explicitly dispatches Docker publication after
+  the native draft is fully uploaded, verified and published.
+- Optional local Windows maintainer setup pins Cosign and atomically creates the
+  user-only
   `%LOCALAPPDATA%\AuraGo\release-signing` profile with an encrypted private key
-  and DPAPI-protected password. Preserve existing keys. Both Windows builders
+  and DPAPI-protected password. Preserve existing keys. `make_release.ps1 -Local`
+  or explicit key configuration retains local builds. Both actual Windows builders
   preflight signing before cleanup/build; explicit environment configuration and
   CI retain precedence. Restore the caller's environment after profile signing.
   End-user trust comes from the reviewed embedded public root; never trust a
@@ -73,8 +82,9 @@ Already-current updates may repair the service user's Chromium AppArmor profile;
 they report that AuraGo was not rebuilt or restarted, rather than claiming no files changed.
 Both Windows builders must reject dirty source trees and link the reviewed commit
 and generated UI pins into main binaries; pass linker flags as one native argument.
-The PowerShell publisher pushes reviewed HEAD even when already committed, pins
-the release target, and passes a flat asset list plus a BOM-free notes file.
+The local dispatcher pushes reviewed HEAD even when already committed. CI never
+pushes an older checkout back to main. The PowerShell publisher pins the release
+target and passes a flat asset list plus a BOM-free notes file.
 
 ## Verification
 

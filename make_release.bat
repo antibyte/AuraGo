@@ -1,6 +1,7 @@
 @echo off
 REM SECURITY: This script handles sensitive data. Do not echo secrets.
 REM make_release.bat -- Build all release artifacts and publish to GitHub Releases
+REM Default: dispatch the verified GitHub Actions build; explicit keys retain local builds.
 REM
 REM Usage:
 REM   make_release.bat            -> prompts for version tag (default: v{YYYY.MM.DD})
@@ -14,6 +15,11 @@ REM   - Python 3.10+ (py launcher, python or python3)
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
+if /i "%GITHUB_ACTIONS%"=="true" goto local_release
+if defined AURAGO_RELEASE_SIGNING_KEY goto local_release
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0make_release.ps1" %*
+exit /b %ERRORLEVEL%
+:local_release
 set "MIN_GO_VERSION=1.27.3"
 REM Pin the compiler used by CI and release artifacts.
 set "GOTOOLCHAIN=go1.27.3"

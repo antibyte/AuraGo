@@ -1,12 +1,18 @@
 # SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
-# Requires: PowerShell 5.1+, Go 1.27.3+, GitHub CLI (gh), tar, Node.js, Python 3.10+
+# Default: dispatch CI with PowerShell, Git and GitHub CLI. Explicit keys retain local builds.
+# Local build prerequisites: Go 1.27.3+, tar, Node.js, Python 3.10+ and Cosign.
 
 param(
-    [string]$Version
+    [string]$Version,
+    [switch]$Local
 )
 
 $ErrorActionPreference = 'Stop'
+if ($env:GITHUB_ACTIONS -ne 'true' -and -not $Local -and -not $env:AURAGO_RELEASE_SIGNING_KEY) {
+    & (Join-Path $PSScriptRoot 'scripts\start-release-ci.ps1') -Version $Version
+    return
+}
 $env:GOTOOLCHAIN = 'go1.27.3' # Pin the compiler used by CI and release artifacts.
 
 # ── Banner ────────────────────────────────────────────────────────────────
@@ -375,12 +381,14 @@ $env:GOARCH = "amd64"
 Write-Host ""
 
 # ── Step 3: Commit & push code ───────────────────────────────────────────
-Write-Host "[3/5] Pushing code to GitHub..." -ForegroundColor Yellow
+Write-Host "[3/5] Verifying published source..." -ForegroundColor Yellow
 
 if (git status --porcelain --untracked-files=normal) { throw 'Generated release inputs changed; review and commit them before publishing.' }
-git push origin HEAD:refs/heads/main
-if ($LASTEXITCODE -ne 0) { throw 'Source publication failed; no release was created.' }
-Write-Host "    Reviewed source pushed." -ForegroundColor Green
+if ($env:GITHUB_ACTIONS -ne 'true') {
+    git push origin HEAD:refs/heads/main
+    if ($LASTEXITCODE -ne 0) { throw 'Source publication failed; no release was created.' }
+}
+Write-Host "    Reviewed source ready: $buildID" -ForegroundColor Green
 
 Write-Host ""
 
