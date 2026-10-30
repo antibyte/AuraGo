@@ -252,7 +252,7 @@
                             <option value="cs">Čeština</option>
                             <option value="custom" data-i18n="setup.language_custom"></option>
                         </select>
-                        <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" placeholder="e.g. Klingon">
+                        <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" data-i18n-placeholder="setup.language_custom_placeholder" placeholder="e.g. Klingon">
                     </div>
                 </div>
 
@@ -307,7 +307,7 @@
                 <div class="toggle-row">
                     <div>
                         <div id="lbl-native-functions" class="toggle-label" data-i18n="setup.step0_native_functions_label">Native Function Calling ⚠️</div>
-                        <div id="desc-native-functions" class="toggle-desc" data-i18n-html="setup.step0_native_functions_desc">Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!</div>
+                        <div id="desc-native-functions" class="toggle-desc" data-i18n="setup.step0_native_functions_desc">Uses the provider's native tool calls. Warning: Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!</div>
                     </div>
                     <label class="toggle" for="native-functions">
                         <input type="checkbox" id="native-functions" class="toggle">
@@ -347,7 +347,7 @@
                     <div class="field-group" id="emb-apikey-group">
                         <label id="lbl-emb-apikey" class="field-label" data-i18n="setup.step1_embeddings_apikey_label"></label>
                         <input class="field-input" type="password" id="emb-api-key"
-                            placeholder="Leave empty to use main API key">
+                            data-i18n-placeholder="setup.step1_embeddings_apikey_placeholder">
                         <div id="hint-emb-apikey" class="field-hint" data-i18n="setup.step1_embeddings_apikey_hint"></div>
                     </div>
                 </div>
@@ -368,8 +368,8 @@
                         <div class="field-group">
                             <label id="lbl-vision-model" class="field-label" data-i18n="setup.step1_vision_model_label"></label>
                             <input class="field-input" type="text" id="vision-model"
-                                placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
-                                value="google/gemini-2.5-flash-lite-preview-09-2025">
+                                placeholder="google/gemini-3.1-flash-lite"
+                                value="google/gemini-3.1-flash-lite">
                         </div>
                     </div>
                 </div>
@@ -390,8 +390,8 @@
                         <div class="field-group">
                             <label id="lbl-whisper-model" class="field-label" data-i18n="setup.step1_whisper_model_label"></label>
                             <input class="field-input" type="text" id="whisper-model"
-                                placeholder="google/gemini-2.5-flash-lite-preview-09-2025"
-                                value="google/gemini-2.5-flash-lite-preview-09-2025">
+                                placeholder="google/gemini-3.1-flash-lite"
+                                value="google/gemini-3.1-flash-lite">
                         </div>
                         <div class="field-group">
                             <label id="lbl-whisper-mode" class="field-label" data-i18n="setup.step1_whisper_mode_label"></label>
@@ -429,7 +429,7 @@
                 <div class="conditional-fields visible" id="helper-llm-fields">
                     <div class="field-group">
                         <label id="lbl-helper-model" class="field-label" data-i18n="setup.step2_v2_model_label"></label>
-                        <input class="field-input" type="text" id="helper-model" placeholder="gpt-4o-mini">
+                        <input class="field-input" type="text" id="helper-model" placeholder="google/gemini-3.1-flash-lite">
                         <div id="hint-helper-model" class="field-hint" data-i18n="setup.step2_v2_model_hint"></div>
                     </div>
                 </div>

@@ -153,7 +153,11 @@ function showSetupConnectionWarning(detail) {
     banner.id = 'setup-conn-warning';
     banner.className = 'setup-conn-warning';
     banner.setAttribute('role', 'alert');
-    banner.textContent = 'Could not reach setup status endpoint (' + detail + '). Reload the page once the server is ready.';
+    // The language file may not be loaded yet; fall back to English instead of showing the raw key.
+    const message = t('setup.status_unreachable', { detail: detail });
+    banner.textContent = message === 'setup.status_unreachable'
+        ? 'Could not reach setup status endpoint (' + detail + '). Reload the page once the server is ready.'
+        : message;
     header.parentNode.insertBefore(banner, header.nextSibling);
 }
 
@@ -213,7 +217,7 @@ const providerConfig = {
         baseUrl: 'https://openrouter.ai/api/v1',
         placeholder: 'sk-or-v1-...',
         link: 'openrouter.ai/keys',
-        defaultModel: 'arcee-ai/trinity-large-preview:free',
+        defaultModel: 'google/gemini-3.1-flash-lite',
         needsKey: true,
     },
     agnes: {
@@ -228,21 +232,21 @@ const providerConfig = {
         baseUrl: 'https://api.openai.com/v1',
         placeholder: 'sk-...',
         link: 'platform.openai.com/api-keys',
-        defaultModel: 'gpt-4o',
+        defaultModel: 'gpt-5.5',
         needsKey: true,
     },
     anthropic: {
         baseUrl: 'https://api.anthropic.com/v1',
         placeholder: 'sk-ant-...',
         link: 'console.anthropic.com/settings/keys',
-        defaultModel: 'claude-sonnet-4-20250514',
+        defaultModel: 'claude-sonnet-5-5',
         needsKey: true,
     },
     google: {
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
         placeholder: 'AIza...',
         link: 'aistudio.google.com/apikey',
-        defaultModel: 'gemini-2.5-flash',
+        defaultModel: 'gemini-3.5-flash',
         needsKey: true,
     },
     ollama: {
@@ -319,7 +323,7 @@ function renderProfileCards(list) {
              onclick="selectProfile('${escapeAttr(p.id)}')"
              onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProfile('${escapeAttr(p.id)}')}">
             <div class="profile-check">✓</div>
-            ${p.recommended ? '<div class="profile-recommended-bubble">Recommended</div>' : ''}
+            ${p.recommended ? '<div class="profile-recommended-bubble">' + escapeHtml(t('setup.profile_recommended_badge')) + '</div>' : ''}
             <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
             <div class="profile-card-name">${escapeHtml(name)}</div>
             <div class="profile-card-description">${escapeHtml(desc)}</div>
@@ -686,6 +690,8 @@ function buildQuickConfigPatch() {
     applySetupLocalLLMPatch(patch);
     return patch;
 }
+// Tooltip label from a "Label:" detail key, without the trailing colon.
+function orTooltipLabel(key) { return String(t(key)).replace(/:\s*$/, ''); }
 function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function setupSetHidden(el, hidden) {
@@ -855,8 +861,8 @@ async function openOpenRouterBrowser(onSelect) {
                             <div class="or-model-id">${escapeHtml(m.id)}</div>
                         </div>
                         <div class="or-model-meta">
-                            ${free ? '<span class="or-free-badge">' + t('setup.or_browser_free_badge') + '</span>' : '<span class="or-meta-text" title="Input / Output">' + promptCost + ' · ' + completionCost + '</span>'}
-                            <span class="or-meta-text" title="Context">${formatContext(m.context_length)}</span>
+                            ${free ? '<span class="or-free-badge">' + t('setup.or_browser_free_badge') + '</span>' : '<span class="or-meta-text" title="' + escapeAttr(orTooltipLabel('setup.or_browser_detail_input') + ' / ' + orTooltipLabel('setup.or_browser_detail_output')) + '">' + promptCost + ' · ' + completionCost + '</span>'}
+                            <span class="or-meta-text" title="${escapeAttr(orTooltipLabel('setup.or_browser_detail_context'))}">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
         }).join('');
@@ -1080,6 +1086,7 @@ function fetchAndApplyLang(langValue) {
             if (json && json.data && typeof json.data === 'object') {
                 I18N = json.data;
                 applyI18N();
+                updateNavLabels(); // applyI18N resets #btn-next to "Next" via data-i18n
                 renderStepIndicator();
                 // Re-render dynamically built content that used t() at creation time
                 if (profiles && profiles.length > 0) {
@@ -1352,6 +1359,33 @@ function updateNextButtonState() {
     btnNext.classList.toggle('disabled', shouldDisable);
 }
 
+// Set the Next/Save label for the current step. Leaves the button alone while a save is running.
+function updateNavLabels() {
+    if (saving) return;
+    const btnNext = document.getElementById('btn-next');
+    if (!btnNext) return;
+    btnNext.innerHTML = currentStepIndex === activeFlow().length - 1
+        ? t('setup.nav_save_and_start')
+        : t('setup.nav_next');
+}
+
+// The scroll container is #main-content on desktop; narrow layouts scroll the page itself.
+function resetSetupScroll() {
+    const main = document.getElementById('main-content');
+    if (main) main.scrollTop = 0;
+    window.scrollTo(0, 0);
+}
+
+// Move keyboard/screen-reader focus to the heading of the visible section.
+function focusSetupHeading(root) {
+    const heading = root && root.querySelector('.section-title, h2');
+    if (!heading) return;
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: true });
+}
+
+let lastSetupUIStepId = null;
+
 function updateUI() {
     const flow = activeFlow();
     const stepId = flow[currentStepIndex];
@@ -1366,16 +1400,15 @@ function updateUI() {
 
     // Update navigation buttons
     setupSetHidden(document.getElementById('btn-back'), currentStepIndex <= 0);
-
-    const btnNext = document.getElementById('btn-next');
-    if (btnNext) {
-        if (currentStepIndex === flow.length - 1) {
-            btnNext.innerHTML = t('setup.nav_save_and_start');
-        } else {
-            btnNext.innerHTML = t('setup.nav_next');
-        }
-    }
+    updateNavLabels();
     updateNextButtonState();
+
+    // Start each new step at the top; the first call at page load must not steal focus.
+    if (lastSetupUIStepId !== null && lastSetupUIStepId !== stepId) {
+        resetSetupScroll();
+        focusSetupHeading(document.getElementById(stepId));
+    }
+    lastSetupUIStepId = stepId;
 }
 
 // ── Validation ───────────────────────────────
@@ -1450,18 +1483,41 @@ document.addEventListener('input', (e) => {
 });
 
 // ── Keyboard Navigation ───────────────────────
+const SETUP_ENTER_INPUT_TYPES = ['text', 'password', 'url', 'email', 'number', 'search'];
+
+function setupIsPageTarget(target) {
+    return !target || target.nodeType === 9 || target.tagName === 'BODY' || target.tagName === 'HTML';
+}
+
+// Enter advances only from text-like fields of a wizard step or from the bare page.
+// Buttons, links, selects, checkboxes and dialogs keep their native behaviour.
+function setupEnterAdvances(target) {
+    if (setupIsPageTarget(target)) return true;
+    if (target.tagName !== 'INPUT') return false;
+    if (SETUP_ENTER_INPUT_TYPES.indexOf(String(target.type || 'text').toLowerCase()) < 0) return false;
+    if (target.closest('[role="dialog"], [aria-modal="true"], .modal-overlay')) return false;
+    return !!target.closest('.setup-section');
+}
+
+// Escape goes back only when focus is not inside a field, control or dialog.
+function setupEscapeGoesBack(target) {
+    if (setupIsPageTarget(target)) return true;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].indexOf(target.tagName) >= 0) return false;
+    return !target.closest('[role="dialog"], [aria-modal="true"], .modal-overlay');
+}
+
+function setupKeyboardNavBlocked(e) {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return true;
+    if (document.querySelector('#setup-bootstrap-gate.open, #or-browser-overlay, .modal-overlay.open, .modal-overlay.active')) return true;
+    return Array.from(document.querySelectorAll('[aria-modal="true"]')).some(el =>
+        el.id !== 'setup-bootstrap-gate' && el.getClientRects().length > 0);
+}
+
 document.addEventListener('keydown', (e) => {
-    // Ignore when typing in inputs/textareas/selects
-    const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-        if (e.key === 'Enter' && tag !== 'TEXTAREA') {
-            e.preventDefault();
-            nextStep();
-        }
-        return;
-    }
-    if (e.key === 'Enter') { e.preventDefault(); nextStep(); }
-    if (e.key === 'Escape') { e.preventDefault(); prevStep(); }
+    if (e.key !== 'Enter' && e.key !== 'Escape') return;
+    if (setupKeyboardNavBlocked(e)) return;
+    if (e.key === 'Enter' && setupEnterAdvances(e.target)) { e.preventDefault(); nextStep(); }
+    else if (e.key === 'Escape' && setupEscapeGoesBack(e.target)) { e.preventDefault(); prevStep(); }
 });
 
 // ── Build Provider Entries ───────────────────
@@ -1812,7 +1868,11 @@ async function saveConfig() {
         setupSetHidden(document.getElementById('header-nav'), true);
         const indicator = document.getElementById('step-indicator');
         if (indicator) indicator.innerHTML = '';
-        document.getElementById('success-screen').classList.add('active');
+        setupSetHidden(document.getElementById('btn-skip-setup'), true);
+        const successScreen = document.getElementById('success-screen');
+        successScreen.classList.add('active');
+        resetSetupScroll();
+        focusSetupHeading(successScreen);
 
         if (result.needs_restart) {
             setupSetHidden(document.getElementById('restart-notice'), false);

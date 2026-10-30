@@ -19,6 +19,8 @@
     z-index: 10000;
     top: max(0.75rem, env(safe-area-inset-top, 0px));
     left: max(0.75rem, env(safe-area-inset-left, 0px));
+    /* Parked above the viewport until it receives keyboard focus. */
+    transform: translateY(calc(-100% - 2rem - env(safe-area-inset-top, 0px)));
     min-height: 44px;
     padding: 0.7rem 1rem;
     border: 1px solid var(--pw-line-strong);
@@ -26,6 +28,11 @@
     background: var(--pw-surface-elevated);
     color: var(--pw-text);
     box-shadow: none;
+}
+
+.pw-page.pw-entry-page .skip-link:focus,
+.pw-page.pw-entry-page .skip-link:focus-visible {
+    transform: none;
 }
 
 .pw-page.pw-entry-page button,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -2770,6 +2770,48 @@ function testLocalLLMFamilySelection() {
   assert.equal(invalidations, 3);
 }
 
+function testSetupKeyboardSkipLinkAndLanguageText() {
+  const ctx = {};
+  vm.runInNewContext(sourceBetween(read('ui/js/setup/main.js'),
+    'const SETUP_ENTER_INPUT_TYPES', 'function setupKeyboardNavBlocked('), ctx);
+  const target = (tagName, props = {}, closestMap = {}) => ({
+    tagName, nodeType: 1, ...props,
+    closest(selector) { return Object.keys(closestMap).some(k => selector.includes(k)) ? {} : null; }
+  });
+  const inSection = { '.setup-section': true };
+  assert.equal(ctx.setupEnterAdvances(target('INPUT', { type: 'text' }, inSection)), true);
+  assert.equal(ctx.setupEnterAdvances(target('INPUT', { type: 'password' }, inSection)), true);
+  assert.equal(ctx.setupEnterAdvances({ tagName: 'BODY', nodeType: 1 }), true);
+  assert.equal(ctx.setupEnterAdvances(target('INPUT', { type: 'text' })), false);
+  assert.equal(ctx.setupEnterAdvances(target('INPUT', { type: 'checkbox' }, inSection)), false);
+  assert.equal(ctx.setupEnterAdvances(target('INPUT', { type: 'radio' }, inSection)), false);
+  for (const tag of ['BUTTON', 'A', 'SELECT', 'TEXTAREA']) {
+    assert.equal(ctx.setupEnterAdvances(target(tag, {}, inSection)), false, tag);
+  }
+  assert.equal(ctx.setupEnterAdvances(target('INPUT', { type: 'text' }, { '.setup-section': true, '[aria-modal="true"]': true })), false);
+  assert.equal(ctx.setupEscapeGoesBack(target('INPUT', { type: 'text' }, inSection)), false);
+  assert.equal(ctx.setupEscapeGoesBack({ tagName: 'BODY', nodeType: 1 }), true);
+
+  const css = read('ui/css/precision-entry.css');
+  const baseStart = css.indexOf('.pw-page.pw-entry-page .skip-link {');
+  const base = css.slice(baseStart, css.indexOf('}', baseStart));
+  assert.ok(baseStart >= 0 && base.includes('transform: translateY('), 'skip link must be parked off-screen by default');
+  const focusStart = css.indexOf('.skip-link:focus');
+  assert.ok(focusStart > baseStart && css.slice(focusStart, css.indexOf('}', focusStart)).includes('transform: none'), 'skip link must show on focus');
+
+  const dir = path.join(root, 'ui/lang/setup');
+  const files = readdirSync(dir).filter(name => name.endsWith('.json'));
+  assert.equal(files.length, 16);
+  for (const name of files) {
+    const data = JSON.parse(read('ui/lang/setup/' + name));
+    for (const key of ['setup.profile_recommended_badge', 'setup.language_custom_placeholder', 'setup.status_unreachable']) {
+      assert.ok(data[key], name + ' missing ' + key);
+    }
+    assert.ok(data['setup.status_unreachable'].includes('{detail}'), name);
+    assert.ok(!data['setup.step0_native_functions_desc'].includes('<strong>'), name);
+  }
+}
+
 async function testDesktopChatSeparatesStreamedToolRounds() {
   const source = sourceBetween(read('ui/js/desktop/apps/agent-chat.js'),
     '    async function sendDesktopChatStream(', '    function appendChat(');
@@ -5255,6 +5297,7 @@ const tests = [
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
+  ['Setup keyboard navigation, skip link and language text', testSetupKeyboardSkipLinkAndLanguageText],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],
   ['Game Maker isolates old job events during replay and live updates', testGameMakerJobEventOwnership],
