@@ -582,3 +582,48 @@ func TestDispatchLogsExpectedSkipsAtInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestDispatchAgentGateSuppressesOnlyAgent(t *testing.T) {
+	rec := newAlertRecorder()
+	sinks := rec.sinks()
+	sinks.AgentGate = func(context.Context, AlertEvent) (bool, string) { return true, "ignored" }
+	d := NewAlertDispatcher(sinks, germanAlertTexts, nil)
+	d.Dispatch(alertTestEvent(), rec.report)
+	d.Wait()
+	if got := rec.result(t, ActionAgent); got.Status != AlertSkipped || got.Detail != "decision_no_person" {
+		t.Fatalf("agent = %+v", got)
+	}
+	if len(rec.prompts) != 0 {
+		t.Fatalf("agent woke: %v", rec.prompts)
+	}
+	for _, action := range []string{ActionMessage, ActionDesktop, ActionMission} {
+		if got := rec.result(t, action); got.Status != AlertSent {
+			t.Fatalf("%s = %+v", action, got)
+		}
+	}
+}
+
+func TestDispatchAgentGateHintInPrompt(t *testing.T) {
+	rec := newAlertRecorder()
+	sinks := rec.sinks()
+	sinks.AgentGate = func(context.Context, AlertEvent) (bool, string) { return false, "courier" }
+	d := NewAlertDispatcher(sinks, germanAlertTexts, nil)
+	d.Dispatch(alertTestEvent(), rec.report)
+	d.Wait()
+	if len(rec.prompts) != 1 || !strings.Contains(rec.prompts[0], "Decisions: courier (uncalibrated)") {
+		t.Fatalf("prompts = %q", rec.prompts)
+	}
+	if end := strings.Index(rec.prompts[0], "</external_data>"); end < strings.Index(rec.prompts[0], "Decisions:") {
+		t.Fatalf("hint outside the isolated facts: %q", rec.prompts[0])
+	}
+}
+
+func TestDispatchAgentGateNilUnchanged(t *testing.T) {
+	rec := newAlertRecorder()
+	d := NewAlertDispatcher(rec.sinks(), germanAlertTexts, nil)
+	d.Dispatch(alertTestEvent(), rec.report)
+	d.Wait()
+	if len(rec.prompts) != 1 || rec.prompts[0] != d.agentPrompt(alertTestEvent()) || strings.Contains(rec.prompts[0], "Decisions:") {
+		t.Fatalf("prompts = %q", rec.prompts)
+	}
+}
