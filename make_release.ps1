@@ -383,7 +383,10 @@ Write-Host ""
 # ── Step 3: Commit & push code ───────────────────────────────────────────
 Write-Host "[3/5] Verifying published source..." -ForegroundColor Yellow
 
-if (git status --porcelain --untracked-files=normal) { throw 'Generated release inputs changed; review and commit them before publishing.' }
+if (git status --porcelain --untracked-files=normal) {
+    git status --short --untracked-files=normal
+    throw 'Generated release inputs changed; review and commit them before publishing.'
+}
 if ($env:GITHUB_ACTIONS -ne 'true') {
     git push origin HEAD:refs/heads/main
     if ($LASTEXITCODE -ne 0) { throw 'Source publication failed; no release was created.' }

@@ -3,42 +3,42 @@
     "os": "linux",
     "arch": "amd64",
     "archive": "gog-0.44.0-aurago1-linux-amd64.zip",
-    "archive_sha256": "bf7ef60b44a4a47ebf5df4ef044a5b27792f3d42fe04d6d698a9f99c8c0d7546",
-    "binary_sha256": "3fafcd9c86e389deb3ead20b27a28bdda95ea67cb957f4f420f127a2f45f5ba9"
+    "archive_sha256": "6e3710f67c3bc2f70485e387ef80029de424943e17bcb257acec988a3c3d42a4",
+    "binary_sha256": "dd347f8919c98c16342f00187c7814a8c38f2f928facf1a44c98509bec077e2d"
   },
   {
     "os": "linux",
     "arch": "arm64",
     "archive": "gog-0.44.0-aurago1-linux-arm64.zip",
-    "archive_sha256": "80aae2232958f6e74aea24f684c445b1aa758ab4bd21262f2f14afae6fc5787e",
-    "binary_sha256": "c41e493c5ecf29ec078750c5edbd87cee77ad841c43bf2b08033225839c5e60c"
+    "archive_sha256": "b95ed418176c394b199f015bbbe559312bbdede2f155b0a5cb22d0df2b3c7b47",
+    "binary_sha256": "9a21bbf0c838bcc9d60222f204e4cd3f30fe9416a669dffb3b36dc9a30cef988"
   },
   {
     "os": "windows",
     "arch": "amd64",
     "archive": "gog-0.44.0-aurago1-windows-amd64.zip",
-    "archive_sha256": "2decdac2cd1ef71e14d2aecb72b5c1b91eda745880c67a1a84d9872111c9c684",
-    "binary_sha256": "0218ecf9fd8546078c1b55b999fd888070cc6fc43b36a7d8724c74a6576284f1"
+    "archive_sha256": "761f57f49a0be98f79f9b5216c3be6ea437b36270fd3ec47ce2de85b493f2cf6",
+    "binary_sha256": "f09df032c7b09ebe4d52c5c15a6326db1d4b0493459e326d1dc8b1c96848caf3"
   },
   {
     "os": "windows",
     "arch": "arm64",
     "archive": "gog-0.44.0-aurago1-windows-arm64.zip",
-    "archive_sha256": "3df655e9dde93450bcb3585f6b42943d8b020b853fffea92c649dd3932561035",
-    "binary_sha256": "53775a2b2fcb2236c9b5d62905aa42b512330b202ce03b13f57820a2b778b0b7"
+    "archive_sha256": "fb7d8c16c60fef069f787a1000725f6d29b8e8b5a1c5720be064b06dd9e41af0",
+    "binary_sha256": "eaed864769d2a958e5c9cbcd8ce5a50c0c944932c06185fe451f20f0b2161079"
   },
   {
     "os": "darwin",
     "arch": "amd64",
     "archive": "gog-0.44.0-aurago1-darwin-amd64.zip",
-    "archive_sha256": "c53dc00752bd52451ccec9ea843dbfc24d3f56110e4f85dc03da20d92d299cac",
-    "binary_sha256": "8e88563cd29332d45ee52939807990cb6d5f100ebbc64c4170adde3ae32b25ad"
+    "archive_sha256": "51e8ab23b828d09c349f6ba001c1abe414deff9e7d86dbd90d2cc2c8ea27aabb",
+    "binary_sha256": "1adeba00d2bec97f390441d5117d279eab11ea875ad775cc17a35c13c35a171a"
   },
   {
     "os": "darwin",
     "arch": "arm64",
     "archive": "gog-0.44.0-aurago1-darwin-arm64.zip",
-    "archive_sha256": "7e28a48316d62a11b690f265bc3ece8ab1ba0b811fd4f3d86e732f6101c905eb",
-    "binary_sha256": "e42cacb03115682fd7a1ded672d3e2a19a434c6698adc5c807e24e65966c450e"
+    "archive_sha256": "0b93026e90059515c7e6724780f2b1eec823f5c08acdb3aedc4be41538b8af90",
+    "binary_sha256": "3308fdb0ed8d441605cb55054de9e79fa282c9dc200bfaf731dca988e792e8f6"
   }
 ]

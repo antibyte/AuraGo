@@ -4,6 +4,14 @@ AuraGo pins Go 1.27.3 in `go.mod`, container builders, installers and release
 scripts. `GOTOOLCHAIN=auto` downloads that compiler when the host has an older Go.
 Release scripts select the exact compiler explicitly. The stripped executable
 budget is 200 MB (200,000,000 bytes); first-party embeds remain capped at 10 MB and recovery at 1 MB.
+
+The managed gog helper also uses Go 1.27.3. `go run ./scripts/build-gog.go` checks
+all six packages against `internal/gog/build/artifacts.json` without changing
+those pins. After a reviewed source/compiler update, run it with `-write-manifest`,
+verify identical Windows/Linux output and commit the generated manifest before
+building a release. Fresh upstream checkouts use `core.autocrlf=false`; for an old
+converted cache, choose a fresh directory with `-source`.
+
 The model/provider catalog embeds deterministic gzip copies of its JSON sources.
 `go run scripts/sync_ohmypi_catalog.go --write` regenerates both forms; `--check`
 checks both. Catalog tests verify byte equality after decompression, preserving

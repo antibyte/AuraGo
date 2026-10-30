@@ -82,7 +82,12 @@ Keep `update.sh`, the maintenance CLI and the release build flags aligned.
 Already-current updates may repair the service user's Chromium AppArmor profile;
 they report that AuraGo was not rebuilt or restarted, rather than claiming no files changed.
 Both Windows builders must reject dirty source trees and link the reviewed commit
-and generated UI pins into main binaries; pass linker flags as one native argument.
+and generated UI pins into main binaries; report changed paths when refusing
+publication. Pass linker flags as one native argument.
+The managed gog build verifies all six packages against committed pins before
+compiling AuraGo. Preserve LF source checkouts; reject converted caches. After a
+reviewed helper source/compiler change, rebuild with `-write-manifest`, verify
+Windows/Linux reproducibility and commit the manifest before releasing.
 The local dispatcher pushes reviewed HEAD even when already committed. CI never
 pushes an older checkout back to main. The PowerShell publisher pins the release
 target and passes a flat asset list plus a BOM-free notes file.

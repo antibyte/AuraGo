@@ -57,6 +57,7 @@ func main() {
 func build() {
 	source := flag.String("source", "disposable/_gog/"+version, "clean checkout/cache directory")
 	out := flag.String("out", "deploy/gog", "package destination")
+	writeManifest := flag.Bool("write-manifest", false, "update embedded pins after a reviewed source or compiler change")
 	flag.Parse()
 	root, e := os.Getwd()
 	fatal(e)
@@ -64,18 +65,24 @@ func build() {
 	fatal(e)
 	if _, e = os.Stat(filepath.Join(src, ".git")); os.IsNotExist(e) {
 		fatal(os.MkdirAll(filepath.Dir(src), 0700))
-		run(root, nil, "git", "clone", "--depth", "1", "--branch", "v0.44.0", "https://github.com/openclaw/gogcli.git", src)
+		run(root, nil, "git", "clone", "--config", "core.autocrlf=false", "--depth", "1", "--branch", "v0.44.0", "https://github.com/openclaw/gogcli.git", src)
 	}
 	if string(run(src, nil, "git", "rev-parse", "HEAD")) != commit {
 		fatal(fmt.Errorf("unexpected gog source commit"))
 	}
 	patch := filepath.Join(root, "internal", "gog", "build", "single-attempt.patch")
-	if len(run(src, nil, "git", "status", "--porcelain")) != 0 {
-		fatal(fmt.Errorf("gog build source must be clean"))
+	for _, line := range strings.Split(string(run(src, nil, "git", "ls-files", "--eol")), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "i/lf" && (fields[1] == "w/crlf" || fields[1] == "w/mixed") {
+			fatal(fmt.Errorf("gog build source has converted line endings; use a fresh -source directory"))
+		}
 	}
-	run(src, nil, "git", "apply", patch)
+	if len(run(src, nil, "git", "-c", "core.autocrlf=false", "status", "--porcelain")) != 0 {
+		fatal(fmt.Errorf("gog build source must be a clean LF checkout; use a fresh -source directory for converted caches"))
+	}
+	run(src, nil, "git", "-c", "core.autocrlf=false", "apply", patch)
 	defer func() {
-		run(src, nil, "git", "apply", "--reverse", patch)
+		run(src, nil, "git", "-c", "core.autocrlf=false", "apply", "--reverse", patch)
 		_ = os.Remove(filepath.Join(src, "internal", "googleapi", "aurago_single_attempt_test.go"))
 		_ = os.Remove(filepath.Join(src, "gog"))
 		_ = os.Remove(filepath.Join(src, "gog.exe"))
@@ -127,7 +134,17 @@ func build() {
 	manifest, e := json.MarshalIndent(artifacts, "", "  ")
 	fatal(e)
 	manifest = append(manifest, '\n')
-	fatal(os.WriteFile(filepath.Join(root, "internal", "gog", "build", "artifacts.json"), manifest, 0644))
+	manifestPath := filepath.Join(root, "internal", "gog", "build", "artifacts.json")
+	if *writeManifest {
+		fatal(os.WriteFile(manifestPath, manifest, 0644))
+		fmt.Println("Generated helper manifest written; review and commit it before publication")
+	} else {
+		pinned, e := os.ReadFile(manifestPath)
+		fatal(e)
+		if !bytes.Equal(pinned, manifest) {
+			fatal(fmt.Errorf("gog packages differ from reviewed pins; rebuild with -write-manifest, review and commit the manifest before releasing"))
+		}
+		fmt.Println("All six helper packages match reviewed pins")
+	}
 	fatal(os.WriteFile(filepath.Join(*out, "artifacts.json"), manifest, 0644))
-	fmt.Println("Verified packages and embedded manifest written")
 }
