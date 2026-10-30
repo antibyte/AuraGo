@@ -76,6 +76,35 @@ signal and does not inspect text with no local signal. Model-backed checks stay
 opt-in and add latency and, for remote providers, API cost. Retired Structure,
 Spotlight and Canary options remain inert for legacy configuration compatibility.
 
+## Internal content and provenance
+
+AuraGo's own stores (memory, journal, notes, missions, the scheduler, the knowledge
+graph, plans, inventory, tool manuals and system metrics) are scanned and fenced like
+other tool output, but they are never withheld. A finding adds a
+`[SECURITY WARNING: ...]` line naming the categories, and the content is delivered.
+This text is not indexed for the copied-text check and does not count as content read
+from outside. A warning on internal output does taint the session, because memory can
+hold text from an indexed file or an older recap.
+
+A session is tainted when third-party text entered its run:
+
+- Third-party contact comes from web, mail, chat-channel, collaboration, code-hosting,
+  MCP and delegated-agent tools whose output reached the model, from third-party
+  ingress (webhooks, A2A peers, mail, SMS, MQTT, Frigate, the space-agent bridge, and
+  missions started with trigger data), and from authenticated mail relays. Local files,
+  shell, Docker, Home Assistant and telemetry do not taint.
+- For one hour after contact, an outgoing URL that carries private conversation or
+  mail text is refused (see the URL disclosure boundary).
+- For 24 hours a tainted session cannot start unattended mission or cron changes,
+  follow-ups or wait events without an administrator rule. A clean session runs them
+  without one. Other unattended high-risk actions still need a rule.
+- The conversation summary is screened before it is stored only when its source is
+  tainted: a third-party contact within 24 hours, a non-internal tool result, or a fenced
+  external block. A plain human and assistant conversation is not screened.
+
+Third-party ingress therefore taints the run it starts, even when the message itself
+looks harmless.
+
 ## Decisions and failure behavior
 
 | Condition | Result |
@@ -102,7 +131,11 @@ Datamarking preserves paths, URLs, identifiers and operation/status fields, incl
 within archived JSON and repeated isolation; these fields still undergo all scans.
 The classifier sees unnormalized text and decoded JSON strings. Every forwarded window
 is evaluated: 2048 tokens including special tokens, 512-token overlap, maximum score.
-Inputs over 256 KiB are withheld; callers may select a bounded page first. One job runs
+Web and email content over 256 KiB is clipped to a prefix of at most 256 KiB, cut at a
+line break near its end where possible, followed by a note that the rest was not delivered.
+That prefix is scanned, and a finding in it quarantines as usual. The Horizon classifier
+never receives more than 256 KiB: it scores the view built from that prefix, and a view
+still above the limit (possible with key-heavy JSON) is withheld as unavailable. One job runs
 with eight queued jobs. The 20-second budget includes queue and worker startup; an
 earlier caller deadline wins. Configuration changes revoke pending decisions. Fixed
 self-tests contact no external language model.
@@ -116,7 +149,7 @@ paragraphs. Versioned control-token handling preserves ordinary copyable project
 
 ## URL disclosure boundary
 
-After web/email contact, outgoing URLs are compared with authentic human input and
+After third-party contact (see "Internal content and provenance"), outgoing URLs are compared with authentic human input and
 private file/mail contents in the session. Four consecutive words in query/fragment,
 six in a path, or a private email address cause `possible_exfiltration`. An exact URL
 provided by the authenticated human may pass the copy check; links printed by a web
