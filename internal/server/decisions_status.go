@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"aurago/internal/decisions"
 	"aurago/internal/decisions/consumers"
 )
@@ -48,4 +49,19 @@ func (s *Server) decisionsFullStatus() decisionsStatusResponse {
 		})
 	}
 	return out
+}
+
+// decisionConsumersView lists every switch explicitly, including false image
+// permissions, so the settings page starts from a complete saved value.
+func decisionConsumersView(c config.DecisionConsumersConfig) map[string]map[string]bool {
+	c = c.Normalize()
+	plain := func(sw config.DecisionConsumerSwitch) map[string]bool { return map[string]bool{"enabled": sw.Enabled} }
+	images := func(sw config.DecisionConsumerSwitch) map[string]bool {
+		return map[string]bool{"enabled": sw.Enabled, "allow_external_images": sw.AllowExternalImages}
+	}
+	return map[string]map[string]bool{
+		"memory_rerank": plain(c.MemoryRerank), "appraisal": plain(c.Appraisal), "salience_gate": plain(c.SalienceGate),
+		"mail_triage": plain(c.MailTriage), "webhook_questions": plain(c.WebhookQuestions),
+		"person_wake": images(c.PersonWake), "indexer_images": images(c.IndexerImages), "game_maker_visual": images(c.GameMakerVisual),
+	}
 }
