@@ -98,3 +98,19 @@ func decisionAppraisalObservation(run RunConfig, basis *memory.PersonalitySnapsh
 		Signal: signal, Confidence: confidence, AffinityDelta: affinityDelta, Explicit: false,
 	}
 }
+
+// runSideEffectSteps runs post-reply steps one after the other. Each step gets
+// its own timeout under taskCtx, so an earlier step cannot eat a later one's
+// budget; the hub admits only one background Decisions call at a time.
+func runSideEffectSteps(taskCtx context.Context, perStep time.Duration, steps ...func(context.Context)) {
+	for _, step := range steps {
+		if taskCtx.Err() != nil {
+			return
+		}
+		func() {
+			stepCtx, cancel := context.WithTimeout(taskCtx, perStep)
+			defer cancel()
+			step(stepCtx)
+		}()
+	}
+}

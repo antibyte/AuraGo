@@ -140,3 +140,31 @@ func TestAppraisalDecisionsUncertainNoop(t *testing.T) {
 		})
 	}
 }
+
+func TestAppraisalThenSalienceBothGetTheDecisionsSlot(t *testing.T) {
+	inflight, deferred := 0, 0
+	var f *fakeConsumers
+	f = &fakeConsumers{available: true, evaluate: func(_ context.Context, r decisions.Request) (decisions.Response, error) {
+		if inflight > 0 {
+			deferred++
+			return decisions.Response{}, errors.New("admission_deferred")
+		}
+		inflight++
+		defer func() { inflight-- }()
+		if len(r.Questions) == 2 {
+			return appraisalResponse("none", 0.9, "agent", 0.8), nil
+		}
+		return durableResponse(0.1), nil
+	}}
+	fx := newAppraisalFixture(t, "Das war ehrlich gesagt ziemlich schwach von dir", f)
+	skipped := false
+	runSideEffectSteps(context.Background(), time.Minute,
+		func(c context.Context) {
+			appraiseTurnWithDecisions(c, fx.run, fx.basis, memory.DefaultPersonalityMeta(), slog.Default())
+		},
+		func(c context.Context) { skipped = salienceDecisionSkips(c, fx.run, "msg") },
+	)
+	if f.calls != 2 || deferred != 0 || !skipped {
+		t.Fatalf("calls=%d deferred=%d skipped=%v", f.calls, deferred, skipped)
+	}
+}
