@@ -103,7 +103,15 @@ A session is tainted when third-party text entered its run:
   external block. A plain human and assistant conversation is not screened.
 
 Third-party ingress therefore taints the run it starts, even when the message itself
-looks harmless.
+looks harmless. The taint also travels: a follow-up or wait event queued by a tainted
+session, and a co-agent of a tainted session, count as tainted. Shell and Python calls
+taint only when they fetch from the network (for example `curl https://…`). A run whose
+history still contains third-party tool output is tainted again at its start, so a
+restart does not clear it.
+
+Residual risk, accepted on purpose: text stored in AuraGo's own memory that scans below
+the warning level does not taint the session that reads it back. Memory writes keep
+their own screening.
 
 ## Decisions and failure behavior
 
