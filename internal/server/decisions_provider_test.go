@@ -650,3 +650,31 @@ func TestUnrelatedProviderEditDoesNotReconfigureOrAutostartLocalDecisions(t *tes
 		t.Fatalf("unrelated provider edit reconfigured local lifecycle: prepare=%d autostart=%d", local.prepareCalls.Load(), local.autoStarts.Load())
 	}
 }
+
+func TestUsageCategoryPerConsumer(t *testing.T) {
+	if got := decisionUsageCategory(withDecisionUsageCategory(context.Background(), "decisions_mail_triage")); got != "decisions_mail_triage" {
+		t.Fatalf("category = %q", got)
+	}
+	if got := decisionUsageCategory(context.Background()); got != "decisions" {
+		t.Fatalf("default category = %q", got)
+	}
+	for category, keepsUsage := range map[string]bool{"routing": true, "decisions_mail_triage": true, "decisions": false} {
+		s, d, _, remote := routedDecisionFixture(t)
+		remote.evaluate = func(context.Context) (decisions.Response, error) {
+			next := *s.Cfg
+			next.Decisions.Enabled = false
+			if _, err := d.prepareConfiguration(&next); err != nil {
+				t.Error(err)
+			}
+			cost := .5
+			return decisions.Response{Usage: decisions.Usage{CostUSD: &cost}}, nil
+		}
+		response, err := d.Evaluate(withDecisionUsageCategory(context.Background(), category), decisions.Request{})
+		if decisions.ErrorCode(err) != "configuration_changed" {
+			t.Fatalf("%s: err = %v", category, err)
+		}
+		if kept := response.Usage.CostUSD != nil; kept != keepsUsage {
+			t.Fatalf("%s: failed response keeps usage = %v, want %v", category, kept, keepsUsage)
+		}
+	}
+}

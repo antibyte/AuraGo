@@ -11,11 +11,15 @@ import (
 )
 
 type taskDecisionService struct{ s *Server }
-type routingDecisionUsageKey struct{}
+type decisionUsageKey struct{}
+
+func withDecisionUsageCategory(ctx context.Context, category string) context.Context {
+	return context.WithValue(ctx, decisionUsageKey{}, category)
+}
 
 func decisionUsageCategory(ctx context.Context) string {
-	if routing, _ := ctx.Value(routingDecisionUsageKey{}).(bool); routing {
-		return "routing"
+	if category, _ := ctx.Value(decisionUsageKey{}).(string); category != "" {
+		return category
 	}
 	return "decisions"
 }
@@ -109,7 +113,7 @@ func (service taskDecisionService) RoutingSnapshot(cfg *config.Config) agent.Tas
 		if !result.Current() {
 			return decisions.Response{}, decisions.NewError("configuration_changed", context.Canceled)
 		}
-		ctx = context.WithValue(ctx, routingDecisionUsageKey{}, true)
+		ctx = withDecisionUsageCategory(ctx, "routing")
 		if router, ok := s.Decisions.(*routedDecisions); ok {
 			ctx = context.WithValue(ctx, router, generation)
 			ctx = context.WithValue(ctx, decisionModelEpochKey{}, modelEpoch)

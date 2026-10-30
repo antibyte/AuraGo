@@ -344,10 +344,10 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	if response.Usage.CostUSD != nil && d.server.BudgetTracker != nil {
 		d.server.BudgetTracker.RecordCostForCategory(category, *response.Usage.CostUSD)
 	}
-	// Routing telemetry still needs reported usage when a paid result is rejected.
+	// Consumer telemetry needs reported usage even when a paid result is rejected.
 	// Never release answers from a failed or revoked generation.
 	failedResponse := decisions.Response{}
-	if category == "routing" {
+	if category != "decisions" {
 		failedResponse.Usage = response.Usage
 	}
 	d.mu.Lock()
