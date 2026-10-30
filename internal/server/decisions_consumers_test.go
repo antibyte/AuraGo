@@ -401,41 +401,61 @@ func TestInteractivePreemptsLocalBackground(t *testing.T) {
 }
 
 func TestExternalReservedInteractiveSlot(t *testing.T) {
-	s, d, _, remote := routedDecisionFixture(t)
-	d.busy = make(chan struct{}, decisionProviderSlots)
-	routerOn(s)
-	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
-	d.mu.Lock()
-	d.generation.status.ModelAvailability = decisions.ModelAvailability{State: "usable", CheckedAt: time.Now(), Model: &decisions.DecisionModel{}}
-	d.mu.Unlock()
-	started, release := make(chan struct{}, 2), make(chan struct{})
-	var first atomic.Bool
-	remote.evaluate = func(ctx context.Context) (decisions.Response, error) {
-		if first.CompareAndSwap(false, true) {
-			started <- struct{}{}
-			select {
-			case <-ctx.Done():
-			case <-release:
+	setup := func(t *testing.T) (*Server, *fakeDecisionProvider, chan struct{}, chan struct{}) {
+		s, d, _, remote := routedDecisionFixture(t)
+		d.reserved = make(chan struct{}, 1)
+		routerOn(s)
+		enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
+		started, release := make(chan struct{}, 2), make(chan struct{})
+		var first atomic.Bool
+		remote.evaluate = func(ctx context.Context) (decisions.Response, error) {
+			if first.CompareAndSwap(false, true) {
+				started <- struct{}{}
+				select {
+				case <-ctx.Done():
+				case <-release:
+				}
 			}
+			return decisions.Response{}, nil
 		}
-		return decisions.Response{}, nil
+		return s, remote, started, release
 	}
-	mail := s.decisionHub().Snapshot(s.Cfg, consumers.MailTriage)
-	if !mail.Available {
-		t.Fatalf("setup: %+v", mail)
-	}
-	done := make(chan error, 1)
-	go func() { _, err := mail.Evaluate(context.Background(), decisions.Request{}); done <- err }()
-	<-started
-	if _, err := mail.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != consumers.CodeAdmissionDeferred {
-		t.Fatalf("second background: %v", err)
-	}
-	router := (taskDecisionService{s}).RoutingSnapshot(s.Cfg)
-	if _, err := router.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) == decisions.CodeQueueFull || decisions.ErrorCode(err) == consumers.CodeAdmissionDeferred {
-		t.Fatalf("interactive blocked: %v", err)
-	}
-	close(release)
-	if err := <-done; decisions.ErrorCode(err) == consumers.CodePreempted {
-		t.Fatalf("paid external call was cut: %v", err)
-	}
+	t.Run("API call holds busy", func(t *testing.T) {
+		s, _, started, release := setup(t)
+		done := make(chan error, 1)
+		call := func() error { _, err := s.Decisions.Evaluate(context.Background(), decisions.Request{}); return err }
+		go func() { done <- call() }()
+		<-started
+		if err := call(); decisions.ErrorCode(err) != decisions.CodeQueueFull {
+			t.Fatalf("second API call: %v", err)
+		}
+		router := (taskDecisionService{s}).RoutingSnapshot(s.Cfg)
+		if _, err := router.Evaluate(context.Background(), decisions.Request{}); err != nil {
+			t.Fatalf("router: %v", err)
+		}
+		close(release)
+		<-done
+	})
+	t.Run("background holds busy", func(t *testing.T) {
+		s, d, started, release := setup(t)
+		_ = d
+		mail := s.decisionHub().Snapshot(s.Cfg, consumers.MailTriage)
+		if !mail.Available {
+			t.Fatalf("setup: %+v", mail)
+		}
+		done := make(chan error, 1)
+		go func() { _, err := mail.Evaluate(context.Background(), decisions.Request{}); done <- err }()
+		<-started
+		if _, err := mail.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != consumers.CodeAdmissionDeferred {
+			t.Fatalf("second background: %v", err)
+		}
+		router := (taskDecisionService{s}).RoutingSnapshot(s.Cfg)
+		if _, err := router.Evaluate(context.Background(), decisions.Request{}); err != nil {
+			t.Fatalf("router: %v", err)
+		}
+		close(release)
+		if err := <-done; decisions.ErrorCode(err) == consumers.CodePreempted {
+			t.Fatalf("paid external call was cut: %v", err)
+		}
+	})
 }

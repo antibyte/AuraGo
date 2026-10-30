@@ -344,6 +344,9 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 		}
 		defer release()
 		ctx = withDecisionUsageCategory(admitted, spec.BudgetCategory)
+		if spec.Class == consumers.Interactive {
+			ctx = context.WithValue(ctx, decisionInteractiveKey{}, true)
+		}
 		if router, ok := s.Decisions.(*routedDecisions); ok {
 			ctx = context.WithValue(ctx, router, generation)
 			ctx = context.WithValue(ctx, decisionModelEpochKey{}, modelEpoch)

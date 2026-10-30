@@ -66,12 +66,13 @@ type routedDecisions struct {
 	catalogActive  sync.WaitGroup
 	closed         bool
 	busy           chan struct{}
+	reserved       chan struct{} // second slot, only for interactive hub consumers
 	newClient      func(string, string) (decisionProviderClient, error)
 	newOAuthClient func(string, string) (decisionProviderClient, error)
 }
 
 func newRoutedDecisions(s *Server, local decisionsService, cfg *config.Config) *routedDecisions {
-	d := &routedDecisions{local: local, server: s, busy: make(chan struct{}, decisionProviderSlots), catalogs: make(map[string]*decisionCatalogGeneration), newClient: func(base, key string) (decisionProviderClient, error) {
+	d := &routedDecisions{local: local, server: s, busy: make(chan struct{}, 1), reserved: make(chan struct{}, 1), catalogs: make(map[string]*decisionCatalogGeneration), newClient: func(base, key string) (decisionProviderClient, error) {
 		return decisions.NewOpenRouterClient(base, key)
 	}, newOAuthClient: func(base, key string) (decisionProviderClient, error) {
 		return decisions.NewOpenRouterClientScoped(base, key)
@@ -80,12 +81,12 @@ func newRoutedDecisions(s *Server, local decisionsService, cfg *config.Config) *
 	return d
 }
 
-// decisionProviderSlots keeps one external slot free for interactive work
-// while a background consumer holds the other.
-const decisionProviderSlots = 2
+// decisionInteractiveKey marks calls admitted by the hub for an interactive
+// consumer; only those may use the reserved slot.
+type decisionInteractiveKey struct{}
 
 // providerIdle is a passive read: true when no external evaluation is admitted.
-func (d *routedDecisions) providerIdle() bool { return len(d.busy) == 0 }
+func (d *routedDecisions) providerIdle() bool { return len(d.busy) == 0 && len(d.reserved) == 0 }
 
 func decisionsLocalPolicy(c config.DecisionsConfig) config.DecisionsConfig {
 	if c.Backend == "provider" {
@@ -295,11 +296,22 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 		d.mu.Unlock()
 		return decisions.Response{}, decisions.NewError(code, nil)
 	}
+	slot := d.busy
 	select {
 	case d.busy <- struct{}{}:
 	default:
-		d.mu.Unlock()
-		return decisions.Response{}, decisions.NewError(decisions.CodeQueueFull, nil)
+		interactive, _ := ctx.Value(decisionInteractiveKey{}).(bool)
+		if !interactive || d.reserved == nil {
+			d.mu.Unlock()
+			return decisions.Response{}, decisions.NewError(decisions.CodeQueueFull, nil)
+		}
+		select {
+		case d.reserved <- struct{}{}:
+			slot = d.reserved
+		default:
+			d.mu.Unlock()
+			return decisions.Response{}, decisions.NewError(decisions.CodeQueueFull, nil)
+		}
 	}
 	// Admission rejection is safe to retry because it cannot reach the provider.
 	// Once admitted, preserve terminal errors to prevent repeating a paid request.
@@ -310,7 +322,7 @@ func (d *routedDecisions) Evaluate(ctx context.Context, request decisions.Reques
 	}()
 	g.active.Add(1)
 	d.mu.Unlock()
-	defer func() { <-d.busy; g.active.Done() }()
+	defer func() { <-slot; g.active.Done() }()
 	category := decisionUsageCategory(ctx)
 	if d.server.BudgetTracker != nil && d.server.BudgetTracker.IsBlocked(category) {
 		return decisions.Response{}, decisions.NewError("budget_exceeded", nil)
