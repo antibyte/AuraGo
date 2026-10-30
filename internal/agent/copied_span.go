@@ -78,8 +78,13 @@ func recordIsolatedModelOutput(sessionID, tool, operation, output string) {
 		return
 	}
 	// AuraGo's own stores are neither indexed for the copied-span check nor
-	// noted as untrusted reads.
+	// noted as untrusted reads. Memory can still hold text that came from outside
+	// (indexed files, recaps of earlier sessions): an internal output the Guardian
+	// delivered with a warning taints the session like an untrusted read.
 	if security.IsInternalToolOutput(tool) {
+		if internalOutputWarned(output) {
+			modelIsolatedBodies.noteExternalContact(sessionID)
+		}
 		return
 	}
 	if name := untrustedReadName(tool); name != "" {
@@ -382,4 +387,12 @@ func sessionHadUntrustedContact(sessionID string, within time.Duration) bool {
 		return false
 	}
 	return modelIsolatedBodies.hadContact(sessionID, within)
+}
+
+// internalOutputWarned reports whether SanitizeToolOutput appended its warning
+// line behind the fence of an internal tool output. Text inside the fence that
+// imitates the line can only taint the session, never clear it.
+func internalOutputWarned(output string) bool {
+	end := strings.LastIndex(output, "</external_data>")
+	return end >= 0 && strings.Contains(output[end:], "\n[SECURITY WARNING:")
 }

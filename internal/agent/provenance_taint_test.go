@@ -39,6 +39,31 @@ func TestUntrustedContactFeedAndInternalToolsAreNotIndexed(t *testing.T) {
 	}
 }
 
+// An internal output the Guardian delivered with a warning (memory can hold text
+// from indexed files or recaps) taints the session; a clean one does not.
+func TestWarnedInternalOutputTaintsTheSession(t *testing.T) {
+	text := uniqueProse("warned", 400)
+	for _, tc := range []struct {
+		name, output string
+		taint        bool
+	}{
+		{"clean", isolatedToolOutput(text), false},
+		{"warned", isolatedToolOutput(text) + "\n[SECURITY WARNING: instruction_override]", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			id := t.Name()
+			defer clearIsolatedModelBodies(id)
+			recordIsolatedModelOutput(id, "query_memory", "", tc.output)
+			if got := sessionHadUntrustedContact(id, untrustedTaintTTL); got != tc.taint {
+				t.Errorf("taint=%v want %v", got, tc.taint)
+			}
+			if len(modelIsolatedBodies.views(id)) > 0 {
+				t.Error("internal output was indexed")
+			}
+		})
+	}
+}
+
 func TestDiscordReadEnablesPrivateURLExfiltrationCheck(t *testing.T) {
 	id := t.Name()
 	defer clearIsolatedModelBodies(id)

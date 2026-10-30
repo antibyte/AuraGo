@@ -28,8 +28,8 @@ var internalToolOutputs = map[string]bool{
 	"manage_missions": true, "cron_scheduler": true, "schedule_cron": true,
 	"manage_plan": true, "manage_todos": true, "manage_appointments": true,
 	"query_inventory":  true,
-	"read_tool_manual": true, "get_skill_documentation": true,
-	"system_metrics": true, "get_system_metrics": true,
+	"read_tool_manual": true,
+	"system_metrics":   true, "get_system_metrics": true,
 }
 
 // IsInternalToolOutput reports whether tool returns AuraGo's own store content
