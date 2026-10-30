@@ -793,9 +793,6 @@ func (manager *Manager) Shutdown(ctx context.Context) error {
 	return manager.Stop(ctx)
 }
 
-// Evaluate scores all questions against the same verified runtime generation.
-// Questions are sequential so image/context tokens count against one shared
-// input budget; any failure discards the complete response.
 // Load reports admitted evaluations without touching the runtime: one may hold
 // the gate, the rest wait for it. Consumers use it to defer background work.
 func (manager *Manager) Load() (active, waiting int) {
@@ -803,6 +800,9 @@ func (manager *Manager) Load() (active, waiting int) {
 	return gate, max(slots-gate, 0)
 }
 
+// Evaluate scores all questions against the same verified runtime generation.
+// Questions are sequential so image/context tokens count against one shared
+// input budget; any failure discards the complete response.
 func (manager *Manager) Evaluate(ctx context.Context, request Request) (Response, error) {
 	if err := ValidateRequest(request); err != nil {
 		return Response{}, NewError(CodeInvalidRequest, err)
