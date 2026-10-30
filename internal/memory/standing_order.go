@@ -351,13 +351,23 @@ func standingSegmentHit(segment string) bool {
 	url := standingURL.MatchString(rest)
 	mail := standingMail.MatchString(rest)
 
+	// A negated disclosure verb aimed at a secret protects it ("From now on never
+	// show my API keys in chat"); the relief does not apply next to a tool, a
+	// URL or an address, where the sentence may still send something away.
+	verbRest := rest
+	if secret && !tool && !url && !mail {
+		verbRest = standingMaskNegatedVerbs(rest)
+		send = standingSendVerbs.has(verbRest)
+		out = standingOutVerbs.has(verbRest)
+	}
+
 	hit := false
 	switch {
 	case turn:
 		hit = tool || secret || url || mail
 	case scope:
 		hit = tool || (send && (secret || url || (mail && standingSessionTerms.has(rest)))) ||
-			((out || standingReadVerbs.has(rest)) && secret)
+			((out || standingReadVerbs.has(verbRest)) && secret)
 	case repeat:
 		hit = (secret && (send || out)) || (tool && (secret || url || mail)) ||
 			(send && (url || (mail && standingSessionTerms.has(rest))))
@@ -366,6 +376,80 @@ func standingSegmentHit(segment string) bool {
 	// a recurrence word spells it out ("Replies must include the admin token");
 	// a negation keeps "Never show my API keys in replies" storable.
 	return hit || (secret && out && standingReplyNouns.has(rest) && !standingNegation.MatchString(rest))
+}
+
+// standingVerbNegations are the words that negate a nearby disclosure verb.
+var standingVerbNegations = phraseList{
+	"never", "not", "no", "without", "avoid*", "dont", "don't", "don’t", "doesn't", "doesn’t",
+	"nie", "niemals", "nicht", "kein*", "ohne", "vermeide*",
+}
+
+// standingClauseBreaks end the reach of a negation ("never refuse, then show").
+var standingClauseBreaks = phraseList{"and", "but", "then", "und", "aber", "dann", "sondern", "while", "yet"}
+
+// standingMaskNegatedVerbs blanks every send, output or read verb that a
+// negation governs: one to four words before it or up to four after it, in
+// the same clause (no comma, colon or conjunction between).
+func standingMaskNegatedVerbs(s string) string {
+	type word struct {
+		start, end int
+		text       string
+		breakAfter bool
+		barrier    bool
+	}
+	var words []word
+	start := -1
+	flush := func(end int) {
+		if start < 0 {
+			return
+		}
+		raw := s[start:end]
+		w := word{start: start, end: end, text: strings.Trim(raw, ",.;:!?\"()[]")}
+		w.breakAfter = strings.HasSuffix(raw, ",") || strings.HasSuffix(raw, ":")
+		w.barrier = standingClauseBreaks.has(w.text) && w.text != ""
+		words = append(words, w)
+		start = -1
+	}
+	for i, r := range s {
+		if unicode.IsSpace(r) {
+			flush(i)
+		} else if start < 0 {
+			start = i
+		}
+	}
+	flush(len(s))
+
+	negated := func(i int) bool {
+		for j := i - 1; j >= 0 && j >= i-4; j-- {
+			if words[j].barrier || words[j].breakAfter {
+				break
+			}
+			if standingVerbNegations.has(words[j].text) {
+				return true
+			}
+		}
+		for j := i + 1; j < len(words) && j <= i+4; j++ {
+			if words[j-1].breakAfter || words[j].barrier {
+				break
+			}
+			if standingVerbNegations.has(words[j].text) {
+				return true
+			}
+		}
+		return false
+	}
+	out := []byte(s)
+	for i, w := range words {
+		if w.text == "" || !(standingSendVerbs.has(w.text) || standingOutVerbs.has(w.text) || standingReadVerbs.has(w.text)) {
+			continue
+		}
+		if negated(i) {
+			for k := w.start; k < w.end; k++ {
+				out[k] = ' '
+			}
+		}
+	}
+	return string(out)
 }
 
 // standingOverrideHit reports an order to ignore the rules, or to answer,
