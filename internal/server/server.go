@@ -1294,6 +1294,7 @@ func Start(opts StartOptions) error {
 			s.WebhookManager = whMgr
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, vault, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)
 			s.WebhookHandler.SetTokenManagerSource(s.currentTokenManager)
+			s.WebhookHandler.SetDecisionService(taskDecisionService{s})
 			s.WebhookHandler.SetRuntimeSource(func() (*config.Config, *security.Guardian, *security.LLMGuardian) {
 				s.CfgMu.RLock()
 				defer s.CfgMu.RUnlock()

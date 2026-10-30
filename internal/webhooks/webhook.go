@@ -44,9 +44,10 @@ type FieldMapping struct {
 
 // DeliveryConfig controls how webhook data is forwarded to the agent.
 type DeliveryConfig struct {
-	Mode           DeliveryMode `json:"mode"`
-	PromptTemplate string       `json:"prompt_template,omitempty"`
-	Priority       string       `json:"priority,omitempty"` // Deprecated: retained for compatibility; delivery is always asynchronous.
+	Mode           DeliveryMode      `json:"mode"`
+	PromptTemplate string            `json:"prompt_template,omitempty"`
+	Priority       string            `json:"priority,omitempty"` // Deprecated: retained for compatibility; delivery is always asynchronous.
+	Decision       *DeliveryDecision `json:"decision,omitempty"`
 }
 
 // DeliveryMode defines how the webhook payload reaches the agent.
