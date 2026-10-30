@@ -18,12 +18,13 @@ type EmailTriageService interface {
 
 // SetTriageService enables optional Decisions triage of new mail. A nil
 // service keeps the flat summary.
-func (ew *EmailWatcher) SetTriageService(service EmailTriageService) {
+func (ew *EmailWatcher) SetTriageService(service EmailTriageService, cfgSource func() *config.Config) {
 	if ew == nil {
 		return
 	}
 	ew.mu.Lock()
 	ew.triage = service
+	ew.cfgSource = cfgSource
 	ew.mu.Unlock()
 }
 
@@ -72,12 +73,18 @@ func triageEmail(ctx context.Context, snapshot consumers.Snapshot, item emailSum
 // classified (the caller then keeps today's flat summary).
 func (ew *EmailWatcher) triageItems(ctx context.Context, items []emailSummaryItem) map[int]string {
 	ew.mu.Lock()
-	service := ew.triage
+	service, cfgSource := ew.triage, ew.cfgSource
 	ew.mu.Unlock()
 	if service == nil || len(items) == 0 {
 		return nil
 	}
-	snapshot := service.Snapshot(ew.cfg, consumers.MailTriage)
+	cfg := ew.cfg
+	if cfgSource != nil {
+		if live := cfgSource(); live != nil {
+			cfg = live
+		}
+	}
+	snapshot := service.Snapshot(cfg, consumers.MailTriage)
 	if !snapshot.Available || snapshot.Evaluate == nil || snapshot.Current == nil {
 		return nil
 	}

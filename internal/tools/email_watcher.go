@@ -39,6 +39,7 @@ type EmailWatcher struct {
 	// mission trigger callbacks
 	missionCallbacks []missionTriggerCallback
 	triage           EmailTriageService
+	cfgSource        func() *config.Config
 }
 
 type missionTriggerCallback struct {

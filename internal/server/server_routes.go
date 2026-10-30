@@ -696,7 +696,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
 		if s.EmailWatcher != nil {
 			s.MissionManagerV2.SetEmailWatcher(s.EmailWatcher)
-			s.EmailWatcher.SetTriageService(taskDecisionService{s})
+			s.EmailWatcher.SetTriageService(taskDecisionService{s}, s.ConfigSnapshot)
 		}
 		s.configureAgentMailRelay(s.Cfg)
 

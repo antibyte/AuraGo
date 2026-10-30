@@ -45,7 +45,7 @@ func triageFixture(t *testing.T, n int, svc EmailTriageService) (*EmailWatcher, 
 	t.Helper()
 	w := NewEmailWatcher(&config.Config{}, slog.Default(), security.NewGuardian(nil), nil)
 	if svc != nil {
-		w.SetTriageService(svc)
+		w.SetTriageService(svc, nil)
 	}
 	acct := config.EmailAccount{ID: "a", Name: "Main", FromAddress: "me@example.com", WatchFolder: "INBOX"}
 	var msgs []EmailMessage
@@ -100,7 +100,7 @@ func TestEmailTriageNeverSeesQuarantined(t *testing.T) {
 	svc := &fakeTriage{pick: func(string, int) (string, error) { return "fyi", nil }}
 	w := NewEmailWatcher(cfg, slog.Default(), security.NewGuardian(nil), nil)
 	w.llmGuardian = &emailWatcherTestEvaluator{result: security.GuardianResult{Decision: security.DecisionQuarantine, QuarantineReason: security.QuarantineIncomplete}}
-	w.SetTriageService(svc)
+	w.SetTriageService(svc, nil)
 	items, quarantined, _ := w.collectMessages(context.Background(), config.EmailAccount{ID: "a", WatchFolder: "INBOX"}, []EmailMessage{{UID: 1, Subject: "q"}})
 	if groups := w.triageItems(context.Background(), items); len(items) != 0 || len(quarantined) != 1 || svc.calls != 0 || groups != nil {
 		t.Fatalf("quarantined mail reached triage: items=%d calls=%d", len(items), svc.calls)
@@ -135,5 +135,32 @@ func TestEmailTriageCapsPerPoll(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "subject-T") {
 		t.Fatalf("mail 20 was dropped")
+	}
+}
+
+type cfgGatedTriage struct {
+	fakeTriage
+	enabled *config.Config
+}
+
+func (g *cfgGatedTriage) Snapshot(cfg *config.Config, id consumers.ID) consumers.Snapshot {
+	g.offline = cfg != g.enabled
+	return g.fakeTriage.Snapshot(cfg, id)
+}
+
+func TestEmailTriageReadsLiveConfig(t *testing.T) {
+	startCfg, liveCfg := &config.Config{}, &config.Config{}
+	svc := &cfgGatedTriage{enabled: liveCfg}
+	svc.pick = func(string, int) (string, error) { return "fyi", nil }
+	w, _, items := triageFixture(t, 1, nil)
+	w.cfg = startCfg
+	current := startCfg
+	w.SetTriageService(svc, func() *config.Config { return current })
+	if w.triageItems(context.Background(), items) != nil || svc.calls != 0 {
+		t.Fatal("triage ran while off")
+	}
+	current = liveCfg
+	if w.triageItems(context.Background(), items) == nil || svc.calls != 1 {
+		t.Fatalf("triage did not pick up the live config, calls=%d", svc.calls)
 	}
 }
