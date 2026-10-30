@@ -926,6 +926,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 	}
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
+		DecisionConsumers:  agent.ConsumersFrom(decisionService),
 		TaskRoutingText:    &routingText,
 		HumanInput:         humanInput,
 		Config:             cfg,

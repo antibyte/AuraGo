@@ -1083,6 +1083,7 @@ func scanIncomingSMS(guardian *security.Guardian, from, text string, mediaURLs [
 func (s *Server) incomingSMSRunConfig(sessionID string, routingText *string, addenda []prompts.PromptAddendum) agent.RunConfig {
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   taskDecisionService{s},
+		DecisionConsumers:  taskDecisionService{s},
 		TaskRoutingText:    routingText,
 		Config:             s.Cfg,
 		Logger:             s.Logger,

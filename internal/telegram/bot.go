@@ -588,6 +588,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	}
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
+		DecisionConsumers:  agent.ConsumersFrom(decisionService),
 		TaskRoutingText:    &routingText,
 		HumanInput:         humanInput,
 		Config:             cfg,

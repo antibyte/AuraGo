@@ -16,6 +16,7 @@ import (
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/decisions/consumers"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
@@ -1111,6 +1112,8 @@ type RunConfig struct {
 	TaskRoutingPreview    bool
 	// RoutingDecisions is supplied by the server; it grants scoring only.
 	RoutingDecisions TaskDecisionService
+	// DecisionConsumers is supplied by the server; it grants scoring only.
+	DecisionConsumers consumers.Service
 	// TaskRoutingClassifier restricts explicit previews to local/decisions/helper.
 	TaskRoutingClassifier string
 	// TaskRoutingText captures human text before media enrichment. A non-nil

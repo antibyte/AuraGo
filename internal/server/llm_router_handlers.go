@@ -76,7 +76,7 @@ func handleLLMRouterPreview(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := s.ConfigSnapshot().Clone()
-		run := agent.RunConfig{Config: cfg, Logger: s.Logger, LLMClient: s.LLMClient, BudgetTracker: s.BudgetTracker, SessionID: "router-preview", UserIntent: input.Text, TaskRoutingMode: "auto", TaskRoutingPreview: true, TaskRoutingClassifier: classifier, RoutingDecisions: taskDecisionService{s}}
+		run := agent.RunConfig{Config: cfg, Logger: s.Logger, LLMClient: s.LLMClient, BudgetTracker: s.BudgetTracker, SessionID: "router-preview", UserIntent: input.Text, TaskRoutingMode: "auto", TaskRoutingPreview: true, TaskRoutingClassifier: classifier, RoutingDecisions: taskDecisionService{s}, DecisionConsumers: taskDecisionService{s}}
 		req := openai.ChatCompletionRequest{Model: cfg.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: "user", Content: input.Text}}}
 		if err := agent.PrepareTaskRouting(r.Context(), &req, &run); err != nil {
 			jsonError(w, "Preview cancelled", http.StatusRequestTimeout)
