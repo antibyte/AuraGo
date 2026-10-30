@@ -139,8 +139,8 @@
                         <!-- Icon + name filled by JS -->
                     </div>
                     <div class="plan-quick-summary" id="plan-quick-summary"></div>
-                    <div class="setup-embedding-warning is-hidden" id="quick-embedding-warning" data-i18n="setup.plan_embedding_warning"></div>
-                    <p class="section-desc" data-i18n="setup.plan_quick_description"></p>
+                    <p class="section-desc" id="quick-description" data-i18n="setup.plan_quick_description"></p>
+                    <p class="section-desc is-hidden" id="quick-description-local" data-i18n="setup.plan_quick_description_local"></p>
                 </div>
 
                 <!-- Hidden language mirror – value is synced from page 1 via onPlanLanguageChange() -->
@@ -153,20 +153,28 @@
                         <label class="field-label">
                             <span data-i18n="setup.step0_admin_password_label"></span> <span class="required-star">*</span>
                         </label>
-                        <input class="field-input" type="password" id="quick-admin-password"
-                            data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="" autocomplete="new-password">
+                        <div class="setup-password-wrap">
+                            <input class="field-input" type="password" id="quick-admin-password"
+                                data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="" autocomplete="new-password">
+                            <button type="button" class="setup-eye-btn" data-password-toggle="quick-admin-password" aria-controls="quick-admin-password" aria-pressed="false" data-i18n-aria-label="login.password_show" data-i18n-title="login.password_show">👁</button>
+                        </div>
+                        <div class="field-hint setup-pw-strength" id="quick-admin-password-strength" aria-live="polite"></div>
                         <div class="field-error" id="err-quick-admin-password" data-i18n="setup.step0_admin_password_error"></div>
                     </div>
                     <div class="field-group">
                         <label class="field-label" data-i18n="setup.step0_admin_password_confirm_label"></label>
-                        <input class="field-input" type="password" id="quick-admin-password-confirm"
-                            data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="" autocomplete="new-password">
+                        <div class="setup-password-wrap">
+                            <input class="field-input" type="password" id="quick-admin-password-confirm"
+                                data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="" autocomplete="new-password">
+                            <button type="button" class="setup-eye-btn" data-password-toggle="quick-admin-password-confirm" aria-controls="quick-admin-password-confirm" aria-pressed="false" data-i18n-aria-label="login.password_show" data-i18n-title="login.password_show">👁</button>
+                        </div>
+                        <div class="field-hint setup-pw-match" id="quick-admin-password-confirm-match" aria-live="polite"></div>
                         <div class="field-error" id="err-quick-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error"></div>
                     </div>
                 </div>
 
                 <!-- API Key -->
-                <div class="setup-inner-card">
+                <div class="setup-inner-card" id="quick-api-key-card">
                     <h3 class="setup-section-heading" data-i18n="setup.step0_api_key_label">🔑 API Key</h3>
                     <div class="field-group">
                         <input class="field-input" type="password" id="quick-api-key"
@@ -179,6 +187,23 @@
                         <button type="button" id="btn-quick-test" class="btn-setup btn-test-connection" onclick="testQuickConnection()" data-i18n="setup.step0_test_connection">🔌 Test Connection</button>
                         <div id="quick-test-result" class="field-hint is-hidden"></div>
                     </div>
+                </div>
+
+                <!-- Local model (Ollama plan: no API key) -->
+                <div class="setup-inner-card is-hidden" id="quick-ollama-card">
+                    <h3 class="setup-section-heading" data-i18n="setup.ollama_heading"></h3>
+                    <div class="setup-ollama-status" id="quick-ollama-status" aria-live="polite"></div>
+                    <div class="field-group">
+                        <label class="field-label" for="quick-ollama-model">
+                            <span data-i18n="setup.ollama_model_label"></span> <span class="required-star">*</span>
+                        </label>
+                        <select class="field-select is-hidden" id="quick-ollama-model"></select>
+                        <input class="field-input" type="text" id="quick-ollama-model-manual"
+                            data-i18n-placeholder="setup.ollama_model_manual_placeholder" autocomplete="off" autocapitalize="off" spellcheck="false">
+                        <div class="field-error" id="err-quick-ollama-model" data-i18n="setup.ollama_model_error"></div>
+                        <div class="field-hint" id="quick-ollama-hint" aria-live="polite"></div>
+                    </div>
+                    <button type="button" id="btn-quick-ollama-recheck" class="btn-setup btn-test-connection setup-ollama-recheck" onclick="detectSetupOllama()" data-i18n="setup.ollama_recheck"></button>
                 </div>
 
                 <div class="setup-inner-card is-hidden" id="quick-minimax-options">
@@ -213,54 +238,8 @@
                     <p id="desc-step0" class="section-desc" data-i18n="setup.step0_description"></p>
                 </div>
 
-                <!-- Admin Password — FIRST -->
-                <div class="setup-inner-card">
-                    <h3 id="heading-admin-password" class="setup-section-heading" data-i18n="setup.step0_security_heading">🔐 Admin Password</h3>
-                    <div class="field-group">
-                        <label id="lbl-admin-password" class="field-label">
-                            <span data-i18n="setup.step0_admin_password_label"></span> <span class="required-star">*</span>
-                        </label>
-                        <input class="field-input" type="password" id="admin-password"
-                            data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="" autocomplete="new-password">
-                        <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error"></div>
-                        <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint"></div>
-                    </div>
-
-                    <div class="field-group" id="group-password-confirm">
-                        <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label"></label>
-                        <input class="field-input" type="password" id="admin-password-confirm"
-                            data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="" autocomplete="new-password">
-                        <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error"></div>
-                    </div>
-                </div>
-
-                <!-- Language -->
-                <div class="setup-inner-card">
-                    <h3 id="heading-language" class="setup-section-heading" data-i18n="setup.step0_language_heading">🌐 Language</h3>
-                    <div class="field-group">
-                        <label class="field-label" id="lang-label" data-i18n="setup.step0_language_label"></label>
-                        <select class="field-select" id="system-language" onchange="onLanguageChange()">
-                            <option value="de">Deutsch</option>
-                            <option value="en">English</option>
-                            <option value="es">Español</option>
-                            <option value="fr">Français</option>
-                            <option value="pl">Polski</option>
-                            <option value="zh">中文</option>
-                            <option value="hi">हिन्दी</option>
-                            <option value="nl">Nederlands</option>
-                            <option value="it">Italiano</option>
-                            <option value="pt">Português</option>
-                            <option value="da">Dansk</option>
-                            <option value="ja">日本語</option>
-                            <option value="sv">Svenska</option>
-                            <option value="no">Norsk</option>
-                            <option value="el">Ελληνικά</option>
-                            <option value="cs">Čeština</option>
-                            <option value="custom" data-i18n="setup.language_custom"></option>
-                        </select>
-                        <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" data-i18n-placeholder="setup.language_custom_placeholder">
-                    </div>
-                </div>
+                <!-- Hidden language mirror – value is synced from page 1 via onPlanLanguageChange() -->
+                <input type="hidden" id="system-language" value="en">
 
                 <div class="field-group">
                     <label id="lbl-provider" class="field-label">
@@ -286,15 +265,9 @@
                     <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..."
                         autocomplete="off">
                     <div class="field-error" id="err-api-key" data-i18n="setup.step0_api_key_error"></div>
-                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text" data-i18n="setup.step0_api_key_hint"></span> <span id="provider-link">openrouter.ai</span></div>
+                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text" data-i18n="setup.step0_api_key_hint"></span> <a id="provider-link" class="setup-link" target="_blank" rel="noopener noreferrer"></a></div>
                     <button type="button" id="btn-test-connection" class="btn-setup btn-test-connection" onclick="testConnection()" data-i18n="setup.step0_test_connection">🔌 Test Connection</button>
                     <div id="test-connection-result" class="field-hint is-hidden"></div>
-                </div>
-
-                <div class="field-group">
-                    <label id="lbl-base-url" class="field-label" data-i18n="setup.step0_base_url_label"></label>
-                    <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
-                    <div id="hint-base-url" class="field-hint" data-i18n="setup.step0_base_url_hint"></div>
                 </div>
 
                 <div class="field-group">
@@ -310,16 +283,63 @@
                     <div class="field-error" id="err-model" data-i18n="setup.step0_model_error"></div>
                 </div>
 
-                <div class="toggle-row">
-                    <div>
-                        <div id="lbl-native-functions" class="toggle-label" data-i18n="setup.step0_native_functions_label">Native Function Calling ⚠️</div>
-                        <div id="desc-native-functions" class="toggle-desc" data-i18n="setup.step0_native_functions_desc"></div>
+                <!-- Admin Password -->
+                <div class="setup-inner-card">
+                    <h3 id="heading-admin-password" class="setup-section-heading" data-i18n="setup.step0_security_heading">🔐 Admin Password</h3>
+                    <div class="field-group">
+                        <label id="lbl-admin-password" class="field-label">
+                            <span data-i18n="setup.step0_admin_password_label"></span> <span class="required-star">*</span>
+                        </label>
+                        <div class="setup-password-wrap">
+                            <input class="field-input" type="password" id="admin-password"
+                                data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="" autocomplete="new-password">
+                            <button type="button" class="setup-eye-btn" data-password-toggle="admin-password" aria-controls="admin-password" aria-pressed="false" data-i18n-aria-label="login.password_show" data-i18n-title="login.password_show">👁</button>
+                        </div>
+                        <div class="field-hint setup-pw-strength" id="admin-password-strength" aria-live="polite"></div>
+                        <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error"></div>
+                        <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint"></div>
                     </div>
-                    <label class="toggle" for="native-functions">
-                        <input type="checkbox" id="native-functions" class="toggle">
-                        <span class="slider"></span>
-                    </label>
+
+                    <div class="field-group" id="group-password-confirm">
+                        <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label"></label>
+                        <div class="setup-password-wrap">
+                            <input class="field-input" type="password" id="admin-password-confirm"
+                                data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="" autocomplete="new-password">
+                            <button type="button" class="setup-eye-btn" data-password-toggle="admin-password-confirm" aria-controls="admin-password-confirm" aria-pressed="false" data-i18n-aria-label="login.password_show" data-i18n-title="login.password_show">👁</button>
+                        </div>
+                        <div class="field-hint setup-pw-match" id="admin-password-confirm-match" aria-live="polite"></div>
+                        <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error"></div>
+                    </div>
                 </div>
+
+                <details class="setup-advanced" id="step0-advanced">
+                    <summary class="setup-advanced-summary" data-i18n="setup.step0_advanced_summary"></summary>
+                    <div class="setup-inner-card">
+                        <div class="field-group">
+                            <label id="lbl-base-url" class="field-label" for="llm-base-url" data-i18n="setup.step0_base_url_label"></label>
+                            <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
+                            <div class="field-error" id="err-base-url" data-i18n="setup.step0_base_url_error"></div>
+                            <div id="hint-base-url" class="field-hint" data-i18n="setup.step0_base_url_hint"></div>
+                        </div>
+
+                        <div class="toggle-row">
+                            <div>
+                                <div id="lbl-native-functions" class="toggle-label" data-i18n="setup.step0_native_functions_label"></div>
+                                <div id="desc-native-functions" class="toggle-desc" data-i18n="setup.step0_native_functions_desc"></div>
+                            </div>
+                            <label class="toggle" for="native-functions">
+                                <input type="checkbox" id="native-functions" class="toggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="field-group">
+                            <label id="lbl-language-other" class="field-label" for="system-language-custom" data-i18n="setup.agent_language_other_label"></label>
+                            <input class="field-input" type="text" id="system-language-custom" data-i18n-placeholder="setup.language_custom_placeholder">
+                            <div id="hint-language-other" class="field-hint" data-i18n="setup.agent_language_other_hint"></div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- ═══ Section 2: Recommended Optional ═══ -->
@@ -450,6 +470,7 @@
                     <select class="field-select" id="core-personality">
                         <option value="friend" selected data-i18n="setup.step2_core_personality_default"></option>
                     </select>
+                    <div id="core-personality-desc" class="field-hint" aria-live="polite"></div>
                     <div id="hint-core-personality" class="field-hint" data-i18n="setup.step2_core_personality_hint">Base personality — affects tone and communication style.</div>
                 </div>
 
@@ -461,18 +482,6 @@
                     </div>
                     <label class="toggle" for="maintenance-enabled">
                         <input type="checkbox" id="maintenance-enabled" class="toggle" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <!-- Web Config -->
-                <div class="toggle-row">
-                    <div>
-                        <div id="lbl-web-config" class="toggle-label" data-i18n="setup.step2_web_config_label"></div>
-                        <div id="desc-web-config" class="toggle-desc" data-i18n="setup.step2_web_config_desc"></div>
-                    </div>
-                    <label class="toggle" for="web-config-enabled">
-                        <input type="checkbox" id="web-config-enabled" class="toggle" checked>
                         <span class="slider"></span>
                     </label>
                 </div>

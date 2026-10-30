@@ -1347,7 +1347,8 @@ function serviceWorkerURL() {
             } catch (_) { }
         }
     }
-    return '/sw.js?v=' + encodeURIComponent(version || 'dev');
+    if (!version || version === 'dev') return '/sw.js';
+    return '/sw.js?v=' + encodeURIComponent(version);
 }
 
 async function initPWA() {
@@ -1910,7 +1911,10 @@ function initShared() {
     try { window._auragoApplySharedI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
-    try { initPWA(); } catch (e) { console.error('[AuraGo] initPWA failed:', e); }
+    // The setup page runs under the password lockdown; the service worker would only add failing requests there.
+    if (!(document.body && document.body.dataset && document.body.dataset.entryPage === 'setup')) {
+        try { initPWA(); } catch (e) { console.error('[AuraGo] initPWA failed:', e); }
+    }
     try { window.AuraSSE.connect(); } catch (e) { console.error('[AuraGo] AuraSSE.connect failed:', e); }
     try { initTsnetLoginWatcher(); } catch (e) { console.error('[AuraGo] initTsnetLoginWatcher failed:', e); }
 

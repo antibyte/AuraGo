@@ -876,6 +876,7 @@ var noPasswordExactPaths = map[string]bool{
 	"/api/i18n":              true,
 	"/api/personalities":     true,
 	"/api/openrouter/models": true,
+	"/api/ready":             true, // readiness probe (healthcheck, setup page); reveals only readiness + asset-set id
 	"/setup":                 true,
 	"/shared.css":            true,
 	"/shared-variables.css":  true,

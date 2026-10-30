@@ -1497,6 +1497,86 @@
     }
 }
 
+/* Password fields: eye toggle, strength and match hints */
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-password-wrap {
+    position: relative;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-password-wrap .field-input {
+    padding-right: 3rem;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-eye-btn {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--pw-muted);
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-eye-btn:hover { opacity: 1; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-eye-btn:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: -4px;
+    border-radius: var(--pw-radius-sm);
+    opacity: 1;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-strength,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-match {
+    min-height: 1.1rem;
+    opacity: 1;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-strength.is-weak,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-match.is-mismatch { color: var(--pw-danger, #ef4444); }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-strength.is-ok { color: var(--pw-warning, #d6a53a); }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-strength.is-strong,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-pw-match.is-match { color: #2dd4bf; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-pw-strength.is-strong,
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-pw-match.is-match { color: #0f766e; }
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-pw-strength.is-ok { color: #8a6100; }
+
+/* Local (Ollama) plan: detection status on the card and the quick step */
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card-status {
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--pw-muted);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card-status.is-ok,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-ollama-status.is-ok { color: #2dd4bf; }
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card-status.is-missing,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-ollama-status.is-missing { color: var(--pw-warning, #d6a53a); }
+
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .profile-card-status.is-ok,
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-ollama-status.is-ok { color: #0f766e; }
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .profile-card-status.is-missing,
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-ollama-status.is-missing { color: #8a6100; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-ollama-status {
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--pw-muted);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-ollama-recheck { margin-top: 0.6rem; }
+
 @media (max-width: 640px) {
     .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .logo-subtitle {
         display: none;
@@ -1523,6 +1603,10 @@
         width: 44px;
         min-width: 44px;
         height: 44px;
+        min-height: 44px;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-ollama-recheck {
         min-height: 44px;
     }
 
@@ -1923,10 +2007,9 @@ body.has-https-warning {
     white-space: nowrap;
 }
 
-.feature-badge.inactive {
-    background: rgba(128, 128, 128, 0.1);
-    color: var(--text-tertiary, #666);
-    text-decoration: line-through;
+.feature-badge.feature-badge-neutral {
+    background: rgba(128, 128, 128, 0.12);
+    color: var(--text-secondary, #888);
 }
 
 .profile-check {

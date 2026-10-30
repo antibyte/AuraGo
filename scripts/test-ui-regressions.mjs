@@ -137,6 +137,10 @@ function testVersionedServiceWorkerRegistration() {
   vm.createContext(context);
   vm.runInContext(`${helperSource}; globalThis.result = serviceWorkerURL();`, context);
   assert.equal(context.result, '/sw.js?v=build%2042');
+  context.window.AURAGO_BUILD_VERSION = 'dev';
+  vm.runInContext('globalThis.devResult = serviceWorkerURL();', context);
+  assert.equal(context.devResult, '/sw.js');
+  assert.match(sourceBetween(shared, 'function initShared()', 'function initHeaderTouchActivation()'), /entryPage === 'setup'[\s\S]*initPWA\(\)/);
 
   const initPWA = sourceBetween(shared, 'async function initPWA()', 'async function _subscribePush');
   // Registration uses a versioned URL helper and may retry once after a transient failure.
@@ -2854,6 +2858,146 @@ function testSetupSubsystemDefaultsSkipRuleAndTestKeys() {
   }
 }
 
+function testChatOptionalAdvisoryWaitsForConversation() {
+  const source = read('ui/js/chat/chat-history.js');
+  const ctx = {};
+  vm.runInNewContext(sourceBetween(source, 'const CHAT_ADVISORY_MIN_HISTORY', 'async function loadChatSystemNotifications(') + ';this.chatAdvisoryDeferred = chatAdvisoryDeferred;', ctx);
+  const horizon = { type: 'security_advisory', data: { code: 'horizon_optional' } };
+  assert.equal(ctx.chatAdvisoryDeferred(horizon, 0), true);
+  assert.equal(ctx.chatAdvisoryDeferred(horizon, 5), true);
+  assert.equal(ctx.chatAdvisoryDeferred(horizon, 6), false);
+  assert.equal(ctx.chatAdvisoryDeferred({ type: 'morning_briefing' }, 0), false);
+  assert.equal(ctx.chatAdvisoryDeferred(null, 0), false);
+}
+
+function testSetupWizardBatch4() {
+  const main = read('ui/js/setup/main.js');
+  const html = read('ui/setup.html');
+  const langDir = path.join(root, 'ui/lang/setup');
+  const locales = readdirSync(langDir).filter(name => name.endsWith('.json'));
+  assert.equal(locales.length, 16);
+  const langs = Object.fromEntries(locales.map(name => [name, JSON.parse(read('ui/lang/setup/' + name))]));
+
+  // U14: the web config toggle is gone and the patch no longer carries it
+  assert.ok(!html.includes('web-config-enabled'));
+  assert.ok(!sourceBetween(main, 'function buildConfigPatch(', '// ── Save Config').includes('web_config'));
+
+  // U4: only real features are badged, custom gets one neutral badge
+  const badgeCtx = { t: key => key, escapeHtml: s => String(s) };
+  vm.runInNewContext(sourceBetween(main, 'function setupQuickProfileFeatureKeys(', 'function tProfile('), badgeCtx);
+  const custom = badgeCtx.getFeatureBadges({ id: 'custom', features: {} });
+  assert.match(custom, /feature-badge-neutral/);
+  assert.ok(custom.includes('setup.feature_custom_all'));
+  const openrouter = badgeCtx.getFeatureBadges({ id: 'openrouter', features: { vision: true, whisper: true, tts: true }, models: { vision: {}, whisper: {} } });
+  assert.ok(openrouter.includes('setup.feature_vision') && openrouter.includes('setup.feature_speech_input'));
+  assert.ok(!openrouter.includes('inactive') && !openrouter.includes('setup.feature_tts'));
+  assert.equal(badgeCtx.getFeatureBadges({ id: 'x', features: {}, models: {} }), '');
+  assert.ok(!read('ui/css/setup.css').includes('.feature-badge.inactive'));
+
+  // U11: custom step 0 puts connection first, the rest behind "Advanced"
+  const step0 = sourceBetween(html, 'id="step-0"', 'id="step-1"');
+  const advanced = sourceBetween(step0, '<details class="setup-advanced" id="step0-advanced">', '</details>');
+  for (const id of ['llm-base-url', 'native-functions', 'system-language-custom', 'err-base-url']) assert.ok(advanced.includes('id="' + id + '"'), id);
+  assert.ok(!/<select[^>]*id="system-language"/.test(html));
+  assert.match(html, /<input type="hidden" id="system-language"/);
+  assert.match(html, /<a id="provider-link"[^>]*rel="noopener noreferrer"/);
+  assert.ok(step0.indexOf('id="llm-provider"') < step0.indexOf('id="admin-password"') && step0.indexOf('id="admin-password"') < step0.indexOf('id="step0-advanced"'));
+  const langCtx = {};
+  vm.runInNewContext(sourceBetween(main, 'const LANG_MAP', '// Derived helpers') + ';this.f = setupAgentLanguage;', langCtx);
+  assert.equal(langCtx.f('de', ''), 'Deutsch');
+  assert.equal(langCtx.f('de', '  Klingonisch '), 'Klingonisch');
+  assert.equal(langCtx.f('xx', ''), 'xx');
+
+  // U12: native function calling default per provider
+  const nfCtx = { t: key => key, setupOllamaBaseURL: 'http://localhost:11434/v1' };
+  vm.runInNewContext(sourceBetween(main, 'const providerConfig = {', '// ── Provider Profile Loading') + ';this.f = setupNativeFunctionsDefault;', nfCtx);
+  for (const provider of ['openrouter', 'agnes', 'openai', 'anthropic', 'google', 'custom', 'unknown']) assert.equal(nfCtx.f(provider), true, provider);
+  assert.equal(nfCtx.f('ollama'), false);
+  assert.match(html, /<input type="checkbox" id="native-functions" class="toggle" checked>/);
+
+  // U10 + B13: password helpers and wrapped fields
+  const pwCtx = {};
+  vm.runInNewContext(sourceBetween(main, 'function setupPasswordStrength(', 'function updateSetupPasswordIndicators(') +
+    ';this.s = setupPasswordStrength; this.m = setupPasswordMatchState; this.twin = setupPasswordTwinId;', pwCtx);
+  assert.deepEqual([0, 1, 7, 8, 11, 12, 15, 16, 40].map(n => pwCtx.s('x'.repeat(n))), ['', 'short', 'short', 'fair', 'fair', 'good', 'good', 'strong', 'strong']);
+  assert.equal(pwCtx.m('abc', ''), '');
+  assert.equal(pwCtx.m('abc', 'abc'), 'match');
+  assert.equal(pwCtx.m('abc', 'abd'), 'mismatch');
+  assert.equal(pwCtx.twin('admin-password'), 'quick-admin-password');
+  assert.equal(pwCtx.twin('quick-admin-password-confirm'), 'admin-password-confirm');
+  assert.equal(pwCtx.twin('llm-api-key'), '');
+  for (const id of ['admin-password', 'admin-password-confirm', 'quick-admin-password', 'quick-admin-password-confirm']) {
+    assert.match(html, new RegExp('<div class="setup-password-wrap">\\s*<input[^>]*id="' + id + '"[\\s\\S]*?data-password-toggle="' + id + '"'), id);
+  }
+  assert.ok(sourceBetween(main, '// Clear errors on input', '// Keep both flows').includes("closest('.field-group')"));
+
+  // U15: every shipped personality has a description in every locale
+  const personalities = readdirSync(path.join(root, 'prompts/personalities')).filter(n => n.endsWith('.md')).map(n => n.slice(0, -3));
+  assert.ok(personalities.length >= 12);
+  for (const [name, data] of Object.entries(langs)) {
+    for (const key of [...personalities, 'custom']) assert.ok(data['setup.personality_desc_' + key], name + ' missing personality_desc_' + key);
+  }
+  assert.ok(html.includes('id="core-personality-desc"'));
+
+  // D (U5): keyless Ollama plan
+  const pureCtx = {};
+  vm.runInNewContext(sourceBetween(main, 'function setupProfileNeedsKey(', '// Badges list only') +
+    ';this.api = { setupProfileNeedsKey, setupOllamaModelFrom, setupShouldPreselectOllama, setupQuickEmbeddingsPatch, setupOllamaCardStatus };', pureCtx);
+  const api = pureCtx.api;
+  assert.equal(api.setupProfileNeedsKey({ id: 'openrouter' }), true);
+  assert.equal(api.setupProfileNeedsKey({ id: 'ollama_local', no_api_key: true }), false);
+  assert.equal(api.setupOllamaModelFrom('llama3.1:latest', 'typed'), 'llama3.1:latest');
+  assert.equal(api.setupOllamaModelFrom('', '  typed '), 'typed');
+  assert.equal(api.setupOllamaModelFrom(undefined, undefined), '');
+  const running = { reachable: true, models: [{ name: 'llama3.1' }] };
+  assert.equal(api.setupShouldPreselectOllama(running, false, 0), true);
+  assert.equal(api.setupShouldPreselectOllama(running, true, 0), false, 'a plan the user clicked stays selected');
+  assert.equal(api.setupShouldPreselectOllama(running, false, 1), false, 'only on the plan page');
+  assert.equal(api.setupShouldPreselectOllama({ reachable: true, models: [] }, false, 0), false);
+  assert.equal(api.setupShouldPreselectOllama({ reachable: false }, false, 0), false);
+  assert.equal(api.setupShouldPreselectOllama(null, false, 0), false);
+  assert.equal(api.setupShouldPreselectOllama({ reachable: true, models: 'garbage' }, false, 0), false);
+  assert.equal(api.setupOllamaCardStatus(null).key, 'setup.ollama_status_checking');
+  assert.equal(api.setupOllamaCardStatus(running).cls, 'is-ok');
+  assert.equal(api.setupOllamaCardStatus({ reachable: false, models: [] }).cls, 'is-missing');
+  assert.equal(api.setupQuickEmbeddingsPatch({ features: { embeddings: true } }, { embeddings: { model: 'm' } }).provider, 'embeddings');
+  for (const plan of [{ features: { embeddings: false } }, { features: {} }, null]) {
+    const patch = api.setupQuickEmbeddingsPatch(plan, {});
+    assert.equal(patch.provider, 'local-granite');
+    assert.deepEqual({ ...patch.local }, { backend: 'auto', context_size: 2048, batch_size: 2048 });
+  }
+
+  const dom = { 'quick-ollama-model': { value: 'qwen3:8b' }, 'quick-ollama-model-manual': { value: '' } };
+  const runtimeCtx = { document: { getElementById: id => dom[id] || null }, setupOllamaBaseURL: 'http://host.docker.internal:11434/v1' };
+  vm.runInNewContext(sourceBetween(main, 'function setupProfileNeedsKey(', 'function setupOllamaModelFrom(') + ';' +
+    sourceBetween(main, 'function setupOllamaModelFrom(', 'function setupOllamaModels(') + ';' +
+    sourceBetween(main, 'function isMiniMaxQuickProfile(', 'function resolveQuickProfileModel(') + ';' +
+    sourceBetween(main, 'function setupQuickOllamaModel()', 'function setupQuickOllamaInputId()') +
+    ';this.f = getQuickProfileRuntimeConfig;', runtimeCtx);
+  const runtime = runtimeCtx.f({ id: 'ollama_local', no_api_key: true, provider_type: 'ollama', base_url: 'http://localhost:11434/v1', main_model: 'llama3.1' });
+  assert.equal(runtime.baseUrl, 'http://host.docker.internal:11434/v1');
+  assert.equal(runtime.mainModel, 'qwen3:8b');
+  assert.equal(runtime.providerType, 'ollama');
+  assert.ok(!html.includes('quick-embedding-warning'));
+  for (const id of ['quick-api-key-card', 'quick-ollama-card', 'quick-ollama-status', 'quick-ollama-model', 'quick-ollama-model-manual', 'err-quick-ollama-model', 'quick-ollama-hint', 'btn-quick-ollama-recheck']) {
+    assert.ok(html.includes('id="' + id + '"'), id);
+  }
+
+  const newKeys = ['feature_custom_all', 'agent_language_other_label', 'agent_language_other_hint', 'step0_advanced_summary', 'step0_base_url_error',
+    'step0_native_functions_desc', 'password_strength_short', 'password_strength_fair', 'password_strength_good', 'password_strength_strong',
+    'password_match', 'password_mismatch', 'profile_ollama_local_name', 'profile_ollama_local_description', 'profile_ollama_local_pricing',
+    'ollama_status_checking', 'ollama_status_detected', 'ollama_status_missing', 'ollama_heading', 'ollama_found_at', 'ollama_model_label',
+    'ollama_model_manual_placeholder', 'ollama_model_error', 'ollama_missing_hint', 'ollama_no_models_hint', 'ollama_docker_hint',
+    'ollama_recheck', 'plan_quick_description_local'];
+  for (const [name, data] of Object.entries(langs)) {
+    for (const key of newKeys) assert.ok(data['setup.' + key], name + ' missing setup.' + key);
+    assert.ok(data['setup.ollama_status_detected'].includes('{count}'), name);
+    assert.ok(data['setup.ollama_found_at'].includes('{url}') && data['setup.ollama_missing_hint'].includes('{url}'), name);
+    assert.ok(!data['setup.step0_native_functions_label'].includes('\u26a0') && !data['setup.step0_native_functions_desc'].includes('<'), name);
+    assert.ok(!('setup.step2_web_config_label' in data), name);
+  }
+}
+
 function testSetupFirstImpressionPackage() {
   const main = read('ui/js/setup/main.js');
   const flows = vm.runInNewContext(sourceBetween(main, 'const QUICK_FLOW_STEPS', 'let currentStepIndex') +
@@ -5471,7 +5615,9 @@ const tests = [
   ['Invasion nest secret field hides only without effect', testInvasionNestSecretFieldHidesOnlyWithoutEffect],
   ['Green Slime simulation: geometry, bubbles, strands, pools and splats', testGreenSlimeSimulation],
   ['Voxel World: sky model, island generator and mesher', testVoxelWorldIsland],
-  ['Orbit: choreography, schedules and particle system', testOrbitChoreoAndParticles]
+  ['Orbit: choreography, schedules and particle system', testOrbitChoreoAndParticles],
+  ['Chat defers the optional PromptSec advisory until the conversation is under way', testChatOptionalAdvisoryWaitsForConversation],
+  ['Setup wizard batch 4: badges, advanced step 0, passwords, personalities, local Ollama plan', testSetupWizardBatch4]
 ];
 
 let failures = 0;

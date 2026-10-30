@@ -1,6 +1,6 @@
 {
   "chat.horizon_optional_title": "Optionele lokale bescherming",
-  "chat.horizon_optional_body": "De Horizon Labs-classificator kan webinhoud en e-mails extra controleren op promptinjectie. Hij staat standaard uit. Hij vraagt ongeveer {{model_mb}} MB voor het model en {{runtime_mb}} MB voor de runtime, extra CPU-capaciteit en als richtlijn 1–2 GiB beschikbaar RAM. Je beslist zelf of je systeem genoeg middelen heeft. Downloaden en activeren zijn aparte stappen onder Instellingen → PromptSec Guardian.",
+  "chat.horizon_optional_body": "De optionele Horizon Labs-classificator controleert webinhoud en e-mails extra op promptinjectie (standaard uit; ongeveer {{model_mb}} MB model + {{runtime_mb}} MB runtime, 1–2 GiB RAM). Je beslist zelf onder Instellingen → PromptSec Guardian of je hem downloadt en activeert.",
   "chat.horizon_optional_settings": "Instellingen openen",
   "chat.sessions_delete_hint": "Verwijder deze chat definitief, inclusief plannen en gearchiveerde gesprekken.",
   "chat.sessions_delete_memories": "Verwijder ook bijbehorende herinneringen",

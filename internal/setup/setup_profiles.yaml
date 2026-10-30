@@ -233,6 +233,41 @@ profiles:
       helper:
         model: "moonshot-v1-32k" # Klassisches, extrem schnelles Kimi Modell für kleine Agenten-Schritte
 
+  # Local Ollama on this machine: no API key, the wizard detects the running server and its models.
+  # main_model is only the fallback when no installed chat model was detected.
+  - id: ollama_local
+    name: "Local (Ollama)"
+    description: "Runs on your own computer - no cloud, no API key."
+    icon: "🦙"
+    sort_order: 98
+    pricing_label: "Free - runs locally"
+    pricing_url: "https://ollama.com/download"
+    key_url: "https://ollama.com/download"
+    key_placeholder: ""
+    provider_type: ollama
+    no_api_key: true
+    base_url: "http://localhost:11434/v1"
+    main_model: "llama3.1"
+    native_function_calling: false
+    default_trust_level: 2
+    features:
+      vision: false
+      whisper: false
+      embeddings: false
+      helper: false
+      tts: false
+      image_generation: false
+      music_generation: false
+      video_generation: false
+    config_patch:
+      embeddings:
+        provider: "local-granite"
+        local:
+          backend: "auto"
+          context_size: 2048
+          batch_size: 2048
+        multimodal: false
+
   # Custom = existing manual setup flow (no auto-config)
   - id: custom
     name: "Custom"

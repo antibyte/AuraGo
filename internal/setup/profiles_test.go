@@ -335,3 +335,35 @@ func TestExactlyOneRecommendedProfileIsOpenRouter(t *testing.T) {
 		t.Fatalf("recommended profiles = %v, want [openrouter]", recommended)
 	}
 }
+
+func TestEmbeddedProfilesContainKeylessOllama(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+
+	for i, p := range profiles {
+		if p.ID != "ollama_local" {
+			continue
+		}
+		if !p.NoAPIKey || p.ProviderType != "ollama" || p.BaseURL != "http://localhost:11434/v1" {
+			t.Fatalf("ollama_local = %+v, want a keyless ollama profile on the default local endpoint", p)
+		}
+		if p.NativeFunctionCalling {
+			t.Fatal("ollama_local must start with native function calling off")
+		}
+		embeddings, _ := p.ConfigPatch["embeddings"].(map[string]any)
+		if embeddings["provider"] != "local-granite" {
+			t.Fatalf("ollama_local embeddings patch = %v, want local-granite", embeddings)
+		}
+		if i != len(profiles)-2 || profiles[len(profiles)-1].ID != "custom" {
+			t.Fatalf("ollama_local must sit directly before custom, got position %d of %d", i, len(profiles))
+		}
+		for _, other := range profiles {
+			if other.ID != "ollama_local" && other.NoAPIKey {
+				t.Fatalf("profile %q unexpectedly has no_api_key", other.ID)
+			}
+		}
+		return
+	}
+	t.Fatal("expected ollama_local profile in embedded profiles")
+}

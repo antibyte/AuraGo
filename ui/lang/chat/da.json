@@ -1,6 +1,6 @@
 {
   "chat.horizon_optional_title": "Valgfri lokal beskyttelse",
-  "chat.horizon_optional_body": "Horizon Labs-klassifikatoren kan give ekstra kontrol af webindhold og e-mails for prompt-injektion. Den er slået fra som standard. Den kræver cirka {{model_mb}} MB til modellen og {{runtime_mb}} MB til kørselsmiljøet, ekstra CPU-kapacitet og omtrent 1–2 GiB ledig RAM. Du afgør selv, om dit system har nok ressourcer. Download og aktivering er separate trin i indstillingerne for PromptSec Guardian.",
+  "chat.horizon_optional_body": "Den valgfrie Horizon Labs-klassifikator giver ekstra kontrol af webindhold og e-mails for prompt-injektion (slået fra som standard; ca. {{model_mb}} MB model + {{runtime_mb}} MB kørselsmiljø, 1–2 GiB RAM). Du bestemmer selv under Indstillinger → PromptSec Guardian, om du vil hente og aktivere den.",
   "chat.horizon_optional_settings": "Åbn indstillinger",
   "chat.sessions_delete_hint": "Slet denne chat permanent, inklusive planer og arkiveret samtale.",
   "chat.sessions_delete_memories": "Slet også tilknyttede minder",

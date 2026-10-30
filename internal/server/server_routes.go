@@ -435,6 +435,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Quick Setup wizard endpoints (always available — needed before config is complete)
 	mux.HandleFunc("/api/setup/profiles", handleSetupProfiles(s))
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
+	mux.HandleFunc("/api/setup/ollama", handleSetupOllamaDetect(s))
 	mux.HandleFunc("/api/setup/test", handleSetupTestConnection(s))
 	mux.HandleFunc("/api/setup/local-llm/probe", handleSetupLocalLLMProbe(s))
 	mux.HandleFunc("/api/setup/local-llm/job", handleSetupLocalLLMJob(s))

@@ -40,8 +40,13 @@ var (
 
 const firstStartIntroAudioFilename = "brain_in_the _machine.mp3"
 
-func sendFirstStartIntroAudio(broker agent.FeedbackBroker) {
+func sendFirstStartIntroAudio(broker agent.FeedbackBroker, audioDir string) {
 	if broker == nil {
+		return
+	}
+	// The sample is only seeded when the bundled media samples exist; without
+	// the file the player card would show a load error.
+	if _, err := os.Stat(filepath.Join(audioDir, firstStartIntroAudioFilename)); err != nil {
 		return
 	}
 	if sseBroker, ok := broker.(*SSEBrokerAdapter); ok && sseBroker.sse == nil {
@@ -652,7 +657,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			s.muFirstStart.Unlock()
 			if commitFirstStart {
 				s.Logger.Info("[FirstStart] Injecting one-time naming prompt")
-				sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID))
+				sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID), filepath.Join(s.Cfg.Directories.DataDir, "audio"))
 			}
 		}
 

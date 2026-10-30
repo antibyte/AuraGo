@@ -232,7 +232,15 @@ function chatSystemNotificationText(note) {
     return prefix + title + note.message;
 }
 
-async function loadChatSystemNotifications(current = () => true) {
+// The optional-protection advisory waits until the conversation is under way (~3 exchanges).
+const CHAT_ADVISORY_MIN_HISTORY = 6;
+
+function chatAdvisoryDeferred(note, historyCount) {
+    return !!note && note.type === 'security_advisory' && !!note.data && note.data.code === 'horizon_optional' &&
+        !(Number(historyCount) >= CHAT_ADVISORY_MIN_HISTORY);
+}
+
+async function loadChatSystemNotifications(current = () => true, options = {}) {
     try {
         const res = await fetch('/api/system/notifications');
         if (!res.ok || !current()) return;
@@ -242,6 +250,8 @@ async function loadChatSystemNotifications(current = () => true) {
         for (const note of notes) {
             if (!current()) break;
             if (!note || typeof note.message !== 'string' || !note.message.trim()) continue;
+            // Deferred notes are neither shown nor marked read, so they stay pending for a later visit.
+            if (options.deferOptionalAdvisories && chatAdvisoryDeferred(note, 0)) continue;
             try {
                 const previous = chatContent.lastElementChild;
                 // Display-only: system advisories never enter conversation or model history.
@@ -296,10 +306,12 @@ async function initPage() {
             }
         }
     } catch (e) { }
+    let historyCount = 0;
     try {
         const res = await fetch(buildHistoryUrl());
         if (res.ok) {
             const history = await res.json();
+            historyCount = Array.isArray(history) ? history.length : 0;
             if (generation === historyGeneration && history && history.length > 0) {
                 if (window.ChatRobotMascot && typeof window.ChatRobotMascot.anchorImmediately === 'function') {
                     window.ChatRobotMascot.anchorImmediately();
@@ -313,7 +325,9 @@ async function initPage() {
     }
     const planGeneration = historyGeneration;
     await loadActivePlanForSession(getActiveSessionId(), () => planGeneration === historyGeneration);
-    await loadChatSystemNotifications(() => generation === historyGeneration);
+    await loadChatSystemNotifications(() => generation === historyGeneration, {
+        deferOptionalAdvisories: historyCount < CHAT_ADVISORY_MIN_HISTORY
+    });
     try {
         const res = await fetch('/api/personalities');
         if (res.ok) {

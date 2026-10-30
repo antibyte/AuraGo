@@ -24,6 +24,12 @@ let csrfToken = '';
 const SETUP_BOOTSTRAP_STORAGE_KEY = 'aurago.setupBootstrapToken';
 let setupBootstrapToken = readSetupBootstrapToken();
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
+let setupIsDocker = false;
+// Local Ollama detection: null = still checking, otherwise { reachable, models: [{ name, size, parameter_size, family }] }.
+let setupOllamaDetection = null;
+let setupOllamaChecking = false;
+// Set only by the user's own clicks/keys on a plan card, never by the default preselection.
+let setupProfileUserChosen = false;
 let setupHTTPS = null;
 let setupCompleted = false;   // success screen shown: keep wizard chrome (HTTPS notice) hidden
 
@@ -40,6 +46,13 @@ const LANG_MAP = {
     sv: 'Svenska', no: 'Norsk', el: 'Ελληνικά', cs: 'Čeština',
 };
 const SUPPORTED_LANGS = Object.keys(LANG_MAP);
+
+// Pure: the agent's working language. A free-text entry from the advanced section wins over
+// the language chosen on the first page.
+function setupAgentLanguage(code, customText) {
+    const custom = String(customText || '').trim();
+    return custom || LANG_MAP[code] || code;
+}
 
 // Derived helpers
 function activeFlow()  { return isQuickFlow ? QUICK_FLOW_STEPS  : CUSTOM_FLOW_STEPS; }
@@ -121,10 +134,12 @@ async function checkSetupStatus() {
             return;
         }
         if (data.csrf_token) csrfToken = data.csrf_token;
+        setupIsDocker = data.is_docker === true;
         if (data.bootstrap_token_required && data.bootstrap_token_valid !== true) {
             openSetupOwnerGate(false, Boolean(setupBootstrapToken));
         } else {
             closeSetupOwnerGate();
+            if (csrfToken) detectSetupOllama();
         }
         if (data.ollama_base_url) {
             setupOllamaBaseURL = data.ollama_base_url;
@@ -201,8 +216,20 @@ function renderSetupHTTPSStatus() {
         const names = profiles.map(p => p.name || p);
         if (names.includes('friend')) sel.value = 'friend';
         else if (active && names.includes(active)) sel.value = active;
+        sel.addEventListener('change', updateCorePersonalityDesc);
+        updateCorePersonalityDesc();
     } catch (e) { /* ignore — fallback option remains */ }
 })();
+
+// One-line description under the personality select; unknown (user-made) personalities get the generic line.
+function updateCorePersonalityDesc() {
+    const sel = document.getElementById('core-personality');
+    const target = document.getElementById('core-personality-desc');
+    if (!sel || !target) return;
+    const key = 'setup.personality_desc_' + sel.value;
+    const text = t(key);
+    target.textContent = text !== key ? text : t('setup.personality_desc_custom');
+}
 
 (async function loadSecurityStatus() {
     try {
@@ -222,6 +249,7 @@ const providerConfig = {
         link: 'openrouter.ai/keys',
         defaultModel: 'google/gemini-3.1-flash-lite',
         needsKey: true,
+        nativeFunctions: true,
     },
     agnes: {
         baseUrl: 'https://apihub.agnes-ai.com/v1',
@@ -230,6 +258,7 @@ const providerConfig = {
         defaultModel: 'agnes-2.0-flash',
         hintKey: 'setup.step0_provider_hint_agnes',
         needsKey: true,
+        nativeFunctions: true,
     },
     openai: {
         baseUrl: 'https://api.openai.com/v1',
@@ -237,6 +266,7 @@ const providerConfig = {
         link: 'platform.openai.com/api-keys',
         defaultModel: 'gpt-5.5',
         needsKey: true,
+        nativeFunctions: true,
     },
     anthropic: {
         baseUrl: 'https://api.anthropic.com/v1',
@@ -244,6 +274,7 @@ const providerConfig = {
         link: 'console.anthropic.com/settings/keys',
         defaultModel: 'claude-sonnet-5-5',
         needsKey: true,
+        nativeFunctions: true,
     },
     google: {
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
@@ -251,6 +282,7 @@ const providerConfig = {
         link: 'aistudio.google.com/apikey',
         defaultModel: 'gemini-3.5-flash',
         needsKey: true,
+        nativeFunctions: true,
     },
     ollama: {
         baseUrl: setupOllamaBaseURL,
@@ -258,6 +290,7 @@ const providerConfig = {
         link: 'ollama.com',
         defaultModel: 'llama3.1',
         needsKey: false,
+        nativeFunctions: false,
     },
     custom: {
         baseUrl: '',
@@ -265,8 +298,16 @@ const providerConfig = {
         link: '',
         defaultModel: '',
         needsKey: true,
+        nativeFunctions: true,
     },
 };
+
+// Pure: whether native function calling starts enabled for a main provider. Small local
+// models (Ollama) start with it off; the custom provider matches the config template.
+function setupNativeFunctionsDefault(provider) {
+    const cfg = providerConfig[provider] || providerConfig.custom;
+    return cfg.nativeFunctions === true;
+}
 
 // ── Provider Profile Loading ─────────────────
 async function loadProfiles() {
@@ -280,6 +321,7 @@ async function loadProfiles() {
             const id = setupDefaultProfileId(profiles);
             if (id) selectProfile(id);
         }
+        maybePreselectOllama();
     } catch (e) {
         const loading = document.getElementById('profile-loading');
         if (loading) loading.innerHTML = `<p class="profile-state-message profile-load-error">${escapeHtml(t('setup.plan_load_error'))}</p>`;
@@ -307,21 +349,59 @@ function setupQuickProfileFeatureKeys(p) {
     return map.filter(([key]) => p.features[key] && m[key]).map(([, i18nKey]) => i18nKey);
 }
 
-function getFeatureBadges(features) {
-    if (!features) return '';
-    const map = [
-        ['vision',           'setup.feature_vision',  '👁'],
-        ['tts',              'setup.feature_tts',     '🔊'],
-        ['image_generation', 'setup.feature_images',  '🎨'],
-        ['video_generation', 'setup.feature_video',   '🎬'],
-        ['music_generation', 'setup.feature_music',   '🎵'],
-    ];
-    return map.map(([key, i18nKey, icon]) => {
-        const active = !!features[key];
-        const label = (t(i18nKey) || key);
-        const cls = active ? 'feature-badge' : 'feature-badge inactive';
-        return `<span class="${cls}" title="${active ? '' : t('setup.feature_unavailable')}">${icon} ${escapeHtml(label)}</span>`;
-    }).join('');
+// Pure: plans that run on the user's own machine (Ollama) need no API key.
+function setupProfileNeedsKey(p) {
+    return !(p && p.no_api_key);
+}
+
+// Pure: the chosen local model. The select (filled from detection) wins over the manual field.
+function setupOllamaModelFrom(selectValue, manualValue) {
+    return String(selectValue || '').trim() || String(manualValue || '').trim();
+}
+
+// Pure: the usable model entries of a detection payload; tolerates any shape.
+function setupOllamaModels(detection) {
+    const list = detection && Array.isArray(detection.models) ? detection.models : [];
+    return list.filter(m => m && typeof m.name === 'string' && m.name !== '');
+}
+
+// Pure: Ollama is preselected only when it runs with a model, the user has not picked a plan yet
+// and the wizard is still on the plan page.
+function setupShouldPreselectOllama(detection, userChosen, stepIndex) {
+    return !!detection && detection.reachable === true && setupOllamaModels(detection).length > 0 &&
+        !userChosen && stepIndex === 0;
+}
+
+// Pure: status line of the Ollama plan card.
+function setupOllamaCardStatus(detection) {
+    if (detection === null || detection === undefined) return { cls: '', key: 'setup.ollama_status_checking' };
+    const count = setupOllamaModels(detection).length;
+    if (detection.reachable === true && count > 0) return { cls: 'is-ok', key: 'setup.ollama_status_detected', count };
+    return { cls: 'is-missing', key: 'setup.ollama_status_missing' };
+}
+
+// Pure: quick plans without an embeddings model of their own use the local embedder, like the custom flow.
+function setupQuickEmbeddingsPatch(p, models) {
+    if (p && p.features && p.features.embeddings && models && models.embeddings) return { provider: 'embeddings' };
+    return { provider: 'local-granite', local: { backend: 'auto', context_size: 2048, batch_size: 2048 }, multimodal: false };
+}
+
+// Badges list only what a plan really enables; the custom plan gets one neutral badge instead.
+function getFeatureBadges(profile) {
+    if (!profile) return '';
+    if (profile.id === 'custom') {
+        return `<span class="feature-badge feature-badge-neutral">${escapeHtml(t('setup.feature_custom_all'))}</span>`;
+    }
+    const icons = {
+        'setup.feature_vision': '👁',
+        'setup.feature_speech_input': '🎙',
+        'setup.feature_memory': '🧠',
+        'setup.feature_images': '🎨',
+        'setup.feature_video': '🎬',
+        'setup.feature_music': '🎵',
+    };
+    return setupQuickProfileFeatureKeys(profile)
+        .map(key => `<span class="feature-badge">${icons[key] || ''} ${escapeHtml(t(key))}</span>`).join('');
 }
 
 function tProfile(profileId, field, fallback) {
@@ -342,21 +422,24 @@ function renderProfileCards(list) {
         const name = tProfile(p.id, 'name', p.name);
         const desc = tProfile(p.id, 'description', p.description || '');
         const pricing = tProfile(p.id, 'pricing', p.pricing_label || '');
+        const badges = getFeatureBadges(p);
+        const status = p.no_api_key ? setupOllamaCardStatus(setupOllamaDetection) : null;
         return `
         <div class="profile-card${isCustom ? ' is-custom' : ''}"
              id="profile-card-${escapeAttr(p.id)}"
              role="button"
              tabindex="0"
              aria-pressed="false"
-             onclick="selectProfile('${escapeAttr(p.id)}')"
-             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProfile('${escapeAttr(p.id)}')}">
+             onclick="selectProfile('${escapeAttr(p.id)}', true)"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProfile('${escapeAttr(p.id)}', true)}">
             <div class="profile-check">✓</div>
             ${p.recommended ? '<div class="profile-recommended-bubble">' + escapeHtml(t('setup.profile_recommended_badge')) + '</div>' : ''}
             <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
             <div class="profile-card-name">${escapeHtml(name)}</div>
             <div class="profile-card-description">${escapeHtml(desc)}</div>
-            ${p.features ? `<div class="profile-features">${getFeatureBadges(p.features)}</div>` : ''}
+            ${badges ? `<div class="profile-features">${badges}</div>` : ''}
             ${pricing ? `<div class="profile-card-pricing">${escapeHtml(pricing)}</div>` : ''}
+            ${status ? `<div class="profile-card-status ${status.cls}" id="profile-status-${escapeAttr(p.id)}">${escapeHtml(t(status.key, { count: status.count }))}</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -373,6 +456,11 @@ function getQuickProfileRuntimeConfig(profile) {
         keyPlaceholder: (profile && profile.key_placeholder) || 'sk-...',
         keyUrl: (profile && profile.key_url) || '',
     };
+    if (!setupProfileNeedsKey(profile)) {
+        runtime.baseUrl = setupOllamaBaseURL;
+        runtime.mainModel = setupQuickOllamaModel();
+        return runtime;
+    }
     if (!isMiniMaxQuickProfile(profile)) return runtime;
 
     const region = (document.getElementById('quick-minimax-region') || {}).value || 'international';
@@ -419,6 +507,118 @@ function getQuickProfileSubsystemRuntime(profile, subsystem) {
     return config;
 }
 
+// The model chosen for the local (Ollama) plan, read from the quick step.
+function setupQuickOllamaModel() {
+    return setupOllamaModelFrom(
+        (document.getElementById('quick-ollama-model') || {}).value,
+        (document.getElementById('quick-ollama-model-manual') || {}).value);
+}
+
+// The id of the visible model control of the local plan (for error marking and focus).
+function setupQuickOllamaInputId() {
+    const select = document.getElementById('quick-ollama-model');
+    return select && !select.classList.contains('is-hidden') ? 'quick-ollama-model' : 'quick-ollama-model-manual';
+}
+
+function setupOllamaDisplayURL() {
+    return setupOllamaBaseURL.replace(/\/v1\/?$/, '');
+}
+
+// Status, model list and hints of the local plan card on the quick step.
+function renderQuickOllamaCard() {
+    const detection = setupOllamaDetection;
+    const models = setupOllamaModels(detection);
+    const reachable = !!detection && detection.reachable === true;
+    const status = document.getElementById('quick-ollama-status');
+    const select = document.getElementById('quick-ollama-model');
+    const manual = document.getElementById('quick-ollama-model-manual');
+    const hint = document.getElementById('quick-ollama-hint');
+    const recheck = document.getElementById('btn-quick-ollama-recheck');
+    const url = setupOllamaDisplayURL();
+
+    if (status) {
+        status.className = 'setup-ollama-status' + (detection === null ? '' : reachable ? ' is-ok' : ' is-missing');
+        status.textContent = detection === null ? t('setup.ollama_status_checking')
+            : reachable ? t('setup.ollama_found_at', { url }) : t('setup.ollama_status_missing');
+    }
+    if (select && manual) {
+        if (models.length > 0) {
+            const previous = select.value;
+            select.replaceChildren(...models.map(model =>
+                new Option(model.name + (model.parameter_size ? ' \u00b7 ' + model.parameter_size : ''), model.name)));
+            const wanted = (selectedProfile && selectedProfile.main_model) || '';
+            const preferred = models.find(model => model.name === previous) ||
+                models.find(model => wanted && model.name.indexOf(wanted) === 0) || models[0];
+            select.value = preferred.name;
+        }
+        setupSetHidden(select, models.length === 0);
+        setupSetHidden(manual, models.length > 0);
+    }
+    if (hint) {
+        const parts = [];
+        if (detection !== null && models.length === 0) {
+            parts.push(reachable ? t('setup.ollama_no_models_hint') : t('setup.ollama_missing_hint', { url }));
+            if (!reachable && setupIsDocker) parts.push(t('setup.ollama_docker_hint'));
+        }
+        hint.textContent = parts.join(' ');
+    }
+    if (recheck) recheck.disabled = setupOllamaChecking;
+}
+
+// Detection finished: update the plan card in place (no re-render, keeps keyboard focus) and the quick step.
+function refreshSetupOllamaUI() {
+    const card = document.getElementById('profile-status-ollama_local');
+    if (card) {
+        const status = setupOllamaCardStatus(setupOllamaDetection);
+        card.className = 'profile-card-status ' + status.cls;
+        card.textContent = t(status.key, { count: status.count });
+    }
+    if (selectedProfile && !setupProfileNeedsKey(selectedProfile)) renderQuickOllamaCard();
+}
+
+function maybePreselectOllama() {
+    if (!profiles.some(p => p.id === 'ollama_local')) return;
+    if (setupShouldPreselectOllama(setupOllamaDetection, setupProfileUserChosen, currentStepIndex)) selectProfile('ollama_local');
+}
+
+async function detectSetupOllama() {
+    if (!csrfToken || setupOllamaChecking) return;
+    setupOllamaChecking = true;
+    setupOllamaDetection = null;
+    refreshSetupOllamaUI();
+    try {
+        const resp = await fetch('/api/setup/ollama', { headers: setupRequestHeaders() });
+        const data = resp.ok ? await resp.json().catch(() => null) : null;
+        setupOllamaDetection = data && typeof data === 'object'
+            ? { reachable: data.reachable === true, models: setupOllamaModels(data) }
+            : { reachable: false, models: [] };
+    } catch (_) {
+        setupOllamaDetection = { reachable: false, models: [] };
+    }
+    setupOllamaChecking = false;
+    refreshSetupOllamaUI();
+    maybePreselectOllama();
+}
+
+function renderQuickSummary() {
+    const summary = document.getElementById('plan-quick-summary');
+    if (!summary || !selectedProfile) return;
+    const runtime = getQuickProfileRuntimeConfig(selectedProfile);
+    const chips = setupQuickProfileFeatureKeys(selectedProfile)
+        .map(k => `<span class="plan-quick-chip">${escapeHtml(t(k))}</span>`).join('');
+    summary.innerHTML = `
+        ${runtime.mainModel ? `<p class="plan-quick-summary-model">${escapeHtml(t('setup.plan_quick_summary_model', { model: runtime.mainModel }))}</p>` : ''}
+        ${chips ? `<div class="plan-quick-chips">${chips}</div>` : ''}
+        <p class="plan-quick-summary-later">${escapeHtml(t('setup.plan_quick_summary_later'))}</p>`;
+}
+
+document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'quick-ollama-model') renderQuickSummary();
+});
+document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'quick-ollama-model-manual') renderQuickSummary();
+});
+
 function updateQuickProfileUI() {
     const minimaxOptions = document.getElementById('quick-minimax-options');
     if (minimaxOptions) {
@@ -426,6 +626,13 @@ function updateQuickProfileUI() {
     }
     updateEmbeddingSetupWarnings();
     if (!selectedProfile || selectedProfile.id === 'custom') return;
+
+    const needsKey = setupProfileNeedsKey(selectedProfile);
+    setupSetHidden(document.getElementById('quick-api-key-card'), !needsKey);
+    setupSetHidden(document.getElementById('quick-ollama-card'), needsKey);
+    setupSetHidden(document.getElementById('quick-description'), !needsKey);
+    setupSetHidden(document.getElementById('quick-description-local'), needsKey);
+    if (!needsKey) renderQuickOllamaCard();
 
     const runtime = getQuickProfileRuntimeConfig(selectedProfile);
 
@@ -441,15 +648,7 @@ function updateQuickProfileUI() {
             </div>`;
     }
 
-    const summary = document.getElementById('plan-quick-summary');
-    if (summary) {
-        const chips = setupQuickProfileFeatureKeys(selectedProfile)
-            .map(k => `<span class="plan-quick-chip">${escapeHtml(t(k))}</span>`).join('');
-        summary.innerHTML = `
-            <p class="plan-quick-summary-model">${escapeHtml(t('setup.plan_quick_summary_model', { model: runtime.mainModel }))}</p>
-            ${chips ? `<div class="plan-quick-chips">${chips}</div>` : ''}
-            <p class="plan-quick-summary-later">${escapeHtml(t('setup.plan_quick_summary_later'))}</p>`;
-    }
+    renderQuickSummary();
 
     const hint = document.getElementById('quick-api-key-hint');
     const link = document.getElementById('quick-key-link');
@@ -489,7 +688,8 @@ function onQuickMiniMaxOptionsChange() {
     updateQuickProfileUI();
 }
 
-function selectProfile(profileId) {
+function selectProfile(profileId, byUser = false) {
+    if (byUser) setupProfileUserChosen = true;
     selectedProfile = profiles.find(p => p.id === profileId) || null;
     // Update card selection state and ARIA pressed state
     document.querySelectorAll('.profile-card').forEach(card => {
@@ -510,14 +710,15 @@ function selectProfile(profileId) {
 
 // ── Connection Test Result ───────────────────
 // Shared by the quick and custom flow: shows why the API key check failed.
-function renderSetupTestResult(el, resp, data, model) {
+// keyless: no API key was sent (local Ollama), so success must not claim one was accepted.
+function renderSetupTestResult(el, resp, data, model, keyless) {
     data = data || {};
     const fail = (text) => {
         el.textContent = '✕ ' + text;
         el.className = 'field-hint test-result-fail';
     };
     if (data.ok) {
-        let text = '✓ ' + t('setup.test_key_ok');
+        let text = '✓ ' + t(keyless ? 'setup.test_connection_ok' : 'setup.test_key_ok');
         if (data.model_checked) text += ' · ' + t('setup.test_model_ok');
         if (typeof data.credit_remaining === 'number') {
             text += ' · ' + t('setup.test_credit_remaining', { amount: '$' + data.credit_remaining.toFixed(2) });
@@ -561,9 +762,16 @@ async function testQuickConnection() {
     const result = document.getElementById('quick-test-result');
     if (!btn || btn.disabled) return;
 
-    const apiKey = document.getElementById('quick-api-key').value.trim();
-    if (!apiKey) {
+    const needsKey = setupProfileNeedsKey(selectedProfile);
+    const apiKey = needsKey ? document.getElementById('quick-api-key').value.trim() : '';
+    if (needsKey && !apiKey) {
         result.textContent = t('setup.step0_api_key_error');
+        result.className = 'field-hint test-result-fail';
+        setupSetHidden(result, false);
+        return;
+    }
+    if (!needsKey && !setupQuickOllamaModel()) {
+        result.textContent = t('setup.ollama_model_error');
         result.className = 'field-hint test-result-fail';
         setupSetHidden(result, false);
         return;
@@ -587,7 +795,7 @@ async function testQuickConnection() {
             }),
         });
         const data = await resp.json().catch(() => ({}));
-        renderSetupTestResult(result, resp, data, runtime.mainModel);
+        renderSetupTestResult(result, resp, data, runtime.mainModel, !setupProfileNeedsKey(selectedProfile));
     } catch (err) {
         result.textContent = '✕ ' + err.message;
         result.className = 'field-hint test-result-fail';
@@ -642,12 +850,19 @@ function validateQuickStep(skip = false) {
     }
 
     if (!skip && selectedProfile && selectedProfile.id !== 'custom') {
-        const apiKey = document.getElementById('quick-api-key').value.trim();
-        if (!apiKey) {
-            showFieldError('quick-api-key', 'err-quick-api-key');
+        if (setupProfileNeedsKey(selectedProfile)) {
+            const apiKey = document.getElementById('quick-api-key').value.trim();
+            if (!apiKey) {
+                showFieldError('quick-api-key', 'err-quick-api-key');
+                valid = false;
+            } else {
+                clearFieldError('quick-api-key', 'err-quick-api-key');
+            }
+        } else if (!setupQuickOllamaModel()) {
+            showFieldError(setupQuickOllamaInputId(), 'err-quick-ollama-model');
             valid = false;
         } else {
-            clearFieldError('quick-api-key', 'err-quick-api-key');
+            clearFieldError(setupQuickOllamaInputId(), 'err-quick-ollama-model');
         }
     }
 
@@ -660,7 +875,7 @@ function buildQuickConfigPatch() {
 
     const p = selectedProfile;
     const runtime = getQuickProfileRuntimeConfig(p);
-    const apiKey = (document.getElementById('quick-api-key').value || '').trim();
+    const apiKey = setupProfileNeedsKey(p) ? (document.getElementById('quick-api-key').value || '').trim() : '';
     const adminPassword = (document.getElementById('quick-admin-password').value || '');
     const quickLang = document.getElementById('quick-language');
     const mainLang = document.getElementById('system-language');
@@ -706,7 +921,6 @@ function buildQuickConfigPatch() {
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
     const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : 2;
 
-    const langMap = LANG_MAP;
     const patch = {
         _setup_profile_id: p.id,
         server: {
@@ -718,7 +932,7 @@ function buildQuickConfigPatch() {
         },
         providers,
         agent: {
-            system_language: langMap[lang] || lang,
+            system_language: setupAgentLanguage(lang, ''),
         },
         llm: {
             provider: 'main',
@@ -727,9 +941,7 @@ function buildQuickConfigPatch() {
             helper_provider: (p.features && p.features.helper && m.helper) ? 'helper' : '',
             helper_model: (p.features && p.features.helper && m.helper) ? getQuickProfileSubsystemRuntime(p, m.helper).model : '',
         },
-        embeddings: {
-            provider: (p.features && p.features.embeddings && m.embeddings) ? 'embeddings' : 'disabled',
-        },
+        embeddings: setupQuickEmbeddingsPatch(p, m),
         vision: {
             provider: (p.features && p.features.vision && m.vision) ? 'vision' : '',
         },
@@ -780,6 +992,69 @@ function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '
 function setupSetHidden(el, hidden) {
     if (!el) return;
     el.classList.toggle('is-hidden', hidden);
+}
+
+// ── Password fields: strength, match hint, show/hide, twin sync ──
+// Pure: '' (empty), 'short' (< 8), 'fair' (8-11), 'good' (12-15) or 'strong' (>= 16).
+function setupPasswordStrength(pw) {
+    const len = String(pw || '').length;
+    if (len === 0) return '';
+    if (len < 8) return 'short';
+    if (len < 12) return 'fair';
+    if (len < 16) return 'good';
+    return 'strong';
+}
+
+// Pure: '' while the confirmation is empty, then 'match' or 'mismatch'.
+function setupPasswordMatchState(pw, confirm) {
+    if (!confirm) return '';
+    return pw === confirm ? 'match' : 'mismatch';
+}
+
+// Pure: the quick-flow field mirroring a custom-flow password field and vice versa.
+function setupPasswordTwinId(id) {
+    const pairs = {
+        'admin-password': 'quick-admin-password',
+        'admin-password-confirm': 'quick-admin-password-confirm',
+        'quick-admin-password': 'admin-password',
+        'quick-admin-password-confirm': 'admin-password-confirm',
+    };
+    return pairs[id] || '';
+}
+
+function updateSetupPasswordIndicators(id) {
+    const confirmId = /-confirm$/.test(id) ? id : id + '-confirm';
+    const pwId = confirmId.replace(/-confirm$/, '');
+    const pwInput = document.getElementById(pwId);
+    const confirmInput = document.getElementById(confirmId);
+    const strengthEl = document.getElementById(pwId + '-strength');
+    const matchEl = document.getElementById(confirmId + '-match');
+    if (strengthEl && pwInput) {
+        const state = setupPasswordStrength(pwInput.value);
+        strengthEl.textContent = state ? t('setup.password_strength_' + state) : '';
+        strengthEl.classList.toggle('is-weak', state === 'short');
+        strengthEl.classList.toggle('is-ok', state === 'fair');
+        strengthEl.classList.toggle('is-strong', state === 'good' || state === 'strong');
+    }
+    if (matchEl && pwInput && confirmInput) {
+        const state = setupPasswordMatchState(pwInput.value, confirmInput.value);
+        matchEl.textContent = state ? t('setup.password_' + state) : '';
+        matchEl.classList.toggle('is-match', state === 'match');
+        matchEl.classList.toggle('is-mismatch', state === 'mismatch');
+    }
+}
+
+// Autofill and password managers can fill one flow's fields without input events.
+function syncSetupPasswordTwins() {
+    ['admin-password', 'admin-password-confirm'].forEach(id => {
+        const a = document.getElementById(id);
+        const b = document.getElementById(setupPasswordTwinId(id));
+        if (!a || !b) return;
+        if (a.value && !b.value) b.value = a.value;
+        else if (b.value && !a.value) a.value = b.value;
+    });
+    ['admin-password', 'admin-password-confirm', 'quick-admin-password', 'quick-admin-password-confirm']
+        .forEach(updateSetupPasswordIndicators);
 }
 
 /* ── OpenRouter Model Browser (reusable modal) ── */
@@ -1054,6 +1329,7 @@ function setupStepSkippable(stepId) {
 // defaults no longer overwrite it. Programmatic value changes fire no events.
 let setupVisionTouched = false;
 let setupWhisperTouched = false;
+let setupNativeFunctionsTouched = false;
 
 function applySetupSubsystemDefaults() {
     const mainType = (document.getElementById('llm-provider') || {}).value || '';
@@ -1078,6 +1354,7 @@ function applySetupSubsystemDefaults() {
     const id = e.target && e.target.id;
     if (id === 'vision-provider' || id === 'vision-model') setupVisionTouched = true;
     else if (id === 'whisper-provider' || id === 'whisper-model' || id === 'whisper-mode') setupWhisperTouched = true;
+    else if (id === 'native-functions') setupNativeFunctionsTouched = true;
     else if (type === 'input' && id === 'llm-model') applySetupSubsystemDefaults();
 }));
 
@@ -1094,7 +1371,12 @@ function onProviderChange() {
     document.getElementById('llm-base-url').placeholder = cfg.baseUrl || 'https://...';
     document.getElementById('llm-api-key').placeholder = cfg.placeholder;
     document.getElementById('llm-model').placeholder = cfg.defaultModel;
-    document.getElementById('provider-link').textContent = cfg.link;
+    const providerLink = document.getElementById('provider-link');
+    if (providerLink) {
+        providerLink.href = cfg.link ? 'https://' + cfg.link : '';
+        providerLink.textContent = cfg.link ? cfg.link.split('/')[0] : '';
+    }
+    setupSetHidden(document.getElementById('hint-api-key'), !cfg.link || !cfg.needsKey);
     document.getElementById('hint-provider').textContent = t(cfg.hintKey || 'setup.step0_provider_hint');
 
     // Pre-fill the model unless the user typed one: a value that is another
@@ -1120,6 +1402,14 @@ function onProviderChange() {
         apiKeyGroup.classList.remove('setup-dimmed');
     }
 
+    // The advanced section holds the base URL a custom provider needs.
+    if (provider === 'custom') {
+        const advanced = document.getElementById('step0-advanced');
+        if (advanced) advanced.open = true;
+    }
+    const nativeFunctions = document.getElementById('native-functions');
+    if (nativeFunctions && !setupNativeFunctionsTouched) nativeFunctions.checked = setupNativeFunctionsDefault(provider);
+
     // Show/hide OpenRouter browse button
     const orBrowseBtn = document.getElementById('or-browse-btn');
     if (orBrowseBtn) {
@@ -1143,15 +1433,6 @@ function onProviderChange() {
 }
 
 function updateEmbeddingSetupWarnings() {
-    const quickWarning = document.getElementById('quick-embedding-warning');
-    if (quickWarning) {
-        const quickProvider = selectedProfile && selectedProfile.provider_type ? selectedProfile.provider_type : '';
-        setupSetHidden(quickWarning,
-            !quickProvider ||
-            quickProvider === 'openrouter' ||
-            (selectedProfile && selectedProfile.id === 'custom'));
-    }
-
     const providerWarning = document.getElementById('provider-embedding-warning');
     const provider = (document.getElementById('llm-provider') || {}).value || '';
     if (providerWarning) {
@@ -1214,25 +1495,12 @@ async function testConnection() {
             body: JSON.stringify({ provider_type: providerType, base_url: baseUrl, api_key: apiKey, model: model }),
         });
         const data = await resp.json().catch(() => ({}));
-        renderSetupTestResult(result, resp, data, model);
+        renderSetupTestResult(result, resp, data, model, !apiKey);
     } catch (err) {
         result.textContent = '✕ ' + err.message;
         result.className = 'field-hint test-result-fail';
     } finally {
         btn.disabled = false;
-    }
-}
-
-// ── Agent Language Change Handler ────────────
-function onLanguageChange() {
-    const sel = document.getElementById('system-language');
-    const customInput = document.getElementById('system-language-custom');
-    if (sel.value === 'custom') {
-        setupSetHidden(customInput, false);
-        customInput.focus();
-    } else {
-        setupSetHidden(customInput, true);
-        syncLanguage(sel.value);
     }
 }
 
@@ -1423,6 +1691,7 @@ async function nextStep(skip = false) {
             }
             // Determine flow based on selected profile
             isQuickFlow = (selectedProfile.id !== 'custom');
+            syncSetupPasswordTwins();
             // If the user just changed their profile choice (re-selected after
             // going back), reset any flow-specific state to avoid stale references.
             if (selectedProfile.id !== prevSelectedProfileId) {
@@ -1604,6 +1873,18 @@ function validateStep0(skip = false) {
         }
     }
 
+    // A custom provider has no built-in endpoint
+    if (provider === 'custom') {
+        if (!document.getElementById('llm-base-url').value.trim()) {
+            showFieldError('llm-base-url', 'err-base-url');
+            const advanced = document.getElementById('step0-advanced');
+            if (advanced) advanced.open = true;
+            valid = false;
+        } else {
+            clearFieldError('llm-base-url', 'err-base-url');
+        }
+    }
+
     // Model required
     const model = document.getElementById('llm-model').value.trim();
     if (!model) {
@@ -1630,9 +1911,32 @@ function clearFieldError(inputId, errorId) {
 document.addEventListener('input', (e) => {
     if (e.target.classList.contains('error')) {
         e.target.classList.remove('error');
-        const errEl = e.target.parentElement.querySelector('.field-error');
+        const group = e.target.closest('.field-group') || e.target.parentElement;
+        const errEl = group && group.querySelector('.field-error');
         if (errEl) errEl.classList.remove('visible');
     }
+});
+
+// Keep both flows' password fields in step and refresh the strength / match hints.
+document.addEventListener('input', (e) => {
+    const id = e.target && e.target.id;
+    const twinId = setupPasswordTwinId(id);
+    if (!twinId) return;
+    const twin = document.getElementById(twinId);
+    if (twin && twin.value !== e.target.value) twin.value = e.target.value;
+    updateSetupPasswordIndicators(id);
+    updateSetupPasswordIndicators(twinId);
+});
+
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('[data-password-toggle]');
+    if (!btn) return;
+    const input = document.getElementById(btn.getAttribute('data-password-toggle'));
+    if (!input) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? '\u{1F648}' : '\u{1F441}';
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
 });
 
 // ── Keyboard Navigation ───────────────────────
@@ -1910,9 +2214,7 @@ function buildConfigPatch() {
     const helperModel = document.getElementById('helper-model').value.trim();
     const helperConfigured = helperRequested && helperModel !== '';
     const selectedLanguage = document.getElementById('system-language').value;
-    const uiLanguage = selectedLanguage === 'custom'
-        ? (document.documentElement.lang || 'en')
-        : (selectedLanguage || document.documentElement.lang || 'en');
+    const uiLanguage = selectedLanguage || document.documentElement.lang || 'en';
     const patch = {
         providers: buildProviderEntries(),
         server: {
@@ -1926,11 +2228,7 @@ function buildConfigPatch() {
             use_native_functions: document.getElementById('native-functions').checked,
         },
         agent: {
-            system_language: (function() {
-                const v = document.getElementById('system-language').value;
-                if (v === 'custom') return document.getElementById('system-language-custom').value.trim();
-                return LANG_MAP[v] || v;
-            })(),
+            system_language: setupAgentLanguage(uiLanguage, (document.getElementById('system-language-custom') || {}).value),
             personality_engine_v2: helperConfigured,
             personality_engine: helperConfigured,
             core_personality: document.getElementById('core-personality').value,
@@ -1941,9 +2239,6 @@ function buildConfigPatch() {
         },
         maintenance: {
             enabled: document.getElementById('maintenance-enabled').checked,
-        },
-        web_config: {
-            enabled: document.getElementById('web-config-enabled').checked,
         },
     };
 
@@ -2196,6 +2491,17 @@ function applyI18N() {
         const val = t(key);
         if (val !== key) el.title = val;
     });
+
+    // Generic: data-i18n-aria-label → aria-label attribute
+    document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+        const key = el.getAttribute('data-i18n-aria-label');
+        const val = t(key);
+        if (val !== key) el.setAttribute('aria-label', val);
+    });
+
+    updateCorePersonalityDesc();
+    ['admin-password', 'admin-password-confirm', 'quick-admin-password', 'quick-admin-password-confirm']
+        .forEach(updateSetupPasswordIndicators);
 
     // Special: admin password — show/hide required star based on auth status.
     // Star is hidden until the security status response confirms password is required.

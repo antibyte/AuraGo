@@ -1,6 +1,6 @@
 {
   "chat.horizon_optional_title": "Protection locale facultative",
-  "chat.horizon_optional_body": "Le classificateur Horizon Labs peut ajouter des contrôles contre les injections d’instructions dans les contenus web et les e-mails. Il est désactivé par défaut. Il nécessite environ {{model_mb}} Mo pour le modèle et {{runtime_mb}} Mo pour son environnement d’exécution, des ressources CPU supplémentaires et environ 1–2 Gio de RAM disponible. Tu décides si ton système dispose de ressources suffisantes. Le téléchargement et l’activation sont deux étapes distinctes dans Configuration → PromptSec Guardian.",
+  "chat.horizon_optional_body": "Le classificateur optionnel Horizon Labs ajoute des contrôles contre les injections d’instructions dans les contenus web et les e-mails (désactivé par défaut ; environ {{model_mb}} Mo de modèle + {{runtime_mb}} Mo d’exécution, 1–2 Gio de RAM). Tu décides dans Configuration → PromptSec Guardian si tu le télécharges et l’actives.",
   "chat.horizon_optional_settings": "Ouvrir les paramètres",
   "chat.sessions_delete_hint": "Supprimer définitivement cette conversation, ses plans et son historique archivé.",
   "chat.sessions_delete_memories": "Supprimer aussi les souvenirs associés",

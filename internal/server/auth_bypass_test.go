@@ -44,15 +44,41 @@ func TestAuthBypassSubtreesEndWithSlash(t *testing.T) {
 
 func TestAuthLockdownAllowsOnlyExactSetupDependencies(t *testing.T) {
 	t.Parallel()
-	for _, path := range []string{"/api/auth/password", "/api/setup", "/api/setup/status", "/setup", "/js/setup/main.js", "/api/personalities", "/auth/login", "/api/i18n"} {
+	for _, path := range []string{"/api/auth/password", "/api/setup", "/api/setup/status", "/setup", "/js/setup/main.js", "/api/personalities", "/auth/login", "/api/i18n", "/api/ready"} {
 		if !isAllowedWithoutPassword(path) {
 			t.Fatalf("%s must stay reachable during the lockdown", path)
 		}
 	}
-	for _, path := range []string{"/api/auth/passwordx", "/api/personalitiesx", "/api/setupx", "/setupx", "/api/i18n/x", "/api/health/discord"} {
+	for _, path := range []string{"/api/readyz", "/api/auth/passwordx", "/api/personalitiesx", "/api/setupx", "/setupx", "/api/i18n/x", "/api/health/discord"} {
 		if isAllowedWithoutPassword(path) {
 			t.Fatalf("%s must stay blocked during the lockdown", path)
 		}
+	}
+}
+
+func TestLockdownServerAnswersReadyProbeWithoutPassword(t *testing.T) {
+	t.Parallel()
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.ready.Store(true)
+	handler := authMiddleware(s, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if !s.ready.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("X-AuraGo-Asset-Set", "test-set")
+		w.WriteHeader(http.StatusOK)
+	}))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/ready", nil))
+	if rec.Code != http.StatusOK || rec.Header().Get("X-AuraGo-Asset-Set") == "" {
+		t.Fatalf("/api/ready during lockdown = %d (asset set %q), want 200 with asset set header", rec.Code, rec.Header().Get("X-AuraGo-Asset-Set"))
+	}
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/readyz", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("/api/readyz during lockdown = %d, want 503 server_locked", rec.Code)
 	}
 }
 

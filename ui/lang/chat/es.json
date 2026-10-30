@@ -1,6 +1,6 @@
 {
   "chat.horizon_optional_title": "Protección local opcional",
-  "chat.horizon_optional_body": "El clasificador de Horizon Labs puede añadir comprobaciones contra la inyección de instrucciones en contenido web y correos. Está desactivado de forma predeterminada. Necesita unos {{model_mb}} MB para el modelo y {{runtime_mb}} MB para su entorno de ejecución, capacidad adicional de CPU y aproximadamente 1–2 GiB de RAM disponible. Tú decides si tu sistema tiene recursos suficientes. La descarga y la activación son pasos independientes en Configuración → PromptSec Guardian.",
+  "chat.horizon_optional_body": "El clasificador opcional de Horizon Labs añade comprobaciones extra contra la inyección de instrucciones en contenido web y correos (desactivado por defecto; unos {{model_mb}} MB de modelo + {{runtime_mb}} MB de entorno, 1–2 GiB de RAM). Tú decides en Configuración → PromptSec Guardian si lo descargas y lo activas.",
   "chat.horizon_optional_settings": "Abrir ajustes",
   "chat.sessions_delete_hint": "Eliminar permanentemente este chat, incluidos sus planes y el historial archivado.",
   "chat.sessions_delete_memories": "Eliminar también los recuerdos asociados",

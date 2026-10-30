@@ -17,7 +17,7 @@ func TestFirstStartNamingPromptPreflightsBeforeQueuingBrainInTheMachineAudio(t *
 	}
 	text := string(source)
 
-	audioDispatch := `sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID))`
+	audioDispatch := `sendFirstStartIntroAudio(NewSSEBrokerAdapterWithSession(sse, sessionID)`
 	namingPrompt := `[FIRST START INITIALIZATION`
 	agentLoop := `agent.ExecuteAgentLoop`
 
@@ -65,8 +65,12 @@ func TestMediaSampleManifestIncludesBundledAuraGoVideo(t *testing.T) {
 func TestSendFirstStartIntroAudioPayload(t *testing.T) {
 	t.Parallel()
 
+	audioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(audioDir, firstStartIntroAudioFilename), []byte("x"), 0o600); err != nil {
+		t.Fatalf("write intro audio: %v", err)
+	}
 	broker := &firstStartIntroCaptureBroker{}
-	sendFirstStartIntroAudio(broker)
+	sendFirstStartIntroAudio(broker, audioDir)
 
 	if broker.event != "audio" {
 		t.Fatalf("event = %q, want audio", broker.event)
@@ -83,6 +87,16 @@ func TestSendFirstStartIntroAudioPayload(t *testing.T) {
 	}
 	if got := payload["autoplay"]; got != true {
 		t.Fatalf("autoplay = %v, want true", got)
+	}
+}
+
+func TestSendFirstStartIntroAudioSkipsMissingFile(t *testing.T) {
+	t.Parallel()
+
+	broker := &firstStartIntroCaptureBroker{}
+	sendFirstStartIntroAudio(broker, t.TempDir())
+	if broker.event != "" {
+		t.Fatalf("event = %q, want no audio card when the sample file is missing", broker.event)
 	}
 }
 
