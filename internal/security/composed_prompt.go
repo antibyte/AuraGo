@@ -2,6 +2,7 @@ package security
 
 import (
 	"context"
+	"strings"
 
 	"github.com/danielthedm/promptsec"
 	"github.com/danielthedm/promptsec/guard/embedding"
@@ -27,9 +28,67 @@ func GateScanComposedPrompt(g *Guardian, text string) (ScanResult, bool) {
 	if g == nil {
 		g = defaultGateGuardian()
 	}
-	return scanLocalGate(text, ThreatCritical, func(part string) ScanResult {
-		return g.scanWithOptions(part, scanOptions{localOnly: true, composedPrompt: true})
-	})
+	scan := func(part string, demoteRole bool) ScanResult {
+		return g.scanWithOptions(part, scanOptions{localOnly: true, composedPrompt: true, demoteRole: demoteRole})
+	}
+	full, withhold := scanLocalGate(text, ThreatCritical, func(part string) ScanResult { return scan(part, false) })
+	if !withhold || full.Incomplete {
+		return full, withhold
+	}
+	// The operator's own wording ("Always answer in German", "You are a ... assistant")
+	// is authorized task text, so role-manipulation findings in it are advisory. The
+	// fenced external material keeps the strict scan, and the operator part keeps it for
+	// every other category. Both halves are scanned alone; the text passes only when
+	// neither holds, so nothing inside a fence can borrow the operator relief.
+	outside, inside := splitExternalData(text)
+	if inside != "" {
+		if r, hold := scanLocalGate(inside, ThreatCritical, func(part string) ScanResult { return scan(part, false) }); hold {
+			return r, true
+		}
+	}
+	r, hold := scanLocalGate(outside, ThreatCritical, func(part string) ScanResult { return scan(part, true) })
+	if hold {
+		return r, true
+	}
+	return r, false
+}
+
+// splitExternalData separates the <external_data> blocks of text from the rest. An
+// opener without a closer fences everything behind it, so a stray tag never widens the
+// operator part.
+func splitExternalData(text string) (outside, inside string) {
+	const open, closer = "<external_data>", "</external_data>"
+	var out, in strings.Builder
+	rest := text
+	for {
+		i := strings.Index(rest, open)
+		if i < 0 {
+			out.WriteString(rest)
+			break
+		}
+		out.WriteString(rest[:i])
+		out.WriteString(blockSep)
+		block := rest[i:]
+		j := strings.Index(block, closer)
+		if j < 0 {
+			in.WriteString(block)
+			in.WriteString(blockSep)
+			break
+		}
+		j += len(closer)
+		in.WriteString(block[:j])
+		in.WriteString(blockSep)
+		rest = block[j:]
+	}
+	return out.String(), strings.TrimSpace(in.String())
+}
+
+func demoteRoleManipulation(analysis *promptsec.Result) {
+	for i := range analysis.Threats {
+		if t := &analysis.Threats[i]; t.Type == promptsec.ThreatRoleManipulation {
+			t.Severity = min(t.Severity, 0.45)
+		}
+	}
 }
 
 // ComposedPromptNeedsReview identifies uncertain findings, excluding harmless
@@ -58,3 +117,6 @@ func adjustComposedPromptEmbedding(analysis *promptsec.Result) {
 		}
 	}
 }
+
+// blockSep keeps the text on both sides of a fenced block on separate lines.
+const blockSep = "\x0a"

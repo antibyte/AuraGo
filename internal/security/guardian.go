@@ -489,6 +489,9 @@ type scanOptions struct {
 	returnSanitized bool
 	localOnly       bool
 	composedPrompt  bool
+	// demoteRole caps role-manipulation findings at advisory strength; only the
+	// composed-prompt gate sets it, for the operator-authored part of a prompt.
+	demoteRole bool
 }
 
 func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
@@ -567,6 +570,9 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 			analysis := protector.Analyze(scanText)
 			if opts.composedPrompt {
 				adjustComposedPromptEmbedding(analysis)
+			}
+			if opts.demoteRole {
+				demoteRoleManipulation(analysis)
 			}
 			if lift {
 				analysis = liftShadowAnalysis(analysis)
