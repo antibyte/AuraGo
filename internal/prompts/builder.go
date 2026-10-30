@@ -3,6 +3,8 @@ package prompts
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1472,14 +1474,43 @@ func escapePromptBoundaryLines(content string) string {
 func filterCoreMemoryPromptLines(lines []string) ([]string, int) {
 	filtered := make([]string, 0, len(lines))
 	omitted := 0
+	refused := map[string]int{}
+	var refusedIDs []string
 	for _, line := range lines {
 		if isTransientCoreMemoryPromptLine(line) {
 			omitted++
+			fact := coreMemoryPromptFactText(line)
+			if rule := memory.CoreMemoryRefusalRule(fact); rule != "" {
+				refused[rule]++
+				if len(refusedIDs) < 5 {
+					sum := sha256.Sum256([]byte(fact))
+					refusedIDs = append(refusedIDs, hex.EncodeToString(sum[:3]))
+				}
+			}
 			continue
 		}
 		filtered = append(filtered, line)
 	}
+	logCoreMemoryRefusals(refused, refusedIDs)
 	return filtered, omitted
+}
+
+// logCoreMemoryRefusals reports, once per prompt build, how many core-memory
+// facts ValidateCoreMemoryFact kept out of the prompt and why. It never logs the
+// fact text; the ids are short hashes.
+func logCoreMemoryRefusals(refused map[string]int, ids []string) {
+	if len(refused) == 0 {
+		return
+	}
+	total := 0
+	rules := make([]string, 0, len(refused))
+	for rule, n := range refused {
+		total += n
+		rules = append(rules, fmt.Sprintf("%s=%d", rule, n))
+	}
+	sort.Strings(rules)
+	slog.Warn("[Prompt] core memory facts refused by policy and omitted from the prompt",
+		"count", total, "rules", strings.Join(rules, ","), "fact_ids", strings.Join(ids, ","))
 }
 
 func appendCoreMemoryFilterMarker(lines []string, filteredCount int) []string {
