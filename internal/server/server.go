@@ -1561,6 +1561,7 @@ func Start(opts StartOptions) error {
 	// Start File Indexer if enabled
 	if cfg.Indexing.Enabled {
 		fileIndexer := services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
+		fileIndexer.SetDecisionService(taskDecisionService{s})
 		s.setFileIndexer(fileIndexer)
 		s.attachFileKGSyncer()
 		fileIndexer.Start(budget.WithTracking(serverCtx, s.budgetTrackerSnapshot(), "vision"))

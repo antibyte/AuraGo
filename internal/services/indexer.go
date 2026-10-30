@@ -76,6 +76,8 @@ type FileIndexer struct {
 	cachedEmbedderKey string
 	kgSyncer          *FileKGSyncer
 	kgSyncSem         chan struct{}
+	decisionMu        sync.RWMutex
+	decisions         IndexerDecisionService
 }
 
 // NewFileIndexer creates a new file indexer service.
@@ -533,8 +535,10 @@ type fileIndexOutcome struct {
 	err       error
 }
 
-func indexImagePrompt(name string) string {
-	return "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. Dateiname: " + name
+// indexImagePrompt asks for a detailed description. kind is the optional Decisions
+// verdict; an empty kind keeps the prompt exactly as it was without Decisions.
+func indexImagePrompt(name, kind string) string {
+	return "Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details." + imagePromptHint(kind) + " Dateiname: " + name
 }
 
 func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path string, info os.FileInfo) fileIndexOutcome {
@@ -635,45 +639,51 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		}
 		content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
 	} else if isImage {
+		class := fi.classifyImage(ctx, cfg, path, allowMedia)
 		if tools.VisionRequiresPublicImageURL(cfg) {
-			fi.logger.Debug("[Indexer] Skipping local image because the Vision provider requires a public URL", "path", relPath, "provider", "agnes")
-			if err := fi.removeTrackedFile(path, collection); err != nil {
-				outcome.err = fmt.Errorf("cleanup unsupported local image %s: %v", path, err)
+			entry := coarseImageEntry(info.Name(), relPath, class)
+			if entry == "" {
+				fi.logger.Debug("[Indexer] Skipping local image because the Vision provider requires a public URL", "path", relPath, "provider", "agnes")
+				if err := fi.removeTrackedFile(path, collection); err != nil {
+					outcome.err = fmt.Errorf("cleanup unsupported local image %s: %v", path, err)
+					return outcome
+				}
+				outcome.noContent = true
 				return outcome
 			}
-			outcome.noContent = true
-			return outcome
-		}
-		prompt := indexImagePrompt(info.Name())
-		var analysis string
-		var visionErr error
-		for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
-			var width, height int
-			analysis, width, height, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, cfg)
-			_ = width
-			_ = height
-			if visionErr == nil {
-				if attempt > 1 {
-					fi.logger.Info("[Indexer] Vision retry successful", "path", path, "attempt", attempt)
+			content = entry
+		} else {
+			prompt := indexImagePrompt(info.Name(), class.Kind)
+			var analysis string
+			var visionErr error
+			for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+				var width, height int
+				analysis, width, height, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, cfg)
+				_ = width
+				_ = height
+				if visionErr == nil {
+					if attempt > 1 {
+						fi.logger.Info("[Indexer] Vision retry successful", "path", path, "attempt", attempt)
+					}
+					break
 				}
-				break
+				if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(visionErr) {
+					break
+				}
+				backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
+				fi.logger.Warn("[Indexer] Vision analysis failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", scrubIndexingError(visionErr))
+				if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
+					visionErr = sleepErr
+					break
+				}
 			}
-			if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(visionErr) {
-				break
+			if visionErr != nil {
+				fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", scrubIndexingError(visionErr))
+				outcome.err = fmt.Errorf("vision error %s: %v", path, visionErr)
+				return outcome
 			}
-			backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
-			fi.logger.Warn("[Indexer] Vision analysis failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", scrubIndexingError(visionErr))
-			if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
-				visionErr = sleepErr
-				break
-			}
+			content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
 		}
-		if visionErr != nil {
-			fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", scrubIndexingError(visionErr))
-			outcome.err = fmt.Errorf("vision error %s: %v", path, visionErr)
-			return outcome
-		}
-		content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
 	} else if IsDocumentFile(ext) {
 		// The scanned-PDF fallback sends the whole file to the multimodal provider.
 		pdfFallback := multimodal && allowMedia && ext == ".pdf"
@@ -892,9 +902,17 @@ func (fi *FileIndexer) indexFingerprintForMode(mode string, allowMedia bool) str
 	parts = append(parts, "chunking="+chunking.Fingerprint(fi.chunkingOptionsSnapshot()))
 
 	fi.cfgMu.RLock()
+	cfg := fi.cfg
+	fi.cfgMu.RUnlock()
+	// Images re-run once when the Decisions classification is switched on or off.
+	decisionsOn := mode == fileIndexModeVision && fi.decisionsImagesActive(cfg, allowMedia)
+	fi.cfgMu.RLock()
 	defer fi.cfgMu.RUnlock()
 	switch mode {
 	case fileIndexModeVision:
+		if decisionsOn {
+			parts = append(parts, "decisions=images")
+		}
 		parts = append(parts,
 			fingerprintProvider("vision", fi.cfg.Vision.Provider, fi.cfg.Vision.ProviderType, fi.cfg.Vision.BaseURL, fi.cfg.Vision.Model, fi.cfg.Vision.APIKey),
 			fingerprintProvider("llm", fi.cfg.LLM.Provider, fi.cfg.LLM.ProviderType, fi.cfg.LLM.BaseURL, fi.cfg.LLM.Model, fi.cfg.LLM.APIKey),
