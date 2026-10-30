@@ -24,16 +24,113 @@ type decisionHub struct {
 	stats        map[consumers.ID]*consumers.Stats
 	imagesPinned map[uint64]bool // modelEpoch -> unsupported after images_unsupported
 	epochs       map[consumers.ID]*atomic.Uint64
-	// Admission state arrives with the scheduler; nothing is deferred yet.
+
+	// Admission state (all under mu). One global background slot; interactive
+	// work is counted so background consumers can step aside.
+	now                func() time.Time // test seam; nil means time.Now
+	interactive        int
+	background         *backgroundCall
+	lastBackground     map[consumers.ID]time.Time
+	lastCatalogRefresh time.Time
+}
+
+// backgroundCall is the hub-owned handle of the single admitted background call.
+type backgroundCall struct {
+	cancel    context.CancelFunc
+	external  bool
+	preempted bool // guarded by decisionHub.mu
+}
+
+// decisionCatalogTTL mirrors the model catalog cache lifetime.
+const decisionCatalogTTL = 5 * time.Minute
+
+func (h *decisionHub) clock() time.Time {
+	if h.now != nil {
+		return h.now()
+	}
+	return time.Now()
+}
+
+// localDecisionLoad reads the local manager's load without side effects. Calls
+// that bypass the hub (EasyDrag, API) show up here.
+func (h *decisionHub) localDecisionLoad() (active, waiting int, ok bool) {
+	var local decisionsService = h.s.Decisions
+	if router, isRouter := local.(*routedDecisions); isRouter {
+		local = router.local
+	}
+	if loader, has := local.(interface{ Load() (int, int) }); has {
+		active, waiting = loader.Load()
+		return active, waiting, true
+	}
+	return 0, 0, false
+}
+
+func (h *decisionHub) providerIdle() bool {
+	if router, ok := h.s.Decisions.(*routedDecisions); ok {
+		return router.providerIdle()
+	}
+	return true
+}
+
+// admit applies the scheduling rules. Interactive work always passes and
+// cancels a LOCAL background call; paid external calls are never cut. Background
+// work is try-only: any non-empty code means "deferred", nothing was started.
+func (h *decisionHub) admit(ctx context.Context, spec consumers.Spec, external bool) (context.Context, func(), *backgroundCall, string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if spec.Class == consumers.Interactive {
+		h.interactive++
+		if h.background != nil && !h.background.external {
+			h.background.preempted = true
+			h.background.cancel()
+		}
+		return ctx, func() { h.mu.Lock(); h.interactive--; h.mu.Unlock() }, nil, ""
+	}
+	if h.interactive > 0 || h.background != nil {
+		return nil, nil, nil, consumers.CodeAdmissionDeferred
+	}
+	now := h.clock()
+	if last, ok := h.lastBackground[spec.ID]; ok && spec.MinInterval > 0 && now.Sub(last) < spec.MinInterval {
+		return nil, nil, nil, consumers.CodeAdmissionDeferred
+	}
+	if external {
+		if !h.providerIdle() {
+			return nil, nil, nil, consumers.CodeAdmissionDeferred
+		}
+	} else if active, waiting, ok := h.localDecisionLoad(); ok && (active > 0 || waiting > 0) {
+		return nil, nil, nil, consumers.CodeAdmissionDeferred
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	call := &backgroundCall{cancel: cancel, external: external}
+	h.background = call
+	h.lastBackground[spec.ID] = now
+	return ctx, func() {
+		cancel()
+		h.mu.Lock()
+		if h.background == call {
+			h.background = nil
+		}
+		h.mu.Unlock()
+	}, call, ""
+}
+
+func (h *decisionHub) wasPreempted(call *backgroundCall) bool {
+	if call == nil {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return call.preempted
 }
 
 func (s *Server) decisionHub() *decisionHub {
 	s.decisionHubOnce.Do(func() {
 		s.decisionHubInst = &decisionHub{
-			s:            s,
-			stats:        make(map[consumers.ID]*consumers.Stats),
-			imagesPinned: make(map[uint64]bool),
-			epochs:       make(map[consumers.ID]*atomic.Uint64),
+			s:              s,
+			stats:          make(map[consumers.ID]*consumers.Stats),
+			imagesPinned:   make(map[uint64]bool),
+			epochs:         make(map[consumers.ID]*atomic.Uint64),
+			lastBackground: make(map[consumers.ID]time.Time),
 		}
 	})
 	return s.decisionHubInst
@@ -240,7 +337,13 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 			request.Images = nil
 			h.record(id, func(st *consumers.Stats) { st.ImagesSkipped++ })
 		}
-		ctx = withDecisionUsageCategory(ctx, spec.BudgetCategory)
+		admitted, release, call, deferred := h.admit(ctx, spec, external)
+		if deferred != "" {
+			h.record(id, func(st *consumers.Stats) { st.Deferred++; st.LastCode = deferred })
+			return decisions.Response{}, decisions.NewError(deferred, nil)
+		}
+		defer release()
+		ctx = withDecisionUsageCategory(admitted, spec.BudgetCategory)
 		if router, ok := s.Decisions.(*routedDecisions); ok {
 			ctx = context.WithValue(ctx, router, generation)
 			ctx = context.WithValue(ctx, decisionModelEpochKey{}, modelEpoch)
@@ -250,6 +353,10 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 			h.mu.Lock()
 			h.imagesPinned[modelEpoch] = true
 			h.mu.Unlock()
+		}
+		if err != nil && h.wasPreempted(call) {
+			h.record(id, func(st *consumers.Stats) { st.Preempted++; st.LastCode = consumers.CodePreempted })
+			return decisions.Response{}, decisions.NewError(consumers.CodePreempted, err)
 		}
 		h.recordOutcome(id, response, err, external)
 		if !result.Current() {

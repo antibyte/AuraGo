@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -241,5 +242,173 @@ func TestStatusConsumersPassive(t *testing.T) {
 	}
 	if fake.calls != 0 || wrapped.lifecycle != 0 {
 		t.Fatalf("snapshots acted: evaluate=%d lifecycle=%d", fake.calls, wrapped.lifecycle)
+	}
+}
+
+// gatedDecisions reports a configurable manager load and can block Evaluate
+// until its context ends or release is closed.
+type gatedDecisions struct {
+	*fakeDecisions
+	active, waiting int
+	block           bool
+	started         chan struct{}
+	release         chan struct{}
+	evaluated       atomic.Int32
+}
+
+func newGated(f *fakeDecisions) *gatedDecisions {
+	return &gatedDecisions{fakeDecisions: f, started: make(chan struct{}, 4), release: make(chan struct{})}
+}
+
+func (g *gatedDecisions) Load() (int, int) { return g.active, g.waiting }
+func (g *gatedDecisions) Evaluate(ctx context.Context, r decisions.Request) (decisions.Response, error) {
+	g.evaluated.Add(1)
+	if g.block {
+		g.block = false
+		g.started <- struct{}{}
+		select {
+		case <-ctx.Done():
+			return decisions.Response{}, decisions.NewError(decisions.CodeCancelled, ctx.Err())
+		case <-g.release:
+		}
+	}
+	return decisions.Response{}, nil
+}
+
+func routerOn(s *Server) {
+	s.Cfg.LLMRouter = config.DefaultLLMRouterConfig()
+	s.Cfg.LLMRouter.Enabled = true
+}
+
+func TestBackgroundDefersWhenManagerBusy(t *testing.T) {
+	s, fake := hubLocal(t)
+	g := newGated(fake)
+	g.active = 1
+	s.Decisions = g
+	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
+	snap := s.decisionHub().Snapshot(s.Cfg, consumers.MailTriage)
+	_, err := snap.Evaluate(context.Background(), decisions.Request{})
+	if decisions.ErrorCode(err) != consumers.CodeAdmissionDeferred || g.evaluated.Load() != 0 {
+		t.Fatalf("err=%v evaluated=%d", err, g.evaluated.Load())
+	}
+	if st := s.decisionHub().Stats()[consumers.MailTriage]; st.Deferred != 1 {
+		t.Fatalf("stats %+v", st)
+	}
+	g.active = 0
+	if _, err := snap.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBackgroundDefersWhenInteractiveInFlight(t *testing.T) {
+	s, fake := hubLocal(t)
+	g := newGated(fake)
+	g.block = true
+	s.Decisions = g
+	routerOn(s)
+	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
+	router := (taskDecisionService{s}).RoutingSnapshot(s.Cfg)
+	done := make(chan error, 1)
+	go func() { _, err := router.Evaluate(context.Background(), decisions.Request{}); done <- err }()
+	<-g.started
+	mail := s.decisionHub().Snapshot(s.Cfg, consumers.MailTriage)
+	if _, err := mail.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != consumers.CodeAdmissionDeferred {
+		t.Fatalf("err=%v", err)
+	}
+	close(g.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mail.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatalf("after interactive: %v", err)
+	}
+}
+
+func TestBackgroundMinInterval(t *testing.T) {
+	s, fake := hubLocal(t)
+	s.Decisions = newGated(fake)
+	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "person_wake")
+	hub := s.decisionHub()
+	clock := time.Now()
+	hub.now = func() time.Time { return clock }
+	snap := hub.Snapshot(s.Cfg, consumers.PersonWake)
+	if _, err := snap.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(time.Second)
+	if _, err := snap.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != consumers.CodeAdmissionDeferred {
+		t.Fatalf("second call within 2s: %v", err)
+	}
+	clock = clock.Add(2 * time.Second)
+	if _, err := snap.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatalf("after interval: %v", err)
+	}
+}
+
+func TestInteractivePreemptsLocalBackground(t *testing.T) {
+	s, fake := hubLocal(t)
+	g := newGated(fake)
+	g.block = true
+	s.Decisions = g
+	routerOn(s)
+	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
+	mail := s.decisionHub().Snapshot(s.Cfg, consumers.MailTriage)
+	done := make(chan error, 1)
+	go func() { _, err := mail.Evaluate(context.Background(), decisions.Request{}); done <- err }()
+	<-g.started
+	router := (taskDecisionService{s}).RoutingSnapshot(s.Cfg)
+	if _, err := router.Evaluate(context.Background(), decisions.Request{}); err != nil {
+		t.Fatalf("router: %v", err)
+	}
+	select {
+	case err := <-done:
+		if decisions.ErrorCode(err) != consumers.CodePreempted {
+			t.Fatalf("background err=%v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("background was not preempted")
+	}
+	if st := s.decisionHub().Stats()[consumers.MailTriage]; st.Preempted != 1 {
+		t.Fatalf("stats %+v", st)
+	}
+}
+
+func TestExternalReservedInteractiveSlot(t *testing.T) {
+	s, d, _, remote := routedDecisionFixture(t)
+	d.busy = make(chan struct{}, decisionProviderSlots)
+	routerOn(s)
+	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
+	d.mu.Lock()
+	d.generation.status.ModelAvailability = decisions.ModelAvailability{State: "usable", CheckedAt: time.Now(), Model: &decisions.DecisionModel{}}
+	d.mu.Unlock()
+	started, release := make(chan struct{}, 2), make(chan struct{})
+	var first atomic.Bool
+	remote.evaluate = func(ctx context.Context) (decisions.Response, error) {
+		if first.CompareAndSwap(false, true) {
+			started <- struct{}{}
+			select {
+			case <-ctx.Done():
+			case <-release:
+			}
+		}
+		return decisions.Response{}, nil
+	}
+	mail := s.decisionHub().Snapshot(s.Cfg, consumers.MailTriage)
+	if !mail.Available {
+		t.Fatalf("setup: %+v", mail)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := mail.Evaluate(context.Background(), decisions.Request{}); done <- err }()
+	<-started
+	if _, err := mail.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) != consumers.CodeAdmissionDeferred {
+		t.Fatalf("second background: %v", err)
+	}
+	router := (taskDecisionService{s}).RoutingSnapshot(s.Cfg)
+	if _, err := router.Evaluate(context.Background(), decisions.Request{}); decisions.ErrorCode(err) == decisions.CodeQueueFull || decisions.ErrorCode(err) == consumers.CodeAdmissionDeferred {
+		t.Fatalf("interactive blocked: %v", err)
+	}
+	close(release)
+	if err := <-done; decisions.ErrorCode(err) == consumers.CodePreempted {
+		t.Fatalf("paid external call was cut: %v", err)
 	}
 }

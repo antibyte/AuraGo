@@ -71,7 +71,7 @@ type routedDecisions struct {
 }
 
 func newRoutedDecisions(s *Server, local decisionsService, cfg *config.Config) *routedDecisions {
-	d := &routedDecisions{local: local, server: s, busy: make(chan struct{}, 1), catalogs: make(map[string]*decisionCatalogGeneration), newClient: func(base, key string) (decisionProviderClient, error) {
+	d := &routedDecisions{local: local, server: s, busy: make(chan struct{}, decisionProviderSlots), catalogs: make(map[string]*decisionCatalogGeneration), newClient: func(base, key string) (decisionProviderClient, error) {
 		return decisions.NewOpenRouterClient(base, key)
 	}, newOAuthClient: func(base, key string) (decisionProviderClient, error) {
 		return decisions.NewOpenRouterClientScoped(base, key)
@@ -79,6 +79,13 @@ func newRoutedDecisions(s *Server, local decisionsService, cfg *config.Config) *
 	d.generation = d.newGeneration(cfg)
 	return d
 }
+
+// decisionProviderSlots keeps one external slot free for interactive work
+// while a background consumer holds the other.
+const decisionProviderSlots = 2
+
+// providerIdle is a passive read: true when no external evaluation is admitted.
+func (d *routedDecisions) providerIdle() bool { return len(d.busy) == 0 }
 
 func decisionsLocalPolicy(c config.DecisionsConfig) config.DecisionsConfig {
 	if c.Backend == "provider" {
