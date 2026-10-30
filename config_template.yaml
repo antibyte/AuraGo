@@ -18,7 +18,7 @@ auth:
     lockout_minutes: 15
 agent:
     action_policy:
-        enabled: true
+        enabled: false            # optional additional approval policy; enable explicitly
         allow: []                 # exact tool/operation/target grants for unattended high-risk actions
         deny: []                  # hard denials; approval never overrides these or readonly
     context_window: 0             # global context cap; 0 = no configured cap (provider/model limits still apply)

@@ -33,10 +33,14 @@ const server = createServer(async (request, response) => {
             const mode = url.searchParams.get('mode') === 'light' ? 'light' : 'dark';
             const configSurface = url.searchParams.get('surface') === 'config';
             const rootMode = configSurface ? mode : 'dark';
-            const bodyAttributes = configSurface ? 'class="pw-page" data-workspace-page="config" data-density="comfortable"' : `class="desktop-body" data-theme="${theme}" data-fruity-mode="${mode}"`;
+            const density = url.searchParams.get('density') === 'compact' ? 'compact' : 'comfortable';
+            const policy = url.searchParams.get('policy') || 'on';
+            const initialConfig = {agent: policy === 'missing' ? {} : {action_policy: {allow:[],deny:[]}}};
+            if (!['missing','unset'].includes(policy)) initialConfig.agent.action_policy.enabled = policy === 'on';
+            const bodyAttributes = configSurface ? `class="pw-page" data-workspace-page="config" data-density="${density}"` : `class="desktop-body" data-theme="${theme}" data-fruity-mode="${mode}"`;
             const surfaceStyles = configSurface ? '<link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/config.css"><link rel="stylesheet" href="/css/precision-workspace.css"><link rel="stylesheet" href="/css/precision-pages.css"><link rel="stylesheet" href="/css/config-workspace.css">' : '<link rel="stylesheet" href="/css/desktop-shell.bundle.css">';
             response.setHeader('Content-Type', 'text/html; charset=utf-8');
-            response.end(`<!doctype html><html lang="${lang}" data-theme="${rootMode}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/fonts/fonts.css"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css">${surfaceStyles}<link rel="stylesheet" href="/css/action-policy.css"><style>body{overflow:auto}.fixture{position:relative;max-width:960px;margin:0 auto;padding:20px;min-height:100vh;box-sizing:border-box;background:var(--card-bg,transparent);color:var(--text-primary,#eee)}.fixture h1{font-size:1.5rem}.fixture .action-policy-panel{margin-top:12px}</style></head><body ${bodyAttributes}><main class="fixture"><h1>AuraGo · Danger Zone</h1><div id="settings"></div></main><script>window.SYSTEM_LANG=${JSON.stringify(lang)};window.fixture={config:{agent:{action_policy:{enabled:true,allow:[],deny:[]}}},changes:[],atomic:[],dirty:false};window.setDirty=value=>fixture.dirty=value;window.AuraConfigState={markAtomic:key=>fixture.atomic.push(key),set:(key,value)=>fixture.changes.push({key,value:structuredClone(value)})};</script><script src="/js/shared/action-policy.js"></script><script>window.fixture.ready=AuraActionPolicy.mountSettings(document.getElementById('settings'),fixture.config);</script></body></html>`);
+            response.end(`<!doctype html><html lang="${lang}" data-theme="${rootMode}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/fonts/fonts.css"><link rel="stylesheet" href="/shared-variables.css"><link rel="stylesheet" href="/shared-components.css"><link rel="stylesheet" href="/css/action-policy.css">${surfaceStyles}<style>body{overflow:auto}.fixture{position:relative;max-width:960px;margin:0 auto;padding:20px;min-height:100vh;box-sizing:border-box;background:var(--card-bg,transparent);color:var(--text-primary,#eee)}.fixture h1{font-size:1.5rem}</style></head><body ${bodyAttributes}><main class="fixture"><h1>AuraGo · Danger Zone</h1><div id="settings" class="cfg-section active"></div></main><script>window.SYSTEM_LANG=${JSON.stringify(lang)};window.fixture={config:${JSON.stringify(initialConfig)},changes:[],atomic:[],dirty:false};window.setDirty=value=>fixture.dirty=value;window.AuraConfigState={markAtomic:key=>fixture.atomic.push(key),set:(key,value)=>fixture.changes.push({key,value:structuredClone(value)})};</script><script src="/js/shared/action-policy.js"></script><script>window.fixture.ready=AuraActionPolicy.mountSettings(document.getElementById('settings'),fixture.config);</script></body></html>`);
             return;
         }
         const relative = decodeURIComponent(url.pathname).slice(1);
@@ -61,7 +65,7 @@ async function test(name, run) {
 }
 
 async function fixture(options = {}) {
-    const {lang='de',theme='standard',mode='dark',width=1280,admin=true,surface='desktop'} = options;
+    const {lang='de',theme='standard',mode='dark',width=1280,admin=true,surface='desktop',policy='on',density='comfortable'} = options;
     const page = await browser.newPage({ viewport: {width,height:900}, reducedMotion: 'reduce' });
     page.setDefaultTimeout(8000);
     const state = { errors: [], previews: [], decisions: [], pendingRequests: [], pendingQueries: [], pending: [], decisionDelay: 0, decisionStatus: 200, decisionResult: {status:'success',result:'Fixture completed'}, abortDecision: false, catalog:structuredClone(catalog), catalogRequests:0 };
@@ -90,7 +94,7 @@ async function fixture(options = {}) {
         }
         throw new Error(`Unexpected fixture API: ${request.method()} ${url.pathname}`);
     });
-    await page.goto(`${origin}/?lang=${lang}&theme=${theme}&mode=${mode}&surface=${surface}`);
+    await page.goto(`${origin}/?lang=${lang}&theme=${theme}&mode=${mode}&surface=${surface}&policy=${policy}&density=${density}`);
     await page.evaluate(() => fixture.ready);
     const text = Object.fromEntries(Object.entries(dictionaries[lang]).map(([key,value]) => [key.replace(/^action_policy\./,''),value]));
     return { page, state, text, close:async () => { await page.close(); assert.deepEqual(state.errors, [], 'browser JavaScript errors'); } };
@@ -136,6 +140,97 @@ try {
         assert.match(await readFile(path.join(root,'ui/cfg/danger.js'),'utf8'),/AuraActionPolicy\.mountSettings/);
         for(const file of ['ui/js/chat/chat-streaming.js','ui/js/desktop/apps/agent-chat.js']) assert.match(await readFile(path.join(root,file),'utf8'),/action_approval[\s\S]*AuraActionPolicy\.show/);
     });
+
+    for (const policy of ['missing','unset','off']) await test(`Config policy defaults off: ${policy}`,async()=>{
+        const f=await fixture({surface:'config',policy});
+        try {
+            assert.equal(await f.page.getByLabel(f.text.enabled,{exact:true}).isChecked(),false);
+            assert.equal(await f.page.locator('.action-policy-editor').isVisible(),false);
+            assert.equal(await f.page.getByRole('button',{name:f.text.pending,exact:true}).isVisible(),true);
+            assert.equal(await f.page.evaluate(()=>fixture.dirty || fixture.changes.length>0),false,'mount changed the saved policy');
+            if (policy==='missing') await screenshot(f.page,'config-policy-default-off');
+        } finally { await f.close(); }
+    });
+
+    await test('Config native switch saves booleans and retains rules while off',async()=>{
+        const f=await fixture({surface:'config',policy:'off'});
+        try {
+            await f.page.addScriptTag({url:origin+'/js/config/state.js'});
+            await f.page.evaluate(()=>{
+                AuraConfigState.init(fixture.config);
+                AuraConfigState.bind(document.getElementById('settings'));
+                window.setDirty=()=>AuraConfigState.syncFromDOM();
+            });
+            await f.page.locator('label.toggle').click();
+            assert.equal(await f.page.locator('.action-policy-editor').isVisible(),true);
+            assert.equal(await f.page.evaluate(()=>AuraConfigState.buildPatch().agent.action_policy.enabled),true);
+            await f.page.getByRole('button',{name:f.text.add,exact:true}).first().click();
+            const rule=f.page.locator('.action-policy-rule').first();
+            await rule.locator('select').first().selectOption('filesystem');
+            await rule.locator('input').first().fill('fixture.txt');
+            await rule.locator('input').first().blur();
+            await f.page.locator('label.toggle').click();
+            assert.equal(await f.page.locator('.action-policy-editor').isVisible(),false);
+            const patch=await f.page.evaluate(()=>JSON.parse(JSON.stringify(AuraConfigState.buildPatch())));
+            assert.equal(patch.agent.action_policy.enabled,false);
+            assert.equal(patch.agent.action_policy.allow[0].target,'fixture.txt');
+            await f.page.evaluate(async()=>{
+                fixture.config=AuraConfigState.snapshot().draft;
+                AuraConfigState.commit(fixture.config);
+                const host=document.getElementById('settings');
+                host.replaceChildren();
+                await AuraActionPolicy.mountSettings(host,fixture.config);
+            });
+            assert.equal(await f.page.getByLabel(f.text.enabled,{exact:true}).isChecked(),false);
+            assert.equal(await f.page.evaluate(()=>AuraConfigState.isDirty()),false);
+            await f.page.getByLabel(f.text.enabled,{exact:true}).press('Space');
+            assert.equal(await f.page.locator('.action-policy-rule').first().locator('input').first().inputValue(),'fixture.txt');
+        } finally { await f.close(); }
+    });
+
+    await test('actual Danger Zone renderer contains the policy card',async()=>{
+        const f=await fixture({surface:'config',policy:'off'});
+        try {
+            await f.page.addScriptTag({url:origin+'/cfg/danger.js'});
+            await f.page.evaluate(()=>{
+                window.configData=fixture.config;
+                window.runtimeData={}; window.helpTexts={}; window.lang='de';
+                window.t=key=>key; window.attachChangeListeners=()=>{};
+                document.querySelector('main').id='content';
+                renderDangerZoneSection({label:'Danger Zone',desc:''});
+            });
+            await f.page.getByRole('button',{name:f.text.pending,exact:true}).waitFor();
+            assert.equal(await f.page.locator('#content > .cfg-section > .action-policy-panel.cfg-topic > .pw-panel-body').count(),1);
+        } finally { await f.close(); }
+    });
+
+    for (const mode of ['dark','light']) for (const width of [1280,390]) for (const density of ['comfortable','compact']) {
+        await test(`Config card and rule controls ${mode}-${width}-${density}`,async()=>{
+            const f=await fixture({surface:'config',mode,width,density});
+            try {
+                await f.page.getByRole('button',{name:f.text.add,exact:true}).first().click();
+                const metrics=await f.page.locator('.action-policy-panel').evaluate(panel=>{
+                    const body=panel.querySelector('.pw-panel-body');
+                    const heading=panel.querySelector('.pw-panel-heading');
+                    return {
+                        radius:getComputedStyle(panel).borderRadius,
+                        padding:getComputedStyle(panel).paddingTop,
+                        inset:getComputedStyle(body).paddingLeft,
+                        heading:getComputedStyle(heading).fontSize,
+                        dropdowns:[...panel.querySelectorAll('select')].every(control=>getComputedStyle(control).backgroundImage!=='none' && parseFloat(getComputedStyle(control).paddingRight)>=32),
+                        controls:[...panel.querySelectorAll('.action-policy-field input, select, textarea, button')].map(control=>({font:parseFloat(getComputedStyle(control).fontSize),height:control.getBoundingClientRect().height})),
+                        overflow:document.documentElement.scrollWidth>innerWidth+1
+                    };
+                });
+                assert.equal(metrics.radius,'16px'); assert.equal(metrics.padding,'0px'); assert.equal(metrics.heading,'18px');
+                assert.equal(metrics.inset,width<700 || density==='compact'?'16px':'24px');
+                assert.equal(metrics.dropdowns,true,'Config dropdown indicators are missing');
+                assert.ok(metrics.controls.every(control=>control.height>=44 && control.font>=16),JSON.stringify(metrics));
+                assert.equal(metrics.overflow,false,'Config policy controls overflow');
+                await screenshot(f.page,`rules-config-${mode}-${width}-${density}`);
+            } finally { await f.close(); }
+        });
+    }
 
     await test('reopened settings reload tools after capability changes',async()=>{
         const f=await fixture();

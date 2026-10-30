@@ -7,8 +7,10 @@ immediately before dispatch, including approval and Tool Bridge execution.
 
 `agent.action_policy` adds rules for risky actions such as sending messages,
 uploading private files, destructive operations and unsafe host commands. It is
-enabled by default. Administrators manage it in **Configuration → Danger Zone**.
-The model cannot edit these rules through configuration tools.
+disabled by default; enable it explicitly in **Configuration → Danger Zone**.
+Existing explicit settings are preserved. The rule editor and permission preview
+appear when the policy is enabled; pending one-shot approvals remain accessible
+while it is off. The model cannot edit these rules through configuration tools.
 
 ## Unattended actions
 

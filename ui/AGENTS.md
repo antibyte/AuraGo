@@ -54,6 +54,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 - Ollama config displays a derived read-only URL in managed mode. Connection tests and Recreate require saved settings; Recreate confirms interruption and polls its receipt through slow image/model downloads. Docker read-only disables lifecycle mutations, not observation. Polls end on terminal state/navigation and ignore detached or stale responses. Embeddings show managed Ollama model state. All operation labels and help remain translated in all 16 locales. Verify `TestOllamaManagedLifecycleBrowser` and `TestOllamaOperationLocalesAreComplete`.
 
+- Action-policy settings mount inside the Danger Zone's `.cfg-section` and use
+  the Config topic heading/body, native checkbox switch and standard controls.
+  The additional policy defaults off in Config, the loader and installation
+  template; preserve explicit saved activation. Hide rules and preview while off,
+  retain their drafts, and keep pending one-shot approvals accessible. Keep
+  Config-only styling in `css/config-workspace.css`. Verify with
+  `node scripts/test-action-policy-ui.mjs` and the config action-policy tests.
 - Action-policy blocks are terminal outcomes, not queued/running work. Dashboard
   background tasks render `blocked` with `last_error: action_rule_required` as a
   translated missing-rule diagnosis linking to `/config#danger`; active counters

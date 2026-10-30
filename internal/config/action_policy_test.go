@@ -58,8 +58,40 @@ func TestAuditDefaultsPreserveExplicitExistingConfiguration(t *testing.T) {
 				}
 				return
 			}
-			if !cfg.Agent.ActionPolicy.Enabled || !cfg.Sandbox.Enabled || cfg.Agent.MaxCronJobs != 1000 || cfg.Agent.BackgroundTasks.MaxActiveTasks != 256 || cfg.Sandbox.MemoryMB != 512 || cfg.Sandbox.PIDsLimit != 64 {
+			if cfg.Agent.ActionPolicy.Enabled || !cfg.Sandbox.Enabled || cfg.Agent.MaxCronJobs != 1000 || cfg.Agent.BackgroundTasks.MaxActiveTasks != 256 || cfg.Sandbox.MemoryMB != 512 || cfg.Sandbox.PIDsLimit != 64 {
 				t.Fatal("bounded execution defaults were not applied")
+			}
+		})
+	}
+}
+
+func TestActionPolicyDefaultsOffAndPreservesExplicitSetting(t *testing.T) {
+	template, err := os.ReadFile("../../config_template.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name    string
+		data    string
+		enabled bool
+	}{
+		{"missing policy", "agent:\n  allow_shell: true\n", false},
+		{"missing enabled", "agent:\n  action_policy: {}\n", false},
+		{"explicit off", "agent:\n  action_policy:\n    enabled: false\n", false},
+		{"explicit on", "agent:\n  action_policy:\n    enabled: true\n", true},
+		{"fresh installation template", string(template), false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(test.data), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Agent.ActionPolicy.Enabled != test.enabled {
+				t.Fatalf("action policy enabled = %v, want %v", cfg.Agent.ActionPolicy.Enabled, test.enabled)
 			}
 		})
 	}

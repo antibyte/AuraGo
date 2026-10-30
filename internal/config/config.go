@@ -399,7 +399,6 @@ func Load(path string) (*Config, error) {
 
 	var cfg Config
 	cfg.Tools.QRCode.ReadOnly = true
-	cfg.Agent.ActionPolicy.Enabled = true
 	cfg.Sandbox.Enabled = true
 	cfg.Agent.MaxCronJobs = 1000
 	cfg.Agent.BackgroundTasks.MaxActiveTasks = 256

@@ -120,11 +120,13 @@
         const text = await words();
         if (!host.isConnected) return;
         const runLabels = Object.fromEntries(['interactive','mission','flow','background','coagent','maintenance'].map(run => [run, text['runs.' + run]]));
-        const panel = element('section', null, host, 'action-policy-panel');
-        element('h3', text.title, panel);
-        element('p', text.description, panel);
+        const panel = element('section', null, host, 'action-policy-panel cfg-topic');
+        const heading = element('div', null, panel, 'pw-panel-heading');
+        element('h2', text.title, heading);
+        element('p', text.description, heading);
+        const body = element('div', null, panel, 'pw-panel-body');
         const cfg = config.agent = config.agent || {};
-        const policy = cfg.action_policy = cfg.action_policy || {enabled:true,allow:[],deny:[]};
+        const policy = cfg.action_policy = cfg.action_policy || {enabled:false,allow:[],deny:[]};
         function changed() {
             if (typeof setNestedValue === 'function') setNestedValue(config, 'agent.action_policy', policy);
             if (window.AuraConfigState) {
@@ -133,27 +135,38 @@
             }
             if (typeof setDirty === 'function') setDirty(true);
         }
-        const enabledLabel = element('label', null, panel);
-        const enabled = element('input', null, enabledLabel);
-        enabled.type = 'checkbox'; enabled.checked = policy.enabled !== false;
-        element('span', text.enabled, enabledLabel);
-        enabled.onchange = () => { policy.enabled = enabled.checked; changed(); };
-        const status = element('p', '', panel, 'action-policy-state'); status.setAttribute('role','status');
+        const enabledRow = element('div', null, body, 'field-group cfg-switch-field');
+        const enabledLabel = element('label', text.enabled, enabledRow, 'field-label');
+        enabledLabel.htmlFor = 'action-policy-enabled';
+        const enabledSwitch = element('label', null, enabledRow, 'toggle');
+        const enabled = element('input', null, enabledSwitch);
+        enabled.type = 'checkbox'; enabled.id = enabledLabel.htmlFor; enabled.checked = policy.enabled === true;
+        enabled.dataset.path = 'agent.action_policy.enabled';
+        enabled.setAttribute('aria-controls', 'action-policy-editor');
+        element('span', null, enabledSwitch, 'slider');
+        const status = element('p', '', body, 'action-policy-state'); status.setAttribute('role','status');
+        const editor = element('div', null, body, 'action-policy-editor');
+        editor.id = 'action-policy-editor'; editor.hidden = !enabled.checked;
+        enabled.onchange = () => { policy.enabled = enabled.checked; editor.hidden = !enabled.checked; changed(); };
         let schemas;
         try { schemas = await tools(); } catch (_) { status.textContent = text.admin_only; enabled.disabled = true; return; }
         if (!panel.isConnected) return;
         const functions = schemas.map(schema => schema.function).filter(Boolean).sort((a,b) => a.name.localeCompare(b.name));
         function field(row, label, value, options, update, labels) {
-            const wrapper = element('label', label, row);
-            const input = element(options ? 'select' : 'input', null, wrapper);
+            const wrapper = element('label', null, row, 'action-policy-field');
+            element('span', label, wrapper, 'field-label');
+            const input = element(options ? 'select' : 'input', null, wrapper, options ? 'field-select' : 'field-input');
             if (options) for (const option of Array.from(new Set([...options, value || '']))) { const item = element('option',labels && labels[option] || option || '*',input); item.value = option; }
             input.value = value || '';
             input.onchange = () => { update(input.value); changed(); };
             return input;
         }
         for (const effect of ['allow','deny']) {
-            element('h4', text[effect], panel);
-            const rows = element('div', null, panel);
+            const group = element('div', null, editor, 'action-policy-group');
+            const groupHeading = element('div', null, group, 'cfg-actions-row action-policy-group-heading');
+            element('h3', text[effect], groupHeading, 'cfg-subheading');
+            const add = element('button',text.add,groupHeading,'btn btn-secondary'); add.type='button';
+            const rows = element('div', null, group);
             policy[effect] = Array.isArray(policy[effect]) ? policy[effect] : [];
             const render = () => {
                 rows.replaceChildren();
@@ -167,25 +180,25 @@
                     field(row,text.target,rule.target,null,value => { rule.target=value; });
                     field(row,text.run,rule.run_type,['','interactive','mission','flow','background','coagent','maintenance'],value => { rule.run_type=value; },runLabels);
                     field(row,text.scope,rule.scope_id,null,value => { rule.scope_id=value; });
-                    const remove = element('button',text.remove,row); remove.type='button';
+                    const remove = element('button',text.remove,row,'btn btn-secondary'); remove.type='button';
                     remove.onclick = () => { policy[effect].splice(index,1); changed(); render(); };
                 });
             };
             render();
-            const add = element('button',text.add,panel); add.type='button';
             add.onclick = () => { policy[effect].push({tool:'',operation:'execute',target:''}); changed(); render(); };
         }
-        element('p',text.save_hint,panel);
-        element('h4',text.preview,panel);
-        const preview = element('div',null,panel,'action-policy-rule');
+        element('p',text.save_hint,editor,'field-help');
+        element('h3',text.preview,editor,'cfg-subheading');
+        const preview = element('div',null,editor,'action-policy-rule');
         let selected = functions[0] && functions[0].name || '';
         field(preview,text.tool,selected,functions.map(fn=>fn.name),value=>{selected=value;});
         let missionID='', flowID='';
         field(preview,runLabels.mission,missionID,null,value=>{missionID=value;});
         field(preview,runLabels.flow,flowID,null,value=>{flowID=value;});
-        const argumentsLabel = element('label',text.arguments,panel);
-        const argumentsInput = element('textarea',null,argumentsLabel); argumentsInput.value='{}'; argumentsInput.rows=3;
-        const check = element('button',text.check,panel); check.type='button';
+        const argumentsLabel = element('label',null,editor,'action-policy-field');
+        element('span',text.arguments,argumentsLabel,'field-label');
+        const argumentsInput = element('textarea',null,argumentsLabel,'field-input'); argumentsInput.value='{}'; argumentsInput.rows=3;
+        const check = element('button',text.check,editor,'btn btn-primary'); check.type='button';
         check.onclick = async () => {
             check.disabled=true; status.textContent=text.working;
             try {
@@ -197,7 +210,8 @@
             } catch (_) { status.textContent=text.failed; }
             finally { check.disabled=false; }
         };
-        const refresh = element('button',text.pending,panel); refresh.type='button'; refresh.onclick=()=>load('*');
+        const actions = element('div',null,body,'cfg-actions-row');
+        const refresh = element('button',text.pending,actions,'btn btn-secondary'); refresh.type='button'; refresh.onclick=()=>load('*');
     }
     window.AuraActionPolicy = Object.freeze({show,load,mountSettings});
 })();
