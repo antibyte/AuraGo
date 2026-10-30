@@ -501,8 +501,8 @@ func validateSetupAdminPassword(authPatch map[string]interface{}, currentAuthEna
 	if !ok {
 		return "", true, fmt.Errorf("admin password must be a string")
 	}
-	password = strings.TrimSpace(password)
-	if len(password) < 8 {
+	// Login compares the raw password, so setup must keep it verbatim.
+	if strings.TrimSpace(password) == "" || len(password) < 8 {
 		return "", true, fmt.Errorf("admin password must be at least 8 characters long")
 	}
 	return password, true, nil
@@ -619,7 +619,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		// then save from the same setup page.
 		if !validateSetupCSRFToken(s, r.Header.Get("X-CSRF-Token"), false) {
 			s.Logger.Warn("[Setup] CSRF token mismatch on test connection")
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
+			writeSetupGateError(w, http.StatusForbidden, "csrf_invalid", i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"))
 			return
 		}
 
@@ -636,11 +636,11 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		}
 
 		if req.Model == "" {
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_model_required"), http.StatusBadRequest)
+			writeSetupGateError(w, http.StatusBadRequest, "model_required", i18n.T(s.Cfg.Server.UILanguage, "backend.setup_model_required"))
 			return
 		}
 		if err := validateSetupTestBaseURL(req.ProviderType, req.BaseURL); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			writeSetupGateError(w, http.StatusBadRequest, "url_not_allowed", err.Error())
 			return
 		}
 
@@ -655,15 +655,22 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		revision := s.providerETag()
 		s.CfgMu.RUnlock()
 		provider := config.ProviderEntry{ID: "setup-preview", Type: req.ProviderType, BaseURL: req.BaseURL, APIKey: req.APIKey, AccountID: req.AccountID, Model: req.Model}
-		buffer := &providerProbeBuffer{header: make(http.Header)}
-		executeProviderProbeNetwork(buffer, s, r.Context(), cfg, provider, "metadata", map[string]any{"probe_kind": "metadata"})
-		var result map[string]any
-		_ = json.Unmarshal(buffer.Bytes(), &result)
+		check := checkSetupProvider(r.Context(), s, cfg, provider)
 		s.CfgMu.RLock()
 		current := s.providerETag() == revision
 		s.CfgMu.RUnlock()
+		resp := map[string]any{"ok": check.OK && current, "unsupported": check.Code == "metadata_probe_unavailable", "probe_kind": "metadata", "code": check.Code, "current": current, "model_checked": check.ModelChecked}
+		if check.HTTPStatus != 0 {
+			resp["http_status"] = check.HTTPStatus
+		}
+		if check.CreditRemaining != nil {
+			resp["credit_remaining"] = *check.CreditRemaining
+		}
+		if check.FreeTier != nil {
+			resp["free_tier"] = *check.FreeTier
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": result["live_status"] == "ok" && current, "unsupported": result["code"] == "metadata_probe_unavailable", "probe_kind": "metadata", "code": result["code"], "current": current})
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 

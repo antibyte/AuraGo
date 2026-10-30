@@ -465,6 +465,52 @@ function selectProfile(profileId) {
     updateQuickProfileUI();
 }
 
+// ── Connection Test Result ───────────────────
+// Shared by the quick and custom flow: shows why the API key check failed.
+function renderSetupTestResult(el, resp, data, model) {
+    data = data || {};
+    const fail = (text) => {
+        el.textContent = '✕ ' + text;
+        el.className = 'field-hint test-result-fail';
+    };
+    if (data.ok) {
+        let text = '✓ ' + t('setup.test_key_ok');
+        if (data.model_checked) text += ' · ' + t('setup.test_model_ok');
+        if (typeof data.credit_remaining === 'number') {
+            text += ' · ' + t('setup.test_credit_remaining', { amount: '$' + data.credit_remaining.toFixed(2) });
+        } else if (data.free_tier === true) {
+            text += ' · ' + t('setup.test_free_tier');
+        }
+        el.textContent = text;
+        el.className = 'field-hint test-result-ok';
+        return;
+    }
+    const code = data.code || '';
+    switch (code) {
+        case 'setup_bootstrap_token_required':
+            openSetupOwnerGate(false, true);
+            fail(data.error || t('setup.step0_test_failed'));
+            return;
+        case 'metadata_probe_unsupported':
+        case 'metadata_probe_unavailable':
+            el.textContent = t('setup.step0_test_unsupported');
+            el.className = 'field-hint test-result-fail';
+            return;
+        case 'key_invalid': fail(t('setup.test_key_invalid')); return;
+        case 'model_not_found': fail(t('setup.test_model_not_found', { model: model || '' })); return;
+        case 'rate_limited': fail(t('setup.test_rate_limited')); return;
+        case 'provider_unreachable': fail(t('setup.test_provider_unreachable')); return;
+        case 'provider_error': fail(t('setup.test_provider_error', { status: data.http_status || (resp && resp.status) || '' })); return;
+        case 'url_not_allowed': fail(t('setup.test_url_not_allowed')); return;
+        case 'model_required': fail(t('setup.test_model_required')); return;
+        case 'provider_test_busy': fail(t('setup.test_busy')); return;
+        case 'csrf_invalid': fail(t('setup.test_session_expired')); return;
+        case 'provider_incomplete': fail(t('setup.test_provider_incomplete')); return;
+        default:
+            fail(t('setup.step0_test_failed') + (code ? ' (' + code + ')' : ''));
+    }
+}
+
 // ── Quick Connection Test ────────────────────
 async function testQuickConnection() {
     if (!selectedProfile) return;
@@ -475,7 +521,7 @@ async function testQuickConnection() {
     const apiKey = document.getElementById('quick-api-key').value.trim();
     if (!apiKey) {
         result.textContent = t('setup.step0_api_key_error');
-        result.className = 'field-hint error';
+        result.className = 'field-hint test-result-fail';
         setupSetHidden(result, false);
         return;
     }
@@ -497,17 +543,11 @@ async function testQuickConnection() {
                 model: runtime.mainModel,
             }),
         });
-        const data = await resp.json();
-        if (data.ok) {
-            result.textContent = '✓ ' + (t('setup.step0_test_success'));
-            result.className = 'field-hint success';
-        } else {
-            result.textContent = data.unsupported ? t('setup.step0_test_unsupported') : '✕ ' + t('setup.step0_test_failed');
-            result.className = 'field-hint error';
-        }
+        const data = await resp.json().catch(() => ({}));
+        renderSetupTestResult(result, resp, data, runtime.mainModel);
     } catch (err) {
         result.textContent = '✕ ' + err.message;
-        result.className = 'field-hint error';
+        result.className = 'field-hint test-result-fail';
     } finally {
         btn.disabled = false;
     }
@@ -542,14 +582,14 @@ function validateQuickStep(skip = false) {
     let valid = true;
 
     if (setupPasswordRequired === true) {
-        const pw = document.getElementById('quick-admin-password').value.trim();
-        if (pw.length < 8) {
+        const pw = document.getElementById('quick-admin-password').value;
+        if (pw.length < 8 || !pw.trim()) {
             showFieldError('quick-admin-password', 'err-quick-admin-password');
             valid = false;
         } else {
             clearFieldError('quick-admin-password', 'err-quick-admin-password');
         }
-        const pw2 = document.getElementById('quick-admin-password-confirm').value.trim();
+        const pw2 = document.getElementById('quick-admin-password-confirm').value;
         if (pw.length >= 8 && pw2 !== pw) {
             showFieldError('quick-admin-password-confirm', 'err-quick-admin-password-confirm');
             valid = false;
@@ -578,7 +618,7 @@ function buildQuickConfigPatch() {
     const p = selectedProfile;
     const runtime = getQuickProfileRuntimeConfig(p);
     const apiKey = (document.getElementById('quick-api-key').value || '').trim();
-    const adminPassword = (document.getElementById('quick-admin-password').value || '').trim();
+    const adminPassword = (document.getElementById('quick-admin-password').value || '');
     const quickLang = document.getElementById('quick-language');
     const mainLang = document.getElementById('system-language');
     const lang = (quickLang || mainLang || {}).value || 'de';
@@ -926,7 +966,83 @@ async function openOpenRouterBrowser(onSelect) {
     renderList();
 }
 
+// ── Vision / STT defaults per main provider ──
+// Pure: which vision and speech-to-text setup fits the chosen main provider.
+// An empty provider means the subsystem stays disabled.
+const SETUP_OPENROUTER_SUBSYSTEM_MODEL = 'google/gemini-3.1-flash-lite';
+
+function setupSubsystemDefaults(mainType, mainModel) {
+    const model = mainModel || '';
+    switch (mainType) {
+        case 'openrouter':
+            return {
+                vision: { provider: 'openrouter', model: SETUP_OPENROUTER_SUBSYSTEM_MODEL },
+                whisper: { provider: 'openrouter', mode: 'multimodal', model: SETUP_OPENROUTER_SUBSYSTEM_MODEL },
+            };
+        case 'openai':
+            return {
+                vision: { provider: 'openai', model },
+                whisper: { provider: 'openai', mode: 'whisper', model: 'whisper-1' },
+            };
+        case 'google':
+            return {
+                vision: { provider: 'main', model },
+                whisper: { provider: 'main', mode: 'multimodal', model },
+            };
+        case 'ollama':
+            return {
+                vision: { provider: '', model: '' },
+                whisper: { provider: '', mode: 'multimodal', model: '' },
+            };
+        default: // anthropic, agnes, custom: vision through the main provider, no STT
+            return {
+                vision: { provider: 'main', model },
+                whisper: { provider: '', mode: 'multimodal', model: '' },
+            };
+    }
+}
+
+// Pure: the optional steps the header "Skip" button may jump over.
+function setupStepSkippable(stepId) {
+    return stepId === 'step-1' || stepId === 'step-2' || stepId === 'step-local-llm';
+}
+
+// The user's own choice wins: once a vision/STT control was touched the
+// defaults no longer overwrite it. Programmatic value changes fire no events.
+let setupVisionTouched = false;
+let setupWhisperTouched = false;
+
+function applySetupSubsystemDefaults() {
+    const mainType = (document.getElementById('llm-provider') || {}).value || '';
+    const mainModel = ((document.getElementById('llm-model') || {}).value || '').trim();
+    const defaults = setupSubsystemDefaults(mainType, mainModel);
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+    };
+    if (!setupVisionTouched) {
+        set('vision-provider', defaults.vision.provider);
+        set('vision-model', defaults.vision.model);
+    }
+    if (!setupWhisperTouched) {
+        set('whisper-provider', defaults.whisper.provider);
+        set('whisper-mode', defaults.whisper.mode);
+        set('whisper-model', defaults.whisper.model);
+    }
+}
+
+['change', 'input'].forEach(type => document.addEventListener(type, (e) => {
+    const id = e.target && e.target.id;
+    if (id === 'vision-provider' || id === 'vision-model') setupVisionTouched = true;
+    else if (id === 'whisper-provider' || id === 'whisper-model' || id === 'whisper-mode') setupWhisperTouched = true;
+    else if (type === 'input' && id === 'llm-model') applySetupSubsystemDefaults();
+}));
+
 // ── Provider Change Handler ──────────────────
+function setupProviderDefaultModels() {
+    return Object.values(providerConfig).map(cfg => cfg.defaultModel).filter(Boolean);
+}
+
 function onProviderChange() {
     const provider = document.getElementById('llm-provider').value;
     const cfg = providerConfig[provider] || providerConfig.custom;
@@ -938,13 +1054,19 @@ function onProviderChange() {
     document.getElementById('provider-link').textContent = cfg.link;
     document.getElementById('hint-provider').textContent = t(cfg.hintKey || 'setup.step0_provider_hint');
 
-    // Pre-fill model if empty; Agnes uses one documented setup model for both agents.
+    // Pre-fill the model unless the user typed one: a value that is another
+    // provider's default was filled in by us and would not work here.
+    // Agnes uses one documented setup model for both agents.
     const modelInput = document.getElementById('llm-model');
+    const helperInput = document.getElementById('helper-model');
+    const autoFilledModel = (value) => !value || setupProviderDefaultModels().includes(value);
+    const helperWasAutoFilled = autoFilledModel(helperInput.value.trim()) && helperInput.value.trim() !== 'agnes-2.0-flash';
     if (provider === 'agnes' && cfg.defaultModel) {
         modelInput.value = cfg.defaultModel;
-    } else if (cfg.defaultModel && (!modelInput.value || modelInput.value === 'agnes-2.0-flash')) {
-        modelInput.value = cfg.defaultModel;
+    } else if (autoFilledModel(modelInput.value.trim())) {
+        modelInput.value = cfg.defaultModel || '';
     }
+    if (helperWasAutoFilled) helperInput.value = '';
 
     // Show/hide API key field for Ollama
     const apiKeyGroup = document.getElementById('group-api-key');
@@ -962,6 +1084,7 @@ function onProviderChange() {
     }
 
     updateEmbeddingSetupWarnings();
+    applySetupSubsystemDefaults();
     if (provider === 'agnes') {
         document.getElementById('helper-model').value = cfg.defaultModel;
         document.getElementById('helper-llm').checked = true;
@@ -1004,7 +1127,7 @@ function onWhisperProviderChange() {
         modeEl.value = 'whisper';
     } else if (provider === 'ollama') {
         modeEl.value = 'local';
-    } else if (provider === 'openrouter') {
+    } else if (provider === 'openrouter' || provider === 'main') {
         modeEl.value = 'multimodal';
     }
 }
@@ -1047,14 +1170,8 @@ async function testConnection() {
             headers: setupRequestHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ provider_type: providerType, base_url: baseUrl, api_key: apiKey, model: model }),
         });
-        const data = await resp.json();
-        if (data.ok) {
-            result.textContent = '✓ ' + t('setup.step0_test_success');
-            result.className = 'field-hint test-result-ok';
-        } else {
-            result.textContent = data.unsupported ? t('setup.step0_test_unsupported') : '✕ ' + t('setup.step0_test_failed');
-            result.className = 'field-hint test-result-fail';
-        }
+        const data = await resp.json().catch(() => ({}));
+        renderSetupTestResult(result, resp, data, model);
     } catch (err) {
         result.textContent = '✕ ' + err.message;
         result.className = 'field-hint test-result-fail';
@@ -1400,6 +1517,7 @@ function updateUI() {
 
     // Update navigation buttons
     setupSetHidden(document.getElementById('btn-back'), currentStepIndex <= 0);
+    setupSetHidden(document.getElementById('btn-skip-step'), !setupStepSkippable(stepId));
     updateNavLabels();
     updateNextButtonState();
 
@@ -1417,15 +1535,15 @@ function validateStep0(skip = false) {
 
     // Password validation — always enforced, never skippable
     if (setupPasswordRequired === true) {
-        const adminPassword = document.getElementById('admin-password').value.trim();
-        if (adminPassword.length < 8) {
+        const adminPassword = document.getElementById('admin-password').value;
+        if (adminPassword.length < 8 || !adminPassword.trim()) {
             showFieldError('admin-password', 'err-admin-password');
             valid = false;
         } else {
             clearFieldError('admin-password', 'err-admin-password');
         }
 
-        const confirmPassword = document.getElementById('admin-password-confirm').value.trim();
+        const confirmPassword = document.getElementById('admin-password-confirm').value;
         if (adminPassword.length >= 8 && confirmPassword !== adminPassword) {
             showFieldError('admin-password-confirm', 'err-admin-password-confirm');
             valid = false;
@@ -1563,12 +1681,19 @@ function buildProviderEntries() {
     if (visionType) {
         const visionModel = document.getElementById('vision-model').value.trim();
         const visionCfg = providerConfig[visionType] || providerConfig.custom;
-        providers.push({
-            id: 'vision', name: 'Vision', type: visionType,
-            base_url: visionCfg.baseUrl || mainUrl,
-            api_key: visionType === 'ollama' ? '' : mainKey,
-            model: visionModel,
-        });
+        if (visionType === 'main') {
+            providers.push({
+                id: 'vision', name: 'Vision', type: mainType,
+                base_url: mainUrl, api_key: mainKey, model: visionModel || mainModel,
+            });
+        } else {
+            providers.push({
+                id: 'vision', name: 'Vision', type: visionType,
+                base_url: visionCfg.baseUrl || mainUrl,
+                api_key: visionType === 'ollama' ? '' : mainKey,
+                model: visionModel,
+            });
+        }
     }
 
     // Whisper / STT provider
@@ -1576,12 +1701,19 @@ function buildProviderEntries() {
     if (whisperType) {
         const whisperModel = document.getElementById('whisper-model').value.trim();
         const whisperCfg = providerConfig[whisperType] || providerConfig.custom;
-        providers.push({
-            id: 'whisper', name: 'Whisper / STT', type: whisperType,
-            base_url: whisperCfg.baseUrl || mainUrl,
-            api_key: whisperType === 'ollama' ? '' : mainKey,
-            model: whisperModel,
-        });
+        if (whisperType === 'main') {
+            providers.push({
+                id: 'whisper', name: 'Whisper / STT', type: mainType,
+                base_url: mainUrl, api_key: mainKey, model: whisperModel || mainModel,
+            });
+        } else {
+            providers.push({
+                id: 'whisper', name: 'Whisper / STT', type: whisperType,
+                base_url: whisperCfg.baseUrl || mainUrl,
+                api_key: whisperType === 'ollama' ? '' : mainKey,
+                model: whisperModel,
+            });
+        }
     }
 
     // Helper LLM provider
@@ -1770,7 +1902,7 @@ function buildConfigPatch() {
         },
         auth: {
             enabled: true,
-            admin_password: document.getElementById('admin-password').value.trim(),
+            admin_password: document.getElementById('admin-password').value,
         },
         maintenance: {
             enabled: document.getElementById('maintenance-enabled').checked,

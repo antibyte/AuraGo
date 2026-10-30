@@ -2812,6 +2812,48 @@ function testSetupKeyboardSkipLinkAndLanguageText() {
   }
 }
 
+function testSetupSubsystemDefaultsSkipRuleAndTestKeys() {
+  const ctx = {};
+  vm.runInNewContext(sourceBetween(read('ui/js/setup/main.js'),
+    'const SETUP_OPENROUTER_SUBSYSTEM_MODEL', 'let setupVisionTouched'), ctx);
+  const or = ctx.setupSubsystemDefaults('openrouter', 'x/y');
+  assert.deepEqual(JSON.parse(JSON.stringify(or)), {
+    vision: { provider: 'openrouter', model: 'google/gemini-3.1-flash-lite' },
+    whisper: { provider: 'openrouter', mode: 'multimodal', model: 'google/gemini-3.1-flash-lite' },
+  });
+  const oa = ctx.setupSubsystemDefaults('openai', 'gpt-5');
+  assert.deepEqual(JSON.parse(JSON.stringify(oa)), {
+    vision: { provider: 'openai', model: 'gpt-5' },
+    whisper: { provider: 'openai', mode: 'whisper', model: 'whisper-1' },
+  });
+  const an = ctx.setupSubsystemDefaults('anthropic', 'claude-x');
+  assert.equal(an.vision.provider, 'main');
+  assert.equal(an.vision.model, 'claude-x');
+  assert.equal(an.whisper.provider, '');
+  const ol = ctx.setupSubsystemDefaults('ollama', 'llama3');
+  assert.equal(ol.vision.provider, '');
+  assert.equal(ol.whisper.provider, '');
+  assert.equal(ctx.setupSubsystemDefaults('google', 'gem').whisper.provider, 'main');
+
+  for (const id of ['step-1', 'step-2', 'step-local-llm']) assert.equal(ctx.setupStepSkippable(id), true, id);
+  for (const id of ['plan-select', 'plan-quick', 'step-0', 'step-3']) assert.equal(ctx.setupStepSkippable(id), false, id);
+
+  const keys = ['setup.test_key_ok', 'setup.test_model_ok', 'setup.test_credit_remaining', 'setup.test_free_tier',
+    'setup.test_key_invalid', 'setup.test_model_not_found', 'setup.test_rate_limited', 'setup.test_provider_unreachable',
+    'setup.test_provider_error', 'setup.test_url_not_allowed', 'setup.test_model_required', 'setup.test_busy',
+    'setup.test_session_expired', 'setup.test_provider_incomplete', 'setup.step1_provider_same_as_main'];
+  const dir = path.join(root, 'ui/lang/setup');
+  const files = readdirSync(dir).filter(name => name.endsWith('.json'));
+  assert.equal(files.length, 16);
+  for (const name of files) {
+    const data = JSON.parse(read('ui/lang/setup/' + name));
+    for (const key of keys) assert.ok(data[key], name + ' missing ' + key);
+    assert.ok(data['setup.test_model_not_found'].includes('{model}'), name);
+    assert.ok(data['setup.test_provider_error'].includes('{status}'), name);
+    assert.ok(data['setup.test_credit_remaining'].includes('{amount}'), name);
+  }
+}
+
 async function testDesktopChatSeparatesStreamedToolRounds() {
   const source = sourceBetween(read('ui/js/desktop/apps/agent-chat.js'),
     '    async function sendDesktopChatStream(', '    function appendChat(');
@@ -5298,6 +5340,7 @@ const tests = [
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Setup keyboard navigation, skip link and language text', testSetupKeyboardSkipLinkAndLanguageText],
+  ['Setup subsystem defaults, skip rule and test-result keys', testSetupSubsystemDefaultsSkipRuleAndTestKeys],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],
   ['Game Maker isolates old job events during replay and live updates', testGameMakerJobEventOwnership],

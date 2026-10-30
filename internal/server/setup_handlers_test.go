@@ -210,6 +210,23 @@ func TestValidateSetupAdminPasswordStripsTemporaryField(t *testing.T) {
 	}
 }
 
+func TestValidateSetupAdminPasswordKeepsWhitespaceVerbatim(t *testing.T) {
+	t.Parallel()
+
+	auth := map[string]interface{}{"enabled": true, "admin_password": "  spaced pw  "}
+	password, _, err := validateSetupAdminPassword(auth, true, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if password != "  spaced pw  " {
+		t.Fatalf("password was altered: %q", password)
+	}
+	blank := map[string]interface{}{"enabled": true, "admin_password": "         "}
+	if _, _, err := validateSetupAdminPassword(blank, true, false); err == nil {
+		t.Fatal("whitespace-only password must be rejected")
+	}
+}
+
 func TestValidateSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
 	t.Parallel()
 
