@@ -18,6 +18,9 @@ type SQLiteMemory struct {
 	db     *sql.DB
 	logger *slog.Logger
 
+	inMemorySnapshotOnce sync.Once
+	inMemorySnapshot     *MemorySnapshotCoordinator
+
 	// ponytail: serialize automatic vector ownership and rollback within one
 	// store; use per-document coordination only if extraction throughput requires it.
 	automaticMemoryMu sync.Mutex

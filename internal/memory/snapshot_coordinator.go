@@ -68,7 +68,11 @@ func (s *SQLiteMemory) snapshotCoordinator(contexts ...context.Context) (*Memory
 		return nil, fmt.Errorf("locate memory snapshot coordinator: %w", err)
 	}
 	if path == "" {
-		return snapshotCoordinator(fmt.Sprintf("memory:%p", s.db)), nil
+		// In-memory stores own their coordinator; closed DB addresses can be reused.
+		s.inMemorySnapshotOnce.Do(func() {
+			s.inMemorySnapshot = &MemorySnapshotCoordinator{changed: make(chan struct{})}
+		})
+		return s.inMemorySnapshot, nil
 	}
 	return snapshotCoordinator(snapshotPathKey(path)), nil
 }
