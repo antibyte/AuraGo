@@ -27,6 +27,8 @@ func TestReleaseCIRequiresReviewedSourceAndVerifiedKeylessPublication(t *testing
 		"contents: read", "needs: verify-source", "id-token: write",
 		`"$GITHUB_REF" = refs/heads/main`, `"$EXPECTED_SHA" = "$GITHUB_SHA"`,
 		`--commit "$GITHUB_SHA"`, `gh run watch "$gate" --exit-status`,
+		"--workflow training-dataset.yml", `if [ -n "$training_gate" ]; then`,
+		`gh run watch "$training_gate" --exit-status`,
 		"ref: ${{ github.sha }}", "cosign-release: v3.1.4",
 		"AURAGO_KEEP_RELEASES: '1'", "--from-release latest",
 		"./make_release.ps1 -Version $env:RELEASE_VERSION",

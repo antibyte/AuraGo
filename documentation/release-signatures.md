@@ -109,6 +109,7 @@ workflow's result. Uncommitted drafts remain local. If main advances between pus
 and dispatch, the workflow stops rather than releasing a different commit.
 
 The workflow requires the complete Security Gates run for that source commit.
+When the push also triggers Training Dataset Gates, that run must succeed too.
 It checks out clean source, prepares the manifest-pinned Phonon resources and
 builds all six native platforms through the existing PowerShell builder. Cosign
 uses the short-lived GitHub Actions identity; no local private key, DPAPI password

@@ -28,7 +28,7 @@ jobs:
       actions: read
       contents: read
     steps:
-      - name: Validate source and wait for its complete Security Gates run
+      - name: Validate source and wait for its required checks
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -47,6 +47,10 @@ jobs:
           done
           [ -n "$gate" ] || { echo 'No Security Gates run exists for this exact source commit.'; exit 1; }
           gh run watch "$gate" --exit-status --interval 20
+          training_gate="$(gh run list --workflow training-dataset.yml --commit "$GITHUB_SHA" --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [ -n "$training_gate" ]; then
+            gh run watch "$training_gate" --exit-status --interval 20
+          fi
 
   release:
     needs: verify-source

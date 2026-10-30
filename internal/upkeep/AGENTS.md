@@ -57,8 +57,9 @@ The updater owns transaction manifests; this package verifies them before collec
 - Windows entrypoints default to `scripts/start-release-ci.ps1`: publish committed
   `main`, dispatch `release.yml` with the expected SHA and wait for its exit status.
   Local drafts remain outside the build. CI checks out the exact source commit,
-  requires its complete Security Gates run, builds all native assets and signs
-  with GitHub OIDC. Keep local profiles and the embedded trust root unchanged.
+  requires its complete Security Gates run and any Training Dataset Gates run
+  triggered by that push, builds all native assets and signs with GitHub OIDC.
+  Keep local profiles and the embedded trust root unchanged.
   CI retains all releases/tags and explicitly dispatches Docker publication after
   the native draft is fully uploaded, verified and published.
 - Optional local Windows maintainer setup pins Cosign and atomically creates the
