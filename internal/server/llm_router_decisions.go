@@ -5,6 +5,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/decisions"
 	"aurago/internal/decisions/consumers"
 )
 
@@ -42,4 +43,17 @@ func (service taskDecisionService) Snapshot(cfg *config.Config, id consumers.ID)
 		return consumers.Snapshot{Consumer: id, Code: "service_not_ready"}
 	}
 	return service.s.decisionHub().Snapshot(cfg, id)
+}
+
+// PrepareImage validates and bounds an image for a consumer such as the indexer.
+func (service taskDecisionService) PrepareImage(data []byte, maxSide int) (decisions.Image, error) {
+	return prepareConsumerImage(data, maxSide)
+}
+
+// RefreshImageCapability exposes the hub's rate-limited catalog refresh.
+func (service taskDecisionService) RefreshImageCapability(ctx context.Context, cfg *config.Config, id consumers.ID) consumers.Snapshot {
+	if service.s == nil {
+		return consumers.Snapshot{Consumer: id, Code: "service_not_ready"}
+	}
+	return service.s.decisionHub().RefreshImageCapability(ctx, cfg, id)
 }

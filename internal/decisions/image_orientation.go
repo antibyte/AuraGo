@@ -118,3 +118,9 @@ func orientDecisionImage(source image.Image, orientation int) image.Image {
 	}
 	return result
 }
+
+// OrientImage applies the EXIF orientation found in the original JPEG bytes,
+// so a caller that re-encodes the picture does not lose it.
+func OrientImage(source image.Image, original []byte) image.Image {
+	return orientDecisionImage(source, jpegOrientation(original))
+}

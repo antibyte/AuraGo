@@ -417,3 +417,31 @@ func (h *decisionHub) recordOutcome(id consumers.ID, response decisions.Response
 		}
 	})
 }
+
+// RefreshImageCapability is for background consumers whose first Snapshot says
+// images_unknown on the provider backend because the model catalog is stale. It
+// reads the catalog (no inference, no cost) at most once per catalog TTL, shared
+// across all consumers, bounded by the consumer's timeout, and returns a fresh
+// snapshot. Snapshot itself never refreshes anything.
+func (h *decisionHub) RefreshImageCapability(ctx context.Context, cfg *config.Config, id consumers.ID) consumers.Snapshot {
+	snapshot := h.Snapshot(cfg, id)
+	spec, known := consumers.Registry[id]
+	router, routed := h.s.Decisions.(*routedDecisions)
+	if !known || spec.Modality != consumers.ImageRequired || snapshot.Code != consumers.CodeImagesUnknown || snapshot.Backend != "provider" || !routed || snapshot.Provider == "" {
+		return snapshot
+	}
+	h.mu.Lock()
+	now := h.clock()
+	if !h.lastCatalogRefresh.IsZero() && now.Sub(h.lastCatalogRefresh) < decisionCatalogTTL {
+		h.mu.Unlock()
+		return snapshot
+	}
+	h.lastCatalogRefresh = now
+	h.mu.Unlock()
+	callCtx, cancel := context.WithTimeout(ctx, spec.Timeout)
+	defer cancel()
+	if _, err := router.Models(callCtx, snapshot.Provider); err != nil {
+		return snapshot
+	}
+	return h.Snapshot(cfg, id)
+}
