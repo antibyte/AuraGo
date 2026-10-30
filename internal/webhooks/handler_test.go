@@ -259,7 +259,20 @@ func newSilentWebhookHandler(t *testing.T, format WebhookFormat) (*Handler, stri
 	}); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	return NewHandler(manager, tokenManager, vault, nil, nil, &config.Config{}, slog.Default(), 8080, 4096, 0), rawToken, manager
+	handler := NewHandler(manager, tokenManager, vault, nil, nil, &config.Config{}, slog.Default(), 8080, 4096, 0)
+	t.Cleanup(func() {
+		// HTTP receipt precedes log persistence; hold every slot before TempDir cleanup.
+		deadline := time.After(5 * time.Second)
+		for i := 0; i < cap(handler.deliverySlots); i++ {
+			select {
+			case handler.deliverySlots <- struct{}{}:
+			case <-deadline:
+				t.Error("webhook delivery did not finish before cleanup")
+				return
+			}
+		}
+	})
+	return handler, rawToken, manager
 }
 
 func TestHandlerRejectsTokenNotBoundToWebhook(t *testing.T) {
