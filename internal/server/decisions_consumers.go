@@ -22,7 +22,7 @@ type decisionHub struct {
 
 	mu           sync.Mutex
 	stats        map[consumers.ID]*consumers.Stats
-	imagesPinned map[uint64]bool // modelEpoch -> unsupported after images_unsupported
+	imagesPinned map[[2]uint64]bool // {provider generation id, modelEpoch} -> unsupported after images_unsupported; provider backend only
 	epochs       map[consumers.ID]*atomic.Uint64
 
 	// Admission state (all under mu). One global background slot; interactive
@@ -128,7 +128,7 @@ func (s *Server) decisionHub() *decisionHub {
 		s.decisionHubInst = &decisionHub{
 			s:              s,
 			stats:          make(map[consumers.ID]*consumers.Stats),
-			imagesPinned:   make(map[uint64]bool),
+			imagesPinned:   make(map[[2]uint64]bool),
 			epochs:         make(map[consumers.ID]*atomic.Uint64),
 			lastBackground: make(map[consumers.ID]time.Time),
 		}
@@ -186,10 +186,10 @@ func (h *decisionHub) record(id consumers.ID, update func(*consumers.Stats)) {
 	update(st)
 }
 
-func (h *decisionHub) imagesAreUnsupported(modelEpoch uint64) bool {
+func (h *decisionHub) imagesAreUnsupported(generationID, modelEpoch uint64) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.imagesPinned[modelEpoch]
+	return h.imagesPinned[[2]uint64{generationID, modelEpoch}]
 }
 
 // consumerPolicy is the part of the configuration a consumer's identity
@@ -308,7 +308,7 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 	if !result.Available {
 		return result
 	}
-	result.Caps = h.capabilities(settings, status, modelEpoch)
+	result.Caps = h.capabilities(settings, status, generationID, modelEpoch)
 	if spec.Modality == consumers.ImageRequired {
 		switch {
 		case result.Caps.Images == consumers.ImagesUnsupported:
@@ -349,9 +349,9 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 			ctx = context.WithValue(ctx, decisionModelEpochKey{}, modelEpoch)
 		}
 		response, err := s.Decisions.Evaluate(ctx, request)
-		if err != nil && decisions.ErrorCode(err) == decisions.CodeImagesUnsupported {
+		if err != nil && external && decisions.ErrorCode(err) == decisions.CodeImagesUnsupported {
 			h.mu.Lock()
-			h.imagesPinned[modelEpoch] = true
+			h.imagesPinned[[2]uint64{generationID, modelEpoch}] = true
 			h.mu.Unlock()
 		}
 		if err != nil && h.wasPreempted(call) {
@@ -367,7 +367,7 @@ func (h *decisionHub) Snapshot(cfg *config.Config, id consumers.ID) consumers.Sn
 	return result
 }
 
-func (h *decisionHub) capabilities(settings config.DecisionsConfig, status decisions.Status, modelEpoch uint64) consumers.Capabilities {
+func (h *decisionHub) capabilities(settings config.DecisionsConfig, status decisions.Status, generationID, modelEpoch uint64) consumers.Capabilities {
 	caps := consumers.Capabilities{Images: consumers.ImagesUnknown}
 	if settings.Backend == "provider" {
 		caps.External = true
@@ -389,7 +389,7 @@ func (h *decisionHub) capabilities(settings config.DecisionsConfig, status decis
 			caps.Images = consumers.ImagesSupported
 		}
 	}
-	if h.imagesAreUnsupported(modelEpoch) {
+	if caps.External && h.imagesAreUnsupported(generationID, modelEpoch) {
 		caps.Images = consumers.ImagesUnsupported
 	}
 	return caps

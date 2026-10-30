@@ -40,7 +40,7 @@ func YesNo(r decisions.Response, qid string) (float64, bool) {
 	}
 	yes, no := answer.Probabilities["yes"], answer.Probabilities["no"]
 	p := *answer.Noul
-	if math.IsNaN(p) || p < 0 || p > 1 || math.Abs(yes+no-1) > 1e-6 || math.Abs(yes-p) > 1e-6 {
+	if !(yes >= 0 && yes <= 1 && no >= 0 && no <= 1) || math.IsNaN(p) || p < 0 || p > 1 || math.Abs(yes+no-1) > 1e-6 || math.Abs(yes-p) > 1e-6 {
 		return 0, false
 	}
 	return p, true

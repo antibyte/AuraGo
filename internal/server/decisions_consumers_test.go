@@ -56,7 +56,7 @@ func TestCapabilitiesLocalProjector(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			s, fake := hubLocal(t)
 			tc.mutate(&fake.status)
-			caps := s.decisionHub().capabilities(s.Cfg.Decisions.Normalize(), fake.Status(), 0)
+			caps := s.decisionHub().capabilities(s.Cfg.Decisions.Normalize(), fake.Status(), 0, 0)
 			if caps.Images != tc.images || caps.CPUOnly != tc.cpu || caps.External {
 				t.Fatalf("caps = %+v", caps)
 			}
@@ -72,7 +72,7 @@ func TestCapabilitiesProviderStaleIsUnknown(t *testing.T) {
 		d.mu.Unlock()
 	}
 	caps := func() consumers.Capabilities {
-		return s.decisionHub().capabilities(s.Cfg.Decisions.Normalize(), d.Status(), 0)
+		return s.decisionHub().capabilities(s.Cfg.Decisions.Normalize(), d.Status(), 0, 0)
 	}
 	set(decisions.ModelAvailability{State: "usable", CheckedAt: time.Now().Add(-48 * time.Hour), Model: &decisions.DecisionModel{SupportsImages: true}})
 	if c := caps(); c.Images != consumers.ImagesUnknown || !c.External {
@@ -212,13 +212,21 @@ func TestTextOnlyDropsImages(t *testing.T) {
 }
 
 func TestImagesUnsupportedPinsEpoch(t *testing.T) {
-	s, fake := hubLocal(t)
-	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "person_wake")
+	s, d, local, remote := routedDecisionFixture(t)
+	enable(s, config.DecisionConsumerSwitch{Enabled: true, AllowExternalImages: true}, "person_wake")
+	fresh := func() {
+		d.mu.Lock()
+		d.generation.status.ModelAvailability = decisions.ModelAvailability{State: "usable", CheckedAt: time.Now(), Model: &decisions.DecisionModel{SupportsImages: true}}
+		d.mu.Unlock()
+	}
+	fresh()
 	first := s.decisionHub().Snapshot(s.Cfg, consumers.PersonWake)
 	if !first.Available {
 		t.Fatalf("setup: %+v", first)
 	}
-	fake.err = decisions.NewError(decisions.CodeImagesUnsupported, nil)
+	remote.evaluate = func(context.Context) (decisions.Response, error) {
+		return decisions.Response{}, decisions.NewError(decisions.CodeImagesUnsupported, nil)
+	}
 	if _, err := first.Evaluate(context.Background(), decisions.Request{Images: []decisions.Image{{MIME: "image/png"}}}); err == nil {
 		t.Fatal("expected the image error")
 	}
@@ -227,6 +235,25 @@ func TestImagesUnsupportedPinsEpoch(t *testing.T) {
 	}
 	if st := s.decisionHub().Stats()[consumers.PersonWake]; st.Failures != 1 || st.LastCode != decisions.CodeImagesUnsupported {
 		t.Fatalf("stats: %+v", st)
+	}
+	// A new generation (model switch) starts unpinned.
+	d.mu.Lock()
+	d.generation = d.newGeneration(s.Cfg)
+	d.mu.Unlock()
+	fresh()
+	if got := s.decisionHub().Snapshot(s.Cfg, consumers.PersonWake); !got.Available {
+		t.Fatalf("pin leaked into the next generation: %+v", got)
+	}
+	// So does the local backend, even at the same epoch number.
+	local.status.ProjectorSHA256, local.status.ProjectorRevision = "sha", "rev"
+	local.status.Runtime.ProjectorSHA256, local.status.Runtime.ProjectorRevision = "sha", "rev"
+	cfg := s.Cfg.Decisions.Normalize()
+	cfg.Backend = "local"
+	d.mu.Lock()
+	id := d.generation.id
+	d.mu.Unlock()
+	if caps := s.decisionHub().capabilities(cfg, local.Status(), id, 0); caps.Images != consumers.ImagesSupported {
+		t.Fatalf("pin leaked into the local backend: %+v", caps)
 	}
 }
 
