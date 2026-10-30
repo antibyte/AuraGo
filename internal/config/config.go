@@ -888,7 +888,7 @@ func Load(path string) (*Config, error) {
 	cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph = true
 	cfg.Guardian.PromptSec.Sanitizer.Decode = true
 	cfg.Guardian.PromptSec.Embedding.Enabled = false
-	cfg.Guardian.PromptSec.Embedding.Threshold = 0.65
+	cfg.Guardian.PromptSec.Embedding.Threshold = 0.75
 	cfg.Guardian.PromptSec.Policy = ""
 	cfg.Guardian.PromptSec.Taint.Enabled = false
 	cfg.Guardian.PromptSec.Taint.DefaultLevel = "untrusted"

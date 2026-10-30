@@ -1235,7 +1235,7 @@ func (c *Config) MigratePromptSecDefaults(data []byte) {
 	}
 
 	if ps.Embedding.Threshold == 0 {
-		ps.Embedding.Threshold = 0.65
+		ps.Embedding.Threshold = 0.75
 	}
 
 	if ps.Taint.DefaultLevel == "" {

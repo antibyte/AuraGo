@@ -50,8 +50,8 @@ func TestPromptSecDefaults(t *testing.T) {
 	if cfg.Guardian.PromptSec.Embedding.Enabled {
 		t.Error("expected PromptSec.Embedding.Enabled=false")
 	}
-	if cfg.Guardian.PromptSec.Embedding.Threshold != 0.65 {
-		t.Errorf("expected PromptSec.Embedding.Threshold=0.65, got %f", cfg.Guardian.PromptSec.Embedding.Threshold)
+	if cfg.Guardian.PromptSec.Embedding.Threshold != 0.75 {
+		t.Errorf("expected PromptSec.Embedding.Threshold=0.75, got %f", cfg.Guardian.PromptSec.Embedding.Threshold)
 	}
 	if cfg.Guardian.PromptSec.Policy != "" {
 		t.Errorf("expected PromptSec.Policy=\"\", got %q", cfg.Guardian.PromptSec.Policy)

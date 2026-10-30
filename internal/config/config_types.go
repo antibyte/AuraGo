@@ -1598,7 +1598,7 @@ type Config struct {
 			} `yaml:"sanitizer"`
 			Embedding struct {
 				Enabled   bool    `yaml:"enabled"`   // default: false
-				Threshold float64 `yaml:"threshold"` // cosine similarity threshold (default: 0.65)
+				Threshold float64 `yaml:"threshold"` // character n-gram cosine similarity threshold (default: 0.75)
 			} `yaml:"embedding"`
 			Policy       string `yaml:"policy"` // "", "rag", "support", "coding", "translation", "custom"
 			CustomPolicy struct {

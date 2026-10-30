@@ -45,6 +45,15 @@ The notice is display-only and never enters conversation history or model contex
 
 ## Local scans and archived output
 
+The optional `guardian.promptsec.embedding` guard compares character n-grams;
+its cosine similarity is not a danger probability. Its default threshold is
+**0.75**, matching PromptSec's upstream default. Lower values can flag ordinary
+German prose, especially after JSON string values are decoded and joined.
+Explicit configured values remain unchanged by upgrades. For an existing
+installation affected by these false positives, set
+`guardian.promptsec.embedding.threshold: 0.75` and restart AuraGo. Hard rules,
+isolation, the optional Horizon classifier and tool permissions remain active.
+
 `guardian.max_scan_bytes` bounds each local scan window, not total input coverage.
 Larger inputs use overlapping windows; `scan_edge_bytes` is their overlap and zero
 selects the default. Raw text, normalized scan views and decoded shadows are checked

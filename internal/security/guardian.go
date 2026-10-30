@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/danielthedm/promptsec"
+	"github.com/danielthedm/promptsec/guard/embedding"
 	"github.com/danielthedm/promptsec/guard/taint"
 )
 
@@ -298,7 +299,7 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 	if opts.Embedding.Enabled {
 		threshold := opts.Embedding.Threshold
 		if threshold <= 0 || threshold > 1 {
-			threshold = 0.65
+			threshold = embedding.DefaultThreshold
 		}
 		psOpts = append(psOpts, promptsec.WithEmbedding(&promptsec.EmbeddingOptions{
 			Threshold: threshold,
