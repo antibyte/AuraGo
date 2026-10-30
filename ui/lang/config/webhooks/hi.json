@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "परीक्षण:",
   "config.webhooks.toggle_active": "सक्रिय",
   "config.webhooks.toggle_inactive": "निष्क्रिय",
-  "config.webhooks.token_label": "टोकन"
+  "config.webhooks.token_label": "टोकन",
+  "config.webhooks.load_failed": "वेबहुक डेटा लोड नहीं हो सका",
+  "config.webhooks.retry": "पुनः प्रयास करें",
+  "config.webhooks.not_running_notice": "वेबहुक सर्वर नहीं चल रहा है",
+  "config.webhooks.not_running_desc": "वेबहुक प्रबंधक सक्रिय नहीं है, इसलिए वेबहुक और टोकन उपलब्ध नहीं हैं। जाँचें कि वेबहुक सक्षम हैं, सहेजें और आवश्यकता होने पर AuraGo पुनः आरंभ करें।"
 }

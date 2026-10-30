@@ -731,9 +731,11 @@ async function performLogout() {
  * Show a toast notification
  * @param {string} message - The message to display
  * @param {string} type - 'success', 'error', or 'warning'
- * @param {number} duration - Duration in milliseconds (default: 3000)
+ * @param {number} [duration] - Duration in milliseconds (default: 3000, errors 6000)
  */
-function showToast(message, type = 'success', duration = 3000) {
+function showToast(message, type = 'success', duration) {
+    if (type === 'warn') type = 'warning';
+    if (!Number.isFinite(duration)) duration = type === 'error' ? 6000 : 3000;
     // Remove existing toast
     const existing = document.getElementById('toast');
     if (existing) {

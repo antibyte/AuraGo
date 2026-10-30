@@ -53,5 +53,8 @@
   "config.google_workspace.oauth_manual_failed": "Autorisierung fehlgeschlagen:",
   "config.google_workspace.testing": "⏳ Teste...",
   "config.google_workspace.test_success": "Verbindung erfolgreich",
-  "config.google_workspace.test_failed": "Verbindungstest fehlgeschlagen"
+  "config.google_workspace.test_failed": "Verbindungstest fehlgeschlagen",
+  "config.google_workspace.confirm_disconnect_title": "Google Workspace trennen?",
+  "config.google_workspace.confirm_disconnect_message": "Die gespeicherten Google-OAuth-Tokens werden widerrufen und gelöscht. Gmail, Kalender, Drive und die übrigen Google-Workspace-Werkzeuge funktionieren nicht mehr, bis du dich erneut anmeldest.",
+  "config.google_workspace.disconnecting": "Trenne Verbindung..."
 }

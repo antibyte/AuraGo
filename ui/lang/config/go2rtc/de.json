@@ -101,5 +101,7 @@
   "config.go2rtc.hardware_test": "Gespeicherte Hardware prüfen",
   "config.go2rtc.hardware_verified": "Encoder erfolgreich geprüft",
   "config.go2rtc.hardware_failed": "Hardwareprüfung fehlgeschlagen; CPU-Fallback ist deaktiviert.",
-  "config.go2rtc.hardware_help": "CPU ist der Standard. GPU benötigt einen Linux-amd64-Docker-Host. Speichern, Sidecar starten und den gewählten Encoder ausdrücklich prüfen, bevor ein Transcoding-Profil verwendet wird."
+  "config.go2rtc.hardware_help": "CPU ist der Standard. GPU benötigt einen Linux-amd64-Docker-Host. Speichern, Sidecar starten und den gewählten Encoder ausdrücklich prüfen, bevor ein Transcoding-Profil verwendet wird.",
+  "config.go2rtc.confirm_remove_title": "Diesen Stream entfernen?",
+  "config.go2rtc.confirm_remove_message": "Der Stream \"{name}\" und seine Quelleneinstellungen werden aus der Liste entfernt. Kameras, Aufnahmen und Links, die diesen Stream nutzen, funktionieren nicht mehr, sobald du speicherst."
 }

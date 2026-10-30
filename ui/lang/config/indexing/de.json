@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Medien dieses Verzeichnisses an Provider senden?",
   "config.indexing.media_confirm": "Bilder, Audio und gescannte PDFs aus diesem Verzeichnis werden zur Analyse an den konfigurierten Vision- bzw. multimodalen Embedding-Provider gesendet. Das kann ein externer Dienst sein, sodass die Inhalte dieser Dateien dieses System verlassen können. Wird die Option wieder ausgeschaltet, werden keine weiteren Medien gesendet.",
   "config.indexing.media_inactive_hint": "Vision- und multimodale Embeddings sind global ausgeschaltet; die Einstellung greift erst, sobald eines davon aktiviert ist.",
-  "config.indexing.index_images_per_folder_hint": "Bilder werden nur für Verzeichnisse gesendet, bei denen die Medienfreigabe in der Liste oben eingeschaltet ist."
+  "config.indexing.index_images_per_folder_hint": "Bilder werden nur für Verzeichnisse gesendet, bei denen die Medienfreigabe in der Liste oben eingeschaltet ist.",
+  "config.indexing.rescan_starting": "Scan wird gestartet…",
+  "config.indexing.rescan_started": "Scan gestartet",
+  "config.indexing.rescan_failed": "Scan konnte nicht gestartet werden"
 }

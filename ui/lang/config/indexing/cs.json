@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Odesílat média z tohoto adresáře poskytovatelům?",
   "config.indexing.media_confirm": "Obrázky, zvuk a naskenovaná PDF z tohoto adresáře budou odeslány k analýze nakonfigurovanému poskytovateli Vision nebo multimodálních embeddingů. Může jít o externí službu, takže obsah těchto souborů může opustit tento systém. Po opětovném vypnutí se další média již neodesílají.",
   "config.indexing.media_inactive_hint": "Vision a multimodální embeddingy jsou globálně vypnuty; nastavení se projeví, jakmile bude jedno z nich zapnuto.",
-  "config.indexing.index_images_per_folder_hint": "Obrázky se odesílají jen z adresářů, u nichž je v seznamu výše zapnuto sdílení médií."
+  "config.indexing.index_images_per_folder_hint": "Obrázky se odesílají jen z adresářů, u nichž je v seznamu výše zapnuto sdílení médií.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

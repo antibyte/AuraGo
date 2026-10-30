@@ -665,5 +665,7 @@
   "config.s3.phase_iam": "権限を適用中",
   "config.s3.phase_verifying": "アクセスを検証中",
   "config.s3.phase_stopping": "RustFSを停止中",
-  "config.s3.phase_removing": "実行環境を削除中"
+  "config.s3.phase_removing": "実行環境を削除中",
+  "config.space_agent.confirm_recreate_title": "Recreate the Space Agent container?",
+  "config.space_agent.confirm_recreate_message": "The Space Agent container is removed and created again from the current settings. The service is unavailable meanwhile, open sessions are interrupted, and anything stored only inside the container is lost."
 }

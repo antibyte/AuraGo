@@ -57,7 +57,7 @@
   "config.updates.installing": "Installing…",
   "config.updates.latest": "Latest",
   "config.updates.running": "Running…",
-  "config.updates.started": "✅ Update started — AuraGo is restarting. Reload in 60s…",
+  "config.updates.started": "✅ Update started — AuraGo is restarting. Reload in {seconds}s…",
   "config.updates.up_to_date": "Up to date",
   "config.updates.version": "Version",
   "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. <strong>Your configuration and data are preserved.</strong> AuraGo will restart after the update.",

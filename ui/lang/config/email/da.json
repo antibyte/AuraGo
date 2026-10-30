@@ -56,5 +56,9 @@
   "config.email.test_fail": "Forbindelse mislykkedes",
   "config.email.testing": "Tester…",
   "config.email.test_partial": "Delvis succes — tjek detaljer",
-  "config.email.test_credentials_required": "Brugernavn og adgangskode er påkrævet"
+  "config.email.test_credentials_required": "Brugernavn og adgangskode er påkrævet",
+  "config.email.load_failed": "E-mailkonti kunne ikke indlæses",
+  "config.email.load_failed_disabled": "Tilføjelse, redigering og sletning er deaktiveret, indtil listen er indlæst.",
+  "config.email.retry": "Prøv igen",
+  "config.email.saved": "E-mailkonti gemt."
 }

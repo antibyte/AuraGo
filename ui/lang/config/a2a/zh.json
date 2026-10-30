@@ -65,5 +65,9 @@
   "help.a2a.client_enabled": "启用A2A客户端以连接和与远程A2A代理通信。",
   "help.a2a.llm_provider": "选择A2A任务的LLM提供商。留空使用主LLM。",
   "help.a2a.port": "0 = 共享主服务器端口。数字 = 在专用端口上运行A2A。",
-  "help.a2a.server_enabled": "将此AuraGo实例作为A2A兼容代理公开，其他代理可通过A2A协议与之通信。"
+  "help.a2a.server_enabled": "将此AuraGo实例作为A2A兼容代理公开，其他代理可通过A2A协议与之通信。",
+  "config.a2a.confirm_remove_skill_title": "Remove this skill?",
+  "config.a2a.confirm_remove_skill_message": "Skill \"{name}\" is removed from the list and is no longer offered to other agents once you save.",
+  "config.a2a.confirm_remove_agent_title": "Remove this remote agent?",
+  "config.a2a.confirm_remove_agent_message": "Remote agent \"{name}\" with its card URL and credentials is removed from the list and deleted when you save. AuraGo can no longer delegate tasks to it."
 }

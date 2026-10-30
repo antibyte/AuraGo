@@ -164,8 +164,11 @@ function threeDPrinterAdd(protocol) {
     threeDPrinterSetPrinters(protocol, printers);
 }
 
-function threeDPrinterRemove(protocol, index) {
+async function threeDPrinterRemove(protocol, index) {
     const printers = threeDPrinterDraftPrinters(protocol);
+    const doomed = printers[index] || {};
+    const label = doomed.name || doomed.id || String(index + 1);
+    if (!(await showConfirm(t('config.three_d_printers.confirm_remove_title'), t('config.three_d_printers.confirm_remove_message', { name: label })))) return;
     printers.splice(index, 1);
     threeDPrinterSetPrinters(protocol, printers);
 }

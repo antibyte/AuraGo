@@ -105,5 +105,7 @@
   "config.server.disable_https_title": "Deaktivere HTTPS?",
   "config.server.disable_https_confirm": "Dette endrer bare utkastet ditt. Lagre og start AuraGo på nytt for å bruke HTTP. HSTS-regler fra en proxy eller et overordnet domene kan fortsatt kreve HTTPS.",
   "config.server.http_port_hint": "0 deaktiverer HTTP-lytteren. Velg 80 for Let’s Encrypt HTTP-01, og gjør offentlig port 80 tilgjengelig.",
-  "config.server.restart_address": "Åpne etter omstart:"
+  "config.server.restart_address": "Åpne etter omstart:",
+  "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
 }

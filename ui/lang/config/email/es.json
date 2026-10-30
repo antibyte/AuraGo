@@ -56,5 +56,9 @@
   "config.email.test_fail": "Conexión fallida",
   "config.email.testing": "Probando…",
   "config.email.test_partial": "Éxito parcial — revisa los detalles",
-  "config.email.test_credentials_required": "Se requieren usuario y contraseña"
+  "config.email.test_credentials_required": "Se requieren usuario y contraseña",
+  "config.email.load_failed": "No se pudieron cargar las cuentas de correo",
+  "config.email.load_failed_disabled": "Añadir, editar y eliminar está desactivado hasta que se cargue la lista.",
+  "config.email.retry": "Reintentar",
+  "config.email.saved": "Cuentas de correo guardadas."
 }

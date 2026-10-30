@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "测试:",
   "config.webhooks.toggle_active": "活跃",
   "config.webhooks.toggle_inactive": "非活跃",
-  "config.webhooks.token_label": "令牌"
+  "config.webhooks.token_label": "令牌",
+  "config.webhooks.load_failed": "无法加载 Webhook 数据",
+  "config.webhooks.retry": "重试",
+  "config.webhooks.not_running_notice": "Webhook 服务器未运行",
+  "config.webhooks.not_running_desc": "Webhook 管理器未启动，因此 Webhook 和令牌不可用。请确认已启用 Webhook，保存，必要时重启 AuraGo。"
 }

@@ -95,5 +95,8 @@
   "config.mcp.test_connection_success": "Connexion OK. {count} outils detectes.",
   "config.mcp.test_connection_failed": "Echec du test de connexion MCP :",
   "config.mcp.name_command_or_url_required": "Le nom et la commande ou l URL sont requis.",
-  "config.mcp.field_allow_private_network": "Autoriser les adresses privées pour ce serveur MCP"
+  "config.mcp.field_allow_private_network": "Autoriser les adresses privées pour ce serveur MCP",
+  "config.mcp.load_failed": "Impossible de charger {what}",
+  "config.mcp.load_failed_disabled": "L'ajout, la modification et la suppression sont désactivés tant que la liste n'est pas chargée.",
+  "config.mcp.retry": "Réessayer"
 }

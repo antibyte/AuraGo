@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "¿Enviar el contenido multimedia de este directorio a proveedores?",
   "config.indexing.media_confirm": "Las imágenes, el audio y los PDF escaneados de este directorio se enviarán para su análisis al proveedor de Vision o de embeddings multimodales configurado. Puede ser un servicio externo, por lo que el contenido de estos archivos podría salir de este sistema. Si se vuelve a desactivar, no se enviará más contenido multimedia.",
   "config.indexing.media_inactive_hint": "Vision y los embeddings multimodales están desactivados globalmente; el ajuste surtirá efecto en cuanto se active uno de ellos.",
-  "config.indexing.index_images_per_folder_hint": "Las imágenes solo se envían de los directorios que tienen activado el envío de contenido multimedia en la lista de arriba."
+  "config.indexing.index_images_per_folder_hint": "Las imágenes solo se envían de los directorios que tienen activado el envío de contenido multimedia en la lista de arriba.",
+  "config.indexing.rescan_starting": "Iniciando el análisis…",
+  "config.indexing.rescan_started": "Análisis iniciado",
+  "config.indexing.rescan_failed": "No se pudo iniciar el análisis"
 }

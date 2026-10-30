@@ -50,5 +50,6 @@
   "config.ai_gateway.connection_metadata": "Verbindung geprüft; Modell nicht getestet.",
   "config.ai_gateway.route_skipped": "Dieser Anbieter verwendet keine Gateway-Route.",
   "config.ai_gateway.metadata_invalid": "Nutze höchstens fünf vollständige Paare mit eindeutigen Schlüsseln. Trage keine Secrets ein.",
-  "config.ai_gateway.provider_key_help": "API-Schlüssel des gewählten Anbieters."
+  "config.ai_gateway.provider_key_help": "API-Schlüssel des gewählten Anbieters.",
+  "config.ai_gateway.setup_required": "Einrichtung erforderlich: Der Provider ist für das AI-Gateway noch nicht vollständig konfiguriert. Provider-Einrichtung abschließen und speichern."
 }

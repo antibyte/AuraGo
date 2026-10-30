@@ -56,5 +56,9 @@
   "config.email.test_fail": "Connection failed",
   "config.email.testing": "Testing…",
   "config.email.test_partial": "Partial success — check details",
-  "config.email.test_credentials_required": "Username and password are required"
+  "config.email.test_credentials_required": "Username and password are required",
+  "config.email.load_failed": "Could not load email accounts",
+  "config.email.load_failed_disabled": "Adding, editing and deleting is disabled until the list has loaded.",
+  "config.email.retry": "Retry",
+  "config.email.saved": "Email accounts saved."
 }

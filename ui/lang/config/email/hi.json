@@ -56,5 +56,9 @@
   "config.email.test_fail": "कनेक्शन विफल",
   "config.email.testing": "परीक्षण…",
   "config.email.test_partial": "आंशिक सफलता — विवरण जाँचें",
-  "config.email.test_credentials_required": "उपयोगकर्ता नाम और पासवर्ड आवश्यक हैं"
+  "config.email.test_credentials_required": "उपयोगकर्ता नाम और पासवर्ड आवश्यक हैं",
+  "config.email.load_failed": "ईमेल खाते लोड नहीं हो सके",
+  "config.email.load_failed_disabled": "सूची लोड होने तक जोड़ना, संपादित करना और हटाना अक्षम है।",
+  "config.email.retry": "पुनः प्रयास करें",
+  "config.email.saved": "ईमेल खाते सहेजे गए।"
 }

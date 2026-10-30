@@ -105,6 +105,8 @@ function renderTrueNASSection(section) {
     // Auto-check status on load
     if (enabledOn && data.host) {
         truenasCheckStatus();
+    } else {
+        truenasSetBannerState(document.getElementById('truenas-status-banner'), 'neutral', '⚪ ' + (enabledOn ? t('config.truenas.status_no_url') : t('config.truenas.status_disabled')));
     }
 }
 
@@ -132,8 +134,14 @@ function truenasCheckStatus() {
                 return;
             }
             if (res.status === 'online') {
-                truenasSetBannerState(banner, 'success', '🟢 TrueNAS ' + (res.version || '') + ' — ' + res.hostname);
+                truenasSetBannerState(banner, 'success', '🟢 TrueNAS ' + (res.version || '') + ' — ' + (res.hostname || ''));
+                return;
             }
+            if (res.status === 'no_url' || res.status === 'no_host') {
+                truenasSetBannerState(banner, 'neutral', '⚪ ' + t('config.truenas.status_no_url'));
+                return;
+            }
+            truenasSetBannerState(banner, 'neutral', '⚪ ' + t('config.truenas.status_unknown') + ': ' + String(res.status || ''));
         })
         .catch(() => {
             truenasSetBannerState(banner, 'danger', '🔴 ' + t('config.truenas.connection_failed'));

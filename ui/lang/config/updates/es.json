@@ -57,7 +57,7 @@
   "config.updates.installing": "Instalando…",
   "config.updates.latest": "Última",
   "config.updates.running": "Ejecutando…",
-  "config.updates.started": "✅ Actualización iniciada — AuraGo se está reiniciando. Recarga en 60s…",
+  "config.updates.started": "✅ Actualización iniciada — AuraGo se está reiniciando. Recarga en {seconds}s…",
   "config.updates.up_to_date": "Actualizado",
   "config.updates.version": "Versión",
   "config.updates.warning_banner": "La actualización reemplaza binarios, prompts y archivos de UI. <strong>Tu configuración y datos se preservan.</strong> AuraGo se reiniciará después de la actualización.",

@@ -95,5 +95,8 @@
   "config.mcp.test_connection_success": "कनेक्शन OK. {count} टूल मिले।",
   "config.mcp.test_connection_failed": "MCP कनेक्शन टेस्ट विफल:",
   "config.mcp.name_command_or_url_required": "नाम और कमांड या URL आवश्यक हैं।",
-  "config.mcp.field_allow_private_network": "इस MCP सर्वर के लिए निजी पते अनुमति दें"
+  "config.mcp.field_allow_private_network": "इस MCP सर्वर के लिए निजी पते अनुमति दें",
+  "config.mcp.load_failed": "{what} लोड नहीं हो सका",
+  "config.mcp.load_failed_disabled": "सूची लोड होने तक जोड़ना, संपादित करना और हटाना अक्षम है।",
+  "config.mcp.retry": "पुनः प्रयास करें"
 }

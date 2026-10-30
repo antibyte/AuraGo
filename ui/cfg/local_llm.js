@@ -82,6 +82,7 @@ function renderLocalLLMSection(section) {
     html += localLLMActionButton('recreate', 'config.local_llm.recreate', false);
     html += localLLMActionButton('smoke_test', 'config.local_llm.smoke_test', false);
     html += localLLMActionButton('benchmark', 'config.local_llm.benchmark', false);
+    html += '<p id="local-llm-action-result" class="cfg-help-text" role="status" aria-live="polite"></p>';
     html += '</div>';
     if (status.release_manifest_ready === false) {
         html += '<div class="cfg-note-banner cfg-note-banner-warning">' + t('config.local_llm.release_gate') + '</div>';
@@ -229,12 +230,12 @@ function localLLMActionButton(action, labelKey, disabled) {
     const primary = action === 'install' || action === 'smoke_test';
     return '<button type="button" class="' + (primary ? 'btn-save' : 'btn-secondary') +
         '" data-local-llm-saved-action data-policy-disabled="' + (disabled ? 'true' : 'false') +
-        '" onclick="localLLMAction(\'' + action + '\')"' + (disabled ? ' disabled' : '') + '>' + t(labelKey) + '</button> ';
+        '" data-local-llm-action="' + action + '" onclick="localLLMAction(\'' + action + '\')"' + (disabled ? ' disabled' : '') + '>' + t(labelKey) + '</button> ';
 }
 
 function localLLMUpdateSavedActionState() {
     document.querySelectorAll('[data-local-llm-saved-action]').forEach(button => {
-        button.disabled = isDirty || button.dataset.policyDisabled === 'true' || _localLLMInstallPending ||
+        button.disabled = isDirty || button.dataset.policyDisabled === 'true' || _localLLMInstallPending || _localLLMActionBusy ||
             Boolean(_localLLMStatus && _localLLMStatus.operation_in_progress);
     });
 }
@@ -380,8 +381,23 @@ function localLLMSchedulePolling() {
     }
 }
 
+let _localLLMActionBusy = false;
+
+function localLLMSetActionResult(text, kind) {
+    const el = document.getElementById('local-llm-action-result');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'cfg-help-text' + (kind ? ' is-' + kind : '');
+}
+
 async function localLLMAction(action) {
-    if (!localLLMSavedOnly()) return;
+    if (_localLLMActionBusy || !localLLMSavedOnly()) return;
+    if (action === 'recreate' && !(await showConfirm(t('config.local_llm.confirm_recreate_title'), t('config.local_llm.confirm_recreate_message')))) return;
+    _localLLMActionBusy = true;
+    const busyButton = document.querySelector('[data-local-llm-action="' + action + '"]');
+    if (busyButton) busyButton.setAttribute('aria-busy', 'true');
+    localLLMUpdateSavedActionState();
+    localLLMSetActionResult(t('config.local_llm.working'), '');
     const path = action === 'probe' ? '/api/local-llm/probe' : (action === 'install' ? '/api/local-llm/install' : '/api/local-llm/action');
     const body = action === 'probe' || action === 'install' ? {} : { action };
     const target = document.getElementById('local-llm-status');
@@ -396,8 +412,16 @@ async function localLLMAction(action) {
         const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
+        if (action === 'smoke_test') {
+            localLLMSetActionResult(t('config.local_llm.smoke_test') + ': ' + t('config.local_llm.result_ok'), 'success');
+        } else if (action === 'benchmark') {
+            localLLMSetActionResult(t('config.local_llm.benchmark') + ': ' + localLLMFormatResult(data), 'success');
+        } else {
+            localLLMSetActionResult('', '');
+        }
         await localLLMRefreshStatus();
     } catch (error) {
+        localLLMSetActionResult(t('config.local_llm.error_prefix') + ': ' + error.message, 'danger');
         if (action === 'install') _localLLMInstallPending = false;
         localLLMUpdateSavedActionState();
         if (_localLLMPollTimer) {
@@ -408,16 +432,41 @@ async function localLLMAction(action) {
             target.textContent = t('config.local_llm.error_prefix') + ': ' + error.message;
             target.className = 'cfg-note-banner cfg-note-banner-warning';
         }
+    } finally {
+        _localLLMActionBusy = false;
+        if (busyButton) busyButton.removeAttribute('aria-busy');
+        localLLMUpdateSavedActionState();
     }
 }
 
+function localLLMFormatResult(data) {
+    if (!data || typeof data !== 'object') return String(data == null ? '' : data);
+    const parts = Object.keys(data).filter(k => data[k] !== null && typeof data[k] !== 'object')
+        .map(k => k + ' ' + data[k]);
+    return parts.length ? parts.join(', ') : JSON.stringify(data);
+}
+
 async function localLLMAcknowledge() {
-    if (!localLLMSavedOnly() || !_localLLMStatus) return;
-    const response = await fetch('/api/local-llm/acknowledgement', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fingerprint: _localLLMStatus.hardware_fingerprint })
-    });
-    if (response.ok) await localLLMRefreshStatus();
+    if (_localLLMActionBusy || !localLLMSavedOnly() || !_localLLMStatus) return;
+    _localLLMActionBusy = true;
+    localLLMUpdateSavedActionState();
+    try {
+        const response = await fetch('/api/local-llm/acknowledgement', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fingerprint: _localLLMStatus.hardware_fingerprint })
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || data.error || ('HTTP ' + response.status));
+        }
+        localLLMSetActionResult('', '');
+        await localLLMRefreshStatus();
+    } catch (error) {
+        localLLMSetActionResult(t('config.local_llm.error_prefix') + ': ' + error.message, 'danger');
+    } finally {
+        _localLLMActionBusy = false;
+        localLLMUpdateSavedActionState();
+    }
 }
 
 function localLLMRegularProvider(role, providers) {

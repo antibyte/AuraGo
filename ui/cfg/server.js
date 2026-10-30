@@ -319,10 +319,15 @@ async function _srvUploadCert() {
         }
     } catch (e) {
         showToast(e.message, 'error');
+    } finally {
+        if (regenBtn) regenBtn.disabled = false;
     }
 }
 
 async function _srvRegenCert() {
+    if (!(await showConfirm(t('config.server.confirm_regen_title'), t('config.server.confirm_regen_message')))) return;
+    const regenBtn = document.querySelector('.srv-regen-btn');
+    if (regenBtn) regenBtn.disabled = true;
     try {
         const resp = await fetch('/api/cert/regenerate', { method: 'POST' });
         const data = await resp.json();

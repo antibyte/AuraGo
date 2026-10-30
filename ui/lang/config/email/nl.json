@@ -56,5 +56,9 @@
   "config.email.test_fail": "Verbinding mislukt",
   "config.email.testing": "Testen…",
   "config.email.test_partial": "Gedeeltelijk geslaagd — controleer details",
-  "config.email.test_credentials_required": "Gebruikersnaam en wachtwoord zijn verplicht"
+  "config.email.test_credentials_required": "Gebruikersnaam en wachtwoord zijn verplicht",
+  "config.email.load_failed": "E-mailaccounts konden niet worden geladen",
+  "config.email.load_failed_disabled": "Toevoegen, bewerken en verwijderen is uitgeschakeld totdat de lijst is geladen.",
+  "config.email.retry": "Opnieuw proberen",
+  "config.email.saved": "E-mailaccounts opgeslagen."
 }

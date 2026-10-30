@@ -28,5 +28,6 @@
   "help.adguard.password": "Senha para autenticação. Armazenada com segurança no vault criptografado.",
   "help.adguard.readonly": "No modo somente leitura, o agente só pode ler dados. Todas as operações de escrita são bloqueadas.",
   "help.adguard.url": "Base URL da sua instância do AdGuard Home (por exemplo, http://192.168.1.1:3000 ).",
-  "help.adguard.username": "Usuário para autenticação. Deixe vazio se a autenticação estiver desativada."
+  "help.adguard.username": "Usuário para autenticação. Deixe vazio se a autenticação estiver desativada.",
+  "config.adguard.status_unknown": "Estado desconhecido"
 }

@@ -45,5 +45,11 @@
   "config.gog.calendar": "Agenda",
   "config.gog.contacts": "Contacts",
   "config.gog.tasks": "Tâches",
-  "config.gog.test_object": "Identifiant du document pour tester Docs, Sheets ou Slides"
+  "config.gog.test_object": "Identifiant du document pour tester Docs, Sheets ou Slides",
+  "config.gog.confirm_disconnect_title": "Disconnect this account?",
+  "config.gog.confirm_disconnect_message": "The Google sign-in of \"{name}\" is removed. The agent and the desktop lose access to this account until you connect it again.",
+  "config.gog.confirm_remove_title": "Remove this account?",
+  "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
+  "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
 }

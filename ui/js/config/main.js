@@ -1229,6 +1229,8 @@ function toggleGroup(groupName, groupDiv) {
 function hasUnsavedConfigChanges() {
     if (typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges()) return true;
     if (typeof window.telephoneAgentHasUnsavedChanges === 'function' && window.telephoneAgentHasUnsavedChanges()) return true;
+    // Realtime speech profiles save with their own button, so they only guard navigation.
+    if (activeSection === 'realtime_speech' && typeof window.realtimeSpeechHasUnsavedChanges === 'function' && window.realtimeSpeechHasUnsavedChanges()) return true;
     if (window.AuraConfigState) return window.AuraConfigState.isDirty();
     return isDirty && collectSnapshot() !== initialSnapshot;
 }
@@ -1303,7 +1305,10 @@ async function navigateToConfigSection(key, options = {}) {
     if (hasUnsavedConfigChanges()) {
         const decision = await showUnsavedChangesDecision();
         if (decision === 'save') {
-            if (!await saveConfig() || hasUnsavedConfigChanges()) return false;
+            const realtimeSpeechDirty = activeSection === 'realtime_speech'
+                && typeof window.realtimeSpeechHasUnsavedChanges === 'function' && window.realtimeSpeechHasUnsavedChanges();
+            if (realtimeSpeechDirty && !(typeof window.realtimeSpeechSaveUnsaved === 'function' && await window.realtimeSpeechSaveUnsaved())) return false;
+            if (hasUnsavedConfigChanges() && (!await saveConfig() || hasUnsavedConfigChanges())) return false;
         } else if (decision === 'discard') {
             if (window.AuraConfigState) configData = window.AuraConfigState.discard();
             if (typeof window.sipDiscardUnsaved === 'function') window.sipDiscardUnsaved();
@@ -1664,7 +1669,7 @@ async function renderSection(key) {
             return;
         }
         const fn = window[modInfo.fn];
-        if (fn) {
+        if (typeof fn === 'function') {
             try {
                 await fn(section);
             } catch (e) {
@@ -1672,6 +1677,10 @@ async function renderSection(key) {
             }
             return;
         }
+        // The module loaded but did not provide its renderer: report it instead of
+        // silently falling back to the generic renderer.
+        showConfigSectionError(section, new Error('Section renderer "' + modInfo.fn + '" is missing from module ' + modInfo.m));
+        return;
     }
 
     const data = configData[key] || {};
@@ -1682,6 +1691,8 @@ async function renderSection(key) {
         'allow_shell', 'allow_python', 'allow_filesystem_write',
         'allow_network_requests', 'allow_remote_shell', 'allow_self_update', 'allow_package_manager',
         'allow_mcp',               // → Danger Zone
+        'allow_unsafe_host_execution', // → Danger Zone
+        'action_policy',           // → Danger Zone
         'allow_unsandboxed_shell', // → not rendered, so the main save never writes it and the loader's legacy shell grandfather stays in effect; a Danger Zone toggle is a backlog item
         'allow_web_scraper',        // → deprecated, migrated to tools.web_scraper.enabled
         'sudo_enabled',            // → Danger Zone
@@ -2473,6 +2484,13 @@ function installConfigChoiceRetry() {
     });
 }
 
+// Array fields whose elements are objects (edited as JSON) even when currently empty.
+const CFG_OBJECT_ARRAY_PATHS = new Set([
+    'agent.action_policy.allow', 'agent.action_policy.deny',
+    'webhooks.outgoing', 'indexing.directories', 'mcp.servers', 'mcp.secrets',
+    'a2a.server.skills', 'a2a.client.remote_agents'
+]);
+
 function renderField(fullPath, key, value, parentPath, fieldSchema) {
     // Special: server.master_key — locked when vault exists, editable when no vault
     if (fullPath === 'server.master_key') {
@@ -2504,7 +2522,8 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     }
 
     const helpKey = fullPath;
-    const help = helpTexts[helpKey];
+    // Generic readonly toggles use the schema key 'readonly'; help keys are spelled 'read_only'.
+    const help = helpTexts[helpKey] || (helpKey.endsWith('.readonly') ? helpTexts[helpKey.slice(0, -'.readonly'.length) + '.read_only'] : undefined);
     const helpText = help ? (help[lang] || help['en'] || '') : '';
     const helpOptions = help ? help.options : null;
     const isSensitive = fieldSchema?.sensitive || SENSITIVE_KEYS.includes(key);
@@ -2580,7 +2599,9 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
                 <input class="field-input is-hidden" type="text" data-path="${escapeAttr(fullPath)}" data-type="array" value="${escapeAttr(joined)}"${cfgNoAutofillAttrs(false)}>
             </div>`;
         } else {
-            const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
+            // The schema does not expose the element type, so empty object arrays are listed explicitly.
+            const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null)
+                || CFG_OBJECT_ARRAY_PATHS.has(fullPath);
             if (isObjArray) {
                 const jsonVal = Array.isArray(value) ? JSON.stringify(value, null, 2) : '[]';
                 html += '<textarea class="field-input cfg-json-array-input" data-path="' + fullPath + '" data-type="json" rows="6">' + escapeHtml(jsonVal) + '</textarea>';
@@ -2975,26 +2996,33 @@ function clearConfigValidation() {
 function showConfigValidationErrors(errors) {
     clearConfigValidation();
     let first = null;
+    const unshown = [];
     (errors || []).forEach(error => {
         const selector = '[data-path="' + CSS.escape(error.path || '') + '"]';
         const control = error.controlId ? document.getElementById(error.controlId) : document.querySelector(selector);
-        if (!control) return;
+        const translated = t('config.precision.validation_' + error.code);
+        const text = translated && translated !== 'config.precision.validation_' + error.code ? translated : error.message;
+        // Hidden or unrendered controls (another section) still need a visible reason.
+        if (!control || !control.getClientRects().length) {
+            unshown.push((error.path || '') + ': ' + text);
+            if (!control) return;
+        }
         const id = (control.id || 'cfg-' + (error.path || '').replace(/[^a-z0-9_-]/gi, '-')) + '-validation';
         const message = document.createElement('div');
         message.id = id;
         message.className = 'pw-field-error';
         message.dataset.configValidation = 'true';
         message.setAttribute('role', 'alert');
-        const translated = t('config.precision.validation_' + error.code);
-        message.textContent = translated && translated !== 'config.precision.validation_' + error.code ? translated : error.message;
+        message.textContent = text;
         control.setAttribute('aria-invalid', 'true');
         control.dataset.configValidation = 'true';
         const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
         describedBy.add(id);
         control.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
         control.insertAdjacentElement('afterend', message);
-        if (!first) first = control;
+        if (!first && control.getClientRects().length) first = control;
     });
+    if (unshown.length) showToast(unshown.join('\n'), 'error', 8000);
     if (first) {
         let disclosure = first.closest('details');
         while (disclosure) {

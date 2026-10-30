@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "Codice attuale a 6 cifre",
   "config.auth.current_password_required": "Inserisci la tua password attuale.",
   "config.auth.current_totp_required": "Inserisci il codice attuale della tua app di autenticazione.",
-  "config.auth.step_up_hint": "Le modifiche alla password di accesso o all'autenticazione a due fattori richiedono la password attuale (e il codice attuale quando TOTP è attivo)."
+  "config.auth.step_up_hint": "Le modifiche alla password di accesso o all'autenticazione a due fattori richiedono la password attuale (e il codice attuale quando TOTP è attivo).",
+  "config.auth.status_load_failed": "Could not load the login status",
+  "config.auth.retry": "Riprova"
 }

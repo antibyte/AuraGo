@@ -185,9 +185,20 @@ function composioToolSortScore(item) {
 async function composioRefreshStatus() {
     try {
         const resp = await fetch('/api/composio/status');
-        const data = resp.ok ? await resp.json() : null;
+        if (!resp.ok) {
+            const txt = (await resp.text().catch(() => '')).trim();
+            let reason = txt;
+            try { const j = JSON.parse(txt); reason = j.error || j.message || txt; } catch (_) { /* plain text */ }
+            composioState.status = null;
+            composioSetBanner('danger', t('config.composio.status_error') + ': ' + (reason || resp.statusText || ('HTTP ' + resp.status)));
+            return;
+        }
+        const data = await resp.json();
         composioState.status = data;
-        if (!data) return;
+        if (!data) {
+            composioSetBanner('warning', t('config.composio.status_error'));
+            return;
+        }
         const state = data.status === 'ready' ? 'success' : (data.status === 'missing_api_key' ? 'warning' : '');
         composioSetBanner(state, t('config.composio.status_' + data.status));
         const cmp = composioConfig();
@@ -474,6 +485,19 @@ async function composioToggleToolkit(slug) {
     const cfg = composioConfig();
     const normalized = (slug || '').trim();
     if (!normalized) return;
+    // The PUT body is built from the SAVED toolkit list plus only this change,
+    // so unrelated unsaved draft fields are never persisted by a toggle.
+    const draftBefore = JSON.parse(JSON.stringify(cfg.toolkits || []));
+    let base = (typeof AuraConfigState !== 'undefined' && AuraConfigState.get)
+        ? AuraConfigState.get('composio.toolkits', { saved: true }) : null;
+    if (!Array.isArray(base)) base = (composioState.selection && composioState.selection.toolkits) || draftBefore;
+    const nextToolkits = JSON.parse(JSON.stringify(base));
+    const savedEntry = nextToolkits.find(tk => (tk.slug || '').toLowerCase() === normalized.toLowerCase());
+    if (savedEntry) {
+        savedEntry.enabled = !savedEntry.enabled;
+    } else {
+        nextToolkits.push({ slug: normalized, enabled: true, allowed_tool_slugs: [], blocked_tool_slugs: [] });
+    }
     let entry = cfg.toolkits.find(tk => (tk.slug || '').toLowerCase() === normalized.toLowerCase());
     if (!entry) {
         entry = { slug: normalized, enabled: true, allowed_tool_slugs: [], blocked_tool_slugs: [] };
@@ -484,17 +508,26 @@ async function composioToggleToolkit(slug) {
     composioRenderModal();
     const summary = document.getElementById('composio-selected-list');
     if (summary) summary.innerHTML = composioSelectedSummary(cfg.toolkits);
-    const saved = await composioSaveSelection(false);
-    if (saved) composioSetConnectStatus(t('config.composio.selection_saved'), 'ok');
+    const saved = await composioSaveSelection(false, nextToolkits);
+    if (saved) {
+        composioSetConnectStatus(t('config.composio.selection_saved'), 'ok');
+    } else {
+        cfg.toolkits = draftBefore;
+        composioRenderModal();
+        const sum = document.getElementById('composio-selected-list');
+        if (sum) sum.innerHTML = composioSelectedSummary(cfg.toolkits);
+    }
 }
 
-async function composioSaveSelection(toast) {
+// toolkitsOnly (optional array): send only the toolkit list, leaving every
+// other setting (and any unsaved draft of it) untouched.
+async function composioSaveSelection(toast, toolkitsOnly) {
     const cfg = composioConfig();
     try {
         const resp = await fetch('/api/composio/selection', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            body: JSON.stringify(Array.isArray(toolkitsOnly) ? { toolkits: toolkitsOnly } : {
                 enabled: cfg.enabled === true,
                 base_url: cfg.base_url || 'https://backend.composio.dev/api/v3.1',
                 user_id: cfg.user_id || 'aurago-default',
@@ -509,7 +542,14 @@ async function composioSaveSelection(toast) {
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.error || data.message || t('config.common.error'));
-        configData.composio = Object.assign(composioConfig(), data);
+        if (Array.isArray(toolkitsOnly)) {
+            cfg.toolkits = Array.isArray(data.toolkits) ? data.toolkits : toolkitsOnly;
+            if (typeof AuraConfigState !== 'undefined' && AuraConfigState.markSaved) {
+                AuraConfigState.markSaved('composio.toolkits', JSON.parse(JSON.stringify(cfg.toolkits)));
+            }
+        } else {
+            configData.composio = Object.assign(composioConfig(), data);
+        }
         if (toast) showToast(t('config.composio.selection_saved'), 'success');
         await composioRefreshStatus();
         return true;
@@ -534,7 +574,7 @@ async function composioConnectToolkit(slug) {
     const popup = window.open('about:blank', '_blank');
     composioSetConnectStatus(t('config.common.loading'), 'loading');
     try {
-        const saved = await composioSaveSelection(false);
+        const saved = await composioSaveSelection(false, JSON.parse(JSON.stringify(composioConfig().toolkits || [])));
         if (!saved) {
             if (popup && !popup.closed) popup.close();
             composioSetConnectStatus(t('config.composio.selection_save_failed'), 'error');

@@ -56,5 +56,9 @@
   "config.email.test_fail": "连接失败",
   "config.email.testing": "测试中…",
   "config.email.test_partial": "部分成功 — 请查看详情",
-  "config.email.test_credentials_required": "需要用户名和密码"
+  "config.email.test_credentials_required": "需要用户名和密码",
+  "config.email.load_failed": "无法加载电子邮件账户",
+  "config.email.load_failed_disabled": "在列表加载完成之前，添加、编辑和删除功能已禁用。",
+  "config.email.retry": "重试",
+  "config.email.saved": "电子邮件账户已保存。"
 }

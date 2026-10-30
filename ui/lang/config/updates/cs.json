@@ -57,7 +57,7 @@
   "config.updates.installing": "Instaluji…",
   "config.updates.latest": "Nejnovější",
   "config.updates.running": "Běží…",
-  "config.updates.started": "✅ Aktualizace zahájena — AuraGo se restartuje. Znovu načíst za 60s…",
+  "config.updates.started": "✅ Aktualizace zahájena — AuraGo se restartuje. Znovu načíst za {seconds}s…",
   "config.updates.up_to_date": "Aktuální",
   "config.updates.version": "Verze",
   "config.updates.warning_banner": "Aktualizace nahrazuje binární soubory, prompty a soubory uživatelského rozhraní. <strong>Vaše konfigurace a data jsou zachována.</strong> AuraGo se po aktualizaci restartuje.",

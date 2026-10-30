@@ -219,8 +219,10 @@ function a2aAddSkill() {
     a2aSetList('a2a.server.skills', skills, a2aRenderSkills);
 }
 
-function a2aRemoveSkill(idx) {
+async function a2aRemoveSkill(idx) {
     var skills = a2aList('a2a.server.skills');
+    var skillDoomed = skills[idx] || {};
+    if (!(await showConfirm(t('config.a2a.confirm_remove_skill_title'), t('config.a2a.confirm_remove_skill_message', { name: skillDoomed.name || skillDoomed.id || String(idx + 1) })))) return;
     skills.splice(idx, 1);
     a2aSetList('a2a.server.skills', skills, a2aRenderSkills);
 }
@@ -281,8 +283,10 @@ function a2aAddRemoteAgent() {
     a2aSetList('a2a.client.remote_agents', agents, a2aRenderRemoteAgents);
 }
 
-function a2aRemoveRemoteAgent(idx) {
+async function a2aRemoveRemoteAgent(idx) {
     var agents = a2aList('a2a.client.remote_agents');
+    var agentDoomed = agents[idx] || {};
+    if (!(await showConfirm(t('config.a2a.confirm_remove_agent_title'), t('config.a2a.confirm_remove_agent_message', { name: agentDoomed.name || agentDoomed.id || String(idx + 1) })))) return;
     agents.splice(idx, 1);
     a2aSetList('a2a.client.remote_agents', agents, a2aRenderRemoteAgents);
 }

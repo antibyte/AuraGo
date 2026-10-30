@@ -56,5 +56,9 @@
   "config.email.test_fail": "Connessione fallita",
   "config.email.testing": "Test in corso…",
   "config.email.test_partial": "Successo parziale — controlla i dettagli",
-  "config.email.test_credentials_required": "Nome utente e password sono obbligatori"
+  "config.email.test_credentials_required": "Nome utente e password sono obbligatori",
+  "config.email.load_failed": "Impossibile caricare gli account e-mail",
+  "config.email.load_failed_disabled": "Aggiunta, modifica ed eliminazione sono disabilitate finché l'elenco non è caricato.",
+  "config.email.retry": "Riprova",
+  "config.email.saved": "Account e-mail salvati."
 }

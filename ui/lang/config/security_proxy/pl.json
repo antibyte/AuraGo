@@ -97,5 +97,7 @@
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.webdav.secret_empty": "Wartość jest pusta",
   "config.security_proxy.action_pending": "Trwa… Pierwsze uruchomienie z ograniczaniem szybkości buduje obraz Caddy i może potrwać kilka minut.",
-  "config.security_proxy.rate_limit_build_hint": "Oficjalny obraz Caddy nie obsługuje ograniczania szybkości. Przy następnym uruchomieniu AuraGo jednorazowo zbuduje własny obraz Caddy z modułem caddy-ratelimit. Docker musi zezwalać na budowanie obrazów i mieć dostęp do internetu; trwa to kilka minut. Obraz można też zbudować na hoście Dockera (zobacz podręcznik)."
+  "config.security_proxy.rate_limit_build_hint": "Oficjalny obraz Caddy nie obsługuje ograniczania szybkości. Przy następnym uruchomieniu AuraGo jednorazowo zbuduje własny obraz Caddy z modułem caddy-ratelimit. Docker musi zezwalać na budowanie obrazów i mieć dostęp do internetu; trwa to kilka minut. Obraz można też zbudować na hoście Dockera (zobacz podręcznik).",
+  "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
 }

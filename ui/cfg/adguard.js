@@ -41,6 +41,8 @@ function renderAdGuardSection(section) {
 
     if (enabledOn && data.url) {
         adgCheckStatus();
+    } else {
+        adgSetBannerState(document.getElementById('adg-status-banner'), 'neutral', '⚪ ' + (enabledOn ? t('config.adguard.status_no_url') : t('config.adguard.status_disabled')));
     }
 }
 
@@ -79,7 +81,11 @@ function adgCheckStatus() {
                 adgLoadQuickStats();
                 return;
             }
-            adgSetBannerState(banner, 'danger', '🔴 ' + (res.message || t('config.adguard.connection_failed')));
+            if (res.status === 'error' || res.message) {
+                adgSetBannerState(banner, 'danger', '🔴 ' + (res.message || t('config.adguard.connection_failed')));
+                return;
+            }
+            adgSetBannerState(banner, 'neutral', '⚪ ' + t('config.adguard.status_unknown') + ': ' + String(res.status || ''));
         })
         .catch(() => {
             adgSetBannerState(banner, 'danger', '🔴 ' + t('config.adguard.connection_failed'));

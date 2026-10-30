@@ -1,7 +1,7 @@
-let _guardianSection = null;
+let _llmGuardianSection = null;
 
 async function renderLLMGuardianSection(section) {
-    if (section) _guardianSection = section; else section = _guardianSection;
+    if (section) _llmGuardianSection = section; else section = _llmGuardianSection;
     const cfg = configData.llm_guardian || {};
     const enabled = cfg.enabled === true;
 

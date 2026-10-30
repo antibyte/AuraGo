@@ -108,6 +108,8 @@ function renderJellyfinSection(section) {
     // Auto-check status on load
     if (enabledOn && data.host) {
         jellyfinCheckStatus();
+    } else {
+        jellyfinSetBannerState(document.getElementById('jellyfin-status-banner'), 'neutral', '⚪ ' + (enabledOn ? t('config.jellyfin.status_no_url') : t('config.jellyfin.status_disabled')));
     }
 }
 
@@ -136,7 +138,13 @@ function jellyfinCheckStatus() {
             }
             if (res.status === 'online') {
                 jellyfinSetBannerState(banner, 'success', '🟢 ' + t('config.jellyfin.product_name') + ' ' + (res.version || '') + ' — ' + (res.server_name || ''));
+                return;
             }
+            if (res.status === 'no_url' || res.status === 'no_host') {
+                jellyfinSetBannerState(banner, 'neutral', '⚪ ' + t('config.jellyfin.status_no_url'));
+                return;
+            }
+            jellyfinSetBannerState(banner, 'neutral', '⚪ ' + t('config.jellyfin.status_unknown') + ': ' + String(res.status || ''));
         })
         .catch(() => {
             jellyfinSetBannerState(banner, 'danger', '🔴 ' + t('config.jellyfin.connection_failed'));

@@ -31,5 +31,7 @@
   "help.obsidian.insecure_ssl": "Aksepter selvsignerte sertifikater (standard: true)",
   "help.obsidian.api_key": "API-nøkkel fra innstillingene for Obsidian Local REST API-plugin",
   "help.obsidian.connect_timeout": "Tilkoblingstimeout i sekunder (standard: 10)",
-  "help.obsidian.request_timeout": "Forespørselstimeout i sekunder (standard: 30)"
+  "help.obsidian.request_timeout": "Forespørselstimeout i sekunder (standard: 30)",
+  "config.obsidian.status_unknown": "Ukjent status",
+  "config.obsidian.status_no_url": "Ingen vert konfigurert"
 }

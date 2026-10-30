@@ -95,5 +95,8 @@
   "config.mcp.test_connection_success": "接続OK。{count}個のツールを検出しました。",
   "config.mcp.test_connection_failed": "MCP接続テストに失敗しました:",
   "config.mcp.name_command_or_url_required": "名前とコマンドまたはURLが必要です。",
-  "config.mcp.field_allow_private_network": "この MCP サーバーのプライベートアドレスを許可"
+  "config.mcp.field_allow_private_network": "この MCP サーバーのプライベートアドレスを許可",
+  "config.mcp.load_failed": "{what}を読み込めませんでした",
+  "config.mcp.load_failed_disabled": "一覧が読み込まれるまで、追加・編集・削除は無効です。",
+  "config.mcp.retry": "再試行"
 }

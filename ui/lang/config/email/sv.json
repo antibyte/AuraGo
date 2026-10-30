@@ -56,5 +56,9 @@
   "config.email.test_fail": "Anslutning misslyckades",
   "config.email.testing": "Testar…",
   "config.email.test_partial": "Delvis framgång — kontrollera detaljer",
-  "config.email.test_credentials_required": "Användarnamn och lösenord krävs"
+  "config.email.test_credentials_required": "Användarnamn och lösenord krävs",
+  "config.email.load_failed": "E-postkonton kunde inte läsas in",
+  "config.email.load_failed_disabled": "Att lägga till, redigera och ta bort är inaktiverat tills listan har lästs in.",
+  "config.email.retry": "Försök igen",
+  "config.email.saved": "E-postkonton sparade."
 }

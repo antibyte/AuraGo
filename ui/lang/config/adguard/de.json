@@ -28,5 +28,6 @@
   "help.adguard.password": "Passwort für die AdGuard Home Authentifizierung. Wird sicher im verschlüsselten Vault gespeichert.",
   "help.adguard.readonly": "Im aktivierten Zustand kann der Agent nur Daten von AdGuard Home lesen. Alle Schreiboperationen werden blockiert.",
   "help.adguard.url": "Basis-URL deiner AdGuard Home Instanz (z.B. http://192.168.1.1:3000).",
-  "help.adguard.username": "Benutzername für die AdGuard Home Authentifizierung. Leer lassen, wenn Auth deaktiviert ist."
+  "help.adguard.username": "Benutzername für die AdGuard Home Authentifizierung. Leer lassen, wenn Auth deaktiviert ist.",
+  "config.adguard.status_unknown": "Unbekannter Status"
 }

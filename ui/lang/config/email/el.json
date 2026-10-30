@@ -56,5 +56,9 @@
   "config.email.test_fail": "Η σύνδεση απέτυχε",
   "config.email.testing": "Δοκιμή…",
   "config.email.test_partial": "Μερική επιτυχία — έλεγξε τις λεπτομέρειες",
-  "config.email.test_credentials_required": "Απαιτούνται όνομα χρήστη και κωδικός"
+  "config.email.test_credentials_required": "Απαιτούνται όνομα χρήστη και κωδικός",
+  "config.email.load_failed": "Δεν ήταν δυνατή η φόρτωση των λογαριασμών email",
+  "config.email.load_failed_disabled": "Η προσθήκη, η επεξεργασία και η διαγραφή είναι απενεργοποιημένες μέχρι να φορτωθεί η λίστα.",
+  "config.email.retry": "Επανάληψη",
+  "config.email.saved": "Οι λογαριασμοί email αποθηκεύτηκαν."
 }

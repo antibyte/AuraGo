@@ -128,6 +128,8 @@ function renderObsidianSection(section) {
     // Auto-check status on load
     if (enabledOn) {
         obsidianCheckStatus();
+    } else {
+        obsidianSetBannerState(document.getElementById('obsidian-status-banner'), 'neutral', '⚪ ' + t('config.obsidian.status_disabled'));
     }
 }
 
@@ -156,7 +158,13 @@ function obsidianCheckStatus() {
             }
             if (res.status === 'online') {
                 obsidianSetBannerState(banner, 'success', '🟢 Obsidian REST API v' + (res.api_version || '') + ' — Obsidian ' + (res.obsidian_version || ''));
+                return;
             }
+            if (res.status === 'no_url' || res.status === 'no_host') {
+                obsidianSetBannerState(banner, 'neutral', '⚪ ' + t('config.obsidian.status_no_url'));
+                return;
+            }
+            obsidianSetBannerState(banner, 'neutral', '⚪ ' + t('config.obsidian.status_unknown') + ': ' + String(res.status || ''));
         })
         .catch(() => {
             obsidianSetBannerState(banner, 'danger', '🔴 ' + t('config.obsidian.connection_failed'));

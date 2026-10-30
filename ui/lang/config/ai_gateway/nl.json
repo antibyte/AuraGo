@@ -50,5 +50,6 @@
   "config.ai_gateway.connection_metadata": "Verbinding gecontroleerd; model niet getest.",
   "config.ai_gateway.route_skipped": "Deze provider gebruikt geen gatewayroute.",
   "config.ai_gateway.metadata_invalid": "Gebruik maximaal vijf volledige paren met unieke sleutels. Vul nooit geheimen in.",
-  "config.ai_gateway.provider_key_help": "API-sleutel van de geselecteerde provider."
+  "config.ai_gateway.provider_key_help": "API-sleutel van de geselecteerde provider.",
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
 }

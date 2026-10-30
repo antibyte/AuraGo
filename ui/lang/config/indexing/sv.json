@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Skicka media från den här mappen till leverantörer?",
   "config.indexing.media_confirm": "Bilder, ljud och skannade PDF:er från den här mappen skickas för analys till den konfigurerade Vision- eller multimodala embedding-leverantören. Det kan vara en extern tjänst, så innehållet i filerna kan lämna det här systemet. Om inställningen stängs av igen skickas inga fler media.",
   "config.indexing.media_inactive_hint": "Vision och multimodala embeddings är avstängda globalt; inställningen börjar gälla så fort en av dem aktiveras.",
-  "config.indexing.index_images_per_folder_hint": "Bilder skickas bara för mappar där mediadelning är påslagen i listan ovan."
+  "config.indexing.index_images_per_folder_hint": "Bilder skickas bara för mappar där mediadelning är påslagen i listan ovan.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "Accepts self-signed or invalid certificates (for test environments only).",
   "help.jellyfin.host": "Hostname or IP address of your Jellyfin server (e.g. jellyfin.local or 192.168.1.100).",
   "help.jellyfin.port": "Port of the Jellyfin server (default: 8096).",
-  "help.jellyfin.api_key": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin."
+  "help.jellyfin.api_key": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin.",
+  "config.jellyfin.status_unknown": "Unknown status",
+  "config.jellyfin.status_no_url": "No host configured"
 }

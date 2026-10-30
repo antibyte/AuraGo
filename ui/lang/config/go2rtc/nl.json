@@ -101,5 +101,7 @@
   "config.go2rtc.hardware_test": "Opgeslagen hardware testen",
   "config.go2rtc.hardware_verified": "Encoder gecontroleerd",
   "config.go2rtc.hardware_failed": "Hardwarecontrole mislukt; terugvallen op CPU is uitgeschakeld.",
-  "config.go2rtc.hardware_help": "CPU is de standaard. GPU vereist een Linux amd64 Docker-host. Sla op, start de service en test de gekozen encoder voordat u transcodeert."
+  "config.go2rtc.hardware_help": "CPU is de standaard. GPU vereist een Linux amd64 Docker-host. Sla op, start de service en test de gekozen encoder voordat u transcodeert.",
+  "config.go2rtc.confirm_remove_title": "Remove this stream?",
+  "config.go2rtc.confirm_remove_message": "Stream \"{name}\" and its source settings are removed from the list. Cameras, recordings and links that use this stream stop working as soon as you save."
 }

@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "Accepteert zelfondertekende of ongeldige certificaten (alleen voor testomgevingen).",
   "help.jellyfin.host": "Hostnaam of IP-adres van je Jellyfin-server (bijv. jellyfin.local of 192.168.1.100).",
   "help.jellyfin.port": "Poort van de Jellyfin-server (standaard: 8096).",
-  "help.jellyfin.api_key": "API-sleutel voor de Jellyfin API. Maak er een aan onder Dashboard → API-sleutels in Jellyfin."
+  "help.jellyfin.api_key": "API-sleutel voor de Jellyfin API. Maak er een aan onder Dashboard → API-sleutels in Jellyfin.",
+  "config.jellyfin.status_unknown": "Onbekende status",
+  "config.jellyfin.status_no_url": "Geen host geconfigureerd"
 }

@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "Přijme samopodepsané nebo neplatné certifikáty (pouze pro testovací prostředí).",
   "help.jellyfin.host": "Název hostitele nebo IP adresa serveru Jellyfin (např. jellyfin.local nebo 192.168.1.100).",
   "help.jellyfin.port": "Port serveru Jellyfin (výchozí: 8096).",
-  "help.jellyfin.api_key": "API klíč pro Jellyfin API. Vytvořte jej v Dashboard → API klíče v Jellyfin."
+  "help.jellyfin.api_key": "API klíč pro Jellyfin API. Vytvořte jej v Dashboard → API klíče v Jellyfin.",
+  "config.jellyfin.status_unknown": "Neznámý stav",
+  "config.jellyfin.status_no_url": "Není nastaven hostitel"
 }

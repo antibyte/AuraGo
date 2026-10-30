@@ -65,5 +65,9 @@
   "help.a2a.client_enabled": "Habilite o cliente A2A para se conectar e comunicar com agentes A2A remotos.",
   "help.a2a.llm_provider": "Selecione qual provedor LLM usar para tarefas A2A. Deixe em branco para usar o LLM principal.",
   "help.a2a.port": "0 = compartilhar a porta do servidor principal. Um número = executar A2A em uma porta dedicada.",
-  "help.a2a.server_enabled": "Exponha esta instância AuraGo como um agente compatível com A2A com o qual outros agentes podem se comunicar por meio do protocolo A2A."
+  "help.a2a.server_enabled": "Exponha esta instância AuraGo como um agente compatível com A2A com o qual outros agentes podem se comunicar por meio do protocolo A2A.",
+  "config.a2a.confirm_remove_skill_title": "Remove this skill?",
+  "config.a2a.confirm_remove_skill_message": "Skill \"{name}\" is removed from the list and is no longer offered to other agents once you save.",
+  "config.a2a.confirm_remove_agent_title": "Remove this remote agent?",
+  "config.a2a.confirm_remove_agent_message": "Remote agent \"{name}\" with its card URL and credentials is removed from the list and deleted when you save. AuraGo can no longer delegate tasks to it."
 }

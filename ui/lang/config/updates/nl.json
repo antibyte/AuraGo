@@ -57,7 +57,7 @@
   "config.updates.installing": "Installeren…",
   "config.updates.latest": "Nieuwste",
   "config.updates.running": "Draait…",
-  "config.updates.started": "✅ Update gestart — AuraGo start opnieuw. Herlaad over 60s…",
+  "config.updates.started": "✅ Update gestart — AuraGo start opnieuw. Herlaad over {seconds}s…",
   "config.updates.up_to_date": "Up-to-date",
   "config.updates.version": "Versie",
   "config.updates.warning_banner": "De update vervangt binaries, prompts en UI-bestanden. <strong>Je configuratie en gegevens blijven behouden.</strong> AuraGo herstart na de update.",

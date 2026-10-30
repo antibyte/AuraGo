@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "UI とツール結果に表示される分かりやすい名前です。",
   "help.three_d_printers.printer_url": "ローカル SDCP WebSocket URL。例: ws://192.168.6.50/websocket。",
   "help.three_d_printers.readonly": "アクセスを読み取り専用にします。開始、一時停止、再開、キャンセル、ライト変更はブロックされます。",
-  "help.three_d_printers.timeout": "プリンターコマンドの接続タイムアウトです。"
+  "help.three_d_printers.timeout": "プリンターコマンドの接続タイムアウトです。",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }

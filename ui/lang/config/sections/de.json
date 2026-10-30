@@ -665,5 +665,7 @@
   "config.s3.phase_iam": "Rechte anwenden",
   "config.s3.phase_verifying": "Zugriff prüfen",
   "config.s3.phase_stopping": "RustFS stoppen",
-  "config.s3.phase_removing": "Laufzeit entfernen"
+  "config.s3.phase_removing": "Laufzeit entfernen",
+  "config.space_agent.confirm_recreate_title": "Space-Agent-Container neu erstellen?",
+  "config.space_agent.confirm_recreate_message": "Der Space-Agent-Container wird entfernt und mit den aktuellen Einstellungen neu erstellt. Der Dienst ist in der Zwischenzeit nicht erreichbar, offene Sitzungen werden unterbrochen, und alles, was nur im Container liegt, geht verloren."
 }

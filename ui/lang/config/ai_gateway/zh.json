@@ -50,5 +50,6 @@
   "config.ai_gateway.connection_metadata": "连接已验证，模型尚未测试。",
   "config.ai_gateway.route_skipped": "此提供商不使用网关路由。",
   "config.ai_gateway.metadata_invalid": "最多使用五组完整且键唯一的键值对。切勿填写机密信息。",
-  "config.ai_gateway.provider_key_help": "所选提供商的 API 密钥。"
+  "config.ai_gateway.provider_key_help": "所选提供商的 API 密钥。",
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
 }

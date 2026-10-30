@@ -175,7 +175,7 @@ async function aiGatewayRequest(test, kind = 'metadata') {
         if (successful) key = kind === 'generation' ? 'config.ai_gateway.model_test_success' : 'config.ai_gateway.connection_metadata';
         else if (res.status === 'configured') key = res.live_status === 'skipped' ? 'config.ai_gateway.skipped' : 'config.ai_gateway.untested';
         else if (res.status === 'disabled') key = 'config.ai_gateway.status_disabled';
-        else if (res.status === 'setup_required') key = 'config.ai_gateway.hf_help';
+        else if (res.status === 'setup_required') key = 'config.ai_gateway.setup_required';
         else if (res.status === 'no_credentials') key = 'config.ai_gateway.status_no_credentials';
         else if (res.status === 'invalid_config' || !response.ok || res.status === 'error') key = 'config.ai_gateway.connection_failed';
         let message = t(key);

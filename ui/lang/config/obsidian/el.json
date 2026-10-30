@@ -31,5 +31,7 @@
   "config.obsidian.connect_timeout_label": "Χρονικό όριο σύνδεσης",
   "config.obsidian.request_timeout_label": "Χρονικό όριο αιτήματος",
   "help.obsidian.connect_timeout": "Χρονικό όριο σύνδεσης σε δευτερόλεπτα (προεπιλογή: 10)",
-  "help.obsidian.request_timeout": "Χρονικό όριο αιτήματος σε δευτερόλεπτα (προεπιλογή: 30)"
+  "help.obsidian.request_timeout": "Χρονικό όριο αιτήματος σε δευτερόλεπτα (προεπιλογή: 30)",
+  "config.obsidian.status_unknown": "Unknown status",
+  "config.obsidian.status_no_url": "No host configured"
 }

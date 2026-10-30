@@ -19,6 +19,7 @@ const MCP_CAPABILITY_DEFS = [
 ];
 
 async function renderMCPSection(section) {
+    mcpLastSection = section;
     await mcpEnsureCaches();
     const mcpEnabled = configData.mcp && configData.mcp.enabled;
     const allowMcp = configData.agent && configData.agent.allow_mcp;
@@ -58,7 +59,7 @@ async function renderMCPSection(section) {
         <div class="field-group-title">🔌 ${t('config.mcp.server_title')}</div>
         <div class="field-group-desc">${t('config.mcp.server_desc')}</div>
         <div class="mcp-action-row cfg-actions-row">
-            <button class="btn-save btn-secondary" onclick="mcpServerAdd()">
+            <button class="btn-save btn-secondary" onclick="mcpServerAdd()"${mcpDisabledAttr('servers')}>
                 ＋ ${t('config.mcp.new_server')}
             </button>
         </div>
@@ -71,7 +72,7 @@ async function renderMCPSection(section) {
         <div class="field-group-title">🔐 ${t('config.mcp.secrets_title')}</div>
         <div class="field-group-desc">${t('config.mcp.secrets_desc')}</div>
         <div class="mcp-action-row cfg-actions-row">
-            <button class="btn-save btn-secondary" onclick="mcpSecretAdd()">
+            <button class="btn-save btn-secondary" onclick="mcpSecretAdd()"${mcpDisabledAttr('secrets')}>
                 ＋ ${t('config.mcp.new_secret')}
             </button>
         </div>
@@ -94,40 +95,82 @@ async function renderMCPSection(section) {
     await mcpRenderRoutingCards();
 }
 
+const mcpLoadErrors = { servers: null, prefs: null, secrets: null };
+let mcpLastSection = null;
+
+async function mcpFetchJSON(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+        const txt = (await resp.text().catch(() => '')).trim();
+        throw new Error(txt || resp.statusText || ('HTTP ' + resp.status));
+    }
+    return resp.json();
+}
+
 async function mcpEnsureCaches() {
     if (mcpServersCache === null) {
         try {
-            const resp = await fetch('/api/mcp-servers');
-            mcpServersCache = resp.ok ? await resp.json() : [];
-        } catch (_) {
-            mcpServersCache = [];
+            const data = await mcpFetchJSON('/api/mcp-servers');
+            mcpServersCache = Array.isArray(data) ? data : [];
+            mcpLoadErrors.servers = null;
+        } catch (e) {
+            mcpLoadErrors.servers = e.message || String(e);
         }
     }
     if (mcpPreferencesCache === null) {
         try {
-            const resp = await fetch('/api/mcp-preferences');
-            mcpPreferencesCache = resp.ok ? await resp.json() : {};
-        } catch (_) {
-            mcpPreferencesCache = {};
+            mcpPreferencesCache = (await mcpFetchJSON('/api/mcp-preferences')) || {};
+            mcpLoadErrors.prefs = null;
+        } catch (e) {
+            mcpLoadErrors.prefs = e.message || String(e);
         }
     }
     if (mcpSecretsCache === null) {
         try {
-            const resp = await fetch('/api/mcp-secrets');
-            const data = resp.ok ? await resp.json() : { secrets: [] };
+            const data = await mcpFetchJSON('/api/mcp-secrets');
             mcpSecretsCache = Array.isArray(data.secrets) ? data.secrets : [];
-        } catch (_) {
-            mcpSecretsCache = [];
+            mcpLoadErrors.secrets = null;
+        } catch (e) {
+            mcpLoadErrors.secrets = e.message || String(e);
         }
     }
     configData.mcp = configData.mcp || {};
-    configData.mcp.preferred_capabilities = mcpPreferencesCache || {};
+    if (mcpPreferencesCache !== null) {
+        configData.mcp.preferred_capabilities = mcpPreferencesCache;
+    }
+}
+
+function mcpRetryLoad() {
+    if (mcpLoadErrors.servers) mcpServersCache = null;
+    if (mcpLoadErrors.prefs) mcpPreferencesCache = null;
+    if (mcpLoadErrors.secrets) mcpSecretsCache = null;
+    if (mcpLastSection) renderMCPSection(mcpLastSection);
+}
+
+function mcpLoadErrorBox(what, reason) {
+    return `<div class="wh-notice mcp-notice-danger" role="alert">
+        <span>⚠️</span>
+        <div>
+            <strong>${escapeHtml(t('config.mcp.load_failed', { what }))}</strong><br>
+            <small>${escapeHtml(reason || '')}</small>
+        </div>
+        <button type="button" class="btn-save btn-secondary" onclick="mcpRetryLoad()">${escapeHtml(t('config.mcp.retry'))}</button>
+    </div>`;
+}
+
+function mcpDisabledAttr(errKey) {
+    return mcpLoadErrors[errKey] ? ` disabled title="${escapeAttr(t('config.mcp.load_failed_disabled'))}"` : '';
 }
 
 function mcpServerRenderCards() {
     const wrap = document.getElementById('mcp-servers-list');
     const empty = document.getElementById('mcp-servers-empty');
     if (!wrap) return;
+    if (mcpServersCache === null) {
+        wrap.innerHTML = mcpLoadErrorBox(t('config.mcp.server_title'), mcpLoadErrors.servers);
+        if (empty) empty.classList.add('is-hidden');
+        return;
+    }
     if (mcpServersCache.length === 0) {
         wrap.innerHTML = '';
         if (empty) empty.classList.remove('is-hidden');
@@ -181,7 +224,12 @@ function mcpSecretRenderCards() {
     const wrap = document.getElementById('mcp-secrets-list');
     const empty = document.getElementById('mcp-secrets-empty');
     if (!wrap) return;
-    if (!mcpSecretsCache || mcpSecretsCache.length === 0) {
+    if (mcpSecretsCache === null) {
+        wrap.innerHTML = mcpLoadErrorBox(t('config.mcp.secrets_title'), mcpLoadErrors.secrets);
+        if (empty) empty.classList.add('is-hidden');
+        return;
+    }
+    if (mcpSecretsCache.length === 0) {
         wrap.innerHTML = '';
         if (empty) empty.classList.remove('is-hidden');
         return;
@@ -200,8 +248,8 @@ function mcpSecretRenderCards() {
                     🔑 ${escapeAttr(secret.label || secret.alias || '—')}${statusBadge}
                 </div>
                 <div class="mcp-card-actions">
-                    <button onclick="mcpSecretEdit('${escapeAttr(secret.alias)}')" class="mcp-card-btn mcp-card-btn-edit" title="${t('config.mcp.card_edit_tooltip')}">✏️</button>
-                    <button onclick="mcpSecretDelete('${escapeAttr(secret.alias)}')" class="mcp-card-btn mcp-card-btn-delete" title="${t('config.mcp.card_delete_tooltip')}">🗑️</button>
+                    <button onclick="mcpSecretEdit(${escapeAttr(JSON.stringify(String(secret.alias)))})" class="mcp-card-btn mcp-card-btn-edit" title="${t('config.mcp.card_edit_tooltip')}">✏️</button>
+                    <button onclick="mcpSecretDelete(${escapeAttr(JSON.stringify(String(secret.alias)))})" class="mcp-card-btn mcp-card-btn-delete" title="${t('config.mcp.card_delete_tooltip')}">🗑️</button>
                 </div>
             </div>
             <div class="mcp-card-grid">
@@ -217,6 +265,10 @@ function mcpSecretRenderCards() {
 async function mcpRenderRoutingCards() {
     const container = document.getElementById('mcp-routing-list');
     if (!container) return;
+    if (mcpPreferencesCache === null) {
+        container.innerHTML = mcpLoadErrorBox(t('config.mcp.routing_title'), mcpLoadErrors.prefs);
+        return;
+    }
 
     const enabledServers = (mcpServersCache || []).filter(server => server && server.enabled);
     let html = '';
@@ -299,6 +351,7 @@ async function mcpGetRuntimeTools(serverName) {
 }
 
 async function mcpPreferenceServerChanged(capabilityKey, serverName) {
+    if (mcpPreferencesCache === null) return;
     const prefs = configData.mcp.preferred_capabilities || {};
     prefs[capabilityKey] = { server: serverName || '', tool: '' };
     configData.mcp.preferred_capabilities = prefs;
@@ -311,6 +364,7 @@ async function mcpPreferenceServerChanged(capabilityKey, serverName) {
 }
 
 async function mcpPreferenceToolChanged(capabilityKey, toolName) {
+    if (mcpPreferencesCache === null) return;
     const prefs = configData.mcp.preferred_capabilities || {};
     const current = prefs[capabilityKey] || {};
     prefs[capabilityKey] = {
@@ -324,6 +378,7 @@ async function mcpPreferenceToolChanged(capabilityKey, toolName) {
 }
 
 function mcpServerAdd() {
+    if (mcpServersCache === null) { showToast(t('config.mcp.load_failed_disabled'), 'warn'); return; }
     mcpServerShowModal({
         name: '',
         transport: 'stdio',
@@ -344,14 +399,21 @@ function mcpServerAdd() {
 }
 
 function mcpServerEdit(idx) {
+    if (mcpServersCache === null) return;
     mcpServerShowModal({ ...mcpServersCache[idx] }, idx);
 }
 
 async function mcpServerDelete(idx) {
+    if (mcpServersCache === null) return;
     const s = mcpServersCache[idx];
     if (!await showConfirm(t('config.mcp.delete_confirm', { name: s.name }))) return;
-    mcpServersCache.splice(idx, 1);
-    await mcpServerSave();
+    const next = mcpServersCache.slice();
+    next.splice(idx, 1);
+    const res = await mcpServerSave(next);
+    if (!res.ok) {
+        showToast(t('config.common.error') + ': ' + res.error, 'error');
+        return;
+    }
     mcpServerRenderCards();
     mcpRuntimeToolsCache = {};
     await mcpRenderRoutingCards();
@@ -450,6 +512,7 @@ function mcpServerShowModal(data, idx) {
             <input id="mcp-m-allow-destructive" type="checkbox" ${data.allow_destructive ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_destructive')}</span>
         </label>
+        <div id="mcp-m-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>
         <div class="mcp-modal-footer">
             <button class="btn-save mcp-btn-cancel" onclick="this.closest('.mcp-modal-overlay').remove()">${t('config.mcp.cancel')}</button>
             <button class="btn-save mcp-btn-cancel" id="mcp-m-test">${t('config.mcp.test_connection')}</button>
@@ -466,16 +529,28 @@ function mcpServerShowModal(data, idx) {
         if (!mcpValidateServerEntry(entry)) {
             return;
         }
+        const errBox = document.getElementById('mcp-m-error');
+        const saveBtn = document.getElementById('mcp-m-save');
+        const showErr = msg => { errBox.textContent = msg; errBox.classList.remove('is-hidden'); };
+        errBox.classList.add('is-hidden');
+        if (mcpServersCache === null) { showErr(t('config.mcp.load_failed_disabled')); return; }
+        const next = mcpServersCache.slice();
         if (isEdit) {
-            mcpServersCache[idx] = entry;
+            next[idx] = entry;
         } else {
-            if (mcpServersCache.some(s => s.name === entry.name)) {
-                showToast(t('config.mcp.name_exists'), 'warn');
+            if (next.some(s => s.name === entry.name)) {
+                showErr(t('config.mcp.name_exists'));
                 return;
             }
-            mcpServersCache.push(entry);
+            next.push(entry);
         }
-        await mcpServerSave();
+        saveBtn.disabled = true;
+        const res = await mcpServerSave(next);
+        saveBtn.disabled = false;
+        if (!res.ok) {
+            showErr(t('config.common.error') + ': ' + res.error);
+            return;
+        }
         overlay.remove();
         mcpServerRenderCards();
         mcpRuntimeToolsCache = {};
@@ -571,10 +646,12 @@ async function mcpTestServerConnection(entry) {
 }
 
 function mcpSecretAdd() {
+    if (mcpSecretsCache === null) { showToast(t('config.mcp.load_failed_disabled'), 'warn'); return; }
     mcpSecretShowModal({ alias: '', label: '', description: '', has_value: false }, '');
 }
 
 function mcpSecretEdit(alias) {
+    if (mcpSecretsCache === null) return;
     const secret = (mcpSecretsCache || []).find(item => item.alias === alias);
     if (!secret) return;
     mcpSecretShowModal(secret, alias);
@@ -584,8 +661,14 @@ async function mcpSecretDelete(alias) {
     const secret = (mcpSecretsCache || []).find(item => item.alias === alias);
     if (!secret) return;
     if (!await showConfirm(t('config.mcp.secret_delete_confirm', { name: secret.label || secret.alias }))) return;
-    mcpSecretsCache = (mcpSecretsCache || []).filter(item => item.alias !== alias);
-    await mcpSaveSecrets({}, { [alias]: true });
+    if (mcpSecretsCache === null) return;
+    const next = mcpSecretsCache.filter(item => item.alias !== alias);
+    const res = await mcpSaveSecrets(next, {}, { [alias]: true });
+    if (!res.ok) {
+        showToast(t('config.mcp.secret_save_failed') + res.error, 'error');
+        return;
+    }
+    showToast(t('config.mcp.secret_saved'), 'success');
     mcpSecretRenderCards();
 }
 
@@ -615,6 +698,7 @@ function mcpSecretShowModal(data, originalAlias) {
             <input id="mcp-s-clear" type="checkbox">
             <span class="mcp-modal-check-text">${t('config.mcp.secret_clear_value')}</span>
         </label>
+        <div id="mcp-s-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>
         <div class="mcp-modal-footer">
             <button class="btn-save mcp-btn-cancel" onclick="this.closest('.mcp-modal-overlay').remove()">${t('config.mcp.cancel')}</button>
             <button class="btn-save mcp-btn-save" id="mcp-s-save">${t('config.mcp.save')}</button>
@@ -629,18 +713,23 @@ function mcpSecretShowModal(data, originalAlias) {
         const description = document.getElementById('mcp-s-description').value.trim();
         const value = document.getElementById('mcp-s-value').value;
         const clearValue = document.getElementById('mcp-s-clear').checked;
+        const errBox = document.getElementById('mcp-s-error');
+        const saveBtn = document.getElementById('mcp-s-save');
+        const showErr = msg => { errBox.textContent = msg; errBox.classList.remove('is-hidden'); };
+        errBox.classList.add('is-hidden');
         if (!alias) {
-            showToast(t('config.mcp.secret_alias_required'), 'warn');
+            showErr(t('config.mcp.secret_alias_required'));
             return;
         }
-        mcpSecretsCache = (mcpSecretsCache || []).filter(item => item.alias !== originalAlias && item.alias !== alias);
-        mcpSecretsCache.push({
+        if (mcpSecretsCache === null) { showErr(t('config.mcp.load_failed_disabled')); return; }
+        const next = mcpSecretsCache.filter(item => item.alias !== originalAlias && item.alias !== alias);
+        next.push({
             alias,
             label,
             description,
             has_value: clearValue ? false : !!(value || data.has_value)
         });
-        mcpSecretsCache.sort((a, b) => a.alias.localeCompare(b.alias));
+        next.sort((a, b) => a.alias.localeCompare(b.alias));
 
         const deleteFlags = {};
         if (originalAlias && originalAlias !== alias) {
@@ -649,37 +738,54 @@ function mcpSecretShowModal(data, originalAlias) {
         if (clearValue) {
             deleteFlags[alias] = true;
         }
-        await mcpSaveSecrets(value ? { [alias]: value } : {}, deleteFlags);
+        saveBtn.disabled = true;
+        const res = await mcpSaveSecrets(next, value ? { [alias]: value } : {}, deleteFlags);
+        saveBtn.disabled = false;
+        if (!res.ok) {
+            showErr(t('config.mcp.secret_save_failed') + res.error);
+            return;
+        }
+        showToast(t('config.mcp.secret_saved'), 'success');
         overlay.remove();
         mcpSecretRenderCards();
     });
 }
 
-async function mcpServerSave() {
+async function mcpServerSave(nextServers) {
+    if (mcpServersCache === null || !Array.isArray(nextServers)) {
+        return { ok: false, error: t('config.mcp.load_failed_disabled') };
+    }
     try {
         const resp = await fetch('/api/mcp-servers', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 enabled: !!(configData.mcp && configData.mcp.enabled),
-                servers: mcpServersCache
+                servers: nextServers
             })
         });
-        if (!resp.ok) throw new Error(await resp.text());
-        const reload = await fetch('/api/mcp-servers');
-        if (reload.ok) mcpServersCache = await reload.json();
+        if (!resp.ok) throw new Error((await resp.text()).trim() || resp.statusText);
+        mcpServersCache = nextServers;
+        try {
+            const reload = await fetch('/api/mcp-servers');
+            if (reload.ok) mcpServersCache = await reload.json();
+        } catch (_) { /* keep saved list */ }
+        return { ok: true };
     } catch (e) {
-        showToast(t('config.common.error') + ': ' + e.message, 'error');
+        return { ok: false, error: e.message || String(e) };
     }
 }
 
-async function mcpSaveSecrets(valuesByAlias = {}, deleteFlags = {}) {
+async function mcpSaveSecrets(nextSecrets, valuesByAlias = {}, deleteFlags = {}) {
+    if (mcpSecretsCache === null || !Array.isArray(nextSecrets)) {
+        return { ok: false, error: t('config.mcp.load_failed_disabled') };
+    }
     try {
         const resp = await fetch('/api/mcp-secrets', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                secrets: (mcpSecretsCache || []).map(secret => ({
+                secrets: nextSecrets.map(secret => ({
                     alias: secret.alias,
                     label: secret.label || '',
                     description: secret.description || '',
@@ -688,16 +794,17 @@ async function mcpSaveSecrets(valuesByAlias = {}, deleteFlags = {}) {
                 }))
             })
         });
-        if (!resp.ok) throw new Error(await resp.text());
+        if (!resp.ok) throw new Error((await resp.text()).trim() || resp.statusText);
         const data = await resp.json();
-        mcpSecretsCache = Array.isArray(data.secrets) ? data.secrets : [];
-        showToast(t('config.mcp.secret_saved'), 'success');
+        mcpSecretsCache = Array.isArray(data.secrets) ? data.secrets : nextSecrets;
+        return { ok: true };
     } catch (e) {
-        showToast(t('config.mcp.secret_save_failed') + e.message, 'error');
+        return { ok: false, error: e.message || String(e) };
     }
 }
 
 async function mcpSavePreferences() {
+    if (mcpPreferencesCache === null) return;
     try {
         const resp = await fetch('/api/mcp-preferences', {
             method: 'PUT',

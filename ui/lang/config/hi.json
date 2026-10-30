@@ -783,5 +783,13 @@
   "config.decisions.runtime_discovery_output_limit": "डिवाइस खोज ने बहुत अधिक आउटपुट दिया और रोक दी गई। रनटाइम जाँचें।",
   "config.decisions.image_limit_exceeded": "चित्र मॉडल की सीमाओं में नहीं समा रहे। कम या छोटे चित्र भेजें।",
   "config.decisions.image_invalid": "एक चित्र खराब है या समर्थित नहीं है। मान्य PNG या JPEG का उपयोग करें।",
-  "config.decisions.image_minimum_unmet": "एक चित्र मॉडल के न्यूनतम आयामों से छोटा है। बड़ा मूल चित्र चुनें।"
+  "config.decisions.image_minimum_unmet": "एक चित्र मॉडल के न्यूनतम आयामों से छोटा है। बड़ा मूल चित्र चुनें।",
+  "config.dograh.confirm_recreate_title": "Recreate the Dograh stack?",
+  "config.dograh.confirm_recreate_message": "The Dograh containers are removed and created again from the current settings. The service is unavailable meanwhile, running calls and workflows are interrupted, and anything stored only inside the containers is lost.",
+  "config.local_llm.confirm_recreate_title": "Recreate the local LLM container?",
+  "config.local_llm.confirm_recreate_message": "The local LLM container is removed and created again from the saved settings. The model server is unavailable meanwhile, running requests are aborted, and anything stored only inside the container is lost.",
+  "config.local_llm.result_ok": "passed",
+  "config.realtime_speech.confirm_delete_title": "Delete this profile?",
+  "config.realtime_speech.confirm_delete_message": "Profile \"{name}\" with its model, voice and any typed API key is removed from the list and deleted for good when you save. If it is the default profile, the default is cleared.",
+  "config.realtime_speech.save_note": "Profiles are saved with this button, not with the global save bar."
 }

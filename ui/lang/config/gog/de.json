@@ -45,5 +45,11 @@
   "config.gog.calendar": "Kalender",
   "config.gog.contacts": "Kontakte",
   "config.gog.tasks": "Aufgaben",
-  "config.gog.test_object": "Dokument-ID für den Test von Docs, Sheets oder Slides"
+  "config.gog.test_object": "Dokument-ID für den Test von Docs, Sheets oder Slides",
+  "config.gog.confirm_disconnect_title": "Dieses Konto trennen?",
+  "config.gog.confirm_disconnect_message": "Die Google-Anmeldung von \"{name}\" wird entfernt. Agent und Desktop verlieren den Zugriff auf dieses Konto, bis du es erneut verbindest.",
+  "config.gog.confirm_remove_title": "Dieses Konto entfernen?",
+  "config.gog.confirm_remove_message": "Das Konto \"{name}\" mit Client-ID und Dienstberechtigungen wird aus der Liste entfernt und beim Speichern gelöscht.",
+  "config.gog.login_opened": "Anmeldefenster geöffnet. Schließe die Anmeldung dort ab; der Status aktualisiert sich, sobald das Konto verbunden ist.",
+  "config.gog.login_not_connected": "Die Anmeldung ist noch nicht abgeschlossen: Das Konto ist weiterhin nicht verbunden."
 }

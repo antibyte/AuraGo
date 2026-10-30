@@ -71,7 +71,7 @@ function renderBackupSection(section) {
                     <div class="field-hint backup-field-hint">${t('config.backup.password_hint')}</div>
                     <div class="password-wrap">
                         <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password" oninput="backupUpdateVaultHint()">
-                        <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
+                        <button type="button" class="password-toggle" onclick="togglePassword(this)" title="${escapeAttr(t('config.backup.toggle_visibility'))}">${EYE_OPEN_SVG}</button>
                     </div>
                     <div id="backup-vault-hint" class="backup-vault-hint is-warning">${t('config.backup.no_password_warning')}</div>
                 </div>
@@ -108,7 +108,7 @@ function renderBackupSection(section) {
                     <div class="field-label">${t('config.backup.import_password_label')}</div>
                     <div class="password-wrap">
                         <input type="password" id="backup-import-password" class="field-input" placeholder="${t('config.backup.decryption_placeholder')}" autocomplete="off">
-                        <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
+                        <button type="button" class="password-toggle" onclick="togglePassword(this)" title="${escapeAttr(t('config.backup.toggle_visibility'))}">${EYE_OPEN_SVG}</button>
                     </div>
                 </div>
             </div>
@@ -195,6 +195,8 @@ async function backupImport() {
         return;
     }
 
+    if (!(await showConfirm(t('config.backup.confirm_import_title'), t('config.backup.confirm_import_message', { name: fileInput.files[0].name })))) return;
+
     btn.disabled = true;
     backupSetStatus(status, 'is-muted', t('config.backup.importing'));
     result.classList.add('is-hidden');
@@ -207,7 +209,7 @@ async function backupImport() {
         const resp = await fetch('/api/backup/import', { method: 'POST', body: fd });
         const data = await resp.json();
         if (!resp.ok || data.error) {
-            let msg = data.message || data.error || 'Unknown error';
+            let msg = data.message || data.error || t('config.backup.unknown_error');
             if (data.error === 'password_required') msg = t('config.backup.password_required');
             if (data.error === 'decryption_failed') msg = t('config.backup.decryption_failed');
             backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + msg);
@@ -216,7 +218,7 @@ async function backupImport() {
             result.classList.remove('is-hidden');
             result.innerHTML = `<div class="backup-import-success-box">
                 <div class="backup-import-success-title">${t('config.backup.status_success')} ${t('config.backup.import_success')}</div>
-                <div class="backup-import-success-message">${data.message}</div>
+                <div class="backup-import-success-message">${escapeHtml(data.message || '')}</div>
                 <button class="btn-save backup-restart-btn" onclick="restartAuraGo()">
                     ↻ ${t('config.backup.restart_now')}
                 </button>

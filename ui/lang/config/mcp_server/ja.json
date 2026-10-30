@@ -33,5 +33,9 @@
   "config.mcp_server.connection_title": "接続",
   "config.mcp_server.connection_desc": "MCPサーバーのエンドポイントと認証設定。",
   "config.mcp_server.enabled_help": "AuraGo の組み込み MCP サーバーエンドポイントを公開します。",
-  "config.mcp_server.require_auth_help": "ツールが公開される前に、クライアントが MCP アクセストークンを使用することを要求します。"
+  "config.mcp_server.require_auth_help": "ツールが公開される前に、クライアントが MCP アクセストークンを使用することを要求します。",
+  "config.mcp_server.forced_by_bridge": "Forced on by the VS Code bridge — turn the bridge off to change this.",
+  "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
+  "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
+  "config.mcp_server.token_error": "Token generation failed"
 }

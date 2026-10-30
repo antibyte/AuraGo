@@ -1,13 +1,36 @@
 let emailAccountsCache = null;
+let emailLoadError = null;
+let emailLastSection = null;
+
+async function emailLoadAccounts() {
+    try {
+        const resp = await fetch('/api/email-accounts');
+        if (!resp.ok) {
+            const txt = (await resp.text().catch(() => '')).trim();
+            throw new Error(txt || resp.statusText || ('HTTP ' + resp.status));
+        }
+        const data = await resp.json();
+        emailAccountsCache = Array.isArray(data) ? data : [];
+        emailLoadError = null;
+    } catch (e) {
+        emailAccountsCache = null;
+        emailLoadError = e.message || String(e);
+    }
+}
+
+function emailRetryLoad() {
+    emailAccountsCache = null;
+    if (emailLastSection) renderEmailSection(emailLastSection);
+}
 
 async function renderEmailSection(section) {
+    emailLastSection = section;
     const emailCfg = configData['email'] || {};
     if (emailAccountsCache === null) {
-        try {
-            const resp = await fetch('/api/email-accounts');
-            emailAccountsCache = resp.ok ? await resp.json() : [];
-        } catch (_) { emailAccountsCache = []; }
+        await emailLoadAccounts();
     }
+    const addDisabled = emailAccountsCache === null
+        ? ` disabled title="${escapeAttr(t('config.email.load_failed_disabled'))}"` : '';
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
@@ -15,7 +38,7 @@ async function renderEmailSection(section) {
     html += emailCheatsheetSelect(emailCfg.relay_cheatsheet_id || '');
 
     html += `<div class="cfg-actions-row">
-            <button class="btn-save btn-secondary" onclick="emailAccountAdd()">
+            <button class="btn-save btn-secondary" onclick="emailAccountAdd()"${addDisabled}>
                 ＋ ${t('config.email.new_account')}
             </button>
         </div>
@@ -75,6 +98,18 @@ function emailAccountRenderCards() {
     const wrap = document.getElementById('email-accounts-list');
     const empty = document.getElementById('email-accounts-empty');
     if (!wrap) return;
+    if (emailAccountsCache === null) {
+        wrap.innerHTML = `<div class="wh-notice mcp-notice-danger" role="alert">
+            <span>⚠️</span>
+            <div>
+                <strong>${escapeHtml(t('config.email.load_failed'))}</strong><br>
+                <small>${escapeHtml(emailLoadError || '')}</small>
+            </div>
+            <button type="button" class="btn-save btn-secondary" onclick="emailRetryLoad()">${escapeHtml(t('config.email.retry'))}</button>
+        </div>`;
+        if (empty) empty.classList.add('is-hidden');
+        return;
+    }
     if (emailAccountsCache.length === 0) {
         wrap.innerHTML = '';
         if (empty) empty.classList.remove('is-hidden');
@@ -238,6 +273,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
 
         <div id="ea-test-result" class="adg-test-result em-test-result"></div>
+        <div id="ea-save-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>
         <div class="modal-actions">
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('email-modal-overlay').remove()">
                 ${t('config.email.cancel')}
@@ -254,7 +290,11 @@ function emailAccountShowModal(title, data, onSave) {
 
     document.getElementById('ea-test-btn').onclick = () => emailAccountTestFromModal(data);
 
-    document.getElementById('ea-save-btn').onclick = () => {
+    document.getElementById('ea-save-btn').onclick = async () => {
+        const errBox = document.getElementById('ea-save-error');
+        const saveBtn = document.getElementById('ea-save-btn');
+        const showErr = msg => { errBox.textContent = msg; errBox.classList.remove('is-hidden'); };
+        errBox.classList.add('is-hidden');
         const id = document.getElementById('ea-id').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
         const name = document.getElementById('ea-name').value.trim();
         const enabled = document.getElementById('ea-enabled').checked;
@@ -271,11 +311,17 @@ function emailAccountShowModal(title, data, onSave) {
         const watch_folder = document.getElementById('ea-watch-folder').value.trim() || 'INBOX';
         const watch_interval_seconds = parseInt(document.getElementById('ea-watch-interval').value, 10) || 120;
 
-        if (!id) { showToast(t('config.email.id_empty'), 'warn'); return; }
-        if (!imap_host && !smtp_host) { showToast(t('config.email.host_required'), 'warn'); return; }
+        if (!id) { showErr(t('config.email.id_empty')); return; }
+        if (!imap_host && !smtp_host) { showErr(t('config.email.host_required')); return; }
 
         const entry = { id, name: name || id, enabled, allow_sending, imap_host, imap_port, smtp_host, smtp_port, username, password, from_address, watch_enabled, watch_folder, watch_interval_seconds };
-        onSave(entry);
+        saveBtn.disabled = true;
+        const res = await onSave(entry);
+        saveBtn.disabled = false;
+        if (res && res.ok === false) {
+            showErr(res.error || t('config.common.error'));
+            return;
+        }
         overlay.remove();
     };
 
@@ -286,37 +332,43 @@ function emailAccountShowModal(title, data, onSave) {
 }
 
 function emailAccountAdd() {
+    if (emailAccountsCache === null) { showToast(t('config.email.load_failed_disabled'), 'warn'); return; }
     emailAccountShowModal(
         t('config.email.new_account'),
         {},
         async (entry) => {
+            if (emailAccountsCache === null) return { ok: false, error: t('config.email.load_failed_disabled') };
             if (emailAccountsCache.some(a => a.id === entry.id)) {
-                showToast(t('config.email.id_exists'), 'warn');
-                return;
+                return { ok: false, error: t('config.email.id_exists') };
             }
-            emailAccountsCache.push(entry);
-            await emailAccountSave();
+            return emailAccountSave(emailAccountsCache.concat([entry]));
         }
     );
 }
 
 function emailAccountEdit(idx) {
+    if (emailAccountsCache === null) return;
     const a = { ...emailAccountsCache[idx], _editMode: true };
     emailAccountShowModal(
         t('config.email.edit_account'),
         a,
         async (entry) => {
-            emailAccountsCache[idx] = entry;
-            await emailAccountSave();
+            if (emailAccountsCache === null) return { ok: false, error: t('config.email.load_failed_disabled') };
+            const next = emailAccountsCache.slice();
+            next[idx] = entry;
+            return emailAccountSave(next);
         }
     );
 }
 
 async function emailAccountDelete(idx) {
+    if (emailAccountsCache === null) return;
     const a = emailAccountsCache[idx];
     if (!await showConfirm(t('config.email.delete_confirm', {name: a.name || a.id}))) return;
-    emailAccountsCache.splice(idx, 1);
-    await emailAccountSave();
+    const next = emailAccountsCache.slice();
+    next.splice(idx, 1);
+    const res = await emailAccountSave(next);
+    if (!res.ok) showToast(res.error, 'error');
 }
 
 function emailAccountCollectModalFields(data) {
@@ -380,22 +432,29 @@ async function emailAccountTestFromModal(data) {
     }
 }
 
-async function emailAccountSave() {
+async function emailAccountSave(nextAccounts) {
+    if (emailAccountsCache === null || !Array.isArray(nextAccounts)) {
+        return { ok: false, error: t('config.email.load_failed_disabled') };
+    }
     try {
         const resp = await fetch('/api/email-accounts', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(emailAccountsCache)
+            body: JSON.stringify(nextAccounts)
         });
         if (!resp.ok) {
-            const txt = await resp.text();
-            showToast(txt || t('config.common.error'), 'error');
-            return;
+            const txt = (await resp.text().catch(() => '')).trim();
+            return { ok: false, error: txt || t('config.common.error') };
         }
-        const reload = await fetch('/api/email-accounts');
-        if (reload.ok) emailAccountsCache = await reload.json();
+        emailAccountsCache = nextAccounts;
+        try {
+            const reload = await fetch('/api/email-accounts');
+            if (reload.ok) emailAccountsCache = await reload.json();
+        } catch (_) { /* keep saved list */ }
         emailAccountRenderCards();
+        showToast(t('config.email.saved'), 'success');
+        return { ok: true };
     } catch (e) {
-        showToast(e.message || t('config.common.error'), 'error');
+        return { ok: false, error: e.message || t('config.common.error') };
     }
 }

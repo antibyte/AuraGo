@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "在界面和工具结果中显示的友好名称。",
   "help.three_d_printers.printer_url": "本地 SDCP WebSocket URL，例如 ws://192.168.6.50/websocket。",
   "help.three_d_printers.readonly": "保持打印机只读访问。启动、暂停、继续、取消和灯光更改都会被阻止。",
-  "help.three_d_printers.timeout": "打印机命令的连接超时。"
+  "help.three_d_printers.timeout": "打印机命令的连接超时。",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }

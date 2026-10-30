@@ -95,5 +95,8 @@
   "config.mcp.test_connection_success": "Forbindelse OK. {count} værktøjer fundet.",
   "config.mcp.test_connection_failed": "MCP-forbindelsestest mislykkedes:",
   "config.mcp.name_command_or_url_required": "Navn og kommando eller URL er påkrævet.",
-  "config.mcp.field_allow_private_network": "Tillad private adresser for denne MCP-server"
+  "config.mcp.field_allow_private_network": "Tillad private adresser for denne MCP-server",
+  "config.mcp.load_failed": "{what} kunne ikke indlæses",
+  "config.mcp.load_failed_disabled": "Tilføjelse, redigering og sletning er deaktiveret, indtil listen er indlæst.",
+  "config.mcp.retry": "Prøv igen"
 }

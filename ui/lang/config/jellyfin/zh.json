@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "接受自签名或无效证书（仅用于测试环境）。",
   "help.jellyfin.host": "Jellyfin 服务器的主机名或 IP 地址（例如 jellyfin.local 或 192.168.1.100）。",
   "help.jellyfin.port": "Jellyfin 服务器端口（默认：8096）。",
-  "help.jellyfin.api_key": "Jellyfin API 的 API 密钥。在 Jellyfin 的仪表板 → API 密钥中创建。"
+  "help.jellyfin.api_key": "Jellyfin API 的 API 密钥。在 Jellyfin 的仪表板 → API 密钥中创建。",
+  "config.jellyfin.status_unknown": "未知状态",
+  "config.jellyfin.status_no_url": "未配置主机"
 }

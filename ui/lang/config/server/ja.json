@@ -105,5 +105,7 @@
   "config.server.disable_https_title": "HTTPSを無効にしますか？",
   "config.server.disable_https_confirm": "変更は下書きにのみ反映されます。HTTPを使うには保存してAuraGoを再起動してください。プロキシや親ドメインのHSTSルールにより、HTTPSが引き続き強制される場合があります。",
   "config.server.http_port_hint": "0でHTTPリスナーを無効にします。Let’s EncryptのHTTP-01には80を選択し、公開ポート80に到達できるようにしてください。",
-  "config.server.restart_address": "再起動後に開くアドレス："
+  "config.server.restart_address": "再起動後に開くアドレス：",
+  "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
 }

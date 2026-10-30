@@ -101,5 +101,7 @@
   "config.go2rtc.hardware_test": "Ověřit uložený hardware",
   "config.go2rtc.hardware_verified": "Kodér ověřen",
   "config.go2rtc.hardware_failed": "Ověření hardwaru selhalo; přechod na CPU je vypnutý.",
-  "config.go2rtc.hardware_help": "Výchozí je CPU. GPU vyžaduje hostitele Docker Linux amd64. Uložte nastavení, spusťte službu a před překódováním ověřte zvolený kodér."
+  "config.go2rtc.hardware_help": "Výchozí je CPU. GPU vyžaduje hostitele Docker Linux amd64. Uložte nastavení, spusťte službu a před překódováním ověřte zvolený kodér.",
+  "config.go2rtc.confirm_remove_title": "Remove this stream?",
+  "config.go2rtc.confirm_remove_message": "Stream \"{name}\" and its source settings are removed from the list. Cameras, recordings and links that use this stream stop working as soon as you save."
 }

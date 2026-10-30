@@ -65,5 +65,9 @@
   "help.a2a.client_enabled": "Ενεργοποιήστε τον πελάτη A2A για σύνδεση και επικοινωνία με απομακρυσμένους πράκτορες A2A.",
   "help.a2a.llm_provider": "Επιλέξτε πάροχο LLM για εργασίες A2A. Αφήστε κενό για χρήση του κύριου LLM.",
   "help.a2a.port": "0 = κοινή χρήση θύρας κύριου διακομιστή. Αριθμός = εκκίνηση A2A σε αποκλειστική θύρα.",
-  "help.a2a.server_enabled": "Εκθέστε αυτήν την εγκατάσταση AuraGo ως πράκτορα συμβατό με A2A, με τον οποίο μπορούν να επικοινωνούν άλλοι πράκτορες μέσω του πρωτοκόλλου A2A."
+  "help.a2a.server_enabled": "Εκθέστε αυτήν την εγκατάσταση AuraGo ως πράκτορα συμβατό με A2A, με τον οποίο μπορούν να επικοινωνούν άλλοι πράκτορες μέσω του πρωτοκόλλου A2A.",
+  "config.a2a.confirm_remove_skill_title": "Remove this skill?",
+  "config.a2a.confirm_remove_skill_message": "Skill \"{name}\" is removed from the list and is no longer offered to other agents once you save.",
+  "config.a2a.confirm_remove_agent_title": "Remove this remote agent?",
+  "config.a2a.confirm_remove_agent_message": "Remote agent \"{name}\" with its card URL and credentials is removed from the list and deleted when you save. AuraGo can no longer delegate tasks to it."
 }

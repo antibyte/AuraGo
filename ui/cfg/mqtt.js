@@ -310,6 +310,8 @@ async function renderMQTTSection(section) {
         } else {
             mqttSetBanner('warning', '⚪ ' + t('config.mqtt.status_no_broker'));
         }
+    } else {
+        mqttSetBanner('neutral', '⚪ ' + t('config.mqtt.status_disabled'));
     }
 }
 

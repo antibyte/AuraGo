@@ -31,5 +31,7 @@
   "config.obsidian.connect_timeout_label": "कनेक्शन समयसीमा",
   "config.obsidian.request_timeout_label": "अनुरोध समयसीमा",
   "help.obsidian.connect_timeout": "कनेक्शन टाइमआउट सेकंड में (डिफ़ॉल्ट: 10)",
-  "help.obsidian.request_timeout": "अनुरोध टाइमआउट सेकंड में (डिफ़ॉल्ट: 30)"
+  "help.obsidian.request_timeout": "अनुरोध टाइमआउट सेकंड में (डिफ़ॉल्ट: 30)",
+  "config.obsidian.status_unknown": "Unknown status",
+  "config.obsidian.status_no_url": "No host configured"
 }

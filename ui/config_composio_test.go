@@ -250,7 +250,7 @@ func TestConfigComposioConnectRequiresActivePersistedToolkit(t *testing.T) {
 		"const connectDisabled = isSelected ? '' : ' disabled aria-disabled=\"true\"';",
 		"' + connectDisabled + ' onclick=\"composioConnectToolkit('",
 		"async function composioToggleToolkit",
-		"await composioSaveSelection(false);",
+		"await composioSaveSelection(false, nextToolkits);",
 		"const selected = composioSelectedMap();",
 		"if (!selected[normalized.toLowerCase()])",
 	} {

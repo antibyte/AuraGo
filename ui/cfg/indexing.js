@@ -51,9 +51,10 @@
                         <span class="idx-status-text">
                             ${st.running ? t('config.indexing.running') : t('config.indexing.stopped')}
                         </span>
-                        <button class="btn-save idx-rescan-btn" onclick="idxRescan()">
+                        <button class="btn-save idx-rescan-btn" id="idx-rescan-btn" onclick="idxRescan()">
                             🔄 ${t('config.indexing.scan_now')}
                         </button>
+                        <span id="idx-rescan-msg" class="idx-field-help is-hidden" role="status"></span>
                     </div>
                     <div class="idx-status-meta">
                         <span>📁 ${t('config.indexing.files')}: <strong>${st.total_files}</strong></span>
@@ -130,6 +131,7 @@
                         onkeydown="if(event.key==='Enter')idxAddDir()">
                     <button class="btn-save idx-add-btn" onclick="idxAddDir()">+ ${t('config.indexing.add')}</button>
                 </div>
+                <div id="idx-dir-msg" class="idx-field-help is-error is-hidden" role="alert"></div>
             </div>`;
 
             html += `</div></div>`; // close idx-card-body & idx-card (Directories)
@@ -256,10 +258,20 @@
         }
 
 
+        function idxSetInlineMsg(id, text, isError) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            el.textContent = text || '';
+            el.classList.toggle('is-error', !!isError);
+            el.classList.toggle('is-hidden', !text);
+            return true;
+        }
+
         async function idxAddDir() {
             const input = document.getElementById('idx-new-dir');
             const path = input.value.trim();
             if (!path) return;
+            idxSetInlineMsg('idx-dir-msg', '', true);
 
             try {
                 const resp = await fetch('/api/indexing/directories', {
@@ -268,8 +280,8 @@
                     body: JSON.stringify({ path })
                 });
                 if (!resp.ok) {
-                    const text = await resp.text();
-                    showToast(text || t('config.common.error'), 'error');
+                    const text = await idxResponseError(resp);
+                    if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
                     return;
                 }
                 input.value = '';
@@ -277,12 +289,14 @@
                 const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
                 await renderIndexingSection(sectionMeta);
             } catch (e) {
-                showToast(t('config.common.error') + ': ' + e.message, 'error');
+                const text = t('config.common.error') + ': ' + e.message;
+                if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
             }
         }
 
         async function idxRemoveDir(path) {
             if (!(await showConfirm(t('config.indexing.remove_confirm_title'), t('config.indexing.remove_confirm')))) return;
+            idxSetInlineMsg('idx-dir-msg', '', true);
             try {
                 const resp = await fetch('/api/indexing/directories', {
                     method: 'DELETE',
@@ -290,14 +304,15 @@
                     body: JSON.stringify({ path })
                 });
                 if (!resp.ok) {
-                    const text = await resp.text();
-                    showToast(text || t('config.common.error'), 'error');
+                    const text = await idxResponseError(resp);
+                    if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
                     return;
                 }
                 const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
                 await renderIndexingSection(sectionMeta);
             } catch (e) {
-                showToast(t('config.common.error') + ': ' + e.message, 'error');
+                const text = t('config.common.error') + ': ' + e.message;
+                if (!idxSetInlineMsg('idx-dir-msg', text, true)) showToast(text, 'error');
             }
         }
 
@@ -356,16 +371,27 @@
         }
 
         async function idxRescan() {
+            const btn = document.getElementById('idx-rescan-btn');
+            if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+            idxSetInlineMsg('idx-rescan-msg', t('config.indexing.rescan_starting'), false);
+            const release = () => { if (btn && btn.isConnected) { btn.disabled = false; btn.removeAttribute('aria-busy'); } };
             try {
                 const resp = await fetch('/api/indexing/rescan', { method: 'POST' });
                 if (resp.ok) {
+                    idxSetInlineMsg('idx-rescan-msg', '✅ ' + t('config.indexing.rescan_started'), false);
                     // Re-render after a short delay to allow scan to start
                     setTimeout(async () => {
                         const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'indexing');
                         await renderIndexingSection(sectionMeta);
                     }, 1500);
+                } else {
+                    idxSetInlineMsg('idx-rescan-msg', t('config.indexing.rescan_failed') + ': ' + await idxResponseError(resp), true);
+                    release();
                 }
-            } catch (_) {}
+            } catch (e) {
+                idxSetInlineMsg('idx-rescan-msg', t('config.indexing.rescan_failed') + ': ' + ((e && e.message) || ''), true);
+                release();
+            }
         }
 
         function idxDirPath(dir) {

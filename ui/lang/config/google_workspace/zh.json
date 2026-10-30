@@ -53,5 +53,8 @@
   "config.google_workspace.oauth_manual_failed": "授权失败：",
   "config.google_workspace.testing": "⏳ 测试中...",
   "config.google_workspace.test_success": "连接成功",
-  "config.google_workspace.test_failed": "连接测试失败"
+  "config.google_workspace.test_failed": "连接测试失败",
+  "config.google_workspace.confirm_disconnect_title": "Disconnect Google Workspace?",
+  "config.google_workspace.confirm_disconnect_message": "The stored Google OAuth tokens are revoked and deleted. Gmail, Calendar, Drive and the other Google Workspace tools stop working until you sign in again.",
+  "config.google_workspace.disconnecting": "Disconnecting..."
 }

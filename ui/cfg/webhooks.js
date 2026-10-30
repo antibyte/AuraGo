@@ -12,19 +12,82 @@ function whIsReadOnly() {
     return !!(configData.webhooks && configData.webhooks.readonly);
 }
 
-async function whFetchAll() {
+// Load state: error text per resource (null = loaded) and whether the webhook
+// manager is not running (admin API answers 404 for every /api/webhooks route).
+const whLoadState = { hooks: null, tokens: null, presets: null, outgoing: null, notRunning: false };
+let whLastSection = null;
+
+async function whResponseError(resp) {
+    const txt = (await resp.text().catch(() => '')).trim();
+    let reason = txt;
+    try { const j = JSON.parse(txt); reason = j.error || j.message || txt; } catch (_) { /* plain text */ }
+    return reason || resp.statusText || ('HTTP ' + resp.status);
+}
+
+async function whLoadOne(url, key, assign) {
     try {
-        const [wResp, tResp, pResp, ogResp] = await Promise.all([
-            fetch('/api/webhooks'), fetch('/api/tokens'), fetch('/api/webhooks/presets'), fetch('/api/outgoing-webhooks')
-        ]);
-        if (wResp.ok) whWebhooks = await wResp.json();
-        if (tResp.ok) whTokens = await tResp.json();
-        if (pResp.ok) whPresets = await pResp.json();
-        if (ogResp.ok) ogWebhooks = await ogResp.json();
-    } catch (e) { console.error('webhook fetch error', e); }
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            whLoadState[key] = await whResponseError(resp);
+            return resp.status;
+        }
+        const data = await resp.json();
+        assign(data);
+        whLoadState[key] = null;
+        return resp.status;
+    } catch (e) {
+        whLoadState[key] = e.message || String(e);
+        return 0;
+    }
+}
+
+async function whFetchAll() {
+    const statuses = await Promise.all([
+        whLoadOne('/api/webhooks', 'hooks', d => { whWebhooks = Array.isArray(d) ? d : []; }),
+        whLoadOne('/api/tokens', 'tokens', d => { whTokens = Array.isArray(d) ? d : []; }),
+        whLoadOne('/api/webhooks/presets', 'presets', d => { whPresets = Array.isArray(d) ? d : []; }),
+        whLoadOne('/api/outgoing-webhooks', 'outgoing', d => { ogWebhooks = Array.isArray(d) ? d : []; })
+    ]);
+    // 404 on the presets/list routes = webhook manager not running.
+    whLoadState.notRunning = statuses[0] === 404 || statuses[2] === 404;
+}
+
+function whRetryLoad() {
+    if (whLastSection) renderWebhooksSection(whLastSection);
+}
+
+function whLoadErrorBox(reason) {
+    return `<div class="wh-notice mcp-notice-danger" role="alert">
+        <span>⚠️</span>
+        <div>
+            <strong>${esc(t('config.webhooks.load_failed'))}</strong><br>
+            <small>${esc(reason || '')}</small>
+        </div>
+        <button type="button" class="wh-btn" onclick="whRetryLoad()">${esc(t('config.webhooks.retry'))}</button>
+    </div>`;
+}
+
+// Inline error shown at the top of a host element (panel / list / editor).
+function whShowError(hostId, msg) {
+    const host = document.getElementById(hostId);
+    if (!host) { showToast(msg, 'error'); return; }
+    let box = host.querySelector(':scope > .wh-inline-error');
+    if (!box) {
+        box = document.createElement('div');
+        box.className = 'wh-notice mcp-notice-danger wh-inline-error';
+        box.setAttribute('role', 'alert');
+        host.insertBefore(box, host.firstChild);
+    }
+    box.textContent = msg;
+}
+
+function whClearError(hostId) {
+    const box = document.querySelector('#' + hostId + ' > .wh-inline-error');
+    if (box) box.remove();
 }
 
 async function renderWebhooksSection(section) {
+    whLastSection = section;
     const content = document.getElementById('content');
     content.innerHTML = '<div class="cfg-section active"><div class="wh-loading-state">' + t('config.webhooks.loading') + '</div></div>';
     await whFetchAll();
@@ -35,6 +98,17 @@ async function renderWebhooksSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
+
+    if (enabled && whLoadState.notRunning) {
+        html += `<div class="wh-notice">
+                    <span>⚠️</span>
+                    <div>
+                        <strong>${t('config.webhooks.not_running_notice')}</strong><br>
+                        <small>${t('config.webhooks.not_running_desc')}</small>
+                    </div>
+                    <button type="button" class="wh-btn" onclick="whRetryLoad()">${esc(t('config.webhooks.retry'))}</button>
+                </div>`;
+    }
 
     if (!enabled) {
         html += `<div class="wh-notice">
@@ -49,7 +123,7 @@ async function renderWebhooksSection(section) {
     // Config settings (enabled, max_payload_size, rate_limit)
     html += whRenderConfigSettings();
 
-    if (enabled) {
+    if (enabled && !whLoadState.notRunning) {
         // Tabs: Webhooks | Tokens | Log
         html += `<div class="wh-tabs">
                     <button class="wh-tab active" onclick="whSwitchTab(this,'wh-panel-hooks')">${t('config.webhooks.tab_webhooks')}</button>
@@ -84,7 +158,7 @@ async function renderWebhooksSection(section) {
     content.innerHTML = html;
 
     // Load log if enabled
-    if (enabled) whLoadLog();
+    if (enabled && !whLoadState.notRunning) whLoadLog();
 }
 
 function whRenderConfigSettings() {
@@ -133,6 +207,7 @@ function whSwitchTab(btn, panelId) {
 /* ── Webhook List ── */
 function whRenderWebhookList() {
     const readOnly = whIsReadOnly();
+    if (whLoadState.hooks) return whLoadErrorBox(whLoadState.hooks) + '<div id="wh-editor" class="wh-editor is-hidden"></div>';
     let html = `<div class="wh-toolbar">
                 <span class="wh-count">${whWebhooks.length} / ${10} ${t('config.webhooks.count_webhooks')}</span>
                 ${!readOnly && whWebhooks.length < 10 ? `<button class="wh-btn wh-btn-primary" onclick="whShowEditor(null)">+ ${t('config.webhooks.new_webhook')}</button>` : ''}
@@ -152,9 +227,9 @@ function whRenderWebhookList() {
                                 <span class="wh-card-slug">/${w.slug}</span>
                             </div>
                             <div class="wh-card-actions">
-                                <button class="wh-btn-icon" title="${t('config.webhooks.action_test')}" onclick="whTestWebhook('${escapeAttr(w.id)}')">🧪</button>
-                                ${!readOnly ? `<button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor('${escapeAttr(w.id)}')">✏️</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook('${escapeAttr(w.id)}','${escapeAttr(w.name)}')">🗑️</button>` : ''}
+                                <button class="wh-btn-icon" title="${t('config.webhooks.action_test')}" onclick="whTestWebhook(${escapeAttr(JSON.stringify(String(w.id)))})">🧪</button>
+                                ${!readOnly ? `<button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor(${escapeAttr(JSON.stringify(String(w.id)))})">✏️</button>
+                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook(${escapeAttr(JSON.stringify(String(w.id)))},${escapeAttr(JSON.stringify(String(w.name || '')))})">🗑️</button>` : ''}
                             </div>
                         </div>
                         <div class="wh-card-body">
@@ -283,9 +358,10 @@ function whShowEditor(id) {
                     <textarea id="wh-f-prompt" class="field-input wh-textarea" rows="5" placeholder="${t('config.webhooks.prompt_placeholder')}">${esc(delivery.prompt_template || '')}</textarea>
                 </div>
             </div>
+            <div id="wh-editor-error-host"></div>
             <div class="wh-editor-footer">
                 <button class="wh-btn" onclick="whHideEditor()">${t('config.webhooks.cancel')}</button>
-                <button class="wh-btn wh-btn-primary" onclick="whSaveWebhook()">${t('config.webhooks.save')}</button>
+                <button class="wh-btn wh-btn-primary" id="wh-editor-save-btn" onclick="whSaveWebhook()">${t('config.webhooks.save')}</button>
             </div>`;
     setHidden(ed, false);
     ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -365,9 +441,12 @@ function whCollectEditor() {
 
 async function whSaveWebhook() {
     const data = whCollectEditor();
-    if (!data.name) return showToast(t('config.webhooks.name_required'), 'error');
-    if (!whEditingId && !data.slug) return showToast(t('config.webhooks.slug_required'), 'error');
+    whClearError('wh-editor-error-host');
+    if (!data.name) return whShowError('wh-editor-error-host', t('config.webhooks.name_required'));
+    if (!whEditingId && !data.slug) return whShowError('wh-editor-error-host', t('config.webhooks.slug_required'));
 
+    const saveBtn = document.getElementById('wh-editor-save-btn');
+    if (saveBtn) { if (saveBtn.disabled) return; saveBtn.disabled = true; }
     try {
         let resp;
         if (whEditingId) {
@@ -383,9 +462,9 @@ async function whSaveWebhook() {
                 body: JSON.stringify(data)
             });
         }
-        const result = await resp.json();
         if (!resp.ok) {
-            showToast(result.error || t('config.webhooks.error'), 'error');
+            whShowError('wh-editor-error-host', await whResponseError(resp));
+            if (saveBtn) saveBtn.disabled = false;
             return;
         }
         showToast(t('config.webhooks.saved'), 'success');
@@ -394,7 +473,8 @@ async function whSaveWebhook() {
         const section = SECTIONS.flatMap(g => g.items).find(s => s.key === 'webhooks');
         await renderWebhooksSection(section);
     } catch (e) {
-        showToast(e.message, 'error');
+        whShowError('wh-editor-error-host', e.message || t('config.webhooks.error'));
+        if (saveBtn) saveBtn.disabled = false;
     }
 }
 
@@ -407,10 +487,9 @@ async function whDeleteWebhook(id, name) {
             const section = SECTIONS.flatMap(g => g.items).find(s => s.key === 'webhooks');
             await renderWebhooksSection(section);
         } else {
-            const r = await resp.json();
-            showToast(r.error || t('config.webhooks.error'), 'error');
+            whShowError('wh-panel-hooks', await whResponseError(resp));
         }
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { whShowError('wh-panel-hooks', e.message || t('config.webhooks.error')); }
 }
 
 async function whTestWebhook(id) {
@@ -428,6 +507,7 @@ async function whTestWebhook(id) {
 /* ── Token Management ── */
 function whRenderTokenList() {
     const readOnly = whIsReadOnly();
+    if (whLoadState.tokens) return whLoadErrorBox(whLoadState.tokens);
     let html = `<div class="wh-toolbar">
                 <span class="wh-count">${whTokens.length} ${t('config.webhooks.count_tokens')}</span>
                 ${!readOnly ? `<button class="wh-btn wh-btn-primary" onclick="whCreateToken()">+ ${t('config.tokens.new_token')}</button>` : ''}
@@ -449,8 +529,8 @@ function whRenderTokenList() {
                                 <code class="wh-token-prefix">${esc(tok.prefix)}…</code>
                             </div>
                             <div class="wh-card-actions">
-                                ${!readOnly ? `<button class="wh-btn-icon" title="${tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable')}" onclick="whToggleToken('${tok.id}', ${!tok.enabled})">${tok.enabled ? '🔒' : '🔓'}</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteToken('${tok.id}','${esc(tok.name)}')">🗑️</button>` : ''}
+                                ${!readOnly ? `<button class="wh-btn-icon" title="${tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable')}" onclick="whToggleToken(${escapeAttr(JSON.stringify(String(tok.id)))}, ${!tok.enabled})">${tok.enabled ? '🔒' : '🔓'}</button>
+                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteToken(${escapeAttr(JSON.stringify(String(tok.id)))},${escapeAttr(JSON.stringify(String(tok.name || '')))})">🗑️</button>` : ''}
                             </div>
                         </div>
                         <div class="wh-card-meta wh-card-meta-spaced">
@@ -505,8 +585,9 @@ async function whCreateToken() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, scopes: ['webhook'] })
         });
+        if (!resp.ok) { whShowError('wh-panel-tokens', await whResponseError(resp)); return; }
         const r = await resp.json();
-        if (!resp.ok) { showToast(r.error || 'Error', 'error'); return; }
+        whClearError('wh-panel-tokens');
         // Show the raw token ONCE
         const reveal = document.getElementById('wh-token-created');
         if (reveal) {
@@ -535,7 +616,7 @@ async function whCreateToken() {
                 newReveal.outerHTML = revealHtml;
             }
         }
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { whShowError('wh-panel-tokens', e.message || t('config.webhooks.error')); }
 }
 
 async function whToggleToken(id, enabled) {
@@ -551,8 +632,10 @@ async function whToggleToken(id, enabled) {
             if (tResp.ok) whTokens = await tResp.json();
             const panel = document.getElementById('wh-panel-tokens');
             if (panel) panel.innerHTML = whRenderTokenList();
+        } else {
+            whShowError('wh-panel-tokens', await whResponseError(resp));
         }
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { whShowError('wh-panel-tokens', e.message || t('config.webhooks.error')); }
 }
 
 async function whDeleteToken(id, name) {
@@ -565,8 +648,10 @@ async function whDeleteToken(id, name) {
             if (tResp.ok) whTokens = await tResp.json();
             const panel = document.getElementById('wh-panel-tokens');
             if (panel) panel.innerHTML = whRenderTokenList();
+        } else {
+            whShowError('wh-panel-tokens', await whResponseError(resp));
         }
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { whShowError('wh-panel-tokens', e.message || t('config.webhooks.error')); }
 }
 
 /* ── Webhook Log ── */
@@ -579,7 +664,11 @@ function whRenderLog() {
 async function whLoadLog() {
     try {
         const resp = await fetch('/api/webhooks/log');
-        if (!resp.ok) return;
+        if (!resp.ok) {
+            const errEl = document.getElementById('wh-log-content');
+            if (errEl) errEl.innerHTML = '<div class="wh-empty wh-empty-danger">' + esc(t('config.webhooks.log_error_prefix') + await whResponseError(resp)) + '</div>';
+            return;
+        }
         whLog = await resp.json();
         const el = document.getElementById('wh-log-content');
         if (!el) return;
@@ -624,6 +713,7 @@ function whCopy(el, text) {
 
 function ogRenderList() {
     const readOnly = whIsReadOnly();
+    if (whLoadState.outgoing) return whLoadErrorBox(whLoadState.outgoing) + '<div id="og-modal-overlay" class="og-modal-overlay"></div>';
     let html = `<div class="wh-toolbar">
         <span class="wh-count">${ogWebhooks.length} ${t('config.webhooks.tab_outgoing')}</span>
         ${!readOnly ? `<button class="wh-btn wh-btn-primary" onclick="ogShowModal(-1)">+ ${t('config.webhooks.og_new')}</button>` : ''}
@@ -727,9 +817,10 @@ function ogShowModal(idx) {
                 </div>
             </div>
         </div>
+        <div id="og-modal-error-host" class="og-modal-body"></div>
         <div class="og-modal-footer">
             <button class="wh-btn" onclick="ogCloseModal()">${t('config.webhooks.cancel')}</button>
-            <button class="wh-btn wh-btn-primary" onclick="ogSave()">${t('config.webhooks.save')}</button>
+            <button class="wh-btn wh-btn-primary" id="og-save-btn" onclick="ogSave()">${t('config.webhooks.save')}</button>
         </div>
     </div>`;
     overlay.style.display = 'flex';
@@ -805,23 +896,34 @@ function ogCollectModal() {
 
 async function ogSave() {
     const hook = ogCollectModal();
-    if (!hook.name) return showToast(t('config.webhooks.og_name_required'), 'error');
-    if (!hook.url) return showToast(t('config.webhooks.og_url_required'), 'error');
+    whClearError('og-modal-error-host');
+    if (!hook.name) return whShowError('og-modal-error-host', t('config.webhooks.og_name_required'));
+    if (!hook.url) return whShowError('og-modal-error-host', t('config.webhooks.og_url_required'));
+    if (whLoadState.outgoing) return whShowError('og-modal-error-host', t('config.webhooks.load_failed'));
     const newList = [...ogWebhooks];
     if (ogEditingIdx >= 0) newList[ogEditingIdx] = hook; else newList.push(hook);
+    const saveBtn = document.getElementById('og-save-btn');
+    if (saveBtn) { if (saveBtn.disabled) return; saveBtn.disabled = true; }
     try {
         const resp = await fetch('/api/outgoing-webhooks', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newList)
         });
-        if (!resp.ok) { const r = await resp.json(); showToast(r.error || t('config.webhooks.error'), 'error'); return; }
+        if (!resp.ok) {
+            whShowError('og-modal-error-host', await whResponseError(resp));
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
         const maskedResp = await fetch('/api/outgoing-webhooks');
-        if (!maskedResp.ok) throw new Error(t('config.webhooks.error'));
+        if (!maskedResp.ok) throw new Error(await whResponseError(maskedResp));
         ogWebhooks = await maskedResp.json();
         ogCloseModal();
         showToast(t('config.webhooks.og_saved'), 'success');
         const panel = document.getElementById('wh-outgoing-list');
         if (panel) panel.innerHTML = ogRenderList();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+        whShowError('og-modal-error-host', e.message || t('config.webhooks.error'));
+        if (saveBtn) saveBtn.disabled = false;
+    }
 }
 
 async function ogDelete(idx) {
@@ -837,6 +939,8 @@ async function ogDelete(idx) {
             showToast(t('config.webhooks.og_deleted'), 'success');
             const panel = document.getElementById('wh-outgoing-list');
             if (panel) panel.innerHTML = ogRenderList();
+        } else {
+            whShowError('wh-outgoing-list', await whResponseError(resp));
         }
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) { whShowError('wh-outgoing-list', e.message || t('config.webhooks.error')); }
 }

@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "Φιλικό όνομα που εμφανίζεται στο UI και στα αποτελέσματα.",
   "help.three_d_printers.printer_url": "Τοπικό SDCP WebSocket URL, π.χ. ws://192.168.6.50/websocket.",
   "help.three_d_printers.readonly": "Διατηρεί πρόσβαση μόνο ανάγνωσης. Έναρξη, παύση, συνέχιση, ακύρωση και αλλαγές φωτισμού μπλοκάρονται.",
-  "help.three_d_printers.timeout": "Timeout σύνδεσης για εντολές εκτυπωτή."
+  "help.three_d_printers.timeout": "Timeout σύνδεσης για εντολές εκτυπωτή.",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }

@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "Test:",
   "config.webhooks.toggle_active": "Aktivní",
   "config.webhooks.toggle_inactive": "Neaktivní",
-  "config.webhooks.token_label": "Token"
+  "config.webhooks.token_label": "Token",
+  "config.webhooks.load_failed": "Data webhooků se nepodařilo načíst",
+  "config.webhooks.retry": "Zkusit znovu",
+  "config.webhooks.not_running_notice": "Server webhooků neběží",
+  "config.webhooks.not_running_desc": "Správce webhooků není aktivní, proto jsou webhooky a tokeny nedostupné. Zkontrolujte, zda jsou webhooky zapnuty, uložte a podle potřeby restartujte AuraGo."
 }

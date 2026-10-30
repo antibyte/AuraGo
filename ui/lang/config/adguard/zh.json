@@ -28,5 +28,6 @@
   "help.adguard.password": "认证密码。安全存储在加密的 vault 中。",
   "help.adguard.readonly": "只读模式下，代理只能读取数据。所有写操作将被阻止。",
   "help.adguard.url": "AdGuard Home 实例的基本 URL（例如 http://192.168.1.1:3000）。",
-  "help.adguard.username": "认证用户名。如果禁用了认证，请留空。"
+  "help.adguard.username": "认证用户名。如果禁用了认证，请留空。",
+  "config.adguard.status_unknown": "未知状态"
 }

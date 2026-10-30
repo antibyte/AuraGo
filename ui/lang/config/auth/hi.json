@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "वर्तमान 6-अंकीय कोड",
   "config.auth.current_password_required": "अपना वर्तमान पासवर्ड दर्ज करें।",
   "config.auth.current_totp_required": "अपने ऑथेंटिकेटर ऐप से वर्तमान कोड दर्ज करें।",
-  "config.auth.step_up_hint": "लॉगिन पासवर्ड या टू-फ़ैक्टर ऑथेंटिकेशन में बदलाव के लिए आपका वर्तमान पासवर्ड (और TOTP सक्रिय होने पर वर्तमान कोड) आवश्यक है।"
+  "config.auth.step_up_hint": "लॉगिन पासवर्ड या टू-फ़ैक्टर ऑथेंटिकेशन में बदलाव के लिए आपका वर्तमान पासवर्ड (और TOTP सक्रिय होने पर वर्तमान कोड) आवश्यक है।",
+  "config.auth.status_load_failed": "Could not load the login status",
+  "config.auth.retry": "Retry"
 }

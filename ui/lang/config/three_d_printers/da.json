@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "Venligt navn vist i UI og værktøjsresultater.",
   "help.three_d_printers.printer_url": "Lokal SDCP WebSocket-URL, f.eks. ws://192.168.6.50/websocket.",
   "help.three_d_printers.readonly": "Holder printeradgang skrivebeskyttet. Start, pause, fortsæt, annuller og lysændringer blokeres.",
-  "help.three_d_printers.timeout": "Forbindelsestimeout for printerkommandoer."
+  "help.three_d_printers.timeout": "Forbindelsestimeout for printerkommandoer.",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }

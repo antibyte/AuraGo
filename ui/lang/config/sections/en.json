@@ -665,5 +665,7 @@
   "config.s3.phase_iam": "Applying permissions",
   "config.s3.phase_verifying": "Verifying access",
   "config.s3.phase_stopping": "Stopping RustFS",
-  "config.s3.phase_removing": "Removing runtime"
+  "config.s3.phase_removing": "Removing runtime",
+  "config.space_agent.confirm_recreate_title": "Recreate the Space Agent container?",
+  "config.space_agent.confirm_recreate_message": "The Space Agent container is removed and created again from the current settings. The service is unavailable meanwhile, open sessions are interrupted, and anything stored only inside the container is lost."
 }

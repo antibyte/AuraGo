@@ -56,5 +56,9 @@
   "config.email.test_fail": "Verbindung fehlgeschlagen",
   "config.email.testing": "Teste…",
   "config.email.test_partial": "Teilweise erfolgreich — Details prüfen",
-  "config.email.test_credentials_required": "Benutzername und Passwort sind erforderlich"
+  "config.email.test_credentials_required": "Benutzername und Passwort sind erforderlich",
+  "config.email.load_failed": "E-Mail-Konten konnten nicht geladen werden",
+  "config.email.load_failed_disabled": "Hinzufügen, Bearbeiten und Löschen ist deaktiviert, bis die Liste geladen ist.",
+  "config.email.retry": "Erneut versuchen",
+  "config.email.saved": "E-Mail-Konten gespeichert."
 }

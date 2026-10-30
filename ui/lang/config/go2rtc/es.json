@@ -101,5 +101,7 @@
   "config.go2rtc.hardware_test": "Comprobar hardware guardado",
   "config.go2rtc.hardware_verified": "Codificador verificado",
   "config.go2rtc.hardware_failed": "La comprobación falló; no se cambiará a CPU.",
-  "config.go2rtc.hardware_help": "CPU es la opción predeterminada. La GPU requiere un host Docker Linux amd64. Guarde, inicie el servicio y compruebe el codificador elegido antes de transcodificar."
+  "config.go2rtc.hardware_help": "CPU es la opción predeterminada. La GPU requiere un host Docker Linux amd64. Guarde, inicie el servicio y compruebe el codificador elegido antes de transcodificar.",
+  "config.go2rtc.confirm_remove_title": "Remove this stream?",
+  "config.go2rtc.confirm_remove_message": "Stream \"{name}\" and its source settings are removed from the list. Cameras, recordings and links that use this stream stop working as soon as you save."
 }

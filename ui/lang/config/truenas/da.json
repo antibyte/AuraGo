@@ -69,5 +69,7 @@
   "help.truenas.host": "Hostname eller IP-adresse på din TrueNAS-server (f.eks. truenas.local eller 192.168.1.100).",
   "help.truenas.insecure_ssl": "Accepterer selvsignerede eller ugyldige certifikater (kun for testmiljøer).",
   "help.truenas.readonly": "I skrivebeskyttet tilstand kan agenten kun se data. Alle skriveoperationer blokeres.",
-  "help.truenas.use_https": "Bruger HTTPS til forbindelse til TrueNAS-serveren (anbefales)."
+  "help.truenas.use_https": "Bruger HTTPS til forbindelse til TrueNAS-serveren (anbefales).",
+  "config.truenas.status_unknown": "Ukendt status",
+  "config.truenas.status_no_url": "Ingen vært konfigureret"
 }

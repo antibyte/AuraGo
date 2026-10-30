@@ -28,5 +28,9 @@
   "config.backup.status_warning": "⚠️",
   "config.backup.tab_create": "📦 Opret backup",
   "config.backup.tab_import": "📥 Importér backup",
-  "config.backup.vault_included_hint": "🔐 Vault-hemmeligheder (API-nøgler, login-adgangskoder, tokens) inkluderes."
+  "config.backup.vault_included_hint": "🔐 Vault-hemmeligheder (API-nøgler, login-adgangskoder, tokens) inkluderes.",
+  "config.backup.confirm_import_title": "Restore this backup?",
+  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.unknown_error": "Unknown error",
+  "config.backup.toggle_visibility": "Show or hide password"
 }

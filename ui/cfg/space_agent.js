@@ -155,6 +155,7 @@ async function spaceAgentStatus() {
 }
 
 async function spaceAgentRecreate() {
+    if (!(await showConfirm(t('config.space_agent.confirm_recreate_title'), t('config.space_agent.confirm_recreate_message')))) return;
     const result = document.getElementById('space-agent-result');
     const btn = document.getElementById('space-agent-recreate-btn');
     btn.disabled = true;

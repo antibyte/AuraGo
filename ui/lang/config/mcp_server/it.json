@@ -33,5 +33,9 @@
   "config.mcp_server.connection_title": "Connessione",
   "config.mcp_server.connection_desc": "Impostazioni endpoint e autenticazione per il server MCP.",
   "config.mcp_server.enabled_help": "Espone l'endpoint del server MCP integrato di AuraGo.",
-  "config.mcp_server.require_auth_help": "Richiede che i client usino un token di accesso MCP prima che gli strumenti vengano esposti."
+  "config.mcp_server.require_auth_help": "Richiede che i client usino un token di accesso MCP prima che gli strumenti vengano esposti.",
+  "config.mcp_server.forced_by_bridge": "Forced on by the VS Code bridge — turn the bridge off to change this.",
+  "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
+  "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
+  "config.mcp_server.token_error": "Token generation failed"
 }

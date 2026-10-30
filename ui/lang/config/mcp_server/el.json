@@ -33,5 +33,9 @@
   "config.mcp_server.connection_title": "Σύνδεση",
   "config.mcp_server.connection_desc": "Ρυθμίσεις endpoint και ελέγχου ταυτότητας για τον MCP server.",
   "config.mcp_server.enabled_help": "Εκθέτει το ενσωματωμένο τελικό σημείο διακομιστή MCP του AuraGo.",
-  "config.mcp_server.require_auth_help": "Απαιτεί από τους πελάτες να χρησιμοποιούν διακριτικό πρόσβασης MCP πριν εκτεθούν τα εργαλεία."
+  "config.mcp_server.require_auth_help": "Απαιτεί από τους πελάτες να χρησιμοποιούν διακριτικό πρόσβασης MCP πριν εκτεθούν τα εργαλεία.",
+  "config.mcp_server.forced_by_bridge": "Forced on by the VS Code bridge — turn the bridge off to change this.",
+  "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
+  "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
+  "config.mcp_server.token_error": "Token generation failed"
 }

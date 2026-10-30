@@ -2,6 +2,29 @@
 
 let realtimeSpeechState = null;
 let realtimeSpeechCatalog = null;
+let realtimeSpeechBaseline = '';
+
+// Comparable snapshot of the draft (master settings + every profile incl. typed keys).
+function rsSnapshot() {
+    const s = realtimeSpeechState || {};
+    return JSON.stringify({
+        enabled: !!s.enabled,
+        default_profile: s.default_profile || '',
+        park_after_seconds: Number(s.park_after_seconds),
+        profiles: (s.profiles || []).map(profile => Object.assign({}, profile))
+    });
+}
+
+function rsMarkClean() {
+    realtimeSpeechBaseline = rsSnapshot();
+}
+
+// Read by hasUnsavedConfigChanges() in js/config/main.js before the section is switched.
+window.realtimeSpeechHasUnsavedChanges = function () {
+    if (!realtimeSpeechState || !document.querySelector('[data-rs-save]')) return false;
+    rsReadAll();
+    return rsSnapshot() !== realtimeSpeechBaseline;
+};
 
 function rsEsc(value) {
     return String(value == null ? '' : value)
@@ -170,6 +193,7 @@ function rsRender() {
                 : `<div class="rs-empty">${rsEsc(t('config.realtime_speech.no_profiles'))}</div>`}
         </div>
         <div class="rs-save-row">
+            <small class="rs-save-note">${rsEsc(t('config.realtime_speech.save_note'))}</small>
             <span data-rs-save-status role="status" aria-live="polite"></span>
             <button type="button" class="btn-save" data-rs-save>${rsEsc(t('config.realtime_speech.save'))}</button>
         </div>
@@ -222,6 +246,8 @@ async function rsTest(index) {
     if (!card) return;
     const profile = rsReadCard(card);
     const status = card.querySelector(`[data-rs-test-status="${index}"]`);
+    const testBtn = card.querySelector(`[data-rs-test="${index}"]`);
+    if (testBtn) { testBtn.disabled = true; testBtn.setAttribute('aria-busy', 'true'); }
     status.className = 'rs-test-status pending';
     status.textContent = t('config.realtime_speech.testing');
     try {
@@ -240,6 +266,8 @@ async function rsTest(index) {
     } catch (error) {
         status.className = 'rs-test-status error';
         status.textContent = error.message;
+    } finally {
+        if (testBtn && testBtn.isConnected) { testBtn.disabled = false; testBtn.removeAttribute('aria-busy'); }
     }
 }
 
@@ -248,6 +276,9 @@ async function rsRefreshVoices(index) {
     if (!card) return;
     const profile = rsReadCard(card);
     const status = card.querySelector(`[data-rs-test-status="${index}"]`);
+    const refreshBtn = card.querySelector(`[data-rs-refresh-voices="${index}"]`);
+    if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.setAttribute('aria-busy', 'true'); }
+    status.className = 'rs-test-status pending';
     status.textContent = t('config.realtime_speech.loading_voices');
     try {
         const body = await rsRequest('/api/realtime-speech/catalog?profile_id=' + encodeURIComponent(profile.id));
@@ -259,6 +290,8 @@ async function rsRefreshVoices(index) {
     } catch (error) {
         status.className = 'rs-test-status error';
         status.textContent = error.message;
+    } finally {
+        if (refreshBtn && refreshBtn.isConnected) { refreshBtn.disabled = false; refreshBtn.removeAttribute('aria-busy'); }
     }
 }
 
@@ -270,14 +303,14 @@ async function rsSave() {
     if (!Number.isInteger(park) || park < 5 || park > 60) {
         status.className = 'error';
         status.textContent = t('config.realtime_speech.park_invalid');
-        return;
+        return false;
     }
     const ids = new Set();
     for (const profile of realtimeSpeechState.profiles) {
         if (!profile.id || ids.has(profile.id) || !profile.name.trim()) {
             status.className = 'error';
             status.textContent = t('config.realtime_speech.profile_invalid');
-            return;
+            return false;
         }
         ids.add(profile.id);
     }
@@ -292,15 +325,20 @@ async function rsSave() {
         });
         realtimeSpeechState.profiles = (realtimeSpeechState.profiles || []).map(rsNormalizeProfile);
         rsRender();
+        rsMarkClean();
         const next = document.querySelector('[data-rs-save-status]');
         next.className = 'success';
         next.textContent = t('config.realtime_speech.saved');
+        return true;
     } catch (error) {
         status.className = 'error';
         status.textContent = error.message;
         save.disabled = false;
+        return false;
     }
 }
+// The unsaved-changes dialog's "Save" saves profiles through the section's own endpoint.
+window.realtimeSpeechSaveUnsaved = rsSave;
 
 function rsBind() {
     document.querySelectorAll('[data-rs-profile]').forEach(card => {
@@ -319,10 +357,12 @@ function rsBind() {
         rsRender();
     });
     document.querySelectorAll('[data-rs-delete]').forEach(button => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
             rsReadAll();
             const index = Number(button.dataset.rsDelete);
             const removed = realtimeSpeechState.profiles[index];
+            const label = (removed && (removed.name || removed.id)) || String(index + 1);
+            if (!(await showConfirm(t('config.realtime_speech.confirm_delete_title'), t('config.realtime_speech.confirm_delete_message', { name: label })))) return;
             realtimeSpeechState.profiles.splice(index, 1);
             if (removed && realtimeSpeechState.default_profile === removed.id) realtimeSpeechState.default_profile = '';
             rsRender();
@@ -345,6 +385,7 @@ async function renderRealtimeSpeechSection() {
         realtimeSpeechState = state;
         realtimeSpeechState.profiles = (state.profiles || []).map(rsNormalizeProfile);
         rsRender();
+        rsMarkClean();
     } catch (error) {
         content.innerHTML = `<div class="cfg-section active"><div class="rs-load-error">${rsEsc(error.message)}</div></div>`;
     }

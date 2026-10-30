@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Αποστολή των πολυμέσων αυτού του καταλόγου σε παρόχους;",
   "config.indexing.media_confirm": "Οι εικόνες, ο ήχος και τα σαρωμένα PDF αυτού του καταλόγου θα σταλούν για ανάλυση στον ρυθμισμένο πάροχο Vision ή πολυτροπικών embeddings. Αυτός μπορεί να είναι εξωτερική υπηρεσία, επομένως το περιεχόμενο αυτών των αρχείων μπορεί να φύγει από αυτό το σύστημα. Αν η επιλογή απενεργοποιηθεί ξανά, δεν θα σταλούν άλλα πολυμέσα.",
   "config.indexing.media_inactive_hint": "Το Vision και τα πολυτροπικά embeddings είναι απενεργοποιημένα καθολικά· η ρύθμιση θα ισχύσει μόλις ενεργοποιηθεί ένα από αυτά.",
-  "config.indexing.index_images_per_folder_hint": "Οι εικόνες αποστέλλονται μόνο για καταλόγους στους οποίους έχει ενεργοποιηθεί η κοινή χρήση πολυμέσων στη λίστα παραπάνω."
+  "config.indexing.index_images_per_folder_hint": "Οι εικόνες αποστέλλονται μόνο για καταλόγους στους οποίους έχει ενεργοποιηθεί η κοινή χρήση πολυμέσων στη λίστα παραπάνω.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

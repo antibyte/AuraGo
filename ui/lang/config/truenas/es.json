@@ -69,5 +69,7 @@
   "help.truenas.host": "Nombre de host o dirección IP de tu servidor TrueNAS (ej. truenas.local o 192.168.1.100).",
   "help.truenas.insecure_ssl": "Acepta certificados autofirmados o inválidos (solo para entornos de prueba).",
   "help.truenas.readonly": "En modo solo lectura, el agente solo puede ver datos. Todas las operaciones de escritura están bloqueadas.",
-  "help.truenas.use_https": "Usa HTTPS para la conexión al servidor TrueNAS (recomendado)."
+  "help.truenas.use_https": "Usa HTTPS para la conexión al servidor TrueNAS (recomendado).",
+  "config.truenas.status_unknown": "Estado desconocido",
+  "config.truenas.status_no_url": "Ningún host configurado"
 }

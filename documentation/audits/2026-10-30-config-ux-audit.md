@@ -317,6 +317,21 @@ zuletzt System. Sektions-Keys und URLs (`#providers` …) bleiben unverändert; 
 
 **Welle 0 – Bugs (klein, sofort):** B1–B13, B15–B17, B21. Je Fix ein gezielter Test. B1/B5/B8 zuerst (Datenverlust).
 
+> **Stand Welle 0 (2026-10-30): umgesetzt.** B1–B13, B15–B17, B21 und das Escaping aus B14 sind behoben, mit
+> statischen Tests in `ui/config_wave0_*_test.go`. Dazu kommen aus Welle 1: Punkt 5 (`showConfirm` vor destruktiven
+> Aktionen) und Punkt 6 (`warn` → `warning`, Fehler-Toasts 6 s). Fehlt ein Section-Renderer, zeigt die Seite jetzt
+> eine Fehlerbox statt des generischen Formulars. Validierungsfehler an verborgenen Feldern erscheinen als Toast.
+> Offen und auf spätere Wellen verschoben:
+> - `guardian.js` überschreibt mit einem eigenen `escapeHtml` das aus `utils.js`.
+> - „Auswahl speichern“ in Composio schreibt weiter die ganze Sektion.
+> - Der Webhook-Slug ist nicht escaped (der Server prüft ihn).
+> - 14 Sprachen zeigen die neuen Texte noch auf Englisch.
+> - Für `rs-save-note` und `#local-llm-action-result` fehlt eigenes CSS.
+> Diese drei Browser-Tests schlagen schon vor Welle 0 fehl (`e83e79752`):
+> - `TestConfigChoiceSelectsKeepSavedValueWhenListsFailBrowser`
+> - `TestConfigRefreshPopulatedBrowser`
+> - `TestConfigRefreshRealSectionsBrowser`
+
 **Welle 1 – Gemeinsame Bausteine** (in `ui/js/config/`, dann Module darauf umstellen):
 1. `cfgActionResult(button, promise)`: Busy (disabled + „Läuft…“), Ergebnis-Zeile direkt am Button mit
    Erfolg/Fehler **inkl. Server-Grund**, `role=status`; Toast nur zusätzlich. Ersetzt die ~40 `*-test-result`-Varianten.

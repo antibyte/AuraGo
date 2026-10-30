@@ -69,5 +69,7 @@
   "help.truenas.host": "TrueNAS服务器的主机名或IP地址（例如 truenas.local 或 192.168.1.100）。",
   "help.truenas.insecure_ssl": "接受自签名或无效证书（仅用于测试环境）。",
   "help.truenas.readonly": "在只读模式下，代理只能查看数据。所有写操作都被阻止。",
-  "help.truenas.use_https": "使用HTTPS连接到TrueNAS服务器（推荐）。"
+  "help.truenas.use_https": "使用HTTPS连接到TrueNAS服务器（推荐）。",
+  "config.truenas.status_unknown": "未知状态",
+  "config.truenas.status_no_url": "未配置主机"
 }

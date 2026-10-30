@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Send medier fra denne mappe til udbydere?",
   "config.indexing.media_confirm": "Billeder, lyd og scannede PDF'er fra denne mappe sendes til analyse til den konfigurerede Vision- eller multimodale embedding-udbyder. Det kan være en ekstern tjeneste, så indholdet af disse filer kan forlade dette system. Hvis indstillingen slås fra igen, sendes der ikke flere medier.",
   "config.indexing.media_inactive_hint": "Vision og multimodale embeddings er slået fra globalt; indstillingen træder i kraft, så snart en af dem aktiveres.",
-  "config.indexing.index_images_per_folder_hint": "Billeder sendes kun fra mapper, hvor mediedeling er slået til i listen ovenfor."
+  "config.indexing.index_images_per_folder_hint": "Billeder sendes kun fra mapper, hvor mediedeling er slået til i listen ovenfor.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

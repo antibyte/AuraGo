@@ -105,5 +105,7 @@
   "config.server.disable_https_title": "HTTPS deaktivieren?",
   "config.server.disable_https_confirm": "Dies ändert nur Deinen Entwurf. Speichere und starte AuraGo neu, um HTTP zu nutzen. HSTS-Regeln eines Proxys oder einer übergeordneten Domain können HTTPS weiterhin erzwingen.",
   "config.server.http_port_hint": "0 deaktiviert den HTTP-Listener. Wähle für Let’s Encrypt HTTP-01 den Port 80 und mache den öffentlichen Port 80 erreichbar.",
-  "config.server.restart_address": "Öffne nach dem Neustart:"
+  "config.server.restart_address": "Öffne nach dem Neustart:",
+  "config.server.confirm_regen_title": "Selbstsigniertes Zertifikat neu erzeugen?",
+  "config.server.confirm_regen_message": "Das aktuelle Zertifikat wird durch ein neues ersetzt. Browser und Clients, die dem alten Zertifikat vertraut haben, zeigen erneut eine Sicherheitswarnung, bis sie das neue akzeptieren, und offene HTTPS-Verbindungen können unterbrochen werden."
 }

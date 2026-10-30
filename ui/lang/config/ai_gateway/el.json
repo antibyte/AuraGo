@@ -50,5 +50,6 @@
   "config.ai_gateway.connection_metadata": "Η σύνδεση ελέγχθηκε· το μοντέλο δεν δοκιμάστηκε.",
   "config.ai_gateway.route_skipped": "Αυτός ο πάροχος δεν χρησιμοποιεί διαδρομή πύλης.",
   "config.ai_gateway.metadata_invalid": "Χρησιμοποίησε έως πέντε πλήρη ζεύγη με μοναδικά κλειδιά. Μην εισάγεις μυστικά.",
-  "config.ai_gateway.provider_key_help": "Κλειδί API του επιλεγμένου παρόχου."
+  "config.ai_gateway.provider_key_help": "Κλειδί API του επιλεγμένου παρόχου.",
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
 }

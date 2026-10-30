@@ -293,6 +293,18 @@ function go2rtcAddStream() {
 }
 
 function go2rtcRemoveStream(index) {
+    const doomed = go2rtcStreams()[index] || {};
+    // A camera without a source has nothing to lose, so it goes without asking.
+    if (!doomed.source_configured && !String(doomed.source || '').trim()) {
+        go2rtcDropStream(index);
+        return;
+    }
+    const label = doomed.name || doomed.id || String(index + 1);
+    showConfirm(t('config.go2rtc.confirm_remove_title'), t('config.go2rtc.confirm_remove_message', { name: label }))
+        .then(ok => { if (ok) go2rtcDropStream(index); });
+}
+
+function go2rtcDropStream(index) {
     const streams = go2rtcStreams();
     go2rtcSourceForms = {};
     streams.splice(index, 1);

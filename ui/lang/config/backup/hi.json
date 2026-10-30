@@ -28,5 +28,9 @@
   "config.backup.status_warning": "⚠️",
   "config.backup.tab_create": "📦 बैकअप बनाएं",
   "config.backup.tab_import": "📥 बैकअप आयात करें",
-  "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, लॉगिन पासवर्ड, tokens) शामिल होंगे।"
+  "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, लॉगिन पासवर्ड, tokens) शामिल होंगे।",
+  "config.backup.confirm_import_title": "Restore this backup?",
+  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.unknown_error": "Unknown error",
+  "config.backup.toggle_visibility": "Show or hide password"
 }

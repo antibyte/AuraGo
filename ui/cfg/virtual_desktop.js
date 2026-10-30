@@ -169,7 +169,8 @@ async function vdCfgTestDesktop() {
     result.className = 'dc-test-result';
     try {
         const resp = await fetch('/api/desktop/bootstrap');
-        const body = await resp.json();
+        const body = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + (body && (body.error || body.message) ? ': ' + (body.error || body.message) : ''));
         result.className = resp.ok && body.enabled ? 'dc-test-result is-success' : 'dc-test-result';
         result.textContent = body.enabled ? t('config.virtual_desktop.status_ok') : t('config.virtual_desktop.status_disabled');
     } catch (e) {

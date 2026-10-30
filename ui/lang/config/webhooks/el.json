@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "Δοκιμή:",
   "config.webhooks.toggle_active": "Ενεργό",
   "config.webhooks.toggle_inactive": "Αδρανές",
-  "config.webhooks.token_label": "Token"
+  "config.webhooks.token_label": "Token",
+  "config.webhooks.load_failed": "Δεν ήταν δυνατή η φόρτωση των δεδομένων webhook",
+  "config.webhooks.retry": "Επανάληψη",
+  "config.webhooks.not_running_notice": "Ο διακομιστής webhook δεν εκτελείται",
+  "config.webhooks.not_running_desc": "Ο διαχειριστής webhook δεν είναι ενεργός, επομένως τα webhooks και τα tokens δεν είναι διαθέσιμα. Ελέγξτε ότι τα webhooks είναι ενεργοποιημένα, αποθηκεύστε και επανεκκινήστε το AuraGo αν χρειάζεται."
 }

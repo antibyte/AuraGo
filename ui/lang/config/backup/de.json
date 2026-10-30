@@ -28,5 +28,9 @@
   "config.backup.status_warning": "⚠️",
   "config.backup.tab_create": "📦 Backup erstellen",
   "config.backup.tab_import": "📥 Backup importieren",
-  "config.backup.vault_included_hint": "🔐 Vault-Secrets (API-Keys, Login-Passwort, Tokens) werden eingeschlossen."
+  "config.backup.vault_included_hint": "🔐 Vault-Secrets (API-Keys, Login-Passwort, Tokens) werden eingeschlossen.",
+  "config.backup.confirm_import_title": "Dieses Backup wiederherstellen?",
+  "config.backup.confirm_import_message": "Der Import von \"{name}\" überschreibt diese Instanz: Konfiguration, Prompts, Daten und Skills aus dem Archiv ersetzen die aktuellen, und gespeicherte API-Schlüssel und Tokens werden ersetzt, falls das Archiv Tresor-Geheimnisse enthält. Das lässt sich nicht rückgängig machen, anschließend ist ein Neustart von AuraGo nötig.",
+  "config.backup.unknown_error": "Unbekannter Fehler",
+  "config.backup.toggle_visibility": "Passwort ein- oder ausblenden"
 }

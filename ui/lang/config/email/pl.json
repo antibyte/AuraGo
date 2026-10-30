@@ -56,5 +56,9 @@
   "config.email.test_fail": "Połączenie nieudane",
   "config.email.testing": "Testowanie…",
   "config.email.test_partial": "Częściowy sukces — sprawdź szczegóły",
-  "config.email.test_credentials_required": "Wymagane są nazwa użytkownika i hasło"
+  "config.email.test_credentials_required": "Wymagane są nazwa użytkownika i hasło",
+  "config.email.load_failed": "Nie można wczytać kont e-mail",
+  "config.email.load_failed_disabled": "Dodawanie, edycja i usuwanie są wyłączone do czasu wczytania listy.",
+  "config.email.retry": "Spróbuj ponownie",
+  "config.email.saved": "Konta e-mail zapisane."
 }

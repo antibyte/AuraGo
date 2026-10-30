@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "Test :",
   "config.webhooks.toggle_active": "Actif",
   "config.webhooks.toggle_inactive": "Inactif",
-  "config.webhooks.token_label": "Jeton"
+  "config.webhooks.token_label": "Jeton",
+  "config.webhooks.load_failed": "Impossible de charger les données des webhooks",
+  "config.webhooks.retry": "Réessayer",
+  "config.webhooks.not_running_notice": "Le serveur de webhooks n'est pas en cours d'exécution",
+  "config.webhooks.not_running_desc": "Le gestionnaire de webhooks n'est pas actif, les webhooks et jetons sont donc indisponibles. Vérifiez que les webhooks sont activés, enregistrez et redémarrez AuraGo si nécessaire."
 }

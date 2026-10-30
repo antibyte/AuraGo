@@ -31,5 +31,7 @@
   "config.obsidian.connect_timeout_label": "Connect Timeout",
   "config.obsidian.request_timeout_label": "Request Timeout",
   "help.obsidian.connect_timeout": "Connection timeout in seconds (default: 10)",
-  "help.obsidian.request_timeout": "Request timeout in seconds (default: 30)"
+  "help.obsidian.request_timeout": "Request timeout in seconds (default: 30)",
+  "config.obsidian.status_unknown": "Unknown status",
+  "config.obsidian.status_no_url": "No host configured"
 }

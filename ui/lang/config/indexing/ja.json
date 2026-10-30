@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "このディレクトリのメディアをプロバイダーに送信しますか？",
   "config.indexing.media_confirm": "このディレクトリの画像・音声・スキャンPDFは、分析のため設定済みのVisionまたはマルチモーダル埋め込みプロバイダーに送信されます。外部サービスの場合があり、これらのファイルの内容がこのシステムの外に出る可能性があります。再度オフにすると、以降のメディア送信は停止します。",
   "config.indexing.media_inactive_hint": "Visionとマルチモーダル埋め込みはグローバルでオフになっています。どちらかが有効になると、この設定が反映されます。",
-  "config.indexing.index_images_per_folder_hint": "画像は、上のリストでメディア共有がオンになっているディレクトリのものだけが送信されます。"
+  "config.indexing.index_images_per_folder_hint": "画像は、上のリストでメディア共有がオンになっているディレクトリのものだけが送信されます。",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

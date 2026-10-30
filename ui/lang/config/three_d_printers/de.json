@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "Freundlicher Name für UI und Tool-Ergebnisse.",
   "help.three_d_printers.printer_url": "Lokale SDCP-WebSocket-URL, zum Beispiel ws://192.168.6.50/websocket.",
   "help.three_d_printers.readonly": "Hält den Druckerzugriff schreibgeschützt. Starten, Pausieren, Fortsetzen, Abbrechen und Lichtänderungen sind dann blockiert.",
-  "help.three_d_printers.timeout": "Verbindungs-Timeout für Druckerbefehle."
+  "help.three_d_printers.timeout": "Verbindungs-Timeout für Druckerbefehle.",
+  "config.three_d_printers.confirm_remove_title": "Diesen Drucker entfernen?",
+  "config.three_d_printers.confirm_remove_message": "Der Drucker \"{name}\" mit URL und Zugangsdaten wird aus der Liste entfernt und beim Speichern gelöscht. Werkzeuge und Dashboards, die ihn nutzen, verlieren den Zugriff."
 }

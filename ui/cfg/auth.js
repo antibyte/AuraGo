@@ -17,10 +17,23 @@ async function renderWebConfigSection(section) {
     content.innerHTML = '<div class="cfg-section active"><div class="auth-loading">' + t('config.common.loading') + '</div></div>';
 
     let authStatus = { enabled: false, password_set: false, totp_enabled: false };
+    let statusError = '';
     try {
         const resp = await fetch('/api/auth/status');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         authStatus = await resp.json();
-    } catch (e) { /* auth endpoint unavailable */ }
+    } catch (e) { statusError = (e && e.message) || String(e); }
+    if (statusError) {
+        content.innerHTML = '<div class="cfg-section active">'
+            + '<div class="section-header">' + section.label + '</div>'
+            + '<div class="section-desc">' + section.desc + '</div>'
+            + '<div class="auth-inline-msg is-error" role="alert">' + escapeHtml(t('config.auth.status_load_failed')) + ' (' + escapeHtml(statusError) + ')</div>'
+            + '<button type="button" class="auth-primary-btn" id="auth-status-retry">' + escapeHtml(t('config.auth.retry')) + '</button>'
+            + '</div>';
+        const retry = document.getElementById('auth-status-retry');
+        if (retry) retry.addEventListener('click', () => renderWebConfigSection(section));
+        return;
+    }
     _authStatus = authStatus;
 
     const webCfg = configData.web_config || {};
@@ -59,8 +72,8 @@ async function renderWebConfigSection(section) {
                 <div class="field-label">🔐 ${t('config.auth.enable_login_guard')}</div>
                 <div class="field-help">${authHelpText}</div>
                 <div class="toggle-wrap ${isHttpsEnabled ? 'auth-toggle-wrap-disabled' : ''}">
-                    <div class="toggle ${isAuthEnabled ? 'on' : ''}" data-path="auth.enabled" onclick="toggleBool(this)"></div>
-                    <span class="toggle-label">${isAuthEnabled ? t('config.common.active') : t('config.common.inactive')}</span>
+                    <div class="toggle ${(isAuthEnabled || isHttpsEnabled) ? 'on' : ''}${isHttpsEnabled ? ' cfg-toggle-disabled' : ''}" data-path="auth.enabled"${isHttpsEnabled ? ' aria-disabled="true" data-disabled="true" tabindex="-1" title="' + escapeAttr(t('config.auth.https_forces_auth')) + '"' : ''} onclick="toggleBool(this)"></div>
+                    <span class="toggle-label">${(isAuthEnabled || isHttpsEnabled) ? t('config.common.active') : t('config.common.inactive')}${isHttpsEnabled ? ' 🔒' : ''}</span>
                 </div>
             </div>`;
 

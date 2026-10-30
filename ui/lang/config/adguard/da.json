@@ -28,5 +28,6 @@
   "help.adguard.password": "Adgangskode til godkendelse. Opbevares sikkert i den krypterede vault.",
   "help.adguard.readonly": "I skrivebeskyttet tilstand kan agenten kun læse data. Alle skriveoperationer blokeres.",
   "help.adguard.url": "Basis-URL til din AdGuard Home-instans (f.eks. http://192.168.1.1:3000).",
-  "help.adguard.username": "Brugernavn til godkendelse. Lad stå tomt, hvis godkendelse er deaktiveret."
+  "help.adguard.username": "Brugernavn til godkendelse. Lad stå tomt, hvis godkendelse er deaktiveret.",
+  "config.adguard.status_unknown": "Ukendt status"
 }

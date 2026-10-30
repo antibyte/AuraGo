@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "テスト:",
   "config.webhooks.toggle_active": "アクティブ",
   "config.webhooks.toggle_inactive": "非アクティブ",
-  "config.webhooks.token_label": "トークン"
+  "config.webhooks.token_label": "トークン",
+  "config.webhooks.load_failed": "Webhook データを読み込めませんでした",
+  "config.webhooks.retry": "再試行",
+  "config.webhooks.not_running_notice": "Webhook サーバーが動作していません",
+  "config.webhooks.not_running_desc": "Webhook マネージャーが有効でないため、Webhook とトークンは利用できません。Webhook が有効か確認し、保存して、必要なら AuraGo を再起動してください。"
 }

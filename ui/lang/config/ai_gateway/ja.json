@@ -50,5 +50,6 @@
   "config.ai_gateway.connection_metadata": "接続を確認しました。モデルは未テストです。",
   "config.ai_gateway.route_skipped": "このプロバイダーはゲートウェイ経路を使用しません。",
   "config.ai_gateway.metadata_invalid": "一意のキーを持つ完全なペアを5組まで使用してください。秘密情報は入力しないでください。",
-  "config.ai_gateway.provider_key_help": "選択したプロバイダーの API キーです。"
+  "config.ai_gateway.provider_key_help": "選択したプロバイダーの API キーです。",
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
 }

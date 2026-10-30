@@ -126,5 +126,9 @@
   "config.webhooks.test_prefix": "Test:",
   "config.webhooks.toggle_active": "Aktiv",
   "config.webhooks.toggle_inactive": "Inaktiv",
-  "config.webhooks.token_label": "Token"
+  "config.webhooks.token_label": "Token",
+  "config.webhooks.load_failed": "Webhook-Daten konnten nicht geladen werden",
+  "config.webhooks.retry": "Erneut versuchen",
+  "config.webhooks.not_running_notice": "Der Webhook-Server läuft nicht",
+  "config.webhooks.not_running_desc": "Der Webhook-Manager ist nicht aktiv, daher sind Webhooks und Tokens nicht verfügbar. Prüfe, ob Webhooks aktiviert sind, speichere und starte AuraGo bei Bedarf neu."
 }

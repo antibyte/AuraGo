@@ -177,8 +177,16 @@ function cydFormatTokenDisplay(token) {
     return raw;
 }
 
+function cydSetBusy(btn, busy) {
+    if (!btn) return;
+    btn.disabled = busy;
+    if (busy) btn.setAttribute('aria-busy', 'true'); else btn.removeAttribute('aria-busy');
+}
+
 async function cydCreateToken() {
     const box = document.getElementById('cyd-token-result');
+    const tokenBtn = document.getElementById('cyd-create-token-btn');
+    cydSetBusy(tokenBtn, true);
     if (box) box.textContent = t('config.cyd.token_creating');
     try {
         const resp = await fetch('/api/tokens', {
@@ -198,11 +206,15 @@ async function cydCreateToken() {
         }
     } catch (err) {
         if (box) box.textContent = t('config.cyd.token_failed') + ' ' + (err && err.message ? err.message : '');
+    } finally {
+        cydSetBusy(tokenBtn, false);
     }
 }
 
 async function cydSendTest() {
     const el = document.getElementById('cyd-test-result');
+    const testBtn = document.getElementById('cyd-test-btn');
+    cydSetBusy(testBtn, true);
     if (el) el.textContent = t('config.cyd.testing');
     try {
         const resp = await fetch('/api/cyd/test', {
@@ -220,6 +232,8 @@ async function cydSendTest() {
         cydLoadStatus();
     } catch (err) {
         if (el) el.textContent = t('config.cyd.test_fail') + ' ' + (err && err.message ? err.message : '');
+    } finally {
+        cydSetBusy(testBtn, false);
     }
 }
 
@@ -300,9 +314,12 @@ async function cydEnsureEspWebTools() {
 async function cydFlashDisplay() {
     const status = document.getElementById('cyd-flash-status');
     const host = document.getElementById('cyd-ewt-host');
+    const flashBtn = document.getElementById('cyd-flash-btn');
+    cydSetBusy(flashBtn, true);
     if (status) status.textContent = t('config.cyd.flash_need_token');
     try {
         await cydLoadFirmwareStatus();
+        cydSetBusy(flashBtn, true);
         if (!cydWebSerialAvailable()) return;
         const variant = cydSelectedVariant();
         const info = cydVariantInfo(variant);
@@ -315,7 +332,14 @@ async function cydFlashDisplay() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: url, token: token })
         });
-        if (!provResp.ok) throw new Error(t('config.cyd.flash_need_token'));
+        if (!provResp.ok) {
+            let reason = 'HTTP ' + provResp.status;
+            try {
+                const errBody = await provResp.json();
+                if (errBody && (errBody.error || errBody.message)) reason = errBody.error || errBody.message;
+            } catch (_) {}
+            throw new Error(t('config.cyd.flash_provision_failed') + ': ' + reason);
+        }
         const provBuf = await provResp.arrayBuffer();
         const provURL = URL.createObjectURL(new Blob([provBuf], { type: 'application/octet-stream' }));
         const parts = (info.parts || []).map(function (p) {
@@ -346,5 +370,8 @@ async function cydFlashDisplay() {
         if (install) install.click();
     } catch (err) {
         if (status) status.textContent = (err && err.message) ? err.message : '';
+    } finally {
+        const finfo = cydVariantInfo(cydSelectedVariant());
+        cydSetBusy(flashBtn, !(cydWebSerialAvailable() && finfo && finfo.available));
     }
 }

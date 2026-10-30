@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "Aktuální 6místný kód",
   "config.auth.current_password_required": "Zadejte své současné heslo.",
   "config.auth.current_totp_required": "Zadejte aktuální kód z ověřovací aplikace.",
-  "config.auth.step_up_hint": "Změny přihlašovacího hesla nebo dvoufázového ověření vyžadují vaše současné heslo (a při aktivním TOTP také aktuální kód)."
+  "config.auth.step_up_hint": "Změny přihlašovacího hesla nebo dvoufázového ověření vyžadují vaše současné heslo (a při aktivním TOTP také aktuální kód).",
+  "config.auth.status_load_failed": "Could not load the login status",
+  "config.auth.retry": "Zkusit znovu"
 }

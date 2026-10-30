@@ -56,5 +56,9 @@
   "config.email.test_fail": "Připojení selhalo",
   "config.email.testing": "Testování…",
   "config.email.test_partial": "Částečný úspěch — zkontroluj podrobnosti",
-  "config.email.test_credentials_required": "Vyžadováno uživatelské jméno a heslo"
+  "config.email.test_credentials_required": "Vyžadováno uživatelské jméno a heslo",
+  "config.email.load_failed": "Účty e-mailu se nepodařilo načíst",
+  "config.email.load_failed_disabled": "Přidávání, úpravy a mazání jsou vypnuty, dokud se seznam nenačte.",
+  "config.email.retry": "Zkusit znovu",
+  "config.email.saved": "E-mailové účty uloženy."
 }

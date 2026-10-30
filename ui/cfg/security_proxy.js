@@ -211,6 +211,7 @@ function _updateProxyRoute(index, field, value) {
 }
 
 async function _proxyAction(action) {
+    if (action === 'destroy' && !(await showConfirm(t('config.security_proxy.confirm_destroy_title'), t('config.security_proxy.confirm_destroy_message')))) return;
     // Start and reload can build the rate-limit image first; keep the actions
     // locked and say so until the request finishes.
     const buttons = Array.from(document.querySelectorAll('#proxy-status-area .cfg-actions-row button'));

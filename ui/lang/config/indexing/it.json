@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Inviare i media di questa directory ai provider?",
   "config.indexing.media_confirm": "Immagini, audio e PDF scansionati di questa directory verranno inviati per l'analisi al provider Vision o di embeddings multimodali configurato. Può trattarsi di un servizio esterno, quindi il contenuto di questi file potrebbe lasciare questo sistema. Se l'opzione viene disattivata di nuovo, non verranno inviati altri media.",
   "config.indexing.media_inactive_hint": "Vision e gli embeddings multimodali sono disattivati a livello globale; l'impostazione avrà effetto non appena uno dei due verrà attivato.",
-  "config.indexing.index_images_per_folder_hint": "Le immagini vengono inviate solo per le directory per cui è attivata la condivisione dei media nell'elenco qui sopra."
+  "config.indexing.index_images_per_folder_hint": "Le immagini vengono inviate solo per le directory per cui è attivata la condivisione dei media nell'elenco qui sopra.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

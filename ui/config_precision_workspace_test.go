@@ -363,7 +363,8 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		document.head.append(style);
 		document.getElementById('content').scrollTop = 240;
 	}`)
-	page.MustEval(`() => document.querySelector('[data-section="server"]').click()`)
+	// The fixture serves no section modules; a missing renderer now shows an error box, so use the generic one.
+	page.MustEval(`() => { delete SECTION_MODULES.server; document.querySelector('[data-section="server"]').click(); }`)
 	waitForJSBool(t, page, `() => location.hash === '#server' && !!document.querySelector('[data-path="server.port"]')`)
 	if got := page.MustEval(`() => document.getElementById('content').scrollTop`).Int(); got != 0 {
 		t.Fatalf("section navigation scrollTop = %d, want 0", got)

@@ -28,5 +28,6 @@
   "help.adguard.password": "Hasło do uwierzytelniania. Bezpiecznie przechowywane w zaszyfrowanym vault.",
   "help.adguard.readonly": "W trybie tylko do odczytu agent może jedynie czytać dane. Wszystkie operacje zapisu są zablokowane.",
   "help.adguard.url": "Bazowy URL instancji AdGuard Home (np. http://192.168.1.1:3000).",
-  "help.adguard.username": "Nazwa użytkownika do uwierzytelniania. Pozostaw puste, jeśli uwierzytelnianie jest wyłączone."
+  "help.adguard.username": "Nazwa użytkownika do uwierzytelniania. Pozostaw puste, jeśli uwierzytelnianie jest wyłączone.",
+  "config.adguard.status_unknown": "Nieznany status"
 }

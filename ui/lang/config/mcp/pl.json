@@ -95,5 +95,8 @@
   "config.mcp.test_connection_success": "Połączenie OK. Wykryto {count} narzędzi.",
   "config.mcp.test_connection_failed": "Test połączenia MCP nie powiódł się: ",
   "config.mcp.name_command_or_url_required": "Wymagana jest nazwa oraz polecenie lub URL.",
-  "config.mcp.field_allow_private_network": "Zezwól na adresy prywatne dla tego serwera MCP"
+  "config.mcp.field_allow_private_network": "Zezwól na adresy prywatne dla tego serwera MCP",
+  "config.mcp.load_failed": "Nie można wczytać: {what}",
+  "config.mcp.load_failed_disabled": "Dodawanie, edycja i usuwanie są wyłączone do czasu wczytania listy.",
+  "config.mcp.retry": "Spróbuj ponownie"
 }

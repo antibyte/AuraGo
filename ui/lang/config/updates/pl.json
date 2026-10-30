@@ -57,7 +57,7 @@
   "config.updates.installing": "Instalowanie…",
   "config.updates.latest": "Najnowsza",
   "config.updates.running": "Działa…",
-  "config.updates.started": "✅ Aktualizacja rozpoczęta — AuraGo się restartuje. Przeładuj za 60s…",
+  "config.updates.started": "✅ Aktualizacja rozpoczęta — AuraGo się restartuje. Przeładuj za {seconds}s…",
   "config.updates.up_to_date": "Aktualna",
   "config.updates.version": "Wersja",
   "config.updates.warning_banner": "Aktualizacja zastępuje binaria, prompty i pliki UI. <strong>Twoja konfiguracja i dane są zachowane.</strong> AuraGo zrestartuje się po aktualizacji.",

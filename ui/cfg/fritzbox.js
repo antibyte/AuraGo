@@ -134,6 +134,8 @@ function renderFritzBoxSection(section) {
     if (enabled) {
         if (data.host) fbCheckStatus();
         else fbSetBanner('warning', '⚪ ' + t('config.fritzbox.status_not_configured'));
+    } else {
+        fbSetBanner('neutral', '⚪ ' + t('config.fritzbox.status_disabled'));
     }
 }
 

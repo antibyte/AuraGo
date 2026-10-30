@@ -69,10 +69,25 @@
         return fallback;
     }
 
+    function ansibleSidecarReady() {
+        const state = window.AuraConfigState;
+        if (!state) return true;
+        if (state.get('ansible.mode', { saved: true }) === 'local') return true;
+        return ['ansible.url', 'ansible.token'].every(path => {
+            const value = state.get(path, { saved: true });
+            return value != null && String(value).trim() !== '';
+        });
+    }
+
     function entryFor(section) {
         const entry = actions.find(action => action.section === section) || null;
         if (section === 's3' && window.AuraConfigState?.get('s3.provider', { saved: true }) === 'rustfs') {
             return Object.assign({}, entry, { requiredPaths: [], credentialPaths: [] });
+        }
+        // URL and token only matter for the sidecar mode; the local mode calls the ansible CLI directly.
+        // The check is a function so a saved mode change applies without re-rendering the section.
+        if (section === 'ansible') {
+            return Object.assign({}, entry, { requiredPaths: [], credentialPaths: [], credentialReady: ansibleSidecarReady });
         }
         return entry;
     }
@@ -132,6 +147,7 @@
             requiresSaved: true,
             requiredPaths: entry.requiredPaths,
             credentialPaths: entry.credentialPaths,
+            credentialReady: entry.credentialReady,
             run: () => run(entry, result)
         });
     }

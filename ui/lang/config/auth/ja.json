@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "現在の6桁のコード",
   "config.auth.current_password_required": "現在のパスワードを入力してください。",
   "config.auth.current_totp_required": "認証アプリに表示されている現在のコードを入力してください。",
-  "config.auth.step_up_hint": "ログインパスワードまたは2要素認証を変更するには、現在のパスワード（TOTPが有効な場合は現在のコードも）が必要です。"
+  "config.auth.step_up_hint": "ログインパスワードまたは2要素認証を変更するには、現在のパスワード（TOTPが有効な場合は現在のコードも）が必要です。",
+  "config.auth.status_load_failed": "Could not load the login status",
+  "config.auth.retry": "再試行"
 }

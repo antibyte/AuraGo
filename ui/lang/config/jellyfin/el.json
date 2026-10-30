@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "Αποδέχεται αυτο-υπογεγραμμένα ή μη έγκυρα πιστοποιητικά (μόνο για περιβάλλοντα δοκιμών).",
   "help.jellyfin.host": "Όνομα κεντρικού υπολογιστή ή διεύθυνση IP του διακομιστή Jellyfin (π.χ. jellyfin.local ή 192.168.1.100).",
   "help.jellyfin.port": "Θύρα του διακομιστή Jellyfin (προεπιλογή: 8096).",
-  "help.jellyfin.api_key": "Κλειδί API για το Jellyfin API. Δημιουργήστε ένα στο Dashboard → Κλειδιά API στο Jellyfin."
+  "help.jellyfin.api_key": "Κλειδί API για το Jellyfin API. Δημιουργήστε ένα στο Dashboard → Κλειδιά API στο Jellyfin.",
+  "config.jellyfin.status_unknown": "Unknown status",
+  "config.jellyfin.status_no_url": "No host configured"
 }

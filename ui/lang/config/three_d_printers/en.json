@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "Friendly name shown in the UI and tool results.",
   "help.three_d_printers.printer_url": "Local SDCP WebSocket URL, for example ws://192.168.6.50/websocket.",
   "help.three_d_printers.readonly": "Keeps printer access read-only. Start, pause, resume, cancel, and light changes are blocked while this is active.",
-  "help.three_d_printers.timeout": "Connection timeout for printer commands."
+  "help.three_d_printers.timeout": "Connection timeout for printer commands.",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }

@@ -33,5 +33,9 @@
   "config.mcp_server.connection_title": "Connexion",
   "config.mcp_server.connection_desc": "Paramètres de point de terminaison et d'authentification pour le serveur MCP.",
   "config.mcp_server.enabled_help": "Expose le point de terminaison du serveur MCP intégré d’AuraGo.",
-  "config.mcp_server.require_auth_help": "Exige un token d’accès MCP avant d’exposer les outils."
+  "config.mcp_server.require_auth_help": "Exige un token d’accès MCP avant d’exposer les outils.",
+  "config.mcp_server.forced_by_bridge": "Forced on by the VS Code bridge — turn the bridge off to change this.",
+  "config.mcp_server.forced_by_bridge_auth": "Forced on by the VS Code bridge — authentication is required while the bridge is active.",
+  "config.mcp_server.bridge_forces_note": "Enabling the bridge also forces the MCP server on and requires authentication.",
+  "config.mcp_server.token_error": "Échec de la génération du jeton"
 }

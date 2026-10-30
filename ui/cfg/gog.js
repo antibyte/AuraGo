@@ -33,7 +33,7 @@ async function renderGogSection(section) {
     async function action(button, work, needsSaved = true) {
         if (needsSaved && isDirty) { message.textContent = tr('save_first'); return; }
         button.disabled = true; message.textContent = tr('loading');
-        try { await work(); if (root.isConnected) { message.textContent = tr('success'); await refresh(); } }
+        try { const outcome = await work(); if (root.isConnected) { message.textContent = typeof outcome === 'string' ? outcome : tr('success'); await refresh(); } }
         catch (error) { if (root.isConnected) message.textContent = tr('error') + ' · ' + error.message; }
         finally { if (root.isConnected) button.disabled = false; }
     }
@@ -43,7 +43,8 @@ async function renderGogSection(section) {
         if (type === 'checkbox') input.checked = value === true; else input.value = value || '';
         input.addEventListener('change', () => { update(type === 'checkbox' ? input.checked : input.value); change(); }); wrap.append(input); parent.append(wrap); return input;
     }
-    function button(parent, label, work) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-secondary'; b.textContent = label; b.addEventListener('click', () => action(b, work)); parent.append(b); return b; }
+    function button(parent, label, work, confirmKeys) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-secondary'; b.textContent = label; b.addEventListener('click', async () => { if (confirmKeys && !(await showConfirm(tr(confirmKeys[0]), tr(confirmKeys[1]).replace('{name}', confirmKeys[2] || '')))) return; action(b, work); }); parent.append(b); return b; }
+    function summarize(value) { const copy = Object.assign({}, value); delete copy.status; const text = copy.message || JSON.stringify(copy); return text.length > 300 ? text.slice(0, 300) + '...' : text; }
     function renderAccounts() {
         const list = root.querySelector('#gog-accounts'); list.replaceChildren();
         accounts.forEach((account, index) => {
@@ -68,14 +69,14 @@ async function renderGogSection(section) {
             const actions = document.createElement('div'); actions.className = 'cfg-actions-row'; card.append(actions);
             const authLink = document.createElement('a'); authLink.target = '_blank'; authLink.rel = 'noopener noreferrer'; authLink.hidden = true; authLink.textContent = tr('open_login'); card.append(authLink);
             const redirect = document.createElement('p'); redirect.style.overflowWrap = 'anywhere'; card.append(redirect);
-            button(actions, tr('connect'), async () => { const result = await request('oauth/start', { account_id: account.id }); if (!root.isConnected) return; authLink.href = result.auth_url; authLink.hidden = false; redirect.textContent = tr('redirect') + ': ' + result.redirect_uri; authLink.focus(); });
-            button(actions, tr('disconnect'), () => request('disconnect', { account_id: account.id }));
+            button(actions, tr('connect'), async () => { const result = await request('oauth/start', { account_id: account.id }); if (!root.isConnected) return; authLink.href = result.auth_url; authLink.hidden = false; redirect.textContent = tr('redirect') + ': ' + result.redirect_uri; authLink.focus(); return tr('login_opened'); });
+            button(actions, tr('disconnect'), () => request('disconnect', { account_id: account.id }), ['confirm_disconnect_title', 'confirm_disconnect_message', account.name || account.id]);
             const manual = document.createElement('input'); manual.className = 'field-input'; manual.placeholder = tr('callback'); manual.setAttribute('aria-label', tr('callback')); card.append(manual);
-            button(card, tr('complete_login'), async () => { await request('oauth/manual', { url: manual.value }); manual.value = ''; authLink.hidden = true; });
+            button(card, tr('complete_login'), async () => { await request('oauth/manual', { url: manual.value }); manual.value = ''; authLink.hidden = true; await refresh(); return tr(statuses.find(s => s.account.id === account.id)?.connected ? 'connected' : 'login_not_connected'); });
             const service = document.createElement('select'); service.className = 'field-input'; service.setAttribute('aria-label', tr('service')); Object.keys(account.services).forEach(key => { const option = document.createElement('option'); option.value = key; option.textContent = tr(key); service.append(option); }); card.append(service);
             const object = document.createElement('input'); object.className = 'field-input'; object.placeholder = tr('test_object'); object.setAttribute('aria-label', tr('test_object')); card.append(object);
-            button(card, tr('test'), () => request('test', { account_id: account.id, service: service.value, resource_id: object.value.trim() }));
-            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn-secondary'; remove.textContent = tr('remove'); remove.addEventListener('click', () => { accounts.splice(index, 1); change(); renderAccounts(); }); card.append(remove);
+            button(card, tr('test'), async () => tr('test') + ': ' + summarize(await request('test', { account_id: account.id, service: service.value, resource_id: object.value.trim() })));
+            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn-secondary'; remove.textContent = tr('remove'); remove.addEventListener('click', async () => { if (!(await showConfirm(tr('confirm_remove_title'), tr('confirm_remove_message').replace('{name}', account.name || account.id)))) return; accounts.splice(index, 1); change(); renderAccounts(); }); card.append(remove);
             list.append(card);
         });
     }

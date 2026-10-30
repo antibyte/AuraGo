@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "Huidige 6-cijferige code",
   "config.auth.current_password_required": "Voer je huidige wachtwoord in.",
   "config.auth.current_totp_required": "Voer de huidige code uit je authenticator-app in.",
-  "config.auth.step_up_hint": "Wijzigingen aan het inlogwachtwoord of aan tweestapsverificatie vereisen je huidige wachtwoord (en de huidige code zolang TOTP actief is)."
+  "config.auth.step_up_hint": "Wijzigingen aan het inlogwachtwoord of aan tweestapsverificatie vereisen je huidige wachtwoord (en de huidige code zolang TOTP actief is).",
+  "config.auth.status_load_failed": "Could not load the login status",
+  "config.auth.retry": "Opnieuw proberen"
 }

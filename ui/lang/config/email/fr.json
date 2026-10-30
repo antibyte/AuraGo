@@ -56,5 +56,9 @@
   "config.email.test_fail": "Échec de la connexion",
   "config.email.testing": "Test en cours…",
   "config.email.test_partial": "Succès partiel — vérifie les détails",
-  "config.email.test_credentials_required": "Nom d'utilisateur et mot de passe requis"
+  "config.email.test_credentials_required": "Nom d'utilisateur et mot de passe requis",
+  "config.email.load_failed": "Impossible de charger les comptes e-mail",
+  "config.email.load_failed_disabled": "L'ajout, la modification et la suppression sont désactivés tant que la liste n'est pas chargée.",
+  "config.email.retry": "Réessayer",
+  "config.email.saved": "Comptes e-mail enregistrés."
 }

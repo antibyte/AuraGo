@@ -110,7 +110,10 @@ async function huggingFaceRefreshStatus() {
     try {
         const resp = await fetch('/api/huggingface/status');
         const data = resp.ok ? await resp.json() : null;
-        if (!data) throw new Error(t('config.huggingface.status_error'));
+        if (!data) throw new Error(t('config.huggingface.status_error') + (resp.ok ? '' : ' (HTTP ' + resp.status + ')'));
+        if (!['ready', 'disabled', 'public_read_only'].includes(data.status)) {
+            throw new Error(t('config.huggingface.status_error') + (data.message || data.error || data.status ? ': ' + (data.message || data.error || data.status) : ''));
+        }
         const cfg = huggingFaceConfig();
         cfg.configured = !!data.configured;
         const key = data.status === 'ready' ? 'status_ready' : (data.status === 'disabled' ? 'status_disabled' : 'status_public_read_only');
@@ -118,8 +121,8 @@ async function huggingFaceRefreshStatus() {
             banner.className = 'adg-status-banner' + (data.status === 'ready' ? ' is-success' : (data.status === 'disabled' ? '' : ' is-warning'));
             banner.textContent = t('config.huggingface.' + key);
         }
-    } catch (_) {
-        if (banner) { banner.className = 'adg-status-banner is-danger'; banner.textContent = t('config.huggingface.status_error'); }
+    } catch (error) {
+        if (banner) { banner.className = 'adg-status-banner is-danger'; banner.textContent = '🔴 ' + ((error && error.message) || t('config.huggingface.status_error')); }
     }
 }
 

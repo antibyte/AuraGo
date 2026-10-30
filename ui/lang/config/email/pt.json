@@ -56,5 +56,9 @@
   "config.email.test_fail": "Ligação falhou",
   "config.email.testing": "A testar…",
   "config.email.test_partial": "Sucesso parcial — verifica os detalhes",
-  "config.email.test_credentials_required": "Nome de utilizador e palavra-passe são obrigatórios"
+  "config.email.test_credentials_required": "Nome de utilizador e palavra-passe são obrigatórios",
+  "config.email.load_failed": "Não foi possível carregar as contas de e-mail",
+  "config.email.load_failed_disabled": "Adicionar, editar e excluir está desativado até a lista ser carregada.",
+  "config.email.retry": "Tentar novamente",
+  "config.email.saved": "Contas de e-mail salvas."
 }

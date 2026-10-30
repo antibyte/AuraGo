@@ -65,5 +65,9 @@
   "help.a2a.client_enabled": "A2A-Client aktivieren, um sich mit Remote-A2A-Agenten zu verbinden und zu kommunizieren.",
   "help.a2a.llm_provider": "Wähle den LLM-Provider für A2A-Aufgaben. Leer lassen für den Haupt-LLM.",
   "help.a2a.port": "0 = Hauptserver-Port mitbenutzen. Eine Zahl = A2A auf eigenem Port starten.",
-  "help.a2a.server_enabled": "Diese AuraGo-Instanz als A2A-kompatiblen Agenten bereitstellen, mit dem andere Agenten über das A2A-Protokoll kommunizieren können."
+  "help.a2a.server_enabled": "Diese AuraGo-Instanz als A2A-kompatiblen Agenten bereitstellen, mit dem andere Agenten über das A2A-Protokoll kommunizieren können.",
+  "config.a2a.confirm_remove_skill_title": "Diesen Skill entfernen?",
+  "config.a2a.confirm_remove_skill_message": "Der Skill \"{name}\" wird aus der Liste entfernt und anderen Agenten nach dem Speichern nicht mehr angeboten.",
+  "config.a2a.confirm_remove_agent_title": "Diesen Remote-Agenten entfernen?",
+  "config.a2a.confirm_remove_agent_message": "Der Remote-Agent \"{name}\" mit Karten-URL und Zugangsdaten wird aus der Liste entfernt und beim Speichern gelöscht. AuraGo kann ihm dann keine Aufgaben mehr übertragen."
 }

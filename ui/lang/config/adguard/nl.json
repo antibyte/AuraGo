@@ -28,5 +28,6 @@
   "help.adguard.password": "Wachtwoord voor authenticatie. Veilig opgeslagen in de versleutelde vault.",
   "help.adguard.readonly": "In alleen-lezen modus kan de agent alleen gegevens lezen. Alle schrijfbewerkingen worden geblokkeerd.",
   "help.adguard.url": "Basis URL van je AdGuard Home-instantie (bijvoorbeeld http://192.168.1.1:3000).",
-  "help.adguard.username": "Gebruikersnaam voor authenticatie. Laat leeg als authenticatie is uitgeschakeld."
+  "help.adguard.username": "Gebruikersnaam voor authenticatie. Laat leeg als authenticatie is uitgeschakeld.",
+  "config.adguard.status_unknown": "Onbekende status"
 }

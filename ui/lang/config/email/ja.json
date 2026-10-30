@@ -56,5 +56,9 @@
   "config.email.test_fail": "接続に失敗しました",
   "config.email.testing": "テスト中…",
   "config.email.test_partial": "一部成功 — 詳細を確認してください",
-  "config.email.test_credentials_required": "ユーザー名とパスワードが必要です"
+  "config.email.test_credentials_required": "ユーザー名とパスワードが必要です",
+  "config.email.load_failed": "メールアカウントを読み込めませんでした",
+  "config.email.load_failed_disabled": "一覧が読み込まれるまで、追加・編集・削除は無効です。",
+  "config.email.retry": "再試行",
+  "config.email.saved": "メールアカウントを保存しました。"
 }

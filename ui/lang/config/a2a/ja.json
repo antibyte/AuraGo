@@ -65,5 +65,9 @@
   "help.a2a.client_enabled": "リモートA2Aエージェントと接続・通信するためにA2Aクライアントを有効にします。",
   "help.a2a.llm_provider": "A2Aタスク用のLLMプロバイダーを選択。メインLLMを使用する場合は空にしてください。",
   "help.a2a.port": "0 = メインサーバーポートを共有。数値 = A2Aを専用ポートで実行。",
-  "help.a2a.server_enabled": "このAuraGoインスタンスをA2A互換エージェントとして公開し、他のエージェントがA2Aプロトコルで通信できるようにします。"
+  "help.a2a.server_enabled": "このAuraGoインスタンスをA2A互換エージェントとして公開し、他のエージェントがA2Aプロトコルで通信できるようにします。",
+  "config.a2a.confirm_remove_skill_title": "Remove this skill?",
+  "config.a2a.confirm_remove_skill_message": "Skill \"{name}\" is removed from the list and is no longer offered to other agents once you save.",
+  "config.a2a.confirm_remove_agent_title": "Remove this remote agent?",
+  "config.a2a.confirm_remove_agent_message": "Remote agent \"{name}\" with its card URL and credentials is removed from the list and deleted when you save. AuraGo can no longer delegate tasks to it."
 }

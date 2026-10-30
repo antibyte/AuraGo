@@ -31,13 +31,17 @@ async function renderMCPServerSection(section) {
             <span class="mcp-srv-toggle-label">${t('config.mcp_server.enabled_label')}</span>
             <div class="field-help">${t('config.mcp_server.enabled_help')}</div>
         </div>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="mcp_server.enabled" onclick="toggleBool(this)"></div>
+        <div class="toggle ${effectiveEnabled ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.enabled"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
     </div>`;
+    if (vscodeBridge) {
+        html += `<div class="field-help mcp-srv-forced-note">🔒 ${escapeHtml(t('config.mcp_server.forced_by_bridge'))}</div>`;
+    }
 
     html += `<div class="mcp-srv-toggle-row">
         <div class="mcp-srv-toggle-copy">
             <span class="mcp-srv-toggle-label">${t('config.mcp_server.vscode_bridge')}</span>
             <div class="field-help">${t('config.mcp_server.vscode_bridge_desc')}</div>
+            <div class="field-help">${escapeHtml(t('config.mcp_server.bridge_forces_note'))}</div>
         </div>
         <div class="toggle ${vscodeBridge ? 'on' : ''}" data-path="mcp_server.vscode_debug_bridge" onclick="mcpToggleVSCodeBridge(this)"></div>
     </div>`;
@@ -67,8 +71,11 @@ async function renderMCPServerSection(section) {
             <span class="mcp-srv-toggle-label">${t('config.mcp_server.require_auth')}</span>
             <div class="field-help">${t('config.mcp_server.require_auth_help')}</div>
         </div>
-        <div class="toggle ${effectiveRequireAuth ? 'on' : ''}" data-path="mcp_server.require_auth" onclick="toggleBool(this)"></div>
+        <div class="toggle ${effectiveRequireAuth ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.require_auth"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
     </div>`;
+    if (vscodeBridge) {
+        html += `<div class="field-help mcp-srv-forced-note">🔒 ${escapeHtml(t('config.mcp_server.forced_by_bridge_auth'))}</div>`;
+    }
 
     // Auth warning when disabled
     if (!effectiveRequireAuth) {
@@ -109,6 +116,7 @@ async function renderMCPServerSection(section) {
                         <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
                         <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
                     </div>
+                    <div class="field-help is-error is-hidden" id="mcp-token-error" role="alert"></div>
                 </label>
             </div>`;
             // Load existing token
@@ -189,9 +197,15 @@ function mcpUpdateAllowedTools() {
 }
 
 async function mcpGenerateToken() {
+    const errEl = document.getElementById('mcp-token-error');
+    if (errEl) { errEl.textContent = ''; setHidden(errEl, true); }
     try {
         const resp = await fetch('/api/mcp-server/token', { method: 'POST' });
-        if (!resp.ok) throw new Error('Failed to generate token');
+        if (!resp.ok) {
+            let reason = 'HTTP ' + resp.status;
+            try { const body = await resp.json(); if (body && (body.error || body.message)) reason = body.error || body.message; } catch (_) {}
+            throw new Error(reason);
+        }
         const data = await resp.json();
         const input = document.getElementById('mcp-token-value');
         if (input && data.token) {
@@ -199,6 +213,10 @@ async function mcpGenerateToken() {
         }
     } catch (e) {
         console.error('Token generation failed:', e);
+        const msg = t('config.mcp_server.token_error') + ': ' + ((e && e.message) || String(e));
+        const el = document.getElementById('mcp-token-error');
+        if (el) { el.textContent = msg; setHidden(el, false); }
+        else if (typeof showToast === 'function') showToast(msg, 'error');
     }
 }
 

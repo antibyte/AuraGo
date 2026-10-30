@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "Aktuell 6-siffrig kod",
   "config.auth.current_password_required": "Ange ditt nuvarande lösenord.",
   "config.auth.current_totp_required": "Ange den aktuella koden från din autentiseringsapp.",
-  "config.auth.step_up_hint": "Ändringar av inloggningslösenordet eller tvåfaktorsautentiseringen kräver ditt nuvarande lösenord (och den aktuella koden när TOTP är aktivt)."
+  "config.auth.step_up_hint": "Ändringar av inloggningslösenordet eller tvåfaktorsautentiseringen kräver ditt nuvarande lösenord (och den aktuella koden när TOTP är aktivt).",
+  "config.auth.status_load_failed": "Could not load the login status",
+  "config.auth.retry": "Försök igen"
 }

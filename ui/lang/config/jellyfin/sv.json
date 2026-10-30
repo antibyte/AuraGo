@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "Accepterar självsignerade eller ogiltiga certifikat (endast för testmiljöer).",
   "help.jellyfin.host": "Värdnamn eller IP-adress för din Jellyfin-server (t.ex. jellyfin.local eller 192.168.1.100).",
   "help.jellyfin.port": "Port för Jellyfin-servern (standard: 8096).",
-  "help.jellyfin.api_key": "API-nyckel för Jellyfin API. Skapa en under Dashboard → API-nycklar i Jellyfin."
+  "help.jellyfin.api_key": "API-nyckel för Jellyfin API. Skapa en under Dashboard → API-nycklar i Jellyfin.",
+  "config.jellyfin.status_unknown": "Okänd status",
+  "config.jellyfin.status_no_url": "Ingen värd konfigurerad"
 }

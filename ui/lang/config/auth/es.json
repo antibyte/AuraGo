@@ -41,5 +41,7 @@
   "config.auth.current_totp_placeholder": "Código actual de 6 dígitos",
   "config.auth.current_password_required": "Introduce tu contraseña actual.",
   "config.auth.current_totp_required": "Introduce el código actual de tu aplicación de autenticación.",
-  "config.auth.step_up_hint": "Los cambios en la contraseña de inicio de sesión o en la autenticación de dos factores requieren tu contraseña actual (y el código actual mientras TOTP esté activo)."
+  "config.auth.step_up_hint": "Los cambios en la contraseña de inicio de sesión o en la autenticación de dos factores requieren tu contraseña actual (y el código actual mientras TOTP esté activo).",
+  "config.auth.status_load_failed": "No se pudo cargar el estado de inicio de sesión",
+  "config.auth.retry": "Reintentar"
 }

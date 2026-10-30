@@ -69,5 +69,7 @@
   "help.truenas.host": "Όνομα host ή διεύθυνση IP του διακομιστή TrueNAS (π.χ. truenas.local ή 192.168.1.100).",
   "help.truenas.insecure_ssl": "Αποδέχεται αυτοϋπογεγραμμένα ή άκυρα πιστοποιητικά (μόνο για περιβάλλοντα δοκιμών).",
   "help.truenas.readonly": "Σε λειτουργία μόνο για ανάγνωση, ο πράκτορας μπορεί μόνο να προβάλει δεδομένα. Όλες οι λειτουργίες εγγραφής αποκλείονται.",
-  "help.truenas.use_https": "Χρησιμοποιεί HTTPS για τη σύνδεση στον διακομιστή TrueNAS (συνιστάται)."
+  "help.truenas.use_https": "Χρησιμοποιεί HTTPS για τη σύνδεση στον διακομιστή TrueNAS (συνιστάται).",
+  "config.truenas.status_unknown": "Unknown status",
+  "config.truenas.status_no_url": "No host configured"
 }

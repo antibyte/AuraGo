@@ -209,6 +209,10 @@ async function gwOAuthManual(provider) {
 
 async function gwOAuthDisconnect() {
     const statusEl = document.getElementById('gw-oauth-status');
+    if (!(await showConfirm(t('config.google_workspace.confirm_disconnect_title'), t('config.google_workspace.confirm_disconnect_message')))) return;
+    const disconnectBtn = document.getElementById('gw-disconnect-btn');
+    if (disconnectBtn) disconnectBtn.disabled = true;
+    gwSetStatus(statusEl, 'muted', t('config.google_workspace.disconnecting'));
     try {
         const resp = await fetch('/api/oauth/revoke?provider=google_workspace', { method: 'DELETE' });
         const data = await resp.json();
@@ -219,6 +223,8 @@ async function gwOAuthDisconnect() {
         }
     } catch (e) {
         gwSetStatus(statusEl, 'danger', '✗ ' + e.message);
+    } finally {
+        if (disconnectBtn) disconnectBtn.disabled = false;
     }
 }
 

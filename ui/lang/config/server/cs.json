@@ -105,5 +105,7 @@
   "config.server.disable_https_title": "Vypnout HTTPS?",
   "config.server.disable_https_confirm": "Změní se pouze koncept. Pro použití HTTP ulož nastavení a restartuj AuraGo. Pravidla HSTS proxy nebo nadřazené domény mohou HTTPS nadále vynucovat.",
   "config.server.http_port_hint": "0 vypne HTTP naslouchání. Pro Let’s Encrypt HTTP-01 zvol 80 a zajisti dostupnost veřejného portu 80.",
-  "config.server.restart_address": "Po restartu otevři:"
+  "config.server.restart_address": "Po restartu otevři:",
+  "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
 }

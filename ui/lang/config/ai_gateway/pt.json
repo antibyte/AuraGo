@@ -50,5 +50,6 @@
   "config.ai_gateway.connection_metadata": "Ligação verificada; modelo não testado.",
   "config.ai_gateway.route_skipped": "Este fornecedor não utiliza uma rota de gateway.",
   "config.ai_gateway.metadata_invalid": "Usa no máximo cinco pares completos com chaves únicas. Nunca introduzas segredos.",
-  "config.ai_gateway.provider_key_help": "Chave API do fornecedor selecionado."
+  "config.ai_gateway.provider_key_help": "Chave API do fornecedor selecionado.",
+  "config.ai_gateway.setup_required": "Setup required: the provider is not fully configured for the AI Gateway yet. Complete the provider setup and save."
 }

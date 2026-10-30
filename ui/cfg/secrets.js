@@ -24,6 +24,34 @@
 
         let secretsCache = [];
 
+        function secretsEsc(v) {
+            return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function secretsErrorText(resp) {
+            const txt = (await resp.text().catch(() => '')).trim();
+            return txt || resp.statusText || t('config.common.error');
+        }
+
+        async function secretsSubmit(key, value) {
+            try {
+                const resp = await fetch('/api/vault/secrets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, value })
+                });
+                if (!resp.ok) return { ok: false, error: await secretsErrorText(resp) };
+                try {
+                    const reload = await fetch('/api/vault/secrets');
+                    if (reload.ok) secretsCache = await reload.json();
+                } catch (_) { /* saved; list refresh failed */ }
+                secretsRenderTable();
+                return { ok: true };
+            } catch (e) {
+                return { ok: false, error: e.message || t('config.common.error') };
+            }
+        }
+
         async function renderSecretsSection(section) {
             // Support rendering into a custom container (e.g. knowledge center)
             const containerId = section.container || 'content';
@@ -92,14 +120,14 @@
                     const txt = await resp.text();
                     document.getElementById('secrets-main').innerHTML = `
                         <div class="secrets-error">
-                            ❌ ${t('config.secrets.load_error')}: ${txt}
+                            ❌ ${t('config.secrets.load_error')}: ${secretsEsc(txt)}
                         </div>`;
                     return;
                 }
                 secretsCache = await resp.json();
             } catch (e) {
                 document.getElementById('secrets-main').innerHTML = `
-                    <div class="secrets-error">❌ ${e.message}</div>`;
+                    <div class="secrets-error">❌ ${secretsEsc(e.message)}</div>`;
                 return;
             }
             secretsRenderTable();
@@ -109,7 +137,8 @@
             const wrap = document.getElementById('secrets-main');
             if (!wrap) return;
 
-            let html = `<div class="kc-panel-header">
+            let html = `<div id="secrets-inline-error" class="secrets-error is-hidden" role="alert"></div>
+            <div class="kc-panel-header">
                 <div class="kc-search-row">
                     <div class="secrets-meta">
                     ${secretsCache.length} ${t('config.secrets.count')}
@@ -127,13 +156,13 @@
             } else {
                 html += `<div class="kc-table-wrap"><table class="kc-table">
                     <thead><tr>
-                        <th>Key</th>
+                        <th>${t('config.secrets.key_column')}</th>
                         <th class="secrets-actions-column">${t('config.secrets.actions')}</th>
                     </tr></thead>
                     <tbody>`;
                 secretsCache.forEach((s, idx) => {
                     const isSystem = s.key.startsWith('egg_') || s.key.startsWith('nest_') || s.key.startsWith('dev-') || s.key.startsWith('egg_shared_');
-                    const badge = isSystem ? `<span class="secrets-system-badge">system</span>` : '';
+                    const badge = isSystem ? `<span class="secrets-system-badge">${t('config.secrets.system_badge')}</span>` : '';
                     html += `<tr>
                         <td class="kc-mono">${escapeAttr(s.key)}${badge}</td>
                         <td class="secrets-table-actions">
@@ -165,18 +194,19 @@
                     <button type="button" class="modal-close" onclick="document.getElementById('secrets-modal-overlay').remove()" aria-label="${t('config.secrets.cancel')}">&times;</button>
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Key</div>
+                    <div class="field-label">${t('config.secrets.key_label')}</div>
                     <div class="field-help">${t('config.secrets.key_help')}</div>
                     <input class="field-input${keyEditable ? '' : ' is-readonly'}" id="secret-key" value="${escapeAttr(keyVal)}" placeholder="my_secret_key" ${keyEditable ? '' : 'disabled'}>
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Value</div>
+                    <div class="field-label">${t('config.secrets.value_label')}</div>
                     <div class="field-help">${t('config.secrets.value_help')}</div>
                     <div class="password-wrap">
                         <input class="field-input" id="secret-value" type="password" placeholder="${t('config.secrets.value_placeholder')}" autocomplete="off">
                         <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
                 </div>
+                <div id="secret-modal-error" class="secrets-error is-hidden" role="alert"></div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('secrets-modal-overlay').remove()">
                         ${t('config.secrets.cancel')}
@@ -188,12 +218,22 @@
             </div>`;
             document.body.appendChild(overlay);
 
-            document.getElementById('secret-save-btn').onclick = () => {
+            document.getElementById('secret-save-btn').onclick = async () => {
+                const errBox = document.getElementById('secret-modal-error');
+                const saveBtn = document.getElementById('secret-save-btn');
+                const showErr = msg => { errBox.textContent = msg; errBox.classList.remove('is-hidden'); };
+                errBox.classList.add('is-hidden');
                 const key = document.getElementById('secret-key').value.trim();
                 const value = document.getElementById('secret-value').value;
-                if (!key) { showToast(t('config.secrets.key_empty'), 'warn'); return; }
-                if (!value) { showToast(t('config.secrets.value_empty'), 'warn'); return; }
-                onSave(key, value);
+                if (!key) { showErr(t('config.secrets.key_empty')); return; }
+                if (!value) { showErr(t('config.secrets.value_empty')); return; }
+                saveBtn.disabled = true;
+                const res = await onSave(key, value);
+                saveBtn.disabled = false;
+                if (res && res.ok === false) {
+                    showErr(res.error || t('config.common.error'));
+                    return;
+                }
                 overlay.remove();
             };
 
@@ -207,26 +247,7 @@
             secretsShowModal(
                 t('config.secrets.new_secret'),
                 '', '', true,
-                async (key, value) => {
-                    try {
-                        const resp = await fetch('/api/vault/secrets', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ key, value })
-                        });
-                        if (!resp.ok) {
-                            const txt = await resp.text();
-                            showToast(txt || t('config.common.error'), 'error');
-                            return;
-                        }
-                        // Reload
-                        const reload = await fetch('/api/vault/secrets');
-                        if (reload.ok) secretsCache = await reload.json();
-                        secretsRenderTable();
-                    } catch (e) {
-                        showToast(e.message || t('config.common.error'), 'error');
-                    }
-                }
+                (key, value) => secretsSubmit(key, value)
             );
         }
 
@@ -235,26 +256,7 @@
             secretsShowModal(
                 t('config.secrets.edit_secret'),
                 s.key, '', false,
-                async (key, value) => {
-                    try {
-                        const resp = await fetch('/api/vault/secrets', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ key, value })
-                        });
-                        if (!resp.ok) {
-                            const txt = await resp.text();
-                            showToast(txt || t('config.common.error'), 'error');
-                            return;
-                        }
-                        // Reload
-                        const reload = await fetch('/api/vault/secrets');
-                        if (reload.ok) secretsCache = await reload.json();
-                        secretsRenderTable();
-                    } catch (e) {
-                        showToast(e.message || t('config.common.error'), 'error');
-                    }
-                }
+                (key, value) => secretsSubmit(key, value)
             );
         }
 
@@ -262,18 +264,26 @@
             const s = secretsCache[idx];
             if (!(await showConfirm(t('config.secrets.delete_confirm_title'), t('config.secrets.delete_confirm', {key: s.key})))) return;
 
+            const actionBtns = document.querySelectorAll('#secrets-main .secrets-actions button');
+            actionBtns.forEach(b => { b.disabled = true; });
+            let error = '';
             try {
                 const resp = await fetch('/api/vault/secrets?key=' + encodeURIComponent(s.key), { method: 'DELETE' });
                 if (!resp.ok) {
-                    const txt = await resp.text();
-                    showToast(txt || t('config.common.error'), 'error');
+                    error = await secretsErrorText(resp);
+                } else {
+                    try {
+                        const reload = await fetch('/api/vault/secrets');
+                        if (reload.ok) secretsCache = await reload.json();
+                    } catch (_) { /* deleted; list refresh failed */ }
+                    secretsRenderTable();
                     return;
                 }
-                // Reload
-                const reload = await fetch('/api/vault/secrets');
-                if (reload.ok) secretsCache = await reload.json();
-                secretsRenderTable();
             } catch (e) {
-                showToast(e.message || t('config.common.error'), 'error');
+                error = e.message || t('config.common.error');
             }
+            actionBtns.forEach(b => { b.disabled = false; });
+            const box = document.getElementById('secrets-inline-error');
+            if (box) { box.textContent = error; box.classList.remove('is-hidden'); }
+            else showToast(error, 'error');
         }

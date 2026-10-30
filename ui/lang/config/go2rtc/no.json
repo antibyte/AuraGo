@@ -101,5 +101,7 @@
   "config.go2rtc.hardware_test": "Test lagret maskinvare",
   "config.go2rtc.hardware_verified": "Koder verifisert",
   "config.go2rtc.hardware_failed": "Maskinvarekontrollen feilet; ingen overgang til CPU.",
-  "config.go2rtc.hardware_help": "CPU er standard. GPU krever en Linux amd64 Docker-vert. Lagre, start tjenesten og test valgt koder før transkoding."
+  "config.go2rtc.hardware_help": "CPU er standard. GPU krever en Linux amd64 Docker-vert. Lagre, start tjenesten og test valgt koder før transkoding.",
+  "config.go2rtc.confirm_remove_title": "Remove this stream?",
+  "config.go2rtc.confirm_remove_message": "Stream \"{name}\" and its source settings are removed from the list. Cameras, recordings and links that use this stream stop working as soon as you save."
 }

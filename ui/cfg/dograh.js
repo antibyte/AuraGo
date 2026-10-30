@@ -224,6 +224,7 @@ function dograhRenderStatus(body) {
 }
 
 async function dograhAction(action) {
+    if (action === 'recreate' && !(await showConfirm(t('config.dograh.confirm_recreate_title'), t('config.dograh.confirm_recreate_message')))) return;
     const result = document.getElementById('dograh-test-result');
     const btn = document.getElementById('dograh-' + action + '-btn');
     const loadingText = dograhActionLoadingText(action);

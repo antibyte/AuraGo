@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "UI और टूल परिणामों में दिखने वाला आसान नाम।",
   "help.three_d_printers.printer_url": "स्थानीय SDCP WebSocket URL, जैसे ws://192.168.6.50/websocket।",
   "help.three_d_printers.readonly": "प्रिंटर एक्सेस केवल-पढ़ने तक सीमित रखता है। स्टार्ट, पॉज़, रिज़्यूम, कैंसल और लाइट बदलाव ब्लॉक होते हैं।",
-  "help.three_d_printers.timeout": "प्रिंटर कमांड के लिए कनेक्शन timeout।"
+  "help.three_d_printers.timeout": "प्रिंटर कमांड के लिए कनेक्शन timeout।",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }

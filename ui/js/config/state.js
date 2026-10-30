@@ -13,6 +13,8 @@
     // edit inside one marks the whole value, so the patch never carries a
     // sparse or partial copy that would replace the saved one.
     const atomicPaths = new Set();
+    // Controls whose raw text is not valid (number/integer/JSON); the draft keeps the raw string.
+    const invalidControls = new Map();
 
     function clone(value) {
         if (typeof structuredClone === 'function') return structuredClone(value);
@@ -82,6 +84,7 @@
         savedConfig = clone(config || {});
         draftConfig = clone(config || {});
         changed.clear();
+        invalidControls.clear();
         notify();
         return snapshot();
     }
@@ -147,9 +150,15 @@
             if (custom?.dataset.customFor === element.dataset.path) return custom.value.trim();
         }
         if (element.type === 'number' || element.type === 'range' || element.dataset.type === 'number') {
-            if (element.value === '') return 0;
-            if (element.dataset.path?.startsWith('cloudflare_tunnel.')) return Number(element.value);
-            return element.step && parseFloat(element.step) < 1 ? parseFloat(element.value) : parseInt(element.value, 10);
+            if (element.dataset.path?.startsWith('cloudflare_tunnel.')) return element.value === '' ? 0 : Number(element.value);
+            const issue = numericIssue(element);
+            if (issue === 'number_required' && read(draftConfig, element.dataset.path) == null) {
+                // The field never had a value: leave it unset instead of inventing 0.
+                return read(draftConfig, element.dataset.path);
+            }
+            // Keep the raw text so validate() reports it; never save a silent 0 or truncation.
+            if (issue) return element.value;
+            return isFloatControl(element) ? parseFloat(element.value) : parseInt(element.value, 10);
         }
         if (element.dataset.type === 'array') {
             if (String(element.value).trim().startsWith('[')) {
@@ -166,12 +175,43 @@
         return element.value;
     }
 
+    function isFloatControl(element) {
+        return element.step === 'any' || (!!element.step && parseFloat(element.step) < 1);
+    }
+
+    // Returns 'number_required' (cleared), 'number_invalid', 'integer_required' or null.
+    function numericIssue(element) {
+        const raw = String(element.value).trim();
+        if (raw === '') return 'number_required';
+        const num = Number(raw);
+        if (!Number.isFinite(num)) return 'number_invalid';
+        if (!isFloatControl(element) && element.step !== 'any' && !Number.isInteger(num)) return 'integer_required';
+        return null;
+    }
+
+    function controlIssue(element) {
+        if (element.type === 'number' || element.type === 'range' || element.dataset.type === 'number') {
+            if (element.dataset.path?.startsWith('cloudflare_tunnel.')) return null;
+            const issue = numericIssue(element);
+            if (issue === 'number_required' && read(draftConfig, element.dataset.path) == null) return null;
+            return issue;
+        }
+        if (element.dataset.type === 'json') {
+            if (String(element.value).trim() === '' && read(draftConfig, element.dataset.path) == null) return null;
+            try { JSON.parse(element.value); } catch (_) { return 'json_invalid'; }
+        }
+        return null;
+    }
+
     function syncElement(element) {
         if (!element || !element.dataset || !element.dataset.path) return false;
         if (element.type === 'radio' && !element.checked) return false;
         const path = element.dataset.path;
+        const issue = controlIssue(element);
+        if (issue) invalidControls.set(path, issue); else invalidControls.delete(path);
         const value = controlValue(element);
         const before = read(draftConfig, path);
+        if (value === undefined && before === undefined) return false;
         write(draftConfig, path, value);
         track(path);
         return !same(before, value);
@@ -246,6 +286,15 @@
         if (Array.isArray(draftConfig.ai_gateway?.metadata)) {
             errors.push({path: 'ai_gateway.metadata', code: 'pattern', message: window.t?.('config.ai_gateway.metadata_invalid') || 'Invalid metadata.'});
         }
+        invalidControls.forEach((code, path) => {
+            const current = read(draftConfig, path);
+            // The draft was replaced by a valid value (reset/init): the issue is stale.
+            if (code === 'json_invalid' ? typeof current !== 'string' : typeof current === 'number') {
+                invalidControls.delete(path);
+                return;
+            }
+            errors.push(validationMessage(path, code));
+        });
         Object.keys(rules).forEach(path => {
             const rule = rules[path] || {};
             // changedOnly rules check edits only; an unchanged saved value is not part of the patch.
@@ -342,6 +391,7 @@
     function discard() {
         draftConfig = clone(savedConfig);
         changed.clear();
+        invalidControls.clear();
         restoreDOM();
         notify();
         return clone(draftConfig);

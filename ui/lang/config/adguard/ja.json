@@ -28,5 +28,6 @@
   "help.adguard.password": "認証用のパスワード。暗号化されたvaultに安全に保存されます。",
   "help.adguard.readonly": "読み取り専用モードでは、エージェントはデータの読み取りのみ可能です。すべての書き込み操作はブロックされます。",
   "help.adguard.url": "AdGuard HomeインスタンスのベースURL（例: http://192.168.1.1:3000）。",
-  "help.adguard.username": "認証用のユーザー名。認証が無効の場合は空のままにしてください。"
+  "help.adguard.username": "認証用のユーザー名。認証が無効の場合は空のままにしてください。",
+  "config.adguard.status_unknown": "不明なステータス"
 }

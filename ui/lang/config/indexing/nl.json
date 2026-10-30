@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Media uit deze map naar providers sturen?",
   "config.indexing.media_confirm": "Afbeeldingen, audio en gescande pdf's uit deze map worden voor analyse gestuurd naar de geconfigureerde Vision- of multimodale embedding-provider. Dit kan een externe dienst zijn, waardoor de inhoud van deze bestanden dit systeem kan verlaten. Na het weer uitschakelen van de optie worden er geen media meer verzonden.",
   "config.indexing.media_inactive_hint": "Vision en multimodale embeddings zijn globaal uitgeschakeld; de instelling werkt zodra een van beide is ingeschakeld.",
-  "config.indexing.index_images_per_folder_hint": "Afbeeldingen worden alleen verzonden voor mappen waarvoor mediadeling in de lijst hierboven is ingeschakeld."
+  "config.indexing.index_images_per_folder_hint": "Afbeeldingen worden alleen verzonden voor mappen waarvoor mediadeling in de lijst hierboven is ingeschakeld.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

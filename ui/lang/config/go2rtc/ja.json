@@ -101,5 +101,7 @@
   "config.go2rtc.hardware_test": "保存済みハードウェアを確認",
   "config.go2rtc.hardware_verified": "エンコーダーを確認済み",
   "config.go2rtc.hardware_failed": "ハードウェア確認に失敗しました。CPUへの自動切替は無効です。",
-  "config.go2rtc.hardware_help": "既定はCPUです。GPUにはLinux amd64のDockerホストが必要です。保存してサービスを開始し、トランスコード前に選択したエンコーダーを確認してください。"
+  "config.go2rtc.hardware_help": "既定はCPUです。GPUにはLinux amd64のDockerホストが必要です。保存してサービスを開始し、トランスコード前に選択したエンコーダーを確認してください。",
+  "config.go2rtc.confirm_remove_title": "Remove this stream?",
+  "config.go2rtc.confirm_remove_message": "Stream \"{name}\" and its source settings are removed from the list. Cameras, recordings and links that use this stream stop working as soon as you save."
 }

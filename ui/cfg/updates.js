@@ -74,7 +74,7 @@ async function updatesCheck() {
             resultDiv.innerHTML = `
             <div class="updates-result-card updates-result-error">
                 <div class="updates-result-title">❌ ${t('config.updates.error')}</div>
-                <div class="updates-result-detail">${data.error}</div>
+                <div class="updates-result-detail">${escapeHtml(String(data.error))}</div>
             </div>`;
         } else if (data.update_available) {
             let changelogHtml = '';
@@ -92,9 +92,9 @@ async function updatesCheck() {
             <div class="updates-result-card updates-result-warn">
                 <div class="updates-result-title updates-result-title-warn">🆕 ${t('config.updates.available')}</div>
                 <div class="updates-meta-row">
-                    ${data.current_version ? `<span>${t('config.updates.current')}: <strong>${data.current_version}</strong></span>` : ''}
-                    ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong class="updates-latest-version">${data.latest_version}</strong></span>` : ''}
-                    ${data.commit_count ? `<span>${data.commit_count} commit(s)</span>` : ''}
+                    ${data.current_version ? `<span>${t('config.updates.current')}: <strong>${escapeHtml(String(data.current_version))}</strong></span>` : ''}
+                    ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong class="updates-latest-version">${escapeHtml(String(data.latest_version))}</strong></span>` : ''}
+                    ${data.commit_count ? `<span>${escapeHtml(String(data.commit_count))} commit(s)</span>` : ''}
                 </div>
                 ${data.message ? `<div class="updates-result-detail">${escapeHtml(data.message)}</div>` : ''}
                 ${changelogHtml}
@@ -105,8 +105,8 @@ async function updatesCheck() {
             <div class="updates-result-card updates-result-success">
                 <div class="updates-result-title updates-result-title-success">✅ ${t('config.updates.up_to_date')}</div>
                 <div class="updates-meta-row updates-meta-row-tight">
-                    ${data.current_version ? `<span>${t('config.updates.version')}: <strong>${data.current_version}</strong></span>` : ''}
-                    <span>${data.message || ''}</span>
+                    ${data.current_version ? `<span>${t('config.updates.version')}: <strong>${escapeHtml(String(data.current_version))}</strong></span>` : ''}
+                    <span>${escapeHtml(String(data.message || ''))}</span>
                 </div>
             </div>`;
         }
@@ -143,7 +143,7 @@ async function updatesInstall() {
         }
     } catch (e) {
         if (status) status.textContent = '❌ ' + e.message;
-        if (installBtn) { installBtn.disabled = false; }
+        if (installBtn) { installBtn.disabled = false; installBtn.textContent = t('config.updates.install_button'); }
         if (checkBtn) checkBtn.disabled = false;
     }
 }
@@ -159,7 +159,7 @@ function updatesStartReloadCountdown(seconds) {
 
     const tick = () => {
         const remaining = Math.max(0, Math.ceil((_updatesReloadDeadline - Date.now()) / 1000));
-        if (status) status.textContent = `${t('config.updates.started')} (${remaining}s)`;
+        if (status) status.textContent = t('config.updates.started').replace('{seconds}', String(remaining));
         if (remaining <= 0) {
             clearInterval(_updatesReloadTimer);
             _updatesReloadTimer = null;

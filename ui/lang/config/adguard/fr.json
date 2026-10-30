@@ -28,5 +28,6 @@
   "help.adguard.password": "Mot de passe pour l'authentification. Stocké de manière sécurisée dans le vault chiffré.",
   "help.adguard.readonly": "En mode lecture seule, l'agent ne peut que lire les données. Toutes les opérations d'écriture sont bloquées.",
   "help.adguard.url": "URL de base de votre instance AdGuard Home (ex: http://192.168.1.1:3000).",
-  "help.adguard.username": "Nom d'utilisateur pour l'authentification. Laisser vide si l'authentification est désactivée."
+  "help.adguard.username": "Nom d'utilisateur pour l'authentification. Laisser vide si l'authentification est désactivée.",
+  "config.adguard.status_unknown": "Statut inconnu"
 }

@@ -783,5 +783,13 @@
   "config.decisions.runtime_discovery_output_limit": "Die Geräteerkennung hat zu viele Ausgaben erzeugt und wurde beendet. Prüfe die Laufzeit.",
   "config.decisions.image_limit_exceeded": "Die Bilder passen nicht in die Modellgrenzen. Sende weniger oder kleinere Bilder.",
   "config.decisions.image_invalid": "Ein Bild ist beschädigt oder wird nicht unterstützt. Verwende eine gültige PNG- oder JPEG-Datei.",
-  "config.decisions.image_minimum_unmet": "Ein Bild unterschreitet die Mindestabmessungen dieses Modells. Wähle ein größeres Original."
+  "config.decisions.image_minimum_unmet": "Ein Bild unterschreitet die Mindestabmessungen dieses Modells. Wähle ein größeres Original.",
+  "config.dograh.confirm_recreate_title": "Dograh-Stack neu erstellen?",
+  "config.dograh.confirm_recreate_message": "Die Dograh-Container werden entfernt und mit den aktuellen Einstellungen neu erstellt. Der Dienst ist in der Zwischenzeit nicht erreichbar, laufende Anrufe und Workflows werden unterbrochen, und alles, was nur in den Containern liegt, geht verloren.",
+  "config.local_llm.confirm_recreate_title": "Lokalen LLM-Container neu erstellen?",
+  "config.local_llm.confirm_recreate_message": "Der lokale LLM-Container wird entfernt und mit den gespeicherten Einstellungen neu erstellt. Der Modellserver ist in der Zwischenzeit nicht erreichbar, laufende Anfragen werden abgebrochen, und alles, was nur im Container liegt, geht verloren.",
+  "config.local_llm.result_ok": "bestanden",
+  "config.realtime_speech.confirm_delete_title": "Dieses Profil löschen?",
+  "config.realtime_speech.confirm_delete_message": "Das Profil \"{name}\" mit Modell, Stimme und eingegebenem API-Schlüssel wird aus der Liste entfernt und beim Speichern endgültig gelöscht. Ist es das Standardprofil, wird der Standard zurückgesetzt.",
+  "config.realtime_speech.save_note": "Profile werden mit diesem Button gespeichert, nicht mit der globalen Speicherleiste."
 }

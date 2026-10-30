@@ -69,5 +69,7 @@
   "help.truenas.host": "Hostname nebo IP adresa vašeho TrueNAS serveru (např. truenas.local nebo 192.168.1.100).",
   "help.truenas.insecure_ssl": "Přijímá vlastní nebo neplatné certifikáty (pouze pro testovací prostředí).",
   "help.truenas.readonly": "V režimu pouze pro čtení může agent pouze zobrazovat data. Všechny zápisové operace jsou blokovány.",
-  "help.truenas.use_https": "Používá HTTPS pro připojení k TrueNAS serveru (doporučeno)."
+  "help.truenas.use_https": "Používá HTTPS pro připojení k TrueNAS serveru (doporučeno).",
+  "config.truenas.status_unknown": "Neznámý stav",
+  "config.truenas.status_no_url": "Není nastaven hostitel"
 }

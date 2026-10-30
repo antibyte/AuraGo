@@ -26,5 +26,7 @@
   "help.jellyfin.insecure_ssl": "Godtar selvsignerte eller ugyldige sertifikater (kun for testmiljøer).",
   "help.jellyfin.host": "Vertsnavn eller IP-adresse til Jellyfin-serveren din (f.eks. jellyfin.local eller 192.168.1.100).",
   "help.jellyfin.port": "Port for Jellyfin-serveren (standard: 8096).",
-  "help.jellyfin.api_key": "API-nøkkel for Jellyfin API. Opprett en under Dashboard → API-nøkler i Jellyfin."
+  "help.jellyfin.api_key": "API-nøkkel for Jellyfin API. Opprett en under Dashboard → API-nøkler i Jellyfin.",
+  "config.jellyfin.status_unknown": "Ukjent status",
+  "config.jellyfin.status_no_url": "Ingen vert konfigurert"
 }

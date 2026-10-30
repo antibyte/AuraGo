@@ -90,5 +90,8 @@
   "config.indexing.media_confirm_title": "Wysyłać multimedia z tego katalogu do dostawców?",
   "config.indexing.media_confirm": "Obrazy, dźwięk i zeskanowane pliki PDF z tego katalogu zostaną wysłane do analizy do skonfigurowanego dostawcy Vision lub multimodalnych embeddingów. Może to być usługa zewnętrzna, więc zawartość tych plików może opuścić ten system. Po ponownym wyłączeniu opcji kolejne multimedia nie będą wysyłane.",
   "config.indexing.media_inactive_hint": "Vision i multimodalne embeddingi są globalnie wyłączone; ustawienie zadziała, gdy tylko jedno z nich zostanie włączone.",
-  "config.indexing.index_images_per_folder_hint": "Obrazy są wysyłane tylko z katalogów, w których na liście powyżej włączono udostępnianie multimediów."
+  "config.indexing.index_images_per_folder_hint": "Obrazy są wysyłane tylko z katalogów, w których na liście powyżej włączono udostępnianie multimediów.",
+  "config.indexing.rescan_starting": "Starting scan…",
+  "config.indexing.rescan_started": "Scan started",
+  "config.indexing.rescan_failed": "Scan could not be started"
 }

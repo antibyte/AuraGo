@@ -31,5 +31,7 @@
   "help.obsidian.insecure_ssl": "Accepteer zelfondertekende certificaten (standaard: true)",
   "help.obsidian.api_key": "API-sleutel uit de instellingen van de Obsidian Local REST API-plugin",
   "help.obsidian.connect_timeout": "Verbindingstime-out in seconden (standaard: 10)",
-  "help.obsidian.request_timeout": "Aanvraagtime-out in seconden (standaard: 30)"
+  "help.obsidian.request_timeout": "Aanvraagtime-out in seconden (standaard: 30)",
+  "config.obsidian.status_unknown": "Onbekende status",
+  "config.obsidian.status_no_url": "Geen host geconfigureerd"
 }

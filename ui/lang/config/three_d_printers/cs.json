@@ -37,5 +37,7 @@
   "help.three_d_printers.printer_name": "Přátelský název zobrazený v UI a výsledcích.",
   "help.three_d_printers.printer_url": "Místní SDCP WebSocket URL, například ws://192.168.6.50/websocket.",
   "help.three_d_printers.readonly": "Udržuje přístup jen pro čtení. Start, pauza, pokračování, zrušení a změny světla jsou blokovány.",
-  "help.three_d_printers.timeout": "Časový limit připojení pro příkazy tiskárny."
+  "help.three_d_printers.timeout": "Časový limit připojení pro příkazy tiskárny.",
+  "config.three_d_printers.confirm_remove_title": "Remove this printer?",
+  "config.three_d_printers.confirm_remove_message": "Printer \"{name}\" with its URL and credentials is removed from the list and deleted when you save. Tools and dashboards that use it lose access."
 }
