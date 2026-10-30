@@ -23,6 +23,7 @@ const (
 	workspaceMachineSHA256       = "eb294a8e665cfe7d9e1855afb5edc4b829ca6ab7cbc149ca38f33d915fab22f9"
 	workspaceSnapshotSHA256      = "d8dc45aeba926903b4321001a56a2714dab035510aa63ce6c936e4a957dbb51d"
 	workspaceFirecrackerSHA256   = "80723bfd39819fb2c7a8d1b136533345a400e2c13b97b162f71681b352c0cf3d"
+	workspaceDesktopRootfsSHA256 = "79327d3142e81c172d3f75668f448c2d8fafcd37741f86fa3ebd89b3209b9cb3"
 )
 
 // The guest sources compile in the AuraGo module for tests. module.txt and
@@ -99,7 +100,8 @@ printf '%s  %s\n' \
     '` + workspaceMachineVolumeSHA256 + `' "${REPO_DIR}/boringd/machinevolume.go" \
     '` + workspaceMachineSHA256 + `' "${REPO_DIR}/boringd/machine.go" \
     '` + workspaceSnapshotSHA256 + `' "${REPO_DIR}/infra/latitude/build-template.sh" \
-    '` + workspaceFirecrackerSHA256 + `' "${REPO_DIR}/boringd/firecracker.go" | sha256sum -c -
+    '` + workspaceFirecrackerSHA256 + `' "${REPO_DIR}/boringd/firecracker.go" \
+    '` + workspaceDesktopRootfsSHA256 + `' "${REPO_DIR}/infra/latitude/build-desktop-rootfs.sh" | sha256sum -c -
 for patch in "${PATCH_DIR}"/*.patch; do
   git -C "${REPO_DIR}" apply --unidiff-zero --check "${patch}"
   git -C "${REPO_DIR}" apply --unidiff-zero "${patch}"

@@ -25,6 +25,14 @@ The installer verifies the pinned upstream source, applies AuraGo's reviewed bas
 
 The same repair installs AuraGo's reviewed workspace extension. It applies only when the upstream revision and source-file hashes match, builds the embedded static `aurago-workspace-agent`, injects it into the Python and Desktop root filesystems, and verifies `aurago.workspace.v1` by booting both templates. Before reuse and after every rebuild it rejects symlinked, non-root-owned, group/world-writable, architecture-mismatched, or invalid ELF/ext4 runtime assets. A combined fingerprint covers the upstream commit, patch series, guest sources, and protocol. Agent Workspaces cannot be enabled until setup has recorded that verification and the running boringd reports the same fingerprint.
 
+### Desktop applications
+
+The desktop image includes XTerm, Openbox settings (`obconf`), the PCManFM file manager, Mousepad text editor and screenshot support. Openbox has a session D-Bus for graphical application settings. Its Applications menu starts terminal programs with the installed `x-terminal-emulator`; Super+E opens `/workspace` in the file manager.
+
+The browser menu and HTTP(S) links reuse AuraGo's managed visible Chromium. Opening the browser again focuses it or restarts it after its window was closed. This keeps manual browsing and Agent Workspace actions in the same browser session.
+
+After updating AuraGo, run **Install / Repair** in Virtual Computers settings and create a new desktop computer to receive these changes. Existing machines keep their previous image; save any needed files before replacing them.
+
 ## Agent Workspaces
 
 Agent Workspaces keep all reasoning in the AuraGo main agent. AuraGo opens an ephemeral Firecracker VM and controls a root shell, `/workspace` files, PTY jobs, and the visible Chromium in that same VM through a vsock-only guest service. VNC observes exactly that Chromium. The guest never receives the boringd bearer token or an LLM API key.

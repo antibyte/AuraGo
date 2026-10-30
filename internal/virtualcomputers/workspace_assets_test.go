@@ -112,12 +112,14 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 		workspaceMachineSHA256,
 		workspaceSnapshotSHA256,
 		workspaceFirecrackerSHA256,
+		workspaceDesktopRootfsSHA256,
 		"0001-workspace-vsock-proxy.patch",
 		"0002-python-template-vsock.patch",
 		"0003-workspace-v2-volumes.patch",
 		"0004-per-workspace-network-policy.patch",
 		"0005-workspace-capability-status.patch",
 		"0006-workspace-snapshot-vsock.patch",
+		"0007-desktop-app-launchers.patch",
 	} {
 		if !strings.Contains(patchScript, required) {
 			t.Fatalf("patch install script is missing %q", required)

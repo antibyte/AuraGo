@@ -1,0 +1,30 @@
+diff --git a/infra/latitude/build-desktop-rootfs.sh b/infra/latitude/build-desktop-rootfs.sh
+index 45350e6..25e30de 100644
+--- a/infra/latitude/build-desktop-rootfs.sh
++++ b/infra/latitude/build-desktop-rootfs.sh
+@@ -69 +69,21 @@ apt-get update
+-apt-get install -y --no-install-recommends chromium
++# Install desktop helpers after debootstrap: GTK/dconf postinst needs the
++# mounted /proc, /sys and /dev prepared above.
++apt-get install -y --no-install-recommends chromium obconf pcmanfm mousepad dbus-x11 fonts-dejavu-core xdg-utils scrot
++
++# Debian's generated Applications menu otherwise hard-codes an absent evte.
++sed -i 's|^terminal_string = .*|terminal_string = "x-terminal-emulator -e"|' /usr/bin/obamenu
++# Keep the stock window controls, but make Super+E open the installed file manager.
++sed -i 's|kfmclient openProfile filemanagement|pcmanfm /workspace|g; s|<name>Konqueror</name>|<name>PCManFM</name>|g' /etc/xdg/openbox/rc.xml
++
++# Root Chromium launchers must reuse the guest agent's managed browser, including
++# when the user reopens a closed window. Never start a second browser/profile.
++cat > /usr/local/bin/aurago-browser <<'BROWSER_EOF'
++#!/bin/sh
++exec /usr/local/bin/aurago-workspace-agent --open-browser -- "$@"
++BROWSER_EOF
++chmod 0755 /usr/local/bin/aurago-browser
++sed -i 's|^Exec=/usr/bin/chromium|Exec=/usr/local/bin/aurago-browser|' /usr/share/applications/chromium.desktop
++update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/aurago-browser 300
++update-alternatives --set x-www-browser /usr/local/bin/aurago-browser
++xdg-mime default chromium.desktop x-scheme-handler/http x-scheme-handler/https text/html
++xdg-mime default org.xfce.mousepad.desktop text/plain
+@@ -117 +137 @@ xsetroot -solid "#0b0b0c" 2>/dev/null
+-openbox >/var/log/openbox.log 2>&1 &
++dbus-run-session -- openbox >/var/log/openbox.log 2>&1 &

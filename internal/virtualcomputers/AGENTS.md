@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Workspace leases, managed Garage storage and guest browser lifecycle.
+Workspace leases, managed Garage storage, desktop images and guest browser lifecycle.
 
 ## Ownership
 
@@ -15,8 +15,14 @@ Workspace leases, managed Garage storage and guest browser lifecycle.
 
 ### Guest browser lifecycle
 - `guest_workspace_agent/module.txt` and `sum.txt` are the independent module inputs installed on the KVM build host. Refresh both during dependency updates and build the standalone agent for Linux amd64 and arm64; root-module tests alone do not check these pins.
-- The managed browser belongs to its session, not the opening RPC deadline. Session close is idempotent and asks Chrome to shut down gracefully with a five-second deadline, then forces process cleanup before removing the profile. Startup cancellation still aborts allocation immediately.
+- The managed browser belongs to its session, not the opening RPC deadline. Session close is idempotent and asks Chrome to shut down gracefully with a five-second deadline, then forces process cleanup before removing the profile. Skip the non-idempotent Chrome cancellation when its context or connection has already ended (including a closed desktop window). Startup cancellation still aborts allocation immediately.
 - A healthy boringd `/healthz` does not establish Agent Workspace compatibility. With auto-setup and agent control enabled, startup probes the verified install marker plus the running workspace protocol and asset fingerprint asynchronously. Only an incompatible result schedules the full install/repair; compatible restarts skip it. Existing retry and credential gates still apply.
+
+### Desktop image and application launchers
+- The pinned, hash-checked `infra/latitude/build-desktop-rootfs.sh` receives `0007-desktop-app-launchers.patch`. Install GTK helpers in its mounted chroot after debootstrap: Openbox settings (`obconf`), PCManFM, Mousepad, session D-Bus, DejaVu fonts, XDG helpers and screenshot support.
+- The stock Openbox Applications menu uses `x-terminal-emulator -e`, never the absent `evte`. Super+E opens PCManFM at `/workspace`; Openbox runs inside `dbus-run-session`.
+- Browser menu entries, Chromium desktop entries and HTTP(S) file associations use `aurago-browser`. Its `--open-browser` guest-agent invocation contacts only the mode-0600 Unix socket under `/run/aurago`; no TCP port or agent credentials are added. It focuses/navigates the existing managed Chromium or reopens it after closure, retaining the same browser controller/profile contract as structured actions.
+- Desktop patch and guest runtime edits change `WorkspaceAssetFingerprint`, invalidating old images. Apply through Install/Repair and start a new VM; running machines retain their old image.
 
 ### Virtual Computers Storage / Managed Garage Contract
 - Volume refresh retains locally known availability until the remote check gives a newer authoritative result. Lease reconciliation scans every ledger page and atomically claims only the current expired lease before closing a workspace. Activity touches update only activity fields, so delayed RPC replies cannot restore old controls. Expired human control leases are released by a scoped conditional UPDATE (`ReleaseExpiredControlLease`, julianday comparison) that touches only the control columns and `updated_at`; browser control is synced only when that update won.
@@ -40,6 +46,7 @@ Workspace leases, managed Garage storage and guest browser lifecycle.
 
 - Run `go test ./internal/virtualcomputers` and the named cross-component checks in the contracts above when those paths change.
 - With Chrome or Chromium installed, run `go test ./internal/virtualcomputers/guest_workspace_agent -run TestManagedBrowser -count=20` to cover request-independent browser lifetime, repeated close and immediate profile removal.
+- Guest launcher checks: `go test ./internal/virtualcomputers/guest_workspace_agent -run TestDesktopBrowser` on Linux. The opt-in `TestDesktopBrowserReusesAndReopensManagedChromium` requires `AURAGO_DESKTOP_BROWSER_SMOKE=1` in an isolated Debian guest/rootfs with Xvfb, Chromium, writable `/run/aurago` and `/workspace`; never opt in against a live guest's profile.
 
 ## Child DOX Index
 
