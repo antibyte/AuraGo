@@ -486,7 +486,11 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			absLocalPath, _ := filepath.Abs(filepath.Join(cfg.Directories.DataDir, "tts", filename))
 			absLocalPath = filepath.ToSlash(absLocalPath)
-			result := fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s", "web_path": "%s", "local_path": "%s"}`, filename, audioURL, webPath, absLocalPath)
+			payload, _ := json.Marshal(map[string]string{
+				"status": "success", "file": filename, "url": audioURL,
+				"web_path": webPath, "local_path": absLocalPath,
+			})
+			result := "Tool Output: " + string(payload)
 			return appendTTSSynthesisFields(result, &meta)
 
 		case "chromecast":
