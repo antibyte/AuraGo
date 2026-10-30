@@ -232,3 +232,112 @@ func TestLLMRouterDecisionsPreviewContract(t *testing.T) {
 		t.Fatal("status not passive or missing Decisions")
 	}
 }
+
+// TestRoutingSnapshotGoldenCodes pins every code RoutingSnapshot can return,
+// together with the identifying fields and the Current() revocation rule.
+func TestRoutingSnapshotGoldenCodes(t *testing.T) {
+	type fixture struct {
+		s   *Server
+		cfg *config.Config
+	}
+	routerOn := func(s *Server) {
+		s.Cfg.LLMRouter = config.DefaultLLMRouterConfig()
+		s.Cfg.LLMRouter.Enabled = true
+	}
+	local := func(t *testing.T) (fixture, *fakeDecisions) {
+		s, fake := decisionsServerFixture(t)
+		routerOn(s)
+		return fixture{s, s.Cfg}, fake
+	}
+	provider := func(t *testing.T) (fixture, *routedDecisions) {
+		s, d, _, _ := routedDecisionFixture(t)
+		routerOn(s)
+		return fixture{s, s.Cfg}, d
+	}
+	for _, tc := range []struct {
+		name         string
+		build        func(t *testing.T) fixture
+		code         string
+		available    bool
+		backend      string
+		providerID   string
+		model        string
+		hasCurrent   bool
+		hasEvaluate  bool
+		revokeOnFlag bool
+	}{
+		{"service disabled", func(t *testing.T) fixture {
+			f, _ := local(t)
+			f.s.Cfg.Decisions.Enabled = false
+			return f
+		}, "service_disabled", false, "local", "", "", false, false, false},
+		{"router disabled", func(t *testing.T) fixture {
+			f, _ := local(t)
+			f.s.Cfg.LLMRouter.Enabled = false
+			return f
+		}, "router_disabled", false, "local", "", "", false, false, false},
+		{"fallback disabled", func(t *testing.T) fixture {
+			f, _ := local(t)
+			f.s.Cfg.LLMRouter.DecisionsFallback = false
+			return f
+		}, "router_disabled", false, "local", "", "", false, false, false},
+		{"configuration changed", func(t *testing.T) fixture {
+			f, _ := local(t)
+			other := *f.s.Cfg
+			other.Decisions.Deployment = "docker"
+			f.cfg = &other
+			return f
+		}, "configuration_changed", false, "local", "", "", true, false, false},
+		{"provider not configured", func(t *testing.T) fixture {
+			f, d := provider(t)
+			d.mu.Lock()
+			d.generation.status.Configured = false
+			d.mu.Unlock()
+			return f
+		}, "provider_not_configured", false, "provider", "cloud", "microsoft/microsoft-decision-1", true, false, false},
+		{"blocked availability", func(t *testing.T) fixture {
+			f, d := provider(t)
+			d.mu.Lock()
+			d.generation.status.Configured = true
+			d.generation.status.ModelAvailability = decisions.ModelAvailability{State: "blocked", Code: "model_not_available", CheckedAt: time.Now()}
+			d.mu.Unlock()
+			return f
+		}, "model_not_available", false, "provider", "cloud", "microsoft/microsoft-decision-1", true, false, false},
+		{"local not ready", func(t *testing.T) fixture {
+			f, fake := local(t)
+			fake.status.Ready = false
+			return f
+		}, "service_not_ready", false, "local", "", "", true, false, false},
+		{"local available", func(t *testing.T) fixture {
+			f, _ := local(t)
+			return f
+		}, "available", true, "local", "", "", true, true, true},
+		{"provider available", func(t *testing.T) fixture {
+			f, _ := provider(t)
+			return f
+		}, "available", true, "provider", "cloud", "microsoft/microsoft-decision-1", true, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := tc.build(t)
+			snapshot := (taskDecisionService{f.s}).RoutingSnapshot(f.cfg)
+			if snapshot.Code != tc.code || snapshot.Available != tc.available || snapshot.Backend != tc.backend || snapshot.Provider != tc.providerID || snapshot.Model != tc.model {
+				t.Fatalf("snapshot = code %q available %v backend %q provider %q model %q", snapshot.Code, snapshot.Available, snapshot.Backend, snapshot.Provider, snapshot.Model)
+			}
+			if (snapshot.Current != nil) != tc.hasCurrent || (snapshot.Evaluate != nil) != tc.hasEvaluate {
+				t.Fatalf("closures: current=%v evaluate=%v", snapshot.Current != nil, snapshot.Evaluate != nil)
+			}
+			if tc.revokeOnFlag {
+				if !snapshot.Current() {
+					t.Fatal("fresh snapshot is not current")
+				}
+				next := *f.s.Cfg
+				next.LLMRouter.DecisionsFallback = false
+				f.s.Cfg = &next
+				f.s.cfgSnapshot.Store(&next)
+				if snapshot.Current() {
+					t.Fatal("snapshot stayed current after the router fallback was switched off")
+				}
+			}
+		})
+	}
+}
