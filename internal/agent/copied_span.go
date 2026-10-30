@@ -22,6 +22,13 @@ const (
 	// output reached the model in a session.
 	untrustedReadMax = 8
 	untrustedReadTTL = time.Hour
+	// untrustedTaintTTL is how long a session counts as tainted after it read
+	// third-party content (security.UntrustedContentTool). The URL exfiltration
+	// check keeps the shorter untrustedReadTTL.
+	untrustedTaintTTL = 24 * time.Hour
+	// untrustedContactMax bounds the contact timestamps, kept apart from the
+	// copied-span content so its LRU eviction cannot drop the taint.
+	untrustedContactMax = 4096
 )
 
 // isolatedBodyStore keeps the model-visible isolated outputs of each session, in
@@ -34,13 +41,13 @@ type isolatedBodyStore struct {
 	sessions map[string]*isolatedSession
 	total    int
 	now      func() time.Time
+	contacts map[string]time.Time // Last untrusted contact per session; bounded by untrustedContactMax.
 }
 
 type isolatedSession struct {
-	entries         []isolatedEntry // Oldest first; trusted provenance travels with the text.
-	bytes           int
-	reads           []untrustedRead // Oldest first, one per tool.
-	externalContact time.Time
+	entries []isolatedEntry // Oldest first; trusted provenance travels with the text.
+	bytes   int
+	reads   []untrustedRead // Oldest first, one per tool.
 }
 
 type isolatedEntry struct {
@@ -70,11 +77,16 @@ func recordIsolatedModelOutput(sessionID, tool, operation, output string) {
 	if !ok {
 		return
 	}
+	// AuraGo's own stores are neither indexed for the copied-span check nor
+	// noted as untrusted reads.
+	if security.IsInternalToolOutput(tool) {
+		return
+	}
 	if name := untrustedReadName(tool); name != "" {
 		modelIsolatedBodies.noteRead(sessionID, name)
 	}
 	source := security.ExternalToolSource(tool, operation)
-	if source != "" {
+	if security.UntrustedContentTool(tool, operation) {
 		modelIsolatedBodies.noteExternalContact(sessionID)
 	}
 	var views []string
@@ -274,6 +286,7 @@ func clearIsolatedModelBodies(sessionID string) {
 		modelIsolatedBodies.total -= session.bytes
 	}
 	delete(modelIsolatedBodies.sessions, sessionID)
+	delete(modelIsolatedBodies.contacts, sessionID)
 	kept := modelIsolatedBodies.order[:0]
 	for _, id := range modelIsolatedBodies.order {
 		if id != sessionID {
@@ -359,4 +372,14 @@ func gateCopiedIsolatedSpan(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return true, actionPolicyRefusal("action_rule_required", "This high-risk unattended action copies isolated tool text. It was blocked without waiting. An allow rule does not exempt that copy.", ToolResultDenied)
 	}
 	return true, requestCopiedSpanApproval(tc, dc, a)
+}
+
+// sessionHadUntrustedContact reports whether the session read third-party
+// content (security.UntrustedContentTool) or received an untrusted ingress
+// within the given window.
+func sessionHadUntrustedContact(sessionID string, within time.Duration) bool {
+	if sessionID == "" {
+		return false
+	}
+	return modelIsolatedBodies.hadContact(sessionID, within)
 }

@@ -4,10 +4,13 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"aurago/internal/memory"
 	"aurago/internal/security"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 var outboundURL = regexp.MustCompile("(?i)https?://[^\\s<>\"'`]+")
@@ -30,21 +33,48 @@ func RecordExternalIngress(session string, source security.ExternalSource, text 
 }
 
 func (s *isolatedBodyStore) noteExternalContact(id string) {
+	if id == "" {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.sessionLocked(id).externalContact = s.clock()
-	s.evictLocked(id)
+	if s.contacts == nil {
+		s.contacts = map[string]time.Time{}
+	}
+	s.contacts[id] = s.clock()
+	for len(s.contacts) > untrustedContactMax {
+		oldest, first := "", true
+		var at time.Time
+		for sid, t := range s.contacts {
+			if sid != id && (first || t.Before(at)) {
+				oldest, at, first = sid, t, false
+			}
+		}
+		if first {
+			break
+		}
+		delete(s.contacts, oldest)
+	}
+}
+
+// hadContact reports whether the session had untrusted contact within the window.
+func (s *isolatedBodyStore) hadContact(id string, within time.Duration) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	at, ok := s.contacts[id]
+	return ok && s.clock().Sub(at) < within
 }
 
 func (s *isolatedBodyStore) privateURLContext(id string) (private, human []string, contact bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	at, hasContact := s.contacts[id]
+	contact = hasContact && s.clock().Sub(at) < untrustedReadTTL
 	session := s.sessions[id]
 	if session == nil {
 		return
 	}
 	s.touchLocked(id)
-	contact = !session.externalContact.IsZero() && s.clock().Sub(session.externalContact) < untrustedReadTTL
 	for _, entry := range session.entries {
 		if entry.private {
 			private = append(private, entry.views...)
@@ -160,4 +190,40 @@ func privateURLExfiltration(tc ToolCall, dc *DispatchContext) bool {
 		}
 	}
 	return false
+}
+
+// thirdPartyIngressSources are the MessageSource values of runs started by a
+// message a third party can author. Heartbeat, cron, planner notifications,
+// Uptime Kuma and camera detection are system-generated and not listed.
+var thirdPartyIngressSources = map[string]bool{
+	"webhook": true, "a2a": true, "email": true, "agentmail": true, "sms": true,
+	"mqtt": true, "frigate": true, "space_agent_bridge": true,
+}
+
+// missionTriggerData matches the trigger block appendIsolatedTriggerContext adds
+// when a mission was started with event data: the header and a fenced payload.
+var missionTriggerData = regexp.MustCompile(`\[Trigger Context: [^\]\n]*\]\s*<external_data>`)
+
+// noteIngressProvenance taints the run's session when it was started by a third-
+// party ingress, or by a mission whose request carries trigger data. The source
+// label decides; a fence in a Loopback message proves nothing (Loopback fences
+// every message), so only mission runs are read for the trigger block.
+func noteIngressProvenance(runCfg RunConfig, req openai.ChatCompletionRequest) {
+	if runCfg.SessionID == "" {
+		return
+	}
+	source := strings.ToLower(strings.TrimSpace(runCfg.MessageSource))
+	if thirdPartyIngressSources[source] {
+		modelIsolatedBodies.noteExternalContact(runCfg.SessionID)
+		return
+	}
+	if !runCfg.IsMission && source != "mission" {
+		return
+	}
+	for _, m := range req.Messages {
+		if m.Role == openai.ChatMessageRoleUser && missionTriggerData.MatchString(m.Content) {
+			modelIsolatedBodies.noteExternalContact(runCfg.SessionID)
+			return
+		}
+	}
 }

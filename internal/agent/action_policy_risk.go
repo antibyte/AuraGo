@@ -123,6 +123,7 @@ func applyExtendedActionRisk(a *ActionDescriptor, tc ToolCall, dc *DispatchConte
 		// One operation for the whole class: a rule for "schedule" covers what an
 		// agent can persist or start, whatever the tool spells it.
 		a.Operation, a.Mutating, a.HighRisk = "schedule", true, true
+		a.scheduling = true
 	}
 	switch tool {
 	case "home_assistant":
@@ -150,6 +151,9 @@ func applyExtendedActionRisk(a *ActionDescriptor, tc ToolCall, dc *DispatchConte
 		registered, matching := egressArgumentSecrets(args)
 		a.egressSecret = registered
 		a.HighRisk = a.HighRisk || registered || matching
+		if registered || matching {
+			a.scheduling = false // Another risk class applies; the exemption does not.
+		}
 	}
 }
 

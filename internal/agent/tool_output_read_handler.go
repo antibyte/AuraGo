@@ -84,7 +84,7 @@ func handleReadToolOutput(ctx context.Context, tc ToolCall, dc *DispatchContext)
 	reply := fitReadToolOutputReply(resp, content, req, false, readToolOutputBudget(dc))
 	source := security.ExternalToolSource(out.ToolName, out.ToolOperation)
 	checked := dc.Guardian.ProtectExternal(ctx, source, strings.TrimPrefix(reply, "Tool Output: "))
-	if source != "" && !checked.Quarantined {
+	if !checked.Quarantined && security.UntrustedContentTool(out.ToolName, out.ToolOperation) {
 		modelIsolatedBodies.noteExternalContact(dc.SessionID)
 	}
 	content = checked.Text
@@ -222,7 +222,7 @@ func handleRetrieveOriginalOutput(ctx context.Context, tc ToolCall, dc *Dispatch
 	}
 	source := security.ExternalToolSource(out.ToolName, out.ToolOperation)
 	checked := dc.Guardian.ProtectExternal(ctx, source, content)
-	if source != "" && !checked.Quarantined {
+	if !checked.Quarantined && security.UntrustedContentTool(out.ToolName, out.ToolOperation) {
 		modelIsolatedBodies.noteExternalContact(dc.SessionID)
 	}
 	if checked.Datamarked {

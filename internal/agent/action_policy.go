@@ -21,6 +21,7 @@ type ActionDescriptor struct {
 	targets       []string
 	targetUnknown bool
 	egressSecret  bool   // A registered secret value sits in the arguments of an egress call.
+	scheduling    bool   // High-risk only because it stores or starts agent work (schedulingActionHighRisk).
 	Tool          string `json:"tool"`
 	Operation     string `json:"operation"`
 	Target        string `json:"target"`
@@ -366,6 +367,12 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 		return actionPolicyRefusal("action_rule_required", "This unattended request carries text copied from earlier isolated tool output in its URL or host. It needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)
 	}
 	if a.RunType != "interactive" {
+		// Scheduling is the one class a clean unattended run may do on its own:
+		// the operator wrote the mission or cron prompt, and a session that read
+		// third-party content within the taint window is the case to refuse.
+		if a.scheduling && !sessionHadUntrustedContact(dc.SessionID, untrustedTaintTTL) {
+			return nil
+		}
 		return actionPolicyRefusal("action_rule_required", "This high-risk unattended action needs an administrator rule for its tool, operation and target. It was blocked without waiting for approval.", ToolResultDenied)
 	}
 	return requestActionApproval(tc, dc, a)

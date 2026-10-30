@@ -326,7 +326,14 @@ func compressPersistentHistory(
 		recordHistoryCompressionFailure(runCfg, "empty_or_oversized_summary")
 		return result
 	}
-	if reason, patterns := screenGeneratedSummary(summary); reason != "" {
+	// A pure human and assistant transcript carries no third-party text; only
+	// a tainted session, a non-internal tool result or a fence is screened.
+	var reason string
+	var patterns []string
+	if summarySourceUntrusted(runCfg.SessionID, history, selected) {
+		reason, patterns = screenGeneratedSummary(summary)
+	}
+	if reason != "" {
 		// Nothing has been mutated yet: the previous summary stays, the source
 		// messages stay active, and request trimming keeps the prompt in budget.
 		// Only the category is logged, because the summary is derived from

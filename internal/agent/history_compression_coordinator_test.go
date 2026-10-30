@@ -257,6 +257,9 @@ func TestCompressionKeepsPriorSummaryOnDirectiveSummary(t *testing.T) {
 			}
 			runCfg := RunConfig{Config: &config.Config{}, ShortTermMem: stm, HistoryManager: history, SessionID: t.Name()}
 			t.Cleanup(func() { resolveHistoryCompressionFailure(runCfg) })
+			// The screen runs for sessions that read third-party content.
+			modelIsolatedBodies.noteExternalContact(t.Name())
+			t.Cleanup(func() { clearIsolatedModelBodies(t.Name()) })
 			beforeHistory := len(history.GetAll())
 			beforeStored, err := stm.GetSessionMessages(t.Name())
 			if err != nil {

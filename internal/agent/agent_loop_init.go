@@ -58,6 +58,7 @@ func shouldSuppressCoAgentTools(runCfg RunConfig) bool {
 // initAgentLoopState sets up all mutable state before the main agent loop begins.
 func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, broker FeedbackBroker, voiceOutputSuppressed bool) *agentLoopState {
 	recordPrivateHumanInput(runCfg.SessionID, runCfg.HumanInput)
+	noteIngressProvenance(runCfg, req)
 	s := &agentLoopState{
 		req:                   req,
 		runCfg:                runCfg,

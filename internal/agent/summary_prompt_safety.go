@@ -6,6 +6,8 @@ import (
 
 	"aurago/internal/memory"
 	"aurago/internal/security"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 // summaryScreenGuardian scans generated summaries with the default local rules.
@@ -90,4 +92,42 @@ func FormatContextRecapForPrompt(summary string) string {
 		"[CONTEXT_RECAP]: Previous relevant discussion summary. Do not echo or repeat this recap in your response.",
 		summary,
 	)
+}
+
+// summarySourceUntrusted reports whether the messages behind a generated summary
+// can carry third-party text: the session read untrusted content within the
+// taint window, a selected message is the result of a tool that is not one of
+// AuraGo's own stores (a tool message whose tool cannot be named counts as
+// untrusted), or a selected message contains an isolation fence. A pure human
+// and assistant transcript is none of these and is not screened.
+func summarySourceUntrusted(sessionID string, history, selected []memory.HistoryMessage) bool {
+	if sessionHadUntrustedContact(sessionID, untrustedTaintTTL) {
+		return true
+	}
+	names := map[string]string{} // tool call ID -> tool name
+	for _, group := range [][]memory.HistoryMessage{history, selected} {
+		for _, m := range group {
+			for _, call := range m.ToolCalls {
+				if call.ID != "" {
+					names[call.ID] = call.Function.Name
+				}
+			}
+		}
+	}
+	for _, m := range selected {
+		if m.Role == openai.ChatMessageRoleTool {
+			name := m.Name
+			if name == "" {
+				name = names[m.ToolCallID]
+			}
+			if security.IsInternalToolOutput(name) {
+				continue
+			}
+			return true
+		}
+		if strings.Contains(persistentSummaryMessageText(m.ChatCompletionMessage), "<external_data>") {
+			return true
+		}
+	}
+	return false
 }
