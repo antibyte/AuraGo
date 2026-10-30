@@ -16,6 +16,9 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
   and 20,000 files. Packaging, installation and verification share these limits.
 - Set `Default` once before services start. Installation never hot-swaps captured
   templates or the active filesystem; restart activates the matching set.
+- A plain `--healthcheck` probes the running server without opening a local
+  resource set. Its pinned ID and verified-ready response headers remain required;
+  service startup and explicit asset actions still verify local files.
 - Production PDF.js resources include CMaps (`.bcmap`), Type 1 fonts (`.pfb`),
   ICC color profiles (`.icc`) and WASM decoders; keep these in the asset manifest.
 - QR caption fallbacks and their licences under `ui/fonts/qr/` belong to the verified external set. `QRRenderOptions` resolves only fixed catalog font IDs through that namespace; no CWD or network fallback and no large font embed. Read `ui/fonts/qr/AGENTS.md` before changing the font manifest.

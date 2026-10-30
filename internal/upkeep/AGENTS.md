@@ -21,6 +21,9 @@ The updater owns transaction manifests; this package verifies them before collec
 - Preview is the default. Applying cleanup requires locks, verified resources,
   resolved transactions and running-version readiness. Keep unknown, damaged or
   unreadable artifacts rather than guessing their provenance.
+- The readiness subprocess checks the running server's pinned, verified resource
+  set without rehashing local assets. Keep full local verification in cleanup and
+  explicit `--check-assets`; disk reads must not consume the readiness deadline.
 - Keep cleanup results sanitized in `data/update_cleanup_status.json`; private
   backups may contain credentials.
 - `update.sh` shows a compact cleanup summary, including removed/kept counts

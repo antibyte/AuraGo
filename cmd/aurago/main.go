@@ -213,8 +213,12 @@ func main() {
 	webAccessLog := appLog.With("component", "web-access")
 	exePath, _ := os.Executable()
 	installDir := filepath.Dir(exePath)
-	if handleAssetFlags(installDir, *assetsDir, *assetsInfo, *assetsCheck, *assetsArchive, *assetsImport) {
-		return
+	// Plain healthchecks use the running server's verified asset headers. Local
+	// hashing must not delay the probe or exhaust the maintenance subprocess limit.
+	if !healthcheck || *assetsInfo || *assetsCheck || *assetsArchive != "" || *assetsImport != "" {
+		if handleAssetFlags(installDir, *assetsDir, *assetsInfo, *assetsCheck, *assetsArchive, *assetsImport) {
+			return
+		}
 	}
 	if !runSetup && !initOnly && !checkConfig && !healthcheck && !printTsNetStateDirOnly && assetsNeedFreshRecovery(configFile) {
 		if err := server.RunAssetRecovery(*recoveryAddress, appLog); err != nil {

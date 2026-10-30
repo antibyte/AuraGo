@@ -20,6 +20,11 @@ collection. A new version becomes confirmed only after asset verification,
 core readiness and the existing conditional tsnet readiness check. Cleanup
 failures do not roll back a healthy update.
 
+The cleanup readiness subprocess probes the running server and checks its pinned,
+verified resource-set headers. It does not repeat the local file hashing already
+performed by cleanup: slow storage must not exhaust the 20-second subprocess
+deadline before the readiness request starts. A failed check still blocks deletion.
+
 The maintenance CLI identifies resource pins from Go build metadata when
 available. Binaries built with `-trimpath` omit linker flags from that metadata;
 for those, the CLI matches linked IDs against installed resource sets without

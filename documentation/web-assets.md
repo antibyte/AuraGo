@@ -113,6 +113,9 @@ service worker still registers when Web Push is unavailable.
 adds `asset_set_id` and `assets_ready`. `/api/ready` retains its backend status
 and adds `X-AuraGo-Asset-Set` and `X-AuraGo-Assets-Ready` headers. A pinned binary's
 CLI health check additionally requires the running server's matching, ready set.
+Plain `--healthcheck` does not open or hash local resources, so slow storage cannot
+delay the readiness probe. Service startup and explicit `--check-assets` continue
+to verify local resources in full.
 
 ## Releases and rollback
 
