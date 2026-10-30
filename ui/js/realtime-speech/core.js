@@ -734,6 +734,7 @@
 
         async executeAction(request) {
             const requestId = Common.randomID('voice-action');
+            const surface = this.surface;
             const action = { requestId, request, cancelled: false };
             this.actionActive = true;
             this.currentAction = action;
@@ -777,6 +778,10 @@
                         if (!data || data === '[DONE]') return;
                         const payload = Common.safeJSON(data);
                         if (!payload) return;
+                        if (surface === 'desktop' && this.surface === surface && this.currentAction === action && !action.cancelled &&
+                            payload.type === 'virtual_desktop_event' && payload.payload && payload.payload.id) {
+                            window.dispatchEvent(new CustomEvent('aurago:desktop-event', { detail: payload.payload }));
+                        }
                         const delta = eventContent(payload);
                         if (delta) resultText += delta;
                         const final = finalEventContent(payload);

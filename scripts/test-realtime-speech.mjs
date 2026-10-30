@@ -146,7 +146,9 @@ function loadRuntimeForTimerTest(fetchImpl, options = {}) {
     addEventListener(type, handler) {
       listeners.set(type, handler);
     },
-    dispatchEvent() {},
+    dispatchEvent(event) {
+      listeners.get(event.type)?.(event);
+    },
     clearTimeout(timerId) {
       timers.delete(timerId);
     },
@@ -186,6 +188,7 @@ function loadRuntimeForTimerTest(fetchImpl, options = {}) {
   vm.runInContext(read('ui/js/realtime-speech/core.js'), context);
   return {
     Runtime: window.AuraRealtimeSpeechRuntime,
+    window,
     timer: () => [...timers.values()][0]?.handler || null,
     timerDelay: () => [...timers.values()][0]?.delay || null,
     timers: () => [...timers.values()].map(timer => timer.delay),
@@ -282,6 +285,47 @@ async function testActionResultDisplayDeduplication() {
   assert.equal(desktopDisplays.length, 1, 'desktop actions still need one local final display event');
   assert.equal(desktopDisplays[0].content, 'Das ist das Ergebnis.');
   assert.equal(desktopDisplays[0].kind, 'action');
+}
+
+async function testDesktopVoiceControlsAppsOnce() {
+  const source = read('ui/js/desktop/core/sdk-events-bootstrap.js');
+  const handlers = source.slice(source.indexOf('    async function handleDesktopEvent('), source.indexOf('    function showDesktopNotification('));
+  const binding = source.match(/window\.addEventListener\('aurago:desktop-event',[^\n]+/)[0];
+  const events = [
+    { id: 'launch-calculator', type: 'open_app', payload: { app_id: 'calculator' } },
+    { id: 'launch-document', type: 'open_app', payload: { app_id: 'writer', path: 'Documents/Notizen.md' } }
+  ];
+  for (const scenario of ['desktop', 'webchat', 'cancelled', 'superseded']) {
+    let runtime;
+    const harness = loadRuntimeForTimerTest(async () => {
+      let delivered = false;
+      return { ok: true, body: { getReader: () => ({ read: async () => {
+        if (delivered) return { done: true, value: new Uint8Array() };
+        delivered = true;
+        if (scenario === 'cancelled') runtime.currentAction.cancelled = true;
+        if (scenario === 'superseded') runtime.currentAction = null;
+        const stream = events.map(payload => 'data: ' + JSON.stringify({ type: 'virtual_desktop_event', payload }) + '\n\n').join('') +
+          'data: {"event":"final_response","detail":"Geöffnet."}\n\n';
+        return { done: false, value: new TextEncoder().encode(stream) };
+      } }) } };
+    });
+    runtime = new harness.Runtime();
+    runtime.surface = scenario === 'webchat' ? 'webchat' : 'desktop';
+    const launches = [];
+    const shell = vm.createContext({ window: harness.window, isStandaloneWidgetPath: () => false, openApp: (app, context) => launches.push({ app, context }) });
+    vm.runInContext(handlers + '\n' + binding, shell);
+    await runtime.executeAction('Öffne den Taschenrechner und Documents/Notizen.md in Autor');
+    assert.equal(launches.length, scenario === 'desktop' ? 2 : 0, scenario + ': only the current Desktop action may launch apps');
+    if (scenario === 'desktop') {
+      assert.equal(launches[0].app, 'calculator');
+      assert.equal(launches[1].app, 'writer');
+      assert.equal(launches[1].context.path, 'Documents/Notizen.md');
+      for (const event of events) await shell.handleDesktopEvent(event);
+      assert.equal(launches.length, 2, 'the same events from SSE must not launch either app twice');
+      await shell.handleDesktopEvent({ ...events[1], id: 'reopen-document' });
+      assert.equal(launches.length, 3, 'an explicit new request may reopen the same document');
+    }
+  }
 }
 
 async function testAgentProgressUsesConfiguredAudio() {
@@ -831,6 +875,7 @@ await testLocalAudioGate();
 testAudioWorkletResampling();
 await testParkingTimerAndGuards();
 await testActionResultDisplayDeduplication();
+await testDesktopVoiceControlsAppsOnce();
 await testAgentProgressUsesConfiguredAudio();
 await testProgressCancellationAndUserSpeech();
 await testTakeoverPeerProbeAndModalContrast();

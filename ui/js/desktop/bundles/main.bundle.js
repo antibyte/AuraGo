@@ -22731,8 +22731,7 @@ if (appId === 'pixel') {
         }
     }
 
-    // The server sends each event over the WebSocket and SSE with one id; the
-    // second copy is dropped. Agent tool events come over SSE only, without an id.
+    // Shared event ids deduplicate WebSocket, SSE and direct voice-action delivery.
     const DESKTOP_EVENT_SEEN_MS = 60000;
     const DESKTOP_EVENT_SEEN_MAX = 512;
     const desktopEventSeen = new Map();
@@ -22911,6 +22910,7 @@ if (appId === 'pixel') {
         if (window.AuraSSE && typeof window.AuraSSE.on === 'function') {
             window.AuraSSE.on('virtual_desktop_event', handleDesktopEvent);
         }
+        window.addEventListener('aurago:desktop-event', event => handleDesktopEvent(event.detail));
         ensureSDKFrameLifecycleObserver();
         window.addEventListener('message', handleSDKChannelHandshake);
     }

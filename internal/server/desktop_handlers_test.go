@@ -134,7 +134,7 @@ func TestBuildDesktopAgentPromptIncludesDesktopFileContext(t *testing.T) {
 
 	for _, want := range []string{
 		"The user has attached desktop workspace file context.",
-		"Use the virtual_desktop tool",
+		"Use virtual_desktop_files",
 		"Current desktop file:\ndesktop_current_file (untrusted):\n<external_data>\nDocuments/report.md",
 		"Attached desktop files:\ndesktop_open_files (untrusted):\n<external_data>\nDocuments/report.md\nDesktop/notes.txt",
 	} {

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -760,7 +761,7 @@ func virtualDesktopJSON(status, message string, data interface{}, event *desktop
 }
 
 func virtualDesktopEvent(eventType string, payload interface{}) *desktop.Event {
-	return &desktop.Event{Type: eventType, Payload: payload, CreatedAt: time.Now().UTC()}
+	return &desktop.Event{ID: rand.Text(), Type: eventType, Payload: payload, CreatedAt: time.Now().UTC()}
 }
 
 func virtualDesktopString(args map[string]interface{}, keys ...string) string {

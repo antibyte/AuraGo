@@ -10,6 +10,10 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- `virtualDesktopEvent` assigns one unique event ID before serializing tool
+  output or sending browser events. Preserve it across SSE and the direct
+  Desktop voice-action stream so the shell launches an app only once.
+
 - Web/RSS/selector/search adapters and summary helpers call the shared Guardian content
   gate before isolation or LLM use. Main and structured HTML share `scraper.CleanHiddenHTML`;
   preserve accessible panels/short labels/noscript. Mail watchers quarantine failures

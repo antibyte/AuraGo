@@ -617,6 +617,13 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Feed audible progress clips to the same analyser-driven Persona mouth motion.
   Forward the exact progress caption as `message` to the audio endpoint; the
   server validates its translated phrase allowlist so spoken variants match.
+- An active Desktop voice action forwards identified `virtual_desktop_event`
+  payloads from its own response stream through `aurago:desktop-event` to the
+  existing shell handler. Ignore cancelled/superseded actions and Webchat
+  streams; deduplicate the same ID from SSE/WebSocket delivery. This does not
+  grant host-file access or bypass Desktop policy. Verify
+  `node scripts/test-realtime-speech.mjs` and
+  `TestDesktopVoiceControlOpensAppsAndFilesBrowser` (browser smoke enabled).
 - SIP Phone surfaces `outbound_policy_migration_required` as a localized setup
   blocker.
 - Live Speech remembers the selected/started profile ID in browser storage

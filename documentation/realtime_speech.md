@@ -66,6 +66,21 @@ Profile IDs are immutable. API keys are never serialized into YAML. The Config U
 
 AuraGo registers every hydrated key as sensitive and blocks the entire `realtime_speech_` prefix from Python secret injection.
 
+## Control the virtual desktop by voice
+
+In Desktop Live Speech, requests such as “Öffne den Taschenrechner” or
+“Öffne Documents/report.docx in Autor” run through the same agent and Desktop
+tools as typed Desktop Chat. AuraGo can list apps and files, launch an app, and
+open an existing document without rewriting its contents. Agent control and
+the Virtual Desktop tool must be enabled; readonly blocks agent runs.
+
+File paths belong to the Virtual Desktop filesystem. Upload or import files
+from the browser device or host through the existing File Manager first.
+The voice action stream delivers identified Desktop events directly to the
+shell, so app launches also work while the separate event connection is
+reconnecting. The shell handles each event ID once across transports. A launch
+event confirms dispatch; app rendering and document loading can still fail.
+
 ## Local audio gate and lifecycle
 
 The browser runs the pinned Silero VAD v6.2.1 ONNX model through ONNX Runtime Web. Raw microphone audio stays in the page. The provider receives only PCM16 frames classified as speech.

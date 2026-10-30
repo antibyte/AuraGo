@@ -911,6 +911,13 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 
 ## Desktop invocation ownership
 
+- Desktop Chat and Live Speech share canonical `virtual_desktop_apps` launch
+  guidance (`open_app`, `open_in_app`) and workspace-relative file paths.
+  Opening an existing document must not imply a write. Live Speech retains
+  the Desktop admin, agent-control and readonly gates. Verify
+  `TestRealtimeSpeechDesktopOpensAppsAndExistingDocuments` and
+  `TestRealtimeSpeechDesktopReadonlyBlocksAppLaunch`.
+
 - Desktop-owned shared integration routes use server-selected handlers and keep
   original integration gates. Never trust a header or client origin assertion as
   Desktop ownership. Readonly has stable HTTP 403 code desktop_readonly; it also
