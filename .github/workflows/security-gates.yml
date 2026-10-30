@@ -99,7 +99,7 @@ jobs:
           echo "TIKTOKEN_CACHE_DIR=$TIKTOKEN_CACHE_DIR" >> "$GITHUB_ENV"
 
       - name: Run Go tests
-        run: go test ./...
+        run: go test ./... -p 1
 
       - name: Run complete Go vet analysis
         run: go vet ./...

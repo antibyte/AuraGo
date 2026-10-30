@@ -38,8 +38,11 @@ func TestGoSecurityChecksRunIndependently(t *testing.T) {
 				if job.Needs != nil || job.If != "" || job.Continue || step.If != "" || step.Continue {
 					t.Errorf("%s can be skipped or ignored", check)
 				}
+				if (check == "tests" || check == "race") && !strings.Contains(step.Run, "-p 1") {
+					t.Errorf("%s must serialize packages within runner resources", check)
+				}
 				if check == "race" {
-					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram"} {
+					for _, pkg := range []string{"llm", "server", "memory", "tools", "telegram", "agent"} {
 						if !strings.Contains(step.Run, "./internal/"+pkg) {
 							t.Errorf("race check omits %s", pkg)
 						}
