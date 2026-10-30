@@ -8,6 +8,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/flows"
+	"aurago/internal/security"
 )
 
 // An ai.step prompt that carries a web page, mail or webhook leaf with a high-threat
@@ -25,6 +26,10 @@ func TestFlowAIStepRefusesHighThreatPromptLeaf(t *testing.T) {
 	} {
 		main := &flowFakeChatClient{content: "ok"}
 		f, cfg, providers := newTestFlowLLM(main)
+		cfg.LLMGuardian.Enabled = true
+		f.reviewPrompt = func(context.Context, string, string) (security.GuardianResult, error) {
+			return security.GuardianResult{Decision: security.DecisionBlock}, nil
+		}
 		cfg.Providers = []config.ProviderEntry{{ID: "fast", Model: "fast-model"}}
 		for _, model := range []string{"", "fast"} {
 			req.Model = model
@@ -40,6 +45,37 @@ func TestFlowAIStepRefusesHighThreatPromptLeaf(t *testing.T) {
 		if len(main.requests) != 0 || providers["fast"] != nil {
 			t.Fatalf("%s: a provider was reached (%d main requests, fast client %v)", name, len(main.requests), providers["fast"])
 		}
+	}
+}
+
+// The optional character n-gram guard rates the normal German starter-template
+// instruction above 0.65. Its weak similarity is not evidence of an injected order.
+func TestFlowAIStepComposedPromptWithWeakEmbeddingMatch(t *testing.T) {
+	const instruction = "Fasse die wichtigsten Nachrichten aus den folgenden Suchergebnissen in fünf kurzen Stichpunkten zusammen. Wenn keine Suchergebnisse folgen, antworte nur mit: Nichts Neues."
+	for name, req := range map[string]flows.LLMRequest{
+		"prompt":       {Prompt: instruction},
+		"instructions": {System: instruction, Prompt: "Die Nachrichten stehen bereit."},
+		"fenced data":  {Prompt: instruction + "\n\n" + security.IsolateExternalData("Die Redaktion berichtet über neue KI-Modelle.")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			main := &flowFakeChatClient{content: "Fertig"}
+			f, cfg, _ := newTestFlowLLM(main)
+			cfg.Guardian.PromptSec.Preset = "moderate"
+			cfg.Guardian.PromptSec.Embedding.Enabled = true
+			cfg.Guardian.PromptSec.Embedding.Threshold = .65
+			f.s.Guardian = security.NewGuardianFromConfig(nil, cfg)
+			if _, held := security.GateScan(f.s.Guardian, instruction); !held {
+				t.Fatal("fixture no longer reproduces the strict embedding false positive")
+			}
+			resp, err := f.Step(context.Background(), req)
+			if err != nil || resp.Text != "Fertig" || len(main.requests) != 1 {
+				t.Fatalf("ordinary composed prompt was refused: response=%+v err=%v calls=%d", resp, err, len(main.requests))
+			}
+			messages := main.requests[0].Messages
+			if messages[1].Content != req.Prompt || !strings.HasPrefix(messages[0].Content, flowAIGuardInstruction) || !strings.HasSuffix(messages[0].Content, req.System) {
+				t.Fatal("the scan changed the prompt, its external-data fence or the system guard")
+			}
+		})
 	}
 }
 

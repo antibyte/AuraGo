@@ -109,6 +109,9 @@ func TestScanMarksExhaustedShadowBudgetIncomplete(t *testing.T) {
 	if !res.Incomplete || res.Level < ThreatHigh || !strings.Contains(strings.Join(res.Patterns, ","), scanIncompletePattern) {
 		t.Fatalf("scan = %+v, want incomplete at high with the %s category", res, scanIncompletePattern)
 	}
+	if scan, held := GateScanComposedPrompt(g, text); !held || !scan.Incomplete {
+		t.Errorf("composed prompt with an incomplete scan was accepted: %+v, held=%v", scan, held)
+	}
 	got := g.SanitizeToolOutput("web_scraper", text)
 	if !strings.HasPrefix(got, "[QUARANTINE NOTICE]") || !strings.Contains(got, quarantineReasonText(QuarantineIncomplete)) {
 		t.Errorf("external output = %.200q, want the incomplete quarantine notice", got)

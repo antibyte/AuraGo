@@ -101,7 +101,7 @@ func GuardianFromConfig(cfg *config.Config) *Guardian {
 }
 
 // GateScan is the local injection scan in front of a model that is about to read outside
-// text (the summary helper, the AI step of a flow, the main model for a vision fallback). It
+// text (the summary helper and the main model for a vision fallback). It
 // reports whether the text must be withheld: the scan reached ThreatHigh, or it could not
 // read all of the text, the verdict the dispatch gives external tool output. The returned
 // scan is the one that decided, for logging.
@@ -115,14 +115,18 @@ func GateScan(g *Guardian, text string) (scan ScanResult, withhold bool) {
 	if g == nil {
 		g = defaultGateGuardian()
 	}
-	scan = g.ScanForInjectionLocal(text)
+	return scanLocalGate(text, ThreatHigh, g.ScanForInjectionLocal)
+}
+
+func scanLocalGate(text string, threshold ThreatLevel, scanText func(string) ScanResult) (scan ScanResult, withhold bool) {
+	scan = scanText(text)
 	if scan.Incomplete {
 		return scan, true
 	}
-	if scan.Level < ThreatHigh {
+	if scan.Level < threshold {
 		return scan, false
 	}
-	return relieveBarePhrases(text, scan, ThreatHigh, g.ScanForInjectionLocal)
+	return relieveBarePhrases(text, scan, threshold, scanText)
 }
 
 // RelieveBarePhrases is the relief rule of GateScan and SanitizeToolOutput (relieveBarePhrases)

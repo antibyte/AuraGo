@@ -10,6 +10,15 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- Runtime-owned `prompt_security` incidents use the planner's dedicated next-contact
+  path even after the ordinary daily notice slot. Claim a durable five-minute batch
+  lease, deliver through the existing typed notice or persisted answer fallback, and
+  mark only delivered revisions. The same fixed diagnostic notice is supplied to the
+  agent; prompt bodies and judge-written reasons are never trusted notice content.
+  Background and Code Studio runs leave incidents pending. See `../planner/AGENTS.md`;
+  verify `TestPromptSecurityIncidentNotifiesAtNextContactAfterDailySlot` and the existing
+  operational-notice delivery/day tests.
+
 - Dispatch passes its selected Guardian (including `fallbackToolOutputGuardian`) to
   handlers through the local `DispatchContext` copy, never by changing the caller.
   Both output-vault read APIs keep scanning, isolation and warnings at the complete

@@ -188,6 +188,23 @@ func prepareOperationalIssueNoticeAt(runCfg RunConfig, initialUserMsg string, no
 		}
 		return operationalIssueNoticeState{}
 	}
+	securityNotices, err := planner.ListPendingPromptSecurityNotices(runCfg.PlannerDB, now, 2)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("Failed to load prompt security notices", "error", err)
+		}
+		return operationalIssueNoticeState{}
+	}
+	if len(securityNotices) > 0 {
+		leased, err := planner.ClaimPromptSecurityNoticeBatch(runCfg.PlannerDB, securityNotices, now)
+		if err != nil && logger != nil {
+			logger.Warn("Failed to claim prompt security notice", "error", err)
+		}
+		if err != nil || !leased {
+			return operationalIssueNoticeState{}
+		}
+		return operationalIssueNoticeFromItems(runCfg, securityNotices)
+	}
 	if !claimed {
 		return operationalIssueNoticeState{}
 	}
@@ -208,6 +225,10 @@ func pendingOperationalIssueNotice(runCfg RunConfig, initialUserMsg string, now 
 	if len(issues) == 0 {
 		return operationalIssueNoticeState{}
 	}
+	return operationalIssueNoticeFromItems(runCfg, issues)
+}
+
+func operationalIssueNoticeFromItems(runCfg RunConfig, issues []planner.OperationalIssueNotice) operationalIssueNoticeState {
 	// A notice is either supervisor findings or a reflection advisory, never
 	// both, so neither the heading nor the prompt wording claims more than is
 	// true. Advisory items wait for a contact without supervisor findings.

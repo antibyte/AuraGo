@@ -182,6 +182,10 @@ func ResolveOperationalIssue(db *sql.DB, fingerprint, resolution string, resolve
 // notices, ordered by severity, changed revision, and recency. High-severity
 // open issues become due again after 24 hours.
 func ListPendingOperationalIssueNotices(db *sql.DB, now time.Time, limit int) ([]OperationalIssueNotice, error) {
+	return listPendingOperationalIssueNotices(db, now, limit, "")
+}
+
+func listPendingOperationalIssueNotices(db *sql.DB, now time.Time, limit int, source string) ([]OperationalIssueNotice, error) {
 	if db == nil {
 		return nil, fmt.Errorf("planner database not available")
 	}
@@ -191,13 +195,19 @@ func ListPendingOperationalIssueNotices(db *sql.DB, now time.Time, limit int) ([
 	if limit <= 0 || limit > 2 {
 		limit = 2
 	}
-	rows, err := db.Query(`
+	query := `
 		SELECT fingerprint, source, context, severity, title, detail, reference,
 			first_seen, last_seen, occurrences, status, kind, detail_hash, revision,
 			notified_revision, last_notified_at, resolved_at, resolution,
 			archived_at, archive_reason, created_at, updated_at
 		FROM operational_issues
-		WHERE status IN ('open', 'in_progress')`)
+		WHERE status IN ('open', 'in_progress')`
+	var args []any
+	if source != "" {
+		query += " AND source = ? AND revision > notified_revision"
+		args = append(args, source)
+	}
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list pending operational issue notices: %w", err)
 	}

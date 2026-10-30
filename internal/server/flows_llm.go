@@ -76,9 +76,10 @@ var flowPromptGuardian = security.NewGuardian(nil)
 // connection until it is used, its idle connection closes after 90 seconds
 // (http.DefaultTransport), and a model call takes seconds, so one client per call is fine.
 type flowLLM struct {
-	s         *Server
-	newClient func(cfg *config.Config, p config.ProviderEntry) llm.ChatClient
-	blocked   func() bool
+	s            *Server
+	newClient    func(cfg *config.Config, p config.ProviderEntry) llm.ChatClient
+	blocked      func() bool
+	reviewPrompt func(context.Context, string, string) (security.GuardianResult, error)
 }
 
 func newFlowLLM(s *Server) *flowLLM {
@@ -101,7 +102,7 @@ func (f *flowLLM) Step(ctx context.Context, req flows.LLMRequest) (flows.LLMResp
 	if f.blocked() {
 		return flows.LLMResponse{}, flows.NewNodeError("FLOW_BUDGET_EXCEEDED", "the daily AI budget is used up")
 	}
-	if err := f.scanText(req); err != nil {
+	if err := f.scanText(ctx, cfg, req); err != nil {
 		return flows.LLMResponse{}, err
 	}
 	rt, err := f.route(cfg, req.Model)
@@ -116,36 +117,45 @@ func (f *flowLLM) Step(ctx context.Context, req flows.LLMRequest) (flows.LLMResp
 	return flowAIAnswer(resp, rt.model, req.JSONSchema != nil, max(request.MaxTokens, request.MaxCompletionTokens))
 }
 
-// scanText is the local injection scan of what a step is about to send, run before any
-// provider is resolved or called. The rendered prompt holds web pages, mails and webhook
-// bodies (the engine fences them, but a fence is no verdict), and the instructions can hold
-// such data too (the lint warns about it). At ThreatHigh, or when the scan could not read it
-// all, the step fails with FLOW_PARAM_INVALID, which no retry repeats, and no provider is
-// called, as a tool output at that level is withheld from the agent. A text that reaches
-// High only through bare phrases such as "you are now" or "from now on" is not refused
-// (security.GateScan): a mail that says "From now on you will receive weekly updates" must not
-// fail the flow. The message names no part of the text; the categories go to the log.
-func (f *flowLLM) scanText(req flows.LLMRequest) error {
+// scanText checks the full composition before the task provider is resolved.
+// Critical findings and incomplete scans stop immediately; uncertain findings
+// are advisory, with one review of the whole task when the LLM Guardian is enabled.
+func (f *flowLLM) scanText(ctx context.Context, cfg *config.Config, req flows.LLMRequest) error {
 	guardian := flowPromptGuardian
 	if f.s != nil && f.s.Guardian != nil {
 		guardian = f.s.Guardian
 	}
+	needsReview := false
+	outcome := ""
+	defer func() {
+		if outcome != "" {
+			f.s.recordFlowPromptIncident(req, outcome)
+		}
+	}()
 	for _, part := range []struct{ name, text string }{{"instructions", req.System}, {"prompt", req.Prompt}} {
 		if strings.TrimSpace(part.text) == "" {
 			continue
 		}
-		scan, withhold := security.GateScan(guardian, part.text)
+		scan, withhold := security.GateScanComposedPrompt(guardian, part.text)
 		if !withhold {
+			needsReview = needsReview || security.ComposedPromptNeedsReview(scan)
 			continue
 		}
 		if f.s != nil && f.s.Logger != nil {
 			f.s.Logger.Warn("[Flows] AI step text withheld by the injection scan", "flow", req.FlowID, "run", req.RunID,
 				"node", req.NodeID, "part", part.name, "threat", scan.Level.String(), "patterns", scan.Patterns, "incomplete", scan.Incomplete)
 		}
+		outcome = "critical_block"
 		if scan.Incomplete {
+			outcome = "incomplete_scan"
 			return flows.NewNodeError("FLOW_PARAM_INVALID", "the %s was not sent: the security scan could not check all of it", part.name)
 		}
 		return flows.NewNodeError("FLOW_PARAM_INVALID", "the %s was not sent: the security scan found text in it that looks like a prompt injection", part.name)
+	}
+	if needsReview {
+		var err error
+		outcome, err = f.reviewComposedPrompt(ctx, cfg, req)
+		return err
 	}
 	return nil
 }

@@ -487,6 +487,7 @@ type scanOptions struct {
 	hasTaintLevel   bool
 	returnSanitized bool
 	localOnly       bool
+	composedPrompt  bool
 }
 
 func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
@@ -563,6 +564,9 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	scanAll := func(windows []string, lift bool) {
 		for _, scanText := range windows {
 			analysis := protector.Analyze(scanText)
+			if opts.composedPrompt {
+				adjustComposedPromptEmbedding(analysis)
+			}
 			if lift {
 				analysis = liftShadowAnalysis(analysis)
 			}
