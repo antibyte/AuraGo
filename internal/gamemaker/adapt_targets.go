@@ -56,6 +56,11 @@ var adaptAnchorSpecs = []adaptAnchorSpec{
 	{"stage layout and enemy tuning data", regexp.MustCompile(`^const (STAGES|AREAS|LINES|BOARD)\b`)},
 	{"planned asset role binding", regexp.MustCompile(`this\.body\([^)]*["'](item|goal|powerup|hazard|obstacle|enemy|ball|key|cell|block)["']|paintAsset\(`)},
 	{"objective and instruction text passed to playerUIOptions", regexp.MustCompile(`playerUIOptions|playerOptions|instructions\s*:`)},
+	{"guided mode", regexp.MustCompile(`^const mode =`)},
+	{"objective text", regexp.MustCompile(`^const objective =`)},
+	{"goal pacing", regexp.MustCompile(`^const goal =`)},
+	{"object placement", regexp.MustCompile(`^\{"at":`)},
+	{"stage layout", regexp.MustCompile(`^const stage2 = `)},
 	{"entry call and engine gravity", regexp.MustCompile(`^(start|startGame)\(`)},
 }
 
@@ -67,7 +72,8 @@ func AdaptTargets(content []byte) []EditTarget {
 	}
 	// Compare and slice LF text; the digest always covers the complete file, so
 	// a CRLF checkout still verifies through the same sha256.
-	lines := strings.Split(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n")
+	normalized := strings.ReplaceAll(string(content), "\r\n", "\n")
+	lines := strings.Split(normalized, "\n")
 	digest := sourceHash(string(content))
 	used := make([]bool, len(lines))
 	targets := make([]EditTarget, 0, adaptTargetLimit)
@@ -83,8 +89,9 @@ func AdaptTargets(content []byte) []EditTarget {
 				continue
 			}
 			// A longer line cannot be copied as a bounded block; a later match of
-			// the same kind still can.
-			if len(line) > adaptSnippetMaxBytes || !utf8.ValidString(line) {
+			// the same kind still can. A line that occurs twice is not a unique
+			// replace target.
+			if len(line) > adaptSnippetMaxBytes || !utf8.ValidString(line) || countExactLines(lines, line) != 1 {
 				continue
 			}
 			used[index] = true
@@ -100,6 +107,16 @@ func AdaptTargets(content []byte) []EditTarget {
 		}
 	}
 	return targets
+}
+
+func countExactLines(lines []string, line string) int {
+	found := 0
+	for _, candidate := range lines {
+		if candidate == line {
+			found++
+		}
+	}
+	return found
 }
 
 // AdaptTargetsJSON is the bounded JSON form used by the building context and by

@@ -39,7 +39,6 @@ func threeTemplateSources(plan GamePlan) (map[string][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("encode mechanics: %w", err)
 	}
-	config := map[string]any{"mode": plan.Template, "objective": plan.Objective, "goal": settings.Goal, "speed": settings.Speed, "duration": settings.Duration, "objects": []any{}}
 	if plan.Scene == nil {
 		// Preserve the established role-based starter until an agent explicitly
 		// creates a scene. The null document is the legacy disabled-scene marker.
@@ -105,19 +104,101 @@ func threeTemplateSources(plan GamePlan) (map[string][]byte, error) {
 				objects = append(objects, map[string]any{"role": a.Role, "at": []float64{x, y, z}})
 			}
 		}
-		config["objects"] = objects
-		config["levels"] = starterLevels(plan, settings)
-		encoded, _ := json.Marshal(config)
-		main := "import { startGame } from './common';\n// Edit rules and legacy level objects here. Keep the shared lifecycle in common.ts.\n// Hooks: step(dt, api), action(api), reset(api). Read held keys with api.input.isDown(\"s\"); duration:0 disables countdown.\nstartGame(" + string(encoded) + ");\n"
+		main := guidedEntrySource(plan, settings, objects, starterLevels(plan, settings), false)
 		return map[string][]byte{"main.ts": []byte(main), "common.ts": []byte(common), "presentation.json": []byte(presentation), "mechanics.json": mechanics, "scene.json": []byte("null\n")}, nil
 	}
-	encoded, _ := json.Marshal(config)
 	sceneData, err := MarshalSceneJSON(*plan.Scene)
 	if err != nil {
 		return nil, err
 	}
-	main := "import { startGame } from './common';\n// Tune mode and pacing here. Geometry and behavior live in scene.json.\n// Custom hooks: step(dt, api), action(api), reset(api); read held keys with api.input.isDown(\"s\").\nstartGame(" + string(encoded) + ");\n"
+	main := guidedEntrySource(plan, settings, nil, nil, true)
 	return map[string][]byte{"main.ts": []byte(main), "common.ts": []byte(common), "presentation.json": []byte(presentation), "mechanics.json": mechanics, "scene.json": sceneData}, nil
+}
+
+// guidedEntrySource writes src/main.ts as short lines. Each editable fact stays
+// under the adapt-mode snippet bound so a small model can replace one line
+// instead of rewriting the file. The startGame argument is the same config the
+// helper already reads: mode, objective, pacing, objects and, for a role-based
+// starter, levels.
+func guidedEntrySource(plan GamePlan, settings GameSettings, objects []map[string]any, levels []map[string]any, scene bool) string {
+	var b strings.Builder
+	b.WriteString("import { startGame } from './common';\n")
+	if scene {
+		b.WriteString("// Tune mode and pacing here. Geometry and behavior live in scene.json.\n")
+		b.WriteString("// Custom hooks: step(dt, api), action(api), reset(api); read held keys with api.input.isDown(\"s\").\n")
+	} else {
+		b.WriteString("// Edit rules and legacy level objects here. Keep the shared lifecycle in common.ts.\n")
+		b.WriteString("// Hooks: step(dt, api), action(api), reset(api). Read held keys with api.input.isDown(\"s\"); duration:0 disables countdown.\n")
+	}
+	fmt.Fprintf(&b, "const mode = %s;\n", mustJSONString(plan.Template))
+	fmt.Fprintf(&b, "const objective = %s;\n", mustJSONString(plan.Objective))
+	fmt.Fprintf(&b, "const goal = %d;\n", settings.Goal)
+	fmt.Fprintf(&b, "const speed = %s;\n", formatPlainNumber(settings.Speed))
+	fmt.Fprintf(&b, "const duration = %d;\n", settings.Duration)
+	writeJSONArray(&b, "objects", objects)
+	if !scene {
+		writeLevelArray(&b, levels)
+		b.WriteString("startGame({mode, objective, goal, speed, duration, objects, levels});\n")
+	} else {
+		b.WriteString("startGame({mode, objective, goal, speed, duration, objects});\n")
+	}
+	return b.String()
+}
+
+func formatPlainNumber(value float64) string {
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.6f", value), "0"), ".")
+}
+
+func writeJSONArray(b *strings.Builder, name string, objects []map[string]any) {
+	if len(objects) == 0 {
+		b.WriteString("const " + name + " = [];\n")
+		return
+	}
+	// The comma starts the next line, so a matched object line is one complete
+	// JSON value and replacing it cannot drop the separator.
+	b.WriteString("const " + name + " = [\n")
+	for i, object := range objects {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		encoded, _ := json.Marshal(object)
+		b.Write(encoded)
+		b.WriteString("\n")
+	}
+	b.WriteString("];\n")
+}
+
+func writeLevelArray(b *strings.Builder, levels []map[string]any) {
+	names := make([]string, len(levels))
+	for i, level := range levels {
+		name := fmt.Sprintf("stage%d", i+1)
+		names[i] = name
+		objects, _ := level["objects"].([]map[string]any)
+		meta := make(map[string]any, len(level))
+		for key, value := range level {
+			if key != "objects" {
+				meta[key] = value
+			}
+		}
+		encoded, _ := json.Marshal(meta)
+		fmt.Fprintf(b, "const %s = %s;\n", name, encoded)
+		if len(objects) > 0 {
+			writeJSONArray(b, name+"Objects", objects)
+		}
+	}
+	b.WriteString("const levels = [\n")
+	for i, name := range names {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		objects, _ := levels[i]["objects"].([]map[string]any)
+		if len(objects) == 0 {
+			b.WriteString(name + "\n")
+			continue
+		}
+		fmt.Fprintf(b, "{...%s, objects: %sObjects}\n", name, name)
+	}
+	b.WriteString("];\n")
 }
 
 var starterLevelTitles = map[string][3]string{

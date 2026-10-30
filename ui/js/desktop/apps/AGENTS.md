@@ -3355,9 +3355,13 @@ registration lives in `internal/desktop/types.go`.
   both dialogs show `game_maker.compact_mode_title` and
   `game_maker.compact_mode_body`. That flag is separate from `below_minimum`:
   a route can be compact while it still clears the 16384 context floor.
+  When `known` is false, both dialogs show `data-gm-compact-opt-in`. A checked
+  box sends `small_model: true`. A hidden or unchecked box does not.
   The failure card renders translated help for `latest_job.open_checks` (at most
-  six). `required_controls` and `required_stages` use their own strings; any
-  other id uses `game_maker.check_help_generic`. A missing translation falls
+  six). `required_controls`, `required_stages`, `outcome_goal`, `outcome_lives`
+  and `effect_pickup` use their own strings. An id with the `role_` prefix uses
+  `game_maker.check_help_role`. Any other id uses `game_maker.check_help_generic`.
+  A missing translation falls
   back to that generic string. `data-gm-apply-check` writes the matching
   `game_maker.check_prompt_*` into the change field and does not start a job.
   Expected and observed values stay in the collapsed technical details, off the headline. The model-facing
@@ -3366,8 +3370,12 @@ registration lives in `internal/desktop/types.go`.
   `data-gm-retry-model` (resume with the chosen provider/model, which becomes the
   project default) and `data-gm-extend-repairs` only for a failed job whose
   `repair_passes` is above zero and below six, carrying `used + 3` as
-  `max_repair_passes`. Both resume with empty asset arrays, and the card says
-  so with `game_maker.retry_keeps_bindings`. They never reset unrelated fields.
+  `max_repair_passes`. Both resume with empty asset arrays. The card says
+  `game_maker.retry_keeps_pending_selection` when `error_code` is `planning` or
+  `planning_protocol`, and `game_maker.retry_keeps_bindings` otherwise. They never reset unrelated fields.
+  A ready non-voxel 3D card with `gameplay_status=unverified` shows
+  `game_maker.gameplay_unverified` before Play now. `data-gm-guided-base` fills
+  `game_maker.guided_base_change` into the change field and does not start a job.
   Elapsed time reads `started_at` from the job or the active-job capability and
   falls back to the local clock only when that time is missing.
   Verify `TestGameMakerFailureCardBrowser`.
@@ -3488,7 +3496,8 @@ registration lives in `internal/desktop/types.go`.
   project refreshes. Cancellation shows its server reason and retry action, with
   no active phase. Verify with `TestGameMakerEventsReconnectBrowser`.
 - The ready-job line `game_maker.gameplay_unverified` is shown only when
-  `gameplay_status` is `unverified` on a non-voxel 3D project.
+  `gameplay_status` is `unverified` on a non-voxel 3D project. The same sentence
+  leads the result card, ahead of Play now.
 - A non-empty workspace drift draws a badge on the preview and a hint under
   the change form. Preview replacement keeps that badge in the shell. The
   badge action `adopt` confirms, then posts `adopt_workspace: true` with no

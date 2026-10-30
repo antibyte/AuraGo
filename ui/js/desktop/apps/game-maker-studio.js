@@ -259,6 +259,16 @@
                 }
                 return;
             }
+            const guidedBase = event.target.closest('[data-gm-guided-base]');
+            if (guidedBase) {
+                const input = state.container.querySelector('[data-gm-change-form] textarea');
+                if (input && !input.disabled) {
+                    input.value = state.context.t('game_maker.guided_base_change');
+                    autoGrow(input);
+                    input.focus();
+                }
+                return;
+            }
             const extendButton = event.target.closest('[data-gm-extend-repairs]');
             if (extendButton) {
                 extendRepairsAction(state, extendButton.dataset.gmExtendRepairs);
@@ -853,8 +863,13 @@
         card.setAttribute('data-gm-outcome', '');
         const counts = checksMarkup(state, job) + repairMarkup(state, job) + usageMarkup(state, job);
         if (kind === 'success') {
-            card.innerHTML = `<strong>${esc(message)}</strong>${counts}
-                <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
+            const unverified = state.project && state.project.dimension === '3d' && state.project.variant !== 'voxel'
+                && job && job.gameplay_status === 'unverified';
+            const lead = unverified ? `<p data-gm-unverified>${esc(t('game_maker.gameplay_unverified'))}</p>` : '';
+            const guided = unverified
+                ? `<button type="button" data-gm-guided-base>${esc(t('game_maker.use_guided_base'))}</button>` : '';
+            card.innerHTML = `<strong>${esc(message)}</strong>${lead}${counts}
+                <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>${guided}`;
             return card;
         }
         // Prefer the server code. English substring matching stays only for
@@ -889,9 +904,10 @@
         const details = technical && technical !== title || instruction
             ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary>${technical && technical !== title ? `<p>${esc(technical)}</p>` : ''}${instruction}</details>`
             : '';
+        const pendingSelection = job && (job.error_code === 'planning' || job.error_code === 'planning_protocol');
         card.innerHTML = `<strong>${esc(title)}</strong>${hint}${open}${counts}
             ${details}
-            <p class="gm-result-hint" data-gm-retry-bindings>${esc(t('game_maker.retry_keeps_bindings'))}</p>
+            <p class="gm-result-hint" data-gm-retry-bindings>${esc(t(pendingSelection ? 'game_maker.retry_keeps_pending_selection' : 'game_maker.retry_keeps_bindings'))}</p>
             <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>${retryModel}${extend}`;
         return card;
     }
@@ -917,6 +933,11 @@
         const specific = prefix + id;
         const label = state.context.t(specific);
         if (label && label !== specific) return label;
+        if (String(id).startsWith('role_')) {
+            const roleKey = prefix + 'role';
+            const roleLabel = state.context.t(roleKey, { id });
+            if (roleLabel && roleLabel !== roleKey) return roleLabel;
+        }
         return state.context.t(prefix + 'generic', { id });
     }
 
@@ -1044,6 +1065,21 @@
                 ? state.context.t('game_maker.compact_mode_title') + ' — ' + state.context.t('game_maker.compact_mode_body')
                 : '';
         }
+        const optIn = layer.querySelector('[data-gm-compact-opt-in]');
+        if (optIn) {
+            const show = Boolean(limits && limits.known === false);
+            optIn.hidden = !show;
+            if (!show) {
+                const box = optIn.querySelector('[name="small_model"]');
+                if (box) box.checked = false;
+            }
+        }
+    }
+
+    function compactOptIn(layer) {
+        const box = layer && layer.querySelector('[name="small_model"]');
+        const holder = box && box.closest('[data-gm-compact-opt-in]');
+        return Boolean(box && holder && !holder.hidden && box.checked);
     }
 
     // Debounced limit probe bound to a modal's provider/model fields. The
@@ -1193,6 +1229,9 @@
                 <p class="gm-field-help" data-gm-model-limits hidden></p>
                 <p class="gm-model-warning" data-gm-model-warning role="status" hidden></p>
                 <p class="gm-compact-mode" data-gm-compact-mode hidden></p>
+                <label class="gm-checkline" data-gm-compact-opt-in hidden>
+                    <input type="checkbox" name="small_model"> ${esc(t('game_maker.compact_opt_in'))}
+                </label>
                 <footer><button type="button" data-modal-close>${esc(t('game_maker.cancel'))}</button>
                     <button type="submit" class="gm-primary">${esc(t('game_maker.retry_model_start'))}</button></footer>
             </form>`, layer => {
@@ -1216,7 +1255,8 @@
                 const started = await startResumedJob(state, {
                     provider_id: String(form.elements.provider_id.value || ''),
                     model: String(form.elements.model.value || '').trim(),
-                    allow_small_model: smallModelFlag(limitsState.limits)
+                    allow_small_model: smallModelFlag(limitsState.limits),
+                    small_model: compactOptIn(layer)
                 });
                 if (!started) submitting = false;
             });
@@ -1456,6 +1496,9 @@
                 <p class="gm-field-help" data-gm-model-limits hidden></p>
                 <p class="gm-model-warning" data-gm-model-warning role="status" hidden></p>
                 <p class="gm-compact-mode" data-gm-compact-mode hidden></p>
+                <label class="gm-checkline" data-gm-compact-opt-in hidden>
+                    <input type="checkbox" name="small_model"> ${esc(t('game_maker.compact_opt_in'))}
+                </label>
                 <div class="gm-media-options">
                     ${mediaToggle(state, 'use_image_generation', 'image_generation', 'image_assets')}
                     ${mediaToggle(state, 'use_music_generation', 'music_generation', 'music_assets')}
@@ -1535,7 +1578,8 @@
                         model: request.model,
                         image_generation: request.use_image_generation,
                         music_generation: request.use_music_generation,
-                        allow_small_model: allowSmallModel
+                        allow_small_model: allowSmallModel,
+                        small_model: compactOptIn(layer)
                     });
                     closeModal(state);
                     state.projects.unshift(createdProject);

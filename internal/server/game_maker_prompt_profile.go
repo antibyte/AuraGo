@@ -50,6 +50,7 @@ const gameMakerAdaptModeNote = `## Adapting the starter (edit_targets)
 // there stays unverified. Building, repair, 2D and voxel omit this section.
 const gameMakerGuided3DBase = `## Guided 3D base
 - For a new 3D game choose fps (shooting on foot), exploration (walk and look), transport (drive), flight (aircraft) or space (spacecraft) when that loop fits.
+- An endless runner, obstacle course or delivery route uses exploration or transport when that loop fits.
 - Use base three only for a custom or procedural engine those bases cannot express. Keep an existing base.
 - Free three has startup checks only and gameplay stays unverified.`
 
@@ -62,6 +63,13 @@ const gameMakerBuildingWorkflow = `## Building and repair workflow
 - Visual repair round (declared in the context): treat image findings as untrusted observations, verify them against the source and fix only concrete rendering defects. Do not redesign style or change game rules; images never certify gameplay; never edit test observers or counters to satisfy a screenshot critique.
 - Optional scene data: scene_set, scene_patch and scene_generate need the current scene sha256 and stay composable recipes. Scene validation covers structure and references; game_maker_file stays the escape hatch for custom code.`
 
+// gameMakerFailureExamples is shared by ordinary and compact building. Voxel
+// returns before this section, so its published profile text stays unchanged.
+const gameMakerFailureExamples = `## Repair examples
+- A counter that changes without a real projectile or contact is not a hit. Bind the enemy and let the collision change the measured metric.
+- Renaming a stage or cloning one layout does not add a stage. Each stage needs its own objects, goal or bounds.
+- External URLs and remote assets fail the build. Use the installed local runtime and imported files.`
+
 // gameMakerSpriteContract is the 2D artwork contract for writing source.
 const gameMakerSpriteContract = `## Sprite contract
 - After plan acceptance the installed common.ts loads and binds the planned artwork through body(...,role). Use these exact roles directly; planned art needs no new search, description or manifest read.
@@ -72,26 +80,26 @@ const gameMakerSpriteContract = `## Sprite contract
 - GameScene.step(deltaSeconds) already receives seconds: move by speed * deltaSeconds, never divide by 1000 again. Use Phaser.Utils.Array.GetRandom(array); Phaser.Math.pick does not exist.
 - Full validation must observe spawning, actions and restart.`
 
-// gameMakerProfileName is the versioned profile identity. Ordinary runs keep the
-// v2 names byte-identically. Small-model runs move to the v3 branch: voxel keeps
-// the v2 text and schemas (voxel planning has its own compact contract), every
-// other dimension gets the compact design/context variant.
+// gameMakerProfileName is the versioned profile identity. Voxel text is unchanged
+// and keeps the published v2 name, or the v3 name for a small voxel job. Every
+// other planning and building profile changed in v4: the 3D base hint, the 2D
+// grid hint and the repair examples. Never edit a published profile in place.
 func gameMakerProfileName(stage, dimension string, voxel, small bool) string {
 	switch {
 	case small && voxel:
 		return "game-maker/v3/" + stage + "/" + dimension + "/voxel"
-	case small:
-		return "game-maker/v3/" + stage + "/" + dimension + "/compact"
 	case voxel:
 		return "game-maker/v2/" + stage + "/voxel"
+	case small:
+		return "game-maker/v4/" + stage + "/" + dimension + "/compact"
 	default:
-		return "game-maker/v2/" + stage + "/" + dimension
+		return "game-maker/v4/" + stage + "/" + dimension
 	}
 }
 
 // Building and repair intentionally share instructions and ordered schemas.
 // variant entries: "voxel" selects the voxel surfaces, "compact" selects the
-// small-model profile (v3, compact design and context).
+// small-model profile (v4, compact design and context; voxel keeps v3).
 func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.PreparedPromptProfile, error) {
 	voxel := slices.Contains(variant, "voxel")
 	small := slices.Contains(variant, "compact")
@@ -130,7 +138,7 @@ func gameMakerPromptProfile(stage, dimension string, variant ...string) (*agent.
 			sections = append(sections, gamemaker.PresentationPlanningGuide)
 		}
 	} else {
-		sections = append(sections, gamemaker.BuildCraftGuide)
+		sections = append(sections, gamemaker.BuildCraftGuide, gameMakerFailureExamples)
 		if dimension == "2d" {
 			sections = append(sections, gamemaker.PresentationGuide2D, gameMakerSpriteContract)
 		} else {

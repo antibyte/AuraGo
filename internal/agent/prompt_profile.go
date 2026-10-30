@@ -47,7 +47,7 @@ func (p *PreparedPromptProfile) Revision() string {
 }
 
 // Name is the versioned profile identity (for example
-// "game-maker/v2/building/2d"). It stays part of the revision fingerprint.
+// "game-maker/v4/building/2d"). It stays part of the revision fingerprint.
 func (p *PreparedPromptProfile) Name() string {
 	if p == nil {
 		return ""

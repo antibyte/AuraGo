@@ -60,7 +60,9 @@ revision publication and standalone export for Phaser and Three.js games.
   `PresentationPlanningGuide`, editing `VoxelRuntimeGuide`.
   3D planning inserts `## Guided 3D base` immediately after the planning workflow
   and before phase guidance. A new game whose loop fits uses fps, exploration,
-  transport, flight or space. Base three stays for a custom or procedural engine,
+  transport, flight or space. An endless runner, obstacle course or delivery route
+  uses exploration or transport when that loop fits. A grid game such as snake stays
+  on base minimal. Base three stays for a custom or procedural engine,
   and an existing base stays. Free three still has startup checks only and gameplay
   stays unverified. The same choice is the `design.base` description on the 3D
   planning schema only. 2D, voxel, building and repair omit that section. Building
@@ -178,9 +180,9 @@ revision publication and standalone export for Phaser and Three.js games.
 - Planning, building, repair and source generation pin sampling per phase
   (`game_maker.planning_temperature` default 0.6, `game_maker.building_temperature`
   default 0.2, both clamped 0.05–1.5); the tool-enabled loop and the tool-free
-  minimal loops use the same values. Prepared profiles are `game-maker/v2/...`;
-  small-model jobs use the separate `game-maker/v3/<planning|building>/<2d|3d>/compact`
-  branch (a small voxel job keeps the v2 voxel text and only takes the v3 name). Any
+  minimal loops use the same values. Prepared profiles are `game-maker/v4/...`;
+  small-model jobs use `game-maker/v4/<planning|building>/<2d|3d>/compact`.
+  Voxel keeps the published v2 text (a small voxel job only takes the v3 name). Any
   prompt text change bumps the version; never edit a published profile in place.
 - New Studio jobs resolve the selected provider/model limits before starting. A known
   model below 16384 usable context tokens is refused with `model_context_too_small`
@@ -189,7 +191,8 @@ revision publication and standalone export for Phaser and Three.js games.
   reports the resolved limits passively, without a provider probe, plus
   `small_model`, `small_context_window` (65536) and `small_output_tokens`
   (16384). `small_model` is true only for a known route below either threshold.
-  Unknown models are not small and are never blocked. `ActiveJobInfo` includes
+  Unknown models are not small and are never blocked. The Studio offers a compact
+  checkbox for an unknown route; checking it sends `small_model: true`. `ActiveJobInfo` includes
   `started_at` once the job has started.
 - Planning, editing, source-only generation and image review have versioned
   prepared prompt profiles. Editing is shared by building and repair. Select
@@ -338,7 +341,13 @@ revision publication and standalone export for Phaser and Three.js games.
   `minimal` base and normal jobs stay writable, and the refusal consumes no repair
   pass and does not end the round. Tool-free starter generation never runs in
   `adapt` mode, so the server cannot rewrite the starter itself. Guided 3D starters
-  have no anchor that fits the snippet bound, so their write gate stays open.
+  emit mode, objective, pacing, one object or stage line and `startGame(` as separate
+  lines under 400 bytes, so the write gate closes when those anchors exist. A line
+  that appears twice is not an anchor. An empty resume replays the selection stored
+  on the previous job only when the restored copy has no accepted plan; an accepted
+  plan keeps its bindings. `gm_jobs.plan_accepted` and `gm_jobs.requested_selection`
+  record that. The failure card uses the pending-selection sentence for
+  `planning` and `planning_protocol` only.
 - The compact small-model building context caps `current_sources` at 12000 bytes and
   replaces `api_reference` with a bounded cheat sheet (`CompactRuntimeReference`, at
   most 2000 bytes) built from the same runtime reference. Ordinary runs keep the
@@ -353,7 +362,7 @@ revision publication and standalone export for Phaser and Three.js games.
   correction budget. Never report acceptance and revoke it later for selections.
 - Exhausted repair budgets (the per-job repair limit), unavailable browser feedback, and the first validation of each repair round also end the agent round through server-owned completion. Building can continue after core checks while budget remains. Exhaustion retains the last concrete failed check instead of replacing it with the budget error. Earlier rounds cannot complete a new round.
 - A rejected tool call in the tool-free limit response during Game Maker building/repair hands the saved source back to orchestrator validation. Never execute the extra call, retain its prose, increase budgets or mark the game successful without the existing checks. Planning failures, cancellation and other provider/agent errors still fail normally.
-- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. New 3D planning prefers one of those bases when the request fits that loop. It does not rewrite an explicit `three` design. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. A ready `job_status` includes `gameplay_status`; the Studio shows that disclosure only when the value is `unverified` on a non-voxel 3D project. Failed/cancelled jobs preserve the last playable revision; the shared repair limit defaults to three passes and a job may request 1–6 (`StartJobRequest.MaxRepairPasses`); tool and orchestrator validation share it.
+- New 2D jobs install one of six embedded templates; guided 3D offers fps, exploration, transport, flight and space. New 3D planning prefers one of those bases when the request fits that loop. It does not rewrite an explicit `three` design. Edits retain existing code. Both guided paths require compilation, build-bound browser startup and full gameplay checks. Free-code `three` supports startup only and explicitly leaves gameplay unverified. A ready `job_status` includes `gameplay_status`; the Studio shows that disclosure on the activity line and on the result card, before Play now, only when the value is `unverified` on a non-voxel 3D project. The card button fills a change request to move the game onto a guided base and does not start a job. Failed/cancelled jobs preserve the last playable revision; the shared repair limit defaults to three passes and a job may request 1–6 (`StartJobRequest.MaxRepairPasses`); tool and orchestrator validation share it.
 - Phaser 4.2.1 and Three.js 0.186.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
 - Phaser phase guidance must distinguish dynamic and static Arcade bodies from their game objects. Moving paddles remain dynamic and immovable; body `setVelocity`/`setPosition` runtime errors receive bounded repair hints without weakening validation or increasing the repair budget.
 - Phaser `scene.restart()` reuses the instance. Guidance and source references
