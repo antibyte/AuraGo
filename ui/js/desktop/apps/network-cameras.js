@@ -970,6 +970,18 @@
         dispose(windowId);
         const state = createState(host, windowId, ctx);
         instances.set(windowId, state);
+        window.AuraDesktopEmail?.attach(windowId, '.nc-toolbar-actions', () => {
+            const stream=selectedStream(state);
+            return {key:stream?.id,disabled:state.disposed||!stream||state.loading,subject:stream?.name,formats:['jpg'],
+                createFiles:async(_format,signal)=>{
+                    const response=await fetch('/api/desktop/integrations/go2rtc/snapshot',{method:'POST',credentials:'same-origin',signal,
+                        headers:{'Content-Type':'application/json'},body:JSON.stringify({stream_id:stream.id,store:true})});
+                    if(!response.ok)throw new Error(text(state.ctx,'snapshot_failed'));
+                    const result=await response.json();
+                    if(!result.web_path)throw new Error(text(state.ctx,'snapshot_failed'));
+                    return window.AuraDesktopEmail.files([{url:result.web_path,name:result.web_path.split('/').pop()}],signal);
+                }};
+        });
         if (state.pendingLaunch) savePreferences(state);
         draw(state);
         installVisibilityLifecycle(state);

@@ -311,6 +311,54 @@ const saved=await rt.oraProjectBlob(),project=await AuraPixelApp.ora.read(await 
 const png=await new Promise(resolve=>rt.layers[1].canvas.toBlob(resolve,'image/png')),decoded=await(await fetch('/api/qr/scan',{method:'POST',body:png})).json();if(decoded.text!==payload)throw Error('Resized QR did not survive ORA roundtrip');
 }`)
 	})
+	t.Run("email-handoff", func(t *testing.T) { testQREmailHandoff(t, page) })
+}
+
+func testQREmailHandoff(t *testing.T, page *rod.Page) {
+	t.Helper()
+	setup := `
+window.state={windows:new Map([['qrmail',{appId:'writer'}],['pixel',{appId:'pixel'}]]),windowCleanups:new Map()};
+window.contentEl=id=>document.querySelector(id==='pixel'?'#pixel':'#owner1');
+window.isBuiltinApp=()=>true;window.desktopReadonly=()=>false;window.registerWindowCleanup=()=>{};
+window.api=async()=>({enabled:true,readonly:false,accounts:[{id:'fixture',capabilities:['send']}]});
+window.emailLaunches=[];window.openApp=(app,options)=>{if(app!=='mailer')throw Error('Unexpected destination');emailLaunches.push(options);};
+window.showDesktopNotification=item=>{throw Error(item.message);};window.closeContextMenu=()=>{};window.desktopSound=()=>{};
+window.desktopModalQueue=Promise.resolve();window.mountDesktopDialog=overlay=>{document.body.append(overlay);return()=>{};};
+window.esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+`
+	routing := string(mustReadUIFile(t, "js/desktop/core/menus-and-routing.js"))
+	start, end := strings.Index(routing, "    function modalDialog(options)"), strings.Index(routing, "    async function createFileInPath")
+	if start < 0 || end <= start {
+		t.Fatal("Desktop modal fixture anchors missing")
+	}
+	if err := page.AddScriptTag("", setup+routing[start:end]+string(mustReadUIFile(t, "js/desktop/core/email-export-runtime.js"))); err != nil {
+		t.Fatal(err)
+	}
+	page.MustEval(`async()=>{
+window.qr=AuraQRDialog.open({host:document.querySelector('#owner1'),t,windowId:'qrmail'});
+await waitFor(()=>document.querySelector('[data-content-type]'));fill('[data-field="content.text"]','Email QR Grüße 東京');
+await waitFor(()=>document.querySelector('dialog [data-email-export]')&&!document.querySelector('dialog [data-email-export]').disabled);
+document.querySelector('dialog [data-email-export]').click();await waitFor(()=>document.querySelector('.vd-modal select'));
+if(!document.querySelector('dialog').contains(document.activeElement)||!document.activeElement.matches('.vd-modal select'))throw Error('Format picker lost native dialog focus');
+document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await waitFor(()=>!document.querySelector('.vd-modal'));
+if(!document.querySelector('dialog[open]')||emailLaunches.length)throw Error('Cancelling format closed QR or opened mail');
+await waitFor(()=>!document.querySelector('dialog [data-email-export]').disabled);
+document.querySelector('dialog [data-email-export]').click();await waitFor(()=>document.querySelector('.vd-modal select'));
+document.querySelector('.vd-modal select').value='svg';document.querySelector('.vd-modal').requestSubmit();
+await waitFor(()=>emailLaunches.length===1&&!document.querySelector('dialog'));
+const svg=emailLaunches[0].exportFiles[0];if(svg.name!=='QR.svg'||svg.type!=='image/svg+xml'||!(await svg.text()).includes('<svg'))throw Error('Native QR export metadata/content lost');
+
+// Run Pixel's email feature against the real unsaved document and canvas engine.
+PixelApp.render(document.querySelector('#pixel'),'pixel',ctx);rt.newBlankCanvas(3,2);rt.fileName='Unsaved.ora';
+const layer=rt.layers[0],paint=layer.canvas.getContext('2d');paint.fillStyle='#e80000';paint.fillRect(0,0,3,2);rt.markLayerDirty(layer);rt.pushHistory('Email edit');
+await waitFor(()=>document.querySelector('#pixel [data-email-export]')&&!document.querySelector('#pixel [data-email-export]').disabled);
+document.querySelector('#pixel [data-email-export]').click();await waitFor(()=>document.querySelector('.vd-modal select'));
+document.querySelector('.vd-modal select').value='png';document.querySelector('.vd-modal').requestSubmit();await waitFor(()=>emailLaunches.length===2);
+const png=emailLaunches[1].exportFiles[0];if(png.name!=='Unsaved.png'||png.type!=='image/png')throw Error('Pixel email metadata');
+const image=await createImageBitmap(png),canvas=document.createElement('canvas');canvas.width=3;canvas.height=2;const c=canvas.getContext('2d');c.drawImage(image,0,0);image.close();
+const pixel=c.getImageData(0,0,1,1).data;if(pixel[0]!==232||pixel[1]||pixel[2]||pixel[3]!==255)throw Error('Pixel email omitted unsaved pixels');
+if(emailLaunches.some(item=>item.draft.to||item.draft.text))throw Error('Handoff populated recipients/body');
+}`)
 }
 
 func checkQRPackage(t *testing.T, encoded, prefix, payload string, expected bool) {

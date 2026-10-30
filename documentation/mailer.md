@@ -5,6 +5,17 @@ category. It uses the Desktop's Standard and Fruity themes and their mail icons.
 The server synchronizes enabled accounts and processes the outbox even when the
 Mailer window is closed.
 
+## Attach files from Desktop apps
+
+Choose **Email …** beside a Desktop app's export controls. Select its format and
+review a separate Mailer draft with the generated file already attached. Recipients
+and body remain empty, and sending is explicit. Current unsaved editor contents
+are used where the app supports direct snapshots. Existing outgoing limits apply;
+failed uploads retain retry/remove controls and block Send.
+
+See [Desktop email exports](desktop-email.md) for the supported apps, formats and
+failure behavior. Store apps and Tresor are excluded.
+
 ## Connect accounts
 
 Open Mailer, enable it, and choose **Connect existing account** or **New account**.

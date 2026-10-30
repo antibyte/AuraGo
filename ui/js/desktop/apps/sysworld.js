@@ -81,6 +81,10 @@
             link.href=url;link.download='aurago-system-world-'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+'.png';
             link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
         };
+        window.AuraDesktopEmail?.attach(windowId, () => root.querySelector('[data-sw-action="photo"]')?.parentElement, () => ({
+            key:inst.city,signal:inst.load.signal,disabled:!inst.city||inst.disposed||inst.mode==='map',formats:['png'],
+            createFiles:async()=>{const blob=await inst.city.capture();return blob?[new File([blob],'aurago-system-world.png',{type:'image/png'})]:[];}
+        }));
         // H toggles photo mode outside text fields; Escape leaves it before the city sees the key.
         const photoKeys=e=>{
             if(e.ctrlKey||e.metaKey||e.altKey)return;

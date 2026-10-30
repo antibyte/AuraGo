@@ -101,7 +101,7 @@
         let tab = 'content', revision = 0, previewRevision = -1, preview, previewMeta, previewController, operation, resourceController, scanController, previewTimer, cameraTimer, stream;
         let frameDraft = defaultFrame(), logoDraft = { size_percent: 20, margin: 4, hide_background_modules: true }, drafts = {}, batchCSV = '', batchType = 'text', batchResult, batchRevision = -1;
         let cameraGeneration = 0, scanText = '', activeScan = false, resourceGeneration = 0, csvGeneration = 0, busy = false, resourceBusy = false, resolveClose;
-        let presetID = '', framePresetID = '';
+        let presetID = '', framePresetID = '', emailBinding;
         const invalidFields = new Set();
         const insertion = { unit: options.insertion?.unit || 'mm', width: options.insertion?.width || 40, x: options.insertion?.x, y: options.insertion?.y, ...options.insertion };
         const closed = new Promise(resolve => { resolveClose = resolve; });
@@ -118,6 +118,7 @@
         function close() {
             if (dead) return;
             dead = true; life.abort(); previewController?.abort(); operation?.abort(); resourceController?.abort(); scanController?.abort();
+            emailBinding?.dispose();
             clearTimeout(previewTimer); timers.forEach(timer => clearTimeout(timer)); timers.clear(); stopCamera(); urls.forEach(url => URL.revokeObjectURL(url)); urls.clear();
             drafts = {}; batchCSV = ''; scanText = ''; spec = null; preview = null; node.replaceChildren();
             if (node.open) node.close(); node.remove(); if (dialogs.get(host) === handle) dialogs.delete(host);
@@ -364,10 +365,13 @@
             }
             table.append(body); const scroll = document.createElement('div'); scroll.className = 'vd-qr-batch-errors'; scroll.append(table); target.append(scroll); syncButtons();
         }
-        async function batch(dryRun) {
+        async function batch(dryRun, asFile = false, exportSignal) {
             if (!current() || busy || !batchCSV || new TextEncoder().encode(batchCSV).length > MAX_CSV) { status('csv_invalid', true); return; }
             if (!dryRun && (batchRevision !== revision || batchResult?.errors?.length)) return;
             const token = revision, controller = new AbortController(), snapshot = clone(spec);
+            const cancelExport = () => controller.abort();
+            exportSignal?.addEventListener('abort', cancelExport, {once:true});
+            if (exportSignal?.aborted) cancelExport();
             operation?.abort(); operation = controller; busy = true; syncButtons(); status('busy');
             try {
                 const response = await checked(await fetch('/api/qr/batch', { method: 'POST', credentials: 'same-origin', cache: 'no-store',
@@ -377,10 +381,11 @@
                     batchResult = result; batchRevision = revision; renderBatchResults(); status(result.errors?.length ? 'row_invalid' : 'batch_ready', !!result.errors?.length);
                 } else {
                     const blob = await response.blob(); if (!current() || token !== revision || controller.signal.aborted) return;
+                    if (asFile) return [new File([blob], 'QR.zip', {type:'application/zip'})];
                     download(blob, 'QR.zip'); status('downloaded');
                 }
-            } catch (error) { if (controller.signal.aborted && !dead && token === revision) status('batch_cancelled'); else failure(error); }
-            finally { if (!dead && operation === controller) { busy = false; syncButtons(); } }
+            } catch (error) { if (asFile) throw error; if (controller.signal.aborted && !dead && token === revision) status('batch_cancelled'); else failure(error); }
+            finally { exportSignal?.removeEventListener('abort',cancelExport); if (!dead && operation === controller) { busy = false; syncButtons(); } }
         }
         function renderScanner() {
             settings.innerHTML = '<div class="vd-qr-scan"><div class="vd-qr-drop" data-drop><p class="vd-qr-help">' + esc(tr('drop_image')) + '</p><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-scan-file aria-label="' + esc(tr('scan_upload')) + '">' + buttons(['camera', 'clipboard']) + '</div>' +
@@ -567,6 +572,7 @@
             const file = [...(event.clipboardData?.files || [])].find(item => SCAN_TYPES.test(item.type)); if (file) { event.preventDefault(); stopCamera(); void scanImage(file); }
         }, { signal });
         node.addEventListener('keydown', event => {
+            if (event.target.closest('.vd-modal-backdrop')) return;
             event.stopPropagation();
             if (event.target.matches('[role=tab]') && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault(); event.stopPropagation(); const keys = ['content', 'design', 'batch', 'scan'], index = keys.indexOf(tab);
@@ -577,6 +583,7 @@
         }, { signal });
         document.addEventListener('keydown', event => {
             if (!node.contains(event.target)) return;
+            if (event.target.closest('.vd-modal-backdrop')) return;
             if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); close(); }
             else if ((event.ctrlKey || event.metaKey) && ['s', 'o', 'n', 'f', 'h', 'p'].includes(event.key.toLowerCase())) {
                 event.preventDefault(); event.stopPropagation();
@@ -596,6 +603,19 @@
                 find('[data-format]').innerHTML = catalog.output_formats.map(format => '<option value="' + esc(format) + '">' + esc(['png', 'jpeg', 'svg'].includes(format) ? format.toUpperCase() : tr('format_' + format)) + '</option>').join('');
                 renderControls(); status('no_preview');
                 await renderPreview();
+                emailBinding = window.AuraDesktopEmail?.attach(options.windowId, '.vd-qr-footer', () => {
+                    const batchReady=!!batchResult&&batchRevision===revision&&!batchResult.errors?.length;
+                    const previewReady=previewRevision===revision&&!!preview;
+                    return {key:revision,signal,dialogHost:node,onHandoff:close,onSetup:close,disabled:!current()||(!previewReady&&!batchReady)||busy||resourceBusy,
+                    formats:[...(previewReady?catalog.output_formats:[]),...(batchReady?['zip']:[])].map(id=>({id,label:['png','jpeg','svg','zip'].includes(id)?id.toUpperCase():tr('format_'+id)})),subject:'QR',
+                    createFiles:async(format,exportSignal)=>{
+                        if(format==='zip')return batch(false,true,exportSignal);
+                        const snapshot=clone(spec);snapshot.output.format=format;
+                        const result=format==='png'?{blob:preview}:await renderBinary(snapshot,{signal:exportSignal});
+                        const extension=format==='markdown'?'md':format==='jpeg'?'jpg':['png','svg'].includes(format)?format:'txt';
+                        return [new File([result.blob],'QR.'+extension,{type:result.blob.type})];
+                    }
+                };}, node);
             } catch (error) { failure(error); }
         })();
         return handle;

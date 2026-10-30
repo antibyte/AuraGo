@@ -208,6 +208,7 @@
             importOffer: null, cameraImportAwaitCreate: '', studioReady: false
         };
         instances.set(id, s);
+        P.installEmailExports?.(s);
         host.innerHTML = layoutMarkup(s);
         s.q = selector => host.querySelector(selector);
         s.q('[data-preview-quality]').value = s.previewQuality;

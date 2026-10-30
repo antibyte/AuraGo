@@ -46,7 +46,33 @@
                         allowFullscreen: true
                     }
                 );
-                wrap.replaceChildren(frame);
+                const toolbar = document.createElement('div');
+                toolbar.className = 'vd-toolbar vd-nasscad-email-toolbar';
+                wrap.replaceChildren(toolbar, frame);
+                const binding = window.AuraDesktopEmail?.attach(windowId, '.vd-nasscad-email-toolbar', () => {
+                    let exporter;
+                    try { exporter = frame.contentWindow?.AuraNasscadEmail; } catch (_) {}
+                    return {key:exporter?.documentKey||frame,disabled:state.disposed||!exporter?.ready,formats:exporter?.formats||[],
+                        createFiles:async(format,signal)=>{
+                            const files=await exporter.createFiles(format,signal);
+                            return files && files.map(file=>new File([file],file.name,{type:file.type}));
+                        }};
+                });
+                frame.addEventListener('load', () => {
+                    state.emailObserver?.disconnect();
+                    try {
+                        state.emailObserver = new MutationObserver(() => binding?.refresh());
+                        state.emailObserver.observe(frame.contentDocument, {childList:true,subtree:true});
+                        if (!frame.contentWindow.AuraNasscadEmail) {
+                            const script = frame.contentDocument.createElement('script');
+                            const path = '/js/desktop/apps/nasscad-email-frame.js';
+                            script.src = window.AuraLazyAssets?.versionedURL(path) || path + '?v=' + encodeURIComponent(window.BUILD_VERSION || 'dev');
+                            script.addEventListener('load', () => binding?.refresh());
+                            frame.contentDocument.body.append(script);
+                        }
+                    } catch (_) {}
+                    binding?.refresh();
+                });
             })
             .catch(err => {
                 if (state.disposed || !wrap) return;
@@ -57,7 +83,7 @@
 
     function dispose(windowId) {
         const state = instances.get(windowId);
-        if (state) state.disposed = true;
+        if (state) { state.disposed = true; state.emailObserver?.disconnect(); }
         instances.delete(windowId);
     }
 

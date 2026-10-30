@@ -21,6 +21,8 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
 
 ## Ownership
 
+- Desktop file email actions use the common Mailer draft handoff and app-owned exporters defined in `js/desktop/apps/AGENTS.md`. Keep all sixteen `desktop.email_*` locale sets, native dialog accessibility, theme controls and version-bound delivery aligned.
+
 - The Guardian local-protection card keeps download and saved activation separate.
   Passive status cannot install/start work. Only verified readiness permits enablement;
   an unavailable enabled model must remain disableable. Preserve boolean/action drafts

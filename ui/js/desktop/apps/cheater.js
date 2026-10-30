@@ -75,6 +75,12 @@
             refreshHome: () => refreshHome(state)
         };
         instances.set(windowId, state);
+        window.AuraDesktopEmail?.attach(windowId, '.cheater-header', () => ({
+            key:state.sheet?.id, disabled:!state.sheet, subject:state.sheet?.name,
+            formats:['md'], signal:state.currentAbort?.signal,
+            createFiles:async()=>[new File([host.querySelector('[data-source]')?.value ?? state.sheet.content],
+                (state.sheet.name || 'cheatsheet').replace(/[<>:"/\\|?*]/g,'_')+'.md',{type:'text/markdown;charset=utf-8'})]
+        }));
 
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
         bindGlobalShortcuts(state);

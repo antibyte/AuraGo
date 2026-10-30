@@ -929,6 +929,12 @@
             resizeObserver: null
         };
         instances.set(windowId, S);
+        window.AuraDesktopEmail?.attach(windowId, '.nm-header-actions', () => {
+            const tracks=menuTargets(S).filter(track=>track?.web_path);
+            return {key:tracks.map(track=>track.id).join(','),disabled:S.disposed||!tracks.length,
+                formats:[{id:'original',label:S.t('desktop.media_download')}],
+                createFiles:(_format,signal)=>window.AuraDesktopEmail.files(tracks.map(track=>({url:track.web_path,name:String(track.web_path).split('/').pop()})),signal)};
+        });
         host.innerHTML = shellMarkup(S);
         S.root = host.querySelector('.noisemaker-app');
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(S.root);

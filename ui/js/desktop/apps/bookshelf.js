@@ -40,6 +40,16 @@
         state.progressWriter = window.BookshelfProgress.createWriter((item, expectedRevision) =>
             request(api.saveProgress, item.bookId, item.progress, expectedRevision));
         instances.set(windowId, state);
+        window.AuraDesktopEmail?.attach(windowId, '.bs-toolbar', () => {
+            const book=state.selected,formats=book?[book.format,...((book.format!=='epub'&&(book.renditions||[]).some(item=>item.format==='epub'&&item.available!==false))?['epub']:[])]:[];
+            return {key:book?.id,signal:abort.signal,disabled:state.disposed||state.busy||!book||book.available===false,
+                subject:book?.title,formats,
+                createFiles:async(format,signal)=>{
+                    const prepared=await window.BookshelfAPI.create(ctx,signal).prepare(book.id,format);
+                    const name=(book.path?.split('/').pop()||book.title+'.'+book.format).replace(/\.[^.]+$/,'.'+format);
+                    return window.AuraDesktopEmail.files([{url:prepared.content_url,name}],signal);
+                }};
+        });
 
         const t = key => {
             const id = 'bookshelf.' + key;

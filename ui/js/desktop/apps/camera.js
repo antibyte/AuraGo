@@ -147,6 +147,14 @@
         var recentsEl = host.querySelector('[data-recents]');
         var dockLive = host.querySelector('[data-dock-live]');
         var actions = host.querySelector('[data-actions]');
+        window.AuraDesktopEmail?.attach(windowId, '.camera-actions', function () { return {
+            key:state.mediaToken, disabled:!isPreview() || state.saving || state.finalizing || state.disposed,
+            formats:[isClipPreview()?videoFileType(state.videoBlob?.type || '').ext.slice(1):'jpg'],
+            createFiles:async function () {
+                var blob=isClipPreview()?state.videoBlob:dataURLtoBlob(state.capturedDataURL);
+                return blob?[new File([blob],timestampName(isClipPreview()?'video':'photo',isClipPreview()?videoFileType(blob.type).ext:'.jpg'),{type:blob.type})]:[];
+            }
+        }; });
         var captureBtn = host.querySelector('[data-action="capture"]');
         var switchBtn = host.querySelector('[data-action="switch"]');
         var deviceSelect = host.querySelector('[data-device-select]');

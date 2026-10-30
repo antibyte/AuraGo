@@ -103,7 +103,9 @@
         bind(inst);
         restoreSizes(inst);
         subscribe(inst);
-        loadState(inst).catch(error => errorState(inst, error));
+        const showSettings = !!launchContext?.showSettings;
+        if (launchContext) delete launchContext.showSettings;
+        loadState(inst).then(() => showSettings && !inst.disposed ? inst.settings.show() : undefined).catch(error => errorState(inst, error));
         inst.refreshTimer = setInterval(() => {
             if (!document.hidden && !inst.disposed && !host.closest('.vd-window')?.classList.contains('minimized')) refreshCurrent(inst, true);
         }, 90000);

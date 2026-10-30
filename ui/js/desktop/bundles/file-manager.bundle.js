@@ -330,6 +330,14 @@
         fm.callbacks = callbacks || {};
         fm.directories = Array.isArray(callbacks.directories) ? callbacks.directories : [];
         instances.set(windowId, instance);
+        window.AuraDesktopEmail?.attach(windowId, '.fm-toolbar', () => withInstance(instance, () => {
+            const files=getSelectedFiles().filter(file=>file.type==='file');
+            const entries=files.map(file=>({name:file.name,url:isRemote()?storageURL('content',storageLocation(file.path))+'&download=1'
+                :file.web_path||'/api/desktop/download?path='+encodeURIComponent(file.path)}));
+            return {key:entries.map(entry=>entry.url).join('\n'),disabled:!isLiveInstance(instance)||!entries.length,
+                formats:[{id:'original',label:files.map(file=>file.name).join(', ')}],
+                createFiles:(_format,signal)=>window.AuraDesktopEmail.files(entries,signal)};
+        }));
         if (typeof fm.callbacks.wireContextMenuBoundary === 'function') fm.callbacks.wireContextMenuBoundary(host);
         loadPreferences();
         bindKeyboard();

@@ -228,7 +228,7 @@ func (s *Server) mailerState(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	mailerJSON(w, 200, map[string]any{"enabled": settings.Enabled, "readonly": readonly, "timezone": time.Local.String(), "accounts": accounts, "sources": sources, "account_settings": accountSettings, "folders": folders, "templates": regularTemplates, "signatures": signatures, "rules": rules, "contacts": contactChoices, "providers": providers, "default_provider_id": defaultProvider, "assist_guardian": assistGuardian, "assist_policy": assistPolicy})
+	mailerJSON(w, 200, map[string]any{"enabled": settings.Enabled, "readonly": readonly, "timezone": time.Local.String(), "accounts": accounts, "sources": sources, "account_settings": accountSettings, "folders": folders, "templates": regularTemplates, "signatures": signatures, "rules": rules, "contacts": contactChoices, "providers": providers, "default_provider_id": defaultProvider, "assist_guardian": assistGuardian, "assist_policy": assistPolicy, "attachment_limits": s.Mailer.AttachmentLimits()})
 }
 
 func (s *Server) mailerAccountsHTTP(w http.ResponseWriter, r *http.Request, parts []string) {

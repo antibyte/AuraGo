@@ -63,6 +63,13 @@
         inst.domId = suffix => 'cydc-' + String(windowId).replace(/[^A-Za-z0-9_-]/g, '_') + '-' + suffix;
         inst.isLocked = () => !!(inst.project && inst.project.locked_by_job);
         inst.layout = () => ({ version: inst.layoutVersion, project: inst.layoutStore ? inst.layoutStore.get() : inst.layoutSnapshot });
+        window.AuraDesktopEmail?.attach(windowId, () => host.querySelector('[data-cc-action="export"]')?.parentElement || host.querySelector('.cydc-toolbar'), () => ({
+            key:inst.disposed?null:inst.projectId,disabled:inst.disposed||!inst.projectId,subject:inst.project?.name,formats:['zip'],
+            createFiles:async(_format,signal)=>{
+                if(!(await inst.flushAll()))return false;
+                return window.AuraDesktopEmail.files([{url:P.api.exportUrl(inst.projectId),name:(inst.project?.slug||'cyd-project')+'.zip'}],signal);
+            }
+        }));
         inst.assetUrl = assetId => P.api.assetUrl(inst.projectId, assetId);
         // notify stays safe after the window (or the start screen) is gone: a late failure of a
         // dismissed create still reaches the desktop's notifications.

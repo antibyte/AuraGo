@@ -408,6 +408,12 @@
         dispose(windowId);
         const instance = createInstance(container, windowId, context);
         instances.set(windowId, instance);
+        window.AuraDesktopEmail?.attach(windowId, '.code-studio-toolbar', () => {
+            const tab = instance.openTabs[instance.activeTabIndex];
+            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary, subject:tab?.path.split('/').pop(),
+                formats:tab?[{id:'source',label:tab.path.split('/').pop()}]:[],
+                createFiles:async()=>[new File([tab.content],tab.path.split('/').pop(),{type:'text/plain;charset=utf-8'})]};
+        });
         latestWindowId = windowId;
         runWithInstance(instance, () => {
             loadState();

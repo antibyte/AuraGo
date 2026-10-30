@@ -55,6 +55,13 @@
             disposed: false
         };
         instances.set(windowId, state);
+        window.AuraDesktopEmail?.attach(windowId, () => host.querySelector('[data-gm-action="export"]')?.parentElement, () => ({
+            key:state.project?.id,disabled:state.disposed||!state.project?.current_revision,subject:state.project?.name,formats:['zip'],
+            createFiles:async(_format,signal)=>{
+                if(await window.GameMakerStudioPreview?.flush(state)===false)return false;
+                return window.AuraDesktopEmail.files([{url:state.api.exportURL(state.project.id),name:(state.project.name||'game')+'.zip'}],signal);
+            }
+        }));
         state.fail = error => fail(state, error);
         state.addDiagnostic = diagnostic => addDiagnostic(state, diagnostic);
         state.reloadProjectRecord = () => reloadProjectRecord(state);

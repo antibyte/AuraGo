@@ -56,6 +56,14 @@
         const panels = window.WriterPanels.create(state);
         const instance = {dispose:cleanup,get editor(){return editor;},get session(){return queue;},get path(){return path;},act,reloadIfChanged};
         instances.set(windowId,instance);
+        window.AuraDesktopEmail?.attach(windowId, '.writer-documentbar', () => ({
+            key: documentLife.signal, signal: documentLife.signal, subject: basename(path),
+            disabled: !editor || loading || loadFailed || fileOperation,
+            formats: ['docx','html','md','txt'],
+            createFiles: async (format, signal) => format === 'docx'
+                ? [new File([await editor.save()], basename(path), {type:MIME})]
+                : exportSimple(format, true, signal)
+        }));
         ctx.wireContextMenuBoundary?.(host);
         ctx.setWindowBeforeClose?.(windowId,guard);
         ctx.registerWindowCleanup?.(windowId,cleanup);
@@ -498,11 +506,13 @@
             const url=URL.createObjectURL(new Blob([bytes],{type})),link=document.createElement('a');
             link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
         }
-        async function exportSimple(format) {
-            if(!editor || !await ctx.confirmDialog(tr('export'),tr('export_loss')))return;
+        async function exportSimple(format, asFile=false, signal=documentLife.signal) {
+            if(!editor || !await ctx.confirmDialog(tr('export'),tr('export_loss')))return false;
             const bytes=await editor.save();
-            const response=await responseOK(await fetch('/api/desktop/office/export?format='+format,{method:'POST',headers:{'Content-Type':MIME},body:bytes,signal:documentLife.signal}));
-            download(await response.arrayBuffer(),response.headers.get('Content-Type'),basename(path).replace(/\.docx$/i,'.'+format));
+            const response=await responseOK(await fetch('/api/desktop/office/export?format='+format,{method:'POST',headers:{'Content-Type':MIME},body:bytes,signal}));
+            const data=await response.arrayBuffer(),type=response.headers.get('Content-Type'),name=basename(path).replace(/\.docx$/i,'.'+format);
+            if(asFile)return [new File([data],name,{type})];
+            download(data,type,name);
         }
         async function gogOffice(mode) {
             if(fileOperation||disposed)return;

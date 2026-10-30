@@ -145,6 +145,9 @@
                 if (!draft.id && (inst.recipients.to.length || draft.subject || draft.text || draft.html)) changed(inst);
             });
         }
+        const exportFiles = options.exportFiles;
+        delete options.exportFiles; delete ctx.exportFiles;
+        if (Array.isArray(exportFiles) && exportFiles.length) trackUpload(inst, exportFiles);
         if (inst.forwardSources.length) {
             inst.forwardCopyPromise = copyForwardAttachments(inst);
         }
@@ -290,6 +293,7 @@
                 const nextAccountId = event.target.value;
                 if (nextAccountId !== inst.accountId) inst.draft.reply_remote_id = '';
                 inst.accountId = nextAccountId;
+                window.AuraDesktopEmail?.rememberAccount(nextAccountId);
                 paintComposerRecords(inst);
                 changed(inst);
             }

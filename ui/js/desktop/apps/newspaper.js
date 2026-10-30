@@ -12,6 +12,12 @@
         const tr = key => { const id = 'newspaper.' + key, value = ctx.t?.(id); return value && value !== id ? value : key.replaceAll('_',' '); };
         const st = {host, controller, view:'today', edition:null, editionId:'', followLatest:true, deliveries:[], articleId:'', profile:null, draft:null, rssInput:'', rssSection:'', caps:{}, budgetPreview:null, budgetPreviewSignature:'', budgetPreviewVersion:0, budgetPreviewPending:false, budgetPreviewError:false, previewTimer:null, archive:[], run:null, events:[], runSources:[], runSourcesRun:'', search:'', filter:'', frontScroll:0, busy:false, error:'', notice:'', disposed:false, timer:null};
         instances.set(windowId, st);
+        window.AuraDesktopEmail?.attach(windowId, '.np-toolbar > div', () => {
+            const edition=st.edition;
+            return {key:edition?.id+':'+edition?.revision,signal:controller.signal,disabled:st.disposed||!edition,
+                subject:edition?.title,formats:['pdf'],
+                createFiles:(_format,signal)=>window.AuraDesktopEmail.files([{url:base+'/editions/'+encodeURIComponent(edition.id)+'/export?format=pdf',name:'newspaper-'+edition.local_date+'-r'+edition.revision+'.pdf'}],signal)};
+        });
         st.toolsOpen = null;
         const readOnly = () => ctx.readonly || !st.caps.enabled || st.caps.read_only;
         const date = value => { try { return new Intl.DateTimeFormat(document.documentElement.lang || 'de',{dateStyle:'long'}).format(new Date(value)); } catch (_) { return value; } };

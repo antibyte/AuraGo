@@ -1,5 +1,14 @@
 # Desktop App Modules - Child DOX Contract
 
+## Email exports
+
+- First-party file producers/viewers register `AuraDesktopEmail.attach(windowId, toolbar, getOptions[, scope])`. The main-bundle owner is `core/email-export-runtime.js`; app contexts also expose `emailExport`. Store apps and Tresor are excluded. A scoped dialog binding must dispose with its dialog. Native modal dialogs pass `dialogHost` so format/setup choices remain in their active focus scope; QR closes through `onHandoff` after the Mailer owns the files, or `onSetup` after explicit settings navigation.
+- Apps supply formats and `createFiles(format, signal): Promise<File[] | false>`, preserving existing validation, loss warnings, editor snapshots, report revisions and source permissions. A false result means cancelled. Bind `key` to the active document/output and pass its lifetime signal. Do not implement sending in apps.
+- The shared action checks fresh Mailer activation, Desktop readonly and send-capable accounts before export and before handoff. It opens a separate composer with empty recipients/body, consumes transient `exportFiles` exactly once, and uses the existing private draft upload queue. Send remains explicit; failed uploads keep Send blocked. Session snapshots must never contain export bytes.
+- `AuraDesktopEmail.file/files` reads only existing same-origin authorized file endpoints with redirect refusal and bounded actual bytes; no server path/URL import API exists. `/api/desktop/mailer/state.attachment_limits` retains the existing per-file budget and 25 MiB outgoing aggregate cap.
+- Pixel loads `pixel-email.js` after OpenRaster and binds exports to the history snapshot. NASSCAD's version-bound `nasscad-email-frame.js` is also injected into existing workspace frames, without replacing workspace files. Its native download/picker adapters are scoped to one export and restored on completion.
+- The format/coverage matrix and operator behavior live in `documentation/desktop-email.md`. Verify `node scripts/test-desktop-email.mjs`, `node scripts/test-desktop-email-adapters.mjs`, `node scripts/test-desktop-email-browser.mjs`, `node scripts/test-nasscad-browser.mjs`, `TestDesktopEmail*`, `TestMailerStateAdvertisesExistingAttachmentLimits`, and existing app/export suites. Browser fixtures must never enqueue mail.
+
 ## Camera
 
 - A photo or video handoff reuses the desktop upload. The request sends `unique=1` and `If-None-Match: *`, then keeps the returned `Pictures/` or `Videos/` path. The same capture is not uploaded again. A closed window drops a late result.

@@ -2,12 +2,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import {adaptNasscadEmail} from './nasscad-email-adapter.mjs';
 
 const revision = '279da7c0f0ca28dfae19c11c8be231f326dfda4f';
 const out = 'internal/desktop/bundled_apps/nasscad';
 const manifestPath = `${out}/provenance.json`;
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
-const inputHash = digest(fs.readFileSync('scripts/vendor-nasscad.mjs', 'utf8').replaceAll('\r\n', '\n'));
+const inputHash = digest(['scripts/vendor-nasscad.mjs','scripts/nasscad-email-adapter.mjs','ui/js/desktop/apps/nasscad-email-frame.js'].map(name=>fs.readFileSync(name,'utf8').replaceAll('\r\n','\n')).join('\n'));
 if (process.argv.includes('--check')) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath));
   if (manifest.revision !== revision || manifest.adapter_sha256 !== inputHash) throw Error('NASSCAD provenance drift');
@@ -58,10 +59,13 @@ for (const name of names) {
     text = patch(text, "s.src = 'nasscad_occt_wasm.js';", "s.src = 'nasscad_occt_wasm.js' + location.search;");
   } else if (name === 'quick-fillet.js') {
     text = patch(text, "fetch('opencascade.wasm.wasm')", "fetch('opencascade.wasm.wasm'+location.search)");
+  } else if (name === 'nasscad-io.js') {
+    text = patch(text, "xhr.open('GET', 'draco_encoder.wasm', true)", "xhr.open('GET', 'draco_encoder.wasm' + location.search, true)");
   } else if (name === 'ifc-import.js') {
     text = patch(text, "new URL('.', document.currentScript.src)", "new URL('.', document.baseURI)");
     text = patch(text, 'new URL(name, _ifcAssetBase).href', 'new URL(name, _ifcAssetBase).href + location.search');
   }
+  text = adaptNasscadEmail(name, text);
   outputs.set(target, name.endsWith('.js') || name.endsWith('.htm') || name === 'nasscript_doc.html' ? Buffer.from(text) : bytes);
 }
 fs.mkdirSync(out, {recursive:true});

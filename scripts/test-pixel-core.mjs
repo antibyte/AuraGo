@@ -428,7 +428,7 @@ check('loader order: libs before core, every stub module and style listed, worke
     const expected = ['pixel-state.js', 'pixel-lib-core.js', 'pixel-lib-fx.js', 'pixel-lib-gen.js', 'pixel-lib-cutout.js', 'pixel-lib-inpaint.js',
         'pixel-core.js', 'pixel-qrcode.js', 'pixel-view.js', 'pixel-canvas.js', 'pixel-tools.js', 'pixel-actions.js', 'pixel-filters.js', 'pixel-events.js',
         'pixel-stickers.js', 'pixel-layers.js', 'pixel-selection.js', 'pixel-brush.js', 'pixel-tools-pro.js', 'pixel-transform.js',
-        'pixel-generators.js', 'pixel-cutout.js', 'pixel-smart.js', 'pixel-commands.js', 'pixel-ora.js', 'pixel.js'];
+        'pixel-generators.js', 'pixel-cutout.js', 'pixel-smart.js', 'pixel-commands.js', 'pixel-ora.js', 'pixel-email.js', 'pixel.js'];
     assert.deepEqual(scripts, expected);
     assert.ok(!scripts.includes('pixel-worker.js'));
     assert.deepEqual(loaderStyles(), ['pixel.css', 'desktop-stickers.css', 'pixel-stickers.css', 'pixel-layers.css', 'pixel-filters.css',

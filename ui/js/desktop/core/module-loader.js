@@ -335,6 +335,7 @@
                 '/js/desktop/apps/pixel-smart.js',
                 '/js/desktop/apps/pixel-commands.js',
                 '/js/desktop/apps/pixel-ora.js',
+                '/js/desktop/apps/pixel-email.js',
                 '/js/desktop/apps/pixel.js'
             ]
         },

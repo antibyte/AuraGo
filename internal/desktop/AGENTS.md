@@ -44,6 +44,7 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   URLs. The seeder publishes the monolithic entry last and preserves existing
   user workspace apps; its lazy assets, guides and license files must all be
   included in `assets/web-assets.json`.
+- The reproducible NASSCAD email adaptation is shared by `scripts/nasscad-email-adapter.mjs` and `ui/js/desktop/apps/nasscad-email-frame.js`; the provenance input hash includes both. The Desktop wrapper loads that version-bound frame adapter for existing workspace copies as well. Preserve their files and the exclusive-create seeder. Email capture restores native download/picker behavior after its task; cancelled exports must never fall through to a browser download.
 
 - Code Studio's managed image includes GCC, libc development headers and make;
   the runtime probe requires GCC alongside Go, Python and Node. The shared

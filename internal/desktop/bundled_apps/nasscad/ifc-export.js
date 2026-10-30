@@ -611,7 +611,7 @@ async function expIFC(list){
   if(!(src || objs).length){ nasLog('WARN','Export IFC: nothing to export'); return; }
   const baseName = (src && typeof _ioExportBaseName === 'function') ? _ioExportBaseName(src) : 'model';
   let fh = null;
-  if(window.showSaveFilePicker && !(window.electronAPI && window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && window.showSaveFilePicker && !(window.electronAPI && window.electronAPI.isElectron)){
     try{
       fh = await window.showSaveFilePicker({
         suggestedName: baseName + '.ifc',

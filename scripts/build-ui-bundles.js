@@ -30,6 +30,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/widget-autosize-runtime.js',
   'ui/js/desktop/core/shortcut-runtime.js',
   'ui/js/desktop/core/file-dialog-runtime.js',
+  'ui/js/desktop/core/email-export-runtime.js',
   'ui/js/desktop/core/file-conflict-runtime.js',
   'ui/js/desktop/core/print-runtime.js',
   'ui/js/desktop/core/media-session-runtime.js',

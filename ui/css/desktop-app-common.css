@@ -1,4 +1,31 @@
 /* desktop-app-common.css - shared app controls and primitives */
+/* Export actions keep a readable label in compact, theme-native app toolbars. */
+.desktop-body .vd-email-export-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, 6px);
+    background: var(--vd-theme-control-bg, var(--vd-surface));
+    color: var(--vd-text);
+    cursor: pointer;
+}
+.desktop-body .vd-email-export-button:disabled { opacity: .5; cursor: default; }
+.desktop-body .vd-email-export-button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
+.desktop-body .vd-nasscad:has(.vd-nasscad-email-toolbar) { display: flex; flex-direction: column; }
+.desktop-body .vd-nasscad-email-toolbar { flex: 0 0 auto; }
+.desktop-body .vd-nasscad:has(.vd-nasscad-email-toolbar) .vd-nasscad-frame { flex: 1 1 auto; min-height: 0; height: auto; }
+.desktop-body :is(.writer-documentbar, .sheets-documentbar, .notes-documentbar, .ss-file-actions, .nc-toolbar-actions, .fm-toolbar, .cydc-toolbar, .code-studio-toolbar, .cheater-header, .nm-header-actions, .np-toolbar > div, .vs-tb-actions, .vd-viewer-toolbar-right):has(.vd-email-export-button) { flex-wrap: wrap; }
+.desktop-body .bs-toolbar > .vd-email-export-button { grid-column: 1 / -1; justify-self: end; }
 /* desktop-apps.css — file manager, editor, office, settings, calculator, todo, calendar, chat, viewer, looper, gallery, sysinfo, quick connect, launchpad */
 
 

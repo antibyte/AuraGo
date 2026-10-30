@@ -893,7 +893,11 @@
             openItem, downloadItems, editInPixel, showInFiles, copyLink, renameItem, deleteItems,
             selectAll, clearSelection, setSelectMode, toggleSelection, targetItems
         };
-
+        window.AuraDesktopEmail?.attach(windowId, '.vd-gallery-toolbar-actions', () => {
+            const items=targetItems();
+            return {key:items.map(item=>item.web_path||item.path||item.id).join('\n'),disabled:!items.length, formats:[{id:'original',label:t('desktop.media_download')}],
+                createFiles:(_format,signal)=>window.AuraDesktopEmail.files(items.map(item=>({url:downloadURL(item),name:item.name})),signal)};
+        });
         function menuModel() {
             return { t, g, readonly, tileSizes: TILE_SIZES, sorts: SORTS, itemKind, actions: menuActions };
         }

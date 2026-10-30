@@ -289,6 +289,13 @@ model();`;
         };
         applyOpenSCADDraftToState(state, draft, { skipSource: explicitSource });
         stateByWindow.set(windowId, state);
+        window.AuraDesktopEmail?.attach(windowId, '.oscad-header-actions', () => {
+            const files=(state.result?.files||[]).filter(file=>file.download_url);
+            return {key:state.result?.job_id,disabled:state.disposed,
+                formats:[{id:'source',label:'SCAD'},...files.map(file=>({id:file.name,label:file.name}))],
+                createFiles:async(name,signal)=>name==='source'?[new File([state.editor?.getValue?.()??state.source??''],'model.scad',{type:'text/plain;charset=utf-8'})]
+                    :window.AuraDesktopEmail.files(files.filter(file=>file.name===name).map(file=>({url:file.download_url,name:file.name})),signal)};
+        });
         draw(state);
         updateWindowContext(state);
         loadStatus(state);

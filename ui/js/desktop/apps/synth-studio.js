@@ -18,6 +18,10 @@
         const readonly=()=>!!ctx.readonly||revoked, blocked=()=>disposed||!ready||readonly()||busy||!!storageState.loading||!!recording||!!stage?.active();
         // Keep one validated view snapshot; MIDI packets must not clone the whole song.
         const project=()=>currentProject, track=()=>project().tracks.find(t=>t.id===editor?.selection().trackId);
+        window.AuraDesktopEmail?.attach(id, '.ss-file-actions', () => ({
+            key:currentProject,signal,disabled:blocked(),subject:project().name,formats:['wav','midi',{id:'project',label:'Synth Studio (.aurasynth)'}],
+            createFiles:async format=>format==='project'?[new File([JSON.stringify(M.validate(M.clone(project())))],(project().name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+'.aurasynth',{type:'application/json'})]:exportFile(format,true)
+        }));
         const fail=error=>{if(disposed)return;let code=typeof error==='string'?error:error?.code;if(code?.startsWith('E_PROJECT_'))code=code==='E_PROJECT_LIMIT'?'too_many_tracks':'invalid_project';else if(code==='E_MIDI_DENIED')code='denied';else if(code==='E_MIDI_UNSUPPORTED')code='unsupported';else if(code?.startsWith('E_MIDI_DEVICE'))code='no_device';else if(code?.startsWith('E_MIDI_'))code='unsupported_midi';else if(code==='SYNTH_STUDIO_RENDER_BUDGET')code='export_limit';notice(tr(['unsupported','denied','no_device','invalid_project','unsupported_midi','too_many_tracks','export_limit','readonly'].includes(code)?code:'error'));};
         function notice(text){const n=host.querySelector('[data-notice]');if(n){n.textContent=text||'';n.hidden=!text;}}
         host.innerHTML='<div class="ss-app" tabindex="0"><header class="ss-header"><div class="ss-brand"><span class="ss-brand-mark" aria-hidden="true">≋</span><div><strong>Synth Studio</strong><button class="ss-project-name" data-action="rename" data-project-name></button></div></div><nav class="ss-file-actions">'+button('new','new',icon('file-plus','＋'))+button('open','open',icon('folder-open','▱'))+button('save','save',icon('save','▣'))+button('saveAs','save_as',icon('copy','⧉'))+'<select data-export aria-label="'+esc(tr('export'))+'"><option value="">'+esc(tr('export'))+'</option><option value="wav">WAV</option><option value="midi">MIDI</option></select>'+button('demo','demo',tr('demo'))+'</nav></header>'+
@@ -209,9 +213,16 @@
             }refresh();
         }
         async function replaceProject(p){stop();await storage.newDocument(p,{dirty:true});}
-        async function exportFile(type){
+        async function exportFile(type,asFile=false){
             if(busy||recording||stage.active())return;busy=true;stop();status();notice(tr('export')+' '+type.toUpperCase()+'…');const snapshot=M.clone(project()),epoch=++generation;snapshot.loop.enabled=false;
-            try{const blob=type==='wav'?await window.SynthStudioAudio.renderWav(snapshot):new Blob([window.SynthStudioMIDI.exportFile(snapshot)],{type:'audio/midi'});if(disposed||epoch!==generation)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(snapshot.name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+(type==='wav'?'.wav':'.mid');a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);notice(type==='midi'?tr('midi_export_hint')+' '+tr('midi_automation_hint'):'');}catch(error){fail(error);}finally{busy=false;status();}
+            try {
+                const blob=type==='wav'?await window.SynthStudioAudio.renderWav(snapshot):new Blob([window.SynthStudioMIDI.exportFile(snapshot)],{type:'audio/midi'});
+                if(disposed||epoch!==generation)return [];
+                const name=(snapshot.name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+(type==='wav'?'.wav':'.mid');
+                if(asFile)return [new File([blob],name,{type:blob.type})];
+                const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
+                notice(type==='midi'?tr('midi_export_hint')+' '+tr('midi_automation_hint'):'');
+            }catch(error){if(asFile)throw error;fail(error);}finally{busy=false;status();}
         }
         const actions={play:()=>playing?stop():play(),pause:()=>stop(),stop:()=>stop(true),record:startRecording,new:()=>replaceProject(M.create(tr('untitled'))),demo:()=>{const p=M.demo();p.tracks.forEach(t=>{const pat=M.patterns.find(x=>x.instrument===t.instrument);if(pat){t.name=patternName(pat);t.clips.forEach(c=>c.name=patternName(pat));}});return replaceProject(p);},open:()=>{stop();return storage.open();},save:()=>storage.save(false),saveAs:()=>storage.save(true),undo:()=>updatedHistory('undo'),redo:()=>updatedHistory('redo'),library:()=>{root.classList.remove('ss-inspector-open');root.classList.toggle('ss-library-open');},inspector:()=>{root.classList.remove('ss-library-open');root.classList.toggle('ss-inspector-open');},midi:()=>{find('[data-midi-panel]').hidden=!find('[data-midi-panel]').hidden;},connect:async()=>{await midi.connect();renderMIDI();},importMidi:()=>find('[data-midi-file]').click(),rename:async()=>{if(blocked())return;const value=await ctx.promptDialog?.(tr('name'),project().name);if(value?.trim())mutate(p=>{p.name=value.trim().slice(0,80);});},deleteTrack:async()=>{const t=track();if(!t||blocked())return;if(await ctx.confirmDialog?.(tr('delete_track'),tr('delete_track_confirm')))mutate(p=>{p.tracks=p.tracks.filter(x=>x.id!==t.id);});}};
 

@@ -83,6 +83,14 @@
     function visibleJobs(s) {
         return s.jobs.filter(job => !s.jobLocalStops.has(job.id) && !QUIET_KINDS.includes(job.kind) && !(job.kind === 'probe' && job.status === 'succeeded'));
     }
+    function installEmailExports(s) {
+        window.AuraDesktopEmail?.attach(s.id, '.vs-tb-actions', () => {
+            const jobs=visibleJobs(s).filter(job=>job.status==='succeeded'&&job.artifact?.download_url&&safeSameOrigin(job.artifact.download_url));
+            return {key:s.projectEpoch,signal:s.abort.signal,disabled:s.disposed||!jobs.length,subject:s.project?.name,
+                formats:jobs.map(job=>({id:job.id,label:job.kind==='render'?exportName(s,job):String(job.artifact.download_url).split('/').pop()})),
+                createFiles:(id,signal)=>{const job=jobs.find(item=>item.id===id);return window.AuraDesktopEmail.files([{url:job.artifact.download_url,name:job.kind==='render'?exportName(s,job):String(job.artifact.download_url).split('/').pop().split('?')[0]}],signal);}};
+        });
+    }
     function renderJobsButton(s) {
         const button = s.q('[data-action="jobs"]');
         if (!button) return;
@@ -464,5 +472,5 @@
     // A paused stage repaints so it picks up the proxy (or the original again); a playing one picks it up on its next frame.
     function repaintPaused(s) { if (s.preview && s.project && !s.preview.isPlaying()) s.preview.seek(s.frame); }
 
-    Object.assign(P, { loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, enabledEnd, openAI, queueProxy, pumpProxies, proxyState, previewMediaURL, noteFinishedJob });
+    Object.assign(P, { installEmailExports, loadJobs, fill, jobFailure, exportName, announceJob, visibleJobs, renderJobsButton, renderJobs, safeSameOrigin, createJob, pollJob, cancelJob, refreshProject, openModal, openExport, enabledEnd, openAI, queueProxy, pumpProxies, proxyState, previewMediaURL, noteFinishedJob });
 })();

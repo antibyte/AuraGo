@@ -46,6 +46,11 @@
         const draftKey=()=>location.origin+':'+current.path;
         const instance={act,get editor(){return editor;},get session(){return queue;},get path(){return current?.path;},dispose:cleanup};
         instances.set(windowId,instance);
+        window.AuraDesktopEmail?.attach(windowId, '.notes-documentbar', () => ({
+            key: docLife.signal, signal: docLife.signal, subject: current?.title || '',
+            disabled: !editor || !current || busy || disposed, formats: ['md','html','txt'],
+            createFiles: (format,signal) => exportNote(format,true,signal)
+        }));
         ctx.registerWindowCleanup?.(windowId,cleanup);ctx.setWindowBeforeClose?.(windowId,guard);ctx.wireContextMenuBoundary?.(host);
         const on=(target,event,fn)=>target.addEventListener(event,fn,{signal:life.signal});
         function notice(message,error=false){if(disposed)return;find('[data-notice-text]').textContent=message||'';find('[data-notice]').hidden=!message;find('[data-notice]').dataset.error=error;}
@@ -276,16 +281,16 @@
                 find('[data-ai-state]').textContent=tr(queue.revision!==revision?'stale_suggestion':'review_suggestion');
             }catch(error){if(error.name!=='AbortError')fail(error);}
         }
-        async function exportNote(format){
+        async function exportNote(format,asFile=false,signal=docLife.signal){
             if(!editor)return;
             const text=editor.content(),title=current.title||tr('title'),from=current.path;
-            if(format==='md'||format==='txt'){download(format==='md'?text:editor.text,'text/plain;charset=utf-8',basename(current.path).replace(/\.md$/i,'')+'.'+format);return;}
+            if(format==='md'||format==='txt'){const content=format==='md'?text:editor.text,type=format==='md'?'text/markdown;charset=utf-8':'text/plain;charset=utf-8',name=basename(from).replace(/\.md$/i,'')+'.'+format;if(asFile)return [new File([content],name,{type})];download(content,type,name);return;}
             const html=DOMPurify.sanitize(marked.parse(NotesFrontmatter.strip(text)),{FORBID_TAGS:['style','iframe','form','input','script'],FORBID_ATTR:['style']});
             const wrapper=document.createElement('div');wrapper.innerHTML=html;
             for(const img of wrapper.querySelectorAll('img')){
                 const url=resolveURL(img.getAttribute('src'),from);if(!url){img.remove();continue;}
                 if(url.startsWith('/api/')){
-                    const response=await fetch(url,{credentials:'same-origin',signal:life.signal});
+                    const response=await fetch(url,{credentials:'same-origin',signal});
                     if(!response.ok)throw Error('Attachment export failed');
                     const blob=await response.blob();if(blob.size>20*1024*1024||!/^image\/(png|jpeg|webp|gif)$/.test(blob.type))throw Error('Unsupported attachment export');
                     img.src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});
@@ -297,7 +302,7 @@
                 link.rel='noopener noreferrer';
             }
             const page='<!doctype html><html lang="'+esc(document.documentElement.lang||'en')+'"><meta charset="utf-8"><title>'+esc(title)+'</title><style>body{font:16px/1.65 system-ui,sans-serif;color:#182331;background:white;margin:24mm;overflow-wrap:anywhere}img{max-width:100%}table{border-collapse:collapse;width:100%}td,th{border:1px solid #aab4c4;padding:8px}pre{white-space:pre-wrap;background:#edf0f4;padding:12px}blockquote{border-left:3px solid #8a9ab0;padding-left:16px}h1,h2,h3{line-height:1.25;break-after:avoid}tr,img{break-inside:avoid}@page{size:A4;margin:0}</style>'+wrapper.innerHTML+'</html>';
-            if(format==='html'){download(page,'text/html;charset=utf-8',basename(current.path).replace(/\.md$/i,'.html'));return;}
+            if(format==='html'){const name=basename(from).replace(/\.md$/i,'.html'),type='text/html;charset=utf-8';if(asFile)return [new File([page],name,{type})];download(page,type,name);return;}
             await window.AuraDesktopPrint.printHTML({html:page,title:tr('print'),failureMessage:ctx.t('desktop.print_failed'),className:'notes-print-frame',signal:life.signal});
         }
         function download(content,type,name){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}

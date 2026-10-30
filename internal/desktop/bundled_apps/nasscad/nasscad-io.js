@@ -524,7 +524,7 @@ async function exp3MF(list){
   // (même contrainte que step-export.js/doStepExport). Cancel → pas d'export.
   // API absente (Firefox/Safari) ou autre échec → fallback _nasDownload.
   let _fh=null;
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       _fh=await showSaveFilePicker({suggestedName:_ioExportBaseName(list)+'.3mf',types:[{description:'3MF File',accept:{'model/3mf':['.3mf']}}]});
     }catch(e){
@@ -958,7 +958,7 @@ function _decodeDracoEncWasmB64(){
 function _preloadDracoEncWasm(){
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', 'draco_encoder.wasm', true);
+    xhr.open('GET', 'draco_encoder.wasm' + location.search, true);
     xhr.responseType = 'arraybuffer';
     xhr.onload = () => {
       if((xhr.status === 200 || xhr.status === 0) && xhr.response && xhr.response.byteLength)
@@ -1088,7 +1088,7 @@ function _ioPbrOf(o, hex){
 
 async function expGLB(useDraco, list){
   let _fh=null;
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       _fh=await showSaveFilePicker({suggestedName:_ioExportBaseName(list)+'.glb',types:[{description:'GLB File',accept:{'model/gltf-binary':['.glb']}}]});
     }catch(e){
@@ -1768,7 +1768,7 @@ async function importGLB(file, opts){
 // puisque tout est déjà regroupé dans ce même fichier.
 async function expOBJ(list){
   let _fh=null;
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       _fh=await showSaveFilePicker({suggestedName:_ioExportBaseName(list)+'.obj',types:[{description:'OBJ File',accept:{'model/obj':['.obj']}}]});
     }catch(e){
@@ -1955,7 +1955,7 @@ async function parseOBJ(txt, opts){
 // couleur par face (red/green/blue) dès qu'un corps multi-couleur est exporté.
 async function expPLY(list){
   let _fh=null;
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       _fh=await showSaveFilePicker({suggestedName:_ioExportBaseName(list)+'.ply',types:[{description:'PLY File',accept:{'application/octet-stream':['.ply']}}]});
     }catch(e){
@@ -2266,7 +2266,7 @@ async function parsePLY(buf, opts){
 async function expSTL(list){
   const t0=performance.now();
   let _fh=null;
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       _fh=await showSaveFilePicker({suggestedName:_ioExportBaseName(list)+'.stl',types:[{description:'STL File (Binary)',accept:{'model/stl':['.stl']}}]});
     }catch(e){
@@ -2340,7 +2340,7 @@ async function expSTL(list){
 // chaîne de plusieurs centaines de Mo (O(n²)) : tableau + join.
 async function expSTLascii(list){
   let _fh=null;
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       _fh=await showSaveFilePicker({suggestedName:_ioExportBaseName(list)+'-ascii.stl',types:[{description:'STL File (ASCII)',accept:{'model/stl':['.stl']}}]});
     }catch(e){

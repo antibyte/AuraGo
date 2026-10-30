@@ -280,7 +280,7 @@ async function doStepExport(){
   // ── Picker pendant le geste ──────────────────────────────────────────────
   let fileHandle=null;
   if(window.electronAPI?.isElectron){const selected=await electronAPI.showSaveDialog({defaultPath:baseName+'_'+_apInfo.name+'.stp',filters:[{name:'STEP ('+_apInfo.name+')',extensions:['stp','step']}]});if(!selected){nasLog('INFO','STEP export canceled before calculation');return;}fileHandle={electronPath:selected};}
-  if(typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
+  if(!window.AuraNasscadEmail?.active && typeof showSaveFilePicker==='function' && !(window.electronAPI&&window.electronAPI.isElectron)){
     try{
       fileHandle=await showSaveFilePicker({
         suggestedName:baseName+'_'+_apInfo.name+'.stp',

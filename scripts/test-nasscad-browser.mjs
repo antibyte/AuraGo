@@ -35,10 +35,52 @@ try {
   await page.evaluate(() => _wasmCsgLoadScript());
   assert.equal(await page.evaluate(() => !!globalThis._NASSCAD_MANIFOLD_WASM), true);
   await page.evaluate(() => _ifcGetApi());
+  const downloads=[];page.on('download',item=>downloads.push(item.suggestedFilename()));
+  const emailExports=await page.evaluate(async()=>{
+    const rows=[];
+    for(const format of ['project','stl','stl-ascii','3mf','glb','glb-draco','obj','ply','ifc']){
+      const files=await AuraNasscadEmail.createFiles(format);
+      if(files.length!==1)throw Error('missing '+format+' mail artifact');
+      const file=files[0],bytes=new Uint8Array(await file.arrayBuffer());
+      rows.push({format,name:file.name,type:file.type,size:file.size,head:Array.from(bytes.slice(0,32))});
+    }
+    return rows;
+  });
+  for(const format of ['step','svg','dxf']){
+    await page.evaluate(format=>{window.emailTask=AuraNasscadEmail.createFiles(format);},format);
+    const modal=page.locator(format==='step'?'#step-export-modal':'#sxdlg');
+    await modal.waitFor({state:'visible'});
+    if(format!=='step')await page.locator('#sxval').fill('5');
+    const row=await page.evaluate(async format=>{
+      if(format==='step')await doStepExport();else await _doSectionExp(format);
+      const files=await window.emailTask;
+      if(files.length!==1)throw Error('missing '+format+' mail artifact');
+      const file=files[0],bytes=new Uint8Array(await file.arrayBuffer());
+      return {format,name:file.name,type:file.type,size:file.size,head:Array.from(bytes.slice(0,32))};
+    },format);
+    emailExports.push(row);
+  }
+  await page.evaluate(()=>{window.emailTask=AuraNasscadEmail.createFiles('step');});
+  await page.locator('#step-export-modal').waitFor({state:'visible'});
+  await page.evaluate(()=>cancelStepExportModal());
+  assert.equal(await page.evaluate(()=>window.emailTask),false,'cancelled export created files');
+  assert.equal(emailExports.length,12);
+  for(const row of emailExports)assert(row.size>0&&row.name&&row.type,'incomplete '+row.format+' artifact');
+  const header=format=>Buffer.from(emailExports.find(row=>row.format===format).head);
+  assert.equal(header('3mf').subarray(0,2).toString(),'PK');
+  assert.equal(header('glb').subarray(0,4).toString(),'glTF');
+  assert.equal(header('glb-draco').subarray(0,4).toString(),'glTF');
+  assert.equal(header('ply').subarray(0,3).toString(),'ply');
+  assert(header('ifc').toString().startsWith('ISO-10303-21;'));
+  assert(header('step').toString().startsWith('ISO-10303-21;'));
+  assert(header('svg').toString().startsWith('<?xml'));
+  assert(header('dxf').toString().includes('SECTION'));
+  assert(emailExports.find(row=>row.format==='svg').name.includes('Y5mm'));
+  assert.deepEqual(downloads,[],'preparing email must never start a browser download');
   for (const name of ['nasscad-manifold-wasm.js','web-ifc-api-iife.js','nasscad-ifc-wasm.js']) assert(requests.includes(name), `${name} did not load`);
   assert.deepEqual(denied, [], 'dynamic assets lost the workspace access token');
   assert.deepEqual(errors, [], 'NASSCAD raised browser errors');
-  console.log('NASSCAD browser: startup, cube, Manifold, IFC and authenticated dynamic assets passed');
+  console.log('NASSCAD browser: startup, cube, 12 native email formats, settings, cancellation and authenticated assets passed');
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));

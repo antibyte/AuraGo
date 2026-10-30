@@ -25,6 +25,13 @@
         let sortCol = 'name';
         let sortAsc = true;
         let selected = new Set();
+        window.AuraDesktopEmail?.attach(windowId, '.zipper-toolbar', () => {
+            const members=entries.filter(entry=>selected.has(entry.name)&&!entry.is_dir&&!entry.directory);
+            return {key:zipPath+':'+members.map(entry=>entry.name).join('\n'),disabled:!zipPath,
+                formats:[{id:'archive',label:baseName(zipPath)||'ZIP'},...(members.length?[{id:'selection',label:members.map(entry=>baseName(entry.name)).join(', ')}]:[])],
+                createFiles:(format,signal)=>window.AuraDesktopEmail.files(format==='selection'?members.map(entry=>({url:archiveEntryURL(entry.name),name:baseName(entry.name)}))
+                    :[{url:'/api/desktop/download?path='+encodeURIComponent(zipPath),name:baseName(zipPath)}],signal)};
+        });
 
         host.innerHTML = `<div class="zipper-app">
             <div class="vd-toolbar zipper-toolbar">

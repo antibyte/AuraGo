@@ -56,6 +56,7 @@ remain in the Vault and are resolved only when an adapter is created.
   immediately before every external mutation and before publishing local state.
 - Attachments use generated IDs under a private configured root and enforce
   per-file and aggregate bounds. Never resolve a caller-provided path.
+- `Service.AttachmentLimits` advertises the effective upload-file cap, bounded by the existing outgoing cap, and the unchanged 25 MiB outgoing aggregate. Desktop app exports use ordinary revisioned draft uploads; they do not send or grant path access. Verify `TestAttachmentLimitsRespectUploadAndOutgoingBudgets` and server `TestMailerStateAdvertisesExistingAttachmentLimits`.
 - Composer stickers reuse private draft attachments with stable CID references.
   SMTP/Gmail MIME puts inline PNGs in multipart/related beside the body alternative;
   regular attachments remain outside it. Preserve bytes, Content-ID and inline

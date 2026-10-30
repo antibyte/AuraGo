@@ -46,6 +46,12 @@
         };
         const instance={act,dispose:cleanup,get api(){return api;},get book(){return book;},get session(){return queue;},get path(){return path;},get state(){return state;}};
         instances.set(windowId,instance);
+        window.AuraDesktopEmail?.attach(windowId, '.sheets-documentbar', () => ({
+            key: documentLife.signal, signal: documentLife.signal, subject: basename(path),
+            disabled: !book || loading || loadingFailed || disposed,
+            formats: [/\.xlsm$/i.test(path)?'xlsm':'xlsx','csv'],
+            createFiles: (format,signal) => download(format,true,signal)
+        }));
         ctx.wireContextMenuBoundary?.(host);ctx.setWindowBeforeClose?.(windowId,guard);ctx.registerWindowCleanup?.(windowId,cleanup);
         function notice(text,error=false){if(disposed)return;find('[data-notice-text]').textContent=text||'';find('[data-notice]').hidden=!text;find('[data-notice]').dataset.error=String(error);}
         function fail(error){if(error?.name!=='AbortError'&&!disposed)notice(error?.status===412?tr('conflict'):(error?.message||String(error)),true);}
@@ -216,11 +222,13 @@
             if(queue.revision!==revision)throw Error(tr('snapshot_changed'));
             return snapshot();
         }
-        async function download(format){
+        async function download(format,asFile=false,signal=documentLife.signal){
             if(!book)return;await book.endEditingAsync(true);commitFormula();
-            if(format==='csv'&&!await ctx.confirmDialog(tr('csv_loss_warning')))return;
-            const value=await prepareOutput(),response=await responseOK(await fetch('/api/desktop/office/export?kind=workbook&format='+format+'&sheet='+encodeURIComponent(sheet().getSheetName()),{method:'POST',headers:{'Content-Type':'application/json'},signal:documentLife.signal,body:JSON.stringify({...value,...(sourceData?{source_data:sourceData}:etag?{source_path:path,source_etag:etag}:{})})}));
-            const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=basename(path).replace(/\.[^.]+$/,'.'+format);link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+            if(format==='csv'&&!await ctx.confirmDialog(tr('csv_loss_warning')))return false;
+            const value=await prepareOutput(),response=await responseOK(await fetch('/api/desktop/office/export?kind=workbook&format='+format+'&sheet='+encodeURIComponent(sheet().getSheetName()),{method:'POST',headers:{'Content-Type':'application/json'},signal,body:JSON.stringify({...value,...(sourceData?{source_data:sourceData}:etag?{source_path:path,source_etag:etag}:{})})}));
+            const blob=await response.blob(),name=basename(path).replace(/\.[^.]+$/,'.'+format);
+            if(asFile)return [new File([blob],name,{type:blob.type})];
+            const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
         }
         async function act(action){
             try{

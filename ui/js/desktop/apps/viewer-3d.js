@@ -21,6 +21,10 @@
         const fileUrl = archiveEntry
             ? '/api/desktop/archive/entry?path=' + encodeURIComponent(currentPath) + '&entry=' + encodeURIComponent(archiveEntry)
             : '/api/desktop/download?path=' + encodeURIComponent(currentPath);
+        window.AuraDesktopEmail?.attach(windowId, '.vd-viewer-toolbar-right', () => ({
+            key:currentPath,disabled:!currentPath,subject:fileName,formats:[{id:'original',label:fileName}],
+            createFiles:(_format,signal)=>window.AuraDesktopEmail.files([{url:fileUrl,name:fileName}],signal)
+        }));
 
         host.innerHTML = `<div class="vd-viewer vd-viewer-3d" data-viewer-3d="${esc(windowId)}">
             <div class="vd-viewer-toolbar">

@@ -100,6 +100,7 @@ try {
             MailerApp.render(document.querySelector('#host'),'mail',ctx,{});
         },{words,theme,mode,state});
         await page.locator('[data-thread-id]').first().waitFor();
+        await page.evaluate(() => document.fonts.ready);
         assert.equal(await page.locator('[data-thread-id]').count(),40,'large mailbox must only render the returned page');
         const avatarLetters=await page.locator('.vd-mailer-thread .vd-mailer-avatar').allTextContents();
         assert(avatarLetters.length===40,'every thread row must render a sender avatar');

@@ -547,6 +547,14 @@
             }
         }
         ed.flushPendingEdits = flushPendingEdits;
+        window.AuraDesktopEmail?.attach(app.windowId, '.ed-head-actions', () => ({
+            key:disposed?null:ed.flow.id,disabled:disposed||restoring||deleting,
+            subject:draftModel.doc.name,formats:[{id:'json',label:'.easydrag.json'}],
+            createFiles:async(_format,signal)=>{
+                if(!ed.flushPendingEdits()||!await ed.saver.flush())return false;
+                return window.AuraDesktopEmail.files([{url:ed.api.exportUrl(ed.flow.id),name:(draftModel.doc.name||'flow')+'.easydrag.json'}],signal);
+            }
+        }));
 
         async function leaveOnce() {
             interact.abortGesture();

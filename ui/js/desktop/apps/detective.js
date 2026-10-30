@@ -47,6 +47,12 @@
             if (node) { node.hidden = false; node.textContent = state.notice; }
         };
         const chosenReport = () => v.chosenReport(state.current, state.revision, history, selectedReport);
+        window.AuraDesktopEmail?.attach(windowId, '.dt-export', () => {
+            const report=chosenReport(),id=state.current?.id;
+            return {key:id+':'+report?.revision,signal:controller.signal,disabled:state.disposed||!id||!report,
+                subject:state.current?.title,formats:v.formats(state.caps||{}).map(f=>({id:f.id,label:f.label})),
+                createFiles:(format,signal)=>window.AuraDesktopEmail.files([{url:base+'/cases/'+encodeURIComponent(id)+'/export?revision='+report.revision+'&format='+encodeURIComponent(format),name:'report-r'+report.revision+'.'+format}],signal)};
+        });
         function autoDraft() {
             const box = host.querySelector('.dt-auto-settings');
             if (!box) return null;

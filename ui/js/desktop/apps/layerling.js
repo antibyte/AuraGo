@@ -10,6 +10,14 @@
         const life = new AbortController();
         const s = { id, root, ctx, life, path: ctx.path || '', version: null, readonly: !!ctx.readonly, port: null, socket: null, editorID: '', pending: new Map(), started: false, loading: true, queue: null, jobs: Promise.resolve(), draftTimer: null, lastDraft: null };
         instances.set(id, s);
+        window.AuraDesktopEmail?.attach(id, '.vd-layerling-toolbar', () => ({
+            key:s.queue,signal:life.signal,disabled:life.signal.aborted||s.loading||!s.port,subject:s.path.split('/').pop()||'Model',
+            formats:['stl','obj','3mf','step','png','lyl'],
+            createFiles:async format=>{
+                const file=await s.request(format==='lyl'?'serialize':'export_model',{format,name:(s.path.split('/').pop()||'Model').replace(/\.[^.]+$/,'')});
+                return [new File([file.bytes],format==='lyl'?(s.path.split('/').pop()||'Model.lyl'):file.name,{type:file.type||'application/octet-stream'})];
+            }
+        }));
         const button = (action, label) => `<button type="button" class="vd-button" data-action="${action}">${ctx.esc(label)}</button>`;
         root.innerHTML = `<div class="vd-layerling"><div class="vd-layerling-toolbar" role="toolbar" aria-label="Layerling">
             ${button('new', t('new'))}${button('open', t('open'))}${button('save', t('save'))}${button('save_as', t('save_as'))}${button('import', t('import'))}${button('recover', t('recover'))}

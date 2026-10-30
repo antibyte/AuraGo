@@ -776,19 +776,21 @@
             <div class="vd-modal-title">${esc(options.title || '')}</div>
             ${options.message ? `<div class="vd-modal-copy">${esc(options.message)}</div>` : ''}
             ${options.input ? `<input class="vd-modal-input" value="${esc(options.value || '')}" autocomplete="off">` : ''}
+            ${options.select ? `<label>${esc(options.selectLabel || '')}<select class="vd-modal-input" aria-label="${esc(options.selectLabel || '')}">${options.select.map(item => `<option value="${esc(item.value)}">${esc(item.label)}</option>`).join('')}</select></label>` : ''}
             <div class="vd-modal-actions">
                 <button type="button" class="vd-button" data-cancel>${esc(t('desktop.cancel'))}</button>
                 ${options.choices ? options.choices.map(choice => `<button type="button" class="vd-button" data-choice="${esc(choice.value)}" ${choice.disabled ? 'disabled' : ''}>${esc(choice.label)}</button>`).join('') : `<button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.ok'))}</button>`}
             </div>
         </form>`;
-        const unmount = mountDesktopDialog(overlay);
+        const unmount = options.host?.isConnected
+            ? (options.host.appendChild(overlay), () => {}) : mountDesktopDialog(overlay);
         desktopSound('dialog.open');
         const form = overlay.querySelector('form');
-        const input = overlay.querySelector('input');
+        const input = overlay.querySelector('input,select');
         const primaryBtn = overlay.querySelector('[type="submit"]') || overlay.querySelector('[data-cancel]');
         if (input) {
             input.focus();
-            input.select();
+            input.select?.();
         } else if (primaryBtn) {
             primaryBtn.focus();
         }
@@ -818,7 +820,7 @@
             const onKey = event => {
                 if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(options.input ? null : false); }
                 if (event.key === 'Tab') {
-                    const controls = [...form.querySelectorAll('input,button:not(:disabled)')];
+                    const controls = [...form.querySelectorAll('input,select,button:not(:disabled)')];
                     const current = controls.indexOf(document.activeElement);
                     event.preventDefault();
                     controls[(current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]?.focus();
@@ -832,7 +834,7 @@
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 if (options.choices) return;
-                finish(options.input ? input.value.trim() : true);
+                finish(options.input || options.select ? input.value.trim() : true);
             });
         });
     }
@@ -1549,6 +1551,8 @@
 
     function renderAppContent(id, appId, context) {
         if (!contentEl(id)) return;
+        context = context || {};
+        context.emailExport = options => desktopEmailExport(id, options);
         clearWindowMenus(id);
         clearDesktopFileWindowDropState(id);
         wireDesktopFileWindowDrop(id);

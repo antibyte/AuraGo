@@ -27,6 +27,10 @@
         let currentPath = archiveEntry ? archivePath : (ctx.path || '');
         const fileName = (archiveEntry ? archiveEntry.split('/').pop() : currentPath.split('/').pop()) || currentPath;
         const ext = fileName.split('.').pop().toLowerCase();
+        window.AuraDesktopEmail?.attach(windowId, '.vd-viewer-toolbar-right', () => ({
+            key:currentPath,signal:life.signal,disabled:!currentPath,subject:fileName,formats:[{id:'original',label:fileName}],
+            createFiles:(_format,signal)=>window.AuraDesktopEmail.files([{url:archiveEntry?archiveEntryURL():'/api/desktop/download?path='+encodeURIComponent(currentPath),name:fileName}],signal)
+        }));
         const viewerType = viewerTypeForExt(ext);
         const canEdit = !archiveEntry && ['docx', 'xlsx', 'xlsm', 'csv'].includes(ext);
         const editApp = ['docx', 'html', 'htm'].includes(ext) ? 'writer' : 'sheets';

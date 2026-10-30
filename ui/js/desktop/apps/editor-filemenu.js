@@ -489,6 +489,11 @@
             } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
+        attachEmailExport(id, '.vd-toolbar', () => ({
+            key: textarea, disabled: !current() || loadFailed || saving,
+            subject: pathBaseName(path), formats: [{id:'source',label:pathBaseName(path)}],
+            createFiles: async () => [new File([textarea.value], pathBaseName(path), {type:'text/plain;charset=utf-8'})]
+        }));
     }
 
     function setEditorMenus(id, path, textarea, status, saveEditor) {

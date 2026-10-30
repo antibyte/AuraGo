@@ -372,6 +372,10 @@
         box.hidden = false;
         box.innerHTML = '<div class="sdr-result-head"><h3>' + s.esc(r.name || s.t('untitled')) + '</h3>' + iconKey(s, 'close-result', 'close', 'close') + '</div>' + (r.bytes ? '<audio controls preload="metadata" src="' + audio + '"></audio><div class="sdr-result-actions"><a class="sdr-key" href="' + audio + '?download=1">' + P.icon('download') + '<span>' + s.esc(s.t('download')) + '</span></a>' + button(s, 'transcribe', 'retry_asr', 'data-id="' + s.esc(id) + '"') + '</div>' : '') + '<div class="sdr-transcript">' + (r.segments || []).map(seg => '<p><time>' + Math.floor(seg.start_seconds / 60) + ':' + String(Math.floor(seg.start_seconds % 60)).padStart(2, '0') + '</time><span>' + s.esc(seg.error ? s.t('asr_failed') : seg.text || s.t('no_speech')) + '</span></p>').join('') + '</div>';
         s.preview = box.querySelector('audio'); update(s); box.scrollIntoView({ block: 'nearest' });
+        window.AuraDesktopEmail?.attach(s.id, '.sdr-result-actions', () => ({
+            key:box.querySelector('audio')?.getAttribute('src'),signal:s.abort.signal,disabled:s.disposed||!box.querySelector('audio'),formats:['wav'],
+            createFiles:(_format,signal)=>window.AuraDesktopEmail.files([{url:audio+'?download=1',name:(r.name||id)+'.wav'}],signal)
+        }));
     }
     async function action(s, b) {
         const a = b.dataset.action, id = b.dataset.id;
