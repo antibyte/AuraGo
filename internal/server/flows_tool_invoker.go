@@ -236,6 +236,9 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	dc := i.dispatchContext(flowDispatchConfig(cfg), req.FlowID, action)
 	res := i.dispatch(ctx, &tc, dc)
 	if res.Status == agent.ToolResultDenied && strings.Contains(res.Output, `"code":"action_rule_required"`) {
+		if strings.Contains(res.Output, "copies isolated tool text.") {
+			return flows.ToolResponse{}, flows.NewNodeError("FLOW_TOOL_DENIED", "This action copies external tool text and needs approval of the exact call in an interactive session. An allow rule does not exempt that copy.")
+		}
 		return flows.ToolResponse{}, flows.NewNodeError("FLOW_ACTION_RULE_REQUIRED", "An administrator action rule is required for this tool, operation and target")
 	}
 	// The dispatch isolates every answer in one <external_data> layer, with a Guardian in the

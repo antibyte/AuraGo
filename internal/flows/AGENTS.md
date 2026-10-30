@@ -708,6 +708,11 @@ Spec: `docs/superpowers/specs/2026-10-03-easydrag-design.md` (local, git-ignored
     `document_creator`, refuses Home Assistant `script`, `shell_command`, `python_script` and `hassio` services
     unless `home_assistant.allowed_services` lists them, registers the call's credentials with the output
     scrubber and redacts them from the output, and never logs arguments (`flowLogHandler`).
+    Successful native document results retain generated file references without adding them to the agent's
+    copied-text index. External reads keep that protection. A real copied-text refusal is `FLOW_TOOL_DENIED`
+    with exact-call approval guidance; only a missing administrator rule is `FLOW_ACTION_RULE_REQUIRED`.
+    Verify server `TestFlowPDFCreateThenTelegramUsesGeneratedAttachment` and
+    `TestFlowCopyRefusalDoesNotRecommendAnAllowRule`.
   - `agent.DispatchToolCallResult` wraps every delivered answer in exactly one `<external_data>` layer (layer 2 under "Layers of a tool result"), with a Guardian in
     the context or without (the fallback regex Guardian), and the fence's boundary hardening rewrites the JSON
     escape for `<` into one with a space after the backslash, which is no JSON. The invoker therefore removes that

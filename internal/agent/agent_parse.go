@@ -250,7 +250,12 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	}
 
 	output := formatToolOutputForModel(*tc, sanitized)
-	recordIsolatedModelOutput(dc.SessionID, tc.Action, tc.Operation, output)
+	// Flow document results contain generated artifact references, not source text.
+	// Recording their paths as copied text blocks the authored attachment node.
+	// Keep recording external reads and all model-directed tool conversations.
+	if dc.MessageSource != MessageSourceFlow || tc.Action != "document_creator" || status != ToolResultSuccess {
+		recordIsolatedModelOutput(dc.SessionID, tc.Action, tc.Operation, output)
+	}
 	return ToolDispatchResult{
 		Output:  output,
 		Status:  status,
