@@ -15,21 +15,21 @@ import (
 	"aurago/internal/persondetect"
 )
 
-// scriptedDecisions answers every request with one fixed response and keeps the last one.
-type scriptedDecisions struct {
+// imageScriptedDecisions answers every request with one fixed response and keeps the last one.
+type imageScriptedDecisions struct {
 	*fakeDecisions
 	response decisions.Response
 	last     decisions.Request
 }
 
-func (d *scriptedDecisions) Evaluate(_ context.Context, r decisions.Request) (decisions.Response, error) {
+func (d *imageScriptedDecisions) Evaluate(_ context.Context, r decisions.Request) (decisions.Response, error) {
 	d.calls++
 	d.last = r
 	return d.response, d.err
 }
 
-// choiceResponse builds a normalized choice answer: top gets p, the rest share 1-p.
-func choiceResponse(qid string, options []decisions.Option, top string, p float64) decisions.Response {
+// imageChoiceResponse builds a normalized choice answer: top gets p, the rest share 1-p.
+func imageChoiceResponse(qid string, options []decisions.Option, top string, p float64) decisions.Response {
 	probabilities := map[string]float64{}
 	for _, option := range options {
 		if option.ID == top {
@@ -43,7 +43,7 @@ func choiceResponse(qid string, options []decisions.Option, top string, p float6
 	}}
 }
 
-func testJPEGBytes(t *testing.T) []byte {
+func imageTestJPEG(t *testing.T) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, 64, 48))
 	for x := 0; x < 64; x++ {
@@ -58,31 +58,31 @@ func testJPEGBytes(t *testing.T) []byte {
 	return buf.Bytes()
 }
 
-func personWakeFixture(t *testing.T, response decisions.Response, supported bool) (*Server, *scriptedDecisions, persondetect.AlertEvent) {
+func personWakeFixture(t *testing.T, response decisions.Response, supported bool) (*Server, *imageScriptedDecisions, persondetect.AlertEvent) {
 	t.Helper()
 	s, fake := hubLocal(t)
 	if !supported {
 		fake.status.ProjectorSHA256 = ""
 	}
-	scripted := &scriptedDecisions{fakeDecisions: fake, response: response}
+	scripted := &imageScriptedDecisions{fakeDecisions: fake, response: response}
 	s.Decisions = scripted
 	s.Cfg.DecisionConsumers.PersonWake = config.DecisionConsumerSwitch{Enabled: true}
 	cover := filepath.Join(t.TempDir(), "cover.jpg")
-	if err := os.WriteFile(cover, testJPEGBytes(t), 0o600); err != nil {
+	if err := os.WriteFile(cover, imageTestJPEG(t), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return s, scripted, persondetect.AlertEvent{EventID: 1, CameraID: "door", CameraName: "Door", Zones: []string{"Porch"}, CoverPath: cover}
 }
 
 func TestPersonWakeDecisionImagesUnsupportedFiresAgent(t *testing.T) {
-	s, d, ev := personWakeFixture(t, choiceResponse("scene", personWakeOptions, "no_human", 0.9), false)
+	s, d, ev := personWakeFixture(t, imageChoiceResponse("scene", personWakeOptions, "no_human", 0.9), false)
 	if suppress, hint := s.personWakeGate(context.Background(), ev); suppress || hint != "" || d.calls != 0 {
 		t.Fatalf("suppress=%v hint=%q calls=%d", suppress, hint, d.calls)
 	}
 }
 
 func TestPersonWakeDecisionOffMakesNoCall(t *testing.T) {
-	s, d, ev := personWakeFixture(t, choiceResponse("scene", personWakeOptions, "no_human", 0.9), true)
+	s, d, ev := personWakeFixture(t, imageChoiceResponse("scene", personWakeOptions, "no_human", 0.9), true)
 	s.Cfg.DecisionConsumers.PersonWake = config.DecisionConsumerSwitch{}
 	if suppress, _ := s.personWakeGate(context.Background(), ev); suppress || d.calls != 0 {
 		t.Fatalf("suppress=%v calls=%d", suppress, d.calls)
@@ -90,7 +90,7 @@ func TestPersonWakeDecisionOffMakesNoCall(t *testing.T) {
 }
 
 func TestPersonWakeDecisionNoHumanSuppresses(t *testing.T) {
-	s, d, ev := personWakeFixture(t, choiceResponse("scene", personWakeOptions, "no_human", 0.9), true)
+	s, d, ev := personWakeFixture(t, imageChoiceResponse("scene", personWakeOptions, "no_human", 0.9), true)
 	if suppress, _ := s.personWakeGate(context.Background(), ev); !suppress {
 		t.Fatal("no_human 0.9 did not suppress")
 	}
@@ -100,11 +100,11 @@ func TestPersonWakeDecisionNoHumanSuppresses(t *testing.T) {
 }
 
 func TestPersonWakeDecisionUnsure(t *testing.T) {
-	s, _, ev := personWakeFixture(t, choiceResponse("scene", personWakeOptions, "no_human", 0.7), true)
+	s, _, ev := personWakeFixture(t, imageChoiceResponse("scene", personWakeOptions, "no_human", 0.7), true)
 	if suppress, _ := s.personWakeGate(context.Background(), ev); suppress {
 		t.Fatal("0.7 suppressed")
 	}
-	s, d, ev := personWakeFixture(t, choiceResponse("scene", personWakeOptions, "courier", 0.8), true)
+	s, d, ev := personWakeFixture(t, imageChoiceResponse("scene", personWakeOptions, "courier", 0.8), true)
 	if suppress, hint := s.personWakeGate(context.Background(), ev); suppress || hint != "courier" {
 		t.Fatalf("suppress=%v hint=%q", suppress, hint)
 	}

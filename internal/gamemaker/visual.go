@@ -38,6 +38,16 @@ type VisualReview struct {
 	Model    string          `json:"model,omitempty"`
 	BuildID  string          `json:"build_id,omitempty"`
 	Findings []VisualFinding `json:"findings,omitempty"`
+	// Precheck is local Decisions evidence; it is never a finding.
+	Precheck *VisualPrecheck `json:"precheck,omitempty"`
+}
+
+// VisualPrecheck is local evidence about a capture. It never becomes a finding
+// and never triggers a repair or changes readiness.
+type VisualPrecheck struct {
+	Canvas     string  `json:"canvas"` // rendered | blank | loading | error_text | unknown
+	Confidence float64 `json:"confidence"`
+	HUDVisible *bool   `json:"hud_visible,omitempty"`
 }
 
 func (r VisualReview) RepairDiagnostics() []Diagnostic {
