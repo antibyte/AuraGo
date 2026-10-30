@@ -8,6 +8,9 @@
 # TTS NOTE: TTS does NOT use the provider system. It has its own config
 # structure (tts.provider, tts.minimax.*, tts.elevenlabs.*, tts.supertonic.*) and separate
 # vault keys. Use the dedicated "tts" block instead of "models.tts".
+#
+# default_trust_level is informational only: the wizard always preselects trust
+# level 2 (setup.html) and does not read this value.
 
 profiles:
   - id: openrouter
@@ -20,10 +23,11 @@ profiles:
     key_url: "https://openrouter.ai/keys"
     key_placeholder: "sk-or-v1-..."
     provider_type: openrouter
+    recommended: true
     base_url: "https://openrouter.ai/api/v1"
     main_model: "google/gemini-3.1-flash-lite" # Bestes neues, sehr günstiges Modell mit starker Logik
     native_function_calling: true
-    default_trust_level: 3
+    default_trust_level: 2
     features:
       vision: true
       whisper: true
@@ -57,7 +61,7 @@ profiles:
     base_url: "https://apihub.agnes-ai.com/v1"
     main_model: "agnes-2.0-flash"
     native_function_calling: true
-    default_trust_level: 3
+    default_trust_level: 2
     features:
       vision: true
       whisper: false
@@ -86,7 +90,6 @@ profiles:
     description: "MiniMax M2.7 token plan with optional High-Speed support. Strong value for creative + agentic code workflows."
     icon: "💻"
     sort_order: 3
-    recommended: true
     pricing_label: "Token plan – included models"
     pricing_url: "https://platform.minimax.io/docs/guides/pricing-token-plan"
     key_url: "https://platform.minimax.io"
@@ -98,7 +101,7 @@ profiles:
     main_model: "MiniMax-M2.7"
     highspeed_model: "MiniMax-M2.7-highspeed"
     native_function_calling: true
-    default_trust_level: 3
+    default_trust_level: 2
     features:
       vision: false
       whisper: true
@@ -151,7 +154,7 @@ profiles:
     base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" # Korrigierter OpenAI-kompatibler Endpunkt
     main_model: "qwen-max" # Aktuelles Flaggschiff der Qwen 3 Serie
     native_function_calling: true
-    default_trust_level: 3
+    default_trust_level: 2
     features:
       vision: true
       whisper: true
@@ -185,7 +188,7 @@ profiles:
     base_url: "https://api.stepfun.ai/step_plan/v1"
     main_model: "step-3.5-flash"
     native_function_calling: true
-    default_trust_level: 3
+    default_trust_level: 2
     features:
       vision: false
       whisper: false
@@ -212,7 +215,7 @@ profiles:
     base_url: "https://api.moonshot.cn/v1"
     main_model: "kimi-k2" # Aktuelle K2 Architektur
     native_function_calling: true
-    default_trust_level: 3
+    default_trust_level: 2
     features:
       vision: true
       whisper: false
@@ -244,7 +247,7 @@ profiles:
     base_url: ""
     main_model: ""
     native_function_calling: false
-    default_trust_level: 1
+    default_trust_level: 2
     features:
       vision: false
       whisper: false

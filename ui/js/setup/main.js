@@ -3,11 +3,11 @@
 
 // ── State ────────────────────────────────────
 // Step IDs for each flow (plan-select is always index 0)
-const QUICK_FLOW_STEPS  = ['plan-select', 'plan-quick', 'step-local-llm', 'step-3'];
-const CUSTOM_FLOW_STEPS = ['plan-select', 'step-0', 'step-1', 'step-2', 'step-local-llm', 'step-3'];
+const QUICK_FLOW_STEPS  = ['plan-select', 'plan-quick', 'step-3'];
+const CUSTOM_FLOW_STEPS = ['plan-select', 'step-0', 'step-1', 'step-2', 'step-3'];
 // Label i18n keys for each logical step in each flow
-const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_local_llm', 'setup.step_label_3'];
-const CUSTOM_FLOW_LABELS = ['setup.step_label_plan', 'setup.step_label_0', 'setup.step_label_1', 'setup.step_label_2', 'setup.step_label_local_llm', 'setup.step_label_3'];
+const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_3'];
+const CUSTOM_FLOW_LABELS = ['setup.step_label_plan', 'setup.step_label_0', 'setup.step_label_1', 'setup.step_label_2', 'setup.step_label_3'];
 
 let currentStepIndex = 0;   // index into the active flow array
 let highestStepIndex = 0;
@@ -25,6 +25,7 @@ const SETUP_BOOTSTRAP_STORAGE_KEY = 'aurago.setupBootstrapToken';
 let setupBootstrapToken = readSetupBootstrapToken();
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 let setupHTTPS = null;
+let setupCompleted = false;   // success screen shown: keep wizard chrome (HTTPS notice) hidden
 
 // Sequence counter for /api/i18n fetches. When the user rapidly switches
 // languages, only the most recent fetch's response should be applied.
@@ -172,7 +173,9 @@ function renderSetupHTTPSStatus() {
     document.getElementById('setup-https-certificate')?.classList.toggle('is-hidden', !(setupHTTPS?.enabled && setupHTTPS.cert_mode === 'selfsigned'));
     const secure = window.isSecureContext === true;
     document.getElementById('setup-secure-context').textContent = t(secure ? 'setup.secure_ready' : 'setup.secure_unavailable');
-    document.getElementById('setup-https-status').classList.toggle('setup-https-insecure', !secure);
+    const status = document.getElementById('setup-https-status');
+    status.classList.toggle('setup-https-insecure', !secure);
+    setupSetHidden(status, secure || setupCompleted);
 }
 
 // ── Load Personality Profiles on startup ─────
@@ -273,10 +276,35 @@ async function loadProfiles() {
         const data = await resp.json();
         profiles = data.profiles || [];
         renderProfileCards(profiles);
+        if (!selectedProfile) {
+            const id = setupDefaultProfileId(profiles);
+            if (id) selectProfile(id);
+        }
     } catch (e) {
         const loading = document.getElementById('profile-loading');
         if (loading) loading.innerHTML = `<p class="profile-state-message profile-load-error">${escapeHtml(t('setup.plan_load_error'))}</p>`;
     }
+}
+
+// Profile preselected on first load: the recommended provider (never "custom").
+function setupDefaultProfileId(list) {
+    const p = (list || []).find(x => x && x.recommended && x.id !== 'custom');
+    return p ? p.id : '';
+}
+
+// i18n keys of the optional features a quick profile really enables (mirrors buildQuickConfigPatch).
+function setupQuickProfileFeatureKeys(p) {
+    if (!p || !p.features) return [];
+    const m = p.models || {};
+    const map = [
+        ['vision', 'setup.feature_vision'],
+        ['whisper', 'setup.feature_speech_input'],
+        ['embeddings', 'setup.feature_memory'],
+        ['image_generation', 'setup.feature_images'],
+        ['video_generation', 'setup.feature_video'],
+        ['music_generation', 'setup.feature_music'],
+    ];
+    return map.filter(([key]) => p.features[key] && m[key]).map(([, i18nKey]) => i18nKey);
 }
 
 function getFeatureBadges(features) {
@@ -413,6 +441,16 @@ function updateQuickProfileUI() {
             </div>`;
     }
 
+    const summary = document.getElementById('plan-quick-summary');
+    if (summary) {
+        const chips = setupQuickProfileFeatureKeys(selectedProfile)
+            .map(k => `<span class="plan-quick-chip">${escapeHtml(t(k))}</span>`).join('');
+        summary.innerHTML = `
+            <p class="plan-quick-summary-model">${escapeHtml(t('setup.plan_quick_summary_model', { model: runtime.mainModel }))}</p>
+            ${chips ? `<div class="plan-quick-chips">${chips}</div>` : ''}
+            <p class="plan-quick-summary-later">${escapeHtml(t('setup.plan_quick_summary_later'))}</p>`;
+    }
+
     const hint = document.getElementById('quick-api-key-hint');
     const link = document.getElementById('quick-key-link');
     if (hint && link && runtime.keyUrl) {
@@ -460,6 +498,11 @@ function selectProfile(profileId) {
         card.setAttribute('aria-pressed', isSel ? 'true' : 'false');
     });
     if (!selectedProfile) return;
+    // On the plan page the step indicator previews the flow the choice leads to.
+    if (currentStepIndex === 0) {
+        isQuickFlow = selectedProfile.id !== 'custom';
+        renderStepIndicator();
+    }
     // Update Next button state
     updateNextButtonState();
     updateQuickProfileUI();
@@ -659,9 +702,9 @@ function buildQuickConfigPatch() {
     if (p.features && p.features.music_generation && m.music_generation) providers.push(makeSubsystemProvider('music_gen', 'Music Gen',  m.music_generation, {}));
     if (p.features && p.features.video_generation && m.video_generation) providers.push(makeSubsystemProvider('video_gen', 'Video Gen', m.video_generation, {}));
 
-    // Read trust level from radio button (may have been pre-selected by nextStep)
+    // Read trust level from the radio group (level 2 is checked by default in setup.html)
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
-    const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : (p.default_trust_level || 1);
+    const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : 2;
 
     const langMap = LANG_MAP;
     const patch = {
@@ -1004,7 +1047,7 @@ function setupSubsystemDefaults(mainType, mainModel) {
 
 // Pure: the optional steps the header "Skip" button may jump over.
 function setupStepSkippable(stepId) {
-    return stepId === 'step-1' || stepId === 'step-2' || stepId === 'step-local-llm';
+    return stepId === 'step-1' || stepId === 'step-2';
 }
 
 // The user's own choice wins: once a vision/STT control was touched the
@@ -1393,16 +1436,6 @@ async function nextStep(skip = false) {
             if (!validateStep0(skip)) return;
         }
 
-        const nextIndex = currentStepIndex + 1;
-        const nextId = activeFlow()[nextIndex];
-
-        // Pre-select trust level from profile when entering step-3 in quick flow
-        if (nextId === 'step-3' && isQuickFlow && selectedProfile && selectedProfile.default_trust_level) {
-            const level = selectedProfile.default_trust_level;
-            const radio = document.querySelector(`input[name="trust-level"][value="${level}"]`);
-            if (radio) radio.checked = true;
-        }
-
         if (currentStepIndex < activeFlow().length - 1) {
             currentStepIndex++;
             if (currentStepIndex > highestStepIndex) highestStepIndex = currentStepIndex;
@@ -1420,8 +1453,8 @@ function prevStep() {
     if (currentStepIndex > 0) {
         // When going back to plan-select, reset flow choice to allow changing
         if (currentStepIndex === 1) {
-            // stay on plan-select; reset flow
-            isQuickFlow = false;
+            // stay on plan-select; preview the flow of the still selected plan
+            isQuickFlow = !!selectedProfile && selectedProfile.id !== 'custom';
             currentStepIndex = 0;
             highestStepIndex = 0;
         } else {
@@ -1433,10 +1466,12 @@ function prevStep() {
 
 function renderStepIndicator() {
     const container = document.getElementById('step-indicator');
-    if (!container) return;
+    if (!container || setupCompleted) return;
     const flow = activeFlow();
     const labels = activeLabels();
-    let html = '';
+    const currentRaw = t(labels[currentStepIndex]);
+    const currentLabel = (currentRaw && currentRaw !== labels[currentStepIndex]) ? currentRaw : labels[currentStepIndex].split('.').pop();
+    let html = `<div class="step-compact"><p class="step-compact-text">${escapeHtml(t('setup.step_counter', { current: currentStepIndex + 1, total: flow.length }) + ' · ' + currentLabel)}</p><progress class="step-compact-progress" max="${flow.length}" value="${currentStepIndex + 1}"></progress></div>`;
     for (let i = 0; i < flow.length; i++) {
         const isActive    = i === currentStepIndex;
         const isCompleted = i < currentStepIndex;
@@ -1998,14 +2033,21 @@ async function saveConfig() {
         // Show success screen
         document.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
         setupSetHidden(document.getElementById('header-nav'), true);
+        setupCompleted = true;
         const indicator = document.getElementById('step-indicator');
-        if (indicator) indicator.innerHTML = '';
+        if (indicator) {
+            indicator.innerHTML = '';
+            setupSetHidden(indicator, true);
+        }
+        setupSetHidden(document.getElementById('setup-https-status'), true);
         setupSetHidden(document.getElementById('btn-skip-setup'), true);
         const successScreen = document.getElementById('success-screen');
         successScreen.classList.add('active');
         resetSetupScroll();
         focusSetupHeading(successScreen);
 
+        setupSetHidden(document.getElementById('success-signed-in'), result.signed_in !== true);
+        setupSetHidden(document.getElementById('success-sign-in-hint'), result.signed_in === true);
         if (result.needs_restart) {
             setupSetHidden(document.getElementById('restart-notice'), false);
         }
@@ -2016,12 +2058,24 @@ async function saveConfig() {
         showToast(t('setup.toast_config_saved'), 'success');
     } catch (err) {
         showToast(t('setup.toast_error_prefix') + err.message, 'error');
+        // A failed save may come from the optional local model: open its section so the cause is visible.
+        const localLLMEnabled = document.getElementById('setup-local-llm-enabled');
+        const localLLMSection = document.getElementById('step-local-llm');
+        if (localLLMEnabled && localLLMEnabled.checked && localLLMSection) localLLMSection.open = true;
         btnNext.disabled = false;
         btnNext.innerHTML = t('setup.nav_save_and_start');
     } finally {
         saving = false;
     }
 }
+
+// First-steps chips on the success screen: hand the prompt to the chat, which only prefills it.
+document.addEventListener('click', (ev) => {
+    const chip = ev.target.closest && ev.target.closest('.success-prompt-chip');
+    if (!chip) return;
+    try { sessionStorage.setItem('aurago.chat.prefill', t(chip.getAttribute('data-prompt-key'))); } catch (_) { /* storage blocked: open the chat empty */ }
+    window.location.href = '/';
+});
 
 async function pollSetupLocalLLMJob(id, token) {
     const target = document.getElementById('local-llm-job-notice');

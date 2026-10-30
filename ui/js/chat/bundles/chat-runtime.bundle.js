@@ -6311,6 +6311,22 @@ function initChatThemePicker() {
 }
 
 /* ── Initialize Chat Modules ── */
+// The setup wizard hands a suggested first message over via sessionStorage.
+// It is only put into the empty input box, never sent.
+function applyChatPrefill() {
+    let text = '';
+    try {
+        text = sessionStorage.getItem('aurago.chat.prefill') || '';
+        sessionStorage.removeItem('aurago.chat.prefill');
+    } catch (_) { return; }
+    text = text.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '').slice(0, 500);
+    if (!text || !userInput || userInput.value) return;
+    userInput.value = text;
+    autoResize();
+    userInput.focus();
+    userInput.setSelectionRange(text.length, text.length);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Smart Scroller
     if (window.SmartScroller) {
@@ -6493,6 +6509,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Push Notification Bell Button
     initPushUI();
+
+    applyChatPrefill();
 });
 
 ;

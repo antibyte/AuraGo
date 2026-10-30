@@ -1083,6 +1083,12 @@
     opacity: 0;
 }
 
+/* The "recommended" ribbon owns the top-right corner; its check mark moves down. */
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card:has(.profile-recommended-bubble) .profile-check {
+    top: auto;
+    bottom: 0.6rem;
+}
+
 .pw-page.pw-entry-page[data-entry-page="setup"] .profile-recommended-bubble {
     background: var(--pw-accent);
     background-image: none;
@@ -1275,6 +1281,188 @@
     box-shadow: none;
 }
 
+/* ── First impression: welcome, trust default, summary, advanced, step labels ── */
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-welcome {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-welcome-mark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--pw-line);
+    border-radius: 50%;
+    color: var(--pw-accent);
+    font-size: 1.35rem;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-welcome-title {
+    margin: 0;
+    color: var(--pw-text);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-welcome-lead {
+    margin: 0.2rem 0 0;
+    color: var(--pw-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-card-inner { position: relative; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-recommended-badge {
+    display: inline-block;
+    margin-bottom: 0.3rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--pw-accent);
+    color: var(--pw-canvas);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-card-check {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-level-card input[type="radio"]:checked ~ .trust-card-inner .trust-card-check {
+    opacity: 1;
+    color: var(--pw-accent);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-level-card input:focus-visible ~ .trust-card-inner {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-change-later { margin: 0.75rem 0 1rem; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] details.setup-advanced {
+    margin-top: 1rem;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-advanced-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 32px;
+    padding: 0.25rem 0;
+    color: var(--pw-accent);
+    font-size: 0.9rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-advanced-summary::-webkit-details-marker { display: none; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-advanced-summary::before {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] details.setup-advanced[open] > .setup-advanced-summary::before { transform: rotate(45deg); }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-advanced-summary:focus-visible,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-more > summary:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] details.setup-advanced > .setup-inner-card { margin-top: 0.5rem; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .plan-quick-summary {
+    margin: 0.75rem 0;
+    color: var(--pw-muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .plan-quick-summary p { margin: 0; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .plan-quick-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.4rem 0;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .plan-quick-chip {
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--pw-line);
+    border-radius: 999px;
+    color: var(--pw-text);
+    font-size: 0.78rem;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-first-steps { margin: 1.25rem 0; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-prompt-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-prompt-chip {
+    min-height: 44px;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--pw-line);
+    border-radius: 999px;
+    background: var(--pw-surface-elevated);
+    color: var(--pw-text);
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-prompt-chip:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-prompt-chip:focus-visible {
+    border-color: var(--pw-accent);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-prompt-chip:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+}
+
+/* Step labels: the legacy 60px width + word-break split words into single letters. */
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-compact { display: none; }
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-label {
+    max-width: none;
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav .btn-setup,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav .btn-skip,
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .btn-skip {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
 @media (max-width: 1100px) {
     .pw-page.pw-entry-page[data-entry-page="setup"] .cfg-header .header-actions {
         padding-right: 0;
@@ -1338,6 +1526,75 @@
         min-height: 44px;
     }
 
+    .pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.75rem 1rem;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-group,
+    .pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-line { display: none; }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-compact { display: block; }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .step-compact-text {
+        margin: 0 0 0.4rem;
+        color: var(--pw-muted);
+        font-size: 0.85rem;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .step-compact-progress {
+        width: 100%;
+        height: 6px;
+        accent-color: var(--pw-accent);
+    }
+
+    /* backdrop-filter would make the header the containing block of the fixed nav */
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header {
+        backdrop-filter: none;
+        background: var(--pw-canvas);
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 200;
+        display: flex;
+        gap: 0.5rem;
+        width: auto;
+        overflow: visible;
+        padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+        background: var(--pw-surface);
+        border-top: 1px solid var(--pw-line);
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav .btn-setup { width: auto; }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav .btn-next {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-container {
+        padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .btn-skip {
+        min-height: 44px;
+        font-size: 0.8rem;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .logo {
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .toast-container {
+        bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    }
+
     .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-overlay {
         align-items: flex-end;
         padding: 0;
@@ -1366,14 +1623,22 @@
 .pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-status {
     border: 1px solid var(--border-color, #475569);
     border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 24px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
     overflow-wrap: anywhere;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.5;
 }
 .pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-status p { margin: 8px 0 0; }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-status .setup-https-line { margin: 0; }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-more { margin-top: 4px; }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-more > summary {
+    display: inline-block;
+    color: var(--pw-accent);
+    cursor: pointer;
+}
 .pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-insecure { border-color: var(--warning, #eab308); }
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-https-status.is-hidden { display: none; }
 
 /* ── HTTPS Warning Banner ──────────────────── */
 .https-warning {

@@ -2835,8 +2835,8 @@ function testSetupSubsystemDefaultsSkipRuleAndTestKeys() {
   assert.equal(ol.whisper.provider, '');
   assert.equal(ctx.setupSubsystemDefaults('google', 'gem').whisper.provider, 'main');
 
-  for (const id of ['step-1', 'step-2', 'step-local-llm']) assert.equal(ctx.setupStepSkippable(id), true, id);
-  for (const id of ['plan-select', 'plan-quick', 'step-0', 'step-3']) assert.equal(ctx.setupStepSkippable(id), false, id);
+  for (const id of ['step-1', 'step-2']) assert.equal(ctx.setupStepSkippable(id), true, id);
+  for (const id of ['plan-select', 'plan-quick', 'step-0', 'step-3', 'step-local-llm']) assert.equal(ctx.setupStepSkippable(id), false, id);
 
   const keys = ['setup.test_key_ok', 'setup.test_model_ok', 'setup.test_credit_remaining', 'setup.test_free_tier',
     'setup.test_key_invalid', 'setup.test_model_not_found', 'setup.test_rate_limited', 'setup.test_provider_unreachable',
@@ -2851,6 +2851,49 @@ function testSetupSubsystemDefaultsSkipRuleAndTestKeys() {
     assert.ok(data['setup.test_model_not_found'].includes('{model}'), name);
     assert.ok(data['setup.test_provider_error'].includes('{status}'), name);
     assert.ok(data['setup.test_credit_remaining'].includes('{amount}'), name);
+  }
+}
+
+function testSetupFirstImpressionPackage() {
+  const main = read('ui/js/setup/main.js');
+  const flows = vm.runInNewContext(sourceBetween(main, 'const QUICK_FLOW_STEPS', 'let currentStepIndex') +
+    ';({ QUICK_FLOW_STEPS, CUSTOM_FLOW_STEPS, QUICK_FLOW_LABELS, CUSTOM_FLOW_LABELS })');
+  assert.deepEqual([...flows.QUICK_FLOW_STEPS], ['plan-select', 'plan-quick', 'step-3']);
+  assert.deepEqual([...flows.CUSTOM_FLOW_STEPS], ['plan-select', 'step-0', 'step-1', 'step-2', 'step-3']);
+  assert.equal(flows.QUICK_FLOW_LABELS.length, flows.QUICK_FLOW_STEPS.length);
+  assert.equal(flows.CUSTOM_FLOW_LABELS.length, flows.CUSTOM_FLOW_STEPS.length);
+  for (const list of [flows.QUICK_FLOW_STEPS, flows.CUSTOM_FLOW_STEPS]) assert.ok(!list.includes('step-local-llm'));
+
+  const ctx = {};
+  vm.runInNewContext(sourceBetween(main, 'function setupDefaultProfileId(', 'function getFeatureBadges('), ctx);
+  assert.equal(ctx.setupDefaultProfileId([{ id: 'a' }, { id: 'custom', recommended: true }, { id: 'openrouter', recommended: true }]), 'openrouter');
+  assert.equal(ctx.setupDefaultProfileId([{ id: 'a' }]), '');
+  assert.equal(ctx.setupDefaultProfileId(null), '');
+  assert.deepEqual([...ctx.setupQuickProfileFeatureKeys({ features: { vision: true, whisper: true, tts: true }, models: { vision: {}, tts: {} } })], ['setup.feature_vision']);
+
+  const html = read('ui/setup.html');
+  const checked = html.match(/<input type="radio" name="trust-level" value="[0-9]" checked>/g) || [];
+  assert.deepEqual(checked, ['<input type="radio" name="trust-level" value="2" checked>']);
+  const card2 = sourceBetween(html, 'id="trust-card-2"', 'id="trust-card-3"');
+  assert.ok(card2.includes('trust-recommended-badge'), 'trust level 2 carries the recommended badge');
+  assert.ok(!sourceBetween(main, 'async function nextStep(', 'function prevStep(').includes('default_trust_level'));
+  const step3 = html.indexOf('id="step-3"');
+  const localLLM = html.indexOf('id="step-local-llm"');
+  assert.ok(step3 !== -1 && step3 < localLLM && localLLM < html.indexOf('id="success-screen"'), 'local model lives inside step-3');
+  assert.match(html, /<details class="setup-advanced" id="step-local-llm">/);
+
+  const dir = path.join(root, 'ui/lang/setup');
+  const files = readdirSync(dir).filter(name => name.endsWith('.json'));
+  assert.equal(files.length, 16);
+  const keys = ['welcome_title', 'welcome_lead', 'secure_unavailable_short', 'https_more', 'plan_quick_summary_model',
+    'plan_quick_summary_later', 'feature_speech_input', 'feature_memory', 'step3_change_later', 'local_llm_advanced_summary',
+    'step_counter', 'success_signed_in', 'success_sign_in_hint', 'success_first_steps_title', 'success_prompt_capabilities',
+    'success_prompt_summarize', 'success_prompt_reminder'];
+  for (const name of files) {
+    const data = JSON.parse(read('ui/lang/setup/' + name));
+    for (const key of keys) assert.ok(data['setup.' + key], name + ' missing setup.' + key);
+    assert.ok(data['setup.step_counter'].includes('{current}') && data['setup.step_counter'].includes('{total}'), name);
+    assert.ok(data['setup.plan_quick_summary_model'].includes('{model}'), name);
   }
 }
 
@@ -5341,6 +5384,7 @@ const tests = [
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],
   ['Setup keyboard navigation, skip link and language text', testSetupKeyboardSkipLinkAndLanguageText],
   ['Setup subsystem defaults, skip rule and test-result keys', testSetupSubsystemDefaultsSkipRuleAndTestKeys],
+  ['Setup first-impression flows, defaults and keys', testSetupFirstImpressionPackage],
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],
   ['Game Maker isolates old job events during replay and live updates', testGameMakerJobEventOwnership],

@@ -78,12 +78,16 @@
     <!-- ── Main Setup Card ─────────────────────── -->
     <div class="setup-container" id="main-content">
         <div class="setup-card">
-            <aside id="setup-https-status" class="setup-https-status" aria-live="polite">
-                <strong data-i18n="setup.connection_title"></strong>
-                <p id="setup-https-transport"></p>
-                <p id="setup-https-certificate" class="is-hidden" data-i18n="setup.https_selfsigned"></p>
-                <p id="setup-secure-context"></p>
-                <p data-i18n="setup.https_manage"></p>
+            <aside id="setup-https-status" class="setup-https-status is-hidden" aria-live="polite">
+                <p class="setup-https-line"><span aria-hidden="true">⚠</span> <span data-i18n="setup.secure_unavailable_short"></span></p>
+                <details class="setup-https-more">
+                    <summary data-i18n="setup.https_more"></summary>
+                    <strong data-i18n="setup.connection_title"></strong>
+                    <p id="setup-https-transport"></p>
+                    <p id="setup-https-certificate" class="is-hidden" data-i18n="setup.https_selfsigned"></p>
+                    <p id="setup-secure-context"></p>
+                    <p data-i18n="setup.https_manage"></p>
+                </details>
             </aside>
 
             <!-- Step Indicator — rebuilt dynamically by JS based on flow -->
@@ -91,6 +95,7 @@
 
             <!-- ═══ Section: Plan Selection ═══ -->
             <div class="setup-section active" id="plan-select">
+                <div class="setup-welcome"><span class="setup-welcome-mark" aria-hidden="true">✦</span><div><h1 class="setup-welcome-title" data-i18n="setup.welcome_title"></h1><p class="setup-welcome-lead" data-i18n="setup.welcome_lead"></p></div></div>
                 <!-- Language selector — first thing a user should set -->
                 <div class="plan-language-bar">
                     <span class="plan-lang-icon" aria-hidden="true">🌐</span>
@@ -133,6 +138,7 @@
                     <div class="plan-quick-header" id="plan-quick-header">
                         <!-- Icon + name filled by JS -->
                     </div>
+                    <div class="plan-quick-summary" id="plan-quick-summary"></div>
                     <div class="setup-embedding-warning is-hidden" id="quick-embedding-warning" data-i18n="setup.plan_embedding_warning"></div>
                     <p class="section-desc" data-i18n="setup.plan_quick_description"></p>
                 </div>
@@ -252,7 +258,7 @@
                             <option value="cs">Čeština</option>
                             <option value="custom" data-i18n="setup.language_custom"></option>
                         </select>
-                        <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" data-i18n-placeholder="setup.language_custom_placeholder" placeholder="e.g. Klingon">
+                        <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" data-i18n-placeholder="setup.language_custom_placeholder">
                     </div>
                 </div>
 
@@ -307,7 +313,7 @@
                 <div class="toggle-row">
                     <div>
                         <div id="lbl-native-functions" class="toggle-label" data-i18n="setup.step0_native_functions_label">Native Function Calling ⚠️</div>
-                        <div id="desc-native-functions" class="toggle-desc" data-i18n="setup.step0_native_functions_desc">Uses the provider's native tool calls. Warning: Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!</div>
+                        <div id="desc-native-functions" class="toggle-desc" data-i18n="setup.step0_native_functions_desc"></div>
                     </div>
                     <label class="toggle" for="native-functions">
                         <input type="checkbox" id="native-functions" class="toggle">
@@ -473,81 +479,6 @@
                 </div>
             </div>
 
-            <!-- ═══ Optional AuraGo-Qwen local test model ═══ -->
-            <div class="setup-section" id="step-local-llm">
-                <div class="section-header">
-                    <div class="section-badge" data-i18n="config.section.local_llm.label"></div>
-                    <h2 class="section-title" data-i18n="config.section.local_llm.label"></h2>
-                    <p class="section-desc" data-i18n="config.local_llm.purpose"></p>
-                </div>
-                <div class="setup-inner-card">
-                    <div class="setup-embedding-warning" data-i18n="config.local_llm.hardware"></div>
-                    <div id="setup-local-llm-qwen-quality" class="field-hint" data-i18n="config.local_llm.quality"></div>
-                    <div class="toggle-row">
-                        <div>
-                            <div class="toggle-label" data-i18n="config.local_llm.enabled"></div>
-                            <div class="toggle-desc" data-i18n="config.local_llm.purpose"></div>
-                        </div>
-                        <label class="toggle" for="setup-local-llm-enabled">
-                            <input type="checkbox" id="setup-local-llm-enabled" onchange="onSetupLocalLLMToggle()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div id="setup-local-llm-fields" class="is-hidden">
-                        <div class="field-group">
-                            <label class="field-label" for="setup-local-llm-family" data-i18n="config.local_llm.model_family"></label>
-                            <select class="field-select" id="setup-local-llm-family">
-                                <option value="qwen" data-i18n="config.local_llm.qwen_option"></option>
-                                <option value="ling" data-i18n="config.local_llm.ling_option"></option>
-                                <option value="spark" data-i18n="config.local_llm.spark_option"></option>
-                            </select>
-                            <div id="setup-local-llm-ling-quality" class="field-hint is-hidden" data-i18n="config.local_llm.ling_quality"></div>
-                            <div id="setup-local-llm-spark-quality" class="field-hint is-hidden" data-i18n="config.local_llm.spark_quality"></div>
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label" data-i18n="config.local_llm.backend"></label>
-                            <select class="field-select" id="setup-local-llm-backend" onchange="onSetupLocalLLMBackendChange()">
-                                <option value="auto" data-i18n="config.local_llm.backend_auto"></option>
-                                <option value="cuda">CUDA / NVIDIA</option>
-                                <option value="sycl">SYCL / Intel Arc</option>
-                                <option value="vulkan">Vulkan 1.2+</option>
-                                <option value="cpu" data-i18n="setup.local_llm_backend_cpu"></option>
-                            </select>
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label" data-i18n="config.local_llm.model_variant"></label>
-                            <select class="field-select" id="setup-local-llm-model">
-                                <option value="q4_k_m">Q4_K_M · 2.59 GiB</option>
-                                <option value="q8_0">Q8_0 · 4.29 GiB</option>
-                            </select>
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label" data-i18n="config.local_llm.mtp"></label>
-                            <select class="field-select" id="setup-local-llm-mtp">
-                                <option value="off" data-i18n="config.local_llm.mtp_off"></option>
-                                <option value="auto" data-i18n="config.local_llm.mtp_auto"></option>
-                                <option value="mtp2" data-i18n="setup.local_llm_mtp_forced"></option>
-                            </select>
-                        </div>
-                        <div class="field-group">
-                            <label class="field-label" data-i18n="config.local_llm.role"></label>
-                            <select class="field-select" id="setup-local-llm-role">
-                                <option value="test_only" data-i18n="config.local_llm.role_test"></option>
-                                <option value="fallback" data-i18n="config.local_llm.role_fallback"></option>
-                                <option value="primary" data-i18n="config.local_llm.role_primary"></option>
-                            </select>
-                        </div>
-                        <button type="button" class="btn-setup btn-test-connection" onclick="probeSetupLocalLLM()" data-i18n="config.local_llm.probe"></button>
-                        <div id="setup-local-llm-probe-result" class="field-hint"></div>
-                        <label id="setup-local-llm-ack-wrap" class="field-hint is-hidden">
-                            <input type="checkbox" id="setup-local-llm-ack">
-                            <span data-i18n="config.local_llm.ack_warning"></span>
-                        </label>
-                        <div class="field-hint" data-i18n="config.local_llm.release_gate"></div>
-                    </div>
-                </div>
-            </div>
-
             <!-- ═══ Section 4: Mutprobe (Trust Level) ═══ -->
             <div class="setup-section" id="step-3">
                 <div class="section-header">
@@ -559,8 +490,9 @@
                 <div class="trust-level-grid">
                     <!-- Level 1: Minimal -->
                     <label class="trust-level-card" id="trust-card-1">
-                        <input type="radio" name="trust-level" value="1" checked>
+                        <input type="radio" name="trust-level" value="1">
                         <div class="trust-card-inner">
+                            <span class="trust-card-check" aria-hidden="true">✓</span>
                             <div class="trust-card-icon">🛡️</div>
                             <div class="trust-card-text">
                                 <div class="trust-card-title" id="trust-title-1" data-i18n="setup.step3_level1_title"></div>
@@ -571,11 +503,13 @@
 
                     <!-- Level 2: Careful -->
                     <label class="trust-level-card" id="trust-card-2">
-                        <input type="radio" name="trust-level" value="2">
+                        <input type="radio" name="trust-level" value="2" checked>
                         <div class="trust-card-inner">
+                            <span class="trust-card-check" aria-hidden="true">✓</span>
                             <div class="trust-card-icon">🔍</div>
                             <div class="trust-card-text">
                                 <div class="trust-card-title" id="trust-title-2" data-i18n="setup.step3_level2_title"></div>
+                                <span class="trust-recommended-badge" data-i18n="setup.profile_recommended_badge"></span>
                                 <div class="trust-card-desc" id="trust-desc-2" data-i18n="setup.step3_level2_desc"></div>
                             </div>
                         </div>
@@ -585,6 +519,7 @@
                     <label class="trust-level-card" id="trust-card-3">
                         <input type="radio" name="trust-level" value="3">
                         <div class="trust-card-inner">
+                            <span class="trust-card-check" aria-hidden="true">✓</span>
                             <div class="trust-card-icon">🚀</div>
                             <div class="trust-card-text">
                                 <div class="trust-card-title" id="trust-title-3" data-i18n="setup.step3_level3_title"></div>
@@ -597,6 +532,7 @@
                     <label class="trust-level-card" id="trust-card-4">
                         <input type="radio" name="trust-level" value="4">
                         <div class="trust-card-inner">
+                            <span class="trust-card-check" aria-hidden="true">✓</span>
                             <div class="trust-card-icon">🔥</div>
                             <div class="trust-card-text">
                                 <div class="trust-card-title" id="trust-title-4" data-i18n="setup.step3_level4_title"></div>
@@ -605,6 +541,77 @@
                         </div>
                     </label>
                 </div>
+                <p class="field-hint trust-change-later" data-i18n="setup.step3_change_later"></p>
+
+                <details class="setup-advanced" id="step-local-llm">
+                    <summary class="setup-advanced-summary" data-i18n="setup.local_llm_advanced_summary"></summary>
+                    <div class="setup-inner-card">
+                        <div class="setup-embedding-warning" data-i18n="config.local_llm.hardware"></div>
+                        <div class="toggle-row">
+                            <div>
+                                <div class="toggle-label" data-i18n="config.local_llm.enabled"></div>
+                                <div class="toggle-desc" data-i18n="config.local_llm.purpose"></div>
+                            </div>
+                            <label class="toggle" for="setup-local-llm-enabled">
+                                <input type="checkbox" id="setup-local-llm-enabled" onchange="onSetupLocalLLMToggle()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div id="setup-local-llm-fields" class="is-hidden">
+                            <div class="field-group">
+                                <label class="field-label" for="setup-local-llm-family" data-i18n="config.local_llm.model_family"></label>
+                                <select class="field-select" id="setup-local-llm-family">
+                                    <option value="qwen" data-i18n="config.local_llm.qwen_option"></option>
+                                    <option value="ling" data-i18n="config.local_llm.ling_option"></option>
+                                    <option value="spark" data-i18n="config.local_llm.spark_option"></option>
+                                </select>
+                                <div id="setup-local-llm-qwen-quality" class="field-hint" data-i18n="config.local_llm.quality"></div>
+                                <div id="setup-local-llm-ling-quality" class="field-hint is-hidden" data-i18n="config.local_llm.ling_quality"></div>
+                                <div id="setup-local-llm-spark-quality" class="field-hint is-hidden" data-i18n="config.local_llm.spark_quality"></div>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label" data-i18n="config.local_llm.backend"></label>
+                                <select class="field-select" id="setup-local-llm-backend" onchange="onSetupLocalLLMBackendChange()">
+                                    <option value="auto" data-i18n="config.local_llm.backend_auto"></option>
+                                    <option value="cuda">CUDA / NVIDIA</option>
+                                    <option value="sycl">SYCL / Intel Arc</option>
+                                    <option value="vulkan">Vulkan 1.2+</option>
+                                    <option value="cpu" data-i18n="setup.local_llm_backend_cpu"></option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label" data-i18n="config.local_llm.model_variant"></label>
+                                <select class="field-select" id="setup-local-llm-model">
+                                    <option value="q4_k_m">Q4_K_M · 2.59 GiB</option>
+                                    <option value="q8_0">Q8_0 · 4.29 GiB</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label" data-i18n="config.local_llm.mtp"></label>
+                                <select class="field-select" id="setup-local-llm-mtp">
+                                    <option value="off" data-i18n="config.local_llm.mtp_off"></option>
+                                    <option value="auto" data-i18n="config.local_llm.mtp_auto"></option>
+                                    <option value="mtp2" data-i18n="setup.local_llm_mtp_forced"></option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label" data-i18n="config.local_llm.role"></label>
+                                <select class="field-select" id="setup-local-llm-role">
+                                    <option value="test_only" data-i18n="config.local_llm.role_test"></option>
+                                    <option value="fallback" data-i18n="config.local_llm.role_fallback"></option>
+                                    <option value="primary" data-i18n="config.local_llm.role_primary"></option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn-setup btn-test-connection" onclick="probeSetupLocalLLM()" data-i18n="config.local_llm.probe"></button>
+                            <div id="setup-local-llm-probe-result" class="field-hint"></div>
+                            <label id="setup-local-llm-ack-wrap" class="field-hint is-hidden">
+                                <input type="checkbox" id="setup-local-llm-ack">
+                                <span data-i18n="config.local_llm.ack_warning"></span>
+                            </label>
+                            <div class="field-hint" data-i18n="config.local_llm.release_gate"></div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- ═══ Success Screen ═══ -->
@@ -612,8 +619,18 @@
                 <div class="success-icon">✨</div>
                 <h2 id="success-title" class="success-title" data-i18n="setup.success_title"></h2>
                 <p id="success-desc" class="success-desc" data-i18n-html="setup.success_description">AuraGo is now configured and ready.<br>The settings have been saved.</p>
+                <p id="success-signed-in" class="success-desc is-hidden" data-i18n="setup.success_signed_in"></p>
+                <p id="success-sign-in-hint" class="success-desc is-hidden" data-i18n="setup.success_sign_in_hint"></p>
                 <p class="success-desc is-hidden setup-warning-text" id="restart-notice" data-i18n-html="setup.success_restart_notice">⚠️ A restart is recommended for all changes to take effect.</p>
                 <p class="success-desc is-hidden setup-warning-text" id="local-llm-job-notice"></p>
+                <div class="success-first-steps" aria-labelledby="success-first-steps-title">
+                    <h3 id="success-first-steps-title" class="success-config-links-title" data-i18n="setup.success_first_steps_title"></h3>
+                    <div class="success-prompt-list">
+                        <button type="button" class="success-prompt-chip" data-prompt-key="setup.success_prompt_capabilities" data-i18n="setup.success_prompt_capabilities"></button>
+                        <button type="button" class="success-prompt-chip" data-prompt-key="setup.success_prompt_summarize" data-i18n="setup.success_prompt_summarize"></button>
+                        <button type="button" class="success-prompt-chip" data-prompt-key="setup.success_prompt_reminder" data-i18n="setup.success_prompt_reminder"></button>
+                    </div>
+                </div>
                 <div class="success-config-links" aria-labelledby="success-config-links-title">
                     <h3 id="success-config-links-title" class="success-config-links-title" data-i18n="setup.success_config_links_title"></h3>
                     <p class="success-config-links-desc" data-i18n="setup.success_config_links_desc"></p>

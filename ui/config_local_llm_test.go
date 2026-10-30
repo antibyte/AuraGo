@@ -126,10 +126,7 @@ func TestLocalLLMTranslationsCoverAllSixteenLocalesWithoutEnglishPlaceholders(t 
 	}
 
 	expectedConfig := prefixedLocaleKeys(configByLocale["en"], "config.local_llm.")
-	expectedSetup := append(
-		prefixedLocaleKeys(setupByLocale["en"], "setup.local_llm_"),
-		"setup.step_label_local_llm",
-	)
+	expectedSetup := prefixedLocaleKeys(setupByLocale["en"], "setup.local_llm_")
 	sort.Strings(expectedSetup)
 	if len(expectedConfig) < 35 || len(expectedSetup) < 10 {
 		t.Fatalf("English Local LLM translation surface is unexpectedly incomplete: config=%d setup=%d", len(expectedConfig), len(expectedSetup))
@@ -140,7 +137,7 @@ func TestLocalLLMTranslationsCoverAllSixteenLocalesWithoutEnglishPlaceholders(t 
 		if got := prefixedLocaleKeys(configByLocale[locale], "config.local_llm."); !reflect.DeepEqual(got, expectedConfig) {
 			t.Fatalf("%s Local LLM config keys differ from English\n got: %v\nwant: %v", locale, got, expectedConfig)
 		}
-		gotSetup := append(prefixedLocaleKeys(setupByLocale[locale], "setup.local_llm_"), "setup.step_label_local_llm")
+		gotSetup := prefixedLocaleKeys(setupByLocale[locale], "setup.local_llm_")
 		sort.Strings(gotSetup)
 		if !reflect.DeepEqual(gotSetup, expectedSetup) {
 			t.Fatalf("%s Local LLM setup keys differ from English\n got: %v\nwant: %v", locale, gotSetup, expectedSetup)

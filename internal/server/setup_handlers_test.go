@@ -429,6 +429,9 @@ func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403; body=%s", rec.Code, rec.Body.String())
 	}
+	if got := rec.Result().Cookies(); len(got) != 0 {
+		t.Fatalf("rejected request set cookies: %v", got)
+	}
 	body := strings.ToLower(rec.Body.String())
 	if !strings.Contains(body, "csrf") {
 		t.Fatalf("expected CSRF error message, got %q", rec.Body.String())
@@ -448,6 +451,9 @@ func TestHandleSetupSaveRejectsWrongCSRF(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+	if got := rec.Result().Cookies(); len(got) != 0 {
+		t.Fatalf("rejected request set cookies: %v", got)
 	}
 }
 

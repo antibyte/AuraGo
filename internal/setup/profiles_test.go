@@ -321,3 +321,17 @@ func TestAgnesProfileConfiguresTextHelperImageAndVideo(t *testing.T) {
 	}
 	t.Fatal("agnes_ai profile not found")
 }
+
+func TestExactlyOneRecommendedProfileIsOpenRouter(t *testing.T) {
+	t.Parallel()
+
+	var recommended []string
+	for _, p := range LoadProfiles("", slog.Default()) {
+		if p.Recommended {
+			recommended = append(recommended, p.ID)
+		}
+	}
+	if len(recommended) != 1 || recommended[0] != "openrouter" {
+		t.Fatalf("recommended profiles = %v, want [openrouter]", recommended)
+	}
+}

@@ -287,6 +287,10 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		s.Logger.Info("[Setup] Configuration saved via Quick Setup wizard")
 
+		// Set when this request created the first admin password; used to sign
+		// the same browser in once the config is live (see issueSetupSession).
+		var issuedHash, issuedSecret string
+		passwordInitialized := false
 		if authEnabled && s.Cfg.Auth.PasswordHash == "" {
 			newHash, err := HashPassword(setupPassword)
 			if err != nil {
@@ -315,6 +319,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			reloadedCfg.Auth.Enabled = true
 			reloadedCfg.Auth.PasswordHash = newHash
 			reloadedCfg.Auth.SessionSecret = newSecret
+			issuedHash, issuedSecret, passwordInitialized = newHash, newSecret, true
 			s.Logger.Info("[Setup] Admin password initialized")
 		}
 
@@ -401,6 +406,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")
 		}()
 		s.clearSetupBootstrapToken()
+		// The cookie must be set before any header or body is written.
+		signedIn := passwordInitialized && issueSetupSession(s, w, r, issuedHash, issuedSecret)
 
 		var localJob *setupLocalLLMJob
 		if localLLMSetup.Enabled {
@@ -413,6 +420,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		response := map[string]interface{}{
 			"status":        "saved",
 			"needs_restart": needsRestart,
+			"signed_in":     signedIn,
 		}
 		if localJob != nil {
 			response["local_llm_job_id"] = localJob.ID

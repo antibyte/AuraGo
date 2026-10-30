@@ -109,6 +109,9 @@ func TestSetupSaveRejectsRemoteRequestWithoutBootstrapToken(t *testing.T) {
 		if rec.Code != http.StatusForbidden || responseCode(t, rec) != "setup_bootstrap_token_required" {
 			t.Fatalf("token %q: status = %d body=%s, want 403 setup_bootstrap_token_required", token, rec.Code, rec.Body.String())
 		}
+		if got := rec.Result().Cookies(); len(got) != 0 {
+			t.Fatalf("token %q: rejected request set cookies: %v", token, got)
+		}
 	}
 	if s.Cfg.Auth.PasswordHash != "" {
 		t.Fatal("rejected setup request still set an admin password")
