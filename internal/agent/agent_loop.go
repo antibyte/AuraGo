@@ -2645,6 +2645,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				)
 			})
 		} else {
+			// No helper turn analysis and no LLM mood analysis run for this turn:
+			// let Decisions appraise praise/criticism (never for autonomous or delegated runs).
+			if !cfg.Personality.EngineV2 && !isEmpty && runTurnSideEffects && personalityEnabled && personalityBasis != nil && shortTermMem != nil &&
+				!isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
+				appraisalBasis := personalityBasis
+				_ = sideEffects.Go(func(taskCtx context.Context) {
+					analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
+					defer cancel()
+					appraiseTurnWithDecisions(analysisCtx, runCfg, appraisalBasis, meta, s.currentLogger)
+				})
+			}
 			// Real-time memory analysis: async post-response extraction of memory-worthy content
 			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && runTurnSideEffects && shortTermMem != nil {
 				userMsg := lastUserMsg
