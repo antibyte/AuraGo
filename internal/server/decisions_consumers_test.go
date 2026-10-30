@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -458,4 +461,38 @@ func TestExternalReservedInteractiveSlot(t *testing.T) {
 			t.Fatalf("paid external call was cut: %v", err)
 		}
 	})
+}
+
+func TestDecisionsStatusListsConsumersPassively(t *testing.T) {
+	s, fake := hubLocal(t)
+	wrapped := &lifecycleDecisions{fakeDecisions: fake}
+	s.Decisions = wrapped
+	enable(s, config.DecisionConsumerSwitch{Enabled: true}, "mail_triage")
+	mux := http.NewServeMux()
+	registerDecisionsRoutes(mux, s)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", "/api/decisions/status", nil))
+	if w.Code != 200 {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+	var got struct {
+		State        string           `json:"state"`
+		Capabilities map[string]any   `json:"capabilities"`
+		Consumers    []map[string]any `json:"consumers"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.State != "ready" || got.Capabilities["images"] != "supported" || len(got.Consumers) != 9 {
+		t.Fatalf("unexpected body: %s", w.Body.String())
+	}
+	if got.Consumers[0]["id"] != "router" || got.Consumers[4]["id"] != "mail_triage" || got.Consumers[4]["enabled"] != true || got.Consumers[4]["available"] != true {
+		t.Fatalf("consumers: %v", got.Consumers)
+	}
+	if got.Consumers[5]["enabled"] != false || got.Consumers[5]["code"] != consumers.CodeConsumerDisabled {
+		t.Fatalf("webhook row: %v", got.Consumers[5])
+	}
+	if fake.calls != 0 || wrapped.lifecycle != 0 {
+		t.Fatalf("status acted: evaluate=%d lifecycle=%d", fake.calls, wrapped.lifecycle)
+	}
 }

@@ -86,7 +86,7 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 			return
 		}
 		if action == "status" {
-			writeDecisionsJSON(w, http.StatusOK, s.decisionsSetupStatus())
+			writeDecisionsJSON(w, http.StatusOK, s.decisionsFullStatus())
 			return
 		}
 		if action == "install" || action == "start" {
