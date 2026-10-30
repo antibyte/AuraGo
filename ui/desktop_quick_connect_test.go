@@ -55,13 +55,15 @@ func TestDesktopQuickConnectOnlyListsRemoteDevicesBrowser(t *testing.T) {
 			result := page.MustEval(`async()=>{
                 serialShell.cleanup();
                 const devices=[
-                    {id:'ssh-lab',name:'SSH lab',type:'router',protocol:'ssh',ip_address:'192.0.2.10',port:2222},
-                    {id:'vnc-lab',name:'VNC lab',type:'desktop',protocol:'vnc',ip_address:'192.0.2.11',port:5901},
+                    {id:'ssh-lab',name:'SSH lab',type:'router',protocol:'ssh',quick_connect:true,ip_address:'192.0.2.10',port:2222},
+                    {id:'vnc-lab',name:'VNC lab',type:'desktop',protocol:'vnc',quick_connect:true,ip_address:'192.0.2.11',port:5901},
+                    ...[5500,1910,8008,8060,8009].map(port=>({id:'legacy-'+port,name:'Legacy discovery '+port,type:'server',protocol:'ssh',quick_connect:false,ip_address:'192.0.2.14',port})),
+                    {id:'unchecked',name:'Unchecked SSH flag',type:'server',protocol:'ssh',ip_address:'192.0.2.15',port:22},
                     ...['generic','server','linux','vm',''].map(type=>({id:'cast-'+(type||'untyped'),name:'Cast '+(type||'untyped'),type,protocol:'none',ip_address:'192.0.2.12',port:8009})),
                     {id:'http-server',name:'HTTP server',type:'server',protocol:'http',ip_address:'192.0.2.13',port:80}
                 ];
                 const api=window.api;
-                window.api=(url,options)=>url==='/api/desktop/integrations/devices'?Promise.resolve({devices}):api(url,options);
+                window.api=(url,options)=>url==='/api/desktop/integrations/devices?quick_connect=1'?Promise.resolve({devices}):api(url,options);
                 serialShell.app=window.__renderQuickConnect('qc');
                 const ids=()=>Array.from(document.querySelectorAll('[data-device-id]')).map(node=>node.dataset.deviceId).sort().join(',');
                 const filter=value=>document.querySelector('[data-qc-filter="'+value+'"]').click();
@@ -82,9 +84,13 @@ func TestDesktopQuickConnectOnlyListsRemoteDevicesBrowser(t *testing.T) {
                 const targeted=ids();
                 const targetDisabled=document.querySelector('[data-qc-target] button').disabled;
                 document.querySelector('[data-device-id="cast-generic"]').click();
+                applyQuickConnectLaunchContext('qc',{device_id:'legacy-8009'});
+                await serialShell.wait(()=>document.querySelector('[data-device-id="legacy-8009"]'));
+                const legacyTargetDisabled=document.querySelector('[data-qc-target] button').disabled;
+                document.querySelector('[data-device-id="legacy-8009"]').click();
                 const noConnection=serialShell.sockets.length===0&&serialShell.rfbs.length===0;
                 serialShell.cleanup();
-                return {all,ssh,vnc,searchHidesUnconnectable,serialProfiles,targeted,targetDisabled,noConnection,errors:window.__shellErrors};
+                return {all,ssh,vnc,searchHidesUnconnectable,serialProfiles,targeted,targetDisabled,legacyTargetDisabled,noConnection,errors:window.__shellErrors};
             }`)
 			for key, want := range map[string]string{
 				"all":      "__aurago-host__,ssh-lab,vnc-lab",
@@ -96,7 +102,7 @@ func TestDesktopQuickConnectOnlyListsRemoteDevicesBrowser(t *testing.T) {
 					t.Errorf("%s devices = %q, want %q", key, got, want)
 				}
 			}
-			for _, key := range []string{"searchHidesUnconnectable", "serialProfiles", "targetDisabled", "noConnection"} {
+			for _, key := range []string{"searchHidesUnconnectable", "serialProfiles", "targetDisabled", "legacyTargetDisabled", "noConnection"} {
 				if !result.Get(key).Bool() {
 					t.Errorf("%s failed: %s", key, result.JSON("", ""))
 				}

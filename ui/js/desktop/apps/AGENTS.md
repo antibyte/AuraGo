@@ -2050,9 +2050,13 @@ buttons and menu popovers remain excluded from those gestures.
   pending device choices and close late opens after policy/auth/window disposal.
   Browser serial requires a trusted user gesture and always uses the browser's
   picker. No automatic reconnect. Embedded apps deny `serial` in their frame policy.
-- Quick Connect lists inventory entries by explicit `ssh`/`vnc` protocol; device
-  types never imply remote access. An explicit `device_id` launch may retain a
-  `none` target with connection disabled. Keep the synthetic AuraGo host and serial
+- Quick Connect requests `devices?quick_connect=1` and lists only explicit
+  `ssh`/`vnc` entries with the server's `quick_connect: true` eligibility flag;
+  device types and stored protocol flags alone never prove remote access.
+  Unconfigured legacy discovery rows need a protocol greeting; configured offline
+  connections remain listed. An explicit `device_id` launch may retain an
+  ineligible target with connection disabled, including its direct-click path.
+  Keep the synthetic AuraGo host and serial
   profiles. Verify `TestDesktopQuickConnectOnlyListsRemoteDevicesBrowser` in both themes.
 - Keep serial writes ordered, capture and render queues bounded, initial DTR/RTS
   off, and clear Break after 250 ms including cleanup races. Device traffic never

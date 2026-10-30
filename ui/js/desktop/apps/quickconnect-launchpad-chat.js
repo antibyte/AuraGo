@@ -68,6 +68,7 @@
         let cachedCredentials = null;
         let activeTab = 'terminal';
         let activeProtocolFilter = 'all';
+        let loadController = null;
         let connectedDeviceId = null;
         let connectedProtocol = null;
         let disposed = false;
@@ -97,7 +98,7 @@
             button.type = 'button';
             button.className = 'vd-qc-btn vd-qc-btn-primary';
             button.textContent = t('desktop.qc_connect');
-            button.disabled = device.protocol === 'none';
+            button.disabled = !canConnectDevice(device);
             if (button.disabled) button.title = t('desktop.qc_no_connection');
             button.addEventListener('click', () => connectToDevice(device.id));
             targetPanel.appendChild(button);
@@ -193,6 +194,7 @@
             disposed = true;
             connectionGeneration++;
             loadGeneration++;
+            loadController?.abort();
             for (const cancel of pendingConfirmations) cancel();
             serialTerminal.dispose();
             if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
@@ -221,14 +223,17 @@
 
         async function loadAll() {
             const generation = ++loadGeneration;
+            loadController?.abort();
+            loadController = new AbortController();
+            const options = { signal: loadController.signal };
             deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
             try {
                 const [devBody, credBody] = await Promise.all([
-                    api('/api/desktop/integrations/devices'),
-                    api('/api/desktop/integrations/credentials')
+                    api('/api/desktop/integrations/devices?quick_connect=1', options),
+                    api('/api/desktop/integrations/credentials', options)
                 ]);
                 if (disposed || generation !== loadGeneration) return;
-                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || d.protocol === 'ssh' || d.protocol === 'vnc'));
+                cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || canConnectDevice(d)));
                 cachedCredentials = credBody || [];
                 if (!cachedDevices.length) {
                     deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
@@ -261,6 +266,7 @@
                 name: t('desktop.qc_aurago_host'),
                 type: 'server',
                 protocol: 'ssh',
+                quick_connect: true,
                 ip_address: hostName,
                 port: 22,
                 description: t('desktop.qc_aurago_host_description'),
@@ -282,7 +288,7 @@
             deviceList.innerHTML = filtered.map(d => {
                 const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
                 const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
-                const protoLabel = d.protocol === 'none' ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
+                const protoLabel = !canConnectDevice(d) ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
                 const protoIcon = d.protocol === 'vnc' ? 'monitor' : 'terminal';
                 return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}">
                     <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : protoIcon, 'S', 'vd-qc-device-papirus-icon', 22)}</span>
@@ -308,6 +314,10 @@
                     if (dev) showDeviceContextMenu(e.clientX, e.clientY, dev);
                 });
             });
+        }
+
+        function canConnectDevice(device) {
+            return device && device.quick_connect === true && (device.protocol === 'ssh' || device.protocol === 'vnc');
         }
 
         function protocolMatchesFilter(device) {
@@ -583,7 +593,7 @@
 
         function connectToDevice(deviceId) {
             const device = cachedDevices && cachedDevices.find(d => d.id === deviceId);
-            if (!device || device.protocol === 'none') { showNotify(t('desktop.qc_no_connection')); return; }
+            if (!canConnectDevice(device)) { showNotify(t('desktop.qc_no_connection')); return; }
             if (device.protocol === 'vnc') {
                 connectVNC(deviceId);
             } else {

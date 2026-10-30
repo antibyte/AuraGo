@@ -115,6 +115,19 @@ Server-owned HTTP and cross-component integration contracts.
 - Action policy catalog/preview and pending/decision APIs are administrator-only, as are generic config updates and Vault secret mutation. Preview never dispatches or creates approvals. Decisions accept only the server-owned action ID and approve/reject, preserve its originating session and revalidate current gates. Tool Bridge uses expiring originating-run capabilities, current and inherited tool/SQL scopes, loopback transport and bounded calls; a process-wide internal token cannot authenticate bridge execution. Unknown or active workspace `/files/` content is a sandboxed attachment; preserve known audio/image/video playback.
 - `POST /api/media-conversion/test` is administrator-only (`isAdminProtectedPath` plus `requireAdmin`) and executes only an approved converter: the configured value is resolved through `internal/mediabins` exactly like the tool resolves it, so a bare name on PATH is accepted, and the base name of the resolved file must identify ffmpeg, ffprobe or magick (a versioned spelling such as `ffmpeg-7.0` is accepted; the legacy `convert` only outside Windows). A missing or foreign binary is refused before a process starts. `tools.media_conversion` is validated on every configuration save path (`/api/config` and the setup path) against the values the patch itself changes, so a pre-existing out-of-range value in `config.yaml` never blocks an unrelated save; `config.Load` clamps it at startup. Verify `TestValidateMediaConversionBinaryPath*`, `TestHandleMediaConversionTest*`, `TestValidateMediaConversionPatch*` and `TestHandleUpdateConfigValidatesMediaConversionPatch`.
 
+### Quick Connect device eligibility
+
+- `GET /api/devices?quick_connect=1` (also through Desktop integrations) is an
+  admin-only, no-store projection with a `quick_connect` flag per device. Only
+  explicit SSH/VNC protocols qualify. Configured usernames/credential references
+  retain offline connections; unconfigured legacy discovery rows require a real
+  SSH/RFB greeting on their stored endpoint, never just an open port or device type.
+- Probes read at most 4 KiB without authentication, writes or Vault access; use a
+  one-second deadline, at most sixteen workers and request cancellation. Do not
+  rewrite inventory records or filter the ordinary inventory API. Verify
+  `TestQuickConnectDevices*`, `TestHandleListDevicesQuickConnect*` and the Desktop
+  Quick Connect/serial browser tests in both themes.
+
 ### Quick Connect serial access
 
 - `/api/desktop/serial/ports` and `/connect` use Desktop admin authorization,

@@ -32,6 +32,13 @@ func handleListDevices(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("quick_connect") == "1" {
+			requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-store")
+				json.NewEncoder(w).Encode(quickConnectDevices(r.Context(), devices))
+			})).ServeHTTP(w, r)
+			return
+		}
 		json.NewEncoder(w).Encode(devices)
 	}
 }

@@ -18,8 +18,8 @@ func (infraQuickConnectTargetFixture) ServeHTTP(w http.ResponseWriter, r *http.R
 	switch r.URL.Path {
 	case "/api/desktop/integrations/devices":
 		_ = json.NewEncoder(w).Encode(map[string]any{"devices": []any{
-			map[string]any{"id": "ssh-target", "name": "SSH target", "type": "server", "protocol": "ssh", "ip_address": "192.0.2.10", "port": 22},
-			map[string]any{"id": "vnc-target", "name": "VNC target", "type": "server", "protocol": "vnc", "ip_address": "192.0.2.11", "port": 5900},
+			map[string]any{"id": "ssh-target", "name": "SSH target", "type": "server", "protocol": "ssh", "quick_connect": true, "ip_address": "192.0.2.10", "port": 22},
+			map[string]any{"id": "vnc-target", "name": "VNC target", "type": "server", "protocol": "vnc", "quick_connect": true, "ip_address": "192.0.2.11", "port": 5900},
 			map[string]any{"id": "none-target", "name": "Registry only", "type": "server", "protocol": "none", "ip_address": "192.0.2.12", "port": 22},
 		}})
 	case "/api/desktop/integrations/credentials":
