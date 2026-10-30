@@ -1509,8 +1509,22 @@ func logCoreMemoryRefusals(refused map[string]int, ids []string) {
 		rules = append(rules, fmt.Sprintf("%s=%d", rule, n))
 	}
 	sort.Strings(rules)
+	// Every prompt build runs this; warn only when the refused set changes.
+	signature := strings.Join(rules, ",") + "|" + strings.Join(ids, ",")
+	coreMemoryRefusalLog.Lock()
+	repeated := coreMemoryRefusalLog.last == signature
+	coreMemoryRefusalLog.last = signature
+	coreMemoryRefusalLog.Unlock()
+	if repeated {
+		return
+	}
 	slog.Warn("[Prompt] core memory facts refused by policy and omitted from the prompt",
 		"count", total, "rules", strings.Join(rules, ","), "fact_ids", strings.Join(ids, ","))
+}
+
+var coreMemoryRefusalLog struct {
+	sync.Mutex
+	last string
 }
 
 func appendCoreMemoryFilterMarker(lines []string, filteredCount int) []string {
