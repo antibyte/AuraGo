@@ -350,15 +350,59 @@ var (
 		`\b(?:ignor\w*|overrid\w*|replac\w*|new|updated?|reveal\w*|disregard\w*|forget|bypass\w*|change[sd]?)\s+(?:\S+\s+){0,2}?system instructions\b` +
 			`|\bsystem instructions\s+(?:are|is)\s+(?:now|replaced|overridden|void|changed)\b`)
 	coreMemoryCallRulePattern     = regexp.MustCompile(`\b(?:always|must)\s+(?:always\s+)?call\b`)
-	coreMemoryCallImperative      = regexp.MustCompile(`(?:^|[.;:!?,]\s+)(?:always|must)\s+call\b`)
-	coreMemoryAssistantAddressees = []string{
-		"you", "your", "you're", "yours", "assistant", "agent", "aurago", "the ai", "du", "dein*", "dir", "sollst", "musst",
-	}
 	// The assistant's own policy, not a company or password policy.
 	coreMemoryAssistantPolicyPattern = regexp.MustCompile(
 		`\b(?:your|system|safety|security|assistant|agent|developer|ai|content|usage)\s+polic(?:y|ies)\b|\bpolic(?:y|ies)\s+overrid\w*|\boverrid\w*\s+(?:\S+\s+){0,2}?polic(?:y|ies)\b`)
 	coreMemoryPolicyChangePattern = regexp.MustCompile(`\b(?:replace\w*|overrid\w*)\b`)
+	// A manipulation verb acting on a policy in the same clause, or a policy
+	// declared replaced. "Passwords are replaced every 90 days" matches neither.
+	coreMemoryPolicyActedOnPattern = regexp.MustCompile(
+		`\b(?:replac(?:e|es|ing)|overrid(?:e|es|ing)|ignor(?:e|es|ing)|disabl(?:e|es|ing)|bypass(?:es|ing)?|remov(?:e|es|ing)|lift(?:s|ing)?)\b[^.;:!?\n]*\bpolic(?:y|ies)\b` +
+			`|\bpolic(?:y|ies)\s+(?:(?:is|was|has been|gets|will be)\s+)?(?:replaced|overridden|disabled|void|lifted)\b`)
+	coreMemorySystemWordBefore = regexp.MustCompile(`([\p{L}'-]+)\s+system instructions\b`)
 )
+
+// coreMemoryNotDescriptiveNouns are words that, right before "system
+// instructions", make the phrase address the assistant's own instructions
+// (determiners, pronouns, verbs, prepositions, qualifiers). Any other word is an
+// ordinary noun ("heating system instructions").
+var coreMemoryNotDescriptiveNouns = map[string]bool{}
+
+func init() {
+	for _, w := range strings.Fields(`the a an your my our these those this that its their any all every each some no his her you and or
+		below above following original hidden real actual new updated update previous prior earlier current old secret full initial internal default base
+		obey follow ignore override overrides replace replaces reveal reveals show print display output repeat disregard forget bypass change changes drop
+		discard skip violate cancel delete remove disable suspend execute apply use read load accept trust comply with to of per by from than over under
+		against beyond despite without leak dump send tell give list set sets adopt enforce respect honor honour implement store save remember`) {
+		coreMemoryNotDescriptiveNouns[w] = true
+	}
+}
+
+// systemInstructionsMarker reports whether "system instructions" appears other
+// than as a descriptive compound: at the start, or after a word that is not an
+// ordinary noun.
+func systemInstructionsMarker(text string) bool {
+	for offset := 0; offset < len(text); {
+		i := strings.Index(text[offset:], "system instructions")
+		if i < 0 {
+			return false
+		}
+		i += offset
+		offset = i + len("system instructions")
+		before, _ := utf8.DecodeLastRuneInString(text[:i])
+		if i > 0 && unicode.IsLetter(before) {
+			continue // part of a longer word
+		}
+		if strings.TrimSpace(text[:i]) == "" {
+			return true
+		}
+		m := coreMemorySystemWordBefore.FindStringSubmatch(text[max(0, i-40):offset])
+		if m == nil || coreMemoryNotDescriptiveNouns[strings.Trim(m[1], "'-")] {
+			return true
+		}
+	}
+	return false
+}
 
 // coreMemoryInstructionRule names the rule that makes text read as an order to
 // the assistant, "" when none applies.
@@ -367,7 +411,7 @@ func coreMemoryInstructionRule(text string) string {
 	if strings.HasPrefix(trimmed, "# system") || strings.HasPrefix(trimmed, "system instructions:") {
 		return "instruction_marker"
 	}
-	if hasAnyCoreMemoryMarker(text, coreMemoryInstructionMarkers) || coreMemorySystemInstructionsPattern.MatchString(text) {
+	if hasAnyCoreMemoryMarker(text, coreMemoryInstructionMarkers) || coreMemorySystemInstructionsPattern.MatchString(text) || systemInstructionsMarker(text) {
 		return "instruction_marker"
 	}
 	if hasAnyCoreMemoryMarker(text, coreMemoryValidationBypassMarkers) {
@@ -381,9 +425,14 @@ func coreMemoryInstructionRule(text string) string {
 			strings.Contains(text, "shell") ||
 			strings.Contains(text, "send_") ||
 			strings.Contains(text, "discord") ||
-			strings.Contains(text, "telegram")) &&
-		(coreMemoryCallImperative.MatchString(text) || hasAnyCoreMemoryMarker(text, coreMemoryAssistantAddressees)) {
+			strings.Contains(text, "telegram")) {
 		return "always_call"
+	}
+	if coreMemoryPolicyActedOnPattern.MatchString(text) {
+		return "policy_override"
+	}
+	if coreMemoryPolicyActedOnPattern.MatchString(text) {
+		return "policy_override"
 	}
 	if strings.Contains(text, "policy") && coreMemoryPolicyChangePattern.MatchString(text) &&
 		(coreMemoryAssistantPolicyPattern.MatchString(text) || strings.Contains(text, "developer policy")) {
