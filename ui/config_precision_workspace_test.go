@@ -26,6 +26,7 @@ func TestConfigPrecisionWorkspaceIsOptIn(t *testing.T) {
 		`/css/precision-workspace.css`,
 		`/css/config-workspace.css`,
 		`/js/config/state.js`,
+		`/js/config/feedback.js`,
 		`/js/config/actions.js`,
 	} {
 		if !strings.Contains(configHTML, marker) {
@@ -276,7 +277,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	page := browser.MustPage(server.URL)
 	defer page.MustClose()
 	page.MustSetDocumentContent(html)
-	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/presentation.js", "js/config/main.js"} {
+	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/feedback.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/presentation.js", "js/config/main.js"} {
 		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, script))); err != nil {
 			t.Fatalf("load %s: %v", script, err)
 		}
@@ -863,6 +864,26 @@ func TestConfigPrecisionTranslationsAreComplete(t *testing.T) {
 		"config.precision.validation_pattern",
 		"config.precision.validation_option",
 		"config.precision.validation_url",
+		"config.feedback.running",
+		"config.feedback.done",
+		"config.feedback.failed",
+		"config.feedback.runtime_only",
+		"config.feedback.timeout",
+		"config.status.off",
+		"config.status.unconfigured",
+		"config.status.checking",
+		"config.status.connected",
+		"config.status.degraded",
+		"config.status.error",
+		"config.status.unknown",
+		"config.status.retry",
+		"config.status.off_hint",
+		"config.status.unconfigured_hint",
+		"config.confirm_enable.title",
+		"config.confirm_enable.delete",
+		"config.confirm_enable.destroy",
+		"config.confirm_enable.host",
+		"config.confirm_enable.write",
 	}
 
 	valuesByLocale := make(map[string]map[string]string, len(locales))

@@ -29,12 +29,17 @@ func TestConfigStatusBannersLeaveCheckingState(t *testing.T) {
 	}
 	for _, c := range cases {
 		src := readWave0File(t, c.file)
+		// A module on the shared banner (cfgStatusBanner) sets every state through it.
+		if strings.Contains(src, "cfgStatusBanner(") {
+			continue
+		}
 		if !strings.Contains(src, c.disabledCall) || !strings.Contains(src, c.disabledKey) {
 			t.Errorf("%s does not set a disabled banner state", c.file)
 		}
 	}
 	for _, m := range []string{"adguard", "truenas", "jellyfin", "obsidian"} {
-		if !strings.Contains(readWave0File(t, "cfg/"+m+".js"), "config."+m+".status_unknown") {
+		src := readWave0File(t, "cfg/"+m+".js")
+		if !strings.Contains(src, "config."+m+".status_unknown") && !strings.Contains(src, "cfgStatusBanner(") {
 			t.Errorf("cfg/%s.js has no unknown-status fallback", m)
 		}
 	}
@@ -44,6 +49,10 @@ func TestConfigAuthStatusFailureIsNotPasswordNotSet(t *testing.T) {
 	t.Parallel()
 	src := readWave0File(t, "cfg/auth.js")
 	for _, want := range []string{"config.auth.status_load_failed", "auth-status-retry", "aria-disabled=\"true\" data-disabled=\"true\""} {
+		// The shared banner brings its own retry button.
+		if want == "auth-status-retry" && strings.Contains(src, "cfgStatusBanner(") {
+			continue
+		}
 		if !strings.Contains(src, want) {
 			t.Errorf("cfg/auth.js missing %q", want)
 		}

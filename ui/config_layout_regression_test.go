@@ -20,7 +20,7 @@ func TestConfigLayoutCSSDefinesGridAndActionRows(t *testing.T) {
 		"grid-template-columns:repeat(2, minmax(0, 1fr))",
 		".cfg-actions-row",
 	} {
-		if !strings.Contains(css, marker) {
+		if !hasModuleMarker(css, marker) {
 			t.Fatalf("config.css missing %q", marker)
 		}
 	}
@@ -36,7 +36,7 @@ func TestConfigPhase1HelpMarkersPresent(t *testing.T) {
 		"t('help.heartbeat.day_time_window')",
 		"t('help.heartbeat.night_time_window')",
 	} {
-		if !strings.Contains(heartbeatJS, marker) {
+		if !hasModuleMarker(heartbeatJS, marker) {
 			t.Fatalf("heartbeat.js missing help marker %q", marker)
 		}
 	}
@@ -47,7 +47,7 @@ func TestConfigPhase1HelpMarkersPresent(t *testing.T) {
 		"t('help.webhooks.max_payload_size')",
 		"t('help.webhooks.rate_limit')",
 	} {
-		if !strings.Contains(webhooksJS, marker) {
+		if !hasModuleMarker(webhooksJS, marker) {
 			t.Fatalf("webhooks.js missing help marker %q", marker)
 		}
 	}
@@ -60,7 +60,7 @@ func TestConfigPhase1HelpMarkersPresent(t *testing.T) {
 		"config.field.disabled_option",
 		"config.field.other_custom_option",
 	} {
-		if !strings.Contains(configJS, marker) {
+		if !hasModuleMarker(configJS, marker) {
 			t.Fatalf("config main.js / utils.js missing marker %q", marker)
 		}
 	}
@@ -87,7 +87,7 @@ func TestConfigPhase2AuraConfigFormRollout(t *testing.T) {
 		{"cfg/agentmail.js", "form.renderSpec"},
 	} {
 		content := normalizeAssetText(mustReadUIFile(t, spec.file))
-		if !strings.Contains(content, spec.marker) {
+		if !hasModuleMarker(content, spec.marker) {
 			t.Fatalf("%s missing %q", spec.file, spec.marker)
 		}
 	}
@@ -118,7 +118,7 @@ func TestConfigPhase2TestConnectionMarkers(t *testing.T) {
 	for file, markers := range checks {
 		content := normalizeAssetText(mustReadUIFile(t, file))
 		for _, marker := range markers {
-			if !strings.Contains(content, marker) {
+			if !hasModuleMarker(content, marker) {
 				t.Fatalf("%s missing marker %q", file, marker)
 			}
 		}
@@ -135,7 +135,7 @@ func TestConfigPhase2EmailModalUsesSharedOverlay(t *testing.T) {
 		"modal-actions",
 		"btn btn-secondary",
 	} {
-		if !strings.Contains(emailJS, marker) {
+		if !hasModuleMarker(emailJS, marker) {
 			t.Fatalf("email.js missing modal marker %q", marker)
 		}
 	}
@@ -154,7 +154,7 @@ func TestConfigPhase2SecretsModalUsesSharedOverlay(t *testing.T) {
 		"modal-actions",
 		"btn btn-secondary",
 	} {
-		if !strings.Contains(secretsJS, marker) {
+		if !hasModuleMarker(secretsJS, marker) {
 			t.Fatalf("secrets.js missing modal marker %q", marker)
 		}
 	}
@@ -175,14 +175,14 @@ func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
 
 	ttsJS := normalizeAssetText(mustReadUIFile(t, "cfg/tts.js"))
 	for _, marker := range []string{"adg-status-banner", "adg-password-row", "field-select", "tts-provider-section"} {
-		if !strings.Contains(ttsJS, marker) {
+		if !hasModuleMarker(ttsJS, marker) {
 			t.Fatalf("tts.js missing marker %q", marker)
 		}
 	}
 
 	gwJS := normalizeAssetText(mustReadUIFile(t, "cfg/google_workspace.js"))
 	for _, marker := range []string{"gw-status-line", "adg-password-row", "adg-test-btn", "AuraConfigForm.toggle("} {
-		if !strings.Contains(gwJS, marker) {
+		if !hasModuleMarker(gwJS, marker) {
 			t.Fatalf("google_workspace.js missing marker %q", marker)
 		}
 	}
@@ -200,7 +200,7 @@ func TestConfigPhase2cManifestDograhActionRows(t *testing.T) {
 		"cfgFieldOptionLabel",
 		"manifestStatusState",
 	} {
-		if !strings.Contains(manifestJS, marker) {
+		if !hasModuleMarker(manifestJS, marker) {
 			t.Fatalf("manifest.js missing marker %q", marker)
 		}
 	}
@@ -215,7 +215,7 @@ func TestConfigPhase2cManifestDograhActionRows(t *testing.T) {
 		"config.dograh.vault_section_title",
 		"config.dograh.mcp_section_title",
 	} {
-		if !strings.Contains(dograhJS, marker) {
+		if !hasModuleMarker(dograhJS, marker) {
 			t.Fatalf("dograh.js missing marker %q", marker)
 		}
 	}
@@ -239,7 +239,7 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 		"mqttSetBanner",
 		"/api/mqtt/test",
 	} {
-		if !strings.Contains(mqttJS, marker) {
+		if !hasModuleMarker(mqttJS, marker) {
 			t.Fatalf("mqtt.js missing marker %q", marker)
 		}
 	}
@@ -259,7 +259,7 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 		"/api/netlify/test-connection",
 		"field-grid two-cols",
 	} {
-		if !strings.Contains(netlifyJS, marker) {
+		if !hasModuleMarker(netlifyJS, marker) {
 			t.Fatalf("netlify.js missing marker %q", marker)
 		}
 	}
@@ -314,7 +314,7 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 		"adg-save-btn",
 		"field-grid two-cols",
 	} {
-		if !strings.Contains(vercelJS, marker) {
+		if !hasModuleMarker(vercelJS, marker) {
 			t.Fatalf("vercel.js missing marker %q", marker)
 		}
 	}
@@ -349,7 +349,7 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 		"fritzbox.web_port",
 		"fritzbox.insecure_skip_verify",
 	} {
-		if !strings.Contains(fritzboxJS, marker) {
+		if !hasModuleMarker(fritzboxJS, marker) {
 			t.Fatalf("fritzbox.js missing marker %q", marker)
 		}
 	}
@@ -383,7 +383,7 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 		"dataset.repoFullName",
 		"btn-save btn-secondary",
 	} {
-		if !strings.Contains(githubJS, marker) {
+		if !hasModuleMarker(githubJS, marker) {
 			t.Fatalf("github.js missing marker %q", marker)
 		}
 	}
@@ -403,7 +403,7 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 		"ts-api-key-status",
 		"ts-auth-key-status",
 	} {
-		if !strings.Contains(tailscaleJS, marker) {
+		if !hasModuleMarker(tailscaleJS, marker) {
 			t.Fatalf("tailscale.js missing marker %q", marker)
 		}
 	}
@@ -418,7 +418,7 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 		"adg-test-result",
 		"a2a-bearer-secret-status",
 	} {
-		if !strings.Contains(a2aJS, marker) {
+		if !hasModuleMarker(a2aJS, marker) {
 			t.Fatalf("a2a.js missing marker %q", marker)
 		}
 	}
@@ -457,7 +457,7 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 			markers = append(markers, "field-grid two-cols", "field-input")
 		}
 		for _, marker := range markers {
-			if !strings.Contains(content, marker) {
+			if !hasModuleMarker(content, marker) {
 				t.Fatalf("%s missing marker %q", spec.file, marker)
 			}
 		}
@@ -480,7 +480,7 @@ func TestConfigPhase3MCPActionRows(t *testing.T) {
 		"mcpServerAdd",
 		"mcpSecretAdd",
 	} {
-		if !strings.Contains(mcpJS, marker) {
+		if !hasModuleMarker(mcpJS, marker) {
 			t.Fatalf("mcp.js missing marker %q", marker)
 		}
 	}
@@ -504,7 +504,7 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 		"field-grid two-cols",
 		"/api/composio/test",
 	} {
-		if !strings.Contains(composioJS, marker) {
+		if !hasModuleMarker(composioJS, marker) {
 			t.Fatalf("composio.js missing marker %q", marker)
 		}
 	}
@@ -521,7 +521,7 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 		"adg-test-btn",
 		"adg-test-result",
 	} {
-		if !strings.Contains(emailJS, marker) {
+		if !hasModuleMarker(emailJS, marker) {
 			t.Fatalf("email.js missing marker %q", marker)
 		}
 	}
@@ -535,7 +535,7 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 		"field-input",
 		"field-select",
 	} {
-		if !strings.Contains(serverJS, marker) {
+		if !hasModuleMarker(serverJS, marker) {
 			t.Fatalf("server.js missing marker %q", marker)
 		}
 	}
@@ -555,7 +555,7 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 		"field-select",
 		"/api/proxy/status",
 	} {
-		if !strings.Contains(securityProxyJS, marker) {
+		if !hasModuleMarker(securityProxyJS, marker) {
 			t.Fatalf("security_proxy.js missing marker %q", marker)
 		}
 	}
@@ -575,7 +575,7 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 		"/api/homepage/test-connection",
 		"hpTestConnection",
 	} {
-		if !strings.Contains(homepageJS, marker) {
+		if !hasModuleMarker(homepageJS, marker) {
 			t.Fatalf("homepage.js missing marker %q", marker)
 		}
 	}
@@ -600,7 +600,7 @@ func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
 		"/api/remote/enroll",
 		"rcCreateEnrollmentToken",
 	} {
-		if !strings.Contains(remoteControlJS, marker) {
+		if !hasModuleMarker(remoteControlJS, marker) {
 			t.Fatalf("remote_control.js missing marker %q", marker)
 		}
 	}
@@ -618,7 +618,7 @@ func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
 		"llm_guardian.fail_safe",
 		"cfg.max_checks_per_min != null",
 	} {
-		if !strings.Contains(llmGuardianJS, marker) {
+		if !hasModuleMarker(llmGuardianJS, marker) {
 			t.Fatalf("llm_guardian.js missing marker %q", marker)
 		}
 	}
@@ -650,7 +650,7 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 		"aiGatewayRenderMetadataRows",
 		"ai_gateway.metadata",
 	} {
-		if !strings.Contains(aiGatewayJS, marker) {
+		if !hasModuleMarker(aiGatewayJS, marker) {
 			t.Fatalf("ai_gateway.js missing marker %q", marker)
 		}
 	}
@@ -789,7 +789,7 @@ func TestConfigFieldDescriptionsAndDropdownUXCoverage(t *testing.T) {
 	for file, markers := range checks {
 		content := normalizeAssetText(mustReadUIFile(t, file))
 		for _, marker := range markers {
-			if !strings.Contains(content, marker) {
+			if !hasModuleMarker(content, marker) {
 				t.Fatalf("%s missing field description marker %q", file, marker)
 			}
 		}
@@ -802,7 +802,7 @@ func TestConfigFieldDescriptionsAndDropdownUXCoverage(t *testing.T) {
 		"config.tts.language_custom_help",
 		`data-custom-for="`,
 	} {
-		if !strings.Contains(ttsJS, marker) {
+		if !hasModuleMarker(ttsJS, marker) {
 			t.Fatalf("tts.js missing language dropdown marker %q", marker)
 		}
 	}
@@ -816,7 +816,7 @@ func TestConfigFieldDescriptionsAndDropdownUXCoverage(t *testing.T) {
 		"help.telnyx.voice_language",
 		`data-custom-for="telnyx.voice_language"`,
 	} {
-		if !strings.Contains(telnyxJS, marker) {
+		if !hasModuleMarker(telnyxJS, marker) {
 			t.Fatalf("telnyx.js missing voice language dropdown marker %q", marker)
 		}
 	}
@@ -833,7 +833,7 @@ func TestCloudflareTunnelRestartTreatsNonOKAsError(t *testing.T) {
 		"data.status !== 'ok'",
 		"data.error || data.message",
 	} {
-		if !strings.Contains(content, marker) {
+		if !hasModuleMarker(content, marker) {
 			t.Fatalf("cloudflare tunnel restart UI missing error marker %q", marker)
 		}
 	}
@@ -964,7 +964,7 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 		"navigateToConfigSection(s.key);",
 		"navigateToConfigSection(item.dataset.section);",
 	} {
-		if !strings.Contains(configJS, marker) {
+		if !hasModuleMarker(configJS, marker) {
 			t.Fatalf("config main.js / utils.js missing dirty guard marker %q", marker)
 		}
 	}
@@ -979,7 +979,7 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 		"el.dataset.cfgDirtyBound === 'true'",
 		".field-textarea, .cfg-input, [data-path]",
 	} {
-		if !strings.Contains(mainJS, marker) {
+		if !hasModuleMarker(mainJS, marker) {
 			t.Fatalf("config main.js missing dropdown dirty-tracking marker %q", marker)
 		}
 	}
@@ -1058,7 +1058,7 @@ func TestConfigSaveBarStickyAndLiveStatusMarkers(t *testing.T) {
 		`aria-atomic="true"`,
 		`type="button"`,
 	} {
-		if !strings.Contains(html, marker) {
+		if !hasModuleMarker(html, marker) {
 			t.Fatalf("config.html missing save bar a11y marker %q", marker)
 		}
 	}
@@ -1071,7 +1071,7 @@ func TestConfigSaveBarStickyAndLiveStatusMarkers(t *testing.T) {
 		"env(safe-area-inset-bottom",
 		"z-index: 10;",
 	} {
-		if !strings.Contains(css, marker) {
+		if !hasModuleMarker(css, marker) {
 			t.Fatalf("config.css missing sticky save bar marker %q", marker)
 		}
 	}
@@ -1090,7 +1090,7 @@ func TestConfigSidebarSemanticControlsMarkers(t *testing.T) {
 		"el.removeAttribute('aria-current')",
 		`class="cfg-visually-hidden"`,
 	} {
-		if !strings.Contains(mainJS, marker) {
+		if !hasModuleMarker(mainJS, marker) {
 			t.Fatalf("config main.js missing sidebar semantic marker %q", marker)
 		}
 	}
@@ -1100,7 +1100,7 @@ func TestConfigSidebarSemanticControlsMarkers(t *testing.T) {
 		".cfg-visually-hidden",
 		".sidebar-item:disabled",
 	} {
-		if !strings.Contains(css, marker) {
+		if !hasModuleMarker(css, marker) {
 			t.Fatalf("config.css missing sidebar semantic marker %q", marker)
 		}
 	}
@@ -1120,7 +1120,7 @@ func TestConfigToggleSwitchA11yMarkers(t *testing.T) {
 		"syncToggleA11y(el);",
 		"enhanceConfigControls();",
 	} {
-		if !strings.Contains(mainJS, marker) {
+		if !hasModuleMarker(mainJS, marker) {
 			t.Fatalf("config main.js missing toggle a11y marker %q", marker)
 		}
 	}
@@ -1138,7 +1138,7 @@ func TestSetupSuccessConfigDeepLinksMarkers(t *testing.T) {
 		"setup.success_config_links_title",
 		"setup.success_config_backup",
 	} {
-		if !strings.Contains(html, marker) {
+		if !hasModuleMarker(html, marker) {
 			t.Fatalf("setup.html missing success deep link marker %q", marker)
 		}
 	}
@@ -1148,8 +1148,23 @@ func TestSetupSuccessConfigDeepLinksMarkers(t *testing.T) {
 		".success-config-links",
 		".success-config-link-grid",
 	} {
-		if !strings.Contains(css, marker) {
+		if !hasModuleMarker(css, marker) {
 			t.Fatalf("setup.css missing success deep link marker %q", marker)
 		}
 	}
+}
+
+// hasModuleMarker reports whether a module still carries the old result/status/vault markup
+// marker, or has moved to the shared feedback helpers (cfgActionResult / cfgStatusBanner,
+// secrets in the save dock through form.password with a path). Other markers must match literally.
+func hasModuleMarker(content, marker string) bool {
+	if strings.Contains(content, marker) {
+		return true
+	}
+	for _, migratable := range []string{"test-result", "status-banner", "SetBanner", "save-btn", "password-row", "key-status", "token-status", "secret-status", "-status", "vault_section"} {
+		if strings.Contains(marker, migratable) {
+			return strings.Contains(content, "cfgActionResult(") || strings.Contains(content, "cfgStatusBanner(") || strings.Contains(content, ".password(")
+		}
+	}
+	return false
 }

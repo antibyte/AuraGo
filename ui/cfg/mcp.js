@@ -509,7 +509,7 @@ function mcpServerShowModal(data, idx) {
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_private_network')}</span>
         </label>
         <label class="mcp-modal-check-row">
-            <input id="mcp-m-allow-destructive" type="checkbox" ${data.allow_destructive ? 'checked' : ''}>
+            <input id="mcp-m-allow-destructive" type="checkbox" data-cfg-confirm-enable="destroy" ${data.allow_destructive ? 'checked' : ''}>
             <span class="mcp-modal-check-text">${t('config.mcp.field_allow_destructive')}</span>
         </label>
         <div id="mcp-m-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>

@@ -168,7 +168,7 @@ function renderSQLConnectionsSection(section) {
                         <input type="checkbox" id="sqlconn-perm-change"> ${t('config.sql_connections.perm_change')}
                     </label>
                     <label class="sqlconn-permission-item">
-                        <input type="checkbox" id="sqlconn-perm-delete"> ${t('config.sql_connections.perm_delete')}
+                        <input type="checkbox" id="sqlconn-perm-delete" data-cfg-confirm-enable="delete"> ${t('config.sql_connections.perm_delete')}
                     </label>
                 </div>
                 <div class="sql-perm-hint">${t('config.sql_connections.permissions_hint')}</div>

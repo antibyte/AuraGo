@@ -13,9 +13,12 @@ import (
 // handleVideoGenerationTest returns a handler that tests video generation API connectivity.
 func handleVideoGenerationTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		cfg, ok := s.testConfigForRequest(w, r)
+		if !ok {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 
-		cfg := s.Cfg
 		if !cfg.VideoGeneration.Enabled {
 			json.NewEncoder(w).Encode(map[string]string{
 				"status":  "error",

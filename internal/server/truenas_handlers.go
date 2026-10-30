@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -808,4 +810,24 @@ func handleTrueNASNFSShares(s *Server) http.HandlerFunc {
 			writeMethodNotAllowed(w)
 		}
 	}
+}
+
+// handleTrueNASTest checks the TrueNAS connection with the saved settings or the
+// unsaved {"draft": ...} values (nothing is persisted).
+func handleTrueNASTest(s *Server) http.HandlerFunc {
+	return handleConfiguredIntegrationTest(s, integrationTestSpec{
+		name:    "TrueNAS",
+		enabled: func(cfg *config.Config) bool { return cfg.TrueNAS.Enabled },
+		check: func(ctx context.Context, cfg *config.Config) error {
+			client, err := truenas.NewClient(cfg.TrueNAS, nil) // draftTestConfig resolved the key; never re-read the vault
+			if err != nil {
+				return errors.New("Failed to initialize TrueNAS client")
+			}
+			defer client.Close()
+			if _, err := client.Health(ctx); err != nil {
+				return errors.New("Unable to reach TrueNAS")
+			}
+			return nil
+		},
+	})
 }

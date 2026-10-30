@@ -20,22 +20,28 @@ func handleFrigateTest(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if !s.Cfg.Frigate.Enabled {
+		// Optional {"draft": ...} tests unsaved values (nothing is persisted).
+		cfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		if !cfg.Frigate.Enabled {
 			writeFrigateTestError(w, http.StatusBadRequest, "Frigate integration is not enabled")
 			return
 		}
-		if s.Cfg.Frigate.URL == "" {
+		if cfg.Frigate.URL == "" {
 			writeFrigateTestError(w, http.StatusBadRequest, "Frigate URL is not configured")
 			return
 		}
 
 		raw := tools.FrigateStatus(r.Context(), tools.FrigateConfig{
-			URL:           s.Cfg.Frigate.URL,
-			APIToken:      s.Cfg.Frigate.APIToken,
-			InternalPort:  s.Cfg.Frigate.InternalPort,
-			Insecure:      s.Cfg.Frigate.Insecure,
-			DefaultCamera: s.Cfg.Frigate.DefaultCamera,
-			ReadOnly:      s.Cfg.Frigate.ReadOnly,
+			URL:           cfg.Frigate.URL,
+			APIToken:      cfg.Frigate.APIToken,
+			InternalPort:  cfg.Frigate.InternalPort,
+			Insecure:      cfg.Frigate.Insecure,
+			DefaultCamera: cfg.Frigate.DefaultCamera,
+			ReadOnly:      cfg.Frigate.ReadOnly,
 		})
 		var data map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &data); err != nil {

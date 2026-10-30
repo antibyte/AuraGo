@@ -93,10 +93,13 @@
         const value = typeof cfgSecretValue === 'function' ? cfgSecretValue(options.value) : (options.value || '');
         const placeholder = options.placeholder != null ? options.placeholder : (typeof cfgSecretPlaceholder === 'function' ? cfgSecretPlaceholder(options.value, '') : '');
         const id = options.id ? ' id="' + attr(options.id) + '"' : '';
+        // With a path the field joins the save dock: the stored secret shows as empty and
+        // an empty field keeps it (state.js), so only a newly typed secret is saved.
+        const path = options.path ? ' data-path="' + attr(options.path) + '"' : '';
         return fieldShell(options,
             '<div class="adg-password-row">'
             + '<div class="password-wrap cfg-password-input">'
-            + '<input class="field-input adg-password-input" type="password"' + id + ' value="' + attr(value) + '" placeholder="' + attr(placeholder) + '" autocomplete="off">'
+            + '<input class="field-input adg-password-input" type="password"' + id + path + ' value="' + attr(value) + '" placeholder="' + attr(placeholder) + '" autocomplete="off">'
             + '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + (typeof EYE_OPEN_SVG !== 'undefined' ? EYE_OPEN_SVG : '') + '</button>'
             + '</div>'
             + (options.actionHTML || '')
@@ -165,6 +168,18 @@
             + '<div class="pw-modal-body">' + (options.content || options.html || '') + '</div>'
             + (options.actionsHTML ? '<div class="modal-actions">' + options.actionsHTML + '</div>' : '')
             + '</div></div>';
+    }
+
+    // Result line next to an action button (see js/config/feedback.js).
+    function actionResult(options) {
+        options = options || {};
+        return window.AuraConfigFeedback.resultHTML(options.id || '', options.className);
+    }
+
+    // State banner with an explicit initial state (see js/config/feedback.js).
+    function statusBanner(options) {
+        options = options || {};
+        return window.AuraConfigFeedback.bannerHTML(options.id || '', options.state || 'unknown', options);
     }
 
     function actions(items) {
@@ -247,7 +262,7 @@
                     current = null;
                     return;
                 }
-                if (node.matches('.section-header, .cfg-page-heading') || (!current && node.matches('.section-desc, .adg-status-banner, [role="status"]'))) {
+                if (node.matches('.section-header, .cfg-page-heading') || (!current && node.matches('.section-desc, .adg-status-banner, .cfg-state-banner, [role="status"]'))) {
                     current = null;
                     return;
                 }
@@ -303,6 +318,8 @@
         status,
         emptyState,
         modal,
+        actionResult,
+        statusBanner,
         actions,
         renderSpec,
         layout

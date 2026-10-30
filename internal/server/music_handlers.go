@@ -17,9 +17,10 @@ func handleMusicGenerationTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
+		cfg, ok := s.testConfigForRequest(w, r)
+		if !ok {
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 

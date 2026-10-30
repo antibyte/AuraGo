@@ -1,10 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/jellyfin"
 	"aurago/internal/security"
 )
@@ -94,4 +97,27 @@ func sanitizeJellyfinStatusError(detail string) string {
 		}
 	}
 	return "Jellyfin API returned an error"
+}
+
+// handleJellyfinTest checks the connection with the saved settings or, when the
+// body carries {"draft": ...}, with the unsaved values (nothing is persisted).
+func handleJellyfinTest(s *Server) http.HandlerFunc {
+	return handleConfiguredIntegrationTest(s, integrationTestSpec{
+		name:    "Jellyfin",
+		enabled: func(cfg *config.Config) bool { return cfg.Jellyfin.Enabled },
+		validate: func(cfg *config.Config) error {
+			return requireIntegrationValue(cfg.Jellyfin.Host, "Jellyfin host is not configured")
+		},
+		check: func(ctx context.Context, cfg *config.Config) error {
+			client, err := jellyfin.NewClient(cfg.Jellyfin, nil) // draftTestConfig resolved the key; never re-read the vault
+			if err != nil {
+				return errors.New(jellyfinStatusError("Failed to initialize Jellyfin client", err))
+			}
+			defer client.Close()
+			if err := client.Ping(ctx); err != nil {
+				return errors.New(jellyfinStatusError("Failed to reach Jellyfin", err))
+			}
+			return nil
+		},
+	})
 }

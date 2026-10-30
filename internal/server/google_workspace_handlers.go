@@ -9,15 +9,13 @@ import (
 
 func handleGoogleWorkspaceTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		testCfg, ok := s.testConfigForRequest(w, r)
+		if !ok {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		s.CfgMu.RLock()
-		cfg := *s.Cfg
-		s.CfgMu.RUnlock()
+		cfg := *testCfg
 
 		if !cfg.GoogleWorkspace.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{

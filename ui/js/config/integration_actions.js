@@ -72,9 +72,10 @@
     function ansibleSidecarReady() {
         const state = window.AuraConfigState;
         if (!state) return true;
-        if (state.get('ansible.mode', { saved: true }) === 'local') return true;
+        // The button sends the draft, so the draft decides (a stored secret reads as the mask).
+        if (state.get('ansible.mode') === 'local') return true;
         return ['ansible.url', 'ansible.token'].every(path => {
-            const value = state.get(path, { saved: true });
+            const value = state.get(path);
             return value != null && String(value).trim() !== '';
         });
     }
@@ -100,38 +101,23 @@
             <div class="field-group-title">${text('config.integration_test.title', 'Connection test')}</div>
             <div class="field-help">${text('config.integration_test.description', 'Uses the saved configuration and performs a read-only check.')}</div>
             <div class="cfg-actions-row">
-                <button type="button" class="btn-save adg-test-btn" id="${entry.buttonId}">${text('config.integration_test.button', 'Test connection')}</button>
-                <span id="${entry.buttonId}-result" class="adg-test-result" role="status" aria-live="polite"></span>
+                <button type="button" class="btn-save adg-test-btn" id="${entry.buttonId}" data-config-action-draft="true">${text('config.integration_test.button', 'Test connection')}</button>
+                ${cfgActionResult.html(entry.buttonId + '-result')}
             </div>
         </div>`;
     }
 
-    function setResult(result, state, message) {
-        if (!result) return;
-        result.className = 'adg-test-result' + (state ? ' ' + state : '');
-        result.textContent = message || '';
-    }
-
-    async function run(entry, result) {
-        setResult(result, '', text('config.integration_test.testing', 'Testing connection…'));
-        try {
-            const response = await fetch(entry.endpoint, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: '{}'
-            });
-            let payload = {};
-            try { payload = await response.json(); } catch (_) { /* use the HTTP status below */ }
-            const ok = response.ok && payload.status !== 'error';
-            const fallback = ok
-                ? text('config.integration_test.success', 'Connection successful.')
-                : text('config.integration_test.failure', 'Connection test failed.');
-            const detail = typeof payload.message === 'string' ? payload.message.trim() : '';
-            setResult(result, ok ? 'is-success' : 'is-danger', detail ? fallback + ' ' + detail : fallback);
-        } catch (_) {
-            setResult(result, 'is-danger', text('config.integration_test.failure', 'Connection test failed.'));
-        }
+    // Sends the values typed in (the draft) so a test works before saving; the
+    // server falls back to the stored secret when a field is masked or empty.
+    function request(entry) {
+        const feedback = window.AuraConfigFeedback;
+        const draft = feedback ? feedback.draftPatch([entry.section]) : {};
+        return fetch(entry.endpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ draft: draft })
+        });
     }
 
     function bind(section) {
@@ -148,7 +134,14 @@
             requiredPaths: entry.requiredPaths,
             credentialPaths: entry.credentialPaths,
             credentialReady: entry.credentialReady,
-            run: () => run(entry, result)
+            run: () => request(entry),
+            result: {
+                target: result,
+                pending: () => text('config.integration_test.testing', 'Testing connection...'),
+                success: () => text('config.integration_test.success', 'Connection successful.'),
+                failure: () => text('config.integration_test.failure', 'Connection test failed.'),
+                successDetail: true
+            }
         });
     }
 

@@ -130,6 +130,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.Handle("/api/home-assistant/test", requireAdmin(s, handleHomeAssistantTest(s)))
 	mux.Handle("/api/proxmox/test", requireAdmin(s, handleProxmoxTest(s)))
 	mux.Handle("/api/s3/test", requireAdmin(s, handleS3Test(s)))
+	mux.Handle("/api/jellyfin/test", requireAdmin(s, handleJellyfinTest(s)))
+	mux.Handle("/api/truenas/test", requireAdmin(s, handleTrueNASTest(s)))
+	mux.Handle("/api/obsidian/test", requireAdmin(s, handleObsidianTest(s)))
 	mux.HandleFunc("/api/updates/check", handleUpdateCheck(s))
 	mux.HandleFunc("/api/updates/install", handleUpdateInstall(s))
 	mux.HandleFunc("/api/vault/status", handleVaultStatus(s))
@@ -200,14 +203,14 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/vercel/test-connection", handleVercelTestConnection(s))
 
 	// Google Workspace integration endpoints
-	mux.HandleFunc("/api/google-workspace/test", handleGoogleWorkspaceTest(s))
+	mux.Handle("/api/google-workspace/test", requireAdminUnlessGET(s, handleGoogleWorkspaceTest(s)))
 
 	// OneDrive integration endpoints (Device Code Flow)
 	mux.HandleFunc("/api/onedrive/auth/start", handleOneDriveAuthStart(s))
 	mux.HandleFunc("/api/onedrive/auth/poll", handleOneDriveAuthPoll(s))
 	mux.HandleFunc("/api/onedrive/auth/status", handleOneDriveAuthStatus(s))
 	mux.HandleFunc("/api/onedrive/auth/revoke", handleOneDriveAuthRevoke(s))
-	mux.HandleFunc("/api/onedrive/test", handleOneDriveTest(s))
+	mux.Handle("/api/onedrive/test", requireAdminUnlessGET(s, handleOneDriveTest(s)))
 
 	// Music Generation endpoints
 	mux.Handle("/api/music-generation/test", requireAdmin(s, handleMusicGenerationTest(s)))
@@ -215,10 +218,10 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	registerRustFSRoutes(mux, s)
 
 	// Video Generation endpoints
-	mux.HandleFunc("/api/video-generation/test", handleVideoGenerationTest(s))
+	mux.Handle("/api/video-generation/test", requireAdminUnlessGET(s, handleVideoGenerationTest(s)))
 
 	// Image Generation endpoints
-	mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
+	mux.Handle("/api/image-generation/test", requireAdminUnlessGET(s, handleImageGenerationTest(s)))
 	mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))
 	mux.HandleFunc("/api/image-gallery/bulk-delete", handleImageGalleryBulkDelete(s))
 	mux.HandleFunc("/api/image-gallery/", handleImageGalleryByID(s))

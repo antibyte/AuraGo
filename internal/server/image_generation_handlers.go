@@ -30,9 +30,10 @@ type imageGalleryBulkDeleteRequest struct {
 // handleImageGenerationTest returns a handler that tests image generation with a simple prompt.
 func handleImageGenerationTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
+		cfg, ok := s.testConfigForRequest(w, r)
+		if !ok {
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 

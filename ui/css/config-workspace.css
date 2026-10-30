@@ -1074,6 +1074,78 @@
     color: var(--pw-danger, #ef6a6a);
 }
 
+/* Result line next to an action button (js/config/feedback.js). */
+.pw-page[data-workspace-page="config"] .cfg-action-result {
+    min-width: 0;
+    color: var(--pw-muted);
+    font-size: var(--pw-help-size);
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-action-result:empty { display: none; }
+
+.pw-page[data-workspace-page="config"] .cfg-action-result[data-state="success"] { color: var(--pw-success, #4ade80); }
+.pw-page[data-workspace-page="config"] .cfg-action-result[data-state="warning"] { color: var(--pw-warning, #f6c453); }
+.pw-page[data-workspace-page="config"] .cfg-action-result[data-state="error"] { color: var(--pw-danger, #fb7185); }
+
+.pw-page[data-workspace-page="config"] .cfg-actions-row > .cfg-action-result { order: 1; flex-basis: 100%; margin: 0; }
+
+.pw-page[data-workspace-page="config"] button.is-busy { cursor: progress; opacity: 0.75; }
+
+/* State banner with a fixed set of states (js/config/feedback.js). */
+.pw-page[data-workspace-page="config"] .cfg-state-banner {
+    --cfg-state-color: var(--pw-muted);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    margin: 0 0 0.75rem;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--cfg-state-color) 45%, var(--pw-line));
+    border-radius: var(--pw-radius-md);
+    background: color-mix(in srgb, var(--cfg-state-color) 10%, transparent);
+    font-size: var(--pw-help-size);
+}
+
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="connected"] { --cfg-state-color: var(--pw-success, #4ade80); }
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="degraded"] { --cfg-state-color: var(--pw-warning, #f6c453); }
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="error"] { --cfg-state-color: var(--pw-danger, #fb7185); }
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="checking"] { --cfg-state-color: var(--pw-accent, #83baff); }
+
+.pw-page[data-workspace-page="config"] .cfg-state-dot {
+    flex: 0 0 auto;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: var(--cfg-state-color);
+}
+
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="off"] .cfg-state-dot,
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="unconfigured"] .cfg-state-dot,
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="unknown"] .cfg-state-dot {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px var(--cfg-state-color);
+}
+
+.pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="checking"] .cfg-state-dot {
+    animation: cfg-state-pulse 1.1s ease-in-out infinite;
+}
+
+.pw-page[data-workspace-page="config"] .cfg-state-label { color: var(--pw-text); font-weight: 600; }
+.pw-page[data-workspace-page="config"] .cfg-state-detail { min-width: 0; color: var(--pw-muted); overflow-wrap: anywhere; }
+.pw-page[data-workspace-page="config"] .cfg-state-detail:empty { display: none; }
+.pw-page[data-workspace-page="config"] .cfg-state-link { color: var(--pw-accent-strong, var(--pw-accent)); }
+.pw-page[data-workspace-page="config"] .cfg-state-retry { margin-inline-start: auto; }
+
+@keyframes cfg-state-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="config"] .cfg-state-banner[data-state="checking"] .cfg-state-dot { animation: none; }
+}
+
 .pw-page[data-workspace-page="config"] .pw-empty-state {
     display: grid;
     place-items: start;

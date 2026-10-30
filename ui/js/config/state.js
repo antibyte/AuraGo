@@ -46,6 +46,10 @@
         current[keys[keys.length - 1]] = clone(value);
     }
 
+    function isMaskedSecret(value) {
+        return value === '••••••••';
+    }
+
     function same(left, right) {
         return JSON.stringify(left) === JSON.stringify(right);
     }
@@ -172,6 +176,11 @@
         if (element.dataset.type === 'json') {
             try { return JSON.parse(element.value); } catch (_) { return element.value; }
         }
+        // A stored secret is shown as an empty field. Leaving it empty keeps the
+        // stored mask: not a change, and no '' in the patch that would clear it.
+        if (element.value === '' && isMaskedSecret(read(savedConfig, element.dataset.path))) {
+            return read(savedConfig, element.dataset.path);
+        }
         return element.value;
     }
 
@@ -251,7 +260,8 @@
                 custom.value = known ? '' : value;
                 custom.classList.toggle('is-hidden', known);
             } else {
-                element.value = value == null ? '' : value;
+                // The mask is never written into a field; a stored secret reads as empty.
+                element.value = value == null || isMaskedSecret(value) ? '' : value;
             }
         });
     }

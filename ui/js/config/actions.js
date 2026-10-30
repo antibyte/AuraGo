@@ -46,16 +46,26 @@
         return hasValue(element.value);
     }
 
+    // data-config-action-draft="true": the action sends the draft, so unsaved changes
+    // do not lock it and the required values are read from the draft (a mask counts).
+    // "false": the action needs the running service, so anything unsaved locks it.
     function lockReason(spec) {
         const state = window.AuraConfigState;
         if (!state) return '';
-        if (spec.requiresSaved && state && state.isDirty()) {
+        const element = elementFor(spec);
+        const draftMode = element && element.dataset ? element.dataset.configActionDraft : '';
+        const useDraft = draftMode === 'true';
+        const source = { saved: !useDraft };
+        if (draftMode === 'false' && state.isDirty()) {
+            return text('config.feedback.runtime_only', 'Checks the running service - save first.');
+        }
+        if (spec.requiresSaved && !useDraft && state && state.isDirty()) {
             return text('config.precision.action_save_first', 'Save your changes before testing.');
         }
-        if (spec.requiresSaved && spec.container && controlSnapshot(spec.container) !== spec.containerSnapshot) {
+        if (spec.requiresSaved && !useDraft && spec.container && controlSnapshot(spec.container) !== spec.containerSnapshot) {
             return text('config.precision.action_save_first', 'Save your changes before testing.');
         }
-        const missing = (spec.requiredPaths || []).find(path => !hasValue(state ? state.get(path, { saved: true }) : undefined));
+        const missing = (spec.requiredPaths || []).find(path => !hasValue(state.get(path, source)));
         if (missing) {
             return text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
         }
@@ -64,7 +74,7 @@
         if (missingSelector || missingSelectorGroup) {
             return text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
         }
-        const missingCredential = (spec.credentialPaths || []).find(path => !hasValue(state.get(path, { saved: true })));
+        const missingCredential = (spec.credentialPaths || []).find(path => !hasValue(state.get(path, source)));
         if (missingCredential) {
             return text('config.precision.action_missing_credential', 'Store the required credential in the vault first.');
         }
@@ -93,12 +103,19 @@
         const reason = reasonElement(spec, element);
         const message = lockReason(spec);
         element.setAttribute('aria-disabled', message ? 'true' : 'false');
-        element.setAttribute('aria-describedby', reason.id);
+        // Other descriptions (field help, result line) stay; only the reason id is added.
+        const described = new Set((element.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+        if (!described.has(reason.id)) {
+            described.add(reason.id);
+            element.setAttribute('aria-describedby', [...described].join(' '));
+        }
         reason.textContent = message;
         reason.hidden = !message;
         element.dataset.configActionLocked = message ? 'true' : 'false';
     }
 
+    // spec.result: options for cfgActionResult. run() then returns the fetch Response (or
+    // a parsed body) and the outcome is written next to the button.
     function register(id, spec) {
         const normalized = Object.assign({ id: id, requiresSaved: false, requiredPaths: [] }, spec || {});
         registrations.set(id, normalized);
@@ -160,25 +177,86 @@
             return false;
         }
 
-        element.dataset.configActionBusy = 'true';
-        element.disabled = true;
-        element.setAttribute('aria-busy', 'true');
+        const feedback = window.AuraConfigFeedback;
+        if (spec.result && feedback) {
+            const outcome = await feedback.actionResult(element, spec.run, spec.result);
+            apply(spec);
+            return !outcome.skipped;
+        }
+        // One busy system for all actions: disabled, aria-busy and data-config-action-busy.
+        if (feedback) feedback.busy(element, true);
         try {
             await spec.run();
             return true;
         } finally {
-            element.dataset.configActionBusy = 'false';
-            element.disabled = false;
-            element.setAttribute('aria-busy', 'false');
+            if (feedback) feedback.busy(element, false);
             apply(spec);
         }
     }
 
+    // Dangerous switches ask before they are turned on (never when turning off).
+    function confirmLabel(element) {
+        const labelled = (element.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean)
+            .map(id => document.getElementById(id)).filter(Boolean).map(node => node.textContent.trim()).join(' ');
+        if (labelled) return labelled;
+        const wrapped = element.labels && element.labels[0] ? element.labels[0] : element.closest('label');
+        if (wrapped && wrapped.textContent.trim()) return wrapped.textContent.trim();
+        const row = element.closest('.cfg-toggle-row, .cfg-toggle-row-highlight, .cfg-toggle-row-compact');
+        const rowLabel = row && row.querySelector('.cfg-toggle-label');
+        if (rowLabel && rowLabel.textContent.trim()) return rowLabel.textContent.trim();
+        const group = element.closest('.field-group');
+        const fieldLabel = group && group.querySelector('.field-label');
+        if (fieldLabel && fieldLabel.textContent.trim()) return fieldLabel.textContent.trim();
+        return element.getAttribute('aria-label') || element.dataset.path || '';
+    }
+
+    function confirmCategory(element) {
+        const registry = (window.AuraConfigCatalog || {}).confirmOnEnable || {};
+        const attribute = element.getAttribute('data-cfg-confirm-enable');
+        if (attribute !== null) return ['delete', 'destroy', 'host', 'write'].includes(attribute) ? attribute : 'destroy';
+        return registry[element.dataset.path || ''] || '';
+    }
+
+    function guardEnable(event) {
+        const element = event.target.closest && event.target.closest('.toggle[data-path], input[type="checkbox"][data-cfg-confirm-enable]');
+        if (!element || element.dataset.cfgConfirmed === 'true') return;
+        const category = confirmCategory(element);
+        if (!category) return;
+        // A checkbox already holds its new value while its click is dispatched; a toggle flips later.
+        const turningOn = element.classList.contains('toggle') ? !element.classList.contains('on') : element.checked;
+        if (!turningOn) return;
+        if (element.disabled || element.getAttribute('aria-disabled') === 'true' || element.dataset.configActionLocked === 'true') return;
+        if (typeof showConfirm !== 'function') return;
+        // Also stops the inline toggleBool / gmCfgToggleValue handlers and the draft sync.
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (element.dataset.cfgConfirming === 'true') return;
+        element.dataset.cfgConfirming = 'true';
+        const label = confirmLabel(element);
+        Promise.resolve(showConfirm(
+            text('config.confirm_enable.title', 'Enable {label}?').replace('{label}', () => label),
+            text('config.confirm_enable.' + category, '').replace('{label}', () => label)
+        )).then(approved => {
+            delete element.dataset.cfgConfirming;
+            if (!approved) return;
+            element.dataset.cfgConfirmed = 'true';
+            try { element.click(); } finally { delete element.dataset.cfgConfirmed; }
+            if (typeof element.focus === 'function') element.focus();
+        }, () => { delete element.dataset.cfgConfirming; });
+    }
+
     document.addEventListener('cfg:statechange', refresh);
     document.addEventListener('cfg:section-rendered', event => autoEnhanceTestActions(event.detail && event.detail.root));
+    document.addEventListener('click', guardEnable, true);
     document.addEventListener('click', event => {
         const element = event.target.closest && event.target.closest(TEST_ACTION_SELECTOR);
         if (!element) return;
+        // A running action ignores further clicks, even if a re-render re-enabled the button.
+        if (element.dataset.configActionBusy === 'true' || element.getAttribute('aria-busy') === 'true') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return;
+        }
         autoEnhanceTestActions(element);
         const spec = automatic.get(element);
         if (!spec || !lockReason(spec)) return;

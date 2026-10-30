@@ -57,6 +57,39 @@
         'yepapi-test-btn': { requiredPaths: ['yepapi.provider'] }
     });
 
+    // Switches that ask for confirmation when they are turned on (actions.js guard).
+    // The category picks the warning text: delete | destroy | host | write.
+    // Modal checkboxes opt in with data-cfg-confirm-enable="<category>" instead.
+    const confirmOnEnable = Object.freeze({
+        // Tier A: the agent may delete or destroy data.
+        'composio.allow_destructive': 'destroy',
+        'github.allow_delete': 'delete',
+        'here_now.allow_delete': 'delete',
+        'network_shares.allow_delete': 'delete',
+        'huggingface.allow_delete': 'delete',
+        'game_maker.allow_delete': 'delete',
+        'jellyfin.allow_destructive': 'destroy',
+        'obsidian.allow_destructive': 'destroy',
+        'truenas.allow_destructive': 'destroy',
+        'rustfs.permissions.allow_delete': 'delete',
+        'proxmox.allow_destructive': 'destroy',
+        // Tier B: the agent gets host or system rights.
+        'agent.sudo_enabled': 'host',
+        'agent.sudo_unrestricted': 'host',
+        'agent.allow_shell': 'host',
+        'agent.allow_python': 'host',
+        'agent.allow_unsafe_host_execution': 'host',
+        'docker.allow_host_access': 'host',
+        'agent.allow_filesystem_write': 'write',
+        'agent.allow_remote_shell': 'host',
+        'agent.allow_self_update': 'host',
+        'agent.allow_package_manager': 'host',
+        'agent.allow_unsandboxed_shell': 'host',
+        'shell_sandbox.allow_unsafe_fallback': 'host',
+        'sandbox.allow_local_python_fallback': 'host',
+        'huggingface.allow_job_token_injection': 'host'
+    });
+
     const validationRules = Object.freeze({
         'cloudflare_tunnel.loopback_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
         'cloudflare_tunnel.metrics_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
@@ -78,6 +111,7 @@
         version: 1,
         actionRules,
         validationRules,
+        confirmOnEnable,
         // Semantic surfaces declared by the integration renderers. These are exact
         // selectors, never guesses from a field name or DOM nesting depth.
         presentation: Object.freeze({

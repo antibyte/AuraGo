@@ -545,6 +545,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		// Secrets with vault-POST side effects (tsnet key validation, MQTT) are
+		// checked before anything is written.
+		secretEffects, effectsErr := prepareConfigSecretSideEffects(patch)
+		if effectsErr != nil {
+			jsonError(w, effectsErr.Error(), http.StatusBadRequest)
+			return
+		}
 		// Keep config, Vault extraction, validation, and publication in one
 		// transaction boundary. This prevents a rejected concurrent save from
 		// rolling back stream sources committed by another request.
@@ -1609,6 +1616,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		// Vault-POST side effects, only now that the save went through.
+		if effectErr := s.applyConfigSecretSideEffects(secretEffects, loadErr == nil); effectErr != nil {
+			s.Logger.Error("[Config] Credential refresh failed", "error", effectErr)
+		}
 		if loadErr == nil && newCfg != nil && !reflect.DeepEqual(oldCfg.SpeechLab, newCfg.SpeechLab) {
 			clearWebhostsCache()
 		}
@@ -2511,6 +2522,9 @@ var vaultKeyMap = map[string]string{
 	"notifications.pushover.user_key":         "pushover_user_key",
 	"notifications.pushover.app_token":        "pushover_app_token",
 	"adguard.password":                        "adguard_password",
+	"fritzbox.password":                       "fritzbox_password",
+	"homepage.deploy_password":                "homepage_deploy_password",
+	"homepage.deploy_key":                     "homepage_deploy_key",
 	"uptime_kuma.api_key":                     "uptime_kuma_api_key",
 	"grafana.api_key":                         "grafana_api_key",
 	"egg_mode.shared_key":                     "egg_shared_key",
@@ -2633,7 +2647,9 @@ func extractRecursive(m map[string]interface{}, prefix string, vault configSecre
 			}
 			// Always remove from patch — sensitive fields must never reach config.yaml.
 			delete(m, key)
-			// Empty or masked values are just removed, nothing to store.
+			// Empty or masked values are just removed, nothing to store. Pasted
+			// secrets often carry a trailing newline or space.
+			v = strings.TrimSpace(v)
 			if v == "" || v == "••••••••" {
 				continue
 			}

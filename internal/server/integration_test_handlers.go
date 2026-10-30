@@ -40,9 +40,10 @@ func handleConfiguredIntegrationTest(s *Server, spec integrationTestSpec) http.H
 			return
 		}
 
-		cfg := s.ConfigSnapshot()
-		if cfg == nil {
-			writeIntegrationTestResult(w, http.StatusInternalServerError, "error", "Configuration is unavailable")
+		// Optional {"draft": <patch>} tests unsaved values; nothing is persisted.
+		cfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
 			return
 		}
 		if spec.enabled != nil && !spec.enabled(cfg) {
