@@ -242,10 +242,65 @@ func directiveWindowHit(window string) bool {
 		return true
 	}
 	secret := hasPhrase(rest, directiveSecrets)
+	// A negated send or disclosure verb aimed at a secret protects it ("From now
+	// on never show my API keys in chat"); a destination keeps the sentence a hit.
+	if secret && !directiveDestination.MatchString(rest) {
+		rest = directiveMaskNegatedVerbs(rest)
+	}
 	if hasPhrase(rest, directiveVerbs) && (secret || directiveDestination.MatchString(rest)) {
 		return true
 	}
 	return scope && secret && hasPhrase(rest, directiveReadVerbs)
+}
+
+// directiveNegations negate a nearby verb; directiveClauseBreaks end their reach.
+var (
+	directiveNegations    = []string{"never", "not", "no", "without", "avoid*", "dont", "don", "doesn", "t", "nie", "niemals", "nicht", "kein*", "ohne", "vermeide*"}
+	directiveClauseBreaks = []string{"and", "but", "then", "und", "aber", "dann", "sondern", "while", "yet"}
+)
+
+// directiveMaskNegatedVerbs blanks every send or read verb that a negation
+// governs: up to four words before it or after it in the same clause (no comma,
+// colon or conjunction between).
+func directiveMaskNegatedVerbs(s string) string {
+	words := directiveWords(s)
+	// directiveWords drops punctuation, so recover it from the gaps between words.
+	starts := make([]int, len(words))
+	for i, w := range words {
+		starts[i] = w.end - len(w.text)
+	}
+	barrier := func(i int) bool { return hasPhrase(words[i].text, directiveClauseBreaks) }
+	negated := func(i int) bool {
+		for j := i - 1; j >= 0 && j >= i-4; j-- {
+			if barrier(j) || words[j+1].afterBreak {
+				break
+			}
+			if hasPhrase(words[j].text, directiveNegations) {
+				return true
+			}
+		}
+		for j := i + 1; j < len(words) && j <= i+4; j++ {
+			if barrier(j) || words[j].afterBreak {
+				break
+			}
+			if hasPhrase(words[j].text, directiveNegations) {
+				return true
+			}
+		}
+		return false
+	}
+	out := []byte(s)
+	for i, w := range words {
+		if !hasPhrase(w.text, directiveVerbs) && !hasPhrase(w.text, directiveReadVerbs) {
+			continue
+		}
+		if negated(i) {
+			for k := starts[i]; k < w.end; k++ {
+				out[k] = ' '
+			}
+		}
+	}
+	return string(out)
 }
 
 // directiveCommandsTool reports whether a sentence with a repeat marker and a
