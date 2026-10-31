@@ -19,12 +19,6 @@ mcp mcp-badge
 mcp mcp-badge-active
 mcp mcp-badge-inactive
 mcp_server u-badge-row
-providers free-pill
-providers provider-pill
-providers provider-pill-oauth
-rules rules-pill
-rules rules-pill-ok
-rules rules-pill-warning
 secrets system-badge
 sql_connections driver-badge
 sql_connections perm-badge

@@ -46,7 +46,7 @@ func TestProviderUsageRoundTripKeepsGeneralDraftBrowser(t *testing.T) {
 	page.MustEval(`async () => { await selectSection('providers', {scrollBehavior:'auto'}); await loadProviders(); }`)
 	waitForJSBool(t, page, `() => !!document.querySelector('#providers-list') && typeof providerEdit === 'function' && typeof providerAdd === 'function' && providersLoaded`)
 	page.MustEval(`() => { providersCache = window.fixtureProviders; providersLoaded = true; providerRenderCards(); providerEdit(0); }`)
-	waitForJSBool(t, page, `() => !!document.querySelector('#provider-modal-overlay')`)
+	waitForJSBool(t, page, `() => !!document.querySelector('#provider-dialog')`)
 	page.MustEval(`() => {
 		const usage = document.getElementById('prov-usage');
 		usage.value = 'decisions'; usage.dispatchEvent(new Event('change', {bubbles:true}));
@@ -55,7 +55,7 @@ func TestProviderUsageRoundTripKeepsGeneralDraftBrowser(t *testing.T) {
 	}`)
 	waitForJSBool(t, page, `() => window.savedProviderPayloads.length === 1 || document.querySelector('#shared-modal-overlay')?.classList.contains('active') || !!document.querySelector('.pw-field-error[data-config-validation]')`)
 	if page.MustEval(`() => window.savedProviderPayloads.length`).Int() != 1 {
-		state := page.MustEval(`() => JSON.stringify({modal:!!document.querySelector('#provider-modal-overlay'), confirm:document.querySelector('#shared-modal-message')?.textContent || '', errors:[...document.querySelectorAll('.pw-field-error[data-config-validation]')].map(el=>el.textContent), id:document.getElementById('prov-id')?.value, usage:document.getElementById('prov-usage')?.value, type:document.getElementById('prov-type')?.value, auth:document.getElementById('prov-auth-type')?.value, url:document.getElementById('prov-url')?.value})`).Str()
+		state := page.MustEval(`() => JSON.stringify({modal:!!document.querySelector('#provider-dialog'), confirm:document.querySelector('#shared-modal-message')?.textContent || '', errors:[...document.querySelectorAll('.pw-field-error[data-config-validation]')].map(el=>el.textContent), id:document.getElementById('prov-id')?.value, usage:document.getElementById('prov-usage')?.value, type:document.getElementById('prov-type')?.value, auth:document.getElementById('prov-auth-type')?.value, url:document.getElementById('prov-url')?.value})`).Str()
 		t.Fatalf("provider save did not reach PUT payload: %s", state)
 	}
 	var saved [][]map[string]any
@@ -83,9 +83,9 @@ func TestProviderUsageRoundTripKeepsGeneralDraftBrowser(t *testing.T) {
 		t.Errorf("existing provider capabilities were not preserved: %#v", existing["capabilities"])
 	}
 
-	waitForJSBool(t, page, `() => !document.getElementById('provider-modal-overlay') && !providersSaving`)
+	waitForJSBool(t, page, `() => !document.getElementById('provider-dialog') && !providersSaving`)
 	page.MustEval(`() => providerAdd()`)
-	waitForJSBool(t, page, `() => !!document.querySelector('#provider-modal-overlay')`)
+	waitForJSBool(t, page, `() => !!document.querySelector('#provider-dialog')`)
 	page.MustEval(`() => {
 		const change = (id, value) => { const el = document.getElementById(id); el.value = value; el.dispatchEvent(new Event('change', {bubbles:true})); };
 		change('prov-id', 'fixture-new-oauth-profile');

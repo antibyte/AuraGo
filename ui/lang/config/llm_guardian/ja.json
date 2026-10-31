@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "オーバーライドのレベル",
   "config.llm_guardian.override_level_for": "{tool} のレベル",
   "config.llm_guardian.override_remove": "オーバーライドを削除",
-  "config.llm_guardian.override_add": "オーバーライドを追加"
+  "config.llm_guardian.override_add": "オーバーライドを追加",
+  "config.llm_guardian.risk_high": "高リスク",
+  "config.llm_guardian.risk_elevated": "やや高リスク"
 }

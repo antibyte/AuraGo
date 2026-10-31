@@ -2384,18 +2384,16 @@ func TestConfigFrontendProviderModalCancelUsesScopedCloseHandler(t *testing.T) {
 	}
 
 	moduleJS := string(moduleContent)
-	if strings.Contains(moduleJS, `onclick="if(copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-modal-overlay').remove()"`) {
+	if strings.Contains(moduleJS, `onclick="if(copilotPollInterval)clearInterval(copilotPollInterval);document.getElementById('provider-dialog').remove()"`) {
 		t.Fatal("provider modal cancel must not reference a non-global copilotPollInterval from inline HTML")
 	}
 	for _, marker := range []string{
 		"function closeProviderModal()",
 		"async function requestCloseProviderModal()",
 		"clearInterval(copilotPollInterval);",
-		`id="provider-modal-close-btn"`,
-		`id="provider-modal-cancel-btn"`,
-		"document.getElementById('provider-modal-close-btn')?.addEventListener('click', requestCloseProviderModal);",
-		"document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', requestCloseProviderModal);",
-		"overlay.onclick = (e) => { if (e.target === overlay) requestCloseProviderModal(); };",
+		`id="provider-dialog-cancel-btn"`,
+		"document.getElementById('provider-dialog-cancel-btn')?.addEventListener('click', () => closeModal('provider-dialog'));",
+		"function providerModalCanClose()",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing provider modal close marker %q", modulePath, marker)

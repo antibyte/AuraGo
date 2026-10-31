@@ -14,7 +14,6 @@ chromecast cfgdev-modal-header
 chromecast cfgdev-modal-overlay
 chromecast cfgdev-modal-save
 chromecast cfgdev-modal-title
-co_agents cs-modal
 composio cmp-modal
 composio cmp-modal-body
 composio cmp-modal-controls
@@ -63,19 +62,6 @@ network_shares ns-modal-error
 network_shares ns-modal-save
 network_shares ns-modal-title
 network_shares share-modal
-providers prov-modal-actions
-providers prov-modal-body
-providers prov-modal-close-btn
-providers prov-modal-header
-providers prov-modal-overlay
-providers prov-modal-panel
-providers prov-modal-panel-section
-providers prov-modal-tab
-providers prov-modal-tabs
-providers prov-modal-title
-providers provider-modal-cancel-btn
-providers provider-modal-close-btn
-providers provider-modal-overlay
 secrets secret-modal-error
 secrets secrets-modal-card
 secrets secrets-modal-overlay

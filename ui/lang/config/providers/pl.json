@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "np. a1b2c3d4e5f6...",
   "config.providers.add_model": "Dodaj model",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 Klucz API",
-  "config.providers.auth_type_api_key_option": "🔑 Klucz API",
-  "config.providers.auth_type_oauth2": "🔐 Kod autoryzacyjny OAuth2",
-  "config.providers.auth_type_oauth2_option": "🔐 Kod autoryzacji OAuth2",
+  "config.providers.auth_type_api_key": "Klucz API",
+  "config.providers.auth_type_api_key_option": "Klucz API",
+  "config.providers.auth_type_oauth2": "Kod autoryzacyjny OAuth2",
+  "config.providers.auth_type_oauth2_option": "Kod autoryzacji OAuth2",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autentykacja",
   "config.providers.authorize": "Autoryzuj",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "Pozostaw puste, aby zachować istniejący klucz.",
   "config.providers.keep_existing_secret": "Pozostaw puste, aby zachować istniejący sekret.",
   "config.providers.key_placeholder_existing": "•••••••• (niezmienione)",
-  "config.providers.key_set": "✔ ustawiony",
+  "config.providers.key_set": "ustawiony",
   "config.providers.loading": "Ładowanie...",
   "config.providers.meshcentral_test_title": "Test połączenia MeshCentral",
   "config.providers.model_name": "Model AI",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Brakujący wybrani dostawcy: {paths}. W tych ustawieniach wybierz istniejącego dostawcę.",
   "config.providers.search_help": "Filtruje listę dostawców według nazwy, typu lub modelu.",
   "config.providers.filter_type_help": "Pokazuje tylko dostawców jednego typu.",
-  "config.providers.filter_role_help": "Pokazuje tylko dostawców przypisanych do określonego zadania, na przykład modelu głównego lub embeddingów."
+  "config.providers.filter_role_help": "Pokazuje tylko dostawców przypisanych do określonego zadania, na przykład modelu głównego lub embeddingów.",
+  "config.providers.copy_failed": "Automatyczne kopiowanie nie powiodło się. Skopiuj link ręcznie."
 }

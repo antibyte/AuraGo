@@ -13,20 +13,7 @@ func TestConfigProviderActionsUseReadableAccentContrast(t *testing.T) {
 
 	css := readDesktopAssetText(t, "css/config.css")
 
-	pill := configProviderCSSRuleBody(t, css, ".prov-provider-pill")
-	for _, want := range []string{
-		"background: var(--pw-surface-elevated);",
-		"color: var(--pw-text);",
-		"border: 1px solid rgba(20, 184, 166, 0.42);",
-		"text-shadow: none;",
-	} {
-		if !strings.Contains(pill, want) {
-			t.Fatalf("provider pill contrast style missing %q in block:\n%s", want, pill)
-		}
-	}
-	if strings.Contains(pill, "color: #fff") || strings.Contains(pill, "background: var(--accent)") {
-		t.Fatalf("provider pill must not use white text on the bright accent background:\n%s", pill)
-	}
+	// Provider and status pills are shared pw-badge elements (cfgBadge); no own pill style remains.
 
 	addButton := configProviderCSSRuleBody(t, css, ".prov-section-actions .btn-save.prov-btn-sm")
 	for _, want := range []string{
@@ -344,8 +331,8 @@ func TestConfigProvidersListUsesRolesCompactLimitsAndEditorTabs(t *testing.T) {
 		"[data-workspace-page=\"config\"] .prov-toolbar",
 		"[data-workspace-page=\"config\"] .prov-provider-card",
 		".prov-role-chip",
-		".prov-modal-tabs",
-		".prov-modal-body",
+		".prov-tabs",
+		".prov-tab-panel",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("config.css missing provider list style %q", marker)

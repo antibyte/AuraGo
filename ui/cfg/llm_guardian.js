@@ -17,7 +17,7 @@ async function renderLLMGuardianSection(section) {
 
     if (!enabled) {
         html += `<div class="wh-notice">
-            <span>🛡️</span>
+            <span>${cfgIcon('shield')}</span>
             <div>
                 <strong>${t('config.llm_guardian.disabled_notice')}</strong><br>
                 <small>${t('config.llm_guardian.disabled_desc')}</small>
@@ -152,9 +152,9 @@ async function renderLLMGuardianSection(section) {
         overrideKeys.forEach(toolName => {
             const toolLevel = overrides[toolName] || 'medium';
             const desc = _guardianGetToolDesc(toolName);
-            const riskIcon = _guardianHighRiskTools.has(toolName) ? '🔴' : (_guardianRiskyTools.has(toolName) ? '🟡' : '⚪');
+            const riskBadge = _guardianRiskBadge(toolName);
             html += `<div class="lg-override-row">
-                <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
+                <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskBadge} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
                 <select class="field-select lg-select-sm" aria-label="${escapeAttr(t('config.llm_guardian.override_level_for', { tool: toolName }))}"
                     onchange="guardianSetOverride('${escapeAttr(toolName)}',this.value)">`;
             levels.forEach(lv => {
@@ -162,8 +162,7 @@ async function renderLLMGuardianSection(section) {
                 html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;
             });
             html += `</select>
-                <button class="lg-btn-remove" title="${escapeAttr(t('config.llm_guardian.override_remove'))}" aria-label="${escapeAttr(t('config.llm_guardian.override_remove') + ': ' + toolName)}"
-                    onclick="guardianRemoveOverride('${escapeAttr(toolName)}')">✕</button>
+                ${cfgDeleteButton({ iconOnly: true, label: t('config.llm_guardian.override_remove') + ': ' + toolName, attrs: { 'data-tool': toolName, onclick: 'guardianRemoveOverride(this.dataset.tool)' } })}
             </div>`;
         });
         html += `</div>`;
@@ -178,8 +177,8 @@ async function renderLLMGuardianSection(section) {
         _guardianToolList.forEach(name => {
             if (!overrides[name]) {
                 const desc = _guardianGetToolDesc(name);
-                const riskIcon = _guardianHighRiskTools.has(name) ? '🔴' : (_guardianRiskyTools.has(name) ? '🟡' : '⚪');
-                const label = desc ? `${riskIcon} ${name} — ${desc}` : `${riskIcon} ${name}`;
+                const risk = _guardianRiskLabel(name);
+                const label = (risk ? `${name} (${risk})` : name) + (desc ? ` — ${desc}` : '');
                 html += `<option value="${escapeAttr(name)}" label="${escapeAttr(label)}">`;
             }
         });
@@ -192,7 +191,7 @@ async function renderLLMGuardianSection(section) {
     });
     html += `</select>
         <button class="lg-btn-add" title="${escapeAttr(t('config.llm_guardian.override_add'))}" aria-label="${escapeAttr(t('config.llm_guardian.override_add'))}"
-            onclick="guardianAddOverride()">+</button>
+            onclick="guardianAddOverride()">${cfgIcon('plus')}</button>
     </div>`;
     html += `</div>`;
 
@@ -206,6 +205,19 @@ async function renderLLMGuardianSection(section) {
 }
 
 let _guardianToolList = null;
+
+// Risk of a tool as a text label (high / elevated) or '' for everything else.
+function _guardianRiskLabel(toolName) {
+    if (_guardianHighRiskTools.has(toolName)) return t('config.llm_guardian.risk_high');
+    if (_guardianRiskyTools.has(toolName)) return t('config.llm_guardian.risk_elevated');
+    return '';
+}
+
+function _guardianRiskBadge(toolName) {
+    const label = _guardianRiskLabel(toolName);
+    if (!label) return '';
+    return cfgBadge(_guardianHighRiskTools.has(toolName) ? 'error' : 'warn', label);
+}
 
 function _guardianGetToolDesc(toolName) {
     const key = 'config.llm_guardian.tool_' + toolName;

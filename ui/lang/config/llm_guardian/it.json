@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Livello per l'override",
   "config.llm_guardian.override_level_for": "Livello per {tool}",
   "config.llm_guardian.override_remove": "Rimuovi override",
-  "config.llm_guardian.override_add": "Aggiungi override"
+  "config.llm_guardian.override_add": "Aggiungi override",
+  "config.llm_guardian.risk_high": "Rischio alto",
+  "config.llm_guardian.risk_elevated": "Rischio elevato"
 }

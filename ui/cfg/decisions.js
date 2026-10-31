@@ -16,16 +16,6 @@ function renderDecisionsSection(section) {
     node('p', 'section-desc', section.desc);
     node('p', 'cfg-note-banner cfg-note-banner-info', tr('purpose'));
 
-    const backendGroup = node('label', 'field-group');
-    node('span', 'field-label', tr('backend'), backendGroup);
-    const backend = node('select', 'field-select', '', backendGroup);
-    backend.dataset.path = 'decisions.backend';
-    for (const [value, key] of [['local', 'backend_local'], ['provider', 'backend_provider']]) {
-        backend.add(new Option(tr(key), value));
-    }
-    backend.value = data.backend === 'provider' ? 'provider' : 'local';
-    node('span', 'field-help', tr('backend_help'), backendGroup);
-
     const toggle = (key, label, parent = root, help = '') => {
         const group = node('div', 'field-group', '', parent);
         node('span', 'field-label', label, group);
@@ -42,6 +32,16 @@ function renderDecisionsSection(section) {
         return control;
     };
     toggle('enabled', tr('enabled'), root, tr('enabled_help'));
+
+    const backendGroup = node('label', 'field-group');
+    node('span', 'field-label', tr('backend'), backendGroup);
+    const backend = node('select', 'field-select', '', backendGroup);
+    backend.dataset.path = 'decisions.backend';
+    for (const [value, key] of [['local', 'backend_local'], ['provider', 'backend_provider']]) {
+        backend.add(new Option(tr(key), value));
+    }
+    backend.value = data.backend === 'provider' ? 'provider' : 'local';
+    node('span', 'field-help', tr('backend_help'), backendGroup);
     const saveNotice = node('p', 'cfg-note-banner cfg-note-banner-info', t('config.local_llm.save_first'));
     saveNotice.dataset.decisionsSaveNotice = '';
     saveNotice.hidden = true;
@@ -209,7 +209,7 @@ function renderDecisionsSection(section) {
         } else {
             node('p', 'field-help', tr('consumers_router_hint'), row);
         }
-        ui.badge = node('span', 'cfg-note-banner', '', row);
+        ui.badge = node('span', 'pw-badge', '', row);
         ui.badge.dataset.decisionsConsumerState = '';
         ui.badge.setAttribute('role', 'status');
         ui.stats = node('span', 'field-help', '', row);
@@ -226,17 +226,17 @@ function renderDecisionsSection(section) {
             const ui = consumerUI[id];
             if (ui.images) ui.images.hidden = !providerMode();
             const entry = (status?.consumers || []).find(item => item.id === id);
-            let text = '', cls = 'cfg-note-banner';
+            let text = '', tone = 'idle';
             if (!entry) text = '—';
             else if (!entry.enabled) text = tr('consumers_state_off');
-            else if (entry.available) { text = tr('consumers_state_active'); cls += ' cfg-note-banner-success'; }
+            else if (entry.available) { text = tr('consumers_state_active'); tone = 'ok'; }
             else {
                 const known = {images_unsupported: 'images_unsupported', images_unknown: 'images_unknown', images_external_not_permitted: 'images_external_not_permitted'}[entry.code];
                 text = known ? tr('consumers_state_' + known) : tr('consumers_state_unavailable', {code: entry.code || ''});
-                cls += ' cfg-note-banner-warning';
+                tone = 'warn';
             }
             ui.badge.textContent = text;
-            ui.badge.className = cls;
+            ui.badge.dataset.status = tone;
             const st = entry?.stats || {};
             const cost = Number(st.cost_usd) > 0 ? ' · ' + tr('consumers_cost', {value: Number(st.cost_usd).toFixed(4)}) : '';
             ui.stats.textContent = Number(st.attempts) > 0 || cost

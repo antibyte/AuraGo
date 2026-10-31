@@ -29,7 +29,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     _providerLimitRefreshAttempts = 0;
                     return;
                 }
-                if (document.getElementById('provider-modal-overlay')) { providerScheduleLimitRefresh(); return; }
+                if (document.getElementById('provider-dialog')) { providerScheduleLimitRefresh(); return; }
                 _providerLimitRefreshAttempts++;
                 if (await loadProviders()) providerRenderCards();
             }, PROVIDER_LIMIT_REFRESH_DELAY_MS);
@@ -105,13 +105,13 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <!-- Header -->
                 <div class="prov-or-header">
                     <div class="prov-or-header-row">
-                        <div class="prov-or-title">🌐 OpenRouter ${t('config.openrouter.model_browser')}</div>
-                        <button onclick="document.getElementById('or-browser-overlay').remove()" class="prov-or-close">✕</button>
+                        <div class="prov-or-title">${cfgIcon('globe')} OpenRouter ${t('config.openrouter.model_browser')}</div>
+                        <button type="button" onclick="document.getElementById('or-browser-overlay').remove()" class="prov-or-close" aria-label="${escapeAttr(t('config.common.close'))}" title="${escapeAttr(t('config.common.close'))}">${cfgIcon('x')}</button>
                     </div>
                     <div class="prov-or-controls">
                         <input id="or-search" class="field-input prov-or-search" type="text" placeholder="${t('config.openrouter.search_placeholder')}">
                         <button id="or-free-btn" class="btn-save prov-or-free-btn" title="${t('config.openrouter.free_tooltip')}">
-                            🆓 ${t('config.openrouter.free_button')}
+                            ${t('config.openrouter.free_button')}
                         </button>
                         <div id="or-count" class="prov-or-count"></div>
                     </div>
@@ -127,7 +127,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 </div>
                 <!-- Loading / error -->
                 <div id="or-loading" class="prov-or-loading">
-                    ⏳ ${t('config.openrouter.loading')}
+                    ${cfgIcon('loader')} ${t('config.openrouter.loading')}
                 </div>
             </div>`;
             document.body.appendChild(overlay);
@@ -153,7 +153,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     const resp = await fetch('/api/openrouter/models');
                     const json = await resp.json();
                     if (json.available === false) {
-                        loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + (json.reason || 'Error') + '</span>';
+                        cfgListState(loadingDiv, { state: 'error', title: json.reason || t('config.common.error'), retry: () => { overlay.remove(); openOpenRouterBrowser(onSelect); } });
                         return;
                     }
                     allModels = (json.data || []).map(m => ({
@@ -172,7 +172,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     _orModelsCacheTime = now;
                 }
             } catch (e) {
-                loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + escapeHtml(t('config.openrouter.connection_error') + (e && e.message ? e.message : String(e))) + '</span>';
+                cfgListState(loadingDiv, { state: 'error', title: t('config.openrouter.connection_error') + (e && e.message ? e.message : String(e)), retry: () => { overlay.remove(); openOpenRouterBrowser(onSelect); } });
                 return;
             }
             setHidden(loadingDiv, true);
@@ -227,7 +227,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                             <div class="prov-or-row-id">${escapeHtml(m.id)}</div>
                         </div>
                         <div class="prov-or-row-meta">
-                            ${free ? '<span class="prov-or-free-pill">' + t('config.providers.free_badge') + '</span>' : '<span class="prov-or-meta-text" title="' + escapeAttr(t('config.providers.cost_input_output')) + '">'+promptCost+' · '+completionCost+'</span>'}
+                            ${free ? cfgBadge('ok', t('config.providers.free_badge')) : '<span class="prov-or-meta-text" title="' + escapeAttr(t('config.providers.cost_input_output')) + '">'+promptCost+' · '+completionCost+'</span>'}
                             <span class="prov-or-meta-text" title="${escapeAttr(t('config.providers.context_label'))}">${formatContext(m.context_length)}</span>
                         </div>
                     </div>`;
@@ -264,9 +264,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         <div><span class="prov-or-detail-label">${t('config.providers.output_label')}:</span></div>
                         <div class="prov-or-detail-value ${free ? 'is-free' : ''}">${free ? t('config.openrouter.free_cost') : '$'+completionPerM.toFixed(4)+'/M'}</div>
                     </div>
-                    ${free ? '<div class="prov-or-free-banner">🆓 '+t('config.openrouter.model_is_free')+'</div>' : ''}
+                    ${free ? '<div class="prov-or-free-banner">' + cfgIcon('sparkles') + ' ' + t('config.openrouter.model_is_free') + '</div>' : ''}
                     <button id="or-apply-btn" class="btn-save prov-or-apply-btn">
-                        ✅ ${t('config.openrouter.apply_model')}
+                        ${cfgIcon('check')} ${t('config.openrouter.apply_model')}
                     </button>
                     <div class="prov-or-detail-footnote">
                         ${!free ? t('config.openrouter.costs_auto_imported') : ''}
@@ -368,7 +368,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         <input class="field-input prov-model-input prov-model-input-num" type="number" step="0.001" min="0" value="${m.output_per_million}" onchange="providerUpdateModelRow(${i},'output_per_million',parseFloat(this.value)||0)">
                     </td>
                     <td class="prov-model-cell prov-model-cell-del">
-                        <button type="button" class="prov-model-del-btn" onclick="providerDeleteModelRow(${i})" title="${t('config.providers.card_delete_tooltip')}">✕</button>
+                        ${cfgDeleteButton({ iconOnly: true, cls: 'prov-model-del-btn', label: t('config.common.delete_item', { name: m.name || '' }), attrs: { onclick: 'providerDeleteModelRow(' + i + ')' } })}
                     </td>
                 </tr>`;
             }).join('');
@@ -399,7 +399,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
         // Called from OpenRouter browser when a model is selected
         function providerOpenModalOpenRouter() {
-            const owner = document.getElementById('provider-modal-overlay');
+            const owner = document.getElementById('provider-dialog');
             openOpenRouterBrowser(model => {
                 if (!owner?.isConnected) return;
                 const input = owner.querySelector('#prov-model');
@@ -470,7 +470,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             block.dataset.known = normalized.known ? 'true' : 'false';
             ['tool_calling', 'structured_outputs', 'multimodal'].forEach(key => {
                 const input = document.getElementById('prov-cap-' + key.replace('_', '-'));
-                if (input) input.checked = !!normalized[key];
+                if (input) providerSetCapabilityToggle(input, !!normalized[key]);
             });
             providerUpdateCapabilitySource();
         }
@@ -489,11 +489,22 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             if (resetBtn) setHidden(resetBtn, auto);
         }
 
+        // Capability switches: the label is the control's name, so the on/off text stays out of it.
+        function providerSetCapabilityToggle(el, on) {
+            el.classList.toggle('on', on);
+            if (typeof syncToggleA11y === 'function') syncToggleA11y(el);
+        }
+
+        function providerToggleCapability(el) {
+            providerSetCapabilityToggle(el, !el.classList.contains('on'));
+            providerMarkCapabilitiesManual();
+        }
+
         function providerReadCapabilities() {
             const block = document.getElementById('prov-capabilities-block');
             const get = id => {
                 const el = document.getElementById(id);
-                return !!(el && el.checked);
+                return !!(el && el.classList.contains('on'));
             };
             const auto = !block || block.dataset.auto !== 'false';
             return {
@@ -576,7 +587,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
          * Opens a searchable picker modal to select which models/prices to import.
          * @param {Array<{name,input_per_million,output_per_million}>} allPricing
          */
-        function openPricingPickerModal(allPricing, owner = document.getElementById('provider-modal-overlay')) {
+        function openPricingPickerModal(allPricing, owner = document.getElementById('provider-dialog')) {
             if (!allPricing || allPricing.length === 0) {
                 showToast(t('config.providers.no_pricing_found'));
                 return;
@@ -619,9 +630,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 overlay.innerHTML = `
                     <div class="prov-pricing-panel">
                         <div class="prov-pricing-head">
-                            <div class="prov-pricing-title">📡 ${escapeHtml(t('config.providers.pricing_picker_title'))}</div>
+                            <div class="prov-pricing-title">${cfgIcon('download')} ${escapeHtml(t('config.providers.pricing_picker_title'))}</div>
                             <input id="pricing-picker-search" class="field-input" type="search" autocomplete="off"
-                                   placeholder="🔍 ${escapeHtml(t('config.providers.pricing_picker_search'))}"
+                                   placeholder="${escapeHtml(t('config.providers.pricing_picker_search'))}"
                                    value="${escapeAttr(filterQuery)}">
                             <div class="prov-pricing-meta">
                                 ${allPricing.some(model => model.estimated) ? `<span class="prov-field-hint">${escapeHtml(t('config.providers.limit_source_model_only_fallback'))}</span>` : ''}
@@ -636,7 +647,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                                     const ck = selected.has(m.name);
                                     const fmt = v => v > 0 ? '$' + v.toFixed(3) : (v === 0 ? t('config.providers.free_badge') : '—');
                                     return `<label class="prov-pricing-row">
-                                        <input type="checkbox" class="prov-pricing-checkbox" data-name="${escapeAttr(m.name)}" data-in="${m.input_per_million}" data-out="${m.output_per_million}" ${ck ? 'checked' : ''}>
+                                        <input type="checkbox" data-cfg-choice class="prov-pricing-checkbox" data-name="${escapeAttr(m.name)}" data-in="${m.input_per_million}" data-out="${m.output_per_million}" ${ck ? 'checked' : ''}>
                                         <span class="prov-pricing-name" title="${escapeAttr(m.name)}">${escapeHtml(m.name)}</span>
                                         <span class="prov-pricing-cost">${escapeHtml(fmt(m.input_per_million))} · ${escapeHtml(fmt(m.output_per_million))}</span>
                                     </label>`;
@@ -645,7 +656,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         </div>
                         <div class="prov-pricing-foot">
                             <label class="prov-pricing-select-all-label">
-                                <input type="checkbox" class="prov-pricing-select-all" id="pp-select-all" ${allVisibleSelected ? 'checked' : ''}>
+                                <input type="checkbox" data-cfg-choice class="prov-pricing-select-all" id="pp-select-all" ${allVisibleSelected ? 'checked' : ''}>
                                 ${escapeHtml(t('config.providers.pricing_picker_select_all'))}
                             </label>
                             <div class="prov-pricing-actions">
@@ -679,7 +690,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const confirmBtn = overlay.querySelector('#pp-confirm');
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', () => {
-                        if (!owner?.isConnected || owner !== document.getElementById('provider-modal-overlay')) { overlay.remove(); return; }
+                        if (!owner?.isConnected || owner !== document.getElementById('provider-dialog')) { overlay.remove(); return; }
                         const toImport = allPricing.filter(m => selected.has(m.name));
                         for (const p of toImport) {
                             const ex = _provModalModels.find(e => e.name && e.name.toLowerCase() === p.name.toLowerCase());
@@ -699,12 +710,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         async function providerFetchPricing() {
-            const owner = document.getElementById('provider-modal-overlay');
+            const owner = document.getElementById('provider-dialog');
             const provId = (document.getElementById('prov-id') || {}).value;
             const provType = (document.getElementById('prov-type') || {}).value;
 
             const btn = document.getElementById('prov-fetch-pricing-btn');
-            if (btn) { btn.disabled = true; btn.textContent = '⏳ ' + t('config.providers.loading'); }
+            if (btn) { btn.disabled = true; btn.innerHTML = cfgIcon('loader') + '<span>' + escapeHtml(t('config.providers.loading')) + '</span>'; }
 
             try {
                 let url;
@@ -721,7 +732,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const resp = await fetch(url, { signal: owner?._providerRequests?.signal });
                 if (!resp.ok) throw new Error(await resp.text());
                 const json = await resp.json();
-                if (!owner?.isConnected || owner !== document.getElementById('provider-modal-overlay')) return;
+                if (!owner?.isConnected || owner !== document.getElementById('provider-dialog')) return;
 
                 let pricing;
                 if (json.data) {
@@ -749,9 +760,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 // Open picker modal instead of bulk-importing
                 openPricingPickerModal(pricing, owner);
             } catch (e) {
-                if (e.name !== 'AbortError' && owner?.isConnected) showToast('❌ ' + e.message);
+                if (e.name !== 'AbortError' && owner?.isConnected) showToast(e.message || t('config.common.error'), 'error');
             } finally {
-                if (btn) { btn.disabled = false; btn.textContent = '📡 ' + t('config.providers.fetch_pricing'); }
+                if (btn) { btn.disabled = false; btn.innerHTML = cfgIcon('download') + '<span>' + escapeHtml(t('config.providers.fetch_pricing')) + '</span>'; }
             }
         }
 
@@ -760,7 +771,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             const labelDesc = t('config.meshcentral.test_desc');
             return `
             <div id="mc-test-block" class="prov-mc-block">
-                <div class="prov-mc-title">🔌 ${t('config.providers.meshcentral_test_title')}</div>
+                <div class="prov-mc-title">${cfgIcon('plug')} ${t('config.providers.meshcentral_test_title')}</div>
                 <div class="prov-mc-desc">${labelDesc}</div>
                 <div class="prov-mc-actions">
                     <button id="meshcentral-test-btn" class="btn-save prov-btn-sm" data-config-action-draft="true" onclick="testMeshCentral()">${labelTest}</button>
@@ -1121,8 +1132,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         </div>
                         <div class="prov-provider-head-actions">
                             ${oauthAction}
-                            <button type="button" onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="${t('config.providers.card_edit_tooltip')}">✏️</button>
-                            <button type="button" onclick="providerDelete(${idx})" class="prov-icon-btn is-delete" title="${t('config.providers.card_delete_tooltip')}">🗑️</button>
+                            <button type="button" onclick="providerEdit(${idx})" class="prov-icon-btn is-edit" title="${escapeAttr(t('config.providers.card_edit_tooltip'))}" aria-label="${escapeAttr(t('config.providers.card_edit_tooltip'))}">${cfgIcon('edit')}</button>
+                            ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: p.name || p.id }), attrs: { onclick: 'providerDelete(' + idx + ')' } })}
                         </div>
                     </div>
                     <div class="prov-provider-model">${escapeHtml(p.model || '—')}</div>
@@ -1501,7 +1512,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('config.providers.oauth_open_login'))}</a>
                     <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="provider-oauth-direct-copy" data-login-url="${escapeAttr(url)}">${escapeHtml(t('config.providers.oauth_copy_login_link'))}</button>
                 </div>
-                <button type="button" class="prov-icon-btn" onclick="document.getElementById('provider-oauth-direct-banner')?.remove()">×</button>
+                <button type="button" class="prov-icon-btn" aria-label="${escapeAttr(t('config.common.close'))}" title="${escapeAttr(t('config.common.close'))}" onclick="document.getElementById('provider-oauth-direct-banner')?.remove()">${cfgIcon('x')}</button>
             `;
             const copyBtn = document.getElementById('provider-oauth-direct-copy');
             if (copyBtn) {
@@ -1512,7 +1523,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         await navigator.clipboard.writeText(loginURL);
                         showToast(t('config.providers.oauth_login_link_copied'));
                     } catch (e) {
-                        showToast(loginURL);
+                        showToast(t('config.providers.copy_failed'), 'warn');
                     }
                 };
             }
@@ -1526,7 +1537,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 await navigator.clipboard.writeText(uri);
                 showToast(t('config.providers.oauth_redirect_copied'));
             } catch (e) {
-                showToast(uri);
+                showToast(t('config.providers.copy_failed'), 'warn');
             }
         }
 
@@ -1538,7 +1549,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 await navigator.clipboard.writeText(url);
                 showToast(t('config.providers.oauth_login_link_copied'));
             } catch (e) {
-                showToast(url);
+                showToast(t('config.providers.copy_failed'), 'warn');
             }
         }
 
@@ -1660,7 +1671,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             const idInput = document.getElementById('prov-id');
             const providerID = data.provider_id || (idInput ? idInput.value.trim() : '');
             if (!providerID) return;
-            providerRefreshOAuthStatus(providerID).then(async () => { if (!document.getElementById('provider-modal-overlay')) await loadProviders(); providerRenderCards(); }).catch(() => {});
+            providerRefreshOAuthStatus(providerID).then(async () => { if (!document.getElementById('provider-dialog')) await loadProviders(); providerRenderCards(); }).catch(() => {});
         }
 
         function providerHandleOAuthMessage(event) {
@@ -1797,8 +1808,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
         }
 
         function providerBindModalTabs() {
-            const tabs = Array.from(document.querySelectorAll('#provider-modal-overlay [data-prov-tab]'));
-            const panels = Array.from(document.querySelectorAll('#provider-modal-overlay [data-prov-panel]'));
+            const tabs = Array.from(document.querySelectorAll('#provider-dialog [data-prov-tab]'));
+            const panels = Array.from(document.querySelectorAll('#provider-dialog [data-prov-panel]'));
             if (!tabs.length) return;
             const activate = (id) => {
                 tabs.forEach(tab => {
@@ -1833,19 +1844,17 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
         function providerShowModal(title, data, onSave) {
             // Remove existing modal
-            const existing = document.getElementById('provider-modal-overlay');
-            if (existing) { existing._providerRequests?.abort(); existing.remove(); }
+            const existing = document.getElementById('provider-dialog');
+            if (existing) { existing._providerForceClose?.(); closeModal('provider-dialog'); existing.remove(); }
 
-            const overlay = document.createElement('div');
-            overlay.id = 'provider-modal-overlay';
-            overlay.className = 'prov-modal-overlay';
+            let overlay = null;
             let copilotPollInterval = null;
+            let forceClose = false;
             let modalSaving = false;
             let apiKeyCleared = false;
             let oauthSecretCleared = false;
             const modalRevision = providersRevision;
             const requests = new AbortController();
-            overlay._providerRequests = requests;
             let initialModalSnapshot = '';
             function providerModalSnapshot() {
                 const ids = [
@@ -1869,7 +1878,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             function providerModalDirty() {
                 return !!initialModalSnapshot && providerModalSnapshot() !== initialModalSnapshot;
             }
-            function closeProviderModal() {
+            // Everything the dialog owns is released once the shared modal controller has closed it.
+            function releaseProviderModal() {
                 requests.abort();
                 document.querySelectorAll('.prov-pricing-overlay').forEach(picker => { if (picker._providerOwner === overlay) picker.remove(); });
                 if (copilotPollInterval) {
@@ -1877,6 +1887,20 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     copilotPollInterval = null;
                 }
                 overlay.remove();
+            }
+            function closeProviderModal() {
+                forceClose = true;
+                closeModal('provider-dialog');
+            }
+            // Close button, backdrop and Escape all end up here (openModal canClose): unsaved edits ask first.
+            function providerModalCanClose() {
+                if (forceClose) return true;
+                if (modalSaving) return false;
+                if (providerModalDirty()) {
+                    requestCloseProviderModal();
+                    return false;
+                }
+                return true;
             }
             async function requestCloseProviderModal() {
                 if (modalSaving) return;
@@ -1889,14 +1913,6 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 }
                 closeProviderModal();
             }
-            overlay.addEventListener('provider-reload', closeProviderModal);
-            overlay.onclick = (e) => { if (e.target === overlay) requestCloseProviderModal(); };
-            overlay.addEventListener('keydown', event => {
-                if (event.key === 'Escape') {
-                    event.preventDefault();
-                    requestCloseProviderModal();
-                }
-            });
 
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
@@ -1913,22 +1929,16 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             const initialOAuthPresetHelp = initialOAuthPreset ? t('config.providers.oauth_browser_hint') : t('config.providers.oauth_advanced_help');
             const initialOAuthSetupURL = providerOAuthSetupURL(currentType);
 
-            overlay.innerHTML = `
-            <div class="prov-modal-panel" onclick="event.stopPropagation()">
-                <div class="prov-modal-header">
-                    <div class="prov-modal-title">${title}</div>
-                    <button type="button" id="provider-modal-close-btn" class="prov-modal-close-btn">✕</button>
+            const dialogBody = `
+                <div class="prov-tabs" role="tablist">
+                    <button type="button" class="prov-tab is-active" role="tab" aria-selected="true" data-prov-tab="identity">${escapeHtml(t('config.providers.tab_identity'))}</button>
+                    <button type="button" class="prov-tab" role="tab" aria-selected="false" data-prov-tab="model">${escapeHtml(t('config.providers.tab_model'))}</button>
+                    <button type="button" class="prov-tab" role="tab" aria-selected="false" data-prov-tab="capabilities">${escapeHtml(t('config.providers.tab_capabilities'))}</button>
+                    <button type="button" class="prov-tab" role="tab" aria-selected="false" data-prov-tab="pricing">${escapeHtml(t('config.providers.tab_pricing'))}</button>
+                    <button type="button" class="prov-tab" role="tab" aria-selected="false" data-prov-tab="auth">${escapeHtml(t('config.providers.tab_auth'))}</button>
+                    <button type="button" class="prov-tab" role="tab" aria-selected="false" data-prov-tab="diagnostics">${escapeHtml(t('config.providers.tab_diagnostics'))}</button>
                 </div>
-                <div class="prov-modal-tabs" role="tablist">
-                    <button type="button" class="prov-modal-tab is-active" role="tab" aria-selected="true" data-prov-tab="identity">${escapeHtml(t('config.providers.tab_identity'))}</button>
-                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="model">${escapeHtml(t('config.providers.tab_model'))}</button>
-                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="capabilities">${escapeHtml(t('config.providers.tab_capabilities'))}</button>
-                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="pricing">${escapeHtml(t('config.providers.tab_pricing'))}</button>
-                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="auth">${escapeHtml(t('config.providers.tab_auth'))}</button>
-                    <button type="button" class="prov-modal-tab" role="tab" aria-selected="false" data-prov-tab="diagnostics">${escapeHtml(t('config.providers.tab_diagnostics'))}</button>
-                </div>
-                <div class="prov-modal-body">
-                <div class="prov-modal-panel-section" data-prov-panel="identity">
+                <div class="prov-tab-panel" data-prov-panel="identity">
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_name')}</div>
                     <input class="field-input" id="prov-name" value="${escapeAttr(data.name || '')}" placeholder="${t('config.providers.display_name')}">
@@ -1973,7 +1983,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div class="field-help">${t('config.providers.hint.cloudflare_rest')}</div>
                 </div>
                 </div>
-                <div class="prov-modal-panel-section is-hidden" data-prov-panel="model">
+                <div class="prov-tab-panel is-hidden" data-prov-panel="model">
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.field_model_label')}</div>
                     <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
@@ -1997,9 +2007,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <div id="prov-ollama-block" class="field-group prov-provider-type-block is-ollama ${(data.type || 'openai') === 'ollama' ? '' : 'is-hidden'}">
                     <div class="prov-type-block-actions">
                         <button type="button" class="btn-save prov-btn-xs" onclick="queryOllamaModelsInModal()">
-                            🦙 ${t('config.providers.query_models')}
+                            ${t('config.providers.query_models')}
                         </button>
-                        <span id="prov-ollama-spinner" class="prov-inline-muted is-hidden">⏳ ${t('config.providers.loading')}</span>
+                        <span id="prov-ollama-spinner" class="prov-inline-muted is-hidden">${cfgIcon('loader')} ${t('config.providers.loading')}</span>
                     </div>
                     <div id="prov-ollama-result" class="prov-ollama-result is-hidden">
                         <div class="prov-ollama-label">${t('config.providers.available_models')}</div>
@@ -2012,43 +2022,49 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <div id="prov-openrouter-block" class="field-group prov-provider-type-block is-openrouter ${(data.type || 'openai') === 'openrouter' ? '' : 'is-hidden'}">
                     <div class="prov-type-block-actions">
                         <button type="button" class="btn-save prov-openrouter-btn" onclick="providerOpenModalOpenRouter()">
-                            🌐 ${t('config.providers.open_model_browser')}
+                            ${cfgIcon('globe')} ${t('config.providers.open_model_browser')}
                         </button>
                         <span class="prov-inline-muted">${t('config.providers.browse_openrouter')}</span>
                     </div>
                 </div>
                 </div>
-                <div class="prov-modal-panel-section is-hidden" data-prov-panel="capabilities">
+                <div class="prov-tab-panel is-hidden" data-prov-panel="capabilities">
                 <div class="field-group" id="prov-capabilities-block">
                     <div class="prov-model-pricing-head">
-                        <div class="field-label prov-model-pricing-title">🧩 ${t('config.providers.capabilities_title')}</div>
+                        <div class="field-label prov-model-pricing-title">${cfgIcon('puzzle')} ${t('config.providers.capabilities_title')}</div>
                         <button type="button" class="btn-save prov-btn-muted prov-btn-xs" id="prov-cap-reset">
                             ${t('config.providers.cap_use_detected')}
                         </button>
                     </div>
                     <div class="prov-field-hint" id="prov-cap-source"></div>
-                    <label class="prov-cap-row">
-                        <input type="checkbox" id="prov-cap-tool-calling">
-                        <span>${t('config.providers.cap_tool_calling')}</span>
-                    </label>
-                    <label class="prov-cap-row">
-                        <input type="checkbox" id="prov-cap-structured-outputs">
-                        <span>${t('config.providers.cap_structured_outputs')}</span>
-                    </label>
-                    <label class="prov-cap-row">
-                        <input type="checkbox" id="prov-cap-multimodal">
-                        <span>${t('config.providers.cap_multimodal')}</span>
-                    </label>
+                    <div class="prov-cap-row">
+                        <div class="toggle-wrap">
+                            <div class="toggle" id="prov-cap-tool-calling" aria-labelledby="prov-cap-tool-calling-label" onclick="providerToggleCapability(this)"></div>
+                            <span class="toggle-label" id="prov-cap-tool-calling-label">${t('config.providers.cap_tool_calling')}</span>
+                        </div>
+                    </div>
+                    <div class="prov-cap-row">
+                        <div class="toggle-wrap">
+                            <div class="toggle" id="prov-cap-structured-outputs" aria-labelledby="prov-cap-structured-outputs-label" onclick="providerToggleCapability(this)"></div>
+                            <span class="toggle-label" id="prov-cap-structured-outputs-label">${t('config.providers.cap_structured_outputs')}</span>
+                        </div>
+                    </div>
+                    <div class="prov-cap-row">
+                        <div class="toggle-wrap">
+                            <div class="toggle" id="prov-cap-multimodal" aria-labelledby="prov-cap-multimodal-label" onclick="providerToggleCapability(this)"></div>
+                            <span class="toggle-label" id="prov-cap-multimodal-label">${t('config.providers.cap_multimodal')}</span>
+                        </div>
+                    </div>
                 </div>
                 </div>
-                <div class="prov-modal-panel-section is-hidden" data-prov-panel="pricing">
+                <div class="prov-tab-panel is-hidden" data-prov-panel="pricing">
                 <!-- Model Pricing Table -->
                 <div class="field-group">
                     <div class="prov-model-pricing-head">
-                        <div class="field-label prov-model-pricing-title">💰 ${t('config.providers.model_pricing')}</div>
+                        <div class="field-label prov-model-pricing-title">${t('config.providers.model_pricing')}</div>
                         <div class="prov-model-pricing-actions">
                             <button type="button" class="btn-save prov-fetch-pricing-btn ${['openrouter','openai','anthropic','google','ollama','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio'].includes(data.type || 'openai') ? '' : 'is-hidden'}" id="prov-fetch-pricing-btn">
-                                📡 ${t('config.providers.fetch_pricing')}
+                                ${cfgIcon('download')}<span>${t('config.providers.fetch_pricing')}</span>
                             </button>
                             <button type="button" class="btn-save prov-btn-muted prov-btn-xs" onclick="providerAddModelRow()">
                                 + ${t('config.providers.add_model')}
@@ -2058,7 +2074,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     <div id="prov-models-table-wrap">
                         <div id="prov-models-search-wrap" class="is-hidden prov-model-search-wrap">
                             <input class="field-input prov-model-search-input" id="prov-models-filter" type="search" autocomplete="off"
-                                   placeholder="🔍 ${escapeHtml(t('config.providers.filter_models'))}"
+                                   placeholder="${escapeHtml(t('config.providers.filter_models'))}"
                                    oninput="providerRenderModelsTable()">
                             <div id="prov-models-count" class="prov-model-count is-hidden"></div>
                         </div>
@@ -2079,7 +2095,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     </div>
                 </div>
                 </div>
-                <div class="prov-modal-panel-section is-hidden" data-prov-panel="auth">
+                <div class="prov-tab-panel is-hidden" data-prov-panel="auth">
                 <!-- Auth Type Toggle -->
                 <div class="field-group">
                     <div class="field-label">${t('config.providers.authentication')}</div>
@@ -2120,7 +2136,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                                 ${providerOAuthSetupOpenLabel(currentType)}
                             </a>
                         </div>
-                        <span class="prov-provider-pill prov-provider-pill-oauth" id="prov-oauth-preset-label">${providerOAuthPresetLabel(currentType)}</span>
+                        <span class="pw-badge" data-status="idle" id="prov-oauth-preset-label">${providerOAuthPresetLabel(currentType)}</span>
                         <div class="field-help" id="prov-oauth-provider-setup-hint">
                             ${providerOAuthSetupHint(currentType)}
                         </div>
@@ -2220,11 +2236,11 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
                 <!-- Copilot Auth Block (only visible for copilot type) -->
                 <div id="prov-copilot-block" class="field-group prov-group-divider ${(data.type || 'openai') === 'copilot' ? '' : 'is-hidden'}">
-                    <div class="field-label">🔷 GitHub Copilot</div>
-                    <div id="copilot-auth-status" class="prov-field-hint">${data._copilotAuthorized ? '✅ ' + t('config.providers.copilot_authorized') : t('config.providers.copilot_not_authorized')}</div>
+                    <div class="field-label">GitHub Copilot</div>
+                    <div id="copilot-auth-status" class="prov-field-hint"${data._copilotAuthorized ? ' data-state="success"' : ''}>${data._copilotAuthorized ? t('config.providers.copilot_authorized') : t('config.providers.copilot_not_authorized')}</div>
                     <div id="copilot-auth-actions">
                         <button type="button" class="btn-save" id="copilot-start-auth-btn">
-                            🔐 ${t('config.providers.copilot_start_auth')}
+                            ${cfgIcon('key')} ${t('config.providers.copilot_start_auth')}
                         </button>
                     </div>
                     <div id="copilot-device-code-area" class="is-hidden pw-u-mt-8">
@@ -2234,13 +2250,13 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         </div>
                         <div class="pw-u-device-code" id="copilot-user-code">----</div>
                         <button type="button" class="btn-save prov-btn-sm pw-u-mt-8" id="copilot-check-status-btn">
-                            ⏳ ${t('config.providers.copilot_check_auth')}
+                            ${cfgIcon('refresh')} ${t('config.providers.copilot_check_auth')}
                         </button>
                     </div>
                 </div>
                 </div>
 
-                <section class="prov-modal-panel-section is-hidden" data-prov-panel="diagnostics">
+                <section class="prov-tab-panel is-hidden" data-prov-panel="diagnostics">
                     <p class="field-help">${escapeHtml(t('config.providers.diagnostics_help'))}</p>
                     <div id="prov-runtime-status" role="status">${escapeHtml(t('config.providers.status_unknown'))}</div>
                     <p class="field-help">${escapeHtml(t('config.providers.saved_test_help'))}</p>
@@ -2249,23 +2265,19 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         <button type="button" class="btn-save prov-btn-muted" id="prov-test-generation" data-config-action-draft="true">${escapeHtml(t('config.providers.generation_test'))}</button>
                     </div>
                     ${cfgActionResult.html('prov-test-result')}
-                </section>
-                </div>
-                <div class="prov-modal-actions">
-                    <button type="button" id="provider-modal-cancel-btn" class="btn-save prov-btn-muted prov-btn-md">
-                        ${t('config.providers.cancel')}
-                    </button>
-                    <button class="btn-save prov-btn-md ${isOAuth ? '' : 'is-hidden'}" id="prov-save-connect-btn">
-                        ${t('config.providers.oauth_save_connect')}
-                    </button>
-                    <button class="btn-save prov-btn-md" id="prov-save-btn">
-                        ${t('config.providers.save')}
-                    </button>
-                </div>
-            </div>`;
-            document.body.appendChild(overlay);
-            document.getElementById('provider-modal-close-btn')?.addEventListener('click', requestCloseProviderModal);
-            document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', requestCloseProviderModal);
+                </section>`;
+            const dialogActions = [
+                `<button type="button" id="provider-dialog-cancel-btn" class="btn-save prov-btn-muted prov-btn-md">${t('config.providers.cancel')}</button>`,
+                `<button class="btn-save prov-btn-md ${isOAuth ? '' : 'is-hidden'}" id="prov-save-connect-btn">${t('config.providers.oauth_save_connect')}</button>`,
+                `<button class="btn-save prov-btn-md" id="prov-save-btn">${t('config.providers.save')}</button>`
+            ];
+            document.body.insertAdjacentHTML('beforeend', cfgModal({ id: 'provider-dialog', title, size: 'lg', body: dialogBody, actions: dialogActions }));
+            overlay = document.getElementById('provider-dialog');
+            overlay._providerRequests = requests;
+            overlay._providerForceClose = () => { forceClose = true; };
+            overlay.addEventListener('provider-reload', closeProviderModal);
+            openModal('provider-dialog', { initialFocus: '#prov-name', canClose: providerModalCanClose, onClose: releaseProviderModal });
+            document.getElementById('provider-dialog-cancel-btn')?.addEventListener('click', () => closeModal('provider-dialog'));
             providerBindModalTabs();
             document.getElementById('prov-clear-api-key')?.addEventListener('click', () => {
                 apiKeyCleared = true;
@@ -2385,10 +2397,6 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             // ── Initialize model pricing table ──
             providerInitModelsTable(data.models);
             providerSetCapabilityUI(providerInitialCapabilities(data));
-            ['prov-cap-tool-calling', 'prov-cap-structured-outputs', 'prov-cap-multimodal'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.addEventListener('change', providerMarkCapabilitiesManual);
-            });
             const capResetBtn = document.getElementById('prov-cap-reset');
             if (capResetBtn) capResetBtn.addEventListener('click', () => providerRefreshCapabilityDetection(true));
 
@@ -2608,7 +2616,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 copilotStartBtn.onclick = async () => {
                     try {
                         copilotStartBtn.disabled = true;
-                        copilotStartBtn.textContent = '⏳ ' + t('config.providers.copilot_requesting');
+                        copilotStartBtn.textContent = t('config.providers.copilot_requesting');
                         const resp = await fetch('/api/copilot/device-code', {method: 'POST'});
                         const json = await resp.json();
                         if (!resp.ok) throw new Error(json.error || t('config.common.error'));
@@ -2617,17 +2625,17 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         copilotLink.href = json.verification_uri;
                         copilotLink.textContent = json.verification_uri;
                         setHidden(copilotDeviceArea, false);
-                        copilotStatus.textContent = '⏳ ' + t('config.providers.copilot_waiting');
+                        cfgActionResult.show(copilotStatus, 'warning', t('config.providers.copilot_waiting'));
                         // Auto-poll
                         if (copilotPollInterval) clearInterval(copilotPollInterval);
                         copilotPollInterval = setInterval(() => {
                             if (copilotCheckBtn) copilotCheckBtn.click();
                         }, (json.interval || 5) * 1000);
                     } catch (e) {
-                        showToast('❌ ' + e.message);
+                        cfgActionResult.show(copilotStatus, 'error', e.message || t('config.common.error'));
                     } finally {
                         copilotStartBtn.disabled = false;
-                        copilotStartBtn.textContent = '🔐 ' + t('config.providers.copilot_start_auth');
+                        copilotStartBtn.innerHTML = cfgIcon('key') + ' ' + escapeHtml(t('config.providers.copilot_start_auth'));
                     }
                 };
             }
@@ -2646,12 +2654,12 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         if (json.status === 'authorized') {
                             if (copilotPollInterval) clearInterval(copilotPollInterval);
                             setHidden(copilotDeviceArea, true);
-                            copilotStatus.textContent = '✅ ' + t('config.providers.copilot_authorized');
+                            cfgActionResult.show(copilotStatus, 'success', t('config.providers.copilot_authorized'));
                             showToast(t('config.providers.copilot_auth_success'), 'success');
                         } else if (json.status === 'error') {
                             if (copilotPollInterval) clearInterval(copilotPollInterval);
-                            copilotStatus.textContent = '❌ ' + t('config.providers.copilot_error') + ': ' + (json.error || t('config.providers.copilot_unknown_error'));
-                            showToast('❌ ' + t('config.providers.copilot_auth_failed', { error: json.error || t('config.providers.copilot_unknown_error') }));
+                            cfgActionResult.show(copilotStatus, 'error', t('config.providers.copilot_error') + ': ' + (json.error || t('config.providers.copilot_unknown_error')));
+                            showToast(t('config.providers.copilot_auth_failed', { error: json.error || t('config.providers.copilot_unknown_error') }), 'error');
                         } else {
                             // Still pending — keep polling
                         }
@@ -2713,7 +2721,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 typeSelect.addEventListener('change', rebuildCopyKeyDropdown);
             }
 
-            // Copy-key selection → disable/enable key input
+            // Copy-key selection: disable/enable key input
             const copyKeySelect = document.getElementById('prov-copy-key-from');
             if (copyKeySelect) {
                 copyKeySelect.addEventListener('change', () => {
@@ -2964,7 +2972,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 message += '\n\n' + t('config.providers.delete_references_warning', { count: refs.length }) +
                     '\n' + refs.map(providerReferenceLabel).join('\n');
             }
-            if (!(await showConfirm(t('config.providers.delete_confirm_title'), message))) return;
+            const { confirmed } = await showConfirmDialog({ title: t('config.providers.delete_confirm_title'), message, danger: true, confirmText: t('config.common.delete') });
+            if (!confirmed) return;
             if (revision !== providersRevision) { providersConflict = true; providerShowConflict(); return; }
             providersCache.splice(idx, 1);
             const ok = await providerSave('', revision);
@@ -2991,7 +3000,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 reload.disabled = true;
                 const ok = await loadProviders();
                 if (ok) {
-                    document.getElementById('provider-modal-overlay')?.dispatchEvent(new Event('provider-reload'));
+                    document.getElementById('provider-dialog')?.dispatchEvent(new Event('provider-reload'));
                     notice.remove();
                     providerRenderCards();
                 } else {
@@ -3000,7 +3009,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 }
             };
             notice.append(message, reload);
-            const modal = document.querySelector('#provider-modal-overlay .prov-modal-panel');
+            const modal = document.querySelector('#provider-dialog .modal-body');
             (modal || document.getElementById('content')).prepend(notice);
         }
 

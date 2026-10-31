@@ -101,7 +101,7 @@ async function renderGuardianSection(section) {
         tasks.forEach(task => {
             const checked = disallowed.includes(task.key) ? ' checked' : '';
             html += `<label class="cfg-checkbox-row">
-                <input type="checkbox"${checked} onchange="guardianToggleCustomTask('${task.key}', this.checked)">
+                <input type="checkbox" data-cfg-choice${checked} onchange="guardianToggleCustomTask('${task.key}', this.checked)">
                 <span>${escapeHtml(task.label)}</span>
             </label>`;
         });
@@ -192,8 +192,12 @@ function renderInjectionGuardCard(cfg) {
             <button type="button" class="btn" data-guard-action="test" disabled>${tr('test')}</button>
         </div>
         <div class="field-group">
-            <label class="field-label"><input type="checkbox" data-path="guardian.injection_guard.enabled" ${cfg.enabled ? 'checked' : ''} disabled> ${tr('enabled')}</label>
-            <div class="field-help">${tr('enable_help')}</div>
+            <div class="field-label" id="injection-guard-enabled-label">${tr('enabled')}</div>
+            <div class="field-help" id="injection-guard-enabled-help">${tr('enable_help')}</div>
+            <div class="toggle-wrap">
+                <div class="toggle${cfg.enabled ? ' on' : ''} cfg-toggle-disabled" data-path="guardian.injection_guard.enabled" aria-disabled="true" aria-labelledby="injection-guard-enabled-label" aria-describedby="injection-guard-enabled-help" onclick="toggleBool(this)"></div>
+                <span class="toggle-label">${t(cfg.enabled ? 'config.toggle.active' : 'config.toggle.inactive')}</span>
+            </div>
         </div>
         <div class="field-group">
             <label class="field-label" for="injection-guard-action">${tr('action')}</label>
@@ -211,7 +215,15 @@ function bindInjectionGuardCard(root) {
     if (!root) return;
     const lifetime = new AbortController();
     const tr = key => t('config.guardian.local_' + key);
-    const enabled = root.querySelector('input[type="checkbox"]');
+    const enabled = root.querySelector('.toggle[data-path="guardian.injection_guard.enabled"]');
+    // The switch stays locked until the model is installed and ready (unless it is already on, so it can be turned off).
+    const setLocked = locked => {
+        enabled.disabled = locked; // same flag syncToggleA11y and the keyboard handler read
+        enabled.classList.toggle('cfg-toggle-disabled', locked);
+        if (locked) enabled.setAttribute('aria-disabled', 'true'); else enabled.removeAttribute('aria-disabled');
+        syncToggleA11y(enabled);
+    };
+    setLocked(true);
     const result = root.querySelector('[data-guard-result]');
     const buttons = [...root.querySelectorAll('[data-guard-action]')];
     let timer = null, request = null, status = null, busy = false, generation = 0;
@@ -219,7 +231,7 @@ function bindInjectionGuardCard(root) {
     const paint = () => {
         if (!live() || !status) return;
         const installing = ['downloading', 'verifying'].includes(status.state);
-        enabled.disabled = busy || (!enabled.checked && (!status.available || !status.ready));
+        setLocked(busy || (!enabled.classList.contains('on') && (!status.available || !status.ready)));
         const state = status.error === 'cancelled' ? 'cancelled' : status.state === 'ready' && status.enabled ? 'active' : status.state;
         root.querySelector('[data-guard-status]').textContent = tr('state_' + state);
         root.querySelector('[data-guard-size]').textContent = tr('size') + ': ' + Math.ceil(status.size_bytes / 1000000).toLocaleString() + ' MB + ' + Math.ceil(status.runtime_size_bytes / 1000000).toLocaleString() + ' MB ONNX Runtime';
@@ -268,8 +280,10 @@ function bindInjectionGuardCard(root) {
     const observer = new MutationObserver(() => { if (!root.isConnected) dispose(); });
     observer.observe(document.body, {childList: true, subtree: true});
     buttons.forEach(button => button.addEventListener('click', () => run(button.dataset.guardAction), {signal: lifetime.signal}));
-    enabled.addEventListener('change', () => {
-        setNestedValue(configData, 'guardian.injection_guard.enabled', enabled.checked);
+    // toggleBool (inline) has already flipped the switch when this runs; a locked switch does not change.
+    enabled.addEventListener('click', () => {
+        if (enabled.getAttribute('aria-disabled') === 'true') return;
+        setNestedValue(configData, 'guardian.injection_guard.enabled', enabled.classList.contains('on'));
         setDirty(true); paint();
     }, {signal: lifetime.signal});
     window.addEventListener('cfg:section-leave', dispose, {signal: lifetime.signal, once: true});
@@ -314,14 +328,4 @@ function guardianToggleCustomTask(task, checked) {
     }
     configData.guardian.promptsec.custom_policy.disallowed_tasks = tasks;
     setDirty(true);
-}
-
-function escapeHtml(text) {
-    if (text == null) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
 }

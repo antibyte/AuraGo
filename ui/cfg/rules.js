@@ -112,13 +112,9 @@ async function renderRulesSection(section) {
     <div class="cfg-section active">
         <div class="section-header">${rulesEscape(section.label)}</div>
         <div class="section-desc">${rulesEscape(section.desc)}</div>
-        <div id="rules-body" class="rules-body">
-            <div class="cfg-loading-state">
-                <div class="cfg-loading-icon">📏</div>
-                <div class="cfg-loading-text">${rulesText('config.rules.loading', 'Loading rules...')}</div>
-            </div>
-        </div>
+        <div id="rules-body" class="rules-body"></div>
     </div>`;
+    cfgListState('rules-body', { state: 'loading', title: rulesText('config.rules.loading', 'Loading rules...') });
     await rulesLoad();
 }
 
@@ -142,7 +138,7 @@ async function rulesLoad(selectID) {
             await rulesSelect(rulesState.selected);
         }
     } catch (e) {
-        if (body) body.innerHTML = `<div class="wh-notice wh-notice-danger">${rulesText('config.rules.load_failed', 'Failed to load rules')}: ${rulesEscape(e.message)}</div>`;
+        if (body) cfgListState(body, { state: 'error', title: rulesText('config.rules.load_failed', 'Failed to load rules'), text: e.message, retry: () => rulesLoad(selectID) });
     }
 }
 
@@ -153,20 +149,20 @@ function rulesRenderBody(enabled) {
     const activeRules = rulesState.rules.filter(rule => rule.enabled !== false).length;
     const customRules = rulesState.rules.filter(rule => !rule.built_in).length;
     const systemStateLabel = enabled ? rulesText('config.rules.enabled', 'Enabled') : rulesText('config.rules.disabled', 'Disabled');
-    const systemStateClass = enabled ? 'rules-pill-ok' : 'rules-pill-warning';
+    const systemStateStatus = enabled ? 'ok' : 'warn';
     const ruleCards = rulesState.rules.map(rule => {
         const selected = rule.id === rulesState.selected ? ' rules-card-selected' : '';
         const disabled = rule.enabled !== false ? '' : ' rules-card-disabled';
         const origin = rule.built_in ? rulesText('config.rules.built_in', 'Built-in') : rulesText('config.rules.custom', 'Custom');
         const enabledLabel = rule.enabled !== false ? rulesText('config.rules.active', 'Active') : rulesText('config.rules.inactive', 'Inactive');
-        const enabledClass = rule.enabled !== false ? 'rules-card-status-on' : 'rules-card-status-off';
+        const enabledStatus = rule.enabled !== false ? 'ok' : 'idle';
         const tags = []
             .concat((rule.tools || []).map(v => `tool:${v}`))
             .concat((rule.workflows || []).map(v => `flow:${v}`))
             .concat((rule.keywords || []).slice(0, 4).map(v => `key:${v}`));
         return `
             <button type="button" class="rules-card${selected}${disabled}" data-rule-id="${rulesEscape(rule.id)}" onclick="rulesSelect('${escapeAttr(rule.id)}')">
-                <span class="rules-card-status ${enabledClass}">${rulesEscape(enabledLabel)}</span>
+                ${cfgBadge(enabledStatus, enabledLabel)}
                 <span class="rules-card-main">
                     <span class="rules-card-title">${rulesEscape(rule.title || rule.id)}</span>
                     <span class="rules-card-id">${rulesEscape(rule.id)} · ${origin}</span>
@@ -182,32 +178,33 @@ function rulesRenderBody(enabled) {
                 <div class="rules-summary-title">
                     <span class="rules-status-dot ${enabled ? 'rules-status-dot-on' : 'rules-status-dot-off'}"></span>
                     ${rulesText('config.rules.system_status', 'Rules system')}
-                    <span class="rules-pill ${systemStateClass}">${rulesEscape(systemStateLabel)}</span>
+                    ${cfgBadge(systemStateStatus, systemStateLabel)}
                 </div>
                 <div class="rules-summary-desc">${enabled ? rulesText('config.rules.enabled_hint', 'Automatic task-rule injection is enabled.') : rulesText('config.rules.disabled_hint', 'Automatic task-rule injection is disabled in config.yaml.')}</div>
             </div>
             <div class="rules-summary-actions">
                 <div class="rules-summary-metrics">
-                    <span class="rules-pill">${rulesText('config.rules.total', 'Total')}: ${totalRules}</span>
-                    <span class="rules-pill">${rulesText('config.rules.active', 'Active')}: ${activeRules}</span>
-                    <span class="rules-pill">${rulesText('config.rules.custom', 'Custom')}: ${customRules}</span>
+                    ${cfgBadge('idle', rulesText('config.rules.total', 'Total') + ': ' + totalRules)}
+                    ${cfgBadge('idle', rulesText('config.rules.active', 'Active') + ': ' + activeRules)}
+                    ${cfgBadge('idle', rulesText('config.rules.custom', 'Custom') + ': ' + customRules)}
                 </div>
-                <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" onclick="rulesNew()">+ ${rulesText('config.rules.new_rule', 'New rule')}</button>
+                <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" onclick="rulesNew()">${cfgIcon('plus')} ${rulesText('config.rules.new_rule', 'New rule')}</button>
             </div>
         </div>
         <div class="rules-layout">
             <div class="rules-list-panel">
                 <div class="rules-list-header">
                     <span>${rulesText('config.rules.rule_list', 'Rule library')}</span>
-                    <span class="rules-pill">${totalRules}</span>
+                    ${cfgBadge('idle', String(totalRules))}
                 </div>
-                <div class="rules-list">${ruleCards || `<div class="rules-empty">${rulesText('config.rules.empty', 'No rules yet.')}</div>`}</div>
+                <div class="rules-list" id="rules-list">${ruleCards}</div>
             </div>
             <div class="rules-editor" id="rules-editor">
                 <div class="field-help">${rulesText('config.rules.select_hint', 'Select a rule or create a new one.')}</div>
             </div>
         </div>
     </div>`;
+    if (!ruleCards) cfgListState('rules-list', { state: 'empty', title: rulesText('config.rules.empty', 'No rules yet.') });
 }
 
 async function rulesSelect(id) {
@@ -215,7 +212,7 @@ async function rulesSelect(id) {
     document.querySelectorAll('.rules-card').forEach(card => card.classList.remove('rules-card-selected'));
     const editor = document.getElementById('rules-editor');
     if (!editor) return;
-    editor.innerHTML = `<div class="field-help">${rulesText('config.rules.loading', 'Loading rules...')}</div>`;
+    cfgListState(editor, { state: 'loading', title: rulesText('config.rules.loading', 'Loading rules...') });
     try {
         const resp = await fetch('/api/config/rules/' + encodeURIComponent(id), { credentials: 'same-origin' });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -227,7 +224,7 @@ async function rulesSelect(id) {
         rulesRenderEditor(false);
         rulesRefreshSelectedCard();
     } catch (e) {
-        editor.innerHTML = `<div class="wh-notice wh-notice-danger">${rulesText('config.rules.load_failed', 'Failed to load rules')}: ${rulesEscape(e.message)}</div>`;
+        cfgListState(editor, { state: 'error', title: rulesText('config.rules.load_failed', 'Failed to load rules'), text: e.message, retry: () => rulesSelect(id) });
     }
 }
 
@@ -265,9 +262,9 @@ function rulesRenderEditor(isNew) {
             <div class="field-help">${rulesText('config.rules.editor_hint', 'Rules are Markdown guardrails injected before matching tasks begin.')}</div>
         </div>
         <div class="rules-actions">
-            <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" id="rules-save-btn" onclick="rulesSave()">${rulesText('config.rules.save', 'Save')}</button>
-            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm" id="rules-restore-btn" onclick="rulesRestore()">${rulesText('config.rules.restore', 'Restore')}</button>` : ''}
-            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm wh-btn-danger" id="rules-delete-btn" onclick="rulesDelete()">${rulesText('config.rules.delete', 'Delete')}</button>` : ''}
+            <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" id="rules-save-btn" onclick="rulesSave()">${cfgIcon('save')} ${rulesText('config.rules.save', 'Save')}</button>
+            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm" id="rules-restore-btn" onclick="rulesRestore()">${cfgIcon('refresh')} ${rulesText('config.rules.restore', 'Restore')}</button>` : ''}
+            ${!isNew ? cfgDeleteButton({ label: rulesText('config.rules.delete', 'Delete'), attrs: { id: 'rules-remove-btn', onclick: 'rulesDelete()' } }) : ''}
         </div>
     </div>
     <div class="rules-field-panel">
@@ -288,8 +285,8 @@ function rulesRenderEditor(isNew) {
                 <input id="rules-priority-input" class="field-input" type="number" step="1" value="${Number.isFinite(rule.priority) ? rule.priority : 50}">
             </label>
             <div class="field-group rules-toggle-field">
-                <span class="field-label">${rulesText('config.rules.enabled', 'Enabled')}</span>
-                <label class="rules-checkbox"><input id="rules-enabled-input" type="checkbox" ${rule.enabled !== false ? 'checked' : ''}> ${rulesText('config.rules.enabled', 'Enabled')}</label>
+                <span class="field-label" id="rules-enabled-label">${rulesText('config.rules.enabled', 'Enabled')}</span>
+                <div class="toggle-wrap"><div class="toggle${rule.enabled !== false ? ' on' : ''}" id="rules-enabled-input" aria-labelledby="rules-enabled-label" onclick="rulesToggleEnabled(this)"></div><span class="toggle-label">${rule.enabled !== false ? t('config.toggle.active') : t('config.toggle.inactive')}</span></div>
                 <div class="field-help">${rulesText('config.rules.enabled_help', 'Switched-off rules are never injected into tasks.')}</div>
             </div>
         </div>
@@ -325,7 +322,7 @@ function rulesCollectPayload() {
     return {
         id,
         title: document.getElementById('rules-title-input')?.value || id,
-        enabled: !!document.getElementById('rules-enabled-input')?.checked,
+        enabled: !!document.getElementById('rules-enabled-input')?.classList.contains('on'),
         priority: parseInt(document.getElementById('rules-priority-input')?.value || '0', 10) || 0,
         tools: rulesFromCSV(document.getElementById('rules-tools-input')?.value || ''),
         workflows: rulesFromCSV(document.getElementById('rules-workflows-input')?.value || ''),
@@ -333,6 +330,13 @@ function rulesCollectPayload() {
         body: document.getElementById('rules-rule-input')?.value || '',
         design: document.getElementById('rules-design-input')?.value || ''
     };
+}
+
+// The rule editor is not part of the config draft, so its switch only flips itself (no dirty mark).
+function rulesToggleEnabled(el) {
+    const on = el.classList.toggle('on');
+    if (el.nextElementSibling?.classList.contains('toggle-label')) el.nextElementSibling.textContent = on ? t('config.toggle.active') : t('config.toggle.inactive');
+    if (typeof syncToggleA11y === 'function') syncToggleA11y(el);
 }
 
 // The editor is rebuilt after every change, so the outcome is written into the new status line
@@ -370,8 +374,9 @@ function rulesSave() {
 async function rulesDelete() {
     const id = rulesState.selected;
     if (!id) return { skipped: 'none' };
-    if (!(await showConfirm(rulesText('config.rules.confirm_delete_title', 'Delete rule'), rulesText('config.rules.confirm_delete', 'Delete this rule override?', { id })))) return { skipped: 'cancelled' };
-    return cfgActionResult(document.getElementById('rules-delete-btn'), () => fetch('/api/config/rules/' + encodeURIComponent(id), {
+    const { confirmed } = await showConfirmDialog({ title: rulesText('config.rules.confirm_delete_title', 'Delete rule'), message: rulesText('config.rules.confirm_delete', 'Delete this rule override?', { id }), danger: true, confirmText: rulesText('config.rules.delete', 'Delete') });
+    if (!confirmed) return { skipped: 'cancelled' };
+    return cfgActionResult(document.getElementById('rules-remove-btn'), () => fetch('/api/config/rules/' + encodeURIComponent(id), {
         method: 'DELETE',
         credentials: 'same-origin'
     }), {

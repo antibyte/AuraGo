@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "ओवरराइड के लिए स्तर",
   "config.llm_guardian.override_level_for": "{tool} के लिए स्तर",
   "config.llm_guardian.override_remove": "ओवरराइड हटाएँ",
-  "config.llm_guardian.override_add": "ओवरराइड जोड़ें"
+  "config.llm_guardian.override_add": "ओवरराइड जोड़ें",
+  "config.llm_guardian.risk_high": "उच्च जोखिम",
+  "config.llm_guardian.risk_elevated": "बढ़ा हुआ जोखिम"
 }

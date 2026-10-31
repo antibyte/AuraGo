@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "覆盖级别",
   "config.llm_guardian.override_level_for": "{tool} 的级别",
   "config.llm_guardian.override_remove": "移除覆盖",
-  "config.llm_guardian.override_add": "添加覆盖"
+  "config.llm_guardian.override_add": "添加覆盖",
+  "config.llm_guardian.risk_high": "高风险",
+  "config.llm_guardian.risk_elevated": "较高风险"
 }

@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "es. a1b2c3d4e5f6...",
   "config.providers.add_model": "Aggiungi modello",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 API Chiave",
-  "config.providers.auth_type_api_key_option": "🔑 Chiave API",
-  "config.providers.auth_type_oauth2": "🔐 Codice di autorizzazione OAuth2",
-  "config.providers.auth_type_oauth2_option": "🔐 Codice di autorizzazione OAuth2",
+  "config.providers.auth_type_api_key": "API Chiave",
+  "config.providers.auth_type_api_key_option": "Chiave API",
+  "config.providers.auth_type_oauth2": "Codice di autorizzazione OAuth2",
+  "config.providers.auth_type_oauth2_option": "Codice di autorizzazione OAuth2",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autenticazione",
   "config.providers.authorize": "Autorizza",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "Lascia vuoto per mantenere la chiave esistente.",
   "config.providers.keep_existing_secret": "Lascia vuoto per mantenere il secret esistente.",
   "config.providers.key_placeholder_existing": "•••••••• (invariata)",
-  "config.providers.key_set": "✔ impostata",
+  "config.providers.key_set": "impostata",
   "config.providers.loading": "Caricamento...",
   "config.providers.meshcentral_test_title": "Test di connessione MeshCentral",
   "config.providers.model_name": "Modello",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Provider selezionati mancanti: {paths}. Scegli un provider esistente in queste impostazioni.",
   "config.providers.search_help": "Filtra l'elenco dei provider per nome, tipo o modello.",
   "config.providers.filter_type_help": "Mostra solo i provider di un tipo.",
-  "config.providers.filter_role_help": "Mostra solo i provider assegnati a un compito specifico, come il modello principale o gli embedding."
+  "config.providers.filter_role_help": "Mostra solo i provider assegnati a un compito specifico, come il modello principale o gli embedding.",
+  "config.providers.copy_failed": "Copia automatica non riuscita. Copia il link manualmente."
 }

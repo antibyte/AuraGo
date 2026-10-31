@@ -28,7 +28,6 @@ func TestConfigRulesSectionContract(t *testing.T) {
 		"/api/config/rules",
 		"rules-summary-card",
 		"rules-list-header",
-		"rules-pill",
 		"rules-editor-kicker",
 		"rules-field-panel",
 		"rules-design-input",
@@ -54,8 +53,6 @@ func TestConfigRulesSectionContract(t *testing.T) {
 	for _, marker := range []string{
 		".rules-summary-card",
 		".rules-list-header",
-		".rules-card-status",
-		".rules-pill",
 		".rules-field-panel",
 		".rules-editor-kicker",
 	} {

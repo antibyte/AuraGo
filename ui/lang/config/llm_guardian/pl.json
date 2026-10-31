@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Poziom dla wyjątku",
   "config.llm_guardian.override_level_for": "Poziom dla {tool}",
   "config.llm_guardian.override_remove": "Usuń wyjątek",
-  "config.llm_guardian.override_add": "Dodaj wyjątek"
+  "config.llm_guardian.override_add": "Dodaj wyjątek",
+  "config.llm_guardian.risk_high": "Wysokie ryzyko",
+  "config.llm_guardian.risk_elevated": "Podwyższone ryzyko"
 }

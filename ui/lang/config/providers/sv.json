@@ -20,10 +20,10 @@
   "config.providers.account_id_placeholder": "t.ex. a1b2c3d4e5f6...",
   "config.providers.add_model": "Lägg till modell",
   "config.providers.api_key_placeholder": "sk-...",
-  "config.providers.auth_type_api_key": "🔑 API Nyckel",
-  "config.providers.auth_type_api_key_option": "🔑 API-nyckel",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2-auktoriseringskod",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2-auktoriseringskod",
+  "config.providers.auth_type_api_key": "API Nyckel",
+  "config.providers.auth_type_api_key_option": "API-nyckel",
+  "config.providers.auth_type_oauth2": "OAuth2-auktoriseringskod",
+  "config.providers.auth_type_oauth2_option": "OAuth2-auktoriseringskod",
   "config.providers.auth_url_placeholder": "https://accounts.google.com/o/oauth2/v2/auth",
   "config.providers.authentication": "Autentisering",
   "config.providers.authorize": "Auktorisera",
@@ -94,7 +94,7 @@
   "config.providers.keep_existing_key": "Lämna tomt för att behålla den befintliga nyckeln.",
   "config.providers.keep_existing_secret": "Lämna tomt för att hålla befintlig hemlig.",
   "config.providers.key_placeholder_existing": "•••••••• (oförändrad)",
-  "config.providers.key_set": "✔ angiven",
+  "config.providers.key_set": "angiven",
   "config.providers.loading": "Laddar...",
   "config.providers.meshcentral_test_title": "MeshCentral-anslutningstest",
   "config.providers.model_name": "Modell",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Saknade leverantörsval: {paths}. Välj en befintlig leverantör i dessa inställningar.",
   "config.providers.search_help": "Filtrerar leverantörslistan efter namn, typ eller modell.",
   "config.providers.filter_type_help": "Visar bara leverantörer av en viss typ.",
-  "config.providers.filter_role_help": "Visar bara leverantörer som tilldelats en viss uppgift, till exempel huvudmodellen eller embeddings."
+  "config.providers.filter_role_help": "Visar bara leverantörer som tilldelats en viss uppgift, till exempel huvudmodellen eller embeddings.",
+  "config.providers.copy_failed": "Automatisk kopiering misslyckades. Kopiera länken manuellt."
 }

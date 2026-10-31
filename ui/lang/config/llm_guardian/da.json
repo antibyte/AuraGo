@@ -92,5 +92,7 @@
   "config.llm_guardian.tool_treg_call": "Kald et treg-værktøj",
   "config.llm_guardian.tool_treg_catalog": "Gennemse treg-kataloget",
   "config.llm_guardian.tool_treg_status": "Forespørg om treg-status",
-  "config.llm_guardian.tool_webdav": "WebDAV-filadgang"
+  "config.llm_guardian.tool_webdav": "WebDAV-filadgang",
+  "config.llm_guardian.risk_high": "Høj risiko",
+  "config.llm_guardian.risk_elevated": "Forhøjet risiko"
 }

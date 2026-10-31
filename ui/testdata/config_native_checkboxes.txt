@@ -4,17 +4,14 @@ document_creator
 email
 github
 gog
-guardian
 mcp
 mcp_server
 memory_analysis
 meshcore
 network_shares
 newspaper
-providers
 realtime_speech
 remote_control
-rules
 s3
 sip
 skill_manager

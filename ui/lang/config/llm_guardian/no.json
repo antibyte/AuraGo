@@ -92,5 +92,7 @@
   "config.llm_guardian.override_level_label": "Nivå for overstyring",
   "config.llm_guardian.override_level_for": "Nivå for {tool}",
   "config.llm_guardian.override_remove": "Fjern overstyring",
-  "config.llm_guardian.override_add": "Legg til overstyring"
+  "config.llm_guardian.override_add": "Legg til overstyring",
+  "config.llm_guardian.risk_high": "Høy risiko",
+  "config.llm_guardian.risk_elevated": "Økt risiko"
 }

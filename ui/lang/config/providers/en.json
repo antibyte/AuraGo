@@ -19,7 +19,7 @@
   "config.providers.authorized": "Authorized",
   "config.providers.token_expired": "Token expired",
   "config.providers.not_authorized": "Not authorized",
-  "config.providers.key_set": "✔ set",
+  "config.providers.key_set": "set",
   "config.providers.id_help": "Unique identifier (e.g. main, vision-ollama, llama-3.1-8b). Lowercase; dots, hyphens and underscores allowed.",
   "config.providers.display_name": "Display name",
   "config.providers.type_help": "Provider type determines API compatibility and auto-fills the Base URL.",
@@ -78,8 +78,8 @@
   "config.providers.field_client_id": "Client ID",
   "config.providers.field_client_secret": "Client Secret",
   "config.providers.field_scopes": "Scopes",
-  "config.providers.auth_type_api_key": "🔑 API Key",
-  "config.providers.auth_type_oauth2": "🔐 OAuth2 Authorization Code",
+  "config.providers.auth_type_api_key": "API Key",
+  "config.providers.auth_type_oauth2": "OAuth2 Authorization Code",
   "config.providers.type_openai": "openai",
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_ollama": "ollama",
@@ -131,8 +131,8 @@
   "config.providers.field_model_label": "Model",
   "config.providers.model_placeholder": "gpt-4o / llama3 / ...",
   "config.providers.account_id_placeholder": "e.g. a1b2c3d4e5f6...",
-  "config.providers.auth_type_api_key_option": "🔑 API Key",
-  "config.providers.auth_type_oauth2_option": "🔐 OAuth2 Authorization Code",
+  "config.providers.auth_type_api_key_option": "API Key",
+  "config.providers.auth_type_oauth2_option": "OAuth2 Authorization Code",
   "config.providers.field_api_key_label": "API Key",
   "config.providers.api_key_placeholder": "sk-...",
   "config.providers.field_auth_url_label": "Authorization URL",
@@ -323,5 +323,6 @@
   "config.providers.missing_references": "Missing provider selections: {paths}. Select an existing provider in these settings.",
   "config.providers.search_help": "Filters the provider list by name, type or model.",
   "config.providers.filter_type_help": "Shows only providers of one type.",
-  "config.providers.filter_role_help": "Shows only providers assigned to a specific job, such as the main model or embeddings."
+  "config.providers.filter_role_help": "Shows only providers assigned to a specific job, such as the main model or embeddings.",
+  "config.providers.copy_failed": "Automatic copying failed. Please copy the link manually."
 }

@@ -76,7 +76,8 @@ func TestInjectionGuardConfigBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>document.querySelector('[data-guard-status]').textContent==='Download abgebrochen'`)
 	page.MustEval(`()=>{guardState.ready=true;guardState.state='ready';guardState.error='';document.dispatchEvent(new Event('aurago:config-saved'));}`)
 	waitForJSBool(t, page, `()=>!document.querySelector('[data-path="guardian.injection_guard.enabled"]').disabled`)
-	page.MustElement(`[data-path="guardian.injection_guard.enabled"]`).MustClick()
+	// The activation is a switch (div.toggle): drive it through its click handler like a user would.
+	page.MustEval(`()=>document.querySelector('[data-path="guardian.injection_guard.enabled"]').click()`)
 	page.MustEval(`()=>{const s=document.querySelector('#injection-guard-action');s.value='datamark';s.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustEval(`()=>document.dispatchEvent(new Event('aurago:config-saved'))`)
 	waitForJSBool(t, page, `()=>{const p=AuraConfigState.buildPatch();return p.guardian?.injection_guard?.enabled===true && p.guardian.injection_guard.action==='datamark';}`)
