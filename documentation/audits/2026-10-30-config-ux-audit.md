@@ -378,6 +378,28 @@ zuletzt System. Sektions-Keys und URLs (`#providers` …) bleiben unverändert; 
 > - EvoMap-Beschreibung ist mangels Doku vage formuliert – fachlich prüfen.
 > - Neue `.field-help`-Elemente in Telefonagent-, Echtzeit-Sprache-, Homepage-, Sandbox- und MCP-Karten nicht visuell abgenommen.
 
+> **Stand Welle 3 (2026-10-31): umgesetzt** (Plan `plans/2026-10-31-config-ux-wave3.md`).
+> - **Struktur:** `SECTIONS` in den 14 Gruppen aus §8 (+ Gefahrenzone), innerhalb nach Wichtigkeit; Gruppen mit stabiler `id`
+>   (`config.group.<id>`, 16 Sprachen); Dograh unter „Sprache & Telefonie“; `onedrive` und `devices` jetzt verlinkt (126 Sektionen).
+>   Emoji-`icon` und totes `customRender` entfernt (IA13). Deutsche Namen ohne Sprachmix: Entscheidungen, Detektiv, Zeitung,
+>   Protokolle, Bildverständnis – auch in den Texten der Sektionen; alte Navigationspfade („Medien → Speech Lab“,
+>   „Agent & KI → LLM“) in 16 Sprachen auf die neuen Gruppen umgestellt.
+> - **Zustand je Eintrag** (`ui/js/config/section_state.js`, Tabelle `sectionStatePaths` in `catalog.js`): Punkt für aktiv, eingerichtet
+>   aber aus (Ring), Fehler bei der letzten Prüfung (aus `cfgStatusBanner`, sitzungsweit, verfällt beim Ausschalten), Neustart nötig
+>   (über die Server-Startzeit `_server_started_at`/`server_started_at` in GET/PUT `/api/config`). Kernbereiche ohne Ein/Aus haben keinen Punkt.
+> - **Filter „Nur aktive“** in der Sidebar (gespeichert), kombinierbar mit der Suche. **Übersicht:** „Aktiv“ und „Braucht Aufmerksamkeit“
+>   (Fehler, Neustart, gesperrt), Gruppenkarten mit „n aktiv“. Einklapp-Zustand jetzt per Gruppen-`id`.
+> - **Nebenbei behoben:** Fritz!Box-Test-Button war dauerhaft gesperrt (Regel verlangte `fritzbox.address` statt `host`; neuer Test prüft alle
+>   `actionRules`-Pfade); OneDrive-Auth-Routen (`start`/`poll`/`revoke`) verlangen jetzt Admin.
+>
+> **Offen nach Welle 3:**
+> - Fehler- und Neustart-Zustand liegen in `sessionStorage` (pro Tab); ein Fehler erscheint erst, nachdem die Sektion einmal geprüft wurde.
+> - Laufzeit-Zustände wie „Bluetooth/Netzwerkfreigaben nicht nutzbar“ fließen nicht ein (nur Config-Flags).
+> - Doku unter `documentation/` nennt teils noch „Medien → Speech Lab“.
+> - Für Welle 4 aus `reports/ui-consistency-audit-2026-10-31.md` §2.5 übernommen: Drawer-Breakpoint 1099 px vs. 900 px und
+>   `replaceState` vs. `pushState` (M1/M2), ~12 Lösch-Button-Stile (M18), ≥ 11 Modal-Familien (M19), Feedback-Wege (M20),
+>   `div.toggle` vs. native Checkboxen (M21), Status-Pillen je Modul (M22).
+
 **Welle 1 – Gemeinsame Bausteine** (in `ui/js/config/`, dann Module darauf umstellen):
 1. `cfgActionResult(button, promise)`: Busy (disabled + „Läuft…“), Ergebnis-Zeile direkt am Button mit
    Erfolg/Fehler **inkl. Server-Grund**, `role=status`; Toast nur zusätzlich. Ersetzt die ~40 `*-test-result`-Varianten.
