@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/decisions"
@@ -84,4 +85,39 @@ func (r *gameMakerAgentRunner) gameVisualPrecheck(ctx context.Context, cfg *conf
 		precheck.HUDVisible = &visible
 	}
 	return precheck
+}
+
+// gameVisualPrecheckMargin is the wall time left untouched for the later repair
+// and validation work under the job deadline.
+const gameVisualPrecheckMargin = 60 * time.Second
+
+// startGameVisualPrecheck starts the precheck of the first capture on a goroutine.
+// One context covers refresh and evaluate, bounded by the consumer timeout and the
+// job deadline minus the margin. It returns nil when there is nothing to do or no
+// time to spare; otherwise join() waits at most until that context ends, and stop
+// releases it.
+func (r *gameMakerAgentRunner) startGameVisualPrecheck(parent context.Context, cfg *config.Config, captures []gamemaker.VisualCapture) (join func() *gamemaker.VisualPrecheck, stop func()) {
+	if len(captures) == 0 || parent.Err() != nil {
+		return nil, nil
+	}
+	timeout := consumers.Registry[consumers.GameMakerVisual].Timeout
+	if deadline, ok := parent.Deadline(); ok {
+		if room := time.Until(deadline) - gameVisualPrecheckMargin; room < timeout {
+			timeout = room
+		}
+	}
+	if timeout <= 0 {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	done := make(chan *gamemaker.VisualPrecheck, 1)
+	go func() { done <- r.gameVisualPrecheck(ctx, cfg, captures[0]) }()
+	return func() *gamemaker.VisualPrecheck {
+		select {
+		case result := <-done:
+			return result
+		case <-ctx.Done():
+			return nil
+		}
+	}, cancel
 }
