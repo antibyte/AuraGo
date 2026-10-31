@@ -203,3 +203,53 @@ func TestReconciliationFetchesInstalledReleaseAndSignature(t *testing.T) {
 		t.Fatalf("installed release manifest/signature requests = %v", paths)
 	}
 }
+
+func TestAutoStartStatusRepairPreservesModuleSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		pruned bool
+		ready  bool
+	}{
+		{name: "status_only", ready: true},
+		{name: "pruned_initializer", pruned: true, ready: true},
+		{name: "retry_incomplete_start", ready: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest := validV2Manifest()
+			fake := newFakeDocker(t, manifest)
+			manager := fake.manager(t, managedSpeechLabConfig(fake.server.URL), "")
+			if err := manager.Install(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			module := &fakeContainer{ID: "previous-asr", Name: "s2s-parakeet-cpu", Image: manifest.Images.ASR, Running: true, Attached: true, Labels: map[string]string{
+				"aurago.managed": OwnerLabel, "aurago.component": "speech-lab", "aurago.role": "module", "aurago.bundle": manifest.BundleVersion,
+				"s2s.lab.managed": "true", "stage": "asr", "backend-id": "parakeet", "variant-id": "parakeet-cpu", "s2s.image": manifest.Images.ASR,
+			}}
+			fake.addContainer(module)
+			if err := manager.Stop(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if err := manager.Start(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			// Browser Lab has since switched back to the built-in ASR. The
+			// deployer's last Stop snapshot still mentions the old module.
+			module.Running = false
+			if tc.pruned {
+				delete(fake.containers, fake.find("aurago-speech-lab-control-init").ID)
+			}
+			fake.ready = tc.ready
+			manager.fail(&Error{Code: "speech_lab_start_failed", Err: errors.New("stale deployment status")})
+			err := manager.AutoStart(context.Background())
+			if tc.ready && err != nil || !tc.ready && Code(err) != "speech_lab_not_ready" {
+				t.Fatalf("repair readiness result: %v", err)
+			}
+			if module.Running == tc.ready {
+				t.Fatal("healthy repair must retain inactive modules; an incomplete start must still resume its modules")
+			}
+			if state := manager.Status(); tc.ready && (state.State != "ready" || state.LastErrorCode != "") {
+				t.Fatalf("status was not repaired: %+v", state)
+			}
+		})
+	}
+}

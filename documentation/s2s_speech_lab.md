@@ -128,6 +128,10 @@ unavailable or a service no longer matches, the error remains; use the explicit
 managed update action after reviewing it. A healthy speech endpoint alone does
 not establish ownership of the deployment.
 
+A status repair of an already-running, ready stack leaves inactive optional
+modules stopped, even when an earlier Stop snapshot listed them as running.
+An actual service start or an incomplete startup still resumes its saved modules.
+
 Chat audio downloads retain the response or URL filename and its actual format,
 including WAV from Speech Lab or Phonon.
 

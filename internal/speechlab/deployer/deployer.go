@@ -763,6 +763,7 @@ func (m *Manager) startLocked(ctx context.Context, op operationSnapshot, previou
 		m.fail(wrapped)
 		return wrapped
 	}
+	startedService := false
 	for _, id := range ids {
 		container, found, err := m.inspectContainer(ctx, installedOp, id)
 		if err != nil || !found {
@@ -779,6 +780,16 @@ func (m *Manager) startLocked(ctx context.Context, op operationSnapshot, previou
 		if err := m.containerAction(ctx, installedOp, http.MethodPost, "/containers/"+url.PathEscape(id)+"/start"); err != nil {
 			m.fail(err)
 			return err
+		}
+		if role != "control_init" && role != "model_init" {
+			startedService = true
+		}
+	}
+	if !startedService && len(runningModuleIDs) > 0 {
+		// A historical Stop snapshot is not the desired state of a healthy
+		// running stack: Browser Lab may have deactivated these modules since.
+		if err := m.labRequest(ctx, installedOp.readinessBaseURL, http.MethodGet, "/ready", nil, min(20*time.Second, m.readinessTimeout), nil); err == nil {
+			runningModuleIDs = nil
 		}
 	}
 	for _, id := range runningModuleIDs {
