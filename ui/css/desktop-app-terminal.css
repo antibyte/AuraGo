@@ -34,6 +34,7 @@
     --vd-term-led-lit: #a4e66d;
     position: relative;
     min-height: 0;
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     container: terminal / inline-size;
 }
 
@@ -55,6 +56,9 @@
     justify-content: space-between;
     gap: 8px;
     flex-wrap: wrap;
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border, var(--vd-border)));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-terminal-toolbar-status {
@@ -72,20 +76,33 @@
 .vd-terminal-toolbar select[data-terminal-style] {
     max-width: 16rem;
     min-height: 32px;
-    background: var(--vd-theme-control-bg, var(--vd-theme-panel-bg));
-    color: var(--vd-theme-text, inherit);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
+    background: var(--vd-mat-field, var(--vd-theme-control-bg, var(--vd-theme-panel-bg)));
+    color: var(--vd-text, inherit);
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 8px);
+    box-shadow: var(--vd-mat-field-shadow, none);
     padding: 4px 8px;
 }
 
 .vd-terminal-toolbar button {
     min-height: 32px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
-    background: var(--vd-theme-control-bg, var(--vd-theme-chrome-bg));
-    color: inherit;
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-btn-radius, 8px);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg, var(--vd-theme-chrome-bg)));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, inherit);
     padding: 4px 10px;
+}
+
+.vd-terminal-toolbar button:where(:hover:not(:disabled)) {
+    background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, var(--vd-theme-chrome-bg)));
+}
+
+/* A pressed toggle (sound on) reads as selected in the active theme material. */
+.vd-terminal-toolbar button[aria-pressed="true"] {
+    background: var(--vd-mat-selected, var(--vd-theme-control-bg, var(--vd-theme-chrome-bg)));
+    box-shadow: var(--vd-mat-selected-edge, none);
+    color: var(--vd-mat-selected-text, inherit);
 }
 
 .vd-terminal-effects-dialog {
@@ -95,11 +112,11 @@
     box-sizing: border-box;
     padding: 22px;
     overflow: auto;
-    color: var(--vd-theme-text, #e2e8f0);
-    background: var(--vd-theme-panel-bg, #18212e);
-    border: 1px solid var(--vd-theme-border, #425066);
-    border-radius: 14px;
-    box-shadow: 0 18px 60px #0008;
+    color: var(--vd-text, #e2e8f0);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg, #18212e));
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border, #425066));
+    border-radius: var(--vd-mat-card-radius, 14px);
+    box-shadow: var(--vd-mat-card-shadow, 0 18px 60px #0008);
     font: 13px/1.5 system-ui, sans-serif;
 }
 
@@ -112,19 +129,29 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    background: var(--vd-theme-panel-bg, #18212e);
+    background: var(--vd-mat-card-color, var(--vd-theme-panel-bg, #18212e));
 }
-.vd-terminal-effects-dialog h2 { margin: 0; font-size: 18px; }
+.vd-terminal-effects-dialog h2 {
+    margin: 0;
+    font-size: 18px;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
+}
 .vd-terminal-effects-dialog p { margin: 6px 0 12px; opacity: 0.75; }
 .vd-terminal-effects-dialog button {
     min-height: 36px;
     padding: 6px 12px;
-    color: inherit;
-    background: var(--vd-theme-control-bg, #ffffff0a);
-    border: 1px solid var(--vd-theme-border, #425066);
-    border-radius: 7px;
+    color: var(--vd-mat-btn-text, inherit);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg, #ffffff0a));
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border, #425066));
+    border-radius: var(--vd-mat-btn-radius, 7px);
+    box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
 }
+.vd-terminal-effects-dialog button:hover { background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, #ffffff0a)); }
 .vd-terminal-effects-dialog [data-terminal-effects-close] { font-size: 22px; line-height: 1; }
 .vd-terminal-effects-dialog :focus-visible { outline: 2px solid var(--vd-theme-accent, #70b9ff); outline-offset: 3px; }
 .vd-terminal-effects-grid {
@@ -140,10 +167,13 @@
     grid-column: 1 / -1;
     margin: 10px 0 0;
     padding-top: 12px;
-    border-top: 1px solid var(--vd-theme-border, #425066);
+    border-top: 1px solid var(--vd-mat-divider, var(--vd-theme-border, #425066));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    color: var(--vd-mat-label-color, inherit);
+    letter-spacing: var(--vd-mat-label-tracking, 0.04em);
+    text-transform: var(--vd-mat-label-transform, none);
 }
 .vd-terminal-effect { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; min-width: 0; }
 .vd-terminal-effect output { opacity: 0.65; font-variant-numeric: tabular-nums; }
@@ -509,10 +539,11 @@
 .vd-terminal-toolbar select[data-terminal-baud] {
     max-width: 11rem;
     min-height: 32px;
-    background: var(--vd-theme-control-bg, var(--vd-theme-panel-bg));
+    background: var(--vd-mat-field, var(--vd-theme-control-bg, var(--vd-theme-panel-bg)));
     color: var(--vd-text, inherit);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 8px);
+    box-shadow: var(--vd-mat-field-shadow, none);
     padding: 4px 8px;
 }
 
@@ -586,17 +617,27 @@
     padding: 20px;
     overflow: auto;
     color: var(--vd-text, #e2e8f0);
-    background: var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg, #18212e));
-    border: 1px solid var(--vd-theme-border, #425066);
-    border-radius: var(--vd-theme-radius-modal, 14px);
-    box-shadow: var(--vd-theme-shadow-modal, 0 18px 60px #0008);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg, #18212e)));
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border, #425066));
+    border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-modal, 14px));
+    box-shadow: var(--vd-mat-card-shadow, var(--vd-theme-shadow-modal, 0 18px 60px #0008));
     font: 13px/1.5 var(--vd-font-ui, system-ui, sans-serif);
 }
 
 .vd-terminal-retronet-dialog::backdrop { background: var(--vd-theme-overlay-bg, #0004); }
 .vd-terminal-retronet-dialog form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 0; }
 .vd-terminal-retronet-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.vd-terminal-retronet-dialog h2 { min-width: 0; margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.vd-terminal-retronet-dialog h2 {
+    min-width: 0;
+    margin: 0;
+    font-size: 18px;
+    overflow-wrap: anywhere;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
+}
 .vd-terminal-retronet-dialog p { margin: 0; }
 .vd-terminal-retronet-hint { color: var(--vd-theme-muted, inherit); }
 
@@ -606,7 +647,16 @@
     gap: 12px 16px;
 }
 
-.vd-terminal-retronet-fields label { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.vd-terminal-retronet-fields label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: var(--vd-mat-label-font, inherit);
+    color: var(--vd-mat-label-color, inherit);
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, none);
+}
 .vd-terminal-retronet-fields label[hidden] { display: none; }
 
 .vd-terminal-retronet-fields input,
@@ -615,11 +665,14 @@
     width: 100%;
     min-height: 34px;
     padding: 6px 8px;
-    color: inherit;
-    background: var(--vd-theme-control-bg, #ffffff0a);
-    border: 1px solid var(--vd-theme-border, #425066);
-    border-radius: 7px;
+    color: var(--vd-text, inherit);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg, #ffffff0a));
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border, #425066));
+    border-radius: var(--vd-mat-field-radius, 7px);
+    box-shadow: var(--vd-mat-field-shadow, none);
     font: inherit;
+    letter-spacing: normal;
+    text-transform: none;
 }
 
 .vd-terminal-retronet-fields [aria-invalid="true"] { border-color: #d9534f; box-shadow: 0 0 0 1px #d9534f; }
@@ -644,9 +697,10 @@
     display: grid;
     gap: 10px;
     padding: 10px 12px;
-    background: var(--vd-theme-control-bg, #ffffff0a);
-    border: 1px solid var(--vd-theme-border, #425066);
+    background: var(--vd-mat-well, var(--vd-theme-control-bg, #ffffff0a));
+    border: 1px solid var(--vd-mat-divider, var(--vd-theme-border, #425066));
     border-radius: 8px;
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-terminal-retronet-confirm[hidden] { display: none; }
@@ -656,17 +710,20 @@
 .vd-terminal-retronet-dialog button {
     min-height: 36px;
     padding: 6px 12px;
-    color: inherit;
-    background: var(--vd-theme-control-bg, #ffffff0a);
-    border: 1px solid var(--vd-theme-border, #425066);
-    border-radius: 7px;
+    color: var(--vd-mat-btn-text, inherit);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg, #ffffff0a));
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border, #425066));
+    border-radius: var(--vd-mat-btn-radius, 7px);
+    box-shadow: var(--vd-mat-btn-shadow, none);
     font: inherit;
     cursor: pointer;
 }
 
+.vd-terminal-retronet-dialog button:where(:hover:not(:disabled)) { background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, #ffffff0a)); }
 .vd-terminal-retronet-dialog [data-retronet-close] { min-width: 36px; font-size: 22px; line-height: 1; }
-/* Accents are light in several themes: the Save button keeps the theme's text color on an accent wash. */
-.vd-terminal-retronet-dialog .vd-terminal-retronet-primary { color: inherit; font-weight: 600; background: var(--vd-theme-accent-soft, color-mix(in srgb, var(--vd-accent, #4c8dff) 22%, transparent)); border-color: var(--vd-accent, #4c8dff); }
+/* Accents are light in several themes: the Save button keeps readable text, on the theme's primary material (ink chosen per theme) or, without it, the theme's text color on an accent wash. */
+.vd-terminal-retronet-dialog .vd-terminal-retronet-primary { color: var(--vd-mat-primary-text, inherit); font-weight: 600; background: var(--vd-mat-primary, var(--vd-theme-accent-soft, color-mix(in srgb, var(--vd-accent, #4c8dff) 22%, transparent))); border-color: var(--vd-mat-primary-border, var(--vd-accent, #4c8dff)); box-shadow: var(--vd-mat-primary-shadow, none); }
+.vd-terminal-retronet-dialog .vd-terminal-retronet-primary:hover:not(:disabled) { background: var(--vd-mat-primary-hover, var(--vd-theme-accent-soft, color-mix(in srgb, var(--vd-accent, #4c8dff) 22%, transparent))); }
 .vd-terminal-retronet-dialog .vd-terminal-retronet-danger { color: #fff; background: #c4312b; border-color: #c4312b; }
 .vd-terminal-retronet-dialog button:disabled { opacity: 0.55; cursor: progress; }
 .vd-terminal-retronet-dialog :focus-visible { outline: 2px solid var(--vd-accent, #70b9ff); outline-offset: 2px; }

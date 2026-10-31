@@ -13,6 +13,8 @@
     let toolCountEl = null;
     let threatFillEl = null;
     let threatLevelEl = null;
+    let threatPanelEl = null;
+    let threatFlashTimer = null;
     let radarFieldEl = null;
     let agentNodeDot = null;
     let llmNodeDot = null;
@@ -161,6 +163,25 @@
         });
     }
 
+    function publishThreatLevel() {
+        // The radar shader reads the current level and shifts its alert tint.
+        window.AuraGoCyberwarThreat = threatLevel;
+        if (window.AuraGoCyberwar && typeof window.AuraGoCyberwar.setThreat === 'function') {
+            window.AuraGoCyberwar.setThreat(threatLevel);
+        }
+    }
+
+    function flashThreatLevel() {
+        if (!threatLevelEl) return;
+        threatLevelEl.classList.remove('hud-threat-flash');
+        void threatLevelEl.offsetWidth; /* force reflow so the animation restarts */
+        threatLevelEl.classList.add('hud-threat-flash');
+        if (threatFlashTimer) clearTimeout(threatFlashTimer);
+        threatFlashTimer = window.setTimeout(() => {
+            if (threatLevelEl) threatLevelEl.classList.remove('hud-threat-flash');
+        }, 900);
+    }
+
     function updateThreatGauge() {
         if (!threatFillEl || !threatLevelEl) return;
         const pct = Math.max(8, Math.min(100, 8 + threatLevel * 14));
@@ -173,9 +194,16 @@
         threatLevelEl.textContent = label;
         threatFillEl.classList.remove('threat-green', 'threat-yellow', 'threat-amber', 'threat-red');
         threatFillEl.classList.add(cls);
+        threatLevelEl.classList.remove('threat-green', 'threat-yellow', 'threat-amber', 'threat-red');
+        threatLevelEl.classList.add(cls);
+        if (threatPanelEl) {
+            threatPanelEl.classList.toggle('hud-threat-critical', threatLevel >= 4);
+        }
+        publishThreatLevel();
     }
 
     function bumpThreat(amount) {
+        const before = threatLevel;
         threatLevel = Math.min(6, threatLevel + amount);
         if (threatDecayTimer) clearTimeout(threatDecayTimer);
         threatDecayTimer = window.setTimeout(() => {
@@ -183,6 +211,7 @@
             updateThreatGauge();
         }, 12000);
         updateThreatGauge();
+        if (threatLevel > before) flashThreatLevel();
     }
 
     function addBlip(toolName, isError) {
@@ -196,10 +225,18 @@
         const dot = document.createElement('span');
         dot.className = 'hud-blist-dot';
         blip.appendChild(dot);
+        if (isError) {
+            const ring = document.createElement('span');
+            ring.className = 'hud-blist-ring';
+            blip.appendChild(ring);
+        }
         radarFieldEl.appendChild(blip);
-        blip.addEventListener('animationend', () => {
+        blip.addEventListener('animationend', function onBlipAnimationEnd(event) {
+            // Ignore animations that bubble up from the alert ring child.
+            if (event.target !== blip) return;
+            blip.removeEventListener('animationend', onBlipAnimationEnd);
             if (blip.parentElement === radarFieldEl) radarFieldEl.removeChild(blip);
-        }, { once: true });
+        });
     }
 
     function onAgentAction(payload) {
@@ -409,6 +446,7 @@
         toolCountEl = hud.querySelector('[data-counter="tools"]');
         threatFillEl = hud.querySelector('[data-threat-fill]');
         threatLevelEl = hud.querySelector('[data-threat-level]');
+        threatPanelEl = hud.querySelector('[data-panel="threat"]');
         radarFieldEl = hud.querySelector('[data-radar-field]');
         agentNodeDot = hud.querySelector('[data-node="agent"] .hud-node-dot');
         llmNodeDot = hud.querySelector('[data-node="llm"] .hud-node-dot');
@@ -556,6 +594,7 @@
         toolCountEl = null;
         threatFillEl = null;
         threatLevelEl = null;
+        threatPanelEl = null;
         radarFieldEl = null;
         agentNodeDot = null;
         llmNodeDot = null;
@@ -563,7 +602,9 @@
         webhooksNodeDot = null;
         counters = { messages: 0, tools: 0 };
         threatLevel = 0;
+        publishThreatLevel();
         if (threatDecayTimer) { clearTimeout(threatDecayTimer); threatDecayTimer = null; }
+        if (threatFlashTimer) { clearTimeout(threatFlashTimer); threatFlashTimer = null; }
         if (updateFrame) { (window.cancelAnimationFrame || window.clearTimeout)(updateFrame); updateFrame = 0; }
     }
 

@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Handmatig afgehandeld · resultaat onbekend",
+  "kaggle.resolve_unknown": "Plaats vrijgeven",
+  "kaggle.resolve_unknown_help": "Controleer op Kaggle of deze taak niet meer draait. Het vrijgeven stopt de taak niet en bevestigt het resultaat niet. Het oorspronkelijke bewijs blijft bewaard.",
+  "kaggle.resolve_unknown_confirm": "Ik heb op Kaggle gecontroleerd dat de taak niet meer draait.",
+  "config.kaggle.state_resolved_unknown": "Handmatig afgehandeld · resultaat onbekend",
+  "config.kaggle.resolve_unknown": "Plaats vrijgeven",
+  "config.kaggle.resolve_unknown_help": "Controleer op Kaggle of deze taak niet meer draait. Het vrijgeven stopt de taak niet en bevestigt het resultaat niet. Het oorspronkelijke bewijs blijft bewaard.",
+  "config.kaggle.resolve_unknown_confirm": "Ik heb op Kaggle gecontroleerd dat de taak niet meer draait.",
   "kaggle.filters": "Meer filters en opties",
   "kaggle.required": "Vul dit veld in.",
   "kaggle.overview": "Overzicht",

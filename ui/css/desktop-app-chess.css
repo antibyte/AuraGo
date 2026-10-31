@@ -19,16 +19,25 @@
     --chess-shadow: var(--vd-theme-shadow-panel);
     --chess-radius: 14px;
     --chess-radius-sm: 10px;
+    /* App materials. The --chess-panel/--chess-line family above is forced by the shared theme bridge, so the
+       material roles get their own aliases (colour-only ones feed color-mix). The wood frame and the felt are
+       the board surface and stay as they are. */
+    --chess-divider: var(--vd-mat-divider, var(--chess-line));
+    --chess-card-color: var(--vd-mat-card-color, var(--chess-panel));
+    --chess-card-radius: var(--vd-mat-card-radius, var(--chess-radius));
+    --chess-card-radius-sm: var(--vd-mat-card-radius, var(--chess-radius-sm));
+    --chess-label-font: var(--vd-mat-label-font, inherit);
+    --chess-head-font: var(--vd-mat-heading-font, inherit);
     position: relative;
     height: 100%;
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(340px, 1fr) clamp(340px, 22vw, 420px);
     --chess-column: 660px;
-    background:
+    background: var(--vd-mat-canvas,
         radial-gradient(ellipse 80% 60% at 18% 12%, color-mix(in srgb, var(--chess-accent) 18%, transparent), transparent 55%),
         radial-gradient(ellipse 70% 50% at 88% 88%, rgba(226, 168, 74, 0.1), transparent 50%),
-        var(--vd-theme-app-bg);
+        var(--vd-theme-app-bg));
     color: var(--chess-ink);
     overflow: hidden;
     font-feature-settings: "tnum" 1;
@@ -66,9 +75,9 @@
     gap: 10px;
     padding: 6px 10px;
     border-radius: var(--chess-radius-sm);
-    background: var(--chess-panel);
-    border: 1px solid var(--chess-line);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+    background: var(--vd-mat-bar, var(--chess-panel));
+    border: 1px solid var(--chess-divider);
+    box-shadow: var(--vd-mat-bar-edge, 0 8px 20px rgba(0, 0, 0, 0.16));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
 }
@@ -352,22 +361,23 @@
     gap: 2px;
     padding: 8px 12px;
     border-radius: var(--chess-radius-sm);
-    background: var(--chess-panel);
-    border: 1px solid var(--chess-line);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    background: var(--vd-mat-bar, var(--chess-panel));
+    border: 1px solid var(--chess-divider);
+    box-shadow: var(--vd-mat-bar-edge, 0 10px 24px rgba(0, 0, 0, 0.18));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
+/* The turn ring is an outline, so the bar keeps its material edge. */
 .vd-chess.is-your-turn .vd-chess-ribbon {
     border-color: color-mix(in srgb, var(--chess-accent) 45%, transparent);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18), 0 0 0 1px color-mix(in srgb, var(--chess-accent) 20%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--chess-accent) 20%, transparent);
 }
 
 .vd-chess.is-check .vd-chess-ribbon {
     border-color: color-mix(in srgb, var(--chess-danger) 55%, transparent);
-    background: color-mix(in srgb, var(--chess-danger) 12%, var(--chess-panel));
+    background: color-mix(in srgb, var(--chess-danger) 12%, var(--vd-mat-bar-color, var(--chess-panel)));
 }
 
 .vd-chess.is-thinking .vd-chess-ribbon {
@@ -380,9 +390,10 @@
 
 .vd-chess-status {
     min-width: 0;
+    font-family: var(--chess-head-font);
     font-size: 15px;
-    font-weight: 700;
-    color: var(--chess-ink);
+    font-weight: var(--vd-mat-heading-weight, 700);
+    color: var(--vd-mat-heading-color, var(--chess-ink));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -495,23 +506,31 @@
     align-items: center;
     gap: 8px;
     padding: 9px 12px;
-    border-radius: var(--chess-radius-sm);
-    background: var(--chess-panel);
-    border: 1px solid var(--chess-line);
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+    border-radius: var(--chess-card-radius-sm);
+    /* A small tile: the flat card colour, without the corner studs of the full card material. */
+    background: var(--chess-card-color);
+    border: 1px solid var(--vd-mat-card-border, var(--chess-line));
+    box-shadow: var(--vd-mat-card-shadow, 0 8px 18px rgba(0, 0, 0, 0.16));
     transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
+/* The side to move is the call to action: the theme's primary material. */
 .vd-chess-clock.is-active {
-    background: linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent));
-    border-color: transparent;
-    color: #ffffff;
+    background: var(--vd-mat-primary, linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent)));
+    border-color: var(--vd-mat-primary-border, transparent);
+    color: var(--vd-mat-primary-text, #ffffff);
     transform: scale(1.03);
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--chess-accent) 35%, transparent);
+    box-shadow: var(--vd-mat-primary-shadow, 0 10px 24px color-mix(in srgb, var(--chess-accent) 35%, transparent));
 }
 
 .vd-chess-clock.is-active .vd-chess-clock-side,
 .vd-chess-clock.is-active .vd-chess-clock-time {
+    color: var(--vd-mat-primary-text, #ffffff);
+}
+
+/* A low clock keeps its red gradient, so its digits stay white whatever the primary text colour is. */
+.vd-chess-clock.is-low.is-active .vd-chess-clock-side,
+.vd-chess-clock.is-low.is-active .vd-chess-clock-time {
     color: #ffffff;
 }
 
@@ -544,10 +563,10 @@
 .vd-chess-moves,
 .vd-chess-captured-panel,
 .vd-chess-info-panel {
-    border: 1px solid var(--chess-line);
-    border-radius: var(--chess-radius);
-    background: var(--chess-panel);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--vd-mat-card-border, var(--chess-line));
+    border-radius: var(--chess-card-radius);
+    background: var(--vd-mat-card, var(--chess-panel));
+    box-shadow: var(--vd-mat-card-shadow, 0 12px 28px rgba(0, 0, 0, 0.18));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
 }
@@ -573,8 +592,10 @@
    the game setup opens only when it is needed. */
 .vd-chess-settings {
     border-radius: 9px;
-    border: 1px solid var(--chess-line);
-    background: color-mix(in srgb, var(--chess-accent) 8%, transparent);
+    border: 1px solid var(--chess-divider);
+    /* A recessed well inside the controls card. */
+    background: var(--vd-mat-well, color-mix(in srgb, var(--chess-accent) 8%, transparent));
+    box-shadow: var(--vd-mat-well-shadow, none);
     overflow: hidden;
 }
 
@@ -585,9 +606,12 @@
     padding: 9px 12px;
     cursor: pointer;
     list-style: none;
+    font-family: var(--chess-head-font);
     font-size: 12px;
-    font-weight: 700;
-    color: var(--chess-ink);
+    font-weight: var(--vd-mat-heading-weight, 700);
+    color: var(--vd-mat-heading-color, var(--chess-ink));
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     user-select: none;
 }
 
@@ -596,7 +620,7 @@
 }
 
 .vd-chess-settings-summary:hover {
-    background: color-mix(in srgb, var(--chess-accent) 10%, transparent);
+    background: var(--vd-mat-hover, color-mix(in srgb, var(--chess-accent) 10%, transparent));
 }
 
 .vd-chess-settings-summary:focus-visible {
@@ -636,10 +660,12 @@
 .vd-chess-field label,
 .vd-chess-label,
 .vd-chess-panel-title {
+    font-family: var(--chess-label-font);
     font-size: 12px;
     font-weight: 700;
-    color: var(--chess-muted);
-    letter-spacing: 0.02em;
+    color: var(--vd-mat-label-color, var(--chess-muted));
+    letter-spacing: var(--vd-mat-label-tracking, 0.02em);
+    text-transform: var(--vd-mat-label-transform, none);
 }
 
 .vd-chess-field select,
@@ -649,10 +675,11 @@
 
 .vd-chess-field select {
     height: 34px;
-    border: 1px solid var(--chess-line);
-    border-radius: 8px;
+    border: 1px solid var(--vd-mat-field-border, var(--chess-line));
+    border-radius: var(--vd-mat-field-radius, 8px);
     padding: 0 10px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--chess-ink);
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
@@ -674,9 +701,10 @@
     grid-template-columns: 1fr 1fr;
     gap: 4px;
     padding: 3px;
-    border-radius: 9px;
-    background: var(--vd-theme-control-bg);
-    border: 1px solid var(--chess-line);
+    border-radius: var(--vd-mat-field-radius, 9px);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    border: 1px solid var(--vd-mat-field-border, var(--chess-line));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .vd-chess-segment.is-disabled {
@@ -698,6 +726,7 @@
 
 .vd-chess-segment button {
     height: 30px;
+    border-radius: calc(var(--vd-mat-field-radius, 9px) - 2px);
     background: transparent;
     color: var(--chess-muted);
     font-size: 12px;
@@ -705,14 +734,14 @@
 }
 
 .vd-chess-segment button.active {
-    background: color-mix(in srgb, var(--chess-panel-strong) 40%, #fff);
-    color: #12382d;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--chess-panel-strong) 40%, #fff));
+    color: var(--vd-mat-selected-text, #12382d);
+    box-shadow: var(--vd-mat-selected-edge, 0 4px 12px rgba(0, 0, 0, 0.18));
 }
 
 .desktop-body[data-theme] .vd-chess-segment button.active {
-    background: color-mix(in srgb, var(--vd-text, #fff) 92%, transparent);
-    color: color-mix(in srgb, var(--vd-bg, #12382d) 88%, #000);
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--vd-text, #fff) 92%, transparent));
+    color: var(--vd-mat-selected-text, color-mix(in srgb, var(--vd-bg, #12382d) 88%, #000));
 }
 
 .vd-chess-actions {
@@ -728,19 +757,21 @@
     justify-content: center;
     gap: 7px;
     padding: 0 10px;
-    background: color-mix(in srgb, var(--chess-panel-strong) 70%, transparent);
-    color: var(--chess-ink);
-    border: 1px solid var(--chess-line);
+    border-radius: var(--vd-mat-btn-radius, 7px);
+    background: var(--vd-mat-btn, color-mix(in srgb, var(--chess-panel-strong) 70%, transparent));
+    color: var(--vd-mat-btn-text, var(--chess-ink));
+    border: 1px solid var(--vd-mat-btn-border, var(--chess-line));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     font-size: 12px;
     font-weight: 700;
 }
 
 .vd-chess-actions button.vd-chess-primary {
     grid-column: 1 / -1;
-    background: linear-gradient(135deg, var(--chess-accent-deep) 0%, var(--chess-accent) 100%);
-    color: #ffffff;
-    border-color: transparent;
-    box-shadow: 0 8px 18px color-mix(in srgb, var(--chess-accent) 32%, transparent);
+    background: var(--vd-mat-primary, linear-gradient(135deg, var(--chess-accent-deep) 0%, var(--chess-accent) 100%));
+    color: var(--vd-mat-primary-text, #ffffff);
+    border-color: var(--vd-mat-primary-border, transparent);
+    box-shadow: var(--vd-mat-primary-shadow, 0 8px 18px color-mix(in srgb, var(--chess-accent) 32%, transparent));
 }
 
 .vd-chess-actions button:hover,
@@ -785,8 +816,9 @@
     gap: 6px;
     padding: 8px 10px;
     border-radius: 9px;
-    background: color-mix(in srgb, var(--chess-accent) 10%, transparent);
-    border: 1px solid var(--chess-line);
+    background: var(--vd-mat-well, color-mix(in srgb, var(--chess-accent) 10%, transparent));
+    border: 1px solid var(--chess-divider);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-chess-replay button {
@@ -795,11 +827,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--chess-panel-strong) 80%, #fff);
-    color: var(--chess-accent-deep);
+    border-radius: var(--vd-mat-btn-radius, 7px);
+    background: var(--vd-mat-btn, color-mix(in srgb, var(--chess-panel-strong) 80%, #fff));
+    color: var(--vd-mat-btn-text, var(--chess-accent-deep));
+    border: 1px solid var(--vd-mat-btn-border, transparent);
     font-weight: 800;
     font-size: 13px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+    box-shadow: var(--vd-mat-btn-shadow, 0 2px 8px rgba(0, 0, 0, 0.16));
 }
 
 .vd-chess-review-label {
@@ -817,9 +851,11 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 2px;
     padding: 3px;
-    border-radius: var(--chess-radius-sm);
-    background: color-mix(in srgb, var(--chess-accent) 10%, transparent);
-    border: 1px solid var(--chess-line);
+    border-radius: var(--vd-mat-field-radius, var(--chess-radius-sm));
+    /* A compact segmented switch like the view switch: a recessed track, not a full-height bar. */
+    background: var(--vd-mat-field, color-mix(in srgb, var(--chess-accent) 10%, transparent));
+    border: 1px solid var(--vd-mat-field-border, var(--chess-line));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .vd-chess-tabs button {
@@ -836,18 +872,18 @@
 }
 
 .vd-chess-tabs button.active {
-    background: color-mix(in srgb, var(--chess-panel-strong) 30%, #fff);
-    color: #13392f;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--chess-panel-strong) 30%, #fff));
+    color: var(--vd-mat-selected-text, #13392f);
+    box-shadow: var(--vd-mat-selected-edge, 0 4px 12px rgba(0, 0, 0, 0.16));
 }
 
 .desktop-body[data-theme] .vd-chess-tabs button.active {
-    background: color-mix(in srgb, var(--vd-text, #fff) 92%, transparent);
-    color: color-mix(in srgb, var(--vd-bg, #13392f) 88%, #000);
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--vd-text, #fff) 92%, transparent));
+    color: var(--vd-mat-selected-text, color-mix(in srgb, var(--vd-bg, #13392f) 88%, #000));
 }
 
 .vd-chess-tabs button:hover:not(.active) {
-    background: color-mix(in srgb, #fff 8%, transparent);
+    background: var(--vd-mat-hover, color-mix(in srgb, #fff 8%, transparent));
     color: var(--chess-ink);
 }
 
@@ -871,6 +907,9 @@
     padding: 0 10px 12px;
     list-style: none;
     overflow: auto;
+    /* The move list is a recessed well under the panel title. */
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-chess-moves li {
@@ -890,8 +929,9 @@
 }
 
 .vd-chess-moves li.is-review {
-    background: color-mix(in srgb, var(--chess-warn) 22%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chess-warn) 40%, transparent);
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--chess-warn) 22%, transparent));
+    color: var(--vd-mat-selected-text, inherit);
+    box-shadow: var(--vd-mat-selected-edge, inset 0 0 0 1px color-mix(in srgb, var(--chess-warn) 40%, transparent));
 }
 
 .vd-chess-move-cell {
@@ -906,7 +946,7 @@
 }
 
 .vd-chess-move-cell:hover {
-    background: color-mix(in srgb, var(--chess-accent) 18%, transparent);
+    background: var(--vd-mat-hover, color-mix(in srgb, var(--chess-accent) 18%, transparent));
     color: var(--chess-ink);
 }
 
@@ -935,9 +975,12 @@
 }
 
 .vd-chess-captured-label {
+    font-family: var(--chess-label-font);
     font-size: 12px;
     font-weight: 700;
-    color: var(--chess-muted);
+    color: var(--vd-mat-label-color, var(--chess-muted));
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, none);
 }
 
 .vd-chess-captured-pieces {
@@ -996,8 +1039,11 @@
 }
 
 .vd-chess-info-row span:first-child {
+    font-family: var(--chess-label-font);
     font-weight: 700;
-    color: var(--chess-muted);
+    color: var(--vd-mat-label-color, var(--chess-muted));
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, none);
 }
 
 .vd-chess-info-row span:last-child {
@@ -1016,10 +1062,10 @@
     width: min(380px, calc(100% - 40px));
     padding: 14px;
     transform: translate(-50%, -50%);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--chess-panel-strong) 92%, #000);
-    border: 1px solid var(--chess-line);
-    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.4);
+    border-radius: var(--chess-card-radius);
+    background: var(--vd-mat-card, color-mix(in srgb, var(--chess-panel-strong) 92%, #000));
+    border: 1px solid var(--vd-mat-card-border, var(--chess-line));
+    box-shadow: var(--vd-mat-card-shadow, 0 22px 48px rgba(0, 0, 0, 0.4));
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     animation: vd-chess-card-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.15);
@@ -1029,11 +1075,12 @@
     display: grid;
     gap: 4px;
     padding: 12px 6px;
-    background: linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent));
-    color: #ffffff;
+    border-radius: var(--vd-mat-btn-radius, 7px);
+    background: var(--vd-mat-primary, linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent)));
+    color: var(--vd-mat-primary-text, #ffffff);
     font-size: 12px;
     font-weight: 700;
-    box-shadow: 0 6px 14px color-mix(in srgb, var(--chess-accent) 28%, transparent);
+    box-shadow: var(--vd-mat-primary-shadow, 0 6px 14px color-mix(in srgb, var(--chess-accent) 28%, transparent));
 }
 
 .vd-chess-promo-glyph {
@@ -1067,11 +1114,11 @@
     padding: 22px 26px;
     min-width: 280px;
     max-width: 90%;
-    border-radius: 16px;
-    background: color-mix(in srgb, var(--chess-panel-strong) 94%, #fff);
+    border-radius: var(--vd-mat-card-radius, 16px);
+    background: var(--vd-mat-card, color-mix(in srgb, var(--chess-panel-strong) 94%, #fff));
     color: var(--chess-ink);
-    border: 1px solid var(--chess-line);
-    box-shadow: 0 28px 64px rgba(0, 0, 0, 0.42);
+    border: 1px solid var(--vd-mat-card-border, var(--chess-line));
+    box-shadow: var(--vd-mat-card-shadow, 0 28px 64px rgba(0, 0, 0, 0.42));
     transform: scale(0.96);
     animation: vd-chess-card-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.15) forwards;
     overflow: hidden;
@@ -1119,7 +1166,11 @@
 }
 
 .vd-chess-result-title {
+    font-family: var(--chess-head-font);
     font-size: 18px;
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .vd-chess-result-detail {
@@ -1162,10 +1213,11 @@
 
 .vd-chess-modal-actions button {
     height: 38px;
-    border: 1px solid var(--chess-line);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--chess-panel) 80%, transparent);
-    color: var(--chess-ink);
+    border: 1px solid var(--vd-mat-btn-border, var(--chess-line));
+    border-radius: var(--vd-mat-btn-radius, 9px);
+    background: var(--vd-mat-btn, color-mix(in srgb, var(--chess-panel) 80%, transparent));
+    color: var(--vd-mat-btn-text, var(--chess-ink));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
@@ -1173,10 +1225,10 @@
 }
 
 .vd-chess-modal-actions button.is-primary {
-    background: linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent));
-    color: #ffffff;
-    border-color: transparent;
-    box-shadow: 0 8px 16px color-mix(in srgb, var(--chess-accent) 28%, transparent);
+    background: var(--vd-mat-primary, linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent)));
+    color: var(--vd-mat-primary-text, #ffffff);
+    border-color: var(--vd-mat-primary-border, transparent);
+    box-shadow: var(--vd-mat-primary-shadow, 0 8px 16px color-mix(in srgb, var(--chess-accent) 28%, transparent));
 }
 
 .vd-chess-modal-actions button:hover {
@@ -1266,9 +1318,9 @@
     justify-self: start;
     padding: 3px;
     border-radius: 999px;
-    background: var(--chess-panel);
-    border: 1px solid var(--chess-line);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    background: var(--vd-mat-field, var(--chess-panel));
+    border: 1px solid var(--vd-mat-field-border, var(--chess-line));
+    box-shadow: var(--vd-mat-field-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.06));
 }
 
 .vd-chess-view-switch button {
@@ -1291,9 +1343,9 @@
 }
 
 .vd-chess-view-switch button.is-active {
-    background: color-mix(in srgb, var(--chess-accent) 24%, transparent);
-    color: var(--chess-ink);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chess-accent) 45%, transparent);
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--chess-accent) 24%, transparent));
+    color: var(--vd-mat-selected-text, var(--chess-ink));
+    box-shadow: var(--vd-mat-selected-edge, inset 0 0 0 1px color-mix(in srgb, var(--chess-accent) 45%, transparent));
 }
 
 .vd-chess-view-switch button:focus-visible {

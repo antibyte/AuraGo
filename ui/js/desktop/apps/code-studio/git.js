@@ -68,6 +68,7 @@
                 else state.gitSelected.delete(box.dataset.gitSelect);
             }));
         });
+        updatePolicyControls();
         const identityForm = panel.querySelector('[data-git-identity]');
         if (identityForm) identityForm.addEventListener('submit', bind(event => {
             event.preventDefault();
@@ -88,6 +89,15 @@
         scheduleTerminalFit();
     }
 
+    function scheduleGitRefresh() {
+        const instance = state;
+        clearTimeout(instance.gitRefreshTimer);
+        instance.gitRefreshTimer = setTimeout(bindInstance(instance, () => {
+            instance.gitRefreshTimer = null;
+            refreshGitStatus();
+        }), 200);
+    }
+
     async function refreshGitStatus() {
         const target = state;
         if (!isLiveInstance(target)) return;
@@ -102,6 +112,7 @@
                 rememberGitSelection(state.gitChanges);
                 renderGitPanel();
                 renderActivityBar();
+                renderStatus();
             });
         } catch (err) {
             if (isLiveInstance(target) && target.gitRequest === request) {
@@ -116,43 +127,57 @@
         }
     }
 
-    async function openGitDiff(filePath) {
+    async function openGitDiff(filePath, staged = false) {
         const target = state;
         if (!isLiveInstance(target)) return;
-        const request = target.diffRequest = Symbol();
+        let tab = target.openTabs.find(item => item.kind === 'diff' && item.gitPath === filePath);
+        if (!tab) {
+            tab = { kind: 'diff', gitPath: filePath, path: desktopToCodeStudioPath(filePath), content: '', modified: false, staged };
+            target.openTabs.push(tab);
+        }
+        tab.staged = staged;
+        tab.content = '';
+        tab.loading = true;
+        activateTab(target.openTabs.indexOf(tab));
+        const request = tab.diffRequest = Symbol();
         try {
-            const result = await apiClient.gitDiff(filePath, false);
-            if (!isLiveInstance(target) || target.diffRequest !== request) return;
+            const result = await apiClient.gitDiff(filePath, staged);
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.diffRequest !== request) return;
             runWithInstance(target, () => {
-                const diffLines = (result.diff || '').split('\n');
-                const diffHtml = diffLines.map(line => {
-                    if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="cs-diff-line added">${esc(line)}</span>`;
-                    if (line.startsWith('-') && !line.startsWith('---')) return `<span class="cs-diff-line removed">${esc(line)}</span>`;
-                    if (line.startsWith('@@')) return `<span class="cs-diff-line context">${esc(line)}</span>`;
-                    return `<span class="cs-diff-line">${esc(line)}</span>`;
-                }).join('');
-                const editor = shellPart('[data-editor]');
-                if (editor) {
-                    const tab = activeTab();
-                    if (tab) destroyTabView(tab);
-                    editor.classList.remove('code-studio-split', 'split-right', 'split-down');
-                    editor.style.gridTemplateColumns = '';
-                    editor.style.gridTemplateRows = '';
-                    editor.innerHTML = `<div class="cs-diff-view">
-                        <div class="cs-diff-view-head">
-                            <strong>${esc(filePath.split('/').pop())}</strong>
-                            <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))}</span>
-                            <span class="cs-diff-view-spacer"></span>
-                            <button type="button" class="cs-icon-button" data-diff-close title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
-                        </div>
-                        <div class="cs-diff-content">${diffHtml || `<div class="cs-empty">${esc(tr('codeStudio.noChanges', 'No changes'))}</div>`}</div>
-                    </div>`;
-                    editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => renderEditor()));
-                }
+                tab.content = result.diff || '';
+                tab.loading = false;
+                if (activeTab() === tab) renderEditor();
             });
         } catch (err) {
-            if (isLiveInstance(target) && target.diffRequest === request) runWithInstance(target, () => renderStatus(err.message || String(err)));
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.diffRequest !== request) return;
+            runWithInstance(target, () => {
+                tab.loading = false;
+                tab.content = err.message || String(err);
+                if (activeTab() === tab) renderEditor();
+            });
         }
+    }
+
+    function renderGitDiffTab(editor, tab) {
+        const diffHtml = tab.content.split('\n').map(line => {
+            const style = line.startsWith('+') && !line.startsWith('+++') ? 'added' : line.startsWith('-') && !line.startsWith('---') ? 'removed' : line.startsWith('@@') ? 'context' : '';
+            return `<span class="cs-diff-line ${style}">${esc(line)}</span>`;
+        }).join('');
+        editor.innerHTML = `<div class="cs-diff-view">
+            <div class="cs-diff-view-head">
+                <strong>${esc(baseName(tab.path))}</strong>
+                <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>
+                <span class="cs-diff-view-spacer"></span>
+                <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}">
+                    <option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option>
+                    <option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option>
+                </select>
+                <button type="button" class="cs-icon-button" data-diff-close aria-label="${esc(tr('desktop.close', 'Close'))}">×</button>
+            </div>
+            <div class="cs-diff-content">${tab.loading ? esc(tr('codeStudio.starting', 'Starting...')) : tab.content ? diffHtml : esc(tr('codeStudio.noChanges', 'No changes'))}</div>
+        </div>`;
+        editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => closeTab(state.openTabs.indexOf(tab))));
+        editor.querySelector('[data-diff-source]').addEventListener('change', bind(event => openGitDiff(tab.gitPath, event.target.value === 'index')));
     }
 
     function rememberGitSelection(changes) {
@@ -167,7 +192,7 @@
 
     async function commitGitChanges() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const msgInput = shellPart('[data-git-commit-msg]');
         const message = (msgInput ? msgInput.value : state.gitCommitMessage || '').trim();
         state.gitCommitMessage = message;
@@ -184,7 +209,7 @@
         }
         try {
             const result = await apiClient.gitCommit(message, paths);
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 flashStatus(tr('codeStudio.committed', 'Committed') + ': ' + (result.hash || '').slice(0, 7), 4000);
                 state.gitCommitMessage = '';
@@ -194,7 +219,7 @@
                 refreshGitStatus();
             });
         } catch (err) {
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 if (err && err.status === 409 && err.message === 'git_identity_required') {
                     state.gitIdentityPrompt = true;
@@ -208,7 +233,7 @@
 
     async function saveGitIdentity(formData) {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const name = String(formData.get('name') || '').trim();
         const email = String(formData.get('email') || '').trim();
         state.gitIdentityName = name;
@@ -219,7 +244,7 @@
         }
         try {
             await apiClient.gitIdentity(name, email);
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 state.gitIdentityPrompt = false;
                 renderGitPanel();

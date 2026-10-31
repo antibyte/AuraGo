@@ -828,7 +828,6 @@
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-panel,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-settings-app,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-context-menu,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-modal {
     background: rgba(24, 30, 42, 0.84);
@@ -1194,7 +1193,6 @@
 .desktop-body[data-theme="fruity"] .vd-agent-button,
 .desktop-body[data-theme="fruity"] .vd-tool-button,
 .desktop-body[data-theme="fruity"] .vd-chat-send,
-.desktop-body[data-theme="fruity"] .vd-setting-select,
 .desktop-body[data-theme="fruity"] .vd-modal-input {
     background: var(--vd-theme-control-bg);
     border-color: var(--vd-theme-border-strong);
@@ -1216,7 +1214,6 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-panel,
-.desktop-body[data-theme="fruity"] .vd-settings-app,
 .desktop-body[data-theme="fruity"] .vd-context-menu,
 .desktop-body[data-theme="fruity"] .vd-modal {
     background: rgba(255, 255, 255, 0.82);
@@ -1225,11 +1222,8 @@
     backdrop-filter: blur(28px) saturate(1.2);
 }
 
-.desktop-body[data-theme="fruity"] .vd-settings-sidebar,
-
-.desktop-body[data-theme="fruity"] .vd-context-item:hover:not(:disabled),
-.desktop-body[data-theme="fruity"] .vd-settings-nav:hover,
-.desktop-body[data-theme="fruity"] .vd-settings-nav.active {
+/* The Settings app (sidebar, navigation, selects) paints from the app materials. */
+.desktop-body[data-theme="fruity"] .vd-context-item:hover:not(:disabled) {
     background: rgba(10, 132, 255, 0.1);
 }
 
@@ -1971,7 +1965,6 @@
 
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-window,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-panel,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-settings-app,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-context-menu,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-modal {
         background: rgba(24, 30, 42, 0.84);
@@ -1994,10 +1987,7 @@
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-agent-button,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-tool-button,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-chat-send,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-setting-select,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-modal-input,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-settings-sidebar,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-setting-row.readonly {
+    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-modal-input {
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);

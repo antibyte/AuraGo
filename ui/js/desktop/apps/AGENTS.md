@@ -9,6 +9,7 @@
 - HTML outputs use DOMPurify plus an opaque sandboxed iframe/CSP. Notebook JavaScript, widgets and remote resources stay inert. On close dispose editors, requests, modal promises and SSE observers; backend jobs/kernels remain owned by their services. Conflicting drafts stay exportable.
 - All copy belongs to the sixteen `lang/kaggle` locale sets. Container queries use the window host, not the app's own container. Verify `TestKaggleNotebookBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`, both themes and concurrent narrow/wide windows. Domain contracts: `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md`.
 - `TestKaggleNotebookDraftRacesBrowser` controls save acknowledgements and output timing. `AURAGO_KAGGLE_AUDIT_URL_FILE` on the main browser test exposes its local fixture for a bounded manual review; write `<file>.stop` to close it. The fixture uses no Kaggle account.
+- Jobs expose manual slot release only for `unknown` receipts when `status.can_resolve_unknown` is true. Require an unchecked confirmation that the administrator verified inactivity on Kaggle; explain that release stops no remote work and proves no outcome. Preserve dialog input on failure and prevent duplicate submissions. Remote cancel buttons require credentials/network; local cancellation and administrative cleanup remain possible with Kaggle disabled/read-only. Verify `TestKaggleJobControlsBrowser` in both themes.
 
 ## Email exports
 
@@ -2948,12 +2949,43 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### App theme bridge contract
 
+- App materials. An app paints its structural regions from the `--vd-mat-*`
+  tokens of the active theme, with its old value as the fallback, for example
+  `background: var(--vd-mat-side, var(--ss-panel));`. The roles are canvas (app
+  root and work area), bar (headers, toolbars, tab and status bars, rulers),
+  side (sidebars, libraries, inspectors), card (cards, tiles, dialogs), well
+  (recessed editors, lists, tables), field (inputs), btn and primary (buttons),
+  selected and hover (selection), and heading, label and divider (type and
+  rules). The adoption rules, the vocabulary and the test list are in
+  `documentation/desktop-themes.md` (App materials). Skins with their own palette
+  stay out of the material layer and read no `--vd-mat-*` token: the Radio receiver
+  (`radio.css`), RTL-SDR, TeeVee (`teevee.css`), Galaxa (`galaxa-deluxe.css`),
+  Retro Games, Minigolf (its `--mg-*` aliases read the `--vd-theme-*` bridge
+  tokens), the SIP-phone hardware chrome and the Home Assistant switchboard
+  cabinet (`ha-switchboard.css`). `desktop-app-common.css` forces no role on the
+  regions that apps paint themselves: every app paints its own bars, sides, fields,
+  buttons, cards, dialogs and roots in its own stylesheet, so its role wins. The file
+  keeps a zero-specificity `:where()` default for those regions (the text colour, and
+  the border colour of the whole-app containers and chips), a field fallback for plain
+  inputs in the dialog roots, the modal overlay backdrops (`!important`), the alias
+  groups of the apps that map their own tokens (`--cam-*`, `--cs-*`, `--nc-*` and
+  similar, `!important`), the SDK toast (`.ad-toast`) as a card (`!important`), and
+  shared geometry: toolbar padding and gap, control height and button type. Generic
+  `.vd-toolbar` and `.office-toolbar` take the bar material.
+  Do not add a selector of an app that paints itself to a bridge group, the
+  app's role would lose. New apps adopt the tokens the same way, and
+  `TestDesktopAppMaterialsAdoptedByApps` (`ui/desktop_app_materials_test.go`)
+  fails for every stylesheet that `commonAppStyles` or `DESKTOP_APP_ASSETS` loads and
+  that reads no `--vd-mat-*` token, unless it is listed in `desktopAppMaterialsExempt`
+  (vendor CSS, the theme-independent skins above, `go2rtc-source-form.css` with no
+  painted region). Kaggle, the QR dialog and the GOG source panels adopt the tokens.
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
   Manager, Quick Connect, Mission Control, Software Store, Gallery, Notes,
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
-  System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
+  System Info, Pet Picker, Personal Radio (the Radio receiver skin, `radio.css`,
+  stays out), Camera, Code Studio, Network Cameras,
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
-  launcher, Chess chrome, Nasscad, Mailer and Infra read `--vd-theme-*` for chrome,
+  launcher, Chess chrome, Nasscad, Mailer and Infra paint from `--vd-mat-*` (see the first bullet) and read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows. Infra's two stylesheets are held to that by a Node guard in
   `scripts/test-infra-ui.mjs` (spec §12): no hex or literal colour functions outside `color-mix()`, no named colours, no
   `--vd-font` (use `--vd-font-ui`), no uppercase or monospace labels, no `[data-theme…]` selectors, and every `transition` or
@@ -2966,11 +2998,12 @@ buttons and menu popovers remain excluded from those gestures.
   mixes `--mc-accent-ink` (30 % accent) and `--mc-danger-ink` (60 % danger,
   45 % under `[data-scheme="light"]`) with `--vd-text` instead and needs no
   skin rule.
+- Standard and Fruity neutrality: a re-key of their shell tokens (the core tokens in `desktop-base.css` and the `--vd-theme-*` bridge in `desktop-shell-overrides.css`) must keep every `reports/desktop-audit-browser/` screenshot from `TestDesktopAuditAppearanceBrowser` pixel-identical. The app material sets in `css/desktop-materials.css` decide how app interiors look in Standard and Fruity, so a change there is a visual change: review it with the survey harness (`reports/desktop-app-materials-2026-10-31/`) instead of the pixel check.
 - Apps read the colour scheme from `document.body.dataset.scheme` (`light` or `dark`), never the theme id, and observe `data-scheme` together with `data-theme` and `data-fruity-mode` to re-theme live (Code Studio editor, CYD Creator code, Layerling, Leafy). The Fruity check (`dataset.theme === 'fruity'` with `fruityMode`) is only a fallback for harnesses that set `data-theme` directly. Verify `TestDesktopThemeRegistryShellUsesCapabilities`.
 - Calculator programmer display (`.vd-calc-prog-display`) and history chrome
-  use `--vd-theme-panel-bg` / `--vd-theme-border` / `--vd-theme-muted`. HEX,
+  paint from the `--vd-mat-well` surface with `--vd-theme-panel-bg` as the fallback. HEX,
   DEC, OCT, and BIN labels stay muted. Do not put `.vd-calc-base button.active`
-  or `.vd-calc-tabs button.active` in the control `!important` bridge.
+  or `.vd-calc-tabs button.active` in a bridge group of `desktop-app-common.css`.
 - Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
@@ -2985,7 +3018,7 @@ buttons and menu popovers remain excluded from those gestures.
   `--cheater-code-fg`); app chrome uses `--vd-theme-*` through `--cheater-*`.
 - People status badges keep semantic colors (`#e8a020` / `#6495ed` / `#32cd32`);
   danger stays `#e74c3c`. Accent-on-white remains on primary People buttons.
-- Zipper local `--zipper-*` aliases map to `--vd-theme-*`; the in-app preview
+- Zipper local `--zipper-*` aliases map to `--vd-mat-*` tokens with `--vd-theme-*` fallbacks; the in-app preview
   overlay uses `--vd-theme-panel-bg`.
 - Pixel canvas, checkerboard, and image viewport stay a dark work surface
   (`#0e1117`); toolbars, rails, panels, and dialogs follow theme via
@@ -3029,8 +3062,8 @@ buttons and menu popovers remain excluded from those gestures.
   preview letterbox and panel stay dark work surfaces (`#071018` / `#050a10`);
   `light-preview` may flip the panel to `#f2f6f8`. Warm/danger and accent-on
   `#061014` stay semantic. Icon filters stay light/dark aware. Do not put
-  `.oscad-primary` in the control `!important` bridge.
-- Webamp launcher chrome uses `--vd-theme-*`. The embedded Winamp player skin
+  `.oscad-primary` in a bridge group of `desktop-app-common.css`.
+- Webamp launcher chrome paints from `--vd-mat-canvas` with `--vd-theme-app-bg` as the fallback. The embedded Winamp player skin
   stays authentic and stays out of this bridge.
 - TeeVee is a theme-independent wood/metal CRT receiver. Its visual source is
   `documentation/assets/teevee-retro-reference.png`; retain the real shell menus
@@ -3054,15 +3087,15 @@ buttons and menu popovers remain excluded from those gestures.
 - Chess chrome uses `--chess-*` aliases mapped to `--vd-theme-*`. The wood
   frame (`--chess-board-frame*`) and felt (`--chess-felt`) stay the board
   surface. Warn/danger/good stay semantic.
-- Nasscad shell uses `--vd-theme-app-bg`; the bundled iframe viewport stays
+- Nasscad shell paints from `--vd-mat-canvas` with `--vd-theme-app-bg` as the fallback; the bundled iframe viewport stays
   `#111318`.
-- Wikipedia (`local-wikipedia`) chrome reads `--vd-theme-*`; the article iframe
+- Wikipedia (`local-wikipedia`) chrome paints from `--vd-mat-*` with `--vd-theme-*` fallbacks; the article iframe
   stays a white reading surface (`#ffffff`, light color scheme) in every theme.
 - Sysworld HUD uses `--sw-*` aliases mapped to `--vd-theme-*`. The 3D canvas
   and vignette stay a dark work surface (`#020208`). Brand cyan
   (`--sw-accent`), event/tone semantics, and `.sw-btn.active` stay. Do not put
-  `.sw-btn.active` in the control `!important` bridge.
-- Galaxa, Quake, and SIP-phone hardware chrome remain excluded.
+  `.sw-btn.active` in a bridge group of `desktop-app-common.css`.
+- Galaxa and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract
 
@@ -3766,16 +3799,30 @@ registration lives in `internal/desktop/types.go`.
   Print and exports serialize the current editor, never stale server content.
   Unknown package parts and authored font names must survive native saves.
 - Code Studio exposes `window.CodeStudioApp = { render, dispose, state, instances,
-  api, command, knownFiles, loadState, saveState, refreshFiles, openFile, openPath,
+  api, command, knownFiles, trapDialogFocus, loadState, saveState, refreshFiles, openFile, openPath,
   openFileFromDialog, saveCurrentFile, uploadFile, downloadFile }`. All
   non-command-palette modules share a single IIFE closure; `core.js` opens the
   IIFE, `shortcuts.js` closes it. Function declarations are hoisted across the
   entire IIFE scope. All `const`/`let` declarations must stay in `core.js` (the
   first module in the bundle load order).
-- The command palette drives Code Studio only through
-  `CodeStudioApp.command(name, args)` (table in `shortcuts.js`) and lists tree
-  files from `CodeStudioApp.knownFiles()`; never dispatch synthetic key events
-  or click hidden buttons from the palette.
+- The command palette captures its originating window and uses
+  `CodeStudioApp.command(name, args, windowId)` and `knownFiles(windowId)`;
+  never dispatch synthetic keys or click hidden buttons from the palette.
+  Palette and shortcut overlays close with their owner; closing another window
+  must leave them intact. Dialogs trap keyboard focus and restore it on close.
+- Code Studio uses one live `readOnly` policy from status and
+  `aurago:desktop-policy` events for both editor panes, actions, menus, uploads,
+  terminal and Git. Revocation closes terminal sessions and retains editor and
+  commit drafts. Re-enabling restores controls; Plus opens a new shell. UI guards
+  complement server authorization. Late status replies cannot overwrite a newer
+  policy event; verify `TestDesktopCodeStudioLateStatusKeepsCurrentPolicy`.
+  Insights is disabled without its shared UI;
+  source links normalize both workspace-prefixed and relative paths.
+- Tab/menu rebuilding follows structure, selection and dirty-state transitions.
+  Textarea content updates synchronously; syntax highlighting coalesces at
+  100 ms and is cancelled on disposal. Zoom measures both split views. Responsive
+  rules use the Code Studio container's inline size, and reduced motion disables
+  app/overlay animations. Preserve theme tokens and hidden-panel contracts.
 - Code Studio binds shared `state` only during synchronous work. Async handlers
   capture their instance, reject disposed/superseded requests, and explicitly
   bind UI updates after awaits. Never leave `state` switched while awaiting.
@@ -3826,6 +3873,18 @@ registration lives in `internal/desktop/types.go`.
   `0x03` only to that session. Bytes for a session that has already closed are
   discarded. A file without a runner (`codeStudio.noRunner`) does not write to
   the terminal. Runners are `go`, `python`, `.js`/`.mjs`, `.c`, and `rust`.
+- Each terminal keeps its own DOM pane; xterm opens exactly once. Tab switches
+  only toggle panes. Session disposal removes the pane, socket handlers, data
+  subscription and window disposer. Closing the last terminal leaves no session.
+  Verify visible elements and cleanup with
+  `TestDesktopCodeStudioPersistentTerminalDOMAndCleanup`.
+- Git diffs are distinct, read-only tabs with working-tree/index selection.
+  Save, Run and agent replacement cannot target a diff's hidden source. Ordinary
+  file tabs retain their drafts, selection and undo state. Git status refreshes
+  after startup and successful mutations, coalesced at 200 ms. Verify
+  `TestDesktopCodeStudioDiffTabPreservesSource`, `TestDesktopCodeStudioLivePolicyAndDrafts`,
+  `TestDesktopCodeStudioOverlaysKeepWindowOwnership` and
+  `TestDesktopCodeStudioRenderCostAndWindowWidth`.
 - Browser acceptance: `TestDesktopCodeStudioBrowser` renders the real shell,
   bundle, CodeMirror and xterm against an in-memory backend (no Docker) with
   `AURAGO_RUN_BROWSER_SMOKE=1`; set `AURAGO_BROWSER_ARTIFACT_DIR` for
@@ -3849,7 +3908,8 @@ registration lives in `internal/desktop/types.go`.
   error view when startup reports an error. The status bar shows
   `codeStudio.readOnly` when the desktop is read-only, `codeStudio.networkOff`
   when `network` is `none`, and `codeStudio.idleUntil` once a running container
-  has `last_activity` and `auto_stop_minutes` above zero. Search shows
+  has `last_activity`, `auto_stop_minutes` above zero and no active terminal
+  sessions. Search shows
   `codeStudio.resultsTruncated` when the response sets `truncated`.
 - Code Studio recognizes C source/header files and reuses the bundled CodeMirror
   C/C++ parser. Run compiles `.c` as C17 with GCC into a private temporary
@@ -4947,7 +5007,7 @@ registration lives in `internal/desktop/types.go`.
   file needed.
 - `code-studio/search.js` - Search-in-files panel with grep, result navigation.
   No child DOX file needed.
-- `code-studio/agent.js` - Agent chat panel, SSE streaming, diff preview,
+- `code-studio/agent.js` - Agent chat panel, proposal diff preview,
   code actions (explain/comments/tests/refactor), markdown rendering. No child
   DOX file needed.
 - `code-studio/git.js` - Git panel: branch display, change list with

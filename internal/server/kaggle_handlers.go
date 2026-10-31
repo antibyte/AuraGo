@@ -148,7 +148,9 @@ func (s *Server) handleKaggle(w http.ResponseWriter, r *http.Request) {
 	var result any
 	switch {
 	case path == "status" && r.Method == "GET":
-		result = b.Platform.Status()
+		status := b.Platform.Status()
+		status["can_resolve_unknown"] = s.kaggleCanResolveUnknown(r)
+		result = status
 	case path == "capabilities" && r.Method == "GET":
 		result = map[string]any{"operations": kaggle.Catalog(), "definitions": kaggle.Definitions(), "remote_cell_execution": false, "benchmark_delete": false}
 	case path == "test" && r.Method == "POST":
@@ -166,6 +168,14 @@ func (s *Server) handleKaggle(w http.ResponseWriter, r *http.Request) {
 		result = results
 	case path == "jobs" && r.Method == "GET":
 		result, err = b.Platform.Store.List(r.Context())
+	case strings.HasPrefix(path, "jobs/") && strings.HasSuffix(path, "/resolve-unknown") && r.Method == "POST":
+		if !checkDesktopOperation(s, w, r, desktopStop) {
+			return
+		}
+		requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s.resolveKaggleUnknownJob(w, r, b, strings.TrimSuffix(strings.TrimPrefix(path, "jobs/"), "/resolve-unknown"))
+		})).ServeHTTP(w, r)
+		return
 	case strings.HasPrefix(path, "jobs/") && strings.HasSuffix(path, "/cancel") && r.Method == "POST":
 		err = b.Platform.Cancel(r.Context(), strings.TrimSuffix(strings.TrimPrefix(path, "jobs/"), "/cancel"))
 		result = map[string]bool{"requested": err == nil}

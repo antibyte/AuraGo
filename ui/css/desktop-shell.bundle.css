@@ -832,7 +832,6 @@
 
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-window,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-panel,
-.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-settings-app,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-context-menu,
 .desktop-body[data-theme="fruity"][data-fruity-mode="dark"] .vd-modal {
     background: rgba(24, 30, 42, 0.84);
@@ -1198,7 +1197,6 @@
 .desktop-body[data-theme="fruity"] .vd-agent-button,
 .desktop-body[data-theme="fruity"] .vd-tool-button,
 .desktop-body[data-theme="fruity"] .vd-chat-send,
-.desktop-body[data-theme="fruity"] .vd-setting-select,
 .desktop-body[data-theme="fruity"] .vd-modal-input {
     background: var(--vd-theme-control-bg);
     border-color: var(--vd-theme-border-strong);
@@ -1220,7 +1218,6 @@
 }
 
 .desktop-body[data-theme="fruity"] .vd-panel,
-.desktop-body[data-theme="fruity"] .vd-settings-app,
 .desktop-body[data-theme="fruity"] .vd-context-menu,
 .desktop-body[data-theme="fruity"] .vd-modal {
     background: rgba(255, 255, 255, 0.82);
@@ -1229,11 +1226,8 @@
     backdrop-filter: blur(28px) saturate(1.2);
 }
 
-.desktop-body[data-theme="fruity"] .vd-settings-sidebar,
-
-.desktop-body[data-theme="fruity"] .vd-context-item:hover:not(:disabled),
-.desktop-body[data-theme="fruity"] .vd-settings-nav:hover,
-.desktop-body[data-theme="fruity"] .vd-settings-nav.active {
+/* The Settings app (sidebar, navigation, selects) paints from the app materials. */
+.desktop-body[data-theme="fruity"] .vd-context-item:hover:not(:disabled) {
     background: rgba(10, 132, 255, 0.1);
 }
 
@@ -1975,7 +1969,6 @@
 
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-window,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-panel,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-settings-app,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-context-menu,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-modal {
         background: rgba(24, 30, 42, 0.84);
@@ -1998,10 +1991,7 @@
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-agent-button,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-tool-button,
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-chat-send,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-setting-select,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-modal-input,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-settings-sidebar,
-    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-setting-row.readonly {
+    .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) .vd-modal-input {
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -14344,7 +14334,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="lollipop"] .vd-start-recent-item { border-left-color: #E65CA5; background: rgba(255, 255, 255, 0.55); }
 
 /* ---- Controls and dialogs (surfaces, colours and radii mostly come from the bridge tokens above). ---- */
-.desktop-body[data-theme="lollipop"] :is(.vd-button, .vd-tool-button, .vd-chat-send, .vd-setting-select, .vd-modal-input, .vd-notification-clear, .vd-clock-popup-open) {
+.desktop-body[data-theme="lollipop"] :is(.vd-button, .vd-tool-button, .vd-chat-send, .vd-modal-input, .vd-notification-clear, .vd-clock-popup-open) {
     border: 1px solid rgba(194, 24, 107, 0.3);
     border-radius: 12px;
     background: #fff;
@@ -14758,18 +14748,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     box-shadow: 0 22px 60px rgba(6, 3, 1, 0.68), inset 0 1px 0 rgba(255, 232, 190, 0.2);
 }
 
-/* Window content and settings panes carry the subtle walnut surface grain instead of flat solid fill */
-.desktop-body[data-theme="organic"] :is(.vd-window-content, .vd-settings-app, .vd-settings-pane, .vd-wm-cards) {
+/* Window content carries the subtle walnut surface grain instead of flat solid fill (the Settings app paints its own regions from the app materials) */
+.desktop-body[data-theme="organic"] :is(.vd-window-content, .vd-wm-cards) {
     background-color: var(--vd-theme-app-bg);
     background-image: var(--vd-organic-wood-surface);
-}
-
-.desktop-body[data-theme="organic"] .vd-settings-sidebar {
-    border-right: 1px solid rgba(212, 168, 79, 0.22);
-    background-color: #1A100A;
-    background-image:
-        linear-gradient(180deg, rgba(12, 7, 4, 0.42), rgba(8, 4, 2, 0.56)),
-        var(--vd-organic-wood-tile);
 }
 
 .desktop-body[data-theme="organic"] :is(.vd-theme-card, .vd-screensaver-card, .vd-sound-card) {
@@ -17889,12 +17871,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="minimal"] :is(.vd-button-primary, .vd-button.primary) { border-color: var(--vd-accent); background: var(--vd-accent); color: var(--vd-accent-contrast); }
 .desktop-body[data-theme="minimal"] :is(.vd-button-primary, .vd-button.primary):hover { border-color: var(--vd-accent); background: color-mix(in srgb, var(--vd-accent) 84%, var(--vd-bg)); }
 
-/* Switches: a hairline track and an ink knob; on, the track fills with ink. */
+/* Switches: a compact hairline track and a small knob; the track colours come from the app materials (well, field border, ink primary). */
 .desktop-body[data-theme="minimal"] .vd-switch { width: 40px; height: 22px; }
-.desktop-body[data-theme="minimal"] .vd-switch span { border-color: var(--vd-theme-border-strong); background: transparent; transition: background-color 160ms ease, border-color 160ms ease; }
+.desktop-body[data-theme="minimal"] .vd-switch span { transition: background-color 160ms ease, border-color 160ms ease; }
 .desktop-body[data-theme="minimal"] .vd-switch span::before { width: 14px; height: 14px; left: 3px; top: 3px; background: var(--vd-theme-muted); transition: transform 160ms ease, background-color 160ms ease; }
-.desktop-body[data-theme="minimal"] .vd-switch input:checked + span { border-color: var(--vd-accent); background: var(--vd-accent); }
-.desktop-body[data-theme="minimal"] .vd-switch input:checked + span::before { background: var(--vd-accent-contrast); transform: translateX(18px); }
+.desktop-body[data-theme="minimal"] .vd-switch input:checked + span::before { background: var(--vd-mat-primary-text, var(--vd-accent-contrast)); transform: translateX(18px); }
 .desktop-body[data-theme="minimal"] .vd-switch input:focus-visible + span { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
 
 /* A letter stands in for a missing icon: plain ink instead of the shared accent-to-amber gradient. */
@@ -18131,10 +18112,12 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-mat-btn-radius: 8px;
     --vd-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     --vd-mat-btn-text: #edf1f7;
-    --vd-mat-primary-color: var(--vd-accent);
-    --vd-mat-primary: linear-gradient(180deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 82%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 90%, #fff), color-mix(in srgb, var(--vd-accent) 90%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-text: var(--vd-accent-contrast);
+    /* Primary: the accent lightened with 20% white and dark ink on it (white on the default #E95420 is 3.65:1). The base is the darkest gradient
+       stop; the ink measures 6.6:1 on it for the default and 9.5:1 or more on the accent presets. */
+    --vd-mat-primary-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 70%, #fff), var(--vd-mat-primary-color)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 62%, #fff), color-mix(in srgb, var(--vd-accent) 74%, #fff)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #0c1016;
     --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
     --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
     --vd-mat-selected-color: #1f2a38;
@@ -18188,15 +18171,18 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-mat-btn-radius: 8px;
     --vd-mat-btn-shadow: 0 1px 1px rgba(40, 52, 76, 0.12), inset 0 1px 0 #ffffff;
     --vd-mat-btn-text: #192334;
-    --vd-mat-primary-color: var(--vd-accent);
-    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 90%, #fff), color-mix(in srgb, var(--vd-accent) 86%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 82%, #fff), color-mix(in srgb, var(--vd-accent) 92%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-text: var(--vd-accent-contrast);
+    /* Primary and selection: the user accent lightened with 20% white and navy ink on it (white on the default #0a84ff is 3.65:1; the materials
+       never redefine shell tokens). The base is the darkest gradient stop; the ink measures 6.6:1 on it for the default, 9.3:1 or more on the
+       accent presets and still 4.8:1 on a deeper #0066cc accent. */
+    --vd-mat-primary-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 70%, #fff), var(--vd-mat-primary-color)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 62%, #fff), color-mix(in srgb, var(--vd-accent) 74%, #fff)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #0b1220;
     --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 76%, #000);
     --vd-mat-primary-shadow: 0 1px 2px rgba(20, 30, 50, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    --vd-mat-selected-color: var(--vd-accent);
+    --vd-mat-selected-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
     --vd-mat-selected: var(--vd-mat-selected-color);
-    --vd-mat-selected-text: var(--vd-accent-contrast);
+    --vd-mat-selected-text: #0b1220;
     --vd-mat-selected-edge: none;
     --vd-mat-hover: color-mix(in srgb, var(--vd-accent) 12%, transparent);
     --vd-mat-divider: rgba(40, 52, 76, 0.14);
@@ -18245,15 +18231,15 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-mat-btn-radius: 8px;
     --vd-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --vd-mat-btn-text: #f5f5f7;
-    --vd-mat-primary-color: var(--vd-accent);
-    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 92%, #fff), color-mix(in srgb, var(--vd-accent) 84%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 84%, #fff), color-mix(in srgb, var(--vd-accent) 92%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 70%, #fff), var(--vd-mat-primary-color)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 62%, #fff), color-mix(in srgb, var(--vd-accent) 74%, #fff)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #0b1220;
     --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
     --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    --vd-mat-selected-color: var(--vd-accent);
+    --vd-mat-selected-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
     --vd-mat-selected: var(--vd-mat-selected-color);
-    --vd-mat-selected-text: var(--vd-accent-contrast);
+    --vd-mat-selected-text: #0b1220;
     --vd-mat-selected-edge: none;
     --vd-mat-hover: color-mix(in srgb, var(--vd-accent) 18%, transparent);
     --vd-mat-divider: rgba(255, 255, 255, 0.12);
@@ -18610,7 +18596,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* ui/css/desktop-materials-lollipop.css */
 /* desktop-materials-lollipop.css - Lollipop app materials: the candy shop inside every app window.
  * Cotton-candy canvas with sparse white and pink polka dots,candy-cane bands on the bars, a lavender ticking side, white
- * cards with pink-tinted shadows, a mint gingham tray for wells, jelly-bean pill buttons and a glossy plum gel
+ * cards with pink-tinted shadows, a pink-cream gingham tray for wells, jelly-bean pill buttons and a glossy plum gel
  * primary. Text is plum (#4A1F3D) and muted plum (#7A4A6C) from the skin. Only custom properties live here;
  * the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
 
@@ -18636,10 +18622,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-mat-card-radius: 18px;
     --vd-mat-card-shadow: 0 8px 20px -6px rgba(194, 24, 107, 0.28), 0 2px 5px rgba(230, 92, 165, 0.14), inset 0 -3px 0 rgba(230, 92, 165, 0.1);
 
-    /* Wells: a mint gingham tray pressed into the canvas */
-    --vd-mat-well-color: #E8F8F0;
-    --vd-mat-well: repeating-linear-gradient(0deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), repeating-linear-gradient(90deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), var(--vd-mat-well-color);
-    --vd-mat-well-shadow: inset 0 3px 7px rgba(46, 160, 120, 0.22), inset 0 0 0 1px rgba(105, 207, 168, 0.55);
+    /* Wells: a pink-cream tray with a faint pink gingham, pressed into the canvas */
+    --vd-mat-well-color: #FFF4F9;
+    --vd-mat-well: repeating-linear-gradient(0deg, rgba(230, 92, 165, 0.06) 0 8px, rgba(230, 92, 165, 0) 8px 16px), repeating-linear-gradient(90deg, rgba(230, 92, 165, 0.06) 0 8px, rgba(230, 92, 165, 0) 8px 16px), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 3px 7px rgba(194, 24, 107, 0.16), inset 0 0 0 1px rgba(230, 92, 165, 0.34);
 
     /* Fields: white with a pink hairline and a soft inner shade */
     --vd-mat-field-color: #FFFFFF;

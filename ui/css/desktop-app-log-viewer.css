@@ -6,7 +6,7 @@
     height: 100%;
     min-height: 0;
     color: var(--vd-text);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     overflow: hidden;
 }
 
@@ -14,8 +14,8 @@
 .vd-logviewer-sidebar,
 .vd-logviewer-list,
 .vd-logviewer-detail {
-    border: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-panel-bg);
+    border: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-side, var(--vd-theme-panel-bg));
     box-shadow: none;
     backdrop-filter: none;
     border-radius: 0;
@@ -30,7 +30,8 @@
     padding: var(--vd-toolbar-padding);
     border-radius: 0;
 
-    background: var(--vd-theme-chrome-bg);
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-logviewer-kicker {
@@ -46,10 +47,11 @@
     flex: 1 1 220px;
     min-width: 160px;
     height: 32px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 9px;
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 9px);
     padding: 0 10px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--vd-text);
 }
 
@@ -70,9 +72,10 @@
 .vd-logviewer-chip,
 .vd-logviewer-toolbar button,
 .vd-logviewer-jump {
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 5px;
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-btn-radius, 5px);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     color: var(--vd-theme-muted);
     font: inherit;
     font-size: 12px;
@@ -96,8 +99,8 @@
 
 .vd-logviewer-chip[data-level="DEBUG"].is-on { border-color: rgba(160, 176, 192, 0.4); }
 .vd-logviewer-chip[data-level="INFO"].is-on { border-color: color-mix(in srgb, var(--vd-accent) 45%, transparent); }
-.vd-logviewer-chip[data-level="WARN"].is-on { color: color-mix(in srgb, var(--vd-text) 65%, #e0a23a); border-color: color-mix(in srgb, var(--vd-amber, #e0a23a) 45%, transparent); }
-.vd-logviewer-chip[data-level="ERROR"].is-on { color: color-mix(in srgb, var(--vd-text) 65%, #ff8066); border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 45%, transparent); }
+.vd-logviewer-chip[data-level="WARN"].is-on { color: light-dark(color-mix(in srgb, #e0a23a 22%, var(--vd-text)), color-mix(in srgb, var(--vd-text) 65%, #e0a23a)); border-color: color-mix(in srgb, var(--vd-amber, #e0a23a) 45%, transparent); }
+.vd-logviewer-chip[data-level="ERROR"].is-on { color: light-dark(color-mix(in srgb, #ff8066 22%, var(--vd-text)), color-mix(in srgb, var(--vd-text) 65%, #ff8066)); border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 45%, transparent); }
 
 .vd-logviewer-chip-count {
     min-width: 1.4em;
@@ -110,10 +113,23 @@
     padding: 0 11px;
 }
 
+.vd-logviewer-toolbar button:not(.vd-logviewer-chip) {
+    color: var(--vd-mat-btn-text, var(--vd-theme-muted));
+}
+
 .vd-logviewer-toolbar button.is-on,
 .vd-logviewer-toolbar button[aria-pressed="true"] {
     color: var(--vd-text);
     background: color-mix(in srgb, var(--vd-accent) 16%, transparent);
+}
+
+/* Pressed toolbar toggles take the theme's selection material; the level chips keep their translucent tint so the
+   amber and coral level colours stay readable on every theme. */
+.vd-logviewer-toolbar button.is-on:not(.vd-logviewer-chip),
+.vd-logviewer-toolbar button[aria-pressed="true"]:not(.vd-logviewer-chip) {
+    color: var(--vd-mat-selected-text, var(--vd-text));
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--vd-accent) 16%, transparent));
+    box-shadow: var(--vd-mat-selected-edge, none);
 }
 
 .vd-logviewer-live {
@@ -173,13 +189,18 @@
     overflow: hidden;
 }
 
+.vd-logviewer-sidebar {
+    box-shadow: var(--vd-mat-side-edge, none);
+}
+
 .vd-logviewer-pane-title {
     padding: 10px 12px 6px;
-    color: var(--vd-theme-muted);
+    color: var(--vd-mat-label-color, var(--vd-theme-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, 0.04em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .vd-logviewer-files {
@@ -203,8 +224,14 @@
 }
 
 .vd-logviewer-file.is-active {
-    border-color: color-mix(in srgb, var(--vd-accent) 35%, transparent);
-    background: color-mix(in srgb, var(--vd-accent) 12%, transparent);
+    border-color: var(--vd-mat-divider, color-mix(in srgb, var(--vd-accent) 35%, transparent));
+    background: var(--vd-mat-selected, color-mix(in srgb, var(--vd-accent) 12%, transparent));
+    box-shadow: var(--vd-mat-selected-edge, none);
+    color: var(--vd-mat-selected-text, inherit);
+}
+
+.vd-logviewer-file.is-active .vd-logviewer-file-meta {
+    color: color-mix(in srgb, var(--vd-mat-selected-text, var(--vd-theme-muted)) 82%, transparent);
 }
 
 .vd-logviewer-file-name {
@@ -228,6 +255,8 @@
     position: relative;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
+    background: var(--vd-mat-well, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-logviewer-scroller {
@@ -235,7 +264,7 @@
     overflow: auto;
     /* Virtual rows are replaced during scrolling; anchoring would amplify wheel steps. */
     overflow-anchor: none;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--vd-mat-mono-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
     font-size: var(--lv-font, 12px);
 }
 
@@ -251,7 +280,7 @@
     min-height: var(--lv-row-h);
     padding: 4px 10px;
     border: 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--vd-theme-border) 55%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--vd-mat-divider, var(--vd-theme-border)) 55%, transparent);
     background: transparent;
     color: inherit;
     width: 100%;
@@ -260,11 +289,14 @@
 }
 
 .vd-logviewer-row:nth-child(odd) {
-    background: rgba(255, 255, 255, 0.015);
+    background: color-mix(in srgb, var(--vd-mat-divider, rgba(255, 255, 255, 0.06)) 14%, transparent);
 }
 
+/* The selected row keeps a translucent tint (the level pills carry their own semantic colours) and gains the
+   theme's selection marker. */
 .vd-logviewer-row.is-selected {
     background: color-mix(in srgb, var(--vd-accent) 14%, transparent);
+    box-shadow: var(--vd-mat-selected-edge, none);
 }
 
 .vd-logviewer-row-no,
@@ -296,9 +328,10 @@
 }
 
 .vd-logviewer-level.is-debug { color: var(--vd-muted); background: rgba(160, 176, 192, 0.12); }
-.vd-logviewer-level.is-info { color: var(--vd-accent); background: color-mix(in srgb, var(--vd-accent) 14%, transparent); }
-.vd-logviewer-level.is-warn { color: var(--vd-amber, #e0a23a); background: color-mix(in srgb, var(--vd-amber, #e0a23a) 16%, transparent); }
-.vd-logviewer-level.is-error { color: var(--vd-coral, #ff8066); background: color-mix(in srgb, var(--vd-coral, #ff8066) 16%, transparent); }
+/* Light themes tint the level colour into the ink (raw amber and coral fall to 2:1 on the Amiga grey); dark themes keep the raw colours. */
+.vd-logviewer-level.is-info { color: light-dark(color-mix(in srgb, var(--vd-accent) 30%, var(--vd-text)), var(--vd-accent)); background: color-mix(in srgb, var(--vd-accent) 14%, transparent); }
+.vd-logviewer-level.is-warn { color: light-dark(color-mix(in srgb, var(--vd-amber, #e0a23a) 22%, var(--vd-text)), var(--vd-amber, #e0a23a)); background: color-mix(in srgb, var(--vd-amber, #e0a23a) 16%, transparent); }
+.vd-logviewer-level.is-error { color: light-dark(color-mix(in srgb, var(--vd-coral, #ff8066) 22%, var(--vd-text)), var(--vd-coral, #ff8066)); background: color-mix(in srgb, var(--vd-coral, #ff8066) 16%, transparent); }
 
 .vd-logviewer-empty,
 .vd-logviewer-banner {
@@ -314,6 +347,7 @@
     min-height: 32px;
     padding: 0 12px;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    color: var(--vd-mat-btn-text, var(--vd-theme-muted));
 }
 
 .vd-logviewer-detail {
@@ -336,7 +370,8 @@
 }
 
 .vd-logviewer-kv dt {
-    color: var(--vd-theme-muted);
+    color: var(--vd-mat-label-color, var(--vd-theme-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-weight: 700;
 }
 
@@ -349,9 +384,10 @@
     margin: 0;
     padding: 8px;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--vd-mat-well, rgba(0, 0, 0, 0.28));
+    box-shadow: var(--vd-mat-well-shadow, none);
     color: var(--vd-text);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--vd-mat-mono-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
     font-size: 0.74rem;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -365,9 +401,10 @@
     width: 100%;
     min-height: 32px;
     border: 0;
-    border-radius: 9px;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--vd-accent) 80%, #000), var(--vd-accent));
-    color: var(--vd-accent-contrast, #fff);
+    border-radius: var(--vd-mat-btn-radius, 9px);
+    background: var(--vd-mat-primary, linear-gradient(135deg, color-mix(in srgb, var(--vd-accent) 80%, #000), var(--vd-accent)));
+    box-shadow: var(--vd-mat-primary-shadow, none);
+    color: var(--vd-mat-primary-text, var(--vd-accent-contrast, #fff));
     font-weight: 700;
     cursor: pointer;
 }

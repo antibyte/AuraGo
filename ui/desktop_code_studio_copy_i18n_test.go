@@ -13,7 +13,7 @@ func TestDesktopCodeStudioCopyI18n(t *testing.T) {
 	source := readDesktopAssetText(t, "js/desktop/apps/code-studio/agent.js")
 	for _, want := range []string{
 		"esc(tr('desktop.copy'))",
-		"tr('desktop.copied')",
+		"copyTextToClipboard(code.textContent)",
 		"tr('desktop.copy')",
 	} {
 		if !strings.Contains(source, want) {

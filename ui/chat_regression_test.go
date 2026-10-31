@@ -4032,3 +4032,92 @@ func TestChatFrontend_OceanSeaLifeStaysBehindMessages(t *testing.T) {
 		t.Fatal("sea life renderer bundle is stale; run node scripts/build-chat-ocean-life.js")
 	}
 }
+
+func TestChatFrontend_RetroCRTThemeStaysPolished(t *testing.T) {
+	t.Parallel()
+
+	chatContent, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read css/chat.css: %v", err)
+	}
+	chatCSS := normalizeAssetText(chatContent)
+
+	for _, forbidden := range []string{
+		"[data-theme=\"retro-crt\"] body * {\n            color: inherit !important;",
+		"animation: crt-flicker 0.15s infinite;",
+	} {
+		if strings.Contains(chatCSS, forbidden) {
+			t.Fatalf("css/chat.css still contains destructive retro-crt rule %q", forbidden)
+		}
+	}
+
+	for _, marker := range []string{
+		`--crt-peak:`,
+		`#d8ffcc;`,
+		`--crt-bright:`,
+		`#62ff3b;`,
+		`--crt-medium:`,
+		`#39e614;`,
+		`--crt-dim:`,
+		`#1ca808;`,
+		`--crt-amber-bright:`,
+		`#ffb538;`,
+		`html[data-theme="retro-crt"]::before`,
+		`html[data-theme="retro-crt"]::after`,
+		`[data-theme="retro-crt"] #chat-box::before`,
+		`@keyframes crtBeamSweep`,
+		`@keyframes crtHeaderTraceSweep`,
+		`@keyframes crtMessageScanIn`,
+		`@keyframes crtBubbleRasterSweep`,
+		`@keyframes crtReticlePulse`,
+		`@keyframes crtSendArmedPulse`,
+		`@keyframes crtStatusSweep`,
+		`[data-theme="retro-crt"] .session-edge-tab:hover`,
+		`transform: translateY(-50%) !important;`,
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("css/chat.css missing retro-crt polish marker %q", marker)
+		}
+	}
+
+	crtShaderContent, err := os.ReadFile(filepath.Join("js", "crt-shader.js"))
+	if err != nil {
+		t.Fatalf("read js/crt-shader.js: %v", err)
+	}
+	crtShader := normalizeAssetText(crtShaderContent)
+	for _, marker := range []string{
+		`canvas.id = 'crt-overlay'`,
+		`uniform float u_typing;`,
+		`uniform vec2 u_pointer;`,
+		`uniform float u_pointer_energy;`,
+		`degaussWave`,
+		`pointerWake`,
+		`'visibilitychange'`,
+		`'webglcontextlost'`,
+		`window.AuraGoCRT = { start, stop, checkTheme, boostTheme, boostActivity };`,
+	} {
+		if !strings.Contains(crtShader, marker) {
+			t.Fatalf("js/crt-shader.js missing marker %q", marker)
+		}
+	}
+
+	persistenceContent, err := os.ReadFile(filepath.Join("js", "crt-persistence-shader.js"))
+	if err != nil {
+		t.Fatalf("read js/crt-persistence-shader.js: %v", err)
+	}
+	persistenceShader := normalizeAssetText(persistenceContent)
+	for _, marker := range []string{
+		`canvas.id = 'crt-persistence-overlay'`,
+		`uniform float u_typing;`,
+		`uniform float u_warmup;`,
+		`warmupLine`,
+		`typingTrail`,
+		`'visibilitychange'`,
+		`'webglcontextlost'`,
+		`window.AuraGoCRTPersistence = { start, stop, sync, boostTheme, boostActivity };`,
+	} {
+		if !strings.Contains(persistenceShader, marker) {
+			t.Fatalf("js/crt-persistence-shader.js missing marker %q", marker)
+		}
+	}
+}

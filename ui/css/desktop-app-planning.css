@@ -20,7 +20,8 @@
 }
 
 .vd-todo {
-    background: var(--vd-theme-app-bg);
+    --todo-line: var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
 }
 
 .vd-todo-sidebar,
@@ -29,16 +30,22 @@
     min-height: 0;
     overflow: auto;
     padding: 14px;
-    border-right: 1px solid var(--vd-theme-border);
+    border-right: 1px solid var(--todo-line);
 }
 
 .vd-todo-sidebar {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: var(--vd-theme-panel-bg);
+    background: var(--vd-mat-side, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-side-edge, none);
 
     padding: 12px;
+}
+
+.vd-todo-detail {
+    background: var(--vd-mat-side, transparent);
+    box-shadow: var(--vd-mat-side-edge, none);
 }
 
 .vd-todo-add,
@@ -54,11 +61,12 @@
 .vd-todo select {
     width: 100%;
     box-sizing: border-box;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 8px);
     padding: 9px 10px;
     color: var(--vd-text);
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .vd-todo input[type="checkbox"] {
@@ -78,12 +86,12 @@
 
 .vd-todo-card {
     padding: 10px 12px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 7px;
-    background: var(--vd-theme-panel-bg);
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-card-radius, 7px);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg));
     cursor: pointer;
 
-    box-shadow: none;
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
 
 .vd-todo-card-grid {
@@ -114,14 +122,26 @@
     line-height: 1.35;
 }
 
-.vd-todo-card:hover,
+.vd-todo-card:hover {
+    border-color: var(--vd-theme-accent-border, var(--vd-accent));
+    background:
+        linear-gradient(var(--vd-mat-hover, var(--vd-theme-accent-soft)), var(--vd-mat-hover, var(--vd-theme-accent-soft))),
+        var(--vd-mat-card, var(--vd-theme-panel-bg));
+}
+
 .vd-todo-card.active {
     border-color: var(--vd-theme-accent-border, var(--vd-accent));
-    background: var(--vd-theme-accent-soft);
+    background: var(--vd-mat-selected, var(--vd-theme-accent-soft));
+    color: var(--vd-mat-selected-text, inherit);
+    box-shadow: var(--vd-mat-selected-edge, var(--vd-mat-card-shadow, none));
+}
+
+.vd-todo-card.active .vd-todo-card-copy small {
+    color: var(--vd-mat-selected-text, var(--vd-muted));
 }
 
 .vd-todo-card.overdue {
-    border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 55%, var(--vd-theme-border));
+    border-color: color-mix(in srgb, var(--vd-coral, #ff8066) 55%, var(--vd-mat-divider, var(--vd-theme-border)));
 }
 
 .vd-todo-priority {
@@ -169,7 +189,7 @@
     gap: 8px;
     padding: 8px;
     border-radius: 8px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-card-color, var(--vd-theme-control-bg));
 }
 
 .vd-todo-item-title {
@@ -206,7 +226,7 @@
     min-height: 100%;
     padding: 18px;
     box-sizing: border-box;
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
 }
 
 .vd-webamp-launcher-header {
@@ -223,9 +243,12 @@
 }
 
 .vd-webamp-launcher-copy strong {
-    color: var(--vd-text);
+    color: var(--vd-mat-heading-color, var(--vd-text));
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 15px;
-    font-weight: 650;
+    font-weight: var(--vd-mat-heading-weight, 650);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .vd-webamp-launcher-copy span {
@@ -239,9 +262,10 @@
     justify-content: space-between;
     gap: 10px;
     padding: 10px 12px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
-    background: var(--vd-theme-panel-bg);
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-card-radius, 8px);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-card-shadow, none);
     color: var(--vd-theme-muted);
     font-size: 12px;
 }

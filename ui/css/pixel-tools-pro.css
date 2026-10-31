@@ -24,7 +24,8 @@
     z-index: 1;
     margin-top: 2px;
     padding-bottom: 4px;
-    background: var(--vd-theme-chrome-bg);
+    /* opaque on purpose (the tools scroll under it): the side colour of the rail */
+    background: var(--vd-mat-side-color, var(--vd-theme-chrome-bg));
 }
 
 /* Option bar: the param-kit controls of a tool sit in one wrapping row. */
@@ -70,8 +71,9 @@
 }
 
 .pixel-opt-label {
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 0.76rem;
-    color: var(--pixel-muted);
+    color: var(--vd-mat-label-color, var(--pixel-muted));
 }
 
 .pixel-opt-select {

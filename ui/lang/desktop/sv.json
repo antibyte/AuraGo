@@ -10651,5 +10651,13 @@
   "game_maker.guided_base_change": "Flytta spelet till en guidad 3D-mall som passar förloppet: utforskning, körning, flygning, rymd eller FPS. Fritt three lämnar reglerna overifierade.",
   "game_maker.retry_keeps_pending_selection": "Försök igen behåller det här loppets asset-val, eftersom ingen plan har godkänts ännu.",
   "game_maker.compact_opt_in": "Använd kompaktläge för den här okända modellen. Planen blir kortare och en ny mall ändras i små steg.",
-  "desktop.app_kaggle": "Kaggle"
+  "desktop.app_kaggle": "Kaggle",
+  "codeStudio.diffWorktree": "Arbetskopia",
+  "codeStudio.diffIndex": "Index (förberedda ändringar)",
+  "codeStudio.promptSelection": "den markerade koden",
+  "codeStudio.promptFile": "den aktuella filen",
+  "codeStudio.promptExplain": "Förklara {{target}} i {{path}}.",
+  "codeStudio.promptComments": "Lägg till tydliga kommentarer till {{target}} i {{path}}. Returnera endast den ändrade koden.",
+  "codeStudio.promptTests": "Skapa användbara tester för {{path}}. Returnera kodblock för nya eller ändrade filer.",
+  "codeStudio.promptRefactor": "Refaktorera {{target}} i {{path}}. Returnera endast den ändrade koden."
 }

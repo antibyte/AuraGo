@@ -536,7 +536,7 @@ async function testTakeoverPeerProbeAndModalContrast() {
   );
   assert.match(
     styles,
-    /\.realtime-speech-modal-actions \.primary\s*\{[\s\S]*?background:\s*var\(--rt-accent,\s*#2fc5a9\)/,
+    /\.realtime-speech-modal-actions \.primary\s*\{[\s\S]*?background:\s*var\(--vd-mat-primary,\s*var\(--rt-accent,\s*#2fc5a9\)\)/,
     'the takeover action must retain a visible background when theme variables are absent'
   );
 }

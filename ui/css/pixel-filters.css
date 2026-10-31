@@ -4,9 +4,10 @@
     box-sizing: border-box;
     width: 100%;
     padding: 5px 9px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 6px;
-    background: var(--pixel-surface);
+    border: 1px solid var(--vd-mat-field-border, var(--pixel-line));
+    border-radius: var(--vd-mat-field-radius, 6px);
+    background: var(--vd-mat-field, var(--pixel-surface));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: inherit;
     font: inherit;
     font-size: 0.8rem;
@@ -44,7 +45,7 @@
     gap: 8px;
     margin-top: 4px;
     padding-top: 8px;
-    border-top: 1px solid var(--pixel-line);
+    border-top: 1px solid var(--vd-mat-divider, var(--pixel-line));
 }
 
 .pixel-fx-detail[hidden] {
@@ -60,7 +61,12 @@
 
 .pixel-fx-title {
     min-width: 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 0.86rem;
+    font-weight: var(--vd-mat-heading-weight, inherit);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -82,7 +88,7 @@
     flex-direction: column;
     gap: 6px;
     padding-top: 6px;
-    border-top: 1px dashed var(--pixel-line);
+    border-top: 1px dashed var(--vd-mat-divider, var(--pixel-line));
 }
 
 .pixel-fx-fade .pixel-select {
@@ -174,11 +180,12 @@
 
 .pixel-fx-group-title {
     margin: 4px 0 0;
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 0.7rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--pixel-muted);
+    letter-spacing: var(--vd-mat-label-tracking, 0.06em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--pixel-muted));
 }
 
 /* Curves editor */

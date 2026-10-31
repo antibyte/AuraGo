@@ -42,6 +42,19 @@ type Session struct {
 	writeMu   sync.Mutex
 	stopMu    sync.Mutex
 }
+
+// SessionSnapshot contains only the public state, without runtime handles or locks.
+type SessionSnapshot struct {
+	ID        string `json:"id"`
+	Project   string `json:"project_id"`
+	File      string `json:"file"`
+	Status    string `json:"status"`
+	Error     string `json:"error,omitempty"`
+	Internet  bool   `json:"internet"`
+	Execution string `json:"execution_id,omitempty"`
+	Revision  string `json:"revision,omitempty"`
+	Cell      string `json:"cell_id,omitempty"`
+}
 type Kernels struct {
 	storage     *kaggle.Service
 	documents   *Documents
@@ -90,24 +103,24 @@ func (k *Kernels) permission(internet bool) error {
 	}
 	return nil
 }
-func snapshotSession(s *Session) Session {
-	return Session{ID: s.ID, Project: s.Project, File: s.File, Status: s.Status, Error: s.Error, Internet: s.Internet, Execution: s.Execution, Revision: s.Revision, Cell: s.Cell}
+func snapshotSession(s *Session) SessionSnapshot {
+	return SessionSnapshot{ID: s.ID, Project: s.Project, File: s.File, Status: s.Status, Error: s.Error, Internet: s.Internet, Execution: s.Execution, Revision: s.Revision, Cell: s.Cell}
 }
-func (k *Kernels) List() []Session {
+func (k *Kernels) List() []SessionSnapshot {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	out := []Session{}
+	out := []SessionSnapshot{}
 	for _, s := range k.sessions {
 		out = append(out, snapshotSession(s))
 	}
 	return out
 }
-func (k *Kernels) Start(project, file string, files []string, internet bool) (Session, error) {
+func (k *Kernels) Start(project, file string, files []string, internet bool) (SessionSnapshot, error) {
 	if err := k.permission(internet); err != nil {
-		return Session{}, err
+		return SessionSnapshot{}, err
 	}
 	if _, err := k.documents.Load(project, file); err != nil {
-		return Session{}, err
+		return SessionSnapshot{}, err
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -118,7 +131,7 @@ func (k *Kernels) Start(project, file string, files []string, internet bool) (Se
 		}
 	}
 	if active >= k.storage.Snapshot().Config.Local.MaxSessions {
-		return Session{}, errors.New("local notebook session limit reached")
+		return SessionSnapshot{}, errors.New("local notebook session limit reached")
 	}
 	ctx, cancel := context.WithCancel(k.ctx)
 	s := &Session{ID: kernelID(), Project: project, File: file, Status: "starting", Internet: internet, files: append([]string(nil), files...), cancel: cancel, last: time.Now()}
@@ -277,17 +290,17 @@ func (k *Kernels) Stop(id, reason string) error {
 	_, _ = k.storage.Store.Emit(ctx, "session", state)
 	return err
 }
-func (k *Kernels) Restart(id string) (Session, error) {
+func (k *Kernels) Restart(id string) (SessionSnapshot, error) {
 	k.mu.Lock()
 	s := k.sessions[id]
 	if s == nil {
 		k.mu.Unlock()
-		return Session{}, errors.New("unknown notebook session")
+		return SessionSnapshot{}, errors.New("unknown notebook session")
 	}
 	p, f, files, internet := s.Project, s.File, append([]string(nil), s.files...), s.Internet
 	k.mu.Unlock()
 	if err := k.Stop(id, "kernel_restarted"); err != nil {
-		return Session{}, err
+		return SessionSnapshot{}, err
 	}
 	return k.Start(p, f, files, internet)
 }

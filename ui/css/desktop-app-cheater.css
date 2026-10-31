@@ -14,12 +14,14 @@
     --cheater-border: var(--vd-theme-border);
     --cheater-accent: var(--vd-accent, var(--ds-color-accent-500, #27c7a6));
     --cheater-accent-fg: var(--vd-accent-contrast, #ffffff);
-    --cheater-hover: var(--vd-theme-control-hover);
+    /* App materials: hovered rows follow the theme's hover wash, the old control hover stays as fallback. */
+    --cheater-hover: var(--vd-mat-hover, var(--vd-theme-control-hover));
     --cheater-pill-bg: var(--vd-theme-accent-soft);
     --cheater-selected-bg: var(--vd-theme-accent-soft);
-    --cheater-code-bg: rgba(5, 9, 15, 0.55);
+    /* Code blocks keep a dark work surface; opaque so a light card behind them cannot wash it out. */
+    --cheater-code-bg: #0a1018;
     --cheater-code-fg: #e8eef6;
-    --cheater-code-inline-bg: var(--vd-theme-control-bg);
+    --cheater-code-inline-bg: var(--vd-mat-field-color, var(--vd-theme-control-bg));
     --cheater-toast-bg: var(--vd-theme-panel-bg-strong);
     --cheater-toast-fg: var(--vd-text);
     --cheater-update-bg: var(--vd-theme-accent-soft);
@@ -33,9 +35,10 @@
     flex-direction: column;
     overflow: hidden;
     color: var(--cheater-text);
-    background:
+    /* Root canvas: the theme's work material; without it the accent-tinted flat surface stays. */
+    background: var(--vd-mat-canvas,
         radial-gradient(circle at 10% 0%, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.08), transparent 36%),
-        var(--cheater-surface);
+        var(--cheater-surface));
     isolation: isolate;
     outline: none;
 }
@@ -65,9 +68,12 @@
 }
 
 .cheater-empty-title {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 1.75rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, -0.02em);
+    text-transform: var(--vd-mat-heading-transform, none);
     line-height: 1.15;
     margin: 0 0 .35rem;
     text-wrap: balance;
@@ -81,16 +87,17 @@
 }
 
 .cheater-primary {
-    background: var(--cheater-accent);
-    color: var(--cheater-accent-fg);
-    border: 0;
-    padding: .75rem 1.25rem;
-    border-radius: 8px;
+    background: var(--vd-mat-primary, var(--cheater-accent));
+    color: var(--vd-mat-primary-text, var(--cheater-accent-fg));
+    border: 1px solid var(--vd-mat-primary-border, transparent);
+    padding: calc(.75rem - 1px) calc(1.25rem - 1px);
+    border-radius: var(--vd-mat-btn-radius, 8px);
+    box-shadow: var(--vd-mat-primary-shadow, none);
     font-size: 1rem;
     cursor: pointer;
 }
 
-.cheater-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.cheater-primary:hover { background: var(--vd-mat-primary-hover, var(--cheater-accent)); filter: brightness(1.08); transform: translateY(-1px); }
 .cheater-primary:active { transform: translateY(0) scale(0.98); }
 .cheater-primary:focus-visible { outline: 2px solid var(--cheater-accent); outline-offset: 2px; }
 .cheater-primary,
@@ -98,8 +105,10 @@
     transition: background 200ms ease, border-color 200ms ease, transform 120ms ease, filter 200ms ease;
 }
 .cheater-primary:disabled {
-    background: var(--cheater-hover);
+    background: var(--vd-mat-btn-color, var(--cheater-hover));
     color: var(--cheater-disabled);
+    border-color: var(--vd-mat-btn-border, transparent);
+    box-shadow: none;
     cursor: not-allowed;
     filter: none;
 }
@@ -150,15 +159,19 @@
     justify-content: space-between;
     gap: 12px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--cheater-border);
-    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
+    background: var(--vd-mat-bar, rgba(255, 255, 255, 0.02));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .cheater-library-title {
     margin: 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, -0.02em);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .cheater-library-subtitle {
@@ -179,9 +192,10 @@
     align-items: center;
     gap: 8px;
     padding: var(--vd-toolbar-padding);
-    border-bottom: 1px solid var(--cheater-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
 
-    background: var(--vd-theme-chrome-bg);
+    /* Second-level bar under the title bar: the flat bar colour, so rims and stripes stay on the title bar. */
+    background: var(--vd-mat-bar-color, var(--vd-theme-chrome-bg));
 }
 
 .cheater-library-search {
@@ -193,18 +207,20 @@
 }
 
 .cheater-library-search-label {
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: .75rem;
     font-weight: 500;
-    color: var(--cheater-muted);
+    color: var(--vd-mat-label-color, var(--cheater-muted));
 }
 
 .cheater-library-search input {
     width: 100%;
     box-sizing: border-box;
     padding: .55rem .75rem;
-    border-radius: 8px;
-    border: 1px solid var(--cheater-border);
-    background: var(--cheater-input);
+    border-radius: var(--vd-mat-field-radius, 8px);
+    border: 1px solid var(--vd-mat-field-border, var(--cheater-border));
+    background: var(--vd-mat-field, var(--cheater-input));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--cheater-text);
     font-size: .875rem;
     outline: none;
@@ -247,14 +263,14 @@
     align-items: flex-start;
     gap: .45rem;
     padding: 12px;
-    border-radius: 8px;
-    border: 1px solid var(--cheater-border);
-    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)), var(--cheater-surface-elevated);
+    border-radius: var(--vd-mat-card-radius, 8px);
+    border: 1px solid var(--vd-mat-card-border, var(--cheater-border));
+    background: var(--vd-mat-card, linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)), var(--cheater-surface-elevated));
     color: inherit;
     text-align: left;
     cursor: pointer;
     transition: border-color 200ms ease, transform 120ms ease, box-shadow 200ms ease;
-    box-shadow: none;
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
 
 .cheater-library-card-btn:hover {
@@ -272,8 +288,10 @@
 }
 
 .cheater-library-card-title {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: .95rem;
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, inherit);
     line-height: 1.3;
     text-wrap: balance;
 }
@@ -317,10 +335,10 @@
     margin-left: .35rem;
     padding: .1rem .35rem;
     border-radius: 4px;
-    border: 1px solid var(--cheater-border);
-    background: rgba(255,255,255,.05);
+    border: 1px solid var(--vd-mat-btn-border, var(--cheater-border));
+    background: var(--vd-mat-btn-color, rgba(255,255,255,.05));
     font-size: .68rem;
-    font-family: ui-monospace, monospace;
+    font-family: var(--vd-mat-mono-font, ui-monospace, monospace);
     color: var(--cheater-muted);
 }
 
@@ -358,8 +376,9 @@
     align-items: center;
     gap: .75rem;
     padding: 0 1rem;
-    border-bottom: 1px solid var(--cheater-border);
-    background: var(--cheater-surface-elevated);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
+    background: var(--vd-mat-bar, var(--cheater-surface-elevated));
+    box-shadow: var(--vd-mat-bar-edge, none);
     min-height: 56px;
     flex-shrink: 0;
 }
@@ -384,9 +403,11 @@
     min-width: 0;
     border: 0;
     background: transparent;
-    color: var(--cheater-text);
+    color: var(--vd-mat-heading-color, var(--cheater-text));
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 1.125rem;
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
     padding: .5rem 0;
 }
 
@@ -415,11 +436,12 @@
 }
 
 .cheater-attach-btn {
-    background: transparent;
-    border: 1px solid var(--cheater-border);
-    color: var(--cheater-text);
+    background: var(--vd-mat-btn, transparent);
+    border: 1px solid var(--vd-mat-btn-border, var(--cheater-border));
+    color: var(--vd-mat-btn-text, var(--cheater-text));
     padding: .25rem .5rem;
-    border-radius: 4px;
+    border-radius: var(--vd-mat-btn-radius, 4px);
+    box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
     font-size: .875rem;
     display: inline-flex;
@@ -427,13 +449,13 @@
     gap: .25rem;
 }
 
-.cheater-attach-btn:hover { background: var(--cheater-hover); }
+.cheater-attach-btn:hover { background: var(--vd-mat-btn-hover, var(--cheater-hover)); }
 
-/* Markdown toolbar */
+/* Markdown toolbar: a second-level bar, the flat bar colour. */
 .cheater-toolbar {
     flex-shrink: 0;
-    border-bottom: 1px solid var(--cheater-border);
-    background: var(--cheater-surface-elevated);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
+    background: var(--vd-mat-bar-color, var(--cheater-surface-elevated));
     min-height: 0;
 }
 .cheater-toolbar[hidden] { display: none; }
@@ -485,13 +507,13 @@
     display: flex;
     gap: 0;
     padding: .3rem .75rem;
-    border-bottom: 1px solid var(--cheater-border);
-    background: var(--cheater-surface-elevated);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
+    background: var(--vd-mat-bar-color, var(--cheater-surface-elevated));
 }
 
 .cheater-view-btn {
     background: transparent;
-    border: 1px solid var(--cheater-border);
+    border: 1px solid var(--vd-mat-btn-border, var(--cheater-border));
     color: var(--cheater-muted);
     cursor: pointer;
     padding: .25rem .75rem;
@@ -504,8 +526,8 @@
 .cheater-view-btn:last-child { border-radius: 0 6px 6px 0; }
 .cheater-view-btn:hover { background: var(--cheater-hover); color: var(--cheater-text); }
 .cheater-view-btn.is-active {
-    background: var(--cheater-selected-bg);
-    color: var(--cheater-accent);
+    background: var(--vd-mat-selected, var(--cheater-selected-bg));
+    color: var(--vd-mat-selected-text, var(--cheater-accent));
     border-color: color-mix(in srgb, var(--cheater-accent) 40%, var(--cheater-border));
 }
 .cheater-view-btn:focus-visible { outline: 2px solid var(--cheater-accent); outline-offset: 1px; z-index: 1; }
@@ -550,7 +572,9 @@
     width: 100%;
     height: 100%;
     padding: 1.5rem;
-    background: var(--cheater-surface);
+    /* The editor is a recessed well in the theme's material. */
+    background: var(--vd-mat-well, var(--cheater-surface));
+    box-shadow: var(--vd-mat-well-shadow, none);
     color: var(--cheater-text);
     tab-size: 4;
     -moz-tab-size: 4;
@@ -558,26 +582,28 @@
 
 .cheater-source::placeholder { color: var(--cheater-muted); opacity: .6; }
 .cheater-source:focus { outline: none; }
-.cheater-source[readonly] { background: color-mix(in srgb, var(--cheater-surface) 92%, transparent); }
+.cheater-source[readonly] { background: color-mix(in srgb, var(--vd-mat-well-color, var(--cheater-surface)) 92%, transparent); }
 
 .cheater-preview {
     padding: 1.5rem;
-    border-left: 1px solid var(--cheater-border);
-    background: var(--cheater-surface-elevated);
+    border-left: 1px solid var(--vd-mat-divider, var(--cheater-border));
+    /* The rendered sheet reads on the card colour, the editor beside it is the recessed well. */
+    background: var(--vd-mat-card-color, var(--cheater-surface-elevated));
     color: var(--cheater-text);
 }
 
 .cheater-preview[hidden] { display: none; }
 
-.cheater-preview h1 { font-size: 1.5rem; margin: 1rem 0 .5rem; font-weight: 600; }
-.cheater-preview h2 { font-size: 1.25rem; margin: .9rem 0 .4rem; font-weight: 600; }
-.cheater-preview h3 { font-size: 1.1rem;  margin: .8rem 0 .3rem; font-weight: 600; }
+.cheater-preview :is(h1, h2, h3) { font-family: var(--vd-mat-heading-font, inherit); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); }
+.cheater-preview h1 { font-size: 1.5rem; margin: 1rem 0 .5rem; font-weight: var(--vd-mat-heading-weight, 600); }
+.cheater-preview h2 { font-size: 1.25rem; margin: .9rem 0 .4rem; font-weight: var(--vd-mat-heading-weight, 600); }
+.cheater-preview h3 { font-size: 1.1rem;  margin: .8rem 0 .3rem; font-weight: var(--vd-mat-heading-weight, 600); }
 .cheater-preview p { margin: .5rem 0; line-height: 1.6; }
 .cheater-preview ul, .cheater-preview ol { margin: .5rem 0; padding-left: 1.5rem; }
 .cheater-preview li { margin: .2rem 0; }
 .cheater-preview a { color: var(--cheater-accent); }
-.cheater-preview blockquote { border-left: 3px solid var(--cheater-border); padding-left: 1rem; color: var(--cheater-muted); margin: .5rem 0; }
-.cheater-preview hr { border: 0; border-top: 1px solid var(--cheater-border); margin: 1rem 0; }
+.cheater-preview blockquote { border-left: 3px solid var(--vd-mat-divider, var(--cheater-border)); padding-left: 1rem; color: var(--cheater-muted); margin: .5rem 0; }
+.cheater-preview hr { border: 0; border-top: 1px solid var(--vd-mat-divider, var(--cheater-border)); margin: 1rem 0; }
 .cheater-preview code {
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: .9em;
@@ -597,7 +623,7 @@
 }
 .cheater-preview pre code { background: transparent; padding: 0; }
 .cheater-preview table { border-collapse: collapse; margin: .5rem 0; }
-.cheater-preview th, .cheater-preview td { border: 1px solid var(--cheater-border); padding: .4rem .6rem; }
+.cheater-preview th, .cheater-preview td { border: 1px solid var(--vd-mat-divider, var(--cheater-border)); padding: .4rem .6rem; }
 .cheater-preview img { max-width: 100%; border-radius: 6px; }
 
 .cheater-footer {
@@ -608,8 +634,8 @@
     padding: 0 1rem;
     font-size: .75rem;
     color: var(--cheater-muted);
-    border-top: 1px solid var(--cheater-border);
-    background: var(--cheater-surface-elevated);
+    border-top: 1px solid var(--vd-mat-divider, var(--cheater-border));
+    background: var(--vd-mat-bar-color, var(--cheater-surface-elevated));
     font-variant-numeric: tabular-nums;
 }
 
@@ -645,11 +671,11 @@
     position: relative;
     width: min(640px, 92vw);
     max-height: 70vh;
-    background: var(--cheater-modal-surface);
+    background: var(--vd-mat-card, var(--cheater-modal-surface));
     color: var(--cheater-text);
-    border: 1px solid var(--cheater-border);
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--vd-mat-card-border, var(--cheater-border));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    box-shadow: var(--vd-mat-card-shadow, 0 20px 60px rgba(0, 0, 0, 0.25));
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -659,7 +685,7 @@
 .cheater-spotlight-input {
     width: 100%;
     border: 0;
-    border-bottom: 1px solid var(--cheater-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
     padding: 1rem 1.25rem;
     font-size: 1.125rem;
     background: transparent;
@@ -686,14 +712,17 @@
     gap: .25rem;
     padding: .75rem 1.25rem;
     cursor: pointer;
-    border-bottom: 1px solid var(--cheater-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border));
 }
 
 .cheater-spotlight-row.is-selected {
-    background: var(--cheater-selected-bg);
+    background: var(--vd-mat-selected, var(--cheater-selected-bg));
+    box-shadow: var(--vd-mat-selected-edge, none);
 }
 
 .cheater-spotlight-row-main strong { display: block; color: var(--cheater-text); }
+.cheater-spotlight-row.is-selected .cheater-spotlight-row-main strong,
+.cheater-spotlight-row.is-selected .cheater-spotlight-abstract { color: var(--vd-mat-selected-text, var(--cheater-text)); }
 .cheater-spotlight-abstract { color: var(--cheater-muted); font-size: .875rem; }
 .cheater-spotlight-row-meta { display: flex; gap: .25rem; align-items: center; flex-wrap: wrap; }
 .cheater-spotlight-empty { padding: 1rem 1.25rem; color: var(--cheater-muted); }
@@ -702,10 +731,10 @@
 
 .cheater-spotlight-hint {
     padding: .5rem 1.25rem;
-    border-top: 1px solid var(--cheater-border);
+    border-top: 1px solid var(--vd-mat-divider, var(--cheater-border));
     font-size: .75rem;
     color: var(--cheater-muted);
-    background: var(--cheater-surface-elevated);
+    background: var(--vd-mat-bar-color, var(--cheater-surface-elevated));
 }
 
 .cheater-pill {
@@ -753,16 +782,24 @@
     width: min(420px, 92vw);
     max-height: 80vh;
     overflow-y: auto;
-    background: var(--cheater-modal-surface);
+    background: var(--vd-mat-card, var(--cheater-modal-surface));
     color: var(--cheater-text);
-    border: 1px solid var(--cheater-border);
-    border-radius: 12px;
+    border: 1px solid var(--vd-mat-card-border, var(--cheater-border));
+    border-radius: var(--vd-mat-card-radius, 12px);
     padding: 1.5rem;
-    box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    box-shadow: var(--vd-mat-card-shadow, 0 24px 60px rgba(0,0,0,.3));
     animation: cheater-panel-scale 150ms ease-out;
 }
 
-.cheater-help-panel h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+.cheater-help-panel h2 {
+    margin: 0 0 1rem;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-size: 1.1rem;
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
+}
 
 .cheater-help-list { margin: 0; display: flex; flex-direction: column; gap: .3rem; }
 
@@ -773,10 +810,10 @@
     display: inline-block;
     padding: .15rem .4rem;
     border-radius: 4px;
-    border: 1px solid var(--cheater-border);
-    background: rgba(255,255,255,.05);
+    border: 1px solid var(--vd-mat-btn-border, var(--cheater-border));
+    background: var(--vd-mat-btn-color, rgba(255,255,255,.05));
     font-size: .75rem;
-    font-family: ui-monospace, monospace;
+    font-family: var(--vd-mat-mono-font, ui-monospace, monospace);
     color: var(--cheater-text);
 }
 
@@ -804,23 +841,32 @@
     width: min(560px, 94vw);
     max-height: 88vh;
     overflow-y: auto;
-    background: var(--cheater-modal-surface);
+    background: var(--vd-mat-card, var(--cheater-modal-surface));
     color: var(--cheater-text);
-    border: 1px solid var(--cheater-border);
-    border-radius: 12px;
+    border: 1px solid var(--vd-mat-card-border, var(--cheater-border));
+    border-radius: var(--vd-mat-card-radius, 12px);
     padding: 1.5rem;
-    box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    box-shadow: var(--vd-mat-card-shadow, 0 24px 60px rgba(0,0,0,.3));
 }
 
-.cheater-modal-title { margin: 0 0 1rem; font-size: 1.25rem; }
+.cheater-modal-title {
+    margin: 0 0 1rem;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-size: 1.25rem;
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
+}
 
 .cheater-field { display: flex; flex-direction: column; gap: .375rem; margin-bottom: 1rem; }
-.cheater-field > span { font-size: .8125rem; color: var(--cheater-muted); }
+.cheater-field > span { font-family: var(--vd-mat-label-font, inherit); font-size: .8125rem; color: var(--vd-mat-label-color, var(--cheater-muted)); }
 .cheater-field input {
-    border: 1px solid var(--cheater-border);
-    background: var(--cheater-input);
+    border: 1px solid var(--vd-mat-field-border, var(--cheater-border));
+    background: var(--vd-mat-field, var(--cheater-input));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--cheater-text);
-    border-radius: 6px;
+    border-radius: var(--vd-mat-field-radius, 6px);
     padding: .5rem .75rem;
     font-size: .9375rem;
     outline: none;
@@ -831,7 +877,7 @@
 }
 .cheater-field input:focus { border-color: var(--cheater-accent); }
 
-.cheater-tag-input { display: flex; flex-wrap: wrap; gap: .25rem; padding: .375rem; border: 1px solid var(--cheater-border); border-radius: 6px; background: var(--cheater-input); }
+.cheater-tag-input { display: flex; flex-wrap: wrap; gap: .25rem; padding: .375rem; border: 1px solid var(--vd-mat-field-border, var(--cheater-border)); border-radius: var(--vd-mat-field-radius, 6px); background: var(--vd-mat-field, var(--cheater-input)); box-shadow: var(--vd-mat-field-shadow, none); }
 .cheater-tag-chips { display: contents; }
 .cheater-tag-input input { flex: 1; min-width: 8ch; border: 0; outline: none; background: transparent; color: var(--cheater-text); }
 .cheater-pill-remove { background: transparent; border: 0; cursor: pointer; color: inherit; font-size: 1rem; padding: 0 0 0 .25rem; }
@@ -839,29 +885,29 @@
 .cheater-template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; }
 .cheater-template-card {
     display: flex; flex-direction: column; align-items: center; gap: .25rem;
-    padding: .75rem .5rem; border: 1px solid var(--cheater-border); border-radius: 8px;
-    background: var(--cheater-surface-elevated); cursor: pointer; color: var(--cheater-text);
+    padding: .75rem .5rem; border: 1px solid var(--vd-mat-btn-border, var(--cheater-border)); border-radius: 8px;
+    background: var(--vd-mat-btn, var(--cheater-surface-elevated)); box-shadow: var(--vd-mat-btn-shadow, none); cursor: pointer; color: var(--vd-mat-btn-text, var(--cheater-text));
 }
-.cheater-template-card:hover { background: var(--cheater-hover); }
-.cheater-template-card.is-selected { border-color: var(--cheater-accent); background: var(--cheater-selected-bg); }
+.cheater-template-card:hover { background: var(--vd-mat-btn-hover, var(--cheater-hover)); }
+.cheater-template-card.is-selected { border-color: var(--cheater-accent); background: var(--vd-mat-selected, var(--cheater-selected-bg)); color: var(--vd-mat-selected-text, var(--cheater-text)); }
 .cheater-template-icon { font-size: 1.5rem; }
 .cheater-template-name { font-size: .8125rem; text-align: center; }
 
 .cheater-modal-footer { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
-.cheater-secondary { background: transparent; border: 1px solid var(--cheater-border); padding: .5rem 1rem; border-radius: 6px; color: var(--cheater-text); cursor: pointer; }
-.cheater-secondary:hover { background: var(--cheater-hover); }
-.cheater-secondary:disabled { color: var(--cheater-disabled); cursor: not-allowed; }
-.cheater-danger-btn { background: var(--cheater-danger); border-color: var(--cheater-danger); }
-.cheater-danger-btn:hover { filter: brightness(1.08); }
+.cheater-secondary { background: var(--vd-mat-btn, transparent); border: 1px solid var(--vd-mat-btn-border, var(--cheater-border)); padding: .5rem 1rem; border-radius: var(--vd-mat-btn-radius, 6px); box-shadow: var(--vd-mat-btn-shadow, none); color: var(--vd-mat-btn-text, var(--cheater-text)); cursor: pointer; }
+.cheater-secondary:hover { background: var(--vd-mat-btn-hover, var(--cheater-hover)); }
+.cheater-secondary:disabled { color: var(--cheater-disabled); box-shadow: none; cursor: not-allowed; }
+.cheater-danger-btn { background: var(--cheater-danger); border-color: var(--cheater-danger); color: var(--cheater-accent-fg); box-shadow: none; }
+.cheater-danger-btn:hover { background: var(--cheater-danger); filter: brightness(1.08); }
 .cheater-confirm-text { margin: 0 0 1rem; color: var(--cheater-muted); line-height: 1.5; }
 
 .cheater-attach-panel {
     position: fixed;
     top: 0; right: 0; bottom: 0;
     width: min(480px, 40vw);
-    background: var(--cheater-modal-surface);
+    background: var(--vd-mat-side, var(--cheater-modal-surface));
     color: var(--cheater-text);
-    border-left: 1px solid var(--cheater-border);
+    border-left: 1px solid var(--vd-mat-divider, var(--cheater-border));
     box-shadow: -8px 0 24px rgba(0,0,0,.15);
     display: flex; flex-direction: column;
     z-index: 9999;
@@ -873,15 +919,16 @@
     to   { transform: translateX(0); }
 }
 
-.cheater-attach-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--cheater-border); }
-.cheater-attach-header h3 { margin: 0; font-size: 1rem; }
+.cheater-attach-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border)); background: var(--vd-mat-bar, transparent); box-shadow: var(--vd-mat-bar-edge, none); }
+.cheater-attach-header h3 { margin: 0; font-family: var(--vd-mat-heading-font, inherit); font-size: 1rem; font-weight: var(--vd-mat-heading-weight, bold); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .cheater-attach-close { background: transparent; border: 0; font-size: 1.5rem; cursor: pointer; color: var(--cheater-muted); }
 .cheater-attach-close:hover { color: var(--cheater-text); }
 
 .cheater-attach-drop {
     margin: 1rem; padding: 1.5rem; text-align: center;
-    border: 2px dashed var(--cheater-border); border-radius: 8px;
+    border: 2px dashed var(--vd-mat-divider, var(--cheater-border)); border-radius: 8px;
     color: var(--cheater-muted);
+    background: var(--vd-mat-well-color, transparent);
     cursor: pointer;
 }
 .cheater-attach-drop.is-drag { border-color: var(--cheater-accent); background: var(--cheater-selected-bg); }
@@ -889,7 +936,7 @@
 
 .cheater-attach-list { list-style: none; margin: 0; padding: 0; flex: 1; overflow-y: auto; }
 .cheater-attach-empty { padding: 1rem; color: var(--cheater-muted); text-align: center; }
-.cheater-attach-item { display: flex; align-items: center; gap: .5rem; padding: .5rem 1rem; border-bottom: 1px solid var(--cheater-border); }
+.cheater-attach-item { display: flex; align-items: center; gap: .5rem; padding: .5rem 1rem; border-bottom: 1px solid var(--vd-mat-divider, var(--cheater-border)); }
 .cheater-attach-icon { font-size: 1.25rem; }
 .cheater-attach-name { flex: 1; color: var(--cheater-text); }
 .cheater-attach-size { color: var(--cheater-muted); font-size: .8125rem; }
@@ -899,8 +946,9 @@
 .cheater-toast {
     position: fixed;
     bottom: 1.5rem; left: 50%; transform: translateX(-50%);
-    background: var(--cheater-toast-bg); color: var(--cheater-toast-fg);
-    padding: .75rem 1rem; border-radius: 8px;
+    background: var(--vd-mat-card-color, var(--cheater-toast-bg)); color: var(--cheater-toast-fg);
+    border: 1px solid var(--vd-mat-divider, transparent);
+    padding: calc(.75rem - 1px) calc(1rem - 1px); border-radius: var(--vd-mat-card-radius, 8px);
     display: flex; gap: 1rem; align-items: center;
     z-index: 10002;
     box-shadow: 0 8px 24px rgba(0,0,0,.25);
@@ -926,8 +974,8 @@
 .cheater-context-menu {
     position: fixed;
     list-style: none; margin: 0; padding: .25rem 0;
-    background: var(--cheater-modal-surface);
-    border: 1px solid var(--cheater-border);
+    background: var(--vd-mat-card-color, var(--cheater-modal-surface));
+    border: 1px solid var(--vd-mat-divider, var(--cheater-border));
     border-radius: 6px;
     box-shadow: 0 8px 24px rgba(0,0,0,.15);
     z-index: 10003;

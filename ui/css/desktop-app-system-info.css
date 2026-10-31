@@ -7,7 +7,7 @@
     padding: 12px;
     box-sizing: border-box;
     color: var(--vd-text);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     overflow: auto;
 }
 
@@ -15,12 +15,12 @@
 .vd-sysinfo-gauge,
 .vd-sysinfo-history,
 .vd-sysinfo-detail {
-    border: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-panel-bg);
-    box-shadow: none;
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-card-shadow, none);
 
 
-    border-radius: 6px;
+    border-radius: var(--vd-mat-card-radius, 6px);
 }
 
 .vd-sysinfo-hero {
@@ -33,9 +33,10 @@
 
     border: 0;
 
-    border-bottom: 1px solid var(--vd-theme-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
 
     background: transparent;
+    box-shadow: none;
 }
 
 .vd-sysinfo-kicker {
@@ -50,10 +51,14 @@
 
 .vd-sysinfo-hero h2 {
     margin: 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 18px;
     line-height: 1.1;
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
 }
 
 .vd-sysinfo-status {
@@ -61,15 +66,16 @@
     max-width: 44%;
     padding: 6px 12px;
     border: 1px solid rgba(39, 199, 166, 0.28);
-    border-radius: 5px;
+    border-radius: var(--vd-mat-field-radius, 5px);
     color: var(--vd-theme-muted);
-    background: var(--vd-theme-chrome-bg);
+    background: var(--vd-mat-field, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
     font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 
-    border-color: var(--vd-theme-border);
+    border-color: var(--vd-mat-field-border, var(--vd-theme-border));
 }
 
 .vd-sysinfo-gauges {
@@ -102,6 +108,7 @@
 .vd-sysinfo-gauge-value {
     position: relative;
     margin-top: -14px;
+    font-family: var(--vd-mat-mono-font, inherit);
     font-size: clamp(1.1rem, 1.8vw, 1.5rem);
     font-weight: 850;
     text-align: center;
@@ -110,12 +117,13 @@
 .vd-sysinfo-gauge-label {
     position: relative;
     margin-top: 3px;
-    color: var(--vd-theme-muted);
+    color: var(--vd-mat-label-color, var(--vd-theme-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 0.72rem;
     font-weight: 750;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--vd-mat-label-tracking, 0.1em);
     text-align: center;
-    text-transform: uppercase;
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .vd-sysinfo-gauge-cpu .vd-sysinfo-gauge-value {
@@ -133,17 +141,18 @@
 .vd-sysinfo-history {
     min-height: 140px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: var(--vd-mat-card-radius, 8px);
     overflow: hidden;
 }
 
 .vd-sysinfo-section-title {
     margin: 0 0 6px;
-    color: var(--vd-theme-muted);
+    color: var(--vd-mat-heading-color, var(--vd-theme-muted));
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    letter-spacing: var(--vd-mat-heading-tracking, 0);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .vd-sysinfo-chart-wrap {
@@ -162,15 +171,16 @@
     gap: 4px;
     min-width: 0;
     padding: 8px 10px;
-    border-radius: var(--ds-radius-lg);
+    border-radius: var(--vd-mat-card-radius, var(--ds-radius-lg));
 }
 
 .vd-sysinfo-detail span {
-    color: var(--vd-theme-muted);
+    color: var(--vd-mat-label-color, var(--vd-theme-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 0.66rem;
     font-weight: 750;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .vd-sysinfo-detail strong {

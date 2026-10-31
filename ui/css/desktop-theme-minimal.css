@@ -703,12 +703,11 @@
 .desktop-body[data-theme="minimal"] :is(.vd-button-primary, .vd-button.primary) { border-color: var(--vd-accent); background: var(--vd-accent); color: var(--vd-accent-contrast); }
 .desktop-body[data-theme="minimal"] :is(.vd-button-primary, .vd-button.primary):hover { border-color: var(--vd-accent); background: color-mix(in srgb, var(--vd-accent) 84%, var(--vd-bg)); }
 
-/* Switches: a hairline track and an ink knob; on, the track fills with ink. */
+/* Switches: a compact hairline track and a small knob; the track colours come from the app materials (well, field border, ink primary). */
 .desktop-body[data-theme="minimal"] .vd-switch { width: 40px; height: 22px; }
-.desktop-body[data-theme="minimal"] .vd-switch span { border-color: var(--vd-theme-border-strong); background: transparent; transition: background-color 160ms ease, border-color 160ms ease; }
+.desktop-body[data-theme="minimal"] .vd-switch span { transition: background-color 160ms ease, border-color 160ms ease; }
 .desktop-body[data-theme="minimal"] .vd-switch span::before { width: 14px; height: 14px; left: 3px; top: 3px; background: var(--vd-theme-muted); transition: transform 160ms ease, background-color 160ms ease; }
-.desktop-body[data-theme="minimal"] .vd-switch input:checked + span { border-color: var(--vd-accent); background: var(--vd-accent); }
-.desktop-body[data-theme="minimal"] .vd-switch input:checked + span::before { background: var(--vd-accent-contrast); transform: translateX(18px); }
+.desktop-body[data-theme="minimal"] .vd-switch input:checked + span::before { background: var(--vd-mat-primary-text, var(--vd-accent-contrast)); transform: translateX(18px); }
 .desktop-body[data-theme="minimal"] .vd-switch input:focus-visible + span { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
 
 /* A letter stands in for a missing icon: plain ink instead of the shared accent-to-amber gradient. */

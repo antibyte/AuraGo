@@ -3,12 +3,35 @@
     min-height: 0;
 }
 
+/* App materials (desktop only, the tokens live on .desktop-body): canvas, toolbar bar and file name follow the
+   theme material. The chat preview never sees these rules. */
+.desktop-body .vd-viewer.vd-viewer-3d {
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
+}
+
+.desktop-body .vd-viewer-3d .vd-viewer-toolbar {
+    border-bottom-color: var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
+}
+
+.desktop-body .vd-viewer-3d .vd-viewer-filename {
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, 500);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
+}
+
+/* The stage is a lit spot on a recessed well: a lighter card tint in the middle, the well colour at the edge.
+   Colours only (color-mix), so the stage never carries a texture under the model. */
 .vd-viewer-3d-stage {
     position: relative;
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--vd-theme-panel-bg) 90%, #7792ad), var(--vd-theme-app-bg));
+    background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--vd-mat-card-color, var(--vd-theme-panel-bg)) 90%, #7792ad), var(--vd-mat-well-color, var(--vd-theme-app-bg)));
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-viewer-3d-stage::after,
@@ -35,6 +58,14 @@
 .stl-modal-actions button.is-active {
     border-color: rgba(110, 217, 255, 0.72);
     box-shadow: 0 0 0 1px rgba(110, 217, 255, 0.24) inset;
+}
+
+/* Pressed toggle in the desktop viewer: the theme's selection material instead of the fixed cyan ring. */
+.desktop-body .vd-viewer-3d .vd-tool-button.is-active {
+    border-color: var(--vd-mat-primary-color, rgba(110, 217, 255, 0.72));
+    background: var(--vd-mat-selected, rgba(110, 217, 255, 0.14));
+    color: var(--vd-mat-selected-text, inherit);
+    box-shadow: var(--vd-mat-selected-edge, 0 0 0 1px rgba(110, 217, 255, 0.24) inset);
 }
 
 .chat-stl-card.chat-document-card {

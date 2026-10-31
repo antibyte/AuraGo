@@ -4,7 +4,27 @@
     width: 100%;
     height: 100%;
     min-height: 0;
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
+}
+
+/* App materials: the email export strip above the viewport is a bar and its button a default button.
+   The iframe viewport below stays the dark work surface in every theme. */
+.vd-nasscad .vd-toolbar.vd-nasscad-email-toolbar {
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    box-shadow: var(--vd-mat-bar-edge, none);
+}
+
+.vd-nasscad .vd-nasscad-email-toolbar .vd-email-export-button {
+    border-color: var(--vd-mat-btn-border, var(--vd-theme-border, var(--vd-border)));
+    border-radius: var(--vd-mat-btn-radius, var(--vd-theme-radius-control, 6px));
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg, var(--vd-surface)));
+    color: var(--vd-mat-btn-text, var(--vd-text));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+}
+
+.vd-nasscad .vd-nasscad-email-toolbar .vd-email-export-button:hover:not(:disabled) {
+    background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, var(--vd-surface)));
 }
 
 .vd-nasscad-frame {

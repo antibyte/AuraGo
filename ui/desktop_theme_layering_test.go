@@ -83,7 +83,7 @@ func TestDesktopStandardThemeKeepsOfficeSurfacesDark(t *testing.T) {
 		"color: var(--vd-text);",
 		".vd-editor textarea",
 		".office-writer",
-		"--vd-editor-bg: var(--vd-theme-app-bg);",
+		"--vd-editor-bg: var(--vd-mat-canvas, var(--vd-theme-app-bg));",
 		"--vd-editor-text: var(--vd-text);",
 		"--vd-editor-icon: var(--vd-theme-muted);",
 		"background: var(--vd-editor-bg);",

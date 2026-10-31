@@ -45,6 +45,10 @@ var desktopMaterialTokens = []string{
 	"--vd-mat-mono-font", "--vd-mat-accent-2", "--vd-mat-glow",
 }
 
+// desktopMaterialInkMaxLuminance bounds the relative luminance of the literal ink on a user accent lightened with white
+// (about 0.05 is where dark text stops reaching 4.5:1 on a mid-light surface).
+const desktopMaterialInkMaxLuminance = 0.05
+
 // desktopMaterialContrastPairs are measured at 4.5:1. A side is "text" (--vd-text), "muted" (--vd-theme-muted) or a
 // material token name.
 var desktopMaterialContrastPairs = func() [][2]string {
@@ -72,11 +76,14 @@ var desktopMaterialContrastPairs = func() [][2]string {
 var (
 	desktopMaterialOpaqueColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 	// desktopMaterialUserAccent matches a value built from the user's accent colour. In a user-accent theme such a
-	// value cannot be measured statically; its text colour is var(--vd-accent-contrast).
+	// value cannot be measured statically; its text colour is var(--vd-accent-contrast), or, when the accent is lightened
+	// with white, a literal dark ink.
 	desktopMaterialUserAccent = regexp.MustCompile(`var\(\s*--vd-accent(?:-[rgb])?\s*[,)]`)
-	desktopMaterialVarRef     = regexp.MustCompile(`^var\(\s*(--[\w-]+)\s*(?:,\s*(.+))?\)$`)
-	desktopMaterialURLOpen    = regexp.MustCompile(`(?i)url\(`)
-	desktopMaterialMotion     = regexp.MustCompile(`(?i)\b(animation|transition)\b`)
+	// desktopMaterialAccentWhiteMix matches color-mix(in srgb, var(--vd-accent) N%, #fff): the accent lightened with white.
+	desktopMaterialAccentWhiteMix = regexp.MustCompile(`(?i)color-mix\([^()]*var\(\s*--vd-accent\s*\)[^()]*,\s*(?:#fff|#ffffff|white)\s*\)`)
+	desktopMaterialVarRef         = regexp.MustCompile(`^var\(\s*(--[\w-]+)\s*(?:,\s*(.+))?\)$`)
+	desktopMaterialURLOpen        = regexp.MustCompile(`(?i)url\(`)
+	desktopMaterialMotion         = regexp.MustCompile(`(?i)\b(animation|transition)\b`)
 )
 
 // desktopMaterialVariant is one token set: a theme, or the dark scheme of a theme with a scheme setting.
@@ -212,10 +219,26 @@ func desktopMaterialTokenViolations(variant desktopMaterialVariant, tokens, ink 
 			add("%s is %q, its last layer must be var(%s)", background, value, colour)
 		}
 	}
-	// The text on a pure accent surface is the accent contrast colour.
+	// The text on a pure accent surface is the accent contrast colour. On an accent lightened with white that colour
+	// (white by default) would not read, so the text is a literal ink that stays dark whatever the accent is.
 	for _, pair := range [][2]string{{"--vd-mat-primary-text", "--vd-mat-primary-color"}, {"--vd-mat-selected-text", "--vd-mat-selected-color"}} {
-		if userAccent && tokens[pair[1]] == "var(--vd-accent)" && tokens[pair[0]] != "var(--vd-accent-contrast)" {
-			add("%s is %q, but %s is the user accent, so the text must be var(--vd-accent-contrast)", pair[0], tokens[pair[0]], pair[1])
+		if !userAccent {
+			continue
+		}
+		text := tokens[pair[0]]
+		switch {
+		case tokens[pair[1]] == "var(--vd-accent)":
+			if text != "var(--vd-accent-contrast)" {
+				add("%s is %q, but %s is the user accent, so the text must be var(--vd-accent-contrast)", pair[0], text, pair[1])
+			}
+		case desktopMaterialAccentWhiteMix.MatchString(tokens[pair[1]]):
+			ink, isHex := parseCSSHexColor(text)
+			switch {
+			case !isHex || !desktopMaterialOpaqueColor.MatchString(text):
+				add("%s is %q, but %s is the user accent mixed with white, so the text must be a literal #rrggbb ink", pair[0], text, pair[1])
+			case cssRelativeLuminance(ink) > desktopMaterialInkMaxLuminance:
+				add("%s is %s with relative luminance %.3f, but %s is the user accent mixed with white, so the ink must be dark (relative luminance at most %.2f)", pair[0], text, cssRelativeLuminance(ink), pair[1], desktopMaterialInkMaxLuminance)
+			}
 		}
 	}
 
@@ -286,7 +309,7 @@ func desktopMaterialURLs(css string) []string {
 	return urls
 }
 
-// desktopMaterialFileViolations checks the rules every material file follows: scope, custom properties only, no motion,
+// desktopMaterialFileViolations checks the rules every material file follows: scope, --vd-mat-* custom properties only, no motion,
 // no external assets, namespaced fonts and a line budget. inScope says whether a selector belongs to the file.
 func desktopMaterialFileViolations(path, css string, inScope func(selector string) bool, scope string) []string {
 	var violations []string
@@ -313,8 +336,11 @@ func desktopMaterialFileViolations(path, css string, inScope func(selector strin
 			}
 		}
 		for _, decl := range rule.Decls {
-			if !strings.HasPrefix(decl.Property, "--") {
+			switch {
+			case !strings.HasPrefix(decl.Property, "--"):
 				add("line %d: %.80q sets %q; material files hold custom properties only", rule.Line, rule.Selector, decl.Property)
+			case !strings.HasPrefix(decl.Property, "--vd-mat-"):
+				add("line %d: %.80q sets %q; material files define --vd-mat-* tokens only and never redefine shell tokens", rule.Line, rule.Selector, decl.Property)
 			}
 		}
 	}
@@ -539,10 +565,32 @@ func TestDesktopAppMaterialsChecker(t *testing.T) {
 	if joined := strings.Join(desktopMaterialTokenViolations(accent, userSet, ink, true), "\n"); !strings.Contains(joined, "the text must be var(--vd-accent-contrast)") || strings.Contains(joined, "opaque") {
 		t.Errorf("a user-accent primary needs var(--vd-accent-contrast) text and no opaque colour; it reported:\n%s", joined)
 	}
+	// An accent lightened with white keeps a dark literal ink: the shared accent contrast (white) and a light ink would not read on it.
+	lightened := map[string]string{}
+	for token, value := range good {
+		lightened[token] = value
+	}
+	lightened["--vd-mat-primary-color"] = "color-mix(in srgb, var(--vd-accent) 80%, #fff)"
+	lightened["--vd-mat-selected-color"] = "color-mix(in srgb, var(--vd-accent) 80%, #fff)"
+	for text, want := range map[string]string{
+		"var(--vd-accent-contrast)": "the user accent mixed with white, so the text must be a literal #rrggbb ink",
+		"#ffffff":                   "the ink must be dark (relative luminance at most 0.05)",
+		"#0b1220":                   "",
+	} {
+		lightened["--vd-mat-primary-text"], lightened["--vd-mat-selected-text"] = text, text
+		joined := strings.Join(desktopMaterialTokenViolations(accent, lightened, ink, true), "\n")
+		switch {
+		case want == "" && joined != "":
+			t.Errorf("a dark literal ink on a lightened accent must pass; it reported:\n%s", joined)
+		case want != "" && (!strings.Contains(joined, "--vd-mat-primary-text") || !strings.Contains(joined, "--vd-mat-selected-text") || !strings.Contains(joined, want)):
+			t.Errorf("the ink %q on a lightened accent must be reported with %q for primary and selected; it reported:\n%s", text, want, joined)
+		}
+	}
 
 	inScope, scope := desktopMaterialScope(desktopThemeDescriptor{ID: "sample"}, "css/desktop-materials-sample.css")
 	css := `.desktop-body[data-theme="sample"] { --vd-mat-canvas: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E"), #000; --vd-mat-rule: url(/fonts/rule.woff2); }
 .desktop-body[data-theme="other"] { --vd-mat-bar: #fff; }
+.desktop-body[data-theme="sample"] { --vd-accent-contrast: #0b1220; }
 .desktop-body[data-theme="sample"] .card { color: red !important; animation: spin 1s; background: url(https://example.com/a.png); }
 @media (min-width: 1px) { .desktop-body[data-theme="sample"] { --vd-mat-glow: none; } }
 @font-face { font-family: "Plain"; src: url(/fonts/plain.woff2); }`
@@ -550,6 +598,7 @@ func TestDesktopAppMaterialsChecker(t *testing.T) {
 	for _, want := range []string{
 		`selector ".desktop-body[data-theme=\"other\"]" must start with`,
 		`sets "color"; material files hold custom properties only`,
+		`sets "--vd-accent-contrast"; material files define --vd-mat-* tokens only and never redefine shell tokens`,
 		"!important is not allowed",
 		`"animation" is not allowed`,
 		"url(https://example.com/a.png) is not allowed",
@@ -565,5 +614,90 @@ func TestDesktopAppMaterialsChecker(t *testing.T) {
 	}
 	if urls := desktopMaterialURLs(`a: url("data:image/svg+xml,%3Cpath fill='url(%23g)'/%3E"), url( /fonts/a.woff2 );`); len(urls) != 2 || !strings.HasSuffix(urls[0], "%3E") || urls[1] != "/fonts/a.woff2" {
 		t.Errorf("url() scanning returned %q, want the data URI (with its inner url(%%23g)) and the font", urls)
+	}
+}
+
+// desktopAppMaterialsExempt lists the app stylesheets that deliberately do not read the --vd-mat-* tokens, each with
+// its reason. Everything else that an app loads must paint its regions from the materials (the adoption rules are in
+// the design spec). Add a stylesheet here only when it is not a themed surface; an entry that reads the tokens or is
+// no longer loaded by an app fails the test, so the list cannot go stale.
+var desktopAppMaterialsExempt = map[string]string{
+	"/css/xterm.css":                   "vendor: the xterm.js terminal emulator stylesheet",
+	"/css/cm-chessboard.css":           "vendor: the cm-chessboard board widget stylesheet",
+	"/css/hljs-github.min.css":         "vendor: highlight.js light syntax theme",
+	"/css/hljs-github-dark.min.css":    "vendor: highlight.js dark syntax theme",
+	"/css/radio.css":                   "theme-independent skin: the physical Radio receiver",
+	"/css/teevee.css":                  "theme-independent skin: the physical TeeVee receiver",
+	"/css/desktop-app-rtl-sdr.css":     "theme-independent skin: the RTL-SDR receiver front panel",
+	"/css/galaxa-deluxe.css":           "theme-independent skin: the Galaxa arcade game",
+	"/css/desktop-app-sip-phone.css":   "theme-independent skin: the SIP phone hardware chrome",
+	"/css/desktop-app-minigolf.css":    "theme-independent skin: the Minigolf game scene",
+	"/css/desktop-app-retro-games.css": "theme-independent skin: the Retro Games arcade player",
+	"/css/ha-switchboard.css":          "theme-independent skin: the walnut and brass Home Assistant switchboard cabinet",
+	"/css/go2rtc-source-form.css":      "no painted region: layout and hint rules only",
+}
+
+var desktopAppStylesheetPattern = regexp.MustCompile(`'(/css/[A-Za-z0-9_.\-]+\.css)'`)
+
+// desktopAppStylesheets returns the /css/*.css files the desktop apps load: the shared app styles plus the styles of
+// every entry of DESKTOP_APP_ASSETS in js/desktop/core/module-loader.js. Vendor engine styles under /js/vendor/ are
+// not /css/ paths and are skipped by the pattern.
+func desktopAppStylesheets(t testing.TB) []string {
+	t.Helper()
+	data, err := Content.ReadFile("js/desktop/core/module-loader.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	start := strings.Index(source, "const commonAppStyles")
+	assets := strings.Index(source, "const DESKTOP_APP_ASSETS = {")
+	if start < 0 || assets < start {
+		t.Fatal("module-loader.js no longer declares commonAppStyles before DESKTOP_APP_ASSETS; update desktopAppStylesheets")
+	}
+	end := strings.Index(source[assets:], "\n    };")
+	if end < 0 {
+		t.Fatal("module-loader.js: the end of DESKTOP_APP_ASSETS was not found")
+	}
+	seen := map[string]bool{}
+	var sheets []string
+	for _, match := range desktopAppStylesheetPattern.FindAllStringSubmatch(source[start:assets+end], -1) {
+		if !seen[match[1]] {
+			seen[match[1]] = true
+			sheets = append(sheets, match[1])
+		}
+	}
+	return sheets
+}
+
+// TestDesktopAppMaterialsAdoptedByApps is the adoption guard: every stylesheet an app loads reads the --vd-mat-*
+// tokens, so a new app (or a rewritten one) cannot ship with flat, theme-blind surfaces, unless it is one of the
+// documented exceptions above.
+func TestDesktopAppMaterialsAdoptedByApps(t *testing.T) {
+	t.Parallel()
+	sheets := desktopAppStylesheets(t)
+	if len(sheets) < 60 {
+		t.Fatalf("found only %d app stylesheets in module-loader.js, the parser no longer matches the file", len(sheets))
+	}
+	loaded := map[string]bool{}
+	for _, sheet := range sheets {
+		loaded[sheet] = true
+		data, err := Content.ReadFile(strings.TrimPrefix(sheet, "/"))
+		if err != nil {
+			t.Errorf("%s is loaded by an app but cannot be read: %v", sheet, err)
+			continue
+		}
+		adopts := strings.Contains(string(data), "--vd-mat-")
+		reason, exempt := desktopAppMaterialsExempt[sheet]
+		switch {
+		case !adopts && !exempt:
+			t.Errorf("%s is loaded by an app but does not read the app materials (--vd-mat-*): paint its bars, sides, cards, wells, fields, buttons and selection from them with the old value as fallback, or add it to desktopAppMaterialsExempt with a reason", sheet)
+		case adopts && exempt:
+			t.Errorf("%s reads the app materials but is listed as exempt (%s): remove it from desktopAppMaterialsExempt", sheet, reason)
+		}
+	}
+	for sheet := range desktopAppMaterialsExempt {
+		if !loaded[sheet] {
+			t.Errorf("desktopAppMaterialsExempt lists %s, which no app loads any more: remove the entry", sheet)
+		}
 	}
 }

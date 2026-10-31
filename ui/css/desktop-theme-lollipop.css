@@ -540,7 +540,7 @@
 .desktop-body[data-theme="lollipop"] .vd-start-recent-item { border-left-color: #E65CA5; background: rgba(255, 255, 255, 0.55); }
 
 /* ---- Controls and dialogs (surfaces, colours and radii mostly come from the bridge tokens above). ---- */
-.desktop-body[data-theme="lollipop"] :is(.vd-button, .vd-tool-button, .vd-chat-send, .vd-setting-select, .vd-modal-input, .vd-notification-clear, .vd-clock-popup-open) {
+.desktop-body[data-theme="lollipop"] :is(.vd-button, .vd-tool-button, .vd-chat-send, .vd-modal-input, .vd-notification-clear, .vd-clock-popup-open) {
     border: 1px solid rgba(194, 24, 107, 0.3);
     border-radius: 12px;
     background: #fff;

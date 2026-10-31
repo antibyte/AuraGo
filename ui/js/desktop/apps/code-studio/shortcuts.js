@@ -6,7 +6,7 @@
 
     function openCommandPalette() {
         if (window.CodeStudioCommandPalette && typeof window.CodeStudioCommandPalette.toggle === 'function') {
-            window.CodeStudioCommandPalette.toggle();
+            window.CodeStudioCommandPalette.toggle(state.windowId);
         }
     }
 
@@ -82,8 +82,8 @@
     }
 
     function showShortcutOverlay() {
-        const existing = document.querySelector('.cs-shortcut-overlay');
-        if (existing) { existing.remove(); return; }
+        const instance = state;
+        if (instance.shortcutClose) { instance.shortcutClose(); return; }
         const overlay = document.createElement('div');
         overlay.className = 'cs-shortcut-overlay';
         const sections = [
@@ -130,8 +130,13 @@
             <div class="cs-shortcut-modal-body">${bodyHtml}</div>
         </div>`;
         document.body.appendChild(overlay);
+        const releaseFocus = trapDialogFocus(overlay);
+        let unregister = () => {};
         const close = () => {
-            document.removeEventListener('keydown', onKey);
+            unregister();
+            instance.shortcutClose = null;
+            releaseFocus();
+            overlay.removeEventListener('keydown', onKey);
             overlay.remove();
         };
         const onKey = event => {
@@ -140,7 +145,9 @@
                 close();
             }
         };
-        document.addEventListener('keydown', onKey);
+        unregister = registerDisposer(close);
+        instance.shortcutClose = close;
+        overlay.addEventListener('keydown', onKey);
         overlay.querySelector('[data-close-overlay]').addEventListener('click', close);
         overlay.addEventListener('mousedown', event => { if (event.target === overlay) close(); });
         overlay.querySelector('[data-close-overlay]').focus();
@@ -237,6 +244,7 @@
         dispose,
         get state() { return currentInstance(); },
         instances,
+        trapDialogFocus,
         api: apiClient,
         command: exposedCommand,
         knownFiles: exposedKnownFiles,

@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Manuellt utrett · okänt resultat",
+  "kaggle.resolve_unknown": "Frigör plats",
+  "kaggle.resolve_unknown_help": "Kontrollera på Kaggle att jobbet inte längre körs. Att frigöra platsen stoppar inte jobbet och bekräftar inte resultatet. Den ursprungliga registreringen bevaras.",
+  "kaggle.resolve_unknown_confirm": "Jag har kontrollerat på Kaggle att jobbet inte längre körs.",
+  "config.kaggle.state_resolved_unknown": "Manuellt utrett · okänt resultat",
+  "config.kaggle.resolve_unknown": "Frigör plats",
+  "config.kaggle.resolve_unknown_help": "Kontrollera på Kaggle att jobbet inte längre körs. Att frigöra platsen stoppar inte jobbet och bekräftar inte resultatet. Den ursprungliga registreringen bevaras.",
+  "config.kaggle.resolve_unknown_confirm": "Jag har kontrollerat på Kaggle att jobbet inte längre körs.",
   "kaggle.filters": "Fler filter och alternativ",
   "kaggle.required": "Fyll i det här fältet.",
   "kaggle.overview": "Översikt",

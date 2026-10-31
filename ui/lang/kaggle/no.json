@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Avklart manuelt · ukjent resultat",
+  "kaggle.resolve_unknown": "Frigi plass",
+  "kaggle.resolve_unknown_help": "Kontroller på Kaggle at denne jobben ikke lenger kjører. Å frigi plassen stopper ikke jobben og bekrefter ikke resultatet. Den opprinnelige registreringen beholdes.",
+  "kaggle.resolve_unknown_confirm": "Jeg har kontrollert på Kaggle at jobben ikke lenger kjører.",
+  "config.kaggle.state_resolved_unknown": "Avklart manuelt · ukjent resultat",
+  "config.kaggle.resolve_unknown": "Frigi plass",
+  "config.kaggle.resolve_unknown_help": "Kontroller på Kaggle at denne jobben ikke lenger kjører. Å frigi plassen stopper ikke jobben og bekrefter ikke resultatet. Den opprinnelige registreringen beholdes.",
+  "config.kaggle.resolve_unknown_confirm": "Jeg har kontrollert på Kaggle at jobben ikke lenger kjører.",
   "kaggle.filters": "Flere filtre og alternativer",
   "kaggle.required": "Fyll ut dette feltet.",
   "kaggle.overview": "Oversikt",

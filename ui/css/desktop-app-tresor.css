@@ -1,12 +1,14 @@
 .tresor-app {
-  --t-bg: #0d151c;
-  --t-panel: #15212a;
-  --t-line: #405059;
-  --t-gold: #d8b477;
-  --t-text: #f3eee4;
-  --t-muted: #aeb9b9;
+  /* Colour aliases follow the desktop theme's material colours; the vault palette is the fallback. */
+  --t-bg: var(--vd-mat-canvas-color, #0d151c);
+  --t-panel: var(--vd-mat-card-color, #15212a);
+  --t-line: var(--vd-mat-divider, #405059);
+  --t-gold: var(--vd-mat-label-color, #d8b477);
+  --t-text: var(--vd-text, #f3eee4);
+  --t-muted: var(--vd-theme-muted, #aeb9b9);
+  --t-danger-ink: color-mix(in srgb, #e5484d 60%, var(--t-text));
   color: var(--t-text);
-  background: var(--t-bg);
+  background: var(--vd-mat-canvas, var(--t-bg));
   font-family: Inter,system-ui,sans-serif;
   height: 100%;
   min-height: 400px;
@@ -24,16 +26,17 @@
 
 .tresor-app button {
   cursor: pointer;
-  border: 1px solid #7c6847;
-  background: #1b2b33;
-  color: var(--t-text);
-  border-radius: 10px;
+  border: 1px solid var(--vd-mat-btn-border, #7c6847);
+  background: var(--vd-mat-btn, #1b2b33);
+  box-shadow: var(--vd-mat-btn-shadow, none);
+  color: var(--vd-mat-btn-text, var(--t-text));
+  border-radius: var(--vd-mat-btn-radius, 10px);
   padding: 10px 14px;
 }
 
 .tresor-app button:hover {
   border-color: var(--t-gold);
-  background: #24343c;
+  background: var(--vd-mat-btn-hover, #24343c);
 }
 
 .tresor-app button:disabled {
@@ -42,45 +45,51 @@
 }
 
 .tresor-app :focus-visible {
-  outline: 3px solid #e6c480;
+  outline: 3px solid var(--vd-mat-label-color, #e6c480);
   outline-offset: 3px;
 }
 
 .tresor-app .tresor-primary {
-  background: linear-gradient(135deg,#f1d49e,#b68b51);
-  border-color: #e2bc7d;
-  color: #1b1813;
+  background: var(--vd-mat-primary, linear-gradient(135deg,#f1d49e,#b68b51));
+  border-color: var(--vd-mat-primary-border, #e2bc7d);
+  box-shadow: var(--vd-mat-primary-shadow, none);
+  color: var(--vd-mat-primary-text, #1b1813);
   font-weight: 700;
+}
+
+.tresor-app .tresor-primary:hover:not(:disabled) {
+  background: var(--vd-mat-primary-hover, linear-gradient(135deg,#f1d49e,#b68b51));
 }
 
 .tresor-app label {
   display: grid;
   gap: 7px;
-  color: #e5e4dc;
+  color: var(--t-text);
   font-size: .92rem;
 }
 
 .tresor-app input,.tresor-app textarea {
-  background: #0c171e;
-  border: 1px solid #71818a;
-  border-radius: 10px;
-  color: #fff;
+  background: var(--vd-mat-field, #0c171e);
+  border: 1px solid var(--vd-mat-field-border, #71818a);
+  border-radius: var(--vd-mat-field-radius, 10px);
+  box-shadow: var(--vd-mat-field-shadow, none);
+  color: var(--t-text);
   padding: 12px;
   min-width: 0;
 }
 
 .tresor-app input::placeholder,.tresor-app textarea::placeholder {
-  color: #9daeb5;
+  color: var(--t-muted);
 }
 
 .tresor-status {
   min-height: 1.3em;
-  color: #d6bc86;
+  color: var(--t-gold);
   font-size: .86rem;
 }
 
 .tresor-status[data-error=true] {
-  color: #ffaaa0;
+  color: var(--t-danger-ink);
 }
 
 .tresor-entrance {
@@ -90,7 +99,7 @@
   align-items: center;
   gap: clamp(20px,4vw,70px);
   padding: clamp(20px,4vw,58px);
-  background: radial-gradient(circle at 25% 45%,#263640,#0b141a 62%);
+  background: radial-gradient(circle at 25% 45%,color-mix(in srgb,var(--t-gold) 14%,transparent),transparent 62%), var(--vd-mat-canvas, radial-gradient(circle at 25% 45%,#263640,#0b141a 62%));
 }
 
 .tresor-art {
@@ -112,7 +121,7 @@
   width: 45%;
   height: 55%;
   border-radius: 50%;
-  background: #c9a15f33;
+  background: color-mix(in srgb,var(--t-gold) 20%,transparent);
   filter: blur(70px);
 }
 
@@ -122,22 +131,27 @@
 
 .tresor-kicker,.tresor-eyebrow {
   color: var(--t-gold);
-  letter-spacing: .18em;
-  text-transform: uppercase;
+  font-family: var(--vd-mat-label-font, inherit);
+  letter-spacing: var(--vd-mat-label-tracking, .18em);
+  text-transform: var(--vd-mat-label-transform, uppercase);
   font-size: .72rem;
   font-weight: 700;
 }
 
 .tresor-entry-panel h1 {
   font: 500 clamp(2.8rem,5vw,5rem)/1.03 Georgia,serif;
-  letter-spacing: -.04em;
+  font-family: var(--vd-mat-heading-font, Georgia, serif);
+  font-weight: var(--vd-mat-heading-weight, 500);
+  color: var(--vd-mat-heading-color, inherit);
+  letter-spacing: var(--vd-mat-heading-tracking, -.04em);
+  text-transform: var(--vd-mat-heading-transform, none);
   margin: 12px 0 20px;
 }
 
 .tresor-intro {
   font-size: 1.04rem;
   line-height: 1.6;
-  color: #d0dadb;
+  color: color-mix(in srgb,var(--t-text) 88%,transparent);
   margin: 0 0 25px;
 }
 
@@ -152,7 +166,7 @@
 
 .tresor-entry-panel details {
   margin: 22px 0;
-  color: #d9cba9;
+  color: color-mix(in srgb,var(--t-gold) 70%,var(--t-text));
 }
 
 .tresor-entry-panel summary {
@@ -171,16 +185,17 @@
 }
 
 .tresor-warning {
-  color: #ffb0a1;
-  background: #5f312d3b;
-  border: 1px solid #a45c50;
+  color: var(--t-danger-ink);
+  background: color-mix(in srgb,#e5484d 14%,transparent);
+  border: 1px solid color-mix(in srgb,#e5484d 55%,transparent);
   border-radius: 10px;
   padding: 14px;
 }
 
 .tresor-recovery {
-  border: 1px solid #b99a60;
-  background: #1f292c;
+  border: 1px solid var(--t-gold);
+  background: var(--vd-mat-well, #1f292c);
+  box-shadow: var(--vd-mat-well-shadow, none);
   padding: 17px;
   border-radius: 12px;
   margin: 16px 0;
@@ -195,13 +210,14 @@
   display: block;
   word-break: break-all;
   font: 600 .98rem/1.8 ui-monospace,monospace;
+  font-family: var(--vd-mat-mono-font, ui-monospace, monospace);
   letter-spacing: .04em;
-  color: white;
+  color: var(--t-text);
   margin-top: 8px;
 }
 
 .tresor-recovery p {
-  color: #f2d4a4;
+  color: var(--t-gold);
   font-size: .84rem;
 }
 
@@ -215,7 +231,7 @@
   min-height: 400px;
   display: grid;
   grid-template-rows: auto minmax(0,1fr) auto;
-  background: linear-gradient(145deg,#1a2831,#0d161d 75%);
+  background: var(--vd-mat-canvas, linear-gradient(145deg,#1a2831,#0d161d 75%));
 }
 
 .tresor-topbar {
@@ -225,6 +241,8 @@
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--t-line);
+  background: var(--vd-mat-bar, transparent);
+  box-shadow: var(--vd-mat-bar-edge, none);
   padding: 12px 23px;
 }
 
@@ -241,12 +259,18 @@
 
 .tresor-brand {
   font: 1.6rem Georgia,serif;
+  font-family: var(--vd-mat-heading-font, Georgia, serif);
+  font-weight: var(--vd-mat-heading-weight, 400);
+  color: var(--vd-mat-heading-color, inherit);
+  letter-spacing: var(--vd-mat-heading-tracking, normal);
+  text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .tresor-topbar small {
+  font-family: var(--vd-mat-label-font, inherit);
   font-size: .7rem;
-  letter-spacing: .15em;
-  text-transform: uppercase;
+  letter-spacing: var(--vd-mat-label-tracking, .15em);
+  text-transform: var(--vd-mat-label-transform, uppercase);
   color: var(--t-muted);
   margin-left: 8px;
 }
@@ -261,14 +285,16 @@
   border-right: 1px solid var(--t-line);
   padding: 20px 13px;
   overflow: auto;
-  background: #101c24;
+  background: var(--vd-mat-side, #101c24);
+  box-shadow: var(--vd-mat-side-edge, none);
 }
 
 .tresor-sidebar-head {
   display: flex;
   justify-content: space-between;
-  text-transform: uppercase;
-  letter-spacing: .14em;
+  font-family: var(--vd-mat-label-font, inherit);
+  text-transform: var(--vd-mat-label-transform, uppercase);
+  letter-spacing: var(--vd-mat-label-tracking, .14em);
   font-size: .72rem;
   font-weight: 700;
   color: var(--t-gold);
@@ -306,12 +332,22 @@
   min-width: 0;
 }
 
-.tresor-item:hover,.tresor-item.is-selected {
-  background: #33424a;
+.tresor-item:hover {
+  background: var(--vd-mat-hover, #33424a);
 }
 
 .tresor-item.is-selected {
-  box-shadow: inset 3px 0 var(--t-gold);
+  background: var(--vd-mat-selected, #33424a);
+  box-shadow: var(--vd-mat-selected-edge, inset 3px 0 var(--t-gold));
+  color: var(--vd-mat-selected-text, var(--t-text));
+}
+
+.tresor-item.is-selected small {
+  color: var(--vd-mat-selected-text, var(--t-muted));
+}
+
+.tresor-item.is-selected .tresor-item-glyph {
+  color: var(--vd-mat-selected-text, var(--t-gold));
 }
 
 .tresor-item span:last-child {
@@ -365,7 +401,11 @@
 
 .tresor-welcome h2 {
   font: 2.1rem Georgia,serif;
-  color: var(--t-text);
+  font-family: var(--vd-mat-heading-font, Georgia, serif);
+  font-weight: var(--vd-mat-heading-weight, 400);
+  color: var(--vd-mat-heading-color, var(--t-text));
+  letter-spacing: var(--vd-mat-heading-tracking, normal);
+  text-transform: var(--vd-mat-heading-transform, none);
   margin: 15px 0 2px;
 }
 
@@ -381,6 +421,11 @@
 
 .tresor-editor-head h2 {
   font: 2rem Georgia,serif;
+  font-family: var(--vd-mat-heading-font, Georgia, serif);
+  font-weight: var(--vd-mat-heading-weight, 400);
+  color: var(--vd-mat-heading-color, inherit);
+  letter-spacing: var(--vd-mat-heading-tracking, normal);
+  text-transform: var(--vd-mat-heading-transform, none);
   margin: 5px 0;
 }
 
@@ -408,13 +453,14 @@
   margin: 50px auto;
   max-width: 450px;
   padding: 38px;
-  border: 1px solid var(--t-line);
-  border-radius: 18px;
+  border: 1px solid var(--vd-mat-card-border, var(--t-line));
+  border-radius: var(--vd-mat-card-radius, 18px);
+  box-shadow: var(--vd-mat-card-shadow, none);
   display: grid;
   justify-items: center;
   gap: 10px;
   text-align: center;
-  background: linear-gradient(145deg,#26353b,#17242c);
+  background: var(--vd-mat-card, linear-gradient(145deg,#26353b,#17242c));
 }
 
 .tresor-file-icon {
@@ -433,6 +479,8 @@
   justify-content: space-between;
   gap: 15px;
   border-top: 1px solid var(--t-line);
+  background: var(--vd-mat-bar, transparent);
+  box-shadow: var(--vd-mat-bar-edge, none);
   padding: 10px 21px;
   color: var(--t-muted);
   font-size: .78rem;
@@ -449,22 +497,27 @@
 }
 
 .tresor-modal {
-  background: #1d2c34;
-  border: 1px solid var(--t-gold);
-  border-radius: 17px;
+  background: var(--vd-mat-card, #1d2c34);
+  border: 1px solid var(--vd-mat-card-border, var(--t-gold));
+  border-radius: var(--vd-mat-card-radius, 17px);
   padding: 24px;
   max-width: 410px;
-  box-shadow: 0 22px 60px #000a;
+  box-shadow: var(--vd-mat-card-shadow, 0 22px 60px #000a);
 }
 
 .tresor-modal h2 {
   font: 1.7rem Georgia,serif;
+  font-family: var(--vd-mat-heading-font, Georgia, serif);
+  font-weight: var(--vd-mat-heading-weight, 400);
+  color: var(--vd-mat-heading-color, inherit);
+  letter-spacing: var(--vd-mat-heading-tracking, normal);
+  text-transform: var(--vd-mat-heading-transform, none);
   margin: 0 0 12px;
 }
 
 .tresor-modal p {
   line-height: 1.55;
-  color: #d4dbd8;
+  color: color-mix(in srgb,var(--t-text) 88%,transparent);
 }
 
 .tresor-modal form {
@@ -561,9 +614,12 @@
 
 .tresor-title-label input {
   font: 1.9rem Georgia,serif;
+  font-family: var(--vd-mat-heading-font, Georgia, serif);
+  color: var(--vd-mat-heading-color, var(--t-text));
   background: transparent;
   border: 0;
-  border-bottom: 1px solid #728389;
+  border-bottom: 1px solid var(--vd-mat-field-border, #728389);
+  box-shadow: none;
   border-radius: 0;
   padding: 4px 0;
   width: min(100%,520px);

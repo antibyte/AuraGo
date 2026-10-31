@@ -24,7 +24,8 @@
     min-height: 0;
     overflow: hidden;
     color: var(--gm-text);
-    background: var(--gm-bg);
+    /* App materials: the theme's work canvas, the old flat colour stays as fallback. */
+    background: var(--vd-mat-canvas, var(--gm-bg));
     font-family: var(--vd-font-ui);
 
     font-size: 13px;
@@ -42,9 +43,9 @@
 .gm-assets-workspace { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(260px, 1.4fr); gap: 20px; min-height: 0; }
 .gm-asset-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content;
     gap: 8px; align-content: start; max-height: 60vh; overflow-y: auto; }
-.gm-asset-card { border: 1px solid var(--gm-line);
-    border-radius: 8px; background: var(--gm-panel); overflow: hidden;
-    box-shadow: none;
+.gm-asset-card { border: 1px solid var(--vd-mat-card-border, var(--gm-line));
+    border-radius: var(--vd-mat-card-radius, 8px); background: var(--vd-mat-card, var(--gm-panel)); overflow: hidden;
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
 .gm-asset-card > button { display: grid; gap: 6px; width: 100%; text-align: left; }
 .gm-asset-card img { width: 100%; aspect-ratio: 1; object-fit: contain; image-rendering: pixelated; background: #16202c; }
@@ -90,16 +91,17 @@
 .gm-studio button {
     min-height: 34px;
     padding: 0 13px;
-    color: var(--gm-text);
-    border: 1px solid var(--gm-line);
-    border-radius: 6px;
-    background: var(--vd-theme-control-bg);
+    color: var(--vd-mat-btn-text, var(--gm-text));
+    border: 1px solid var(--vd-mat-btn-border, var(--gm-line));
+    border-radius: var(--vd-mat-btn-radius, 6px);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
 }
 
 .gm-studio button:hover:not(:disabled) {
     border-color: rgba(139, 124, 246, 0.65);
-    background: rgba(139, 124, 246, 0.14);
+    background: var(--vd-mat-btn-hover, rgba(139, 124, 246, 0.14));
 }
 
 .gm-studio button:focus-visible,
@@ -115,7 +117,9 @@
     cursor: not-allowed;
 }
 
+/* Brand purple stays the call to action of Game Maker; the label is white on it whatever the theme's button text is. */
 .gm-studio .gm-primary {
+    color: #fff;
     border-color: transparent;
     background: linear-gradient(135deg, #8b7cf6, #6857d9);
     box-shadow: inset 0 1px 0 #ffffff20;
@@ -128,13 +132,16 @@
 }
 
 .gm-topbar {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 12px;
     min-height: 44px;
     padding: 6px 12px;
-    border-bottom: 1px solid var(--gm-line);
-    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .gm-brand {
@@ -156,8 +163,12 @@
 }
 
 .gm-brand strong {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 14px;
-    letter-spacing: 0.01em;
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, 0.01em);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .gm-brand span,
@@ -223,26 +234,28 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-right: 1px solid var(--gm-line);
-    background: var(--vd-theme-chrome-bg);
+    border-right: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-side, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-side-edge, none);
 }
 
 .gm-library-head {
     display: grid;
     gap: 12px;
     padding: 16px 14px;
-    border-bottom: 1px solid var(--gm-line);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--gm-line));
 }
 
 .gm-library-head > div {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: var(--gm-muted);
+    color: var(--vd-mat-label-color, var(--gm-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .gm-library-head small {
@@ -250,7 +263,7 @@
     padding: 2px 7px;
     color: var(--gm-text);
     border-radius: 99px;
-    background: var(--gm-panel-2);
+    background: var(--vd-mat-btn-color, var(--gm-panel-2));
     text-align: center;
 }
 
@@ -276,11 +289,38 @@
     min-height: 61px;
     padding: 9px;
     text-align: left;
+    /* A project is a card, not a plain button: card material, radius and shadow. */
+    color: var(--gm-text);
+    border-color: var(--vd-mat-card-border, var(--gm-line));
+    border-radius: var(--vd-mat-card-radius, 6px);
+    background: var(--vd-mat-card, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-card-shadow, none);
+}
+
+.gm-studio .gm-project-card:hover:not(:disabled):not(.is-active) {
+    background: var(--vd-mat-card, rgba(139, 124, 246, 0.14));
 }
 
 .gm-project-card.is-active {
     border-color: rgba(139, 124, 246, 0.7);
-    background: rgba(139, 124, 246, 0.14);
+    color: var(--vd-mat-selected-text, var(--gm-text));
+    background: var(--vd-mat-selected, rgba(139, 124, 246, 0.14));
+    box-shadow: var(--vd-mat-selected-edge, none);
+}
+
+.gm-studio .gm-project-card.is-active:hover:not(:disabled) {
+    background: var(--vd-mat-selected, rgba(139, 124, 246, 0.14));
+}
+
+/* Secondary text and the dimension chip follow the selection's text colour so they stay readable on it. */
+.gm-project-card.is-active :is(small, .gm-project-revision) {
+    color: var(--vd-mat-selected-text, var(--gm-muted));
+    opacity: 0.85;
+}
+
+.gm-project-card.is-active .gm-project-dimension {
+    color: var(--vd-mat-selected-text, var(--gm-tone-accent));
+    background: color-mix(in srgb, var(--vd-mat-selected-text, #8b7cf6) 16%, transparent);
 }
 
 .gm-project-card > span:nth-child(2) {
@@ -335,8 +375,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 8px;
-    border-bottom: 1px solid var(--gm-line);
-    background: var(--gm-panel);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-bar, var(--gm-panel));
 }
 
 .gm-steps button {
@@ -344,6 +384,7 @@
 }
 
 .gm-steps button[aria-pressed="true"] {
+    color: #fff;
     border-color: transparent;
     background: linear-gradient(135deg, #8b7cf6, #6857d9);
     box-shadow: inset 0 1px 0 #ffffff20;
@@ -407,8 +448,8 @@
     container-name: gm-preview;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto auto;
-    border-left: 1px solid var(--gm-line);
-    background: var(--gm-bg);
+    border-left: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-canvas, var(--gm-bg));
 }
 
 .gm-pane-head {
@@ -418,14 +459,21 @@
     gap: 12px;
     min-height: 66px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--gm-line);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-bar, transparent);
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .gm-pane-head h2 {
     max-width: min(440px, 100%);
     margin: 3px 0 0;
     overflow: hidden;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 16px;
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -444,7 +492,7 @@
     gap: 0;
     margin: 0;
     padding: 10px 15px;
-    border-bottom: 1px solid var(--gm-line);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--gm-line));
     list-style: none;
 }
 
@@ -465,7 +513,7 @@
     left: 62%;
     width: 76%;
     height: 1px;
-    background: var(--gm-line);
+    background: var(--vd-mat-divider, var(--gm-line));
     content: "";
 }
 
@@ -475,9 +523,9 @@
     place-items: center;
     width: 19px;
     height: 19px;
-    border: 1px solid var(--gm-line);
+    border: 1px solid var(--vd-mat-divider, var(--gm-line));
     border-radius: 50%;
-    background: var(--gm-panel);
+    background: var(--vd-mat-card-color, var(--gm-panel));
     font-style: normal;
 }
 
@@ -528,18 +576,21 @@
 .gm-message span {
     display: block;
     margin: 0 0 5px 4px;
-    color: var(--gm-muted);
+    color: var(--vd-mat-label-color, var(--gm-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 10px;
     font-weight: 700;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .gm-message p {
     margin: 0;
     padding: 10px 12px;
-    border: 1px solid var(--gm-line);
-    border-radius: 13px;
-    background: var(--gm-panel-2);
+    border: 1px solid var(--vd-mat-divider, var(--gm-line));
+    border-radius: var(--vd-mat-card-radius, 13px);
+    background: var(--vd-mat-card-color, var(--gm-panel-2));
+    box-shadow: var(--vd-mat-card-shadow, none);
     line-height: 1.45;
     white-space: pre-wrap;
 }
@@ -566,17 +617,19 @@
 
 .gm-change-form {
     padding: 11px 14px 14px;
-    border-top: 1px solid var(--gm-line);
-    background: var(--gm-panel);
+    border-top: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-bar, var(--gm-panel));
 }
 
 .gm-change-form > label {
     display: block;
     margin-bottom: 6px;
-    color: var(--gm-muted);
+    color: var(--vd-mat-label-color, var(--gm-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 10px;
     font-weight: 700;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .gm-change-form > div {
@@ -591,9 +644,10 @@
 .gm-modal select {
     width: 100%;
     color: var(--gm-text);
-    border: 1px solid var(--gm-line);
-    border-radius: 9px;
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-field-border, var(--gm-line));
+    border-radius: var(--vd-mat-field-radius, 9px);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .gm-change-form textarea {
@@ -633,8 +687,8 @@
     padding: 8px 12px;
     box-sizing: border-box;
     overflow: auto;
-    border-top: 1px solid var(--gm-line);
-    background: var(--gm-panel);
+    border-top: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-bar, var(--gm-panel));
     font-size: 12px;
     line-height: 1.4;
 }
@@ -661,7 +715,8 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    color: var(--gm-muted);
+    /* The stage stays dark in every theme, so its empty-state text uses fixed light colours (as the build terminal does). */
+    color: #b7b9d0;
     text-align: center;
 }
 
@@ -684,9 +739,10 @@
     box-sizing: border-box;
     max-width: calc(100% - 20px);
     padding: 8px 10px;
-    border: 1px solid var(--gm-line);
+    border: 1px solid var(--vd-mat-divider, var(--gm-line));
     border-radius: 10px;
-    background: color-mix(in srgb, var(--gm-panel, #1a1c24) 94%, transparent);
+    background: color-mix(in srgb, var(--vd-mat-card-color, var(--gm-panel, #1a1c24)) 94%, transparent);
+    box-shadow: var(--vd-mat-card-shadow, none);
     color: var(--gm-text);
     font-size: 12px;
     line-height: 1.35;
@@ -704,7 +760,7 @@
 }
 
 .gm-preview-empty strong {
-    color: var(--gm-text);
+    color: #f0efff;
 }
 
 /* Adventure-style progress stays behind the original, stationary stage card. */
@@ -795,8 +851,8 @@
 }
 
 .gm-diagnostics {
-    border-top: 1px solid var(--gm-line);
-    background: var(--gm-panel);
+    border-top: 1px solid var(--vd-mat-divider, var(--gm-line));
+    background: var(--vd-mat-bar, var(--gm-panel));
 }
 
 .gm-diagnostics summary {
@@ -819,7 +875,7 @@
     grid-template-columns: auto 1fr;
     gap: 4px 8px;
     padding: 6px 0;
-    border-top: 1px solid var(--gm-line);
+    border-top: 1px solid var(--vd-mat-divider, var(--gm-line));
     font-size: 11px;
 }
 
@@ -861,10 +917,10 @@
     max-height: 100%;
     padding: var(--gm-modal-pad);
     overflow-y: auto;
-    border: 1px solid rgba(139, 124, 246, 0.35);
-    border-radius: 18px;
-    background: var(--vd-theme-panel-bg-strong);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--vd-mat-card-border, rgba(139, 124, 246, 0.35));
+    border-radius: var(--vd-mat-card-radius, 18px);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg-strong));
+    box-shadow: var(--vd-mat-card-shadow, 0 30px 80px rgba(0, 0, 0, 0.5));
 }
 
 .gm-modal header,
@@ -885,14 +941,20 @@
 
 .gm-modal h2 {
     margin: 3px 0 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 21px;
+    font-weight: var(--vd-mat-heading-weight, bold);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .gm-modal > label,
 .gm-form-grid label {
     display: grid;
     gap: 6px;
-    color: var(--gm-muted);
+    color: var(--vd-mat-label-color, var(--gm-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 700;
 }
@@ -920,7 +982,8 @@
 .gm-modal legend {
     grid-column: 1 / -1;
     margin-bottom: 7px;
-    color: var(--gm-muted);
+    color: var(--vd-mat-label-color, var(--gm-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 700;
 }
@@ -931,14 +994,20 @@
     align-items: center;
     gap: 10px;
     padding: 11px;
-    border: 1px solid var(--gm-line);
+    border: 1px solid var(--vd-mat-divider, var(--gm-line));
     border-radius: 11px;
     background: rgba(255, 255, 255, 0.025);
 }
 
 .gm-dimension-card:has(input:checked) {
     border-color: var(--gm-accent);
-    background: rgba(139, 124, 246, 0.12);
+    color: var(--vd-mat-selected-text, inherit);
+    background: var(--vd-mat-selected, rgba(139, 124, 246, 0.12));
+}
+
+.gm-dimension-card:has(input:checked) span {
+    color: var(--vd-mat-selected-text, var(--gm-muted));
+    opacity: 0.85;
 }
 
 .gm-dimension-card input,
@@ -982,7 +1051,7 @@
 .gm-skill-list article,
 .gm-revision-list article {
     padding: 12px;
-    border: 1px solid var(--gm-line);
+    border: 1px solid var(--vd-mat-divider, var(--gm-line));
     border-radius: 11px;
     background: rgba(255, 255, 255, 0.025);
 }
@@ -1228,8 +1297,10 @@
 
 .gm-result-card.is-cancelled {
     color: var(--gm-text);
-    border: 1px solid var(--gm-line);
-    background: var(--gm-panel-2);
+    border: 1px solid var(--vd-mat-card-border, var(--gm-line));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    background: var(--vd-mat-card, var(--gm-panel-2));
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
 
 .gm-result-card.is-error {
@@ -1240,8 +1311,10 @@
 
 .gm-result-card.is-plan {
     color: var(--gm-text);
-    border: 1px solid var(--gm-line);
-    background: var(--gm-panel-2);
+    border: 1px solid var(--vd-mat-card-border, var(--gm-line));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    background: var(--vd-mat-card, var(--gm-panel-2));
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
 
 .gm-result-card.is-plan dl {
@@ -1294,7 +1367,7 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    color: var(--gm-muted);
+    color: #b7b9d0;
     background: rgba(12, 13, 19, 0.72);
     font-size: 12px;
 }
@@ -1364,9 +1437,10 @@
     max-width: 180px;
     padding: 7px 9px;
     color: var(--gm-text);
-    border: 1px solid var(--gm-line);
-    border-radius: 9px;
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-field-border, var(--gm-line));
+    border-radius: var(--vd-mat-field-radius, 9px);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .gm-mobile-projects[hidden] {
@@ -1475,9 +1549,9 @@
     display: grid;
     min-width: 190px;
     padding: 6px;
-    border: 1px solid var(--gm-line);
-    border-radius: 11px;
-    background: linear-gradient(var(--vd-theme-panel-bg-strong), var(--vd-theme-panel-bg-strong)), var(--gm-bg);
+    border: 1px solid var(--vd-mat-divider, var(--gm-line));
+    border-radius: var(--vd-mat-card-radius, 11px);
+    background: var(--vd-mat-card-color, linear-gradient(var(--vd-theme-panel-bg-strong), var(--vd-theme-panel-bg-strong)), var(--gm-bg));
     box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
 }
 
@@ -1489,8 +1563,14 @@
     width: 100%;
     min-height: 34px;
     text-align: left;
+    color: var(--gm-text);
     border-color: transparent;
     background: transparent;
+    box-shadow: none;
+}
+
+.gm-more-menu button:hover:not(:disabled) {
+    background: var(--vd-mat-hover, rgba(139, 124, 246, 0.14));
 }
 
 .gm-more-menu .gm-menu-danger {
@@ -1538,11 +1618,12 @@
 
 .gm-idea-chips > span {
     flex-basis: 100%;
-    color: var(--gm-muted);
+    color: var(--vd-mat-label-color, var(--gm-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .gm-idea-chips button {
@@ -1893,8 +1974,9 @@
     margin-left: calc(-1 * var(--gm-modal-pad));
     padding-right: var(--gm-modal-pad);
     padding-left: var(--gm-modal-pad);
-    background: linear-gradient(var(--vd-theme-panel-bg-strong), var(--vd-theme-panel-bg-strong)),
-        var(--gm-bg, var(--vd-theme-app-bg, #11151c));
+    /* Dialog title and action rows are opaque bars; they stay readable while the fields scroll under them. */
+    background: var(--vd-mat-bar, linear-gradient(var(--vd-theme-panel-bg-strong), var(--vd-theme-panel-bg-strong)),
+        var(--gm-bg, var(--vd-theme-app-bg, #11151c)));
 }
 
 .gm-modal > header {
@@ -1909,7 +1991,7 @@
     margin-bottom: calc(-1 * var(--gm-modal-pad));
     padding-top: 12px;
     padding-bottom: 14px;
-    border-top: 1px solid var(--gm-line);
+    border-top: 1px solid var(--vd-mat-divider, var(--gm-line));
 }
 
 @media (prefers-reduced-motion: reduce) {

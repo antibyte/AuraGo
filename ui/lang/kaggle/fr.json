@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Clarifié manuellement · résultat inconnu",
+  "kaggle.resolve_unknown": "Libérer une place",
+  "kaggle.resolve_unknown_help": "Vérifie sur Kaggle que cette tâche ne s’exécute plus. Libérer la place n’arrête pas la tâche et ne confirme pas son résultat. L’enregistrement d’origine est conservé.",
+  "kaggle.resolve_unknown_confirm": "J’ai vérifié sur Kaggle que la tâche ne s’exécute plus.",
+  "config.kaggle.state_resolved_unknown": "Clarifié manuellement · résultat inconnu",
+  "config.kaggle.resolve_unknown": "Libérer une place",
+  "config.kaggle.resolve_unknown_help": "Vérifie sur Kaggle que cette tâche ne s’exécute plus. Libérer la place n’arrête pas la tâche et ne confirme pas son résultat. L’enregistrement d’origine est conservé.",
+  "config.kaggle.resolve_unknown_confirm": "J’ai vérifié sur Kaggle que la tâche ne s’exécute plus.",
   "kaggle.filters": "Plus de filtres et d’options",
   "kaggle.required": "Renseigne ce champ.",
   "kaggle.overview": "Vue d'ensemble",

@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Manuell geklärt · Ergebnis unbekannt",
+  "kaggle.resolve_unknown": "Slot freigeben",
+  "kaggle.resolve_unknown_help": "Prüfe auf Kaggle, dass dieser Auftrag nicht mehr läuft. Die Freigabe stoppt keinen Auftrag und bestätigt kein Ergebnis. Der ursprüngliche Beleg bleibt erhalten.",
+  "kaggle.resolve_unknown_confirm": "Ich habe auf Kaggle geprüft, dass der Auftrag nicht mehr läuft.",
+  "config.kaggle.state_resolved_unknown": "Manuell geklärt · Ergebnis unbekannt",
+  "config.kaggle.resolve_unknown": "Slot freigeben",
+  "config.kaggle.resolve_unknown_help": "Prüfe auf Kaggle, dass dieser Auftrag nicht mehr läuft. Die Freigabe stoppt keinen Auftrag und bestätigt kein Ergebnis. Der ursprüngliche Beleg bleibt erhalten.",
+  "config.kaggle.resolve_unknown_confirm": "Ich habe auf Kaggle geprüft, dass der Auftrag nicht mehr läuft.",
   "kaggle.filters": "Weitere Filter und Optionen",
   "kaggle.required": "Fülle dieses Feld aus.",
   "kaggle.overview": "Übersicht",

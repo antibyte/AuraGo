@@ -26,6 +26,7 @@
         varying vec2 v_uv;
         uniform float u_time;
         uniform vec2 u_res;
+        uniform float u_threat;
 
         const float PI  = 3.1415926;
         const float TAU = 6.2831853;
@@ -323,6 +324,9 @@
             // ── Composite ───────────────────────────────────────────
             vec3 color = fog * 0.35;
 
+            // Alert tint — the HUD threat level pushes the whole scope red
+            float threatMix = clamp(u_threat, 0.0, 1.0);
+
             // Scan lines
             color += cCyan * hScan * 0.08;
             color += cMagenta * dScan * 0.1;
@@ -353,7 +357,10 @@
             color += cCyan * compass * 0.2;
 
             // Perimeter
-            color += cRed * perimAlert;
+            color += cRed * perimAlert * (1.0 + threatMix * 1.8);
+
+            // Alert wash — the scope reddens while the threat level is up
+            color += cRed * threatMix * (0.035 + 0.015 * sin(t * 3.0));
 
             // Targets
             color += cGreen * friendlies * 0.32;
@@ -398,6 +405,7 @@
                 missile1 * 0.12 +
                 debris * 0.05 +
                 perimAlert * 0.1 +
+                threatMix * 0.03 +
                 ew1 * 0.08 +
                 ew2 * 0.06 +
                 sparkle * 0.12;
@@ -496,6 +504,7 @@
 
         uniforms.time = gl.getUniformLocation(program, 'u_time');
         uniforms.resolution = gl.getUniformLocation(program, 'u_res');
+        uniforms.threat = gl.getUniformLocation(program, 'u_threat');
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -528,11 +537,24 @@
         gl.viewport(0, 0, canvas.width, canvas.height);
     }
 
+    function currentThreat() {
+        // The tactical HUD publishes its threat level on the window object.
+        var raw = Number(window.AuraGoCyberwarThreat);
+        if (!isFinite(raw) || raw <= 0) return 0;
+        return Math.min(1, raw / 4);
+    }
+
+    function setThreat(level) {
+        var raw = Number(level);
+        window.AuraGoCyberwarThreat = isFinite(raw) && raw > 0 ? raw : 0;
+    }
+
     function render(time) {
         if (!active || !gl) return;
 
         gl.uniform1f(uniforms.time, time * 0.001);
         gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
+        gl.uniform1f(uniforms.threat, currentThreat());
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -610,6 +632,6 @@
         sync();
     }
 
-    window.AuraGoCyberwar = { start, stop, sync };
+    window.AuraGoCyberwar = { start, stop, sync, setThreat };
     init();
 })();

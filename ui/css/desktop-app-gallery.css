@@ -8,13 +8,15 @@
     flex-wrap: wrap;
     gap: 8px;
     padding: 8px 12px;
-    background: var(--vd-theme-chrome-bg);
-    border-bottom: 1px solid var(--vd-theme-border);
+    /* App materials (docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md): regions read their --vd-mat-* token, the old value is the fallback. */
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    box-shadow: var(--vd-mat-bar-edge, none);
     font-size: 12px;
 }
 .vd-gallery-metadata-toolbar label { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .vd-gallery-metadata-toolbar select { max-width: 190px; }
-.vd-gallery-metadata-editor { padding: 12px; border-top: 1px solid var(--vd-theme-border); }
+.vd-gallery-metadata-editor { padding: 12px; border-top: 1px solid var(--vd-mat-divider, var(--vd-theme-border)); }
 .vd-gallery-metadata-editor label,
 .vd-gallery-category-dialog label { display: grid; gap: 5px; margin-bottom: 12px; font-size: 12px; }
 .vd-gallery-metadata-editor input,
@@ -26,9 +28,10 @@
     min-width: 0;
     width: 100%;
     padding: 7px 9px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 6px;
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 6px);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--vd-text);
     font: inherit;
 }
@@ -43,11 +46,12 @@
 }
 .vd-gallery-category-dialog {
     width: min(430px, 100%); max-height: 100%; overflow: auto;
-    box-sizing: border-box; padding: 20px; border-radius: 12px;
-    background: var(--vd-theme-app-bg); color: var(--vd-text);
-    border: 1px solid var(--vd-theme-border);
+    box-sizing: border-box; padding: 20px; border-radius: var(--vd-mat-card-radius, 12px);
+    background: var(--vd-mat-card, var(--vd-theme-app-bg)); color: var(--vd-text);
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
-.vd-gallery-category-dialog h3 { margin-top: 0; }
+.vd-gallery-category-dialog h3 { margin-top: 0; font-family: var(--vd-mat-heading-font, inherit); color: var(--vd-mat-heading-color, inherit); }
 .vd-gallery-category-dialog p { font-size: 12px; line-height: 1.5; }
 .vd-gallery-category-dialog select { margin-bottom: 14px; }
 .vd-gallery [data-gallery-metadata-status] { flex: 1 1 180px; overflow-wrap: anywhere; }
@@ -68,14 +72,14 @@
 .vd-gallery {
     --vd-gallery-tile: 168px;
     --vd-gallery-gap: clamp(4px, calc(var(--vd-gallery-tile) * 0.045), 12px);
-    --vd-gallery-radius: 10px;
+    --vd-gallery-radius: var(--vd-mat-card-radius, 10px);
     position: relative;
     display: flex;
     flex: 1;
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     color: var(--vd-text);
 }
 
@@ -85,8 +89,9 @@
     gap: 10px;
     flex-wrap: nowrap;
     padding: var(--vd-toolbar-padding);
-    border-bottom: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 /* Library tabs (segmented pill) */
@@ -96,9 +101,9 @@
     gap: 2px;
     flex: 0 0 auto;
     padding: 3px;
-    border: 1px solid var(--vd-theme-border);
+    border: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
     border-radius: 999px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-well-color, var(--vd-theme-control-bg));
 }
 
 .vd-gallery-tab {
@@ -120,13 +125,18 @@
 
 .vd-gallery-tab:hover {
     color: var(--vd-text);
-    background: var(--vd-theme-control-hover);
+    background: var(--vd-mat-hover, var(--vd-theme-control-hover));
 }
 
 .vd-gallery-tab.is-active {
-    color: var(--vd-text);
-    background: var(--vd-theme-panel-bg-strong);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--vd-theme-border);
+    color: var(--vd-mat-selected-text, var(--vd-text));
+    background: var(--vd-mat-selected, var(--vd-theme-panel-bg-strong));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--vd-mat-divider, var(--vd-theme-border));
+}
+
+.vd-gallery-tab.is-active .vd-gallery-tab-count {
+    background: color-mix(in srgb, currentColor 18%, transparent);
+    color: inherit;
 }
 
 .vd-gallery-tab:focus-visible {
@@ -163,9 +173,10 @@
     height: 32px;
     margin: 0 auto;
     padding: 0 8px 0 10px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 999px;
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 999px);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--vd-theme-muted);
     transition: border-color 140ms var(--ds-motion-ease-standard, ease), box-shadow 140ms var(--ds-motion-ease-standard, ease);
 }
@@ -230,7 +241,7 @@
     height: 32px;
     padding: 0 10px;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--vd-mat-btn-radius, 8px);
     background: transparent;
     color: var(--vd-text);
     font: inherit;
@@ -246,15 +257,18 @@
     width: 32px;
 }
 
+/* Toolbar tools are ghost buttons: they take the default button material on hover. */
 .vd-gallery-tool:hover:not(:disabled) {
-    background: var(--vd-theme-control-hover);
-    border-color: var(--vd-theme-border);
+    background: var(--vd-mat-btn-hover, var(--vd-theme-control-hover));
+    border-color: var(--vd-mat-btn-border, var(--vd-theme-border));
+    box-shadow: var(--vd-mat-btn-shadow, none);
 }
 
 .vd-gallery-tool.is-active,
 .vd-gallery-tool[aria-pressed="true"] {
-    background: var(--vd-theme-accent-soft);
+    background: var(--vd-mat-selected, var(--vd-theme-accent-soft));
     border-color: var(--vd-theme-accent-border);
+    color: var(--vd-mat-selected-text, var(--vd-text));
 }
 
 .vd-gallery-tool:disabled {
@@ -298,6 +312,9 @@
     overflow-x: hidden;
     outline: none;
     scroll-padding-top: 44px;
+    /* The photo area is a recessed well: the tiles sit in it like prints on a desk. */
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-gallery-scroll:focus-visible {
@@ -328,18 +345,22 @@
     gap: 10px;
     margin: 0 -12px;
     padding: 12px 12px 8px;
-    background: linear-gradient(var(--vd-theme-app-bg) 72%, transparent);
+    background: var(--vd-mat-bar, linear-gradient(var(--vd-theme-app-bg) 72%, transparent));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-gallery-section-header h3 {
     margin: 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 13.5px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    color: var(--vd-text);
+    font-weight: var(--vd-mat-heading-weight, 700);
+    letter-spacing: var(--vd-mat-heading-tracking, 0.01em);
+    text-transform: var(--vd-mat-heading-transform, none);
+    color: var(--vd-mat-heading-color, var(--vd-text));
 }
 
 .vd-gallery-section-count {
+    font-family: var(--vd-mat-mono-font, inherit);
     font-size: 11.5px;
     color: var(--vd-theme-muted);
     font-variant-numeric: tabular-nums;
@@ -366,7 +387,7 @@
     overflow: hidden;
     border: 0;
     border-radius: var(--vd-gallery-radius);
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-well-color, var(--vd-theme-control-bg));
     box-shadow: none;
     cursor: pointer;
     outline: none;
@@ -376,8 +397,15 @@
 }
 
 .vd-gallery-card:focus-visible {
-    box-shadow: 0 0 0 2px var(--vd-theme-app-bg), 0 0 0 4px var(--vd-accent);
+    box-shadow: 0 0 0 2px var(--vd-mat-well-color, var(--vd-theme-app-bg)), 0 0 0 4px var(--vd-accent);
     z-index: 1;
+}
+
+/* The shared bridge lists .vd-gallery-card among the cards; photo tiles are media, so they stay flat (no card material or shadow)
+   and the thumb below covers the tile completely. Selected and focused tiles keep their frames. */
+.desktop-body .vd-gallery .vd-gallery-card:not(.is-selected, :focus-visible) {
+    background: var(--vd-mat-well-color, var(--vd-theme-control-bg));
+    box-shadow: none;
 }
 
 .vd-gallery-thumb {
@@ -385,7 +413,7 @@
     inset: 0;
     overflow: hidden;
     border-radius: inherit;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-well-color, var(--vd-theme-control-bg));
     transition: transform 180ms var(--ds-motion-ease-standard, ease), border-radius 180ms var(--ds-motion-ease-standard, ease);
 }
 
@@ -561,7 +589,7 @@
 
 /* Selected tile: inset frame with the artwork pulled in */
 .vd-gallery-card.is-selected {
-    background: var(--vd-theme-accent-soft);
+    background: var(--vd-mat-selected, var(--vd-theme-accent-soft));
     box-shadow: inset 0 0 0 2px var(--vd-accent);
 }
 
@@ -682,7 +710,7 @@
 .vd-gallery-skeleton {
     aspect-ratio: 1 / 1;
     border-radius: var(--vd-gallery-radius);
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-card-color, var(--vd-theme-control-bg));
     position: relative;
     overflow: hidden;
 }
@@ -716,8 +744,9 @@
 }
 
 .vd-gallery-empty strong {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 15px;
-    color: var(--vd-text);
+    color: var(--vd-mat-heading-color, var(--vd-text));
 }
 
 .vd-gallery-empty p {
@@ -759,11 +788,11 @@
     margin: 0 auto -32px;
     padding: 5px 6px 5px 14px;
     border-radius: 999px;
-    background: var(--vd-accent);
-    color: var(--vd-accent-contrast, #fff);
+    background: var(--vd-mat-primary, var(--vd-accent));
+    color: var(--vd-mat-primary-text, var(--vd-accent-contrast, #fff));
     font-size: 12.5px;
     font-weight: 600;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--vd-mat-primary-shadow, 0 6px 20px rgba(0, 0, 0, 0.3));
     animation: vd-gallery-pop 220ms var(--ds-motion-ease-standard, ease);
 }
 
@@ -776,8 +805,8 @@
     padding: 0 10px;
     border: 0;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.22);
-    color: var(--vd-accent-contrast, #fff);
+    background: color-mix(in srgb, var(--vd-mat-primary-text, #fff) 24%, transparent);
+    color: var(--vd-mat-primary-text, var(--vd-accent-contrast, #fff));
     font: inherit;
     font-size: 12px;
     font-weight: 700;
@@ -785,7 +814,7 @@
 }
 
 .vd-gallery-pill-button:hover {
-    background: rgba(255, 255, 255, 0.34);
+    background: color-mix(in srgb, var(--vd-mat-primary-text, #fff) 36%, transparent);
 }
 
 /* ── Status bar ────────────────────────────────────────────────────── */
@@ -796,8 +825,9 @@
     gap: 12px;
     min-height: 36px;
     padding: 3px 12px;
-    border-top: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-chrome-bg);
+    border-top: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
     font-size: 12px;
     color: var(--vd-theme-muted);
 }
@@ -818,9 +848,13 @@
     padding: 2px 4px 2px 10px;
     border: 1px solid var(--vd-theme-accent-border);
     border-radius: 999px;
-    background: var(--vd-theme-accent-soft);
-    color: var(--vd-text);
+    background: var(--vd-mat-selected, var(--vd-theme-accent-soft));
+    color: var(--vd-mat-selected-text, var(--vd-text));
     animation: vd-gallery-pop 180ms var(--ds-motion-ease-standard, ease);
+}
+
+.vd-gallery-selection .vd-gallery-tool {
+    color: inherit;
 }
 
 .vd-gallery-selection[hidden] {
@@ -863,7 +897,7 @@
 }
 
 .vd-gallery-zoom-button:hover {
-    background: var(--vd-theme-control-hover);
+    background: var(--vd-mat-hover, var(--vd-theme-control-hover));
     color: var(--vd-text);
 }
 
@@ -887,10 +921,10 @@
     min-width: 260px;
     max-width: calc(100% - 32px);
     padding: 10px 14px;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 12px;
-    background: var(--vd-theme-panel-bg-strong);
-    box-shadow: var(--vd-theme-shadow-panel);
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    background: var(--vd-mat-card-color, var(--vd-theme-panel-bg-strong));
+    box-shadow: var(--vd-mat-card-shadow, var(--vd-theme-shadow-panel));
     font-size: 12.5px;
     color: var(--vd-text);
     transform: translateX(-50%);
@@ -904,7 +938,7 @@
 .vd-gallery-progress-track {
     height: 4px;
     border-radius: 999px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-well-color, var(--vd-theme-control-bg));
     overflow: hidden;
 }
 
@@ -927,8 +961,9 @@
     width: 280px;
     min-height: 0;
     padding: 12px;
-    border-left: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-panel-bg);
+    border-left: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-side, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-side-edge, none);
     overflow-y: auto;
     font-size: 12.5px;
 }
@@ -944,7 +979,7 @@
     aspect-ratio: 4 / 3;
     overflow: hidden;
     border-radius: 10px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-well-color, var(--vd-theme-control-bg));
 }
 
 .vd-gallery-info-preview {
@@ -969,7 +1004,9 @@
 }
 
 .vd-gallery-info-header strong {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 14px;
+    color: var(--vd-mat-heading-color, inherit);
 }
 
 .vd-gallery-info-name {
@@ -989,14 +1026,14 @@
 }
 
 .vd-gallery-info-name:not([readonly]):hover {
-    border-color: var(--vd-theme-border);
-    background: var(--vd-theme-control-bg);
+    border-color: var(--vd-mat-field-border, var(--vd-theme-border));
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
 }
 
 .vd-gallery-info-name:focus {
     outline: none;
     border-color: var(--vd-theme-accent-border);
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
     box-shadow: 0 0 0 3px var(--vd-theme-accent-soft);
 }
 
@@ -1013,7 +1050,7 @@
     justify-content: space-between;
     gap: 12px;
     padding-bottom: 6px;
-    border-bottom: 1px solid var(--vd-theme-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
 }
 
 .vd-gallery-info-list > div:last-child {
@@ -1022,6 +1059,7 @@
 
 .vd-gallery-info-list dt {
     flex: 0 0 auto;
+    font-family: var(--vd-mat-label-font, inherit);
     color: var(--vd-theme-muted);
 }
 
@@ -1058,7 +1096,7 @@
     margin: 0;
     padding: 8px 10px;
     border-radius: 8px;
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-card-color, var(--vd-theme-control-bg));
     color: var(--vd-theme-muted);
     font-size: 12px;
     line-height: 1.45;
@@ -1820,10 +1858,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--vd-theme-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--vd-theme-panel-bg-strong);
-    box-shadow: var(--vd-theme-shadow-modal);
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-card-radius, var(--ds-radius-md));
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg-strong));
+    box-shadow: var(--vd-mat-card-shadow, var(--vd-theme-shadow-modal));
 }
 
 .vd-media-preview-bar {
@@ -1832,8 +1870,9 @@
     justify-content: space-between;
     gap: 12px;
     padding: 10px 12px;
-    border-bottom: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-media-preview-bar strong {
@@ -1841,7 +1880,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 13px;
+    color: var(--vd-mat-heading-color, inherit);
 }
 
 .vd-media-preview-bar > div {

@@ -17,10 +17,10 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 		"align-items: center;",
 		"justify-content: center;",
 		"gap: 8px;",
-		"border-radius: var(--ds-radius-sm);",
-		"border: 1px solid var(--vd-theme-border);",
-		"background: var(--vd-theme-control-bg);",
-		"color: var(--vd-text);",
+		"border-radius: var(--vd-mat-btn-radius, var(--ds-radius-sm));",
+		"border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));",
+		"background: var(--vd-mat-btn, var(--vd-theme-control-bg));",
+		"color: var(--vd-mat-btn-text, var(--vd-text));",
 		"font-size: 12px;",
 		"font-weight: 700;",
 	} {
@@ -41,12 +41,12 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 		},
 		".vd-looper-start:hover:not(:disabled),\n.vd-looper-stop:hover:not(:disabled),\n.vd-looper-pause:hover:not(:disabled),\n.vd-looper-resume:hover:not(:disabled)": {
 			"border-color: var(--vd-looper-action-accent);",
-			"background: var(--vd-theme-control-bg);",
+			"background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg));",
 		},
 		".vd-looper-start:disabled,\n.vd-looper-stop:disabled,\n.vd-looper-pause:disabled,\n.vd-looper-resume:disabled": {
 			"cursor: not-allowed;",
-			"background: var(--vd-theme-control-bg);",
-			"border-color: var(--vd-theme-border);",
+			"background: var(--vd-mat-btn, var(--vd-theme-control-bg));",
+			"border-color: var(--vd-mat-btn-border, var(--vd-theme-border));",
 		},
 	} {
 		block := desktopLooperCSSRuleBody(t, css, selector)

@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Chiarito manualmente · esito sconosciuto",
+  "kaggle.resolve_unknown": "Libera posto",
+  "kaggle.resolve_unknown_help": "Verifica su Kaggle che questa attività non sia più in esecuzione. Liberare il posto non interrompe l’attività né ne conferma l’esito. La registrazione originale viene conservata.",
+  "kaggle.resolve_unknown_confirm": "Ho verificato su Kaggle che l’attività non è più in esecuzione.",
+  "config.kaggle.state_resolved_unknown": "Chiarito manualmente · esito sconosciuto",
+  "config.kaggle.resolve_unknown": "Libera posto",
+  "config.kaggle.resolve_unknown_help": "Verifica su Kaggle che questa attività non sia più in esecuzione. Liberare il posto non interrompe l’attività né ne conferma l’esito. La registrazione originale viene conservata.",
+  "config.kaggle.resolve_unknown_confirm": "Ho verificato su Kaggle che l’attività non è più in esecuzione.",
   "kaggle.filters": "Altri filtri e opzioni",
   "kaggle.required": "Compila questo campo.",
   "kaggle.overview": "Panoramica",

@@ -1,7 +1,7 @@
-.pixel-sticker-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--vd-border, #657080); border-radius: 8px; }
+.pixel-sticker-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 12px; padding: 10px; border: 1px solid var(--vd-mat-divider, var(--vd-border, #657080)); border-radius: var(--vd-mat-card-radius, 8px); background: var(--vd-mat-card-color, transparent); }
 .pixel-sticker-controls[hidden], .pixel-sticker-frame[hidden] { display: none; }
-.pixel-sticker-controls label { display: grid; gap: 3px; min-width: 0; font-size: 12px; }
-.pixel-sticker-controls input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--pixel-line); border-radius: 4px; padding: 6px; background: var(--pixel-surface); color: inherit; }
+.pixel-sticker-controls label { display: grid; gap: 3px; min-width: 0; font-size: 12px; font-family: var(--vd-mat-label-font, inherit); color: var(--vd-mat-label-color, inherit); }
+.pixel-sticker-controls input { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--vd-mat-field-border, var(--pixel-line)); border-radius: var(--vd-mat-field-radius, 4px); padding: 6px; background: var(--vd-mat-field, var(--pixel-surface)); box-shadow: var(--vd-mat-field-shadow, none); color: inherit; }
 .pixel-sticker-controls button { grid-column: 1 / -1; }
 .pixel-sticker-frame { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 8; touch-action: none; }
 .pixel-sticker-frame polygon { fill: transparent; stroke: #49a0ff; stroke-width: 1.5; pointer-events: all; cursor: move; }

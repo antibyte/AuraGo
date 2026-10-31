@@ -1,13 +1,16 @@
 /* Video Studio — consumer-grade editor on the Desktop theme tokens (Standard, Fruity light/dark). */
 .vs-app {
-    --vs-bg: var(--vd-theme-app-bg, #11151c);
-    --vs-panel: var(--vd-theme-panel-bg, #191f28);
-    --vs-panel-strong: var(--vd-theme-panel-bg-strong, rgba(24, 30, 39, .98));
+    /* App materials (docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md): every region reads its --vd-mat-* token and keeps
+       today's value as the fallback. The colour aliases below (--vs-bg, --vs-panel, --vs-panel-strong, --vs-chrome) take only the opaque
+       -color tokens, so each color-mix() stays a colour; the role aliases after --vs-radius carry the full backgrounds. */
+    --vs-bg: var(--vd-mat-canvas-color, var(--vd-theme-app-bg, #11151c));
+    --vs-panel: var(--vd-mat-side-color, var(--vd-theme-panel-bg, #191f28));
+    --vs-panel-strong: var(--vd-mat-card-color, var(--vd-theme-panel-bg-strong, rgba(24, 30, 39, .98)));
     --vs-surface: linear-gradient(var(--vs-panel-strong), var(--vs-panel-strong)) var(--vs-bg);
-    --vs-chrome: var(--vd-theme-chrome-bg, var(--vs-panel));
+    --vs-chrome: var(--vd-mat-bar-color, var(--vd-theme-chrome-bg, var(--vs-panel)));
     --vs-control: var(--vd-theme-control-bg, rgba(255, 255, 255, .055));
-    --vs-control-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, .1));
-    --vs-border: var(--vd-theme-border, rgba(191, 210, 235, .14));
+    --vs-control-hover: var(--vd-mat-hover, var(--vd-theme-control-hover, rgba(255, 255, 255, .1)));
+    --vs-border: var(--vd-mat-divider, var(--vd-theme-border, rgba(191, 210, 235, .14)));
     --vs-border-strong: var(--vd-theme-border-strong, rgba(191, 210, 235, .28));
     --vs-text: var(--vd-text, #eef1f6);
     --vs-muted: var(--vd-theme-muted, #aeb7c6);
@@ -19,6 +22,49 @@
     --vs-accent-hover: color-mix(in srgb, var(--vs-accent) 84%, #000);
     --vs-shadow: var(--vd-theme-shadow-modal, 0 24px 70px rgba(0, 0, 0, .5));
     --vs-radius: var(--vd-theme-radius-panel, 10px);
+    /* Role aliases: canvas (root), bar (toolbar, transport, tab strip, ruler, status strips), side (library, inspector, track heads),
+       card (popovers, dialogs) and card-flat (tiles, menus, toasts), well (timeline, media list), inset (small segmented tracks),
+       field, btn, primary and selected. A full background token ends in its own -color layer, so it is used only as `background`. */
+    --vs-canvas: var(--vd-mat-canvas, var(--vs-bg));
+    --vs-bar: var(--vd-mat-bar, var(--vs-chrome));
+    --vs-bar-edge: var(--vd-mat-bar-edge, none);
+    --vs-side: var(--vd-mat-side, var(--vs-panel));
+    --vs-side-edge: var(--vd-mat-side-edge, none);
+    --vs-card: var(--vd-mat-card, var(--vs-surface));
+    --vs-card-flat: var(--vd-mat-card-color, var(--vs-control));
+    --vs-card-border: var(--vd-mat-card-border, var(--vs-border-strong));
+    --vs-card-radius: var(--vd-mat-card-radius, 12px);
+    --vs-card-shadow: var(--vd-mat-card-shadow, var(--vs-shadow));
+    --vs-well: var(--vd-mat-well, var(--vs-panel));
+    --vs-well-c: var(--vd-mat-well-color, var(--vs-panel));
+    --vs-well-shadow: var(--vd-mat-well-shadow, none);
+    --vs-inset: var(--vd-mat-well-color, var(--vs-control));
+    --vs-field: var(--vd-mat-field, var(--vd-theme-field-bg, var(--vs-control)));
+    --vs-field-border: var(--vd-mat-field-border, var(--vs-border));
+    --vs-field-radius: var(--vd-mat-field-radius, 8px);
+    --vs-field-shadow: var(--vd-mat-field-shadow, none);
+    --vs-btn: var(--vd-mat-btn, var(--vs-control));
+    --vs-btn-hover: var(--vd-mat-btn-hover, var(--vs-control-hover));
+    --vs-btn-border: var(--vd-mat-btn-border, var(--vs-border));
+    --vs-btn-border-hot: var(--vd-mat-btn-border, var(--vs-border-strong));
+    --vs-btn-radius: var(--vd-mat-btn-radius, 8px);
+    --vs-btn-shadow: var(--vd-mat-btn-shadow, none);
+    --vs-btn-text: var(--vd-mat-btn-text, var(--vs-text));
+    --vs-primary: var(--vd-mat-primary, var(--vs-accent-strong));
+    --vs-primary-hover: var(--vd-mat-primary-hover, var(--vs-accent-hover));
+    --vs-primary-text: var(--vd-mat-primary-text, #fff);
+    --vs-primary-border: var(--vd-mat-primary-border, transparent);
+    --vs-primary-shadow: var(--vd-mat-primary-shadow, 0 1px 0 rgba(255, 255, 255, .14) inset, 0 4px 14px color-mix(in srgb, var(--vs-accent) 30%, transparent));
+    --vs-sel: var(--vd-mat-selected, var(--vs-accent-soft));
+    --vs-sel-text: var(--vd-mat-selected-text, var(--vs-text));
+    --vs-sel-edge: var(--vd-mat-selected-edge, none);
+    --vs-hover-tint: var(--vd-mat-hover, var(--vs-accent-soft));
+    --vs-tile-hover: linear-gradient(var(--vs-hover-tint), var(--vs-hover-tint)) var(--vs-card-flat);
+    --vs-head-font: var(--vd-mat-heading-font, inherit);
+    --vs-head-color: var(--vd-mat-heading-color, var(--vs-text));
+    --vs-cap-font: var(--vd-mat-label-font, inherit);
+    --vs-cap-color: var(--vd-mat-label-color, var(--vs-muted));
+    --vs-mono: var(--vd-mat-mono-font, ui-monospace, Consolas, monospace);
     --vs-stage: #0b0d11;
     --vs-danger: #e5484d;
     --vs-warn: #f2a33a;
@@ -44,7 +90,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--vs-bg);
+    background: var(--vs-canvas);
     color: var(--vs-text);
     font: 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
     overflow: hidden;
@@ -61,38 +107,42 @@
 .vs-app button:disabled { cursor: not-allowed; opacity: .42; }
 .vs-app :focus-visible { outline: 2px solid var(--vs-accent); outline-offset: 2px; }
 .vs-app input, .vs-app select, .vs-app textarea {
-    background: var(--vd-theme-field-bg, var(--vs-control));
-    border: 1px solid var(--vs-border);
-    border-radius: 8px;
+    background: var(--vs-field);
+    border: 1px solid var(--vs-field-border);
+    border-radius: var(--vs-field-radius);
+    box-shadow: var(--vs-field-shadow);
     padding: 7px 10px;
     min-width: 0;
 }
-.vs-app input:hover, .vs-app select:hover, .vs-app textarea:hover { border-color: var(--vs-border-strong); }
-.vs-app input[type=range] { accent-color: var(--vs-accent); padding: 0; border: 0; background: transparent; }
+.vs-app input:hover, .vs-app select:hover, .vs-app textarea:hover { border-color: color-mix(in srgb, var(--vs-field-border) 55%, var(--vs-accent)); }
+.vs-app input[type=range] { accent-color: var(--vs-accent); padding: 0; border: 0; background: transparent; box-shadow: none; }
 .vs-app input[type=color] { width: 40px; height: 32px; padding: 3px; cursor: pointer; }
+.vs-app input[type=checkbox], .vs-app input[type=radio], .vs-app input[type=color] { box-shadow: none; }
 .vs-app select option { background: var(--vs-panel-strong); color: var(--vs-text); }
 .vs-icon { flex: 0 0 auto; vertical-align: middle; }
 .vs-spin { animation: vs-spin 1s linear infinite; }
 @keyframes vs-spin { to { transform: rotate(360deg); } }
 .vs-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--vs-muted); }
-.vs-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--vs-muted); font-weight: 700; margin: 0; }
+.vs-eyebrow { font-family: var(--vs-cap-font); font-size: 11px; text-transform: var(--vd-mat-label-transform, uppercase); letter-spacing: var(--vd-mat-label-tracking, .1em); color: var(--vs-cap-color); font-weight: 700; margin: 0; }
 kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3px; border: 1px solid var(--vs-border-strong); border-bottom-width: 2px; border-radius: 5px; background: var(--vs-control); font: 600 11px/1.6 ui-monospace, Consolas, monospace; text-align: center; }
 
 /* Buttons */
 .vs-app .vs-primary {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    border: 1px solid transparent; border-radius: 9px; padding: 8px 15px;
-    background: var(--vs-accent-strong); color: #fff; font-weight: 650;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, .14) inset, 0 4px 14px color-mix(in srgb, var(--vs-accent) 30%, transparent);
+    border: 1px solid var(--vs-primary-border); border-radius: var(--vd-mat-btn-radius, 9px); padding: 8px 15px;
+    background: var(--vs-primary); color: var(--vs-primary-text); font-weight: 650;
+    box-shadow: var(--vs-primary-shadow);
 }
-.vs-app .vs-primary:hover:not(:disabled) { background: var(--vs-accent-hover); }
+.vs-app .vs-primary:hover:not(:disabled) { background: var(--vs-primary-hover); }
 .vs-icon-button, .vs-app .vs-transport button, .vs-import button, .vs-edit-tools button, .vs-timeline-tools button, .vs-modal-actions button, .vs-insp-actions button, .vs-chip-button, .vs-inline-field button, .vs-format, .vs-jobs-button, .vs-inspector-toggle, .vs-inspector-close {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    min-height: 32px; border: 1px solid var(--vs-border); border-radius: 8px;
-    background: var(--vs-control); padding: 5px 10px; white-space: nowrap;
+    min-height: 32px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius);
+    background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); padding: 5px 10px; white-space: nowrap;
 }
+/* `.vs-app button { color: inherit }` outranks the single-class selectors, so the button text colour is set on its own. */
+.vs-app :is(.vs-icon-button, .vs-import button, .vs-edit-tools button, .vs-timeline-tools button, .vs-modal-actions button:not(.vs-primary), .vs-insp-actions button, .vs-chip-button, .vs-inline-field button, .vs-jobs-button, .vs-inspector-toggle, .vs-inspector-close) { color: var(--vs-btn-text); }
 .vs-icon-button { width: 34px; padding: 0; }
-.vs-icon-button:hover:not(:disabled), .vs-app .vs-transport button:hover, .vs-import button:hover:not(:disabled), .vs-edit-tools button:hover:not(:disabled), .vs-timeline-tools button:hover:not(:disabled), .vs-modal-actions button:hover:not(.vs-primary), .vs-insp-actions button:hover:not(:disabled), .vs-chip-button:hover, .vs-inline-field button:hover, .vs-jobs-button:hover, .vs-inspector-toggle:hover, .vs-inspector-close:hover { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
+.vs-icon-button:hover:not(:disabled), .vs-app .vs-transport button:hover, .vs-import button:hover:not(:disabled), .vs-edit-tools button:hover:not(:disabled), .vs-timeline-tools button:hover:not(:disabled), .vs-modal-actions button:hover:not(.vs-primary), .vs-insp-actions button:hover:not(:disabled), .vs-chip-button:hover, .vs-inline-field button:hover, .vs-jobs-button:hover, .vs-inspector-toggle:hover, .vs-inspector-close:hover { background: var(--vs-btn-hover); border-color: var(--vs-btn-border-hot); box-shadow: var(--vs-btn-shadow); }
 /* Scoped under .vs-app so it outranks `.vs-app button { color: inherit }`. */
 .vs-app .vs-link-button { border: 0; background: none; color: var(--vs-accent); padding: 0; font-weight: 600; font-size: 12px; }
 .vs-app .vs-link-button:hover { text-decoration: underline; }
@@ -101,7 +151,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Toolbar */
 .vs-toolbar {
     flex: 0 0 auto; min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 8px 12px;
-    background: var(--vs-chrome); border-bottom: 1px solid var(--vs-border);
+    background: var(--vs-bar); border-bottom: 1px solid var(--vs-border); box-shadow: var(--vs-bar-edge);
 }
 .vs-tb-group { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .vs-tb-project { flex: 1 1 0; }
@@ -112,21 +162,22 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 300px; min-height: 36px;
     padding: 4px 10px 4px 8px; border: 1px solid transparent; border-radius: 9px; background: transparent; font-weight: 650; font-size: 14px;
 }
-.vs-project-button:hover, .vs-project-button[aria-expanded="true"] { background: var(--vs-control); border-color: var(--vs-border); }
+.vs-project-button:hover, .vs-project-button[aria-expanded="true"] { background: var(--vs-control-hover); border-color: var(--vs-border); }
+.vs-app .vs-project-button { font-family: var(--vs-head-font); color: var(--vs-head-color); }
 .vs-project-button > .vs-icon:first-child { color: var(--vs-accent); }
 .vs-project-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-save-chip {
     display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px; border: 1px solid transparent;
     border-radius: 999px; background: transparent; color: var(--vs-muted); font-size: 12px; white-space: nowrap;
 }
-.vs-save-chip:hover:not(:disabled) { background: var(--vs-control); border-color: var(--vs-border); }
+.vs-save-chip:hover:not(:disabled) { background: var(--vs-control-hover); border-color: var(--vs-border); }
 .vs-save-chip:disabled { opacity: 1; cursor: default; }
 .vs-save-chip.is-saved .vs-icon { color: var(--vs-ok); }
 .vs-save-chip.is-dirty { color: var(--vs-text); }
 .vs-save-chip.is-dirty .vs-icon { color: var(--vs-warn); }
 .vs-save-chip.is-error { color: color-mix(in srgb, var(--vs-danger) 75%, var(--vs-text)); background: color-mix(in srgb, var(--vs-danger) 12%, transparent); }
 .vs-format { gap: 6px; padding: 0 0 0 9px; color: var(--vs-muted); }
-.vs-format select { border: 0; background: transparent; padding: 6px 8px 6px 2px; color: var(--vs-text); max-width: 190px; }
+.vs-format select { border: 0; background: transparent; box-shadow: none; padding: 6px 8px 6px 2px; color: var(--vs-btn-text); max-width: 190px; }
 .vs-tb-edit .vs-format { margin-left: 6px; }
 .vs-jobs-button { font-size: 12px; }
 .vs-jobs-button.is-busy { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
@@ -137,22 +188,22 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Popovers */
 .vs-popover {
     position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; width: 320px; max-height: min(440px, 70vh); overflow: auto;
-    padding: 12px; border: 1px solid var(--vs-border-strong); border-radius: 12px; background: var(--vs-surface);
-    box-shadow: var(--vs-shadow); color: var(--vs-text);
+    padding: 12px; border: 1px solid var(--vs-card-border); border-radius: var(--vs-card-radius); background: var(--vs-card);
+    box-shadow: var(--vs-card-shadow); color: var(--vs-text);
 }
 .vs-tb-actions .vs-popover { left: auto; right: 0; }
-.vs-popover h3, .vs-popover h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--vs-muted); }
+.vs-popover h3, .vs-popover h4 { margin: 0 0 8px; font-family: var(--vs-cap-font); font-size: 12px; text-transform: var(--vd-mat-label-transform, uppercase); letter-spacing: var(--vd-mat-label-tracking, .08em); color: var(--vs-cap-color); }
 .vs-pop-section + .vs-pop-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--vs-border); }
 .vs-pop-foot { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
-.vs-pop-foot button:not(.vs-primary) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); white-space: nowrap; }
-.vs-pop-foot button:not(.vs-primary):hover { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
+.vs-pop-foot button:not(.vs-primary) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); white-space: nowrap; }
+.vs-pop-foot button:not(.vs-primary):hover { background: var(--vs-btn-hover); border-color: var(--vs-btn-border-hot); }
 .vs-pop-foot .vs-primary { flex: 1; }
 .vs-project-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .vs-project-list button { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
 .vs-project-list button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-project-list button:hover { background: var(--vs-control-hover); }
-.vs-project-list button[aria-current="true"] { background: var(--vs-accent-soft); font-weight: 650; }
-.vs-project-list button[aria-current="true"] .vs-icon { color: var(--vs-accent); }
+.vs-project-list button[aria-current="true"] { background: var(--vs-sel); color: var(--vs-sel-text); box-shadow: var(--vs-sel-edge); font-weight: 650; }
+.vs-project-list button[aria-current="true"] .vs-icon { color: inherit; }
 .vs-inline-field { display: flex; gap: 6px; }
 .vs-inline-field input { flex: 1; }
 .vs-shortcuts-popover dl { margin: 0; display: grid; gap: 7px; }
@@ -168,8 +219,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-toast {
     position: absolute; z-index: 70; bottom: calc(var(--vs-drawer-bottom, 36%) + 72px); left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 10px; width: max-content; max-width: min(560px, calc(100% - 24px));
-    padding: 9px 9px 9px 14px; border: 1px solid var(--vs-border-strong); border-radius: 12px;
-    background: var(--vs-surface); box-shadow: var(--vs-shadow); animation: vs-toast-in .18s ease-out;
+    padding: 9px 9px 9px 14px; border: 1px solid var(--vs-card-border); border-radius: var(--vs-card-radius);
+    background: var(--vs-card-flat); box-shadow: var(--vs-card-shadow); animation: vs-toast-in .18s ease-out;
 }
 .vs-toast-icon { display: inline-flex; color: var(--vs-ok); }
 .vs-toast.is-error { border-color: color-mix(in srgb, var(--vs-danger) 55%, transparent); }
@@ -190,37 +241,37 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 
 /* Workspace */
 .vs-workspace { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: var(--vs-lib-w) minmax(0, 1fr) var(--vs-insp-w); overflow: hidden; }
-.vs-library, .vs-inspector { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--vs-panel); }
+.vs-library, .vs-inspector { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--vs-side); box-shadow: var(--vs-side-edge); }
 .vs-library { border-right: 1px solid var(--vs-border); container: vs-library / inline-size; }
 .vs-inspector { border-left: 1px solid var(--vs-border); }
 
 /* Library */
-.vs-tabs { flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--vs-border); }
+.vs-tabs { flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--vs-border); background: var(--vs-bar); box-shadow: var(--vs-bar-edge); }
 .vs-tabs button {
     display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 7px 2px 8px;
     border: 0; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; background: transparent; color: var(--vs-muted); font-size: 11.5px; font-weight: 600;
 }
 .vs-tabs button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vs-tabs button:hover { color: var(--vs-text); background: var(--vs-control); }
-.vs-tabs button[aria-selected="true"] { color: var(--vs-text); border-bottom-color: var(--vs-accent); }
-.vs-tabs button[aria-selected="true"] .vs-icon { color: var(--vs-accent); }
+.vs-tabs button:hover { color: var(--vs-text); background: var(--vs-control-hover); }
+.vs-tabs button[aria-selected="true"] { color: var(--vs-sel-text); background: var(--vs-sel); border-bottom-color: var(--vs-accent); }
+.vs-tabs button[aria-selected="true"] .vs-icon { color: inherit; }
 .vs-tab-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto; padding: 12px; }
 .vs-media-panel { padding: 0; overflow: hidden; }
 .vs-panel-intro { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--vs-muted); }
 .vs-import { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 12px 12px 8px; }
-.vs-import .vs-import-main { background: var(--vs-accent-soft); border-color: var(--vs-accent-border); font-weight: 650; }
+.vs-app .vs-import .vs-import-main { background: var(--vs-sel); border-color: var(--vs-accent-border); color: var(--vs-sel-text); font-weight: 650; }
 .vs-media-tools { display: grid; gap: 8px; padding: 0 12px 10px; }
-.vs-search { display: flex; align-items: center; gap: 6px; padding-left: 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vd-theme-field-bg, var(--vs-control)); color: var(--vs-muted); }
-.vs-search input { flex: 1; border: 0; background: transparent; padding: 7px 8px 7px 0; }
+.vs-search { display: flex; align-items: center; gap: 6px; padding-left: 9px; border: 1px solid var(--vs-field-border); border-radius: var(--vs-field-radius); background: var(--vs-field); box-shadow: var(--vs-field-shadow); color: var(--vs-muted); }
+.vs-search input { flex: 1; border: 0; background: transparent; box-shadow: none; padding: 7px 8px 7px 0; }
 .vs-search input:focus-visible { outline: none; }
 .vs-search:focus-within { outline: 2px solid var(--vs-accent); outline-offset: 1px; }
 .vs-filter { display: flex; gap: 4px; flex-wrap: wrap; }
 .vs-filter button { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--vs-border); border-radius: 999px; background: transparent; font-size: 12px; color: var(--vs-muted); }
 .vs-filter button span { font-size: 11px; opacity: .8; }
-.vs-filter button[aria-pressed="true"] { background: var(--vs-accent-soft); border-color: var(--vs-accent-border); color: var(--vs-text); }
-.vs-asset-grid { flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); align-content: start; gap: 10px; padding: 2px 12px 12px; }
+.vs-filter button[aria-pressed="true"] { background: var(--vs-sel); border-color: var(--vs-accent-border); color: var(--vs-sel-text); }
+.vs-asset-grid { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--vs-well); box-shadow: var(--vs-well-shadow); display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); align-content: start; gap: 10px; padding: 2px 12px 12px; }
 .vs-asset { position: relative; display: grid; gap: 3px; min-width: 0; padding: 5px; border: 1px solid transparent; border-radius: 10px; cursor: grab; }
-.vs-asset:hover, .vs-asset:focus-visible { background: var(--vs-control); border-color: var(--vs-border); }
+.vs-asset:hover, .vs-asset:focus-visible { background: var(--vs-control-hover); border-color: var(--vs-border); }
 .vs-asset-thumb {
     position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden;
     background: #1d222c center / cover no-repeat; color: #c9d1dc; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
@@ -249,12 +300,12 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-empty-media .vs-icon { color: var(--vs-accent); }
 .vs-empty-media strong { color: var(--vs-text); font-size: 13px; }
 .vs-empty-media small { font-size: 12px; line-height: 1.5; max-width: 220px; }
-.vs-media-foot { flex: 0 0 auto; display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--vs-border); font-size: 11px; color: var(--vs-muted); }
+.vs-media-foot { flex: 0 0 auto; display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--vs-border); background: var(--vs-bar); box-shadow: var(--vs-bar-edge); font-size: 11px; color: var(--vs-muted); }
 .vs-media-foot span:first-child { flex: 0 0 auto; white-space: nowrap; }
 .vs-media-foot span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-preset-list { display: grid; gap: 8px; }
-.vs-preset { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); text-align: left; }
-.vs-preset:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-preset { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); text-align: left; }
+.vs-preset:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-tile-hover); }
 .vs-preset-sample { display: grid; place-items: center; height: 44px; border-radius: 7px; background: linear-gradient(135deg, #1f2633, #10141b); color: #fff; font-family: Georgia, serif; font-weight: 700; font-size: 20px; overflow: hidden; }
 .vs-preset-subtitle .vs-preset-sample { font: 600 12px/1 Arial, sans-serif; align-items: end; padding-bottom: 7px; }
 .vs-preset-lower .vs-preset-sample { font: 700 11px/1 Arial, sans-serif; justify-items: start; align-items: end; padding: 0 0 6px 6px; }
@@ -264,12 +315,12 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-preset-text small { font-size: 11.5px; color: var(--vs-muted); }
 .vs-preset-add { color: var(--vs-muted); }
 .vs-sticker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.vs-sticker { display: grid; justify-items: center; gap: 4px; padding: 10px 4px 8px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); }
-.vs-sticker:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-sticker { display: grid; justify-items: center; gap: 4px; padding: 10px 4px 8px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
+.vs-sticker:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-tile-hover); }
 .vs-sticker-art svg { width: 48px; height: 48px; display: block; }
 .vs-sticker small { font-size: 11.5px; color: var(--vs-muted); }
 .vs-ai-card { display: grid; justify-items: center; gap: 8px; padding: 16px 6px; text-align: center; }
-.vs-ai-card h3 { margin: 4px 0 0; font-size: 15px; }
+.vs-ai-card h3 { margin: 4px 0 0; font-family: var(--vs-head-font); font-size: 15px; color: var(--vs-head-color); }
 .vs-ai-card p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--vs-muted); }
 .vs-ai-art { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 18px; background: linear-gradient(135deg, var(--vs-accent-soft), color-mix(in srgb, var(--vs-clip-text) 22%, transparent)); color: var(--vs-accent); }
 .vs-ai-provider { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--vs-muted); }
@@ -278,16 +329,16 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Effects library tab (2c): effects and looks by category. Items drag onto timeline clips (the clip under the pointer
    shows .is-effect-drop); a double-click or Enter adds them to the selected clip. */
 .vs-fxlib-group + .vs-fxlib-group { margin-top: 14px; }
-.vs-fxlib-group h3 { margin: 0 0 6px; font-size: 11.5px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--vs-muted); }
+.vs-fxlib-group h3 { margin: 0 0 6px; font-family: var(--vs-cap-font); font-size: 11.5px; font-weight: 650; letter-spacing: var(--vd-mat-label-tracking, .03em); text-transform: var(--vd-mat-label-transform, uppercase); color: var(--vs-cap-color); }
 .vs-fxlib-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
-.vs-app .vs-fxlib-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); color: var(--vs-text); font-size: 12.5px; text-align: left; cursor: grab; }
+.vs-app .vs-fxlib-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-card-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font-size: 12.5px; text-align: left; cursor: grab; }
 /* Names wrap between words instead of ending in an ellipsis (2f F1, 2c follow-up 2). The two-column list of the 288 px
    library cut "Teal and orange", "Black and white" and "Bleach bypass". A word wider than its item still breaks, and
    each item fills its grid row, so the items of a row keep one height. */
 .vs-app .vs-fxlib-item span { min-width: 0; white-space: normal; overflow-wrap: break-word; line-height: 1.2; }
 .vs-fxlib-list > li { display: grid; }
 .vs-app .vs-fxlib-item .vs-icon { flex: none; color: var(--vs-accent); }
-.vs-app .vs-fxlib-item:hover:not([aria-disabled="true"]) { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-app .vs-fxlib-item:hover:not([aria-disabled="true"]) { border-color: var(--vs-accent-border); background: var(--vs-btn-hover); }
 .vs-app .vs-fxlib-item[aria-disabled="true"] { opacity: .5; cursor: default; }
 .vs-app .vs-fxlib-item .vs-tx-icon { width: 30px; height: 18px; }
 .vs-app .vs-fxlib-transition span { white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
@@ -340,7 +391,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-crop-handle[data-crop-handle="s"] { left: 50%; top: 100%; cursor: ns-resize; }
 .vs-crop-handle[data-crop-handle="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
 .vs-crop-handle[data-crop-handle="w"] { left: 0; top: 50%; cursor: ew-resize; }
-.vs-app .vs-crop-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-app .vs-crop-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 /* On-canvas mask handles (2d Task 15, video-studio-mask.js). The overlay sits on the clip box and turns with it; the
    dashed mask outline turns with the mask. Size handles sit on its corners and edges, the round rotate knob above the
    top edge, and the ring-shaped feather knob below the bottom edge at the outer end of the soft edge. */
@@ -363,13 +414,13 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-mask-handle[data-mask-handle="w"] { left: 0; top: 50%; cursor: ew-resize; }
 .vs-mask-knob[data-mask-handle="rotate"] { left: 50%; top: -24px; cursor: grab; }
 .vs-app .vs-mask-knob[data-mask-handle="feather"] { left: 50%; top: calc(100% + 12px); border-width: 3px; background: transparent; cursor: ns-resize; }
-.vs-transport { flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; min-height: 54px; padding: 8px 14px; background: var(--vs-panel); border-top: 1px solid var(--vs-border); }
+.vs-transport { flex: 0 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; min-height: 54px; padding: 8px 14px; background: var(--vs-bar); border-top: 1px solid var(--vs-border); box-shadow: var(--vs-bar-edge); }
 .vs-transport-buttons { display: flex; align-items: center; gap: 4px; justify-self: center; grid-column: 2; }
-.vs-app .vs-transport button { width: 36px; height: 36px; min-height: 0; padding: 0; border-color: transparent; background: transparent; }
-.vs-app .vs-transport button:hover { background: var(--vs-control-hover); }
-.vs-app .vs-transport .vs-play { width: 44px; height: 44px; margin: 0 6px; border-radius: 50%; background: var(--vs-accent-strong); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--vs-accent) 35%, transparent); }
-.vs-app .vs-transport .vs-play:hover { background: var(--vs-accent-hover); }
-.vs-time { grid-column: 1; grid-row: 1; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; min-width: 0; overflow: hidden; font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; }
+.vs-app .vs-transport button { width: 36px; height: 36px; min-height: 0; padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
+.vs-app .vs-transport button:hover { background: var(--vs-btn-hover); }
+.vs-app .vs-transport .vs-play { width: 44px; height: 44px; margin: 0 6px; border-radius: 50%; border-color: var(--vs-primary-border); background: var(--vs-primary); color: var(--vs-primary-text); box-shadow: var(--vs-primary-shadow); }
+.vs-app .vs-transport .vs-play:hover { background: var(--vs-primary-hover); border-color: var(--vs-primary-border); box-shadow: var(--vs-primary-shadow); }
+.vs-time { grid-column: 1; grid-row: 1; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; min-width: 0; overflow: hidden; font-variant-numeric: tabular-nums; font-family: var(--vs-mono); }
 .vs-time-current { font-size: 15px; font-weight: 650; color: var(--vs-text); }
 .vs-timecode { font-size: 12.5px; color: var(--vs-muted); }
 .vs-transport-right { grid-column: 3; justify-self: end; display: flex; gap: 4px; }
@@ -395,13 +446,13 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
    - the canvases use fixed colours in both themes. */
 .vs-center { --vs-scopes-h: 132px; }
 .vs-scopes-dock { flex: 0 0 auto; min-width: 0; }
-.vs-scopes { display: flex; align-items: stretch; gap: 10px; height: var(--vs-scopes-h); min-width: 0; padding: 6px 10px; border-top: 1px solid var(--vs-border); background: var(--vs-panel); }
+.vs-scopes { display: flex; align-items: stretch; gap: 10px; height: var(--vs-scopes-h); min-width: 0; padding: 6px 10px; border-top: 1px solid var(--vs-border); background: var(--vs-bar); box-shadow: var(--vs-bar-edge); }
 .vs-scopes-bar { flex: 0 0 auto; flex-direction: column; align-self: center; margin-top: 0; }
 .vs-scopes-bar button { padding: 3px 10px; text-align: left; }
 .vs-scopes-tiles { flex: 1 1 auto; display: flex; gap: 8px; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; border-radius: 6px; }
 .vs-scope { flex: 0 0 auto; height: 100%; margin: 0; border: 1px solid var(--vs-border); border-radius: 6px; overflow: hidden; background: #0c0f15; }
 .vs-scope canvas { display: block; width: auto; height: 100%; }
-.vs-app .vs-transport [data-action="scopes"][aria-expanded="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-accent); }
+.vs-app .vs-transport [data-action="scopes"][aria-expanded="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 .vs-without-project .vs-scopes-dock { display: none !important; }
 @container vs-app (max-width: 650px) {
     .vs-center { --vs-scopes-h: 96px; }
@@ -418,21 +469,21 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 }
 
 /* Empty project */
-.vs-preview-stage.vs-no-project { place-items: stretch; padding: 0; background: var(--vs-bg); }
+.vs-preview-stage.vs-no-project { place-items: stretch; padding: 0; background: var(--vs-canvas); }
 .vs-no-project .vs-preview-mat { display: flex; flex-direction: column; width: auto; height: auto; max-width: none; max-height: none; min-height: 0; aspect-ratio: auto !important; overflow: auto; box-shadow: none; background: transparent; margin: auto; }
 .vs-no-project .vs-preview-mat > canvas, .vs-no-project .vs-preview-empty, .vs-no-project .vs-transform { display: none !important; }
 .vs-empty-project { display: flex; flex-direction: column; align-items: center; justify-content: center; max-width: 100%; margin: auto; padding: 28px; text-align: center; }
-.vs-empty-project h2 { font-size: 24px; margin: 6px 0 4px; }
+.vs-empty-project h2 { font-family: var(--vs-head-font); font-size: 24px; margin: 6px 0 4px; color: var(--vs-head-color); }
 .vs-empty-project > p:not(.vs-eyebrow) { max-width: 380px; margin: 0; color: var(--vs-muted); font-size: 13.5px; line-height: 1.5; }
 .vs-empty-project .vs-primary { margin-top: 16px; padding: 10px 18px; }
 .vs-empty-art { position: relative; width: 150px; height: 104px; margin-bottom: 14px; display: grid; place-items: center; }
-.vs-empty-art span { position: absolute; display: grid; place-items: center; border: 1px solid var(--vs-border-strong); border-radius: 14px; background: var(--vs-panel); box-shadow: 0 14px 30px rgba(0, 0, 0, .22); }
+.vs-empty-art span { position: absolute; display: grid; place-items: center; border: 1px solid var(--vs-border-strong); border-radius: 14px; background: var(--vd-mat-card-color, var(--vs-panel)); box-shadow: 0 14px 30px rgba(0, 0, 0, .22); }
 .vs-empty-art span:nth-child(1) { width: 92px; height: 64px; transform: translate(-22px, -10px) rotate(-8deg); color: var(--vs-clip-overlay); }
 .vs-empty-art span:nth-child(2) { width: 96px; height: 68px; transform: translate(18px, 8px) rotate(6deg); color: var(--vs-accent); }
 .vs-empty-art span:nth-child(3) { width: 42px; height: 42px; transform: translate(-2px, 14px); border-radius: 50%; color: var(--vs-clip-audio); }
 .vs-without-project .vs-transport, .vs-without-project .vs-resize, .vs-without-project .vs-timeline-panel, .vs-without-project .vs-inspector, .vs-without-project .vs-inspector-toggle { display: none !important; }
 .vs-without-project .vs-workspace { grid-template-columns: var(--vs-lib-w) minmax(0, 1fr); }
-.vs-without-project .vs-center { background: var(--vs-bg); }
+.vs-without-project .vs-center { background: var(--vs-canvas); }
 @container vs-stage (max-height: 340px) {
     .vs-empty-project { padding: 12px 16px; }
     .vs-empty-art { display: none; }
@@ -449,8 +500,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 }
 
 /* Inspector */
-.vs-inspector-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 8px 14px; border-bottom: 1px solid var(--vs-border); }
-.vs-inspector-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--vs-muted); }
+.vs-inspector-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 8px 14px; border-bottom: 1px solid var(--vs-border); background: var(--vs-bar); box-shadow: var(--vs-bar-edge); }
+.vs-inspector-head h2 { margin: 0; font-family: var(--vs-cap-font); font-size: 13px; text-transform: var(--vd-mat-label-transform, uppercase); letter-spacing: var(--vd-mat-label-tracking, .08em); color: var(--vs-cap-color); }
 .vs-inspector-close { display: none; width: 30px; min-height: 30px; padding: 0; }
 .vs-inspector-body { flex: 1 1 auto; overflow: auto; padding: 0 14px 18px; }
 .vs-insp-head { display: flex; align-items: center; gap: 10px; padding: 12px 0; }
@@ -470,7 +521,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-insp-locked { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--vs-warn) 12%, transparent); font-size: 12px; }
 .vs-insp-section { padding: 14px 0; border-bottom: 1px solid var(--vs-border); }
 .vs-insp-section:last-child { border-bottom: 0; }
-.vs-insp-section h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 10px; font-size: 12px; font-weight: 650; letter-spacing: .02em; color: var(--vs-text); }
+.vs-insp-section h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 10px; font-family: var(--vs-head-font); font-size: 12px; font-weight: var(--vd-mat-heading-weight, 650); letter-spacing: var(--vd-mat-heading-tracking, .02em); text-transform: var(--vd-mat-heading-transform, none); color: var(--vs-head-color); }
 .vs-insp-section h3 .vs-icon { color: var(--vs-muted); }
 .vs-field { display: grid; gap: 4px; min-width: 0; font-size: 12px; color: var(--vs-muted); }
 .vs-field > input, .vs-field > select, .vs-field > textarea { width: 100%; color: var(--vs-text); font-variant-numeric: tabular-nums; }
@@ -490,14 +541,14 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-slider-compact span { grid-column: 1 / -1; }
 .vs-color { display: grid; gap: 4px; font-size: 12px; color: var(--vs-muted); }
 .vs-position { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.vs-position-grid { display: grid; grid-template-columns: repeat(3, 24px); grid-template-rows: repeat(3, 18px); gap: 3px; padding: 5px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); }
+.vs-position-grid { display: grid; grid-template-columns: repeat(3, 24px); grid-template-rows: repeat(3, 18px); gap: 3px; padding: 5px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-inset); }
 .vs-position-grid button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: transparent; }
 .vs-position-grid button i { width: 8px; height: 6px; border-radius: 2px; background: var(--vs-muted); opacity: .55; }
 .vs-position-grid button:hover { background: var(--vs-accent-soft); }
 .vs-position-grid button:hover i { background: var(--vs-accent); opacity: 1; }
-.vs-segmented { display: inline-flex; margin-top: 10px; padding: 3px; gap: 2px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); }
+.vs-segmented { display: inline-flex; margin-top: 10px; padding: 3px; gap: 2px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-inset); }
 .vs-segmented button { flex: 1; min-height: 26px; padding: 3px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--vs-muted); font-size: 12px; font-weight: 600; }
-.vs-segmented button[aria-pressed="true"] { background: var(--vs-panel-strong); color: var(--vs-text); box-shadow: 0 1px 3px rgba(0, 0, 0, .22); }
+.vs-segmented button[aria-pressed="true"] { background: var(--vs-sel); color: var(--vs-sel-text); box-shadow: 0 1px 3px rgba(0, 0, 0, .22); }
 .vs-icon-segmented { margin-top: 0; align-self: end; }
 .vs-icon-segmented button { display: grid; place-items: center; padding: 3px 7px; }
 .vs-fine { margin-top: 12px; font-size: 12px; color: var(--vs-muted); }
@@ -514,23 +565,23 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app .vs-kf-button { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--vs-muted); }
 .vs-app .vs-kf-button:hover:not(:disabled) { background: var(--vs-control-hover); color: var(--vs-text); }
 .vs-app .vs-kf-button[aria-pressed="true"] { color: var(--vs-accent); }
-.vs-app .vs-kf-stopwatch[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-app .vs-kf-stopwatch[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 /* Transition picker (2e, plan index §4.9): the summary shows the current type and opens the inline panel with None and
    one group per registry category. The icons are generated SVG (VideoStudioIcons.transition, .vs-tx-icon). */
 .vs-tx { display: grid; gap: 8px; }
-.vs-app .vs-tx-summary { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 6px 10px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); color: var(--vs-text); font-size: 12.5px; text-align: left; }
+.vs-app .vs-tx-summary { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 36px; padding: 6px 10px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font-size: 12.5px; text-align: left; }
 .vs-app .vs-tx-summary > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-app .vs-tx-summary:hover:not(:disabled) { border-color: var(--vs-accent-border); }
-.vs-app .vs-tx-summary[aria-expanded="true"] { border-color: var(--vs-accent); background: var(--vs-accent-soft); }
+.vs-app .vs-tx-summary[aria-expanded="true"] { border-color: var(--vs-accent); background: var(--vs-sel); color: var(--vs-sel-text); }
 .vs-app .vs-tx-summary[aria-expanded="true"] > .vs-icon { transform: rotate(180deg); }
 .vs-tx-icon { flex: none; display: block; border-radius: 3px; }
-.vs-tx-picker { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: color-mix(in srgb, var(--vs-control) 55%, transparent); }
-.vs-tx-group h4 { margin: 0 0 6px; font-size: 11px; font-weight: 650; letter-spacing: .03em; text-transform: uppercase; color: var(--vs-muted); }
+.vs-tx-picker { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: color-mix(in srgb, var(--vs-inset) 55%, transparent); }
+.vs-tx-group h4 { margin: 0 0 6px; font-family: var(--vs-cap-font); font-size: 11px; font-weight: 650; letter-spacing: var(--vd-mat-label-tracking, .03em); text-transform: var(--vd-mat-label-transform, uppercase); color: var(--vs-cap-color); }
 .vs-tx-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; }
-.vs-app .vs-tx-list button { display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 6px 3px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); font-size: 10.5px; line-height: 1.25; color: var(--vs-muted); text-align: center; }
+.vs-app .vs-tx-list button { display: grid; justify-items: center; align-content: start; gap: 4px; min-width: 0; padding: 6px 3px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-card-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); font-size: 10.5px; line-height: 1.25; color: var(--vs-btn-text); text-align: center; }
 .vs-app .vs-tx-list button span { max-width: 100%; overflow-wrap: anywhere; }
-.vs-app .vs-tx-list button:hover:not(:disabled) { border-color: var(--vs-accent-border); color: var(--vs-text); }
-.vs-app .vs-tx-list button[aria-pressed="true"] { border-color: var(--vs-accent); background: var(--vs-accent-soft); color: var(--vs-text); }
+.vs-app .vs-tx-list button:hover:not(:disabled) { border-color: var(--vs-accent-border); background: var(--vs-btn-hover); }
+.vs-app .vs-tx-list button[aria-pressed="true"] { border-color: var(--vs-accent); background: var(--vs-sel); color: var(--vs-sel-text); }
 .vs-app .vs-tx-list button:disabled { opacity: .5; cursor: default; }
 .vs-text-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--vs-muted); }
 .vs-text-status.is-error { color: color-mix(in srgb, var(--vs-danger) 80%, var(--vs-text)); }
@@ -541,7 +592,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-insp-tips ol { margin: 0; padding-left: 20px; display: grid; gap: 7px; font-size: 12.5px; line-height: 1.45; }
 .vs-insp-tips li::marker { color: var(--vs-accent); font-weight: 700; }
-.vs-insp-empty .vs-hint { margin-top: 14px; padding: 9px 10px; border-radius: 8px; background: var(--vs-control); }
+.vs-insp-empty .vs-hint { margin-top: 14px; padding: 9px 10px; border-radius: 8px; background: var(--vs-inset); }
 .vs-inspector-scrim { display: none; }
 
 /* Resize handle */
@@ -550,28 +601,28 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-resize:hover span, .vs-resize.is-active span, .vs-resize:focus-visible span { width: 64px; margin-left: -32px; background: var(--vs-accent); }
 
 /* Timeline */
-.vs-timeline-panel { flex: 0 0 var(--vs-timeline-h, 36%); min-height: 140px; max-height: calc(100% - 180px); display: flex; flex-direction: column; min-width: 0; background: var(--vs-panel); border-top: 1px solid var(--vs-border); }
+.vs-timeline-panel { flex: 0 0 var(--vs-timeline-h, 36%); min-height: 140px; max-height: calc(100% - 180px); display: flex; flex-direction: column; min-width: 0; background: var(--vs-well-c); border-top: 1px solid var(--vs-border); }
 .vs-timeline-panel > div { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-.vs-timeline-toolbar { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 46px; padding: 6px 12px; border-bottom: 1px solid var(--vs-border); }
+.vs-timeline-toolbar { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 46px; padding: 6px 12px; border-bottom: 1px solid var(--vs-border); background: var(--vs-bar); box-shadow: var(--vs-bar-edge); }
 .vs-edit-tools, .vs-timeline-tools, .vs-timeline-zoom { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .vs-edit-tools button, .vs-timeline-tools button { min-height: 30px; padding: 4px 10px; font-size: 12px; }
 .vs-timeline-zoom button { width: 30px; padding: 0; }
 .vs-timeline-zoom [data-action="zoom-fit"] { width: auto; padding: 4px 10px; }
 .vs-timeline-zoom input { width: 96px; }
-.vs-toggle[aria-pressed="true"] { background: var(--vs-accent-soft) !important; border-color: var(--vs-accent-border) !important; color: var(--vs-text); }
-.vs-toggle[aria-pressed="true"] .vs-icon { color: var(--vs-accent); }
-.vs-tool-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); }
-.vs-edit-tools .vs-tool-group button { min-height: 26px; padding: 3px 7px; border-color: transparent; background: transparent; }
-.vs-edit-tools .vs-tool-group button[aria-pressed="true"] { background: var(--vs-accent-soft); border-color: var(--vs-accent-border); color: var(--vs-text); }
-.vs-edit-tools .vs-tool-group button[aria-pressed="true"] .vs-icon { color: var(--vs-accent); }
-.vs-mode-badge { padding: 2px 8px; border: 1px solid var(--vs-accent-border); border-radius: 999px; background: var(--vs-accent-soft); color: var(--vs-text); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.vs-app .vs-toggle[aria-pressed="true"] { background: var(--vs-sel) !important; border-color: var(--vs-accent-border) !important; color: var(--vs-sel-text); }
+.vs-app .vs-toggle[aria-pressed="true"] .vs-icon { color: inherit; }
+.vs-tool-group { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-inset); }
+.vs-edit-tools .vs-tool-group button { min-height: 26px; padding: 3px 7px; border-color: transparent; background: transparent; box-shadow: none; }
+.vs-edit-tools .vs-tool-group button[aria-pressed="true"] { background: var(--vs-sel); border-color: var(--vs-accent-border); color: var(--vs-sel-text); }
+.vs-edit-tools .vs-tool-group button[aria-pressed="true"] .vs-icon { color: inherit; }
+.vs-mode-badge { padding: 2px 8px; border: 1px solid var(--vs-accent-border); border-radius: 999px; background: var(--vs-sel); color: var(--vs-sel-text); font-size: 11px; font-weight: 600; white-space: nowrap; }
 [data-timeline][data-tool="blade"] .vs-clip, [data-timeline][data-tool="blade"] .vs-track-lane { cursor: crosshair; }
 [data-timeline][data-tool="trim"] .vs-clip { cursor: ew-resize; }
 [data-timeline][data-trim-mode="roll"] *, [data-timeline][data-trim-mode="ripple"] * { cursor: col-resize !important; }
 [data-timeline][data-trim-mode="slip"] *, [data-timeline][data-trim-mode="slide"] * { cursor: grabbing !important; }
 .vs-blade-line { position: absolute; z-index: 4; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--vs-playhead); pointer-events: none; }
 .vs-band { position: absolute; z-index: 6; border: 1px solid var(--vs-accent); border-radius: 3px; background: var(--vs-accent-soft); pointer-events: none; }
-.vs-context-menu { position: absolute; z-index: 70; min-width: 224px; max-width: 320px; max-height: calc(100% - 8px); overflow-y: auto; padding: 5px; border: 1px solid var(--vs-border-strong); border-radius: 10px; background: var(--vs-surface); box-shadow: var(--vs-shadow); color: var(--vs-text); }
+.vs-context-menu { position: absolute; z-index: 70; min-width: 224px; max-width: 320px; max-height: calc(100% - 8px); overflow-y: auto; padding: 5px; border: 1px solid var(--vs-card-border); border-radius: var(--vd-mat-card-radius, 10px); background: var(--vs-card-flat); box-shadow: var(--vs-card-shadow); color: var(--vs-text); }
 .vs-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 4px 9px; border: 0; border-radius: 7px; background: transparent; color: inherit; font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
 .vs-context-menu button:hover:not(:disabled), .vs-context-menu button:focus-visible { background: var(--vs-control-hover); outline: 2px solid var(--vs-accent-border); outline-offset: -2px; }
 .vs-context-menu button:disabled { opacity: .45; cursor: default; }
@@ -590,17 +641,18 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-media-bar-actions .vs-segmented button { min-height: 24px; padding: 2px 9px; }
 .vs-media-bar-actions .vs-segmented .vs-icon { display: none; }
 .vs-media-bar-actions .vs-icon-button { width: 28px; min-height: 28px; }
-.vs-folder-tile { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 3px; min-width: 0; min-height: 92px; padding: 10px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); color: var(--vs-text); font: inherit; text-align: left; }
+.vs-folder-tile { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 3px; min-width: 0; min-height: 92px; padding: 10px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); color: var(--vs-text); font: inherit; text-align: left; }
 .vs-folder-tile:hover, .vs-folder-tile:focus-visible, .vs-folder-tile.is-drop { border-color: var(--vs-accent-border); outline: none; box-shadow: 0 0 0 2px var(--vs-accent-border); }
 .vs-folder-tile .vs-folder-icon { margin-bottom: auto; }
 .vs-folder-icon { display: inline-flex; color: var(--vs-accent); }
 .vs-folder-name { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 600; }
-.vs-asset.is-selected { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-asset.is-selected { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); box-shadow: var(--vs-sel-edge); }
+.vs-asset.is-selected .vs-asset-meta { color: inherit; opacity: .85; }
 .vs-asset-grid[data-view="list"] { display: flex; flex-direction: column; gap: 2px; padding-top: 0; padding-right: 0; }
 .vs-asset-grid[data-view="list"] > * { flex: none; min-width: 640px; }
 .vs-asset-grid[data-view="list"] > .vs-empty-media { min-width: 0; }
 .vs-asset-head, .vs-asset-row { display: grid; grid-template-columns: 40px minmax(140px, 2.4fr) repeat(6, minmax(58px, 1fr)) 28px; align-items: center; gap: 8px; min-height: 34px; padding: 4px 6px; border-radius: 8px; font-size: 12px; }
-.vs-asset-head { position: sticky; top: 0; z-index: 2; min-height: 30px; border-radius: 0; background: var(--vs-panel-strong); color: var(--vs-muted); box-shadow: 0 1px 0 var(--vs-border); }
+.vs-asset-head { position: sticky; top: 0; z-index: 2; min-height: 30px; border-radius: 0; background: var(--vs-bar); color: var(--vs-muted); box-shadow: var(--vd-mat-bar-edge, 0 1px 0 var(--vs-border)); }
 /* Each column header holds its sort button; the header cell lets the button shrink to an ellipsis. */
 .vs-asset-col { display: flex; align-items: center; min-width: 0; }
 .vs-asset-head button { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; min-width: 0; min-height: 24px; padding: 2px 4px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -610,7 +662,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-asset-row { gap: 8px; padding: 4px 6px; border: 1px solid transparent; }
 .vs-asset-row:hover, .vs-asset-row:focus-visible, .vs-folder-row:hover, .vs-folder-row:focus-visible, .vs-folder-row.is-drop { background: var(--vs-control-hover); border-color: var(--vs-border); outline: none; }
 .vs-folder-row.is-drop { border-color: var(--vs-accent-border); box-shadow: inset 0 0 0 1px var(--vs-accent-border); }
-.vs-asset-row.is-selected { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-asset-row.is-selected { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); box-shadow: var(--vs-sel-edge); }
+.vs-asset-row.is-selected .vs-asset-cell { color: inherit; opacity: .85; }
 .vs-asset-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
 .vs-asset-cell-name { color: var(--vs-text); font-weight: 600; }
 .vs-asset-row .vs-proxy-badge { position: static; display: inline-grid; width: 16px; height: 16px; margin-left: 6px; vertical-align: -3px; }
@@ -622,7 +675,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-folder-row .vs-asset-meta { margin-left: auto; }
 /* The narrow rail scrolls the list sideways; the add button's cell stays at the visible right edge. */
 .vs-asset-row .vs-asset-cell-add { position: sticky; right: 2px; display: grid; place-items: center; }
-.vs-asset-row .vs-asset-add { position: static; width: 26px; height: 26px; background: color-mix(in srgb, #0c0e12 88%, var(--vs-accent)); box-shadow: 0 0 0 4px var(--vs-panel); }
+.vs-asset-row .vs-asset-add { position: static; width: 26px; height: 26px; background: color-mix(in srgb, #0c0e12 88%, var(--vs-accent)); box-shadow: 0 0 0 4px var(--vs-well-c); }
 /* Scoped under .vs-app so the white plus outranks `.vs-app button { color: inherit }` (light themes drew it dark). */
 .vs-app .vs-asset-add { color: #fff; }
 .vs-asset-grid[data-view="list"] .vs-asset.is-uploading { grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
@@ -681,15 +734,16 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Project manager (phase 1e): one row per project with poster, facts and actions. */
 .vs-modal.vs-manager { width: min(760px, 100%); }
 .vs-manager-list { display: grid; gap: 8px; margin-top: 12px; }
-.vs-manager-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--vs-border); border-radius: 10px; background: var(--vs-control); }
-.vs-manager-row.is-current { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-manager-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
+.vs-manager-row.is-current { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); box-shadow: var(--vs-sel-edge); }
+.vs-manager-row.is-current .vs-manager-main small { color: inherit; opacity: .85; }
 .vs-manager-poster { display: flex; align-items: center; justify-content: center; width: 96px; height: 54px; border-radius: 6px; background: var(--vs-control-hover) center / cover no-repeat; color: var(--vs-muted); }
 .vs-manager-main { display: grid; gap: 2px; min-width: 0; }
 .vs-manager-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-manager-main small { color: var(--vs-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .vs-manager-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.vs-manager-actions button { min-height: 26px; padding: 3px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
-.vs-manager-actions button:hover:not(:disabled) { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
+.vs-manager-actions button { min-height: 26px; padding: 3px 9px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font: inherit; font-size: 12px; cursor: pointer; }
+.vs-manager-actions button:hover:not(:disabled) { background: var(--vs-btn-hover); border-color: var(--vs-btn-border-hot); }
 .vs-manager-actions button:disabled { opacity: .45; cursor: default; }
 @container vs-app (max-width: 650px) {
     .vs-manager-row { grid-template-columns: 72px minmax(0, 1fr); }
@@ -697,33 +751,33 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
     .vs-manager-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
 .vs-manager-versions { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--vs-border); }
-.vs-manager-versions h3 { margin: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-manager-versions h3 { margin: 0; font-family: var(--vs-head-font); font-size: 13px; color: var(--vs-head-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-version-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
 .vs-version-form .vs-field { flex: 1 1 200px; }
 .vs-version-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.vs-version-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; border: 1px solid var(--vs-border); border-radius: 8px; }
+.vs-version-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
 .vs-version-main { display: grid; gap: 2px; min-width: 0; }
 .vs-version-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
 .vs-version-main small { color: var(--vs-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
-.vs-version-form button, .vs-version-row button { flex: none; min-height: 26px; padding: 3px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
+.vs-version-form button, .vs-version-row button { flex: none; min-height: 26px; padding: 3px 9px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font: inherit; font-size: 12px; cursor: pointer; }
 .vs-version-form button { min-height: 34px; padding: 5px 12px; }
-.vs-version-form button:hover:not(:disabled), .vs-version-row button:hover:not(:disabled) { background: var(--vs-control-hover); border-color: var(--vs-border-strong); }
+.vs-version-form button:hover:not(:disabled), .vs-version-row button:hover:not(:disabled) { background: var(--vs-btn-hover); border-color: var(--vs-btn-border-hot); }
 .vs-version-form button:disabled, .vs-version-row button:disabled { opacity: .45; cursor: default; }
 .vs-track-menu { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; width: 210px; padding: 6px; display: grid; gap: 2px; }
 .vs-timeline-panel .vs-track-menu { top: calc(100% + 6px); bottom: auto; }
 .vs-track-menu button { justify-content: flex-start; width: 100%; border: 0 !important; background: transparent !important; }
 .vs-track-menu button:hover:not(:disabled) { background: var(--vs-control-hover) !important; }
-.vs-timeline-scroll { flex: 1; min-height: 0; overflow: auto; position: relative; overscroll-behavior: contain; }
+.vs-timeline-scroll { flex: 1; min-height: 0; overflow: auto; position: relative; overscroll-behavior: contain; background: var(--vs-well); box-shadow: var(--vs-well-shadow); }
 .vs-tl-content { position: relative; min-width: 100%; min-height: 100%; }
-.vs-ruler { position: sticky; top: 0; z-index: 8; display: flex; height: 30px; background: var(--vs-panel); border-bottom: 1px solid var(--vs-border); }
-.vs-ruler-label { position: sticky; left: 0; z-index: 9; flex: 0 0 var(--vs-head-w); display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--vs-panel); border-right: 1px solid var(--vs-border); font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--vs-muted); }
+.vs-ruler { position: sticky; top: 0; z-index: 8; display: flex; height: 30px; background: var(--vs-bar); border-bottom: 1px solid var(--vs-border); box-shadow: var(--vs-bar-edge); }
+.vs-ruler-label { position: sticky; left: 0; z-index: 9; flex: 0 0 var(--vs-head-w); display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--vs-bar); border-right: 1px solid var(--vs-border); font: 600 12px/1 var(--vs-mono); color: var(--vs-muted); }
 .vs-ruler-scale { position: relative; height: 30px; cursor: ew-resize; background-image: repeating-linear-gradient(90deg, var(--vs-border-strong) 0 1px, transparent 1px calc(var(--vs-tick, 52px) / 5)); background-size: 100% 7px; background-repeat: repeat-x; background-position: 0 100%; touch-action: none; }
-.vs-tick { position: absolute; top: 0; bottom: 0; padding: 5px 0 0 5px; border-left: 1px solid var(--vs-border-strong); font: 11px/1 ui-monospace, Consolas, monospace; color: var(--vs-muted); pointer-events: none; }
+.vs-tick { position: absolute; top: 0; bottom: 0; padding: 5px 0 0 5px; border-left: 1px solid var(--vs-border-strong); font: 11px/1 var(--vs-mono); color: var(--vs-muted); pointer-events: none; }
 .vs-track-row { display: flex; height: 58px; border-bottom: 1px solid var(--vs-border); }
 .vs-row-audio { height: 48px; }
 .vs-track-label {
     position: sticky; left: 0; z-index: 6; flex: 0 0 var(--vs-head-w); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 0 6px 0 10px;
-    background: var(--vs-panel); border-right: 1px solid var(--vs-border); cursor: grab;
+    background: var(--vs-side); border-right: 1px solid var(--vs-border); box-shadow: var(--vs-side-edge); cursor: grab;
 }
 .vs-track-kind { flex: 0 0 auto; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: #fff; background: var(--vs-clip-video); }
 .vs-track-kind.vs-kind-audio { background: var(--vs-clip-audio); }
@@ -799,7 +853,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 
 /* Jobs */
 .vs-jobs { display: grid; gap: 8px; }
-.vs-job { padding: 9px 10px; border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); }
+.vs-job { padding: 9px 10px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
 .vs-job-heading, .vs-job-footer { display: flex; align-items: center; gap: 7px; }
 .vs-job-heading { font-size: 12.5px; }
 .vs-job-heading > strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -816,9 +870,9 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-modal-host, .vs-conflict-host { position: absolute; inset: 0; z-index: 90; pointer-events: none; }
 .vs-modal-host:empty, .vs-conflict-host:empty { display: none; }
 .vs-modal-backdrop { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; background: var(--vd-theme-overlay-bg, rgba(4, 7, 12, .62)); backdrop-filter: blur(6px); pointer-events: auto; }
-.vs-modal { position: relative; width: min(480px, 100%); max-height: 92%; overflow: auto; padding: 24px; border: 1px solid var(--vs-border-strong); border-radius: var(--vd-theme-radius-modal, 14px); background: var(--vs-surface); box-shadow: var(--vs-shadow); }
+.vs-modal { position: relative; width: min(480px, 100%); max-height: 92%; overflow: auto; padding: 24px; border: 1px solid var(--vs-card-border); border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-modal, 14px)); background: var(--vs-card); box-shadow: var(--vs-card-shadow); }
 .vs-modal-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 10px; border-radius: 12px; background: var(--vs-accent-soft); color: var(--vs-accent); }
-.vs-modal h2 { font-size: 19px; margin: 0 0 6px; }
+.vs-modal h2 { font-family: var(--vs-head-font); font-size: 19px; margin: 0 0 6px; color: var(--vs-head-color); }
 .vs-modal p { font-size: 13px; line-height: 1.55; color: var(--vs-muted); margin: 0 0 14px; }
 .vs-modal .vs-field-wide, .vs-modal .vs-field-row { margin-top: 12px; }
 .vs-modal-close { position: absolute; right: 12px; top: 12px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--vs-muted); }
@@ -830,14 +884,14 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-attr-groups input { margin-top: 2px; accent-color: var(--vs-accent); }
 .vs-swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
 .vs-swatch { width: 22px; height: 22px; padding: 0; border: 1px solid var(--vs-border-strong); border-radius: 6px; background: var(--vs-swatch, transparent); cursor: pointer; }
-.vs-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--vs-bg), 0 0 0 4px var(--vs-accent); }
+.vs-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--vs-panel-strong), 0 0 0 4px var(--vs-accent); }
 .vs-clip-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.vs-clip-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
-.vs-clip-actions button[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-clip-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 9px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font: inherit; font-size: 12px; cursor: pointer; }
+.vs-clip-actions button[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 .vs-clip-actions button:disabled { opacity: .45; cursor: default; }
 .vs-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
 .vs-check input { accent-color: var(--vs-accent); }
-.vs-modal .vs-facts { padding: 12px; border-radius: 10px; background: var(--vs-control); }
+.vs-modal .vs-facts { padding: 12px; border-radius: 10px; background: var(--vs-inset); }
 .vs-modal .vs-ai-provider { margin-top: 12px; }
 
 /* Read-only */
@@ -964,7 +1018,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-settings-row { gap: 12px; }
 .vs-settings-row .vs-field { min-width: 0; }
 .vs-quality { display: flex; align-items: center; }
-.vs-app .vs-quality select { flex: none; height: 30px; max-width: 112px; padding: 0 8px; border: 1px solid var(--vs-border); border-radius: 7px; background: var(--vd-theme-field-bg, var(--vs-control)); color: var(--vs-text); font-size: 12px; }
+.vs-app .vs-quality select { flex: none; height: 30px; max-width: 112px; padding: 0 8px; border: 1px solid var(--vs-field-border); border-radius: var(--vs-field-radius); background: var(--vs-field); box-shadow: var(--vs-field-shadow); color: var(--vs-text); font-size: 12px; }
 /* The transport row holds time, the playback buttons and the marks cluster (in, out, loop, marker), the preview
    quality and full screen. What no longer fits in the preview column drops out by priority: the in and out buttons
    (keys I and O), the total time, the preview quality, then the buttons shrink to the phone size and the skip buttons
@@ -982,13 +1036,13 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Phase 1c: navigation, markers and tracks */
 .vs-transport .vs-mark-buttons { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; }
 .vs-app .vs-transport .vs-mark-buttons [data-action="mark-in"], .vs-app .vs-transport .vs-mark-buttons [data-action="mark-out"] { font: 700 13px/1 ui-monospace, Consolas, monospace; }
-.vs-app .vs-transport .vs-mark-buttons button[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-accent); }
+.vs-app .vs-transport .vs-mark-buttons button[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 .vs-app .vs-transport .vs-time-button { position: relative; width: auto; height: auto; min-height: 0; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; }
 .vs-app .vs-transport .vs-time-button:focus-visible { outline: 2px solid var(--vs-accent-border); outline-offset: -2px; }
 /* Visually hidden text that screen readers still read: the time button's name continues with what the button does. */
 .vs-app .vs-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* overflow: hidden keeps a stale window position (before the resize observer places it) from widening the app. */
-.vs-overview { position: relative; overflow: hidden; height: 14px; margin: 4px 12px 0; border-radius: 4px; background: var(--vs-control); cursor: pointer; touch-action: none; }
+.vs-overview { position: relative; overflow: hidden; height: 14px; margin: 4px 12px 0; border-radius: 4px; background: var(--vs-inset); cursor: pointer; touch-action: none; }
 .vs-overview-bar { position: absolute; left: 0; right: 0; top: 3px; bottom: 3px; border-radius: 3px; background: color-mix(in srgb, var(--vs-text) 10%, transparent); }
 .vs-overview-shade { position: absolute; top: 0; bottom: 0; background: var(--vs-accent-soft); }
 .vs-overview-mark { position: absolute; top: 2px; bottom: 2px; width: 2px; background: var(--vs-marker-color, var(--vs-accent)); }
@@ -1013,7 +1067,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-track-row.is-solo .vs-track-lane { box-shadow: inset 3px 0 0 var(--vs-accent); }
 .vs-track-label.is-drop-above { box-shadow: inset 0 3px 0 var(--vs-accent); }
 .vs-track-label.is-drop-below { box-shadow: inset 0 -3px 0 var(--vs-accent); }
-.vs-marker-pop { position: absolute; z-index: 71; width: 280px; padding: 12px; border: 1px solid var(--vs-border-strong); border-radius: 12px; background: var(--vs-surface); box-shadow: var(--vs-shadow); color: var(--vs-text); }
+.vs-marker-pop { position: absolute; z-index: 71; width: 280px; padding: 12px; border: 1px solid var(--vs-card-border); border-radius: var(--vs-card-radius); background: var(--vs-card); box-shadow: var(--vs-card-shadow); color: var(--vs-text); }
 .vs-marker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .vs-marker-colors { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 8px 0 0; padding: 0; border: 0; }
 .vs-marker-colors legend { padding: 0; margin-bottom: 4px; font-size: 12px; color: var(--vs-muted); }
@@ -1035,7 +1089,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-inout-actions button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .vs-marker-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; background: var(--vs-marker-color, var(--vs-accent)); }
 /* Source monitor (phase 1d) */
-.vs-monitor-bar { display: flex; justify-content: center; padding: 6px 12px 0; background: var(--vs-panel); }
+.vs-monitor-bar { display: flex; justify-content: center; padding: 6px 12px 0; background: var(--vs-bar); box-shadow: var(--vs-bar-edge); }
 .vs-monitor-bar .vs-segmented { margin-top: 0; }
 .vs-stage-switch button { min-width: 84px; }
 .vs-center > [hidden] { display: none !important; }
@@ -1048,14 +1102,15 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-source-wave { position: relative; flex: 0 0 auto; width: min(100%, 720px); height: 45%; min-height: 96px; }
 .vs-source-wave svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .vs-source-wave path { fill: var(--vs-accent); opacity: .85; }
-.vs-source-meta { display: flex; justify-content: space-between; gap: 12px; padding: 4px 14px 0; background: var(--vs-panel); font-size: 12px; color: var(--vs-muted); }
-.vs-source-time { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.vs-source-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px; background: var(--vs-panel); border-top: 1px solid var(--vs-border); }
-.vs-source-bar button { min-width: 30px; min-height: 30px; padding: 3px 9px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-text); font: inherit; font-size: 12px; cursor: pointer; }
-.vs-source-bar button:hover:not(:disabled) { background: var(--vs-control-hover); }
+.vs-source-meta { display: flex; justify-content: space-between; gap: 12px; padding: 4px 14px 0; background: var(--vs-bar); font-size: 12px; color: var(--vs-muted); }
+.vs-source-time { font-family: var(--vs-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vs-source-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px; background: var(--vs-bar); border-top: 1px solid var(--vs-border); box-shadow: var(--vs-bar-edge); }
+.vs-source-bar button { min-width: 30px; min-height: 30px; padding: 3px 9px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-btn-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font: inherit; font-size: 12px; cursor: pointer; }
+.vs-source-bar button:hover:not(:disabled) { background: var(--vs-btn-hover); }
 .vs-source-bar button:disabled { opacity: .45; cursor: default; }
 .vs-source-bar button small { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: var(--vs-muted); }
-.vs-source-bar .vs-play { width: 36px; height: 36px; padding: 0; border-radius: 50%; border-color: transparent; background: var(--vs-accent-strong); color: #fff; }
+.vs-source-bar .vs-play { width: 36px; height: 36px; padding: 0; border-radius: 50%; border-color: var(--vs-primary-border); background: var(--vs-primary); color: var(--vs-primary-text); box-shadow: var(--vs-primary-shadow); }
+.vs-source-bar .vs-play:hover:not(:disabled) { background: var(--vs-primary-hover); }
 .vs-source-bar [data-source-drag] { display: inline-flex; align-items: center; gap: 6px; cursor: grab; }
 .vs-source-bar [data-source-drag]:disabled { cursor: default; }
 .vs-source-scrub { flex: 1 1 160px; min-width: 120px; accent-color: var(--vs-accent); }
@@ -1064,11 +1119,11 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 /* Keyframe strip (2b): rows after the selected clip's track row. A .vs-kf-row is not a track row (no data-track-row,
    no .vs-track-lane), so the timeline's drags, rubber band, drops and blade pass it by. The diamond's shape shows the
    easing: diamond = linear, circle = eased, square = hold, dashed = mixed. */
-.vs-kf-strip { border-bottom: 1px solid var(--vs-border); background: color-mix(in srgb, var(--vs-accent) 4%, var(--vs-panel)); }
+.vs-kf-strip { border-bottom: 1px solid var(--vs-border); background: color-mix(in srgb, var(--vs-accent) 4%, var(--vs-well-c)); }
 .vs-kf-strip .vs-kf-row { display: flex; height: 22px; }
 .vs-kf-strip .vs-kf-row.vs-kf-summary { height: 28px; }
 .vs-kf-strip .vs-kf-row + .vs-kf-row { border-top: 1px dashed var(--vs-border); }
-.vs-kf-rowhead { position: sticky; left: 0; z-index: 6; flex: 0 0 var(--vs-head-w); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 0 6px 0 10px; background: var(--vs-panel); border-right: 1px solid var(--vs-border); color: var(--vs-muted); font-size: 11.5px; }
+.vs-kf-rowhead { position: sticky; left: 0; z-index: 6; flex: 0 0 var(--vs-head-w); display: flex; align-items: center; gap: 4px; min-width: 0; padding: 0 6px 0 10px; background: var(--vs-side); border-right: 1px solid var(--vs-border); box-shadow: var(--vs-side-edge); color: var(--vs-muted); font-size: 11.5px; }
 .vs-kf-row:not(.vs-kf-summary) .vs-kf-rowhead { padding-left: 36px; }
 .vs-kf-rowname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-app .vs-kf-chevron { flex: 0 0 auto; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--vs-muted); }
@@ -1076,7 +1131,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-kf-track { position: relative; height: 100%; }
 .vs-kf-extent { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; background: color-mix(in srgb, var(--vs-accent) 10%, transparent); pointer-events: none; }
 .vs-app .vs-kf-diamond { position: absolute; z-index: 2; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; padding: 0; border: 0; background: transparent; cursor: ew-resize; touch-action: none; }
-.vs-kf-diamond::before { content: ""; position: absolute; inset: 3px; transform: rotate(45deg); border: 1.5px solid var(--vs-text); border-radius: 2px; background: var(--vs-panel); }
+.vs-kf-diamond::before { content: ""; position: absolute; inset: 3px; transform: rotate(45deg); border: 1.5px solid var(--vs-text); border-radius: 2px; background: var(--vs-well-c); }
 .vs-kf-diamond.vs-kf-e-ease_in::before, .vs-kf-diamond.vs-kf-e-ease_out::before, .vs-kf-diamond.vs-kf-e-ease_in_out::before { transform: none; border-radius: 50%; }
 .vs-kf-diamond.vs-kf-e-hold::before { transform: none; border-radius: 1px; }
 .vs-kf-diamond.vs-kf-e-mixed::before { border-style: dashed; }
@@ -1090,14 +1145,14 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-speed-curve { position: absolute; top: 0; height: 100%; overflow: visible; pointer-events: none; }
 .vs-speed-curve path { fill: none; stroke: var(--vs-accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .vs-speed-curve .vs-speed-one { stroke: var(--vs-border-strong); stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-.vs-app .vs-ramp-point { position: absolute; z-index: 2; width: 12px; height: 12px; margin: -6px 0 0 -6px; padding: 0; border: 2px solid var(--vs-text); border-radius: 50%; background: var(--vs-panel); cursor: move; touch-action: none; }
+.vs-app .vs-ramp-point { position: absolute; z-index: 2; width: 12px; height: 12px; margin: -6px 0 0 -6px; padding: 0; border: 2px solid var(--vs-text); border-radius: 50%; background: var(--vs-well-c); cursor: move; touch-action: none; }
 .vs-app .vs-ramp-point.vs-kf-e-hold { border-radius: 2px; }
 .vs-app .vs-ramp-point:focus-visible { outline: 2px solid var(--vs-accent); outline-offset: 2px; }
 .vs-kf-strip.is-readonly .vs-ramp-point { cursor: default; }
 .vs-clip-ramp { display: inline-flex; align-items: center; gap: 1px; padding: 0 3px; border-radius: 4px; background: rgba(0, 0, 0, .4); }
 .vs-ramp-presets { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
-.vs-app .vs-ramp-presets button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 2px; border: 1px solid var(--vs-border); border-radius: 8px; background: var(--vs-control); color: var(--vs-muted); font-size: 10.5px; }
-.vs-app .vs-ramp-presets button:hover:not(:disabled) { background: var(--vs-control-hover); color: var(--vs-text); }
+.vs-app .vs-ramp-presets button { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 2px; border: 1px solid var(--vs-btn-border); border-radius: var(--vs-card-radius); background: var(--vs-btn); box-shadow: var(--vs-btn-shadow); color: var(--vs-btn-text); font-size: 10.5px; }
+.vs-app .vs-ramp-presets button:hover:not(:disabled) { background: var(--vs-btn-hover); }
 .vs-ramp-presets button span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; max-width: 100%; overflow: hidden; overflow-wrap: anywhere; text-align: center; line-height: 1.2; }
 .vs-ramp-glyph { width: 30px; height: 18px; }
 .vs-ramp-glyph path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
@@ -1118,7 +1173,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
    Picture section, and the "+ Effect" menu headings. */
 .vs-fx-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
 .vs-fx-stack { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.vs-fx-entry { border: 1px solid var(--vs-border); border-radius: 9px; background: var(--vs-control); }
+.vs-fx-entry { border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
 .vs-fx-entry.is-off .vs-fx-body, .vs-fx-entry.is-off .vs-fx-name { opacity: .55; }
 .vs-fx-entry.is-dragging { opacity: .5; }
 .vs-fx-entry.is-drop-before { box-shadow: 0 -2px 0 var(--vs-accent); }
@@ -1130,9 +1185,9 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-fx-toggle .vs-icon { flex: 0 0 auto; transition: transform .15s ease; }
 .vs-fx-toggle[aria-expanded="false"] .vs-icon { transform: rotate(-90deg); }
 .vs-fx-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vs-fx-badge { flex: 0 0 auto; padding: 1px 6px; border-radius: 999px; background: var(--vs-control-hover); color: var(--vs-muted); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.vs-fx-badge { flex: 0 0 auto; padding: 1px 6px; border-radius: 999px; background: var(--vs-inset); color: var(--vs-muted); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
 .vs-fx-badge.is-warn { background: color-mix(in srgb, var(--vs-warn) 22%, transparent); color: var(--vs-warn); }
-.vs-app .vs-fx-switch { position: relative; flex: 0 0 auto; width: 30px; height: 18px; margin: 0 4px; padding: 0; border: 1px solid var(--vs-border-strong); border-radius: 999px; background: var(--vs-control); }
+.vs-app .vs-fx-switch { position: relative; flex: 0 0 auto; width: 30px; height: 18px; margin: 0 4px; padding: 0; border: 1px solid var(--vs-border-strong); border-radius: 999px; background: var(--vs-inset); }
 .vs-fx-switch span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--vs-muted); transition: transform .15s ease, background .15s ease; }
 .vs-app .vs-fx-switch[aria-checked="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
 .vs-fx-switch[aria-checked="true"] span { transform: translateX(12px); background: var(--vs-accent); }
@@ -1146,7 +1201,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-fx-subhead { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--vs-muted); }
 .vs-fx-crop { margin-top: 6px; }
 .vs-fx-flips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.vs-app .vs-fx-flip[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); color: var(--vs-text); }
+.vs-app .vs-fx-flip[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 .vs-fx-menu-heading { padding: 6px 12px 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--vs-muted); }
 /* Compositing (2d Task 14): the Picture section's blend list and mask block, and a chroma_key entry's key colour with
    its green and blue screen presets. */
@@ -1156,7 +1211,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-mask-set { display: flex; margin-top: 6px; }
 .vs-mask-fields { margin-top: 6px; }
 .vs-mask-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.vs-app .vs-mask-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-app .vs-mask-mode[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 /* The Picture section's chip buttons (Full frame, Crop in the preview, the flips, Invert mask, Edit mask in the
    preview) wrap their label inside the column instead of widening the inspector. In Greek, "Edit mask in the preview"
    (.vs-mask-mode) was wider than the 320 px drawer's column and made [data-inspector] scroll sideways (2f F1, measured
@@ -1168,7 +1223,7 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-key-swatch { display: inline-block; flex: 0 0 auto; width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
 .vs-key-preset[data-fx-key-preset="green"] .vs-key-swatch { background: #00b140; }
 .vs-key-preset[data-fx-key-preset="blue"] .vs-key-swatch { background: #0047bb; }
-.vs-app .vs-key-preset[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-accent-soft); }
+.vs-app .vs-key-preset[aria-pressed="true"] { border-color: var(--vs-accent-border); background: var(--vs-sel); color: var(--vs-sel-text); }
 @media (prefers-reduced-motion: reduce) { .vs-fx-switch span, .vs-fx-toggle .vs-icon { transition: none; } }
 
 /* Colour wheels (2c Task 15, video-studio-colorwheel.js) and the color entry's panel. The temperature track runs blue

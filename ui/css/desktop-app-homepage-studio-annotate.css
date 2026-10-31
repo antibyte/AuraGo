@@ -1,5 +1,6 @@
 /* Homepage Studio annotate mode: snapshot layer, marks, popover and chips.
-   Every colour comes from the --hp-* tokens declared on .vd-hp-studio. */
+   Colours come from the --hp-* tokens declared on .vd-hp-studio; bars, cards, fields and buttons
+   read the theme's --vd-mat-* materials with the --hp-* value as fallback. */
 
 .vd-hp-annotate-layer[hidden],
 .vd-hp-annotate-label[hidden],
@@ -123,10 +124,11 @@
     gap: 8px;
     padding: 8px 10px;
     border-radius: 12px;
-    border: 1px solid var(--hp-glass-border);
-    background: var(--hp-glass);
+    border: 1px solid var(--vd-mat-divider, var(--hp-glass-border));
+    /* Floating tool bar over the page snapshot: the theme's bar material, opaque. */
+    background: var(--vd-mat-bar, var(--hp-glass));
     color: var(--hp-text);
-    box-shadow: var(--hp-shadow);
+    box-shadow: var(--vd-mat-card-shadow, var(--hp-shadow));
 }
 
 .vd-hp-annotate-path {
@@ -141,11 +143,12 @@
     width: 180px;
     min-height: 30px;
     padding: 0 8px;
-    border-radius: 8px;
-    border: 1px solid var(--hp-border);
-    background: var(--hp-control);
+    border-radius: var(--vd-mat-field-radius, 8px);
+    border: 1px solid var(--vd-mat-field-border, var(--hp-border));
+    background: var(--vd-mat-field, var(--hp-control));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--hp-text);
-    font-family: var(--vd-font-mono, monospace);
+    font-family: var(--vd-mat-mono-font, var(--vd-font-mono, monospace));
     font-size: 12px;
 }
 
@@ -163,16 +166,17 @@
 .vd-hp-annotate-action {
     min-height: 30px;
     padding: 0 12px;
-    border-radius: 8px;
-    border: 1px solid var(--hp-border);
-    background: var(--hp-control);
-    color: var(--hp-text);
+    border-radius: var(--vd-mat-btn-radius, 8px);
+    border: 1px solid var(--vd-mat-btn-border, var(--hp-border));
+    background: var(--vd-mat-btn, var(--hp-control));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, var(--hp-text));
     font-size: 12px;
     cursor: pointer;
 }
 
 .vd-hp-annotate-action:hover {
-    background: var(--hp-control-hover);
+    background: var(--vd-mat-btn-hover, var(--hp-control-hover));
 }
 
 .vd-hp-annotate-action:focus-visible {
@@ -181,8 +185,14 @@
 }
 
 .vd-hp-annotate-action.is-primary {
-    border-color: var(--hp-accent-ring);
-    background: var(--hp-accent-soft);
+    border-color: var(--vd-mat-primary-border, var(--hp-accent-ring));
+    background: var(--vd-mat-primary, var(--hp-accent-soft));
+    color: var(--vd-mat-primary-text, var(--hp-text));
+    box-shadow: var(--vd-mat-primary-shadow, none);
+}
+
+.vd-hp-annotate-action.is-primary:hover:not(:disabled) {
+    background: var(--vd-mat-primary-hover, var(--hp-accent-soft));
 }
 
 .vd-hp-annotate-action.is-danger {
@@ -202,25 +212,30 @@
     flex-direction: column;
     gap: 8px;
     padding: 10px;
-    border-radius: 12px;
-    border: 1px solid var(--hp-glass-border);
-    background: var(--hp-surface-strong);
+    border-radius: var(--vd-mat-card-radius, 12px);
+    border: 1px solid var(--vd-mat-card-border, var(--hp-glass-border));
+    background: var(--vd-mat-card, var(--hp-surface-strong));
     color: var(--hp-text);
-    box-shadow: var(--hp-shadow);
+    box-shadow: var(--vd-mat-card-shadow, var(--hp-shadow));
 }
 
 .vd-hp-mark-popover-title {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, var(--hp-text));
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .vd-hp-mark-popover-input {
     resize: vertical;
     min-height: 64px;
     padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid var(--hp-border);
-    background: var(--hp-control);
+    border-radius: var(--vd-mat-field-radius, 8px);
+    border: 1px solid var(--vd-mat-field-border, var(--hp-border));
+    background: var(--vd-mat-field, var(--hp-control));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--hp-text);
     font: inherit;
     font-size: 13px;
@@ -247,8 +262,8 @@
     align-items: center;
     gap: 6px;
     padding: 8px 12px 0;
-    border-top: 1px solid var(--hp-border);
-    background: var(--hp-glass);
+    border-top: 1px solid var(--vd-mat-divider, var(--hp-border));
+    background: var(--vd-mat-bar-color, var(--hp-glass));
 }
 
 .vd-hp-mark-chip {
@@ -256,8 +271,8 @@
     align-items: center;
     max-width: 100%;
     border-radius: 999px;
-    border: 1px solid var(--hp-border);
-    background: var(--hp-control);
+    border: 1px solid var(--vd-mat-btn-border, var(--hp-border));
+    background: var(--vd-mat-btn-color, var(--hp-control));
 }
 
 .vd-hp-mark-chip-open,
@@ -326,5 +341,5 @@
     max-height: 160px;
     margin-top: 8px;
     border-radius: 8px;
-    border: 1px solid var(--hp-border);
+    border: 1px solid var(--vd-mat-divider, var(--hp-border));
 }

@@ -126,7 +126,57 @@
         async function importNotebook(item) { const ref = item.ref || (item.author && item.slug ? item.author + '/' + item.slug : ''); const values = await formDialog(t('import_notebook'), { userName: { type: 'string' }, kernelSlug: { type: 'string' }, project_id: { type: 'string', enum: projects.map(p => p.id) }, fileName: { type: 'string' } }, { userName: ref.split('/')[0] || '', kernelSlug: ref.split('/')[1] || '', fileName: (ref.split('/')[1] || 'notebook') + '.ipynb' }); if (!values) return; const { project_id, fileName, ...parameters } = values; const result = await api('/operations', { method: 'POST', body: { domain: 'notebooks', operation: 'get_kernel', parameters } }); const content = JSON.parse(result.data.blob.source); await api('/projects/' + project_id + '/notebooks/' + encodeURIComponent(fileName), { method: 'PUT', headers: { 'If-None-Match': '*' }, body: content }); await openNotebook(project_id, fileName); }
         function detailsInto(parent, data) { if (!data || typeof data !== 'object') { text(parent, String(data ?? '')); return; } const list = document.createElement('dl'); for (const [key, value] of Object.entries(data)) { text(list, fieldLabel(key), 'dt'); const term = document.createElement('dd'); if (value && typeof value === 'object') { const pre = document.createElement('pre'); pre.textContent = JSON.stringify(value, null, 2); term.append(pre); } else term.textContent = String(value ?? ''); list.append(term); } parent.append(list); }
         function details(name, data) { const d = modal(name); detailsInto(d.body, data); button(d.actions, 'close', d.close); }
-        async function jobs(epoch) { const all = await api('/jobs'); if (disposed || epoch !== generation) return; panel.replaceChildren(); title(panel, 'jobs'); if (!all.length) text(panel, t('empty')); for (const job of all) { const row = document.createElement('div'); row.className = 'kg-resource'; text(row, job.operation, 'strong'); text(row, t('state_' + job.status) + ' · ' + job.id, 'small'); if (job.error) text(row, job.error); if (job.progress) text(row, (job.progress / 1048576).toFixed(1) + ' MiB'); button(row, 'details', () => details(t('jobs'), job.result || job)); if (['queued', 'running', 'remote_running'].includes(job.status) && !(job.domain === 'notebooks' && job.status === 'remote_running' && !job.result?.kernelSessionId)) button(row, 'cancel', async () => { await api('/jobs/' + job.id + '/cancel', { method: 'POST', body: {} }); await jobs(epoch); }); if (job.domain === 'notebooks' && job.status === 'remote_running' && !job.result?.kernelSessionId) { const link = document.createElement('a'); const ref = job.result?.ref; link.href = typeof ref === 'string' && /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/.test(ref) ? 'https://www.kaggle.com/code/' + ref : 'https://www.kaggle.com/code'; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('cancel_on_site'); link.title = t('cancel_on_site'); row.append(link); } panel.append(row); } }
+        function cancelUnavailable(job) {
+            if (job.status !== 'remote_running') return '';
+            if (!status.configured) return t('credentials_missing');
+            return status.access?.network ? '' : t('allow_internet') + ': ' + t('disabled');
+        }
+        function resolveUnknown(job, epoch) {
+            const dialog = modal(t('resolve_unknown'));
+            text(dialog.body, t('resolve_unknown_help'));
+            text(dialog.body, job.account + ' · ' + job.operation + ' · ' + job.id, 'small');
+            const label = document.createElement('label');
+            const check = document.createElement('input'); check.type = 'checkbox';
+            label.append(check, document.createTextNode(t('resolve_unknown_confirm'))); dialog.body.append(label);
+            const submit = button(dialog.actions, 'resolve_unknown', async () => {
+                if (!check.checked) return;
+                await api('/jobs/' + job.id + '/resolve-unknown', { method: 'POST', body: { confirmed_inactive: true } });
+                dialog.close(); await jobs(epoch);
+            });
+            blockButton(submit, t('resolve_unknown_confirm'));
+            check.addEventListener('change', () => blockButton(submit, check.checked ? '' : t('resolve_unknown_confirm')));
+            check.focus();
+        }
+        async function jobs(epoch) {
+            const [all, current] = await Promise.all([api('/jobs'), api('/status')]);
+            if (disposed || epoch !== generation) return;
+            status = current; panel.replaceChildren(); title(panel, 'jobs');
+            if (!all.length) text(panel, t('empty'));
+            for (const job of all) {
+                const row = document.createElement('div'); row.className = 'kg-resource';
+                text(row, job.operation, 'strong'); text(row, t('state_' + job.status) + ' · ' + job.id, 'small');
+                if (job.error) text(row, job.error);
+                if (job.progress) text(row, (job.progress / 1048576).toFixed(1) + ' MiB');
+                button(row, 'details', () => details(t('jobs'), job.result || job));
+                const cancelOnSite = job.domain === 'notebooks' && job.status === 'remote_running' && !job.result?.kernelSessionId;
+                if (['queued', 'running', 'remote_running'].includes(job.status) && !cancelOnSite) {
+                    const cancel = button(row, 'cancel', async () => {
+                        status = await api('/status');
+                        const reason = cancelUnavailable(job); blockButton(cancel, reason);
+                        if (reason) throw Error(reason);
+                        await api('/jobs/' + job.id + '/cancel', { method: 'POST', body: {} }); await jobs(epoch);
+                    });
+                    blockButton(cancel, cancelUnavailable(job));
+                }
+                if (job.status === 'unknown' && status.can_resolve_unknown) button(row, 'resolve_unknown', () => resolveUnknown(job, epoch));
+                if (cancelOnSite) {
+                    const link = document.createElement('a'); const ref = job.result?.ref;
+                    link.href = typeof ref === 'string' && /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/.test(ref) ? 'https://www.kaggle.com/code/' + ref : 'https://www.kaggle.com/code';
+                    link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('cancel_on_site'); link.title = t('cancel_on_site'); row.append(link);
+                }
+                panel.append(row);
+            }
+        }
         function fieldLabel(key) { return fieldWords[key] ? t(fieldWords[key]) : key; }
         function schemaFields(parent, properties, initial, depth) {
             const readers = [];

@@ -10,7 +10,7 @@
     flex-direction: column;
     gap: 6px;
     padding-bottom: 6px;
-    border-bottom: 1px solid var(--pixel-line);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--pixel-line));
 }
 
 .pixel-layers-row {
@@ -42,9 +42,10 @@
     box-sizing: border-box;
     width: 48px;
     padding: 2px 4px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 4px;
-    background: var(--pixel-surface);
+    border: 1px solid var(--vd-mat-field-border, var(--pixel-line));
+    border-radius: var(--vd-mat-field-radius, 4px);
+    background: var(--vd-mat-field, var(--pixel-surface));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: inherit;
     font: inherit;
     font-size: 0.78rem;
@@ -73,23 +74,25 @@
     width: 30px;
     height: 26px;
     padding: 0;
-    border: 1px solid var(--pixel-line);
-    border-radius: 5px;
-    background: var(--pixel-surface);
-    color: var(--pixel-muted);
+    border: 1px solid var(--vd-mat-btn-border, var(--pixel-line));
+    border-radius: var(--vd-mat-btn-radius, 5px);
+    background: var(--vd-mat-btn, var(--pixel-surface));
+    color: var(--vd-mat-btn-text, var(--pixel-muted));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
     transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
 }
 
 .pixel-layers-toggle:hover:not(:disabled) {
-    background: var(--pixel-hover);
-    color: inherit;
+    background: var(--vd-mat-btn-hover, var(--pixel-hover));
+    color: var(--vd-mat-btn-text, currentcolor);
 }
 
 .pixel-layers-toggle.active {
     border-color: var(--pixel-accent);
-    background: var(--pixel-hover);
-    color: var(--pixel-accent);
+    background: var(--vd-mat-selected, var(--pixel-hover));
+    color: var(--vd-mat-selected-text, var(--pixel-accent));
+    box-shadow: var(--vd-mat-selected-edge, none);
 }
 
 .pixel-layers-toggle:disabled,
@@ -269,7 +272,7 @@
 .pixel-layer-badge-text {
     max-width: 72px;
     padding: 1px 4px;
-    border: 1px solid var(--pixel-line);
+    border: 1px solid var(--vd-mat-divider, var(--pixel-line));
     border-radius: 3px;
     font-size: 0.62rem;
     overflow: hidden;
@@ -284,7 +287,7 @@
     padding: 1px 4px;
     border: 1px solid var(--pixel-accent);
     border-radius: 3px;
-    background: var(--pixel-surface);
+    background: var(--vd-mat-field-color, var(--pixel-surface));
     color: inherit;
     font: inherit;
     font-size: 0.78rem;
@@ -308,7 +311,7 @@
     height: 28px;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: 5px;
+    border-radius: var(--vd-mat-btn-radius, 5px);
     background: transparent;
     color: inherit;
     cursor: pointer;
@@ -316,8 +319,9 @@
 }
 
 .pixel-layers-btn:hover:not(:disabled) {
-    background: var(--pixel-hover);
-    border-color: var(--pixel-line);
+    background: var(--vd-mat-btn-hover, var(--pixel-hover));
+    border-color: var(--vd-mat-btn-border, var(--pixel-line));
+    box-shadow: var(--vd-mat-btn-shadow, none);
 }
 
 /* Context menu: reuses the desktop menu look; only the row height is tightened */
@@ -330,7 +334,7 @@
 .pixel-layer-dialog {
     --pixel-line: var(--vd-theme-border, var(--vd-border));
     --pixel-surface: var(--vd-theme-control-bg, rgba(0, 0, 0, 0.18));
-    --pixel-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, 0.08));
+    --pixel-hover: var(--vd-mat-hover, var(--vd-theme-control-hover, rgba(255, 255, 255, 0.08)));
     --pixel-muted: var(--vd-theme-muted, var(--vd-muted));
     --pixel-accent: var(--vd-accent, #59d4c8);
 }

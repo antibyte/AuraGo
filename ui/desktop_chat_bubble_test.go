@@ -155,9 +155,9 @@ func TestDesktopAgentChatComposerUsesReadableAlignedControls(t *testing.T) {
 	inputBody := desktopExactCSSRuleBody(t, css, ".vd-chat-input")
 	for _, want := range []string{
 		"min-height: 46px;",
-		"background: var(--vd-theme-control-bg);",
+		"background: var(--vd-mat-field, var(--vd-theme-control-bg));",
 		"color: var(--vd-text);",
-		"border-color: var(--vd-theme-border);",
+		"border-color: var(--vd-mat-field-border, var(--vd-theme-border));",
 	} {
 		if !strings.Contains(inputBody, want) {
 			t.Fatalf("desktop chat input CSS missing readable control marker %q", want)

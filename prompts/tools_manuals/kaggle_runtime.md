@@ -29,3 +29,5 @@ Closing a Desktop window only detaches its observer. Idle expiry, revocation or 
 Defaults: one session, 2 CPU cores, 4 GiB RAM, 15-minute idle timeout and 30-minute cell deadline. Projects have a 10 GiB total budget and 2 GiB transfer limit. Use the current `status` rather than assuming defaults.
 
 Remote cancellation remains pending until confirmed by Kaggle. If a notebook run has no verifiable remote session ID, cancel it on Kaggle; do not guess an ID. `unknown` job outcomes require investigation and must not be automatically replayed.
+
+Only an administrator in Desktop Jobs can release an `unknown` compute slot after confirming inactivity on Kaggle. The resulting `resolved_unknown` status records manual cleanup, not success or cancellation, and preserves the original receipt/idempotency binding. This tool cannot perform that action; never replay or infer a successful outcome from the released slot.

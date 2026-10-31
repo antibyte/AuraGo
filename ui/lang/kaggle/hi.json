@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "मैन्युअल रूप से सुलझाया गया · परिणाम अज्ञात",
+  "kaggle.resolve_unknown": "स्लॉट खाली करें",
+  "kaggle.resolve_unknown_help": "Kaggle पर जाँचें कि यह कार्य अब नहीं चल रहा है। स्लॉट खाली करने से कार्य बंद नहीं होता और उसके परिणाम की पुष्टि नहीं होती। मूल रिकॉर्ड सुरक्षित रहता है।",
+  "kaggle.resolve_unknown_confirm": "मैंने Kaggle पर जाँच लिया है कि कार्य अब नहीं चल रहा है।",
+  "config.kaggle.state_resolved_unknown": "मैन्युअल रूप से सुलझाया गया · परिणाम अज्ञात",
+  "config.kaggle.resolve_unknown": "स्लॉट खाली करें",
+  "config.kaggle.resolve_unknown_help": "Kaggle पर जाँचें कि यह कार्य अब नहीं चल रहा है। स्लॉट खाली करने से कार्य बंद नहीं होता और उसके परिणाम की पुष्टि नहीं होती। मूल रिकॉर्ड सुरक्षित रहता है।",
+  "config.kaggle.resolve_unknown_confirm": "मैंने Kaggle पर जाँच लिया है कि कार्य अब नहीं चल रहा है।",
   "kaggle.filters": "और फ़िल्टर व विकल्प",
   "kaggle.required": "यह फ़ील्ड भरें।",
   "kaggle.overview": "अवलोकन",

@@ -19,6 +19,8 @@
             root: container,
             windowId,
             context: context || {},
+            readOnly: !!(context && context.readonly),
+            policyRevision: 0,
             editorType: null,
             cmModule: null,
             files: [],
@@ -231,7 +233,7 @@
     }
 
     function normalizeCodeStudioPath(rawPath) {
-        let value = String(rawPath || '').replace(/\\/g, '/').replace(/\0/g, '').trim();
+        let value = String(rawPath || '').replace(/\\/g, '/').replace(/\0/g, '');
         if (!value) return WORKSPACE_ROOT;
         value = value.replace(/^file:\/+/i, '/').replace(/\/+/g, '/');
         if (/^[a-zA-Z]:\//.test(value) || value.startsWith('~')) return WORKSPACE_ROOT;
@@ -351,7 +353,6 @@
             return api('/api/code-studio/git/branch');
         },
         gitLog: (path, count) => api('/api/code-studio/git/log?' + new URLSearchParams({ path: path || '', count: String(count || 20) })),
-        agentStream: (message, context) => api('/api/code-studio/agent/stream?' + new URLSearchParams({ message, context: JSON.stringify(context || {}) }))
     };
 
     function loadState() {
@@ -383,7 +384,7 @@
     }
 
     function saveState() {
-        const openPaths = normalizePersistedPaths(state.openTabs);
+        const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => tab.kind !== 'diff'));
         const recentPaths = normalizePersistedPaths(state.recentFiles);
         const payload = {
             openTabs: openPaths.map(path => ({ path })),
@@ -405,11 +406,12 @@
         instances.set(windowId, instance);
         window.AuraDesktopEmail?.attach(windowId, '.code-studio-toolbar', () => {
             const tab = instance.openTabs[instance.activeTabIndex];
-            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary, subject:tab?.path.split('/').pop(),
+            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary||tab.kind==='diff', subject:tab?.path.split('/').pop(),
                 formats:tab?[{id:'source',label:tab.path.split('/').pop()}]:[],
                 createFiles:async()=>[new File([tab.content],tab.path.split('/').pop(),{type:'text/plain;charset=utf-8'})]};
         });
         latestWindowId = windowId;
+        runWithInstance(instance, watchStudioPolicy);
         runWithInstance(instance, () => {
             loadState();
             container.innerHTML = shellMarkup();
@@ -435,7 +437,7 @@
                 await runAsyncStep(instance, () => openPath(context.path));
                 if (!isLiveInstance(instance)) return;
             }
-            runWithInstance(instance, connectTerminal);
+            runWithInstance(instance, () => { connectTerminal(); scheduleGitRefresh(); });
         } catch (err) {
             if (isLiveInstance(instance)) runWithInstance(instance, () => renderError(err.message || String(err)));
         }
@@ -451,7 +453,9 @@
         if (instance.agentAbortController) instance.agentAbortController.abort();
         if (instance.knowledgeClose) instance.knowledgeClose();
         closeTerminalSessionSockets(instance);
-        for (const disposeFn of instance.disposers || []) {
+        window.CodeStudioCommandPalette?.close(windowId);
+        if (instance.gitRefreshTimer) clearTimeout(instance.gitRefreshTimer);
+        for (const disposeFn of [...(instance.disposers || [])]) {
             try { disposeFn(); } catch (_) {}
         }
         instance.openTabs.forEach(tab => destroyTabView(tab, true));
@@ -463,24 +467,105 @@
 
     function closeTerminalSessionSockets(instance) {
         if (!instance) return;
-        const sockets = new Set();
-        if (instance.ws) sockets.add(instance.ws);
-        if (Array.isArray(instance.terminalSessions)) {
-            instance.terminalSessions.forEach(session => {
-                if (session && session.ws) sockets.add(session.ws);
-            });
-        }
-        sockets.forEach(socket => endTerminalSocket(socket));
-        instance.ws = null;
-        if (Array.isArray(instance.terminalSessions)) instance.terminalSessions.forEach(session => { if (session) session.ws = null; });
+        instance.terminalSessions.forEach(session => session.dispose && session.dispose());
+        instance.terminalSessions = [];
+        instance.ws = instance.terminal = instance.fitAddon = instance.runSession = null;
     }
 
-    function rememberContainerStatus(payload) {
+    function rememberContainerStatus(payload, policyRevision) {
         const info = payload || {};
         state.containerInfo = info;
+        if (policyRevision === state.policyRevision && typeof info.read_only === 'boolean') applyStudioPolicy(info.read_only);
+        info.read_only = state.readOnly;
         if (info.running) state.containerStatus = 'running';
         else if (info.error || info.state === 'error') state.containerStatus = 'error';
         else state.containerStatus = 'starting';
+    }
+
+    function canWrite(instance = state) {
+        return isLiveInstance(instance) && !instance.readOnly;
+    }
+
+    function policyDisables(id, tab = activeTab()) {
+        if (id === 'run-current') id = 'run';
+        const writes = ['new-file', 'new-folder', 'save', 'save-all', 'upload', 'rename', 'delete', 'run', 'new-terminal', 'comments', 'tests', 'refactor'];
+        if (!canWrite() && writes.includes(id)) return true;
+        return ['save', 'run', 'split-right', 'split-down', 'explain', 'comments', 'tests', 'refactor'].includes(id) && (!tab || tab.kind === 'diff');
+    }
+
+    function watchStudioPolicy() {
+        const instance = state;
+        const onPolicy = bindInstance(instance, event => {
+            const policy = event.detail || {};
+            if (typeof policy.readonly === 'boolean') {
+                instance.policyRevision++;
+                applyStudioPolicy(policy.readonly);
+            }
+        });
+        document.addEventListener('aurago:desktop-policy', onPolicy);
+        registerDisposer(() => document.removeEventListener('aurago:desktop-policy', onPolicy));
+    }
+
+    function applyStudioPolicy(readOnly) {
+        if (state.readOnly === readOnly) return;
+        state.readOnly = readOnly;
+        state.context.readonly = readOnly;
+        if (state.containerInfo) state.containerInfo.read_only = readOnly;
+        state.openTabs.forEach(tab => (tab.views || []).forEach(view => {
+            if (view.csPolicy) view.dispatch({ effects: view.csPolicy.reconfigure(editorPolicyExtensions(state.cmModule)) });
+            if (view.textarea) view.textarea.readOnly = readOnly;
+        }));
+        if (readOnly) {
+            state.terminalSessions.forEach(session => session.dispose && session.dispose());
+            state.terminalSessions = [];
+            state.runSession = null;
+            syncTerminalAliases();
+        }
+        // Before shell readiness only retain the policy; rendering is done by renderShell.
+        if (!state.root.querySelector('[data-action="save"]')) return;
+        renderTerminal();
+        renderWindowMenus();
+        updatePolicyControls();
+        updateSuggestionStatus();
+        renderStatus();
+        window.CodeStudioCommandPalette?.refresh(state.windowId);
+    }
+
+    function updatePolicyControls() {
+        state.root.querySelectorAll('[data-action], [data-sidebar-tool]').forEach(button => {
+            button.disabled = policyDisables(button.dataset.action || button.dataset.sidebarTool);
+        });
+        state.root.querySelectorAll('[data-file-action]').forEach(control => {
+            const disabled = policyDisables(control.dataset.fileAction);
+            control.setAttribute('aria-disabled', String(disabled));
+            control.tabIndex = disabled ? -1 : 0;
+        });
+        state.root.querySelectorAll('[data-terminal-add], [data-terminal-stop], [data-git-commit], [data-git-select], [data-git-identity] input, [data-git-identity] button').forEach(control => { control.disabled = !canWrite(); });
+        state.root.querySelectorAll('[data-code-action]').forEach(button => { button.disabled = policyDisables(button.dataset.codeAction); });
+        const message = state.root.querySelector('[data-git-commit-msg]');
+        if (message) message.readOnly = !canWrite();
+        const knowledge = state.root.querySelector('[data-action="knowledge"]');
+        if (knowledge) knowledge.disabled = !window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function';
+    }
+
+    function trapDialogFocus(overlay) {
+        const previous = document.activeElement;
+        const onKey = event => {
+            if (event.key !== 'Tab') return;
+            const controls = Array.from(overlay.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]'));
+            if (!controls.length) return;
+            const index = controls.indexOf(document.activeElement);
+            if (event.shiftKey && index <= 0 || !event.shiftKey && index === controls.length - 1) {
+                event.preventDefault();
+                controls[event.shiftKey ? controls.length - 1 : 0].focus();
+            }
+            event.stopPropagation();
+        };
+        overlay.addEventListener('keydown', onKey);
+        return () => {
+            overlay.removeEventListener('keydown', onKey);
+            if (previous && previous.isConnected && (overlay.contains(document.activeElement) || document.activeElement === document.body)) previous.focus();
+        };
     }
 
     function containerWaitMessage(payload) {
@@ -494,7 +579,7 @@
     }
 
     function containerIdleLabel(info) {
-        if (!info || !info.running) return '';
+        if (!info || !info.running || info.active_terminal_sessions > 0) return '';
         const minutes = Number(info.auto_stop_minutes);
         if (!Number.isFinite(minutes) || minutes <= 0) return '';
         const started = Date.parse(info.last_activity);
@@ -505,22 +590,24 @@
 
     async function prepareContainer(instance) {
         const target = instance || state;
+        let policyRevision = target.policyRevision;
         const status = await apiClient.status();
         const payload = status.code_studio || {};
         if (!payload.enabled) throw new Error(tr('codeStudio.dockerUnavailable', 'Docker is not available. Code Studio requires Docker.'));
         if (!isLiveInstance(target)) return;
-        runWithInstance(target, () => rememberContainerStatus(payload));
+        runWithInstance(target, () => rememberContainerStatus(payload, policyRevision));
         if (payload.running) return;
         if (payload.error) throw new Error(payload.error);
         runWithInstance(target, () => renderLoading(containerWaitMessage(payload)));
         await apiClient.files(WORKSPACE_ROOT);
         if (!isLiveInstance(target)) return;
+        policyRevision = target.policyRevision;
         const started = await apiClient.status();
         if (!isLiveInstance(target)) return;
         const next = started.code_studio || {};
         if (!next.running && next.error) throw new Error(next.error);
         runWithInstance(target, () => {
-            rememberContainerStatus(next.running ? next : Object.assign({}, next, { running: true, state: 'running' }));
+            rememberContainerStatus(next.running ? next : Object.assign({}, next, { running: true, state: 'running' }), policyRevision);
         });
     }
 
@@ -618,7 +705,7 @@
         const hasActiveTab = !!activeTab();
         const hasModified = state.openTabs.some(tab => tab.modified);
         const hasOtherTabs = state.openTabs.length > 1;
-        state.context.setWindowMenus(state.windowId, [
+        const menus = [
             {
                 id: 'file',
                 labelKey: 'desktop.menu_file',
@@ -673,7 +760,9 @@
                     { id: 'run-current', label: tr('codeStudio.run', 'Run'), icon: 'run', shortcut: 'F5', disabled: !hasActiveTab, action: bind(runCurrentFile) }
                 ]
             }
-        ]);
+        ];
+        menus.forEach(menu => menu.items.forEach(item => { item.disabled = !!item.disabled || policyDisables(item.id); }));
+        state.context.setWindowMenus(state.windowId, menus);
     }
 
     function renderToolbar() {
@@ -701,6 +790,7 @@
         const knowledge = document.createElement('button');
         knowledge.type = 'button'; knowledge.className = 'cs-button'; knowledge.dataset.action = 'knowledge';
         knowledge.textContent = tr('codeStudio.knowledge', 'Insights');
+        knowledge.disabled = !window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function';
         knowledge.addEventListener('click', bind(showProjectKnowledge)); toolbar.append(knowledge);
         toolbar.querySelector('[data-action="new-file"]').addEventListener('click', bind(createNewFile));
         toolbar.querySelector('[data-action="new-folder"]').addEventListener('click', bind(createNewFolder));
@@ -712,7 +802,7 @@
         const cpBtn = toolbar.querySelector('[data-action="command-palette"]');
         if (cpBtn) cpBtn.addEventListener('click', bind(() => {
             if (typeof window.CodeStudioCommandPalette === 'object' && window.CodeStudioCommandPalette.toggle) {
-                window.CodeStudioCommandPalette.toggle();
+                window.CodeStudioCommandPalette.toggle(state.windowId);
             }
         }));
     }
@@ -720,9 +810,12 @@
     function renderTabs() {
         const tabs = shellPart('[data-tabs]');
         if (!tabs) return;
+        const signature = JSON.stringify([state.activeTabIndex, state.readOnly, state.openTabs.map(tab => [tab.path, tab.kind, !!tab.modified])]);
+        if (tabs.dataset.signature === signature) return;
+        tabs.dataset.signature = signature;
         tabs.innerHTML = state.openTabs.length ? state.openTabs.map((tab, index) => `
             <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}${tab.modified ? ' modified' : ''}" data-tab="${index}" draggable="true" role="tab" aria-selected="${index === state.activeTabIndex ? 'true' : 'false'}" title="${esc(tab.path)}${tab.modified ? ' \u2022 ' + esc(tr('codeStudio.unsavedChanges', 'Unsaved changes')) : ''}">
-                <span>${esc(baseName(tab.path))}</span>
+                <span>${esc(baseName(tab.path))}${tab.kind === 'diff' ? ' · ' + esc(tr('codeStudio.gitDiff', 'Git Diff')) : ''}</span>
                 ${tab.modified ? '<span class="cs-tab-modified"></span>' : ''}
                 <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-tab-close-icon', 12)}</span>
             </button>`).join('') : `<div class="cs-tabs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
@@ -776,6 +869,8 @@
         renderWindowMenus();
         highlightActiveTreeRow();
         updateToolbarTitle();
+        updatePolicyControls();
+        updateSuggestionStatus();
     }
 
     function updateToolbarTitle() {
@@ -808,7 +903,7 @@
 
     function showStudioContextMenu(x, y, items) {
         const ctx = state && state.context || {};
-        const visible = (items || []).filter(item => item && !item.hidden);
+        const visible = (items || []).filter(item => item && !item.hidden).map(item => ({ ...item, disabled: !!item.disabled || policyDisables(item.id) }));
         if (!visible.length) return;
         if (typeof ctx.showContextMenu === 'function') {
             ctx.showContextMenu(x, y, visible);
@@ -1000,13 +1095,11 @@
 
     function refreshActiveEditorZoomLayout() {
         const tab = activeTab();
-        if (!tab || !tab.view) return;
-        if (typeof tab.view.requestMeasure === 'function') {
-            tab.view.requestMeasure();
-        }
-        if (tab.view.textarea && typeof tab.view.textarea.getBoundingClientRect === 'function') {
-            tab.view.textarea.getBoundingClientRect();
-        }
+        if (!tab) return;
+        (tab.views || []).forEach(view => {
+            if (view.requestMeasure) view.requestMeasure();
+            if (view.textarea) view.textarea.getBoundingClientRect();
+        });
     }
 
     function adjustEditorZoom(delta) {
@@ -1169,7 +1262,7 @@
             await refreshFiles(WORKSPACE_ROOT);
             return;
         }
-        const existing = state.openTabs.findIndex(tab => tab.path === path);
+        const existing = state.openTabs.findIndex(tab => tab.path === path && tab.kind !== 'diff');
         if (existing >= 0) {
             activateTab(existing);
             return;
@@ -1307,19 +1400,20 @@
     }
 
     function saveTab(target, tab) {
-        if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.pathMutation) return Promise.resolve(false);
+        if (!canWrite(target) || !tab || tab.kind === 'diff' || !target.openTabs.includes(tab) || tab.pathMutation) return Promise.resolve(false);
         const content = editorValue(tab);
         const path = tab.path;
         const pending = (tab.pendingSave || Promise.resolve()).then(async () => {
-            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
+            if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
             try {
                 await apiClient.writeFile(path, content);
             } catch (err) {
                 if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
                 return false;
             }
-            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
+            if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
             return runWithInstance(target, () => {
+                scheduleGitRefresh();
                 tab.modified = editorValue(tab) !== content;
                 renderTabs();
                 if (!tab.modified) flashStatus(tr('codeStudio.saved', 'Saved'));
@@ -1344,14 +1438,16 @@
     }
 
     async function mutatePath(target, file, operation) {
+        if (!canWrite(target) || file.kind === 'diff') return false;
         const tabs = target.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
         if (tabs.some(tab => tab.pathMutation)) return false;
         tabs.forEach(tab => { tab.pathMutation = true; });
         target.openRequest = null;
         try {
             await Promise.all(tabs.map(tab => tab.pendingSave));
-            if (!isLiveInstance(target)) return false;
+            if (!canWrite(target)) return false;
             await operation();
+            if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
             return isLiveInstance(target);
         } finally {
             tabs.forEach(tab => { tab.pathMutation = false; });
@@ -1360,18 +1456,19 @@
 
     async function createNewFile() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const directory = runWithInstance(target, targetDirectory);
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
         if (!name) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const path = joinPath(directory, name);
         try {
             await apiClient.writeFile(path, '', true);
-            if (!isLiveInstance(target)) return;
+            if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+            if (!canWrite(target)) return;
             runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
             await runAsyncStep(target, () => reloadTreeDirectory(directory));
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             await runAsyncStep(target, () => openFile(path));
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => {
@@ -1383,17 +1480,18 @@
 
     async function createNewFolder() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const directory = runWithInstance(target, targetDirectory);
         const name = await promptValue(tr('codeStudio.newFolder', 'New Folder'), 'src');
         if (!name) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         try {
             await apiClient.createDirectory(joinPath(directory, name));
-            if (!isLiveInstance(target)) return;
+            if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+            if (!canWrite(target)) return;
             runWithInstance(target, () => { if (directory !== state.currentPath) state.expandedDirs.add(directory); });
             await runAsyncStep(target, () => reloadTreeDirectory(directory));
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             runWithInstance(target, () => flashStatus(tr('codeStudio.newFolder', 'New Folder') + ': ' + name));
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
@@ -1402,10 +1500,10 @@
 
     async function renamePath(file) {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const name = await promptValue(tr('codeStudio.rename', 'Rename'), file.name);
         if (!name || name === file.name) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const newPath = joinPath(parentPath(file.path), name);
         try {
             if (!await mutatePath(target, file, () => apiClient.renamePath(file.path, newPath))) return;
@@ -1413,9 +1511,10 @@
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             return;
         }
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             state.openTabs.forEach(tab => {
+                if (tab.kind === 'diff') return;
                 if (tab.path === file.path) tab.path = newPath;
                 else if (file.type === 'directory' && tab.path.startsWith(file.path + '/')) {
                     tab.path = newPath + tab.path.slice(file.path.length);
@@ -1435,7 +1534,7 @@
             }
         });
         await runAsyncStep(target, () => reloadTreeDirectory(parentPath(file.path)));
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             renderTabs();
             renderBreadcrumbs();
@@ -1446,17 +1545,17 @@
 
     async function deletePath(file) {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const confirmed = await confirmValue(tr('codeStudio.deleteConfirm', 'Are you sure you want to delete {{name}}?', { name: file.name }));
         if (!confirmed) return;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         try {
             if (!await mutatePath(target, file, () => apiClient.deletePath(file.path))) return;
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             return;
         }
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             const removedTabs = state.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
             removedTabs.forEach(tab => destroyTabView(tab, true));
@@ -1471,7 +1570,7 @@
             if (state.selectedDir === file.path || state.selectedDir.startsWith(file.path + '/')) state.selectedDir = parentPath(file.path);
         });
         await runAsyncStep(target, () => reloadTreeDirectory(parentPath(file.path)));
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         runWithInstance(target, () => {
             renderTabs();
             renderEditor();
@@ -1499,7 +1598,7 @@
 
     async function uploadFile() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const ctx = target.context || {};
         const directory = runWithInstance(target, targetDirectory);
         if (typeof ctx.importFilesFromHost === 'function') {
@@ -1508,7 +1607,10 @@
                 multiple: true,
                 uploadURL: '/api/code-studio/upload'
             });
-            if (result && !result.canceled && isLiveInstance(target)) await runAsyncStep(target, () => reloadTreeDirectory(directory));
+            if (result && !result.canceled && isLiveInstance(target)) {
+                runWithInstance(target, scheduleGitRefresh);
+                await runAsyncStep(target, () => reloadTreeDirectory(directory));
+            }
             return;
         }
         const input = document.createElement('input');
@@ -1516,13 +1618,15 @@
         input.multiple = true;
         input.addEventListener('change', bind(async () => {
             const target = state;
-            if (!isLiveInstance(target)) return;
+            if (!canWrite(target)) return;
             const files = Array.from(input.files || []);
             if (!files.length) return;
             try {
                 for (const file of files) {
+                    if (!canWrite(target)) return;
                     await apiClient.uploadFile(directory, file);
-                    if (!isLiveInstance(target)) return;
+                    if (isLiveInstance(target)) runWithInstance(target, scheduleGitRefresh);
+                    if (!canWrite(target)) return;
                 }
                 await runAsyncStep(target, () => reloadTreeDirectory(directory));
             } catch (err) {
@@ -1542,7 +1646,7 @@
             initialPath: codeStudioDesktopPath(target.currentPath),
             filters: [{
                 label: tr('codeStudio.files', 'Files'),
-                extensions: ['.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
+                extensions: ['.c', '.h', '.go', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rs', '.json', '.html', '.css', '.md', '.txt', '.yaml', '.yml']
             }]
         });
         if (!result || result.canceled || !result.path || !isLiveInstance(target)) return;
@@ -1578,16 +1682,16 @@
 
     async function runCurrentFile() {
         const target = state;
-        if (!isLiveInstance(target)) return;
+        if (!canWrite(target)) return;
         const tab = activeTab();
-        if (!tab) return;
+        if (!tab || tab.kind === 'diff') return;
         const path = tab.path;
         const content = editorValue(tab);
         const terminal = activeTerminalSession();
         if (tab.modified || tab.pendingSave) {
             if (!await saveTab(target, tab)) return;
         }
-        if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
+        if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
         const command = runCommandFor(path);
         if (!command) {
             runWithInstance(target, () => {
@@ -1838,7 +1942,7 @@
             const instance = state;
             const overlay = document.createElement('div');
             overlay.className = 'cs-modal-backdrop';
-            overlay.innerHTML = `<form class="cs-modal">
+            overlay.innerHTML = `<form class="cs-modal" role="dialog" aria-modal="true" aria-label="${esc(title)}">
                 <label>${esc(title)}<input name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false"></label>
                 <div class="cs-modal-actions">
                     <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
@@ -1846,6 +1950,7 @@
                 </div>
             </form>`;
             document.body.appendChild(overlay);
+            const releaseFocus = trapDialogFocus(overlay);
             const input = overlay.querySelector('input');
             let settled = false;
             let unregister = () => {};
@@ -1854,6 +1959,7 @@
                 settled = true;
                 unregister();
                 overlay.remove();
+                releaseFocus();
                 resolve(result);
             };
             runWithInstance(instance, () => {
@@ -1861,7 +1967,7 @@
             });
             overlay.querySelector('form').addEventListener('submit', bind(event => {
                 event.preventDefault();
-                cleanup(input.value.trim());
+                cleanup(input.value);
             }));
             overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup('')));
             overlay.addEventListener('click', bind(event => {
@@ -1895,6 +2001,7 @@
                 </div>
             </div>`;
             document.body.appendChild(overlay);
+            const releaseFocus = trapDialogFocus(overlay);
             let settled = false;
             let unregister = () => {};
             const cleanup = result => {
@@ -1902,6 +2009,7 @@
                 settled = true;
                 unregister();
                 overlay.remove();
+                releaseFocus();
                 resolve(result);
             };
             runWithInstance(instance, () => {

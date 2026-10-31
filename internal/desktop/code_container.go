@@ -36,14 +36,18 @@ const (
 )
 
 type CodeContainerService struct {
-	cfg           Config
-	logger        *slog.Logger
-	docker        CodeContainerDocker
-	mu            sync.RWMutex
-	state         ContainerState
-	lastActivity  time.Time
-	stopTimer     *time.Timer
-	autoStopAfter time.Duration
+	cfg             Config
+	logger          *slog.Logger
+	docker          CodeContainerDocker
+	mu              sync.RWMutex
+	lifecycleMu     sync.RWMutex
+	containerID     string
+	activeSessions  int
+	timerGeneration uint64
+	state           ContainerState
+	lastActivity    time.Time
+	stopTimer       *time.Timer
+	autoStopAfter   time.Duration
 }
 
 // CodeContainerDocker is the Docker backend used by Code Studio.
@@ -130,6 +134,7 @@ type CodeContainerStatus struct {
 	WorkspaceHostPath      string                 `json:"-"`
 	WorkspaceContainerPath string                 `json:"workspace_container_path"`
 	AutoStopMinutes        int                    `json:"auto_stop_minutes"`
+	ActiveTerminalSessions int                    `json:"active_terminal_sessions"`
 	LastActivity           time.Time              `json:"last_activity,omitempty"`
 	Resources              CodeContainerResources `json:"resources"`
 	Network                string                 `json:"network"`
@@ -152,8 +157,11 @@ func NewCodeContainerService(cfg Config, logger *slog.Logger) *CodeContainerServ
 
 // SetDockerClient installs the concrete Docker backend used by lazy startup.
 func (s *CodeContainerService) SetDockerClient(docker CodeContainerDocker) {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.containerID = ""
 	if docker == nil {
 		s.docker = missingCodeContainerDocker{}
 		return
@@ -162,56 +170,33 @@ func (s *CodeContainerService) SetDockerClient(docker CodeContainerDocker) {
 }
 
 func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
-	if !s.cfg.CodeStudio.Enabled {
-		return fmt.Errorf("code studio is disabled")
-	}
+	_, err := s.EnsureContainer(ctx)
+	return err
+}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.state == StateRunning {
-		if _, err := s.ensureWorkspaceLocked(); err != nil {
-			s.state = StateError
-			return err
-		}
-		containerID, running, err := s.findContainerLocked(ctx)
-		if err != nil {
-			s.state = StateError
-			return err
-		}
-		if running {
-			if err := seedCodeStudioContainerWorkspace(ctx, s.docker, containerID); err != nil {
-				s.state = StateError
-				return err
-			}
-			s.touchLocked()
-			return nil
-		}
-	}
-	if s.state == StateStarting {
-		return fmt.Errorf("code studio container is already starting")
-	}
-
-	s.state = StateStarting
+// The lifecycle lock serializes startup, not ordinary file requests.
+func (s *CodeContainerService) startContainerLocked(ctx context.Context) error {
+	s.setState(StateStarting)
 	codeWorkspaceDir, err := s.ensureWorkspaceLocked()
 	if err != nil {
-		s.state = StateError
+		s.setState(StateError)
 		return err
 	}
 
 	containerID, running, err := s.findContainerLocked(ctx)
 	if err != nil {
-		s.state = StateError
+		s.setState(StateError)
 		return err
 	}
 	if containerID != "" {
 		currentMount, err := s.usesCurrentWorkspaceMountLocked(ctx, containerID, codeWorkspaceDir)
 		if err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return err
 		}
 		if !currentMount {
 			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
-				s.state = StateError
+				s.setState(StateError)
 				return fmt.Errorf("replace legacy code studio container: %w", err)
 			}
 			containerID = ""
@@ -221,12 +206,12 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	if containerID != "" {
 		networkOK, err := s.usesDesiredNetworkLocked(ctx, containerID)
 		if err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return err
 		}
 		if !networkOK {
 			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
-				s.state = StateError
+				s.setState(StateError)
 				return fmt.Errorf("replace code studio container for network mode: %w", err)
 			}
 			containerID = ""
@@ -236,22 +221,22 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	if containerID != "" {
 		if !running {
 			if err := s.docker.ContainerAction(ctx, containerID, "start"); err != nil {
-				s.state = StateError
+				s.setState(StateError)
 				return fmt.Errorf("start code studio container: %w", err)
 			}
 			if err := s.waitForRunningLocked(ctx, containerID); err != nil {
-				s.state = StateError
+				s.setState(StateError)
 				return err
 			}
 		}
 		runtimeMissing, err := s.defaultContainerRuntimeMissingLocked(ctx, containerID)
 		if err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return err
 		}
 		if runtimeMissing {
 			if err := s.docker.ContainerAction(ctx, containerID, "remove"); err != nil {
-				s.state = StateError
+				s.setState(StateError)
 				return fmt.Errorf("replace code studio container with missing runtime tools: %w", err)
 			}
 			containerID = ""
@@ -261,65 +246,63 @@ func (s *CodeContainerService) EnsureStarted(ctx context.Context) error {
 	if containerID != "" {
 		if err := seedCodeStudioContainerWorkspace(ctx, s.docker, containerID); err != nil {
 			if removeErr := s.docker.ContainerAction(ctx, containerID, "remove"); removeErr != nil {
-				s.state = StateError
+				s.setState(StateError)
 				return fmt.Errorf("replace code studio container after workspace seed failure: %w", removeErr)
 			}
 			containerID = ""
 			running = false
 		} else {
-			s.state = StateRunning
-			s.touchLocked()
+			s.markRunning(containerID)
 			return nil
 		}
 	}
 
 	image := codeStudioImage(s.cfg.CodeStudio)
 	if err := s.docker.EnsureImage(ctx, image); err != nil {
-		s.state = StateError
+		s.setState(StateError)
 		return fmt.Errorf("prepare code studio image %s: %w", image, err)
 	}
 
 	createdID, err := s.createCodeStudioContainerLocked(ctx, image, codeWorkspaceDir)
 	if err != nil {
-		s.state = StateError
+		s.setState(StateError)
 		return err
 	}
 	runtimeMissing, err := s.defaultContainerRuntimeMissingLocked(ctx, createdID)
 	if err != nil {
-		s.state = StateError
+		s.setState(StateError)
 		return err
 	}
 	if runtimeMissing {
 		if err := s.docker.ContainerAction(ctx, createdID, "remove"); err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return fmt.Errorf("remove code studio container with missing runtime tools: %w", err)
 		}
 		fallbackImage := runtimeFallbackCodeContainerImage
 		if err := s.docker.EnsureImage(ctx, fallbackImage); err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return fmt.Errorf("prepare code studio runtime fallback image %s: %w", fallbackImage, err)
 		}
 		createdID, err = s.createCodeStudioContainerLocked(ctx, fallbackImage, codeWorkspaceDir)
 		if err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return err
 		}
 		runtimeMissing, err = s.containerRuntimeMissingLocked(ctx, createdID)
 		if err != nil {
-			s.state = StateError
+			s.setState(StateError)
 			return err
 		}
 		if runtimeMissing {
-			s.state = StateError
+			s.setState(StateError)
 			return fmt.Errorf("code studio runtime fallback image %s is missing required runtime tools", fallbackImage)
 		}
 	}
 	if err := seedCodeStudioContainerWorkspace(ctx, s.docker, createdID); err != nil {
-		s.state = StateError
+		s.setState(StateError)
 		return err
 	}
-	s.state = StateRunning
-	s.touchLocked()
+	s.markRunning(createdID)
 	return nil
 }
 
@@ -527,20 +510,9 @@ func defaultCodeStudioWorkspaceFiles() map[string]string {
 }
 
 func (s *CodeContainerService) Stop(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.stopTimer != nil {
-		s.stopTimer.Stop()
-		s.stopTimer = nil
-	}
-	if s.state != StateRunning {
-		return nil
-	}
-	if err := s.docker.ContainerAction(ctx, codeContainerName, "stop"); err != nil {
-		return fmt.Errorf("stop code studio container: %w", err)
-	}
-	s.state = StateStopped
-	return nil
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	return s.stopContainerLocked(ctx, 0)
 }
 
 func (s *CodeContainerService) IsRunning() bool {
@@ -556,23 +528,32 @@ func (s *CodeContainerService) State() ContainerState {
 }
 
 func (s *CodeContainerService) ContainerID(ctx context.Context) (string, error) {
+	s.lifecycleMu.RLock()
+	defer s.lifecycleMu.RUnlock()
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-	containerID, _, err := s.findContainerLocked(ctx)
+	id := s.containerID
+	s.mu.RUnlock()
+	if id != "" {
+		return id, nil
+	}
+	id, _, err := s.findContainerLocked(ctx)
 	if err != nil {
 		return "", err
 	}
-	if containerID == "" {
+	if id == "" {
 		return "", fmt.Errorf("code studio container not found")
 	}
-	return containerID, nil
+	return id, nil
 }
 
 // Status returns cached service state plus best-effort Docker state.
 func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
+	s.lifecycleMu.RLock()
+	defer s.lifecycleMu.RUnlock()
 	s.mu.RLock()
 	status := CodeContainerStatus{
 		Enabled:                s.cfg.CodeStudio.Enabled,
+		ContainerID:            s.containerID,
 		State:                  s.state.String(),
 		Running:                s.state == StateRunning,
 		Image:                  codeStudioImage(s.cfg.CodeStudio),
@@ -580,34 +561,46 @@ func (s *CodeContainerService) Status(ctx context.Context) CodeContainerStatus {
 		WorkspaceContainerPath: codeWorkspaceInContainer,
 		AutoStopMinutes:        s.cfg.CodeStudio.AutoStopMinutes,
 		LastActivity:           s.lastActivity,
+		ActiveTerminalSessions: s.activeSessions,
 		Resources:              codeStudioResources(s.cfg.CodeStudio),
 		Network:                codeStudioStatusNetwork(s.cfg.CodeStudio.AllowNetwork),
 		ReadOnly:               s.cfg.ReadOnly,
 	}
 	s.mu.RUnlock()
 
-	containerID, running, err := s.findContainer(ctx)
-	if err != nil {
-		status.Error = err.Error()
-		return status
-	}
-	status.ContainerID = containerID
-	status.Running = running
-	if running {
-		status.State = StateRunning.String()
-		if containerID != "" {
-			inspect, inspectErr := s.docker.InspectContainer(ctx, containerID)
-			if inspectErr == nil {
-				status.Network = codeStudioReportedNetwork(inspect.NetworkMode)
+	if status.ContainerID == "" {
+		containers, err := s.docker.ListContainers(ctx, true)
+		if err != nil {
+			status.Error = err.Error()
+			return status
+		}
+		for _, container := range containers {
+			if codeContainerMatches(container) {
+				status.ContainerID = container.ID
+				break
 			}
 		}
+	}
+	status.Running = false
+	status.State = StateStopped.String()
+	if status.ContainerID != "" {
+		inspect, err := s.docker.InspectContainer(ctx, status.ContainerID)
+		if err != nil {
+			status.Error = err.Error()
+			return status
+		}
+		status.Running = inspect.State.Running
+		if status.Running {
+			status.State = StateRunning.String()
+		}
+		status.Network = codeStudioReportedNetwork(inspect.NetworkMode)
 	}
 	return status
 }
 
 func (s *CodeContainerService) findContainer(ctx context.Context) (string, bool, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.lifecycleMu.RLock()
+	defer s.lifecycleMu.RUnlock()
 	return s.findContainerLocked(ctx)
 }
 
@@ -732,6 +725,8 @@ func (s *CodeContainerService) touchLocked() {
 }
 
 func (s *CodeContainerService) resetAutoStopTimerLocked() {
+	s.timerGeneration++
+	generation := s.timerGeneration
 	if s.stopTimer != nil {
 		s.stopTimer.Stop()
 	}
@@ -739,14 +734,16 @@ func (s *CodeContainerService) resetAutoStopTimerLocked() {
 	if s.cfg.CodeStudio.AutoStopMinutes > 0 {
 		timeout = time.Duration(s.cfg.CodeStudio.AutoStopMinutes) * time.Minute
 	}
-	if timeout <= 0 {
+	if timeout <= 0 || s.activeSessions > 0 || s.state != StateRunning {
 		s.stopTimer = nil
 		return
 	}
 	s.stopTimer = time.AfterFunc(timeout, func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if err := s.Stop(ctx); err != nil {
+		s.lifecycleMu.Lock()
+		defer s.lifecycleMu.Unlock()
+		if err := s.stopContainerLocked(ctx, generation); err != nil {
 			s.logger.Warn("code studio auto-stop failed", "error", err)
 		}
 	})

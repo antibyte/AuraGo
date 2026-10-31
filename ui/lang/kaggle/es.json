@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "Resuelto manualmente · resultado desconocido",
+  "kaggle.resolve_unknown": "Liberar plaza",
+  "kaggle.resolve_unknown_help": "Comprueba en Kaggle que esta tarea ya no se está ejecutando. Liberar la plaza no detiene la tarea ni confirma su resultado. Se conserva el registro original.",
+  "kaggle.resolve_unknown_confirm": "He comprobado en Kaggle que la tarea ya no se está ejecutando.",
+  "config.kaggle.state_resolved_unknown": "Resuelto manualmente · resultado desconocido",
+  "config.kaggle.resolve_unknown": "Liberar plaza",
+  "config.kaggle.resolve_unknown_help": "Comprueba en Kaggle que esta tarea ya no se está ejecutando. Liberar la plaza no detiene la tarea ni confirma su resultado. Se conserva el registro original.",
+  "config.kaggle.resolve_unknown_confirm": "He comprobado en Kaggle que la tarea ya no se está ejecutando.",
   "kaggle.filters": "Más filtros y opciones",
   "kaggle.required": "Completa este campo.",
   "kaggle.overview": "General",

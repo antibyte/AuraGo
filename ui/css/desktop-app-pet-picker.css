@@ -5,16 +5,18 @@
     padding: 20px;
     box-sizing: border-box;
     overflow: hidden;
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
 }
 
 .vd-pet-picker-header h2 {
     margin: 0 0 6px;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 18px;
-    font-weight: 600;
-    color: var(--vd-text);
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, var(--vd-text));
+    text-transform: var(--vd-mat-heading-transform, none);
 
-    letter-spacing: -.025em;
+    letter-spacing: var(--vd-mat-heading-tracking, -.025em);
 }
 
 .vd-pet-picker-subtitle {
@@ -45,12 +47,12 @@
     flex-direction: column;
     align-items: center;
     padding: 14px 10px;
-    background: var(--vd-theme-panel-bg);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 10px;
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg));
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-card-radius, 10px);
     transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 
-    box-shadow: none;
+    box-shadow: var(--vd-mat-card-shadow, none);
 }
 
 .vd-pet-picker-card:hover {
@@ -74,9 +76,12 @@
 }
 
 .vd-pet-picker-name {
-    font-weight: 700;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, 700);
     font-size: 14px;
-    color: var(--vd-text);
+    color: var(--vd-mat-heading-color, var(--vd-text));
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     text-align: center;
     margin-bottom: 4px;
 }
@@ -93,19 +98,21 @@
 .vd-pet-picker-select {
     margin-top: auto;
     padding: 7px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-control-bg);
-    color: var(--vd-text);
+    border-radius: var(--vd-mat-btn-radius, 10px);
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, var(--vd-text));
     font-weight: 600;
     cursor: pointer;
     transition: background 0.12s ease;
 }
 
 .vd-pet-picker-select:hover {
-    background: var(--vd-accent);
-    color: var(--vd-accent-contrast, #fff);
-    border-color: var(--vd-accent);
+    background: var(--vd-mat-primary, var(--vd-accent));
+    box-shadow: var(--vd-mat-primary-shadow, none);
+    color: var(--vd-mat-primary-text, var(--vd-accent-contrast, #fff));
+    border-color: var(--vd-mat-primary-border, var(--vd-accent));
 }
 
 .vd-pet-picker-settings {
@@ -113,7 +120,8 @@
     flex-wrap: wrap;
     gap: 16px;
     padding: 14px 0;
-    border-top: 1px solid var(--vd-theme-border);
+    border-top: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, transparent);
     margin-top: 8px;
 }
 
@@ -145,16 +153,18 @@
 
 .vd-pet-picker-actions button {
     padding: 8px 16px;
-    border-radius: 10px;
-    border: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-control-bg);
-    color: var(--vd-text);
+    border-radius: var(--vd-mat-btn-radius, 10px);
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, var(--vd-text));
     font-weight: 600;
     cursor: pointer;
 }
 
 .vd-pet-picker-actions .vd-btn-primary {
-    background: var(--vd-accent);
-    color: var(--vd-accent-contrast, #fff);
-    border-color: var(--vd-accent);
+    background: var(--vd-mat-primary, var(--vd-accent));
+    box-shadow: var(--vd-mat-primary-shadow, none);
+    color: var(--vd-mat-primary-text, var(--vd-accent-contrast, #fff));
+    border-color: var(--vd-mat-primary-border, var(--vd-accent));
 }

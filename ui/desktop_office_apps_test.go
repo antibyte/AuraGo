@@ -180,7 +180,7 @@ func TestDesktopEditorFillsWindowContent(t *testing.T) {
 		"height: 100%;",
 		"min-height: 0;",
 		"min-width: 0;",
-		"background: var(--vd-theme-app-bg);",
+		"background: var(--vd-mat-canvas, var(--vd-theme-app-bg));",
 		"color: var(--vd-text);",
 	} {
 		if !strings.Contains(editorRule, marker) {
@@ -194,7 +194,7 @@ func TestDesktopEditorFillsWindowContent(t *testing.T) {
 		"height: 100%;",
 		"box-sizing: border-box;",
 		"overflow: auto;",
-		"background: var(--vd-theme-app-bg);",
+		"background: var(--vd-mat-well, var(--vd-theme-app-bg));",
 		"color: var(--vd-text);",
 	} {
 		if !strings.Contains(textareaRule, marker) {

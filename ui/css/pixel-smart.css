@@ -9,7 +9,7 @@
 .pixel-smart-dialog {
     --pixel-line: var(--vd-theme-border);
     --pixel-surface: var(--vd-theme-control-bg);
-    --pixel-hover: var(--vd-theme-control-hover);
+    --pixel-hover: var(--vd-mat-hover, var(--vd-theme-control-hover));
     --pixel-muted: var(--vd-theme-muted);
     --pixel-accent: var(--vd-accent, #59d4c8);
     width: min(380px, calc(100vw - 32px));
@@ -36,10 +36,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--pixel-line);
-    border-radius: 12px;
-    background: var(--vd-theme-chrome-bg, #1b1f27);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--vd-mat-card-border, var(--pixel-line));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    background: var(--vd-mat-card, var(--vd-theme-chrome-bg, #1b1f27));
+    box-shadow: var(--vd-mat-card-shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
 }
 
 .pixel-palette-head {
@@ -48,7 +48,9 @@
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--pixel-line);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--pixel-line));
+    background: var(--vd-mat-field, none);
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--pixel-muted);
 }
 
@@ -78,10 +80,11 @@
 
 .pixel-palette-heading {
     padding: 8px 10px 4px;
-    color: var(--pixel-muted);
+    font-family: var(--vd-mat-label-font, inherit);
+    color: var(--vd-mat-label-color, var(--pixel-muted));
     font-size: 0.68rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: var(--vd-mat-label-tracking, 0.06em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
 }
 
 .pixel-palette-item {
@@ -94,8 +97,9 @@
 }
 
 .pixel-palette-item.is-active {
-    background: var(--pixel-hover);
-    box-shadow: inset 2px 0 0 var(--pixel-accent);
+    background: var(--vd-mat-selected, var(--pixel-hover));
+    color: var(--vd-mat-selected-text, currentcolor);
+    box-shadow: var(--vd-mat-selected-edge, inset 2px 0 0 var(--pixel-accent));
 }
 
 .pixel-palette-item.is-disabled {
@@ -153,7 +157,7 @@
     display: flex;
     gap: 14px;
     padding: 7px 14px;
-    border-top: 1px solid var(--pixel-line);
+    border-top: 1px solid var(--vd-mat-divider, var(--pixel-line));
     color: var(--pixel-muted);
     font-size: 0.72rem;
 }
@@ -181,10 +185,10 @@
     max-width: calc(100% - 24px);
     padding: 8px 12px;
     transform: translateX(-50%);
-    border: 1px solid var(--pixel-line);
-    border-radius: 10px;
-    background: var(--vd-theme-chrome-bg, #1b1f27);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--vd-mat-divider, var(--pixel-line));
+    border-radius: var(--vd-mat-card-radius, 10px);
+    background: var(--vd-mat-card-color, var(--vd-theme-chrome-bg, #1b1f27));
+    box-shadow: var(--vd-mat-card-shadow, 0 8px 24px rgba(0, 0, 0, 0.4));
 }
 
 .pixel-smart-busy-label {
@@ -198,7 +202,7 @@
     height: 6px;
     overflow: hidden;
     border-radius: 3px;
-    background: var(--pixel-surface);
+    background: var(--vd-mat-field-color, var(--pixel-surface));
 }
 
 .pixel-smart-busy-bar > i {
@@ -226,22 +230,24 @@
 
 .pixel-smart-anchor-btn {
     height: 30px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 6px;
-    background: var(--pixel-surface);
-    color: inherit;
+    border: 1px solid var(--vd-mat-btn-border, var(--pixel-line));
+    border-radius: var(--vd-mat-btn-radius, 6px);
+    background: var(--vd-mat-btn, var(--pixel-surface));
+    color: var(--vd-mat-btn-text, currentcolor);
+    box-shadow: var(--vd-mat-btn-shadow, none);
     font: inherit;
     cursor: pointer;
 }
 
 .pixel-smart-anchor-btn:hover {
-    background: var(--pixel-hover);
+    background: var(--vd-mat-btn-hover, var(--pixel-hover));
 }
 
 .pixel-smart-anchor-btn.active {
-    border-color: var(--pixel-accent);
-    background: var(--pixel-accent);
-    color: #0e1117;
+    border-color: var(--vd-mat-selected-color, var(--pixel-accent));
+    background: var(--vd-mat-selected, var(--pixel-accent));
+    color: var(--vd-mat-selected-text, #0e1117);
+    box-shadow: var(--vd-mat-selected-edge, none);
     font-weight: 700;
 }
 

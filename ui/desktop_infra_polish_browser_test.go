@@ -170,12 +170,12 @@ func TestDesktopInfraMinimapBrowser(t *testing.T) {
 		t.Fatalf("the shown count must move into the toggle tooltip and the cluster description: %s", got)
 	}
 
-	// Zoomed in the scene overflows: the overview appears at 168x112 on the strong panel surface (the tools surface, not the modal scrim) with the theme blur.
+	// Zoomed in the scene overflows: the overview appears at 168x112 on the card surface colour (--vd-mat-card-color, the strong panel token where a page has no material tokens; not the modal scrim) with the theme blur.
 	page.MustEval(`()=>document.querySelector('[data-action="zoom-reset"]').click()`)
 	page.MustWait(`()=>infraZoomOf()===1&&!document.querySelector('[data-minimap]').hidden`)
 	if got := page.MustEval(`()=>{
 		const map=document.querySelector('[data-minimap]'),r=map.getBoundingClientRect(),cs=getComputedStyle(map);
-		const probe=document.createElement('i');probe.style.cssText='background:var(--vd-theme-panel-bg-strong);backdrop-filter:var(--vd-theme-blur, blur(12px))';document.body.appendChild(probe);
+		const probe=document.createElement('i');probe.style.cssText='background:var(--vd-mat-card-color, var(--vd-theme-panel-bg-strong));backdrop-filter:var(--vd-theme-blur, blur(12px))';document.body.appendChild(probe);
 		const want=getComputedStyle(probe);const result={size:[Math.round(r.width),Math.round(r.height)],background:cs.backgroundColor===want.backgroundColor,blur:cs.backdropFilter===want.backdropFilter,text:map.textContent.trim()};probe.remove();
 		return JSON.stringify(result);
 	}`).Str(); got != `{"size":[168,112],"background":true,"blur":true,"text":""}` {
@@ -397,7 +397,7 @@ func TestDesktopInfraEmptyStatesBrowser(t *testing.T) {
 	if got, want := empty(), fmt.Sprintf(`{"shown":true,"action":"reset-filters","label":%q,"query":"","kind":"network"}`, word("desktop.infra_clear_filters")); got != want {
 		t.Fatalf("with only a filter the empty map shows %s; want %s", got, want)
 	}
-	// A30: the message has a surface of its own (the strong panel token with the minimap blur) above the connection layer, so the
+	// A30: the message has a surface of its own (the card surface colour with the minimap blur) above the connection layer, so the
 	// connections of the dimmed cards never run through its text.
 	if got := page.MustEval(`()=>{
 		const box=getComputedStyle(document.querySelector('[data-no-match]')),map=getComputedStyle(document.querySelector('[data-minimap]')),scene=getComputedStyle(document.querySelector('[data-scene]'));

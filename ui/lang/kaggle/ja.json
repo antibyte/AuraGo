@@ -1,4 +1,12 @@
 {
+  "kaggle.state_resolved_unknown": "手動で確認済み · 結果は不明",
+  "kaggle.resolve_unknown": "実行枠を解放",
+  "kaggle.resolve_unknown_help": "このジョブが実行中でないことをKaggleで確認してください。実行枠を解放しても、ジョブは停止せず、結果も確定しません。元の記録は保持されます。",
+  "kaggle.resolve_unknown_confirm": "このジョブが実行中でないことをKaggleで確認しました。",
+  "config.kaggle.state_resolved_unknown": "手動で確認済み · 結果は不明",
+  "config.kaggle.resolve_unknown": "実行枠を解放",
+  "config.kaggle.resolve_unknown_help": "このジョブが実行中でないことをKaggleで確認してください。実行枠を解放しても、ジョブは停止せず、結果も確定しません。元の記録は保持されます。",
+  "config.kaggle.resolve_unknown_confirm": "このジョブが実行中でないことをKaggleで確認しました。",
   "kaggle.filters": "その他のフィルターとオプション",
   "kaggle.required": "この項目を入力してください。",
   "kaggle.overview": "概要",
