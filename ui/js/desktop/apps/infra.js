@@ -1,5 +1,5 @@
 // Infra composition root. render(host, windowId, ctx) builds the shell (command
-// bar, menus, toasts, announcer, dialog host), creates the store and the canvas,
+// bar, status bar, menus, toasts, announcer, dialog host), creates the store and the canvas,
 // table, library, inspector, dialogs, import sheet and gestures modules around one shared
 // `app` context, and routes store events to them. Everything below the shell
 // lives in infra-*.js; this file owns lifecycle, window menus and chrome only.
@@ -44,10 +44,10 @@
       <span class="infra-search-icon" aria-hidden="true">${glyph('search')}</span>
       <input type="search" data-search aria-label="${esc(t('desktop.infra_search'))}" placeholder="${esc(t('desktop.infra_search_jump'))}" autocomplete="off" aria-keyshortcuts="Control+K">
       <kbd class="infra-search-kbd" aria-hidden="true">${esc(t('desktop.infra_kbd_ctrl'))} K</kbd>
+      <button type="button" class="infra-cmd-icon infra-search-clear" data-action="clear-search" aria-label="${esc(t('desktop.infra_clear_search'))}" title="${esc(t('desktop.infra_clear_search'))}" hidden>${glyph('close')}</button>
       <button type="button" class="infra-cmd-icon" data-action="filters" aria-haspopup="true" aria-expanded="false" aria-controls="infra-filters-${esc(S)}" aria-label="${esc(t('desktop.infra_filters'))}" title="${esc(t('desktop.infra_filters'))}">${glyph('filter')}<span class="infra-filter-dot" data-filter-dot hidden></span></button>
     </div>
     <div class="infra-filter-chips" data-filter-chips role="group" aria-label="${esc(t('desktop.infra_active_filters'))}" hidden></div>
-    <div class="infra-live-status" data-live data-sync="syncing" data-refreshed-at="0" title=""><i aria-hidden="true"></i><span class="infra-sync-label">${esc(t('desktop.infra_sync_syncing'))}</span></div>
     <div class="infra-history" role="group">
       <button type="button" class="infra-cmd-icon" data-action="undo" aria-disabled="true" aria-keyshortcuts="Control+Z" aria-label="${esc(t('desktop.infra_undo'))}" title="${esc(t('desktop.infra_undo_none'))}">${glyph('undo')}</button>
       <button type="button" class="infra-cmd-icon" data-action="redo" aria-disabled="true" aria-keyshortcuts="Control+Shift+Z" aria-label="${esc(t('desktop.infra_redo'))}" title="${esc(t('desktop.infra_redo_none'))}">${glyph('redo')}</button>
@@ -62,6 +62,13 @@
     <div class="infra-scrim" data-scrim></div>
     <div class="infra-splitter" data-splitter="inspector" role="separator" aria-orientation="vertical" aria-controls="infra-inspector-${esc(S)}" aria-valuemin="${INSPECTOR_MIN}" aria-valuemax="${INSPECTOR_MAX}" aria-valuenow="360" aria-label="${esc(t('desktop.infra_resize_inspector'))}" tabindex="0"></div>
   </div>
+  <footer class="infra-statusbar">
+    <div class="infra-status-inventory"><span data-inventory-count></span><span data-selection-count hidden></span></div>
+    <button type="button" class="infra-status-reset" data-action="clear-search-filters" hidden>${glyph('close')}<span data-reset-label></span></button>
+    <div class="infra-live-status" data-live data-sync="syncing" data-refreshed-at="0" title=""><i aria-hidden="true"></i><span class="infra-sync-label">${esc(t('desktop.infra_sync_syncing'))}</span></div>
+    <span class="infra-status-updated" data-updated></span>
+    <button type="button" class="infra-cmd-icon infra-status-refresh" data-action="refresh" aria-label="${esc(t('desktop.infra_refresh'))}" title="${esc(t('desktop.infra_refresh'))}"><svg class="infra-glyph" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6a5.2 5.2 0 1 0 .2 3M13 2.5V6H9.5"/></svg></button>
+  </footer>
   <div class="infra-layer" data-layer>
     <div class="infra-menu" id="infra-add-menu-${esc(S)}" data-menu="add" role="menu" hidden>
       <button type="button" role="menuitem" data-action="add-place" disabled>${esc(t('desktop.infra_new_place'))}</button>
@@ -94,6 +101,7 @@
         const toggleLibraryButton = q('[data-action="toggle-library"]');
         const searchInput = q('[data-search]'), liveEl = q('[data-live]'), filterDot = q('[data-filter-dot]');
         const searchGroup = q('.infra-search'), searchOpenButton = q('[data-action="open-search"]'), searchDot = q('[data-search-dot]');
+        const searchClearButton = q('.infra-search-clear'), statusReset = q('.infra-status-reset');
         const chipsEl = q('[data-filter-chips]'), clearFiltersButton = q('[data-action="clear-filters"]');
         let chipsKey = '', chipsFrame = 0, disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
         const toastTimers = new Map();
@@ -283,7 +291,7 @@
             q('[data-action="history-redo"]').disabled = !canRedo;
             const sync = state.busy.has('snapshot') ? 'syncing' : state.sync;
             liveEl.dataset.sync = sync;
-            liveEl.classList.toggle('is-error', state.sync === 'error' || state.sync === 'paused');
+            liveEl.classList.toggle('is-error', sync === 'error');
             liveEl.querySelector('.infra-sync-label').textContent = sync === 'live' ? t('desktop.infra_sync_live') : sync === 'error' ? t('desktop.infra_sync_error') : sync === 'paused' ? t('desktop.infra_sync_paused') : t('desktop.infra_sync_syncing');
             liveEl.dataset.refreshedAt = String(state.refreshAt);
             // Ignored sources are not part of the freshness ledger.
@@ -292,10 +300,29 @@
             const updated = state.refreshAt ? t('desktop.infra_updated').replace('{time}', new Date(state.refreshAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : '';
             const sources = counted.length ? model.fill(counted.length === 1 ? t('desktop.infra_sources_count_one') : t('desktop.infra_sources_count'), { current, total: counted.length }) : t('desktop.infra_sources_waiting');
             liveEl.title = updated ? `${updated} · ${sources}` : sources;
+            q('.infra-status-refresh').setAttribute('aria-description', `${liveEl.querySelector('.infra-sync-label').textContent} · ${liveEl.title}`);
+            q('[data-updated]').textContent = updated;
+            q('[data-updated]').title = sources;
             filterDot.hidden = !(state.filters.kind || state.filters.source || state.filters.power);
             searchDot.hidden = !(String(state.filters.query || '').trim() || state.filters.kind || state.filters.source || state.filters.power);
+            searchClearButton.hidden = !state.filters.query;
+            statusReset.hidden = searchDot.hidden;
+            const resetLabel = state.filters.query?.trim() ? (filterDot.hidden ? t('desktop.infra_clear_search') : t('desktop.infra_clear_search_filters')) : t('desktop.infra_clear_filters');
+            statusReset.setAttribute('aria-label', resetLabel);
+            statusReset.title = resetLabel;
+            q('[data-reset-label]').textContent = resetLabel;
+            paintInventoryStatus();
             paintFilterChips();
             scheduleChipFit();
+        }
+        // These are inventory totals, including unplaced assets; never label them as visible map cards.
+        function paintInventoryStatus() {
+            const count = q('[data-inventory-count]'), selection = q('[data-selection-count]');
+            count.hidden = !state.refreshAt;
+            count.textContent = model.countText(state.nodes.length, t('desktop.infra_asset_count_one'), t('desktop.infra_asset_count'));
+            selection.textContent = model.fill(t('desktop.infra_selected_count'), { count: state.selection.size });
+            selection.hidden = !state.selection.size;
+            count.parentElement.title = count.hidden ? '' : [count.textContent, selection.hidden ? '' : selection.textContent].filter(Boolean).join(' · ');
         }
         // One removable chip per active filter (wide windows only; the dot on the filter button says the same below that).
         // Only as many chips as the bar can spare are shown: the search keeps SEARCH_MIN px, the rest sit behind a "+N" chip.
@@ -484,9 +511,9 @@
                 case 'redo': case 'history-redo': if (store.canRedo(view)) void store.redo(view); break;
                 case 'toggle-library': toggleLibrary(); return;
                 case 'retry-layout': void store.retryLayout(view); break;
-                case 'clear-search': clearSearch(); break;
+                case 'clear-search': clearSearch(); focusSearch(); break;
                 case 'reset-filters': resetFilters(Object.keys(FILTER_SELECTS)); break;
-                case 'clear-search-filters': clearSearch(); resetFilters(Object.keys(FILTER_SELECTS)); break;
+                case 'clear-search-filters': clearSearch(); resetFilters(Object.keys(FILTER_SELECTS)); restoreFocus(focusFallback()); break;
                 case 'show-match': jumpToSearchMatch(); break;
                 case 'dismiss-toast': { const element = button.closest('[data-toast]'); if (element) removeToast(element); return; }
                 default: return;
@@ -598,7 +625,7 @@
                 case 'source-hosts': library.render(); canvas.render(); importer.render(); break;
                 case 'candidates': importer.render(); break;
                 case 'selection':
-                    canvas.render(); library.renderSelection(); renderTable(); inspector.paint(); paintArrange();
+                    canvas.render(); library.renderSelection(); renderTable(); inspector.paint(); paintArrange(); paintInventoryStatus();
                     if (isNarrow() && root.dataset.inspectorOpen === 'true') closeLibrarySheet({ restoreFocus: false });
                     break;
                 case 'view': paintShell(); canvas.render({ force: true }); library.render(); renderTable(); inspector.paint(); syncMenus(); break;

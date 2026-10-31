@@ -10,6 +10,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/go-rod/rod"
 )
 
 type infraAppBrowserFixture struct {
@@ -476,6 +479,8 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		"/api/desktop/infra/":                   fixture,
 		"/api/desktop/integrations/credentials": fixture,
 	})
+	// Give the full fleet/theme screenshot matrix its own bounded page budget.
+	page = page.CancelTimeout().Timeout(2 * time.Minute)
 	defer page.Close()
 	page.MustSetViewport(1920, 1200, 1, false)
 	page.MustEval(`()=>{
@@ -636,11 +641,23 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 		fixture.mu.Lock()
 		fixture.world(size)
 		fixture.mu.Unlock()
+		page.MustWait(`()=>!document.querySelector('[data-action="refresh"]').disabled`)
 		page.MustEval(`()=>document.querySelector('[data-action="refresh"]').click()`)
 		expectedVisible := map[int]int{25: 23, 250: 248, 1000: 998}[size]
-		page.MustWait(fmt.Sprintf(`()=>document.querySelector('[data-tools]').getAttribute('aria-description').includes('%d')`, expectedVisible))
+		page.MustWait(`()=>!document.querySelector('[data-action="refresh"]').disabled`)
+		infraPolishSettle(page)
+		if got := page.MustEval(`()=>document.querySelector('[data-tools]').getAttribute('aria-description')`).Str(); !strings.Contains(got, fmt.Sprint(expectedVisible)) {
+			t.Fatalf("%d-asset refresh: visible count %q, want %d; state %s", size, got, expectedVisible, page.MustEval(`()=>JSON.stringify({sync:document.querySelector('[data-live]').dataset.sync,cards:document.querySelectorAll('[data-nodes] [data-node]').length,filters:document.querySelector('[data-search]').value})`).Str())
+		}
 		if size == 25 {
-			page.MustWait(`()=>{const images=[...document.querySelectorAll('[data-nodes] img')];return images.length>0&&images.every(image=>image.complete&&image.naturalWidth>0);}`)
+			// Hidden guest shelves and offscreen cards keep lazy images unloaded until they become visible.
+			if err := page.Timeout(10 * time.Second).Wait(rod.Eval(`()=>{
+				const bounds=document.querySelector('[data-stage]').getBoundingClientRect();
+				const images=[...document.querySelectorAll('[data-nodes] img')].filter(image=>{const r=image.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>bounds.left&&r.left<bounds.right&&r.bottom>bounds.top&&r.top<bounds.bottom;});
+				return images.length>0&&images.every(image=>image.complete&&image.naturalWidth>0);
+			}`)); err != nil {
+				t.Fatalf("visible map images did not load: %v; pending %s", err, page.MustEval(`()=>JSON.stringify([...document.querySelectorAll('[data-nodes] img')].filter(image=>!image.complete||!image.naturalWidth).map(image=>({src:image.getAttribute('src'),box:image.getBoundingClientRect().toJSON()})))`).Str())
+			}
 			if got := page.MustEval(`()=>JSON.stringify({cards:document.querySelectorAll('[data-nodes] [data-node]').length,guestCard:!!document.querySelector('[data-node="fixture-node-0001"]'),region:!!document.querySelector('[data-regions] [data-region="fixture-group"]'),viewBox:document.querySelector('[data-edges]').getAttribute('viewBox').slice(0,4),transform:document.querySelector('[data-scene]').style.transform.slice(0,10)})`).Str(); got != `{"cards":23,"guestCard":false,"region":true,"viewBox":"0 0 ","transform":"translate("}` {
 				t.Fatalf("map did not render 23 cards, the group region and a translate+scale scene: %s", got)
 			}
