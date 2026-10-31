@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Agent tím získá právo mazat data. Smazaná data nemusí jít obnovit.",
   "config.confirm_enable.destroy": "Agent tím získá právo provádět destruktivní akce, které nelze vrátit zpět.",
   "config.confirm_enable.host": "Agent tím získá práva v hostitelském systému. Zapněte jen tehdy, pokud důvěřujete agentovi a jeho vstupům.",
-  "config.confirm_enable.write": "Agent tím získá právo měnit soubory na hostiteli. Zapněte jen tehdy, pokud agentovi důvěřujete."
+  "config.confirm_enable.write": "Agent tím získá právo měnit soubory na hostiteli. Zapněte jen tehdy, pokud agentovi důvěřujete.",
+  "config.sidebar.only_active": "Jen aktivní",
+  "config.sidebar.only_active_desc": "Zobrazí jen zapnuté sekce, sekce s chybou nebo čekající na restart a otevřenou sekci.",
+  "config.sidebar.only_active_empty": "Žádné aktivní sekce. Vypni filtr, aby se zobrazily všechny.",
+  "config.state.active": "Aktivní",
+  "config.state.configured": "Nastaveno, ale vypnuto",
+  "config.state.error": "Chyba při poslední kontrole",
+  "config.state.restart": "Je nutný restart",
+  "config.state.restart_reason": "Změna se projeví až po restartu.",
+  "config.overview.active_title": "Aktivní",
+  "config.overview.active_empty": "Zatím není zapnutá žádná integrace.",
+  "config.overview.attention_title": "Vyžaduje pozornost",
+  "config.overview.blocked": "Nedostupné",
+  "config.overview.group_active": "Aktivní: {count}"
 }

@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "This lets the agent delete data. Deleted data may not be recoverable.",
   "config.confirm_enable.destroy": "This lets the agent run destructive actions that cannot be undone.",
   "config.confirm_enable.host": "This gives the agent rights on the host system. Only enable it if you trust the agent and its inputs.",
-  "config.confirm_enable.write": "This lets the agent change files on the host. Only enable it if you trust the agent."
+  "config.confirm_enable.write": "This lets the agent change files on the host. Only enable it if you trust the agent.",
+  "config.sidebar.only_active": "Only active",
+  "config.sidebar.only_active_desc": "Shows only sections that are on, have an error or need a restart, plus the open section.",
+  "config.sidebar.only_active_empty": "No active sections. Turn the filter off to see all.",
+  "config.state.active": "Active",
+  "config.state.configured": "Set up, but off",
+  "config.state.error": "Error at the last check",
+  "config.state.restart": "Restart needed",
+  "config.state.restart_reason": "The change takes effect after a restart.",
+  "config.overview.active_title": "Active",
+  "config.overview.active_empty": "No integration is switched on yet.",
+  "config.overview.attention_title": "Needs attention",
+  "config.overview.blocked": "Unavailable",
+  "config.overview.group_active": "{count} active"
 }

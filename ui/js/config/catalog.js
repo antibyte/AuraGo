@@ -107,9 +107,84 @@
         'flows.max_runs_per_flow': { type: 'number', min: 10, max: 5000, changedOnly: true }
     });
 
+    // State of a Config section for the sidebar dot (js/config/section_state.js).
+    // Without an entry a section is active when "<key>.enabled" is on in the draft.
+    //   on:   paths that switch the section on (any one is enough); "set:<path>" means
+    //         the value is filled in (a provider, a stored token) instead of a flag.
+    //   rule: actionRules id; with every required value and credential present, a
+    //         section that is off counts as configured. Only rules that need a
+    //         credential are bound, so defaults never look like a setup.
+    //   none: core section without an on/off state, it gets no dot.
+    const sectionStatePaths = Object.freeze({
+        agent: { none: true },
+        optimizations: { none: true },
+        providers: { none: true },
+        llm: { none: true },
+        server: { none: true },
+        directories: { none: true },
+        sqlite: { none: true },
+        logging: { none: true },
+        tools: { none: true },
+        info_tools: { none: true },
+        network_tools: { none: true },
+        backup_restore: { none: true },
+        updates: { none: true },
+        prompts_editor: { none: true },
+        telephone_agent: { none: true },
+        memory_analysis: { none: true },
+        danger_zone: { none: true },
+        embeddings: { on: ['set:embeddings.provider'] },
+        personality: { on: ['personality.engine'] },
+        vision: { on: ['set:vision.provider'] },
+        whisper: { on: ['set:whisper.provider'] },
+        tts: { on: ['set:tts.provider', 'tts.piper.enabled'] },
+        output_compression: { on: ['agent.output_compression.enabled'] },
+        web_scraper: { on: ['tools.web_scraper.enabled'] },
+        skill_manager: { on: ['tools.skill_manager.enabled'] },
+        daemon_skills: { on: ['tools.daemon_skills.enabled'] },
+        media_conversion: { on: ['tools.media_conversion.enabled'] },
+        video_download: { on: ['tools.video_download.enabled'] },
+        document_creator: { on: ['tools.document_creator.enabled'] },
+        web_config: { on: ['auth.enabled'] },
+        guardian: { on: ['guardian.injection_guard.enabled'] },
+        notifications: { on: ['notifications.ntfy.enabled', 'notifications.pushover.enabled'] },
+        a2a: { on: ['a2a.server.enabled'] },
+        telegram: { on: ['set:telegram.bot_token'], rule: 'integration-telegram-test-btn' },
+        adguard: { rule: 'adg-test-btn' },
+        agentmail: { rule: 'agentmail-test-btn' },
+        ai_gateway: { rule: 'ai-gw-test-btn' },
+        composio: { rule: 'composio-test-btn' },
+        manus: { rule: 'manus-test-btn' },
+        github: { rule: 'github-test-btn' },
+        grafana: { rule: 'grafana-test-btn' },
+        google_workspace: { rule: 'gw-test-btn' },
+        homepage: { rule: 'hp-test-btn' },
+        huggingface: { rule: 'huggingface-test-btn' },
+        jellyfin: { rule: 'jellyfin-test-btn' },
+        koofr: { rule: 'koofr-test-btn' },
+        ldap: { rule: 'ldap-test-btn' },
+        netlify: { rule: 'nf-test-btn' },
+        here_now: { rule: 'hn-test-btn' },
+        treg: { rule: 'treg-test-btn' },
+        obsidian: { rule: 'obsidian-test-btn' },
+        paperless_ngx: { rule: 'paperless-test-btn' },
+        ansible: { rule: 'integration-ansible-test-btn' },
+        discord: { rule: 'integration-discord-test-btn' },
+        home_assistant: { rule: 'integration-home-assistant-test-btn' },
+        proxmox: { rule: 'integration-proxmox-test-btn' },
+        rocketchat: { rule: 'integration-rocketchat-test-btn' },
+        telnyx: { rule: 'telnyx-test-btn' },
+        truenas: { rule: 'truenas-test-btn' },
+        tailscale: { rule: 'ts-api-test-btn' },
+        uptime_kuma: { rule: 'uptime-kuma-test-btn' },
+        vercel: { rule: 'vercel-test-btn' },
+        webdav: { rule: 'webdav-test-btn' }
+    });
+
     window.AuraConfigCatalog = Object.freeze({
         version: 1,
         actionRules,
+        sectionStatePaths,
         validationRules,
         confirmOnEnable,
         // Semantic surfaces declared by the integration renderers. These are exact

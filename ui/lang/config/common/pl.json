@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Pozwala to agentowi usuwać dane. Usuniętych danych może nie dać się odzyskać.",
   "config.confirm_enable.destroy": "Pozwala to agentowi wykonywać destrukcyjne działania, których nie można cofnąć.",
   "config.confirm_enable.host": "Daje to agentowi uprawnienia w systemie hosta. Włączaj tylko, jeśli ufasz agentowi i jego danym wejściowym.",
-  "config.confirm_enable.write": "Pozwala to agentowi zmieniać pliki na hoście. Włączaj tylko, jeśli ufasz agentowi."
+  "config.confirm_enable.write": "Pozwala to agentowi zmieniać pliki na hoście. Włączaj tylko, jeśli ufasz agentowi.",
+  "config.sidebar.only_active": "Tylko aktywne",
+  "config.sidebar.only_active_desc": "Pokazuje tylko włączone sekcje, sekcje z błędem lub oczekujące na restart oraz otwartą sekcję.",
+  "config.sidebar.only_active_empty": "Brak aktywnych sekcji. Wyłącz filtr, aby zobaczyć wszystkie.",
+  "config.state.active": "Aktywna",
+  "config.state.configured": "Skonfigurowana, ale wyłączona",
+  "config.state.error": "Błąd podczas ostatniego sprawdzenia",
+  "config.state.restart": "Wymagany restart",
+  "config.state.restart_reason": "Zmiana zacznie działać po restarcie.",
+  "config.overview.active_title": "Aktywne",
+  "config.overview.active_empty": "Żadna integracja nie jest jeszcze włączona.",
+  "config.overview.attention_title": "Wymaga uwagi",
+  "config.overview.blocked": "Niedostępne",
+  "config.overview.group_active": "Aktywne: {count}"
 }

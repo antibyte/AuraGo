@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Det giver agenten lov til at slette data. Slettede data kan muligvis ikke gendannes.",
   "config.confirm_enable.destroy": "Det giver agenten lov til at udføre destruktive handlinger, der ikke kan fortrydes.",
   "config.confirm_enable.host": "Det giver agenten rettigheder på værtssystemet. Aktivér kun, hvis du stoler på agenten og dens input.",
-  "config.confirm_enable.write": "Det giver agenten lov til at ændre filer på værten. Aktivér kun, hvis du stoler på agenten."
+  "config.confirm_enable.write": "Det giver agenten lov til at ændre filer på værten. Aktivér kun, hvis du stoler på agenten.",
+  "config.sidebar.only_active": "Kun aktive",
+  "config.sidebar.only_active_desc": "Viser kun afsnit, der er slået til, har en fejl eller venter på genstart, samt det åbne afsnit.",
+  "config.sidebar.only_active_empty": "Ingen aktive afsnit. Slå filteret fra for at se alle.",
+  "config.state.active": "Aktiv",
+  "config.state.configured": "Konfigureret, men slået fra",
+  "config.state.error": "Fejl ved sidste kontrol",
+  "config.state.restart": "Genstart nødvendig",
+  "config.state.restart_reason": "Ændringen træder først i kraft efter en genstart.",
+  "config.overview.active_title": "Aktive",
+  "config.overview.active_empty": "Ingen integration er slået til endnu.",
+  "config.overview.attention_title": "Kræver opmærksomhed",
+  "config.overview.blocked": "Ikke tilgængelig",
+  "config.overview.group_active": "{count} aktive"
 }

@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "这将允许智能体删除数据。已删除的数据可能无法恢复。",
   "config.confirm_enable.destroy": "这将允许智能体执行无法撤销的破坏性操作。",
   "config.confirm_enable.host": "这将授予智能体对主机系统的权限。仅在信任智能体及其输入时才启用。",
-  "config.confirm_enable.write": "这将允许智能体修改主机上的文件。仅在信任智能体时才启用。"
+  "config.confirm_enable.write": "这将允许智能体修改主机上的文件。仅在信任智能体时才启用。",
+  "config.sidebar.only_active": "仅显示已启用",
+  "config.sidebar.only_active_desc": "仅显示已开启、出错或需要重启的部分，以及当前打开的部分。",
+  "config.sidebar.only_active_empty": "没有已启用的部分。关闭筛选即可查看全部。",
+  "config.state.active": "已启用",
+  "config.state.configured": "已设置，但已关闭",
+  "config.state.error": "上次检查出错",
+  "config.state.restart": "需要重启",
+  "config.state.restart_reason": "更改将在重启后生效。",
+  "config.overview.active_title": "已启用",
+  "config.overview.active_empty": "尚未开启任何集成。",
+  "config.overview.attention_title": "需要关注",
+  "config.overview.blocked": "不可用",
+  "config.overview.group_active": "{count} 个已启用"
 }

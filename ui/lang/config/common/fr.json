@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Cela permet à l’agent de supprimer des données. Les données supprimées peuvent être irrécupérables.",
   "config.confirm_enable.destroy": "Cela permet à l’agent d’exécuter des actions destructrices irréversibles.",
   "config.confirm_enable.host": "Cela donne à l’agent des droits sur le système hôte. N’activez cette option que si vous faites confiance à l’agent et à ses entrées.",
-  "config.confirm_enable.write": "Cela permet à l’agent de modifier des fichiers sur l’hôte. N’activez cette option que si vous faites confiance à l’agent."
+  "config.confirm_enable.write": "Cela permet à l’agent de modifier des fichiers sur l’hôte. N’activez cette option que si vous faites confiance à l’agent.",
+  "config.sidebar.only_active": "Actifs uniquement",
+  "config.sidebar.only_active_desc": "Affiche uniquement les sections activées, en erreur ou en attente de redémarrage, ainsi que la section ouverte.",
+  "config.sidebar.only_active_empty": "Aucune section active. Désactive le filtre pour tout voir.",
+  "config.state.active": "Actif",
+  "config.state.configured": "Configuré, mais désactivé",
+  "config.state.error": "Erreur lors de la dernière vérification",
+  "config.state.restart": "Redémarrage nécessaire",
+  "config.state.restart_reason": "La modification ne prend effet qu’après un redémarrage.",
+  "config.overview.active_title": "Actifs",
+  "config.overview.active_empty": "Aucune intégration n’est encore activée.",
+  "config.overview.attention_title": "Demande de l’attention",
+  "config.overview.blocked": "Indisponible",
+  "config.overview.group_active": "{count} actif(s)"
 }
