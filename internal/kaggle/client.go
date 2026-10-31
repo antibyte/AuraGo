@@ -153,6 +153,7 @@ func (c *Client) Identity(ctx context.Context) (string, error) {
 
 // StorageClient returns an uncredentialed, DNS-pinned public HTTPS client.
 func storageClient(ctx context.Context, location string, timeout time.Duration) (*http.Client, error) {
+	security.RegisterSensitive(location)
 	u, err := url.Parse(location)
 	if err != nil || u.Scheme != "https" || u.User != nil || u.Host == "" {
 		return nil, errors.New("Kaggle returned an invalid storage URL")
@@ -163,6 +164,7 @@ func storageClient(ctx context.Context, location string, timeout time.Duration) 
 	}
 	previous := h.CheckRedirect
 	h.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		security.RegisterSensitive(req.URL.String())
 		req.Header.Del("Authorization")
 		req.Header.Del("Cookie")
 		if req.URL.Scheme != "https" || req.URL.User != nil {
@@ -176,13 +178,20 @@ func storageClient(ctx context.Context, location string, timeout time.Duration) 
 	return h, nil
 }
 
+// Preserve int64 remote identities through generic response processing.
+func decodeResponse(raw []byte, value any) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	return d.Decode(value)
+}
+
 func cleanOutput(raw json.RawMessage) json.RawMessage {
 	var v any
-	if json.Unmarshal(raw, &v) != nil {
+	if decodeResponse(raw, &v) != nil {
 		return json.RawMessage(`{}`)
 	}
-	var clean func(any)
-	clean = func(x any) {
+	var clean func(any) any
+	clean = func(x any) any {
 		switch a := x.(type) {
 		case map[string]any:
 			for k, v := range a {
@@ -190,16 +199,19 @@ func cleanOutput(raw json.RawMessage) json.RawMessage {
 				if lower == "token" || lower == "accesstoken" || lower == "refreshtoken" || strings.Contains(lower, "createurl") || strings.Contains(lower, "downloadurl") || strings.Contains(lower, "signedurl") {
 					delete(a, k)
 				} else {
-					clean(v)
+					a[k] = clean(v)
 				}
 			}
 		case []any:
-			for _, v := range a {
-				clean(v)
+			for i, v := range a {
+				a[i] = clean(v)
 			}
+		case string:
+			return security.Scrub(a)
 		}
+		return x
 	}
-	clean(v)
+	v = clean(v)
 	b, _ := json.Marshal(v)
 	return b
 }

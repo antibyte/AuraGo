@@ -132,6 +132,21 @@ func (s *Store) update(ctx context.Context, id, status string, progress int64, r
 	}
 	return err
 }
+
+// Claim before sending: a lost cancellation response must not be replayed.
+func (s *Store) claimCancellation(ctx context.Context, id string) (bool, error) {
+	r, err := s.db.ExecContext(ctx, `UPDATE jobs SET status='cancel_requested',updated=? WHERE id=? AND status='remote_running'`, time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	if n == 1 {
+		if j, e := s.Get(ctx, id); e == nil {
+			_, _ = s.Emit(ctx, "job", j)
+		}
+	}
+	return n == 1, err
+}
 func (s *Store) Emit(ctx context.Context, kind string, data any) (int64, error) {
 	b, err := json.Marshal(data)
 	if err != nil {

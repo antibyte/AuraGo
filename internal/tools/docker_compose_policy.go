@@ -361,7 +361,7 @@ func dockerComposeVolumesFromTarget(ref string) (target string, isContainer bool
 // dockerComposeLabelOwner reports the AuraGo owner named by canonical or legacy
 // aurago.managed labels on a service, volume or network.
 func dockerComposeLabelOwner(labels map[string]string) string {
-	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.DecisionsOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner} {
+	for _, owner := range []string{acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.DecisionsOwner, dockerutil.BoringGarageOwner, dockerutil.HomepageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.KaggleNotebookOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner} {
 		if dockerutil.ManagedBy(labels, owner) {
 			return owner
 		}
@@ -372,6 +372,8 @@ func dockerComposeLabelOwner(labels map[string]string) string {
 func dockerComposeContainerOwner(name string) string {
 	name = strings.TrimSpace(name)
 	switch {
+	case dockerutil.IsKaggleNotebookContainerName(name):
+		return dockerutil.KaggleNotebookOwner
 	case dockerutil.IsRustFSContainerName(name):
 		return dockerutil.RustFSOwner
 	case dockerutil.IsOllamaContainerName(name):

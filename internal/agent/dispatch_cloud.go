@@ -180,6 +180,9 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			security.RegisterSensitive(token)
 			return externalToolOutput(ctx, tools.RunHuggingFace(ctx, cfg.HuggingFace, token, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir, req))
 
+		case "kaggle_datasets", "kaggle_models", "kaggle_notebooks", "kaggle_competitions", "kaggle_benchmarks", "kaggle_forums", "kaggle_runtime":
+			return externalToolOutput(ctx, tools.RunKaggle(ctx, cfg, strings.TrimPrefix(tc.Action, "kaggle_"), kaggleToolArguments(tc)))
+
 		case "here_now_sites", "here_now_site":
 			if !cfg.HereNow.Enabled {
 				return `Tool Output: {"status":"error","message":"here.now integration is not enabled. Set here_now.enabled=true in config.yaml."}`

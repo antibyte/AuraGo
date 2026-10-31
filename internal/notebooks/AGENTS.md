@@ -16,6 +16,7 @@ This package owns notebook revisions, kernel sessions and the fixed Jupyter brid
 - One owned, non-root, resource-limited container per session. No host secrets, Docker socket or published port. Only explicitly selected project files cross the boundary.
 - The bridge uses `jupyter_client` and bounded JSON frames over Docker exec attach. Original notebook JavaScript/widgets remain inert; HTML display is sanitized.
 - Configuration revocation stops affected sessions. Server shutdown removes owned containers; variable state is lost and must be reported.
+- Protect the canonical managed-container label and name prefix from generic Docker tools. Readiness and output events can precede start/restart/execute HTTP responses; retain correlation through those races.
 
 ## Work Guidance
 

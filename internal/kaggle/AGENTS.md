@@ -15,6 +15,8 @@ This package owns the Kaggle API contract. `internal/notebooks` owns local noteb
 - Upload receipts store `kaggle_upload_<job-id>` Vault references in SQLite, never bearer material. The `kaggle_` Python-export denylist covers these slots too.
 - Enabled/read-only and operation grants are checked against current configuration. Public mutations additionally require publish; writes default to the authenticated owner. Downloads require local write permission separately.
 - Persist admission before mutations. Unknown remote outcomes are never replayed. Repeated request IDs return their original receipt only when the account and canonical request match.
+- Persist cancellation before sending it; uncertain cancellation stays requested until a remote terminal state. Benchmark cancellation accepts only recorded run IDs. SaveKernel does not promise a session ID: offer the Kaggle website when cancellation cannot be addressed safely, never infer a session from a kernel/version ID.
+- Wire enums use SDK names (`QUICK_SAVE`, `SAVE_AND_RUN_ALL`). Structured benchmark slugs and run-ID wrappers are validated against the pinned SDK; heterogeneous agent fields use JSON strings decoded before validation.
 - Downloads stage bounded regular files and publish atomically. Storage redirects are uncredentialed and SSRF-checked. Never extract an archive implicitly.
 - Scope is datasets, models/variants/versions, notebooks, competition participation, benchmark tasks and read-only forums. Unsupported benchmark deletion is absent.
 

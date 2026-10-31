@@ -7,6 +7,8 @@ Agent and service authorization stays with each caller.
 
 ## Contracts
 
+- `KaggleNotebookOwner` and the reserved `aurago-kaggle-` prefix protect per-session notebook containers from generic tools/Compose/manager mutations. Labels and reserved names both identify ownership. Session lifecycle belongs only to `internal/notebooks`; no host mounts or Docker socket are granted to kernels.
+
 - `managed_resources.go` owns reserved RustFS names and private volume-path recognition. Volume ownership remains the manager's responsibility; reserved names protect generic access and never authorize adoption. Runtime contracts live in `../rustfs/AGENTS.md`.
 
 - Negotiate `GET /version` before a versioned operation, selecting the supported intersection (minimum 1.25 for managed-container Init, maximum `APIVersion`). Reject malformed, inaccessible or incompatible version metadata before mutation. Socket proxies need `VERSION=1`.

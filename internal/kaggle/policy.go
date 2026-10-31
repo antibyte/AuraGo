@@ -54,6 +54,10 @@ func CheckPolicy(c config.KaggleConfig, a Access, op Operation, params map[strin
 	if err := CheckGrants(c, a, op, params); err != nil {
 		return err
 	}
+	// Ownership limits remote writes, not access to public third-party resources.
+	if op.Grant == "read" || op.Grant == "download" {
+		return nil
+	}
 	owner := stringValue(params, "ownerSlug")
 	if owner == "" {
 		owner = stringValue(params, "userName")
@@ -61,6 +65,9 @@ func CheckPolicy(c config.KaggleConfig, a Access, op Operation, params map[strin
 	if owner == "" {
 		if slug := stringValue(params, "slug"); strings.Contains(slug, "/") {
 			owner = strings.Split(slug, "/")[0]
+		}
+		if slug, ok := params["slug"].(map[string]any); ok {
+			owner = stringValue(slug, "ownerSlug")
 		}
 	}
 	if owner != "" && !ownerAllowed(c, account, owner) {
@@ -122,12 +129,17 @@ func CheckGrants(c config.KaggleConfig, a Access, op Operation, params map[strin
 	if !a.Write {
 		return errors.New("filesystem writes are disabled")
 	}
+	if op.Name == "create_dataset_version" {
+		if body, ok := params["body"].(map[string]any); ok && boolValue(body, "deleteOldVersions") && !c.AllowDelete {
+			return errors.New("deleting old dataset versions requires deletion permission")
+		}
+	}
 	if op.Name == "save_kernel" {
 		kind := stringValue(params, "kernelExecutionType")
-		if kind != "QuickSave" && kind != "SaveAndRunAll" {
-			return errors.New("notebooks support QuickSave or SaveAndRunAll only")
+		if kind != "QUICK_SAVE" && kind != "SAVE_AND_RUN_ALL" {
+			return errors.New("notebooks support QUICK_SAVE or SAVE_AND_RUN_ALL only")
 		}
-		if kind == "SaveAndRunAll" && !c.AllowRemoteExecute {
+		if kind == "SAVE_AND_RUN_ALL" && !c.AllowRemoteExecute {
 			return errors.New("Kaggle remote execution is disabled")
 		}
 		if boolValue(params, "enableGpu") && !c.AllowGPU {

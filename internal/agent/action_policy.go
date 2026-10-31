@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/kaggle"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -135,6 +136,21 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 			if a.Operation == risk || strings.HasPrefix(a.Operation, risk+"_") || strings.HasSuffix(a.Operation, "_"+risk) || strings.Contains(a.Operation, "_"+risk+"_") {
 				a.HighRisk = true
 			}
+		}
+	}
+	if strings.HasPrefix(tc.Action, "kaggle_") {
+		if tc.Action == "kaggle_runtime" {
+			switch a.Operation {
+			case "status", "projects", "files", "read_file", "load_notebook", "jobs", "events", "sessions":
+				a.Mutating, a.HighRisk = false, false
+			case "execute", "start", "restart", "complete":
+				a.Mutating, a.HighRisk = true, true
+			default:
+				a.Mutating = true
+			}
+		} else if op, err := kaggle.Lookup(strings.TrimPrefix(tc.Action, "kaggle_"), a.Operation); err == nil {
+			a.Mutating = op.Grant != "read"
+			a.HighRisk = a.Mutating && op.Grant != "download" && op.Grant != "cancel"
 		}
 	}
 	applyExtendedActionRisk(&a, tc, dc, args)

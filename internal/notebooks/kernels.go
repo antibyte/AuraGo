@@ -217,7 +217,11 @@ func (k *Kernels) start(ctx context.Context, s *Session) {
 	}
 	k.Stop(s.ID, "kernel_disconnected")
 }
-func (k *Kernels) setError(s *Session, err error) { k.mu.Lock(); s.Error = err.Error(); k.mu.Unlock() }
+func (k *Kernels) setError(s *Session, err error) {
+	k.mu.Lock()
+	s.Error = kaggle.PublicError(err)
+	k.mu.Unlock()
+}
 func (k *Kernels) Stop(id, reason string) error {
 	k.mu.Lock()
 	s := k.sessions[id]

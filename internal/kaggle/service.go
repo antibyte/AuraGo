@@ -142,7 +142,7 @@ func (s *Service) Execute(ctx context.Context, request Request, access Access) (
 		return Result{Data: cleanOutput(b)}, e
 	}
 	if op.Name == "save_kernel" && params["kernelExecutionType"] == nil {
-		params["kernelExecutionType"] = "QuickSave"
+		params["kernelExecutionType"] = "QUICK_SAVE"
 	}
 	if err := CheckGrants(snap.Config, access, op, params); err != nil {
 		return Result{}, err
@@ -153,7 +153,7 @@ func (s *Service) Execute(ctx context.Context, request Request, access Access) (
 	}
 	if op.Name == "save_kernel" {
 		if params["kernelExecutionType"] == nil {
-			params["kernelExecutionType"] = "QuickSave"
+			params["kernelExecutionType"] = "QUICK_SAVE"
 		}
 		if params["isPrivate"] == nil {
 			params["isPrivate"] = true
@@ -209,7 +209,7 @@ func (s *Service) Execute(ctx context.Context, request Request, access Access) (
 	if !fresh {
 		return Result{Job: &j}, nil
 	}
-	if op.Grant == "execute" || op.Name == "save_kernel" && stringValue(params, "kernelExecutionType") == "SaveAndRunAll" {
+	if op.Grant == "execute" || op.Name == "save_kernel" && stringValue(params, "kernelExecutionType") == "SAVE_AND_RUN_ALL" {
 		if err := s.checkComputeSlots(ctx, snap.Config); err != nil {
 			s.Store.update(ctx, j.ID, "failed", 0, nil, err.Error())
 			j.Status, j.Error = "failed", err.Error()
@@ -300,8 +300,11 @@ func (s *Service) run(ctx context.Context, j Job, req Request, op Operation, par
 			status = "unknown"
 		}
 	}
-	if err == nil && (op.Name == "save_kernel" && stringValue(params, "kernelExecutionType") == "SaveAndRunAll" || op.Grant == "execute") {
+	if err == nil && (op.Name == "save_kernel" && stringValue(params, "kernelExecutionType") == "SAVE_AND_RUN_ALL" || op.Grant == "execute") {
 		status = "remote_running"
+	}
+	if err == nil && op.Name == "batch_schedule_benchmark_task_runs" {
+		status, message = benchmarkAcceptance(data)
 	}
 	if err == nil && op.Grant == "cancel" {
 		status = "cancel_requested"
@@ -358,13 +361,16 @@ func (s *Service) checkResource(ctx context.Context, c *Client, cfg config.Kaggl
 		if op.Name == "batch_schedule_benchmark_task_runs" {
 			return s.checkComputeSlots(ctx, cfg)
 		}
-		slug := stringValue(p, "slug")
-		parts := strings.Split(slug, "/")
-		if len(parts) < 2 || !ownerAllowed(cfg, account, parts[0]) {
-			return errors.New("benchmark slug must name an allowed owner")
-		}
 		if op.Name == "create_benchmark_task" {
+			parts := strings.Split(stringValue(p, "slug"), "/")
+			if len(parts) != 2 || !ownerAllowed(cfg, account, parts[0]) {
+				return errors.New("benchmark slug must name an allowed owner")
+			}
 			return nil
+		}
+		slug, ok := p["slug"].(map[string]any)
+		if !ok || !ownerAllowed(cfg, account, stringValue(slug, "ownerSlug")) || stringValue(slug, "taskSlug") == "" {
+			return errors.New("benchmark slug must name an allowed owner and task")
 		}
 		read, err = Lookup("benchmarks", "get_benchmark_task")
 		query = map[string]any{"slug": slug}
@@ -399,7 +405,7 @@ func (s *Service) checkResource(ctx context.Context, c *Client, cfg config.Kaggl
 	return nil
 }
 func (s *Service) checkComputeSlotsIfRun(ctx context.Context, c config.KaggleConfig, p map[string]any) error {
-	if stringValue(p, "kernelExecutionType") == "SaveAndRunAll" {
+	if stringValue(p, "kernelExecutionType") == "SAVE_AND_RUN_ALL" {
 		return s.checkComputeSlots(ctx, c)
 	}
 	return nil
@@ -418,7 +424,7 @@ func (s *Service) checkComputeSlots(ctx context.Context, c config.KaggleConfig) 
 		var p map[string]any
 		json.Unmarshal(j.Request, &req)
 		json.Unmarshal(req.Parameters, &p)
-		if j.Operation == "batch_schedule_benchmark_task_runs" || j.Operation == "save_kernel" && stringValue(p, "kernelExecutionType") == "SaveAndRunAll" {
+		if j.Operation == "batch_schedule_benchmark_task_runs" || j.Operation == "save_kernel" && stringValue(p, "kernelExecutionType") == "SAVE_AND_RUN_ALL" {
 			n++
 		}
 	}
@@ -432,40 +438,52 @@ func (s *Service) ownedCancellation(ctx context.Context, op Operation, p map[str
 	if err != nil {
 		return err
 	}
+	ownedRuns := map[string]bool{}
 	for _, j := range jobs {
 		if j.Account != account {
 			continue
 		}
 		var r map[string]any
-		json.Unmarshal(j.Result, &r)
+		decodeResponse(j.Result, &r)
 		if op.Name == "cancel_kernel_session" && fmt.Sprint(p["kernelSessionId"]) == fmt.Sprint(r["kernelSessionId"]) && r["kernelSessionId"] != nil {
 			return nil
 		}
 		if op.Name == "api_cancel_benchmark_task_runs" && j.Operation == "batch_schedule_benchmark_task_runs" {
-			var req Request
-			json.Unmarshal(j.Request, &req)
-			var q map[string]any
-			json.Unmarshal(req.Parameters, &q)
-			a, _ := json.Marshal(p["taskSlugs"])
-			b, _ := json.Marshal(q["taskSlugs"])
-			if string(a) == string(b) && string(a) != "null" {
-				return nil
+			for id := range benchmarkRunIDs(r) {
+				ownedRuns[id] = true
 			}
+		}
+	}
+	if op.Name == "api_cancel_benchmark_task_runs" && p["taskSlugs"] == nil && p["modelVersion"] == nil && p["agentSlug"] == nil {
+		wrapper, _ := p["runIds"].(map[string]any)
+		ids, _ := wrapper["ids"].([]any)
+		if len(ids) > 0 {
+			for _, id := range ids {
+				if !ownedRuns[fmt.Sprint(id)] {
+					return errors.New("benchmark cancellation contains an untracked run")
+				}
+			}
+			return nil
 		}
 	}
 	return errors.New("cancellation requires an operation owned by this AuraGo account")
 }
 func (s *Service) Cancel(ctx context.Context, id string) error {
-	s.mu.Lock()
-	cancel := s.active[id]
-	s.mu.Unlock()
-	if cancel != nil {
-		cancel()
-		return nil
-	}
 	j, err := s.Store.Get(ctx, id)
 	if err != nil {
 		return err
+	}
+	if j.Status == "cancel_requested" {
+		return nil
+	}
+	if j.Status == "queued" || j.Status == "running" {
+		s.mu.Lock()
+		cancel := s.active[id]
+		s.mu.Unlock()
+		if cancel != nil {
+			cancel()
+			return nil
+		}
 	}
 	if j.Status != "remote_running" {
 		return errors.New("job is not active")

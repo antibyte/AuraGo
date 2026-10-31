@@ -63,7 +63,7 @@ func (d *Docker) Create(ctx context.Context, id string, c config.KaggleLocalConf
 	if internet {
 		network = "bridge"
 	}
-	body := map[string]any{"Image": d.image, "User": "1000:100", "WorkingDir": "/workspace", "Env": []string{"HOME=/tmp/home", "JUPYTER_RUNTIME_DIR=/tmp/runtime", "IPYTHONDIR=/tmp/ipython"}, "Labels": map[string]string{"org.aurago.managed": "kaggle-notebook", "org.aurago.session": id, "org.aurago.instance": d.instance}, "HostConfig": map[string]any{"NetworkMode": network, "ReadonlyRootfs": true, "Memory": int64(c.MemoryMB) << 20, "NanoCpus": int64(c.CPUCores) * 1000000000, "PidsLimit": 256, "CapDrop": []string{"ALL"}, "SecurityOpt": []string{"no-new-privileges:true"}, "Tmpfs": map[string]string{"/tmp": "rw,nosuid,nodev,size=268435456,mode=1777", "/workspace": fmt.Sprintf("rw,nosuid,nodev,size=%d,uid=1000,gid=100,mode=0700", int64(c.MemoryMB)<<19)}}}
+	body := map[string]any{"Image": d.image, "User": "1000:100", "WorkingDir": "/workspace", "Env": []string{"HOME=/tmp/home", "JUPYTER_RUNTIME_DIR=/tmp/runtime", "IPYTHONDIR=/tmp/ipython"}, "Labels": map[string]string{"aurago.managed": dockerutil.KaggleNotebookOwner, "org.aurago.managed": "kaggle-notebook", "org.aurago.session": id, "org.aurago.instance": d.instance}, "HostConfig": map[string]any{"NetworkMode": network, "ReadonlyRootfs": true, "Memory": int64(c.MemoryMB) << 20, "NanoCpus": int64(c.CPUCores) * 1000000000, "PidsLimit": 256, "CapDrop": []string{"ALL"}, "SecurityOpt": []string{"no-new-privileges:true"}, "Tmpfs": map[string]string{"/tmp": "rw,nosuid,nodev,size=268435456,mode=1777", "/workspace": fmt.Sprintf("rw,nosuid,nodev,size=%d,uid=1000,gid=100,mode=0700", int64(c.MemoryMB)<<19)}}}
 	var created struct {
 		ID string `json:"Id"`
 	}

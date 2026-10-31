@@ -120,7 +120,7 @@ func TestKagglePermissionMatrix(t *testing.T) {
 	c.Enabled = true
 	a := Access{Network: true, Write: true, Admin: true}
 	for _, op := range Catalog() {
-		p := map[string]any{"kernelExecutionType": "QuickSave"}
+		p := map[string]any{"kernelExecutionType": "QUICK_SAVE"}
 		err := CheckPolicy(c, a, op, p, "owner")
 		allowed := op.Grant == "read" || op.Grant == "cancel"
 		if (err == nil) != allowed {
@@ -131,7 +131,7 @@ func TestKagglePermissionMatrix(t *testing.T) {
 	c.AllowUpdate = true
 	c.AllowCreate = true
 	op, _ := Lookup("notebooks", "save_kernel")
-	for _, p := range []map[string]any{{"kernelExecutionType": "SaveAndRunAll"}, {"kernelExecutionType": "QuickSave", "enableGpu": true}, {"kernelExecutionType": "QuickSave", "enableInternet": true}, {"kernelExecutionType": "QuickSave", "isPrivate": false}, {"kernelExecutionType": "QuickSave", "slug": "stranger/book"}} {
+	for _, p := range []map[string]any{{"kernelExecutionType": "SAVE_AND_RUN_ALL"}, {"kernelExecutionType": "QUICK_SAVE", "enableGpu": true}, {"kernelExecutionType": "QUICK_SAVE", "enableInternet": true}, {"kernelExecutionType": "QUICK_SAVE", "isPrivate": false}, {"kernelExecutionType": "QUICK_SAVE", "slug": "stranger/book"}} {
 		if CheckPolicy(c, a, op, p, "owner") == nil {
 			t.Fatalf("denied grant bypass: %v", p)
 		}

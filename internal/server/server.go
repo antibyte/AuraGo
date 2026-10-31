@@ -395,6 +395,8 @@ type Server struct {
 
 	backgroundCompletions backgroundCompletionCache
 	integrationCtx        context.Context
+	kaggleMu              sync.Mutex
+	kaggleServices        *kaggleServices
 	rocketChatLifecycleMu sync.Mutex
 	rocketChatBot         atomic.Pointer[rocketchat.Bot]
 	rocketChatClosed      bool
@@ -872,6 +874,10 @@ func Start(opts StartOptions) error {
 	// (containers_self_proof.go); outside a container it does nothing.
 	initContainerSelfMarker(containerRuntimeIsDocker(s), logger)
 	s.integrationCtx = serverCtx
+	if _, err := s.ensureKaggleServices(); err != nil {
+		logger.Warn("[Kaggle] Service initialization failed")
+	}
+	defer s.closeKaggleServices()
 	s.InjectionGuard = injectionguard.NewManager(serverCtx, cfg.Directories.DataDir, "")
 	s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
 	queueOptionalInjectionGuardNotice(s)
