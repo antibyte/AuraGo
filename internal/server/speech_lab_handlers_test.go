@@ -179,7 +179,7 @@ func TestSpeechLabStackUsesFixedContractAndNeverSendsLLM(t *testing.T) {
 	s, _ := speechLabServerForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/catalog":
-			_, _ = io.WriteString(w, `{"schema_version":1,"backends":[{"id":"asr-a","stage":"asr","available":true},{"id":"tts-a","stage":"tts","available":true,"voices":["M1"]}]}`)
+			_, _ = io.WriteString(w, `{"schema_version":1,"backends":[{"id":"asr-a","stage":"asr","available":true},{"id":"tts-a","stage":"tts","available":true,"default_voice":"M1","voices":["M1"]}]}`)
 		case "/api/v1/stack":
 			body, _ := io.ReadAll(r.Body)
 			upstreamStackBody = string(body)

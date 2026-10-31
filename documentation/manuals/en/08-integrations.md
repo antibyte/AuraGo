@@ -439,6 +439,14 @@ Speech-Lab transcription can select `chat_llm_provider_id` for exactly the next 
 
 AuraGo reads ASR, TTS, and voice from one `/ready` snapshot and requires matching backend IDs and `X-S2S-Voice`/`X-S2S-TTS-ID` response headers. A stack change is rejected while a speech operation or SIP call is active. Speech Lab realtime actions emit one `final_response` followed by a contentless `done`; cancellation is request-scoped.
 
+#### Voices, Recommendations and Errors
+
+The voice selector follows the TTS catalog: `fixed` permits only the default voice, `restart` changes the voice through confirmed stack activation and a backend restart, and `request` permits catalog voices. Missing modes use `fixed`; unknown modes block activation. Existing conversations keep their original voice snapshot.
+
+Clicking a recommendation prefills the ASR/TTS selection and a permitted default voice. Its score and reason are heuristic, not benchmark results. Review the choices and confirm **Activate stack** to apply them; selecting a recommendation never starts a download or changes the running stack.
+
+For HTTP 409 `voice_not_active`, refresh the stack before retrying. For `module_not_provisioned`, check the module installation in Browser Lab. Audio errors leave the text answer available. When Speech Lab is offline, starting, or requires sign-in, the chat integrations drawer links to its settings and keeps the explanation visible.
+
 #### Deployment and Network Boundary
 
 Managed installation uses the signed, digest-pinned bundle and requires explicit administrator confirmation for the first pull. The service port `8765` stays private; the browser backend defaults to loopback `8766` (native installs) or `http://s2s-web:80` (Docker) and is reachable only through the `/speech-lab/` proxy. There is no separate Tailscale listener; with embedded Tailscale the Browser Lab is reachable through the normal AuraGo access path.

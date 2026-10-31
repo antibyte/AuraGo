@@ -6871,6 +6871,25 @@ html[data-theme="retro-crt"]::before {
     transform: translateY(-1px);
 }
 
+.integration-hint {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.integration-actions {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.integration-actions .integration-open {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 639px) {
     .integrations-edge-tab {
         top: 46%;

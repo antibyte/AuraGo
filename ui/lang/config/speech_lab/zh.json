@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "必须未设置",
   "config.speech_lab.external_hardware_linux": "Linux AMD：使用 S2S_GPU=auto 或 S2S_GPU=vulkan，移除 GGML_BACKEND=CPU，并启用 Linux GPU Compose overlay。",
   "config.speech_lab.browser_backend_url": "浏览器后端地址",
-  "config.speech_lab.browser_backend_url_help": "外部 Speech Lab 网页界面的地址。只有 AuraGo 服务器会连接到它。"
+  "config.speech_lab.browser_backend_url_help": "外部 Speech Lab 网页界面的地址。只有 AuraGo 服务器会连接到它。",
+  "config.speech_lab.voice_mode_fixed": "固定声音：仅可使用目录中的默认声音。",
+  "config.speech_lab.voice_mode_restart": "更改此声音会在激活组合时重启后端。",
+  "config.speech_lab.voice_mode_request": "为组合选择目录中的声音。后端也支持按请求指定声音。",
+  "config.speech_lab.voice_mode_unsupported": "不支持此 TTS 声音模式，无法激活组合。",
+  "config.speech_lab.error_voice": "该声音已不再处于活动状态。请刷新组合后重试。",
+  "config.speech_lab.error_module": "语音模块尚未安装或未就绪。请检查 Browser Lab。",
+  "config.speech_lab.error_invalid_voice": "请选择此 TTS 后端支持的声音。",
+  "config.speech_lab.error_busy": "Speech Lab 正忙。请等待当前操作或通话结束。",
+  "config.speech_lab.error_conflict": "组合更改失败。请刷新组合并检查 Browser Lab。",
+  "config.speech_lab.memory_free": "{value} 可用",
+  "config.speech_lab.suggestion_score": "评分：{score}",
+  "config.speech_lab.suggestion_selected": "已选择推荐配置。请检查选择并激活组合以应用更改。"
 }

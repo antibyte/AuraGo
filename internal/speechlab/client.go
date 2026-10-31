@@ -80,6 +80,7 @@ type CatalogBackend struct {
 	Name          string   `json:"name"`
 	Protocol      string   `json:"protocol"`
 	DefaultVoice  string   `json:"default_voice"`
+	VoiceMode     string   `json:"voice_mode"`
 	Voices        []string `json:"voices"`
 	Languages     []string `json:"languages"`
 	Available     bool     `json:"available"`
@@ -123,6 +124,10 @@ func ErrorCode(err error) string {
 	var notReady *NotReadyError
 	if errors.As(err, &notReady) {
 		return "speech_lab_not_ready"
+	}
+	var responseErr *ResponseError
+	if errors.As(err, &responseErr) {
+		return responseErr.Code
 	}
 	return "speech_lab_unavailable"
 }
@@ -222,12 +227,15 @@ func (c *Client) Catalog(ctx context.Context) (json.RawMessage, Catalog, error) 
 	if err := json.Unmarshal(raw, &catalog); err != nil {
 		return nil, Catalog{}, fmt.Errorf("speech lab catalog response: %w", err)
 	}
+	for i := range catalog.Backends {
+		catalog.Backends[i].VoiceMode = normalizedVoiceMode(catalog.Backends[i].VoiceMode)
+	}
 	return raw, catalog, nil
 }
 
 func (c *Client) ActivateStack(ctx context.Context, request StackRequest) (StackResult, Ready, error) {
 	if !c.operationMu.TryLock() {
-		return StackResult{}, Ready{}, fmt.Errorf("speech lab stack is busy")
+		return StackResult{}, Ready{}, &ResponseError{StatusCode: http.StatusConflict, Code: "speech_lab_stack_busy"}
 	}
 	defer c.operationMu.Unlock()
 	ctx, cancel := boundedContext(ctx, stackTimeout)
@@ -236,7 +244,7 @@ func (c *Client) ActivateStack(ctx context.Context, request StackRequest) (Stack
 	request.TTSID = strings.TrimSpace(request.TTSID)
 	request.Voice = strings.TrimSpace(request.Voice)
 	if request.ASRID == "" || request.TTSID == "" {
-		return StackResult{}, Ready{}, fmt.Errorf("asr_id and tts_id are required")
+		return StackResult{}, Ready{}, &ResponseError{StatusCode: http.StatusBadRequest, Code: "speech_lab_invalid_stack"}
 	}
 	_, catalog, err := c.Catalog(ctx)
 	if err != nil {
@@ -259,16 +267,15 @@ func (c *Client) ActivateStack(ctx context.Context, request StackRequest) (Stack
 	if err != nil {
 		return StackResult{}, Ready{}, fmt.Errorf("speech lab stack activation: %w", err)
 	}
+	if status < 200 || status >= 300 {
+		return StackResult{}, Ready{}, upstreamResponseError(status, body)
+	}
 	var result StackResult
 	if err := json.Unmarshal(body, &result); err != nil {
 		return StackResult{}, Ready{}, fmt.Errorf("speech lab stack response: %w", err)
 	}
-	if status < 200 || status >= 300 || !result.OK {
-		message := strings.TrimSpace(result.Message)
-		if message == "" {
-			message = "stack activation failed"
-		}
-		return result, Ready{}, fmt.Errorf("speech lab stack activation: %s", message)
+	if !result.OK {
+		return StackResult{}, Ready{}, upstreamResponseError(http.StatusBadGateway, nil)
 	}
 	ready, err := c.Require(ctx, true, true)
 	return result, ready, err
@@ -319,7 +326,7 @@ func (c *Client) Transcribe(ctx context.Context, wav []byte, language, expectedA
 		return Transcript{}, fmt.Errorf("speech lab ASR: %w", err)
 	}
 	if status < 200 || status >= 300 {
-		return Transcript{}, fmt.Errorf("speech lab ASR returned HTTP %d", status)
+		return Transcript{}, upstreamResponseError(status, bodyBytes)
 	}
 	var result Transcript
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
@@ -363,7 +370,7 @@ func (c *Client) Synthesize(ctx context.Context, text, language, voice, expected
 		return nil, "", "", fmt.Errorf("speech lab TTS: %w", err)
 	}
 	if status < 200 || status >= 300 {
-		return nil, "", "", fmt.Errorf("speech lab TTS returned HTTP %d", status)
+		return nil, "", "", upstreamResponseError(status, body)
 	}
 	if !isWAVContentType(headers.Get("Content-Type")) {
 		return nil, "", "", fmt.Errorf("speech lab TTS returned an unsupported audio format")
@@ -414,7 +421,7 @@ func (c *Client) getJSON(ctx context.Context, path, query string) (json.RawMessa
 		return nil, err
 	}
 	if status < 200 || status >= 300 {
-		return nil, fmt.Errorf("speech lab returned HTTP %d", status)
+		return nil, upstreamResponseError(status, body)
 	}
 	if !json.Valid(body) {
 		return nil, fmt.Errorf("speech lab returned invalid JSON")
@@ -464,6 +471,9 @@ func (c *Client) doWithHeaders(ctx context.Context, cfg config.SpeechLabConfig, 
 		return nil, 0, nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 400 && limit > maxJSONBytes {
+		limit = maxJSONBytes
+	}
 	data, err := readBounded(resp.Body, limit)
 	if err != nil {
 		return nil, resp.StatusCode, resp.Header.Clone(), err
@@ -510,6 +520,14 @@ func allowedPrivateIP(ip net.IP) bool {
 	return ip != nil && (ip.IsLoopback() || ip.IsPrivate()) && !ip.IsUnspecified()
 }
 
+func normalizedVoiceMode(mode string) string {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return "fixed"
+	}
+	return mode
+}
+
 func validateStackRequest(catalog Catalog, request StackRequest) error {
 	byID := make(map[string]CatalogBackend, len(catalog.Backends))
 	for _, backend := range catalog.Backends {
@@ -517,25 +535,36 @@ func validateStackRequest(catalog Catalog, request StackRequest) error {
 	}
 	asr, ok := byID[request.ASRID]
 	if !ok || !asr.Available || !strings.EqualFold(asr.Stage, "asr") {
-		return fmt.Errorf("selected ASR backend is not available")
+		return &ResponseError{StatusCode: http.StatusBadRequest, Code: "speech_lab_invalid_stack"}
 	}
 	tts, ok := byID[request.TTSID]
 	if !ok || !tts.Available || !strings.EqualFold(tts.Stage, "tts") {
-		return fmt.Errorf("selected TTS backend is not available")
+		return &ResponseError{StatusCode: http.StatusBadRequest, Code: "speech_lab_invalid_stack"}
 	}
-	if request.Voice != "" && len(tts.Voices) > 0 {
-		found := false
-		for _, voice := range tts.Voices {
-			if request.Voice == voice {
-				found = true
-				break
-			}
+	mode := normalizedVoiceMode(tts.VoiceMode)
+	voices := tts.Voices
+	switch mode {
+	case "fixed":
+		if strings.TrimSpace(tts.DefaultVoice) == "" {
+			return &ResponseError{StatusCode: http.StatusBadRequest, Code: "speech_lab_invalid_voice"}
 		}
-		if !found {
-			return fmt.Errorf("selected voice is not available for the TTS backend")
+		voices = []string{tts.DefaultVoice}
+	case "request", "restart":
+		if len(voices) == 0 && tts.DefaultVoice != "" {
+			voices = []string{tts.DefaultVoice}
+		}
+	default:
+		return &ResponseError{StatusCode: http.StatusBadRequest, Code: "speech_lab_voice_mode_unsupported"}
+	}
+	if request.Voice == "" {
+		return nil
+	}
+	for _, voice := range voices {
+		if request.Voice == voice {
+			return nil
 		}
 	}
-	return nil
+	return &ResponseError{StatusCode: http.StatusBadRequest, Code: "speech_lab_invalid_voice"}
 }
 
 func readBounded(reader io.Reader, limit int64) ([]byte, error) {

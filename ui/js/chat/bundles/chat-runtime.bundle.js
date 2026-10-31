@@ -4424,10 +4424,6 @@ window.IntegrationsDrawer = (function () {
         return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    function speechLabBrowserURL() {
-        return '/speech-lab/';
-    }
-
     function hasFreshWebhosts() {
         return webhostsLoadedAt > 0 && Date.now() - webhostsLoadedAt < WEBHOSTS_CACHE_TTL_MS;
     }
@@ -4488,15 +4484,19 @@ window.IntegrationsDrawer = (function () {
         }
         listEl.innerHTML = webhosts.map(item => {
             const status = item.status || 'starting';
-            const url = item.url || (item.id === 'speech_lab' ? speechLabBrowserURL() : '');
-            const meta = url || (item.message_key ? t(item.message_key) : (item.description || ''));
+            const isSpeechLab = item.id === 'speech_lab';
+            const url = isSpeechLab ? (item.url === '/speech-lab/' ? item.url : '') : (item.url || '');
+            const needsSettings = isSpeechLab && (status !== 'running' || !url || !!item.message_key);
+            const meta = item.message_key ? t(item.message_key) : (needsSettings ? t('chat.speech_lab_not_ready_settings') : (url || item.description || ''));
             let action = '';
             if (url) {
                 action = `<a class="integration-open" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('chat.integrations_open'))}</a>`;
-            } else if (item.id === 'speech_lab') {
-                const settingsLabel = escapeAttr(t('chat.speech_lab_settings'));
-                action = `<a class="integration-open" href="/config#speech_lab" aria-label="${settingsLabel}" title="${settingsLabel}">${escapeHtml(t('chat.integrations_open'))}</a>`;
             }
+            if (needsSettings) {
+                const settingsLabel = escapeAttr(t('chat.speech_lab_settings'));
+                action += `<a class="integration-open" href="/config#speech_lab" aria-label="${settingsLabel}" title="${settingsLabel}">${escapeHtml(t('chat.speech_lab_settings'))}</a>`;
+            }
+            if (needsSettings) action = `<div class="integration-actions">${action}</div>`;
             return `
                 <div class="integration-item" data-integration-id="${escapeAttr(item.id)}">
                     <div class="integration-icon">${window.chatUiIconMarkup ? window.chatUiIconMarkup(item.icon || 'web') : ''}</div>
@@ -4504,7 +4504,7 @@ window.IntegrationsDrawer = (function () {
                         <div class="integration-name">${escapeHtml(item.name || item.id)}</div>
                         <div class="integration-meta">
                             <span class="integration-status ${escapeAttr(status)}" aria-hidden="true"></span>
-                            <span class="integration-url">${escapeHtml(meta)}</span>
+                            <span class="integration-url${needsSettings ? ' integration-hint' : ''}">${escapeHtml(meta)}</span>
                         </div>
                     </div>
                     ${action}

@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "nicht setzen",
   "config.speech_lab.external_hardware_linux": "Für AMD unter Linux: S2S_GPU=auto oder S2S_GPU=vulkan verwenden, GGML_BACKEND=CPU entfernen und den Linux-GPU-Compose-Overlay aktivieren.",
   "config.speech_lab.browser_backend_url": "Browser-Backend-Adresse",
-  "config.speech_lab.browser_backend_url_help": "Adresse der Weboberfläche eines externen Speech Lab. Nur der AuraGo-Server verbindet sich damit."
+  "config.speech_lab.browser_backend_url_help": "Adresse der Weboberfläche eines externen Speech Lab. Nur der AuraGo-Server verbindet sich damit.",
+  "config.speech_lab.voice_mode_fixed": "Feste Stimme: Nur die Standardstimme aus dem Katalog ist verfügbar.",
+  "config.speech_lab.voice_mode_restart": "Ein Wechsel dieser Stimme startet das Backend bei der Stack-Aktivierung neu.",
+  "config.speech_lab.voice_mode_request": "Wähle eine Katalogstimme für den Stack. Das Backend unterstützt auch Stimmen pro Anfrage.",
+  "config.speech_lab.voice_mode_unsupported": "Dieser TTS-Stimmenmodus wird nicht unterstützt. Die Stack-Aktivierung ist gesperrt.",
+  "config.speech_lab.error_voice": "Die Stimme ist nicht mehr aktiv. Aktualisiere den Stack und versuche es erneut.",
+  "config.speech_lab.error_module": "Das Sprachmodul ist nicht installiert oder bereit. Prüfe das Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Wähle eine Stimme, die dieses TTS-Backend unterstützt.",
+  "config.speech_lab.error_busy": "Speech Lab ist beschäftigt. Warte, bis der Vorgang oder Anruf beendet ist.",
+  "config.speech_lab.error_conflict": "Der Stack-Wechsel ist fehlgeschlagen. Aktualisiere den Stack und prüfe das Browser Lab.",
+  "config.speech_lab.memory_free": "{value} verfügbar",
+  "config.speech_lab.suggestion_score": "Bewertung: {score}",
+  "config.speech_lab.suggestion_selected": "Empfehlung übernommen. Prüfe die Auswahl und aktiviere den Stack, um sie anzuwenden."
 }

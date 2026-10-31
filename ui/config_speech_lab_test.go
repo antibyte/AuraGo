@@ -245,6 +245,7 @@ func TestSpeechLabRecorderTranslationsCoverAllLocales(t *testing.T) {
 		"chat.speech_lab_no_audio", "chat.speech_lab_too_large",
 		"chat.speech_lab_transcription_failed", "chat.speech_lab_transcribe",
 		"chat.speech_lab_browser_url_missing",
+		"chat.speech_lab_not_ready_settings",
 	}
 	for _, locale := range locales {
 		path := "lang/chat/" + locale + ".json"

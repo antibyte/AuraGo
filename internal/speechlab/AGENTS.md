@@ -21,6 +21,8 @@ Active ASR/TTS snapshots and speech-driven chat routing.
 - Speech Lab owns its active ASR, TTS, and effective voice stack. AuraGo must read all three from one `/ready` snapshot for chat synthesis, new SIP calls, and Desktop Live Speech `speech_lab` profiles, then require both `X-S2S-TTS-ID` and `X-S2S-Voice` to match on synthesis; legacy `speech_lab.voice` values are load-only and never become runtime defaults. Desktop Live Speech may use the managed or external s2s container through the keyless `local_s2s` realtime provider; it must not send `llm_id` or replace OpenAI/xAI/Gemini streaming adapters.
 - Live Speech progress audio for a Speech Lab profile uses that same ready TTS/voice snapshot. Progress text is server-owned and transient; it must never become a chat answer or override the active stack.
 - AuraGo and the Browser Lab may both activate the shared stack. Normal AuraGo stack changes never send `llm_id`; the managed updater sends only the LLM ID captured from the previous stack while restoring it. Voice choices come only from the selected TTS backend catalog, and active operations or calls keep their immutable start snapshot.
+- Catalog `voice_mode` is normalized to `request`, `restart`, or `fixed`; missing/empty values mean `fixed`, unknown values block activation. Fixed backends accept only `default_voice`; restart-backed voice changes remain available through confirmed stack activation. Do not add catalog requests to ongoing inference or override the start snapshot.
+- `ResponseError` retains safe HTTP status/code across client, REST and chat SSE. Decode gateway `code` and stack `error_code` through the known conflict allowlist; unknown 409 responses become `speech_lab_conflict`. Never expose upstream error text or active-voice details. Error bodies use the 1 MiB JSON limit, including TTS errors.
 - `speech_lab.chat_llm_provider_id` applies only to the next direct webchat turn marked after Speech Lab ASR. Resolve its static Vault key, unexpired OAuth token, Copilot auth manager, or supported keyless local runtime from the turn snapshot; disable helper and fallback routing for that full turn. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their existing provider routing; an unavailable selected provider fails closed without main-provider fallback.
 - Shared chat eligibility accepts Agnes chat models and rejects its image/video
   generation models by model family; do not exclude the entire Agnes provider.
@@ -32,6 +34,7 @@ Active ASR/TTS snapshots and speech-driven chat routing.
 ## Verification
 
 - Run `go test ./internal/speechlab` and the named cross-component checks in the contracts above when those paths change.
+- Cross-surface contract checks: server `TestSpeechLabStackConflictPreservesCodeAndSanitizesMessage`, `TestSpeechLabTTSConflictReachesRESTAndSSE`; UI `TestConfigSpeechLabVoiceContractBrowser` and `TestSpeechLabDrawerRespectsAvailabilityBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`.
 - Run `go test ./internal/speechlab/deployer` for managed update, rollback, and interrupted-recovery regressions.
 - `TestPhononGraniteBundleImageKeysRoundTripAndValidate` covers the new image keys and rejects mismatching runtime digests.
 

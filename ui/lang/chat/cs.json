@@ -308,5 +308,6 @@
   "chat.galaxy_placeholder": "Zadej svému agentovi úkol …",
   "chat.galaxy_persona": "Tvá osobnost",
   "chat.galaxy_mood": "Aktuální nálada",
-  "chat.youtube_play": "Přehrát"
+  "chat.youtube_play": "Přehrát",
+  "chat.speech_lab_not_ready_settings": "Speech Lab není připraven. Otevři nastavení a zkontroluj připojení."
 }

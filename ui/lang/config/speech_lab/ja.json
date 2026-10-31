@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "未設定にする必要があります",
   "config.speech_lab.external_hardware_linux": "Linux の AMD では S2S_GPU=auto または S2S_GPU=vulkan を使用し、GGML_BACKEND=CPU を削除して Linux GPU Compose overlay を有効にします。",
   "config.speech_lab.browser_backend_url": "ブラウザ用バックエンドのアドレス",
-  "config.speech_lab.browser_backend_url_help": "外部 Speech Lab の Web 画面のアドレスです。AuraGo サーバーだけが接続します。"
+  "config.speech_lab.browser_backend_url_help": "外部 Speech Lab の Web 画面のアドレスです。AuraGo サーバーだけが接続します。",
+  "config.speech_lab.voice_mode_fixed": "固定音声：カタログの既定の音声のみ使用できます。",
+  "config.speech_lab.voice_mode_restart": "この音声を変更すると、スタックの有効化時にバックエンドが再起動します。",
+  "config.speech_lab.voice_mode_request": "スタック用の音声をカタログから選択します。バックエンドはリクエストごとの音声指定にも対応しています。",
+  "config.speech_lab.voice_mode_unsupported": "このTTS音声モードには対応していません。スタックを有効化できません。",
+  "config.speech_lab.error_voice": "この音声は現在有効ではありません。スタックを更新して再試行してください。",
+  "config.speech_lab.error_module": "音声モジュールが未インストールか準備未完了です。Browser Labを確認してください。",
+  "config.speech_lab.error_invalid_voice": "このTTSバックエンドが対応する音声を選択してください。",
+  "config.speech_lab.error_busy": "Speech Labは使用中です。処理または通話が終了するまでお待ちください。",
+  "config.speech_lab.error_conflict": "スタックの変更に失敗しました。スタックを更新してBrowser Labを確認してください。",
+  "config.speech_lab.memory_free": "{value} 使用可能",
+  "config.speech_lab.suggestion_score": "評価：{score}",
+  "config.speech_lab.suggestion_selected": "推奨設定を選択しました。選択内容を確認し、スタックを有効化して適用してください。"
 }

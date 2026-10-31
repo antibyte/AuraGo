@@ -308,5 +308,6 @@
   "chat.galaxy_placeholder": "Ge din agent en uppgift …",
   "chat.galaxy_persona": "Din personlighet",
   "chat.galaxy_mood": "Aktuellt humör",
-  "chat.youtube_play": "Spela"
+  "chat.youtube_play": "Spela",
+  "chat.speech_lab_not_ready_settings": "Speech Lab är inte klart. Öppna inställningarna och kontrollera anslutningen."
 }

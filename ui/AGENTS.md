@@ -398,6 +398,14 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   `TestConfigSpeechLabFeedbackBrowser`.
   Browser links remain relative `/speech-lab/`; external mode exposes the separate
   server-side `browser_backend_url` and never links to legacy `advanced_ui_url`.
+  Voice controls honor catalog `voice_mode`: missing means fixed/default-only,
+  restart changes require confirmed activation, unknown modes block activation.
+  Suggestions only prefill available choices and expose escaped heuristic metadata;
+  no automatic PUT or installation. Preserve structured conflict status/code and
+  localize safe messages. The chat drawer respects the server's browser availability,
+  keeps status/auth hints visible and offers `/config#speech_lab` when needed.
+  Verify `TestConfigSpeechLabVoiceContractBrowser` and
+  `TestSpeechLabDrawerRespectsAvailabilityBrowser` alongside the feedback fixture.
 
 - Fresh setup displays HTTPS enabled/mode/port and uses `window.isSecureContext`
   for browser capability guidance; support and device permission remain separate.

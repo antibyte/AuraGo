@@ -95,5 +95,17 @@
   "config.speech_lab.external_hardware_unset": "debe estar sin definir",
   "config.speech_lab.external_hardware_linux": "Para AMD en Linux: usa S2S_GPU=auto o S2S_GPU=vulkan, elimina GGML_BACKEND=CPU y activa la superposición Compose de GPU para Linux.",
   "config.speech_lab.browser_backend_url": "Dirección del backend del navegador",
-  "config.speech_lab.browser_backend_url_help": "Dirección de la interfaz web de Speech Lab externo. Solo se conecta el servidor de AuraGo."
+  "config.speech_lab.browser_backend_url_help": "Dirección de la interfaz web de Speech Lab externo. Solo se conecta el servidor de AuraGo.",
+  "config.speech_lab.voice_mode_fixed": "Voz fija: solo está disponible la voz predeterminada del catálogo.",
+  "config.speech_lab.voice_mode_restart": "Cambiar esta voz reinicia el backend al activar la pila.",
+  "config.speech_lab.voice_mode_request": "Elige una voz del catálogo para la pila. El backend también admite voces por solicitud.",
+  "config.speech_lab.voice_mode_unsupported": "Este modo de voz TTS no es compatible. La activación de la pila está bloqueada.",
+  "config.speech_lab.error_voice": "La voz ya no está activa. Actualiza la pila e inténtalo de nuevo.",
+  "config.speech_lab.error_module": "El módulo de voz no está instalado o listo. Revisa Browser Lab.",
+  "config.speech_lab.error_invalid_voice": "Elige una voz compatible con este backend TTS.",
+  "config.speech_lab.error_busy": "Speech Lab está ocupado. Espera a que termine la operación o la llamada.",
+  "config.speech_lab.error_conflict": "No se pudo cambiar la pila. Actualízala y revisa Browser Lab.",
+  "config.speech_lab.memory_free": "{value} disponibles",
+  "config.speech_lab.suggestion_score": "Puntuación: {score}",
+  "config.speech_lab.suggestion_selected": "Recomendación seleccionada. Revisa las opciones y activa la pila para aplicarlas."
 }

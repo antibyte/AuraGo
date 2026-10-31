@@ -229,7 +229,7 @@ func TestActivateStackNeverSendsLLMIDAndRechecksReadiness(t *testing.T) {
 	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case catalogPath:
-			_, _ = io.WriteString(w, `{"schema_version":1,"backends":[{"id":"asr-a","stage":"asr","available":true},{"id":"tts-a","stage":"tts","available":true,"voices":["M1"]}]}`)
+			_, _ = io.WriteString(w, `{"schema_version":1,"backends":[{"id":"asr-a","stage":"asr","available":true},{"id":"tts-a","stage":"tts","available":true,"default_voice":"M1","voices":["M1"]}]}`)
 		case stackPath:
 			body, _ := io.ReadAll(r.Body)
 			stackBody = string(body)
