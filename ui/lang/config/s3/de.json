@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "Adresse des verwalteten RustFS-Dienstes. Sie wird automatisch gesetzt und ist nur zur Ansicht.",
+  "config.s3.details_help": "Technische Statusdaten des Dienstes im JSON-Format, z. B. für die Fehlersuche. Nur lesbar.",
+  "config.s3.allow_read_help": "Der Agent darf Objekte auflisten und herunterladen.",
+  "config.s3.allow_write_help": "Der Agent darf Objekte hochladen und vorhandene überschreiben.",
+  "config.s3.allow_delete_help": "Der Agent darf Objekte löschen. Gelöschte Objekte lassen sich nicht wiederherstellen.",
+  "config.s3.location_bucket_help": "Name des Buckets, für den die Freigabe gilt.",
+  "config.s3.location_prefixes_help": "Ein Präfix pro Zeile. Ohne Einträge ist nichts freigegeben, außer „ganzer Bucket“ ist gewählt.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.enabled_label": "S3-Speicher aktivieren",
+  "config.s3.endpoint_label": "Endpunkt-URL",
+  "config.s3.insecure_label": "Unverschlüsselte Verbindung erlauben",
+  "config.s3.readonly_label": "Nur lesen",
+  "config.s3.region_label": "Region",
+  "config.s3.use_path_style_label": "Pfad-Adressierung verwenden"
+}

@@ -13,5 +13,11 @@
   "config.detective.tools": "Werkzeugaufrufe",
   "config.detective.readonly": "Nur-Lesen-Sicherheitsmodus",
   "config.detective.seconds": "Job-Zeitlimit (Sekunden)",
-  "config.detective.restart": "Nach Änderungen der Intensitätsprofile AuraGo neu starten. Bestehende Läufe behalten ihre angenommenen Budgets."
+  "config.detective.restart": "Nach Änderungen der Intensitätsprofile AuraGo neu starten. Bestehende Läufe behalten ihre angenommenen Budgets.",
+  "config.detective.help_enabled": "Schaltet die Recherche mit nachvollziehbaren Quellen ein. Ein Fall nutzt nur Quellen, die du ausdrücklich auswählst.",
+  "config.detective.help_readonly": "Erlaubt der Recherche ausschließlich lesende Zugriffe. Empfohlen, solange du nicht sicher bist, dass nichts verändert werden darf.",
+  "config.detective.help_seconds": "Höchste Laufzeit eines Auftrags in Sekunden (30 bis 7200), danach wird er beendet.",
+  "config.detective.help_tools": "Höchstzahl an Werkzeugaufrufen pro Auftrag (1 bis 500).",
+  "config.detective.help_iterations": "Höchstzahl an Denk- und Arbeitsrunden pro Auftrag (1 bis 750).",
+  "config.detective.help_tokens": "Zusätzliche Obergrenze für verbrauchte Tokens pro Auftrag. 0 = keine zusätzliche Grenze."
 }

@@ -9,6 +9,7 @@ function renderFlowsSection(section) {
     const rules = (window.AuraConfigCatalog && window.AuraConfigCatalog.validationRules) || {};
     const label = key => escapeHtml(t('config.flows.' + key));
     const toggle = (key, path, on, locked) => '<div class="field-group"><div class="field-label">' + label(key) + '</div>'
+        + (locked ? '' : '<div class="field-help">' + label(key + '_help') + '</div>')
         + '<div class="toggle' + (on ? ' on' : '') + (locked ? ' cfg-toggle-disabled' : '') + '" data-path="' + path + '" aria-label="' + label(key) + '"'
         + (locked ? ' aria-disabled="true" aria-describedby="flows-agent-note"' : ' onclick="toggleBool(this)"') + '></div></div>';
     const missionsOff = !!(configData.tools && configData.tools.missions && configData.tools.missions.enabled === false);
@@ -21,7 +22,7 @@ function renderFlowsSection(section) {
         const rule = rules['flows.' + key] || {};
         const range = (rule.min != null ? ' min="' + rule.min + '"' : '') + (rule.max != null ? ' max="' + rule.max + '"' : '');
         const value = Number(data[key]) > 0 ? Number(data[key]) : fallback;
-        html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><input class="field-input" type="number"' + range + ' value="' + value + '" data-path="flows.' + key + '" aria-label="' + label(key) + '"></div>';
+        html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><div class="field-help">' + label(key + '_help') + '</div><input class="field-input" type="number"' + range + ' value="' + value + '" data-path="flows.' + key + '" aria-label="' + label(key) + '"></div>';
     }
     html += '</div>';
     // A provider reference (lang/meta.json: provider_ref, empty_label_key), drawn and refreshed by the shared

@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "Das Kostenlimit gilt weiterhin.",
   "config.newspaper.monetary_budget_disabled": "Kein Kostenlimit konfiguriert; die Recherche-Limits gelten trotzdem.",
   "config.newspaper.fixed_budget_note": "Feste Limits teilen {pages} Seiten auf die Ausgabe auf.",
-  "config.newspaper.fixed_limits_only": "Diese Limits gelten nur im festen Modus."
+  "config.newspaper.fixed_limits_only": "Diese Limits gelten nur im festen Modus.",
+  "config.newspaper.enabled_help": "Lässt den Desktop täglich eine Zeitung zu deinen Themen recherchieren und erstellen. Die Themen legst du im Desktop fest.",
+  "config.newspaper.readonly_help": "Die Zeitung darf nur lesen und anzeigen, aber nichts versenden oder verändern.",
+  "config.newspaper.allow_email_help": "Erlaubt, fertige Ausgaben per E-Mail zu verschicken. Dafür muss ein E-Mail-Konto eingerichtet sein.",
+  "config.newspaper.allow_telegram_help": "Erlaubt, fertige Ausgaben über Telegram zu senden. Dafür muss Telegram eingerichtet sein.",
+  "config.newspaper.max_minutes_help": "Wie lange die Recherche für eine Ausgabe höchstens dauert (1 bis 60 Minuten, Standard 30).",
+  "config.newspaper.max_pages_help": "Wie viele Webseiten pro Ausgabe höchstens gelesen werden (1 bis 60, Standard 60).",
+  "config.newspaper.max_searches_help": "Wie viele Suchanfragen pro Ausgabe höchstens gestellt werden, Wiederholungen eingeschlossen (1 bis 64, Standard 32).",
+  "config.newspaper.max_editions_help": "Wie viele fertige Ausgaben gespeichert bleiben; ältere werden gelöscht (30 bis 3650, Standard 365)."
 }

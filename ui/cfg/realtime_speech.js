@@ -99,37 +99,43 @@ function rsProfileCard(profile, index) {
             </div>
             <div class="rs-profile-head-actions">
                 <label class="rs-inline-toggle">
-                    <input type="checkbox" data-rs-field="enabled" ${profile.enabled ? 'checked' : ''}>
+                    <input type="checkbox" data-rs-field="enabled" aria-describedby="rs-profile-${index}-enabled-help" ${profile.enabled ? 'checked' : ''}>
                     <span>${rsEsc(t('config.realtime_speech.profile_enabled'))}</span>
                 </label>
                 <button type="button" class="btn btn-danger rs-icon-button" data-rs-delete="${index}" title="${rsEsc(t('config.realtime_speech.delete_profile'))}">×</button>
             </div>
         </div>
+        <small class="field-help" id="rs-profile-${index}-enabled-help">${rsEsc(t('config.realtime_speech.profile_enabled_help'))}</small>
         <div class="rs-profile-grid">
             <label class="field-group">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.profile_name'))}</span>
                 <input class="field-input" data-rs-field="name" value="${rsEsc(profile.name)}" maxlength="100">
+                <small class="field-help">${rsEsc(t('config.realtime_speech.profile_name_help'))}</small>
             </label>
             <label class="field-group">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.provider'))}</span>
                 <select class="field-input" data-rs-field="provider">${providerOptions}</select>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.provider_help'))}</small>
             </label>
             <label class="field-group">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.model'))}</span>
                 <select class="field-input" data-rs-field="model">${rsSelectOptions(provider.models, profile.model, true)}</select>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.model_help'))}</small>
             </label>
             <label class="field-group">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.voice'))}</span>
                 <select class="field-input" data-rs-field="voice">${rsSelectOptions(provider.voices, profile.voice, true)}</select>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.voice_help'))}</small>
             </label>
             ${keyless ? `<div class="field-group rs-key-field">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.api_key'))}</span>
-                <small>${rsEsc(t('config.realtime_speech.speech_lab_help'))}</small>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.speech_lab_help'))}</small>
             </div>` : `<label class="field-group rs-key-field">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.api_key'))}</span>
                 <input class="field-input" type="password" data-rs-field="api_key" value=""
                     placeholder="${rsEsc(profile.api_key_set ? t('config.realtime_speech.key_keep_placeholder') : t('config.realtime_speech.key_enter_placeholder'))}"
                     autocomplete="new-password">
+                <small class="field-help">${rsEsc(t('config.realtime_speech.api_key_help'))}</small>
                 <small class="${profile.api_key_set ? 'rs-key-set' : 'rs-key-missing'}">${rsEsc(keyState)}</small>
             </label>
             <div class="field-group rs-key-actions">
@@ -138,7 +144,7 @@ function rsProfileCard(profile, index) {
                     <input type="checkbox" data-rs-field="clear_api_key" ${profile.clear_api_key ? 'checked' : ''}>
                     <span>${rsEsc(t('config.realtime_speech.clear_key'))}</span>
                 </label>
-                <small>${rsEsc(t('config.realtime_speech.clear_key_help'))}</small>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.clear_key_help'))}</small>
             </div>`}
         </div>
         <div class="rs-profile-actions">
@@ -160,10 +166,10 @@ function rsRender() {
         <div class="rs-master-card">
             <h2 class="cfg-topic-heading">${rsEsc(t('config.refresh.operation'))}</h2>
             <label class="rs-master-toggle">
-                <input type="checkbox" data-rs-master="enabled" ${realtimeSpeechState.enabled ? 'checked' : ''}>
+                <input type="checkbox" data-rs-master="enabled" aria-describedby="rs-master-enabled-help" ${realtimeSpeechState.enabled ? 'checked' : ''}>
                 <span>
                     <strong>${rsEsc(t('config.realtime_speech.master_enabled'))}</strong>
-                    <small>${rsEsc(t('config.realtime_speech.master_enabled_help'))}</small>
+                    <small class="field-help" id="rs-master-enabled-help">${rsEsc(t('config.realtime_speech.master_enabled_help'))}</small>
                 </span>
             </label>
             <label class="field-group">
@@ -172,12 +178,13 @@ function rsRender() {
                     <option value="">${rsEsc(t('config.realtime_speech.no_default'))}</option>
                     ${rsProfileOptions(realtimeSpeechState.default_profile)}
                 </select>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.default_profile_help'))}</small>
             </label>
             <label class="field-group">
                 <span class="field-label">${rsEsc(t('config.realtime_speech.park_after'))}</span>
                 <input class="field-input" type="number" min="5" max="60" step="1"
                     data-rs-master="park_after_seconds" value="${Number(realtimeSpeechState.park_after_seconds || 5)}">
-                <small>${rsEsc(t('config.realtime_speech.park_after_help'))}</small>
+                <small class="field-help">${rsEsc(t('config.realtime_speech.park_after_help'))}</small>
             </label>
         </div>
         <div class="rs-section-toolbar">

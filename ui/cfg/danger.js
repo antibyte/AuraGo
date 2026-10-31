@@ -130,6 +130,7 @@
                     capBlockedReason = surFa ? surFa.reason : '';
                 }
 
+                const descId = 'danger-desc-' + cap.path.replace(/\./g, '-');
                 html += `<div class="danger-card">`;
                 if (capBlocked) {
                     html += `<div class="feature-unavailable-banner fub-blocked danger-fub"><span class="fub-icon">🚫</span><span>${escapeHtml(capBlockedReason || t('config.feature_unavailable'))}</span></div>`;
@@ -137,12 +138,12 @@
                 html += `<div class="danger-card-header${capBlocked ? ' danger-card-header-blocked' : ''}">
                         <div>
                             <div class="danger-card-title">${cap.icon} ${cap.title}</div>
-                            <div class="danger-card-desc">${cap.desc}</div>
+                            <div class="danger-card-desc field-help" id="${descId}">${cap.desc}</div>
                             ${helpText ? `<div class="danger-card-desc danger-card-help">${helpText}</div>` : ''}
                         </div>
                         <div class="danger-card-controls">
                             <span class="danger-card-badge">${cap.badge}</span>
-                            <div class="toggle ${isOn ? 'on' : ''}" data-path="${cap.path}" onclick="toggleBool(this)"></div>
+                            <div class="toggle ${isOn ? 'on' : ''}" data-path="${cap.path}" role="switch" aria-checked="${isOn ? 'true' : 'false'}" aria-label="${escapeAttr(cap.title)}" aria-describedby="${descId}" onclick="toggleBool(this)"></div>
                         </div>
                     </div>
                 </div>`;

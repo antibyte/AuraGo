@@ -36,5 +36,6 @@
   "action_policy.unknown": "Outcome unknown. Verify its state before repeating the action.",
   "action_policy.admin_only": "Only administrators can change rules and approve actions.",
   "action_policy.save_hint": "Save changes before testing the rules.",
-  "action_policy.pending": "Pending approvals"
+  "action_policy.pending": "Pending approvals",
+  "action_policy.enabled_help": "Your own rules automatically allow or deny individual actions. Disabled capabilities and read-only settings always take precedence."
 }

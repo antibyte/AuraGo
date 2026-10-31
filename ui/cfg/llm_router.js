@@ -15,9 +15,10 @@ function renderLLMRouterSection(section) {
     };
     node('h2', 'section-header', section.label);
     node('p', 'section-desc', section.desc);
-    const field = (parent, label, key, value, kind, min, max) => {
+    const field = (parent, label, key, value, kind, min, max, help) => {
         const group = node(kind === 'checkbox' ? 'div' : 'label', 'field-group', '', parent);
         node('span', 'field-label', label, group);
+        if (help) node(kind === 'checkbox' ? 'p' : 'span', 'field-help', help, group);
         const controlParent = kind === 'checkbox' ? node('div', 'toggle-wrap', '', group) : group;
         const input = node(kind === 'checkbox' ? 'div' : 'input', kind === 'checkbox' ? 'toggle' : 'field-input', '', controlParent);
         if (kind !== 'checkbox') input.type = kind;
@@ -33,7 +34,7 @@ function renderLLMRouterSection(section) {
         else { input.value = value; input.min = min; input.max = max; input.step = '1'; }
         return input;
     };
-    const enabled = field(root, tr('enabled'), 'enabled', data.enabled, 'checkbox');
+    const enabled = field(root, tr('enabled'), 'enabled', data.enabled, 'checkbox', 0, 0, tr('enabled_hint'));
     node('p', 'cfg-note-banner', tr('areas_hint'));
     const rows = node('div', 'field-grid two-cols');
     const modelSelects = [];
@@ -46,6 +47,7 @@ function renderLLMRouterSection(section) {
         const target = (data.areas || {})[area] || {};
         const group = node('fieldset', 'field-group', '', rows);
         node('legend', 'field-label', tr('area_' + area), group);
+        node('p', 'field-help', tr('area_help', {area: tr('area_' + area)}), group);
         const plabel = node('label', '', tr('provider'), group);
         const provider = node('select', 'field-select', '', plabel);
         provider.dataset.path = 'llm_router.areas.' + area + '.provider';
@@ -75,8 +77,7 @@ function renderLLMRouterSection(section) {
             setDirty(true);
         });
     }
-    const decisions = field(root, tr('decisions'), 'decisions_fallback', data.decisions_fallback !== false, 'checkbox');
-    node('p', 'field-help', tr('decisions_hint'));
+    const decisions = field(root, tr('decisions'), 'decisions_fallback', data.decisions_fallback !== false, 'checkbox', 0, 0, tr('decisions_hint'));
     const decisionStatus = node('p', 'cfg-note-banner', t('common.loading'));
     decisionStatus.dataset.decisionStatus = '';
     const externalHint = node('p', 'field-help', tr('decisions_external_hint'));
@@ -84,15 +85,15 @@ function renderLLMRouterSection(section) {
     const settingsButton = node('button', 'btn-save btn-secondary', tr('decisions_settings'));
     settingsButton.type = 'button';
     settingsButton.addEventListener('click', () => selectSection('decisions', {scrollBehavior: 'auto'}));
-    const helper = field(root, tr('helper'), 'helper_fallback', data.helper_fallback !== false, 'checkbox');
-    node('p', 'field-help', tr('helper_hint'));
+    const helper = field(root, tr('helper'), 'helper_fallback', data.helper_fallback !== false, 'checkbox', 0, 0, tr('helper_hint'));
     const limits = node('div', 'field-grid two-cols');
-    field(limits, tr('timeout'), 'helper_timeout_ms', data.helper_timeout_ms ?? 1500, 'number', 250, 5000);
-    field(limits, tr('quota'), 'helper_max_calls_per_hour', data.helper_max_calls_per_hour ?? 20, 'number', 0, 120);
+    field(limits, tr('timeout'), 'helper_timeout_ms', data.helper_timeout_ms ?? 1500, 'number', 250, 5000, tr('timeout_hint'));
+    field(limits, tr('quota'), 'helper_max_calls_per_hour', data.helper_max_calls_per_hour ?? 20, 'number', 0, 120, tr('quota_hint'));
     node('h3', '', tr('preview'));
     node('p', 'field-help', tr('preview_hint'));
     const label = node('label', 'field-group');
     node('span', 'field-label', tr('preview_text'), label);
+    node('span', 'field-help', tr('preview_text_hint'), label);
     const input = node('textarea', 'field-input', '', label);
     input.maxLength = 8000;
     input.rows = 3;

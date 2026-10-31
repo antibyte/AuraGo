@@ -17,8 +17,9 @@
             // Master toggle
             html += `<div class="cfg-toggle-row-highlight">
                 <span class="cfg-toggle-label">${t('config.output_compression.enabled_label')}</span>
-                <div class="toggle ${enabled ? 'on' : ''}" data-path="agent.output_compression.enabled" onclick="toggleBool(this);renderOutputCompressionSection(_currentSection)"></div>
-            </div>`;
+                <div class="toggle ${enabled ? 'on' : ''}" data-path="agent.output_compression.enabled" role="switch" aria-checked="${enabled}" aria-label="${escapeAttr(t('config.output_compression.enabled_label'))}" aria-describedby="oc-enabled-help" onclick="toggleBool(this);renderOutputCompressionSection(_currentSection)"></div>
+            </div>
+            <div class="field-help" id="oc-enabled-help">${t('config.output_compression.enabled_help')}</div>`;
 
             if (!enabled) {
                 html += `<div class="wh-notice">

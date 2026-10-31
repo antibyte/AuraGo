@@ -46,8 +46,8 @@ function renderLocalLLMSection(section) {
         ['auto', t('config.local_llm.backend_auto')], ['cuda', 'CUDA'], ['sycl', 'SYCL / Intel Arc'],
         ['vulkan', 'Vulkan'], ['cpu', 'CPU (' + t('config.local_llm.experimental') + ')']
     ]);
-    html += localLLMSelect('local_llm.model_variant', data.model_variant, 'config.local_llm.model_variant', spark ? [['q4_k_m', 'Q4_K_M · 2.42 GiB']] : ling ? [['q4_k_l', 'Q4_K_L · 4.75 GiB']] : [
-        ['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']
+    html += localLLMSelect('local_llm.model_variant', data.model_variant, 'config.local_llm.model_variant', spark ? [['q4_k_m', 'Q4_K_M · ' + t('config.local_llm.size_gib', { size: '2.42' })]] : ling ? [['q4_k_l', 'Q4_K_L · ' + t('config.local_llm.size_gib', { size: '4.75' })]] : [
+        ['q4_k_m', 'Q4_K_M · ' + t('config.local_llm.size_gib', { size: '2.59' })], ['q8_0', 'Q8_0 · ' + t('config.local_llm.size_gib', { size: '4.29' })]
     ]);
     html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', spark ? [['65536', '64K']] : ling ? [['16384', '16K']] : [
         ['16384', '16K'], ['32768', '32K']
@@ -118,11 +118,18 @@ function localLLMChangeFamily(family) {
     renderLocalLLMSection(null);
 }
 
+// Help text of a control: <label key>_help, rendered under the control when it exists.
+function localLLMHelp(labelKey) {
+    const help = tOr(labelKey + '_help', '');
+    return help ? '<div class="field-help">' + escapeHtml(help) + '</div>' : '';
+}
+
 function localLLMEnabledToggle(checked, labelKey) {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="toggle-wrap">' +
         '<div class="toggle' + (checked ? ' on' : '') + '" data-path="local_llm.enabled" ' +
         'onclick="localLLMToggleEnabled(this)"></div>' +
-        '<span class="toggle-label">' + (checked ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
+        '<span class="toggle-label">' + (checked ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div>' +
+        localLLMHelp(labelKey) + '</div>';
 }
 
 function localLLMSetDraftValue(path, value) {
@@ -200,7 +207,8 @@ function localLLMToggle(path, checked, labelKey) {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="toggle-wrap">' +
         '<div class="toggle' + (checked ? ' on' : '') + '" data-path="' + escapeAttr(path) +
         '" onclick="toggleBool(this);setNestedValue(configData,\'' + path + '\',this.classList.contains(\'on\'))"></div>' +
-        '<span class="toggle-label">' + (checked ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
+        '<span class="toggle-label">' + (checked ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div>' +
+        localLLMHelp(labelKey) + '</div>';
 }
 
 function localLLMSelect(path, value, labelKey, options, dataType) {
@@ -209,19 +217,20 @@ function localLLMSelect(path, value, labelKey, options, dataType) {
         options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
         (String(value) === String(option[0]) ? ' selected' : '') + (option[2] ? ' disabled' : '') + '>' +
         escapeHtml(option[1]) + '</option>').join('') +
-        '</select></div>';
+        '</select>' + localLLMHelp(labelKey) + '</div>';
 }
 
 function localLLMPlainSelect(id, value, labelKey, options, onChange, preservedOptionHTML = '') {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><select class="field-select" id="' +
-        escapeAttr(id) + '" onchange="' + onChange + '">' + preservedOptionHTML + options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
+        escapeAttr(id) + '" onchange="' + onChange + '" aria-label="' + escapeAttr(t(labelKey)) + '">' + preservedOptionHTML + options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
         (String(value) === String(option[0]) ? ' selected' : '') + '>' + escapeHtml(option[1]) + '</option>').join('') +
-        '</select></div>';
+        '</select>' + localLLMHelp(labelKey) + '</div>';
 }
 
 function localLLMNumber(path, value, labelKey, min, max) {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><input class="field-input" type="number" min="' +
-        min + '" max="' + max + '" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value) + '"></div>';
+        min + '" max="' + max + '" data-path="' + escapeAttr(path) + '" value="' + escapeAttr(value) + '" aria-label="' + escapeAttr(t(labelKey)) + '">' +
+        localLLMHelp(labelKey) + '</div>';
 }
 
 function localLLMActionButton(action, labelKey, disabled) {
@@ -283,7 +292,7 @@ function localLLMPromptCacheStatus(status) {
         escapeHtml(t('config.local_llm.cache_decision_persistence')) + ': ' +
         escapeHtml(t(cache.decision_persisted ? 'common.yes' : 'common.no'));
     if (Number(cache.cache_ram_mib) > 0) {
-        text += ' · RAM: ' + escapeHtml(String(cache.cache_ram_mib) + ' MiB');
+        text += ' · ' + escapeHtml(t('config.local_llm.cache_ram', { size: String(cache.cache_ram_mib) }));
     }
     if (Number(cache.cold_ttft_ms) > 0 || Number(cache.warm_ttft_ms) > 0) {
         text += '<br>' + escapeHtml(t('config.local_llm.cache_ttft')
@@ -306,21 +315,19 @@ function localLLMCacheErrorText(errorCode) {
     else if (code === 'prompt_cache_measurements_unavailable') key = 'config.local_llm.cache_error_ttft';
     else if (code === 'prompt_cache_qualification_timeout') key = 'config.local_llm.cache_error_timeout';
     else if (code === 'prompt_cache_decision_write_failed') key = 'config.local_llm.cache_error_persistence';
-    const translated = t(key);
-    return translated && translated !== key ? translated : code;
+    return tOr(key, code);
 }
 
 function localLLMFormatMilliseconds(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) return '—';
-    return numeric >= 1000 ? (numeric / 1000).toFixed(2) + ' s' : numeric.toFixed(0) + ' ms';
+    return numeric >= 1000 ? t('config.local_llm.unit_seconds', { value: (numeric / 1000).toFixed(2) }) : t('config.local_llm.unit_milliseconds', { value: numeric.toFixed(0) });
 }
 
 function localLLMLocalizedRuntimeValue(kind, value) {
     const normalized = String(value || 'unknown').toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const key = 'config.local_llm.' + kind + '_' + normalized;
-    const translated = t(key);
-    return translated && translated !== key ? translated : String(value || 'unknown');
+    return tOr(key, String(value || 'unknown'));
 }
 
 function localLLMSavedOnly() {

@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 disables the HTTP listener. For Let’s Encrypt HTTP-01, select 80 and make public port 80 reachable.",
   "config.server.restart_address": "After restarting, open:",
   "config.server.confirm_regen_title": "Regenerate the self-signed certificate?",
-  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted."
+  "config.server.confirm_regen_message": "The current certificate is replaced by a new one. Browsers and clients that trusted the old certificate show a security warning again until they accept the new one, and open HTTPS connections may be interrupted.",
+  "config.server.host_hint": "Network address AuraGo listens on. Empty or 0.0.0.0 = all interfaces, 127.0.0.1 = this machine only. A restart is required after changing it.",
+  "config.server.port_hint": "TCP port of the web UI and API (default 8088). A restart is required after changing it.",
+  "config.server.ui_language_hint": "Language of the web UI and system messages. Applies to every user of this instance.",
+  "config.server.cert_mode_hint": "Where the TLS certificate comes from: automatic via Let's Encrypt, your own files, or a self-signed certificate for local testing.",
+  "config.server.https_port_hint": "Port for encrypted connections (default 443). Ports below 1024 need root rights or a matching capability on Linux.",
+  "config.server.domain_hint": "Public domain name the certificate is issued for. It must point to this server.",
+  "config.server.email_hint": "Contact address for Let's Encrypt, for example for expiry warnings. It is only sent to the certificate authority.",
+  "config.server.cert_file_hint": "Path to the certificate file in PEM format, relative to the AuraGo directory or absolute.",
+  "config.server.key_file_hint": "Path to the private key in PEM format. The file should be readable by the AuraGo account only.",
+  "config.server.behind_proxy_hint": "Turn on when a reverse proxy terminates TLS. Only addresses in the list below may set forwarded headers. If set wrongly, client addresses can be spoofed.",
+  "config.server.cert_status_sans": "Subject alternative names (SANs)"
 }

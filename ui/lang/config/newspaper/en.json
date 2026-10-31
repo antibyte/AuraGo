@@ -65,5 +65,13 @@
   "config.newspaper.monetary_budget_enabled": "The monetary budget still applies.",
   "config.newspaper.monetary_budget_disabled": "No monetary budget is configured; research limits still apply.",
   "config.newspaper.fixed_budget_note": "Fixed limits are shared across the issue ({pages} pages).",
-  "config.newspaper.fixed_limits_only": "These limits apply only in fixed mode."
+  "config.newspaper.fixed_limits_only": "These limits apply only in fixed mode.",
+  "config.newspaper.enabled_help": "Lets the desktop research and compile a newspaper on your topics every day. You set the topics in the desktop.",
+  "config.newspaper.readonly_help": "The newspaper may only read and display, but not send or change anything.",
+  "config.newspaper.allow_email_help": "Allows sending finished editions by email. An email account must be set up for this.",
+  "config.newspaper.allow_telegram_help": "Allows sending finished editions through Telegram. Telegram must be set up for this.",
+  "config.newspaper.max_minutes_help": "How long researching one edition may take at most (1 to 60 minutes, default 30).",
+  "config.newspaper.max_pages_help": "How many web pages are read per edition at most (1 to 60, default 60).",
+  "config.newspaper.max_searches_help": "How many search queries are made per edition at most, retries included (1 to 64, default 32).",
+  "config.newspaper.max_editions_help": "How many finished editions stay stored; older ones are deleted (30 to 3650, default 365)."
 }

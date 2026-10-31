@@ -49,12 +49,12 @@ function renderBackupSection(section) {
 
                 <div class="backup-options-list">
                     <label class="backup-option-row">
-                        <input type="checkbox" id="backup-opt-vectordb" class="backup-check-input">
-                        <span>${t('config.backup.include_vectordb')}</span>
+                        <input type="checkbox" id="backup-opt-vectordb" class="backup-check-input" aria-describedby="backup-opt-vectordb-help">
+                        <span>${t('config.backup.include_vectordb')}<span class="field-help" id="backup-opt-vectordb-help">${t('config.backup.include_vectordb_help')}</span></span>
                     </label>
                     <label class="backup-option-row">
-                        <input type="checkbox" id="backup-opt-workdir" class="backup-check-input">
-                        <span>${t('config.backup.include_workdir')}</span>
+                        <input type="checkbox" id="backup-opt-workdir" class="backup-check-input" aria-describedby="backup-opt-workdir-help">
+                        <span>${t('config.backup.include_workdir')}<span class="field-help" id="backup-opt-workdir-help">${t('config.backup.include_workdir_help')}</span></span>
                     </label>
                 </div>
             </div>
@@ -68,7 +68,7 @@ function renderBackupSection(section) {
             <div class="bck-card-body">
                 <div class="field-group backup-field-group">
                     <div class="field-label">${t('config.backup.password_label')}</div>
-                    <div class="field-hint backup-field-hint">${t('config.backup.password_hint')}</div>
+                    <div class="field-help backup-field-hint">${t('config.backup.password_hint')}</div>
                     <div class="password-wrap">
                         <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password" oninput="backupUpdateVaultHint()">
                         <button type="button" class="password-toggle" onclick="togglePassword(this)" title="${escapeAttr(t('config.backup.toggle_visibility'))}">${EYE_OPEN_SVG}</button>
@@ -101,11 +101,13 @@ function renderBackupSection(section) {
 
                 <div class="field-group backup-field-group-file">
                     <div class="field-label">${t('config.backup.select_file')}</div>
+                    <div class="field-help backup-field-hint">${t('config.backup.select_file_help')}</div>
                     <input type="file" id="backup-import-file" accept=".ago" class="field-input backup-file-input">
                 </div>
 
                 <div class="field-group backup-field-group">
                     <div class="field-label">${t('config.backup.import_password_label')}</div>
+                    <div class="field-help backup-field-hint">${t('config.backup.import_password_help')}</div>
                     <div class="password-wrap">
                         <input type="password" id="backup-import-password" class="field-input" placeholder="${t('config.backup.decryption_placeholder')}" autocomplete="off">
                         <button type="button" class="password-toggle" onclick="togglePassword(this)" title="${escapeAttr(t('config.backup.toggle_visibility'))}">${EYE_OPEN_SVG}</button>

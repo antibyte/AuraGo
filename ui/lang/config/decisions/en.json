@@ -1,0 +1,5 @@
+{
+  "config.decisions.enabled_help": "Turns on the local decision service that other features can use for quick yes/no judgments. You choose below which features use it.",
+  "config.decisions.model_summary": "Jeff-2B · Q4_K_M · {state}",
+  "config.decisions.progress_megabytes": "{current} / {total} MB · {percent}%"
+}

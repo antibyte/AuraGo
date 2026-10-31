@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "Picks a suitable model for each task automatically. Without it AuraGo always uses the active main model.",
+  "common.llm_router.area_help": "Provider and model for requests in the area “{area}”. “Default model” uses the active model.",
+  "common.llm_router.timeout_hint": "How long (in milliseconds, 250 to 5000, default 1500) classifying a task may take before the default choice applies.",
+  "common.llm_router.quota_hint": "Upper limit of classifications by the helper model per hour (0 to 120, default 20). 0 turns them off. Each call may incur charges.",
+  "common.llm_router.preview_text_hint": "An example task in your own words. It is only classified, not executed."
+}

@@ -103,5 +103,16 @@
   "config.server.http_port_hint": "0 deaktiviert den HTTP-Listener. Wähle für Let’s Encrypt HTTP-01 den Port 80 und mache den öffentlichen Port 80 erreichbar.",
   "config.server.restart_address": "Öffne nach dem Neustart:",
   "config.server.confirm_regen_title": "Selbstsigniertes Zertifikat neu erzeugen?",
-  "config.server.confirm_regen_message": "Das aktuelle Zertifikat wird durch ein neues ersetzt. Browser und Clients, die dem alten Zertifikat vertraut haben, zeigen erneut eine Sicherheitswarnung, bis sie das neue akzeptieren, und offene HTTPS-Verbindungen können unterbrochen werden."
+  "config.server.confirm_regen_message": "Das aktuelle Zertifikat wird durch ein neues ersetzt. Browser und Clients, die dem alten Zertifikat vertraut haben, zeigen erneut eine Sicherheitswarnung, bis sie das neue akzeptieren, und offene HTTPS-Verbindungen können unterbrochen werden.",
+  "config.server.host_hint": "Netzwerkadresse, auf der AuraGo lauscht. Leer oder 0.0.0.0 = alle Schnittstellen, 127.0.0.1 = nur dieser Rechner. Nach einer Änderung ist ein Neustart nötig.",
+  "config.server.port_hint": "TCP-Port der Weboberfläche und API (Standard 8088). Nach einer Änderung ist ein Neustart nötig.",
+  "config.server.ui_language_hint": "Sprache der Weboberfläche und der Systemmeldungen. Gilt für alle Benutzer dieser Instanz.",
+  "config.server.cert_mode_hint": "Woher das TLS-Zertifikat kommt: automatisch per Let's Encrypt, eigene Dateien oder ein selbst signiertes Zertifikat für lokale Tests.",
+  "config.server.https_port_hint": "Port für verschlüsselte Verbindungen (Standard 443). Ports unter 1024 brauchen unter Linux Root-Rechte oder eine passende Freigabe.",
+  "config.server.domain_hint": "Öffentlicher Domainname, für den das Zertifikat ausgestellt wird. Er muss auf diesen Server zeigen.",
+  "config.server.email_hint": "Kontakt-Adresse für Let's Encrypt, z. B. für Ablaufwarnungen. Wird nur an die Zertifizierungsstelle übermittelt.",
+  "config.server.cert_file_hint": "Pfad zur Zertifikatsdatei im PEM-Format, relativ zum AuraGo-Verzeichnis oder absolut.",
+  "config.server.key_file_hint": "Pfad zum privaten Schlüssel im PEM-Format. Die Datei darf nur für das AuraGo-Konto lesbar sein.",
+  "config.server.behind_proxy_hint": "Aktivieren, wenn ein Reverse-Proxy die TLS-Verbindung beendet. Nur Adressen aus der Liste unten dürfen Weiterleitungs-Header setzen. Falsch gesetzt lassen sich Client-Adressen fälschen.",
+  "config.server.cert_status_sans": "Alternative Namen (SANs)"
 }

@@ -167,8 +167,8 @@
                         <td class="kc-mono">${escapeAttr(s.key)}${badge}</td>
                         <td class="secrets-table-actions">
                             <div class="kc-actions secrets-actions">
-                                <button class="btn btn-secondary btn-sm" onclick="secretsEdit(${idx})" title="${t('config.secrets.edit')}">✏️</button>
-                                <button class="btn btn-danger btn-sm" onclick="secretsDelete(${idx})" title="${t('config.secrets.delete')}">🗑️</button>
+                                <button class="btn btn-secondary btn-sm" onclick="secretsEdit(${idx})" title="${t('config.secrets.edit')}" aria-label="${escapeAttr(t('config.secrets.edit') + ': ' + s.key)}">✏️</button>
+                                <button class="btn btn-danger btn-sm" onclick="secretsDelete(${idx})" title="${t('config.secrets.delete')}" aria-label="${escapeAttr(t('config.secrets.delete') + ': ' + s.key)}">🗑️</button>
                             </div>
                         </td>
                     </tr>`;
@@ -203,7 +203,7 @@
                     <div class="field-help">${t('config.secrets.value_help')}</div>
                     <div class="password-wrap">
                         <input class="field-input" id="secret-value" type="password" placeholder="${t('config.secrets.value_placeholder')}" autocomplete="off">
-                        <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
+                        <button type="button" class="password-toggle" data-visible="false" title="${escapeAttr(t('config.secrets.toggle_visibility'))}" aria-label="${escapeAttr(t('config.secrets.toggle_visibility'))}" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
                 </div>
                 <div id="secret-modal-error" class="secrets-error is-hidden" role="alert"></div>

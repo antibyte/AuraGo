@@ -24,11 +24,12 @@ function renderDecisionsSection(section) {
         backend.add(new Option(tr(key), value));
     }
     backend.value = data.backend === 'provider' ? 'provider' : 'local';
-    node('p', 'field-help', tr('backend_help'));
+    node('span', 'field-help', tr('backend_help'), backendGroup);
 
-    const toggle = (key, label, parent = root) => {
+    const toggle = (key, label, parent = root, help = '') => {
         const group = node('div', 'field-group', '', parent);
         node('span', 'field-label', label, group);
+        if (help) node('p', 'field-help', help, group);
         const wrap = node('div', 'toggle-wrap', '', group);
         const control = node('div', 'toggle' + (data[key] === true ? ' on' : ''), '', wrap);
         control.dataset.path = 'decisions.' + key;
@@ -40,7 +41,7 @@ function renderDecisionsSection(section) {
         node('span', 'toggle-label', t(data[key] ? 'config.toggle.active' : 'config.toggle.inactive'), wrap);
         return control;
     };
-    toggle('enabled', tr('enabled'));
+    toggle('enabled', tr('enabled'), root, tr('enabled_help'));
     const saveNotice = node('p', 'cfg-note-banner cfg-note-banner-info', t('config.local_llm.save_first'));
     saveNotice.dataset.decisionsSaveNotice = '';
     saveNotice.hidden = true;
@@ -57,9 +58,8 @@ function renderDecisionsSection(section) {
     deployment.dataset.path = 'decisions.deployment';
     [['auto', tr('auto')], ['native', tr('native')], ['docker', 'Docker']].forEach(([value, label]) => deployment.add(new Option(label, value)));
     deployment.value = data.deployment || 'auto';
-    node('p', 'field-help', tr('deployment_help'), advanced);
-    toggle('cpu_fallback_allowed', tr('cpu_permission'), advanced);
-    node('p', 'field-help', tr('cpu_help'), advanced);
+    node('span', 'field-help', tr('deployment_help'), deploymentLabel);
+    toggle('cpu_fallback_allowed', tr('cpu_permission'), advanced, tr('cpu_help'));
 
     const providerPanel = node('div', 'cfg-group');
     providerPanel.dataset.decisionsMode = 'provider';
@@ -68,7 +68,7 @@ function renderDecisionsSection(section) {
     const providerSelect = node('select', 'field-select', '', providerGroup);
     providerSelect.dataset.path = 'decisions.provider';
     providerSelect.add(new Option(tr('provider_select'), ''));
-    const providerHelp = node('p', 'field-help', tr('provider_help'), providerPanel);
+    const providerHelp = node('span', 'field-help', tr('provider_help'), providerGroup);
     const providerValidation = node('p', 'field-help', '', providerPanel);
     providerValidation.setAttribute('role', 'status');
     const providerActions = node('div', 'cfg-actions cfg-actions-row', '', providerPanel);
@@ -82,7 +82,7 @@ function renderDecisionsSection(section) {
     const modelSelect = node('select', 'field-select', '', modelGroup);
     modelSelect.dataset.path = 'decisions.model';
     modelSelect.add(new Option(data.model ? tr('model_saved_unverified', {value: data.model}) : tr('model_select'), data.model || ''));
-    const modelHelp = node('p', 'field-help', tr('model_help'), providerPanel);
+    const modelHelp = node('span', 'field-help', tr('model_help'), modelGroup);
     const catalogActions = node('div', 'cfg-actions cfg-actions-row', '', providerPanel);
     const loadModels = node('button', 'btn-secondary', tr('load_models'), catalogActions);
     loadModels.type = 'button';
@@ -166,7 +166,7 @@ function renderDecisionsSection(section) {
     const diagnostics = node('details', 'decisions-details', '', statusCard);
     node('summary', '', tr('diagnostics'), diagnostics);
     const errorCode = node('code', '', '', diagnostics);
-    node('p', 'field-help', 'Jeff-2B · Q4_K_M · ' + tr('uncalibrated'), diagnostics);
+    node('p', 'field-help', tr('model_summary', {state: tr('uncalibrated')}), diagnostics);
     const localResult = node('p', 'field-help', '', statusCard);
     localResult.dataset.decisionsResult = '';
     localResult.setAttribute('role', 'status');
@@ -479,7 +479,7 @@ function renderDecisionsSection(section) {
             phaseText.textContent = phases[status.progress?.phase] ? tr(phases[status.progress.phase]) : statusText.textContent;
             if (Number(status.progress?.total_bytes) > 0) {
                 const mb = bytes => (Math.max(0, Number(bytes) || 0) / 1000000).toLocaleString(undefined, {maximumFractionDigits: 0});
-                phaseText.textContent += ' · ' + mb(status.progress.current_bytes) + ' / ' + mb(status.progress.total_bytes) + ' MB · ' + Math.round(progress.value) + '%';
+                phaseText.textContent += ' · ' + tr('progress_megabytes', {current: mb(status.progress.current_bytes), total: mb(status.progress.total_bytes), percent: Math.round(progress.value)});
             }
             if (pendingAction && pendingAction.revision === actionRevision) {
                 let outcome = '';

@@ -88,15 +88,17 @@ function renderGameMakerSection(section) {
 function gmCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + t(labelKey) + '</div>';
-    const helpText = t(helpKey);
-    if (helpText && helpText !== helpKey) html += '<div class="field-help">' + helpText + '</div>';
+    const helpText = tOr(helpKey, '');
+    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
     html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="' + (onclick || "gmCfgToggleValue(this, '" + path + "')") + '"></div>';
     html += '</div>';
     return html;
 }
 
 function gmCfgField(labelKey, inputHtml) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' + inputHtml + '</div>';
+    const help = tOr(labelKey.replace(/_label$/, '_help'), '');
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div>' +
+        (help ? '<div class="field-help">' + escapeHtml(help) + '</div>' : '') + inputHtml + '</div>';
 }
 
 function gmCfgToggleEnabled(el) {

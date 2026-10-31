@@ -1,9 +1,9 @@
 {
-  "config.backup.create_desc": "Creates an \u003cstrong\u003e.ago\u003c/strong\u003e archive (ZIP) with config, prompts, data and skills. When a password is set, all vault secrets (API keys, tokens) are also securely included — ideal for migrating to a new instance (e.g. with systemd-injected master key).",
+  "config.backup.create_desc": "Creates an <strong>.ago</strong> archive (ZIP) with config, prompts, data and skills. When a password is set, all vault secrets (API keys, tokens) are also securely included — ideal for migrating to a new instance (e.g. with systemd-injected master key).",
   "config.backup.card_create_title": "Backup Content",
   "config.backup.card_encryption_title": "Encryption",
   "config.backup.card_import_title": "Restore Backup",
-  "config.backup.create_download": "⬇️ Create \u0026 Download Backup",
+  "config.backup.create_download": "⬇️ Create & Download Backup",
   "config.backup.creating": "⏳ Creating backup…",
   "config.backup.decryption_failed": "Decryption failed — wrong password?",
   "config.backup.decryption_placeholder": "Decryption password…",
@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 Import Backup",
   "config.backup.import_password_label": "🔒 Password (only for encrypted backups)",
   "config.backup.import_success": "Import successful",
-  "config.backup.import_warning": "\u003cstrong\u003eImportant:\u003c/strong\u003e Import overwrites existing files. Config, prompts and data will be replaced. A restart is recommended after import.",
+  "config.backup.import_warning": "<strong>Important:</strong> Import overwrites existing files. Config, prompts and data will be replaced. A restart is recommended after import.",
   "config.backup.importing": "⏳ Importing…",
   "config.backup.include_vectordb": "Include VectorDB (embeddings — may be large)",
   "config.backup.include_workdir": "Include workdir (agent_workspace/workdir)",
@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Restore this backup?",
   "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.include_vectordb_help": "Adds the vector database (memory embeddings). Saves recomputing after a restore, but often makes the archive very large.",
+  "config.backup.include_workdir_help": "Adds the agent's working directory with all files in it. This can take a lot of space.",
+  "config.backup.select_file_help": "A backup created earlier, with the .ago extension. Importing overwrites existing data.",
+  "config.backup.import_password_help": "Only needed if the backup was encrypted. It must be the same password as when it was created."
 }

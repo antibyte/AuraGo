@@ -41,8 +41,8 @@ function ccCfgEnsureData() {
 function ccCfgToggleRow(labelKey, helpKey, on, path, handler) {
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + escapeHtml(t(labelKey)) + '</div>';
-    const help = helpKey ? t(helpKey) : '';
-    if (help && help !== helpKey) html += '<div class="field-help">' + escapeHtml(help) + '</div>';
+    const help = helpKey ? tOr(helpKey, '') : '';
+    if (help) html += '<div class="field-help">' + escapeHtml(help) + '</div>';
     html += '<div class="toggle' + (on ? ' on' : '') + '" role="switch" tabindex="0" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + escapeAttr(t(labelKey)) + '" data-path="' + path + '" onclick="' + (handler || "ccCfgToggleValue(this, '" + path + "')") + '"></div>';
     html += '</div>';
     return html;
@@ -50,16 +50,16 @@ function ccCfgToggleRow(labelKey, helpKey, on, path, handler) {
 
 function ccCfgNumber(labelKey, helpKey, path, value, min, max, step) {
     let html = '<div class="field-group"><div class="field-label">' + escapeHtml(t(labelKey)) + '</div>';
-    const help = helpKey ? t(helpKey) : '';
-    if (help && help !== helpKey) html += '<div class="field-help">' + escapeHtml(help) + '</div>';
+    const help = helpKey ? tOr(helpKey, '') : '';
+    if (help) html += '<div class="field-help">' + escapeHtml(help) + '</div>';
     html += '<input class="field-input" type="number" min="' + min + '" max="' + max + '"' + (step ? ' step="' + step + '"' : '') + ' value="' + escapeAttr(String(value)) + '" data-path="' + path + '" aria-label="' + escapeAttr(t(labelKey)) + '">';
     return html + '</div>';
 }
 
 function ccCfgText(labelKey, helpKey, path, value, placeholder) {
     let html = '<div class="field-group"><div class="field-label">' + escapeHtml(t(labelKey)) + '</div>';
-    const help = helpKey ? t(helpKey) : '';
-    if (help && help !== helpKey) html += '<div class="field-help">' + escapeHtml(help) + '</div>';
+    const help = helpKey ? tOr(helpKey, '') : '';
+    if (help) html += '<div class="field-help">' + escapeHtml(help) + '</div>';
     html += '<input class="field-input" type="text" value="' + escapeAttr(value || '') + '" placeholder="' + escapeAttr(placeholder || '') + '" data-path="' + path + '" aria-label="' + escapeAttr(t(labelKey)) + '">';
     return html + '</div>';
 }
@@ -90,12 +90,12 @@ function renderCYDCreatorSection(section) {
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.cyd_creator.build_title')) + '</div>';
     html += ccCfgText('config.cyd_creator.builder_image_label', 'help.cyd_creator.builder_image', 'cyd_creator.builder_image', data.builder_image, CYD_CREATOR_DEFAULTS.builder_image);
     html += '<div class="field-grid two-cols">';
-    html += ccCfgNumber('config.cyd_creator.memory_mb_label', '', 'cyd_creator.memory_mb', data.memory_mb, 512, 16384, 256);
-    html += ccCfgNumber('config.cyd_creator.cpu_cores_label', '', 'cyd_creator.cpu_cores', data.cpu_cores, 0.5, 16, 0.5);
-    html += ccCfgNumber('config.cyd_creator.build_timeout_seconds_label', '', 'cyd_creator.build_timeout_seconds', data.build_timeout_seconds, 60, 1800);
+    html += ccCfgNumber('config.cyd_creator.memory_mb_label', 'config.cyd_creator.memory_mb_help', 'cyd_creator.memory_mb', data.memory_mb, 512, 16384, 256);
+    html += ccCfgNumber('config.cyd_creator.cpu_cores_label', 'config.cyd_creator.cpu_cores_help', 'cyd_creator.cpu_cores', data.cpu_cores, 0.5, 16, 0.5);
+    html += ccCfgNumber('config.cyd_creator.build_timeout_seconds_label', 'config.cyd_creator.build_timeout_seconds_help', 'cyd_creator.build_timeout_seconds', data.build_timeout_seconds, 60, 1800);
     html += ccCfgNumber('config.cyd_creator.cold_build_timeout_seconds_label', 'help.cyd_creator.cold_build_timeout_seconds', 'cyd_creator.cold_build_timeout_seconds', data.cold_build_timeout_seconds, 60, 3600);
-    html += ccCfgNumber('config.cyd_creator.idle_stop_minutes_label', '', 'cyd_creator.idle_stop_minutes', data.idle_stop_minutes, 1, 1440);
-    html += ccCfgNumber('config.cyd_creator.keep_builds_per_project_label', '', 'cyd_creator.keep_builds_per_project', data.keep_builds_per_project, 1, 50);
+    html += ccCfgNumber('config.cyd_creator.idle_stop_minutes_label', 'config.cyd_creator.idle_stop_minutes_help', 'cyd_creator.idle_stop_minutes', data.idle_stop_minutes, 1, 1440);
+    html += ccCfgNumber('config.cyd_creator.keep_builds_per_project_label', 'config.cyd_creator.keep_builds_per_project_help', 'cyd_creator.keep_builds_per_project', data.keep_builds_per_project, 1, 50);
     html += '</div>';
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.cyd_creator.agent_title')) + '</div>';
@@ -104,14 +104,14 @@ function renderCYDCreatorSection(section) {
         + '<select class="field-select" data-path="cyd_creator.model" data-config-choice="providers" aria-label="' + escapeAttr(t('config.cyd_creator.model_label')) + '">'
         + cfgChoiceOptionsHTML('providers', helpTexts['cyd_creator.model'] || {}, data.model || '') + '</select>' + cfgChoiceHintHTML('providers') + '</div>';
     html += '<div class="field-grid two-cols">';
-    html += ccCfgNumber('config.cyd_creator.job_timeout_minutes_label', '', 'cyd_creator.job_timeout_minutes', data.job_timeout_minutes, 5, 120);
+    html += ccCfgNumber('config.cyd_creator.job_timeout_minutes_label', 'config.cyd_creator.job_timeout_minutes_help', 'cyd_creator.job_timeout_minutes', data.job_timeout_minutes, 5, 120);
     html += ccCfgNumber('config.cyd_creator.max_repair_attempts_label', 'help.cyd_creator.max_repair_attempts', 'cyd_creator.max_repair_attempts', data.max_repair_attempts, 0, 10);
     html += '</div>';
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.cyd_creator.ota_title')) + '</div>';
     html += ccCfgToggleRow('config.cyd_creator.ota_enabled_label', 'help.cyd_creator.ota_enabled', data.ota.enabled === true, 'cyd_creator.ota.enabled');
     html += '<div class="field-grid two-cols">';
-    html += ccCfgNumber('config.cyd_creator.ota_heartbeat_seconds_label', '', 'cyd_creator.ota.heartbeat_seconds', data.ota.heartbeat_seconds, 30, 600);
+    html += ccCfgNumber('config.cyd_creator.ota_heartbeat_seconds_label', 'config.cyd_creator.ota_heartbeat_seconds_help', 'cyd_creator.ota.heartbeat_seconds', data.ota.heartbeat_seconds, 30, 600);
     html += ccCfgText('config.cyd_creator.ota_public_url_label', 'help.cyd_creator.ota_public_url', 'cyd_creator.ota.public_url', data.ota.public_url, 'https://aurago.example');
     html += '</div>';
 

@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "SQLite-Sicherung importieren",
   "config.sql_connections.sqlite_import_help": "Lade eine konsistente, eigenständige Sicherung hoch (bis 64 MiB). Speichern importiert sie in die geschützte Ablage und erhält die Originale.",
   "config.sql_connections.sqlite_import_required": "SQLite-Import erforderlich",
-  "config.sql_connections.allow_management_help": "Der Agent darf nur Beschreibungen ändern. Einrichtung, Zugangsdaten und Rechte verwaltest Du als Admin."
+  "config.sql_connections.allow_management_help": "Der Agent darf nur Beschreibungen ändern. Einrichtung, Zugangsdaten und Rechte verwaltest Du als Admin.",
+  "config.sql_connections.filter_label": "Verbindungen filtern",
+  "config.sql_connections.filter_help": "Filtert die Liste nach Name, Typ, Host, Datenbank oder Beschreibung.",
+  "config.sql_connections.name_help": "Eindeutiger Name, unter dem der Agent die Verbindung anspricht.",
+  "config.sql_connections.driver_help": "Art der Datenbank. SQLite arbeitet mit einer importierten Datei, die anderen mit einem Server.",
+  "config.sql_connections.port_help": "Leer lassen für den Standardport des Datenbanktyps (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Hostname oder IP-Adresse des Datenbankservers. Leer = localhost.",
+  "config.sql_connections.ssl_mode_help": "Verschlüsselung der Verbindung. „Disable“ sendet alles unverschlüsselt, „Require“ verschlüsselt ohne Zertifikatsprüfung, „Verify CA“ prüft die Zertifizierungsstelle, „Verify Full“ prüft zusätzlich den Servernamen (am sichersten).",
+  "config.sql_connections.database_help": "Name der Datenbank auf dem Server, auf die sich der Agent verbindet.",
+  "config.sql_connections.description_help": "Kurze Notiz für den Agenten und für dich, wofür die Datenbank gedacht ist.",
+  "config.sql_connections.username_help": "Datenbankbenutzer. Verwende ein Konto mit möglichst wenigen Rechten.",
+  "config.sql_connections.password_help": "Wird verschlüsselt im Tresor gespeichert. Leer lassen, um das gespeicherte Passwort zu behalten."
 }

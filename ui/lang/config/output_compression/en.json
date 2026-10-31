@@ -1,0 +1,12 @@
+{
+  "config.output_compression.enabled_help": "Shortens long tool output before it reaches the model and so saves tokens. Error messages are kept when the option below is on.",
+  "config.agent.output_compression.repetitive_substitution.lzw_enabled_label": "LZW compression",
+  "help.agent.output_compression.repetitive_substitution.lzw_enabled": "Replaces recurring pieces of text with short references without changing their order. Saves tokens on highly repetitive output.",
+  "help.agent.output_compression.repetitive_substitution.max_dictionary_entries": "Maximum number of references created per output. More entries find more repetitions but need more room for the dictionary.",
+  "help.agent.output_compression.repetitive_substitution.max_input_chars": "Longer outputs are not processed with this method, to save computing time.",
+  "help.agent.output_compression.repetitive_substitution.min_occurrences": "A piece of text is only replaced if it occurs at least this many times.",
+  "help.agent.output_compression.repetitive_substitution.min_phrase_chars": "Shorter pieces of text are never replaced, because the reference would then take more room than the text.",
+  "help.agent.output_compression.repetitive_substitution.min_savings_percent": "The result is only used if it is at least this many percent shorter than the original.",
+  "help.agent.output_compression.toon_json.max_rows": "Tables with more rows are not rendered in the compact TOON format.",
+  "help.agent.output_compression.toon_json.min_savings_percent": "The compact table form is only used if it is at least this many percent shorter than the JSON."
+}

@@ -1,0 +1,7 @@
+{
+  "common.llm_router.enabled_hint": "Wählt für jede Aufgabe automatisch ein passendes Modell. Ohne Schalter nutzt AuraGo immer das aktive Hauptmodell.",
+  "common.llm_router.area_help": "Anbieter und Modell für Anfragen im Bereich „{area}“. „Standardmodell“ nutzt das aktive Modell.",
+  "common.llm_router.timeout_hint": "So lange (in Millisekunden, 250 bis 5000, Standard 1500) darf die Einordnung einer Aufgabe dauern, bevor die Standardwahl gilt.",
+  "common.llm_router.quota_hint": "Obergrenze für Einordnungen durch das Hilfsmodell pro Stunde (0 bis 120, Standard 20). 0 schaltet sie ab. Jeder Aufruf kann Kosten verursachen.",
+  "common.llm_router.preview_text_hint": "Eine Beispielaufgabe in eigenen Worten. Sie wird nur eingeordnet, nicht ausgeführt."
+}

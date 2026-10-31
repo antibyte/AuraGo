@@ -11,8 +11,9 @@ async function renderLLMGuardianSection(section) {
 
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.llm_guardian.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="llm_guardian.enabled" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.enabled',this.classList.contains('on'));renderLLMGuardianSection(null)"></div>
-    </div>`;
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="llm_guardian.enabled" role="switch" aria-checked="${enabled}" aria-label="${escapeAttr(t('config.llm_guardian.enabled_label'))}" aria-describedby="lg-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.enabled',this.classList.contains('on'));renderLLMGuardianSection(null)"></div>
+    </div>
+    <div class="field-help" id="lg-enabled-help">${t('config.llm_guardian.enabled_help')}</div>`;
 
     if (!enabled) {
         html += `<div class="wh-notice">
@@ -36,6 +37,7 @@ async function renderLLMGuardianSection(section) {
     html += `<div class="field-grid two-cols">`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.llm_guardian.provider_label')}</div>
+        <div class="field-help">${t('config.llm_guardian.provider_help')}</div>
         <select class="field-select" data-path="llm_guardian.provider">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.llm_guardian.select_provider')}</option>`;
     configGeneralProviders().forEach(p => {
@@ -64,6 +66,7 @@ async function renderLLMGuardianSection(section) {
         <div class="field-group-desc">${t('config.llm_guardian.level_desc')}</div>
         <div class="field-group">
             <div class="field-label">${t('config.llm_guardian.level_label')}</div>
+            <div class="field-help">${t('config.llm_guardian.level_help')}</div>
             <select class="field-select" data-path="llm_guardian.default_level">`;
     levels.forEach(lv => {
         const sel = (curLevel === lv) ? ' selected' : '';
@@ -78,6 +81,7 @@ async function renderLLMGuardianSection(section) {
         <div class="field-group-desc">${t('config.llm_guardian.failsafe_desc')}</div>
         <div class="field-group">
             <div class="field-label">${t('config.llm_guardian.failsafe_label')}</div>
+            <div class="field-help">${t('config.llm_guardian.failsafe_help')}</div>
             <select class="field-select" data-path="llm_guardian.fail_safe">`;
     failSafes.forEach(fs => {
         const sel = (curFailSafe === fs) ? ' selected' : '';
@@ -94,10 +98,12 @@ async function renderLLMGuardianSection(section) {
     html += `<div class="field-grid two-cols">
         <div class="field-group">
             <div class="field-label">${t('config.llm_guardian.cache_ttl_label')}</div>
+            <div class="field-help">${t('config.llm_guardian.cache_ttl_help')}</div>
             <input type="number" class="field-input" data-path="llm_guardian.cache_ttl" value="${curTTL}" min="0" max="3600" step="30">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.llm_guardian.rate_limit_label')}</div>
+            <div class="field-help">${t('config.llm_guardian.rate_limit_help')}</div>
             <input type="number" class="field-input" data-path="llm_guardian.max_checks_per_minute" value="${curRate}" min="1" max="300" step="1">
         </div>
     </div>`;
@@ -109,9 +115,10 @@ async function renderLLMGuardianSection(section) {
 
     const clarificationOn = cfg.allow_clarification === true;
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${clarificationOn ? 'on' : ''}" data-path="llm_guardian.allow_clarification" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.allow_clarification',this.classList.contains('on'));setDirty(true)"></div>
+        <div class="toggle ${clarificationOn ? 'on' : ''}" data-path="llm_guardian.allow_clarification" role="switch" aria-checked="${clarificationOn}" aria-label="${escapeAttr(t('config.llm_guardian.clarification_label'))}" aria-describedby="lg-allow_clarification-help" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.allow_clarification',this.classList.contains('on'));setDirty(true)"></div>
         <span class="cfg-toggle-label">${t('config.llm_guardian.clarification_label')}</span>
-    </div>`;
+    </div>
+    <div class="field-help" id="lg-allow_clarification-help">${t('config.llm_guardian.clarification_help')}</div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
@@ -120,15 +127,17 @@ async function renderLLMGuardianSection(section) {
 
     const scanEmails = cfg.scan_emails === true;
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${scanEmails ? 'on' : ''}" data-path="llm_guardian.scan_emails" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_emails',this.classList.contains('on'));setDirty(true)"></div>
+        <div class="toggle ${scanEmails ? 'on' : ''}" data-path="llm_guardian.scan_emails" role="switch" aria-checked="${scanEmails}" aria-label="${escapeAttr(t('config.llm_guardian.scan_emails_label'))}" aria-describedby="lg-scan_emails-help" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_emails',this.classList.contains('on'));setDirty(true)"></div>
         <span class="cfg-toggle-label">${t('config.llm_guardian.scan_emails_label')}</span>
-    </div>`;
+    </div>
+    <div class="field-help" id="lg-scan_emails-help">${t('config.llm_guardian.scan_emails_help')}</div>`;
 
     const scanDocs = cfg.scan_documents === true;
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${scanDocs ? 'on' : ''}" data-path="llm_guardian.scan_documents" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_documents',this.classList.contains('on'));setDirty(true)"></div>
+        <div class="toggle ${scanDocs ? 'on' : ''}" data-path="llm_guardian.scan_documents" role="switch" aria-checked="${scanDocs}" aria-label="${escapeAttr(t('config.llm_guardian.scan_documents_label'))}" aria-describedby="lg-scan_documents-help" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.scan_documents',this.classList.contains('on'));setDirty(true)"></div>
         <span class="cfg-toggle-label">${t('config.llm_guardian.scan_documents_label')}</span>
-    </div>`;
+    </div>
+    <div class="field-help" id="lg-scan_documents-help">${t('config.llm_guardian.scan_documents_help')}</div>`;
     html += `</div>`;
 
     html += `<div class="field-group">
@@ -146,22 +155,23 @@ async function renderLLMGuardianSection(section) {
             const riskIcon = _guardianHighRiskTools.has(toolName) ? '🔴' : (_guardianRiskyTools.has(toolName) ? '🟡' : '⚪');
             html += `<div class="lg-override-row">
                 <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
-                <select class="field-select lg-select-sm"
+                <select class="field-select lg-select-sm" aria-label="${escapeAttr(t('config.llm_guardian.override_level_for', { tool: toolName }))}"
                     onchange="guardianSetOverride('${escapeAttr(toolName)}',this.value)">`;
             levels.forEach(lv => {
                 const sel = (toolLevel === lv) ? ' selected' : '';
                 html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;
             });
             html += `</select>
-                <button class="lg-btn-remove"
+                <button class="lg-btn-remove" title="${escapeAttr(t('config.llm_guardian.override_remove'))}" aria-label="${escapeAttr(t('config.llm_guardian.override_remove') + ': ' + toolName)}"
                     onclick="guardianRemoveOverride('${escapeAttr(toolName)}')">✕</button>
             </div>`;
         });
         html += `</div>`;
     }
 
+    html += `<div class="field-help" id="guardian-new-help">${t('config.llm_guardian.override_add_help')}</div>`;
     html += `<div class="lg-add-row">
-        <input type="text" id="guardian-new-tool" class="field-input lg-add-input" list="guardian-tool-datalist"
+        <input type="text" id="guardian-new-tool" class="field-input lg-add-input" list="guardian-tool-datalist" aria-label="${escapeAttr(t('config.llm_guardian.override_tool_label'))}" aria-describedby="guardian-new-help"
             placeholder="${t('config.llm_guardian.overrides_tool_search')}">
         <datalist id="guardian-tool-datalist">`;
     if (_guardianToolList) {
@@ -175,13 +185,13 @@ async function renderLLMGuardianSection(section) {
         });
     }
     html += `</datalist>
-        <select id="guardian-new-level" class="field-select lg-select-sm">`;
+        <select id="guardian-new-level" class="field-select lg-select-sm" aria-label="${escapeAttr(t('config.llm_guardian.override_level_label'))}" aria-describedby="guardian-new-help">`;
     levels.forEach(lv => {
         const sel = (lv === 'high') ? ' selected' : '';
         html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;
     });
     html += `</select>
-        <button class="lg-btn-add"
+        <button class="lg-btn-add" title="${escapeAttr(t('config.llm_guardian.override_add'))}" aria-label="${escapeAttr(t('config.llm_guardian.override_add'))}"
             onclick="guardianAddOverride()">+</button>
     </div>`;
     html += `</div>`;
@@ -197,56 +207,9 @@ async function renderLLMGuardianSection(section) {
 
 let _guardianToolList = null;
 
-const _guardianToolDescriptions = {
-    execute_shell: 'Run shell commands',
-    execute_sudo: 'Run commands as root',
-    execute_python: 'Execute Python code',
-    execute_remote_shell: 'SSH remote commands',
-    filesystem: 'Read/write files',
-    api_request: 'HTTP API calls',
-    docker: 'Manage Docker containers',
-    proxmox: 'Proxmox VM management',
-    home_assistant: 'Smart home control',
-    co_agent: 'Spawn sub-agents',
-    manage_updates: 'Self-update system',
-    set_secret: 'Store vault secrets',
-    save_tool: 'Create custom tools',
-    netlify: 'Netlify deployments',
-    here_now_sites: 'Read here.now sites',
-    here_now_site: 'Publish and manage here.now sites',
-    treg_catalog: 'treg_catalog',
-    treg_call: 'treg_call',
-    treg_status: 'treg_status',
-    send_email: 'Send emails',
-    fetch_email: 'Fetch emails',
-    discord: 'Discord messaging',
-    manage_memory: 'Long-term memory',
-    knowledge_graph: 'Knowledge graph ops',
-    manage_notes: 'Manage notes',
-    manage_cron: 'Cron job scheduler',
-    call_webhook: 'Call outgoing webhooks',
-    manage_missions: 'Mission management',
-    tailscale: 'Tailscale VPN',
-    manage_devices: 'SSH device inventory',
-    koofr: 'Koofr cloud storage',
-    google_workspace: 'Google Workspace',
-    webdav: 'WebDAV file access',
-    ollama: 'Ollama local models',
-    adguard: 'AdGuard Home DNS',
-    chromecast: 'Chromecast control',
-    mcp_call: 'MCP server tools',
-    cheat_sheet: 'Cheat sheet lookup',
-    send_image: 'Send/generate images',
-    text_to_speech: 'Text to speech',
-    media_registry: 'Media registry',
-    homepage_registry: 'Homepage registry',
-};
-
 function _guardianGetToolDesc(toolName) {
     const key = 'config.llm_guardian.tool_' + toolName;
-    const translated = t(key);
-    if (translated && translated !== key) return translated;
-    return _guardianToolDescriptions[toolName] || '';
+    return tOr(key, '');
 }
 
 const _guardianHighRiskTools = new Set([

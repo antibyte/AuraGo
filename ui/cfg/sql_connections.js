@@ -54,7 +54,8 @@ function renderSQLConnectionsSection(section) {
     html += `
     <div class="sqlconn-toolbar">
         <div class="sqlconn-toolbar-left">
-            <input type="text" id="sqlconn-filter" class="field-input sqlconn-filter-input" placeholder="${t('config.sql_connections.filter_placeholder')}" oninput="sqlConnApplyFilter()">
+            <input type="text" id="sqlconn-filter" class="field-input sqlconn-filter-input" aria-label="${escapeAttr(t('config.sql_connections.filter_label'))}" aria-describedby="sqlconn-filter-help" placeholder="${t('config.sql_connections.filter_placeholder')}" oninput="sqlConnApplyFilter()">
+            <div class="field-help" id="sqlconn-filter-help">${t('config.sql_connections.filter_help')}</div>
         </div>
         <button class="btn-save sqlconn-add-btn" onclick="sqlConnShowModal()">
             ＋ ${t('config.sql_connections.add_connection')}
@@ -95,12 +96,14 @@ function renderSQLConnectionsSection(section) {
 
             <div class="field-group sql-field-group">
                 <div class="field-label">${t('config.sql_connections.name_label')} *</div>
+                <div class="field-help">${t('config.sql_connections.name_help')}</div>
                 <input type="text" id="sqlconn-field-name" class="field-input" placeholder="${t('config.sql_connections.name_placeholder')}">
             </div>
 
             <div class="sqlconn-grid-two">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.driver_label')} *</div>
+                    <div class="field-help">${t('config.sql_connections.driver_help')}</div>
                     <select id="sqlconn-field-driver" class="field-input sql-select-compact" onchange="sqlConnDriverChanged()">
                         <option value="postgres">${t('config.sql_connections.driver_postgres')}</option>
                         <option value="mysql">${t('config.sql_connections.driver_mysql')}</option>
@@ -109,6 +112,7 @@ function renderSQLConnectionsSection(section) {
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.port_label')}</div>
+                    <div class="field-help">${t('config.sql_connections.port_help')}</div>
                     <input type="number" id="sqlconn-field-port" class="field-input" placeholder="${t('config.sql_connections.port_postgres')}">
                 </div>
             </div>
@@ -116,10 +120,12 @@ function renderSQLConnectionsSection(section) {
             <div class="sqlconn-grid-host" id="sqlconn-host-row">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.host_label')}</div>
+                    <div class="field-help">${t('config.sql_connections.host_help')}</div>
                     <input type="text" id="sqlconn-field-host" class="field-input" placeholder="${t('config.sql_connections.host_placeholder')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.ssl_mode_label')}</div>
+                    <div class="field-help">${t('config.sql_connections.ssl_mode_help')}</div>
                     <select id="sqlconn-field-ssl" class="field-input sql-select-compact">
                         <option value="disable">${t('config.sql_connections.ssl_disable')}</option>
                         <option value="require">${t('config.sql_connections.ssl_require')}</option>
@@ -131,6 +137,7 @@ function renderSQLConnectionsSection(section) {
 
             <div class="field-group sql-field-group-mt">
                 <div class="field-label">${t('config.sql_connections.database_label')} *</div>
+                <div class="field-help">${t('config.sql_connections.database_help')}</div>
                 <input type="text" id="sqlconn-field-database" class="field-input" placeholder="${t('config.sql_connections.database_placeholder')}">
             </div>
 
@@ -142,16 +149,19 @@ function renderSQLConnectionsSection(section) {
 
             <div class="field-group sql-field-group-mt">
                 <div class="field-label">${t('config.sql_connections.description_label')}</div>
+                <div class="field-help">${t('config.sql_connections.description_help')}</div>
                 <input type="text" id="sqlconn-field-desc" class="field-input" placeholder="${t('config.sql_connections.description_placeholder')}">
             </div>
 
             <div class="sqlconn-grid-two sqlconn-creds-row" id="sqlconn-creds-row">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.username_label')}</div>
+                    <div class="field-help">${t('config.sql_connections.username_help')}</div>
                     <input type="text" id="sqlconn-field-username" class="field-input" placeholder="${t('config.sql_connections.username_placeholder')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.password_label')}</div>
+                    <div class="field-help">${t('config.sql_connections.password_help')}</div>
                     <input type="password" id="sqlconn-field-password" class="field-input" placeholder="${t('config.sql_connections.password_placeholder')}">
                 </div>
             </div>
@@ -172,7 +182,7 @@ function renderSQLConnectionsSection(section) {
                         <input type="checkbox" id="sqlconn-perm-delete" data-cfg-confirm-enable="delete"> ${t('config.sql_connections.perm_delete')}
                     </label>
                 </div>
-                <div class="sql-perm-hint">${t('config.sql_connections.permissions_hint')}</div>
+                <div class="field-help sql-perm-hint">${t('config.sql_connections.permissions_hint')}</div>
             </div>
 
             ${cfgActionResult.html('sqlconn-test-result')}

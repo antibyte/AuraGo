@@ -14,5 +14,10 @@
   "config.flows.open": "Open EasyDrag",
   "config.flows.run_retention_days": "Keep run history (days, 1–365)",
   "config.section.flows.desc": "Runs visual automations built in the EasyDrag app.",
-  "config.section.flows.label": "EasyDrag flows"
+  "config.section.flows.label": "EasyDrag flows",
+  "config.flows.enabled_help": "Turns on running EasyDrag flows. The change applies after a restart.",
+  "config.flows.max_parallel_runs_help": "How many flow runs may run at the same time (1 to 32, default 8). Further ones wait.",
+  "config.flows.max_parallel_nodes_per_run_help": "How many steps of one run may execute in parallel (1 to 16, default 4).",
+  "config.flows.max_runs_per_flow_help": "How many finished runs are kept per flow; older ones are deleted (10 to 5000, default 200).",
+  "config.flows.run_retention_days_help": "A run's history is deleted after this many days (1 to 365, default 30)."
 }
