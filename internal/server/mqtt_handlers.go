@@ -86,8 +86,12 @@ func handleMQTTTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		cfg := s.ConfigSnapshot()
-		if cfg == nil || !cfg.MQTT.Enabled || cfg.EggMode.Enabled {
+		cfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		if !cfg.MQTT.Enabled || cfg.EggMode.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "MQTT integration is not enabled",

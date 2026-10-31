@@ -54,7 +54,12 @@ func handleAdGuardTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if s.Cfg.AdGuard.URL == "" {
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		if draft.AdGuard.URL == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "AdGuard Home URL is not configured",
@@ -63,9 +68,9 @@ func handleAdGuardTest(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.AdGuardConfig{
-			URL:      s.Cfg.AdGuard.URL,
-			Username: s.Cfg.AdGuard.Username,
-			Password: s.Cfg.AdGuard.Password,
+			URL:      draft.AdGuard.URL,
+			Username: draft.AdGuard.Username,
+			Password: draft.AdGuard.Password,
 		}
 
 		result := tools.AdGuardStatus(cfg)

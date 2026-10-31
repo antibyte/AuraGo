@@ -11,7 +11,7 @@ function renderUptimeKumaSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    html += '<div id="uk-status-banner" class="adg-status-banner">' + t('config.uptime_kuma.checking') + '</div>';
+    html += cfgStatusBanner.html('uk-status-banner', enabledOn && data.base_url ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !data.base_url ? t('config.uptime_kuma.status_no_url') : '' });
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.uptime_kuma.enabled_label') + '</div>';
@@ -32,10 +32,9 @@ function renderUptimeKumaSection(section) {
     html += '<div class="field-help">' + t('help.uptime_kuma.api_key') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap pw-u-flex-1">';
-    html += '<input class="field-input adg-password-input" type="password" id="uptime-kuma-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input adg-password-input" type="password" id="uptime-kuma-api-key" data-path="uptime_kuma.api_key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="uptimeKumaSaveAPIKey()">' + t('config.uptime_kuma.save_icon') + ' ' + t('config.uptime_kuma.save_vault') + '</button>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -73,12 +72,12 @@ function renderUptimeKumaSection(section) {
     html += '</div>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="uptimeKumaTestConnection()" id="uptime-kuma-test-btn">🔌 ' + t('config.uptime_kuma.test_btn') + '</button>';
-    html += '<span id="uptime-kuma-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="uptimeKumaTestConnection()" id="uptime-kuma-test-btn" data-config-action-draft="true">' + t('config.uptime_kuma.test_btn') + '</button>';
+    html += cfgActionResult.html('uptime-kuma-test-result');
     html += '</div>';
 
     html += '<div id="uptime-kuma-summary" class="adg-quick-stats is-hidden">';
-    html += '<div class="adg-stats-title">📊 ' + t('config.uptime_kuma.summary_title') + '</div>';
+    html += '<div class="adg-stats-title">' + t('config.uptime_kuma.summary_title') + '</div>';
     html += '<div id="uptime-kuma-summary-content" class="adg-stats-grid"></div>';
     html += '</div>';
 
@@ -86,55 +85,25 @@ function renderUptimeKumaSection(section) {
 
     document.getElementById('content').innerHTML = html;
 
-    if (enabledOn && data.base_url) {
-        uptimeKumaCheckStatus();
-    } else {
-        uptimeKumaSetBanner('neutral', enabledOn ? '⚪ ' + t('config.uptime_kuma.status_no_url') : '⚪ ' + t('config.uptime_kuma.status_disabled'));
-    }
-}
-
-function uptimeKumaSetBanner(state, text) {
-    const banner = document.getElementById('uk-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+    if (enabledOn && data.base_url) uptimeKumaCheckStatus();
 }
 
 function uptimeKumaCheckStatus() {
-    uptimeKumaSetBanner('neutral', t('config.uptime_kuma.checking'));
-    fetch('/api/uptime-kuma/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                uptimeKumaSetBanner('neutral', '⚪ ' + t('config.uptime_kuma.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_url') {
-                uptimeKumaSetBanner('neutral', '⚪ ' + t('config.uptime_kuma.status_no_url'));
-                return;
-            }
-            if (res.status === 'no_api_key') {
-                uptimeKumaSetBanner('warning', '🟡 ' + t('config.uptime_kuma.status_no_api_key'));
-                return;
-            }
-            if (res.status !== 'ok' || !res.data) {
-                uptimeKumaSetBanner('danger', '🔴 ' + (res.message || t('config.uptime_kuma.connection_failed')));
-                return;
-            }
-
-            const summary = res.data.summary || {};
-            const down = Number(summary.down || 0);
-            const state = down > 0 ? 'danger' : 'success';
-            const text = down > 0
-                ? '🔴 ' + t('config.uptime_kuma.connected') + ' - ' + down + ' ' + t('config.uptime_kuma.down_monitors')
-                : '🟢 ' + t('config.uptime_kuma.connected');
-            uptimeKumaSetBanner(state, text);
-            uptimeKumaRenderSummary(summary);
-        })
-        .catch(() => {
-            uptimeKumaSetBanner('danger', '🔴 ' + t('config.uptime_kuma.connection_failed'));
-        });
+    const banner = document.getElementById('uk-status-banner');
+    if (!banner) return;
+    return cfgStatusBanner.check(banner, () => fetch('/api/uptime-kuma/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'no_url') return { state: 'unconfigured', detail: t('config.uptime_kuma.status_no_url') };
+        if (res.status === 'no_api_key') return { state: 'unconfigured', detail: t('config.uptime_kuma.status_no_api_key') };
+        if (res.status !== 'ok' || !res.data) return { state: 'error', detail: res.message || t('config.uptime_kuma.connection_failed') };
+        const summary = res.data.summary || {};
+        const down = Number(summary.down || 0);
+        uptimeKumaRenderSummary(summary);
+        return down > 0
+            ? { state: 'degraded', detail: t('config.uptime_kuma.connected') + ' - ' + down + ' ' + t('config.uptime_kuma.down_monitors') }
+            : { state: 'connected', detail: t('config.uptime_kuma.connected') };
+    });
 }
 
 function uptimeKumaRenderSummary(summary) {
@@ -157,58 +126,14 @@ function uptimeKumaRenderSummary(summary) {
 
 function uptimeKumaTestConnection() {
     const btn = document.getElementById('uptime-kuma-test-btn');
-    const result = document.getElementById('uptime-kuma-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.uptime_kuma.loading');
-        result.className = 'adg-test-result';
-    }
-
-    fetch('/api/uptime-kuma/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.uptime_kuma.status_success') + ' ' + t('config.uptime_kuma.test_ok');
-                uptimeKumaCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.uptime_kuma.status_error') + ' ' + (res.message || t('config.uptime_kuma.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.uptime_kuma.status_error') + ' ' + t('config.uptime_kuma.test_fail');
-            }
-        });
-}
-
-function uptimeKumaSaveAPIKey() {
-    const input = document.getElementById('uptime-kuma-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.uptime_kuma.api_key_empty'), 'error');
-        return;
-    }
-
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/uptime-kuma/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'uptime_kuma_api_key', value: value })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(t('config.uptime_kuma.api_key_saved'), 'success');
-                cfgMarkSecretStored(input, 'uptime_kuma.api_key');
-                uptimeKumaCheckStatus();
-            } else {
-                showToast(res.message || t('config.uptime_kuma.api_key_save_failed'), 'error');
-            }
-        })
-        .catch(() => showToast(t('config.uptime_kuma.api_key_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['uptime_kuma']) })
+    }), {
+        target: 'uptime-kuma-test-result',
+        success: t('config.uptime_kuma.test_ok'),
+        failure: t('config.uptime_kuma.test_fail'),
+        onSuccess: () => uptimeKumaCheckStatus()
+    });
 }

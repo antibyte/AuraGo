@@ -17,7 +17,7 @@ function renderEvomapSection(section) {
         icon: section.icon,
         label: section.label,
         desc: section.desc,
-        beforeHTML: '<div id="evomap-status-banner" class="adg-status-banner">' + t('config.evomap.checking') + '</div>',
+        beforeHTML: form.statusBanner({ id: 'evomap-status-banner', state: data.enabled === true ? 'checking' : 'off' }),
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.evomap.enabled_label'), help: t('help.evomap.enabled'), path: 'evomap.enabled', value: data.enabled === true }),
             form.toggle({ label: t('config.evomap.readonly_label'), help: t('help.evomap.readonly'), path: 'evomap.readonly', value: data.readonly !== false }),
@@ -29,17 +29,17 @@ function renderEvomapSection(section) {
                 label: t('config.evomap.api_key_label'),
                 help: t('help.evomap.api_key'),
                 id: 'evomap-api-key',
+                path: 'evomap.api_key',
                 value: data.api_key,
-                placeholder: cfgSecretPlaceholder(data.api_key, t('config.evomap.api_key_placeholder')),
-                actionHTML: '<button type="button" class="btn-save adg-save-btn" onclick="evomapSaveSecret(\'evomap_api_key\', \'evomap.api_key\', \'evomap-api-key\')">' + t('config.evomap.save_vault') + '</button>'
+                placeholder: cfgSecretPlaceholder(data.api_key, t('config.evomap.api_key_placeholder'))
             }),
             form.password({
                 label: t('config.evomap.node_secret_label'),
                 help: t('help.evomap.node_secret'),
                 id: 'evomap-node-secret',
+                path: 'evomap.node_secret',
                 value: data.node_secret,
-                placeholder: cfgSecretPlaceholder(data.node_secret, t('config.evomap.node_secret_placeholder')),
-                actionHTML: '<button type="button" class="btn-save adg-save-btn" onclick="evomapSaveSecret(\'evomap_node_secret\', \'evomap.node_secret\', \'evomap-node-secret\')">' + t('config.evomap.save_vault') + '</button>'
+                placeholder: cfgSecretPlaceholder(data.node_secret, t('config.evomap.node_secret_placeholder'))
             }),
         ] }, { titleKey: 'config.refresh.runtime', fields: [
             form.toggle({ label: t('config.evomap.kg_enabled'), help: t('help.evomap.kg_enabled'), path: 'evomap.kg_enabled', value: data.kg_enabled === true }),
@@ -47,30 +47,15 @@ function renderEvomapSection(section) {
             form.number({ label: t('config.evomap.max_result_label'), help: t('help.evomap.max_result'), path: 'evomap.max_result_bytes', value: String(data.max_result_bytes || 262144), min: 1024, step: 1024 })
         ] }],
         afterHTML: form.actions([
-            { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-test-btn" onclick="evomapTestConnection()">' + t('config.evomap.test_btn') + '</button>' },
-            { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-register-btn" onclick="evomapRegisterNode()">' + t('config.evomap.register_btn') + '</button>' },
-            { html: '<span id="evomap-test-result" class="adg-test-result"></span>' }
+            { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-test-btn" data-config-action-draft="true" onclick="evomapTestConnection()">' + t('config.evomap.test_btn') + '</button>' },
+            { html: '<button type="button" class="btn-save adg-test-btn" id="evomap-register-btn" data-config-action-draft="false" onclick="evomapRegisterNode()">' + t('config.evomap.register_btn') + '</button>' },
+            { html: form.actionResult({ id: 'evomap-test-result' }) }
         ]) + '<div id="evomap-secret-state" class="adg-quick-stats is-hidden"></div>'
     });
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
     evomapRefreshStatus();
-}
-
-function evomapSetBanner(state, text) {
-    const banner = document.getElementById('evomap-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
-    banner.textContent = text;
-}
-
-function evomapSetResult(kind, text) {
-    const result = document.getElementById('evomap-test-result');
-    if (!result) return;
-    const cls = kind === 'success' ? ' is-success' : (kind === 'danger' ? ' is-danger' : (kind === 'warning' ? ' is-warning' : ''));
-    result.className = 'adg-test-result' + cls;
-    result.textContent = text || '';
 }
 
 function evomapRenderSecretState(data) {
@@ -87,88 +72,56 @@ function evomapRenderSecretState(data) {
 }
 
 async function evomapRefreshStatus() {
-    evomapSetBanner('neutral', t('config.evomap.checking'));
-    try {
-        const resp = await fetch('/api/evomap/status');
-        const data = await resp.json().catch(() => ({}));
+    const banner = document.getElementById('evomap-status-banner');
+    if (!banner) return;
+    return cfgStatusBanner.check(banner, () => fetch('/api/evomap/status'), data => {
+        if (!data) return null;
         const status = data.status || 'error';
-        if (status === 'ready') {
-            evomapSetBanner('success', t('config.evomap.status_ready'));
-        } else if (status === 'missing_node_secret') {
-            evomapSetBanner('warning', t('config.evomap.status_missing_node_secret'));
-        } else if (status === 'disabled') {
-            evomapSetBanner('neutral', t('config.evomap.status_disabled'));
-        } else {
-            evomapSetBanner('danger', data.message || t('config.evomap.status_error'));
-        }
         const cfg = evomapConfig();
         cfg.node_secret = data.node_secret_configured ? cfgMaskedSecretFallback : '';
         cfg.api_key = data.api_key_configured ? cfgMaskedSecretFallback : '';
         evomapRenderSecretState(data);
-    } catch (_) {
-        evomapSetBanner('danger', t('config.evomap.status_error'));
-    }
+        if (status === 'ready') return { state: 'connected', detail: t('config.evomap.status_ready') };
+        if (status === 'missing_node_secret') return { state: 'unconfigured', detail: t('config.evomap.status_missing_node_secret') };
+        if (status === 'disabled') return { state: 'off' };
+        return { state: 'error', detail: data.message || t('config.evomap.status_error') };
+    });
 }
 
-async function evomapTestConnection() {
+function evomapTestConnection() {
     const btn = document.getElementById('evomap-test-btn');
-    if (btn) btn.disabled = true;
-    evomapSetResult('', t('config.evomap.testing'));
-    try {
-        const resp = await fetch('/api/evomap/test', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || data.status !== 'ok') throw new Error(data.message || t('config.evomap.test_fail'));
-        evomapSetResult('success', t('config.evomap.test_ok'));
-        await evomapRefreshStatus();
-    } catch (e) {
-        evomapSetResult('danger', e.message || t('config.evomap.test_fail'));
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    return cfgActionResult(btn, () => fetch('/api/evomap/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['evomap']) })
+    }), {
+        target: 'evomap-test-result',
+        pending: t('config.evomap.testing'),
+        success: t('config.evomap.test_ok'),
+        failure: t('config.evomap.test_fail'),
+        lock: '#evomap-register-btn',
+        onSuccess: () => evomapRefreshStatus()
+    });
 }
 
-async function evomapRegisterNode() {
+// Registers the node with the saved configuration (the server reads the stored values).
+function evomapRegisterNode() {
     const btn = document.getElementById('evomap-register-btn');
-    if (btn) btn.disabled = true;
-    evomapSetResult('', t('config.evomap.registering'));
-    try {
-        const resp = await fetch('/api/evomap/register', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || data.status !== 'ok') throw new Error(data.message || t('config.evomap.register_fail'));
-        if (data.node_id) {
-            setNestedValue(configData, 'evomap.node_id', data.node_id);
-            const input = document.querySelector('[data-path="evomap.node_id"]');
-            if (input) input.value = data.node_id;
+    return cfgActionResult(btn, () => fetch('/api/evomap/register', { method: 'POST' }), {
+        target: 'evomap-test-result',
+        pending: t('config.evomap.registering'),
+        success: t('config.evomap.register_ok'),
+        failure: t('config.evomap.register_fail'),
+        lock: '#evomap-test-btn',
+        onSuccess: outcome => {
+            const data = outcome.body || {};
+            if (data.node_id) {
+                setNestedValue(configData, 'evomap.node_id', data.node_id);
+                const input = document.querySelector('[data-path="evomap.node_id"]');
+                if (input) input.value = data.node_id;
+            }
+            cfgMarkSecretStored(document.getElementById('evomap-node-secret'), 'evomap.node_secret');
+            evomapRefreshStatus();
         }
-        cfgMarkSecretStored(document.getElementById('evomap-node-secret'), 'evomap.node_secret');
-        evomapSetResult('success', t('config.evomap.register_ok'));
-        await evomapRefreshStatus();
-    } catch (e) {
-        evomapSetResult('danger', e.message || t('config.evomap.register_fail'));
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-}
-
-async function evomapSaveSecret(vaultKey, configPath, inputID) {
-    const input = document.getElementById(inputID);
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        evomapSetResult('warning', t('config.evomap.secret_empty'));
-        return;
-    }
-    try {
-        const resp = await fetch('/api/vault/secrets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: vaultKey, value })
-        });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || (data.status && data.status !== 'ok')) throw new Error(data.message || t('config.evomap.secret_save_fail'));
-        cfgMarkSecretStored(input, configPath);
-        evomapSetResult('success', t('config.evomap.secret_saved'));
-        await evomapRefreshStatus();
-    } catch (e) {
-        evomapSetResult('danger', e.message || t('config.evomap.secret_save_fail'));
-    }
+    });
 }

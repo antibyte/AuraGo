@@ -13,7 +13,7 @@ function renderAgentMailSection(section) {
         icon: section.icon,
         label: section.label,
         desc: section.desc,
-        beforeHTML: '<div id="agentmail-status-banner" class="adg-status-banner">' + t('config.agentmail.checking') + '</div>',
+        beforeHTML: form.statusBanner({ id: 'agentmail-status-banner', state: enabledOn ? 'checking' : 'off' }),
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.agentmail.enabled_label'), help: t('help.agentmail.enabled'), path: 'agentmail.enabled', value: enabledOn }),
             form.toggle({ label: t('config.agentmail.readonly_label'), help: t('help.agentmail.readonly'), path: 'agentmail.readonly', value: readonlyOn }),
@@ -22,9 +22,9 @@ function renderAgentMailSection(section) {
                 label: t('config.agentmail.api_key_label'),
                 help: t('help.agentmail.api_key'),
                 id: 'agentmail-api-key',
+                path: 'agentmail.api_key',
                 value: data.api_key,
-                placeholder: apiKeyPlaceholder,
-                actionHTML: '<button class="btn-save adg-save-btn" onclick="agentMailSaveAPIKey()">' + t('config.agentmail.save_icon') + ' ' + t('config.agentmail.save_vault') + '</button>'
+                placeholder: apiKeyPlaceholder
             }),
         ] }, { titleKey: 'config.agentmail.inbox_id_label', fields: [
             form.field({ label: t('config.agentmail.inbox_id_label'), help: t('help.agentmail.inbox_id'), path: 'agentmail.inbox_id', value: data.inbox_id || '', placeholder: 'inbox_...' }),
@@ -44,8 +44,8 @@ function renderAgentMailSection(section) {
             form.field({ label: t('config.agentmail.websocket_url_label'), help: t('help.agentmail.websocket_url'), path: 'agentmail.websocket_url', value: data.websocket_url || 'wss://ws.agentmail.to/v0', placeholder: 'wss://ws.agentmail.to/v0' })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn">🔌 ' + t('config.agentmail.test_btn') + '</button>' },
-            { html: '<span id="agentmail-test-result" class="adg-test-result"></span>' }
+            { html: '<button class="btn-save adg-test-btn" onclick="agentMailTestConnection()" id="agentmail-test-btn" data-config-action-draft="true">' + t('config.agentmail.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'agentmail-test-result' }) }
         ]) + '<div id="agentmail-summary" class="adg-quick-stats is-hidden">'
             + '<div class="adg-stats-title">' + t('config.agentmail.summary_title') + '</div>'
             + '<div id="agentmail-summary-content" class="adg-stats-grid"></div>'
@@ -54,7 +54,7 @@ function renderAgentMailSection(section) {
 
     document.getElementById('content').innerHTML = html;
     agentMailLoadCheatsheets(data.relay_cheatsheet_id || '');
-    agentMailCheckStatus();
+    if (enabledOn) agentMailCheckStatus();
 }
 
 // One address or @domain per line; the shared draft reads the textarea as a list of lines.
@@ -110,35 +110,17 @@ function agentMailLoadCheatsheets(selectedID) {
         });
 }
 
-function agentMailSetBanner(state, text) {
+function agentMailCheckStatus() {
     const banner = document.getElementById('agentmail-status-banner');
     if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
-}
-
-function agentMailCheckStatus() {
-    agentMailSetBanner('neutral', t('config.agentmail.checking'));
-    fetch('/api/agentmail/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                agentMailSetBanner('neutral', '⚪ ' + t('config.agentmail.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_api_key') {
-                agentMailSetBanner('warning', '🟡 ' + t('config.agentmail.status_no_api_key'));
-                return;
-            }
-            if (res.status === 'no_inbox') {
-                agentMailSetBanner('warning', '🟡 ' + t('config.agentmail.status_no_inbox'));
-                return;
-            }
-            agentMailSetBanner(res.running ? 'success' : 'neutral', (res.running ? '🟢 ' : '⚪ ') + t('config.agentmail.status_ready'));
-            agentMailRenderSummary(res);
-        })
-        .catch(() => agentMailSetBanner('danger', '🔴 ' + t('config.agentmail.connection_failed')));
+    return cfgStatusBanner.check(banner, () => fetch('/api/agentmail/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'no_api_key') return { state: 'unconfigured', detail: t('config.agentmail.status_no_api_key') };
+        if (res.status === 'no_inbox') return { state: 'degraded', detail: t('config.agentmail.status_no_inbox') };
+        agentMailRenderSummary(res);
+        return { state: 'connected', detail: t('config.agentmail.status_ready') };
+    });
 }
 
 function agentMailRenderSummary(status) {
@@ -156,56 +138,14 @@ function agentMailRenderSummary(status) {
 
 function agentMailTestConnection() {
     const btn = document.getElementById('agentmail-test-btn');
-    const result = document.getElementById('agentmail-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.agentmail.loading');
-        result.className = 'adg-test-result';
-    }
-    fetch('/api/agentmail/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.agentmail.test_ok', { count: res.inbox_count || 0 });
-                agentMailCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = res.message || t('config.agentmail.test_fail');
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.agentmail.test_fail');
-            }
-        });
-}
-
-function agentMailSaveAPIKey() {
-    const input = document.getElementById('agentmail-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.agentmail.api_key_empty'), 'error');
-        return;
-    }
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/agentmail/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'agentmail_api_key', value: value })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(t('config.agentmail.api_key_saved'), 'success');
-                cfgMarkSecretStored(input, 'agentmail.api_key');
-                agentMailCheckStatus();
-            } else {
-                showToast(res.message || t('config.agentmail.api_key_save_failed'), 'error');
-            }
-        })
-        .catch(() => showToast(t('config.agentmail.api_key_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['agentmail']) })
+    }), {
+        target: 'agentmail-test-result',
+        success: outcome => t('config.agentmail.test_ok', { count: (outcome.body && outcome.body.inbox_count) || 0 }),
+        failure: t('config.agentmail.test_fail'),
+        onSuccess: () => agentMailCheckStatus()
+    });
 }

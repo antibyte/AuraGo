@@ -16,7 +16,7 @@ async function renderMQTTSection(section) {
         <div class="section-desc">${section.desc}</div>`;
 
     // Status banner
-    html += `<div id="mqtt-status-banner" class="adg-status-banner">${t('config.mqtt.checking')}</div>`;
+    html += cfgStatusBanner.html('mqtt-status-banner', enabled ? (data.broker ? 'checking' : 'unconfigured') : 'off', { detail: enabled && !data.broker ? t('config.mqtt.status_no_broker') : '' });
 
     // Enable toggle
     html += `<div class="field-group">
@@ -33,7 +33,7 @@ async function renderMQTTSection(section) {
         <div class="field-label">${t('config.mqtt.broker_label')}</div>
         <div class="field-help">${t('help.mqtt.broker')}</div>
         <input class="field-input" type="text" data-path="mqtt.broker" value="${escapeAttr(data.broker || '')}" placeholder="tcp://localhost:1883">
-        <div id="mqtt-tls-transport-message" class="adg-test-result is-danger" role="alert" hidden></div>
+        <div id="mqtt-tls-transport-message" class="pw-field-error" role="alert" hidden></div>
     </div>`;
 
     // Client ID
@@ -56,10 +56,9 @@ async function renderMQTTSection(section) {
         <div class="field-help">${t('help.mqtt.password_help')}</div>
         <div class="adg-password-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="mqtt-password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}" autocomplete="off">
+                <input class="field-input adg-password-input" type="password" id="mqtt-password" data-path="mqtt.password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save adg-save-btn" onclick="mqttSavePassword()">💾 ${t('config.mqtt.save_vault')}</button>
         </div>
     </div>`;
 
@@ -264,8 +263,8 @@ async function renderMQTTSection(section) {
 
     html += `<hr class="cfg-section-hr">`;
     html += `<div class="cfg-actions-row">
-        <button class="btn-save adg-test-btn" onclick="mqttTestConnection()" id="mqtt-test-btn">🔌 ${t('config.mqtt.test_btn')}</button>
-        <span id="mqtt-test-result" class="adg-test-result"></span>
+        <button class="btn-save adg-test-btn" onclick="mqttTestConnection()" id="mqtt-test-btn" data-config-action-draft="true">${t('config.mqtt.test_btn')}</button>
+        ${cfgActionResult.html('mqtt-test-result')}
     </div>`;
 
     // Messages preview
@@ -303,93 +302,49 @@ async function renderMQTTSection(section) {
     if (mqttTLSToggle) mqttTLSToggle.addEventListener('click', refreshMQTTTLSMessage);
     refreshMQTTTLSMessage();
 
-    if (enabled) {
-        if (data.broker) {
-            mqttCheckStatus();
-            mqttRefreshMessages();
-        } else {
-            mqttSetBanner('warning', '⚪ ' + t('config.mqtt.status_no_broker'));
-        }
-    } else {
-        mqttSetBanner('neutral', '⚪ ' + t('config.mqtt.status_disabled'));
+    if (enabled && data.broker) {
+        mqttCheckStatus();
+        mqttRefreshMessages();
     }
-}
-
-function mqttSetBanner(state, text) {
-    const banner = document.getElementById('mqtt-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
-    banner.textContent = text;
 }
 
 // Check MQTT connection status
 function mqttCheckStatus() {
-    if (!document.getElementById('mqtt-status-banner')) return;
-    mqttSetBanner('', t('config.mqtt.checking'));
-
-    fetch('/api/mqtt/status')
-        .then(r => r.json())
-        .then(res => {
-            if (!res.status || res.status === 'disabled') {
-                mqttSetBanner('', '⚪ ' + t('config.mqtt.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_broker') {
-                mqttSetBanner('warning', '⚪ ' + t('config.mqtt.status_no_broker'));
-                return;
-            }
-            if (res.connected) {
-                const tlsInfo = res.tls_enabled ? ' (TLS)' : '';
-                const activeBroker = res.active_broker || res.broker || '';
-                const brokerInfo = activeBroker && res.broker && activeBroker !== res.broker
-                    ? `${activeBroker} ← ${res.broker}` : activeBroker;
-                const stateInfo = res.connection_state ? ` · ${res.connection_state}` : '';
-                const sourceInfo = res.credential_source
-                    ? ` · ${t('config.mqtt.credential_source')}: ${res.credential_source}` : '';
-                const buffered = Number(res.buffer_len || 0);
-                mqttSetBanner('success', `🟢 ${t('config.mqtt.status_connected')} — ${brokerInfo}${tlsInfo}${stateInfo}${sourceInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}`);
-            } else {
-                const lastError = res.stats && res.stats.last_error ? ` — ${res.stats.last_error}` : '';
-                const stateInfo = res.connection_state ? ` (${res.connection_state})` : '';
-                const sourceInfo = res.credential_source
-                    ? ` · ${t('config.mqtt.credential_source')}: ${res.credential_source}` : '';
-                mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_disconnected') + stateInfo + sourceInfo + lastError);
-            }
-        })
-        .catch(() => mqttSetBanner('danger', '🔴 ' + t('config.mqtt.status_error')));
+    const banner = document.getElementById('mqtt-status-banner');
+    if (!banner) return;
+    return cfgStatusBanner.check(banner, () => fetch('/api/mqtt/status'), res => {
+        if (!res || !res.status || res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'no_broker') return { state: 'unconfigured', detail: t('config.mqtt.status_no_broker') };
+        const stateInfo = res.connection_state ? ` · ${res.connection_state}` : '';
+        const sourceInfo = res.credential_source
+            ? ` · ${t('config.mqtt.credential_source')}: ${res.credential_source}` : '';
+        if (res.connected) {
+            const tlsInfo = res.tls_enabled ? ' (TLS)' : '';
+            const activeBroker = res.active_broker || res.broker || '';
+            const brokerInfo = activeBroker && res.broker && activeBroker !== res.broker
+                ? `${activeBroker} ← ${res.broker}` : activeBroker;
+            const buffered = Number(res.buffer_len || 0);
+            return { state: 'connected', detail: `${t('config.mqtt.status_connected')} — ${brokerInfo}${tlsInfo}${stateInfo}${sourceInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}` };
+        }
+        const lastError = res.stats && res.stats.last_error ? ` — ${res.stats.last_error}` : '';
+        return { state: 'error', detail: t('config.mqtt.status_disconnected') + stateInfo + sourceInfo + lastError };
+    });
 }
 
 // Test connection
 function mqttTestConnection() {
     const btn = document.getElementById('mqtt-test-btn');
-    const result = document.getElementById('mqtt-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.mqtt.testing');
-    }
-
-    fetch('/api/mqtt/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'success') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.mqtt.test_ok');
-                mqttCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = res.message || t('config.mqtt.test_fail');
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.mqtt.test_fail');
-            }
-        });
+    return cfgActionResult(btn, () => fetch('/api/mqtt/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['mqtt']) })
+    }), {
+        target: 'mqtt-test-result',
+        pending: t('config.mqtt.testing'),
+        success: t('config.mqtt.test_ok'),
+        failure: t('config.mqtt.test_fail'),
+        onSuccess: () => mqttCheckStatus()
+    });
 }
 
 // Refresh messages
@@ -423,25 +378,3 @@ function mqttRefreshMessages() {
         });
 }
 
-// Save password to vault
-function mqttSavePassword() {
-    const input = document.getElementById('mqtt-password');
-    const pw = input ? input.value : '';
-    if (pw === '') { showToast(t('config.mqtt.password_empty'), 'error'); return; }
-
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'mqtt_password', value: pw })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            showToast(t('config.mqtt.password_saved'), 'success');
-            cfgMarkSecretStored(input, 'mqtt.password');
-        } else {
-            showToast(res.message || t('config.mqtt.password_save_failed'), 'error');
-        }
-    })
-    .catch(() => showToast(t('config.mqtt.password_save_failed'), 'error'));
-}

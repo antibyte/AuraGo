@@ -14,7 +14,7 @@ function renderTrueNASSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Connection status banner ──
-    html += '<div id="truenas-status-banner" class="adg-status-banner">' + t('config.truenas.checking') + '</div>';
+    html += cfgStatusBanner.html('truenas-status-banner', enabledOn && data.host ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !(enabledOn && data.host) ? t('config.truenas.status_no_url') : '' });
 
     // ── Enabled toggle ──
     const helpEnabled = t('help.truenas.enabled');
@@ -81,16 +81,15 @@ function renderTrueNASSection(section) {
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
         html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input adg-password-input" type="password" id="truenas-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
+        html += '<input class="field-input adg-password-input" type="password" id="truenas-apikey" data-path="truenas.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="truenasSaveKey()">💾 ' + t('config.truenas.save_vault') + '</button>';
     html += '</div></div>';
 
     // ── Test connection button ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="truenasTestConnection()" id="truenas-test-btn">🔌 ' + t('config.truenas.test_btn') + '</button>';
-    html += '<span id="truenas-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="truenasTestConnection()" id="truenas-test-btn" data-config-action-draft="true">' + t('config.truenas.test_btn') + '</button>';
+    html += cfgActionResult.html('truenas-test-result');
     html += '</div>';
 
     // ── Link to full UI ──
@@ -103,92 +102,33 @@ function renderTrueNASSection(section) {
     document.getElementById('content').innerHTML = html;
 
     // Auto-check status on load
-    if (enabledOn && data.host) {
-        truenasCheckStatus();
-    } else {
-        truenasSetBannerState(document.getElementById('truenas-status-banner'), 'neutral', '⚪ ' + (enabledOn ? t('config.truenas.status_no_url') : t('config.truenas.status_disabled')));
-    }
-}
-
-function truenasSetBannerState(banner, state, text) {
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+    if (enabledOn && data.host) truenasCheckStatus();
 }
 
 function truenasCheckStatus() {
     const banner = document.getElementById('truenas-status-banner');
     if (!banner) return;
-    truenasSetBannerState(banner, 'neutral', t('config.truenas.checking'));
-
-    fetch('/api/truenas/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                truenasSetBannerState(banner, 'neutral', '⚪ ' + t('config.truenas.status_disabled'));
-                return;
-            }
-            if (res.status === 'error' || res.status === 'offline') {
-                truenasSetBannerState(banner, 'danger', '🔴 ' + (res.error || t('config.truenas.connection_failed')));
-                return;
-            }
-            if (res.status === 'online') {
-                truenasSetBannerState(banner, 'success', '🟢 TrueNAS ' + (res.version || '') + ' — ' + (res.hostname || ''));
-                return;
-            }
-            if (res.status === 'no_url' || res.status === 'no_host') {
-                truenasSetBannerState(banner, 'neutral', '⚪ ' + t('config.truenas.status_no_url'));
-                return;
-            }
-            truenasSetBannerState(banner, 'neutral', '⚪ ' + t('config.truenas.status_unknown') + ': ' + String(res.status || ''));
-        })
-        .catch(() => {
-            truenasSetBannerState(banner, 'danger', '🔴 ' + t('config.truenas.connection_failed'));
-        });
+    return cfgStatusBanner.check(banner, () => fetch('/api/truenas/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'error' || res.status === 'offline') return { state: 'error', detail: res.error || t('config.truenas.connection_failed') };
+        if (res.status === 'online') return { state: 'connected', detail: 'TrueNAS ' + (res.version || '') + ' — ' + (res.hostname || '') };
+        if (res.status === 'no_url' || res.status === 'no_host') return { state: 'unconfigured', detail: t('config.truenas.status_no_url') };
+        return null;
+    });
 }
 
+// Tests the values typed in (not yet saved); the server does not persist them.
 function truenasTestConnection() {
     const btn = document.getElementById('truenas-test-btn');
-    const result = document.getElementById('truenas-test-result');
-    if (!btn || !result) return;
-
-    btn.disabled = true;
-    result.textContent = t('config.truenas.checking');
-
-    fetch('/api/truenas/status')
-        .then(r => r.json())
-        .then(res => {
-            btn.disabled = false;
-            if (res.status === 'online') {
-                result.textContent = '✅ ' + t('config.truenas.test_ok') + ' (' + res.version + ')';
-            } else {
-                result.textContent = '❌ ' + (res.error || t('config.truenas.test_fail'));
-            }
-        })
-        .catch(() => {
-            btn.disabled = false;
-            result.textContent = '❌ ' + t('config.truenas.test_fail');
-        });
-}
-
-function truenasSaveKey() {
-    const key = document.getElementById('truenas-apikey')?.value;
-    if (!key) { showToast(t('config.truenas.apikey_empty'), 'error'); return; }
-
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/truenas/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'truenas_api_key', value: key })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok') {
-            showToast(t('config.truenas.apikey_saved'), 'success');
-            cfgMarkSecretStored(document.getElementById('truenas-apikey'), 'truenas.api_key');
-        } else {
-            showToast(res.message || t('config.truenas.apikey_save_failed'), 'error');
-        }
-    })
-    .catch(() => showToast(t('config.truenas.apikey_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['truenas']) })
+    }), {
+        target: 'truenas-test-result',
+        success: t('config.truenas.test_ok'),
+        failure: t('config.truenas.test_fail'),
+        onSuccess: () => truenasCheckStatus()
+    });
 }

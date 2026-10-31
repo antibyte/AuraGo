@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/telnyx"
 )
 
@@ -21,7 +23,7 @@ func handleTelnyxStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeTelnyxProbeResult(w, s, false)
+		writeTelnyxProbeResult(w, s.ConfigSnapshot(), s.Logger, false)
 	}
 }
 
@@ -32,14 +34,17 @@ func handleTelnyxTest(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeTelnyxProbeResult(w, s, true)
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		writeTelnyxProbeResult(w, draft, s.Logger, true)
 	}
 }
 
-func writeTelnyxProbeResult(w http.ResponseWriter, s *Server, test bool) {
-	s.CfgMu.RLock()
-	cfg := s.Cfg.Telnyx
-	s.CfgMu.RUnlock()
+func writeTelnyxProbeResult(w http.ResponseWriter, full *config.Config, logger *slog.Logger, test bool) {
+	cfg := full.Telnyx
 
 	if !cfg.Enabled {
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -59,7 +64,7 @@ func writeTelnyxProbeResult(w http.ResponseWriter, s *Server, test bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client := telnyx.NewClient(cfg.APIKey, s.Logger)
+	client := telnyx.NewClient(cfg.APIKey, logger)
 	balance, err := client.GetBalance(ctx)
 	if err != nil {
 		if test {

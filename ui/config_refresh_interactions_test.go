@@ -199,14 +199,17 @@ func TestConfigRefreshInteractionsBrowser(t *testing.T) {
 	page.MustEval(`async () => {configData.adguard={enabled:true,url:'http://fixture.invalid',password:'••••••••'}; AuraConfigState.commit(configData); await selectSection('adguard'); resetDirtySnapshot();}`)
 	page.MustElement("#adg-test-btn").MustClick()
 	waitForJSBool(t, page, `() => document.getElementById('adg-test-result').classList.contains('is-danger')`)
-	if !page.MustEval(`() => document.querySelector('[data-path="adguard.url"]').value==='http://fixture.invalid' && !!document.querySelector('.cfg-save-scope')`).Bool() {
-		t.Fatal("failed test lost inputs or credential scope")
+	if !page.MustEval(`() => document.querySelector('[data-path="adguard.url"]').value=== 'http://fixture.invalid' && !document.querySelector('.cfg-save-scope')`).Bool() {
+		t.Fatalf("failed test lost inputs or showed a vault hint for a dock secret: %s", page.MustEval(`() => JSON.stringify({u:document.querySelector('[data-path="adguard.url"]')?.value, s:!!document.querySelector('.cfg-save-scope'), r:document.getElementById('adg-test-result').textContent})`).String())
 	}
-	// A credential action uses its Vault endpoint without writing the YAML config.
-	page.MustEval(`() => {window.__writes=[]; window.fetch=(url,opts)=>{if(opts?.method==='POST' || opts?.method==='PUT')window.__writes.push(String(url)); return String(url)==='/api/vault/secrets' ? Promise.resolve(new Response('{"status":"ok"}',{headers:{'Content-Type':'application/json'}})) : window.__originalFetch(url,opts);}; document.getElementById('adg-password').value='local-fixture-only'; adgSavePassword();}`)
-	waitForJSBool(t, page, `() => document.getElementById('adg-password').value===''`)
-	if !page.MustEval(`() => JSON.stringify(window.__writes)==='["/api/vault/secrets"]'`).Bool() {
-		t.Fatal("credential save crossed its storage boundary")
+	// A credential typed into the field joins the save dock: one config PUT carries it, no own Vault POST.
+	page.MustEval(`() => {window.__writes=[]; window.fetch=(url,opts)=>{if(opts?.method==='POST' || opts?.method==='PUT'){window.__writes.push(String(url)+' '+String(opts.body||''));} return String(url)==='/api/config' && opts?.method==='PUT' ? Promise.resolve(new Response('{"status":"ok"}',{headers:{'Content-Type':'application/json'}})) : window.__originalFetch(url,opts);}; const input=document.getElementById('adg-password'); input.value='local-fixture-only'; input.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	if !page.MustEval(`() => document.getElementById('adg-password').dataset.path==='adguard.password' && hasUnsavedConfigChanges() && !document.querySelector('.adg-save-btn') && !document.querySelector('[onclick*="adgSavePassword"]')`).Bool() {
+		t.Fatal("typed credential did not join the save dock")
+	}
+	page.MustEval(`async () => { await saveConfig(); }`)
+	if !page.MustEval(`() => window.__writes.length===1 && window.__writes[0].startsWith('/api/config ') && window.__writes[0].includes('local-fixture-only') && !window.__writes.some(w => w.startsWith('/api/vault/secrets'))`).Bool() {
+		t.Fatalf("credential save crossed its storage boundary: %s", page.MustEval(`() => JSON.stringify(window.__writes)`).String())
 	}
 	page.MustEval(`async () => {window.fetch=window.__originalFetch; await selectSection('here_now'); resetDirtySnapshot();}`)
 	page.MustEval(`() => {const row=document.querySelector('.cfg-toggle-row-compact'); window.__toggleCopy=row.querySelector('.cfg-toggle-copy').textContent; toggleBool(row.querySelector('.toggle'));}`)

@@ -18,7 +18,7 @@ function renderObsidianSection(section) {
     }
 
     // ── Connection status banner ──
-    html += '<div id="obsidian-status-banner" class="adg-status-banner">' + t('config.obsidian.checking') + '</div>';
+    html += cfgStatusBanner.html('obsidian-status-banner', enabledOn ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !(enabledOn) ? t('config.obsidian.status_no_url') : '' });
 
     // ── Enabled toggle ──
     const helpEnabled = t('help.obsidian.enabled');
@@ -109,16 +109,15 @@ function renderObsidianSection(section) {
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
         html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input adg-password-input" type="password" id="obsidian-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
+        html += '<input class="field-input adg-password-input" type="password" id="obsidian-apikey" data-path="obsidian.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="obsidianSaveKey()">💾 ' + t('config.obsidian.save_vault') + '</button>';
     html += '</div></div>';
 
     // ── Test connection button ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="obsidianTestConnection()" id="obsidian-test-btn">🔌 ' + t('config.obsidian.test_btn') + '</button>';
-    html += '<span id="obsidian-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="obsidianTestConnection()" id="obsidian-test-btn" data-config-action-draft="true">' + t('config.obsidian.test_btn') + '</button>';
+    html += cfgActionResult.html('obsidian-test-result');
     html += '</div>';
 
     html += '</div>';
@@ -126,92 +125,33 @@ function renderObsidianSection(section) {
     document.getElementById('content').innerHTML = html;
 
     // Auto-check status on load
-    if (enabledOn) {
-        obsidianCheckStatus();
-    } else {
-        obsidianSetBannerState(document.getElementById('obsidian-status-banner'), 'neutral', '⚪ ' + t('config.obsidian.status_disabled'));
-    }
-}
-
-function obsidianSetBannerState(banner, state, text) {
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+    if (enabledOn) obsidianCheckStatus();
 }
 
 function obsidianCheckStatus() {
     const banner = document.getElementById('obsidian-status-banner');
     if (!banner) return;
-    obsidianSetBannerState(banner, 'neutral', t('config.obsidian.checking'));
-
-    fetch('/api/obsidian/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                obsidianSetBannerState(banner, 'neutral', '⚪ ' + t('config.obsidian.status_disabled'));
-                return;
-            }
-            if (res.status === 'error' || res.status === 'offline') {
-                obsidianSetBannerState(banner, 'danger', '🔴 ' + (res.error || t('config.obsidian.connection_failed')));
-                return;
-            }
-            if (res.status === 'online') {
-                obsidianSetBannerState(banner, 'success', '🟢 Obsidian REST API v' + (res.api_version || '') + ' — Obsidian ' + (res.obsidian_version || ''));
-                return;
-            }
-            if (res.status === 'no_url' || res.status === 'no_host') {
-                obsidianSetBannerState(banner, 'neutral', '⚪ ' + t('config.obsidian.status_no_url'));
-                return;
-            }
-            obsidianSetBannerState(banner, 'neutral', '⚪ ' + t('config.obsidian.status_unknown') + ': ' + String(res.status || ''));
-        })
-        .catch(() => {
-            obsidianSetBannerState(banner, 'danger', '🔴 ' + t('config.obsidian.connection_failed'));
-        });
+    return cfgStatusBanner.check(banner, () => fetch('/api/obsidian/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'error' || res.status === 'offline') return { state: 'error', detail: res.error || t('config.obsidian.connection_failed') };
+        if (res.status === 'online') return { state: 'connected', detail: 'Obsidian REST API v' + (res.api_version || '') + ' — Obsidian ' + (res.obsidian_version || '') };
+        if (res.status === 'no_url' || res.status === 'no_host') return { state: 'unconfigured', detail: t('config.obsidian.status_no_url') };
+        return null;
+    });
 }
 
+// Tests the values typed in (not yet saved); the server does not persist them.
 function obsidianTestConnection() {
     const btn = document.getElementById('obsidian-test-btn');
-    const result = document.getElementById('obsidian-test-result');
-    if (!btn || !result) return;
-
-    btn.disabled = true;
-    result.textContent = t('config.obsidian.checking');
-
-    fetch('/api/obsidian/status')
-        .then(r => r.json())
-        .then(res => {
-            btn.disabled = false;
-            if (res.status === 'online') {
-                result.textContent = '✅ ' + t('config.obsidian.test_ok') + ' (API v' + (res.api_version || '') + ')';
-            } else {
-                result.textContent = '❌ ' + (res.error || t('config.obsidian.test_fail'));
-            }
-        })
-        .catch(() => {
-            btn.disabled = false;
-            result.textContent = '❌ ' + t('config.obsidian.test_fail');
-        });
-}
-
-function obsidianSaveKey() {
-    const key = document.getElementById('obsidian-apikey')?.value;
-    if (!key) { showToast(t('config.obsidian.apikey_empty'), 'error'); return; }
-
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/obsidian/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'obsidian_api_key', value: key })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok') {
-            showToast(t('config.obsidian.apikey_saved'), 'success');
-            cfgMarkSecretStored(document.getElementById('obsidian-apikey'), 'obsidian.api_key');
-        } else {
-            showToast(res.message || t('config.obsidian.apikey_save_failed'), 'error');
-        }
-    })
-    .catch(() => showToast(t('config.obsidian.apikey_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['obsidian']) })
+    }), {
+        target: 'obsidian-test-result',
+        success: t('config.obsidian.test_ok'),
+        failure: t('config.obsidian.test_fail'),
+        onSuccess: () => obsidianCheckStatus()
+    });
 }
