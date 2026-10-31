@@ -79,6 +79,7 @@
       <button type="button" role="menuitem" data-action="arrange" disabled>${esc(t('desktop.infra_arrange'))}</button>
       <button type="button" role="menuitem" data-action="shortcuts" aria-keyshortcuts="Shift+?">${esc(t('desktop.infra_shortcuts'))}</button>
       <button type="button" role="menuitem" data-action="legend" aria-haspopup="dialog">${esc(t('desktop.infra_legend'))}</button>
+      <button type="button" role="menuitem" data-action="export-pdf" aria-haspopup="dialog">${esc(t('desktop.infra_export_pdf'))}</button>
       <button type="button" role="menuitem" data-action="history-undo" data-overflow-only>${esc(t('desktop.infra_undo'))}</button>
       <button type="button" role="menuitem" data-action="history-redo" data-overflow-only>${esc(t('desktop.infra_redo'))}</button>
     </div>
@@ -507,6 +508,7 @@
                 case 'clear-filters': resetFilters(Object.keys(FILTER_SELECTS)); return;
                 case 'shortcuts': if (menuItem) closeMenus({ restoreFocus: true }); menus.openShortcuts(); return;
                 case 'legend': if (menuItem) closeMenus(); openMenu('legend'); return;
+                case 'export-pdf': if (menuItem) closeMenus({ restoreFocus: true }); dialogs.openExportPdfDialog(); return;
                 case 'undo': case 'history-undo': if (store.canUndo(view)) void store.undo(view); break;
                 case 'redo': case 'history-redo': if (store.canRedo(view)) void store.redo(view); break;
                 case 'toggle-library': toggleLibrary(); return;

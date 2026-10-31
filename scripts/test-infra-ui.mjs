@@ -114,9 +114,15 @@ for (const locale of locales) {
     const families = [...source.matchAll(/`(desktop\.infra_[a-z0-9_]*_)\$\{/g)].map(match => match[1]);
     const tails = [...source.matchAll(/listEditor\('[a-z_]+', '([a-z_]+)',[^\n]*?, '([a-z_]+)', '([a-z_]+)'\)/g)].flatMap(match => match.slice(1));
     assert.ok(tails.length >= 6, 'the profile list editors pass their key tails');
-    const unused = Object.keys(english).filter(key => key.startsWith('desktop.infra_') && !referenced.has(key) && !families.some(family => key.startsWith(family)) && !tails.some(tail => key === `desktop.infra_${tail}`));
+    const unused = Object.keys(english).filter(key => key.startsWith('desktop.infra_') && !referenced.has(key) && !key.startsWith('desktop.infra_pdf_') && !families.some(family => key.startsWith(family)) && !tails.some(tail => key === `desktop.infra_${tail}`));
     assert.deepEqual(unused, [], `unused Infra keys, delete them from all 16 locales:\n${unused.join('\n')}`);
 }
+
+// ---- PDF export (the server draws the PDF; the desktop.infra_pdf_* keys are read by Go, see the unused-key check) -----------
+assert.ok(source.includes('data-action="export-pdf"'), 'the More menu offers the PDF export');
+assert.ok(source.includes("case 'export-pdf': if (menuItem) closeMenus({ restoreFocus: true }); dialogs.openExportPdfDialog();"), 'the export item is not gated on write access and hands the focus back');
+assert.ok(source.includes('create.disabled = !!controller || !chosen().sections.length'), 'Create is disabled while busy or with no section chosen');
+assert.ok(source.includes("create.setAttribute('aria-busy', 'true')"), 'the busy Create button says so');
 
 // ---- key labels are translated (final review) ---------------------------------------------
 // A <kbd> shows a letter, a symbol or a translated key name (infra_kbd_*); a modifier spelled out in a template is English in every locale.

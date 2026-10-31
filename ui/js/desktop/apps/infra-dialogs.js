@@ -332,6 +332,78 @@
             });
         }
 
+        // ---- homelab map as PDF -------------------------------------------------------------------------------
+        // The server draws the PDF (GET /export/pdf); the dialog picks paper and sections, remembers them, and aborts the request when it closes.
+        const PDF_KEY = 'aurago.infra.pdfExport', PDF_PAPERS = ['a4', 'a3', 'letter'], PDF_PAPER_LABELS = { a4: 'A4', a3: 'A3', letter: 'Letter' }, PDF_SECTIONS = ['map', 'hosts', 'inventory'];
+        function readPdfPrefs() {
+            const prefs = { paper: 'a4', sections: PDF_SECTIONS.slice() };
+            try {
+                const saved = JSON.parse(app.readStorage?.(PDF_KEY) || 'null');
+                if (PDF_PAPERS.includes(saved?.paper)) prefs.paper = saved.paper;
+                if (Array.isArray(saved?.sections)) prefs.sections = PDF_SECTIONS.filter(name => saved.sections.includes(name));
+            } catch (_) { /* unreadable preferences: the defaults */ }
+            return prefs;
+        }
+        const pdfFilename = header => {
+            const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header || '');
+            let name = match ? match[1].trim() : '';
+            try { name = decodeURIComponent(name); } catch (_) { /* keep the raw name */ }
+            name = name.replace(/[\x00-\x1f\\/:*?"<>|]/g, '_');
+            return name || 'homelab-map.pdf';
+        };
+        function openExportPdfDialog() {
+            const prefs = readPdfPrefs();
+            const radio = value => `<label class="infra-pdf-option"><input type="radio" name="paper" value="${value}" ${value === prefs.paper ? 'checked' : ''}><span>${esc(PDF_PAPER_LABELS[value])}</span></label>`;
+            const check = value => `<label class="infra-pdf-option"><input type="checkbox" name="sections" value="${value}" ${prefs.sections.includes(value) ? 'checked' : ''}><span>${esc(t(`desktop.infra_export_pdf_section_${value}`))}</span></label>`;
+            return openDialog(t('desktop.infra_export_pdf'), `<form data-pdf-form><fieldset class="infra-pdf-fieldset"><legend>${esc(t('desktop.infra_export_pdf_paper'))}</legend><div class="infra-pdf-options">${PDF_PAPERS.map(radio).join('')}</div></fieldset><fieldset class="infra-pdf-fieldset"><legend>${esc(t('desktop.infra_export_pdf_sections'))}</legend><div class="infra-pdf-options">${PDF_SECTIONS.map(check).join('')}</div></fieldset><div class="infra-form-actions"><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button class="infra-button-primary" type="submit" data-pdf-create>${esc(t('desktop.infra_export_pdf_create'))}</button></div></form>`, dialog => {
+                const form = dialog.querySelector('[data-pdf-form]'), create = form.querySelector('[data-pdf-create]'), fieldsets = [...form.querySelectorAll('fieldset')];
+                const chosen = () => ({ paper: form.querySelector('[name="paper"]:checked')?.value || 'a4', sections: PDF_SECTIONS.filter(name => form.querySelector(`[name="sections"][value="${name}"]`)?.checked) });
+                let controller = null;
+                const sync = () => { create.disabled = !!controller || !chosen().sections.length; };
+                sync();
+                form.addEventListener('change', sync);
+                dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+                dialog.addEventListener('close', () => controller?.abort(), { once: true });
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    const { paper, sections } = chosen();
+                    if (controller || !sections.length) return;
+                    app.writeStorage?.(PDF_KEY, JSON.stringify({ paper, sections }));
+                    const owner = dialog.dataset.infraOwner, own = new AbortController();
+                    controller = own;
+                    fieldsets.forEach(fieldset => { fieldset.disabled = true; });
+                    create.textContent = t('desktop.infra_export_pdf_busy'); create.setAttribute('aria-busy', 'true'); sync();
+                    try {
+                        const response = await fetch(`/api/desktop/infra/export/pdf?paper=${encodeURIComponent(paper)}&sections=${sections.join(',')}`, { credentials: 'same-origin', signal: own.signal });
+                        if (!response.ok) {
+                            let body = null;
+                            try { body = await response.json(); } catch (_) { /* not JSON */ }
+                            const detail = body?.message || body?.error?.message;
+                            throw Object.assign(new Error(typeof detail === 'string' && detail ? detail : t('desktop.infra_export_pdf_failed')), { status: response.status });
+                        }
+                        const blob = await response.blob();
+                        if (own.signal.aborted) return;
+                        const url = URL.createObjectURL(blob), link = document.createElement('a');
+                        link.href = url; link.download = pdfFilename(response.headers.get('Content-Disposition'));
+                        document.body.appendChild(link); link.click(); link.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                        closeOwnedDialog(owner);
+                        app.toast(t('desktop.infra_export_pdf_done'), 'success');
+                    } catch (error) {
+                        if (error?.name === 'AbortError' || state.disposed) return;
+                        app.toast(error?.message || t('desktop.infra_export_pdf_failed'), 'error');
+                    } finally {
+                        if (controller === own) controller = null;
+                        if (dialog.isConnected && dialog.open && ownsDialog(owner)) {
+                            fieldsets.forEach(fieldset => { fieldset.disabled = false; });
+                            create.textContent = t('desktop.infra_export_pdf_create'); create.removeAttribute('aria-busy'); sync();
+                        }
+                    }
+                });
+                form.querySelector('[name="paper"]:checked')?.focus();
+            });
+        }
+
         // ---- busy keys and teardown -------------------------------------------------------------------------------
         function onBusy(key) {
             const busy = state.busy.has(key);
@@ -347,7 +419,7 @@
         }
 
         return {
-            openDialog, confirmAction, openNodeDialog, openEdgeDialog,
+            openDialog, confirmAction, openNodeDialog, openEdgeDialog, openExportPdfDialog,
             deleteNode, deleteNodes, removeAndIgnore, removeEdge, openActionMenu, runAction, openNodeActions, createNode, saveEdge,
             openConnectionPopover, closeConnectionPopover, onBusy, ownsDialog, closeOwnedDialog, dispose,
         };

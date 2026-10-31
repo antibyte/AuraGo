@@ -234,6 +234,12 @@
 .infra-dialog .infra-field input, .infra-dialog .infra-field select { min-height: 38px; font-size: 15px; }
 .infra-dialog .infra-form-actions { margin-top: 18px; justify-content: flex-end; }
 .infra-dialog .infra-form-actions .infra-flex-spacer { flex: 1; }
+.infra-pdf-fieldset { margin: 10px 0 0; padding: 8px 12px 10px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); min-width: 0; }
+.infra-pdf-fieldset > legend { padding: 0 6px; color: var(--vd-theme-muted); font-size: 14px; }
+.infra-pdf-options { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.infra-pdf-option { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; color: var(--vd-text); font-size: 15px; cursor: pointer; }
+.infra-pdf-option input { width: 17px; height: 17px; margin: 0; accent-color: var(--vd-accent); }
+.infra-pdf-fieldset:disabled .infra-pdf-option { opacity: .6; cursor: default; }
 .infra-candidate-check { display: grid; place-items: center; width: 22px; height: 30px; cursor: pointer; }
 .infra-candidate-check input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .infra-checkbox-mark { width: 17px; height: 17px; border: 1px solid var(--vd-theme-border); border-radius: 4px; background: var(--vd-theme-app-bg); }
