@@ -2,6 +2,13 @@
  * Firewall Configuration Tab
  */
 
+// The generic renderField closes its own group; put the module help inside it so it belongs to the field.
+function fwFieldWithHelp(fieldHTML, helpKey) {
+    const end = fieldHTML.lastIndexOf('</div>');
+    if (end < 0) return fieldHTML + '<div class="field-help fw-field-help-in-card">' + t(helpKey) + '</div>';
+    return fieldHTML.slice(0, end) + '<div class="field-help fw-field-help-in-card">' + t(helpKey) + '</div>' + fieldHTML.slice(end);
+}
+
 window.renderFirewallSection = function (sectionParam) {
     let html = '<div class="cfg-section active fw-section">';
     html += '<div class="section-header">' + sectionParam.label + '</div>';
@@ -37,20 +44,16 @@ window.renderFirewallSection = function (sectionParam) {
     html += '<div id="firewallOptionsWrapper" class="fw-options-wrap' + (isOn ? '' : ' is-disabled') + '">';
 
     // Firewall Mode
-    html += renderField('firewall.mode', 'mode', fwConfig.mode || 'readonly', 'firewall', {
+    html += fwFieldWithHelp(renderField('firewall.mode', 'mode', fwConfig.mode || 'readonly', 'firewall', {
         type: 'string',
         sensitive: false
-    });
-
-    html += '<div class="field-help fw-field-help-in-card">' + t('help.config.firewall.mode') + '</div>';
+    }), 'help.config.firewall.mode');
 
     // Poll Interval
-    html += renderField('firewall.poll_interval_seconds', 'poll_interval_seconds', fwConfig.poll_interval_seconds || 60, 'firewall', {
+    html += fwFieldWithHelp(renderField('firewall.poll_interval_seconds', 'poll_interval_seconds', fwConfig.poll_interval_seconds || 60, 'firewall', {
         type: 'int',
         sensitive: false
-    });
-
-    html += '<div class="field-help fw-field-help-in-card">' + t('help.config.firewall.poll_interval_seconds') + '</div>';
+    }), 'help.config.firewall.poll_interval_seconds');
 
     html += '</div>'; // End wrapper
     if (fwBlocked) html += '</div>'; // End feature-unavailable-fields

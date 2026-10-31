@@ -98,6 +98,7 @@ function renderTelnyxSection(section) {
     // Voice Gender
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.voice_gender_label') + '</div>';
+    html += '<div class="field-help">' + t('config.telnyx.voice_gender_help') + '</div>';
     html += '<select class="field-select" data-path="telnyx.voice_gender">';
     html += '<option value="female"' + ((data.voice_gender || 'female') === 'female' ? ' selected' : '') + '>' + t('config.telnyx.voice_female') + '</option>';
     html += '<option value="male"' + (data.voice_gender === 'male' ? ' selected' : '') + '>' + t('config.telnyx.voice_male') + '</option>';
@@ -114,12 +115,14 @@ function renderTelnyxSection(section) {
     // Max Concurrent Calls
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.max_concurrent_calls_label') + '</div>';
+    html += '<div class="field-help">' + t('config.telnyx.max_concurrent_calls_help') + '</div>';
     html += '<input class="field-input" type="number" data-path="telnyx.max_concurrent_calls" value="' + escapeAttr(String(data.max_concurrent_calls || 3)) + '" min="1" max="20">';
     html += '</div>';
 
     // Max SMS per Minute
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.max_sms_per_minute_label') + '</div>';
+    html += '<div class="field-help">' + t('config.telnyx.max_sms_per_minute_help') + '</div>';
     html += '<input class="field-input" type="number" data-path="telnyx.max_sms_per_minute" value="' + escapeAttr(String(data.max_sms_per_minute || 10)) + '" min="1" max="60">';
     html += '</div>';
 

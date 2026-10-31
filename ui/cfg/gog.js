@@ -6,8 +6,8 @@ async function renderGogSection(section) {
     const content = document.getElementById('content');
     content.innerHTML = `<div class="cfg-section active" id="gog-section">
       <div class="section-header">${escapeHtml(section.label)}</div><p>${tr('intro')}</p>
-      ${AuraConfigForm.toggle({ path: 'gog.enabled', value: cfg.enabled === true, label: tr('enabled') })}
-      ${AuraConfigForm.toggle({ path: 'gog.readonly', value: cfg.readonly !== false, label: tr('readonly') })}
+      ${AuraConfigForm.toggle({ path: 'gog.enabled', value: cfg.enabled === true, label: tr('enabled'), help: tr('enabled_help') })}
+      ${AuraConfigForm.toggle({ path: 'gog.readonly', value: cfg.readonly !== false, label: tr('readonly'), help: tr('readonly_help') })}
       <div class="field-group"><h3>1. ${tr('install')}</h3><p id="gog-status" role="status">${tr('loading')}</p><button type="button" class="btn-save" id="gog-install">${tr('install')}</button></div>
       <div class="field-group"><h3>2. ${tr('oauth')}</h3><p>${tr('cloud_help')}</p><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Google Cloud Console ↗</a><p>${tr('save_first')}</p></div>
       <textarea hidden data-path="gog.accounts" data-type="json">${escapeHtml(JSON.stringify(accounts))}</textarea>
@@ -37,11 +37,11 @@ async function renderGogSection(section) {
         catch (error) { if (root.isConnected) message.textContent = tr('error') + ' · ' + error.message; }
         finally { if (root.isConnected) button.disabled = false; }
     }
-    function field(parent, label, value, update, type = 'text') {
+    function field(parent, label, value, update, type = 'text', help = '') {
         const wrap = document.createElement('label'); wrap.className = 'field-group'; wrap.textContent = label;
         const input = document.createElement('input'); input.className = 'field-input'; input.type = type;
         if (type === 'checkbox') input.checked = value === true; else input.value = value || '';
-        input.addEventListener('change', () => { update(type === 'checkbox' ? input.checked : input.value); change(); }); wrap.append(input); parent.append(wrap); return input;
+        input.addEventListener('change', () => { update(type === 'checkbox' ? input.checked : input.value); change(); }); wrap.append(input); if (help) { const note = document.createElement('small'); note.className = 'field-help'; note.textContent = help; wrap.append(note); } parent.append(wrap); return input;
     }
     function button(parent, label, work, confirmKeys) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-secondary'; b.textContent = label; b.addEventListener('click', async () => { if (confirmKeys && !(await showConfirm(tr(confirmKeys[0]), tr(confirmKeys[1]).replace('{name}', confirmKeys[2] || '')))) return; action(b, work); }); parent.append(b); return b; }
     function summarize(value) { const copy = Object.assign({}, value); delete copy.status; const text = copy.message || JSON.stringify(copy); return text.length > 300 ? text.slice(0, 300) + '...' : text; }
@@ -51,13 +51,13 @@ async function renderGogSection(section) {
             account.services ||= {}; const card = document.createElement('div'); card.className = 'field-group';
             const heading = document.createElement('h3'); heading.textContent = account.name || account.id; card.append(heading);
             const status = document.createElement('p'); status.dataset.accountStatus = account.id; status.textContent = tr(statuses.find(s => s.account.id === account.id)?.connected ? 'connected' : 'disconnected'); card.append(status);
-            field(card, tr('name'), account.name, v => { account.name = v; heading.textContent = v || account.id; });
+            field(card, tr('name'), account.name, v => { account.name = v; heading.textContent = v || account.id; }, 'text', tr('name_help'));
             const id = document.createElement('small'); id.textContent = 'ID: ' + account.id; card.append(id);
-            field(card, tr('enabled'), account.enabled, v => account.enabled = v, 'checkbox');
-            field(card, tr('agent'), account.agent_access, v => account.agent_access = v, 'checkbox');
-            field(card, tr('desktop'), account.desktop_access, v => account.desktop_access = v, 'checkbox');
-            field(card, tr('client_id'), account.client_id, v => account.client_id = v);
-            const secretLabel = document.createElement('label'); secretLabel.textContent = tr('secret'); const secret = document.createElement('input'); secret.type = 'password'; secret.autocomplete = 'new-password'; secret.className = 'field-input'; secretLabel.append(secret); card.append(secretLabel);
+            field(card, tr('enabled'), account.enabled, v => account.enabled = v, 'checkbox', tr('account_enabled_help'));
+            field(card, tr('agent'), account.agent_access, v => account.agent_access = v, 'checkbox', tr('agent_help'));
+            field(card, tr('desktop'), account.desktop_access, v => account.desktop_access = v, 'checkbox', tr('desktop_help'));
+            field(card, tr('client_id'), account.client_id, v => account.client_id = v, 'text', tr('client_id_help'));
+            const secretLabel = document.createElement('label'); secretLabel.textContent = tr('secret'); const secret = document.createElement('input'); secret.type = 'password'; secret.autocomplete = 'new-password'; secret.className = 'field-input'; const secretHelp = document.createElement('small'); secretHelp.className = 'field-help'; secretHelp.textContent = tr('secret_help'); secretLabel.append(secret, secretHelp); card.append(secretLabel);
             button(card, tr('save_secret'), async () => { await request('client-secret', { account_id: account.id, secret: secret.value }); secret.value = ''; });
             const help = document.createElement('p'); help.textContent = tr('grants_help'); card.append(help);
             const tableWrap = document.createElement('div'); tableWrap.style.overflowX = 'auto'; const table = document.createElement('table'); table.className = 'cfg-table';

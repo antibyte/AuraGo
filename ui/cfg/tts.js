@@ -52,7 +52,7 @@ function renderTTSSection(section) {
 
     const phononVoice = data.phonon?.voice_id || '';
     html += '<div id="tts-phonon-section" class="tts-provider-section' + (currentProvider === 'phonon' ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">Phonon</div>';
+    html += '<div class="tts-subsection-title">' + t('config.tts.title_phonon') + '</div>';
     html += '<div class="field-help">' + t('config.tts.phonon_help') + '</div>';
     html += '<div class="field-group"><label class="field-label" for="phonon-voice-select">' + t('config.tts.phonon_voice_label') + '</label>';
     html += '<select class="field-select" id="phonon-voice-select" data-path="tts.phonon.voice_id"><option value="">' + t('config.tts.phonon_voice_auto') + '</option>';
@@ -60,6 +60,7 @@ function renderTTSSection(section) {
     html += '</select><div class="field-help">' + t('config.tts.phonon_voice_help') + '</div></div>';
     html += '<p class="field-help" id="phonon-status" role="status"></p>';
     html += '<div class="field-group"><label class="field-label" for="phonon-language-filter">' + t('config.tts.phonon_catalog_label') + '</label>';
+    html += '<div class="field-help">' + t('config.tts.phonon_catalog_help') + '</div>';
     html += '<select id="phonon-language-filter" class="field-select" onchange="ttsPhononRenderCatalog()"><option value="">' + t('config.tts.phonon_all_languages') + '</option>';
     for (const lang of ['de','en','fr','es','pt']) html += '<option value="' + lang + '">' + lang + '</option>';
     html += '</select><div id="phonon-voice-list"></div></div>';
@@ -67,10 +68,11 @@ function renderTTSSection(section) {
 
     const showEL = currentProvider === 'elevenlabs';
     html += '<div id="tts-elevenlabs-section" class="tts-provider-section' + (showEL ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">🎤 ElevenLabs</div>';
+    html += '<div class="tts-subsection-title">🎤 ' + t('config.tts.title_elevenlabs') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.elevenlabs_api_key_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap adg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="tts-elevenlabs-api-key" data-path="tts.elevenlabs.api_key" value="' + escapeAttr(cfgSecretValue(elData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(elData.api_key, t('config.tts.elevenlabs_api_key_placeholder'))) + '">';
@@ -80,21 +82,24 @@ function renderTTSSection(section) {
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.elevenlabs_voice_id_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.elevenlabs_voice_id_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.elevenlabs.voice_id" value="' + escapeAttr(elData.voice_id || '') + '" placeholder="' + t('config.tts.elevenlabs_voice_id_placeholder') + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.elevenlabs_model_id_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.elevenlabs_model_id_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.elevenlabs.model_id" value="' + escapeAttr(elData.model_id || '') + '" placeholder="' + t('config.tts.elevenlabs_model_id_placeholder') + '">';
     html += '</div>';
     html += '</div>';
 
     const showMM = currentProvider === 'minimax';
     html += '<div id="tts-minimax-section" class="tts-provider-section' + (showMM ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">🎵 MiniMax TTS</div>';
+    html += '<div class="tts-subsection-title">🎵 ' + t('config.tts.title_minimax') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.minimax_api_key_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap adg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="tts-minimax-api-key" data-path="tts.minimax.api_key" value="' + escapeAttr(cfgSecretValue(mmData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mmData.api_key, t('config.tts.minimax_api_key_placeholder'))) + '">';
@@ -126,10 +131,11 @@ function renderTTSSection(section) {
 
     const showMistral = currentProvider === 'mistral';
     html += '<div id="tts-mistral-section" class="tts-provider-section' + (showMistral ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">Mistral AI Voxtral TTS</div>';
+    html += '<div class="tts-subsection-title">' + t('config.tts.title_mistral') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.mistral_api_key_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap adg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="tts-mistral-api-key" data-path="tts.mistral.api_key" value="' + escapeAttr(cfgSecretValue(mistralData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mistralData.api_key, t('config.tts.mistral_api_key_placeholder'))) + '">';
@@ -157,12 +163,14 @@ function renderTTSSection(section) {
         html += '<div class="tts-subsection-title">' + provider.name + '</div>';
         if (provider.notice) html += '<div class="cfg-note-banner cfg-note-banner-warning" role="note">' + t('config.tts.' + provider.notice) + '</div>';
         html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-api-key">' + t('config.tts.cloud_api_key_label') + '</label>';
+        html += '<div class="field-help">' + t('config.tts.api_key_help') + '</div>';
         html += '<div class="adg-password-row"><div class="password-wrap adg-password-input">';
         html += '<input class="field-input adg-password-input" type="password" id="tts-' + id + '-api-key" data-path="' + path + '.api_key" value="' + escapeAttr(cfgSecretValue(settings.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(settings.api_key, provider.name)) + '"' + cfgNoAutofillAttrs(true) + '>';
         html += '</div></div></div>';
         html += '<div class="field-group"><label class="field-label" for="tts-' + id + '-voice">' + t('config.tts.cloud_voice_label') + '</label>';
         if (provider.voices) {
             html += ttsCloudSelect(path + '.voice_id', settings.voice_id || provider.voice, provider.voices, 'tts-' + id + '-voice');
+            html += '<div class="field-help">' + t('config.tts.cloud_voice_help') + '</div>';
         } else {
             html += '<input class="field-input" id="tts-' + id + '-voice" type="text" data-path="' + path + '.voice_id" value="' + escapeAttr(settings.voice_id || '') + '" placeholder="voice_uuid">';
             html += '<div class="field-help">' + t('config.tts.resemble_voice_help') + '</div>';
@@ -178,7 +186,7 @@ function renderTTSSection(section) {
 
     const showSupertonic = currentProvider === 'supertonic';
     html += '<div id="tts-supertonic-section" class="tts-provider-section' + (showSupertonic ? '' : ' is-hidden') + '">';
-    html += '<div class="tts-subsection-title">Supertonic TTS (Local Docker)</div>';
+    html += '<div class="tts-subsection-title">' + t('config.tts.title_supertonic') + '</div>';
     html += cfgStatusBanner.html('supertonic-status-banner', 'checking', { detail: t('config.tts.supertonic_checking') });
 
     html += '<div class="field-group">';
@@ -238,21 +246,25 @@ function renderTTSSection(section) {
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.supertonic_image_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_image_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.supertonic.image" value="' + escapeAttr(supertonicData.image || 'ghcr.io/antibyte/aurago-supertonic:latest') + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.supertonic_port_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_port_help') + '</div>';
     html += '<input class="field-input" type="number" data-path="tts.supertonic.container_port" value="' + (supertonicData.container_port || 7788) + '" min="1" max="65535">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.supertonic_data_path_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_data_path_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.supertonic.data_path" value="' + escapeAttr(supertonicData.data_path || 'data/supertonic') + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.supertonic_container_name_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_container_name_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.supertonic.container_name" value="' + escapeAttr(supertonicData.container_name || 'aurago-supertonic-tts') + '">';
     html += '</div>';
 
@@ -265,7 +277,7 @@ function renderTTSSection(section) {
 
     html += '</div>';
 
-    html += '<div class="tts-subsection-title">🗣️ Piper TTS (Local Docker)</div>';
+    html += '<div class="tts-subsection-title">🗣️ ' + t('config.tts.title_piper') + '</div>';
     html += cfgStatusBanner.html('piper-status-banner', 'checking', { detail: t('config.tts.piper_checking') });
 
     html += '<div class="field-group">';
@@ -292,16 +304,19 @@ function renderTTSSection(section) {
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.piper_port_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.piper_port_help') + '</div>';
     html += '<input class="field-input" type="number" data-path="tts.piper.container_port" value="' + (piperData.container_port || 10200) + '" min="1" max="65535">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.piper_image_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.piper_image_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.piper.image" value="' + escapeAttr(piperData.image || 'rhasspy/wyoming-piper:latest') + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.piper_data_path_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.piper_data_path_help') + '</div>';
     html += '<input class="field-input" type="text" data-path="tts.piper.data_path" value="' + escapeAttr(piperData.data_path || 'data/piper') + '">';
     html += '</div>';
 

@@ -126,14 +126,14 @@ async function renderManifestSection(section) {
     html += '<div class="cfg-advanced-body">';
     html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.routing_note') + '</div>';
     html += '<div class="field-grid two-cols">';
-    html += manifestToggleRow('config.manifest.routing_enabled_label', '', data.routing.enabled === true, 'manifest.routing.enabled');
-    html += manifestSelectFieldFixed('config.manifest.routing_specificity_mode_label', '', 'manifest.routing.specificity_mode', data.routing.specificity_mode || 'off', [
+    html += manifestToggleRow('config.manifest.routing_enabled_label', 'config.manifest.routing_enabled_help', data.routing.enabled === true, 'manifest.routing.enabled');
+    html += manifestSelectFieldFixed('config.manifest.routing_specificity_mode_label', 'config.manifest.routing_specificity_mode_help', 'manifest.routing.specificity_mode', data.routing.specificity_mode || 'off', [
         { value: 'off', label: manifestText('config.manifest.routing_mode_off') },
         { value: 'fixed', label: manifestText('config.manifest.routing_mode_fixed') },
         { value: 'auto', label: manifestText('config.manifest.routing_mode_auto') }
     ]);
     html += '</div>';
-    html += manifestSelectFieldFixed('config.manifest.routing_specificity_label', '', 'manifest.routing.specificity', data.routing.specificity || '', manifestSpecificityOptions());
+    html += manifestSelectFieldFixed('config.manifest.routing_specificity_label', 'config.manifest.routing_specificity_help', 'manifest.routing.specificity', data.routing.specificity || '', manifestSpecificityOptions());
     html += manifestRoutingHeaderRows(data.routing.headers);
     html += '</div></details>';
 
@@ -226,18 +226,19 @@ function manifestRoutingHeaderRows(headers) {
     const entries = Object.entries(headers || {}).filter(([key, value]) => String(key).trim() !== '' && String(value).trim() !== '');
     let html = '<div class="field-group manifest-routing-headers" data-routing-path="manifest.routing.headers">';
     html += '<div class="field-label">' + manifestText('config.manifest.routing_headers_label') + '</div>';
+    html += '<div class="field-help" id="manifest-routing-headers-help">' + manifestText('config.manifest.routing_headers_help') + '</div>';
     html += '<input type="hidden" data-path="manifest.routing.headers" data-type="json" data-manifest-routing-headers-store value="' + escapeAttr(JSON.stringify(Object.fromEntries(entries))) + '">';
     entries.forEach(([key, value]) => {
         html += '<div class="field-grid two-cols manifest-routing-header-row">';
-        html += '<input class="field-input" type="text" value="' + escapeAttr(key) + '" data-header-key oninput="manifestRoutingCollectHeaders()">';
+        html += '<input class="field-input" type="text" value="' + escapeAttr(key) + '" data-header-key aria-label="' + escapeAttr(manifestText('config.manifest.routing_header_name')) + '" aria-describedby="manifest-routing-headers-help" oninput="manifestRoutingCollectHeaders()">';
         html += '<div class="password-wrap">';
-        html += '<input class="field-input" type="text" value="' + escapeAttr(value) + '" data-header-value oninput="manifestRoutingCollectHeaders()">';
+        html += '<input class="field-input" type="text" value="' + escapeAttr(value) + '" data-header-value aria-label="' + escapeAttr(manifestText('config.manifest.routing_header_value')) + '" aria-describedby="manifest-routing-headers-help" oninput="manifestRoutingCollectHeaders()">';
         html += '<button type="button" class="password-toggle" data-header-remove="' + escapeAttr(key) + '" onclick="manifestRoutingRemoveHeader(this.dataset.headerRemove)" title="' + escapeAttr(manifestText('config.manifest.routing_remove_header')) + '">&times;</button>';
         html += '</div></div>';
     });
     html += '<div class="field-grid two-cols manifest-routing-header-row">';
-    html += '<input class="field-input" type="text" value="" data-header-key oninput="manifestRoutingCollectHeaders()">';
-    html += '<input class="field-input" type="text" value="" data-header-value oninput="manifestRoutingCollectHeaders()">';
+    html += '<input class="field-input" type="text" value="" data-header-key aria-label="' + escapeAttr(manifestText('config.manifest.routing_header_name')) + '" aria-describedby="manifest-routing-headers-help" oninput="manifestRoutingCollectHeaders()">';
+    html += '<input class="field-input" type="text" value="" data-header-value aria-label="' + escapeAttr(manifestText('config.manifest.routing_header_value')) + '" aria-describedby="manifest-routing-headers-help" oninput="manifestRoutingCollectHeaders()">';
     html += '</div>';
     html += '<button type="button" class="btn-save btn-secondary" onclick="manifestRoutingAddHeader()">' + manifestText('config.manifest.routing_add_header') + '</button>';
     html += '</div>';

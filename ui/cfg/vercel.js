@@ -40,9 +40,9 @@ async function renderVercelSection(section) {
     html += `<div class="cfg-toggle-row-highlight">
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.enabled_label')}</span>
-            <div class="field-help">${t('config.vercel.enabled_help')}</div>
+            <div class="field-help" id="vc-vercel-enabled-help">${t('config.vercel.enabled_help')}</div>
         </div>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="vercel.enabled" onclick="toggleBool(this)"></div>
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="vercel.enabled" aria-describedby="vc-vercel-enabled-help" onclick="toggleBool(this)"></div>
     </div>`;
 
     html += `<div class="field-group">`;
@@ -51,42 +51,42 @@ async function renderVercelSection(section) {
     html += `<div class="field-grid two-cols">`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="vercel.readonly" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="vercel.readonly" aria-describedby="vc-vercel-readonly-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.readonly')}</span>
-            <div class="field-help">${t('config.vercel.readonly_help')}</div>
+            <div class="field-help" id="vc-vercel-readonly-help">${t('config.vercel.readonly_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_deploy === true ? 'on' : ''}" data-path="vercel.allow_deploy" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_deploy === true ? 'on' : ''}" data-path="vercel.allow_deploy" aria-describedby="vc-vercel-allow-deploy-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.allow_deploy')}</span>
-            <div class="field-help">${t('config.vercel.allow_deploy_help')}</div>
+            <div class="field-help" id="vc-vercel-allow-deploy-help">${t('config.vercel.allow_deploy_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_project_management ? 'on' : ''}" data-path="vercel.allow_project_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_project_management ? 'on' : ''}" data-path="vercel.allow_project_management" aria-describedby="vc-vercel-allow-project-management-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.allow_project_management')}</span>
-            <div class="field-help">${t('config.vercel.allow_project_management_help')}</div>
+            <div class="field-help" id="vc-vercel-allow-project-management-help">${t('config.vercel.allow_project_management_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_env_management ? 'on' : ''}" data-path="vercel.allow_env_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_env_management ? 'on' : ''}" data-path="vercel.allow_env_management" aria-describedby="vc-vercel-allow-env-management-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.allow_env_management')}</span>
-            <div class="field-help">${t('config.vercel.allow_env_management_help')}</div>
+            <div class="field-help" id="vc-vercel-allow-env-management-help">${t('config.vercel.allow_env_management_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_domain_management ? 'on' : ''}" data-path="vercel.allow_domain_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_domain_management ? 'on' : ''}" data-path="vercel.allow_domain_management" aria-describedby="vc-vercel-allow-domain-management-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.allow_domain_management')}</span>
-            <div class="field-help">${t('config.vercel.allow_domain_management_help')}</div>
+            <div class="field-help" id="vc-vercel-allow-domain-management-help">${t('config.vercel.allow_domain_management_help')}</div>
         </div>
     </div>`;
 
@@ -121,12 +121,12 @@ async function renderVercelSection(section) {
 
     html += `<div class="field-group">`;
     html += `<div class="field-group-title">🔑 ${t('config.vercel.token_title')}</div>`;
-    html += `<div class="field-group-desc">${t('config.vercel.token_desc')}</div>`;
+    html += `<div class="field-group-desc" id="vc-token-desc">${t('config.vercel.token_desc')}</div>`;
 
     html += `<label>
-        <span class="cfg-label">${t('config.vercel.token_label')} <small class="hp-text-tertiary">🔐 vault</small></span>
+        <span class="cfg-label">${t('config.vercel.token_label')} <small class="hp-text-tertiary">🔐 ${t('config.vercel.vault_badge')}</small></span>
         <div class="password-wrap">
-            <input class="field-input" type="password" id="vercel-token" data-path="vercel.token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
+            <input class="field-input" type="password" id="vercel-token" data-path="vercel.token" aria-describedby="vc-token-desc" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
         </div>
     </label>`;

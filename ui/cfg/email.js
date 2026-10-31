@@ -179,6 +179,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.field_name')}</div>
+            <div class="field-help">${t('config.email.name_help')}</div>
             <input class="field-input" id="ea-name" value="${escapeAttr(data.name || '')}" placeholder="${t('config.email.display_name')}">
         </div>
 
@@ -211,6 +212,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.imap_host')}</div>
+            <div class="field-help">${t('config.email.imap_host_help')}</div>
             <input class="field-input" id="ea-imap-host" value="${escapeAttr(data.imap_host || '')}" placeholder="imap.example.com">
         </div>
         <div class="field-group">
@@ -224,6 +226,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.smtp_host')}</div>
+            <div class="field-help">${t('config.email.smtp_host_help')}</div>
             <input class="field-input" id="ea-smtp-host" value="${escapeAttr(data.smtp_host || '')}" placeholder="smtp.example.com">
         </div>
         <div class="field-group">
@@ -237,10 +240,12 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.username')}</div>
+            <div class="field-help">${t('config.email.username_help')}</div>
             <input class="field-input" id="ea-username" value="${escapeAttr(data.username || '')}" placeholder="user@example.com">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.password')}</div>
+            <div class="field-help">${t('config.email.password_help')}</div>
             <div class="password-wrap">
                 <input class="field-input" id="ea-password" type="password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.password, ''))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
@@ -258,6 +263,7 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
         <div class="field-group em-toggle-group">
             <div class="field-label em-toggle-label-mb">${t('config.email.watch_enabled')}</div>
+            <div class="field-help em-toggle-help-m0">${t('config.email.watch_enabled_help')}</div>
             <label class="toggle-switch">
                 <input type="checkbox" id="ea-watch-enabled" ${data.watch_enabled ? 'checked' : ''}>
                 <span class="toggle-slider"></span>
@@ -265,10 +271,12 @@ function emailAccountShowModal(title, data, onSave) {
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.watch_folder')}</div>
+            <div class="field-help">${t('config.email.watch_folder_help')}</div>
             <input class="field-input" id="ea-watch-folder" value="${escapeAttr(data.watch_folder || 'INBOX')}" placeholder="INBOX">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.interval_seconds')}</div>
+            <div class="field-help">${t('config.email.interval_seconds_help')}</div>
             <input class="field-input" id="ea-watch-interval" type="number" value="${data.watch_interval_seconds || 120}" placeholder="120">
         </div>
 

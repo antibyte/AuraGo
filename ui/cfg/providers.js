@@ -811,13 +811,16 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 <div class="prov-toolbar">
                     <label class="prov-toolbar-search">
                         <span class="cfg-visually-hidden">${escapeHtml(t('config.providers.search_placeholder'))}</span>
-                        <input id="prov-list-search" class="field-input" type="search" autocomplete="off"
+                        <span class="cfg-visually-hidden" id="prov-list-search-help">${escapeHtml(t('config.providers.search_help'))}</span>
+                        <input id="prov-list-search" class="field-input" type="search" autocomplete="off" aria-describedby="prov-list-search-help"
                                placeholder="${escapeAttr(t('config.providers.search_placeholder'))}">
                     </label>
-                    <select id="prov-list-type" class="field-select" aria-label="${escapeAttr(t('config.providers.filter_type_all'))}">
+                    <span class="cfg-visually-hidden" id="prov-list-type-help">${escapeHtml(t('config.providers.filter_type_help'))}</span>
+                    <select id="prov-list-type" class="field-select" aria-label="${escapeAttr(t('config.providers.filter_type_all'))}" aria-describedby="prov-list-type-help">
                         <option value="">${escapeHtml(t('config.providers.filter_type_all'))}</option>
                     </select>
-                    <select id="prov-list-role" class="field-select" aria-label="${escapeAttr(t('config.providers.filter_role_all'))}">
+                    <span class="cfg-visually-hidden" id="prov-list-role-help">${escapeHtml(t('config.providers.filter_role_help'))}</span>
+                    <select id="prov-list-role" class="field-select" aria-label="${escapeAttr(t('config.providers.filter_role_all'))}" aria-describedby="prov-list-role-help">
                         <option value="">${escapeHtml(t('config.providers.filter_role_all'))}</option>
                     </select>
                     <div class="prov-section-actions">

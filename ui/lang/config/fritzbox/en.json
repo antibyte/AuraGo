@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Web Interface Port",
   "config.fritzbox.insecure_skip_verify_label": "Allow self-signed certificate",
   "help.fritzbox.web_port": "Optional port for login and Smart Home requests. Leave 0 to use 80 or 443.",
-  "help.fritzbox.insecure_skip_verify": "Allows HTTPS with a self-signed Fritz!Box certificate. Use only on a trusted home network."
+  "help.fritzbox.insecure_skip_verify": "Allows HTTPS with a self-signed Fritz!Box certificate. Use only on a trusted home network.",
+  "config.fritzbox.feature_enabled_help": "The agent may use the \"{feature}\" functions of the Fritz!Box.",
+  "config.fritzbox.feature_readonly_help": "For \"{feature}\" the agent may only read values and cannot change anything on the Fritz!Box.",
+  "config.fritzbox.polling_enabled_help": "Regularly asks the Fritz!Box for new calls so AuraGo can react to them.",
+  "config.fritzbox.polling_interval_help": "Time between queries in seconds (10-3600, default 60). Shorter intervals react faster but put more load on the Fritz!Box."
 }

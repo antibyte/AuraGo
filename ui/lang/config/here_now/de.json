@@ -28,5 +28,6 @@
   "config.here_now.saving": "Speichere…",
   "config.here_now.testing": "Teste…",
   "config.here_now.test_failed": "Verbindung fehlgeschlagen",
-  "config.here_now.test_success": "Verbindung erfolgreich"
+  "config.here_now.test_success": "Verbindung erfolgreich",
+  "config.here_now.vault_badge": "Tresor"
 }

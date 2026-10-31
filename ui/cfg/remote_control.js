@@ -22,6 +22,7 @@ async function renderRemoteControlSection(section) {
     html += `<div class="cfg-group-title">${t('config.refresh.operation')}</div>`;
     html += `<div class="field-group">
         <span class="field-label">${t('config.remote_control.enabled_label')}</span>
+        <div class="field-help">${t('config.remote_control.enabled_help')}</div>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="remote_control.enabled" onclick="toggleBool(this);setNestedValue(configData,'remote_control.enabled',this.classList.contains('on'));renderRemoteControlSection(null)"></div>
     </div>`;
 
@@ -43,6 +44,7 @@ async function renderRemoteControlSection(section) {
     const readOnly = cfg.read_only === true;
     html += `<div class="field-group">
         <span class="field-label">${t('config.remote_control.read_only_label')}</span>
+        <div class="field-help">${t('config.remote_control.read_only_help')}</div>
         <div class="toggle ${readOnly ? 'on' : ''}" data-path="remote_control.read_only" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -97,6 +99,7 @@ async function renderRemoteControlSection(section) {
     const auditLog = cfg.audit_log !== false;
     html += `<div class="field-group">
         <span class="field-label">${t('config.remote_control.audit_log_label')}</span>
+        <div class="field-help">${t('config.remote_control.audit_log_help')}</div>
         <div class="toggle ${auditLog ? 'on' : ''}" data-path="remote_control.audit_log" onclick="toggleBool(this)"></div>
     </div>`;
 
@@ -104,6 +107,7 @@ async function renderRemoteControlSection(section) {
     const sshInsecure = cfg.ssh_insecure_host_key === true;
     html += `<div class="field-group rc-toggle-insecure${sshInsecure ? ' is-on' : ''}">
         <span class="field-label">${t('config.remote_control.ssh_insecure_host_key_label')}</span>
+        <div class="field-help">${t('config.remote_control.ssh_insecure_host_key_help')}</div>
         <div class="toggle ${sshInsecure ? 'on' : ''}" data-path="remote_control.ssh_insecure_host_key" onclick="toggleBool(this)"></div>
     </div>`;
     html += `</div>`;
@@ -119,6 +123,7 @@ async function renderRemoteControlSection(section) {
     html += `<div class="field-grid two-cols">
         <div class="field-group">
             <div class="field-label">${t('config.remote_control.max_file_size_label')}</div>
+            <div class="field-help">${t('config.remote_control.max_file_size_help')}</div>
             <input type="number" class="field-input" data-path="remote_control.max_file_size_mb" value="${curMaxFile}" min="1" max="500">
         </div>
         <div class="field-group">
@@ -135,6 +140,7 @@ async function renderRemoteControlSection(section) {
         <div class="field-group-desc">${t('config.remote_control.pairing_token_desc')}</div>
         <div class="field-group">
             <div class="field-label">${t('config.remote_control.download_name_label')}</div>
+            <div class="field-help">${t('config.remote_control.enrollment_device_name_help')}</div>
             <input type="text" id="rc-enrollment-device-name" class="field-input" placeholder="${t('config.remote_control.download_name_placeholder')}">
         </div>
         <div class="cfg-actions-row">
@@ -153,6 +159,7 @@ async function renderRemoteControlSection(section) {
         <div class="field-group-desc">${t('config.remote_control.download_desc')}</div>
         <div class="field-group">
             <div class="field-label">${t('config.remote_control.download_name_label')}</div>
+            <div class="field-help">${t('config.remote_control.device_name_help')}</div>
             <input type="text" id="rc-device-name" class="field-input" placeholder="${t('config.remote_control.download_name_placeholder')}">
         </div>
         <div id="rc-platform-list" class="rc-platform-list">

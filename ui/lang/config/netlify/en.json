@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Permits creating, updating, and deleting Netlify sites.",
   "config.netlify.allow_env_management_help": "Permits managing environment variables on Netlify sites.",
   "config.netlify.default_site_id_help": "Optional site ID used when the agent does not name a site.",
-  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls."
+  "config.netlify.team_slug_help": "Optional Netlify team slug used for team-scoped API calls.",
+  "config.netlify.vault_badge": "vault"
 }

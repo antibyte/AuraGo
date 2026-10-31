@@ -6,22 +6,23 @@ async function renderTregSection(section) {
     const secret = cfgSecretPlaceholder(cfg.token);
     content.innerHTML = `<div class="cfg-section active" id="treg-section">
         <div class="section-header">${escapeHtml(section.label)}</div><div class="section-desc">${escapeHtml(section.desc)}</div>
-        ${AuraConfigForm.toggle({ path: 'treg.enabled', value: cfg.enabled === true, label: tr('enabled') })}
-        ${AuraConfigForm.toggle({ path: 'treg.readonly', value: cfg.readonly !== false, label: tr('readonly') })}
+        ${AuraConfigForm.toggle({ path: 'treg.enabled', value: cfg.enabled === true, label: tr('enabled'), help: tr('enabled_help') })}
+        ${AuraConfigForm.toggle({ path: 'treg.readonly', value: cfg.readonly !== false, label: tr('readonly'), help: tr('readonly_help') })}
         ${cfgStatusBanner.html('treg-local-status', 'checking', { detail: tr('loading') })}
         <div class="field-group"><label for="treg-cost">${tr('cost')}</label>
             <input id="treg-cost" class="field-input" inputmode="decimal" value="${(Number(cfg.max_call_cost_micro ?? 1000000) / 1000000).toFixed(6)}" aria-describedby="treg-cost-help">
             <input type="hidden" data-path="treg.max_call_cost_micro" data-type="number" value="${Number(cfg.max_call_cost_micro ?? 1000000)}">
             <p class="field-help" id="treg-cost-help">${tr('cost_help')}</p><p id="treg-cost-error" role="alert"></p></div>
         <div class="field-group"><label for="treg-token">${tr('token')}</label>
-            <input id="treg-token" class="field-input" type="password" autocomplete="new-password" data-path="treg.token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(secret)}">
+            <input id="treg-token" class="field-input" type="password" autocomplete="new-password" data-path="treg.token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(secret)}" aria-describedby="treg-token-help">
+            <p class="field-help" id="treg-token-help">${tr('token_help')}</p>
             <div class="cfg-actions-row"><button type="button" class="btn-secondary" id="treg-test-btn" data-config-action-draft="true">${tr('test')}</button>${cfgActionResult.html('treg-action-status')}</div></div>
         <div class="field-group"><div class="field-group-title">${tr('grants')}</div><p class="field-help">${tr('draft_hint')}</p>
             <textarea hidden data-path="treg.allowed_endpoints" data-type="json">${escapeHtml(JSON.stringify(cfg.allowed_endpoints || []))}</textarea>
             <div id="treg-grants"></div></div>
         <div class="field-group"><label for="treg-query">${tr('search')}</label><div class="cfg-actions-row">
-            <input id="treg-query" class="field-input" maxlength="500"><button type="button" class="btn-save" id="treg-search">${tr('search')}</button></div>
-            ${cfgActionResult.html('treg-search-status')}<div id="treg-results"></div><div id="treg-details"></div></div>
+            <input id="treg-query" class="field-input" maxlength="500" aria-describedby="treg-query-help"><button type="button" class="btn-save" id="treg-search">${tr('search')}</button></div>
+            <p class="field-help" id="treg-query-help">${tr('search_help')}</p>${cfgActionResult.html('treg-search-status')}<div id="treg-results"></div><div id="treg-details"></div></div>
     </div>`;
     const root = document.getElementById('treg-section');
     const grantsInput = root.querySelector('[data-path="treg.allowed_endpoints"]');
@@ -69,7 +70,7 @@ async function renderTregSection(section) {
         pending: tr('loading'),
         success: outcome => {
             const micro = outcome.body && outcome.body.data ? outcome.body.data.balance_micro : null;
-            return tr('success') + ' · ' + tr('balance') + ': ' + (micro == null ? '?' : (micro / 1000000).toFixed(6)) + ' USD';
+            return tr('success') + ' · ' + tr('balance') + ': ' + (micro == null ? '?' : (micro / 1000000).toFixed(6)) + ' ' + tr('currency_usd');
         },
         failure: tr('error') + ':'
     }));

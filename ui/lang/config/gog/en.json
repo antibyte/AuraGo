@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Remove this account?",
   "config.gog.confirm_remove_message": "Account \"{name}\" with its client ID and service permissions is removed from the list and deleted when you save.",
   "config.gog.login_opened": "Login window opened. Finish the sign-in there; the status updates once the account is connected.",
-  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected."
+  "config.gog.login_not_connected": "Sign-in is not complete yet: the account is still not connected.",
+  "config.gog.enabled_help": "Turns on the gog link to Google accounts. It adds further accounts to the built-in Google Workspace integration.",
+  "config.gog.readonly_help": "The agent may only read through gog. Creating, changing, deleting and sending stay blocked even if an account allows them.",
+  "config.gog.name_help": "Display name of the account, such as \"Personal\" or \"Work\".",
+  "config.gog.account_enabled_help": "Only enabled accounts can be used by the agent and the desktop.",
+  "config.gog.agent_help": "The agent may use this account with the permissions granted below.",
+  "config.gog.desktop_help": "Desktop apps may use this account, for example for mail or calendar.",
+  "config.gog.client_id_help": "Client ID of the OAuth web client from the Google Cloud Console.",
+  "config.gog.secret_help": "Client secret of the OAuth client. \"Save in Vault\" stores it encrypted; it is not shown again."
 }

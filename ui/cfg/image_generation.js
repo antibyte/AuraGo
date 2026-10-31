@@ -11,8 +11,9 @@ async function renderImageGenerationSection(section) {
 
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.image_generation.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="image_generation.enabled" onclick="toggleBool(this);setNestedValue(configData,'image_generation.enabled',this.classList.contains('on'));renderImageGenerationSection(null)"></div>
-    </div>`;
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="image_generation.enabled" aria-describedby="imggen-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'image_generation.enabled',this.classList.contains('on'));renderImageGenerationSection(null)"></div>
+    </div>
+    <div class="field-help" id="imggen-enabled-help">${t('config.image_generation.enabled_help')}</div>`;
 
     if (!enabled) {
         html += `<div class="wh-notice">
@@ -36,6 +37,7 @@ async function renderImageGenerationSection(section) {
     html += `<div class="field-grid two-cols">`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.image_generation.provider_label')}</div>
+        <div class="field-help">${t('config.image_generation.provider_help')}</div>
         <select class="field-select" data-path="image_generation.provider">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.image_generation.select_provider')}</option>`;
     configGeneralProviders().forEach(p => {
@@ -66,6 +68,7 @@ async function renderImageGenerationSection(section) {
     html += `<div class="field-grid two-cols">`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.image_generation.size_label')}</div>
+        <div class="field-help">${t('config.image_generation.size_help')}</div>
         <select class="field-select" data-path="image_generation.default_size">`;
     sizes.forEach(s => {
         const sel = (curSize === s) ? ' selected' : '';
@@ -77,6 +80,7 @@ async function renderImageGenerationSection(section) {
     const curQuality = cfg.default_quality || 'standard';
     html += `<div class="field-group">
         <div class="field-label">${t('config.image_generation.quality_label')}</div>
+        <div class="field-help">${t('config.image_generation.quality_help')}</div>
         <select class="field-select" data-path="image_generation.default_quality">`;
     qualities.forEach(q => {
         const sel = (curQuality === q) ? ' selected' : '';
@@ -88,6 +92,7 @@ async function renderImageGenerationSection(section) {
     const curStyle = cfg.default_style || 'natural';
     html += `<div class="field-group">
         <div class="field-label">${t('config.image_generation.style_label')}</div>
+        <div class="field-help">${t('config.image_generation.style_help')}</div>
         <select class="field-select" data-path="image_generation.default_style">`;
     styles.forEach(st => {
         const sel = (curStyle === st) ? ' selected' : '';
@@ -103,8 +108,9 @@ async function renderImageGenerationSection(section) {
     const enhanceOn = cfg.prompt_enhancement === true;
     html += `<div class="ig-toggle-row">
         <span class="ig-label-text">${t('config.image_generation.prompt_enhancement_label')}</span>
-        <div class="toggle ${enhanceOn ? 'on' : ''}" data-path="image_generation.prompt_enhancement" onclick="toggleBool(this)"></div>
-    </div>`;
+        <div class="toggle ${enhanceOn ? 'on' : ''}" data-path="image_generation.prompt_enhancement" aria-describedby="imggen-enhance-help" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help" id="imggen-enhance-help">${t('config.image_generation.prompt_enhancement_help')}</div>`;
 
     const curMax = cfg.max_monthly || 0;
     const curMaxDaily = cfg.max_daily || 0;

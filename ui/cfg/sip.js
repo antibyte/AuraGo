@@ -68,9 +68,15 @@ function sipNormalize(data) {
     return state;
 }
 
+// Field description: an explicit text wins, otherwise config.sip.help.<path with dots as underscores>.
+function sipFieldHelp(path, help) {
+    return help || tOr('config.sip.help.' + String(path).replace(/\./g, '_'), '');
+}
+
 function sipField(path, label, type, value, extra, help) {
     const attrs = extra || '';
-    const helpMarkup = help ? `<small>${sipEsc(help)}</small>` : '';
+    const helpText = sipFieldHelp(path, help);
+    const helpMarkup = helpText ? `<small class="field-help">${sipEsc(helpText)}</small>` : '';
     if (type === 'checkbox') {
         return `<label class="field-group sip-toggle-field"><span><span class="field-label">${sipEsc(label)}</span>${helpMarkup}</span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip="${path}" ${value ? 'checked' : ''} ${attrs}><span class="slider"></span></span></span></label>`;
     }
@@ -78,9 +84,10 @@ function sipField(path, label, type, value, extra, help) {
 }
 
 function sipSelect(path, label, value, options) {
+    const helpText = sipFieldHelp(path, '');
     return `<label class="field-group"><span class="field-label">${sipEsc(label)}</span><select class="field-input" data-sip="${path}">${options.map(option =>
         `<option value="${sipEsc(option[0])}" ${option[0] === value ? 'selected' : ''}>${sipEsc(option[1])}</option>`
-    ).join('')}</select></label>`;
+    ).join('')}</select>${helpText ? `<small class="field-help">${sipEsc(helpText)}</small>` : ''}</label>`;
 }
 
 function sipProvider(id) {
@@ -335,7 +342,7 @@ function sipAdvancedMarkup(c) {
                 ${sipField('auth_username', t('config.sip.auth_username'), 'text', c.auth_username || '', 'maxlength="255"')}
                 ${sipField('display_name', t('config.sip.display_name'), 'text', c.display_name || '', 'maxlength="100"')}
                 ${sipField('outbound_proxy', t('config.sip.outbound_proxy'), 'text', c.outbound_proxy || '', 'maxlength="255"')}
-                <label class="field-group"><span class="field-label">${sipEsc(t('config.sip.password'))}</span><input class="field-input" type="password" data-sip="password" value="" autocomplete="new-password" placeholder="${sipEsc(passwordHint)}"><small>${sipEsc(passwordHint)}</small></label>
+                <label class="field-group"><span class="field-label">${sipEsc(t('config.sip.password'))}</span><input class="field-input" type="password" data-sip="password" value="" autocomplete="new-password" placeholder="${sipEsc(passwordHint)}"><small class="field-help">${sipEsc(passwordHint)}</small></label>
                 ${sipField('clear_password', t('config.sip.clear_password'), 'checkbox', c.clear_password)}
             </div></div>
 

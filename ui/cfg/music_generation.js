@@ -21,8 +21,9 @@ function renderMusicGenerationSection(section) {
 
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.music_gen.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="music_generation.enabled" onclick="toggleBool(this);setNestedValue(configData,'music_generation.enabled',this.classList.contains('on'));renderMusicGenerationSection(null)"></div>
-    </div>`;
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="music_generation.enabled" aria-describedby="music-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'music_generation.enabled',this.classList.contains('on'));renderMusicGenerationSection(null)"></div>
+    </div>
+    <div class="field-help" id="music-enabled-help">${t('config.music_gen.enabled_help')}</div>`;
 
     if (!enabled) {
         html += `<div class="wh-notice">
@@ -47,6 +48,7 @@ function renderMusicGenerationSection(section) {
     html += `<div class="field-grid two-cols">`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.music_gen.provider_label')}</div>
+        <div class="field-help">${t('config.music_gen.provider_help')}</div>
         <select class="field-select" data-path="music_generation.provider" onchange="setNestedValue(configData,'music_generation.provider',this.value);renderMusicGenerationSection(null)">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.music_gen.select_provider')}</option>
             <option value="aurago-acestep-local"${local ? ' selected' : ''}>${t('config.music_gen.local_provider')}</option>`;
@@ -78,9 +80,9 @@ function renderMusicGenerationSection(section) {
         ['auto', 'cuda', 'rocm', 'xpu', 'vulkan', 'cpu'].forEach(value => {
             html += `<option value="${value}"${(options.backend || 'auto') === value ? ' selected' : ''}>${value === 'auto' ? t('config.music_gen.automatic') : value.toUpperCase()}</option>`;
         });
-        html += `</select><span class="field-help">${t('config.music_gen.vulkan_help')}</span></label><label>${t('config.music_gen.device')}<input class="field-input" list="music-local-devices" data-path="music_generation.local.device" value="${escapeAttr(options.device || 'auto')}"><datalist id="music-local-devices"><option value="auto"></option></datalist></label>
-            <label>${t('config.music_gen.reserve')}<input type="number" class="field-input" data-path="music_generation.local.vram_reserve_gb" min="0" max="256" step="0.25" value="${escapeAttr(options.vram_reserve_gb ?? 1)}"></label>
-            <label>${t('config.music_gen.timeout')}<input type="number" class="field-input" data-path="music_generation.local.timeout_seconds" min="30" max="1800" value="${escapeAttr(options.timeout_seconds || 1800)}"></label></div>
+        html += `</select><span class="field-help">${t('config.music_gen.vulkan_help')}</span></label><label>${t('config.music_gen.device')}<input class="field-input" list="music-local-devices" data-path="music_generation.local.device" value="${escapeAttr(options.device || 'auto')}"><datalist id="music-local-devices"><option value="auto"></option></datalist><span class="field-help">${t('config.music_gen.device_help')}</span></label>
+            <label>${t('config.music_gen.reserve')}<input type="number" class="field-input" data-path="music_generation.local.vram_reserve_gb" min="0" max="256" step="0.25" value="${escapeAttr(options.vram_reserve_gb ?? 1)}"><span class="field-help">${t('config.music_gen.reserve_help')}</span></label>
+            <label>${t('config.music_gen.timeout')}<input type="number" class="field-input" data-path="music_generation.local.timeout_seconds" min="30" max="1800" value="${escapeAttr(options.timeout_seconds || 1800)}"><span class="field-help">${t('config.music_gen.timeout_help')}</span></label></div>
             <p id="music-local-status" role="status" aria-live="polite">${t('config.music_gen.testing')}</p><progress id="music-local-progress" aria-labelledby="music-local-status" hidden></progress>
             <div id="music-local-actions" class="cfg-actions-row">${['start','stop','recheck'].map(action => `<button type="button" class="btn-secondary" data-music-local-action="${action}">${t('config.music_gen.' + action)}</button>`).join('')}</div>
             <p id="music-local-feedback" class="cfg-action-result" role="status" aria-live="polite" aria-atomic="true" hidden></p></div>`;

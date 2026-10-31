@@ -28,5 +28,6 @@
   "config.here_now.saving": "Saving…",
   "config.here_now.testing": "Testing…",
   "config.here_now.test_failed": "Connection failed",
-  "config.here_now.test_success": "Connection successful"
+  "config.here_now.test_success": "Connection successful",
+  "config.here_now.vault_badge": "vault"
 }

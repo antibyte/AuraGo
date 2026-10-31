@@ -160,8 +160,9 @@ async function renderHomepageSection(section) {
 
     html += `<div class="cfg-toggle-row-highlight${!dockerEnabled ? ' hp-disabled' : ''}">
         <span class="cfg-toggle-label">${t('config.homepage.enabled_label')}</span>
-        <div class="toggle ${hpEnabled ? 'on' : ''}" data-path="homepage.enabled" onclick="toggleBool(this)"></div>
-    </div>`;
+        <div class="toggle ${hpEnabled ? 'on' : ''}" data-path="homepage.enabled" aria-describedby="hp-enabled-help" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help" id="hp-enabled-help">${t('help.homepage.enabled')}</div>`;
 
     if (!hpEnabled && dockerEnabled) {
         html += `<div class="wh-notice">
@@ -180,15 +181,17 @@ async function renderHomepageSection(section) {
 
         html += `<div class="field-grid two-cols">`;
 
-        html += `<div class="cfg-toggle-row-compact">
+        html += `<div class="field-group"><div class="cfg-toggle-row-compact">
             <div class="toggle ${cfg.allow_deploy ? 'on' : ''}" data-path="homepage.allow_deploy" onclick="toggleBool(this)"></div>
             <span class="cfg-toggle-label">${t('config.homepage.allow_deploy')}</span>
-        </div>`;
+        </div>
+        <div class="field-help">${t('help.homepage.allow_deploy')}</div></div>`;
 
-        html += `<div class="cfg-toggle-row-compact">
+        html += `<div class="field-group"><div class="cfg-toggle-row-compact">
             <div class="toggle ${cfg.allow_container_management ? 'on' : ''}" data-path="homepage.allow_container_management" onclick="toggleBool(this)"></div>
             <span class="cfg-toggle-label">${t('config.homepage.allow_container')}</span>
-        </div>`;
+        </div>
+        <div class="field-help">${t('help.homepage.allow_container_management')}</div></div>`;
 
         html += `</div>`;
         html += `</div>`;
@@ -203,21 +206,25 @@ async function renderHomepageSection(section) {
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_host')}</div>
+            <div class="field-help">${t('help.homepage.deploy_host')}</div>
             <input class="field-input" data-path="homepage.deploy_host" value="${escapeAttr(cfg.deploy_host || '')}" placeholder="webserver.example.com">
         </div>`;
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_port')}</div>
+            <div class="field-help">${t('help.homepage.deploy_port')}</div>
             <input type="number" class="field-input" data-path="homepage.deploy_port" value="${cfg.deploy_port || 22}" min="1" max="65535">
         </div>`;
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_user')}</div>
+            <div class="field-help">${t('help.homepage.deploy_user')}</div>
             <input class="field-input" data-path="homepage.deploy_user" value="${escapeAttr(cfg.deploy_user || '')}" placeholder="deploy">
         </div>`;
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_method')}</div>
+            <div class="field-help">${t('help.homepage.deploy_method')}</div>
             <select class="field-select" data-path="homepage.deploy_method">
                 <option value="sftp" ${(cfg.deploy_method || 'sftp') === 'sftp' ? 'selected' : ''}>${t('config.homepage.deploy_method_sftp')}</option>
                 <option value="scp" ${cfg.deploy_method === 'scp' ? 'selected' : ''}>${t('config.homepage.deploy_method_scp')}</option>
@@ -226,6 +233,7 @@ async function renderHomepageSection(section) {
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.deploy_path')}</div>
+            <div class="field-help">${t('help.homepage.deploy_path')}</div>
             <input class="field-input" data-path="homepage.deploy_path" value="${escapeAttr(cfg.deploy_path || '')}" placeholder="/var/www/html">
         </div>`;
 
@@ -238,7 +246,8 @@ async function renderHomepageSection(section) {
         html += `<div class="field-grid two-cols">`;
 
         html += `<div class="field-group">
-            <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">🔐 vault</small></div>
+            <div class="field-label">${t('config.homepage.deploy_password')} <small class="hp-lock-icon">🔐 ${t('config.homepage.vault_badge')}</small></div>
+            <div class="field-help">${t('config.homepage.deploy_password_help')}</div>
             <div class="password-wrap cfg-password-input">
                 <input class="field-input adg-password-input" type="password" id="hp-deploy-password" data-path="homepage.deploy_password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
@@ -246,7 +255,8 @@ async function renderHomepageSection(section) {
         </div>`;
 
         html += `<div class="field-group">
-            <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">🔐 vault</small></div>
+            <div class="field-label">${t('config.homepage.deploy_key')} <small class="hp-lock-icon">🔐 ${t('config.homepage.vault_badge')}</small></div>
+            <div class="field-help">${t('config.homepage.deploy_key_help')}</div>
             <div class="password-wrap cfg-password-input">
                 <input class="field-input adg-password-input" type="password" id="hp-deploy-key" data-path="homepage.deploy_key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
@@ -273,26 +283,29 @@ async function renderHomepageSection(section) {
             <div class="field-group-title">🖥️ ${t('config.homepage.webserver_title')}</div>
             <div class="field-group-desc">${t('config.homepage.webserver_desc')}</div>`;
 
-        html += `<div class="cfg-toggle-row-compact">
+        html += `<div class="field-group"><div class="cfg-toggle-row-compact">
             <span class="cfg-toggle-label">${t('config.homepage.webserver_enabled')}</span>
             <div class="toggle ${cfg.webserver_enabled ? 'on' : ''}" data-path="homepage.webserver_enabled" onclick="toggleBool(this)"></div>
-        </div>`;
+        </div>
+        <div class="field-help">${t('help.homepage.webserver_enabled')}</div></div>`;
 
-        html += `<div class="cfg-toggle-row-compact">
+        html += `<div class="field-group"><div class="cfg-toggle-row-compact">
             <span class="cfg-toggle-label">${t('config.homepage.webserver_internal_only')}</span>
             <div class="toggle ${cfg.webserver_internal_only ? 'on' : ''}" data-path="homepage.webserver_internal_only" onclick="toggleBool(this)"></div>
-        </div>`;
+        </div>
+        <div class="field-help">${t('help.homepage.webserver_internal_only')}</div></div>`;
 
         html += `<div class="field-grid two-cols">`;
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.webserver_port')}</div>
+            <div class="field-help">${t('help.homepage.webserver_port')}</div>
             <input type="number" class="field-input" data-path="homepage.webserver_port" value="${cfg.webserver_port || 8080}" min="1" max="65535">
         </div>`;
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.webserver_domain')}</div>
-            <div class="field-help">${t('config.homepage.optional')}</div>
+            <div class="field-help">${t('help.homepage.webserver_domain')}</div>
             <input class="field-input" data-path="homepage.webserver_domain" value="${escapeAttr(cfg.webserver_domain || '')}" placeholder="mysite.example.com">
         </div>`;
 
@@ -314,6 +327,7 @@ async function renderHomepageSection(section) {
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.workspace_path')}</div>
+            <div class="field-help">${t('help.homepage.workspace_path')}</div>
             <div class="cfg-actions-row">
                 <input id="hp-workspace-path-input" class="field-input" data-path="homepage.workspace_path" value="${escapeAttr(cfg.workspace_path || '')}" placeholder="/home/aurago/aurago/agent_workspace/homepage">
                 <button class="btn-save btn-secondary" onclick="hpAutoDetectWorkspace()" title="${t('config.homepage.workspace_autodetect_title')}">
@@ -332,14 +346,15 @@ async function renderHomepageSection(section) {
 
         html += `<div class="field-group">
             <div class="field-label">${t('config.homepage.circuit_breaker_max_calls')}</div>
+            <div class="field-help">${t('config.homepage.circuit_breaker_max_calls_help')}</div>
             <input type="number" class="field-input" data-path="homepage.circuit_breaker_max_calls" value="${cfg.circuit_breaker_max_calls || 35}" min="1" max="100">
         </div>`;
 
-        html += `<div class="cfg-toggle-row-compact hp-toggle-mt">
+        html += `<div class="field-group"><div class="cfg-toggle-row-compact hp-toggle-mt">
             <span class="cfg-toggle-label">${t('config.homepage.allow_temporary_token_budget_overflow')}</span>
             <div class="toggle ${cfg.allow_temporary_token_budget_overflow ? 'on' : ''}" data-path="homepage.allow_temporary_token_budget_overflow" onclick="toggleBool(this)"></div>
-        </div>`;
-        html += `<div class="field-help hp-help-mt-xs">${t('config.homepage.allow_temporary_token_budget_overflow_desc')}</div>`;
+        </div>
+        <div class="field-help hp-help-mt-xs">${t('config.homepage.allow_temporary_token_budget_overflow_desc')}</div></div>`;
         if (cfg.allow_temporary_token_budget_overflow && basePromptBudget > 0) {
             html += `<div class="field-help hp-help-mt-xxs">${t('config.homepage.token_budget_preview', {
                 base: basePromptBudget,

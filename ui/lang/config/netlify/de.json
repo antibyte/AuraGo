@@ -78,5 +78,6 @@
   "config.netlify.allow_site_management_help": "Erlaubt das Erstellen, Ändern und Löschen von Netlify-Sites.",
   "config.netlify.allow_env_management_help": "Erlaubt das Verwalten von Umgebungsvariablen auf Netlify-Sites.",
   "config.netlify.default_site_id_help": "Optionale Site-ID, wenn der Agent keine Site nennt.",
-  "config.netlify.team_slug_help": "Optionaler Netlify-Team-Slug für teambezogene API-Aufrufe."
+  "config.netlify.team_slug_help": "Optionaler Netlify-Team-Slug für teambezogene API-Aufrufe.",
+  "config.netlify.vault_badge": "Tresor"
 }

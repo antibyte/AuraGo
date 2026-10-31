@@ -26,7 +26,7 @@ function renderRuViewSection(section) {
         desc: tr('quality'),
         groups: [
             { titleKey: 'config.refresh.operation', content:
-                toggle('enabled', tr('enabled')) +
+                toggle('enabled', tr('enabled'), tr('enabled_help')) +
                 toggle('readonly', tr('readonly'), tr('readonly_help')) +
                 '<div id="ruview-readonly-notice" class="cfg-note is-warning" role="status">' + escapeHtml(tr('readonly_notice')) + '</div>' +
                 '<div class="field-grid two-cols">' + select('mode', tr('mode'), MODE_HELP, ['docker', 'external', 'native']) + select('source', tr('source'), SOURCE_HELP, ['esp32', 'wifi', 'simulated']) + '</div>' +
@@ -37,14 +37,14 @@ function renderRuViewSection(section) {
             },
             { titleKey: 'config.refresh.connection', content:
                 '<div id="ruview-external-fields">' +
-                    field('url', tr('url'), { type: 'url', placeholder: 'http://192.168.1.20:3000' }) +
+                    field('url', tr('url'), { type: 'url', help: tr('url_help'), placeholder: 'http://192.168.1.20:3000' }) +
                     field('api_token', tr('token'), { type: 'password', help: tr('token_help') }) +
-                    toggle('allow_private', tr('allow_private')) +
+                    toggle('allow_private', tr('allow_private'), tr('allow_private_help')) +
                 '</div>' +
                 '<div id="ruview-managed-fields">' + form.note({ text: tr('managed_help') }) +
                     form.disclosure({ content: '<div class="field-grid two-cols">' +
-                        field('http_port', tr('http_port'), { type: 'number', min: 1024, max: 65534, step: 1 }) +
-                        field('storage_mb', tr('storage'), { type: 'number', min: 64, max: 1048576, step: 1 }) + '</div>'
+                        field('http_port', tr('http_port'), { type: 'number', help: tr('http_port_help'), min: 1024, max: 65534, step: 1 }) +
+                        field('storage_mb', tr('storage'), { type: 'number', help: tr('storage_help'), min: 64, max: 1048576, step: 1 }) + '</div>'
                     }) +
                 '</div>' +
                 form.actions([{ html: button('check', tr('test'), true) }, { html:
@@ -57,7 +57,7 @@ function renderRuViewSection(section) {
                 form.note({ text: tr('receiver_purpose') }) +
                 '<div class="field-grid two-cols">' +
                     field('receiver_ip', tr('receiver'), { help: tr('receiver_help'), placeholder: '192.168.1.20' }) +
-                    field('udp_port', tr('udp_port'), { type: 'number', min: 1024, max: 65535, step: 1 }) +
+                    field('udp_port', tr('udp_port'), { type: 'number', help: tr('udp_port_help'), min: 1024, max: 65535, step: 1 }) +
                 '</div>' +
                 '<div id="ruview-receiver-suggestion" hidden>' +
                     form.actions([{ html: button('use-receiver', tr('use_receiver')) }]) +
@@ -65,7 +65,7 @@ function renderRuViewSection(section) {
                 '</div>' +
                 '<div id="ruview-managed-udp">' + toggle('udp_enabled', tr('udp_enabled'), tr('udp_help')) +
                     '<div id="ruview-udp-fields">' +
-                        field('udp_bind', tr('udp_bind'), { placeholder: '192.168.1.20' }) +
+                        field('udp_bind', tr('udp_bind'), { help: tr('udp_bind_help'), placeholder: '192.168.1.20' }) +
                         field('udp_allow', tr('udp_allow'), { value: (c.udp_allow || []).join(', '), help: tr('udp_allow_help'), placeholder: '192.168.1.50, 192.168.1.51' }) +
                     '</div>' +
                 '</div>' +

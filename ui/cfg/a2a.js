@@ -35,11 +35,13 @@ function renderA2ASection(section) {
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.agent_description') + '</div>';
+    html += '<div class="field-help">' + t('config.a2a.help_agent_description') + '</div>';
     html += '<input class="field-input" type="text" data-path="a2a.server.agent_description" value="' + escapeAttr(srv.agent_description || '') + '" placeholder="' + escapeAttr(t('config.a2a.agent_description_placeholder')) + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.agent_version') + '</div>';
+    html += '<div class="field-help">' + t('config.a2a.help_agent_version') + '</div>';
     html += '<input class="field-input a2a-input-sm" type="text" data-path="a2a.server.agent_version" value="' + escapeAttr(srv.agent_version || t('config.a2a.agent_version_placeholder')) + '" placeholder="' + escapeAttr(t('config.a2a.agent_version_placeholder')) + '">';
     html += '</div>';
 
@@ -64,22 +66,23 @@ function renderA2ASection(section) {
     html += '<div class="a2a-card">';
     html += '<div class="a2a-card-title">🔌 ' + t('config.a2a.bindings_title') + '</div>';
 
-    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.rest', value: bindings.rest !== false, labelKey: 'config.a2a.rest_binding' });
-    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.jsonrpc', value: !!bindings.jsonrpc, labelKey: 'config.a2a.jsonrpc_binding' });
-    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.grpc', value: !!bindings.grpc, labelKey: 'config.a2a.grpc_binding' });
-    html += AuraConfigForm.number({ path: 'a2a.server.bindings.grpc_port', value: bindings.grpc_port || 50051, labelKey: 'config.a2a.grpc_port' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.rest', helpKey: 'config.a2a.help_rest_binding', value: bindings.rest !== false, labelKey: 'config.a2a.rest_binding' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.jsonrpc', helpKey: 'config.a2a.help_jsonrpc', value: !!bindings.jsonrpc, labelKey: 'config.a2a.jsonrpc_binding' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.grpc', helpKey: 'config.a2a.help_grpc', value: !!bindings.grpc, labelKey: 'config.a2a.grpc_binding' });
+    html += AuraConfigForm.number({ path: 'a2a.server.bindings.grpc_port', helpKey: 'config.a2a.help_grpc_port', value: bindings.grpc_port || 50051, labelKey: 'config.a2a.grpc_port' });
     html += '</div>';
 
     html += '<div class="a2a-card">';
     html += '<div class="a2a-card-title">⚡ ' + t('config.a2a.capabilities_title') + '</div>';
 
-    html += AuraConfigForm.toggle({ path: 'a2a.server.streaming', value: !!srv.streaming, labelKey: 'config.a2a.streaming' });
-    html += AuraConfigForm.toggle({ path: 'a2a.server.push_notifications', value: !!srv.push_notifications, labelKey: 'config.a2a.push_notifications' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.streaming', helpKey: 'config.a2a.help_streaming', value: !!srv.streaming, labelKey: 'config.a2a.streaming' });
+    html += AuraConfigForm.toggle({ path: 'a2a.server.push_notifications', helpKey: 'config.a2a.help_push', value: !!srv.push_notifications, labelKey: 'config.a2a.push_notifications' });
     html += '</div>';
 
     html += '<div class="a2a-card">';
     html += '<div class="a2a-card-title">🎯 ' + t('config.a2a.skills_title') + '</div>';
     html += '<div class="a2a-desc">' + t('config.a2a.skills_desc') + '</div>';
+    html += '<div class="field-help" id="a2a-skills-help">' + t('config.a2a.skills_fields_help') + '</div>';
     html += '<div id="a2a-skills-list">' + a2aSkillRows(skills) + '</div>';
     html += '<button class="btn-save a2a-add-btn" onclick="a2aAddSkill()">+ ' + t('config.a2a.add_skill') + '</button>';
     html += '</div>';
@@ -88,24 +91,28 @@ function renderA2ASection(section) {
     html += '<div class="a2a-section-title">🔐 ' + t('config.a2a.auth_title') + '</div>';
 
     html += '<div class="a2a-card">';
-    html += AuraConfigForm.toggle({ path: 'a2a.auth.api_key_enabled', value: !!auth.api_key_enabled, labelKey: 'config.a2a.api_key_auth' });
+    html += AuraConfigForm.toggle({ path: 'a2a.auth.api_key_enabled', helpKey: 'config.a2a.help_api_key_enabled', value: !!auth.api_key_enabled, labelKey: 'config.a2a.api_key_auth' });
+    html += '<div class="field-group"><div class="field-label">' + t('config.a2a.api_key_label') + '</div>';
+    html += '<div class="field-help">' + t('config.a2a.help_api_key') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="a2a-api-key" data-path="a2a.auth.api_key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div>';
-    html += '</div>';
+    html += '</div></div>';
 
     html += '<div class="a2a-card">';
-    html += AuraConfigForm.toggle({ path: 'a2a.auth.bearer_enabled', value: !!auth.bearer_enabled, labelKey: 'config.a2a.bearer_auth' });
+    html += AuraConfigForm.toggle({ path: 'a2a.auth.bearer_enabled', helpKey: 'config.a2a.help_bearer_enabled', value: !!auth.bearer_enabled, labelKey: 'config.a2a.bearer_auth' });
+    html += '<div class="field-group"><div class="field-label">' + t('config.a2a.bearer_secret_label') + '</div>';
+    html += '<div class="field-help">' + t('config.a2a.help_bearer_secret') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="a2a-bearer-secret" data-path="a2a.auth.bearer_secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</div>';
-    html += '</div>';
+    html += '</div></div>';
 
     if (!auth.api_key_enabled && !auth.bearer_enabled) {
         html += '<div class="wh-notice a2a-warning-notice">';
@@ -143,6 +150,7 @@ function renderA2ASection(section) {
     html += '<span class="toggle-label">' + (cli.enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
+    html += '<div class="field-help" id="a2a-remote-help">' + t('config.a2a.remote_agents_help') + '</div>';
     html += '<div id="a2a-remote-agents">' + a2aRemoteAgentCards(remoteAgents) + '</div>';
     html += '<button class="btn-save a2a-add-btn-lg" onclick="a2aAddRemoteAgent()">+ ' + t('config.a2a.add_remote_agent') + '</button>';
 
@@ -201,9 +209,9 @@ function a2aRenderSkills() {
 
 function a2aSkillRow(skill, idx) {
     var h = '<div class="a2a-skill-row" data-skill-idx="' + idx + '">';
-    h += '<input class="field-input a2a-input-xs" type="text" data-path="a2a.server.skills.' + idx + '.id" value="' + escapeAttr(skill.id || '') + '" placeholder="ID">';
-    h += '<input class="field-input a2a-input-flex" type="text" data-path="a2a.server.skills.' + idx + '.name" value="' + escapeAttr(skill.name || '') + '" placeholder="' + escapeAttr(t('config.a2a.skill_name')) + '">';
-    h += '<input class="field-input a2a-input-flex-2" type="text" data-path="a2a.server.skills.' + idx + '.description" value="' + escapeAttr(skill.description || '') + '" placeholder="' + escapeAttr(t('config.a2a.skill_description')) + '">';
+    h += '<input class="field-input a2a-input-xs" type="text" data-path="a2a.server.skills.' + idx + '.id" value="' + escapeAttr(skill.id || '') + '" placeholder="ID" aria-label="' + escapeAttr(t('config.a2a.skill_id')) + '" aria-describedby="a2a-skills-help">';
+    h += '<input class="field-input a2a-input-flex" type="text" data-path="a2a.server.skills.' + idx + '.name" value="' + escapeAttr(skill.name || '') + '" placeholder="' + escapeAttr(t('config.a2a.skill_name')) + '" aria-label="' + escapeAttr(t('config.a2a.skill_name')) + '" aria-describedby="a2a-skills-help">';
+    h += '<input class="field-input a2a-input-flex-2" type="text" data-path="a2a.server.skills.' + idx + '.description" value="' + escapeAttr(skill.description || '') + '" placeholder="' + escapeAttr(t('config.a2a.skill_description')) + '" aria-label="' + escapeAttr(t('config.a2a.skill_description')) + '" aria-describedby="a2a-skills-help">';
     h += '<button class="btn btn-sm btn-danger" onclick="a2aRemoveSkill(' + idx + ')">✕</button>';
     h += '</div>';
     return h;
@@ -252,17 +260,17 @@ function a2aRemoteAgentCard(ra, idx) {
     h += '</div></div>';
 
     h += '<div class="a2a-field-row-id">';
-    h += '<input class="field-input a2a-input-sm" type="text" data-path="a2a.client.remote_agents.' + idx + '.id" value="' + escapeAttr(ra.id || '') + '" placeholder="ID">';
-    h += '<input class="field-input a2a-input-flex" type="text" data-path="a2a.client.remote_agents.' + idx + '.name" value="' + escapeAttr(ra.name || '') + '" placeholder="' + escapeAttr(t('config.a2a.ra_name')) + '">';
+    h += '<input class="field-input a2a-input-sm" type="text" data-path="a2a.client.remote_agents.' + idx + '.id" value="' + escapeAttr(ra.id || '') + '" placeholder="ID" aria-label="' + escapeAttr(t('config.a2a.ra_id')) + '" aria-describedby="a2a-remote-help">';
+    h += '<input class="field-input a2a-input-flex" type="text" data-path="a2a.client.remote_agents.' + idx + '.name" value="' + escapeAttr(ra.name || '') + '" placeholder="' + escapeAttr(t('config.a2a.ra_name')) + '" aria-label="' + escapeAttr(t('config.a2a.ra_name')) + '" aria-describedby="a2a-remote-help">';
     h += '</div>';
 
-    h += '<input class="field-input a2a-input-full-mb" type="text" data-path="a2a.client.remote_agents.' + idx + '.card_url" value="' + escapeAttr(ra.card_url || '') + '" placeholder="https://agent.example.com/.well-known/agent-card.json">';
+    h += '<input class="field-input a2a-input-full-mb" type="text" data-path="a2a.client.remote_agents.' + idx + '.card_url" value="' + escapeAttr(ra.card_url || '') + '" placeholder="https://agent.example.com/.well-known/agent-card.json" aria-label="' + escapeAttr(t('config.a2a.ra_card_url')) + '" aria-describedby="a2a-remote-help">';
 
     h += '<div class="a2a-cred-row">';
-    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-apikey-' + idx + '" data-path="a2a.client.remote_agents.' + idx + '.api_key" value="' + escapeAttr(cfgSecretValue(ra.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
+    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-apikey-' + idx + '" data-path="a2a.client.remote_agents.' + idx + '.api_key" value="' + escapeAttr(cfgSecretValue(ra.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" aria-label="' + escapeAttr(t('config.a2a.ra_api_key_label')) + '" aria-describedby="a2a-remote-help">';
     h += '</div>';
     h += '<div class="a2a-cred-row-last">';
-    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-bearer-' + idx + '" data-path="a2a.client.remote_agents.' + idx + '.bearer_token" value="' + escapeAttr(cfgSecretValue(ra.bearer_token)) + '" placeholder="' + escapeAttr(bearerPlaceholder) + '">';
+    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-bearer-' + idx + '" data-path="a2a.client.remote_agents.' + idx + '.bearer_token" value="' + escapeAttr(cfgSecretValue(ra.bearer_token)) + '" placeholder="' + escapeAttr(bearerPlaceholder) + '" aria-label="' + escapeAttr(t('config.a2a.ra_bearer_label')) + '" aria-describedby="a2a-remote-help">';
     h += '</div>';
 
     h += '</div>';

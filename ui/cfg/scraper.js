@@ -15,8 +15,9 @@
             // Enabled toggle
             html += `<div class="cfg-toggle-row-highlight">
                 <span class="cfg-toggle-label">${t('config.web_scraper.enabled_label')}</span>
-                <div class="toggle ${wsEnabled ? 'on' : ''}" data-path="tools.web_scraper.enabled" onclick="toggleBool(this)"></div>
-            </div>`;
+                <div class="toggle ${wsEnabled ? 'on' : ''}" data-path="tools.web_scraper.enabled" aria-describedby="ws-enabled-help" onclick="toggleBool(this)"></div>
+            </div>
+            <div class="field-help" id="ws-enabled-help">${t('help.tools.web_scraper.enabled')}</div>`;
 
             if (!wsEnabled) {
                 html += `<div class="wh-notice">
@@ -31,11 +32,11 @@
             // Summary mode section
             html += `<div class="ws-summary-box">
                 <div class="cfg-toggle-row">
-                    <span class="cfg-toggle-title">📝 ${t('config.web_scraper.summary_mode')}</span>
-                    <div class="toggle ${summaryOn ? 'on' : ''}" data-path="tools.web_scraper.summary_mode" onclick="toggleBool(this)"></div>
+                    <span class="cfg-toggle-title" id="ws-summary-title">📝 ${t('config.web_scraper.summary_mode')}</span>
+                    <div class="toggle ${summaryOn ? 'on' : ''}" data-path="tools.web_scraper.summary_mode" aria-labelledby="ws-summary-title" aria-describedby="ws-summary-help" onclick="toggleBool(this)"></div>
                 </div>
-                <div class="ws-summary-desc">
-                    ${t('config.web_scraper.summary_desc')}
+                <div class="ws-summary-desc field-help" id="ws-summary-help">
+                    ${t('help.tools.web_scraper.summary_mode')}
                 </div>`;
 
             html += `<div class="wh-notice ${summaryOn ? '' : 'is-disabled'}">

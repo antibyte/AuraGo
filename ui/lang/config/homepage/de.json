@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Arbeitsbereich-Pfad",
   "config.homepage.workspace_path_missing_warning": "Der Webserver ist aktiviert, aber kein Arbeitsbereich-Pfad gesetzt. Trag den absoluten Host-Pfad zum Homepage-Projekt ein (z.B. /home/aurago/aurago/agent_workspace/homepage) oder nutze die automatische Erkennung.",
   "config.homepage.workspace_relative_hint": "In Homepage-Tool-Aufrufen bleiben project_dir und path relativ zu diesem Workspace, zum Beispiel 'my-site' oder 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Arbeitsbereich"
+  "config.homepage.workspace_title": "Arbeitsbereich",
+  "config.homepage.vault_badge": "Tresor",
+  "config.homepage.deploy_password_help": "SSH-Passwort für den Deploy-Server. Es wird im verschlüsselten Tresor gespeichert; nutzen Sie bevorzugt einen SSH-Schlüssel.",
+  "config.homepage.deploy_key_help": "Privater SSH-Schlüssel (PEM) für den Deploy-Server. Er wird im verschlüsselten Tresor gespeichert und ersetzt das Passwort.",
+  "config.homepage.circuit_breaker_max_calls_help": "Wie viele Werkzeugaufrufe der Agent in einer Homepage-Sitzung machen darf, bevor AuraGo ihn stoppt (1–100, Standard 35)."
 }

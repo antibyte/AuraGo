@@ -46,5 +46,10 @@
   "config.shell_sandbox.native": "Nativer Host",
   "config.shell_sandbox.ready": "Bereit",
   "config.sandbox.local_python_fallback_label": "Lokaler Python-Fallback",
-  "config.sandbox.local_python_fallback_warning": "Führt Code bei Sandbox-Fehlern in lokalem Python außerhalb der Isolation aus. Nur bewusst aktivieren."
+  "config.sandbox.local_python_fallback_warning": "Führt Code bei Sandbox-Fehlern in lokalem Python außerhalb der Isolation aus. Nur bewusst aktivieren.",
+  "config.sandbox.local_python_fallback_help": "Führt Code lokal auf dem Server aus, wenn kein Container verfügbar ist. Achtung: Dieser Code läuft ohne Container-Isolation.",
+  "config.shell_sandbox.enabled_help": "Schränkt Shell-Befehle des Agenten über Landlock im Dateisystem ein. Funktioniert nur unter Linux mit passendem Kernel.",
+  "config.shell_sandbox.max_memory_help": "Arbeitsspeicher in MB, den ein Befehl höchstens belegen darf (64–8192, Standard 1024).",
+  "config.shell_sandbox.max_cpu_help": "Rechenzeit in Sekunden, nach der ein Befehl abgebrochen wird (5–600, Standard 30).",
+  "config.shell_sandbox.max_fsize_help": "Größte Datei in MB, die ein Befehl schreiben darf (1–4096, Standard 100)."
 }

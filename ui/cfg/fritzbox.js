@@ -91,16 +91,18 @@ function renderFritzBoxSection(section) {
         const on = data.enabled === true;
         const ro = data.readonly === true;
         let h = '<div class="fb-feature-card">';
-        h += '<div class="fb-feature-title">' + t(titleKey) + '</div>';
+        const feature = t(titleKey).replace(/^[^\p{L}]+/u, '');
+        h += '<div class="fb-feature-title" id="fb-feature-title-' + key + '">' + t(titleKey) + '</div>';
         h += '<div class="fb-feature-toggles">';
-        h += '<div class="cfg-toggle-row-compact">';
-        h += '<div class="toggle toggle-sm' + (on ? ' on' : '') + '" data-path="fritzbox.' + key + '.enabled" onclick="toggleBool(this)"></div>';
-        h += '<span class="cfg-toggle-label">' + t('config.fritzbox.feature_enabled') + '</span>';
-        h += '</div>';
-        h += '<div class="cfg-toggle-row-compact">';
-        h += '<div class="toggle toggle-sm' + (ro ? ' on' : '') + '" data-path="fritzbox.' + key + '.readonly" onclick="toggleBool(this)"></div>';
-        h += '<span class="cfg-toggle-label">' + t('config.fritzbox.feature_readonly') + '</span>';
-        h += '</div>';
+        // Each switch is named by its card title plus its own label and carries its own description.
+        h += '<div class="field-group"><div class="cfg-toggle-row-compact">';
+        h += '<div class="toggle toggle-sm' + (on ? ' on' : '') + '" data-path="fritzbox.' + key + '.enabled" aria-labelledby="fb-feature-title-' + key + ' fb-feature-' + key + '-enabled" onclick="toggleBool(this)"></div>';
+        h += '<span class="cfg-toggle-label" id="fb-feature-' + key + '-enabled">' + t('config.fritzbox.feature_enabled') + '</span>';
+        h += '</div><div class="field-help">' + t('config.fritzbox.feature_enabled_help', { feature }) + '</div></div>';
+        h += '<div class="field-group"><div class="cfg-toggle-row-compact">';
+        h += '<div class="toggle toggle-sm' + (ro ? ' on' : '') + '" data-path="fritzbox.' + key + '.readonly" aria-labelledby="fb-feature-title-' + key + ' fb-feature-' + key + '-readonly" onclick="toggleBool(this)"></div>';
+        h += '<span class="cfg-toggle-label" id="fb-feature-' + key + '-readonly">' + t('config.fritzbox.feature_readonly') + '</span>';
+        h += '</div><div class="field-help">' + t('config.fritzbox.feature_readonly_help', { feature }) + '</div></div>';
         h += '</div></div>';
         return h;
     }
@@ -116,15 +118,15 @@ function renderFritzBoxSection(section) {
     const pollingInterval = (tel.polling || {}).interval_seconds || 60;
     html += '<div class="fb-feature-card">';
     html += '<div class="fb-feature-title">📞 ' + t('config.fritzbox.group_polling') + '</div>';
-    html += '<div class="cfg-toggle-row-compact">';
+    html += '<div class="field-group"><div class="cfg-toggle-row-compact">';
     html += '<div class="toggle toggle-sm' + (pollingEnabled ? ' on' : '') + '" data-path="fritzbox.telephony.polling.enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="cfg-toggle-label">' + t('config.fritzbox.polling_enabled') + '</span>';
-    html += '</div>';
+    html += '</div><div class="field-help">' + t('config.fritzbox.polling_enabled_help') + '</div></div>';
     html += '<div class="cfg-input-row">';
-    html += '<span class="cfg-label">' + t('config.fritzbox.polling_interval') + '</span>';
-    html += '<input class="field-input fb-poll-input" type="number" min="10" max="3600" data-path="fritzbox.telephony.polling.interval_seconds" value="' + escapeAttr(String(pollingInterval)) + '">';
+    html += '<label class="cfg-label" for="fb-poll-interval">' + t('config.fritzbox.polling_interval') + '</label>';
+    html += '<input class="field-input fb-poll-input" id="fb-poll-interval" type="number" min="10" max="3600" data-path="fritzbox.telephony.polling.interval_seconds" aria-describedby="fb-poll-interval-help" value="' + escapeAttr(String(pollingInterval)) + '">';
     html += '<span class="fb-hint">' + t('config.fritzbox.polling_seconds') + '</span>';
-    html += '</div></div>';
+    html += '</div><div class="field-help" id="fb-poll-interval-help">' + t('config.fritzbox.polling_interval_help') + '</div></div>';
 
     html += '</div>';
     document.getElementById('content').innerHTML = html;

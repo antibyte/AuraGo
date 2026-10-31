@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "An invalid masked credential is stored. Replace or remove it.",
   "config.providers.runtime_incomplete": "The saved provider is incomplete or unavailable. Check model, endpoint and credentials.",
   "config.providers.limit_source_model_only_fallback": "model-only estimate from another provider",
-  "config.providers.missing_references": "Missing provider selections: {paths}. Select an existing provider in these settings."
+  "config.providers.missing_references": "Missing provider selections: {paths}. Select an existing provider in these settings.",
+  "config.providers.search_help": "Filters the provider list by name, type or model.",
+  "config.providers.filter_type_help": "Shows only providers of one type.",
+  "config.providers.filter_role_help": "Shows only providers assigned to a specific job, such as the main model or embeddings."
 }

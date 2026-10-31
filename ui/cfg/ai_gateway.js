@@ -35,12 +35,12 @@ function renderAIGatewaySection(section) {
     html += '<div class="section-desc">' + escapeHtml(section.desc || '') + '</div>';
     html += cfgStatusBanner.html('ai-gw-status-banner', 'checking');
     html += '<div class="wh-notice"><small>' + t('config.ai_gateway.info') + '</small></div>';
-    html += '<div class="field-group"><div class="field-label">' + t('config.ai_gateway.enabled_label') + '</div><div class="toggle-wrap">';
+    html += '<div class="field-group"><div class="field-label">' + t('config.ai_gateway.enabled_label') + '</div><div class="field-help">' + t('help.ai_gateway.enabled') + '</div><div class="toggle-wrap">';
     html += '<div class="toggle' + (gw.enabled === true ? ' on' : '') + '" data-path="ai_gateway.enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + t(gw.enabled === true ? 'config.toggle.active' : 'config.toggle.inactive') + '</span></div></div>';
     html += '<div class="field-grid two-cols">';
-    html += aiGatewayField('config.ai_gateway.account_id', '', '<input class="field-input" data-path="ai_gateway.account_id" value="' + escapeAttr(gw.account_id || '') + '">');
-    html += aiGatewayField('config.ai_gateway.gateway_id', '', '<input class="field-input" data-path="ai_gateway.gateway_id" value="' + escapeAttr(gw.gateway_id || '') + '">');
+    html += aiGatewayField('config.ai_gateway.account_id', 'help.ai_gateway.account_id', '<input class="field-input" data-path="ai_gateway.account_id" value="' + escapeAttr(gw.account_id || '') + '">');
+    html += aiGatewayField('config.ai_gateway.gateway_id', 'help.ai_gateway.gateway_id', '<input class="field-input" data-path="ai_gateway.gateway_id" value="' + escapeAttr(gw.gateway_id || '') + '">');
     const tokenPlaceholder = cfgSecretPlaceholder(gw.token, t('config.ai_gateway.token_placeholder'));
     html += aiGatewayField('config.ai_gateway.token', 'help.ai_gateway.token', '<div class="password-wrap cfg-password-input"><input class="field-input" type="password" autocomplete="off" data-path="ai_gateway.token" value="' + escapeAttr(cfgSecretValue(gw.token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
     html += aiGatewayField('config.ai_gateway.hf_slug', 'config.ai_gateway.hf_help', '<input class="field-input" data-path="ai_gateway.huggingface_provider_slug" value="' + escapeAttr(gw.huggingface_provider_slug || '') + '">');
@@ -52,7 +52,7 @@ function renderAIGatewaySection(section) {
     html += aiGatewayNumberField('config.ai_gateway.request_timeout_ms', 'help.ai_gateway.request_timeout_ms', 'ai_gateway.request_timeout_ms', gw.request_timeout_ms || 0, 0, 300000);
     html += '</div><div class="wh-notice"><small>' + t('config.ai_gateway.retry_info') + '</small></div>';
     html += aiGatewayRenderMetadataRows(gw.metadata);
-    html += '<div class="field-group"><label class="field-label" for="ai-gw-provider">' + t('config.ai_gateway.provider_select') + '</label><select class="field-select" id="ai-gw-provider">';
+    html += '<div class="field-group"><label class="field-label" for="ai-gw-provider">' + t('config.ai_gateway.provider_select') + '</label><div class="field-help">' + t('config.ai_gateway.provider_select_help') + '</div><select class="field-select" id="ai-gw-provider">';
     if (!providers.length) html += '<option value="">' + t('config.ai_gateway.no_provider') + '</option>';
     providers.forEach(p => { html += '<option value="' + escapeAttr(p.id) + '"' + (p.id === _aiGatewayProviderID ? ' selected' : '') + '>' + escapeHtml(p.name || p.id) + '</option>'; });
     html += '</select></div><div class="cfg-actions-row">';

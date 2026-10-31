@@ -58,5 +58,9 @@
   "config.homepage.workspace_path": "Workspace path",
   "config.homepage.workspace_path_missing_warning": "The web server is enabled but no workspace path is set. Enter the absolute host path to your homepage project (e.g. /home/aurago/aurago/agent_workspace/homepage) or click Auto-detect to find it automatically.",
   "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_title": "Workspace"
+  "config.homepage.workspace_title": "Workspace",
+  "config.homepage.vault_badge": "vault",
+  "config.homepage.deploy_password_help": "SSH password for the deploy server. It is stored in the encrypted vault; prefer an SSH key.",
+  "config.homepage.deploy_key_help": "Private SSH key (PEM) for the deploy server. It is stored in the encrypted vault and replaces the password.",
+  "config.homepage.circuit_breaker_max_calls_help": "How many tool calls the agent may make in one homepage session before AuraGo stops it (1-100, default 35)."
 }

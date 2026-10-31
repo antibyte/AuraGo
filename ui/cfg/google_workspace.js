@@ -27,6 +27,7 @@ async function renderGoogleWorkspaceSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.google_workspace.enabled_label')}</div>
+        <div class="field-help">${t('config.google_workspace.enabled_help')}</div>
         <div class="toggle-wrap">
             <div class="toggle${enabledOn ? ' on' : ''}" data-path="google_workspace.enabled" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
