@@ -29,7 +29,7 @@ func newDestructiveFlowFixture(t *testing.T) *destructiveFlowFixture {
 		return string(raw)
 	}
 
-	html := read(filepath.Join(".", "containers.html"))
+	html := renderUIPage(t, "containers.html")
 	html = strings.ReplaceAll(html, "{{.Lang}}", "en")
 	html = strings.ReplaceAll(html, "{{.I18N}}", "{}")
 	html = strings.ReplaceAll(html, `<script src="/shared.js?v=12"></script>`, "")

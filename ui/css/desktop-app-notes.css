@@ -1,5 +1,5 @@
 /* Notes shares Autor's chrome; Markdown remains a flowing writing surface. */
-.vd-notes-app{--notes-bg:var(--vd-theme-app-bg,#12171e);--notes-panel:var(--vd-theme-panel-bg,#181e27);--notes-border:var(--vd-theme-border,#ffffff15);--notes-text:var(--vd-text,#e5e9ef);--notes-muted:var(--vd-theme-muted,#93a0b2);--notes-control:var(--vd-theme-control-bg,#ffffff07);--notes-accent:var(--vd-accent,#eeb46a);--notes-paper:#171d25;--notes-ink:#e7ebf2;--notes-zoom:1;display:flex;flex-direction:column;width:100%;height:100%;min-height:0;overflow:hidden;position:relative;isolation:isolate;container-type:inline-size;background:var(--notes-bg);color:var(--notes-text);font:13px/1.45 var(--vd-font-family,Geist,system-ui,sans-serif)}
+.vd-notes-app{--notes-bg:var(--vd-theme-app-bg,#12171e);--notes-panel:var(--vd-theme-panel-bg,#181e27);--notes-border:var(--vd-theme-border,#ffffff15);--notes-text:var(--vd-text,#e5e9ef);--notes-muted:var(--vd-theme-muted,#93a0b2);--notes-control:var(--vd-theme-control-bg,#ffffff07);--notes-accent:var(--vd-accent,#eeb46a);--notes-paper:color-mix(in srgb,var(--vd-theme-app-bg,#12171e) 90%,#000);--notes-ink:var(--vd-text,#e7ebf2);--notes-zoom:1;display:flex;flex-direction:column;width:100%;height:100%;min-height:0;overflow:hidden;position:relative;isolation:isolate;container-type:inline-size;background:var(--notes-bg);color:var(--notes-text);font:13px/1.45 var(--vd-font-family,Geist,system-ui,sans-serif)}
 .vd-notes-app *{box-sizing:border-box}
 .vd-notes-app [hidden]{display:none!important}
 .vd-notes-app button,.vd-notes-app input,.vd-notes-app select,.vd-notes-app textarea{font:inherit;color:inherit}
@@ -118,7 +118,7 @@
 .notes-narrow .notes-name [data-name]{max-width:200px}
 .notes-narrow .notes-document [data-save-state]{max-width:100px;overflow:hidden;text-overflow:ellipsis}
 .notes-print-frame{position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;bottom:0}
-.desktop-body[data-theme=fruity][data-fruity-mode=light] .vd-notes-app,.desktop-body[data-scheme="light"] .vd-notes-app{--notes-paper:#fffdf9;--notes-ink:#25303c}
+.desktop-body[data-theme=fruity][data-fruity-mode=light] .vd-notes-app,.desktop-body[data-scheme="light"] .vd-notes-app{--notes-paper:#fffdf9;--notes-ink:var(--vd-text,#25303c)}
 @container(max-width:600px){.notes-documentbar{padding:6px 8px}.notes-documentbar nav{gap:0}.notes-documentbar nav button{width:28px;padding:4px}.notes-name [data-name]{max-width:135px!important}.notes-document [data-save-state]{display:none}.notes-page{padding:25px 23px 70px}.notes-statusbar [data-mode]{display:none}.notes-notice{flex-wrap:wrap}.notes-notice>span{flex-basis:100%}.vd-notes-toolbar{padding:5px 8px;gap:5px}}
 .desktop-body[data-density=compact] .notes-documentbar{min-height:43px;padding-block:4px}
 .desktop-body[data-density=compact] .vd-notes-toolbar{min-height:39px;padding-block:4px}

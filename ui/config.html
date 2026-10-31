@@ -1,5 +1,11 @@
+{{define "app-header-lead"}}<button id="cfg-hamburger" class="hamburger-btn cfg-hamburger" data-i18n-title="config.menu"
+    data-i18n-aria-label="config.toggle_sidebar" aria-controls="sidebar" aria-expanded="false"><svg class="cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>{{end -}}
+{{define "app-header-actions"}}<button id="cfg-restart-btn" type="button" class="btn-header cfg-restart-btn cfg-restart-danger" data-config-action="restart">
+    <span class="cfg-restart-full" data-i18n="config.header.restart_full"></span>
+    <svg class="cfg-restart-short cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-3-3" /></svg>
+</button>{{end -}}
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-title="config.page_title">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.page_config">
 
 <head>
     <meta charset="UTF-8">
@@ -12,7 +18,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-    <title>AuraGo – Configuration</title>
+    <title>AuraGo</title>
     <meta name="description" data-i18n="config.page_description" data-i18n-attr="content"
         content="">
     <meta property="og:title" data-i18n="config.page_title" data-i18n-attr="content" content="">
@@ -53,35 +59,8 @@
 
 <body class="pw-page" data-workspace-page="config" data-density="comfortable">
     <a href="#content" class="skip-link" data-i18n="common.skip_to_content"></a>
-    <!-- Header -->
-    <div class="cfg-header">
-        <div class="cfg-logo-wrap header-left">
-            <button id="cfg-hamburger" class="hamburger-btn cfg-hamburger" data-i18n-title="config.menu"
-                data-i18n-aria-label="config.toggle_sidebar" aria-controls="sidebar" aria-expanded="false"><svg class="cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
-            <a href="/" class="logo">
-                <div class="logo-icon">⚡</div>
-                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="config.logo_subtitle"></span>
-            </a>
-        </div>
-        <div class="header-actions">
-            <button id="cfg-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
-                data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
-                data-i18n-aria-label="common.workspace_density_toggle">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M5 7h14M5 12h14M5 17h14" />
-                </svg>
-                <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
-            </button>
-            <button id="cfg-restart-btn" type="button" class="btn-header cfg-restart-btn cfg-restart-danger" data-config-action="restart">
-                <span class="cfg-restart-full" data-i18n="config.header.restart_full"></span>
-                <svg class="cfg-restart-short cfg-ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5M20 7l-3-3" /></svg>
-            </button>
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
-        </div>
-    </div>
-
-    <div id="radialMenuAnchor"></div>
+    <!-- Header (shared partial; page controls go into the slots defined at the top of this file) -->
+    {{template "app-header" .}}
 
     <!-- Layout -->
     <div class="cfg-layout">

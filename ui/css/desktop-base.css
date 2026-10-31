@@ -347,10 +347,6 @@
     background: radial-gradient(circle at 78% 18%, rgba(255, 128, 102, 0.22), transparent 32%), linear-gradient(150deg, #1b1010, #11151c 58%, #0b0e13);
 }
 
-.desktop-body[data-wallpaper="forest"] {
-    background: radial-gradient(circle at 16% 16%, rgba(68, 207, 142, 0.18), transparent 32%), linear-gradient(145deg, #07120f, #111c19 62%, #071014);
-}
-
 .desktop-body[data-wallpaper="groupshoot"],
 .desktop-body[data-wallpaper="alpine_dawn"],
 .desktop-body[data-wallpaper="city_rain"],

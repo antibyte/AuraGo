@@ -8,6 +8,10 @@
 .desktop-body[data-wallpaper="green_slime"] {
     background: #233815 url('/img/wallpapers/themes/green_slime.png') center / cover no-repeat fixed;
 }
+/* Forest: generated vector dusk scene (assets/desktop-wallpaper-forest/generate.mjs); the left column is kept dark for the icons. */
+.desktop-body[data-wallpaper="forest"] {
+    background: #07120f url('/img/wallpapers/themes/forest.svg') center / cover no-repeat fixed;
+}
 .desktop-body[data-wallpaper="voxel_world"] {
     background: #bfe2ff url('/img/wallpapers/themes/voxel_world.png') center / cover no-repeat fixed;
 }

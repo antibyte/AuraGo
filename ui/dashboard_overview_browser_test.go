@@ -61,7 +61,7 @@ func dashboardOverviewSummaryFixture(withHealth bool, more int) map[string]any {
 // renderDashboardForBrowser executes the real template set (shell + 14 partials) with the English dashboard strings.
 func renderDashboardForBrowser(t *testing.T) []byte {
 	t.Helper()
-	tmpl, err := template.ParseFS(Content, append([]string{"dashboard.html"}, dashboardSectionPartialFiles(t)...)...)
+	tmpl, err := template.ParseFS(Content, append([]string{"dashboard.html", "partials/app-header.html"}, dashboardSectionPartialFiles(t)...)...)
 	if err != nil {
 		t.Fatalf("parse dashboard template: %v", err)
 	}
@@ -77,7 +77,8 @@ func renderDashboardForBrowser(t *testing.T) []byte {
 		Lang             string
 		BuildVersion     string
 		TemplateDataJSON template.JS
-	}{Lang: "en", BuildVersion: "p3-test", TemplateDataJSON: template.JS(payload)}
+		Page             string
+	}{Lang: "en", BuildVersion: "p3-test", Page: "dashboard", TemplateDataJSON: template.JS(payload)}
 	var out bytes.Buffer
 	if err := tmpl.Execute(&out, data); err != nil {
 		t.Fatalf("execute dashboard template: %v", err)

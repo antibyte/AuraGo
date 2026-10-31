@@ -21,17 +21,33 @@
         sound.append(root.querySelector('[data-inspector]')); host.append(sound);
         const performance = document.createElement('section'); performance.className = 'ss-performance-workbench'; performance.dataset.workPanel = 'performance'; host.append(performance);
         const save = () => { try { localStorage.setItem(key, JSON.stringify(view)); } catch (_) {} };
+        // On a wide desktop the notes panel and the sound workbench sit next to
+        // each other, so the instrument and its effect chain stay in view.
+        const wide=()=>root.clientWidth>=1400;
+        let lastWide=wide();
         function render() {
+            const isWide=wide();lastWide=isWide;
+            // The wide workbench hides the sound tab. A selection that still
+            // points at it would leave the tab list without a focusable tab.
+            const active=isWide&&view.panel==='sound'?'notes':view.panel;
             root.dataset.workPanel = view.panel;root.classList.toggle('ss-library-open',view.compactLibrary===true); root.classList.toggle('ss-library-collapsed',!view.library);
+            root.classList.toggle('ss-wide',isWide);
             root.style.setProperty('--ss-workbench-height',view.height+'px');
             grip.setAttribute('aria-valuenow',String(view.height));
-            tabs.querySelectorAll('button').forEach(b => { b.setAttribute('aria-selected',String(b.dataset.workTab===view.panel)); b.tabIndex=b.dataset.workTab===view.panel?0:-1; });
-            host.querySelectorAll('[data-work-panel]').forEach(p=>{p.hidden=p.dataset.workPanel!==view.panel;p.setAttribute('role','tabpanel');});
+            tabs.querySelectorAll('button').forEach(b => { b.setAttribute('aria-selected',String(b.dataset.workTab===active)); b.tabIndex=b.dataset.workTab===active?0:-1; });
+            const visible=name=>isWide?(name==='sound'?true:name==='notes'?view.panel!=='performance':view.panel==='performance'):name===view.panel;
+            host.querySelectorAll('[data-work-panel]').forEach(p=>{p.hidden=!visible(p.dataset.workPanel);p.setAttribute('role','tabpanel');});
             root.querySelectorAll('[data-action="library"]').forEach(b=>b.setAttribute('aria-expanded',String(root.clientWidth<=540?!!view.compactLibrary:!!view.library)));
         }
         function panel(name) { view.panel=name; render(); save(); }
         tabs.addEventListener('click',e=>{const b=e.target.closest('[data-work-tab]');if(b)panel(b.dataset.workTab);},{signal});
-        tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const names=['notes','sound','performance'];let i=names.indexOf(view.panel);i=e.key==='Home'?0:e.key==='End'?2:(i+(e.key==='ArrowRight'?1:2))%3;panel(names[i]);tabs.querySelector('[data-work-tab="'+names[i]+'"]').focus();},{signal});
+        tabs.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();
+            // The wide workbench hides the sound tab, so it must not stay in the
+            // rotation: focusing a hidden button would leave the focus behind.
+            const names=wide()?['notes','performance']:['notes','sound','performance'];
+            let i=names.indexOf(view.panel);if(i<0)i=0;
+            i=e.key==='Home'?0:e.key==='End'?names.length-1:(i+(e.key==='ArrowRight'?1:names.length-1))%names.length;
+            panel(names[i]);tabs.querySelector('[data-work-tab="'+names[i]+'"]').focus();},{signal});
         let resize = null;
         grip.addEventListener('pointerdown',e=>{if(e.button!==0)return;resize={y:e.clientY,height:view.height};grip.setPointerCapture(e.pointerId);e.preventDefault();},{signal});
         grip.addEventListener('pointermove',e=>{if(resize){view.height=Math.max(180,Math.min(560,resize.height+resize.y-e.clientY));render();}},{signal});
@@ -42,8 +58,16 @@
         const title=document.createElement('strong');title.textContent=tr('start_loop');welcome.append(title);
         for(const name of ['electronic','chill','retro']) {const b=document.createElement('button');b.dataset.template=name;b.textContent=tr('template_'+name);b.type='button';welcome.append(b);}
         for(const action of ['new','open']){const b=document.createElement('button');b.dataset.action=action;b.type='button';b.textContent=tr(action);welcome.append(b);}
+        if(typeof options.onTour==='function'){const b=document.createElement('button');b.dataset.action='tour';b.type='button';b.textContent=tr('tour');welcome.append(b);}
         root.querySelector('.ss-main').prepend(welcome);
         render();
+        // The wide workbench depends on the window width. Without an observer the
+        // layout would keep the old mode until the user switches a tab.
+        if(typeof ResizeObserver==='function'){
+            const observer=new ResizeObserver(()=>{if(wide()!==lastWide)render();});
+            observer.observe(root);
+            if(signal&&typeof signal.addEventListener==='function')signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
+        }
         return { panel, performance, sound, welcome, toggleLibrary(){if(root.clientWidth<=540)view.compactLibrary=!view.compactLibrary;else view.library=!view.library;render();save();}, refresh(){welcome.hidden=options.project().tracks.length>0;welcome.querySelectorAll('[data-template]').forEach(b=>b.disabled=options.blocked());} };
     }
     window.SynthStudioWorkspace={create};

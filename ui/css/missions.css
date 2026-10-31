@@ -1662,11 +1662,6 @@
         margin-left: 40px;
     }
 
-    .pw-page[data-workspace-page="missions"] .app-header {
-        min-height: 56px;
-        padding-inline: var(--pw-space-4);
-    }
-
     .pw-page[data-workspace-page="missions"] .container {
         padding: var(--pw-space-3);
     }

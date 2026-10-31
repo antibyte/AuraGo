@@ -101,7 +101,7 @@ func TestSetupHTTPSContextBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	metadata, _ := json.Marshal(map[string]interface{}{"systemLang": "de", "buildVersion": "https-test", "i18n": translations})
-	html := strings.NewReplacer("{{.Lang}}", "de", "{{.BuildVersion}}", "https-test", "{{.TemplateDataJSON}}", string(metadata)).Replace(string(mustReadUIFile(t, "setup.html")))
+	html := renderUIPageWith(t, "setup.html", uiPageOptions{Lang: "de", BuildVersion: "https-test", TemplateDataJSON: string(metadata), I18N: translations})
 	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")

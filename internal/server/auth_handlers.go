@@ -64,7 +64,7 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 // handleAuthLoginPage serves the embedded login page template.
 func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 	var tmpl *template.Template
-	t, err := template.ParseFS(uiFS, "login.html")
+	t, err := parseUIPage(uiFS, "login.html")
 	if err == nil {
 		tmpl = t
 	}
@@ -110,7 +110,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 			"redirectURL": r.URL.Query().Get("redirect"),
 		})
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := tmpl.Execute(w, data); err != nil {
+		if err := executeUIPageTemplate(w, tmpl, data); err != nil {
 			s.Logger.Error("[Auth] Failed to render login page", "error", err)
 		}
 	}

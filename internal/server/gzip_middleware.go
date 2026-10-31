@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"bufio"
 	"compress/gzip"
 	"fmt"
@@ -120,6 +121,9 @@ type gzipResponseWriter struct {
 	status        int
 	skip          bool
 	headerWritten bool
+	// pending holds leading whitespace-only output that arrived before any
+	// Content-Type was known; sniffing it alone would yield text/plain.
+	pending []byte
 }
 
 func (g *gzipResponseWriter) WriteHeader(status int) {
@@ -141,6 +145,20 @@ func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 		g.WriteHeader(http.StatusOK)
 	}
 	if !g.headerWritten {
+		if g.Header().Get("Content-Type") == "" {
+			if len(bytes.TrimSpace(b)) == 0 {
+				g.pending = append(g.pending, b...)
+				return len(b), nil
+			}
+			if len(g.pending) > 0 {
+				joined := append(g.pending, b...)
+				g.pending = nil
+				if _, err := g.Write(joined); err != nil {
+					return 0, err
+				}
+				return len(b), nil
+			}
+		}
 		g.beginResponse(b)
 	}
 	if g.skip || g.gz == nil {
@@ -175,6 +193,7 @@ func (g *gzipResponseWriter) beginResponse(first []byte) {
 }
 
 func (g *gzipResponseWriter) Flush() {
+	g.flushPending()
 	if !g.headerWritten && g.wroteHeader {
 		// A flush before any body byte would commit headers downstream without
 		// a Content-Type; fall back to uncompressed passthrough instead.
@@ -190,7 +209,26 @@ func (g *gzipResponseWriter) Flush() {
 	}
 }
 
+// flushPending emits buffered whitespace-only output when nothing else followed.
+func (g *gzipResponseWriter) flushPending() {
+	if len(g.pending) == 0 || g.headerWritten {
+		return
+	}
+	p := g.pending
+	g.pending = nil
+	if !g.wroteHeader {
+		g.WriteHeader(http.StatusOK)
+	}
+	g.beginResponse(p)
+	if g.skip || g.gz == nil {
+		_, _ = g.ResponseWriter.Write(p)
+	} else {
+		_, _ = g.gz.Write(p)
+	}
+}
+
 func (g *gzipResponseWriter) close() {
+	g.flushPending()
 	if !g.headerWritten {
 		// Header-only responses (no body ever written) forward their status.
 		if !g.wroteHeader {

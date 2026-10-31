@@ -1216,12 +1216,19 @@ async function api(url, options = {}) {
  */
 function shouldShowLanguageSwitcher() {
     const path = window.location.pathname || '';
-    return path.includes('/config') || path.includes('/login');
+    return !!document.querySelector('[data-ui-lang-slot]') || path.includes('/config') || path.includes('/login');
 }
 
 function injectLanguageSwitcher() {
     if (!shouldShowLanguageSwitcher()) return;
-    if (document.getElementById('ui-lang-switcher')) return;
+    // Pages using partials/app-header.html carry a slot: the menu is built into it.
+    // Without a slot the floating widget is used (login) and an existing one is kept.
+    const slot = document.querySelector('[data-ui-lang-slot]');
+    if (slot) {
+        if (slot.dataset.bound === 'true') return;
+    } else if (document.getElementById('ui-lang-switcher')) {
+        return;
+    }
 
     const langs = [
         { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -1246,17 +1253,16 @@ function injectLanguageSwitcher() {
     const currentLangCode = document.documentElement.lang || 'en';
     const currentLang = langs.find(l => l.code === currentLangCode) || langs[0];
 
-    const container = document.createElement('div');
-    container.id = 'ui-lang-switcher';
-    container.className = 'ui-lang-switcher';
+    const container = slot || document.createElement('div');
+    if (!slot) {
+        container.id = 'ui-lang-switcher';
+        container.className = 'ui-lang-switcher';
+    }
 
-    container.innerHTML = `
-        <button class="ui-lang-btn" id="ui-lang-btn" title="Change UI Language">
-            <span class="ui-lang-flag">${currentLang.flag}</span>
-        </button>
-        <div class="ui-lang-menu" id="ui-lang-menu">
+    const menuMarkup = `
+        <div class="ui-lang-menu" id="ui-lang-menu" role="menu">
             ${langs.map(l => `
-                <button class="ui-lang-option ${l.code === currentLangCode ? 'active' : ''}" data-lang="${l.code}">
+                <button role="menuitem" class="ui-lang-option ${l.code === currentLangCode ? 'active' : ''}" data-lang="${l.code}">
                     <span class="ui-lang-flag">${l.flag}</span>
                     <span class="ui-lang-label">${l.label}</span>
                 </button>
@@ -1264,18 +1270,40 @@ function injectLanguageSwitcher() {
         </div>
     `;
 
-    document.body.appendChild(container);
+    if (slot) {
+        slot.dataset.bound = 'true';
+        slot.insertAdjacentHTML('beforeend', menuMarkup);
+    } else {
+        container.innerHTML = `
+        <button class="ui-lang-btn" id="ui-lang-btn" title="Change UI Language">
+            <span class="ui-lang-flag">${currentLang.flag}</span>
+        </button>` + menuMarkup;
+        document.body.appendChild(container);
+    }
 
     const btn = document.getElementById('ui-lang-btn');
     const menu = document.getElementById('ui-lang-menu');
 
+    function setMenuOpen(open) {
+        menu.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        menu.classList.toggle('open');
+        setMenuOpen(!menu.classList.contains('open'));
     });
 
-    document.addEventListener('click', () => {
-        menu.classList.remove('open');
+    document.addEventListener('click', (e) => {
+        if (slot && slot.contains(e.target)) return;
+        setMenuOpen(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && menu.classList.contains('open')) {
+            setMenuOpen(false);
+            btn.focus();
+        }
     });
 
     async function previewLoginLanguage(lang) {
@@ -1286,7 +1314,10 @@ function injectLanguageSwitcher() {
         window.I18N = payload.data;
         document.documentElement.lang = lang;
         const selected = langs.find(item => item.code === lang);
-        if (selected) btn.querySelector('.ui-lang-flag').textContent = selected.flag;
+        const flag = btn.querySelector('.ui-lang-flag');
+        if (selected && flag) flag.textContent = selected.flag;
+        const code = btn.querySelector('.ui-lang-code');
+        if (code) code.textContent = lang;
         menu.querySelectorAll('.ui-lang-option').forEach(item => item.classList.toggle('active', item.dataset.lang === lang));
         window._auragoApplySharedI18n();
         window.dispatchEvent(new Event('aurago:language-changed'));

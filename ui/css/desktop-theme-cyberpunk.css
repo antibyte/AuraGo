@@ -447,6 +447,10 @@
 .desktop-body[data-theme="cyberpunk"] :is(.vd-modal-title, .vd-file-dialog-title) { color: #00F0FF; }
 .desktop-body[data-theme="cyberpunk"] .vd-clock-popup-time { color: #00F0FF; font-family: var(--vd-cyber-mono); }
 
+/* Unread rows: the shared accent mix turns yellow-on-navy into mud, so use a cool cyan wash and carry the yellow as a left rail. */
+.desktop-body[data-theme="cyberpunk"] .vd-notification-item.unread { background: rgba(0, 240, 255, .06); box-shadow: inset 2px 0 0 var(--vd-accent); }
+.desktop-body[data-theme="cyberpunk"] .vd-notification-item.unread:is(:hover, :focus-visible) { background: rgba(0, 240, 255, .12); }
+
 /* === Dialog controls and toasts === */
 .desktop-body[data-theme="cyberpunk"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close, .vd-modal-input, .vd-spotlight-input, .vd-file-dialog-close, .vd-toast-close) { border: 1px solid rgba(0, 240, 255, 0.45); border-radius: 0; }
 .desktop-body[data-theme="cyberpunk"] :is(.vd-button, .vd-notification-clear, .vd-clock-popup-open, .vd-shortcuts-close) { background: rgba(0, 240, 255, 0.06); color: var(--vd-text); box-shadow: none; }

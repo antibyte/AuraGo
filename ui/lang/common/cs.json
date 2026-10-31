@@ -326,5 +326,18 @@
   "common.go2rtc_source.hint_homekit": "Kameru nejprve spárujte ve webovém rozhraní go2rtc a poté vložte zobrazenou adresu homekit://.",
   "common.go2rtc_source.hint_roborock": "Zkopírujte adresu roborock:// z webového rozhraní go2rtc po přihlášení.",
   "common.go2rtc_source.hint_wyze": "Zkopírujte adresu wyze:// z webového rozhraní go2rtc (Add → Wyze).",
-  "common.go2rtc_source.hint_webrtc": "Zdroje WebRTC jako WHEP, AWS Kinesis, OpenIPC nebo SwitchBot. Formát najdete v dokumentaci."
+  "common.go2rtc_source.hint_webrtc": "Zdroje WebRTC jako WHEP, AWS Kinesis, OpenIPC nebo SwitchBot. Formát najdete v dokumentaci.",
+  "common.page_config": "konfigurace",
+  "common.page_plans": "Plány",
+  "common.page_truenas": "TrueNAS úložiště",
+  "common.page_knowledge": "Centrum znalostí",
+  "common.page_skills": "Dovednosti",
+  "common.page_missions": "Řízení misí",
+  "common.page_containers": "Kontejnery",
+  "common.page_invasion": "Řízení invaze",
+  "common.page_media": "Zobrazení médií",
+  "common.page_cheatsheets": "Taháky",
+  "common.page_dashboard": "Nástěnka",
+  "common.ui_language": "Jazyk",
+  "common.home_link": "AuraGo – Domů"
 }

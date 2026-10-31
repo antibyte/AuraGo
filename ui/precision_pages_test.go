@@ -226,12 +226,20 @@ func TestConfigPrecisionWorkspaceSharedIntegration(t *testing.T) {
 	html := normalizeAssetText(mustReadUIFile(t, "config.html"))
 	for _, marker := range []string{
 		`<body class="pw-page" data-workspace-page="config"`,
+		`{{template "app-header" .}}`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("config.html missing shared workspace marker %q", marker)
+		}
+	}
+	header := normalizeAssetText(mustReadUIFile(t, "partials/app-header.html"))
+	for _, marker := range []string{
 		`data-pw-density-toggle`,
 		`common.workspace_density_toggle`,
 		`common.workspace_density_comfortable`,
 	} {
-		if !strings.Contains(html, marker) {
-			t.Errorf("config.html missing shared workspace marker %q", marker)
+		if !strings.Contains(header, marker) {
+			t.Errorf("partials/app-header.html missing shared workspace marker %q", marker)
 		}
 	}
 
@@ -1835,7 +1843,7 @@ func TestPrecisionWorkspaceOperationsMobileActionTargetsCoverBothDensities(t *te
 			}
 		}
 		var source string
-		for _, path := range test.sources {
+		for _, path := range append([]string{"partials/app-header.html"}, test.sources...) {
 			source += normalizeAssetText(mustReadUIFile(t, path))
 		}
 		for _, className := range test.renderedClasses {

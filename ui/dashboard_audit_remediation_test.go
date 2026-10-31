@@ -21,8 +21,8 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		`<span data-i18n="dashboard.logs_refresh">`,
 		`<span data-i18n="knowledge.filesync_refresh">`,
 		`<span data-i18n="knowledge.filesync_rescan">`,
-		`data-i18n="dashboard.page_heading"`,
-		`data-pw-density-toggle`,
+		`data-i18n="common.page_dashboard"`,
+		`{{template "app-header" .}}`,
 		`class="dash-nav-group-label"`,
 		`data-section-link="overview"`,
 	} {

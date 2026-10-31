@@ -13476,7 +13476,7 @@ function updateTaskbarSystemButtonsForMobile() {
             { label: t('desktop.edit'), icon: 'edit', fallback: 'E', disabled: readonly, action: () => editStickyNote(widget) },
             { label: t('desktop.fm.duplicate'), icon: 'copy', fallback: '+', disabled: readonly, action: () => editStickyNote(null, x + 24, y + 24, widgetConfig(widget).text) },
             { separator: true },
-            { label: t('desktop.sticky_delete'), icon: 'trash', fallback: 'X', disabled: readonly, action: async () => {
+            { label: t('desktop.sticky_delete'), icon: 'trash', fallback: 'X', danger: true, disabled: readonly, action: async () => {
                 if (desktopReadonly() || !await confirmDialog(t('desktop.notes_delete_confirm'), t('desktop.sticky_delete_msg'))) return;
                 try {
                     await api('/api/desktop/widgets?id=' + encodeURIComponent(widget.id), { method: 'DELETE' });
@@ -17489,15 +17489,16 @@ function updateTaskbarSystemButtonsForMobile() {
             const shortcut = contextMenuShortcutMarkup(item.shortcut || item.shortcutHint || '');
             // disabledHint says why a disabled item is off; it is drawn as the item's tooltip.
             const disabled = item.disabled ? 'disabled' + (item.disabledHint ? ` title="${esc(item.disabledHint)}"` : '') : '';
+            const itemClass = item.danger === true ? 'vd-context-item vd-context-item-danger' : 'vd-context-item';
             const submenuItems = normalizeContextMenuItems(item.items || item.children || []);
             if (submenuItems.length) {
                 return `<div class="vd-context-submenu" role="none">
-                    <button type="button" class="vd-context-item" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span></button>
+                    <button type="button" class="${itemClass}" role="menuitem" ${disabled}>${icon}${label}${shortcut}<span class="vd-context-arrow">${iconMarkup('chevron-right', '', '', 12, 'action')}</span></button>
                     <div class="vd-context-submenu-popover" role="menu">${renderItems(submenuItems, path.concat(String(item.id || index)))}</div>
                 </div>`;
             }
             actions.set(actionKey, item);
-            return `<button type="button" class="vd-context-item" role="menuitem" data-context-action="${esc(actionKey)}" ${disabled}>${icon}${label}${shortcut}</button>`;
+            return `<button type="button" class="${itemClass}" role="menuitem" data-context-action="${esc(actionKey)}" ${disabled}>${icon}${label}${shortcut}</button>`;
         }).join('');
         const menu = document.createElement('div');
         menu.className = 'vd-context-menu vd-scroll';
@@ -17572,7 +17573,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (isTrashIcon(btn)) {
             items.push(
-                { id: 'empty-trash', label: t('desktop.context_empty_trash'), icon: 'trash', fallback: 'X', action: () => emptyTrash() },
+                { id: 'empty-trash', label: t('desktop.context_empty_trash'), icon: 'trash', fallback: 'X', danger: true, action: () => emptyTrash() },
                 { separator: true },
                 { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
             );
@@ -17607,7 +17608,7 @@ function updateTaskbarSystemButtonsForMobile() {
             items.push(
                 { separator: true },
                 { id: 'rename', label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', shortcut: 'F2', action: () => renamePath(path) },
-                { id: 'delete', label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', shortcut: 'Del', action: () => deleteDesktopPaths(batchPaths.length ? batchPaths : [path]) }
+                { id: 'delete', label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', shortcut: 'Del', danger: true, action: () => deleteDesktopPaths(batchPaths.length ? batchPaths : [path]) }
             );
             if (btn.dataset.webPath) {
                 items.push({ label: t('desktop.media_download'), icon: 'download', fallback: 'D', action: () => downloadMediaPath(btn.dataset.webPath, btn.querySelector('.vd-icon-label').textContent) });
@@ -17619,7 +17620,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         if (appId) {
             const appIsBuiltin = isBuiltinApp(appId);
-            items.push({ id: 'delete-app', label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
+            items.push({ id: 'delete-app', label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, danger: true, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
         }
         items.push(
             { separator: true },
@@ -17642,7 +17643,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', action: () => toggleDockPin(appId) }
         ];
         if (!isBuiltinApp(appId)) {
-            items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', action: () => deleteDesktopApp(appId) });
+            items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', danger: true, action: () => deleteDesktopApp(appId) });
         }
         showContextMenu(event.clientX, event.clientY, items);
     }

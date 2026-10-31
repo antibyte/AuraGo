@@ -422,34 +422,6 @@
             gap: var(--space-3);
         }
 
-        .login-logo-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: var(--radius-2xl);
-            background: linear-gradient(135deg, #83baff, #2864b4);
-            display: grid;
-            place-items: center;
-            font-size: var(--text-xl);
-            box-shadow: 
-                0 0 40px rgba(131, 186, 255, 0.4),
-                0 0 80px rgba(131, 186, 255, 0.2),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            animation: logo-pulse 3s ease-in-out infinite;
-        }
-
-        @keyframes logo-pulse {
-            0%, 100% { 
-                box-shadow: 
-                    0 0 40px rgba(131, 186, 255, 0.4),
-                    0 0 80px rgba(131, 186, 255, 0.2);
-            }
-            50% { 
-                box-shadow: 
-                    0 0 50px rgba(131, 186, 255, 0.6),
-                    0 0 100px rgba(131, 186, 255, 0.3);
-            }
-        }
-
         .login-title {
             font-size: var(--text-lg);
             font-weight: 700;
@@ -694,10 +666,6 @@
             background: linear-gradient(135deg, rgba(40, 100, 180, 0.16), transparent 40%, transparent 60%, rgba(14, 165, 233, 0.07));
         }
 
-        [data-theme="light"] .login-title {
-            color: var(--text-primary);
-        }
-
         [data-theme="light"] .login-input {
             background: rgba(228, 238, 232, 0.92);
             border-color: rgba(71, 85, 105, 0.2);
@@ -763,13 +731,6 @@
             .login-logo {
                 margin-bottom: var(--space-6);
                 gap: 0.55rem;
-            }
-
-            .login-logo-icon {
-                width: 56px;
-                height: 56px;
-                border-radius: 18px;
-                font-size: var(--text-lg);
             }
 
             .login-title {
@@ -971,20 +932,39 @@
     box-shadow: none;
 }
 
-.pw-page.pw-entry-page[data-entry-page="login"] .login-logo-icon {
-    border: 1px solid color-mix(in srgb, var(--pw-accent) 42%, var(--pw-line));
-    background: color-mix(in srgb, var(--pw-accent) 12%, var(--pw-surface));
-    background-image: none;
-    color: var(--pw-accent);
-    box-shadow: none;
-}
-
+/* Shared brand lockup (partials/app-header.html): icon centred above the wordmark. */
 .pw-page.pw-entry-page[data-entry-page="login"] .login-title {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    justify-items: center;
+    row-gap: var(--pw-space-2, 0.5rem);
+    column-gap: var(--pw-space-2, 0.5rem);
     background: none;
     background-image: none;
-    color: var(--pw-text);
     -webkit-text-fill-color: currentColor;
     text-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-title .logo-icon {
+    grid-column: 1 / -1;
+    width: 48px;
+    height: 48px;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-title .aurago-brand-icon {
+    width: 48px;
+    height: 48px;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-title .logo-wordmark-accent {
+    justify-self: end;
+    color: var(--pw-accent);
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-title .logo-wordmark-base {
+    justify-self: start;
+    color: var(--pw-text);
 }
 
 .pw-page.pw-entry-page[data-entry-page="login"] .login-subtitle,

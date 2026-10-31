@@ -12,7 +12,6 @@ let cheatsheetSearchQuery = '';
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    document.title = t('cheatsheets.page_title');
     updateViewToggle();
     loadSheets();
     bindCheatsheetChrome();

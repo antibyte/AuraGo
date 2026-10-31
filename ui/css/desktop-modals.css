@@ -145,6 +145,12 @@
     cursor: not-allowed;
 }
 
+/* Destructive items (item.danger): extra specificity so skin hover colours do not repaint them. */
+.desktop-body .vd-context-menu .vd-context-item.vd-context-item-danger:not(:disabled),
+.desktop-body .vd-context-submenu-popover .vd-context-item.vd-context-item-danger:not(:disabled) {
+    color: light-dark(color-mix(in srgb, var(--ds-color-danger-fg, #e5484d) 50%, #000), var(--ds-color-danger-fg, #e5484d));
+}
+
 @keyframes vd-context-item-enter {
     from { opacity: 0; transform: translateX(-6px); }
     to { opacity: 1; transform: translateX(0); }

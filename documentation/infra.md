@@ -71,6 +71,16 @@ replacing the current session, Network Cameras a configured camera, Software Sto
 confirmed conversation. MeshCore conversations are offered only for radio or mesh assets, or once two characters
 are typed. Opening these targets does not dispatch power actions.
 
+## Search and status
+
+The bottom status bar shows the full inventory count, including assets that have not been placed, and the current
+selection in wide windows. Synchronization status and **Refresh** remain available in narrow windows. Hover over
+the status to see the last update time and source freshness. A failed refresh keeps the last known map and counts;
+use **Refresh** to retry. A paused status is not a device error.
+
+Use the clear button in the search field to remove only the search text and keep your filters. The reset action in
+the status bar clears the search and all filters together. It appears only while a search or filter is active.
+
 ## Source edits and actions
 
 | Source | Editable source metadata | Control |

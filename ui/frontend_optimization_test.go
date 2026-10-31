@@ -218,13 +218,11 @@ func TestAllTemplatesUseSplitSharedAssets(t *testing.T) {
 			if !strings.Contains(html, `/js/shared/shared-core.js?v={{.BuildVersion}}`) {
 				t.Fatalf("%s must load shared core with BuildVersion cache busting", page)
 			}
-			if strings.Contains(html, `id="theme-toggle"`) || strings.Contains(html, `id="chat-theme-picker"`) {
-				if !strings.Contains(html, `/js/shared/shared-chat.js?v={{.BuildVersion}}`) {
-					t.Fatalf("%s must load shared chat/theme extension for theme controls", page)
-				}
-				if strings.Index(html, `/js/shared/shared-core.js`) > strings.Index(html, `/js/shared/shared-chat.js`) {
-					t.Fatalf("%s must load shared core before shared chat/theme extension", page)
-				}
+			if !strings.Contains(html, `/js/shared/shared-chat.js?v={{.BuildVersion}}`) {
+				t.Fatalf("%s must load shared chat/theme extension for theme controls", page)
+			}
+			if strings.Index(html, `/js/shared/shared-core.js`) > strings.Index(html, `/js/shared/shared-chat.js`) {
+				t.Fatalf("%s must load shared core before shared chat/theme extension", page)
 			}
 		})
 	}

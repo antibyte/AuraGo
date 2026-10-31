@@ -44,12 +44,12 @@ func TestAuthBypassSubtreesEndWithSlash(t *testing.T) {
 
 func TestAuthLockdownAllowsOnlyExactSetupDependencies(t *testing.T) {
 	t.Parallel()
-	for _, path := range []string{"/api/auth/password", "/api/setup", "/api/setup/status", "/setup", "/js/setup/main.js", "/api/personalities", "/auth/login", "/api/i18n", "/api/ready"} {
+	for _, path := range []string{"/api/auth/password", "/api/setup", "/api/setup/status", "/setup", "/js/setup/main.js", "/api/personalities", "/auth/login", "/api/i18n", "/api/ready", "/img/chat-ui-icons/robot.png"} {
 		if !isAllowedWithoutPassword(path) {
 			t.Fatalf("%s must stay reachable during the lockdown", path)
 		}
 	}
-	for _, path := range []string{"/api/readyz", "/api/auth/passwordx", "/api/personalitiesx", "/api/setupx", "/setupx", "/api/i18n/x", "/api/health/discord"} {
+	for _, path := range []string{"/api/readyz", "/api/auth/passwordx", "/api/personalitiesx", "/api/setupx", "/setupx", "/api/i18n/x", "/api/health/discord", "/img/chat-ui-icons/robot.png/x", "/img/other.png"} {
 		if isAllowedWithoutPassword(path) {
 			t.Fatalf("%s must stay blocked during the lockdown", path)
 		}

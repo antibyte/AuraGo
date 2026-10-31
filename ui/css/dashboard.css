@@ -76,9 +76,6 @@
     color: var(--pw-text);
     accent-color: var(--pw-accent);
 }
-.pw-page[data-workspace-page="dashboard"] .logo-subtitle {
-    color: var(--pw-muted);
-}
 .pw-page[data-workspace-page="dashboard"] .audit-danger-btn,
 .pw-page[data-workspace-page="dashboard"] .audit-danger-btn:hover {
     border-color: color-mix(in srgb, var(--pw-danger) 38%, var(--pw-line)) !important;
@@ -2133,12 +2130,6 @@ to { opacity: 1; }
     background: var(--pw-surface);
     color: var(--pw-text);
     transform: translateY(-1px);
-}
-.pw-page[data-workspace-page="dashboard"] .header-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--pw-space-2);
-    flex-shrink: 0;
 }
 .pw-page[data-workspace-page="dashboard"] .ca-spec-icon {
     margin-right: 0.3rem;
@@ -4959,15 +4950,10 @@ gray = hollow circle */
     width: 0.9rem;
     height: 0.9rem;
 }
-/* Logo icon */
+/* Logo wordmark */
 
-.pw-page[data-workspace-page="dashboard"] .logo-icon,
 .pw-page[data-workspace-page="dashboard"] .logo-wordmark-accent {
     color: var(--pw-accent);
-}
-.pw-page[data-workspace-page="dashboard"] .logo-icon .dash-ic {
-    width: 1.5rem;
-    height: 1.5rem;
 }
 /* Journal/milestone icons */
 

@@ -444,13 +444,6 @@
     background-image: none;
 }
 
-.pw-page[data-workspace-page="truenas"] .app-header {
-    min-height: var(--pw-header-height);
-    border-bottom: 1px solid var(--pw-line);
-    background: color-mix(in srgb, var(--pw-canvas) 94%, transparent);
-    box-shadow: none;
-}
-
 .pw-page[data-workspace-page="truenas"] input, .pw-page[data-workspace-page="truenas"] select, .pw-page[data-workspace-page="truenas"] textarea {
     border-color: var(--pw-line-strong);
     border-radius: var(--pw-radius-sm);

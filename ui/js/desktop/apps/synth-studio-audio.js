@@ -9,6 +9,7 @@
   const MAX_ACTIVE_NOTES = 256;
   const MAX_RENDER_SECONDS = 300;
   const MAX_EFFECT_TAIL_SECONDS = 3.5;
+  const AUTOMATION_PARAMETERS = ["tone", "resonance", "drive", "reverb", "delay"];
   const DEFAULT_LOOKAHEAD = 0.12;
   const MAX_LOOKAHEAD = 1;
   const TICK_MS = 25;
@@ -53,6 +54,50 @@
     return root.OfflineAudioContext || root.webkitOfflineAudioContext;
   }
 
+  const FX_PARAM_LIMITS = {    mix: [0, 1], rate: [0.02, 40], depth: [0, 1], feedback: [0, 0.95], tone: [0, 1],
+    amount: [0, 2], drive: [0, 1], freq: [20, 20000], low: [-18, 18], mid: [-18, 18],
+    high: [-18, 18], bits: [1, 16], time: [0.005, 2], size: [0, 1], decay: [0, 1], model: [0, 3]
+  };
+
+  function normalizeInserts(list) {
+    if (!Array.isArray(list)) return [];
+    const output = [];
+    for (const entry of list) {
+      if (!entry || typeof entry !== "object" || typeof entry.type !== "string") continue;
+      const spec = { type: entry.type };
+      for (const key of Object.keys(FX_PARAM_LIMITS)) {
+        if (entry[key] === undefined) continue;
+        const [low, high] = FX_PARAM_LIMITS[key];
+        const value = Number(entry[key]);
+        spec[key] = Number.isFinite(value) ? Math.min(high, Math.max(low, value)) : low;
+      }
+      output.push(spec);
+      if (output.length >= 4) break;
+    }
+    return output;
+  }
+
+  function normalizeMaster(source) {
+    const s = source && typeof source === "object" ? source : {};
+    return {
+      volume: clamp(s.volume, 0, 1.5, 0.78),
+      low: clamp(s.low, -18, 18, 0),
+      mid: clamp(s.mid, -18, 18, 0),
+      high: clamp(s.high, -18, 18, 0),
+      threshold: clamp(s.threshold, -60, 0, -8),
+      ratio: clamp(s.ratio, 1, 20, 10),
+      knee: clamp(s.knee, 0, 40, 8),
+      attack: clamp(s.attack, 0, 1, 0.003),
+      release: clamp(s.release, 0, 1, 0.18),
+      width: clamp(s.width, 0, 2, 1),
+      plateSize: clamp(s.plateSize, 0, 1, 0.5),
+      plateDecay: clamp(s.plateDecay, 0, 1, 0.65),
+      echoTime: clamp(s.echoTime, 0.01, 2, 0.375),
+      echoFeedback: clamp(s.echoFeedback, 0, 0.85, 0.28),
+      echoSync: typeof s.echoSync === "string" ? s.echoSync : "1/8"
+    };
+  }
+
   function normalizeProject(project, mixOnly = false) {
     if (!project || typeof project !== "object" || !Array.isArray(project.tracks)) {
       throw new TypeError("Synth Studio project needs a tracks array.");
@@ -78,6 +123,7 @@
         mute: Boolean(source.mute),
         solo: Boolean(source.solo),
         params: { ...DEFAULT_PARAMS, ...(source.params || {}) },
+        fx: { inserts: normalizeInserts(source.fx && source.fx.inserts) },
         clips: [],
         automation: []
       };
@@ -86,8 +132,6 @@
       track.params.drive = clamp(track.params.drive, 0, 1, DEFAULT_PARAMS.drive);
       track.params.attack = clamp(track.params.attack, 0, 10, DEFAULT_PARAMS.attack);
       track.params.release = clamp(track.params.release, 0, 30, DEFAULT_PARAMS.release);
-      track.params.chorus = clamp(track.params.chorus, 0, 1, DEFAULT_PARAMS.chorus);
-      track.params.phaser = clamp(track.params.phaser, 0, 1, DEFAULT_PARAMS.phaser);
       track.params.reverb = clamp(track.params.reverb, 0, 1, DEFAULT_PARAMS.reverb);
       track.params.delay = clamp(track.params.delay, 0, 1, DEFAULT_PARAMS.delay);
       if (mixOnly) { tracks.push(track); continue; }
@@ -129,7 +173,7 @@
       }
       if(source.automation!==undefined&&!Array.isArray(source.automation))throw new TypeError('Invalid automation.');
       track.automation=(source.automation||[]).map(p=>{
-        if(!p||!['tone','reverb'].includes(p.parameter)||!Number.isInteger(p.tick)||p.tick<0||p.tick>10000000||!Number.isFinite(p.value)||p.value<0||p.value>1)throw new TypeError('Invalid automation point.');
+        if(!p||!AUTOMATION_PARAMETERS.includes(p.parameter)||!Number.isInteger(p.tick)||p.tick<0||p.tick>10000000||!Number.isFinite(p.value)||p.value<0||p.value>1)throw new TypeError('Invalid automation point.');
         endTick=Math.max(endTick,p.tick);
         return {...p};
       }).sort((a,b)=>a.tick-b.tick);
@@ -147,7 +191,7 @@
     if (loop.enabled && (loop.end - loop.start) * (60 / tempo / ppq) < 0.05) {
       throw new TypeError("An enabled loop must be at least 50 ms long.");
     }
-    return { tracks, tempo, ppq, beatsPerBar: Math.round(clamp(project.beatsPerBar, 1, 16, 4)), loop, endTick, noteCount, metronome: project.metronome === true };
+    return { tracks, tempo, ppq, beatsPerBar: Math.round(clamp(project.beatsPerBar, 1, 16, 4)), loop, endTick, noteCount, metronome: project.metronome === true, master: normalizeMaster(project.master) };
   }
 
   function isAudible(track, anySolo) {
@@ -325,7 +369,7 @@
     let rejectPlayback = null;
     let playGeneration = 0;
     let retireBuses = false;
-    let volume = 1, analyser=null, meterSamples=null;
+    let volume = 1, analyser=null, meterSamples=null, spectrumSamples=null;
     const manual=new Set();
     const voices = new Set();
     const liveStates = new Map();
@@ -336,9 +380,31 @@
       if (!Constructor) throw codedError("SYNTH_STUDIO_AUDIO_UNAVAILABLE", "Web Audio is unavailable in this browser.");
       context = new Constructor();
       mix = makeMix(context);
-      mix.master.gain.value = 0.78 * volume;
-      if(context.createAnalyser){analyser=context.createAnalyser();analyser.fftSize=256;meterSamples=new Float32Array(256);mix.master.connect(analyser);}
+      // The app volume scales the master bus; the project master strip keeps
+      // its own level inside the mix graph.
+      mix.master.gain.value = mix.masterStrip ? volume : 0.78 * volume;
+      if (mix.analyser) {
+        analyser = mix.analyser;
+        meterSamples = new Float32Array(analyser.fftSize);
+        spectrumSamples = new Uint8Array(analyser.frequencyBinCount);
+      } else if (context.createAnalyser) {
+        analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        meterSamples = new Float32Array(1024);
+        spectrumSamples = new Uint8Array(analyser.frequencyBinCount);
+        mix.master.connect(analyser);
+      }
       return context;
+    }
+
+    // Push the project master strip and the tempo-synced send buses into the
+    // audio graph.
+    function applyMaster(info) {
+      if (!mix || !context || !info || !info.master) return;
+      const now = context.currentTime;
+      const beat = 60 / clamp(info.tempo, 20, 300, 120);
+      if (mix.masterStrip) mix.masterStrip.update(info.master, now, true);
+      if (mix.sends) mix.sends.update(info.master, now, true, beat);
     }
 
     function setVolume(value) {
@@ -347,7 +413,7 @@
         const gain = mix.master.gain;
         const now = context.currentTime;
         gain.cancelScheduledValues(now);
-        gain.setTargetAtTime(0.78 * volume, now, 0.02);
+        gain.setTargetAtTime(mix.masterStrip ? volume : 0.78 * volume, now, 0.02);
       }
       return volume;
     }
@@ -363,6 +429,7 @@
 
     function updateTracks(project, smooth = true) {
       const info = normalizeProject(project, true);
+      applyMaster(info);
       const solo = info.tracks.some(t => t.solo);
       for (const track of info.tracks) {
         const current = currentInfo?.tracks.find(t => t.id === track.id);
@@ -383,6 +450,9 @@
 
     function disconnectBuses() {
       for (const bus of buses.values()) {
+        for (const insert of bus.inserts || []) {
+          try { insert.processor && insert.processor.dispose && insert.processor.dispose(); } catch (_) {}
+        }
         for (const node of Object.values(bus)) {
           if (node && typeof node.stop === "function") try { node.stop(); } catch (_) {}
           try { node.disconnect(); } catch (_) {}
@@ -498,6 +568,7 @@
       clearVoices(ensureContext().currentTime);
       disconnectBuses();
       currentInfo = info;
+      applyMaster(info);
       let anySolo = info.tracks.some(track => track.solo);
       for (const track of info.tracks) busFor(track);
       return unlock().then(() => {
@@ -812,8 +883,11 @@
     function setAutomation(project){const next=normalizeProject(project);playback?.automation?.(next);}
     function setManual(id,parameter,active){const key=id+':'+parameter;if(active)manual.add(key);else{manual.delete(key);playback?.restore?.();}}
     function meter(){if(!analyser)return 0;analyser.getFloatTimeDomainData(meterSamples);return meterSamples.reduce((peak,v)=>Math.max(peak,Math.abs(v)),0);}
+    // The master spectrum for the workbench analyser. Feedback only: it never
+    // influences the audio path.
+    function spectrum(bins = 64){if(!analyser||!spectrumSamples)return null;analyser.getByteFrequencyData(spectrumSamples);const out=new Array(bins).fill(0);const step=spectrumSamples.length/bins;for(let i=0;i<bins;i++){let sum=0;const from=Math.floor(i*step);const to=Math.max(from+1,Math.floor((i+1)*step));for(let j=from;j<to&&j<spectrumSamples.length;j++)sum+=spectrumSamples[j];out[i]=sum/(to-from);}return out;}
 
-    return { unlock, play, stop, currentTick, meter, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
+    return { unlock, play, stop, currentTick, meter, spectrum, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
   }
 
   function checkRenderBudget(info, events, startTick, endTick, durationSeconds, secPerTick, seedEvents = events) {
@@ -879,7 +953,9 @@
     const rate=44100;
     const frames = Math.ceil(duration * rate);
     const context = new Constructor(2, frames, rate);
-    const mix = makeMix(context);
+    const mix = makeMix(context, { master: info.master, secondsPerBeat: 60 / info.tempo });
+    if (mix.masterStrip) mix.masterStrip.update(info.master, 0, false);
+    if (mix.sends) mix.sends.update(info.master, 0, false, 60 / info.tempo);
     const anySolo = info.tracks.some(track => track.solo);
     const buses = new Map();
     const states = new Map();

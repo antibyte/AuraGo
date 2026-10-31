@@ -130,6 +130,15 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Infra
 
+- The command bar owns view/search/edit controls; the bottom status bar keeps inventory totals, selection,
+  synchronization and explicit Refresh reachable down to 360 px. Totals include unplaced assets, stay hidden until
+  the first snapshot, and survive refresh failures. Passive sync updates are not live announcements; paused is neutral.
+  Search's clear button keeps type/source/power filters and returns focus to the input. The status reset clears both
+  query and filters and returns focus to the map or List view button. Reuse the existing sixteen-locale labels.
+  Toasts stay above the canvas tools and status bar. Verify `TestDesktopInfraWorkspacePolishBrowser`,
+  `TestDesktopInfraWorkspaceRefreshBrowser` and `TestDesktopInfraWorkspacePolishLocalesBrowser`.
+  Screenshot checks wait for visible images only; collapsed shelves and offscreen cards keep lazy images unloaded. The full
+  fleet/theme browser matrix uses a bounded two-minute page budget.
 - Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
   guests, filters, scene builder, layout intents, history), `infra-lanes.js` (Topology lanes, auto layout; `window.InfraAppLanes`,
   `app.lanes`), `infra-store.js` (state, API, polling and visibility,

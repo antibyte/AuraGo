@@ -326,5 +326,18 @@
   "common.go2rtc_source.hint_homekit": "Αντιστοιχίστε πρώτα την κάμερα στη διεπαφή ιστού του go2rtc και μετά επικολλήστε το URL homekit:// που εμφανίζεται.",
   "common.go2rtc_source.hint_roborock": "Αντιγράψτε το URL roborock:// από τη διεπαφή ιστού του go2rtc αφού συνδεθείτε εκεί.",
   "common.go2rtc_source.hint_wyze": "Αντιγράψτε το URL wyze:// από τη διεπαφή ιστού του go2rtc (Add → Wyze).",
-  "common.go2rtc_source.hint_webrtc": "Πηγές WebRTC όπως WHEP, AWS Kinesis, OpenIPC ή SwitchBot. Δείτε την τεκμηρίωση για τη μορφή."
+  "common.go2rtc_source.hint_webrtc": "Πηγές WebRTC όπως WHEP, AWS Kinesis, OpenIPC ή SwitchBot. Δείτε την τεκμηρίωση για τη μορφή.",
+  "common.page_config": "διαμόρφωση",
+  "common.page_plans": "Σχέδια",
+  "common.page_truenas": "Αποθήκευση TrueNAS",
+  "common.page_knowledge": "Κέντρο Γνώσεων",
+  "common.page_skills": "Δεξιότητες",
+  "common.page_missions": "Έλεγχος Αποστολών",
+  "common.page_containers": "Κοντέινερ",
+  "common.page_invasion": "Invasion Control",
+  "common.page_media": "Προβολή πολυμέσων",
+  "common.page_cheatsheets": "Σημειώσεις",
+  "common.page_dashboard": "Πίνακας ελέγχου",
+  "common.ui_language": "Γλώσσα",
+  "common.home_link": "AuraGo – Αρχική"
 }

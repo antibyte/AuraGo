@@ -326,5 +326,18 @@
   "common.go2rtc_source.hint_homekit": "पहले go2rtc वेब इंटरफ़ेस में कैमरा पेयर करें, फिर वहाँ दिखने वाला homekit:// URL चिपकाएँ।",
   "common.go2rtc_source.hint_roborock": "go2rtc वेब इंटरफ़ेस में लॉग इन करने के बाद वहाँ से roborock:// URL कॉपी करें।",
   "common.go2rtc_source.hint_wyze": "go2rtc वेब इंटरफ़ेस (Add → Wyze) से wyze:// URL कॉपी करें।",
-  "common.go2rtc_source.hint_webrtc": "WHEP, AWS Kinesis, OpenIPC या SwitchBot जैसे WebRTC स्रोत। प्रारूप के लिए दस्तावेज़ देखें।"
+  "common.go2rtc_source.hint_webrtc": "WHEP, AWS Kinesis, OpenIPC या SwitchBot जैसे WebRTC स्रोत। प्रारूप के लिए दस्तावेज़ देखें।",
+  "common.page_config": "विन्यास",
+  "common.page_plans": "योजनाएं",
+  "common.page_truenas": "TrueNAS संग्रहण",
+  "common.page_knowledge": "ज्ञान केंद्र",
+  "common.page_skills": "कौशल",
+  "common.page_missions": "🎯मिशन नियंत्रण",
+  "common.page_containers": "कंटेनर",
+  "common.page_invasion": "इनवेजन कंट्रोल",
+  "common.page_media": "मीडिया दृश्य",
+  "common.page_cheatsheets": "चिट शीट",
+  "common.page_dashboard": "डैशबोर्ड",
+  "common.ui_language": "भाषा",
+  "common.home_link": "AuraGo – होम"
 }

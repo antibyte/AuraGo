@@ -99,7 +99,7 @@
         return FALLBACK_LABELS[key] || key;
     }
 
-    const DENSITY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg>';
+    const DENSITY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v5H4zM4 14h16v5H4z"/></svg>';
 
     function syncDensityControls() {
         if (!document.body) return;

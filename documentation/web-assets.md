@@ -48,6 +48,12 @@ notices, normalizes text line endings and archive ordering/timestamps, and emits
 - `web-assets.ldflags`, the exact build inputs; `web-assets.name`, for scripts;
 - `<asset-root>/<assetSetID>/`, a verified immutable installation.
 
+The `ui` root lists its top-level directories explicitly; unlisted directories are
+dropped silently. `partials` (shared Go template partials such as
+`partials/app-header.html`) and `dashboard` (section templates) must stay listed,
+otherwise the pages fail to parse on a packed install.
+
+
 The set ID hashes its per-file SHA-256 manifest. The executable pins this ID,
 archive SHA-256 and compressed byte length. Use `-release v...` on the packer
 to pin its immutable GitHub release download URL. `make_release.bat` does this

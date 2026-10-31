@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.nav_truenas" data-i18n-page-title="truenas.page_title">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.page_truenas">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -11,7 +11,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-    <title></title>
+    <title>AuraGo</title>
     <meta name="description" content="AuraGo - Autonomous AI agent for home lab environments">
     <meta property="og:title" content="AuraGo">
     <meta property="og:description" content="Autonomous AI agent for home lab environments">
@@ -35,24 +35,7 @@
 </head>
 <body class="pw-page pw-operational-page" data-workspace-page="truenas" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
-    <header class="app-header">
-        <div class="header-left">
-            <a href="/" class="logo">
-                <div class="logo-icon">🖥️</div>
-                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle" data-i18n="truenas.subtitle"></span>
-            </a>
-        </div>
-        <div class="header-actions">
-            <div class="connection-status">
-                <span id="status-indicator" class="status-unknown">
-                    <span class="spinner"></span><span data-i18n="truenas.checking_connection"></span>
-                </span>
-            </div>
-            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme" data-i18n-aria-label="common.toggle_theme"></button>
-        </div>
-    </header>
-    <div id="radialMenuAnchor"></div>
+    {{template "app-header" .}}
 
     <div class="truenas-container">
         <!-- Tab Navigation -->
@@ -340,3 +323,4 @@
     <script src="/js/truenas.js?v={{.BuildVersion}}"></script>
 </body>
 </html>
+{{define "app-header-status"}}<div class="connection-status"><span id="status-indicator" class="status-unknown"><span class="spinner"></span><span data-i18n="truenas.checking_connection"></span></span></div>{{end -}}

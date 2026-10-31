@@ -34,6 +34,8 @@ This page covers choosing a theme, accessibility and the developer contract. The
 - **Accent color** (teal, orange, blue, violet or green) applies to Standard, Fruity and Black Gloss. The other eleven themes use their fixed accent and hide the row.
 - The settings are `appearance.theme`, `appearance.icon_theme`, `appearance.fruity_mode`, `appearance.minimal_mode`, `appearance.accent`, `appearance.wallpaper` and `appearance.wallpaper_by_space`. The UI saves them through `PUT /api/desktop/settings`.
 
+Organic's *Forest* wallpaper is a misty conifer forest at dusk, with a low amber sun right of centre and the left edge kept dark for the desktop icons. It is the vector file `/img/wallpapers/themes/forest.svg` (set in `css/desktop-wallpaper-themes.css`), written by the deterministic generator `assets/desktop-wallpaper-forest/generate.mjs` (`node assets/desktop-wallpaper-forest/generate.mjs`); edit the generator, not the SVG.
+
 ## Accessibility
 
 - **Reduced motion.** When the system requests reduced motion (`prefers-reduced-motion: reduce`), a global override ends every transition and animation at once: durations drop to 0 ms and animations run a single iteration. The shell also skips its window, menu and start-menu transitions, and Crazy's confetti and sparkles stop.
@@ -142,7 +144,7 @@ and expired calls per family.
 4. JavaScript asks the capability helpers (`shellLayout()`, `themeUsesGlobalMenu()`, `themeScheme()`, `themeMotionMs(kind)`, `themeIconFamily()`) and never compares a theme id. Apps read `document.body.dataset.scheme`.
 5. `syncDesktopThemeFx()` starts or stops the effects of an `fx` theme.
 
-Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the five locally packaged theme wallpapers), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
+Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the locally packaged theme wallpapers: Electronic Dreams, Windows XP, Green Slime, Voxel World, Orbit, Forest and Minimal), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
 
 ### Body attributes
 

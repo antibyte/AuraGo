@@ -326,5 +326,18 @@
   "common.go2rtc_source.hint_homekit": "Koppel de camera eerst in de go2rtc-webinterface en plak dan de homekit://-URL die daar staat.",
   "common.go2rtc_source.hint_roborock": "Kopieer de roborock://-URL uit de go2rtc-webinterface nadat je daar bent ingelogd.",
   "common.go2rtc_source.hint_wyze": "Kopieer de wyze://-URL uit de go2rtc-webinterface (Add → Wyze).",
-  "common.go2rtc_source.hint_webrtc": "WebRTC-bronnen zoals WHEP, AWS Kinesis, OpenIPC of SwitchBot. Zie de documentatie voor het formaat."
+  "common.go2rtc_source.hint_webrtc": "WebRTC-bronnen zoals WHEP, AWS Kinesis, OpenIPC of SwitchBot. Zie de documentatie voor het formaat.",
+  "common.page_config": "Configuratie",
+  "common.page_plans": "Plannen",
+  "common.page_truenas": "TrueNAS Opslag",
+  "common.page_knowledge": "Kenniscentrum",
+  "common.page_skills": "Vaardigheden",
+  "common.page_missions": "Missiecontrole",
+  "common.page_containers": "Containers",
+  "common.page_invasion": "Invasion Controle",
+  "common.page_media": "Mediaoverzicht",
+  "common.page_cheatsheets": "Spiekbriefjes",
+  "common.page_dashboard": "Dashboard",
+  "common.ui_language": "Taal",
+  "common.home_link": "AuraGo – Start"
 }

@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/go-rod/rod"
@@ -301,10 +300,7 @@ func TestPrecisionSetupOpenRouterKeyboardBrowserSmoke(t *testing.T) {
 	page := browser.MustPage(origin + "/setup")
 	defer page.MustClose()
 
-	html := normalizeAssetText(mustReadUIFile(t, "setup.html"))
-	html = strings.ReplaceAll(html, "{{.Lang}}", "en")
-	html = strings.ReplaceAll(html, "{{.BuildVersion}}", "test")
-	html = strings.ReplaceAll(html, "{{.TemplateDataJSON}}", "{}")
+	html := renderUIPage(t, "setup.html")
 	html = regexp.MustCompile(`(?is)<script\s+src="[^"]+"[^>]*></script>`).ReplaceAllString(html, "")
 	page.MustSetDocumentContent(html)
 	page.MustEval(`() => {

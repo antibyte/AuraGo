@@ -1,6 +1,6 @@
 /* Precision Workspace shell for /config only. */
 .pw-page[data-workspace-page="config"] {
-    --cfg-header-height: calc(64px + env(safe-area-inset-top, 0px));
+    --cfg-header-height: calc(69px + env(safe-area-inset-top, 0px));
     --pw-canvas: #0d1726;
     --pw-surface: #17283c;
     --pw-surface-elevated: #20364e;
@@ -216,31 +216,11 @@
     color: var(--pw-muted);
 }
 
-.pw-page[data-workspace-page="config"] .cfg-header {
-    height: var(--cfg-header-height);
+.pw-page[data-workspace-page="config"] .app-header[data-app-header] {
+    /* Natural shared-header height (69px); --cfg-header-height mirrors it for the drawer offset. */
     min-height: var(--cfg-header-height);
     flex-shrink: 0;
-    gap: 24px;
-    padding: calc(8px + env(safe-area-inset-top, 0px)) 72px 8px 24px;
-    background: var(--header-bg);
-    border-bottom: 1px solid var(--pw-line);
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="config"] .cfg-logo-wrap.header-left {
-    flex: 0 1 auto;
-    width: auto;
-    max-width: none;
-    overflow: visible;
-}
-
-.pw-page[data-workspace-page="config"] .cfg-header .header-actions {
-    flex: 0 0 auto;
-    margin-left: auto;
-    padding: 0;
-    overflow: visible;
+    padding-top: env(safe-area-inset-top, 0px);
 }
 
 .pw-page[data-workspace-page="config"] .radial-menu {
@@ -249,38 +229,6 @@
 
 .pw-page[data-workspace-page="config"] .toast {
     z-index: 11000;
-}
-
-.pw-page[data-workspace-page="config"] .cfg-header .header-actions::after {
-    display: none;
-}
-
-.pw-page[data-workspace-page="config"] #ui-lang-switcher {
-    position: relative;
-    inset: auto;
-    z-index: 30;
-}
-
-.pw-page[data-workspace-page="config"] #ui-lang-btn {
-    width: 44px;
-    height: 44px;
-    border: 1px solid var(--pw-line);
-    border-radius: 8px;
-    background: var(--pw-surface);
-    color: var(--pw-text);
-    box-shadow: none;
-    backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="config"] #ui-lang-menu {
-    top: calc(100% + 8px);
-    bottom: auto;
-    left: auto;
-    right: 0;
-    max-height: calc(100dvh - 88px);
-    background: var(--pw-surface);
-    border: 1px solid var(--pw-line);
-    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="config"] .cfg-layout {
@@ -1524,13 +1472,9 @@
 }
 
 @media (max-width: 640px) {
-    .pw-page[data-workspace-page="config"] .cfg-header {
+    .pw-page[data-workspace-page="config"] .app-header[data-app-header] {
         gap: 8px;
         padding-inline: 12px 60px;
-    }
-
-    .pw-page[data-workspace-page="config"] .logo-subtitle {
-        display: none;
     }
 
     .pw-page[data-workspace-page="config"] .field-grid.two-cols {
@@ -1545,10 +1489,6 @@
         order: 3;
         flex-basis: 100%;
     }
-    .pw-page[data-workspace-page="config"] .cfg-header {
-        min-height: var(--cfg-header-height);
-    }
-
     .pw-page[data-workspace-page="config"] .cfg-sidebar {
         top: 64px;
         width: min(330px, calc(100vw - 24px));

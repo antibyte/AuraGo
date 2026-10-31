@@ -5,13 +5,21 @@ from the Creative app category. Sound is produced on the computer running the
 browser; the AuraGo server stores project files through the existing Desktop
 file API. No cloud music service or audio sidecar is required.
 
+Planned expansions — new sounds, a rebuilt demo, a parameterised effect chain and
+a UI refresh — were tracked in `documentation/synth-studio-plan.md` and are now
+implemented. That plan remains the record of the intended scope.
+
 ## Compose
 
 - Choose an instrument or drag an editable pattern onto the arrangement.
-- Use the five banks of sixteen synthesizer presets: Drums, Bass, Leads, Pads and
-  Keys/Plucks. The additional General MIDI bank contains 128 synthesized sounds
-  and a percussion kit. These are compact synthesized approximations, not a
-  sampled acoustic orchestra.
+- Use the five banks of twenty-four synthesizer presets: Drums, Bass, Leads, Pads and
+  Keys/Plucks — 120 factory sounds in total. The additional General MIDI bank contains
+  128 synthesized sounds and a percussion kit. These are compact synthesized
+  approximations, not a sampled acoustic orchestra.
+- Every factory sound carries character tags. The library filters by tag and keeps
+  favourites and a recent list in the browser. The "Synth Studio Kit" covers the
+  47 percussion notes from 35 to 81 with one coherent voice. The separate
+  "GM Drums" instrument follows the General MIDI percussion map instead.
 - Double-click an empty track lane to create a clip. Select a clip to edit notes
   in the piano roll or percussion grid. Drag notes to move them and their right
   edge to change duration. Shift-click selects multiple notes; Delete removes
@@ -20,8 +28,8 @@ file API. No cloud music service or audio sidecar is required.
   or extend. Shift-drag that edge repeats their notes into the extended clip.
   Ctrl/Cmd+D duplicates the selected clip directly after itself.
 - Track controls provide volume, mute, solo and recording selection. The sound
-  panel provides instrument choice, pan, tone, resonance, drive, attack, release, chorus, phaser, reverb and delay.
-  Compact windows expose that panel and the library through toolbar buttons.
+  panel provides instrument choice, pan, tone, resonance, drive, attack and release,
+  the two effect sends (reverb and delay) and the effect chain.
 - Space plays/pauses, Ctrl/Cmd+S saves, Shift+Ctrl/Cmd+S saves a copy, and
   Ctrl/Cmd+Z / Shift+Ctrl/Cmd+Z undo/redo. The computer-keyboard row A–K plays
   one octave; W, E, T, Y and U supply accidentals.
@@ -36,11 +44,18 @@ window keeps playback running. Reopening never starts playback automatically.
 
 The transport stays visible while Notes, Sound and Performance share a resizable workbench.
 Panel height, the selected workbench and library visibility are local view preferences. Dark and light
-desktop schemes use graphite and aluminium surfaces respectively. Electronic,
-Chill and Retro templates start paused and contain four editable bars.
+desktop schemes use graphite and aluminium surfaces respectively. On a window of at least
+1400 pixels the arrangement keeps the full width of the workbench and the notes panel
+and the sound workbench sit side by side below it, so the timeline stays readable
+while the instrument and its effect chain stay in view. A guided tour in the footer
+walks through the five workbench areas and can be skipped at any point. Electronic,
+Chill and Retro templates start paused; each is a distinct sixteen-bar
+composition with its own instruments, groove, harmony and mix.
 
 The library separates selection, preview and insertion and searches all banks
-until a category is selected. The note editor offers draw/select tools, rectangle
+until a category is selected. Search matches names and tags; the tag chips
+filter the list, and favourites plus a recent list are kept per browser. The
+note editor offers draw/select tools, rectangle
 selection, copy/paste, per-selected-note velocity and draggable bar-loop handles.
 Keyboard arrows move loop handles by one bar. Control values are displayed and can
 be reset. Dragging a sound or volume control previews it immediately and commits
@@ -105,7 +120,8 @@ The two labelled sliders provide the same functions with the keyboard. Enable
 Record automation before a gesture during playback to write tone/reverb points;
 one gesture is one undo step. Capture is limited to 20 samples per second plus
 gesture endpoints and reduces redundant points. Edit automation exposes individual
-points, bar positions and values, with Apply/Delete and undo. Clear automation
+points, bar positions and values, with Apply/Delete and undo. The automatable
+parameters are tone, resonance, drive, reverb and delay. Clear automation
 removes the selected track's curve. Without recording, a manual gesture temporarily
 overrides an existing curve, which resumes on release.
 
@@ -130,12 +146,37 @@ are visual feedback only; musical timing does not depend on their refresh rate.
 
 ## Save and export
 
-New projects use format v2: project-level harmony (root, major/minor, snap), up to
-eight named bar-range scenes, and track-level tone/reverb automation points using
-arrangement ticks. Validation still accepts v1 unchanged. The editor upgrades a
-copy in memory; the first v2 save requires a new filename in the regular picker.
-Autosave stays suspended until that copy succeeds, protecting the original v1
-file. Draft recovery and conditional writes continue to apply.
+New projects use format v3: project-level harmony (root, major/minor, snap), up to
+eight named bar-range scenes, track-level automation points using arrangement ticks,
+a per-track effect chain and a project master strip. Validation still accepts v1
+and v2 unchanged. The editor upgrades a copy in memory; the first v3 save requires
+a new filename in the regular picker.
+Autosave stays suspended until that copy succeeds, protecting the original file.
+Draft recovery and conditional writes continue to apply.
+
+## Effect chain and master strip
+
+Every track carries an ordered chain of up to four effect inserts plus two sends.
+The available inserts are chorus, phaser, tremolo, flanger, rotary, bitcrush,
+soft clip, three-band EQ, stereo width, cabinet, delay and reverb. Each insert
+exposes its own character parameters — mix, rate, depth, feedback, tone and
+type-specific values — instead of a single fixed sound. The chain runs after the
+track pan, so stereo effects work on a real stereo signal, and the reverb and
+delay sends leave the fader, so the track volume also controls its own tails.
+
+The Master button in the transport opens the master strip: output level, the
+compressor with threshold, ratio, knee, attack and release, a three-band EQ, a
+brick-wall limiter, stereo width and the character of the shared plate and echo
+buses. The echo time follows
+the project tempo when a division is selected, so a one-eighth delay stays in
+time when the tempo changes. The analyser in the transport shows the master
+output and is visual feedback only; musical timing does not depend on its
+refresh rate.
+
+The sound engine gained a per-voice LFO that can target pitch, amplitude, the
+voice filter or the pulse width, continuous pulse-width modulation, selectable
+filter types, a bipolar filter envelope that can close the filter, pink and brown
+noise and a third FM modulator.
 
 Projects are versioned `.aurasynth` JSON files in Desktop storage; the default
 folder is `Documents/Synth Studio`. The regular
@@ -162,7 +203,10 @@ version's scope.
 ## Maintenance and validation
 
 The lazily loaded `synth-studio-*` modules separate the validated project/MIDI
-format, native Web Audio renderer, Desktop persistence and editor. Factory sound
+format, the effect rack, native Web Audio renderer, Desktop persistence and
+editor. The effect rack lives in `synth-studio-fx.js` and owns the insert
+processors, the master strip and the send buses; the schema that validates an
+insert lives in `synth-studio-model.js`. Factory sound
 data and the MIDI parser are vendored with licenses under
 `ui/js/vendor/synth-studio/`; no runtime CDN is used.
 

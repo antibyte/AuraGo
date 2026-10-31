@@ -326,5 +326,18 @@
   "common.go2rtc_source.hint_homekit": "Par kameraet først i go2rtc-nettgrensesnittet, og lim deretter inn homekit://-URL-en som vises der.",
   "common.go2rtc_source.hint_roborock": "Kopier roborock://-URL-en fra go2rtc-nettgrensesnittet etter at du har logget inn der.",
   "common.go2rtc_source.hint_wyze": "Kopier wyze://-URL-en fra go2rtc-nettgrensesnittet (Add → Wyze).",
-  "common.go2rtc_source.hint_webrtc": "WebRTC-kilder som WHEP, AWS Kinesis, OpenIPC eller SwitchBot. Se dokumentasjonen for formatet."
+  "common.go2rtc_source.hint_webrtc": "WebRTC-kilder som WHEP, AWS Kinesis, OpenIPC eller SwitchBot. Se dokumentasjonen for formatet.",
+  "common.page_config": "Konfigurasjon",
+  "common.page_plans": "Planer",
+  "common.page_truenas": "TrueNAS lagring",
+  "common.page_knowledge": "Kunnskapssenter",
+  "common.page_skills": "Ferdigheter",
+  "common.page_missions": "Oppdragskontroll",
+  "common.page_containers": "Containere",
+  "common.page_invasion": "Invasjons Kontroll",
+  "common.page_media": "Mediavisning",
+  "common.page_cheatsheets": "Jukseark",
+  "common.page_dashboard": "Dashbord",
+  "common.ui_language": "Språk",
+  "common.home_link": "AuraGo – Hjem"
 }
