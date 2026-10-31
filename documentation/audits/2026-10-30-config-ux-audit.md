@@ -332,6 +332,31 @@ zuletzt System. Sektions-Keys und URLs (`#providers` …) bleiben unverändert; 
 > - `TestConfigRefreshPopulatedBrowser`
 > - `TestConfigRefreshRealSectionsBrowser`
 
+> **Stand Welle 1 (2026-10-31): umgesetzt** (Plan `plans/2026-10-30-config-ux-wave1.md`).
+> - **Gemeinsame Bausteine** in `ui/js/config/feedback.js`:
+>   - `cfgActionResult` zeigt Busy-Zustand und eine Ergebniszeile mit dem Grund des Servers.
+>   - `cfgStatusBanner` hat feste Zustände, darunter `degraded`. Ein Banner bleibt nie auf „Prüfe…“ hängen.
+>   - `cfgDraftPatch` liefert die Entwurfswerte.
+>   - Unbekannte Status-Wörter gelten als Fehler.
+> - **Test mit eingegebenen Werten:** `draftTestConfig` auf dem Server testet einen Entwurf, ohne etwas zu schreiben.
+>   - Gespeicherte Zugangsdaten werden nur wiederverwendet, solange das Ziel des Bereichs gleich bleibt: Host, URL, Port, Benutzer, TLS-Modus, CA.
+>   - Sonst muss man sie neu eingeben, oder der Test verlangt erst ein Speichern.
+>   - Test-Buttons mit `data-config-action-draft="true"` sperren nicht mehr bei ungespeicherten Änderungen.
+>   - Tests, die den laufenden Dienst prüfen, sagen das.
+> - **Secrets im Save-Dock:** Die eigenen Vault-Buttons sind in 34 von 35 Modulen entfernt. Ausnahme ist `sudo_password` als reiner Vault-Schlüssel.
+>   - `fritzbox.password` und die Homepage-Deploy-Zugangsdaten sind neue Vault-Pfade. Vorher ging das Fritz!Box-Passwort beim Speichern über die Seite still verloren, und die Homepage-Zugangsdaten wären im Klartext in `config.yaml` gelandet.
+>   - MQTT- und tsnet-Secrets haben beim Speichern dieselben Wirkungen wie früher der Vault-Button, aber erst nach erfolgreichem Speichern.
+> - **Rückfrage beim Einschalten** gefährlicher Schalter (Stufe A: Löschen/Zerstören, Stufe B: Host-/Agent-Rechte), zentral über `confirmOnEnable`.
+> - **Umgestellte Module:** 67 in sechs Paketen, siehe Plan. Strenge Marker-Tests, `TestConfigLegacyPatternAudit` verbietet die alten Ergebnis- und Banner-Klassen sowie natives `confirm`/`alert`. Tote CSS-Regeln und 83 Vault-Button-Texte sind entfernt.
+>
+> **Offen nach Welle 1:**
+> - **Nicht migriert:** meshcore, ruview, s3, speech_lab, telephone_agent, security_proxy, server, sandbox, daemon_skills, updates, secrets, skill_manager, local_wikipedia (Allowlist im Audit-Test).
+> - **Secret löschen:** über das Dock nicht möglich (leer/maskiert = unverändert).
+> - **A2A-Remote-Agent:** Wird er umbenannt, muss sein Schlüssel neu eingegeben werden.
+> - **Provider-Test:** Ein geleerter Schlüssel oder „Schlüssel kopieren von“ ist erst nach dem Speichern testbar.
+> - **Nicht erreichbare Module:** `onedrive` und `devices` sind in `SECTIONS` nicht verlinkt.
+> - **Umgebungsbedingter Hänger:** `TestConfigSpacingBrowser/browser_automation` hängt hier schon vor Welle 1, vermutlich wegen der Windows-Animationseinstellung.
+
 **Welle 1 – Gemeinsame Bausteine** (in `ui/js/config/`, dann Module darauf umstellen):
 1. `cfgActionResult(button, promise)`: Busy (disabled + „Läuft…“), Ergebnis-Zeile direkt am Button mit
    Erfolg/Fehler **inkl. Server-Grund**, `role=status`; Toast nur zusätzlich. Ersetzt die ~40 `*-test-result`-Varianten.
