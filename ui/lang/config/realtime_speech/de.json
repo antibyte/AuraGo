@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Nur aktive Profile können als Standard gewählt und im Chat verwendet werden.",
+  "config.realtime_speech.profile_name_help": "Anzeigename des Profils in Auswahllisten (bis 100 Zeichen).",
+  "config.realtime_speech.provider_help": "Dienst, der die Live-Sprachverbindung bereitstellt. Ein Wechsel setzt Modell und Stimme auf die Standardwerte des Dienstes zurück.",
+  "config.realtime_speech.model_help": "Sprachmodell des Dienstes. Veraltete Modelle sind markiert.",
+  "config.realtime_speech.voice_help": "Stimme, mit der die Antworten gesprochen werden.",
+  "config.realtime_speech.api_key_help": "Zugangsschlüssel des Dienstes. Er wird im Tresor gespeichert und nie im Browser abgelegt.",
+  "config.realtime_speech.default_profile_help": "Profil, das verwendet wird, wenn keines gewählt wird. Nur aktive Profile stehen zur Auswahl."
+}

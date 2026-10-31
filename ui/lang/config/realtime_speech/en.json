@@ -1,0 +1,9 @@
+{
+  "config.realtime_speech.profile_enabled_help": "Only active profiles can be chosen as default and used in chat.",
+  "config.realtime_speech.profile_name_help": "Display name of the profile in selection lists (up to 100 characters).",
+  "config.realtime_speech.provider_help": "Service that provides the live voice connection. Changing it resets model and voice to the service defaults.",
+  "config.realtime_speech.model_help": "Voice model of the service. Deprecated models are marked.",
+  "config.realtime_speech.voice_help": "Voice the replies are spoken with.",
+  "config.realtime_speech.api_key_help": "Access key of the service. It is stored in the vault and never kept in the browser.",
+  "config.realtime_speech.default_profile_help": "Profile used when none is chosen. Only active profiles are offered."
+}

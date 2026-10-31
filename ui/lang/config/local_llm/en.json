@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "Downloads a small model onto this machine and runs it in a container on demand. It is meant for testing or as a fallback, not as a replacement for a large model.",
+  "config.local_llm.model_family_help": "Which local model is used. Spark is experimental and especially small.",
+  "config.local_llm.backend_help": "Compute accelerator for the model. Automatic picks a supported GPU; CPU is slow and experimental.",
+  "config.local_llm.model_variant_help": "Quantization of the model: Q8 is more accurate but needs more memory than Q4. The size is the download.",
+  "config.local_llm.context_size_help": "How much text the model considers at once. More context needs more memory.",
+  "config.local_llm.mtp_help": "Multi-token prediction speeds up output using an additional draft model. Experimental and needs more memory.",
+  "config.local_llm.idle_timeout_help": "After this many minutes without a request the model is stopped to free memory (1 to 1440, default 15).",
+  "config.local_llm.listen_port_help": "Local port of the model server. It is reachable from this machine only (default 18081).",
+  "config.local_llm.role_help": "Test only: just for trying it out. Fallback: steps in when the main model fails. Primary: answers every request.",
+  "config.local_llm.regular_provider_help": "Regular provider that takes the other role while the local model has the chosen role.",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.unit_seconds": "{value} s",
+  "config.local_llm.unit_milliseconds": "{value} ms"
+}

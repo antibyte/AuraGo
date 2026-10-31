@@ -138,7 +138,9 @@
         const enabledRow = element('div', null, body, 'field-group cfg-switch-field');
         const enabledLabel = element('label', text.enabled, enabledRow, 'field-label');
         enabledLabel.htmlFor = 'action-policy-enabled';
+        element('p', text.enabled_help || text.description, enabledRow, 'field-help').id = 'action-policy-enabled-help';
         const enabledSwitch = element('label', null, enabledRow, 'toggle');
+        enabledSwitch.setAttribute('aria-describedby', 'action-policy-enabled-help');
         const enabled = element('input', null, enabledSwitch);
         enabled.type = 'checkbox'; enabled.id = enabledLabel.htmlFor; enabled.checked = policy.enabled === true;
         enabled.dataset.path = 'agent.action_policy.enabled';

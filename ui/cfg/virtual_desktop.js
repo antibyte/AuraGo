@@ -118,8 +118,13 @@ function vdCfgHiddenToggle(path, enabled) {
     return '<div class="toggle ' + (enabled ? 'on' : '') + ' pw-u-hidden" data-path="' + path + '" aria-hidden="true"></div>';
 }
 
+// A missing help key falls back to <label key>_help; no text, no help line.
+function vdCfgHelpText(labelKey, helpKey) {
+    return tOr(helpKey || (labelKey + '_help'), '');
+}
+
 function vdCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {
-    const helpText = t(helpKey);
+    const helpText = vdCfgHelpText(labelKey, helpKey);
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + t(labelKey) + '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
@@ -129,7 +134,7 @@ function vdCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {
 }
 
 function vdCfgField(labelKey, helpKey, inputHtml) {
-    const helpText = t(helpKey);
+    const helpText = vdCfgHelpText(labelKey, helpKey);
     let html = '<div class="field-group">';
     html += '<div class="field-label">' + t(labelKey) + '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';

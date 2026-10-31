@@ -10,14 +10,14 @@ async function renderMemoryAnalysisSection(section) {
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>
         <div class="ma-block"><label class="ma-label-block">
-            <input type="checkbox" data-path="learnings.enabled" ${configData.learnings?.enabled ? 'checked' : ''}>
+            <input type="checkbox" data-path="learnings.enabled" aria-describedby="ma-learnings-help" ${configData.learnings?.enabled ? 'checked' : ''}>
             <strong>${t('config.memory_analysis.learnings_enable')}</strong>
-            <p>${t('config.memory_analysis.learnings_help')}</p>
+            <p class="field-help" id="ma-learnings-help">${t('config.memory_analysis.learnings_help')}</p>
         </label></div>
         <div class="ma-block"><label class="ma-label-block">
-            <input type="checkbox" data-path="code_graph.enabled" ${configData.code_graph?.enabled ? 'checked' : ''}>
+            <input type="checkbox" data-path="code_graph.enabled" aria-describedby="ma-graph-help" ${configData.code_graph?.enabled ? 'checked' : ''}>
             <strong>${t('config.memory_analysis.graph_enable')}</strong>
-            <p>${t('config.memory_analysis.graph_help')}</p>
+            <p class="field-help" id="ma-graph-help">${t('config.memory_analysis.graph_help')}</p>
         </label></div>
         <div class="ma-intro-notice"><div class="ma-notice-body">
             <strong>${t('config.memory_analysis.auto_notice')}</strong>
@@ -25,12 +25,12 @@ async function renderMemoryAnalysisSection(section) {
         </div></div>
         <div class="ma-block"><div class="ma-block-header"><div class="ma-block-text">
             <div class="ma-block-title">${t('config.memory_analysis.threshold_title')}</div>
-            <div class="ma-block-desc">${t('config.memory_analysis.threshold_desc')}</div>
+            <div class="ma-block-desc field-help" id="ma-threshold-help">${t('config.memory_analysis.threshold_desc')}</div>
         </div></div><div class="ma-block-controls">
             <label class="ma-label-block">
                 <span class="ma-label-text">${t('config.memory_analysis.threshold_label')}</span>
                 <div class="ma-threshold-row">
-                    <input type="range" class="ma-threshold-slider" data-path="memory_analysis.auto_confirm_threshold"
+                    <input type="range" class="ma-threshold-slider" aria-describedby="ma-threshold-help" data-path="memory_analysis.auto_confirm_threshold"
                         min="0" max="1" step="0.01" value="${escapeAttr(threshold)}"
                         oninput="this.nextElementSibling.textContent=this.value">
                     <span class="ma-threshold-value">${escapeHtml(String(threshold))}</span>
@@ -39,11 +39,11 @@ async function renderMemoryAnalysisSection(section) {
         </div></div>
         <div class="ma-block"><div class="ma-block-header"><div class="ma-block-text">
             <div class="ma-block-title">${t('config.memory_analysis.reflection_title')}</div>
-            <div class="ma-block-desc">${t('config.memory_analysis.reflection_desc')}</div>
+            <div class="ma-block-desc field-help" id="ma-reflection-help">${t('config.memory_analysis.reflection_desc')}</div>
         </div></div><div class="ma-block-controls">
             <label class="ma-label-block">
                 <span class="ma-label-text">${t('config.memory_analysis.reflection_day_label')}</span>
-                <select class="field-select" data-path="memory_analysis.reflection_day">
+                <select class="field-select" data-path="memory_analysis.reflection_day" aria-describedby="ma-reflection-help">
                     ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day =>
                         `<option value="${day}" ${(cfg.reflection_day || 'sunday') === day ? 'selected' : ''}>${t('config.memory_analysis.day_' + day)}</option>`
                     ).join('')}

@@ -1,0 +1,16 @@
+{
+  "config.s3.endpoint_help": "Address of the managed RustFS service. It is set automatically and shown for reference only.",
+  "config.s3.details_help": "Technical status data of the service in JSON format, for example for troubleshooting. Read-only.",
+  "config.s3.allow_read_help": "The agent may list and download objects.",
+  "config.s3.allow_write_help": "The agent may upload objects and overwrite existing ones.",
+  "config.s3.allow_delete_help": "The agent may delete objects. Deleted objects cannot be recovered.",
+  "config.s3.location_bucket_help": "Name of the bucket the permission applies to.",
+  "config.s3.location_prefixes_help": "One prefix per line. With no entries nothing is allowed unless the whole bucket is selected.",
+  "config.s3.bucket_label": "Bucket",
+  "config.s3.enabled_label": "Enable S3 storage",
+  "config.s3.endpoint_label": "Endpoint URL",
+  "config.s3.insecure_label": "Allow unencrypted connection",
+  "config.s3.readonly_label": "Read-only",
+  "config.s3.region_label": "Region",
+  "config.s3.use_path_style_label": "Use path-style addressing"
+}

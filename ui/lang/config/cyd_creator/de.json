@@ -29,5 +29,12 @@
   "help.cyd_creator.enabled": "Zeigt die App CYD Creator auf dem Desktop. Zum Bauen brauchst du einen konfigurierten Docker-Host.",
   "help.cyd_creator.max_repair_attempts": "Wie oft der Agent Kompilierfehler beheben darf, bevor der Job fehlschlägt.",
   "help.cyd_creator.ota_enabled": "Geräte mit AuraGo-Verbindung laden neue Builds selbst herunter.",
-  "help.cyd_creator.ota_public_url": "URL, unter der die Geräte AuraGo erreichen. Leer bedeutet: aus den Server-Einstellungen."
+  "help.cyd_creator.ota_public_url": "URL, unter der die Geräte AuraGo erreichen. Leer bedeutet: aus den Server-Einstellungen.",
+  "config.cyd_creator.memory_mb_help": "Arbeitsspeicher für den Build-Container in Megabyte (Standard 2048).",
+  "config.cyd_creator.cpu_cores_help": "CPU-Kerne für den Build-Container, auch halbe Werte sind möglich (Standard 2).",
+  "config.cyd_creator.build_timeout_seconds_help": "Abbruch eines normalen Builds nach so vielen Sekunden (Standard 300).",
+  "config.cyd_creator.idle_stop_minutes_help": "Der Build-Container wird nach so vielen Minuten ohne Auftrag beendet, um Ressourcen freizugeben (Standard 20).",
+  "config.cyd_creator.keep_builds_per_project_help": "Wie viele frühere Builds je Projekt aufbewahrt werden, ältere werden gelöscht (Standard 5).",
+  "config.cyd_creator.job_timeout_minutes_help": "Gesamtdauer, die der Agent für einen Auftrag inklusive Reparaturversuchen haben darf (Standard 20 Minuten).",
+  "config.cyd_creator.ota_heartbeat_seconds_help": "Abstand, in dem ein CYD-Gerät beim Server nach Updates fragt (Standard 60 Sekunden)."
 }

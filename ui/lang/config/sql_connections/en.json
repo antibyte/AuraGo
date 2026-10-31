@@ -68,5 +68,16 @@
   "config.sql_connections.sqlite_import": "Import SQLite backup",
   "config.sql_connections.sqlite_import_help": "Upload a consistent standalone backup (up to 64 MiB). Saving imports it into protected storage and preserves originals.",
   "config.sql_connections.sqlite_import_required": "SQLite import required",
-  "config.sql_connections.allow_management_help": "The agent may edit descriptions only. Setup, credentials and permissions are administrator-only."
+  "config.sql_connections.allow_management_help": "The agent may edit descriptions only. Setup, credentials and permissions are administrator-only.",
+  "config.sql_connections.filter_label": "Filter connections",
+  "config.sql_connections.filter_help": "Filters the list by name, type, host, database or description.",
+  "config.sql_connections.name_help": "Unique name the agent uses to refer to this connection.",
+  "config.sql_connections.driver_help": "Type of database. SQLite works on an imported file, the others connect to a server.",
+  "config.sql_connections.port_help": "Leave empty for the default port of the database type (PostgreSQL 5432, MySQL 3306).",
+  "config.sql_connections.host_help": "Hostname or IP address of the database server. Empty = localhost.",
+  "config.sql_connections.ssl_mode_help": "Encryption of the connection. Disable sends everything in plain text, Require encrypts without checking the certificate, Verify CA checks the certificate authority, Verify Full also checks the server name (most secure).",
+  "config.sql_connections.database_help": "Name of the database on the server the agent connects to.",
+  "config.sql_connections.description_help": "Short note for the agent and for you about what the database is used for.",
+  "config.sql_connections.username_help": "Database user. Use an account with as few privileges as possible.",
+  "config.sql_connections.password_help": "Stored encrypted in the vault. Leave empty to keep the saved password."
 }

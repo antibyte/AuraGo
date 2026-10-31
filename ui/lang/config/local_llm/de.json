@@ -1,0 +1,16 @@
+{
+  "config.local_llm.enabled_help": "Lädt ein kleines Modell auf diesem Rechner und startet es bei Bedarf in einem Container. Es dient zum Testen oder als Ausweich-Modell, nicht als Ersatz für ein großes Modell.",
+  "config.local_llm.model_family_help": "Welches lokale Modell verwendet wird. Spark ist experimentell und besonders klein.",
+  "config.local_llm.backend_help": "Rechenbeschleuniger für das Modell. „Automatisch“ wählt eine unterstützte GPU; CPU ist langsam und experimentell.",
+  "config.local_llm.model_variant_help": "Quantisierung des Modells: Q8 ist genauer, braucht aber mehr Speicher als Q4. Die Größe ist der Download.",
+  "config.local_llm.context_size_help": "Wie viel Text das Modell gleichzeitig berücksichtigt. Mehr Kontext braucht mehr Arbeitsspeicher.",
+  "config.local_llm.mtp_help": "Multi-Token-Prediction beschleunigt die Ausgabe mit einem zusätzlichen Entwurfsmodell. Experimentell und braucht mehr Speicher.",
+  "config.local_llm.idle_timeout_help": "Nach so vielen Minuten ohne Anfrage wird das Modell beendet, um Speicher freizugeben (1 bis 1440, Standard 15).",
+  "config.local_llm.listen_port_help": "Lokaler Port des Modell-Servers. Er ist nur von diesem Rechner aus erreichbar (Standard 18081).",
+  "config.local_llm.role_help": "Test: nur zum Ausprobieren. Ausweich-Modell: springt ein, wenn das Hauptmodell ausfällt. Hauptmodell: beantwortet alle Anfragen.",
+  "config.local_llm.regular_provider_help": "Normaler Anbieter, der die andere Rolle übernimmt, während das lokale Modell die gewählte Rolle hat.",
+  "config.local_llm.size_gib": "{size} GiB",
+  "config.local_llm.cache_ram": "RAM: {size} MiB",
+  "config.local_llm.unit_seconds": "{value} s",
+  "config.local_llm.unit_milliseconds": "{value} ms"
+}

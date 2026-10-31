@@ -11,12 +11,12 @@ function renderNewspaperSection(section) {
     let html = '<div class="cfg-section active"><div class="section-header">' + escapeHtml(section.label) + '</div><div class="section-desc">' + escapeHtml(section.desc) + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + label('setup_note') + '</div>';
     for (const key of ['enabled','readonly','allow_email','allow_telegram']) {
-        html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><div class="toggle ' + (data[key] ? 'on' : '') + '" data-path="newspaper.' + key + '" onclick="toggleBool(this)"></div></div>';
+        html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><div class="field-help">' + label(key + '_help') + '</div><div class="toggle ' + (data[key] ? 'on' : '') + '" data-path="newspaper.' + key + '" aria-label="' + label(key) + '" onclick="toggleBool(this)"></div></div>';
     }
     html += '<div class="field-grid two-cols">';
     for (const [key,min,max,fallback] of [['max_minutes',1,60,30],['max_pages',1,60,60],['max_searches',1,64,32],['max_editions',30,3650,365]]) {
         const value = Number.isFinite(Number(data[key])) && Number(data[key]) > 0 ? Number(data[key]) : fallback;
-        html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + value + '" data-path="newspaper.' + key + '"></div>';
+        html += '<div class="field-group"><div class="field-label">' + label(key) + '</div><div class="field-help">' + label(key + '_help') + '</div><input class="field-input" type="number" min="' + min + '" max="' + max + '" value="' + value + '" data-path="newspaper.' + key + '"></div>';
     }
     html += '</div><p class="field-help">' + label('fixed_limits_only') + '</p><div class="field-group"><label class="field-label" for="newspaper-budget-mode">' + label('budget_mode') + '</label><select id="newspaper-budget-mode" class="field-select" data-path="newspaper.budget_mode"><option value="auto" ' + (budgetMode === 'auto' ? 'selected' : '') + '>' + label('budget_auto') + '</option><option value="fixed" ' + (budgetMode === 'fixed' ? 'selected' : '') + '>' + label('budget_fixed') + '</option></select><p class="field-help">' + label('budget_mode_help') + '</p></div>';
     html += '<div class="field-group"><div class="field-label" id="newspaper-overview-label">' + label('overview_sources') + '</div><p class="field-help" id="newspaper-overview-help">' + label('overview_sources_help') + '</p><div id="newspaper-overview-sources" role="group" aria-labelledby="newspaper-overview-label" aria-describedby="newspaper-overview-help">';

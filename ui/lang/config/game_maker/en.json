@@ -26,5 +26,12 @@
   "help.game_maker.allow_create": "Allows administrators and the Game Maker agent to create managed game projects.",
   "help.game_maker.allow_edit": "Allows agent jobs, change requests, validation, revision publication, and restore operations.",
   "help.game_maker.allow_delete": "Allows deletion of managed game projects. Shared media remains protected.",
-  "help.game_maker.allow_media_generation": "Allows project-bound image and music generation when matching providers are configured."
+  "help.game_maker.allow_media_generation": "Allows project-bound image and music generation when matching providers are configured.",
+  "config.game_maker.workspace_path_help": "Folder for the game projects, relative to the AuraGo directory. All projects live below it.",
+  "config.game_maker.max_projects_help": "Maximum number of projects stored at once (default 25).",
+  "config.game_maker.max_files_per_project_help": "Maximum number of files in one project (default 250).",
+  "config.game_maker.max_file_size_kb_help": "Largest allowed source file in kilobytes (default 2048).",
+  "config.game_maker.max_asset_size_mb_help": "Largest allowed asset such as an image, sound or model in megabytes (default 32).",
+  "config.game_maker.max_project_size_mb_help": "Total size of one project in megabytes; no more files are accepted after that (default 100).",
+  "config.game_maker.job_timeout_seconds_help": "How long an agent job for building or changing a game may run at most (default 1800 seconds)."
 }

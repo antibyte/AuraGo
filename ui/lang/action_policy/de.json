@@ -36,5 +36,6 @@
   "action_policy.unknown": "Ergebnis ungewiss. Prüfe den Zustand, bevor Du die Aktion erneut ausführst.",
   "action_policy.admin_only": "Nur Administratoren können Regeln ändern und Aktionen freigeben.",
   "action_policy.save_hint": "Speichere Deine Änderungen, bevor Du die Regeln prüfst.",
-  "action_policy.pending": "Offene Freigaben"
+  "action_policy.pending": "Offene Freigaben",
+  "action_policy.enabled_help": "Mit eigenen Regeln kannst du einzelne Aktionen automatisch erlauben oder verbieten. Gesperrte Fähigkeiten und schreibgeschützte Einstellungen haben immer Vorrang."
 }

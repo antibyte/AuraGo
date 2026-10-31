@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Select Cheat Sheet",
   "config.co_agents.spec_cheatsheet_loading": "Loading…",
   "config.co_agents.spec_cheatsheet_empty": "No active cheat sheets available.",
-  "config.co_agents.spec_cheatsheet_error": "Failed to load cheat sheets."
+  "config.co_agents.spec_cheatsheet_error": "Failed to load cheat sheets.",
+  "config.co_agents.provider_help": "Model the co-agents use. Without a selection they use the main LLM.",
+  "config.co_agents.cb_max_tool_calls_help": "How many tool calls a co-agent may make per task before it is stopped (default 10).",
+  "config.co_agents.cb_timeout_help": "Maximum run time of a co-agent in seconds (default 300).",
+  "config.co_agents.cb_max_tokens_help": "Upper limit of tokens used per task. 0 = unlimited.",
+  "config.co_agents.spec_provider_help": "Own model for this role only. Without a selection the co-agents provider applies.",
+  "config.co_agents.spec_additional_prompt_help": "Extra instructions appended to this role's system prompt."
 }

@@ -11,8 +11,9 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.security_proxy.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="security_proxy.enabled" onclick="toggleBool(this);setNestedValue(configData,'security_proxy.enabled',this.classList.contains('on'));renderSecurityProxySection(null)"></div>
-    </div>`;
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="security_proxy.enabled" role="switch" aria-checked="${enabled}" aria-label="${escapeAttr(t('config.security_proxy.enabled_label'))}" aria-describedby="sp-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'security_proxy.enabled',this.classList.contains('on'));renderSecurityProxySection(null)"></div>
+    </div>
+    <div class="field-help" id="sp-enabled-help">${t('config.security_proxy.enabled_help')}</div>`;
 
     if (!enabled) {
         html += `<div class="wh-notice">
@@ -48,18 +49,22 @@ async function renderSecurityProxySection(section) {
     html += `<div class="field-grid two-cols">
         <div class="field-group">
             <div class="field-label">${t('config.security_proxy.domain_label')}</div>
+            <div class="field-help">${t('config.security_proxy.domain_help')}</div>
             <input type="text" class="field-input" data-path="security_proxy.domain" value="${escapeAttr(cfg.domain || '')}" placeholder="aurago.example.com">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.security_proxy.email_label')}</div>
+            <div class="field-help">${t('config.security_proxy.email_help')}</div>
             <input type="email" class="field-input" data-path="security_proxy.email" value="${escapeAttr(cfg.email || '')}" placeholder="admin@example.com">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.security_proxy.https_port_label')}</div>
+            <div class="field-help">${t('config.security_proxy.https_port_help')}</div>
             <input type="number" class="field-input" data-path="security_proxy.https_port" value="${cfg.https_port || 443}" min="1" max="65535">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.security_proxy.http_port_label')}</div>
+            <div class="field-help">${t('config.security_proxy.http_port_help')}</div>
             <input type="number" class="field-input" data-path="security_proxy.http_port" value="${cfg.http_port || 80}" min="1" max="65535">
         </div>
     </div>`;
@@ -72,7 +77,7 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="sp-toggle-row">
         <span class="cfg-label">${t('config.security_proxy.rate_limit_enabled_label')}</span>
-        <div class="toggle ${rl.enabled ? 'on' : ''}" data-path="security_proxy.rate_limiting.enabled" onclick="toggleBool(this)"></div>
+        <div class="toggle ${rl.enabled ? 'on' : ''}" data-path="security_proxy.rate_limiting.enabled" role="switch" aria-checked="${!!rl.enabled}" aria-label="${escapeAttr(t('config.security_proxy.rate_limit_enabled_label'))}" onclick="toggleBool(this)"></div>
     </div>`;
 
     html += `<div class="field-help">${t('config.security_proxy.rate_limit_build_hint')}</div>`;
@@ -80,10 +85,12 @@ async function renderSecurityProxySection(section) {
     html += `<div class="field-grid two-cols">
         <div class="field-group">
             <div class="field-label">${t('config.security_proxy.rps_label')}</div>
+            <div class="field-help">${t('config.security_proxy.rps_help')}</div>
             <input type="number" class="field-input" data-path="security_proxy.rate_limiting.requests_per_second" value="${rl.requests_per_second || 10}" min="1" max="10000">
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.security_proxy.burst_label')}</div>
+            <div class="field-help">${t('config.security_proxy.burst_help')}</div>
             <input type="number" class="field-input" data-path="security_proxy.rate_limiting.burst" value="${rl.burst || 50}" min="1" max="50000">
         </div>
     </div>`;
@@ -96,11 +103,13 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="sp-toggle-row">
         <span class="cfg-label">${t('config.security_proxy.ip_filter_enabled_label')}</span>
-        <div class="toggle ${ipf.enabled ? 'on' : ''}" data-path="security_proxy.ip_filter.enabled" onclick="toggleBool(this)"></div>
-    </div>`;
+        <div class="toggle ${ipf.enabled ? 'on' : ''}" data-path="security_proxy.ip_filter.enabled" role="switch" aria-checked="${!!ipf.enabled}" aria-label="${escapeAttr(t('config.security_proxy.ip_filter_enabled_label'))}" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help">${t('config.security_proxy.ip_filter_enabled_help')}</div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.security_proxy.ip_filter_mode_label')}</div>
+        <div class="field-help">${t('config.security_proxy.ip_filter_mode_help')}</div>
         <select class="field-select" data-path="security_proxy.ip_filter.mode">
             <option value="blocklist" ${(ipf.mode||'blocklist')==='blocklist'?'selected':''}>${t('config.security_proxy.ip_filter_mode_blocklist')}</option>
             <option value="allowlist" ${ipf.mode==='allowlist'?'selected':''}>${t('config.security_proxy.ip_filter_mode_allowlist')}</option>
@@ -122,8 +131,9 @@ async function renderSecurityProxySection(section) {
 
     html += `<div class="sp-toggle-row">
         <span class="cfg-label">${t('config.security_proxy.basic_auth_enabled_label')}</span>
-        <div class="toggle ${ba.enabled ? 'on' : ''}" data-path="security_proxy.basic_auth.enabled" onclick="toggleBool(this)"></div>
-    </div>`;
+        <div class="toggle ${ba.enabled ? 'on' : ''}" data-path="security_proxy.basic_auth.enabled" role="switch" aria-checked="${!!ba.enabled}" aria-label="${escapeAttr(t('config.security_proxy.basic_auth_enabled_label'))}" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help">${t('config.security_proxy.basic_auth_enabled_help')}</div>`;
 
     html += `<div class="wh-notice">
         <span>🔐</span>
@@ -145,6 +155,7 @@ async function renderSecurityProxySection(section) {
         <div class="field-group-title">${t('config.security_proxy.routes_title')}</div>
         <div class="field-group-desc">${t('config.security_proxy.routes_desc')}</div>`;
 
+    html += `<div class="field-help">${t('config.security_proxy.routes_help')}</div>`;
     html += `<div id="proxy-routes-list">`;
     routes.forEach((route, i) => {
         html += _renderRouteRow(route, i);
@@ -179,13 +190,13 @@ async function renderSecurityProxySection(section) {
 
 function _renderRouteRow(route, index) {
     return `<div class="sp-route-row" data-index="${index}">
-        <input type="text" class="field-input sp-route-input-1" placeholder="${t('config.security_proxy.route_name')}" value="${escapeAttr(route.name || '')}"
+        <input type="text" class="field-input sp-route-input-1" aria-label="${escapeAttr(t('config.security_proxy.route_name_label'))}" placeholder="${t('config.security_proxy.route_name')}" value="${escapeAttr(route.name || '')}"
             onchange="_updateProxyRoute(${index},'name',this.value)">
-        <input type="text" class="field-input sp-route-input-2" placeholder="${t('config.security_proxy.route_domain')}" value="${escapeAttr(route.domain || '')}"
+        <input type="text" class="field-input sp-route-input-2" aria-label="${escapeAttr(t('config.security_proxy.route_domain_label'))}" placeholder="${t('config.security_proxy.route_domain')}" value="${escapeAttr(route.domain || '')}"
             onchange="_updateProxyRoute(${index},'domain',this.value)">
-        <input type="text" class="field-input sp-route-input-2" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
+        <input type="text" class="field-input sp-route-input-2" aria-label="${escapeAttr(t('config.security_proxy.route_upstream_label'))}" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
             onchange="_updateProxyRoute(${index},'upstream',this.value)">
-        <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="Remove">✕</button>
+        <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="${escapeAttr(t('config.security_proxy.route_remove'))}" aria-label="${escapeAttr(t('config.security_proxy.route_remove'))}">✕</button>
     </div>`;
 }
 
@@ -224,14 +235,14 @@ async function _proxyAction(action) {
         const res = await fetch(`/api/proxy/${action}`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'ok') {
-            showToast(data.message || action + ' successful', 'success');
+            showToast(data.message || t('config.security_proxy.action_success', { action: t('config.security_proxy.btn_' + action) }), 'success');
             setTimeout(_proxyFetchStatus, 1500);
         } else {
-            showToast(data.message || 'Action failed', 'error');
+            showToast(data.message || t('config.security_proxy.action_failed'), 'error');
             _proxyFetchStatus();
         }
     } catch(e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(t('config.security_proxy.error_prefix') + ': ' + e.message, 'error');
         _proxyFetchStatus();
     } finally {
         buttons.forEach(btn => { btn.disabled = false; });
@@ -250,7 +261,7 @@ async function _proxyFetchStatus() {
             const icon = p.running ? '🟢' : '⚪';
             const state = document.createElement('strong');
             state.style.color = color;
-            state.textContent = p.state || 'unknown';
+            state.textContent = p.state || t('config.security_proxy.state_unknown');
             const nodes = [
                 document.createTextNode(icon + ' '),
                 state,
@@ -278,11 +289,11 @@ async function _proxyShowLogs() {
         const res = await fetch('/api/proxy/logs?tail=200');
         const data = await res.json();
         if (data.status === 'ok') {
-            content.textContent = data.logs || '(empty)';
+            content.textContent = data.logs || t('config.security_proxy.logs_empty');
         } else {
-            content.textContent = data.message || 'Error fetching logs';
+            content.textContent = data.message || t('config.security_proxy.logs_error');
         }
     } catch(e) {
-        content.textContent = 'Error: ' + e.message;
+        content.textContent = t('config.security_proxy.error_prefix') + ': ' + e.message;
     }
 }

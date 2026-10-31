@@ -14,5 +14,10 @@
   "config.flows.open": "EasyDrag öffnen",
   "config.flows.run_retention_days": "Laufhistorie aufbewahren (Tage, 1–365)",
   "config.section.flows.desc": "Visuelle Automationen aus der EasyDrag-App",
-  "config.section.flows.label": "EasyDrag-Flows"
+  "config.section.flows.label": "EasyDrag-Flows",
+  "config.flows.enabled_help": "Schaltet die Ausführung von EasyDrag-Flows ein. Die Änderung gilt nach einem Neustart.",
+  "config.flows.max_parallel_runs_help": "Wie viele Flow-Läufe gleichzeitig laufen dürfen (1 bis 32, Standard 8). Weitere warten.",
+  "config.flows.max_parallel_nodes_per_run_help": "Wie viele Schritte eines Laufs parallel ausgeführt werden dürfen (1 bis 16, Standard 4).",
+  "config.flows.max_runs_per_flow_help": "Wie viele abgeschlossene Läufe je Flow aufbewahrt werden; ältere werden gelöscht (10 bis 5000, Standard 200).",
+  "config.flows.run_retention_days_help": "Nach so vielen Tagen wird der Verlauf eines Laufs gelöscht (1 bis 365, Standard 30)."
 }

@@ -19,11 +19,13 @@ async function renderServerSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.server.host_label')}</div>
+        <div class="field-help">${t('config.server.host_hint')}</div>
         <input type="text" class="field-input" data-path="server.host" value="${escapeAttr(cfg.host || '')}" placeholder="0.0.0.0">
     </div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.server.port_label')}</div>
+        <div class="field-help">${t('config.server.port_hint')}</div>
         <input type="number" class="field-input" data-path="server.port" value="${cfg.port || 8088}" min="1" max="65535">
     </div>`;
 
@@ -43,6 +45,7 @@ async function renderServerSection(section) {
     html += `<div class="cfg-topic"><div class="field-group-title">${t('config.refresh.language')}</div>`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.server.ui_language_label')}</div>
+        <div class="field-help">${t('config.server.ui_language_hint')}</div>
         <select class="field-select" data-path="server.ui_language">
             ${['de','en','es','fr','it','pt','nl','pl','zh','ja','hi','da','sv','no','cs','el'].map(l =>
                 `<option value="${l}" ${(cfg.ui_language||'de')===l?'selected':''}>${l.toUpperCase()}</option>`
@@ -59,7 +62,7 @@ async function renderServerSection(section) {
         <input id="server-preview-domain" type="text" class="field-input" data-path="server.preview_domain" value="${escapeAttr(cfg.preview_domain || '')}" placeholder="apps.example.net">
         <div class="cfg-toggle-row">
             <span class="cfg-toggle-label">${t('config.server.preview_enabled')}</span>
-            <div class="toggle ${cfg.preview_enabled ? 'on' : ''}" data-path="server.preview_enabled" onclick="toggleBool(this)"></div>
+            <div class="toggle ${cfg.preview_enabled ? 'on' : ''}" data-path="server.preview_enabled" role="switch" aria-checked="${cfg.preview_enabled ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.preview_enabled'))}" onclick="toggleBool(this)"></div>
         </div>
     </div>`;
 
@@ -77,6 +80,7 @@ async function renderServerSection(section) {
         const certMode = https.cert_mode || 'auto';
         html += `<div class="field-group">
             <div class="field-label">${t('config.server.cert_mode_label')}</div>
+            <div class="field-help">${t('config.server.cert_mode_hint')}</div>
             <select class="field-select" id="cert-mode-select" data-path="server.https.cert_mode"
                 onchange="_srvChangeCertMode(this)">
                 <option value="auto" ${certMode==='auto'?'selected':''}>${t('config.server.cert_mode_auto')}</option>
@@ -88,6 +92,7 @@ async function renderServerSection(section) {
         html += `<div class="field-grid two-cols">
             <div class="field-group">
                 <div class="field-label">${t('config.server.https_port_label')}</div>
+                <div class="field-help">${t('config.server.https_port_hint')}</div>
                 <input type="number" class="field-input" data-path="server.https.https_port" value="${https.https_port || 443}" min="1" max="65535">
             </div>
             <div class="field-group">
@@ -106,10 +111,12 @@ async function renderServerSection(section) {
             html += `<div class="field-grid two-cols">
                 <div class="field-group">
                     <div class="field-label">${t('config.server.domain_label')}</div>
+                    <div class="field-help">${t('config.server.domain_hint')}</div>
                     <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.example.com">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.server.email_label')}</div>
+                    <div class="field-help">${t('config.server.email_hint')}</div>
                     <input type="email" class="field-input" data-path="server.https.email" value="${escapeAttr(https.email || '')}" placeholder="admin@example.com">
                 </div>
             </div>`;
@@ -123,10 +130,12 @@ async function renderServerSection(section) {
             html += `<div class="field-grid two-cols">
                 <div class="field-group">
                     <div class="field-label">${t('config.server.cert_file_label')}</div>
+                    <div class="field-help">${t('config.server.cert_file_hint')}</div>
                     <input type="text" class="field-input" data-path="server.https.cert_file" value="${escapeAttr(https.cert_file || '')}" placeholder="data/certs/custom.crt">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.server.key_file_label')}</div>
+                    <div class="field-help">${t('config.server.key_file_hint')}</div>
                     <input type="text" class="field-input" data-path="server.https.key_file" value="${escapeAttr(https.key_file || '')}" placeholder="data/certs/custom.key">
                 </div>
             </div>`;
@@ -188,8 +197,9 @@ async function renderServerSection(section) {
 
     html += `<div class="cfg-toggle-row">
         <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
-        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" onclick="toggleBool(this)"></div>
+        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" role="switch" aria-checked="${https.behind_proxy ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.behind_proxy_label'))}" onclick="toggleBool(this)"></div>
     </div>
+    <div class="field-help">${t('config.server.behind_proxy_hint')}</div>
     <div class="field-group">
         <div class="field-label">${t('config.server.trusted_proxy_cidrs_label')}</div>
         <div class="field-help">${t('config.server.trusted_proxy_cidrs_hint')}</div>
@@ -280,7 +290,7 @@ async function _srvRefreshCertStatus() {
             info += `<br><strong>${t('config.server.cert_status_issuer')}:</strong> ${escapeHtml(ci.issuer || '---')}`;
             info += `<br><strong>${t('config.server.cert_status_expires')}:</strong> ${escapeHtml(ci.not_after || '---')}`;
             if (ci.dns_names && ci.dns_names.length) {
-                info += `<br><strong>SANs:</strong> ${escapeHtml(ci.dns_names.join(', '))}`;
+                info += `<br><strong>${t('config.server.cert_status_sans')}:</strong> ${escapeHtml(ci.dns_names.join(', '))}`;
             }
             if (ci.expired) {
                 info += `<br><span class="srv-cert-expired">⚠ ${t('config.server.cert_status_expired')}</span>`;

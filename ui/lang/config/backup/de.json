@@ -32,5 +32,9 @@
   "config.backup.confirm_import_title": "Dieses Backup wiederherstellen?",
   "config.backup.confirm_import_message": "Der Import von \"{name}\" überschreibt diese Instanz: Konfiguration, Prompts, Daten und Skills aus dem Archiv ersetzen die aktuellen, und gespeicherte API-Schlüssel und Tokens werden ersetzt, falls das Archiv Tresor-Geheimnisse enthält. Das lässt sich nicht rückgängig machen, anschließend ist ein Neustart von AuraGo nötig.",
   "config.backup.unknown_error": "Unbekannter Fehler",
-  "config.backup.toggle_visibility": "Passwort ein- oder ausblenden"
+  "config.backup.toggle_visibility": "Passwort ein- oder ausblenden",
+  "config.backup.include_vectordb_help": "Nimmt die Vektordatenbank (Embeddings des Gedächtnisses) mit. Spart Neuberechnung beim Wiederherstellen, macht das Archiv aber oft sehr groß.",
+  "config.backup.include_workdir_help": "Nimmt das Arbeitsverzeichnis des Agenten mit allen darin liegenden Dateien mit. Das kann viel Platz belegen.",
+  "config.backup.select_file_help": "Eine zuvor erstellte Sicherung mit der Endung .ago. Beim Import werden vorhandene Daten überschrieben.",
+  "config.backup.import_password_help": "Nur nötig, wenn die Sicherung verschlüsselt wurde. Es muss dasselbe Passwort sein wie beim Erstellen."
 }

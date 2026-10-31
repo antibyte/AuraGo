@@ -65,7 +65,7 @@ function renderS3Section(section) {
     html += s3Field(s3Text('bucket'), '<input class="field-input" id="s3-rustfs-bucket" data-path="rustfs.bucket" aria-label="' + escapeAttr(s3Text('bucket')) + '" value="'
         + escapeAttr(managed.bucket || 'aurago') + '" maxlength="63">', s3Text('bucket_help'));
     html += '<div id="s3-rustfs-status" class="pw-u-status-banner" role="status" aria-live="polite">' + escapeHtml(s3Text('checking')) + '</div>';
-    html += s3Field(s3Text('endpoint'), '<input class="field-input" id="s3-rustfs-endpoint" readonly aria-label="' + escapeAttr(s3Text('endpoint')) + '">');
+    html += s3Field(s3Text('endpoint'), '<input class="field-input" id="s3-rustfs-endpoint" readonly aria-label="' + escapeAttr(s3Text('endpoint')) + '">', s3Text('endpoint_help'));
     html += '<div class="field-grid two-cols">';
     for (const action of ['preflight', 'install', 'start', 'stop', 'recreate', 'remove']) {
         html += '<button type="button" class="btn-save btn-secondary" id="s3-rustfs-' + action + '">' + escapeHtml(s3Text(action)) + '</button>';
@@ -74,11 +74,11 @@ function renderS3Section(section) {
     html += '</div><p id="s3-rustfs-action-reason" class="field-help" role="status"></p>';
     html += '<p id="s3-rustfs-operation" role="status" aria-live="polite"></p>';
     html += '<details class="cfg-advanced-panel"><summary>' + escapeHtml(s3Text('details')) + '</summary>'
-        + '<div class="cfg-advanced-body"><textarea class="field-input" id="s3-rustfs-details" rows="8" readonly aria-label="' + escapeAttr(s3Text('details')) + '"></textarea></div></details>';
+        + '<div class="cfg-advanced-body">' + s3Field(s3Text('details'), '<textarea class="field-input" id="s3-rustfs-details" rows="8" readonly aria-label="' + escapeAttr(s3Text('details')) + '"></textarea>', s3Text('details_help')) + '</div></details>';
     html += '<div class="pw-u-subsection-title">' + escapeHtml(s3Text('permissions')) + '</div>';
     html += s3Checkbox('rustfs.agent_access', s3Text('agent_access'), s3Text('permissions_help'));
     for (const permission of ['read', 'write', 'delete']) {
-        html += s3Checkbox('rustfs.permissions.allow_' + permission, s3Text('allow_' + permission));
+        html += s3Checkbox('rustfs.permissions.allow_' + permission, s3Text('allow_' + permission), s3Text('allow_' + permission + '_help'));
     }
     html += '<div class="field-help">' + escapeHtml(s3Text('prefix_help')) + '</div><div id="s3-locations"></div>';
     html += '<button type="button" class="btn-save btn-secondary" id="s3-location-add">' + escapeHtml(s3Text('add_location')) + '</button></section>';
@@ -122,9 +122,11 @@ function s3RenderLocations() {
         const whole = prefixes.includes('');
         return '<div class="field-group" data-s3-location="' + index + '"><label class="field-label" for="s3-location-bucket-' + index + '">'
             + escapeHtml(s3Text('bucket')) + '</label><input class="field-input" id="s3-location-bucket-' + index + '" data-s3-field="bucket" value="' + escapeAttr(location.bucket || '') + '" maxlength="63">'
+            + '<div class="field-help">' + escapeHtml(s3Text('location_bucket_help')) + '</div>'
             + '<label class="field-label" for="s3-location-prefixes-' + index + '">' + escapeHtml(s3Text('prefixes')) + '</label>'
             + '<textarea class="field-input" id="s3-location-prefixes-' + index + '" data-s3-field="prefixes" rows="3"' + (whole ? ' disabled' : '') + '>'
             + escapeHtml(prefixes.filter(prefix => prefix !== '').join('\n')) + '</textarea>'
+            + '<div class="field-help">' + escapeHtml(s3Text('location_prefixes_help')) + '</div>'
             + '<label class="toggle-wrap"><input type="checkbox" data-s3-field="whole"' + (whole ? ' checked' : '') + '> ' + escapeHtml(s3Text('whole_bucket')) + '</label>'
             + '<button type="button" class="btn-save btn-secondary" data-s3-remove="' + index + '">' + escapeHtml(s3Text('remove_location')) + '</button></div>';
     }).join('') || '<p class="field-help">' + escapeHtml(s3Text('no_locations')) + '</p>';

@@ -18,6 +18,7 @@ async function renderDocumentCreatorSection(section) {
     html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.document_creator.enabled_label') + '</div>';
+    html += '<div class="field-help">' + t('config.document_creator.enabled_help') + '</div>';
     html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="tools.document_creator.enabled" onclick="toggleBool(this);dcUpdateEnabled(this.classList.contains(\'on\'))"></div>';
     html += '</div>';
 

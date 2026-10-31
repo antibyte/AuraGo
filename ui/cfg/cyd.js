@@ -70,6 +70,7 @@ async function renderCYDSection(section) {
             <option value="cyd">${t('config.cyd.flash_variant_cyd')}</option>
             <option value="cyd2usb">${t('config.cyd.flash_variant_cyd2usb')}</option>
         </select>
+        <div class="field-help">${t('config.cyd.flash_variant_help')}</div>
     </div>`;
     html += `<div class="field-group">
         <button type="button" class="btn-save" id="cyd-flash-btn" onclick="cydFlashDisplay()">${t('config.cyd.flash_btn')}</button>

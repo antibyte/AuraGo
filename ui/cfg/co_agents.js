@@ -52,15 +52,16 @@ async function renderCoAgentsSection(section) {
     });
     html += configPreservedProviderOptionHTML(curProvider, configGeneralProviders());
     html += '</select></label>';
+    html += '<div class="field-help">' + t('config.co_agents.provider_help') + '</div>';
     html += '</div>';
 
     var cb = cfg.circuit_breaker || {};
     html += '<div class="field-group">';
     html += '<div class="field-group-title">' + t('config.co_agents.cb_title') + '</div>';
     html += '<div class="field-group-desc">' + t('config.co_agents.cb_desc') + '</div>';
-    html += _coAgentNumberField('co_agents.circuit_breaker.max_tool_calls', t('config.co_agents.cb_max_tool_calls'), cb.max_tool_calls || 10);
-    html += _coAgentNumberField('co_agents.circuit_breaker.timeout_seconds', t('config.co_agents.cb_timeout'), cb.timeout_seconds || 300);
-    html += _coAgentNumberField('co_agents.circuit_breaker.max_tokens', t('config.co_agents.cb_max_tokens'), cb.max_tokens || 0);
+    html += _coAgentNumberField('co_agents.circuit_breaker.max_tool_calls', t('config.co_agents.cb_max_tool_calls'), cb.max_tool_calls || 10, t('config.co_agents.cb_max_tool_calls_help'));
+    html += _coAgentNumberField('co_agents.circuit_breaker.timeout_seconds', t('config.co_agents.cb_timeout'), cb.timeout_seconds || 300, t('config.co_agents.cb_timeout_help'));
+    html += _coAgentNumberField('co_agents.circuit_breaker.max_tokens', t('config.co_agents.cb_max_tokens'), cb.max_tokens || 0, t('config.co_agents.cb_max_tokens_help'));
     html += '</div>';
 
     html += '<div class="ca-specialists-heading">';
@@ -96,9 +97,9 @@ function _renderSpecialistCard(role, spec) {
     html += '<span class="ca-card-icon">' + role.icon + '</span>';
     html += '<div class="ca-card-info">';
     html += '<div class="ca-card-name">' + t('config.co_agents.spec_' + role.key + '_name') + '</div>';
-    html += '<div class="ca-card-desc">' + t('config.co_agents.spec_' + role.key + '_desc') + '</div>';
+    html += '<div class="ca-card-desc field-help" id="ca-card-desc-' + role.key + '">' + t('config.co_agents.spec_' + role.key + '_desc') + '</div>';
     html += '</div>';
-    html += '<div class="toggle' + (specEnabled ? ' on' : '') + '" data-path="' + basePath + '.enabled" onclick="toggleBool(this);_coAgentSetSpec(\'' + basePath + '.enabled\',this.classList.contains(\'on\'))"></div>';
+    html += '<div class="toggle' + (specEnabled ? ' on' : '') + '" data-path="' + basePath + '.enabled" role="switch" aria-checked="' + specEnabled + '" aria-label="' + escapeAttr(t('config.co_agents.spec_' + role.key + '_name')) + '" aria-describedby="ca-card-desc-' + role.key + '" onclick="toggleBool(this);_coAgentSetSpec(\'' + basePath + '.enabled\',this.classList.contains(\'on\'))"></div>';
     html += '</div>';
 
     if (!specEnabled) {
@@ -112,7 +113,7 @@ function _renderSpecialistCard(role, spec) {
     var specProvider = specLLM.provider || '';
     html += '<label class="ca-spec-label">';
     html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_provider_label') + '</span>';
-    html += '<select class="field-select ca-spec-select" data-path="' + basePath + '.llm.provider" onchange="setNestedValue(configData,\'' + basePath + '.llm.provider\',this.value);setDirty(true)">';
+    html += '<select class="field-select ca-spec-select" data-path="' + basePath + '.llm.provider" aria-describedby="ca-spec-provider-help-' + role.key + '" onchange="setNestedValue(configData,\'' + basePath + '.llm.provider\',this.value);setDirty(true)">';
     html += '<option value=""' + (!specProvider ? ' selected' : '') + '>' + t('config.co_agents.spec_inherit_provider') + '</option>';
     configGeneralProviders().forEach(function(p) {
         var sel = (String(specProvider) === String(p.id)) ? ' selected' : '';
@@ -123,15 +124,16 @@ function _renderSpecialistCard(role, spec) {
     });
     html += configPreservedProviderOptionHTML(specProvider, configGeneralProviders());
     html += '</select></label>';
+    html += '<div class="field-help" id="ca-spec-provider-help-' + role.key + '">' + t('config.co_agents.spec_provider_help') + '</div>';
 
     html += '<div class="ca-cb-title">' + t('config.co_agents.spec_cb_overrides') + '</div>';
     var specCB = spec.circuit_breaker || {};
     html += '<div class="ca-cb-grid">';
-    html += _coAgentSmallNumber(basePath + '.circuit_breaker.max_tool_calls', t('config.co_agents.cb_max_tool_calls'), specCB.max_tool_calls || 0);
-    html += _coAgentSmallNumber(basePath + '.circuit_breaker.timeout_seconds', t('config.co_agents.cb_timeout'), specCB.timeout_seconds || 0);
-    html += _coAgentSmallNumber(basePath + '.circuit_breaker.max_tokens', t('config.co_agents.cb_max_tokens'), specCB.max_tokens || 0);
+    html += _coAgentSmallNumber(basePath + '.circuit_breaker.max_tool_calls', t('config.co_agents.cb_max_tool_calls'), specCB.max_tool_calls || 0, 'ca-cb-hint-' + role.key);
+    html += _coAgentSmallNumber(basePath + '.circuit_breaker.timeout_seconds', t('config.co_agents.cb_timeout'), specCB.timeout_seconds || 0, 'ca-cb-hint-' + role.key);
+    html += _coAgentSmallNumber(basePath + '.circuit_breaker.max_tokens', t('config.co_agents.cb_max_tokens'), specCB.max_tokens || 0, 'ca-cb-hint-' + role.key);
     html += '</div>';
-    html += '<div class="ca-cb-hint">' + t('config.co_agents.spec_cb_hint') + '</div>';
+    html += '<div class="ca-cb-hint field-help" id="ca-cb-hint-' + role.key + '">' + t('config.co_agents.spec_cb_hint') + '</div>';
 
     html += '<div class="ca-section-divider"></div>';
     html += '<div class="ca-cb-title">' + t('config.co_agents.spec_extra_title') + '</div>';
@@ -139,8 +141,9 @@ function _renderSpecialistCard(role, spec) {
     var promptRows = role.key === 'writer' ? 10 : 3;
     html += '<label class="ca-spec-label">';
     html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_additional_prompt_label') + '</span>';
-    html += '<textarea class="field-input ca-spec-textarea" rows="' + promptRows + '" data-path="' + basePath + '.additional_prompt" placeholder="' + escapeAttr(t('config.co_agents.spec_additional_prompt_placeholder')) + '" oninput="setNestedValue(configData,\'' + basePath + '.additional_prompt\',this.value);setDirty(true)">' + escapeHtml(spec.additional_prompt || '') + '</textarea>';
+    html += '<textarea class="field-input ca-spec-textarea" aria-describedby="ca-prompt-help-' + role.key + '" rows="' + promptRows + '" data-path="' + basePath + '.additional_prompt" placeholder="' + escapeAttr(t('config.co_agents.spec_additional_prompt_placeholder')) + '" oninput="setNestedValue(configData,\'' + basePath + '.additional_prompt\',this.value);setDirty(true)">' + escapeHtml(spec.additional_prompt || '') + '</textarea>';
     html += '</label>';
+    html += '<div class="field-help" id="ca-prompt-help-' + role.key + '">' + t('config.co_agents.spec_additional_prompt_help') + '</div>';
 
     html += '<div class="ca-cheatsheet-field" id="ca-cs-' + role.key + '">';
     html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_cheatsheet_label') + '</span>';
@@ -165,17 +168,20 @@ function _coAgentSetSpec(path, value) {
     renderCoAgentsSection(null);
 }
 
-function _coAgentNumberField(path, label, value) {
+function _coAgentNumberField(path, label, value, help) {
+    var helpId = 'ca-help-' + path.replace(/\./g, '-');
     return '<label class="ca-num-field">' +
         '<span class="ca-num-label">' + label + '</span>' +
-        '<input class="field-input ca-num-input" type="number" min="0" data-path="' + path + '" value="' + value + '">' +
+        '<input class="field-input ca-num-input" type="number" min="0" data-path="' + path + '" value="' + value + '" aria-describedby="' + helpId + '">' +
+        '<small class="field-help" id="' + helpId + '">' + help + '</small>' +
         '</label>';
 }
 
-function _coAgentSmallNumber(path, label, value) {
+// Per-specialist overrides share one hint (describedBy) under the grid.
+function _coAgentSmallNumber(path, label, value, describedBy) {
     return '<label class="ca-small-num-wrap">' +
         '<span class="ca-small-num-label">' + label + '</span>' +
-        '<input class="field-input ca-small-num-input" type="number" min="0" data-path="' + path + '" value="' + value + '">' +
+        '<input class="field-input ca-small-num-input" type="number" min="0" data-path="' + path + '" value="' + value + '" aria-describedby="' + describedBy + '">' +
         '</label>';
 }
 

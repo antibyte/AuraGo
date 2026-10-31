@@ -40,5 +40,11 @@
   "config.co_agents.spec_cheatsheet_modal_title": "Cheat Sheet auswählen",
   "config.co_agents.spec_cheatsheet_loading": "Laden…",
   "config.co_agents.spec_cheatsheet_empty": "Keine aktiven Cheat Sheets verfügbar.",
-  "config.co_agents.spec_cheatsheet_error": "Cheat Sheets konnten nicht geladen werden."
+  "config.co_agents.spec_cheatsheet_error": "Cheat Sheets konnten nicht geladen werden.",
+  "config.co_agents.provider_help": "Modell, das die Co-Agenten verwenden. Ohne Auswahl nutzen sie das Haupt-LLM.",
+  "config.co_agents.cb_max_tool_calls_help": "Wie viele Werkzeugaufrufe ein Co-Agent pro Auftrag höchstens machen darf, bevor er abbricht (Standard 10).",
+  "config.co_agents.cb_timeout_help": "Maximale Laufzeit eines Co-Agenten in Sekunden (Standard 300).",
+  "config.co_agents.cb_max_tokens_help": "Obergrenze für die verbrauchten Tokens je Auftrag. 0 = unbegrenzt.",
+  "config.co_agents.spec_provider_help": "Eigenes Modell nur für diese Rolle. Ohne Auswahl gilt der Anbieter der Co-Agenten.",
+  "config.co_agents.spec_additional_prompt_help": "Zusätzliche Anweisungen, die an den Systemprompt dieser Rolle angehängt werden."
 }
