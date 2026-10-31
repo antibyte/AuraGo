@@ -141,7 +141,7 @@ async function renderRemoteControlSection(section) {
             <button id="rc-token-generate-btn" class="btn-save" onclick="rcCreateEnrollmentToken()">
                 ${t('config.remote_control.pairing_token_generate')}
             </button>
-            <span id="rc-token-status" class="adg-test-result"></span>
+            ${cfgActionResult.html('rc-token-status')}
         </div>
         <div id="rc-token-result" class="rc-token-result"></div>
         <small class="cfg-help">${t('config.remote_control.pairing_token_hint')}</small>
@@ -221,71 +221,52 @@ function rcDownload(os, arch) {
     window.location.href = `/api/remote/download/${os}/${arch}${qs}`;
 }
 
+// The token itself stays in #rc-token-result (it is shown once); #rc-token-status carries the outcome.
 async function rcCreateEnrollmentToken(pendingID) {
     const btn = document.getElementById('rc-token-generate-btn');
     const result = document.getElementById('rc-token-result');
-    const status = document.getElementById('rc-token-status');
     const nameEl = document.getElementById('rc-enrollment-device-name');
-    if (!btn || !result || btn.disabled) return;
+    if (!btn || !result) return;
 
-    btn.disabled = true;
-    if (status) {
-        status.className = 'adg-test-result';
-        status.textContent = t('config.remote_control.pairing_token_generating');
-    }
-    result.innerHTML = '';
-
-    try {
-        const resp = await fetch(pendingID ? `/api/remote/devices/${encodeURIComponent(pendingID)}/approve` : '/api/remote/enroll', {
+    return cfgActionResult(btn, async () => {
+        result.innerHTML = '';
+        return fetch(pendingID ? `/api/remote/devices/${encodeURIComponent(pendingID)}/approve` : '/api/remote/enroll', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_name: nameEl ? nameEl.value.trim() : '' })
         });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data.token) {
-            throw new Error(data.error || data.message || t('config.remote_control.pairing_token_failed'));
+    }, {
+        target: 'rc-token-status',
+        pending: t('config.remote_control.pairing_token_generating'),
+        success: t('config.remote_control.pairing_token_ready'),
+        failure: t('config.remote_control.pairing_token_failed'),
+        interpret: outcome => outcome.body && outcome.body.token ? {} : { state: 'error' },
+        onSuccess: async outcome => {
+            const data = outcome.body;
+            const expires = data.expires_at ? new Date(data.expires_at).toLocaleString() : '';
+            result.innerHTML = `<div class="rc-token-card">
+                <code id="rc-token-value" class="rc-token-value">${escapeAttr(data.token)}</code>
+                <div class="cfg-actions-row">
+                    <button id="rc-token-copy-btn" class="btn-save btn-secondary" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
+                    ${cfgActionResult.html('rc-token-copy-state')}
+                </div>
+                <div class="field-help">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
+            </div>`;
+            if (pendingID) await loadRemoteDevices();
         }
-        if (status) {
-            status.className = 'adg-test-result is-success';
-            status.textContent = t('config.remote_control.pairing_token_ready');
-        }
-        const expires = data.expires_at ? new Date(data.expires_at).toLocaleString() : '';
-        result.innerHTML = `<div class="rc-token-card">
-            <code id="rc-token-value" class="rc-token-value">${escapeAttr(data.token)}</code>
-            <div class="cfg-actions-row">
-                <button class="btn-save btn-secondary" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
-                <span id="rc-token-copy-state" class="adg-test-result"></span>
-            </div>
-            <div class="field-help">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
-        </div>`;
-        if (pendingID) await loadRemoteDevices();
-    } catch (e) {
-        if (status) {
-            status.className = 'adg-test-result is-danger';
-            status.textContent = (e && e.message ? e.message : t('config.remote_control.pairing_token_failed'));
-        }
-    } finally {
-        btn.disabled = false;
-    }
+    });
 }
 
-async function rcCopyEnrollmentToken() {
+function rcCopyEnrollmentToken() {
     const tokenEl = document.getElementById('rc-token-value');
-    const stateEl = document.getElementById('rc-token-copy-state');
     const token = tokenEl ? tokenEl.textContent.trim() : '';
     if (!token) return;
-    try {
-        await navigator.clipboard.writeText(token);
-        if (stateEl) {
-            stateEl.className = 'adg-test-result is-success';
-            stateEl.textContent = t('config.remote_control.pairing_token_copied');
-        }
-    } catch (e) {
-        if (stateEl) {
-            stateEl.className = 'adg-test-result is-danger';
-            stateEl.textContent = t('config.remote_control.pairing_token_failed');
-        }
-    }
+    return cfgActionResult(document.getElementById('rc-token-copy-btn'), () => navigator.clipboard.writeText(token), {
+        target: 'rc-token-copy-state',
+        success: t('config.remote_control.pairing_token_copied'),
+        failure: t('config.remote_control.pairing_token_failed'),
+        clearAfter: 3000
+    });
 }
 
 function rcText(key) { return t('config.remote_control.' + key); }

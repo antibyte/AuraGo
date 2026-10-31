@@ -89,16 +89,32 @@ func handleNetlifyTestConnection(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		token, err := s.Vault.ReadSecret("netlify_token")
-		if err != nil || token == "" {
+		// The test uses the values typed into the form (draft); the token comes from the draft or the vault.
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		token := draft.Netlify.Token
+		if token == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Netlify token not found in vault. Store it with key 'netlify_token' first.",
+				"message": "Netlify token is missing. Enter a token and try again.",
 			})
 			return
 		}
 
-		cfg := netlifyServerConfig(s, token)
+		security.RegisterSensitive(token)
+		cfg := tools.NetlifyConfig{
+			Context:             r.Context(),
+			Token:               token,
+			DefaultSiteID:       draft.Netlify.DefaultSiteID,
+			TeamSlug:            draft.Netlify.TeamSlug,
+			ReadOnly:            draft.Netlify.ReadOnly,
+			AllowDeploy:         draft.Netlify.AllowDeploy,
+			AllowSiteManagement: draft.Netlify.AllowSiteManagement,
+			AllowEnvManagement:  draft.Netlify.AllowEnvManagement,
+		}
 
 		diagResult := tools.NetlifyTestConnection(cfg)
 		var diag map[string]interface{}

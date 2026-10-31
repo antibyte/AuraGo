@@ -162,10 +162,12 @@ function renderVirtualComputersSection(section) {
         html += '<input class="field-input adg-password-input" type="password" id="vc-sudo-password-input" value="" autocomplete="off">';
         html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-        html += '<button type="button" class="btn-save adg-save-btn" data-vc-action="save-sudo-password">' + t('config.virtual_computers.save_vault') + '</button>';
+        html += '<button type="button" id="vc-sudo-save-btn" class="btn-save adg-save-btn" data-vc-action="save-sudo-password">' + t('config.virtual_computers.save_vault') + '</button>';
+        html += cfgActionResult.html('vc-sudo-save-result');
         html += '</div>';
-        html += '<div id="vc-sudo-password-status" class="adg-test-result' + (_vcSudoPasswordStored === true ? ' is-success' : '') + '">' +
-            (_vcSudoPasswordStored === true ? t('config.virtual_computers.sudo_password_stored') : (_vcSudoPasswordStored === false ? t('config.virtual_computers.sudo_password_missing') : t('config.virtual_computers.status_loading'))) + '</div>';
+        html += cfgStatusBanner.html('vc-sudo-password-status', _vcSudoPasswordStored === true ? 'connected' : (_vcSudoPasswordStored === false ? 'unconfigured' : 'checking'), {
+            label: _vcSudoPasswordStored === true ? t('config.virtual_computers.sudo_password_stored') : (_vcSudoPasswordStored === false ? t('config.virtual_computers.sudo_password_missing') : t('config.virtual_computers.status_loading'))
+        });
         html += '</div>';
         html += '<div class="field-grid two-cols">';
     } else {
@@ -221,18 +223,16 @@ function renderVirtualComputersSection(section) {
 		html += '<div class="field-label">' + t('config.virtual_computers.s3_access_key_label') + '</div>';
 		html += '<div class="field-help">' + t('help.virtual_computers.s3_access_key') + '</div>';
 		html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-access-input" value="' + escapeAttr(cfgSecretValue(data.s3_access_key_id)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_access_key_id, 'access-key')) + '" autocomplete="off">';
-		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div>';
-		html += '<button class="btn-save adg-save-btn" data-vc-action="save-secret" data-input-id="vc-s3-access-input" data-vault-key="virtual_computers_s3_access_key_id" data-config-path="virtual_computers.s3_access_key_id" data-status-id="vc-s3-access-status">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-access-status" class="adg-test-result"></div>';
+		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-access-input" data-path="virtual_computers.s3_access_key_id" value="' + escapeAttr(cfgSecretValue(data.s3_access_key_id)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_access_key_id, 'access-key')) + '" autocomplete="off">';
+		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div></div>';
 		html += '<div class="field-label">' + t('config.virtual_computers.s3_secret_key_label') + '</div>';
 		html += '<div class="field-help">' + t('help.virtual_computers.s3_secret_key') + '</div>';
 		html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-secret-input" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
-		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div>';
-		html += '<button class="btn-save adg-save-btn" data-vc-action="save-secret" data-input-id="vc-s3-secret-input" data-vault-key="virtual_computers_s3_secret_key" data-config-path="virtual_computers.s3_secret_key" data-status-id="vc-s3-secret-status">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-secret-status" class="adg-test-result"></div>';
+		html += '<input class="field-input adg-password-input" type="password" id="vc-s3-secret-input" data-path="virtual_computers.s3_secret_key" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
+		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div></div>';
 	}
-	html += '<button class="btn-save dc-test-btn" data-vc-action="test-storage" id="vc-storage-test-btn">' + t('config.virtual_computers.storage_test_button') + '</button>';
-	html += '<span id="vc-storage-test-result" class="dc-test-result"></span>';
+	html += '<button class="btn-save dc-test-btn" data-vc-action="test-storage" id="vc-storage-test-btn" data-config-action-draft="true">' + t('config.virtual_computers.storage_test_button') + '</button>';
+	html += cfgActionResult.html('vc-storage-test-result');
 	html += '<div id="vc-storage-test-lock" class="field-help"></div></div>';
 
     html += '<div class="field-group">';
@@ -279,11 +279,10 @@ function renderVirtualComputersSection(section) {
     html += '<div class="field-help">' + t('help.virtual_computers.boring_token') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="vc-boring-token-input" value="' + escapeAttr(cfgSecretValue(data.boring_token)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_token, 'boring-token')) + '" autocomplete="off">';
+    html += '<input class="field-input adg-password-input" type="password" id="vc-boring-token-input" data-path="virtual_computers.boring_token" value="' + escapeAttr(cfgSecretValue(data.boring_token)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_token, 'boring-token')) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" data-vc-action="save-secret" data-input-id="vc-boring-token-input" data-vault-key="virtual_computers_boring_token" data-config-path="virtual_computers.boring_token" data-status-id="vc-boring-token-status">' + t('config.virtual_computers.save_vault') + '</button>';
-    html += '</div><div id="vc-boring-token-status" class="adg-test-result"></div>';
+    html += '</div>';
     html += '</div>';
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.tailscale_note') + ' <a href="/config#tailscale">' + t('config.virtual_computers.open_tailscale_settings') + '</a></div>';
@@ -291,7 +290,7 @@ function renderVirtualComputersSection(section) {
     html += '<button class="btn-save dc-test-btn" data-vc-action="check-status" id="vc-status-btn">' + t('config.virtual_computers.status_button') + '</button>';
     html += '<button class="btn-save dc-test-btn" data-vc-action="preflight" id="vc-preflight-btn">' + t('config.virtual_computers.preflight_button') + '</button>';
     html += '<button class="btn-save dc-test-btn" data-vc-action="install" id="vc-install-btn">' + t('config.virtual_computers.install_button') + '</button>';
-    html += '<span id="vc-cfg-result" class="dc-test-result"></span>';
+    html += cfgActionResult.html('vc-cfg-result');
     html += '</div></div>';
 
     document.getElementById('content').innerHTML = html;
@@ -350,36 +349,27 @@ function vcCfgToggleEnabled(el) {
     setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
 }
 
-function vcCfgSetResult(text, state) {
-    const result = document.getElementById('vc-cfg-result');
-    if (!result) return;
-    result.className = 'dc-test-result' + (state ? ' is-' + state : '');
-    result.textContent = text || '';
-}
-
-async function vcCfgCheckStatus() {
-    const btn = document.getElementById('vc-status-btn');
-    if (btn) btn.disabled = true;
-    vcCfgSetResult(t('config.virtual_computers.status_loading'), '');
-    try {
-        const resp = await fetch('/api/virtual-computers/setup/status');
-        const body = await resp.json();
-        if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
-        vcCfgSetSudoPasswordStatus(body.sudo_password_stored === true);
-        vcCfgSetResult(body.enabled ? t('config.virtual_computers.status_ok') : t('config.virtual_computers.status_disabled'), body.enabled ? 'success' : '');
-    } catch (e) {
-        vcCfgSetResult(t('config.virtual_computers.status_error') + ' ' + e.message, 'danger');
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+// Setup status check: asks the running service (setup status of the saved configuration).
+function vcCfgCheckStatus() {
+    return cfgActionResult(document.getElementById('vc-status-btn'), () => fetch('/api/virtual-computers/setup/status'), {
+        target: 'vc-cfg-result',
+        pending: t('config.virtual_computers.status_loading'),
+        success: t('config.virtual_computers.status_ok'),
+        warning: t('config.virtual_computers.status_disabled'),
+        failure: t('config.virtual_computers.status_error'),
+        interpret: outcome => outcome.state === 'success' && !(outcome.body && outcome.body.enabled) ? { state: 'warning', reason: '' } : {},
+        onSuccess: outcome => vcCfgSetSudoPasswordStatus(outcome.body && outcome.body.sudo_password_stored === true)
+    });
 }
 
 function vcCfgSetSudoPasswordStatus(stored, messageKey, state) {
     _vcSudoPasswordStored = stored === true;
     const statusEl = document.getElementById('vc-sudo-password-status');
     if (!statusEl) return;
-    statusEl.className = 'adg-test-result' + (state ? ' is-' + state : (_vcSudoPasswordStored ? ' is-success' : ''));
-    statusEl.textContent = t(messageKey || (_vcSudoPasswordStored ? 'config.virtual_computers.sudo_password_stored' : 'config.virtual_computers.sudo_password_missing'));
+    const bannerState = state === 'danger' ? 'error' : (_vcSudoPasswordStored ? 'connected' : 'unconfigured');
+    cfgStatusBanner(statusEl, bannerState, {
+        label: t(messageKey || (_vcSudoPasswordStored ? 'config.virtual_computers.sudo_password_stored' : 'config.virtual_computers.sudo_password_missing'))
+    });
 }
 
 async function vcCfgRefreshSudoPasswordStatus() {
@@ -393,14 +383,12 @@ async function vcCfgRefreshSudoPasswordStatus() {
     } catch (_) {
         if (requestGeneration !== _vcSudoPasswordStatusGeneration) return;
         const statusEl = document.getElementById('vc-sudo-password-status');
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.virtual_computers.status_error');
-        }
+        if (statusEl) cfgStatusBanner(statusEl, 'error', { label: t('config.virtual_computers.status_error'), retry: () => vcCfgRefreshSudoPasswordStatus() });
     }
 }
 
-async function vcCfgSaveSudoPassword() {
+// The sudo password is a pure vault key (shared with execute_sudo), so it keeps its own button.
+function vcCfgSaveSudoPassword() {
     const input = document.getElementById('vc-sudo-password-input');
     const value = input ? input.value : '';
     if (!value) {
@@ -412,21 +400,21 @@ async function vcCfgSaveSudoPassword() {
         return;
     }
     ++_vcSudoPasswordStatusGeneration;
-    try {
-        const resp = await fetch('/api/vault/secrets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'sudo_password', value })
-        });
-        const body = await resp.json().catch(() => ({}));
-        if (!resp.ok || body.error || (body.status && body.status !== 'ok')) {
-            throw new Error(body.error || body.message || resp.statusText);
-        }
-        input.value = '';
-        vcCfgSetSudoPasswordStatus(true, 'config.virtual_computers.sudo_password_saved', 'success');
-    } catch (_) {
-        vcCfgSetSudoPasswordStatus(_vcSudoPasswordStored, 'config.virtual_computers.sudo_password_save_failed', 'danger');
-    }
+    return cfgActionResult(document.getElementById('vc-sudo-save-btn'), () => fetch('/api/vault/secrets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'sudo_password', value })
+    }), {
+        target: 'vc-sudo-save-result',
+        success: t('config.virtual_computers.sudo_password_saved'),
+        failure: t('config.virtual_computers.sudo_password_save_failed'),
+        clearAfter: 4000,
+        onSuccess: () => {
+            if (input) input.value = '';
+            vcCfgSetSudoPasswordStatus(true, 'config.virtual_computers.sudo_password_saved', 'success');
+        },
+        onError: () => vcCfgSetSudoPasswordStatus(_vcSudoPasswordStored, _vcSudoPasswordStored ? undefined : 'config.virtual_computers.sudo_password_save_failed', _vcSudoPasswordStored ? undefined : 'danger')
+    });
 }
 
 async function vcCfgPreflight() {
@@ -458,7 +446,6 @@ function vcCfgWireActions(root) {
         else if (action === 'toggle-agent-tasks') vcCfgToggleAgentTasks(target);
         else if (action === 'toggle-password') togglePassword(target);
         else if (action === 'save-sudo-password') void vcCfgSaveSudoPassword();
-        else if (action === 'save-secret') void vcCfgSaveSecret(target.dataset.inputId, target.dataset.vaultKey, target.dataset.configPath, target.dataset.statusId);
         else if (action === 'test-storage') void vcCfgTestStorage();
         else if (action === 'check-status') void vcCfgCheckStatus();
         else if (action === 'preflight') void vcCfgPreflight();
@@ -491,101 +478,51 @@ function vcCfgOnStorageModeChange(el) {
 	}
 }
 
-function vcCfgStorageActionsLocked() {
-	if (typeof isDirty !== 'undefined' && isDirty) {
-		return t('config.virtual_computers.storage_test_dirty_lock');
-	}
-	return '';
+// The test sends the form values (draft): endpoint, bucket and keys as typed. The server
+// refuses to reuse the saved keys for a changed endpoint.
+function vcCfgTestStorage() {
+	return cfgActionResult(document.getElementById('vc-storage-test-btn'), () => fetch('/api/virtual-computers/storage/test', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ draft: cfgDraftPatch(['virtual_computers']) })
+	}), {
+		target: 'vc-storage-test-result',
+		success: t('config.virtual_computers.storage_test_ok'),
+		failure: t('config.virtual_computers.storage_test_failed')
+	});
 }
 
-async function vcCfgTestStorage() {
-	const btn = document.getElementById('vc-storage-test-btn');
-	const result = document.getElementById('vc-storage-test-result');
-	const lock = document.getElementById('vc-storage-test-lock');
-	const lockReason = vcCfgStorageActionsLocked();
-	if (lockReason) {
-		if (lock) lock.textContent = lockReason;
-		if (result) { result.className = 'dc-test-result is-danger'; result.textContent = lockReason; }
-		return;
-	}
-	if (lock) lock.textContent = '';
-	if (btn) btn.disabled = true;
-	try {
-		const resp = await fetch('/api/virtual-computers/storage/test', { method: 'POST' });
-		const body = await resp.json().catch(() => ({}));
-		if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
-		if (result) { result.className = 'dc-test-result is-success'; result.textContent = t('config.virtual_computers.storage_test_ok'); }
-	} catch (e) {
-		if (result) { result.className = 'dc-test-result is-danger'; result.textContent = t('config.virtual_computers.storage_test_failed') + ' ' + e.message; }
-	} finally {
-		if (btn) btn.disabled = false;
-	}
-}
-
-async function vcCfgPostSetup(url, buttonID, showElapsed) {
+function vcCfgPostSetup(url, buttonID, showElapsed) {
     const btn = document.getElementById(buttonID);
-    if (btn) btn.disabled = true;
-    vcCfgSetResult(t('config.virtual_computers.status_loading'), '');
-    let elapsedTimer = null;
-    if (showElapsed) {
-        const startedAt = Date.now();
-        const updateElapsed = () => {
-            const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-            vcCfgSetResult(t('config.virtual_computers.install_button') + '… ' + seconds + 's', '');
-        };
-        updateElapsed();
-        elapsedTimer = window.setInterval(updateElapsed, 1000);
-    }
-    try {
-        const resp = await fetch(url, { method: 'POST' });
-        const body = await resp.json();
-        if (!resp.ok || body.error || body.status === 'unhealthy') {
-            throw new Error(body.error || (body.setup && body.setup.message) || body.message || resp.statusText);
+    return cfgActionResult(btn, async () => {
+        let elapsedTimer = null;
+        if (showElapsed) {
+            const startedAt = Date.now();
+            const updateElapsed = () => {
+                const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+                cfgActionResult.show('vc-cfg-result', 'pending', t('config.virtual_computers.install_button') + '… ' + seconds + 's');
+            };
+            updateElapsed();
+            elapsedTimer = window.setInterval(updateElapsed, 1000);
         }
-        const warnings = (body.result && body.result.warnings) || (body.setup && body.setup.preflight && body.setup.preflight.warnings) || [];
-        const message = body.message || t('config.virtual_computers.status_ok');
-        vcCfgSetResult(warnings.length ? message + ' ' + warnings.join('; ') : message, warnings.length ? 'warning' : 'success');
-    } catch (e) {
-        vcCfgSetResult(t('config.virtual_computers.status_error') + ' ' + e.message, 'danger');
-    } finally {
-        if (elapsedTimer !== null) window.clearInterval(elapsedTimer);
-        if (btn) btn.disabled = false;
-    }
-}
-
-function vcCfgSaveSecret(inputID, vaultKey, configPath, statusID) {
-    const input = document.getElementById(inputID);
-    const statusEl = document.getElementById(statusID);
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.virtual_computers.token_empty');
+        try {
+            return await fetch(url, { method: 'POST' });
+        } finally {
+            if (elapsedTimer !== null) window.clearInterval(elapsedTimer);
         }
-        return;
-    }
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: vaultKey, value })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            if (statusEl) {
-                statusEl.className = 'adg-test-result is-success';
-                statusEl.textContent = t('config.virtual_computers.token_saved');
-            }
-            cfgMarkSecretStored(input, configPath);
-        } else if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = res.message || t('config.virtual_computers.token_save_failed');
-        }
-    })
-    .catch(() => {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.virtual_computers.token_save_failed');
-        }
+    }, {
+        target: 'vc-cfg-result',
+        pending: t('config.virtual_computers.status_loading'),
+        failure: t('config.virtual_computers.status_error'),
+        reasonText: body => body && (body.error || (body.setup && body.setup.message) || body.message) || '',
+        interpret: outcome => {
+            const body = outcome.body || {};
+            if (body.status === 'unhealthy') return { state: 'error' };
+            if (!outcome.ok) return {};
+            const warnings = (body.result && body.result.warnings) || (body.setup && body.setup.preflight && body.setup.preflight.warnings) || [];
+            if (!warnings.length) return {};
+            return { state: 'warning', reason: (body.message || t('config.virtual_computers.status_ok')) + ' ' + warnings.join('; ') };
+        },
+        success: outcome => (outcome.body && outcome.body.message) || t('config.virtual_computers.status_ok')
     });
 }

@@ -48,7 +48,7 @@ func TestHandleVercelTestConnectionMissingToken(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), `"status":"error"`) || !strings.Contains(rec.Body.String(), `vercel_token`) {
+	if !strings.Contains(rec.Body.String(), `"status":"error"`) || !strings.Contains(rec.Body.String(), `token is missing`) {
 		t.Fatalf("unexpected body: %s", rec.Body.String())
 	}
 }

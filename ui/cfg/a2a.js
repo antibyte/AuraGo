@@ -14,7 +14,7 @@ function renderA2ASection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    html += '<div id="a2a-status-banner" class="a2a-status-banner">' + t('config.a2a.checking') + '</div>';
+    html += cfgStatusBanner.html('a2a-status-banner', (srv.enabled || cli.enabled) ? 'checking' : 'off', { detail: (srv.enabled || cli.enabled) ? '' : t('config.a2a.status_disabled') });
 
     html += '<hr class="cfg-section-hr">';
     html += '<div class="a2a-section-title">🖥️ ' + t('config.a2a.server_title') + '</div>';
@@ -91,24 +91,20 @@ function renderA2ASection(section) {
     html += AuraConfigForm.toggle({ path: 'a2a.auth.api_key_enabled', value: !!auth.api_key_enabled, labelKey: 'config.a2a.api_key_auth' });
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="a2a-api-key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input adg-password-input" type="password" id="a2a-api-key" data-path="a2a.auth.api_key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="a2aSaveVault(\'a2a_api_key\', \'a2a-api-key\')">💾 ' + t('config.a2a.save_vault') + '</button>';
     html += '</div>';
-    html += '<span id="a2a-api-key-status" class="adg-test-result"></span>';
     html += '</div>';
 
     html += '<div class="a2a-card">';
     html += AuraConfigForm.toggle({ path: 'a2a.auth.bearer_enabled', value: !!auth.bearer_enabled, labelKey: 'config.a2a.bearer_auth' });
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="a2a-bearer-secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input adg-password-input" type="password" id="a2a-bearer-secret" data-path="a2a.auth.bearer_secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="a2aSaveVault(\'a2a_bearer_secret\', \'a2a-bearer-secret\')">💾 ' + t('config.a2a.save_vault') + '</button>';
     html += '</div>';
-    html += '<span id="a2a-bearer-secret-status" class="adg-test-result"></span>';
     html += '</div>';
 
     if (!auth.api_key_enabled && !auth.bearer_enabled) {
@@ -153,8 +149,8 @@ function renderA2ASection(section) {
     if (srv.enabled) {
         html += '<hr class="cfg-section-hr">';
         html += '<div class="field-group">';
-        html += '<button class="btn-save a2a-test-btn" onclick="a2aTestServer()" id="a2a-test-btn">🔌 ' + t('config.a2a.test_btn') + '</button>';
-        html += '<span id="a2a-test-result" class="a2a-test-result"></span>';
+        html += '<button class="btn-save a2a-test-btn" onclick="a2aTestServer()" id="a2a-test-btn" data-config-action-draft="false">🔌 ' + t('config.a2a.test_btn') + '</button>';
+        html += cfgActionResult.html('a2a-test-result');
         html += '</div>';
     }
 
@@ -248,10 +244,10 @@ function a2aRemoteAgentCard(ra, idx) {
     h += '<div class="a2a-agent-title-area">';
     h += '<div class="toggle toggle-sm' + (on ? ' on' : '') + '" data-path="a2a.client.remote_agents.' + idx + '.enabled" onclick="toggleBool(this)"></div>';
     h += '<span class="a2a-agent-name">' + escapeAttr(ra.name || ra.id || t('config.a2a.unnamed_agent')) + '</span>';
-    h += '<span id="a2a-ra-status-' + idx + '" class="a2a-status-xs"></span>';
+    h += cfgActionResult.html('a2a-ra-status-' + idx, 'a2a-status-xs');
     h += '</div>';
     h += '<div class="a2a-btn-group">';
-    h += '<button class="btn-save a2a-sm-btn" onclick="a2aTestRemoteAgent(\'' + escapeAttr(ra.id || '') + '\',' + idx + ')">🔌 ' + t('config.a2a.test_btn_short') + '</button>';
+    h += '<button id="a2a-ra-test-' + idx + '" class="btn-save a2a-sm-btn" data-config-action-draft="false" onclick="a2aTestRemoteAgent(\'' + escapeAttr(ra.id || '') + '\',' + idx + ')">🔌 ' + t('config.a2a.test_btn_short') + '</button>';
     h += '<button class="btn btn-sm btn-danger" onclick="a2aRemoveRemoteAgent(' + idx + ')">✕</button>';
     h += '</div></div>';
 
@@ -263,14 +259,10 @@ function a2aRemoteAgentCard(ra, idx) {
     h += '<input class="field-input a2a-input-full-mb" type="text" data-path="a2a.client.remote_agents.' + idx + '.card_url" value="' + escapeAttr(ra.card_url || '') + '" placeholder="https://agent.example.com/.well-known/agent-card.json">';
 
     h += '<div class="a2a-cred-row">';
-    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-apikey-' + idx + '" value="' + escapeAttr(cfgSecretValue(ra.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
-    h += '<button class="btn-save a2a-save-btn-xs" onclick="a2aSaveVault(\'a2a_remote_' + escapeAttr(ra.id || 'new') + '_api_key\', \'a2a-ra-apikey-' + idx + '\')">💾</button>';
-    h += '<span id="a2a-ra-apikey-' + idx + '-status" class="a2a-status-xs"></span>';
+    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-apikey-' + idx + '" data-path="a2a.client.remote_agents.' + idx + '.api_key" value="' + escapeAttr(cfgSecretValue(ra.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
     h += '</div>';
     h += '<div class="a2a-cred-row-last">';
-    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-bearer-' + idx + '" value="' + escapeAttr(cfgSecretValue(ra.bearer_token)) + '" placeholder="' + escapeAttr(bearerPlaceholder) + '">';
-    h += '<button class="btn-save a2a-save-btn-xs" onclick="a2aSaveVault(\'a2a_remote_' + escapeAttr(ra.id || 'new') + '_bearer_token\', \'a2a-ra-bearer-' + idx + '\')">💾</button>';
-    h += '<span id="a2a-ra-bearer-' + idx + '-status" class="a2a-status-xs"></span>';
+    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-bearer-' + idx + '" data-path="a2a.client.remote_agents.' + idx + '.bearer_token" value="' + escapeAttr(cfgSecretValue(ra.bearer_token)) + '" placeholder="' + escapeAttr(bearerPlaceholder) + '">';
     h += '</div>';
 
     h += '</div>';
@@ -291,143 +283,64 @@ async function a2aRemoveRemoteAgent(idx) {
     a2aSetList('a2a.client.remote_agents', agents, a2aRenderRemoteAgents);
 }
 
-function a2aSaveVault(vaultKey, inputId) {
-    var input = document.getElementById(inputId);
-    var statusEl = document.getElementById(inputId + '-status');
-    var value = input ? input.value.trim() : '';
-    if (!value) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.a2a.value_empty');
+function a2aCheckStatus() {
+    var banner = document.getElementById('a2a-status-banner');
+    if (!banner) return null;
+    return cfgStatusBanner.check(banner, function() { return fetch('/api/a2a/status'); }, function(res) {
+        if (!res) return null;
+        if (!res.server_enabled && !res.client_enabled) return { state: 'off', detail: t('config.a2a.status_disabled') };
+        var parts = [];
+        var degraded = false;
+        if (res.server_enabled && res.server) {
+            var s = res.server;
+            var bindList = [];
+            if (s.rest && s.rest.enabled) bindList.push('REST');
+            if (s.jsonrpc && s.jsonrpc.enabled) bindList.push('JSON-RPC');
+            if (s.grpc && s.grpc.enabled) bindList.push('gRPC');
+            parts.push(t('config.a2a.status_server_active') + ' (' + bindList.join(', ') + ')');
+            if (s.active_tasks > 0) parts.push(t('config.a2a.active_tasks', { count: String(s.active_tasks) }));
         }
-        return;
-    }
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: vaultKey, value: value })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-        if (res.status === 'ok' || res.success) {
-            if (vaultKey === 'a2a_api_key') {
-                cfgMarkSecretStored(input, 'a2a.auth.api_key');
-            } else if (vaultKey === 'a2a_bearer_secret') {
-                cfgMarkSecretStored(input, 'a2a.auth.bearer_secret');
-            } else if (vaultKey.startsWith('a2a_remote_') && vaultKey.endsWith('_api_key')) {
-                cfgMarkSecretStored(input);
-                var remoteAgentID = vaultKey.slice('a2a_remote_'.length, -'_api_key'.length);
-                var remoteAgents = (((configData || {}).a2a || {}).client || {}).remote_agents || [];
-                remoteAgents.forEach(function(agent) {
-                    if (agent && agent.id === remoteAgentID) agent.api_key = CFG_MASKED_SECRET;
-                });
-            } else if (vaultKey.startsWith('a2a_remote_') && vaultKey.endsWith('_bearer_token')) {
-                cfgMarkSecretStored(input);
-                var remoteBearerAgentID = vaultKey.slice('a2a_remote_'.length, -'_bearer_token'.length);
-                var bearerAgents = (((configData || {}).a2a || {}).client || {}).remote_agents || [];
-                bearerAgents.forEach(function(agent) {
-                    if (agent && agent.id === remoteBearerAgentID) agent.bearer_token = CFG_MASKED_SECRET;
-                });
-            } else {
-                cfgMarkSecretStored(input);
-            }
-            if (statusEl) {
-                statusEl.className = 'adg-test-result is-success';
-                statusEl.textContent = t('config.a2a.saved');
-            }
-        } else if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = res.message || t('config.a2a.save_failed');
+        if (res.client_enabled && res.remote_agents) {
+            var available = res.remote_agents.filter(function(a) { return a.available; }).length;
+            parts.push(t('config.a2a.status_client_active', { available: String(available), total: String(res.remote_agents.length) }));
+            degraded = res.remote_agents.length > 0 && available < res.remote_agents.length;
         }
-        setTimeout(function() { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
-    })
-    .catch(function() {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.a2a.save_failed');
+        if (!parts.length) return { state: 'unknown', detail: t('config.a2a.status_unavailable') };
+        return { state: degraded ? 'degraded' : 'connected', detail: parts.join(' · ') };
+    });
+}
+
+// Runtime check of the running server: it needs the saved configuration.
+function a2aTestServer() {
+    var btn = document.getElementById('a2a-test-btn');
+    return cfgActionResult(btn, function() { return fetch('/api/a2a/test', { method: 'POST' }); }, {
+        target: 'a2a-test-result',
+        pending: t('config.a2a.testing'),
+        success: t('config.a2a.test_ok'),
+        failure: t('config.a2a.test_fail'),
+        interpret: function(outcome) {
+            var body = outcome.body || {};
+            return body.server && body.server.running ? {} : { state: 'error' };
         }
     });
 }
 
-function a2aCheckStatus() {
-    var banner = document.getElementById('a2a-status-banner');
-    if (!banner) return;
-    fetch('/api/a2a/status')
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            if (!res.server_enabled && !res.client_enabled) {
-                banner.textContent = '⚪ ' + t('config.a2a.status_disabled');
-                return;
-            }
-            var parts = [];
-            if (res.server_enabled && res.server) {
-                var s = res.server;
-                var bindList = [];
-                if (s.rest && s.rest.enabled) bindList.push('REST');
-                if (s.jsonrpc && s.jsonrpc.enabled) bindList.push('JSON-RPC');
-                if (s.grpc && s.grpc.enabled) bindList.push('gRPC');
-                parts.push('🟢 ' + t('config.a2a.status_server_active') + ' (' + bindList.join(', ') + ')');
-                if (s.active_tasks > 0) parts.push(t('config.a2a.active_tasks', { count: String(s.active_tasks) }));
-            }
-            if (res.client_enabled && res.remote_agents) {
-                var available = res.remote_agents.filter(function(a) { return a.available; }).length;
-                parts.push('🟢 ' + t('config.a2a.status_client_active', { available: String(available), total: String(res.remote_agents.length) }));
-            }
-            banner.classList.add('a2a-color-success');
-            banner.innerHTML = parts.join('<br>');
-        })
-        .catch(function() {
-            banner.textContent = '⚪ ' + t('config.a2a.status_unavailable');
-        });
-}
-
-function a2aTestServer() {
-    var btn = document.getElementById('a2a-test-btn');
-    var result = document.getElementById('a2a-test-result');
-    if (btn) btn.disabled = true;
-    if (result) { result.className = 'a2a-test-result a2a-color-secondary'; result.textContent = t('config.a2a.testing'); }
-
-    fetch('/api/a2a/test', { method: 'POST' })
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            if (result) {
-                if (res.server && res.server.running) {
-                    result.className = 'a2a-test-result a2a-color-success';
-                    result.textContent = '✓ ' + t('config.a2a.test_ok');
-                } else {
-                    result.className = 'a2a-test-result a2a-color-error';
-                    result.textContent = '✗ ' + t('config.a2a.test_fail');
-                }
-            }
-        })
-        .catch(function() {
-            if (result) { result.className = 'a2a-test-result a2a-color-error'; result.textContent = '✗ ' + t('config.a2a.test_fail'); }
-        })
-        .finally(function() { if (btn) btn.disabled = false; });
-}
-
 function a2aTestRemoteAgent(agentId, idx) {
-    var statusEl = document.getElementById('a2a-ra-status-' + idx);
-    if (statusEl) { statusEl.className = 'a2a-status-xs a2a-color-secondary'; statusEl.textContent = '⏳'; }
-
-    fetch('/api/a2a/remote-agents/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent_id: agentId })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-        if (statusEl) {
-            if (res.available) {
-                statusEl.className = 'a2a-status-xs a2a-color-success';
-                statusEl.textContent = '🟢 ' + t('config.a2a.ra_connected');
-            } else {
-                statusEl.className = 'a2a-status-xs a2a-color-error';
-                statusEl.textContent = '🔴 ' + (res.error || t('config.a2a.ra_unavailable'));
-            }
+    var btn = document.getElementById('a2a-ra-test-' + idx);
+    return cfgActionResult(btn, function() {
+        return fetch('/api/a2a/remote-agents/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent_id: agentId })
+        });
+    }, {
+        target: 'a2a-ra-status-' + idx,
+        pending: t('config.a2a.testing'),
+        success: t('config.a2a.ra_connected'),
+        failure: t('config.a2a.ra_unavailable'),
+        interpret: function(outcome) {
+            var body = outcome.body || {};
+            return body.available === false ? { state: 'error', reason: body.error || '' } : {};
         }
-    })
-    .catch(function() {
-        if (statusEl) { statusEl.className = 'a2a-status-xs a2a-color-error'; statusEl.textContent = '🔴 ' + t('config.a2a.ra_unavailable'); }
     });
 }

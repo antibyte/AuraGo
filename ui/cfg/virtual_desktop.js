@@ -105,9 +105,9 @@ function renderVirtualDesktopSection(section) {
     const layerlingAccessLabels = { off: t('config.layerling.off'), read: t('config.layerling.read'), write: t('config.layerling.write') };
     html += vdCfgField('config.layerling.access', 'config.layerling.access_help', '<select class="field-select" data-path="virtual_desktop.layerling.agent_access">' + Object.keys(layerlingAccessLabels).map(value => '<option value="' + value + '"' + ((layerling.agent_access || 'off') === value ? ' selected' : '') + '>' + layerlingAccessLabels[value] + '</option>').join('') + '</select>');
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn">▣ ' + t('config.virtual_desktop.test_button') + '</button>';
+    html += '<button class="btn-save dc-test-btn" onclick="vdCfgTestDesktop()" id="vd-cfg-test-btn" data-config-action-draft="false">▣ ' + t('config.virtual_desktop.test_button') + '</button>';
     html += '<a class="btn-save dc-test-btn" href="/desktop">' + t('config.virtual_desktop.open_button') + '</a>';
-    html += '<span id="vd-cfg-result" class="dc-test-result"></span>';
+    html += cfgActionResult.html('vd-cfg-result');
     html += '</div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;
@@ -161,24 +161,16 @@ function vdCfgToggleAgentControl(el) {
     renderVirtualDesktopSection(null);
 }
 
-async function vdCfgTestDesktop() {
-    const result = document.getElementById('vd-cfg-result');
-    const btn = document.getElementById('vd-cfg-test-btn');
-    btn.disabled = true;
-    result.textContent = t('config.virtual_desktop.loading');
-    result.className = 'dc-test-result';
-    try {
-        const resp = await fetch('/api/desktop/bootstrap');
-        const body = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error('HTTP ' + resp.status + (body && (body.error || body.message) ? ': ' + (body.error || body.message) : ''));
-        result.className = resp.ok && body.enabled ? 'dc-test-result is-success' : 'dc-test-result';
-        result.textContent = body.enabled ? t('config.virtual_desktop.status_ok') : t('config.virtual_desktop.status_disabled');
-    } catch (e) {
-        result.className = 'dc-test-result is-danger';
-        result.textContent = t('config.virtual_desktop.status_error') + ' ' + e.message;
-    } finally {
-        btn.disabled = false;
-    }
+// Asks the running desktop, so it checks the saved configuration (runtime-only action).
+function vdCfgTestDesktop() {
+    return cfgActionResult(document.getElementById('vd-cfg-test-btn'), () => fetch('/api/desktop/bootstrap'), {
+        target: 'vd-cfg-result',
+        pending: t('config.virtual_desktop.loading'),
+        success: t('config.virtual_desktop.status_ok'),
+        warning: t('config.virtual_desktop.status_disabled'),
+        failure: t('config.virtual_desktop.status_error'),
+        interpret: outcome => outcome.state === 'success' && !(outcome.body && outcome.body.enabled) ? { state: 'warning', reason: '' } : {}
+    });
 }
 
 function vdCfgVideoStudio() {
@@ -203,29 +195,33 @@ function vdCfgVideoStudio() {
     const hwModes = { auto: t(prefix + 'hw_auto'), off: t(prefix + 'hw_off'), vaapi: 'VAAPI', qsv: 'Intel Quick Sync', nvenc: 'NVIDIA NVENC', amf: 'AMD AMF' };
     html += vdCfgField(prefix + 'hardware_encoding', prefix + 'hardware_encoding_help', '<select class="field-select" data-path="video_studio.hardware_encoding">' + Object.keys(hwModes).map(value => '<option value="' + value + '"' + ((data.hardware_encoding || 'auto') === value ? ' selected' : '') + '>' + escapeAttr(hwModes[value]) + '</option>').join('') + '</select>');
     html += vdCfgField(prefix + 'hardware_device', '', '<input class="field-input" type="text" placeholder="/dev/dri/renderD128" value="' + escapeAttr(data.hardware_device || '') + '" data-path="video_studio.hardware_device">');
-    html += '</div><div class="field-group"><button type="button" class="btn-save dc-test-btn" onclick="vdCfgTestVideoStudio(this)">' + t(prefix + 'check') + '</button><span id="vd-video-studio-result" class="dc-test-result" role="status"></span></div>';
+    html += '</div><div class="field-group"><button type="button" id="vd-video-studio-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestVideoStudio(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-video-studio-result') + '</div>';
     return html;
 }
 
-async function vdCfgTestVideoStudio(button) {
-    const result = document.getElementById('vd-video-studio-result');
+function vdCfgTestVideoStudio(button) {
     const prefix = 'config.video_studio.';
-    if (hasUnsavedConfigChanges()) { result.textContent = t(prefix + 'save_first'); return; }
-    button.disabled = true;
-    result.textContent = t(prefix + 'checking');
-    try {
-        // The first check after a configuration change tests up to three hardware encoders (15 s each).
-        const response = await fetch('/api/desktop/video-studio/status', { signal: AbortSignal.timeout(60000) });
-        const status = await response.json();
-        if (!result.isConnected) return;
-        const ready = response.ok && status.enabled && status.desktop_enabled && status.ffmpeg_ready;
-        let text = t(prefix + (ready ? 'ready' : 'unavailable'));
-        if (ready && status.encoder && status.encoder.name) text += ' ' + t(prefix + 'encoder').replace('{{name}}', status.encoder.name + (status.encoder.device ? ' (' + status.encoder.device + ')' : ''));
-        result.textContent = text;
-        result.className = 'dc-test-result ' + (ready ? 'is-success' : 'is-danger');
-    } catch (_) {
-        if (result.isConnected) result.textContent = t(prefix + 'unavailable');
-    } finally { button.disabled = false; }
+    if (hasUnsavedConfigChanges()) {
+        cfgActionResult.show('vd-video-studio-result', 'warning', t(prefix + 'save_first'));
+        return;
+    }
+    // The first check after a configuration change tests up to three hardware encoders (15 s each).
+    return cfgActionResult(button, () => fetch('/api/desktop/video-studio/status', { signal: AbortSignal.timeout(60000) }), {
+        target: 'vd-video-studio-result',
+        pending: t(prefix + 'checking'),
+        failure: t(prefix + 'unavailable'),
+        interpret: outcome => {
+            if (!outcome.ok) return {};
+            const status = outcome.body || {};
+            return status.enabled && status.desktop_enabled && status.ffmpeg_ready ? {} : { state: 'error', reason: '' };
+        },
+        success: outcome => {
+            const status = outcome.body || {};
+            let text = t(prefix + 'ready');
+            if (status.encoder && status.encoder.name) text += ' ' + t(prefix + 'encoder').replace('{{name}}', status.encoder.name + (status.encoder.device ? ' (' + status.encoder.device + ')' : ''));
+            return text;
+        }
+    });
 }
 
 function vdCfgRetroGames() {
@@ -237,37 +233,27 @@ function vdCfgRetroGames() {
     html += '<div class="field-grid two-cols">';
     html += vdCfgToggleRow(prefix + 'enabled', '', data.enabled === true, 'retro_games.enabled');
     html += vdCfgToggleRow(prefix + 'agent_access', '', data.agent_access === true, 'retro_games.agent_access');
-    html += '</div><div class="field-group"><button type="button" class="btn-save dc-test-btn" onclick="vdCfgTestRetroGames(this)">' + t(prefix + 'check') + '</button><span id="vd-retro-games-result" class="dc-test-result" role="status"></span></div>';
+    html += '</div><div class="field-group"><button type="button" id="vd-retro-games-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestRetroGames(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-retro-games-result') + '</div>';
     return html;
 }
 
-async function vdCfgTestRetroGames(button) {
-    const result = document.getElementById('vd-retro-games-result');
+function vdCfgTestRetroGames(button) {
     const prefix = 'config.retro_games.';
-    if (hasUnsavedConfigChanges()) { result.textContent = t(prefix + 'save_first'); return; }
-    button.disabled = true;
-    result.className = 'dc-test-result';
-    result.textContent = t(prefix + 'checking');
-    try {
-        // passive=1: a plain status request would start the first index download.
-        const response = await fetch('/api/desktop/retro-games/status?passive=1', { signal: AbortSignal.timeout(15000) });
-        const status = await response.json();
-        if (!result.isConnected) return;
-        if (!response.ok || !status.enabled) {
-            result.textContent = t(prefix + 'unavailable');
-            result.className = 'dc-test-result is-danger';
-            return;
-        }
-        const total = Number(status.total_games) || 0;
-        if (total > 0) result.textContent = t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined));
-        else result.textContent = t(prefix + (status.syncing ? 'status_building' : 'status_empty'));
-        result.className = 'dc-test-result is-success';
-    } catch (_) {
-        if (result.isConnected) {
-            result.textContent = t(prefix + 'unavailable');
-            result.className = 'dc-test-result is-danger';
-        }
-    } finally {
-        button.disabled = false;
+    if (hasUnsavedConfigChanges()) {
+        cfgActionResult.show('vd-retro-games-result', 'warning', t(prefix + 'save_first'));
+        return;
     }
+    // passive=1: a plain status request would start the first index download.
+    return cfgActionResult(button, () => fetch('/api/desktop/retro-games/status?passive=1', { signal: AbortSignal.timeout(15000) }), {
+        target: 'vd-retro-games-result',
+        pending: t(prefix + 'checking'),
+        failure: t(prefix + 'unavailable'),
+        interpret: outcome => !outcome.ok || (outcome.body && outcome.body.enabled) ? {} : { state: 'error', reason: '' },
+        success: outcome => {
+            const status = outcome.body || {};
+            const total = Number(status.total_games) || 0;
+            if (total > 0) return t(prefix + 'status_ready').replace('{count}', total.toLocaleString(document.documentElement.lang || undefined));
+            return t(prefix + (status.syncing ? 'status_building' : 'status_empty'));
+        }
+    });
 }

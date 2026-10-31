@@ -73,7 +73,18 @@ func handleHereNowTestConnection(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		client, err := hereNowClientFromServer(s)
+		// The test uses the values typed into the form (draft); the key comes from the draft or the vault.
+		cfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		if strings.TrimSpace(cfg.HereNow.APIKey) == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "here.now API key not found. Enter it and try again."})
+			return
+		}
+		client, err := tools.NewHereNowClient(cfg.HereNow.APIKey, cfg.HereNow.DefaultAccount)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": err.Error()})

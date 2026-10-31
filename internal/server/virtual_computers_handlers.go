@@ -405,7 +405,13 @@ func handleVirtualComputersStorageTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cfg := virtualComputersConfigSnapshot(s)
+		// The test uses the values typed into the form (draft); keys come from the draft or the vault.
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := virtualcomputers.FromAuraConfig(draft)
 		if !cfg.AllowVolumes {
 			jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
 			return
@@ -420,6 +426,12 @@ func handleVirtualComputersStorageTest(s *Server) http.HandlerFunc {
 		var cleanup func()
 		if cfg.Storage.Mode == virtualcomputers.StorageModeManagedGarage &&
 			virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneSSHHost {
+			// The tunnel logs in with the saved SSH credential, which must not follow a changed control plane.
+			if saved := virtualComputersConfigSnapshot(s).ControlPlane; saved.Mode != cfg.ControlPlane.Mode || saved.Host != cfg.ControlPlane.Host ||
+				saved.SSHPort != cfg.ControlPlane.SSHPort || saved.CredentialID != cfg.ControlPlane.CredentialID {
+				writeVirtualComputersAPIError(w, "storage_unavailable", "The control plane changed: save it before testing the managed storage", http.StatusBadRequest)
+				return
+			}
 			localEP, closer, tunErr := virtualComputersOpenStorageTunnel(s, cfg, "127.0.0.1:3900")
 			if tunErr != nil {
 				writeVirtualComputersAPIError(w, "storage_unavailable", security.Scrub(tunErr.Error()), http.StatusServiceUnavailable)
@@ -432,7 +444,7 @@ func handleVirtualComputersStorageTest(s *Server) http.HandlerFunc {
 		if cleanup != nil {
 			defer cleanup()
 		}
-		err := virtualcomputers.TestStorageConnection(ctx, testCfg)
+		err = virtualcomputers.TestStorageConnection(ctx, testCfg)
 		if err != nil {
 			writeVirtualComputersAPIError(w, "storage_unavailable", security.Scrub(err.Error()), http.StatusServiceUnavailable)
 			return

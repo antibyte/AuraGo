@@ -51,12 +51,10 @@ async function renderGitHubSection(section) {
         <div class="field-help">${t('config.github.token_hint')}</div>
         <div class="adg-password-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input adg-password-input" type="password" id="github-token-input" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
+                <input class="field-input adg-password-input" type="password" id="github-token-input" data-path="github.token" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            <button class="btn-save adg-save-btn" onclick="githubSaveToken()">💾 ${t('config.github.save_vault')}</button>
         </div>
-        <div id="github-token-status" class="adg-test-result"></div>
     </div>`;
 
     html += `<div class="field-group">
@@ -88,12 +86,12 @@ async function renderGitHubSection(section) {
         : `<span class="gh-count-active">${allowedRepos.length} ${t('config.github.repos_selected_count')}</span>`;
 
     html += `<div class="gh-actions-row cfg-actions-row">
-        <button class="btn-save adg-test-btn" onclick="githubTestConnection()" id="github-test-btn">🔌 ${t('config.github.test_btn')}</button>
-        <span id="github-test-result" class="adg-test-result"></span>
+        <button class="btn-save adg-test-btn" onclick="githubTestConnection()" id="github-test-btn" data-config-action-draft="true">🔌 ${t('config.github.test_btn')}</button>
+        ${cfgActionResult.html('github-test-result')}
         <button class="btn-save btn-secondary" onclick="githubFetchRepos()" id="github-fetch-btn">
             🔄 ${t('config.github.fetch_repos_btn')}
         </button>
-        <span id="github-fetch-status" class="adg-test-result"></span>
+        ${cfgActionResult.html('github-fetch-status')}
         <span id="github-allowed-count" class="gh-count">${countLabel}</span>
     </div>`;
 
@@ -184,45 +182,31 @@ function githubBuildRepoList(repos, allowedRepos) {
     return html;
 }
 
-async function githubFetchRepos() {
+// Both buttons send the form values (draft); the server answers 200 with status "error" and a message on failure.
+function githubReposRequest() {
+    return fetch('/api/github/repos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['github']) })
+    });
+}
+
+function githubFetchRepos() {
     const btn = document.getElementById('github-fetch-btn');
-    const status = document.getElementById('github-fetch-status');
-    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ ' + t('config.github.fetching_repos'); }
-    if (status) status.textContent = '';
-
-    try {
-        const resp = await fetch('/api/github/repos');
-        const data = resp.ok ? await resp.json() : { status: 'error', message: 'HTTP ' + resp.status };
-
-        if (data.status === 'error') {
-            if (status) {
-                status.className = 'adg-test-result is-danger';
-                status.textContent = data.message || t('config.github.fetch_error');
-            }
-            if (btn) { btn.disabled = false; btn.innerHTML = '🔄 ' + t('config.github.fetch_repos_btn'); }
-            return;
+    return cfgActionResult(btn, githubReposRequest, {
+        target: 'github-fetch-status',
+        pending: t('config.github.fetching_repos'),
+        failure: t('config.github.fetch_error'),
+        success: outcome => ((outcome.body && outcome.body.repos) || []).length + ' ' + t('config.github.repos_loaded'),
+        onSuccess: outcome => {
+            _githubReposData = (outcome.body && outcome.body.repos) || [];
+            const currentAllowed = (document.getElementById('github-allowed-repos-input') || {}).value || '';
+            const allowedArr = currentAllowed.split(',').map(s => s.trim()).filter(Boolean);
+            const listEl = document.getElementById('github-repos-list');
+            if (listEl) listEl.innerHTML = githubBuildRepoList(_githubReposData, allowedArr);
+            githubUpdateAllowedCount(_githubReposData.length, allowedArr.length);
         }
-
-        _githubReposData = data.repos || [];
-        const currentAllowed = (document.getElementById('github-allowed-repos-input') || {}).value || '';
-        const allowedArr = currentAllowed.split(',').map(s => s.trim()).filter(Boolean);
-
-        const listEl = document.getElementById('github-repos-list');
-        if (listEl) listEl.innerHTML = githubBuildRepoList(_githubReposData, allowedArr);
-
-        githubUpdateAllowedCount(_githubReposData.length, allowedArr.length);
-        if (status) {
-            status.className = 'adg-test-result is-success';
-            status.textContent = _githubReposData.length + ' ' + t('config.github.repos_loaded');
-        }
-    } catch (e) {
-        if (status) {
-            status.className = 'adg-test-result is-danger';
-            status.textContent = e.message;
-        }
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '🔄 ' + t('config.github.fetch_repos_btn'); }
-    }
+    });
 }
 
 function githubUpdateAllowedRepos() {
@@ -277,76 +261,12 @@ function githubUpdateAllowedCount(total, allowedCount) {
     }
 }
 
-async function githubTestConnection() {
+function githubTestConnection() {
     const btn = document.getElementById('github-test-btn');
-    const result = document.getElementById('github-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.github.loading');
-        result.className = 'adg-test-result';
-    }
-
-    try {
-        const resp = await fetch('/api/github/repos');
-        const data = resp.ok ? await resp.json() : { status: 'error', message: 'HTTP ' + resp.status };
-        if (btn) btn.disabled = false;
-        if (!result) return;
-        if (data.status === 'error') {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = t('config.github.status_error') + ' ' + (data.message || t('config.github.test_fail'));
-            return;
-        }
-        result.className = 'adg-test-result is-success';
-        result.textContent = t('config.github.status_success') + ' ' + t('config.github.test_ok');
-    } catch (_) {
-        if (btn) btn.disabled = false;
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = t('config.github.status_error') + ' ' + t('config.github.test_fail');
-        }
-    }
-}
-
-function githubSaveToken() {
-    const input = document.getElementById('github-token-input');
-    const statusEl = document.getElementById('github-token-status');
-    const token = input ? input.value.trim() : '';
-    if (!token) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.github.token_empty');
-        }
-        return;
-    }
-
-    if (statusEl) {
-        statusEl.className = 'adg-test-result';
-        statusEl.textContent = t('config.github.saving') || t('config.common.saved');
-    }
-
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'github_token', value: token })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            if (statusEl) {
-                statusEl.className = 'adg-test-result is-success';
-                statusEl.textContent = t('config.github.token_saved');
-            }
-            cfgMarkSecretStored(input, 'github.token');
-        } else if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = res.message || t('config.github.token_save_failed');
-        }
-        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
-    })
-    .catch(() => {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.github.token_save_failed');
-        }
+    return cfgActionResult(btn, githubReposRequest, {
+        target: 'github-test-result',
+        pending: t('config.github.loading'),
+        success: t('config.github.test_ok'),
+        failure: t('config.github.test_fail')
     });
 }

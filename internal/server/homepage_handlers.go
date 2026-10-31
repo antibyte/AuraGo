@@ -292,57 +292,23 @@ func handleHomepageTestConnection(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		// Parse optional override values from body
-		var body struct {
-			Host     string `json:"host"`
-			Port     int    `json:"port"`
-			User     string `json:"user"`
-			Password string `json:"password"`
-			Path     string `json:"path"`
+		// The test uses the values typed into the form (draft); the target rule keeps
+		// the saved password and key from following a changed host or user.
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
 		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-
-		// Fall back to saved config
-		s.CfgMu.RLock()
-		host := body.Host
-		if host == "" {
-			host = s.Cfg.Homepage.DeployHost
-		}
-		port := body.Port
-		if port == 0 {
-			port = s.Cfg.Homepage.DeployPort
-		}
+		hp := draft.Homepage
+		host := hp.DeployHost
+		port := hp.DeployPort
 		if port == 0 {
 			port = 22
 		}
-		user := body.User
-		if user == "" {
-			user = s.Cfg.Homepage.DeployUser
-		}
-		password := body.Password
-		if password == "" {
-			password = s.Cfg.Homepage.DeployPassword
-		}
-		deployKey := s.Cfg.Homepage.DeployKey
-		deployPath := body.Path
-		if deployPath == "" {
-			deployPath = s.Cfg.Homepage.DeployPath
-		}
-		s.CfgMu.RUnlock()
-
-		// Vault fallback
-		if s.Vault != nil {
-			if password == "" {
-				if v, _ := s.Vault.ReadSecret("homepage_deploy_password"); v != "" {
-					password = v
-				}
-			}
-			if deployKey == "" {
-				if v, _ := s.Vault.ReadSecret("homepage_deploy_key"); v != "" {
-					deployKey = v
-				}
-			}
-		}
+		user := hp.DeployUser
+		password := hp.DeployPassword
+		deployKey := hp.DeployKey
+		deployPath := hp.DeployPath
 
 		deployCfg := tools.HomepageDeployConfig{
 			Host:     host,

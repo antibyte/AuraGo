@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -20,7 +21,10 @@ func handleTailscaleAPIStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeTailscaleAPIProbeResult(w, s, false)
+		s.CfgMu.RLock()
+		cfg := s.Cfg.Tailscale
+		s.CfgMu.RUnlock()
+		writeTailscaleAPIProbeResult(w, tailscaleProbeInput{Enabled: cfg.Enabled, APIKey: cfg.APIKey, Tailnet: cfg.Tailnet, ReadOnly: cfg.ReadOnly}, false)
 	}
 }
 
@@ -31,15 +35,28 @@ func handleTailscaleAPITest(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeTailscaleAPIProbeResult(w, s, true)
+		// The test uses the values typed into the form (draft); the key comes from the draft or the vault.
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := draft.Tailscale
+		// A test of unsaved values does not depend on the integration being switched on yet.
+		writeTailscaleAPIProbeResult(w, tailscaleProbeInput{Context: r.Context(), Enabled: true, APIKey: cfg.APIKey, Tailnet: cfg.Tailnet, ReadOnly: cfg.ReadOnly}, true)
 	}
 }
 
-func writeTailscaleAPIProbeResult(w http.ResponseWriter, s *Server, test bool) {
-	s.CfgMu.RLock()
-	cfg := s.Cfg.Tailscale
-	s.CfgMu.RUnlock()
+// tailscaleProbeInput is the Tailscale API section as the probe needs it.
+type tailscaleProbeInput struct {
+	Context  context.Context
+	Enabled  bool
+	APIKey   string
+	Tailnet  string
+	ReadOnly bool
+}
 
+func writeTailscaleAPIProbeResult(w http.ResponseWriter, cfg tailscaleProbeInput, test bool) {
 	if !cfg.Enabled {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "disabled",
@@ -56,6 +73,7 @@ func writeTailscaleAPIProbeResult(w http.ResponseWriter, s *Server, test bool) {
 	}
 
 	tsCfg := tools.TailscaleConfig{
+		Context:  cfg.Context,
 		APIKey:   cfg.APIKey,
 		Tailnet:  cfg.Tailnet,
 		ReadOnly: cfg.ReadOnly,
