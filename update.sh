@@ -1418,10 +1418,48 @@ update_safe_remove_work() {
     rm -rf -- "$path"
 }
 
+# Recovery state machine for exits after AuraGo was stopped.
+#   UPDATE_RECOVERY=off      before shutdown, or after the outcome is settled
+#   UPDATE_RECOVERY=armed    AuraGo is (being) stopped; an unexpected non-zero
+#                            exit or INT/TERM must not leave it down
+#   UPDATE_RECOVERY=running  recovery in progress (prevents re-entry)
+#   UPDATE_RECOVERY=done     an explicit rollback/restart helper already ran
+# armed + backup complete  -> full abort_update rollback
+# armed + backup incomplete -> nothing in the install was modified yet (only
+#                            stale lock files were removed): restart the
+#                            previous instance and mark the transaction rolled back
+UPDATE_RECOVERY=off
+update_recover_interrupted() {
+    local rc="$1"
+    [ "${UPDATE_RECOVERY:-off}" = armed ] || return 0
+    [ "$rc" -ne 0 ] || return 0
+    UPDATE_RECOVERY=running
+    # A second Ctrl-C/SIGTERM must not abort the rollback half way.
+    trap '' INT TERM
+    warn "Update interrupted or failed unexpectedly (exit code $rc) after AuraGo was stopped; recovering."
+    if [ "${UPDATE_BACKUP_COMPLETE:-false}" = true ]; then
+        # abort_update ends in die/exit, so run it in a subshell: the EXIT
+        # handler (already detached) must still finish its own cleanup.
+        ( abort_update "Update interrupted." ) || true
+        if [ -f "${BACKUP_DIR:-/nonexistent}/manifest.json" ] && grep -q '"status":"rolled_back"' "$BACKUP_DIR/manifest.json" 2>/dev/null; then
+            UPDATE_OUTCOME=rolled_back
+        fi
+    elif $NO_RESTART; then
+        warn "AuraGo was stopped and no update files were changed. Start it manually with 'sudo systemctl start aurago' or './start.sh'."
+        update_manifest rolled_back || true
+    elif restart_unchanged_after_failed_stop; then
+        ok "No update files were changed; the previous AuraGo start mode was restored."
+        update_manifest rolled_back || true
+    else
+        warn "No update files were changed, but AuraGo could not be restarted automatically. Start it manually with 'sudo systemctl start aurago' or './start.sh'."
+    fi
+}
+
 update_exit_cleanup() {
     local rc=$?
-    tui_cleanup
     trap - EXIT
+    update_recover_interrupted "$rc" || true
+    tui_cleanup
     # Unexpected exit leaves the transaction unresolved and blocks a new update.
     if [ "${UPDATE_OUTCOME:-}" = pending ]; then update_manifest uncertain || true; fi
     if [ -n "${UPDATE_WORK:-}" ]; then update_safe_remove_work "$UPDATE_WORK" || warn "Temporary update cleanup failed."; fi
@@ -2114,7 +2152,7 @@ restore_untracked_merge_collisions_after_failure() {
             warn "Rollback kept existing path instead of overwriting it: $rel"
             continue
         fi
-        mkdir -p "$(dirname "$destination")"
+        mkdir -p "$(dirname "$destination")" || return 1
         cp -p -- "$backup_path" "$destination" || return 1
     done < <(find "$collision_backup" -type f -print0)
 }
@@ -2650,6 +2688,8 @@ restart_unchanged_after_failed_stop() {
 
 abort_before_file_changes() {
     local reason="$1"
+    # This helper restarts the unchanged install itself; the EXIT handler must not repeat it.
+    UPDATE_RECOVERY=done
     if restart_unchanged_after_failed_stop; then
         if [ "$PRE_START_MODE" = "stopped" ]; then
             die "${reason} AuraGo was not running before the update; no restart was needed and no update files were touched."
@@ -2658,6 +2698,10 @@ abort_before_file_changes() {
     fi
     die "${reason} AuraGo could not be restarted automatically and is currently stopped. Start it manually with 'sudo systemctl start aurago' or './start.sh'. No update files were touched."
 }
+
+# From here on AuraGo may be down: an INT/TERM or unexpected failure must
+# restore service (see update_recover_interrupted).
+UPDATE_RECOVERY=armed
 
 # Stop systemd first. An authorization failure is not bypassed with a manual
 # kill because Restart=always/on-failure could race the updater.
@@ -2825,7 +2869,7 @@ restore_tsnet_state_backup() {
     if [ -e "$resolved" ]; then
         mv -- "$resolved" "$failed_copy" 2>/dev/null || $SUDO mv -- "$resolved" "$failed_copy" || return 1
     fi
-    mkdir -p "$(dirname "$resolved")" 2>/dev/null || $SUDO mkdir -p "$(dirname "$resolved")"
+    mkdir -p "$(dirname "$resolved")" 2>/dev/null || $SUDO mkdir -p "$(dirname "$resolved")" || return 1
     if cp -a -- "$BACKUP_DIR/tsnet-state" "$resolved" 2>/dev/null || $SUDO cp -a -- "$BACKUP_DIR/tsnet-state" "$resolved"; then
         ok "Restored pre-update tsnet state."
         return 0
@@ -2850,7 +2894,15 @@ restore_previous_aurago_binary() {
     local restored=false
     for _bin in aurago_linux aurago; do
         if [ -f "$BACKUP_DIR/bin/$_bin" ]; then
-            cp -p "$BACKUP_DIR/bin/$_bin" "$DIR/bin/$_bin"
+            # Callers run this inside `||` lists where errexit is off, so every
+            # step reports failure explicitly. Unlinking first copes with a busy binary.
+            if ! cp -p "$BACKUP_DIR/bin/$_bin" "$DIR/bin/$_bin" 2>/dev/null; then
+                rm -f -- "$DIR/bin/$_bin" 2>/dev/null || $SUDO rm -f -- "$DIR/bin/$_bin" 2>/dev/null || true
+                cp -p "$BACKUP_DIR/bin/$_bin" "$DIR/bin/$_bin" 2>/dev/null || $SUDO cp -p "$BACKUP_DIR/bin/$_bin" "$DIR/bin/$_bin" || {
+                    warn "Could not restore previous bin/$_bin."
+                    return 1
+                }
+            fi
             mark_executable_if_present "$DIR/bin/$_bin"
             restored=true
         fi
@@ -2871,13 +2923,31 @@ restore_critical_user_data_after_failure() {
         safe_restore_file "$bak" "$DIR/$f" || return 1
     done
     if [ -d "$BACKUP_DIR/data" ]; then
-        mkdir -p "$DIR/data"
+        mkdir -p "$DIR/data" || return 1
         for f in "${DATA_FILES[@]}"; do
             local bak="$BACKUP_DIR/data/$(basename "$f")"
             [ -f "$bak" ] || continue
             safe_restore_file "$bak" "$DIR/$f" || return 1
         done
     fi
+}
+
+restore_user_edits_after_failure() {
+    local d name bak
+    local failed=false
+    # agent_workspace/tools and agent_workspace/skills copies (see PROTECTED_DIRS).
+    for d in "${PROTECTED_DIRS[@]}"; do
+        name="${d//\//__}"
+        bak="$BACKUP_DIR/$name"
+        [ -d "$bak" ] || continue
+        copy_tree_merge "$bak/" "$DIR/$d/" || { warn "Could not restore $d/ after rollback."; failed=true; }
+    done
+    # Custom prompt files: all prompts (binary install) or only the locally
+    # modified/untracked ones (git install), same as the success path.
+    if [ -d "$BACKUP_DIR/prompts__custom" ] && [ -n "$(ls -A "$BACKUP_DIR/prompts__custom" 2>/dev/null)" ]; then
+        copy_tree_merge "$BACKUP_DIR/prompts__custom/" "$PROMPTS_DIR/" || { warn "Could not restore custom prompt files after rollback."; failed=true; }
+    fi
+    ! $failed
 }
 
 backup_binary_update_resources() {
@@ -2909,12 +2979,12 @@ restore_binary_update_resources_after_failure() {
     [ -n "${BINARY_RESOURCE_BACKUP_DIR:-}" ] && [ -d "$BINARY_RESOURCE_BACKUP_DIR" ] || return 0
     for rel in prompts agent_workspace ui update.sh config.yaml.new_template; do
         if grep -Fxq "$rel" "$BINARY_RESOURCE_BACKUP_DIR/missing.txt" 2>/dev/null; then
-            rm -rf "$DIR/$rel"
+            rm -rf "$DIR/$rel" || return 1
             continue
         fi
         [ -e "$BINARY_RESOURCE_BACKUP_DIR/$rel" ] || continue
-        rm -rf "$DIR/$rel"
-        mkdir -p "$DIR/$(dirname "$rel")"
+        rm -rf "$DIR/$rel" || return 1
+        mkdir -p "$DIR/$(dirname "$rel")" || return 1
         cp -a "$BINARY_RESOURCE_BACKUP_DIR/$rel" "$DIR/$rel" 2>/dev/null || \
             copy_tree_merge "$BINARY_RESOURCE_BACKUP_DIR/$rel/" "$DIR/$rel/" || \
             return 1
@@ -2923,7 +2993,7 @@ restore_binary_update_resources_after_failure() {
     for asset in "$DIR/assets/"*; do
         [ -e "$asset" ] || continue
         [ "${asset##*/}" != web ] || continue
-        rm -rf -- "$asset"
+        rm -rf -- "$asset" || return 1
     done
     copy_tree_merge "$BINARY_RESOURCE_BACKUP_DIR/assets/" "$DIR/assets/" || return 1
 }
@@ -2963,6 +3033,8 @@ restore_service_stop_timeout_dropin() {
 abort_update() {
     local msg="$1"
     local rollback_ok=true
+    # The rollback below is the recovery; die/exit must not trigger it again.
+    UPDATE_RECOVERY=done
     warn "Update failed after shutdown; rolling back to the previous working state."
     if command -v systemctl >/dev/null 2>&1; then
         timeout 60s $SUDO systemctl stop aurago >/dev/null 2>&1 || true
@@ -2974,6 +3046,10 @@ abort_update() {
     fi
     restore_untracked_merge_collisions_after_failure || rollback_ok=false
     restore_binary_update_resources_after_failure || rollback_ok=false
+    # Local edits to tracked prompts/skills/tools were reset by the update; the
+    # transaction is deleted by retention once rolled_back, so they must be
+    # back in place before that happens.
+    restore_user_edits_after_failure || rollback_ok=false
     restore_critical_user_data_after_failure || rollback_ok=false
     restore_tsnet_state_backup || rollback_ok=false
     restore_service_stop_timeout_dropin || rollback_ok=false
@@ -2981,12 +3057,20 @@ abort_update() {
         update_manifest uncertain
         die "${msg} The previous files were restored, but AuraGo is stopped; start it manually with 'sudo systemctl start aurago' or './start.sh'."
     fi
-    if $rollback_ok && [ "$TSNET_WAS_READY" = ready ]; then
-        "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s --healthcheck-require-tsnet || rollback_ok=false
-    fi
-    if $rollback_ok && ! $NO_RESTART && "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s; then
-        update_manifest rolled_back
-        if binary_supports_option "$CURRENT_AURAGO_BIN" update-maintenance; then update_retention_cleanup "$CURRENT_AURAGO_BIN"; fi
+    if $NO_RESTART; then
+        # Nothing runs to health-check; the file rollback itself is the outcome.
+        if $rollback_ok; then
+            update_manifest rolled_back
+            warn "Files were rolled back; AuraGo was not started (--no-restart). Start it manually with 'sudo systemctl start aurago' or './start.sh'."
+        fi
+    else
+        if $rollback_ok && [ "$TSNET_WAS_READY" = ready ]; then
+            "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s --healthcheck-require-tsnet || rollback_ok=false
+        fi
+        if $rollback_ok && "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s; then
+            update_manifest rolled_back
+            if binary_supports_option "$CURRENT_AURAGO_BIN" update-maintenance; then update_retention_cleanup "$CURRENT_AURAGO_BIN"; fi
+        fi
     fi
     die "$msg"
 }
@@ -3771,12 +3855,14 @@ if $STARTED_AFTER_UPDATE; then
             warn "AuraGo core is healthy, but the previously working tsnet node did not recover."
             warn "The updated binary and the state backup are being kept; the core update does not need rollback."
             warn "$(tsnet_failure_guidance "$TSNET_HEALTH_OUTPUT")"
+            UPDATE_RECOVERY=off   # the updated core is healthy and intentionally kept
             die "Update incomplete: tsnet readiness failed. Backup: $BACKUP_DIR"
         fi
         ok "tsnet readiness verified."
     fi
 fi
 
+UPDATE_RECOVERY=off   # update settled; later exits must not roll back
 if $STARTED_AFTER_UPDATE; then
     update_manifest confirmed
     update_retention_cleanup "$LAUNCH_BIN"
