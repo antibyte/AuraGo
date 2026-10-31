@@ -55,7 +55,7 @@
             + '<div class="modal' + size + '">'
             + '<div class="modal-header">'
             + '<h2 class="modal-title" id="' + esc(titleID) + '">' + esc(opts.title) + '</h2>'
-            + '<button type="button" class="modal-close" aria-label="' + esc(close) + '" title="' + esc(close) + '" onclick="closeModal(\'' + esc(id) + '\')">' + icon('x') + '</button>'
+            + '<button type="button" class="modal-close" aria-label="' + esc(close) + '" title="' + esc(close) + '" onclick="closeModal(' + escapeAttr(JSON.stringify(String(id))) + ')">' + icon('x') + '</button>'
             + '</div>'
             + '<div class="modal-body">' + (opts.body || '') + '</div>'
             + (actions ? '<div class="modal-actions">' + actions + '</div>' : '')

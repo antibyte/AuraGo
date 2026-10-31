@@ -1118,6 +1118,7 @@ async function renderSIPSection() {
         sipRender();
         sipMarkClean();
     } catch (error) {
-        content.innerHTML = `<div class="cfg-section active"><div class="rs-load-error">${sipEsc(error.message)}</div></div>`;
+        content.innerHTML = '<div class="cfg-section active"><div id="sip-load-state"></div></div>';
+        cfgListState('sip-load-state', { state: 'error', text: error.message, retry: () => renderSIPSection() });
     }
 }

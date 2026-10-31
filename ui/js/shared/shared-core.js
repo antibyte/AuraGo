@@ -1205,6 +1205,8 @@ function openModal(id, options) {
         if (typeof opts.onClose === 'function' || typeof opts.canClose === 'function') {
             _modalHooks.set(modal, { onClose: opts.onClose, canClose: opts.canClose });
         }
+        // Overlays inserted after initModals ran (dialogs built on demand) get the same backdrop close.
+        if (window._modalsInitialized && modal.classList.contains('modal-overlay')) _bindBackdropClose(modal);
         if (_modalCtl.isOpen(modal)) _modalCtl.close(modal); // drop a stale entry, then re-engage
         _modalCtl.open(modal, { initialFocus: opts.initialFocus });
     }
@@ -1277,17 +1279,22 @@ function setToggleState(toggle, checked) {
 /**
  * Initialize modal close on backdrop click and Escape key
  */
+const _backdropBound = new WeakSet();
+function _bindBackdropClose(overlay) {
+    if (!overlay || _backdropBound.has(overlay)) return;
+    _backdropBound.add(overlay);
+    overlay.addEventListener('click', (e) => {
+        if (_isBackdropClick(e, overlay)) {
+            _closeOverlay(overlay, 'backdrop');
+        }
+    });
+}
+
 function initModals() {
     if (window._modalsInitialized) return;
     window._modalsInitialized = true;
 
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (_isBackdropClick(e, overlay)) {
-                _closeOverlay(overlay, 'backdrop');
-            }
-        });
-    });
+    document.querySelectorAll('.modal-overlay').forEach(_bindBackdropClose);
 
     document.addEventListener('keydown', (e) => {
         if (e.defaultPrevented) return;

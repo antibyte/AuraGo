@@ -164,17 +164,17 @@ function btRenderDevices() {
                     device.connected ? t('config.bluetooth.state_connected') : t('config.bluetooth.state_disconnected'),
                     device.audio ? t('config.bluetooth.state_audio') : ''
                 ].filter(Boolean).join(' · ');
-                const address = escapeAttr(device.address || '');
+                const address = cfgJsArg(device.address || '');
                 let actions = '';
                 if (!readonly) {
                     if (!device.paired) {
-                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btOpenPINModal('${address}')">${escapeHtml(t('config.bluetooth.pair'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btOpenPINModal(${address})">${escapeHtml(t('config.bluetooth.pair'))}</button>`;
                     }
                     if (device.paired && !device.connected) {
-                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('connect','${address}',undefined,this)">${escapeHtml(t('config.bluetooth.connect'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('connect',${address},undefined,this)">${escapeHtml(t('config.bluetooth.connect'))}</button>`;
                     }
                     if (device.connected) {
-                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('disconnect','${address}',undefined,this)">${escapeHtml(t('config.bluetooth.disconnect'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('disconnect',${address},undefined,this)">${escapeHtml(t('config.bluetooth.disconnect'))}</button>`;
                     }
                 }
                 if (!actions) actions = '—';

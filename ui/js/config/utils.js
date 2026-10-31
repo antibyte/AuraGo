@@ -11,6 +11,9 @@ const CFG_SENSITIVE_AUTOFILL_ATTRS = ' autocomplete="new-password" autocapitaliz
 const CFG_OPTION_OTHER_CUSTOM = 'Other / Custom';
 
 function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// A JS string literal for an inline event handler: JSON-quoted, then attribute-escaped (the browser decodes it
+// back before parsing), so a value can never end the literal. Use instead of '${escapeAttr(x)}' in on*="...".
+function cfgJsArg(value) { return escapeAttr(JSON.stringify(String(value == null ? '' : value))); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function formatKey(key) {

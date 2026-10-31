@@ -57,7 +57,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             for (const p of personalities) {
                 const isActive = p.name === active;
                 const coreLock = p.core ? ` <span class="pers-core-lock" title="${escapeAttr(t('config.prompts.core_tooltip'))}">${cfgIcon('lock')}</span>` : '';
-                html += `<div class="pers-chip${isActive ? ' pers-chip-active' : ''}" onclick="persSelectForEdit('${escapeAttr(p.name)}')" title="${escapeAttr(p.name)}">${esc(p.name)}${coreLock}${isActive ? ' ' + cfgIcon('star') : ''}</div>`;
+                html += `<div class="pers-chip${isActive ? ' pers-chip-active' : ''}" onclick="persSelectForEdit(${cfgJsArg(p.name)})" title="${escapeAttr(p.name)}">${esc(p.name)}${coreLock}${isActive ? ' ' + cfgIcon('star') : ''}</div>`;
             }
             html += `</div>
                 <div id="pers-editor" class="pers-editor is-hidden">

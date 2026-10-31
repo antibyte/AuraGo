@@ -282,8 +282,8 @@ function ccRenderRows(devices) {
             <td class="cfgdev-cell">${d.port || 8009}</td>
             <td class="cfgdev-cell cfgdev-cell-desc">${escapeHtml(d.description || '—')}</td>
             <td class="cfgdev-cell cfgdev-cell-actions">
-                <button id="cfgdev-test-btn-${escapeAttr(d.id)}" data-config-action-draft="false" onclick="ccTestDevice('${escapeAttr(d.id)}')" class="btn-secondary" ${ccChromecastMutable() ? '' : 'disabled'} title="${escapeAttr(t('config.chromecast.test_button'))}">${escapeHtml(t('config.chromecast.test_button'))}</button>
-                <button type="button" onclick="ccShowEditModal('${escapeAttr(d.id)}')" class="btn-secondary" aria-label="${escapeAttr(t('config.chromecast.edit_tooltip'))}" title="${escapeAttr(t('config.chromecast.edit_tooltip'))}">${cfgIcon('edit')}</button>
+                <button id="cfgdev-test-btn-${escapeAttr(d.id)}" data-config-action-draft="false" onclick="ccTestDevice(${cfgJsArg(d.id)})" class="btn-secondary" ${ccChromecastMutable() ? '' : 'disabled'} title="${escapeAttr(t('config.chromecast.test_button'))}">${escapeHtml(t('config.chromecast.test_button'))}</button>
+                <button type="button" onclick="ccShowEditModal(${cfgJsArg(d.id)})" class="btn-secondary" aria-label="${escapeAttr(t('config.chromecast.edit_tooltip'))}" title="${escapeAttr(t('config.chromecast.edit_tooltip'))}">${cfgIcon('edit')}</button>
                 ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: d.name }), attrs: { 'data-cc-delete': d.id } })}
             </td>`;
         tr.querySelector('[data-cc-delete]').addEventListener('click', () => ccDeleteDevice(d.id, d.name));

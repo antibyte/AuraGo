@@ -593,7 +593,7 @@ function piperBrowseVoices() {
             for (const v of voices) {
                 const langs = (v.languages || []).join(', ');
                 const installed = v.installed ? cfgIcon('check', { label: t('config.tts.phonon_installed') }) + ' ' : '';
-                html += '<div class="tts-voice-item" onclick="piperSelectVoice(\'' + escapeAttr(v.name) + '\')">';
+                html += '<div class="tts-voice-item" onclick="piperSelectVoice(' + cfgJsArg(v.name) + ')">';
                 html += '<div class="tts-voice-item-name">' + installed + escapeHtml(v.name) + '</div>';
                 if (v.description) html += '<div class="tts-voice-item-desc">' + escapeHtml(v.description) + '</div>';
                 if (langs) html += '<div class="tts-voice-item-lang">' + cfgIcon('globe') + ' ' + escapeHtml(langs) + '</div>';

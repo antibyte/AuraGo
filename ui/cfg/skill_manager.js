@@ -271,7 +271,7 @@ function ptbRenderCatalog(catalog) {
 
         html += `
             <label class="ptb-tool-item" data-ptb-key="${escapeAttr(key)}" data-ptb-search="${escapeAttr((label + ' ' + key + ' ' + toolNames.join(' ')).toLowerCase())}">
-                <input type="checkbox" data-cfg-choice class="ptb-group-cb" onchange="ptbToggleGroup('${escapeAttr(key)}')">
+                <input type="checkbox" data-cfg-choice class="ptb-group-cb" onchange="ptbToggleGroup(${cfgJsArg(key)})">
                 <div class="ptb-tool-meta">
                     <div class="ptb-tool-title">${icon} ${esc(label)}</div>
                     ${desc ? `<div class="ptb-tool-desc">${esc(desc)}</div>` : ''}

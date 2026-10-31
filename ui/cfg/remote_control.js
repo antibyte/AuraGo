@@ -207,7 +207,7 @@ async function loadRemotePlatforms() {
         available.forEach(p => {
             const label = `${escapeHtml(p.os)} / ${escapeHtml(p.arch)}`;
             html += `<button class="btn-save rc-platform-btn"
-                onclick="rcDownload('${escapeAttr(p.os)}','${escapeAttr(p.arch)}')">
+                onclick="rcDownload(${cfgJsArg(p.os)},${cfgJsArg(p.arch)})">
                 ${cfgIcon('download')}${cfgIcon(osIcons[p.os] || 'monitor')}<span>${label}</span>
             </button>`;
         });

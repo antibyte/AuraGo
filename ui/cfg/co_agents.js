@@ -210,7 +210,7 @@ function _coAgentPickCheatsheet(roleKey) {
             return;
         }
         listEl.innerHTML = _coAgentCheatsheetCache.map(function(s) {
-            return '<div class="ca-cs-item" onclick="_coAgentSelectCheatsheet(\'' + roleKey + '\',\'' + escapeAttr(s.id) + '\',\'' + escapeAttr(s.name || '') + '\')">' +
+            return '<div class="ca-cs-item" onclick="_coAgentSelectCheatsheet(' + cfgJsArg(roleKey) + ',' + cfgJsArg(s.id) + ',' + cfgJsArg(s.name || '') + ')">' +
                 '<span class="ca-cs-item-name">' + escapeHtml(s.name) + '</span>' +
                 '<span class="ca-cs-item-preview">' + escapeHtml((s.content || '').substring(0, 80)) + '</span></div>';
         }).join('');

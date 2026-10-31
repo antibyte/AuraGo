@@ -161,7 +161,7 @@ function rulesRenderBody(enabled) {
             .concat((rule.workflows || []).map(v => `flow:${v}`))
             .concat((rule.keywords || []).slice(0, 4).map(v => `key:${v}`));
         return `
-            <button type="button" class="rules-card${selected}${disabled}" data-rule-id="${rulesEscape(rule.id)}" onclick="rulesSelect('${escapeAttr(rule.id)}')">
+            <button type="button" class="rules-card${selected}${disabled}" data-rule-id="${rulesEscape(rule.id)}" onclick="rulesSelect(${cfgJsArg(rule.id)})">
                 ${cfgBadge(enabledStatus, enabledLabel)}
                 <span class="rules-card-main">
                     <span class="rules-card-title">${rulesEscape(rule.title || rule.id)}</span>

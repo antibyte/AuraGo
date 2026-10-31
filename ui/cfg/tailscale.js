@@ -492,13 +492,13 @@ function _tsnetRenderNodeCards(data) {
                     <input class="field-input cfg-secret-input" type="password" id="tsnet-node-key-${escapeAttr(node)}" placeholder="tskey-auth-••••••••" autocomplete="off" ${disabled ? 'disabled' : ''}>
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)" ${disabled ? 'disabled' : ''}>${EYE_OPEN_SVG}</button>
                 </div>
-                <button id="tsnet-node-save-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>${cfgIcon('save')} ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
+                <button id="tsnet-node-save-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey(${cfgJsArg(node)})" ${disabled ? 'disabled' : ''}>${cfgIcon('save')} ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
             </div>
             ${cfgActionResult.html('tsnet-node-result-' + node)}
             <div class="ts-btn-row">
-                <button id="tsnet-node-reauth-${escapeAttr(node)}" class="btn btn-sm btn-success" onclick="_tsnetReauth('${escapeAttr(node)}','normal')" ${lifecycleDisabled ? 'disabled' : ''}>${cfgIcon('lock')} ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
-                ${cfgDeleteButton({ label: t('config.tailscale.tsnet_delete_node_key'), cls: 'btn-sm', attrs: { id: 'tsnet-node-delete-' + node, onclick: "_tsnetDeleteNodeKey('" + node + "')", disabled: disabled } })}
-                ${recoveryAllowed ? `<button id="tsnet-node-recover-${escapeAttr(node)}" class="btn btn-sm btn-danger" onclick="_tsnetReauth('${escapeAttr(node)}','recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>${cfgIcon('alert')} ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
+                <button id="tsnet-node-reauth-${escapeAttr(node)}" class="btn btn-sm btn-success" onclick="_tsnetReauth(${cfgJsArg(node)},'normal')" ${lifecycleDisabled ? 'disabled' : ''}>${cfgIcon('lock')} ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
+                ${cfgDeleteButton({ label: t('config.tailscale.tsnet_delete_node_key'), cls: 'btn-sm', attrs: { id: 'tsnet-node-delete-' + node, onclick: "_tsnetDeleteNodeKey(" + JSON.stringify(String(node)) + ")", disabled: disabled } })}
+                ${recoveryAllowed ? `<button id="tsnet-node-recover-${escapeAttr(node)}" class="btn btn-sm btn-danger" onclick="_tsnetReauth(${cfgJsArg(node)},'recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>${cfgIcon('alert')} ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
             </div>
         </article>`;
     }).join('');

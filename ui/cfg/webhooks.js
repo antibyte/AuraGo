@@ -246,7 +246,7 @@ function whRenderWebhookList() {
                             </div>
                         </div>
                         <div class="wh-card-body">
-                            <div class="wh-card-url" onclick="whCopy(this, '${escapeAttr(url)}')" title="${t('config.webhooks.click_to_copy')}">
+                            <div class="wh-card-url" onclick="whCopy(this, ${cfgJsArg(url)})" title="${t('config.webhooks.click_to_copy')}">
                                 <code>${esc(url)}</code>
                                 <span class="wh-copy-icon">${cfgIcon('copy')}</span>
                             </div>
@@ -653,7 +653,7 @@ async function whCreateToken() {
             reveal.innerHTML = `
                         <div class="wh-token-alert">
                             <strong>${cfgIcon('alert')} ${t('config.tokens.created_notice')}</strong>
-                            <div class="wh-token-value" onclick="whCopy(this, '${esc(r.raw_token || r.token)}')" title="${t('config.webhooks.click_to_copy')}">
+                            <div class="wh-token-value" onclick="whCopy(this, ${cfgJsArg(r.raw_token || r.token)})" title="${t('config.webhooks.click_to_copy')}">
                                 <code>${esc(r.raw_token || r.token)}</code>
                                 <span class="wh-copy-icon">${cfgIcon('copy')}</span>
                             </div>

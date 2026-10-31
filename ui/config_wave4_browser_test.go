@@ -117,6 +117,13 @@ func TestConfigDrawerBreakpointAndHistoryBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => !!document.getElementById('cfg-unsaved-decision')`)
 	page.MustEval(`() => document.querySelector('[data-decision="stay"]').click()`)
 	waitForJSBool(t, page, `() => location.hash === '#agent' && activeSection === 'agent' && !document.getElementById('cfg-unsaved-decision')`)
+	// Staying must not overwrite the entry the user went back to: Back again still reaches the previous section.
+	page.MustEval(`() => history.back()`)
+	waitForJSBool(t, page, `() => !!document.getElementById('cfg-unsaved-decision')`)
+	page.MustEval(`() => document.querySelector('[data-decision="discard"]').click()`)
+	waitForJSBool(t, page, `() => location.hash === '#server' && activeSection === 'server' && !document.getElementById('cfg-unsaved-decision')`)
+	page.MustEval(`() => history.forward()`)
+	waitForJSBool(t, page, `() => location.hash === '#agent' && activeSection === 'agent'`)
 
 	// An unknown hash is normalised in place (no extra entry).
 	page.MustEval(`() => { configData = window.AuraConfigState.discard(); resetDirtySnapshot(); window.__len = history.length; location.hash = '#no_such_section'; }`)
@@ -239,4 +246,60 @@ func TestConfigWave4SharedDialogsBrowser(t *testing.T) {
 	}
 	page.MustEval(`() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))`)
 	waitForJSBool(t, page, `() => !document.getElementById('or-browser-overlay') && document.getElementById('stack-base').classList.contains('open') && document.getElementById('stack-base').inert !== true && document.activeElement && document.activeElement.id === 'stack-base-btn'`)
+}
+
+// Browser Back with a dialog open must not switch the section behind it: the dialog's canClose guard
+// decides (E1); an open dialog without edits closes and the navigation continues. Dialogs inserted after
+// page load close on a backdrop click, and switches rendered after load get keyboard handling.
+func TestConfigWave4DialogHistoryBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := newSmokeBrowser(t).MustPage(configRefreshFixtureOrigin(t, "en", true) + "/config#overview")
+	defer page.MustClose()
+	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
+	page.MustEval(`async () => { await navigateToConfigSection('server', {scrollBehavior:'auto'}); await navigateToConfigSection('providers', {scrollBehavior:'auto'}); resetDirtySnapshot(); }`)
+	waitForJSBool(t, page, `() => location.hash === '#providers' && activeSection === 'providers' && !!document.querySelector('.prov-section-actions button')`)
+
+	// Dialog with edits: Back is refused, the discard prompt appears, the section stays.
+	page.MustElement(".prov-section-actions button").MustClick()
+	waitForJSBool(t, page, `() => !!document.getElementById('provider-dialog') && document.getElementById('provider-dialog').classList.contains('active')`)
+	if !page.MustEval(`() => [...document.querySelectorAll('#provider-dialog .toggle')].every(t => t.getAttribute('role') === 'switch' && t.dataset.a11yBound === 'true')`).Bool() {
+		t.Error("switches inside the provider dialog lack keyboard handling")
+	}
+	page.MustEval(`() => { const name = document.getElementById('prov-name'); name.value = 'Edited name'; name.dispatchEvent(new Event('input', {bubbles:true})); }`)
+	page.MustEval(`() => history.back()`)
+	waitForJSBool(t, page, `() => { const c = document.getElementById('shared-modal-overlay'); return !!c && c.classList.contains('active'); }`)
+	if !page.MustEval(`() => activeSection === 'providers' && location.hash === '#providers' && !!document.getElementById('provider-dialog')`).Bool() {
+		t.Fatal("Back with an edited dialog switched the section or closed the dialog")
+	}
+	page.MustEval(`() => document.getElementById('shared-modal-confirm').click()`)
+	waitForJSBool(t, page, `() => !document.getElementById('provider-dialog') && activeSection === 'providers'`)
+
+	// Dialog without edits: it closes and the navigation continues.
+	page.MustElement(".prov-section-actions button").MustClick()
+	waitForJSBool(t, page, `() => !!document.getElementById('provider-dialog') && document.getElementById('provider-dialog').classList.contains('active')`)
+	page.MustEval(`() => history.back()`)
+	waitForJSBool(t, page, `() => !document.getElementById('provider-dialog') && activeSection === 'server' && location.hash === '#server'`)
+
+	// A dialog inserted after load closes on a backdrop click; a veto from canClose keeps it open.
+	page.MustEval(`() => {
+		document.body.insertAdjacentHTML('beforeend', cfgModal({id: 'late-dialog', title: 'Late', body: '<button type="button" id="late-dialog-btn">Go</button>'}));
+		window.__veto = true;
+		openModal('late-dialog', {initialFocus: '#late-dialog-btn', canClose: () => !window.__veto});
+	}`)
+	click := `() => { const o = document.getElementById('late-dialog'); o.dispatchEvent(new MouseEvent('mousedown', {bubbles:true})); o.dispatchEvent(new MouseEvent('click', {bubbles:true})); }`
+	page.MustEval(click)
+	if !page.MustEval(`() => document.getElementById('late-dialog').classList.contains('active')`).Bool() {
+		t.Error("a vetoed backdrop close must keep the dialog open")
+	}
+	page.MustEval(`() => { window.__veto = false; }`)
+	page.MustEval(click)
+	waitForJSBool(t, page, `() => !document.getElementById('late-dialog').classList.contains('active')`)
+
+	// Switches rendered later get role and Space/Enter handling from the central observer.
+	page.MustEval(`() => { document.getElementById('content').insertAdjacentHTML('beforeend', '<div id="late-toggle" class="toggle"></div>'); }`)
+	waitForJSBool(t, page, `() => document.getElementById('late-toggle').getAttribute('role') === 'switch'`)
+	page.MustEval(`() => { const t = document.getElementById('late-toggle'); t.addEventListener('click', () => t.classList.toggle('on')); t.dispatchEvent(new KeyboardEvent('keydown', {key: ' ', bubbles:true, cancelable:true})); }`)
+	if !page.MustEval(`() => document.getElementById('late-toggle').classList.contains('on')`).Bool() {
+		t.Error("Space did not operate a late-rendered switch")
+	}
 }

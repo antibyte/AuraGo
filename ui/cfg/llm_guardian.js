@@ -156,7 +156,7 @@ async function renderLLMGuardianSection(section) {
             html += `<div class="lg-override-row">
                 <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskBadge} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
                 <select class="field-select lg-select-sm" aria-label="${escapeAttr(t('config.llm_guardian.override_level_for', { tool: toolName }))}"
-                    onchange="guardianSetOverride('${escapeAttr(toolName)}',this.value)">`;
+                    onchange="guardianSetOverride(${cfgJsArg(toolName)},this.value)">`;
             levels.forEach(lv => {
                 const sel = (toolLevel === lv) ? ' selected' : '';
                 html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;

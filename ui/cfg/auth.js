@@ -390,7 +390,7 @@ function renderSecurityAuditPanel(panel, hints) {
     if (fixable.length > 0) {
         const btnLabel = t('config.security.fix_all_auto').replace('{n}', fixable.length);
         html += `<div class="auth-sec-fix-wrap">
-            <button id="btn-fix-all" onclick="securityHardenIds(${JSON.stringify(fixable.map(h => h.id))}, this)"
+            <button id="btn-fix-all" onclick="securityHardenIds(${escapeAttr(JSON.stringify(fixable.map(h => h.id)))}, this)"
                 class="auth-sec-fix-all-btn">
                 ${cfgIcon('wrench')} ${btnLabel}
             </button>
@@ -408,7 +408,7 @@ function renderSecurityAuditPanel(panel, hints) {
         const desc = escapeHtml(translatedDescription === descriptionKey ? (h.description || '') : translatedDescription);
         let fixBtn = '';
         if (h.auto_fixable) {
-            fixBtn = `<button onclick="securityHardenIds(['${esc(h.id)}'], this)"
+            fixBtn = `<button onclick="securityHardenIds([${cfgJsArg(h.id)}], this)"
                 class="auth-sec-fix-now-btn">
                 ${cfgIcon('wrench')} ${t('config.security.fix_now')}
             </button>`;

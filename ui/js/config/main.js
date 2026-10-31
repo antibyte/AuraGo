@@ -1481,8 +1481,10 @@ async function navigateToConfigSection(key, options = {}) {
             if (typeof window.sipDiscardUnsaved === 'function') window.sipDiscardUnsaved();
             if (typeof window.telephoneAgentDiscardUnsaved === 'function') window.telephoneAgentDiscardUnsaved();
         } else {
+            // After Back the current entry is the section the user went back to (A) while the page
+            // still shows B: push B again so A stays reachable ([A, B]) instead of overwriting A.
             if (window.location.hash !== '#' + activeSection) {
-                history.replaceState(null, '', '#' + activeSection);
+                history.pushState(null, '', '#' + activeSection);
             }
             return false;
         }
@@ -1501,9 +1503,29 @@ function handleConfigBeforeUnload(event) {
     return '';
 }
 
+// Closes every open dialog (topmost first) through closeModal so canClose can veto; the unsaved-changes
+// decision is not a config dialog. Returns false when a dialog stays open.
+function closeConfigDialogsForNavigation() {
+    const ctl = window.AuraModalController;
+    for (let guard = 0; guard < 8; guard++) {
+        const top = ctl && ctl.top();
+        if (!top || top.id === 'cfg-unsaved-decision') return true;
+        if (top.id) closeModal(top.id, 'navigation');
+        else _closeOverlay(top, 'navigation');
+        if (ctl.top() === top) return false;
+    }
+    return true;
+}
+
 function handleConfigHashChange() {
     const key = (window.location.hash || '').replace(/^#/, '') || 'overview';
     if (key === activeSection) return;
+    // Back/forward with a dialog open: dialog edits are not in the draft, so the unsaved guard would not
+    // stop the switch. Let the dialog veto (canClose); if it stays open keep the current section.
+    if (!closeConfigDialogsForNavigation()) {
+        history.pushState(null, '', '#' + activeSection);
+        return;
+    }
     // The address bar already holds the new hash (back/forward, typed hash): no new entry, and an
     // unknown hash is normalised in place. Leaving is refused by the unsaved-changes guard, which
     // restores the old hash.
@@ -1742,6 +1764,19 @@ if (configSectionObserverRoot) {
     configSectionObserver.observe(configSectionObserverRoot, { childList: true });
 }
 
+// Switches rendered later (dialogs, async lists, editors) get role/tabindex and Space/Enter handling.
+// enhanceConfigControls is idempotent (data-a11y-bound), so modules that call it themselves are fine.
+const configToggleObserver = new MutationObserver(mutations => {
+    for (const mutation of mutations) {
+        mutation.addedNodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.matches('.toggle:not([data-a11y-bound])') && node.parentElement) enhanceConfigControls(node.parentElement);
+            else if (node.querySelector('.toggle:not([data-a11y-bound])')) enhanceConfigControls(node);
+        });
+    }
+});
+configToggleObserver.observe(document.documentElement, { childList: true, subtree: true });
+
 let configBaseTitle = '';
 
 // Tab title: "<Section> · <page title>".
@@ -1755,6 +1790,8 @@ function updateConfigDocumentTitle(key) {
 async function selectSection(key, options = {}) {
     const { scrollBehavior = 'smooth', focusPath = '' } = options;
     key = normalizeSectionKey(key);
+    // A section change by any route must not leave a dialog of the old section behind.
+    if (key !== activeSection) closeConfigDialogsForNavigation();
     activeSection = key;
     recordRecentSection(key);
     updateSaveDockSection(key);

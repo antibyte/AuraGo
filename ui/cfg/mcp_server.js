@@ -101,7 +101,7 @@ async function renderMCPServerSection(section) {
                 <span class="mcp-srv-caption">${t('config.mcp_server.endpoint_url')}</span>
                 <div class="mcp-srv-action-row">
                     <input class="field-input mcp-srv-endpoint-input" value="${escapeAttr(endpointUrl)}" readonly id="mcp-endpoint-url" aria-describedby="mcp-endpoint-url-help">
-                    <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('mcp-endpoint-url').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_url'))}'},1500)})">${t('config.mcp_server.copy_url')}</button>
+                    <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('mcp-endpoint-url').value).then(()=>{this.textContent=${cfgJsArg(t('config.mcp_server.copied'))};setTimeout(()=>{this.textContent=${cfgJsArg(t('config.mcp_server.copy_url'))}},1500)})">${t('config.mcp_server.copy_url')}</button>
                 </div>
                 <div class="field-help" id="mcp-endpoint-url-help">${t('config.mcp_server.endpoint_url_help')}</div>
             </label>
@@ -115,7 +115,7 @@ async function renderMCPServerSection(section) {
                     <div class="mcp-srv-action-row">
                         <input class="field-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••" aria-describedby="mcp-token-value-help">
                         <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
-                        <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
+                        <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent=${cfgJsArg(t('config.mcp_server.copied'))};setTimeout(()=>{this.textContent=${cfgJsArg(t('config.mcp_server.copy_token'))}},1500)})">${t('config.mcp_server.copy_token')}</button>
                     </div>
                     ${cfgActionResult.html('mcp-token-error')}
                     <div class="field-help" id="mcp-token-value-help">${t('config.mcp_server.token_help')}</div>

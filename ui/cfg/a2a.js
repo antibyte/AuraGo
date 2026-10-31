@@ -256,7 +256,7 @@ function a2aRemoteAgentCard(ra, idx) {
     h += cfgActionResult.html('a2a-ra-status-' + idx, 'a2a-status-xs');
     h += '</div>';
     h += '<div class="a2a-btn-group">';
-    h += '<button id="a2a-ra-test-' + idx + '" class="btn-save a2a-sm-btn" data-config-action-draft="false" onclick="a2aTestRemoteAgent(\'' + escapeAttr(ra.id || '') + '\',' + idx + ')">' + cfgIcon('plug') + ' ' + t('config.a2a.test_btn_short') + '</button>';
+    h += '<button id="a2a-ra-test-' + idx + '" class="btn-save a2a-sm-btn" data-config-action-draft="false" onclick="a2aTestRemoteAgent(' + cfgJsArg(ra.id || '') + ',' + idx + ')">' + cfgIcon('plug') + ' ' + t('config.a2a.test_btn_short') + '</button>';
     h += cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: ra.name || ra.id || String(idx + 1) }), attrs: { onclick: 'a2aRemoveRemoteAgent(' + idx + ')' } });
     h += '</div></div>';
 
