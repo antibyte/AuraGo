@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 バックアップをインポート",
   "config.backup.import_password_label": "🔒 パスワード (暗号化されたバックアップのみ)",
   "config.backup.import_success": "インポート成功",
-  "config.backup.import_warning": "\u003cstrong\u003e重要:\u003c/strong\u003e インポートすると、既存のファイルが上書きされます。設定、プロンプト、データは置き換えられます。インポート後に再起動することをお勧めします。",
+  "config.backup.import_warning": "<strong>重要:</strong> インポートはすぐには何も変更しません。バックアップは準備され、次回の AuraGo 再起動時に適用されます（再起動が必須です）。そのとき設定、プロンプト、データ、スキルが置き換えられます。",
   "config.backup.importing": "⏳ インポート中…",
   "config.backup.include_vectordb": "VectorDB を含める (埋め込み - サイズが大きい場合があります)",
   "config.backup.include_workdir": "workdir (agent_workspace/workdir) を含める",
@@ -30,7 +30,7 @@
   "config.backup.tab_import": "📥 バックアップをインポート",
   "config.backup.vault_included_hint": "🔐 Vault secrets（APIキー、ログインパスワード、トークン）が含まれます。",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "「{name}」を復元すると、このインスタンスの設定、プロンプト、データ、スキルが置き換えられ、アーカイブにボールトのシークレットが含まれている場合は保存済みの API キーとトークンも置き換えられます。AuraGo を再起動するまで何も変わらず、ファイルは次回起動時に適用されます。この操作は元に戻せません。",
+  "config.backup.confirm_import_message": "「{name}」を復元すると、このインスタンスの設定、プロンプト、データ、スキルが置き換えられ、アーカイブにボールトのシークレットが含まれている場合は保存済みの API キー、トークン、ログインパスワードも置き換えられます。AuraGo を再起動するまで何も変わらず、これらのシークレットを含むバックアップは次回起動時に有効になります。この操作は元に戻せません。",
   "config.backup.unknown_error": "Unknown error",
   "config.backup.toggle_visibility": "Show or hide password",
   "config.backup.import_staged": "復元を予約しました",
@@ -39,6 +39,13 @@
   "config.backup.error_http": "サーバーから予期しない応答がありました (HTTP {status})。",
   "config.backup.restore_pending_since": "{time} から復元が保留中です。適用するには AuraGo を再起動してください。",
   "config.backup.last_restore_applied": "前回の復元は {time} に適用されました。",
-  "config.backup.last_restore_rolled_back": "{time} の前回の復元はロールバックされました。",
-  "config.backup.last_restore_failed": "{time} の前回の復元は失敗しました。"
+  "config.backup.last_restore_rolled_back": "{time} の前回の復元はロールバックされました — 何も変更されていません。",
+  "config.backup.last_restore_failed": "{time} の前回の復元は失敗しました — 何も適用されていません。",
+  "config.backup.discard_pending": "保留中の復元を破棄",
+  "config.backup.discarding": "破棄しています…",
+  "config.backup.discard_confirm_title": "保留中の復元を破棄しますか？",
+  "config.backup.discard_confirm_message": "準備済みのバックアップは次回起動時に適用されず、準備済みのファイルは削除されます。現在の設定はそのまま残ります。",
+  "config.backup.discard_done": "保留中の復元を破棄しました。",
+  "config.backup.discard_nothing": "破棄する保留中の復元はありませんでした。",
+  "config.backup.discard_unsupported": "このサーバーのバージョンでは保留中の復元を破棄できません。"
 }

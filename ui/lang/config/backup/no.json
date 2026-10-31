@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 Importer sikkerhetskopi",
   "config.backup.import_password_label": "🔒 Passord (bare for krypterte sikkerhetskopier)",
   "config.backup.import_success": "Import fullført",
-  "config.backup.import_warning": "<strong>Viktig:</strong> Import overskriver eksisterende filer. Konfigurasjon, ledetekster og data erstattes. Omstart anbefales etter import.",
+  "config.backup.import_warning": "<strong>Viktig:</strong> Import endrer ingenting med en gang. Sikkerhetskopien klargjøres og brukes ved neste omstart av AuraGo (omstart er påkrevd); da erstattes konfigurasjon, prompter, data og skills.",
   "config.backup.importing": "⏳ Importerer…",
   "config.backup.include_vectordb": "Ta med VectorDB (embeddings — kan være stor)",
   "config.backup.include_workdir": "Ta med Workdir (agent_workspace/workdir)",
@@ -30,7 +30,7 @@
   "config.backup.tab_import": "📥 Importer sikkerhetskopi",
   "config.backup.vault_included_hint": "🔐 Hvelvhemmeligheter (API-nøkler, påloggingspassord, tokens) vil bli inkludert.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Gjenoppretting av \"{name}\" erstatter denne instansens konfigurasjon, prompter, data og skills, samt lagrede API-nøkler og tokens hvis arkivet inneholder vault-hemmeligheter. Ingenting endres før AuraGo startes på nytt; filene brukes ved neste oppstart. Dette kan ikke angres.",
+  "config.backup.confirm_import_message": "Gjenoppretting av \"{name}\" erstatter denne instansens konfigurasjon, prompter, data og skills, samt lagrede API-nøkler, tokens og innloggingspassord hvis arkivet inneholder vault-hemmeligheter. Ingenting endres før AuraGo startes på nytt; sikkerhetskopien, inkludert disse hemmelighetene, trer i kraft ved neste oppstart. Dette kan ikke angres.",
   "config.backup.unknown_error": "Unknown error",
   "config.backup.toggle_visibility": "Show or hide password",
   "config.backup.import_staged": "Gjenoppretting planlagt",
@@ -39,6 +39,13 @@
   "config.backup.error_http": "Serveren sendte et uventet svar (HTTP {status}).",
   "config.backup.restore_pending_since": "En gjenoppretting har ventet siden {time} — start AuraGo på nytt for å bruke den.",
   "config.backup.last_restore_applied": "Siste gjenoppretting ble brukt {time}.",
-  "config.backup.last_restore_rolled_back": "Siste gjenoppretting fra {time} ble rullet tilbake.",
-  "config.backup.last_restore_failed": "Siste gjenoppretting fra {time} mislyktes."
+  "config.backup.last_restore_rolled_back": "Siste gjenoppretting fra {time} ble rullet tilbake — ingenting ble endret.",
+  "config.backup.last_restore_failed": "Siste gjenoppretting fra {time} mislyktes — ingenting ble brukt.",
+  "config.backup.discard_pending": "Forkast ventende gjenoppretting",
+  "config.backup.discarding": "Forkaster…",
+  "config.backup.discard_confirm_title": "Forkaste den ventende gjenopprettingen?",
+  "config.backup.discard_confirm_message": "Den klargjorte sikkerhetskopien brukes ikke ved neste oppstart, og de klargjorte filene slettes. Gjeldende konfigurasjon forblir uendret.",
+  "config.backup.discard_done": "Ventende gjenoppretting forkastet.",
+  "config.backup.discard_nothing": "Det fantes ingen ventende gjenoppretting å forkaste.",
+  "config.backup.discard_unsupported": "Denne serverversjonen kan ikke forkaste en ventende gjenoppretting."
 }

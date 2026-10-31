@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 Importa Backup",
   "config.backup.import_password_label": "🔒 Password (solo per backup crittografati)",
   "config.backup.import_success": "Importazione riuscita",
-  "config.backup.import_warning": "<strong>Importante:</strong> L'importazione sovrascrive i file esistenti. Config, prompt e dati verranno sostituiti. Un riavvio è consigliato dopo l'importazione.",
+  "config.backup.import_warning": "<strong>Importante:</strong> l'importazione non modifica nulla subito. Il backup viene preparato e applicato al prossimo riavvio di AuraGo (il riavvio è necessario); allora configurazione, prompt, dati e skill vengono sostituiti.",
   "config.backup.importing": "⏳ Importazione in corso…",
   "config.backup.include_vectordb": "Includi VectorDB (embeddings — potrebbe essere grande)",
   "config.backup.include_workdir": "Includi workdir (agent_workspace/workdir)",
@@ -30,7 +30,7 @@
   "config.backup.tab_import": "📥 Importa Backup",
   "config.backup.vault_included_hint": "🔐 I segreti del vault (chiavi API, password, token) saranno inclusi.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Il ripristino di \"{name}\" sostituirà configurazione, prompt, dati e skill di questa istanza, nonché le chiavi API e i token salvati se l'archivio contiene segreti del vault. Nulla cambia finché AuraGo non viene riavviato; i file vengono applicati al prossimo avvio. L'operazione non è reversibile.",
+  "config.backup.confirm_import_message": "Il ripristino di \"{name}\" sostituirà configurazione, prompt, dati e skill di questa istanza, nonché le chiavi API, i token e la password di accesso salvati se l'archivio contiene segreti del vault. Nulla cambia finché AuraGo non viene riavviato; il backup, segreti inclusi, ha effetto al prossimo avvio. L'operazione non è reversibile.",
   "config.backup.unknown_error": "Unknown error",
   "config.backup.toggle_visibility": "Show or hide password",
   "config.backup.import_staged": "Ripristino pianificato",
@@ -39,6 +39,13 @@
   "config.backup.error_http": "Il server ha inviato una risposta inattesa (HTTP {status}).",
   "config.backup.restore_pending_since": "Un ripristino è in sospeso dal {time}: riavvia AuraGo per applicarlo.",
   "config.backup.last_restore_applied": "L'ultimo ripristino è stato applicato il {time}.",
-  "config.backup.last_restore_rolled_back": "L'ultimo ripristino del {time} è stato annullato.",
-  "config.backup.last_restore_failed": "L'ultimo ripristino del {time} non è riuscito."
+  "config.backup.last_restore_rolled_back": "L'ultimo ripristino del {time} è stato annullato: non è stato modificato nulla.",
+  "config.backup.last_restore_failed": "L'ultimo ripristino del {time} non è riuscito: non è stato applicato nulla.",
+  "config.backup.discard_pending": "Annulla il ripristino in sospeso",
+  "config.backup.discarding": "Annullamento…",
+  "config.backup.discard_confirm_title": "Annullare il ripristino in sospeso?",
+  "config.backup.discard_confirm_message": "Il backup preparato non verrà applicato al prossimo avvio e i file preparati verranno eliminati. La configurazione attuale resta invariata.",
+  "config.backup.discard_done": "Ripristino in sospeso annullato.",
+  "config.backup.discard_nothing": "Nessun ripristino in sospeso da annullare.",
+  "config.backup.discard_unsupported": "Questa versione del server non può annullare un ripristino in sospeso."
 }

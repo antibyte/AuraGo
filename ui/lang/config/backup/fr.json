@@ -12,7 +12,7 @@
   "config.backup.import_button": "📥 Importer la Sauvegarde",
   "config.backup.import_password_label": "🔒 Mot de passe (uniquement pour les sauvegardes chiffrées)",
   "config.backup.import_success": "Import réussi",
-  "config.backup.import_warning": "<strong>Important :</strong> L'import écrase les fichiers existants. La config, les prompts et les données seront remplacés. Un redémarrage est recommandé après l'import.",
+  "config.backup.import_warning": "<strong>Important :</strong> l'import ne modifie rien immédiatement. La sauvegarde est préparée et appliquée au prochain redémarrage d'AuraGo (redémarrage obligatoire) ; la configuration, les prompts, les données et les skills sont alors remplacés.",
   "config.backup.importing": "⏳ Importation...",
   "config.backup.include_vectordb": "Inclure la VectorDB (embeddings — peut être volumineux)",
   "config.backup.include_workdir": "Inclure le workdir (agent_workspace/workdir)",
@@ -30,7 +30,7 @@
   "config.backup.tab_import": "📥 Importer une Sauvegarde",
   "config.backup.vault_included_hint": "🔐 Les secrets du vault (clés API, mot de passe, tokens) seront inclus.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "La restauration de « {name} » remplacera la configuration, les prompts, les données et les skills de cette instance, ainsi que les clés API et jetons enregistrés si l'archive contient des secrets du coffre. Rien ne change avant le redémarrage d'AuraGo ; les fichiers sont appliqués au prochain démarrage. Cette action est irréversible.",
+  "config.backup.confirm_import_message": "La restauration de « {name} » remplacera la configuration, les prompts, les données et les skills de cette instance, ainsi que les clés API, jetons et le mot de passe de connexion enregistrés si l'archive contient des secrets du coffre. Rien ne change avant le redémarrage d'AuraGo ; la sauvegarde, secrets compris, prend effet au prochain démarrage. Cette action est irréversible.",
   "config.backup.unknown_error": "Unknown error",
   "config.backup.toggle_visibility": "Show or hide password",
   "config.backup.import_staged": "Restauration programmée",
@@ -39,6 +39,13 @@
   "config.backup.error_http": "Le serveur a renvoyé une réponse inattendue (HTTP {status}).",
   "config.backup.restore_pending_since": "Une restauration est en attente depuis {time} — redémarrez AuraGo pour l'appliquer.",
   "config.backup.last_restore_applied": "La dernière restauration a été appliquée le {time}.",
-  "config.backup.last_restore_rolled_back": "La dernière restauration du {time} a été annulée.",
-  "config.backup.last_restore_failed": "La dernière restauration du {time} a échoué."
+  "config.backup.last_restore_rolled_back": "La dernière restauration du {time} a été annulée — rien n'a été modifié.",
+  "config.backup.last_restore_failed": "La dernière restauration du {time} a échoué — rien n'a été appliqué.",
+  "config.backup.discard_pending": "Annuler la restauration en attente",
+  "config.backup.discarding": "Annulation…",
+  "config.backup.discard_confirm_title": "Annuler la restauration en attente ?",
+  "config.backup.discard_confirm_message": "La sauvegarde préparée ne sera pas appliquée au prochain démarrage et les fichiers préparés seront supprimés. La configuration actuelle reste inchangée.",
+  "config.backup.discard_done": "Restauration en attente annulée.",
+  "config.backup.discard_nothing": "Aucune restauration en attente à annuler.",
+  "config.backup.discard_unsupported": "Cette version du serveur ne peut pas annuler une restauration en attente."
 }

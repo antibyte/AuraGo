@@ -274,7 +274,7 @@ async function backupImport() {
 }
 
 // Pending / last restore outcome. A server without the endpoint (404) shows nothing.
-async function backupLoadRestoreStatus() {
+async function backupLoadRestoreStatus(note) {
     const box = document.getElementById('backup-restore-status');
     if (!box) return null;
     let data = null;
@@ -297,7 +297,16 @@ async function backupLoadRestoreStatus() {
         const span = document.createElement('span');
         cfgActionResult.show(span, state, text);
         line.appendChild(span);
-        if (withRestart) line.appendChild(backupRestartButton());
+        if (withRestart) {
+            line.appendChild(backupRestartButton());
+            const discard = document.createElement('button');
+            discard.type = 'button';
+            discard.id = 'backup-discard-btn';
+            discard.className = 'btn-save backup-restart-btn';
+            discard.textContent = t('config.backup.discard_pending');
+            discard.addEventListener('click', () => backupDiscardPending(discard));
+            line.appendChild(discard);
+        }
         box.appendChild(line);
     };
     if (data.pending) {
@@ -315,6 +324,31 @@ async function backupLoadRestoreStatus() {
             addLine(state, text, false);
         }
     }
+    if (note && note.text) addLine(note.state, note.text, false);
     box.classList.toggle('is-hidden', !box.childNodes.length);
     return data;
+}
+
+// Drops a restore that is staged for the next start. Older servers (404/405) answer
+// without the endpoint; that is reported, not thrown.
+async function backupDiscardPending(btn) {
+    if (!(await showConfirm(t('config.backup.discard_confirm_title'), t('config.backup.discard_confirm_message')))) return { skipped: 'cancelled' };
+    let note = null;
+    const outcome = await cfgActionResult(btn, () => fetch('/api/backup/restore-status', { method: 'DELETE' }), {
+        pending: t('config.backup.discarding'),
+        success: t('config.backup.discard_done'),
+        warning: t('config.backup.discard_nothing'),
+        failure: t('config.backup.status_error'),
+        interpret: o => {
+            if (o.httpStatus === 404 || o.httpStatus === 405) return { state: 'error', reason: t('config.backup.discard_unsupported') };
+            if (o.state === 'success' && o.body && o.body.discarded === false) return { state: 'warning', reason: '' };
+            return null;
+        },
+        reasonText: backupImportReason
+    });
+    if (outcome && outcome.state === 'success') note = { state: 'success', text: t('config.backup.discard_done') };
+    else if (outcome && outcome.state === 'warning') note = { state: 'warning', text: t('config.backup.discard_nothing') };
+    else if (outcome && outcome.state === 'error') note = { state: 'error', text: t('config.backup.status_error') + ' ' + (outcome.reason || '') };
+    await backupLoadRestoreStatus(note);
+    return outcome;
 }
