@@ -20,6 +20,7 @@ function renderBackupSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
+    html += '<div id="backup-restore-status" class="backup-restore-status is-hidden"></div>';
 
     html += `
     <!-- Tabs -->
@@ -126,6 +127,7 @@ function renderBackupSection(section) {
 
     html += '</div>';
     document.getElementById('content').innerHTML = html;
+    backupLoadRestoreStatus();
 }
 
 function backupUpdateVaultHint() {
@@ -180,12 +182,62 @@ function backupCreate() {
     });
 }
 
-// Server error codes of the import endpoint, shown as readable reasons.
-function backupImportReason(body) {
-    if (!body) return '';
-    if (body.error === 'password_required') return t('config.backup.password_required');
-    if (body.error === 'decryption_failed') return t('config.backup.decryption_failed');
-    return body.message || body.error || t('config.backup.unknown_error');
+// Readable reason for a failed import. body is the parsed JSON (null for a
+// non-JSON answer such as a proxy error page); ctx carries the HTTP status.
+function backupImportReason(body, ctx) {
+    if (body && typeof body === 'object' && (body.error || body.message)) {
+        if (body.error === 'password_required') return t('config.backup.password_required');
+        if (body.error === 'decryption_failed') return t('config.backup.decryption_failed');
+        return String(body.error || body.message);
+    }
+    const status = ctx && ctx.httpStatus;
+    return status ? t('config.backup.error_http', { status: status }) : t('config.backup.unknown_error');
+}
+
+function backupRestartButton() {
+    const restart = document.createElement('button');
+    restart.type = 'button';
+    restart.className = 'btn-save backup-restart-btn';
+    restart.textContent = '↻ ' + t('config.backup.restart_now');
+    restart.addEventListener('click', () => restartAuraGo());
+    return restart;
+}
+
+// Result box of a staged restore; every server text goes in via textContent.
+function backupRenderImportResult(result, data, state) {
+    result.replaceChildren();
+    result.classList.remove('is-hidden');
+    const partial = state === 'warning';
+    const box = document.createElement('div');
+    box.className = 'backup-import-success-box' + (partial ? ' is-warning' : '');
+    const title = document.createElement('div');
+    title.className = 'backup-import-success-title';
+    title.textContent = (partial ? t('config.backup.status_warning') : t('config.backup.status_success'))
+        + ' ' + (partial ? t('config.backup.import_partial') : t('config.backup.import_staged'));
+    box.appendChild(title);
+    const pending = document.createElement('div');
+    pending.className = 'backup-import-success-message';
+    pending.textContent = t('config.backup.restore_pending_note');
+    box.appendChild(pending);
+    if (data.message) {
+        const msg = document.createElement('div');
+        msg.className = 'backup-import-success-message';
+        msg.textContent = String(data.message);
+        box.appendChild(msg);
+    }
+    const warnings = Array.isArray(data.warnings) ? data.warnings.filter(Boolean) : [];
+    if (warnings.length) {
+        const list = document.createElement('ul');
+        list.className = 'backup-import-warnings';
+        warnings.forEach(w => {
+            const li = document.createElement('li');
+            li.textContent = String(w);
+            list.appendChild(li);
+        });
+        box.appendChild(list);
+    }
+    if (data.restart_required === true) box.appendChild(backupRestartButton());
+    result.appendChild(box);
 }
 
 async function backupImport() {
@@ -210,19 +262,59 @@ async function backupImport() {
     return cfgActionResult(btn, () => fetch('/api/backup/import', { method: 'POST', body: fd }), {
         target: 'backup-import-status',
         pending: t('config.backup.importing'),
-        success: t('config.backup.import_success'),
+        success: t('config.backup.import_staged'),
+        warning: t('config.backup.import_partial'),
         failure: t('config.backup.status_error'),
-        reasonText: body => backupImportReason(body && (body.error || body.message) ? body : null),
+        reasonText: backupImportReason,
         onSuccess: outcome => {
-            const data = outcome.body || {};
-            result.classList.remove('is-hidden');
-            result.innerHTML = `<div class="backup-import-success-box">
-                <div class="backup-import-success-title">${t('config.backup.status_success')} ${t('config.backup.import_success')}</div>
-                <div class="backup-import-success-message">${escapeHtml(data.message || '')}</div>
-                <button class="btn-save backup-restart-btn" onclick="restartAuraGo()">
-                    ↻ ${t('config.backup.restart_now')}
-                </button>
-            </div>`;
+            backupRenderImportResult(result, outcome.body || {}, outcome.state);
+            backupLoadRestoreStatus();
         }
     });
+}
+
+// Pending / last restore outcome. A server without the endpoint (404) shows nothing.
+async function backupLoadRestoreStatus() {
+    const box = document.getElementById('backup-restore-status');
+    if (!box) return null;
+    let data = null;
+    try {
+        const resp = await fetch('/api/backup/restore-status');
+        if (!resp.ok) return null;
+        data = await resp.json();
+    } catch (_) {
+        return null;
+    }
+    if (!data || typeof data !== 'object' || !box.isConnected) return null;
+    box.replaceChildren();
+    const fmt = value => {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? String(value || '') : d.toLocaleString();
+    };
+    const addLine = (state, text, withRestart) => {
+        const line = document.createElement('div');
+        line.className = 'backup-restore-status-line';
+        const span = document.createElement('span');
+        cfgActionResult.show(span, state, text);
+        line.appendChild(span);
+        if (withRestart) line.appendChild(backupRestartButton());
+        box.appendChild(line);
+    };
+    if (data.pending) {
+        addLine('warning', t('config.backup.restore_pending_since', { time: fmt(data.pending_created_at) }), true);
+    }
+    const last = data.last;
+    const RECENT_MS = 7 * 24 * 3600 * 1000;
+    if (last && typeof last === 'object') {
+        const when = new Date(last.applied_at).getTime();
+        if (!isNaN(when) && Date.now() - when <= RECENT_MS) {
+            const kind = last.status === 'applied' ? 'applied' : (last.status === 'rolled_back' ? 'rolled_back' : 'failed');
+            const state = kind === 'applied' ? 'success' : (kind === 'rolled_back' ? 'warning' : 'error');
+            let text = t('config.backup.last_restore_' + kind, { time: fmt(last.applied_at) });
+            if (last.message) text += ' ' + String(last.message);
+            addLine(state, text, false);
+        }
+    }
+    box.classList.toggle('is-hidden', !box.childNodes.length);
+    return data;
 }

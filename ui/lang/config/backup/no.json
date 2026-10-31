@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Importer sikkerhetskopi",
   "config.backup.vault_included_hint": "🔐 Hvelvhemmeligheter (API-nøkler, påloggingspassord, tokens) vil bli inkludert.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Gjenoppretting av \"{name}\" erstatter denne instansens konfigurasjon, prompter, data og skills, samt lagrede API-nøkler og tokens hvis arkivet inneholder vault-hemmeligheter. Ingenting endres før AuraGo startes på nytt; filene brukes ved neste oppstart. Dette kan ikke angres.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Gjenoppretting planlagt",
+  "config.backup.import_partial": "Gjenoppretting planlagt med problemer",
+  "config.backup.restore_pending_note": "Gjenopprettingen venter og trer i kraft når AuraGo startes på nytt.",
+  "config.backup.error_http": "Serveren sendte et uventet svar (HTTP {status}).",
+  "config.backup.restore_pending_since": "En gjenoppretting har ventet siden {time} — start AuraGo på nytt for å bruke den.",
+  "config.backup.last_restore_applied": "Siste gjenoppretting ble brukt {time}.",
+  "config.backup.last_restore_rolled_back": "Siste gjenoppretting fra {time} ble rullet tilbake.",
+  "config.backup.last_restore_failed": "Siste gjenoppretting fra {time} mislyktes."
 }

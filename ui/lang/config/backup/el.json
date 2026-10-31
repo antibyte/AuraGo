@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Εισαγωγή αντιγράφου ασφαλείας",
   "config.backup.vault_included_hint": "🔐 Θα συμπεριληφθούν τα μυστικά του θησαυροφυλακίου ( API κλειδιά, κωδικός σύνδεσης, διακριτικά).",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Η επαναφορά του «{name}» θα αντικαταστήσει τη διαμόρφωση, τα prompts, τα δεδομένα και τα skills αυτής της εγκατάστασης, καθώς και τα αποθηκευμένα κλειδιά API και tokens αν το αρχείο περιέχει μυστικά του vault. Τίποτα δεν αλλάζει μέχρι την επανεκκίνηση του AuraGo· τα αρχεία εφαρμόζονται στην επόμενη εκκίνηση. Δεν μπορεί να αναιρεθεί.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Η επαναφορά προγραμματίστηκε",
+  "config.backup.import_partial": "Η επαναφορά προγραμματίστηκε με προβλήματα",
+  "config.backup.restore_pending_note": "Η επαναφορά εκκρεμεί και θα ισχύσει μετά την επανεκκίνηση του AuraGo.",
+  "config.backup.error_http": "Ο διακομιστής έστειλε μη αναμενόμενη απάντηση (HTTP {status}).",
+  "config.backup.restore_pending_since": "Μια επαναφορά εκκρεμεί από {time} — επανεκκινήστε το AuraGo για να εφαρμοστεί.",
+  "config.backup.last_restore_applied": "Η τελευταία επαναφορά εφαρμόστηκε στις {time}.",
+  "config.backup.last_restore_rolled_back": "Η τελευταία επαναφορά από {time} αναιρέθηκε.",
+  "config.backup.last_restore_failed": "Η τελευταία επαναφορά από {time} απέτυχε."
 }

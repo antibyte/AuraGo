@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Import Backup",
   "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, login password, tokens) will be included.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Restoring \"{name}\" will replace this instance's configuration, prompts, data and skills, and the stored API keys and tokens if the archive contains vault secrets. Nothing changes until AuraGo is restarted; the files are applied at the next start. This cannot be undone.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Restore staged",
+  "config.backup.import_partial": "Restore staged with problems",
+  "config.backup.restore_pending_note": "The restore is pending and takes effect after AuraGo restarts.",
+  "config.backup.error_http": "The server sent an unexpected response (HTTP {status}).",
+  "config.backup.restore_pending_since": "A restore has been pending since {time} — restart AuraGo to apply it.",
+  "config.backup.last_restore_applied": "Last restore was applied on {time}.",
+  "config.backup.last_restore_rolled_back": "Last restore from {time} was rolled back.",
+  "config.backup.last_restore_failed": "Last restore from {time} failed."
 }

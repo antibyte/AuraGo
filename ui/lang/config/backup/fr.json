@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Importer une Sauvegarde",
   "config.backup.vault_included_hint": "🔐 Les secrets du vault (clés API, mot de passe, tokens) seront inclus.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "La restauration de « {name} » remplacera la configuration, les prompts, les données et les skills de cette instance, ainsi que les clés API et jetons enregistrés si l'archive contient des secrets du coffre. Rien ne change avant le redémarrage d'AuraGo ; les fichiers sont appliqués au prochain démarrage. Cette action est irréversible.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Restauration programmée",
+  "config.backup.import_partial": "Restauration programmée avec des problèmes",
+  "config.backup.restore_pending_note": "La restauration est en attente et prendra effet après le redémarrage d'AuraGo.",
+  "config.backup.error_http": "Le serveur a renvoyé une réponse inattendue (HTTP {status}).",
+  "config.backup.restore_pending_since": "Une restauration est en attente depuis {time} — redémarrez AuraGo pour l'appliquer.",
+  "config.backup.last_restore_applied": "La dernière restauration a été appliquée le {time}.",
+  "config.backup.last_restore_rolled_back": "La dernière restauration du {time} a été annulée.",
+  "config.backup.last_restore_failed": "La dernière restauration du {time} a échoué."
 }

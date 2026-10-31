@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Importovat zálohu",
   "config.backup.vault_included_hint": "🔐 Tajemství Vaultu (API klíče, přihlašovací heslo, tokeny) budou zahrnuta.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Obnova „{name}“ nahradí konfiguraci, prompty, data a skilly této instance i uložené API klíče a tokeny, pokud archiv obsahuje tajemství trezoru. Nic se nezmění, dokud se AuraGo nerestartuje; soubory se použijí při příštím spuštění. Nelze to vrátit zpět.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Obnova naplánována",
+  "config.backup.import_partial": "Obnova naplánována s problémy",
+  "config.backup.restore_pending_note": "Obnova čeká a projeví se po restartu AuraGo.",
+  "config.backup.error_http": "Server poslal neočekávanou odpověď (HTTP {status}).",
+  "config.backup.restore_pending_since": "Obnova čeká od {time} — restartujte AuraGo, aby se použila.",
+  "config.backup.last_restore_applied": "Poslední obnova byla použita {time}.",
+  "config.backup.last_restore_rolled_back": "Poslední obnova z {time} byla vrácena zpět.",
+  "config.backup.last_restore_failed": "Poslední obnova z {time} selhala."
 }

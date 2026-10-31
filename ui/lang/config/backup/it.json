@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Importa Backup",
   "config.backup.vault_included_hint": "🔐 I segreti del vault (chiavi API, password, token) saranno inclusi.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Il ripristino di \"{name}\" sostituirà configurazione, prompt, dati e skill di questa istanza, nonché le chiavi API e i token salvati se l'archivio contiene segreti del vault. Nulla cambia finché AuraGo non viene riavviato; i file vengono applicati al prossimo avvio. L'operazione non è reversibile.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Ripristino pianificato",
+  "config.backup.import_partial": "Ripristino pianificato con problemi",
+  "config.backup.restore_pending_note": "Il ripristino è in sospeso e avrà effetto dopo il riavvio di AuraGo.",
+  "config.backup.error_http": "Il server ha inviato una risposta inattesa (HTTP {status}).",
+  "config.backup.restore_pending_since": "Un ripristino è in sospeso dal {time}: riavvia AuraGo per applicarlo.",
+  "config.backup.last_restore_applied": "L'ultimo ripristino è stato applicato il {time}.",
+  "config.backup.last_restore_rolled_back": "L'ultimo ripristino del {time} è stato annullato.",
+  "config.backup.last_restore_failed": "L'ultimo ripristino del {time} non è riuscito."
 }

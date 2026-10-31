@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Backup Importeren",
   "config.backup.vault_included_hint": "🔐 Kluisgeheimen (API sleutels, inlogwachtwoord, tokens) worden inbegrepen.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Het herstellen van \"{name}\" vervangt de configuratie, prompts, gegevens en skills van deze instantie, en de opgeslagen API-sleutels en tokens als het archief vault-geheimen bevat. Er verandert niets totdat AuraGo opnieuw is gestart; de bestanden worden bij de volgende start toegepast. Dit kan niet ongedaan worden gemaakt.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Herstel ingepland",
+  "config.backup.import_partial": "Herstel ingepland met problemen",
+  "config.backup.restore_pending_note": "Het herstel staat in de wachtrij en wordt van kracht nadat AuraGo opnieuw is gestart.",
+  "config.backup.error_http": "De server stuurde een onverwacht antwoord (HTTP {status}).",
+  "config.backup.restore_pending_since": "Sinds {time} staat er een herstel in de wachtrij — start AuraGo opnieuw om het toe te passen.",
+  "config.backup.last_restore_applied": "Het laatste herstel is toegepast op {time}.",
+  "config.backup.last_restore_rolled_back": "Het laatste herstel van {time} is teruggedraaid.",
+  "config.backup.last_restore_failed": "Het laatste herstel van {time} is mislukt."
 }

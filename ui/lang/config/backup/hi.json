@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 बैकअप आयात करें",
   "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, लॉगिन पासवर्ड, tokens) शामिल होंगे।",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "\"{name}\" को पुनर्स्थापित करने से इस इंस्टेंस का कॉन्फ़िगरेशन, प्रॉम्प्ट, डेटा और स्किल्स बदल जाएँगे, और यदि आर्काइव में वॉल्ट सीक्रेट हैं तो सहेजी गई API कुंजियाँ और टोकन भी बदल जाएँगे। AuraGo के पुनः आरंभ होने तक कुछ नहीं बदलता; फ़ाइलें अगले आरंभ पर लागू होती हैं। इसे पूर्ववत नहीं किया जा सकता।",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "पुनर्स्थापना निर्धारित",
+  "config.backup.import_partial": "पुनर्स्थापना निर्धारित, लेकिन समस्याओं के साथ",
+  "config.backup.restore_pending_note": "पुनर्स्थापना लंबित है और AuraGo के पुनः आरंभ होने के बाद प्रभावी होगी।",
+  "config.backup.error_http": "सर्वर ने अप्रत्याशित प्रतिक्रिया भेजी (HTTP {status})।",
+  "config.backup.restore_pending_since": "{time} से एक पुनर्स्थापना लंबित है — इसे लागू करने के लिए AuraGo को पुनः आरंभ करें।",
+  "config.backup.last_restore_applied": "पिछली पुनर्स्थापना {time} को लागू की गई थी।",
+  "config.backup.last_restore_rolled_back": "{time} की पिछली पुनर्स्थापना वापस ले ली गई।",
+  "config.backup.last_restore_failed": "{time} की पिछली पुनर्स्थापना विफल रही।"
 }

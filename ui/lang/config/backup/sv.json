@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Importera säkerhetskopia",
   "config.backup.vault_included_hint": "🔐 Valvhemligheter (API-nycklar, inloggningslösenord, tokens) inkluderas.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Återställning av \"{name}\" ersätter den här instansens konfiguration, prompter, data och skills samt sparade API-nycklar och token om arkivet innehåller valvhemligheter. Inget ändras förrän AuraGo startas om; filerna tillämpas vid nästa start. Det går inte att ångra.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Återställning schemalagd",
+  "config.backup.import_partial": "Återställning schemalagd med problem",
+  "config.backup.restore_pending_note": "Återställningen väntar och träder i kraft när AuraGo startas om.",
+  "config.backup.error_http": "Servern skickade ett oväntat svar (HTTP {status}).",
+  "config.backup.restore_pending_since": "En återställning har väntat sedan {time} — starta om AuraGo för att tillämpa den.",
+  "config.backup.last_restore_applied": "Senaste återställningen tillämpades {time}.",
+  "config.backup.last_restore_rolled_back": "Senaste återställningen från {time} återfördes.",
+  "config.backup.last_restore_failed": "Senaste återställningen från {time} misslyckades."
 }

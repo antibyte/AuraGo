@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Backup importieren",
   "config.backup.vault_included_hint": "🔐 Vault-Secrets (API-Keys, Login-Passwort, Tokens) werden eingeschlossen.",
   "config.backup.confirm_import_title": "Dieses Backup wiederherstellen?",
-  "config.backup.confirm_import_message": "Der Import von \"{name}\" überschreibt diese Instanz: Konfiguration, Prompts, Daten und Skills aus dem Archiv ersetzen die aktuellen, und gespeicherte API-Schlüssel und Tokens werden ersetzt, falls das Archiv Tresor-Geheimnisse enthält. Das lässt sich nicht rückgängig machen, anschließend ist ein Neustart von AuraGo nötig.",
+  "config.backup.confirm_import_message": "Die Wiederherstellung von \"{name}\" ersetzt Konfiguration, Prompts, Daten und Skills dieser Instanz sowie die gespeicherten API-Schlüssel und Tokens, falls das Archiv Vault-Secrets enthält. Bis zum Neustart von AuraGo ändert sich nichts; die Dateien werden beim nächsten Start angewendet. Das lässt sich nicht rückgängig machen.",
   "config.backup.unknown_error": "Unbekannter Fehler",
-  "config.backup.toggle_visibility": "Passwort ein- oder ausblenden"
+  "config.backup.toggle_visibility": "Passwort ein- oder ausblenden",
+  "config.backup.import_staged": "Wiederherstellung vorgemerkt",
+  "config.backup.import_partial": "Wiederherstellung vorgemerkt, aber mit Problemen",
+  "config.backup.restore_pending_note": "Die Wiederherstellung steht aus und wird nach einem Neustart von AuraGo wirksam.",
+  "config.backup.error_http": "Der Server hat eine unerwartete Antwort gesendet (HTTP {status}).",
+  "config.backup.restore_pending_since": "Seit {time} steht eine Wiederherstellung aus — AuraGo neu starten, um sie anzuwenden.",
+  "config.backup.last_restore_applied": "Die letzte Wiederherstellung wurde am {time} angewendet.",
+  "config.backup.last_restore_rolled_back": "Die letzte Wiederherstellung vom {time} wurde zurückgerollt.",
+  "config.backup.last_restore_failed": "Die letzte Wiederherstellung vom {time} ist fehlgeschlagen."
 }

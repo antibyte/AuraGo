@@ -30,7 +30,15 @@
   "config.backup.tab_import": "📥 Importér backup",
   "config.backup.vault_included_hint": "🔐 Vault-hemmeligheder (API-nøgler, login-adgangskoder, tokens) inkluderes.",
   "config.backup.confirm_import_title": "Restore this backup?",
-  "config.backup.confirm_import_message": "Importing \"{name}\" overwrites this instance: the configuration, prompts, data and skills in the archive replace the current ones, and stored API keys and tokens are replaced if the archive contains vault secrets. This cannot be undone and AuraGo needs a restart afterwards.",
+  "config.backup.confirm_import_message": "Gendannelse af \"{name}\" erstatter denne instans' konfiguration, prompts, data og skills samt gemte API-nøgler og tokens, hvis arkivet indeholder vault-hemmeligheder. Intet ændres, før AuraGo genstartes; filerne anvendes ved næste start. Det kan ikke fortrydes.",
   "config.backup.unknown_error": "Unknown error",
-  "config.backup.toggle_visibility": "Show or hide password"
+  "config.backup.toggle_visibility": "Show or hide password",
+  "config.backup.import_staged": "Gendannelse planlagt",
+  "config.backup.import_partial": "Gendannelse planlagt med problemer",
+  "config.backup.restore_pending_note": "Gendannelsen afventer og træder i kraft, når AuraGo genstartes.",
+  "config.backup.error_http": "Serveren sendte et uventet svar (HTTP {status}).",
+  "config.backup.restore_pending_since": "En gendannelse har ventet siden {time} — genstart AuraGo for at anvende den.",
+  "config.backup.last_restore_applied": "Seneste gendannelse blev anvendt {time}.",
+  "config.backup.last_restore_rolled_back": "Seneste gendannelse fra {time} blev rullet tilbage.",
+  "config.backup.last_restore_failed": "Seneste gendannelse fra {time} mislykkedes."
 }
