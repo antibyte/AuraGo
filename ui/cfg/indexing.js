@@ -34,10 +34,10 @@
             const enabledVal = configData.indexing && configData.indexing.enabled;
             html += `<div class="cfg-field idx-field-block">
                 <div class="idx-field-row">
-                    <label class="idx-field-label">${t('config.indexing.enabled_label')}</label>
-                    <div class="toggle ${enabledVal ? 'on' : ''}" onclick="toggleBool(this)" data-path="indexing.enabled"></div>
+                    <span class="idx-field-label" id="idx-enabled-label">${t('config.indexing.enabled_label')}</span>
+                    <div class="toggle ${enabledVal ? 'on' : ''}" role="switch" aria-labelledby="idx-enabled-label" aria-describedby="idx-enabled-help" onclick="toggleBool(this)" data-path="indexing.enabled"></div>
                 </div>
-                <div class="idx-field-help">
+                <div class="idx-field-help" id="idx-enabled-help">
                     ${t('config.indexing.enabled_desc')}
                 </div>
             </div>`;
@@ -126,11 +126,13 @@
 
             html += `</div>
                 <div class="idx-add-row">
-                    <input type="text" id="idx-new-dir" placeholder="${t('config.indexing.dir_placeholder')}"
+                    <input type="text" id="idx-new-dir" placeholder="${escapeAttr(t('config.indexing.dir_placeholder'))}"
+                        aria-label="${escapeAttr(t('config.indexing.dir_label'))}" aria-describedby="idx-new-dir-help"
                         class="idx-dir-input"
                         onkeydown="if(event.key==='Enter')idxAddDir()">
                     <button class="btn-save idx-add-btn" id="idx-add-btn" onclick="idxAddDir()">+ ${t('config.indexing.add')}</button>
                 </div>
+                <div class="idx-field-help idx-field-help-tight" id="idx-new-dir-help">${t('config.indexing.dir_help')}</div>
                 ${cfgActionResult.html('idx-dir-msg', 'idx-field-help')}
             </div>`;
 
@@ -180,50 +182,56 @@
             // Poll interval
             const poll = indexingCfg.poll_interval_seconds || 60;
             html += `<div class="cfg-field idx-field-block idx-field-block-top">
-                <label class="idx-field-label">${t('config.indexing.poll_interval')}</label>
-                <input type="number" min="10" max="3600" value="${poll}"
+                <label class="idx-field-label" for="idx-poll-interval">${t('config.indexing.poll_interval')}</label>
+                <input type="number" id="idx-poll-interval" aria-describedby="idx-poll-help" min="10" max="3600" value="${poll}"
                     data-path="indexing.poll_interval_seconds"
                     oninput="setNestedValue(configData,'indexing.poll_interval_seconds', parseInt(this.value));markDirty()"
                     class="idx-poll-input">
-                <div class="idx-field-help idx-field-help-tight">
+                <div class="idx-field-help idx-field-help-tight" id="idx-poll-help">
                     ${t('config.indexing.poll_help')}
                 </div>
             </div>`;
 
             html += `<div class="cfg-field idx-field-block idx-field-block-xl">
-                <label class="idx-field-label">${t('config.indexing.chunking_strategy')}</label>
-                <select data-path="indexing.chunking.strategy"
+                <label class="idx-field-label" for="idx-chunk-strategy">${t('config.indexing.chunking_strategy')}</label>
+                <select id="idx-chunk-strategy" aria-describedby="idx-chunk-strategy-help" data-path="indexing.chunking.strategy"
                     onchange="setNestedValue(configData,'indexing.chunking.strategy', this.value);markDirty()"
                     class="field-select idx-poll-input">
                     <option value="recursive" ${chunkingStrategy === 'recursive' ? 'selected' : ''}>${t('config.indexing.chunking_recursive')}</option>
                     <option value="legacy" ${chunkingStrategy === 'legacy' ? 'selected' : ''}>${t('config.indexing.chunking_legacy')}</option>
                 </select>
-                <div class="idx-field-help idx-field-help-tight">
+                <div class="idx-field-help idx-field-help-tight" id="idx-chunk-strategy-help">
                     ${t('config.indexing.chunking_help')}
                 </div>
             </div>
             <div class="cfg-field idx-field-block idx-field-block-xl">
-                <label class="idx-field-label">${t('config.indexing.chunk_max_chars')}</label>
-                <input type="number" min="500" max="50000" value="${chunkMaxChars}"
+                <label class="idx-field-label" for="idx-chunk-max-chars">${t('config.indexing.chunk_max_chars')}</label>
+                <input type="number" id="idx-chunk-max-chars" aria-describedby="idx-chunk-max-chars-help" min="500" max="50000" value="${chunkMaxChars}"
                     data-path="indexing.chunking.max_chars"
                     oninput="setNestedValue(configData,'indexing.chunking.max_chars', parseInt(this.value));markDirty()"
                     class="idx-poll-input">
+                <div class="idx-field-help idx-field-help-tight" id="idx-chunk-max-chars-help">
+                    ${t('config.indexing.chunk_max_chars_help')}
+                </div>
             </div>
             <div class="cfg-field idx-field-block idx-field-block-xl">
-                <label class="idx-field-label">${t('config.indexing.chunk_overlap_chars')}</label>
-                <input type="number" min="1" max="5000" value="${chunkOverlapChars}"
+                <label class="idx-field-label" for="idx-chunk-overlap">${t('config.indexing.chunk_overlap_chars')}</label>
+                <input type="number" id="idx-chunk-overlap" aria-describedby="idx-chunk-overlap-help" min="1" max="5000" value="${chunkOverlapChars}"
                     data-path="indexing.chunking.overlap_chars"
                     oninput="setNestedValue(configData,'indexing.chunking.overlap_chars', parseInt(this.value));markDirty()"
                     class="idx-poll-input">
+                <div class="idx-field-help idx-field-help-tight" id="idx-chunk-overlap-help">
+                    ${t('config.indexing.chunk_overlap_help')}
+                </div>
             </div>
             <div class="cfg-field idx-field-block idx-field-block-xl">
-                <label class="idx-field-label">${t('config.indexing.chunk_max_chunks')}</label>
-                <input type="number" min="1" max="2000" value="${chunkMaxChunks}"
+                <label class="idx-field-label" for="idx-chunk-max-chunks">${t('config.indexing.chunk_max_chunks')}</label>
+                <input type="number" id="idx-chunk-max-chunks" aria-describedby="idx-chunk-max-chunks-help" min="1" max="2000" value="${chunkMaxChunks}"
                     data-path="indexing.chunking.max_chunks_per_file"
                     oninput="setNestedValue(configData,'indexing.chunking.max_chunks_per_file', parseInt(this.value));markDirty()"
                     class="idx-poll-input">
-                <div class="idx-field-help idx-field-help-tight">
-                    ${t('config.indexing.chunking_reindex_notice')}
+                <div class="idx-field-help idx-field-help-tight" id="idx-chunk-max-chunks-help">
+                    ${t('config.indexing.chunk_max_chunks_help')} ${t('config.indexing.chunking_reindex_notice')}
                 </div>
             </div>`;
 
@@ -231,10 +239,10 @@
             const indexImagesVal = indexingCfg.index_images;
             html += `<div class="cfg-field idx-field-block idx-field-block-xl">
                 <div class="idx-field-row">
-                    <label class="idx-field-label">🖼️ ${t('config.indexing.index_images_label')}</label>
-                    <div class="toggle ${indexImagesVal ? 'on' : ''}" onclick="toggleBool(this)" data-path="indexing.index_images"></div>
+                    <span class="idx-field-label" id="idx-index-images-label">🖼️ ${t('config.indexing.index_images_label')}</span>
+                    <div class="toggle ${indexImagesVal ? 'on' : ''}" role="switch" aria-labelledby="idx-index-images-label" aria-describedby="idx-index-images-help" onclick="toggleBool(this)" data-path="indexing.index_images"></div>
                 </div>
-                <div class="idx-field-help">
+                <div class="idx-field-help" id="idx-index-images-help">
                     ${t('config.indexing.index_images_desc')}
                 </div>
                 <div class="idx-field-help idx-field-help-tight">

@@ -33,7 +33,7 @@ async function renderCloudflareTunnelSection(section) {
             <span class="cft-toggle-label">${t('config.cloudflare_tunnel.enabled_label')}</span>
             <div class="field-help">${t('config.cloudflare_tunnel.enabled_help')}</div>
         </div>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="cloudflare_tunnel.enabled" onclick="toggleBool(this)"></div>
+        <div class="toggle ${enabled ? 'on' : ''}" role="switch" aria-label="${escapeAttr(t('config.cloudflare_tunnel.enabled_label'))}" data-path="cloudflare_tunnel.enabled" onclick="toggleBool(this)"></div>
     </div>`;
 
     if (!enabled) {
@@ -51,7 +51,7 @@ async function renderCloudflareTunnelSection(section) {
             <span class="cft-toggle-label">${t('config.cloudflare_tunnel.readonly_label')}</span>
             <div class="field-help">${t('config.cloudflare_tunnel.readonly_help')}</div>
         </div>
-        <div class="toggle ${readOnly ? 'on' : ''}" data-path="cloudflare_tunnel.readonly" onclick="toggleBool(this)"></div>
+        <div class="toggle ${readOnly ? 'on' : ''}" role="switch" aria-label="${escapeAttr(t('config.cloudflare_tunnel.readonly_label'))}" data-path="cloudflare_tunnel.readonly" onclick="toggleBool(this)"></div>
     </div>`;
 
     html += `<div class="cft-toggle-row">
@@ -59,7 +59,7 @@ async function renderCloudflareTunnelSection(section) {
             <span class="cft-toggle-label">${t('config.cloudflare_tunnel.auto_start_label')}</span>
             <div class="field-help">${t('config.cloudflare_tunnel.auto_start_help')}</div>
         </div>
-        <div class="toggle ${autoStart ? 'on' : ''}" data-path="cloudflare_tunnel.auto_start" onclick="toggleBool(this)"></div>
+        <div class="toggle ${autoStart ? 'on' : ''}" role="switch" aria-label="${escapeAttr(t('config.cloudflare_tunnel.auto_start_label'))}" data-path="cloudflare_tunnel.auto_start" onclick="toggleBool(this)"></div>
     </div>`;
     html += `</div>`;
 
@@ -142,12 +142,13 @@ async function renderCloudflareTunnelSection(section) {
                 <span class="cft-toggle-label">${t('config.cloudflare_tunnel.loopback_label')}</span>
                 <div class="field-help">${t('config.cloudflare_tunnel.loopback_hint')}</div>
             </div>
-            <div class="toggle ${loopbackEnabled ? 'on' : ''}" onclick="cloudflareTunnelToggleLoopback(this)"></div>
+            <div class="toggle ${loopbackEnabled ? 'on' : ''}" role="switch" aria-label="${escapeAttr(t('config.cloudflare_tunnel.loopback_label'))}" onclick="cloudflareTunnelToggleLoopback(this)"></div>
         </div>`;
         html += `<div id="cf-loopback-port-row" class="cf-loopback-hint${loopbackEnabled ? '' : ' is-hidden'}">
             → http://127.0.0.1:<input type="number" min="0" max="65535" step="1" value="${loopbackEnabled ? loopbackPortVal : 0}"
                 data-path="cloudflare_tunnel.loopback_port"
                 class="cf-loopback-port-input"
+                aria-label="${escapeAttr(t('config.cloudflare_tunnel.loopback_label'))}"
                 onchange="cloudflareTunnelChangeLoopbackPort(this.value)">
         </div>`;
         html += `<div class="wh-notice cft-notice-info cf-notice-loopback">

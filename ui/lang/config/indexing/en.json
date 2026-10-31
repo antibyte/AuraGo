@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Images are only sent for directories where media sharing is switched on in the list above.",
   "config.indexing.rescan_starting": "Starting scan…",
   "config.indexing.rescan_started": "Scan started",
-  "config.indexing.rescan_failed": "Scan could not be started"
+  "config.indexing.rescan_failed": "Scan could not be started",
+  "config.indexing.dir_label": "Directory to watch",
+  "config.indexing.dir_help": "Folder whose files are indexed, as an absolute path or relative to the AuraGo folder. Subfolders are included. Add it with the button or Enter.",
+  "config.indexing.chunk_max_chars_help": "Maximum length of a single text chunk in characters. Smaller chunks give more precise hits, larger ones more context. Default: 3500.",
+  "config.indexing.chunk_overlap_help": "Characters shared between neighboring chunks so that sentences at the borders are not cut off. Default: 200.",
+  "config.indexing.chunk_max_chunks_help": "Maximum number of chunks created per file; the rest of very large files is skipped. Default: 200."
 }

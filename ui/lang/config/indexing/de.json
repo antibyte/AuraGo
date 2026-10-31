@@ -89,5 +89,10 @@
   "config.indexing.index_images_per_folder_hint": "Bilder werden nur für Verzeichnisse gesendet, bei denen die Medienfreigabe in der Liste oben eingeschaltet ist.",
   "config.indexing.rescan_starting": "Scan wird gestartet…",
   "config.indexing.rescan_started": "Scan gestartet",
-  "config.indexing.rescan_failed": "Scan konnte nicht gestartet werden"
+  "config.indexing.rescan_failed": "Scan konnte nicht gestartet werden",
+  "config.indexing.dir_label": "Zu überwachender Ordner",
+  "config.indexing.dir_help": "Ordner, dessen Dateien indexiert werden, als absoluter Pfad oder relativ zum AuraGo-Ordner. Unterordner sind eingeschlossen. Mit der Schaltfläche oder Enter hinzufügen.",
+  "config.indexing.chunk_max_chars_help": "Maximale Länge eines einzelnen Textabschnitts in Zeichen. Kleinere Abschnitte liefern genauere Treffer, größere mehr Kontext. Standard: 3500.",
+  "config.indexing.chunk_overlap_help": "Zeichen, die sich benachbarte Abschnitte teilen, damit Sätze an den Grenzen nicht abgeschnitten werden. Standard: 200.",
+  "config.indexing.chunk_max_chunks_help": "Maximale Anzahl Abschnitte pro Datei; der Rest sehr großer Dateien wird übersprungen. Standard: 200."
 }
