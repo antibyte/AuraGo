@@ -4,7 +4,8 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    background: var(--vd-theme-app-bg);
+    /* App materials (docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md): regions read their --vd-mat-* token, the old value is the fallback. */
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     color: var(--vd-text);
 }
 
@@ -14,8 +15,9 @@
     justify-content: space-between;
     padding: var(--vd-toolbar-padding);
     gap: 6px;
-    border-bottom: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-chrome-bg);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
     flex-shrink: 0;
 
     min-height: 42px;
@@ -37,6 +39,8 @@
 }
 
 .vd-viewer-filename {
+    font-family: var(--vd-mat-heading-font, inherit);
+    color: var(--vd-mat-heading-color, inherit);
     font-size: 13px;
     font-weight: 500;
     overflow: hidden;
@@ -53,12 +57,13 @@
 .vd-viewer-sep {
     width: 1px;
     height: 16px;
-    background: var(--vd-theme-border);
+    background: var(--vd-mat-divider, var(--vd-theme-border));
     margin: 0 4px;
 }
 
 .vd-viewer-zoom-label,
 .vd-viewer-page-label {
+    font-family: var(--vd-mat-mono-font, inherit);
     font-size: 12px;
     color: var(--vd-theme-muted);
     min-width: 40px;
@@ -70,7 +75,9 @@
     display: flex;
     gap: 2px;
     padding: 2px 8px;
-    border-bottom: 1px solid var(--vd-theme-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, transparent);
+    box-shadow: var(--vd-mat-bar-edge, none);
     flex-shrink: 0;
     overflow-x: auto;
 }
@@ -87,20 +94,23 @@
 }
 
 .vd-viewer-sheet-tab:hover {
-    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
+    background: var(--vd-mat-hover, var(--vd-theme-control-hover, var(--vd-theme-control-bg)));
     color: var(--vd-text);
 }
 
 .vd-viewer-sheet-tab.active {
-    background: var(--vd-theme-control-hover, var(--vd-theme-control-bg));
-    color: var(--vd-text);
+    background: var(--vd-mat-selected, var(--vd-theme-control-hover, var(--vd-theme-control-bg)));
+    color: var(--vd-mat-selected-text, var(--vd-text));
     font-weight: 500;
 }
 
+/* The document area is a recessed well: pages, sheets and rendered text sit on it like on a desk. */
 .vd-viewer-content {
     flex: 1;
     overflow: auto;
     padding: 0;
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-viewer-loading,
@@ -132,7 +142,10 @@
 .vd-viewer-md h5,
 .vd-viewer-md h6 {
     margin: 16px 0 8px;
-    color: var(--vd-text);
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, bold);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    color: var(--vd-mat-heading-color, var(--vd-text));
 }
 
 .vd-viewer-md h1 { font-size: 22px; }
@@ -144,7 +157,7 @@
 }
 
 .vd-viewer-md pre {
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-card-color, var(--vd-theme-control-bg));
     border-radius: var(--ds-radius-sm);
     padding: 12px 16px;
     overflow-x: auto;
@@ -157,13 +170,13 @@
 }
 
 .vd-viewer-md :not(pre) > code {
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-card-color, var(--vd-theme-control-bg));
     padding: 1px 5px;
     border-radius: var(--ds-radius-xs);
 }
 
 .vd-viewer-md blockquote {
-    border-left: 3px solid var(--vd-theme-border-strong, var(--vd-theme-border));
+    border-left: 3px solid var(--vd-mat-accent-2, var(--vd-theme-border-strong, var(--vd-theme-border)));
     margin: 8px 0;
     padding: 4px 16px;
     color: var(--vd-theme-muted);
@@ -177,13 +190,13 @@
 
 .vd-viewer-md th,
 .vd-viewer-md td {
-    border: 1px solid var(--vd-theme-border);
+    border: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
     padding: 6px 10px;
     text-align: left;
 }
 
 .vd-viewer-md th {
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-bar-color, var(--vd-theme-control-bg));
     font-weight: 600;
 }
 
@@ -215,7 +228,10 @@
 .vd-viewer-docx h2,
 .vd-viewer-docx h3 {
     margin: 16px 0 8px;
-    color: var(--vd-text);
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, bold);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    color: var(--vd-mat-heading-color, var(--vd-text));
 }
 
 .vd-viewer-docx h1 { font-size: 22px; }
@@ -258,7 +274,7 @@
 
 .vd-viewer-grid th,
 .vd-viewer-grid td {
-    border: 1px solid var(--vd-theme-border);
+    border: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
     padding: 4px 8px;
     white-space: nowrap;
     overflow: hidden;
@@ -268,7 +284,7 @@
 }
 
 .vd-viewer-grid thead th {
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-bar-color, var(--vd-theme-control-bg));
     color: var(--vd-theme-muted);
     font-weight: 500;
     text-align: center;
@@ -283,7 +299,7 @@
 }
 
 .vd-viewer-grid tbody th {
-    background: var(--vd-theme-control-bg);
+    background: var(--vd-mat-bar-color, var(--vd-theme-control-bg));
     color: var(--vd-theme-muted);
     font-weight: 400;
     text-align: center;

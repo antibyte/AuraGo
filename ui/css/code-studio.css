@@ -39,6 +39,10 @@
     --cs-transition-fast: 0.12s ease;
     --cs-transition-normal: 0.2s ease;
     --cs-transition-slow: 0.22s ease;
+    /* App materials: the active desktop theme (desktop-materials*.css) paints the regions; every previous flat paint stays as
+       the fallback. These role aliases are new names, so the shared !important --cs-* bridge does not touch them. */
+    --cs-line: var(--vd-mat-divider, var(--cs-border));
+    --cs-hover: var(--vd-mat-hover, var(--cs-accent-soft));
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -46,7 +50,7 @@
     min-height: 0;
     font-family: var(--cs-ui-font);
     color: var(--cs-text);
-    background: var(--cs-bg);
+    background: var(--vd-mat-canvas, var(--cs-bg));
     overflow: hidden;
 }
 
@@ -60,8 +64,8 @@
     gap: 8px;
     min-height: 34px;
     padding: 6px 10px;
-    border-bottom: 1px solid var(--cs-border);
-    background: var(--cs-panel);
+    border-bottom: 1px solid var(--cs-line);
+    background: var(--vd-mat-bar-color, var(--cs-panel));
 
     font-size: 12px;
 }
@@ -72,8 +76,9 @@
     padding: 4px 10px;
     gap: 2px;
     min-height: 42px;
-    background: var(--vd-theme-chrome-bg);
-    border-bottom: 1px solid var(--cs-border);
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    border-bottom: 1px solid var(--cs-line);
+    box-shadow: var(--vd-mat-bar-edge, none);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }
@@ -88,7 +93,7 @@
     width: 1px;
     height: 20px;
     margin: 0 4px;
-    background: var(--cs-border);
+    background: var(--cs-line);
 }
 
 .code-studio-toolbar .cs-toolbar-filename {
@@ -97,14 +102,15 @@
     text-align: center;
     font-size: 12px;
     font-weight: 500;
-    color: var(--cs-muted);
+    font-family: var(--vd-mat-heading-font, inherit);
+    color: var(--vd-mat-heading-color, var(--cs-muted));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .code-studio-toolbar .cs-toolbar-filename strong {
-    color: var(--cs-text);
+    color: var(--vd-mat-heading-color, var(--cs-text));
     font-weight: 600;
 }
 
@@ -114,10 +120,11 @@
     font-size: 11px;
     font-family: var(--cs-ui-font);
     color: var(--cs-muted);
-    border-top: 1px solid var(--cs-border);
+    border-top: 1px solid var(--cs-line);
     border-bottom: 0;
     padding: 0 10px;
-    background: var(--cs-panel);
+    background: var(--vd-mat-bar, var(--cs-panel));
+    box-shadow: var(--vd-mat-bar-edge, none);
     gap: 12px;
 }
 
@@ -136,7 +143,7 @@
     grid-template-rows: auto minmax(0, 1fr);
     gap: 8px;
     max-height: min(320px, 45%);
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--cs-line);
 }
 
 .code-studio-search[hidden] {
@@ -163,10 +170,11 @@
     height: 30px;
     min-width: 0;
     padding: 0 9px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-sm);
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm));
     color: var(--cs-text);
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .cs-search-form input[type="checkbox"] {
@@ -188,14 +196,17 @@
     align-content: start;
     max-height: 240px;
     overflow: auto;
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .cs-search-summary {
     padding: 2px 6px;
-    color: var(--cs-muted);
+    color: var(--vd-mat-label-color, var(--cs-muted));
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    letter-spacing: var(--vd-mat-label-tracking, 0.4px);
 }
 
 .cs-search-result {
@@ -215,7 +226,7 @@
 
 .cs-search-result:hover {
     border-color: var(--cs-accent-border);
-    background: var(--cs-accent-soft);
+    background: var(--cs-hover);
 }
 
 .cs-search-result span,
@@ -247,6 +258,8 @@
 .code-studio[data-sidebar="hidden"] .code-studio-activity-bar .cs-activity-btn[data-activity="explorer"].active {
     color: var(--cs-muted);
     opacity: 0.7;
+    background: transparent;
+    box-shadow: none;
 }
 
 .code-studio[data-sidebar="hidden"] .code-studio-activity-bar .cs-activity-btn[data-activity="explorer"].active::before {
@@ -261,8 +274,9 @@
     width: var(--cs-sidebar-width);
     min-width: 0;
     overflow: hidden;
-    border-right: 1px solid var(--cs-border);
-    background: var(--vd-theme-panel-bg);
+    border-right: 1px solid var(--cs-line);
+    background: var(--vd-mat-side, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-side-edge, none);
 }
 
 .code-studio-sidebar.dragover {
@@ -293,8 +307,8 @@
     min-width: 320px;
     min-height: 0;
     overflow: hidden;
-    border-left: 1px solid var(--cs-border);
-    background: var(--cs-panel);
+    border-left: 1px solid var(--cs-line);
+    background: var(--vd-mat-side, var(--cs-panel));
     box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22);
 }
 
@@ -321,10 +335,11 @@
     justify-content: center;
     gap: 6px;
     height: 28px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-sm);
-    color: var(--cs-text);
-    background: var(--cs-panel-soft);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
+    border-radius: var(--vd-mat-btn-radius, var(--ds-radius-sm));
+    color: var(--vd-mat-btn-text, var(--cs-text));
+    background: var(--vd-mat-btn, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
     transition: border-color 0.12s, background 0.12s, color 0.12s, box-shadow 0.12s;
 }
@@ -361,29 +376,35 @@
 }
 
 .cs-button:hover,
-.cs-icon-button:hover,
+.cs-icon-button:hover {
+    border-color: var(--cs-accent-border);
+    background: var(--vd-mat-btn-hover, var(--cs-accent-soft));
+}
+
 .cs-tab:hover,
 .cs-file-row:hover {
     border-color: var(--cs-accent-border);
-    background: var(--cs-accent-soft);
+    background: var(--cs-hover);
 }
 
-.cs-button.primary {
-    color: var(--cs-accent-contrast);
-    background: var(--cs-accent);
-    border-color: var(--cs-accent);
+.cs-button.primary,
+.cs-icon-button.primary {
+    color: var(--vd-mat-primary-text, var(--cs-accent-contrast));
+    background: var(--vd-mat-primary, var(--cs-accent));
+    border-color: var(--vd-mat-primary-border, var(--cs-accent));
+    box-shadow: var(--vd-mat-primary-shadow, none);
+}
+
+.cs-button.primary:hover,
+.cs-icon-button.primary:hover {
+    background: var(--vd-mat-primary-hover, var(--cs-accent));
+    border-color: var(--vd-mat-primary-border, var(--cs-accent));
 }
 
 .cs-button.danger {
     color: #21070b;
     background: var(--cs-danger);
     border-color: var(--cs-danger);
-}
-
-.cs-icon-button.primary {
-    color: var(--cs-accent-contrast);
-    background: var(--cs-accent);
-    border-color: var(--cs-accent);
 }
 
 .cs-toolbar-modified {
@@ -397,8 +418,8 @@
     flex-direction: column;
     width: 48px;
     min-width: 48px;
-    background: var(--cs-panel);
-    border-right: 1px solid var(--cs-border);
+    background: var(--vd-mat-bar-color, var(--cs-panel));
+    border-right: 1px solid var(--cs-line);
     padding: 6px 0;
     gap: 2px;
     z-index: 2;
@@ -422,12 +443,13 @@
 .cs-activity-btn:hover {
     color: var(--cs-text);
     opacity: 1;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.04));
 }
 
 .cs-activity-btn.active {
-    color: var(--cs-accent);
+    color: var(--vd-mat-selected-text, var(--cs-accent));
     opacity: 1;
+    background: var(--vd-mat-selected, transparent);
 }
 
 .cs-activity-btn.active::before {
@@ -457,8 +479,8 @@
     align-items: center;
     min-height: 26px;
     padding: 0 12px;
-    background: var(--cs-panel-soft);
-    border-bottom: 1px solid var(--cs-border);
+    background: var(--vd-mat-bar-color, var(--cs-panel-soft));
+    border-bottom: 1px solid var(--cs-line);
     font-size: 12px;
     color: var(--cs-muted);
     overflow: hidden;
@@ -483,7 +505,7 @@
 
 .cs-breadcrumb-item:hover {
     color: var(--cs-text);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.06));
 }
 
 .cs-breadcrumb-item.current {
@@ -554,7 +576,7 @@
     align-items: stretch;
     gap: 4px;
     padding: 6px 8px 6px 10px;
-    background: var(--cs-panel-glass);
+    background: var(--vd-mat-bar-color, var(--cs-panel-glass));
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
 }
@@ -569,9 +591,10 @@
 
 .cs-sidebar-head strong {
     font-size: 11px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--cs-muted);
+    font-family: var(--vd-mat-label-font, inherit);
+    letter-spacing: var(--vd-mat-label-tracking, 0.5px);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cs-muted));
 }
 
 .cs-sidebar-tools {
@@ -597,7 +620,7 @@
 .cs-sidebar-tool:hover,
 .cs-sidebar-tool:focus-visible {
     color: var(--cs-text);
-    background: var(--cs-accent-soft);
+    background: var(--cs-hover);
     border-color: var(--cs-accent-border);
     outline: 0;
 }
@@ -636,7 +659,7 @@
 button.cs-sidebar-crumb:hover,
 button.cs-sidebar-crumb:focus-visible {
     color: var(--cs-text);
-    background: var(--cs-accent-soft);
+    background: var(--cs-hover);
     outline: 0;
 }
 
@@ -706,10 +729,10 @@ button.cs-sidebar-crumb:focus-visible {
     justify-content: center;
     min-width: 22px;
     height: 22px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-sm);
-    color: var(--cs-muted);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
+    border-radius: var(--vd-mat-btn-radius, var(--ds-radius-sm));
+    color: var(--vd-mat-btn-text, var(--cs-muted));
+    background: var(--vd-mat-btn-color, rgba(255, 255, 255, 0.03));
     font-size: 11px;
 }
 
@@ -749,8 +772,8 @@ button.cs-sidebar-crumb:focus-visible {
     height: 36px;
     overflow-x: auto;
     overflow-y: hidden;
-    border-bottom: 1px solid var(--cs-border);
-    background: var(--cs-panel);
+    border-bottom: 1px solid var(--cs-line);
+    background: var(--vd-mat-bar-color, var(--cs-panel));
     scrollbar-width: thin;
 }
 
@@ -773,16 +796,16 @@ button.cs-sidebar-crumb:focus-visible {
     padding: 0 8px;
     border: 0;
     flex-shrink: 0;
-    border-right: 1px solid var(--cs-border);
+    border-right: 1px solid var(--cs-line);
     color: var(--cs-muted);
     background: transparent;
     cursor: pointer;
 }
 
 .cs-tab.active {
-    color: var(--cs-text);
-    background: var(--cs-panel-soft);
-    box-shadow: inset 0 2px 0 var(--cs-accent);
+    color: var(--vd-mat-selected-text, var(--cs-text));
+    background: var(--vd-mat-selected, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-selected-edge, inset 0 2px 0 var(--cs-accent));
     position: relative;
 }
 
@@ -793,7 +816,7 @@ button.cs-sidebar-crumb:focus-visible {
     left: 0;
     right: 0;
     height: 1px;
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-selected-color, var(--cs-panel-soft));
 }
 
 .cs-tab span:first-child {
@@ -913,7 +936,7 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .code-studio-preview {
-    border-left: 1px solid var(--cs-border);
+    border-left: 1px solid var(--cs-line);
     color: var(--cs-text);
 }
 
@@ -921,7 +944,7 @@ button.cs-sidebar-crumb:focus-visible {
     flex: 0 0 var(--cs-terminal-height);
     height: var(--cs-terminal-height);
     min-height: 0;
-    border-top: 1px solid var(--cs-border);
+    border-top: 1px solid var(--cs-line);
     background: var(--cs-panel);
     display: flex;
     flex-direction: column;
@@ -932,6 +955,8 @@ button.cs-sidebar-crumb:focus-visible {
     min-height: 30px;
     padding: 4px 8px;
     font-size: 12px;
+    background: var(--vd-mat-bar, var(--cs-panel));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .cs-terminal-screen {
@@ -954,7 +979,7 @@ button.cs-sidebar-crumb:focus-visible {
 .code-studio-chat,
 .code-studio-message,
 .code-studio-diff {
-    border-color: var(--cs-border);
+    border-color: var(--cs-line);
 }
 
 .cs-agent-head,
@@ -965,11 +990,14 @@ button.cs-sidebar-crumb:focus-visible {
     align-items: center;
     gap: 8px;
     padding: 8px;
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--cs-line);
 }
 
 .cs-agent-head {
     justify-content: space-between;
+    background: var(--vd-mat-bar-color, transparent);
+    font-family: var(--vd-mat-heading-font, inherit);
+    color: var(--vd-mat-heading-color, inherit);
 }
 
 .cs-agent-actions {
@@ -987,15 +1015,18 @@ button.cs-sidebar-crumb:focus-visible {
     min-height: 0;
     padding: 10px;
     overflow: auto;
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .cs-agent-message {
     max-width: 92%;
     padding: 8px 10px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-md);
+    border: 1px solid var(--vd-mat-card-border, var(--cs-border));
+    border-radius: var(--vd-mat-card-radius, var(--ds-radius-md));
     color: var(--cs-text);
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-card, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-card-shadow, none);
     font-size: 13px;
     line-height: 1.45;
     white-space: pre-wrap;
@@ -1015,9 +1046,10 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-agent-message.user {
     align-self: flex-end;
-    color: var(--cs-accent-contrast);
-    background: var(--cs-accent);
-    border-color: var(--cs-accent);
+    color: var(--vd-mat-primary-text, var(--cs-accent-contrast));
+    background: var(--vd-mat-primary, var(--cs-accent));
+    border-color: var(--vd-mat-primary-border, var(--cs-accent));
+    box-shadow: var(--vd-mat-primary-shadow, none);
 }
 
 .cs-agent-message.agent {
@@ -1025,7 +1057,7 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .cs-agent-form {
-    border-top: 1px solid var(--cs-border);
+    border-top: 1px solid var(--cs-line);
     border-bottom: 0;
 }
 
@@ -1034,21 +1066,23 @@ button.cs-sidebar-crumb:focus-visible {
     min-width: 0;
     height: 32px;
     padding: 0 10px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-sm);
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm));
     color: var(--cs-text);
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .code-studio-diff {
     min-height: 0;
     max-height: 190px;
-    border-top: 1px solid var(--cs-border);
-    background: var(--cs-panel-soft);
+    border-top: 1px solid var(--cs-line);
+    background: var(--vd-mat-well, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .cs-diff-head {
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--cs-line);
 }
 
 .cs-diff-head strong {
@@ -1076,10 +1110,10 @@ button.cs-sidebar-crumb:focus-visible {
     display: grid;
     min-width: 190px;
     padding: 6px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--cs-panel);
-    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.36);
+    border: 1px solid var(--vd-mat-card-border, var(--cs-border));
+    border-radius: var(--vd-mat-card-radius, var(--ds-radius-md));
+    background: var(--vd-mat-card, var(--cs-panel));
+    box-shadow: var(--vd-mat-card-shadow, 0 14px 38px rgba(0, 0, 0, 0.36));
 }
 
 .cs-context-menu button {
@@ -1095,7 +1129,7 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .cs-context-menu button:hover {
-    background: var(--cs-accent-soft);
+    background: var(--vd-mat-hover, var(--cs-accent-soft));
 }
 
 .cs-modal-backdrop {
@@ -1111,10 +1145,10 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-modal {
     width: min(360px, calc(100vw - 32px));
     padding: 18px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--cs-panel);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--vd-mat-card-border, var(--cs-border));
+    border-radius: var(--vd-mat-card-radius, var(--ds-radius-md));
+    background: var(--vd-mat-card, var(--cs-panel));
+    box-shadow: var(--vd-mat-card-shadow, 0 20px 60px rgba(0, 0, 0, 0.45));
 }
 
 .cs-modal label {
@@ -1127,10 +1161,11 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-modal input {
     height: 34px;
     padding: 0 10px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--ds-radius-sm);
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm));
     color: var(--cs-text);
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .cs-modal p {
@@ -1256,7 +1291,7 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-tree-item:hover {
     border-color: var(--cs-accent-soft);
-    background: var(--cs-accent-soft);
+    background: var(--cs-hover);
 }
 
 .cs-tree-item:focus {
@@ -1265,23 +1300,28 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-tree-item:focus-visible {
     border-color: var(--cs-accent-border);
-    background: var(--cs-accent-soft);
+    background: var(--cs-hover);
 }
 
 .cs-tree-item.selected {
-    background: var(--cs-accent-faint);
-    border-color: var(--cs-border);
+    background: var(--vd-mat-hover, var(--cs-accent-faint));
+    border-color: var(--cs-line);
 }
 
 .cs-tree-item.active {
-    background: var(--cs-accent-soft);
-    border-color: var(--cs-accent-border);
-    box-shadow: inset 2px 0 0 var(--cs-accent);
+    background: var(--vd-mat-selected, var(--cs-accent-soft));
+    border-color: var(--vd-mat-selected-color, var(--cs-accent-border));
+    box-shadow: var(--vd-mat-selected-edge, inset 2px 0 0 var(--cs-accent));
+    color: var(--vd-mat-selected-text, var(--cs-text));
 }
 
 .cs-tree-item.active .cs-file-name {
-    color: var(--cs-text);
+    color: var(--vd-mat-selected-text, var(--cs-text));
     font-weight: 600;
+}
+
+.cs-tree-item.active :is(.cs-file-meta, .cs-tree-chevron) {
+    color: var(--vd-mat-selected-text, var(--cs-muted));
 }
 
 .cs-tree-item.is-modified .cs-file-name::after {
@@ -1343,7 +1383,9 @@ button.cs-sidebar-crumb:focus-visible {
     max-height: 0 !important;
 }
 
-/* ── Command Palette ── */
+/* ── Command Palette ──
+   The palette, the shortcut overlay, modals and context menus are mounted on document.body, outside .code-studio, so they
+   read the desktop-materials tokens directly (the --cs-line / --cs-hover aliases only exist inside the app). */
 .cs-command-palette-backdrop {
     position: fixed;
     inset: 0;
@@ -1373,10 +1415,10 @@ button.cs-sidebar-crumb:focus-visible {
     max-height: min(420px, 60vh);
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-lg);
-    background: var(--cs-panel);
-    box-shadow: var(--cs-shadow-lg);
+    border: 1px solid var(--vd-mat-card-border, var(--cs-border));
+    border-radius: var(--vd-mat-card-radius, var(--cs-radius-lg));
+    background: var(--vd-mat-card, var(--cs-panel));
+    box-shadow: var(--vd-mat-card-shadow, var(--cs-shadow-lg));
     animation: cs-slide-down 0.15s ease;
     overflow: hidden;
 }
@@ -1386,7 +1428,7 @@ button.cs-sidebar-crumb:focus-visible {
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cs-border));
 }
 
 .cs-command-palette-input .cs-cp-icon {
@@ -1445,13 +1487,15 @@ button.cs-sidebar-crumb:focus-visible {
     transition: background var(--cs-transition-fast);
 }
 
-.cs-cp-item:hover,
-.cs-cp-item.selected {
-    background: var(--cs-accent-soft);
+.cs-cp-item:hover {
+    background: var(--vd-mat-hover, var(--cs-accent-soft));
 }
 
 .cs-cp-item.selected {
-    outline: 1px solid var(--cs-accent-glow);
+    background: var(--vd-mat-selected, var(--cs-accent-soft));
+    box-shadow: var(--vd-mat-selected-edge, none);
+    color: var(--vd-mat-selected-text, var(--cs-text));
+    outline: 1px solid var(--vd-mat-selected-color, var(--cs-accent-glow));
 }
 
 .cs-cp-item .cs-cp-item-icon {
@@ -1471,6 +1515,10 @@ button.cs-sidebar-crumb:focus-visible {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.cs-cp-item.selected :is(.cs-cp-item-icon, .cs-cp-item-shortcut, .cs-cp-item-path) {
+    color: var(--vd-mat-selected-text, var(--cs-muted));
 }
 
 .cs-cp-item .cs-cp-item-label mark {
@@ -1502,9 +1550,10 @@ button.cs-sidebar-crumb:focus-visible {
     padding: 6px 10px 2px;
     font-size: 11px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--cs-muted);
+    font-family: var(--vd-mat-label-font, inherit);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    letter-spacing: var(--vd-mat-label-tracking, 0.5px);
+    color: var(--vd-mat-label-color, var(--cs-muted));
     opacity: 0.7;
 }
 
@@ -1567,6 +1616,10 @@ button.cs-sidebar-crumb:focus-visible {
     opacity: 1;
 }
 
+.cs-tab.active .cs-tab-close {
+    color: var(--vd-mat-selected-text, var(--cs-muted));
+}
+
 /* ── Zen Mode ── */
 .code-studio[data-zen="true"] .code-studio-toolbar,
 .code-studio[data-zen="true"] .code-studio-activity-bar,
@@ -1593,12 +1646,13 @@ button.cs-sidebar-crumb:focus-visible {
     gap: 6px;
     height: 30px;
     padding: 0 12px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-md);
-    background: var(--cs-panel-glass);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
+    border-radius: var(--vd-mat-btn-radius, var(--cs-radius-md));
+    background: var(--vd-mat-btn, var(--cs-panel-glass));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-    color: var(--cs-muted);
+    color: var(--vd-mat-btn-text, var(--cs-muted));
     font: 12px var(--cs-ui-font);
     cursor: pointer;
     transition: opacity var(--cs-transition-normal);
@@ -1633,7 +1687,7 @@ button.cs-sidebar-crumb:focus-visible {
 .code-studio-split-divider {
     width: 4px;
     cursor: col-resize;
-    background: var(--cs-border);
+    background: var(--cs-line);
     transition: background var(--cs-transition-fast);
     z-index: 3;
 }
@@ -1712,10 +1766,10 @@ button.cs-sidebar-crumb:focus-visible {
     right: 6px;
     height: 24px;
     padding: 0 8px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-sm);
-    background: var(--cs-panel-glass);
-    color: var(--cs-muted);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
+    border-radius: var(--vd-mat-btn-radius, var(--cs-radius-sm));
+    background: var(--vd-mat-btn-color, var(--cs-panel-glass));
+    color: var(--vd-mat-btn-text, var(--cs-muted));
     font: 11px var(--cs-ui-font);
     cursor: pointer;
     opacity: 0;
@@ -1742,7 +1796,7 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-agent-message .cs-md-content hr {
     margin: 12px 0;
     border: 0;
-    border-top: 1px solid var(--cs-border);
+    border-top: 1px solid var(--cs-line);
 }
 
 .cs-agent-message .cs-md-content table {
@@ -1755,7 +1809,7 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-agent-message .cs-md-content th,
 .cs-agent-message .cs-md-content td {
     padding: 4px 8px;
-    border: 1px solid var(--cs-border);
+    border: 1px solid var(--cs-line);
     text-align: left;
 }
 
@@ -1772,14 +1826,15 @@ button.cs-sidebar-crumb:focus-visible {
     white-space: pre;
 }
 
+/* Light themes: the accent and the danger red tinted into the ink (Amiga's accent-soft is the accent itself, so accent text on it vanished). */
 .cs-diff-line.added {
     background: var(--cs-accent-soft);
-    color: var(--cs-accent);
+    color: light-dark(color-mix(in srgb, var(--cs-accent) 18%, var(--vd-text)), var(--cs-accent));
 }
 
 .cs-diff-line.removed {
     background: var(--cs-danger-soft);
-    color: var(--cs-danger);
+    color: light-dark(color-mix(in srgb, var(--cs-danger) 18%, var(--vd-text)), var(--cs-danger));
 }
 
 .cs-diff-line.context {
@@ -1818,13 +1873,14 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .cs-terminal-tab:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.04));
     color: var(--cs-text);
 }
 
 .cs-terminal-tab.active {
-    background: var(--cs-panel-soft);
-    color: var(--cs-text);
+    background: var(--vd-mat-selected, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-selected-edge, none);
+    color: var(--vd-mat-selected-text, var(--cs-text));
 }
 
 .cs-terminal-tab .cs-terminal-tab-close {
@@ -1845,7 +1901,7 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-terminal-tab .cs-terminal-tab-close:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.08));
 }
 
 .cs-terminal-add {
@@ -1864,7 +1920,7 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .cs-terminal-add:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.06));
     color: var(--cs-text);
 }
 
@@ -1877,7 +1933,7 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .code-studio-statusbar > span[data-clickable]:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.06));
 }
 
 /* ── Activity Bar Badges ── */
@@ -1915,10 +1971,10 @@ button.cs-sidebar-crumb:focus-visible {
     max-height: min(500px, 70vh);
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-lg);
-    background: var(--cs-panel);
-    box-shadow: var(--cs-shadow-lg);
+    border: 1px solid var(--vd-mat-card-border, var(--cs-border));
+    border-radius: var(--vd-mat-card-radius, var(--cs-radius-lg));
+    background: var(--vd-mat-card, var(--cs-panel));
+    box-shadow: var(--vd-mat-card-shadow, var(--cs-shadow-lg));
     overflow: hidden;
     animation: cs-slide-down 0.15s ease;
 }
@@ -1928,13 +1984,17 @@ button.cs-sidebar-crumb:focus-visible {
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--cs-border));
 }
 
 .cs-shortcut-modal-head h3 {
     margin: 0;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    font-family: var(--vd-mat-heading-font, inherit);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .cs-shortcut-modal-body {
@@ -1952,9 +2012,10 @@ button.cs-sidebar-crumb:focus-visible {
     margin: 0 0 6px;
     font-size: 11px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--cs-muted);
+    font-family: var(--vd-mat-label-font, inherit);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    letter-spacing: var(--vd-mat-label-tracking, 0.5px);
+    color: var(--vd-mat-label-color, var(--cs-muted));
 }
 
 .cs-shortcut-row {
@@ -1970,11 +2031,11 @@ button.cs-sidebar-crumb:focus-visible {
     align-items: center;
     height: 22px;
     padding: 0 6px;
-    border: 1px solid var(--cs-border);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
     border-radius: var(--ds-radius-xs);
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-btn-color, var(--cs-panel-soft));
     font: 11px var(--cs-mono-font);
-    color: var(--cs-muted);
+    color: var(--vd-mat-btn-text, var(--cs-muted));
 }
 
 /* ── Empty States ── */
@@ -1998,7 +2059,9 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-editor-empty .cs-empty-title {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    font-family: var(--vd-mat-heading-font, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
     color: var(--cs-text);
     opacity: 0.6;
 }
@@ -2055,10 +2118,11 @@ button.cs-sidebar-crumb:focus-visible {
     gap: 5px;
     height: 26px;
     padding: 0 10px;
-    border: 1px solid var(--cs-border);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
     border-radius: 999px;
-    background: transparent;
-    color: var(--cs-muted);
+    background: var(--vd-mat-btn, transparent);
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, var(--cs-muted));
     font: 11px var(--cs-ui-font);
     cursor: pointer;
     transition: border-color var(--cs-transition-fast), background var(--cs-transition-fast), color var(--cs-transition-fast);
@@ -2066,8 +2130,8 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-quick-action:hover {
     border-color: var(--cs-accent-glow);
-    background: var(--cs-accent-soft);
-    color: var(--cs-text);
+    background: var(--vd-mat-btn-hover, var(--cs-accent-soft));
+    color: var(--vd-mat-btn-text, var(--cs-text));
 }
 
 /* ── Agent Stop Button ── */
@@ -2098,8 +2162,8 @@ button.cs-sidebar-crumb:focus-visible {
     width: var(--cs-git-width, 320px);
     min-width: 220px;
     max-width: 400px;
-    border-left: 1px solid var(--cs-border);
-    background: var(--cs-panel);
+    border-left: 1px solid var(--cs-line);
+    background: var(--vd-mat-side, var(--cs-panel));
     overflow-y: auto;
 }
 
@@ -2112,13 +2176,16 @@ button.cs-sidebar-crumb:focus-visible {
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--cs-line);
+    background: var(--vd-mat-bar-color, transparent);
     font-size: 12px;
     font-weight: 600;
 }
 
 .cs-git-head strong {
     flex: 1;
+    font-family: var(--vd-mat-heading-font, inherit);
+    color: var(--vd-mat-heading-color, inherit);
 }
 
 .cs-git-branch {
@@ -2128,7 +2195,7 @@ button.cs-sidebar-crumb:focus-visible {
     padding: 8px 10px;
     font-size: 12px;
     color: var(--cs-text);
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--cs-line);
 }
 
 .cs-git-branch svg {
@@ -2146,9 +2213,10 @@ button.cs-sidebar-crumb:focus-visible {
     padding: 6px 10px;
     font-size: 11px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--cs-muted);
+    font-family: var(--vd-mat-label-font, inherit);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    letter-spacing: var(--vd-mat-label-tracking, 0.5px);
+    color: var(--vd-mat-label-color, var(--cs-muted));
 }
 
 .cs-git-count {
@@ -2168,6 +2236,8 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-git-changes {
     display: flex;
     flex-direction: column;
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .cs-git-change {
@@ -2192,7 +2262,7 @@ button.cs-sidebar-crumb:focus-visible {
 }
 
 .cs-git-change-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--vd-mat-hover, rgba(255, 255, 255, 0.04));
 }
 
 .cs-git-check {
@@ -2261,16 +2331,17 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-git-commit-area {
     padding: 8px 10px;
-    border-top: 1px solid var(--cs-border);
+    border-top: 1px solid var(--cs-line);
 }
 
 .cs-git-commit-msg {
     width: 100%;
     min-height: 48px;
     padding: 6px 8px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-sm);
-    background: var(--cs-input-bg, var(--cs-panel-soft));
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--cs-radius-sm));
+    background: var(--vd-mat-field, var(--cs-input-bg, var(--cs-panel-soft)));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--cs-text);
     font: 12px var(--cs-ui-font);
     resize: vertical;
@@ -2303,9 +2374,10 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-git-identity input {
     width: 100%;
     padding: 6px 8px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-sm);
-    background: var(--cs-input-bg, var(--cs-panel-soft));
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--cs-radius-sm));
+    background: var(--vd-mat-field, var(--cs-input-bg, var(--cs-panel-soft)));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--cs-text);
     font: 12px var(--cs-ui-font);
 }
@@ -2341,7 +2413,7 @@ button.cs-sidebar-crumb:focus-visible {
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--cs-border);
+    border-bottom: 1px solid var(--cs-line);
     font-size: 12px;
     font-weight: 600;
 }
@@ -2497,11 +2569,11 @@ button.cs-sidebar-crumb:focus-visible {
     height: 20px;
     padding: 0 6px;
     margin-right: 4px;
-    border: 1px solid var(--cs-border);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
     border-radius: var(--ds-radius-xs);
-    background: var(--cs-panel);
+    background: var(--vd-mat-btn-color, var(--cs-panel));
     font: 11px var(--cs-mono-font);
-    color: var(--cs-muted);
+    color: var(--vd-mat-btn-text, var(--cs-muted));
 }
 
 /* ── Split panes ── */
@@ -2548,7 +2620,7 @@ button.cs-sidebar-crumb:focus-visible {
 .cs-context-separator {
     height: 1px;
     margin: 4px 6px;
-    background: var(--cs-border);
+    background: var(--vd-mat-divider, var(--cs-border));
 }
 
 /* ── Terminal header controls ── */
@@ -2585,16 +2657,17 @@ button.cs-sidebar-crumb:focus-visible {
     height: 22px;
     margin-left: 8px;
     padding: 0 8px;
-    border: 1px solid var(--cs-border);
-    border-radius: var(--cs-radius-sm);
-    background: transparent;
-    color: var(--cs-text);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
+    border-radius: var(--vd-mat-btn-radius, var(--cs-radius-sm));
+    background: var(--vd-mat-btn, transparent);
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, var(--cs-text));
     font: 11px/1 inherit;
     cursor: pointer;
 }
 
 .cs-terminal-stop:hover {
-    background: var(--cs-accent-soft);
+    background: var(--vd-mat-btn-hover, var(--cs-accent-soft));
 }
 
 /* ── Command palette details ── */
@@ -2602,11 +2675,11 @@ button.cs-sidebar-crumb:focus-visible {
     flex-shrink: 0;
     height: 20px;
     padding: 0 6px;
-    border: 1px solid var(--cs-border);
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
     border-radius: var(--ds-radius-xs);
-    background: var(--cs-panel-soft);
+    background: var(--vd-mat-btn-color, var(--cs-panel-soft));
     font: 11px/20px var(--cs-mono-font);
-    color: var(--cs-muted);
+    color: var(--vd-mat-btn-text, var(--cs-muted));
 }
 
 .cs-cp-item .cs-cp-item-icon .cs-cp-papirus-icon {

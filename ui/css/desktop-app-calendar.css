@@ -14,12 +14,12 @@
     --cal-on-accent: var(--vd-accent-contrast, #fff);
     --cal-text: var(--vd-text);
     --cal-muted: var(--vd-theme-muted, var(--vd-muted));
-    --cal-border: var(--vd-theme-border, var(--vd-border));
+    --cal-border: var(--vd-mat-divider, var(--vd-theme-border, var(--vd-border)));
     --cal-border-strong: var(--vd-theme-border-strong, var(--cal-border));
     --cal-panel: var(--vd-theme-panel-bg, rgba(255, 255, 255, 0.04));
     --cal-panel-strong: var(--vd-theme-panel-bg-strong, rgba(30, 34, 44, 0.96));
     --cal-control: var(--vd-theme-control-bg, rgba(255, 255, 255, 0.06));
-    --cal-control-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, 0.1));
+    --cal-control-hover: var(--vd-mat-hover, var(--vd-theme-control-hover, rgba(255, 255, 255, 0.1)));
     --cal-accent-soft: var(--vd-theme-accent-soft, rgba(var(--cal-accent-rgb), 0.14));
     --cal-ink-soft: rgba(0, 0, 0, 0.16);
     --cal-status-upcoming: var(--cal-accent);
@@ -37,7 +37,7 @@
     min-height: 0;
     box-sizing: border-box;
     overflow: hidden;
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     color: var(--cal-text);
     font-size: 13px;
 }
@@ -71,6 +71,8 @@
     gap: 10px 12px;
     padding: 10px 14px;
     border-bottom: 1px solid var(--cal-border);
+    background: var(--vd-mat-bar, transparent);
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-calendar-command-group {
@@ -129,19 +131,21 @@
 .vd-calendar-nav {
     display: inline-flex;
     overflow: hidden;
-    border: 1px solid var(--cal-border);
-    border-radius: 9px;
-    background: var(--cal-control);
+    border: 1px solid var(--vd-mat-btn-border, var(--cal-border));
+    border-radius: var(--vd-mat-btn-radius, 9px);
+    background: var(--vd-mat-btn, var(--cal-control));
+    box-shadow: var(--vd-mat-btn-shadow, none);
 }
 
 .vd-calendar-nav .vd-calendar-icon-button {
     width: 30px;
     height: 30px;
     border-radius: 0;
+    color: var(--vd-mat-btn-text, var(--cal-muted));
 }
 
 .vd-calendar-nav .vd-calendar-icon-button + .vd-calendar-icon-button {
-    border-left: 1px solid var(--cal-border);
+    border-left: 1px solid var(--vd-mat-btn-border, var(--cal-border));
 }
 
 .vd-calendar-today-button {
@@ -161,9 +165,11 @@
 
 .vd-calendar-range-title {
     margin: 0 4px 0 6px;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-weight: var(--vd-mat-heading-weight, 700);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, -0.01em);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -192,9 +198,10 @@
     min-width: 0;
     padding: 0 8px 0 10px;
     box-sizing: border-box;
-    border: 1px solid var(--cal-border);
-    border-radius: 9px;
-    background: var(--cal-control);
+    border: 1px solid var(--vd-mat-field-border, var(--cal-border));
+    border-radius: var(--vd-mat-field-radius, 9px);
+    background: var(--vd-mat-field, var(--cal-control));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--cal-muted);
     transition: border-color var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
 }
@@ -238,18 +245,19 @@
     display: inline-flex;
     gap: 2px;
     padding: 3px;
-    border: 1px solid var(--cal-border);
-    border-radius: 10px;
-    background: var(--cal-control);
+    border: 1px solid var(--vd-mat-btn-border, var(--cal-border));
+    border-radius: var(--vd-mat-btn-radius, 10px);
+    background: var(--vd-mat-btn, var(--cal-control));
+    box-shadow: var(--vd-mat-btn-shadow, none);
 }
 
 .vd-calendar-view-button {
     height: 26px;
     padding: 0 12px;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--vd-mat-btn-radius, 7px);
     background: transparent;
-    color: var(--cal-muted);
+    color: var(--vd-mat-btn-text, var(--cal-muted));
     font: inherit;
     font-size: 12.5px;
     font-weight: 600;
@@ -262,9 +270,9 @@
 }
 
 .vd-calendar-view-button.is-active {
-    background: var(--cal-panel-strong);
-    color: var(--cal-text);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    background: var(--vd-mat-selected, var(--cal-panel-strong));
+    color: var(--vd-mat-selected-text, var(--cal-text));
+    box-shadow: var(--vd-mat-selected-edge, 0 1px 2px rgba(0, 0, 0, 0.18));
 }
 
 .vd-calendar-create {
@@ -316,6 +324,8 @@
     min-height: 0;
     padding: 14px 12px 12px;
     border-right: 1px solid var(--cal-border);
+    background: var(--vd-mat-side, transparent);
+    box-shadow: var(--vd-mat-side-edge, none);
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -326,6 +336,8 @@
     flex-direction: column;
     min-height: 0;
     overflow: auto;
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .desktop-body:not([data-animations="false"]) .vd-calendar-body.is-entering {
@@ -421,8 +433,8 @@
 }
 
 .vd-calendar-mini-day.is-selected {
-    background: var(--cal-accent);
-    color: var(--cal-on-accent);
+    background: var(--vd-mat-primary, var(--cal-accent));
+    color: var(--vd-mat-primary-text, var(--cal-on-accent));
     opacity: 1;
 }
 
@@ -446,9 +458,10 @@
     flex-direction: column;
     gap: 3px;
     padding: 12px;
-    border: 1px solid rgba(var(--cal-accent-rgb), 0.35);
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(var(--cal-accent-rgb), 0.24), rgba(var(--cal-accent-rgb), 0.06));
+    border: 1px solid var(--vd-mat-card-border, rgba(var(--cal-accent-rgb), 0.35));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    background: linear-gradient(135deg, rgba(var(--cal-accent-rgb), 0.24), rgba(var(--cal-accent-rgb), 0.06)), var(--vd-mat-card, transparent);
+    box-shadow: var(--vd-mat-card-shadow, none);
     color: var(--cal-text);
     font: inherit;
     text-align: left;
@@ -458,15 +471,16 @@
 
 .vd-calendar-next-up:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+    box-shadow: var(--vd-mat-card-shadow, 0 0 #0000), 0 8px 20px rgba(0, 0, 0, 0.16);
 }
 
 .vd-calendar-next-up-label {
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 10.5px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--cal-accent);
+    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cal-accent));
 }
 
 .vd-calendar-next-up strong {
@@ -486,11 +500,12 @@
     gap: 6px;
     margin: 0 0 4px;
     padding: 0 4px;
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--cal-muted);
+    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cal-muted));
 }
 
 .vd-calendar-side-section.is-overdue h4 {
@@ -651,16 +666,18 @@
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     border-bottom: 1px solid var(--cal-border);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-bar, var(--vd-theme-app-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-calendar-weekdays span {
     padding: 7px 8px 6px;
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--cal-muted);
+    letter-spacing: var(--vd-mat-label-tracking, 0.06em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cal-muted));
 }
 
 .vd-calendar-weekdays span.is-weekend {
@@ -695,7 +712,7 @@
 }
 
 .vd-calendar-cell.is-weekend {
-    background: color-mix(in srgb, var(--cal-panel) 55%, transparent);
+    background: color-mix(in srgb, var(--cal-text) 5%, transparent);
 }
 
 .vd-calendar-cell:hover {
@@ -774,8 +791,8 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: var(--cal-accent);
-    color: var(--cal-on-accent);
+    background: var(--vd-mat-primary, var(--cal-accent));
+    color: var(--vd-mat-primary-text, var(--cal-on-accent));
     font-weight: 800;
 }
 
@@ -948,16 +965,19 @@
     display: grid;
     grid-template-columns: var(--cal-gutter) minmax(0, 1fr);
     border-bottom: 1px solid var(--cal-border);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-bar, var(--vd-theme-app-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .vd-calendar-time-gutter-head {
     display: grid;
     place-items: center;
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 10.5px;
     font-weight: 700;
-    text-transform: uppercase;
-    color: var(--cal-muted);
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cal-muted));
 }
 
 .vd-calendar-time-head-days {
@@ -985,11 +1005,12 @@
 }
 
 .vd-calendar-day-head-name {
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--cal-muted);
+    letter-spacing: var(--vd-mat-label-tracking, 0.06em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cal-muted));
 }
 
 .vd-calendar-day-head-num {
@@ -1004,12 +1025,12 @@
 }
 
 .vd-calendar-day-head.is-today .vd-calendar-day-head-name {
-    color: var(--cal-accent);
+    color: var(--vd-mat-heading-color, var(--cal-accent));
 }
 
 .vd-calendar-day-head.is-today .vd-calendar-day-head-num {
-    background: var(--cal-accent);
-    color: var(--cal-on-accent);
+    background: var(--vd-mat-primary, var(--cal-accent));
+    color: var(--vd-mat-primary-text, var(--cal-on-accent));
 }
 
 .vd-calendar-day-head-count {
@@ -1061,7 +1082,7 @@
 }
 
 .vd-calendar-day-column.is-weekend {
-    background: color-mix(in srgb, var(--cal-panel) 45%, transparent);
+    background: color-mix(in srgb, var(--cal-text) 4%, transparent);
 }
 
 .vd-calendar-day-column.is-today {
@@ -1099,14 +1120,14 @@
     align-items: flex-start;
     padding: 4px 6px 4px 7px;
     border-left: 3px solid var(--cal-status);
-    background: color-mix(in srgb, var(--cal-status) 24%, var(--vd-theme-app-bg));
+    background: color-mix(in srgb, var(--cal-status) 24%, var(--vd-mat-well-color, var(--vd-theme-app-bg)));
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
     overflow: hidden;
     z-index: 2;
 }
 
 .vd-calendar-event-timed:hover {
-    background: color-mix(in srgb, var(--cal-status) 36%, var(--vd-theme-app-bg));
+    background: color-mix(in srgb, var(--cal-status) 36%, var(--vd-mat-well-color, var(--vd-theme-app-bg)));
     z-index: 3;
 }
 
@@ -1235,15 +1256,15 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--cal-control);
+    background: var(--vd-mat-card-color, var(--cal-control));
     font-size: 18px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
 }
 
 .vd-calendar-agenda-day.is-today .vd-calendar-agenda-daynum {
-    background: var(--cal-accent);
-    color: var(--cal-on-accent);
+    background: var(--vd-mat-primary, var(--cal-accent));
+    color: var(--vd-mat-primary-text, var(--cal-on-accent));
 }
 
 .vd-calendar-agenda-daymeta {
@@ -1412,12 +1433,12 @@
     max-width: min(92%, 520px);
     padding: 9px 8px 9px 14px;
     box-sizing: border-box;
-    border: 1px solid var(--cal-border-strong);
-    border-radius: 12px;
-    background: var(--cal-panel-strong);
+    border: 1px solid var(--vd-mat-card-border, var(--cal-border-strong));
+    border-radius: var(--vd-mat-card-radius, 12px);
+    background: var(--vd-mat-card, var(--cal-panel-strong));
     color: var(--cal-text);
     font-size: 12.5px;
-    box-shadow: var(--vd-theme-shadow-panel, 0 12px 32px rgba(0, 0, 0, 0.35));
+    box-shadow: var(--vd-mat-card-shadow, 0 0 #0000), var(--vd-theme-shadow-panel, 0 12px 32px rgba(0, 0, 0, 0.35));
     backdrop-filter: var(--vd-theme-blur, blur(14px));
     -webkit-backdrop-filter: var(--vd-theme-blur, blur(14px));
     opacity: 0;
@@ -1474,11 +1495,11 @@
     display: grid;
     grid-template-columns: 4px minmax(0, 1fr);
     width: min(340px, calc(100% - 16px));
-    border: 1px solid var(--cal-border-strong);
-    border-radius: 14px;
-    background: var(--cal-panel-strong);
+    border: 1px solid var(--vd-mat-card-border, var(--cal-border-strong));
+    border-radius: var(--vd-mat-card-radius, 14px);
+    background: var(--vd-mat-card, var(--cal-panel-strong));
     color: var(--cal-text);
-    box-shadow: var(--vd-theme-shadow-modal, 0 18px 48px rgba(0, 0, 0, 0.45));
+    box-shadow: var(--vd-mat-card-shadow, 0 0 #0000), var(--vd-theme-shadow-modal, 0 18px 48px rgba(0, 0, 0, 0.45));
     backdrop-filter: var(--vd-theme-blur, blur(14px));
     -webkit-backdrop-filter: var(--vd-theme-blur, blur(14px));
     overflow: hidden;
@@ -1554,7 +1575,7 @@
     margin: 2px 0 0;
     padding: 8px 10px;
     border-radius: 8px;
-    background: var(--cal-control);
+    background: var(--vd-mat-field-color, var(--cal-control));
     font-size: 12.5px;
     line-height: 1.45;
     white-space: pre-wrap;
@@ -1591,12 +1612,12 @@
     --cal-on-accent: var(--vd-accent-contrast, #fff);
     --cal-text: var(--vd-text);
     --cal-muted: var(--vd-theme-muted, var(--vd-muted));
-    --cal-border: var(--vd-theme-border, var(--vd-border));
+    --cal-border: var(--vd-mat-divider, var(--vd-theme-border, var(--vd-border)));
     --cal-border-strong: var(--vd-theme-border-strong, var(--cal-border));
     --cal-panel: var(--vd-theme-panel-bg, rgba(255, 255, 255, 0.04));
     --cal-panel-strong: var(--vd-theme-panel-bg-strong, rgba(30, 34, 44, 0.96));
     --cal-control: var(--vd-theme-control-bg, rgba(255, 255, 255, 0.06));
-    --cal-control-hover: var(--vd-theme-control-hover, rgba(255, 255, 255, 0.1));
+    --cal-control-hover: var(--vd-mat-hover, var(--vd-theme-control-hover, rgba(255, 255, 255, 0.1)));
     --cal-accent-soft: var(--vd-theme-accent-soft, rgba(var(--cal-accent-rgb), 0.14));
     --cal-ink-soft: rgba(0, 0, 0, 0.16);
     --cal-status-upcoming: var(--cal-accent);
@@ -1615,6 +1636,10 @@
     box-sizing: border-box;
     overflow: auto;
     font-size: 13px;
+    border-color: var(--vd-mat-card-border, var(--ds-color-border-default));
+    border-radius: var(--vd-mat-card-radius, var(--ds-radius-xl));
+    background: var(--vd-mat-card, var(--ds-color-surface-3));
+    box-shadow: var(--vd-mat-card-shadow, 0 0 #0000), var(--ds-elevation-5);
 }
 
 .vd-calendar-editor.is-busy {
@@ -1630,11 +1655,12 @@
 }
 
 .vd-calendar-editor-kicker {
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--cal-muted);
+    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--cal-muted));
 }
 
 .vd-calendar-editor-title {
@@ -1644,10 +1670,11 @@
     border: 0;
     border-bottom: 2px solid var(--cal-border);
     background: transparent;
-    color: var(--cal-text);
+    color: var(--vd-mat-heading-color, var(--cal-text));
     font: inherit;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 22px;
-    font-weight: 700;
+    font-weight: var(--vd-mat-heading-weight, 700);
     outline: none;
     transition: border-color var(--cal-fast) ease;
 }
@@ -1701,9 +1728,10 @@
     min-height: 36px;
     padding: 7px 10px;
     box-sizing: border-box;
-    border: 1px solid var(--cal-border);
-    border-radius: 9px;
-    background: var(--cal-control);
+    border: 1px solid var(--vd-mat-field-border, var(--cal-border));
+    border-radius: var(--vd-mat-field-radius, 9px);
+    background: var(--vd-mat-field, var(--cal-control));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--cal-text);
     font: inherit;
     font-size: 13px;
@@ -1731,7 +1759,8 @@
     padding: 12px;
     border: 1px solid var(--cal-border);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--cal-panel) 60%, transparent);
+    background: var(--vd-mat-well, color-mix(in srgb, var(--cal-panel) 60%, transparent));
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .vd-calendar-switch {
@@ -1755,9 +1784,9 @@
     width: 36px;
     height: 20px;
     box-sizing: border-box;
-    border: 1px solid var(--cal-border);
+    border: 1px solid var(--vd-mat-field-border, var(--cal-border));
     border-radius: 10px;
-    background: var(--cal-control);
+    background: var(--vd-mat-field, var(--cal-control));
     transition: background var(--cal-fast) ease, border-color var(--cal-fast) ease;
 }
 
@@ -1774,8 +1803,8 @@
 }
 
 .vd-calendar-switch input:checked + .vd-calendar-switch-track {
-    border-color: var(--cal-accent);
-    background: var(--cal-accent);
+    border-color: var(--vd-mat-primary-border, var(--cal-accent));
+    background: var(--vd-mat-primary, var(--cal-accent));
 }
 
 .vd-calendar-switch input:checked + .vd-calendar-switch-track .vd-calendar-switch-thumb {
@@ -1819,9 +1848,10 @@
     min-height: 40px;
     padding: 5px 8px;
     box-sizing: border-box;
-    border: 1px solid var(--cal-border);
-    border-radius: 9px;
-    background: var(--cal-control);
+    border: 1px solid var(--vd-mat-field-border, var(--cal-border));
+    border-radius: var(--vd-mat-field-radius, 9px);
+    background: var(--vd-mat-field, var(--cal-control));
+    box-shadow: var(--vd-mat-field-shadow, none);
     cursor: text;
     transition: border-color var(--cal-fast) ease, box-shadow var(--cal-fast) ease;
 }
@@ -1859,8 +1889,8 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: var(--cal-accent);
-    color: var(--cal-on-accent);
+    background: var(--vd-mat-primary, var(--cal-accent));
+    color: var(--vd-mat-primary-text, var(--cal-on-accent));
     font-size: 10.5px;
     font-weight: 800;
 }
@@ -1890,10 +1920,10 @@
     max-height: 220px;
     margin-top: 4px;
     padding: 4px;
-    border: 1px solid var(--cal-border-strong);
-    border-radius: 10px;
-    background: var(--cal-panel-strong);
-    box-shadow: var(--vd-theme-shadow-panel, 0 12px 32px rgba(0, 0, 0, 0.35));
+    border: 1px solid var(--vd-mat-card-border, var(--cal-border-strong));
+    border-radius: var(--vd-mat-card-radius, 10px);
+    background: var(--vd-mat-card, var(--cal-panel-strong));
+    box-shadow: var(--vd-mat-card-shadow, 0 0 #0000), var(--vd-theme-shadow-panel, 0 12px 32px rgba(0, 0, 0, 0.35));
     overflow: auto;
 }
 
@@ -1912,9 +1942,13 @@
     cursor: pointer;
 }
 
-.vd-calendar-chip-option:hover,
+.vd-calendar-chip-option:hover {
+    background: var(--vd-mat-hover, var(--cal-accent-soft));
+}
+
 .vd-calendar-chip-option.is-active {
-    background: var(--cal-accent-soft);
+    background: var(--vd-mat-selected, var(--cal-accent-soft));
+    color: var(--vd-mat-selected-text, var(--cal-text));
 }
 
 .vd-calendar-chip-option-body {
@@ -1943,9 +1977,10 @@
     flex-wrap: wrap;
     gap: 2px;
     padding: 3px;
-    border: 1px solid var(--cal-border);
-    border-radius: 10px;
-    background: var(--cal-control);
+    border: 1px solid var(--vd-mat-btn-border, var(--cal-border));
+    border-radius: var(--vd-mat-btn-radius, 10px);
+    background: var(--vd-mat-btn, var(--cal-control));
+    box-shadow: var(--vd-mat-btn-shadow, none);
 }
 
 .vd-calendar-segment {
@@ -1955,9 +1990,9 @@
     height: 28px;
     padding: 0 12px;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--vd-mat-btn-radius, 7px);
     background: transparent;
-    color: var(--cal-muted);
+    color: var(--vd-mat-btn-text, var(--cal-muted));
     font: inherit;
     font-size: 12.5px;
     font-weight: 600;
@@ -1966,9 +2001,9 @@
 }
 
 .vd-calendar-segment.is-active {
-    background: var(--cal-panel-strong);
-    color: var(--cal-text);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    background: var(--vd-mat-selected, var(--cal-panel-strong));
+    color: var(--vd-mat-selected-text, var(--cal-text));
+    box-shadow: var(--vd-mat-selected-edge, 0 1px 2px rgba(0, 0, 0, 0.18));
 }
 
 .vd-calendar-recurring .vd-calendar-editor-grid {
@@ -2111,7 +2146,7 @@
         left: 0;
         z-index: 5;
         width: min(280px, 85%);
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--vd-mat-side-edge, 0 0 #0000), 0 0 40px rgba(0, 0, 0, 0.4);
     }
 
     .vd-calendar-cell {

@@ -65,10 +65,10 @@ func TestDesktopLocalWikipediaModuleContract(t *testing.T) {
 	css := rawDesktopAssetText(t, "css/desktop-app-local-wikipedia.css")
 	for _, marker := range []string{
 		".lw-app {",
-		"background: var(--vd-theme-app-bg);",
-		"background: var(--vd-theme-chrome-bg);",
-		"background: var(--vd-theme-control-bg);",
-		"border: 1px solid var(--vd-theme-border);",
+		"background: var(--vd-mat-canvas, var(--vd-theme-app-bg));",
+		"background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));",
+		"background: var(--vd-mat-btn, var(--vd-theme-control-bg));",
+		"border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));",
 		":focus-visible",
 		"@container (max-width: 640px)",
 		"@media (prefers-reduced-motion: reduce)",

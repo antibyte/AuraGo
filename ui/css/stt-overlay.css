@@ -102,7 +102,8 @@
     z-index: 2;
     width: 64px;
     height: 64px;
-    background: var(--accent, #2dd4bf);
+    /* The --vd-mat-* tokens exist on the desktop only; every other page falls back to the old value. */
+    background: var(--vd-mat-primary, var(--accent, #2dd4bf));
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -117,7 +118,7 @@
 .stt-mic-icon svg {
     width: 28px;
     height: 28px;
-    color: #000;
+    color: var(--vd-mat-primary-text, #000);
 }
 
 @keyframes stt-mic-glow {
@@ -261,16 +262,16 @@
 }
 
 .stt-done {
-    background: var(--accent, #2dd4bf);
-    color: #000;
-    box-shadow: 0 4px 16px rgba(45, 212, 191, 0.3);
+    background: var(--vd-mat-primary, var(--accent, #2dd4bf));
+    color: var(--vd-mat-primary-text, #000);
+    box-shadow: var(--vd-mat-primary-shadow, 0 4px 16px rgba(45, 212, 191, 0.3));
 }
 
 .stt-done:hover,
 .stt-done:active {
-    background: var(--accent-hover, #14b8a6);
+    background: var(--vd-mat-primary-hover, var(--accent-hover, #14b8a6));
     transform: scale(1.08);
-    box-shadow: 0 6px 24px rgba(45, 212, 191, 0.45);
+    box-shadow: var(--vd-mat-primary-shadow, 0 6px 24px rgba(45, 212, 191, 0.45));
 }
 
 /* ── Light Theme ───────────────────────────────────────────── */

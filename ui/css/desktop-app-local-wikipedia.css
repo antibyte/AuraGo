@@ -1,11 +1,13 @@
-/* Local Wikipedia: theme-native chrome around the original light article. */
+/* Local Wikipedia: theme-native chrome around the original light article.
+   App materials: canvas, toolbar and footer bars, buttons, search field, suggestion popover and result cards paint
+   from the --vd-mat-* tokens (old theme values as fallback); the article iframe stays a white reading surface. */
 .lw-app {
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 0;
     color: var(--vd-text);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     container-type: inline-size;
     font-size: 14px;
 }
@@ -31,8 +33,9 @@
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    background: var(--vd-theme-chrome-bg);
-    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .lw-nav {
@@ -49,10 +52,11 @@
     gap: 6px;
     min-height: 34px;
     font: inherit;
-    color: inherit;
-    background: var(--vd-theme-control-bg);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
+    color: var(--vd-mat-btn-text, inherit);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-btn-radius, 8px);
+    box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
 }
 
@@ -69,7 +73,7 @@
 .lw-tool:hover:not(:disabled),
 .lw-submit:hover:not(:disabled),
 .lw-button:hover {
-    background: var(--vd-theme-control-hover);
+    background: var(--vd-mat-btn-hover, var(--vd-theme-control-hover));
 }
 
 .lw-tool:disabled,
@@ -80,8 +84,14 @@
 }
 
 .lw-primary {
-    background: var(--vd-theme-accent-soft);
-    border-color: var(--vd-theme-accent-border, var(--vd-accent));
+    background: var(--vd-mat-primary, var(--vd-theme-accent-soft));
+    border-color: var(--vd-mat-primary-border, var(--vd-theme-accent-border, var(--vd-accent)));
+    color: var(--vd-mat-primary-text, inherit);
+    box-shadow: var(--vd-mat-primary-shadow, none);
+}
+
+.lw-primary:hover:not(:disabled) {
+    background: var(--vd-mat-primary-hover, var(--vd-theme-control-hover));
 }
 
 .lw-icon {
@@ -91,8 +101,12 @@
 .lw-title {
     min-width: 0;
     margin: 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 15px;
-    font-weight: 600;
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -116,9 +130,10 @@
     padding: 6px 10px;
     font: inherit;
     color: inherit;
-    background: var(--vd-theme-control-bg);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 8px;
+    background: var(--vd-mat-field, var(--vd-theme-control-bg));
+    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-field-radius, 8px);
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .lw-input::placeholder {
@@ -136,10 +151,11 @@
     padding: 4px;
     overflow: auto;
     list-style: none;
-    background: var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg));
-    border: 1px solid var(--vd-theme-border-strong, var(--vd-theme-border));
-    border-radius: var(--vd-theme-radius-panel, 10px);
-    box-shadow: var(--vd-theme-shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.25));
+    /* A popover over the article: flat card colour, so no texture sits under the option text. */
+    background: var(--vd-mat-card-color, var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg)));
+    border: 1px solid var(--vd-mat-divider, var(--vd-theme-border-strong, var(--vd-theme-border)));
+    border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-panel, 10px));
+    box-shadow: var(--vd-mat-card-shadow, var(--vd-theme-shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.25)));
 }
 
 .lw-option {
@@ -149,9 +165,14 @@
     overflow-wrap: anywhere;
 }
 
-.lw-option:hover,
+.lw-option:hover {
+    background: var(--vd-mat-hover, var(--vd-theme-accent-soft));
+}
+
 .lw-option[aria-selected="true"] {
-    background: var(--vd-theme-accent-soft);
+    background: var(--vd-mat-selected, var(--vd-theme-accent-soft));
+    color: var(--vd-mat-selected-text, inherit);
+    box-shadow: var(--vd-mat-selected-edge, none);
 }
 
 .lw-banners:empty {
@@ -165,8 +186,8 @@
     justify-content: space-between;
     gap: 8px 12px;
     padding: 8px 14px;
-    background: var(--vd-theme-panel-bg);
-    border-bottom: 1px solid var(--vd-theme-border);
+    background: var(--vd-mat-card-color, var(--vd-theme-panel-bg));
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
 }
 
 .lw-banner[data-kind="hint"] {
@@ -206,8 +227,8 @@
 .lw-spinner {
     width: 18px;
     height: 18px;
-    border: 2px solid var(--vd-theme-border);
-    border-top-color: var(--vd-accent);
+    border: 2px solid var(--vd-mat-divider, var(--vd-theme-border));
+    border-top-color: var(--vd-mat-primary-color, var(--vd-accent));
     border-radius: 50%;
     animation: lw-spin 0.9s linear infinite;
 }
@@ -236,7 +257,12 @@
 
 .lw-state-card h2 {
     margin: 0;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 20px;
+    font-weight: var(--vd-mat-heading-weight, 700);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .lw-state-card p {
@@ -278,7 +304,12 @@
 
 .lw-results-title {
     margin: 0 0 12px;
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 18px;
+    font-weight: var(--vd-mat-heading-weight, 700);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     overflow-wrap: anywhere;
 }
 
@@ -299,21 +330,27 @@
     font: inherit;
     color: inherit;
     text-align: start;
-    background: var(--vd-theme-panel-bg);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: 10px;
+    /* List rows use the flat card colour: the corner studs and brackets of the full card material would sit
+       under the 12 px padded text. */
+    background: var(--vd-mat-card-color, var(--vd-theme-panel-bg));
+    border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-card-radius, 10px);
+    box-shadow: var(--vd-mat-card-shadow, none);
     cursor: pointer;
 }
 
 .lw-result:hover {
-    background: var(--vd-theme-accent-soft);
-    border-color: var(--vd-theme-accent-border, var(--vd-accent));
+    background:
+        linear-gradient(var(--vd-mat-hover, var(--vd-theme-accent-soft)), var(--vd-mat-hover, var(--vd-theme-accent-soft))),
+        var(--vd-mat-card-color, var(--vd-theme-panel-bg));
+    border-color: var(--vd-mat-primary-color, var(--vd-theme-accent-border, var(--vd-accent)));
 }
 
 /* Titles keep the text color: accent colors are too light for text on Fruity light. */
 .lw-result strong {
+    font-family: var(--vd-mat-heading-font, inherit);
     font-size: 15px;
-    color: inherit;
+    color: var(--vd-mat-heading-color, inherit);
     overflow-wrap: anywhere;
 }
 
@@ -364,7 +401,7 @@
     padding: 24px;
     text-align: center;
     color: var(--vd-theme-muted);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas-color, var(--vd-theme-app-bg));
 }
 
 .lw-footer {
@@ -375,8 +412,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    background: var(--vd-theme-chrome-bg);
-    border-top: 1px solid var(--vd-theme-border);
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    border-top: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
 }
 
 .lw-footer:empty {
@@ -385,7 +422,11 @@
 
 .lw-footer-label {
     margin-right: 8px;
+    font-family: var(--vd-mat-label-font, inherit);
     font-weight: 600;
+    color: var(--vd-mat-label-color, inherit);
+    letter-spacing: var(--vd-mat-label-tracking, normal);
+    text-transform: var(--vd-mat-label-transform, none);
 }
 
 @container (max-width: 640px) {

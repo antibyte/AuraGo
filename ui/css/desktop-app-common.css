@@ -29,34 +29,14 @@
 /* desktop-apps.css — file manager, editor, office, settings, calculator, todo, calendar, chat, viewer, looper, gallery, sysinfo, quick connect, launchpad */
 
 
+/* Dialogs, menus and toasts that no app paints itself: card material with the modal radius and shadow.
+   The app dialogs listed in the default group below paint their own card from the materials, so their role wins here. */
 .desktop-body[data-theme] :where(
-    .fm-modal,
-    .fm-upload-panel,
-    .fm-preview-panel,
-    .fm-context-menu,
-    .cs-modal,
-    .cs-shortcut-modal,
-    .cs-command-palette,
-    .cs-context-menu,
-    .vd-qc-modal,
-    .vd-qc-confirm,
-    .vd-store-modal,
-    .vd-launchpad-modal,
-    .vd-people-modal,
-    .pixel-ctx-menu,
-    .office-sheet-context-menu,
-    .office-search-overlay,
-    .office-color-picker,
-    .cheater-modal-panel,
-    .cheater-spotlight-panel,
-    .cheater-context-menu,
-    .ad-toast,
-    .nc-modal,
-    .gm-modal
+    .ad-toast
 ) {
-    border-color: var(--vd-theme-border) !important;
+    border-color: var(--vd-mat-card-border) !important;
     border-radius: var(--vd-theme-radius-modal) !important;
-    background: var(--vd-theme-panel-bg-strong) !important;
+    background: var(--vd-mat-card) !important;
     color: var(--vd-text) !important;
     box-shadow: var(--vd-theme-shadow-modal) !important;
     -webkit-backdrop-filter: var(--vd-theme-blur);
@@ -82,223 +62,49 @@
     backdrop-filter: var(--vd-theme-overlay-blur);
 }
 
-/* App materials (desktop-materials*.css): bars (toolbars, breadcrumb/status/tab bars, headers, topbars, player bars). */
-.desktop-body[data-theme] :where(
-    .fm-toolbar,
-    .fm-breadcrumb-bar,
-    .fm-statusbar,
-    .fm-tab-bar,
-    .cs-toolbar,
-    .cs-statusbar,
-    .vd-chat-form,
-    .vd-store-toolbar,
-    .vd-gallery-toolbar,
-    .vd-qc-toolbar,
-    .cheater-toolbar,
-    .vd-people-toolbar,
-    .vd-launchpad-toolbar,
-    .zipper-toolbar,
-    .zipper-breadcrumb,
-    .zipper-status,
-    .zipper-preview-bar,
-    .pixel-toolbar,
-    .pixel-options-bar,
-    .vd-logviewer-toolbar,
-    .nc-toolbar,
-    .nm-header,
-    .nm-library-toolbar,
-    .nm-player,
-    .vd-hp-header,
-    .gm-topbar,
-    .oscad-header,
-    .vd-chess-controls
-) {
-    border-color: var(--vd-mat-divider) !important;
-    background: var(--vd-mat-bar) !important;
-    box-shadow: var(--vd-mat-bar-edge);
-    color: var(--vd-text);
-}
-
-/* Bars that keep their own background until their app adopts the materials: only the edge follows the theme. */
-.desktop-body[data-theme] :where(
-    .vd-toolbar,
-    .office-toolbar,
-    .office-format-bar,
-    .office-formula-bar,
-    .office-status-bar,
-    .office-writer-statusbar,
-    .vd-calendar-command,
-    .vd-mc-toolbar,
-    .vd-terminal-toolbar,
-    .vd-notes-toolbar,
-    .vd-viewer-toolbar,
-    .vd-looper-header
-) {
-    box-shadow: var(--vd-mat-bar-edge);
-}
-
-/* App materials: sides (sidebars, panels, inspectors, rails, libraries and side lists). */
-.desktop-body[data-theme] :where(
-    .fm-sidebar,
-    .cs-sidebar,
-    .vd-settings-sidebar,
-    .vd-chat-sidebar,
-    .vd-store-sidebar,
-    .vd-qc-sidebar,
-    .cheater-sidebar,
-    .vd-todo-sidebar,
-    .vd-calendar-sidebar,
-    .vd-people-sidebar,
-    .vd-people-detail,
-    .pixel-tool-rail,
-    .pixel-panel,
-    .vd-logviewer-sidebar,
-    .vd-logviewer-list,
-    .vd-logviewer-detail,
-    .vd-pet-picker-settings,
-    .vd-hp-chat,
-    .vd-hp-inspector,
-    .gm-library,
-    .oscad-inspector,
+/* App materials (desktop-materials*.css): every app paints its own regions (bars, sidebars, fields, buttons, hover rows,
+   cards, dialogs, app roots) from the material roles in its own stylesheet, so the bridge no longer forces a role on them.
+   What is left here is a zero-specificity default (the app and the skins always win): the text colour of the regions
+   below, which also documents which regions are app-owned. */
+:where(.desktop-body[data-theme]) :where(
+    /* bars */
+    .fm-toolbar, .fm-statusbar, .fm-tab-bar, .vd-chat-form, .vd-store-toolbar, .vd-gallery-toolbar, .cheater-toolbar,
+    .vd-people-toolbar, .vd-launchpad-toolbar, .zipper-toolbar, .zipper-breadcrumb, .zipper-status, .zipper-preview-bar,
+    .pixel-toolbar, .pixel-options-bar, .vd-logviewer-toolbar, .nc-toolbar, .nm-header, .nm-library-toolbar, .nm-player,
+    .vd-hp-header, .gm-topbar, .oscad-header,
+    /* sides */
+    .fm-sidebar, .vd-settings-sidebar, .vd-chat-sidebar, .vd-qc-sidebar, .vd-todo-sidebar, .vd-calendar-sidebar,
+    .vd-people-sidebar, .vd-people-detail, .pixel-tool-rail, .pixel-panel, .vd-logviewer-sidebar, .vd-logviewer-list,
+    .vd-logviewer-detail, .vd-pet-picker-settings, .vd-hp-chat, .vd-hp-inspector, .gm-library, .oscad-inspector,
     .oscad-sidebar,
-    .oscad-agent-panel,
-    .vd-chess-moves,
-    .vd-chess-captured-panel,
-    .vd-chess-info-panel
+    /* cards, panels and tiles */
+    .vd-chess-controls, .vd-chess-moves, .vd-chess-captured-panel, .vd-chess-info-panel, .oscad-agent-panel,
+    .vd-todo-card, .vd-store-card, .vd-gallery-card, .vd-mc .vd-mc-card, .vd-people-card, .vd-launchpad-tile,
+    .vd-pet-picker-card, .vd-sysinfo-gauge, .vd-sysinfo-history, .vd-sysinfo-detail, .nc-card, .nm-card,
+    .vd-live-speech-lab, .gm-project-card,
+    /* dialogs and menus */
+    .fm-modal, .fm-upload-panel, .fm-preview-panel, .fm-context-menu, .cs-modal, .cs-shortcut-modal, .cs-command-palette,
+    .cs-context-menu, .vd-qc-modal, .vd-qc-confirm, .vd-store-modal, .vd-launchpad-modal, .vd-people-modal, .pixel-ctx-menu,
+    .office-sheet-context-menu, .office-search-overlay, .office-color-picker, .cheater-modal-panel, .cheater-spotlight-panel,
+    .cheater-context-menu, .nc-modal, .gm-modal
 ) {
-    border-color: var(--vd-mat-divider) !important;
-    background: var(--vd-mat-side) !important;
-    box-shadow: var(--vd-mat-side-edge);
     color: var(--vd-text);
 }
 
-/* App materials: fields (inputs, selects, textareas, search boxes). */
-.desktop-body[data-theme] :where(
-    .fm-search-input,
-    .fm-rename-input,
-    .vd-settings-search-input,
-    .vd-setting-select,
-    .cs-input,
-    .cs-select,
-    .vd-qc-modal input,
-    .vd-qc-modal select,
-    .vd-qc-modal textarea,
-    .vd-store-modal input,
-    .vd-store-modal select,
-    .vd-people-search,
-    .vd-people-modal-fields input,
-    .vd-people-modal-fields select,
-    .vd-people-modal-fields textarea,
-    .vd-launchpad-search,
-    .lp-icon-search-row input,
-    .pixel-hex-input,
-    .vd-logviewer-search,
-    .vd-pet-picker-select,
-    .nc-search,
-    .nc-form input,
-    .nc-form select,
-    .nm-input,
-    .nm-textarea,
-    .vd-hp-target-select,
-    .vd-hp-chat-input,
-    .vd-hp-history-search,
-    .vd-hp-history-filter,
-    .gm-modal input,
-    .gm-modal textarea,
-    .gm-modal select,
-    .gm-mobile-projects,
-    .oscad-select,
-    .oscad-input,
-    .oscad-chat,
-    .oscad-defines-text,
-    .oscad-define-number,
-    .oscad-define-text,
-    .vd-chess-field select,
-    .cheater-modal-panel input,
-    .cheater-modal-panel textarea
-) {
-    border-color: var(--vd-mat-field-border) !important;
-    background: var(--vd-mat-field) !important;
-    color: var(--vd-text) !important;
-}
-
-/* Radius and inset shadow of the text-like fields (checkboxes, radios, ranges, files and colour pickers keep their own shape). */
-.desktop-body[data-theme] :where(:is(
-    .fm-search-input,
-    .fm-rename-input,
-    .vd-settings-search-input,
-    .vd-setting-select,
-    .cs-input,
-    .cs-select,
-    .vd-qc-modal :is(input, select, textarea),
-    .vd-store-modal :is(input, select),
-    .vd-people-search,
-    .vd-people-modal-fields :is(input, select, textarea),
-    .vd-launchpad-search,
-    .lp-icon-search-row input,
-    .pixel-hex-input,
-    .vd-logviewer-search,
-    .vd-pet-picker-select,
-    .nc-search,
-    .nc-form :is(input, select),
-    .nm-input,
-    .nm-textarea,
-    .vd-hp-target-select,
-    .vd-hp-chat-input,
-    .vd-hp-history-search,
-    .vd-hp-history-filter,
-    .gm-modal :is(input, textarea, select),
-    .gm-mobile-projects,
-    .oscad-select,
-    .oscad-input,
-    .oscad-chat,
-    .oscad-defines-text,
-    .oscad-define-number,
-    .oscad-define-text,
-    .vd-chess-field select,
-    .cheater-modal-panel :is(input, textarea)
-):not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="button"], [type="submit"])) {
+/* Plain form controls inside dialogs: the apps paint their own fields, this only replaces the browser default for controls without a class. */
+:where(.desktop-body[data-theme]) :where(
+    .vd-qc-modal,
+    .vd-store-modal,
+    .vd-people-modal-fields,
+    .lp-icon-search-row,
+    .nc-form,
+    .gm-modal,
+    .cheater-modal-panel
+) :where(input, select, textarea):where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="button"], [type="submit"], [type="hidden"])) {
+    border: 1px solid var(--vd-mat-field-border);
     border-radius: var(--vd-mat-field-radius);
-    box-shadow: var(--vd-mat-field-shadow);
-}
-
-/* App materials: buttons. Variant and state classes (primary, danger, active, pressed) keep the colours their app gives them. */
-.desktop-body[data-theme] :where(:is(
-    .fm-toolbtn,
-    .fm-btn,
-    .cs-icon-button,
-    .vd-launchpad-category,
-    .zipper-crumb,
-    .nc-icon-button,
-    .cheater-toast button
-):not(.primary, .danger, .active, .is-active, .selected, .is-selected, [aria-pressed="true"], [aria-selected="true"])) {
-    border-color: var(--vd-mat-btn-border) !important;
-    border-radius: var(--vd-mat-btn-radius);
-    background: var(--vd-mat-btn) !important;
-    box-shadow: var(--vd-mat-btn-shadow);
-    color: var(--vd-mat-btn-text) !important;
-}
-
-.desktop-body[data-theme] :where(:is(
-    .fm-toolbtn:hover:not(:disabled),
-    .fm-btn:hover,
-    .cs-icon-button:hover,
-    .vd-qc-modal button:hover,
-    .cheater-toast button:hover
-):not(.primary, .danger, .active, .is-active, .selected, .is-selected, [aria-pressed="true"], [aria-selected="true"])) {
-    background: var(--vd-mat-btn-hover) !important;
-}
-
-.desktop-body[data-theme] :where(:is(
-    .fm-sidebar-item:hover,
-    .fm-list-row:hover,
-    .fm-grid-item:hover,
-    .vd-people-list-row:hover,
-    .zipper-table tbody tr:hover,
-    .pixel-ctx-item:hover,
-    .cheater-context-menu li:hover
-):not(.active, .is-active, .selected, .is-selected, [aria-selected="true"])) {
-    background: var(--vd-mat-hover) !important;
+    background: var(--vd-mat-field);
+    color: var(--vd-text);
 }
 
 .desktop-body[data-theme] :where(
@@ -561,84 +367,10 @@
 }
 
 /* === App interior polish: toolbars, sidebars, lists, and settings surfaces === */
-/* The regions themselves paint from the app materials (desktop-materials*.css): bars, sides, fields and buttons above, canvas and cards here. */
-.desktop-body[data-theme] .vd-settings-app,
-.desktop-body[data-theme="fruity"][data-scheme="dark"] .vd-settings-app {
-    background: var(--vd-mat-canvas);
-}
+/* The app roots, regions, cards and rows paint themselves from the app materials (desktop-materials*.css) in their own stylesheets. */
 
-.desktop-body[data-theme] :where(
-    .vd-chat,
-    .file-manager,
-    .vd-quick-connect,
-    .vd-mc,
-    .vd-store,
-    .vd-gallery,
-    .vd-notes-app,
-    .vd-viewer,
-    .vd-looper,
-    .cheater-app,
-    .vd-people,
-    .vd-launchpad,
-    .zipper-app,
-    .pixel-app,
-    .vd-pet-picker
-) {
-    background: var(--vd-mat-canvas);
-}
-
-/* Row and navigation rounding of the two built-in themes (geometry only; colours come from the materials). */
-.desktop-body[data-theme="standard"] :where(.fm-list-row, .vd-file-row) {
-    border-radius: 8px;
-}
-
-.desktop-body[data-theme="fruity"] :where(.fm-list-row, .vd-file-row) {
-    border-radius: 10px;
-}
-
-.desktop-body[data-theme="standard"] .vd-settings-nav {
-    border-radius: 10px;
-}
-
-.desktop-body[data-theme="fruity"] .vd-settings-nav {
-    border-radius: 12px;
-}
-
-/* The active settings page is the selected material of the theme. */
-.desktop-body[data-theme] .vd-settings-nav.active {
-    background: var(--vd-mat-selected);
-    box-shadow: var(--vd-mat-selected-edge);
-    color: var(--vd-mat-selected-text);
-}
-
-/* App materials: cards and tiles. */
-.desktop-body[data-theme] :where(
-    .vd-todo-card,
-    .vd-calc-history,
-    .vd-store-card,
-    .vd-gallery-card,
-    .vd-mc .vd-mc-card,
-    .vd-mc .vd-mc-list-item,
-    .vd-people-card,
-    .vd-launchpad-tile,
-    .vd-pet-picker-card,
-    .vd-sysinfo-gauge,
-    .vd-sysinfo-history,
-    .vd-sysinfo-detail,
-    .nc-card,
-    .nm-card,
-    .vd-live-speech-lab,
-    .gm-project-card
-) {
-    border-color: var(--vd-mat-card-border);
-    border-radius: var(--vd-mat-card-radius);
-    background: var(--vd-mat-card);
-    box-shadow: var(--vd-mat-card-shadow);
-    color: var(--vd-text);
-}
-
-/* Whole-app containers, displays, HUD overlays and small chips keep their own surface until their app adopts the materials. */
-.desktop-body[data-theme] :where(
+/* Whole-app containers, displays, HUD overlays and small chips: a zero-specificity default (the app and the skins win). */
+:where(.desktop-body[data-theme]) :where(
     .vd-calendar-shell,
     .vd-calendar-modal,
     .office-writer,
@@ -646,12 +378,7 @@
     .vd-calc,
     .vd-calc-prog-display,
     .sw-stats,
-    .sw-legend,
-    .sw-events,
-    .sw-tooltip,
     .sw-info,
-    .sw-fallback,
-    .vd-looper-step-btn,
     .vd-viewer-sheet-tab,
     .vd-sysinfo-hero,
     .nc-detail,
@@ -669,10 +396,13 @@
 }
 .desktop-body .vd-window-content :where(.vd-toolbar, .office-toolbar, .fm-toolbar, .vd-gallery-toolbar) {
     padding: var(--vd-toolbar-padding);
+    gap: 6px;
+}
+/* Generic toolbars paint the bar material; the file manager and gallery toolbars paint it in their own stylesheets. */
+.desktop-body .vd-window-content :where(.vd-toolbar, .office-toolbar) {
     background: var(--vd-mat-bar);
     box-shadow: var(--vd-mat-bar-edge);
     border-bottom: 1px solid var(--vd-mat-divider);
-    gap: 6px;
 }
 .desktop-body .vd-window-content :where(.vd-tool-button, .vd-button, .fm-btn, .office-toolbar button) {
     min-height: var(--vd-control-height);
@@ -681,6 +411,6 @@
     border-radius: var(--vd-mat-btn-radius, 6px);
     box-shadow: var(--vd-mat-btn-shadow, inset 0 1px 0 var(--vd-border));
 }
-.desktop-body .vd-window-content :where(.vd-setting-row, .vd-settings-nav, .vd-settings-pane) {
+.desktop-body .vd-window-content :where(.vd-settings-pane) {
     box-shadow: none !important;
 }

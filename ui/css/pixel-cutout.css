@@ -19,16 +19,18 @@
     gap: 8px;
     min-width: 0;
     padding: 8px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 8px;
+    border: 1px solid var(--vd-mat-divider, var(--pixel-line));
+    border-radius: var(--vd-mat-card-radius, 8px);
+    background: var(--vd-mat-card-color, transparent);
 }
 
 .pixel-cutout-title {
+    font-family: var(--vd-mat-label-font, inherit);
     font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--pixel-muted);
+    letter-spacing: var(--vd-mat-label-tracking, 0.05em);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    color: var(--vd-mat-label-color, var(--pixel-muted));
 }
 
 .pixel-cutout-models {
@@ -43,9 +45,9 @@
     gap: 5px;
     min-width: 0;
     padding: 7px 8px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 8px;
-    background: var(--pixel-surface);
+    border: 1px solid var(--vd-mat-divider, var(--pixel-line));
+    border-radius: var(--vd-mat-card-radius, 8px);
+    background: var(--vd-mat-well-color, var(--pixel-surface));
 }
 
 .pixel-cutout-model-head {

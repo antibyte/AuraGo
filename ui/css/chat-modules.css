@@ -232,14 +232,15 @@
     padding: 20px;
 }
 
+/* The --vd-mat-* tokens exist on the desktop only; every other page falls back to the old value. */
 .voice-recorder-panel {
-    background: var(--bg-secondary, #252525);
-    border: 1px solid var(--border-accent, rgba(45, 212, 191, 0.3));
-    border-radius: 16px;
+    background: var(--vd-mat-card, var(--bg-secondary, #252525));
+    border: 1px solid var(--vd-mat-card-border, var(--border-accent, rgba(45, 212, 191, 0.3)));
+    border-radius: var(--vd-mat-card-radius, 16px);
     padding: 24px;
     width: 100%;
     max-width: 340px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--vd-mat-card-shadow, 0 20px 60px rgba(0, 0, 0, 0.5));
 }
 
 .vr-header {
@@ -278,7 +279,8 @@
 
 .vr-waveform {
     height: 60px;
-    background: var(--bg-primary, #1a1a1a);
+    background: var(--vd-mat-well, var(--bg-primary, #1a1a1a));
+    box-shadow: var(--vd-mat-well-shadow, none);
     border-radius: 8px;
     margin-bottom: 20px;
     display: flex;
@@ -330,13 +332,14 @@
 }
 
 .vr-send {
-    background: var(--accent, #2dd4bf);
-    color: #000;
+    background: var(--vd-mat-primary, var(--accent, #2dd4bf));
+    box-shadow: var(--vd-mat-primary-shadow, none);
+    color: var(--vd-mat-primary-text, #000);
 }
 
 .vr-send:hover,
 .vr-send:active {
-    background: var(--accent-hover, #14b8a6);
+    background: var(--vd-mat-primary-hover, var(--accent-hover, #14b8a6));
     transform: scale(1.05);
 }
 

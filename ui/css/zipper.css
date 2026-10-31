@@ -1,7 +1,9 @@
 .zipper-app {
-    --zipper-line: var(--vd-theme-border);
-    --zipper-head: var(--vd-theme-chrome-bg);
-    --zipper-selected: var(--vd-theme-accent-soft);
+    /* Colour aliases only: --zipper-head is the flat bar colour (sticky table header, row hover, crumbs); the bars
+       themselves paint the full bar material, selected rows the full selection material. */
+    --zipper-line: var(--vd-mat-divider, var(--vd-theme-border));
+    --zipper-head: var(--vd-mat-bar-color, var(--vd-theme-chrome-bg));
+    --zipper-selected: var(--vd-mat-selected-color, var(--vd-theme-accent-soft));
     --zipper-muted: var(--vd-theme-muted);
     position: relative;
     display: flex;
@@ -9,7 +11,7 @@
     height: 100%;
     min-height: 100%;
     color: var(--vd-text, #eff7ff);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
 }
 
 .zipper-toolbar {
@@ -21,7 +23,8 @@
     border-bottom: 1px solid var(--zipper-line);
     flex-wrap: wrap;
 
-    background: var(--zipper-head);
+    background: var(--vd-mat-bar, var(--zipper-head));
+    box-shadow: var(--vd-mat-bar-edge, none);
 
     min-height: 42px;
 }
@@ -53,16 +56,18 @@
     border-bottom: 1px solid var(--zipper-line);
     overflow-x: auto;
     white-space: nowrap;
+    background: var(--vd-mat-bar, transparent);
 
     min-height: 30px;
 }
 
 .zipper-crumb {
     padding: 2px 8px;
-    border: 1px solid var(--zipper-line);
-    border-radius: 6px;
-    background: var(--zipper-head);
-    color: inherit;
+    border: 1px solid var(--vd-mat-btn-border, var(--zipper-line));
+    border-radius: var(--vd-mat-btn-radius, 6px);
+    background: var(--vd-mat-btn, var(--zipper-head));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, inherit);
     cursor: pointer;
     font: inherit;
     font-size: inherit;
@@ -70,8 +75,8 @@
 }
 
 .zipper-crumb:hover {
-    border-color: rgba(63, 220, 205, 0.55);
-    background: var(--zipper-selected);
+    border-color: color-mix(in srgb, var(--vd-accent, #3fdccd) 55%, transparent);
+    background: var(--vd-mat-btn-hover, var(--zipper-selected));
 }
 
 .zipper-crumb-sep {
@@ -82,6 +87,8 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    background: var(--vd-mat-well, transparent);
+    box-shadow: var(--vd-mat-well-shadow, none);
 }
 
 .zipper-table {
@@ -102,13 +109,14 @@
     position: sticky;
     top: 0;
     background: var(--zipper-head);
+    font-family: var(--vd-mat-label-font, inherit);
     font-weight: 600;
     cursor: pointer;
     user-select: none;
-    color: var(--zipper-muted);
-    text-transform: none;
+    color: var(--vd-mat-label-color, var(--zipper-muted));
+    text-transform: var(--vd-mat-label-transform, none);
     font-size: 12px;
-    letter-spacing: 0;
+    letter-spacing: var(--vd-mat-label-tracking, 0);
 }
 
 .zipper-table th:hover {
@@ -143,11 +151,16 @@
 }
 
 .zipper-table tbody tr:hover {
-    background: var(--zipper-head);
+    background: var(--vd-mat-hover, var(--zipper-head));
 }
 
 .zipper-selected {
-    background: var(--zipper-selected) !important;
+    background: var(--vd-mat-selected, var(--zipper-selected)) !important;
+    box-shadow: var(--vd-mat-selected-edge, none);
+}
+
+.zipper-table .zipper-selected td {
+    color: var(--vd-mat-selected-text, inherit);
 }
 
 .zipper-icon {
@@ -169,7 +182,8 @@
     border-top: 1px solid var(--zipper-line);
     font-size: 11px;
     color: var(--zipper-muted);
-    background: var(--zipper-head);
+    background: var(--vd-mat-bar, var(--zipper-head));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 @media (max-width: 640px) {
@@ -194,7 +208,7 @@
     z-index: 4;
     display: flex;
     flex-direction: column;
-    background: var(--vd-theme-panel-bg);
+    background: var(--vd-mat-well, var(--vd-theme-panel-bg));
 }
 
 .zipper-preview[hidden] {
@@ -208,7 +222,8 @@
     gap: 10px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--zipper-line);
-    background: var(--zipper-head);
+    background: var(--vd-mat-bar, var(--zipper-head));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 
 .zipper-preview-name {
@@ -217,7 +232,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 600;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
 }
 
 .zipper-preview-body {
@@ -244,6 +263,7 @@
     white-space: pre-wrap;
     word-break: break-word;
     font: 13px/1.5 ui-monospace, "Cascadia Code", "JetBrains Mono", monospace;
+    font-family: var(--vd-mat-mono-font, ui-monospace, "Cascadia Code", "JetBrains Mono", monospace);
     color: var(--vd-text, #eff7ff);
 }
 

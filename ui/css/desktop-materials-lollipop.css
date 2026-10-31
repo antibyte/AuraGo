@@ -1,6 +1,6 @@
 /* desktop-materials-lollipop.css - Lollipop app materials: the candy shop inside every app window.
  * Cotton-candy canvas with sparse white and pink polka dots,candy-cane bands on the bars, a lavender ticking side, white
- * cards with pink-tinted shadows, a mint gingham tray for wells, jelly-bean pill buttons and a glossy plum gel
+ * cards with pink-tinted shadows, a pink-cream gingham tray for wells, jelly-bean pill buttons and a glossy plum gel
  * primary. Text is plum (#4A1F3D) and muted plum (#7A4A6C) from the skin. Only custom properties live here;
  * the vocabulary and the rules are in docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md. */
 
@@ -26,10 +26,10 @@
     --vd-mat-card-radius: 18px;
     --vd-mat-card-shadow: 0 8px 20px -6px rgba(194, 24, 107, 0.28), 0 2px 5px rgba(230, 92, 165, 0.14), inset 0 -3px 0 rgba(230, 92, 165, 0.1);
 
-    /* Wells: a mint gingham tray pressed into the canvas */
-    --vd-mat-well-color: #E8F8F0;
-    --vd-mat-well: repeating-linear-gradient(0deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), repeating-linear-gradient(90deg, rgba(105, 207, 168, 0.1) 0 8px, rgba(105, 207, 168, 0) 8px 16px), var(--vd-mat-well-color);
-    --vd-mat-well-shadow: inset 0 3px 7px rgba(46, 160, 120, 0.22), inset 0 0 0 1px rgba(105, 207, 168, 0.55);
+    /* Wells: a pink-cream tray with a faint pink gingham, pressed into the canvas */
+    --vd-mat-well-color: #FFF4F9;
+    --vd-mat-well: repeating-linear-gradient(0deg, rgba(230, 92, 165, 0.06) 0 8px, rgba(230, 92, 165, 0) 8px 16px), repeating-linear-gradient(90deg, rgba(230, 92, 165, 0.06) 0 8px, rgba(230, 92, 165, 0) 8px 16px), var(--vd-mat-well-color);
+    --vd-mat-well-shadow: inset 0 3px 7px rgba(194, 24, 107, 0.16), inset 0 0 0 1px rgba(230, 92, 165, 0.34);
 
     /* Fields: white with a pink hairline and a soft inner shade */
     --vd-mat-field-color: #FFFFFF;

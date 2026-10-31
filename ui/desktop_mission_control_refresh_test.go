@@ -423,7 +423,7 @@ func TestDesktopMissionControlStylesheetContract(t *testing.T) {
 	css := readDesktopAssetText(t, "css/desktop-app-mission-control.css")
 	for _, marker := range []string{
 		".vd-mc {",
-		"background: var(--vd-theme-app-bg);",
+		"background: var(--vd-mat-canvas, var(--vd-theme-app-bg));",
 		"--vd-surface: var(--vd-theme-panel-bg);",
 		"--mc-list-width",
 		"--mc-accent:",

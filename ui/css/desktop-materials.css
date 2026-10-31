@@ -90,10 +90,12 @@
     --vd-mat-btn-radius: 8px;
     --vd-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     --vd-mat-btn-text: #edf1f7;
-    --vd-mat-primary-color: var(--vd-accent);
-    --vd-mat-primary: linear-gradient(180deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent) 82%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 90%, #fff), color-mix(in srgb, var(--vd-accent) 90%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-text: var(--vd-accent-contrast);
+    /* Primary: the accent lightened with 20% white and dark ink on it (white on the default #E95420 is 3.65:1). The base is the darkest gradient
+       stop; the ink measures 6.6:1 on it for the default and 9.5:1 or more on the accent presets. */
+    --vd-mat-primary-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 70%, #fff), var(--vd-mat-primary-color)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 62%, #fff), color-mix(in srgb, var(--vd-accent) 74%, #fff)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #0c1016;
     --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
     --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
     --vd-mat-selected-color: #1f2a38;
@@ -147,15 +149,18 @@
     --vd-mat-btn-radius: 8px;
     --vd-mat-btn-shadow: 0 1px 1px rgba(40, 52, 76, 0.12), inset 0 1px 0 #ffffff;
     --vd-mat-btn-text: #192334;
-    --vd-mat-primary-color: var(--vd-accent);
-    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 90%, #fff), color-mix(in srgb, var(--vd-accent) 86%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 82%, #fff), color-mix(in srgb, var(--vd-accent) 92%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-text: var(--vd-accent-contrast);
+    /* Primary and selection: the user accent lightened with 20% white and navy ink on it (white on the default #0a84ff is 3.65:1; the materials
+       never redefine shell tokens). The base is the darkest gradient stop; the ink measures 6.6:1 on it for the default, 9.3:1 or more on the
+       accent presets and still 4.8:1 on a deeper #0066cc accent. */
+    --vd-mat-primary-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 70%, #fff), var(--vd-mat-primary-color)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 62%, #fff), color-mix(in srgb, var(--vd-accent) 74%, #fff)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #0b1220;
     --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 76%, #000);
     --vd-mat-primary-shadow: 0 1px 2px rgba(20, 30, 50, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    --vd-mat-selected-color: var(--vd-accent);
+    --vd-mat-selected-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
     --vd-mat-selected: var(--vd-mat-selected-color);
-    --vd-mat-selected-text: var(--vd-accent-contrast);
+    --vd-mat-selected-text: #0b1220;
     --vd-mat-selected-edge: none;
     --vd-mat-hover: color-mix(in srgb, var(--vd-accent) 12%, transparent);
     --vd-mat-divider: rgba(40, 52, 76, 0.14);
@@ -204,15 +209,15 @@
     --vd-mat-btn-radius: 8px;
     --vd-mat-btn-shadow: 0 1px 1px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --vd-mat-btn-text: #f5f5f7;
-    --vd-mat-primary-color: var(--vd-accent);
-    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 92%, #fff), color-mix(in srgb, var(--vd-accent) 84%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 84%, #fff), color-mix(in srgb, var(--vd-accent) 92%, #000)), var(--vd-mat-primary-color);
-    --vd-mat-primary-text: var(--vd-accent-contrast);
+    --vd-mat-primary-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
+    --vd-mat-primary: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 70%, #fff), var(--vd-mat-primary-color)), var(--vd-mat-primary-color);
+    --vd-mat-primary-hover: linear-gradient(180deg, color-mix(in srgb, var(--vd-accent) 62%, #fff), color-mix(in srgb, var(--vd-accent) 74%, #fff)), var(--vd-mat-primary-color);
+    --vd-mat-primary-text: #0b1220;
     --vd-mat-primary-border: color-mix(in srgb, var(--vd-accent) 70%, #000);
     --vd-mat-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    --vd-mat-selected-color: var(--vd-accent);
+    --vd-mat-selected-color: color-mix(in srgb, var(--vd-accent) 80%, #fff);
     --vd-mat-selected: var(--vd-mat-selected-color);
-    --vd-mat-selected-text: var(--vd-accent-contrast);
+    --vd-mat-selected-text: #0b1220;
     --vd-mat-selected-edge: none;
     --vd-mat-hover: color-mix(in srgb, var(--vd-accent) 18%, transparent);
     --vd-mat-divider: rgba(255, 255, 255, 0.12);

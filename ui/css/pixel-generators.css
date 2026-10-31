@@ -24,9 +24,10 @@
     box-sizing: border-box;
     width: 100%;
     padding: 5px 9px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 6px;
-    background: var(--pixel-surface);
+    border: 1px solid var(--vd-mat-field-border, var(--pixel-line));
+    border-radius: var(--vd-mat-field-radius, 6px);
+    background: var(--vd-mat-field, var(--pixel-surface));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: inherit;
     font: inherit;
     font-size: 0.82rem;
@@ -51,9 +52,9 @@
     min-width: 0;
     gap: 4px;
     padding: 5px 3px 4px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 8px;
-    background: var(--pixel-surface);
+    border: 1px solid var(--vd-mat-divider, var(--pixel-line));
+    border-radius: var(--vd-mat-card-radius, 8px);
+    background: var(--vd-mat-card-color, var(--pixel-surface));
     color: inherit;
     font: inherit;
     cursor: pointer;
@@ -62,7 +63,7 @@
 
 .pixel-gen-card:hover,
 .pixel-gen-card:focus-visible {
-    background: var(--pixel-hover);
+    background: color-mix(in srgb, var(--vd-mat-card-color, var(--pixel-surface)) 86%, var(--vd-text, #fff));
     border-color: var(--pixel-accent);
     outline: none;
 }
@@ -98,7 +99,11 @@
 
 .pixel-gen-title {
     min-width: 0;
-    font-weight: 600;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, 600);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     font-size: 0.86rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -110,7 +115,7 @@
     align-self: center;
     width: 100%;
     max-width: 320px;
-    border: 1px solid var(--pixel-line);
+    border: 1px solid var(--vd-mat-divider, var(--pixel-line));
     border-radius: 6px;
     overflow: hidden;
     background:
@@ -157,7 +162,7 @@
     flex-direction: column;
     gap: 6px;
     padding-top: 8px;
-    border-top: 1px solid var(--pixel-line);
+    border-top: 1px solid var(--vd-mat-divider, var(--pixel-line));
 }
 
 .pixel-gen-layer-opts,

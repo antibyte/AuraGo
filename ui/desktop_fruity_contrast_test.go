@@ -131,9 +131,9 @@ func TestDesktopOfficeChromeUsesThemeSurfacesInsteadOfDarkWash(t *testing.T) {
 		t.Fatalf("office chrome must not hardcode a dark wash that disappears on fruity light")
 	}
 	for _, want := range []string{
-		"--vd-editor-toolbar-bg: var(--vd-theme-chrome-bg);",
-		"background: var(--vd-theme-chrome-bg);",
-		"--vd-editor-bg: var(--vd-theme-app-bg);",
+		"--vd-editor-toolbar-bg: var(--vd-mat-bar, var(--vd-theme-chrome-bg));",
+		"background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));",
+		"--vd-editor-bg: var(--vd-mat-canvas, var(--vd-theme-app-bg));",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("office chrome missing theme surface marker %q", want)
@@ -155,7 +155,7 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 		}
 	}
 	for _, want := range []string{
-		"background: var(--vd-theme-app-bg);",
+		"background: var(--vd-mat-canvas, var(--vd-theme-app-bg));",
 		"--vd-surface: var(--vd-theme-panel-bg);",
 	} {
 		if !strings.Contains(missionControl, want) {
@@ -167,7 +167,7 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if strings.Contains(chat, "rgba(9, 13, 22") || strings.Contains(chat, "rgba(10, 15, 26") {
 		t.Fatalf("chat chrome must not hardcode a dark wash that disappears on fruity light")
 	}
-	if !strings.Contains(chat, "background: var(--vd-theme-panel-bg);") {
+	if !strings.Contains(chat, "background: var(--vd-mat-card, var(--vd-theme-panel-bg));") {
 		t.Fatalf("chat agent bubbles must use theme panel material")
 	}
 
@@ -175,7 +175,7 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if strings.Contains(store, "rgba(4, 8, 14") {
 		t.Fatalf("software store must not hardcode a dark app wash")
 	}
-	if !strings.Contains(store, "background: var(--vd-theme-app-bg);") {
+	if !strings.Contains(store, "background: var(--vd-mat-canvas, var(--vd-theme-app-bg));") {
 		t.Fatalf("software store missing theme app background marker")
 	}
 
@@ -223,7 +223,7 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if strings.Contains(liveSpeech, "var(--vd-surface, #121920)") {
 		t.Fatalf("live speech must not hardcode a dark surface wash")
 	}
-	if !strings.Contains(liveSpeech, "background: var(--vd-theme-app-bg);") {
+	if !strings.Contains(liveSpeech, "background: var(--vd-mat-canvas, var(--vd-theme-app-bg));") {
 		t.Fatalf("live speech missing theme app background marker")
 	}
 
@@ -269,7 +269,7 @@ func TestDesktopProductivityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) 
 	if !strings.Contains(calculator, ".vd-calc-prog-display") {
 		t.Fatalf("calculator missing programmer display rule")
 	}
-	if !strings.Contains(calculator, "background: var(--vd-theme-panel-bg)") {
+	if !strings.Contains(calculator, "background: var(--vd-mat-well, var(--vd-theme-panel-bg))") {
 		t.Fatalf("calculator programmer display must use theme panel material")
 	}
 }
@@ -295,7 +295,7 @@ func TestDesktopUtilityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) {
 	if strings.Contains(viewer, "rgba(255,255,255,0.1)") {
 		t.Fatalf("viewer chrome must not use fixed white-glass borders")
 	}
-	if !strings.Contains(viewer, "background: var(--vd-theme-app-bg);") {
+	if !strings.Contains(viewer, "background: var(--vd-mat-canvas, var(--vd-theme-app-bg));") {
 		t.Fatalf("viewer missing theme app background marker")
 	}
 
@@ -303,7 +303,7 @@ func TestDesktopUtilityAppsUseThemeSurfacesInsteadOfDarkWash(t *testing.T) {
 	if strings.Contains(looper, "rgba(20,24,30,0.85)") {
 		t.Fatalf("looper must not hardcode a dark app wash")
 	}
-	if !strings.Contains(looper, "background: var(--vd-theme-app-bg);") {
+	if !strings.Contains(looper, "background: var(--vd-mat-canvas, var(--vd-theme-app-bg));") {
 		t.Fatalf("looper missing theme app background marker")
 	}
 }

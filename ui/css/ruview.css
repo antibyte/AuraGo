@@ -22,7 +22,7 @@
     overflow: hidden;
     isolation: isolate;
     color: var(--vd-text);
-    background: var(--vd-theme-app-bg);
+    background: var(--vd-mat-canvas, var(--vd-theme-app-bg));
     font: 14px/1.5 var(--vd-font-ui, system-ui, sans-serif);
     container: ruview / inline-size;
 }
@@ -51,25 +51,28 @@
     padding: 0 var(--ds-space-2) 0 var(--ds-space-3);
     overflow: hidden;
     white-space: nowrap;
-    border-bottom: 1px solid var(--vd-theme-border);
-    background: var(--vd-theme-panel-bg);
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border));
+    background: var(--vd-mat-bar, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
 }
 .ruview-commandbar > * { flex: 0 0 auto; min-width: 0; height: 36px; }
-.ruview-brand { display: flex; align-items: center; gap: var(--ds-space-2); font-size: 15px; font-weight: 600; }
+.ruview-brand { display: flex; align-items: center; gap: var(--ds-space-2); font-size: 15px; font-weight: var(--vd-mat-heading-weight, 600); font-family: var(--vd-mat-heading-font, inherit); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ruview-brand-glyph { color: var(--vd-accent); font-size: 20px; line-height: 1; }
-.ruview-tabs { display: inline-flex; align-items: center; padding: 2px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md); background: var(--vd-theme-control-bg); }
+.ruview-tabs { display: inline-flex; align-items: center; padding: 2px; border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border)); border-radius: var(--vd-mat-field-radius, var(--ds-radius-md)); background: var(--vd-mat-field, var(--vd-theme-control-bg)); box-shadow: var(--vd-mat-field-shadow, none); }
 .ruview-tab { height: 30px; padding: 0 12px; border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-theme-muted); font-size: 14px; font-weight: 600; cursor: pointer; }
 .ruview-tab:hover { color: var(--vd-text); }
-.ruview-tab[aria-selected="true"] { background: var(--vd-theme-panel-bg-strong); color: var(--vd-text); box-shadow: var(--vd-theme-shadow-panel); }
+.ruview-tab[aria-selected="true"] { background: var(--vd-mat-selected, var(--vd-theme-panel-bg-strong)); color: var(--vd-mat-selected-text, var(--vd-text)); box-shadow: var(--vd-mat-selected-edge, var(--vd-theme-shadow-panel)); }
 .ruview-commandbar > .ruview-view-menu {
     display: none;
     flex: 0 1 auto;
     align-items: center;
     gap: var(--ds-space-2);
     padding: 0 var(--ds-space-3);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-btn-radius, var(--ds-radius-md));
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, inherit);
     font-weight: 600;
     cursor: pointer;
     overflow: hidden;
@@ -84,7 +87,7 @@
     padding: 0 var(--ds-space-3);
     border: 1px solid var(--ruview-tone);
     border-radius: var(--ds-radius-full);
-    background: color-mix(in srgb, var(--ruview-tone) 14%, var(--vd-theme-panel-bg));
+    background: color-mix(in srgb, var(--ruview-tone) 14%, var(--vd-mat-bar-color, var(--vd-theme-panel-bg)));
     color: var(--ruview-tone-text);
     font-size: 13px;
     font-weight: 600;
@@ -102,21 +105,25 @@
     gap: 6px;
     height: 36px;
     padding: 0 var(--ds-space-3);
-    border: 1px solid var(--vd-theme-accent-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--vd-theme-accent-soft);
+    border: 1px solid var(--vd-mat-primary-border, var(--vd-theme-accent-border));
+    border-radius: var(--vd-mat-btn-radius, var(--ds-radius-md));
+    background: var(--vd-mat-primary, var(--vd-theme-accent-soft));
+    box-shadow: var(--vd-mat-primary-shadow, none);
     font-weight: 600;
     cursor: pointer;
 }
+.ruview-primary:hover { background: var(--vd-mat-primary-hover, var(--vd-mat-primary, var(--vd-theme-accent-soft))); }
+/* .ruview-app button sets color with (0,1,1); the text colours of the button roles carry .ruview-app to meet it. */
+.ruview-app .ruview-primary { color: var(--vd-mat-primary-text, inherit); }
 .ruview-more { display: inline-grid; place-items: center; width: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; font-size: 20px; line-height: 1; cursor: pointer; }
-.ruview-more:hover { background: var(--vd-theme-control-hover); }
-.ruview-more[aria-expanded="true"] { border-color: var(--vd-theme-accent-border); background: var(--vd-theme-accent-soft); }
+.ruview-more:hover { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); }
+.ruview-more[aria-expanded="true"] { border-color: var(--vd-theme-accent-border); background: var(--vd-mat-selected, var(--vd-theme-accent-soft)); color: var(--vd-mat-selected-text, inherit); }
 
-.ruview-menu { position: absolute; top: 44px; z-index: 20; min-width: 220px; max-width: calc(100% - 12px); padding: var(--ds-space-1); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg-strong); box-shadow: var(--vd-theme-shadow-modal); }
+.ruview-menu { position: absolute; top: 44px; z-index: 20; min-width: 220px; max-width: calc(100% - 12px); padding: var(--ds-space-1); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-panel)); background: var(--vd-mat-card, var(--vd-theme-panel-bg-strong)); box-shadow: var(--vd-theme-shadow-modal); }
 .ruview-menu-more { right: 6px; }
 .ruview-menu-view { left: 6px; }
 .ruview-menuitem { display: flex; width: 100%; min-height: 36px; align-items: center; padding: 0 var(--ds-space-3); border: 0; border-radius: var(--ds-radius-sm); background: transparent; color: inherit; font: inherit; text-align: start; text-decoration: none; cursor: pointer; }
-.ruview-menuitem:hover, .ruview-menuitem:focus-visible { background: var(--vd-theme-control-hover); }
+.ruview-menuitem:hover, .ruview-menuitem:focus-visible { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); }
 .ruview-menuitem-reason, .ruview-step-reason { color: var(--vd-theme-muted); font-size: 12px; font-weight: 400; white-space: normal; }
 .ruview-menuitem-reason { padding-bottom: var(--ds-space-1); }
 .ruview-menu-more .ruview-menuitem { flex-direction: column; align-items: flex-start; justify-content: center; }
@@ -128,9 +135,9 @@
 .ruview-panel { display: grid; gap: var(--ds-space-4); align-content: start; width: 100%; max-width: 880px; margin-inline: auto; }
 .ruview-body:has(> [data-panel="lab"][data-lab-active]) { overflow: hidden; padding: 0; }
 .ruview-panel[data-lab-active] { display: block; max-width: none; height: 100%; }
-.ruview-card { padding: var(--ds-space-4) var(--ds-space-5); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg); }
+.ruview-card { padding: var(--ds-space-4) var(--ds-space-5); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-panel)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, none); }
 .ruview-card[data-ruview-card] { display: grid; gap: var(--ds-space-3); border-inline-start: 4px solid var(--ruview-tone); }
-.ruview-card h3, .ruview-panel-head h2 { margin: 0 0 var(--ds-space-3); font-size: 16px; font-weight: 600; }
+.ruview-card h3, .ruview-panel-head h2 { margin: 0 0 var(--ds-space-3); font-size: 16px; font-weight: var(--vd-mat-heading-weight, 600); font-family: var(--vd-mat-heading-font, inherit); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ruview-panel-head h2 { margin: 0; font-size: 18px; }
 
 .ruview-headline { display: flex; align-items: flex-start; gap: var(--ds-space-3); margin: 0; font-size: 20px; font-weight: 600; line-height: 1.35; }
@@ -143,14 +150,18 @@
 .ruview-btn {
     min-height: 36px;
     padding: 0 var(--ds-space-4);
-    border: 1px solid var(--vd-theme-border);
-    border-radius: var(--ds-radius-md);
-    background: var(--vd-theme-control-bg);
+    border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
+    border-radius: var(--vd-mat-btn-radius, var(--ds-radius-md));
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     font-weight: 600;
     cursor: pointer;
 }
-.ruview-btn:hover { background: var(--vd-theme-control-hover); }
-.ruview-btn-primary { border-color: var(--vd-theme-accent-border); background: var(--vd-theme-accent-soft); }
+.ruview-btn:hover { background: var(--vd-mat-btn-hover, var(--vd-theme-control-hover)); }
+.ruview-btn-primary { border-color: var(--vd-mat-primary-border, var(--vd-theme-accent-border)); background: var(--vd-mat-primary, var(--vd-theme-accent-soft)); box-shadow: var(--vd-mat-primary-shadow, none); }
+.ruview-btn-primary:hover { background: var(--vd-mat-primary-hover, var(--vd-theme-control-hover)); }
+.ruview-app .ruview-btn { color: var(--vd-mat-btn-text, inherit); }
+.ruview-app .ruview-btn-primary { color: var(--vd-mat-primary-text, inherit); }
 .ruview-btn-small { min-height: 30px; margin-inline-start: auto; padding: 0 var(--ds-space-3); font-size: 13px; }
 .ruview-btn[aria-busy="true"]::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: 8px; vertical-align: -.15em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
 
@@ -167,8 +178,9 @@
     padding: var(--ds-space-2) var(--ds-space-3);
     overflow: auto;
     border-radius: var(--ds-radius-sm);
-    background: var(--vd-theme-control-bg);
-    font: 12px/1.5 var(--vd-font-mono, ui-monospace, monospace);
+    background: var(--vd-mat-well, var(--vd-theme-control-bg));
+    box-shadow: var(--vd-mat-well-shadow, none);
+    font: 12px/1.5 var(--vd-mat-mono-font, var(--vd-font-mono, ui-monospace, monospace));
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -187,30 +199,31 @@
 
 .ruview-detail-list { display: grid; gap: var(--ds-space-2); margin: var(--ds-space-3) 0; }
 .ruview-detail { display: grid; grid-template-columns: minmax(96px, 160px) minmax(0, 1fr); gap: var(--ds-space-3); }
-.ruview-detail dt { color: var(--vd-theme-muted); }
+.ruview-detail dt { color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-family: var(--vd-mat-label-font, inherit); letter-spacing: var(--vd-mat-label-tracking, normal); text-transform: var(--vd-mat-label-transform, none); }
 .ruview-detail dd { margin: 0; overflow-wrap: anywhere; }
 .ruview-detail-actions { display: flex; gap: var(--ds-space-2); }
-.ruview-diagnostics { display: block; width: 100%; margin-top: var(--ds-space-3); padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg); font: 12px/1.5 var(--vd-font-mono, ui-monospace, monospace); resize: vertical; }
+.ruview-diagnostics { display: block; width: 100%; margin-top: var(--ds-space-3); padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border)); border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm)); background: var(--vd-mat-field, var(--vd-theme-control-bg)); box-shadow: var(--vd-mat-field-shadow, none); font: 12px/1.5 var(--vd-mat-mono-font, var(--vd-font-mono, ui-monospace, monospace)); resize: vertical; }
 .ruview-about { color: var(--vd-theme-muted); font-size: 13px; }
 .ruview-about p { margin: 0 0 var(--ds-space-2); }
 
 .ruview-feedback { margin: 0; padding: 12px; border-inline-start: 3px solid var(--ds-color-info-fg, currentColor); overflow-wrap: anywhere; }
 .ruview-feedback:empty { display: none; }
 .ruview-board-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--ds-space-3); }
-.ruview-node { display: grid; gap: var(--ds-space-2); min-width: 0; padding: var(--ds-space-4); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg); }
-.ruview-node h3 { margin: 0; font-size: 16px; }
+.ruview-node { display: grid; gap: var(--ds-space-2); min-width: 0; padding: var(--ds-space-4); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-panel)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, none); }
+.ruview-node h3 { margin: 0; font-size: 16px; font-family: var(--vd-mat-heading-font, inherit); font-weight: var(--vd-mat-heading-weight, bold); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ruview-node-row { display: flex; justify-content: space-between; gap: var(--ds-space-3); }
-.ruview-node-row > :first-child { color: var(--vd-theme-muted); }
+.ruview-node-row > :first-child { color: var(--vd-mat-label-color, var(--vd-theme-muted)); letter-spacing: var(--vd-mat-label-tracking, normal); text-transform: var(--vd-mat-label-transform, none); }
 .ruview-node-row > :last-child { text-align: end; overflow-wrap: anywhere; }
 .ruview-count { color: var(--vd-theme-muted); font-weight: 500; }
 
 .ruview-lab-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--ds-space-3); margin-top: var(--ds-space-3); }
-.ruview-lab-card { display: grid; align-content: start; gap: var(--ds-space-2); padding: var(--ds-space-4); border: 1px solid var(--vd-theme-border); border-radius: var(--vd-theme-radius-panel); background: var(--vd-theme-panel-bg); }
+.ruview-lab-card { display: grid; align-content: start; gap: var(--ds-space-2); padding: var(--ds-space-4); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--vd-theme-radius-panel)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, none); }
 .ruview-lab-card h3, .ruview-lab-card p { margin: 0; }
+.ruview-lab-card h3 { font-family: var(--vd-mat-heading-font, inherit); font-weight: var(--vd-mat-heading-weight, bold); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ruview-lab-card .ruview-btn { justify-self: start; }
 .ruview-lab-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.ruview-lab-page > .ruview-note { max-width: none; padding: var(--ds-space-2) var(--ds-space-3); border-bottom: 1px solid var(--vd-theme-border); }
-.ruview-lab-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border-bottom: 1px solid var(--vd-theme-border); background: var(--vd-theme-panel-bg); }
+.ruview-lab-page > .ruview-note { max-width: none; padding: var(--ds-space-2) var(--ds-space-3); border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border)); }
+.ruview-lab-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-2); padding: var(--ds-space-2) var(--ds-space-3); border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border)); background: var(--vd-mat-bar, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-bar-edge, none); }
 .ruview-lab-bar strong { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The frame keeps a small margin: an iframe flush with the window edges breaks pointer routing after an element screenshot in Chrome. */
 .ruview-lab-frame { position: relative; flex: 1 1 0; min-height: 0; margin: var(--ds-space-2); }
@@ -243,18 +256,18 @@
 
 /* ---- board-setup dialog (opened from Boards and from the Config page) ------------------------------------------- */
 .ruview-wizard {
-    --ruview-surface: var(--pw-surface, var(--vd-theme-app-bg, Canvas));
+    --ruview-surface: var(--pw-surface, var(--vd-mat-card-color, var(--vd-theme-app-bg, Canvas)));
     --ruview-text: var(--pw-text, var(--vd-text, CanvasText));
     --ruview-muted: var(--pw-muted, var(--vd-theme-muted, GrayText));
-    --ruview-border: var(--pw-line-strong, var(--vd-theme-border-strong, GrayText));
+    --ruview-border: var(--pw-line-strong, var(--vd-mat-divider, var(--vd-theme-border-strong, GrayText)));
     --ruview-accent: var(--pw-accent, var(--vd-accent, LinkText));
     width: min(720px, calc(100vw - 32px));
     max-width: calc(100vw - 32px);
     max-height: calc(100dvh - 32px);
     padding: 24px;
     border: 1px solid var(--ruview-border);
-    border-radius: 16px;
-    background: var(--ruview-surface);
+    border-radius: var(--vd-mat-card-radius, 16px);
+    background: var(--pw-surface, var(--vd-mat-card, var(--ruview-surface)));
     color: var(--ruview-text);
     color-scheme: inherit;
     font: 16px/1.5 var(--font-family, system-ui);
@@ -264,10 +277,10 @@
 }
 .ruview-wizard::backdrop { background: color-mix(in srgb, CanvasText 72%, transparent); }
 .ruview-wizard header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.ruview-wizard header h2 { margin: 0; font-size: 20px; }
+.ruview-wizard header h2 { margin: 0; font-size: 20px; font-family: var(--vd-mat-heading-font, inherit); font-weight: var(--vd-mat-heading-weight, bold); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ruview-wizard header button { flex: 0 0 44px; padding: 6px; font-size: 24px; }
 .ruview-wizard section { padding: 16px 0; border-top: 1px solid var(--ruview-border); }
-.ruview-wizard section h3 { margin: 0 0 12px; font-size: 18px; }
+.ruview-wizard section h3 { margin: 0 0 12px; font-size: 18px; font-family: var(--vd-mat-heading-font, inherit); font-weight: var(--vd-mat-heading-weight, bold); color: var(--vd-mat-heading-color, inherit); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
 .ruview-wizard section:last-child { padding-bottom: 0; }
 .ruview-wizard label { display: flex; flex-direction: column; gap: 6px; margin: 9px 0; min-width: 0; }
 .ruview-wizard input:not([type="checkbox"]), .ruview-wizard select {
@@ -275,10 +288,11 @@
     min-height: 44px;
     min-width: 0;
     width: 100%;
-    border: 1px solid var(--ruview-border);
-    border-radius: 8px;
+    border: 1px solid var(--pw-line-strong, var(--vd-mat-field-border, var(--ruview-border)));
+    border-radius: var(--vd-mat-field-radius, 8px);
     padding: 9px 10px;
-    background: var(--pw-canvas, var(--vd-theme-input-bg, var(--vd-control-bg, Field)));
+    background: var(--pw-canvas, var(--vd-mat-field, var(--vd-theme-input-bg, var(--vd-control-bg, Field))));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--ruview-text);
 }
 .ruview-wizard input:disabled { opacity: .5; cursor: not-allowed; }
@@ -300,10 +314,11 @@
 .ruview-wizard button {
     min-height: 44px;
     padding: 9px 14px;
-    border: 1px solid var(--ruview-border);
-    border-radius: 8px;
-    background: var(--pw-surface-elevated, var(--vd-control-bg, ButtonFace));
-    color: inherit;
+    border: 1px solid var(--pw-line-strong, var(--vd-mat-btn-border, var(--ruview-border)));
+    border-radius: var(--vd-mat-btn-radius, 8px);
+    background: var(--pw-surface-elevated, var(--vd-mat-btn, var(--vd-control-bg, ButtonFace)));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, inherit);
     font: inherit;
     cursor: pointer;
     text-decoration: none;
@@ -317,7 +332,7 @@
 .ruview-flash-progress output:empty { display: none; }
 .ruview-wizard button[aria-busy="true"] { opacity: 1; cursor: progress; }
 .ruview-wizard button[aria-busy="true"]::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: 8px; vertical-align: -.15em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ruview-spin .8s linear infinite; }
-.ruview-wizard [data-flash-next] { border-color: var(--ruview-accent); background: color-mix(in srgb, var(--ruview-accent) 18%, var(--ruview-surface)); font-weight: 650; white-space: normal; }
+.ruview-wizard [data-flash-next] { border-color: var(--ruview-accent); background: var(--vd-mat-primary, color-mix(in srgb, var(--ruview-accent) 18%, var(--ruview-surface))); box-shadow: var(--vd-mat-primary-shadow, none); color: var(--vd-mat-primary-text, inherit); font-weight: 650; white-space: normal; }
 .ruview-wizard .ruview-feedback[data-state="success"] { border-color: var(--pw-success, var(--ds-color-success-fg, currentColor)); }
 .ruview-wizard .ruview-feedback[data-state="success"]::before { content: "✓ "; }
 .ruview-wizard .ruview-feedback[data-state="error"] { border-color: var(--pw-danger, var(--ds-color-danger-fg, currentColor)); }

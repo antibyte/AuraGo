@@ -519,8 +519,8 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
 {
     const region = cssRule('.infra-region');
     assert.ok(region.includes('border: calc(var(--infra-ring, 2px) * .75) solid var(--infra-outline)'), 'a region is outlined with the visible outline token, 1.5 px on screen');
-    assert.ok(fs.readFileSync(path.join(root, 'ui/css/desktop-app-infra.css'), 'utf8').includes('--infra-outline: color-mix(in srgb, var(--vd-text) 16%, var(--vd-theme-border))'), 'A25: the outline mixes the theme text colour into the theme border so it shows in dark themes');
-    assert.ok(region.includes('background: color-mix(in srgb, var(--vd-theme-panel-bg) 45%, transparent)'), 'a region is filled with a neutral panel tint');
+    assert.ok(fs.readFileSync(path.join(root, 'ui/css/desktop-app-infra.css'), 'utf8').includes('--infra-outline: color-mix(in srgb, var(--vd-text) 16%, var(--infra-line))'), 'A25: the outline mixes the theme text colour into the theme divider (--infra-line, the material divider with the theme border as fallback) so it shows in dark themes');
+    assert.ok(region.includes('background: color-mix(in srgb, var(--infra-card-color) 45%, transparent)'), 'a region is filled with a neutral panel tint (--infra-card-color: the material card colour, the theme panel as fallback)');
     assert.ok(!/var\(--vd-accent\)/.test(region) && !/\.infra-region\[data-depth/.test(canvasCSS), 'the accent never tints a plain region');
     for (const selector of ['.infra-region.is-selected', '.infra-region.is-drop-target', '.infra-region-header:hover']) assert.ok(/accent/.test(cssRule(selector)), `${selector} keeps the accent`);
 }

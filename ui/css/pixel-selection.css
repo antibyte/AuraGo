@@ -68,15 +68,19 @@
     flex-direction: column;
     gap: 9px;
     padding: 12px;
-    border: 1px solid var(--pixel-line);
-    border-radius: 10px;
-    background: var(--vd-theme-panel-bg);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+    border: 1px solid var(--vd-mat-card-border, var(--pixel-line));
+    border-radius: var(--vd-mat-card-radius, 10px);
+    background: var(--vd-mat-card, var(--vd-theme-panel-bg));
+    box-shadow: var(--vd-mat-card-shadow, 0 10px 28px rgba(0, 0, 0, 0.38));
     user-select: none;
 }
 
 .pixel-sel-cr-title {
-    font-weight: 700;
+    font-family: var(--vd-mat-heading-font, inherit);
+    font-weight: var(--vd-mat-heading-weight, 700);
+    color: var(--vd-mat-heading-color, inherit);
+    letter-spacing: var(--vd-mat-heading-tracking, normal);
+    text-transform: var(--vd-mat-heading-transform, none);
     font-size: 0.86rem;
 }
 

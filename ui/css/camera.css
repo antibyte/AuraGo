@@ -344,16 +344,19 @@
 
 /* ── Dock (floating control bar) ────────────────────────────── */
 
+/* Materials: the dock is the app's bar, the mode switch is a field, chips and action buttons are btn, the send button is primary and the
+   active mode/chip is selected. The black viewport above stays black and covers the whole root, so the root keeps the flat app background.
+   The bridge forces --cam-glass/--cam-line with !important, so the dock reads the material tokens directly. */
 .camera-dock {
     position: relative;
     z-index: 12;
     display: grid;
     gap: 8px;
     padding: 10px 16px;
-    border-top: 1px solid var(--cam-line);
-    background: var(--cam-glass-strong);
+    border-top: 1px solid var(--vd-mat-divider, var(--cam-line));
+    background: var(--vd-mat-bar, var(--cam-glass-strong));
     backdrop-filter: none;
-    box-shadow: 0 -1px 0 rgba(255,255,255,.04);
+    box-shadow: var(--vd-mat-bar-edge, 0 -1px 0 rgba(255,255,255,.04));
 }
 
 .camera-dock-live {
@@ -391,9 +394,10 @@
     display: flex;
     gap: 2px;
     padding: 3px;
-    border: 1px solid var(--cam-line);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--vd-mat-field-border, var(--cam-line));
+    border-radius: var(--vd-mat-field-radius, 8px);
+    background: var(--vd-mat-field, rgba(255, 255, 255, 0.05));
+    box-shadow: var(--vd-mat-field-shadow, none);
 }
 
 .camera-mode button {
@@ -412,8 +416,8 @@
 }
 
 .camera-mode button.is-active {
-    background: var(--cam-accent-soft);
-    color: var(--cam-ring);
+    background: var(--vd-mat-selected, var(--cam-accent-soft));
+    color: var(--vd-mat-selected-text, var(--cam-ring));
     font-weight: 600;
 }
 
@@ -432,10 +436,11 @@
     min-width: 38px;
     height: 38px;
     padding: 0 10px;
-    border: 1px solid var(--cam-line);
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--cam-text-muted);
+    border: 1px solid var(--vd-mat-btn-border, var(--cam-line));
+    border-radius: var(--vd-mat-btn-radius, 7px);
+    background: var(--vd-mat-btn, rgba(255, 255, 255, 0.05));
+    box-shadow: var(--vd-mat-btn-shadow, none);
+    color: var(--vd-mat-btn-text, var(--cam-text-muted));
     cursor: pointer;
     font: inherit;
     font-size: 12px;
@@ -445,15 +450,17 @@
 
 .camera-chip:not(:disabled):hover {
     border-color: var(--cam-accent-strong);
-    background: var(--cam-accent-soft);
-    color: var(--cam-ring);
+    background: var(--vd-mat-btn-hover, var(--cam-accent-soft));
+    color: var(--vd-mat-btn-text, var(--cam-ring));
     transform: translateY(-1px);
 }
 
-.camera-chip.is-active {
+.camera-chip.is-active,
+.camera-chip.is-active:not(:disabled):hover {
     border-color: var(--cam-accent-strong);
-    background: var(--cam-accent-soft);
-    color: var(--cam-ring);
+    background: var(--vd-mat-selected, var(--cam-accent-soft));
+    color: var(--vd-mat-selected-text, var(--cam-ring));
+    box-shadow: var(--vd-mat-selected-edge, none);
 }
 
 .camera-chip:disabled {
@@ -470,9 +477,10 @@
     height: 38px;
     max-width: 190px;
     padding: 0 10px;
-    border: 1px solid var(--cam-line);
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--vd-mat-field-border, var(--cam-line));
+    border-radius: var(--vd-mat-field-radius, 7px);
+    background: var(--vd-mat-field, rgba(255, 255, 255, 0.05));
+    box-shadow: var(--vd-mat-field-shadow, none);
     color: var(--vd-text);
     font: inherit;
     font-size: 12px;
@@ -534,12 +542,13 @@
     min-width: 64px;
     min-height: 64px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--vd-mat-btn, rgba(255, 255, 255, 0.1));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     transition: background 200ms ease, transform 150ms ease, box-shadow 200ms ease;
 }
 
 .camera-btn-capture:not(:disabled):hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--vd-mat-btn-hover, rgba(255, 255, 255, 0.18));
     box-shadow: 0 0 0 6px var(--cam-accent-soft);
 }
 
@@ -618,18 +627,19 @@
     gap: 4px;
     min-width: 84px;
     padding: 10px 16px;
-    border: 1px solid var(--cam-line);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--vd-mat-btn-border, var(--cam-line));
+    border-radius: var(--vd-mat-card-radius, 14px);
+    background: var(--vd-mat-btn, rgba(255, 255, 255, 0.05));
+    box-shadow: var(--vd-mat-btn-shadow, none);
     font-size: 0.76rem;
-    color: var(--cam-text-muted);
+    color: var(--vd-mat-btn-text, var(--cam-text-muted));
     transition: transform 150ms ease, border-color 200ms ease, background 200ms ease, color 200ms ease;
 }
 
 .camera-btn-action:not(:disabled):hover {
     border-color: var(--cam-accent-strong);
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--cam-ring);
+    background: var(--vd-mat-btn-hover, rgba(255, 255, 255, 0.1));
+    color: var(--vd-mat-btn-text, var(--cam-ring));
 }
 
 .camera-btn-icon {
@@ -668,17 +678,18 @@
 
 /* Primary action (Send to Agent) — single-accent, clearly primary */
 .camera-btn-send {
-    background: var(--cam-accent-soft);
-    border-color: var(--cam-accent-strong);
-    color: var(--cam-ring);
+    background: var(--vd-mat-primary, var(--cam-accent-soft));
+    border-color: var(--vd-mat-primary-border, var(--cam-accent-strong));
+    color: var(--vd-mat-primary-text, var(--cam-ring));
+    box-shadow: var(--vd-mat-primary-shadow, none);
     font-weight: 600;
 }
 
 .camera-btn-send:not(:disabled):hover {
-    background: var(--cam-accent-soft);
-    border-color: var(--cam-accent);
-    color: var(--cam-ring);
-    box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--cam-accent) 55%, transparent);
+    background: var(--vd-mat-primary-hover, var(--cam-accent-soft));
+    border-color: var(--vd-mat-primary-border, var(--cam-accent));
+    color: var(--vd-mat-primary-text, var(--cam-ring));
+    box-shadow: var(--vd-mat-primary-shadow, 0 6px 18px -6px color-mix(in srgb, var(--cam-accent) 55%, transparent));
 }
 
 /* ── Hint bar ───────────────────────────────────────────────── */
@@ -701,12 +712,12 @@
     height: 18px;
     padding: 0 5px;
     margin-right: 4px;
-    border: 1px solid var(--cam-line);
+    border: 1px solid var(--vd-mat-btn-border, var(--cam-line));
     border-radius: 4px;
-    background: var(--vd-theme-control-bg);
-    font-family: var(--font-mono, ui-monospace, monospace);
+    background: var(--vd-mat-btn, var(--vd-theme-control-bg));
+    font-family: var(--vd-mat-mono-font, var(--font-mono, ui-monospace, monospace));
     font-size: 0.66rem;
-    color: inherit;
+    color: var(--vd-mat-btn-text, inherit);
 }
 
 /* ── Shared keyframes ───────────────────────────────────────── */
