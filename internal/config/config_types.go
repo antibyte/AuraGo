@@ -1477,7 +1477,8 @@ type Config struct {
 		MaxConcurrentWorkers int    `yaml:"max_concurrent_workers"`
 		ReadOnly             bool   `yaml:"readonly"` // true = inbound only, block outbound sends
 	} `yaml:"telegram"`
-	Whisper struct {
+	WhatsApp WhatsAppConfig `yaml:"whatsapp" json:"whatsapp"`
+	Whisper  struct {
 		Provider     string `yaml:"provider"`          // provider entry ID
 		ProviderType string `yaml:"-"       json:"-"`  // resolved
 		BaseURL      string `yaml:"-"       json:"-"`  // resolved

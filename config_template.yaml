@@ -1433,6 +1433,17 @@ webdav:
     url: ""
     username: ""
     # Store password/app password or bearer token in the Vault via the Web UI.
+whatsapp:
+    enabled: false
+    # dedicated: AuraGo has its own number and the owner writes to it.
+    # self_chat: your personal number; only the "Message yourself" chat reaches AuraGo.
+    mode: dedicated
+    owner_numbers: []                  # international format, e.g. "+491701234567"; required in dedicated mode
+    readonly: false                    # true blocks send_whatsapp and notifications; replies to the owner still work
+    send_read_receipts: true           # dedicated mode only
+    self_chat_prefix: "🤖 "            # marks AuraGo's messages in self_chat mode
+    # Link the account in the Config UI (QR code or pairing code). The linked-device
+    # keys live in <data_dir>/whatsapp/device.db and are never backed up.
 whisper:
     provider: ""                       # select a provider entry; Mistral uses Voxtral Mini Transcribe
 mqtt:

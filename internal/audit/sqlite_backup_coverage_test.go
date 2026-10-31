@@ -25,6 +25,10 @@ var sqliteBackupExclusions = map[string]string{
 	"image_gallery.db":   "default of sqlite.image_gallery_path",
 	"virtual_desktop.db": "default of sqlite.virtual_desktop_path",
 	"media_registry.db":  "default of sqlite.media_registry_path",
+
+	// Credential store, deliberately outside backups: a restored copy would clone
+	// the linked device. The owner relinks after a restore.
+	"device.db": "WhatsApp linked-device keys (<data_dir>/whatsapp/device.db)",
 }
 
 var sqliteLiteralJoin = regexp.MustCompile(`filepath\.Join\([^()\n]*"([A-Za-z0-9_.-]+\.(?:db|sqlite))"\s*\)`)

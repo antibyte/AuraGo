@@ -416,6 +416,7 @@ func Load(path string) (*Config, error) {
 	cfg.Gog.ReadOnly = true
 	cfg.ModelCatalog.Enabled = true
 	cfg.ModelCatalog.CatalogOnlyVisible = true
+	ApplyWhatsAppDefaults(&cfg.WhatsApp)
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
 	// These are set before unmarshal so that keys absent from the YAML file keep the
 	// correct default; explicit 'enabled: false' in the YAML will still override them.
@@ -2368,6 +2369,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Telegram.MaxConcurrentWorkers <= 0 {
 		cfg.Telegram.MaxConcurrentWorkers = 5
 	}
+
+	// WhatsApp: canonical mode and E.164 owner numbers.
+	NormalizeWhatsAppConfig(&cfg.WhatsApp)
 
 	// Discord defaults — mirror the Telegram worker limit so both channels behave alike.
 	if cfg.Discord.MaxConcurrentWorkers <= 0 {

@@ -22,6 +22,7 @@ func TestIntegrationTemplateSectionsUseSupportedFieldsAndSafeDefaults(t *testing
 	for name, target := range map[string]any{
 		"a2a": &cfg.A2A, "email_accounts": &cfg.EmailAccounts, "firewall": &cfg.Firewall,
 		"golangci_lint": &cfg.GolangciLint, "heartbeat": &cfg.Heartbeat, "journal": &cfg.Journal, "security_proxy": &cfg.SecurityProxy,
+		"whatsapp": &cfg.WhatsApp,
 	} {
 		value, exists := sections[name]
 		if !exists {
@@ -37,7 +38,7 @@ func TestIntegrationTemplateSectionsUseSupportedFieldsAndSafeDefaults(t *testing
 			t.Fatalf("unsupported fields in %s: %v", name, err)
 		}
 	}
-	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled || cfg.Firewall.Enabled || cfg.GolangciLint.Enabled || cfg.Heartbeat.Enabled || cfg.SecurityProxy.Enabled || len(cfg.EmailAccounts) != 0 {
+	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled || cfg.Firewall.Enabled || cfg.GolangciLint.Enabled || cfg.Heartbeat.Enabled || cfg.SecurityProxy.Enabled || len(cfg.EmailAccounts) != 0 || cfg.WhatsApp.Enabled {
 		t.Fatal("reference silently enables an optional integration")
 	}
 	if cfg.Firewall.Mode != "readonly" || !cfg.A2A.Auth.APIKeyEnabled {
@@ -45,5 +46,9 @@ func TestIntegrationTemplateSectionsUseSupportedFieldsAndSafeDefaults(t *testing
 	}
 	if cfg.Heartbeat.DayTimeWindow.Interval != "1h" || cfg.Heartbeat.NightTimeWindow.Interval != "4h" || !cfg.Journal.AutoEntries || !cfg.Journal.DailySummary {
 		t.Fatal("reference differs from loader schedule/journal defaults")
+	}
+	if cfg.WhatsApp.Mode != WhatsAppModeDedicated || !cfg.WhatsApp.SendReadReceipts || cfg.WhatsApp.ReadOnly ||
+		cfg.WhatsApp.SelfChatPrefix != DefaultWhatsAppSelfChatPrefix || len(cfg.WhatsApp.OwnerNumbers) != 0 {
+		t.Fatalf("reference whatsapp block differs from loader defaults: %+v", cfg.WhatsApp)
 	}
 }
