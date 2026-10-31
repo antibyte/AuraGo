@@ -7,11 +7,12 @@ function renderGrafanaSection(section) {
     const readonlyOn = data.readonly !== false;
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.grafana.api_key_placeholder'));
     const form = window.AuraConfigForm;
+    const checking = enabledOn && data.base_url;
     const html = window.AuraConfigForm.renderSpec({
         icon: section.icon,
         label: section.label,
         desc: section.desc,
-        beforeHTML: '<div id="grafana-status-banner" class="adg-status-banner">' + t('config.grafana.checking') + '</div>',
+        beforeHTML: form.statusBanner({ id: 'grafana-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.base_url ? t('config.grafana.status_no_url') : '' }),
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.grafana.enabled_label'), help: t('help.grafana.enabled'), path: 'grafana.enabled', value: enabledOn }),
             form.toggle({ label: t('config.grafana.readonly_label'), help: t('help.grafana.readonly'), path: 'grafana.readonly', value: readonlyOn })
@@ -24,62 +25,37 @@ function renderGrafanaSection(section) {
                 label: t('config.grafana.api_key_label'),
                 help: t('help.grafana.api_key'),
                 id: 'grafana-api-key',
+                path: 'grafana.api_key',
                 value: data.api_key,
-                placeholder: apiKeyPlaceholder,
-                actionHTML: '<button class="btn-save adg-save-btn" onclick="grafanaSaveAPIKey()">' + t('config.grafana.save_icon') + ' ' + t('config.grafana.save_vault') + '</button>'
+                placeholder: apiKeyPlaceholder
             })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn">🔌 ' + t('config.grafana.test_btn') + '</button>' },
-            { html: '<span id="grafana-test-result" class="adg-test-result"></span>' }
+            { html: '<button class="btn-save adg-test-btn" onclick="grafanaTestConnection()" id="grafana-test-btn" data-config-action-draft="true">' + t('config.grafana.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'grafana-test-result' }) }
         ]) + '<div id="grafana-summary" class="adg-quick-stats is-hidden">'
-            + '<div class="adg-stats-title">📊 ' + t('config.grafana.summary_title') + '</div>'
+            + '<div class="adg-stats-title">' + t('config.grafana.summary_title') + '</div>'
             + '<div id="grafana-summary-content" class="adg-stats-grid"></div>'
             + '</div>'
     });
 
     document.getElementById('content').innerHTML = html;
 
-    if (enabledOn && data.base_url) {
-        grafanaCheckStatus();
-    } else {
-        grafanaSetBanner('neutral', enabledOn ? '⚪ ' + t('config.grafana.status_no_url') : '⚪ ' + t('config.grafana.status_disabled'));
-    }
-}
-
-function grafanaSetBanner(state, text) {
-    const banner = document.getElementById('grafana-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+    if (checking) grafanaCheckStatus();
 }
 
 function grafanaCheckStatus() {
-    grafanaSetBanner('neutral', t('config.grafana.checking'));
-    fetch('/api/grafana/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                grafanaSetBanner('neutral', '⚪ ' + t('config.grafana.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_url') {
-                grafanaSetBanner('neutral', '⚪ ' + t('config.grafana.status_no_url'));
-                return;
-            }
-            if (res.status === 'no_api_key') {
-                grafanaSetBanner('warning', '🟡 ' + t('config.grafana.status_no_api_key'));
-                return;
-            }
-            if (res.status !== 'ok' || !res.data) {
-                grafanaSetBanner('danger', '🔴 ' + (res.message || t('config.grafana.connection_failed')));
-                return;
-            }
-            grafanaSetBanner('success', '🟢 ' + t('config.grafana.connected'));
-            grafanaRenderSummary(res.data.summary || {}, res.data.partial_errors || []);
-        })
-        .catch(() => grafanaSetBanner('danger', '🔴 ' + t('config.grafana.connection_failed')));
+    const banner = document.getElementById('grafana-status-banner');
+    if (!banner) return;
+    return cfgStatusBanner.check(banner, () => fetch('/api/grafana/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'no_url') return { state: 'unconfigured', detail: t('config.grafana.status_no_url') };
+        if (res.status === 'no_api_key') return { state: 'unconfigured', detail: t('config.grafana.status_no_api_key') };
+        if (res.status !== 'ok' || !res.data) return { state: 'error', detail: res.message || t('config.grafana.connection_failed') };
+        grafanaRenderSummary(res.data.summary || {}, res.data.partial_errors || []);
+        return { state: 'connected', detail: t('config.grafana.connected') };
+    });
 }
 
 function grafanaRenderSummary(summary, partialErrors) {
@@ -100,56 +76,14 @@ function grafanaRenderSummary(summary, partialErrors) {
 
 function grafanaTestConnection() {
     const btn = document.getElementById('grafana-test-btn');
-    const result = document.getElementById('grafana-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.grafana.loading');
-        result.className = 'adg-test-result';
-    }
-    fetch('/api/grafana/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.grafana.status_success') + ' ' + t('config.grafana.test_ok');
-                grafanaCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.grafana.status_error') + ' ' + (res.message || t('config.grafana.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.grafana.status_error') + ' ' + t('config.grafana.test_fail');
-            }
-        });
-}
-
-function grafanaSaveAPIKey() {
-    const input = document.getElementById('grafana-api-key');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        showToast(t('config.grafana.api_key_empty'), 'error');
-        return;
-    }
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/grafana/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'grafana_api_key', value: value })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(t('config.grafana.api_key_saved'), 'success');
-                cfgMarkSecretStored(input, 'grafana.api_key');
-                grafanaCheckStatus();
-            } else {
-                showToast(res.message || t('config.grafana.api_key_save_failed'), 'error');
-            }
-        })
-        .catch(() => showToast(t('config.grafana.api_key_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['grafana']) })
+    }), {
+        target: 'grafana-test-result',
+        success: t('config.grafana.test_ok'),
+        failure: t('config.grafana.test_fail'),
+        onSuccess: () => grafanaCheckStatus()
+    });
 }

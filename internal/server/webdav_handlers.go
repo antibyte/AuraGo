@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
@@ -20,7 +21,7 @@ func handleWebDAVStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeWebDAVProbeResult(w, s, false)
+		writeWebDAVProbeResult(w, s.ConfigSnapshot(), false)
 	}
 }
 
@@ -31,14 +32,17 @@ func handleWebDAVTest(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeWebDAVProbeResult(w, s, true)
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		writeWebDAVProbeResult(w, draft, true)
 	}
 }
 
-func writeWebDAVProbeResult(w http.ResponseWriter, s *Server, test bool) {
-	s.CfgMu.RLock()
-	cfg := s.Cfg.WebDAV
-	s.CfgMu.RUnlock()
+func writeWebDAVProbeResult(w http.ResponseWriter, full *config.Config, test bool) {
+	cfg := full.WebDAV
 
 	if !cfg.Enabled {
 		json.NewEncoder(w).Encode(map[string]interface{}{

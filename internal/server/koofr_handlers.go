@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
@@ -20,7 +21,7 @@ func handleKoofrStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeKoofrProbeResult(w, s, false)
+		writeKoofrProbeResult(w, s.ConfigSnapshot(), false)
 	}
 }
 
@@ -31,14 +32,17 @@ func handleKoofrTest(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		writeKoofrProbeResult(w, s, true)
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		writeKoofrProbeResult(w, draft, true)
 	}
 }
 
-func writeKoofrProbeResult(w http.ResponseWriter, s *Server, test bool) {
-	s.CfgMu.RLock()
-	cfg := s.Cfg.Koofr
-	s.CfgMu.RUnlock()
+func writeKoofrProbeResult(w http.ResponseWriter, full *config.Config, test bool) {
+	cfg := full.Koofr
 
 	if !cfg.Enabled {
 		json.NewEncoder(w).Encode(map[string]interface{}{

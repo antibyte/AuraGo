@@ -9,7 +9,7 @@ function renderTelnyxSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div id="telnyx-status-banner" class="adg-status-banner">' + t('config.telnyx.checking') + '</div>';
+    html += cfgStatusBanner.html('telnyx-status-banner', enabled ? 'checking' : 'off');
 
     // ── Enabled toggle ──
     html += '<div class="field-group">';
@@ -35,10 +35,9 @@ function renderTelnyxSection(section) {
     html += '<div class="field-help">' + t('help.telnyx.api_key') + '</div>';
     html += '<div class="telnyx-api-row">';
         html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
+        html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" data-path="telnyx.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-    html += '<button class="btn btn-sm" onclick="saveTelnyxVault(\'api_key\')">' + t('config.telnyx.save_vault') + '</button>';
     html += '</div></div>';
 
     // ── Account Public Key (webhook verification) ──
@@ -144,18 +143,14 @@ function renderTelnyxSection(section) {
     html += '</div></div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn">🔌 ' + t('config.telnyx.test_btn') + '</button>';
-    html += '<span id="telnyx-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn" data-config-action-draft="true">' + t('config.telnyx.test_btn') + '</button>';
+    html += cfgActionResult.html('telnyx-test-result');
     html += '</div>';
 
     html += '</div>'; // close cfg-section
     document.getElementById('content').innerHTML = html;
 
-    if (enabled) {
-        telnyxCheckStatus();
-    } else {
-        telnyxSetBanner('neutral', '⚪ ' + t('config.telnyx.status_disabled'));
-    }
+    if (enabled) telnyxCheckStatus();
 }
 
 function telnyxVoiceLanguageSelect(selected) {
@@ -173,88 +168,34 @@ function telnyxVoiceLanguageSelect(selected) {
     return html;
 }
 
-function telnyxSetBanner(state, text) {
+function telnyxCheckStatus() {
     const banner = document.getElementById('telnyx-status-banner');
     if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
-}
-
-function telnyxCheckStatus() {
-    telnyxSetBanner('neutral', t('config.telnyx.checking'));
-    fetch('/api/telnyx/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                telnyxSetBanner('neutral', '⚪ ' + t('config.telnyx.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_credentials') {
-                telnyxSetBanner('warning', '🟡 ' + t('config.telnyx.status_no_credentials'));
-                return;
-            }
-            if (res.status === 'ok') {
-                let text = '🟢 ' + t('config.telnyx.status_ok');
-                if (res.balance) text += ' (' + res.balance + (res.currency ? ' ' + res.currency : '') + ')';
-                telnyxSetBanner('success', text);
-                return;
-            }
-            telnyxSetBanner('danger', '🔴 ' + (res.message || t('config.telnyx.connection_failed')));
-        })
-        .catch(() => telnyxSetBanner('danger', '🔴 ' + t('config.telnyx.connection_failed')));
+    return cfgStatusBanner.check(banner, () => fetch('/api/telnyx/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'no_credentials') return { state: 'unconfigured', detail: t('config.telnyx.status_no_credentials') };
+        if (res.status === 'ok') {
+            let detail = t('config.telnyx.status_ok');
+            if (res.balance) detail += ' (' + res.balance + (res.currency ? ' ' + res.currency : '') + ')';
+            return { state: 'connected', detail: detail };
+        }
+        return { state: 'error', detail: res.message || t('config.telnyx.connection_failed') };
+    });
 }
 
 function telnyxTestConnection() {
     const btn = document.getElementById('telnyx-test-btn');
-    const result = document.getElementById('telnyx-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.telnyx.loading');
-        result.className = 'adg-test-result';
-    }
-
-    fetch('/api/telnyx/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.telnyx.status_success') + ' ' + t('config.telnyx.test_ok');
-                telnyxCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.telnyx.status_error') + ' ' + (res.message || t('config.telnyx.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.telnyx.status_error') + ' ' + t('config.telnyx.test_fail');
-            }
-        });
-}
-
-function saveTelnyxVault(field) {
-    const el = document.getElementById('telnyx-api-key');
-    if (!el || !el.value.trim()) {
-        showToast(t('config.telnyx.vault_empty'), 'warn');
-        return;
-    }
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/telnyx/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telnyx_' + field, value: el.value.trim() })
-    }).then(r => {
-        if (r.ok) {
-            cfgMarkSecretStored(el, 'telnyx.api_key');
-            showToast(t('config.telnyx.vault_saved'), 'success');
-        } else {
-            showToast(t('config.telnyx.vault_failed'), 'error');
-        }
-    }).catch(() => showToast(t('config.telnyx.vault_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['telnyx']) })
+    }), {
+        target: 'telnyx-test-result',
+        success: t('config.telnyx.test_ok'),
+        failure: t('config.telnyx.test_fail'),
+        onSuccess: () => telnyxCheckStatus()
+    });
 }
 
 function parseTelnyxAllowedNumbers(el) {

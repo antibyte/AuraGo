@@ -67,7 +67,12 @@ func handleAgentMailTest(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		cfg := agentmail.ConfigFromAppConfig(s.Cfg.AgentMail)
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := agentmail.ConfigFromAppConfig(draft.AgentMail)
 		if cfg.APIKey == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "AgentMail API key is not configured"})
 			return

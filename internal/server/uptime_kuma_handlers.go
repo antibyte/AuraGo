@@ -6,15 +6,20 @@ import (
 	"net/http"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
 func uptimeKumaToolConfig(s *Server) tools.UptimeKumaConfig {
+	return uptimeKumaToolConfigFrom(s.Cfg.UptimeKuma)
+}
+
+func uptimeKumaToolConfigFrom(u config.UptimeKumaConfig) tools.UptimeKumaConfig {
 	return tools.UptimeKumaConfig{
-		BaseURL:        s.Cfg.UptimeKuma.BaseURL,
-		APIKey:         s.Cfg.UptimeKuma.APIKey,
-		InsecureSSL:    s.Cfg.UptimeKuma.InsecureSSL,
-		RequestTimeout: s.Cfg.UptimeKuma.RequestTimeout,
+		BaseURL:        u.BaseURL,
+		APIKey:         u.APIKey,
+		InsecureSSL:    u.InsecureSSL,
+		RequestTimeout: u.RequestTimeout,
 	}
 }
 
@@ -79,14 +84,20 @@ func handleUptimeKumaTest(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if s.Cfg.UptimeKuma.BaseURL == "" {
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		ukcfg := draft.UptimeKuma
+		if ukcfg.BaseURL == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "Uptime Kuma base URL is not configured",
 			})
 			return
 		}
-		if s.Cfg.UptimeKuma.APIKey == "" {
+		if ukcfg.APIKey == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "Uptime Kuma API key is not configured",
@@ -94,9 +105,9 @@ func handleUptimeKumaTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(max(15, s.Cfg.UptimeKuma.RequestTimeout))*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(max(15, ukcfg.RequestTimeout))*time.Second)
 		defer cancel()
-		snapshot, err := tools.FetchUptimeKumaSnapshot(ctx, uptimeKumaToolConfig(s), s.Logger)
+		snapshot, err := tools.FetchUptimeKumaSnapshot(ctx, uptimeKumaToolConfigFrom(ukcfg), s.Logger)
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",

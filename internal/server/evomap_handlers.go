@@ -105,7 +105,12 @@ func handleEvomapTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		cfg := evomapConfigSnapshot(s)
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := draft.Evomap
 		client, err := newEvomapServerClient(cfg)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")

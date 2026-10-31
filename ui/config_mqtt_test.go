@@ -140,23 +140,14 @@ func TestMQTTConfigTopicsEditSaveReloadBrowser(t *testing.T) {
     }`).String(); got != `0` {
 		t.Fatalf("saved availability QoS0 = %s", got)
 	}
-	page.MustEval(`async () => {
-        const originalFetch = window.fetch;
-        window.__mqttPasswordBody = '';
-        window.fetch = async (input, init) => {
-            if (String(input).endsWith('/api/vault/secrets') && init && init.method === 'POST') {
-                window.__mqttPasswordBody = init.body;
-                return new Response(JSON.stringify({status:'ok'}), {status:200, headers:{'Content-Type':'application/json'}});
-            }
-            return originalFetch(input, init);
-        };
+	// The broker password joins the save dock (the server trims and writes it to the vault).
+	page.MustEval(`() => {
         const input = document.getElementById('mqtt-password');
         input.value = '  password with spaces  ';
-        mqttSavePassword();
-        await new Promise(resolve => setTimeout(resolve, 0));
+        input.dispatchEvent(new Event('input', {bubbles:true}));
     }`)
-	if got := page.MustEval(`() => JSON.parse(window.__mqttPasswordBody).value`).String(); got != `  password with spaces  ` {
-		t.Fatalf("password whitespace was changed: %q", got)
+	if !page.MustEval(`() => document.getElementById('mqtt-password').dataset.path === 'mqtt.password' && String(AuraConfigState.get('mqtt.password')).trim() === 'password with spaces' && hasUnsavedConfigChanges() && !document.querySelector('[onclick*="mqttSavePassword"]')`).Bool() {
+		t.Fatal("mqtt password did not join the save dock")
 	}
 	page.MustEval(`() => {
         const broker = document.querySelector('[data-path="mqtt.broker"]');

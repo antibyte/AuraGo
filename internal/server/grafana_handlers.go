@@ -6,15 +6,20 @@ import (
 	"net/http"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 )
 
 func grafanaToolConfig(s *Server) tools.GrafanaConfig {
+	return grafanaToolConfigFrom(s.Cfg.Grafana)
+}
+
+func grafanaToolConfigFrom(g config.GrafanaConfig) tools.GrafanaConfig {
 	return tools.GrafanaConfig{
-		BaseURL:        s.Cfg.Grafana.BaseURL,
-		APIKey:         s.Cfg.Grafana.APIKey,
-		InsecureSSL:    s.Cfg.Grafana.InsecureSSL,
-		RequestTimeout: s.Cfg.Grafana.RequestTimeout,
+		BaseURL:        g.BaseURL,
+		APIKey:         g.APIKey,
+		InsecureSSL:    g.InsecureSSL,
+		RequestTimeout: g.RequestTimeout,
 	}
 }
 
@@ -95,18 +100,24 @@ func handleGrafanaTest(s *Server) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if s.Cfg.Grafana.BaseURL == "" {
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		gcfg := draft.Grafana
+		if gcfg.BaseURL == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "Grafana base URL is not configured"})
 			return
 		}
-		if s.Cfg.Grafana.APIKey == "" {
+		if gcfg.APIKey == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "Grafana API key is not configured"})
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(max(15, s.Cfg.Grafana.RequestTimeout))*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(max(15, gcfg.RequestTimeout))*time.Second)
 		defer cancel()
-		health, err := tools.FetchGrafanaHealth(ctx, grafanaToolConfig(s))
+		health, err := tools.FetchGrafanaHealth(ctx, grafanaToolConfigFrom(gcfg))
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": err.Error()})
 			return

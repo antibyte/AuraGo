@@ -14,7 +14,7 @@ function renderJellyfinSection(section) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Connection status banner ──
-    html += '<div id="jellyfin-status-banner" class="adg-status-banner">' + t('config.jellyfin.checking') + '</div>';
+    html += cfgStatusBanner.html('jellyfin-status-banner', enabledOn && data.host ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !(enabledOn && data.host) ? t('config.jellyfin.status_no_url') : '' });
 
     // ── Enabled toggle ──
     const helpEnabled = t('help.jellyfin.enabled');
@@ -89,16 +89,15 @@ function renderJellyfinSection(section) {
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
         html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
+        html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" data-path="jellyfin.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="jellyfinSaveKey()">💾 ' + t('config.jellyfin.save_vault') + '</button>';
     html += '</div></div>';
 
     // ── Test connection button ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save adg-test-btn" onclick="jellyfinTestConnection()" id="jellyfin-test-btn">🔌 ' + t('config.jellyfin.test_btn') + '</button>';
-    html += '<span id="jellyfin-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="jellyfinTestConnection()" id="jellyfin-test-btn" data-config-action-draft="true">' + t('config.jellyfin.test_btn') + '</button>';
+    html += cfgActionResult.html('jellyfin-test-result');
     html += '</div>';
 
     html += '</div>';
@@ -106,92 +105,33 @@ function renderJellyfinSection(section) {
     document.getElementById('content').innerHTML = html;
 
     // Auto-check status on load
-    if (enabledOn && data.host) {
-        jellyfinCheckStatus();
-    } else {
-        jellyfinSetBannerState(document.getElementById('jellyfin-status-banner'), 'neutral', '⚪ ' + (enabledOn ? t('config.jellyfin.status_no_url') : t('config.jellyfin.status_disabled')));
-    }
-}
-
-function jellyfinSetBannerState(banner, state, text) {
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+    if (enabledOn && data.host) jellyfinCheckStatus();
 }
 
 function jellyfinCheckStatus() {
     const banner = document.getElementById('jellyfin-status-banner');
     if (!banner) return;
-    jellyfinSetBannerState(banner, 'neutral', t('config.jellyfin.checking'));
-
-    fetch('/api/jellyfin/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                jellyfinSetBannerState(banner, 'neutral', '⚪ ' + t('config.jellyfin.status_disabled'));
-                return;
-            }
-            if (res.status === 'error' || res.status === 'offline') {
-                jellyfinSetBannerState(banner, 'danger', '🔴 ' + (res.error || t('config.jellyfin.connection_failed')));
-                return;
-            }
-            if (res.status === 'online') {
-                jellyfinSetBannerState(banner, 'success', '🟢 ' + t('config.jellyfin.product_name') + ' ' + (res.version || '') + ' — ' + (res.server_name || ''));
-                return;
-            }
-            if (res.status === 'no_url' || res.status === 'no_host') {
-                jellyfinSetBannerState(banner, 'neutral', '⚪ ' + t('config.jellyfin.status_no_url'));
-                return;
-            }
-            jellyfinSetBannerState(banner, 'neutral', '⚪ ' + t('config.jellyfin.status_unknown') + ': ' + String(res.status || ''));
-        })
-        .catch(() => {
-            jellyfinSetBannerState(banner, 'danger', '🔴 ' + t('config.jellyfin.connection_failed'));
-        });
+    return cfgStatusBanner.check(banner, () => fetch('/api/jellyfin/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'error' || res.status === 'offline') return { state: 'error', detail: res.error || t('config.jellyfin.connection_failed') };
+        if (res.status === 'online') return { state: 'connected', detail: t('config.jellyfin.product_name') + ' ' + (res.version || '') + ' — ' + (res.server_name || '') };
+        if (res.status === 'no_url' || res.status === 'no_host') return { state: 'unconfigured', detail: t('config.jellyfin.status_no_url') };
+        return null;
+    });
 }
 
+// Tests the values typed in (not yet saved); the server does not persist them.
 function jellyfinTestConnection() {
     const btn = document.getElementById('jellyfin-test-btn');
-    const result = document.getElementById('jellyfin-test-result');
-    if (!btn || !result) return;
-
-    btn.disabled = true;
-    result.textContent = t('config.jellyfin.checking');
-
-    fetch('/api/jellyfin/status')
-        .then(r => r.json())
-        .then(res => {
-            btn.disabled = false;
-            if (res.status === 'online') {
-                result.textContent = '✅ ' + t('config.jellyfin.test_ok') + ' (' + (res.version || '') + ')';
-            } else {
-                result.textContent = '❌ ' + (res.error || t('config.jellyfin.test_fail'));
-            }
-        })
-        .catch(() => {
-            btn.disabled = false;
-            result.textContent = '❌ ' + t('config.jellyfin.test_fail');
-        });
-}
-
-function jellyfinSaveKey() {
-    const key = document.getElementById('jellyfin-apikey')?.value;
-    if (!key) { showToast(t('config.jellyfin.apikey_empty'), 'error'); return; }
-
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/jellyfin/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'jellyfin_api_key', value: key })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok') {
-            showToast(t('config.jellyfin.apikey_saved'), 'success');
-            cfgMarkSecretStored(document.getElementById('jellyfin-apikey'), 'jellyfin.api_key');
-        } else {
-            showToast(res.message || t('config.jellyfin.apikey_save_failed'), 'error');
-        }
-    })
-    .catch(() => showToast(t('config.jellyfin.apikey_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['jellyfin']) })
+    }), {
+        target: 'jellyfin-test-result',
+        success: t('config.jellyfin.test_ok'),
+        failure: t('config.jellyfin.test_fail'),
+        onSuccess: () => jellyfinCheckStatus()
+    });
 }

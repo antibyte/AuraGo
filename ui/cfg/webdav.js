@@ -15,7 +15,7 @@ function renderWebDAVSection(section) {
         icon: section.icon,
         label: section.label,
         desc: section.desc,
-        beforeHTML: '<div id="webdav-status-banner" class="adg-status-banner">' + t('config.webdav.checking') + '</div>',
+        beforeHTML: form.statusBanner({ id: 'webdav-status-banner', state: enabled ? 'checking' : 'off' }),
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.webdav.enabled_label'), help: t('help.webdav.enabled'), path: 'webdav.enabled', value: enabled }),
             form.toggle({ label: t('config.webdav.readonly_label'), help: t('help.webdav.read_only'), path: 'webdav.readonly', value: readonly }),
@@ -46,14 +46,15 @@ function renderWebDAVSection(section) {
                 label: authType === 'bearer' ? t('config.webdav.token_label') : t('config.webdav.password_label'),
                 help: authType === 'bearer' ? t('help.webdav.token') : t('help.webdav.password'),
                 id: 'webdav-secret',
+                // The data path follows the auth type; switching the type re-renders the section.
+                path: authType === 'bearer' ? 'webdav.token' : 'webdav.password',
                 value: secretValue,
-                placeholder: cfgSecretPlaceholder(secretValue, authType === 'bearer' ? t('config.webdav.token_placeholder') : t('config.webdav.password_placeholder')),
-                actionHTML: '<button class="btn-save adg-save-btn" onclick="webdavSaveSecret()">💾 ' + t('config.webdav.save_vault') + '</button>'
+                placeholder: cfgSecretPlaceholder(secretValue, authType === 'bearer' ? t('config.webdav.token_placeholder') : t('config.webdav.password_placeholder'))
             })
         ] }],
         afterHTML: form.actions([
-            { html: '<button class="btn-save adg-test-btn" onclick="webdavTestConnection()" id="webdav-test-btn">🔌 ' + t('config.webdav.test_btn') + '</button>' },
-            { html: '<span id="webdav-test-result" class="adg-test-result"></span>' }
+            { html: '<button class="btn-save adg-test-btn" onclick="webdavTestConnection()" id="webdav-test-btn" data-config-action-draft="true">' + t('config.webdav.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'webdav-test-result' }) }
         ])
     });
 
@@ -64,102 +65,32 @@ function renderWebDAVSection(section) {
         usernameInput.disabled = true;
     }
 
-    if (enabled) {
-        webdavCheckStatus();
-    } else {
-        webdavSetBanner('neutral', '⚪ ' + t('config.webdav.status_disabled'));
-    }
-}
-
-function webdavSetBanner(state, text) {
-    const banner = document.getElementById('webdav-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+    if (enabled) webdavCheckStatus();
 }
 
 function webdavCheckStatus() {
-    webdavSetBanner('neutral', t('config.webdav.checking'));
-    fetch('/api/webdav/status')
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'disabled') {
-                webdavSetBanner('neutral', '⚪ ' + t('config.webdav.status_disabled'));
-                return;
-            }
-            if (res.status === 'no_url') {
-                webdavSetBanner('neutral', '⚪ ' + t('config.webdav.status_no_url'));
-                return;
-            }
-            if (res.status === 'no_credentials') {
-                webdavSetBanner('warning', '🟡 ' + t('config.webdav.status_no_credentials'));
-                return;
-            }
-            if (res.status === 'ok') {
-                webdavSetBanner('success', '🟢 ' + t('config.webdav.status_ok'));
-                return;
-            }
-            webdavSetBanner('danger', '🔴 ' + (res.message || t('config.webdav.connection_failed')));
-        })
-        .catch(() => webdavSetBanner('danger', '🔴 ' + t('config.webdav.connection_failed')));
+    const banner = document.getElementById('webdav-status-banner');
+    if (!banner) return;
+    return cfgStatusBanner.check(banner, () => fetch('/api/webdav/status'), res => {
+        if (!res) return null;
+        if (res.status === 'disabled') return { state: 'off' };
+        if (res.status === 'no_url') return { state: 'unconfigured', detail: t('config.webdav.status_no_url') };
+        if (res.status === 'no_credentials') return { state: 'unconfigured', detail: t('config.webdav.status_no_credentials') };
+        if (res.status === 'ok') return { state: 'connected', detail: t('config.webdav.status_ok') };
+        return { state: 'error', detail: res.message || t('config.webdav.connection_failed') };
+    });
 }
 
 function webdavTestConnection() {
     const btn = document.getElementById('webdav-test-btn');
-    const result = document.getElementById('webdav-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.webdav.loading');
-        result.className = 'adg-test-result';
-    }
-
-    fetch('/api/webdav/test', { method: 'POST' })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
-            if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.webdav.status_success') + ' ' + t('config.webdav.test_ok');
-                webdavCheckStatus();
-            } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.webdav.status_error') + ' ' + (res.message || t('config.webdav.test_fail'));
-            }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.webdav.status_error') + ' ' + t('config.webdav.test_fail');
-            }
-        });
-}
-
-function webdavSaveSecret() {
-    const authType = (configData.webdav && configData.webdav.auth_type === 'bearer') ? 'bearer' : 'basic';
-    const input = document.getElementById('webdav-secret');
-    const secret = input ? input.value.trim() : '';
-    if (!secret) {
-        showToast(t('config.webdav.secret_empty'), 'error');
-        return;
-    }
-
-    fetch('/api/vault/secrets', {
+    return cfgActionResult(btn, () => fetch('/api/webdav/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: authType === 'bearer' ? 'webdav_token' : 'webdav_password', value: secret })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok' || res.success) {
-                showToast(authType === 'bearer' ? t('config.webdav.token_saved') : t('config.webdav.password_saved'), 'success');
-                cfgMarkSecretStored(input, authType === 'bearer' ? 'webdav.token' : 'webdav.password');
-                webdavCheckStatus();
-            } else {
-                showToast(res.message || (authType === 'bearer' ? t('config.webdav.token_save_failed') : t('config.webdav.password_save_failed')), 'error');
-            }
-        })
-        .catch(() => showToast(authType === 'bearer' ? t('config.webdav.token_save_failed') : t('config.webdav.password_save_failed'), 'error'));
+        body: JSON.stringify({ draft: cfgDraftPatch(['webdav']) })
+    }), {
+        target: 'webdav-test-result',
+        success: t('config.webdav.test_ok'),
+        failure: t('config.webdav.test_fail'),
+        onSuccess: () => webdavCheckStatus()
+    });
 }
