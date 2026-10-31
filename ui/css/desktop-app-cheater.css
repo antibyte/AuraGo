@@ -439,15 +439,21 @@
     background: var(--vd-mat-btn, transparent);
     border: 1px solid var(--vd-mat-btn-border, var(--cheater-border));
     color: var(--vd-mat-btn-text, var(--cheater-text));
-    padding: .25rem .5rem;
-    border-radius: var(--vd-mat-btn-radius, 4px);
+    /* Same box as .cheater-save-btn / .cheater-secondary (vertical padding, border, font size, radius) so the two pills
+       share one height in every theme. */
+    padding: .5rem .75rem;
+    border-radius: var(--vd-mat-btn-radius, 6px);
     box-shadow: var(--vd-mat-btn-shadow, none);
     cursor: pointer;
-    font-size: .875rem;
+    font-size: .8125rem;
+    line-height: normal;
     display: inline-flex;
     align-items: center;
     gap: .25rem;
 }
+
+/* The 16px icon must never be what sets the pill height; the count text line does, like on the Save button. */
+.cheater-attach-btn-icon { flex: 0 0 auto; margin-block: -1px; }
 
 .cheater-attach-btn:hover { background: var(--vd-mat-btn-hover, var(--cheater-hover)); }
 

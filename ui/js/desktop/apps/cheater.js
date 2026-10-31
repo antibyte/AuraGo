@@ -276,8 +276,10 @@
         state.dirty = false;
         state.lastSavedAt = sheet.updated_at || null;
 
-        const backIcon = iconMarkup ? iconMarkup('back', '←') : '←';
-        const attachIcon = iconMarkup ? iconMarkup('attach', '📎') : '📎';
+        // An explicit size is required: without one the icon is tracked at 42 px and the next theme/settings refresh
+        // (refreshThemeIconElements) re-renders it at that size, blowing the header buttons up.
+        const backIcon = iconMarkup ? iconMarkup('back', '←', 'cheater-back-icon', 16) : '←';
+        const attachIcon = iconMarkup ? iconMarkup('attach', '📎', 'cheater-attach-btn-icon', 16) : '📎';
         const attachCount = (sheet.attachments || []).length;
         const viewMode = state.viewMode;
 
