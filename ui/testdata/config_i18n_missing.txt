@@ -1,0 +1,1 @@
+# <lang> <folder under ui/lang> <key>: config/help keys present in en.json but missing in <lang>.json (Welle 2 package T empties this).

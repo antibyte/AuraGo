@@ -263,8 +263,8 @@ function ptbRenderCatalog(catalog) {
         const toolNames = Array.isArray(g.tools) ? g.tools : [];
         if (!key || !toolNames.length) continue;
 
-        const label = t('config.section.' + key + '.label') || key;
-        const desc = t('config.section.' + key + '.desc') || '';
+        const label = tOr('config.section.' + key + '.label', key);
+        const desc = tOr('config.section.' + key + '.desc', '');
 
         const toolHint = toolNames.map(n => `<code class="ptb-tool-code">${esc(n)}</code>`).join(' ');
 

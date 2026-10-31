@@ -392,7 +392,7 @@ function renderSecurityAuditPanel(panel, hints) {
 
     for (const h of hints) {
         const sevKey = supportedSeverities.has(h.severity) ? h.severity : 'info';
-        const sevLabel = t('config.security.severity.' + h.severity) || h.severity.toUpperCase();
+        const sevLabel = tOr('config.security.severity.' + h.severity, h.severity.toUpperCase());
         const titleKey = 'security.hint.' + h.id + '.title';
         const descriptionKey = 'security.hint.' + h.id + '.description';
         const translatedTitle = t(titleKey);

@@ -86,7 +86,7 @@ async function loadDaemonStatus() {
         var html = '';
         data.daemons.forEach(function(d) {
             var statusClass = 'daemon-status-' + (d.status || 'stopped');
-            var statusLabel = t('config.daemon_skills.status_' + (d.status || 'stopped')) || d.status || 'stopped';
+            var statusLabel = tOr('config.daemon_skills.status_' + (d.status || 'stopped'), d.status || 'stopped');
             html += '<div class="daemon-status-row">';
             html += '<span class="daemon-status-name">' + esc(d.name || d.id) + '</span>';
             html += '<span class="daemon-status-badge ' + statusClass + '">' + statusLabel + '</span>';

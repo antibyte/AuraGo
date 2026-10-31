@@ -2530,7 +2530,8 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     const fieldType = fieldSchema?.type || guessType(value);
 
     let html = '<div class="field-group">';
-    html += '<div class="field-label">' + fieldLabelText(fullPath, key);
+    const labelFallback = fieldLabelIsFallback(fullPath);
+    html += '<div class="field-label"' + (labelFallback ? ' data-label-fallback="true"' : '') + '>' + fieldLabelText(fullPath, key);
     if (isSensitive) html += ' <span class="cfg-sensitive-icon">🔒</span>';
     html += '</div>';
     if (helpText) html += '<div class="field-help">' + helpText + '</div>';
@@ -2619,13 +2620,22 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     return html;
 }
 
-function fieldLabelText(fullPath, key) {
+function fieldLabelTranslation(fullPath) {
     const labelKey = 'config.' + fullPath + '_label';
     const translated = t(labelKey);
     if (typeof translated === 'string' && translated.trim() !== '' && translated !== labelKey && translated !== '-') {
         return translated;
     }
-    return formatKey(key);
+    return '';
+}
+
+/** True when the field has no translated label and fieldLabelText falls back to formatKey (marked for the label guard). */
+function fieldLabelIsFallback(fullPath) {
+    return fieldLabelTranslation(fullPath) === '';
+}
+
+function fieldLabelText(fullPath, key) {
+    return fieldLabelTranslation(fullPath) || formatKey(key);
 }
 
 /** Set a deep value on an object using a dot-separated path, e.g. "tools.web_scraper.enabled". */

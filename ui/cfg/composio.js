@@ -195,7 +195,7 @@ async function composioTestConnection() {
         body: JSON.stringify({ draft: cfgDraftPatch(['composio']) })
     }), {
         target: 'composio-test-result',
-        pending: t('config.composio.testing') || t('config.composio.status_loading'),
+        pending: tOr('config.composio.testing', t('config.composio.status_loading')),
         success: o => (o.body && o.body.message) || t('config.composio.test_ok'),
         failure: t('config.composio.test_failed') + ':'
     });

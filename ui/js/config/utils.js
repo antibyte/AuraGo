@@ -13,6 +13,12 @@ const CFG_OPTION_OTHER_CUSTOM = 'Other / Custom';
 function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
+/** t() with an explicit fallback: t() returns the key itself (or '') when a translation is missing. */
+function tOr(key, fallback) {
+    const value = t(key);
+    return (typeof value === 'string' && value.trim() !== '' && value !== key) ? value : fallback;
+}
+
 function formatKey(key) {
     return key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
@@ -23,7 +29,7 @@ function cfgNoAutofillAttrs(sensitive = false) {
 
 function cfgFieldOptionLabel(option) {
     if (option === 'disabled') return '\u{1F6AB} ' + (t('config.field.disabled_option'));
-    if (option === CFG_OPTION_OTHER_CUSTOM) return t('config.field.other_custom_option') || CFG_OPTION_OTHER_CUSTOM;
+    if (option === CFG_OPTION_OTHER_CUSTOM) return tOr('config.field.other_custom_option', CFG_OPTION_OTHER_CUSTOM);
     return option;
 }
 

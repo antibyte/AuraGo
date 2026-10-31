@@ -7,6 +7,8 @@ const ui = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(ui, 'cfg/daemon_skills.js'), 'utf8');
 const translate = fs.readFileSync(path.join(ui, 'js/shared/shared-core.js'), 'utf8')
     .match(/function t\(k, p\) \{[\s\S]*?\r?\n\}/)[0];
+const tOr = fs.readFileSync(path.join(ui, 'js/config/utils.js'), 'utf8')
+    .match(/function tOr\(key, fallback\) \{[\s\S]*?\r?\n\}/)[0];
 
 async function main() {
     for (const locale of fs.readdirSync(path.join(ui, 'lang/config/daemon_skills'))) {
@@ -17,7 +19,7 @@ async function main() {
             document: { getElementById: id => ({ content, 'daemon-status-title': title, 'daemon-status-grid': grid })[id] },
             fetch: () => new Promise(() => {}),
         });
-        vm.runInContext(translate + '\n' + source, ctx);
+        vm.runInContext(translate + '\n' + tOr + '\n' + source, ctx);
         const heading = count => ctx.t('config.daemon_skills.status_title', { count });
         ctx.renderDaemonSkillsSection({ label: '', desc: '' });
         assert.ok(content.innerHTML.includes('id="daemon-status-title">' + heading('…')), locale);
