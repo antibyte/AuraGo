@@ -97,6 +97,7 @@
         Shared: 'share'
     };
     const appIconKeys = {
+        kaggle: 'code',
         'ha-switchboard': 'ha-switchboard',
         'ruview': 'ruview',
         analytics: 'analytics',
@@ -586,6 +587,7 @@
             'rtl-sdr': 'RTLSDRApp',
             bluetooth: 'BluetoothApp',
             'ha-switchboard': 'HASwitchboardApp',
+            kaggle: 'KaggleApp',
             infra: 'InfraApp',
             'ruview': 'RuViewApp',
             'docker-manager': 'DockerManagerApp',

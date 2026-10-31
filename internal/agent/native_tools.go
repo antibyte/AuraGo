@@ -149,6 +149,7 @@ type ToolFeatureFlags struct {
 	InvasionControlEnabled  bool
 	GitHubEnabled           bool
 	HuggingFaceEnabled      bool
+	KaggleEnabled           bool
 	MQTTEnabled             bool
 	CydEnabled              bool
 	NotificationEnabled     bool

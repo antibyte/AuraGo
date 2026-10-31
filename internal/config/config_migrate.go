@@ -928,6 +928,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("composio_api_key", &c.Composio.APIKey)
 	apply("manus_api_key", &c.Manus.APIKey)
 	apply("huggingface_token", &c.HuggingFace.Token)
+	apply("kaggle_api_token", &c.Kaggle.Token)
+	apply("kaggle_legacy_key", &c.Kaggle.LegacyKey)
 	if strings.TrimSpace(c.Composio.APIKey) == "" {
 		apply("composio.api_key", &c.Composio.APIKey)
 	}

@@ -23,6 +23,7 @@ const (
 	RetroGamesDBFilename = "retrogames.db"
 	// HuggingFaceDBFilename is the Hugging Face job ledger (<data_dir>/huggingface.db).
 	HuggingFaceDBFilename = "huggingface.db"
+	KaggleDBFilename      = "kaggle.db"
 )
 
 // FlowsDBPath returns where the EasyDrag flow store lives: next to the Game Maker
@@ -81,6 +82,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 			// TestSQLiteOpensAreBackedUpOrExcluded for the full inclusion/exclusion list).
 			filepath.Join(dataDir, "mailer", "mailer.db"),
 			filepath.Join(dataDir, HuggingFaceDBFilename),
+			filepath.Join(dataDir, KaggleDBFilename),
 			filepath.Join(dataDir, "manus.db"),
 			filepath.Join(dataDir, "sip_calls.db"),
 			filepath.Join(dataDir, "docker_manager.db"),

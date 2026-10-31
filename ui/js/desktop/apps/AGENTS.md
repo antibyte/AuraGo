@@ -1,5 +1,15 @@
 # Desktop App Modules - Child DOX Contract
 
+## Kaggle
+
+- `kaggle.js` owns resource browsing, typed catalog forms, projects, transfers and durable job observation. `kaggle-notebook.js` owns nbformat-4 editing, revision conflicts, drafts and local-kernel observation. Local cells and full Kaggle versions remain separate actions; remote submission freezes document content and explicitly selects data sources.
+- Reuse CodeMirror, keep unknown metadata/attachments/original MIME bundles, and match output to session, revision, cell and execution. A changed draft cannot receive stale output. Buffer early events while execution HTTP responses are pending. Reconnect never reruns code; expired replay windows are visible.
+- Track document changes (including outputs) separately from source generations. Save acknowledgements only clear the exact saved content; execution refuses a source changed during its prerequisite save. Retire only an unchanged recovered draft after a successful save, preserving newer drafts in other windows.
+- Creation dialogs keep invalid/conflicting inputs and inline errors visible, focus the invalid field and expose an accessible name. CodeMirror editors identify their cell. Search has one query field with optional advanced filters; defined project choices show project titles.
+- HTML outputs use DOMPurify plus an opaque sandboxed iframe/CSP. Notebook JavaScript, widgets and remote resources stay inert. On close dispose editors, requests, modal promises and SSE observers; backend jobs/kernels remain owned by their services. Conflicting drafts stay exportable.
+- All copy belongs to the sixteen `lang/kaggle` locale sets. Container queries use the window host, not the app's own container. Verify `TestKaggleNotebookBrowser` with `AURAGO_RUN_BROWSER_SMOKE=1`, both themes and concurrent narrow/wide windows. Domain contracts: `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md`.
+- `TestKaggleNotebookDraftRacesBrowser` controls save acknowledgements and output timing. `AURAGO_KAGGLE_AUDIT_URL_FILE` on the main browser test exposes its local fixture for a bounded manual review; write `<file>.stop` to close it. The fixture uses no Kaggle account.
+
 ## Email exports
 
 - First-party file producers/viewers register `AuraDesktopEmail.attach(windowId, toolbar, getOptions[, scope])`. The main-bundle owner is `core/email-export-runtime.js`; app contexts also expose `emailExport`. Store apps and Tresor are excluded. A scoped dialog binding must dispose with its dialog. Native modal dialogs pass `dialogHost` so format/setup choices remain in their active focus scope; QR closes through `onHandoff` after the Mailer owns the files, or `onSetup` after explicit settings navigation.

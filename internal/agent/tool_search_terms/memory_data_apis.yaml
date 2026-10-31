@@ -1,4 +1,25 @@
 # memory_data_apis search terms
+kaggle_datasets:
+  en: ["Kaggle dataset", "download Kaggle data", "publish Kaggle dataset", "search Kaggle datasets"]
+  de: ["Kaggle Datensatz", "Kaggle Daten herunterladen", "Kaggle Datensatz veröffentlichen", "Kaggle Datensätze suchen"]
+kaggle_models:
+  en: ["Kaggle model", "Kaggle model version", "upload Kaggle model", "Kaggle model variant"]
+  de: ["Kaggle Modell", "Kaggle Modellversion", "Kaggle Modell hochladen", "Kaggle Modellvariante"]
+kaggle_notebooks:
+  en: ["Kaggle notebook", "run notebook on Kaggle", "Kaggle notebook output", "save Kaggle notebook"]
+  de: ["Kaggle Notizbuch", "Notebook auf Kaggle ausführen", "Kaggle Notebook Ergebnis", "Kaggle Notebook speichern"]
+kaggle_competitions:
+  en: ["Kaggle competition", "Kaggle leaderboard", "submit Kaggle prediction", "Kaggle competition rules"]
+  de: ["Kaggle Wettbewerb", "Kaggle Rangliste", "Kaggle Vorhersage einreichen", "Kaggle Wettbewerbsregeln"]
+kaggle_benchmarks:
+  en: ["Kaggle benchmark task", "run Kaggle benchmark", "Kaggle evaluation quota", "cancel Kaggle benchmark"]
+  de: ["Kaggle Benchmark Aufgabe", "Kaggle Benchmark starten", "Kaggle Auswertungskontingent", "Kaggle Benchmark abbrechen"]
+kaggle_forums:
+  en: ["Kaggle forum", "read Kaggle discussion", "Kaggle topic comments", "search Kaggle topics"]
+  de: ["Forum auf Kaggle", "Kaggle Diskussion lesen", "Kaggle Themenkommentare", "Kaggle Themen suchen"]
+kaggle_runtime:
+  en: ["local Jupyter kernel", "run notebook cell", "Kaggle project files", "restart Python notebook"]
+  de: ["lokaler Jupyter Kernel", "Notebook Zelle ausführen", "Kaggle Projektdateien", "Python Notebook neu starten"]
 cheatsheet:
   en: ["cheat sheet", "workflow instructions", "reusable procedure", "step by step guide", "save a how-to", "procedure checklist", "playbook", "attach file to sheet"]
   de: ["Spickzettel", "Cheat Sheet anlegen", "Anleitung speichern", "Arbeitsablauf Vorlage", "Schritt für Schritt Anleitung", "wiederverwendbare Anleitung", "Checkliste ablegen", "Merkzettel Ablauf"]

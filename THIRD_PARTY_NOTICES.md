@@ -1,5 +1,21 @@
 # Third-party notices
 
+## Kaggle wire contracts and optional Jupyter runtime
+
+The generated Go request types and JSON contracts are adapted from Kaggle SDK
+0.1.38 (Copyright 2018 Kaggle Inc, Apache-2.0). The generator verifies the wheel's
+SHA-256; AuraGo does not install or execute the Python SDK. See
+[upstream license](https://github.com/Kaggle/kaggle-sdk-python/blob/main/LICENSE)
+and `licences/texts/Apache-2.0.txt`.
+
+The optional notebook image extends Jupyter Docker Stacks' `scipy-notebook`
+2026-10-26 OCI index, pinned in `deploy/docker/kaggle-notebook/Dockerfile`.
+Docker Stacks is BSD-3-Clause, Copyright 2001–2015 IPython Development Team and
+2015– Jupyter Development Team. Upstream component notices remain in the image;
+the scientific Python packages keep their individual licenses. See
+[upstream license](https://github.com/jupyter/docker-stacks/blob/main/LICENSE.md)
+and `licences/texts/BSD-3-Clause.txt`.
+
 ## Optional Horizon Labs prompt-injection guard
 
 The unchanged `Horizon-Labs/prompt-injection-guard-small` quantized ONNX export and

@@ -60,6 +60,7 @@ var blockedSecretPrefixes = []string{
 	"dograh_",
 	"evomap_",
 	"huggingface_",
+	"kaggle_",
 	"desktop_store_",
 	"bookshelf_",
 	"proxy_basic_auth_",

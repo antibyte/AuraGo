@@ -10650,5 +10650,6 @@
   "game_maker.use_guided_base": "Switch to a guided template",
   "game_maker.guided_base_change": "Move this game onto a guided 3D template that fits the loop: exploration, driving, flight, space or FPS. Free three leaves the rules unverified.",
   "game_maker.retry_keeps_pending_selection": "Try again keeps this run's asset selection, because no plan was accepted yet.",
-  "game_maker.compact_opt_in": "Use compact mode for this unknown model. The plan stays short, and a new template is edited in small steps."
+  "game_maker.compact_opt_in": "Use compact mode for this unknown model. The plan stays short, and a new template is edited in small steps.",
+  "desktop.app_kaggle": "Kaggle"
 }

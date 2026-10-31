@@ -1,0 +1,3440 @@
+{
+  "sdk": "0.1.38",
+  "sha256": "ec9cb3cb2acaa92106f7c0334b7374e022bd6e6d1176a6780fec5606f6bc568d",
+  "operations": [
+    {
+      "domain": "datasets",
+      "operation": "list_datasets",
+      "service": "datasets.DatasetApiService",
+      "method": "ListDatasets",
+      "request": "ApiListDatasetsRequest",
+      "response": "ApiListDatasetsResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "get_dataset",
+      "service": "datasets.DatasetApiService",
+      "method": "GetDataset",
+      "request": "ApiGetDatasetRequest",
+      "response": "ApiDataset"
+    },
+    {
+      "domain": "datasets",
+      "operation": "list_dataset_files",
+      "service": "datasets.DatasetApiService",
+      "method": "ListDatasetFiles",
+      "request": "ApiListDatasetFilesRequest",
+      "response": "ApiListDatasetFilesResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "get_dataset_metadata",
+      "service": "datasets.DatasetApiService",
+      "method": "GetDatasetMetadata",
+      "request": "ApiGetDatasetMetadataRequest",
+      "response": "ApiGetDatasetMetadataResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "update_dataset_metadata",
+      "service": "datasets.DatasetApiService",
+      "method": "UpdateDatasetMetadata",
+      "request": "ApiUpdateDatasetMetadataRequest",
+      "response": "ApiUpdateDatasetMetadataResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "download_dataset",
+      "service": "datasets.DatasetApiService",
+      "method": "DownloadDataset",
+      "request": "ApiDownloadDatasetRequest",
+      "response": "HttpRedirect"
+    },
+    {
+      "domain": "datasets",
+      "operation": "create_dataset_version",
+      "service": "datasets.DatasetApiService",
+      "method": "CreateDatasetVersion",
+      "request": "ApiCreateDatasetVersionRequest",
+      "response": "ApiCreateDatasetResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "create_dataset",
+      "service": "datasets.DatasetApiService",
+      "method": "CreateDataset",
+      "request": "ApiCreateDatasetRequest",
+      "response": "ApiCreateDatasetResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "get_dataset_status",
+      "service": "datasets.DatasetApiService",
+      "method": "GetDatasetStatus",
+      "request": "ApiGetDatasetStatusRequest",
+      "response": "ApiGetDatasetStatusResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "get_dataset_files_summary",
+      "service": "datasets.DatasetApiService",
+      "method": "GetDatasetFilesSummary",
+      "request": "ApiGetDatasetFilesSummaryRequest",
+      "response": "ApiFilesSummary"
+    },
+    {
+      "domain": "datasets",
+      "operation": "upload_dataset_file",
+      "service": "datasets.DatasetApiService",
+      "method": "UploadDatasetFile",
+      "request": "ApiUploadDatasetFileRequest",
+      "response": "ApiUploadDatasetFileResponse"
+    },
+    {
+      "domain": "datasets",
+      "operation": "delete_dataset",
+      "service": "datasets.DatasetApiService",
+      "method": "DeleteDataset",
+      "request": "ApiDeleteDatasetRequest",
+      "response": "ApiDeleteDatasetResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "create_model",
+      "service": "models.ModelApiService",
+      "method": "CreateModel",
+      "request": "ApiCreateModelRequest",
+      "response": "ApiCreateModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "create_model_instance",
+      "service": "models.ModelApiService",
+      "method": "CreateModelInstance",
+      "request": "ApiCreateModelInstanceRequest",
+      "response": "ApiCreateModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "create_model_instance_version",
+      "service": "models.ModelApiService",
+      "method": "CreateModelInstanceVersion",
+      "request": "ApiCreateModelInstanceVersionRequest",
+      "response": "ApiCreateModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "delete_model",
+      "service": "models.ModelApiService",
+      "method": "DeleteModel",
+      "request": "ApiDeleteModelRequest",
+      "response": "ApiDeleteModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "delete_model_instance",
+      "service": "models.ModelApiService",
+      "method": "DeleteModelInstance",
+      "request": "ApiDeleteModelInstanceRequest",
+      "response": "ApiDeleteModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "delete_model_instance_version",
+      "service": "models.ModelApiService",
+      "method": "DeleteModelInstanceVersion",
+      "request": "ApiDeleteModelInstanceVersionRequest",
+      "response": "ApiDeleteModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "get_model",
+      "service": "models.ModelApiService",
+      "method": "GetModel",
+      "request": "ApiGetModelRequest",
+      "response": "ApiModel"
+    },
+    {
+      "domain": "models",
+      "operation": "get_model_instance",
+      "service": "models.ModelApiService",
+      "method": "GetModelInstance",
+      "request": "ApiGetModelInstanceRequest",
+      "response": "ApiModelInstance"
+    },
+    {
+      "domain": "models",
+      "operation": "download_model_instance_version",
+      "service": "models.ModelApiService",
+      "method": "DownloadModelInstanceVersion",
+      "request": "ApiDownloadModelInstanceVersionRequest",
+      "response": "HttpRedirect"
+    },
+    {
+      "domain": "models",
+      "operation": "list_models",
+      "service": "models.ModelApiService",
+      "method": "ListModels",
+      "request": "ApiListModelsRequest",
+      "response": "ApiListModelsResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "list_model_instances",
+      "service": "models.ModelApiService",
+      "method": "ListModelInstances",
+      "request": "ApiListModelInstancesRequest",
+      "response": "ApiListModelInstancesResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "list_model_instance_versions",
+      "service": "models.ModelApiService",
+      "method": "ListModelInstanceVersions",
+      "request": "ApiListModelInstanceVersionsRequest",
+      "response": "ApiListModelInstanceVersionsResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "list_model_instance_version_files",
+      "service": "models.ModelApiService",
+      "method": "ListModelInstanceVersionFiles",
+      "request": "ApiListModelInstanceVersionFilesRequest",
+      "response": "ApiListModelInstanceVersionFilesResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "update_model",
+      "service": "models.ModelApiService",
+      "method": "UpdateModel",
+      "request": "ApiUpdateModelRequest",
+      "response": "ApiUpdateModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "update_model_instance",
+      "service": "models.ModelApiService",
+      "method": "UpdateModelInstance",
+      "request": "ApiUpdateModelInstanceRequest",
+      "response": "ApiUpdateModelResponse"
+    },
+    {
+      "domain": "models",
+      "operation": "upload_model_file",
+      "service": "models.ModelApiService",
+      "method": "UploadModelFile",
+      "request": "ApiUploadModelFileRequest",
+      "response": "ApiUploadModelFileResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "list_kernels",
+      "service": "kernels.KernelsApiService",
+      "method": "ListKernels",
+      "request": "ApiListKernelsRequest",
+      "response": "ApiListKernelsResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "list_kernel_files",
+      "service": "kernels.KernelsApiService",
+      "method": "ListKernelFiles",
+      "request": "ApiListKernelFilesRequest",
+      "response": "ApiListKernelFilesResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "get_kernel",
+      "service": "kernels.KernelsApiService",
+      "method": "GetKernel",
+      "request": "ApiGetKernelRequest",
+      "response": "ApiGetKernelResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "save_kernel",
+      "service": "kernels.KernelsApiService",
+      "method": "SaveKernel",
+      "request": "ApiSaveKernelRequest",
+      "response": "ApiSaveKernelResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "list_kernel_session_output",
+      "service": "kernels.KernelsApiService",
+      "method": "ListKernelSessionOutput",
+      "request": "ApiListKernelSessionOutputRequest",
+      "response": "ApiListKernelSessionOutputResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "get_kernel_session_status",
+      "service": "kernels.KernelsApiService",
+      "method": "GetKernelSessionStatus",
+      "request": "ApiGetKernelSessionStatusRequest",
+      "response": "ApiGetKernelSessionStatusResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "download_kernel_output",
+      "service": "kernels.KernelsApiService",
+      "method": "DownloadKernelOutput",
+      "request": "ApiDownloadKernelOutputRequest",
+      "response": "HttpRedirect"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "download_kernel_output_zip",
+      "service": "kernels.KernelsApiService",
+      "method": "DownloadKernelOutputZip",
+      "request": "ApiDownloadKernelOutputZipRequest",
+      "response": "FileDownload"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "delete_kernel",
+      "service": "kernels.KernelsApiService",
+      "method": "DeleteKernel",
+      "request": "ApiDeleteKernelRequest",
+      "response": "ApiDeleteKernelResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "cancel_kernel_session",
+      "service": "kernels.KernelsApiService",
+      "method": "CancelKernelSession",
+      "request": "ApiCancelKernelSessionRequest",
+      "response": "ApiCancelKernelSessionResponse"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "get_kernel_session_logs_stream",
+      "service": "kernels.KernelsApiService",
+      "method": "GetKernelSessionLogsStream",
+      "request": "ApiGetKernelSessionLogsStreamRequest",
+      "response": "FileDownload"
+    },
+    {
+      "domain": "notebooks",
+      "operation": "get_accelerator_quota_statistics",
+      "service": "kernels.KernelsApiService",
+      "method": "GetAcceleratorQuotaStatistics",
+      "request": "ApiGetAcceleratorQuotaStatisticsRequest",
+      "response": "ApiGetAcceleratorQuotaStatisticsResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_competitions",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListCompetitions",
+      "request": "ApiListCompetitionsRequest",
+      "response": "ApiListCompetitionsResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_submissions",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListSubmissions",
+      "request": "ApiListSubmissionsRequest",
+      "response": "ApiListSubmissionsResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_team_public_submissions",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListTeamPublicSubmissions",
+      "request": "ApiListTeamPublicSubmissionsRequest",
+      "response": "ApiListTeamPublicSubmissionsResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_data_files",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListDataFiles",
+      "request": "ApiListDataFilesRequest",
+      "response": "ApiListDataFilesResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "get_leaderboard",
+      "service": "competitions.CompetitionApiService",
+      "method": "GetLeaderboard",
+      "request": "ApiGetLeaderboardRequest",
+      "response": "ApiGetLeaderboardResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "download_leaderboard",
+      "service": "competitions.CompetitionApiService",
+      "method": "DownloadLeaderboard",
+      "request": "ApiDownloadLeaderboardRequest",
+      "response": "FileDownload"
+    },
+    {
+      "domain": "competitions",
+      "operation": "create_submission",
+      "service": "competitions.CompetitionApiService",
+      "method": "CreateSubmission",
+      "request": "ApiCreateSubmissionRequest",
+      "response": "ApiCreateSubmissionResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "create_code_submission",
+      "service": "competitions.CompetitionApiService",
+      "method": "CreateCodeSubmission",
+      "request": "ApiCreateCodeSubmissionRequest",
+      "response": "ApiCreateCodeSubmissionResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "get_submission",
+      "service": "competitions.CompetitionApiService",
+      "method": "GetSubmission",
+      "request": "ApiGetSubmissionRequest",
+      "response": "ApiSubmission"
+    },
+    {
+      "domain": "competitions",
+      "operation": "download_submission",
+      "service": "competitions.CompetitionApiService",
+      "method": "DownloadSubmission",
+      "request": "ApiDownloadSubmissionRequest",
+      "response": "HttpRedirect"
+    },
+    {
+      "domain": "competitions",
+      "operation": "get_submission_limits",
+      "service": "competitions.CompetitionApiService",
+      "method": "GetSubmissionLimits",
+      "request": "ApiGetSubmissionLimitsRequest",
+      "response": "ApiSubmissionLimits"
+    },
+    {
+      "domain": "competitions",
+      "operation": "start_submission_upload",
+      "service": "competitions.CompetitionApiService",
+      "method": "StartSubmissionUpload",
+      "request": "ApiStartSubmissionUploadRequest",
+      "response": "ApiStartSubmissionUploadResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "download_data_files",
+      "service": "competitions.CompetitionApiService",
+      "method": "DownloadDataFiles",
+      "request": "ApiDownloadDataFilesRequest",
+      "response": "HttpRedirect"
+    },
+    {
+      "domain": "competitions",
+      "operation": "download_data_file",
+      "service": "competitions.CompetitionApiService",
+      "method": "DownloadDataFile",
+      "request": "ApiDownloadDataFileRequest",
+      "response": "HttpRedirect"
+    },
+    {
+      "domain": "competitions",
+      "operation": "get_competition",
+      "service": "competitions.CompetitionApiService",
+      "method": "GetCompetition",
+      "request": "ApiGetCompetitionRequest",
+      "response": "ApiCompetition"
+    },
+    {
+      "domain": "competitions",
+      "operation": "get_competition_data_files_summary",
+      "service": "competitions.CompetitionApiService",
+      "method": "GetCompetitionDataFilesSummary",
+      "request": "ApiGetCompetitionDataFilesSummaryRequest",
+      "response": "ApiFilesSummary"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_competition_pages",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListCompetitionPages",
+      "request": "ApiListCompetitionPagesRequest",
+      "response": "ApiListCompetitionPagesResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_competition_topics",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListCompetitionTopics",
+      "request": "ApiListCompetitionTopicsRequest",
+      "response": "ApiListCompetitionTopicsResponse"
+    },
+    {
+      "domain": "competitions",
+      "operation": "list_topic_messages",
+      "service": "competitions.CompetitionApiService",
+      "method": "ListTopicMessages",
+      "request": "ApiListTopicMessagesRequest",
+      "response": "ApiListTopicMessagesResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "create_benchmark_task",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "CreateBenchmarkTask",
+      "request": "ApiCreateBenchmarkTaskRequest",
+      "response": "ApiBenchmarkTask"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "batch_schedule_benchmark_task_runs",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "BatchScheduleBenchmarkTaskRuns",
+      "request": "ApiBatchScheduleBenchmarkTaskRunsRequest",
+      "response": "ApiBatchScheduleBenchmarkTaskRunsResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "api_cancel_benchmark_task_runs",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "ApiCancelBenchmarkTaskRuns",
+      "request": "ApiCancelBenchmarkTaskRunsRequest",
+      "response": "ApiCancelBenchmarkTaskRunsResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "list_benchmark_tasks",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "ListBenchmarkTasks",
+      "request": "ApiListBenchmarkTasksRequest",
+      "response": "ApiListBenchmarkTasksResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "get_benchmark_task",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "GetBenchmarkTask",
+      "request": "ApiGetBenchmarkTaskRequest",
+      "response": "ApiBenchmarkTask"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "list_benchmark_task_runs",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "ListBenchmarkTaskRuns",
+      "request": "ApiListBenchmarkTaskRunsRequest",
+      "response": "ApiListBenchmarkTaskRunsResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "download_benchmark_task_run_output",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "DownloadBenchmarkTaskRunOutput",
+      "request": "ApiDownloadBenchmarkTaskRunOutputRequest",
+      "response": "FileDownload"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "get_benchmark_task_run_logs",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "GetBenchmarkTaskRunLogs",
+      "request": "ApiGetBenchmarkTaskRunLogsRequest",
+      "response": "FileDownload"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "get_benchmark_task_quota",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "GetBenchmarkTaskQuota",
+      "request": "ApiGetBenchmarkTaskQuotaRequest",
+      "response": "ApiGetBenchmarkTaskQuotaResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "api_get_benchmark_scheduler_status",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "ApiGetBenchmarkSchedulerStatus",
+      "request": "ApiGetBenchmarkSchedulerStatusRequest",
+      "response": "GetBenchmarkSchedulerStatusResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "publish_benchmark_task",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "PublishBenchmarkTask",
+      "request": "ApiPublishBenchmarkTaskRequest",
+      "response": "ApiBenchmarkTask"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "update_benchmark_task",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "UpdateBenchmarkTask",
+      "request": "ApiUpdateBenchmarkTaskRequest",
+      "response": "ApiUpdateBenchmarkTaskResponse"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "update_benchmark_task_version",
+      "service": "benchmarks.BenchmarkTasksApiService",
+      "method": "UpdateBenchmarkTaskVersion",
+      "request": "ApiUpdateBenchmarkTaskVersionRequest",
+      "response": "ApiBenchmarkTask"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "get_benchmark_leaderboard",
+      "service": "benchmarks.BenchmarksApiService",
+      "method": "GetBenchmarkLeaderboard",
+      "request": "ApiGetBenchmarkLeaderboardRequest",
+      "response": "ApiBenchmarkLeaderboard"
+    },
+    {
+      "domain": "benchmarks",
+      "operation": "list_benchmark_models",
+      "service": "benchmarks.BenchmarksApiService",
+      "method": "ListBenchmarkModels",
+      "request": "ApiListBenchmarkModelsRequest",
+      "response": "ApiListBenchmarkModelsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_forums",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListForums",
+      "request": "ApiListForumsRequest",
+      "response": "ApiListForumsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_topics",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListTopics",
+      "request": "ApiListTopicsRequest",
+      "response": "ApiListTopicsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "get_topic",
+      "service": "discussions.DiscussionApiService",
+      "method": "GetTopic",
+      "request": "ApiGetTopicRequest",
+      "response": "ApiGetTopicResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_comments",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListComments",
+      "request": "ApiListCommentsRequest",
+      "response": "ApiListCommentsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_dataset_topics",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListDatasetTopics",
+      "request": "ApiListDatasetTopicsRequest",
+      "response": "ApiListTopicsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_model_topics",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListModelTopics",
+      "request": "ApiListModelTopicsRequest",
+      "response": "ApiListTopicsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_benchmark_topics",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListBenchmarkTopics",
+      "request": "ApiListBenchmarkTopicsRequest",
+      "response": "ApiListTopicsResponse"
+    },
+    {
+      "domain": "forums",
+      "operation": "list_kernel_topics",
+      "service": "discussions.DiscussionApiService",
+      "method": "ListKernelTopics",
+      "request": "ApiListKernelTopicsRequest",
+      "response": "ApiListTopicsResponse"
+    },
+    {
+      "domain": "internal",
+      "operation": "introspect_token",
+      "service": "security.OAuthService",
+      "method": "IntrospectToken",
+      "request": "IntrospectTokenRequest",
+      "response": "IntrospectTokenResponse"
+    }
+  ],
+  "$defs": {
+    "ApiListDatasetsRequest": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "enum": [
+            "DATASET_SELECTION_GROUP_PUBLIC",
+            "DATASET_SELECTION_GROUP_MY",
+            "DATASET_SELECTION_GROUP_USER",
+            "DATASET_SELECTION_GROUP_USER_SHARED_WITH_ME",
+            "DATASET_SELECTION_GROUP_UPVOTED",
+            "DATASET_SELECTION_GROUP_MY_PRIVATE",
+            "DATASET_SELECTION_GROUP_MY_PUBLIC",
+            "DATASET_SELECTION_GROUP_ORGANIZATION",
+            "DATASET_SELECTION_GROUP_BOOKMARKED",
+            "DATASET_SELECTION_GROUP_COLLABORATION",
+            "DATASET_SELECTION_GROUP_SHARED_WITH_USER",
+            "DATASET_SELECTION_GROUP_FEATURED",
+            "DATASET_SELECTION_GROUP_ALL",
+            "DATASET_SELECTION_GROUP_UNFEATURED"
+          ]
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "DATASET_SORT_BY_HOTTEST",
+            "DATASET_SORT_BY_VOTES",
+            "DATASET_SORT_BY_UPDATED",
+            "DATASET_SORT_BY_ACTIVE",
+            "DATASET_SORT_BY_PUBLISHED",
+            "DATASET_SORT_BY_RELEVANCE",
+            "DATASET_SORT_BY_LAST_VIEWED",
+            "DATASET_SORT_BY_USABILITY",
+            "DATASET_SORT_BY_DOWNLOAD_COUNT",
+            "DATASET_SORT_BY_NOTEBOOK_COUNT"
+          ]
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "DATASET_SIZE_GROUP_ALL",
+            "DATASET_SIZE_GROUP_SMALL",
+            "DATASET_SIZE_GROUP_MEDIUM",
+            "DATASET_SIZE_GROUP_LARGE"
+          ]
+        },
+        "fileType": {
+          "type": "string",
+          "enum": [
+            "DATASET_FILE_TYPE_GROUP_ALL",
+            "DATASET_FILE_TYPE_GROUP_CSV",
+            "DATASET_FILE_TYPE_GROUP_SQLITE",
+            "DATASET_FILE_TYPE_GROUP_JSON",
+            "DATASET_FILE_TYPE_GROUP_BIG_QUERY",
+            "DATASET_FILE_TYPE_GROUP_PARQUET"
+          ]
+        },
+        "license": {
+          "type": "string",
+          "enum": [
+            "DATASET_LICENSE_GROUP_ALL",
+            "DATASET_LICENSE_GROUP_CC",
+            "DATASET_LICENSE_GROUP_GPL",
+            "DATASET_LICENSE_GROUP_ODB",
+            "DATASET_LICENSE_GROUP_OTHER"
+          ]
+        },
+        "viewed": {
+          "type": "string",
+          "enum": [
+            "DATASET_VIEWED_GROUP_UNSPECIFIED",
+            "DATASET_VIEWED_GROUP_VIEWED"
+          ]
+        },
+        "tagIds": {
+          "type": "string"
+        },
+        "search": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string"
+        },
+        "minSize": {
+          "type": "integer"
+        },
+        "maxSize": {
+          "type": "integer"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetDatasetRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListDatasetFilesRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        },
+        "datasetVersionNumber": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetDatasetMetadataRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUpdateDatasetMetadataRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        },
+        "settings": {
+          "$ref": "#/$defs/DatasetSettings"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DatasetSettings": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "isPrivate": {
+          "type": "boolean"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "licenses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SettingsLicense"
+          },
+          "maxItems": 1000
+        },
+        "collaborators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DatasetCollaborator"
+          },
+          "maxItems": 1000
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DatasetSettingsFile"
+          },
+          "maxItems": 1000
+        },
+        "expectedUpdateFrequency": {
+          "type": "string"
+        },
+        "userSpecifiedSources": {
+          "type": "string"
+        },
+        "image": {
+          "$ref": "#/$defs/CroppedImageUpload"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SettingsLicense": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DatasetCollaborator": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "groupSlug": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "COLLABORATOR_TYPE_UNSPECIFIED",
+            "READER",
+            "WRITER",
+            "OWNER",
+            "ADMIN"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DatasetSettingsFile": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "totalBytes": {
+          "type": "integer"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DatasetSettingsFileColumn"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "DatasetSettingsFileColumn": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "CroppedImageUpload": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "cropRectangles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CroppedImageRectangle"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "CroppedImageRectangle": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "top": {
+          "type": "integer"
+        },
+        "left": {
+          "type": "integer"
+        },
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadDatasetRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "datasetVersionNumber": {
+          "type": "integer"
+        },
+        "raw": {
+          "type": "boolean"
+        },
+        "hashLink": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateDatasetVersionRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        },
+        "body": {
+          "$ref": "#/$defs/ApiCreateDatasetVersionRequestBody"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateDatasetVersionRequestBody": {
+      "type": "object",
+      "properties": {
+        "versionNotes": {
+          "type": "string"
+        },
+        "deleteOldVersions": {
+          "type": "boolean"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiDatasetNewFile"
+          },
+          "maxItems": 1000
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "categoryIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiUploadDirectoryInfo"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDatasetNewFile": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiDatasetColumn"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDatasetColumn": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "originalType": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUploadDirectoryInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiUploadDirectoryInfo"
+          },
+          "maxItems": 1000
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiDatasetNewFile"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateDatasetRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "ownerSlug": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "licenseName": {
+          "type": "string"
+        },
+        "isPrivate": {
+          "type": "boolean"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiDatasetNewFile"
+          },
+          "maxItems": 1000
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "categoryIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiUploadDirectoryInfo"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetDatasetStatusRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetDatasetFilesSummaryRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        },
+        "datasetVersionNumber": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUploadDatasetFileRequest": {
+      "type": "object",
+      "properties": {
+        "fileName": {
+          "type": "string"
+        },
+        "contentLength": {
+          "type": "integer"
+        },
+        "lastModifiedEpochSeconds": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDeleteDatasetRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateModelRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "isPrivate": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "publishTime": {
+          "type": "string"
+        },
+        "provenanceSources": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateModelInstanceRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "body": {
+          "$ref": "#/$defs/ApiCreateModelInstanceRequestBody"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateModelInstanceRequestBody": {
+      "type": "object",
+      "properties": {
+        "instanceSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "overview": {
+          "type": "string"
+        },
+        "usage": {
+          "type": "string"
+        },
+        "fineTunable": {
+          "type": "boolean"
+        },
+        "trainingData": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiDatasetNewFile"
+          },
+          "maxItems": 1000
+        },
+        "licenseName": {
+          "type": "string"
+        },
+        "modelInstanceType": {
+          "type": "string",
+          "enum": [
+            "MODEL_INSTANCE_TYPE_UNSPECIFIED",
+            "MODEL_INSTANCE_TYPE_BASE_MODEL",
+            "MODEL_INSTANCE_TYPE_KAGGLE_VARIANT",
+            "MODEL_INSTANCE_TYPE_EXTERNAL_VARIANT"
+          ]
+        },
+        "baseModelInstance": {
+          "type": "string"
+        },
+        "externalBaseModelUrl": {
+          "type": "string"
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiUploadDirectoryInfo"
+          },
+          "maxItems": 1000
+        },
+        "sigstore": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateModelInstanceVersionRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "instanceSlug": {
+          "type": "string"
+        },
+        "body": {
+          "$ref": "#/$defs/ApiCreateModelInstanceVersionRequestBody"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateModelInstanceVersionRequestBody": {
+      "type": "object",
+      "properties": {
+        "versionNotes": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiDatasetNewFile"
+          },
+          "maxItems": 1000
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiUploadDirectoryInfo"
+          },
+          "maxItems": 1000
+        },
+        "sigstore": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDeleteModelRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDeleteModelInstanceRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "instanceSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDeleteModelInstanceVersionRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "instanceSlug": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetModelRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetModelInstanceRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "instanceSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadModelInstanceVersionRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "instanceSlug": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListModelsRequest": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "LIST_MODELS_ORDER_BY_UNSPECIFIED",
+            "LIST_MODELS_ORDER_BY_HOTNESS",
+            "LIST_MODELS_ORDER_BY_DOWNLOAD_COUNT",
+            "LIST_MODELS_ORDER_BY_VOTE_COUNT",
+            "LIST_MODELS_ORDER_BY_NOTEBOOK_COUNT",
+            "LIST_MODELS_ORDER_BY_PUBLISH_TIME",
+            "LIST_MODELS_ORDER_BY_CREATE_TIME",
+            "LIST_MODELS_ORDER_BY_UPDATE_TIME",
+            "LIST_MODELS_ORDER_BY_VIEW_TIME_DESC"
+          ]
+        },
+        "owner": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "onlyVertexModels": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListModelInstancesRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListModelInstanceVersionsRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "instanceSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListModelInstanceVersionFilesRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "instanceSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "versionNumber": {
+          "type": "integer"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUpdateModelRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "isPrivate": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "publishTime": {
+          "type": "string"
+        },
+        "provenanceSources": {
+          "type": "string"
+        },
+        "updateMask": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUpdateModelInstanceRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "MODEL_FRAMEWORK_UNSPECIFIED",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_1",
+            "MODEL_FRAMEWORK_TENSOR_FLOW_2",
+            "MODEL_FRAMEWORK_TF_LITE",
+            "MODEL_FRAMEWORK_TF_JS",
+            "MODEL_FRAMEWORK_PY_TORCH",
+            "MODEL_FRAMEWORK_JAX",
+            "MODEL_FRAMEWORK_FLAX",
+            "MODEL_FRAMEWORK_PAX",
+            "MODEL_FRAMEWORK_MAX_TEXT",
+            "MODEL_FRAMEWORK_GEMMA_CPP",
+            "MODEL_FRAMEWORK_GGML",
+            "MODEL_FRAMEWORK_GGUF",
+            "MODEL_FRAMEWORK_CORAL",
+            "MODEL_FRAMEWORK_SCIKIT_LEARN",
+            "MODEL_FRAMEWORK_MXNET",
+            "MODEL_FRAMEWORK_ONNX",
+            "MODEL_FRAMEWORK_KERAS",
+            "MODEL_FRAMEWORK_TRANSFORMERS",
+            "MODEL_FRAMEWORK_API",
+            "MODEL_FRAMEWORK_OTHER",
+            "MODEL_FRAMEWORK_TENSOR_RT_LLM",
+            "MODEL_FRAMEWORK_TRITON",
+            "MODEL_FRAMEWORK_VLLM"
+          ]
+        },
+        "instanceSlug": {
+          "type": "string"
+        },
+        "overview": {
+          "type": "string"
+        },
+        "usage": {
+          "type": "string"
+        },
+        "fineTunable": {
+          "type": "boolean"
+        },
+        "trainingData": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "updateMask": {
+          "type": "string"
+        },
+        "licenseName": {
+          "type": "string"
+        },
+        "modelInstanceType": {
+          "type": "string",
+          "enum": [
+            "MODEL_INSTANCE_TYPE_UNSPECIFIED",
+            "MODEL_INSTANCE_TYPE_BASE_MODEL",
+            "MODEL_INSTANCE_TYPE_KAGGLE_VARIANT",
+            "MODEL_INSTANCE_TYPE_EXTERNAL_VARIANT"
+          ]
+        },
+        "baseModelInstance": {
+          "type": "string"
+        },
+        "externalBaseModelUrl": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUploadModelFileRequest": {
+      "type": "object",
+      "properties": {
+        "fileName": {
+          "type": "string"
+        },
+        "contentLength": {
+          "type": "integer"
+        },
+        "lastModifiedEpochSeconds": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListKernelsRequest": {
+      "type": "object",
+      "properties": {
+        "competition": {
+          "type": "string"
+        },
+        "dataset": {
+          "type": "string"
+        },
+        "parentKernel": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string",
+          "enum": [
+            "KERNELS_LIST_VIEW_TYPE_UNSPECIFIED",
+            "PROFILE",
+            "UPVOTED",
+            "EVERYONE",
+            "COLLABORATION",
+            "FORK",
+            "BOOKMARKED",
+            "RECENTLY_VIEWED",
+            "PUBLIC_AND_USERS_PRIVATE"
+          ]
+        },
+        "kernelType": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "outputType": {
+          "type": "string"
+        },
+        "search": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "HOTNESS",
+            "COMMENT_COUNT",
+            "DATE_CREATED",
+            "DATE_RUN",
+            "RELEVANCE",
+            "SCORE_ASCENDING",
+            "SCORE_DESCENDING",
+            "VIEW_COUNT",
+            "VOTE_COUNT"
+          ]
+        },
+        "user": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListKernelFilesRequest": {
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "versionLabel": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetKernelRequest": {
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "versionLabel": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiSaveKernelRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "slug": {
+          "type": "string"
+        },
+        "newTitle": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "kernelType": {
+          "type": "string"
+        },
+        "datasetDataSources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "kernelDataSources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "competitionDataSources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "categoryIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "isPrivate": {
+          "type": "boolean"
+        },
+        "enableGpu": {
+          "type": "boolean"
+        },
+        "enableInternet": {
+          "type": "boolean"
+        },
+        "dockerImagePinningType": {
+          "type": "string"
+        },
+        "modelDataSources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "enableTpu": {
+          "type": "boolean"
+        },
+        "sessionTimeoutSeconds": {
+          "type": "integer"
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "dockerImage": {
+          "type": "string"
+        },
+        "kernelExecutionType": {
+          "type": "string",
+          "enum": [
+            "KERNEL_EXECUTION_TYPE_UNSPECIFIED",
+            "SAVE_AND_RUN_ALL",
+            "INTER_ACTIVE",
+            "QUICK_SAVE"
+          ]
+        },
+        "machineShape": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListKernelSessionOutputRequest": {
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "versionLabel": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetKernelSessionStatusRequest": {
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "versionLabel": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadKernelOutputRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadKernelOutputZipRequest": {
+      "type": "object",
+      "properties": {
+        "kernelSessionId": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDeleteKernelRequest": {
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCancelKernelSessionRequest": {
+      "type": "object",
+      "properties": {
+        "kernelSessionId": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetKernelSessionLogsStreamRequest": {
+      "type": "object",
+      "properties": {
+        "kernelSessionId": {
+          "type": "integer"
+        },
+        "waitForLogsUrlSeconds": {
+          "type": "integer"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "versionLabel": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetAcceleratorQuotaStatisticsRequest": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "ApiListCompetitionsRequest": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "enum": [
+            "COMPETITION_LIST_TAB_GENERAL",
+            "COMPETITION_LIST_TAB_ENTERED",
+            "COMPETITION_LIST_TAB_COMMUNITY",
+            "COMPETITION_LIST_TAB_HOSTED",
+            "COMPETITION_LIST_TAB_UNLAUNCHED",
+            "COMPETITION_LIST_TAB_UNLAUNCHED_COMMUNITY",
+            "COMPETITION_LIST_TAB_EVERYTHING"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "HOST_SEGMENT_UNSPECIFIED",
+            "HOST_SEGMENT_FEATURED",
+            "HOST_SEGMENT_GETTING_STARTED",
+            "HOST_SEGMENT_MASTERS",
+            "HOST_SEGMENT_PLAYGROUND",
+            "HOST_SEGMENT_RECRUITMENT",
+            "HOST_SEGMENT_RESEARCH",
+            "HOST_SEGMENT_COMMUNITY",
+            "HOST_SEGMENT_ANALYTICS"
+          ]
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "COMPETITION_SORT_BY_GROUPED",
+            "COMPETITION_SORT_BY_BEST",
+            "COMPETITION_SORT_BY_PRIZE",
+            "COMPETITION_SORT_BY_EARLIEST_DEADLINE",
+            "COMPETITION_SORT_BY_LATEST_DEADLINE",
+            "COMPETITION_SORT_BY_NUMBER_OF_TEAMS",
+            "COMPETITION_SORT_BY_RELEVANCE",
+            "COMPETITION_SORT_BY_RECENTLY_CREATED"
+          ]
+        },
+        "search": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListSubmissionsRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "SUBMISSION_SORT_BY_DATE",
+            "SUBMISSION_SORT_BY_NAME",
+            "SUBMISSION_SORT_BY_PRIVATE_SCORE",
+            "SUBMISSION_SORT_BY_PUBLIC_SCORE"
+          ]
+        },
+        "group": {
+          "type": "string",
+          "enum": [
+            "SUBMISSION_GROUP_ALL",
+            "SUBMISSION_GROUP_SUCCESSFUL",
+            "SUBMISSION_GROUP_SELECTED"
+          ]
+        },
+        "page": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListTeamPublicSubmissionsRequest": {
+      "type": "object",
+      "properties": {
+        "teamId": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListDataFilesRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetLeaderboardRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "overridePublic": {
+          "type": "boolean"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadLeaderboardRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateSubmissionRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "blobFileTokens": {
+          "type": "string"
+        },
+        "submissionDescription": {
+          "type": "string"
+        },
+        "benchmarkModelVersionId": {
+          "type": "integer"
+        },
+        "sandbox": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateCodeSubmissionRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "kernelOwner": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "kernelVersion": {
+          "type": "integer"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "submissionDescription": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetSubmissionRequest": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadSubmissionRequest": {
+      "type": "object",
+      "properties": {
+        "submissionId": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetSubmissionLimitsRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiStartSubmissionUploadRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "contentLength": {
+          "type": "integer"
+        },
+        "lastModifiedEpochSeconds": {
+          "type": "integer"
+        },
+        "fileName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadDataFilesRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadDataFileRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetCompetitionRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetCompetitionDataFilesSummaryRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListCompetitionPagesRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "pageName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListCompetitionTopicsRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_SORT_BY_UNSPECIFIED",
+            "TOPIC_LIST_SORT_BY_HOT",
+            "TOPIC_LIST_SORT_BY_TOP",
+            "TOPIC_LIST_SORT_BY_NEW",
+            "TOPIC_LIST_SORT_BY_RECENT",
+            "TOPIC_LIST_SORT_BY_ACTIVE",
+            "TOPIC_LIST_SORT_BY_RELEVANCE"
+          ]
+        },
+        "page": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListTopicMessagesRequest": {
+      "type": "object",
+      "properties": {
+        "competitionName": {
+          "type": "string"
+        },
+        "topicId": {
+          "type": "integer"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "COMMENT_LIST_SORT_BY_UNSPECIFIED",
+            "COMMENT_LIST_SORT_BY_HOT",
+            "COMMENT_LIST_SORT_BY_NEW",
+            "COMMENT_LIST_SORT_BY_OLD",
+            "COMMENT_LIST_SORT_BY_TOP"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCreateBenchmarkTaskRequest": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "options": {
+          "$ref": "#/$defs/BenchmarkTaskOptions"
+        },
+        "definition": {
+          "$ref": "#/$defs/BenchmarkTaskDefinition"
+        },
+        "validationConfig": {
+          "$ref": "#/$defs/ApiTaskCreationValidationConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "BenchmarkTaskOptions": {
+      "type": "object",
+      "properties": {
+        "datasetDataSources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "BenchmarkTaskDefinition": {
+      "type": "object",
+      "properties": {
+        "notebook": {
+          "$ref": "#/$defs/BenchmarkTaskNotebookDefinition"
+        },
+        "dockerImage": {
+          "$ref": "#/$defs/BenchmarkTaskDockerImageDefinition"
+        },
+        "harborKaggleDatasets": {
+          "$ref": "#/$defs/BenchmarkTaskKaggleDatasetsDefinition"
+        }
+      },
+      "additionalProperties": false
+    },
+    "BenchmarkTaskNotebookDefinition": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "BenchmarkTaskDockerImageDefinition": {
+      "type": "object",
+      "properties": {
+        "dockerImageUrl": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "envVariables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnvVariable"
+          },
+          "maxItems": 1000
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UserSecret"
+          },
+          "maxItems": 1000
+        },
+        "nestedVirtualizationRequired": {
+          "type": "boolean"
+        },
+        "defaultModelVersionSlug": {
+          "type": "string"
+        },
+        "defaultAgentSlug": {
+          "type": "string"
+        },
+        "auxiliaryModelVersionConfigSlugs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "defaultModelVersionConfigSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "EnvVariable": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "isSecretName": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "UserSecret": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "overrideExisting": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "BenchmarkTaskKaggleDatasetsDefinition": {
+      "type": "object",
+      "properties": {
+        "definitionSource": {
+          "$ref": "#/$defs/DefinitionSource"
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DatasetMount"
+          },
+          "maxItems": 1000
+        },
+        "envVariables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnvVariable"
+          },
+          "maxItems": 1000
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UserSecret"
+          },
+          "maxItems": 1000
+        },
+        "overrideHarnessVersionSlug": {
+          "type": "string"
+        },
+        "defaultModelVersionSlug": {
+          "type": "string"
+        },
+        "defaultAgentSlug": {
+          "type": "string"
+        },
+        "overrideHarnessVersionCustomSlug": {
+          "type": "string"
+        },
+        "auxiliaryModelVersionConfigSlugs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "nestedVirtualizationRequired": {
+          "type": "boolean"
+        },
+        "nAttempts": {
+          "type": "integer"
+        },
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "HARBOR_METRIC_TYPE_UNSPECIFIED",
+              "HARBOR_METRIC_TYPE_SUM",
+              "HARBOR_METRIC_TYPE_MIN",
+              "HARBOR_METRIC_TYPE_MAX",
+              "HARBOR_METRIC_TYPE_MEAN"
+            ]
+          },
+          "maxItems": 1000
+        },
+        "sessionConcurrency": {
+          "type": "integer"
+        },
+        "defaultModelVersionConfigSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DefinitionSource": {
+      "type": "object",
+      "properties": {
+        "datasetVersionSlug": {
+          "type": "string"
+        },
+        "subPath": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DatasetMount": {
+      "type": "object",
+      "properties": {
+        "datasetVersionSlug": {
+          "type": "string"
+        },
+        "mountPath": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiTaskCreationValidationConfig": {
+      "type": "object",
+      "properties": {
+        "validationStages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiValidationStage"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiValidationStage": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "BENCHMARK_TASK_VALIDATION_STAGE_UNSPECIFIED",
+            "BENCHMARK_TASK_VALIDATION_STAGE_NOP",
+            "BENCHMARK_TASK_VALIDATION_STAGE_ORACLE",
+            "BENCHMARK_TASK_VALIDATION_STAGE_DEFAULT_CANDIDATE"
+          ]
+        },
+        "defaultModelVersionSlug": {
+          "type": "string"
+        },
+        "defaultAgentSlug": {
+          "type": "string"
+        },
+        "defaultModelVersionConfigSlug": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiBatchScheduleBenchmarkTaskRunsRequest": {
+      "type": "object",
+      "properties": {
+        "taskSlugs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+          },
+          "maxItems": 1000
+        },
+        "modelVersionSlugs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "agentSlugs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "reasoningEffort": {
+          "type": "string"
+        },
+        "enqueue": {
+          "type": "boolean"
+        },
+        "skipPolicy": {
+          "type": "string",
+          "enum": [
+            "BENCHMARK_ENQUEUE_SKIP_POLICY_UNSPECIFIED",
+            "BENCHMARK_ENQUEUE_SKIP_POLICY_ALL",
+            "BENCHMARK_ENQUEUE_SKIP_POLICY_MISSING_ONLY",
+            "BENCHMARK_ENQUEUE_SKIP_POLICY_MISSING_OR_ERRORED",
+            "BENCHMARK_ENQUEUE_SKIP_POLICY_STALER_THAN"
+          ]
+        },
+        "staleAfter": {
+          "type": "string"
+        },
+        "benchmark": {
+          "$ref": "#/$defs/ApiBenchmarkSlug"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiBenchmarkTaskSlug": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "taskSlug": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiBenchmarkSlug": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "benchmarkSlug": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiCancelBenchmarkTaskRunsRequest": {
+      "type": "object",
+      "properties": {
+        "taskSlugs": {
+          "$ref": "#/$defs/ApiBenchmarkTaskSlugs"
+        },
+        "modelVersion": {
+          "$ref": "#/$defs/ApiModelVersionCandidate"
+        },
+        "agentSlug": {
+          "type": "string"
+        },
+        "includeActive": {
+          "type": "boolean"
+        },
+        "runIds": {
+          "$ref": "#/$defs/ApiBenchmarkTaskRunIds"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiBenchmarkTaskSlugs": {
+      "type": "object",
+      "properties": {
+        "slugs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiModelVersionCandidate": {
+      "type": "object",
+      "properties": {
+        "modelVersionSlug": {
+          "type": "string"
+        },
+        "reasoningEffort": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiBenchmarkTaskRunIds": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListBenchmarkTasksRequest": {
+      "type": "object",
+      "properties": {
+        "statusFilter": {
+          "type": "string"
+        },
+        "regexFilter": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "skip": {
+          "type": "integer"
+        },
+        "ownerSlug": {
+          "type": "string"
+        },
+        "benchmarkSlug": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        },
+        "includeDefinition": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetBenchmarkTaskRequest": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+        },
+        "includeDefinition": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListBenchmarkTaskRunsRequest": {
+      "type": "object",
+      "properties": {
+        "taskSlug": {
+          "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+        },
+        "modelVersionSlugs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "skip": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiDownloadBenchmarkTaskRunOutputRequest": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "integer"
+        },
+        "includeSource": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetBenchmarkTaskRunLogsRequest": {
+      "type": "object",
+      "properties": {
+        "runId": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetBenchmarkTaskQuotaRequest": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "ApiGetBenchmarkSchedulerStatusRequest": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "ApiPublishBenchmarkTaskRequest": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+        },
+        "publishBackingNotebook": {
+          "type": "boolean"
+        },
+        "publishRunArtifacts": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUpdateBenchmarkTaskRequest": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+        },
+        "description": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 1000
+        },
+        "provenanceSources": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiBenchmarkTaskCitation"
+          },
+          "maxItems": 1000
+        },
+        "updateMask": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiBenchmarkTaskCitation": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiUpdateBenchmarkTaskVersionRequest": {
+      "type": "object",
+      "properties": {
+        "slug": {
+          "$ref": "#/$defs/ApiBenchmarkTaskSlug"
+        },
+        "description": {
+          "type": "string"
+        },
+        "provenanceSources": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ApiBenchmarkTaskCitation"
+          },
+          "maxItems": 1000
+        },
+        "updateMask": {
+          "type": "string"
+        },
+        "artifactPath": {
+          "type": "string"
+        },
+        "artifactType": {
+          "type": "string",
+          "enum": [
+            "BENCHMARK_ARENA_ARTIFACT_TYPE_UNSPECIFIED",
+            "BENCHMARK_ARENA_ARTIFACT_TYPE_VIDEO",
+            "BENCHMARK_ARENA_ARTIFACT_TYPE_IMAGE",
+            "BENCHMARK_ARENA_ARTIFACT_TYPE_HTML",
+            "BENCHMARK_ARENA_ARTIFACT_TYPE_TEXT"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetBenchmarkLeaderboardRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "benchmarkSlug": {
+          "type": "string"
+        },
+        "versionNumber": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListBenchmarkModelsRequest": {
+      "type": "object",
+      "properties": {
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "readMask": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListForumsRequest": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "ApiListTopicsRequest": {
+      "type": "object",
+      "properties": {
+        "forumSlug": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_SORT_BY_UNSPECIFIED",
+            "TOPIC_LIST_SORT_BY_HOT",
+            "TOPIC_LIST_SORT_BY_TOP",
+            "TOPIC_LIST_SORT_BY_NEW",
+            "TOPIC_LIST_SORT_BY_RECENT",
+            "TOPIC_LIST_SORT_BY_ACTIVE",
+            "TOPIC_LIST_SORT_BY_RELEVANCE"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "searchQuery": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_CATEGORY_UNSPECIFIED",
+            "TOPIC_LIST_CATEGORY_ALL",
+            "TOPIC_LIST_CATEGORY_FORUMS",
+            "TOPIC_LIST_CATEGORY_COMPETITIONS",
+            "TOPIC_LIST_CATEGORY_DATASETS",
+            "TOPIC_LIST_CATEGORY_COMPETITION_WRITE_UPS",
+            "TOPIC_LIST_CATEGORY_MODELS",
+            "TOPIC_LIST_CATEGORY_BENCHMARKS"
+          ]
+        },
+        "group": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_GROUP_UNSPECIFIED",
+            "TOPIC_LIST_GROUP_ALL",
+            "TOPIC_LIST_GROUP_OWNED",
+            "TOPIC_LIST_GROUP_UPVOTED",
+            "TOPIC_LIST_GROUP_BOOKMARKED",
+            "TOPIC_LIST_GROUP_MY_ACTIVITY",
+            "TOPIC_LIST_GROUP_DRAFTS"
+          ]
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiGetTopicRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListCommentsRequest": {
+      "type": "object",
+      "properties": {
+        "topicId": {
+          "type": "integer"
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListDatasetTopicsRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "datasetSlug": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_SORT_BY_UNSPECIFIED",
+            "TOPIC_LIST_SORT_BY_HOT",
+            "TOPIC_LIST_SORT_BY_TOP",
+            "TOPIC_LIST_SORT_BY_NEW",
+            "TOPIC_LIST_SORT_BY_RECENT",
+            "TOPIC_LIST_SORT_BY_ACTIVE",
+            "TOPIC_LIST_SORT_BY_RELEVANCE"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "searchQuery": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListModelTopicsRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "modelSlug": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_SORT_BY_UNSPECIFIED",
+            "TOPIC_LIST_SORT_BY_HOT",
+            "TOPIC_LIST_SORT_BY_TOP",
+            "TOPIC_LIST_SORT_BY_NEW",
+            "TOPIC_LIST_SORT_BY_RECENT",
+            "TOPIC_LIST_SORT_BY_ACTIVE",
+            "TOPIC_LIST_SORT_BY_RELEVANCE"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "searchQuery": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListBenchmarkTopicsRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "benchmarkSlug": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_SORT_BY_UNSPECIFIED",
+            "TOPIC_LIST_SORT_BY_HOT",
+            "TOPIC_LIST_SORT_BY_TOP",
+            "TOPIC_LIST_SORT_BY_NEW",
+            "TOPIC_LIST_SORT_BY_RECENT",
+            "TOPIC_LIST_SORT_BY_ACTIVE",
+            "TOPIC_LIST_SORT_BY_RELEVANCE"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "searchQuery": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiListKernelTopicsRequest": {
+      "type": "object",
+      "properties": {
+        "ownerSlug": {
+          "type": "string"
+        },
+        "kernelSlug": {
+          "type": "string"
+        },
+        "sortBy": {
+          "type": "string",
+          "enum": [
+            "TOPIC_LIST_SORT_BY_UNSPECIFIED",
+            "TOPIC_LIST_SORT_BY_HOT",
+            "TOPIC_LIST_SORT_BY_TOP",
+            "TOPIC_LIST_SORT_BY_NEW",
+            "TOPIC_LIST_SORT_BY_RECENT",
+            "TOPIC_LIST_SORT_BY_ACTIVE",
+            "TOPIC_LIST_SORT_BY_RELEVANCE"
+          ]
+        },
+        "pageSize": {
+          "type": "integer"
+        },
+        "pageToken": {
+          "type": "string"
+        },
+        "searchQuery": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "IntrospectTokenRequest": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

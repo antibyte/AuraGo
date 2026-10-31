@@ -1062,6 +1062,9 @@ type localI18nHelper struct {
 // Register every new prefix helper here so its keys stay verified. Config page
 // scripts under cfg/ are scanned by the same check (path form: cfg/ruview.js).
 var desktopLocalI18nHelpers = map[string]localI18nHelper{
+	"js/desktop/apps/kaggle.js":                  {name: "t", prefix: "kaggle."},
+	"js/desktop/apps/kaggle-notebook.js":         {name: "t", prefix: "kaggle."},
+	"cfg/kaggle.js":                              {name: "label", prefix: "config.kaggle."},
 	"js/go2rtc-tuya.js":                          {name: "translate", prefix: "common.go2rtc_tuya."},
 	"js/go2rtc-source-form.js":                   {name: "t", prefix: "common.go2rtc_source."},
 	"js/desktop/apps/network-cameras.js":         {name: "text", prefix: "desktop.network_cameras.", skipContext: true},

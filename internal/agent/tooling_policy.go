@@ -384,6 +384,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		InvasionControlEnabled:     cfg.InvasionControl.Enabled,
 		GitHubEnabled:              cfg.GitHub.Enabled,
 		HuggingFaceEnabled:         cfg.HuggingFace.Enabled,
+		KaggleEnabled:              cfg.Kaggle.Enabled,
 		MQTTEnabled:                cfg.MQTT.Enabled,
 		CydEnabled:                 cfg.Cyd.Enabled,
 		NotificationEnabled: cfg.Cyd.Enabled || cfg.Notifications.Ntfy.Enabled || cfg.Notifications.Pushover.Enabled ||

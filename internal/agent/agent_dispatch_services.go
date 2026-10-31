@@ -697,7 +697,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// checked: the agent keeps its access to the proxy container, and
 			// dockerRequestCreatesReservedSecurityProxyName refuses create/run.
 			owned, ownershipErr := tools.DockerContainerOwnership(dockerCfg, containerID,
-				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
+				acestep.Owner, dockerutil.HomepageOwner, "go2rtc", "ruview", "local-llm", dockerutil.BoringGarageOwner, dockerutil.CYDCreatorOwner, dockerutil.KaggleNotebookOwner, dockerutil.AppOwner, dockerutil.SecurityProxyOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
 			if dockerOperationTargetsContainer(req.Operation) && owned[dockerutil.RustFSOwner] {
 				return dockerComposeOwnerDenial(dockerutil.RustFSOwner)
 			}
@@ -714,6 +714,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned["ruview"] {
 				return dockerAgentError("docker_managed_ruview_resource", "Managed RuView resources are private. Use the read-only ruview tool or administrator RuView settings.")
+			}
+			if !localLLMDockerOperationSafe(req.Operation) && owned[dockerutil.KaggleNotebookOwner] {
+				return dockerAgentError("docker_managed_kaggle_notebook", "Managed Kaggle notebook kernels are private. Use kaggle_runtime and its local execution grants.")
 			}
 			if !localLLMDockerOperationSafe(req.Operation) && owned[acestep.Owner] {
 				return dockerAgentError("docker_managed_music_resource", "Managed ACE-Step resources are private. Use generate_music or the administrator Music Generation settings.")
@@ -799,7 +802,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.BoringGarageOwner, dockerutil.AppOwner, dockerutil.CYDCreatorOwner, dockerutil.KaggleNotebookOwner, dockerutil.DecisionsOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -854,7 +857,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, acestep.Owner, dockerutil.LocalLLMOwner, dockerutil.CYDCreatorOwner, dockerutil.KaggleNotebookOwner, dockerutil.OllamaOwner, dockerutil.RustFSOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)

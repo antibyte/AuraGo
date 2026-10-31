@@ -994,6 +994,7 @@ func Load(path string) (*Config, error) {
 	cfg.Manus.MaxResultBytes = 262144
 	cfg.Manus.MaxFileSizeMB = 20
 
+	cfg.Kaggle = DefaultKaggleConfig()
 	// Hugging Face defaults: disabled, read-only, and CPU-only unless explicitly expanded.
 	cfg.HuggingFace.Enabled = false
 	cfg.HuggingFace.ReadOnly = true
@@ -1112,6 +1113,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	NormalizeAIGatewayConfig(&cfg)
+	NormalizeKaggleConfig(&cfg.Kaggle)
 	if err := ValidateCloudflareTunnelConfig(&cfg); err != nil {
 		return nil, err
 	}
@@ -3154,6 +3156,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"evomap", "allow_report"}, c.Evomap.AllowReport},
 		{[]string{"evomap", "allow_bounties"}, c.Evomap.AllowBounties},
 		{[]string{"huggingface", "enabled"}, c.HuggingFace.Enabled},
+		{[]string{"kaggle"}, c.Kaggle},
 		{[]string{"huggingface", "read_only"}, c.HuggingFace.ReadOnly},
 		{[]string{"huggingface", "allow_writes"}, c.HuggingFace.AllowWrites},
 		{[]string{"huggingface", "allow_delete"}, c.HuggingFace.AllowDelete},

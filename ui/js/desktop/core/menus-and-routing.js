@@ -1670,6 +1670,9 @@
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }
+        if (appId === 'kaggle' && window.KaggleApp) {
+            return window.KaggleApp.render(contentEl(id), id, { esc, t, api });
+        }
 if (appId === 'system-info') {
             if (!window.SystemInfoApp) {
                 window.AuraDesktopModules.loadAppScript('system-info').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

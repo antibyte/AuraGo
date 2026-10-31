@@ -1007,6 +1007,8 @@ var ErrDockerOwnershipUnverified = errors.New("docker container ownership could 
 func dockerOwnerMatches(owner, name string, labels map[string]string) bool {
 	trimmed := strings.TrimSpace(owner)
 	switch {
+	case strings.EqualFold(trimmed, dockerutil.KaggleNotebookOwner) && dockerutil.IsKaggleNotebookContainerName(name):
+		return true
 	case strings.EqualFold(trimmed, dockerutil.RustFSOwner) && dockerutil.IsRustFSContainerName(name):
 		return true
 	case strings.EqualFold(trimmed, dockerutil.OllamaOwner) && dockerutil.IsOllamaContainerName(name):
@@ -1220,6 +1222,9 @@ func dockerManagedResourceExcluded(labels map[string]string, names []string, vol
 				if !volume && dockerutil.IsCYDCreatorBuilderContainerName(name) {
 					return true
 				}
+			}
+			if !volume && strings.EqualFold(strings.TrimSpace(owner), dockerutil.KaggleNotebookOwner) && dockerutil.IsKaggleNotebookContainerName(name) {
+				return true
 			}
 		}
 	}
@@ -1737,6 +1742,7 @@ func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string
 		return errJSON("reserved AuraGo local LLM container name")
 	}
 	if dockerutil.IsBoringGarageContainerName(newName) || dockerutil.IsHomepageContainerName(newName) || dockerutil.IsAuraGoAppContainerName(newName) ||
+		dockerutil.IsKaggleNotebookContainerName(newName) ||
 		dockerutil.IsSecurityProxyContainerName(newName) || dockerutil.IsCYDCreatorBuilderContainerName(newName) ||
 		dockerutil.IsDecisionsContainerName(newName) || dockerutil.IsRustFSContainerName(newName) {
 		return errJSON("reserved AuraGo managed container name")

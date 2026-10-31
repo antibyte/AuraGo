@@ -6,6 +6,9 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- `/api/kaggle/` shares the native Kaggle/notebook services with agent dispatch. Authenticate Desktop scopes by operation semantics, including read-only POSTs; credentials require global admin and same-origin browser requests. Saves require revisions; transfers/jobs use the existing Desktop publication/revocation gate. SSE checks credentials again on heartbeats and announces expired replay windows. Close kernels before the platform ledger on shutdown. `internal/kaggle/AGENTS.md`, `internal/notebooks/AGENTS.md` and `documentation/kaggle.md` own the domain contracts. Verify `TestKaggle*` and the opt-in notebook browser smoke.
+- Kaggle browser fixtures cover invalid/conflicting creation, accessible editors, early SSE events, concurrent windows and save/output/source/draft races. Optional local manual-review URLs are bounded test fixtures, never production routes or external Kaggle writes; their flags are documented in `ui/js/desktop/apps/AGENTS.md`.
+
 - After passive injection-guard initialization, queue one `security_advisory` with
   code `horizon_optional` and source ID `security:horizon_optional` for a supported,
   disabled model. Reuse durable typed notifications; never download, start or enable

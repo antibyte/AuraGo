@@ -1,6 +1,7 @@
 package main
 
 import (
+	"aurago/internal/kaggle"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -193,6 +194,16 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 		targetTool := tools[sequence%len(tools)]
 		targetFixtures := choicesByTool[targetTool.Name]
 		choice := targetFixtures[(sequence*19+3)%len(targetFixtures)]
+		if i%2 == 1 && kaggleMutationFixture(choice) {
+			// Error-recovery examples may retry only semantic reads. Never teach
+			// a second Kaggle mutation after an uncertain service response.
+			for _, candidate := range targetFixtures {
+				if !kaggleMutationFixture(candidate) {
+					choice = candidate
+					break
+				}
+			}
+		}
 		scenario, err := makeErrorScenario(tools, choice, allocator.Next(), sequence, i%2 == 1)
 		if err != nil {
 			return nil, nil, err
@@ -204,7 +215,9 @@ func generateScenarios(tools []ToolExport, contracts OperationContractManifest) 
 		targetTool := tools[sequence%len(tools)]
 		targetFixtures := choicesByTool[targetTool.Name]
 		choice := targetFixtures[(sequence*23+5)%len(targetFixtures)]
-		scenario := makeNoCallScenario(tools, choice, allocator.Next(), sequence, i%5)
+		// Catalog sizes divisible by five must not repeat the same no-call
+		// conversation when a tool is visited in the next rotation.
+		scenario := makeNoCallScenario(tools, choice, allocator.Next(), sequence, (i+i/len(tools))%5)
 		scenarios = append(scenarios, scenario)
 		sequence++
 	}
@@ -400,6 +413,9 @@ func makeErrorScenario(
 	recover bool,
 ) (Scenario, error) {
 	id := scenarioID("error", choice.Tool.Name, language, sequence)
+	if recover && kaggleMutationFixture(choice) {
+		return Scenario{}, fmt.Errorf("cannot generate an automatic retry for a Kaggle mutation")
+	}
 	family := fmt.Sprintf("error:%s:%d", choice.Tool.Name, sequence)
 	firstCall := newToolCall(id, 0, choice.Tool.Name, choice.Arguments)
 	errorText := "The operation failed with a temporary service error."
@@ -407,11 +423,20 @@ func makeErrorScenario(
 	if language == "en" {
 		final = "The action failed; I did not claim success."
 	}
+	errorResult := `{"status":"error","error":"temporary service failure"}`
+	if kaggleMutationFixture(choice) {
+		errorResult = `{"status":"unknown","error":"Kaggle mutation outcome is unknown; do not replay it. Inspect the existing job receipt."}`
+		if language == "de" {
+			final = "Der Ausgang ist unbekannt. Ich wiederhole die Änderung nicht; der bestehende Auftrag muss geprüft werden."
+		} else {
+			final = "The outcome is unknown. I will not repeat the mutation; the existing job receipt must be checked."
+		}
+	}
 	messages := []Message{
 		{Role: "system", Content: trainingSystemPrompt},
 		{Role: "user", Content: naturalTask(choice, language, sequence)},
 		{Role: "assistant", ToolCalls: []ToolCall{firstCall}},
-		{Role: "tool", ToolCallID: firstCall.ID, Name: choice.Tool.Name, Content: `{"status":"error","error":"temporary service failure"}`},
+		{Role: "tool", ToolCallID: firstCall.ID, Name: choice.Tool.Name, Content: errorResult},
 	}
 	expected := []ExpectedCall{{Name: choice.Tool.Name, Arguments: cloneMap(choice.Arguments)}}
 	outcome := "error"
@@ -453,6 +478,22 @@ func makeErrorScenario(
 		},
 	}
 	return scenario, nil
+}
+
+func kaggleMutationFixture(choice fixtureChoice) bool {
+	if !strings.HasPrefix(choice.Tool.Name, "kaggle_") {
+		return false
+	}
+	operation, _ := choice.Arguments["operation"].(string)
+	if choice.Tool.Name == "kaggle_runtime" {
+		switch operation {
+		case "status", "projects", "files", "read_file", "load_notebook", "jobs", "events", "sessions":
+			return false
+		}
+		return true
+	}
+	op, err := kaggle.Lookup(strings.TrimPrefix(choice.Tool.Name, "kaggle_"), operation)
+	return err != nil || op.Grant != "read"
 }
 
 func makeNoCallScenario(

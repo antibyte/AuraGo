@@ -10650,5 +10650,6 @@
   "game_maker.use_guided_base": "改用引导模板",
   "game_maker.guided_base_change": "把游戏改到符合玩法的引导式三维模板：探索、驾驶、飞行、太空或第一人称。自由的 three 不会检查玩法规则。",
   "game_maker.retry_keeps_pending_selection": "再次尝试会保留这次的素材选择，因为计划还没有被接受。",
-  "game_maker.compact_opt_in": "对这个未知模型使用紧凑模式。计划会更短，新模板用小段替换来修改。"
+  "game_maker.compact_opt_in": "对这个未知模型使用紧凑模式。计划会更短，新模板用小段替换来修改。",
+  "desktop.app_kaggle": "Kaggle"
 }

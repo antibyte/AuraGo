@@ -10650,5 +10650,6 @@
   "game_maker.use_guided_base": "Bytt til en veiledet mal",
   "game_maker.guided_base_change": "Flytt spillet til en veiledet 3D-mal som passer løpet: utforsking, kjøring, flyging, rom eller FPS. Fritt three lar reglene være uverifisert.",
   "game_maker.retry_keeps_pending_selection": "Prøv igjen beholder asset-valget fra dette løpet, fordi ingen plan er godtatt ennå.",
-  "game_maker.compact_opt_in": "Bruk kompakt modus for denne ukjente modellen. Planen blir kortere, og en ny mal endres i små steg."
+  "game_maker.compact_opt_in": "Bruk kompakt modus for denne ukjente modellen. Planen blir kortere, og en ny mal endres i små steg.",
+  "desktop.app_kaggle": "Kaggle"
 }
