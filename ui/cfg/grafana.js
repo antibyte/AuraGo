@@ -9,7 +9,6 @@ function renderGrafanaSection(section) {
     const form = window.AuraConfigForm;
     const checking = enabledOn && data.base_url;
     const html = window.AuraConfigForm.renderSpec({
-        icon: section.icon,
         label: section.label,
         desc: section.desc,
         beforeHTML: form.statusBanner({ id: 'grafana-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.base_url ? t('config.grafana.status_no_url') : '' }),

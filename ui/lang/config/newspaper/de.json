@@ -18,7 +18,7 @@
   "config.newspaper.reason_failed": "Anfrage fehlgeschlagen; andere Quellen können weiter funktionieren",
   "config.newspaper.last_attempt": "Letzter Versuch: {result}",
   "config.newspaper.max_searches": "Maximale Suchanfragen je Ausgabe (einschließlich Wiederholungen)",
-  "config.section.newspaper.label": "Newspaper",
+  "config.section.newspaper.label": "Zeitung",
   "config.section.newspaper.desc": "Erstellt eine persönliche Tageszeitung aus belegter Recherche.",
   "config.newspaper.enabled": "Newspaper aktivieren",
   "config.newspaper.readonly": "Schreibgeschützter Modus",

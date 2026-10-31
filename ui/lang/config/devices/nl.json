@@ -1,5 +1,7 @@
 {
   "config.devices.filter_placeholder": "🔍Filter…",
+  "config.devices.filter_label": "Apparaten filteren",
+  "config.devices.filter_help": "Toont alleen apparaten waarvan de naam, het type, het adres, de gebruiker, het MAC-adres of de tags deze tekst bevatten.",
   "config.devices.add_device": "Apparaat Toevoegen",
   "config.devices.col_name": "Naam",
   "config.devices.col_type": "Soort",

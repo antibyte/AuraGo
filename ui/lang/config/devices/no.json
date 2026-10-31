@@ -5,6 +5,8 @@
   "config.devices.save": "Lagre",
   "config.devices.cancel": "Avbryt",
   "config.devices.filter_placeholder": "🔍 Filter...",
+  "config.devices.filter_label": "Filtrer enheter",
+  "config.devices.filter_help": "Viser bare enheter der navn, type, adresse, bruker, MAC-adresse eller tagger inneholder denne teksten.",
   "config.devices.col_name": "Navn",
   "config.devices.col_type": "Type",
   "config.devices.col_user": "Bruker",

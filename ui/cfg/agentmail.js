@@ -10,7 +10,6 @@ function renderAgentMailSection(section) {
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.agentmail.api_key_placeholder'));
 
     const html = form.renderSpec({
-        icon: section.icon,
         label: section.label,
         desc: section.desc,
         beforeHTML: form.statusBanner({ id: 'agentmail-status-banner', state: enabledOn ? 'checking' : 'off' }),

@@ -1,5 +1,7 @@
 {
   "config.devices.filter_placeholder": "🔍 过滤…",
+  "config.devices.filter_label": "筛选设备",
+  "config.devices.filter_help": "仅显示名称、类型、地址、用户、MAC 地址或标签中包含此文本的设备。",
   "config.devices.add_device": "添加设备",
   "config.devices.col_name": "名称",
   "config.devices.col_type": "类型",

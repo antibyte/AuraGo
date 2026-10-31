@@ -5,6 +5,8 @@
   "config.devices.save": "Ulozit",
   "config.devices.cancel": "Zrusit",
   "config.devices.filter_placeholder": "🔍 Filtr…",
+  "config.devices.filter_label": "Filtrovat zařízení",
+  "config.devices.filter_help": "Zobrazí jen zařízení, jejichž název, typ, adresa, uživatel, MAC adresa nebo štítky obsahují tento text.",
   "config.devices.col_name": "Jméno",
   "config.devices.col_type": "Typ",
   "config.devices.col_user": "Uživatel",

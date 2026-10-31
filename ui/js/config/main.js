@@ -40,206 +40,223 @@ if (typeof window.cfgMarkSecretStored !== 'function') {
     };
 }
 
-// Section metadata grouped by logical categories
+// Section metadata grouped by logical categories (order follows the setup path)
 const SECTIONS = [
     {
-        group: t('config.group.agent_ai'),
+        id: 'models',
+        group: t('config.group.models'),
         items: [
-            { key: 'agent', icon: '⚙️', label: t('config.section.agent.label'), desc: t('config.section.agent.desc') },
-            { key: 'heartbeat', icon: '💓', label: t('config.section.heartbeat.label'), desc: t('config.section.heartbeat.desc'), customRender: 'renderHeartbeatSection' },
-            { key: 'optimizations', icon: '🚀', label: t('config.section.optimizations.label'), desc: t('config.section.optimizations.desc') },
-            { key: 'providers', icon: '🔌', label: t('config.section.providers.label'), desc: t('config.section.providers.desc') },
-            { key: 'realtime_speech', icon: '〽', label: t('config.section.realtime_speech.label'), desc: t('config.section.realtime_speech.desc') },
-            { key: 'telephone_agent', icon: '☎', label: t('config.section.telephone_agent.label'), desc: t('config.section.telephone_agent.desc') },
-            { key: 'manifest', icon: '▦', label: t('config.section.manifest.label'), desc: t('config.section.manifest.desc') },
-            { key: 'omniroute', icon: '◎', label: t('config.section.omniroute.label'), desc: t('config.section.omniroute.desc') },
-            { key: 'dograh', icon: '▧', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
-            { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
-            { key: 'llm_router', icon: '🔄', label: t('common.llm_router.title'), desc: t('config.section.llm_router.desc') },
-            { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
-            { key: 'local_llm', icon: '◈', label: t('config.refresh.local_models'), desc: t('config.section.local_llm.desc') },
-            { key: 'decisions', icon: '⑂', label: t('config.decisions.title'), desc: t('config.section.decisions.desc') },
-            { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
-            { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
-            { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
-            { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
-            { key: 'prompts_editor', icon: '🎭', label: t('config.section.prompts_editor.label'), desc: t('config.section.prompts_editor.desc') },
-            { key: 'rules', icon: '📏', label: t('config.section.rules.label'), desc: t('config.section.rules.desc') },
-            { key: 'personality', icon: '🧬', label: t('config.section.personality.label'), desc: t('config.section.personality.desc') },
-            { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') },
-            { key: 'output_compression', icon: '🗜️', label: t('config.section.output_compression.label'), desc: t('config.section.output_compression.desc') }
+            { key: 'providers', label: t('config.section.providers.label'), desc: t('config.section.providers.desc') },
+            { key: 'llm', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
+            { key: 'llm_router', label: t('common.llm_router.title'), desc: t('config.section.llm_router.desc') },
+            { key: 'fallback_llm', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
+            { key: 'local_llm', label: t('config.refresh.local_models'), desc: t('config.section.local_llm.desc') },
+            { key: 'ollama', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') },
+            { key: 'embeddings', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
+            { key: 'vision', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') },
+            { key: 'budget', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
+            { key: 'ai_gateway', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
+            { key: 'manifest', label: t('config.section.manifest.label'), desc: t('config.section.manifest.desc') },
+            { key: 'omniroute', label: t('config.section.omniroute.label'), desc: t('config.section.omniroute.desc') }
         ]
     },
     {
-        group: t('config.group.server_system'),
+        id: 'behavior',
+        group: t('config.group.behavior'),
         items: [
-            { key: 'server', icon: '🌐', label: t('config.section.server.label'), desc: t('config.section.server.desc') },
-            { key: 'directories', icon: '📁', label: t('config.section.directories.label'), desc: t('config.section.directories.desc') },
-            { key: 'sqlite', icon: '🗄️', label: t('config.section.sqlite.label'), desc: t('config.section.sqlite.desc') },
-            { key: 'sql_connections', icon: '🔗', label: t('config.section.sql_connections.label'), desc: t('config.section.sql_connections.desc') },
-            { key: 'web_config', icon: '🛡️', label: t('config.section.web_config.label'), desc: t('config.section.web_config.desc') },
-            { key: 'logging', icon: '📋', label: t('config.section.logging.label'), desc: t('config.section.logging.desc') },
-            { key: 'maintenance', icon: '🔧', label: t('config.section.maintenance.label'), desc: t('config.section.maintenance.desc') },
-            { key: 'backup_restore', icon: '💾', label: t('config.section.backup_restore.label'), desc: t('config.section.backup_restore.desc') },
-            { key: 'updates', icon: '🔄', label: t('config.section.updates.label'), desc: t('config.section.updates.desc') },
-            { key: 'indexing', icon: '📇', label: t('config.section.indexing.label'), desc: t('config.section.indexing.desc') },
-            { key: 'firewall', icon: '🧱', label: t('config.section.firewall.label'), desc: t('config.section.firewall.desc') }
+            { key: 'agent', label: t('config.section.agent.label'), desc: t('config.section.agent.desc') },
+            { key: 'prompts_editor', label: t('config.section.prompts_editor.label'), desc: t('config.section.prompts_editor.desc') },
+            { key: 'personality', label: t('config.section.personality.label'), desc: t('config.section.personality.desc') },
+            { key: 'rules', label: t('config.section.rules.label'), desc: t('config.section.rules.desc') },
+            { key: 'heartbeat', label: t('config.section.heartbeat.label'), desc: t('config.section.heartbeat.desc') },
+            { key: 'co_agents', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
+            { key: 'memory_analysis', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
+            { key: 'mission_preparation', label: t('config.section.mission_preparation.label'), desc: t('config.section.mission_preparation.desc') },
+            { key: 'decisions', label: t('config.decisions.title'), desc: t('config.section.decisions.desc') },
+            { key: 'optimizations', label: t('config.section.optimizations.label'), desc: t('config.section.optimizations.desc') },
+            { key: 'output_compression', label: t('config.section.output_compression.label'), desc: t('config.section.output_compression.desc') }
         ]
     },
     {
-        group: t('config.group.agent_tools'),
+        id: 'speech',
+        group: t('config.group.speech'),
         items: [
-            { key: 'tools', icon: '🛠️', label: t('config.section.tools.label'), desc: t('config.section.tools.desc') },
-            { key: 'web_scraper', icon: '🕷️', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc'), customRender: 'renderWebScraperSection' },
-            { key: 'browser_automation', icon: '🌐', label: t('config.section.browser_automation.label'), desc: t('config.section.browser_automation.desc') },
-            { key: 'space_agent', icon: '🛰️', label: t('config.section.space_agent.label'), desc: t('config.section.space_agent.desc') },
-            { key: 'virtual_desktop', icon: '▣', label: t('config.section.virtual_desktop.label'), desc: t('config.section.virtual_desktop.desc') },
-            { key: 'game_maker', icon: '🎮', label: t('config.section.game_maker.label'), desc: t('config.section.game_maker.desc') },
-            { key: 'cyd_creator', icon: '◧', label: t('config.section.cyd_creator.label'), desc: t('config.section.cyd_creator.desc') },
-            { key: 'detective', icon: '🔎', label: t('config.section.detective.label'), desc: t('config.section.detective.desc') },
-            { key: 'newspaper', icon: '▤', label: t('config.section.newspaper.label'), desc: t('config.section.newspaper.desc') },
-            { key: 'flows', icon: '⧉', label: t('config.section.flows.label'), desc: t('config.section.flows.desc') },
-            { key: 'virtual_computers', icon: 'VC', label: t('config.section.virtual_computers.label'), desc: t('config.section.virtual_computers.desc') },
-            { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
-            { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
-            { key: 'network_tools', icon: '📡', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
-            { key: 'brave_search', icon: '🦁', label: t('config.section.brave_search.label'), desc: t('config.section.brave_search.desc') },
-            { key: 'local_wikipedia', icon: '📚', label: t('config.section.local_wikipedia.label'), desc: t('config.section.local_wikipedia.desc') },
-            { key: 'skill_manager', icon: '🧩', label: t('config.section.skill_manager.label'), desc: t('config.section.skill_manager.desc') },
-            { key: 'daemon_skills', icon: '👹', label: t('config.section.daemon_skills.label'), desc: t('config.section.daemon_skills.desc') },
-            { key: 'mission_preparation', icon: '🎯', label: t('config.section.mission_preparation.label'), desc: t('config.section.mission_preparation.desc') }
+            { key: 'whisper', label: t('config.section.whisper.label'), desc: t('config.section.whisper.desc') },
+            { key: 'tts', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') },
+            { key: 'speech_lab', label: t('config.section.speech_lab.label'), desc: t('config.section.speech_lab.desc') },
+            { key: 'realtime_speech', label: t('config.section.realtime_speech.label'), desc: t('config.section.realtime_speech.desc') },
+            { key: 'telephone_agent', label: t('config.section.telephone_agent.label'), desc: t('config.section.telephone_agent.desc') },
+            { key: 'dograh', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
+            { key: 'sip', label: t('config.section.sip.label'), desc: t('config.section.sip.desc') },
+            { key: 'telnyx', label: t('config.section.telnyx.label'), desc: t('config.section.telnyx.desc') }
         ]
     },
     {
-        group: t('config.group.media_content'),
-		items: [
-			{ key: 'whisper', icon: '🎤', label: t('config.section.whisper.label'), desc: t('config.section.whisper.desc') },
-			{ key: 'tts', icon: '🔊', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') },
-			{ key: 'speech_lab', icon: '◉', label: t('config.section.speech_lab.label'), desc: t('config.section.speech_lab.desc') },
-            { key: 'image_generation', icon: '🎨', label: t('config.section.image_generation.label'), desc: t('config.section.image_generation.desc') },
-            { key: 'music_generation', icon: '🎵', label: t('config.section.music_generation.label'), desc: t('config.section.music_generation.desc') },
-            { key: 'video_generation', icon: '🎬', label: t('config.section.video_generation.label'), desc: t('config.section.video_generation.desc') },
-            { key: 'media_conversion', icon: '🎞️', label: t('config.section.media_conversion.label'), desc: t('config.section.media_conversion.desc') },
-            { key: 'video_download', icon: '▶️', label: t('config.section.video_download.label'), desc: t('config.section.video_download.desc') },
-            { key: 'document_creator', icon: '📄', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') }
-        ]
-    },
-    {
-        group: t('config.group.container'),
+        id: 'tools',
+        group: t('config.group.tools'),
         items: [
-            { key: 'docker', icon: '🐳', label: t('config.section.docker.label'), desc: t('config.section.docker.desc') }
+            { key: 'tools', label: t('config.section.tools.label'), desc: t('config.section.tools.desc') },
+            { key: 'info_tools', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
+            { key: 'network_tools', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
+            { key: 'brave_search', label: t('config.section.brave_search.label'), desc: t('config.section.brave_search.desc') },
+            { key: 'web_scraper', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc') },
+            { key: 'browser_automation', label: t('config.section.browser_automation.label'), desc: t('config.section.browser_automation.desc') },
+            { key: 'local_wikipedia', label: t('config.section.local_wikipedia.label'), desc: t('config.section.local_wikipedia.desc') },
+            { key: 'sandbox', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
+            { key: 'skill_manager', label: t('config.section.skill_manager.label'), desc: t('config.section.skill_manager.desc') },
+            { key: 'daemon_skills', label: t('config.section.daemon_skills.label'), desc: t('config.section.daemon_skills.desc') }
         ]
     },
     {
-        group: t('config.group.cloud_storage'),
+        id: 'tool_sources',
+        group: t('config.group.tool_sources'),
         items: [
-            { key: 's3', icon: '🪣', label: t('config.section.s3.label'), desc: t('config.section.s3.desc') },
-            { key: 'webdav', icon: '☁️', label: t('config.section.webdav.label'), desc: t('config.section.webdav.desc') },
-            { key: 'koofr', icon: '📦', label: t('config.section.koofr.label'), desc: t('config.section.koofr.desc') }
+            { key: 'mcp', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
+            { key: 'composio', label: t('config.section.composio.label'), desc: t('config.section.composio.desc') },
+            { key: 'huggingface', label: t('config.section.huggingface.label'), desc: t('config.section.huggingface.desc') },
+            { key: 'manus', label: t('config.section.manus.label'), desc: t('config.section.manus.desc') },
+            { key: 'treg', label: t('config.section.treg.label'), desc: t('config.section.treg.desc') },
+            { key: 'evomap', label: t('config.section.evomap.label'), desc: t('config.section.evomap.desc') },
+            { key: 'yepapi', label: t('config.section.yepapi.label'), desc: t('config.section.yepapi.desc') }
         ]
     },
     {
-        group: t('config.group.web_publishing'),
+        id: 'apps',
+        group: t('config.group.apps'),
         items: [
-            { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
-            { key: 'here_now', icon: 'HN', label: t('config.section.here_now.label'), desc: t('config.section.here_now.desc') },
-            { key: 'vercel', icon: '▲', label: t('config.section.vercel.label'), desc: t('config.section.vercel.desc') },
-            { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') },
-            { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') }
+            { key: 'virtual_desktop', label: t('config.section.virtual_desktop.label'), desc: t('config.section.virtual_desktop.desc') },
+            { key: 'flows', label: t('config.section.flows.label'), desc: t('config.section.flows.desc') },
+            { key: 'virtual_computers', label: t('config.section.virtual_computers.label'), desc: t('config.section.virtual_computers.desc') },
+            { key: 'game_maker', label: t('config.section.game_maker.label'), desc: t('config.section.game_maker.desc') },
+            { key: 'cyd_creator', label: t('config.section.cyd_creator.label'), desc: t('config.section.cyd_creator.desc') },
+            { key: 'detective', label: t('config.section.detective.label'), desc: t('config.section.detective.desc') },
+            { key: 'newspaper', label: t('config.section.newspaper.label'), desc: t('config.section.newspaper.desc') },
+            { key: 'space_agent', label: t('config.section.space_agent.label'), desc: t('config.section.space_agent.desc') },
+            { key: 'homepage', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') }
         ]
     },
     {
-        group: t('config.group.messenger'),
+        id: 'media',
+        group: t('config.group.media'),
         items: [
-            { key: 'telegram', icon: '📱', label: t('config.section.telegram.label'), desc: t('config.section.telegram.desc') },
-            { key: 'discord', icon: '💬', label: t('config.section.discord.label'), desc: t('config.section.discord.desc') },
-            { key: 'rocketchat', icon: '🚀', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') },
-            { key: 'telnyx', icon: '📞', label: t('config.section.telnyx.label'), desc: t('config.section.telnyx.desc') }
+            { key: 'image_generation', label: t('config.section.image_generation.label'), desc: t('config.section.image_generation.desc') },
+            { key: 'music_generation', label: t('config.section.music_generation.label'), desc: t('config.section.music_generation.desc') },
+            { key: 'video_generation', label: t('config.section.video_generation.label'), desc: t('config.section.video_generation.desc') },
+            { key: 'media_conversion', label: t('config.section.media_conversion.label'), desc: t('config.section.media_conversion.desc') },
+            { key: 'video_download', label: t('config.section.video_download.label'), desc: t('config.section.video_download.desc') },
+            { key: 'document_creator', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') }
         ]
     },
     {
-        group: t('config.group.notifications_group'),
+        id: 'communication',
+        group: t('config.group.communication'),
         items: [
-            { key: 'email', icon: '✉️', label: t('config.section.email.label'), desc: t('config.section.email.desc') },
-            { key: 'agentmail', icon: '@', label: t('config.section.agentmail.label'), desc: t('config.section.agentmail.desc') },
-            { key: 'webhooks', icon: '🔗', label: t('config.section.webhooks.label'), desc: t('config.section.webhooks.desc') },
-            { key: 'notifications', icon: '🔔', label: t('config.section.notifications.label'), desc: t('config.section.notifications.desc') }
+            { key: 'telegram', label: t('config.section.telegram.label'), desc: t('config.section.telegram.desc') },
+            { key: 'discord', label: t('config.section.discord.label'), desc: t('config.section.discord.desc') },
+            { key: 'rocketchat', label: t('config.section.rocketchat.label'), desc: t('config.section.rocketchat.desc') },
+            { key: 'email', label: t('config.section.email.label'), desc: t('config.section.email.desc') },
+            { key: 'agentmail', label: t('config.section.agentmail.label'), desc: t('config.section.agentmail.desc') },
+            { key: 'notifications', label: t('config.section.notifications.label'), desc: t('config.section.notifications.desc') },
+            { key: 'webhooks', label: t('config.section.webhooks.label'), desc: t('config.section.webhooks.desc') }
         ]
     },
     {
+        id: 'productivity',
         group: t('config.group.productivity'),
         items: [
-            { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
-            { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
-            { key: 'gog', icon: '📊', label: t('config.section.gog.label'), desc: t('config.section.gog.desc') },
-            { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
-            { key: 'obsidian', icon: '📝', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') },
-            { key: 'yepapi', icon: '🌐', label: t('config.section.yepapi.label'), desc: t('config.section.yepapi.desc') }
+            { key: 'github', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
+            { key: 'google_workspace', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
+            { key: 'gog', label: t('config.section.gog.label'), desc: t('config.section.gog.desc') },
+            { key: 'paperless_ngx', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
+            { key: 'obsidian', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') }
         ]
     },
     {
+        id: 'storage',
+        group: t('config.group.storage'),
+        items: [
+            { key: 's3', label: t('config.section.s3.label'), desc: t('config.section.s3.desc') },
+            { key: 'webdav', label: t('config.section.webdav.label'), desc: t('config.section.webdav.desc') },
+            { key: 'koofr', label: t('config.section.koofr.label'), desc: t('config.section.koofr.desc') },
+            { key: 'onedrive', label: t('config.section.onedrive.label'), desc: t('config.section.onedrive.desc') },
+            { key: 'netlify', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
+            { key: 'vercel', label: t('config.section.vercel.label'), desc: t('config.section.vercel.desc') },
+            { key: 'here_now', label: t('config.section.here_now.label'), desc: t('config.section.here_now.desc') },
+            { key: 'cloudflare_tunnel', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') }
+        ]
+    },
+    {
+        id: 'smart_home',
         group: t('config.group.smart_home'),
         items: [
-            { key: 'home_assistant', icon: '🏠', label: t('config.section.home_assistant.label'), desc: t('config.section.home_assistant.desc') },
-            { key: 'mqtt', icon: '📡', label: t('config.section.mqtt.label'), desc: t('config.section.mqtt.desc') },
-            { key: 'cyd', icon: '📟', label: t('config.section.cyd.label'), desc: t('config.section.cyd.desc') },
-            { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
-            { key: 'bluetooth', icon: 'ᛒ', label: t('config.section.bluetooth.label'), desc: t('config.section.bluetooth.desc') },
-            { key: 'meshcore', icon: '📡', label: t('config.section.meshcore.label'), desc: t('config.section.meshcore.desc') },
-            { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') },
-            { key: 'fritzbox', icon: '📡', label: t('config.section.fritzbox.label'), desc: t('config.section.fritzbox.desc') },
-            { key: 'ldap', icon: '📇', label: t('config.section.ldap.label'), desc: t('config.section.ldap.desc') }
+            { key: 'home_assistant', label: t('config.section.home_assistant.label'), desc: t('config.section.home_assistant.desc') },
+            { key: 'mqtt', label: t('config.section.mqtt.label'), desc: t('config.section.mqtt.desc') },
+            { key: 'cyd', label: t('config.section.cyd.label'), desc: t('config.section.cyd.desc') },
+            { key: 'chromecast', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
+            { key: 'bluetooth', label: t('config.section.bluetooth.label'), desc: t('config.section.bluetooth.desc') },
+            { key: 'meshcore', label: t('config.section.meshcore.label'), desc: t('config.section.meshcore.desc') },
+            { key: 'three_d_printers', label: t('config.section.three_d_printers.label'), desc: t('config.section.three_d_printers.desc') },
+            { key: 'go2rtc', label: t('config.section.go2rtc.label'), desc: t('config.section.go2rtc.desc') },
+            { key: 'frigate', label: t('config.section.frigate.label'), desc: t('config.section.frigate.desc') },
+            { key: 'ruview', label: t('config.section.ruview.label'), desc: t('config.section.ruview.desc') }
         ]
     },
     {
-        group: t('config.group.network_remote'),
+        id: 'infrastructure',
+        group: t('config.group.infrastructure'),
         items: [
-            { key: 'network_shares', icon: '⇄', label: t('config.section.network_shares.label'), desc: t('config.section.network_shares.desc') },
-            { key: 'sip', icon: '☎', label: t('config.section.sip.label'), desc: t('config.section.sip.desc') },
-            { key: 'truenas', icon: '💾', label: t('config.section.truenas.label'), desc: t('config.section.truenas.desc') },
-            { key: 'uptime_kuma', icon: '📈', label: t('config.section.uptime_kuma.label'), desc: t('config.section.uptime_kuma.desc') },
-            { key: 'jellyfin', icon: '🎬', label: t('config.section.jellyfin.label'), desc: t('config.section.jellyfin.desc') },
-            { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
-            { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
-            { key: 'frigate', icon: '📹', label: t('config.section.frigate.label'), desc: t('config.section.frigate.desc') },
-            { key: 'go2rtc', icon: '🎥', label: t('config.section.go2rtc.label'), desc: t('config.section.go2rtc.desc') },
-            { key: 'ruview', icon: '📡', label: 'RuView', desc: t('config.section.ruview.desc') },
-            { key: 'three_d_printers', icon: '🖨️', label: t('config.section.three_d_printers.label'), desc: t('config.section.three_d_printers.desc') },
-            { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
-            { key: 'grafana', icon: '📊', label: t('config.section.grafana.label'), desc: t('config.section.grafana.desc') },
-            { key: 'meshcentral', icon: '🖥️', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
-            { key: 'ansible', icon: '⚙️', label: t('config.section.ansible.label'), desc: t('config.section.ansible.desc') }
+            { key: 'docker', label: t('config.section.docker.label'), desc: t('config.section.docker.desc') },
+            { key: 'devices', label: t('config.section.devices.label'), desc: t('config.section.devices.desc') },
+            { key: 'proxmox', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
+            { key: 'truenas', label: t('config.section.truenas.label'), desc: t('config.section.truenas.desc') },
+            { key: 'tailscale', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
+            { key: 'fritzbox', label: t('config.section.fritzbox.label'), desc: t('config.section.fritzbox.desc') },
+            { key: 'adguard', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') },
+            { key: 'uptime_kuma', label: t('config.section.uptime_kuma.label'), desc: t('config.section.uptime_kuma.desc') },
+            { key: 'grafana', label: t('config.section.grafana.label'), desc: t('config.section.grafana.desc') },
+            { key: 'jellyfin', label: t('config.section.jellyfin.label'), desc: t('config.section.jellyfin.desc') },
+            { key: 'meshcentral', label: t('config.section.meshcentral.label'), desc: t('config.section.meshcentral.desc') },
+            { key: 'ansible', label: t('config.section.ansible.label'), desc: t('config.section.ansible.desc') },
+            { key: 'remote_control', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },
+            { key: 'ldap', label: t('config.section.ldap.label'), desc: t('config.section.ldap.desc') },
+            { key: 'sql_connections', label: t('config.section.sql_connections.label'), desc: t('config.section.sql_connections.desc') }
         ]
     },
     {
+        id: 'security',
         group: t('config.group.security'),
         items: [
-            { key: 'security_proxy', icon: '🔒', label: t('config.section.security_proxy.label'), desc: t('config.section.security_proxy.desc') },
-            { key: 'guardian', icon: '🛡️', label: t('config.section.guardian.label'), desc: t('config.section.guardian.desc') },
-            { key: 'llm_guardian', icon: '🤖', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') },
-            { key: 'virustotal', icon: '🦠', label: t('config.section.virustotal.label'), desc: t('config.section.virustotal.desc') }
+            { key: 'web_config', label: t('config.section.web_config.label'), desc: t('config.section.web_config.desc') },
+            { key: 'security_proxy', label: t('config.section.security_proxy.label'), desc: t('config.section.security_proxy.desc') },
+            { key: 'firewall', label: t('config.section.firewall.label'), desc: t('config.section.firewall.desc') },
+            { key: 'guardian', label: t('config.section.guardian.label'), desc: t('config.section.guardian.desc') },
+            { key: 'llm_guardian', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') },
+            { key: 'virustotal', label: t('config.section.virustotal.label'), desc: t('config.section.virustotal.desc') },
+            { key: 'mcp_server', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
+            { key: 'a2a', label: t('config.section.a2a.label'), desc: t('config.section.a2a.desc') }
         ]
     },
     {
-        group: t('config.group.external_ai'),
+        id: 'system',
+        group: t('config.group.system'),
         items: [
-            { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
-            { key: 'composio', icon: '◇', label: t('config.section.composio.label'), desc: t('config.section.composio.desc') },
-            { key: 'treg', icon: '↗', label: t('config.section.treg.label'), desc: t('config.section.treg.desc') },
-            { key: 'manus', icon: 'M', label: t('config.section.manus.label'), desc: t('config.section.manus.desc') },
-            { key: 'huggingface', icon: 'HF', label: t('config.section.huggingface.label'), desc: t('config.section.huggingface.desc') },
-            { key: 'evomap', icon: '◇', label: t('config.section.evomap.label'), desc: t('config.section.evomap.desc') },
-            { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
-            { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
-            { key: 'a2a', icon: '🔀', label: t('config.section.a2a.label'), desc: t('config.section.a2a.desc') },
-            { key: 'ollama', icon: '🦙', label: t('config.section.ollama.label'), desc: t('config.section.ollama.desc') }
+            { key: 'server', label: t('config.section.server.label'), desc: t('config.section.server.desc') },
+            { key: 'directories', label: t('config.section.directories.label'), desc: t('config.section.directories.desc') },
+            { key: 'sqlite', label: t('config.section.sqlite.label'), desc: t('config.section.sqlite.desc') },
+            { key: 'logging', label: t('config.section.logging.label'), desc: t('config.section.logging.desc') },
+            { key: 'maintenance', label: t('config.section.maintenance.label'), desc: t('config.section.maintenance.desc') },
+            { key: 'indexing', label: t('config.section.indexing.label'), desc: t('config.section.indexing.desc') },
+            { key: 'network_shares', label: t('config.section.network_shares.label'), desc: t('config.section.network_shares.desc') },
+            { key: 'backup_restore', label: t('config.section.backup_restore.label'), desc: t('config.section.backup_restore.desc') },
+            { key: 'updates', label: t('config.section.updates.label'), desc: t('config.section.updates.desc') }
         ]
     },
     {
-        group: t('config.group.danger_zone'),
+        id: 'danger',
+        group: t('config.group.danger'),
         dangerGroup: true,
         items: [
-            { key: 'danger_zone', icon: '☠️', label: t('config.section.danger_zone.label'), desc: t('config.section.danger_zone.desc') }
+            { key: 'danger_zone', label: t('config.section.danger_zone.label'), desc: t('config.section.danger_zone.desc') }
         ]
     }
 ];
@@ -670,6 +687,8 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     telephone_agent: 109,
     local_llm: 110,
     decisions: 124,
+    onedrive: 125,
+    devices: 126,
     speech_lab: 111,
     adguard: 75,
     fritzbox: 76,
@@ -708,6 +727,8 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
 const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     decisions: "<path d=\"M64 17 86 39 64 61 42 39z\" fill=\"#35c7d3\" opacity=\".25\"/><path d=\"M64 17 86 39 64 61 42 39zM64 61v14M32 94V75h64v19\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/><rect x=\"20\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#6fca8f\"/><rect x=\"84\" y=\"91\" width=\"24\" height=\"22\" rx=\"5\" fill=\"#7da3c8\"/>",
+    onedrive: '<path d="M42 86h43a19 19 0 0 0 2-38 28 28 0 0 0-53 9 15 15 0 0 0 8 29z" fill="#4f8ee8" opacity=".22"/><path d="M42 86h43a19 19 0 0 0 2-38 28 28 0 0 0-53 9 15 15 0 0 0 8 29z" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#4f8ee8"/><path d="M64 78V58m-8 8 8-8 8 8" fill="none" stroke="#35c7d3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
+    devices: '<rect x="26" y="32" width="76" height="52" rx="8" fill="#7da3c8" opacity=".22"/><rect x="26" y="32" width="76" height="52" rx="8" fill="none" stroke="#7da3c8" stroke-width="6"/><path d="M50 100h28M64 84v16" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/><circle cx="64" cy="58" r="7" fill="#35c7d3"/>',
     treg: '<rect x="27" y="25" width="74" height="78" rx="10" fill="none" stroke="#35c7d3" stroke-width="6"/><path d="M43 46h42M43 64h42M43 82h26" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
     gog: '<rect x="22" y="28" width="52" height="40" rx="8" fill="#4285f4" opacity=".2"/><rect x="40" y="46" width="52" height="40" rx="8" fill="#34a853" opacity=".25"/><path d="M22 28h52v40H22zM40 46h52v40H40z" fill="none" stroke="#4285f4" stroke-width="6" stroke-linejoin="round"/><circle cx="66" cy="66" r="7" fill="#f6cf58"/>',
     ruview: '<path d="M28 78a36 36 0 0 1 72 0M40 78a24 24 0 0 1 48 0M52 78a12 12 0 0 1 24 0" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linecap="round"/><circle cx="64" cy="78" r="6" fill="#6fca8f"/><path d="M64 84v16M52 92l12-8 12 8" fill="none" stroke="#7da3c8" stroke-width="6" stroke-linecap="round"/>',
@@ -3452,6 +3473,8 @@ const SECTION_MODULES = {
     agentmail: { m: 'agentmail', fn: 'renderAgentMailSection' },
     mcp: { m: 'mcp', fn: 'renderMCPSection' },
     sandbox: { m: 'sandbox', fn: 'renderSandboxSection' },
+    onedrive: { m: 'onedrive', fn: 'renderOneDriveSection' },
+    devices: { m: 'devices', fn: 'renderDevicesSection' },
     web_scraper: { m: 'scraper', fn: 'renderWebScraperSection' },
     browser_automation: { m: 'browser_automation', fn: 'renderBrowserAutomationSection' },
     space_agent: { m: 'space_agent', fn: 'renderSpaceAgentSection' },

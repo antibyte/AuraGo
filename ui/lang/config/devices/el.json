@@ -5,6 +5,8 @@
   "config.devices.save": "Αποθήκευση",
   "config.devices.cancel": "Ακυρωση",
   "config.devices.filter_placeholder": "🔍 Φίλτρο…",
+  "config.devices.filter_label": "Φιλτράρισμα συσκευών",
+  "config.devices.filter_help": "Εμφανίζει μόνο συσκευές των οποίων το όνομα, ο τύπος, η διεύθυνση, ο χρήστης, η διεύθυνση MAC ή οι ετικέτες περιέχουν αυτό το κείμενο.",
   "config.devices.col_name": "Όνομα",
   "config.devices.col_type": "Τύπος",
   "config.devices.col_user": "Χρήστης",

@@ -9,7 +9,6 @@ function renderAdGuardSection(section) {
     const checking = enabledOn && data.url;
 
     const html = form.renderSpec({
-        icon: section.icon,
         label: section.label,
         desc: section.desc,
         beforeHTML: form.statusBanner({ id: 'adg-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.url ? t('config.adguard.status_no_url') : '' }),

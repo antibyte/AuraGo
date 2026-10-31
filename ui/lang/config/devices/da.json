@@ -5,6 +5,8 @@
   "config.devices.save": "Gem",
   "config.devices.cancel": "Annuller",
   "config.devices.filter_placeholder": "🔍 Filter...",
+  "config.devices.filter_label": "Filtrer enheder",
+  "config.devices.filter_help": "Viser kun enheder, hvis navn, type, adresse, bruger, MAC-adresse eller tags indeholder denne tekst.",
   "config.devices.col_name": "Navn",
   "config.devices.col_type": "Type",
   "config.devices.col_user": "Bruger",

@@ -14,7 +14,6 @@ function renderEvomapSection(section) {
     const data = evomapConfig();
     const form = window.AuraConfigForm;
     const html = form.renderSpec({
-        icon: section.icon,
         label: section.label,
         desc: section.desc,
         beforeHTML: form.statusBanner({ id: 'evomap-status-banner', state: data.enabled === true ? 'checking' : 'off' }),

@@ -12,7 +12,11 @@ function renderDevicesSection(section) {
     html += `
     <div class="devices-toolbar">
         <div class="devices-toolbar-left">
-            <input type="text" id="devices-filter" class="field-input devices-filter-input" placeholder="${t('config.devices.filter_placeholder')}" oninput="devicesApplyFilter()">
+            <div class="field-group devices-filter-group">
+                <label class="field-label" for="devices-filter">${t('config.devices.filter_label')}</label>
+                <input type="text" id="devices-filter" class="field-input devices-filter-input" placeholder="${t('config.devices.filter_placeholder')}" oninput="devicesApplyFilter()">
+                <div class="field-help">${t('config.devices.filter_help')}</div>
+            </div>
         </div>
         <button class="btn-save devices-add-btn" onclick="devicesShowModal()">
             ＋ ${t('config.devices.add_device')}

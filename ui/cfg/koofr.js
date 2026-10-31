@@ -8,7 +8,6 @@ function renderKoofrSection(section) {
     const startState = !enabled ? 'off' : 'checking';
 
     const html = form.renderSpec({
-        icon: section.icon,
         label: section.label,
         desc: section.desc,
         beforeHTML: form.statusBanner({ id: 'koofr-status-banner', state: startState }),

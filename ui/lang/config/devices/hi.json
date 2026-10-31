@@ -5,6 +5,8 @@
   "config.devices.save": "सहेजें",
   "config.devices.cancel": "रद्द करना",
   "config.devices.filter_placeholder": "🔍फ़िल्टर...",
+  "config.devices.filter_label": "डिवाइस फ़िल्टर करें",
+  "config.devices.filter_help": "केवल वे डिवाइस दिखाता है जिनके नाम, प्रकार, पते, उपयोगकर्ता, MAC पते या टैग में यह पाठ मौजूद है।",
   "config.devices.col_name": "नाम",
   "config.devices.col_type": "प्रकार",
   "config.devices.col_user": "उपयोगकर्ता",

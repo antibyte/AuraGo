@@ -2834,8 +2834,9 @@ transform:none; filter:none;
 
 .pw-page[data-workspace-page="config"] .devices-toolbar-left {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    align-items: center;
+    align-items: stretch;
 }
 
 .pw-page[data-workspace-page="config"] .devices-filter-input {

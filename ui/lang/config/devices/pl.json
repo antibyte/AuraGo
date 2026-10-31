@@ -1,5 +1,7 @@
 {
   "config.devices.filter_placeholder": "🔍 Filtruj…",
+  "config.devices.filter_label": "Filtruj urządzenia",
+  "config.devices.filter_help": "Pokazuje tylko urządzenia, których nazwa, typ, adres, użytkownik, adres MAC lub tagi zawierają ten tekst.",
   "config.devices.add_device": "Dodaj Urządzenie",
   "config.devices.col_name": "Nazwa",
   "config.devices.col_type": "Typ",

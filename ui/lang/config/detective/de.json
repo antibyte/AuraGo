@@ -1,5 +1,5 @@
 {
-  "config.section.detective.label": "Detective",
+  "config.section.detective.label": "Detektiv",
   "config.section.detective.desc": "Lässt den Agenten ein Thema recherchieren und die verwendeten Quellen belegen.",
   "config.detective.enabled": "Detective aktivieren",
   "config.detective.extra_read_operations": "Freigegebene Leseoperationen",

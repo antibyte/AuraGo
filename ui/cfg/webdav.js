@@ -12,7 +12,6 @@ function renderWebDAVSection(section) {
     const form = window.AuraConfigForm;
 
     const html = form.renderSpec({
-        icon: section.icon,
         label: section.label,
         desc: section.desc,
         beforeHTML: form.statusBanner({ id: 'webdav-status-banner', state: enabled ? 'checking' : 'off' }),

@@ -5,6 +5,8 @@
   "config.devices.save": "Spara",
   "config.devices.cancel": "Avbryt",
   "config.devices.filter_placeholder": "🔍 Filter...",
+  "config.devices.filter_label": "Filtrera enheter",
+  "config.devices.filter_help": "Visar bara enheter vars namn, typ, adress, användare, MAC-adress eller taggar innehåller den här texten.",
   "config.devices.col_name": "Namn",
   "config.devices.col_type": "Typ",
   "config.devices.col_user": "Användare",

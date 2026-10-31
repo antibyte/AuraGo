@@ -1,5 +1,7 @@
 {
   "config.devices.filter_placeholder": "🔍 Filtra…",
+  "config.devices.filter_label": "Filtra dispositivi",
+  "config.devices.filter_help": "Mostra solo i dispositivi il cui nome, tipo, indirizzo, utente, indirizzo MAC o tag contengono questo testo.",
   "config.devices.add_device": "Aggiungi Dispositivo",
   "config.devices.col_name": "Nome",
   "config.devices.col_type": "Tipo",
