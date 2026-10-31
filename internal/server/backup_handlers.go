@@ -659,6 +659,14 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		}
 
 		// 3. Curated runtime files
+		//
+		// Deliberately NOT backed up (re-downloadable, derived, or machine identity):
+		//   - data/tsnet (Tailscale node state): the node identity must not be cloned
+		//     to another machine; the restored install re-registers instead.
+		//   - downloads, piper voices, models and caches: re-downloadable.
+		//   - workspace_search.db and similar derived indexes: rebuilt from files.
+		// SQLite stores are listed in config.SQLiteDatabasePaths (exclusions are
+		// documented and guarded by internal/audit TestSQLiteOpensAreBackedUpOrExcluded).
 		absData, _ := filepath.Abs(s.Cfg.Directories.DataDir)
 		dataFiles := []string{
 			"chat_history.json", "state.json", "graph.json",
@@ -666,6 +674,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			"budget.json", "tokens.json", "webhooks.json", "webhook_log.json",
 			"background_tasks.json", "missions_v2.json", "missions_v2_queue.json",
 			"heartbeat_state.json", "embeddings_reset_pending.json",
+			"core_memory.md", "github_trust.json",
+			"speech_lab/deployment.json",
 		}
 		for _, fname := range dataFiles {
 			if _, err := addFile("data/"+fname, filepath.Join(absData, fname)); err != nil {
@@ -675,6 +685,16 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			}
 		}
 		contents = append(contents, "data/ (runtime files)")
+
+		// Generated user documents (Virtual Desktop Documents, send_document output).
+		absDocuments := filepath.Join(absData, "documents")
+		if added, err := addDir("data/documents/", absDocuments); err != nil {
+			s.Logger.Warn("[Backup] Failed to add documents", "path", absDocuments, "error", err)
+			jsonError(w, "Failed to add documents to backup", http.StatusInternalServerError)
+			return
+		} else if added > 0 {
+			contents = append(contents, "data/documents/")
+		}
 
 		// 4. SQLite databases + sidecars
 		sqlitePaths := config.SQLiteDatabasePaths(s.Cfg)
@@ -792,6 +812,19 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			return
 		} else if added > 0 {
 			contents = append(contents, "agent_workspace/skills/")
+		}
+
+		// 6b. Agent skills (installed/generated Agent Skills; exclude OAuth credentials)
+		absAgentSkills, _ := filepath.Abs(s.Cfg.Directories.AgentSkillsDir)
+		if s.Cfg.Directories.AgentSkillsDir != "" {
+			if added, err := addDir("agent_workspace/agent_skills/", absAgentSkills,
+				"client_secret.json", "client_secrets.json", "token.json"); err != nil {
+				s.Logger.Warn("[Backup] Failed to add agent skills", "path", absAgentSkills, "error", err)
+				jsonError(w, "Failed to add agent skills to backup", http.StatusInternalServerError)
+				return
+			} else if added > 0 {
+				contents = append(contents, "agent_workspace/agent_skills/")
+			}
 		}
 
 		// 7. Tools

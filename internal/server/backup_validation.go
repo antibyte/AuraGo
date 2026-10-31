@@ -11,13 +11,14 @@ import (
 func agoIsAllowedRestorePath(clean string) bool {
 	slash := filepath.ToSlash(filepath.Clean(clean))
 	switch slash {
-	case "config.yaml", "data", "prompts", "agent_workspace", "agent_workspace/skills", "agent_workspace/tools", "agent_workspace/workdir":
+	case "config.yaml", "data", "prompts", "agent_workspace", "agent_workspace/skills", "agent_workspace/agent_skills", "agent_workspace/tools", "agent_workspace/workdir":
 		return true
 	}
 	for _, prefix := range []string{
 		"data/",
 		"prompts/",
 		"agent_workspace/skills/",
+		"agent_workspace/agent_skills/",
 		"agent_workspace/tools/",
 		"agent_workspace/workdir/",
 	} {
