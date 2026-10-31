@@ -59,17 +59,17 @@ func TestCloudflareLifecycleAndValidationBrowser(t *testing.T) {
 		}
 		for _, action := range []string{"start", "stop", "restart"} {
 			page.MustEval(`action=>{setNestedValue(configData,'cloudflare_tunnel.auth_method','unsaved');cloudflareTunnelAction(action);}`, action)
-			waitForJSBool(t, page, `()=>window.cfResolve&&document.querySelector('#cf-action-status').dataset.pending==='true'`)
+			waitForJSBool(t, page, `()=>window.cfResolve&&document.querySelector('#cf-action-status').dataset.state==='pending'`)
 			if !page.MustEval(`action=>Array.from(document.querySelectorAll('[data-cf-action]')).every(b=>b.disabled)&&cfPosts.at(-1).body===undefined&&cfPosts.at(-1).path==='/api/cloudflare-tunnel/'+action`, action).Bool() {
 				t.Fatal("pending actions or saved-settings boundary failed")
 			}
 			page.MustEval(`()=>{cfResolve();window.cfResolve=null;}`)
-			waitForJSBool(t, page, `()=>document.querySelector('#cf-action-status').classList.contains('is-pending')&&!document.querySelector('[data-cf-action="start"]').disabled`)
+			waitForJSBool(t, page, `()=>document.querySelector('#cf-action-status').dataset.state==='warning'&&!document.querySelector('[data-cf-action="start"]').disabled`)
 		}
 		page.MustEval(`()=>{window.cfActionResult={status:'error',message:'fixture action failed'};cloudflareTunnelAction('stop');}`)
 		waitForJSBool(t, page, `()=>!!window.cfResolve`)
 		page.MustEval(`()=>{cfResolve();window.cfResolve=null;window.cfActionResult=null;}`)
-		waitForJSBool(t, page, `()=>document.querySelector('#cf-action-status').classList.contains('is-error')&&document.querySelector('#cf-action-status').textContent==='fixture action failed'&&!document.querySelector('[data-cf-action="stop"]').disabled`)
+		waitForJSBool(t, page, `()=>document.querySelector('#cf-action-status').dataset.state==='error'&&document.querySelector('#cf-action-status').textContent.includes('fixture action failed')&&!document.querySelector('[data-cf-action="stop"]').disabled`)
 		page.MustEval(`async auth=>await window.cfRender(auth,true)`, auth)
 		if !page.MustEval(`()=>Array.from(document.querySelectorAll('[data-cf-action]')).every(b=>b.disabled)`).Bool() {
 			t.Fatal("read-only actions enabled")
@@ -85,8 +85,8 @@ func TestCloudflareLifecycleAndValidationBrowser(t *testing.T) {
 		t.Fatal("active listener collision accepted")
 	}
 	page.MustEval(`()=>{window.cfStatus={running:null,state_known:false,status:'error'};cloudflareTunnelCheckStatus();}`)
-	waitForJSBool(t, page, `()=>document.querySelector('#cf-tunnel-status-banner').classList.contains('is-danger')`)
+	waitForJSBool(t, page, `()=>document.querySelector('#cf-tunnel-status-banner').dataset.state==='error'`)
 	page.MustEval(`()=>{window.cfStatus={running:true,state_known:true,warnings:[{code:'tls_get'}]};cloudflareTunnelCheckStatus();}`)
-	waitForJSBool(t, page, `()=>document.querySelector('#cf-tunnel-status-banner').classList.contains('is-warning')`)
+	waitForJSBool(t, page, `()=>document.querySelector('#cf-tunnel-status-banner').dataset.state==='degraded'`)
 	page.MustEval(`()=>resetDirtySnapshot()`)
 }

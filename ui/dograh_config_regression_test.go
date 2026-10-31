@@ -47,7 +47,6 @@ func TestConfigFrontendDograhSectionAndI18nExist(t *testing.T) {
 		"class=\"field-help\"",
 		"class=\"field-group\"",
 		"dograh-test-result",
-		"adg-test-result",
 		"dograhSetBanner",
 	} {
 		if !strings.Contains(moduleJS, marker) {

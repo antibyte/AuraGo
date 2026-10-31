@@ -14,7 +14,7 @@ function renderFritzBoxSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    html += '<div id="fb-status-banner" class="adg-status-banner">' + t('config.fritzbox.checking') + '</div>';
+    html += cfgStatusBanner.html('fb-status-banner', 'checking', { detail: t('config.fritzbox.checking') });
     html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
 
     html += '<div class="field-group">';
@@ -74,15 +74,14 @@ function renderFritzBoxSection(section) {
     html += '<div class="field-help">' + t('help.fritzbox.password') + '</div>';
     html += '<div class="adg-password-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="fb-password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '" autocomplete="off">';
+    html += '<input class="field-input adg-password-input" type="password" id="fb-password" data-path="fritzbox.password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="fbSavePassword()">💾 ' + t('config.fritzbox.save_vault') + '</button>';
     html += '</div></div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="fbTestConnection()" id="fb-test-btn">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
-    html += '<span id="fb-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" onclick="fbTestConnection()" id="fb-test-btn" data-config-action-draft="true">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
+    html += cfgActionResult.html('fb-test-result');
     html += '</div>';
 
     html += '<hr class="cfg-section-hr">';
@@ -133,119 +132,47 @@ function renderFritzBoxSection(section) {
 
     if (enabled) {
         if (data.host) fbCheckStatus();
-        else fbSetBanner('warning', '⚪ ' + t('config.fritzbox.status_not_configured'));
+        else fbSetBanner('unconfigured', t('config.fritzbox.status_not_configured'));
     } else {
-        fbSetBanner('neutral', '⚪ ' + t('config.fritzbox.status_disabled'));
+        fbSetBanner('off', t('config.fritzbox.status_disabled'));
     }
 }
 
 function fbSetBanner(state, text) {
-    const banner = document.getElementById('fb-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
-    banner.textContent = text;
+    cfgStatusBanner('fb-status-banner', state, { detail: text, retry: state === 'error' || state === 'unknown' ? fbCheckStatus : null });
 }
 
+// Live check of the saved configuration; request errors and timeouts are handled by cfgStatusBanner.check.
 function fbCheckStatus() {
     if (!document.getElementById('fb-status-banner')) return;
-    fbSetBanner('', t('config.fritzbox.checking'));
-
-    fetch('/api/fritzbox/status?check=1')
-        .then(r => r.json())
-        .then(res => {
-            if (!res.enabled) {
-                fbSetBanner('', '⚪ ' + t('config.fritzbox.status_disabled'));
-                return;
-            }
-            if (!res.configured) {
-                fbSetBanner('warning', '⚪ ' + t('config.fritzbox.status_not_configured'));
-                return;
-            }
-            if (res.connected) {
-                fbSetBanner('success', t('config.fritzbox.status_ok') + ' — ' + (res.model || res.host || ''));
-                return;
-            }
-            fbSetBanner('danger', '🔴 ' + (res.message || t('config.fritzbox.status_error')));
-        })
-        .catch(() => fbSetBanner('danger', '🔴 ' + t('config.fritzbox.status_error')));
+    return cfgStatusBanner.check('fb-status-banner', signal => fetch('/api/fritzbox/status?check=1', { signal }), res => {
+        if (!res.enabled) return { state: 'off', detail: t('config.fritzbox.status_disabled') };
+        if (!res.configured) return { state: 'unconfigured', detail: t('config.fritzbox.status_not_configured') };
+        if (res.connected) return { state: 'connected', detail: t('config.fritzbox.status_ok') + ' — ' + (res.model || res.host || '') };
+        return { state: 'error', detail: res.message || t('config.fritzbox.status_error') };
+    }, { checkingDetail: t('config.fritzbox.checking') });
 }
 
-function fbFieldValue(path, fallback) {
-    const el = document.querySelector('[data-path="' + path + '"]');
-    return el ? el.value : fallback;
-}
-
-function fbToggleValue(path, fallback) {
-    const el = document.querySelector('[data-path="' + path + '"]');
-    return el ? el.classList.contains('on') : fallback;
-}
-
+// Tests with the values typed in; the password follows the target (stored one only while it is unchanged).
 function fbTestConnection() {
     const btn = document.getElementById('fb-test-btn');
-    const result = document.getElementById('fb-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.fritzbox.testing');
-    }
-
-    const passwordInput = document.getElementById('fb-password');
-    const password = passwordInput ? passwordInput.value.trim() : '';
-    const body = {
-        host: fbFieldValue('fritzbox.host', ''),
-        port: parseInt(fbFieldValue('fritzbox.port', '49000'), 10) || 49000,
-        web_port: parseInt(fbFieldValue('fritzbox.web_port', '0'), 10) || 0,
-        https: fbToggleValue('fritzbox.https', false),
-        insecure_skip_verify: fbToggleValue('fritzbox.insecure_skip_verify', false),
-        username: fbFieldValue('fritzbox.username', '')
-    };
-    if (password) body.password = password;
-
-    fetch('/api/fritzbox/test', {
+    const body = { draft: cfgDraftPatch(['fritzbox']) };
+    return cfgActionResult(btn, () => fetch('/api/fritzbox/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (btn) btn.disabled = false;
-            if (!result) return;
+    }), {
+        target: 'fb-test-result',
+        pending: t('config.fritzbox.testing'),
+        success: o => t('config.fritzbox.test_ok') + (o.body && o.body.model ? ' — ' + o.body.model : ''),
+        failure: t('config.fritzbox.test_fail'),
+        onSuccess: outcome => {
+            const res = outcome.body || {};
             if (res.status === 'ok') {
-                result.className = 'adg-test-result is-success';
-                result.textContent = t('config.fritzbox.test_ok') + (res.model ? ' — ' + res.model : '');
-                fbSetBanner('success', t('config.fritzbox.status_ok') + (res.model ? ' — ' + res.model : ''));
+                fbSetBanner('connected', t('config.fritzbox.status_ok') + (res.model ? ' — ' + res.model : ''));
             } else {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = res.message || t('config.fritzbox.test_fail');
+                fbSetBanner('degraded', outcome.reason);
             }
-        })
-        .catch(() => {
-            if (btn) btn.disabled = false;
-            if (result) {
-                result.className = 'adg-test-result is-danger';
-                result.textContent = t('config.fritzbox.test_fail');
-            }
-        });
-}
-
-function fbSavePassword() {
-    const input = document.getElementById('fb-password');
-    const pw = input ? input.value.trim() : '';
-    if (!pw) { showToast(t('config.fritzbox.password_empty'), 'error'); return; }
-
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'fritzbox_password', value: pw })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.status === 'ok' || res.success) {
-            showToast(t('config.fritzbox.password_saved'), 'success');
-            cfgMarkSecretStored(input, 'fritzbox.password');
-        } else {
-            showToast(res.message || t('config.fritzbox.password_save_failed'), 'error');
         }
-    })
-    .catch(() => showToast(t('config.fritzbox.password_save_failed'), 'error'));
+    });
 }

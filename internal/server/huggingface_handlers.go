@@ -52,7 +52,20 @@ func handleHuggingFaceTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cfg := huggingFaceServerConfig(s)
+		// The test runs with the values typed in; the token follows the draft (draftTestConfig).
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := draft.HuggingFace
+		// hub_base_url and friends are not among the generic target leaves: the stored token
+		// must not travel to another endpoint, so a changed endpoint needs a typed token.
+		if saved := s.ConfigSnapshot().HuggingFace; strings.TrimSpace(saved.Token) != "" && cfg.Token == saved.Token &&
+			(cfg.HubBaseURL != saved.HubBaseURL || cfg.DatasetBaseURL != saved.DatasetBaseURL || cfg.JobsBaseURL != saved.JobsBaseURL) {
+			writeDraftTestConfigError(w, newDraftConfigError("The target of %q changed: enter the credentials again to test it (Ziel geändert – bitte Zugangsdaten erneut eingeben)", "huggingface"))
+			return
+		}
 		if !cfg.Enabled {
 			writeHuggingFaceJSON(w, map[string]interface{}{"status": "error", "message": "Hugging Face integration is disabled"}, http.StatusBadRequest)
 			return

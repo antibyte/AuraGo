@@ -2,9 +2,7 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -30,9 +28,15 @@ func handleOmniRouteTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cfg := currentOmniRouteConfig(s)
-		if !applyOmniRoutePatch(w, r, &cfg) {
+		// The test runs with the values typed in; stored secrets follow the target (draftTestConfig).
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
 			return
+		}
+		cfg := *draft
+		if strings.TrimSpace(cfg.OmniRoute.Mode) != "" {
+			cfg.OmniRoute.Mode = normalizeOmniRouteMode(cfg.OmniRoute.Mode)
 		}
 		writeManifestJSON(w, omniRouteStatusForRequest(r.Context(), s, &cfg, r))
 	}
@@ -216,94 +220,6 @@ func omniRouteRewriteBrowserURLForRequest(_ *Server, _ *config.Config, r *http.R
 		return
 	}
 	payload["url"] = manifestURLWithRequestHost(rawURL, r)
-}
-
-func applyOmniRoutePatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) bool {
-	if r.Body == nil {
-		return true
-	}
-	defer r.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-	if err != nil || len(strings.TrimSpace(string(data))) == 0 {
-		if err != nil {
-			jsonError(w, "Invalid request payload", http.StatusBadRequest)
-			return false
-		}
-		return true
-	}
-	var req struct {
-		OmniRoute config.OmniRouteConfig `json:"omniroute"`
-	}
-	if err := json.Unmarshal(data, &req); err != nil {
-		jsonError(w, "Invalid request payload", http.StatusBadRequest)
-		return false
-	}
-	var rawReq map[string]json.RawMessage
-	var rawOmniRoute map[string]json.RawMessage
-	if err := json.Unmarshal(data, &rawReq); err == nil {
-		_ = json.Unmarshal(rawReq["omniroute"], &rawOmniRoute)
-	}
-	patch := req.OmniRoute
-	if raw, ok := rawOmniRoute["enabled"]; ok {
-		var enabled bool
-		if err := json.Unmarshal(raw, &enabled); err == nil {
-			cfg.OmniRoute.Enabled = enabled
-		}
-	} else if patch.Enabled {
-		cfg.OmniRoute.Enabled = true
-	}
-	if strings.TrimSpace(patch.Mode) != "" {
-		cfg.OmniRoute.Mode = normalizeOmniRouteMode(patch.Mode)
-	}
-	if strings.TrimSpace(patch.URL) != "" {
-		cfg.OmniRoute.URL = patch.URL
-	}
-	if strings.TrimSpace(patch.ExternalBaseURL) != "" {
-		cfg.OmniRoute.ExternalBaseURL = patch.ExternalBaseURL
-	}
-	if strings.TrimSpace(patch.ContainerName) != "" {
-		cfg.OmniRoute.ContainerName = patch.ContainerName
-	}
-	if strings.TrimSpace(patch.Image) != "" {
-		cfg.OmniRoute.Image = patch.Image
-	}
-	if strings.TrimSpace(patch.Host) != "" {
-		cfg.OmniRoute.Host = patch.Host
-	}
-	if patch.Port > 0 {
-		cfg.OmniRoute.Port = patch.Port
-	}
-	if patch.HostPort > 0 {
-		cfg.OmniRoute.HostPort = patch.HostPort
-	}
-	if strings.TrimSpace(patch.NetworkName) != "" {
-		cfg.OmniRoute.NetworkName = patch.NetworkName
-	}
-	if strings.TrimSpace(patch.DataVolume) != "" {
-		cfg.OmniRoute.DataVolume = patch.DataVolume
-	}
-	if strings.TrimSpace(patch.HealthPath) != "" {
-		cfg.OmniRoute.HealthPath = patch.HealthPath
-	}
-	if patch.MemoryMB > 0 {
-		cfg.OmniRoute.MemoryMB = patch.MemoryMB
-	}
-	if strings.TrimSpace(patch.APIKey) != "" {
-		cfg.OmniRoute.APIKey = patch.APIKey
-	}
-	if strings.TrimSpace(patch.InitialPassword) != "" {
-		cfg.OmniRoute.InitialPassword = patch.InitialPassword
-	}
-	if strings.TrimSpace(patch.JWTSecret) != "" {
-		cfg.OmniRoute.JWTSecret = patch.JWTSecret
-	}
-	if strings.TrimSpace(patch.APIKeySecret) != "" {
-		cfg.OmniRoute.APIKeySecret = patch.APIKeySecret
-	}
-	if strings.TrimSpace(patch.WSBridgeSecret) != "" {
-		cfg.OmniRoute.WSBridgeSecret = patch.WSBridgeSecret
-	}
-	return true
 }
 
 func normalizeOmniRouteMode(mode string) string {

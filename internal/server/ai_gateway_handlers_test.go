@@ -26,7 +26,7 @@ func TestHandleAIGatewayCustomEndpointSkipsLiveProbe(t *testing.T) {
 	s.Cfg.AIGateway.AccountID = "fixture-account"
 	s.Cfg.AIGateway.GatewayID = "fixture-gateway"
 	w := httptest.NewRecorder()
-	writeAIGatewayProbeResult(w, s, context.Background(), true, "metadata", "")
+	writeAIGatewayProbeResult(w, s, context.Background(), true, "metadata", "", nil)
 	var body map[string]interface{}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
@@ -289,5 +289,48 @@ func TestHandleAIGatewayTestSkipsUnsafeProviderNativeProbe(t *testing.T) {
 	}
 	if body["route_supported"] != true {
 		t.Fatalf("route_supported = %#v, want true", body["route_supported"])
+	}
+}
+
+func TestHandleAIGatewayTestUsesDraftGatewaySection(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	var gotPath, gotAuth string
+	http.DefaultTransport = aiGatewayRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		gotPath, gotAuth = req.URL.Path, req.Header.Get("cf-aig-authorization")
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}")), Header: make(http.Header)}, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+
+	newServer := func() *Server {
+		s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+		s.Cfg.LLM.Provider = "router"
+		s.Cfg.AIGateway.Enabled = true
+		s.Cfg.AIGateway.AccountID = "acct"
+		s.Cfg.AIGateway.GatewayID = "saved-gw"
+		s.Cfg.AIGateway.Token = "saved-token"
+		s.Cfg.Providers = []config.ProviderEntry{{ID: "router", Type: "openrouter", BaseURL: "https://openrouter.ai/api/v1"}}
+		return s
+	}
+	post := func(s *Server, body string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		handleAIGatewayTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/ai-gateway/test", strings.NewReader(body)))
+		return rec
+	}
+
+	s := newServer()
+	if rec := post(s, `{"provider_id":"router","draft":{"ai_gateway":{"gateway_id":"typed-gw","token":"typed-token"}}}`); rec.Code != http.StatusOK {
+		t.Fatalf("draft test status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(gotPath, "typed-gw") || gotAuth != "Bearer typed-token" {
+		t.Fatalf("probe used path %q auth %q, want the typed gateway and token", gotPath, gotAuth)
+	}
+	if s.Cfg.AIGateway.GatewayID != "saved-gw" || s.Cfg.AIGateway.Token != "saved-token" {
+		t.Fatal("a draft test must not change the saved configuration")
+	}
+
+	// A masked token means "the stored one" while the target is unchanged.
+	post(newServer(), `{"provider_id":"router","draft":{"ai_gateway":{"log_mode":"off","token":"••••••••"}}}`)
+	if !strings.Contains(gotPath, "saved-gw") || gotAuth != "Bearer saved-token" {
+		t.Fatalf("masked token: path %q auth %q, want the saved values", gotPath, gotAuth)
 	}
 }

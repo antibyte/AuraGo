@@ -14,13 +14,16 @@ func TestConfigComposioAPIKeyParticipatesInNormalConfigSave(t *testing.T) {
 	for _, marker := range []string{
 		"async function renderComposioSection",
 		`data-path="composio.api_key"`,
-		`key: 'composio_api_key'`,
+		`data-config-action-draft="true"`,
+		"cfgDraftPatch(['composio'])",
 		"/api/composio/status",
-		"/api/vault/secrets",
 	} {
 		if !strings.Contains(composioJS, marker) {
 			t.Fatalf("composio config module missing marker %q", marker)
 		}
+	}
+	if strings.Contains(composioJS, "/api/vault/secrets") || strings.Contains(composioJS, "composioSaveAPIKey") {
+		t.Fatal("composio api key must be saved through the save dock, not its own vault button")
 	}
 	if strings.Contains(composioJS, "alert(") {
 		t.Fatal("composio config module must use modals/toasts instead of alert()")
@@ -228,7 +231,7 @@ func TestConfigComposioConnectDoesNotDependOnPreloadedAuthConfigs(t *testing.T) 
 	composioJS := readDesktopAssetText(t, "cfg/composio.js")
 	for _, marker := range []string{
 		"function composioSetConnectStatus",
-		`id="composio-connect-status"`,
+		"cfgActionResult.html('composio-connect-status')",
 		"const preferred = composioPreferredAuthConfig();",
 		"if (preferred && preferred.id) body.auth_config_id = preferred.id;",
 		"body: JSON.stringify(body)",

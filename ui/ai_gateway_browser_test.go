@@ -33,8 +33,8 @@ func TestAIGatewaySavedProviderDiagnosticsBrowser(t *testing.T) {
             await selectSection('ai_gateway',{scrollBehavior:'auto'});
             configData.providers=[{id:'main',name:'Main',type:'openai'},{id:'rest',name:'Cloudflare REST',type:'cloudflare-rest'}];
             configData.llm.provider='main';
-            configData.ai_gateway={enabled:true,account_id:'fixture-account',gateway_id:'fixture-gateway',log_mode:'metadata_only',metadata:{env:'test'}};
-            renderAIGatewaySection();resetDirtySnapshot();await aiGatewayCheckStatus();
+            configData.ai_gateway={enabled:true,account_id:'fixture-account',gateway_id:'fixture-gateway',token:'••••••••',log_mode:'metadata_only',metadata:{env:'test'}};
+            window.AuraConfigState.init(configData);renderAIGatewaySection();resetDirtySnapshot();await aiGatewayCheckStatus();
         }`, theme)
 			if !page.MustEval(`()=>document.querySelectorAll('#ai-gw-provider option').length===2 && !document.querySelector('[data-path="ai_gateway.mode"]') && !document.querySelector('[data-path="ai_gateway.max_attempts"]') && gatewayCalls.every(c=>!c.body.probe_kind) && document.getElementById('ai-gw-status-banner').textContent.includes('not tested')`).Bool() {
 				t.Fatal("passive route status or provider choices incorrect")
@@ -68,8 +68,8 @@ func TestAIGatewaySavedProviderDiagnosticsBrowser(t *testing.T) {
 				}
 			}
 			page.MustEval(`async()=>{window.beforeGatewayCount=gatewayCalls.length;const field=document.querySelector('[data-path="ai_gateway.account_id"]');field.value='changed';field.dispatchEvent(new Event('input',{bubbles:true}));await aiGatewayTestConnection();}`)
-			if !page.MustEval(`()=>gatewayCalls.length===beforeGatewayCount && document.getElementById('ai-gw-test-btn').disabled && document.getElementById('ai-gw-status-banner').textContent.includes('Save')`).Bool() {
-				t.Fatal("draft was silently tested as saved configuration")
+			if !page.MustEval(`()=>gatewayCalls.length===beforeGatewayCount+1 && gatewayCalls.at(-1).body.draft.ai_gateway.account_id==='changed' && !document.getElementById('ai-gw-test-btn').disabled`).Bool() {
+				t.Fatal("unsaved gateway edits were not sent with the test")
 			}
 		})
 	}

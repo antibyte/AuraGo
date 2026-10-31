@@ -45,7 +45,21 @@ func handleManusTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		client, err := manusClientFromServer(s)
+		// The test runs with the values typed in; the key follows the draft (draftTestConfig).
+		// Checking a key does not require the feature to be switched on yet.
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := draft.Manus
+		if strings.TrimSpace(cfg.APIKey) == "" {
+			writeManusJSON(w, http.StatusServiceUnavailable, map[string]interface{}{"status": "error", "message": "Manus API key is not configured in the vault"})
+			return
+		}
+		client, err := manus.NewClient(cfg.APIKey, manus.ClientConfig{
+			Timeout: time.Duration(cfg.RequestTimeoutSeconds) * time.Second, MaxResultBytes: int64(cfg.MaxResultBytes),
+		})
 		if err != nil {
 			writeManusJSON(w, http.StatusServiceUnavailable, map[string]interface{}{"status": "error", "message": err.Error()})
 			return

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -30,10 +29,14 @@ func handleManifestTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		cfg := currentManifestConfig(s)
-		if !applyManifestPatch(w, r, &cfg) {
+		// The test runs with the values typed in; stored secrets follow the target (draftTestConfig).
+		draft, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
 			return
 		}
+		cfg := *draft
+		config.NormalizeManifestRoutingConfig(&cfg.Manifest.Routing)
 		writeManifestJSON(w, manifestStatusForRequest(r.Context(), s, &cfg, r))
 	}
 }
@@ -221,96 +224,6 @@ func manifestRewriteBrowserURLForRequest(s *Server, cfg *config.Config, r *http.
 		return
 	}
 	payload["url"] = manifestURLWithRequestHost(rawURL, r)
-}
-
-func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Config) bool {
-	if r.Body == nil {
-		return true
-	}
-	defer r.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-	if err != nil || len(strings.TrimSpace(string(data))) == 0 {
-		if err != nil {
-			jsonError(w, "Invalid request payload", http.StatusBadRequest)
-			return false
-		}
-		return true
-	}
-	var req struct {
-		Manifest config.ManifestConfig `json:"manifest"`
-	}
-	if err := json.Unmarshal(data, &req); err != nil {
-		jsonError(w, "Invalid request payload", http.StatusBadRequest)
-		return false
-	}
-	var rawReq map[string]json.RawMessage
-	var rawManifest map[string]json.RawMessage
-	if err := json.Unmarshal(data, &rawReq); err == nil {
-		_ = json.Unmarshal(rawReq["manifest"], &rawManifest)
-	}
-	patch := req.Manifest
-	if patch.Enabled {
-		cfg.Manifest.Enabled = true
-	}
-	if strings.TrimSpace(patch.Mode) != "" {
-		cfg.Manifest.Mode = patch.Mode
-	}
-	if strings.TrimSpace(patch.URL) != "" {
-		cfg.Manifest.URL = patch.URL
-	}
-	if strings.TrimSpace(patch.ExternalBaseURL) != "" {
-		cfg.Manifest.ExternalBaseURL = patch.ExternalBaseURL
-	}
-	if strings.TrimSpace(patch.ContainerName) != "" {
-		cfg.Manifest.ContainerName = patch.ContainerName
-	}
-	if strings.TrimSpace(patch.Image) != "" {
-		cfg.Manifest.Image = patch.Image
-	}
-	if strings.TrimSpace(patch.Host) != "" {
-		cfg.Manifest.Host = patch.Host
-	}
-	if patch.Port > 0 {
-		cfg.Manifest.Port = patch.Port
-	}
-	if patch.HostPort > 0 {
-		cfg.Manifest.HostPort = patch.HostPort
-	}
-	if strings.TrimSpace(patch.NetworkName) != "" {
-		cfg.Manifest.NetworkName = patch.NetworkName
-	}
-	if strings.TrimSpace(patch.PostgresContainerName) != "" {
-		cfg.Manifest.PostgresContainerName = patch.PostgresContainerName
-	}
-	if strings.TrimSpace(patch.PostgresImage) != "" {
-		cfg.Manifest.PostgresImage = patch.PostgresImage
-	}
-	if strings.TrimSpace(patch.PostgresUser) != "" {
-		cfg.Manifest.PostgresUser = patch.PostgresUser
-	}
-	if strings.TrimSpace(patch.PostgresDatabase) != "" {
-		cfg.Manifest.PostgresDatabase = patch.PostgresDatabase
-	}
-	if strings.TrimSpace(patch.PostgresVolume) != "" {
-		cfg.Manifest.PostgresVolume = patch.PostgresVolume
-	}
-	if strings.TrimSpace(patch.PostgresPassword) != "" {
-		cfg.Manifest.PostgresPassword = patch.PostgresPassword
-	}
-	if strings.TrimSpace(patch.BetterAuthSecret) != "" {
-		cfg.Manifest.BetterAuthSecret = patch.BetterAuthSecret
-	}
-	if strings.TrimSpace(patch.APIKey) != "" {
-		cfg.Manifest.APIKey = patch.APIKey
-	}
-	if strings.TrimSpace(patch.HealthPath) != "" {
-		cfg.Manifest.HealthPath = patch.HealthPath
-	}
-	if _, ok := rawManifest["routing"]; ok {
-		config.NormalizeManifestRoutingConfig(&patch.Routing)
-		cfg.Manifest.Routing = patch.Routing
-	}
-	return true
 }
 
 func writeManifestJSON(w http.ResponseWriter, payload interface{}) {

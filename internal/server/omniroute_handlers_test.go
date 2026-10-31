@@ -116,9 +116,9 @@ func TestEnsureOmniRouteSecretsGeneratesBackendSecretsButRequiresInitialPassword
 	}
 }
 
-func TestOmniRouteTestAcceptsPatchAndReportsSetupRequired(t *testing.T) {
+func TestOmniRouteTestUsesDraftAndReportsSetupRequired(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}}
-	body := strings.NewReader(`{"omniroute":{"enabled":true,"mode":"managed","url":"http://127.0.0.1:20128"}}`)
+	body := strings.NewReader(`{"draft":{"omniroute":{"enabled":true,"mode":"managed","url":"http://127.0.0.1:20128"}}}`)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/omniroute/test", body)
 	rec := httptest.NewRecorder()
@@ -130,36 +130,6 @@ func TestOmniRouteTestAcceptsPatchAndReportsSetupRequired(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "setup_required") {
 		t.Fatalf("body = %s, want setup_required", rec.Body.String())
-	}
-}
-
-func TestOmniRoutePatchAppliesFieldsAndNormalizesMode(t *testing.T) {
-	cfg := &config.Config{}
-
-	body := strings.NewReader(`{"omniroute":{"enabled":true,"mode":"external","external_base_url":"https://omniroute.example.test/v1","port":20129,"host_port":20130,"data_volume":"omni_data","memory_mb":768}}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/omniroute/test", body)
-	rec := httptest.NewRecorder()
-
-	if !applyOmniRoutePatch(rec, req, cfg) {
-		t.Fatalf("applyOmniRoutePatch returned false; status=%d body=%s", rec.Code, rec.Body.String())
-	}
-	if !cfg.OmniRoute.Enabled {
-		t.Fatal("omniroute.enabled = false, want true")
-	}
-	if cfg.OmniRoute.Mode != "external" {
-		t.Fatalf("mode = %q, want external", cfg.OmniRoute.Mode)
-	}
-	if cfg.OmniRoute.ExternalBaseURL != "https://omniroute.example.test/v1" {
-		t.Fatalf("external_base_url = %q, want patched URL", cfg.OmniRoute.ExternalBaseURL)
-	}
-	if cfg.OmniRoute.Port != 20129 || cfg.OmniRoute.HostPort != 20130 {
-		t.Fatalf("port/host_port = %d/%d, want 20129/20130", cfg.OmniRoute.Port, cfg.OmniRoute.HostPort)
-	}
-	if cfg.OmniRoute.DataVolume != "omni_data" {
-		t.Fatalf("data_volume = %q, want omni_data", cfg.OmniRoute.DataVolume)
-	}
-	if cfg.OmniRoute.MemoryMB != 768 {
-		t.Fatalf("memory_mb = %d, want 768", cfg.OmniRoute.MemoryMB)
 	}
 }
 

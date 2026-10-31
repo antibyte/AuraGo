@@ -74,7 +74,7 @@ func TestFritzBoxTestAcceptsTLSOverrideWithSelfSignedCertificate(t *testing.T) {
 	cfg.FritzBox.Timeout = 2
 	s := &Server{Cfg: cfg, Logger: testServerLogger()}
 
-	body := fmt.Sprintf(`{"host":%q,"port":%d,"https":true,"insecure_skip_verify":true}`, host, port)
+	body := fmt.Sprintf(`{"draft":{"fritzbox":{"host":%q,"port":%d,"https":true,"insecure_skip_verify":true}}}`, host, port)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/fritzbox/test", strings.NewReader(body))
 	handleFritzBoxTest(s).ServeHTTP(rec, req)
@@ -88,15 +88,35 @@ func TestFritzBoxTestAcceptsTLSOverrideWithSelfSignedCertificate(t *testing.T) {
 	}
 }
 
-func TestFritzBoxTestOverridesAllowWebPortZero(t *testing.T) {
-	cfg := config.Config{}
-	cfg.FritzBox.WebPort = 8443
+func TestFritzBoxTestUsesDraftAndKeepsStoredPasswordAtItsTarget(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.FritzBox.Host = "saved.example.invalid"
+	cfg.FritzBox.Port = 49000
+	cfg.FritzBox.Username = "admin"
+	cfg.FritzBox.Password = "saved-secret"
+	s := &Server{Cfg: cfg, Logger: testServerLogger()}
 
-	zero := 0
-	applyFritzBoxTestOverrides(&cfg, fritzBoxTestRequest{WebPort: &zero})
+	post := func(body string) map[string]interface{} {
+		rec := httptest.NewRecorder()
+		handleFritzBoxTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/fritzbox/test", strings.NewReader(body)))
+		var got map[string]interface{}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode %q: %v", rec.Body.String(), err)
+		}
+		return got
+	}
 
-	if cfg.FritzBox.WebPort != 0 {
-		t.Fatalf("web_port override = %d, want 0", cfg.FritzBox.WebPort)
+	// A new host never receives the stored password: the user has to type it again.
+	got := post(`{"draft":{"fritzbox":{"host":"other.example.invalid"}}}`)
+	if got["status"] != "error" || !strings.Contains(fmt.Sprint(got["message"]), "credentials") {
+		t.Fatalf("changed host must ask for the credentials again: %#v", got)
+	}
+	// An emptied host is refused before any connection is made.
+	if got := post(`{"draft":{"fritzbox":{"host":""}}}`); got["status"] != "error" {
+		t.Fatalf("empty host = %#v, want error", got)
+	}
+	if s.Cfg.FritzBox.Host != "saved.example.invalid" || s.Cfg.FritzBox.Password != "saved-secret" {
+		t.Fatal("a draft test must not change the saved configuration")
 	}
 }
 

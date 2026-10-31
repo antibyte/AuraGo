@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,7 @@ func handleAIGatewayStatus(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		writeAIGatewayProbeResult(w, s, r.Context(), false, "metadata", r.URL.Query().Get("provider_id"))
+		writeAIGatewayProbeResult(w, s, r.Context(), false, "metadata", r.URL.Query().Get("provider_id"), nil)
 	}
 }
 
@@ -41,9 +42,17 @@ func handleAIGatewayTest(s *Server) http.HandlerFunc {
 		var request struct {
 			ProviderID string `json:"provider_id"`
 			ProbeKind  string `json:"probe_kind"`
+			// Draft is read again by draftTestConfig; only its presence is allowed here.
+			Draft json.RawMessage `json:"draft"`
 		}
 		if r.Body != nil {
-			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+			raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, draftTestMaxBody))
+			if err != nil {
+				writeAIGatewayError(w, nil, "invalid_request", http.StatusBadRequest, 0)
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(raw))
+			decoder := json.NewDecoder(bytes.NewReader(raw))
 			decoder.DisallowUnknownFields()
 			if err := decoder.Decode(&request); err != nil && err != io.EOF {
 				writeAIGatewayError(w, nil, "invalid_request", http.StatusBadRequest, 0)
@@ -61,17 +70,30 @@ func handleAIGatewayTest(s *Server) http.HandlerFunc {
 			writeAIGatewayError(w, nil, "invalid_probe_kind", http.StatusBadRequest, 0)
 			return
 		}
-		writeAIGatewayProbeResult(w, s, r.Context(), true, request.ProbeKind, request.ProviderID)
+		// The gateway section as typed in the form; providers and their keys stay as saved.
+		draftCfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		writeAIGatewayProbeResult(w, s, r.Context(), true, request.ProbeKind, request.ProviderID, draftCfg)
 	}
 }
 
-func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.Context, test bool, kind, providerID string) {
+// writeAIGatewayProbeResult probes the saved configuration, or draftCfg when the
+// test was started with the values typed in (draftTestConfig).
+func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, parent context.Context, test bool, kind, providerID string, draftCfg *config.Config) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	s.CfgMu.RLock()
 	revision := s.providerETag()
-	cfg := *s.Cfg
-	cfg.Providers = append([]config.ProviderEntry(nil), s.Cfg.Providers...)
+	var cfg config.Config
+	if draftCfg != nil {
+		cfg = *draftCfg
+	} else {
+		cfg = *s.Cfg
+		cfg.Providers = append([]config.ProviderEntry(nil), s.Cfg.Providers...)
+	}
 	s.CfgMu.RUnlock()
 	providerID = strings.TrimSpace(providerID)
 	if providerID == "" {

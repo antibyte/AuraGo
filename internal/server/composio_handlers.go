@@ -55,11 +55,17 @@ func handleComposioTest(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		client, _, err := composioClientFromServer(s)
+		// The test runs with the values typed in; the API key follows the draft (draftTestConfig).
+		draft, err := s.draftTestConfig(r)
 		if err != nil {
-			writeComposioJSON(w, map[string]interface{}{"status": "error", "message": err.Error()})
+			writeDraftTestConfigError(w, err)
 			return
 		}
+		if strings.TrimSpace(draft.Composio.APIKey) == "" {
+			writeComposioJSON(w, map[string]interface{}{"status": "error", "message": "Composio API key not found in vault"})
+			return
+		}
+		client := tools.NewComposioClientFromConfig(draft.Composio)
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 		page, err := client.ListToolkits(ctx, tools.ComposioListQuery{Limit: 1})

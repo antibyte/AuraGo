@@ -13,7 +13,7 @@ function renderBluetoothSection(section) {
     <div class="cfg-section active">
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>
-        <div id="bt-runtime-banner" class="adg-status-banner" role="status" aria-live="polite">${escapeHtml(t('config.bluetooth.loading'))}</div>
+        ${cfgStatusBanner.html('bt-runtime-banner', 'checking', { detail: t('config.bluetooth.loading') })}
 
         <div class="field-group">
             <div class="field-label">${escapeHtml(t('config.bluetooth.enabled'))}</div>
@@ -72,10 +72,10 @@ function renderBluetoothSection(section) {
             <div class="cfgdev-actions-row">
                 <button id="bt-reprobe-btn" class="btn-save cfgdev-btn-secondary" onclick="btReprobe()">↻ ${escapeHtml(t('config.bluetooth.reprobe'))}</button>
                 <button id="bt-discover-btn" class="btn-save cfgdev-btn-primary" onclick="btDiscover()">⌕ ${escapeHtml(t('config.bluetooth.discover'))}</button>
-                <button id="bt-test-btn" class="btn-save cfgdev-btn-secondary" onclick="btTestAudio()">♪ ${escapeHtml(t('config.bluetooth.test_audio'))}</button>
+                <button id="bt-test-btn" class="btn-save cfgdev-btn-secondary" data-config-action-draft="false" onclick="btTestAudio()">♪ ${escapeHtml(t('config.bluetooth.test_audio'))}</button>
                 <button id="bt-stop-btn" class="btn-save cfgdev-btn-secondary" onclick="btStopAudio()">■ ${escapeHtml(t('config.bluetooth.stop_audio'))}</button>
             </div>
-            <div id="bt-action-result" class="adg-test-result" role="status" aria-live="polite"></div>
+            ${cfgActionResult.html('bt-action-result')}
             <div id="bt-devices" class="cfgdev-discover-area"></div>
         </div>
 
@@ -93,7 +93,7 @@ function renderBluetoothSection(section) {
                 </div>
                 <div class="cfgdev-modal-actions">
                     <button class="btn-save cfgdev-btn-secondary" onclick="btClosePINModal()">${escapeHtml(t('config.bluetooth.cancel'))}</button>
-                    <button class="btn-save cfgdev-btn-primary" onclick="btConfirmPair()">${escapeHtml(t('config.bluetooth.pair'))}</button>
+                    <button id="bt-pair-confirm-btn" class="btn-save cfgdev-btn-primary" onclick="btConfirmPair()">${escapeHtml(t('config.bluetooth.pair'))}</button>
                 </div>
             </div>
         </div>
@@ -105,7 +105,7 @@ function renderBluetoothSection(section) {
 
 function btSavedConfigRequired() {
     if (typeof hasUnsavedConfigChanges === 'function' && hasUnsavedConfigChanges()) {
-        showToast(t('config.bluetooth.save_first'), 'warn');
+        cfgActionResult.show('bt-action-result', 'warning', t('config.bluetooth.save_first'));
         return false;
     }
     return true;
@@ -121,7 +121,7 @@ async function btRequest(path, options) {
 }
 
 async function btLoadStatus() {
-    const banner = document.getElementById('bt-runtime-banner');
+    cfgStatusBanner('bt-runtime-banner', 'checking', { detail: t('config.bluetooth.loading') });
     try {
         const data = await btRequest('/api/bluetooth/status');
         const status = data.status || {};
@@ -130,35 +130,30 @@ async function btLoadStatus() {
         btRenderDevices();
         btPopulateDefaultDevice();
     } catch (error) {
-        if (banner) {
-            banner.className = 'adg-status-banner is-danger';
-            banner.textContent = error.message || t('config.bluetooth.status_failed');
-        }
+        cfgStatusBanner('bt-runtime-banner', 'error', { detail: error.message || t('config.bluetooth.status_failed'), retry: btLoadStatus });
         btDevices = [];
         btRenderDevices();
     }
 }
 
 function btRenderStatus(status, playback) {
-    const banner = document.getElementById('bt-runtime-banner');
-    if (!banner) return;
     const adapter = status.adapter || {};
     const audio = status.audio || {};
     if (status.usable) {
         const backend = audio.usable ? (audio.backend || '—') : t('config.bluetooth.audio_unavailable');
-        banner.className = 'adg-status-banner is-success';
-        banner.textContent = t('config.bluetooth.status_ready', {
-            adapter: adapter.name || adapter.address || 'BlueZ',
-            backend
+        cfgStatusBanner('bt-runtime-banner', 'connected', {
+            detail: t('config.bluetooth.status_ready', {
+                adapter: adapter.name || adapter.address || 'BlueZ',
+                backend
+            })
         });
+    } else if ((configData.bluetooth || {}).enabled === false) {
+        cfgStatusBanner('bt-runtime-banner', 'off', { detail: status.reason || t('config.bluetooth.status_unavailable') });
     } else {
-        banner.className = 'adg-status-banner is-warning';
-        banner.textContent = status.reason || t('config.bluetooth.status_unavailable');
+        cfgStatusBanner('bt-runtime-banner', 'degraded', { detail: status.reason || t('config.bluetooth.status_unavailable'), retry: btLoadStatus });
     }
-    const result = document.getElementById('bt-action-result');
-    if (result && playback && playback.state && playback.state !== 'idle') {
-        result.className = playback.state === 'error' ? 'adg-test-result is-danger' : 'adg-test-result is-success';
-        result.textContent = t('config.bluetooth.playback_state', { state: playback.state });
+    if (playback && playback.state && playback.state !== 'idle') {
+        cfgActionResult.show('bt-action-result', playback.state === 'error' ? 'error' : 'success', t('config.bluetooth.playback_state', { state: playback.state }));
     }
 }
 
@@ -195,10 +190,10 @@ function btRenderDevices() {
                         actions += `<button class="btn-save cfgdev-btn-compact" onclick="btOpenPINModal('${address}')">${escapeHtml(t('config.bluetooth.pair'))}</button>`;
                     }
                     if (device.paired && !device.connected) {
-                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('connect','${address}')">${escapeHtml(t('config.bluetooth.connect'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('connect','${address}',undefined,this)">${escapeHtml(t('config.bluetooth.connect'))}</button>`;
                     }
                     if (device.connected) {
-                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('disconnect','${address}')">${escapeHtml(t('config.bluetooth.disconnect'))}</button>`;
+                        actions += `<button class="btn-save cfgdev-btn-compact" onclick="btDeviceAction('disconnect','${address}',undefined,this)">${escapeHtml(t('config.bluetooth.disconnect'))}</button>`;
                     }
                 }
                 if (!actions) actions = '—';
@@ -233,7 +228,7 @@ async function btReprobe() {
     await btRunAction('bt-reprobe-btn', async () => {
         await btRequest('/api/bluetooth/reprobe', { method: 'POST' });
         await btLoadStatus();
-        showToast(t('config.bluetooth.reprobe_ok'), 'success');
+        return { status: 'ok', message: t('config.bluetooth.reprobe_ok') };
     });
 }
 
@@ -249,7 +244,7 @@ async function btDiscover() {
         btDevices = Array.isArray(data.devices) ? data.devices : [];
         btRenderDevices();
         btPopulateDefaultDevice();
-        showToast(t('config.bluetooth.discover_ok', { count: btDevices.length }), 'success');
+        return { status: 'ok', message: t('config.bluetooth.discover_ok', { count: btDevices.length }) };
     });
 }
 
@@ -275,10 +270,10 @@ async function btConfirmPair() {
     const address = document.getElementById('bt-pin-address').value;
     const pin = document.getElementById('bt-pin-value').value.trim();
     btClosePINModal();
-    await btDeviceAction('pair', address, pin);
+    await btDeviceAction('pair', address, pin, document.getElementById('bt-pair-confirm-btn'));
 }
 
-async function btDeviceAction(operation, address, pin) {
+async function btDeviceAction(operation, address, pin, button) {
     if (!btSavedConfigRequired()) return;
     await btRunAction('', async () => {
         const data = await btRequest('/api/bluetooth/devices/action', {
@@ -286,10 +281,12 @@ async function btDeviceAction(operation, address, pin) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ operation, address, pin: pin || '' })
         });
-        btDevices = Array.isArray(data.devices) ? data.devices : btDevices;
+        return { status: 'ok', devices: data.devices };
+    }, button, outcome => {
+        // Re-render after the result is written: the pressed row button disappears with the table.
+        btDevices = Array.isArray(outcome.body.devices) ? outcome.body.devices : btDevices;
         btRenderDevices();
         btPopulateDefaultDevice();
-        showToast(t('config.bluetooth.action_ok'), 'success');
     });
 }
 
@@ -302,8 +299,8 @@ async function btTestAudio() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device })
         });
-        showToast(t('config.bluetooth.test_ok'), 'success');
         await btLoadStatus();
+        return { status: 'ok', message: t('config.bluetooth.test_ok') };
     });
 }
 
@@ -311,32 +308,20 @@ async function btStopAudio() {
     if (!btSavedConfigRequired()) return;
     await btRunAction('bt-stop-btn', async () => {
         await btRequest('/api/bluetooth/audio/stop', { method: 'POST' });
-        showToast(t('config.bluetooth.stop_ok'), 'success');
         await btLoadStatus();
+        return { status: 'ok', message: t('config.bluetooth.stop_ok') };
     });
 }
 
-async function btRunAction(buttonID, action) {
-    const button = buttonID ? document.getElementById(buttonID) : null;
-    const result = document.getElementById('bt-action-result');
-    if (button) button.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.bluetooth.working');
-    }
-    try {
-        await action();
-        if (result) {
-            result.className = 'adg-test-result is-success';
-            result.textContent = t('config.bluetooth.action_ok');
-        }
-    } catch (error) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = error.message || t('config.bluetooth.request_failed');
-        }
-        showToast(error.message || t('config.bluetooth.request_failed'), 'error');
-    } finally {
-        if (button) button.disabled = false;
-    }
+// Runs a device or audio action behind its busy button and shows the outcome in the result line.
+async function btRunAction(buttonID, action, element, onSuccess) {
+    const button = (buttonID ? document.getElementById(buttonID) : null) || element;
+    return cfgActionResult(button, action, {
+        target: 'bt-action-result',
+        pending: t('config.bluetooth.working'),
+        success: outcome => (outcome.body && outcome.body.message) || t('config.bluetooth.action_ok'),
+        failure: () => t('config.bluetooth.request_failed'),
+        lock: '.cfgdev-actions-row button',
+        onSuccess: onSuccess
+    });
 }

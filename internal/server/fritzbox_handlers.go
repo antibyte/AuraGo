@@ -3,25 +3,14 @@ package server
 // fritzbox_handlers.go – REST endpoints for Fritz!Box UI integration.
 // Provides:
 //  GET  /api/fritzbox/status  – current connection/config status
-//  POST /api/fritzbox/test    – test connection with optional overrides
+//  POST /api/fritzbox/test    – test connection with the draft values
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"aurago/internal/config"
 	"aurago/internal/fritzbox"
 )
-
-type fritzBoxTestRequest struct {
-	Host               string `json:"host"`
-	Port               int    `json:"port"`
-	HTTPS              *bool  `json:"https"`
-	WebPort            *int   `json:"web_port"`
-	InsecureSkipVerify *bool  `json:"insecure_skip_verify"`
-	Username           string `json:"username"`
-	Password           string `json:"password"`
-}
 
 // handleFritzBoxStatus returns a brief status object for the Fritz!Box config panel.
 func handleFritzBoxStatus(s *Server) http.HandlerFunc {
@@ -93,8 +82,9 @@ func handleFritzBoxStatus(s *Server) http.HandlerFunc {
 }
 
 // handleFritzBoxTest tests the Fritz!Box connection.
-// Accepts an optional JSON body {host, port, https, web_port, insecure_skip_verify, username, password};
-// any omitted/empty field falls back to the saved config / vault value.
+// The optional body {"draft": {"fritzbox": {...}}} carries the values typed in; the
+// password follows the target (draftTestConfig): a stored password is only used while
+// host, port, TLS and user stay as saved.
 func handleFritzBoxTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -103,23 +93,12 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		// Parse optional override body.
-		var body fritzBoxTestRequest
-		_ = json.NewDecoder(r.Body).Decode(&body)
-
-		// Build test config from saved config + overrides.
-		s.CfgMu.RLock()
-		testCfg := *s.Cfg // shallow copy
-		s.CfgMu.RUnlock()
-
-		applyFritzBoxTestOverrides(&testCfg, body)
-
-		// Vault fallback for password.
-		if testCfg.FritzBox.Password == "" && s.Vault != nil {
-			if v, _ := s.Vault.ReadSecret("fritzbox_password"); v != "" {
-				testCfg.FritzBox.Password = v
-			}
+		draftCfg, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
 		}
+		testCfg := *draftCfg
 
 		if testCfg.FritzBox.Host == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -159,29 +138,5 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 			"model":    info.ModelName,
 			"firmware": info.SoftwareVersion,
 		})
-	}
-}
-
-func applyFritzBoxTestOverrides(testCfg *config.Config, body fritzBoxTestRequest) {
-	if body.Host != "" {
-		testCfg.FritzBox.Host = body.Host
-	}
-	if body.Port != 0 {
-		testCfg.FritzBox.Port = body.Port
-	}
-	if body.HTTPS != nil {
-		testCfg.FritzBox.HTTPS = *body.HTTPS
-	}
-	if body.WebPort != nil {
-		testCfg.FritzBox.WebPort = *body.WebPort
-	}
-	if body.InsecureSkipVerify != nil {
-		testCfg.FritzBox.InsecureSkipVerify = *body.InsecureSkipVerify
-	}
-	if body.Username != "" {
-		testCfg.FritzBox.Username = body.Username
-	}
-	if body.Password != "" {
-		testCfg.FritzBox.Password = body.Password
 	}
 }

@@ -21,12 +21,7 @@ function aiGatewayInvalidate() {
     ++_aiGatewayEpoch;
     _aiGatewayController?.abort();
     _aiGatewayController = null;
-    const result = document.getElementById('ai-gw-test-result');
-    if (result) result.textContent = '';
-}
-
-function aiGatewayHasDraft() {
-    return typeof hasUnsavedConfigChanges === 'function' ? hasUnsavedConfigChanges() : Boolean(window.AuraConfigState?.isDirty());
+    cfgActionResult.show('ai-gw-test-result', '', '');
 }
 
 function renderAIGatewaySection(section) {
@@ -38,7 +33,7 @@ function renderAIGatewaySection(section) {
     if (!providers.some(p => p.id === _aiGatewayProviderID)) _aiGatewayProviderID = providers.some(p => p.id === configData.llm?.provider) ? configData.llm.provider : (providers[0]?.id || '');
     let html = '<div class="cfg-section active"><div class="section-header">' + escapeHtml(section.label) + '</div>';
     html += '<div class="section-desc">' + escapeHtml(section.desc || '') + '</div>';
-    html += '<div id="ai-gw-status-banner" class="adg-status-banner" role="status" aria-live="polite"></div>';
+    html += cfgStatusBanner.html('ai-gw-status-banner', 'checking');
     html += '<div class="wh-notice"><small>' + t('config.ai_gateway.info') + '</small></div>';
     html += '<div class="field-group"><div class="field-label">' + t('config.ai_gateway.enabled_label') + '</div><div class="toggle-wrap">';
     html += '<div class="toggle' + (gw.enabled === true ? ' on' : '') + '" data-path="ai_gateway.enabled" onclick="toggleBool(this)"></div>';
@@ -61,19 +56,18 @@ function renderAIGatewaySection(section) {
     if (!providers.length) html += '<option value="">' + t('config.ai_gateway.no_provider') + '</option>';
     providers.forEach(p => { html += '<option value="' + escapeAttr(p.id) + '"' + (p.id === _aiGatewayProviderID ? ' selected' : '') + '>' + escapeHtml(p.name || p.id) + '</option>'; });
     html += '</select></div><div class="cfg-actions-row">';
-    html += '<button type="button" class="btn-save adg-test-btn" id="ai-gw-test-btn" onclick="aiGatewayTestConnection()">' + t('config.ai_gateway.test_btn') + '</button>';
-    html += '<button type="button" class="btn-save btn-secondary" id="ai-gw-model-test-btn" onclick="aiGatewayTestConnection(\'generation\')">' + t('config.ai_gateway.model_test') + '</button>';
-    html += '<span id="ai-gw-test-result" class="adg-test-result" role="status" aria-live="polite"></span></div></div>';
+    html += '<button type="button" class="btn-save adg-test-btn" id="ai-gw-test-btn" data-config-action-draft="true" onclick="aiGatewayTestConnection()">' + t('config.ai_gateway.test_btn') + '</button>';
+    html += '<button type="button" class="btn-save btn-secondary" id="ai-gw-model-test-btn" data-config-action-draft="true" onclick="aiGatewayTestConnection(\'generation\')">' + t('config.ai_gateway.model_test') + '</button>';
+    html += cfgActionResult.html('ai-gw-test-result') + '</div></div>';
     const content = document.getElementById('content');
     content.innerHTML = html;
     attachChangeListeners();
     const select = document.getElementById('ai-gw-provider');
     select.addEventListener('change', () => { _aiGatewayProviderID = select.value; aiGatewayCheckStatus(); });
+    // The tests send the draft, so an edit only makes the last test result outdated.
     const invalidateDraft = event => {
         if (!event.target.closest('[data-path],.ai-gateway-metadata-row,.toggle')) return;
-        aiGatewayInvalidate();
-        aiGatewaySetBanner('warning', t('config.ai_gateway.save_first'));
-        aiGatewaySetButtons(true);
+        cfgActionResult.show('ai-gw-test-result', '', '');
     };
     // Section replacement disposes these listeners without accumulating root handlers.
     content.firstElementChild.addEventListener('input', invalidateDraft);
@@ -138,55 +132,84 @@ function aiGatewayAddMetadataRow() {
 function aiGatewayRemoveMetadata(button) {
     button.closest('.ai-gateway-metadata-row')?.remove();
     aiGatewayCollectMetadata();
-    aiGatewayInvalidate();
-    aiGatewaySetBanner('warning', t('config.ai_gateway.save_first'));
-    aiGatewaySetButtons(true);
+    cfgActionResult.show('ai-gw-test-result', '', '');
 }
 
-function aiGatewaySetBanner(state, text) {
-    const banner = document.getElementById('ai-gw-status-banner');
-    if (banner) { banner.className = 'adg-status-banner' + (state ? ' is-' + state : ''); banner.textContent = text; }
+function aiGatewaySetBanner(state, detail) {
+    cfgStatusBanner('ai-gw-status-banner', state, { detail: detail, retry: state === 'error' || state === 'unknown' ? () => aiGatewayCheckStatus() : null });
 }
 
 function aiGatewaySetButtons(disabled) {
     for (const id of ['ai-gw-test-btn', 'ai-gw-model-test-btn']) { const button = document.getElementById(id); if (button) button.disabled = disabled; }
 }
 
+// Maps a probe answer to a banner state and the visible message.
+function aiGatewayView(response, res, kind) {
+    const successful = response.ok && res.live_status === 'ok';
+    let key = 'config.ai_gateway.route_skipped';
+    let state = 'degraded';
+    if (successful) { key = kind === 'generation' ? 'config.ai_gateway.model_test_success' : 'config.ai_gateway.connection_metadata'; state = 'connected'; }
+    else if (res.status === 'configured') key = res.live_status === 'skipped' ? 'config.ai_gateway.skipped' : 'config.ai_gateway.untested';
+    else if (res.status === 'disabled') { key = 'config.ai_gateway.status_disabled'; state = 'off'; }
+    else if (res.status === 'setup_required') key = 'config.ai_gateway.setup_required';
+    else if (res.status === 'no_credentials') { key = 'config.ai_gateway.status_no_credentials'; state = 'unconfigured'; }
+    else if (res.status === 'invalid_config' || !response.ok || res.status === 'error') { key = 'config.ai_gateway.connection_failed'; state = 'error'; }
+    let message = t(key);
+    if (res.code && !successful) message += ' (' + res.code + ')';
+    if (res.request_timeout_ms > 0) message += ' · ' + res.request_timeout_effective_ms + ' ms';
+    return { state, message, successful };
+}
+
 async function aiGatewayRequest(test, kind = 'metadata') {
     aiGatewayInvalidate();
     const select = document.getElementById('ai-gw-provider');
     const epoch = _aiGatewayEpoch;
-    if (!select || !select.value || aiGatewayHasDraft()) {
-        aiGatewaySetBanner('warning', t(aiGatewayHasDraft() ? 'config.ai_gateway.save_first' : 'config.ai_gateway.no_provider'));
+    if (!select || !select.value) {
+        aiGatewaySetBanner('unconfigured', t('config.ai_gateway.no_provider'));
         aiGatewaySetButtons(true); return;
     }
     const controller = new AbortController(); _aiGatewayController = controller;
     const current = () => epoch === _aiGatewayEpoch && document.getElementById('ai-gw-provider') === select && select.value === _aiGatewayProviderID;
-    aiGatewaySetButtons(true);
-    aiGatewaySetBanner('', t('config.ai_gateway.loading'));
-    try {
-        const response = await fetch(test ? '/api/ai-gateway/test' : '/api/ai-gateway/status?provider_id=' + encodeURIComponent(select.value), {
-            ...(test ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider_id: select.value, probe_kind: kind }) } : {}), signal: controller.signal
+    const applyView = (response, res) => {
+        const view = aiGatewayView(response, res, kind);
+        aiGatewaySetBanner(view.state, view.message);
+        aiGatewaySetButtons(!res.route_supported);
+        return view;
+    };
+    if (test) {
+        const button = document.getElementById(kind === 'generation' ? 'ai-gw-model-test-btn' : 'ai-gw-test-btn');
+        // The draft travels with the test: the gateway section as typed, the provider as saved.
+        return cfgActionResult(button, async () => {
+            aiGatewaySetBanner('checking', t('config.ai_gateway.loading'));
+            try {
+                const response = await fetch('/api/ai-gateway/test', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider_id: select.value, probe_kind: kind, draft: cfgDraftPatch(['ai_gateway']) }), signal: controller.signal
+                });
+                const res = await response.json().catch(() => ({}));
+                if (!current()) return new DOMException('stale', 'AbortError');
+                const view = applyView(response, res);
+                return { status: view.successful ? 'ok' : (view.state === 'error' ? 'error' : 'warning'), message: view.message };
+            } catch (err) {
+                if (err.name !== 'AbortError' && current()) aiGatewaySetBanner('error', t('config.ai_gateway.connection_failed'));
+                throw err;
+            }
+        }, {
+            target: 'ai-gw-test-result',
+            pending: t('config.ai_gateway.loading'),
+            success: o => o.body.message,
+            failure: o => o.body && o.body.message ? o.body.message : t('config.ai_gateway.connection_failed'),
+            interpret: () => ({ reason: '' })
         });
+    }
+    aiGatewaySetBanner('checking', t('config.ai_gateway.loading'));
+    try {
+        const response = await fetch('/api/ai-gateway/status?provider_id=' + encodeURIComponent(select.value), { signal: controller.signal });
         const res = await response.json();
         if (!current()) return;
-        const successful = response.ok && res.live_status === 'ok';
-        let key = 'config.ai_gateway.route_skipped';
-        if (successful) key = kind === 'generation' ? 'config.ai_gateway.model_test_success' : 'config.ai_gateway.connection_metadata';
-        else if (res.status === 'configured') key = res.live_status === 'skipped' ? 'config.ai_gateway.skipped' : 'config.ai_gateway.untested';
-        else if (res.status === 'disabled') key = 'config.ai_gateway.status_disabled';
-        else if (res.status === 'setup_required') key = 'config.ai_gateway.setup_required';
-        else if (res.status === 'no_credentials') key = 'config.ai_gateway.status_no_credentials';
-        else if (res.status === 'invalid_config' || !response.ok || res.status === 'error') key = 'config.ai_gateway.connection_failed';
-        let message = t(key);
-        if (res.code && !successful) message += ' (' + res.code + ')';
-        if (res.request_timeout_ms > 0) message += ' · ' + res.request_timeout_effective_ms + ' ms';
-        aiGatewaySetBanner(successful ? 'success' : (res.status === 'error' || !response.ok ? 'danger' : 'warning'), message);
-        const result = document.getElementById('ai-gw-test-result');
-        if (test && result) { result.textContent = message; result.className = 'adg-test-result' + (successful ? ' is-success' : ''); }
-        aiGatewaySetButtons(!res.route_supported || aiGatewayHasDraft());
+        applyView(response, res);
     } catch (err) {
-        if (err.name !== 'AbortError' && current()) { aiGatewaySetBanner('danger', t('config.ai_gateway.connection_failed')); aiGatewaySetButtons(aiGatewayHasDraft()); }
+        if (err.name !== 'AbortError' && current()) { aiGatewaySetBanner('error', t('config.ai_gateway.connection_failed')); aiGatewaySetButtons(false); }
     }
 }
 
