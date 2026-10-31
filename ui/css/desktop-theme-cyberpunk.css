@@ -403,7 +403,12 @@
 .desktop-body[data-theme="cyberpunk"] .vd-start-rail-indicator { border-radius: 0; background: rgba(243, 230, 0, 0.08); box-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.18); }
 .desktop-body[data-theme="cyberpunk"] .vd-start-rail-indicator::before { top: 0; bottom: 0; border-radius: 0; background: var(--vd-accent); box-shadow: 0 0 8px rgba(243, 230, 0, 0.55); }
 
-.desktop-body[data-theme="cyberpunk"] .vd-start-category { font: 600 12px/1.2 var(--vd-cyber-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-start-category { font: 600 11.5px/1.45 var(--vd-cyber-display); letter-spacing: 0.03em; text-transform: uppercase; gap: 8px; }
+/* The label clips overflow: the taller line box keeps the umlaut dots of BÜRO inside it. The wider rail fits KOMMUNIKATION
+   with its count badge; it only applies where the rail is a column (no chip strip, no touch sheet). */
+@media (min-width: 641px) and (hover: hover) and (pointer: fine) {
+    .desktop-body[data-theme="cyberpunk"] .vd-start-rail { flex-basis: 214px; }
+}
 .desktop-body[data-theme="cyberpunk"] .vd-start-category:hover { background-color: rgba(0, 240, 255, 0.07); box-shadow: inset 3px 0 0 var(--vd-accent); }
 .desktop-body[data-theme="cyberpunk"] .vd-start-category:is(:hover, [aria-selected="true"]) { color: var(--vd-accent); }
 .desktop-body[data-theme="cyberpunk"] .vd-start-category-count { border-radius: 0; background: rgba(0, 240, 255, 0.1); color: #00F0FF; font: 400 11px/16px var(--vd-cyber-mono); }

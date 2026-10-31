@@ -531,6 +531,9 @@
     font: inherit;
     font-size: 13px;
     font-weight: 500;
+    /* Labels such as "KI-Agent" must not wrap in narrow menu bars. */
+    white-space: nowrap;
+    flex-shrink: 0;
     cursor: pointer;
 }
 

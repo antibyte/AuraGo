@@ -696,6 +696,55 @@
     }
 }
 
+/* Narrow desktop windows with a mouse: same chip strip and single column as the touch sheet, without the sheet itself. The
+   Windows XP start menu has its own two-column layout and keeps it. */
+@media (max-width: 640px) {
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-body {
+        flex-direction: column;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-rail {
+        flex: 0 0 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        overflow: auto hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--ds-color-border-subtle);
+        scrollbar-width: none;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-rail::-webkit-scrollbar {
+        display: none;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) :is(.vd-start-rail-indicator, .vd-start-rail-separator, .vd-start-category-count) {
+        display: none;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-category {
+        grid-template-columns: 18px auto;
+        min-height: 32px;
+        padding: 4px 12px 4px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-category[aria-selected="true"] {
+        background: color-mix(in srgb, var(--vd-accent) 18%, transparent);
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-start-grid {
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    }
+}
+
 @keyframes vd-start-sheet-in {
     from {
         transform: translateY(100%);

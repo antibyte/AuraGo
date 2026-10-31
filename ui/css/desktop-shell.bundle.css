@@ -3552,6 +3552,55 @@
     }
 }
 
+/* Narrow desktop windows with a mouse: same chip strip and single column as the touch sheet, without the sheet itself. The
+   Windows XP start menu has its own two-column layout and keeps it. */
+@media (max-width: 640px) {
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-body {
+        flex-direction: column;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-rail {
+        flex: 0 0 auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        overflow: auto hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--ds-color-border-subtle);
+        scrollbar-width: none;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-rail::-webkit-scrollbar {
+        display: none;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) :is(.vd-start-rail-indicator, .vd-start-rail-separator, .vd-start-category-count) {
+        display: none;
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-category {
+        grid-template-columns: 18px auto;
+        min-height: 32px;
+        padding: 4px 12px 4px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-category[aria-selected="true"] {
+        background: color-mix(in srgb, var(--vd-accent) 18%, transparent);
+    }
+
+    .desktop-body:not([data-theme="windows_xp"]) .vd-start-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-start-grid {
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    }
+}
+
 @keyframes vd-start-sheet-in {
     from {
         transform: translateY(100%);
@@ -4123,6 +4172,9 @@
     font: inherit;
     font-size: 13px;
     font-weight: 500;
+    /* Labels such as "KI-Agent" must not wrap in narrow menu bars. */
+    white-space: nowrap;
+    flex-shrink: 0;
     cursor: pointer;
 }
 
@@ -10467,6 +10519,46 @@
     display: block;
     width: calc(100% - 24px);
     margin: 10px 12px 0;
+    min-height: 32px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* The tray popover buttons have no UA-free base: without it every skin that does not restyle them shows the gray browser
+   button. Single-class selectors keep the per-theme overrides (higher specificity) in charge. */
+.vd-notification-clear,
+.vd-clock-popup-open {
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-notification-clear {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.vd-notification-clear:hover,
+.vd-clock-popup-open:hover {
+    background: var(--vd-theme-control-hover);
+    border-color: var(--vd-theme-border-strong, var(--vd-theme-border, var(--vd-border)));
+}
+
+.vd-notification-clear:disabled,
+.vd-clock-popup-open:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* The popovers are tabindex=-1 containers the shell focuses itself; their buttons keep their own focus rings. */
+.vd-notification-center:focus,
+.vd-clock-popup:focus {
+    outline: none;
 }
 
 .vd-spotlight-backdrop,
@@ -11107,6 +11199,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 .desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-agent-button > span:last-child { display:none; }
 .desktop-body[data-global-menus="true"] .vd-clock { font-size: 12px; color: var(--vd-text); }
+/* Toasts start below the global bar instead of covering the tray. */
+.desktop-body[data-global-menus="true"] .vd-toast-container { top: calc(var(--vd-global-bar-height) + env(safe-area-inset-top, 0px) + 8px); }
 .desktop-body[data-global-menus="true"] .vd-space-pager { gap: 2px; }
 .desktop-body[data-global-menus="true"] .vd-space-pager button { min-width:22px; min-height:22px; }
 /* Touch targets: the global bar grows to 44 px and every tray control fills it; the brand and menu buttons reach 40 px.
@@ -11428,7 +11522,10 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .vd-task-button, .vd-start-button, .vd-start-glyph, .vd-start-search input, .vd-start-category,
     .vd-start-category-count, .vd-start-item, .vd-start-pane-title, .vd-start-pane-count, .vd-start-recent-label,
     .vd-start-empty, .vd-icon-label, .vd-toast-title, .vd-toast-message, .vd-modal-title, .vd-modal-copy,
-    .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open
+    .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open,
+    .vd-notification-header, .vd-notification-title, .vd-notification-item-title, .vd-notification-item-message,
+    .vd-notification-item-time, .vd-notification-empty, .vd-clock-popup-date, .vd-clock-popup-time,
+    .vd-clock-popup-section, .vd-clock-popup-empty, .vd-clock-popup-loading, .vd-clock-event-time, .vd-clock-event-title
 ) {
     font-family: var(--vd-theme-amiga-vga);
     font-size: 16px;
@@ -11874,7 +11971,6 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="amiga"] .vd-desktop-selection-marquee { border: 1px dashed #ffffff; border-radius: 0; background: transparent; box-shadow: 0 0 0 1px #000000; animation: none; }
 
 /* ---- Toasts and requesters ---- */
-.desktop-body[data-theme="amiga"][data-global-menus="true"] .vd-toast-container { top: calc(var(--vd-global-bar-height) + 8px); }
 .desktop-body[data-theme="amiga"] .vd-toast { padding: 8px 10px; border: 1px solid #000000; background: #ffffff; color: #000000; box-shadow: none; animation: none; transition: none; }
 .desktop-body[data-theme="amiga"] .vd-toast::after { display: none; }
 .desktop-body[data-theme="amiga"] .vd-toast-message { color: #333333; }
@@ -12379,7 +12475,12 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="cyberpunk"] .vd-start-rail-indicator { border-radius: 0; background: rgba(243, 230, 0, 0.08); box-shadow: inset 0 0 0 1px rgba(0, 240, 255, 0.18); }
 .desktop-body[data-theme="cyberpunk"] .vd-start-rail-indicator::before { top: 0; bottom: 0; border-radius: 0; background: var(--vd-accent); box-shadow: 0 0 8px rgba(243, 230, 0, 0.55); }
 
-.desktop-body[data-theme="cyberpunk"] .vd-start-category { font: 600 12px/1.2 var(--vd-cyber-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.desktop-body[data-theme="cyberpunk"] .vd-start-category { font: 600 11.5px/1.45 var(--vd-cyber-display); letter-spacing: 0.03em; text-transform: uppercase; gap: 8px; }
+/* The label clips overflow: the taller line box keeps the umlaut dots of BÜRO inside it. The wider rail fits KOMMUNIKATION
+   with its count badge; it only applies where the rail is a column (no chip strip, no touch sheet). */
+@media (min-width: 641px) and (hover: hover) and (pointer: fine) {
+    .desktop-body[data-theme="cyberpunk"] .vd-start-rail { flex-basis: 214px; }
+}
 .desktop-body[data-theme="cyberpunk"] .vd-start-category:hover { background-color: rgba(0, 240, 255, 0.07); box-shadow: inset 3px 0 0 var(--vd-accent); }
 .desktop-body[data-theme="cyberpunk"] .vd-start-category:is(:hover, [aria-selected="true"]) { color: var(--vd-accent); }
 .desktop-body[data-theme="cyberpunk"] .vd-start-category-count { border-radius: 0; background: rgba(0, 240, 255, 0.1); color: #00F0FF; font: 400 11px/16px var(--vd-cyber-mono); }
@@ -15528,6 +15629,26 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-theme="windows_xp"] :is(.vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button, .vd-global-brand):hover { background: linear-gradient(180deg, #3478c7, #1b579f); }
 .desktop-body[data-theme="windows_xp"] .vd-task-button.active,
 .desktop-body[data-theme="windows_xp"] .vd-task-button[aria-pressed="true"] { background: linear-gradient(180deg, #174b99, #2b68b9); box-shadow: inset 0 2px 5px rgba(5, 29, 74, .42); }
+/* Luna notification area: a lighter blue well with a dark left edge; the clock is white on it. Taskbar shell only. */
+.desktop-body[data-theme="windows_xp"]:not([data-shell="dock"], [data-global-menus="true"]) .vd-taskbar-system {
+    padding: 0 8px;
+    border-left: 1px solid #0a62c9;
+    border-radius: 0;
+    background: linear-gradient(180deg, #0c97f0, #0f84e3 50%, #1290e8);
+    box-shadow: inset 1px 0 0 rgba(255, 255, 255, .28), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+.desktop-body[data-theme="windows_xp"] #vd-clock.vd-clock { color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
+/* Desktop icons: white text with a crisp drop shadow and no plate; the selected icon gets the solid Luna selection blue. */
+.desktop-body[data-theme="windows_xp"] .vd-icon-label {
+    color: #fff;
+    background: transparent;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, .85), 0 0 2px rgba(0, 0, 0, .4);
+}
+.desktop-body[data-theme="windows_xp"] .vd-icon:is(.selected, :focus-visible) .vd-icon-label {
+    background: #316ac5;
+    color: #fff;
+    text-shadow: none;
+}
 .desktop-body[data-theme="windows_xp"] .vd-window {
     grid-template-rows: var(--vd-xp-title-height) minmax(0, 1fr);
     border: 3px solid #1658b0;
@@ -15652,6 +15773,14 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .desktop-body[data-theme="windows_xp"] .vd-start-apps { padding-inline: 4px; }
     .desktop-body[data-theme="windows_xp"] .vd-start-item { padding-inline: 3px; gap: 5px; }
     .desktop-body[data-theme="windows_xp"] .vd-start-sheet-handle { order: -1; background: #4a8de4; }
+}
+/* 420 px phones: a compact start button and tighter tray gaps keep the clock inside the screen. */
+@media (max-width: 520px) {
+    .desktop-body[data-theme="windows_xp"] .vd-start-button { width: 64px; min-width: 64px; padding: 0 6px; }
+    .desktop-body[data-theme="windows_xp"] .vd-start-button .vd-start-xp-label { font-size: 12px; }
+    .desktop-body[data-theme="windows_xp"]:not([data-shell="dock"], [data-global-menus="true"]) .vd-taskbar-system { gap: 2px; padding: 0 4px; }
+    .desktop-body[data-theme="windows_xp"] .vd-taskbar-system .vd-show-desktop-btn { margin-right: 0; }
+    .desktop-body[data-theme="windows_xp"] .vd-taskbar-system .vd-clock { padding: 0 3px; font-size: 11px; }
 }
 @media (pointer: coarse) {
     .desktop-body[data-theme="windows_xp"] { --vd-taskbar-height: 52px; --vd-xp-title-height: 52px; --vd-xp-menu-height: 46px; }

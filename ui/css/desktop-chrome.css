@@ -198,6 +198,46 @@
     display: block;
     width: calc(100% - 24px);
     margin: 10px 12px 0;
+    min-height: 32px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* The tray popover buttons have no UA-free base: without it every skin that does not restyle them shows the gray browser
+   button. Single-class selectors keep the per-theme overrides (higher specificity) in charge. */
+.vd-notification-clear,
+.vd-clock-popup-open {
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm);
+    background: var(--vd-theme-control-bg);
+    color: var(--vd-text);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard), border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-notification-clear {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.vd-notification-clear:hover,
+.vd-clock-popup-open:hover {
+    background: var(--vd-theme-control-hover);
+    border-color: var(--vd-theme-border-strong, var(--vd-theme-border, var(--vd-border)));
+}
+
+.vd-notification-clear:disabled,
+.vd-clock-popup-open:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* The popovers are tabindex=-1 containers the shell focuses itself; their buttons keep their own focus rings. */
+.vd-notification-center:focus,
+.vd-clock-popup:focus {
+    outline: none;
 }
 
 .vd-spotlight-backdrop,
@@ -838,6 +878,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 .desktop-body[data-global-menus="true"] .vd-taskbar-system .vd-agent-button > span:last-child { display:none; }
 .desktop-body[data-global-menus="true"] .vd-clock { font-size: 12px; color: var(--vd-text); }
+/* Toasts start below the global bar instead of covering the tray. */
+.desktop-body[data-global-menus="true"] .vd-toast-container { top: calc(var(--vd-global-bar-height) + env(safe-area-inset-top, 0px) + 8px); }
 .desktop-body[data-global-menus="true"] .vd-space-pager { gap: 2px; }
 .desktop-body[data-global-menus="true"] .vd-space-pager button { min-width:22px; min-height:22px; }
 /* Touch targets: the global bar grows to 44 px and every tray control fills it; the brand and menu buttons reach 40 px.

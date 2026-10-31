@@ -128,7 +128,10 @@
     .vd-task-button, .vd-start-button, .vd-start-glyph, .vd-start-search input, .vd-start-category,
     .vd-start-category-count, .vd-start-item, .vd-start-pane-title, .vd-start-pane-count, .vd-start-recent-label,
     .vd-start-empty, .vd-icon-label, .vd-toast-title, .vd-toast-message, .vd-modal-title, .vd-modal-copy,
-    .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open
+    .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open,
+    .vd-notification-header, .vd-notification-title, .vd-notification-item-title, .vd-notification-item-message,
+    .vd-notification-item-time, .vd-notification-empty, .vd-clock-popup-date, .vd-clock-popup-time,
+    .vd-clock-popup-section, .vd-clock-popup-empty, .vd-clock-popup-loading, .vd-clock-event-time, .vd-clock-event-title
 ) {
     font-family: var(--vd-theme-amiga-vga);
     font-size: 16px;
@@ -574,7 +577,6 @@
 .desktop-body[data-theme="amiga"] .vd-desktop-selection-marquee { border: 1px dashed #ffffff; border-radius: 0; background: transparent; box-shadow: 0 0 0 1px #000000; animation: none; }
 
 /* ---- Toasts and requesters ---- */
-.desktop-body[data-theme="amiga"][data-global-menus="true"] .vd-toast-container { top: calc(var(--vd-global-bar-height) + 8px); }
 .desktop-body[data-theme="amiga"] .vd-toast { padding: 8px 10px; border: 1px solid #000000; background: #ffffff; color: #000000; box-shadow: none; animation: none; transition: none; }
 .desktop-body[data-theme="amiga"] .vd-toast::after { display: none; }
 .desktop-body[data-theme="amiga"] .vd-toast-message { color: #333333; }
