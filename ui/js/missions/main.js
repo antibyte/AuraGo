@@ -123,52 +123,16 @@ function extractLastOutput(raw) {
     return raw;
 }
 
-// Icons
-const icons = {
-    play: '▶️',
-    pause: '⏸️',
-    stop: '⏹️',
-    edit: '✏️',
-    delete: '🗑️',
-    lock: '🔒',
-    unlock: '🔓',
-    duplicate: '📄',
-    manual: '👆',
-    scheduled: '📅',
-    triggered: '⚡',
-    flow: '🧩',
-    running: '🔄',
-    queued: '⏳',
-    waiting: '⏸️',
-    success: '✅',
-    error: '❌'
-};
-
-// Inline SVG icon set — heroicons style (20×20 viewBox, filled)
-const svgIcons = {
-    play: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>`,
-    edit: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z"/><path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z"/></svg>`,
-    trash: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/></svg>`,
-    copy: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z"/><path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z"/></svg>`,
-    lockIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>`,
-    cog: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>`,
-    info: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>`,
-    refresh: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd"/></svg>`,
-    chevron: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>`,
-    chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>`,
-    more: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM17 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>`,
-    clock: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .2.08.39.22.53l3 3a.75.75 0 101.06-1.06L10.75 9.69V5z" clip-rule="evenodd"/></svg>`,
-    calendar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd"/></svg>`,
-    bolt: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.983 1.907a.75.75 0 00-1.292-.657l-8.5 9.5A.75.75 0 002.75 12h6.572l-1.305 6.093a.75.75 0 001.292.657l8.5-9.5A.75.75 0 0017.25 8h-6.572l1.305-6.093z" clip-rule="evenodd"/></svg>`,
-    hand: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a1 1 0 00-1 1v8.5L4.78 10.28a1 1 0 10-1.56 1.44l3 4A1 1 0 007 16h6a3 3 0 003-3V8a1 1 0 10-2 0V6a1 1 0 10-2 0V4a1 1 0 10-2 0V3a1 1 0 10-2 0v8a.5.5 0 11-1 0V3a1 1 0 00-1-1z"/></svg>`,
-    flow: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="12" y="12" width="6" height="6" rx="1.5"/><path d="M8 4.25h4.5a2.25 2.25 0 012.25 2.25V12h-1.5V6.5a.75.75 0 00-.75-.75H8z"/></svg>`,
-    checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>`,
-    xCircle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>`,
-    fileText: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>`,
-};
+/** Fills static [data-pw-icon] placeholders with the shared inline icons. */
+function hydratePwIcons(root) {
+    (root || document).querySelectorAll('[data-pw-icon]').forEach((el) => {
+        el.innerHTML = pwIcon(el.getAttribute('data-pw-icon'));
+    });
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    hydratePwIcons();
     bindMissionUI();
     updateViewToggle();
     loadData();
@@ -305,7 +269,7 @@ async function loadData() {
             console.error('Failed to render missions:', renderErr);
             document.getElementById('missions-grid').innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-icon">${pwIcon('alert')}</div>
                     <h3>${t('missions.empty_title')}</h3>
                     <p>${t('missions.empty_load_error')}</p>
                 </div>`;
@@ -316,7 +280,7 @@ async function loadData() {
             // Show error state on initial load failure
             document.getElementById('missions-grid').innerHTML = `
                         <div class="empty-state">
-                            <div class="empty-icon">⚠️</div>
+                            <div class="empty-icon">${pwIcon('alert')}</div>
                             <h3>${t('missions.empty_title')}</h3>
                             <p>${t('missions.empty_load_error')}</p>
                         </div>
@@ -427,7 +391,7 @@ function renderQueue() {
     runningMissions.forEach((runningMission) => {
         html += `
                         <div class="queue-item queue-item-running priority-${escapeAttr(runningMission.priority)}">
-                            <div class="queue-position">${icons.running}</div>
+                            <div class="queue-position">${pwIcon('refresh')}</div>
                             <div class="queue-info">
                                 <div class="queue-name">${escapeHtml(runningMission.name)}</div>
                                 <div class="queue-meta">${t('missions.queue_running_now')} | ${t('missions.queue_priority_prefix')} ${escapeHtml(runningMission.priority)}</div>
@@ -454,7 +418,7 @@ function renderQueue() {
                         </div>
                         ${triggerLabel ? `<span class="queue-trigger">${triggerLabel}</span>` : ''}
                         <button class="icon-btn" data-mission-action="remove-from-queue" data-mission-id="${escapeAttr(mission.id)}" title="${t('missions.queue_remove_title')}">
-                            ${icons.stop}
+                            ${pwIcon('stop')}
                         </button>
                     </div>
                 `;
@@ -495,7 +459,7 @@ function renderMissions() {
             : '';
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon">🚀</div>
+                <div class="empty-icon">${pwIcon('bolt')}</div>
                 <h3>${title}</h3>
                 <p>${desc}</p>
                 ${cta}
@@ -539,7 +503,7 @@ function missionCardActions(mission, isRunning) {
 function renderMissionCompact(mission) {
     const isRunning = missionIsRunning(mission);
     const isQueued = !isRunning && queue.items.some(i => i.mission_id === mission.id);
-    const typeIcon = icons[mission.execution_type] || icons.manual;
+    const typeIcon = pwIcon({ scheduled: 'calendar', triggered: 'bolt', flow: 'puzzle' }[mission.execution_type] || 'pointer');
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
                        isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : mission.last_result === 'blocked' ? `<a class="badge badge-warning" href="/config#danger" target="_blank" rel="noopener" title="${escapeAttr(t('missions.action_rule_required'))}">${escapeHtml(t('missions.card_blocked'))}</a>` : '';
     const flowState = flowStateLabel(mission);
@@ -555,14 +519,14 @@ function renderMissionCompact(mission) {
         <div class="card-compact" data-mission-id="${mid}" data-mission-action="open-edit">
             <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
-            ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
+            ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${pwIcon('lock')}</span>` : ''}
             <div class="card-badges">${statusBadge}${flowBadge}${prepBadge}${runnerBadge}</div>
             <div class="card-actions">
-                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" ${acts.run}>${svgIcons.play}</button>
+                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" ${acts.run}>${pwIcon('play')}</button>
                 ${renderPrepButton(mission, isRunning)}
-                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${svgIcons.copy}</button>
-                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${svgIcons.edit}</button>
-                <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
+                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${pwIcon('copy')}</button>
+                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${pwIcon('edit')}</button>
+                <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" aria-label="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${pwIcon('trash')}</button>
             </div>
         </div>
     `;
@@ -591,16 +555,16 @@ function renderMissionGrid(mission, isFirstRender) {
     const prepBadge = renderPrepBadge(mission);
 
     // One execution pill on every card so all tiles share the same anatomy.
-    let execIcon = icons.manual;
+    let execIcon = pwIcon('pointer');
     let execText = t('missions.filter_manual');
     if (mission.execution_type === 'scheduled') {
-        execIcon = icons.scheduled;
+        execIcon = pwIcon('calendar');
         execText = mission.schedule ? escapeHtml(mission.schedule) : t('missions.filter_scheduled');
     } else if (mission.execution_type === 'triggered') {
-        execIcon = icons.triggered;
+        execIcon = pwIcon('bolt');
         execText = renderTriggerText(mission) || t('missions.filter_triggered');
     } else if (mission.execution_type === 'flow') {
-        execIcon = icons.flow;
+        execIcon = pwIcon('puzzle');
         execText = t('missions.filter_flow');
     }
     // execText is HTML with escaped values; the title gets its plain text (escapeAttr escapes it again).
@@ -609,11 +573,11 @@ function renderMissionGrid(mission, isFirstRender) {
     const hasTriggerDetails = mission.execution_type === 'triggered' && !!renderTriggerText(mission);
 
     const lastRun = hasTime(mission.last_run) ? formatTime(mission.last_run) : t('missions.card_last_run_never');
-    const resultIcon = hasError ? svgIcons.xCircle : (mission.last_result === 'success' ? svgIcons.checkCircle : '');
+    const resultIcon = hasError ? pwIcon('x-circle') : (mission.last_result === 'success' ? pwIcon('check-circle') : '');
     const resultClass = hasError ? 'mc-meta-item--error' : (mission.last_result === 'success' ? 'mc-meta-item--ok' : '');
 
     const lockedMark = mission.locked
-        ? `<span class="mc-name-lock" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>`
+        ? `<span class="mc-name-lock" title="${t('missions.card_locked_title')}">${pwIcon('lock')}</span>`
         : '';
 
     const fullPrompt = escapeHtml(mission.prompt || '');
@@ -636,7 +600,7 @@ function renderMissionGrid(mission, isFirstRender) {
                         aria-label="${t('missions.card_more_actions')}"
                         title="${t('missions.card_more_actions')}"
                         aria-expanded="${isExpanded ? 'true' : 'false'}">
-                    ${svgIcons.chevronDown}
+                    ${pwIcon('chevron-down')}
                 </button>
             </header>
             <div class="mc-body">
@@ -649,7 +613,7 @@ function renderMissionGrid(mission, isFirstRender) {
                 ${isBlocked ? `<p class="mc-rule-blocked">${escapeHtml(t('missions.action_rule_required'))} <a href="/config#danger" target="_blank" rel="noopener">${escapeHtml(t('missions.action_rules'))}</a></p>` : ''}
                 <div class="mc-meta-row">
                     <div class="mc-meta">
-                        <span class="mc-meta-item ${resultClass}">${resultIcon ? `<span class="mc-meta-icon">${resultIcon}</span>` : `<span class="mc-meta-icon">${svgIcons.clock}</span>`}<span>${lastRun}</span></span>
+                        <span class="mc-meta-item ${resultClass}">${resultIcon ? `<span class="mc-meta-icon">${resultIcon}</span>` : `<span class="mc-meta-icon">${pwIcon('clock')}</span>`}<span>${lastRun}</span></span>
                         <span class="mc-meta-item">${t('missions.meta_run_count', { count: mission.run_count })}</span>
                     </div>
                     <button type="button"
@@ -657,7 +621,7 @@ function renderMissionGrid(mission, isFirstRender) {
                             data-mission-action="run"
                             data-mission-id="${mid}"
                             ${acts.runLabelled}>
-                        ${svgIcons.play}
+                        ${pwIcon('play')}
                         <span class="mc-cta-label">${t('missions.card_run_label')}</span>
                     </button>
                 </div>
@@ -671,14 +635,14 @@ function renderMissionGrid(mission, isFirstRender) {
                     </div>` : ''}
                     ${mission.last_output ? `
                         <div class="mc-log-block">
-                            <div class="mc-log-head">${svgIcons.fileText}<span>${t('missions.card_view_log')}</span></div>
+                            <div class="mc-log-head">${pwIcon('doc')}<span>${t('missions.card_view_log')}</span></div>
                             <pre class="mc-log-body">${escapeHtml(extractLastOutput(mission.last_output))}</pre>
                         </div>` : ''}
                     <div class="mc-actions-secondary">
                         ${renderPrepButton(mission, isRunning)}
-                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${svgIcons.copy}</button>
-                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${svgIcons.edit}</button>
-                        <button type="button" class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
+                        <button type="button" class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" ${acts.duplicate}>${pwIcon('copy')}</button>
+                        <button type="button" class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" ${acts.edit}>${pwIcon('edit')}</button>
+                        <button type="button" class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" aria-label="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${pwIcon('trash')}</button>
                     </div>
                 </div>
             </div>
@@ -692,36 +656,36 @@ function renderStatusChip(mission, isRunning, isQueued, isWaiting) {
     if (isRunning) {
         kind = 'running';
         label = t('missions.card_badge_running');
-        icon = svgIcons.play;
+        icon = pwIcon('play');
     } else if (isQueued) {
         kind = 'queued';
         label = t('missions.card_badge_queued');
-        icon = svgIcons.clock;
+        icon = pwIcon('clock');
     } else if (isWaiting) {
         kind = 'waiting';
         label = t('missions.card_chip_waiting');
-        icon = svgIcons.clock;
+        icon = pwIcon('clock');
     } else if (mission.last_result === 'blocked') {
         kind = 'blocked';
         label = t('missions.card_blocked');
-        icon = svgIcons.xCircle;
+        icon = pwIcon('x-circle');
     } else {
         kind = mission.execution_type || 'manual';
         if (kind === 'scheduled') {
             label = t('missions.filter_scheduled');
-            icon = svgIcons.calendar;
+            icon = pwIcon('calendar');
         } else if (kind === 'triggered') {
             label = t('missions.filter_triggered');
-            icon = svgIcons.bolt;
+            icon = pwIcon('bolt');
         } else if (kind === 'flow') {
             // A flow that cannot run shows why (Not published yet / Paused) instead of its type.
             const state = flowStateLabel(mission);
             if (state) kind = 'flow-off';
             label = state || t('missions.filter_flow');
-            icon = svgIcons.flow;
+            icon = pwIcon('puzzle');
         } else {
             label = t('missions.filter_manual');
-            icon = svgIcons.hand;
+            icon = pwIcon('pointer');
         }
     }
     const priorityDot = `<span class="mc-status-chip__priority" data-priority="${escapeAttr(mission.priority)}" aria-hidden="true"></span>`;
@@ -753,16 +717,16 @@ function renderTriggerText(mission) {
         case 'egg_hatched':
             const eggLabel = cfg.egg_name || cfg.egg_id ? `${t('missions.trigger_info_egg_prefix')} ${escapeHtml(cfg.egg_name || cfg.egg_id)}` : t('missions.trigger_info_any_egg');
             const nestEggLabel = cfg.nest_name || cfg.nest_id ? `, ${t('missions.trigger_info_nest_prefix')} ${escapeHtml(cfg.nest_name || cfg.nest_id)}` : '';
-            triggerText = `🥚 ${eggLabel}${nestEggLabel}`;
+            triggerText = `${pwIcon('egg')} ${eggLabel}${nestEggLabel}`;
             break;
         case 'nest_cleared':
-            triggerText = `🪺 ${cfg.nest_name || cfg.nest_id ? `${t('missions.trigger_info_nest_prefix')} ${escapeHtml(cfg.nest_name || cfg.nest_id)}` : t('missions.trigger_info_any_nest')}`;
+            triggerText = `${pwIcon('nest')} ${cfg.nest_name || cfg.nest_id ? `${t('missions.trigger_info_nest_prefix')} ${escapeHtml(cfg.nest_name || cfg.nest_id)}` : t('missions.trigger_info_any_nest')}`;
             break;
         case 'mqtt_message':
             const mqttParts = [`${t('missions.trigger_info_mqtt_topic_prefix')} ${escapeHtml(cfg.mqtt_topic || '#')}`];
             if (cfg.mqtt_payload_contains) mqttParts.push(`${t('missions.trigger_info_mqtt_payload_prefix')} "${escapeHtml(cfg.mqtt_payload_contains)}"`);
             if (cfg.mqtt_min_interval_seconds) mqttParts.push(`${t('missions.trigger_info_mqtt_min_interval_prefix')} ${escapeHtml(String(cfg.mqtt_min_interval_seconds))}s`);
-            triggerText = `📡 ${mqttParts.join(' | ')}`;
+            triggerText = `${pwIcon('radio')} ${mqttParts.join(' | ')}`;
             break;
         case 'system_startup':
             triggerText = `${t('missions.trigger_system_startup_badge')}`;
@@ -770,42 +734,42 @@ function renderTriggerText(mission) {
         case 'home_assistant_state': {
             const parts = [`${t('missions.trigger_info_ha_entity_prefix')} ${escapeHtml(cfg.ha_entity_id || t('missions.trigger_info_ha_any_entity'))}`];
             if (cfg.ha_state_equals) parts.push(`${t('missions.trigger_info_ha_state_prefix')} "${escapeHtml(cfg.ha_state_equals)}"`);
-            triggerText = `🏠 ${parts.join(' | ')}`;
+            triggerText = `${pwIcon('home')} ${parts.join(' | ')}`;
             break;
         }
         case 'device_connected': {
             const devName = cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device');
-            triggerText = `🔌 ${t('missions.trigger_info_device_connected_prefix')} ${escapeHtml(devName)}`;
+            triggerText = `${pwIcon('plug')} ${t('missions.trigger_info_device_connected_prefix')} ${escapeHtml(devName)}`;
             break;
         }
         case 'device_disconnected': {
             const devName2 = cfg.device_name || cfg.device_id || t('missions.trigger_info_any_device');
-            triggerText = `⚡ ${t('missions.trigger_info_device_disconnected_prefix')} ${escapeHtml(devName2)}`;
+            triggerText = `${pwIcon('bolt')} ${t('missions.trigger_info_device_disconnected_prefix')} ${escapeHtml(devName2)}`;
             break;
         }
         case 'fritzbox_call': {
             const typeLabel = cfg.call_type ? escapeHtml(cfg.call_type) : t('missions.trigger_info_fritzbox_any');
-            triggerText = `📞 ${t('missions.trigger_info_fritzbox_prefix')} ${typeLabel}`;
+            triggerText = `${pwIcon('phone')} ${t('missions.trigger_info_fritzbox_prefix')} ${typeLabel}`;
             break;
         }
         case 'budget_warning':
-            triggerText = `💰 ${t('missions.trigger_budget_warning_badge')}`;
+            triggerText = `${pwIcon('wallet')} ${t('missions.trigger_budget_warning_badge')}`;
             break;
         case 'budget_exceeded':
-            triggerText = `🚫 ${t('missions.trigger_budget_exceeded_badge')}`;
+            triggerText = `${pwIcon('ban')} ${t('missions.trigger_budget_exceeded_badge')}`;
             break;
         case 'planner_appointment_due': {
             const parts = [];
             if (cfg.planner_appointment_id) parts.push(`${t('missions.trigger_info_planner_appointment_id_prefix')} ${escapeHtml(cfg.planner_appointment_id)}`);
             if (cfg.planner_title_contains) parts.push(`${t('missions.trigger_info_planner_title_prefix')} "${escapeHtml(cfg.planner_title_contains)}"`);
-            triggerText = `📅 ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_appointment')}`;
+            triggerText = `${pwIcon('calendar')} ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_appointment')}`;
             break;
         }
         case 'planner_todo_overdue': {
             const parts = [];
             if (cfg.planner_todo_id) parts.push(`${t('missions.trigger_info_planner_todo_id_prefix')} ${escapeHtml(cfg.planner_todo_id)}`);
             if (cfg.planner_title_contains) parts.push(`${t('missions.trigger_info_planner_title_prefix')} "${escapeHtml(cfg.planner_title_contains)}"`);
-            triggerText = `📝 ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_todo')}`;
+            triggerText = `${pwIcon('note')} ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_todo')}`;
             break;
         }
         case 'planner_operational_issue': {
@@ -813,7 +777,7 @@ function renderTriggerText(mission) {
             if (cfg.planner_issue_source) parts.push(`${t('missions.trigger_info_planner_issue_source_prefix')} ${escapeHtml(cfg.planner_issue_source)}`);
             if (cfg.planner_issue_severity) parts.push(`${t('missions.trigger_info_planner_issue_severity_prefix')} ${escapeHtml(cfg.planner_issue_severity)}`);
             if (cfg.planner_title_contains) parts.push(`${t('missions.trigger_info_planner_title_prefix')} "${escapeHtml(cfg.planner_title_contains)}"`);
-            triggerText = `🧯 ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_issue')}`;
+            triggerText = `${pwIcon('alert')} ${parts.length > 0 ? parts.join(' | ') : t('missions.trigger_info_planner_any_issue')}`;
             break;
         }
     }
@@ -1508,10 +1472,10 @@ function renderPrepButton(mission, isRunning) {
     const mid = escapeAttr(mission.id);
 
     if (status === 'prepared') {
-    return `<button class="mc-btn" data-mission-action="view-prepared" data-mission-id="${mid}" title="${t('missions.prep_view_title')}">${svgIcons.info}</button>` +
-               `<button class="mc-btn" data-mission-action="invalidate-prepared" data-mission-id="${mid}" title="${t('missions.prep_btn_invalidate')}">${svgIcons.refresh}</button>`;
+    return `<button class="mc-btn" data-mission-action="view-prepared" data-mission-id="${mid}" title="${t('missions.prep_view_title')}">${pwIcon('info')}</button>` +
+               `<button class="mc-btn" data-mission-action="invalidate-prepared" data-mission-id="${mid}" title="${t('missions.prep_btn_invalidate')}">${pwIcon('refresh')}</button>`;
     }
-    return `<button class="mc-btn" data-mission-action="prepare" data-mission-id="${mid}" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>${svgIcons.cog}</button>`;
+    return `<button class="mc-btn" data-mission-action="prepare" data-mission-id="${mid}" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>${pwIcon('settings')}</button>`;
 }
 
 async function prepareMission(id) {
@@ -1558,7 +1522,7 @@ async function viewPreparedContext(id) {
             }
             if (a.pitfalls && a.pitfalls.length) {
                 content += '── Pitfalls ──\n';
-                a.pitfalls.forEach(p => { content += `⚠ ${p.risk}${p.mitigation ? ' → ' + p.mitigation : ''}\n`; });
+                a.pitfalls.forEach(p => { content += `! ${p.risk}${p.mitigation ? ' → ' + p.mitigation : ''}\n`; });
                 content += '\n';
             }
             if (data.confidence) content += `${t('missions.prep_confidence')}: ${Math.round(data.confidence * 100)}%\n`;

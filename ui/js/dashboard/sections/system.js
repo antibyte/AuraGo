@@ -65,7 +65,7 @@
             dashSetHidden(card, false);
 
             if (data.error) {
-                container.innerHTML = `<div class="empty-state">⚠️ ${esc(data.error)}</div>`;
+                container.innerHTML = `<div class="empty-state">${pwIcon('warning')} ${esc(data.error)}</div>`;
                 return;
             }
 
@@ -85,19 +85,19 @@
             const owner = data.owner || '';
             let countInfo = `<div class="gh-count-row">
                 <span class="gh-count-text">
-                    👤 <strong>${esc(owner)}</strong> — ${t('dashboard.github_repositories_count', {n: repos.length})}
+                    ${pwIcon('user')} <strong>${esc(owner)}</strong> — ${t('dashboard.github_repositories_count', {n: repos.length})}
                 </span>
             </div>`;
 
             const renderRepo = r => {
-                const vis = r.private ? '<span class="gh-badge gh-badge-private">🔒 ' + t('dashboard.github_badge_private') + '</span>' : '<span class="gh-badge gh-badge-public">🌐 ' + t('dashboard.github_badge_public') + '</span>';
-                const tracked = r.tracked ? '<span class="gh-badge gh-badge-tracked">📌 ' + t('dashboard.github_badge_tracked') + '</span>' : '';
-                const lang = r.language ? `<span>💻 ${esc(r.language)}</span>` : '';
-                const updated = r.updated_at ? `<span>🕐 ${new Date(r.updated_at).toLocaleDateString()}</span>` : '';
+                const vis = r.private ? '<span class="gh-badge gh-badge-private">' + pwIcon('lock') + ' ' + t('dashboard.github_badge_private') + '</span>' : '<span class="gh-badge gh-badge-public">' + pwIcon('globe') + ' ' + t('dashboard.github_badge_public') + '</span>';
+                const tracked = r.tracked ? '<span class="gh-badge gh-badge-tracked">' + pwIcon('pin') + ' ' + t('dashboard.github_badge_tracked') + '</span>' : '';
+                const lang = r.language ? `<span>${pwIcon('code')} ${esc(r.language)}</span>` : '';
+                const updated = r.updated_at ? `<span>${pwIcon('clock')} ${new Date(r.updated_at).toLocaleDateString()}</span>` : '';
                 const desc = r.description ? `<div class="gh-repo-desc">${esc(r.description)}</div>` : '';
                 return `<div class="gh-repo">
                     <a href="${escAttr(r.html_url)}" target="_blank" rel="noopener" class="gh-repo-name">
-                        📦 ${esc(r.name)} ${vis} ${tracked}
+                        ${pwIcon('package')} ${esc(r.name)} ${vis} ${tracked}
                     </a>
                     ${desc}
                     <div class="gh-repo-meta">${lang} ${updated}</div>
@@ -124,23 +124,28 @@
                 { icon: dashIcon('rocket'), val: m.total || 0, lbl: t('dashboard.operations_missions'), sub: m.running ? t('dashboard.operations_missions_active', {n: m.running}) : (m.queued ? t('dashboard.operations_missions_queued', {n: m.queued}) : t('dashboard.operations_missions_active', {n: m.enabled || 0})) },
                 { icon: dashIcon('egg'), val: inv.nests || 0, lbl: t('dashboard.operations_nests'), sub: t('dashboard.operations_eggs_connected', {n: inv.connected_eggs || 0}) },
                 { icon: dashIcon('folder'), val: idx.indexed_files || 0, lbl: t('dashboard.operations_indexed'), sub: idx.enabled ? t('dashboard.operations_of_files', {n: idx.total_files || 0}) : t('dashboard.operations_disabled') },
-                { icon: dashIcon('wifi'), val: mq.connected ? '✓' : '✗', lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
+                { icon: dashIcon('wifi'), valHtml: opsStateMark(mq.connected), lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
                 { icon: dashIcon('note'), val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
                 { icon: dashIcon('lock'), val: sec.vault_keys || 0, lbl: t('dashboard.operations_vault_keys'), sub: t('dashboard.operations_api_tokens', {n: sec.tokens || 0}) },
                 { icon: dashIcon('device'), val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
-                { icon: dashIcon('brain'), val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
+                { icon: dashIcon('brain'), valHtml: opsStateMark(overview.context?.has_summary), lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
                 { icon: dashIcon('clipboard'), val: (overview.cheatsheets?.total || 0), lbl: t('dashboard.operations_cheatsheets'), sub: t('dashboard.operations_cheatsheets_active', {n: overview.cheatsheets?.active || 0}) },
-                { icon: dashIcon('globe'), val: overview.tunnel?.running ? '✓' : '✗', lbl: t('dashboard.operations_tunnel'), sub: overview.tunnel?.url ? truncate(overview.tunnel.url, 24) : t('dashboard.operations_disabled') },
+                { icon: dashIcon('globe'), valHtml: opsStateMark(overview.tunnel?.running), lbl: t('dashboard.operations_tunnel'), sub: overview.tunnel?.url ? truncate(overview.tunnel.url, 24) : t('dashboard.operations_disabled') },
             ];
 
             grid.innerHTML = items.map(s =>
                 `<div class="ops-stat">
                     <div class="ops-stat-icon">${s.icon}</div>
-                    <div class="ops-stat-val">${esc(String(s.val))}</div>
+                    <div class="ops-stat-val">${s.valHtml || esc(String(s.val))}</div>
                     <div class="ops-stat-lbl">${esc(s.lbl)}</div>
                     <div class="ops-stat-sub">${esc(s.sub)}</div>
                 </div>`
             ).join('');
+        }
+
+        function opsStateMark(ok) {
+            const label = ok ? t('dashboard.helper_llm_state_enabled') : t('dashboard.operations_disabled');
+            return `<span class="pw-badge ops-state" data-status="${ok ? 'ok' : 'error'}">${esc(label)}</span>`;
         }
 
         function renderIntegrations(overview) {
@@ -273,8 +278,15 @@
             const metricsEl = document.getElementById('guardian-metrics');
             if (!statusEl || !metricsEl) return;
 
-            const levelLabels = { off: '⚪ Off', low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' };
-            const fsLabels = { block: '🚫 Block', quarantine: '⚠️ Quarantine', allow: '✅ Allow' };
+            const guardianBadge = (status, text) => `<span class="pw-badge" data-status="${status}">${esc(text)}</span>`;
+            const levelLabels = {
+                off: guardianBadge('idle', 'Off'), low: guardianBadge('ok', 'Low'),
+                medium: guardianBadge('warn', 'Medium'), high: guardianBadge('error', 'High')
+            };
+            const fsLabels = {
+                block: guardianBadge('error', 'Block'), quarantine: guardianBadge('warn', 'Quarantine'),
+                allow: guardianBadge('ok', 'Allow')
+            };
 
             statusEl.innerHTML = `
                 <div class="guardian-status-row">

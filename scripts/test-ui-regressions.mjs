@@ -1006,6 +1006,7 @@ function loadSkillCardRuntime() {
     daemonStates: {},
     credentialMap: {},
     esc: value => String(value),
+    pwIcon: name => '<svg class="pw-ic pw-ic-' + name + '" aria-hidden="true"></svg>',
     t: key => key,
     renderSecurityBadge: () => '',
     renderDaemonBadge: () => '',
@@ -3443,6 +3444,7 @@ async function testContainersListFailureStateSurvivesFiltersUntilTheListLoads() 
     t: key => key,
     esc: value => String(value ?? ''),
     escAttr: value => String(value ?? '').replace(/'/g, '&#39;').replace(/"/g, '&quot;'),
+    pwIcon: name => '<svg class="pw-ic pw-ic-' + name + '" aria-hidden="true"></svg>',
     applyI18n() {},
     showToast() {},
     setInterval,
@@ -3674,6 +3676,7 @@ function containersPage(route) {
     t: key => key,
     esc: value => String(value ?? ''),
     escAttr: value => String(value ?? '').replace(/'/g, '&#39;').replace(/"/g, '&quot;'),
+    pwIcon: name => '<svg class="pw-ic pw-ic-' + name + '" aria-hidden="true"></svg>',
     applyI18n() {},
     showToast() {},
     showModal: async (title, message, isConfirm, options) => { modals.push({ title, message, isConfirm, options }); return modalAnswer; },
@@ -3869,8 +3872,8 @@ async function testContainersResumeUnpausesAPausedContainer() {
     : { status: 200, body: { status: 'ok', action: 'unpause' } });
   await page.start();
   const card = page.node('ct-grid').children[0].cardHTML;
-  assert.match(card, /containerAction\([^)]*'unpause'\)" data-i18n="containers\.btn_unpause"/);
-  assert.doesNotMatch(card, /'start'\)" data-i18n="containers\.btn_unpause"/, 'Docker refuses start on a paused container');
+  assert.match(card, /containerAction\([^)]*'unpause'\)">[^]*?data-i18n="containers\.btn_unpause"/);
+  assert.doesNotMatch(card, /'start'\)">[^]*?data-i18n="containers\.btn_unpause"/, 'Docker refuses start on a paused container');
   await page.run("containerAction('p1', 'unpause')");
   assert.deepEqual(page.requests.filter(r => r.method === 'POST').map(r => r.url), ['/api/containers/p1/unpause']);
 }

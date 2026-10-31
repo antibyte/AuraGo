@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function makeStatusNode(icon, message, title) {
     const wrap = document.createElement('div');
     wrap.className = 'empty-state pw-empty-state gallery-empty';
-    wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + icon + '</div>' +
+    wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + (icon ? pwIcon(icon) : '') + '</div>' +
         (title ? '<h3>' + escapeHtml(title) + '</h3>' : '') +
         '<p>' + escapeHtml(message) + '</p>';
     return wrap;
@@ -75,7 +75,7 @@ async function loadGallery() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.replaceChildren(makeStatusNode('⚠️', data.message || t('common.error')));
+            grid.replaceChildren(makeStatusNode('alert', data.message || t('common.error')));
             return;
         }
 
@@ -86,7 +86,7 @@ async function loadGallery() {
         populateProviderFilter(galleryImages);
 
         if (galleryImages.length === 0) {
-            grid.replaceChildren(makeStatusNode('🎨', t('gallery.empty'), (t('media.empty_images_title') !== 'media.empty_images_title' ? t('media.empty_images_title') : '')));
+            grid.replaceChildren(makeStatusNode('image', t('gallery.empty'), (t('media.empty_images_title') !== 'media.empty_images_title' ? t('media.empty_images_title') : '')));
             document.getElementById('gallery-pagination').classList.add('is-hidden');
             return;
         }
@@ -94,7 +94,7 @@ async function loadGallery() {
         renderGrid(galleryImages);
         updatePagination();
     } catch (e) {
-        grid.replaceChildren(makeStatusNode('⚠️', e.message || t('common.error')));
+        grid.replaceChildren(makeStatusNode('alert', e.message || t('common.error')));
     }
 }
 
@@ -308,7 +308,6 @@ async function deleteGalleryImage(id, source = '') {
         const resp = await fetch(url, { method: 'DELETE' });
         const data = await resp.json();
         if (data.status === 'ok') {
-            closeModal('delete-modal');
             closeLightbox();
             loadGallery();
         } else {
@@ -323,33 +322,12 @@ async function deleteGalleryImage(id, source = '') {
 }
 
 function setGalleryDeleteBusy(busy) {
-    const confirmBtn = document.getElementById('gallery-delete-confirm-btn');
     const lightboxBtn = document.getElementById('lightbox-delete');
-    if (confirmBtn) {
-        confirmBtn.disabled = busy;
-    }
     if (lightboxBtn) {
         lightboxBtn.disabled = busy;
     }
 }
 
 function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// DELETE CONFIRMATION HANDLER
-// ═══════════════════════════════════════════════════════════════
-
-async function confirmDeleteGallery() {
-    const id = document.getElementById('delete-target-id').value;
-    const type = document.getElementById('delete-target-type').value;
-
-    if (type !== 'gallery-image' || !id) {
-        closeModal('delete-modal');
-        return;
-    }
-
-    await deleteGalleryImage(id);
+    return escAttr(str == null ? '' : String(str));
 }

@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 इमेज गैलरी",
+  "gallery.title": "इमेज गैलरी",
   "gallery.subtitle": "इमेज गैलरी",
   "gallery.search_placeholder": "प्रॉम्प्ट खोजें...",
   "gallery.all_providers": "सभी प्रदाता",
@@ -15,7 +15,7 @@
   "gallery.duration": "अवधि",
   "gallery.cost": "लागत",
   "gallery.date": "तारीख",
-  "gallery.download": "⬇ डाउनलोड",
-  "gallery.delete": "🗑 हटाएँ",
+  "gallery.download": "डाउनलोड",
+  "gallery.delete": "हटाएँ",
   "gallery.confirm_delete": "क्या आप वाकई इस इमेज को हटाना चाहते हैं?"
 }

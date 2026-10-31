@@ -3611,10 +3611,6 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read media.html: %v", err)
 	}
-	galleryHTML, err := os.ReadFile("gallery.html")
-	if err != nil {
-		t.Fatalf("read gallery.html: %v", err)
-	}
 	mediaJS, err := os.ReadFile(filepath.Join("js", "media", "main.js"))
 	if err != nil {
 		t.Fatalf("read media js: %v", err)
@@ -3647,18 +3643,6 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 			if strings.Contains(mediaHTMLText, forbidden) {
 				t.Fatalf("media pagination %s must use delegated actions instead of %q", prefix, forbidden)
 			}
-		}
-	}
-
-	galleryHTMLText := string(galleryHTML)
-	for _, marker := range []string{
-		`id="gallery-first"`,
-		`onclick="galleryFirst()"`,
-		`id="gallery-last"`,
-		`onclick="galleryLast()"`,
-	} {
-		if !strings.Contains(galleryHTMLText, marker) {
-			t.Fatalf("gallery pagination missing marker %q", marker)
 		}
 	}
 

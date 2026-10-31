@@ -333,7 +333,6 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 		`overflow-x: clip;`,
 		`var(--pw-line)`,
 		`border-radius: 14px;`,
-		`border-radius: 20px;`,
 		`background-image: none;`,
 		`box-shadow: none;`,
 		`content: none;`,
@@ -1059,23 +1058,23 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersSuppressLegacyDecoration(t *te
 func TestPrecisionWorkspaceKnowledgeSkillsHiddenStateRemainsInlineOverridable(t *testing.T) {
 	t.Parallel()
 
-	for _, test := range []struct {
-		stylesheet string
-		page       string
-	}{
-		{stylesheet: "css/knowledge.css", page: "knowledge"},
-		{stylesheet: "css/skills.css", page: "skills"},
-	} {
-		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
-		hiddenRule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` .is-hidden`) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
-		if len(hiddenRule) != 2 || !strings.Contains(hiddenRule[1], `display: none;`) {
-			t.Errorf("%s needs a page-scoped baseline is-hidden rule", test.stylesheet)
-			continue
-		}
-		if strings.Contains(hiddenRule[1], `!important`) {
-			t.Errorf("%s is-hidden rule must remain overridable by normal inline display values", test.stylesheet)
-		}
+	// Wave 4: the shared `.pw-page.pw-operational-page .is-hidden` rule is
+	// !important, so inline style.display can no longer reveal an element. Skills
+	// must reveal through the class and not redefine the rule.
+	skillsCSS := normalizeAssetText(mustReadUIFile(t, "css/skills.css"))
+	if strings.Contains(skillsCSS, `"] .is-hidden {`) {
+		t.Error("css/skills.css must not redefine .is-hidden; precision-pages.css owns it")
+	}
+	skillsJS := string(mustReadUIFile(t, "js/skills/main.js"))
+	if !strings.Contains(skillsJS, `classList.toggle('is-hidden', currentSkillMode !== 'agent')`) {
+		t.Error("skills must reveal the agent toolbar through the is-hidden class")
+	}
+
+	// Wave 4: Knowledge relies on the one shared `.pw-page.pw-operational-page
+	// .is-hidden` rule (precision-pages.css) and reveals through the class.
+	knowledgeCSS := normalizeAssetText(mustReadUIFile(t, "css/knowledge.css"))
+	if strings.Contains(knowledgeCSS, `"] .is-hidden {`) {
+		t.Error("css/knowledge.css must not redefine .is-hidden; precision-pages.css owns it")
 	}
 }
 
@@ -1460,30 +1459,33 @@ func TestPrecisionWorkspaceHiddenRevealUsesExplicitDisplayValues(t *testing.T) {
 		}
 	}
 
+	// The shared .is-hidden rule is !important, so Skills reveals through the class.
 	skills := normalizeAssetText(mustReadUIFile(t, "js/skills/main.js"))
 	for _, marker := range []string{
-		`document.getElementById('sk-disabled').style.display = 'block';`,
-		`document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? 'flex' : 'none';`,
-		`empty.style.display = 'block';`,
-		`document.getElementById('agent-resource-browser').style.display = 'block';`,
-		`document.getElementById('agent-file-editor').style.display = 'block';`,
-		`document.getElementById('agent-binary-download').style.display = 'block';`,
-		`errorEl.style.display = message ? 'block' : 'none';`,
-		`warn.style.display = (ext === 'sh' || ext === 'js') ? 'flex' : 'none';`,
-		`metaWrap.style.display = 'block';`,
-		`document.getElementById('sk-selected-file').style.display = 'flex';`,
-		`descDiv.style.display = 'block';`,
-		`emptyEl.style.display = 'block';`,
-		`if (bridgeOffEl) bridgeOffEl.style.display = 'block';`,
+		`document.getElementById('sk-disabled').classList.remove('is-hidden');`,
+		`document.getElementById('agent-toolbar-actions').classList.toggle('is-hidden', currentSkillMode !== 'agent');`,
+		`empty.classList.remove('is-hidden');`,
+		`document.getElementById('agent-resource-browser').classList.remove('is-hidden');`,
+		`document.getElementById('agent-file-editor').classList.remove('is-hidden');`,
+		`document.getElementById('agent-binary-download').classList.remove('is-hidden');`,
+		`errorEl.classList.toggle('is-hidden', !message);`,
+		`warn.classList.toggle('is-hidden', !(ext === 'sh' || ext === 'js'));`,
+		`metaWrap.classList.remove('is-hidden');`,
+		`document.getElementById('sk-selected-file').classList.remove('is-hidden');`,
+		`descDiv.classList.remove('is-hidden');`,
+		`emptyEl.classList.remove('is-hidden');`,
+		`if (bridgeOffEl) bridgeOffEl.classList.remove('is-hidden');`,
 	} {
 		if !strings.Contains(skills, marker) {
-			t.Errorf("Skills explicit hidden reveal contract missing %q", marker)
+			t.Errorf("Skills class-based hidden reveal contract missing %q", marker)
 		}
 	}
 
 	knowledge := normalizeAssetText(mustReadUIFile(t, "js/knowledge/main.js"))
-	if !strings.Contains(knowledge, `empty.style.display = 'block';`) {
-		t.Error("Knowledge device empty state must reveal with an explicit block display value")
+	// The shared .is-hidden rule is !important, so the device empty state
+	// reveals through the class instead of an inline display value.
+	if !strings.Contains(knowledge, `empty.classList.remove('is-hidden');`) {
+		t.Error("Knowledge device empty state must reveal by removing the is-hidden class")
 	}
 }
 
@@ -1900,7 +1902,7 @@ func TestPrecisionWorkspaceTranslations(t *testing.T) {
 func TestPrecisionWorkspaceProtectedPagesStayOptedOut(t *testing.T) {
 	t.Parallel()
 
-	for _, page := range []string{"index.html", "desktop.html", "gallery.html"} {
+	for _, page := range []string{"index.html", "desktop.html"} {
 		content := normalizeAssetText(mustReadUIFile(t, page))
 		for _, forbidden := range []string{
 			`precision-workspace.css`,

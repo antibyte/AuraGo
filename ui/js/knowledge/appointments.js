@@ -65,19 +65,19 @@ function renderAppointments() {
                 </div>
                 <div class="kc-appointment-actions">
                     ${a.status === 'upcoming' || a.status === 'overdue' ? `
-                        <button class="btn btn-sm btn-secondary" onclick="completeAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_complete')}">✅</button>
-                        <button class="btn btn-sm btn-secondary" onclick="cancelAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_cancel')}">❌</button>
+                        <button class="btn btn-sm btn-secondary" onclick="completeAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_complete')}" aria-label="${t('knowledge.appointments_complete')}">${pwIcon('check-circle')}</button>
+                        <button class="btn btn-sm btn-secondary" onclick="cancelAppointment('${esc(a.id)}')" title="${t('knowledge.appointments_cancel')}" aria-label="${t('knowledge.appointments_cancel')}">${pwIcon('x-circle')}</button>
                     ` : ''}
-                    <button class="kc-icon-btn" onclick="editAppointment('${esc(a.id)}')" title="${t('common.btn_edit')}">${typeof svgIcon === 'function' ? svgIcon('edit') : '✏️'}</button>
-                    <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteAppointment('${esc(a.id)}', '${esc(a.title)}')" title="${t('common.btn_delete')}">${typeof svgIcon === 'function' ? svgIcon('delete') : '🗑️'}</button>
+                    <button class="kc-icon-btn" onclick="editAppointment('${esc(a.id)}')" title="${t('common.btn_edit')}" aria-label="${t('common.btn_edit')}">${svgIcon('edit')}</button>
+                    <button class="kc-icon-btn kc-icon-btn-danger" onclick="askDeleteAppointment('${esc(a.id)}', '${esc(a.title)}')" title="${t('common.btn_delete')}" aria-label="${t('common.btn_delete')}">${svgIcon('delete')}</button>
                 </div>
             </div>
             ${a.description ? `<p class="kc-appointment-desc">${esc(a.description)}</p>` : ''}
             ${a.participants && a.participants.length ? `<div class="kc-appointment-participants">${renderAppointmentParticipantsInline(a.participants)}</div>` : ''}
             <div class="kc-appointment-meta">
-                <span class="kc-appointment-meta-item">📅 ${dt}</span>
-                ${notify ? `<span class="kc-appointment-meta-item">🔔 ${notify}</span>` : ''}
-                ${a.wake_agent ? `<span class="kc-appointment-meta-item kc-wake-badge">🤖 ${t('knowledge.appointments_agent_wake')}</span>` : ''}
+                <span class="kc-appointment-meta-item">${pwIcon('calendar')} ${dt}</span>
+                ${notify ? `<span class="kc-appointment-meta-item">${pwIcon('bell')} ${notify}</span>` : ''}
+                ${a.wake_agent ? `<span class="kc-appointment-meta-item kc-wake-badge">${pwIcon('bot')} ${t('knowledge.appointments_agent_wake')}</span>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -292,10 +292,10 @@ function renderAppointmentParticipantsInline(participants) {
     const visible = participants.slice(0, maxVisible);
     const names = visible.map(p => esc(p.name)).join(', ');
     if (participants.length <= maxVisible) {
-        return `<span class="kc-appointment-participants-inline">👥 ${names}</span>`;
+        return `<span class="kc-appointment-participants-inline">${pwIcon('users')} ${names}</span>`;
     }
     const remaining = participants.length - maxVisible;
-    return `<span class="kc-appointment-participants-inline">👥 ${names} +${remaining}</span>`;
+    return `<span class="kc-appointment-participants-inline">${pwIcon('users')} ${names} +${remaining}</span>`;
 }
 
 function removeParticipantChip(id) {

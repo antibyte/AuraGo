@@ -117,14 +117,14 @@
 
         <!-- Empty state -->
         <div class="empty-state pw-empty-state is-hidden" id="sk-empty">
-            <div class="empty-icon pw-empty-icon" aria-hidden="true">🧩</div>
+            <div class="empty-icon pw-empty-icon" aria-hidden="true"><svg class="pw-ic pw-ic-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><path d="M10 3h4v3a2 2 0 1 0 0 4v4h-4v-4a2 2 0 1 1 0-4z" fill="currentColor" stroke="none"/></svg></div>
             <h3 data-i18n="skills.empty_title"></h3>
             <p data-i18n="skills.empty_desc"></p>
         </div>
 
         <!-- Disabled state -->
         <div class="empty-state pw-empty-state is-hidden" id="sk-disabled">
-            <div class="empty-icon pw-empty-icon" aria-hidden="true">⚠️</div>
+            <div class="empty-icon pw-empty-icon" aria-hidden="true"><svg class="pw-ic pw-ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg></div>
             <h3 data-i18n="skills.disabled_title"></h3>
             <p data-i18n="skills.disabled_desc"></p>
         </div>
@@ -355,7 +355,7 @@
             </div>
             <div class="modal-body">
                 <div class="sk-upload-warning">
-                    <span class="sk-upload-warning-icon">⚠️</span>
+                    <span class="sk-upload-warning-icon" aria-hidden="true"><svg class="pw-ic pw-ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12.01" y2="16.5"/></svg></span>
                     <span data-i18n="skills.upload_warning"></span>
                 </div>
                 <div class="sk-form-group">
@@ -377,7 +377,7 @@
                     </div>
                 </div>
                 <div class="sk-dropzone" id="sk-dropzone">
-                    <div class="sk-dropzone-icon">📁</div>
+                    <div class="sk-dropzone-icon" aria-hidden="true"><svg class="pw-ic pw-ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" fill="none"/></svg></div>
                     <p data-i18n="skills.upload_drop"></p>
                     <input type="file" id="upload-file" accept=".py" class="is-hidden" onchange="handleFileSelect(event)">
                 </div>

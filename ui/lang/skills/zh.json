@@ -162,7 +162,7 @@
   "skills.import_hint": "选择一个导出的 .aurago-skill.json 包。",
   "skills.import_success": "技能已导入",
   "skills.import_title": "导入技能包",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge 未启用或未配置任何工具。请在设置 → 🧩 Skill Manager 中启用。",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge 未启用或未配置任何工具。请在设置 → Skill Manager 中启用。",
   "skills.internal_tools_label": "内部工具",
   "skills.internal_tools_modal_desc": "选择此技能在运行时可通过工具桥调用的AuraGo原生工具。",
   "skills.internal_tools_modal_save": "保存",

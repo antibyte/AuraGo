@@ -94,7 +94,7 @@
 
 .pw-page[data-workspace-page="skills"] .sk-resource-icon {
     flex-shrink: 0;
-    font-size: 14px;
+    font-size: var(--pw-font-md);
 }
 
 .pw-page[data-workspace-page="skills"] .sk-card-name, .pw-page[data-workspace-page="skills"] .sk-card-desc, .pw-page[data-workspace-page="skills"] .sk-card-deps, .pw-page[data-workspace-page="skills"] .sk-vault-keys, .pw-page[data-workspace-page="skills"] .sk-card-internal-tools, .pw-page[data-workspace-page="skills"] .sk-resource-name, .pw-page[data-workspace-page="skills"] .sk-inline-help, .pw-page[data-workspace-page="skills"] .sk-audit-details {
@@ -302,10 +302,6 @@
     overflow-x: clip;
     background: var(--pw-canvas);
     background-image: none;
-}
-
-.pw-page[data-workspace-page="skills"] .is-hidden {
-    display: none;
 }
 
 .pw-page[data-workspace-page="skills"] .sk-doc-editor-textarea {
@@ -1163,7 +1159,6 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background-image: none;
 }
 
 .pw-page[data-workspace-page="skills"] .modal-header, .pw-page[data-workspace-page="skills"] .modal-actions {
@@ -1199,11 +1194,11 @@
 }
 
 .pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-code-editor-container, .pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-test-output-wrap, .pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-editor-fallback {
-    background: #f1f5f9;
+    background: var(--pw-surface-soft);
 }
 
 .pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-test-output {
-    color: #1e293b;
+    color: var(--pw-text);
 }
 
 .pw-page[data-workspace-page="skills"] .sk-dropzone:hover, .pw-page[data-workspace-page="skills"] .sk-dropzone-active {

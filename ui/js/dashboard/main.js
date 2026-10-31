@@ -144,7 +144,7 @@
                 else if (o.status >= 500) desc = t('dashboard.error_server');
                 else if (o.status === 0) desc = t('dashboard.error_network');
                 body.innerHTML = `<div class="dash-error-state">
-                    <span class="dash-error-icon">⚠</span>
+                    <span class="dash-error-icon">${pwIcon('warning')}</span>
                     <p class="dash-error-title">${esc(title)}</p>
                     <p class="dash-error-desc">${esc(desc)}</p>
                     <button type="button" class="dash-error-retry" onclick="CardState.retry('${cardId}')">

@@ -1,9 +1,4 @@
 # <css file> <@media width terms outside 360/480/640/768/1024/1200 (+900 reserved for the dashboard drawer)>: wave 4 breakpoint ratchet. Only ever goes down.
 # max-width N-1 is allowed when paired with a min-width. Refresh after fixing with AURAGO_UPDATE_WAVE4_BASELINES=1 go test ./ui/ -run TestUIWave4.
-css/dashboard.css 4
-css/login.css 1
-css/missions.css 2
-css/plans.css 1
 css/precision-pages.css 3
 css/setup.css 5
-css/truenas.css 1

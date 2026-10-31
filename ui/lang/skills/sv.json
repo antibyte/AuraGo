@@ -162,7 +162,7 @@
   "skills.import_hint": "Välj ett exporterat .aurago-skill.json-paket.",
   "skills.import_success": "Färdighet importerad",
   "skills.import_title": "Importera färdighetspaket",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge är inte aktiverad eller inga verktyg är konfigurerade. Aktivera det under Inställningar → 🧩 Skill Manager.",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge är inte aktiverad eller inga verktyg är konfigurerade. Aktivera det under Inställningar → Skill Manager.",
   "skills.internal_tools_label": "Interna verktyg",
   "skills.internal_tools_modal_desc": "Välj de inbyggda AuraGo-verktygen som denna färdighet får anropa via verktygsbryggan vid körning.",
   "skills.internal_tools_modal_save": "Spara",

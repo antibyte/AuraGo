@@ -547,7 +547,7 @@
                 const d = new Date(m.timestamp);
                 const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
                 return `<div class="milestone-item">
-            <span class="milestone-icon">🏆</span>
+            <span class="milestone-icon">${pwIcon('trophy')}</span>
             <span class="milestone-text">${esc(m.label)}${m.details ? ': ' + esc(m.details) : ''}</span>
             <span class="milestone-date">${dateStr}</span>
         </div>`;

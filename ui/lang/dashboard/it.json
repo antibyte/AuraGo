@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "Nessun candidato memoria obsoleto",
   "dashboard.memory_curator_title": "Salute Memoria",
   "dashboard.memory_embeddings": "Incorporamenti",
-  "dashboard.memory_embeddings_disabled": "Incorporamenti ✗",
+  "dashboard.memory_embeddings_disabled": "Incorporamenti disabilitati",
   "dashboard.memory_episodic": "Episodi",
   "dashboard.memory_episodic_agent_user": "utente, agente",
   "dashboard.memory_episodic_empty": "Nessun episodio recente ancora",

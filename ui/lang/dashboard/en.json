@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "No stale memory candidates",
   "dashboard.memory_curator_title": "Memory Health",
   "dashboard.memory_embeddings": "Embeddings",
-  "dashboard.memory_embeddings_disabled": "Embeddings ✗",
+  "dashboard.memory_embeddings_disabled": "Embeddings disabled",
   "dashboard.memory_episodic": "Episodes",
   "dashboard.memory_episodic_agent_user": "user, agent",
   "dashboard.memory_episodic_empty": "No recent episodes yet",

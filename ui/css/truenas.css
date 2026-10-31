@@ -115,11 +115,11 @@
 }
 
 .pw-page[data-workspace-page="truenas"] .progress-fill.warning {
-    background: var(--warning, #f59e0b);
+    background: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="truenas"] .progress-fill.danger {
-    background: var(--danger,  #ef4444);
+    background: var(--pw-danger);
 }
 
 /* ── Section header ── */
@@ -320,18 +320,18 @@
 }
 
 .pw-page[data-workspace-page="truenas"] .alert-item.critical {
-    background: rgba(239,68,68,.1);
-    border-color: #ef4444;
+    background: color-mix(in srgb, var(--pw-danger) 12%, transparent);
+    border-color: var(--pw-danger);
 }
 
 .pw-page[data-workspace-page="truenas"] .alert-item.warning {
-    background: rgba(245,158,11,.1);
-    border-color: #f59e0b;
+    background: color-mix(in srgb, var(--pw-warning) 12%, transparent);
+    border-color: var(--pw-warning);
 }
 
 .pw-page[data-workspace-page="truenas"] .alert-item.info {
-    background: rgba(59,130,246,.1);
-    border-color: #3b82f6;
+    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
+    border-color: var(--pw-accent);
 }
 
 /* Dialogs use the shared .modal-overlay / .modal pattern (shared-components.css). */
@@ -404,25 +404,6 @@
 
 /* ── Responsive ── */
 
-@media (max-width: 600px) {
-    .pw-page[data-workspace-page="truenas"] .truenas-nav {
-        gap: var(--space-1);
-    }
-
-    .pw-page[data-workspace-page="truenas"] .nav-btn {
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--text-sm);
-    }
-
-    .pw-page[data-workspace-page="truenas"] .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .pw-page[data-workspace-page="truenas"] .pool-stats {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
 @media (max-width: 1024px) {
     .pw-page[data-workspace-page="truenas"] .stats-grid, .pw-page[data-workspace-page="truenas"] .pools-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -457,6 +438,19 @@
     .pw-page[data-workspace-page="truenas"][data-density="compact"] .pool-actions .btn, .pw-page[data-workspace-page="truenas"][data-density="compact"] .dataset-actions .btn, .pw-page[data-workspace-page="truenas"][data-density="compact"] .snapshot-actions .btn, .pw-page[data-workspace-page="truenas"][data-density="compact"] .share-actions .btn, .pw-page[data-workspace-page="truenas"][data-density="compact"] .form-actions .btn {
         min-width: 44px;
         min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="truenas"] .truenas-nav {
+        gap: var(--space-1);
+    }
+
+    .pw-page[data-workspace-page="truenas"] .nav-btn {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--text-sm);
+    }
+
+    .pw-page[data-workspace-page="truenas"] .pool-stats {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

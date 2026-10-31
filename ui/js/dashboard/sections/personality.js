@@ -52,7 +52,7 @@
             const badge = document.getElementById('mood-badge');
             const trigger = document.getElementById('mood-trigger');
             const nameLocalized = moodNameMap[data.mood] || data.mood;
-            if (badge) badge.textContent = '🎭 ' + nameLocalized;
+            if (badge) badge.textContent = nameLocalized;
             if (trigger && data.trigger) trigger.textContent = '"' + affectCauseLabel(data.trigger) + '"';
             renderCharacterNotes(data);
             renderAffectPanel(data);
@@ -75,11 +75,11 @@
                         dashSetHidden(causePill, !state.cause);
                     }
                     if (stylePill) {
-                        stylePill.textContent = state.recommended_response_style ? '✦ ' + state.recommended_response_style : '';
+                        stylePill.textContent = state.recommended_response_style ? state.recommended_response_style : '';
                         dashSetHidden(stylePill, !state.recommended_response_style);
                     }
                     if (sourcePill) {
-                        sourcePill.textContent = state.source ? '⚙ ' + state.source : '';
+                        sourcePill.textContent = state.source ? state.source : '';
                         dashSetHidden(sourcePill, !state.source);
                     }
                     if (emotionMeta) {

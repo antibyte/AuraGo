@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 Bildgalleri",
+  "gallery.title": "Bildgalleri",
   "gallery.subtitle": "Bildgalleri",
   "gallery.search_placeholder": "Sök prompts...",
   "gallery.all_providers": "Alla leverantörer",
@@ -15,7 +15,7 @@
   "gallery.duration": "Varaktighet",
   "gallery.cost": "Kostnad",
   "gallery.date": "Datum",
-  "gallery.download": "⬇ Ladda ner",
-  "gallery.delete": "🗑 Ta bort",
+  "gallery.download": "Ladda ner",
+  "gallery.delete": "Ta bort",
   "gallery.confirm_delete": "Är du säker på att du vill ta bort den här bilden?"
 }

@@ -51,10 +51,10 @@
             <div class="header-actions pw-page-heading-actions">
                 <div class="view-toggle" id="view-toggle">
                     <button type="button" data-view-mode="grid" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
-                        <span class="view-toggle-glyph" aria-hidden="true">▦</span>
+                        <span class="view-toggle-glyph" data-pw-icon="layout-grid" aria-hidden="true"></span>
                     </button>
                     <button type="button" data-view-mode="list" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
-                        <span class="view-toggle-glyph" aria-hidden="true">☰</span>
+                        <span class="view-toggle-glyph" data-pw-icon="list" aria-hidden="true"></span>
                     </button>
                 </div>
                 <button class="btn btn-primary" type="button" id="open-mission-modal-btn">
@@ -192,19 +192,19 @@
                         <div class="exec-type-selector">
                             <label class="exec-type-option" data-exec-type="manual">
                                 <input type="radio" name="exec-type" value="manual" checked>
-                                <span class="exec-icon">👆</span>
+                                <span class="exec-icon" data-pw-icon="pointer" aria-hidden="true"></span>
                                 <span class="exec-label" data-i18n="missions.form_exec_manual_label"></span>
                                 <span class="exec-desc" data-i18n="missions.form_exec_manual_desc"></span>
                             </label>
                             <label class="exec-type-option" data-exec-type="scheduled">
                                 <input type="radio" name="exec-type" value="scheduled">
-                                <span class="exec-icon">📅</span>
+                                <span class="exec-icon" data-pw-icon="calendar" aria-hidden="true"></span>
                                 <span class="exec-label" data-i18n="missions.form_exec_scheduled_label"></span>
                                 <span class="exec-desc" data-i18n="missions.form_exec_scheduled_desc"></span>
                             </label>
                             <label class="exec-type-option" data-exec-type="triggered">
                                 <input type="radio" name="exec-type" value="triggered">
-                                <span class="exec-icon">⚡</span>
+                                <span class="exec-icon" data-pw-icon="bolt" aria-hidden="true"></span>
                                 <span class="exec-label" data-i18n="missions.form_exec_triggered_label"></span>
                                 <span class="exec-desc" data-i18n="missions.form_exec_triggered_desc"></span>
                             </label>

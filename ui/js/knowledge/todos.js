@@ -65,17 +65,17 @@ function renderTodoSummary() {
         : 0;
 
     return [
-        summaryCard('📥', t('knowledge.todos_status_open'), openCount, t('knowledge.todos_filter_open'), 'open', activeFilter === 'open'),
-        summaryCard('⚙️', t('knowledge.todos_status_in_progress'), inProgressCount, t('knowledge.todos_filter_in_progress'), 'in_progress', activeFilter === 'in_progress'),
-        summaryCard('✅', t('knowledge.todos_status_done'), doneCount, t('knowledge.todos_filter_done'), 'done', activeFilter === 'done'),
-        summaryCard('📊', t('knowledge.todos_summary_progress'), avgProgress + '%', t('knowledge.todos_summary_total').replace('{count}', String(allTodos.length)), '', activeFilter === ''),
+        summaryCard('download', t('knowledge.todos_status_open'), openCount, t('knowledge.todos_filter_open'), 'open', activeFilter === 'open'),
+        summaryCard('settings', t('knowledge.todos_status_in_progress'), inProgressCount, t('knowledge.todos_filter_in_progress'), 'in_progress', activeFilter === 'in_progress'),
+        summaryCard('check-circle', t('knowledge.todos_status_done'), doneCount, t('knowledge.todos_filter_done'), 'done', activeFilter === 'done'),
+        summaryCard('chart', t('knowledge.todos_summary_progress'), avgProgress + '%', t('knowledge.todos_summary_total').replace('{count}', String(allTodos.length)), '', activeFilter === ''),
     ].join('');
 }
 
 function summaryCard(icon, label, value, subtext, filterValue, isActive) {
     return `
         <button type="button" class="kc-todo-summary-card ${isActive ? 'is-active' : ''}" onclick='applyTodoSummaryFilter(${quoteJS(filterValue || "")})'>
-            <div class="kc-todo-summary-label"><span>${icon}</span><span>${esc(label)}</span></div>
+            <div class="kc-todo-summary-label"><span>${pwIcon(icon)}</span><span>${esc(label)}</span></div>
             <div class="kc-todo-summary-value">${esc(String(value))}</div>
             <div class="kc-todo-summary-subtext">${esc(subtext || '')}</div>
         </button>
@@ -101,7 +101,7 @@ function renderTodoCard(todo) {
     // Collapse checklist by default for compactness; only auto-open when actively in progress
     const detailsOpen = todo.status === 'in_progress' && hasItems && !isDone;
     const reminderBadge = todo.remind_daily
-        ? `<span class="kc-status-pill kc-todo-reminder" title="${esc(t('knowledge.todos_remind_daily_label'))}">🔔</span>`
+        ? `<span class="kc-status-pill kc-todo-reminder" title="${esc(t('knowledge.todos_remind_daily_label'))}">${pwIcon('bell')}</span>`
         : '';
 
     const itemsLabel = hasItems
@@ -123,8 +123,8 @@ function renderTodoCard(todo) {
                 ${reminderBadge}
                 <div class="kc-todo-actions">
                     ${!isDone && todo.status !== 'in_progress' ? `<button class="btn btn-sm btn-secondary" onclick='setTodoInProgress(${quoteJS(todo.id)})' title="${esc(t('knowledge.todos_start'))}">▶️</button>` : ''}
-                    <button class="kc-icon-btn" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}">${typeof svgIcon === 'function' ? svgIcon('edit') : '✏️'}</button>
-                    <button class="kc-icon-btn kc-icon-btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}">${typeof svgIcon === 'function' ? svgIcon('delete') : '🗑️'}</button>
+                    <button class="kc-icon-btn" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}" aria-label="${esc(t('common.btn_edit'))}">${svgIcon('edit')}</button>
+                    <button class="kc-icon-btn kc-icon-btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}" aria-label="${esc(t('common.btn_delete'))}">${svgIcon('delete')}</button>
                 </div>
             </div>
             ${todo.description ? `<p class="kc-todo-desc">${esc(todo.description)}</p>` : ''}
@@ -134,9 +134,9 @@ function renderTodoCard(todo) {
                 </div>
                 <span class="kc-todo-progress-text">${progress}%</span>
                 <span class="kc-todo-meta-divider" aria-hidden="true"></span>
-                <span class="kc-todo-meta-item" title="${esc(t('knowledge.todos_items_label'))}">☑️ ${itemsLabel}</span>
-                ${due ? `<span class="kc-todo-meta-item ${isOverdue ? 'kc-todo-overdue-text' : ''}" title="${esc(due)}">📅 ${esc(due)}</span>` : ''}
-                <span class="kc-todo-meta-item kc-todo-created" title="${esc(formatTodoDate(todo.created_at))}">🕐 ${esc(formatTodoDate(todo.created_at))}</span>
+                <span class="kc-todo-meta-item" title="${esc(t('knowledge.todos_items_label'))}">${pwIcon('check-square')} ${itemsLabel}</span>
+                ${due ? `<span class="kc-todo-meta-item ${isOverdue ? 'kc-todo-overdue-text' : ''}" title="${esc(due)}">${pwIcon('calendar')} ${esc(due)}</span>` : ''}
+                <span class="kc-todo-meta-item kc-todo-created" title="${esc(formatTodoDate(todo.created_at))}">${pwIcon('clock')} ${esc(formatTodoDate(todo.created_at))}</span>
             </div>
             ${hasItems ? renderTodoItems(todo, detailsOpen) : ''}
         </div>
@@ -289,7 +289,7 @@ function renderTodoDraftItems() {
             <div class="kc-todo-editor-actions">
                 <button type="button" class="btn btn-sm btn-secondary" onclick="moveTodoDraftItem(${index}, -1)" title="${esc(t('knowledge.todos_item_move_up'))}" ${index === 0 ? 'disabled' : ''}>↑</button>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="moveTodoDraftItem(${index}, 1)" title="${esc(t('knowledge.todos_item_move_down'))}" ${index === todoDraftItems.length - 1 ? 'disabled' : ''}>↓</button>
-                <button type="button" class="btn btn-sm btn-danger" onclick="removeTodoDraftItem(${index})" title="${esc(t('knowledge.todos_item_remove'))}">✕</button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeTodoDraftItem(${index})" title="${esc(t('knowledge.todos_item_remove'))}" aria-label="${esc(t('knowledge.todos_item_remove'))}">${pwIcon('x')}</button>
             </div>
         </div>
     `).join('');

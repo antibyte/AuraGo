@@ -450,7 +450,7 @@
   "dashboard.memory_curator_no_stale": "कोई पुराने मेमोरी उम्मीदवार नहीं",
   "dashboard.memory_curator_title": "मेमोरी स्वास्थ्य",
   "dashboard.memory_embeddings": "एम्बेडिंग",
-  "dashboard.memory_embeddings_disabled": "एम्बेडिंग ✗",
+  "dashboard.memory_embeddings_disabled": "एम्बेडिंग अक्षम",
   "dashboard.memory_episodic": "एपिसोड",
   "dashboard.memory_episodic_agent_user": "उपयोगकर्ता, एजेंट",
   "dashboard.memory_episodic_empty": "अभी तक कोई हालिया एपिसोड नहीं",

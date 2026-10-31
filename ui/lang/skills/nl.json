@@ -162,7 +162,7 @@
   "skills.import_hint": "Kies een geëxporteerd .aurago-skill.json-bestand.",
   "skills.import_success": "Skill geïmporteerd",
   "skills.import_title": "Vaardigheidspakket importeren",
-  "skills.internal_tools_bridge_disabled": "De Python Tool Bridge is niet ingeschakeld of er zijn geen tools geconfigureerd. Schakel het in via Instellingen → 🧩 Skill Manager.",
+  "skills.internal_tools_bridge_disabled": "De Python Tool Bridge is niet ingeschakeld of er zijn geen tools geconfigureerd. Schakel het in via Instellingen → Skill Manager.",
   "skills.internal_tools_label": "Interne tools",
   "skills.internal_tools_modal_desc": "Selecteer de native AuraGo-tools die deze skill via de tool bridge mag aanroepen tijdens uitvoering.",
   "skills.internal_tools_modal_save": "Opslaan",

@@ -1,5 +1,5 @@
 {
-  "gallery.title": "🎨 Galerie obrázků",
+  "gallery.title": "Galerie obrázků",
   "gallery.subtitle": "Galerie obrázků",
   "gallery.search_placeholder": "Hledat prompty...",
   "gallery.all_providers": "Všichni poskytovatelé",
@@ -15,7 +15,7 @@
   "gallery.duration": "Doba trvání",
   "gallery.cost": "Cena",
   "gallery.date": "Datum",
-  "gallery.download": "⬇ Stáhnout",
-  "gallery.delete": "🗑 Smazat",
+  "gallery.download": "Stáhnout",
+  "gallery.delete": "Smazat",
   "gallery.confirm_delete": "Opravdu chcete tento obrázek smazat?"
 }

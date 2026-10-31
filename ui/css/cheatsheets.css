@@ -241,7 +241,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.7rem;
+    font-size: var(--pw-font-2xs);
     margin-top: 3px;
 }
 
@@ -390,7 +390,7 @@
     padding: 2px var(--space-2);
     border-radius: var(--radius-sm);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.85em;
+    font-size: var(--pw-font-sm);
 }
 
 .pw-page[data-workspace-page="cheatsheets"] .md-preview pre {
@@ -613,10 +613,6 @@
     background-image: none;
     color: var(--pw-text);
     box-shadow: none;
-}
-
-.pw-page[data-workspace-page="cheatsheets"] .modal {
-    background-image: none;
 }
 
 @media (max-width: 768px) {

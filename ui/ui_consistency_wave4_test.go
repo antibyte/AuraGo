@@ -360,6 +360,8 @@ func TestUIWave4IconSetIsCompleteAndSelfContained(t *testing.T) {
 		"chevrons-left", "chevrons-right", "layout-grid", "list", "external", "paperclip", "bell", "users", "pointer",
 		"info", "alert", "check-circle", "x-circle", "cpu", "nest", "image", "music", "phone", "camera", "radio",
 		"check-square", "file-code", "table",
+		"activity", "folder-open", "file", "network", "mail", "mic", "terminal", "save", "zap", "flask", "bulb", "moon", "sun",
+		"gamepad", "arrow-left", "arrow-right", "arrow-up", "loader", "circle", "sparkles", "building", "tag", "heart", "chevron-down",
 	} {
 		if !names[want] {
 			t.Errorf("icons.js is missing icon %q", want)
@@ -463,3 +465,76 @@ func TestUIWave4WorkspaceDelegatesFocusTrapToSharedController(t *testing.T) {
 		}
 	}
 }
+
+// The shared `.pw-page.pw-operational-page .is-hidden` rule is !important, so an
+// element that ships with is-hidden can only be revealed by removing the class;
+// an inline style.display = 'block' silently does nothing.
+//
+// Best effort, static: it finds ids of elements with is-hidden in an operational
+// page's HTML and flags page JS that assigns a value other than 'none' to
+// getElementById('<id>').style.display or to a variable declared as
+// `const/let/var x = document.getElementById('<id>')`. It does not follow
+// querySelector, helper functions that receive the element, or re-bound
+// variables.
+func TestUIWave4HiddenElementsAreNotRevealedThroughInlineDisplay(t *testing.T) {
+	t.Parallel()
+	tagRe := regexp.MustCompile(`<[a-zA-Z][^>]*>`)
+	idRe := regexp.MustCompile(`\bid="([^"]+)"`)
+	classRe := regexp.MustCompile(`\bclass="([^"]*)"`)
+	for page, script := range wave4OperationalPages {
+		var sources []string
+		switch {
+		case script == "":
+			sources = wave4DashboardJS(t)
+		case strings.HasSuffix(script, "/main.js") && page == "knowledge.html":
+			sources = wave4JSInDir(t, "js/knowledge")
+		default:
+			sources = []string{script}
+		}
+		var js strings.Builder
+		for _, src := range sources {
+			js.WriteString(wave4ReadText(t, src))
+			js.WriteString("\n")
+		}
+		code := js.String()
+		for _, tag := range tagRe.FindAllString(wave4ReadText(t, page), -1) {
+			idm, clm := idRe.FindStringSubmatch(tag), classRe.FindStringSubmatch(tag)
+			if idm == nil || clm == nil || !regexp.MustCompile(`(^|\s)is-hidden(\s|$)`).MatchString(clm[1]) {
+				continue
+			}
+			id := regexp.QuoteMeta(idm[1])
+			direct := regexp.MustCompile(`getElementById\(\s*['"]` + id + `['"]\s*\)\??\.style\.display\s*=\s*([^;]+);`)
+			for _, m := range direct.FindAllStringSubmatch(code, -1) {
+				if v := strings.TrimSpace(m[1]); v != "'none'" && v != `"none"` {
+					t.Errorf("%s: #%s carries is-hidden but %s sets style.display = %s; toggle the class instead", page, idm[1], script, v)
+				}
+			}
+			bound := regexp.MustCompile(`(?:const|let|var)\s+(\w+)\s*=\s*document\.getElementById\(\s*['"]` + id + `['"]\s*\)`)
+			for _, b := range bound.FindAllStringSubmatch(code, -1) {
+				assign := regexp.MustCompile(`\b` + regexp.QuoteMeta(b[1]) + `\??\.style\.display\s*=\s*([^;]+);`)
+				for _, m := range assign.FindAllStringSubmatch(code, -1) {
+					if v := strings.TrimSpace(m[1]); v != "'none'" && v != `"none"` {
+						t.Errorf("%s: #%s carries is-hidden but %s sets %s.style.display = %s; toggle the class instead", page, idm[1], script, b[1], v)
+					}
+				}
+			}
+		}
+	}
+}
+
+func wave4JSInDir(t *testing.T, dir string) []string {
+	t.Helper()
+	var out []string
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(path, ".js") {
+			out = append(out, filepath.ToSlash(path))
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func wave4DashboardJS(t *testing.T) []string { return wave4JSInDir(t, "js/dashboard") }

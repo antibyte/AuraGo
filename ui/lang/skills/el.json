@@ -162,7 +162,7 @@
   "skills.import_hint": "Επιλέξτε ένα εξαγμένο πακέτο .aurago-skill.json.",
   "skills.import_success": "Η δεξιότητα εισήχθη",
   "skills.import_title": "Εισαγωγή πακέτου δεξιοτήτων",
-  "skills.internal_tools_bridge_disabled": "Το Python Tool Bridge δεν είναι ενεργοποιημένο ή δεν έχουν ρυθμιστεί εργαλεία. Ενεργοποιήστε το στις Ρυθμίσεις → 🧩 Skill Manager.",
+  "skills.internal_tools_bridge_disabled": "Το Python Tool Bridge δεν είναι ενεργοποιημένο ή δεν έχουν ρυθμιστεί εργαλεία. Ενεργοποιήστε το στις Ρυθμίσεις → Skill Manager.",
   "skills.internal_tools_label": "Εσωτερικά εργαλεία",
   "skills.internal_tools_modal_desc": "Επιλέξτε τα εγγενή εργαλεία AuraGo που επιτρέπεται στο skill να καλεί μέσω της γέφυρας εργαλείων κατά την εκτέλεση.",
   "skills.internal_tools_modal_save": "Αποθήκευση",

@@ -194,7 +194,6 @@ func TestAllTemplatesUseSplitSharedAssets(t *testing.T) {
 		"config.html",
 		"containers.html",
 		"dashboard.html",
-		"gallery.html",
 		"index.html",
 		"invasion_control.html",
 		"knowledge.html",

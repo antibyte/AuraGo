@@ -38,11 +38,11 @@
             const bgActive = (bgSummary.queued || 0) + (bgSummary.waiting || 0) + (bgSummary.running || 0);
 
             statsEl.innerHTML = [
-                { icon: '⏰', val: cronCount, lbl: t('dashboard.activity_scheduled') },
-                { icon: '🔄', val: procCount, lbl: t('dashboard.activity_processes') },
-                { icon: '🔗', val: whCount, lbl: t('dashboard.activity_webhooks') },
-                { icon: '🤖', val: coCount, lbl: t('dashboard.activity_coagents') },
-                { icon: '🗂️', val: bgActive, lbl: t('dashboard.activity_background') },
+                { icon: pwIcon('clock'), val: cronCount, lbl: t('dashboard.activity_scheduled') },
+                { icon: pwIcon('refresh'), val: procCount, lbl: t('dashboard.activity_processes') },
+                { icon: pwIcon('link'), val: whCount, lbl: t('dashboard.activity_webhooks') },
+                { icon: pwIcon('bot'), val: coCount, lbl: t('dashboard.activity_coagents') },
+                { icon: pwIcon('folder'), val: bgActive, lbl: t('dashboard.activity_background') },
             ].map(s =>
                 `<div class="activity-stat">
             <div class="activity-stat-icon">${s.icon}</div>
@@ -55,7 +55,7 @@
 
             // Cron Jobs
             if (cronCount > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">⏰ ' + t('dashboard.activity_scheduled_tasks') + '</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">' + pwIcon('clock') + ' ' + t('dashboard.activity_scheduled_tasks') + '</div>';
                 for (const job of data.cron_jobs) {
                     // Text positions take esc, the data-cron-* attributes escAttr (a prompt may contain quotes).
                     const safeId     = esc(job.id || 'unknown');
@@ -90,7 +90,7 @@
 
             // Processes
             if (procCount > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">🔄 ' + t('dashboard.activity_running_processes') + '</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">' + pwIcon('refresh') + ' ' + t('dashboard.activity_running_processes') + '</div>';
                 for (const p of data.processes) {
                     const alive = p.alive ? 'pill-running' : 'pill-idle';
                     details += `<div class="activity-item">
@@ -104,7 +104,7 @@
 
             // Co-Agents
             if (coCount > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">🤖 ' + t('dashboard.activity_coagents') + '</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">' + pwIcon('bot') + ' ' + t('dashboard.activity_coagents') + '</div>';
                 for (const ca of data.coagents) {
                     const stateMap = {
                         queued: t('dashboard.activity_coagent_queued'),
@@ -134,7 +134,7 @@
 
             // Background Tasks
             if (bgTasks.length > 0) {
-                details += '<div class="activity-section"><div class="activity-section-title">🗂️ ' + t('dashboard.activity_background_tasks') + '</div>';
+                details += '<div class="activity-section"><div class="activity-section-title">' + pwIcon('folder') + ' ' + t('dashboard.activity_background_tasks') + '</div>';
                 for (const task of bgTasks) {
                     const status = String(task.status || 'queued');
                     const ruleBlocked = status === 'blocked' && (task.last_error === 'action_rule_required' || String(task.last_error || '').startsWith('action_rule_required:'));

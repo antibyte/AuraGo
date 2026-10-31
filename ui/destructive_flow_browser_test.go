@@ -15,6 +15,7 @@ import (
 type destructiveFlowFixture struct {
 	html         string
 	sharedJS     string
+	iconsJS      string
 	containersJS string
 }
 
@@ -38,6 +39,7 @@ func newDestructiveFlowFixture(t *testing.T) *destructiveFlowFixture {
 	return &destructiveFlowFixture{
 		html:         html,
 		sharedJS:     read(filepath.Join(".", "shared.js")),
+		iconsJS:      read(filepath.Join(".", "js", "precision", "icons.js")),
 		containersJS: read(filepath.Join(".", "js", "containers", "main.js")),
 	}
 }
@@ -193,9 +195,9 @@ func TestContainersDestructiveDeleteFlowContract(t *testing.T) {
 func TestGalleryDestructiveDeleteFlowContract(t *testing.T) {
 	t.Parallel()
 
-	html, err := os.ReadFile(filepath.Join(".", "gallery.html"))
+	html, err := os.ReadFile(filepath.Join(".", "media.html"))
 	if err != nil {
-		t.Fatalf("read gallery.html: %v", err)
+		t.Fatalf("read media.html: %v", err)
 	}
 	js, err := os.ReadFile(filepath.Join(".", "js", "gallery", "main.js"))
 	if err != nil {
@@ -204,14 +206,23 @@ func TestGalleryDestructiveDeleteFlowContract(t *testing.T) {
 
 	htmlText := string(html)
 	jsText := string(js)
+	// The standalone gallery page and its page-level delete modal are gone; the
+	// media lightbox is the only delete surface and confirms through showConfirm.
 	for _, marker := range []string{
-		`id="gallery-delete-confirm-btn"`,
-		`onclick="confirmDeleteGallery()"`,
 		`id="lightbox-delete"`,
+		`onclick="galleryDeleteCurrent()"`,
 	} {
 		if !strings.Contains(htmlText, marker) {
 			t.Fatalf("gallery delete flow is missing stable destructive-flow marker %q", marker)
 		}
+	}
+	for _, dead := range []string{`id="delete-modal"`, `id="gallery-delete-confirm-btn"`, `confirmDeleteGallery`} {
+		if strings.Contains(htmlText, dead) || strings.Contains(jsText, dead) {
+			t.Fatalf("dead gallery delete modal path %q must stay removed", dead)
+		}
+	}
+	if _, err := os.Stat("gallery.html"); err == nil {
+		t.Fatal("gallery.html is removed; /gallery redirects to /media")
 	}
 	for _, marker := range []string{
 		"let galleryDeleteInFlight = false;",
@@ -220,7 +231,6 @@ func TestGalleryDestructiveDeleteFlowContract(t *testing.T) {
 		"setGalleryDeleteBusy(true);",
 		"setGalleryDeleteBusy(false);",
 		"function setGalleryDeleteBusy(busy)",
-		"confirmBtn.disabled = busy;",
 		"lightboxBtn.disabled = busy;",
 	} {
 		if !strings.Contains(jsText, marker) {
@@ -524,6 +534,9 @@ func (f *destructiveFlowFixture) loadContainersPage(t *testing.T, page *rod.Page
 	}
 	if err := page.AddScriptTag("", f.sharedJS); err != nil {
 		t.Fatalf("install shared.js: %v", err)
+	}
+	if err := page.AddScriptTag("", f.iconsJS); err != nil {
+		t.Fatalf("install icons.js: %v", err)
 	}
 	if err := page.AddScriptTag("", f.containersJS); err != nil {
 		t.Fatalf("install containers main.js: %v", err)

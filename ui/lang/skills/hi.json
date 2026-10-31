@@ -162,7 +162,7 @@
   "skills.import_hint": "एक निर्यात किया गया .aurago-skill.json बंडल चुनें।",
   "skills.import_success": "कौशल आयात किया गया",
   "skills.import_title": "कौशल बंडल आयात करें",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge सक्षम नहीं है या कोई टूल कॉन्फ़िगर नहीं हैं। इसे सेटिंग्स → 🧩 Skill Manager में सक्षम करें।",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge सक्षम नहीं है या कोई टूल कॉन्फ़िगर नहीं हैं। इसे सेटिंग्स → Skill Manager में सक्षम करें।",
   "skills.internal_tools_label": "आंतरिक टूल्स",
   "skills.internal_tools_modal_desc": "AuraGo के नेटिव टूल्स चुनें जिन्हें यह स्किल रनटाइम पर टूल ब्रिज के माध्यम से कॉल कर सकती है।",
   "skills.internal_tools_modal_save": "सहेजें",

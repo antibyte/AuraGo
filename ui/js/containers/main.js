@@ -1,5 +1,5 @@
 /* AuraGo – Containers page JS */
-/* global I18N, t, applyI18n, esc, escAttr */
+/* global I18N, t, applyI18n, esc, escAttr, pwIcon */
 'use strict';
 
 let allContainers = [];
@@ -366,15 +366,15 @@ function renderCard(c) {
     let actionBtns = '';
     if (isRunning) {
         actionBtns = `
-            <button class="btn btn-sm btn-secondary" onclick="containerAction(${safeID},'stop')" data-i18n="containers.btn_stop">⏹ Stop</button>
-            <button class="btn btn-sm btn-secondary" onclick="containerAction(${safeID},'restart')" data-i18n="containers.btn_restart">🔄 Restart</button>
-            <button class="btn btn-sm btn-primary" onclick="showTerminal(${safeID}, ${terminalName})" data-i18n="containers.btn_shell">⌨ Shell</button>`;
+            <button class="btn btn-sm btn-secondary" onclick="containerAction(${safeID},'stop')">${pwIcon('stop')} <span data-i18n="containers.btn_stop"></span></button>
+            <button class="btn btn-sm btn-secondary" onclick="containerAction(${safeID},'restart')">${pwIcon('refresh')} <span data-i18n="containers.btn_restart"></span></button>
+            <button class="btn btn-sm btn-primary" onclick="showTerminal(${safeID}, ${terminalName})">${pwIcon('code')} <span data-i18n="containers.btn_shell"></span></button>`;
     } else if (isPaused) {
         actionBtns = `
-            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'unpause')" data-i18n="containers.btn_unpause">▶ Resume</button>`;
+            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'unpause')">${pwIcon('play')} <span data-i18n="containers.btn_unpause"></span></button>`;
     } else {
         actionBtns = `
-            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')" data-i18n="containers.btn_start">▶ Start</button>`;
+            <button class="btn btn-sm btn-primary" onclick="containerAction(${safeID},'start')">${pwIcon('play')} <span data-i18n="containers.btn_start"></span></button>`;
     }
 
     return `
@@ -386,15 +386,15 @@ function renderCard(c) {
             <span class="ct-card-id">${esc(c.id)}</span>
         </div>
         <div class="ct-card-meta">
-            <span><span class="ct-meta-icon">📦</span> ${esc(c.image)}</span>
-            <span><span class="ct-meta-icon">📋</span> <span class="ct-card-state pw-badge ${stateClass}" data-status="${stateBadgeStatus(stateClass)}">${esc(c.status)}</span></span>
+            <span><span class="ct-meta-icon">${pwIcon('package')}</span> ${esc(c.image)}</span>
+            <span><span class="ct-card-state pw-badge ${stateClass}" data-status="${stateBadgeStatus(stateClass)}">${esc(c.status)}</span></span>
         </div>
         <div class="ct-card-actions">
             ${actionBtns}
-            <button class="btn btn-sm btn-secondary" onclick="showUpdateModal(${safeID}, ${updateName})" data-i18n="containers.btn_update">⬇ Update</button>
-            <button class="btn btn-sm btn-secondary" onclick="showLogs(${safeID})" data-i18n="containers.btn_logs">📄 Logs</button>
-            <button class="btn btn-sm btn-secondary" onclick="showInspect(${safeID})" data-i18n="containers.btn_inspect">🔍 Inspect</button>
-            <button class="btn btn-sm btn-danger" onclick="showDeleteModal(${deleteId}, ${deleteName})" data-i18n="containers.btn_remove">🗑 Remove</button>
+            <button class="btn btn-sm btn-secondary" onclick="showUpdateModal(${safeID}, ${updateName})">${pwIcon('download')} <span data-i18n="containers.btn_update"></span></button>
+            <button class="btn btn-sm btn-secondary" onclick="showLogs(${safeID})">${pwIcon('doc')} <span data-i18n="containers.btn_logs"></span></button>
+            <button class="btn btn-sm btn-secondary" onclick="showInspect(${safeID})">${pwIcon('search')} <span data-i18n="containers.btn_inspect"></span></button>
+            <button class="btn btn-sm btn-danger" onclick="showDeleteModal(${deleteId}, ${deleteName})">${pwIcon('trash')} <span data-i18n="containers.btn_remove"></span></button>
         </div>
     </div>`;
 }
