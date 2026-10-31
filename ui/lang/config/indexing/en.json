@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Folder whose files are indexed, as an absolute path or relative to the AuraGo folder. Subfolders are included. Add it with the button or Enter.",
   "config.indexing.chunk_max_chars_help": "Maximum length of a single text chunk in characters. Smaller chunks give more precise hits, larger ones more context. Default: 3500.",
   "config.indexing.chunk_overlap_help": "Characters shared between neighboring chunks so that sentences at the borders are not cut off. Default: 200.",
-  "config.indexing.chunk_max_chunks_help": "Maximum number of chunks created per file; the rest of very large files is skipped. Default: 200."
+  "config.indexing.chunk_max_chunks_help": "Maximum number of chunks created per file; the rest of very large files is skipped. Default: 200.",
+  "config.indexing.dir_empty": "Enter the path of the folder to index first."
 }

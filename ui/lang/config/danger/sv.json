@@ -18,7 +18,7 @@
   "config.danger.package_manager.title": "Pakethantering (package_manager)",
   "config.danger.package_manager.desc": "Tillåter agenten att installera, ta bort, uppdatera, söka och inspektera systempaket. Linux-ändringar använder sudo_password från valvet.",
   "config.danger.mcp.title": "MCP-serveranslutningar (mcp_call)",
-  "config.danger.mcp.desc": "Tillåter agenten att ansluta till externa MCP-servrar och använda deras verktyg. <strong style=\"color:#f87171;\">⚠ Lägg bara till betrodda servrar!</strong>",
+  "config.danger.mcp.desc": "Tillåter agenten att ansluta till externa MCP-servrar och använda deras verktyg. <strong style=\"color:#f87171;\">Lägg bara till betrodda servrar!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemomfattande sudo-skrivåtkomst",
   "config.danger.sudo_unrestricted.desc": "Tillåter agenten att skriva utanför installationskatalogen med sudo (t.ex. /etc.). Kräver borttagning av ProtectSystem=strict från systemd-tjänsteenheten.",
   "config.danger.unsafe_host_execution.title": "Osäker körning på värden",

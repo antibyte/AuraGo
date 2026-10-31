@@ -439,8 +439,6 @@
   "config.github.test_ok": "Połączenie udane",
   "config.github.test_fail": "Połączenie nieudane",
   "config.github.loading": "Testowanie…",
-  "config.github.status_success": "✅",
-  "config.github.status_error": "❌",
   "config.group_title.agent.announcement_detector": "Korekta odpowiedzi",
   "config.group_title.agent.importance_scoring": "Ocena ważności",
   "config.group_title.agent.auto_learning": "Automatyczne uczenie",

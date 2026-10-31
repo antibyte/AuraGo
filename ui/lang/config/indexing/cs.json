@@ -94,5 +94,6 @@
   "config.indexing.chunk_max_chunks_help": "Maximální počet bloků vytvořených na soubor; zbytek velmi velkých souborů se přeskočí. Výchozí: 200.",
   "config.indexing.chunk_overlap_help": "Znaky sdílené sousedními bloky, aby věty na hranicích nebyly useknuty. Výchozí: 200.",
   "config.indexing.dir_help": "Složka, jejíž soubory se indexují, jako absolutní cesta nebo relativně ke složce AuraGo. Podsložky jsou zahrnuty. Přidejte ji tlačítkem nebo klávesou Enter.",
-  "config.indexing.dir_label": "Sledovaný adresář"
+  "config.indexing.dir_label": "Sledovaný adresář",
+  "config.indexing.dir_empty": "Zadejte nejprve cestu ke složce, kterou chcete indexovat."
 }

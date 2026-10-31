@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Kunde inte läsa in cheatsheets",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet med instruktioner",
   "config.agentmail.relay_cheatsheet_none": "Bifoga inget cheatsheet",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "AgentMail-integrationen är avstängd",
   "config.agentmail.status_no_api_key": "Ingen API-nyckel konfigurerad",
   "config.agentmail.status_no_inbox": "Relä kräver ett primärt inkorgs-ID",

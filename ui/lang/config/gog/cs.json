@@ -59,5 +59,6 @@
   "config.gog.enabled_help": "Zapne propojení gog s účty Google. Přidává další účty k vestavěné integraci Google Workspace.",
   "config.gog.name_help": "Zobrazované jméno účtu, například „Osobní“ nebo „Práce“.",
   "config.gog.readonly_help": "Agent smí přes gog pouze číst. Vytváření, změny, mazání a odesílání zůstávají blokovány, i když je účet povoluje.",
-  "config.gog.secret_help": "Client secret klienta OAuth. „Uložit do Vaultu“ jej uloží šifrovaně; znovu se nezobrazí."
+  "config.gog.secret_help": "Client secret klienta OAuth. „Uložit do Vaultu“ jej uloží šifrovaně; znovu se nezobrazí.",
+  "config.gog.limit_reached": "Podporováno je nejvýše {max} účtů. Před přidáním dalšího jeden odeberte."
 }

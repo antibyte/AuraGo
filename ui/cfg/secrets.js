@@ -24,8 +24,21 @@
 
         let secretsCache = [];
 
-        function secretsEsc(v) {
-            return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        // This module also renders on the knowledge page, which has no config helpers: load the
+        // shared icon/dialog helpers on demand, and size icons explicitly (the config icon CSS is page scoped).
+        function secretsEnsureHelpers() {
+            if (typeof window.cfgModal === 'function' && typeof window.cfgIcon === 'function') return Promise.resolve();
+            const load = src => new Promise(resolve => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = script.onerror = () => resolve();
+                document.head.appendChild(script);
+            });
+            return load('/js/config/icons.js').then(() => load('/js/config/components.js'));
+        }
+
+        function secretsIcon(name) {
+            return typeof window.cfgIcon === 'function' ? window.cfgIcon(name, { size: 16 }) : '';
         }
 
         async function secretsErrorText(resp) {
@@ -54,6 +67,7 @@
 
         async function renderSecretsSection(section) {
             // Support rendering into a custom container (e.g. knowledge center)
+            await secretsEnsureHelpers();
             const containerId = section.container || 'content';
             const content = document.getElementById(containerId);
             if (!content) return;
@@ -91,20 +105,14 @@
 
             if (vaultStatus === 'unknown') {
                 const statusEl = document.getElementById('secrets-vault-status');
-                statusEl.innerHTML = `
-                    <div class="secrets-empty secrets-empty-warning" role="status">
-                        <div class="secrets-empty-icon">⚠️</div>
-                        <div class="secrets-empty-title">${t('config.secrets.vault_status_unknown')}</div>
-                        <button type="button" class="btn btn-secondary btn-sm" data-secrets-vault-retry>${t('config.refresh.retry')}</button>
-                    </div>`;
-                statusEl.querySelector('[data-secrets-vault-retry]').addEventListener('click', () => renderSecretsSection(section), { once: true });
+                cfgListState(statusEl, { state: 'error', title: t('config.secrets.vault_status_unknown'), retry: () => renderSecretsSection(section) });
                 return;
             }
 
             if (vaultStatus === 'absent') {
                 document.getElementById('secrets-vault-status').innerHTML = `
                     <div class="secrets-empty secrets-empty-warning">
-                        <div class="secrets-empty-icon">⚠️</div>
+                        <div class="secrets-empty-icon">${secretsIcon('alert')}</div>
                         <div class="secrets-empty-title">${t('config.secrets.no_vault')}</div>
                         <div class="secrets-meta secrets-empty-desc">
                             ${t('config.secrets.no_vault_desc')}
@@ -118,16 +126,12 @@
                 const resp = await fetch('/api/vault/secrets');
                 if (!resp.ok) {
                     const txt = await resp.text();
-                    document.getElementById('secrets-main').innerHTML = `
-                        <div class="secrets-error">
-                            ❌ ${t('config.secrets.load_error')}: ${secretsEsc(txt)}
-                        </div>`;
+                    cfgListState('secrets-main', { state: 'error', title: t('config.secrets.load_error'), text: txt, retry: () => renderSecretsSection(section) });
                     return;
                 }
                 secretsCache = await resp.json();
             } catch (e) {
-                document.getElementById('secrets-main').innerHTML = `
-                    <div class="secrets-error">❌ ${secretsEsc(e.message)}</div>`;
+                cfgListState('secrets-main', { state: 'error', title: t('config.secrets.load_error'), text: e.message, retry: () => renderSecretsSection(section) });
                 return;
             }
             secretsRenderTable();
@@ -144,15 +148,13 @@
                     ${secretsCache.length} ${t('config.secrets.count')}
                     </div>
                     <button class="btn-save secrets-btn-small" onclick="secretsShowAddModal()">
-                    ＋ ${t('config.secrets.new_secret')}
+                    ${secretsIcon('plus')} ${t('config.secrets.new_secret')}
                     </button>
                 </div>
             </div>`;
 
             if (secretsCache.length === 0) {
-                html += `<div class="secrets-empty secrets-empty-neutral">
-                    ${t('config.secrets.empty')}
-                </div>`;
+                html += '<div id="secrets-list-state"></div>';
             } else {
                 html += `<div class="kc-table-wrap"><table class="kc-table">
                     <thead><tr>
@@ -162,13 +164,13 @@
                     <tbody>`;
                 secretsCache.forEach((s, idx) => {
                     const isSystem = s.key.startsWith('egg_') || s.key.startsWith('nest_') || s.key.startsWith('dev-') || s.key.startsWith('egg_shared_');
-                    const badge = isSystem ? `<span class="secrets-system-badge">${t('config.secrets.system_badge')}</span>` : '';
+                    const badge = isSystem ? cfgBadge('idle', t('config.secrets.system_badge')) : '';
                     html += `<tr>
                         <td class="kc-mono">${escapeAttr(s.key)}${badge}</td>
                         <td class="secrets-table-actions">
                             <div class="kc-actions secrets-actions">
-                                <button class="btn btn-secondary btn-sm" onclick="secretsEdit(${idx})" title="${t('config.secrets.edit')}" aria-label="${escapeAttr(t('config.secrets.edit') + ': ' + s.key)}">✏️</button>
-                                <button class="btn btn-danger btn-sm" onclick="secretsDelete(${idx})" title="${t('config.secrets.delete')}" aria-label="${escapeAttr(t('config.secrets.delete') + ': ' + s.key)}">🗑️</button>
+                                <button class="btn btn-secondary btn-sm" onclick="secretsEdit(${idx})" title="${t('config.secrets.edit')}" aria-label="${escapeAttr(t('config.secrets.edit') + ': ' + s.key)}">${secretsIcon('edit')}</button>
+                                ${cfgDeleteButton({ iconOnly: true, label: t('config.secrets.delete') + ': ' + s.key, attrs: { onclick: 'secretsDelete(' + idx + ')' } })}
                             </div>
                         </td>
                     </tr>`;
@@ -176,23 +178,16 @@
                 html += '</tbody></table></div>';
             }
             wrap.innerHTML = html;
+            if (secretsCache.length === 0) cfgListState('secrets-list-state', { state: 'empty', title: t('config.secrets.empty') });
         }
 
+        const SECRETS_DIALOG = 'secrets-dialog';
+
         function secretsShowModal(title, keyVal, valueVal, keyEditable, onSave) {
-            const existing = document.getElementById('secrets-modal-overlay');
+            const existing = document.getElementById(SECRETS_DIALOG);
             if (existing) existing.remove();
 
-            const overlay = document.createElement('div');
-            overlay.id = 'secrets-modal-overlay';
-            overlay.className = 'modal-overlay open active';
-            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-            overlay.innerHTML = `
-            <div class="modal-card secrets-modal-card" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <h2>${title}</h2>
-                    <button type="button" class="modal-close" onclick="document.getElementById('secrets-modal-overlay').remove()" aria-label="${t('config.secrets.cancel')}">&times;</button>
-                </div>
+            const body = `
                 <div class="field-group">
                     <div class="field-label">${t('config.secrets.key_label')}</div>
                     <div class="field-help">${t('config.secrets.key_help')}</div>
@@ -206,20 +201,16 @@
                         <button type="button" class="password-toggle" data-visible="false" title="${escapeAttr(t('config.secrets.toggle_visibility'))}" aria-label="${escapeAttr(t('config.secrets.toggle_visibility'))}" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                     </div>
                 </div>
-                <div id="secret-modal-error" class="secrets-error is-hidden" role="alert"></div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('secrets-modal-overlay').remove()">
-                        ${t('config.secrets.cancel')}
-                    </button>
-                    <button type="button" class="btn-save" id="secret-save-btn">
-                        ${t('config.secrets.save')}
-                    </button>
-                </div>
-            </div>`;
-            document.body.appendChild(overlay);
+                <div id="secret-dialog-error" class="secrets-error is-hidden" role="alert"></div>`;
+            const actions = [
+                `<button type="button" class="btn btn-secondary" onclick="closeModal('${SECRETS_DIALOG}')">${t('config.secrets.cancel')}</button>`,
+                `<button type="button" class="btn-save" id="secret-save-btn">${t('config.secrets.save')}</button>`
+            ];
+            document.body.insertAdjacentHTML('beforeend', cfgModal({ id: SECRETS_DIALOG, title, size: 'sm', body, actions }));
+            const dialog = document.getElementById(SECRETS_DIALOG);
 
             document.getElementById('secret-save-btn').onclick = async () => {
-                const errBox = document.getElementById('secret-modal-error');
+                const errBox = document.getElementById('secret-dialog-error');
                 const saveBtn = document.getElementById('secret-save-btn');
                 const showErr = msg => { errBox.textContent = msg; errBox.classList.remove('is-hidden'); };
                 errBox.classList.add('is-hidden');
@@ -234,13 +225,10 @@
                     showErr(res.error || t('config.common.error'));
                     return;
                 }
-                overlay.remove();
+                closeModal(SECRETS_DIALOG);
             };
 
-            setTimeout(() => {
-                const focus = keyEditable ? document.getElementById('secret-key') : document.getElementById('secret-value');
-                if (focus) focus.focus();
-            }, 50);
+            openModal(SECRETS_DIALOG, { initialFocus: keyEditable ? '#secret-key' : '#secret-value', onClose: () => dialog.remove() });
         }
 
         function secretsShowAddModal() {
@@ -262,7 +250,13 @@
 
         async function secretsDelete(idx) {
             const s = secretsCache[idx];
-            if (!(await showConfirm(t('config.secrets.delete_confirm_title'), t('config.secrets.delete_confirm', {key: s.key})))) return;
+            const answer = await showConfirmDialog({
+                title: t('config.secrets.delete_confirm_title'),
+                message: t('config.secrets.delete_confirm', {key: s.key}),
+                danger: true,
+                confirmText: t('config.secrets.delete')
+            });
+            if (!answer.confirmed) return;
 
             const actionBtns = document.querySelectorAll('#secrets-main .secrets-actions button');
             actionBtns.forEach(b => { b.disabled = true; });

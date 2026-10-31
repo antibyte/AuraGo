@@ -1,16 +1,1 @@
 # <module> <class>: own dialog class family; use cfgModal + openModal/closeModal (E8).
-email email-modal-card
-email email-modal-overlay
-secrets secret-modal-error
-secrets secrets-modal-card
-secrets secrets-modal-overlay
-sql_connections sql-modal-close
-sql_connections sql-modal-overlay
-sql_connections sql-modal-title
-sql_connections sqlconn-modal
-sql_connections sqlconn-modal-actions
-sql_connections sqlconn-modal-actions-right
-sql_connections sqlconn-modal-header
-sql_connections sqlconn-modal-overlay
-sql_connections sqlconn-modal-save
-sql_connections sqlconn-modal-title

@@ -68,7 +68,10 @@ function renderS3Section(section) {
     html += s3Field(s3Text('endpoint'), '<input class="field-input" id="s3-rustfs-endpoint" readonly aria-label="' + escapeAttr(s3Text('endpoint')) + '">', s3Text('endpoint_help'));
     html += '<div class="field-grid two-cols">';
     for (const action of ['preflight', 'install', 'start', 'stop', 'recreate', 'remove']) {
-        html += '<button type="button" class="btn-save btn-secondary" id="s3-rustfs-' + action + '">' + escapeHtml(s3Text(action)) + '</button>';
+        // Removing the managed instance is the one destructive action: same delete style as everywhere (E7).
+        html += action === 'remove'
+            ? cfgDeleteButton({ label: s3Text(action), attrs: { id: 's3-rustfs-remove' } })
+            : '<button type="button" class="btn-save btn-secondary" id="s3-rustfs-' + action + '">' + escapeHtml(s3Text(action)) + '</button>';
     }
     html += '<button type="button" class="btn-save btn-secondary" id="s3-rustfs-refresh">' + escapeHtml(s3Text('refresh')) + '</button>';
     html += '</div><p id="s3-rustfs-action-reason" class="field-help" role="status"></p>';
@@ -127,9 +130,11 @@ function s3RenderLocations() {
             + '<textarea class="field-input" id="s3-location-prefixes-' + index + '" data-s3-field="prefixes" rows="3"' + (whole ? ' disabled' : '') + '>'
             + escapeHtml(prefixes.filter(prefix => prefix !== '').join('\n')) + '</textarea>'
             + '<div class="field-help">' + escapeHtml(s3Text('location_prefixes_help')) + '</div>'
-            + '<label class="toggle-wrap"><input type="checkbox" data-s3-field="whole"' + (whole ? ' checked' : '') + '> ' + escapeHtml(s3Text('whole_bucket')) + '</label>'
-            + '<button type="button" class="btn-save btn-secondary" data-s3-remove="' + index + '">' + escapeHtml(s3Text('remove_location')) + '</button></div>';
+            + '<div class="toggle-wrap"><div class="toggle' + (whole ? ' on' : '') + '" data-s3-field="whole" aria-label="' + escapeAttr(s3Text('whole_bucket')) + '"></div>'
+            + '<span class="toggle-label">' + escapeHtml(s3Text('whole_bucket')) + '</span></div>'
+            + cfgDeleteButton({ label: s3Text('remove_location'), attrs: { 'data-s3-remove': String(index) } }) + '</div>';
     }).join('') || '<p class="field-help">' + escapeHtml(s3Text('no_locations')) + '</p>';
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(container);
     container.oninput = event => {
         const field = event.target.dataset.s3Field;
         if (!field || field === 'whole') return;
@@ -139,13 +144,15 @@ function s3RenderLocations() {
         else next[index].prefixes = event.target.value.split(/\r?\n/).filter(prefix => prefix !== '');
         s3ChangeLocations(next);
     };
-    container.onchange = event => {
-        if (event.target.dataset.s3Field !== 'whole') return;
-        const next = s3Locations();
-        next[Number(event.target.closest('[data-s3-location]').dataset.s3Location)].prefixes = event.target.checked ? [''] : [];
-        s3ChangeLocations(next, true);
-    };
     container.onclick = event => {
+        const whole = event.target.closest('[data-s3-field="whole"]');
+        if (whole) {
+            // The whole-bucket switch is explicit: on = one empty prefix, off = no prefix yet.
+            const next = s3Locations();
+            next[Number(whole.closest('[data-s3-location]').dataset.s3Location)].prefixes = whole.classList.contains('on') ? [] : [''];
+            s3ChangeLocations(next, true);
+            return;
+        }
         const button = event.target.closest('[data-s3-remove]');
         if (!button) return;
         s3ChangeLocations(s3Locations().filter((_, index) => index !== Number(button.dataset.s3Remove)), true);
@@ -253,7 +260,10 @@ async function s3RefreshStatus(view) {
 async function s3RustFSAction(action) {
     const view = s3ConfigView;
     if (!view || s3ActionReason(action)) return;
-    if (['recreate', 'remove'].includes(action) && !await showConfirm(s3Text(action), s3Text(action + '_confirm'))) return;
+    if (action === 'remove') {
+        const answer = await showConfirmDialog({ title: s3Text(action), message: s3Text(action + '_confirm'), danger: true, confirmText: s3Text(action) });
+        if (!answer.confirmed) return;
+    } else if (action === 'recreate' && !await showConfirm(s3Text(action), s3Text(action + '_confirm'))) return;
     if (!s3ViewCurrent(view) || s3ActionReason(action)) return;
     clearTimeout(view.timer);
     view.pollSequence++;

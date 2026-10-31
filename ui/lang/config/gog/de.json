@@ -59,5 +59,6 @@
   "config.gog.agent_help": "Der Agent darf dieses Konto mit den unten freigegebenen Berechtigungen nutzen.",
   "config.gog.desktop_help": "Desktop-Apps dürfen dieses Konto nutzen, etwa für Mail oder Kalender.",
   "config.gog.client_id_help": "Client-ID des OAuth-Web-Clients aus der Google Cloud Console.",
-  "config.gog.secret_help": "Client-Secret des OAuth-Clients. „In Tresor speichern“ legt es verschlüsselt ab; es wird nicht erneut angezeigt."
+  "config.gog.secret_help": "Client-Secret des OAuth-Clients. „In Tresor speichern“ legt es verschlüsselt ab; es wird nicht erneut angezeigt.",
+  "config.gog.limit_reached": "Es werden höchstens {max} Konten unterstützt. Entferne ein Konto, bevor du ein weiteres hinzufügst."
 }

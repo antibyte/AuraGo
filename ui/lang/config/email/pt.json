@@ -68,5 +68,6 @@
   "config.email.password_help": "Senha ou senha de aplicativo da conta. É armazenada criptografada no vault.",
   "config.email.watch_enabled_help": "O AuraGo verifica regularmente a pasta escolhida abaixo em busca de novos e-mails e pode reagir a eles.",
   "config.email.watch_folder_help": "Pasta IMAP monitorada em busca de novos e-mails. O padrão é INBOX.",
-  "config.email.interval_seconds_help": "Com que frequência a pasta é verificada, em segundos (padrão 120). Intervalos menores sobrecarregam mais o servidor de e-mail."
+  "config.email.interval_seconds_help": "Com que frequência a pasta é verificada, em segundos (padrão 120). Intervalos menores sobrecarregam mais o servidor de e-mail.",
+  "config.email.id_sanitised": "Só são permitidos a-z, 0-9, - e _. O ID será guardado como '{id}'."
 }

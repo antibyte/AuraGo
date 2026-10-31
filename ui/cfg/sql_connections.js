@@ -1,14 +1,24 @@
 let sqlConnCache = [];
 let sqlConnModalRevision = 0;
 
+const SQLCONN_DIALOG = 'sqlconn-dialog';
+
 window.addEventListener('cfg:section-leave', function () {
-    const overlay = document.getElementById('sqlconn-modal-overlay');
-    if (overlay && !overlay.classList.contains('is-hidden')) {
-        sqlConnCloseModal();
+    const dialog = document.getElementById(SQLCONN_DIALOG);
+    if (dialog) {
+        closeModal(SQLCONN_DIALOG);
+        dialog.remove();
     }
 });
 
 function renderSQLConnectionsSection(section) {
+    // A dialog left over from an earlier render of this section would carry stale ids.
+    const stale = document.getElementById(SQLCONN_DIALOG);
+    if (stale) {
+        closeModal(SQLCONN_DIALOG);
+        stale.remove();
+    }
+
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
@@ -20,7 +30,7 @@ function renderSQLConnectionsSection(section) {
 
     html += `<div class="sb-card">
         <div class="sb-card-header">
-            <span class="sb-card-icon">⚙️</span>
+            <span class="sb-card-icon">${cfgIcon('settings')}</span>
             <span class="sb-card-title">${t('config.sql_connections.settings_title')}</span>
         </div>
         <div class="sb-card-body">
@@ -58,7 +68,7 @@ function renderSQLConnectionsSection(section) {
             <div class="field-help" id="sqlconn-filter-help">${t('config.sql_connections.filter_help')}</div>
         </div>
         <button class="btn-save sqlconn-add-btn" onclick="sqlConnShowModal()">
-            ＋ ${t('config.sql_connections.add_connection')}
+            ${cfgIcon('plus')} ${t('config.sql_connections.add_connection')}
         </button>
     </div>
     ${cfgActionResult.html('sqlconn-list-result')}
@@ -78,20 +88,54 @@ function renderSQLConnectionsSection(section) {
             <tbody id="sqlconn-tbody"></tbody>
         </table>
     </div>
-    <div id="sqlconn-empty" class="sql-empty-state is-hidden">
-        ${t('config.sql_connections.empty')}
-    </div>
-    <div id="sqlconn-loading" class="sql-loading-state">
-        ${t('config.sql_connections.loading')}
-    </div>`;
+    <div id="sqlconn-state"></div>`;
 
-    html += `
-    <div id="sqlconn-modal-overlay" class="sql-modal-overlay is-hidden" onclick="sqlConnCloseModal(event)">
-        <div class="sqlconn-modal" onclick="event.stopPropagation()">
-            <div class="sqlconn-modal-header">
-                <span id="sqlconn-modal-title" class="sql-modal-title"></span>
-                <button onclick="sqlConnCloseModal()" class="sql-modal-close">✕</button>
-            </div>
+    html += '</div>';
+    document.getElementById('content').innerHTML = html;
+    sqlConnLoad();
+}
+
+// One permission switch of the dialog. Dangerous ones (data-cfg-confirm-enable) ask before they turn on;
+// the dialog is not part of the config draft, so nothing is marked dirty.
+function sqlConnPermToggle(el) {
+    const turningOn = !el.classList.contains('on');
+    const apply = () => {
+        el.classList.toggle('on', turningOn);
+        syncToggleA11y(el);
+    };
+    const category = el.getAttribute('data-cfg-confirm-enable');
+    if (!turningOn || !category) { apply(); return; }
+    const label = (document.getElementById(el.id + '-label') || {}).textContent || '';
+    showConfirmDialog({
+        title: String(t('config.confirm_enable.title')).replace('{label}', () => label),
+        message: String(t('config.confirm_enable.' + category)).replace('{label}', () => label),
+        danger: true
+    }).then(answer => { if (answer.confirmed) apply(); });
+}
+
+function sqlConnPermSet(id, on) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('on', !!on);
+    syncToggleA11y(el);
+}
+
+function sqlConnPermOn(id) {
+    const el = document.getElementById(id);
+    return !!el && el.classList.contains('on');
+}
+
+function sqlConnPermItem(id, labelKey, on, extra) {
+    return `<div class="sqlconn-permission-item">
+        <span class="sqlconn-permission-label" id="${id}-label">${t(labelKey)}</span>
+        <div class="toggle${on ? ' on' : ''}" id="${id}"${extra || ''} role="switch" aria-labelledby="${id}-label" onclick="sqlConnPermToggle(this)"></div>
+    </div>`;
+}
+
+// The connection dialog is built once per open section and reused for every add/edit.
+function sqlConnEnsureDialog() {
+    if (document.getElementById(SQLCONN_DIALOG)) return;
+    const body = `
             <input type="hidden" id="sqlconn-edit-id">
 
             <div class="field-group sql-field-group">
@@ -169,50 +213,32 @@ function renderSQLConnectionsSection(section) {
             <div class="sqlconn-permissions-card">
                 <div class="field-label sql-perm-title">${t('config.sql_connections.permissions_title')}</div>
                 <div class="sqlconn-permissions-grid">
-                    <label class="sqlconn-permission-item">
-                        <input type="checkbox" id="sqlconn-perm-read" checked> ${t('config.sql_connections.perm_read')}
-                    </label>
-                    <label class="sqlconn-permission-item">
-                        <input type="checkbox" id="sqlconn-perm-write"> ${t('config.sql_connections.perm_write')}
-                    </label>
-                    <label class="sqlconn-permission-item">
-                        <input type="checkbox" id="sqlconn-perm-change"> ${t('config.sql_connections.perm_change')}
-                    </label>
-                    <label class="sqlconn-permission-item">
-                        <input type="checkbox" id="sqlconn-perm-delete" data-cfg-confirm-enable="delete"> ${t('config.sql_connections.perm_delete')}
-                    </label>
+                    ${sqlConnPermItem('sqlconn-perm-read', 'config.sql_connections.perm_read', true)}
+                    ${sqlConnPermItem('sqlconn-perm-write', 'config.sql_connections.perm_write', false)}
+                    ${sqlConnPermItem('sqlconn-perm-change', 'config.sql_connections.perm_change', false)}
+                    ${sqlConnPermItem('sqlconn-perm-delete', 'config.sql_connections.perm_delete', false, ' data-cfg-confirm-enable="delete"')}
                 </div>
                 <div class="field-help sql-perm-hint">${t('config.sql_connections.permissions_hint')}</div>
             </div>
 
             ${cfgActionResult.html('sqlconn-test-result')}
-            ${cfgActionResult.html('sqlconn-save-result')}
-
-            <div class="sqlconn-modal-actions">
-                <button class="btn-save sqlconn-test-btn" id="sqlconn-test-btn" data-config-action-draft="true" onclick="sqlConnTest()">
-                    🔌 ${t('config.sql_connections.test_connection')}
-                </button>
-                <div class="sqlconn-modal-actions-right">
-                    <button class="btn-save sqlconn-secondary-btn" onclick="sqlConnCloseModal()">${t('config.sql_connections.cancel')}</button>
-                    <button class="btn-save sqlconn-primary-btn" id="sqlconn-modal-save" onclick="sqlConnSave()">${t('config.sql_connections.save')}</button>
-                </div>
-            </div>
-        </div>
-    </div>`;
-
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
-    sqlConnLoad();
+            ${cfgActionResult.html('sqlconn-save-result')}`;
+    const actions = [
+        `<button type="button" class="btn-save sqlconn-test-btn" id="sqlconn-test-btn" data-config-action-draft="true" onclick="sqlConnTest()">${cfgIcon('plug')} ${t('config.sql_connections.test_connection')}</button>`,
+        `<button type="button" class="btn-save sqlconn-secondary-btn" onclick="sqlConnCloseModal()">${t('config.sql_connections.cancel')}</button>`,
+        `<button type="button" class="btn-save sqlconn-primary-btn" id="sqlconn-save-btn" onclick="sqlConnSave()">${t('config.sql_connections.save')}</button>`
+    ];
+    document.body.insertAdjacentHTML('beforeend', cfgModal({ id: SQLCONN_DIALOG, title: '', size: 'lg', body, actions }));
+    const dialog = document.getElementById(SQLCONN_DIALOG);
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(dialog);
 }
 
 async function sqlConnLoad() {
     const tbody = document.getElementById('sqlconn-tbody');
-    const empty = document.getElementById('sqlconn-empty');
-    const loading = document.getElementById('sqlconn-loading');
     const table = document.getElementById('sqlconn-table-wrap');
-    loading.classList.remove('is-hidden');
+    if (!tbody || !table) return;
     table.classList.add('is-hidden');
-    empty.classList.add('is-hidden');
+    cfgListState('sqlconn-state', { state: 'loading', title: t('config.sql_connections.loading') });
 
     try {
         const resp = await fetch('/api/sql-connections');
@@ -220,24 +246,17 @@ async function sqlConnLoad() {
         sqlConnCache = await resp.json();
         if (!Array.isArray(sqlConnCache)) sqlConnCache = [];
     } catch (e) {
-        loading.textContent = '❌ ' + e.message;
+        cfgListState('sqlconn-state', { state: 'error', title: t('config.common.load_failed'), text: e.message, retry: sqlConnLoad });
         return;
     }
 
-    loading.classList.add('is-hidden');
-    if (sqlConnCache.length === 0) {
-        empty.classList.remove('is-hidden');
-        return;
-    }
-    table.classList.remove('is-hidden');
-    sqlConnRenderRows(sqlConnCache);
     sqlConnApplyFilter();
 }
 
 function sqlConnRenderRows(connections) {
     const tbody = document.getElementById('sqlconn-tbody');
     tbody.innerHTML = '';
-    const permClasses = { R: 'sql-perm-read', W: 'sql-perm-write', C: 'sql-perm-change', D: 'sql-perm-delete' };
+    const permStatus = { R: 'ok', W: 'warn', C: 'warn', D: 'error' };
     connections.forEach(c => {
         const perms = [];
         if (c.allow_read) perms.push('R');
@@ -246,39 +265,42 @@ function sqlConnRenderRows(connections) {
         if (c.allow_delete) perms.push('D');
         const permBadges = perms.map(p => {
             const labels = { R: t('config.sql_connections.badge_read'), W: t('config.sql_connections.badge_write'), C: t('config.sql_connections.badge_change'), D: t('config.sql_connections.badge_delete') };
-            return '<span class="sql-perm-badge ' + permClasses[p] + '">' + labels[p] + '</span>';
+            return cfgBadge(permStatus[p], labels[p]);
         }).join('');
 
-        const driverIcon = { postgres: '🐘', mysql: '🐬', sqlite: '📄' }[c.driver] || '🗄️';
         const hostDisplay = c.driver === 'sqlite' ? '—' : (c.host || 'localhost') + (c.port ? ':' + c.port : '');
         const tr = document.createElement('tr');
         tr.classList.add('sql-table-row');
         tr.dataset.id = c.id;
         tr.innerHTML = `
             <td class="sql-td-name">${escapeHtml(c.name)}</td>
-            <td class="sql-td"><span class="sql-driver-badge">${driverIcon} ${escapeHtml(c.driver)}</span></td>
+            <td class="sql-td">${cfgBadge('idle', c.driver)}</td>
             <td class="sql-td-host">${escapeHtml(hostDisplay)}</td>
             <td class="sql-td">${escapeHtml(c.driver === 'sqlite' ? t(c.state === 'sqlite_import_required' ? 'config.sql_connections.sqlite_import_required' : 'config.sql_connections.driver_sqlite') : (c.database_name || '—'))}</td>
             <td class="sql-td-desc" title="${escapeHtml(c.description || '')}">${escapeHtml(c.description || '—')}</td>
             <td class="sql-td">${permBadges || '—'}</td>
             <td class="sql-td-actions">
-                <button onclick="sqlConnTestExisting('${c.id}')" class="sql-action-btn" title="${t('config.sql_connections.test_tooltip')}">🔌</button>
-                <button onclick="sqlConnShowModal('${c.id}')" class="sql-action-btn" title="${t('config.sql_connections.edit_tooltip')}">✏️</button>
-                <button onclick="sqlConnDelete('${c.id}','${escapeHtml(c.name).replace(/'/g, "\\'")}')" class="sql-action-btn sql-action-btn-delete" title="${t('config.sql_connections.delete_tooltip')}">🗑️</button>
+                <button type="button" onclick="sqlConnTestExisting(this.dataset.id)" data-id="${escapeAttr(c.id)}" class="sql-action-btn" title="${escapeAttr(t('config.sql_connections.test_tooltip'))}" aria-label="${escapeAttr(t('config.sql_connections.test_tooltip') + ': ' + c.name)}">${cfgIcon('plug')}</button>
+                <button type="button" onclick="sqlConnShowModal(this.dataset.id)" data-id="${escapeAttr(c.id)}" class="sql-action-btn" title="${escapeAttr(t('config.sql_connections.edit_tooltip'))}" aria-label="${escapeAttr(t('config.sql_connections.edit_tooltip') + ': ' + c.name)}">${cfgIcon('edit')}</button>
+                ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: c.name }), attrs: { 'data-id': c.id, 'data-name': c.name, onclick: 'sqlConnDelete(this.dataset.id, this.dataset.name)' } })}
             </td>`;
         tbody.appendChild(tr);
     });
 }
 
 function sqlConnApplyFilter() {
-    const q = (document.getElementById('sqlconn-filter').value || '').toLowerCase();
+    const filterInput = document.getElementById('sqlconn-filter');
+    const table = document.getElementById('sqlconn-table-wrap');
+    if (!filterInput || !table) return;
+    const q = (filterInput.value || '').toLowerCase();
     const filtered = sqlConnCache.filter(c => {
         const hay = [c.name, c.driver, c.host, c.database_name, c.description].join(' ').toLowerCase();
         return hay.includes(q);
     });
     sqlConnRenderRows(filtered);
-    document.getElementById('sqlconn-empty').classList.toggle('is-hidden', filtered.length > 0);
-    document.getElementById('sqlconn-table-wrap').classList.toggle('is-hidden', filtered.length === 0);
+    table.classList.toggle('is-hidden', filtered.length === 0);
+    if (filtered.length === 0) cfgListState('sqlconn-state', { state: 'empty', title: t('config.sql_connections.empty') });
+    else document.getElementById('sqlconn-state').replaceChildren();
 }
 
 function sqlConnDriverChanged() {
@@ -299,11 +321,11 @@ function sqlConnDriverChanged() {
 }
 
 function sqlConnShowModal(id) {
+    sqlConnEnsureDialog();
     sqlConnModalRevision++;
-    document.getElementById('sqlconn-modal-save').disabled = false;
+    document.getElementById('sqlconn-save-btn').disabled = false;
     document.getElementById('sqlconn-import-file').value = '';
-    const overlay = document.getElementById('sqlconn-modal-overlay');
-    const title = document.getElementById('sqlconn-modal-title');
+    const title = document.getElementById(SQLCONN_DIALOG + '-title');
     cfgActionResult.show('sqlconn-test-result', '', '');
     cfgActionResult.show('sqlconn-save-result', '', '');
 
@@ -323,10 +345,10 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';
         document.getElementById('sqlconn-field-password').placeholder = c.vault_secret_id ? t('config.providers.key_placeholder_existing') : t('config.sql_connections.password_placeholder');
-        document.getElementById('sqlconn-perm-read').checked = !!c.allow_read;
-        document.getElementById('sqlconn-perm-write').checked = !!c.allow_write;
-        document.getElementById('sqlconn-perm-change').checked = !!c.allow_change;
-        document.getElementById('sqlconn-perm-delete').checked = !!c.allow_delete;
+        sqlConnPermSet('sqlconn-perm-read', c.allow_read);
+        sqlConnPermSet('sqlconn-perm-write', c.allow_write);
+        sqlConnPermSet('sqlconn-perm-change', c.allow_change);
+        sqlConnPermSet('sqlconn-perm-delete', c.allow_delete);
     } else {
         title.textContent = t('config.sql_connections.new_connection');
         document.getElementById('sqlconn-edit-id').value = '';
@@ -340,19 +362,17 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';
         document.getElementById('sqlconn-field-password').placeholder = t('config.sql_connections.password_placeholder');
-        document.getElementById('sqlconn-perm-read').checked = true;
-        document.getElementById('sqlconn-perm-write').checked = false;
-        document.getElementById('sqlconn-perm-change').checked = false;
-        document.getElementById('sqlconn-perm-delete').checked = false;
+        sqlConnPermSet('sqlconn-perm-read', true);
+        sqlConnPermSet('sqlconn-perm-write', false);
+        sqlConnPermSet('sqlconn-perm-change', false);
+        sqlConnPermSet('sqlconn-perm-delete', false);
     }
     sqlConnDriverChanged();
-    overlay.classList.remove('is-hidden');
+    openModal(SQLCONN_DIALOG, { initialFocus: '#sqlconn-field-name', onClose: () => { sqlConnModalRevision++; } });
 }
 
-function sqlConnCloseModal(e) {
-    if (e && e.target !== e.currentTarget) return;
-    sqlConnModalRevision++;
-    document.getElementById('sqlconn-modal-overlay').classList.add('is-hidden');
+function sqlConnCloseModal() {
+    closeModal(SQLCONN_DIALOG);
 }
 
 // Edited record fields as the save and test requests send them.
@@ -369,10 +389,10 @@ function sqlConnPayload() {
         ssl_mode: isSQLite ? '' : document.getElementById('sqlconn-field-ssl').value,
         username: document.getElementById('sqlconn-field-username').value.trim(),
         password: document.getElementById('sqlconn-field-password').value,
-        allow_read: document.getElementById('sqlconn-perm-read').checked,
-        allow_write: document.getElementById('sqlconn-perm-write').checked,
-        allow_change: document.getElementById('sqlconn-perm-change').checked,
-        allow_delete: document.getElementById('sqlconn-perm-delete').checked
+        allow_read: sqlConnPermOn('sqlconn-perm-read'),
+        allow_write: sqlConnPermOn('sqlconn-perm-write'),
+        allow_change: sqlConnPermOn('sqlconn-perm-change'),
+        allow_delete: sqlConnPermOn('sqlconn-perm-delete')
     };
 }
 
@@ -396,7 +416,7 @@ async function sqlConnSave() {
 
     const editId = document.getElementById('sqlconn-edit-id').value;
     const isEdit = !!editId;
-    const btn = document.getElementById('sqlconn-modal-save');
+    const btn = document.getElementById('sqlconn-save-btn');
 
     return cfgActionResult(btn, async () => {
         const url = isEdit ? '/api/sql-connections/' + editId : '/api/sql-connections';
@@ -429,7 +449,7 @@ async function sqlConnSave() {
     });
 }
 
-// Tests the values typed into the modal (draft); a connection that is not saved yet is tested as typed.
+// Tests the values typed into the dialog (draft); a connection that is not saved yet is tested as typed.
 function sqlConnTest() {
     cfgActionResult.show('sqlconn-save-result', '', '');
     const editId = document.getElementById('sqlconn-edit-id').value;
@@ -458,10 +478,15 @@ function sqlConnTestExisting(id) {
 }
 
 async function sqlConnDelete(id, name) {
-    const msg = t('config.sql_connections.delete_confirm', { name: name });
-    if (!await showConfirm(msg)) return { skipped: 'cancelled' };
+    const answer = await showConfirmDialog({
+        title: t('config.common.delete_item', { name: name }),
+        message: t('config.sql_connections.delete_confirm', { name: name }),
+        danger: true,
+        confirmText: t('config.common.delete')
+    });
+    if (!answer.confirmed) return { skipped: 'cancelled' };
 
-    const btn = document.querySelector('#sqlconn-tbody tr[data-id="' + id + '"] .sql-action-btn-delete');
+    const btn = document.querySelector('#sqlconn-tbody tr[data-id="' + id + '"] .cfg-delete-btn');
     return cfgActionResult(btn, () => fetch('/api/sql-connections/' + encodeURIComponent(id), { method: 'DELETE' }), {
         target: 'sqlconn-list-result',
         success: name + ': ' + t('config.feedback.done'),

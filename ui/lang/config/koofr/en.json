@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "Connection failed",
   "config.koofr.status_disabled": "Koofr integration is disabled",
   "config.koofr.status_no_credentials": "Username or app password missing",
-  "config.koofr.status_ok": "Connected to Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "Connected to Koofr"
 }

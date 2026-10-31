@@ -14,7 +14,5 @@
   "config.koofr.test_fail": "Échec de la connexion",
   "config.koofr.status_disabled": "L'intégration Koofr est désactivée",
   "config.koofr.status_no_credentials": "Nom d'utilisateur ou mot de passe d'application manquant",
-  "config.koofr.status_ok": "Connecté à Koofr",
-  "config.koofr.status_success": "✅",
-  "config.koofr.status_error": "❌"
+  "config.koofr.status_ok": "Connecté à Koofr"
 }

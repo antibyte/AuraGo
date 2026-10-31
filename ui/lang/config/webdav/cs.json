@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "Integrace WebDAV je zakázána",
   "config.webdav.status_no_url": "Není nastavena WebDAV URL",
   "config.webdav.status_no_credentials": "Chybí přihlašovací údaje WebDAV",
-  "config.webdav.status_ok": "Připojeno k WebDAV",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "Připojeno k WebDAV"
 }

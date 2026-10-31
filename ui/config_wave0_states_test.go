@@ -52,7 +52,7 @@ func TestConfigStatusBannersLeaveCheckingState(t *testing.T) {
 func TestConfigAuthStatusFailureIsNotPasswordNotSet(t *testing.T) {
 	t.Parallel()
 	src := readWave0File(t, "cfg/auth.js")
-	for _, want := range []string{"config.auth.status_load_failed", "auth-status-retry", "aria-disabled=\"true\" data-disabled=\"true\""} {
+	for _, want := range []string{"config.auth.status_load_failed", "auth-status-state", "aria-disabled=\"true\" data-disabled=\"true\""} {
 		if !strings.Contains(src, want) {
 			t.Errorf("cfg/auth.js missing %q", want)
 		}

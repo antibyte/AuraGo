@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Folder, którego pliki są indeksowane, jako ścieżka bezwzględna lub względem katalogu AuraGo. Podfoldery są uwzględniane. Dodaj przyciskiem lub klawiszem Enter.",
   "config.indexing.chunk_max_chars_help": "Maksymalna długość jednego fragmentu tekstu w znakach. Mniejsze fragmenty dają dokładniejsze trafienia, większe więcej kontekstu. Domyślnie: 3500.",
   "config.indexing.chunk_overlap_help": "Znaki wspólne dla sąsiednich fragmentów, aby zdania na granicach nie były ucinane. Domyślnie: 200.",
-  "config.indexing.chunk_max_chunks_help": "Maksymalna liczba fragmentów na plik; reszta bardzo dużych plików jest pomijana. Domyślnie: 200."
+  "config.indexing.chunk_max_chunks_help": "Maksymalna liczba fragmentów na plik; reszta bardzo dużych plików jest pomijana. Domyślnie: 200.",
+  "config.indexing.dir_empty": "Najpierw wpisz ścieżkę folderu, który ma zostać zaindeksowany."
 }

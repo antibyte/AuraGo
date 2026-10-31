@@ -108,7 +108,7 @@ func TestConfigFeedbackScriptContract(t *testing.T) {
 	if !strings.Contains(mcpSource, `mcpModalToggleRow('mcp-m-allow-destructive'`) || !strings.Contains(mcpSource, `data-cfg-confirm-enable="destroy"`) {
 		t.Error("the MCP dialog destructive switch must ask before it is turned on")
 	}
-	if !strings.Contains(normalizeAssetText(mustReadUIFile(t, "cfg/sql_connections.js")), `id="sqlconn-perm-delete" data-cfg-confirm-enable`) {
+	if !strings.Contains(normalizeAssetText(mustReadUIFile(t, "cfg/sql_connections.js")), `'sqlconn-perm-delete', 'config.sql_connections.perm_delete', false, ' data-cfg-confirm-enable="delete"'`) {
 		t.Error("the SQL modal delete permission must ask before it is turned on")
 	}
 }

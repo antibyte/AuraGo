@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "WebDAV एकीकरण अक्षम है",
   "config.webdav.status_no_url": "कोई WebDAV URL कॉन्फ़िगर नहीं",
   "config.webdav.status_no_credentials": "WebDAV क्रेडेंशियल गायब हैं",
-  "config.webdav.status_ok": "WebDAV से कनेक्ट",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "WebDAV से कनेक्ट"
 }

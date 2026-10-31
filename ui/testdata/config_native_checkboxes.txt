@@ -1,7 +1,1 @@
 # <module>: native checkbox without data-cfg-choice; on/off settings are .toggle (E4).
-backup
-email
-github
-gog
-s3
-sql_connections

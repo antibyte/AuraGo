@@ -108,7 +108,7 @@ try {
         const admin=[];
         await page.route('**/api/gog/**',async route=>{const name=new URL(route.request().url()).pathname.split('/').at(-1);admin.push({name,method:route.request().method()});await route.fulfill(json(name==='status'?{version:'0.43.0-aurago1',installed:true,accounts:[]}:{status:'ok'}));});
         await page.evaluate(words=>{disposeGog();document.querySelector('#host').innerHTML='<main id="content"></main>';window.configData={gog:{enabled:true,readonly:true,accounts:[{id:'first',name:'First',enabled:true,client_id:'fixture-client',services:{docs:{read:true}}}]}};window.t=k=>words[k]||k;window.escapeHtml=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');window.isDirty=false;window.setDirty=v=>isDirty=v;window.attachChangeListeners=()=>AuraConfigState.bind(document.querySelector('#content'));},configLocales);
-        await page.addScriptTag({url:origin+'/js/config/state.js'}); await page.addScriptTag({url:origin+'/cfg/form-builder.js'}); await page.addScriptTag({url:origin+'/cfg/gog.js'});
+        await page.addScriptTag({url:origin+'/js/config/state.js'}); await page.addScriptTag({url:origin+'/js/config/icons.js'}); await page.addScriptTag({url:origin+'/js/config/components.js'}); await page.addScriptTag({url:origin+'/cfg/form-builder.js'}); await page.addScriptTag({url:origin+'/cfg/gog.js'});
         await page.evaluate(async()=>{AuraConfigState.init(configData);await renderGogSection({label:'Google Workspace via gog'});});
         assert.deepEqual(admin,[{name:'status',method:'GET'}]);
         await page.getByRole('button',{name:'Test connection',exact:true}).click(); await page.waitForFunction(()=>document.querySelector('#gog-message').textContent==='Done');

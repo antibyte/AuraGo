@@ -439,8 +439,6 @@
   "config.github.test_ok": "कनेक्शन सफल",
   "config.github.test_fail": "कनेक्शन विफल",
   "config.github.loading": "परीक्षण…",
-  "config.github.status_success": "✅",
-  "config.github.status_error": "❌",
   "config.group_title.agent.announcement_detector": "प्रतिक्रिया सुधार",
   "config.group_title.agent.importance_scoring": "महत्त्व स्कोरिंग",
   "config.group_title.agent.auto_learning": "स्वचालित सीखना",

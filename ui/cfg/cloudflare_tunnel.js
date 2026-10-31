@@ -13,20 +13,7 @@ async function renderCloudflareTunnelSection(section) {
         <div class="section-desc">${section.desc}</div>
         ${cfgStatusBanner.html('cf-tunnel-status-banner', 'checking', { detail: t('config.cloudflare_tunnel.checking') })}`;
     html += `<div class="field-group">
-        <div class="field-help">${t('config.cloudflare_tunnel.actions_help')}</div>
-        <div class="cfg-password-row">
-            <button class="btn-save" data-cf-action="start" data-config-action-draft="false" onclick="cloudflareTunnelAction('start')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.start_tunnel')}</button>
-            <button class="btn-save" data-cf-action="stop" data-config-action-draft="false" onclick="cloudflareTunnelAction('stop')" ${saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.stop_tunnel')}</button>
-            <button class="btn-save" data-cf-action="restart" data-config-action-draft="false" onclick="cloudflareTunnelAction('restart')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.restart_tunnel')}</button>
-        </div>${cfgActionResult.html('cf-action-status')}</div>`;
-
-    html += `<div class="wh-notice cft-notice-info">
-        <span>🔒</span>
-        <div><small>${t('config.cloudflare_tunnel.info')}</small></div>
-    </div>`;
-
-    html += `<div class="field-group">
-        <div class="field-group-title">⚙️ ${t('config.cloudflare_tunnel.general_title')}</div>
+        <div class="field-group-title">${cfgIcon('settings')} ${t('config.cloudflare_tunnel.general_title')}</div>
         <div class="field-group-desc">${t('config.cloudflare_tunnel.general_desc')} ${t('config.cloudflare_tunnel.defaults_help')}</div>`;
     html += `<div class="cft-toggle-row">
         <div class="cft-toggle-copy">
@@ -38,7 +25,7 @@ async function renderCloudflareTunnelSection(section) {
 
     if (!enabled) {
         html += `<div class="wh-notice">
-            <span>🌐</span>
+            <span>${cfgIcon('globe')}</span>
             <div>
                 <strong>${t('config.cloudflare_tunnel.disabled_notice')}</strong><br>
                 <small>${t('config.cloudflare_tunnel.disabled_desc')}</small>
@@ -63,8 +50,22 @@ async function renderCloudflareTunnelSection(section) {
     </div>`;
     html += `</div>`;
 
+    // Enable switch first (E5); the tunnel actions and the info note follow the general settings.
     html += `<div class="field-group">
-        <div class="field-group-title">🔗 ${t('config.cloudflare_tunnel.connection_title')}</div>
+        <div class="field-help">${t('config.cloudflare_tunnel.actions_help')}</div>
+        <div class="cfg-password-row">
+            <button class="btn-save" data-cf-action="start" data-config-action-draft="false" onclick="cloudflareTunnelAction('start')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.start_tunnel')}</button>
+            <button class="btn-save" data-cf-action="stop" data-config-action-draft="false" onclick="cloudflareTunnelAction('stop')" ${saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.stop_tunnel')}</button>
+            <button class="btn-save" data-cf-action="restart" data-config-action-draft="false" onclick="cloudflareTunnelAction('restart')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.restart_tunnel')}</button>
+        </div>${cfgActionResult.html('cf-action-status')}</div>`;
+
+    html += `<div class="wh-notice cft-notice-info">
+        <span>${cfgIcon('lock')}</span>
+        <div><small>${t('config.cloudflare_tunnel.info')}</small></div>
+    </div>`;
+
+    html += `<div class="field-group">
+        <div class="field-group-title">${cfgIcon('link')} ${t('config.cloudflare_tunnel.connection_title')}</div>
         <div class="field-group-desc">${t('config.cloudflare_tunnel.connection_desc')}</div>`;
 
     html += `<div class="cft-grid">`;
@@ -145,14 +146,14 @@ async function renderCloudflareTunnelSection(section) {
             <div class="toggle ${loopbackEnabled ? 'on' : ''}" role="switch" aria-label="${escapeAttr(t('config.cloudflare_tunnel.loopback_label'))}" onclick="cloudflareTunnelToggleLoopback(this)"></div>
         </div>`;
         html += `<div id="cf-loopback-port-row" class="cf-loopback-hint${loopbackEnabled ? '' : ' is-hidden'}">
-            → http://127.0.0.1:<input type="number" min="0" max="65535" step="1" value="${loopbackEnabled ? loopbackPortVal : 0}"
+            ${cfgIcon('arrow-right')} http://127.0.0.1:<input type="number" min="0" max="65535" step="1" value="${loopbackEnabled ? loopbackPortVal : 0}"
                 data-path="cloudflare_tunnel.loopback_port"
                 class="cf-loopback-port-input"
                 aria-label="${escapeAttr(t('config.cloudflare_tunnel.loopback_label'))}"
                 onchange="cloudflareTunnelChangeLoopbackPort(this.value)">
         </div>`;
         html += `<div class="wh-notice cft-notice-info cf-notice-loopback">
-            <span>🔄</span>
+            <span>${cfgIcon('refresh')}</span>
             <div><small>${t('config.cloudflare_tunnel.loopback_hint')}</small></div>
         </div>`;
     }
@@ -160,7 +161,7 @@ async function renderCloudflareTunnelSection(section) {
 
     if (cfg.auth_method !== 'quick') {
     html += `<div class="field-group">
-        <div class="field-group-title">🌐 ${t('config.cloudflare_tunnel.exposure_heading')}</div>`;
+        <div class="field-group-title">${cfgIcon('globe')} ${t('config.cloudflare_tunnel.exposure_heading')}</div>`;
 
     const isNamed = cfg.auth_method === 'named';
     if (isNamed) {
@@ -182,7 +183,7 @@ async function renderCloudflareTunnelSection(section) {
         <input type="hidden" id="cf-expose-web-ui-val" data-path="cloudflare_tunnel.expose_web_ui" data-type="json" value="${exposeTarget === 'web_ui' ? 'true' : 'false'}">
         <input type="hidden" id="cf-expose-homepage-val" data-path="cloudflare_tunnel.expose_homepage" data-type="json" value="${exposeTarget === 'homepage' ? 'true' : 'false'}">`;
         html += `<div class="wh-notice cft-notice-warn cf-notice-mt-sm">
-            <span>⚠️</span>
+            <span>${cfgIcon('alert')}</span>
             <div><small>${t('config.cloudflare_tunnel.expose_single_hint')}</small></div>
         </div>`;
     }
@@ -207,7 +208,7 @@ async function renderCloudflareTunnelSection(section) {
 
     if (cfg.auth_method === 'named' && enabled) {
         html += `<div class="wh-notice cft-notice-warn">
-            <span>📄</span>
+            <span>${cfgIcon('file')}</span>
             <div><small>${t('config.cloudflare_tunnel.named_hint')}</small></div>
         </div>`;
     }

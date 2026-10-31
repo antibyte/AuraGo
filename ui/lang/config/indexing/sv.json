@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Mapp vars filer indexeras, som absolut sökväg eller relativt AuraGo-mappen. Undermappar ingår. Lägg till med knappen eller Enter.",
   "config.indexing.chunk_max_chars_help": "Maximal längd på ett textstycke i tecken. Mindre stycken ger mer exakta träffar, större ger mer sammanhang. Standard: 3500.",
   "config.indexing.chunk_overlap_help": "Tecken som delas mellan angränsande textstycken så att meningar vid gränserna inte skärs av. Standard: 200.",
-  "config.indexing.chunk_max_chunks_help": "Maximalt antal textstycken per fil; resten av mycket stora filer hoppas över. Standard: 200."
+  "config.indexing.chunk_max_chunks_help": "Maximalt antal textstycken per fil; resten av mycket stora filer hoppas över. Standard: 200.",
+  "config.indexing.dir_empty": "Ange först sökvägen till mappen som ska indexeras."
 }

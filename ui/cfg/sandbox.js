@@ -26,29 +26,10 @@ async function renderSandboxSection(section) {
     // ── General Card ──
     html += `<div class="sb-card">
         <div class="sb-card-header">
-            <span class="sb-card-icon">⚙️</span>
+            <span class="sb-card-icon">${cfgIcon('settings')}</span>
             <span class="sb-card-title">${t('config.sandbox.card_general')}</span>
         </div>
         <div class="sb-card-body">`;
-
-    if (sbEnabled && st.ready) {
-        const langList = (st.languages || []).join(', ') || 'python';
-        html += `<div class="wh-notice sb-notice-success">
-            <span>✅</span>
-            <div>
-                <strong>${t('config.sandbox.active')}</strong><br>
-                <small>${t('config.sandbox.backend_label')}: ${escapeAttr(st.backend || 'docker')} · ${t('config.sandbox.languages')}: ${escapeAttr(langList)}</small>
-            </div>
-        </div>`;
-    } else if (sbEnabled && !st.ready) {
-        html += `<div class="wh-notice sb-notice-warning">
-            <span>⚠️</span>
-            <div>
-                <strong>${t('config.sandbox.not_ready')}</strong><br>
-                <small>${escapeAttr(st.error || t('config.sandbox.unknown_error'))}</small>
-            </div>
-        </div>`;
-    }
 
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.sandbox.enabled_label')}</span>
@@ -56,9 +37,28 @@ async function renderSandboxSection(section) {
     </div>
     <div class="field-help" id="sb-enabled-help">${t('help.sandbox.enabled')}</div>`;
 
+    if (sbEnabled && st.ready) {
+        const langList = (st.languages || []).join(', ') || 'python';
+        html += `<div class="wh-notice sb-notice-success">
+            <span>${cfgIcon('check')}</span>
+            <div>
+                <strong>${t('config.sandbox.active')}</strong><br>
+                <small>${t('config.sandbox.backend_label')}: ${escapeAttr(st.backend || 'docker')} · ${t('config.sandbox.languages')}: ${escapeAttr(langList)}</small>
+            </div>
+        </div>`;
+    } else if (sbEnabled && !st.ready) {
+        html += `<div class="wh-notice sb-notice-warning">
+            <span>${cfgIcon('alert')}</span>
+            <div>
+                <strong>${t('config.sandbox.not_ready')}</strong><br>
+                <small>${escapeAttr(st.error || t('config.sandbox.unknown_error'))}</small>
+            </div>
+        </div>`;
+    }
+
     if (!sbEnabled) {
         html += `<div class="wh-notice">
-            <span>📦</span>
+            <span>${cfgIcon('box')}</span>
             <div>
                 <strong>${t('config.sandbox.disabled_notice')}</strong><br>
                 <small>${t('config.sandbox.disabled_desc')}</small>
@@ -71,7 +71,7 @@ async function renderSandboxSection(section) {
     // ── Backend Configuration Card ──
     html += `<div class="sb-card">
         <div class="sb-card-header">
-            <span class="sb-card-icon">🐳</span>
+            <span class="sb-card-icon">${cfgIcon('box')}</span>
             <span class="sb-card-title">${t('config.sandbox.card_backend')}</span>
         </div>
         <div class="sb-card-body">`;
@@ -122,7 +122,7 @@ async function renderSandboxSection(section) {
     // ── Options Card ──
     html += `<div class="sb-card">
         <div class="sb-card-header">
-            <span class="sb-card-icon">🔧</span>
+            <span class="sb-card-icon">${cfgIcon('wrench')}</span>
             <span class="sb-card-title">${t('config.sandbox.card_options')}</span>
         </div>
         <div class="sb-card-body">`;
@@ -157,7 +157,7 @@ async function renderSandboxSection(section) {
 
     if (sbCfg.allow_local_python_fallback) {
         html += `<div class="wh-notice sb-notice-warning">
-            <span>⚠️</span>
+            <span>${cfgIcon('alert')}</span>
             <div>
                 <strong>${t('config.sandbox.local_python_fallback_label')}</strong><br>
                 <small>${t('config.sandbox.local_python_fallback_warning')}</small>
@@ -171,15 +171,15 @@ async function renderSandboxSection(section) {
     if (st.docker_available !== undefined) {
         html += `<div class="sb-card">
             <div class="sb-card-header">
-                <span class="sb-card-icon">📊</span>
+                <span class="sb-card-icon">${cfgIcon('chart')}</span>
                 <span class="sb-card-title">${t('config.sandbox.system_status')}</span>
             </div>
             <div class="sb-card-body">
                 <div class="sb-status-grid">
-                    <div>${st.docker_available ? '✅' : '❌'} Docker</div>
-                    <div>${st.python_available ? '✅' : '❌'} Python</div>
-                    <div>${st.package_installed ? '✅' : '❌'} llm-sandbox</div>
-                    <div>${st.ready ? '✅' : '❌'} ${t('config.sandbox.ready')}</div>
+                    <div>${st.docker_available ? cfgIcon('check') : cfgIcon('x')} Docker</div>
+                    <div>${st.python_available ? cfgIcon('check') : cfgIcon('x')} Python</div>
+                    <div>${st.package_installed ? cfgIcon('check') : cfgIcon('x')} llm-sandbox</div>
+                    <div>${st.ready ? cfgIcon('check') : cfgIcon('x')} ${t('config.sandbox.ready')}</div>
                 </div>
             </div>
         </div>`;
@@ -205,14 +205,20 @@ async function renderSandboxSection(section) {
     // ── Shell Sandbox General Card ──
     html += `<div class="sb-card">
         <div class="sb-card-header">
-            <span class="sb-card-icon">🛡️</span>
+            <span class="sb-card-icon">${cfgIcon('shield')}</span>
             <span class="sb-card-title">${t('config.sandbox.card_general')}</span>
         </div>
         <div class="sb-card-body">`;
 
+    html += `<div class="cfg-toggle-row-highlight">
+        <span class="cfg-toggle-label">${t('config.shell_sandbox.enabled_label')}</span>
+        <div class="toggle ${shEnabled ? 'on' : ''}" data-path="shell_sandbox.enabled" aria-describedby="sb-shell-enabled-help" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help" id="sb-shell-enabled-help">${t('config.shell_sandbox.enabled_help')}</div>`;
+
     if (shSt.available && shEnabled) {
         html += `<div class="wh-notice sb-notice-success">
-            <span>✅</span>
+            <span>${cfgIcon('check')}</span>
             <div>
                 <strong>${t('config.shell_sandbox.active')}</strong><br>
                 <small>${t('config.sandbox.backend_label')}: ${escapeAttr(shSt.backend || 'landlock')} · Landlock ABI v${shSt.landlock_abi || 0} · Kernel ${escapeAttr(shSt.kernel || 'N/A')}</small>
@@ -224,7 +230,7 @@ async function renderSandboxSection(section) {
         else if (!shSt.landlock_abi) reason = t('config.shell_sandbox.unavail_kernel');
         else reason = t('config.shell_sandbox.unavail_platform');
         html += `<div class="wh-notice sb-notice-warning">
-            <span>⚠️</span>
+            <span>${cfgIcon('alert')}</span>
             <div>
                 <strong>${t('config.shell_sandbox.not_available')}</strong><br>
                 <small>${reason}</small>
@@ -232,15 +238,9 @@ async function renderSandboxSection(section) {
         </div>`;
     }
 
-    html += `<div class="cfg-toggle-row-highlight">
-        <span class="cfg-toggle-label">${t('config.shell_sandbox.enabled_label')}</span>
-        <div class="toggle ${shEnabled ? 'on' : ''}" data-path="shell_sandbox.enabled" aria-describedby="sb-shell-enabled-help" onclick="toggleBool(this)"></div>
-    </div>
-    <div class="field-help" id="sb-shell-enabled-help">${t('config.shell_sandbox.enabled_help')}</div>`;
-
     if (!shEnabled) {
         html += `<div class="wh-notice">
-            <span>🛡️</span>
+            <span>${cfgIcon('shield')}</span>
             <div>
                 <strong>${t('config.shell_sandbox.disabled_notice')}</strong><br>
                 <small>${t('config.shell_sandbox.disabled_desc')}</small>
@@ -254,7 +254,7 @@ async function renderSandboxSection(section) {
     if (shEnabled) {
         html += `<div class="sb-card">
             <div class="sb-card-header">
-                <span class="sb-card-icon">📏</span>
+                <span class="sb-card-icon">${cfgIcon('wrench')}</span>
                 <span class="sb-card-title">${t('config.sandbox.card_resources')}</span>
             </div>
             <div class="sb-card-body">`;
@@ -298,15 +298,15 @@ async function renderSandboxSection(section) {
     if (shSt.kernel || shSt.landlock_abi !== undefined) {
         html += `<div class="sb-card">
             <div class="sb-card-header">
-                <span class="sb-card-icon">📊</span>
+                <span class="sb-card-icon">${cfgIcon('chart')}</span>
                 <span class="sb-card-title">${t('config.shell_sandbox.system_caps')}</span>
             </div>
             <div class="sb-card-body">
                 <div class="sb-status-grid">
-                    <div>${shSt.landlock_abi ? '✅' : '❌'} Landlock ABI v${shSt.landlock_abi || 0}</div>
-                    <div>${shSt.in_docker ? '⚠️' : '✅'} ${shSt.in_docker ? t('config.shell_sandbox.in_docker') : t('config.shell_sandbox.native')}</div>
-                    <div>🐧 Kernel ${escapeAttr(shSt.kernel || 'N/A')}</div>
-                    <div>${shSt.available ? '✅' : '❌'} ${t('config.shell_sandbox.ready')}</div>
+                    <div>${shSt.landlock_abi ? cfgIcon('check') : cfgIcon('x')} Landlock ABI v${shSt.landlock_abi || 0}</div>
+                    <div>${shSt.in_docker ? cfgIcon('alert') : cfgIcon('check')} ${shSt.in_docker ? t('config.shell_sandbox.in_docker') : t('config.shell_sandbox.native')}</div>
+                    <div>${cfgIcon('terminal')} Kernel ${escapeAttr(shSt.kernel || 'N/A')}</div>
+                    <div>${shSt.available ? cfgIcon('check') : cfgIcon('x')} ${t('config.shell_sandbox.ready')}</div>
                 </div>
             </div>
         </div>`;

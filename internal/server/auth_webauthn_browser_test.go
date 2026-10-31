@@ -99,7 +99,7 @@ func TestWebAuthnBrowserLoginAndRecovery(t *testing.T) {
 	page.MustElement("#auth-webauthn-current-pw").MustInput(stepUpTestPassword)
 	page.MustElement(`[data-wa-action="add"]`).MustClick()
 	page.MustWait(`()=>document.querySelectorAll('[data-credential]').length===1&&document.getElementById('auth-webauthn').getAttribute('aria-busy')==='false'`)
-	page.MustEval(`()=>{document.getElementById('wa-enabled').value='true';}`)
+	page.MustEval(`()=>{document.getElementById('wa-enabled').click();}`)
 	page.MustElement("#auth-webauthn-current-pw").MustInput(stepUpTestPassword)
 	page.MustElement(`[data-wa-action="settings"]`).MustClick()
 	page.MustWait(`()=>configData.auth.webauthn.enabled&&document.getElementById('auth-webauthn').getAttribute('aria-busy')==='false'`)

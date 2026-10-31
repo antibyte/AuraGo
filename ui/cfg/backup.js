@@ -38,7 +38,7 @@ function renderBackupSection(section) {
 
         <div class="bck-card">
             <div class="bck-card-header">
-                <span class="bck-card-icon">💾</span>
+                <span class="bck-card-icon">${cfgIcon('save')}</span>
                 <span class="bck-card-title">${t('config.backup.card_create_title')}</span>
             </div>
             <div class="bck-card-body">
@@ -49,21 +49,23 @@ function renderBackupSection(section) {
                 </div>
 
                 <div class="backup-options-list">
-                    <label class="backup-option-row">
-                        <input type="checkbox" id="backup-opt-vectordb" class="backup-check-input" aria-describedby="backup-opt-vectordb-help">
-                        <span>${t('config.backup.include_vectordb')}<span class="field-help" id="backup-opt-vectordb-help">${t('config.backup.include_vectordb_help')}</span></span>
-                    </label>
-                    <label class="backup-option-row">
-                        <input type="checkbox" id="backup-opt-workdir" class="backup-check-input" aria-describedby="backup-opt-workdir-help">
-                        <span>${t('config.backup.include_workdir')}<span class="field-help" id="backup-opt-workdir-help">${t('config.backup.include_workdir_help')}</span></span>
-                    </label>
+                    <div class="field-group backup-field-group">
+                        <div class="field-label" id="backup-opt-vectordb-label">${t('config.backup.include_vectordb')}</div>
+                        <div class="toggle-wrap"><div class="toggle" id="backup-opt-vectordb" role="switch" aria-labelledby="backup-opt-vectordb-label" aria-describedby="backup-opt-vectordb-help" onclick="backupToggleOption(this)"></div></div>
+                        <div class="field-help" id="backup-opt-vectordb-help">${t('config.backup.include_vectordb_help')}</div>
+                    </div>
+                    <div class="field-group backup-field-group">
+                        <div class="field-label" id="backup-opt-workdir-label">${t('config.backup.include_workdir')}</div>
+                        <div class="toggle-wrap"><div class="toggle" id="backup-opt-workdir" role="switch" aria-labelledby="backup-opt-workdir-label" aria-describedby="backup-opt-workdir-help" onclick="backupToggleOption(this)"></div></div>
+                        <div class="field-help" id="backup-opt-workdir-help">${t('config.backup.include_workdir_help')}</div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="bck-card">
             <div class="bck-card-header">
-                <span class="bck-card-icon">🔐</span>
+                <span class="bck-card-icon">${cfgIcon('lock')}</span>
                 <span class="bck-card-title">${t('config.backup.card_encryption_title')}</span>
             </div>
             <div class="bck-card-body">
@@ -92,7 +94,7 @@ function renderBackupSection(section) {
 
         <div class="bck-card">
             <div class="bck-card-header">
-                <span class="bck-card-icon">📥</span>
+                <span class="bck-card-icon">${cfgIcon('download')}</span>
                 <span class="bck-card-title">${t('config.backup.card_import_title')}</span>
             </div>
             <div class="bck-card-body">
@@ -132,6 +134,12 @@ function renderBackupSection(section) {
     backupLoadRestoreStatus();
 }
 
+// The archive options are not part of the config draft: flip the switch without marking the config dirty.
+function backupToggleOption(el) {
+    el.classList.toggle('on');
+    syncToggleA11y(el);
+}
+
 function backupUpdateVaultHint() {
     const pw = document.getElementById('backup-password');
     const hint = document.getElementById('backup-vault-hint');
@@ -151,8 +159,8 @@ function backupCreate() {
 
     const payload = {
         password: document.getElementById('backup-password').value || '',
-        include_vectordb: document.getElementById('backup-opt-vectordb').checked,
-        include_workdir: document.getElementById('backup-opt-workdir').checked,
+        include_vectordb: document.getElementById('backup-opt-vectordb').classList.contains('on'),
+        include_workdir: document.getElementById('backup-opt-workdir').classList.contains('on'),
     };
 
     // The archive is a binary download: run() saves it and hands the result line a small body.
@@ -179,8 +187,8 @@ function backupCreate() {
     }, {
         target: 'backup-create-status',
         pending: t('config.backup.creating'),
-        success: outcome => t('config.backup.status_success') + t('config.backup.downloaded') + (outcome.body && outcome.body.filename ? outcome.body.filename : ''),
-        failure: t('config.backup.status_error')
+        success: outcome => t('config.backup.downloaded') + (outcome.body && outcome.body.filename ? outcome.body.filename : ''),
+        failure: t('config.common.error')
     });
 }
 
@@ -200,7 +208,7 @@ function backupRestartButton() {
     const restart = document.createElement('button');
     restart.type = 'button';
     restart.className = 'btn-save backup-restart-btn';
-    restart.textContent = '↻ ' + t('config.backup.restart_now');
+    restart.innerHTML = cfgIcon('refresh') + '<span>' + escapeHtml(t('config.backup.restart_now')) + '</span>';
     restart.addEventListener('click', () => restartAuraGo());
     return restart;
 }
@@ -214,8 +222,7 @@ function backupRenderImportResult(result, data, state) {
     box.className = 'backup-import-success-box' + (partial ? ' is-warning' : '');
     const title = document.createElement('div');
     title.className = 'backup-import-success-title';
-    title.textContent = (partial ? t('config.backup.status_warning') : t('config.backup.status_success'))
-        + ' ' + (partial ? t('config.backup.import_partial') : t('config.backup.import_staged'));
+    title.textContent = partial ? t('config.backup.import_partial') : t('config.backup.import_staged');
     box.appendChild(title);
     const pending = document.createElement('div');
     pending.className = 'backup-import-success-message';
@@ -266,7 +273,7 @@ async function backupImport() {
         pending: t('config.backup.importing'),
         success: t('config.backup.import_staged'),
         warning: t('config.backup.import_partial'),
-        failure: t('config.backup.status_error'),
+        failure: t('config.common.error'),
         reasonText: backupImportReason,
         onSuccess: outcome => {
             backupRenderImportResult(result, outcome.body || {}, outcome.state);
@@ -340,7 +347,7 @@ async function backupDiscardPending(btn) {
         pending: t('config.backup.discarding'),
         success: t('config.backup.discard_done'),
         warning: t('config.backup.discard_nothing'),
-        failure: t('config.backup.status_error'),
+        failure: t('config.common.error'),
         interpret: o => {
             if (o.httpStatus === 404 || o.httpStatus === 405) return { state: 'error', reason: t('config.backup.discard_unsupported') };
             if (o.state === 'success' && o.body && o.body.discarded === false) return { state: 'warning', reason: '' };
@@ -350,7 +357,7 @@ async function backupDiscardPending(btn) {
     });
     if (outcome && outcome.state === 'success') note = { state: 'success', text: t('config.backup.discard_done') };
     else if (outcome && outcome.state === 'warning') note = { state: 'warning', text: t('config.backup.discard_nothing') };
-    else if (outcome && outcome.state === 'error') note = { state: 'error', text: t('config.backup.status_error') + ' ' + (outcome.reason || '') };
+    else if (outcome && outcome.state === 'error') note = { state: 'error', text: outcome.reason || t('config.common.error') };
     await backupLoadRestoreStatus(note);
     return outcome;
 }

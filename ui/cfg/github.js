@@ -48,7 +48,7 @@ async function renderGitHubSection(section) {
     </div>`;
 
     html += `<div class="field-group">
-        <div class="field-label">${t('config.github.token_label')} <span class="gh-lock-icon">🔒</span></div>
+        <div class="field-label">${t('config.github.token_label')} <span class="gh-lock-icon">${cfgIcon('lock')}</span></div>
         <div class="field-help">${t('config.github.token_hint')}</div>
         <div class="cfg-secret-row">
             <div class="password-wrap cfg-password-input">
@@ -74,7 +74,7 @@ async function renderGitHubSection(section) {
     </div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">🔐 ${t('config.github.allowed_repos_title')}</div>
+        <div class="field-group-title">${cfgIcon('lock')} ${t('config.github.allowed_repos_title')}</div>
         <div class="field-group-desc">
             ${t('config.github.allowed_repos_desc')}
         </div>`;
@@ -87,10 +87,10 @@ async function renderGitHubSection(section) {
         : `<span class="gh-count-active">${allowedRepos.length} ${t('config.github.repos_selected_count')}</span>`;
 
     html += `<div class="gh-actions-row cfg-actions-row">
-        <button class="btn-save cfg-test-btn" onclick="githubTestConnection()" id="github-test-btn" data-config-action-draft="true">🔌 ${t('config.github.test_btn')}</button>
+        <button class="btn-save cfg-test-btn" onclick="githubTestConnection()" id="github-test-btn" data-config-action-draft="true">${cfgIcon('plug')} ${t('config.github.test_btn')}</button>
         ${cfgActionResult.html('github-test-result')}
         <button class="btn-save btn-secondary" onclick="githubFetchRepos()" id="github-fetch-btn">
-            🔄 ${t('config.github.fetch_repos_btn')}
+            ${cfgIcon('refresh')} ${t('config.github.fetch_repos_btn')}
         </button>
         ${cfgActionResult.html('github-fetch-status')}
         <span id="github-allowed-count" class="gh-count">${countLabel}</span>
@@ -105,22 +105,19 @@ async function renderGitHubSection(section) {
             <div class="cfg-label">${t('config.github.current_allowed_repos')}</div>
             <ul class="gh-static-list">
             ${allowedRepos.map(r => `<li class="gh-static-item">
-                <span class="gh-static-name">✓</span>
+                <span class="gh-static-name">${cfgIcon('check')}</span>
                 <span class="gh-repo-name">${escapeAttr(r)}</span>
             </li>`).join('')}
             </ul>
             <div class="gh-static-hint">${t('config.github.fetch_to_edit_hint')}</div>
         </div>`;
     } else {
-        html += `<div class="gh-empty-state">
-            <div class="gh-empty-icon">📋</div>
-            ${t('config.github.repos_list_empty')}
-        </div>`;
+        html += window.AuraConfigForm.emptyState({ title: t('config.github.repos_list_empty') });
     }
 
     html += `</div>`;
     html += `<div class="gh-note">
-        💡 ${t('config.github.agent_created_note')}
+        ${cfgIcon('bulb')} ${t('config.github.agent_created_note')}
     </div>`;
     html += `</div>`;
 
@@ -142,7 +139,7 @@ function githubRepoChecked(fullName, shortName, repoOwner, allowedRepos, configu
 
 function githubBuildRepoList(repos, allowedRepos) {
     if (!repos || repos.length === 0) {
-        return `<div class="gh-empty-state">${t('config.github.no_repos_found')}</div>`;
+        return window.AuraConfigForm.emptyState({ title: t('config.github.no_repos_found') });
     }
 
     const ownerInput = document.querySelector('[data-path="github.owner"]');
@@ -159,15 +156,15 @@ function githubBuildRepoList(repos, allowedRepos) {
         const isAgentCreated = repo.agent_created === true;
         const isAllowed = isAgentCreated || githubRepoChecked(fullName, name, String(fullName).split('/')[0] || '', allowedRepos, configuredOwner);
         const privBadge = isPrivate
-            ? `<span class="gh-badge gh-badge-private">🔒 ${t('config.github.badge_private')}</span>`
-            : `<span class="gh-badge gh-badge-public">${t('config.github.badge_public')}</span>`;
+            ? cfgBadge('warn', t('config.github.badge_private'))
+            : cfgBadge('idle', t('config.github.badge_public'));
         const agentBadge = isAgentCreated
-            ? `<span class="gh-badge gh-badge-agent">🤖 ${t('config.github.agent_badge')}</span>`
+            ? cfgBadge('ok', t('config.github.agent_badge'))
             : '';
-        const starStr = stars > 0 ? `<span class="gh-badge-stars">⭐ ${stars}</span>` : '';
+        const starStr = stars > 0 ? `<span class="pw-badge" data-status="idle">${cfgIcon('star')} ${stars}</span>` : '';
 
         html += `<label class="gh-repo-item">
-            <input type="checkbox" ${isAllowed ? 'checked' : ''} ${isAgentCreated ? 'disabled title="' + t('config.github.agent_created_always_allowed') + '"' : ''}
+            <input type="checkbox" data-cfg-choice ${isAllowed ? 'checked' : ''} ${isAgentCreated ? 'disabled title="' + t('config.github.agent_created_always_allowed') + '"' : ''}
                 class="gh-repo-check"
                 onchange="githubUpdateAllowedRepos()">
             <div class="gh-repo-info">
@@ -218,7 +215,7 @@ function githubUpdateAllowedRepos() {
     const configuredOwner = (ownerInput && ownerInput.value || '').trim().toLowerCase();
     const previous = hiddenInput.value.split(',').map(entry => entry.trim()).filter(Boolean);
     const visible = [];
-    listEl.querySelectorAll('input[type="checkbox"]').forEach(box => {
+    listEl.querySelectorAll('input[data-cfg-choice]').forEach(box => {
         const nameEl = box.closest('label') && box.closest('label').querySelector('span[data-repo-name]');
         if (!nameEl) return;
         const fullName = nameEl.dataset.repoFullName || nameEl.dataset.repoName;

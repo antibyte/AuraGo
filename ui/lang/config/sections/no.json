@@ -439,8 +439,6 @@
   "config.github.test_ok": "Tilkobling vellykket",
   "config.github.test_fail": "Tilkobling mislyktes",
   "config.github.loading": "Tester…",
-  "config.github.status_success": "✅",
-  "config.github.status_error": "❌",
   "config.group_title.agent.announcement_detector": "Svarretting",
   "config.group_title.agent.importance_scoring": "Viktighetspoeng",
   "config.group_title.agent.auto_learning": "Automatisk læring",

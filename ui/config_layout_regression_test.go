@@ -130,17 +130,17 @@ func TestConfigPhase2EmailModalUsesSharedOverlay(t *testing.T) {
 
 	emailJS := normalizeAssetText(mustReadUIFile(t, "cfg/email.js"))
 	for _, marker := range []string{
-		"modal-overlay open active",
-		"modal-card email-modal-card",
-		"modal-actions",
+		"cfgModal({ id: EMAIL_ACCOUNT_DIALOG",
+		"openModal(EMAIL_ACCOUNT_DIALOG",
+		"closeModal(EMAIL_ACCOUNT_DIALOG",
 		"btn btn-secondary",
 	} {
 		if !hasModuleMarker(emailJS, marker) {
 			t.Fatalf("email.js missing modal marker %q", marker)
 		}
 	}
-	if strings.Contains(emailJS, "em-modal-overlay") {
-		t.Fatal("email.js should not use em-modal-overlay")
+	if strings.Contains(emailJS, "em-modal-overlay") || strings.Contains(emailJS, "email-modal-card") {
+		t.Fatal("email.js should use the shared cfgModal dialog, not its own overlay")
 	}
 }
 
@@ -149,9 +149,9 @@ func TestConfigPhase2SecretsModalUsesSharedOverlay(t *testing.T) {
 
 	secretsJS := normalizeAssetText(mustReadUIFile(t, "cfg/secrets.js"))
 	for _, marker := range []string{
-		"modal-overlay open active",
-		"modal-card secrets-modal-card",
-		"modal-actions",
+		"cfgModal({ id: SECRETS_DIALOG",
+		"openModal(SECRETS_DIALOG",
+		"closeModal(SECRETS_DIALOG",
 		"btn btn-secondary",
 	} {
 		if !hasModuleMarker(secretsJS, marker) {
@@ -466,6 +466,10 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 			markers = []string{"cfg-test-btn", spec.resultID, "form.renderSpec", "form.select", "form.field", spec.testAPI, spec.testFn}
 		}
 		for _, marker := range markers {
+			// Form-builder modules get these classes from form.actions() / form.select().
+			if (marker == "cfg-actions-row" && strings.Contains(content, "form.actions(")) || (marker == "field-select" && strings.Contains(content, "form.select(")) {
+				continue
+			}
 			if !hasModuleMarker(content, marker) {
 				t.Fatalf("%s missing marker %q", spec.file, marker)
 			}

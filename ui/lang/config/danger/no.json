@@ -18,7 +18,7 @@
   "config.danger.package_manager.title": "Pakkehåndtering (package_manager)",
   "config.danger.package_manager.desc": "Lar agenten installere, fjerne, oppdatere, søke etter og inspisere systempakker. Linux-endringer bruker sudo_password fra hvelvet.",
   "config.danger.mcp.title": "MCP-servertilkoblinger (mcp_call)",
-  "config.danger.mcp.desc": "Lar agenten koble til eksterne MCP-servere og bruke verktøyene deres. <strong style=\"color:#f87171;\">⚠ Legg bare til pålitelige servere!</strong>",
+  "config.danger.mcp.desc": "Lar agenten koble til eksterne MCP-servere og bruke verktøyene deres. <strong style=\"color:#f87171;\">Legg bare til pålitelige servere!</strong>",
   "config.danger.sudo_unrestricted.title": "Systemomfattende sudo-skrivetilgang",
   "config.danger.sudo_unrestricted.desc": "Tillater agenten å skrive utenfor installasjonsmappen ved hjelp av sudo (f.eks. /etc.). Krever fjerning av ProtectSystem=strict fra systemd-tjenesteenheten.",
   "config.danger.unsafe_host_execution.title": "Usikker kjøring på verten",

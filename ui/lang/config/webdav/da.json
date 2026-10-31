@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "WebDAV-integration er deaktiveret",
   "config.webdav.status_no_url": "Ingen WebDAV-URL konfigureret",
   "config.webdav.status_no_credentials": "WebDAV-legitimationsoplysninger mangler",
-  "config.webdav.status_ok": "Forbundet til WebDAV",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "Forbundet til WebDAV"
 }

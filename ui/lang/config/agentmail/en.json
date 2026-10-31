@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Could not load cheatsheets",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet with instructions",
   "config.agentmail.relay_cheatsheet_none": "Do not attach a cheatsheet",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "AgentMail integration is disabled",
   "config.agentmail.status_no_api_key": "No API key configured",
   "config.agentmail.status_no_inbox": "Relay needs a primary inbox ID",

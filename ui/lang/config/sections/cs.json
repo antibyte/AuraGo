@@ -439,8 +439,6 @@
   "config.github.test_ok": "Připojení úspěšné",
   "config.github.test_fail": "Připojení selhalo",
   "config.github.loading": "Testování…",
-  "config.github.status_success": "✅",
-  "config.github.status_error": "❌",
   "config.group_title.agent.announcement_detector": "Detektor oznámení",
   "config.group_title.agent.importance_scoring": "Hodnocení důležitosti",
   "config.group_title.agent.auto_learning": "Automatické učení",

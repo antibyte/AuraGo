@@ -44,7 +44,7 @@ async function renderGoogleWorkspaceSection(section) {
     </div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">🔐 ${t('config.google_workspace.oauth_title')}</div>
+        <div class="field-group-title">${cfgIcon('lock')} ${t('config.google_workspace.oauth_title')}</div>
         <div class="field-group-desc">${t('config.google_workspace.oauth_desc')}</div>`;
 
     html += `<div class="field-group">
@@ -54,7 +54,7 @@ async function renderGoogleWorkspaceSection(section) {
     </div>`;
 
     html += `<div class="field-group">
-        <div class="field-label">${t('config.google_workspace.client_secret_label')} <span class="gw-vault-badge">🔒</span></div>
+        <div class="field-label">${t('config.google_workspace.client_secret_label')} ${cfgIcon('lock')}</div>
         <div class="field-help">${t('config.google_workspace.client_secret_hint')}</div>
         <div class="cfg-secret-row">
             <div class="password-wrap cfg-secret-input">
@@ -67,14 +67,14 @@ async function renderGoogleWorkspaceSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.google_workspace.connection_label')}</div>
         <div class="cfg-actions-row gw-actions-row">
-            <button class="btn-save cfg-save-btn" id="gw-connect-btn" onclick="gwOAuthConnect()">🔗 ${t('config.google_workspace.connect_btn')}</button>
-            <button class="btn-save cfg-save-btn gw-btn-disconnect" id="gw-disconnect-btn" onclick="gwOAuthDisconnect()">🔌 ${t('config.google_workspace.disconnect_btn')}</button>
-            <button class="btn-save cfg-test-btn" id="gw-test-btn" data-config-action-draft="true" onclick="gwTestConnection()">🧪 ${t('config.google_workspace.test_btn')}</button>
+            <button class="btn-save cfg-save-btn" id="gw-connect-btn" onclick="gwOAuthConnect()">${cfgIcon('link')} ${t('config.google_workspace.connect_btn')}</button>
+            <button class="btn-save cfg-save-btn gw-btn-disconnect" id="gw-disconnect-btn" onclick="gwOAuthDisconnect()">${cfgIcon('plug')} ${t('config.google_workspace.disconnect_btn')}</button>
+            <button class="btn-save cfg-test-btn" id="gw-test-btn" data-config-action-draft="true" onclick="gwTestConnection()">${cfgIcon('flask')} ${t('config.google_workspace.test_btn')}</button>
             ${cfgActionResult.html('gw-test-result')}
         </div>
         ${cfgActionResult.html('gw-oauth-status')}
         <div id="gw-manual-section" class="gw-manual-panel">
-            <div class="gw-manual-title">⚠️ ${t('config.google_workspace.oauth_manual_title')}</div>
+            <div class="gw-manual-title">${cfgIcon('alert')} ${t('config.google_workspace.oauth_manual_title')}</div>
             <div class="gw-manual-hint">${t('config.google_workspace.oauth_manual_hint')}</div>
             <div class="gw-manual-row">
                 <input class="field-input" type="text" id="gw-manual-url" placeholder="http://localhost:8088/api/oauth/callback?code=…&state=…">
@@ -86,7 +86,7 @@ async function renderGoogleWorkspaceSection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">📋 ${t('config.google_workspace.scopes_title')}</div>
+        <div class="field-group-title">${cfgIcon('list')} ${t('config.google_workspace.scopes_title')}</div>
         <div class="field-group-desc">${t('config.google_workspace.scopes_desc')}</div>`;
 
     const scopes = [

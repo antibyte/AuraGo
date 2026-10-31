@@ -7,7 +7,7 @@
                 {
                     path: 'agent.sudo_enabled',
                     val: agentCfg.sudo_enabled || false,
-                    icon: '🔑',
+                    icon: cfgIcon('key'),
                     title: t('config.danger.sudo.title'),
                     desc: t('config.danger.sudo.desc'),
                     badge: 'execute_sudo'
@@ -15,7 +15,7 @@
                 {
                     path: 'agent.sudo_unrestricted',
                     val: agentCfg.sudo_unrestricted === true,
-                    icon: '🔓',
+                    icon: cfgIcon('unlock'),
                     title: t('config.danger.sudo_unrestricted.title'),
                     desc: t('config.danger.sudo_unrestricted.desc'),
                     badge: 'execute_sudo'
@@ -23,7 +23,7 @@
                 {
                     path: 'agent.allow_shell',
                     val: agentCfg.allow_shell === true,
-                    icon: '🐚',
+                    icon: cfgIcon('terminal'),
                     title: t('config.danger.shell.title'),
                     desc: t('config.danger.shell.desc'),
                     badge: 'execute_shell'
@@ -31,7 +31,7 @@
                 {
                     path: 'agent.allow_python',
                     val: agentCfg.allow_python === true,
-                    icon: '🐍',
+                    icon: cfgIcon('code'),
                     title: t('config.danger.python.title'),
                     desc: t('config.danger.python.desc'),
                     badge: 'execute_python'
@@ -39,7 +39,7 @@
                 {
                     path: 'agent.allow_unsafe_host_execution',
                     val: agentCfg.allow_unsafe_host_execution === true,
-                    icon: '⚠️',
+                    icon: cfgIcon('alert'),
                     title: t('config.danger.unsafe_host_execution.title'),
                     desc: t('config.danger.unsafe_host_execution.desc'),
                     badge: 'host Python / Windows shell / unsandboxed Linux+macOS shell'
@@ -47,7 +47,7 @@
                 {
                     path: 'docker.allow_host_access',
                     val: (configData.docker || {}).allow_host_access === true,
-                    icon: '🐳',
+                    icon: cfgIcon('box'),
                     title: t('config.danger.docker_host_access.title'),
                     desc: t('config.danger.docker_host_access.desc'),
                     badge: 'docker compose up/create/build'
@@ -55,7 +55,7 @@
                 {
                     path: 'agent.allow_filesystem_write',
                     val: agentCfg.allow_filesystem_write === true,
-                    icon: '💾',
+                    icon: cfgIcon('save'),
                     title: t('config.danger.filesystem.title'),
                     desc: t('config.danger.filesystem.desc'),
                     badge: 'filesystem (write)'
@@ -63,7 +63,7 @@
                 {
                     path: 'agent.allow_network_requests',
                     val: agentCfg.allow_network_requests === true,
-                    icon: '🌐',
+                    icon: cfgIcon('globe'),
                     title: t('config.danger.network.title'),
                     desc: t('config.danger.network.desc'),
                     badge: 'api_request'
@@ -71,7 +71,7 @@
                 {
                     path: 'agent.allow_remote_shell',
                     val: agentCfg.allow_remote_shell === true,
-                    icon: '🖧',
+                    icon: cfgIcon('network'),
                     title: t('config.danger.remote_shell.title'),
                     desc: t('config.danger.remote_shell.desc'),
                     badge: 'execute_remote_shell'
@@ -79,7 +79,7 @@
                 {
                     path: 'agent.allow_self_update',
                     val: agentCfg.allow_self_update === true,
-                    icon: '🔄',
+                    icon: cfgIcon('refresh'),
                     title: t('config.danger.self_update.title'),
                     desc: t('config.danger.self_update.desc'),
                     badge: 'manage_updates'
@@ -87,7 +87,7 @@
                 {
                     path: 'agent.allow_package_manager',
                     val: agentCfg.allow_package_manager === true,
-                    icon: '📦',
+                    icon: cfgIcon('box'),
                     title: t('config.danger.package_manager.title'),
                     desc: t('config.danger.package_manager.desc'),
                     badge: 'package_manager'
@@ -95,7 +95,7 @@
                 {
                     path: 'agent.allow_mcp',
                     val: agentCfg.allow_mcp === true,
-                    icon: '🔌',
+                    icon: cfgIcon('plug'),
                     title: t('config.danger.mcp.title'),
                     desc: t('config.danger.mcp.desc'),
                     badge: 'mcp_call'
@@ -107,7 +107,7 @@
             html += '<div class="section-desc">' + section.desc + '</div>';
 
             html += `<div class="danger-banner">
-                <strong>⚠️ ${t('config.danger.warning_title')}:</strong>
+                <strong>${cfgIcon('alert')} ${t('config.danger.warning_title')}:</strong>
                 ${t('config.danger.warning_desc')}
             </div>`;
 
@@ -133,7 +133,7 @@
                 const descId = 'danger-desc-' + cap.path.replace(/\./g, '-');
                 html += `<div class="danger-card">`;
                 if (capBlocked) {
-                    html += `<div class="feature-unavailable-banner fub-blocked danger-fub"><span class="fub-icon">🚫</span><span>${escapeHtml(capBlockedReason || t('config.feature_unavailable'))}</span></div>`;
+                    html += `<div class="feature-unavailable-banner fub-blocked danger-fub"><span class="fub-icon">${cfgIcon('alert')}</span><span>${escapeHtml(capBlockedReason || t('config.feature_unavailable'))}</span></div>`;
                 }
                 html += `<div class="danger-card-header${capBlocked ? ' danger-card-header-blocked' : ''}">
                         <div>
@@ -142,7 +142,7 @@
                             ${helpText ? `<div class="danger-card-desc danger-card-help">${helpText}</div>` : ''}
                         </div>
                         <div class="danger-card-controls">
-                            <span class="danger-card-badge">${cap.badge}</span>
+                            ${cfgBadge('error', cap.badge)}
                             <div class="toggle ${isOn ? 'on' : ''}" data-path="${cap.path}" role="switch" aria-checked="${isOn ? 'true' : 'false'}" aria-label="${escapeAttr(cap.title)}" aria-describedby="${descId}" onclick="toggleBool(this)"></div>
                         </div>
                     </div>

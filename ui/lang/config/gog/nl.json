@@ -59,5 +59,6 @@
   "config.gog.agent_help": "De agent mag dit account gebruiken met de hieronder verleende rechten.",
   "config.gog.desktop_help": "Bureaubladapps mogen dit account gebruiken, bijvoorbeeld voor e-mail of agenda.",
   "config.gog.client_id_help": "Client-ID van de OAuth-webclient uit de Google Cloud Console.",
-  "config.gog.secret_help": "Client secret van de OAuth-client. \"Opslaan in Vault\" slaat het versleuteld op; het wordt niet opnieuw getoond."
+  "config.gog.secret_help": "Client secret van de OAuth-client. \"Opslaan in Vault\" slaat het versleuteld op; het wordt niet opnieuw getoond.",
+  "config.gog.limit_reached": "Er worden maximaal {max} accounts ondersteund. Verwijder een account voordat je er een toevoegt."
 }

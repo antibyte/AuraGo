@@ -1,38 +1,32 @@
 let _yepapiSection = null;
 
+function yepapiToggleEnabled(el) {
+    toggleBool(el);
+    setNestedValue(configData, 'yepapi.enabled', el.classList.contains('on'));
+    renderYepAPISection(null);
+}
+
 async function renderYepAPISection(section) {
     if (section) _yepapiSection = section; else section = _yepapiSection;
     const cfg = configData.yepapi || {};
     const enabled = cfg.enabled === true;
+    const form = window.AuraConfigForm;
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    // ── Main toggle ──
-    html += '<div class="cfg-toggle-row-highlight">';
-    html += '<span class="cfg-toggle-label">' + t('config.yepapi.enabled_label') + '</span>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="yepapi.enabled" aria-describedby="yepapi-enabled-help" onclick="toggleBool(this);setNestedValue(configData,\'yepapi.enabled\',this.classList.contains(\'on\'));renderYepAPISection(null)"></div>';
-    html += '</div>';
-    html += '<div class="field-help" id="yepapi-enabled-help">' + t('config.yepapi.enabled_help') + '</div>';
+    // The enable switch re-renders the section: the other settings only show while it is on.
+    const enableToggle = form.toggle({ label: t('config.yepapi.enabled_label'), help: t('config.yepapi.enabled_help'), path: 'yepapi.enabled', value: enabled })
+        .replace('onclick="toggleBool(this)"', 'onclick="yepapiToggleEnabled(this)"');
 
     if (!enabled) {
-        html += '<div class="wh-notice">';
-        html += '<span>🌐</span>';
-        html += '<div>';
-        html += '<strong>' + t('config.yepapi.disabled_notice') + '</strong><br>';
-        html += '<small>' + t('config.yepapi.disabled_desc') + '</small>';
-        html += '</div></div>';
-        html += '</div>';
-        document.getElementById('content').innerHTML = html;
+        document.getElementById('content').innerHTML = form.renderSpec({
+            label: section.label,
+            desc: section.desc,
+            key: 'yepapi',
+            fields: [enableToggle],
+            afterHTML: form.emptyState({ title: t('config.yepapi.disabled_notice'), desc: t('config.yepapi.disabled_desc') })
+        });
         attachChangeListeners();
         return;
     }
-
-    // ── Provider select ──
-    html += '<div class="field-group">';
-    html += '<div class="field-group-title">' + t('config.yepapi.provider_title') + '</div>';
-    html += '<div class="field-group-desc">' + t('config.yepapi.provider_desc') + '</div>';
 
     let currentProvider = cfg.provider || '';
     // Auto-select first yepapi provider if none selected
@@ -44,28 +38,14 @@ async function renderYepAPISection(section) {
         }
     }
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.yepapi.provider_label') + '</div>';
-    html += '<div class="field-help">' + t('config.yepapi.provider_help') + '</div>';
-    html += '<select class="field-select" data-path="yepapi.provider">';
-    html += '<option value=""' + (!currentProvider ? ' selected' : '') + '>' + t('config.yepapi.provider_none') + '</option>';
+    const providerOptions = [{ value: '', label: t('config.yepapi.provider_none') }];
     if (typeof providersCache !== 'undefined' && providersCache) {
         providersCache.forEach(p => {
             if (String(p.type || '').toLowerCase() !== 'yepapi') return;
-            const sel = (String(currentProvider) === String(p.id)) ? ' selected' : '';
-            const name = p.name || p.id;
-            const badge = p.type ? (' [' + p.type + ']') : '';
             const model = p.model ? (' — ' + p.model) : '';
-            html += '<option value="' + escapeAttr(p.id) + '"' + sel + '>' + escapeAttr(name + badge + model) + '</option>';
+            providerOptions.push({ value: p.id, label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + model });
         });
     }
-    html += '</select></div>';
-    html += '</div>';
-
-    // ── Services ──
-    html += '<div class="field-group">';
-    html += '<div class="field-group-title">' + t('config.yepapi.services_title') + '</div>';
-    html += '<div class="field-group-desc">' + t('config.yepapi.services_desc') + '</div>';
 
     const services = [
         { key: 'seo', label: 'seo_label', hint: 'seo_hint' },
@@ -77,33 +57,40 @@ async function renderYepAPISection(section) {
         { key: 'amazon', label: 'amazon_label', hint: 'amazon_hint' }
     ];
 
-    services.forEach(svc => {
-        const svcCfg = cfg[svc.key] || {};
-        const svcEnabled = svcCfg.enabled === true;
-        html += '<div class="ig-toggle-row pw-u-service-row">';
-        html += '<div class="pw-u-flex-1">';
-        html += '<div class="pw-u-medium" id="yepapi-' + svc.key + '-label">' + t('config.yepapi.' + svc.label) + '</div>';
-        html += '<div class="pw-u-meta field-help" id="yepapi-' + svc.key + '-help">' + t('config.yepapi.' + svc.hint) + '</div>';
-        html += '</div>';
-        html += '<div class="toggle ' + (svcEnabled ? 'on' : '') + '" data-path="yepapi.' + svc.key + '.enabled" aria-labelledby="yepapi-' + svc.key + '-label" aria-describedby="yepapi-' + svc.key + '-help" onclick="toggleBool(this)"></div>';
-        html += '</div>';
+    document.getElementById('content').innerHTML = form.renderSpec({
+        label: section.label,
+        desc: section.desc,
+        key: 'yepapi',
+        fields: [enableToggle],
+        groups: [{
+            title: t('config.yepapi.provider_title'),
+            desc: t('config.yepapi.provider_desc'),
+            fields: [form.select({
+                label: t('config.yepapi.provider_label'),
+                help: t('config.yepapi.provider_help'),
+                path: 'yepapi.provider',
+                value: String(currentProvider),
+                options: providerOptions
+            })]
+        }, {
+            title: t('config.yepapi.services_title'),
+            desc: t('config.yepapi.services_desc'),
+            fields: services.map(svc => form.toggle({
+                id: 'yepapi-' + svc.key + '-toggle',
+                label: t('config.yepapi.' + svc.label),
+                help: t('config.yepapi.' + svc.hint),
+                path: 'yepapi.' + svc.key + '.enabled',
+                value: (cfg[svc.key] || {}).enabled === true
+            }))
+        }, {
+            title: t('config.yepapi.test_title'),
+            desc: t('config.yepapi.test_desc'),
+            content: form.actions([
+                { html: '<button class="btn-save cfg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()" data-config-action-draft="true">' + cfgIcon('flask') + '<span>' + escapeHtml(t('config.yepapi.test_btn')) + '</span></button>' },
+                { html: cfgActionResult.html('yepapi-test-result') }
+            ])
+        }]
     });
-    html += '</div>';
-
-    // ── Test connection ──
-    html += '<div class="field-group">';
-    html += '<div class="field-group-title">' + t('config.yepapi.test_title') + '</div>';
-    html += '<div class="field-group-desc">' + t('config.yepapi.test_desc') + '</div>';
-    html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save cfg-test-btn" id="yepapi-test-btn" onclick="yepapiTestConnection()" data-config-action-draft="true">';
-    html += '🧪 ' + t('config.yepapi.test_btn');
-    html += '</button>';
-    html += cfgActionResult.html('yepapi-test-result');
-    html += '</div>';
-    html += '</div>';
-
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 }
 

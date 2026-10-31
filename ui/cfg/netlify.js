@@ -56,7 +56,7 @@ async function renderNetlifySection(section) {
     </div>`;
 
     html += `<div class="field-group">`;
-    html += `<div class="field-group-title">🔐 ${t('config.netlify.permissions_title')}</div>`;
+    html += `<div class="field-group-title">${cfgIcon('lock')} ${t('config.netlify.permissions_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.netlify.permissions_desc')}</div>`;
 
     html += `<div class="field-grid two-cols">`;
@@ -98,7 +98,7 @@ async function renderNetlifySection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">`;
-    html += `<div class="field-group-title">🌐 ${t('config.netlify.site_config_title')}</div>`;
+    html += `<div class="field-group-title">${cfgIcon('globe')} ${t('config.netlify.site_config_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.netlify.site_config_desc')}</div>`;
 
     html += `<div class="field-grid two-cols">`;
@@ -120,11 +120,11 @@ async function renderNetlifySection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">`;
-    html += `<div class="field-group-title">🔑 ${t('config.netlify.token_title')}</div>`;
+    html += `<div class="field-group-title">${cfgIcon('key')} ${t('config.netlify.token_title')}</div>`;
     html += `<div class="field-group-desc" id="nf-token-desc">${t('config.netlify.token_desc')}</div>`;
 
     html += `<label>
-        <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">🔐 ${t('config.netlify.vault_badge')}</small></span>
+        <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">${cfgIcon('lock')} ${t('config.netlify.vault_badge')}</small></span>
         <div class="password-wrap">
             <input class="field-input" type="password" id="nf-token" data-path="netlify.token" aria-describedby="nf-token-desc" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
@@ -134,10 +134,10 @@ async function renderNetlifySection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">🔌 ${t('config.netlify.test_title')}</div>
+        <div class="field-group-title">${cfgIcon('plug')} ${t('config.netlify.test_title')}</div>
         <div class="field-group-desc">${t('config.netlify.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save cfg-test-btn" id="nf-test-btn" data-config-action-draft="true" onclick="nfTestConnection()">🔌 ${t('config.netlify.test_btn')}</button>
+            <button class="btn-save cfg-test-btn" id="nf-test-btn" data-config-action-draft="true" onclick="nfTestConnection()">${cfgIcon('plug')} ${t('config.netlify.test_btn')}</button>
             ${cfgActionResult.html('nf-test-result')}
         </div>
     </div>`;

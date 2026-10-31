@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Não foi possível carregar os cheatsheets",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet com instruções",
   "config.agentmail.relay_cheatsheet_none": "Não anexar cheatsheet",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "A integração AgentMail está desativada",
   "config.agentmail.status_no_api_key": "Nenhuma chave de API configurada",
   "config.agentmail.status_no_inbox": "O relay precisa de um ID de caixa principal",

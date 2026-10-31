@@ -59,5 +59,6 @@
   "config.gog.agent_help": "The agent may use this account with the permissions granted below.",
   "config.gog.desktop_help": "Desktop apps may use this account, for example for mail or calendar.",
   "config.gog.client_id_help": "Client ID of the OAuth web client from the Google Cloud Console.",
-  "config.gog.secret_help": "Client secret of the OAuth client. \"Save in Vault\" stores it encrypted; it is not shown again."
+  "config.gog.secret_help": "Client secret of the OAuth client. \"Save in Vault\" stores it encrypted; it is not shown again.",
+  "config.gog.limit_reached": "Up to {max} accounts are supported. Remove an account before adding another."
 }

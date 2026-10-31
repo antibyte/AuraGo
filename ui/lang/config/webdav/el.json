@@ -68,7 +68,5 @@
   "config.webdav.status_disabled": "Η ενσωμάτωση WebDAV είναι απενεργοποιημένη",
   "config.webdav.status_no_url": "Δεν έχει ρυθμιστεί URL WebDAV",
   "config.webdav.status_no_credentials": "Λείπουν διαπιστευτήρια WebDAV",
-  "config.webdav.status_ok": "Συνδέθηκε στο WebDAV",
-  "config.webdav.status_success": "✅",
-  "config.webdav.status_error": "❌"
+  "config.webdav.status_ok": "Συνδέθηκε στο WebDAV"
 }

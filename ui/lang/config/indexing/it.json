@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Cartella i cui file vengono indicizzati, come percorso assoluto o relativo alla cartella di AuraGo. Le sottocartelle sono incluse. Aggiungila con il pulsante o con Invio.",
   "config.indexing.chunk_max_chars_help": "Lunghezza massima di un singolo chunk di testo in caratteri. Chunk più piccoli danno risultati più precisi, quelli più grandi più contesto. Predefinito: 3500.",
   "config.indexing.chunk_overlap_help": "Caratteri condivisi tra chunk adiacenti, così che le frasi ai bordi non vengano tagliate. Predefinito: 200.",
-  "config.indexing.chunk_max_chunks_help": "Numero massimo di chunk creati per file; il resto dei file molto grandi viene saltato. Predefinito: 200."
+  "config.indexing.chunk_max_chunks_help": "Numero massimo di chunk creati per file; il resto dei file molto grandi viene saltato. Predefinito: 200.",
+  "config.indexing.dir_empty": "Inserisci prima il percorso della cartella da indicizzare."
 }

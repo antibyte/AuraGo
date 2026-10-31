@@ -68,5 +68,6 @@
   "config.email.password_help": "Lösenord eller applösenord för kontot. Det lagras krypterat i vault.",
   "config.email.watch_enabled_help": "AuraGo kontrollerar regelbundet mappen som väljs nedan efter nya e-postmeddelanden och kan reagera på dem.",
   "config.email.watch_folder_help": "IMAP-mapp som bevakas efter nya e-postmeddelanden. Standard är INBOX.",
-  "config.email.interval_seconds_help": "Hur ofta mappen kontrolleras, i sekunder (standard 120). Kortare intervall belastar e-postservern mer."
+  "config.email.interval_seconds_help": "Hur ofta mappen kontrolleras, i sekunder (standard 120). Kortare intervall belastar e-postservern mer.",
+  "config.email.id_sanitised": "Endast a-z, 0-9, - och _ är tillåtna. ID:t sparas som '{id}'."
 }

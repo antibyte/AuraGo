@@ -68,7 +68,8 @@ func TestRustFSS3SettingsBrowser(t *testing.T) {
 	if !page.MustEval(`()=>JSON.stringify(AuraConfigState.buildPatch().rustfs.permissions.allowed_locations)==='[{"bucket":"aurago","prefixes":["agent/"," Agent%2F"]}]'`).Bool() {
 		t.Fatal("literal prefix rules were normalized or not saved as an atomic list")
 	}
-	page.MustElement(`[data-s3-field="whole"]`).MustClick()
+	// The whole-bucket switch is a .toggle: rod reports its ::after knob as covering it, so click it in the page.
+	page.MustElement(`[data-s3-field="whole"]`).MustEval(`()=>this.click()`)
 	if !page.MustEval(`()=>JSON.stringify(AuraConfigState.get('rustfs.permissions.allowed_locations')[0].prefixes)==='[""]'`).Bool() {
 		t.Fatal("whole-bucket access was not explicit")
 	}

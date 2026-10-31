@@ -68,5 +68,6 @@
   "config.email.password_help": "Hasło lub hasło aplikacji do konta. Jest przechowywane w postaci zaszyfrowanej w Vault.",
   "config.email.watch_enabled_help": "AuraGo regularnie sprawdza wybrany poniżej folder pod kątem nowych wiadomości i może na nie reagować.",
   "config.email.watch_folder_help": "Folder IMAP monitorowany pod kątem nowych wiadomości. Domyślnie INBOX.",
-  "config.email.interval_seconds_help": "Jak często folder jest sprawdzany, w sekundach (domyślnie 120). Krótsze odstępy bardziej obciążają serwer poczty."
+  "config.email.interval_seconds_help": "Jak często folder jest sprawdzany, w sekundach (domyślnie 120). Krótsze odstępy bardziej obciążają serwer poczty.",
+  "config.email.id_sanitised": "Dozwolone są tylko a-z, 0-9, - i _. Identyfikator zostanie zapisany jako '{id}'."
 }

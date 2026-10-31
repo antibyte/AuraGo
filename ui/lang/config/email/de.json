@@ -68,5 +68,6 @@
   "config.email.password_help": "Passwort oder App-Passwort des Kontos. Es wird verschlüsselt im Tresor gespeichert.",
   "config.email.watch_enabled_help": "AuraGo prüft den unten gewählten Ordner regelmäßig auf neue Mails und kann darauf reagieren.",
   "config.email.watch_folder_help": "IMAP-Ordner, der auf neue Mails überwacht wird. Standard ist INBOX.",
-  "config.email.interval_seconds_help": "Wie oft der Ordner geprüft wird, in Sekunden (Standard 120). Kürzere Abstände belasten den Mailserver stärker."
+  "config.email.interval_seconds_help": "Wie oft der Ordner geprüft wird, in Sekunden (Standard 120). Kürzere Abstände belasten den Mailserver stärker.",
+  "config.email.id_sanitised": "Erlaubt sind nur a-z, 0-9, - und _. Die ID wird als '{id}' gespeichert."
 }

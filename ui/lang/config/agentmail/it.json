@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Impossibile caricare i fogli informativi",
   "config.agentmail.relay_cheatsheet_label": "Foglio informativo con istruzioni",
   "config.agentmail.relay_cheatsheet_none": "Non allegare un foglio informativo",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "L'integrazione AgentMail è disabilitata",
   "config.agentmail.status_no_api_key": "Nessuna chiave API configurata",
   "config.agentmail.status_no_inbox": "Il relay richiede un ID casella principale",

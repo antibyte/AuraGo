@@ -94,5 +94,6 @@
   "config.indexing.dir_help": "Ordner, dessen Dateien indexiert werden, als absoluter Pfad oder relativ zum AuraGo-Ordner. Unterordner sind eingeschlossen. Mit der Schaltfläche oder Enter hinzufügen.",
   "config.indexing.chunk_max_chars_help": "Maximale Länge eines einzelnen Textabschnitts in Zeichen. Kleinere Abschnitte liefern genauere Treffer, größere mehr Kontext. Standard: 3500.",
   "config.indexing.chunk_overlap_help": "Zeichen, die sich benachbarte Abschnitte teilen, damit Sätze an den Grenzen nicht abgeschnitten werden. Standard: 200.",
-  "config.indexing.chunk_max_chunks_help": "Maximale Anzahl Abschnitte pro Datei; der Rest sehr großer Dateien wird übersprungen. Standard: 200."
+  "config.indexing.chunk_max_chunks_help": "Maximale Anzahl Abschnitte pro Datei; der Rest sehr großer Dateien wird übersprungen. Standard: 200.",
+  "config.indexing.dir_empty": "Gib zuerst den Pfad des Ordners ein, der indexiert werden soll."
 }

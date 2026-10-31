@@ -1,3 +1,1 @@
 # <module> <class>: own delete-button class; use cfgDeleteButton (btn-danger) (E7).
-email em-card-btn-delete
-sql_connections action-btn-delete

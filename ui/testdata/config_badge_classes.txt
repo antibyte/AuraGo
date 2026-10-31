@@ -1,16 +1,1 @@
 # <module> <class>: own status badge/pill class; use cfgBadge (E9).
-auth hint-badge
-danger card-badge
-email em-badge
-email em-badge-danger
-email em-badge-success
-email em-badge-warning
-github gh-badge
-github gh-badge-agent
-github gh-badge-private
-github gh-badge-public
-github gh-badge-stars
-google_workspace vault-badge
-secrets system-badge
-sql_connections driver-badge
-sql_connections perm-badge

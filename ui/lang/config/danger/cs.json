@@ -18,7 +18,7 @@
   "config.danger.package_manager.title": "Správa balíčků (package_manager)",
   "config.danger.package_manager.desc": "Umožňuje agentovi instalovat, odebírat, aktualizovat, vyhledávat a kontrolovat systémové balíčky. Změny v Linuxu používají sudo_password z trezoru.",
   "config.danger.mcp.title": "MCP Server připojení (mcp_call)",
-  "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">⚠ Přidejte pouze důvěryhodné servery!</strong>",
+  "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">Přidejte pouze důvěryhodné servery!</strong>",
   "config.danger.sudo_unrestricted.title": "Systémový zápis přes sudo",
   "config.danger.sudo_unrestricted.desc": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby.",
   "config.danger.unsafe_host_execution.title": "Nebezpečné spouštění na hostiteli",

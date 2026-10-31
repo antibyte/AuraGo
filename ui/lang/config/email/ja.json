@@ -68,5 +68,6 @@
   "config.email.password_help": "アカウントのパスワードまたはアプリパスワードです。vault に暗号化して保存されます。",
   "config.email.watch_enabled_help": "AuraGo は下で選択したフォルダーを定期的に確認して新着メールを検出し、それに対応できます。",
   "config.email.watch_folder_help": "新着メールを監視する IMAP フォルダーです。デフォルトは INBOX です。",
-  "config.email.interval_seconds_help": "フォルダーを確認する頻度 (秒) です (デフォルト 120)。間隔を短くするほどメールサーバーの負荷が高まります。"
+  "config.email.interval_seconds_help": "フォルダーを確認する頻度 (秒) です (デフォルト 120)。間隔を短くするほどメールサーバーの負荷が高まります。",
+  "config.email.id_sanitised": "使用できるのは a-z、0-9、-、_ のみです。ID は '{id}' として保存されます。"
 }

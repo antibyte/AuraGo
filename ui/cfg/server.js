@@ -12,6 +12,150 @@ async function renderServerSection(section) {
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
+    // HTTPS is the section's main switch: it comes first, the preview block after it (U19).
+    html += `<div class="field-group">
+        <div class="field-group-title">${cfgIcon('lock')} ${t('config.server.https_title')}</div>
+        <div class="field-group-desc" id="server-https-desc">${t('config.server.https_desc')}</div>`;
+
+    const httpsEnabled = https.enabled === true;
+    html += `<div class="cfg-toggle-row-highlight">
+        <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
+        <button type="button" class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-describedby="server-https-desc" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></button>
+    </div>`;
+
+    if (httpsEnabled) {
+        const certMode = https.cert_mode || 'auto';
+        html += `<div class="field-group">
+            <div class="field-label">${t('config.server.cert_mode_label')}</div>
+            <div class="field-help">${t('config.server.cert_mode_hint')}</div>
+            <select class="field-select" id="cert-mode-select" data-path="server.https.cert_mode"
+                onchange="_srvChangeCertMode(this)">
+                <option value="auto" ${certMode==='auto'?'selected':''}>${t('config.server.cert_mode_auto')}</option>
+                <option value="custom" ${certMode==='custom'?'selected':''}>${t('config.server.cert_mode_custom')}</option>
+                <option value="selfsigned" ${certMode==='selfsigned'?'selected':''}>${t('config.server.cert_mode_selfsigned')}</option>
+            </select>
+        </div>`;
+
+        html += `<div class="field-grid two-cols">
+            <div class="field-group">
+                <div class="field-label">${t('config.server.https_port_label')}</div>
+                <div class="field-help">${t('config.server.https_port_hint')}</div>
+                <input type="number" class="field-input" data-path="server.https.https_port" value="${https.https_port || 443}" min="1" max="65535">
+            </div>
+            <div class="field-group">
+                <div class="field-label">${t('config.server.http_port_label')}</div>
+                <input type="number" class="field-input" data-path="server.https.http_port" value="${https.http_port ?? (certMode === 'auto' && https.domain?.trim() ? 80 : 0)}" min="0" max="65535">
+                <div class="field-help">${t('config.server.http_port_hint')}</div>
+            </div>
+        </div>`;
+
+        if (certMode === 'auto') {
+            html += `<div class="wh-notice">
+                <span>${cfgIcon('globe')}</span>
+                <div><small>${t('config.server.cert_auto_notice')}</small></div>
+            </div>`;
+
+            html += `<div class="field-grid two-cols">
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.domain_label')}</div>
+                    <div class="field-help">${t('config.server.domain_hint')}</div>
+                    <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.example.com">
+                </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.email_label')}</div>
+                    <div class="field-help">${t('config.server.email_hint')}</div>
+                    <input type="email" class="field-input" data-path="server.https.email" value="${escapeAttr(https.email || '')}" placeholder="admin@example.com">
+                </div>
+            </div>`;
+
+        } else if (certMode === 'custom') {
+            html += `<div class="wh-notice">
+                <span>${cfgIcon('file')}</span>
+                <div><small>${t('config.server.cert_custom_notice')}</small></div>
+            </div>`;
+
+            html += `<div class="field-grid two-cols">
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.cert_file_label')}</div>
+                    <div class="field-help">${t('config.server.cert_file_hint')}</div>
+                    <input type="text" class="field-input" data-path="server.https.cert_file" value="${escapeAttr(https.cert_file || '')}" placeholder="data/certs/custom.crt">
+                </div>
+                <div class="field-group">
+                    <div class="field-label">${t('config.server.key_file_label')}</div>
+                    <div class="field-help">${t('config.server.key_file_hint')}</div>
+                    <input type="text" class="field-input" data-path="server.https.key_file" value="${escapeAttr(https.key_file || '')}" placeholder="data/certs/custom.key">
+                </div>
+            </div>`;
+
+            html += `<div class="srv-upload-box">
+                <div class="srv-box-title">${t('config.server.cert_upload_title')}</div>
+                <div class="srv-upload-fields">
+                    <label class="srv-label">
+                        <span class="cfg-help">${t('config.server.cert_upload_cert')}</span>
+                        <input type="file" id="cert-upload-cert" accept=".pem,.crt,.cer" class="srv-file-input">
+                    </label>
+                    <label class="srv-label">
+                        <span class="cfg-help">${t('config.server.cert_upload_key')}</span>
+                        <input type="file" id="cert-upload-key" accept=".pem,.key" class="srv-file-input">
+                    </label>
+                    <button class="btn btn-sm btn-primary" onclick="_srvUploadCert(this)">${cfgIcon('upload')} ${t('config.server.cert_upload_btn')}</button>
+                    ${cfgActionResult.html('cert-upload-result')}
+                </div>
+            </div>`;
+
+        } else if (certMode === 'selfsigned') {
+            html += `<div class="wh-notice">
+                <span>${cfgIcon('lock')}</span>
+                <div><small>${t('config.server.cert_selfsigned_notice')}</small></div>
+            </div>`;
+            const httpsPort = parseInt(https.https_port) || 443;
+            if (httpsPort < 1024) {
+                html += `<div class="wh-notice wh-notice-warning">
+                    <span>${cfgIcon('alert')}</span>
+                    <div><small>${t('config.server.selfsigned_port_warning')}</small></div>
+                </div>`;
+            }
+
+            html += `<div class="field-group">
+                <div class="field-label">${t('config.server.domain_label')}</div>
+                <div class="field-help">${t('config.server.cert_selfsigned_domain_hint')}</div>
+                <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.local">
+            </div>`;
+
+            html += `<button class="btn btn-sm btn-warning srv-regen-btn" onclick="_srvRegenCert(this)">${cfgIcon('refresh')} ${t('config.server.cert_regen_btn')}</button>${cfgActionResult.html('cert-regen-result')}`;
+        }
+
+        html += `<div id="cert-status-area" class="srv-status-area">
+            <div class="srv-box-title">${t('config.server.cert_status_title')}</div>
+            <div id="cert-status-info" class="srv-status-info">
+                ${t('config.server.cert_status_loading')}
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="_srvRefreshCertStatus()">${cfgIcon('refresh')} ${t('config.server.cert_status_refresh')}</button>
+        </div>`;
+
+    } else {
+        html += `<div class="wh-notice">
+            <span>${cfgIcon('unlock')}</span>
+            <div>
+                <strong>${t('config.server.https_disabled_notice')}</strong><br>
+                <small>${t('config.server.https_disabled_desc')}</small>
+            </div>
+        </div>`;
+    }
+
+    html += `<div class="cfg-toggle-row">
+        <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
+        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" role="switch" aria-describedby="server-behind-proxy-hint" aria-checked="${https.behind_proxy ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.behind_proxy_label'))}" onclick="toggleBool(this)"></div>
+    </div>
+    <div class="field-help" id="server-behind-proxy-hint">${t('config.server.behind_proxy_hint')}</div>
+    <div class="field-group">
+        <div class="field-label">${t('config.server.trusted_proxy_cidrs_label')}</div>
+        <div class="field-help">${t('config.server.trusted_proxy_cidrs_hint')}</div>
+        <textarea id="server-trusted-proxy-cidrs" class="field-input" rows="2" placeholder="127.0.0.1/32, 172.18.0.2/32">${escapeHtml((https.trusted_proxy_cidrs || []).join(', '))}</textarea>
+    </div>`;
+
+    html += `</div>`;
+
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.refresh.network')}</div>`;
 
@@ -66,147 +210,6 @@ async function renderServerSection(section) {
         </div>
     </div>`;
 
-    html += `<div class="field-group">
-        <div class="field-group-title">🔒 ${t('config.server.https_title')}</div>
-        <div class="field-group-desc" id="server-https-desc">${t('config.server.https_desc')}</div>`;
-
-    const httpsEnabled = https.enabled === true;
-    html += `<div class="cfg-toggle-row-highlight">
-        <span class="cfg-toggle-label">${t('config.server.https_enabled_label')}</span>
-        <button type="button" class="toggle ${httpsEnabled ? 'on' : ''}" data-path="server.https.enabled" role="switch" aria-describedby="server-https-desc" aria-checked="${httpsEnabled}" aria-label="${escapeAttr(t('config.server.https_enabled_label'))}" onclick="_srvToggleHttps(this)"></button>
-    </div>`;
-
-    if (httpsEnabled) {
-        const certMode = https.cert_mode || 'auto';
-        html += `<div class="field-group">
-            <div class="field-label">${t('config.server.cert_mode_label')}</div>
-            <div class="field-help">${t('config.server.cert_mode_hint')}</div>
-            <select class="field-select" id="cert-mode-select" data-path="server.https.cert_mode"
-                onchange="_srvChangeCertMode(this)">
-                <option value="auto" ${certMode==='auto'?'selected':''}>${t('config.server.cert_mode_auto')}</option>
-                <option value="custom" ${certMode==='custom'?'selected':''}>${t('config.server.cert_mode_custom')}</option>
-                <option value="selfsigned" ${certMode==='selfsigned'?'selected':''}>${t('config.server.cert_mode_selfsigned')}</option>
-            </select>
-        </div>`;
-
-        html += `<div class="field-grid two-cols">
-            <div class="field-group">
-                <div class="field-label">${t('config.server.https_port_label')}</div>
-                <div class="field-help">${t('config.server.https_port_hint')}</div>
-                <input type="number" class="field-input" data-path="server.https.https_port" value="${https.https_port || 443}" min="1" max="65535">
-            </div>
-            <div class="field-group">
-                <div class="field-label">${t('config.server.http_port_label')}</div>
-                <input type="number" class="field-input" data-path="server.https.http_port" value="${https.http_port ?? (certMode === 'auto' && https.domain?.trim() ? 80 : 0)}" min="0" max="65535">
-                <div class="field-help">${t('config.server.http_port_hint')}</div>
-            </div>
-        </div>`;
-
-        if (certMode === 'auto') {
-            html += `<div class="wh-notice">
-                <span>🌐</span>
-                <div><small>${t('config.server.cert_auto_notice')}</small></div>
-            </div>`;
-
-            html += `<div class="field-grid two-cols">
-                <div class="field-group">
-                    <div class="field-label">${t('config.server.domain_label')}</div>
-                    <div class="field-help">${t('config.server.domain_hint')}</div>
-                    <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.example.com">
-                </div>
-                <div class="field-group">
-                    <div class="field-label">${t('config.server.email_label')}</div>
-                    <div class="field-help">${t('config.server.email_hint')}</div>
-                    <input type="email" class="field-input" data-path="server.https.email" value="${escapeAttr(https.email || '')}" placeholder="admin@example.com">
-                </div>
-            </div>`;
-
-        } else if (certMode === 'custom') {
-            html += `<div class="wh-notice">
-                <span>📄</span>
-                <div><small>${t('config.server.cert_custom_notice')}</small></div>
-            </div>`;
-
-            html += `<div class="field-grid two-cols">
-                <div class="field-group">
-                    <div class="field-label">${t('config.server.cert_file_label')}</div>
-                    <div class="field-help">${t('config.server.cert_file_hint')}</div>
-                    <input type="text" class="field-input" data-path="server.https.cert_file" value="${escapeAttr(https.cert_file || '')}" placeholder="data/certs/custom.crt">
-                </div>
-                <div class="field-group">
-                    <div class="field-label">${t('config.server.key_file_label')}</div>
-                    <div class="field-help">${t('config.server.key_file_hint')}</div>
-                    <input type="text" class="field-input" data-path="server.https.key_file" value="${escapeAttr(https.key_file || '')}" placeholder="data/certs/custom.key">
-                </div>
-            </div>`;
-
-            html += `<div class="srv-upload-box">
-                <div class="srv-box-title">${t('config.server.cert_upload_title')}</div>
-                <div class="srv-upload-fields">
-                    <label class="srv-label">
-                        <span class="cfg-help">${t('config.server.cert_upload_cert')}</span>
-                        <input type="file" id="cert-upload-cert" accept=".pem,.crt,.cer" class="srv-file-input">
-                    </label>
-                    <label class="srv-label">
-                        <span class="cfg-help">${t('config.server.cert_upload_key')}</span>
-                        <input type="file" id="cert-upload-key" accept=".pem,.key" class="srv-file-input">
-                    </label>
-                    <button class="btn btn-sm btn-primary" onclick="_srvUploadCert()">📤 ${t('config.server.cert_upload_btn')}</button>
-                </div>
-            </div>`;
-
-        } else if (certMode === 'selfsigned') {
-            html += `<div class="wh-notice">
-                <span>🔐</span>
-                <div><small>${t('config.server.cert_selfsigned_notice')}</small></div>
-            </div>`;
-            const httpsPort = parseInt(https.https_port) || 443;
-            if (httpsPort < 1024) {
-                html += `<div class="wh-notice wh-notice-warning">
-                    <span>⚠️</span>
-                    <div><small>${t('config.server.selfsigned_port_warning')}</small></div>
-                </div>`;
-            }
-
-            html += `<div class="field-group">
-                <div class="field-label">${t('config.server.domain_label')}</div>
-                <div class="field-help">${t('config.server.cert_selfsigned_domain_hint')}</div>
-                <input type="text" class="field-input" data-path="server.https.domain" value="${escapeAttr(https.domain || '')}" placeholder="aurago.local">
-            </div>`;
-
-            html += `<button class="btn btn-sm btn-warning srv-regen-btn" onclick="_srvRegenCert()">🔄 ${t('config.server.cert_regen_btn')}</button>`;
-        }
-
-        html += `<div id="cert-status-area" class="srv-status-area">
-            <div class="srv-box-title">${t('config.server.cert_status_title')}</div>
-            <div id="cert-status-info" class="srv-status-info">
-                ${t('config.server.cert_status_loading')}
-            </div>
-            <button class="btn btn-sm btn-secondary" onclick="_srvRefreshCertStatus()">🔄 ${t('config.server.cert_status_refresh')}</button>
-        </div>`;
-
-    } else {
-        html += `<div class="wh-notice">
-            <span>🔓</span>
-            <div>
-                <strong>${t('config.server.https_disabled_notice')}</strong><br>
-                <small>${t('config.server.https_disabled_desc')}</small>
-            </div>
-        </div>`;
-    }
-
-    html += `<div class="cfg-toggle-row">
-        <span class="cfg-toggle-label">${t('config.server.behind_proxy_label')}</span>
-        <div class="toggle ${https.behind_proxy ? 'on' : ''}" data-path="server.https.behind_proxy" role="switch" aria-describedby="server-behind-proxy-hint" aria-checked="${https.behind_proxy ? 'true' : 'false'}" aria-label="${escapeAttr(t('config.server.behind_proxy_label'))}" onclick="toggleBool(this)"></div>
-    </div>
-    <div class="field-help" id="server-behind-proxy-hint">${t('config.server.behind_proxy_hint')}</div>
-    <div class="field-group">
-        <div class="field-label">${t('config.server.trusted_proxy_cidrs_label')}</div>
-        <div class="field-help">${t('config.server.trusted_proxy_cidrs_hint')}</div>
-        <textarea id="server-trusted-proxy-cidrs" class="field-input" rows="2" placeholder="127.0.0.1/32, 172.18.0.2/32">${escapeHtml((https.trusted_proxy_cidrs || []).join(', '))}</textarea>
-    </div>`;
-
-    html += `</div>`;
     html += `</div>`;
 
     document.getElementById('content').innerHTML = html;
@@ -293,7 +296,7 @@ async function _srvRefreshCertStatus() {
                 info += `<br><strong>${t('config.server.cert_status_sans')}:</strong> ${escapeHtml(ci.dns_names.join(', '))}`;
             }
             if (ci.expired) {
-                info += `<br><span class="srv-cert-expired">⚠ ${t('config.server.cert_status_expired')}</span>`;
+                info += `<br><span class="srv-cert-expired">${cfgIcon('alert')} ${t('config.server.cert_status_expired')}</span>`;
             }
         } else {
             info += `<br><span class="srv-cert-none">${t('config.server.cert_status_none')}</span>`;
@@ -305,49 +308,41 @@ async function _srvRefreshCertStatus() {
     }
 }
 
-async function _srvUploadCert() {
+// The server answers 200 with {error} for a rejected certificate, so the body decides.
+function _srvCertInterpret(outcome) {
+    const body = outcome.body || {};
+    return body.error ? { state: 'error', reason: String(body.error) } : null;
+}
+
+async function _srvUploadCert(button) {
     const certFile = document.getElementById('cert-upload-cert')?.files?.[0];
     const keyFile = document.getElementById('cert-upload-key')?.files?.[0];
 
     if (!certFile || !keyFile) {
-        showToast(t('config.server.cert_upload_missing'), 'error');
-        return;
+        cfgActionResult.show('cert-upload-result', 'error', t('config.server.cert_upload_missing'));
+        return { skipped: 'invalid' };
     }
 
     const form = new FormData();
     form.append('cert', certFile);
     form.append('key', keyFile);
 
-    try {
-        const resp = await fetch('/api/cert/upload', { method: 'POST', body: form });
-        const data = await resp.json();
-        if (data.error) {
-            showToast(data.error, 'error');
-        } else {
-            showToast(data.message || t('config.server.cert_upload_success'), 'success');
-            setTimeout(_srvRefreshCertStatus, 500);
-        }
-    } catch (e) {
-        showToast(e.message, 'error');
-    } finally {
-        if (regenBtn) regenBtn.disabled = false;
-    }
+    return cfgActionResult(button, () => fetch('/api/cert/upload', { method: 'POST', body: form }), {
+        target: 'cert-upload-result',
+        success: outcome => (outcome.body && outcome.body.message) || t('config.server.cert_upload_success'),
+        failure: t('config.common.error'),
+        interpret: _srvCertInterpret,
+        onSuccess: () => setTimeout(_srvRefreshCertStatus, 500)
+    });
 }
 
-async function _srvRegenCert() {
-    if (!(await showConfirm(t('config.server.confirm_regen_title'), t('config.server.confirm_regen_message')))) return;
-    const regenBtn = document.querySelector('.srv-regen-btn');
-    if (regenBtn) regenBtn.disabled = true;
-    try {
-        const resp = await fetch('/api/cert/regenerate', { method: 'POST' });
-        const data = await resp.json();
-        if (data.error) {
-            showToast(data.error, 'error');
-        } else {
-            showToast(data.message || t('config.server.cert_regen_success'), 'success');
-            setTimeout(_srvRefreshCertStatus, 500);
-        }
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
+async function _srvRegenCert(button) {
+    if (!(await showConfirm(t('config.server.confirm_regen_title'), t('config.server.confirm_regen_message')))) return { skipped: 'cancelled' };
+    return cfgActionResult(button, () => fetch('/api/cert/regenerate', { method: 'POST' }), {
+        target: 'cert-regen-result',
+        success: outcome => (outcome.body && outcome.body.message) || t('config.server.cert_regen_success'),
+        failure: t('config.common.error'),
+        interpret: _srvCertInterpret,
+        onSuccess: () => setTimeout(_srvRefreshCertStatus, 500)
+    });
 }

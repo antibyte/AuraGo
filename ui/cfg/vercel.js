@@ -46,7 +46,7 @@ async function renderVercelSection(section) {
     </div>`;
 
     html += `<div class="field-group">`;
-    html += `<div class="field-group-title">🔐 ${t('config.vercel.permissions_title')}</div>`;
+    html += `<div class="field-group-title">${cfgIcon('lock')} ${t('config.vercel.permissions_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.vercel.permissions_desc')}</div>`;
     html += `<div class="field-grid two-cols">`;
 
@@ -94,7 +94,7 @@ async function renderVercelSection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">`;
-    html += `<div class="field-group-title">🌐 ${t('config.vercel.project_config_title')}</div>`;
+    html += `<div class="field-group-title">${cfgIcon('globe')} ${t('config.vercel.project_config_title')}</div>`;
     html += `<div class="field-group-desc">${t('config.vercel.project_config_desc')}</div>`;
     html += `<div class="field-grid two-cols">`;
 
@@ -120,11 +120,11 @@ async function renderVercelSection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">`;
-    html += `<div class="field-group-title">🔑 ${t('config.vercel.token_title')}</div>`;
+    html += `<div class="field-group-title">${cfgIcon('key')} ${t('config.vercel.token_title')}</div>`;
     html += `<div class="field-group-desc" id="vc-token-desc">${t('config.vercel.token_desc')}</div>`;
 
     html += `<label>
-        <span class="cfg-label">${t('config.vercel.token_label')} <small class="hp-text-tertiary">🔐 ${t('config.vercel.vault_badge')}</small></span>
+        <span class="cfg-label">${t('config.vercel.token_label')} <small class="hp-text-tertiary">${cfgIcon('lock')} ${t('config.vercel.vault_badge')}</small></span>
         <div class="password-wrap">
             <input class="field-input" type="password" id="vercel-token" data-path="vercel.token" aria-describedby="vc-token-desc" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
@@ -134,10 +134,10 @@ async function renderVercelSection(section) {
     html += `</div>`;
 
     html += `<div class="field-group">
-        <div class="field-group-title">🔌 ${t('config.vercel.test_title')}</div>
+        <div class="field-group-title">${cfgIcon('plug')} ${t('config.vercel.test_title')}</div>
         <div class="field-group-desc">${t('config.vercel.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save cfg-test-btn" id="vercel-test-btn" data-config-action-draft="true" onclick="vercelTestConnection()">🔌 ${t('config.vercel.test_btn')}</button>
+            <button class="btn-save cfg-test-btn" id="vercel-test-btn" data-config-action-draft="true" onclick="vercelTestConnection()">${cfgIcon('plug')} ${t('config.vercel.test_btn')}</button>
             ${cfgActionResult.html('vercel-test-result')}
         </div>
     </div>`;

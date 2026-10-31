@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Cheatsheets konnten nicht geladen werden",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet mit Anweisungen",
   "config.agentmail.relay_cheatsheet_none": "Kein Cheatsheet anhängen",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "AgentMail-Integration ist deaktiviert",
   "config.agentmail.status_no_api_key": "Kein API-Key konfiguriert",
   "config.agentmail.status_no_inbox": "Relay benötigt eine primäre Postfach-ID",

@@ -37,11 +37,9 @@ mqtt
 netlify
 network_shares
 newspaper
-obsidian
 omniroute
 onedrive
 output_compression
-paperless
 prompts
 providers
 realtime_speech
@@ -67,4 +65,3 @@ vercel
 virtual_computers
 virtual_desktop
 webhooks
-yepapi

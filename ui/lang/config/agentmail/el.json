@@ -23,7 +23,6 @@
   "config.agentmail.relay_cheatsheet_error": "Αδυναμία φόρτωσης cheatsheets",
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet με οδηγίες",
   "config.agentmail.relay_cheatsheet_none": "Να μη γίνει επισύναψη cheatsheet",
-  "config.agentmail.save_icon": "💾",
   "config.agentmail.status_disabled": "Η ενσωμάτωση AgentMail είναι απενεργοποιημένη",
   "config.agentmail.status_no_api_key": "Δεν έχει ρυθμιστεί API key",
   "config.agentmail.status_no_inbox": "Το relay χρειάζεται ID κύριας θυρίδας",

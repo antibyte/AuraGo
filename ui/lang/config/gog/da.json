@@ -59,5 +59,6 @@
   "config.gog.enabled_help": "Aktiverer gog-linket til Google-konti. Det tilføjer flere konti til den indbyggede Google Workspace-integration.",
   "config.gog.name_help": "Kontoens visningsnavn, f.eks. \"Privat\" eller \"Arbejde\".",
   "config.gog.readonly_help": "Agenten må kun læse via gog. Oprettelse, ændring, sletning og afsendelse forbliver blokeret, selv om en konto tillader det.",
-  "config.gog.secret_help": "Klienthemmeligheden for OAuth-klienten. \"Gem i Vault\" gemmer den krypteret; den vises ikke igen."
+  "config.gog.secret_help": "Klienthemmeligheden for OAuth-klienten. \"Gem i Vault\" gemmer den krypteret; den vises ikke igen.",
+  "config.gog.limit_reached": "Der understøttes højst {max} konti. Fjern en konto, før du tilføjer en ny."
 }

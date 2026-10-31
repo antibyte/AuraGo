@@ -36,7 +36,7 @@ async function renderUpdatesBody() {
     body.innerHTML = `
     <div class="updates-warning-card">
         <div class="updates-warning-text">
-            ⚠️ ${t('config.updates.warning_banner')}
+            ${cfgIcon('alert')} ${t('config.updates.warning_banner')}
         </div>
     </div>
 
@@ -49,7 +49,7 @@ async function renderUpdatesBody() {
         <button class="btn-save updates-btn is-hidden" id="updates-install-btn" onclick="updatesInstall()">
             ${t('config.updates.install_button')}
         </button>
-        <button class="btn-save updates-btn is-hidden" id="updates-cancel-btn" onclick="updatesCancelReload()" aria-label="${escapeAttr(t('config.updates.cancel_reload'))}" title="${escapeAttr(t('config.updates.cancel_reload'))}">✕</button>
+        <button class="btn-save updates-btn is-hidden" id="updates-cancel-btn" onclick="updatesCancelReload()" aria-label="${escapeAttr(t('config.updates.cancel_reload'))}" title="${escapeAttr(t('config.updates.cancel_reload'))}">${cfgIcon('x')}</button>
         <span id="updates-status" class="updates-status"></span>
     </div>`;
 }
@@ -73,7 +73,7 @@ async function updatesCheck() {
         if (data.error) {
             resultDiv.innerHTML = `
             <div class="updates-result-card updates-result-error">
-                <div class="updates-result-title">❌ ${t('config.updates.error')}</div>
+                <div class="updates-result-title">${cfgIcon('x')} ${t('config.updates.error')}</div>
                 <div class="updates-result-detail">${escapeHtml(String(data.error))}</div>
             </div>`;
         } else if (data.update_available) {
@@ -90,7 +90,7 @@ async function updatesCheck() {
             }
             resultDiv.innerHTML = `
             <div class="updates-result-card updates-result-warn">
-                <div class="updates-result-title updates-result-title-warn">🆕 ${t('config.updates.available')}</div>
+                <div class="updates-result-title updates-result-title-warn">${cfgIcon('sparkles')} ${t('config.updates.available')}</div>
                 <div class="updates-meta-row">
                     ${data.current_version ? `<span>${t('config.updates.current')}: <strong>${escapeHtml(String(data.current_version))}</strong></span>` : ''}
                     ${data.latest_version ? `<span>${t('config.updates.latest')}: <strong class="updates-latest-version">${escapeHtml(String(data.latest_version))}</strong></span>` : ''}
@@ -103,7 +103,7 @@ async function updatesCheck() {
         } else {
             resultDiv.innerHTML = `
             <div class="updates-result-card updates-result-success">
-                <div class="updates-result-title updates-result-title-success">✅ ${t('config.updates.up_to_date')}</div>
+                <div class="updates-result-title updates-result-title-success">${cfgIcon('check')} ${t('config.updates.up_to_date')}</div>
                 <div class="updates-meta-row updates-meta-row-tight">
                     ${data.current_version ? `<span>${t('config.updates.version')}: <strong>${escapeHtml(String(data.current_version))}</strong></span>` : ''}
                     <span>${escapeHtml(String(data.message || ''))}</span>
@@ -111,7 +111,7 @@ async function updatesCheck() {
             </div>`;
         }
     } catch (e) {
-        resultDiv.innerHTML = `<div class="updates-inline-error">❌ ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+        resultDiv.innerHTML = `<div class="updates-inline-error">${cfgIcon('x')} ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
     } finally {
         btn.disabled = false;
         btn.textContent = t('config.updates.check_button');
@@ -135,14 +135,14 @@ async function updatesInstall() {
         const resp = await fetch('/api/updates/install', { method: 'POST' });
         const data = await resp.json();
         if (data.error) {
-            if (status) status.textContent = '❌ ' + data.error;
+            if (status) status.textContent = String(data.error);
             if (installBtn) { installBtn.disabled = false; installBtn.textContent = t('config.updates.install_button'); }
             if (checkBtn) checkBtn.disabled = false;
         } else {
             updatesStartReloadCountdown(75);
         }
     } catch (e) {
-        if (status) status.textContent = '❌ ' + e.message;
+        if (status) status.textContent = e.message;
         if (installBtn) { installBtn.disabled = false; installBtn.textContent = t('config.updates.install_button'); }
         if (checkBtn) checkBtn.disabled = false;
     }
