@@ -45,6 +45,7 @@ import (
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/push"
 	"aurago/internal/remote"
+	"aurago/internal/restorepending"
 	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/server"
@@ -324,6 +325,23 @@ func main() {
 		}
 		fmt.Println("OK")
 		os.Exit(0)
+	}
+
+	// -- Apply a pending system restore ------------------------------------
+	// Runs under the instance lock and BEFORE the config is loaded and before
+	// any SQLite database or the vault is opened, so replaced files are never
+	// held open and the whole remaining startup (config, DB paths, memory) sees
+	// the restored state. vault.bin is never part of a file restore. If the
+	// restore fails it is rolled back and the old state keeps being used.
+	if !runSetup && !initOnly {
+		if restoreRoot, rootErr := restorepending.ConfigRoot(configFile); rootErr == nil {
+			if res, applyErr := restorepending.Apply(restoreRoot, restorepending.Options{
+				Logger:   appLog,
+				Validate: func() error { _, err := config.Load(configFile); return err },
+			}); res != nil && applyErr != nil {
+				appLog.Error("System restore failed; continuing with the previous state", "status", res.Status, "error", applyErr)
+			}
+		}
 	}
 
 	// -- Early Config Load for Path Resolution -----------------------------

@@ -148,6 +148,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Backup & Restore (.ago archives)
 	mux.Handle("/api/backup/create", requireAdmin(s, handleBackupCreate(s)))
 	mux.Handle("/api/backup/import", requireAdmin(s, handleBackupImport(s)))
+	mux.Handle("/api/backup/restore-status", requireAdmin(s, handleBackupRestoreStatus(s)))
 
 	// Chromecast discovery and the saved-device test announcement are admin-only.
 	mux.Handle("/api/chromecast/discover", requireAdmin(s, handleChromecastDiscover(s)))

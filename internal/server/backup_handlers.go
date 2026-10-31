@@ -33,6 +33,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/fileutil"
 	"aurago/internal/memory"
+	"aurago/internal/restorepending"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 
@@ -54,10 +55,6 @@ const (
 const vaultSecretsMagic = "AGOV"
 const tokenStoreMagic = "AGOT"
 
-// currentDBSchemaVersion is incremented whenever any SQLite schema changes.
-// Stored in the manifest so imports can warn about version mismatches.
-const currentDBSchemaVersion = 1
-
 // agoManifest is written as manifest.json at the ZIP root.
 type agoManifest struct {
 	MemoryConsistency string   `json:"memory_consistency,omitempty"`
@@ -66,7 +63,10 @@ type agoManifest struct {
 	Hostname          string   `json:"hostname"`
 	Contents          []string `json:"contents"`
 	VaultIncluded     bool     `json:"vault_included,omitempty"`
-	DBSchemaVersion   int      `json:"db_schema_version,omitempty"`
+	// AppVersion is the AuraGo version that created the backup.
+	AppVersion string `json:"app_version,omitempty"`
+	// DBUserVersions maps archive paths of included SQLite files to their PRAGMA user_version.
+	DBUserVersions map[string]int `json:"db_user_versions,omitempty"`
 }
 
 type agoImportEntry struct {
@@ -736,6 +736,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			memoryConsistency = "coordinated-three-db-read-snapshot-v1"
 		}
 		sqliteAdded := 0
+		dbUserVersions := map[string]int{}
 		var sqliteSkipped []string
 		for _, dbPath := range sqlitePaths {
 			if dbPath == "" {
@@ -782,6 +783,9 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			}
 			if added && len(seenZipPaths) > before {
 				sqliteAdded++
+				if v, vErr := agoSQLiteUserVersion(snapshotPath); vErr == nil {
+					dbUserVersions[zipPath] = v
+				}
 			}
 		}
 		if sqliteAdded > 0 {
@@ -904,7 +908,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			Hostname:          hostname,
 			Contents:          contents,
 			VaultIncluded:     vaultIncluded,
-			DBSchemaVersion:   currentDBSchemaVersion,
+			AppVersion:        readInstalledVersion(appInstallDir(s)),
+			DBUserVersions:    dbUserVersions,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
 			if err := json.NewEncoder(mw).Encode(manifest); err != nil {
@@ -970,6 +975,11 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, agoMaxUploadSize)
 		if err := r.ParseMultipartForm(agoMaxUploadSize); err != nil {
 			s.Logger.Warn("[Backup] Invalid import form", "error", err)
+			var tooLarge *http.MaxBytesError
+			if errors.As(err, &tooLarge) {
+				jsonError(w, "Die Backup-Datei ist zu groß.", http.StatusRequestEntityTooLarge)
+				return
+			}
 			jsonError(w, "Invalid backup upload", http.StatusBadRequest)
 			return
 		}
@@ -1043,13 +1053,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			return
 		}
 
-		restored, skipped := 0, 0
 		var vaultEncData []byte // vault_secrets.enc bytes, if present
 		var tokenStoreEncData []byte
 		var backupManifest *agoManifest
 		var importEntries []agoImportEntry
 		var totalBytes int64
-		sqliteRestore := false
+		manifestSeen := false
 
 		for _, f := range zr.File {
 			clean := filepath.Clean(filepath.FromSlash(f.Name))
@@ -1122,14 +1131,19 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 					return
 				}
 				var m agoManifest
-				if jsonErr := json.NewDecoder(io.LimitReader(rc, 1<<20)).Decode(&m); jsonErr == nil {
-					backupManifest = &m
-				}
+				jsonErr := json.NewDecoder(io.LimitReader(rc, 1<<20)).Decode(&m)
 				rc.Close()
+				if jsonErr != nil {
+					s.Logger.Warn("[Backup] Corrupt backup manifest", "error", jsonErr)
+					jsonError(w, "Das Backup-Manifest ist beschädigt.", http.StatusBadRequest)
+					return
+				}
+				backupManifest = &m
+				manifestSeen = true
 				continue
 			}
 
-			if !agoIsAllowedRestorePath(clean) {
+			if !agoIsAllowedRestorePath(clean) || restorepending.IsReservedPath(clean) {
 				s.Logger.Warn("[Backup] Unsupported restore path in archive", "path", f.Name)
 				jsonError(w, "Backup archive contains unsupported restore paths", http.StatusBadRequest)
 				return
@@ -1164,9 +1178,6 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				mode:    f.Mode().Perm(),
 				zipPath: f.Name,
 			})
-			if agoIsSQLiteRelatedPath(clean) {
-				sqliteRestore = true
-			}
 		}
 
 		stagingRoot, err := os.MkdirTemp(configRoot, ".ago-import-*")
@@ -1239,36 +1250,86 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 		}
 
-		// Publish restored files and Vault state atomically with respect to auth/config writes.
-		s.CfgSaveMu.Lock()
-		defer s.CfgSaveMu.Unlock()
-		s.clearWebAuthnTransactions()
-		for _, entry := range importEntries {
-			if entry.isDir {
-				if err := os.MkdirAll(entry.dest, 0o755); err != nil {
-					s.Logger.Warn("[Backup] Failed to restore directory", "path", entry.zipPath, "error", err)
-					jsonError(w, "Restore failed while writing files", http.StatusInternalServerError)
-					return
+		// Schema-version check: a backup that is newer than the running binary
+		// cannot be migrated down and is rejected; older ones are migrated at start.
+		var warnings []string
+		if backupManifest == nil && !manifestSeen {
+			warnings = append(warnings, "Das Backup enthält kein Manifest (älteres Backup); die Version konnte nicht geprüft werden.")
+		}
+		olderDBs, newerDBs := agoCheckBackupDBVersions(importEntries)
+		if len(newerDBs) > 0 {
+			s.Logger.Warn("[Backup] Backup is newer than this AuraGo version", "databases", newerDBs)
+			jsonError(w, "Das Backup stammt von einer neueren AuraGo-Version (Datenbanken: "+agoJoinLabels(newerDBs)+"). Bitte AuraGo zuerst aktualisieren.", http.StatusBadRequest)
+			return
+		}
+		if len(olderDBs) > 0 {
+			warnings = append(warnings, "Das Backup stammt von einer älteren AuraGo-Version; die Datenbanken werden beim Neustart migriert: "+agoJoinLabels(olderDBs))
+		}
+
+		// Token store: re-encrypt with the local vault key and stage it next to the
+		// other files. It is NOT written live, because the running process could
+		// overwrite it again before the restart.
+		tokensRestored := 0
+		tokenErr := ""
+		if len(tokenStoreEncData) > 0 && password != "" && s.Vault != nil {
+			const tokenRel = "data/tokens.json"
+			n, err := importTokenStore(s.Vault, tokenStoreEncData, password, restorepending.StageFilePath(stagingRoot, tokenRel))
+			if err != nil {
+				s.Logger.Warn("[Backup] Token store import failed", "error", err)
+				tokenErr = err.Error()
+				warnings = append(warnings, "Token-Import fehlgeschlagen: "+err.Error())
+			} else {
+				tokensRestored = n
+				found := false
+				for _, entry := range importEntries {
+					if filepath.ToSlash(entry.clean) == tokenRel {
+						found = true
+						break
+					}
 				}
-				continue
+				if !found {
+					importEntries = append(importEntries, agoImportEntry{
+						clean: filepath.FromSlash(tokenRel),
+						dest:  filepath.Join(configRoot, "data", "tokens.json"),
+						mode:  0o600,
+					})
+				}
 			}
+		}
+
+		// Publish the validated staging tree as the single pending restore. The
+		// files are applied at the next start, before any database is opened.
+		pendingEntries := make([]restorepending.Entry, 0, len(importEntries))
+		staged := 0
+		for _, entry := range importEntries {
 			perm := entry.mode
 			if agoIsSQLiteRelatedPath(entry.clean) {
 				perm = 0o600
 			}
-			if perm == 0 {
-				perm = 0o644
+			pendingEntries = append(pendingEntries, restorepending.Entry{
+				Rel:    filepath.ToSlash(entry.clean),
+				Dest:   entry.dest,
+				Dir:    entry.isDir,
+				Mode:   uint32(perm),
+				SQLite: agoIsSQLiteRelatedPath(entry.clean),
+			})
+			if !entry.isDir {
+				staged++
 			}
-			if err := agoAtomicCopyFile(entry.stage, entry.dest, perm); err != nil {
-				s.Logger.Warn("[Backup] Failed to restore file", "path", entry.zipPath, "error", err)
-				jsonError(w, "Restore failed while writing files", http.StatusInternalServerError)
-				return
-			}
-			restored++
+		}
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		s.clearWebAuthnTransactions()
+		restoreID, err := restorepending.Stage(configRoot, stagingRoot, pendingEntries)
+		if err != nil {
+			s.Logger.Error("[Backup] Failed to store pending restore", "error", err)
+			jsonError(w, "Wiederherstellung konnte nicht vorgemerkt werden.", http.StatusInternalServerError)
+			return
 		}
 
-		// Vault secrets import — re-encrypt with the local AURAGO_MASTER_KEY so
-		// the secrets are immediately available without restarting.
+		// Vault secrets are applied immediately (re-encrypted with the local
+		// AURAGO_MASTER_KEY) and the in-memory config is reloaded so that the
+		// restored login hash works right away.
 		vaultRestored := 0
 		vaultErr := ""
 		if len(vaultEncData) > 0 && password != "" && s.Vault != nil {
@@ -1276,12 +1337,10 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			if err != nil {
 				s.Logger.Warn("[Backup] Vault secrets import failed", "error", err)
 				vaultErr = err.Error()
+				warnings = append(warnings, "Vault-Import fehlgeschlagen: "+err.Error())
 			} else {
 				vaultRestored = n
 				s.Logger.Info("[Backup] Vault secrets imported", "count", n)
-				// Hot-reload config so that vault-backed fields like Auth.PasswordHash
-				// are reflected in the in-memory config immediately — without this the
-				// login handler would still see the old (empty) hash and reject logins.
 				s.CfgMu.Lock()
 				configPath := s.Cfg.ConfigPath
 				if newCfg, loadErr := config.Load(configPath); loadErr == nil {
@@ -1293,69 +1352,39 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			}
 		}
 
-		tokensRestored := 0
-		tokenErr := ""
-		if len(tokenStoreEncData) > 0 && password != "" && s.Vault != nil {
-			tokenPath := filepath.Join(configRoot, "data", "tokens.json")
-			n, err := importTokenStore(s.Vault, tokenStoreEncData, password, tokenPath)
-			if err != nil {
-				s.Logger.Warn("[Backup] Token store import failed", "error", err)
-				tokenErr = err.Error()
-			} else {
-				tokensRestored = n
-				s.Logger.Info("[Backup] Token store imported", "count", n)
-				if tm, loadErr := security.NewTokenManager(s.Vault, tokenPath); loadErr == nil {
-					s.replaceTokenManager(tm)
-				} else {
-					s.Logger.Warn("[Backup] Imported token store but failed to reload TokenManager", "error", loadErr)
-				}
-			}
-		}
+		s.Logger.Info("[Backup] Import staged", "id", restoreID, "staged", staged, "vault_secrets", vaultRestored, "tokens", tokensRestored)
 
-		s.Logger.Info("[Backup] Import completed", "restored", restored, "skipped", skipped, "vault_secrets", vaultRestored, "tokens", tokensRestored)
-
-		schemaWarning := ""
-		if backupManifest != nil && backupManifest.DBSchemaVersion != 0 && backupManifest.DBSchemaVersion != currentDBSchemaVersion {
-			schemaWarning = fmt.Sprintf(
-				"DB-Schema-Version im Backup (%d) unterscheidet sich von aktueller Version (%d). "+
-					"AuraGo führt beim Neustart automatische Migrationen aus.",
-				backupManifest.DBSchemaVersion, currentDBSchemaVersion)
-			s.Logger.Warn("[Backup] DB schema version mismatch",
-				"backup_version", backupManifest.DBSchemaVersion,
-				"current_version", currentDBSchemaVersion)
-		}
-
-		msg := fmt.Sprintf("%d Dateien wiederhergestellt, %d übersprungen.", restored, skipped)
+		msg := fmt.Sprintf("%d Dateien für die Wiederherstellung vorgemerkt.", staged)
 		if vaultRestored > 0 {
-			msg += fmt.Sprintf(" %d Vault-Secrets wiederhergestellt.", vaultRestored)
+			msg += fmt.Sprintf(" %d Vault-Secrets wurden sofort wiederhergestellt.", vaultRestored)
 		}
 		if vaultErr != "" {
 			msg += " Vault-Import fehlgeschlagen."
 		}
 		if tokensRestored > 0 {
-			msg += fmt.Sprintf(" %d API-Token-Datensätze wiederhergestellt.", tokensRestored)
+			msg += fmt.Sprintf(" %d API-Token-Datensätze vorgemerkt.", tokensRestored)
 		}
 		if tokenErr != "" {
 			msg += " Token-Import fehlgeschlagen."
 		}
-		if schemaWarning != "" {
-			msg += " " + schemaWarning
-		}
-		if sqliteRestore {
-			msg += " Neustart erforderlich, damit wiederhergestellte Datenbanken sicher neu geöffnet werden."
-		} else {
-			msg += " Neustart empfohlen um alle Änderungen zu übernehmen."
-		}
+		msg += " Die Dateien werden beim nächsten Start von AuraGo angewendet (Neustart erforderlich); Vault-Secrets gelten bereits jetzt."
 
+		status := "ok"
+		if vaultErr != "" || tokenErr != "" {
+			status = "partial"
+		}
+		if warnings == nil {
+			warnings = []string{}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":           "ok",
-			"restored":         restored,
-			"skipped":          skipped,
+			"status":           status,
+			"pending_restore":  true,
+			"restart_required": true,
+			"staged":           staged,
 			"vault_restored":   vaultRestored,
 			"tokens_restored":  tokensRestored,
-			"schema_warning":   schemaWarning,
-			"restart_required": sqliteRestore,
+			"warnings":         warnings,
 			"message":          msg,
 		})
 	}

@@ -212,6 +212,10 @@ func TestHandleBackupImportRestoresIntoConfigRoot(t *testing.T) {
 	}
 
 	restoredPath := filepath.Join(instanceRoot, "data", "state.json")
+	if _, err := os.Stat(restoredPath); !os.IsNotExist(err) {
+		t.Fatalf("import must not publish before the restart: err=%v", err)
+	}
+	applyPendingRestoreForTest(t, configPath)
 	data, err := os.ReadFile(restoredPath)
 	if err != nil {
 		t.Fatalf("ReadFile(restored): %v", err)
@@ -934,6 +938,7 @@ func TestEncryptedBackupRestoresTokenStoreWithNewVaultKey(t *testing.T) {
 		t.Fatalf("import status = %d, want %d; body=%s", importRec.Code, http.StatusOK, importRec.Body.String())
 	}
 
+	applyPendingRestoreForTest(t, destServer.Cfg.ConfigPath)
 	destTM, err := security.NewTokenManager(destVault, filepath.Join(destData, "tokens.json"))
 	if err != nil {
 		t.Fatalf("NewTokenManager(dest): %v", err)
