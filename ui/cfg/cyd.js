@@ -129,7 +129,7 @@ async function cydLoadStatus() {
         }
         if (list) {
             if (!data.devices || data.devices.length === 0) {
-                list.innerHTML = `<p class="field-help">${t('config.cyd.devices_empty')}</p>`;
+                cfgListState(list, { state: 'empty', title: t('config.cyd.devices_empty') });
             } else {
                 list.innerHTML = data.devices.map(function (d) {
                     const seen = d.last_seen ? new Date(d.last_seen).toLocaleString() : t('config.cyd.never');

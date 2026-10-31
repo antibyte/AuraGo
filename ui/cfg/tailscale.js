@@ -40,7 +40,7 @@ async function renderTailscaleSection(section) {
     </div>`;
 
     html += `<div class="field-group ts-mt">
-        <div class="field-label">🔑 ${t('config.tailscale.api_key_label')}</div>
+        <div class="field-label">${cfgIcon('key')} ${t('config.tailscale.api_key_label')}</div>
         <div class="field-help">${t('config.tailscale.api_key_hint')}</div>
         <div class="cfg-secret-row">
             <div class="password-wrap cfg-password-input">
@@ -51,7 +51,7 @@ async function renderTailscaleSection(section) {
     </div>`;
 
     html += `<div class="cfg-actions-row">
-        <button class="btn-save cfg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn" data-config-action-draft="true">🔌 ${t('config.tailscale.test_btn')}</button>
+        <button class="btn-save cfg-test-btn" onclick="tsApiTestConnection()" id="ts-api-test-btn" data-config-action-draft="true">${cfgIcon('plug')} ${t('config.tailscale.test_btn')}</button>
         ${cfgActionResult.html('ts-api-test-result')}
     </div>`;
 
@@ -146,7 +146,7 @@ async function renderTailscaleSection(section) {
         </div>`;
 
         html += `<div class="wh-notice ts-mt">
-            <span>ℹ️</span>
+            <span>${cfgIcon('info')}</span>
             <div>
                 <strong>${t('config.tailscale.tsnet_requirements_title')}</strong><br>
                 <small>${t('config.tailscale.tsnet_https_requirements')}</small><br>
@@ -155,7 +155,7 @@ async function renderTailscaleSection(section) {
         </div>`;
 
         html += `<div class="field-group ts-mt">
-            <div class="field-label">🔑 ${t('config.tailscale.tsnet_shared_key_label')}</div>
+            <div class="field-label">${cfgIcon('key')} ${t('config.tailscale.tsnet_shared_key_label')}</div>
             <div class="field-help">${t('config.tailscale.tsnet_shared_key_hint')}</div>
             <div class="cfg-secret-row">
                 <div class="password-wrap cfg-password-input">
@@ -173,16 +173,16 @@ async function renderTailscaleSection(section) {
                 ${t('config.tailscale.tsnet_status_loading')}
             </div>
             <div class="ts-btn-row">
-                <button class="btn btn-sm btn-secondary" onclick="_tsnetRefreshStatus()">🔄 ${t('config.tailscale.tsnet_btn_refresh')}</button>
-                <button id="tsnet-btn-start" class="btn btn-sm btn-success is-hidden" onclick="_tsnetStart()">▶ ${t('config.tailscale.tsnet_btn_start')}</button>
-                <button id="tsnet-btn-stop" class="btn btn-sm btn-warning" onclick="_tsnetStop()">⏹ ${t('config.tailscale.tsnet_btn_stop')}</button>
+                <button class="btn btn-sm btn-secondary" onclick="_tsnetRefreshStatus()">${cfgIcon('refresh')} ${t('config.tailscale.tsnet_btn_refresh')}</button>
+                <button id="tsnet-btn-start" class="btn btn-sm btn-success is-hidden" onclick="_tsnetStart()">${cfgIcon('play')} ${t('config.tailscale.tsnet_btn_start')}</button>
+                <button id="tsnet-btn-stop" class="btn btn-sm btn-warning" onclick="_tsnetStop()">${cfgIcon('stop')} ${t('config.tailscale.tsnet_btn_stop')}</button>
                 ${cfgActionResult.html('tsnet-action-result')}
             </div>
         </div>`;
 
     } else {
         html += `<div class="wh-notice">
-            <span>📡</span>
+            <span>${cfgIcon('wifi')}</span>
             <div>
                 <strong>${t('config.tailscale.tsnet_disabled_notice')}</strong><br>
                 <small>${t('config.tailscale.tsnet_disabled_desc')}</small>
@@ -264,76 +264,76 @@ async function _tsnetFetchAndRenderStatus() {
         const startBtn = document.getElementById('tsnet-btn-start');
         if (data.running) {
             if (data.serving_http) {
-                info += `<span class="ts-color-success">● ${t('config.tailscale.tsnet_status_running')}</span>`;
+                info += `<span class="ts-color-success">${cfgIcon('circle-dot')} ${t('config.tailscale.tsnet_status_running')}</span>`;
                 if (data.funnel_active && data.public_url) {
-                    info += `<div class="ts-detail-box">🌍 <strong>${escapeHtml(t('config.tailscale.tsnet_public_url_label'))}:</strong> <a href="${escapeAttr(data.public_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.public_url)}</a></div>`;
+                    info += `<div class="ts-detail-box">${cfgIcon('globe')} <strong>${escapeHtml(t('config.tailscale.tsnet_public_url_label'))}:</strong> <a href="${escapeAttr(data.public_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.public_url)}</a></div>`;
                 }
                 if (data.http_fallback) {
                     info += `<div class="ts-warning-detail">
-                        ⚠️ ${t('config.tailscale.tsnet_http_fallback_notice')}
-                        <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" class="ts-link-ml">${t('config.tailscale.tsnet_enable_https_link')} →</a>
+                        ${cfgIcon('alert')} ${t('config.tailscale.tsnet_http_fallback_notice')}
+                        <a href="https://tailscale.com/s/https" target="_blank" rel="noopener noreferrer" class="ts-link-ml">${t('config.tailscale.tsnet_enable_https_link')}${cfgIcon('arrow-right')}</a>
                     </div>`;
                     const httpBase = data.dns ? data.dns.replace(/\.$/, '') : (data.ips && data.ips.length ? data.ips[0] : null);
                     if (httpBase) {
                         const httpUrl = `http://${httpBase}`;
-                        info += `<div class="ts-url-row">🌐 <strong>${escapeHtml(t('config.tailscale.tsnet_label_url'))}:</strong> <a href="${escapeAttr(httpUrl)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(httpUrl)}</a></div>`;
+                        info += `<div class="ts-url-row">${cfgIcon('globe')} <strong>${escapeHtml(t('config.tailscale.tsnet_label_url'))}:</strong> <a href="${escapeAttr(httpUrl)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(httpUrl)}</a></div>`;
                     }
                 } else {
                     if (data.web_ui_url) {
-                        info += `<div class="ts-url-row">🌐 <strong>${escapeHtml(t('config.tailscale.tsnet_label_url'))}:</strong> <a href="${escapeAttr(data.web_ui_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.web_ui_url)}</a></div>`;
+                        info += `<div class="ts-url-row">${cfgIcon('globe')} <strong>${escapeHtml(t('config.tailscale.tsnet_label_url'))}:</strong> <a href="${escapeAttr(data.web_ui_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.web_ui_url)}</a></div>`;
                     }
                 }
                 if (data.dns) info += `<br><strong>${escapeHtml(t('config.tailscale.tsnet_label_dns'))}:</strong> <code>${escapeHtml(data.dns)}</code>`;
                 if (data.ips && data.ips.length) info += `<br><strong>${escapeHtml(t('config.tailscale.tsnet_label_ips'))}:</strong> ${escapeHtml(data.ips.join(', '))}`;
                 if (!data.http_fallback && data.cert_dns && data.cert_dns.length) info += `<br><strong>${escapeHtml(t('config.tailscale.tsnet_label_cert'))}:</strong> ${escapeHtml(data.cert_dns.join(', '))}`;
             } else {
-                info += `<span class="ts-color-success">● ${t('config.tailscale.tsnet_status_running')}</span> <span class="ts-network-muted">(${t('config.tailscale.tsnet_network_only')})</span>`;
+                info += `<span class="ts-color-success">${cfgIcon('circle-dot')} ${t('config.tailscale.tsnet_status_running')}</span> <span class="ts-network-muted">(${t('config.tailscale.tsnet_network_only')})</span>`;
                 if (data.dns) info += `<br><strong>${escapeHtml(t('config.tailscale.tsnet_label_dns'))}:</strong> <code>${escapeHtml(data.dns)}</code>`;
                 if (data.ips && data.ips.length) info += `<br><strong>${escapeHtml(t('config.tailscale.tsnet_label_ips'))}:</strong> ${escapeHtml(data.ips.join(', '))}`;
-                info += `<div class="ts-detail-box-lg">💡 ${t('config.tailscale.tsnet_network_only_hint')}</div>`;
+                info += `<div class="ts-detail-box-lg">${cfgIcon('bulb')} ${t('config.tailscale.tsnet_network_only_hint')}</div>`;
             }
             if (data.homepage_serving && data.homepage_url) {
-                info += `<div class="ts-url-row-lg">🏠 <strong>${escapeHtml(t('config.tailscale.tsnet_homepage_url_label'))}:</strong> <a href="${escapeAttr(data.homepage_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.homepage_url)}</a></div>`;
+                info += `<div class="ts-url-row-lg">${cfgIcon('home')} <strong>${escapeHtml(t('config.tailscale.tsnet_homepage_url_label'))}:</strong> <a href="${escapeAttr(data.homepage_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.homepage_url)}</a></div>`;
             } else if (data.expose_homepage) {
-                info += `<div class="ts-detail-box-lg">🏠 ${t('config.tailscale.tsnet_homepage_pending_hint')}</div>`;
+                info += `<div class="ts-detail-box-lg">${cfgIcon('home')} ${t('config.tailscale.tsnet_homepage_pending_hint')}</div>`;
             }
             if (data.manifest_serving && data.manifest_url) {
-                info += `<div class="ts-url-row-lg">▦ <strong>${escapeHtml(t('config.tailscale.tsnet_manifest_url_label'))}:</strong> <a href="${escapeAttr(data.manifest_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.manifest_url)}</a></div>`;
+                info += `<div class="ts-url-row-lg">${cfgIcon('layout-grid')} <strong>${escapeHtml(t('config.tailscale.tsnet_manifest_url_label'))}:</strong> <a href="${escapeAttr(data.manifest_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.manifest_url)}</a></div>`;
             } else if (data.expose_manifest) {
-                info += `<div class="ts-detail-box-lg">▦ ${t('config.tailscale.tsnet_manifest_pending_hint')}</div>`;
+                info += `<div class="ts-detail-box-lg">${cfgIcon('layout-grid')} ${t('config.tailscale.tsnet_manifest_pending_hint')}</div>`;
             }
             if (data.space_agent_serving && data.space_agent_url) {
-                info += `<div class="ts-url-row-lg">🛰️ <strong>${escapeHtml(t('config.tailscale.tsnet_space_agent_url_label'))}:</strong> <a href="${escapeAttr(data.space_agent_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.space_agent_url)}</a></div>`;
+                info += `<div class="ts-url-row-lg">${cfgIcon('network')} <strong>${escapeHtml(t('config.tailscale.tsnet_space_agent_url_label'))}:</strong> <a href="${escapeAttr(data.space_agent_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(data.space_agent_url)}</a></div>`;
             } else if (data.expose_space_agent) {
-                info += `<div class="ts-detail-box-lg">🛰️ ${t('config.tailscale.tsnet_space_agent_pending_hint')}</div>`;
+                info += `<div class="ts-detail-box-lg">${cfgIcon('network')} ${t('config.tailscale.tsnet_space_agent_pending_hint')}</div>`;
             }
             if (startBtn) startBtn.classList.add('is-hidden');
         } else if (data.starting) {
-            info += `<span class="ts-color-warning">⏳ ${t('config.tailscale.tsnet_status_starting')}</span>`;
+            info += `<span class="ts-color-warning">${cfgIcon('loader')} ${t('config.tailscale.tsnet_status_starting')}</span>`;
             if (startBtn) startBtn.classList.add('is-hidden');
         } else {
-            info += `<span class="ts-color-muted">○ ${t('config.tailscale.tsnet_status_stopped')}</span>`;
+            info += `<span class="ts-color-muted">${cfgIcon('circle')} ${t('config.tailscale.tsnet_status_stopped')}</span>`;
             if (data.error) info += `<br><small class="ts-color-error">${escapeHtml(data.error)}</small>`;
             if (startBtn) startBtn.classList.remove('is-hidden');
         }
 
         if (data.login_url) {
             info += `<div class="ts-login-banner">
-                <div class="ts-login-title">🔐 ${t('config.tailscale.tsnet_needs_login')}</div>
+                <div class="ts-login-title">${cfgIcon('lock')} ${t('config.tailscale.tsnet_needs_login')}</div>
                 <a href="${escapeAttr(data.login_url)}" target="_blank" rel="noopener noreferrer" class="ts-login-link">${escapeHtml(data.login_url)}</a>
             </div>`;
         }
         if (data.operation) {
             const operationLabel = `${t('config.tailscale.tsnet_operation')}: ${escapeHtml(_tsnetOperationLabel(data.operation.type))}`;
             if (data.operation.state === 'running' || data.operation.state === 'pending') {
-                info += `<div class="ts-detail-box-lg">⏳ ${operationLabel}</div>`;
+                info += `<div class="ts-detail-box-lg">${cfgIcon('loader')} ${operationLabel}</div>`;
                 _tsnetStartPolling(data.operation.id || '');
             } else {
                 if (_tsnetPollingActive && _tsnetPollOperationID && data.operation.id === _tsnetPollOperationID) {
                     _tsnetStopPolling(false);
                 }
                 if (data.operation.state === 'failed') {
-                    info += `<div class="ts-warning-detail">⚠️ ${operationLabel}: ${escapeHtml(_tsnetErrorLabel(data.operation.error_code))}</div>`;
+                    info += `<div class="ts-warning-detail">${cfgIcon('alert')} ${operationLabel}: ${escapeHtml(_tsnetErrorLabel(data.operation.error_code))}</div>`;
                 }
             }
         }
@@ -404,7 +404,7 @@ function _tsnetActionsBlocked() {
 
 function _tsnetRequireSavedConfig() {
     if (!_tsnetActionsBlocked()) return true;
-    showToast(t('config.tailscale.tsnet_save_config_first'), 'warning');
+    cfgActionResult.show('tsnet-action-result', 'warning', t('config.tailscale.tsnet_save_config_first'));
     return false;
 }
 
@@ -484,7 +484,7 @@ function _tsnetRenderNodeCards(data) {
         return `<article class="ts-node-card" data-tsnet-node="${escapeAttr(node)}">
             <div class="ts-node-card-head">
                 <strong>${escapeHtml(_tsnetNodeName(node))}</strong>
-                <span class="${healthClass}">● ${escapeHtml(_tsnetHealthLabel(health))}</span>
+                <span class="${healthClass}">${cfgIcon('circle-dot')} ${escapeHtml(_tsnetHealthLabel(health))}</span>
             </div>
             <div class="ts-node-details">${details.join('')}</div>
             <div class="cfg-secret-row ts-node-key-row">
@@ -492,13 +492,13 @@ function _tsnetRenderNodeCards(data) {
                     <input class="field-input cfg-secret-input" type="password" id="tsnet-node-key-${escapeAttr(node)}" placeholder="tskey-auth-••••••••" autocomplete="off" ${disabled ? 'disabled' : ''}>
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)" ${disabled ? 'disabled' : ''}>${EYE_OPEN_SVG}</button>
                 </div>
-                <button id="tsnet-node-save-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>💾 ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
+                <button id="tsnet-node-save-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>${cfgIcon('save')} ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
             </div>
             ${cfgActionResult.html('tsnet-node-result-' + node)}
             <div class="ts-btn-row">
-                <button id="tsnet-node-reauth-${escapeAttr(node)}" class="btn btn-sm btn-success" onclick="_tsnetReauth('${escapeAttr(node)}','normal')" ${lifecycleDisabled ? 'disabled' : ''}>🔐 ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
-                <button id="tsnet-node-delete-${escapeAttr(node)}" class="btn btn-sm btn-secondary" onclick="_tsnetDeleteNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>🗑 ${escapeHtml(t('config.tailscale.tsnet_delete_node_key'))}</button>
-                ${recoveryAllowed ? `<button id="tsnet-node-recover-${escapeAttr(node)}" class="btn btn-sm btn-danger" onclick="_tsnetReauth('${escapeAttr(node)}','recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>⚠ ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
+                <button id="tsnet-node-reauth-${escapeAttr(node)}" class="btn btn-sm btn-success" onclick="_tsnetReauth('${escapeAttr(node)}','normal')" ${lifecycleDisabled ? 'disabled' : ''}>${cfgIcon('lock')} ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
+                ${cfgDeleteButton({ label: t('config.tailscale.tsnet_delete_node_key'), cls: 'btn-sm', attrs: { id: 'tsnet-node-delete-' + node, onclick: "_tsnetDeleteNodeKey('" + node + "')", disabled: disabled } })}
+                ${recoveryAllowed ? `<button id="tsnet-node-recover-${escapeAttr(node)}" class="btn btn-sm btn-danger" onclick="_tsnetReauth('${escapeAttr(node)}','recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>${cfgIcon('alert')} ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
             </div>
         </article>`;
     }).join('');
@@ -575,7 +575,13 @@ async function _tsnetSaveNodeKey(node) {
 
 async function _tsnetDeleteNodeKey(node) {
     if (!_tsnetRequireSavedConfig()) return;
-    if (!await showConfirm(t('config.tailscale.tsnet_delete_node_key'), t('config.tailscale.tsnet_delete_key_confirm'))) return;
+    const answer = await showConfirmDialog({
+        title: t('config.tailscale.tsnet_delete_node_key'),
+        message: t('config.tailscale.tsnet_delete_key_confirm'),
+        danger: true,
+        confirmText: t('config.common.delete')
+    });
+    if (!answer.confirmed) return;
     return _tsnetNodeAction(node, `tsnet-node-delete-${node}`, () => fetch(`/api/tsnet/credentials?node=${encodeURIComponent(node)}`, { method: 'DELETE' }), {
         success: t('config.tailscale.tsnet_node_key_deleted'),
         failure: t('config.tailscale.key_save_failed'),
@@ -586,7 +592,15 @@ async function _tsnetDeleteNodeKey(node) {
 async function _tsnetReauth(node, mode) {
     if (!_tsnetRequireSavedConfig()) return;
     const recovering = mode === 'recover_state';
-    if (recovering && !await showConfirm(t('config.tailscale.tsnet_recover_state'), t('config.tailscale.tsnet_recover_confirm'))) return;
+    if (recovering) {
+        const answer = await showConfirmDialog({
+            title: t('config.tailscale.tsnet_recover_state'),
+            message: t('config.tailscale.tsnet_recover_confirm'),
+            danger: true,
+            confirmText: t('config.tailscale.tsnet_recover_state')
+        });
+        if (!answer.confirmed) return;
+    }
     return _tsnetNodeAction(node, `tsnet-node-${recovering ? 'recover' : 'reauth'}-${node}`, () => fetch('/api/tsnet/reauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

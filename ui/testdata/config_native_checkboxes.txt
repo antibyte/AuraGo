@@ -4,11 +4,8 @@ document_creator
 email
 github
 gog
-meshcore
-network_shares
 newspaper
 realtime_speech
-remote_control
 s3
 sip
 speech_lab

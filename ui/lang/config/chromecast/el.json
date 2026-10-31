@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "Βρέθηκαν {{count}} συσκευή(-ές)",
   "config.chromecast.ip_placeholder": "π.χ. 192.168.1.50",
   "config.chromecast.ip_required": "Απαιτείται διεύθυνση IP.",
-  "config.chromecast.loading": "⏳ Φόρτωση συσκευών…",
+  "config.chromecast.loading": "Φόρτωση συσκευών…",
   "config.chromecast.name_placeholder": "π.χ. Σαλόνι",
   "config.chromecast.name_required": "Απαιτείται όνομα συσκευής.",
   "config.chromecast.no_devices": "Δεν υπάρχουν εγγεγραμμένες συσκευές Chromecast. Χρησιμοποιήστε «Αναζήτηση συσκευών» για να τις βρείτε στο δίκτυό σας.",

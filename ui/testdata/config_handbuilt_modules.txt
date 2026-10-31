@@ -20,7 +20,6 @@ dograh
 email
 firewall
 flows
-fritzbox
 game_maker
 github
 go2rtc
@@ -32,8 +31,6 @@ here_now
 homepage
 image_generation
 indexing
-jellyfin
-ldap
 llm_guardian
 llm_router
 local_llm
@@ -71,13 +68,10 @@ speech_lab
 sql_connections
 tailscale
 telephone_agent
-telnyx
 three_d_printers
 treg
-truenas
 tts
 updates
-uptime_kuma
 vercel
 video_download
 video_generation

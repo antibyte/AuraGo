@@ -62,8 +62,8 @@ func TestConfigWave1Batch4SecretsAndRuntimeActions(t *testing.T) {
 	if !strings.Contains(tailscale, `data-path="tailscale.tsnet.auth_key"`) {
 		t.Error("tailscale: the tsnet auth key is not in the save dock")
 	}
-	if regexp.MustCompile(`(^|[^A-Za-z.])(confirm|alert)\(`).MatchString(tailscale) || !strings.Contains(tailscale, "showConfirm(") {
-		t.Error("tailscale: native confirm()/alert() must be replaced by showConfirm")
+	if regexp.MustCompile(`(^|[^A-Za-z.])(confirm|alert)\(`).MatchString(tailscale) || !strings.Contains(tailscale, "showConfirmDialog(") {
+		t.Error("tailscale: native confirm()/alert() must be replaced by showConfirmDialog")
 	}
 	for _, want := range []string{"tsnet-node-result-", "_tsnetNodeAction", "cfgActionResult.html('tsnet-action-result')"} {
 		if !strings.Contains(tailscale, want) {

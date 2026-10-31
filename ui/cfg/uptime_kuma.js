@@ -3,89 +3,45 @@
 function renderUptimeKumaSection(section) {
     const data = configData['uptime_kuma'] || {};
     const enabledOn = data.enabled === true;
-    const insecureOn = data.insecure_ssl === true;
-    const relayOn = data.relay_to_agent === true;
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.uptime_kuma.api_key_placeholder'));
+    const form = window.AuraConfigForm;
+    const checking = enabledOn && data.base_url;
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    html += cfgStatusBanner.html('uk-status-banner', enabledOn && data.base_url ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !data.base_url ? t('config.uptime_kuma.status_no_url') : '' });
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.enabled') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="uptime_kuma.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.base_url_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.base_url') + '</div>';
-    html += '<input class="field-input" type="text" data-path="uptime_kuma.base_url" value="' + escapeAttr(data.base_url || '') + '" placeholder="https://uptime-kuma.local:3001">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.api_key_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.api_key') + '</div>';
-    html += '<div class="cfg-secret-row">';
-    html += '<div class="password-wrap pw-u-flex-1">';
-    html += '<input class="field-input cfg-secret-input" type="password" id="uptime-kuma-api-key" data-path="uptime_kuma.api_key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-    html += '</div>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.insecure_ssl_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.insecure_ssl') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (insecureOn ? ' on' : '') + '" data-path="uptime_kuma.insecure_ssl" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.request_timeout_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.request_timeout') + '</div>';
-    html += '<input class="field-input" type="number" min="1" step="1" data-path="uptime_kuma.request_timeout" value="' + escapeAttr(String(data.request_timeout || 15)) + '">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.poll_interval_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.poll_interval_seconds') + '</div>';
-    html += '<input class="field-input" type="number" min="5" step="1" data-path="uptime_kuma.poll_interval_seconds" value="' + escapeAttr(String(data.poll_interval_seconds || 30)) + '">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.relay_to_agent_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.relay_to_agent') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (relayOn ? ' on' : '') + '" data-path="uptime_kuma.relay_to_agent" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (relayOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.uptime_kuma.relay_instruction_label') + '</div>';
-    html += '<div class="field-help">' + t('help.uptime_kuma.relay_instruction') + '</div>';
-    html += '<textarea class="field-input" rows="5" data-path="uptime_kuma.relay_instruction" placeholder="' + escapeAttr(t('config.uptime_kuma.relay_instruction_placeholder')) + '">' + escapeHtml(data.relay_instruction || '') + '</textarea>';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<button class="btn-save cfg-test-btn" onclick="uptimeKumaTestConnection()" id="uptime-kuma-test-btn" data-config-action-draft="true">' + t('config.uptime_kuma.test_btn') + '</button>';
-    html += cfgActionResult.html('uptime-kuma-test-result');
-    html += '</div>';
-
-    html += '<div id="uptime-kuma-summary" class="cfg-stats is-hidden">';
-    html += '<div class="cfg-stats-title">' + t('config.uptime_kuma.summary_title') + '</div>';
-    html += '<div id="uptime-kuma-summary-content" class="cfg-stats-grid"></div>';
-    html += '</div>';
-
-    html += '</div>';
+    const html = form.renderSpec({
+        label: section.label,
+        desc: section.desc,
+        banner: { id: 'uk-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.base_url ? t('config.uptime_kuma.status_no_url') : '' },
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
+            form.toggle({ label: t('config.uptime_kuma.enabled_label'), help: t('help.uptime_kuma.enabled'), path: 'uptime_kuma.enabled', value: enabledOn }),
+            form.toggle({ label: t('config.uptime_kuma.relay_to_agent_label'), help: t('help.uptime_kuma.relay_to_agent'), path: 'uptime_kuma.relay_to_agent', value: data.relay_to_agent === true }),
+            form.textarea({ label: t('config.uptime_kuma.relay_instruction_label'), help: t('help.uptime_kuma.relay_instruction'), path: 'uptime_kuma.relay_instruction', value: data.relay_instruction || '', rows: 5, placeholder: t('config.uptime_kuma.relay_instruction_placeholder') })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.uptime_kuma.base_url_label'), help: t('help.uptime_kuma.base_url'), path: 'uptime_kuma.base_url', value: data.base_url || '', placeholder: 'https://uptime-kuma.local:3001' }),
+            form.toggle({ label: t('config.uptime_kuma.insecure_ssl_label'), help: t('help.uptime_kuma.insecure_ssl'), path: 'uptime_kuma.insecure_ssl', value: data.insecure_ssl === true }),
+            form.number({ label: t('config.uptime_kuma.request_timeout_label'), help: t('help.uptime_kuma.request_timeout'), path: 'uptime_kuma.request_timeout', value: String(data.request_timeout || 15), min: 1, step: 1 }),
+            form.number({ label: t('config.uptime_kuma.poll_interval_label'), help: t('help.uptime_kuma.poll_interval_seconds'), path: 'uptime_kuma.poll_interval_seconds', value: String(data.poll_interval_seconds || 30), min: 5, step: 1 })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
+            form.password({
+                label: t('config.uptime_kuma.api_key_label'),
+                help: t('help.uptime_kuma.api_key'),
+                id: 'uptime-kuma-api-key',
+                path: 'uptime_kuma.api_key',
+                value: data.api_key,
+                placeholder: apiKeyPlaceholder
+            })
+        ] }],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" onclick="uptimeKumaTestConnection()" id="uptime-kuma-test-btn" data-config-action-draft="true">' + t('config.uptime_kuma.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'uptime-kuma-test-result' }) }
+        ]) + '<div id="uptime-kuma-summary" class="cfg-stats is-hidden">'
+            + '<div class="cfg-stats-title">' + t('config.uptime_kuma.summary_title') + '</div>'
+            + '<div id="uptime-kuma-summary-content" class="cfg-stats-grid"></div>'
+            + '</div>'
+    });
 
     document.getElementById('content').innerHTML = html;
 
-    if (enabledOn && data.base_url) uptimeKumaCheckStatus();
+    if (checking) uptimeKumaCheckStatus();
 }
 
 function uptimeKumaCheckStatus() {

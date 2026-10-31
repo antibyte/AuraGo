@@ -1,5 +1,5 @@
 {
-  "config.fritzbox.status_ok": "🟢 已连接",
+  "config.fritzbox.status_ok": "已连接",
   "config.fritzbox.test_fail": "连接失败",
   "config.fritzbox.test_ok": "连接成功",
   "config.indexing.add": "添加",

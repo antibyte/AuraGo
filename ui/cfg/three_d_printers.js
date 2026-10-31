@@ -36,7 +36,7 @@ function renderThreeDPrintersSection(section) {
         html += threeDPrinterNumber(base + '.timeout_seconds', printer.timeout_seconds || 10, t('config.three_d_printers.timeout_label'), t('help.three_d_printers.timeout'), 1, 120);
         html += '<div class="field-group">';
         html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'elegoo\', ' + idx + ')" id="three-d-printer-test-elegoo-' + idx + '" data-config-action-draft="true">' + t('config.three_d_printers.test_button') + '</button> ';
-        html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(\'elegoo\', ' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
+        html += cfgDeleteButton({ label: t('config.three_d_printers.remove_button'), attrs: { onclick: "threeDPrinterRemove('elegoo', " + idx + ")" } });
         html += cfgActionResult.html('three-d-printer-test-result-elegoo-' + idx);
         html += '</div>';
         html += '</div>';
@@ -60,7 +60,7 @@ function renderThreeDPrintersSection(section) {
         html += threeDPrinterField(base + '.webcam_name', printer.webcam_name || '', t('config.three_d_printers.klipper_webcam_name_label'), t('help.three_d_printers.klipper_webcam_name'), 'toolhead');
         html += '<div class="field-group">';
         html += '<button type="button" class="btn-save" onclick="threeDPrinterTest(\'klipper\', ' + idx + ')" id="three-d-printer-test-klipper-' + idx + '" data-config-action-draft="true">' + t('config.three_d_printers.test_button') + '</button> ';
-        html += '<button type="button" class="btn-secondary" onclick="threeDPrinterRemove(\'klipper\', ' + idx + ')">' + t('config.three_d_printers.remove_button') + '</button>';
+        html += cfgDeleteButton({ label: t('config.three_d_printers.remove_button'), attrs: { onclick: "threeDPrinterRemove('klipper', " + idx + ")" } });
         html += cfgActionResult.html('three-d-printer-test-result-klipper-' + idx);
         html += '</div>';
         html += '</div>';
@@ -168,7 +168,13 @@ async function threeDPrinterRemove(protocol, index) {
     const printers = threeDPrinterDraftPrinters(protocol);
     const doomed = printers[index] || {};
     const label = doomed.name || doomed.id || String(index + 1);
-    if (!(await showConfirm(t('config.three_d_printers.confirm_remove_title'), t('config.three_d_printers.confirm_remove_message', { name: label })))) return;
+    const answer = await showConfirmDialog({
+        title: t('config.three_d_printers.confirm_remove_title'),
+        message: t('config.three_d_printers.confirm_remove_message', { name: label }),
+        danger: true,
+        confirmText: t('config.three_d_printers.remove_button')
+    });
+    if (!answer.confirmed) return;
     printers.splice(index, 1);
     threeDPrinterSetPrinters(protocol, printers);
 }

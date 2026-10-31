@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "找到 {{count}} 台设备",
   "config.chromecast.ip_placeholder": "例如 192.168.1.50",
   "config.chromecast.ip_required": "需要 IP 地址。",
-  "config.chromecast.loading": "⏳ 正在加载设备...",
+  "config.chromecast.loading": "正在加载设备...",
   "config.chromecast.name_placeholder": "例如客厅",
   "config.chromecast.name_required": "需要设备名称。",
   "config.chromecast.no_devices": "没有注册 Chromecast 设备。使用“发现设备”在您的网络上查找它们。",

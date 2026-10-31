@@ -9,7 +9,7 @@
   "config.music_gen.action_pending": "操作正在进行…",
   "config.music_gen.action_failed": "操作失败。",
   "config.music_gen.status_unavailable": "无法获取状态，操作可能仍在继续；正在重试连接。",
-  "config.fritzbox.status_ok": "🟢 已连接",
+  "config.fritzbox.status_ok": "已连接",
   "config.fritzbox.test_fail": "连接失败",
   "config.fritzbox.test_ok": "连接成功",
   "config.indexing.running": "运行中",

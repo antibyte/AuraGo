@@ -223,8 +223,9 @@ function renderMeshCoreSection(section) {
             }
             bind.disabled = !channel.binding;
             bind.addEventListener('click', () => { update({ binding: channel.binding }); binding.textContent = tr('bound'); });
-            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn-secondary';
-            remove.textContent = tr(onDevice ? 'remove_channel' : 'remove_rule');
+            const removeHost = document.createElement('div');
+            removeHost.innerHTML = cfgDeleteButton({ label: tr(onDevice ? 'remove_channel' : 'remove_rule') });
+            const remove = removeHost.firstElementChild;
             if (onDevice) {
                 remove.dataset.meshChannelRemove = 'device';
                 remove.dataset.binding = channel.binding || '';
@@ -238,12 +239,17 @@ function renderMeshCoreSection(section) {
             select.addEventListener('change', () => update({ mode: select.value }));
             const prefix = document.createElement('input'); prefix.className = 'field-input'; prefix.maxLength = 32; prefix.value = rule.prefix || '!aura'; prefix.setAttribute('aria-label', tr('prefix'));
             prefix.addEventListener('input', () => update({ prefix: prefix.value }));
-            const allow = document.createElement('label'); const check = document.createElement('input'); check.type = 'checkbox'; check.checked = rule.allow_send === true;
-            check.addEventListener('change', () => update({ allow_send: check.checked }));
-            allow.append(check, document.createTextNode(' ' + tr('allow_send')));
+            // On/off switch (E4): a .toggle named by its own label, not a native checkbox.
+            const allow = document.createElement('div'); allow.className = 'cfg-toggle-row';
+            const allowLabel = document.createElement('span'); allowLabel.className = 'cfg-toggle-label'; allowLabel.id = 'meshcore-allow-send-' + channel.index; allowLabel.textContent = tr('allow_send');
+            const check = document.createElement('div'); check.className = 'toggle' + (rule.allow_send === true ? ' on' : ''); check.setAttribute('aria-labelledby', allowLabel.id);
+            check.addEventListener('click', () => { check.classList.toggle('on'); syncToggleA11y(check); update({ allow_send: check.classList.contains('on') }); });
+            allow.append(allowLabel, check);
+            if (typeof syncToggleA11y === 'function') syncToggleA11y(check);
             const modeLabel = document.createElement('label'); modeLabel.textContent = tr('mode'); modeLabel.append(select);
             const prefixLabel = document.createElement('label'); prefixLabel.textContent = tr('prefix'); prefixLabel.append(prefix);
             row.append(heading, binding, bind, modeLabel, prefixLabel, allow, remove); channels.append(row);
+            if (typeof enhanceConfigControls === 'function') enhanceConfigControls(row);
         }
         lockActions();
     }

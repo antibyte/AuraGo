@@ -3,106 +3,43 @@
 function renderTrueNASSection(section) {
     const data = configData['truenas'] || {};
     const enabledOn = data.enabled === true;
-    const readonlyOn = data.readonly === true;
-    const destructiveOn = data.allow_destructive === true;
-    const httpsOn = data.use_https !== false;
-    const insecureOn = data.insecure_ssl === true;
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.truenas.apikey_placeholder'));
+    const form = window.AuraConfigForm;
+    const checking = enabledOn && data.host;
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    // ── Connection status banner ──
-    html += cfgStatusBanner.html('truenas-status-banner', enabledOn && data.host ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), { detail: enabledOn && !(enabledOn && data.host) ? t('config.truenas.status_no_url') : '' });
-
-    // ── Enabled toggle ──
-    const helpEnabled = t('help.truenas.enabled');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.enabled_label') + '</div>';
-    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="truenas.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Read-only toggle ──
-    const helpReadonly = t('help.truenas.readonly');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.readonly_label') + '</div>';
-    if (helpReadonly) html += '<div class="field-help">' + helpReadonly + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="truenas.readonly" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Allow destructive toggle ──
-    const helpDestructive = t('help.truenas.allow_destructive');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.destructive_label') + '</div>';
-    if (helpDestructive) html += '<div class="field-help">' + helpDestructive + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (destructiveOn ? ' on' : '') + '" data-path="truenas.allow_destructive" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (destructiveOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── HTTPS toggle ──
-    const helpHTTPS = t('help.truenas.use_https');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.https_label') + '</div>';
-    if (helpHTTPS) html += '<div class="field-help">' + helpHTTPS + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (httpsOn ? ' on' : '') + '" data-path="truenas.use_https" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (httpsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Insecure SSL toggle ──
-    const helpInsecure = t('help.truenas.insecure_ssl');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.insecure_label') + '</div>';
-    if (helpInsecure) html += '<div class="field-help">' + helpInsecure + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (insecureOn ? ' on' : '') + '" data-path="truenas.insecure_ssl" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Host ──
-    const helpHost = t('help.truenas.host');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.host_label') + '</div>';
-    if (helpHost) html += '<div class="field-help">' + helpHost + '</div>';
-    html += '<input class="field-input" type="text" data-path="truenas.host" value="' + escapeAttr(data.host || '') + '" placeholder="truenas.local">';
-    html += '</div>';
-
-    // ── API Key (vault) ──
-    const helpKey = t('help.truenas.api_key');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.truenas.apikey_label') + '</div>';
-    if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
-    html += '<div class="cfg-secret-row">';
-        html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input cfg-secret-input" type="password" id="truenas-apikey" data-path="truenas.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
-        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-        html += '</div>';
-    html += '</div></div>';
-
-    // ── Test connection button ──
-    html += '<div class="field-group">';
-    html += '<button class="btn-save cfg-test-btn" onclick="truenasTestConnection()" id="truenas-test-btn" data-config-action-draft="true">' + t('config.truenas.test_btn') + '</button>';
-    html += cfgActionResult.html('truenas-test-result');
-    html += '</div>';
-
-    // ── Link to full UI ──
-    html += '<div class="field-group">';
-    html += '<a href="/truenas" class="btn-save pw-u-button-link">📊 ' + t('config.truenas.open_ui') + '</a>';
-    html += '</div>';
-
-    html += '</div>';
+    const html = form.renderSpec({
+        label: section.label,
+        desc: section.desc,
+        banner: { id: 'truenas-status-banner', state: checking ? 'checking' : (enabledOn ? 'unconfigured' : 'off'), detail: enabledOn && !data.host ? t('config.truenas.status_no_url') : '' },
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
+            form.toggle({ label: t('config.truenas.enabled_label'), help: t('help.truenas.enabled'), path: 'truenas.enabled', value: enabledOn }),
+            form.toggle({ label: t('config.truenas.readonly_label'), help: t('help.truenas.readonly'), path: 'truenas.readonly', value: data.readonly === true }),
+            form.toggle({ label: t('config.truenas.destructive_label'), help: t('help.truenas.allow_destructive'), path: 'truenas.allow_destructive', value: data.allow_destructive === true })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.truenas.host_label'), help: t('help.truenas.host'), path: 'truenas.host', value: data.host || '', placeholder: 'truenas.local' }),
+            form.toggle({ label: t('config.truenas.https_label'), help: t('help.truenas.use_https'), path: 'truenas.use_https', value: data.use_https !== false }),
+            form.toggle({ label: t('config.truenas.insecure_label'), help: t('help.truenas.insecure_ssl'), path: 'truenas.insecure_ssl', value: data.insecure_ssl === true })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
+            form.password({
+                label: t('config.truenas.apikey_label'),
+                help: t('help.truenas.api_key'),
+                id: 'truenas-apikey',
+                path: 'truenas.api_key',
+                value: data.api_key,
+                placeholder: apiKeyPlaceholder
+            })
+        ] }],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" onclick="truenasTestConnection()" id="truenas-test-btn" data-config-action-draft="true">' + t('config.truenas.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'truenas-test-result' }) },
+            { html: '<a href="/truenas" class="btn-secondary pw-u-button-link">' + cfgIcon('chart') + '<span>' + t('config.truenas.open_ui') + '</span></a>' }
+        ])
+    });
 
     document.getElementById('content').innerHTML = html;
 
     // Auto-check status on load
-    if (enabledOn && data.host) truenasCheckStatus();
+    if (checking) truenasCheckStatus();
 }
 
 function truenasCheckStatus() {

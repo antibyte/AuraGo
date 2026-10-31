@@ -50,7 +50,7 @@ func TestConfigWave1Batch6StaticContracts(t *testing.T) {
 		"mcp_server":    {"cfgActionResult(", "mcp-preset-status", "mcp-token-error"},
 		"prompts":       {"cfgActionResult(", "pers-editor-status", "pers-save-btn"},
 		"rules":         {"cfgActionResult(", "rules-status", "rules-save-btn"},
-		"devices":       {"cfgActionResult(", "device-mac-status", "device-modal-error", "devices-list-result"},
+		"devices":       {"cfgActionResult(", "device-mac-status", "device-form-error", "devices-list-result"},
 	} {
 		must(module, read(module), wants...)
 	}
