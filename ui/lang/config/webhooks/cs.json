@@ -158,5 +158,6 @@
   "config.webhooks.signature_algo_help": "Metoda výpočtu podpisu. Musí odpovídat odesílateli; „plain“ porovnává hodnotu beze změny.",
   "config.webhooks.signature_header_help": "Název hlavičky, ve které odesílatel přenáší podpis. Nechte prázdné, pokud služba nepodepisuje.",
   "config.webhooks.signature_secret_help": "Sdílený tajný klíč pro ověření podpisu. Je uložen šifrovaně ve vault.",
-  "config.webhooks.token_help": "Token, který musí odesílatel předložit. Tokeny spravujete v seznamu tokenů výše."
+  "config.webhooks.token_help": "Token, který musí odesílatel předložit. Tokeny spravujete v seznamu tokenů výše.",
+  "config.webhooks.og_headers_invalid": "Řádky hlaviček {lines} nemají tvar „Název: hodnota“ a nebyly by uloženy."
 }

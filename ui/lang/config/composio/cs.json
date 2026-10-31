@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Náhled nástrojů",
   "config.composio.user_id": "Composio ID uživatele",
   "config.composio.saving": "Ukládám...",
-  "config.composio.testing": "Testování připojení..."
+  "config.composio.testing": "Testování připojení...",
+  "config.composio.filter_label": "Zobrazit sady nástrojů"
 }

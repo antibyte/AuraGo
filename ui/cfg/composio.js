@@ -29,7 +29,7 @@ async function renderComposioSection(section) {
     html += '<button class="btn-save" onclick="composioOpenModal()">' + t('config.composio.open_picker') + '</button>';
     html += '<button class="btn-save cfg-test-btn" id="composio-test-btn" data-config-action-draft="true" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
     html += cfgActionResult.html('composio-test-result');
-    html += '<span class="cmp-selected-pill">' + t('config.composio.selected_count', { count: selectedCount }) + '</span>';
+    html += cfgBadge('idle', t('config.composio.selected_count', { count: selectedCount }));
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -202,39 +202,34 @@ async function composioTestConnection() {
     });
 }
 
+const COMPOSIO_PICKER = 'composio-picker-dialog';
+
 async function composioOpenModal() {
     composioEnsureModal();
-    document.getElementById('composio-modal-overlay').classList.add('active');
     composioState.query = '';
     composioState.filter = 'all';
+    composioState.loadError = '';
+    openModal(COMPOSIO_PICKER, { initialFocus: '#composio-search' });
     await composioLoadSelection();
     await composioLoadToolkits(true);
 }
 
 function composioCloseModal() {
-    const el = document.getElementById('composio-modal-overlay');
-    if (el) el.classList.remove('active');
+    closeModal(COMPOSIO_PICKER);
 }
 
+// The shared dialog owns focus, Escape and the backdrop; it is built once and reopened.
 function composioEnsureModal() {
-    if (document.getElementById('composio-modal-overlay')) return;
-    const wrap = document.createElement('div');
-    wrap.id = 'composio-modal-overlay';
-    wrap.className = 'cmp-modal-overlay';
-    wrap.innerHTML = '<div class="cmp-modal">' +
-        '<div class="cmp-modal-head"><div><div class="cmp-modal-title">' + t('config.composio.modal_title') + '</div><div class="cmp-modal-subtitle">' + t('config.composio.modal_subtitle') + '</div></div>' +
-        '<button class="cmp-icon-btn" onclick="composioCloseModal()" title="' + escapeAttr(t('config.composio.close')) + '">x</button></div>' +
-        '<div class="cmp-modal-controls"><input id="composio-search" class="field-input" placeholder="' + escapeAttr(t('config.composio.search_placeholder')) + '" oninput="composioSearchChanged(this.value)">' +
-        '<select id="composio-filter" class="field-input" onchange="composioFilterChanged(this.value)"><option value="all">' + t('config.composio.filter_all') + '</option><option value="selected">' + t('config.composio.filter_selected') + '</option><option value="connected">' + t('config.composio.filter_connected') + '</option></select>' +
-        '<button class="btn-save btn-secondary" onclick="composioLoadToolkits(true)">' + t('config.composio.refresh') + '</button>' +
-        '<button id="composio-save-selection-btn" class="btn-save" onclick="composioSaveSelectionClick(this)">' + t('config.composio.save_selection') + '</button>' +
-        '<span id="composio-modal-count" class="cmp-selected-pill"></span>' + cfgActionResult.html('composio-modal-result') + '</div>' +
-        '<div class="cmp-modal-body"><div class="cmp-list-panel"><div id="composio-toolkit-list" class="cmp-toolkit-list"></div><button id="composio-load-more" class="btn-save btn-secondary cmp-load-more" onclick="composioLoadMore()">' + t('config.composio.load_more') + '</button></div>' +
-        '<div id="composio-detail" class="cmp-detail-panel"></div></div></div>';
-    document.body.appendChild(wrap);
-    wrap.addEventListener('click', function (ev) {
-        if (ev.target === wrap) composioCloseModal();
-    });
+    if (document.getElementById(COMPOSIO_PICKER)) return;
+    const body = '<p class="field-help">' + t('config.composio.modal_subtitle') + '</p>' +
+        '<div class="cfg-actions-row"><input id="composio-search" class="field-input" aria-label="' + escapeAttr(t('config.composio.search_placeholder')) + '" placeholder="' + escapeAttr(t('config.composio.search_placeholder')) + '" oninput="composioSearchChanged(this.value)">' +
+        '<select id="composio-filter" class="field-select" aria-label="' + escapeAttr(t('config.composio.filter_label')) + '" onchange="composioFilterChanged(this.value)"><option value="all">' + t('config.composio.filter_all') + '</option><option value="selected">' + t('config.composio.filter_selected') + '</option><option value="connected">' + t('config.composio.filter_connected') + '</option></select>' +
+        '<button type="button" class="btn-save btn-secondary" onclick="composioLoadToolkits(true)">' + cfgIcon('refresh') + '<span>' + t('config.composio.refresh') + '</span></button>' +
+        '<button type="button" id="composio-save-selection-btn" class="btn-save" onclick="composioSaveSelectionClick(this)">' + cfgIcon('save') + '<span>' + t('config.composio.save_selection') + '</span></button>' +
+        cfgBadge('idle', '').replace('<span ', '<span id="composio-picker-count" ') + cfgActionResult.html('composio-picker-result') + '</div>' +
+        '<div class="cmp-detail-grid"><div class="cmp-list-panel"><div id="composio-toolkit-list" class="cmp-toolkit-list"></div><button type="button" id="composio-load-more" class="btn-save btn-secondary cmp-load-more" onclick="composioLoadMore()">' + t('config.composio.load_more') + '</button></div>' +
+        '<div id="composio-detail" class="cmp-detail-panel"></div></div>';
+    document.body.insertAdjacentHTML('beforeend', cfgModal({ id: COMPOSIO_PICKER, title: t('config.composio.modal_title'), size: 'xl', body: body }));
 }
 
 async function composioLoadSelection() {
@@ -250,6 +245,7 @@ async function composioLoadSelection() {
 
 async function composioLoadToolkits(reset) {
     composioState.loading = true;
+    composioState.loadError = '';
     composioRenderModal();
     try {
         const q = document.getElementById('composio-search') ? document.getElementById('composio-search').value.trim() : composioState.query;
@@ -266,7 +262,7 @@ async function composioLoadToolkits(reset) {
             composioLoadToolkitDetail(composioState.selectedSlug);
         }
     } catch (e) {
-        showToast(t('config.composio.load_failed') + ': ' + (e.message || t('config.common.error')), 'error');
+        composioState.loadError = e.message || t('config.common.error');
     } finally {
         composioState.loading = false;
         composioRenderModal();
@@ -291,15 +287,23 @@ function composioFilterChanged(value) {
 function composioRenderModal() {
     const list = document.getElementById('composio-toolkit-list');
     const detail = document.getElementById('composio-detail');
-    const count = document.getElementById('composio-modal-count');
+    const count = document.getElementById('composio-picker-count');
     const loadMore = document.getElementById('composio-load-more');
     if (!list || !detail) return;
 
     const selected = composioSelectedMap();
     const rows = composioFilteredToolkits(selected);
     if (count) count.textContent = t('config.composio.selected_count', { count: Object.keys(selected).length });
-    list.innerHTML = rows.length ? rows.map(tk => composioToolkitRow(tk, selected)).join('') : '<div class="cmp-empty">' + (composioState.loading ? t('config.common.loading') : t('config.composio.no_results')) + '</div>';
-    if (loadMore) loadMore.style.display = composioState.nextCursor ? 'block' : 'none';
+    if (rows.length) {
+        list.innerHTML = rows.map(tk => composioToolkitRow(tk, selected)).join('');
+    } else if (composioState.loading) {
+        cfgListState(list, { state: 'loading' });
+    } else if (composioState.loadError) {
+        cfgListState(list, { state: 'error', title: t('config.composio.load_failed'), text: composioState.loadError, retry: () => composioLoadToolkits(true) });
+    } else {
+        cfgListState(list, { state: 'empty', title: t('config.composio.no_results') });
+    }
+    if (loadMore) loadMore.classList.toggle('is-hidden', !composioState.nextCursor);
     composioRenderDetail();
 }
 
@@ -491,7 +495,7 @@ async function composioSaveSelection(toast, toolkitsOnly) {
 // The modal's save button: busy while saving, the server reason stays visible next to it.
 function composioSaveSelectionClick(button) {
     return cfgActionResult(button, async () => ({ ok: await composioSaveSelection(false) }), {
-        target: 'composio-modal-result',
+        target: 'composio-picker-result',
         success: t('config.composio.selection_saved'),
         failure: t('config.composio.selection_save_failed'),
         reasonText: () => composioState.saveError

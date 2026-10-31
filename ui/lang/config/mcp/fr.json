@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Nom d'affichage permettant de distinguer les secrets dans cette liste.",
   "config.mcp.secret_description_help": "Courte note sur l'usage du secret.",
   "config.mcp.secret_value_help": "La valeur du secret, par exemple un jeton d'API. Elle est stockée chiffrée dans le vault et n'est plus affichée ensuite.",
-  "config.mcp.secret_clear_value_help": "Supprime la valeur stockée à l'enregistrement."
+  "config.mcp.secret_clear_value_help": "Supprime la valeur stockée à l'enregistrement.",
+  "config.mcp.kv_invalid": "{field} : les lignes {lines} n'ont pas la forme CLÉ=VALEUR et ne seraient pas enregistrées."
 }

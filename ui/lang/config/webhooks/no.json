@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "Kort navn",
   "config.webhooks.og_param_name_label": "Parameternavn",
   "config.webhooks.og_param_type_label": "Parametertype",
-  "config.webhooks.og_param_desc_label": "Parameterbeskrivelse"
+  "config.webhooks.og_param_desc_label": "Parameterbeskrivelse",
+  "config.webhooks.og_headers_invalid": "Header-linje {lines} har ikke formen «Navn: verdi» og ville ikke blitt lagret."
 }

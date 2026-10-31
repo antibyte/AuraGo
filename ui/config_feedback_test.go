@@ -104,8 +104,9 @@ func TestConfigFeedbackScriptContract(t *testing.T) {
 			t.Errorf("catalog.js confirmOnEnable missing %q", path)
 		}
 	}
-	if !strings.Contains(normalizeAssetText(mustReadUIFile(t, "cfg/mcp.js")), `id="mcp-m-allow-destructive" type="checkbox" data-cfg-confirm-enable`) {
-		t.Error("the MCP modal destructive checkbox must ask before it is turned on")
+	mcpSource := normalizeAssetText(mustReadUIFile(t, "cfg/mcp.js"))
+	if !strings.Contains(mcpSource, `mcpModalToggleRow('mcp-m-allow-destructive'`) || !strings.Contains(mcpSource, `data-cfg-confirm-enable="destroy"`) {
+		t.Error("the MCP dialog destructive switch must ask before it is turned on")
 	}
 	if !strings.Contains(normalizeAssetText(mustReadUIFile(t, "cfg/sql_connections.js")), `id="sqlconn-perm-delete" data-cfg-confirm-enable`) {
 		t.Error("the SQL modal delete permission must ask before it is turned on")

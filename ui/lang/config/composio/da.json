@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Værktøjsvisning",
   "config.composio.user_id": "Composio-bruger-ID",
   "config.composio.saving": "Gemmer...",
-  "config.composio.testing": "Tester forbindelse..."
+  "config.composio.testing": "Tester forbindelse...",
+  "config.composio.filter_label": "Vis værktøjssæt"
 }

@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "छोटा नाम",
   "config.webhooks.og_param_name_label": "पैरामीटर का नाम",
   "config.webhooks.og_param_type_label": "पैरामीटर का प्रकार",
-  "config.webhooks.og_param_desc_label": "पैरामीटर का विवरण"
+  "config.webhooks.og_param_desc_label": "पैरामीटर का विवरण",
+  "config.webhooks.og_headers_invalid": "हेडर पंक्तियाँ {lines} \"नाम: मान\" रूप में नहीं हैं और सहेजी नहीं जाएँगी।"
 }

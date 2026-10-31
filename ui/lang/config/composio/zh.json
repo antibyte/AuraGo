@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "工具预览",
   "config.composio.user_id": "Composio 用户 ID",
   "config.composio.saving": "正在保存...",
-  "config.composio.testing": "正在测试连接..."
+  "config.composio.testing": "正在测试连接...",
+  "config.composio.filter_label": "显示工具包"
 }

@@ -43,7 +43,7 @@ func TestConfigWave0ListsDoNotCacheFailedLoads(t *testing.T) {
 	}
 	// the server modal closes only after a successful save
 	save := strings.Index(mcp, "const res = await mcpServerSave(next);")
-	closeAt := strings.Index(mcp[save:], "overlay.remove();")
+	closeAt := strings.Index(mcp[save:], "closeModal(MCP_SERVER_MODAL);")
 	failAt := strings.Index(mcp[save:], "if (!res.ok)")
 	if save < 0 || closeAt < 0 || failAt < 0 || failAt > closeAt {
 		t.Fatal("mcp.js server modal must stay open when the PUT fails")

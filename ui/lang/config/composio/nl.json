@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Toolvoorbeeld",
   "config.composio.user_id": "Composio-gebruikers-ID",
   "config.composio.saving": "Opslaan...",
-  "config.composio.testing": "Verbinding testen..."
+  "config.composio.testing": "Verbinding testen...",
+  "config.composio.filter_label": "Toolkits tonen"
 }

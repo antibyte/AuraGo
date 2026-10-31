@@ -43,7 +43,7 @@ async function renderOmniRouteSection(section) {
     html += omniRouteToggleRow('config.omniroute.enabled_label', 'help.omniroute.enabled', enabled, 'omniroute.enabled', "omniRouteToggleEnabled(this)");
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>◎</span><div>';
+        html += '<div class="wh-notice"><span>' + cfgIcon('info') + '</span><div>';
         html += '<strong>' + omniRouteText('config.omniroute.disabled_notice') + '</strong><br>';
         html += '<small>' + omniRouteText('config.omniroute.disabled_desc') + '</small>';
         html += '</div></div></div>';
@@ -52,7 +52,7 @@ async function renderOmniRouteSection(section) {
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">◎ ' + omniRouteText('config.omniroute.sidecar_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + cfgIcon('info') + ' ' + omniRouteText('config.omniroute.sidecar_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += omniRouteField('config.omniroute.mode_label', 'help.omniroute.mode',
         "<select class=\"field-select\" data-path=\"omniroute.mode\" onchange=\"setNestedValue(configData,'omniroute.mode',this.value);setDirty(true);renderOmniRouteSection(null)\">" +
@@ -125,10 +125,10 @@ async function renderOmniRouteSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save cfg-test-btn" onclick="omniRouteTestConnection()" id="omniroute-test-btn" data-config-action-draft="true">🔌 ' + omniRouteText('config.omniroute.test_button') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="omniRouteTestConnection()" id="omniroute-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + ' ' + omniRouteText('config.omniroute.test_button') + '</button>';
     if (managed) {
-        html += '<button class="btn-save btn-secondary" onclick="omniRouteStartSidecar()" id="omniroute-start-btn" data-config-action-draft="false">▶ ' + omniRouteText('config.omniroute.start_button') + '</button>';
-        html += '<button class="btn-save btn-secondary" onclick="omniRouteStopSidecar()" id="omniroute-stop-btn" data-config-action-draft="false">⏹ ' + omniRouteText('config.omniroute.stop_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="omniRouteStartSidecar()" id="omniroute-start-btn" data-config-action-draft="false">' + cfgIcon('play') + ' ' + omniRouteText('config.omniroute.start_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="omniRouteStopSidecar()" id="omniroute-stop-btn" data-config-action-draft="false">' + cfgIcon('stop') + ' ' + omniRouteText('config.omniroute.stop_button') + '</button>';
     }
     html += cfgActionResult.html('omniroute-result');
     html += '</div>';

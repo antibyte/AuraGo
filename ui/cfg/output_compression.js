@@ -11,19 +11,18 @@
             const agentSchema = schema.find(item => item.yaml_key === 'agent');
             const compressionSchema = agentSchema?.children?.find(item => item.yaml_key === 'output_compression');
             const sectionFields = name => compressionSchema?.children?.filter(item => item.yaml_key === name) || [];
-            // Archiving is independent of lossy compression and stays editable when disabled.
-            html += renderFields(sectionFields('reversible'), compCfg, 'agent.output_compression');
-
             // Master toggle
             html += `<div class="cfg-toggle-row-highlight">
                 <span class="cfg-toggle-label">${t('config.output_compression.enabled_label')}</span>
                 <div class="toggle ${enabled ? 'on' : ''}" data-path="agent.output_compression.enabled" role="switch" aria-checked="${enabled}" aria-label="${escapeAttr(t('config.output_compression.enabled_label'))}" aria-describedby="oc-enabled-help" onclick="toggleBool(this);renderOutputCompressionSection(_currentSection)"></div>
             </div>
             <div class="field-help" id="oc-enabled-help">${t('config.output_compression.enabled_help')}</div>`;
+            // Archiving is independent of lossy compression and stays editable when disabled.
+            html += renderFields(sectionFields('reversible'), compCfg, 'agent.output_compression');
 
             if (!enabled) {
                 html += `<div class="wh-notice">
-                    <span>🗜️</span>
+                    <span>${cfgIcon('box')}</span>
                     <div>
                         <strong>${t('config.output_compression.disabled_notice')}</strong><br>
                         <small>${t('config.output_compression.disabled_desc')}</small>
@@ -37,7 +36,7 @@
 
             // Info banner
             html += `<div class="wh-notice pw-u-accent-border">
-                <span>📊</span>
+                <span>${cfgIcon('chart')}</span>
                 <div>
                     <strong>${t('config.output_compression.info_title')}</strong><br>
                     <small>${t('config.output_compression.info_desc')}</small>
@@ -75,7 +74,7 @@
             const shellOn = compCfg.shell_compression !== false;
             html += `<div class="cfg-toggle-row">
                 <div>
-                    <span class="cfg-toggle-label">🐚 ${t('config.output_compression.shell_label')}</span>
+                    <span class="cfg-toggle-label">${cfgIcon('terminal')} ${t('config.output_compression.shell_label')}</span>
                     <div class="field-help pw-u-mt-2">${t('config.output_compression.shell_desc')}</div>
                 </div>
                 <div class="toggle ${shellOn ? 'on' : ''}" data-path="agent.output_compression.shell_compression" onclick="toggleBool(this)"></div>
@@ -85,7 +84,7 @@
             const pythonOn = compCfg.python_compression !== false;
             html += `<div class="cfg-toggle-row">
                 <div>
-                    <span class="cfg-toggle-label">🐍 ${t('config.output_compression.python_label')}</span>
+                    <span class="cfg-toggle-label">${cfgIcon('code')} ${t('config.output_compression.python_label')}</span>
                     <div class="field-help pw-u-mt-2">${t('config.output_compression.python_desc')}</div>
                 </div>
                 <div class="toggle ${pythonOn ? 'on' : ''}" data-path="agent.output_compression.python_compression" onclick="toggleBool(this)"></div>
@@ -95,7 +94,7 @@
             const apiOn = compCfg.api_compression !== false;
             html += `<div class="cfg-toggle-row">
                 <div>
-                    <span class="cfg-toggle-label">🔌 ${t('config.output_compression.api_label')}</span>
+                    <span class="cfg-toggle-label">${cfgIcon('plug')} ${t('config.output_compression.api_label')}</span>
                     <div class="field-help pw-u-mt-2">${t('config.output_compression.api_desc')}</div>
                 </div>
                 <div class="toggle ${apiOn ? 'on' : ''}" data-path="agent.output_compression.api_compression" onclick="toggleBool(this)"></div>
@@ -134,7 +133,7 @@
                 html += renderFields(fields, compCfg[name] || {}, 'agent.output_compression.' + name);
             }
             html += `<div class="wh-notice pw-u-mt-100 pw-u-muted-border">
-                <span>💡</span>
+                <span>${cfgIcon('bulb')}</span>
                 <div>
                     <small>${t('config.output_compression.note_limit')}</small>
                 </div>

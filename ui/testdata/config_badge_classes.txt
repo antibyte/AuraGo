@@ -1,7 +1,5 @@
 # <module> <class>: own status badge/pill class; use cfgBadge (E9).
 auth hint-badge
-composio selected-pill
-daemon_skills status-badge
 danger card-badge
 devices type-pill
 email em-badge
@@ -15,10 +13,6 @@ github gh-badge-public
 github gh-badge-stars
 go2rtc source-badge
 google_workspace vault-badge
-mcp mcp-badge
-mcp mcp-badge-active
-mcp mcp-badge-inactive
-mcp_server u-badge-row
 providers free-pill
 providers provider-pill
 providers provider-pill-oauth
@@ -28,4 +22,3 @@ rules rules-pill-warning
 secrets system-badge
 sql_connections driver-badge
 sql_connections perm-badge
-webhooks wh-badge

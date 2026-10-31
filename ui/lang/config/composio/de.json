@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Tool-Vorschau",
   "config.composio.user_id": "Composio-Benutzer-ID",
   "config.composio.saving": "Speichere...",
-  "config.composio.testing": "Verbindung wird getestet..."
+  "config.composio.testing": "Verbindung wird getestet...",
+  "config.composio.filter_label": "Toolkits anzeigen"
 }

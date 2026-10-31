@@ -1244,18 +1244,6 @@ transform:none; filter:none;
     color: var(--text-secondary);
 }
 
-.pw-page[data-workspace-page="config"] .wh-empty {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-    background: var(--card-bg);
-    border-radius: 14px;
-    border: 1px dashed var(--border-subtle);
-    position: relative;
-    overflow: hidden;
-}
-
 .pw-page[data-workspace-page="config"] .wh-list {
     display: flex;
     flex-direction: column;
@@ -1585,27 +1573,7 @@ transform:none; filter:none;
     border-bottom: 1px solid var(--border-subtle);
 }
 
-.pw-page[data-workspace-page="config"] .wh-badge {
-    display: inline-block;
-    padding: 0.1rem 0.4rem;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: var(--text-xs);
-    backdrop-filter: none;
-    border: 1px solid transparent;
-}
 
-.pw-page[data-workspace-page="config"] .wh-badge.success {
-    background: color-mix(in srgb, var(--success) 10%, transparent);
-    color: var(--success);
-    border-color: color-mix(in srgb, var(--success) 20%, transparent);
-}
-
-.pw-page[data-workspace-page="config"] .wh-badge.error {
-    background: color-mix(in srgb, var(--error) 10%, transparent);
-    color: var(--danger);
-    border-color: color-mix(in srgb, var(--error) 20%, transparent);
-}
 
 /* Toast styles are in shared.css */
 
@@ -1988,73 +1956,12 @@ transform:none; filter:none;
 /* Note: Enhanced visual styles (shine effects, glassmorphism, animations) are in shared.css */
 
 /* ── Outgoing Webhooks ──────────────────────────────── */
-.pw-page[data-workspace-page="config"] .og-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: color-mix(in srgb, #000000 65%, transparent);
-    backdrop-filter: none;
-    z-index: 9999;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
 
-.pw-page[data-workspace-page="config"] .og-modal {
-    background: var(--card-bg);
-    backdrop-filter: none;
-    border: 1px solid var(--border-accent);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 680px;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: none;
-    position: relative;
-}
 
-.pw-page[data-workspace-page="config"] .og-modal::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--pw-surface-elevated);
-    z-index: 1;
-}
 
-.pw-page[data-workspace-page="config"] .og-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-subtle);
-}
 
-.pw-page[data-workspace-page="config"] .og-modal-header h3 {
-    margin: 0;
-    font-size: var(--text-base);
-    background: var(--pw-surface-elevated);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
 
-.pw-page[data-workspace-page="config"] .og-modal-body {
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-}
 
-.pw-page[data-workspace-page="config"] .og-modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding: 1rem 1.25rem;
-    border-top: 1px solid var(--border-subtle);
-}
 
 .pw-page[data-workspace-page="config"] .og-form-split {
     display: flex;
@@ -2092,25 +1999,9 @@ transform:none; filter:none;
 }
 
 /* Method badge colors */
-.pw-page[data-workspace-page="config"] .wh-badge.get {
-    background: color-mix(in srgb, #3b82f6 15%, transparent);
-    color: #60a5fa;
-}
 
-.pw-page[data-workspace-page="config"] .wh-badge.post {
-    background: color-mix(in srgb, #22c55e 15%, transparent);
-    color: #4ade80;
-}
 
-.pw-page[data-workspace-page="config"] .wh-badge.put {
-    background: color-mix(in srgb, var(--warning) 15%, transparent);
-    color: #fbbf24;
-}
 
-.pw-page[data-workspace-page="config"] .wh-badge.delete {
-    background: color-mix(in srgb, #ef4444 15%, transparent);
-    color: #f87171;
-}
 
 /* ── Feature unavailable banner (Docker runtime) ── */
 .pw-page[data-workspace-page="config"] .feature-unavailable-banner {
@@ -3981,10 +3872,6 @@ transform:none; filter:none;
     flex-wrap: wrap;
 }
 
-.pw-page[data-workspace-page="config"] .ptb-sql-modal-panel {
-    width: min(860px, 92vw);
-}
-
 .pw-page[data-workspace-page="config"] .ptb-sql-list {
     margin-top: 0.6rem;
 }
@@ -4202,11 +4089,6 @@ transform:none; filter:none;
 }
 
 /* ── Webhooks section helpers ──────────────────────── */
-.pw-page[data-workspace-page="config"] .wh-loading-state {
-    text-align: center;
-    padding: 3rem;
-    color: var(--text-secondary);
-}
 
 .pw-page[data-workspace-page="config"] .wh-outgoing-wrap {
     margin-top: 2rem;
@@ -4247,15 +4129,6 @@ transform:none; filter:none;
     margin-top: 0.4rem;
 }
 
-.pw-page[data-workspace-page="config"] .wh-log-loading {
-    padding: 1rem;
-    color: var(--text-secondary);
-    text-align: center;
-}
-
-.pw-page[data-workspace-page="config"] .wh-empty-danger {
-    color: var(--danger);
-}
 
 .pw-page[data-workspace-page="config"] .wh-card-url-static {
     cursor: default;
@@ -6403,7 +6276,6 @@ transform:none; filter:none;
 
 [data-theme="light"] .pw-page[data-workspace-page="config"] .sidebar-backdrop,
 [data-theme="light"] .pw-page[data-workspace-page="config"] #vault-delete-overlay,
-[data-theme="light"] .pw-page[data-workspace-page="config"] .og-modal-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .cfgdev-modal-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .devices-modal-overlay,
 [data-theme="light"] .pw-page[data-workspace-page="config"] .sec-modal-overlay,
@@ -6514,10 +6386,6 @@ transform:none; filter:none;
 /* MCP */
 .pw-page[data-workspace-page="config"] .mcp-notice-danger { border-color:var(--danger); }
 .pw-page[data-workspace-page="config"] .mcp-action-row { display:flex; justify-content:flex-end; margin-bottom:1rem; }
-.pw-page[data-workspace-page="config"] .mcp-empty-state { text-align:center; padding:2rem; color:var(--text-tertiary); font-size:0.85rem; }
-.pw-page[data-workspace-page="config"] .mcp-badge { display:inline-block; padding:0.15rem 0.5rem; border-radius:6px; font-size:0.7rem; font-weight:600; margin-left:0.4rem; }
-.pw-page[data-workspace-page="config"] .mcp-badge-active { background:var(--success); color:#fff; }
-.pw-page[data-workspace-page="config"] .mcp-badge-inactive { background:var(--text-tertiary); color:#fff; }
 .pw-page[data-workspace-page="config"] .mcp-card { border:1px solid var(--border-subtle); border-radius:12px; padding:1rem 1.2rem; margin-bottom:0.75rem; background:var(--card-bg); backdrop-filter: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .pw-page[data-workspace-page="config"] .mcp-card:hover { border-color: color-mix(in srgb, var(--accent) 25%, var(--border-subtle)); transform: translateY(-2px); box-shadow: none; }
 .pw-page[data-workspace-page="config"] .mcp-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
@@ -6525,21 +6393,8 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] .mcp-card-actions { display:flex; gap:0.4rem; }
 .pw-page[data-workspace-page="config"] .mcp-card-btn { background:none; border:none; cursor:pointer; font-size:0.85rem; }
 .pw-page[data-workspace-page="config"] .mcp-card-btn-edit { color:var(--accent); }
-.pw-page[data-workspace-page="config"] .mcp-card-btn-delete { color:var(--danger); }
 .pw-page[data-workspace-page="config"] .mcp-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1rem; font-size:0.78rem; }
 .pw-page[data-workspace-page="config"] .mcp-grid-label { color:var(--text-tertiary); }
-.pw-page[data-workspace-page="config"] .mcp-modal-overlay { position:fixed; inset:0; background:color-mix(in srgb, #000000 55%, transparent); display:flex; align-items:center; justify-content:center; z-index:1000; }
-.pw-page[data-workspace-page="config"] .mcp-modal-box { background:var(--card-bg); border-radius:16px; padding:1.5rem; width:min(480px,90vw); max-height:85vh; overflow-y:auto; border:1px solid var(--border-subtle); backdrop-filter: none; box-shadow: none; }
-.pw-page[data-workspace-page="config"] .mcp-modal-title { font-weight:700; font-size:1rem; margin-bottom:1rem; }
-.pw-page[data-workspace-page="config"] .mcp-modal-label { display:block; margin-bottom:0.8rem; }
-.pw-page[data-workspace-page="config"] .mcp-modal-label-text { font-size:0.78rem; color:var(--text-secondary); }
-.pw-page[data-workspace-page="config"] .mcp-modal-hint { color:var(--text-tertiary); }
-.pw-page[data-workspace-page="config"] .mcp-modal-textarea { width:100%; margin-top:0.2rem; font-family:monospace; font-size:0.8rem; }
-.pw-page[data-workspace-page="config"] .mcp-modal-check-row { display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem; }
-.pw-page[data-workspace-page="config"] .mcp-modal-check-text { font-size:0.85rem; }
-.pw-page[data-workspace-page="config"] .mcp-modal-footer { display:flex; gap:0.5rem; justify-content:flex-end; }
-.pw-page[data-workspace-page="config"] .mcp-btn-cancel { background:var(--bg-tertiary); color:var(--text-primary); padding:0.45rem 1rem; }
-.pw-page[data-workspace-page="config"] .mcp-btn-save { padding:0.45rem 1rem; }
 
 /* ── MQTT Messages ── */
 .pw-page[data-workspace-page="config"] .cfg-messages-area {
@@ -6703,11 +6558,6 @@ transform:none; filter:none;
     }
 
     /* Outgoing webhooks modal mobile fixes */
-    .pw-page[data-workspace-page="config"] .og-modal {
-        max-width: 100%;
-        max-height: 95vh;
-        border-radius: 12px;
-    }
 
     .pw-page[data-workspace-page="config"] .og-form-split {
         flex-direction: column;
@@ -7314,7 +7164,6 @@ transform:none; filter:none;
 }
 
 .pw-page[data-workspace-page="config"] .cmp-toolbar .cfg-save-btn-sm,
-.pw-page[data-workspace-page="config"] .cmp-modal-controls .cfg-save-btn-sm,
 .pw-page[data-workspace-page="config"] .cmp-detail-head .cfg-save-btn-sm,
 .pw-page[data-workspace-page="config"] .cmp-detail-actions .cfg-save-btn-sm,
 .pw-page[data-workspace-page="config"] .cmp-secret-row .cfg-save-btn-sm {
@@ -7325,7 +7174,6 @@ transform:none; filter:none;
     text-align: center;
 }
 
-.pw-page[data-workspace-page="config"] .cmp-selected-pill,
 .pw-page[data-workspace-page="config"] .cmp-chip {
     display: inline-flex;
     align-items: center;
@@ -7384,79 +7232,14 @@ transform:none; filter:none;
     font-size: 0.88rem;
 }
 
-.pw-page[data-workspace-page="config"] .cmp-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-modal, 1000);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(2, 6, 23, 0.86);
-    backdrop-filter: none;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal-overlay.active {
-    display: flex;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal {
-    width: 96vw;
-    height: 92vh;
-    display: grid;
-    grid-template-rows: auto auto 1fr;
-    overflow: hidden;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    background: var(--bg-primary);
-    box-shadow: none;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal-head,
-.pw-page[data-workspace-page="config"] .cmp-modal-controls {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.15rem;
-    border-bottom: 1px solid var(--border-subtle);
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal-title {
-    color: var(--text-primary);
-    font-size: 1.05rem;
-    font-weight: 820;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal-subtitle {
-    margin-top: 0.2rem;
-    color: var(--text-secondary);
-    font-size: 0.84rem;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-icon-btn {
-    width: 38px;
-    height: 38px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    background: var(--surface-muted);
-    color: var(--text-primary);
-    cursor: pointer;
-    font-size: 1.25rem;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal-controls {
-    justify-content: flex-start;
-}
 
-.pw-page[data-workspace-page="config"] .cmp-modal-controls .field-input {
-    max-width: 360px;
-}
-
-.pw-page[data-workspace-page="config"] .cmp-modal-body {
-    min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(300px, 38%) minmax(0, 1fr);
-}
 
 .pw-page[data-workspace-page="config"] .cmp-list-panel,
 .pw-page[data-workspace-page="config"] .cmp-detail-panel {
@@ -7636,20 +7419,11 @@ transform:none; filter:none;
 
 @media (max-width: 860px) {
     .pw-page[data-workspace-page="config"] .cmp-grid,
-.pw-page[data-workspace-page="config"] .cmp-modal-body,
 .pw-page[data-workspace-page="config"] .cmp-detail-grid {
         grid-template-columns: 1fr;
     }
 
-    .pw-page[data-workspace-page="config"] .cmp-modal {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-    }
-
-    .pw-page[data-workspace-page="config"] .cmp-modal-controls,
-.pw-page[data-workspace-page="config"] .cmp-modal-head,
-.pw-page[data-workspace-page="config"] .cmp-detail-head {
+    .pw-page[data-workspace-page="config"] .cmp-detail-head {
         align-items: stretch;
         flex-direction: column;
     }

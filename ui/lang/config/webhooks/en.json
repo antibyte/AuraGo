@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "Short name",
   "config.webhooks.og_param_name_label": "Parameter name",
   "config.webhooks.og_param_type_label": "Parameter type",
-  "config.webhooks.og_param_desc_label": "Parameter description"
+  "config.webhooks.og_param_desc_label": "Parameter description",
+  "config.webhooks.og_headers_invalid": "Header lines {lines} are not in \"Name: value\" form and would not be saved."
 }

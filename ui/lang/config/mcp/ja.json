@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "この一覧でシークレットを区別するための表示名です。",
   "config.mcp.secret_description_help": "このシークレットの用途を示す短いメモです。",
   "config.mcp.secret_value_help": "API トークンなどのシークレットの値です。vault に暗号化して保存され、再表示はされません。",
-  "config.mcp.secret_clear_value_help": "保存時に、保存されている値を削除します。"
+  "config.mcp.secret_clear_value_help": "保存時に、保存されている値を削除します。",
+  "config.mcp.kv_invalid": "{field}: {lines} 行目は KEY=VALUE の形式ではないため、保存されません。"
 }

@@ -142,7 +142,7 @@ async function renderSkillManagerSection(section) {
     const bridgeAllowedSQL = Array.isArray(bridgeData.allowed_sql_connections) ? bridgeData.allowed_sql_connections : [];
 
     html += '<div class="section-divider"></div>';
-    html += '<div class="section-sub-header">🔌 ' + t('config.skill_manager.tool_bridge_header') + '</div>';
+    html += '<div class="section-sub-header">' + cfgIcon('plug') + ' ' + t('config.skill_manager.tool_bridge_header') + '</div>';
 
     const helpBridgeEnabled = t('help.tools.python_tool_bridge.enabled');
     html += '<div class="field-group">';
@@ -259,7 +259,8 @@ function ptbRenderCatalog(catalog) {
     let html = '';
     for (const g of groups) {
         const key = g.key || '';
-        const icon = g.icon || '🔧';
+        // The catalog delivers an emoji per group; it is shown as the matching icon.
+        const icon = cfgIcon(cfgIconForEmoji(g.icon) || 'wrench');
         const toolNames = Array.isArray(g.tools) ? g.tools : [];
         if (!key || !toolNames.length) continue;
 
@@ -270,7 +271,7 @@ function ptbRenderCatalog(catalog) {
 
         html += `
             <label class="ptb-tool-item" data-ptb-key="${escapeAttr(key)}" data-ptb-search="${escapeAttr((label + ' ' + key + ' ' + toolNames.join(' ')).toLowerCase())}">
-                <input type="checkbox" class="ptb-group-cb" onchange="ptbToggleGroup('${escapeAttr(key)}')">
+                <input type="checkbox" data-cfg-choice class="ptb-group-cb" onchange="ptbToggleGroup('${escapeAttr(key)}')">
                 <div class="ptb-tool-meta">
                     <div class="ptb-tool-title">${icon} ${esc(label)}</div>
                     ${desc ? `<div class="ptb-tool-desc">${esc(desc)}</div>` : ''}
@@ -482,31 +483,31 @@ async function testSkillSpectorStatus() {
     }
 }
 
+const PTB_SQL_DIALOG = 'ptb-sql-dialog';
+
 async function ptbOpenSQLConnectionsModal() {
-    const existing = document.getElementById('ptb-sql-modal');
+    const existing = document.getElementById(PTB_SQL_DIALOG);
     if (existing) existing.remove();
 
-    const modal = document.createElement('div');
-    modal.id = 'ptb-sql-modal';
-    modal.className = 'sec-modal-overlay';
-    modal.innerHTML = `
-        <div class="sec-modal-panel ptb-sql-modal-panel">
-            <div class="sec-modal-title">🗄️ ${t('config.skill_manager.tool_bridge_sql_modal_title')}</div>
-            <div class="sec-modal-desc">${t('config.skill_manager.tool_bridge_sql_modal_desc')}</div>
-            <input id="ptb-sql-search" class="field-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search'))}" oninput="ptbFilterSQLModal()">
-            <div id="ptb-sql-list" class="mcp-srv-tools-list ptb-sql-list"></div>
-            <div class="sec-modal-actions">
-                <button id="ptb-sql-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('common.btn_cancel')}</button>
-                <button id="ptb-sql-save" class="sec-modal-btn sec-modal-btn-apply">✓ ${t('common.btn_save')}</button>
-            </div>
-        </div>
-    `;
+    const body = `
+        <p class="field-help">${t('config.skill_manager.tool_bridge_sql_modal_desc')}</p>
+        <input id="ptb-sql-search" class="field-input ptb-tools-search" aria-label="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search'))}" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search'))}" oninput="ptbFilterSQLModal()">
+        <div id="ptb-sql-list" class="mcp-srv-tools-list ptb-sql-list"></div>`;
+    // The shared dialog owns focus, Escape and the backdrop; it is removed again on close.
+    document.body.insertAdjacentHTML('beforeend', cfgModal({
+        id: PTB_SQL_DIALOG,
+        title: t('config.skill_manager.tool_bridge_sql_modal_title'),
+        size: 'lg',
+        body: body,
+        actions: [
+            `<button type="button" id="ptb-sql-cancel" class="btn-secondary" onclick="closeModal('${PTB_SQL_DIALOG}')">${t('common.btn_cancel')}</button>`,
+            `<button type="button" id="ptb-sql-save" class="btn-save">${cfgIcon('check')} ${t('common.btn_save')}</button>`
+        ]
+    }));
+    const modal = document.getElementById(PTB_SQL_DIALOG);
+    openModal(PTB_SQL_DIALOG, { initialFocus: '#ptb-sql-search', onClose: () => modal.remove() });
 
-    function close() { modal.remove(); }
-    modal.addEventListener('click', e => { if (e.target === modal) close(); });
-    document.body.appendChild(modal);
-
-    modal.querySelector('#ptb-sql-cancel').addEventListener('click', close);
+    function close() { closeModal(PTB_SQL_DIALOG); }
     modal.querySelector('#ptb-sql-save').addEventListener('click', () => {
         const checked = Array.from(modal.querySelectorAll('.ptb-sql-cb')).filter(cb => cb.checked).map(cb => cb.value);
         ptbSetAllowedSQLConnections(checked);
@@ -521,7 +522,7 @@ async function ptbLoadSQLConnectionsIntoModal() {
     const listEl = document.getElementById('ptb-sql-list');
     if (!listEl) return;
 
-    listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading')}</div>`;
+    cfgListState(listEl, { state: 'loading', title: t('config.skill_manager.tool_bridge_loading') });
 
     try {
         const resp = await fetch('/api/sql-connections');
@@ -532,7 +533,7 @@ async function ptbLoadSQLConnectionsIntoModal() {
         const rows = Array.isArray(connections) ? connections : [];
 
         if (!rows.length) {
-            listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_sql_no_connections')}</div>`;
+            cfgListState(listEl, { state: 'empty', title: t('config.skill_manager.tool_bridge_sql_no_connections') });
             return;
         }
 
@@ -551,9 +552,9 @@ async function ptbLoadSQLConnectionsIntoModal() {
 
             html += `
                 <label class="ptb-tool-item ptb-sql-item" data-ptb-search="${escapeAttr((name + ' ' + driver + ' ' + host + ' ' + db).toLowerCase())}">
-                    <input type="checkbox" class="ptb-sql-cb" value="${escapeAttr(name)}" ${checked}>
+                    <input type="checkbox" data-cfg-choice class="ptb-sql-cb" value="${escapeAttr(name)}" ${checked}>
                     <div class="ptb-tool-meta">
-                        <div class="ptb-tool-title">🗄️ ${esc(name)}</div>
+                        <div class="ptb-tool-title">${cfgIcon('database')} ${esc(name)}</div>
                         ${subtitle ? `<div class="ptb-tool-desc">${esc(subtitle)}</div>` : ''}
                     </div>
                 </label>
@@ -562,7 +563,7 @@ async function ptbLoadSQLConnectionsIntoModal() {
         listEl.innerHTML = html;
         ptbFilterSQLModal();
     } catch (_) {
-        listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_load_error')}</div>`;
+        cfgListState(listEl, { state: 'error', title: t('config.skill_manager.tool_bridge_load_error'), retry: ptbLoadSQLConnectionsIntoModal });
     }
 }
 

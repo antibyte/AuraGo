@@ -30,21 +30,22 @@ func TestConfigComposioAPIKeyParticipatesInNormalConfigSave(t *testing.T) {
 	}
 }
 
-func TestConfigComposioPickerUsesOpaqueModalSurfaces(t *testing.T) {
+func TestConfigComposioPickerUsesSharedDialogAndOpaquePanels(t *testing.T) {
 	t.Parallel()
 
 	configCSS := strings.ReplaceAll(strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n"), `.pw-page[data-workspace-page="config"] `, "")
 	for _, marker := range []string{
-		".cmp-modal-overlay",
-		"background: rgba(2, 6, 23, 0.86);",
-		"backdrop-filter: none;",
-		".cmp-modal {\n",
-		"background: var(--bg-primary);",
 		".cmp-list-panel {\n    border-right: 1px solid var(--border-subtle);\n    background: var(--bg-secondary);",
 		".cmp-detail-panel {\n    padding: 1.1rem;\n    background: var(--bg-primary);",
 	} {
 		if !strings.Contains(configCSS, marker) {
-			t.Fatalf("composio modal CSS missing opaque surface marker %q", marker)
+			t.Fatalf("composio picker CSS missing opaque surface marker %q", marker)
+		}
+	}
+	composioJS := string(mustReadUIFile(t, "cfg/composio.js"))
+	for _, marker := range []string{"cfgModal(", "openModal(COMPOSIO_PICKER", "closeModal(COMPOSIO_PICKER"} {
+		if !strings.Contains(composioJS, marker) {
+			t.Fatalf("composio picker must use the shared dialog helpers, missing %q", marker)
 		}
 	}
 }
@@ -54,7 +55,7 @@ func TestConfigComposioButtonStylesFitLocalizedLabels(t *testing.T) {
 
 	configCSS := strings.ReplaceAll(strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n"), `.pw-page[data-workspace-page="config"] `, "")
 	for _, marker := range []string{
-		".cmp-toolbar .cfg-save-btn-sm,\n.cmp-modal-controls .cfg-save-btn-sm,\n.cmp-detail-head .cfg-save-btn-sm,\n.cmp-detail-actions .cfg-save-btn-sm",
+		".cmp-toolbar .cfg-save-btn-sm,\n.cmp-detail-head .cfg-save-btn-sm,\n.cmp-detail-actions .cfg-save-btn-sm",
 		".cmp-secret-row .cfg-save-btn-sm",
 		"min-width: max-content;",
 		"min-height: 36px;",
@@ -283,9 +284,8 @@ func TestConfigToastsRenderAboveComposioModal(t *testing.T) {
 	t.Parallel()
 
 	sharedCSS := strings.ReplaceAll(readDesktopAssetText(t, "shared-components.css"), "\r\n", "\n")
-	configCSS := strings.ReplaceAll(strings.ReplaceAll(readDesktopAssetText(t, "css/config.css"), "\r\n", "\n"), `.pw-page[data-workspace-page="config"] `, "")
 	toastZ := cssZIndex(t, cssBlock(t, sharedCSS, ".toast {"))
-	modalZ := cssZIndex(t, cssBlock(t, configCSS, ".cmp-modal-overlay {"))
+	modalZ := cssZIndex(t, cssBlock(t, sharedCSS, ".modal-overlay {"))
 	if toastZ <= modalZ {
 		t.Fatalf("toast z-index = %d, composio modal z-index = %d; toast must render above modal", toastZ, modalZ)
 	}

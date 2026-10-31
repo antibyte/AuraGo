@@ -70,7 +70,7 @@ func TestConfigSpacingBrowser(t *testing.T) {
 						 });
 						 if(positions.length && Math.max(...positions)-Math.min(...positions)>1) issues.push('switch column is not aligned');
 						 if([...document.querySelectorAll('.pw-action-reason[hidden]')].some(el=>el.getClientRects().length)) issues.push('hidden reason occupies a row');
-						 const empty=card.querySelector('.wh-empty');
+						 const empty=card.querySelector('.pw-empty-state');
 						 if(empty && !['none','normal'].includes(getComputedStyle(empty,'::before').content)) issues.push('empty state has an opaque overlay');
 						 const content=document.getElementById('content');
 						 if(content.scrollWidth>content.clientWidth+1) issues.push('horizontal overflow');
@@ -102,7 +102,7 @@ func TestConfigSpacingInteractionsBrowser(t *testing.T) {
 	page.MustElement("#og-f-name").MustInput("Home lab notification")
 	page.MustElement("#og-f-url").MustInput("https://webhook.fixture.invalid/notify")
 	page.MustElement(`[onclick="ogSave()"]`).MustClick()
-	waitForJSBool(t, page, `() => !!document.querySelector('#wh-outgoing-list .wh-card.cfg-object') && getComputedStyle(document.querySelector('#og-modal-overlay')).display==='none'`)
+	waitForJSBool(t, page, `() => !!document.querySelector('#wh-outgoing-list .wh-card.cfg-object') && !document.getElementById('og-edit-dialog')`)
 	if !page.MustEval(`() => spacingHeading.isConnected && ogWebhooks[0].url==='••••••••'`).Bool() {
 		t.Error("saving a webhook lost its topic heading or masked server state")
 	}
@@ -117,7 +117,7 @@ func TestConfigSpacingInteractionsBrowser(t *testing.T) {
 	}
 	page.MustElement(`[onclick="ogDelete(0)"]`).MustClick()
 	page.MustElement("#shared-modal-confirm").MustClick()
-	waitForJSBool(t, page, `() => !!document.querySelector('#wh-outgoing-list .wh-empty')`)
+	waitForJSBool(t, page, `() => !!document.querySelector('#wh-outgoing-list .pw-empty-state')`)
 	if !page.MustEval(`() => spacingHeading.isConnected`).Bool() {
 		t.Error("deleting a webhook lost its topic heading")
 	}

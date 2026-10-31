@@ -158,5 +158,6 @@
   "config.webhooks.signature_algo_help": "Metoden til at beregne signaturen. Den skal passe til afsenderen; \"plain\" sammenligner værdien uændret.",
   "config.webhooks.signature_header_help": "Navnet på den header, som afsenderen sender signaturen i. Lad den stå tom, hvis tjenesten ikke signerer.",
   "config.webhooks.signature_secret_help": "Delt hemmelighed til verificering af signaturen. Den gemmes krypteret i vault.",
-  "config.webhooks.token_help": "Token, som afsenderen skal fremvise. Du administrerer tokens i tokenlisten ovenfor."
+  "config.webhooks.token_help": "Token, som afsenderen skal fremvise. Du administrerer tokens i tokenlisten ovenfor.",
+  "config.webhooks.og_headers_invalid": "Header-linje {lines} har ikke formen „Navn: værdi“ og ville ikke blive gemt."
 }

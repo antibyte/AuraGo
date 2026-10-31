@@ -2,66 +2,26 @@
 
 function renderDaemonSkillsSection(section) {
     var data = (configData.tools?.daemon_skills) || {};
-    var enabledOn = data.enabled === true;
-    var maxConc = data.max_concurrent_daemons || 5;
-    var globalRate = data.global_rate_limit_secs || 60;
-    var maxWake = data.max_wakeups_per_hour || 6;
-    var maxBudget = data.max_budget_per_hour || 0.50;
+    var form = window.AuraConfigForm;
+    var prefix = 'tools.daemon_skills.';
+    var statusPanel = '<div class="field-group">'
+        + '<div class="field-label" id="daemon-status-title">' + t('config.daemon_skills.status_title', { count: '…' }) + '</div>'
+        + '<div id="daemon-status-grid" class="daemon-status-grid"></div>'
+        + '</div>';
 
-    var html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    // ── Enabled toggle ──
-    var helpEnabled = t('help.daemon_skills.enabled');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.enabled_label') + '</div>';
-    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabledOn ? ' on' : '') + '" data-path="tools.daemon_skills.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Max Concurrent Daemons ──
-    var helpMax = t('help.daemon_skills.max_concurrent_daemons');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.max_concurrent_daemons_label') + '</div>';
-    if (helpMax) html += '<div class="field-help">' + helpMax + '</div>';
-    html += '<input type="number" class="field-input" data-path="tools.daemon_skills.max_concurrent_daemons" value="' + maxConc + '" min="1" max="20" step="1">';
-    html += '</div>';
-
-    // ── Global Rate Limit ──
-    var helpRate = t('help.daemon_skills.global_rate_limit_secs');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.global_rate_limit_secs_label') + '</div>';
-    if (helpRate) html += '<div class="field-help">' + helpRate + '</div>';
-    html += '<input type="number" class="field-input" data-path="tools.daemon_skills.global_rate_limit_secs" value="' + globalRate + '" min="10" max="3600" step="1">';
-    html += '</div>';
-
-    // ── Max Wake-ups per Hour ──
-    var helpWake = t('help.daemon_skills.max_wakeups_per_hour');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.max_wakeups_per_hour_label') + '</div>';
-    if (helpWake) html += '<div class="field-help">' + helpWake + '</div>';
-    html += '<input type="number" class="field-input" data-path="tools.daemon_skills.max_wakeups_per_hour" value="' + maxWake + '" min="1" max="60" step="1">';
-    html += '</div>';
-
-    // ── Max Budget per Hour ──
-    var helpBudget = t('help.daemon_skills.max_budget_per_hour');
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.max_budget_per_hour_label') + '</div>';
-    if (helpBudget) html += '<div class="field-help">' + helpBudget + '</div>';
-    html += '<input type="number" class="field-input" data-path="tools.daemon_skills.max_budget_per_hour" value="' + maxBudget + '" min="0" max="100" step="0.01">';
-    html += '</div>';
-
-    // ── Live Daemon Status ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label" id="daemon-status-title">' + t('config.daemon_skills.status_title', { count: '…' }) + '</div>';
-    html += '<div id="daemon-status-grid" class="daemon-status-grid"></div>';
-    html += '</div>';
-
-    html += '</div>';
-    document.getElementById('content').innerHTML = html;
+    document.getElementById('content').innerHTML = form.renderSpec({
+        key: 'tools.daemon_skills',
+        label: section.label,
+        desc: section.desc,
+        fields: [
+            form.toggle({ label: t('config.daemon_skills.enabled_label'), help: t('help.daemon_skills.enabled'), path: prefix + 'enabled', value: data.enabled === true }),
+            form.number({ label: t('config.daemon_skills.max_concurrent_daemons_label'), help: t('help.daemon_skills.max_concurrent_daemons'), path: prefix + 'max_concurrent_daemons', value: data.max_concurrent_daemons || 5, min: 1, max: 20, step: 1 }),
+            form.number({ label: t('config.daemon_skills.global_rate_limit_secs_label'), help: t('help.daemon_skills.global_rate_limit_secs'), path: prefix + 'global_rate_limit_secs', value: data.global_rate_limit_secs || 60, min: 10, max: 3600, step: 1 }),
+            form.number({ label: t('config.daemon_skills.max_wakeups_per_hour_label'), help: t('help.daemon_skills.max_wakeups_per_hour'), path: prefix + 'max_wakeups_per_hour', value: data.max_wakeups_per_hour || 6, min: 1, max: 60, step: 1 }),
+            form.number({ label: t('config.daemon_skills.max_budget_per_hour_label'), help: t('help.daemon_skills.max_budget_per_hour'), path: prefix + 'max_budget_per_hour', value: data.max_budget_per_hour || 0.50, min: 0, max: 100, step: 0.01 }),
+            statusPanel
+        ]
+    });
     attachChangeListeners();
     loadDaemonStatus();
 }
@@ -77,26 +37,28 @@ async function loadDaemonStatus() {
             throw new Error('Invalid daemon status response');
         }
         if (!data.daemons || data.daemons.length === 0) {
-            grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.no_daemons')) + '</div>';
+            cfgListState(grid, { state: 'empty', title: t('config.daemon_skills.no_daemons') });
             if (title) title.textContent = t('config.daemon_skills.status_title', { count: 0 });
             return;
         }
         var runningCount = data.daemons.filter(function(d) { return d.status === 'running'; }).length;
         if (title) title.textContent = t('config.daemon_skills.status_title', { count: runningCount });
+        // Daemon state to shared badge state: starting is in progress, crashed is an error.
+        var badgeState = { running: 'ok', starting: 'running', crashed: 'error', stopped: 'idle', disabled: 'idle' };
         var html = '';
         data.daemons.forEach(function(d) {
-            var statusClass = 'daemon-status-' + (d.status || 'stopped');
-            var statusLabel = tOr('config.daemon_skills.status_' + (d.status || 'stopped'), d.status || 'stopped');
+            var status = d.status || 'stopped';
+            var statusLabel = tOr('config.daemon_skills.status_' + status, status);
             html += '<div class="daemon-status-row">';
             html += '<span class="daemon-status-name">' + esc(d.name || d.id) + '</span>';
-            html += '<span class="daemon-status-badge ' + statusClass + '">' + statusLabel + '</span>';
+            html += cfgBadge(badgeState[status] || 'idle', statusLabel);
             if (d.uptime) html += '<span class="daemon-status-uptime">' + esc(d.uptime) + '</span>';
-            if (d.error) html += '<span class="daemon-status-error" title="' + esc(d.error) + '">⚠️</span>';
+            if (d.error) html += '<span class="daemon-status-error" title="' + esc(d.error) + '">' + cfgIcon('alert', { label: d.error }) + '</span>';
             html += '</div>';
         });
         grid.innerHTML = html;
     } catch (e) {
         if (title) title.textContent = t('config.daemon_skills.status_title', { count: '—' });
-        grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.load_error')) + '</div>';
+        cfgListState(grid, { state: 'error', title: t('config.daemon_skills.load_error'), retry: loadDaemonStatus });
     }
 }

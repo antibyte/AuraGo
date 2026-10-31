@@ -513,7 +513,7 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 			t.Fatalf("composio.js missing marker %q", marker)
 		}
 	}
-	requireFeedbackContract(t, "composio.js", composioJS, []string{"composio-test-result", "composio-connect-status", "composio-modal-result"}, []string{"composio-status-banner"})
+	requireFeedbackContract(t, "composio.js", composioJS, []string{"composio-test-result", "composio-connect-status", "composio-picker-result"}, []string{"composio-status-banner"})
 	requireDockSecret(t, "composio.js", composioJS, "composio.api_key")
 	if strings.Contains(composioJS, "cfg-save-btn") {
 		t.Fatal("composio.js must not render a vault save button")

@@ -50,7 +50,7 @@ async function renderManifestSection(section) {
     html += manifestToggleRow('config.manifest.enabled_label', 'help.manifest.enabled', enabled, 'manifest.enabled', "manifestToggleEnabled(this)");
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>▦</span><div>';
+        html += '<div class="wh-notice"><span>' + cfgIcon('info') + '</span><div>';
         html += '<strong>' + manifestText('config.manifest.disabled_notice') + '</strong><br>';
         html += '<small>' + manifestText('config.manifest.disabled_desc') + '</small>';
         html += '</div></div></div>';
@@ -59,7 +59,7 @@ async function renderManifestSection(section) {
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.sidecar_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + cfgIcon('info') + ' ' + manifestText('config.manifest.sidecar_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += manifestField('config.manifest.mode_label', 'help.manifest.mode',
         "<select class=\"field-select\" data-path=\"manifest.mode\" onchange=\"setNestedValue(configData,'manifest.mode',this.value);setDirty(true);renderManifestSection(null)\">" +
@@ -124,7 +124,7 @@ async function renderManifestSection(section) {
     html += '<details class="cfg-advanced-panel manifest-routing-panel">';
     html += '<summary class="cfg-advanced-summary">' + manifestText('config.manifest.routing_title') + '</summary>';
     html += '<div class="cfg-advanced-body">';
-    html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.routing_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + cfgIcon('info') + ' ' + manifestText('config.manifest.routing_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += manifestToggleRow('config.manifest.routing_enabled_label', 'config.manifest.routing_enabled_help', data.routing.enabled === true, 'manifest.routing.enabled');
     html += manifestSelectFieldFixed('config.manifest.routing_specificity_mode_label', 'config.manifest.routing_specificity_mode_help', 'manifest.routing.specificity_mode', data.routing.specificity_mode || 'off', [
@@ -148,10 +148,10 @@ async function renderManifestSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save cfg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn" data-config-action-draft="true">🔌 ' + manifestText('config.manifest.test_button') + '</button>';
+    html += '<button class="btn-save cfg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + ' ' + manifestText('config.manifest.test_button') + '</button>';
     if (managed) {
-        html += '<button class="btn-save btn-secondary" onclick="manifestStartSidecars()" id="manifest-start-btn" data-config-action-draft="false">▶ ' + manifestText('config.manifest.start_button') + '</button>';
-        html += '<button class="btn-save btn-secondary" onclick="manifestStopSidecars()" id="manifest-stop-btn" data-config-action-draft="false">⏹ ' + manifestText('config.manifest.stop_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="manifestStartSidecars()" id="manifest-start-btn" data-config-action-draft="false">' + cfgIcon('play') + ' ' + manifestText('config.manifest.start_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="manifestStopSidecars()" id="manifest-stop-btn" data-config-action-draft="false">' + cfgIcon('stop') + ' ' + manifestText('config.manifest.stop_button') + '</button>';
     }
     html += cfgActionResult.html('manifest-result');
     html += '</div>';

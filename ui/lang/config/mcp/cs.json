@@ -119,5 +119,6 @@
   "config.mcp.secret_clear_value_help": "Při uložení smaže uloženou hodnotu.",
   "config.mcp.secret_description_help": "Krátká poznámka, k čemu se tajný údaj používá.",
   "config.mcp.secret_label_help": "Zobrazované jméno pro rozlišení tajných údajů v tomto seznamu.",
-  "config.mcp.secret_value_help": "Hodnota tajného údaje, například token API. Je uložena šifrovaně ve vault a znovu se nezobrazí."
+  "config.mcp.secret_value_help": "Hodnota tajného údaje, například token API. Je uložena šifrovaně ve vault a znovu se nezobrazí.",
+  "config.mcp.kv_invalid": "{field}: Řádky {lines} nemají tvar KLÍČ=HODNOTA a nebyly by uloženy."
 }

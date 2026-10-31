@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "简称",
   "config.webhooks.og_param_name_label": "参数名称",
   "config.webhooks.og_param_type_label": "参数类型",
-  "config.webhooks.og_param_desc_label": "参数说明"
+  "config.webhooks.og_param_desc_label": "参数说明",
+  "config.webhooks.og_headers_invalid": "请求头第 {lines} 行不是“名称: 值”格式，不会被保存。"
 }

@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "短い名前",
   "config.webhooks.og_param_name_label": "パラメーター名",
   "config.webhooks.og_param_type_label": "パラメーターの型",
-  "config.webhooks.og_param_desc_label": "パラメーターの説明"
+  "config.webhooks.og_param_desc_label": "パラメーターの説明",
+  "config.webhooks.og_headers_invalid": "ヘッダーの {lines} 行目は「名前: 値」の形式ではないため、保存されません。"
 }

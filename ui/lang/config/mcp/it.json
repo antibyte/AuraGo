@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Nome visualizzato per distinguere i segreti in questo elenco.",
   "config.mcp.secret_description_help": "Breve nota su come viene usato il segreto.",
   "config.mcp.secret_value_help": "Il valore del segreto, ad esempio un token API. È memorizzato cifrato nel vault e non viene più mostrato.",
-  "config.mcp.secret_clear_value_help": "Elimina il valore memorizzato al salvataggio."
+  "config.mcp.secret_clear_value_help": "Elimina il valore memorizzato al salvataggio.",
+  "config.mcp.kv_invalid": "{field}: le righe {lines} non hanno il formato CHIAVE=VALORE e non verrebbero salvate."
 }

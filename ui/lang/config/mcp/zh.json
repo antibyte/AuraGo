@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "用于在此列表中区分各个密钥的显示名称。",
   "config.mcp.secret_description_help": "说明该密钥用途的简短备注。",
   "config.mcp.secret_value_help": "密钥的值，例如 API 令牌。它以加密方式存储在保险库中，之后不会再次显示。",
-  "config.mcp.secret_clear_value_help": "保存时删除已存储的值。"
+  "config.mcp.secret_clear_value_help": "保存时删除已存储的值。",
+  "config.mcp.kv_invalid": "{field}：第 {lines} 行不是 KEY=VALUE 格式，不会被保存。"
 }

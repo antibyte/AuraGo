@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "Krótka nazwa",
   "config.webhooks.og_param_name_label": "Nazwa parametru",
   "config.webhooks.og_param_type_label": "Typ parametru",
-  "config.webhooks.og_param_desc_label": "Opis parametru"
+  "config.webhooks.og_param_desc_label": "Opis parametru",
+  "config.webhooks.og_headers_invalid": "Wiersze nagłówków {lines} nie mają postaci „Nazwa: wartość” i nie zostałyby zapisane."
 }

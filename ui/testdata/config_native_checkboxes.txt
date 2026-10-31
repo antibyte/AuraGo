@@ -5,9 +5,6 @@ email
 github
 gog
 guardian
-mcp
-mcp_server
-memory_analysis
 meshcore
 network_shares
 newspaper
@@ -17,7 +14,6 @@ remote_control
 rules
 s3
 sip
-skill_manager
 speech_lab
 sql_connections
 telephone_agent

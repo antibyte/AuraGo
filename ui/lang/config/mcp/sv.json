@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Visningsnamn för att skilja hemligheterna åt i den här listan.",
   "config.mcp.secret_description_help": "Kort anteckning om vad hemligheten används till.",
   "config.mcp.secret_value_help": "Hemlighetens värde, till exempel en API-token. Det lagras krypterat i vault och visas inte igen.",
-  "config.mcp.secret_clear_value_help": "Tar bort det lagrade värdet vid sparande."
+  "config.mcp.secret_clear_value_help": "Tar bort det lagrade värdet vid sparande.",
+  "config.mcp.kv_invalid": "{field}: Raderna {lines} har inte formen NYCKEL=VÄRDE och skulle inte sparas."
 }
