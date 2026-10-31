@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "इससे एजेंट डेटा हटा सकता है। हटाया गया डेटा शायद वापस न मिले।",
   "config.confirm_enable.destroy": "इससे एजेंट ऐसे विनाशकारी कार्य कर सकता है जिन्हें पूर्ववत नहीं किया जा सकता।",
   "config.confirm_enable.host": "इससे एजेंट को होस्ट सिस्टम पर अधिकार मिलते हैं। इसे केवल तभी चालू करें जब आप एजेंट और उसके इनपुट पर भरोसा करते हों।",
-  "config.confirm_enable.write": "इससे एजेंट होस्ट पर फ़ाइलें बदल सकता है। इसे केवल तभी चालू करें जब आप एजेंट पर भरोसा करते हों।"
+  "config.confirm_enable.write": "इससे एजेंट होस्ट पर फ़ाइलें बदल सकता है। इसे केवल तभी चालू करें जब आप एजेंट पर भरोसा करते हों।",
+  "config.sidebar.only_active": "केवल सक्रिय",
+  "config.sidebar.only_active_desc": "केवल चालू, त्रुटि वाले या रीस्टार्ट की प्रतीक्षा करने वाले अनुभाग और खुला अनुभाग दिखाता है।",
+  "config.sidebar.only_active_empty": "कोई सक्रिय अनुभाग नहीं है। सभी देखने के लिए फ़िल्टर बंद करें।",
+  "config.state.active": "सक्रिय",
+  "config.state.configured": "सेट अप है, पर बंद है",
+  "config.state.error": "पिछली जाँच में त्रुटि",
+  "config.state.restart": "रीस्टार्ट ज़रूरी है",
+  "config.state.restart_reason": "बदलाव रीस्टार्ट के बाद लागू होगा।",
+  "config.overview.active_title": "सक्रिय",
+  "config.overview.active_empty": "अभी कोई इंटीग्रेशन चालू नहीं है।",
+  "config.overview.attention_title": "ध्यान देने की ज़रूरत",
+  "config.overview.blocked": "उपलब्ध नहीं",
+  "config.overview.group_active": "{count} सक्रिय"
 }

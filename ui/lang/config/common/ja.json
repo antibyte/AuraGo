@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "エージェントがデータを削除できるようになります。削除したデータは復元できない場合があります。",
   "config.confirm_enable.destroy": "エージェントが元に戻せない破壊的な操作を実行できるようになります。",
   "config.confirm_enable.host": "エージェントにホストシステムの権限が与えられます。エージェントとその入力を信頼できる場合のみ有効にしてください。",
-  "config.confirm_enable.write": "エージェントがホスト上のファイルを変更できるようになります。エージェントを信頼できる場合のみ有効にしてください。"
+  "config.confirm_enable.write": "エージェントがホスト上のファイルを変更できるようになります。エージェントを信頼できる場合のみ有効にしてください。",
+  "config.sidebar.only_active": "有効のみ",
+  "config.sidebar.only_active_desc": "オンのセクション、エラーのあるセクション、再起動待ちのセクションと、開いているセクションだけを表示します。",
+  "config.sidebar.only_active_empty": "有効なセクションはありません。フィルターをオフにするとすべて表示されます。",
+  "config.state.active": "有効",
+  "config.state.configured": "設定済み（オフ）",
+  "config.state.error": "前回のチェックでエラー",
+  "config.state.restart": "再起動が必要",
+  "config.state.restart_reason": "変更は再起動後に反映されます。",
+  "config.overview.active_title": "有効",
+  "config.overview.active_empty": "まだオンになっている連携はありません。",
+  "config.overview.attention_title": "要確認",
+  "config.overview.blocked": "利用できません",
+  "config.overview.group_active": "{count}件が有効"
 }

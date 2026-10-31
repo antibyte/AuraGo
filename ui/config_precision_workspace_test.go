@@ -277,7 +277,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	page := browser.MustPage(server.URL)
 	defer page.MustClose()
 	page.MustSetDocumentContent(html)
-	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/feedback.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/presentation.js", "js/config/main.js"} {
+	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/feedback.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/presentation.js", "js/config/section_state.js", "js/config/main.js"} {
 		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, script))); err != nil {
 			t.Fatalf("load %s: %v", script, err)
 		}

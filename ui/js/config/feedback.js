@@ -14,6 +14,9 @@
     const ERROR_STATUS = ['error', 'failed', 'failure', 'fail', 'offline', 'disconnected'];
     const BANNER_STATES = Object.freeze(['off', 'unconfigured', 'checking', 'connected', 'degraded', 'error', 'unknown']);
     const MAX_REASON = 300;
+    // Last failed check per Config section, read by section_state.js for the sidebar dot.
+    const SECTION_STATUS_KEY = 'aurago.config.sectionStatus.v1';
+    const SECTION_STATUS_STATES = Object.freeze(['connected', 'degraded', 'error', 'off', 'unconfigured']);
     const DEFAULT_CHECK_TIMEOUT = 15000;
 
     const prevDisabled = new WeakMap();
@@ -344,6 +347,27 @@
         return BANNER_STATES.includes(state) ? state : 'unknown';
     }
 
+    function activeConfigSection() {
+        const state = window.AuraConfigState;
+        try { return state && typeof state.snapshot === 'function' ? String(state.snapshot().section || '') : ''; } catch (_) { return ''; }
+    }
+
+    // A banner result belongs to a Config section: error/degraded is remembered for
+    // the browser session, any later answer clears it. Announces
+    // aura-config-section-status {section, state, reason} for the sidebar.
+    function reportSectionStatus(section, state, detail) {
+        if (!section || section === 'overview' || !SECTION_STATUS_STATES.includes(state)) return;
+        let map = {};
+        try { map = JSON.parse(sessionStorage.getItem(SECTION_STATUS_KEY) || '{}') || {}; } catch (_) { map = {}; }
+        if (typeof map !== 'object' || Array.isArray(map)) map = {};
+        const failed = state === 'error' || state === 'degraded';
+        const reasonText = failed ? clip(detail) : '';
+        if (failed) map[section] = { state: state, reason: reasonText, at: Date.now() };
+        else delete map[section];
+        try { sessionStorage.setItem(SECTION_STATUS_KEY, JSON.stringify(map)); } catch (_) { /* private browsing can disable storage */ }
+        document.dispatchEvent(new CustomEvent('aura-config-section-status', { detail: { section: section, state: state, reason: reasonText } }));
+    }
+
     function bannerHTML(id, state, opts) {
         opts = opts || {};
         state = bannerState(state);
@@ -406,6 +430,7 @@
             parts.push(retry);
         }
         element.replaceChildren(...parts);
+        reportSectionStatus(opts.section || (element.isConnected ? activeConfigSection() : ''), state, bannerDetail(state, opts));
         return element;
     }
 
@@ -420,7 +445,9 @@
         bannerRuns.set(element, mine);
         const timeoutMs = opts.timeoutMs > 0 ? opts.timeoutMs : DEFAULT_CHECK_TIMEOUT;
         const retry = opts.retry === false ? null : (typeof opts.retry === 'function' ? opts.retry : () => checkBanner(element, fetcher, map, opts));
-        const base = { links: opts.links, retry: retry, hint: opts.hint };
+        // The section is taken when the check starts: the answer may arrive after the user moved on.
+        const section = opts.section || (element.isConnected ? activeConfigSection() : '');
+        const base = { links: opts.links, retry: retry, hint: opts.hint, section: section };
         const draw = (state, extra) => {
             if (bannerRuns.get(element) !== mine) return null;
             statusBanner(element, state, Object.assign({}, base, extra));
@@ -522,6 +549,7 @@
         bannerHTML: bannerHTML,
         checkBanner: checkBanner,
         draftPatch: draftPatch,
+        reportSectionStatus: reportSectionStatus,
         BANNER_STATES: BANNER_STATES
     };
     window.AuraConfigFeedback = Object.freeze(api);

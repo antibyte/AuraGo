@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Dette lar agenten slette data. Slettede data kan kanskje ikke gjenopprettes.",
   "config.confirm_enable.destroy": "Dette lar agenten utføre destruktive handlinger som ikke kan angres.",
   "config.confirm_enable.host": "Dette gir agenten rettigheter på vertssystemet. Slå på kun hvis du stoler på agenten og dens inndata.",
-  "config.confirm_enable.write": "Dette lar agenten endre filer på verten. Slå på kun hvis du stoler på agenten."
+  "config.confirm_enable.write": "Dette lar agenten endre filer på verten. Slå på kun hvis du stoler på agenten.",
+  "config.sidebar.only_active": "Bare aktive",
+  "config.sidebar.only_active_desc": "Viser bare deler som er slått på, har en feil eller venter på omstart, pluss den åpne delen.",
+  "config.sidebar.only_active_empty": "Ingen aktive deler. Slå av filteret for å se alle.",
+  "config.state.active": "Aktiv",
+  "config.state.configured": "Konfigurert, men av",
+  "config.state.error": "Feil ved siste kontroll",
+  "config.state.restart": "Omstart nødvendig",
+  "config.state.restart_reason": "Endringen trer først i kraft etter en omstart.",
+  "config.overview.active_title": "Aktive",
+  "config.overview.active_empty": "Ingen integrasjon er slått på ennå.",
+  "config.overview.attention_title": "Trenger oppmerksomhet",
+  "config.overview.blocked": "Ikke tilgjengelig",
+  "config.overview.group_active": "{count} aktive"
 }

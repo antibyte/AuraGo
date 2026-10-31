@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Detta låter agenten radera data. Raderade data kanske inte kan återställas.",
   "config.confirm_enable.destroy": "Detta låter agenten utföra destruktiva åtgärder som inte kan ångras.",
   "config.confirm_enable.host": "Detta ger agenten rättigheter på värdsystemet. Aktivera bara om du litar på agenten och dess indata.",
-  "config.confirm_enable.write": "Detta låter agenten ändra filer på värden. Aktivera bara om du litar på agenten."
+  "config.confirm_enable.write": "Detta låter agenten ändra filer på värden. Aktivera bara om du litar på agenten.",
+  "config.sidebar.only_active": "Endast aktiva",
+  "config.sidebar.only_active_desc": "Visar bara avsnitt som är på, har fel eller väntar på omstart, samt det öppna avsnittet.",
+  "config.sidebar.only_active_empty": "Inga aktiva avsnitt. Stäng av filtret för att se alla.",
+  "config.state.active": "Aktiv",
+  "config.state.configured": "Konfigurerad men av",
+  "config.state.error": "Fel vid senaste kontrollen",
+  "config.state.restart": "Omstart behövs",
+  "config.state.restart_reason": "Ändringen gäller först efter en omstart.",
+  "config.overview.active_title": "Aktiva",
+  "config.overview.active_empty": "Ingen integration är påslagen ännu.",
+  "config.overview.attention_title": "Behöver uppmärksamhet",
+  "config.overview.blocked": "Inte tillgänglig",
+  "config.overview.group_active": "{count} aktiva"
 }

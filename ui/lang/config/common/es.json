@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Esto permite que el agente elimine datos. Es posible que los datos eliminados no se puedan recuperar.",
   "config.confirm_enable.destroy": "Esto permite que el agente ejecute acciones destructivas que no se pueden deshacer.",
   "config.confirm_enable.host": "Esto da al agente derechos en el sistema anfitrión. Actívalo solo si confías en el agente y en sus entradas.",
-  "config.confirm_enable.write": "Esto permite que el agente modifique archivos en el anfitrión. Actívalo solo si confías en el agente."
+  "config.confirm_enable.write": "Esto permite que el agente modifique archivos en el anfitrión. Actívalo solo si confías en el agente.",
+  "config.sidebar.only_active": "Solo activas",
+  "config.sidebar.only_active_desc": "Muestra solo las secciones activadas, con error o pendientes de reinicio, y la sección abierta.",
+  "config.sidebar.only_active_empty": "No hay secciones activas. Desactiva el filtro para verlas todas.",
+  "config.state.active": "Activa",
+  "config.state.configured": "Configurada, pero desactivada",
+  "config.state.error": "Error en la última comprobación",
+  "config.state.restart": "Reinicio necesario",
+  "config.state.restart_reason": "El cambio se aplica tras reiniciar.",
+  "config.overview.active_title": "Activas",
+  "config.overview.active_empty": "Todavía no hay ninguna integración activada.",
+  "config.overview.attention_title": "Requiere atención",
+  "config.overview.blocked": "No disponible",
+  "config.overview.group_active": "{count} activas"
 }

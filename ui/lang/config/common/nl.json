@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Hiermee mag de agent gegevens verwijderen. Verwijderde gegevens zijn mogelijk niet te herstellen.",
   "config.confirm_enable.destroy": "Hiermee mag de agent destructieve acties uitvoeren die niet ongedaan te maken zijn.",
   "config.confirm_enable.host": "Hiermee krijgt de agent rechten op het hostsysteem. Schakel dit alleen in als je de agent en zijn invoer vertrouwt.",
-  "config.confirm_enable.write": "Hiermee mag de agent bestanden op de host wijzigen. Schakel dit alleen in als je de agent vertrouwt."
+  "config.confirm_enable.write": "Hiermee mag de agent bestanden op de host wijzigen. Schakel dit alleen in als je de agent vertrouwt.",
+  "config.sidebar.only_active": "Alleen actief",
+  "config.sidebar.only_active_desc": "Toont alleen ingeschakelde onderdelen, onderdelen met een fout of een openstaande herstart, en het geopende onderdeel.",
+  "config.sidebar.only_active_empty": "Geen actieve onderdelen. Zet het filter uit om alles te zien.",
+  "config.state.active": "Actief",
+  "config.state.configured": "Ingesteld, maar uit",
+  "config.state.error": "Fout bij de laatste controle",
+  "config.state.restart": "Herstart nodig",
+  "config.state.restart_reason": "De wijziging gaat pas in na een herstart.",
+  "config.overview.active_title": "Actief",
+  "config.overview.active_empty": "Er is nog geen integratie ingeschakeld.",
+  "config.overview.attention_title": "Heeft aandacht nodig",
+  "config.overview.blocked": "Niet beschikbaar",
+  "config.overview.group_active": "{count} actief"
 }

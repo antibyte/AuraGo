@@ -477,9 +477,14 @@ async function init() {
     installConfigEditIntentTracking();
     installConfigChoiceRetry();
     installConfigStatusRetry();
+    if (window.AuraConfigSectionState) window.AuraConfigSectionState.setSections(SECTIONS.flatMap(group => group.items.map(item => item.key)));
     buildSidebar();
     await selectSection(activeSection, { scrollBehavior: 'auto' });
     resetDirtySnapshot();
+    // A restart marker from an earlier save ends once the server has started again.
+    if (window.AuraConfigSectionState) {
+        window.AuraConfigSectionState.clearRestartIfRestarted().then(cleared => { if (cleared) updateSidebarStates(); }).catch(() => {});
+    }
 }
 
 /* ── Sidebar drawer (mobile) ── */
@@ -532,15 +537,23 @@ sidebarEl.addEventListener('keydown', event => {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 });
 
-// ── Group collapse state (persisted in localStorage, keyed by group name) ──
+// ── Group collapse state (persisted in localStorage, keyed by the stable group id) ──
 const COLLAPSED_GROUPS_KEY = 'aurago-cfg-groups-collapsed';
+const ONLY_ACTIVE_KEY = 'aurago-cfg-only-active';
+
+// The id of a group; a group without one is addressed by its position.
+function sectionGroupId(group, index) {
+    return group.id || 'group-' + index;
+}
 
 function loadCollapsedGroups() {
-    const allGroups = SECTIONS.map(g => g.group);
+    const allGroups = SECTIONS.map(sectionGroupId);
     try {
         const raw = localStorage.getItem(COLLAPSED_GROUPS_KEY);
         if (raw !== null) {
-            return new Set(JSON.parse(raw));
+            const stored = JSON.parse(raw);
+            // Values from before the ids held translated group names: start over.
+            if (Array.isArray(stored) && stored.every(id => allGroups.includes(id))) return new Set(stored);
         }
         // First visit: collapse ALL groups by default
         return new Set(allGroups);
@@ -878,6 +891,19 @@ function buildSidebar() {
     `;
     sb.appendChild(search);
 
+    const filter = document.createElement('div');
+    filter.className = 'cfg-sidebar-filter';
+    filter.id = 'sidebarFilter';
+    const filterOn = localStorage.getItem(ONLY_ACTIVE_KEY) === '1';
+    filter.innerHTML = `
+        <label class="cfg-sidebar-filter-label" for="sidebarOnlyActive" title="${escapeHtml(t('config.sidebar.only_active_desc'))}">
+            <input type="checkbox" role="switch" id="sidebarOnlyActive" class="cfg-sidebar-filter-input" aria-describedby="sidebarOnlyActiveDesc"${filterOn ? ' checked' : ''}>
+            <span>${escapeHtml(t('config.sidebar.only_active'))}</span>
+        </label>
+        <span id="sidebarOnlyActiveDesc" class="cfg-visually-hidden">${escapeHtml(t('config.sidebar.only_active_desc'))}</span>
+    `;
+    sb.appendChild(filter);
+
     const overviewItem = document.createElement('button');
     overviewItem.type = 'button';
     overviewItem.className = 'sidebar-item pw-overview-nav' + (activeSection === 'overview' ? ' active' : '');
@@ -891,7 +917,8 @@ function buildSidebar() {
 
     SECTIONS.forEach((group, groupIndex) => {
         const groupName = group.group;
-        const isCollapsed = collapsedGroups.has(groupName);
+        const groupId = sectionGroupId(group, groupIndex);
+        const isCollapsed = collapsedGroups.has(groupId);
 
         // Insert section divider before first integration sub-group
         if (group.sectionDivider && !lastWasIntSub) {
@@ -907,6 +934,7 @@ function buildSidebar() {
         groupDiv.className = 'sidebar-group'
             + (isCollapsed ? ' collapsed' : '')
             + (group.integrationSubGroup ? ' integration-subgroup' : '');
+        groupDiv.dataset.groupId = groupId;
 
         // Group header (collapsible)
         const header = document.createElement('button');
@@ -918,12 +946,12 @@ function buildSidebar() {
                     <span class="sidebar-group-title">${groupName}</span>
                     <span class="sidebar-group-arrow">▼</span>
                 `;
-        header.onclick = () => toggleGroup(groupName, groupDiv);
+        header.onclick = () => toggleGroup(groupId, groupDiv);
 
         // Group content (items)
         const content = document.createElement('div');
         content.className = 'sidebar-group-content';
-        const contentId = 'sidebar-group-content-' + groupIndex;
+        const contentId = 'sidebar-group-content-' + groupId;
         content.id = contentId;
         content.style.maxHeight = isCollapsed ? '0' : 'none';
         header.setAttribute('aria-controls', contentId);
@@ -948,7 +976,9 @@ function buildSidebar() {
                 item.title = blockedReason;
                 item.disabled = true;
             }
-            item.innerHTML = '<span class="icon" aria-hidden="true">' + createConfigSidebarIcon(s.key) + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
+            item.dataset.baseTitle = item.title || '';
+            item.innerHTML = '<span class="icon" aria-hidden="true">' + createConfigSidebarIcon(s.key) + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>'
+                + '<span class="cfg-state-dot cfg-state-none" aria-hidden="true"></span><span class="cfg-visually-hidden cfg-state-text" id="cfg-state-text-' + escapeAttr(s.key) + '"></span>';
             item.onclick = () => {
                 if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
                 if (item.dataset.searchTarget) navigateToConfigSection(s.key, { focusPath: item.dataset.searchTarget });
@@ -968,10 +998,107 @@ function buildSidebar() {
     noResults.textContent = t('config.sidebar.no_results');
     sb.appendChild(noResults);
 
+    const filterEmpty = document.createElement('div');
+    filterEmpty.className = 'cfg-sidebar-no-results hidden';
+    filterEmpty.id = 'sidebarFilterEmpty';
+    filterEmpty.textContent = t('config.sidebar.only_active_empty');
+    sb.appendChild(filterEmpty);
+
     initSidebarSearch();
+    initSidebarFilter();
     if (sidebarSearchQuery) applySidebarSearch(sidebarSearchQuery);
     syncSidebarActiveState(activeSection);
+    updateSidebarStates();
 }
+
+// ── Section state dots and the "only active" filter ──
+let sidebarStateTimer = 0;
+
+function scheduleSidebarStateUpdate() {
+    clearTimeout(sidebarStateTimer);
+    sidebarStateTimer = setTimeout(updateSidebarStates, 150);
+}
+
+// State of one section for the dots and the overview: {state, reason, blocked}.
+function configSectionStateOf(key) {
+    const result = window.AuraConfigSectionState ? window.AuraConfigSectionState.state(key) : { state: 'none', reason: '' };
+    const blockedReason = shouldBlockUnavailableSection(key) ? sectionBlockedReason(key) : '';
+    return { state: result.state, reason: result.reason, blocked: blockedReason };
+}
+
+function sectionStateText(state, reason) {
+    if (!window.AuraConfigSectionState) return '';
+    const label = window.AuraConfigSectionState.stateLabel(state);
+    return reason ? label + ': ' + reason : label;
+}
+
+function updateSidebarStates() {
+    const items = document.querySelectorAll('#sidebar .sidebar-item[data-section]');
+    items.forEach(item => {
+        const key = item.dataset.section;
+        if (key === 'overview') return;
+        const { state, reason } = configSectionStateOf(key);
+        const shown = state === 'active' || state === 'configured' || state === 'error' || state === 'restart';
+        const dot = item.querySelector('.cfg-state-dot');
+        const hidden = item.querySelector('.cfg-state-text');
+        item.dataset.state = state;
+        if (dot) dot.className = 'cfg-state-dot cfg-state-' + (shown ? state : 'none');
+        if (hidden) hidden.textContent = shown ? sectionStateText(state, reason) : '';
+        if (shown) item.setAttribute('aria-describedby', hidden.id); else item.removeAttribute('aria-describedby');
+        if (!item.disabled) item.title = shown ? sectionStateText(state, reason) : item.dataset.baseTitle;
+    });
+    applySidebarFilter();
+}
+
+function sidebarOnlyActive() {
+    const box = document.getElementById('sidebarOnlyActive');
+    return !!box && box.checked;
+}
+
+// The filter has its own hiding class, so it combines with the search (.hidden).
+function applySidebarFilter() {
+    const only = sidebarOnlyActive();
+    let shownItems = 0;
+    document.querySelectorAll('#sidebar .sidebar-group').forEach(groupEl => {
+        let groupShown = 0;
+        groupEl.querySelectorAll('.sidebar-item').forEach(item => {
+            const state = item.dataset.state || 'none';
+            const keep = !only || item.dataset.section === activeSection || state === 'active' || state === 'error' || state === 'restart';
+            item.classList.toggle('cfg-filter-hidden', !keep);
+            if (keep && !item.classList.contains('hidden')) groupShown++;
+        });
+        groupEl.classList.toggle('cfg-filter-hidden', only && groupShown === 0);
+        shownItems += groupShown;
+    });
+    const empty = document.getElementById('sidebarFilterEmpty');
+    const searching = getSidebarSearchTerms(sidebarSearchQuery).length > 0;
+    // With a search that found nothing, its own message is shown instead.
+    if (empty) empty.classList.toggle('hidden', !(only && shownItems === 0 && !searching));
+}
+
+function initSidebarFilter() {
+    const box = document.getElementById('sidebarOnlyActive');
+    if (!box) return;
+    box.addEventListener('change', () => {
+        localStorage.setItem(ONLY_ACTIVE_KEY, box.checked ? '1' : '0');
+        if (box.checked && !getSidebarSearchTerms(sidebarSearchQuery).length) {
+            // Open the groups that have something to show.
+            document.querySelectorAll('#sidebar .sidebar-group').forEach(groupEl => {
+                if (!groupEl.querySelector('.sidebar-item[data-state="active"], .sidebar-item[data-state="error"], .sidebar-item[data-state="restart"]')) return;
+                if (collapsedGroups.has(groupEl.dataset.groupId)) toggleGroup(groupEl.dataset.groupId, groupEl);
+            });
+        }
+        applySidebarFilter();
+    });
+}
+
+document.addEventListener('cfg:statechange', scheduleSidebarStateUpdate);
+['aura-config-section-status', 'aura-config-section-marker'].forEach(name => {
+    document.addEventListener(name, () => {
+        updateSidebarStates();
+        if (activeSection === 'overview' && document.querySelector('#content .pw-overview')) renderConfigOverview();
+    });
+});
 
 function initSidebarSearch() {
     const input = document.getElementById('sidebarSearchInput');
@@ -1122,6 +1249,7 @@ function applySidebarSearch(query) {
 
     sidebarSearchFocusedIndex = -1;
     if (noResults) noResults.classList.toggle('hidden', visibleItems > 0);
+    applySidebarFilter();
 }
 
 function clearSidebarSearch(focusInput) {
@@ -1137,8 +1265,7 @@ function clearSidebarSearch(focusInput) {
     document.querySelectorAll('.sidebar-group').forEach(groupEl => {
         const titleEl = groupEl.querySelector('.sidebar-group-title');
         const content = groupEl.querySelector('.sidebar-group-content');
-        const groupName = titleEl ? titleEl.textContent.trim() : '';
-        const isCollapsed = sidebarSearchSnapshot ? sidebarSearchSnapshot.has(groupName) : collapsedGroups.has(groupName);
+        const isCollapsed = sidebarSearchSnapshot ? sidebarSearchSnapshot.has(groupEl.dataset.groupId) : collapsedGroups.has(groupEl.dataset.groupId);
 
         groupEl.classList.remove('hidden');
         groupEl.classList.toggle('collapsed', isCollapsed);
@@ -1154,16 +1281,18 @@ function clearSidebarSearch(focusInput) {
 
     if (sidebarSearchSnapshot) {
         collapsedGroups.clear();
-        sidebarSearchSnapshot.forEach(groupName => collapsedGroups.add(groupName));
+        sidebarSearchSnapshot.forEach(groupId => collapsedGroups.add(groupId));
         sidebarSearchSnapshot = null;
     }
+
+    applySidebarFilter();
 
     if (focusInput && input) input.focus();
 }
 
 function getVisibleSidebarSearchItems() {
-    return [...document.querySelectorAll('.sidebar-item:not(.hidden):not(.sidebar-item-disabled)')]
-        .filter(item => !item.closest('.sidebar-group.hidden'));
+    return [...document.querySelectorAll('.sidebar-item:not(.hidden):not(.cfg-filter-hidden):not(.sidebar-item-disabled)')]
+        .filter(item => !item.closest('.sidebar-group.hidden, .sidebar-group.cfg-filter-hidden'));
 }
 
 function focusSidebarSearchItem(index) {
@@ -1204,18 +1333,18 @@ function handleSidebarSearchKeys(event) {
     }
 }
 
-function toggleGroup(groupName, groupDiv) {
+function toggleGroup(groupId, groupDiv) {
     if (getSidebarSearchTerms(sidebarSearchQuery).length) return;
-    const isCollapsed = collapsedGroups.has(groupName);
+    const isCollapsed = collapsedGroups.has(groupId);
     const content = groupDiv.querySelector('.sidebar-group-content');
 
     if (isCollapsed) {
-        collapsedGroups.delete(groupName);
+        collapsedGroups.delete(groupId);
         groupDiv.classList.remove('collapsed');
         content.style.maxHeight = content.scrollHeight + 'px';
         setTimeout(() => content.style.maxHeight = 'none', 300);
     } else {
-        collapsedGroups.add(groupName);
+        collapsedGroups.add(groupId);
         groupDiv.classList.add('collapsed');
         content.style.maxHeight = content.scrollHeight + 'px';
         setTimeout(() => content.style.maxHeight = '0', 0);
@@ -1393,11 +1522,44 @@ function recordRecentSection(key) {
 }
 
 function sectionMetadata(key) {
-    for (const group of SECTIONS) {
+    for (const [groupIndex, group] of SECTIONS.entries()) {
         const section = group.items.find(item => item.key === key);
-        if (section) return { ...section, group: group.group };
+        if (section) return { ...section, group: group.group, groupId: sectionGroupId(group, groupIndex) };
     }
     return null;
+}
+
+function overviewStateDot(state, label) {
+    return '<span class="cfg-state-dot cfg-state-' + state + '" aria-hidden="true"></span><span class="cfg-visually-hidden">' + escapeHtml(label) + ': </span>';
+}
+
+// Active integrations and what needs a look (error, restart, unavailable) for the overview.
+function overviewStateBlocks() {
+    const active = [];
+    const attention = [];
+    SECTIONS.forEach(group => group.items.forEach(section => {
+        const { state, reason, blocked } = configSectionStateOf(section.key);
+        if (state === 'error' || state === 'restart') attention.push({ section, state, reason });
+        else if (blocked) attention.push({ section, state: 'blocked', reason: blocked });
+        else if (state === 'active') active.push(section);
+    }));
+    const activeMarkup = active.length
+        ? active.map(section => `<button type="button" class="pw-state-chip" data-overview-section="${escapeAttr(section.key)}">${overviewStateDot('active', sectionStateText('active', ''))}${escapeHtml(section.label)}</button>`).join('')
+        : `<div class="pw-overview-empty">${escapeHtml(t('config.overview.active_empty'))}</div>`;
+    const attentionMarkup = attention.map(({ section, state, reason }) => `<button type="button" class="pw-attention-item" data-overview-section="${escapeAttr(section.key)}" data-state="${escapeAttr(state)}">
+            ${overviewStateDot(state === 'blocked' ? 'error' : state, state === 'blocked' ? t('config.overview.blocked') : sectionStateText(state, ''))}<strong>${escapeHtml(section.label)}</strong>
+            <span>${escapeHtml(reason)}</span>
+        </button>`).join('');
+    return `<section class="pw-overview-states" aria-labelledby="pw-active-title">
+            <div class="pw-state-block pw-state-block-active">
+                <h2 id="pw-active-title">${escapeHtml(t('config.overview.active_title'))}</h2>
+                <div class="pw-state-list">${activeMarkup}</div>
+            </div>
+            ${attention.length ? `<div class="pw-state-block pw-state-block-attention">
+                <h2 id="pw-attention-title">${escapeHtml(t('config.overview.attention_title'))}</h2>
+                <div class="pw-attention-list" aria-labelledby="pw-attention-title">${attentionMarkup}</div>
+            </div>` : ''}
+        </section>`;
 }
 
 function renderConfigOverview() {
@@ -1409,21 +1571,31 @@ function renderConfigOverview() {
             <strong>${escapeHtml(section.label)}</strong>
         </button>`).join('')
         : `<div class="pw-overview-empty">${escapeHtml(t('config.precision.recent_empty'))}</div>`;
-    const groupMarkup = SECTIONS.map(group => `<section class="pw-overview-card${group.dangerGroup ? ' pw-overview-card-danger' : ''}">
+    const groupMarkup = SECTIONS.map(group => {
+        const states = group.items.map(section => configSectionStateOf(section.key).state);
+        const activeCount = states.filter(state => state === 'active').length;
+        return `<section class="pw-overview-card${group.dangerGroup ? ' pw-overview-card-danger' : ''}">
         <div class="pw-overview-card-heading">
             <h2>${createConfigSidebarIcon(group.items[0].key)}${escapeHtml(group.group)}</h2>
+            ${activeCount ? `<span class="pw-overview-card-active">${escapeHtml(t('config.overview.group_active').replace('{count}', String(activeCount)))}</span>` : ''}
             <span>${group.items.length}</span>
         </div>
         <div class="pw-overview-links">
-            ${group.items.map(section => `<button type="button" data-overview-section="${escapeAttr(section.key)}">${escapeHtml(section.label)}<span aria-hidden="true">→</span></button>`).join('')}
+            ${group.items.map((section, index) => {
+                const state = states[index];
+                const dot = state === 'none' || state === 'off' ? '' : overviewStateDot(state, sectionStateText(state, ''));
+                return `<button type="button" data-overview-section="${escapeAttr(section.key)}"><span class="pw-overview-link-label">${dot}${escapeHtml(section.label)}</span><span aria-hidden="true">→</span></button>`;
+            }).join('')}
         </div>
-    </section>`).join('');
+    </section>`;
+    }).join('');
 
     content.innerHTML = `<div class="cfg-section active pw-overview">
         <div class="pw-overview-hero">
             <h1>${escapeHtml(t('config.precision.overview_title'))}</h1>
             <p>${escapeHtml(t('config.precision.overview_desc'))}</p>
         </div>
+        ${overviewStateBlocks()}
         <section class="pw-overview-recent" aria-labelledby="pw-recent-title">
             <h2 id="pw-recent-title">${escapeHtml(t('config.precision.recent_title'))}</h2>
             <div class="pw-recent-grid">${recentMarkup}</div>
@@ -1543,19 +1715,19 @@ async function selectSection(key, options = {}) {
     syncSidebarActiveState(key);
     // Auto-expand the group containing this section if it is collapsed
     let expandedTargetGroup = false;
-    for (const group of SECTIONS) {
-        if (!getSidebarSearchTerms(sidebarSearchQuery).length && group.items.some(s => s.key === key) && collapsedGroups.has(group.group)) {
-            const groupDiv = [...document.querySelectorAll('.sidebar-group')].find(
-                el => el.querySelector('.sidebar-group-title') &&
-                    el.querySelector('.sidebar-group-title').textContent.trim() === group.group
-            );
+    for (const [groupIndex, group] of SECTIONS.entries()) {
+        const groupId = sectionGroupId(group, groupIndex);
+        if (!getSidebarSearchTerms(sidebarSearchQuery).length && group.items.some(s => s.key === key) && collapsedGroups.has(groupId)) {
+            const groupDiv = [...document.querySelectorAll('.sidebar-group')].find(el => el.dataset.groupId === groupId);
             if (groupDiv) {
-                toggleGroup(group.group, groupDiv);
+                toggleGroup(groupId, groupDiv);
                 expandedTargetGroup = true;
             }
             break;
         }
     }
+    // The open section always stays in the "only active" list.
+    applySidebarFilter();
     scrollActiveSidebarItemIntoView(scrollBehavior, expandedTargetGroup ? 320 : 0);
     window.dispatchEvent(new CustomEvent('cfg:section-leave'));
     await renderSection(key);
@@ -3122,6 +3294,7 @@ async function saveConfig() {
 
         clearConfigValidation();
         const patch = window.AuraConfigState ? window.AuraConfigState.buildPatch() : buildConfigPatchFromForm();
+        const patchPaths = window.AuraConfigState ? window.AuraConfigState.dirtyPaths() : Object.keys(patch);
         const sentDraft = window.AuraConfigState ? window.AuraConfigState.snapshot().draft : null;
         const sentSnapshot = collectSnapshot();
         const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);
@@ -3174,6 +3347,7 @@ async function saveConfig() {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
                 rememberConfigRestart(result);
+                if (window.AuraConfigSectionState) window.AuraConfigSectionState.rememberRestart(patchPaths).catch(() => {});
                 appendConfigRestartLink(status);
             } else {
                 status.className = 'save-status success';

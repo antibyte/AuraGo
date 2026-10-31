@@ -147,5 +147,18 @@
   "config.confirm_enable.delete": "Damit darf der Agent Daten löschen. Gelöschte Daten lassen sich eventuell nicht wiederherstellen.",
   "config.confirm_enable.destroy": "Damit darf der Agent zerstörerische Aktionen ausführen, die sich nicht rückgängig machen lassen.",
   "config.confirm_enable.host": "Damit erhält der Agent Rechte auf dem Hostsystem. Schalte das nur ein, wenn du dem Agenten und seinen Eingaben vertraust.",
-  "config.confirm_enable.write": "Damit darf der Agent Dateien auf dem Host ändern. Schalte das nur ein, wenn du dem Agenten vertraust."
+  "config.confirm_enable.write": "Damit darf der Agent Dateien auf dem Host ändern. Schalte das nur ein, wenn du dem Agenten vertraust.",
+  "config.sidebar.only_active": "Nur aktive",
+  "config.sidebar.only_active_desc": "Zeigt nur eingeschaltete Bereiche, Bereiche mit Fehler oder offenem Neustart sowie den geöffneten Bereich.",
+  "config.sidebar.only_active_empty": "Keine aktiven Bereiche. Schalte den Filter aus, um alle zu sehen.",
+  "config.state.active": "Aktiv",
+  "config.state.configured": "Eingerichtet, aber aus",
+  "config.state.error": "Fehler bei der letzten Prüfung",
+  "config.state.restart": "Neustart nötig",
+  "config.state.restart_reason": "Die Änderung wird erst nach einem Neustart wirksam.",
+  "config.overview.active_title": "Aktiv",
+  "config.overview.active_empty": "Noch keine Integration eingeschaltet.",
+  "config.overview.attention_title": "Braucht Aufmerksamkeit",
+  "config.overview.blocked": "Nicht verfügbar",
+  "config.overview.group_active": "{count} aktiv"
 }
