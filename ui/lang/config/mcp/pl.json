@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Nazwa wyświetlana pozwalająca odróżnić sekrety na tej liście.",
   "config.mcp.secret_description_help": "Krótka notatka, do czego służy sekret.",
   "config.mcp.secret_value_help": "Wartość sekretu, na przykład token API. Jest przechowywana w postaci zaszyfrowanej w Vault i nie jest ponownie wyświetlana.",
-  "config.mcp.secret_clear_value_help": "Usuwa zapisaną wartość podczas zapisywania."
+  "config.mcp.secret_clear_value_help": "Usuwa zapisaną wartość podczas zapisywania.",
+  "config.mcp.kv_invalid": "{field}: Wiersze {lines} nie mają postaci KLUCZ=WARTOŚĆ i nie zostałyby zapisane."
 }

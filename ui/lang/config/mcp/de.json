@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Anzeigename zur Orientierung in dieser Liste.",
   "config.mcp.secret_description_help": "Kurze Notiz, wofür das Geheimnis gebraucht wird.",
   "config.mcp.secret_value_help": "Der geheime Wert, etwa ein API-Token. Er wird verschlüsselt im Tresor gespeichert und danach nicht mehr angezeigt.",
-  "config.mcp.secret_clear_value_help": "Löscht den gespeicherten Wert beim Speichern."
+  "config.mcp.secret_clear_value_help": "Löscht den gespeicherten Wert beim Speichern.",
+  "config.mcp.kv_invalid": "{field}: Die Zeilen {lines} haben nicht die Form SCHLÜSSEL=WERT und würden nicht gespeichert."
 }

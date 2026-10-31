@@ -119,5 +119,6 @@
   "config.mcp.secret_clear_value_help": "Sletter den gemte værdi ved gem.",
   "config.mcp.secret_description_help": "Kort note om, hvad hemmeligheden bruges til.",
   "config.mcp.secret_label_help": "Visningsnavn, så hemmeligheder kan skelnes i denne liste.",
-  "config.mcp.secret_value_help": "Hemmelighedens værdi, f.eks. et API-token. Den gemmes krypteret i vault og vises ikke igen."
+  "config.mcp.secret_value_help": "Hemmelighedens værdi, f.eks. et API-token. Den gemmes krypteret i vault og vises ikke igen.",
+  "config.mcp.kv_invalid": "{field}: Linje {lines} har ikke formen NØGLE=VÆRDI og ville ikke blive gemt."
 }

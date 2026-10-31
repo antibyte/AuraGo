@@ -29,79 +29,73 @@ function huggingFaceConfig() {
 
 async function renderHuggingFaceSection(section) {
     const cfg = huggingFaceConfig();
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-    html += cfgStatusBanner.html('huggingface-status-banner', 'checking', { detail: t('config.huggingface.status_loading') });
-    html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save cfg-test-btn" id="huggingface-test-btn" data-config-action-draft="true" onclick="huggingFaceTestConnection()">' + t('config.huggingface.test_connection') + '</button>';
-    html += cfgActionResult.html('huggingface-test-result') + '</div>';
-
-    html += '<div class="field-group">' + huggingFaceToggle('huggingface.enabled', cfg.enabled, 'config.huggingface.enabled', 'help.huggingface.enabled') + '</div>';
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.huggingface.token') + '</div>';
-    html += '<div class="field-help">' + t('help.huggingface.token') + '</div>';
-    html += '<div class="cfg-secret-row"><div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input cfg-secret-input" type="password" id="huggingface-token" data-path="huggingface.token" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.huggingface.token_existing') : t('config.huggingface.token_placeholder')) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
-    html += '</div></div>';
-
-    html += '<div class="field-grid two-cols">';
-    html += huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb, 2048);
-    html += huggingFaceNumber('max_upload_mb', 'config.huggingface.max_upload_mb', 'help.huggingface.max_upload_mb', cfg.max_upload_mb, 10);
-    html += huggingFaceNumber('max_dataset_rows', 'config.huggingface.max_dataset_rows', 'help.huggingface.max_dataset_rows', cfg.max_dataset_rows);
-    html += huggingFaceNumber('job_default_timeout_minutes', 'config.huggingface.job_default_timeout', 'help.huggingface.job_default_timeout', cfg.job_default_timeout_minutes);
-    html += huggingFaceNumber('job_max_runtime_minutes', 'config.huggingface.job_max_runtime', 'help.huggingface.job_max_runtime', cfg.job_max_runtime_minutes);
-    html += huggingFaceNumber('request_timeout_seconds', 'config.huggingface.request_timeout', 'help.huggingface.request_timeout', cfg.request_timeout_seconds);
-    html += huggingFaceNumber('max_result_bytes', 'config.huggingface.max_result_bytes', 'help.huggingface.max_result_bytes', cfg.max_result_bytes);
-    html += '</div>';
-
-    html += '<div class="field-group-title cfg-group-title-top">' + t('config.huggingface.policy_title') + '</div>';
-    html += '<div class="field-grid two-cols">';
-    html += huggingFaceToggle('huggingface.read_only', cfg.read_only, 'config.huggingface.read_only', 'help.huggingface.read_only');
-    html += huggingFaceToggle('huggingface.allow_writes', cfg.allow_writes, 'config.huggingface.allow_writes', 'help.huggingface.allow_writes');
-    html += huggingFaceToggle('huggingface.allow_delete', cfg.allow_delete, 'config.huggingface.allow_delete', 'help.huggingface.allow_delete');
-    html += huggingFaceToggle('huggingface.allow_jobs', cfg.allow_jobs, 'config.huggingface.allow_jobs', 'help.huggingface.allow_jobs');
-    html += huggingFaceToggle('huggingface.allow_scheduled_jobs', cfg.allow_scheduled_jobs, 'config.huggingface.allow_scheduled_jobs', 'help.huggingface.allow_scheduled_jobs');
-    html += huggingFaceToggle('huggingface.allow_job_token_injection', cfg.allow_job_token_injection, 'config.huggingface.allow_job_token_injection', 'help.huggingface.allow_job_token_injection');
-    html += '</div>';
-
-    html += '<div class="field-group-title cfg-group-title-top">' + t('config.huggingface.allowlist_title') + '</div>';
-    html += '<div class="field-grid two-cols">';
-    html += huggingFaceArray('allowed_namespaces', 'config.huggingface.allowed_namespaces', 'help.huggingface.allowed_namespaces', cfg.allowed_namespaces);
-    html += huggingFaceArray('allowed_repos', 'config.huggingface.allowed_repos', 'help.huggingface.allowed_repos', cfg.allowed_repos);
-    html += huggingFaceArray('allowed_hardware', 'config.huggingface.allowed_hardware', 'help.huggingface.allowed_hardware', cfg.allowed_hardware);
-    html += '</div>';
-
-    html += '<div class="field-group-title cfg-group-title-top">' + t('config.huggingface.endpoints_title') + '</div>';
-    html += '<div class="field-grid two-cols">';
-    html += huggingFaceText('hub_base_url', 'config.huggingface.hub_base_url', 'help.huggingface.hub_base_url', cfg.hub_base_url);
-    html += huggingFaceText('dataset_base_url', 'config.huggingface.dataset_base_url', 'help.huggingface.dataset_base_url', cfg.dataset_base_url);
-    html += huggingFaceText('jobs_base_url', 'config.huggingface.jobs_base_url', 'help.huggingface.jobs_base_url', cfg.jobs_base_url);
-    html += huggingFaceText('job_namespace', 'config.huggingface.job_namespace', 'help.huggingface.job_namespace', cfg.job_namespace);
-    html += '</div></div>';
-
-    document.getElementById('content').innerHTML = html;
+    const form = window.AuraConfigForm;
+    document.getElementById('content').innerHTML = form.renderSpec({
+        key: 'huggingface',
+        label: section.label,
+        desc: section.desc,
+        banner: { id: 'huggingface-status-banner', state: 'checking', detail: t('config.huggingface.status_loading') },
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
+            huggingFaceToggle('huggingface.enabled', cfg.enabled, 'config.huggingface.enabled', 'help.huggingface.enabled')
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
+            form.password({
+                label: t('config.huggingface.token'),
+                help: t('help.huggingface.token'),
+                id: 'huggingface-token',
+                path: 'huggingface.token',
+                value: '',
+                placeholder: cfg.configured ? t('config.huggingface.token_existing') : t('config.huggingface.token_placeholder')
+            })
+        ] }, { titleKey: 'config.refresh.runtime', fields: [
+            huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb, 2048),
+            huggingFaceNumber('max_upload_mb', 'config.huggingface.max_upload_mb', 'help.huggingface.max_upload_mb', cfg.max_upload_mb, 10),
+            huggingFaceNumber('max_dataset_rows', 'config.huggingface.max_dataset_rows', 'help.huggingface.max_dataset_rows', cfg.max_dataset_rows),
+            huggingFaceNumber('job_default_timeout_minutes', 'config.huggingface.job_default_timeout', 'help.huggingface.job_default_timeout', cfg.job_default_timeout_minutes),
+            huggingFaceNumber('job_max_runtime_minutes', 'config.huggingface.job_max_runtime', 'help.huggingface.job_max_runtime', cfg.job_max_runtime_minutes),
+            huggingFaceNumber('request_timeout_seconds', 'config.huggingface.request_timeout', 'help.huggingface.request_timeout', cfg.request_timeout_seconds),
+            huggingFaceNumber('max_result_bytes', 'config.huggingface.max_result_bytes', 'help.huggingface.max_result_bytes', cfg.max_result_bytes)
+        ] }, { title: t('config.huggingface.policy_title'), fields: [
+            huggingFaceToggle('huggingface.read_only', cfg.read_only, 'config.huggingface.read_only', 'help.huggingface.read_only'),
+            huggingFaceToggle('huggingface.allow_writes', cfg.allow_writes, 'config.huggingface.allow_writes', 'help.huggingface.allow_writes'),
+            huggingFaceToggle('huggingface.allow_delete', cfg.allow_delete, 'config.huggingface.allow_delete', 'help.huggingface.allow_delete'),
+            huggingFaceToggle('huggingface.allow_jobs', cfg.allow_jobs, 'config.huggingface.allow_jobs', 'help.huggingface.allow_jobs'),
+            huggingFaceToggle('huggingface.allow_scheduled_jobs', cfg.allow_scheduled_jobs, 'config.huggingface.allow_scheduled_jobs', 'help.huggingface.allow_scheduled_jobs'),
+            huggingFaceToggle('huggingface.allow_job_token_injection', cfg.allow_job_token_injection, 'config.huggingface.allow_job_token_injection', 'help.huggingface.allow_job_token_injection')
+        ] }, { title: t('config.huggingface.allowlist_title'), fields: [
+            huggingFaceArray('allowed_namespaces', 'config.huggingface.allowed_namespaces', 'help.huggingface.allowed_namespaces', cfg.allowed_namespaces),
+            huggingFaceArray('allowed_repos', 'config.huggingface.allowed_repos', 'help.huggingface.allowed_repos', cfg.allowed_repos),
+            huggingFaceArray('allowed_hardware', 'config.huggingface.allowed_hardware', 'help.huggingface.allowed_hardware', cfg.allowed_hardware)
+        ] }, { title: t('config.huggingface.endpoints_title'), fields: [
+            huggingFaceText('hub_base_url', 'config.huggingface.hub_base_url', 'help.huggingface.hub_base_url', cfg.hub_base_url),
+            huggingFaceText('dataset_base_url', 'config.huggingface.dataset_base_url', 'help.huggingface.dataset_base_url', cfg.dataset_base_url),
+            huggingFaceText('jobs_base_url', 'config.huggingface.jobs_base_url', 'help.huggingface.jobs_base_url', cfg.jobs_base_url),
+            huggingFaceText('job_namespace', 'config.huggingface.job_namespace', 'help.huggingface.job_namespace', cfg.job_namespace)
+        ] }],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" id="huggingface-test-btn" data-config-action-draft="true" onclick="huggingFaceTestConnection()">' + escapeHtml(t('config.huggingface.test_connection')) + '</button>' },
+            { html: form.actionResult({ id: 'huggingface-test-result' }) }
+        ])
+    });
     attachChangeListeners();
     await huggingFaceRefreshStatus();
 }
 
 function huggingFaceToggle(path, enabled, labelKey, helpKey) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
-        '<div class="toggle-wrap"><div class="toggle' + (enabled ? ' on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div><span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
+    return window.AuraConfigForm.toggle({ label: t(labelKey), help: t(helpKey), path: path, value: enabled === true });
 }
 
 function huggingFaceNumber(key, labelKey, helpKey, value, maxValue) {
-    const maxAttr = Number.isFinite(maxValue) ? ' max="' + maxValue + '"' : '';
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div><input class="field-input" type="number" min="0"' + maxAttr + ' data-path="huggingface.' + key + '" value="' + escapeAttr(value) + '"></div>';
+    return window.AuraConfigForm.number({ label: t(labelKey), help: t(helpKey), path: 'huggingface.' + key, value: value, min: 0, max: Number.isFinite(maxValue) ? maxValue : undefined });
 }
 
 function huggingFaceText(key, labelKey, helpKey, value) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div><input class="field-input" type="text" data-path="huggingface.' + key + '" value="' + escapeAttr(value) + '"></div>';
+    return window.AuraConfigForm.field({ label: t(labelKey), help: t(helpKey), path: 'huggingface.' + key, value: value });
 }
 
+// Comma separated list; data-type="array" makes the save path split it.
 function huggingFaceArray(key, labelKey, helpKey, values) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div><input class="field-input" type="text" data-type="array" data-path="huggingface.' + key + '" value="' + escapeAttr((values || []).join(', ')) + '"></div>';
+    return window.AuraConfigForm.field({ label: t(labelKey), help: t(helpKey), path: 'huggingface.' + key, value: (values || []).join(', ') })
+        .replace('<input ', '<input data-type="array" ');
 }
 
 async function huggingFaceRefreshStatus() {

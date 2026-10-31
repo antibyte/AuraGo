@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "ツールのプレビュー",
   "config.composio.user_id": "Composio ユーザーID",
   "config.composio.saving": "保存中...",
-  "config.composio.testing": "接続をテスト中..."
+  "config.composio.testing": "接続をテスト中...",
+  "config.composio.filter_label": "表示するツールキット"
 }

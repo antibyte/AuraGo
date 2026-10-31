@@ -16,13 +16,13 @@ async function renderMCPServerSection(section) {
 
     // Info banner
     html += `<div class="wh-notice mcp-srv-notice-info">
-        <span>🔗</span>
+        <span>${cfgIcon('link')}</span>
         <div><small>${t('config.mcp_server.info')}</small></div>
     </div>`;
 
     // General settings card
     html += `<div class="field-group">
-        <div class="field-group-title">⚙️ ${t('config.mcp_server.general_title')}</div>
+        <div class="field-group-title">${cfgIcon('settings')} ${t('config.mcp_server.general_title')}</div>
         <div class="field-group-desc">${t('config.mcp_server.general_desc')}</div>`;
 
     // Enabled toggle
@@ -34,7 +34,7 @@ async function renderMCPServerSection(section) {
         <div class="toggle ${effectiveEnabled ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.enabled" aria-labelledby="mcp-srv-enabled-label" aria-describedby="mcp-srv-enabled-help"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
     </div>`;
     if (vscodeBridge) {
-        html += `<div class="field-help mcp-srv-forced-note">🔒 ${escapeHtml(t('config.mcp_server.forced_by_bridge'))}</div>`;
+        html += `<div class="field-help mcp-srv-forced-note">${cfgIcon('lock')} ${escapeHtml(t('config.mcp_server.forced_by_bridge'))}</div>`;
     }
 
     html += `<div class="mcp-srv-toggle-row">
@@ -48,7 +48,7 @@ async function renderMCPServerSection(section) {
 
     if (vscodeBridge) {
         html += `<div class="wh-notice mcp-srv-notice-info">
-            <span>🧪</span>
+            <span>${cfgIcon('flask')}</span>
             <div>
                 <small>${t('config.mcp_server.vscode_bridge_notice')}</small>
             </div>
@@ -57,7 +57,7 @@ async function renderMCPServerSection(section) {
 
     if (!effectiveEnabled) {
         html += `<div class="wh-notice">
-            <span>🔌</span>
+            <span>${cfgIcon('plug')}</span>
             <div>
                 <strong>${t('config.mcp_server.disabled_notice')}</strong><br>
                 <small>${t('config.mcp_server.disabled_desc')}</small>
@@ -74,13 +74,13 @@ async function renderMCPServerSection(section) {
         <div class="toggle ${effectiveRequireAuth ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.require_auth" aria-labelledby="mcp-srv-auth-label" aria-describedby="mcp-srv-auth-help"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
     </div>`;
     if (vscodeBridge) {
-        html += `<div class="field-help mcp-srv-forced-note">🔒 ${escapeHtml(t('config.mcp_server.forced_by_bridge_auth'))}</div>`;
+        html += `<div class="field-help mcp-srv-forced-note">${cfgIcon('lock')} ${escapeHtml(t('config.mcp_server.forced_by_bridge_auth'))}</div>`;
     }
 
     // Auth warning when disabled
     if (!effectiveRequireAuth) {
         html += `<div class="wh-notice mcp-srv-notice-warn">
-            <span>⚠️</span>
+            <span>${cfgIcon('alert')}</span>
             <div><small>${t('config.mcp_server.auth_warning')}</small></div>
         </div>`;
     }
@@ -90,7 +90,7 @@ async function renderMCPServerSection(section) {
     // Connection card
     if (effectiveEnabled) {
         html += `<div class="field-group">
-            <div class="field-group-title">🔗 ${t('config.mcp_server.connection_title')}</div>
+            <div class="field-group-title">${cfgIcon('link')} ${t('config.mcp_server.connection_title')}</div>
             <div class="field-group-desc">${t('config.mcp_server.connection_desc')}</div>`;
 
         const proto = location.protocol;
@@ -140,7 +140,7 @@ async function renderMCPServerSection(section) {
 
     // Allowed tools card
     html += `<div class="field-group">
-        <div class="field-group-title">🛠️ ${t('config.mcp_server.allowed_tools')}</div>
+        <div class="field-group-title">${cfgIcon('wrench')} ${t('config.mcp_server.allowed_tools')}</div>
         <div class="field-group-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
         <textarea class="field-input is-hidden pw-u-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
         ${vscodeBridge ? `<button class="btn" id="mcp-apply-preset" onclick="mcpApplyBridgePreset(this)">${t('config.mcp_server.apply_preset')}</button>${cfgActionResult.html('mcp-preset-status')}` : ''}
@@ -170,7 +170,7 @@ async function mcpLoadToolList(allowed) {
         const allToolNames = Array.from(new Set([...(toolNames || []), ...allowed,
             ...(configData?.mcp_server?.vscode_debug_bridge ? ['ask_aurago'] : [])]));
         if (!allToolNames || allToolNames.length === 0) {
-            container.innerHTML = `<div class="wh-notice"><span>⚠️</span><div><small>${t('config.mcp_server.no_tools_warning')}</small></div></div>`;
+            container.innerHTML = `<div class="wh-notice"><span>${cfgIcon('alert')}</span><div><small>${t('config.mcp_server.no_tools_warning')}</small></div></div>`;
             return;
         }
         const allowSet = new Set(allowed);
@@ -178,7 +178,7 @@ async function mcpLoadToolList(allowed) {
         for (const name of allToolNames) {
             const checked = allowSet.has(name) ? 'checked' : '';
             listHtml += `<label class="mcp-srv-tool-item">
-                <input type="checkbox" class="mcp-tool-cb" value="${escapeAttr(name)}" ${checked} onchange="mcpUpdateAllowedTools()">
+                <input type="checkbox" data-cfg-choice class="mcp-tool-cb" value="${escapeAttr(name)}" ${checked} onchange="mcpUpdateAllowedTools()">
                 <code class="mcp-srv-tool-code">${escapeAttr(name)}</code>
             </label>`;
         }
@@ -305,11 +305,11 @@ async function mcpLoadVSCodeBridgeInfo() {
         const toolBadges = tools.map(name => `<code class="mcp-srv-tool-code">${esc(name)}</code>`).join(' ');
         const tokenHint = data.token_present
             ? ''
-            : `<div class="wh-notice mcp-srv-notice-warn"><span>🔑</span><div><small>${t('config.mcp_server.vscode_token_hint')}</small></div></div>`;
+            : `<div class="wh-notice mcp-srv-notice-warn"><span>${cfgIcon('key')}</span><div><small>${t('config.mcp_server.vscode_token_hint')}</small></div></div>`;
         container.innerHTML = `
             ${tokenHint}
             <div class="mcp-srv-tools-desc">${t('config.mcp_server.vscode_bridge_tools')}</div>
-            <div class="mcp-srv-tools-desc pw-u-badge-row">${toolBadges}</div>
+            <div class="mcp-srv-action-row pw-u-wrap pw-u-mb-075">${toolBadges}</div>
             <div class="mcp-srv-tools-desc pw-u-mb-050">${t('config.mcp_server.client_selector')}</div>
             <div class="mcp-srv-action-row pw-u-mb-075 pw-u-wrap">
                 ${clientOptions.map(client => `<button class="btn mcp-client-btn" data-client="${client.key}" onclick="mcpSelectClientConfig('${client.key}', this)">${esc(client.label)}</button>`).join('')}

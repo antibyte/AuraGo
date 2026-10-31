@@ -56,15 +56,28 @@ function whRetryLoad() {
     if (whLastSection) renderWebhooksSection(whLastSection);
 }
 
+// Loading / empty / error states use the shared list states. Templates get markup;
+// the error host is filled (with its retry button) once the HTML is in the page.
+function whStateHTML(state, title) {
+    const holder = document.createElement('div');
+    cfgListState(holder, { state: state, title: title });
+    return holder.innerHTML;
+}
+
 function whLoadErrorBox(reason) {
-    return `<div class="wh-notice mcp-notice-danger" role="alert">
-        <span>⚠️</span>
-        <div>
-            <strong>${esc(t('config.webhooks.load_failed'))}</strong><br>
-            <small>${esc(reason || '')}</small>
-        </div>
-        <button type="button" class="wh-btn" onclick="whRetryLoad()">${esc(t('config.webhooks.retry'))}</button>
-    </div>`;
+    return '<div class="wh-load-error" data-wh-error="' + escapeAttr(reason || '') + '"></div>';
+}
+
+function whHydrate(root) {
+    (root || document).querySelectorAll('[data-wh-error]').forEach(host => {
+        cfgListState(host, { state: 'error', title: t('config.webhooks.load_failed'), text: host.dataset.whError, retry: whRetryLoad });
+        host.removeAttribute('data-wh-error');
+    });
+}
+
+function whSetHTML(el, html) {
+    el.innerHTML = html;
+    whHydrate(el);
 }
 
 // Inline error shown at the top of a host element (panel / list / editor).
@@ -89,7 +102,7 @@ function whClearError(hostId) {
 async function renderWebhooksSection(section) {
     whLastSection = section;
     const content = document.getElementById('content');
-    content.innerHTML = '<div class="cfg-section active"><div class="wh-loading-state">' + t('config.webhooks.loading') + '</div></div>';
+    content.innerHTML = '<div class="cfg-section active">' + whStateHTML('loading', t('config.webhooks.loading')) + '</div>';
     await whFetchAll();
 
     // Check if webhooks are enabled in config
@@ -101,7 +114,7 @@ async function renderWebhooksSection(section) {
 
     if (enabled && whLoadState.notRunning) {
         html += `<div class="wh-notice">
-                    <span>⚠️</span>
+                    <span>${cfgIcon('alert')}</span>
                     <div>
                         <strong>${t('config.webhooks.not_running_notice')}</strong><br>
                         <small>${t('config.webhooks.not_running_desc')}</small>
@@ -112,7 +125,7 @@ async function renderWebhooksSection(section) {
 
     if (!enabled) {
         html += `<div class="wh-notice">
-                    <span>⚠️</span>
+                    <span>${cfgIcon('alert')}</span>
                     <div>
                         <strong>${t('config.webhooks.disabled_notice')}</strong><br>
                         <small>${t('config.webhooks.disabled_desc')}</small>
@@ -155,7 +168,7 @@ async function renderWebhooksSection(section) {
     html += '</div></div>';
 
     html += '</div>';
-    content.innerHTML = html;
+    whSetHTML(content, html);
 
     // Load log if enabled
     if (enabled && !whLoadState.notRunning) whLoadLog();
@@ -214,7 +227,7 @@ function whRenderWebhookList() {
             </div>`;
 
     if (whWebhooks.length === 0) {
-        html += `<div class="wh-empty">${t('config.webhooks.empty')}</div>`;
+        html += whStateHTML('empty', t('config.webhooks.empty'));
     } else {
         html += '<div class="wh-list">';
         for (const w of whWebhooks) {
@@ -227,21 +240,22 @@ function whRenderWebhookList() {
                                 <span class="wh-card-slug">/${w.slug}</span>
                             </div>
                             <div class="wh-card-actions">
-                                <button class="wh-btn-icon" title="${t('config.webhooks.action_test')}" onclick="whTestWebhook(${escapeAttr(JSON.stringify(String(w.id)))})">🧪</button>
-                                ${!readOnly ? `<button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="whShowEditor(${escapeAttr(JSON.stringify(String(w.id)))})">✏️</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteWebhook(${escapeAttr(JSON.stringify(String(w.id)))},${escapeAttr(JSON.stringify(String(w.name || '')))})">🗑️</button>` : ''}
+                                <button type="button" class="wh-btn-icon" title="${t('config.webhooks.action_test')}" aria-label="${escapeAttr(t('config.webhooks.action_test'))}" onclick="whTestWebhook(${escapeAttr(JSON.stringify(String(w.id)))}, this)">${cfgIcon('flask')}</button>
+                                ${!readOnly ? `<button type="button" class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" aria-label="${escapeAttr(t('config.webhooks.action_edit'))}" onclick="whShowEditor(${escapeAttr(JSON.stringify(String(w.id)))})">${cfgIcon('edit')}</button>
+                                ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: w.name || '' }), attrs: { onclick: 'whDeleteWebhook(' + JSON.stringify(String(w.id)) + ',' + JSON.stringify(String(w.name || '')) + ')' } })}` : ''}
                             </div>
                         </div>
                         <div class="wh-card-body">
                             <div class="wh-card-url" onclick="whCopy(this, '${escapeAttr(url)}')" title="${t('config.webhooks.click_to_copy')}">
                                 <code>${esc(url)}</code>
-                                <span class="wh-copy-icon">📋</span>
+                                <span class="wh-copy-icon">${cfgIcon('copy')}</span>
                             </div>
                             <div class="wh-card-meta">
                                 <span>${t('config.webhooks.card_mode')} <strong>${w.delivery?.mode || 'message'}</strong></span>
                                 <span>${t('config.webhooks.card_fires')} <strong>${w.fire_count || 0}</strong></span>
                                 ${w.format?.description ? '<span>' + esc(w.format.description) + '</span>' : ''}
                             </div>
+                            ${cfgActionResult.html('wh-test-result-' + w.id)}
                         </div>
                     </div>`;
         }
@@ -288,7 +302,7 @@ function whShowEditor(id) {
     ed.innerHTML = `
             <div class="wh-editor-header">
                 <h3>${id ? t('config.webhooks.edit_webhook') : t('config.webhooks.new_webhook')}</h3>
-                <button class="wh-btn-icon" onclick="whHideEditor()">✕</button>
+                <button type="button" class="wh-btn-icon" aria-label="${escapeAttr(t('config.common.close'))}" title="${escapeAttr(t('config.common.close'))}" onclick="whHideEditor()">${cfgIcon('x')}</button>
             </div>
             <div class="wh-editor-body">
                 <div class="wh-form-row">
@@ -304,7 +318,7 @@ function whShowEditor(id) {
                 <div class="wh-form-row">
                     <label id="wh-f-enabled-label">${t('config.webhooks.enabled_label')}</label>
                     <div class="toggle-wrap">
-                        <div id="wh-f-enabled" role="switch" aria-labelledby="wh-f-enabled-label" aria-describedby="wh-f-enabled-help" class="toggle ${enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
+                        <div id="wh-f-enabled" role="switch" aria-labelledby="wh-f-enabled-label" aria-describedby="wh-f-enabled-help" class="toggle ${enabled ? 'on' : ''}" onclick="this.classList.toggle('on');syncToggleA11y(this)"></div>
                     </div>
                     <small class="wh-field-hint field-help" id="wh-f-enabled-help">${t('config.webhooks.enabled_help')}</small>
                 </div>
@@ -376,7 +390,7 @@ function whShowEditor(id) {
                     <div class="wh-form-row">
                         <label id="wh-f-decision-enabled-label">${t('config.webhooks.decision_enable')}</label>
                         <div class="toggle-wrap">
-                            <div id="wh-f-decision-enabled" role="switch" aria-labelledby="wh-f-decision-enabled-label" aria-describedby="wh-f-decision-enabled-help" class="toggle ${decision.enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
+                            <div id="wh-f-decision-enabled" role="switch" aria-labelledby="wh-f-decision-enabled-label" aria-describedby="wh-f-decision-enabled-help" class="toggle ${decision.enabled ? 'on' : ''}" onclick="this.classList.toggle('on');syncToggleA11y(this)"></div>
                         </div>
                         <small class="wh-field-hint field-help" id="wh-f-decision-enabled-help">${t('config.webhooks.decision_enable_help')}</small>
                     </div>
@@ -400,6 +414,7 @@ function whShowEditor(id) {
                 <button class="wh-btn" onclick="whHideEditor()">${t('config.webhooks.cancel')}</button>
                 <button class="wh-btn wh-btn-primary" id="wh-editor-save-btn" onclick="whSaveWebhook()">${t('config.webhooks.save')}</button>
             </div>`;
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(ed);
     setHidden(ed, false);
     ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -414,7 +429,7 @@ function whFieldRow(idx, field) {
     return `<div class="wh-field-row" data-idx="${idx}">
                 <input class="field-input wh-field-src" value="${esc(field?.source || '')}" placeholder="${t('config.webhooks.field_source_placeholder')}" aria-label="${t('config.webhooks.field_source_label')}" aria-describedby="wh-fields-help">
                 <input class="field-input wh-field-alias" value="${esc(field?.alias || '')}" placeholder="${t('config.webhooks.field_alias_placeholder')}" aria-label="${t('config.webhooks.field_alias_label')}" aria-describedby="wh-fields-help">
-                <button class="wh-btn-icon wh-btn-danger" onclick="this.parentElement.remove()">✕</button>
+                ${cfgDeleteButton({ iconOnly: true, label: t('config.webhooks.action_delete'), attrs: { onclick: 'this.parentElement.remove()' } })}
             </div>`;
 }
 
@@ -523,7 +538,13 @@ async function whSaveWebhook() {
 }
 
 async function whDeleteWebhook(id, name) {
-    if (!(await showConfirm(t('config.webhooks.delete_confirm_title'), t('config.webhooks.delete_confirm') + name + '?'))) return;
+    const answer = await showConfirmDialog({
+        title: t('config.webhooks.delete_confirm_title'),
+        message: t('config.webhooks.delete_confirm') + name + '?',
+        danger: true,
+        confirmText: t('config.common.delete')
+    });
+    if (!answer.confirmed) return;
     try {
         const resp = await fetch('/api/webhooks/' + id, { method: 'DELETE' });
         if (resp.ok) {
@@ -536,16 +557,12 @@ async function whDeleteWebhook(id, name) {
     } catch (e) { whShowError('wh-panel-hooks', e.message || t('config.webhooks.error')); }
 }
 
-async function whTestWebhook(id) {
-    try {
-        const resp = await fetch('/api/webhooks/' + id + '/test', { method: 'POST' });
-        const r = await resp.json();
-        if (resp.ok) {
-            showToast(t('config.webhooks.test_prefix') + (r.rendered_prompt || r.prompt || t('config.webhooks.test_ok')).substring(0, 100), 'success');
-        } else {
-            showToast(r.error || t('config.webhooks.test_failed'), 'error');
-        }
-    } catch (e) { showToast(e.message, 'error'); }
+async function whTestWebhook(id, button) {
+    return cfgActionResult(button, () => fetch('/api/webhooks/' + id + '/test', { method: 'POST' }), {
+        target: 'wh-test-result-' + id,
+        success: outcome => t('config.webhooks.test_prefix') + String((outcome.body && (outcome.body.rendered_prompt || outcome.body.prompt)) || t('config.webhooks.test_ok')).substring(0, 100),
+        failure: t('config.webhooks.test_failed')
+    });
 }
 
 /* ── Token Management ── */
@@ -559,7 +576,7 @@ function whRenderTokenList() {
     html += '<div id="wh-token-created" class="wh-token-reveal is-hidden"></div>';
 
     if (whTokens.length === 0) {
-        html += `<div class="wh-empty">${t('config.tokens.empty')}</div>`;
+        html += whStateHTML('empty', t('config.tokens.empty'));
     } else {
         html += '<div class="wh-list">';
         for (const tok of whTokens) {
@@ -573,8 +590,8 @@ function whRenderTokenList() {
                                 <code class="wh-token-prefix">${esc(tok.prefix)}…</code>
                             </div>
                             <div class="wh-card-actions">
-                                ${!readOnly ? `<button class="wh-btn-icon" title="${tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable')}" onclick="whToggleToken(${escapeAttr(JSON.stringify(String(tok.id)))}, ${!tok.enabled})">${tok.enabled ? '🔒' : '🔓'}</button>
-                                <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="whDeleteToken(${escapeAttr(JSON.stringify(String(tok.id)))},${escapeAttr(JSON.stringify(String(tok.name || '')))})">🗑️</button>` : ''}
+                                ${!readOnly ? `<button type="button" class="wh-btn-icon" title="${tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable')}" aria-label="${escapeAttr(tok.enabled ? t('config.tokens.toggle_disable') : t('config.tokens.toggle_enable'))}" onclick="whToggleToken(${escapeAttr(JSON.stringify(String(tok.id)))}, ${!tok.enabled})">${cfgIcon(tok.enabled ? 'lock' : 'unlock')}</button>
+                                ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: tok.name || '' }), attrs: { onclick: 'whDeleteToken(' + JSON.stringify(String(tok.id)) + ',' + JSON.stringify(String(tok.name || '')) + ')' } })}` : ''}
                             </div>
                         </div>
                         <div class="wh-card-meta wh-card-meta-spaced">
@@ -589,34 +606,31 @@ function whRenderTokenList() {
     return html;
 }
 
+// Asks for the token name in the shared dialog (focus, Escape and backdrop come from there); resolves '' when dismissed.
 async function _whPromptTokenName() {
     return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay active';
-        overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:var(--modal-bg,rgba(0,0,0,0.6));z-index:10000;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-        const titleText = (typeof t === 'function') ? t('config.tokens.name_prompt') : 'Token Name';
-        const cancelText = (typeof t === 'function') ? t('common.btn_cancel') : 'Cancel';
-        const okText = (typeof t === 'function') ? t('common.btn_ok') : 'OK';
-        overlay.innerHTML = '<div class="modal-card pw-u-modal-narrow">' +
-            '<div class="modal-title pw-u-modal-title">' + titleText + '</div>' +
-            '<input type="text" id="wh-token-name-input" class="field-input pw-u-modal-input" autofocus>' +
-            '<div class="modal-actions pw-u-modal-actions">' +
-            '<button class="btn btn-secondary" id="wh-token-cancel">' + cancelText + '</button>' +
-            '<button class="btn btn-primary" id="wh-token-ok">' + okText + '</button>' +
-            '</div></div>';
-        document.body.appendChild(overlay);
-        var input = document.getElementById('wh-token-name-input');
-        var okBtn = document.getElementById('wh-token-ok');
-        var cancelBtn = document.getElementById('wh-token-cancel');
-        if (input) input.focus();
-        function cleanup(value) { overlay.remove(); resolve(value); }
-        okBtn.addEventListener('click', function() { cleanup(input ? input.value.trim() : ''); });
-        cancelBtn.addEventListener('click', function() { cleanup(''); });
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) cleanup(''); });
-        document.addEventListener('keydown', function handler(e) {
-            if (e.key === 'Escape') { cleanup(''); document.removeEventListener('keydown', handler); }
-            if (e.key === 'Enter' && overlay.contains(document.activeElement)) { cleanup(input ? input.value.trim() : ''); document.removeEventListener('keydown', handler); }
-        });
+        const id = 'wh-token-name-dialog';
+        const old = document.getElementById(id);
+        if (old) old.remove();
+        const titleText = t('config.tokens.name_prompt');
+        document.body.insertAdjacentHTML('beforeend', cfgModal({
+            id: id,
+            title: titleText,
+            size: 'sm',
+            body: '<input type="text" id="wh-token-name-input" class="field-input" aria-label="' + escapeAttr(titleText) + '">',
+            actions: [
+                '<button type="button" class="btn-secondary" id="wh-token-cancel">' + esc(t('common.btn_cancel')) + '</button>',
+                '<button type="button" class="btn-save" id="wh-token-ok">' + esc(t('common.btn_ok')) + '</button>'
+            ]
+        }));
+        const dialog = document.getElementById(id);
+        const input = document.getElementById('wh-token-name-input');
+        let answer = '';
+        const accept = () => { answer = input ? input.value.trim() : ''; closeModal(id); };
+        openModal(id, { initialFocus: '#wh-token-name-input', onClose: () => { dialog.remove(); resolve(answer); } });
+        document.getElementById('wh-token-ok').addEventListener('click', accept);
+        document.getElementById('wh-token-cancel').addEventListener('click', () => closeModal(id));
+        if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); accept(); } });
     });
 }
 
@@ -638,10 +652,10 @@ async function whCreateToken() {
             reveal.style.display = 'block';
             reveal.innerHTML = `
                         <div class="wh-token-alert">
-                            <strong>⚠️ ${t('config.tokens.created_notice')}</strong>
+                            <strong>${cfgIcon('alert')} ${t('config.tokens.created_notice')}</strong>
                             <div class="wh-token-value" onclick="whCopy(this, '${esc(r.raw_token || r.token)}')" title="${t('config.webhooks.click_to_copy')}">
                                 <code>${esc(r.raw_token || r.token)}</code>
-                                <span class="wh-copy-icon">📋</span>
+                                <span class="wh-copy-icon">${cfgIcon('copy')}</span>
                             </div>
                         </div>`;
             reveal.scrollIntoView({ behavior: 'smooth' });
@@ -653,7 +667,7 @@ async function whCreateToken() {
         const panel = document.getElementById('wh-panel-tokens');
         if (panel) {
             const revealHtml = reveal.outerHTML;
-            panel.innerHTML = whRenderTokenList();
+            whSetHTML(panel, whRenderTokenList());
             // Re-insert reveal
             const newReveal = document.getElementById('wh-token-created');
             if (newReveal) {
@@ -675,7 +689,7 @@ async function whToggleToken(id, enabled) {
             const tResp = await fetch('/api/tokens');
             if (tResp.ok) whTokens = await tResp.json();
             const panel = document.getElementById('wh-panel-tokens');
-            if (panel) panel.innerHTML = whRenderTokenList();
+            if (panel) whSetHTML(panel, whRenderTokenList());
         } else {
             whShowError('wh-panel-tokens', await whResponseError(resp));
         }
@@ -683,7 +697,13 @@ async function whToggleToken(id, enabled) {
 }
 
 async function whDeleteToken(id, name) {
-    if (!(await showConfirm(t('config.tokens.delete_confirm_title'), t('config.tokens.delete_confirm') + name + '?'))) return;
+    const answer = await showConfirmDialog({
+        title: t('config.tokens.delete_confirm_title'),
+        message: t('config.tokens.delete_confirm') + name + '?',
+        danger: true,
+        confirmText: t('config.common.delete')
+    });
+    if (!answer.confirmed) return;
     try {
         const resp = await fetch('/api/tokens/' + id, { method: 'DELETE' });
         if (resp.ok) {
@@ -691,7 +711,7 @@ async function whDeleteToken(id, name) {
             const tResp = await fetch('/api/tokens');
             if (tResp.ok) whTokens = await tResp.json();
             const panel = document.getElementById('wh-panel-tokens');
-            if (panel) panel.innerHTML = whRenderTokenList();
+            if (panel) whSetHTML(panel, whRenderTokenList());
         } else {
             whShowError('wh-panel-tokens', await whResponseError(resp));
         }
@@ -701,7 +721,7 @@ async function whDeleteToken(id, name) {
 /* ── Webhook Log ── */
 function whRenderLog() {
     return `<div id="wh-log-content" class="wh-log-content">
-                <div class="wh-log-loading">${t('config.webhooks.log_loading')}</div>
+                ${whStateHTML('loading', t('config.webhooks.log_loading'))}
             </div>`;
 }
 
@@ -710,14 +730,14 @@ async function whLoadLog() {
         const resp = await fetch('/api/webhooks/log');
         if (!resp.ok) {
             const errEl = document.getElementById('wh-log-content');
-            if (errEl) errEl.innerHTML = '<div class="wh-empty wh-empty-danger">' + esc(t('config.webhooks.log_error_prefix') + await whResponseError(resp)) + '</div>';
+            if (errEl) cfgListState(errEl, { state: 'error', title: t('config.webhooks.log_error_prefix') + await whResponseError(resp), retry: whLoadLog });
             return;
         }
         whLog = await resp.json();
         const el = document.getElementById('wh-log-content');
         if (!el) return;
         if (!whLog || whLog.length === 0) {
-            el.innerHTML = `<div class="wh-empty">${t('config.webhooks.log_empty')}</div>`;
+            el.innerHTML = whStateHTML('empty', t('config.webhooks.log_empty'));
             return;
         }
         let html = '<table class="wh-log-table"><thead><tr><th>' + t('config.webhooks.log_col_time') + '</th><th>' + t('config.webhooks.log_col_webhook') + '</th><th>' + t('config.webhooks.log_col_status') + '</th><th>' + t('config.webhooks.log_col_ip') + '</th><th>' + t('config.webhooks.log_col_size') + '</th><th>' + t('config.webhooks.log_col_delivered') + '</th></tr></thead><tbody>';
@@ -727,7 +747,7 @@ async function whLoadLog() {
             html += `<tr>
                         <td>${time}</td>
                         <td>${esc(e.webhook_name || e.webhook_id)}</td>
-                        <td><span class="wh-badge ${statusClass}">${e.status_code}</span></td>
+                        <td>${cfgBadge(statusClass === 'success' ? 'ok' : 'error', String(e.status_code))}</td>
                         <td>${esc(e.source_ip || '')}</td>
                         <td>${e.payload_size || 0} ${t('config.webhooks.payload_bytes')}</td>
                         <td>${e.delivered ? t('config.webhooks.log_delivered') : (e.error ? t('config.webhooks.log_failed') + ' ' + esc(e.error) : t('config.webhooks.log_pending'))}</td>
@@ -737,7 +757,7 @@ async function whLoadLog() {
         el.innerHTML = html;
     } catch (e) {
         const el = document.getElementById('wh-log-content');
-        if (el) el.innerHTML = '<div class="wh-empty wh-empty-danger">' + t('config.webhooks.log_error_prefix') + esc(e.message) + '</div>';
+        if (el) cfgListState(el, { state: 'error', title: t('config.webhooks.log_error_prefix') + (e.message || ''), retry: whLoadLog });
     }
 }
 
@@ -747,7 +767,7 @@ async function whLoadLog() {
 function whCopy(el, text) {
     navigator.clipboard.writeText(text).then(() => {
         const icon = el.querySelector('.wh-copy-icon');
-        if (icon) { icon.textContent = '✓'; setTimeout(() => icon.textContent = '📋', 2000); }
+        if (icon) { icon.innerHTML = cfgIcon('check'); setTimeout(() => { icon.innerHTML = cfgIcon('copy'); }, 2000); }
     });
 }
 
@@ -757,25 +777,25 @@ function whCopy(el, text) {
 
 function ogRenderList() {
     const readOnly = whIsReadOnly();
-    if (whLoadState.outgoing) return whLoadErrorBox(whLoadState.outgoing) + '<div id="og-modal-overlay" class="og-modal-overlay"></div>';
+    if (whLoadState.outgoing) return whLoadErrorBox(whLoadState.outgoing);
     let html = `<div class="wh-toolbar">
         <span class="wh-count">${ogWebhooks.length} ${t('config.webhooks.tab_outgoing')}</span>
         ${!readOnly ? `<button class="wh-btn wh-btn-primary" onclick="ogShowModal(-1)">+ ${t('config.webhooks.og_new')}</button>` : ''}
     </div>`;
     if (!ogWebhooks || ogWebhooks.length === 0) {
-        html += `<div class="wh-empty">${t('config.webhooks.og_empty')}</div>`;
+        html += whStateHTML('empty', t('config.webhooks.og_empty'));
     } else {
         html += '<div class="wh-list">';
         for (let i = 0; i < ogWebhooks.length; i++) {
             const w = ogWebhooks[i];
-            const methodBadge = `<span class="wh-badge ${(w.method || 'POST').toLowerCase()}">${w.method || 'POST'}</span>`;
+            const methodBadge = cfgBadge('idle', w.method || 'POST');
             const paramCount = (w.parameters || []).length;
             html += `<div class="wh-card">
                 <div class="wh-card-header">
                     <div class="wh-card-title">${methodBadge} <strong>${esc(w.name || t('config.webhooks.og_unnamed'))}</strong></div>
                     <div class="wh-card-actions">
-                        ${!readOnly ? `<button class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" onclick="ogShowModal(${i})">\u270f\ufe0f</button>
-                        <button class="wh-btn-icon wh-btn-danger" title="${t('config.webhooks.action_delete')}" onclick="ogDelete(${i})">\ud83d\uddd1\ufe0f</button>` : ''}
+                        ${!readOnly ? `<button type="button" class="wh-btn-icon" title="${t('config.webhooks.action_edit')}" aria-label="${escapeAttr(t('config.webhooks.action_edit'))}" onclick="ogShowModal(${i})">${cfgIcon('edit')}</button>
+                        ${cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: w.name || t('config.webhooks.og_unnamed') }), attrs: { onclick: 'ogDelete(' + i + ')' } })}` : ''}
                     </div>
                 </div>
                 <div class="wh-card-body">
@@ -790,15 +810,14 @@ function ogRenderList() {
         }
         html += '</div>';
     }
-    html += '<div id="og-modal-overlay" class="og-modal-overlay"></div>';
     return html;
 }
+
+const OG_DIALOG = 'og-edit-dialog';
 
 function ogShowModal(idx) {
     ogEditingIdx = idx;
     const w = idx >= 0 ? ogWebhooks[idx] : {};
-    const overlay = document.getElementById('og-modal-overlay');
-    if (!overlay) return;
     const name = w.name || '', desc = w.description || '', method = w.method || 'POST';
     const url = w.url || '', payloadType = w.payload_type || 'json', bodyTemplate = w.body_template || '';
     const headers = w.headers || {}, params = w.parameters || [];
@@ -806,13 +825,7 @@ function ogShowModal(idx) {
     let paramsHtml = '';
     for (let i = 0; i < params.length; i++) paramsHtml += ogParamRow(i, params[i]);
 
-    overlay.innerHTML = `
-    <div class="og-modal">
-        <div class="og-modal-header">
-            <h3>${idx >= 0 ? t('config.webhooks.og_edit') : t('config.webhooks.og_new')}</h3>
-            <button class="wh-btn-icon" onclick="ogCloseModal()">\u2715</button>
-        </div>
-        <div class="og-modal-body">
+    const body = `
             <div class="wh-form-row">
                 <label for="og-f-name">${t('config.webhooks.og_name')}</label>
                 <input id="og-f-name" class="field-input" value="${esc(name)}" placeholder="${t('config.webhooks.og_name_placeholder')}">
@@ -846,7 +859,7 @@ function ogShowModal(idx) {
             </div>
             <div class="wh-subsection-title wh-subsection-title-inline">
                 ${t('config.webhooks.og_parameters')}
-                <button class="wh-btn wh-btn-sm" onclick="ogAddParam()">+ ${t('config.webhooks.og_add_param')}</button>
+                <button type="button" class="wh-btn wh-btn-sm" onclick="ogAddParam()">${cfgIcon('plus')} ${t('config.webhooks.og_add_param')}</button>
             </div>
             <div id="og-params-list">${paramsHtml}</div>
             <div class="wh-form-row og-form-split og-form-row-spaced">
@@ -860,20 +873,27 @@ function ogShowModal(idx) {
                     <textarea id="og-f-body" class="field-input wh-textarea" rows="3" data-has-secret="${cfgIsMaskedSecret(bodyTemplate) ? '1' : '0'}" placeholder="${esc(cfgSecretPlaceholder(bodyTemplate, t('config.webhooks.og_body_template_placeholder')))}" ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(cfgSecretValue(bodyTemplate))}</textarea>
                 </div>
             </div>
-        </div>
-        <div id="og-modal-error-host" class="og-modal-body"></div>
-        <div class="og-modal-footer">
-            <button class="wh-btn" onclick="ogCloseModal()">${t('config.webhooks.cancel')}</button>
-            <button class="wh-btn wh-btn-primary" id="og-save-btn" onclick="ogSave()">${t('config.webhooks.save')}</button>
-        </div>
-    </div>`;
-    overlay.style.display = 'flex';
+            <div id="og-dialog-error-host"></div>`;
+    // One dialog, rebuilt with the entry's values on every open; the shared helpers own focus, Escape and the backdrop.
+    const old = document.getElementById(OG_DIALOG);
+    if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend', cfgModal({
+        id: OG_DIALOG,
+        title: idx >= 0 ? t('config.webhooks.og_edit') : t('config.webhooks.og_new'),
+        size: 'lg',
+        body: body,
+        actions: [
+            `<button type="button" class="wh-btn" onclick="ogCloseModal()">${t('config.webhooks.cancel')}</button>`,
+            `<button type="button" class="wh-btn wh-btn-primary" id="og-save-btn" onclick="ogSave()">${t('config.webhooks.save')}</button>`
+        ]
+    }));
+    const dialog = document.getElementById(OG_DIALOG);
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(dialog);
+    openModal(OG_DIALOG, { initialFocus: '#og-f-name', onClose: () => { dialog.remove(); ogEditingIdx = -1; } });
 }
 
 function ogCloseModal() {
-    const o = document.getElementById('og-modal-overlay');
-    if (o) o.style.display = 'none';
-    ogEditingIdx = -1;
+    closeModal(OG_DIALOG);
 }
 
 function ogParamRow(idx, p) {
@@ -886,10 +906,10 @@ function ogParamRow(idx, p) {
         </select>
         <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="${t('config.webhooks.og_param_desc_placeholder')}" aria-label="${t('config.webhooks.og_param_desc_label')}">
         <div class="toggle-wrap og-toggle-wrap">
-            <div class="toggle ${p.required ? 'on' : ''}" role="switch" aria-label="${t('config.webhooks.og_required_title')}" onclick="this.classList.toggle('on')" title="${t('config.webhooks.og_required_title')}"></div>
+            <div class="toggle ${p.required ? 'on' : ''}" role="switch" tabindex="0" aria-checked="${p.required ? 'true' : 'false'}" aria-label="${t('config.webhooks.og_required_title')}" onclick="this.classList.toggle('on');syncToggleA11y(this)" title="${t('config.webhooks.og_required_title')}"></div>
             <span class="og-required-label">${t('config.webhooks.og_required_short')}</span>
         </div>
-        <button class="wh-btn-icon wh-btn-danger" onclick="this.parentElement.remove()">\u2715</button>
+        ${cfgDeleteButton({ iconOnly: true, label: t('config.webhooks.action_delete'), attrs: { onclick: 'this.parentElement.remove()' } })}
     </div>`;
 }
 
@@ -897,6 +917,7 @@ function ogAddParam() {
     const list = document.getElementById('og-params-list');
     if (!list) return;
     list.insertAdjacentHTML('beforeend', ogParamRow(list.children.length, {}));
+    if (typeof enhanceConfigControls === 'function') enhanceConfigControls(list.lastElementChild);
 }
 
 function ogToggleTemplate() {
@@ -938,12 +959,34 @@ function ogCollectModal() {
     };
 }
 
+// Header lines that are not "Name: value" (blank lines are fine). They are reported, not dropped silently.
+function ogInvalidHeaderLines() {
+    const bad = [];
+    const area = document.getElementById('og-f-headers');
+    if (!area) return bad;
+    area.value.split('\n').forEach((line, index) => {
+        if (!line.trim()) return;
+        const i = line.indexOf(':');
+        if (i <= 0 || !line.substring(0, i).trim()) bad.push(index + 1);
+    });
+    return bad;
+}
+
 async function ogSave() {
     const hook = ogCollectModal();
-    whClearError('og-modal-error-host');
-    if (!hook.name) return whShowError('og-modal-error-host', t('config.webhooks.og_name_required'));
-    if (!hook.url) return whShowError('og-modal-error-host', t('config.webhooks.og_url_required'));
-    if (whLoadState.outgoing) return whShowError('og-modal-error-host', t('config.webhooks.load_failed'));
+    whClearError('og-dialog-error-host');
+    const headersField = document.getElementById('og-f-headers');
+    if (headersField) headersField.removeAttribute('aria-invalid');
+    const badHeaderLines = ogInvalidHeaderLines();
+    if (badHeaderLines.length) {
+        headersField.setAttribute('aria-invalid', 'true');
+        headersField.addEventListener('input', () => headersField.removeAttribute('aria-invalid'), { once: true });
+        headersField.focus();
+        return whShowError('og-dialog-error-host', t('config.webhooks.og_headers_invalid', { lines: badHeaderLines.join(', ') }));
+    }
+    if (!hook.name) return whShowError('og-dialog-error-host', t('config.webhooks.og_name_required'));
+    if (!hook.url) return whShowError('og-dialog-error-host', t('config.webhooks.og_url_required'));
+    if (whLoadState.outgoing) return whShowError('og-dialog-error-host', t('config.webhooks.load_failed'));
     const newList = [...ogWebhooks];
     if (ogEditingIdx >= 0) newList[ogEditingIdx] = hook; else newList.push(hook);
     const saveBtn = document.getElementById('og-save-btn');
@@ -953,7 +996,7 @@ async function ogSave() {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newList)
         });
         if (!resp.ok) {
-            whShowError('og-modal-error-host', await whResponseError(resp));
+            whShowError('og-dialog-error-host', await whResponseError(resp));
             if (saveBtn) saveBtn.disabled = false;
             return;
         }
@@ -963,16 +1006,22 @@ async function ogSave() {
         ogCloseModal();
         showToast(t('config.webhooks.og_saved'), 'success');
         const panel = document.getElementById('wh-outgoing-list');
-        if (panel) panel.innerHTML = ogRenderList();
+        if (panel) whSetHTML(panel, ogRenderList());
     } catch (e) {
-        whShowError('og-modal-error-host', e.message || t('config.webhooks.error'));
+        whShowError('og-dialog-error-host', e.message || t('config.webhooks.error'));
         if (saveBtn) saveBtn.disabled = false;
     }
 }
 
 async function ogDelete(idx) {
     const name = ogWebhooks[idx]?.name || t('config.webhooks.og_unnamed');
-    if (!(await showConfirm(t('config.webhooks.og_delete_confirm_title'), t('config.webhooks.og_delete_confirm') + name + '?'))) return;
+    const answer = await showConfirmDialog({
+        title: t('config.webhooks.og_delete_confirm_title'),
+        message: t('config.webhooks.og_delete_confirm') + name + '?',
+        danger: true,
+        confirmText: t('config.common.delete')
+    });
+    if (!answer.confirmed) return;
     const newList = ogWebhooks.filter((_, i) => i !== idx);
     try {
         const resp = await fetch('/api/outgoing-webhooks', {
@@ -982,7 +1031,7 @@ async function ogDelete(idx) {
             ogWebhooks = newList;
             showToast(t('config.webhooks.og_deleted'), 'success');
             const panel = document.getElementById('wh-outgoing-list');
-            if (panel) panel.innerHTML = ogRenderList();
+            if (panel) whSetHTML(panel, ogRenderList());
         } else {
             whShowError('wh-outgoing-list', await whResponseError(resp));
         }

@@ -70,7 +70,7 @@ window.renderHeartbeatSection = function (section) {
 
     // Day window card
     html += '<div class="field-group hb-window-card hb-day-card">';
-    html += '<div class="hb-window-title">☀️ ' + t('config.heartbeat.day_window_title') + '</div>';
+    html += '<div class="hb-window-title">' + cfgIcon('sun') + ' ' + t('config.heartbeat.day_window_title') + '</div>';
     html += '<div class="field-help" id="hb-day-window-help">' + t('help.heartbeat.day_time_window') + '</div>';
 
     html += '<div class="hb-window-fields">';
@@ -96,7 +96,7 @@ window.renderHeartbeatSection = function (section) {
 
     // Night window card
     html += '<div class="field-group hb-window-card hb-night-card">';
-    html += '<div class="hb-window-title">🌙 ' + t('config.heartbeat.night_window_title') + '</div>';
+    html += '<div class="hb-window-title">' + cfgIcon('moon') + ' ' + t('config.heartbeat.night_window_title') + '</div>';
     html += '<div class="field-help" id="hb-night-window-help">' + t('help.heartbeat.night_time_window') + '</div>';
 
     html += '<div class="hb-window-fields">';

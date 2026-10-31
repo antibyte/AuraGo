@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Display name to tell secrets apart in this list.",
   "config.mcp.secret_description_help": "Short note on what the secret is used for.",
   "config.mcp.secret_value_help": "The secret value, such as an API token. It is stored encrypted in the vault and not shown again.",
-  "config.mcp.secret_clear_value_help": "Deletes the stored value on save."
+  "config.mcp.secret_clear_value_help": "Deletes the stored value on save.",
+  "config.mcp.kv_invalid": "{field}: Lines {lines} are not in KEY=VALUE form and would not be saved."
 }

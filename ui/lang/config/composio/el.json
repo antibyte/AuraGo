@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Προεπισκόπηση εργαλείων",
   "config.composio.user_id": "Αναγνωριστικό χρήστη Composio",
   "config.composio.saving": "Αποθήκευση...",
-  "config.composio.testing": "Δοκιμή σύνδεσης..."
+  "config.composio.testing": "Δοκιμή σύνδεσης...",
+  "config.composio.filter_label": "Εμφάνιση πακέτων εργαλείων"
 }

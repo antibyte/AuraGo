@@ -11,7 +11,6 @@ cloudflare_tunnel
 composio
 cyd
 cyd_creator
-daemon_skills
 danger
 decisions
 detective
@@ -31,7 +30,6 @@ guardian
 heartbeat
 here_now
 homepage
-huggingface
 image_generation
 indexing
 jellyfin
@@ -45,8 +43,6 @@ manus
 mcp
 mcp_server
 media_conversion
-memory_analysis
-mission_preparation
 mqtt
 music_generation
 netlify

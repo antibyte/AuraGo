@@ -158,5 +158,6 @@
   "config.webhooks.field_alias_label": "Kortnamn",
   "config.webhooks.og_param_name_label": "Parameternamn",
   "config.webhooks.og_param_type_label": "Parametertyp",
-  "config.webhooks.og_param_desc_label": "Parameterbeskrivning"
+  "config.webhooks.og_param_desc_label": "Parameterbeskrivning",
+  "config.webhooks.og_headers_invalid": "Rubrikraderna {lines} har inte formen ”Namn: värde” och skulle inte sparas."
 }

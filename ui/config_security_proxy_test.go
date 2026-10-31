@@ -63,8 +63,8 @@ func TestSecurityProxyConfigExplainsRateLimitBuildAndPendingActions(t *testing.T
 	for _, required := range []string{
 		"t('config.security_proxy.rate_limit_build_hint')",
 		"t('config.security_proxy.action_pending')",
-		"btn.disabled = true",
-		"btn.disabled = false",
+		"cfgActionResult(",
+		"lock: '#proxy-status-area .cfg-actions-row button'",
 		`role="status" aria-live="polite"`,
 	} {
 		if !strings.Contains(module, required) {

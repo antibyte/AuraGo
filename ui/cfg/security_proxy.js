@@ -17,7 +17,7 @@ async function renderSecurityProxySection(section) {
 
     if (!enabled) {
         html += `<div class="wh-notice">
-            <span>🛡️</span>
+            <span>${cfgIcon('shield')}</span>
             <div>
                 <strong>${t('config.security_proxy.disabled_notice')}</strong><br>
                 <small>${t('config.security_proxy.disabled_desc')}</small>
@@ -34,11 +34,12 @@ async function renderSecurityProxySection(section) {
             ${t('config.security_proxy.status_loading')}
         </div>
         <div class="cfg-actions-row">
-            <button class="btn btn-sm btn-primary" onclick="_proxyAction('start')" title="${t('config.security_proxy.btn_start')}">▶ ${t('config.security_proxy.btn_start')}</button>
-            <button class="btn btn-sm btn-warning" onclick="_proxyAction('stop')" title="${t('config.security_proxy.btn_stop')}">⏹ ${t('config.security_proxy.btn_stop')}</button>
-            <button class="btn btn-sm btn-secondary" onclick="_proxyAction('reload')" title="${t('config.security_proxy.btn_reload')}">🔄 ${t('config.security_proxy.btn_reload')}</button>
-            <button class="btn btn-sm btn-danger" onclick="_proxyAction('destroy')" title="${t('config.security_proxy.btn_destroy')}">🗑️ ${t('config.security_proxy.btn_destroy')}</button>
-            <button class="btn btn-sm btn-secondary" onclick="_proxyShowLogs()" title="${t('config.security_proxy.btn_logs')}">📋 ${t('config.security_proxy.btn_logs')}</button>
+            <button type="button" id="proxy-start-btn" class="btn btn-sm btn-primary" onclick="_proxyAction('start', this)" title="${t('config.security_proxy.btn_start')}">${cfgIcon('play')} ${t('config.security_proxy.btn_start')}</button>
+            <button type="button" id="proxy-stop-btn" class="btn btn-sm btn-warning" onclick="_proxyAction('stop', this)" title="${t('config.security_proxy.btn_stop')}">${cfgIcon('stop')} ${t('config.security_proxy.btn_stop')}</button>
+            <button type="button" id="proxy-reload-btn" class="btn btn-sm btn-secondary" onclick="_proxyAction('reload', this)" title="${t('config.security_proxy.btn_reload')}">${cfgIcon('refresh')} ${t('config.security_proxy.btn_reload')}</button>
+            ${cfgDeleteButton({ label: t('config.security_proxy.btn_destroy'), cls: 'btn-sm', attrs: { id: 'proxy-destroy-btn', title: t('config.security_proxy.btn_destroy'), onclick: "_proxyAction('destroy', this)" } })}
+            <button type="button" class="btn btn-sm btn-secondary" onclick="_proxyShowLogs()" title="${t('config.security_proxy.btn_logs')}">${cfgIcon('list')} ${t('config.security_proxy.btn_logs')}</button>
+            ${cfgActionResult.html('proxy-action-result')}
         </div>
     </div>`;
 
@@ -136,7 +137,7 @@ async function renderSecurityProxySection(section) {
     <div class="field-help">${t('config.security_proxy.basic_auth_enabled_help')}</div>`;
 
     html += `<div class="wh-notice">
-        <span>🔐</span>
+        <span>${cfgIcon('lock')}</span>
         <div><small>${t('config.security_proxy.basic_auth_vault_hint')}</small></div>
     </div>`;
     html += `</div>`;
@@ -145,7 +146,7 @@ async function renderSecurityProxySection(section) {
         <div class="field-group-title">${t('config.security_proxy.geo_title')}</div>
         <div class="field-group-desc">${t('config.security_proxy.geo_desc')}</div>
         <div class="wh-notice">
-            <span>🌍</span>
+            <span>${cfgIcon('globe')}</span>
             <div><small>${t('config.security_proxy.geo_placeholder')}</small></div>
         </div>
     </div>`;
@@ -176,7 +177,7 @@ async function renderSecurityProxySection(section) {
 
     html += `<div id="proxy-logs-area" class="is-hidden">
         <div class="field-group">
-            <div class="field-group-title">📋 ${t('config.security_proxy.logs_title')}</div>
+            <div class="field-group-title">${cfgIcon('list')} ${t('config.security_proxy.logs_title')}</div>
             <pre id="proxy-logs-content" class="sp-logs-pre"></pre>
         </div>
     </div>`;
@@ -196,7 +197,7 @@ function _renderRouteRow(route, index) {
             onchange="_updateProxyRoute(${index},'domain',this.value)">
         <input type="text" class="field-input sp-route-input-2" aria-label="${escapeAttr(t('config.security_proxy.route_upstream_label'))}" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
             onchange="_updateProxyRoute(${index},'upstream',this.value)">
-        <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="${escapeAttr(t('config.security_proxy.route_remove'))}" aria-label="${escapeAttr(t('config.security_proxy.route_remove'))}">✕</button>
+        ${cfgDeleteButton({ iconOnly: true, cls: 'btn-sm', label: t('config.security_proxy.route_remove'), attrs: { onclick: '_removeProxyRoute(' + index + ')' } })}
     </div>`;
 }
 
@@ -221,32 +222,27 @@ function _updateProxyRoute(index, field, value) {
     markDirty();
 }
 
-async function _proxyAction(action) {
-    if (action === 'destroy' && !(await showConfirm(t('config.security_proxy.confirm_destroy_title'), t('config.security_proxy.confirm_destroy_message')))) return;
-    // Start and reload can build the rate-limit image first; keep the actions
-    // locked and say so until the request finishes.
-    const buttons = Array.from(document.querySelectorAll('#proxy-status-area .cfg-actions-row button'));
-    buttons.forEach(btn => { btn.disabled = true; });
-    const statusEl = document.getElementById('proxy-status-info');
-    if (statusEl && (action === 'start' || action === 'reload')) {
-        statusEl.textContent = t('config.security_proxy.action_pending');
+async function _proxyAction(action, button) {
+    if (action === 'destroy') {
+        const answer = await showConfirmDialog({
+            title: t('config.security_proxy.confirm_destroy_title'),
+            message: t('config.security_proxy.confirm_destroy_message'),
+            danger: true,
+            confirmText: t('config.security_proxy.btn_destroy')
+        });
+        if (!answer.confirmed) return;
     }
-    try {
-        const res = await fetch(`/api/proxy/${action}`, { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'ok') {
-            showToast(data.message || t('config.security_proxy.action_success', { action: t('config.security_proxy.btn_' + action) }), 'success');
-            setTimeout(_proxyFetchStatus, 1500);
-        } else {
-            showToast(data.message || t('config.security_proxy.action_failed'), 'error');
-            _proxyFetchStatus();
-        }
-    } catch(e) {
-        showToast(t('config.security_proxy.error_with_message', { message: e.message }), 'error');
-        _proxyFetchStatus();
-    } finally {
-        buttons.forEach(btn => { btn.disabled = false; });
-    }
+    // Start and reload can build the rate-limit image first; the other actions stay
+    // locked and the line next to them says so until the request finishes.
+    return cfgActionResult(button || ('#proxy-' + action + '-btn'), () => fetch(`/api/proxy/${action}`, { method: 'POST' }), {
+        target: 'proxy-action-result',
+        lock: '#proxy-status-area .cfg-actions-row button',
+        pending: (action === 'start' || action === 'reload') ? t('config.security_proxy.action_pending') : undefined,
+        success: outcome => (outcome.body && outcome.body.message) || t('config.security_proxy.action_success', { action: t('config.security_proxy.btn_' + action) }),
+        failure: t('config.security_proxy.action_failed'),
+        onSuccess: () => setTimeout(_proxyFetchStatus, 1500),
+        onError: () => _proxyFetchStatus()
+    });
 }
 
 async function _proxyFetchStatus() {
@@ -257,15 +253,10 @@ async function _proxyFetchStatus() {
         if (!el) return;
         if (data.status === 'ok' && data.proxy) {
             const p = data.proxy;
-            const color = p.running ? 'var(--success)' : 'var(--text-tertiary)';
-            const icon = p.running ? '🟢' : '⚪';
-            const state = document.createElement('strong');
-            state.style.color = color;
-            state.textContent = p.state || t('config.security_proxy.state_unknown');
-            const nodes = [
-                document.createTextNode(icon + ' '),
-                state,
-            ];
+            // The badge escapes its text; the image name from the API goes in as a text node.
+            const badge = document.createElement('span');
+            badge.innerHTML = cfgBadge(p.running ? 'ok' : 'idle', p.state || t('config.security_proxy.state_unknown'));
+            const nodes = [badge.firstElementChild];
             if (p.image) {
                 nodes.push(document.createTextNode(' - ' + p.image));
             }

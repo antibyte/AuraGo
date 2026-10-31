@@ -23,6 +23,9 @@ func confirmBeforeAction(t *testing.T, file, marker string, stops ...string) {
 	body := src[start:end]
 	confirm := strings.Index(body, "showConfirm(")
 	if confirm < 0 {
+		confirm = strings.Index(body, "showConfirmDialog(")
+	}
+	if confirm < 0 {
 		t.Fatalf("%s: %q does not call showConfirm", file, marker)
 	}
 	for _, stop := range stops {

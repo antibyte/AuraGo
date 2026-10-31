@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "टूल पूर्वावलोकन",
   "config.composio.user_id": "Composio उपयोगकर्ता ID",
   "config.composio.saving": "सहेजा जा रहा है...",
-  "config.composio.testing": "कनेक्शन टेस्ट हो रहा है..."
+  "config.composio.testing": "कनेक्शन टेस्ट हो रहा है...",
+  "config.composio.filter_label": "टूलकिट दिखाएँ"
 }

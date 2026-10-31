@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Anteprima strumenti",
   "config.composio.user_id": "ID utente Composio",
   "config.composio.saving": "Salvataggio...",
-  "config.composio.testing": "Test connessione..."
+  "config.composio.testing": "Test connessione...",
+  "config.composio.filter_label": "Mostra toolkit"
 }

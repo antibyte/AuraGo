@@ -158,5 +158,6 @@
   "config.webhooks.signature_algo_help": "Método para calcular la firma. Debe coincidir con el remitente; «plain» compara el valor sin cambios.",
   "config.webhooks.signature_header_help": "Nombre de la cabecera en la que el remitente transmite la firma. Déjalo vacío si el servicio no firma.",
   "config.webhooks.signature_secret_help": "Secreto compartido para verificar la firma. Se guarda cifrado en el vault.",
-  "config.webhooks.token_help": "Token que debe presentar el remitente. Los tokens se gestionan en la lista de tokens de arriba."
+  "config.webhooks.token_help": "Token que debe presentar el remitente. Los tokens se gestionan en la lista de tokens de arriba.",
+  "config.webhooks.og_headers_invalid": "Las líneas de cabecera {lines} no tienen el formato «Nombre: valor» y no se guardarían."
 }

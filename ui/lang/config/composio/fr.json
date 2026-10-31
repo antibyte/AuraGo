@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Aperçu des outils",
   "config.composio.user_id": "ID utilisateur Composio",
   "config.composio.saving": "Enregistrement...",
-  "config.composio.testing": "Test de la connexion..."
+  "config.composio.testing": "Test de la connexion...",
+  "config.composio.filter_label": "Afficher les toolkits"
 }

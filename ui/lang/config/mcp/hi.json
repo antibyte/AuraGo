@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "इस सूची में सीक्रेट को अलग पहचानने के लिए प्रदर्शन नाम।",
   "config.mcp.secret_description_help": "सीक्रेट किस काम आता है, इसका संक्षिप्त नोट।",
   "config.mcp.secret_value_help": "सीक्रेट का मान, जैसे कोई API टोकन। इसे vault में एन्क्रिप्ट करके संग्रहीत किया जाता है और दोबारा नहीं दिखाया जाता।",
-  "config.mcp.secret_clear_value_help": "सहेजते समय संग्रहीत मान हटा देता है।"
+  "config.mcp.secret_clear_value_help": "सहेजते समय संग्रहीत मान हटा देता है।",
+  "config.mcp.kv_invalid": "{field}: पंक्तियाँ {lines} KEY=VALUE रूप में नहीं हैं और सहेजी नहीं जाएँगी।"
 }

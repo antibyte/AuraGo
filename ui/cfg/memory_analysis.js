@@ -6,24 +6,12 @@ async function renderMemoryAnalysisSection(section) {
     else section = _memAnalysisSection;
     const cfg = configData.memory_analysis || {};
     const threshold = cfg.auto_confirm_threshold ?? 0.92;
-    document.getElementById('content').innerHTML = `<div class="cfg-section active">
-        <div class="section-header">${section.label}</div>
-        <div class="section-desc">${section.desc}</div>
-        <div class="ma-block"><label class="ma-label-block">
-            <input type="checkbox" data-path="learnings.enabled" aria-describedby="ma-learnings-help" ${configData.learnings?.enabled ? 'checked' : ''}>
-            <strong>${t('config.memory_analysis.learnings_enable')}</strong>
-            <p class="field-help" id="ma-learnings-help">${t('config.memory_analysis.learnings_help')}</p>
-        </label></div>
-        <div class="ma-block"><label class="ma-label-block">
-            <input type="checkbox" data-path="code_graph.enabled" aria-describedby="ma-graph-help" ${configData.code_graph?.enabled ? 'checked' : ''}>
-            <strong>${t('config.memory_analysis.graph_enable')}</strong>
-            <p class="field-help" id="ma-graph-help">${t('config.memory_analysis.graph_help')}</p>
-        </label></div>
-        <div class="ma-intro-notice"><div class="ma-notice-body">
+    const form = window.AuraConfigForm;
+    const notice = `<div class="ma-intro-notice"><div class="ma-notice-body">
             <strong>${t('config.memory_analysis.auto_notice')}</strong>
             <p>${t('config.memory_analysis.auto_desc')}</p>
-        </div></div>
-        <div class="ma-block"><div class="ma-block-header"><div class="ma-block-text">
+        </div></div>`;
+    const slider = `<div class="ma-block"><div class="ma-block-header"><div class="ma-block-text">
             <div class="ma-block-title">${t('config.memory_analysis.threshold_title')}</div>
             <div class="ma-block-desc field-help" id="ma-threshold-help">${t('config.memory_analysis.threshold_desc')}</div>
         </div></div><div class="ma-block-controls">
@@ -36,20 +24,24 @@ async function renderMemoryAnalysisSection(section) {
                     <span class="ma-threshold-value">${escapeHtml(String(threshold))}</span>
                 </div>
             </label>
-        </div></div>
-        <div class="ma-block"><div class="ma-block-header"><div class="ma-block-text">
-            <div class="ma-block-title">${t('config.memory_analysis.reflection_title')}</div>
-            <div class="ma-block-desc field-help" id="ma-reflection-help">${t('config.memory_analysis.reflection_desc')}</div>
-        </div></div><div class="ma-block-controls">
-            <label class="ma-label-block">
-                <span class="ma-label-text">${t('config.memory_analysis.reflection_day_label')}</span>
-                <select class="field-select" data-path="memory_analysis.reflection_day" aria-describedby="ma-reflection-help">
-                    ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day =>
-                        `<option value="${day}" ${(cfg.reflection_day || 'sunday') === day ? 'selected' : ''}>${t('config.memory_analysis.day_' + day)}</option>`
-                    ).join('')}
-                </select>
-            </label>
-        </div></div>
-    </div>`;
+        </div></div>`;
+    document.getElementById('content').innerHTML = form.renderSpec({
+        key: 'memory_analysis',
+        label: section.label,
+        desc: section.desc,
+        fields: [
+            form.toggle({ label: t('config.memory_analysis.learnings_enable'), help: t('config.memory_analysis.learnings_help'), path: 'learnings.enabled', value: configData.learnings?.enabled === true }),
+            form.toggle({ label: t('config.memory_analysis.graph_enable'), help: t('config.memory_analysis.graph_help'), path: 'code_graph.enabled', value: configData.code_graph?.enabled === true }),
+            notice,
+            slider,
+            form.select({
+                label: t('config.memory_analysis.reflection_day_label'),
+                help: t('config.memory_analysis.reflection_desc'),
+                path: 'memory_analysis.reflection_day',
+                value: cfg.reflection_day || 'sunday',
+                options: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => ({ value: day, label: t('config.memory_analysis.day_' + day) }))
+            })
+        ]
+    });
     attachChangeListeners();
 }

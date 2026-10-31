@@ -17,7 +17,7 @@ function renderA2ASection(section) {
     html += cfgStatusBanner.html('a2a-status-banner', (srv.enabled || cli.enabled) ? 'checking' : 'off', { detail: (srv.enabled || cli.enabled) ? '' : t('config.a2a.status_disabled') });
 
     html += '<hr class="cfg-section-hr">';
-    html += '<div class="a2a-section-title">🖥️ ' + t('config.a2a.server_title') + '</div>';
+    html += '<div class="a2a-section-title">' + cfgIcon('server') + ' ' + t('config.a2a.server_title') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.server_enabled') + '</div>';
@@ -64,7 +64,7 @@ function renderA2ASection(section) {
     html += '</div>';
 
     html += '<div class="a2a-card">';
-    html += '<div class="a2a-card-title">🔌 ' + t('config.a2a.bindings_title') + '</div>';
+    html += '<div class="a2a-card-title">' + cfgIcon('plug') + ' ' + t('config.a2a.bindings_title') + '</div>';
 
     html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.rest', helpKey: 'config.a2a.help_rest_binding', value: bindings.rest !== false, labelKey: 'config.a2a.rest_binding' });
     html += AuraConfigForm.toggle({ path: 'a2a.server.bindings.jsonrpc', helpKey: 'config.a2a.help_jsonrpc', value: !!bindings.jsonrpc, labelKey: 'config.a2a.jsonrpc_binding' });
@@ -73,14 +73,14 @@ function renderA2ASection(section) {
     html += '</div>';
 
     html += '<div class="a2a-card">';
-    html += '<div class="a2a-card-title">⚡ ' + t('config.a2a.capabilities_title') + '</div>';
+    html += '<div class="a2a-card-title">' + cfgIcon('zap') + ' ' + t('config.a2a.capabilities_title') + '</div>';
 
     html += AuraConfigForm.toggle({ path: 'a2a.server.streaming', helpKey: 'config.a2a.help_streaming', value: !!srv.streaming, labelKey: 'config.a2a.streaming' });
     html += AuraConfigForm.toggle({ path: 'a2a.server.push_notifications', helpKey: 'config.a2a.help_push', value: !!srv.push_notifications, labelKey: 'config.a2a.push_notifications' });
     html += '</div>';
 
     html += '<div class="a2a-card">';
-    html += '<div class="a2a-card-title">🎯 ' + t('config.a2a.skills_title') + '</div>';
+    html += '<div class="a2a-card-title">' + cfgIcon('compass') + ' ' + t('config.a2a.skills_title') + '</div>';
     html += '<div class="a2a-desc">' + t('config.a2a.skills_desc') + '</div>';
     html += '<div class="field-help" id="a2a-skills-help">' + t('config.a2a.skills_fields_help') + '</div>';
     html += '<div id="a2a-skills-list">' + a2aSkillRows(skills) + '</div>';
@@ -88,7 +88,7 @@ function renderA2ASection(section) {
     html += '</div>';
 
     html += '<hr class="cfg-section-hr">';
-    html += '<div class="a2a-section-title">🔐 ' + t('config.a2a.auth_title') + '</div>';
+    html += '<div class="a2a-section-title">' + cfgIcon('lock') + ' ' + t('config.a2a.auth_title') + '</div>';
 
     html += '<div class="a2a-card">';
     html += AuraConfigForm.toggle({ path: 'a2a.auth.api_key_enabled', helpKey: 'config.a2a.help_api_key_enabled', value: !!auth.api_key_enabled, labelKey: 'config.a2a.api_key_auth' });
@@ -116,12 +116,12 @@ function renderA2ASection(section) {
 
     if (!auth.api_key_enabled && !auth.bearer_enabled) {
         html += '<div class="wh-notice a2a-warning-notice">';
-        html += '<span>⚠️</span><div><small>' + t('config.a2a.no_auth_warning') + '</small></div>';
+        html += '<span>' + cfgIcon('alert') + '</span><div><small>' + t('config.a2a.no_auth_warning') + '</small></div>';
         html += '</div>';
     }
 
     html += '<hr class="cfg-section-hr">';
-    html += '<div class="a2a-section-title">🧠 ' + t('config.a2a.llm_title') + '</div>';
+    html += '<div class="a2a-section-title">' + cfgIcon('cpu') + ' ' + t('config.a2a.llm_title') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.llm_provider') + '</div>';
@@ -140,7 +140,7 @@ function renderA2ASection(section) {
     html += '</div>';
 
     html += '<hr class="cfg-section-hr">';
-    html += '<div class="a2a-section-title">🌍 ' + t('config.a2a.client_title') + '</div>';
+    html += '<div class="a2a-section-title">' + cfgIcon('globe') + ' ' + t('config.a2a.client_title') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.client_enabled') + '</div>';
@@ -157,7 +157,7 @@ function renderA2ASection(section) {
     if (srv.enabled) {
         html += '<hr class="cfg-section-hr">';
         html += '<div class="field-group">';
-        html += '<button class="btn-save a2a-test-btn" onclick="a2aTestServer()" id="a2a-test-btn" data-config-action-draft="false">🔌 ' + t('config.a2a.test_btn') + '</button>';
+        html += '<button class="btn-save a2a-test-btn" onclick="a2aTestServer()" id="a2a-test-btn" data-config-action-draft="false">' + cfgIcon('plug') + ' ' + t('config.a2a.test_btn') + '</button>';
         html += cfgActionResult.html('a2a-test-result');
         html += '</div>';
     }
@@ -212,7 +212,7 @@ function a2aSkillRow(skill, idx) {
     h += '<input class="field-input a2a-input-xs" type="text" data-path="a2a.server.skills.' + idx + '.id" value="' + escapeAttr(skill.id || '') + '" placeholder="ID" aria-label="' + escapeAttr(t('config.a2a.skill_id')) + '" aria-describedby="a2a-skills-help">';
     h += '<input class="field-input a2a-input-flex" type="text" data-path="a2a.server.skills.' + idx + '.name" value="' + escapeAttr(skill.name || '') + '" placeholder="' + escapeAttr(t('config.a2a.skill_name')) + '" aria-label="' + escapeAttr(t('config.a2a.skill_name')) + '" aria-describedby="a2a-skills-help">';
     h += '<input class="field-input a2a-input-flex-2" type="text" data-path="a2a.server.skills.' + idx + '.description" value="' + escapeAttr(skill.description || '') + '" placeholder="' + escapeAttr(t('config.a2a.skill_description')) + '" aria-label="' + escapeAttr(t('config.a2a.skill_description')) + '" aria-describedby="a2a-skills-help">';
-    h += '<button class="btn btn-sm btn-danger" onclick="a2aRemoveSkill(' + idx + ')">✕</button>';
+    h += cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: skill.name || skill.id || String(idx + 1) }), attrs: { onclick: 'a2aRemoveSkill(' + idx + ')' } });
     h += '</div>';
     return h;
 }
@@ -226,7 +226,8 @@ function a2aAddSkill() {
 async function a2aRemoveSkill(idx) {
     var skills = a2aList('a2a.server.skills');
     var skillDoomed = skills[idx] || {};
-    if (!(await showConfirm(t('config.a2a.confirm_remove_skill_title'), t('config.a2a.confirm_remove_skill_message', { name: skillDoomed.name || skillDoomed.id || String(idx + 1) })))) return;
+    var skillAnswer = await showConfirmDialog({ title: t('config.a2a.confirm_remove_skill_title'), message: t('config.a2a.confirm_remove_skill_message', { name: skillDoomed.name || skillDoomed.id || String(idx + 1) }), danger: true, confirmText: t('config.common.delete') });
+    if (!skillAnswer.confirmed) return;
     skills.splice(idx, 1);
     a2aSetList('a2a.server.skills', skills, a2aRenderSkills);
 }
@@ -255,8 +256,8 @@ function a2aRemoteAgentCard(ra, idx) {
     h += cfgActionResult.html('a2a-ra-status-' + idx, 'a2a-status-xs');
     h += '</div>';
     h += '<div class="a2a-btn-group">';
-    h += '<button id="a2a-ra-test-' + idx + '" class="btn-save a2a-sm-btn" data-config-action-draft="false" onclick="a2aTestRemoteAgent(\'' + escapeAttr(ra.id || '') + '\',' + idx + ')">🔌 ' + t('config.a2a.test_btn_short') + '</button>';
-    h += '<button class="btn btn-sm btn-danger" onclick="a2aRemoveRemoteAgent(' + idx + ')">✕</button>';
+    h += '<button id="a2a-ra-test-' + idx + '" class="btn-save a2a-sm-btn" data-config-action-draft="false" onclick="a2aTestRemoteAgent(\'' + escapeAttr(ra.id || '') + '\',' + idx + ')">' + cfgIcon('plug') + ' ' + t('config.a2a.test_btn_short') + '</button>';
+    h += cfgDeleteButton({ iconOnly: true, label: t('config.common.delete_item', { name: ra.name || ra.id || String(idx + 1) }), attrs: { onclick: 'a2aRemoveRemoteAgent(' + idx + ')' } });
     h += '</div></div>';
 
     h += '<div class="a2a-field-row-id">';
@@ -286,7 +287,8 @@ function a2aAddRemoteAgent() {
 async function a2aRemoveRemoteAgent(idx) {
     var agents = a2aList('a2a.client.remote_agents');
     var agentDoomed = agents[idx] || {};
-    if (!(await showConfirm(t('config.a2a.confirm_remove_agent_title'), t('config.a2a.confirm_remove_agent_message', { name: agentDoomed.name || agentDoomed.id || String(idx + 1) })))) return;
+    var agentAnswer = await showConfirmDialog({ title: t('config.a2a.confirm_remove_agent_title'), message: t('config.a2a.confirm_remove_agent_message', { name: agentDoomed.name || agentDoomed.id || String(idx + 1) }), danger: true, confirmText: t('config.common.delete') });
+    if (!agentAnswer.confirmed) return;
     agents.splice(idx, 1);
     a2aSetList('a2a.client.remote_agents', agents, a2aRenderRemoteAgents);
 }

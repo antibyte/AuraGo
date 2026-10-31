@@ -119,5 +119,6 @@
   "config.mcp.secret_clear_value_help": "Elimina el valor guardado al guardar.",
   "config.mcp.secret_description_help": "Nota breve sobre para qué se usa el secreto.",
   "config.mcp.secret_label_help": "Nombre visible para distinguir los secretos en esta lista.",
-  "config.mcp.secret_value_help": "El valor del secreto, como un token de API. Se guarda cifrado en el vault y no se vuelve a mostrar."
+  "config.mcp.secret_value_help": "El valor del secreto, como un token de API. Se guarda cifrado en el vault y no se vuelve a mostrar.",
+  "config.mcp.kv_invalid": "{field}: Las líneas {lines} no tienen el formato CLAVE=VALOR y no se guardarían."
 }

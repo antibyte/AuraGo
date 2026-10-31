@@ -56,20 +56,20 @@ async function renderDograhSection(section) {
     html += dograhToggleRow('config.dograh.enabled_label', 'help.dograh.enabled', enabled, 'dograh.enabled', "dograhToggleEnabled(this)");
 
     if (!enabled) {
-        html += '<div class="wh-notice"><span>▧</span><div><strong>' + dograhText('config.dograh.disabled_notice') + '</strong><br>';
+        html += '<div class="wh-notice"><span>' + cfgIcon('info') + '</span><div><strong>' + dograhText('config.dograh.disabled_notice') + '</strong><br>';
         html += '<small>' + dograhText('config.dograh.disabled_desc') + '</small></div></div></div>';
         document.getElementById('content').innerHTML = html;
         attachChangeListeners();
         return;
     }
 
-    html += '<div class="cfg-note-banner cfg-note-banner-info">▧ ' + dograhText('config.dograh.sidecar_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + cfgIcon('info') + ' ' + dograhText('config.dograh.sidecar_note') + '</div>';
     html += cfgStatusBanner.html('dograh-status-box', 'checking', { detail: dograhText('config.dograh.status_prefix') + ' ...' });
     html += '<div class="cfg-actions-row">';
-    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\'test\')', 'cfg-test-btn', '🔌 ');
-    html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\'start\')', 'btn-secondary', '▶ ');
-    html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\'stop\')', 'btn-secondary', '⏹ ');
-    html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\'recreate\')', 'btn-secondary', '🔄 ');
+    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\'test\')', 'cfg-test-btn', cfgIcon('plug') + ' ');
+    html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\'start\')', 'btn-secondary', cfgIcon('play') + ' ');
+    html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\'stop\')', 'btn-secondary', cfgIcon('stop') + ' ');
+    html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\'recreate\')', 'btn-secondary', cfgIcon('refresh') + ' ');
     html += cfgActionResult.html('dograh-test-result');
     html += '</div>';
 

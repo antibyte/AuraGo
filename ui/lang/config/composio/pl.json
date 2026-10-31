@@ -60,5 +60,6 @@
   "config.composio.tools_preview": "Podgląd narzędzi",
   "config.composio.user_id": "ID użytkownika Composio",
   "config.composio.saving": "Zapisywanie...",
-  "config.composio.testing": "Testowanie połączenia..."
+  "config.composio.testing": "Testowanie połączenia...",
+  "config.composio.filter_label": "Pokaż zestawy narzędzi"
 }

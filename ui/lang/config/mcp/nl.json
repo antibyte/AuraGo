@@ -119,5 +119,6 @@
   "config.mcp.secret_label_help": "Weergavenaam om geheimen in deze lijst van elkaar te onderscheiden.",
   "config.mcp.secret_description_help": "Korte notitie waarvoor het geheim wordt gebruikt.",
   "config.mcp.secret_value_help": "De geheime waarde, zoals een API-token. Wordt versleuteld opgeslagen in de Vault en niet opnieuw getoond.",
-  "config.mcp.secret_clear_value_help": "Verwijdert de opgeslagen waarde bij het opslaan."
+  "config.mcp.secret_clear_value_help": "Verwijdert de opgeslagen waarde bij het opslaan.",
+  "config.mcp.kv_invalid": "{field}: Regels {lines} hebben niet de vorm SLEUTEL=WAARDE en zouden niet worden opgeslagen."
 }
