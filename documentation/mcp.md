@@ -37,6 +37,13 @@ the current configuration snapshot and available service handles. Enabled
 integrations such as S3 still require an explicit export grant. Co-agents are
 excluded; `ask_aurago` is available only in IDE mode and retains the export scope.
 
+Incoming calls use the same argument decoder as native agent calls. Free-form
+object fields advertised as JSON strings are decoded before normal tool dispatch.
+`invoke_tool.arguments` accepts either an object or a string containing one complete
+JSON object. Malformed, missing, null, array and scalar values are rejected instead
+of silently invoking the target with empty parameters. The export allowlist,
+capability gates, Guardian and action policy still apply to the resolved target.
+
 Preferred vision tools receive MIME-checked images of at most 50 MiB. An explicit
 base64 input takes precedence; URL inputs receive a data URL only when their schema
 accepts it. Remote tools that accept only local paths are rejected without
