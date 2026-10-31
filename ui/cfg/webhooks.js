@@ -190,7 +190,7 @@ function whRenderConfigSettings() {
                         <div class="toggle ${wh.readonly ? 'on' : ''}" data-path="webhooks.readonly" onclick="toggleBool(this);markDirty()"></div>
                         <span class="toggle-label">${wh.readonly ? t('config.webhooks.toggle_active') : t('config.webhooks.toggle_inactive')}</span>
                     </div>
-                    <small class="wh-field-hint">${t('config.webhooks.readonly_hint')}</small>
+                    <small class="wh-field-hint field-help">${t('config.webhooks.readonly_hint')}</small>
                 </div>
             </div>`;
 }
@@ -292,92 +292,106 @@ function whShowEditor(id) {
             </div>
             <div class="wh-editor-body">
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.name_label')}</label>
-                    <input id="wh-f-name" class="field-input" value="${esc(name)}" placeholder="${t('config.webhooks.name_placeholder')}">
+                    <label for="wh-f-name">${t('config.webhooks.name_label')}</label>
+                    <input id="wh-f-name" aria-describedby="wh-f-name-help" class="field-input" value="${esc(name)}" placeholder="${t('config.webhooks.name_placeholder')}">
+                    <small class="wh-field-hint field-help" id="wh-f-name-help">${t('config.webhooks.name_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.slug_label')}</label>
-                    <input id="wh-f-slug" class="field-input" value="${esc(slug)}" placeholder="${t('config.webhooks.slug_placeholder')}" pattern="[a-z0-9][a-z0-9-]{1,48}[a-z0-9]" ${id ? 'disabled' : ''}>
-                    <small class="wh-field-hint">${t('config.webhooks.slug_hint')}</small>
+                    <label for="wh-f-slug">${t('config.webhooks.slug_label')}</label>
+                    <input id="wh-f-slug" aria-describedby="wh-f-slug-help" class="field-input" value="${esc(slug)}" placeholder="${t('config.webhooks.slug_placeholder')}" pattern="[a-z0-9][a-z0-9-]{1,48}[a-z0-9]" ${id ? 'disabled' : ''}>
+                    <small class="wh-field-hint field-help" id="wh-f-slug-help">${t('config.webhooks.slug_hint')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.enabled_label')}</label>
+                    <label id="wh-f-enabled-label">${t('config.webhooks.enabled_label')}</label>
                     <div class="toggle-wrap">
-                        <div id="wh-f-enabled" class="toggle ${enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
+                        <div id="wh-f-enabled" role="switch" aria-labelledby="wh-f-enabled-label" aria-describedby="wh-f-enabled-help" class="toggle ${enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
                     </div>
+                    <small class="wh-field-hint field-help" id="wh-f-enabled-help">${t('config.webhooks.enabled_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.token_label')}</label>
-                    <select id="wh-f-token" class="field-select">${tokensHtml}</select>
+                    <label for="wh-f-token">${t('config.webhooks.token_label')}</label>
+                    <select id="wh-f-token" aria-describedby="wh-f-token-help" class="field-select">${tokensHtml}</select>
+                    <small class="wh-field-hint field-help" id="wh-f-token-help">${t('config.webhooks.token_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.preset_label')}</label>
-                    <select id="wh-f-preset" class="field-select" onchange="whApplyPreset(this.value)">${presetsHtml}</select>
+                    <label for="wh-f-preset">${t('config.webhooks.preset_label')}</label>
+                    <select id="wh-f-preset" aria-describedby="wh-f-preset-help" class="field-select" onchange="whApplyPreset(this.value)">${presetsHtml}</select>
+                    <small class="wh-field-hint field-help" id="wh-f-preset-help">${t('config.webhooks.preset_help')}</small>
                 </div>
                 <div class="wh-subsection-title">${t('config.webhooks.format_section')}</div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.content_types_label')}</label>
-                    <input id="wh-f-ct" class="field-input" value="${(format.accepted_content_types || []).join(', ')}" placeholder="${t('config.webhooks.ct_placeholder')}">
+                    <label for="wh-f-ct">${t('config.webhooks.content_types_label')}</label>
+                    <input id="wh-f-ct" aria-describedby="wh-f-ct-help" class="field-input" value="${(format.accepted_content_types || []).join(', ')}" placeholder="${t('config.webhooks.ct_placeholder')}">
+                    <small class="wh-field-hint field-help" id="wh-f-ct-help">${t('config.webhooks.content_types_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.description_label')}</label>
-                    <input id="wh-f-desc" class="field-input" value="${esc(format.description || '')}">
+                    <label for="wh-f-desc">${t('config.webhooks.description_label')}</label>
+                    <input id="wh-f-desc" aria-describedby="wh-f-desc-help" class="field-input" value="${esc(format.description || '')}">
+                    <small class="wh-field-hint field-help" id="wh-f-desc-help">${t('config.webhooks.description_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.signature_header_label')}</label>
-                    <input id="wh-f-sighdr" class="field-input" value="${esc(format.signature_header || '')}" placeholder="${t('config.webhooks.sighdr_placeholder')}">
+                    <label for="wh-f-sighdr">${t('config.webhooks.signature_header_label')}</label>
+                    <input id="wh-f-sighdr" aria-describedby="wh-f-sighdr-help" class="field-input" value="${esc(format.signature_header || '')}" placeholder="${t('config.webhooks.sighdr_placeholder')}">
+                    <small class="wh-field-hint field-help" id="wh-f-sighdr-help">${t('config.webhooks.signature_header_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.signature_algo_label')}</label>
-                    <select id="wh-f-sigalgo" class="field-select">
+                    <label for="wh-f-sigalgo">${t('config.webhooks.signature_algo_label')}</label>
+                    <select id="wh-f-sigalgo" aria-describedby="wh-f-sigalgo-help" class="field-select">
                         <option value="" ${!format.signature_algo ? 'selected' : ''}>— ${t('config.webhooks.sig_none')} —</option>
                         <option value="sha256" ${format.signature_algo === 'sha256' ? 'selected' : ''}>${t('config.webhooks.sig_sha256')}</option>
                         <option value="sha1" ${format.signature_algo === 'sha1' ? 'selected' : ''}>${t('config.webhooks.sig_sha1')}</option>
                         <option value="plain" ${format.signature_algo === 'plain' ? 'selected' : ''}>${t('config.webhooks.sig_plain')}</option>
                     </select>
+                    <small class="wh-field-hint field-help" id="wh-f-sigalgo-help">${t('config.webhooks.signature_algo_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.signature_secret_label')}</label>
-                    <input id="wh-f-sigsec" class="field-input" type="password" data-has-secret="${cfgIsMaskedSecret(format.signature_secret) ? '1' : '0'}" value="${esc(cfgSecretValue(format.signature_secret))}" placeholder="${esc(cfgSecretPlaceholder(format.signature_secret, t('config.webhooks.sig_secret_placeholder')))}">
+                    <label for="wh-f-sigsec">${t('config.webhooks.signature_secret_label')}</label>
+                    <input id="wh-f-sigsec" aria-describedby="wh-f-sigsec-help" class="field-input" type="password" data-has-secret="${cfgIsMaskedSecret(format.signature_secret) ? '1' : '0'}" value="${esc(cfgSecretValue(format.signature_secret))}" placeholder="${esc(cfgSecretPlaceholder(format.signature_secret, t('config.webhooks.sig_secret_placeholder')))}">
+                    <small class="wh-field-hint field-help" id="wh-f-sigsec-help">${t('config.webhooks.signature_secret_help')}</small>
                 </div>
                 <div class="wh-subsection-title">
                     ${t('config.webhooks.field_mappings_label')}
                     <button class="wh-btn wh-btn-sm wh-field-add-btn" onclick="whAddFieldRow()">${t('config.webhooks.add_field_button')}</button>
                 </div>
+                <small class="wh-field-hint field-help" id="wh-fields-help">${t('config.webhooks.field_mappings_help')}</small>
                 <div id="wh-fields-list">${fieldsHtml}</div>
                 <div class="wh-subsection-title">${t('config.webhooks.delivery_section')}</div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.mode_label')}</label>
-                    <select id="wh-f-mode" class="field-select">
+                    <label for="wh-f-mode">${t('config.webhooks.mode_label')}</label>
+                    <select id="wh-f-mode" aria-describedby="wh-f-mode-help" class="field-select">
                         <option value="message" ${delivery.mode === 'message' ? 'selected' : ''}>${t('config.webhooks.mode_message')}</option>
                         <option value="notify" ${delivery.mode === 'notify' ? 'selected' : ''}>${t('config.webhooks.mode_notify')}</option>
                         <option value="silent" ${delivery.mode === 'silent' ? 'selected' : ''}>${t('config.webhooks.mode_silent')}</option>
                     </select>
+                    <small class="wh-field-hint field-help" id="wh-f-mode-help">${t('config.webhooks.mode_help')}</small>
                 </div>
                 <div class="wh-form-row">
-                    <label>${t('config.webhooks.prompt_template_label')}</label>
-                    <textarea id="wh-f-prompt" class="field-input wh-textarea" rows="5" placeholder="${t('config.webhooks.prompt_placeholder')}">${esc(delivery.prompt_template || '')}</textarea>
+                    <label for="wh-f-prompt">${t('config.webhooks.prompt_template_label')}</label>
+                    <textarea id="wh-f-prompt" aria-describedby="wh-f-prompt-help" class="field-input wh-textarea" rows="5" placeholder="${t('config.webhooks.prompt_placeholder')}">${esc(delivery.prompt_template || '')}</textarea>
+                    <small class="wh-field-hint field-help" id="wh-f-prompt-help">${t('config.webhooks.prompt_template_help')}</small>
                 </div>
                 <details class="wh-decision-block" id="wh-f-decision-block" ${decision.enabled ? 'open' : ''}>
                     <summary class="wh-subsection-title">${t('config.webhooks.decision_title')}</summary>
                     <small class="wh-field-hint">${t('config.webhooks.decision_intro')}</small>
                     <div class="wh-form-row">
-                        <label>${t('config.webhooks.decision_enable')}</label>
+                        <label id="wh-f-decision-enabled-label">${t('config.webhooks.decision_enable')}</label>
                         <div class="toggle-wrap">
-                            <div id="wh-f-decision-enabled" class="toggle ${decision.enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
+                            <div id="wh-f-decision-enabled" role="switch" aria-labelledby="wh-f-decision-enabled-label" aria-describedby="wh-f-decision-enabled-help" class="toggle ${decision.enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
                         </div>
+                        <small class="wh-field-hint field-help" id="wh-f-decision-enabled-help">${t('config.webhooks.decision_enable_help')}</small>
                     </div>
                     <div class="wh-form-row">
-                        <label>${t('config.webhooks.decision_question_label')}</label>
-                        <textarea id="wh-f-decision-question" class="field-input wh-textarea" rows="2" maxlength="500" placeholder="${t('config.webhooks.decision_question_placeholder')}">${esc(decision.question || '')}</textarea>
+                        <label for="wh-f-decision-question">${t('config.webhooks.decision_question_label')}</label>
+                        <textarea id="wh-f-decision-question" aria-describedby="wh-f-decision-question-help" class="field-input wh-textarea" rows="2" maxlength="500" placeholder="${t('config.webhooks.decision_question_placeholder')}">${esc(decision.question || '')}</textarea>
+                        <small class="wh-field-hint field-help" id="wh-f-decision-question-help">${t('config.webhooks.decision_question_help')}</small>
                     </div>
                     <div class="wh-form-row">
-                        <label>${t('config.webhooks.decision_mode_label')}</label>
-                        <select id="wh-f-decision-mode" class="field-select">
+                        <label for="wh-f-decision-mode">${t('config.webhooks.decision_mode_label')}</label>
+                        <select id="wh-f-decision-mode" aria-describedby="wh-f-decision-mode-help" class="field-select">
                             <option value="hint" ${decision.mode !== 'gate' ? 'selected' : ''}>${t('config.webhooks.decision_mode_hint')}</option>
                             <option value="gate" ${decision.mode === 'gate' ? 'selected' : ''}>${t('config.webhooks.decision_mode_gate')}</option>
                         </select>
-                        <small class="wh-field-hint">${t('config.webhooks.decision_gate_warning')}</small>
+                        <small class="wh-field-hint field-help" id="wh-f-decision-mode-help">${t('config.webhooks.decision_gate_warning')}</small>
                     </div>
                 </details>
             </div>
@@ -398,8 +412,8 @@ function whHideEditor() {
 
 function whFieldRow(idx, field) {
     return `<div class="wh-field-row" data-idx="${idx}">
-                <input class="field-input wh-field-src" value="${esc(field?.source || '')}" placeholder="${t('config.webhooks.field_source_placeholder')}">
-                <input class="field-input wh-field-alias" value="${esc(field?.alias || '')}" placeholder="${t('config.webhooks.field_alias_placeholder')}">
+                <input class="field-input wh-field-src" value="${esc(field?.source || '')}" placeholder="${t('config.webhooks.field_source_placeholder')}" aria-label="${t('config.webhooks.field_source_label')}" aria-describedby="wh-fields-help">
+                <input class="field-input wh-field-alias" value="${esc(field?.alias || '')}" placeholder="${t('config.webhooks.field_alias_placeholder')}" aria-label="${t('config.webhooks.field_alias_label')}" aria-describedby="wh-fields-help">
                 <button class="wh-btn-icon wh-btn-danger" onclick="this.parentElement.remove()">✕</button>
             </div>`;
 }
@@ -800,17 +814,17 @@ function ogShowModal(idx) {
         </div>
         <div class="og-modal-body">
             <div class="wh-form-row">
-                <label>${t('config.webhooks.og_name')}</label>
+                <label for="og-f-name">${t('config.webhooks.og_name')}</label>
                 <input id="og-f-name" class="field-input" value="${esc(name)}" placeholder="${t('config.webhooks.og_name_placeholder')}">
                 <small class="wh-field-hint">${t('config.webhooks.og_name_hint')}</small>
             </div>
             <div class="wh-form-row">
-                <label>${t('config.webhooks.og_desc')}</label>
+                <label for="og-f-desc">${t('config.webhooks.og_desc')}</label>
                 <input id="og-f-desc" class="field-input" value="${esc(desc)}" placeholder="${t('config.webhooks.og_desc_placeholder')}">
                 <small class="wh-field-hint">${t('config.webhooks.og_desc_hint')}</small>
             </div>
             <div class="wh-form-row og-form-split">
-                <div><label>${t('config.webhooks.og_method')}</label>
+                <div><label for="og-f-method">${t('config.webhooks.og_method')}</label>
                     <select id="og-f-method" class="field-select">
                         <option value="GET" ${method === 'GET' ? 'selected' : ''}>${t('config.webhooks.method_get')}</option>
                         <option value="POST" ${method === 'POST' ? 'selected' : ''}>${t('config.webhooks.method_post')}</option>
@@ -821,13 +835,13 @@ function ogShowModal(idx) {
                         <option value="OPTIONS" ${method === 'OPTIONS' ? 'selected' : ''}>OPTIONS</option>
                     </select>
                 </div>
-                <div class="og-col-url"><label>${t('config.webhooks.og_url')}</label>
+                <div class="og-col-url"><label for="og-f-url">${t('config.webhooks.og_url')}</label>
                     <input id="og-f-url" class="field-input" type="password" data-has-secret="${cfgIsMaskedSecret(url) ? '1' : '0'}" value="${esc(cfgSecretValue(url))}" placeholder="${esc(cfgSecretPlaceholder(url, t('config.webhooks.og_url_placeholder')))}">
                 </div>
             </div>
             <small class="wh-field-hint">${t('config.webhooks.og_vault_hint')}</small>
             <div class="wh-form-row">
-                <label>${t('config.webhooks.og_headers')} <small>${t('config.webhooks.og_headers_hint')}</small></label>
+                <label for="og-f-headers">${t('config.webhooks.og_headers')} <small>${t('config.webhooks.og_headers_hint')}</small></label>
                 <textarea id="og-f-headers" class="field-input wh-textarea" rows="3" placeholder="${t('config.webhooks.og_headers_placeholder')}">${esc(headersStr)}</textarea>
             </div>
             <div class="wh-subsection-title wh-subsection-title-inline">
@@ -836,13 +850,13 @@ function ogShowModal(idx) {
             </div>
             <div id="og-params-list">${paramsHtml}</div>
             <div class="wh-form-row og-form-split og-form-row-spaced">
-                <div><label>${t('config.webhooks.og_payload_type')}</label>
+                <div><label for="og-f-ptype">${t('config.webhooks.og_payload_type')}</label>
                     <select id="og-f-ptype" class="field-select" onchange="ogToggleTemplate()">
                         <option value="json" ${payloadType === 'json' ? 'selected' : ''}>${t('config.webhooks.og_auto_json')}</option>
                         <option value="custom" ${payloadType === 'custom' ? 'selected' : ''}>${t('config.webhooks.og_custom_template')}</option>
                     </select>
                 </div>
-                <div class="og-col-body"><label>${t('config.webhooks.og_body_template')}</label>
+                <div class="og-col-body"><label for="og-f-body">${t('config.webhooks.og_body_template')}</label>
                     <textarea id="og-f-body" class="field-input wh-textarea" rows="3" data-has-secret="${cfgIsMaskedSecret(bodyTemplate) ? '1' : '0'}" placeholder="${esc(cfgSecretPlaceholder(bodyTemplate, t('config.webhooks.og_body_template_placeholder')))}" ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(cfgSecretValue(bodyTemplate))}</textarea>
                 </div>
             </div>
@@ -864,15 +878,15 @@ function ogCloseModal() {
 
 function ogParamRow(idx, p) {
     return `<div class="og-param-row" data-idx="${idx}">
-        <input class="field-input og-p-name" value="${esc(p.name || '')}" placeholder="${t('config.webhooks.og_param_name_placeholder')}">
-        <select class="field-select og-p-type">
+        <input class="field-input og-p-name" value="${esc(p.name || '')}" placeholder="${t('config.webhooks.og_param_name_placeholder')}" aria-label="${t('config.webhooks.og_param_name_label')}">
+        <select class="field-select og-p-type" aria-label="${t('config.webhooks.og_param_type_label')}">
             <option value="string" ${(p.type || 'string') === 'string' ? 'selected' : ''}>${t('config.webhooks.param_type_string')}</option>
             <option value="number" ${p.type === 'number' ? 'selected' : ''}>${t('config.webhooks.param_type_number')}</option>
             <option value="boolean" ${p.type === 'boolean' ? 'selected' : ''}>${t('config.webhooks.param_type_boolean')}</option>
         </select>
-        <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="${t('config.webhooks.og_param_desc_placeholder')}">
+        <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="${t('config.webhooks.og_param_desc_placeholder')}" aria-label="${t('config.webhooks.og_param_desc_label')}">
         <div class="toggle-wrap og-toggle-wrap">
-            <div class="toggle ${p.required ? 'on' : ''}" onclick="this.classList.toggle('on')" title="${t('config.webhooks.og_required_title')}"></div>
+            <div class="toggle ${p.required ? 'on' : ''}" role="switch" aria-label="${t('config.webhooks.og_required_title')}" onclick="this.classList.toggle('on')" title="${t('config.webhooks.og_required_title')}"></div>
             <span class="og-required-label">${t('config.webhooks.og_required_short')}</span>
         </div>
         <button class="wh-btn-icon wh-btn-danger" onclick="this.parentElement.remove()">\u2715</button>

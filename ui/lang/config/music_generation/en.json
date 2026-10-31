@@ -98,5 +98,10 @@
   "config.music_gen.state_busy": "Busy",
   "config.music_gen.state_stopped": "Stopped",
   "config.music_gen.state_error": "Error",
-  "config.music_gen.no_gpu": "No GPU is usable in the container. Check device access or explicitly select CPU."
+  "config.music_gen.no_gpu": "No GPU is usable in the container. Check device access or explicitly select CPU.",
+  "config.music_gen.enabled_help": "Lets the agent create music with the selected provider. Every generation uses quota, credit or local compute.",
+  "config.music_gen.provider_help": "Cloud provider from Provider Management or the local ACE-Step model that creates the music.",
+  "config.music_gen.device_help": "Graphics card or compute device the local model runs on. \"auto\" chooses on its own.",
+  "config.music_gen.reserve_help": "Graphics memory in GiB that the local model leaves free for other programs (0-256, default 1).",
+  "config.music_gen.timeout_help": "After this time AuraGo cancels a local generation (30-1800 seconds, default 1800)."
 }

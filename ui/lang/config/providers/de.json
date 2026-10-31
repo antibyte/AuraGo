@@ -320,5 +320,8 @@
   "config.providers.invalid_credential": "Ein ungültiger Maskenwert ist als Zugangsschlüssel gespeichert. Ersetze oder entferne ihn.",
   "config.providers.runtime_incomplete": "Der gespeicherte Provider ist unvollständig oder nicht verfügbar. Prüfe Modell, Endpunkt und Zugangsdaten.",
   "config.providers.limit_source_model_only_fallback": "Schätzung anhand des Modells eines anderen Providers",
-  "config.providers.missing_references": "Fehlende Provider-Auswahl: {paths}. Wähle dort einen vorhandenen Provider aus."
+  "config.providers.missing_references": "Fehlende Provider-Auswahl: {paths}. Wähle dort einen vorhandenen Provider aus.",
+  "config.providers.search_help": "Filtert die Anbieterliste nach Name, Typ oder Modell.",
+  "config.providers.filter_type_help": "Zeigt nur Anbieter eines bestimmten Typs.",
+  "config.providers.filter_role_help": "Zeigt nur Anbieter, die einer bestimmten Aufgabe zugeordnet sind, etwa Hauptmodell oder Embeddings."
 }

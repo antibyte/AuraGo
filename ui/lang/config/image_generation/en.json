@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Test image generated and saved to the gallery (one generation used).",
   "config.image_generation.test_failed": "Generation failed",
   "config.image_generation.max_daily_label": "Max images per day",
-  "config.image_generation.max_daily_hint": "0 = unlimited"
+  "config.image_generation.max_daily_hint": "0 = unlimited",
+  "config.image_generation.enabled_help": "Lets the agent create images from text descriptions with the selected provider. Every generation uses quota or credit.",
+  "config.image_generation.provider_help": "Provider from Provider Management that creates the images. Without a selection the feature has no effect.",
+  "config.image_generation.size_help": "Image size in pixels when the agent does not specify one. Not every provider supports all sizes.",
+  "config.image_generation.quality_help": "Quality level when the agent does not specify one. \"hd\" gives more detail but usually costs more.",
+  "config.image_generation.style_help": "Image style when the agent does not specify one. \"vivid\" looks bolder and more dramatic than \"natural\".",
+  "config.image_generation.prompt_enhancement_help": "A language model improves the description before generation. This often gives better images but costs an extra model call."
 }

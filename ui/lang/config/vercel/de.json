@@ -38,5 +38,6 @@
   "config.vercel.allow_domain_management_help": "Erlaubt das Hinzufügen, Ändern und Entfernen von Vercel-Domains.",
   "config.vercel.default_project_id_help": "Optionale Projekt-ID, wenn der Agent kein Projekt nennt.",
   "config.vercel.team_id_help": "Optionale Vercel-Team-ID für teambezogene API-Aufrufe.",
-  "config.vercel.team_slug_help": "Optionaler Vercel-Team-Slug für teambezogene API-Aufrufe."
+  "config.vercel.team_slug_help": "Optionaler Vercel-Team-Slug für teambezogene API-Aufrufe.",
+  "config.vercel.vault_badge": "Tresor"
 }

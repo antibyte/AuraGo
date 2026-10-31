@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "No devices",
   "config.remote_control.no_platforms": "No platforms available",
   "config.remote_control.platforms_error": "Error loading platforms",
-  "config.remote_control.read_only_label": "Read-Only Mode (blocks file writes, deletions and shell commands on all devices)",
+  "config.remote_control.read_only_label": "Read-only mode",
   "config.remote_control.security_desc": "Control device enrollment and audit logging.",
   "config.remote_control.security_title": "Security",
-  "config.remote_control.ssh_insecure_host_key_label": "Allow insecure SSH host key (⚠️ disables MITM protection, use only on trusted networks)",
+  "config.remote_control.ssh_insecure_host_key_label": "Allow insecure SSH host key",
   "config.remote_control.status_connected": "Connected",
   "config.remote_control.status_offline": "Offline",
   "config.security_proxy.status_loading": "Loading…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Client update required",
   "config.remote_control.confirm_removal": "Disconnect this device and cancel its running commands? Pairing will require a new token.",
   "config.remote_control.paths_inherit": "One path per line. An empty path list for this device inherits the global paths. If both lists are empty, file access is denied.",
-  "config.remote_control.security_hint": "WSS and a valid certificate are required, including over Tailscale. Update classic clients before updating the server. Tokens expire after one hour and can only be used once."
+  "config.remote_control.security_hint": "WSS and a valid certificate are required, including over Tailscale. Update classic clients before updating the server. Tokens expire after one hour and can only be used once.",
+  "config.remote_control.enabled_help": "Turns remote control on. Only then can paired devices connect and the agent access them.",
+  "config.remote_control.read_only_help": "Blocks file writes, deletions and shell commands on all devices. Reading stays possible.",
+  "config.remote_control.audit_log_help": "Records every action on remote devices. Recommended so accesses can be traced later.",
+  "config.remote_control.ssh_insecure_host_key_help": "Warning: switches off the SSH host key check and with it the protection against man-in-the-middle attacks. Enable it only in a network you fully trust.",
+  "config.remote_control.max_file_size_help": "Largest file in MB allowed in a transfer (1-500, default 50).",
+  "config.remote_control.enrollment_device_name_help": "Optional name for the new device. It is set when the pairing token is created.",
+  "config.remote_control.device_name_help": "Optional name for the device the client runs on. It is passed along when you download."
 }

@@ -97,9 +97,10 @@ function composioInput(id, labelKey, helpKey, value, path, type = 'text') {
 }
 
 function composioToggle(path, enabled, labelKey, helpKey) {
-    return '<div class="cmp-policy-item"><div class="field-label">' + t(labelKey) + '</div>' +
-        '<div class="field-help">' + t(helpKey) + '</div>' +
-        '<div class="toggle-wrap"><div class="toggle' + (enabled ? ' on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div>' +
+    const id = 'cmp-' + path.replace(/[^a-z0-9]+/gi, '-');
+    return '<div class="cmp-policy-item"><div class="field-label" id="' + id + '-label">' + t(labelKey) + '</div>' +
+        '<div class="field-help" id="' + id + '-help">' + t(helpKey) + '</div>' +
+        '<div class="toggle-wrap"><div class="toggle' + (enabled ? ' on' : '') + '" data-path="' + path + '" aria-labelledby="' + id + '-label" aria-describedby="' + id + '-help" onclick="toggleBool(this)"></div>' +
         '<span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
 }
 

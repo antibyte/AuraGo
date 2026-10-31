@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Herunterladen",
   "config.tts.phonon_downloading": "Wird heruntergeladen …",
   "config.tts.phonon_catalog_error": "Der Stimmenkatalog konnte nicht geladen werden.",
-  "config.tts.phonon_download_error": "Download fehlgeschlagen. Die bisherige Stimmenauswahl bleibt erhalten."
+  "config.tts.phonon_download_error": "Download fehlgeschlagen. Die bisherige Stimmenauswahl bleibt erhalten.",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (lokaler Docker)",
+  "config.tts.title_piper": "Piper TTS (lokaler Docker)",
+  "config.tts.api_key_help": "API-Schlüssel aus Ihrem Konto beim Anbieter. Er wird verschlüsselt im Tresor gespeichert.",
+  "config.tts.cloud_voice_help": "Stimme, mit der der Anbieter den Text spricht.",
+  "config.tts.phonon_catalog_help": "Filtert die Stimmenliste unten nach Sprache. Die gewählte Stimme oben ändert sich dadurch nicht.",
+  "config.tts.supertonic_image_help": "Docker-Image, aus dem der Supertonic-Container gestartet wird. Nur ändern, wenn Sie ein eigenes Image verwenden.",
+  "config.tts.supertonic_port_help": "Port, auf dem der Supertonic-Container intern lauscht (Standard 7788).",
+  "config.tts.supertonic_data_path_help": "Ordner für Modelle und Daten des Containers, relativ zum AuraGo-Verzeichnis (Standard data/supertonic).",
+  "config.tts.supertonic_container_name_help": "Name des Docker-Containers. Ändern Sie ihn nur, wenn der Standardname bereits belegt ist.",
+  "config.tts.piper_port_help": "Port, auf dem der Piper-Container intern lauscht (Standard 10200).",
+  "config.tts.piper_image_help": "Docker-Image, aus dem der Piper-Container gestartet wird. Nur ändern, wenn Sie ein eigenes Image verwenden.",
+  "config.tts.piper_data_path_help": "Ordner für heruntergeladene Stimmen, relativ zum AuraGo-Verzeichnis (Standard data/piper)."
 }

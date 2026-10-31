@@ -23,5 +23,13 @@
   "config.video_gen.aspect_ratio_label": "Seitenverhältnis",
   "config.video_gen.test_btn": "Verbindung testen",
   "config.video_gen.provider_label": "Anbieter",
-  "config.video_gen.disabled_desc": "Aktiviere den Schalter oben, damit der Agent Videos erzeugen kann."
+  "config.video_gen.disabled_desc": "Aktiviere den Schalter oben, damit der Agent Videos erzeugen kann.",
+  "config.video_gen.enabled_help": "Erlaubt dem Agenten, mit dem gewählten Anbieter Videos zu erzeugen. Jede Erzeugung verbraucht Kontingent oder Guthaben.",
+  "config.video_gen.provider_help": "Anbieter aus der Anbieterverwaltung, der die Videos erzeugt.",
+  "config.video_gen.duration_help": "Länge eines Clips in Sekunden (1–30, Standard 6), wenn der Agent keine angibt. Längere Clips kosten mehr.",
+  "config.video_gen.resolution_help": "Auflösung, wenn der Agent keine angibt. Die verfügbaren Werte hängen vom Anbieter ab.",
+  "config.video_gen.aspect_ratio_help": "Seitenverhältnis, wenn der Agent keines angibt, etwa 16:9 für Querformat und 9:16 für Hochformat.",
+  "config.video_gen.poll_interval_help": "Wie oft AuraGo den Anbieter nach dem Stand eines Videoauftrags fragt (1–120 Sekunden, Standard 10).",
+  "config.video_gen.timeout_help": "Nach dieser Zeit gibt AuraGo das Warten auf ein Video auf (30–3600 Sekunden, Standard 600).",
+  "config.video_gen.max_daily_help": "Höchstzahl an Videos pro Tag. 0 bedeutet unbegrenzt."
 }

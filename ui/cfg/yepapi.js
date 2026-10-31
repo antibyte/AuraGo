@@ -12,8 +12,9 @@ async function renderYepAPISection(section) {
     // ── Main toggle ──
     html += '<div class="cfg-toggle-row-highlight">';
     html += '<span class="cfg-toggle-label">' + t('config.yepapi.enabled_label') + '</span>';
-    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="yepapi.enabled" onclick="toggleBool(this);setNestedValue(configData,\'yepapi.enabled\',this.classList.contains(\'on\'));renderYepAPISection(null)"></div>';
+    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="yepapi.enabled" aria-describedby="yepapi-enabled-help" onclick="toggleBool(this);setNestedValue(configData,\'yepapi.enabled\',this.classList.contains(\'on\'));renderYepAPISection(null)"></div>';
     html += '</div>';
+    html += '<div class="field-help" id="yepapi-enabled-help">' + t('config.yepapi.enabled_help') + '</div>';
 
     if (!enabled) {
         html += '<div class="wh-notice">';
@@ -81,10 +82,10 @@ async function renderYepAPISection(section) {
         const svcEnabled = svcCfg.enabled === true;
         html += '<div class="ig-toggle-row pw-u-service-row">';
         html += '<div class="pw-u-flex-1">';
-        html += '<div class="pw-u-medium">' + t('config.yepapi.' + svc.label) + '</div>';
-        html += '<div class="pw-u-meta">' + t('config.yepapi.' + svc.hint) + '</div>';
+        html += '<div class="pw-u-medium" id="yepapi-' + svc.key + '-label">' + t('config.yepapi.' + svc.label) + '</div>';
+        html += '<div class="pw-u-meta field-help" id="yepapi-' + svc.key + '-help">' + t('config.yepapi.' + svc.hint) + '</div>';
         html += '</div>';
-        html += '<div class="toggle ' + (svcEnabled ? 'on' : '') + '" data-path="yepapi.' + svc.key + '.enabled" onclick="toggleBool(this)"></div>';
+        html += '<div class="toggle ' + (svcEnabled ? 'on' : '') + '" data-path="yepapi.' + svc.key + '.enabled" aria-labelledby="yepapi-' + svc.key + '-label" aria-describedby="yepapi-' + svc.key + '-help" onclick="toggleBool(this)"></div>';
         html += '</div>';
     });
     html += '</div>';

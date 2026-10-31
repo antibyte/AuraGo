@@ -82,5 +82,9 @@
   "config.fritzbox.web_port_label": "Weboberflächen-Port",
   "config.fritzbox.insecure_skip_verify_label": "Selbstsigniertes Zertifikat erlauben",
   "help.fritzbox.web_port": "Optionaler Port für Login- und Smart-Home-Anfragen. Lass 0 stehen, um 80 oder 443 zu nutzen.",
-  "help.fritzbox.insecure_skip_verify": "Erlaubt HTTPS mit einem selbstsignierten Fritz!Box-Zertifikat. Nutze das nur in deinem vertrauenswürdigen Heimnetz."
+  "help.fritzbox.insecure_skip_verify": "Erlaubt HTTPS mit einem selbstsignierten Fritz!Box-Zertifikat. Nutze das nur in deinem vertrauenswürdigen Heimnetz.",
+  "config.fritzbox.feature_enabled_help": "Der Agent darf die Funktionen „{feature}“ der Fritz!Box nutzen.",
+  "config.fritzbox.feature_readonly_help": "Bei „{feature}“ darf der Agent nur Werte lesen, aber nichts an der Fritz!Box ändern.",
+  "config.fritzbox.polling_enabled_help": "Fragt die Fritz!Box regelmäßig nach neuen Anrufen ab, damit AuraGo darauf reagieren kann.",
+  "config.fritzbox.polling_interval_help": "Abstand der Abfragen in Sekunden (10–3600, Standard 60). Kürzere Abstände reagieren schneller, belasten die Fritz!Box aber stärker."
 }

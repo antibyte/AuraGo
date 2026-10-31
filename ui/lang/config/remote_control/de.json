@@ -56,10 +56,10 @@
   "config.remote_control.no_devices": "Keine Geräte",
   "config.remote_control.no_platforms": "Keine Plattformen verfügbar",
   "config.remote_control.platforms_error": "Fehler beim Laden der Plattformen",
-  "config.remote_control.read_only_label": "Nur-Lese-Modus (blockiert Dateischreibvorgänge, Löschungen und Shell-Befehle auf allen Geräten)",
+  "config.remote_control.read_only_label": "Nur-Lese-Modus",
   "config.remote_control.security_desc": "Geräteregistrierung und Audit-Logging steuern.",
   "config.remote_control.security_title": "Sicherheit",
-  "config.remote_control.ssh_insecure_host_key_label": "Unsicheren SSH-Hostkey erlauben (⚠️ deaktiviert MITM-Schutz, nur in vertrauenswürdigen Netzwerken)",
+  "config.remote_control.ssh_insecure_host_key_label": "Unsicheren SSH-Hostkey erlauben",
   "config.remote_control.status_connected": "Verbunden",
   "config.remote_control.status_offline": "Getrennt",
   "config.security_proxy.status_loading": "Laden…",
@@ -109,5 +109,12 @@
   "config.remote_control.upgrade_required": "Clientupdate erforderlich",
   "config.remote_control.confirm_removal": "Dieses Gerät trennen und laufende Befehle abbrechen? Zum erneuten Koppeln brauchst Du einen neuen Token.",
   "config.remote_control.paths_inherit": "Ein Pfad pro Zeile. Eine leere Pfadliste für dieses Gerät übernimmt die globalen Pfade. Sind beide Listen leer, ist Dateizugriff gesperrt.",
-  "config.remote_control.security_hint": "WSS und ein gültiges Zertifikat sind auch über Tailscale erforderlich. Aktualisiere klassische Clients vor dem Server. Tokens gelten eine Stunde und sind nur einmal verwendbar."
+  "config.remote_control.security_hint": "WSS und ein gültiges Zertifikat sind auch über Tailscale erforderlich. Aktualisiere klassische Clients vor dem Server. Tokens gelten eine Stunde und sind nur einmal verwendbar.",
+  "config.remote_control.enabled_help": "Schaltet die Fernsteuerung ein. Erst dann können sich gekoppelte Geräte verbinden und der Agent darauf zugreifen.",
+  "config.remote_control.read_only_help": "Blockiert auf allen Geräten Schreibzugriffe auf Dateien, Löschen und Shell-Befehle. Lesen bleibt möglich.",
+  "config.remote_control.audit_log_help": "Protokolliert jede Aktion auf fernen Geräten. Empfohlen, um Zugriffe später nachvollziehen zu können.",
+  "config.remote_control.ssh_insecure_host_key_help": "Warnung: Schaltet die Prüfung des SSH-Hostkeys ab und damit den Schutz vor Man-in-the-Middle-Angriffen. Aktivieren Sie das nur in einem Netz, dem Sie vollständig vertrauen.",
+  "config.remote_control.max_file_size_help": "Größte Datei in MB, die bei einer Übertragung erlaubt ist (1–500, Standard 50).",
+  "config.remote_control.enrollment_device_name_help": "Optionaler Name für das neue Gerät. Er wird beim Erzeugen des Kopplungs-Tokens festgelegt.",
+  "config.remote_control.device_name_help": "Optionaler Name für das Gerät, auf dem der Client läuft. Er wird beim Herunterladen mitgegeben."
 }

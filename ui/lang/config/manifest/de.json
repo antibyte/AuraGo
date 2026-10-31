@@ -1,0 +1,8 @@
+{
+  "config.manifest.routing_enabled_help": "Sendet bei Anfragen an Manifest zusätzliche Header, damit Manifest das passende Modell nach Ihren Stufen wählen kann.",
+  "config.manifest.routing_specificity_mode_help": "Aus sendet keine Kategorie, Fest sendet immer die unten gewählte, Automatisch lässt AuraGo die Kategorie je Anfrage bestimmen.",
+  "config.manifest.routing_specificity_help": "Kategorie, die AuraGo im Modus „Fest“ mit jeder Anfrage an Manifest sendet.",
+  "config.manifest.routing_headers_help": "Eigene Header als Paar aus Name und Wert, die AuraGo zusätzlich an Manifest sendet. Tragen Sie hier nur Werte ein, die Manifest sehen darf.",
+  "config.manifest.routing_header_name": "Header-Name",
+  "config.manifest.routing_header_value": "Header-Wert"
+}

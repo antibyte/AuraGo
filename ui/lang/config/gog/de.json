@@ -51,5 +51,13 @@
   "config.gog.confirm_remove_title": "Dieses Konto entfernen?",
   "config.gog.confirm_remove_message": "Das Konto \"{name}\" mit Client-ID und Dienstberechtigungen wird aus der Liste entfernt und beim Speichern gelöscht.",
   "config.gog.login_opened": "Anmeldefenster geöffnet. Schließe die Anmeldung dort ab; der Status aktualisiert sich, sobald das Konto verbunden ist.",
-  "config.gog.login_not_connected": "Die Anmeldung ist noch nicht abgeschlossen: Das Konto ist weiterhin nicht verbunden."
+  "config.gog.login_not_connected": "Die Anmeldung ist noch nicht abgeschlossen: Das Konto ist weiterhin nicht verbunden.",
+  "config.gog.enabled_help": "Schaltet die gog-Anbindung an Google-Konten ein. Sie ergänzt die eingebaute Google-Workspace-Integration um weitere Konten.",
+  "config.gog.readonly_help": "Der Agent darf über gog nur lesen. Erstellen, Ändern, Löschen und Senden bleiben gesperrt, auch wenn ein Konto sie erlaubt.",
+  "config.gog.name_help": "Anzeigename des Kontos, etwa „Privat“ oder „Arbeit“.",
+  "config.gog.account_enabled_help": "Nur aktivierte Konten können vom Agenten und vom Desktop genutzt werden.",
+  "config.gog.agent_help": "Der Agent darf dieses Konto mit den unten freigegebenen Berechtigungen nutzen.",
+  "config.gog.desktop_help": "Desktop-Apps dürfen dieses Konto nutzen, etwa für Mail oder Kalender.",
+  "config.gog.client_id_help": "Client-ID des OAuth-Web-Clients aus der Google Cloud Console.",
+  "config.gog.secret_help": "Client-Secret des OAuth-Clients. „In Tresor speichern“ legt es verschlüsselt ab; es wird nicht erneut angezeigt."
 }

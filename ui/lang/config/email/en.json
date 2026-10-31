@@ -60,5 +60,13 @@
   "config.email.load_failed": "Could not load email accounts",
   "config.email.load_failed_disabled": "Adding, editing and deleting is disabled until the list has loaded.",
   "config.email.retry": "Retry",
-  "config.email.saved": "Email accounts saved."
+  "config.email.saved": "Email accounts saved.",
+  "config.email.name_help": "Display name of the account in AuraGo, such as \"Personal\" or \"Work\".",
+  "config.email.imap_host_help": "Address of your mail provider's incoming mail server (IMAP).",
+  "config.email.smtp_host_help": "Address of your mail provider's outgoing mail server (SMTP).",
+  "config.email.username_help": "User name for IMAP and SMTP, usually the full email address.",
+  "config.email.password_help": "Password or app password of the account. It is stored encrypted in the vault.",
+  "config.email.watch_enabled_help": "AuraGo regularly checks the folder chosen below for new mail and can react to it.",
+  "config.email.watch_folder_help": "IMAP folder that is watched for new mail. The default is INBOX.",
+  "config.email.interval_seconds_help": "How often the folder is checked, in seconds (default 120). Shorter intervals put more load on the mail server."
 }

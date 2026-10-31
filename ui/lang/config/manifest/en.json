@@ -1,0 +1,8 @@
+{
+  "config.manifest.routing_enabled_help": "Sends extra headers with requests to Manifest so Manifest can pick the matching model according to your tiers.",
+  "config.manifest.routing_specificity_mode_help": "Off sends no category, Fixed always sends the one chosen below, Automatic lets AuraGo determine the category per request.",
+  "config.manifest.routing_specificity_help": "Category that AuraGo sends with every request to Manifest in \"Fixed\" mode.",
+  "config.manifest.routing_headers_help": "Custom headers as name and value pairs that AuraGo additionally sends to Manifest. Enter only values that Manifest may see.",
+  "config.manifest.routing_header_name": "Header name",
+  "config.manifest.routing_header_value": "Header value"
+}

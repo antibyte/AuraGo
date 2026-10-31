@@ -85,5 +85,20 @@
   "config.meshcore.allow_location_disclosure": "Allow the agent to disclose a location",
   "config.meshcore.disclosed_location": "Public location description",
   "config.meshcore.disclosed_location_help": "Only this text may be disclosed. Device positions, coordinates, routes, and inferred locations remain private.",
-  "config.meshcore.inbox_help": "Shows the latest 100 messages, 25 per page."
+  "config.meshcore.inbox_help": "Shows the latest 100 messages, 25 per page.",
+  "config.meshcore.enabled_help": "Turns on the MeshCore radio link. Without it AuraGo does not process mesh messages.",
+  "config.meshcore.transport_help": "How the MeshCore device is attached to the server: by USB cable or over Bluetooth (Linux only).",
+  "config.meshcore.port_help": "Serial port of the connected device. \"Refresh\" looks for new devices.",
+  "config.meshcore.address_help": "Bluetooth address of the MeshCore device, such as AA:BB:CC:DD:EE:FF. Only needed for Bluetooth.",
+  "config.meshcore.pin_help": "Used for pairing only. The PIN is not stored.",
+  "config.meshcore.search_nodes_help": "Filters the node list below by name or public key.",
+  "config.meshcore.add_to_help": "List a node is added to when you use the button in the node list.",
+  "config.meshcore.allow_location_disclosure_help": "The agent may share the location text entered below on the mesh. The text is readable by every recipient.",
+  "config.meshcore.proactive_send_help": "The agent may send messages to the send nodes on its own, without having been contacted first.",
+  "config.meshcore.max_command_age_seconds_help": "Commands older than this are ignored (600-86400 seconds, default 600). Protects against replayed messages.",
+  "config.meshcore.future_tolerance_seconds_help": "How far in the future a message timestamp may lie (120-3600 seconds, default 120). Compensates clock drift.",
+  "config.meshcore.retention_days_help": "Received messages are deleted after this time (7-90 days, default 7).",
+  "config.meshcore.max_messages_help": "Maximum number of stored messages (1000-10000, default 1000). Older ones are dropped first.",
+  "config.meshcore.peer_runs_per_minute_help": "How often the agent may react per node or channel and minute (2-60, default 2). Limits spam from single senders.",
+  "config.meshcore.runs_per_minute_help": "How often the agent may react to mesh messages per minute in total (12-120, default 12)."
 }

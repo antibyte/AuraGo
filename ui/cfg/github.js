@@ -16,6 +16,7 @@ async function renderGitHubSection(section) {
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.github.enabled_label')}</div>
+        <div class="field-help">${t('help.github.enabled')}</div>
         <div class="toggle-wrap">
             <div class="toggle${enabledOn ? ' on' : ''}" data-path="github.enabled" onclick="toggleBool(this)"></div>
             <span class="toggle-label">${enabledOn ? t('config.toggle.active') : t('config.toggle.inactive')}</span>

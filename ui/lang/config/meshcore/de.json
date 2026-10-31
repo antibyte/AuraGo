@@ -85,5 +85,20 @@
   "config.meshcore.allow_location_disclosure": "Dem Agenten die Standortangabe erlauben",
   "config.meshcore.disclosed_location": "Freigegebene Standortbeschreibung",
   "config.meshcore.disclosed_location_help": "Nur dieser Text darf genannt werden. Gerätepositionen, Koordinaten, Routen und abgeleitete Standorte bleiben privat.",
-  "config.meshcore.inbox_help": "Zeigt die neuesten 100 Nachrichten, 25 pro Seite."
+  "config.meshcore.inbox_help": "Zeigt die neuesten 100 Nachrichten, 25 pro Seite.",
+  "config.meshcore.enabled_help": "Schaltet die MeshCore-Funkanbindung ein. Ohne Schalter wertet AuraGo keine Mesh-Nachrichten aus.",
+  "config.meshcore.transport_help": "Wie das MeshCore-Gerät am Server hängt: per USB-Kabel oder über Bluetooth (nur Linux).",
+  "config.meshcore.port_help": "Serielle Schnittstelle des angeschlossenen Geräts. „Aktualisieren“ sucht neue Geräte.",
+  "config.meshcore.address_help": "Bluetooth-Adresse des MeshCore-Geräts, etwa AA:BB:CC:DD:EE:FF. Nur bei Bluetooth nötig.",
+  "config.meshcore.pin_help": "Nur zum Koppeln. Die PIN wird nicht gespeichert.",
+  "config.meshcore.search_nodes_help": "Filtert die Knotenliste darunter nach Name oder öffentlichem Schlüssel.",
+  "config.meshcore.add_to_help": "Liste, zu der ein Knoten über die Schaltfläche in der Knotenliste hinzugefügt wird.",
+  "config.meshcore.allow_location_disclosure_help": "Der Agent darf den unten eingetragenen Standorttext im Mesh weitergeben. Der Text ist für alle Empfänger lesbar.",
+  "config.meshcore.proactive_send_help": "Der Agent darf von sich aus Nachrichten an die Sende-Knoten schicken, ohne vorher angeschrieben worden zu sein.",
+  "config.meshcore.max_command_age_seconds_help": "Befehle, die älter sind, werden ignoriert (600–86400 Sekunden, Standard 600). Schützt vor erneut eingespielten Nachrichten.",
+  "config.meshcore.future_tolerance_seconds_help": "Wie weit der Zeitstempel einer Nachricht in der Zukunft liegen darf (120–3600 Sekunden, Standard 120). Gleicht Uhrabweichungen aus.",
+  "config.meshcore.retention_days_help": "Empfangene Nachrichten werden nach dieser Zeit gelöscht (7–90 Tage, Standard 7).",
+  "config.meshcore.max_messages_help": "Höchstzahl gespeicherter Nachrichten (1000–10000, Standard 1000). Ältere werden zuerst verworfen.",
+  "config.meshcore.peer_runs_per_minute_help": "Wie oft der Agent pro Knoten oder Kanal und Minute reagieren darf (2–60, Standard 2). Begrenzt Spam durch einzelne Absender.",
+  "config.meshcore.runs_per_minute_help": "Wie oft der Agent insgesamt pro Minute auf Mesh-Nachrichten reagieren darf (12–120, Standard 12)."
 }

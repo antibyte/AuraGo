@@ -151,8 +151,7 @@ function renderGo2RTCSection(section) {
     html += '<div class="field-group"><button type="button" class="btn-save" onclick="go2rtcAddStream()">' + t('config.go2rtc.add_stream') + '</button></div>';
 
     html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">⚙️ ' + t('config.go2rtc.advanced') + '</summary><div class="cfg-advanced-body">';
-    html += go2rtcSelect('go2rtc.hardware.backend', data.hardware.backend || 'software', 'config.go2rtc.hardware_backend', [['software', 'CPU'], ['vaapi', 'VAAPI'], ['cuda', 'CUDA / NVENC']], true);
-    html += '<div class="field-help">' + t('config.go2rtc.hardware_help') + '</div>';
+    html += go2rtcSelect('go2rtc.hardware.backend', data.hardware.backend || 'software', 'config.go2rtc.hardware_backend', [['software', 'CPU'], ['vaapi', 'VAAPI'], ['cuda', 'CUDA / NVENC']], true, 'config.go2rtc.hardware_help');
     if (data.hardware.backend === 'vaapi') {
         html += go2rtcField('go2rtc.hardware.render_node', data.hardware.render_node || '/dev/dri/renderD128', 'config.go2rtc.hardware_node', '', '/dev/dri/renderD128', false);
         html += go2rtcField('go2rtc.hardware.render_group', data.hardware.render_group || '', 'config.go2rtc.hardware_group', '', '993', false);
@@ -400,9 +399,9 @@ function go2rtcStreamDefaults() {
     return values;
 }
 
-function go2rtcSelect(path, value, label, choices, rerender) {
+function go2rtcSelect(path, value, label, choices, rerender, helpKey) {
 	const literalCaptions = path.includes('.tuya.');
-    return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(literalCaptions || /[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select></div>';
+    return '<div class="field-group"><label class="field-label" for="' + escapeAttr(path) + '">' + t(label) + '</label><select class="field-select" id="' + escapeAttr(path) + '" data-path="' + escapeAttr(path) + '"' + (rerender ? ' onchange="setNestedValue(configData,\'' + path + '\',this.value);renderGo2RTCSection(null)"' : '') + '>' + choices.map(([key, caption]) => '<option value="' + key + '" ' + (key === value ? 'selected' : '') + '>' + escapeHtml(literalCaptions || /[A-Z]/.test(caption) ? caption : t('config.go2rtc.' + caption)) + '</option>').join('') + '</select>' + (helpKey ? '<div class="field-help">' + t(helpKey) + '</div>' : '') + '</div>';
 }
 
 // The probe verdict is the whole answer (no server reason line), so the text names it exactly.

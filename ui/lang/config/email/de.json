@@ -60,5 +60,13 @@
   "config.email.load_failed": "E-Mail-Konten konnten nicht geladen werden",
   "config.email.load_failed_disabled": "Hinzufügen, Bearbeiten und Löschen ist deaktiviert, bis die Liste geladen ist.",
   "config.email.retry": "Erneut versuchen",
-  "config.email.saved": "E-Mail-Konten gespeichert."
+  "config.email.saved": "E-Mail-Konten gespeichert.",
+  "config.email.name_help": "Anzeigename des Kontos in AuraGo, etwa „Privat“ oder „Arbeit“.",
+  "config.email.imap_host_help": "Adresse des Posteingangsservers (IMAP) Ihres Mail-Anbieters.",
+  "config.email.smtp_host_help": "Adresse des Postausgangsservers (SMTP) Ihres Mail-Anbieters.",
+  "config.email.username_help": "Benutzername für IMAP und SMTP, meist die vollständige E-Mail-Adresse.",
+  "config.email.password_help": "Passwort oder App-Passwort des Kontos. Es wird verschlüsselt im Tresor gespeichert.",
+  "config.email.watch_enabled_help": "AuraGo prüft den unten gewählten Ordner regelmäßig auf neue Mails und kann darauf reagieren.",
+  "config.email.watch_folder_help": "IMAP-Ordner, der auf neue Mails überwacht wird. Standard ist INBOX.",
+  "config.email.interval_seconds_help": "Wie oft der Ordner geprüft wird, in Sekunden (Standard 120). Kürzere Abstände belasten den Mailserver stärker."
 }

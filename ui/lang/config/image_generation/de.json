@@ -25,5 +25,11 @@
   "config.image_generation.test_success": "Testbild erzeugt und in der Galerie gespeichert (eine Generierung verbraucht).",
   "config.image_generation.test_failed": "Generierung fehlgeschlagen",
   "config.image_generation.max_daily_label": "Max. Bilder pro Tag",
-  "config.image_generation.max_daily_hint": "0 = unbegrenzt"
+  "config.image_generation.max_daily_hint": "0 = unbegrenzt",
+  "config.image_generation.enabled_help": "Erlaubt dem Agenten, mit dem gewählten Anbieter Bilder aus Textbeschreibungen zu erzeugen. Jede Erzeugung verbraucht Kontingent oder Guthaben.",
+  "config.image_generation.provider_help": "Anbieter aus der Anbieterverwaltung, der die Bilder erzeugt. Ohne Auswahl bleibt die Funktion unwirksam.",
+  "config.image_generation.size_help": "Bildgröße in Pixeln, wenn der Agent keine angibt. Nicht jeder Anbieter unterstützt alle Größen.",
+  "config.image_generation.quality_help": "Qualitätsstufe, wenn der Agent keine angibt. „hd“ liefert mehr Details, kostet aber meist mehr.",
+  "config.image_generation.style_help": "Bildstil, wenn der Agent keinen angibt. „vivid“ wirkt kräftiger und dramatischer als „natural“.",
+  "config.image_generation.prompt_enhancement_help": "Ein Sprachmodell verbessert die Beschreibung vor der Erzeugung. Das liefert oft bessere Bilder, kostet aber zusätzlich einen Modellaufruf."
 }

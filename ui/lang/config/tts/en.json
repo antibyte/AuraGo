@@ -131,5 +131,21 @@
   "config.tts.phonon_download": "Download",
   "config.tts.phonon_downloading": "Downloading …",
   "config.tts.phonon_catalog_error": "The voice catalog could not be loaded.",
-  "config.tts.phonon_download_error": "Download failed. Your previous voice selection is preserved."
+  "config.tts.phonon_download_error": "Download failed. Your previous voice selection is preserved.",
+  "config.tts.title_phonon": "Phonon",
+  "config.tts.title_elevenlabs": "ElevenLabs",
+  "config.tts.title_minimax": "MiniMax TTS",
+  "config.tts.title_mistral": "Mistral AI Voxtral TTS",
+  "config.tts.title_supertonic": "Supertonic TTS (local Docker)",
+  "config.tts.title_piper": "Piper TTS (local Docker)",
+  "config.tts.api_key_help": "API key from your account with the provider. It is stored encrypted in the vault.",
+  "config.tts.cloud_voice_help": "Voice the provider uses to speak the text.",
+  "config.tts.phonon_catalog_help": "Filters the voice list below by language. It does not change the voice selected above.",
+  "config.tts.supertonic_image_help": "Docker image the Supertonic container is started from. Change only if you use your own image.",
+  "config.tts.supertonic_port_help": "Port the Supertonic container listens on internally (default 7788).",
+  "config.tts.supertonic_data_path_help": "Folder for models and container data, relative to the AuraGo directory (default data/supertonic).",
+  "config.tts.supertonic_container_name_help": "Name of the Docker container. Change it only if the default name is already taken.",
+  "config.tts.piper_port_help": "Port the Piper container listens on internally (default 10200).",
+  "config.tts.piper_image_help": "Docker image the Piper container is started from. Change only if you use your own image.",
+  "config.tts.piper_data_path_help": "Folder for downloaded voices, relative to the AuraGo directory (default data/piper)."
 }

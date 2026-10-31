@@ -24,8 +24,9 @@ function renderVideoGenerationSection(section) {
 
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.video_gen.enabled_label')}</span>
-        <div class="toggle ${enabled ? 'on' : ''}" data-path="video_generation.enabled" onclick="toggleBool(this);setNestedValue(configData,'video_generation.enabled',this.classList.contains('on'));renderVideoGenerationSection(null)"></div>
-    </div>`;
+        <div class="toggle ${enabled ? 'on' : ''}" data-path="video_generation.enabled" aria-describedby="video-enabled-help" onclick="toggleBool(this);setNestedValue(configData,'video_generation.enabled',this.classList.contains('on'));renderVideoGenerationSection(null)"></div>
+    </div>
+    <div class="field-help" id="video-enabled-help">${t('config.video_gen.enabled_help')}</div>`;
 
     if (!enabled) {
         html += `<div class="wh-notice">
@@ -54,6 +55,7 @@ function renderVideoGenerationSection(section) {
     html += `<div class="field-grid two-cols">`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.video_gen.provider_label')}</div>
+        <div class="field-help">${t('config.video_gen.provider_help')}</div>
         <select class="field-select" data-path="video_generation.provider" onchange="videoGenerationProviderChanged(this)">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.video_gen.select_provider')}</option>`;
     configGeneralProviders().forEach(p => {
@@ -80,16 +82,19 @@ function renderVideoGenerationSection(section) {
         <div class="field-grid two-cols">
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.duration_label')}</div>
+                <div class="field-help">${t('config.video_gen.duration_help')}</div>
                 <input type="number" class="field-input" data-path="video_generation.default_duration_seconds" value="${cfg.default_duration_seconds || 6}" min="1" max="30">
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.resolution_label')}</div>
+                <div class="field-help">${t('config.video_gen.resolution_help')}</div>
                 <select class="field-select" data-path="video_generation.default_resolution">
                     ${resolutionOptions.map(v => `<option value="${v}"${currentResolution === v.toLowerCase() ? ' selected' : ''}>${v}</option>`).join('')}
                 </select>
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.aspect_ratio_label')}</div>
+                <div class="field-help">${t('config.video_gen.aspect_ratio_help')}</div>
                 <select class="field-select" data-path="video_generation.default_aspect_ratio">
                     ${aspectRatioOptions.map(v => `<option value="${v}"${currentAspectRatio === v ? ' selected' : ''}>${v}</option>`).join('')}
                 </select>
@@ -103,14 +108,17 @@ function renderVideoGenerationSection(section) {
         <div class="field-grid two-cols">
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.poll_interval_label')}</div>
+                <div class="field-help">${t('config.video_gen.poll_interval_help')}</div>
                 <input type="number" class="field-input" data-path="video_generation.poll_interval_seconds" value="${cfg.poll_interval_seconds || 10}" min="1" max="120">
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.timeout_label')}</div>
+                <div class="field-help">${t('config.video_gen.timeout_help')}</div>
                 <input type="number" class="field-input" data-path="video_generation.timeout_seconds" value="${cfg.timeout_seconds || 600}" min="30" max="3600">
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.max_daily_label')}</div>
+                <div class="field-help">${t('config.video_gen.max_daily_help')}</div>
                 <input type="number" class="field-input" data-path="video_generation.max_daily" value="${cfg.max_daily || 0}" min="0" placeholder="0">
             </div>
         </div>

@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Connected to Telnyx",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Default language code used for Telnyx voice prompts and call transcription."
+  "help.telnyx.voice_language": "Default language code used for Telnyx voice prompts and call transcription.",
+  "config.telnyx.voice_gender_help": "Voice the agent uses to speak on phone calls.",
+  "config.telnyx.max_concurrent_calls_help": "How many calls may run at the same time (1-20, default 3). Further calls are rejected.",
+  "config.telnyx.max_sms_per_minute_help": "Maximum number of outgoing SMS per minute (1-60, default 10). Protects against accidental bulk sending and high costs."
 }

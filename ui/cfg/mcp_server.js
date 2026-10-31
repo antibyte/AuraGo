@@ -28,10 +28,10 @@ async function renderMCPServerSection(section) {
     // Enabled toggle
     html += `<div class="mcp-srv-toggle-row">
         <div class="mcp-srv-toggle-copy">
-            <span class="mcp-srv-toggle-label">${t('config.mcp_server.enabled_label')}</span>
-            <div class="field-help">${t('config.mcp_server.enabled_help')}</div>
+            <span class="mcp-srv-toggle-label" id="mcp-srv-enabled-label">${t('config.mcp_server.enabled_label')}</span>
+            <div class="field-help" id="mcp-srv-enabled-help">${t('config.mcp_server.enabled_help')}</div>
         </div>
-        <div class="toggle ${effectiveEnabled ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.enabled"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
+        <div class="toggle ${effectiveEnabled ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.enabled" aria-labelledby="mcp-srv-enabled-label" aria-describedby="mcp-srv-enabled-help"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
     </div>`;
     if (vscodeBridge) {
         html += `<div class="field-help mcp-srv-forced-note">🔒 ${escapeHtml(t('config.mcp_server.forced_by_bridge'))}</div>`;
@@ -39,11 +39,11 @@ async function renderMCPServerSection(section) {
 
     html += `<div class="mcp-srv-toggle-row">
         <div class="mcp-srv-toggle-copy">
-            <span class="mcp-srv-toggle-label">${t('config.mcp_server.vscode_bridge')}</span>
-            <div class="field-help">${t('config.mcp_server.vscode_bridge_desc')}</div>
+            <span class="mcp-srv-toggle-label" id="mcp-srv-bridge-label">${t('config.mcp_server.vscode_bridge')}</span>
+            <div class="field-help" id="mcp-srv-bridge-help">${t('config.mcp_server.vscode_bridge_desc')}</div>
             <div class="field-help">${escapeHtml(t('config.mcp_server.bridge_forces_note'))}</div>
         </div>
-        <div class="toggle ${vscodeBridge ? 'on' : ''}" data-path="mcp_server.vscode_debug_bridge" onclick="mcpToggleVSCodeBridge(this)"></div>
+        <div class="toggle ${vscodeBridge ? 'on' : ''}" data-path="mcp_server.vscode_debug_bridge" aria-labelledby="mcp-srv-bridge-label" aria-describedby="mcp-srv-bridge-help" onclick="mcpToggleVSCodeBridge(this)"></div>
     </div>`;
 
     if (vscodeBridge) {
@@ -68,10 +68,10 @@ async function renderMCPServerSection(section) {
     // Require Auth toggle
     html += `<div class="mcp-srv-toggle-row">
         <div class="mcp-srv-toggle-copy">
-            <span class="mcp-srv-toggle-label">${t('config.mcp_server.require_auth')}</span>
-            <div class="field-help">${t('config.mcp_server.require_auth_help')}</div>
+            <span class="mcp-srv-toggle-label" id="mcp-srv-auth-label">${t('config.mcp_server.require_auth')}</span>
+            <div class="field-help" id="mcp-srv-auth-help">${t('config.mcp_server.require_auth_help')}</div>
         </div>
-        <div class="toggle ${effectiveRequireAuth ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.require_auth"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
+        <div class="toggle ${effectiveRequireAuth ? 'on' : ''}${vscodeBridge ? ' cfg-toggle-disabled' : ''}" data-path="mcp_server.require_auth" aria-labelledby="mcp-srv-auth-label" aria-describedby="mcp-srv-auth-help"${vscodeBridge ? ' aria-disabled="true" data-disabled="true" tabindex="-1"' : ''} onclick="toggleBool(this)"></div>
     </div>`;
     if (vscodeBridge) {
         html += `<div class="field-help mcp-srv-forced-note">🔒 ${escapeHtml(t('config.mcp_server.forced_by_bridge_auth'))}</div>`;
@@ -100,9 +100,10 @@ async function renderMCPServerSection(section) {
             <label class="mcp-srv-field-label">
                 <span class="mcp-srv-caption">${t('config.mcp_server.endpoint_url')}</span>
                 <div class="mcp-srv-action-row">
-                    <input class="field-input mcp-srv-endpoint-input" value="${escapeAttr(endpointUrl)}" readonly id="mcp-endpoint-url">
+                    <input class="field-input mcp-srv-endpoint-input" value="${escapeAttr(endpointUrl)}" readonly id="mcp-endpoint-url" aria-describedby="mcp-endpoint-url-help">
                     <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('mcp-endpoint-url').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_url'))}'},1500)})">${t('config.mcp_server.copy_url')}</button>
                 </div>
+                <div class="field-help" id="mcp-endpoint-url-help">${t('config.mcp_server.endpoint_url_help')}</div>
             </label>
         </div>`;
 
@@ -112,11 +113,12 @@ async function renderMCPServerSection(section) {
                 <label class="mcp-srv-field-label">
                     <span class="mcp-srv-caption">${t('config.mcp_server.token')}</span>
                     <div class="mcp-srv-action-row">
-                        <input class="field-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••">
+                        <input class="field-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••" aria-describedby="mcp-token-value-help">
                         <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
                         <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
                     </div>
                     ${cfgActionResult.html('mcp-token-error')}
+                    <div class="field-help" id="mcp-token-value-help">${t('config.mcp_server.token_help')}</div>
                 </label>
             </div>`;
             // Load existing token

@@ -50,9 +50,9 @@ async function renderNetlifySection(section) {
     html += `<div class="cfg-toggle-row-highlight">
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.enabled_label')}</span>
-            <div class="field-help">${t('config.netlify.enabled_help')}</div>
+            <div class="field-help" id="nf-netlify-enabled-help">${t('config.netlify.enabled_help')}</div>
         </div>
-        <div class="toggle ${nfEnabled ? 'on' : ''}" data-path="netlify.enabled" onclick="toggleBool(this)"></div>
+        <div class="toggle ${nfEnabled ? 'on' : ''}" data-path="netlify.enabled" aria-describedby="nf-netlify-enabled-help" onclick="toggleBool(this)"></div>
     </div>`;
 
     html += `<div class="field-group">`;
@@ -62,34 +62,34 @@ async function renderNetlifySection(section) {
     html += `<div class="field-grid two-cols">`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="netlify.readonly" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.readonly ? 'on' : ''}" data-path="netlify.readonly" aria-describedby="nf-netlify-readonly-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.readonly')}</span>
-            <div class="field-help">${t('config.netlify.readonly_help')}</div>
+            <div class="field-help" id="nf-netlify-readonly-help">${t('config.netlify.readonly_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_deploy === true ? 'on' : ''}" data-path="netlify.allow_deploy" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_deploy === true ? 'on' : ''}" data-path="netlify.allow_deploy" aria-describedby="nf-netlify-allow-deploy-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.allow_deploy')}</span>
-            <div class="field-help">${t('config.netlify.allow_deploy_help')}</div>
+            <div class="field-help" id="nf-netlify-allow-deploy-help">${t('config.netlify.allow_deploy_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_site_management === true ? 'on' : ''}" data-path="netlify.allow_site_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_site_management === true ? 'on' : ''}" data-path="netlify.allow_site_management" aria-describedby="nf-netlify-allow-site-management-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.allow_site_management')}</span>
-            <div class="field-help">${t('config.netlify.allow_site_management_help')}</div>
+            <div class="field-help" id="nf-netlify-allow-site-management-help">${t('config.netlify.allow_site_management_help')}</div>
         </div>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_env_management === true ? 'on' : ''}" data-path="netlify.allow_env_management" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_env_management === true ? 'on' : ''}" data-path="netlify.allow_env_management" aria-describedby="nf-netlify-allow-env-management-help" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.netlify.allow_env_management')}</span>
-            <div class="field-help">${t('config.netlify.allow_env_management_help')}</div>
+            <div class="field-help" id="nf-netlify-allow-env-management-help">${t('config.netlify.allow_env_management_help')}</div>
         </div>
     </div>`;
 
@@ -121,12 +121,12 @@ async function renderNetlifySection(section) {
 
     html += `<div class="field-group">`;
     html += `<div class="field-group-title">🔑 ${t('config.netlify.token_title')}</div>`;
-    html += `<div class="field-group-desc">${t('config.netlify.token_desc')}</div>`;
+    html += `<div class="field-group-desc" id="nf-token-desc">${t('config.netlify.token_desc')}</div>`;
 
     html += `<label>
-        <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">🔐 vault</small></span>
+        <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">🔐 ${t('config.netlify.vault_badge')}</small></span>
         <div class="password-wrap">
-            <input class="field-input" type="password" id="nf-token" data-path="netlify.token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
+            <input class="field-input" type="password" id="nf-token" data-path="netlify.token" aria-describedby="nf-token-desc" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
         </div>
     </label>`;

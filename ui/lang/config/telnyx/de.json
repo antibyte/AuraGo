@@ -42,5 +42,8 @@
   "config.telnyx.status_ok": "Mit Telnyx verbunden",
   "config.telnyx.status_success": "✅",
   "config.telnyx.status_error": "❌",
-  "help.telnyx.voice_language": "Standard-Sprachcode für Telnyx-Sprachansagen und Anruftranskription."
+  "help.telnyx.voice_language": "Standard-Sprachcode für Telnyx-Sprachansagen und Anruftranskription.",
+  "config.telnyx.voice_gender_help": "Stimme, mit der der Agent bei Telefonanrufen spricht.",
+  "config.telnyx.max_concurrent_calls_help": "Wie viele Anrufe gleichzeitig laufen dürfen (1–20, Standard 3). Weitere Anrufe werden abgewiesen.",
+  "config.telnyx.max_sms_per_minute_help": "Höchstzahl ausgehender SMS pro Minute (1–60, Standard 10). Schützt vor unbeabsichtigtem Massenversand und hohen Kosten."
 }
