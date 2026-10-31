@@ -1,6 +1,6 @@
 # Desktop Themes
 
-The Virtual Desktop has fourteen themes. A theme sets the shell layout (taskbar or dock), the colour scheme, the icon set, the look of windows, menus and controls and, for some themes, subtle visual effects. Apps keep their own content and take their colours from the shared theme tokens.
+The Virtual Desktop has fourteen themes. A theme sets the shell layout (taskbar or dock), the colour scheme, the icon set, the look of windows, menus and controls and, for some themes, subtle visual effects. Apps keep their own content and are painted from the theme's app materials, so their bars, sidebars, cards and buttons take on the look of the active theme.
 
 This page covers choosing a theme, accessibility and the developer contract. The implementation rules live in `ui/AGENTS.md` (Desktop theme system) and `ui/js/desktop/apps/AGENTS.md` (App theme bridge contract).
 
@@ -40,7 +40,7 @@ Organic's *Forest* wallpaper is a misty conifer forest at dusk, with a low amber
 
 - **Reduced motion.** When the system requests reduced motion (`prefers-reduced-motion: reduce`), a global override ends every transition and animation at once: durations drop to 0 ms and animations run a single iteration. The shell also skips its window, menu and start-menu transitions, and Crazy's confetti and sparkles stop.
 - **Window animations.** Settings, category **Windows**, *Window animations* turns off theme animations and animated effects; themes with a static effect layer retain that layer. This setting also applies when the system asks for reduced motion.
-- **Contrast.** Body text on the app and panel backgrounds, and muted text on the app background, are tested to a contrast ratio of at least 4.5:1 for every skinned theme.
+- **Contrast.** Body text on the app and panel backgrounds, and muted text on the app background, are tested to a contrast ratio of at least 4.5:1 for every skinned theme. The app material pairs (see App materials) are tested the same way.
 - **Focus.** Keyboard focus shows a ring in every theme. Amiga draws a dashed black outline and Crazy a cyan ring.
 - **Amiga window gadgets.** The Amiga skin keeps the authentic Workbench gadget layout (close far left, depth and zoom gadgets on the right) purely visually through CSS grid placement, so keyboard Tab order follows the DOM (AI, minimize, maximize, close; AI and maximize are omitted where a window lacks them) rather than the on-screen order, and the dashed black focus ring makes the focused gadget visible.
 - **Windows XP Start menu.** The Luna-style Start menu uses two columns: the app list fills the left pane, with system links and categories stacked on the right. The CSS adapts the column widths on narrow screens while keeping each action reachable.
@@ -140,17 +140,17 @@ and expired calls per family.
 
 1. `DESKTOP_THEMES` in `ui/js/desktop/core/theme-runtime.js` describes every theme. `desktop.DesktopThemeIDs()` in `internal/desktop/themes.go` lists the same ids and is the allowed value list of `appearance.theme`.
 2. `applyDesktopSettings()` in `ui/js/desktop/core/desktop-foundation.js` calls `applyDesktopThemeAttributes()`, which sets `data-theme`, `data-shell`, `data-scheme` and `data-polish` on `<body>`.
-3. CSS keys off these attributes: `[data-theme]` in the skins and the shell-overrides bridge, `[data-shell]` in the layout rules (`desktop-base.css`, `desktop-windows.css`, `desktop-chrome.css`), and `[data-polish]` in `desktop-polish.css`.
+3. CSS keys off these attributes: `[data-theme]` in the skins, the app material files and the shell-overrides bridge, `[data-shell]` in the layout rules (`desktop-base.css`, `desktop-windows.css`, `desktop-chrome.css`), and `[data-polish]` in `desktop-polish.css`.
 4. JavaScript asks the capability helpers (`shellLayout()`, `themeUsesGlobalMenu()`, `themeScheme()`, `themeMotionMs(kind)`, `themeIconFamily()`) and never compares a theme id. Apps read `document.body.dataset.scheme`.
 5. `syncDesktopThemeFx()` starts or stops the effects of an `fx` theme.
 
-Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the locally packaged theme wallpapers: Electronic Dreams, Windows XP, Green Slime, Voxel World, Orbit, Forest and Minimal), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
+Layering in `ui/css/desktop-shell.bundle.css`: the shared shell files (`desktop-base.css` carries the Standard and Fruity core tokens), then `desktop-shell-overrides.css` (the `--vd-theme-*` bridge), `desktop-chrome.css`, `desktop-wallpaper-live.css`, `desktop-wallpaper-themes.css` (the locally packaged theme wallpapers: Electronic Dreams, Windows XP, Green Slime, Voxel World, Orbit, Forest and Minimal), the skins `desktop-theme-amiga.css`, `-cyberpunk`, `-black-gloss`, `-crazy`, `-lollipop`, `-organic`, `-electronic-dreams`, `-windows-xp`, `-green-slime`, `-voxel-world`, `-orbit` and `-minimal`, then `desktop-materials.css` and the twelve app material files `desktop-materials-<id>.css` in the same order (see App materials), then `desktop-cursors.css`, and last `desktop-polish.css`. `scripts/build-ui-bundles.js` assembles this bundle and the `desktop-theme-fx` bundle.
 
 ### Body attributes
 
 | Attribute | Values | Used by |
 | --- | --- | --- |
-| `data-theme` | theme id | skin files and the `.desktop-body[data-theme]` bridge |
+| `data-theme` | theme id | skin files, app material files and the `.desktop-body[data-theme]` bridge |
 | `data-shell` | `taskbar`, `dock` | layout rules and `shellLayout()` |
 | `data-start-menu` | `classic`, `xp` | theme-specific Start menu structure; XP supplies a two-column layout |
 | `data-scheme` | `light`, `dark` | apps (Code Studio editor, CYD Creator code, Layerling, Leafy) |
@@ -201,6 +201,115 @@ Every skin root (`.desktop-body[data-theme="<id>"]`) defines:
 - Dark root rule, for a theme with a `schemeSetting`: the skin also has a plain rule `.desktop-body[data-theme="<id>"][data-scheme="dark"]` that sets `color-scheme: dark`. That rule may set the root-only tokens (`color-scheme`, `--vd-theme-app-bg`, `--vd-theme-panel-bg`, `--vd-text`, `--vd-theme-muted`, `--vd-accent` and `--vd-accent-contrast`). The contract merges it over the root rule and measures its contrast and scheme the same way. Those tokens set in any other rule fail the contract. Minimal is the skin with this rule; Fruity has no skin file.
 
 Standard and Fruity have no skin file. Their core tokens live in `desktop-base.css` and their `--vd-theme-*` bridge in `desktop-shell-overrides.css`. The contract tests check skins only.
+
+### App materials
+
+Apps are painted from the app materials of the active theme. Before this layer, every app took its interior from three or four flat bridge colours (`--vd-theme-app-bg`, `--vd-theme-panel-bg`, `--vd-theme-chrome-bg`, `--vd-theme-control-bg`, `--vd-theme-border`). The skins styled the shell and the window frame, so the themes differed outside the windows and looked alike inside them. A material is a set of `--vd-mat-*` custom properties that a theme defines on its body. Each region of an app (bar, sidebar, card, well, field, button, selection) takes its background and edge from one of these tokens. The shell and the window frame are still styled by the skin. The design, the intended look of each theme and the reasons for the vocabulary are in `docs/superpowers/specs/2026-10-31-desktop-app-materials-design.md`.
+
+**Files.**
+
+- `ui/css/desktop-materials.css`: the vocabulary comment, the defaults on `.desktop-body`, and the Standard and Fruity sets (light and dark).
+- `ui/css/desktop-materials-<id>.css`: one file for each other theme, with dashes in place of underscores: `amiga`, `cyberpunk`, `black-gloss`, `crazy`, `lollipop`, `organic`, `electronic-dreams`, `windows-xp`, `green-slime`, `voxel-world`, `orbit` and `minimal`. Minimal's file holds its dark set as a second rule.
+
+The thirteen files are loaded with the shell bundle after the skins (see Layering above), so the tokens exist in every theme.
+
+**Vocabulary.** Every name starts with `--vd-mat-`.
+
+| Group | Tokens | Meaning |
+| --- | --- | --- |
+| Surfaces | `canvas`, `bar`, `side`, `card`, `well`, `field`, `btn`, `primary`, `selected`, each as `-color` and as the background (`--vd-mat-bar-color` and `--vd-mat-bar`) | `-color` is the opaque base colour that the contrast tests measure. The background is the full `background` value, which may layer gradients or SVG patterns over the base colour. Canvas: app root and work area. Bar: headers, toolbars, tab and status bars, rulers. Side: sidebars, libraries, nav rails, inspectors. Card: cards, tiles, grouped panels, in-app dialogs. Well: recessed editors, timelines, tables and list scrollers. Field: inputs, selects, textareas. Btn: default buttons. Primary: call-to-action buttons. Selected: selected rows, pressed toggles and active tabs. |
+| Edges and shapes | `bar-edge`, `side-edge`, `well-shadow`, `card-border`, `card-radius`, `card-shadow`, `field-border`, `field-radius`, `field-shadow`, `btn-border`, `btn-radius`, `btn-shadow`, `primary-border`, `primary-shadow`, `selected-edge` | `box-shadow` values for bars, sides, wells, fields, buttons, primary and selection. Border colour, radius and shadow for cards, fields and buttons. |
+| Controls and states | `btn-hover`, `btn-text`, `primary-hover`, `primary-text`, `selected-text`, `hover` | Hover backgrounds, text on buttons, primary and selection, and the translucent hover fill of rows and items. |
+| Lines and type | `divider`, `rule`, `heading-font`, `heading-weight`, `heading-color`, `heading-tracking`, `heading-transform`, `label-font`, `label-color`, `label-tracking`, `label-transform`, `mono-font`, `accent-2`, `glow` | 1 px separators and region borders. `rule` is an optional decorative line as a background image. Titles and section headings, small labels and column captions, monospace readouts, a secondary signature colour, and the `box-shadow` glow of active elements (`none` where the theme has no glow). |
+
+**Defaults.** The `.desktop-body` rule in `desktop-materials.css` derives every token from the existing bridge: canvas from `--vd-theme-app-bg`, bar and side from `--vd-theme-chrome-bg`, card from `--vd-theme-panel-bg`, field and button from `--vd-theme-control-bg`, primary from `--vd-accent` with `--vd-accent-contrast` as text, selected from `--vd-theme-accent-soft`, labels from `--vd-theme-muted`, headings from `--vd-text`. The defaults have no shadows, gradients or glow. They are a baseline only: the contract test requires each theme to set every token itself, so no theme relies on them.
+
+**Rules for material files.**
+
+- Selectors start with `.desktop-body` (the defaults) or `.desktop-body[data-theme="<id>"]`. The dark sets of Fruity and Minimal add `[data-scheme="dark"]`. Rules are plain: no rule may sit inside an at-rule.
+- Declarations are custom properties only. The one at-rule allowed is `@font-face`, whose family name starts with `Desktop Theme ` (for a font under `/fonts/`). No `!important`, no `animation` or `transition`, no `@keyframes`, no `@import`.
+- URLs are `/fonts/` files or `data:image/svg+xml` patterns, and nothing else. A pattern is at most 4096 bytes and contains no script, `foreignObject`, `javascript:` or external address; the SVG and xlink namespace URLs are the only `http` addresses allowed. Prefer CSS gradients.
+- Each background token ends with `var(--vd-mat-<x>-color)`, so the base colour is its last layer. The base colour is an opaque `#rrggbb`. In a user-accent theme it may be built from `var(--vd-accent)`. Gradients and patterns go underneath it and stay faint where text sits: the spec suggests white overlays up to .10 alpha on dark bases, black up to .12 on light bases, and patterns up to .12 alpha. Strong decoration goes on edges (rims, rails, studs, bands of 2 to 4 px).
+- At most 260 lines per file.
+- Contrast is measured at 4.5:1 on the base colours, not on the layers. `--vd-text` and `--vd-theme-muted` come from the skin.
+  - `--vd-text` on the canvas, bar, side, card, well, field and button colours.
+  - `--vd-theme-muted` on the canvas, bar, side and card colours.
+  - `--vd-mat-btn-text` on `--vd-mat-btn-color`, `--vd-mat-primary-text` on `--vd-mat-primary-color`, and `--vd-mat-selected-text` on `--vd-mat-selected-color`.
+  - `--vd-mat-heading-color` and `--vd-mat-label-color` on the canvas and card colours.
+- User-accent themes (Standard, Fruity and Black Gloss) are not measured for a colour built from `var(--vd-accent)`. User-accent themes either pair the raw accent with `--vd-accent-contrast` or a white-lightened accent with a dark ink literal; the contract test checks both.
+
+**Adopting the materials.** An app stylesheet follows these rules.
+
+1. Give each structural region a role: canvas, bar, side, card, well, field, btn, primary, selected (pressed, active or selected state), hover, heading, label or divider.
+2. Paint with the token and keep the old value as the fallback:
+
+   ```css
+   .example-sidebar {
+       background: var(--vd-mat-side, var(--ss-panel));
+       box-shadow: var(--vd-mat-side-edge, none);
+       border-color: var(--vd-mat-divider, var(--ss-border));
+   }
+   ```
+
+3. When one app alias feeds several roles, define role aliases on the app root. Synth Studio (`ui/css/desktop-app-synth-studio.css`, `.ss-app`) does this: `--ss-canvas`, `--ss-bar`, `--ss-side`, `--ss-well`, `--ss-card`, `--ss-field`, `--ss-line` and `--ss-hover` each read their token with the old value as fallback, and the rules use those aliases.
+4. Colour maths uses only `-color` tokens: `color-mix(in srgb, var(--vd-mat-card-color, var(--ss-panel)) 90%, #000)`.
+5. Text on a primary or selected surface uses `--vd-mat-primary-text` or `--vd-mat-selected-text`. Headings and labels take the type tokens (family, weight, colour, tracking and transform). Font sizes do not change.
+6. Geometry does not change. A radius may come from a token only on a card, field or button that already had one.
+7. Semantic colours (success, warning, danger, record, track and chart colours), dark media surfaces (video, camera, terminal, 3D and game canvases) and the exclusions in `ui/js/desktop/apps/AGENTS.md` ("App theme bridge contract") keep their own colours.
+8. Surface tokens are layered values, so they go in the `background:` shorthand. Do not set `background-size` or `background-repeat` after them in the same rule: the material layers carry their own sizes and repeats, and a longhand resets all of them. `background-color` takes only `-color` tokens.
+9. App CSS and JS do not select on `[data-theme…]` and do not use a theme id. Do not add `!important`.
+10. Existing test markers stay. If a marked line changes, keep the marker text inside the new line, or update the marker in the same change. `TestDesktopEverydayAppsUseThemeBridge` in `ui/desktop_theme_consistency_test.go` checks a list of marker strings.
+
+**Shared bridge.** `ui/css/desktop-app-common.css` forces no role on the regions that apps paint themselves. Every app paints its own bars, sides, fields, buttons, cards, dialogs and roots in its own stylesheet, so its role wins. The file keeps these groups:
+
+- A zero-specificity `:where()` default for those regions: the text colour, and the border colour of the whole-app containers, displays and chips. The group lists the regions, so the marker strings that `TestDesktopEverydayAppsUseThemeBridge` checks stay in the file. Plain inputs inside the dialog roots take the field material as a zero-specificity fallback.
+- The modal overlay backdrops: `--vd-theme-overlay-bg` under `!important`, and `--vd-theme-overlay-blur`.
+- The alias groups (`--cam-*`, `--cs-*`, `--nc-*`, `--nm-*`, `--hp-*`, `--gm-*`, `--oscad-*`, `--chess-*`, `--sw-*`) of the apps that map their own tokens to the bridge, under `!important`.
+- The SDK toast (`.ad-toast`) as a card, under `!important`. It is the one dialog no app paints.
+- Shared geometry: toolbar padding and gap, control height and button type size, and the button radius and shadow for `.vd-tool-button`, `.vd-button`, `.fm-btn` and office toolbar buttons. Generic `.vd-toolbar` and `.office-toolbar` take the bar material. The Settings pane drops its box shadow.
+
+Do not add a selector of an app that paints itself to a bridge group: a bridge rule outranks the app's own class rule and its role would lose. The bridge sets no row or navigation radii, so the apps' own radii apply. The skins do not paint the Settings app. Its regions come from the materials, Minimal's switch tracks read the material tokens, and the Organic wood panes and the Fruity Settings glass and blue-wash rules are not in the skins.
+
+**Adoption status.** Every stylesheet an app loads adopts the tokens, except the exceptions in `desktopAppMaterialsExempt` (`ui/desktop_app_materials_test.go`, each with its reason): vendor CSS (xterm, cm-chessboard, highlight.js) and the theme-independent skins Radio (`radio.css`), RTL-SDR, TeeVee, Galaxa, Retro Games, the SIP-phone hardware chrome, Minigolf and the Home Assistant switchboard cabinet, plus `go2rtc-source-form.css`, which has no painted region (see `ui/js/desktop/apps/AGENTS.md`). Kaggle, the QR dialog and the GOG source panels adopt the tokens too.
+
+**Accent ink and semantic text.** Standard, Fruity and Black Gloss take the user's accent, so text on the accent needs ink that holds 4.5:1 on every preset. Fruity sets `--vd-accent-contrast` to a dark navy ink in `desktop-materials.css`; white measures 3.65:1 on the default `#0a84ff` and under 2.5:1 on the presets. The two pairings allowed on user-accent surfaces are under *Rules for material files*. Success, warning, danger and info text that sits on the light themes' panels mixes about 20 % of the semantic colour into `--vd-text` through `light-dark(color-mix(…), <old colour>)`, so the dark themes keep their colours.
+
+**Material character per theme.** The table describes the files as shipped.
+
+| Theme | Canvas | Bars | Sidebars | Cards | Primary | Type |
+| --- | --- | --- | --- | --- | --- | --- |
+| Standard | Slate with a faint top sheen | Slate with hairline edges | Darker slate with inner edge lines | Raised slate, radius 10, soft shadow | Accent gel | UI font, muted uppercase labels |
+| Fruity | Light grey; graphite in dark | Unified-toolbar gradient; graphite gradient | Vibrancy grey; dark grey | White, radius 12, layered shadows; graphite in dark | Accent gel | UI font, sentence-case labels, solid accent selection |
+| Amiga | Flat grey, no gradients | Raised light grey with white and black lines | Dithered grey | Raised grey with black outline, radius 0 | Workbench blue, black text | VGA pixel font, black dividers |
+| Cyberpunk | Night blue with cyan grid and scanlines | Night glass with yellow notch and underline | Darkest night with cyan neon rail | Cut top-left corner traced in cyan, radius 0 | Solid yellow, black text, glow | Oxanium capitals in yellow, cyan Share Tech labels |
+| Black Gloss | Piano black with lacquer reflection | Classic gloss split | Black with diagonal reflection | Lifted lacquer with top highlight, radius 12 | Glossy accent gel | Silver Inter headings and labels |
+| Crazy | Violet with confetti dots | Violet gloss with rainbow stripe at the bottom | Violet with rainbow rail | Violet in a rainbow frame, radius 18 | Pink-to-orange gel, black text | Heavy yellow Exo 2 headings, cyan labels |
+| Lollipop | Cotton-candy pink with polka dots | Pink with a candy-cane band | Lavender ticking | White candy tins with pink shadow, radius 18 | Glossy plum gel, white text | Plum Montserrat headings |
+| Organic | Walnut grain under shade | Carved wood with brass inlay | Oxblood leather with brass stitch | Burl panel, brass border and corner studs, radius 18 | Brushed brass, espresso text | Georgia serif in light brass |
+| Electronic Dreams | Graphite circuit board with copper traces | Anodised graphite, copper trace, amber LED | Solder-mask green-black with copper edge trace | Dark board with copper via dots, radius 8 | Amber, dark text, glow | Amber-white headings, teal mono labels |
+| Windows XP | Luna cream | Luna toolbar gradient | Light blue task pane | White panel with blue header band, radius 3 | Luna blue gel, white text | Blue Trebuchet headings, Tahoma labels |
+| Green Slime | Moss with floating bubbles | Glossy slime with lime drips at the bottom | Swamp with a dripping lime rail | Blobby gel shape, squishy shade | Lime gel, dark text | Bold lime Trebuchet headings |
+| Voxel World | Parchment with a faint pixel checker | Light oak planks | Light cobblestone | Inventory slot with 2 px bevel, radius 0 | Forest green with grass fringe | Bold dark-green Trebuchet headings |
+| Orbit | Deep space with stars and a violet nebula | Smoked glass with cyan underline glow | Dark glass with violet rail | Dark glass with cyan HUD corners, radius 6 | Cyan, near-black text, glow | Barlow Condensed capitals, violet labels |
+| Minimal | White; graphite in dark | Paper with hairline | Paper with hairline | Plain, hairline border, no shadow | Solid ink, paper text | Geist 600, muted tracked labels |
+
+**Tests.**
+
+- `go test ./ui -run DesktopAppMaterials -count=1` runs `TestDesktopAppMaterialsTokens` (every theme sets every token, colours and contrast), `TestDesktopAppMaterialsFiles` (selectors, declarations, URLs, line budget and `@font-face` names), `TestDesktopAppMaterialsBundle` (order in `desktop-shell.bundle.css`), `TestDesktopAppMaterialsChecker` (the checker reports known-bad sets) and `TestDesktopAppMaterialsAdoptedByApps` (the adoption guard).
+- The app marker tests run with `go test ./ui -run DesktopTheme -count=1`, for example `TestDesktopEverydayAppsUseThemeBridge`.
+- `TestDesktopAppMaterialsAdoptedByApps` is the adoption guard: it reads the `/css/*.css` paths of `commonAppStyles` and `DESKTOP_APP_ASSETS` in `ui/js/desktop/core/module-loader.js` and requires each to reference `--vd-mat-`, except the entries of `desktopAppMaterialsExempt`, each with a one-line reason. An exempt entry that reads the tokens, or that no app loads any more, fails too.
+- Visual review uses the survey harness in `reports/desktop-app-materials-2026-10-31/`. The folder is git-ignored (`/reports`) and holds `run-survey.ps1`, its README, `overlay.json` and the overlay test `zz_app_survey_test.go` (`TestZZAppSurvey`), which `overlay.json` maps into package `ui` for the run. The harness opens each app maximised in each theme (Fruity and Minimal in light and dark) and writes contact sheets. Run it from a shell that may start Chrome:
+
+  ```powershell
+  .\reports\desktop-app-materials-2026-10-31\run-survey.ps1 -Themes organic,cyberpunk -Apps synth-studio,files
+  .\reports\desktop-app-materials-2026-10-31\run-survey.ps1 -Out D:\shots\round1 -SheetsOnly
+  ```
+
+  By default the output goes to `reports/desktop-app-materials-2026-10-31/out/`:
+
+  - `sheet__<app>.png`: one app in every theme, in registry order.
+  - `theme__<theme-label>.png`: every app in one theme. The labels are `fruity-light`, `fruity-dark`, `minimal-light` and `minimal-dark` for the two schemes.
+  - `<app>/<theme-label>.png`: one 1280 × 800 screenshot per pair. `index.txt` gives the cell order of the sheets.
 
 ### Rules and Budgets
 
@@ -511,7 +620,7 @@ The skin file has two root rules. The plain root rule holds the Light palette, a
 
 1. Add one descriptor line to `DESKTOP_THEMES` in `ui/js/desktop/core/theme-runtime.js`, keys in registry order, with `thumb: '/img/themes/<id>.svg'`.
 2. Add the same id at the same position in `DesktopThemeIDs()` in `internal/desktop/themes.go`.
-3. Create `ui/css/desktop-theme-<id>.css` with the root rule and the full token set. List it in the `desktop-shell.bundle.css` entry of `cssBundles` in `scripts/build-ui-bundles.js`, after `desktop-wallpaper-live.css` and before `desktop-polish.css`.
+3. Create `ui/css/desktop-theme-<id>.css` with the root rule and the full token set. List it in the `desktop-shell.bundle.css` entry of `cssBundles` in `scripts/build-ui-bundles.js`, after `desktop-wallpaper-live.css` and before `desktop-polish.css`. Also create `ui/css/desktop-materials-<id>.css` with every `--vd-mat-*` token and list it in the same entry, after the skins and before `desktop-cursors.css` (see App materials).
 4. If `schemeSetting` is set, the skin also needs the dark root rule `.desktop-body[data-theme="<id>"][data-scheme="dark"]` that sets `color-scheme: dark` (see *Token Contract*). A new scheme setting also needs its key in the allowed list of `ui/desktop_theme_registry_test.go`, a light and dark setting in `internal/desktop/types.go` and a label in `SCHEME_MODE_LABELS` in `ui/js/desktop/apps/settings.js`.
 5. If `fx: true`, create `ui/js/desktop/theme-fx/<id>.js` and list it in the `desktop-theme-fx` bundle after `fx-core.js`. A theme with several parts lists them in order, with the entry file last (Orbit has eight parts, with `orbit.js` last).
 6. Create `ui/img/themes/<id>.svg` (schematic, at most 8192 bytes).
@@ -525,6 +634,7 @@ npm run build:ui                                   # regenerate the bundles
 npm run check:ui                                   # fail when a generated bundle is stale
 npm run check:desktop-themes                       # cursors, XP icons, pinned vendor and UI bundles
 go test ./ui -run DesktopTheme -count=1            # registry, CSS contract, thumbnails, bundle order, layering
+go test ./ui -run DesktopAppMaterials -count=1     # app material tokens, file rules, contrast, bundle order, app adoption
 node scripts/test-ui-regressions.mjs               # Node suite, no browser; includes the Green Slime simulation, Orbit choreography and particles
 AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run DesktopTheme -timeout 30m
 AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '(TestDesktopGreenSlime|TestDesktopLivingMaterials|TestDesktopExperience)' -count=1 -timeout 30m
@@ -539,7 +649,7 @@ go test ./ui -run TestDesktopAuditAppearanceBrowser -count=1
 
 - The first command needs no browser. The sweep and Crazy reduced-motion tests skip unless `AURAGO_RUN_BROWSER_SMOKE=1` is set. The theme browser tests need Chrome or Edge.
 - `AURAGO_THEME_SWEEP` limits the sweep to some registry ids. Sweep screenshots go to `reports/desktop-theme-sweep/`.
-- `TestDesktopAuditAppearanceBrowser` writes the Standard and Fruity screenshots to `reports/desktop-audit-browser/`. A change to shared Standard or Fruity tokens must leave them pixel-identical.
+- `TestDesktopAuditAppearanceBrowser` writes the Standard and Fruity screenshots to `reports/desktop-audit-browser/`. A re-key of the Standard or Fruity shell tokens must leave them pixel-identical. A change to their app material sets (`desktop-materials.css`) is a visual change: review it with the survey harness instead.
 - `TestDesktopCrazyThemeHonoursReducedMotionBrowser` checks Crazy's reduced-motion behaviour in a browser.
 - The experience tests (`TestDesktopExperience*`) verify close guards, atomic settings, real geometry/rotation/Rapier collisions, pixel occlusion, static fallbacks and cleanup. `TestDesktopLivingMaterialsIdleBrowser` runs Green Slime and Electronic Dreams: their material must keep changing at idle, and Green Slime's drips must detach without input.
 - `TestDesktopGreenSlime*` checks the slime springs, the attached membrane (WebGL2 on the green_slime wallpaper, WebGL2 translucent on another wallpaper, and Canvas 2D) and the six-window budget. Pixel checks copy the effect canvas with `drawImage` first, so they read either renderer.
@@ -548,5 +658,5 @@ go test ./ui -run TestDesktopAuditAppearanceBrowser -count=1
 - `TestDesktopGreenSlimeCloseUpsBrowser` writes review images into the ignored `reports/desktop-experience-themes/slime/`: 1× full frames and 2× to 8× crops of the frame, corners, edges, drips and overlaps; one bubble through its stages, with contact sheets; the burst; a strand; drops; a taskbar splat; static crops; and `gl-ref-*` crops of the wallpaper's own gel beads for comparison. It needs `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_THEME_RECORDINGS=1`, a GPU and about a minute. It asserts that every stage is reached and that the page reports no errors, not how the images look. The `TestDesktopGreenSlime` pattern in the command block also matches it; without `AURAGO_THEME_RECORDINGS=1` it skips.
 - The membrane and six-window tests write `green-slime-attached-<label>.png` (labels `webgl2`, `webgl2-translucent`, `canvas2d`), `green-slime-corner-<label>.png` and `green-slime-six-windows.png` to the ignored `reports/desktop-experience-themes/` folder. The close-ups go to the ignored `reports/desktop-experience-themes/slime/` folder. `AURAGO_THEME_RECORDINGS=1` gates the close-ups and the motion GIF test (`TestDesktopThemeMotionRecordingsBrowser`, into `reports/desktop-experience-themes/motion/`), not the membrane or six-window screenshots.
 - Add `AURAGO_THEME_RECORDINGS=1` and run `TestDesktopThemeMotionRecordingsBrowser` to capture actual pointer-driven opening, dragging and closing as four GIFs in that report directory's `motion/` subdirectory. `AURAGO_BROWSER_MUTE_AUDIO=1` mutes the browser output while preserving Web Audio assertions.
-- `AURAGO_RUN_DESKTOP_THEME_NEUTRALITY=1 AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopThemeNeutralityAgainstHeadBrowser -count=1` compares Standard and Fruity pixels with the committed HEAD bundles before committing a theme change. It covers desktop/narrow viewports and both Fruity schemes.
+- `AURAGO_RUN_DESKTOP_THEME_NEUTRALITY=1 AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopThemeNeutralityAgainstHeadBrowser -count=1` compares Standard and Fruity pixels with the committed HEAD bundles before committing a shell-token change; a change to the app material sets is expected to differ and is reviewed with the survey harness. It covers desktop/narrow viewports and both Fruity schemes.
 - On Windows, set task-local `GOCACHE`, `GOTMPDIR`, `TEMP` and `TMP` if the default temporary directories are restricted. `AURAGO_DESKTOP_THEME_VENDOR_NODE_MODULES` can point the vendor check at an existing installation of the repository's pinned npm dependencies.

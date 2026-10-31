@@ -2948,12 +2948,43 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### App theme bridge contract
 
+- App materials. An app paints its structural regions from the `--vd-mat-*`
+  tokens of the active theme, with its old value as the fallback, for example
+  `background: var(--vd-mat-side, var(--ss-panel));`. The roles are canvas (app
+  root and work area), bar (headers, toolbars, tab and status bars, rulers),
+  side (sidebars, libraries, inspectors), card (cards, tiles, dialogs), well
+  (recessed editors, lists, tables), field (inputs), btn and primary (buttons),
+  selected and hover (selection), and heading, label and divider (type and
+  rules). The adoption rules, the vocabulary and the test list are in
+  `documentation/desktop-themes.md` (App materials). Skins with their own palette
+  stay out of the material layer and read no `--vd-mat-*` token: the Radio receiver
+  (`radio.css`), RTL-SDR, TeeVee (`teevee.css`), Galaxa (`galaxa-deluxe.css`),
+  Retro Games, Minigolf (its `--mg-*` aliases read the `--vd-theme-*` bridge
+  tokens), the SIP-phone hardware chrome and the Home Assistant switchboard
+  cabinet (`ha-switchboard.css`). `desktop-app-common.css` forces no role on the
+  regions that apps paint themselves: every app paints its own bars, sides, fields,
+  buttons, cards, dialogs and roots in its own stylesheet, so its role wins. The file
+  keeps a zero-specificity `:where()` default for those regions (the text colour, and
+  the border colour of the whole-app containers and chips), a field fallback for plain
+  inputs in the dialog roots, the modal overlay backdrops (`!important`), the alias
+  groups of the apps that map their own tokens (`--cam-*`, `--cs-*`, `--nc-*` and
+  similar, `!important`), the SDK toast (`.ad-toast`) as a card (`!important`), and
+  shared geometry: toolbar padding and gap, control height and button type. Generic
+  `.vd-toolbar` and `.office-toolbar` take the bar material.
+  Do not add a selector of an app that paints itself to a bridge group, the
+  app's role would lose. New apps adopt the tokens the same way, and
+  `TestDesktopAppMaterialsAdoptedByApps` (`ui/desktop_app_materials_test.go`)
+  fails for every stylesheet that `commonAppStyles` or `DESKTOP_APP_ASSETS` loads and
+  that reads no `--vd-mat-*` token, unless it is listed in `desktopAppMaterialsExempt`
+  (vendor CSS, the theme-independent skins above, `go2rtc-source-form.css` with no
+  painted region). Kaggle, the QR dialog and the GOG source panels adopt the tokens.
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
   Manager, Quick Connect, Mission Control, Software Store, Gallery, Notes,
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
-  System Info, Pet Picker, Radio, Camera, Code Studio, Network Cameras,
+  System Info, Pet Picker, Personal Radio (the Radio receiver skin, `radio.css`,
+  stays out), Camera, Code Studio, Network Cameras,
   Noisemaker, Live Speech, Homepage Studio, Game Maker, OpenSCAD, the Webamp
-  launcher, Chess chrome, Nasscad, Mailer and Infra read `--vd-theme-*` for chrome,
+  launcher, Chess chrome, Nasscad, Mailer and Infra paint from `--vd-mat-*` (see the first bullet) and read `--vd-theme-*` for chrome,
   panels, controls, borders, and shadows. Infra's two stylesheets are held to that by a Node guard in
   `scripts/test-infra-ui.mjs` (spec §12): no hex or literal colour functions outside `color-mix()`, no named colours, no
   `--vd-font` (use `--vd-font-ui`), no uppercase or monospace labels, no `[data-theme…]` selectors, and every `transition` or
@@ -2966,11 +2997,12 @@ buttons and menu popovers remain excluded from those gestures.
   mixes `--mc-accent-ink` (30 % accent) and `--mc-danger-ink` (60 % danger,
   45 % under `[data-scheme="light"]`) with `--vd-text` instead and needs no
   skin rule.
+- Standard and Fruity neutrality: a re-key of their shell tokens (the core tokens in `desktop-base.css` and the `--vd-theme-*` bridge in `desktop-shell-overrides.css`) must keep every `reports/desktop-audit-browser/` screenshot from `TestDesktopAuditAppearanceBrowser` pixel-identical. The app material sets in `css/desktop-materials.css` decide how app interiors look in Standard and Fruity, so a change there is a visual change: review it with the survey harness (`reports/desktop-app-materials-2026-10-31/`) instead of the pixel check.
 - Apps read the colour scheme from `document.body.dataset.scheme` (`light` or `dark`), never the theme id, and observe `data-scheme` together with `data-theme` and `data-fruity-mode` to re-theme live (Code Studio editor, CYD Creator code, Layerling, Leafy). The Fruity check (`dataset.theme === 'fruity'` with `fruityMode`) is only a fallback for harnesses that set `data-theme` directly. Verify `TestDesktopThemeRegistryShellUsesCapabilities`.
 - Calculator programmer display (`.vd-calc-prog-display`) and history chrome
-  use `--vd-theme-panel-bg` / `--vd-theme-border` / `--vd-theme-muted`. HEX,
+  paint from the `--vd-mat-well` surface with `--vd-theme-panel-bg` as the fallback. HEX,
   DEC, OCT, and BIN labels stay muted. Do not put `.vd-calc-base button.active`
-  or `.vd-calc-tabs button.active` in the control `!important` bridge.
+  or `.vd-calc-tabs button.active` in a bridge group of `desktop-app-common.css`.
 - Writer page content may stay on a light paper surface (`--vd-editor-page-bg`);
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
@@ -2985,7 +3017,7 @@ buttons and menu popovers remain excluded from those gestures.
   `--cheater-code-fg`); app chrome uses `--vd-theme-*` through `--cheater-*`.
 - People status badges keep semantic colors (`#e8a020` / `#6495ed` / `#32cd32`);
   danger stays `#e74c3c`. Accent-on-white remains on primary People buttons.
-- Zipper local `--zipper-*` aliases map to `--vd-theme-*`; the in-app preview
+- Zipper local `--zipper-*` aliases map to `--vd-mat-*` tokens with `--vd-theme-*` fallbacks; the in-app preview
   overlay uses `--vd-theme-panel-bg`.
 - Pixel canvas, checkerboard, and image viewport stay a dark work surface
   (`#0e1117`); toolbars, rails, panels, and dialogs follow theme via
@@ -3029,8 +3061,8 @@ buttons and menu popovers remain excluded from those gestures.
   preview letterbox and panel stay dark work surfaces (`#071018` / `#050a10`);
   `light-preview` may flip the panel to `#f2f6f8`. Warm/danger and accent-on
   `#061014` stay semantic. Icon filters stay light/dark aware. Do not put
-  `.oscad-primary` in the control `!important` bridge.
-- Webamp launcher chrome uses `--vd-theme-*`. The embedded Winamp player skin
+  `.oscad-primary` in a bridge group of `desktop-app-common.css`.
+- Webamp launcher chrome paints from `--vd-mat-canvas` with `--vd-theme-app-bg` as the fallback. The embedded Winamp player skin
   stays authentic and stays out of this bridge.
 - TeeVee is a theme-independent wood/metal CRT receiver. Its visual source is
   `documentation/assets/teevee-retro-reference.png`; retain the real shell menus
@@ -3054,15 +3086,15 @@ buttons and menu popovers remain excluded from those gestures.
 - Chess chrome uses `--chess-*` aliases mapped to `--vd-theme-*`. The wood
   frame (`--chess-board-frame*`) and felt (`--chess-felt`) stay the board
   surface. Warn/danger/good stay semantic.
-- Nasscad shell uses `--vd-theme-app-bg`; the bundled iframe viewport stays
+- Nasscad shell paints from `--vd-mat-canvas` with `--vd-theme-app-bg` as the fallback; the bundled iframe viewport stays
   `#111318`.
-- Wikipedia (`local-wikipedia`) chrome reads `--vd-theme-*`; the article iframe
+- Wikipedia (`local-wikipedia`) chrome paints from `--vd-mat-*` with `--vd-theme-*` fallbacks; the article iframe
   stays a white reading surface (`#ffffff`, light color scheme) in every theme.
 - Sysworld HUD uses `--sw-*` aliases mapped to `--vd-theme-*`. The 3D canvas
   and vignette stay a dark work surface (`#020208`). Brand cyan
   (`--sw-accent`), event/tone semantics, and `.sw-btn.active` stay. Do not put
-  `.sw-btn.active` in the control `!important` bridge.
-- Galaxa, Quake, and SIP-phone hardware chrome remain excluded.
+  `.sw-btn.active` in a bridge group of `desktop-app-common.css`.
+- Galaxa and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract
 
