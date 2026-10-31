@@ -71,6 +71,8 @@ func handleDesktopInfra(s *Server) http.HandlerFunc {
 		switch {
 		case path == "snapshot" && r.Method == http.MethodGet:
 			desktopInfraSnapshot(w, r, s, cfg, store, runtime)
+		case path == "export/pdf" && r.Method == http.MethodGet:
+			desktopInfraExportPDF(w, r, s, cfg, store)
 		case path == "candidates" && r.Method == http.MethodGet:
 			desktopInfraCandidates(w, r, s, cfg, store, runtime)
 		case path == "targets":
