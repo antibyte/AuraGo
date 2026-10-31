@@ -82,7 +82,9 @@ const sandbox = {
     showToast: (message, type) => toasts.push({ message, type }),
     showConfirm: (title, message) => { confirms.push({ title, message }); return Promise.resolve(confirmQueue.length ? confirmQueue.shift() : confirmAnswer); },
     openModal: (id) => modals.push(id),
-    closeModal() {}
+    closeModal() {},
+    // js/precision/icons.js is a separate script on the real page; markup is not under test here.
+    pwIcon: (name, cls) => '<svg class="pw-ic pw-ic-' + name + (cls ? ' ' + cls : '') + '" aria-hidden="true"></svg>'
 };
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);

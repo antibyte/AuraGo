@@ -1268,9 +1268,9 @@ func TestPrecisionWorkspaceModalFocusContractIsGenericAndIdempotent(t *testing.T
 		`overlay.style.display`,
 		`function activateModal(overlay)`,
 		`function deactivateModal(overlay)`,
-		`previousFocus`,
-		`event.key !== 'Tab'`,
-		`window.requestAnimationFrame`,
+		`window.AuraModalController`,
+		`background: 'keep'`,
+		`ctl.close(overlay)`,
 		`new MutationObserver`,
 		`attributeFilter: ['class', 'style', 'hidden']`,
 		`removedNodes`,
@@ -1362,7 +1362,7 @@ func TestPrecisionWorkspaceModalFocusContractSupportsStandaloneDialogs(t *testin
 	}
 
 	isOpenStart := strings.Index(client, `function isModalOpen(overlay)`)
-	isOpenEnd := strings.Index(client, `function focusModal(overlay)`)
+	isOpenEnd := strings.Index(client, `function modalController()`)
 	if isOpenStart < 0 || isOpenEnd <= isOpenStart {
 		t.Fatal("cannot locate isModalOpen")
 	}
@@ -1382,7 +1382,7 @@ func TestPrecisionWorkspaceStandaloneModalVisibilityMatchesOperationsOpenPaths(t
 
 	client := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
 	isOpenStart := strings.Index(client, `function isModalOpen(overlay)`)
-	isOpenEnd := strings.Index(client, `function focusModal(overlay)`)
+	isOpenEnd := strings.Index(client, `function modalController()`)
 	if isOpenStart < 0 || isOpenEnd <= isOpenStart {
 		t.Fatal("cannot locate isModalOpen")
 	}

@@ -1100,10 +1100,13 @@ const _modalCtl = (function () {
     function open(modal, options) {
         if (!modal) return null;
         options = options || {};
-        ensureDialogAria(modal);
+        // Additive options: aria:false skips ensureDialogAria, background:'keep' leaves
+        // the rest of the page interactive (no inert), keepFocus:true leaves focus alone
+        // when it is already inside the modal. Defaults keep the original behaviour.
+        if (options.aria !== false) ensureDialogAria(modal);
         const trigger = options.trigger || document.activeElement;
         const selfRestore = liftModalFromBackgroundInert(modal);
-        const hidden = setBackgroundInert(modal);
+        const hidden = options.background === 'keep' ? [] : setBackgroundInert(modal);
         const entry = { modal, trigger, hidden, selfRestore };
         stack.push(entry);
         if (stack.length === 1) {
@@ -1111,6 +1114,7 @@ const _modalCtl = (function () {
         }
         // Focus next tick so the modal has rendered.
         setTimeout(() => {
+            if (options.keepFocus && modal.contains(document.activeElement)) return;
             const target = pickInitialFocus(modal, options.initialFocus);
             if (target && typeof target.focus === 'function') {
                 try { target.focus({ preventScroll: false }); } catch (_) { target.focus(); }
@@ -1156,6 +1160,9 @@ const _modalCtl = (function () {
 
     return { open, close, focusables, isOpen, depth, top };
 })();
+
+// Shared with js/precision/workspace.js (a classic-script const is not a window property).
+window.AuraModalController = _modalCtl;
 
 /**
  * Close an overlay through the single shared path: controller teardown, class

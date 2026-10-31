@@ -1,0 +1,12 @@
+# <css file> <lines with a hex/rgb()/hsl() literal, comments stripped>: wave 4 colour ratchet. Only ever goes down.
+# Refresh after fixing with AURAGO_UPDATE_WAVE4_BASELINES=1 go test ./ui/ -run TestUIWave4. shared-components.css is protected and excluded.
+css/containers.css 6
+css/dashboard.css 105
+css/gallery.css 14
+css/login.css 102
+css/media.css 2
+css/missions.css 3
+css/plans.css 5
+css/setup.css 140
+css/skills.css 2
+css/truenas.css 8

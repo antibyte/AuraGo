@@ -1,0 +1,13 @@
+# <css file> <font-size declarations with a literal length instead of a --pw-font-* / --text-* token>: wave 4 type-scale ratchet. Only ever goes down.
+# Refresh after fixing with AURAGO_UPDATE_WAVE4_BASELINES=1 go test ./ui/ -run TestUIWave4. Icon/illustration sizes count too; prefer em or a token.
+css/cheatsheets.css 2
+css/dashboard.css 73
+css/gallery.css 2
+css/knowledge.css 23
+css/login.css 1
+css/media.css 9
+css/missions.css 3
+css/not-found.css 2
+css/precision-pages.css 4
+css/setup.css 57
+css/skills.css 1

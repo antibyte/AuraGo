@@ -80,7 +80,7 @@ try {
                     window.DashSections={register(){}};
                 },{lang,theme,text:dictionaries[lang]});
                 // Loading after DOMContentLoaded avoids the real page's fetch/SSE initialization.
-                for (const source of ['js/dashboard/sections/tools.js','js/missions/main.js','js/desktop/apps/mission-control-triggers.js','js/desktop/apps/mission-control-list.js','js/desktop/apps/mission-control-detail.js','js/desktop/apps/easydrag-core.js']) await page.addScriptTag({url:`${origin}/${source}`});
+                for (const source of ['js/precision/icons.js','js/dashboard/sections/tools.js','js/missions/main.js','js/desktop/apps/mission-control-triggers.js','js/desktop/apps/mission-control-list.js','js/desktop/apps/mission-control-detail.js','js/desktop/apps/easydrag-core.js']) await page.addScriptTag({url:`${origin}/${source}`});
                 const observed = await page.evaluate(() => {
                     const attack='<img src=x onerror="window.injected=true">';
                     const mission={id:'fixture-blocked',name:attack,prompt:attack,execution_type:'manual',enabled:true,last_result:'blocked',last_output:'action_rule_required',status:'idle',run_count:1,last_run:'2026-10-18T12:00:00Z'};

@@ -30,6 +30,10 @@ func newPrecisionSmokeOrigin(t *testing.T) string {
 func loadPrecisionWorkspaceScript(t *testing.T, page *rod.Page, body string) {
 	t.Helper()
 	page.MustSetDocumentContent("<!doctype html><html><head><meta charset=\"utf-8\"></head>" + body + "</html>")
+	// The focus trap lives in the shared modal controller; real pages load it first.
+	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "js/shared/shared-core.js"))); err != nil {
+		t.Fatalf("load shared core: %v", err)
+	}
 	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))); err != nil {
 		t.Fatalf("load Precision Workspace client: %v", err)
 	}
