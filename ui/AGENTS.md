@@ -188,6 +188,10 @@ the config device tables/dialogs `cfgdev-`); `TestUIAvoidsCookieConsentClassPref
   Catalog reads are passive; only explicit download buttons install a voice.
   Late responses cannot repaint another section. Keep all sixteen TTS locales
   and `TestPhononConfigDownloadAndDraftBrowser` aligned.
+- The shared `ChatAudioPlayer` download leaves filename selection to the response
+  `Content-Disposition` or URL. Never force an MP3 extension onto WAV or other
+  audio formats. Verify `TestChatAudioDownloadPreservesFormatBrowser` with browser
+  smoke enabled, including signed URLs and the original downloaded bytes.
 
 ### Render and asynchronous ownership
 

@@ -1468,7 +1468,8 @@ class ChatAudioPlayer {
     download() {
         const a = document.createElement('a');
         a.href = this.url;
-        a.download = 'audio-message.mp3';
+        // Let the response filename or URL preserve the actual audio format.
+        a.download = '';
         a.click();
     }
 

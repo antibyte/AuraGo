@@ -424,7 +424,7 @@ function openAudioModal(id) {
     if (audioPath) {
         const player = new ChatAudioPlayer(audioPath);
         // Hide the player's built-in download button — the modal footer button serves this role
-        // and uses the correct filename instead of the generic 'audio-message.mp3'
+        // and retains the media library's original filename.
         const playerDlBtn = player.element.querySelector('.audio-download-btn');
         if (playerDlBtn) playerDlBtn.classList.add('is-hidden');
         body.appendChild(player.element);

@@ -472,7 +472,7 @@ func (m *Manager) AutoStart(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if allRunning {
+	if allRunning && state.State == "ready" && state.LastErrorCode == "" && state.LastError == "" {
 		return nil
 	}
 	m.setOperationState("starting")
@@ -750,12 +750,32 @@ func (m *Manager) startLocked(ctx context.Context, op operationSnapshot, previou
 	if len(ids) == 0 {
 		return m.installLocked(ctx, op, false, previous)
 	}
+	ids, err := m.resolveInstalledContainerIDs(ctx, installedOp, state)
+	if err != nil {
+		m.fail(err)
+		return err
+	}
+	m.mu.Lock()
+	m.state.ContainerIDs = ids
+	m.mu.Unlock()
 	if err := m.persist(); err != nil {
 		wrapped := &Error{Code: "speech_lab_state_persist_failed", Err: err}
 		m.fail(wrapped)
 		return wrapped
 	}
 	for _, id := range ids {
+		container, found, err := m.inspectContainer(ctx, installedOp, id)
+		if err != nil || !found {
+			if err == nil {
+				err = &Error{Code: "speech_lab_start_failed", Err: fmt.Errorf("installed Speech Lab container disappeared before start")}
+			}
+			m.fail(err)
+			return err
+		}
+		role := container.Config.Labels["aurago.role"]
+		if container.State.Running || ((role == "control_init" || role == "model_init") && container.State.Status == "exited" && container.State.ExitCode == 0) {
+			continue
+		}
 		if err := m.containerAction(ctx, installedOp, http.MethodPost, "/containers/"+url.PathEscape(id)+"/start"); err != nil {
 			m.fail(err)
 			return err
@@ -785,7 +805,7 @@ func (m *Manager) startLocked(ctx context.Context, op operationSnapshot, previou
 		return err
 	}
 	m.mu.Lock()
-	m.state.State, m.state.Progress = "ready", 100
+	m.state.State, m.state.Progress, m.state.LastErrorCode, m.state.LastError = "ready", 100, "", ""
 	m.mu.Unlock()
 	if err := m.persist(); err != nil {
 		return &Error{Code: "speech_lab_state_persist_failed", Err: err}
@@ -1077,8 +1097,12 @@ func safeError(err error) string {
 }
 
 func (m *Manager) fetchManifest(ctx context.Context) (BundleManifest, []byte, error) {
+	return m.fetchManifestFrom(ctx, m.manifestURL)
+}
+
+func (m *Manager) fetchManifestFrom(ctx context.Context, manifestURL string) (BundleManifest, []byte, error) {
 	var out BundleManifest
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, m.manifestURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
 	if err != nil {
 		return out, nil, &Error{Code: "speech_lab_bundle_unavailable", Err: err}
 	}
@@ -1098,7 +1122,7 @@ func (m *Manager) fetchManifest(ctx context.Context) (BundleManifest, []byte, er
 		return out, nil, &Error{Code: "speech_lab_bundle_incompatible", Err: fmt.Errorf("manifest exceeds 1 MiB")}
 	}
 	if m.requireManifestChecksum {
-		checksumReq, checksumErr := http.NewRequestWithContext(ctx, http.MethodGet, m.manifestURL+".sha256", nil)
+		checksumReq, checksumErr := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL+".sha256", nil)
 		if checksumErr != nil {
 			return out, nil, &Error{Code: "speech_lab_bundle_unavailable", Err: checksumErr}
 		}
@@ -1124,7 +1148,7 @@ func (m *Manager) fetchManifest(ctx context.Context) (BundleManifest, []byte, er
 		if len(m.manifestPublicKey) != ed25519.PublicKeySize {
 			return out, nil, &Error{Code: "speech_lab_bundle_signature_invalid", Err: fmt.Errorf("Speech Lab bundle public key is not configured")}
 		}
-		signatureReq, signatureErr := http.NewRequestWithContext(ctx, http.MethodGet, m.manifestURL+".sig", nil)
+		signatureReq, signatureErr := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL+".sig", nil)
 		if signatureErr != nil {
 			return out, nil, &Error{Code: "speech_lab_bundle_unavailable", Err: signatureErr}
 		}
@@ -2070,7 +2094,9 @@ type containerInspect struct {
 		Labels map[string]string `json:"Labels"`
 	} `json:"Config"`
 	State struct {
-		Running bool `json:"Running"`
+		Running  bool   `json:"Running"`
+		Status   string `json:"Status"`
+		ExitCode int    `json:"ExitCode"`
 	} `json:"State"`
 	NetworkSettings struct {
 		Networks map[string]struct {
