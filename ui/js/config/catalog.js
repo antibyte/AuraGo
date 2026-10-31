@@ -14,7 +14,7 @@
         'dograh-test-btn': { requiredPaths: ['dograh.mode'] },
         'ea-test-btn': { requiredSelectors: ['#ea-imap-host', '#ea-smtp-host', '#ea-username'] },
         'evomap-test-btn': { requiredPaths: ['evomap.node_id'] },
-        'fb-test-btn': { requiredPaths: ['fritzbox.address', 'fritzbox.username'], credentialPaths: ['fritzbox.password'] },
+        'fb-test-btn': { requiredPaths: ['fritzbox.host', 'fritzbox.username'], credentialPaths: ['fritzbox.password'] },
         'github-test-btn': { credentialPaths: ['github.token'] },
         'grafana-test-btn': { requiredPaths: ['grafana.base_url'], credentialPaths: ['grafana.api_key'] },
         'gw-test-btn': { credentialPaths: ['google_workspace.client_secret'] },
@@ -133,6 +133,8 @@
         telephone_agent: { none: true },
         memory_analysis: { none: true },
         danger_zone: { none: true },
+        // The device registry lives in the inventory database and has no enabled flag.
+        devices: { none: true },
         embeddings: { on: ['set:embeddings.provider'] },
         personality: { on: ['personality.engine'] },
         vision: { on: ['set:vision.provider'] },

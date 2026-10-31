@@ -305,6 +305,7 @@ func readDraftPatch(r *http.Request) (map[string]interface{}, error) {
 func validateDraftPatch(patch map[string]interface{}) error {
 	delete(patch, "_effective_tool_policy")
 	delete(patch, "_config_migrations")
+	delete(patch, "_server_started_at")
 	known := configTopLevelKeys()
 	for key := range patch {
 		if _, ok := known[key]; !ok {

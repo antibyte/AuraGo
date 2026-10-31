@@ -37,7 +37,7 @@
   "config.prompts.delete_confirm": "वास्तव में व्यक्तित्व \"{name}\" हटा दें?",
   "config.prompts.deleting": "हटाया जा रहा है...",
   "config.prompts.delete_confirm_title": "व्यक्तित्व हटाएँ?",
-  "config.personality.helper_required": "जीती-जागती टिप्पणियाँ, मूड विश्लेषण और भावना संश्लेषण के लिए सहायक LLM चाहिए। इसे Agent & AI → LLM में चालू करें।",
+  "config.personality.helper_required": "जीती-जागती टिप्पणियाँ, मूड विश्लेषण और भावना संश्लेषण के लिए सहायक LLM चाहिए। इसे AI मॉडल → एलएलएम सेटिंग्स में चालू करें।",
   "config.prompts.lived_notes_dashboard": "डैशबोर्ड खोलें",
   "config.prompts.lived_notes_empty": "अभी कोई जीती-जागती टिप्पणियाँ नहीं",
   "config.prompts.lived_notes_hint": "ये टिप्पणियाँ काम और परिवेश से बनती हैं। उन्हें डैशबोर्ड पर हटाएँ या रखें। हटाई गई टिप्पणियाँ अपने आप नहीं लौटतीं।",

@@ -107,15 +107,23 @@
     }
 
     function sectionState(key) {
-        const failed = readStatus()[key];
+        const base = baseState(key);
+        const status = readStatus();
+        const failed = status[key];
         if (failed && (failed.state === 'error' || failed.state === 'degraded')) {
-            return { state: 'error', reason: String(failed.reason || '') };
+            // A switched-off section is not checked any more, so an old failure is stale.
+            if (base === 'off' || base === 'none') {
+                delete status[key];
+                writeJSON(STATUS_KEY, status);
+            } else {
+                return { state: 'error', reason: String(failed.reason || '') };
+            }
         }
         const restart = readRestart();
         if (restart && restart.sections.indexOf(key) >= 0) {
             return { state: 'restart', reason: text('config.state.restart_reason', 'The change takes effect after a restart.') };
         }
-        return { state: baseState(key), reason: '' };
+        return { state: base, reason: '' };
     }
 
     function stateLabel(state) {
@@ -162,8 +170,17 @@
         document.dispatchEvent(new CustomEvent('aura-config-section-marker'));
     }
 
-    // Seconds the running server is up, or null when it cannot be read.
+    // Start time (Unix ms) of the running server as the config responses report it.
+    let knownBootAt = null;
+
+    function noteServerBoot(value) {
+        knownBootAt = typeof value === 'number' && value > 0 ? value : null;
+    }
+
+    // Slow fallback for servers that do not report their start time: the dashboard
+    // samples the CPU for about a second.
     async function serverBootAt() {
+        if (knownBootAt != null) return knownBootAt;
         try {
             const response = await fetch(STATUS_URL, { headers: { Accept: 'application/json' } });
             if (!response.ok) return null;
@@ -175,30 +192,37 @@
     }
 
     // After a save that needs a restart: remember the sections whose paths were
-    // changed. The marker keeps the boot time of the server that has to restart;
-    // when that time cannot be read it stays for the browser session.
-    async function rememberRestart(paths) {
+    // changed. The marker keeps the start time of the server that has to restart,
+    // taken from the save response (bootAt) or the last config read, and is written
+    // together with the marker so a quick restart cannot slip past it.
+    async function rememberRestart(paths, bootAt) {
         const sections = sectionsOfPaths(paths);
         if (!sections.length) return;
         const previous = readRestart();
         const merged = new Set(previous ? previous.sections : []);
         sections.forEach(key => merged.add(key));
-        writeJSON(RESTART_KEY, { sections: [...merged], bootAt: previous && previous.bootAt != null ? previous.bootAt : null, savedAt: Date.now() });
+        const known = typeof bootAt === 'number' && bootAt > 0 ? bootAt : knownBootAt;
+        const boot = known != null ? known : (previous && previous.bootAt != null ? previous.bootAt : null);
+        writeJSON(RESTART_KEY, { sections: [...merged], bootAt: boot, savedAt: Date.now() });
         announce();
-        const bootAt = previous && previous.bootAt != null ? previous.bootAt : await serverBootAt();
+        if (boot != null) return;
+        const read = await serverBootAt();
         const current = readRestart();
-        if (current && bootAt != null) {
-            current.bootAt = bootAt;
+        if (current && current.bootAt == null && read != null) {
+            current.bootAt = read;
             writeJSON(RESTART_KEY, current);
         }
     }
 
     // True when the marker was cleared because the server has restarted since.
+    // A marker without a start time cannot be judged: it is dropped as soon as the
+    // current start time is known.
     async function clearRestartIfRestarted() {
         const marker = readRestart();
-        if (!marker || marker.bootAt == null) return false;
+        if (!marker) return false;
         const bootAt = await serverBootAt();
-        if (bootAt == null || bootAt <= marker.bootAt + RESTART_TOLERANCE_MS) return false;
+        if (bootAt == null) return false;
+        if (marker.bootAt != null && bootAt <= marker.bootAt + RESTART_TOLERANCE_MS) return false;
         writeJSON(RESTART_KEY, null);
         announce();
         return true;
@@ -213,6 +237,7 @@
         sectionsOfPaths: sectionsOfPaths,
         readStatus: readStatus,
         rememberRestart: rememberRestart,
+        noteServerBoot: noteServerBoot,
         clearRestartIfRestarted: clearRestartIfRestarted
     });
     window.cfgSectionState = sectionState;

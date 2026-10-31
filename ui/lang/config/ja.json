@@ -645,7 +645,7 @@
   "config.local_llm.cache_state_rejected": "拒否",
   "config.local_llm.cache_state_degraded": "低下",
   "config.realtime_speech.keyless": "APIキー不要。Speech Lab コンテナを使います。",
-  "config.realtime_speech.speech_lab_help": "このプロファイルは ASR/TTS に Speech Lab / s2s コンテナを使います。メディア → Speech Lab で起動または設定してください。",
+  "config.realtime_speech.speech_lab_help": "このプロファイルは ASR/TTS に Speech Lab / s2s コンテナを使います。音声と電話 → スピーチラボ で起動または設定してください。",
   "config.section.detective.label": "探偵",
   "config.section.detective.desc": "エージェントがトピックを調査し、使用した情報源を引用できるようにします。",
   "config.section.newspaper.label": "新聞",

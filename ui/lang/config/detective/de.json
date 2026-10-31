@@ -1,7 +1,7 @@
 {
   "config.section.detective.label": "Detektiv",
   "config.section.detective.desc": "Lässt den Agenten ein Thema recherchieren und die verwendeten Quellen belegen.",
-  "config.detective.enabled": "Detective aktivieren",
+  "config.detective.enabled": "Detektiv aktivieren",
   "config.detective.extra_read_operations": "Freigegebene Leseoperationen",
   "config.detective.extra_read_help": "Ergänzt exakte Werkzeug-Operationen, die die Recherche auf verbundenen privaten Diensten aufrufen darf. Die Quelle muss im Fall zusätzlich ausgewählt werden.",
   "config.detective.extra_read_format": "Eine Zeile je Werkzeug: werkzeug: operation, operation",

@@ -188,7 +188,7 @@ var providerCatalogs = []ProviderCatalog{
 		DefaultModel: SpeechLabStackModel,
 		DefaultVoice: SpeechLabActiveVoice,
 		Models: []Model{
-			{ID: SpeechLabStackModel, Label: "Active Speech Lab stack", Offered: true, Note: "Uses the managed or external s2s container selected in Media → Speech Lab."},
+			{ID: SpeechLabStackModel, Label: "Active Speech Lab stack", Offered: true, Note: "Uses the managed or external s2s container selected in Speech & telephony → Speech Lab."},
 		},
 		Voices: []Voice{
 			{ID: SpeechLabActiveVoice, Label: "Active stack voice", Description: "The voice currently selected on the Speech Lab /ready stack."},

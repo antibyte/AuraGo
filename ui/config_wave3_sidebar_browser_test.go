@@ -72,13 +72,14 @@ func TestConfigWave3SidebarStateBrowser(t *testing.T) {
 		t.Fatalf("banner error dot = %q", got)
 	}
 	// Without a section the banner belongs to the open one.
-	page.MustEval(`() => window.cfgStatusBanner(document.getElementById('wave3-banner'), 'degraded', { reason: 'slow' })`)
-	if got := dot("ldap"); !strings.HasPrefix(got, "error|cfg-state-error|true|") {
+	page.MustEval(`async () => { await navigateToConfigSection('adguard', { scrollBehavior: 'auto' }); }`)
+	page.MustEval(`() => window.cfgStatusBanner(document.getElementById('wave3-banner'), 'error', { reason: 'slow' })`)
+	if got := dot("adguard"); !strings.HasPrefix(got, "error|cfg-state-error|true|") {
 		t.Fatalf("banner without section must mark the open section, got %q", got)
 	}
 	page.MustEval(`async () => { await navigateToConfigSection('overview', { scrollBehavior: 'auto' }); }`)
 	waitForJSBool(t, page, `() => !!document.querySelector('.pw-attention-item[data-overview-section="adguard"]')`)
-	if text := page.MustEval(`() => document.querySelector('.pw-attention-item[data-overview-section="adguard"]').textContent`).String(); !strings.Contains(text, "boom") {
+	if text := page.MustEval(`() => document.querySelector('.pw-attention-item[data-overview-section="adguard"]').textContent`).String(); !strings.Contains(text, "slow") {
 		t.Fatalf("attention item must show the reason, got %q", text)
 	}
 	page.MustEval(`() => {
@@ -87,7 +88,24 @@ func TestConfigWave3SidebarStateBrowser(t *testing.T) {
 	}`)
 	waitForJSBool(t, page, `() => !document.querySelector('.pw-attention-item') && document.querySelector('.sidebar-item[data-section="adguard"]').dataset.state === 'active'`)
 
+	// A stored failure of a section that is switched off is stale: no red dot, not in the overview.
+	page.MustEval(`() => {
+		sessionStorage.setItem('aurago.config.sectionStatus.v1', JSON.stringify({ adguard: { state: 'error', reason: 'old', at: Date.now() } }));
+		updateSidebarStates();
+	}`)
+	waitForJSBool(t, page, `() => document.querySelector('.sidebar-item[data-section="adguard"]').dataset.state === 'error'`)
+	page.MustEval(`async () => { await navigateToConfigSection('adguard', { scrollBehavior: 'auto' }); }`)
+	waitForJSBool(t, page, `() => !!document.querySelector('#content [data-path="adguard.enabled"]')`)
+	page.MustEval(`() => document.querySelector('#content [data-path="adguard.enabled"]').click()`)
+	waitForJSBool(t, page, `() => document.querySelector('.sidebar-item[data-section="adguard"]').dataset.state === 'off'`)
+	if got := dot("adguard"); !strings.HasPrefix(got, "off|cfg-state-none|false|") {
+		t.Fatalf("switched-off section with a stored error = %q", got)
+	}
+	page.MustEval(`() => { window.AuraConfigState.discard(); }`)
+	waitForJSBool(t, page, `() => document.querySelector('.sidebar-item[data-section="adguard"]').dataset.state === 'active'`)
+
 	// A save that needs a restart marks the changed sections.
+	page.MustEval(`async () => { await navigateToConfigSection('overview', { scrollBehavior: 'auto' }); }`)
 	page.MustEval(`() => window.AuraConfigSectionState.rememberRestart(['webdav.url'])`)
 	waitForJSBool(t, page, `() => document.querySelector('.sidebar-item[data-section="webdav"]').dataset.state === 'restart'`)
 	waitForJSBool(t, page, `() => !!document.querySelector('.pw-attention-item[data-overview-section="webdav"][data-state="restart"]')`)
@@ -127,6 +145,12 @@ func TestConfigWave3SidebarStateBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => !document.getElementById('sidebarSearchNoResults').classList.contains('hidden')`)
 	if page.MustEval(`() => !document.getElementById('sidebarFilterEmpty').classList.contains('hidden')`).Bool() {
 		t.Fatal("the filter hint must give way to the search result message")
+	}
+	// A search whose hits are all hidden by the filter shows the filter hint, not a blank sidebar.
+	page.MustEval(`() => { const input = document.getElementById('sidebarSearchInput'); input.value = 'ldap'; input.dispatchEvent(new Event('input', { bubbles: true })); }`)
+	waitForJSBool(t, page, `() => !document.getElementById('sidebarFilterEmpty').classList.contains('hidden')`)
+	if !page.MustEval(`() => document.getElementById('sidebarSearchNoResults').classList.contains('hidden')`).Bool() {
+		t.Fatal("a search with hits must not show the no-results message")
 	}
 	page.MustEval(`() => clearSidebarSearch(false)`)
 	page.MustReload().MustWaitLoad()

@@ -531,7 +531,7 @@
   "help.sqlite.media_registry_path": "SQLite-Datei für das Medienregister. Standard: ./data/media_registry.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.homepage_registry_path": "SQLite-Datei für das Register der Homepage-Projekte. Standard: ./data/homepage_registry.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.game_maker_path": "SQLite-Datei für die Game-Maker-Projekte. Standard: ./data/game_maker.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
-  "help.sqlite.detective_path": "SQLite-Datei für die Recherchefälle des Detective. Standard: ./data/detective.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
+  "help.sqlite.detective_path": "SQLite-Datei für die Recherchefälle des Detektivs. Standard: ./data/detective.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.cyd_creator_path": "SQLite-Datei für die CYD-Creator-Projekte. Standard: ./data/cyd_creator.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.contacts_path": "SQLite-Datei für die Kontakte. Standard: ./data/contacts.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",
   "help.sqlite.planner_path": "SQLite-Datei für den Planer (Termine und Aufgaben). Standard: ./data/planner.db. Datei vor einer Pfadänderung erst verschieben; wirkt nach einem Neustart.",

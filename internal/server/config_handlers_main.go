@@ -164,10 +164,23 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectFeatureAvailability(rawCfg, s.Cfg.Runtime, s.Cfg.Agent.SudoEnabled)
 		w.Header().Set("Content-Type", "application/json")
 		rawCfg["_config_migrations"] = migrationNotices
+		if started := serverStartedAtMillis(s); started > 0 {
+			rawCfg["_server_started_at"] = started
+		}
 		policy := agent.BuildToolingPolicy(s.Cfg, "")
 		rawCfg["_effective_tool_policy"] = map[string]interface{}{"provider_profile": policy.ProviderToolProfile, "max_tools": policy.EffectiveMaxTotalTools, "max_tool_calls": s.Cfg.CircuitBreaker.MaxToolCalls, "schema_tokens": policy.EffectiveMaxSchemaTokens, "max_guides": policy.EffectiveMaxToolGuides, "output_bytes": s.Cfg.Agent.ToolOutputLimit}
 		json.NewEncoder(w).Encode(rawCfg)
 	}
+}
+
+// serverStartedAtMillis is the start time of the running server in Unix
+// milliseconds, 0 when unknown. The Config UI keeps it with its restart marker
+// to tell whether the server has restarted since a save.
+func serverStartedAtMillis(s *Server) int64 {
+	if s == nil || s.StartedAt.IsZero() {
+		return 0
+	}
+	return s.StartedAt.UnixMilli()
 }
 
 func injectHereNowDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
@@ -505,6 +518,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		delete(patch, "_effective_tool_policy")
 		delete(patch, "_config_migrations")
+		delete(patch, "_server_started_at")
 		if _, present := patch["sip"]; present {
 			writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{
 				"status": "error", "code": "sip_use_dedicated_api",
@@ -1745,7 +1759,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if needsRestart {
 			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			response := map[string]interface{}{
 				"status":             "saved",
 				"message":            msg,
 				"needs_restart":      true,
@@ -1753,7 +1767,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"restart_from":       configRequestOrigin(r),
 				"restart_reason":     restartReasons,
 				"embeddings_changed": embeddingsChanged,
-			})
+			}
+			if started := serverStartedAtMillis(s); started > 0 {
+				response["server_started_at"] = started
+			}
+			json.NewEncoder(w).Encode(response)
 		} else {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":             "saved",

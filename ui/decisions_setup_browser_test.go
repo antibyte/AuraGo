@@ -65,7 +65,7 @@ func TestDecisionsOneClickSetupBrowser(t *testing.T) {
 	page.MustElement(`[data-decisions-action="setup"]`).MustClick()
 	waitForJSBool(t, page, `()=>setupCalls.length===2`)
 	page.MustEval(`()=>{setupStatus={...setupStatus,setup_active:false,ready:true,state:'ready',code:'',backend:'vulkan',device:'AMD GPU',deployment:'native'};document.dispatchEvent(new Event('aurago:config-saved'));}`)
-	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]').textContent==='Decisions ist bereit' && !document.querySelector('[data-decisions-action="test"]').disabled`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-decisions-status]').textContent==='Entscheidungen sind bereit' && !document.querySelector('[data-decisions-action="test"]').disabled`)
 	if !page.MustEval(`()=>AuraConfigState.buildPatch().agent.name==='unsaved elsewhere' && document.querySelector('[data-decisions-action="setup"]').hidden && document.querySelector('[data-decisions-setup-help]').hidden`).Bool() {
 		t.Fatal("ready setup lost unrelated draft")
 	}

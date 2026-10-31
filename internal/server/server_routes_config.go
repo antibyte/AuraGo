@@ -207,10 +207,10 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.Handle("/api/google-workspace/test", requireAdminUnlessGET(s, handleGoogleWorkspaceTest(s)))
 
 	// OneDrive integration endpoints (Device Code Flow)
-	mux.HandleFunc("/api/onedrive/auth/start", handleOneDriveAuthStart(s))
-	mux.HandleFunc("/api/onedrive/auth/poll", handleOneDriveAuthPoll(s))
+	mux.Handle("/api/onedrive/auth/start", requireAdmin(s, handleOneDriveAuthStart(s)))
+	mux.Handle("/api/onedrive/auth/poll", requireAdmin(s, handleOneDriveAuthPoll(s)))
 	mux.HandleFunc("/api/onedrive/auth/status", handleOneDriveAuthStatus(s))
-	mux.HandleFunc("/api/onedrive/auth/revoke", handleOneDriveAuthRevoke(s))
+	mux.Handle("/api/onedrive/auth/revoke", requireAdmin(s, handleOneDriveAuthRevoke(s)))
 	mux.Handle("/api/onedrive/test", requireAdminUnlessGET(s, handleOneDriveTest(s)))
 
 	// Music Generation endpoints

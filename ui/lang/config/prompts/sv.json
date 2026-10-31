@@ -37,7 +37,7 @@
   "config.prompts.delete_confirm": "Vill du verkligen ta bort personligheten \"{name}\"?",
   "config.prompts.deleting": "Tar bort...",
   "config.prompts.delete_confirm_title": "Ta bort personlighet?",
-  "config.personality.helper_required": "Levda anteckningar, stämningsanalys och emotionsyntes behöver hjälpar-LLM. Aktivera det under Agent & AI → LLM.",
+  "config.personality.helper_required": "Levda anteckningar, stämningsanalys och emotionsyntes behöver hjälpar-LLM. Aktivera det under AI-modeller → LLM-inställningar.",
   "config.prompts.lived_notes_dashboard": "Öppna instrumentpanelen",
   "config.prompts.lived_notes_empty": "Inga levda anteckningar ännu",
   "config.prompts.lived_notes_hint": "De här anteckningarna växer ur arbete och omgivning. Ta bort eller behåll dem på instrumentpanelen. Borttagna anteckningar kommer inte tillbaka av sig själva.",

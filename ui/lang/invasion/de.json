@@ -149,5 +149,5 @@
   "invasion.will_delete_nest": "wird unwiderruflich gelöscht. Das zugehörige Secret wird aus dem Vault entfernt.",
   "invasion.ws_connected": "Verbunden",
   "invasion.ws_disconnected": "Getrennt",
-  "invasion.provider_unavailable": "Nur für Decisions — hier nicht verfügbar"
+  "invasion.provider_unavailable": "Nur für Entscheidungen — hier nicht verfügbar"
 }

@@ -2295,7 +2295,7 @@ if (typeof module !== 'undefined' && module.exports) {
             if (!status) {
                 await this._finishStartWithoutRecording();
                 if (previouslySelected) {
-                    this._fail(this._t('speech_lab_asr_not_ready', 'Speech Lab ASR is not ready. Check Media → Speech Lab.'));
+                    this._fail(this._t('speech_lab_asr_not_ready', 'Speech Lab ASR is not ready. Check Speech & telephony → Speech Lab.'));
                     return START_FAILED;
                 }
                 return START_BROWSER;
@@ -2311,7 +2311,7 @@ if (typeof module !== 'undefined' && module.exports) {
             }
             if (!status.asr_ok) {
                 await this._finishStartWithoutRecording();
-                this._fail(this._t('speech_lab_asr_not_ready', 'Speech Lab ASR is not ready. Check Media → Speech Lab.'));
+                this._fail(this._t('speech_lab_asr_not_ready', 'Speech Lab ASR is not ready. Check Speech & telephony → Speech Lab.'));
                 return START_FAILED;
             }
             try {

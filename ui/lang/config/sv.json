@@ -645,7 +645,7 @@
   "config.local_llm.cache_state_rejected": "Avvisad",
   "config.local_llm.cache_state_degraded": "Försämrad",
   "config.realtime_speech.keyless": "Ingen API-nyckel. Använder Speech Lab-containern.",
-  "config.realtime_speech.speech_lab_help": "Den här profilen använder Speech Lab-/s2s-containern för ASR och TTS. Starta eller konfigurera den under Media → Speech Lab.",
+  "config.realtime_speech.speech_lab_help": "Den här profilen använder Speech Lab-/s2s-containern för ASR och TTS. Starta eller konfigurera den under Tal och telefoni → Tallaboratorium.",
   "config.section.detective.label": "Detektiv",
   "config.section.detective.desc": "Låter agenten undersöka ett ämne och ange de källor den använt.",
   "config.section.newspaper.label": "Tidning",

@@ -645,7 +645,7 @@
   "config.local_llm.cache_state_rejected": "Odrzucona",
   "config.local_llm.cache_state_degraded": "Ograniczona",
   "config.realtime_speech.keyless": "Bez klucza API. Używa kontenera Speech Lab.",
-  "config.realtime_speech.speech_lab_help": "Ten profil używa kontenera Speech Lab / s2s do ASR i TTS. Uruchom go lub skonfiguruj w Media → Speech Lab.",
+  "config.realtime_speech.speech_lab_help": "Ten profil używa kontenera Speech Lab / s2s do ASR i TTS. Uruchom go lub skonfiguruj w Mowa i telefonia → Laboratorium mowy.",
   "config.section.detective.label": "Detektyw",
   "config.section.detective.desc": "Pozwala agentowi zbadać temat i podać wykorzystane źródła.",
   "config.section.newspaper.label": "Gazeta",

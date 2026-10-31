@@ -42,7 +42,7 @@ func wave3VaultPaths(t *testing.T) map[string]bool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	source := string(raw)
+	source := strings.ReplaceAll(string(raw), "\r\n", "\n")
 	start := strings.Index(source, "var vaultKeyMap = map[string]string{")
 	if start < 0 {
 		t.Fatal("vaultKeyMap not found")
@@ -187,5 +187,32 @@ func TestConfigWave3SectionStatePathsContract(t *testing.T) {
 	mainAt := strings.Index(html, "/js/config/main.js")
 	if catalogAt < 0 || stateAt < catalogAt || mainAt < stateAt {
 		t.Error("config.html must load section_state.js after catalog.js and before main.js")
+	}
+}
+
+// Every path an action rule waits for exists in the config schema or is a vault secret.
+func TestConfigWave3ActionRulePathsExist(t *testing.T) {
+	t.Parallel()
+
+	catalog := normalizeAssetText(mustReadUIFile(t, "js/config/catalog.js"))
+	start := strings.Index(catalog, "const actionRules = Object.freeze({")
+	if start < 0 {
+		t.Fatal("catalog.js has no actionRules")
+	}
+	block := catalog[start:]
+	block = block[:strings.Index(block, "});")]
+	vault := wave3VaultPaths(t)
+	pathPattern := regexp.MustCompile(`'([a-z0-9_]+\.[a-z0-9_.]+)'`)
+	checked := 0
+	for _, match := range regexp.MustCompile(`(?m)^\s*'([a-z0-9-]+)': (\{.*\}),?$`).FindAllStringSubmatch(block, -1) {
+		for _, path := range pathPattern.FindAllStringSubmatch(match[2], -1) {
+			checked++
+			if _, exists := wave3ConfigType(path[1]); !exists && !vault[path[1]] {
+				t.Errorf("rule %q: path %q is not a config field or vault path", match[1], path[1])
+			}
+		}
+	}
+	if checked < 50 {
+		t.Fatalf("checked only %d action rule paths", checked)
 	}
 }

@@ -267,7 +267,7 @@
   "config.sqlite.media_registry_path_label": "Medienregister-Datenbank",
   "config.sqlite.homepage_registry_path_label": "Homepage-Register-Datenbank",
   "config.sqlite.game_maker_path_label": "Game-Maker-Datenbank",
-  "config.sqlite.detective_path_label": "Detective-Datenbank",
+  "config.sqlite.detective_path_label": "Detektiv-Datenbank",
   "config.sqlite.cyd_creator_path_label": "CYD-Creator-Datenbank",
   "config.sqlite.contacts_path_label": "Kontakte-Datenbank",
   "config.sqlite.planner_path_label": "Planer-Datenbank",

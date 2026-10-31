@@ -117,7 +117,7 @@
                 const selectable = !!(realtimeConfig && realtimeConfig.enabled &&
                     (realtimeConfig.profiles || []).some(profile => profile.enabled && profile.provider === 'speech_lab'));
                 if (!data.enabled) {
-                    status.textContent = text('desktop.live_speech_lab_disabled', 'Speech Lab is disabled. Enable it under Media → Speech Lab.') + configurationNotice;
+                    status.textContent = text('desktop.live_speech_lab_disabled', 'Speech Lab is disabled. Enable it under Speech & telephony → Speech Lab.') + configurationNotice;
                     if (start) start.hidden = true;
                     if (activate) activate.hidden = true;
                     return;
@@ -134,12 +134,12 @@
                 }
                 status.textContent = starting
                     ? text('desktop.live_speech_lab_starting', 'Starting the Speech Lab container…')
-                    : text('desktop.live_speech_lab_not_ready', 'Speech Lab is not ready. Start the container or check Media → Speech Lab.') + configurationNotice;
+                    : text('desktop.live_speech_lab_not_ready', 'Speech Lab is not ready. Start the container or check Speech & telephony → Speech Lab.') + configurationNotice;
                 if (start) start.hidden = !(managed && !starting && deployState !== 'running' && deployState !== 'starting');
                 if (activate) activate.hidden = true;
             } catch (_) {
                 box.hidden = false;
-                status.textContent = text('desktop.live_speech_lab_not_ready', 'Speech Lab is not ready. Start the container or check Media → Speech Lab.');
+                status.textContent = text('desktop.live_speech_lab_not_ready', 'Speech Lab is not ready. Start the container or check Speech & telephony → Speech Lab.');
                 if (activate) activate.hidden = true;
             }
         }

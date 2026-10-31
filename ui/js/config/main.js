@@ -286,8 +286,10 @@ let configMigrationNotices = [];
 function consumeConfigResponse(data) {
     effectiveToolPolicy = data._effective_tool_policy || null;
     configMigrationNotices = Array.isArray(data._config_migrations) ? data._config_migrations : [];
+    if (window.AuraConfigSectionState) window.AuraConfigSectionState.noteServerBoot(data._server_started_at);
     delete data._effective_tool_policy;
     delete data._config_migrations;
+    delete data._server_started_at;
     return data;
 }
 
@@ -1093,8 +1095,10 @@ function applySidebarFilter() {
     });
     const empty = document.getElementById('sidebarFilterEmpty');
     const searching = getSidebarSearchTerms(sidebarSearchQuery).length > 0;
-    // With a search that found nothing, its own message is shown instead.
-    if (empty) empty.classList.toggle('hidden', !(only && shownItems === 0 && !searching));
+    const noResults = document.getElementById('sidebarSearchNoResults');
+    const searchMissed = searching && !!noResults && !noResults.classList.contains('hidden');
+    // A search without hits shows its own message; hits that the filter hides still need the hint.
+    if (empty) empty.classList.toggle('hidden', !(only && shownItems === 0 && !searchMissed));
 }
 
 function initSidebarFilter() {
@@ -3368,7 +3372,7 @@ async function saveConfig() {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
                 rememberConfigRestart(result);
-                if (window.AuraConfigSectionState) window.AuraConfigSectionState.rememberRestart(patchPaths).catch(() => {});
+                if (window.AuraConfigSectionState) window.AuraConfigSectionState.rememberRestart(patchPaths, result.server_started_at).catch(() => {});
                 appendConfigRestartLink(status);
             } else {
                 status.className = 'save-status success';
