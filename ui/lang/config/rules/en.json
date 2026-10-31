@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Rule library",
   "config.rules.disabled": "Disabled",
   "config.rules.targeting": "Matching targets",
-  "config.rules.system_status": "Rules system"
+  "config.rules.system_status": "Rules system",
+  "config.rules.rule_id_help": "Short unique name of the rule, for example homepage. It cannot be changed after creation.",
+  "config.rules.rule_title_help": "Readable name shown in the rule library.",
+  "config.rules.priority_help": "When several rules match, higher numbers are injected first. Default 50.",
+  "config.rules.enabled_help": "Switched-off rules are never injected into tasks.",
+  "config.rules.tools_help": "Tool names that activate this rule, separated by commas. Pick a tool below to add it.",
+  "config.rules.workflows_help": "Workflow names that activate this rule, separated by commas. Pick a workflow below to add it.",
+  "config.rules.keywords_help": "Words in the task text that activate this rule, separated by commas.",
+  "config.rules.body_help": "The guardrail text in Markdown. It is injected before a matching task begins."
 }

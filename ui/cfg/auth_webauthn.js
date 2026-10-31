@@ -3,23 +3,20 @@ function renderWebAuthnSection(settings, status) {
     if (!status.enabled || !status.password_set || !status.authenticated) {
         return `<section id="auth-webauthn" aria-labelledby="auth-webauthn-title" aria-disabled="true"><h2 class="auth-section-title auth-section-title-spaced" id="auth-webauthn-title">${t('webauthn.title')}</h2><p class="field-help" role="status">${t('webauthn.owner_required')}</p></section>`;
     }
-    const field = (id, key, input) => `<div class="field-group"><label class="field-label" for="${id}">${t(key)}</label>${input}</div>`;
+    const field = (id, key, input, help = '') => `<div class="field-group"><label class="field-label" for="${id}">${t(key)}</label>${input}${help}</div>`;
     return `<section id="auth-webauthn" aria-labelledby="auth-webauthn-title">
         <h2 class="auth-section-title auth-section-title-spaced" id="auth-webauthn-title">${t('webauthn.title')}</h2>
         <p class="field-help">${t('webauthn.intro')}</p>
         <p class="field-help" id="auth-webauthn-capability"></p>
-        ${field('wa-enabled', 'common.enabled', `<select class="field-input" id="wa-enabled" data-search-path="auth.webauthn.enabled"><option value="false" ${!settings.enabled ? 'selected' : ''}>${t('common.disabled')}</option><option value="true" ${settings.enabled ? 'selected' : ''}>${t('common.enabled')}</option></select>`)}
-        ${field('wa-mode', 'webauthn.mode', `<select class="field-input" id="wa-mode" data-search-path="auth.webauthn.login_mode"><option value="passkey" ${settings.login_mode !== 'second_factor' ? 'selected' : ''}>${t('webauthn.mode_passkey')}</option><option value="second_factor" ${settings.login_mode === 'second_factor' ? 'selected' : ''}>${t('webauthn.mode_second_factor')}</option></select>`)}
-        <p class="field-help" id="wa-mode-help"></p>
-        ${field('wa-rpid', 'webauthn.rpid', `<input class="field-input" id="wa-rpid" data-search-path="auth.webauthn.rp_id" value="${escapeAttr(settings.rp_id || '')}" placeholder="aurago.example.test" autocomplete="off" spellcheck="false">`)}
-        ${field('wa-origins', 'webauthn.origins', `<textarea class="field-input" id="wa-origins" data-search-path="auth.webauthn.origins" rows="2" placeholder="https://aurago.example.test" spellcheck="false">${escapeHtml((settings.origins || []).join('\n'))}</textarea>`)}
-        <p class="field-help">${t('webauthn.origin_hint')}</p>
-        <p class="field-help">${t('webauthn.step_up')}</p>
-        ${field('auth-webauthn-current-pw', 'login.password_label', '<input class="field-input" id="auth-webauthn-current-pw" type="password" autocomplete="current-password">')}
-        ${status.totp_enabled ? field('auth-webauthn-current-totp', 'login.totp_label', '<input class="field-input" id="auth-webauthn-current-totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6">') : ''}
+        ${field('wa-enabled', 'common.enabled', `<select class="field-input" id="wa-enabled" data-search-path="auth.webauthn.enabled"><option value="false" ${!settings.enabled ? 'selected' : ''}>${t('common.disabled')}</option><option value="true" ${settings.enabled ? 'selected' : ''}>${t('common.enabled')}</option></select>`, `<div class="field-help">${t('config.auth.webauthn_enabled_help')}</div>`)}
+        ${field('wa-mode', 'webauthn.mode', `<select class="field-input" id="wa-mode" data-search-path="auth.webauthn.login_mode"><option value="passkey" ${settings.login_mode !== 'second_factor' ? 'selected' : ''}>${t('webauthn.mode_passkey')}</option><option value="second_factor" ${settings.login_mode === 'second_factor' ? 'selected' : ''}>${t('webauthn.mode_second_factor')}</option></select>`, '<div class="field-help" id="wa-mode-help"></div>')}
+        ${field('wa-rpid', 'webauthn.rpid', `<input class="field-input" id="wa-rpid" data-search-path="auth.webauthn.rp_id" value="${escapeAttr(settings.rp_id || '')}" placeholder="aurago.example.test" autocomplete="off" spellcheck="false">`, `<div class="field-help">${t('config.auth.webauthn_rpid_help')}</div>`)}
+        ${field('wa-origins', 'webauthn.origins', `<textarea class="field-input" id="wa-origins" data-search-path="auth.webauthn.origins" rows="2" placeholder="https://aurago.example.test" spellcheck="false">${escapeHtml((settings.origins || []).join('\n'))}</textarea>`, `<div class="field-help">${t('webauthn.origin_hint')}</div>`)}
+        ${field('auth-webauthn-current-pw', 'login.password_label', '<input class="field-input" id="auth-webauthn-current-pw" type="password" autocomplete="current-password">', `<div class="field-help">${t('webauthn.step_up')}</div>`)}
+        ${status.totp_enabled ? field('auth-webauthn-current-totp', 'login.totp_label', '<input class="field-input" id="auth-webauthn-current-totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6">', `<div class="field-help">${t('config.auth.current_totp_help')}</div>`) : ''}
         <button type="button" class="auth-primary-btn" data-wa-action="settings">${t('common.btn_save')}</button>
         <p class="field-help">${t('webauthn.verify_hint')}</p>
-        ${field('wa-label', 'webauthn.label', '<input class="field-input" id="wa-label" maxlength="64" autocomplete="off">')}
+        ${field('wa-label', 'webauthn.label', '<input class="field-input" id="wa-label" maxlength="64" autocomplete="off">', `<div class="field-help">${t('config.auth.webauthn_key_name_help')}</div>`)}
         <button type="button" class="auth-primary-btn" data-wa-action="add">${t('webauthn.add')}</button>
         <button type="button" class="auth-totp-disable-btn is-hidden" data-wa-cancel>${t('common.btn_cancel')}</button>
         <p id="wa-status" class="auth-inline-msg cfg-action-result" role="status" aria-live="polite"></p>

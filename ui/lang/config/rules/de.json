@@ -43,5 +43,13 @@
   "config.rules.rule_list": "Regelbibliothek",
   "config.rules.disabled": "Deaktiviert",
   "config.rules.targeting": "Passende Ziele",
-  "config.rules.system_status": "Regelsystem"
+  "config.rules.system_status": "Regelsystem",
+  "config.rules.rule_id_help": "Kurzer eindeutiger Name der Regel, zum Beispiel homepage. Er lässt sich nach dem Anlegen nicht mehr ändern.",
+  "config.rules.rule_title_help": "Lesbarer Name, der in der Regelbibliothek angezeigt wird.",
+  "config.rules.priority_help": "Passen mehrere Regeln, werden höhere Zahlen zuerst eingefügt. Standard: 50.",
+  "config.rules.enabled_help": "Ausgeschaltete Regeln werden nie in Aufgaben eingefügt.",
+  "config.rules.tools_help": "Tool-Namen, die diese Regel auslösen, durch Kommas getrennt. Unten ein Tool auswählen, um es hinzuzufügen.",
+  "config.rules.workflows_help": "Workflow-Namen, die diese Regel auslösen, durch Kommas getrennt. Unten einen Workflow auswählen, um ihn hinzuzufügen.",
+  "config.rules.keywords_help": "Wörter im Aufgabentext, die diese Regel auslösen, durch Kommas getrennt.",
+  "config.rules.body_help": "Der Leitplanken-Text in Markdown. Er wird eingefügt, bevor eine passende Aufgabe beginnt."
 }

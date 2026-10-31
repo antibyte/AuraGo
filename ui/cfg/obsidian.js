@@ -135,7 +135,7 @@ function obsidianCheckStatus() {
         if (!res) return null;
         if (res.status === 'disabled') return { state: 'off' };
         if (res.status === 'error' || res.status === 'offline') return { state: 'error', detail: res.error || t('config.obsidian.connection_failed') };
-        if (res.status === 'online') return { state: 'connected', detail: 'Obsidian REST API v' + (res.api_version || '') + ' — Obsidian ' + (res.obsidian_version || '') };
+        if (res.status === 'online') return { state: 'connected', detail: t('config.obsidian.status_online').replace('{api}', res.api_version || '').replace('{obsidian}', res.obsidian_version || '') };
         if (res.status === 'no_url' || res.status === 'no_host') return { state: 'unconfigured', detail: t('config.obsidian.status_no_url') };
         return null;
     });

@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Virtuelle Computer",
-  "config.section.virtual_computers.desc": "Kurzlebige microVM-Computer mit Terminal, Desktop, Previews und Agentenzugriff.",
+  "config.section.virtual_computers.desc": "Stellt kurzlebige microVM-Computer mit Terminal, Desktop und Agentenzugriff bereit.",
   "config.virtual_computers.enabled_label": "Virtuelle Computer aktivieren",
   "config.virtual_computers.disabled_notice": "Virtuelle Computer sind deaktiviert.",
   "config.virtual_computers.disabled_desc": "Aktiviere die Integration, damit AuraGo boring-computers-Maschinen starten und proxyn kann.",

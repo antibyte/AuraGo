@@ -1,6 +1,6 @@
 {
   "config.section.virtual_computers.label": "Virtual Computers",
-  "config.section.virtual_computers.desc": "Disposable microVM computers with terminal, desktop, previews and agent access.",
+  "config.section.virtual_computers.desc": "Provides disposable microVM computers with terminal, desktop and agent access.",
   "config.virtual_computers.enabled_label": "Enable Virtual Computers",
   "config.virtual_computers.disabled_notice": "Virtual Computers are disabled.",
   "config.virtual_computers.disabled_desc": "Enable the integration to launch and proxy boring-computers machines.",

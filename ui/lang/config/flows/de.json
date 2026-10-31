@@ -13,6 +13,6 @@
   "config.flows.missions_off": "Missionen sind ausgeschaltet. Flows brauchen Missionen, um zu laufen.",
   "config.flows.open": "EasyDrag öffnen",
   "config.flows.run_retention_days": "Laufhistorie aufbewahren (Tage, 1–365)",
-  "config.section.flows.desc": "Visuelle Automationen aus der EasyDrag-App",
+  "config.section.flows.desc": "Führt visuelle Automationen aus, die in der EasyDrag-App gebaut wurden.",
   "config.section.flows.label": "EasyDrag-Flows"
 }

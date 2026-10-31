@@ -36,7 +36,7 @@
   "config.gog.cloud_help": "Erstelle in Google Cloud einen OAuth-Web-Client, aktiviere die gewählten APIs und richte den Zustimmungsbildschirm ein. Hinterlege die beim Verbinden angezeigte Weiterleitungs-URL.",
   "config.gog.grants_help": "Gib jede Berechtigung ausdrücklich frei. Erstellen und Exportieren von Office-Dateien benötigen zusätzlich die passende Drive-Berechtigung.",
   "config.section.gog.label": "Google Workspace über gog",
-  "config.section.gog.desc": "Nutze getrennte Google-Konten zusätzlich zur nativen Integration.",
+  "config.section.gog.desc": "Greift über das externe Kommandozeilenwerkzeug gog auf weitere Google-Konten zu.",
   "config.gog.gmail": "Gmail",
   "config.gog.drive": "Drive",
   "config.gog.docs": "Docs",

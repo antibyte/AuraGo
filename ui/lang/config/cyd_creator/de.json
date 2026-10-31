@@ -22,7 +22,7 @@
   "config.cyd_creator.ota_public_url_label": "AuraGo-Adresse für Geräte",
   "config.cyd_creator.ota_title": "Updates über WLAN",
   "config.cyd_creator.restart_note": "Das Einschalten von CYD Creator und Änderungen an Builder-Image, Arbeitsspeicher, CPU-Kernen oder Leerlauf-Stopp wirken nach einem Neustart von AuraGo. Alle anderen Einstellungen gelten sofort.",
-  "config.section.cyd_creator.desc": "Baue Apps für Cheap-Yellow-Display-Boards mit Designer und Agent. Gebaut wird in Docker.",
+  "config.section.cyd_creator.desc": "Baut Apps für Cheap-Yellow-Display-Boards mit Designer und Agent.",
   "config.section.cyd_creator.label": "CYD Creator",
   "help.cyd_creator.builder_image": "Veröffentlichtes Toolchain-Image. AuraGo lädt es einmal herunter und baut es nie lokal.",
   "help.cyd_creator.cold_build_timeout_seconds": "Gilt, solange der Build-Cache eines Projekts und Boards noch leer ist.",

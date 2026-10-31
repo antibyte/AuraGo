@@ -19,7 +19,7 @@
   "config.newspaper.last_attempt": "Letzter Versuch: {result}",
   "config.newspaper.max_searches": "Maximale Suchanfragen je Ausgabe (einschließlich Wiederholungen)",
   "config.section.newspaper.label": "Newspaper",
-  "config.section.newspaper.desc": "Deine tägliche Zeitung mit nachvollziehbaren Quellen",
+  "config.section.newspaper.desc": "Erstellt eine persönliche Tageszeitung aus belegter Recherche.",
   "config.newspaper.enabled": "Newspaper aktivieren",
   "config.newspaper.readonly": "Schreibgeschützter Modus",
   "config.newspaper.allow_email": "E-Mail-Versand erlauben",

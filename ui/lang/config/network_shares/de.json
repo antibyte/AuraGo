@@ -1,6 +1,6 @@
 {
   "config.section.network_shares.label": "Lokale Netzwerkfreigaben",
-  "config.section.network_shares.desc": "Verwalte SMB- und NFS-Freigaben dieses Hosts.",
+  "config.section.network_shares.desc": "Verwaltet die SMB- und NFS-Freigaben, die dieser Host bereitstellt.",
   "dashboard.integration_network_shares": "Lokale Netzwerkfreigaben",
   "config.network_shares.loading": "Lokale SMB- und NFS-Fähigkeiten werden gelesen…",
   "config.network_shares.enabled": "Integration aktivieren",

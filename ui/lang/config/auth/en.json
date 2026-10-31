@@ -43,5 +43,11 @@
   "config.auth.current_totp_required": "Enter the current code from your authenticator app.",
   "config.auth.step_up_hint": "Changes to the login password or two-factor authentication require your current password (and the current code while TOTP is active).",
   "config.auth.status_load_failed": "Could not load the login status",
-  "config.auth.retry": "Retry"
+  "config.auth.retry": "Retry",
+  "config.auth.new_password_help": "Use at least 8 characters. A long, unique passphrase is safest.",
+  "config.auth.confirmation_code_help": "Enter the 6-digit code that your authenticator app shows right now.",
+  "config.auth.current_totp_help": "The 6-digit code that your authenticator app shows right now.",
+  "config.auth.webauthn_enabled_help": "Turns passkey and security key sign-in on. Register a key first and test a login before you rely on it.",
+  "config.auth.webauthn_rpid_help": "The domain name your keys are bound to, for example aurago.example.test. Changing it removes all registered keys.",
+  "config.auth.webauthn_key_name_help": "A name that helps you recognize this key later, for example Laptop or YubiKey."
 }

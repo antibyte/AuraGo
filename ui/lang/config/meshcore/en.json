@@ -71,7 +71,7 @@
   "config.meshcore.not_sent": "Not sent",
   "config.meshcore.device_accepted": "Accepted by device",
   "config.meshcore.delivered": "Direct delivery confirmed",
-  "config.section.meshcore.desc": "One Companion radio via USB or native Linux Bluetooth.",
+  "config.section.meshcore.desc": "Connects one MeshCore companion radio over USB or native Linux Bluetooth.",
   "config.meshcore.security": "Channel replies use public knowledge and optionally Brave search only. Trusted direct messages retain existing AuraGo permissions. Failed security checks quarantine input.",
   "config.meshcore.keys_help": "One complete 64-character public key per line. Names and channel senders never establish trust.",
   "config.meshcore.channels_help": "Confirm each channel assignment before enabling replies or proactive sending. A changed device or channel blocks automatic work until reassigned.",
