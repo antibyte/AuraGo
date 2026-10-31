@@ -87,7 +87,7 @@ function renderGo2RTCSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div class="cfg-note-banner cfg-note-banner-info">🎥 ' + t('config.go2rtc.proxy_note') + '</div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">' + cfgIcon('video') + ' ' + t('config.go2rtc.proxy_note') + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info" id="go2rtc-detection-hint">' + t('config.go2rtc.detection_hint') + ' <a href="/desktop?app=network-cameras" target="_blank" rel="noopener">' + t('config.go2rtc.open_camera_app') + '</a></div>';
     html += go2rtcToggle('go2rtc.enabled', data.enabled === true, 'config.go2rtc.enabled', 'help.go2rtc.enabled', true);
     html += go2rtcToggle('go2rtc.auto_start', data.auto_start !== false, 'config.go2rtc.auto_start', 'help.go2rtc.auto_start');
@@ -143,14 +143,14 @@ function renderGo2RTCSection(section) {
         html += '<button type="button" class="btn-save" id="go2rtc-snapshot-' + index + '" data-config-action-draft="false" onclick="go2rtcSnapshot(' + index + ')">' + t('config.go2rtc.snapshot') + '</button> ';
         html += '<button type="button" class="btn-secondary" data-config-action-draft="false" onclick="go2rtcOpenViewer(' + index + ')">' + t('config.go2rtc.viewer') + '</button> ';
         html += '<button type="button" class="btn-secondary" id="go2rtc-diagnose-' + index + '" data-config-action-draft="false" onclick="go2rtcDiagnose(' + index + ')">' + t('config.go2rtc.diagnose') + '</button> ';
-        html += '<button type="button" class="btn-secondary" onclick="go2rtcRemoveStream(' + index + ')">' + t('config.go2rtc.remove') + '</button>';
+        html += cfgDeleteButton({ label: t('config.go2rtc.remove'), attrs: { onclick: 'go2rtcRemoveStream(' + index + ')' } });
         html += cfgActionResult.html('go2rtc-stream-result-' + index);
         html += '<div id="go2rtc-stream-preview-' + index + '"></div>';
         html += '</div></div>';
     });
     html += '<div class="field-group"><button type="button" class="btn-save" onclick="go2rtcAddStream()">' + t('config.go2rtc.add_stream') + '</button></div>';
 
-    html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">⚙️ ' + t('config.go2rtc.advanced') + '</summary><div class="cfg-advanced-body">';
+    html += '<details class="cfg-advanced-panel"><summary class="cfg-advanced-summary">' + cfgIcon('settings') + ' ' + t('config.go2rtc.advanced') + '</summary><div class="cfg-advanced-body">';
     html += go2rtcSelect('go2rtc.hardware.backend', data.hardware.backend || 'software', 'config.go2rtc.hardware_backend', [['software', 'CPU'], ['vaapi', 'VAAPI'], ['cuda', 'CUDA / NVENC']], true, 'config.go2rtc.hardware_help');
     if (data.hardware.backend === 'vaapi') {
         html += go2rtcField('go2rtc.hardware.render_node', data.hardware.render_node || '/dev/dri/renderD128', 'config.go2rtc.hardware_node', '', '/dev/dri/renderD128', false);
@@ -205,7 +205,7 @@ function go2rtcSourceBlock(stream, index, base) {
     const saved = window.AuraConfigState && window.AuraConfigState.get ? window.AuraConfigState.get('go2rtc.streams', { saved: true }) : null;
     const savedStream = Array.isArray(saved) ? saved.find(item => item && item.id === stream.id) : null;
     const original = savedStream ? (savedStream.source || '') : (stream.source || '');
-    const badge = stream.source_type ? '<span class="go2rtc-source-badge">' + escapeHtml(window.AuraGoSourceForm.label(go2rtcSourceTypes, stream.source_type)) + '</span>' : '';
+    const badge = stream.source_type ? cfgBadge('idle', window.AuraGoSourceForm.label(go2rtcSourceTypes, stream.source_type)) : '';
     return '<div class="field-group"><div class="field-label">' + t('config.go2rtc.source') + badge + '</div><div class="field-help">' + t('help.go2rtc.source') + '</div>' +
         '<input type="hidden" data-path="' + escapeAttr(base + '.source') + '" data-original="' + escapeAttr(original) + '" value="">' +
         '<div data-go2rtc-source="' + index + '">' + go2rtcSourceMarkup(index, state) + '</div></div>';
@@ -301,8 +301,12 @@ function go2rtcRemoveStream(index) {
         return;
     }
     const label = doomed.name || doomed.id || String(index + 1);
-    showConfirm(t('config.go2rtc.confirm_remove_title'), t('config.go2rtc.confirm_remove_message', { name: label }))
-        .then(ok => { if (ok) go2rtcDropStream(index); });
+    showConfirmDialog({
+        title: t('config.go2rtc.confirm_remove_title'),
+        message: t('config.go2rtc.confirm_remove_message', { name: label }),
+        danger: true,
+        confirmText: t('config.go2rtc.remove')
+    }).then(answer => { if (answer.confirmed) go2rtcDropStream(index); });
 }
 
 function go2rtcDropStream(index) {

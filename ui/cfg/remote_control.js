@@ -28,7 +28,7 @@ async function renderRemoteControlSection(section) {
 
     if (!enabled) {
         html += `<div class="wh-notice">
-            <span>📡</span>
+            <span>${cfgIcon('wifi')}</span>
             <div>
                 <strong>${t('config.remote_control.disabled_notice')}</strong><br>
                 <small>${t('config.remote_control.disabled_desc')}</small>
@@ -162,20 +162,16 @@ async function renderRemoteControlSection(section) {
             <div class="field-help">${t('config.remote_control.device_name_help')}</div>
             <input type="text" id="rc-device-name" class="field-input" placeholder="${t('config.remote_control.download_name_placeholder')}">
         </div>
-        <div id="rc-platform-list" class="rc-platform-list">
-            <span class="rc-muted-text">${t('config.remote_control.loading_platforms')}</span>
-        </div>
+        <div id="rc-platform-list" class="rc-platform-list"></div>
     </div>`;
 
     // ── Connected Devices (live status) ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.remote_control.devices_title')}</div>
         <div class="field-group-desc">${t('config.remote_control.devices_desc')}</div>
-        <button type="button" class="btn-save btn-secondary" onclick="loadRemoteDevices()">${t('config.remote_control.refresh')}</button>
+        <button type="button" class="btn-secondary" onclick="loadRemoteDevices()">${cfgIcon('refresh')}<span>${t('config.remote_control.refresh')}</span></button>
         <div id="rc-devices-error" class="rc-error-text" role="status"></div>
-        <div id="rc-devices-list" class="rc-devices-list">
-            <span class="rc-muted-text">${t('config.remote_control.loading_devices')}</span>
-        </div>
+        <div id="rc-devices-list" class="rc-devices-list"></div>
     </div>`;
 
     html += `</div>`;
@@ -183,6 +179,8 @@ async function renderRemoteControlSection(section) {
     attachChangeListeners();
 
     // Load platform list and device list async
+    cfgListState('rc-platform-list', { state: 'loading', title: t('config.remote_control.loading_platforms') });
+    cfgListState('rc-devices-list', { state: 'loading', title: t('config.remote_control.loading_devices') });
     loadRemotePlatforms();
     _rcDevicesOwner = document.getElementById('rc-devices-list');
     loadRemoteDevices();
@@ -194,30 +192,29 @@ async function loadRemotePlatforms() {
     try {
         const resp = await fetch('/api/remote/platforms');
         if (!resp.ok) {
-            container.innerHTML = `<span class="rc-error-text">${t('config.remote_control.platforms_error')}</span>`;
+            cfgListState(container, { state: 'error', title: t('config.remote_control.platforms_error'), retry: loadRemotePlatforms });
             return;
         }
         const platforms = await resp.json();
         const available = platforms.filter(p => p.available);
         if (!available.length) {
-            container.innerHTML = `<span class="rc-muted-text">${t('config.remote_control.no_platforms')}</span>`;
+            cfgListState(container, { state: 'empty', title: t('config.remote_control.no_platforms') });
             return;
         }
 
-        const osIcons = { linux: '🐧', darwin: '🍎', windows: '🪟' };
+        const osIcons = { linux: 'terminal', darwin: 'monitor', windows: 'layout-grid' };
         let html = '<div class="rc-platform-grid">';
         available.forEach(p => {
-            const icon = osIcons[p.os] || '💻';
-            const label = `${icon} ${p.os} / ${p.arch}`;
+            const label = `${escapeHtml(p.os)} / ${escapeHtml(p.arch)}`;
             html += `<button class="btn-save rc-platform-btn"
                 onclick="rcDownload('${escapeAttr(p.os)}','${escapeAttr(p.arch)}')">
-                ⬇ ${label}
+                ${cfgIcon('download')}${cfgIcon(osIcons[p.os] || 'monitor')}<span>${label}</span>
             </button>`;
         });
         html += '</div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<span class="rc-error-text">${escapeAttr(t('config.remote_control.error_prefix'))} ${escapeAttr(e && e.message ? e.message : String(e))}</span>`;
+        cfgListState(container, { state: 'error', title: t('config.remote_control.error_prefix'), text: e && e.message ? e.message : String(e), retry: loadRemotePlatforms });
     }
 }
 
@@ -255,7 +252,7 @@ async function rcCreateEnrollmentToken(pendingID) {
             result.innerHTML = `<div class="rc-token-card">
                 <code id="rc-token-value" class="rc-token-value">${escapeAttr(data.token)}</code>
                 <div class="cfg-actions-row">
-                    <button id="rc-token-copy-btn" class="btn-save btn-secondary" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
+                    <button id="rc-token-copy-btn" class="btn-secondary" onclick="rcCopyEnrollmentToken()">${t('config.remote_control.pairing_token_copy')}</button>
                     ${cfgActionResult.html('rc-token-copy-state')}
                 </div>
                 <div class="field-help">${t('config.remote_control.pairing_token_expires')} ${escapeAttr(expires)}</div>
@@ -277,6 +274,12 @@ function rcCopyEnrollmentToken() {
     });
 }
 
+// Per-device switch: part of the device editor, not of the config draft, so it has its own handler.
+function rcDeviceToggle(el) {
+    el.classList.toggle('on');
+    syncToggleA11y(el);
+}
+
 function rcText(key) { return t('config.remote_control.' + key); }
 
 async function loadRemoteDevices() {
@@ -294,10 +297,10 @@ async function loadRemoteDevices() {
         if (!container.isConnected || container !== _rcDevicesOwner) return;
         document.getElementById('rc-devices-error').textContent = '';
         if (!devices.length) {
-            container.innerHTML = `<span class="rc-muted-text">${rcText('no_devices')}</span>`;
+            cfgListState(container, { state: 'empty', title: rcText('no_devices') });
             return;
         }
-        container.querySelector(':scope > .rc-muted-text')?.remove();
+        container.querySelector(':scope > .cfg-list-state')?.remove();
         const ids = new Set(devices.map(d => d.id));
         for (const card of container.querySelectorAll('[data-device-id]')) {
             if (!ids.has(card.dataset.deviceId)) card.remove();
@@ -324,15 +327,19 @@ async function loadRemoteDevices() {
             if (editor.querySelector('details[open]') || editor.contains(document.activeElement) || editor.dataset.busy === 'true') continue;
             const agodesk = (d.tags || []).includes('agodesk');
             editor.innerHTML = `<details><summary>${rcText('manage')}</summary>
-                <label class="field-label rc-device-option"><input type="checkbox" data-rc-readonly ${d.read_only ? 'checked' : ''}> ${rcText('device_read_only')}</label>
+                <div class="field-group cfg-toggle-row rc-device-option">
+                    <span class="cfg-toggle-label" id="rc-readonly-${escapeAttr(d.id)}-label">${rcText('device_read_only')}</span>
+                    <div class="toggle${d.read_only ? ' on' : ''}" data-rc-readonly role="switch" tabindex="0" aria-checked="${d.read_only ? 'true' : 'false'}" aria-labelledby="rc-readonly-${escapeAttr(d.id)}-label" onclick="rcDeviceToggle(this)"></div>
+                </div>
                 ${agodesk ? `<p class="field-help">${rcText('server_enforced')}</p>` : `<label class="field-label">${rcText('allowed_paths_label')}<textarea class="field-input rc-paths-textarea" data-rc-paths rows="3">${escapeAttr((d.allowed_paths || []).join('\n'))}</textarea></label><p class="field-help">${rcText('paths_inherit')}</p>`}
                 <div class="cfg-actions-row rc-device-actions">
                     <button type="button" class="btn-save" data-rc-action="save">${rcText('save_device')}</button>
-                    ${d.status === 'pending' ? `<button type="button" class="btn-save btn-secondary" data-approve-device data-rc-action="approve">${rcText('pairing_token_generate')}</button>` : ''}
-                    ${d.status !== 'revoked' ? `<button type="button" class="btn-save btn-secondary" data-rc-action="revoke">${rcText('revoke')}</button>` : ''}
-                    <button type="button" class="btn-save btn-secondary" data-rc-action="delete">${rcText('delete')}</button>
+                    ${d.status === 'pending' ? `<button type="button" class="btn-secondary" data-approve-device data-rc-action="approve">${rcText('pairing_token_generate')}</button>` : ''}
+                    ${d.status !== 'revoked' ? `<button type="button" class="btn-secondary" data-rc-action="revoke">${rcText('revoke')}</button>` : ''}
+                    ${cfgDeleteButton({ label: rcText('delete'), attrs: { 'data-rc-action': 'delete' } })}
                 </div><div class="field-help" data-rc-feedback role="status"></div>
             </details>`;
+            if (typeof enhanceConfigControls === 'function') enhanceConfigControls(editor);
             editor.querySelectorAll('[data-rc-action]').forEach(button => button.addEventListener('click', () => rcDeviceAction(card, d, button.dataset.rcAction)));
         }
     } catch (error) {
@@ -359,14 +366,22 @@ async function rcDeviceAction(card, device, action) {
     const editor = card.querySelector('.rc-device-editor');
     if (editor.dataset.busy === 'true') return;
     if (action === 'approve') { await rcCreateEnrollmentToken(device.id); return; }
-    if (action !== 'save' && !await showConfirm(rcText(action), rcText('confirm_removal'))) return;
+    if (action !== 'save') {
+        const answer = await showConfirmDialog({
+            title: rcText(action),
+            message: rcText('confirm_removal'),
+            danger: true,
+            confirmText: rcText(action)
+        });
+        if (!answer.confirmed) return;
+    }
     if (!card.isConnected) return;
     editor.dataset.busy = 'true';
     const buttons = [...editor.querySelectorAll('button')];
     buttons.forEach(button => { button.disabled = true; });
     const feedback = editor.querySelector('[data-rc-feedback]');
     feedback.textContent = rcText('pending');
-    const payload = { read_only: editor.querySelector('[data-rc-readonly]').checked };
+    const payload = { read_only: editor.querySelector('[data-rc-readonly]').classList.contains('on') };
     const paths = editor.querySelector('[data-rc-paths]');
     if (paths) payload.allowed_paths = paths.value.split('\n').map(p => p.trim()).filter(Boolean);
     const request = new AbortController();

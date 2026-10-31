@@ -9,7 +9,7 @@
   "config.music_gen.action_pending": "Η ενέργεια εκτελείται…",
   "config.music_gen.action_failed": "Η ενέργεια απέτυχε.",
   "config.music_gen.status_unavailable": "Η κατάσταση δεν είναι διαθέσιμη. Η ενέργεια μπορεί να συνεχίζεται· επανέλεγχος σύνδεσης.",
-  "config.fritzbox.status_ok": "🟢 Συνδεδεμένο",
+  "config.fritzbox.status_ok": "Συνδεδεμένο",
   "config.fritzbox.test_fail": "Σύνδεση απέτυχε",
   "config.fritzbox.test_ok": "Σύνδεση επιτυχής",
   "config.indexing.running": "Εκτελείται",

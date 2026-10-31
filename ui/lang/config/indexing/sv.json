@@ -1,5 +1,5 @@
 {
-  "config.fritzbox.status_ok": "🟢 Ansluten",
+  "config.fritzbox.status_ok": "Ansluten",
   "config.fritzbox.test_fail": "Anslutning misslyckades",
   "config.fritzbox.test_ok": "Anslutning lyckades",
   "config.indexing.add": "Lägg till",

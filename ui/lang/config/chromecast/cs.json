@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "{{count}} nalezeno zařízení",
   "config.chromecast.ip_placeholder": "např. 192.168.1.50",
   "config.chromecast.ip_required": "Je vyžadována IP adresa.",
-  "config.chromecast.loading": "⏳ Načítání zařízení…",
+  "config.chromecast.loading": "Načítání zařízení…",
   "config.chromecast.name_placeholder": "např. Obývací pokoj",
   "config.chromecast.name_required": "Je vyžadován název zařízení.",
   "config.chromecast.no_devices": "Nejsou zaregistrována žádná zařízení Chromecast. Pomocí „Objevte zařízení“ je vyhledejte ve své síti.",

@@ -16,7 +16,6 @@ devices
 dograh
 email
 firewall
-fritzbox
 github
 go2rtc
 gog
@@ -26,8 +25,6 @@ heartbeat
 here_now
 homepage
 indexing
-jellyfin
-ldap
 llm_guardian
 llm_router
 local_llm
@@ -62,13 +59,10 @@ speech_lab
 sql_connections
 tailscale
 telephone_agent
-telnyx
 three_d_printers
 treg
-truenas
 tts
 updates
-uptime_kuma
 vercel
 virtual_computers
 virtual_desktop

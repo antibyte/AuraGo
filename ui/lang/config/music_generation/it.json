@@ -9,7 +9,7 @@
   "config.music_gen.action_pending": "Operazione in corso…",
   "config.music_gen.action_failed": "Operazione non riuscita.",
   "config.music_gen.status_unavailable": "Stato non disponibile. L’operazione potrebbe proseguire; nuovo tentativo di connessione.",
-  "config.fritzbox.status_ok": "🟢 Connesso",
+  "config.fritzbox.status_ok": "Connesso",
   "config.fritzbox.test_fail": "Connessione fallita",
   "config.fritzbox.test_ok": "Connessione riuscita",
   "config.indexing.running": "In esecuzione",

@@ -9,7 +9,7 @@
   "config.music_gen.action_pending": "Akce probíhá…",
   "config.music_gen.action_failed": "Akce selhala.",
   "config.music_gen.status_unavailable": "Stav není dostupný. Akce může stále probíhat; připojení se znovu ověřuje.",
-  "config.fritzbox.status_ok": "🟢 Připojeno",
+  "config.fritzbox.status_ok": "Připojeno",
   "config.fritzbox.test_fail": "Připojení selhalo",
   "config.fritzbox.test_ok": "Připojení úspěšné",
   "config.indexing.running": "Běží",

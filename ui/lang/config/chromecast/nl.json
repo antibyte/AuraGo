@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "{{count}} apparaat/apparaten gevonden",
   "config.chromecast.ip_placeholder": "bijv. 192.168.1.50",
   "config.chromecast.ip_required": "Een IP-adres is vereist.",
-  "config.chromecast.loading": "⏳ Apparaten laden…",
+  "config.chromecast.loading": "Apparaten laden…",
   "config.chromecast.name_placeholder": "bijv. Woonkamer",
   "config.chromecast.name_required": "Een apparaatnaam is vereist.",
   "config.chromecast.no_devices": "Geen Chromecast-apparaten geregistreerd. Gebruik \"Apparaten zoeken\" om ze op je netwerk te vinden.",

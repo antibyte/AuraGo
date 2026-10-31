@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "{{count}} enhet(er) hittade",
   "config.chromecast.ip_placeholder": "t.ex. 192.168.1.50",
   "config.chromecast.ip_required": "En IP-adress krävs.",
-  "config.chromecast.loading": "⏳ Laddar enheter…",
+  "config.chromecast.loading": "Laddar enheter…",
   "config.chromecast.name_placeholder": "t.ex. Vardagsrum",
   "config.chromecast.name_required": "Ett enhetsnamn krävs.",
   "config.chromecast.no_devices": "Inga Chromecast-enheter registrerade. Använd \"Sök enheter\" för att hitta dem på ditt nätverk.",

@@ -3,154 +3,65 @@
 function renderTelnyxSection(section) {
     const data = configData['telnyx'] || {};
     const enabled = data.enabled === true;
-    const readOnly = data.read_only === true;
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.telnyx.api_key_placeholder'));
-
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-    html += cfgStatusBanner.html('telnyx-status-banner', enabled ? 'checking' : 'off');
-
-    // ── Enabled toggle ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.enabled') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabled ? ' on' : '') + '" data-path="telnyx.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── Read-only toggle ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.read_only_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.read_only') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readOnly ? ' on' : '') + '" data-path="telnyx.read_only" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (readOnly ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    // ── API Key (Vault) ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.api_key_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.api_key') + '</div>';
-    html += '<div class="telnyx-api-row">';
-        html += '<div class="password-wrap pw-u-flex-1">';
-        html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" data-path="telnyx.api_key" autocomplete="off" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
-        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-        html += '</div>';
-    html += '</div></div>';
-
-    // ── Account Public Key (webhook verification) ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.webhook_public_key_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.webhook_public_key') + '</div>';
-    html += '<input class="field-input" type="text" data-path="telnyx.webhook_public_key" value="' + escapeAttr(data.webhook_public_key || '') + '" autocomplete="off">';
-    html += '</div>';
-
-    // ── Phone Number ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.phone_number_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.phone_number') + '</div>';
-    html += '<input class="field-input" type="text" data-path="telnyx.phone_number" value="' + escapeAttr(data.phone_number || '') + '" placeholder="+15551234567">';
-    html += '</div>';
-
-    // ── Messaging Profile ID ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.messaging_profile_id_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.messaging_profile_id') + '</div>';
-    html += '<input class="field-input" type="text" data-path="telnyx.messaging_profile_id" value="' + escapeAttr(data.messaging_profile_id || '') + '" placeholder="">';
-    html += '</div>';
-
-    // ── Connection ID (for voice calls) ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.connection_id_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.connection_id') + '</div>';
-    html += '<input class="field-input" type="text" data-path="telnyx.connection_id" value="' + escapeAttr(data.connection_id || '') + '" placeholder="">';
-    html += '</div>';
-
-    // ── Webhook Path ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.webhook_path_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.webhook_path') + '</div>';
-    html += '<input class="field-input" type="text" data-path="telnyx.webhook_path" value="' + escapeAttr(data.webhook_path || '/api/telnyx/webhook') + '" placeholder="/api/telnyx/webhook">';
-    html += '</div>';
-
-    // ── Allowed Numbers ──
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.allowed_numbers_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.allowed_numbers') + '</div>';
+    const form = window.AuraConfigForm;
     const nums = (data.allowed_numbers || []).join(', ');
-    html += '<input class="field-input" type="text" id="telnyx-allowed-numbers" value="' + escapeAttr(nums) + '" placeholder="+15551234567, +15559876543" onchange="parseTelnyxAllowedNumbers(this)">';
-    html += '</div>';
+    // The allowed numbers are parsed into a list on change (no data-path of their own).
+    const allowedNumbers = '<div class="field-group pw-field">'
+        + '<div class="field-label" id="telnyx-allowed-numbers-label">' + escapeHtml(t('config.telnyx.allowed_numbers_label')) + '</div>'
+        + '<input class="field-input" type="text" id="telnyx-allowed-numbers" aria-labelledby="telnyx-allowed-numbers-label" aria-describedby="telnyx-allowed-numbers-help" value="' + escapeAttr(nums) + '" placeholder="+15551234567, +15559876543" onchange="parseTelnyxAllowedNumbers(this)">'
+        + '<div class="field-help" id="telnyx-allowed-numbers-help">' + escapeHtml(t('help.telnyx.allowed_numbers')) + '</div>'
+        + '</div>';
+    const voiceLanguage = '<div class="field-group pw-field">'
+        + '<div class="field-label" id="telnyx-voice-language-label">' + escapeHtml(t('config.telnyx.voice_language_label')) + '</div>'
+        + telnyxVoiceLanguageSelect(data.voice_language || 'en')
+        + '<div class="field-help">' + escapeHtml(t('help.telnyx.voice_language')) + '</div>'
+        + '</div>';
 
-    // ── Voice Settings ──
-    html += '<div class="field-group telnyx-voice-group">';
-    html += '<div class="field-label telnyx-voice-title">' + t('config.telnyx.voice_settings_title') + '</div>';
-    html += '</div>';
+    const html = form.renderSpec({
+        label: section.label,
+        desc: section.desc,
+        banner: { id: 'telnyx-status-banner', state: enabled ? 'checking' : 'off' },
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
+            form.toggle({ label: t('config.telnyx.enabled_label'), help: t('help.telnyx.enabled'), path: 'telnyx.enabled', value: enabled }),
+            form.toggle({ label: t('config.telnyx.read_only_label'), help: t('help.telnyx.read_only'), path: 'telnyx.read_only', value: data.read_only === true }),
+            form.toggle({ label: t('config.telnyx.relay_to_agent_label'), help: t('help.telnyx.relay_to_agent'), path: 'telnyx.relay_to_agent', value: data.relay_to_agent !== false })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
+            form.password({
+                label: t('config.telnyx.api_key_label'),
+                help: t('help.telnyx.api_key'),
+                id: 'telnyx-api-key',
+                path: 'telnyx.api_key',
+                value: data.api_key,
+                placeholder: apiKeyPlaceholder
+            }),
+            form.field({ label: t('config.telnyx.webhook_public_key_label'), help: t('help.telnyx.webhook_public_key'), path: 'telnyx.webhook_public_key', value: data.webhook_public_key || '' })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.telnyx.phone_number_label'), help: t('help.telnyx.phone_number'), path: 'telnyx.phone_number', value: data.phone_number || '', placeholder: '+15551234567' }),
+            form.field({ label: t('config.telnyx.messaging_profile_id_label'), help: t('help.telnyx.messaging_profile_id'), path: 'telnyx.messaging_profile_id', value: data.messaging_profile_id || '' }),
+            form.field({ label: t('config.telnyx.connection_id_label'), help: t('help.telnyx.connection_id'), path: 'telnyx.connection_id', value: data.connection_id || '' }),
+            form.field({ label: t('config.telnyx.webhook_path_label'), help: t('help.telnyx.webhook_path'), path: 'telnyx.webhook_path', value: data.webhook_path || '/api/telnyx/webhook', placeholder: '/api/telnyx/webhook' }),
+            allowedNumbers
+        ] }, { title: t('config.telnyx.voice_settings_title'), fields: [
+            voiceLanguage,
+            form.select({
+                label: t('config.telnyx.voice_gender_label'),
+                help: t('config.telnyx.voice_gender_help'),
+                path: 'telnyx.voice_gender',
+                value: data.voice_gender === 'male' ? 'male' : 'female',
+                options: [{ value: 'female', label: t('config.telnyx.voice_female') }, { value: 'male', label: t('config.telnyx.voice_male') }]
+            }),
+            form.number({ label: t('config.telnyx.call_timeout_label'), help: t('help.telnyx.call_timeout'), path: 'telnyx.call_timeout', value: String(data.call_timeout || 300), min: 30, max: 3600 }),
+            form.number({ label: t('config.telnyx.max_concurrent_calls_label'), help: t('config.telnyx.max_concurrent_calls_help'), path: 'telnyx.max_concurrent_calls', value: String(data.max_concurrent_calls || 3), min: 1, max: 20 }),
+            form.number({ label: t('config.telnyx.max_sms_per_minute_label'), help: t('config.telnyx.max_sms_per_minute_help'), path: 'telnyx.max_sms_per_minute', value: String(data.max_sms_per_minute || 10), min: 1, max: 60 }),
+            form.toggle({ label: t('config.telnyx.record_calls_label'), help: t('help.telnyx.record_calls'), path: 'telnyx.record_calls', value: data.record_calls === true })
+        ] }],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn" data-config-action-draft="true">' + t('config.telnyx.test_btn') + '</button>' },
+            { html: form.actionResult({ id: 'telnyx-test-result' }) }
+        ])
+    });
 
-    // Voice Language
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.voice_language_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.voice_language') + '</div>';
-    html += telnyxVoiceLanguageSelect(data.voice_language || 'en');
-    html += '</div>';
-
-    // Voice Gender
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.voice_gender_label') + '</div>';
-    html += '<div class="field-help">' + t('config.telnyx.voice_gender_help') + '</div>';
-    html += '<select class="field-select" data-path="telnyx.voice_gender">';
-    html += '<option value="female"' + ((data.voice_gender || 'female') === 'female' ? ' selected' : '') + '>' + t('config.telnyx.voice_female') + '</option>';
-    html += '<option value="male"' + (data.voice_gender === 'male' ? ' selected' : '') + '>' + t('config.telnyx.voice_male') + '</option>';
-    html += '</select>';
-    html += '</div>';
-
-    // Call Timeout
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.call_timeout_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.call_timeout') + '</div>';
-    html += '<input class="field-input" type="number" data-path="telnyx.call_timeout" value="' + escapeAttr(String(data.call_timeout || 300)) + '" min="30" max="3600">';
-    html += '</div>';
-
-    // Max Concurrent Calls
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.max_concurrent_calls_label') + '</div>';
-    html += '<div class="field-help">' + t('config.telnyx.max_concurrent_calls_help') + '</div>';
-    html += '<input class="field-input" type="number" data-path="telnyx.max_concurrent_calls" value="' + escapeAttr(String(data.max_concurrent_calls || 3)) + '" min="1" max="20">';
-    html += '</div>';
-
-    // Max SMS per Minute
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.max_sms_per_minute_label') + '</div>';
-    html += '<div class="field-help">' + t('config.telnyx.max_sms_per_minute_help') + '</div>';
-    html += '<input class="field-input" type="number" data-path="telnyx.max_sms_per_minute" value="' + escapeAttr(String(data.max_sms_per_minute || 10)) + '" min="1" max="60">';
-    html += '</div>';
-
-    // ── Recording & Transcription toggles ──
-    const recordCalls = data.record_calls === true;
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.record_calls_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.record_calls') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (recordCalls ? ' on' : '') + '" data-path="telnyx.record_calls" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (recordCalls ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    const relayOn = data.relay_to_agent !== false; // default true
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.telnyx.relay_to_agent_label') + '</div>';
-    html += '<div class="field-help">' + t('help.telnyx.relay_to_agent') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (relayOn ? ' on' : '') + '" data-path="telnyx.relay_to_agent" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (relayOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save cfg-test-btn" onclick="telnyxTestConnection()" id="telnyx-test-btn" data-config-action-draft="true">' + t('config.telnyx.test_btn') + '</button>';
-    html += cfgActionResult.html('telnyx-test-result');
-    html += '</div>';
-
-    html += '</div>'; // close cfg-section
     document.getElementById('content').innerHTML = html;
 
     if (enabled) telnyxCheckStatus();
@@ -161,7 +72,7 @@ function telnyxVoiceLanguageSelect(selected) {
     const customOption = typeof CFG_OPTION_OTHER_CUSTOM === 'string' ? CFG_OPTION_OTHER_CUSTOM : 'Other / Custom';
     const current = String(selected || '').trim();
     const isCustom = current && !languages.includes(current);
-    let html = '<select class="field-select" data-path="telnyx.voice_language" onchange="cfgToggleCustomInput(this)">';
+    let html = '<select class="field-select" data-path="telnyx.voice_language" aria-labelledby="telnyx-voice-language-label" onchange="cfgToggleCustomInput(this)">';
     languages.forEach(code => {
         html += '<option value="' + code + '"' + (current === code ? ' selected' : '') + '>' + code + '</option>';
     });

@@ -3,7 +3,7 @@
   "config.server.preview_domain": "Domínio de pré-visualização",
   "config.server.preview_enabled": "Ativar após validação",
   "config.server.preview_hint": "Desativado por predefinição. Usa um site separado com DNS wildcard e TLS. Testa os inícios de sessão, ficheiros e WebSockets nos anfitriões preparados antes de ativar.",
-  "config.fritzbox.status_ok": "🟢 Conectado",
+  "config.fritzbox.status_ok": "Conectado",
   "config.fritzbox.test_fail": "Conexão falhou",
   "config.fritzbox.test_ok": "Conexão bem-sucedida",
   "config.indexing.running": "Executando",

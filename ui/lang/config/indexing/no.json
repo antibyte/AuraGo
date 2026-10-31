@@ -1,5 +1,5 @@
 {
-  "config.fritzbox.status_ok": "🟢 Tilkoblet",
+  "config.fritzbox.status_ok": "Tilkoblet",
   "config.fritzbox.test_fail": "Tilkobling mislyktes",
   "config.fritzbox.test_ok": "Tilkobling vellykket",
   "config.indexing.add": "Legg til",

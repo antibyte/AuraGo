@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "{{count}} dispositivo(s) encontrado(s)",
   "config.chromecast.ip_placeholder": "p.ej. 192.168.1.50",
   "config.chromecast.ip_required": "Se requiere una dirección IP.",
-  "config.chromecast.loading": "⏳ Cargando dispositivos…",
+  "config.chromecast.loading": "Cargando dispositivos…",
   "config.chromecast.name_placeholder": "p.ej. Salón",
   "config.chromecast.name_required": "Se requiere un nombre de dispositivo.",
   "config.chromecast.no_devices": "No hay dispositivos Chromecast registrados. Usa \"Buscar dispositivos\" para encontrarlos en tu red.",

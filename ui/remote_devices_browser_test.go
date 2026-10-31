@@ -72,7 +72,8 @@ func TestRemoteDevicesBrowser(t *testing.T) {
 			}
 		}
 	}
-	page.MustElement("[data-rc-readonly]").MustClick()
+	// The per-device read-only switch is a div.toggle; Rod's MustClick can time out on it, so click it in the page.
+	page.MustEval(`()=>document.querySelector('[data-rc-readonly]').click()`)
 	page.MustElement("[data-rc-action=save]").MustClick()
 	waitForJSBool(t, page, `()=>window.remoteWrites.length===1&&document.querySelector('[data-rc-feedback]').textContent===rcText('saved')`)
 	if !page.MustEval(`()=>{const body=JSON.parse(remoteWrites[0].body);return remoteWrites[0].method==='PUT'&&body.read_only&&body.allowed_paths[0]==='C:\\Entwurf'&&document.querySelector('.rc-device-status').textContent.includes(rcText('pending'))}`).Bool() {

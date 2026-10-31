@@ -339,8 +339,8 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 	fritzboxJS := normalizeAssetText(mustReadUIFile(t, "cfg/fritzbox.js"))
 	for _, marker := range []string{
 		"fbSetBanner",
-		"cfg-secret-row",
-		"cfg-actions-row",
+		"form.password(",
+		"form.actions(",
 		"cfg-test-btn",
 		"attachChangeListeners",
 		"status_not_configured",

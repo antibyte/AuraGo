@@ -70,32 +70,13 @@ function renderBluetoothSection(section) {
             <div class="field-group-title">${escapeHtml(t('config.bluetooth.devices'))}</div>
             <div class="field-group-desc">${escapeHtml(t('config.bluetooth.devices_desc'))}</div>
             <div class="cfgdev-actions-row">
-                <button id="bt-reprobe-btn" class="btn-save cfgdev-btn-secondary" onclick="btReprobe()">↻ ${escapeHtml(t('config.bluetooth.reprobe'))}</button>
-                <button id="bt-discover-btn" class="btn-save cfgdev-btn-primary" onclick="btDiscover()">⌕ ${escapeHtml(t('config.bluetooth.discover'))}</button>
-                <button id="bt-test-btn" class="btn-save cfgdev-btn-secondary" data-config-action-draft="false" onclick="btTestAudio()">♪ ${escapeHtml(t('config.bluetooth.test_audio'))}</button>
-                <button id="bt-stop-btn" class="btn-save cfgdev-btn-secondary" onclick="btStopAudio()">■ ${escapeHtml(t('config.bluetooth.stop_audio'))}</button>
+                <button id="bt-reprobe-btn" class="btn-save cfgdev-btn-secondary" onclick="btReprobe()">${cfgIcon('refresh')}<span>${escapeHtml(t('config.bluetooth.reprobe'))}</span></button>
+                <button id="bt-discover-btn" class="btn-save cfgdev-btn-primary" onclick="btDiscover()">${cfgIcon('search')}<span>${escapeHtml(t('config.bluetooth.discover'))}</span></button>
+                <button id="bt-test-btn" class="btn-save cfgdev-btn-secondary" data-config-action-draft="false" onclick="btTestAudio()">${cfgIcon('music')}<span>${escapeHtml(t('config.bluetooth.test_audio'))}</span></button>
+                <button id="bt-stop-btn" class="btn-save cfgdev-btn-secondary" onclick="btStopAudio()">${cfgIcon('stop')}<span>${escapeHtml(t('config.bluetooth.stop_audio'))}</span></button>
             </div>
             ${cfgActionResult.html('bt-action-result')}
             <div id="bt-devices" class="cfgdev-discover-area"></div>
-        </div>
-
-        <div id="bt-pin-modal" class="cfgdev-modal-overlay is-hidden" onclick="btClosePINModal(event)">
-            <div class="cfgdev-modal-card" role="dialog" aria-modal="true" aria-labelledby="bt-pin-title" onclick="event.stopPropagation()">
-                <div class="cfgdev-modal-header">
-                    <span id="bt-pin-title" class="cfgdev-modal-title">${escapeHtml(t('config.bluetooth.pin_title'))}</span>
-                    <button class="cfgdev-modal-close" onclick="btClosePINModal()" aria-label="${escapeAttr(t('config.bluetooth.cancel'))}">✕</button>
-                </div>
-                <input id="bt-pin-address" type="hidden">
-                <div class="field-group">
-                    <div class="field-label">${escapeHtml(t('config.bluetooth.pin'))}</div>
-                    <div class="field-help">${escapeHtml(t('config.bluetooth.pin_help'))}</div>
-                    <input id="bt-pin-value" class="field-input" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="16">
-                </div>
-                <div class="cfgdev-modal-actions">
-                    <button class="btn-save cfgdev-btn-secondary" onclick="btClosePINModal()">${escapeHtml(t('config.bluetooth.cancel'))}</button>
-                    <button id="bt-pair-confirm-btn" class="btn-save cfgdev-btn-primary" onclick="btConfirmPair()">${escapeHtml(t('config.bluetooth.pair'))}</button>
-                </div>
-            </div>
         </div>
     </div>`;
 
@@ -165,7 +146,7 @@ function btRenderDevices() {
     const area = document.getElementById('bt-devices');
     if (!area) return;
     if (!btDevices.length) {
-        area.innerHTML = `<div class="cfgdev-empty">${escapeHtml(t('config.bluetooth.no_devices'))}</div>`;
+        cfgListState(area, { state: 'empty', title: t('config.bluetooth.no_devices') });
         return;
     }
     const readonly = (configData.bluetooth || {}).readonly !== false;
@@ -248,29 +229,42 @@ async function btDiscover() {
     });
 }
 
+const BT_PIN_DIALOG = 'bt-pin-dialog';
+
+// The PIN dialog is built on open and removed on close, so the PIN never lingers in the page.
 function btOpenPINModal(address) {
     if (!btSavedConfigRequired()) return;
-    const modal = document.getElementById('bt-pin-modal');
+    const old = document.getElementById(BT_PIN_DIALOG);
+    if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend', cfgModal({
+        id: BT_PIN_DIALOG,
+        title: t('config.bluetooth.pin_title'),
+        size: 'sm',
+        body: `<input id="bt-pin-address" type="hidden">
+            <div class="field-group">
+                <label class="field-label" for="bt-pin-value">${escapeHtml(t('config.bluetooth.pin'))}</label>
+                <div class="field-help">${escapeHtml(t('config.bluetooth.pin_help'))}</div>
+                <input id="bt-pin-value" class="field-input" type="password" inputmode="numeric" autocomplete="one-time-code" maxlength="16">
+            </div>`,
+        actions: [
+            `<button type="button" class="btn-secondary" onclick="closeModal('${BT_PIN_DIALOG}')">${escapeHtml(t('config.bluetooth.cancel'))}</button>`,
+            `<button type="button" id="bt-pair-confirm-btn" class="btn-save" onclick="btConfirmPair()">${escapeHtml(t('config.bluetooth.pair'))}</button>`
+        ]
+    }));
+    const dialog = document.getElementById(BT_PIN_DIALOG);
     document.getElementById('bt-pin-address').value = address;
-    document.getElementById('bt-pin-value').value = '';
-    setHidden(modal, false);
-    document.getElementById('bt-pin-value').focus();
+    openModal(BT_PIN_DIALOG, { initialFocus: '#bt-pin-value', onClose: () => dialog.remove() });
 }
 
-function btClosePINModal(event) {
-    if (event && event.target !== event.currentTarget) return;
-    const pin = document.getElementById('bt-pin-value');
-    const address = document.getElementById('bt-pin-address');
-    if (pin) pin.value = '';
-    if (address) address.value = '';
-    setHidden(document.getElementById('bt-pin-modal'), true);
+function btClosePINModal() {
+    closeModal(BT_PIN_DIALOG);
 }
 
 async function btConfirmPair() {
     const address = document.getElementById('bt-pin-address').value;
     const pin = document.getElementById('bt-pin-value').value.trim();
     btClosePINModal();
-    await btDeviceAction('pair', address, pin, document.getElementById('bt-pair-confirm-btn'));
+    await btDeviceAction('pair', address, pin);
 }
 
 async function btDeviceAction(operation, address, pin, button) {

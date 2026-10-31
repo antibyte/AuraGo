@@ -1,5 +1,5 @@
 {
-  "config.fritzbox.status_ok": "🟢 Verbonden",
+  "config.fritzbox.status_ok": "Verbonden",
   "config.fritzbox.test_fail": "Verbinding mislukt",
   "config.fritzbox.test_ok": "Verbinding succesvol",
   "config.indexing.running": "Draait",

@@ -2,6 +2,7 @@ function renderFritzBoxSection(section) {
     const data = configData['fritzbox'] || {};
     const enabled = data.enabled === true;
     const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.fritzbox.password_placeholder'));
+    const form = window.AuraConfigForm;
 
     const sys = (data.system) || {};
     const net = (data.network) || {};
@@ -10,89 +11,12 @@ function renderFritzBoxSection(section) {
     const sto = (data.storage) || {};
     const tv  = (data.tv) || {};
 
-    let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.label + '</div>';
-    html += '<div class="section-desc">' + section.desc + '</div>';
-
-    html += cfgStatusBanner.html('fb-status-banner', 'checking', { detail: t('config.fritzbox.checking') });
-    html += '<div class="cfg-group-title">' + t('config.refresh.operation') + '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.enabled_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.enabled') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (enabled ? ' on' : '') + '" data-path="fritzbox.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="cfg-group-title">' + t('config.refresh.connection') + '</div>';
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.host_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.host') + '</div>';
-    html += '<input class="field-input" type="text" data-path="fritzbox.host" value="' + escapeAttr(data.host || 'fritz.box') + '" placeholder="fritz.box">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.port_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.port') + '</div>';
-    html += '<input class="field-input" type="number" data-path="fritzbox.port" value="' + escapeAttr(String(data.port || '49000')) + '" placeholder="49000">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.web_port_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.web_port') + '</div>';
-    html += '<input class="field-input" type="number" min="0" data-path="fritzbox.web_port" value="' + escapeAttr(String(data.web_port || '0')) + '" placeholder="0">';
-    html += '</div>';
-
-    const httpsOn = data.https === true;
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.https_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.https') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (httpsOn ? ' on' : '') + '" data-path="fritzbox.https" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (httpsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    const insecureOn = data.insecure_skip_verify === true;
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.insecure_skip_verify_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.insecure_skip_verify') + '</div>';
-    html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (insecureOn ? ' on' : '') + '" data-path="fritzbox.insecure_skip_verify" onclick="toggleBool(this)"></div>';
-    html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
-    html += '</div></div>';
-
-    html += '<div class="cfg-group-title">' + t('config.refresh.credentials') + '</div>';
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.username_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.username') + '</div>';
-    html += '<input class="field-input" type="text" data-path="fritzbox.username" value="' + escapeAttr(data.username || '') + '" placeholder="">';
-    html += '</div>';
-
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.fritzbox.password_label') + '</div>';
-    html += '<div class="field-help">' + t('help.fritzbox.password') + '</div>';
-    html += '<div class="cfg-secret-row">';
-    html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input cfg-secret-input" type="password" id="fb-password" data-path="fritzbox.password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '" autocomplete="off">';
-    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
-    html += '</div>';
-    html += '</div></div>';
-
-    html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save cfg-test-btn" onclick="fbTestConnection()" id="fb-test-btn" data-config-action-draft="true">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
-    html += cfgActionResult.html('fb-test-result');
-    html += '</div>';
-
-    html += '<hr class="cfg-section-hr">';
-    html += '<div class="cfg-section-title">⚙️ ' + t('config.fritzbox.features_title') + '</div>';
-
-    function featureGroup(key, titleKey, data) {
+    function featureGroup(key, titleKey, icon, data) {
         const on = data.enabled === true;
         const ro = data.readonly === true;
         let h = '<div class="fb-feature-card">';
-        const feature = t(titleKey).replace(/^[^\p{L}]+/u, '');
-        h += '<div class="fb-feature-title" id="fb-feature-title-' + key + '">' + t(titleKey) + '</div>';
+        const feature = t(titleKey);
+        h += '<div class="fb-feature-title" id="fb-feature-title-' + key + '">' + cfgIcon(icon) + '<span>' + escapeHtml(feature) + '</span></div>';
         h += '<div class="fb-feature-toggles">';
         // Each switch is named by its card title plus its own label and carries its own description.
         h += '<div class="field-group"><div class="cfg-toggle-row-compact">';
@@ -107,28 +31,57 @@ function renderFritzBoxSection(section) {
         return h;
     }
 
-    html += featureGroup('system',     'config.fritzbox.group_system',     sys);
-    html += featureGroup('network',    'config.fritzbox.group_network',    net);
-    html += featureGroup('telephony',  'config.fritzbox.group_telephony',  tel);
-    html += featureGroup('smart_home', 'config.fritzbox.group_smarthome',  sh);
-    html += featureGroup('storage',    'config.fritzbox.group_storage',    sto);
-    html += featureGroup('tv',         'config.fritzbox.group_tv',         tv);
+    let features = '';
+    features += featureGroup('system',     'config.fritzbox.group_system',    'monitor', sys);
+    features += featureGroup('network',    'config.fritzbox.group_network',   'wifi',    net);
+    features += featureGroup('telephony',  'config.fritzbox.group_telephony', 'phone',   tel);
+    features += featureGroup('smart_home', 'config.fritzbox.group_smarthome', 'home',    sh);
+    features += featureGroup('storage',    'config.fritzbox.group_storage',   'database', sto);
+    features += featureGroup('tv',         'config.fritzbox.group_tv',        'video',   tv);
 
     const pollingEnabled = (tel.polling || {}).enabled === true;
     const pollingInterval = (tel.polling || {}).interval_seconds || 60;
-    html += '<div class="fb-feature-card">';
-    html += '<div class="fb-feature-title">📞 ' + t('config.fritzbox.group_polling') + '</div>';
-    html += '<div class="field-group"><div class="cfg-toggle-row-compact">';
-    html += '<div class="toggle toggle-sm' + (pollingEnabled ? ' on' : '') + '" data-path="fritzbox.telephony.polling.enabled" onclick="toggleBool(this)"></div>';
-    html += '<span class="cfg-toggle-label">' + t('config.fritzbox.polling_enabled') + '</span>';
-    html += '</div><div class="field-help">' + t('config.fritzbox.polling_enabled_help') + '</div></div>';
-    html += '<div class="cfg-input-row">';
-    html += '<label class="cfg-label" for="fb-poll-interval">' + t('config.fritzbox.polling_interval') + '</label>';
-    html += '<input class="field-input fb-poll-input" id="fb-poll-interval" type="number" min="10" max="3600" data-path="fritzbox.telephony.polling.interval_seconds" aria-describedby="fb-poll-interval-help" value="' + escapeAttr(String(pollingInterval)) + '">';
-    html += '<span class="fb-hint">' + t('config.fritzbox.polling_seconds') + '</span>';
-    html += '</div><div class="field-help" id="fb-poll-interval-help">' + t('config.fritzbox.polling_interval_help') + '</div></div>';
+    features += '<div class="fb-feature-card">';
+    features += '<div class="fb-feature-title">' + cfgIcon('phone') + '<span>' + escapeHtml(t('config.fritzbox.group_polling')) + '</span></div>';
+    features += '<div class="field-group"><div class="cfg-toggle-row-compact">';
+    features += '<div class="toggle toggle-sm' + (pollingEnabled ? ' on' : '') + '" data-path="fritzbox.telephony.polling.enabled" onclick="toggleBool(this)"></div>';
+    features += '<span class="cfg-toggle-label">' + t('config.fritzbox.polling_enabled') + '</span>';
+    features += '</div><div class="field-help">' + t('config.fritzbox.polling_enabled_help') + '</div></div>';
+    features += '<div class="cfg-input-row">';
+    features += '<label class="cfg-label" for="fb-poll-interval">' + t('config.fritzbox.polling_interval') + '</label>';
+    features += '<input class="field-input fb-poll-input" id="fb-poll-interval" type="number" min="10" max="3600" data-path="fritzbox.telephony.polling.interval_seconds" aria-describedby="fb-poll-interval-help" value="' + escapeAttr(String(pollingInterval)) + '">';
+    features += '<span class="fb-hint">' + t('config.fritzbox.polling_seconds') + '</span>';
+    features += '</div><div class="field-help" id="fb-poll-interval-help">' + t('config.fritzbox.polling_interval_help') + '</div></div>';
 
-    html += '</div>';
+    const html = form.renderSpec({
+        label: section.label,
+        desc: section.desc,
+        beforeHTML: cfgStatusBanner.html('fb-status-banner', 'checking', { detail: t('config.fritzbox.checking') }),
+        groups: [{ titleKey: 'config.refresh.operation', fields: [
+            form.toggle({ label: t('config.fritzbox.enabled_label'), help: t('help.fritzbox.enabled'), path: 'fritzbox.enabled', value: enabled })
+        ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.fritzbox.host_label'), help: t('help.fritzbox.host'), path: 'fritzbox.host', value: data.host || 'fritz.box', placeholder: 'fritz.box' }),
+            form.number({ label: t('config.fritzbox.port_label'), help: t('help.fritzbox.port'), path: 'fritzbox.port', value: String(data.port || '49000'), min: 1, max: 65535, step: 1 }),
+            form.number({ label: t('config.fritzbox.web_port_label'), help: t('help.fritzbox.web_port'), path: 'fritzbox.web_port', value: String(data.web_port || '0'), min: 0, max: 65535, step: 1 }),
+            form.toggle({ label: t('config.fritzbox.https_label'), help: t('help.fritzbox.https'), path: 'fritzbox.https', value: data.https === true }),
+            form.toggle({ label: t('config.fritzbox.insecure_skip_verify_label'), help: t('help.fritzbox.insecure_skip_verify'), path: 'fritzbox.insecure_skip_verify', value: data.insecure_skip_verify === true })
+        ] }, { titleKey: 'config.refresh.credentials', fields: [
+            form.field({ label: t('config.fritzbox.username_label'), help: t('help.fritzbox.username'), path: 'fritzbox.username', value: data.username || '' }),
+            form.password({
+                label: t('config.fritzbox.password_label'),
+                help: t('help.fritzbox.password'),
+                id: 'fb-password',
+                path: 'fritzbox.password',
+                value: data.password,
+                placeholder: passwordPlaceholder
+            })
+        ] }],
+        afterHTML: form.actions([
+            { html: '<button class="btn-save cfg-test-btn" onclick="fbTestConnection()" id="fb-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + t('config.fritzbox.test_btn') + '</span></button>' },
+            { html: cfgActionResult.html('fb-test-result') }
+        ]) + form.panel({ title: t('config.fritzbox.features_title'), content: features })
+    });
+
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 

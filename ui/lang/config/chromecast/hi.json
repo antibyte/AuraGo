@@ -37,7 +37,7 @@
   "config.chromecast.found_devices": "{{count}} डिवाइस मिले",
   "config.chromecast.ip_placeholder": "e.g. 192.168.1.50",
   "config.chromecast.ip_required": "IP पता आवश्यक है।",
-  "config.chromecast.loading": "⏳ डिवाइस लोड हो रहे हैं…",
+  "config.chromecast.loading": "डिवाइस लोड हो रहे हैं…",
   "config.chromecast.name_placeholder": "जैसे लिविंग रूम",
   "config.chromecast.name_required": "डिवाइस का नाम आवश्यक है।",
   "config.chromecast.no_devices": "कोई Chromecast डिवाइस पंजीकृत नहीं है। अपने नेटवर्क पर उन्हें खोजने के लिए \"डिवाइस खोजें\" का उपयोग करें।",

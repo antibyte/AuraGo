@@ -145,7 +145,7 @@ async function renderMQTTSection(section) {
 
     // TLS Section
     html += `<hr class="cfg-section-hr">`;
-    html += `<div class="cfg-section-title">🔒 ${t('config.mqtt.tls_title')}</div>`;
+    html += `<div class="cfg-section-title">${cfgIcon('lock')}<span>${t('config.mqtt.tls_title')}</span></div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.tls_enabled_label')}</div>
@@ -187,7 +187,7 @@ async function renderMQTTSection(section) {
 
     // Buffer Section
     html += `<hr class="cfg-section-hr">`;
-    html += `<div class="cfg-section-title">📥 ${t('config.mqtt.buffer_title')}</div>`;
+    html += `<div class="cfg-section-title">${cfgIcon('download')}<span>${t('config.mqtt.buffer_title')}</span></div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.buffer_max_messages_label')}</div>
@@ -209,7 +209,7 @@ async function renderMQTTSection(section) {
 
     // Availability / LWT Section
     html += `<hr class="cfg-section-hr">`;
-    html += `<div class="cfg-section-title">📶 ${t('config.mqtt.availability_title')}</div>`;
+    html += `<div class="cfg-section-title">${cfgIcon('wifi')}<span>${t('config.mqtt.availability_title')}</span></div>`;
 
     html += `<div class="field-group">
         <div class="field-label">${t('config.mqtt.availability_enabled_label')}</div>
@@ -269,11 +269,11 @@ async function renderMQTTSection(section) {
 
     // Messages preview
     html += `<hr class="cfg-section-hr">`;
-    html += `<div class="cfg-section-title">📋 ${t('config.mqtt.messages_title')}</div>`;
+    html += `<div class="cfg-section-title">${cfgIcon('list')}<span>${t('config.mqtt.messages_title')}</span></div>`;
     html += `<div id="mqtt-messages-area" class="cfg-messages-area">
-        <div id="mqtt-messages-list" class="cfg-messages-list">${t('config.mqtt.messages_loading')}</div>
+        <div id="mqtt-messages-list" class="cfg-messages-list"></div>
         <div class="pw-u-inline-actions">
-            <button class="btn btn-sm btn-secondary" onclick="mqttRefreshMessages()">🔄 ${t('config.mqtt.refresh_btn')}</button>
+            <button class="btn btn-sm btn-secondary" onclick="mqttRefreshMessages()">${cfgIcon('refresh')}<span>${t('config.mqtt.refresh_btn')}</span></button>
         </div>
     </div>`;
 
@@ -305,6 +305,8 @@ async function renderMQTTSection(section) {
     if (enabled && data.broker) {
         mqttCheckStatus();
         mqttRefreshMessages();
+    } else {
+        cfgListState('mqtt-messages-list', { state: 'empty', title: t('config.mqtt.messages_empty') });
     }
 }
 
@@ -322,7 +324,7 @@ function mqttCheckStatus() {
             const tlsInfo = res.tls_enabled ? ' (TLS)' : '';
             const activeBroker = res.active_broker || res.broker || '';
             const brokerInfo = activeBroker && res.broker && activeBroker !== res.broker
-                ? `${activeBroker} ← ${res.broker}` : activeBroker;
+                ? `${activeBroker} <- ${res.broker}` : activeBroker;
             const buffered = Number(res.buffer_len || 0);
             return { state: 'connected', detail: `${t('config.mqtt.status_connected')} — ${brokerInfo}${tlsInfo}${stateInfo}${sourceInfo} · ${buffered} ${t('config.mqtt.buffered_suffix')}` };
         }
@@ -351,13 +353,13 @@ function mqttTestConnection() {
 function mqttRefreshMessages() {
     const list = document.getElementById('mqtt-messages-list');
     if (!list) return;
-    list.innerHTML = `<div class="cfg-loading-text">${t('config.mqtt.messages_loading')}</div>`;
+    cfgListState(list, { state: 'loading', title: t('config.mqtt.messages_loading') });
 
     fetch('/api/mqtt/messages')
         .then(r => r.json())
         .then(res => {
             if (!res.messages || res.messages.length === 0) {
-                list.innerHTML = `<div class="cfg-empty-text">${t('config.mqtt.messages_empty')}</div>`;
+                cfgListState(list, { state: 'empty', title: t('config.mqtt.messages_empty') });
                 return;
             }
             const html = res.messages.map(m => {
@@ -374,7 +376,7 @@ function mqttRefreshMessages() {
             list.innerHTML = html;
         })
         .catch(() => {
-            list.innerHTML = `<div class="cfg-error-text">${t('config.mqtt.messages_error')}</div>`;
+            cfgListState(list, { state: 'error', title: t('config.mqtt.messages_error'), retry: mqttRefreshMessages });
         });
 }
 

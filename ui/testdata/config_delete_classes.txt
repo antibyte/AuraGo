@@ -1,5 +1,3 @@
 # <module> <class>: own delete-button class; use cfgDeleteButton (btn-danger) (E7).
-chromecast cfgdev-icon-btn-danger
-devices devices-action-btn-delete
 email em-card-btn-delete
 sql_connections action-btn-delete

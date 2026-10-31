@@ -9,7 +9,7 @@
   "config.music_gen.action_pending": "कार्रवाई जारी है…",
   "config.music_gen.action_failed": "कार्रवाई विफल हुई।",
   "config.music_gen.status_unavailable": "स्थिति उपलब्ध नहीं है। कार्रवाई जारी हो सकती है; कनेक्शन की फिर से जाँच होगी।",
-  "config.fritzbox.status_ok": "🟢 कनेक्टेड",
+  "config.fritzbox.status_ok": "कनेक्टेड",
   "config.fritzbox.test_fail": "कनेक्शन विफल",
   "config.fritzbox.test_ok": "कनेक्शन सफल",
   "config.indexing.running": "चल रहा है",

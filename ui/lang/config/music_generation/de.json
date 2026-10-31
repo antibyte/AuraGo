@@ -9,7 +9,7 @@
   "config.music_gen.action_pending": "Aktion wird ausgeführt…",
   "config.music_gen.action_failed": "Aktion fehlgeschlagen.",
   "config.music_gen.status_unavailable": "Status nicht erreichbar. Die Aktion kann weiterlaufen; Verbindung wird erneut geprüft.",
-  "config.fritzbox.status_ok": "🟢 Verbunden",
+  "config.fritzbox.status_ok": "Verbunden",
   "config.fritzbox.test_fail": "Verbindung fehlgeschlagen",
   "config.fritzbox.test_ok": "Verbindung erfolgreich",
   "config.indexing.running": "Läuft",

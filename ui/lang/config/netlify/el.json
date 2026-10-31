@@ -1,5 +1,5 @@
 {
-  "config.fritzbox.status_ok": "🟢 Συνδεδεμένο",
+  "config.fritzbox.status_ok": "Συνδεδεμένο",
   "config.fritzbox.test_fail": "Σύνδεση απέτυχε",
   "config.fritzbox.test_ok": "Σύνδεση επιτυχής",
   "config.indexing.running": "Εκτελείται",

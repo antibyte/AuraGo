@@ -3,8 +3,5 @@ backup
 email
 github
 gog
-meshcore
-network_shares
-remote_control
 s3
 sql_connections
