@@ -340,10 +340,11 @@ func (s *Server) notifyPersonDetectedMission(ev persondetect.AlertEvent) error {
 // agent queue holds wake-ups until Start starts its consumer.
 func (s *Server) newPersonAlertDispatcher() *persondetect.Dispatcher {
 	return persondetect.NewAlertDispatcher(persondetect.AlertSinks{
-		Message: s.sendPersonAlertMessage,
-		Agent:   s.personAlertAgents.enqueue,
-		Desktop: s.showPersonAlertToast,
-		Mission: s.notifyPersonDetectedMission,
+		Message:   s.sendPersonAlertMessage,
+		Agent:     s.personAlertAgents.enqueue,
+		AgentGate: s.personWakeGate,
+		Desktop:   s.showPersonAlertToast,
+		Mission:   s.notifyPersonDetectedMission,
 	}, personAlertText, s.personAlertLogger())
 }
 

@@ -86,7 +86,7 @@ func handleDecisions(s *Server, action string) http.HandlerFunc {
 			return
 		}
 		if action == "status" {
-			writeDecisionsJSON(w, http.StatusOK, s.decisionsSetupStatus())
+			writeDecisionsJSON(w, http.StatusOK, s.decisionsFullStatus())
 			return
 		}
 		if action == "install" || action == "start" {
@@ -238,6 +238,9 @@ func writeDecisionsFailure(w http.ResponseWriter, err error) {
 	status := http.StatusServiceUnavailable
 	if code == decisions.CodeInvalidRequest || code == "invalid_image" || code == "image_invalid" || code == "image_limit_exceeded" || code == "image_minimum_unmet" || code == decisions.CodeInputTokenBudgetExceeded || code == decisions.CodeCandidateNotScorable {
 		status = http.StatusBadRequest
+	}
+	if code == decisions.CodeImagesUnsupported {
+		status = http.StatusUnprocessableEntity
 	}
 	if code == decisions.CodeInvalidRuntimeResponse || code == decisions.CodeInferenceFailed {
 		status = http.StatusBadGateway

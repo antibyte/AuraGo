@@ -567,10 +567,14 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 		s.releaseJob(job.ID)
 		return Job{}, fmt.Errorf("update game maker job preferences: %w", err)
 	}
+	selectionJSON := encodeRequestedSelection(assetPackIDs, modelAssetIDs, assetSelections, req.Presentation)
+	if selectionJSON == "" && resumeFrom != "" {
+		selectionJSON = s.storedSelection(ctx, resumeFrom)
+	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO gm_jobs
-		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at,small_model,building_mode)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
-		job.ProviderID, job.Model, job.BaseRevision, job.CreatedAt, boolInt(job.SmallModel), job.BuildingMode)
+		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at,small_model,building_mode,requested_selection)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
+		job.ProviderID, job.Model, job.BaseRevision, job.CreatedAt, boolInt(job.SmallModel), job.BuildingMode, selectionJSON)
 	if err != nil {
 		s.releaseJob(job.ID)
 		return Job{}, fmt.Errorf("create game maker job: %w", err)
@@ -639,6 +643,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, err)
 		return
 	}
+	assetPackIDs, modelAssetIDs, selection, assetSelections = s.replayPendingSelection(ctx, job, assetPackIDs, modelAssetIDs, selection, assetSelections)
 	assetPacks, err := s.importedJobPacks(ctx, job.ID)
 	if err != nil {
 		s.terminateJob(job, ctx, err)
@@ -717,6 +722,8 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 		s.terminateJob(job, ctx, s.planningFailure(job.ID, planDiagnostics))
 		return
 	}
+	job.PlanAccepted = true
+	_, _ = s.db.ExecContext(ctx, `UPDATE gm_jobs SET plan_accepted=1 WHERE id=?`, job.ID)
 	// The accepted base decides rewrite versus adapt; record it before any
 	// prompt, context or tool guard reads the run.
 	s.applyBuildingMode(ctx, &job, plan)

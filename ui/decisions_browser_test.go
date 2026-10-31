@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -387,5 +388,81 @@ func TestDecisionsConfigBrowser(t *testing.T) {
 	page.MustEval(`async()=>{await selectSection('overview',{scrollBehavior:'auto'});resolveDecisionStatus(new Response(JSON.stringify(decisionStatus)));await Promise.resolve();}`)
 	if page.MustEval(`()=>!!document.querySelector('[data-decisions-settings]')`).Bool() {
 		t.Fatal("late status replaced newer section")
+	}
+}
+
+func TestDecisionsConsumersCardBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage(configRefreshFixtureOrigin(t, "en", false) + "/config#overview").Timeout(60 * time.Second)
+	defer page.MustClose()
+	page.MustSetViewport(1440, 900, 1, false)
+	waitForJSBool(t, page, `()=>!!document.querySelector('.pw-overview-card')`)
+	page.MustEval(`()=>{
+		const ids=['router','memory_rerank','appraisal','salience_gate','mail_triage','webhook_question','person_wake','indexer_images','game_maker_visual'];
+		window.decisionStatus={enabled:true,installed:true,ready:true,state:'ready',backend:'local',deployment:'native',
+			capabilities:{images:'unsupported',external:false,cpu_only:false},
+			consumers:ids.map(id=>({id,enabled:id==='person_wake',available:false,code:id==='person_wake'?'images_unsupported':'consumer_disabled',images_allowed:false,stats:{attempts:id==='person_wake'?3:0,deferred:1,failures:0,cost_usd:0}}))};
+		window.configPuts=[];
+		const previous=window.fetch;
+		window.fetch=async(url,options)=>{
+			const path=new URL(typeof url==='string'?url:url.url,location.origin).pathname;
+			if(path==='/api/decisions/status')return new Response(JSON.stringify(window.decisionStatus));
+			if(path==='/api/config'&&options?.method==='PUT')window.configPuts.push(JSON.parse(options.body));
+			return previous(url,options);
+		};
+	}`)
+	page.MustElement(`.sidebar-group:has([data-section="decisions"]) .sidebar-group-header`).MustClick()
+	page.MustElement(`[data-section="decisions"]`).MustClick()
+	waitForJSBool(t, page, `()=>document.querySelectorAll('[data-decisions-consumer]').length===9 && document.querySelector('[data-decisions-consumer="person_wake"] [data-decisions-consumer-state]')?.textContent!==''`)
+	if !page.MustEval(`()=>{
+		const row=id=>document.querySelector('[data-decisions-consumer="'+id+'"]');
+		return row('router').textContent.includes('Set in LLM router') && !row('router').querySelector('[data-path]')
+			&& row('person_wake').querySelector('[data-decisions-consumer-state]').textContent==='This backend does not accept images'
+			&& row('person_wake').textContent.includes('3 attempts')
+			&& row('mail_triage').querySelector('[data-decisions-consumer-state]').textContent==='Off'
+			&& document.querySelector('[data-decisions-consumer-images]').hidden===true
+			&& document.querySelectorAll('[data-decisions-consumer-images]').length===3;
+	}`).Bool() {
+		t.Fatal("consumer rows wrong: ", page.MustEval(`()=>JSON.stringify([...document.querySelectorAll("[data-decisions-consumer]")].map(r=>[r.dataset.decisionsConsumer,r.textContent,r.querySelector("[data-decisions-consumer-images]")?.hidden]))`).String())
+	}
+	page.MustEval(`()=>{const b=document.querySelector('[data-path="decisions.backend"]');b.value='provider';b.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	if !page.MustEval(`()=>[...document.querySelectorAll('[data-decisions-consumer-images]')].every(el=>el.hidden===false)`).Bool() {
+		t.Fatal("external-images switches stay hidden for the provider backend")
+	}
+	page.MustEval(`()=>{const b=document.querySelector('[data-path="decisions.backend"]');b.value='local';b.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	page.MustEval(`()=>document.querySelector('[data-path="decision_consumers.mail_triage.enabled"]').click()`)
+	page.MustEval(`async()=>{await saveConfig();}`)
+	waitForJSBool(t, page, `()=>configPuts.length>0`)
+	if !page.MustEval(`()=>{
+		const c=configPuts[configPuts.length-1].decision_consumers;
+		return c && c.mail_triage.enabled===true && c.appraisal.enabled===false && c.game_maker_visual.allow_external_images===false && Object.keys(c).length===8;
+	}`).Bool() {
+		t.Fatal("saving did not send the whole decision_consumers structure with mail_triage enabled: ", page.MustEval(`()=>JSON.stringify(configPuts)`).String())
+	}
+}
+
+func TestDecisionsConsumersKeysExist(t *testing.T) {
+	var en map[string]string
+	if err := json.Unmarshal(mustReadUIFile(t, "lang/config/en.json"), &en); err != nil {
+		t.Fatal(err)
+	}
+	source := string(mustReadUIFile(t, "cfg/decisions.js"))
+	keys := map[string]bool{}
+	for _, m := range regexp.MustCompile(`tr\('(consumers_[a-z_]+)'`).FindAllStringSubmatch(source, -1) {
+		if !strings.HasSuffix(m[1], "_") {
+			keys[m[1]] = true
+		}
+	}
+	for _, id := range []string{"router", "memory_rerank", "appraisal", "salience_gate", "mail_triage", "webhook_question", "person_wake", "indexer_images", "game_maker_visual"} {
+		keys["consumers_name_"+id], keys["consumers_desc_"+id] = true, true
+	}
+	for _, state := range []string{"off", "active", "unavailable", "images_unsupported", "images_unknown", "images_external_not_permitted"} {
+		keys["consumers_state_"+state] = true
+	}
+	for key := range keys {
+		if strings.TrimSpace(en["config.decisions."+key]) == "" {
+			t.Errorf("missing config.decisions.%s", key)
+		}
 	}
 }

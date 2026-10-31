@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Data webhooků se nepodařilo načíst",
   "config.webhooks.retry": "Zkusit znovu",
   "config.webhooks.not_running_notice": "Server webhooků neběží",
-  "config.webhooks.not_running_desc": "Správce webhooků není aktivní, proto jsou webhooky a tokeny nedostupné. Zkontrolujte, zda jsou webhooky zapnuty, uložte a podle potřeby restartujte AuraGo."
+  "config.webhooks.not_running_desc": "Správce webhooků není aktivní, proto jsou webhooky a tokeny nedostupné. Zkontrolujte, zda jsou webhooky zapnuty, uložte a podle potřeby restartujte AuraGo.",
+  "config.webhooks.decision_title": "Rozhodovací otázka (volitelná)",
+  "config.webhooks.decision_intro": "Položí volitelnému klasifikátoru Decisions otázku ano/ne ke každé příchozí události. Odpověď je pouze nápověda pro agenta a nikdy nenahrazuje bezpečnostní kontroly.",
+  "config.webhooks.decision_enable": "Zapnout otázku",
+  "config.webhooks.decision_question_label": "Otázka",
+  "config.webhooks.decision_question_placeholder": "Vyžaduje tato událost mou pozornost?",
+  "config.webhooks.decision_mode_label": "Použití odpovědi",
+  "config.webhooks.decision_mode_hint": "Nápověda: připojit odpověď ke zprávě",
+  "config.webhooks.decision_mode_gate": "Brána: přeskočit zprávu při jistém Ne",
+  "config.webhooks.decision_gate_warning": "Režim brány může potlačit zprávy agenta. Potlačí je jen jednoznačně záporná odpověď; událost se stále zaznamená a mise se spustí."
 }

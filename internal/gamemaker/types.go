@@ -108,6 +108,9 @@ type Job struct {
 	// SmallModel records that this run uses the compact small-model profile and
 	// the adapt building mode when its accepted plan allows it.
 	SmallModel bool `json:"small_model,omitempty"`
+	// PlanAccepted is true after this job stored a validated plan. Resume uses it
+	// to tell a failed plan from a failed build.
+	PlanAccepted bool `json:"plan_accepted"`
 	// BuildingMode records how the job implements its plan: "rewrite" (ordinary
 	// runs), "adapt" (small model edits the installed starter) or "" for adopt.
 	BuildingMode   string           `json:"building_mode,omitempty"`

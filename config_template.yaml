@@ -499,6 +499,27 @@ decisions:
   model: ""                            # OpenRouter model ID (required when enabled with backend: provider)
   deployment: auto                     # auto: native on host, managed container in Docker
   cpu_fallback_allowed: false           # persistent, revocable permission; GPUs remain preferred
+# Per-subsystem opt-ins for Decisions (all off). allow_external_images only exists for image consumers.
+decision_consumers:
+  memory_rerank:
+    enabled: false
+  appraisal:
+    enabled: false
+  salience_gate:
+    enabled: false
+  mail_triage:
+    enabled: false
+  webhook_questions:
+    enabled: false
+  person_wake:
+    enabled: false
+    allow_external_images: false
+  indexer_images:
+    enabled: false
+    allow_external_images: false
+  game_maker_visual:
+    enabled: false
+    allow_external_images: false
 
 local_llm:
     enabled: false

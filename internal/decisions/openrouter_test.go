@@ -281,8 +281,20 @@ func TestOpenRouterEvaluateImagesRequireAdvertisedModalityAndUseSafeStateParts(t
 	textClient := openRouterTestClient(t, "key", func(httpRequest *http.Request) (*http.Response, error) {
 		return openRouterHTTPResponse(http.StatusOK, textDecisionCatalog, nil), nil
 	})
-	if _, err := textClient.Evaluate(context.Background(), "typesafe/jev-1.13", request); ErrorCode(err) != CodeInvalidRequest {
+	if _, err := textClient.Evaluate(context.Background(), "typesafe/jev-1.13", request); ErrorCode(err) != CodeImagesUnsupported || !IsNonRetryable(err) {
 		t.Fatalf("text-only image evaluation error = %v", err)
+	}
+}
+
+func TestOpenRouterImagesUnsupportedCode(t *testing.T) {
+	client := openRouterTestClient(t, "key", func(httpRequest *http.Request) (*http.Response, error) {
+		return openRouterHTTPResponse(http.StatusOK, textDecisionCatalog, nil), nil
+	})
+	request := Request{State: "inspect this", Questions: []Question{{ID: "q", Type: "noul", Instructions: "Ready?"}},
+		Images: []Image{decisionTestImage(t, 16, 16, false)}}
+	_, err := client.Evaluate(context.Background(), "typesafe/jev-1.13", request)
+	if ErrorCode(err) != CodeImagesUnsupported || !IsNonRetryable(err) {
+		t.Fatalf("error = %v", err)
 	}
 }
 

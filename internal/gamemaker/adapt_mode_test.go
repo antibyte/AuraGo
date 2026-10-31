@@ -112,6 +112,54 @@ func TestAdaptModeProvidesBoundedTargets(t *testing.T) {
 	}
 }
 
+// Guided 3D starters expose short unique lines, so adapt mode can refuse a full
+// rewrite instead of leaving the write gate open.
+func TestAdaptModeAnchorsGuided3D(t *testing.T) {
+	for _, base := range []string{"fps", "exploration", "transport", "flight", "space"} {
+		t.Run(base, func(t *testing.T) {
+			plan := GamePlan{Template: base, Objective: "Reach the outpost", Width: 960, Height: 540, Perspective: "third"}
+			plan.Assets = []PlanAsset{{Role: "enemy", PackID: "aurago-low-poly", Version: "1.0.0", AssetID: "scout", Scale: 1}}
+			if base == "exploration" || base == "transport" {
+				plan.Assets[0].Role = "item"
+			}
+			if base == "flight" {
+				plan.Assets[0].Role = "goal"
+			}
+			files, err := threeTemplateSources(plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			content := files["main.ts"]
+			for _, line := range strings.Split(string(content), "\n") {
+				if strings.HasPrefix(line, "const ") || strings.HasPrefix(line, "{") || strings.HasPrefix(line, "startGame(") {
+					if len(line) > adaptSnippetMaxBytes {
+						t.Fatalf("editable line is %d bytes: %.80s", len(line), line)
+					}
+				}
+			}
+			targets := AdaptTargets(content)
+			if len(targets) == 0 || len(targets) > adaptTargetLimit {
+				t.Fatalf("anchors = %d", len(targets))
+			}
+			seen := map[string]bool{}
+			for _, target := range targets {
+				if strings.Count(string(content), target.Snippet) != 1 {
+					t.Fatalf("snippet is not unique: %s", target.Snippet)
+				}
+				if strings.HasSuffix(target.Snippet, ",") || strings.Contains(target.Snippet, `"objects":[`) {
+					t.Fatalf("anchor is not a complete statement: %s", target.Snippet)
+				}
+				seen[target.Purpose] = true
+			}
+			for _, purpose := range []string{"guided mode", "goal pacing", "entry call and engine gravity"} {
+				if !seen[purpose] {
+					t.Fatalf("missing %s in %+v", purpose, seen)
+				}
+			}
+		})
+	}
+}
+
 // newAdaptJob starts a job whose accepted plan installs the given base and runs
 // mutate during building. Every fixture ends with its own sentinel error.
 func newAdaptJob(t *testing.T, s *Service, base string, small bool, mutate func(ctx context.Context, run JobRun) error) Job {

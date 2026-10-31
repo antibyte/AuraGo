@@ -1021,7 +1021,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						}
 					} else {
 						// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
-						ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
+						ranked = rerankRecalled(ctx, runCfg, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
 					}
 
 					// For short queries (<40 bytes), drop memories below a soft score
@@ -2554,7 +2554,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							personalityBasis,
 						)
 					}
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
+					runMemoryAnalysis(withDecisionConsumers(analysisCtx, runCfg.DecisionConsumers), cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
 					captureActivityTurnContext(analysisCtx,
 						cfg,
 						s.currentLogger,
@@ -2645,16 +2645,29 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				)
 			})
 		} else {
+			// No helper turn analysis and no LLM mood analysis run for this turn:
+			// let Decisions appraise praise/criticism (never for autonomous or delegated runs).
+			// The hub admits one background call at a time, so appraisal and memory
+			// analysis (salience gate) run one after the other, each with its own budget.
+			var sequentialSteps []func(context.Context)
+			if !cfg.Personality.EngineV2 && !isEmpty && runTurnSideEffects && personalityEnabled && personalityBasis != nil && shortTermMem != nil &&
+				!isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
+				appraisalBasis := personalityBasis
+				sequentialSteps = append(sequentialSteps, func(stepCtx context.Context) {
+					appraiseTurnWithDecisions(stepCtx, runCfg, appraisalBasis, meta, s.currentLogger)
+				})
+			}
 			// Real-time memory analysis: async post-response extraction of memory-worthy content
 			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && runTurnSideEffects && shortTermMem != nil {
 				userMsg := lastUserMsg
 				aResp := content
 				sid := sessionID
-				_ = sideEffects.Go(func(taskCtx context.Context) {
-					analysisCtx, cancel := context.WithTimeout(taskCtx, 60*time.Second)
-					defer cancel()
-					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
+				sequentialSteps = append(sequentialSteps, func(stepCtx context.Context) {
+					runMemoryAnalysis(withDecisionConsumers(stepCtx, runCfg.DecisionConsumers), cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid, runCfg.learningAnalysisScope())
 				})
+			}
+			if len(sequentialSteps) > 0 {
+				_ = sideEffects.Go(func(taskCtx context.Context) { runSideEffectSteps(taskCtx, 60*time.Second, sequentialSteps...) })
 			}
 
 			if !isEmpty && runTurnSideEffects && shortTermMem != nil {

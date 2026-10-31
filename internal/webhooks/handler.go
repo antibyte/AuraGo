@@ -2,6 +2,7 @@ package webhooks
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/decisions/consumers"
 	"aurago/internal/security"
 )
 
@@ -47,6 +49,7 @@ type Handler struct {
 	rateLimiter    *RateLimiter
 	deliverySlots  chan struct{}
 	sse            SSEBroadcaster
+	decisions      consumers.Service
 }
 
 // NewHandler creates a webhook receiver handler.
@@ -352,7 +355,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		switch wh.Delivery.Mode {
 		case DeliveryModeMessage:
-			if deliverErr := h.deliverMessage(prompt, internalToken); deliverErr != nil {
+			hint, suppress := h.askWebhookDecision(context.Background(), cfg, wh, prepared.PromptPayload)
+			if suppress {
+				deliveryErr = DecisionSuppressedError
+				h.log().Info("[Webhook] Agent message suppressed by decision", "webhook", wh.Name)
+			} else if deliverErr := h.deliverMessage(prompt+hint, internalToken); deliverErr != nil {
 				deliveryErr = deliverErr.Error()
 				h.log().Error("Webhook message delivery failed", "error", deliverErr, "webhook", wh.Name)
 			} else {

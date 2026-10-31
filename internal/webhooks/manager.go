@@ -257,6 +257,11 @@ func (m *Manager) Create(w Webhook) (Webhook, error) {
 	if err := ValidatePromptTemplate(w.Delivery.PromptTemplate); err != nil {
 		return Webhook{}, err
 	}
+	decision, err := normalizeDeliveryDecision(w.Delivery.Decision)
+	if err != nil {
+		return Webhook{}, err
+	}
+	w.Delivery.Decision = decision
 	if len(w.Format.AcceptedContentTypes) == 0 {
 		w.Format.AcceptedContentTypes = []string{"application/json"}
 	}
@@ -344,6 +349,13 @@ func (m *Manager) UpdateWithOptions(id string, patch Webhook, opts UpdateOptions
 		}
 		if patch.Delivery.Priority != "" {
 			updated.Delivery.Priority = "queue"
+		}
+		if patch.Delivery.Decision != nil {
+			decision, err := normalizeDeliveryDecision(patch.Delivery.Decision)
+			if err != nil {
+				return Webhook{}, err
+			}
+			updated.Delivery.Decision = decision
 		}
 
 		next := slices.Clone(m.webhooks)

@@ -495,6 +495,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 		runCfg := agent.RunConfig{
 			RoutingDecisions:   taskDecisionService{s},
+			DecisionConsumers:  taskDecisionService{s},
 			TaskRoutingText:    &userIntent,
 			Config:             turnCfg,
 			Logger:             s.Logger,

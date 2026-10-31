@@ -696,6 +696,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		s.EmailWatcher = tools.StartEmailWatcherContext(serverCtx, s.Cfg, s.Logger, s.Guardian, s.LLMGuardian, s.internalToken, s.CheatsheetDB)
 		if s.EmailWatcher != nil {
 			s.MissionManagerV2.SetEmailWatcher(s.EmailWatcher)
+			s.EmailWatcher.SetTriageService(taskDecisionService{s}, s.ConfigSnapshot)
 		}
 		s.configureAgentMailRelay(s.Cfg)
 
@@ -1083,6 +1084,7 @@ func scanIncomingSMS(guardian *security.Guardian, from, text string, mediaURLs [
 func (s *Server) incomingSMSRunConfig(sessionID string, routingText *string, addenda []prompts.PromptAddendum) agent.RunConfig {
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   taskDecisionService{s},
+		DecisionConsumers:  taskDecisionService{s},
 		TaskRoutingText:    routingText,
 		Config:             s.Cfg,
 		Logger:             s.Logger,

@@ -67,6 +67,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		removeDeprecatedSpeechLabVoice(rawCfg)
 		rawCfg["llm_router"] = s.ConfigSnapshot().LLMRouter
 		rawCfg["decisions"] = s.ConfigSnapshot().Decisions
+		rawCfg["decision_consumers"] = decisionConsumersView(s.ConfigSnapshot().DecisionConsumers)
 		dc := s.ConfigSnapshot().Tools.DocumentCreator
 		dcSection := rawCfg
 		for _, key := range []string{"tools", "document_creator"} {

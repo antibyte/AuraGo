@@ -237,6 +237,7 @@ func processMessage(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	}
 	runCfg := agent.RunConfig{
 		RoutingDecisions:   decisionService,
+		DecisionConsumers:  agent.ConsumersFrom(decisionService),
 		TaskRoutingText:    &routingText,
 		HumanInput:         humanInput,
 		Config:             cfg,

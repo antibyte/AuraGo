@@ -793,6 +793,13 @@ func (manager *Manager) Shutdown(ctx context.Context) error {
 	return manager.Stop(ctx)
 }
 
+// Load reports admitted evaluations without touching the runtime: one may hold
+// the gate, the rest wait for it. Consumers use it to defer background work.
+func (manager *Manager) Load() (active, waiting int) {
+	slots, gate := len(manager.evalSlots), len(manager.evalGate)
+	return gate, max(slots-gate, 0)
+}
+
 // Evaluate scores all questions against the same verified runtime generation.
 // Questions are sequential so image/context tokens count against one shared
 // input budget; any failure discards the complete response.

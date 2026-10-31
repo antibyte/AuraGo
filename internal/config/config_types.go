@@ -2071,15 +2071,16 @@ type Config struct {
 		StoreMedia      bool   `yaml:"store_media"`         // auto-store snapshots in media registry
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
-	RuView         RuViewConfig         `yaml:"ruview" json:"ruview"`
-	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
-	RTLSDR         RTLSDRConfig         `yaml:"rtl_sdr" json:"rtl_sdr"`
-	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
-	Decisions      DecisionsConfig      `yaml:"decisions" json:"decisions"`
-	LocalWikipedia LocalWikipediaConfig `yaml:"local_wikipedia" json:"local_wikipedia"`
-	RetroGames     RetroGamesConfig     `yaml:"retro_games" json:"retro_games"`
-	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
-	Ollama         struct {
+	RuView            RuViewConfig            `yaml:"ruview" json:"ruview"`
+	Go2RTC            Go2RTCConfig            `yaml:"go2rtc" json:"go2rtc"`
+	RTLSDR            RTLSDRConfig            `yaml:"rtl_sdr" json:"rtl_sdr"`
+	LocalLLM          LocalLLMConfig          `yaml:"local_llm" json:"local_llm"`
+	Decisions         DecisionsConfig         `yaml:"decisions" json:"decisions"`
+	DecisionConsumers DecisionConsumersConfig `yaml:"decision_consumers" json:"decision_consumers"`
+	LocalWikipedia    LocalWikipediaConfig    `yaml:"local_wikipedia" json:"local_wikipedia"`
+	RetroGames        RetroGamesConfig        `yaml:"retro_games" json:"retro_games"`
+	ThreeDPrinters    ThreeDPrintersConfig    `yaml:"three_d_printers"`
+	Ollama            struct {
 		Enabled         bool   `yaml:"enabled"`
 		ReadOnly        bool   `yaml:"readonly"` // true = only list/show/running, block pull/delete/copy
 		URL             string `yaml:"url"`      // e.g. "http://localhost:11434"

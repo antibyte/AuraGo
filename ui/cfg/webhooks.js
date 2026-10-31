@@ -266,6 +266,7 @@ function whShowEditor(id) {
     const tokenId = wh ? (wh.token_id || '') : '';
     const format = wh ? wh.format : { accepted_content_types: ['application/json'], fields: [], description: '' };
     const delivery = wh ? wh.delivery : { mode: 'message', prompt_template: '', priority: 'queue' };
+    const decision = delivery.decision || { enabled: false, question: '', mode: 'hint' };
 
     let presetsHtml = '<option value="">— ' + t('config.webhooks.choose_preset') + ' —</option>';
     for (const p of whPresets) {
@@ -357,6 +358,28 @@ function whShowEditor(id) {
                     <label>${t('config.webhooks.prompt_template_label')}</label>
                     <textarea id="wh-f-prompt" class="field-input wh-textarea" rows="5" placeholder="${t('config.webhooks.prompt_placeholder')}">${esc(delivery.prompt_template || '')}</textarea>
                 </div>
+                <details class="wh-decision-block" id="wh-f-decision-block" ${decision.enabled ? 'open' : ''}>
+                    <summary class="wh-subsection-title">${t('config.webhooks.decision_title')}</summary>
+                    <small class="wh-field-hint">${t('config.webhooks.decision_intro')}</small>
+                    <div class="wh-form-row">
+                        <label>${t('config.webhooks.decision_enable')}</label>
+                        <div class="toggle-wrap">
+                            <div id="wh-f-decision-enabled" class="toggle ${decision.enabled ? 'on' : ''}" onclick="this.classList.toggle('on')"></div>
+                        </div>
+                    </div>
+                    <div class="wh-form-row">
+                        <label>${t('config.webhooks.decision_question_label')}</label>
+                        <textarea id="wh-f-decision-question" class="field-input wh-textarea" rows="2" maxlength="500" placeholder="${t('config.webhooks.decision_question_placeholder')}">${esc(decision.question || '')}</textarea>
+                    </div>
+                    <div class="wh-form-row">
+                        <label>${t('config.webhooks.decision_mode_label')}</label>
+                        <select id="wh-f-decision-mode" class="field-select">
+                            <option value="hint" ${decision.mode !== 'gate' ? 'selected' : ''}>${t('config.webhooks.decision_mode_hint')}</option>
+                            <option value="gate" ${decision.mode === 'gate' ? 'selected' : ''}>${t('config.webhooks.decision_mode_gate')}</option>
+                        </select>
+                        <small class="wh-field-hint">${t('config.webhooks.decision_gate_warning')}</small>
+                    </div>
+                </details>
             </div>
             <div id="wh-editor-error-host"></div>
             <div class="wh-editor-footer">
@@ -435,8 +458,15 @@ function whCollectEditor() {
         delivery: {
             mode: document.getElementById('wh-f-mode').value,
             prompt_template: document.getElementById('wh-f-prompt').value,
+            decision: whCollectDecision(),
         }
     };
+}
+
+function whCollectDecision() {
+    const enabled = document.getElementById('wh-f-decision-enabled').classList.contains('on');
+    const question = document.getElementById('wh-f-decision-question').value.trim();
+    return { enabled: enabled, question: question, mode: document.getElementById('wh-f-decision-mode').value };
 }
 
 async function whSaveWebhook() {

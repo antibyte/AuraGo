@@ -889,6 +889,7 @@ func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient ll
 	}
 	run := agent.RunConfig{
 		RoutingDecisions:   taskDecisionService{s},
+		DecisionConsumers:  taskDecisionService{s},
 		Config:             cfg,
 		Logger:             s.Logger,
 		LLMClient:          llmClient,

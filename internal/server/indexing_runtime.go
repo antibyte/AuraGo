@@ -33,6 +33,7 @@ func (s *Server) restartFileIndexer(cfg *config.Config) {
 		return
 	}
 	next := services.NewFileIndexer(cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+	next.SetDecisionService(taskDecisionService{s})
 	s.setFileIndexer(next)
 	s.attachFileKGSyncer()
 	parent := s.integrationCtx

@@ -4,12 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	"image/png"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,7 +14,6 @@ import (
 	"aurago/internal/decisions"
 	"aurago/internal/flows"
 	"aurago/internal/tools"
-	_ "golang.org/x/image/webp"
 )
 
 var errDecisionImage = errors.New("invalid decision image")
@@ -67,33 +61,12 @@ func (s *Server) evaluateDecisions(ctx context.Context, request decisionsAPIRequ
 			return decisions.Response{}, errDecisionImage
 		}
 		sourceRemaining -= int64(len(data))
-		mime := http.DetectContentType(data)
-		switch mime {
-		case "image/png", "image/jpeg", "image/gif", "image/webp":
-		default:
+		prepared, err := normalizeDecisionImage(data, runtimeRemaining)
+		if err != nil {
 			return decisions.Response{}, errDecisionImage
 		}
-		size, _, err := image.DecodeConfig(bytes.NewReader(data))
-		if err != nil || size.Width <= 0 || size.Height <= 0 || int64(size.Width)*int64(size.Height) > decisionImagePixels {
-			return decisions.Response{}, errDecisionImage
-		}
-		if mime == "image/webp" || mime == "image/gif" {
-			// GIF and WebP are reduced to one PNG frame because the runtime decoder is not the animated path.
-			decoded, _, err := image.Decode(bytes.NewReader(data))
-			if err != nil {
-				return decisions.Response{}, errDecisionImage
-			}
-			encoded := decisionImageBuffer{limit: min(decisionImageBytes, int(runtimeRemaining))}
-			if err := png.Encode(&encoded, decoded); err != nil {
-				return decisions.Response{}, errDecisionImage
-			}
-			data, mime = encoded.Bytes(), "image/png"
-		}
-		if int64(len(data)) > runtimeRemaining {
-			return decisions.Response{}, errDecisionImage
-		}
-		runtimeRemaining -= int64(len(data))
-		input.Images = append(input.Images, decisions.Image{Data: data, MIME: mime})
+		runtimeRemaining -= int64(len(prepared.Data))
+		input.Images = append(input.Images, prepared)
 	}
 	return s.Decisions.Evaluate(ctx, input)
 }

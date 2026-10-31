@@ -270,7 +270,10 @@ browser validation still decide whether the resulting game is ready.
   resolved limits of the chosen model (`ctx … tok · out … tok`) and warns when a
   known model sits below the Studio floor of 16 384 context tokens; starting
   anyway asks for an explicit confirmation and sends the small-model opt-in.
-  Unknown models show no warning and are never blocked. A known route below
+  Unknown models show no warning and are never blocked. The same dialog offers a
+  compact-mode checkbox for an unknown route. Checking it sends `small_model: true`
+  and uses the compact profile. Leaving it clear keeps the ordinary profile.
+  A known route below
   65 536 context tokens or below 16 384 output tokens also shows the compact-mode
   notice: a shorter plan, at most six anchors, and no full rewrite of
   `src/main.ts`. That notice is separate from the context-floor warning.
@@ -283,7 +286,8 @@ browser validation still decide whether the resulting game is ready.
   12 000 bytes of source, and the API reference shrinks to a short cheat sheet.
   A new game on such a model edits the installed starter through a list of up to
   six anchors instead of rewriting `src/main.ts`; a full rewrite of that file is
-  refused with the anchor list. Validation, repair and publication gates are
+  refused with the anchor list. Guided 3D starters split mode, objective, pacing,
+  object and stage lines so those anchors exist. Validation, repair and publication gates are
   unchanged, and an ordinary run keeps the complete profile and source window.
 - While a job runs, a banner shows the current phase, the elapsed time, and
   the repair pass when the builder loops back from validation. The phase
@@ -300,14 +304,22 @@ browser validation still decide whether the resulting game is ready.
   language model, cancelled run, or unexpected end), keeps the backend report
   folded under **Technical details**, and offers **Try again**, which continues
   the saved working copy and agent context. Above the technical details it names
-  up to six open checks in the interface language. `required_controls` and
-  `required_stages` have their own explanation; every other check uses a
+  up to six open checks in the interface language. `required_controls`,
+  `required_stages`, `outcome_goal`, `outcome_lives` and `effect_pickup` have
+  their own explanation. A check id that starts with `role_` uses one shared
+  sentence. Every other check uses a
   generic sentence that includes the check id. **Use as change** copies a
   matching request into the change field and does not start a job. Expected
   and observed values stay diagnostic data. The instruction that was given to
   the model stays folded under **Technical details**. The card also says that
-  **Try again** sends no new asset selection, so a binding the plan already
-  accepted stays. The server never puts source text in the check list.
+  **Try again** sends no new asset selection. When the failure is `planning` or
+  `planning_protocol`, the card says the selection from that run is kept, because
+  no plan was accepted. After an accepted plan, the already bound selection stays.
+  The server replays a stored selection only when the restored copy has no plan.
+  The server never puts source text in the check list.
+  A ready free-code 3D game whose gameplay is unverified says so on the result
+  card before **Play now**. **Switch to a guided template** only fills the change
+  field.
 - **Try with another model** reopens the model choice and continues the same
   draft. The selected provider and model become the project default, so later
   runs use them; the dialog says so. When the failed run used repair passes, an

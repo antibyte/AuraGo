@@ -492,6 +492,7 @@ func TestDecisionsDisabledCancellationAndTechnicalErrors(t *testing.T) {
 		{decisions.CodeCandidateNotScorable, "FLOW_PARAM_INVALID"},
 		{decisions.CodeQueueFull, "FLOW_NODE_FAILED"},
 		{decisions.CodeRuntimeBusy, "FLOW_NODE_FAILED"},
+		{decisions.CodeImagesUnsupported, "FLOW_AI_UNAVAILABLE"},
 	} {
 		fake.err = decisions.NewError(tc.code, nil)
 		_, err := (flowDecisions{s}).Evaluate(context.Background(), request)
@@ -510,6 +511,7 @@ func TestDecisionsDisabledCancellationAndTechnicalErrors(t *testing.T) {
 		{decisions.NewError(decisions.CodeRuntimeStartTimeout, context.DeadlineExceeded), 504},
 		{decisions.NewError(decisions.CodeCancelled, context.Canceled), 408},
 		{decisions.NewError(decisions.CodeCandidateNotScorable, nil), 400},
+		{decisions.NewError(decisions.CodeImagesUnsupported, nil), 422},
 	} {
 		w := httptest.NewRecorder()
 		writeDecisionsFailure(w, tc.err)

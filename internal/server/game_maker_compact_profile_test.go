@@ -167,8 +167,8 @@ func TestCompactProfileKeepsRequiredOrder(t *testing.T) {
 	}
 }
 
-// Ordinary runs keep the pinned v2 profile identities and prompts; small-model
-// runs are the only v3 branch.
+// Non-voxel profiles publish as v4 after the base hints and repair examples.
+// Voxel text is unchanged: v2, or v3 only in the small-model name.
 func TestNormalProfilesStayOnV2(t *testing.T) {
 	type profileCase struct {
 		stage, dimension string
@@ -176,18 +176,18 @@ func TestNormalProfilesStayOnV2(t *testing.T) {
 		want             string
 	}
 	cases := []profileCase{
-		{"planning", "2d", nil, "game-maker/v2/planning/2d"},
-		{"building", "2d", nil, "game-maker/v2/building/2d"},
-		{"repair", "2d", nil, "game-maker/v2/building/2d"},
-		{"planning", "3d", nil, "game-maker/v2/planning/3d"},
-		{"building", "3d", nil, "game-maker/v2/building/3d"},
-		{"repair", "3d", nil, "game-maker/v2/building/3d"},
+		{"planning", "2d", nil, "game-maker/v4/planning/2d"},
+		{"building", "2d", nil, "game-maker/v4/building/2d"},
+		{"repair", "2d", nil, "game-maker/v4/building/2d"},
+		{"planning", "3d", nil, "game-maker/v4/planning/3d"},
+		{"building", "3d", nil, "game-maker/v4/building/3d"},
+		{"repair", "3d", nil, "game-maker/v4/building/3d"},
 		{"planning", "3d", []string{"voxel"}, "game-maker/v2/planning/voxel"},
 		{"building", "3d", []string{"voxel"}, "game-maker/v2/building/voxel"},
-		{"planning", "2d", []string{"compact"}, "game-maker/v3/planning/2d/compact"},
-		{"building", "2d", []string{"compact"}, "game-maker/v3/building/2d/compact"},
-		{"planning", "3d", []string{"compact"}, "game-maker/v3/planning/3d/compact"},
-		{"building", "3d", []string{"compact"}, "game-maker/v3/building/3d/compact"},
+		{"planning", "2d", []string{"compact"}, "game-maker/v4/planning/2d/compact"},
+		{"building", "2d", []string{"compact"}, "game-maker/v4/building/2d/compact"},
+		{"planning", "3d", []string{"compact"}, "game-maker/v4/planning/3d/compact"},
+		{"building", "3d", []string{"compact"}, "game-maker/v4/building/3d/compact"},
 		{"planning", "3d", []string{"voxel", "compact"}, "game-maker/v3/planning/3d/voxel"},
 		{"building", "3d", []string{"voxel", "compact"}, "game-maker/v3/building/3d/voxel"},
 	}
@@ -227,8 +227,12 @@ func TestNormalProfilesStayOnV2(t *testing.T) {
 			}
 			for _, unwanted := range []string{"## Compact design", "edit_targets", "mode_requires_replace"} {
 				if strings.Contains(profile.SystemPrompt(), unwanted) {
-					t.Errorf("%s/%s v2 profile carries %q", stage, dimension, unwanted)
+					t.Errorf("%s/%s ordinary profile carries %q", stage, dimension, unwanted)
 				}
+			}
+			hasExamples := strings.Contains(profile.SystemPrompt(), "## Repair examples")
+			if (stage == "building") != hasExamples {
+				t.Errorf("%s/%s repair examples present=%v", stage, dimension, hasExamples)
 			}
 		}
 	}

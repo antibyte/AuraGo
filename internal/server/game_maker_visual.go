@@ -127,16 +127,25 @@ func (r *gameMakerAgentRunner) reviewGameImages(ctx context.Context, cfg *config
 			_ = r.service.EmitAgentEvent(eventCtx, run.Project.ID, run.Job.ID, "visual_result", payload)
 		}
 	}()
-	route, reason := gameVisualRoute(cfg)
-	if reason != "" {
-		review.Reason = reason
-		return nil
-	}
 	captures := run.Captures
 	if len(captures) == 0 {
 		for _, image := range run.Images[:min(2, len(run.Images))] {
 			captures = append(captures, gamemaker.VisualCapture{Image: image, Scenario: "legacy_capture"})
 		}
+	}
+	// The Decisions precheck is evidence only and runs alongside the review (also
+	// without a vision route). This defer is declared after the result writer, so it
+	// runs first and joins the precheck; the wait ends with the precheck's own context.
+	if precheckDone, stop := r.startGameVisualPrecheck(ctx, cfg, captures); precheckDone != nil {
+		defer func() {
+			review.Precheck = precheckDone()
+			stop()
+		}()
+	}
+	route, reason := gameVisualRoute(cfg)
+	if reason != "" {
+		review.Reason = reason
+		return nil
 	}
 	if len(captures) == 0 {
 		review.Reason = "capture_unavailable"

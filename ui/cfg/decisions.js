@@ -171,6 +171,79 @@ function renderDecisionsSection(section) {
     localResult.dataset.decisionsResult = '';
     localResult.setAttribute('role', 'status');
 
+    // Consumers: one opt-in per subsystem. The whole decision_consumers object is saved as one value.
+    const consumerRows = [
+        ['router', null], ['memory_rerank', 'memory_rerank'], ['appraisal', 'appraisal'], ['salience_gate', 'salience_gate'],
+        ['mail_triage', 'mail_triage'], ['webhook_question', 'webhook_questions'], ['person_wake', 'person_wake'],
+        ['indexer_images', 'indexer_images'], ['game_maker_visual', 'game_maker_visual']
+    ];
+    const imageConsumers = new Set(['person_wake', 'indexer_images', 'game_maker_visual']);
+    const consumerData = configData.decision_consumers || {};
+    window.AuraConfigState?.markAtomic('decision_consumers');
+    const consumersCard = node('div', 'cfg-group');
+    consumersCard.dataset.decisionsConsumers = '';
+    node('h3', 'cfg-subheading', tr('consumers_title'), consumersCard);
+    node('p', 'field-help', tr('consumers_help'), consumersCard);
+    const consumerUI = {};
+    const consumerSwitch = (parent, path, label, on) => {
+        const wrap = node('div', 'toggle-wrap', '', parent);
+        const control = node('div', 'toggle' + (on ? ' on' : ''), '', wrap);
+        control.dataset.path = path;
+        control.setAttribute('role', 'switch');
+        control.setAttribute('aria-label', label);
+        control.setAttribute('aria-checked', String(on));
+        control.tabIndex = 0;
+        control.addEventListener('click', () => toggleBool(control));
+        node('span', 'toggle-label', t(on ? 'config.toggle.active' : 'config.toggle.inactive'), wrap);
+        return control;
+    };
+    for (const [id, key] of consumerRows) {
+        const row = node('div', 'field-group', '', consumersCard);
+        row.dataset.decisionsConsumer = id;
+        const label = tr('consumers_name_' + id);
+        node('span', 'field-label', label, row);
+        node('p', 'field-help', tr('consumers_desc_' + id), row);
+        const ui = consumerUI[id] = {row};
+        if (key) {
+            ui.enabled = consumerSwitch(row, 'decision_consumers.' + key + '.enabled', label, consumerData[key]?.enabled === true);
+        } else {
+            node('p', 'field-help', tr('consumers_router_hint'), row);
+        }
+        ui.badge = node('span', 'cfg-note-banner', '', row);
+        ui.badge.dataset.decisionsConsumerState = '';
+        ui.badge.setAttribute('role', 'status');
+        ui.stats = node('span', 'field-help', '', row);
+        if (key && imageConsumers.has(id)) {
+            ui.images = node('div', '', '', row);
+            ui.images.dataset.decisionsConsumerImages = '';
+            node('span', 'field-label', tr('consumers_external_images'), ui.images);
+            consumerSwitch(ui.images, 'decision_consumers.' + key + '.allow_external_images', tr('consumers_external_images'), consumerData[key]?.allow_external_images === true);
+            node('p', 'cfg-note-banner cfg-note-banner-warning', tr('consumers_external_images_warning'), ui.images);
+        }
+    }
+    const paintConsumers = () => {
+        for (const [id] of consumerRows) {
+            const ui = consumerUI[id];
+            if (ui.images) ui.images.hidden = !providerMode();
+            const entry = (status?.consumers || []).find(item => item.id === id);
+            let text = '', cls = 'cfg-note-banner';
+            if (!entry) text = '—';
+            else if (!entry.enabled) text = tr('consumers_state_off');
+            else if (entry.available) { text = tr('consumers_state_active'); cls += ' cfg-note-banner-success'; }
+            else {
+                const known = {images_unsupported: 'images_unsupported', images_unknown: 'images_unknown', images_external_not_permitted: 'images_external_not_permitted'}[entry.code];
+                text = known ? tr('consumers_state_' + known) : tr('consumers_state_unavailable', {code: entry.code || ''});
+                cls += ' cfg-note-banner-warning';
+            }
+            ui.badge.textContent = text;
+            ui.badge.className = cls;
+            const st = entry?.stats || {};
+            const cost = Number(st.cost_usd) > 0 ? ' · ' + tr('consumers_cost', {value: Number(st.cost_usd).toFixed(4)}) : '';
+            ui.stats.textContent = Number(st.attempts) > 0 || cost
+                ? tr('consumers_stats', {attempts: st.attempts || 0, deferred: st.deferred || 0, failures: st.failures || 0}) + cost : '';
+        }
+    };
+
     const lifetime = new AbortController();
     let status, busy = false, activeAction = '', actionRevision = 0, timer, statusRequest, modelsRequest, activeRequest, activeOperation;
     let loadedModels = [], modelsCheckedAt = 0;
@@ -343,6 +416,7 @@ function renderDecisionsSection(section) {
         const invalid = configError();
         providerValidation.textContent = invalid;
         providerValidation.className = 'field-help' + (invalid ? ' cfg-note-banner-warning' : '');
+        paintConsumers();
     };
     const reason = code => {
         if (!code) return '';

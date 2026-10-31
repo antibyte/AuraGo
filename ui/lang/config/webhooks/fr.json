@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Impossible de charger les données des webhooks",
   "config.webhooks.retry": "Réessayer",
   "config.webhooks.not_running_notice": "Le serveur de webhooks n'est pas en cours d'exécution",
-  "config.webhooks.not_running_desc": "Le gestionnaire de webhooks n'est pas actif, les webhooks et jetons sont donc indisponibles. Vérifiez que les webhooks sont activés, enregistrez et redémarrez AuraGo si nécessaire."
+  "config.webhooks.not_running_desc": "Le gestionnaire de webhooks n'est pas actif, les webhooks et jetons sont donc indisponibles. Vérifiez que les webhooks sont activés, enregistrez et redémarrez AuraGo si nécessaire.",
+  "config.webhooks.decision_title": "Question de décision (facultative)",
+  "config.webhooks.decision_intro": "Pose au classificateur Decisions facultatif une question oui/non sur chaque événement entrant. La réponse n'est qu'un indice pour l'agent et ne remplace jamais les contrôles de sécurité.",
+  "config.webhooks.decision_enable": "Activer la question",
+  "config.webhooks.decision_question_label": "Question",
+  "config.webhooks.decision_question_placeholder": "Cet événement demande-t-il mon attention ?",
+  "config.webhooks.decision_mode_label": "Utilisation de la réponse",
+  "config.webhooks.decision_mode_hint": "Indice : ajouter la réponse au message",
+  "config.webhooks.decision_mode_gate": "Filtre : ignorer le message en cas de Non sûr",
+  "config.webhooks.decision_gate_warning": "Le mode filtre peut supprimer des messages de l'agent. Seule une réponse nettement négative supprime ; l'événement est toujours journalisé et les missions s'exécutent quand même."
 }

@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Webhookgegevens konden niet worden geladen",
   "config.webhooks.retry": "Opnieuw proberen",
   "config.webhooks.not_running_notice": "De webhookserver draait niet",
-  "config.webhooks.not_running_desc": "De webhookmanager is niet actief, dus webhooks en tokens zijn niet beschikbaar. Controleer of webhooks zijn ingeschakeld, sla op en herstart AuraGo indien nodig."
+  "config.webhooks.not_running_desc": "De webhookmanager is niet actief, dus webhooks en tokens zijn niet beschikbaar. Controleer of webhooks zijn ingeschakeld, sla op en herstart AuraGo indien nodig.",
+  "config.webhooks.decision_title": "Beslissingsvraag (optioneel)",
+  "config.webhooks.decision_intro": "Stelt de optionele Decisions-classifier bij elke binnenkomende gebeurtenis een ja/nee-vraag. Het antwoord is slechts een hint voor de agent en vervangt nooit de beveiligingscontroles.",
+  "config.webhooks.decision_enable": "Vraag inschakelen",
+  "config.webhooks.decision_question_label": "Vraag",
+  "config.webhooks.decision_question_placeholder": "Heeft deze gebeurtenis mijn aandacht nodig?",
+  "config.webhooks.decision_mode_label": "Gebruik van het antwoord",
+  "config.webhooks.decision_mode_hint": "Hint: antwoord aan het bericht toevoegen",
+  "config.webhooks.decision_mode_gate": "Poort: bericht overslaan bij een zeker Nee",
+  "config.webhooks.decision_gate_warning": "De poortmodus kan agentberichten onderdrukken. Alleen een duidelijk negatief antwoord onderdrukt; de gebeurtenis wordt nog steeds gelogd en missies blijven draaien."
 }

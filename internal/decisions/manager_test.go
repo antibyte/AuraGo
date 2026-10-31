@@ -1015,3 +1015,20 @@ held:
 }
 
 func boolPointer(value bool) *bool { return &value }
+
+func TestManagerLoadPassive(t *testing.T) {
+	manager := NewManager(config.DecisionsConfig{Enabled: true, Deployment: config.DecisionsDeploymentNative}, t.TempDir())
+	if active, waiting := manager.Load(); active != 0 || waiting != 0 {
+		t.Fatalf("idle load = %d, %d", active, waiting)
+	}
+	before := manager.Status().State
+	manager.evalSlots <- struct{}{}
+	manager.evalSlots <- struct{}{}
+	manager.evalGate <- struct{}{}
+	if active, waiting := manager.Load(); active != 1 || waiting != 1 {
+		t.Fatalf("busy load = %d, %d", active, waiting)
+	}
+	if after := manager.Status().State; after != before || after == "starting" || after == "installing" {
+		t.Fatalf("Load changed state %q -> %q", before, after)
+	}
+}

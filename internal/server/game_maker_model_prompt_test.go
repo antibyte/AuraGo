@@ -766,6 +766,7 @@ func TestGameMakerPlanningNamesGuided3DBasesBeforeFreeCode(t *testing.T) {
 		"space (spacecraft)",
 		"custom or procedural engine",
 		"Keep an existing base",
+		"endless runner",
 		"gameplay stays unverified",
 	} {
 		if !strings.Contains(early, want) {

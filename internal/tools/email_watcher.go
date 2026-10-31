@@ -38,6 +38,8 @@ type EmailWatcher struct {
 	lastUIDs map[string]map[uint32]bool
 	// mission trigger callbacks
 	missionCallbacks []missionTriggerCallback
+	triage           EmailTriageService
+	cfgSource        func() *config.Config
 }
 
 type missionTriggerCallback struct {
@@ -263,7 +265,9 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	}
 
 	// Keep ordinary delivery independent from quarantine notice retries.
-	summary, ordinaryCount, quarantined, processedUIDs := ew.processMessages(ctx, acct, messages)
+	items, quarantined, processedUIDs := ew.collectMessages(ctx, acct, messages)
+	ordinaryCount := len(items)
+	groups := ew.triageItems(ctx, items)
 	for _, uid := range newUIDs {
 		if !processedUIDs[uid] {
 			delete(ew.lastUIDs[acct.ID], uid)
@@ -276,7 +280,7 @@ func (ew *EmailWatcher) pollAccount(ctx context.Context, acct config.EmailAccoun
 	}
 
 	if ordinaryCount > 0 {
-		if err := ew.notifyAgent(ctx, buildEmailNotificationPrompt(acct, ordinaryCount, summary, ew.relaySheet)); err != nil {
+		if err := ew.notifyAgent(ctx, buildEmailNotificationPromptGrouped(acct, ordinaryCount, items, groups, ew.relaySheet)); err != nil {
 			quarantinedUIDs := make(map[uint32]bool, len(quarantined))
 			for _, item := range quarantined {
 				quarantinedUIDs[item.uid] = true
@@ -316,13 +320,17 @@ func (ew *EmailWatcher) notifyQuarantined(ctx context.Context, acct config.Email
 }
 
 func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAccount, messages []EmailMessage) (string, int, []quarantinedWatcherEmail, map[uint32]bool) {
-	var summary string
+	items, quarantined, processed := ew.collectMessages(ctx, acct, messages)
+	return flatEmailSummary(items), len(items), quarantined, processed
+}
+
+func (ew *EmailWatcher) collectMessages(ctx context.Context, acct config.EmailAccount, messages []EmailMessage) ([]emailSummaryItem, []quarantinedWatcherEmail, map[uint32]bool) {
+	var items []emailSummaryItem
 	var quarantined []quarantinedWatcherEmail
 	processedUIDs := make(map[uint32]bool, len(messages))
-	ordinaryCount := 0
 	for _, msg := range messages {
 		if ctx.Err() != nil {
-			return summary, ordinaryCount, quarantined, processedUIDs
+			return items, quarantined, processedUIDs
 		}
 		content := fmt.Sprintf("From: %s | Subject: %s | Snippet: %s | Body: %s", msg.From, msg.Subject, msg.Snippet, msg.Body)
 		var blocked *security.GuardianResult
@@ -357,13 +365,11 @@ func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAc
 			continue
 		}
 		if ctx.Err() != nil {
-			return summary, ordinaryCount, quarantined, processedUIDs
+			return items, quarantined, processedUIDs
 		}
 		processedUIDs[msg.UID] = true
-		ordinaryCount++
-		summary += fmt.Sprintf("\n%d. %s", ordinaryCount, checked.Text)
+		items = append(items, emailSummaryItem{UID: msg.UID, Number: len(items) + 1, Text: checked.Text, Datamarked: checked.Datamarked})
 		if checked.Datamarked {
-			summary += "\n" + security.DatamarkNotice
 			continue
 		}
 
@@ -373,7 +379,7 @@ func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAc
 		ew.mu.Unlock()
 		for _, mt := range callbacks {
 			if ctx.Err() != nil {
-				return summary, ordinaryCount, quarantined, processedUIDs
+				return items, quarantined, processedUIDs
 			}
 			if mt.folder != "" && mt.folder != acct.WatchFolder {
 				continue
@@ -387,7 +393,7 @@ func (ew *EmailWatcher) processMessages(ctx context.Context, acct config.EmailAc
 			mt.callback(msg.Subject, msg.From, msg.Body)
 		}
 	}
-	return summary, ordinaryCount, quarantined, processedUIDs
+	return items, quarantined, processedUIDs
 }
 
 func buildEmailNotificationPrompt(acct config.EmailAccount, messageCount int, summary string, relaySheets ...EmailRelayCheatsheet) string {
@@ -395,6 +401,10 @@ func buildEmailNotificationPrompt(acct config.EmailAccount, messageCount int, su
 	if summary != "" {
 		summaryBlock = "\n\nEmail summary:\n" + security.IsolateExternalData(summary)
 	}
+	return assembleEmailNotificationPrompt(acct, messageCount, summaryBlock, relaySheets...)
+}
+
+func assembleEmailNotificationPrompt(acct config.EmailAccount, messageCount int, summaryBlock string, relaySheets ...EmailRelayCheatsheet) string {
 	prompt := fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s (%s) - %d new email(s) in %s.%s\n\nYou can use fetch_email with account \"%s\" for full content or send_email to reply.", acct.Name, acct.FromAddress, messageCount, acct.WatchFolder, summaryBlock, acct.ID)
 	if len(relaySheets) > 0 {
 		prompt += formatEmailRelayCheatsheet(relaySheets[0])

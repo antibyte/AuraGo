@@ -86,6 +86,9 @@ type AlertSinks struct {
 	Message func(ctx context.Context, channel, title, body string, photoJPEG []byte) error
 	// Agent enqueues the wake-up prompt; ErrAgentQueueFull when the queue is full.
 	Agent func(prompt string) error
+	// AgentGate optionally screens the cover frame before the agent wakes. It
+	// may only suppress the agent action; nil keeps today's behaviour.
+	AgentGate func(ctx context.Context, ev AlertEvent) (suppress bool, hint string)
 	// Desktop shows a toast for ev in the desktop notification center.
 	Desktop func(ev AlertEvent, title, message string) error
 	// Mission fires the person_detected mission and flow triggers. Handing the event over
@@ -271,8 +274,23 @@ func (d *Dispatcher) wakeAgent(ev AlertEvent) AlertResult {
 	if d.sinks.Agent == nil {
 		return AlertResult{Status: AlertSkipped, Detail: "agent unavailable"}
 	}
-	return alertResultFor(d.sinks.Agent(d.agentPrompt(ev)))
+	hint := ""
+	if d.sinks.AgentGate != nil {
+		// The server bounds the call by the consumer's own timeout; this is the outer
+		// safety bound (persondetect must not import the consumers package, contract C7).
+		ctx, cancel := context.WithTimeout(context.Background(), alertGateTimeout)
+		suppress, h := d.sinks.AgentGate(ctx, ev)
+		cancel()
+		if suppress {
+			return AlertResult{Status: AlertSkipped, Detail: "decision_no_person"}
+		}
+		hint = h
+	}
+	return alertResultFor(d.sinks.Agent(d.agentPromptWithHint(ev, hint)))
 }
+
+// alertGateTimeout bounds AgentGate; it matches the Decisions person_wake timeout.
+const alertGateTimeout = 20 * time.Second
 
 func (d *Dispatcher) showDesktop(ev AlertEvent, title, body string) AlertResult {
 	if d.sinks.Desktop == nil {
@@ -329,7 +347,10 @@ func (d *Dispatcher) messageTexts(ev AlertEvent) (title, body string) {
 // agentPrompt is the wake-up message: the localized instruction, the event facts isolated
 // as external data (camera and zone names are configuration text, the rest comes from the
 // detector), and the user's instruction for this camera, like formatUptimeKumaTransitionPrompt.
-func (d *Dispatcher) agentPrompt(ev AlertEvent) string {
+func (d *Dispatcher) agentPrompt(ev AlertEvent) string { return d.agentPromptWithHint(ev, "") }
+
+// agentPromptWithHint adds the optional Decisions hint as one more isolated fact line.
+func (d *Dispatcher) agentPromptWithHint(ev AlertEvent, hint string) string {
 	id := strconv.FormatInt(ev.EventID, 10)
 	intro := strings.ReplaceAll(d.text(ev.Language, AlertTextAgentPrompt), "{event_id}", id)
 	zones := alertZones(ev.Zones)
@@ -341,7 +362,7 @@ func (d *Dispatcher) agentPrompt(ev AlertEvent) string {
 		armed = "yes"
 	}
 	started := alertStarted(ev)
-	facts := strings.Join([]string{
+	lines := []string{
 		"Event: " + id,
 		fmt.Sprintf("Camera: %s (%s)", alertCameraName(ev), alertBound(alertLine(ev.CameraID), alertNameRunes)),
 		"Zones: " + zones,
@@ -349,7 +370,11 @@ func (d *Dispatcher) agentPrompt(ev AlertEvent) string {
 		fmt.Sprintf("Score: %d %%", alertPercent(ev.Score)),
 		"Persons: " + strconv.Itoa(ev.Persons),
 		"Armed: " + armed,
-	}, "\n")
+	}
+	if hint = alertBound(alertLine(hint), alertNameRunes); hint != "" {
+		lines = append(lines, "Decisions: "+hint+" (uncalibrated)")
+	}
+	facts := strings.Join(lines, "\n")
 	parts := []string{intro, isolateAlertFacts(facts)}
 	if instruction := alertBound(strings.TrimSpace(ev.Actions.AgentInstruction), alertInstructionRunes); instruction != "" {
 		parts = append(parts, "Configured instruction for this camera from the user:\n"+instruction)

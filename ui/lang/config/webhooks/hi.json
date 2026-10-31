@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "वेबहुक डेटा लोड नहीं हो सका",
   "config.webhooks.retry": "पुनः प्रयास करें",
   "config.webhooks.not_running_notice": "वेबहुक सर्वर नहीं चल रहा है",
-  "config.webhooks.not_running_desc": "वेबहुक प्रबंधक सक्रिय नहीं है, इसलिए वेबहुक और टोकन उपलब्ध नहीं हैं। जाँचें कि वेबहुक सक्षम हैं, सहेजें और आवश्यकता होने पर AuraGo पुनः आरंभ करें।"
+  "config.webhooks.not_running_desc": "वेबहुक प्रबंधक सक्रिय नहीं है, इसलिए वेबहुक और टोकन उपलब्ध नहीं हैं। जाँचें कि वेबहुक सक्षम हैं, सहेजें और आवश्यकता होने पर AuraGo पुनः आरंभ करें।",
+  "config.webhooks.decision_title": "निर्णय प्रश्न (वैकल्पिक)",
+  "config.webhooks.decision_intro": "हर आने वाली घटना के बारे में वैकल्पिक Decisions क्लासिफ़ायर से हाँ/ना प्रश्न पूछता है। उत्तर केवल एजेंट के लिए संकेत है और सुरक्षा जाँचों की जगह कभी नहीं लेता।",
+  "config.webhooks.decision_enable": "प्रश्न सक्षम करें",
+  "config.webhooks.decision_question_label": "प्रश्न",
+  "config.webhooks.decision_question_placeholder": "क्या इस घटना पर मेरा ध्यान देना ज़रूरी है?",
+  "config.webhooks.decision_mode_label": "उत्तर का उपयोग",
+  "config.webhooks.decision_mode_hint": "संकेत: उत्तर को संदेश में जोड़ें",
+  "config.webhooks.decision_mode_gate": "गेट: पक्के ना पर संदेश छोड़ दें",
+  "config.webhooks.decision_gate_warning": "गेट मोड एजेंट संदेशों को दबा सकता है। केवल स्पष्ट रूप से नकारात्मक उत्तर ही दबाता है; घटना फिर भी लॉग होती है और मिशन चलते रहते हैं।"
 }

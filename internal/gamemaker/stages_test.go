@@ -3,9 +3,9 @@ package gamemaker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -119,25 +119,16 @@ func TestGuided3DStartersShipDistinctStages(t *testing.T) {
 		if err != nil {
 			t.Fatal(base, err)
 		}
-		match := regexp.MustCompile(`startGame\((\{.*\})\);`).FindSubmatch(sources["main.ts"])
-		var config struct {
-			Levels []struct {
-				Objects []struct {
-					Role string    `json:"role"`
-					At   []float64 `json:"at"`
-				} `json:"objects"`
-				Goal int `json:"goal"`
-			} `json:"levels"`
+		config, err := guidedLevelsFromSource(sources["main.ts"])
+		if err != nil || len(config) != 3 {
+			t.Fatalf("%s: starter lacks three stages: %v", base, err)
 		}
-		if match == nil || json.Unmarshal(match[1], &config) != nil || len(config.Levels) != 3 {
-			t.Fatalf("%s: starter lacks three stages", base)
-		}
-		first, _ := json.Marshal(config.Levels[1].Objects)
-		second, _ := json.Marshal(config.Levels[2].Objects)
+		first, _ := json.Marshal(config[1].Objects)
+		second, _ := json.Marshal(config[2].Objects)
 		if string(first) == string(second) {
 			t.Fatalf("%s: later stages repeat one layout", base)
 		}
-		for i, level := range config.Levels[1:] {
+		for i, level := range config[1:] {
 			xs, found := map[float64]bool{}, 0
 			for _, o := range level.Objects {
 				if o.Role == role {
@@ -150,4 +141,50 @@ func TestGuided3DStartersShipDistinctStages(t *testing.T) {
 			}
 		}
 	}
+}
+
+type guidedLevelLayout struct {
+	Objects []struct {
+		Role string    `json:"role"`
+		At   []float64 `json:"at"`
+	} `json:"objects"`
+	Goal int `json:"goal"`
+}
+
+func guidedLevelsFromSource(source []byte) ([]guidedLevelLayout, error) {
+	text := string(source)
+	var levels []guidedLevelLayout
+	for n := 1; n <= 6; n++ {
+		marker := fmt.Sprintf("const stage%d = ", n)
+		at := strings.Index(text, marker)
+		if at < 0 {
+			break
+		}
+		rest := text[at+len(marker):]
+		end := strings.Index(rest, ";\n")
+		if end < 0 {
+			return nil, fmt.Errorf("stage %d is not closed", n)
+		}
+		var level guidedLevelLayout
+		if err := json.Unmarshal([]byte(rest[:end]), &level); err != nil {
+			return nil, err
+		}
+		objMarker := fmt.Sprintf("const stage%dObjects = ", n)
+		if objAt := strings.Index(text, objMarker); objAt >= 0 {
+			orest := text[objAt+len(objMarker):]
+			oend := strings.Index(orest, "\n];")
+			if oend < 0 {
+				return nil, fmt.Errorf("stage %d objects are not closed", n)
+			}
+			raw := strings.ReplaceAll(orest[:oend+2], "\n,", ",")
+			if err := json.Unmarshal([]byte(raw), &level.Objects); err != nil {
+				return nil, err
+			}
+		}
+		levels = append(levels, level)
+	}
+	if len(levels) == 0 {
+		return nil, fmt.Errorf("levels missing")
+	}
+	return levels, nil
 }

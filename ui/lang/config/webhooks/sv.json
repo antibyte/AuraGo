@@ -130,5 +130,14 @@
   "config.webhooks.load_failed": "Webhook-data kunde inte läsas in",
   "config.webhooks.retry": "Försök igen",
   "config.webhooks.not_running_notice": "Webhook-servern körs inte",
-  "config.webhooks.not_running_desc": "Webhook-hanteraren är inte aktiv, så webhooks och tokens är otillgängliga. Kontrollera att webhooks är aktiverade, spara och starta om AuraGo vid behov."
+  "config.webhooks.not_running_desc": "Webhook-hanteraren är inte aktiv, så webhooks och tokens är otillgängliga. Kontrollera att webhooks är aktiverade, spara och starta om AuraGo vid behov.",
+  "config.webhooks.decision_title": "Beslutsfråga (valfri)",
+  "config.webhooks.decision_intro": "Ställer den valfria Decisions-klassificeraren en ja/nej-fråga om varje inkommande händelse. Svaret är bara en ledtråd till agenten och ersätter aldrig säkerhetskontrollerna.",
+  "config.webhooks.decision_enable": "Aktivera fråga",
+  "config.webhooks.decision_question_label": "Fråga",
+  "config.webhooks.decision_question_placeholder": "Behöver den här händelsen min uppmärksamhet?",
+  "config.webhooks.decision_mode_label": "Användning av svaret",
+  "config.webhooks.decision_mode_hint": "Ledtråd: lägg till svaret i meddelandet",
+  "config.webhooks.decision_mode_gate": "Spärr: hoppa över meddelandet vid ett säkert Nej",
+  "config.webhooks.decision_gate_warning": "Spärrläget kan undertrycka agentmeddelanden. Bara ett tydligt nekande svar undertrycker; händelsen loggas fortfarande och uppdrag körs fortfarande."
 }

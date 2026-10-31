@@ -245,7 +245,7 @@ func runMemoryAnalysis(
 	// The batched helper path is not gated: its one call also feeds the
 	// activity digest and the personality analysis.
 	embedder, _ := ltm.(memoryQueryEmbedder)
-	if worth, reason := memoryExtractionWorthwhile(ctx, embedder, userMsg); !worth {
+	if worth, reason := memoryExtractionWorthwhileDecided(ctx, RunConfig{Config: cfg, DecisionConsumers: decisionConsumersFromContext(ctx)}, embedder, userMsg); !worth {
 		logger.Info("[Memory Analysis] Salience gate skipped extraction", "reason", reason, "session", sessionID)
 		return
 	}

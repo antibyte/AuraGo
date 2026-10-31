@@ -146,7 +146,8 @@ func PhaseGuidance(stage, dimension string) string {
 		if dimension == "2d" {
 			return rules + `
 - Supply exact asset role/pack/asset IDs from search_assets only where the request needs specific artwork.
-- 2D bases take no settings: omit them and describe tuning in features, source or mechanics.blocks[].params.`
+- 2D bases take no settings: omit them and describe tuning in features, source or mechanics.blocks[].params.
+- A grid game such as snake stays on base minimal: movement, food, growth, collision and restart live in source.`
 		}
 		return rules + `
 - Guided 3D bases bring catalog-checked default models when assets is empty; resolve user-selected models into the matching roles.
