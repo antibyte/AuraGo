@@ -23,6 +23,9 @@ func TestBackupRestoreStagedUIContract(t *testing.T) {
 		"config.backup.last_restore_",
 		"method: 'DELETE'",
 		"config.backup.discard_unsupported",
+		"data.awaiting_confirmation === true",
+		"action: 'confirm'",
+		"backupSecurityChangesList(",
 	} {
 		if !strings.Contains(src, want) {
 			t.Errorf("backup.js misses %q", want)
@@ -36,6 +39,14 @@ func TestBackupRestoreStagedUIContract(t *testing.T) {
 		strings.Index(src[d:], "showConfirm(") < 0 || strings.Index(src[d:], "showConfirm(") > strings.Index(src[d:], "method: 'DELETE'") {
 		t.Error("discard must confirm before the DELETE call")
 	}
+	// Confirming asks first, then POSTs; the status area shows restart only without a pending confirmation.
+	if c := strings.Index(src, "async function backupConfirmPending"); c < 0 ||
+		strings.Index(src[c:], "showConfirm(") < 0 || strings.Index(src[c:], "showConfirm(") > strings.Index(src[c:], "method: 'POST'") {
+		t.Error("confirm must ask before the POST call")
+	}
+	if !strings.Contains(src, "awaiting ? 'confirm' : true") {
+		t.Error("restart button must be replaced by confirm while a confirmation is pending")
+	}
 	// The restart button belongs only to the restart_required branch.
 	idx := strings.Index(src, "function backupRenderImportResult")
 	if idx < 0 || strings.Index(src[idx:], "backupRestartButton()") < strings.Index(src[idx:], "restart_required") {
@@ -46,7 +57,11 @@ func TestBackupRestoreStagedUIContract(t *testing.T) {
 func TestBackupRestoreStagedLocales(t *testing.T) {
 	keys := []string{"import_staged", "import_partial", "restore_pending_note", "error_http", "restore_pending_since",
 		"last_restore_applied", "last_restore_rolled_back", "last_restore_failed",
-		"discard_pending", "discarding", "discard_confirm_title", "discard_confirm_message", "discard_done", "discard_nothing", "discard_unsupported"}
+		"discard_pending", "discarding", "discard_confirm_title", "discard_confirm_message", "discard_done", "discard_nothing", "discard_unsupported",
+		"security_changes_title", "security_changes_intro", "sc_auth_disabled", "sc_host_changed", "sc_password_hash", "sc_tokens",
+		"sc_files_prompts", "sc_files_skills", "sc_files_agent_skills", "sc_files_tools",
+		"sc_totp_disabled", "sc_totp_secret", "sc_webauthn", "sc_require_origin", "sc_files_crontab", "sc_files_databases",
+		"confirm_restore", "confirming", "confirm_done", "confirm_dialog_title", "confirm_dialog_message"}
 	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	en := map[string]string{}
 	for _, loc := range locales {

@@ -205,6 +205,54 @@ function backupRestartButton() {
     return restart;
 }
 
+// Human-readable list of the security-relevant changes of a staged restore.
+// Every server value goes in via textContent.
+function backupSecurityChangesList(changes) {
+    const list = document.createElement('ul');
+    list.className = 'backup-import-warnings backup-security-changes';
+    const add = text => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        list.appendChild(li);
+        return li;
+    };
+    if (!changes || typeof changes !== 'object') return list;
+    if (changes.auth_disabled) add(t('config.backup.sc_auth_disabled'));
+    if (changes.host_changed) add(t('config.backup.sc_host_changed', { from: changes.host_from || '-', to: changes.host_to || '-' }));
+    if (changes.password_hash_changed) add(t('config.backup.sc_password_hash'));
+    if (changes.totp_disabled) add(t('config.backup.sc_totp_disabled'));
+    if (changes.totp_secret_changed) add(t('config.backup.sc_totp_secret'));
+    if (changes.webauthn_changed) add(t('config.backup.sc_webauthn'));
+    if (changes.require_origin_disabled) add(t('config.backup.sc_require_origin'));
+    if (changes.new_token_count > 0) {
+        const li = add(t('config.backup.sc_tokens', { new: changes.new_token_count, total: changes.token_count || changes.new_token_count }));
+        const tokens = Array.isArray(changes.new_tokens) ? changes.new_tokens : [];
+        if (tokens.length) {
+            const sub = document.createElement('ul');
+            tokens.forEach(tok => {
+                const item = document.createElement('li');
+                item.textContent = String(tok.name || tok.id || '') + ' [' + (Array.isArray(tok.scopes) ? tok.scopes.join(', ') : '') + ']';
+                sub.appendChild(item);
+            });
+            li.appendChild(sub);
+        }
+    }
+    (Array.isArray(changes.files) ? changes.files : []).forEach(fc => {
+        const li = add(t('config.backup.sc_files_' + fc.category, { new: fc.new || 0, changed: fc.changed || 0 }));
+        const examples = Array.isArray(fc.examples) ? fc.examples : [];
+        if (examples.length) {
+            const sub = document.createElement('ul');
+            examples.forEach(name => {
+                const item = document.createElement('li');
+                item.textContent = String(name);
+                sub.appendChild(item);
+            });
+            li.appendChild(sub);
+        }
+    });
+    return list;
+}
+
 // Result box of a staged restore; every server text goes in via textContent.
 function backupRenderImportResult(result, data, state) {
     result.replaceChildren();
@@ -219,8 +267,13 @@ function backupRenderImportResult(result, data, state) {
     box.appendChild(title);
     const pending = document.createElement('div');
     pending.className = 'backup-import-success-message';
-    pending.textContent = t('config.backup.restore_pending_note');
+    pending.textContent = data.awaiting_confirmation === true
+        ? t('config.backup.security_changes_intro')
+        : t('config.backup.restore_pending_note');
     box.appendChild(pending);
+    if (data.awaiting_confirmation === true && data.security_changes) {
+        box.appendChild(backupSecurityChangesList(data.security_changes));
+    }
     if (data.message) {
         const msg = document.createElement('div');
         msg.className = 'backup-import-success-message';
@@ -293,14 +346,24 @@ async function backupLoadRestoreStatus(note) {
         const d = new Date(value);
         return isNaN(d.getTime()) ? String(value || '') : d.toLocaleString();
     };
-    const addLine = (state, text, withRestart) => {
+    // mode: false = text only, true = restart + discard, 'confirm' = confirm + discard
+    const addLine = (state, text, mode) => {
         const line = document.createElement('div');
         line.className = 'backup-restore-status-line';
         const span = document.createElement('span');
         cfgActionResult.show(span, state, text);
         line.appendChild(span);
-        if (withRestart) {
-            line.appendChild(backupRestartButton());
+        if (mode === 'confirm') {
+            const confirmBtn = document.createElement('button');
+            confirmBtn.type = 'button';
+            confirmBtn.id = 'backup-confirm-btn';
+            confirmBtn.className = 'btn-save backup-restart-btn';
+            confirmBtn.textContent = t('config.backup.confirm_restore');
+            confirmBtn.addEventListener('click', () => backupConfirmPending(confirmBtn, data.id));
+            line.appendChild(confirmBtn);
+        }
+        if (mode) {
+            if (mode !== 'confirm') line.appendChild(backupRestartButton());
             const discard = document.createElement('button');
             discard.type = 'button';
             discard.id = 'backup-discard-btn';
@@ -312,7 +375,15 @@ async function backupLoadRestoreStatus(note) {
         box.appendChild(line);
     };
     if (data.pending) {
-        addLine('warning', t('config.backup.restore_pending_since', { time: fmt(data.pending_created_at) }), true);
+        const awaiting = data.awaiting_confirmation === true;
+        addLine('warning', t('config.backup.restore_pending_since', { time: fmt(data.pending_created_at) }), awaiting ? 'confirm' : true);
+        if (awaiting) {
+            const intro = document.createElement('div');
+            intro.className = 'backup-security-intro';
+            intro.textContent = t('config.backup.security_changes_title') + ' ' + t('config.backup.security_changes_intro');
+            box.appendChild(intro);
+            box.appendChild(backupSecurityChangesList(data.security_changes));
+        }
     }
     const last = data.last;
     const RECENT_MS = 7 * 24 * 3600 * 1000;
@@ -351,6 +422,26 @@ async function backupDiscardPending(btn) {
     if (outcome && outcome.state === 'success') note = { state: 'success', text: t('config.backup.discard_done') };
     else if (outcome && outcome.state === 'warning') note = { state: 'warning', text: t('config.backup.discard_nothing') };
     else if (outcome && outcome.state === 'error') note = { state: 'error', text: t('config.backup.status_error') + ' ' + (outcome.reason || '') };
+    await backupLoadRestoreStatus(note);
+    return outcome;
+}
+
+// Confirms the security changes of the staged restore; the restart button
+// appears afterwards. Older servers (404/405) are reported, not thrown.
+async function backupConfirmPending(btn, id) {
+    if (!(await showConfirm(t('config.backup.confirm_dialog_title'), t('config.backup.confirm_dialog_message')))) return { skipped: 'cancelled' };
+    const outcome = await cfgActionResult(btn, () => fetch('/api/backup/restore-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm', id: id })
+    }), {
+        pending: t('config.backup.confirming'),
+        success: t('config.backup.confirm_done'),
+        failure: t('config.backup.status_error'),
+        reasonText: backupImportReason
+    });
+    let note = null;
+    if (outcome && outcome.state === 'error') note = { state: 'error', text: t('config.backup.status_error') + ' ' + (outcome.reason || '') };
     await backupLoadRestoreStatus(note);
     return outcome;
 }

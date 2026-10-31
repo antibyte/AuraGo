@@ -67,6 +67,9 @@ type agoManifest struct {
 	AppVersion string `json:"app_version,omitempty"`
 	// DBUserVersions maps archive paths of included SQLite files to their PRAGMA user_version.
 	DBUserVersions map[string]int `json:"db_user_versions,omitempty"`
+	// Skipped lists data that could not be included (for example a database
+	// outside the config root), so an incomplete backup is visible.
+	Skipped []string `json:"skipped,omitempty"`
 }
 
 type agoImportEntry struct {
@@ -552,7 +555,8 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		}
 
 		// addDir recursively adds all files under dirPath into zipPrefix, skipping
-		// any path components matching the excludes substrings.
+		// paths (relative to dirPath, with a leading slash) that contain one of the
+		// excludes substrings.
 		addDir := func(zipPrefix, dirPath string, excludes ...string) (int, error) {
 			rootInfo, err := os.Lstat(dirPath)
 			if err != nil {
@@ -572,13 +576,15 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				if info.IsDir() {
 					return nil
 				}
-				fwdPath := filepath.ToSlash(path)
+				rel, _ := filepath.Rel(dirPath, path)
+				// Match against the path below the walked directory only: the
+				// absolute path may legitimately contain "/images/" or similar.
+				relSlash := "/" + filepath.ToSlash(rel)
 				for _, ex := range excludes {
-					if strings.Contains(fwdPath, ex) {
+					if strings.Contains(relSlash, ex) {
 						return nil
 					}
 				}
-				rel, _ := filepath.Rel(dirPath, path)
 				fileAdded, err := addFile(zipPrefix+filepath.ToSlash(rel), path)
 				if err != nil {
 					return err
@@ -769,6 +775,13 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			}
 			if !ok {
 				s.Logger.Warn("[Backup] Skipping SQLite path outside config root", "path", absDB)
+				sqliteSkipped = append(sqliteSkipped, fmt.Sprintf("sqlite/%s skipped (outside the config root)", filepath.Base(absDB)))
+				continue
+			}
+			if !agoIsAllowedRestorePath(zipPath) {
+				// Restore only accepts data/, so the import would reject the whole archive.
+				s.Logger.Warn("[Backup] Skipping SQLite path that restore would reject", "path", absDB, "zip_path", zipPath)
+				sqliteSkipped = append(sqliteSkipped, fmt.Sprintf("sqlite/%s skipped (not a restorable location)", filepath.Base(absDB)))
 				continue
 			}
 			before := len(seenZipPaths)
@@ -927,6 +940,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			VaultIncluded:     vaultIncluded,
 			AppVersion:        readInstalledVersion(appInstallDir(s)),
 			DBUserVersions:    dbUserVersions,
+			Skipped:           sqliteSkipped,
 		}
 		if mw, err := zw.Create("manifest.json"); err == nil {
 			if err := json.NewEncoder(mw).Encode(manifest); err != nil {
@@ -965,6 +979,9 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(outData)))
+		if len(sqliteSkipped) > 0 {
+			w.Header().Set("X-AuraGo-Backup-Skipped", fmt.Sprintf("%d", len(sqliteSkipped)))
+		}
 		if _, err := w.Write(outData); err != nil {
 			s.Logger.Warn("[Backup] Failed to write response", "error", err)
 			return
@@ -1075,6 +1092,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		var backupManifest *agoManifest
 		var importEntries []agoImportEntry
 		var totalBytes int64
+		restoreDirs := s.restoreDirs()
 		for _, f := range zr.File {
 			clean := filepath.Clean(filepath.FromSlash(f.Name))
 			if clean == "." {
@@ -1163,15 +1181,17 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				return
 			}
 
-			destPath, err := agoSafeDestination(configRoot, clean)
-			destinationRoot := configRoot
-			if slash := filepath.ToSlash(clean); strings.HasPrefix(slash, "data/vectordb/") && s.Cfg.Directories.VectorDBDir != "" {
-				destinationRoot, err = filepath.Abs(s.Cfg.Directories.VectorDBDir)
-				if err == nil {
-					destPath, err = agoSafeDestination(destinationRoot, strings.TrimPrefix(slash, "data/vectordb/"))
-				}
+			// Prefixes with a configured directory (prompts, skills, tools, workdir,
+			// vector database) go where the ACTIVE config reads them, never where
+			// the archive's own config.yaml would point.
+			destinationRoot, relDest, mapped, err := restoreDirs.MapPath(configRoot, filepath.ToSlash(clean))
+			var destPath string
+			if err == nil {
+				destPath, err = agoSafeDestination(destinationRoot, filepath.FromSlash(relDest))
+			}
+			if err == nil && mapped {
 				if info, statErr := os.Lstat(destinationRoot); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
-					err = fmt.Errorf("vector database root is a symlink")
+					err = fmt.Errorf("restore root %s is a symlink", destinationRoot)
 				}
 			}
 			if err != nil {
@@ -1279,6 +1299,11 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				warnings = append(warnings, "Die AuraGo-Version des Backups ("+backupManifest.AppVersion+") konnte nicht mit der installierten Version verglichen werden.")
 			}
 		}
+		if backupManifest != nil {
+			for _, sk := range backupManifest.Skipped {
+				warnings = append(warnings, "Das Backup ist unvollständig: "+sk)
+			}
+		}
 		olderDBs, newerDBs := agoCheckBackupDBVersions(importEntries)
 		if len(newerDBs) > 0 {
 			s.Logger.Warn("[Backup] Backup is newer than this AuraGo version", "databases", newerDBs)
@@ -1294,6 +1319,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		// overwrite it again before the restart.
 		tokensRestored := 0
 		tokenErr := ""
+		var tokensForSummary []security.Token
 		if len(tokenStoreEncData) > 0 && password != "" && s.Vault != nil {
 			const tokenRel = "data/tokens.json"
 			n, err := importTokenStore(s.Vault, tokenStoreEncData, password, restorepending.StageFilePath(stagingRoot, tokenRel))
@@ -1303,6 +1329,18 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				warnings = append(warnings, "Token-Import fehlgeschlagen: "+err.Error())
 			} else {
 				tokensRestored = n
+				stagedTokens, readErr := readTokenFile(s.Vault, restorepending.StageFilePath(stagingRoot, tokenRel))
+				if readErr != nil {
+					s.Logger.Warn("[Backup] Staged token store unreadable", "error", readErr)
+					jsonError(w, "Der Token-Speicher des Backups ist unlesbar.", http.StatusBadRequest)
+					return
+				}
+				if scopeErr := validateRestoredTokenScopes(stagedTokens); scopeErr != nil {
+					s.Logger.Warn("[Backup] Token store with unknown scopes rejected", "error", scopeErr)
+					jsonError(w, "Das Backup enthält API-Token mit unbekannten Berechtigungen und wurde abgelehnt: "+scopeErr.Error(), http.StatusBadRequest)
+					return
+				}
+				tokensForSummary = stagedTokens
 				found := false
 				for _, entry := range importEntries {
 					if filepath.ToSlash(entry.clean) == tokenRel {
@@ -1325,15 +1363,23 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		// the next start, only if the file restore was applied as well.
 		vaultRestored := 0
 		vaultErr := ""
+		var stagedVaultData map[string]string
 		if len(vaultEncData) > 0 && password != "" && s.Vault != nil {
-			n, err := stageVaultSecrets(s.Vault, vaultEncData, password, restorepending.StagedVaultPath(stagingRoot))
+			stagedSecrets, err := stageVaultSecretsMap(s.Vault, vaultEncData, password, restorepending.StagedVaultPath(stagingRoot))
 			if err != nil {
 				s.Logger.Warn("[Backup] Vault secrets staging failed", "error", err)
 				vaultErr = err.Error()
 				warnings = append(warnings, "Vault-Import fehlgeschlagen: "+err.Error())
 			} else {
-				vaultRestored = n
+				vaultRestored = len(stagedSecrets)
+				stagedVaultData = stagedSecrets
 			}
+		}
+
+		// Security summary: what would a foreign backup change about access?
+		securityChanges := s.agoComputeSecurityChanges(importEntries, stagedVaultData, tokensForSummary, filepath.Join(filepath.Dir(s.Cfg.ConfigPath), "data", "tokens.json"))
+		if securityChanges.Empty() {
+			securityChanges = nil
 		}
 
 		// Publish the validated staging tree as the single pending restore. The
@@ -1358,7 +1404,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		s.CfgSaveMu.Lock()
 		defer s.CfgSaveMu.Unlock()
 		s.clearWebAuthnTransactions()
-		restoreID, err := restorepending.Stage(configRoot, stagingRoot, pendingEntries)
+		restoreID, err := restorepending.StageWithChanges(configRoot, stagingRoot, pendingEntries, securityChanges)
 		if err != nil {
 			s.Logger.Error("[Backup] Failed to store pending restore", "error", err)
 			jsonError(w, "Wiederherstellung konnte nicht vorgemerkt werden.", http.StatusInternalServerError)
@@ -1380,7 +1426,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		if tokenErr != "" {
 			msg += " Token-Import fehlgeschlagen."
 		}
-		msg += " Dateien, Vault-Secrets und API-Token werden erst beim nächsten Start von AuraGo angewendet (Neustart erforderlich); bis dahin ändert sich nichts."
+		awaiting := !securityChanges.Empty()
+		if awaiting {
+			msg += " Die Wiederherstellung enthält sicherheitsrelevante Änderungen und wird erst nach ausdrücklicher Bestätigung beim nächsten Start angewendet; bis dahin ändert sich nichts."
+		} else {
+			msg += " Dateien, Vault-Secrets und API-Token werden erst beim nächsten Start von AuraGo angewendet (Neustart erforderlich); bis dahin ändert sich nichts."
+		}
 
 		status := "ok"
 		if vaultErr != "" || tokenErr != "" {
@@ -1391,14 +1442,17 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":           status,
-			"pending_restore":  true,
-			"restart_required": true,
-			"staged":           staged,
-			"vault_restored":   vaultRestored,
-			"tokens_restored":  tokensRestored,
-			"warnings":         warnings,
-			"message":          msg,
+			"status":                status,
+			"pending_restore":       true,
+			"restart_required":      !awaiting,
+			"restore_id":            restoreID,
+			"awaiting_confirmation": awaiting,
+			"security_changes":      securityChanges,
+			"staged":                staged,
+			"vault_restored":        vaultRestored,
+			"tokens_restored":       tokensRestored,
+			"warnings":              warnings,
+			"message":               msg,
 		})
 	}
 }
