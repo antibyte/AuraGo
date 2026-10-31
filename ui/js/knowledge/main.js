@@ -25,8 +25,18 @@ const sortState = {
 let pdfDoc = null;
 let pdfCurrentPage = 1;
 let pdfScale = 1.2;
-if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/vendor/pdf.worker.min.js';
+// pdf.min.js is an ES-module shim that sets window.pdfjsLib (and its own versioned workerSrc),
+// so it is imported lazily at preview time instead of loaded as a classic script.
+let pdfLibPromise = null;
+function loadPdfLib() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (!pdfLibPromise) {
+        pdfLibPromise = import('/js/vendor/pdf.min.js').then(() => window.pdfjsLib).catch(err => {
+            pdfLibPromise = null;
+            throw err;
+        });
+    }
+    return pdfLibPromise;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -459,12 +469,14 @@ function openFilePreview(name) {
         canvas.width = 0;
         canvas.height = 0;
 
-        fetch(previewURL)
-            .then(r => {
+        Promise.all([
+            fetch(previewURL).then(r => {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.arrayBuffer();
-            })
-            .then(data => pdfjsLib.getDocument({ data }).promise)
+            }),
+            loadPdfLib()
+        ])
+            .then(([data, pdfjs]) => pdfjs.getDocument({ data }).promise)
             .then(doc => {
                 pdfDoc = doc;
                 pdfPageInfo.textContent = `1 / ${doc.numPages}`;

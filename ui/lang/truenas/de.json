@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Einstellungen",
   "truenas.nav_shares": "Freigaben",
   "truenas.nav_snapshots": "Snapshots",
+  "truenas.not_configured_desc": "Aktiviere TrueNAS und trage Host und API-Schlüssel in der Konfiguration ein, um Pools, Datasets, Snapshots und Freigaben zu verwalten.",
+  "truenas.not_configured_link": "TrueNAS-Konfiguration öffnen",
+  "truenas.not_configured_title": "TrueNAS nicht konfiguriert",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (empfohlen)",
   "truenas.opt_nfs": "NFS-Freigabe",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Verbindungsfehler",
   "truenas.status_disabled": "Deaktiviert",
   "truenas.status_error_prefix": "Fehler:",
+  "truenas.status_not_configured": "Nicht konfiguriert",
   "truenas.status_offline": "Getrennt",
   "truenas.status_online": "Verbunden",
   "truenas.subtitle": "TrueNAS Speicher"

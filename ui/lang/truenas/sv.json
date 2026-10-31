@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Inställningar",
   "truenas.nav_shares": "Delningar",
   "truenas.nav_snapshots": "Ögonblicksbilder",
+  "truenas.not_configured_desc": "Aktivera TrueNAS och ange värd och API-nyckel i konfigurationen för att hantera pooler, datamängder, ögonblicksbilder och delningar.",
+  "truenas.not_configured_link": "Öppna TrueNAS-konfiguration",
+  "truenas.not_configured_title": "TrueNAS är inte konfigurerat",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (rekommenderat)",
   "truenas.opt_nfs": "NFS-delning",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Anslutningsfel",
   "truenas.status_disabled": "Inaktiverat",
   "truenas.status_error_prefix": "Fel:",
+  "truenas.status_not_configured": "Inte konfigurerat",
   "truenas.status_offline": "Frånkopplad",
   "truenas.status_online": "Ansluten",
   "truenas.subtitle": "TrueNAS-lagring"

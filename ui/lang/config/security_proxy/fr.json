@@ -95,5 +95,11 @@
   "config.security_proxy.action_pending": "En cours… Le premier démarrage avec limitation de débit construit une image Caddy et peut prendre quelques minutes.",
   "config.security_proxy.rate_limit_build_hint": "L'image officielle de Caddy ne gère pas la limitation de débit. Au prochain démarrage, AuraGo construit une seule fois sa propre image Caddy avec le module caddy-ratelimit. Docker doit pour cela autoriser la construction d'images et accéder à Internet ; cela prend quelques minutes. Sinon, l'image peut être construite sur l'hôte Docker (voir le manuel).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
-  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Supprimer la route",
+  "config.security_proxy.action_success": "{action} réussi",
+  "config.security_proxy.action_failed": "Échec de l'action",
+  "config.security_proxy.error_with_message": "Erreur : {message}",
+  "config.security_proxy.logs_error": "Erreur lors de la récupération des journaux",
+  "config.security_proxy.logs_empty": "(vide)"
 }

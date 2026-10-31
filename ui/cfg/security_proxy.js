@@ -185,7 +185,7 @@ function _renderRouteRow(route, index) {
             onchange="_updateProxyRoute(${index},'domain',this.value)">
         <input type="text" class="field-input sp-route-input-2" placeholder="${t('config.security_proxy.route_upstream')}" value="${escapeAttr(route.upstream || '')}"
             onchange="_updateProxyRoute(${index},'upstream',this.value)">
-        <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="Remove">✕</button>
+        <button class="btn btn-sm btn-danger" onclick="_removeProxyRoute(${index})" title="${t('config.security_proxy.remove_route')}">✕</button>
     </div>`;
 }
 
@@ -224,14 +224,14 @@ async function _proxyAction(action) {
         const res = await fetch(`/api/proxy/${action}`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'ok') {
-            showToast(data.message || action + ' successful', 'success');
+            showToast(data.message || t('config.security_proxy.action_success', { action: action }), 'success');
             setTimeout(_proxyFetchStatus, 1500);
         } else {
-            showToast(data.message || 'Action failed', 'error');
+            showToast(data.message || t('config.security_proxy.action_failed'), 'error');
             _proxyFetchStatus();
         }
     } catch(e) {
-        showToast('Error: ' + e.message, 'error');
+        showToast(t('config.security_proxy.error_with_message', { message: e.message }), 'error');
         _proxyFetchStatus();
     } finally {
         buttons.forEach(btn => { btn.disabled = false; });
@@ -278,11 +278,11 @@ async function _proxyShowLogs() {
         const res = await fetch('/api/proxy/logs?tail=200');
         const data = await res.json();
         if (data.status === 'ok') {
-            content.textContent = data.logs || '(empty)';
+            content.textContent = data.logs || t('config.security_proxy.logs_empty');
         } else {
-            content.textContent = data.message || 'Error fetching logs';
+            content.textContent = data.message || t('config.security_proxy.logs_error');
         }
     } catch(e) {
-        content.textContent = 'Error: ' + e.message;
+        content.textContent = t('config.security_proxy.error_with_message', { message: e.message });
     }
 }

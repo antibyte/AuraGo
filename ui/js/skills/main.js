@@ -714,7 +714,6 @@ function showDisabledState() {
             const active = btn.dataset.filter === filter;
             btn.classList.toggle('active', active);
             btn.classList.toggle('is-active', active);
-            btn.setAttribute('aria-selected', active ? 'true' : 'false');
             btn.setAttribute('aria-pressed', active ? 'true' : 'false');
         });
         if (currentSkillMode === 'agent') renderAgentSkills(); else renderSkills();
@@ -2366,7 +2365,7 @@ function showDisabledState() {
                 showToast(data.message || (t('skills.test_failed')), 'error');
             }
         } catch (e) {
-            statusEl.textContent = 'error';
+            statusEl.textContent = t('skills.test_status_error');
             outputEl.textContent = e.message || 'Invalid JSON';
             showToast(t('skills.test_invalid_json'), 'error');
         } finally {

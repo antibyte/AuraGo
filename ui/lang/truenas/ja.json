@@ -71,6 +71,9 @@
   "truenas.nav_settings": "設定",
   "truenas.nav_shares": "共有",
   "truenas.nav_snapshots": "スナップショット",
+  "truenas.not_configured_desc": "プール、データセット、スナップショット、共有を管理するには、TrueNASを有効にして、設定でホストとAPIキーを入力してください。",
+  "truenas.not_configured_link": "TrueNAS設定を開く",
+  "truenas.not_configured_title": "TrueNASが設定されていません",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4（推奨）",
   "truenas.opt_nfs": "NFS 共有",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "接続エラー",
   "truenas.status_disabled": "無効",
   "truenas.status_error_prefix": "エラー:",
+  "truenas.status_not_configured": "未設定",
   "truenas.status_offline": "オフライン",
   "truenas.status_online": "オンライン",
   "truenas.subtitle": "TrueNASストレージ"

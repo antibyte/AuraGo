@@ -272,7 +272,7 @@ async function renderMQTTSection(section) {
     html += `<div class="cfg-section-title">📋 ${t('config.mqtt.messages_title')}</div>`;
     html += `<div id="mqtt-messages-area" class="cfg-messages-area">
         <div id="mqtt-messages-list" class="cfg-messages-list">${t('config.mqtt.messages_loading')}</div>
-        <div class="cfg-btn-row">
+        <div class="pw-u-inline-actions">
             <button class="btn btn-sm btn-secondary" onclick="mqttRefreshMessages()">🔄 ${t('config.mqtt.refresh_btn')}</button>
         </div>
     </div>`;

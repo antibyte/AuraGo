@@ -17,12 +17,12 @@
     <meta property="og:description" content="Autonomous AI agent for home lab environments">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
-    <link rel="stylesheet" href="/shared-variables.css">
-    <link rel="stylesheet" href="/shared-utilities.css">
+    <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
-    <link rel="stylesheet" href="/shared-animations.css">
-    <link rel="stylesheet" href="/css/tokens.css">
-        <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
+        <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
@@ -31,7 +31,7 @@
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
-    <link href="/fonts/fonts.css" rel="stylesheet">
+    <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
 </head>
 <body class="pw-page pw-operational-page" data-workspace-page="truenas" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
@@ -70,7 +70,13 @@
             <!-- Overview Tab -->
             <div id="tab-overview" class="tab-content active">
                 <div id="overview-error"></div>
-                <div class="stats-grid">
+                <div class="empty-state is-hidden" id="truenas-not-configured">
+                    <div class="empty-icon">&#9888;&#65039;</div>
+                    <h3 data-i18n="truenas.not_configured_title"></h3>
+                    <p data-i18n="truenas.not_configured_desc"></p>
+                    <a class="btn btn-primary" href="/config#truenas" data-i18n="truenas.not_configured_link"></a>
+                </div>
+                <div class="stats-grid" id="truenas-stats-grid">
                     <div class="stat-card">
                         <h3 data-i18n="truenas.stat_pools"></h3>
                         <div class="stat-value" id="pool-count">-</div>
@@ -198,9 +204,13 @@
     </div>
 
     <!-- Modal: Create Dataset -->
-    <div id="modal-dataset" class="truenas-modal" role="dialog" aria-modal="true" aria-labelledby="modal-dataset-title">
-        <div class="modal-content">
-            <h3 id="modal-dataset-title" data-i18n="truenas.modal_dataset_title"></h3>
+    <div id="modal-dataset" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-dataset-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-dataset-title" data-i18n="truenas.modal_dataset_title"></h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
             <div id="dataset-error"></div>
             <form id="dataset-form">
                 <div class="form-group">
@@ -225,13 +235,18 @@
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
             </form>
+            </div>
         </div>
     </div>
 
     <!-- Modal: Create Snapshot -->
-    <div id="modal-snapshot" class="truenas-modal" role="dialog" aria-modal="true" aria-labelledby="modal-snapshot-title">
-        <div class="modal-content">
-            <h3 id="modal-snapshot-title" data-i18n="truenas.modal_snapshot_title"></h3>
+    <div id="modal-snapshot" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-snapshot-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-snapshot-title" data-i18n="truenas.modal_snapshot_title"></h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
             <div id="snapshot-error"></div>
             <form id="snapshot-form">
                 <div class="form-group">
@@ -257,13 +272,18 @@
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
             </form>
+            </div>
         </div>
     </div>
 
     <!-- Modal: Create Share -->
-    <div id="modal-share" class="truenas-modal" role="dialog" aria-modal="true" aria-labelledby="modal-share-title">
-        <div class="modal-content">
-            <h3 id="modal-share-title" data-i18n="truenas.modal_share_title"></h3>
+    <div id="modal-share" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-share-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-share-title" data-i18n="truenas.modal_share_title"></h2>
+                <button type="button" class="modal-close" data-i18n-aria-label="common.close" data-close-modal>&times;</button>
+            </div>
+            <div class="modal-body">
             <div id="share-error"></div>
             <form id="share-form">
                 <div class="form-group">
@@ -312,6 +332,7 @@
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create"></button>
                 </div>
             </form>
+            </div>
         </div>
     </div>
 

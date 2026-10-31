@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Instellingen",
   "truenas.nav_shares": "Delingen",
   "truenas.nav_snapshots": "Momentopnamen",
+  "truenas.not_configured_desc": "Schakel TrueNAS in en voer host en API-sleutel in bij de configuratie om pools, datasets, snapshots en shares te beheren.",
+  "truenas.not_configured_link": "TrueNAS-configuratie openen",
+  "truenas.not_configured_title": "TrueNAS niet geconfigureerd",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (aanbevolen)",
   "truenas.opt_nfs": "NFS-share",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Verbindingsfout",
   "truenas.status_disabled": "Uitgeschakeld",
   "truenas.status_error_prefix": "Fout:",
+  "truenas.status_not_configured": "Niet geconfigureerd",
   "truenas.status_offline": "Niet verbonden",
   "truenas.status_online": "Verbonden",
   "truenas.subtitle": "TrueNAS-opslag"

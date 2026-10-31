@@ -95,5 +95,11 @@
   "config.security_proxy.action_pending": "処理中… レート制限を有効にした初回の起動では Caddy イメージをビルドするため、数分かかることがあります。",
   "config.security_proxy.rate_limit_build_hint": "公式の Caddy イメージにはレート制限がありません。次回の起動時に、AuraGo は caddy-ratelimit モジュール入りの独自の Caddy イメージを一度だけビルドします。Docker でイメージのビルドが許可され、インターネットに接続できる必要があり、数分かかります。代わりに、Docker ホスト上でイメージをビルドすることもできます (マニュアルを参照)。",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
-  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "ルートを削除",
+  "config.security_proxy.action_success": "{action}に成功しました",
+  "config.security_proxy.action_failed": "操作に失敗しました",
+  "config.security_proxy.error_with_message": "エラー: {message}",
+  "config.security_proxy.logs_error": "ログの取得中にエラーが発生しました",
+  "config.security_proxy.logs_empty": "(空)"
 }

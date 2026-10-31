@@ -23,7 +23,7 @@ func TestConfigWave1Batch5ModuleContracts(t *testing.T) {
 	// Tests that run with the values typed in send the draft (or their own form body).
 	drafts := map[string][]string{
 		"treg":      {`id="treg-test-btn" data-config-action-draft="true"`, "cfgDraftPatch(['treg'])", "/api/treg/test-connection"},
-		"ollama":    {`id="ollama-test-btn" type="button" class="cfg-btn" data-config-action-draft="true"`, "cfgDraftPatch(['ollama'])", "/api/ollama/models?integration=ollama"},
+		"ollama":    {`id="ollama-test-btn" type="button" class="btn btn-secondary btn-sm" data-config-action-draft="true"`, "cfgDraftPatch(['ollama'])", "/api/ollama/models?integration=ollama"},
 		"providers": {`id="prov-test-metadata" data-config-action-draft="true"`, `id="prov-test-generation" data-config-action-draft="true"`, `id="meshcentral-test-btn" class="btn-save prov-btn-sm" data-config-action-draft="true"`, "provider: providerTestDraft()"},
 	}
 	for module, markers := range drafts {

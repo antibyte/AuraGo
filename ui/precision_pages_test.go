@@ -1402,7 +1402,7 @@ func TestPrecisionWorkspaceStandaloneModalVisibilityMatchesOperationsOpenPaths(t
 		}
 	}
 	truenas := normalizeAssetText(mustReadUIFile(t, "truenas.html")) + normalizeAssetText(mustReadUIFile(t, "js/truenas.js"))
-	for _, marker := range []string{`class="truenas-modal" role="dialog"`, `classList.add('active')`} {
+	for _, marker := range []string{`class="modal-overlay" role="dialog"`, `class="modal-close"`, `openModal('modal-dataset')`} {
 		if !strings.Contains(truenas, marker) {
 			t.Errorf("TrueNAS standalone dialog open path missing %q", marker)
 		}
@@ -1598,7 +1598,7 @@ func TestPrecisionWorkspaceOperationsAdaptersAreScopedAndResponsive(t *testing.T
 	}{
 		{name: "Containers", stylesheet: "css/containers.css", page: "containers", markers: []string{`.ct-status-bar`, `.ct-grid`, `.ct-card`, `.ct-log-output`, `.ct-terminal-output`, `.ct-terminal-output .xterm`}},
 		{name: "Media", stylesheet: "css/media.css", page: "media", markers: []string{`.media-tabs`, `.gallery-grid`, `.media-audio-card`, `.media-video-card`, `.media-doc-row`, `.lightbox-content`, `.media-modal-content`}},
-		{name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas", markers: []string{`.connection-status`, `.stats-grid`, `.pool-card`, `.dataset-item`, `.snapshot-item`, `.share-item`, `.truenas-modal`}},
+		{name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas", markers: []string{`.connection-status`, `.stats-grid`, `.pool-card`, `.dataset-item`, `.snapshot-item`, `.share-item`, `.modal-overlay .modal`}},
 		{name: "Invasion", stylesheet: "css/invasion.css", page: "invasion", markers: []string{`.invasion-tabs`, `.cards-grid`, `.card`, `.inv-telemetry-row`, `.config-history-item`, `.modal-overlay`}},
 	}
 	for _, test := range tests {

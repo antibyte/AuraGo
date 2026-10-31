@@ -95,5 +95,11 @@
   "config.security_proxy.action_pending": "Arbetar… Första starten med hastighetsbegränsning bygger en Caddy-image och kan ta några minuter.",
   "config.security_proxy.rate_limit_build_hint": "Den officiella Caddy-imagen saknar hastighetsbegränsning. Vid nästa start bygger AuraGo en gång en egen Caddy-image med modulen caddy-ratelimit. Docker måste då tillåta image-byggen och nå internet, och det tar några minuter. Imagen kan också byggas på Docker-värden (se handboken).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
-  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Ta bort rutt",
+  "config.security_proxy.action_success": "{action} lyckades",
+  "config.security_proxy.action_failed": "Åtgärden misslyckades",
+  "config.security_proxy.error_with_message": "Fel: {message}",
+  "config.security_proxy.logs_error": "Fel vid hämtning av loggar",
+  "config.security_proxy.logs_empty": "(tomt)"
 }

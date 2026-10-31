@@ -217,6 +217,7 @@
   "skills.test_failed": "Teste falhou",
   "skills.test_invalid_json": "A entrada deve ser JSON válido",
   "skills.test_output_label": "Saída",
+  "skills.test_status_error": "Erro",
   "skills.test_success": "Teste concluído",
   "skills.test_title": "Testar habilidade",
   "skills.toggle_success": "Skill atualizado",

@@ -26,6 +26,16 @@ const CHAT_THEMES = CHAT_THEME_DEFINITIONS.map(def => def.theme);
 const DEFAULT_CHAT_THEME = 'dark';
 window.AuraChatThemes = CHAT_THEME_DEFINITIONS;
 
+// Workspace pages (config, dashboard, ...) only style light and dark.
+// Mirrored in prepaint-theme.js, which runs before this file loads.
+const WORKSPACE_LIGHT_THEMES = ['light', 'papyrus', 'lollipop'];
+function isWorkspaceThemeScope() {
+    return document.documentElement.dataset.themeScope === 'workspace';
+}
+function workspaceThemeFamily(theme) {
+    return WORKSPACE_LIGHT_THEMES.includes(theme) ? 'light' : 'dark';
+}
+
 // Debounce lock: prevents double-click from toggling back immediately
 let _themeToggleLock = false;
 
@@ -68,6 +78,11 @@ function toggleTheme() {
     setTimeout(function () { _themeToggleLock = false; }, 400);
 
     const current = document.documentElement.getAttribute('data-theme') || DEFAULT_CHAT_THEME;
+    if (isWorkspaceThemeScope()) {
+        // Workspace pages only style light/dark.
+        setChatTheme(workspaceThemeFamily(current) === 'light' ? 'dark' : 'light');
+        return;
+    }
     const idx = CHAT_THEMES.indexOf(current);
     const next = CHAT_THEMES[(idx + 1) % CHAT_THEMES.length];
     setChatTheme(next);
@@ -165,7 +180,8 @@ function initTheme() {
     if (window._themeInitialized) return;
     window._themeInitialized = true;
     const saved = localStorage.getItem('aurago-theme');
-    const theme = (saved && CHAT_THEMES.includes(saved)) ? saved : DEFAULT_CHAT_THEME;
+    let theme = (saved && CHAT_THEMES.includes(saved)) ? saved : DEFAULT_CHAT_THEME;
+    if (isWorkspaceThemeScope()) theme = workspaceThemeFamily(theme);
     document.documentElement.setAttribute('data-theme', theme);
     _updateHljsTheme(theme);
     _updateThemeColor(theme);

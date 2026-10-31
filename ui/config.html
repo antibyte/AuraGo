@@ -20,13 +20,13 @@
         content="">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
-    <link href="/fonts/fonts.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/tailwind-compat.css">
-    <link rel="stylesheet" href="/shared-variables.css">
-    <link rel="stylesheet" href="/shared-utilities.css">
+    <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tailwind-compat.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
-    <link rel="stylesheet" href="/shared-animations.css">
-    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
@@ -38,8 +38,8 @@
     <script defer src="/js/shared/action-policy.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
     <!-- QR code generator for TOTP setup (auth section only) -->
-    <script src="/js/vendor/qrcode.min.js" defer></script>
-    <link rel="stylesheet" href="/css/tokens.css">
+    <script src="/js/vendor/qrcode.min.js?v={{.BuildVersion}}" defer></script>
+    <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/config.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">

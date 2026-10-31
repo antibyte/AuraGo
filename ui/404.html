@@ -12,22 +12,22 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title></title>
+    <title>AuraGo – 404</title>
     <meta name="description" content="AuraGo - Autonomous AI agent for home lab environments">
     <meta property="og:title" content="AuraGo – Page Not Found">
     <meta property="og:description" content="The page you are looking for does not exist">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
-    <link href="/fonts/fonts.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/tailwind-compat.css">
-    <link rel="stylesheet" href="/shared-variables.css">
-    <link rel="stylesheet" href="/shared-utilities.css">
-    <link rel="stylesheet" href="/shared-components.css">
-    <link rel="stylesheet" href="/shared-animations.css">
-    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tailwind-compat.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
-    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/not-found.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-entry.css?v={{.BuildVersion}}">
@@ -56,6 +56,10 @@
                 var key = el.getAttribute('data-i18n');
                 if (I18N[key]) el.textContent = I18N[key];
             });
+            var pageTitle = I18N['404.page_title'] || (I18N['notfound.title'] ? I18N['notfound.title'] + ' – AuraGo' : '');
+            if (pageTitle) document.title = pageTitle;
+            var metaDesc = document.querySelector('meta[name="description"]');
+            if (metaDesc && I18N['notfound.description']) metaDesc.setAttribute('content', I18N['notfound.description']);
         }
     </script>
 </body>

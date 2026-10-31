@@ -4645,7 +4645,7 @@ function testConfigFlowsSection() {
 
   const failed = configFlowsContext({ flows, providers: [], loaded: false });
   failed.renderFlowsSection(configFlowsSectionMeta);
-  assert.match(failed.content.innerHTML, /<select class="field-select" data-path="flows\.ai_provider" data-config-choice="providers"[^>]*><option value="gone" selected data-config-choice-preserved>gone \(list unavailable\)<\/option><option value="">Main model<\/option><\/select><div class="field-help cfg-choice-unavailable" role="status" data-config-choice-hint="providers">[^<]+<button type="button" class="cfg-btn cfg-btn-sm" data-config-choice-retry="providers">[^<]+<\/button><\/div>/);
+  assert.match(failed.content.innerHTML, /<select class="field-select" data-path="flows\.ai_provider" data-config-choice="providers"[^>]*><option value="gone" selected data-config-choice-preserved>gone \(list unavailable\)<\/option><option value="">Main model<\/option><\/select><div class="field-help cfg-choice-unavailable" role="status" data-config-choice-hint="providers">[^<]+<button type="button" class="btn btn-secondary btn-sm" data-config-choice-retry="providers">[^<]+<\/button><\/div>/);
   const select = { value: 'gone', innerHTML: '', dataset: { path: 'flows.ai_provider' } };
   let hintsRemoved = 0;
   failed.document.querySelectorAll = selector => (selector === 'select[data-config-choice="providers"]' ? [select]

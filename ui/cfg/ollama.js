@@ -34,7 +34,7 @@ async function renderOllamaSection(section) {
         '<input class="field-input" type="text" data-path="ollama.url" value="' + escapeAttr(managedEnabled ? ollamaEffectiveURL(miData) : (data.url || '')) + '" placeholder="http://localhost:11434"' + (managedEnabled ? ' readonly' : '') + '>');
 
     html += '<div class="field-help">' + t('config.ollama.endpoint_help') + '</div>';
-    html += '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="cfg-btn" data-config-action-draft="true">' + t('config.ollama.test_connection') + '</button>' + cfgActionResult.html('ollama-test-result') + '</div>';
+    html += '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="btn btn-secondary btn-sm" data-config-action-draft="true">' + t('config.ollama.test_connection') + '</button>' + cfgActionResult.html('ollama-test-result') + '</div>';
 
     // ── Managed Instance section header ──
     html += '<div class="pw-u-subsection-title">🐳 ' + t('config.ollama.managed_title') + '</div>';

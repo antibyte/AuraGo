@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Paramètres",
   "truenas.nav_shares": "Partages",
   "truenas.nav_snapshots": "Instantanés",
+  "truenas.not_configured_desc": "Activez TrueNAS et saisissez l'hôte et la clé API dans la configuration pour gérer les pools, datasets, instantanés et partages.",
+  "truenas.not_configured_link": "Ouvrir la configuration TrueNAS",
+  "truenas.not_configured_title": "TrueNAS non configuré",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (recommandé)",
   "truenas.opt_nfs": "Partage NFS",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Erreur de connexion",
   "truenas.status_disabled": "Désactivé",
   "truenas.status_error_prefix": "Erreur :",
+  "truenas.status_not_configured": "Non configuré",
   "truenas.status_offline": "Hors ligne",
   "truenas.status_online": "En ligne",
   "truenas.subtitle": "Stockage TrueNAS"

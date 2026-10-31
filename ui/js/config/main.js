@@ -1882,14 +1882,14 @@ async function renderSection(key) {
         <div class="cfg-action-block" id="ansible-token-block">
             <div class="cfg-action-block-title">⚙️ ${t('config.ansible.generate_token_btn')}</div>
             <div class="pw-u-inline-actions">
-                <button id="ansible-gen-token-btn" class="cfg-btn cfg-btn-primary" onclick="ansibleGenerateToken()">
+                <button id="ansible-gen-token-btn" class="btn btn-primary btn-sm" onclick="ansibleGenerateToken()">
                     🔑 ${t('config.ansible.generate_token_btn')}
                 </button>
                 <span id="ansible-gen-token-result" class="pw-u-muted"></span>
             </div>
             <div id="ansible-token-preview" class="pw-u-hidden pw-u-mt-8">
                 <code id="ansible-token-value" class="pw-u-token-code"></code>
-                <button class="cfg-btn cfg-btn-sm pw-u-mt-6" onclick="ansibleCopyToken()">${t('config.ansible.generate_token_copy')}</button>
+                <button class="btn btn-secondary btn-sm pw-u-mt-6" onclick="ansibleCopyToken()">${t('config.ansible.generate_token_copy')}</button>
                 <span id="ansible-copy-feedback" class="pw-u-copy-success"></span>
             </div>
         </div>`;
@@ -2007,13 +2007,13 @@ function renderEmbeddingsRuntimeBlock() {
         <div id="emb-runtime-detail" class="emb-runtime-detail" aria-live="polite"></div>
         <div id="emb-runtime-benchmarks" class="emb-runtime-benchmarks"></div>
         <div class="pw-u-inline-actions emb-runtime-actions">
-            <button id="embedding-runtime-benchmark-btn" type="button" class="cfg-btn">${t('config.embeddings.benchmark_action')}</button>
+            <button id="embedding-runtime-benchmark-btn" type="button" class="btn btn-secondary btn-sm">${t('config.embeddings.benchmark_action')}</button>
         </div>
     </section>
     <div id="ollama-embedding-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div id="emb-index-status" class="emb-runtime-detail" role="status" aria-live="polite"></div>
     <div class="pw-u-inline-actions emb-runtime-actions">
-        <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
+        <button id="embedding-runtime-test-btn" type="button" class="btn btn-primary btn-sm">${t('config.embeddings.test_action')}</button>
         <span id="embedding-runtime-action-result" class="pw-u-muted" aria-live="polite"></span>
     </div>`;
 }
@@ -2231,7 +2231,7 @@ function renderFields(fields, data, parentPath) {
 }
 
 function configStatusRetryButtonHTML(kind) {
-    return '<button type="button" class="cfg-btn cfg-btn-sm" data-config-status-retry="' + escapeAttr(kind) + '">' + escapeHtml(t('config.refresh.retry')) + '</button>';
+    return '<button type="button" class="btn btn-secondary btn-sm" data-config-status-retry="' + escapeAttr(kind) + '">' + escapeHtml(t('config.refresh.retry')) + '</button>';
 }
 
 function runtimeUnknownBannerHTML() {
@@ -2446,7 +2446,7 @@ function cfgChoiceHintHTML(source) {
     if (cfgChoiceLoaded(source)) return '';
     return '<div class="field-help cfg-choice-unavailable" role="status" data-config-choice-hint="' + source + '">'
         + escapeHtml(t('config.field.list_unavailable_hint'))
-        + ' <button type="button" class="cfg-btn cfg-btn-sm" data-config-choice-retry="' + source + '">'
+        + ' <button type="button" class="btn btn-secondary btn-sm" data-config-choice-retry="' + source + '">'
         + escapeHtml(t('config.refresh.retry')) + '</button></div>';
 }
 
@@ -2594,7 +2594,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
                 <div class="cfg-chip-row" data-chip-row="1"></div>
                 <div class="cfg-chip-input-row">
                     <input class="field-input cfg-chip-input" type="text" placeholder="${t('config.field.placeholder_example')}"${cfgNoAutofillAttrs(false)}>
-                    <button type="button" class="cfg-btn cfg-btn-sm cfg-chip-add-btn" title="${t('config.field.add')}">+</button>
+                    <button type="button" class="btn btn-secondary btn-sm cfg-chip-add-btn" title="${t('config.field.add')}">+</button>
                 </div>
                 <input class="field-input is-hidden" type="text" data-path="${escapeAttr(fullPath)}" data-type="array" value="${escapeAttr(joined)}"${cfgNoAutofillAttrs(false)}>
             </div>`;

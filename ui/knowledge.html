@@ -18,23 +18,22 @@
     <meta property="og:description" content="Autonomous AI agent for home lab environments">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
-    <link rel="stylesheet" href="/shared-variables.css">
-    <link rel="stylesheet" href="/shared-utilities.css">
+    <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
-    <link rel="stylesheet" href="/shared-animations.css">
-    <link rel="stylesheet" href="/css/tokens.css">
-        <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
+        <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
-    <script src="/js/vendor/pdf.min.js"></script>
     <link rel="stylesheet" href="/css/knowledge.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/secrets-shared.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
-    <link href="/fonts/fonts.css" rel="stylesheet">
+    <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
 </head>
 <body class="pw-page pw-operational-page" data-workspace-page="knowledge" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
@@ -138,10 +137,10 @@
                     <input type="search" id="files-search" class="kc-search pw-search"
                         placeholder="" data-i18n-placeholder="knowledge.files_search_placeholder"
                         data-kc-search="files">
-                    <label class="btn btn-primary kc-upload-btn">
+                    <button type="button" class="btn btn-primary kc-upload-btn" onclick="document.getElementById('file-upload-input').click()">
                         <span>⬆</span> <span data-i18n="knowledge.files_upload"></span>
-                        <input type="file" id="file-upload-input" class="is-hidden" multiple onchange="uploadFiles(this)">
-                    </label>
+                    </button>
+                    <input type="file" id="file-upload-input" class="is-hidden" multiple tabindex="-1" aria-hidden="true" onchange="uploadFiles(this)">
                 </div>
             </div>
             <div class="kc-drop-zone" id="files-drop-zone">
@@ -167,10 +166,10 @@
                 <div class="empty-icon">📂</div>
                 <h3 data-i18n="knowledge.files_empty_title"></h3>
                 <p data-i18n="knowledge.files_empty_desc"></p>
-                <label class="btn btn-primary kc-empty-cta">
+                <button type="button" class="btn btn-primary kc-empty-cta" onclick="document.getElementById('file-upload-input-empty').click()">
                     <span data-i18n="knowledge.files_upload"></span>
-                    <input type="file" id="file-upload-input-empty" class="is-hidden" multiple onchange="uploadFiles(this)">
-                </label>
+                </button>
+                <input type="file" id="file-upload-input-empty" class="is-hidden" multiple tabindex="-1" aria-hidden="true" onchange="uploadFiles(this)">
             </div>
         </div>
 
@@ -337,20 +336,20 @@
                 <div class="form-group">
                     <label data-i18n="knowledge.devices_type_label"></label>
                     <select id="device-type">
-                        <option value="server">Server</option>
-                        <option value="router">Router</option>
-                        <option value="switch">Switch</option>
-                        <option value="printer">Printer</option>
-                        <option value="nas">NAS</option>
-                        <option value="camera">Camera</option>
-                        <option value="iot">IoT</option>
-                        <option value="vm">VM</option>
-                        <option value="container">Container</option>
-                        <option value="generic">Generic</option>
+                        <option value="server" data-i18n="knowledge.devices_type_server"></option>
+                        <option value="router" data-i18n="knowledge.devices_type_router"></option>
+                        <option value="switch" data-i18n="knowledge.devices_type_switch"></option>
+                        <option value="printer" data-i18n="knowledge.devices_type_printer"></option>
+                        <option value="nas" data-i18n="knowledge.devices_type_nas"></option>
+                        <option value="camera" data-i18n="knowledge.devices_type_camera"></option>
+                        <option value="iot" data-i18n="knowledge.devices_type_iot"></option>
+                        <option value="vm" data-i18n="knowledge.devices_type_vm"></option>
+                        <option value="container" data-i18n="knowledge.devices_type_container"></option>
+                        <option value="generic" data-i18n="knowledge.devices_type_generic"></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Port</label>
+                    <label data-i18n="knowledge.devices_port"></label>
                     <input type="number" id="device-port" placeholder="22" value="22">
                 </div>
             </div>
@@ -375,7 +374,7 @@
                 <input type="text" id="device-mac" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF">
             </div>
             <div class="form-group">
-                <label>Tags <small class="form-hint" data-i18n="knowledge.devices_tags_hint"></small></label>
+                <label><span data-i18n="knowledge.devices_tags_label"></span> <small class="form-hint" data-i18n="knowledge.devices_tags_hint"></small></label>
                 <input type="text" id="device-tags" maxlength="500"
                     placeholder="" data-i18n-placeholder="knowledge.devices_tags_placeholder">
             </div>
@@ -523,9 +522,9 @@
                         <input type="checkbox" id="credential-allow-virtual-computers">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label">Grantable to Virtual Computers</span>
+                    <span class="toggle-label" data-i18n="knowledge.credentials_grantable_vc"></span>
                 </div>
-                <small class="form-hint">Only makes this credential eligible for a short-lived, user-approved workspace grant.</small>
+                <small class="form-hint" data-i18n="knowledge.credentials_grantable_vc_hint"></small>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('credential-modal')" data-i18n="common.btn_cancel"></button>
@@ -687,13 +686,13 @@
         <div class="modal kc-preview-modal">
             <div class="modal-header">
                 <div class="kc-preview-heading">
-                    <h2 id="file-preview-title">Document Preview</h2>
+                    <h2 id="file-preview-title" data-i18n="knowledge.files_preview_title"></h2>
                     <div class="kc-preview-subtitle" id="file-preview-subtitle"></div>
                 </div>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeFilePreview()">&times;</button>
             </div>
             <div class="kc-preview-body">
-                <iframe id="file-preview-frame" class="kc-preview-frame is-hidden" title="Document preview"></iframe>
+                <iframe id="file-preview-frame" class="kc-preview-frame is-hidden" data-i18n-title="knowledge.files_preview_title"></iframe>
                 <pre id="file-preview-text" class="kc-preview-text is-hidden"></pre>
                 <div id="file-preview-img-wrap" class="kc-preview-img-wrap is-hidden">
                     <img id="file-preview-img" class="kc-preview-img" alt="" />

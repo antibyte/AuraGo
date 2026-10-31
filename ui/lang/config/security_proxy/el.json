@@ -95,5 +95,11 @@
   "config.security_proxy.action_pending": "Σε εξέλιξη… Η πρώτη εκκίνηση με περιορισμό ρυθμού δημιουργεί ένα image του Caddy και μπορεί να διαρκέσει λίγα λεπτά.",
   "config.security_proxy.rate_limit_build_hint": "Το επίσημο image του Caddy δεν υποστηρίζει περιορισμό ρυθμού. Στην επόμενη εκκίνηση, το AuraGo δημιουργεί μία φορά δικό του image του Caddy με το module caddy-ratelimit. Αυτό απαιτεί builds image στο Docker και πρόσβαση στο διαδίκτυο και διαρκεί λίγα λεπτά. Εναλλακτικά, το image μπορεί να δημιουργηθεί στον host του Docker (δείτε το εγχειρίδιο).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
-  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Αφαίρεση διαδρομής",
+  "config.security_proxy.action_success": "Η ενέργεια {action} ολοκληρώθηκε",
+  "config.security_proxy.action_failed": "Η ενέργεια απέτυχε",
+  "config.security_proxy.error_with_message": "Σφάλμα: {message}",
+  "config.security_proxy.logs_error": "Σφάλμα κατά τη λήψη των αρχείων καταγραφής",
+  "config.security_proxy.logs_empty": "(κενό)"
 }

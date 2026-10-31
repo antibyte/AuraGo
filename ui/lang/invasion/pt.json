@@ -89,7 +89,7 @@
   "invasion.no_nests_title": "Ainda não há ninhos",
   "invasion.notes": "Notas",
   "invasion.page_description": "Gere ninhos e ovos distribuídos.",
-  "invasion.page_title": "AuraGo - Controle de Invasão",
+  "invasion.page_title": "AuraGo – Controle de Invasão",
   "invasion.permanent": "Permanente (serviço systemd)",
   "invasion.ph_egg_base_url": "https://openrouter.ai/api/v1",
   "invasion.ph_egg_description": "O que este sub-agente faz?",

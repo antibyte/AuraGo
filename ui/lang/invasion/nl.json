@@ -89,7 +89,7 @@
   "invasion.no_nests_title": "Nog geen nesten",
   "invasion.notes": "Notities",
   "invasion.page_description": "Beheer gedistribueerde nesten en eieren.",
-  "invasion.page_title": "AuraGo - Invasion Controle",
+  "invasion.page_title": "AuraGo – Invasion Controle",
   "invasion.permanent": "Permanent (systemd-service)",
   "invasion.ph_egg_base_url": "https://openrouter.ai/api/v1",
   "invasion.ph_egg_description": "Wat doet deze sub-agent?",

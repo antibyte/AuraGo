@@ -95,5 +95,11 @@
   "config.security_proxy.action_pending": "处理中… 启用速率限制后的首次启动会构建 Caddy 镜像，可能需要几分钟。",
   "config.security_proxy.rate_limit_build_hint": "官方 Caddy 镜像不支持速率限制。下次启动时，AuraGo 会一次性构建带 caddy-ratelimit 模块的专用 Caddy 镜像。这需要 Docker 允许构建镜像并能访问互联网，耗时几分钟。也可以在 Docker 主机上构建该镜像（参见手册）。",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
-  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "删除路由",
+  "config.security_proxy.action_success": "{action}成功",
+  "config.security_proxy.action_failed": "操作失败",
+  "config.security_proxy.error_with_message": "错误：{message}",
+  "config.security_proxy.logs_error": "获取日志时出错",
+  "config.security_proxy.logs_empty": "（空）"
 }

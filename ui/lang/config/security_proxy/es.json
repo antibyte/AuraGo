@@ -95,5 +95,11 @@
   "config.security_proxy.action_pending": "En curso… El primer inicio con limitación de tasa construye una imagen de Caddy y puede tardar unos minutos.",
   "config.security_proxy.rate_limit_build_hint": "La imagen oficial de Caddy no incluye limitación de tasa. En el próximo inicio, AuraGo construye una sola vez su propia imagen de Caddy con el módulo caddy-ratelimit. Para ello Docker debe permitir builds de imágenes y tener acceso a internet; tarda unos minutos. Como alternativa, la imagen puede construirse en el host de Docker (consulte el manual).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
-  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration."
+  "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Quitar ruta",
+  "config.security_proxy.action_success": "{action} correcto",
+  "config.security_proxy.action_failed": "La acción falló",
+  "config.security_proxy.error_with_message": "Error: {message}",
+  "config.security_proxy.logs_error": "Error al obtener los registros",
+  "config.security_proxy.logs_empty": "(vacío)"
 }

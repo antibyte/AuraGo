@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Ustawienia",
   "truenas.nav_shares": "Udziały",
   "truenas.nav_snapshots": "Migawki",
+  "truenas.not_configured_desc": "Włącz TrueNAS i podaj hosta oraz klucz API w konfiguracji, aby zarządzać pulami, zbiorami danych, migawkami i udziałami.",
+  "truenas.not_configured_link": "Otwórz konfigurację TrueNAS",
+  "truenas.not_configured_title": "TrueNAS nie jest skonfigurowany",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (zalecany)",
   "truenas.opt_nfs": "Udział NFS",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Błąd połączenia",
   "truenas.status_disabled": "Wyłączone",
   "truenas.status_error_prefix": "Błąd:",
+  "truenas.status_not_configured": "Nie skonfigurowano",
   "truenas.status_offline": "Niedostępny",
   "truenas.status_online": "Połączono",
   "truenas.subtitle": "Pamięć TrueNAS"

@@ -44,6 +44,13 @@ class TrueNASUI {
         document.querySelectorAll('[data-close-modal]').forEach(btn => {
             btn.addEventListener('click', () => this.closeModal());
         });
+        // Esc, backdrop click and the focus trap come from the shared modal controller;
+        // only clear the per-dialog error boxes when a dialog closes that way.
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            new MutationObserver(() => {
+                if (!modal.classList.contains('active')) modal.querySelectorAll('[id$="-error"]').forEach(el => { el.innerHTML = ''; });
+            }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+        });
         document.addEventListener('click', (event) => {
             const actionBtn = event.target.closest('[data-truenas-action]');
             if (!actionBtn) return;
@@ -77,12 +84,6 @@ class TrueNASUI {
         document.getElementById('share-form')?.addEventListener('submit', (e) => this.createShare(e));
         document.getElementById('share-type')?.addEventListener('change', () => this.toggleShareFields());
         
-        // Modal close on outside click
-        document.querySelectorAll('.truenas-modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) this.closeModal();
-            });
-        });
     }
     
     async switchTab(tabName) {
@@ -119,14 +120,38 @@ class TrueNASUI {
         }
     }
     
+    setNotConfigured(on) {
+        document.getElementById('truenas-not-configured')?.classList.toggle('is-hidden', !on);
+        document.getElementById('truenas-stats-grid')?.classList.toggle('is-hidden', on);
+        if (on) this.resetOverviewStats();
+    }
+
+    resetOverviewStats() {
+        ['pool-count', 'total-storage', 'snapshot-count', 'share-count'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '-';
+        });
+        const progressEl = document.getElementById('storage-progress');
+        if (progressEl) {
+            progressEl.style.width = '0%';
+            progressEl.className = 'progress-fill';
+        }
+    }
+
     async checkStatus() {
         try {
             const response = await fetch(`${this.baseUrl}/status`);
-            const data = await response.json();
-            
+            let data = null;
+            try { data = await response.json(); } catch (_) { data = null; }
+            if (!data && (response.status === 403 || response.status === 404)) {
+                data = { enabled: false, status: 'disabled' };
+            }
+            if (!data) throw new Error('HTTP ' + response.status);
+
             const indicator = document.getElementById('status-indicator');
+            this.setNotConfigured(data.enabled === false);
             if (data.enabled === false) {
-                indicator.innerHTML = `<span class="status-offline">● ${t('truenas.status_disabled')}</span>`;
+                indicator.innerHTML = `<span class="status-unknown">● ${t('truenas.status_not_configured')}</span>`;
             } else if (data.status === 'online') {
                 indicator.innerHTML = `<span class="status-online">● ${t('truenas.status_online')}</span> (${escapeHtmlTruenas(data.version)})`;
                 this.loadOverview();
@@ -178,7 +203,7 @@ class TrueNASUI {
             document.getElementById('total-storage').textContent = this.formatBytes(total);
             const percent = total > 0 ? (used / total * 100).toFixed(1) : 0;
             const progressEl = document.getElementById('storage-progress');
-            progressEl.style.width = `${percent}%`;
+            progressEl.style.width = total > 0 ? `${percent}%` : '0%';
             progressEl.className = `progress-fill ${percent > 90 ? 'danger' : percent > 70 ? 'warning' : ''}`;
             
             // Alerts
@@ -732,15 +757,15 @@ class TrueNASUI {
     }
     
     // UI Helpers
-    showCreateDataset() { document.getElementById('modal-dataset').classList.add('active'); }
-    showCreateSnapshot() { document.getElementById('modal-snapshot').classList.add('active'); }
+    showCreateDataset() { openModal('modal-dataset'); }
+    showCreateSnapshot() { openModal('modal-snapshot'); }
     showCreateShare() {
-        document.getElementById('modal-share').classList.add('active');
+        openModal('modal-share');
         this.toggleShareFields();
     }
     
     closeModal() {
-        document.querySelectorAll('.truenas-modal').forEach(m => m.classList.remove('active'));
+        document.querySelectorAll('.modal-overlay.active').forEach(m => closeModal(m.id));
         document.querySelectorAll('[id$="-error"]').forEach(el => el.innerHTML = '');
     }
     

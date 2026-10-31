@@ -89,7 +89,7 @@
   "invasion.no_nests_title": "अभी तक कोई nest नहीं",
   "invasion.notes": "नोट्स",
   "invasion.page_description": "वितरित nests और eggs प्रबंधित करो।",
-  "invasion.page_title": "AuraGo - इनवेजन कंट्रोल",
+  "invasion.page_title": "AuraGo – इनवेजन कंट्रोल",
   "invasion.permanent": "स्थायी (Systemd सेवा)",
   "invasion.ph_egg_base_url": "https://openrouter.ai/api/v1",
   "invasion.ph_egg_description": "यह sub-agent क्या करता है?",

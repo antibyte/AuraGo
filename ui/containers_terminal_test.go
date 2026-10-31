@@ -13,9 +13,9 @@ func TestContainersPageIncludesXtermTerminalModal(t *testing.T) {
 
 	html := rawDesktopAssetText(t, "containers.html")
 	for _, marker := range []string{
-		`<link rel="stylesheet" href="/css/xterm.css">`,
-		`<script defer src="/js/vendor/xterm.min.js"></script>`,
-		`<script defer src="/js/vendor/xterm-addon-fit.min.js"></script>`,
+		`<link rel="stylesheet" href="/css/xterm.css?v={{.BuildVersion}}">`,
+		`<script defer src="/js/vendor/xterm.min.js?v={{.BuildVersion}}"></script>`,
+		`<script defer src="/js/vendor/xterm-addon-fit.min.js?v={{.BuildVersion}}"></script>`,
 		`id="terminal-modal"`,
 		`id="terminal-output"`,
 		`data-i18n="containers.terminal_title"`,

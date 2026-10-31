@@ -509,9 +509,7 @@
         }
 
         async function runWeeklyReflectionNow() {
-            const confirmed = typeof showConfirm === 'function'
-                ? await showConfirm(t('dashboard.memory_reflection_run_confirm_title'), t('dashboard.memory_reflection_run_confirm'))
-                : true;
+            const confirmed = await showConfirm(t('dashboard.memory_reflection_run_confirm_title'), t('dashboard.memory_reflection_run_confirm'));
             if (!confirmed) return;
 
             setWeeklyReflectionRunState(true);

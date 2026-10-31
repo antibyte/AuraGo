@@ -171,7 +171,7 @@
   "missions.modal_title_edit": "ミッションを編集",
   "missions.modal_title_new": "新規ミッション",
   "missions.page_description": "エージェントの自動タスクを計画・スケジュール・監視します。",
-  "missions.page_title": "AuraGo - ミッションコントロール",
+  "missions.page_title": "AuraGo – ミッションコントロール",
   "missions.prep_auto": "自動準備",
   "missions.prep_auto_hint": "変更時にこのミッションを自動準備",
   "missions.prep_btn_invalidate": "無効化",

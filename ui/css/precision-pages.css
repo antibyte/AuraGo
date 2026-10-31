@@ -519,10 +519,41 @@
 
 .pw-page .pw-density-toggle {
     display: inline-flex;
-    min-height: 40px;
+    min-height: 44px;
     align-items: center;
     justify-content: center;
-    gap: var(--pw-space-2);
+    gap: 0.55rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--pw-muted);
+    background: transparent;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-sm);
+    font: inherit;
+    font-size: var(--pw-meta-size);
+    font-weight: 620;
+    cursor: pointer;
+}
+
+.pw-page .pw-density-toggle:hover,
+.pw-page .pw-density-toggle[aria-pressed="true"] {
+    color: var(--pw-text);
+    border-color: color-mix(in srgb, var(--pw-accent) 42%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 9%, transparent);
+}
+
+.pw-page .pw-density-toggle svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
+@media (max-width: 640px) {
+    .pw-page .pw-density-toggle span {
+        display: none;
+    }
 }
 
 .pw-page .pw-radial-outline-icon {

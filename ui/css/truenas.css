@@ -43,6 +43,10 @@
     color: var(--pw-muted);
 }
 
+.pw-page[data-workspace-page="truenas"] .stats-grid.is-hidden {
+    display: none;
+}
+
 /* ── Tab navigation ── */
 
 .pw-page[data-workspace-page="truenas"] .truenas-nav {
@@ -152,6 +156,7 @@
 }
 
 .pw-page[data-workspace-page="truenas"] .progress-fill {
+    width: 0;
     height: 100%;
     background: var(--pw-accent);
     border-radius: var(--radius-sm);
@@ -279,7 +284,7 @@
     padding: 0.75rem;
 }
 
-.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .stat-card, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .pool-card, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .dataset-item, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .snapshot-item, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .share-item, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .modal-content {
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .stat-card, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .pool-card, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .dataset-item, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .snapshot-item, .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .share-item {
     background: var(--pw-surface);
 }
 
@@ -386,42 +391,10 @@
     border-color: #3b82f6;
 }
 
-/* ── Modal overlay (truenas-specific — avoids conflict with shared.css .modal) ── */
+/* Dialogs use the shared .modal-overlay / .modal pattern (shared-components.css). */
 
-.pw-page[data-workspace-page="truenas"] .truenas-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-    padding: 0.5rem;
-    background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
-    backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="truenas"] .truenas-modal.active {
-    display: flex;
-}
-
-.pw-page[data-workspace-page="truenas"] .modal-content {
-    padding: 28px;
-    max-width: 520px;
-    overflow-y: auto;
-    width: min(100%, 680px);
-    max-height: calc(100dvh - 1rem);
-    overflow: auto;
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-lg);
-    background: var(--pw-surface);
-    background-image: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="truenas"] .modal-content h3 {
-    margin: 0 0 var(--space-5);
-    font-size: var(--text-base);
-    color: var(--pw-text);
+.pw-page[data-workspace-page="truenas"] .modal-body .form-actions {
+    margin-top: var(--space-4);
 }
 
 /* ── Loading state ── */
@@ -518,6 +491,18 @@
 }
 
 @media (max-width: 640px) {
+    .pw-page[data-workspace-page="truenas"] .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .pw-page[data-workspace-page="truenas"] .modal-overlay .modal {
+        width: 100%;
+        max-width: none;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 20px 20px 0 0;
+    }
+
     .pw-page[data-workspace-page="truenas"] .truenas-container {
         padding: 1rem;
     }
@@ -528,17 +513,6 @@
 
     .pw-page[data-workspace-page="truenas"] .section-header, .pw-page[data-workspace-page="truenas"] .dataset-item, .pw-page[data-workspace-page="truenas"] .snapshot-item, .pw-page[data-workspace-page="truenas"] .share-item, .pw-page[data-workspace-page="truenas"] .pool-actions {
         align-items: stretch;
-    }
-
-    .pw-page[data-workspace-page="truenas"] .truenas-modal {
-        align-items: flex-end;
-        padding: 0;
-    }
-
-    .pw-page[data-workspace-page="truenas"] .modal-content {
-        width: 100%;
-        max-height: calc(100dvh - 1rem);
-        border-radius: 20px 20px 0 0;
     }
 
     .pw-page[data-workspace-page="truenas"] .btn-theme, .pw-page[data-workspace-page="truenas"] .nav-btn, .pw-page[data-workspace-page="truenas"] .btn, .pw-page[data-workspace-page="truenas"] input, .pw-page[data-workspace-page="truenas"] select, .pw-page[data-workspace-page="truenas"] textarea, .pw-page[data-workspace-page="truenas"] .pool-actions .btn, .pw-page[data-workspace-page="truenas"] .dataset-actions .btn, .pw-page[data-workspace-page="truenas"] .snapshot-actions .btn, .pw-page[data-workspace-page="truenas"] .share-actions .btn, .pw-page[data-workspace-page="truenas"] .form-actions .btn {
@@ -558,7 +532,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .pw-page[data-workspace-page="truenas"] .spinner, .pw-page[data-workspace-page="truenas"] .stat-card, .pw-page[data-workspace-page="truenas"] .pool-card, .pw-page[data-workspace-page="truenas"] .modal-content {
+    .pw-page[data-workspace-page="truenas"] .spinner, .pw-page[data-workspace-page="truenas"] .stat-card, .pw-page[data-workspace-page="truenas"] .pool-card {
         animation: none;
         transition: none;
         transform: none;

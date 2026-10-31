@@ -89,7 +89,7 @@
   "invasion.no_nests_title": "ネストはまだありません",
   "invasion.notes": "メモ",
   "invasion.page_description": "分散ネストとエッグを管理します。",
-  "invasion.page_title": "AuraGo - インベージョンコントロール",
+  "invasion.page_title": "AuraGo – インベージョンコントロール",
   "invasion.permanent": "永続 (Systemd サービス)",
   "invasion.ph_egg_base_url": "https://openrouter.ai/api/v1",
   "invasion.ph_egg_description": "このサブエージェントは何をしますか？",
