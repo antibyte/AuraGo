@@ -2698,7 +2698,9 @@ GET /api/runtime
 
 ### Backup API
 
-AuraGo-Backups verwenden das `.ago`-Format. Archive sind ZIP-basiert und können mit AES-256-GCM und Argon2id-abgeleiteten Schlüsseln verschlüsselt werden. Sie können Konfiguration, konsistente SQLite-Datenbank-Snapshots, VectorDB-Daten, Skills, Tools, ausgewählte Workspace-Dateien und separat verschlüsselte Vault-Secrets für Instanzmigrationen enthalten.
+AuraGo-Backups verwenden das `.ago`-Format. Archive sind ZIP-basiert und können mit AES-256-GCM und Argon2id-abgeleiteten Schlüsseln verschlüsselt werden. Sie enthalten Konfiguration, Prompts und Tools, konsistente SQLite-Snapshots der AuraGo-Datenbanken (unter anderem Detective, Mailer, Hugging Face (Best-Effort), Manus, SIP-Anrufliste, Docker Manager, MeshCore, Personal Radio, RTL-SDR-Empfänger, go2rtc-Erkennungen, Bookshelf-Katalog und Newspaper), VectorDB-Daten, Kern-Gedächtnis, die GitHub-Vertrauensliste, die Speech-Lab-Deployment-Datei, `data/documents/`, das Verzeichnis der Agent-Skills und ausgewählte Workspace-Dateien. Mit Passwort enthält das Archiv zusätzlich separat verschlüsselte Vault-Secrets und den API-Token-Store für Instanzmigrationen.
+
+Dateien über 100 MiB in `data/documents/` werden übersprungen und im Archiv aufgelistet. SQLite-Datenbanken können größer als 100 MiB sein, bis zum Archivlimit von 1 GiB. Tailscale-Node-Zustand (`data/tsnet`), heruntergeladene Modelle, Stimmen und Caches sowie der Suchindex des Workspaces sind bewusst ausgeschlossen, weil die Node-Identität nicht geklont werden darf. Das Archiv-Manifest enthält die App-Version und die `user_version` jeder Datenbank.
 
 #### Backup erstellen
 ```http
@@ -2712,7 +2714,7 @@ Content-Type: application/json
 }
 ```
 
-Gibt das `.ago`-Archiv als `application/octet-stream`-Download mit `Content-Disposition`-Dateiname zurück. Lass `password` leer für ein unverschlüsseltes, ZIP-kompatibles `.ago`; setze es, um das Archiv zu verschlüsseln und portable Vault-/Token-Exporte einzuschließen.
+Gibt das `.ago`-Archiv als `application/octet-stream`-Download mit `Content-Disposition`-Dateiname zurück. Lass `password` leer für ein unverschlüsseltes, ZIP-kompatibles `.ago`; setze es, um das Archiv zu verschlüsseln und portable Vault-/Token-Exporte einzuschließen. Mit Passwort bricht ein fehlgeschlagener Vault- oder Token-Export das Backup ab, statt die Secrets stillschweigend wegzulassen.
 
 #### Backup importieren
 ```http
@@ -2727,7 +2729,77 @@ Form-Felder:
 | `file` | ja | `.ago`-Backup-Archiv |
 | `password` | nein | Passwort für verschlüsselte Backups |
 
-Importe werden zuerst gestaged, auf Path-Traversal, Schema-Warnungen und Archiv-Kompatibilität geprüft und danach so atomar wie möglich wiederhergestellt. Ein SQLite-Restore gibt `restart_required: true` zurück.
+```bash
+curl -X POST http://localhost:8088/api/backup/import \
+     -F file=@aurago-backup.ago \
+     -F password=starkes-passwort
+```
+
+Der Import ändert zunächst nichts. AuraGo prüft das Archiv (Pfade, Größenlimits, SQLite-Integrität, Passwort), prüft die Versionen und stagt die Dateien, die Vault-Secrets (mit dem lokalen Master-Key neu verschlüsselt) und den API-Token-Store in `data/.restore-pending/`. Der Restore wird beim nächsten Start angewendet (siehe [Restore-Status](#restore-status)). Es gibt immer nur einen wartenden Restore; ein neuer Import ersetzt ihn.
+
+Versionsprüfungen:
+
+- Ein Archiv aus einer neueren AuraGo-Version wird mit HTTP `400` abgelehnt. Das ist der Fall, wenn die App-Version im Manifest neuer ist als die installierte oder die `user_version` einer Datenbank neuer ist als die aktive Datenbank.
+- Ältere Archive werden mit Warnungen akzeptiert. Migrationen laufen beim Start.
+- Ein beschädigtes Manifest ergibt `400`. Ein fehlendes Manifest (sehr alte Backups) wird mit Warnung akzeptiert.
+
+Erfolg liefert HTTP `200`:
+
+```json
+{
+  "status": "ok",
+  "pending_restore": true,
+  "restart_required": true,
+  "staged": 1280,
+  "vault_restored": 12,
+  "tokens_restored": 3,
+  "warnings": [],
+  "message": "..."
+}
+```
+
+`status` ist `partial`, wenn die Vault-Secrets oder der Token-Store nicht gestagt werden konnten; der Grund steht in `warnings`. Die Felder `restored`, `skipped` und `schema_warning` gibt es nicht mehr.
+
+Fehler liefern JSON `{"error": "..."}`. Zu große Uploads liefern `413`. Verschlüsselte Archive ohne oder mit falschem Passwort liefern `password_required` bzw. `decryption_failed`, jeweils mit einer `message`.
+
+Die Config-UI (Bereich Backup) fragt vor einem Import nach einer Bestätigung, zeigt den wartenden Restore mit **Jetzt neu starten** und **Wartenden Restore verwerfen** und zeigt das Ergebnis des letzten Restores.
+
+#### Restore-Status
+
+```http
+GET    /api/backup/restore-status
+DELETE /api/backup/restore-status
+```
+
+Beide Endpunkte sind nur für Administratoren verfügbar.
+
+`GET` meldet den wartenden Restore und das Ergebnis des letzten Restores:
+
+```json
+{
+  "pending": true,
+  "pending_created_at": "2026-10-31T09:00:00Z",
+  "last": {
+    "id": "...",
+    "applied_at": "...",
+    "status": "applied",
+    "message": "..."
+  }
+}
+```
+
+`last` ist `null`, solange kein Restore gelaufen ist. `status` ist `applied`, `rolled_back` oder `failed`; die Erklärung steht in `message`.
+
+`DELETE` verwirft einen wartenden Restore und liefert `{"discarded": true}` bzw. `{"discarded": false}`.
+
+Beim nächsten Start, bevor eine Datenbank geöffnet wird, wendet AuraGo den wartenden Restore an:
+
+1. Es kopiert die aktuellen Dateien (und SQLite-`-wal`/`-shm`-Dateien) nach `data/.restore-rollback/<id>/`.
+2. Es veröffentlicht die gestagten Dateien und entfernt veraltete `-wal`/`-shm`-Dateien.
+3. Es prüft die wiederhergestellte `config.yaml`.
+4. Schlägt ein Schritt fehl, stellt es den vorherigen Zustand wieder her und startet weiter.
+
+Vault-Secrets und Tokens werden nur angewendet, wenn die Dateiwiederherstellung erfolgreich war. Das Ergebnis steht in `data/.restore-last.json`. Stürzt AuraGo während der Anwendung ab, stellt der nächste Start aus der erhaltenen Rollback-Kopie wieder her.
 
 ### Network Shares API
 

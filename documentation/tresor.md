@@ -24,7 +24,7 @@ The random 256-bit AES key is intended to remain resistant to known quantum atta
 
 ## Backup and restore
 
-The dedicated `data/tresor.db` is included in AuraGo's consistent SQLite snapshots and normal backup archive. Its records and names remain encrypted in the database and backup, but a backup can still contain other sensitive AuraGo files, so protect the entire archive. Restore the archive with the normal AuraGo backup importer; SQLite restore requires a service restart. Retain either the vault password or the recovery key independently of the archive, then unlock the restored Tresor. A raw copy of a live SQLite database without its WAL is not a valid backup.
+The dedicated `data/tresor.db` is included in AuraGo's consistent SQLite snapshots and normal backup archive. Its records and names remain encrypted in the database and backup, but a backup can still contain other sensitive AuraGo files, so protect the entire archive. Restore the archive with the normal AuraGo backup importer. The import is only staged: the restore takes effect at the next AuraGo start, so restart AuraGo to apply it. Retain either the vault password or the recovery key independently of the archive, then unlock the restored Tresor. A raw copy of a live SQLite database without its WAL is not a valid backup.
 
 ## Checks
 

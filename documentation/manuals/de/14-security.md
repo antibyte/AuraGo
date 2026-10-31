@@ -695,10 +695,11 @@ export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
 AuraGo bietet keine CLI-Flags `--export-vault` / `--import-vault`. Stattdessen werden Backups über die Backup-API erstellt und ein neuer Master-Key beim ersten Start mit dem neuen Key in den Vault geschrieben. Der Ablauf ist:
 
 ```bash
-# 1. Aktuellen Vault über die Backup-API sichern (mit altem Key)
+# 1. Aktuellen Vault über die Backup-API sichern (mit altem Key).
+#    Vault-Secrets werden nur mit Passwort exportiert.
 curl -X POST http://localhost:8088/api/backup/create \
      -H "Content-Type: application/json" \
-     -d '{"include_vault": true}' \
+     -d '{"password": "starkes-passwort"}' \
      -o vault_backup.aurago
 
 # 2. AuraGo stoppen
@@ -709,11 +710,17 @@ export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
 echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" >> .env
 
 # 4. AuraGo starten – der Vault wird mit dem neuen Key neu initialisiert
-# 5. Secrets aus dem Backup über die Backup-API wiederherstellen
+# 5. Backup über die Backup-API importieren (wird nur gestaged, noch nicht angewendet)
 curl -X POST http://localhost:8088/api/backup/import \
-     -H "Content-Type: application/json" \
-     --data-binary @vault_backup.aurago
+     -F file=@vault_backup.aurago \
+     -F password=starkes-passwort
+
+# 6. AuraGo neu starten – der wartende Restore wird erst beim Start angewendet
+./kill_all.sh     # oder systemctl restart aurago
+./aurago          # bei systemd: systemctl start aurago
 ```
+
+Danach prüfst du das Ergebnis mit `GET /api/backup/restore-status` (Feld `last.status` sollte `applied` sein).
 
 > [!NOTE]
 > Vollständige API-Referenz: [Kapitel 21: API-Referenz](21-api-reference.md#backup-api)
