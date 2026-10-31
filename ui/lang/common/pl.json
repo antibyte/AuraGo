@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Ściągawki",
   "common.page_dashboard": "Panel",
   "common.ui_language": "Język",
-  "common.home_link": "AuraGo – Start"
+  "common.home_link": "AuraGo – Start",
+  "common.confirm_type_hint": "Wpisz „{text}”, aby potwierdzić",
+  "common.confirm_type_label": "Tekst potwierdzenia"
 }

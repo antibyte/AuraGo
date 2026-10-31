@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Σημειώσεις",
   "common.page_dashboard": "Πίνακας ελέγχου",
   "common.ui_language": "Γλώσσα",
-  "common.home_link": "AuraGo – Αρχική"
+  "common.home_link": "AuraGo – Αρχική",
+  "common.confirm_type_hint": "Πληκτρολογήστε «{text}» για επιβεβαίωση",
+  "common.confirm_type_label": "Κείμενο επιβεβαίωσης"
 }

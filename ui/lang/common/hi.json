@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "चिट शीट",
   "common.page_dashboard": "डैशबोर्ड",
   "common.ui_language": "भाषा",
-  "common.home_link": "AuraGo – होम"
+  "common.home_link": "AuraGo – होम",
+  "common.confirm_type_hint": "पुष्टि करने के लिए „{text}“ टाइप करें",
+  "common.confirm_type_label": "पुष्टि पाठ"
 }

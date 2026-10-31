@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Taháky",
   "common.page_dashboard": "Nástěnka",
   "common.ui_language": "Jazyk",
-  "common.home_link": "AuraGo – Domů"
+  "common.home_link": "AuraGo – Domů",
+  "common.confirm_type_hint": "Pro potvrzení napište „{text}“",
+  "common.confirm_type_label": "Potvrzovací text"
 }

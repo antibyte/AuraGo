@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Spickzettel",
   "common.page_dashboard": "Dashboard",
   "common.ui_language": "Sprache",
-  "common.home_link": "AuraGo – Start"
+  "common.home_link": "AuraGo – Start",
+  "common.confirm_type_hint": "Zum Bestätigen „{text}“ eingeben",
+  "common.confirm_type_label": "Bestätigungstext"
 }

@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Spiekbriefjes",
   "common.page_dashboard": "Dashboard",
   "common.ui_language": "Taal",
-  "common.home_link": "AuraGo – Start"
+  "common.home_link": "AuraGo – Start",
+  "common.confirm_type_hint": "Typ „{text}“ om te bevestigen",
+  "common.confirm_type_label": "Bevestigingstekst"
 }

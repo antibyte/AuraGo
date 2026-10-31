@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Snydeark",
   "common.page_dashboard": "Dashboard",
   "common.ui_language": "Sprog",
-  "common.home_link": "AuraGo – Hjem"
+  "common.home_link": "AuraGo – Hjem",
+  "common.confirm_type_hint": "Skriv „{text}“ for at bekræfte",
+  "common.confirm_type_label": "Bekræftelsestekst"
 }

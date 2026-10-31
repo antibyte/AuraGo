@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Fuskblad",
   "common.page_dashboard": "Instrumentpanel",
   "common.ui_language": "Språk",
-  "common.home_link": "AuraGo – Hem"
+  "common.home_link": "AuraGo – Hem",
+  "common.confirm_type_hint": "Skriv „{text}“ för att bekräfta",
+  "common.confirm_type_label": "Bekräftelsetext"
 }

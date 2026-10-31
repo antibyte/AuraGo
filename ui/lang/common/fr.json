@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Aide-mémoire",
   "common.page_dashboard": "Tableau de bord",
   "common.ui_language": "Langue",
-  "common.home_link": "AuraGo – Accueil"
+  "common.home_link": "AuraGo – Accueil",
+  "common.confirm_type_hint": "Saisissez « {text} » pour confirmer",
+  "common.confirm_type_label": "Texte de confirmation"
 }

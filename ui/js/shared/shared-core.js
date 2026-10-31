@@ -53,23 +53,45 @@ function tOr(k, fallback, p) {
 
 let _sharedModalOverlay = null;
 let _sharedModalQueue = Promise.resolve();
+let _sharedDialogOpener = null;
+
+// Per-overlay lifecycle hooks: { onClose(reason), canClose(reason), noScroll }.
+// Set by openModal(id, {onClose}) and by the shared dialog; cleared on close.
+const _modalHooks = new WeakMap();
+let _modalLastPointerDown = null;
+if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('mousedown', (e) => { _modalLastPointerDown = e.target; }, true);
+    document.addEventListener('click', () => { _modalLastPointerDown = null; });
+}
+
+function _isBackdropClick(e, overlay) {
+    return e.target === overlay && (_modalLastPointerDown === null || _modalLastPointerDown === overlay);
+}
 
 function _ensureSharedModal() {
-    if (_sharedModalOverlay) return _sharedModalOverlay;
+    if (_sharedModalOverlay && _sharedModalOverlay.isConnected) return _sharedModalOverlay;
+    _sharedModalOverlay = null;
 
-    // Check if page already has a modal-overlay (like index.html)
-    _sharedModalOverlay = document.getElementById('modal-overlay');
-    if (_sharedModalOverlay) return _sharedModalOverlay;
+    // Reuse a page-provided overlay (chat's index.html) when it has the full control set.
+    const pageOverlay = document.getElementById('modal-overlay');
+    if (pageOverlay && pageOverlay.querySelector('#modal-confirm')) {
+        _sharedModalOverlay = pageOverlay;
+        return _sharedModalOverlay;
+    }
 
-    // Create generic modal dynamically
+    const closeLabel = esc(t('common.close'));
     const modalHTML = `
-        <div id="shared-modal-overlay" class="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-            <div class="modal-card" style="background:var(--bg-secondary,#1a1a1a);border:1px solid var(--border,#2a2a2a);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                <div id="shared-modal-title" class="modal-title" style="font-size:1.125rem;font-weight:600;margin-bottom:12px;color:var(--text-primary,#e5e5e5);"></div>
-                <div id="shared-modal-message" class="modal-body" style="margin-bottom:20px;color:var(--text-secondary,#a1a1aa);line-height:1.5;"></div>
-                <div class="modal-actions" style="display:flex;gap:12px;justify-content:flex-end;">
-                    <button id="shared-modal-cancel" class="modal-btn cancel" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border,#2a2a2a);background:transparent;color:var(--text-secondary,#a1a1aa);cursor:pointer;"></button>
-                    <button id="shared-modal-confirm" class="modal-btn confirm" style="padding:8px 16px;border-radius:6px;border:none;background:var(--accent,#2dd4bf);color:#000;cursor:pointer;font-weight:500;"></button>
+        <div id="shared-modal-overlay" class="modal-overlay pw-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="shared-modal-title" aria-describedby="shared-modal-message">
+            <div class="modal modal--sm pw-confirm">
+                <div class="modal-header">
+                    <h2 id="shared-modal-title" class="modal-title"></h2>
+                    <button type="button" class="modal-close" data-confirm-close aria-label="${closeLabel}">&times;</button>
+                </div>
+                <p id="shared-modal-message" class="modal-body"></p>
+                <div data-confirm-extra></div>
+                <div class="modal-actions">
+                    <button type="button" id="shared-modal-cancel" class="btn btn-secondary modal-btn cancel"></button>
+                    <button type="button" id="shared-modal-confirm" class="btn btn-primary modal-btn confirm"></button>
                 </div>
             </div>
         </div>
@@ -84,105 +106,273 @@ function _ensureSharedModal() {
  * @param {string} title - Modal title
  * @param {string} message - Modal message
  * @param {boolean} isConfirm - If true, shows cancel button
- * @param {Object} options - Optional { confirmText, cancelText }
+ * @param {Object} options - Optional { confirmText, cancelText, danger, requireText, ... }
  * @returns {Promise<boolean>} - Resolves with true (confirmed) or false (cancelled)
  */
 function showModal(title, message, isConfirm = false, options = {}) {
-    const result = _sharedModalQueue.then(() => _showSharedModal(title, message, isConfirm, options));
+    const opts = options || {};
+    return _queueSharedDialog(Object.assign({}, opts, {
+        title, message, alert: !isConfirm
+    })).then(r => r.confirmed);
+}
+
+/**
+ * Show a rich confirmation dialog.
+ * @param {Object} spec - { title, message, detail, danger, confirmText, cancelText,
+ *   requireText, requireTextHint, checkbox:{label, checked, hint},
+ *   onConfirm: async ({checked}) => boolean|void }
+ * @returns {Promise<{confirmed:boolean, checked:boolean}>}
+ */
+function showConfirmDialog(spec) {
+    return _queueSharedDialog(Object.assign({}, spec || {}, { alert: false }));
+}
+
+function _queueSharedDialog(spec) {
+    // A dialog opened from another dialog (queued) restores focus to the original opener.
+    const active = document.activeElement;
+    const inDialog = !!(active && active.closest && active.closest('#shared-modal-overlay, #modal-overlay'));
+    const opener = inDialog ? _sharedDialogOpener : active;
+    _sharedDialogOpener = opener;
+    const result = _sharedModalQueue.then(() => _showSharedDialog(spec, opener));
     _sharedModalQueue = result.catch(() => false);
     return result;
 }
 
-function _showSharedModal(title, message, isConfirm, options) {
+function _showSharedDialog(spec, opener) {
     return new Promise((resolve) => {
         const overlay = _ensureSharedModal();
-        const titleEl = document.getElementById('shared-modal-title') || document.getElementById('modal-title');
-        const msgEl = document.getElementById('shared-modal-message') || document.getElementById('modal-message');
-        const confirmBtn = document.getElementById('shared-modal-confirm') || document.getElementById('modal-confirm');
-        const cancelBtn = document.getElementById('shared-modal-cancel') || document.getElementById('modal-cancel');
+        const isShared = overlay.id === 'shared-modal-overlay';
+        const pick = (shared, chat) => overlay.querySelector('#' + (isShared ? shared : chat));
+        const titleEl = pick('shared-modal-title', 'modal-title');
+        const msgEl = pick('shared-modal-message', 'modal-message');
+        const confirmBtn = pick('shared-modal-confirm', 'modal-confirm');
+        const cancelBtn = pick('shared-modal-cancel', 'modal-cancel');
+        const closeBtn = overlay.querySelector('[data-confirm-close]');
+        const isAlert = !!spec.alert;
+        const danger = !!spec.danger || !!spec.requireText;
+        const requireText = spec.requireText ? String(spec.requireText) : '';
 
-        if (titleEl) titleEl.textContent = title;
-        if (msgEl) msgEl.textContent = message;
-        if (confirmBtn) confirmBtn.textContent = options.confirmText || t('common.btn_ok');
+        if (titleEl) titleEl.textContent = spec.title == null ? '' : spec.title;
+        if (msgEl) msgEl.textContent = spec.message == null ? '' : spec.message;
+        if (confirmBtn) {
+            confirmBtn.textContent = spec.confirmText || t('common.btn_ok');
+            confirmBtn.disabled = false;
+            confirmBtn.removeAttribute('aria-busy');
+            confirmBtn.classList.toggle('btn-danger', danger);
+            if (isShared) confirmBtn.classList.toggle('btn-primary', !danger);
+        }
         if (cancelBtn) {
-            cancelBtn.textContent = options.cancelText || t('common.btn_cancel');
-            cancelBtn.style.display = isConfirm ? 'inline-block' : 'none';
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = spec.cancelText || t('common.btn_cancel');
+            cancelBtn.style.display = isAlert ? 'none' : (isShared ? '' : 'inline-block');
         }
 
-        overlay.style.display = 'flex';
-        if (overlay.classList) overlay.classList.add('active');
-        // Engage controller (ARIA, focus trap, inert background, restore).
-        _modalCtl.open(overlay, { initialFocus: confirmBtn });
-
-        let settled = false;
-        function cleanup(result) {
-            if (settled) return;
-            settled = true;
-            _modalCtl.close(overlay);
-            overlay.style.display = 'none';
-            if (overlay.classList) overlay.classList.remove('active');
-            if (confirmBtn) confirmBtn.removeEventListener('click', onConfirm);
-            if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
-            overlay.removeEventListener('click', onOverlay);
-            document.removeEventListener('keydown', onKey);
-            resolve(result);
+        // Extra content (detail, type-to-confirm input, checkbox) lives in removable nodes.
+        const added = [];
+        let extra = overlay.querySelector('[data-confirm-extra]');
+        if (!extra) {
+            extra = document.createElement('div');
+            extra.setAttribute('data-confirm-extra', '');
+            extra.dataset.confirmInjected = '1';
+            const actions = overlay.querySelector('.modal-actions');
+            if (actions && actions.parentNode) actions.parentNode.insertBefore(extra, actions);
+            else overlay.firstElementChild && overlay.firstElementChild.appendChild(extra);
         }
-
-        function onConfirm() { cleanup(true); }
-        function onCancel() { cleanup(false); }
-        function onOverlay(e) { if (e.target === overlay) cleanup(false); }
-        function onKey(e) {
-            if (e.key === 'Escape') cleanup(false);
-            if (e.key === 'Enter') {
-                // P1-5: Avoid accidental confirms. Only treat Enter as
-                // confirmation when it is intentional:
-                //  - Enter while focused on the confirm button itself, OR
-                //  - Enter while the dialog has no editable input (pure
-                //    alert/confirm without text fields).
-                // Inside <textarea> Enter must always insert a newline,
-                // and inside other inputs we let the user submit via the
-                // explicit Confirm button to prevent destructive mistakes.
-                const active = document.activeElement;
-                const isConfirmFocused = !!confirmBtn && active === confirmBtn;
-                const hasEditable = !!overlay.querySelector(
-                    'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, [contenteditable="true"]'
-                );
-                if (isConfirmFocused || !hasEditable) {
-                    e.preventDefault();
-                    cleanup(true);
-                }
+        extra.textContent = '';
+        if (spec.detail) {
+            const d = document.createElement('p');
+            d.className = 'pw-confirm-detail';
+            d.textContent = spec.detail;
+            extra.appendChild(d);
+        }
+        let textInput = null;
+        if (requireText) {
+            const wrap = document.createElement('div');
+            wrap.className = 'pw-confirm-field';
+            const lab = document.createElement('label');
+            lab.setAttribute('for', 'shared-modal-input');
+            lab.textContent = spec.requireTextHint || t('common.confirm_type_hint', { text: requireText });
+            textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.id = 'shared-modal-input';
+            textInput.className = 'form-control';
+            textInput.autocomplete = 'off';
+            textInput.spellcheck = false;
+            textInput.placeholder = t('common.confirm_type_label');
+            wrap.appendChild(lab);
+            wrap.appendChild(textInput);
+            extra.appendChild(wrap);
+        }
+        let checkEl = null;
+        if (spec.checkbox && spec.checkbox.label) {
+            const lab = document.createElement('label');
+            lab.className = 'pw-confirm-check';
+            checkEl = document.createElement('input');
+            checkEl.type = 'checkbox';
+            checkEl.id = 'shared-modal-check';
+            checkEl.checked = !!spec.checkbox.checked;
+            const txt = document.createElement('span');
+            txt.textContent = spec.checkbox.label;
+            lab.appendChild(checkEl);
+            lab.appendChild(txt);
+            extra.appendChild(lab);
+            if (spec.checkbox.hint) {
+                const h = document.createElement('p');
+                h.className = 'pw-confirm-hint';
+                h.textContent = spec.checkbox.hint;
+                extra.appendChild(h);
             }
         }
+        extra.hidden = !extra.childNodes.length;
+        added.push(extra);
 
-        if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
-        if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
-        overlay.addEventListener('click', onOverlay);
-        document.addEventListener('keydown', onKey);
+        const syncConfirmEnabled = () => {
+            if (!confirmBtn || busy) return;
+            confirmBtn.disabled = !!textInput && textInput.value.trim() !== requireText;
+        };
+        let busy = false;
+        let settled = false;
+        let pending = null;
+        syncConfirmEnabled();
+
+        overlay.style.display = 'flex';
+        overlay.classList.add('active');
+        overlay.classList.remove('open');
+
+        // Safe default: dangerous prompts start on Cancel, type-to-confirm on the input.
+        let initialFocus = confirmBtn;
+        if (textInput) initialFocus = textInput;
+        else if (danger && cancelBtn && !isAlert) initialFocus = cancelBtn;
+
+        const trigger = opener && opener.isConnected ? opener : document.activeElement;
+
+        function cleanupDom() {
+            window.removeEventListener('keydown', onKey, true);
+            overlay.removeEventListener('click', onOverlayClick);
+            if (confirmBtn) {
+                confirmBtn.removeEventListener('click', onConfirmClick);
+                confirmBtn.removeAttribute('aria-busy');
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('btn-danger');
+                if (isShared) confirmBtn.classList.add('btn-primary');
+            }
+            if (cancelBtn) { cancelBtn.removeEventListener('click', onCancelClick); cancelBtn.disabled = false; }
+            if (closeBtn) closeBtn.removeEventListener('click', onCancelClick);
+            if (textInput) textInput.removeEventListener('input', syncConfirmEnabled);
+            added.forEach(n => {
+                if (n.dataset && n.dataset.confirmInjected) n.remove();
+                else { n.textContent = ''; n.hidden = true; }
+            });
+        }
+
+        function finish(reason) {
+            if (settled) return;
+            settled = true;
+            overlay.style.display = 'none';
+            overlay.classList.remove('active', 'open');
+            cleanupDom();
+            resolve(pending || { confirmed: false, checked: false });
+        }
+
+        _modalHooks.set(overlay, {
+            noScroll: true,
+            canClose: () => !busy,
+            onClose: finish
+        });
+
+        function onCancelClick() { _closeOverlay(overlay, 'cancel'); }
+        function onOverlayClick(e) { if (_isBackdropClick(e, overlay)) _closeOverlay(overlay, 'backdrop'); }
+        async function onConfirmClick() {
+            if (busy || !confirmBtn || confirmBtn.disabled) return;
+            const checked = checkEl ? checkEl.checked : false;
+            if (typeof spec.onConfirm === 'function') {
+                busy = true;
+                confirmBtn.disabled = true;
+                confirmBtn.setAttribute('aria-busy', 'true');
+                if (cancelBtn) cancelBtn.disabled = true;
+                let ok = true;
+                try {
+                    ok = await spec.onConfirm({ checked });
+                } catch (err) {
+                    console.error('[AuraGo] confirm action failed:', err);
+                    ok = false;
+                }
+                busy = false;
+                if (settled) return;
+                if (ok === false) {
+                    confirmBtn.removeAttribute('aria-busy');
+                    if (cancelBtn) cancelBtn.disabled = false;
+                    syncConfirmEnabled();
+                    try { confirmBtn.focus(); } catch (_) { /* noop */ }
+                    return;
+                }
+            }
+            pending = { confirmed: true, checked };
+            _closeOverlay(overlay, 'confirm');
+        }
+        function onKey(e) {
+            if (!overlay.classList.contains('active')) return;
+            if (e.key === 'Escape') {
+                // Handled here so page-level Escape listeners do not also react.
+                e.preventDefault();
+                e.stopPropagation();
+                _closeOverlay(overlay, 'esc');
+                return;
+            }
+            if (e.key !== 'Enter' || e.isComposing) return;
+            const active = document.activeElement;
+            if (active && active !== document.body && active !== overlay) {
+                if (active === textInput) {
+                    if (confirmBtn && !confirmBtn.disabled) { e.preventDefault(); onConfirmClick(); }
+                    return;
+                }
+                // Buttons, links, checkboxes and textareas keep their native Enter behaviour.
+                if (active.matches('button, a[href], input, select, textarea, [contenteditable="true"], [role="button"]')) return;
+            }
+            // No control focused: Enter confirms only for plain (non-dangerous) prompts.
+            if (danger || textInput || checkEl) return;
+            if (confirmBtn && !confirmBtn.disabled) { e.preventDefault(); onConfirmClick(); }
+        }
+
+        if (confirmBtn) confirmBtn.addEventListener('click', onConfirmClick);
+        if (cancelBtn) cancelBtn.addEventListener('click', onCancelClick);
+        if (closeBtn) closeBtn.addEventListener('click', onCancelClick);
+        if (textInput) textInput.addEventListener('input', syncConfirmEnabled);
+        overlay.addEventListener('click', onOverlayClick);
+        window.addEventListener('keydown', onKey, true);
+
+        // Engage controller (ARIA, focus trap, inert background, restore).
+        _modalCtl.open(overlay, { initialFocus, trigger });
     });
 }
 
 /**
  * Show confirmation dialog (replaces confirm())
- * @param {string} message - Confirmation message
- * @param {string} [title] - Optional title
+ *   showConfirm(message)
+ *   showConfirm(title, message)
+ *   showConfirm(title, message, {danger, confirmText, cancelText, requireText})
  * @returns {Promise<boolean>}
  */
-function showConfirm(title, message) {
+function showConfirm(title, message, options) {
     if (arguments.length === 1) {
         message = title;
         title = t('common.confirm_title');
+    } else if (arguments.length === 2 && message && typeof message === 'object') {
+        options = message;
+        message = title;
+        title = t('common.confirm_title');
     }
-    return showModal(title, message, true, {
+    const opts = options || {};
+    return showModal(title, message, true, Object.assign({
         confirmText: t('common.btn_yes'),
         cancelText: t('common.btn_no')
-    });
+    }, opts));
 }
 
 /**
  * Show alert dialog (replaces alert())
- * @param {string} message - Alert message
- * @param {string} [title] - Optional title
- * @returns {Promise<void>}
+ *   showAlert(message) | showAlert(title, message)
+ * @returns {Promise<boolean>}
  */
 function showAlert(title, message) {
     if (arguments.length === 1) {
@@ -952,21 +1142,61 @@ const _modalCtl = (function () {
         }
     }
 
-    return { open, close, focusables };
+    function isOpen(modal) { return stack.some(e => e.modal === modal); }
+    // Stale entries (pages that hide a modal via classList) are ignored.
+    function showing() {
+        return stack.filter(e => e.modal.isConnected &&
+            (e.modal.classList.contains('active') || e.modal.classList.contains('open')));
+    }
+    function depth() { return showing().length; }
+    function top() { const l = showing(); return l.length ? l[l.length - 1].modal : null; }
+
+    return { open, close, focusables, isOpen, depth, top };
 })();
+
+/**
+ * Close an overlay through the single shared path: controller teardown, class
+ * reset, scroll restore, onClose hook and a bubbling "modal:close" event.
+ * Returns false when the overlay vetoed the close (e.g. a busy confirm).
+ */
+function _closeOverlay(modal, reason) {
+    if (!modal) return false;
+    const hook = _modalHooks.get(modal);
+    if (hook && typeof hook.canClose === 'function' && hook.canClose(reason) === false) return false;
+    _modalHooks.delete(modal);
+    _modalCtl.close(modal);
+    modal.classList.remove('active');
+    modal.classList.remove('open');
+    if (!(hook && hook.noScroll) && _modalCtl.depth() === 0) {
+        document.body.style.overflow = '';
+    }
+    if (hook && typeof hook.onClose === 'function') {
+        try { hook.onClose(reason); } catch (e) { console.error('[AuraGo] modal onClose failed:', e); }
+    }
+    try {
+        modal.dispatchEvent(new CustomEvent('modal:close', { bubbles: true, detail: { reason } }));
+    } catch (_) { /* noop */ }
+    return true;
+}
 
 /**
  * Open a modal by ID
  * Supports both legacy 'open' class and new 'active' class
  * @param {string} id - The modal overlay ID
+ * @param {Object} [options] - { initialFocus: selector|Element, onClose(reason) }
  */
-function openModal(id) {
+function openModal(id, options) {
     const modal = document.getElementById(id);
     if (modal) {
+        const opts = options && typeof options === 'object' ? options : {};
         modal.classList.add('active');
         modal.classList.add('open');
         document.body.style.overflow = 'hidden';
-        _modalCtl.open(modal);
+        if (typeof opts.onClose === 'function') {
+            _modalHooks.set(modal, { onClose: opts.onClose });
+        }
+        if (_modalCtl.isOpen(modal)) _modalCtl.close(modal); // drop a stale entry, then re-engage
+        _modalCtl.open(modal, { initialFocus: opts.initialFocus });
     }
 }
 
@@ -974,14 +1204,12 @@ function openModal(id) {
  * Close a modal by ID
  * Supports both legacy 'open' class and new 'active' class
  * @param {string} id - The modal overlay ID
+ * @param {string} [reason='api'] - Passed to onClose ('esc', 'backdrop', 'api', ...)
  */
-function closeModal(id) {
+function closeModal(id, reason) {
     const modal = document.getElementById(id);
     if (modal) {
-        _modalCtl.close(modal);
-        modal.classList.remove('active');
-        modal.classList.remove('open');
-        document.body.style.overflow = '';
+        _closeOverlay(modal, typeof reason === 'string' ? reason : 'api');
     }
 }
 
@@ -1045,10 +1273,8 @@ function initModals() {
 
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                _modalCtl.close(overlay);
-                overlay.classList.remove('active', 'open');
-                document.body.style.overflow = '';
+            if (_isBackdropClick(e, overlay)) {
+                _closeOverlay(overlay, 'backdrop');
             }
         });
     });
@@ -1056,18 +1282,14 @@ function initModals() {
     document.addEventListener('keydown', (e) => {
         if (e.defaultPrevented) return;
         if (e.key === 'Escape') {
-            // Only close the topmost (last) active modal
-            const modals = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
-            if (modals.length > 0) {
-                const topmost = modals[modals.length - 1];
-                _modalCtl.close(topmost);
-                topmost.classList.remove('active', 'open');
-                // Only restore body scroll if no other modals remain open
-                const remaining = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
-                if (remaining.length === 0) {
-                    document.body.style.overflow = '';
-                }
+            // Close the topmost modal: the controller's stack top when it is
+            // still showing, otherwise the last active overlay in the document.
+            let topmost = _modalCtl.top();
+            if (!topmost) {
+                const modals = document.querySelectorAll('.modal-overlay.active, .modal-overlay.open');
+                topmost = modals.length ? modals[modals.length - 1] : null;
             }
+            if (topmost) _closeOverlay(topmost, 'esc');
         }
     });
 }

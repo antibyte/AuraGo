@@ -1387,6 +1387,99 @@ div.toggle.toggle-sm.on::before {
     border-color: rgba(239, 68, 68, 0.4);
 }
 
+/* ── Shared confirm / alert dialog (showConfirm, showAlert, showConfirmDialog) ── */
+.modal--sm {
+    max-width: 420px;
+}
+
+.modal-overlay.pw-confirm-overlay {
+    z-index: calc(var(--z-modal, 1000) + 10);
+    align-items: center;
+}
+
+.pw-confirm .modal-title {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.pw-confirm .modal-body {
+    margin: var(--space-4) 0 var(--space-2);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.pw-confirm [data-confirm-extra] {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.pw-confirm [data-confirm-extra][hidden] {
+    display: none;
+}
+
+.pw-confirm-detail,
+.pw-confirm-hint {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm, 0.875rem);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.pw-confirm-field {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.pw-confirm-field label {
+    color: var(--text-primary);
+    font-size: var(--text-sm, 0.875rem);
+}
+
+.pw-confirm-field input {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    font: inherit;
+}
+
+.pw-confirm-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.pw-confirm-check input {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+}
+
+.pw-confirm .modal-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.pw-confirm .modal-actions button[aria-busy="true"] {
+    cursor: progress;
+}
+
+body:not(.pw-page) .pw-confirm .btn-primary {
+    color: var(--bg-primary);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    VIEW TOGGLE & COMPACT CARD STYLES
    ═══════════════════════════════════════════════════════════════ */

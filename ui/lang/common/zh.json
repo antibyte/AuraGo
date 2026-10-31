@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "备忘单",
   "common.page_dashboard": "仪表盘",
   "common.ui_language": "语言",
-  "common.home_link": "AuraGo – 首页"
+  "common.home_link": "AuraGo – 首页",
+  "common.confirm_type_hint": "输入“{text}”以确认",
+  "common.confirm_type_label": "确认文本"
 }

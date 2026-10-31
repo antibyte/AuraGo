@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Jukseark",
   "common.page_dashboard": "Dashbord",
   "common.ui_language": "Språk",
-  "common.home_link": "AuraGo – Hjem"
+  "common.home_link": "AuraGo – Hjem",
+  "common.confirm_type_hint": "Skriv „{text}“ for å bekrefte",
+  "common.confirm_type_label": "Bekreftelsestekst"
 }

@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "Hojas de referencia",
   "common.page_dashboard": "Panel",
   "common.ui_language": "Idioma",
-  "common.home_link": "AuraGo – Inicio"
+  "common.home_link": "AuraGo – Inicio",
+  "common.confirm_type_hint": "Escriba «{text}» para confirmar",
+  "common.confirm_type_label": "Texto de confirmación"
 }

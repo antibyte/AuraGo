@@ -339,5 +339,7 @@
   "common.page_cheatsheets": "チートシート",
   "common.page_dashboard": "ダッシュボード",
   "common.ui_language": "言語",
-  "common.home_link": "AuraGo – ホーム"
+  "common.home_link": "AuraGo – ホーム",
+  "common.confirm_type_hint": "確認のため「{text}」と入力してください",
+  "common.confirm_type_label": "確認テキスト"
 }
