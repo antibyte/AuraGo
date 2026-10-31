@@ -272,13 +272,13 @@ function emailAccountShowModal(title, data, onSave) {
             <input class="field-input" id="ea-watch-interval" type="number" value="${data.watch_interval_seconds || 120}" placeholder="120">
         </div>
 
-        <div id="ea-test-result" class="adg-test-result em-test-result"></div>
+        ${cfgActionResult.html('ea-test-result', 'em-test-result')}
         <div id="ea-save-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>
         <div class="modal-actions">
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('email-modal-overlay').remove()">
                 ${t('config.email.cancel')}
             </button>
-            <button type="button" class="btn-save adg-test-btn" id="ea-test-btn">
+            <button type="button" class="btn-save adg-test-btn" id="ea-test-btn" data-config-action-draft="true">
                 🔌 ${t('config.email.test_btn')}
             </button>
             <button type="button" class="btn-save" id="ea-save-btn">
@@ -383,53 +383,28 @@ function emailAccountCollectModalFields(data) {
     return { id, imap_host, imap_port, smtp_host, smtp_port, username, password };
 }
 
+// Tests the account as typed in the modal (nothing is saved). partial = warning.
 async function emailAccountTestFromModal(data) {
     const fields = emailAccountCollectModalFields(data);
-    const result = document.getElementById('ea-test-result');
-    const btn = document.getElementById('ea-test-btn');
-
     if (!fields.username) {
-        showToast(t('config.email.test_credentials_required'), 'warn');
-        return;
+        cfgActionResult.show('ea-test-result', 'error', t('config.email.test_credentials_required'));
+        return { skipped: 'invalid' };
     }
     if (!fields.imap_host && !fields.smtp_host) {
-        showToast(t('config.email.host_required'), 'warn');
-        return;
+        cfgActionResult.show('ea-test-result', 'error', t('config.email.host_required'));
+        return { skipped: 'invalid' };
     }
-
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.textContent = t('config.email.testing');
-        result.className = 'adg-test-result em-test-result';
-    }
-
-    try {
-        const resp = await fetch('/api/email-accounts/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fields)
-        });
-        const res = await resp.json();
-        if (!result) return;
-
-        if (res.status === 'ok') {
-            result.className = 'adg-test-result em-test-result is-success';
-            result.textContent = '✅ ' + (res.message || t('config.email.test_ok'));
-        } else if (res.status === 'partial') {
-            result.className = 'adg-test-result em-test-result is-warning';
-            result.textContent = '⚠️ ' + (res.message || t('config.email.test_partial'));
-        } else {
-            result.className = 'adg-test-result em-test-result is-danger';
-            result.textContent = '❌ ' + (res.message || t('config.email.test_fail'));
-        }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result em-test-result is-danger';
-            result.textContent = '❌ ' + (e.message || t('config.email.test_fail'));
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    return cfgActionResult(document.getElementById('ea-test-btn'), () => fetch('/api/email-accounts/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields)
+    }), {
+        target: 'ea-test-result',
+        pending: t('config.email.testing'),
+        success: outcome => outcome.reason || t('config.email.test_ok'),
+        warning: outcome => outcome.reason ? '' : t('config.email.test_partial'),
+        failure: t('config.email.test_fail')
+    });
 }
 
 async function emailAccountSave(nextAccounts) {

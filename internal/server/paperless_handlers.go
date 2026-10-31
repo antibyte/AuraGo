@@ -18,9 +18,13 @@ func handlePaperlessTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		s.CfgMu.RLock()
-		cfg := s.Cfg.PaperlessNGX
-		s.CfgMu.RUnlock()
+		// Optional {"draft": ...} tests unsaved values (nothing is persisted).
+		full, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := full.PaperlessNGX
 
 		if !cfg.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -38,13 +42,8 @@ func handlePaperlessTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Retrieve API token from vault
-		apiToken := ""
-		if s.Vault != nil {
-			if token, err := s.Vault.ReadSecret("paperless_ngx_api_token"); err == nil && token != "" {
-				apiToken = token
-			}
-		}
+		// draftTestConfig resolved the token (draft first, vault second).
+		apiToken := cfg.APIToken
 
 		if apiToken == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{

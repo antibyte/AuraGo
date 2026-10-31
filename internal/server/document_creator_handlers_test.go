@@ -109,3 +109,34 @@ func TestGotenbergConnectionTestRejectsNonAdminBearer(t *testing.T) {
 		t.Fatalf("status=%d want=403", response.Code)
 	}
 }
+
+func TestGotenbergConnectionTestUsesDraftURL(t *testing.T) {
+	drafted := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			_, _ = io.WriteString(w, `{"status":"up"}`)
+			return
+		}
+		testutil.ServeGotenbergDebug(w, r)
+	}))
+	defer drafted.Close()
+	saved := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("used the saved URL instead of the draft") }))
+	defer saved.Close()
+
+	cfg := &config.Config{}
+	cfg.Tools.DocumentCreator.Backend = "gotenberg"
+	cfg.Tools.DocumentCreator.Gotenberg = config.GotenbergConfig{URL: saved.URL, Timeout: 2}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	body := `{"draft":{"tools":{"document_creator":{"gotenberg":{"url":"` + drafted.URL + `"}}}}}`
+	response := httptest.NewRecorder()
+	handleGotenbergTest(s).ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/document-creator/test", strings.NewReader(body)))
+	var result map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["reachable"] != true || result["security_verified"] != true {
+		t.Fatal(result)
+	}
+	if cfg.Tools.DocumentCreator.Gotenberg.URL != saved.URL {
+		t.Fatal("saved config was modified")
+	}
+}

@@ -19,10 +19,10 @@
   "config.image_generation.max_monthly_label": "月あたり最大画像数",
   "config.image_generation.max_monthly_hint": "0 = 無制限",
   "config.image_generation.test_title": "テスト生成",
-  "config.image_generation.test_desc": "プロバイダー接続を確認するためにテスト画像を生成します。",
+  "config.image_generation.test_desc": "プロバイダーを確認するため、実際にテスト画像を1枚生成します（クォータを1回分消費し、画像はギャラリーに保存されます）。",
   "config.image_generation.test_btn": "テスト生成",
   "config.image_generation.testing": "生成中...",
-  "config.image_generation.test_success": "画像の生成に成功しました",
+  "config.image_generation.test_success": "テスト画像を生成し、ギャラリーに保存しました（1回分を消費）。",
   "config.image_generation.test_failed": "生成に失敗しました",
   "config.image_generation.max_daily_label": "1日あたり最大画像数",
   "config.image_generation.max_daily_hint": "0 = 無制限"

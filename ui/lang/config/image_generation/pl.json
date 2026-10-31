@@ -19,10 +19,10 @@
   "config.image_generation.max_monthly_label": "Maks. obrazów na miesiąc",
   "config.image_generation.max_monthly_hint": "0 = bez limitu",
   "config.image_generation.test_title": "Generowanie testowe",
-  "config.image_generation.test_desc": "Wygeneruj obraz testowy, aby zweryfikować łączność z dostawcą.",
+  "config.image_generation.test_desc": "Generuje jeden prawdziwy obraz testowy, aby sprawdzić dostawcę (zużywa jedno generowanie z limitu; obraz zostaje zapisany w galerii).",
   "config.image_generation.test_btn": "Generowanie testowe",
   "config.image_generation.testing": "Generowanie...",
-  "config.image_generation.test_success": "Obraz wygenerowany pomyślnie",
+  "config.image_generation.test_success": "Obraz testowy wygenerowany i zapisany w galerii (zużyto jedno generowanie).",
   "config.image_generation.test_failed": "Generowanie nie powiodło się",
   "config.image_generation.max_daily_label": "Maks. obrazów na dzień",
   "config.image_generation.max_daily_hint": "0 = bez limitu"

@@ -82,8 +82,8 @@ async function renderMediaConversionSection(section) {
     html += '</div></div>';
 
     html += '<div class="field-group">';
-    html += '<button class="btn-save dc-test-btn" onclick="mcTestTools()" id="mc-test-btn">🔌 ' + t('config.media_conversion.test_button') + '</button>';
-    html += '<span id="mc-test-result" class="dc-test-result"></span>';
+    html += '<button class="btn-save dc-test-btn" onclick="mcTestTools()" id="mc-test-btn" data-config-action-draft="true">🔌 ' + t('config.media_conversion.test_button') + '</button>';
+    html += cfgActionResult.html('mc-test-result', 'dc-test-result');
     html += '</div>';
 
     html += '</div>';
@@ -98,42 +98,30 @@ function mcUpdateEnabled(on) {
     renderMediaConversionSection(null);
 }
 
+// Checks the tool paths typed in (unsaved included); the server accepts this body shape.
 async function mcTestTools() {
-    const btn = document.getElementById('mc-test-btn');
-    const result = document.getElementById('mc-test-result');
-    btn.disabled = true;
-    result.textContent = t('config.media_conversion.loading');
-    result.className = 'dc-test-result';
-
-    try {
+    const toolLine = (label, info) => ' ' + label + ': ' + (info && info.available
+        ? (info.version || info.path || t('config.media_conversion.available'))
+        : ((info && info.message) || t('config.media_conversion.missing')));
+    return cfgActionResult(document.getElementById('mc-test-btn'), () => {
         const patch = buildConfigPatchFromForm();
         const mediaConversion = patch.tools?.media_conversion || {};
-        const resp = await fetch('/api/media-conversion/test', {
+        return fetch('/api/media-conversion/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ media_conversion: mediaConversion })
         });
-        const body = await resp.json();
-        const ffmpegLine = body.ffmpeg && body.ffmpeg.available
-            ? ' FFmpeg: ' + (body.ffmpeg.version || body.ffmpeg.path || t('config.media_conversion.available'))
-            : ' FFmpeg: ' + ((body.ffmpeg && body.ffmpeg.message) || t('config.media_conversion.missing'));
-        const imageMagickLine = body.imagemagick && body.imagemagick.available
-            ? ' ImageMagick: ' + (body.imagemagick.version || body.imagemagick.path || t('config.media_conversion.available'))
-            : ' ImageMagick: ' + ((body.imagemagick && body.imagemagick.message) || t('config.media_conversion.missing'));
-        if (resp.ok && body.status === 'success') {
-            result.className = 'dc-test-result is-success';
-            result.textContent = t('config.media_conversion.status_success') + ' ' + (body.message || '') + ffmpegLine + imageMagickLine;
-        } else if (body.status === 'warning') {
-            result.className = 'dc-test-result';
-            result.textContent = t('config.media_conversion.status_warning') + ' ' + (body.message || '') + ffmpegLine + imageMagickLine;
-        } else {
-            result.className = 'dc-test-result is-danger';
-            result.textContent = t('config.media_conversion.status_error') + ' ' + (body.message || ('HTTP ' + resp.status)) + ffmpegLine + imageMagickLine;
+    }, {
+        target: 'mc-test-result',
+        pending: t('config.media_conversion.loading'),
+        success: outcome => outcome.reason,
+        // Message plus the FFmpeg / ImageMagick lines, also on failure.
+        interpret: outcome => {
+            const body = outcome.body || {};
+            const message = body.message || (outcome.state === 'error' ? 'HTTP ' + outcome.httpStatus : '');
+            const detail = (message + toolLine('FFmpeg', body.ffmpeg) + toolLine('ImageMagick', body.imagemagick)).trim();
+            if (!outcome.body) return null;
+            return { reason: detail };
         }
-    } catch (e) {
-        result.className = 'dc-test-result is-danger';
-        result.textContent = t('config.media_conversion.status_error') + ' ' + e.message;
-    } finally {
-        btn.disabled = false;
-    }
+    });
 }

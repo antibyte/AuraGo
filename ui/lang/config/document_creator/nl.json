@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Verbinding mislukt",
   "config.document_creator.test_gotenberg": "Verbinding testen",
   "config.document_creator.test_ok": "Verbinding geslaagd",
-  "config.document_creator.test_saved_settings": "De test gebruikt opgeslagen instellingen.",
+  "config.document_creator.test_saved_settings": "De test gebruikt de ingevoerde waarden. De herstartcontrole verwijst naar de opgeslagen configuratie.",
   "config.document_creator.test_unreachable": "Dienst niet bereikbaar.",
   "config.document_creator.test_unverified": "Bereikbaar, maar de netwerkbeveiliging is niet bevestigd.",
   "config.document_creator.test_verified": "Bereikbaar en netwerkbeveiliging bevestigd.",

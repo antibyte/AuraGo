@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "接続失敗",
   "config.document_creator.test_gotenberg": "接続テスト",
   "config.document_creator.test_ok": "接続成功",
-  "config.document_creator.test_saved_settings": "テストには保存済みの設定が使われます。",
+  "config.document_creator.test_saved_settings": "テストは入力した値を使用します。再起動の確認は保存済みの設定に基づきます。",
   "config.document_creator.test_unreachable": "サービスに接続できません。",
   "config.document_creator.test_unverified": "接続できますが、ネットワーク保護を確認できません。",
   "config.document_creator.test_verified": "接続とネットワーク保護を確認しました。",

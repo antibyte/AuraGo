@@ -125,10 +125,10 @@ async function renderImageGenerationSection(section) {
         <div class="field-group-title">${t('config.image_generation.test_title')}</div>
         <div class="field-group-desc">${t('config.image_generation.test_desc')}</div>
         <div class="cfg-actions-row">
-            <button class="btn-save adg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()">
+            <button class="btn-save adg-test-btn" id="imggen-test-btn" onclick="imggenTestConnection()" data-config-action-draft="true">
                 🧪 ${t('config.image_generation.test_btn')}
             </button>
-            <span id="imggen-test-result" class="adg-test-result"></span>
+            ${cfgActionResult.html('imggen-test-result')}
         </div>
         <div id="imggen-test-preview" class="ig-test-preview"></div>
     </div>`;
@@ -138,36 +138,23 @@ async function renderImageGenerationSection(section) {
     attachChangeListeners();
 }
 
+// Generates one real test image with the provider selected in the form (unsaved included).
 async function imggenTestConnection() {
-    const btn = document.getElementById('imggen-test-btn');
-    const result = document.getElementById('imggen-test-result');
     const previewEl = document.getElementById('imggen-test-preview');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.image_generation.testing');
-    }
     if (previewEl) previewEl.innerHTML = '';
-    try {
-        const resp = await fetch('/api/image-generation/test');
-        const data = await resp.json();
-        if (!result) return;
-        if (data.status === 'ok') {
-            result.className = 'adg-test-result is-success';
-            result.textContent = data.message || t('config.image_generation.test_success');
-            if (previewEl && data.web_path) {
-                previewEl.innerHTML = `<img src="${escapeAttr(data.web_path)}" class="ig-preview-img">`;
-            }
-        } else {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = data.message || t('config.image_generation.test_failed');
+    return cfgActionResult(document.getElementById('imggen-test-btn'), () => fetch('/api/image-generation/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['image_generation']) })
+    }), {
+        target: 'imggen-test-result',
+        pending: t('config.image_generation.testing'),
+        success: t('config.image_generation.test_success'),
+        failure: t('config.image_generation.test_failed'),
+        onSuccess: outcome => {
+            const webPath = outcome.body && outcome.body.web_path;
+            const preview = document.getElementById('imggen-test-preview');
+            if (preview && webPath) preview.innerHTML = `<img src="${escapeAttr(webPath)}" class="ig-preview-img">`;
         }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = e.message;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    });
 }

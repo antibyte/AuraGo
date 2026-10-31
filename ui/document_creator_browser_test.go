@@ -38,7 +38,7 @@ configData.tools.document_creator={enabled:true,backend:'gotenberg',allow_remote
 AuraConfigState.init(configData);resetDirtySnapshot();await selectSection('document_creator');
 window.dcTests=0;window.dcStatus={status:'success',reachable:true,security_verified:true};
 const original=window.fetch;window.fetch=(url,options={})=>{
- if(String(url)==='/api/document-creator/test'){window.dcTests++;return Promise.resolve(new Response(JSON.stringify(window.dcStatus),{status:200,headers:{'Content-Type':'application/json'}}));}
+ if(String(url)==='/api/document-creator/test'){window.dcTests++;window.dcBody=JSON.parse(options.body||'{}');return Promise.resolve(new Response(JSON.stringify(window.dcStatus),{status:200,headers:{'Content-Type':'application/json'}}));}
  return original(url,options);
 };
 }`)
@@ -51,8 +51,8 @@ const original=window.fetch;window.fetch=(url,options={})=>{
 		t.Fatal("checkbox did not produce a boolean draft")
 	}
 	page.MustEval(`async()=>await dcTestGotenberg()`)
-	if !page.MustEval(`()=>window.dcTests===0`).Bool() {
-		t.Fatal("tested an unsaved grant")
+	if !page.MustEval(`()=>window.dcTests===1&&window.dcBody.draft.tools.document_creator.allow_remote_resources===true&&window.dcBody.draft.tools.document_creator.gotenberg.url==='http://127.0.0.1:3000'`).Bool() {
+		t.Fatal("the test did not send the unsaved draft")
 	}
 	page.MustEval(`()=>{AuraConfigState.discard();}`)
 	if !page.MustEval(`()=>document.querySelector('#dc-allow-remote-resources').checked===false`).Bool() {
@@ -66,16 +66,20 @@ const original=window.fetch;window.fetch=(url,options={})=>{
 	for _, state := range []struct {
 		value string
 		key   string
+		state string
 	}{
-		{`{"status":"success","reachable":true,"security_verified":true}`, "test_verified"},
-		{`{"status":"error","reachable":true,"security_verified":false}`, "test_unverified"},
-		{`{"status":"error","reachable":false,"security_verified":false}`, "test_unreachable"},
-		{`{"status":"error","reachable":true,"security_verified":false,"restart_required":true}`, "restart_required"},
+		{`{"status":"success","reachable":true,"security_verified":true}`, "test_verified", "success"},
+		{`{"status":"error","reachable":true,"security_verified":false}`, "test_unverified", "error"},
+		{`{"status":"error","reachable":false,"security_verified":false}`, "test_unreachable", "error"},
+		{`{"status":"error","reachable":true,"security_verified":false,"restart_required":true}`, "restart_required", "warning"},
 	} {
 		page.MustEval(`value=>{window.dcStatus=JSON.parse(value);}`, state.value)
 		page.MustEval(`async()=>await dcTestGotenberg()`)
 		if !page.MustEval(`key=>document.querySelector('#dc-test-result').textContent.includes(t('config.document_creator.'+key))`, state.key).Bool() {
 			t.Fatalf("wrong diagnostic state: %s", state.key)
+		}
+		if !page.MustEval(`state=>document.querySelector('#dc-test-result').dataset.state===state&&!document.querySelector('#dc-test-btn').disabled`, state.state).Bool() {
+			t.Fatalf("wrong result state for %s", state.key)
 		}
 	}
 	for _, width := range []int{390, 1440} {

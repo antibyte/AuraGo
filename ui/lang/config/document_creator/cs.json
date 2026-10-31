@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Připojení selhalo",
   "config.document_creator.test_gotenberg": "Otestovat připojení",
   "config.document_creator.test_ok": "Připojení úspěšné",
-  "config.document_creator.test_saved_settings": "Test používá uložená nastavení.",
+  "config.document_creator.test_saved_settings": "Test používá zadané hodnoty. Kontrola restartu se týká uložené konfigurace.",
   "config.document_creator.test_unreachable": "Služba není dostupná.",
   "config.document_creator.test_unverified": "Služba je dostupná, ale ochrana sítě nebyla ověřena.",
   "config.document_creator.test_verified": "Služba je dostupná a ochrana sítě byla ověřena.",

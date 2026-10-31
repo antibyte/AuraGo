@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Połączenie nieudane",
   "config.document_creator.test_gotenberg": "Testuj połączenie",
   "config.document_creator.test_ok": "Połączenie udane",
-  "config.document_creator.test_saved_settings": "Test używa zapisanych ustawień.",
+  "config.document_creator.test_saved_settings": "Test używa wprowadzonych wartości. Kontrola restartu dotyczy zapisanej konfiguracji.",
   "config.document_creator.test_unreachable": "Usługa jest niedostępna.",
   "config.document_creator.test_unverified": "Usługa jest dostępna, ale ochrona sieci nie została potwierdzona.",
   "config.document_creator.test_verified": "Usługa jest dostępna, a ochrona sieci została potwierdzona.",

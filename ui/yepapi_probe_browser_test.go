@@ -14,10 +14,10 @@ func TestYepAPIReadOnlyProbeBrowser(t *testing.T) {
 	page := browser.MustPage(configRefreshFixtureOrigin(t, "de", false) + "/config#yepapi").Timeout(30 * time.Second)
 	defer page.MustClose()
 	waitForJSBool(t, page, `()=>typeof renderYepAPISection==='function' && !!document.querySelector('[data-path="yepapi.enabled"]')`)
-	page.MustEval(`async()=>{configData.providers=[{id:'probe',name:'Probe',type:'yepapi'}];configData.yepapi={enabled:true,provider:'probe'};AuraConfigState.init(configData);await renderYepAPISection(null);window.__probeRequests=[];window.fetch=async(url,opts)=>{window.__probeRequests.push({url,method:opts?.method});return {json:async()=>({status:'ok',billable:false,authentication_verified:false})}}}`)
+	page.MustEval(`async()=>{configData.providers=[{id:'probe',name:'Probe',type:'yepapi'}];configData.yepapi={enabled:true,provider:'probe'};AuraConfigState.init(configData);await renderYepAPISection(null);window.__probeRequests=[];window.fetch=async(url,opts)=>{window.__probeRequests.push({url,method:opts?.method,body:JSON.parse(opts?.body||'{}')});return new Response(JSON.stringify({status:'ok',billable:false,authentication_verified:false}),{status:200,headers:{'Content-Type':'application/json'}})}}`)
 	page.MustElement("#yepapi-test-btn").MustClick()
-	waitForJSBool(t, page, `()=>document.querySelector('#yepapi-test-result').classList.contains('is-success')`)
-	if !page.MustEval(`()=>window.__probeRequests.length===1 && window.__probeRequests[0].method==='POST' && document.querySelector('#yepapi-test-result').textContent.includes('nicht geprüft') && !document.querySelector('#yepapi-test-btn').disabled`).Bool() {
+	waitForJSBool(t, page, `()=>document.querySelector('#yepapi-test-result').dataset.state==='success'`)
+	if !page.MustEval(`()=>window.__probeRequests.length===1 && window.__probeRequests[0].method==='POST' && window.__probeRequests[0].body.draft.yepapi.provider==='probe' && document.querySelector('#yepapi-test-result').textContent.includes('nicht geprüft') && !document.querySelector('#yepapi-test-btn').disabled`).Bool() {
 		t.Fatal("probe method, result semantics or completion state is wrong")
 	}
 	for _, width := range []int{390, 1440} {

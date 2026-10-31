@@ -19,10 +19,10 @@
   "config.image_generation.max_monthly_label": "Máximo de imágenes por mes",
   "config.image_generation.max_monthly_hint": "0 = ilimitado",
   "config.image_generation.test_title": "Generación de prueba",
-  "config.image_generation.test_desc": "Genera una imagen de prueba para verificar la conectividad del proveedor.",
+  "config.image_generation.test_desc": "Genera una imagen de prueba real para verificar el proveedor (consume una generación de tu cuota; la imagen se guarda en la galería).",
   "config.image_generation.test_btn": "Generación de prueba",
   "config.image_generation.testing": "Generando...",
-  "config.image_generation.test_success": "Imagen generada correctamente",
+  "config.image_generation.test_success": "Imagen de prueba generada y guardada en la galería (una generación consumida).",
   "config.image_generation.test_failed": "La generación falló",
   "config.image_generation.max_daily_label": "Máximo de imágenes por día",
   "config.image_generation.max_daily_hint": "0 = ilimitado"

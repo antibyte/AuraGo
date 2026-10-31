@@ -24,9 +24,13 @@ func handleLDAPTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		s.CfgMu.RLock()
-		cfg := s.Cfg.LDAP
-		s.CfgMu.RUnlock()
+		// Optional {"draft": ...} tests unsaved values (nothing is persisted).
+		full, err := s.draftTestConfig(r)
+		if err != nil {
+			writeDraftTestConfigError(w, err)
+			return
+		}
+		cfg := full.LDAP
 
 		if !cfg.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -66,12 +70,6 @@ func handleLDAPTest(s *Server) http.HandlerFunc {
 			GroupSearchBase:    cfg.GroupSearchBase,
 			ConnectTimeout:     cfg.ConnectTimeout,
 			RequestTimeout:     cfg.RequestTimeout,
-		}
-
-		if clientCfg.BindPassword == "" && s.Vault != nil {
-			if pwd, err := s.Vault.ReadSecret("ldap_bind_password"); err == nil && pwd != "" {
-				clientCfg.BindPassword = pwd
-			}
 		}
 
 		client := newLDAPTestClient(clientCfg)

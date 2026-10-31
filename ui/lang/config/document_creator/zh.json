@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "连接失败",
   "config.document_creator.test_gotenberg": "测试连接",
   "config.document_creator.test_ok": "连接成功",
-  "config.document_creator.test_saved_settings": "测试使用已保存的设置。",
+  "config.document_creator.test_saved_settings": "测试使用已输入的值。重启检查针对已保存的配置。",
   "config.document_creator.test_unreachable": "无法连接到服务。",
   "config.document_creator.test_unverified": "服务可连接，但尚未验证网络防护。",
   "config.document_creator.test_verified": "服务可连接，且已验证网络防护。",

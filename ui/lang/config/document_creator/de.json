@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "Verbindung fehlgeschlagen",
   "config.document_creator.test_gotenberg": "Verbindung testen",
   "config.document_creator.test_ok": "Verbindung erfolgreich",
-  "config.document_creator.test_saved_settings": "Der Test verwendet gespeicherte Einstellungen.",
+  "config.document_creator.test_saved_settings": "Der Test verwendet die eingegebenen Werte. Der Neustart-Hinweis bezieht sich auf die gespeicherte Konfiguration.",
   "config.document_creator.test_unreachable": "Dienst nicht erreichbar.",
   "config.document_creator.test_unverified": "Erreichbar, aber der Netzschutz ist nicht nachgewiesen.",
   "config.document_creator.test_verified": "Erreichbar und Netzschutz bestätigt.",

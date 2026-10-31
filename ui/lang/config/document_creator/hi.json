@@ -20,7 +20,7 @@
   "config.document_creator.test_fail": "कनेक्शन विफल",
   "config.document_creator.test_gotenberg": "कनेक्शन परीक्षण",
   "config.document_creator.test_ok": "कनेक्शन सफल",
-  "config.document_creator.test_saved_settings": "परीक्षण सहेजी गई सेटिंग का उपयोग करता है।",
+  "config.document_creator.test_saved_settings": "परीक्षण दर्ज किए गए मानों का उपयोग करता है। रीस्टार्ट जाँच सहेजी गई कॉन्फ़िगरेशन पर आधारित है।",
   "config.document_creator.test_unreachable": "सेवा तक पहुँचा नहीं जा सकता।",
   "config.document_creator.test_unverified": "सेवा उपलब्ध है, लेकिन नेटवर्क सुरक्षा सत्यापित नहीं है।",
   "config.document_creator.test_verified": "सेवा उपलब्ध है और नेटवर्क सुरक्षा सत्यापित है।",
