@@ -1,10 +1,10 @@
 // cfg/backup.js — Backup & Restore section module
 
+// Maps the old tone classes onto the shared result line states.
 function backupSetStatus(el, tone, text) {
     if (!el) return;
-    el.classList.remove('is-success', 'is-danger', 'is-warning', 'is-muted');
-    el.classList.add(tone);
-    el.textContent = text;
+    const state = { 'is-success': 'success', 'is-danger': 'error', 'is-warning': 'warning', 'is-muted': 'pending' }[tone] || 'pending';
+    cfgActionResult.show(el, state, text);
 }
 
 function backupSetVaultHintState(hint, hasPassword) {
@@ -82,7 +82,7 @@ function renderBackupSection(section) {
             <button class="btn-save backup-primary-btn" onclick="backupCreate()" id="backup-create-btn">
                 ${t('config.backup.create_download')}
             </button>
-            <span id="backup-create-status" class="backup-status-text is-muted"></span>
+            ${cfgActionResult.html('backup-create-status', 'backup-status-text')}
         </div>
     </div>
 
@@ -118,7 +118,7 @@ function renderBackupSection(section) {
             <button class="btn-save backup-import-btn" onclick="backupImport()" id="backup-import-btn">
                 ${t('config.backup.import_button')}
             </button>
-            <span id="backup-import-status" class="backup-status-text is-muted"></span>
+            ${cfgActionResult.html('backup-import-status', 'backup-status-text')}
         </div>
 
         <div id="backup-import-result" class="backup-import-result is-hidden"></div>
@@ -142,11 +142,8 @@ function backupShowTab(tab) {
     });
 }
 
-async function backupCreate() {
+function backupCreate() {
     const btn = document.getElementById('backup-create-btn');
-    const status = document.getElementById('backup-create-status');
-    btn.disabled = true;
-    backupSetStatus(status, 'is-muted', t('config.backup.creating'));
 
     const payload = {
         password: document.getElementById('backup-password').value || '',
@@ -154,16 +151,14 @@ async function backupCreate() {
         include_workdir: document.getElementById('backup-opt-workdir').checked,
     };
 
-    try {
+    // The archive is a binary download: run() saves it and hands the result line a small body.
+    return cfgActionResult(btn, async () => {
         const resp = await fetch('/api/backup/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!resp.ok) {
-            const txt = await resp.text();
-            throw new Error(txt);
-        }
+        if (!resp.ok) return resp;
         const disposition = resp.headers.get('Content-Disposition') || '';
         const fnMatch = disposition.match(/filename="([^"]+)"/);
         const filename = fnMatch ? fnMatch[1] : 'backup.ago';
@@ -176,12 +171,21 @@ async function backupCreate() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        backupSetStatus(status, 'is-success', t('config.backup.status_success') + t('config.backup.downloaded') + filename);
-    } catch (e) {
-        backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + e.message);
-    } finally {
-        btn.disabled = false;
-    }
+        return { ok: true, filename: filename };
+    }, {
+        target: 'backup-create-status',
+        pending: t('config.backup.creating'),
+        success: outcome => t('config.backup.status_success') + t('config.backup.downloaded') + (outcome.body && outcome.body.filename ? outcome.body.filename : ''),
+        failure: t('config.backup.status_error')
+    });
+}
+
+// Server error codes of the import endpoint, shown as readable reasons.
+function backupImportReason(body) {
+    if (!body) return '';
+    if (body.error === 'password_required') return t('config.backup.password_required');
+    if (body.error === 'decryption_failed') return t('config.backup.decryption_failed');
+    return body.message || body.error || t('config.backup.unknown_error');
 }
 
 async function backupImport() {
@@ -192,29 +196,25 @@ async function backupImport() {
 
     if (!fileInput.files || !fileInput.files[0]) {
         backupSetStatus(status, 'is-warning', t('config.backup.select_file_warning'));
-        return;
+        return { skipped: 'no-file' };
     }
 
-    if (!(await showConfirm(t('config.backup.confirm_import_title'), t('config.backup.confirm_import_message', { name: fileInput.files[0].name })))) return;
+    if (!(await showConfirm(t('config.backup.confirm_import_title'), t('config.backup.confirm_import_message', { name: fileInput.files[0].name })))) return { skipped: 'cancelled' };
 
-    btn.disabled = true;
-    backupSetStatus(status, 'is-muted', t('config.backup.importing'));
     result.classList.add('is-hidden');
 
     const fd = new FormData();
     fd.append('file', fileInput.files[0]);
     fd.append('password', document.getElementById('backup-import-password').value || '');
 
-    try {
-        const resp = await fetch('/api/backup/import', { method: 'POST', body: fd });
-        const data = await resp.json();
-        if (!resp.ok || data.error) {
-            let msg = data.message || data.error || t('config.backup.unknown_error');
-            if (data.error === 'password_required') msg = t('config.backup.password_required');
-            if (data.error === 'decryption_failed') msg = t('config.backup.decryption_failed');
-            backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + msg);
-        } else {
-            backupSetStatus(status, 'is-muted', '');
+    return cfgActionResult(btn, () => fetch('/api/backup/import', { method: 'POST', body: fd }), {
+        target: 'backup-import-status',
+        pending: t('config.backup.importing'),
+        success: t('config.backup.import_success'),
+        failure: t('config.backup.status_error'),
+        reasonText: body => backupImportReason(body && (body.error || body.message) ? body : null),
+        onSuccess: outcome => {
+            const data = outcome.body || {};
             result.classList.remove('is-hidden');
             result.innerHTML = `<div class="backup-import-success-box">
                 <div class="backup-import-success-title">${t('config.backup.status_success')} ${t('config.backup.import_success')}</div>
@@ -224,9 +224,5 @@ async function backupImport() {
                 </button>
             </div>`;
         }
-    } catch (e) {
-        backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + e.message);
-    } finally {
-        btn.disabled = false;
-    }
+    });
 }

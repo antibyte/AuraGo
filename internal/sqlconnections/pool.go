@@ -266,6 +266,20 @@ func (p *ConnectionPool) TestConnection(rec ConnectionRecord) error {
 	return db.PingContext(ctx)
 }
 
+// TestConnectionWithCredentials pings a record with explicit credentials (edited,
+// not yet saved) without caching the connection or reading the vault.
+func (p *ConnectionPool) TestConnectionWithCredentials(rec ConnectionRecord, username, password string) error {
+	db, err := p.openWithCredentials(rec, username, password, false)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+	defer cancel()
+	return db.PingContext(ctx)
+}
+
 // CloseConnection removes and closes a specific connection from the pool.
 func (p *ConnectionPool) CloseConnection(id string) {
 	p.mu.Lock()
@@ -334,7 +348,12 @@ func (p *ConnectionPool) openWithMode(rec ConnectionRecord, readOnly bool) (*sql
 			return nil, fmt.Errorf("failed to parse credentials: %w", err)
 		}
 	}
+	return p.openWithCredentials(rec, username, password, readOnly)
+}
 
+// openWithCredentials opens the database with explicit credentials instead of the
+// vault secret referenced by the record.
+func (p *ConnectionPool) openWithCredentials(rec ConnectionRecord, username, password string, readOnly bool) (*sql.DB, error) {
 	dsn, driverName, err := BuildDSN(rec, username, password, p.timeout)
 	if rec.Driver == "sqlite" {
 		driverName = "sqlite"

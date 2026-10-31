@@ -120,12 +120,12 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                     <div class="field-help pers-field-help-tight">${t('config.prompts.metadata_hint')}</div>
                     <textarea id="pers-content-input" class="field-input pers-textarea-main" rows="12"></textarea>
                     <div class="pers-editor-actions">
-                        <button class="wh-btn wh-btn-primary wh-btn-sm" onclick="persSave()">💾 ${t('config.prompts.save')}</button>
+                        <button class="wh-btn wh-btn-primary wh-btn-sm" id="pers-save-btn" onclick="persSave()">💾 ${t('config.prompts.save')}</button>
                         <button class="wh-btn wh-btn-sm is-hidden" id="pers-activate-btn" onclick="persActivate()">⚡ ${t('config.prompts.set_active')}</button>
                         <button class="wh-btn wh-btn-sm pers-delete-btn is-hidden" id="pers-delete-btn" onclick="persDelete()">🗑 ${t('config.prompts.delete')}</button>
                         <button class="wh-btn wh-btn-sm" onclick="persCancel()">✕ ${t('config.prompts.cancel')}</button>
                     </div>
-                    <div id="pers-editor-status" class="field-help pers-editor-status"></div>
+                    ${cfgActionResult.html('pers-editor-status', 'field-help pers-editor-status')}
                 </div>
             </div>`;
 
@@ -239,7 +239,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             setHidden(document.getElementById('pers-delete-btn'), true);
             document.getElementById('pers-name-input').value = '';
             document.getElementById('pers-content-input').value = '';
-            document.getElementById('pers-editor-status').textContent = '';
+            cfgActionResult.show('pers-editor-status', '', '');
             persSetMetaDefaults();
             persApplyCoreMode(false);
             setHidden(editor, false);
@@ -264,7 +264,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             setHidden(document.getElementById('pers-delete-btn'), name === persState.active);
             document.getElementById('pers-content-input').value = '';
             const status = document.getElementById('pers-editor-status');
-            status.textContent = t('config.prompts.loading');
+            cfgActionResult.show(status, 'pending', t('config.prompts.loading'));
             setHidden(editor, false);
             try {
                 const resp = await fetch('/api/config/personality-files?name=' + encodeURIComponent(name));
@@ -273,9 +273,10 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                 document.getElementById('pers-content-input').value = data.body || '';
                 persApplyMeta(data.meta);
                 persState.extraMetaYaml = data.extra_meta_yaml || '';
-                status.textContent = data.diagnostic ? t('personality_legacy.diagnostic') + ': ' + data.diagnostic : '';
+                if (data.diagnostic) cfgActionResult.show(status, 'warning', t('personality_legacy.diagnostic') + ': ' + data.diagnostic);
+                else cfgActionResult.show(status, '', '');
             } catch (e) {
-                status.textContent = '❌ ' + e.message;
+                cfgActionResult.show(status, 'error', e.message);
             }
             // Apply read-only mode for core personas AFTER content is loaded
             persApplyCoreMode(persState.isCore);
@@ -295,85 +296,95 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             const statusEl = document.getElementById('pers-editor-status');
             if (statusEl) {
                 if (isCore) {
-                    statusEl.innerHTML = '<span class="pers-core-readonly">🔒 ' + t('config.prompts.core_readonly') + '</span>';
-                } else {
+                    cfgActionResult.show(statusEl, 'warning', '🔒 ' + t('config.prompts.core_readonly'));
+                } else if (statusEl.textContent.includes('🔒')) {
                     // Only clear if it currently shows the lock message
-                    if (statusEl.textContent.includes('🔒')) statusEl.textContent = '';
+                    cfgActionResult.show(statusEl, '', '');
                 }
             }
         }
 
-        async function persSave() {
+        function persSave() {
+            const status = document.getElementById('pers-editor-status');
             if (persState.isCore) {
-                const s = document.getElementById('pers-editor-status');
-                if (s) s.textContent = '❌ ' + t('config.prompts.core_cannot_modify');
-                return;
+                cfgActionResult.show(status, 'error', t('config.prompts.core_cannot_modify'));
+                return Promise.resolve({ skipped: 'core' });
             }
             const isNew = persState.editName === null;
             const nameInput = document.getElementById('pers-name-input');
             const contentInput = document.getElementById('pers-content-input');
-            const status = document.getElementById('pers-editor-status');
             const name = isNew ? (nameInput ? nameInput.value.trim() : '') : persState.editName;
-            if (!name) { status.textContent = '❌ ' + t('config.prompts.name_required'); return; }
-            status.textContent = t('config.prompts.saving');
+            if (!name) {
+                cfgActionResult.show(status, 'error', t('config.prompts.name_required'));
+                return Promise.resolve({ skipped: 'invalid' });
+            }
             // Reconstruct full file: YAML front matter + body
             const frontmatter = persBuildFrontmatter(name);
             const fullContent = frontmatter + (contentInput.value || '');
-            try {
-                const resp = await fetch('/api/config/personality-files', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, content: fullContent })
-                });
-                if (!resp.ok) { const errText = await resp.text(); throw new Error(errText || 'HTTP ' + resp.status); }
-                status.textContent = '✓ ' + t('config.prompts.saved');
-                if (isNew) {
+            return cfgActionResult(document.getElementById('pers-save-btn'), () => fetch('/api/config/personality-files', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, content: fullContent })
+            }), {
+                target: 'pers-editor-status',
+                pending: t('config.prompts.saving'),
+                success: t('config.prompts.saved'),
+                failure: t('config.common.error'),
+                onSuccess: async () => {
+                    if (!isNew) return;
                     persState.editName = name;
                     const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'prompts_editor');
                     await renderPromptsSection(sectionMeta);
                     await persSelectForEdit(name);
+                    cfgActionResult.show('pers-editor-status', 'success', t('config.prompts.saved'));
                 }
-            } catch (e) { status.textContent = '❌ ' + e.message; }
+            });
         }
 
-        async function persActivate() {
+        function persActivate() {
             const name = persState.editName;
-            if (!name) return;
-            const status = document.getElementById('pers-editor-status');
-            status.textContent = t('config.prompts.setting_active');
-            try {
-                const resp = await fetch('/api/personality', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: name })
-                });
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                setNestedValue(configData, 'personality.core_personality', name);
-                if (window.AuraConfigState) {
-                    window.AuraConfigState.markSaved('personality.core_personality', name);
-                    configData = window.AuraConfigState.snapshot().draft;
+            if (!name) return Promise.resolve({ skipped: 'none' });
+            return cfgActionResult(document.getElementById('pers-activate-btn'), () => fetch('/api/personality', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: name })
+            }), {
+                target: 'pers-editor-status',
+                pending: t('config.prompts.setting_active'),
+                failure: t('config.common.error'),
+                onSuccess: async () => {
+                    setNestedValue(configData, 'personality.core_personality', name);
+                    if (window.AuraConfigState) {
+                        window.AuraConfigState.markSaved('personality.core_personality', name);
+                        configData = window.AuraConfigState.snapshot().draft;
+                    }
+                    persState.active = name;
+                    const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'prompts_editor');
+                    await renderPromptsSection(sectionMeta);
+                    await persSelectForEdit(name);
+                    cfgActionResult.show('pers-editor-status', 'success', t('config.feedback.done'));
                 }
-                persState.active = name;
-                const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'prompts_editor');
-                await renderPromptsSection(sectionMeta);
-                await persSelectForEdit(name);
-            } catch (e) { const s = document.getElementById('pers-editor-status'); if (s) s.textContent = '❌ ' + e.message; }
+            });
         }
 
         async function persDelete() {
             const name = persState.editName;
-            if (!name) return;
+            if (!name) return { skipped: 'none' };
             const confirmed = await showConfirm(t('config.prompts.delete_confirm_title', {name: name}), t('config.prompts.delete_confirm', {name: name}));
-            if (!confirmed) return;
-            const status = document.getElementById('pers-editor-status');
-            status.textContent = t('config.prompts.deleting');
-            try {
-                const resp = await fetch('/api/config/personality-files?name=' + encodeURIComponent(name), { method: 'DELETE' });
-                if (!resp.ok) { const errText = await resp.text(); throw new Error(errText || 'HTTP ' + resp.status); }
-                persState.editName = undefined;
-                const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'prompts_editor');
-                await renderPromptsSection(sectionMeta);
-            } catch (e) { const s = document.getElementById('pers-editor-status'); if (s) s.textContent = '❌ ' + e.message; }
+            if (!confirmed) return { skipped: 'cancelled' };
+            return cfgActionResult(document.getElementById('pers-delete-btn'), () => fetch('/api/config/personality-files?name=' + encodeURIComponent(name), { method: 'DELETE' }), {
+                target: 'pers-editor-status',
+                pending: t('config.prompts.deleting'),
+                failure: t('config.common.error'),
+                // The editor closes with the re-render, so the confirmation is a toast.
+                toast: 'always',
+                success: t('config.feedback.done'),
+                onSuccess: async () => {
+                    persState.editName = undefined;
+                    const sectionMeta = SECTIONS.flatMap(g => g.items).find(s => s.key === 'prompts_editor');
+                    await renderPromptsSection(sectionMeta);
+                }
+            });
         }
 
         function persCancel() {

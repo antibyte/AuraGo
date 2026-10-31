@@ -263,9 +263,9 @@ function rulesRenderEditor(isNew) {
             <div class="field-help">${rulesText('config.rules.editor_hint', 'Rules are Markdown guardrails injected before matching tasks begin.')}</div>
         </div>
         <div class="rules-actions">
-            <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" onclick="rulesSave()">${rulesText('config.rules.save', 'Save')}</button>
-            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm" onclick="rulesRestore()">${rulesText('config.rules.restore', 'Restore')}</button>` : ''}
-            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm wh-btn-danger" onclick="rulesDelete()">${rulesText('config.rules.delete', 'Delete')}</button>` : ''}
+            <button type="button" class="wh-btn wh-btn-primary wh-btn-sm" id="rules-save-btn" onclick="rulesSave()">${rulesText('config.rules.save', 'Save')}</button>
+            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm" id="rules-restore-btn" onclick="rulesRestore()">${rulesText('config.rules.restore', 'Restore')}</button>` : ''}
+            ${!isNew ? `<button type="button" class="wh-btn wh-btn-sm wh-btn-danger" id="rules-delete-btn" onclick="rulesDelete()">${rulesText('config.rules.delete', 'Delete')}</button>` : ''}
         </div>
     </div>
     <div class="rules-field-panel">
@@ -309,7 +309,7 @@ function rulesRenderEditor(isNew) {
         <div class="field-help">${rulesText('config.rules.design_hint', 'For homepage rules, this design system is injected after task rules. Project DESIGN.md files may add local design context.')}</div>
         <textarea id="rules-design-input" class="field-input rules-textarea rules-design-textarea" rows="12">${rulesEscape(rulesState.current.design || '')}</textarea>
     </details>
-    <div id="rules-status" class="field-help rules-status"></div>`;
+    ${cfgActionResult.html('rules-status', 'field-help rules-status')}`;
 }
 
 function rulesCollectPayload() {
@@ -327,68 +327,73 @@ function rulesCollectPayload() {
     };
 }
 
-async function rulesSave() {
+// The editor is rebuilt after every change, so the outcome is written into the new status line
+// (or shown as a toast when the editor is gone, e.g. after the last rule was deleted).
+function rulesShowDone(message) {
+    if (!cfgActionResult.show('rules-status', 'success', message) && typeof showToast === 'function') showToast(message, 'success');
+}
+
+function rulesSave() {
     const status = document.getElementById('rules-status');
     const payload = rulesCollectPayload();
     const isNew = !rulesState.selected;
     if (!payload.id) {
-        if (status) status.textContent = rulesText('config.rules.id_required', 'Rule ID is required.');
-        return;
+        cfgActionResult.show(status, 'error', rulesText('config.rules.id_required', 'Rule ID is required.'));
+        return Promise.resolve({ skipped: 'invalid' });
     }
-    try {
-        const url = isNew ? '/api/config/rules' : '/api/config/rules/' + encodeURIComponent(payload.id);
-        const resp = await fetch(url, {
-            method: isNew ? 'POST' : 'PUT',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
-            throw new Error(data.error || ('HTTP ' + resp.status));
+    const url = isNew ? '/api/config/rules' : '/api/config/rules/' + encodeURIComponent(payload.id);
+    return cfgActionResult(document.getElementById('rules-save-btn'), () => fetch(url, {
+        method: isNew ? 'POST' : 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }), {
+        target: 'rules-status',
+        success: rulesText('config.rules.saved', 'Rule saved'),
+        failure: rulesText('config.rules.save_failed', 'Failed to save rule'),
+        onSuccess: async () => {
+            rulesState.selected = payload.id;
+            await rulesLoad(payload.id);
+            rulesShowDone(rulesText('config.rules.saved', 'Rule saved'));
         }
-        rulesState.selected = payload.id;
-        if (typeof showToast === 'function') showToast(rulesText('config.rules.saved', 'Rule saved'), 'success');
-        await rulesLoad(payload.id);
-    } catch (e) {
-        if (status) status.textContent = rulesText('config.rules.save_failed', 'Failed to save rule') + ': ' + e.message;
-        if (typeof showToast === 'function') showToast(rulesText('config.rules.save_failed', 'Failed to save rule'), 'error');
-    }
+    });
 }
 
 async function rulesDelete() {
     const id = rulesState.selected;
-    if (!id) return;
-    if (!(await showConfirm(rulesText('config.rules.confirm_delete_title', 'Delete rule'), rulesText('config.rules.confirm_delete', 'Delete this rule override?', { id })))) return;
-    try {
-        const resp = await fetch('/api/config/rules/' + encodeURIComponent(id), {
-            method: 'DELETE',
-            credentials: 'same-origin'
-        });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        rulesState.selected = null;
-        if (typeof showToast === 'function') showToast(rulesText('config.rules.deleted', 'Rule deleted'), 'success');
-        await rulesLoad();
-    } catch (e) {
-        if (typeof showToast === 'function') showToast(rulesText('config.rules.delete_failed', 'Failed to delete rule') + ': ' + e.message, 'error');
-    }
+    if (!id) return { skipped: 'none' };
+    if (!(await showConfirm(rulesText('config.rules.confirm_delete_title', 'Delete rule'), rulesText('config.rules.confirm_delete', 'Delete this rule override?', { id })))) return { skipped: 'cancelled' };
+    return cfgActionResult(document.getElementById('rules-delete-btn'), () => fetch('/api/config/rules/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        credentials: 'same-origin'
+    }), {
+        target: 'rules-status',
+        success: rulesText('config.rules.deleted', 'Rule deleted'),
+        failure: rulesText('config.rules.delete_failed', 'Failed to delete rule'),
+        onSuccess: async () => {
+            rulesState.selected = null;
+            await rulesLoad();
+            rulesShowDone(rulesText('config.rules.deleted', 'Rule deleted'));
+        }
+    });
 }
 
 async function rulesRestore() {
     const id = rulesState.selected;
-    if (!id) return;
-    if (!(await showConfirm(rulesText('config.rules.confirm_restore_title', 'Restore rule'), rulesText('config.rules.confirm_restore', 'Restore the built-in version of this rule?', { id })))) return;
-    try {
-        const resp = await fetch('/api/config/rules/' + encodeURIComponent(id) + '/restore', {
-            method: 'POST',
-            credentials: 'same-origin'
-        });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        if (typeof showToast === 'function') showToast(rulesText('config.rules.restored', 'Rule restored'), 'success');
-        await rulesLoad(id);
-    } catch (e) {
-        if (typeof showToast === 'function') showToast(rulesText('config.rules.restore_failed', 'Failed to restore rule') + ': ' + e.message, 'error');
-    }
+    if (!id) return { skipped: 'none' };
+    if (!(await showConfirm(rulesText('config.rules.confirm_restore_title', 'Restore rule'), rulesText('config.rules.confirm_restore', 'Restore the built-in version of this rule?', { id })))) return { skipped: 'cancelled' };
+    return cfgActionResult(document.getElementById('rules-restore-btn'), () => fetch('/api/config/rules/' + encodeURIComponent(id) + '/restore', {
+        method: 'POST',
+        credentials: 'same-origin'
+    }), {
+        target: 'rules-status',
+        success: rulesText('config.rules.restored', 'Rule restored'),
+        failure: rulesText('config.rules.restore_failed', 'Failed to restore rule'),
+        onSuccess: async () => {
+            await rulesLoad(id);
+            rulesShowDone(rulesText('config.rules.restored', 'Rule restored'));
+        }
+    });
 }
 
 function rulesRefreshSelectedCard() {

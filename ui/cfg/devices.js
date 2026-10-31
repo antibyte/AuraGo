@@ -35,6 +35,7 @@ function renderDevicesSection(section) {
             <tbody id="devices-tbody"></tbody>
         </table>
     </div>
+    ${cfgActionResult.html('devices-list-result')}
     <div id="devices-empty" class="devices-empty is-hidden">
         ${t('config.devices.empty')}
     </div>
@@ -113,7 +114,7 @@ function renderDevicesSection(section) {
                         🔍 ${t('config.devices.find_mac')}
                     </button>
                 </div>
-                <div id="device-mac-status" class="devices-mac-status is-hidden"></div>
+                ${cfgActionResult.html('device-mac-status', 'devices-mac-status')}
             </div>
             <div class="field-group devices-field-group-top">
                 <div class="field-label">${t('config.devices.field_tags_label')} <span class="devices-field-hint">(${t('config.devices.tags_hint')})</span></div>
@@ -123,7 +124,7 @@ function renderDevicesSection(section) {
                 <div class="field-label">${t('config.devices.field_vault_secret_id_label')} <span class="devices-field-hint">(${t('config.devices.vault_read_only')})</span></div>
                 <input type="text" id="device-field-vault" class="field-input devices-vault-input" disabled>
             </div>
-            <div id="device-modal-error" class="devices-modal-error is-hidden"></div>
+            ${cfgActionResult.html('device-modal-error')}
             <div class="devices-modal-actions">
                 <button class="btn-save devices-modal-cancel" onclick="devicesCloseModal()">${t('config.devices.cancel')}</button>
                 <button class="btn-save devices-modal-save" id="device-modal-save" onclick="devicesSave()">${t('config.devices.save')}</button>
@@ -201,8 +202,8 @@ function devicesApplyFilter() {
 async function devicesShowModal(id) {
     const overlay = document.getElementById('device-modal-overlay');
     const title = document.getElementById('device-modal-title');
-    setHidden(document.getElementById('device-modal-error'), true);
-    setHidden(document.getElementById('device-mac-status'), true);
+    cfgActionResult.show('device-modal-error', '', '');
+    cfgActionResult.show('device-mac-status', '', '');
     await devicesEnsureCredentialsLoaded();
 
     if (id) {
@@ -246,60 +247,41 @@ function devicesCloseModal(e) {
 }
 
 // devicesFindMAC queries the ARP table via the backend API and fills in the MAC field.
-async function devicesFindMAC() {
+function devicesFindMAC() {
     const ip = (document.getElementById('device-field-ip').value || '').trim();
-    const statusEl = document.getElementById('device-mac-status');
-    const btn = document.getElementById('device-find-mac-btn');
 
     if (!ip) {
-        statusEl.textContent = '⚠️ ' + t('config.devices.find_mac_no_ip');
-        statusEl.className = 'devices-mac-status devices-mac-warn';
-        setHidden(statusEl, false);
-        return;
+        cfgActionResult.show('device-mac-status', 'warning', t('config.devices.find_mac_no_ip'));
+        return Promise.resolve({ skipped: 'no-ip' });
     }
 
-    btn.disabled = true;
-    statusEl.textContent = t('config.devices.find_mac_searching');
-    statusEl.className = 'devices-mac-status devices-mac-info';
-    setHidden(statusEl, false);
-
-    try {
-        const resp = await fetch('/api/tools/mac_lookup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ip })
-        });
-        const data = await resp.json();
-
-        if (data.status === 'success' && data.mac_address) {
-            document.getElementById('device-field-mac').value = data.mac_address;
-            statusEl.textContent = '✅ ' + t('config.devices.find_mac_found', { mac: data.mac_address });
-            statusEl.className = 'devices-mac-status devices-mac-ok';
-        } else if (data.status === 'not_found') {
-            statusEl.textContent = '🔍 ' + t('config.devices.find_mac_not_found');
-            statusEl.className = 'devices-mac-status devices-mac-warn';
-        } else {
-            statusEl.textContent = '❌ ' + (data.message || t('config.devices.find_mac_error'));
-            statusEl.className = 'devices-mac-status devices-mac-error';
+    return cfgActionResult(document.getElementById('device-find-mac-btn'), () => fetch('/api/tools/mac_lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip })
+    }), {
+        target: 'device-mac-status',
+        pending: t('config.devices.find_mac_searching'),
+        success: outcome => t('config.devices.find_mac_found', { mac: outcome.body.mac_address }),
+        failure: t('config.devices.find_mac_error'),
+        interpret: outcome => {
+            const data = outcome.body || {};
+            if (data.status === 'success' && data.mac_address) return { state: 'success' };
+            if (data.status === 'not_found') return { state: 'warning', reason: t('config.devices.find_mac_not_found') };
+            return { state: 'error', reason: data.message || outcome.reason || '' };
+        },
+        onSuccess: outcome => {
+            document.getElementById('device-field-mac').value = outcome.body.mac_address;
         }
-    } catch (e) {
-        statusEl.textContent = '❌ ' + e.message;
-        statusEl.className = 'devices-mac-status devices-mac-error';
-    } finally {
-        btn.disabled = false;
-        setHidden(statusEl, false);
-    }
+    });
 }
 
-async function devicesSave() {
-    const errBox = document.getElementById('device-modal-error');
-    setHidden(errBox, true);
-
+function devicesSave() {
     const name = document.getElementById('device-field-name').value.trim();
+    cfgActionResult.show('device-modal-error', '', '');
     if (!name) {
-        errBox.textContent = t('config.devices.name_required');
-        setHidden(errBox, false);
-        return;
+        cfgActionResult.show('device-modal-error', 'error', t('config.devices.name_required'));
+        return Promise.resolve({ skipped: 'invalid' });
     }
 
     const tagsRaw = document.getElementById('device-field-tags').value.trim();
@@ -322,29 +304,20 @@ async function devicesSave() {
 
     const editId = document.getElementById('device-edit-id').value;
     const isEdit = !!editId;
-    const btn = document.getElementById('device-modal-save');
-    btn.disabled = true;
-
-    try {
-        const url = isEdit ? '/api/devices/' + editId : '/api/devices';
-        const method = isEdit ? 'PUT' : 'POST';
-        const resp = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
-            throw new Error(data.error || 'Request failed');
+    return cfgActionResult(document.getElementById('device-modal-save'), () => fetch(isEdit ? '/api/devices/' + editId : '/api/devices', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }), {
+        target: 'device-modal-error',
+        success: t('config.common.saved'),
+        failure: t('config.common.error'),
+        onSuccess: async () => {
+            devicesCloseModal();
+            await devicesLoad();
+            cfgActionResult.show('devices-list-result', 'success', t('config.common.saved'));
         }
-        devicesCloseModal();
-        await devicesLoad();
-    } catch (e) {
-        errBox.textContent = '❌ ' + e.message;
-        setHidden(errBox, false);
-    } finally {
-        btn.disabled = false;
-    }
+    });
 }
 
 async function devicesEnsureCredentialsLoaded() {
@@ -411,16 +384,13 @@ function devicesUpdateCredentialMode() {
 
 async function devicesDelete(id, name) {
     const msg = t('config.devices.delete_confirm', {name: name});
-    if (!(await showConfirm(t('config.devices.delete_confirm_title'), msg))) return;
+    if (!(await showConfirm(t('config.devices.delete_confirm_title'), msg))) return { skipped: 'cancelled' };
 
-    try {
-        const resp = await fetch('/api/devices/' + id, { method: 'DELETE' });
-        if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
-            throw new Error(data.error || 'Delete failed');
-        }
-        await devicesLoad();
-    } catch (e) {
-        showToast(e.message || t('config.common.error'), 'error');
-    }
+    const btn = document.querySelector('#devices-tbody tr[data-id="' + id + '"] .devices-action-btn-delete');
+    return cfgActionResult(btn, () => fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE' }), {
+        target: 'devices-list-result',
+        success: name + ': ' + t('config.feedback.done'),
+        failure: name + ': ' + t('config.common.error'),
+        onSuccess: () => devicesLoad()
+    });
 }

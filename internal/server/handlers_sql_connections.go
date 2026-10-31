@@ -249,7 +249,93 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 	}
 }
 
+// sqlConnectionTestTarget is what a connection test connects to: the stored
+// record with the edited fields laid over it, plus the credentials to use.
+type sqlConnectionTestTarget struct {
+	Record   sqlconnections.ConnectionRecord
+	Username string
+	Password string
+	// UseStoredVault reports that the stored vault secret is used as is (no edited fields).
+	UseStoredVault bool
+}
+
+var (
+	errSQLTestSaveFirst       = errors.New("save the connection first to test a SQLite database")
+	errSQLTestPasswordNeeded  = errors.New("the connection target changed - enter the password to test it")
+	errSQLTestRequiredNetwork = errors.New("driver, host and database are required to test a connection")
+)
+
+// resolveSQLConnectionTestTarget lays the edited record fields over the stored
+// record (nil for a connection that is not saved yet). Stored credentials follow
+// the target: they are only reused while driver, host, port, database and user
+// are unchanged and no new password is typed; a changed target needs the typed
+// password, so a stored secret is never sent to an edited address.
+func resolveSQLConnectionTestTarget(req sqlConnectionRequest, stored *sqlconnections.ConnectionRecord, storedUser, storedPassword string) (sqlConnectionTestTarget, error) {
+	var rec sqlconnections.ConnectionRecord
+	if stored != nil {
+		rec = *stored
+	}
+	if v := strings.TrimSpace(req.Driver); v != "" {
+		rec.Driver = v
+	}
+	if v := strings.TrimSpace(req.Host); v != "" {
+		rec.Host = v
+	}
+	if req.Port > 0 {
+		rec.Port = req.Port
+	}
+	if v := strings.TrimSpace(req.DatabaseName); v != "" {
+		rec.DatabaseName = v
+	}
+	if v := strings.TrimSpace(req.SSLMode); v != "" {
+		rec.SSLMode = v
+	}
+	if v := strings.TrimSpace(req.Name); v != "" {
+		rec.Name = v
+	}
+
+	username := strings.TrimSpace(req.Username)
+	password := req.Password
+
+	if stored == nil {
+		if rec.Driver == "sqlite" {
+			return sqlConnectionTestTarget{}, errSQLTestSaveFirst
+		}
+		if rec.Driver == "" || strings.TrimSpace(rec.DatabaseName) == "" {
+			return sqlConnectionTestTarget{}, errSQLTestRequiredNetwork
+		}
+		return sqlConnectionTestTarget{Record: rec, Username: username, Password: password}, nil
+	}
+
+	if rec.Driver == "sqlite" || stored.Driver == "sqlite" {
+		// SQLite databases are managed uploads: only the stored generation can be tested.
+		return sqlConnectionTestTarget{Record: *stored, UseStoredVault: true}, nil
+	}
+
+	targetChanged := !strings.EqualFold(rec.Driver, stored.Driver) ||
+		!strings.EqualFold(rec.Host, stored.Host) ||
+		rec.Port != stored.Port ||
+		rec.DatabaseName != stored.DatabaseName ||
+		(username != "" && username != storedUser)
+
+	if password == "" {
+		if targetChanged {
+			return sqlConnectionTestTarget{}, errSQLTestPasswordNeeded
+		}
+		if username == "" && rec.SSLMode == stored.SSLMode {
+			return sqlConnectionTestTarget{Record: rec, UseStoredVault: true}, nil
+		}
+		password = storedPassword
+	}
+	if username == "" {
+		username = storedUser
+	}
+	return sqlConnectionTestTarget{Record: rec, Username: username, Password: password}, nil
+}
+
 // handleSQLConnectionTest handles POST on /api/sql-connections/{id}/test.
+// The optional JSON body carries the edited record fields (same shape as the
+// save request); {id} "new" tests a record that is not saved yet.
 func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.SQLConnectionsDB == nil {
@@ -278,17 +364,55 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 			return
 		}
 
+		var req sqlConnectionRequest
+		if r.Body != nil {
+			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+			if err != nil {
+				jsonError(w, "failed to read body", http.StatusBadRequest)
+				return
+			}
+			if len(strings.TrimSpace(string(body))) > 0 {
+				if err := json.Unmarshal(body, &req); err != nil {
+					jsonError(w, "invalid JSON", http.StatusBadRequest)
+					return
+				}
+			}
+		}
+
 		service := newSQLConnectionService(s)
-		rec, err := service.GetByID(id)
+		var stored *sqlconnections.ConnectionRecord
+		var storedUser, storedPassword string
+		if id != "new" {
+			rec, err := service.GetByID(id)
+			if err != nil {
+				jsonError(w, "SQL connection not found", http.StatusNotFound)
+				return
+			}
+			stored = &rec
+			if rec.VaultSecretID != "" && rec.Driver != "sqlite" && s.Vault != nil {
+				if raw, err := s.Vault.ReadSecret(rec.VaultSecretID); err == nil {
+					storedUser, storedPassword, _ = sqlconnections.UnmarshalCredentials(raw)
+				}
+			}
+		}
+
+		target, err := resolveSQLConnectionTestTarget(req, stored, storedUser, storedPassword)
 		if err != nil {
-			jsonError(w, "SQL connection not found", http.StatusNotFound)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": err.Error()})
 			return
 		}
 
-		if err := service.TestConnection(rec.ID); err != nil {
+		if target.UseStoredVault {
+			err = s.SQLConnectionPool.TestConnection(target.Record)
+		} else {
+			err = s.SQLConnectionPool.TestConnectionWithCredentials(target.Record, target.Username, target.Password)
+		}
+		if err != nil {
 			// Sanitize error message to prevent leaking driver-specific details
 			if s.Logger != nil {
-				s.Logger.Warn("SQL connection test failed", "connection_id", id, "connection_name", rec.Name, "error", err)
+				s.Logger.Warn("SQL connection test failed", "connection_id", id, "connection_name", target.Record.Name, "error", err)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
