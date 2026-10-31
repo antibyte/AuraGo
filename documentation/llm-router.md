@@ -51,6 +51,12 @@ The saved Decisions backend and model apply: managed local or OpenRouter.
 There is no separate router credential or model selector. A local service must
 already be ready; routing never installs or starts it.
 
+The router is an interactive Decisions consumer, so other Decisions consumers never
+defer it. On the local backend its call cancels a running background consumer call,
+which then falls back. On an external backend it may use the reserved slot when the
+shared slot is taken, so a single paid background call cannot hold it up. Its `routing` budget category is checked
+before each call. See [Consumers](decisions.md#consumers).
+
 The classifier receives only a scrubbed, bounded copy of the immutable human
 task, isolated as untrusted data. No history, tool output, files or images are
 sent. External providers receive this shortened task text and may charge for it.

@@ -48,6 +48,7 @@ Server-owned HTTP and cross-component integration contracts.
   inference. Local lifecycle actions are unavailable in provider mode. Catalog
   lookups use saved connections only. Unknown paid outcomes remain non-retryable
   through the Flow adapter, even when a node deadline also expired.
+- `decisionHub` (`decisions_consumers.go`) is the only route for consumer calls. `Snapshot` is passive; its `Current()` check pins config, epoch and provider generation. `admit` lets interactive calls cancel local background work and allows one global background call; a refused call returns `admission_deferred` and starts nothing. Verify `TestConsumer*` and `TestStatusConsumersPassive`.
 - `decisions_media.go` resolves registered media or existing authorized outgoing
   attachment paths to rooted regular-file handles. Never accept caller URLs as
   download authority. Enforce eight images, 12 MiB each, 24 MiB total, and 32
