@@ -71,6 +71,9 @@
     const WORM_SEGMENTS = 26;
     const WORM_STEP = 1 / (WORM_SEGMENTS + 10);   // path distance between two neighbouring segments
     const WORM_BODY = WORM_SEGMENTS * WORM_STEP;  // path length of the whole body
+    const WORM_CAP = 6;                  // slices of the rounded cap of the head
+    const WORM_SNUB = 0.62;              // how far the cap reaches in front of the head
+    const WORM_DIVE = 1.25;              // how fast the head sinks per unit of path below the ridge
     const TREMOR_TRAVEL = 3.0;    // the hump rides along the ridge ...
     const TREMOR_SINK = 0.35;     // ... and sinks during the last part of that ride
     const TREMOR_STILL = 0.4;     // silence before the breach
@@ -265,27 +268,6 @@
         return c;
     }
 
-    // One lit sphere, drawn once per event and stamped for every body segment.
-    function buildSegmentSprite(R, dpr) {
-        const box = 2 * R * 1.15;                       // the head is drawn at 1.15 R
-        const size = Math.max(8, Math.ceil(box * dpr));
-        const c = makeCanvas(size, size);
-        const g = c.getContext('2d');
-        if (!g) return null;
-        const half = size / 2;
-        const lx = size * (0.5 + 0.22 * SUN_DIR_X);
-        const ly = size * (0.5 + 0.22 * SUN_DIR_Y);
-        const grad = g.createRadialGradient(lx, ly, 0, lx, ly, half);
-        grad.addColorStop(0, 'rgb(176, 124, 78)');
-        grad.addColorStop(0.55, 'rgb(104, 66, 38)');
-        grad.addColorStop(1, 'rgb(38, 22, 12)');
-        g.fillStyle = grad;
-        g.beginPath();
-        g.arc(half, half, half, 0, TWO_PI);
-        g.fill();
-        return c;
-    }
-
     // ═══════════════════════════════════════════════════════════════
     //  SAND SPRAY AND DUST PUFFS
     //  Shared by the worm and by the beetle's burrow.
@@ -446,10 +428,28 @@
     // ═══════════════════════════════════════════════════════════════
 
     const hump = { x: 0, h: 0 };                 // scratch: where the tremor hump is and how high
-    const P0 = { x: 0, y: 0 };                   // scratch: the segment being drawn
-    const T0 = { x: 0, y: 0 };                   // scratch: two points on the path around it ...
-    const T1 = { x: 0, y: 0 };
-    const TAN = { x: 0, y: 0 };                  // ... and the direction they give
+    const P0 = { x: 0, y: 0 };                   // scratch: the point on the path being sampled
+
+    // The skin of the worm, sampled once per frame from the head to the tail:
+    // the centre line, the radius of the tube there, the direction of the path
+    // and the normal across it. The arrays are reused from frame to frame, so
+    // nothing is allocated while the worm is on screen.
+    // The first samples are the rounded cap of the head (the pole at 0, the
+    // junction with the trunk at skinJ), the rest is the trunk itself.
+    const SKIN_MAX = WORM_SEGMENTS + WORM_CAP + 4;
+    const skinJ = WORM_CAP;                           // where the cap of the head meets the trunk
+    const skinX = new Float64Array(SKIN_MAX);
+    const skinY = new Float64Array(SKIN_MAX);
+    const skinS = new Float64Array(SKIN_MAX);
+    const skinR = new Float64Array(SKIN_MAX);
+    const skinTX = new Float64Array(SKIN_MAX);
+    const skinTY = new Float64Array(SKIN_MAX);
+    const skinNX = new Float64Array(SKIN_MAX);
+    const skinNY = new Float64Array(SKIN_MAX);
+    let skinN = 0;                               // how many samples are live
+    let skinBody = 0;                            // how many of them belong to the trunk
+    let sunSide = 1;                             // which side of the body faces the sun
+    let headX = 0;                               // where the pole of the head is on screen
 
     // The emergence ridge must be clearly above the next nearer ridge, or the
     // worm would rise from behind a dune that is painted over it.
@@ -532,7 +532,6 @@
             D: 4.2 * (0.8 + 0.2 * S),                      // length of the breach
             humpFrom: clamp(x0 - dir * 0.12 * g.width, 8, g.width - 8),
             sHead: 0,
-            sprite: buildSegmentSprite(R, g.dpr),
             ripples: [], rippleClock: RIPPLE_TIME, trickle: 0,
             entry: 0, dive: 0, divePuffs: false
         };
@@ -540,19 +539,18 @@
 
     // The head's position along the arch, s in [0, 1]. Recomputed from the live
     // ridge every frame, so scroll parallax and dune drift carry the worm along.
+    // Past s = 1 the animal has reached its exit point and plunges into the
+    // sand: it sinks straight down behind the ridge, where the clip above the
+    // ridge hides it. The body follows it down and disappears the same way.
     function wormPoint(g, w, s, out) {
+        if (s > 1) {
+            out.x = w.x1;
+            out.y = g.ridgeAt(w.e, w.x1) + (s - 1) * w.H * WORM_DIVE;
+            return;
+        }
         const x = w.x0 + (w.x1 - w.x0) * s;
         out.x = x;
         out.y = g.ridgeAt(w.e, x) - w.H * Math.pow(Math.max(0, Math.sin(Math.PI * s)), 0.85);
-    }
-
-    function wormTangent(g, w, s, out) {
-        wormPoint(g, w, clamp(s - 0.012, 0.001, 0.999), T0);
-        wormPoint(g, w, clamp(s + 0.012, 0.001, 0.999), T1);
-        const dx = T1.x - T0.x, dy = T1.y - T0.y;
-        const len = Math.hypot(dx, dy) || 1;
-        out.x = dx / len;
-        out.y = dy / len;
     }
 
     function humpAt(w) {
@@ -657,34 +655,500 @@
     function drawWorm(ctx, g, w, fade) {
         ctx.save();
         try {
-            clipAboveRidge(ctx, g, w.e);
+            // What lies on the sand is drawn before the clip: the shadow of the
+            // body and the churned sand are below the ridge the worm comes from.
             ctx.globalAlpha = fade;
-            if (w.phase === 'tremor') drawHump(ctx, g, w);
-            else if (w.phase === 'breach') drawBody(ctx, g, w);
-            else drawDisturbed(ctx, g, w);
+            if (w.phase === 'breach') {
+                drawWormShadow(ctx, g, w);
+                drawEntryCrater(ctx, g, w);
+            } else if (w.phase === 'settle') {
+                drawDisturbed(ctx, g, w);
+            }
+            ctx.globalAlpha = 1;
+            ctx.save();
+            try {
+                // Everything else happens above the ridge it comes from: the part
+                // that is still "inside" the dune is simply never painted.
+                clipAboveRidge(ctx, g, w.e);
+                ctx.globalAlpha = fade;
+                if (w.phase === 'tremor') drawHump(ctx, g, w);
+                else if (w.phase === 'breach') {
+                    buildSkin(g, w);
+                    drawBody(ctx, w);
+                    drawHead(ctx, w);
+                }
+            } finally {
+                ctx.restore();
+            }
         } finally {
             ctx.restore();
         }
     }
 
+    // A stable number in [0, 1) for a given key: the patches of skin and the
+    // grains of sand on it must not jump around from frame to frame.
+    function hash01(n) {
+        const s = Math.sin(n * 12.9898) * 43758.5453;
+        return s - Math.floor(s);
+    }
+
+    // The radius of the trunk at the sample i (0 is where the head begins): a
+    // blunt swell at the head, an even trunk and a long taper into the tail.
+    function skinRadius(w, i) {
+        const t = i / WORM_SEGMENTS;
+        if (t < 0.12) return w.R * (1.18 - 0.18 * (t / 0.12));
+        return w.R * (1 - 0.97 * Math.pow((t - 0.12) / 0.88, 1.7));
+    }
+
+    // The direction of the path and the normal across it, for every sample of
+    // the trunk.
+    function skinNormals() {
+        for (let i = skinJ; i < skinN; i++) {
+            const a = i > skinJ ? i - 1 : skinJ;
+            const b = i < skinN - 1 ? i + 1 : skinN - 1;
+            let dx = skinX[b] - skinX[a], dy = skinY[b] - skinY[a];
+            const len = Math.hypot(dx, dy) || 1;
+            dx /= len; dy /= len;
+            skinTX[i] = dx; skinTY[i] = dy;
+            skinNX[i] = -dy; skinNY[i] = dx;
+        }
+    }
+
+    // Samples the animal once per frame: the rounded cap of the head, then the
+    // trunk from the head backwards. A slow swell travels down the skin while
+    // the worm breaches: without it the animal is a bent pipe.
+    function buildSkin(g, w) {
+        // the trunk, from the head backwards
+        let bodyN = 0;
+        for (let i = 0; i <= WORM_SEGMENTS; i++) {
+            const s = w.sHead - i * WORM_STEP;
+            // The tail that is still under the sand does not exist yet; the
+            // samples in front of the exit point are diving and lie behind
+            // the ridge, where the clip above it hides them.
+            if (s <= 0) break;
+            wormPoint(g, w, s, P0);
+            skinX[skinJ + bodyN] = P0.x;
+            skinY[skinJ + bodyN] = P0.y;
+            skinS[skinJ + bodyN] = s;
+            skinR[skinJ + bodyN] = skinRadius(w, i);
+            bodyN++;
+        }
+        if (bodyN < 2) { skinBody = 0; skinN = 0; return; }
+        skinBody = bodyN;
+        skinN = skinJ + bodyN;
+        skinNormals();
+        const amp = w.R * 0.20;
+        for (let i = 0; i < bodyN; i++) {
+            const k = skinJ + i;
+            const s = skinS[k];
+            const fade = smoothstep(0.02, 0.16, s) * (1 - smoothstep(0.84, 1, s));
+            const off = Math.sin(TWO_PI * (1.25 * s - w.age * 0.42)) * amp * fade;
+            skinX[k] += skinNX[k] * off;
+            skinY[k] += skinNY[k] * off;
+        }
+        skinNormals();
+        // the side of the body that faces the sun
+        sunSide = (skinNX[skinJ] * SUN_DIR_X + skinNY[skinJ] * SUN_DIR_Y) >= 0 ? 1 : -1;
+        // the cap of the head: a blunt dome in front of the trunk, so the snout
+        // is rounded and not a tube that was cut off
+        const R = skinR[skinJ];
+        const fx = -skinTX[skinJ], fy = -skinTY[skinJ];
+        for (let k = 0; k < skinJ; k++) {
+            const a = (skinJ - k) / skinJ * (Math.PI / 2);
+            skinX[k] = skinX[skinJ] + fx * R * WORM_SNUB * Math.sin(a);
+            skinY[k] = skinY[skinJ] + fy * R * WORM_SNUB * Math.sin(a);
+            skinR[k] = R * Math.cos(a);
+            skinS[k] = skinS[skinJ];
+            skinTX[k] = skinTX[skinJ];
+            skinTY[k] = skinTY[skinJ];
+            skinNX[k] = skinNX[skinJ];
+            skinNY[k] = skinNY[skinJ];
+        }
+        headX = skinX[0];
+    }
+
+    // The outline of the animal: the skin on the upper side of the tube and the
+    // skin on the lower side, joined at the tail and closed over the pole of
+    // the head. The cap of the head is part of the outline, so the snout is a
+    // round dome and not a tube that was cut off.
+    function traceSilhouette(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(skinX[0], skinY[0]);
+        for (let i = 1; i < skinN; i++) {
+            ctx.lineTo(skinX[i] + skinNX[i] * skinR[i], skinY[i] + skinNY[i] * skinR[i]);
+        }
+        for (let i = skinN - 1; i >= 1; i--) {
+            ctx.lineTo(skinX[i] - skinNX[i] * skinR[i], skinY[i] - skinNY[i] * skinR[i]);
+        }
+        ctx.closePath();
+    }
+
+    // The light on the skin, from the side that lies in the shadow to the side
+    // that faces the sun. A tube catches the light in a band and not on a flat
+    // face, so the colours run from a deep brown to a bright sand tone.
+    const WORM_SHADE = [
+        [-1.00, 'rgb(30, 17, 8)'],
+        [-0.55, 'rgb(48, 27, 13)'],
+        [-0.15, 'rgb(80, 48, 24)'],
+        [ 0.25, 'rgb(114, 72, 36)'],
+        [ 0.60, 'rgb(150, 101, 56)'],
+        [ 0.86, 'rgb(180, 132, 80)'],
+        [ 1.00, 'rgb(206, 160, 102)']
+    ];
+
+    // The body: one tapering tube with the light running along it. Every slice
+    // of the tube is shaded across itself, so the animal reads as a round thing
+    // and not as a flat ribbon. The ramp is measured against the radius of the
+    // head, so the light stays the same width along the whole body and no seam
+    // shows where two slices meet.
+    function drawBody(ctx, w) {
+        if (skinN < 3) return;
+        const Rref = skinR[skinJ] || 1;
+        ctx.save();
+        try {
+            // the skin in shadow, so that no seam shows through
+            traceSilhouette(ctx);
+            ctx.fillStyle = 'rgb(30, 17, 8)';
+            ctx.fill();
+            for (let i = 0; i < skinN - 1; i++) {
+                const r0 = skinR[i], r1 = skinR[i + 1];
+                if (r0 + r1 <= 0.02) continue;
+                const nx = skinNX[i], ny = skinNY[i];
+                const cx = skinX[i], cy = skinY[i];
+                const grad = ctx.createLinearGradient(
+                    cx - nx * Rref * sunSide, cy - ny * Rref * sunSide,
+                    cx + nx * Rref * sunSide, cy + ny * Rref * sunSide);
+                for (const s of WORM_SHADE) grad.addColorStop((s[0] + 1) / 2, s[1]);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.moveTo(skinX[i] - nx * r0 * sunSide, skinY[i] - ny * r0 * sunSide);
+                ctx.lineTo(skinX[i] + nx * r0 * sunSide, skinY[i] + ny * r0 * sunSide);
+                ctx.lineTo(skinX[i + 1] + skinNX[i + 1] * r1 * sunSide, skinY[i + 1] + skinNY[i + 1] * r1 * sunSide);
+                ctx.lineTo(skinX[i + 1] - skinNX[i + 1] * r1 * sunSide, skinY[i + 1] - skinNY[i + 1] * r1 * sunSide);
+                ctx.closePath();
+                ctx.fill();
+            }
+            // the rim light along the edge that faces the sun, from the pole of
+            // the head down the flank
+            ctx.beginPath();
+            for (let i = 0; i < skinN; i++) {
+                const px = skinX[i] + skinNX[i] * skinR[i] * sunSide;
+                const py = skinY[i] + skinNY[i] * skinR[i] * sunSide;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = 'rgba(255, 226, 172, 0.30)';
+            ctx.lineWidth = Math.max(1, w.R * 0.055);
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            // the rings of the skin, the patches and the sand that sticks to it.
+            // They are cut off at the outline: the body curves, so a groove that
+            // runs straight across it would stick out on the outside.
+            ctx.save();
+            try {
+                traceSilhouette(ctx);
+                ctx.clip();
+                drawRings(ctx);
+                drawMottle(ctx);
+                drawGrit(ctx);
+            } finally {
+                ctx.restore();
+            }
+        } finally {
+            ctx.restore();
+        }
+    }
+
+    // The rings of the skin: a groove across the body and the lit lip in front
+    // of it. They are what makes the body read as an animal and not a tube.
+    // Their distance apart changes from ring to ring, so the skin does not look
+    // like a stack of tyres.
+    function drawRings(ctx) {
+        ctx.lineCap = 'round';
+        let i = skinJ + 1;
+        for (let k = 0; k < 12 && i < skinN - 1; k++) {
+            const nx = skinNX[i], ny = skinNY[i], r = skinR[i];
+            if (r > 0.6) {
+                const x0 = skinX[i] - nx * r, y0 = skinY[i] - ny * r;
+                const x1 = skinX[i] + nx * r, y1 = skinY[i] + ny * r;
+                // the lip sits on the side of the groove that the sun reaches
+                const along = skinTX[i] * SUN_DIR_X + skinTY[i] * SUN_DIR_Y;
+                const lip = (along >= 0 ? 1 : -1) * r * 0.07;
+                ctx.strokeStyle = 'rgba(255, 208, 144, 0.05)';
+                ctx.lineWidth = Math.max(0.5, r * 0.025);
+                ctx.beginPath();
+                ctx.moveTo(x0 + skinTX[i] * lip, y0 + skinTY[i] * lip);
+                ctx.lineTo(x1 + skinTX[i] * lip, y1 + skinTY[i] * lip);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(20, 11, 5, 0.13)';
+                ctx.lineWidth = Math.max(0.7, r * 0.04);
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+            }
+            i += 1 + Math.round(hash01(k * 5.37 + 2.1) * 1.6);
+        }
+    }
+
+    // Patches of a darker skin, so the tube is not one flat colour. They fade
+    // away at their edges and lie along the body, like blotches of hide.
+    function drawMottle(ctx) {
+        if (skinBody < 5) return;
+        for (let k = 0; k < 9; k++) {
+            const i = skinJ + 1 + Math.round(k * (skinBody - 4) / 8);
+            if (i < skinJ || i > skinN - 2) continue;
+            const h = hash01(k * 3.77 + 1.3);
+            const g = hash01(k * 8.13 + 4.7);
+            const r = skinR[i];
+            if (r <= 1) continue;
+            const px = skinX[i] + skinNX[i] * sunSide * r * (h - 0.5) * 1.1;
+            const py = skinY[i] + skinNY[i] * sunSide * r * (h - 0.5) * 1.1;
+            const rad = r * (0.45 + 0.4 * g);
+            ctx.save();
+            try {
+                ctx.translate(px, py);
+                ctx.rotate(Math.atan2(skinTY[i], skinTX[i]));
+                ctx.scale(1.3, 0.8);
+                const patch = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
+                patch.addColorStop(0, 'rgba(28, 15, 7, 0.17)');
+                patch.addColorStop(0.55, 'rgba(28, 15, 7, 0.08)');
+                patch.addColorStop(1, 'rgba(28, 15, 7, 0)');
+                ctx.fillStyle = patch;
+                ctx.beginPath();
+                ctx.arc(0, 0, rad, 0, TWO_PI);
+                ctx.fill();
+            } finally {
+                ctx.restore();
+            }
+        }
+    }
+
+    // Grains of sand that stick to the skin.
+    function drawGrit(ctx) {
+        if (skinBody < 4) return;
+        ctx.fillStyle = 'rgba(240, 210, 160, 0.34)';
+        for (let k = 0; k < 16; k++) {
+            const h = hash01(k * 7.13 + 0.7);
+            const i = skinJ + Math.round(h * (skinBody - 2));
+            if (i < skinJ || i >= skinN) continue;
+            const g = hash01(k * 2.31 + 5.1);
+            const r = skinR[i];
+            const px = skinX[i] + skinNX[i] * sunSide * r * (0.3 + 0.62 * g);
+            const py = skinY[i] + skinNY[i] * sunSide * r * (0.3 + 0.62 * g);
+            const s = 0.7 + 1.1 * hash01(k * 9.17 + 2.2);
+            ctx.fillRect(px - s / 2, py - s / 2, s, s);
+        }
+    }
+
+    // The head is the cap of the body: a blunt dome that carries a snout, a
+    // gash for the mouth with a few mandibles around it, and two beads for the
+    // eyes. Nothing of it is drawn as a separate lump, so the head and the body
+    // are one thing.
+    function drawHead(ctx, w) {
+        if (skinN < 3) return;
+        const R = skinR[skinJ];
+        const hx = skinX[skinJ], hy = skinY[skinJ];
+        const fx = -skinTX[skinJ], fy = -skinTY[skinJ];   // the way the head is going
+        let ux = -fy, uy = fx;                              // the upper side of the head
+        if (uy > 0) { ux = -ux; uy = -uy; }
+        const ang = Math.atan2(fy, fx);
+        // the mouth opens while the head rises and closes before the apex
+        const open = smoothstep(0.06, 0.26, w.sHead) * (1 - smoothstep(0.46, 0.64, w.sHead));
+        const m = R * (0.045 + 0.115 * open);            // how far the jaws part
+        const mx = hx + fx * R * 0.42, my = hy + fy * R * 0.42;
+
+        ctx.save();
+        try {
+            // everything the head carries stays on the head
+            ctx.save();
+            try {
+                traceSilhouette(ctx);
+                ctx.clip();
+                // the light on the head: the snout is a ball of flesh and catches
+                // the sun as a whole
+                const hcx = hx + SUN_DIR_X * R * 0.38, hcy = hy + SUN_DIR_Y * R * 0.38;
+                const lit = ctx.createRadialGradient(hcx, hcy, 0, hcx, hcy, R * 1.15);
+                lit.addColorStop(0, 'rgba(255, 228, 172, 0.22)');
+                lit.addColorStop(0.45, 'rgba(255, 206, 146, 0.10)');
+                lit.addColorStop(1, 'rgba(255, 196, 132, 0)');
+                ctx.fillStyle = lit;
+                ctx.fillRect(hx - R * 1.8, hy - R * 1.8, R * 3.6, R * 3.6);
+                // the snout: a darker plate over the front of the head
+                const plate = ctx.createRadialGradient(mx, my, R * 0.1, mx, my, R * 1.0);
+                plate.addColorStop(0, 'rgba(14, 8, 4, 0.34)');
+                plate.addColorStop(0.55, 'rgba(14, 8, 4, 0.14)');
+                plate.addColorStop(1, 'rgba(14, 8, 4, 0)');
+                ctx.fillStyle = plate;
+                ctx.beginPath();
+                ctx.arc(mx, my, R * 1.0, 0, TWO_PI);
+                ctx.fill();
+
+                // the mouth: a gash across the front of the snout
+                ctx.save();
+                try {
+                    ctx.translate(mx, my);
+                    ctx.rotate(ang);
+                    // the rim of the wound
+                    ctx.fillStyle = 'rgba(8, 4, 2, 0.9)';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, R * 0.15, m + R * 0.035, 0, 0, TWO_PI);
+                    ctx.fill();
+                    // the gash
+                    const throat = ctx.createLinearGradient(0, -m, 0, m);
+                    throat.addColorStop(0, 'rgb(52, 18, 10)');
+                    throat.addColorStop(0.5, 'rgb(22, 8, 4)');
+                    throat.addColorStop(1, 'rgb(5, 2, 1)');
+                    ctx.fillStyle = throat;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, R * 0.12, m, 0, 0, TWO_PI);
+                    ctx.fill();
+                    // the mandibles around the gash: small chitin hooks on both
+                    // edges of the slit, dark and barely catching the light
+                    ctx.strokeStyle = 'rgb(74, 52, 31)';
+                    ctx.lineWidth = Math.max(1, R * 0.045);
+                    ctx.lineCap = 'round';
+                    for (const side of [-1, 1]) {
+                        for (const d of [-0.5, 0.35]) {
+                            const px = d * R * 0.11, py = side * (m + R * 0.012);
+                            ctx.beginPath();
+                            ctx.moveTo(px, py);
+                            ctx.quadraticCurveTo(px + R * 0.025, py - side * m * 0.55, px - R * 0.008, py - side * m * 0.14);
+                            ctx.stroke();
+                        }
+                    }
+                } finally {
+                    ctx.restore();
+                }
+            } finally {
+                ctx.restore();
+            }
+
+            // the eyes: small beads sunk into the head. They sit on the dome at
+            // the angle a, with the distance from the centre line given by l.
+            for (const e of [[0.40, 0.66, 1], [0.72, 0.55, 0.8]]) {
+                const a = e[0] * Math.PI / 2;
+                const fwd = R * WORM_SNUB * Math.sin(a);
+                const side = R * Math.cos(a) * e[1];
+                const ex = hx + fx * fwd + ux * side;
+                const ey = hy + fy * fwd + uy * side;
+                const er = R * 0.058 * e[2];
+                ctx.fillStyle = 'rgba(14, 8, 3, 0.45)';
+                ctx.beginPath();
+                ctx.ellipse(ex, ey, er * 1.45, er * 1.1, ang, 0, TWO_PI);
+                ctx.fill();
+                ctx.fillStyle = 'rgb(18, 10, 5)';
+                ctx.beginPath();
+                ctx.arc(ex, ey, er, 0, TWO_PI);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255, 226, 168, 0.7)';
+                ctx.beginPath();
+                ctx.arc(ex + SUN_DIR_X * er * 0.3, ey + SUN_DIR_Y * er * 0.3, er * 0.26, 0, TWO_PI);
+                ctx.fill();
+            }
+        } finally {
+            ctx.restore();
+        }
+    }
+
+    // What the body casts on the sand: a soft dark smear under the arch.
+    function drawWormShadow(ctx, g, w) {
+        const mid = (w.x0 + w.x1) / 2;
+        const half = Math.abs(w.x1 - w.x0) / 2;
+        if (half < 4) return;
+        const y = g.ridgeAt(w.e, mid);
+        const rx = half * 1.2, ry = Math.max(4, w.R * 1.1);
+        const grad = ctx.createRadialGradient(mid, y, 0, mid, y, rx);
+        grad.addColorStop(0, 'rgba(26, 13, 6, 0.26)');
+        grad.addColorStop(0.55, 'rgba(26, 13, 6, 0.12)');
+        grad.addColorStop(1, 'rgba(26, 13, 6, 0)');
+        ctx.save();
+        try {
+            ctx.translate(mid, y);
+            ctx.scale(1, ry / rx);
+            ctx.translate(-mid, -y);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(mid, y, rx, 0, TWO_PI);
+            ctx.fill();
+        } finally {
+            ctx.restore();
+        }
+    }
+
+    // The hollow the worm pushes out of the sand when it comes up, and the one
+    // it leaves when it dives back.
+    function drawEntryCrater(ctx, g, w) {
+        crater(ctx, g, w, w.x0, smoothstep(0, 0.18, w.sHead));
+        crater(ctx, g, w, w.x1, smoothstep(0.86, 1, w.sHead));
+    }
+
+    function crater(ctx, g, w, x, amount) {
+        if (amount <= 0.01) return;
+        const y = g.ridgeAt(w.e, x);
+        const r = w.R * amount;
+        ctx.fillStyle = 'rgba(26, 15, 7, ' + (0.26 * amount).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.ellipse(x, y, 1.4 * r, 0.32 * r, 0, 0, TWO_PI);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(232, 196, 142, ' + (0.18 * amount).toFixed(3) + ')';
+        ctx.lineWidth = Math.max(1, r * 0.12);
+        ctx.beginPath();
+        ctx.ellipse(x, y - 0.6, 1.55 * r, 0.36 * r, 0, Math.PI, TWO_PI);
+        ctx.stroke();
+    }
+
+    // The churned sand where the worm went in and came out: a dark hollow with
+    // the sand it threw up around it.
+    function drawDisturbed(ctx, g, w) {
+        const fade = 1 - w.t / SETTLE_TIME;
+        for (let k = 0; k < 2; k++) {
+            const x = k === 0 ? w.x0 : w.x1;
+            const y = g.ridgeAt(w.e, x);
+            const r = w.R;
+            ctx.fillStyle = 'rgba(28, 16, 8, ' + (0.3 * fade).toFixed(3) + ')';
+            ctx.beginPath();
+            ctx.ellipse(x, y, 1.35 * r, 0.3 * r, 0, 0, TWO_PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(226, 190, 136, ' + (0.16 * fade).toFixed(3) + ')';
+            ctx.lineWidth = Math.max(1, r * 0.1);
+            ctx.beginPath();
+            ctx.ellipse(x, y - 0.6, 1.5 * r, 0.34 * r, 0, Math.PI, TWO_PI);
+            ctx.stroke();
+        }
+    }
+
     function drawHump(ctx, g, w) {
         humpAt(w);
-        // rings first, they spread around the hump and fade
-        ctx.lineWidth = 1.2;
+        // The rings spread around the hump: each one is a hollow in the sand, so
+        // it gets a lit lip on the sun side and a shadow on the other one.
         for (let i = 0; i < w.ripples.length; i++) {
             const rp = w.ripples[i];
             const u = rp.t / RIPPLE_TIME;
             const r = w.R * lerp(0.5, 2.2, u);
-            ctx.strokeStyle = 'rgba(255, 220, 170, ' + (0.12 * (1 - u)).toFixed(3) + ')';
+            const ry = r * 0.26;
+            const y = g.ridgeAt(w.e, rp.x);
+            ctx.strokeStyle = 'rgba(255, 222, 172, ' + (0.16 * (1 - u)).toFixed(3) + ')';
+            ctx.lineWidth = 1.1;
             ctx.beginPath();
-            ctx.ellipse(rp.x, g.ridgeAt(w.e, rp.x), r, r * 0.26, 0, 0, TWO_PI);
+            ctx.ellipse(rp.x, y - 0.8, r, ry, 0, Math.PI, TWO_PI);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(46, 25, 11, ' + (0.13 * (1 - u)).toFixed(3) + ')';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.ellipse(rp.x, y + 1.2, r, ry, 0, 0, Math.PI);
             ctx.stroke();
         }
         if (hump.h < 0.02) return;
         const pal = g.palette[w.e];
-        const rx = 1.2 * w.R;
-        const ry = 0.275 * w.R * hump.h;
-        const cy = g.ridgeAt(w.e, hump.x) - 0.12 * w.R * hump.h;
+        const rx = 1.25 * w.R;
+        const ry = 0.30 * w.R * hump.h;
+        const cy = g.ridgeAt(w.e, hump.x) - 0.10 * w.R * hump.h;
+        // the shadow the hump casts on the sand
+        ctx.fillStyle = 'rgba(22, 12, 6, 0.26)';
+        ctx.beginPath();
+        ctx.ellipse(hump.x + 0.18 * rx, cy + ry * 0.9, rx * 0.92, ry * 0.9, 0, 0, TWO_PI);
+        ctx.fill();
+        // the crest of the sand
         const grad = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
         grad.addColorStop(0, pal.crest);
         grad.addColorStop(1, pal.base);
@@ -693,79 +1157,20 @@
         ctx.ellipse(hump.x, cy, rx, ry, 0, 0, TWO_PI);
         ctx.fill();
         // the flank toward the sun catches light
-        ctx.strokeStyle = 'rgba(255, 214, 150, 0.22)';
+        ctx.strokeStyle = 'rgba(255, 214, 150, 0.24)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.ellipse(hump.x, cy, rx, ry, 0, -Math.PI * 0.78, -Math.PI * 0.04);
         ctx.stroke();
-    }
-
-    function drawBody(ctx, g, w) {
-        ctx.strokeStyle = 'rgba(24, 12, 6, 0.45)';
-        ctx.lineWidth = 1.5;
-        // Tail first, head last: every segment covers the one behind it, and the
-        // outlines that stay visible are the rings of the body.
-        for (let i = WORM_SEGMENTS; i >= 0; i--) {
-            const s = w.sHead - i * WORM_STEP;
-            if (s <= 0 || s >= 1) continue;
-            wormPoint(g, w, s, P0);
-            const r = i === 0 ? 1.15 * w.R : w.R * (1 - 0.6 * Math.pow(i / WORM_SEGMENTS, 1.4));
-            if (w.sprite) {
-                ctx.drawImage(w.sprite, P0.x - r, P0.y - r, 2 * r, 2 * r);
-            } else {
-                ctx.fillStyle = 'rgb(104, 66, 38)';
-                ctx.beginPath();
-                ctx.arc(P0.x, P0.y, r, 0, TWO_PI);
-                ctx.fill();
-            }
-            ctx.beginPath();
-            ctx.arc(P0.x, P0.y, r, 0, TWO_PI);
-            ctx.stroke();
-            if (i === 0) {
-                // the maw opens while the head rises and closes before the apex
-                const open = smoothstep(0.08, 0.28, w.sHead) * (1 - smoothstep(0.45, 0.62, w.sHead));
-                if (open > 0.01) {
-                    wormTangent(g, w, s, TAN);
-                    drawMaw(ctx, w, P0.x, P0.y, r, open);
-                }
-            }
-        }
-    }
-
-    // A dark mouth a little ahead of the head's centre, three pale teeth around its rim.
-    function drawMaw(ctx, w, x, y, r, open) {
-        const mx = x + TAN.x * 0.3 * r;
-        const my = y + TAN.y * 0.3 * r;
-        const m = 0.62 * r * open;
-        ctx.fillStyle = '#140a05';
-        ctx.beginPath();
-        ctx.arc(mx, my, m, 0, TWO_PI);
-        ctx.fill();
-        const spin = Math.atan2(TAN.y, TAN.x) + w.age * 0.9;
-        ctx.fillStyle = 'rgba(230, 200, 160, 0.55)';
+        // the cracks in the crust where the worm pushes up
+        ctx.strokeStyle = 'rgba(38, 20, 9, 0.3)';
+        ctx.lineWidth = 1;
         for (let k = 0; k < 3; k++) {
-            const a = spin + k * TWO_PI / 3;
+            const a = -Math.PI * 0.5 + (k - 1) * 0.42;
             ctx.beginPath();
-            ctx.moveTo(mx + Math.cos(a - 0.3) * m, my + Math.sin(a - 0.3) * m);
-            ctx.lineTo(mx + Math.cos(a) * m * 0.38, my + Math.sin(a) * m * 0.38);
-            ctx.lineTo(mx + Math.cos(a + 0.3) * m, my + Math.sin(a + 0.3) * m);
-            ctx.closePath();
-            ctx.fill();
-        }
-        ctx.fillStyle = '#0a0503';
-        ctx.beginPath();
-        ctx.arc(mx, my, 0.28 * r * open, 0, TWO_PI);
-        ctx.fill();
-    }
-
-    // Two patches of churned, darker sand where the worm went in and out.
-    function drawDisturbed(ctx, g, w) {
-        ctx.fillStyle = 'rgba(30, 18, 10, ' + (0.28 * (1 - w.t / SETTLE_TIME)).toFixed(3) + ')';
-        const xs = [w.x0, w.x1];
-        for (let k = 0; k < 2; k++) {
-            ctx.beginPath();
-            ctx.ellipse(xs[k], g.ridgeAt(w.e, xs[k]), 1.3 * w.R, 0.25 * w.R, 0, 0, TWO_PI);
-            ctx.fill();
+            ctx.moveTo(hump.x + Math.cos(a) * rx * 0.15, cy + Math.sin(a) * ry * 0.3);
+            ctx.lineTo(hump.x + Math.cos(a) * rx * (0.6 + 0.2 * k), cy + Math.sin(a) * ry * 0.8);
+            ctx.stroke();
         }
     }
 
@@ -1835,12 +2240,13 @@
     // ═══════════════════════════════════════════════════════════════
 
     // Where the first visible creature of each family is ([x, y] in scene px), for a harness that
-    // wants to look at it. The worm is [entry x, dive x, ridge] (0 far, 1 mid); occluders is the
-    // number of chat rectangles the latest placement saw. vultures lists every bird in view and
-    // thermal is the centre they circle (before the sway).
+    // wants to look at it. The worm is [entry x, dive x, ridge] (0 far, 1 mid) and, as a fourth
+    // entry, the x of its head; occluders is the number of chat rectangles the latest placement
+    // saw. vultures lists every bird in view and thermal is the centre they circle (before the
+    // sway).
     function where() {
         const out = { vulture: null, vultures: [], thermal: [thermal.x, thermal.y], tumbleweed: null, beetle: null, caravan: null, worm: null, occluders: occ.n };
-        if (worm) out.worm = [worm.x0, worm.x1, worm.e];
+        if (worm) out.worm = [worm.x0, worm.x1, worm.e, skinN ? headX : worm.x0 + (worm.x1 - worm.x0) * worm.sHead];
         for (let j = 0; j < birds.length; j++) {
             if (birds[j].alpha <= 0.01) continue;
             if (!out.vulture) out.vulture = [birds[j].x, birds[j].y];
