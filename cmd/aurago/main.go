@@ -349,8 +349,12 @@ func main() {
 					}
 					return c.Directories.VectorDBDir, nil
 				},
-			}); res != nil && applyErr != nil {
-				appLog.Error("System restore failed; continuing with the previous state", "status", res.Status, "error", applyErr)
+			}); applyErr != nil {
+				status := ""
+				if res != nil {
+					status = res.Status
+				}
+				appLog.Error("System restore failed; continuing with the previous state", "status", status, "error", applyErr)
 			}
 		}
 	}
