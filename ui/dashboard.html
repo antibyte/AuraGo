@@ -18,17 +18,17 @@
   <meta property="og:description" content="Monitor and manage your AI agent">
   <meta property="og:image" content="/aurago_logo_dark.png">
   <meta property="og:type" content="website">
-  <link rel="stylesheet" href="/shared-variables.css">
-  <link rel="stylesheet" href="/shared-utilities.css">
+  <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+  <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
-  <link rel="stylesheet" href="/shared-animations.css">
-    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+  <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
   <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
   <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
   <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
   <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
-  <link href="/fonts/fonts.css" rel="stylesheet">
-  <link rel="stylesheet" href="/css/tokens.css">
+  <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/dashboard.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/dashboard-shell.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/personality-dynamics.css?v={{.BuildVersion}}">
@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
   <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
-  <script src="/chart.min.js" defer></script>
+  <script src="/chart.min.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/vendor/three.min.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/vendor/force-graph.min.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/vendor/3d-force-graph.min.js?v={{.BuildVersion}}" defer></script>

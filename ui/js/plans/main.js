@@ -60,8 +60,10 @@ function renderPlanList(plans) {
         planListEl.innerHTML = `<div class="plan-row muted">${escapeHtml(t('plans.no_plans'))}</div>`;
         return;
     }
+    const focusedRow = document.activeElement && planListEl.contains(document.activeElement)
+        ? document.activeElement.dataset.planId : null;
     planListEl.innerHTML = listedPlans.map((plan) => `
-        <div class="plan-row ${plan.id === selectedPlanId ? 'active' : ''}" data-plan-id="${escapeHtml(plan.id)}">
+        <button type="button" class="plan-row ${plan.id === selectedPlanId ? 'active' : ''}" data-plan-id="${escapeHtml(plan.id)}" aria-pressed="${plan.id === selectedPlanId ? 'true' : 'false'}">
             <div class="plan-row-title">
                 <span>${escapeHtml(plan.title || 'Plan')}</span>
                 <div class="plan-badges">
@@ -71,10 +73,11 @@ function renderPlanList(plans) {
             </div>
             <div class="plan-row-meta">${escapeHtml(plan.current_task || plan.recommendation || plan.description || '')}</div>
             <div class="plan-row-meta">${escapeHtml((plan.task_counts?.completed || 0) + '/' + (plan.task_counts?.total || 0))} · ${escapeHtml(plan.updated_at || '')}</div>
-        </div>
+        </button>
     `).join('');
 
     planListEl.querySelectorAll('.plan-row[data-plan-id]').forEach((row) => {
+        if (focusedRow && row.dataset.planId === focusedRow) row.focus();
         row.addEventListener('click', () => {
             selectedPlanId = row.dataset.planId;
             loadPlanDetail(selectedPlanId).catch(console.error);
@@ -232,6 +235,8 @@ function renderPlanDetail(plan) {
         btn.addEventListener('click', async () => {
             const action = btn.dataset.planAction;
             try {
+                if (action === 'archive' && !(await showConfirm(t('plans.confirm_archive')))) return;
+                if (action === 'cancelled' && !(await showConfirm(t('plans.confirm_cancel')))) return;
                 if (action === 'advance') {
                     await plansApi(`/api/plans/${encodeURIComponent(plan.id)}/advance`, {
                         method: 'POST',
@@ -263,6 +268,8 @@ function renderPlanDetail(plan) {
             const action = btn.dataset.taskAction;
             const taskId = btn.dataset.taskId;
             try {
+                if (action === 'failed' && !(await showConfirm(t('plans.confirm_task_failed')))) return;
+                if (action === 'skipped' && !(await showConfirm(t('plans.confirm_task_skipped')))) return;
                 if (action === 'advance') {
                     await plansApi(`/api/plans/${encodeURIComponent(plan.id)}/advance`, {
                         method: 'POST',

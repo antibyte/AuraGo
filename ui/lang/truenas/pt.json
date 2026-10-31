@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Configurações",
   "truenas.nav_shares": "Compartilhamentos",
   "truenas.nav_snapshots": "Instantâneos",
+  "truenas.not_configured_desc": "Ative o TrueNAS e introduza o anfitrião e a chave de API na configuração para gerir pools, datasets, instantâneos e partilhas.",
+  "truenas.not_configured_link": "Abrir a configuração do TrueNAS",
+  "truenas.not_configured_title": "TrueNAS não configurado",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (recomendado)",
   "truenas.opt_nfs": "Compartilhamento NFS",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Erro de conexão",
   "truenas.status_disabled": "Desativado",
   "truenas.status_error_prefix": "Erro:",
+  "truenas.status_not_configured": "Não configurado",
   "truenas.status_offline": "Offline",
   "truenas.status_online": "Ligado",
   "truenas.subtitle": "Armazenamento TrueNAS"

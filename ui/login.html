@@ -18,18 +18,18 @@
     <meta property="og:description" content="Sign in to AuraGo">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
-    <link href="/fonts/fonts.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/tailwind-compat.css">
-    <link rel="stylesheet" href="/shared-variables.css">
-    <link rel="stylesheet" href="/shared-utilities.css">
+    <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tailwind-compat.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
-    <link rel="stylesheet" href="/shared-animations.css">
-    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+    <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
-    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/login.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
@@ -126,9 +126,9 @@
     </div>
 
     <!-- Three.js for WebGL -->
-    <script src="/js/vendor/three.min.js" onerror="window._threeLoadFailed=true"></script>
+    <script src="/js/vendor/three.min.js?v={{.BuildVersion}}" onerror="window._threeLoadFailed=true"></script>
     <script src="/auth/webauthn/client.js"></script>
-    <script src="/js/login/main.js"></script>
+    <script src="/js/login/main.js?v={{.BuildVersion}}"></script>
     <script type="module" src="/js/login/flame-wrap.js?v={{.BuildVersion}}"></script>
 </body>
 

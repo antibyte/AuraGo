@@ -557,10 +557,10 @@ async function showLogs(id) {
             const el = document.getElementById('log-output');
             el.scrollTop = el.scrollHeight;
         } else {
-            document.getElementById('log-output').textContent = data.message || 'Error loading logs';
+            document.getElementById('log-output').textContent = data.message || t('containers.logs_error');
         }
     } catch (e) {
-        document.getElementById('log-output').textContent = 'Failed to load logs';
+        document.getElementById('log-output').textContent = t('containers.logs_load_failed');
     }
 }
 
@@ -586,7 +586,7 @@ async function showInspect(id) {
         const data = await resp.json();
         document.getElementById('inspect-output').textContent = JSON.stringify(data, null, 2);
     } catch (e) {
-        document.getElementById('inspect-output').textContent = 'Failed to load details';
+        document.getElementById('inspect-output').textContent = t('containers.inspect_load_failed');
     }
 }
 

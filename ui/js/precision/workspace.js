@@ -99,6 +99,8 @@
         return FALLBACK_LABELS[key] || key;
     }
 
+    const DENSITY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg>';
+
     function syncDensityControls() {
         if (!document.body) return;
 
@@ -114,6 +116,10 @@
             button.setAttribute('title', toggleLabel);
             button.setAttribute('data-i18n-title', DENSITY_KEYS.toggle);
             button.setAttribute('data-i18n-aria-label', DENSITY_KEYS.toggle);
+
+            if (!button.querySelector('svg')) {
+                button.insertAdjacentHTML('afterbegin', DENSITY_ICON);
+            }
 
             const label = button.querySelector('[data-pw-density-label], span');
             if (label) {

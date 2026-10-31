@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Indstillinger",
   "truenas.nav_shares": "Delinger",
   "truenas.nav_snapshots": "Øjebliksbilleder",
+  "truenas.not_configured_desc": "Aktivér TrueNAS og angiv vært og API-nøgle i konfigurationen for at administrere pools, datasæt, snapshots og delinger.",
+  "truenas.not_configured_link": "Åbn TrueNAS-konfiguration",
+  "truenas.not_configured_title": "TrueNAS er ikke konfigureret",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (anbefalet)",
   "truenas.opt_nfs": "NFS-deling",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Forbindelsesfejl",
   "truenas.status_disabled": "Deaktiveret",
   "truenas.status_error_prefix": "Fejl:",
+  "truenas.status_not_configured": "Ikke konfigureret",
   "truenas.status_offline": "Offline",
   "truenas.status_online": "Forbundet",
   "truenas.subtitle": "TrueNAS-lagring"

@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "公式の Caddy イメージにはレート制限がありません。次回の起動時に、AuraGo は caddy-ratelimit モジュール入りの独自の Caddy イメージを一度だけビルドします。Docker でイメージのビルドが許可され、インターネットに接続できる必要があり、数分かかります。代わりに、Docker ホスト上でイメージをビルドすることもできます (マニュアルを参照)。",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "ルートを削除",
+  "config.security_proxy.action_success": "{action}: 成功",
+  "config.security_proxy.action_failed": "アクションに失敗しました",
+  "config.security_proxy.error_with_message": "エラー: {message}",
+  "config.security_proxy.logs_error": "ログを読み込めませんでした",
+  "config.security_proxy.logs_empty": "(空)",
   "config.security_proxy.enabled_help": "AuraGo の前段で TLS、レート制限、IP フィルタリングを処理する上流の Caddy コンテナを起動します。Docker が必要です。",
   "config.security_proxy.domain_help": "Let's Encrypt 証明書用の公開ドメイン名です。TLS 証明書なしのポートのみのモードにする場合は空欄にします。",
   "config.security_proxy.email_help": "Let's Encrypt の連絡先アドレスです (例: 有効期限の警告用)。",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "ルートのドメイン",
   "config.security_proxy.route_upstream_label": "ルートのアップストリーム URL",
   "config.security_proxy.route_remove": "ルートを削除",
-  "config.security_proxy.action_success": "{action}: 成功",
-  "config.security_proxy.action_failed": "アクションに失敗しました",
-  "config.security_proxy.state_unknown": "不明",
-  "config.security_proxy.logs_empty": "(空)",
-  "config.security_proxy.logs_error": "ログを読み込めませんでした"
+  "config.security_proxy.state_unknown": "不明"
 }

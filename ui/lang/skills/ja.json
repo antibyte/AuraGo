@@ -217,6 +217,7 @@
   "skills.test_failed": "テスト失敗",
   "skills.test_invalid_json": "入力は有効なJSONである必要があります",
   "skills.test_output_label": "出力",
+  "skills.test_status_error": "エラー",
   "skills.test_success": "テスト完了",
   "skills.test_title": "スキルをテスト",
   "skills.toggle_success": "スキルが更新されました",

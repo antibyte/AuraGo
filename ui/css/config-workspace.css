@@ -283,36 +283,6 @@
     box-shadow: none;
 }
 
-.pw-page[data-workspace-page="config"] .pw-density-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    min-height: 44px;
-    padding: 0.5rem 0.75rem;
-    color: var(--pw-muted);
-    background: transparent;
-    border: 1px solid var(--pw-line);
-    border-radius: var(--pw-radius-sm);
-    font-size: var(--pw-meta-size);
-    font-weight: 620;
-}
-
-.pw-page[data-workspace-page="config"] .pw-density-toggle:hover,
-.pw-page[data-workspace-page="config"] .pw-density-toggle[aria-pressed="true"] {
-    color: var(--pw-text);
-    border-color: color-mix(in srgb, var(--pw-accent) 42%, var(--pw-line));
-    background: color-mix(in srgb, var(--pw-accent) 9%, transparent);
-}
-
-.pw-page[data-workspace-page="config"] .pw-density-toggle svg {
-    width: 18px;
-    height: 18px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.5;
-    stroke-linecap: round;
-}
-
 .pw-page[data-workspace-page="config"] .cfg-layout {
     flex: 1;
     display: flex;
@@ -1589,10 +1559,6 @@
     .pw-page[data-workspace-page="config"] .section-header,
     .pw-page[data-workspace-page="config"] .pw-overview-hero h1 {
         font-size: 1.75rem;
-    }
-
-    .pw-page[data-workspace-page="config"] .pw-density-toggle span {
-        display: none;
     }
 
     .pw-page[data-workspace-page="config"] .pw-overview-hero {

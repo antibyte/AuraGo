@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Ρυθμίσεις",
   "truenas.nav_shares": "Κοινές χρήσεις",
   "truenas.nav_snapshots": "Στιγμιότυπα",
+  "truenas.not_configured_desc": "Ενεργοποιήστε το TrueNAS και καταχωρίστε κεντρικό υπολογιστή και κλειδί API στις ρυθμίσεις για να διαχειριστείτε pools, datasets, snapshots και κοινόχρηστους πόρους.",
+  "truenas.not_configured_link": "Άνοιγμα ρυθμίσεων TrueNAS",
+  "truenas.not_configured_title": "Το TrueNAS δεν έχει ρυθμιστεί",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (συνιστάται)",
   "truenas.opt_nfs": "Κοινόχρηστο NFS",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Σφάλμα σύνδεσης",
   "truenas.status_disabled": "Απενεργοποιημένο",
   "truenas.status_error_prefix": "Σφάλμα:",
+  "truenas.status_not_configured": "Δεν έχει ρυθμιστεί",
   "truenas.status_offline": "Εκτός σύνδεσης",
   "truenas.status_online": "Σε σύνδεση",
   "truenas.subtitle": "Αποθήκευση TrueNAS"

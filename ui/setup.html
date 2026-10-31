@@ -18,18 +18,18 @@
     <meta property="og:description" content="First-time setup wizard for AuraGo">
     <meta property="og:image" content="/aurago_logo_dark.png">
     <meta property="og:type" content="website">
-    <link href="/fonts/fonts.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/tailwind-compat.css">
-    <link rel="stylesheet" href="/shared-variables.css">
-    <link rel="stylesheet" href="/shared-utilities.css">
+    <link href="/fonts/fonts.css?v={{.BuildVersion}}" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tailwind-compat.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-variables.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/shared-utilities.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
-    <link rel="stylesheet" href="/shared-animations.css">
-        <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
+    <link rel="stylesheet" href="/shared-animations.css?v={{.BuildVersion}}">
+        <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}" data-theme-scope="workspace"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
-    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/tokens.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/setup.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
@@ -56,8 +56,6 @@
         </div>
     </header>
 
-    <!-- ── Toast Container ─────────────────────── -->
-    <div class="toast-container" id="toastContainer"></div>
 
     <!-- ── Owner check: remote setup needs the token from the server log ── -->
     <div id="setup-bootstrap-gate" class="modal-overlay setup-bootstrap-gate" role="dialog" aria-modal="true" aria-labelledby="setup-bootstrap-title">

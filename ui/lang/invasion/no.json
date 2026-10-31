@@ -89,7 +89,7 @@
   "invasion.no_nests_title": "Ingen reder ennå",
   "invasion.notes": "Notater",
   "invasion.page_description": "Administrer distribuerte reder og egg.",
-  "invasion.page_title": "AuraGo - Invasjons Kontroll",
+  "invasion.page_title": "AuraGo – Invasjons Kontroll",
   "invasion.permanent": "Permanent (systemd-tjeneste)",
   "invasion.ph_egg_base_url": "https://openrouter.ai/api/v1",
   "invasion.ph_egg_description": "Hva gjør denne sub-agenten?",

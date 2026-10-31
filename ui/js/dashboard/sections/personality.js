@@ -211,9 +211,7 @@
                 del.className = 'wh-btn wh-btn-sm';
                 del.textContent = t('dashboard.personality_notes_delete');
                 del.addEventListener('click', async () => {
-                    const ok = typeof showConfirm === 'function'
-                        ? await showConfirm(t('dashboard.personality_notes_delete'), t('dashboard.personality_notes_delete_confirm'))
-                        : true;
+                    const ok = await showConfirm(t('dashboard.personality_notes_delete'), t('dashboard.personality_notes_delete_confirm'));
                     if (ok) await characterNoteAction({ action: 'delete', id: note.id });
                 });
                 actions.append(pin, del);

@@ -71,6 +71,9 @@
   "truenas.nav_settings": "Nastavení",
   "truenas.nav_shares": "Sdílení",
   "truenas.nav_snapshots": "Snímky",
+  "truenas.not_configured_desc": "Povolte TrueNAS a v konfiguraci zadejte hostitele a klíč API, abyste mohli spravovat fondy, datové sady, snímky a sdílení.",
+  "truenas.not_configured_link": "Otevřít konfiguraci TrueNAS",
+  "truenas.not_configured_title": "TrueNAS není nakonfigurován",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (doporučeno)",
   "truenas.opt_nfs": "NFS sdílení",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "Chyba připojení",
   "truenas.status_disabled": "Zakázáno",
   "truenas.status_error_prefix": "Chyba:",
+  "truenas.status_not_configured": "Nenakonfigurováno",
   "truenas.status_offline": "Offline",
   "truenas.status_online": "Online",
   "truenas.subtitle": "TrueNAS úložiště"

@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "Oficjalny obraz Caddy nie obsługuje ograniczania szybkości. Przy następnym uruchomieniu AuraGo jednorazowo zbuduje własny obraz Caddy z modułem caddy-ratelimit. Docker musi zezwalać na budowanie obrazów i mieć dostęp do internetu; trwa to kilka minut. Obraz można też zbudować na hoście Dockera (zobacz podręcznik).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Usuń trasę",
+  "config.security_proxy.action_success": "{action}: zakończone powodzeniem",
+  "config.security_proxy.action_failed": "Akcja nie powiodła się",
+  "config.security_proxy.error_with_message": "Błąd: {message}",
+  "config.security_proxy.logs_error": "Nie udało się wczytać logów",
+  "config.security_proxy.logs_empty": "(pusty)",
   "config.security_proxy.enabled_help": "Uruchamia kontener Caddy, który przed AuraGo obsługuje TLS, ograniczanie liczby żądań i filtrowanie IP. Wymaga Dockera.",
   "config.security_proxy.domain_help": "Publiczna nazwa domeny dla certyfikatu Let's Encrypt. Pozostaw puste dla trybu tylko z portem, bez certyfikatu TLS.",
   "config.security_proxy.email_help": "Adres kontaktowy dla Let's Encrypt, na przykład do ostrzeżeń o wygaśnięciu.",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "Domena trasy",
   "config.security_proxy.route_upstream_label": "URL upstream trasy",
   "config.security_proxy.route_remove": "Usuń trasę",
-  "config.security_proxy.action_success": "{action}: zakończone powodzeniem",
-  "config.security_proxy.action_failed": "Akcja nie powiodła się",
-  "config.security_proxy.state_unknown": "nieznany",
-  "config.security_proxy.logs_empty": "(pusty)",
-  "config.security_proxy.logs_error": "Nie udało się wczytać logów"
+  "config.security_proxy.state_unknown": "nieznany"
 }

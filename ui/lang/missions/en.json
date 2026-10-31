@@ -171,7 +171,7 @@
   "missions.modal_title_edit": "Edit Mission",
   "missions.modal_title_new": "New Mission",
   "missions.page_description": "Plan, schedule, and monitor automated agent tasks.",
-  "missions.page_title": "AuraGo - Mission Control",
+  "missions.page_title": "AuraGo – Mission Control",
   "missions.prep_auto": "Auto-prepare",
   "missions.prep_auto_hint": "Automatically prepare this mission when it changes",
   "missions.prep_btn_invalidate": "Invalidate",

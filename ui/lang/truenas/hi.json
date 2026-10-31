@@ -71,6 +71,9 @@
   "truenas.nav_settings": "सेटिंग्स",
   "truenas.nav_shares": "शेयर",
   "truenas.nav_snapshots": "स्नैपशॉट",
+  "truenas.not_configured_desc": "पूल, डेटासेट, स्नैपशॉट और शेयर प्रबंधित करने के लिए TrueNAS सक्षम करें और कॉन्फ़िगरेशन में होस्ट तथा API कुंजी दर्ज करें।",
+  "truenas.not_configured_link": "TrueNAS कॉन्फ़िगरेशन खोलें",
+  "truenas.not_configured_title": "TrueNAS कॉन्फ़िगर नहीं है",
   "truenas.opt_gzip": "GZIP",
   "truenas.opt_lz4": "LZ4 (अनुशंसित)",
   "truenas.opt_nfs": "NFS शेयर",
@@ -105,6 +108,7 @@
   "truenas.status_connection_error": "कनेक्शन त्रुटि",
   "truenas.status_disabled": "अक्षम",
   "truenas.status_error_prefix": "त्रुटि:",
+  "truenas.status_not_configured": "कॉन्फ़िगर नहीं है",
   "truenas.status_offline": "ऑफ़लाइन",
   "truenas.status_online": "ऑनलाइन",
   "truenas.subtitle": "TrueNAS स्टोरेज"

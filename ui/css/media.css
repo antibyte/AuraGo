@@ -112,9 +112,25 @@
     color: var(--pw-canvas);
 }
 
-.pw-page[data-workspace-page="media"] .media-bulk-toolbar .btn-gallery-nav:disabled {
-    opacity: 0.45;
+/* Small toolbar buttons (same size as btn-sm elsewhere) */
+.pw-page[data-workspace-page="media"] .media-bulk-toolbar .btn-gallery-nav {
+    min-height: 36px;
+    padding: 0.4rem 0.85rem;
+    font-size: var(--pw-meta-size, 0.8125rem);
+    line-height: 1.2;
+}
+
+/* Readable disabled state in light and dark theme: muted text on a quiet surface,
+   no opacity fade (a faded light-on-light danger pill was invisible). */
+.pw-page[data-workspace-page="media"] .media-bulk-toolbar .btn-gallery-nav:disabled,
+.pw-page[data-workspace-page="media"] .media-bulk-toolbar .btn-gallery-nav.btn-danger:disabled {
+    opacity: 1;
     cursor: not-allowed;
+    color: var(--pw-muted);
+    background: color-mix(in srgb, var(--pw-muted) 10%, transparent);
+    border-color: color-mix(in srgb, var(--pw-muted) 35%, transparent);
+    box-shadow: none;
+    transform: none;
 }
 
 .pw-page[data-workspace-page="media"] .media-selected-count {

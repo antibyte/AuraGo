@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "Det offisielle Caddy-imaget har ingen hastighetsbegrensning. Ved neste start bygger AuraGo én gang sitt eget Caddy-image med modulen caddy-ratelimit. Docker må da tillate image-bygg og ha internettilgang, og det tar noen minutter. Imaget kan også bygges på Docker-verten (se håndboken).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Fjern rute",
+  "config.security_proxy.action_success": "{action}: vellykket",
+  "config.security_proxy.action_failed": "Handlingen mislyktes",
+  "config.security_proxy.error_with_message": "Feil: {message}",
+  "config.security_proxy.logs_error": "Kunne ikke laste loggene",
+  "config.security_proxy.logs_empty": "(tom)",
   "config.security_proxy.enabled_help": "Starter en oppstrøms Caddy-container som håndterer TLS, hastighetsbegrensning og IP-filtrering foran AuraGo. Krever Docker.",
   "config.security_proxy.domain_help": "Offentlig domenenavn for Let's Encrypt-sertifikatet. La stå tomt for modus kun med port, uten TLS-sertifikat.",
   "config.security_proxy.email_help": "Kontaktadresse for Let's Encrypt, for eksempel for varsler om utløp.",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "Rutedomene",
   "config.security_proxy.route_upstream_label": "Oppstrøms-URL for ruten",
   "config.security_proxy.route_remove": "Fjern rute",
-  "config.security_proxy.action_success": "{action}: vellykket",
-  "config.security_proxy.action_failed": "Handlingen mislyktes",
-  "config.security_proxy.state_unknown": "ukjent",
-  "config.security_proxy.logs_empty": "(tom)",
-  "config.security_proxy.logs_error": "Kunne ikke laste loggene"
+  "config.security_proxy.state_unknown": "ukjent"
 }

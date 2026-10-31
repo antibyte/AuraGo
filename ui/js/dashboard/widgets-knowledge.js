@@ -745,12 +745,10 @@
             sourceID = String(sourceID || '').trim();
             if (!targetID || !sourceID || targetID === sourceID) return;
 
-            const confirmed = typeof showConfirm === 'function'
-                ? await showConfirm(
+            const confirmed = await showConfirm(
                     t('dashboard.knowledge_quality_merge_confirm_title'),
                     t('dashboard.knowledge_quality_merge_confirm', { source: sourceID, target: targetID, label: label || sourceID })
-                )
-                : true;
+                );
             if (!confirmed) return;
 
             const response = await fetch('/api/knowledge-graph/merge', {
@@ -790,9 +788,7 @@
         }
 
         async function deleteKnowledgeGraphEdge(source, target, relation) {
-            const confirmed = typeof showConfirm === 'function'
-                ? await showConfirm(t('dashboard.knowledge_edge_delete_title'), t('dashboard.knowledge_edge_delete_confirm', { relation }))
-                : true;
+            const confirmed = await showConfirm(t('dashboard.knowledge_edge_delete_title'), t('dashboard.knowledge_edge_delete_confirm', { relation }));
             if (!confirmed) return;
 
             const url = '/api/knowledge-graph/edge?source=' + encodeURIComponent(source) + '&target=' + encodeURIComponent(target) + '&relation=' + encodeURIComponent(relation);
@@ -812,9 +808,7 @@
         }
 
         async function deleteKnowledgeGraphNode(nodeID, label) {
-            const confirmed = typeof showConfirm === 'function'
-                ? await showConfirm(t('dashboard.knowledge_delete_title'), t('dashboard.knowledge_delete_confirm', { label: label || nodeID }))
-                : true;
+            const confirmed = await showConfirm(t('dashboard.knowledge_delete_title'), t('dashboard.knowledge_delete_confirm', { label: label || nodeID }));
             if (!confirmed) return;
 
             const response = await fetch('/api/knowledge-graph/node?id=' + encodeURIComponent(nodeID), {

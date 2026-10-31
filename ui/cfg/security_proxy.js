@@ -242,7 +242,7 @@ async function _proxyAction(action) {
             _proxyFetchStatus();
         }
     } catch(e) {
-        showToast(t('config.security_proxy.error_prefix') + ': ' + e.message, 'error');
+        showToast(t('config.security_proxy.error_with_message', { message: e.message }), 'error');
         _proxyFetchStatus();
     } finally {
         buttons.forEach(btn => { btn.disabled = false; });
@@ -294,6 +294,6 @@ async function _proxyShowLogs() {
             content.textContent = data.message || t('config.security_proxy.logs_error');
         }
     } catch(e) {
-        content.textContent = t('config.security_proxy.error_prefix') + ': ' + e.message;
+        content.textContent = t('config.security_proxy.error_with_message', { message: e.message });
     }
 }

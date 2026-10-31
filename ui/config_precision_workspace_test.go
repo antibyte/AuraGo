@@ -780,12 +780,14 @@ func TestConfigWorkspaceDoesNotRestoreTabletIconRail(t *testing.T) {
 	for _, marker := range []string{
 		`.pw-overview-grid`,
 		`.pw-overview-card`,
-		`.pw-density-toggle`,
 		`.pw-field-focus`,
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("config-workspace.css missing overview/density marker %q", marker)
 		}
+	}
+	if !strings.Contains(normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css")), `.pw-density-toggle`) {
+		t.Fatal("precision-pages.css must own the shared density toggle styling")
 	}
 }
 

@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "A imagem oficial do Caddy não tem limitação de taxa. Na próxima inicialização, o AuraGo cria uma única vez sua própria imagem do Caddy com o módulo caddy-ratelimit. Para isso, o Docker precisa permitir builds de imagens e ter acesso à internet; leva alguns minutos. Como alternativa, a imagem pode ser criada no host do Docker (veja o manual).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Remover rota",
+  "config.security_proxy.action_success": "{action}: concluído com sucesso",
+  "config.security_proxy.action_failed": "A ação falhou",
+  "config.security_proxy.error_with_message": "Erro: {message}",
+  "config.security_proxy.logs_error": "Não foi possível carregar os logs",
+  "config.security_proxy.logs_empty": "(vazio)",
   "config.security_proxy.enabled_help": "Inicia um contêiner Caddy upstream que cuida de TLS, limitação de taxa e filtragem de IP na frente do AuraGo. Requer Docker.",
   "config.security_proxy.domain_help": "Nome de domínio público para o certificado Let's Encrypt. Deixe vazio para o modo apenas com porta, sem certificado TLS.",
   "config.security_proxy.email_help": "Endereço de contato para o Let's Encrypt, por exemplo para avisos de expiração.",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "Domínio da rota",
   "config.security_proxy.route_upstream_label": "URL upstream da rota",
   "config.security_proxy.route_remove": "Remover rota",
-  "config.security_proxy.action_success": "{action}: concluído com sucesso",
-  "config.security_proxy.action_failed": "A ação falhou",
-  "config.security_proxy.state_unknown": "desconhecido",
-  "config.security_proxy.logs_empty": "(vazio)",
-  "config.security_proxy.logs_error": "Não foi possível carregar os logs"
+  "config.security_proxy.state_unknown": "desconhecido"
 }

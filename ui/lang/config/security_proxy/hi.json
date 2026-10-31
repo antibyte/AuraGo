@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "आधिकारिक Caddy इमेज में दर सीमित करने की सुविधा नहीं है। अगली बार शुरू करने पर AuraGo एक बार caddy-ratelimit मॉड्यूल के साथ अपनी Caddy इमेज बनाता है। इसके लिए Docker में इमेज बिल्ड की अनुमति और इंटरनेट पहुँच चाहिए, और इसमें कुछ मिनट लगते हैं। वैकल्पिक रूप से, इमेज को Docker होस्ट पर भी बनाया जा सकता है (मैनुअल देखें)।",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "रूट हटाएँ",
+  "config.security_proxy.action_success": "{action}: सफल",
+  "config.security_proxy.action_failed": "कार्रवाई विफल रही",
+  "config.security_proxy.error_with_message": "त्रुटि: {message}",
+  "config.security_proxy.logs_error": "लॉग लोड नहीं किए जा सके",
+  "config.security_proxy.logs_empty": "(खाली)",
   "config.security_proxy.enabled_help": "AuraGo के सामने TLS, दर सीमा और IP फ़िल्टरिंग संभालने वाला अपस्ट्रीम Caddy कंटेनर शुरू करता है। Docker आवश्यक है।",
   "config.security_proxy.domain_help": "Let's Encrypt प्रमाणपत्र के लिए सार्वजनिक डोमेन नाम। TLS प्रमाणपत्र के बिना केवल-पोर्ट मोड के लिए खाली छोड़ें।",
   "config.security_proxy.email_help": "Let's Encrypt के लिए संपर्क पता, जैसे समाप्ति की चेतावनियों के लिए।",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "रूट का डोमेन",
   "config.security_proxy.route_upstream_label": "रूट का अपस्ट्रीम URL",
   "config.security_proxy.route_remove": "रूट हटाएँ",
-  "config.security_proxy.action_success": "{action}: सफल",
-  "config.security_proxy.action_failed": "कार्रवाई विफल रही",
-  "config.security_proxy.state_unknown": "अज्ञात",
-  "config.security_proxy.logs_empty": "(खाली)",
-  "config.security_proxy.logs_error": "लॉग लोड नहीं किए जा सके"
+  "config.security_proxy.state_unknown": "अज्ञात"
 }

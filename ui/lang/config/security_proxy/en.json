@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "The official Caddy image has no rate limiting. On the next start, AuraGo builds its own Caddy image with the caddy-ratelimit module once. This needs Docker image builds and internet access and takes a few minutes. Alternatively, the image can be built on the Docker host (see the manual).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Remove route",
+  "config.security_proxy.action_success": "{action}: successful",
+  "config.security_proxy.action_failed": "Action failed",
+  "config.security_proxy.error_with_message": "Error: {message}",
+  "config.security_proxy.logs_error": "Could not load the logs",
+  "config.security_proxy.logs_empty": "(empty)",
   "config.security_proxy.enabled_help": "Starts an upstream Caddy container that handles TLS, rate limiting and IP filtering in front of AuraGo. Requires Docker.",
   "config.security_proxy.domain_help": "Public domain name for the Let's Encrypt certificate. Leave empty for port-only mode without a TLS certificate.",
   "config.security_proxy.email_help": "Contact address for Let's Encrypt, for example for expiry warnings.",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "Route domain",
   "config.security_proxy.route_upstream_label": "Route upstream URL",
   "config.security_proxy.route_remove": "Remove route",
-  "config.security_proxy.action_success": "{action}: successful",
-  "config.security_proxy.action_failed": "Action failed",
-  "config.security_proxy.state_unknown": "unknown",
-  "config.security_proxy.logs_empty": "(empty)",
-  "config.security_proxy.logs_error": "Could not load the logs"
+  "config.security_proxy.state_unknown": "unknown"
 }

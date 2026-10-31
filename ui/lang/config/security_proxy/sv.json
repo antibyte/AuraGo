@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "Den officiella Caddy-imagen saknar hastighetsbegränsning. Vid nästa start bygger AuraGo en gång en egen Caddy-image med modulen caddy-ratelimit. Docker måste då tillåta image-byggen och nå internet, och det tar några minuter. Imagen kan också byggas på Docker-värden (se handboken).",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "Ta bort rutt",
+  "config.security_proxy.action_success": "{action}: lyckades",
+  "config.security_proxy.action_failed": "Åtgärden misslyckades",
+  "config.security_proxy.error_with_message": "Fel: {message}",
+  "config.security_proxy.logs_error": "Det gick inte att läsa in loggarna",
+  "config.security_proxy.logs_empty": "(tomt)",
   "config.security_proxy.enabled_help": "Startar en uppströms Caddy-container som sköter TLS, hastighetsbegränsning och IP-filtrering framför AuraGo. Kräver Docker.",
   "config.security_proxy.domain_help": "Offentligt domännamn för Let's Encrypt-certifikatet. Lämna tomt för läget med enbart port, utan TLS-certifikat.",
   "config.security_proxy.email_help": "Kontaktadress för Let's Encrypt, till exempel för utgångsvarningar.",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "Routens domän",
   "config.security_proxy.route_upstream_label": "Routens upstream-URL",
   "config.security_proxy.route_remove": "Ta bort route",
-  "config.security_proxy.action_success": "{action}: lyckades",
-  "config.security_proxy.action_failed": "Åtgärden misslyckades",
-  "config.security_proxy.state_unknown": "okänd",
-  "config.security_proxy.logs_empty": "(tomt)",
-  "config.security_proxy.logs_error": "Det gick inte att läsa in loggarna"
+  "config.security_proxy.state_unknown": "okänd"
 }

@@ -2428,21 +2428,7 @@ async function skipSetup() {
     }
 }
 
-// ── Toast Notifications ──────────────────────
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-    toast.innerHTML = `<span class="setup-toast-icon">${icons[type] || ''}</span> ${message}`;
-    container.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => {
-        toast.classList.remove('show');
-        toast.classList.add('toast-exit');
-        setTimeout(() => toast.remove(), 400);
-    }, 5000);
-}
+// Toast notifications use the shared showToast (js/shared/shared-core.js): textContent, role/aria-live.
 
 // ── Browser Language Auto-detection ──────────
 (function detectAndSetLanguage() {

@@ -217,6 +217,7 @@
   "skills.test_failed": "测试失败",
   "skills.test_invalid_json": "输入必须是有效的 JSON",
   "skills.test_output_label": "输出",
+  "skills.test_status_error": "错误",
   "skills.test_success": "测试完成",
   "skills.test_title": "测试技能",
   "skills.toggle_success": "技能已更新",

@@ -96,6 +96,12 @@
   "config.security_proxy.rate_limit_build_hint": "官方 Caddy 镜像不支持速率限制。下次启动时，AuraGo 会一次性构建带 caddy-ratelimit 模块的专用 Caddy 镜像。这需要 Docker 允许构建镜像并能访问互联网，耗时几分钟。也可以在 Docker 主机上构建该镜像（参见手册）。",
   "config.security_proxy.confirm_destroy_title": "Destroy the security proxy?",
   "config.security_proxy.confirm_destroy_message": "The proxy container is stopped and removed. Traffic is no longer filtered or rate-limited by it until you start it again, which creates the container anew. Your saved proxy settings stay in the configuration.",
+  "config.security_proxy.remove_route": "删除路由",
+  "config.security_proxy.action_success": "{action}：成功",
+  "config.security_proxy.action_failed": "操作失败",
+  "config.security_proxy.error_with_message": "错误：{message}",
+  "config.security_proxy.logs_error": "无法加载日志",
+  "config.security_proxy.logs_empty": "（空）",
   "config.security_proxy.enabled_help": "启动一个上游 Caddy 容器，在 AuraGo 前端处理 TLS、速率限制和 IP 过滤。需要 Docker。",
   "config.security_proxy.domain_help": "用于 Let's Encrypt 证书的公网域名。留空则使用仅端口模式，不使用 TLS 证书。",
   "config.security_proxy.email_help": "Let's Encrypt 的联系邮箱，例如用于接收到期提醒。",
@@ -111,9 +117,5 @@
   "config.security_proxy.route_domain_label": "路由域名",
   "config.security_proxy.route_upstream_label": "路由上游 URL",
   "config.security_proxy.route_remove": "移除路由",
-  "config.security_proxy.action_success": "{action}：成功",
-  "config.security_proxy.action_failed": "操作失败",
-  "config.security_proxy.state_unknown": "未知",
-  "config.security_proxy.logs_empty": "（空）",
-  "config.security_proxy.logs_error": "无法加载日志"
+  "config.security_proxy.state_unknown": "未知"
 }

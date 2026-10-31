@@ -171,7 +171,7 @@
   "missions.modal_title_edit": "Modifier la Mission",
   "missions.modal_title_new": "Nouvelle Mission",
   "missions.page_description": "Planifie, programme et surveille les tâches automatisées de l’agent.",
-  "missions.page_title": "AuraGo - Contrôle des missions",
+  "missions.page_title": "AuraGo – Contrôle des missions",
   "missions.prep_auto": "Préparation auto",
   "missions.prep_auto_hint": "Préparer automatiquement cette mission quand elle change",
   "missions.prep_btn_invalidate": "Invalider",
