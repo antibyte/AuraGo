@@ -57,10 +57,7 @@
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
   "config.tailscale.key_empty": "Key is empty",
   "config.tailscale.key_save_failed": "Save failed",
-  "config.tailscale.key_saved": "Key saved",
-  "config.truenas.apikey_empty": "API key is empty",
   "config.truenas.apikey_save_failed": "Save failed",
-  "config.truenas.apikey_saved": "API key saved",
   "config.truenas.checking": "Checking…",
   "config.truenas.test_fail": "Failed",
   "config.truenas.test_ok": "Connection successful",
@@ -68,7 +65,6 @@
   "config.updates.installing": "Installing…",
   "config.updates.running": "Running…",
   "config.web_scraper.summary_mode": "Summary Mode",
-  "config.webdav.secret_empty": "Value is empty",
   "config.onedrive.disconnect_confirm_title": "Disconnect OneDrive?",
   "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete."
 }

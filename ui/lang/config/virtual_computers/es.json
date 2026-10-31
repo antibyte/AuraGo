@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Los computadores virtuales están desactivados.",
   "config.virtual_computers.status_error": "Falló la comprobación de los computadores virtuales:",
   "config.virtual_computers.token_empty": "El token no debe estar vacío",
-  "config.virtual_computers.token_saved": "Token guardado",
   "config.virtual_computers.token_save_failed": "No se pudo guardar el token",
   "help.virtual_computers.enabled": "Activa la UI y las rutas de API de Virtual Computers.",
   "help.virtual_computers.readonly": "Permite el estado, el listado, las capturas de pantalla y las descargas, mientras bloquea las mutaciones de la máquina.",

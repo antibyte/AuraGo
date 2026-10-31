@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Tillad destruktive værktøjer",
   "config.composio.allow_nl": "Tillad naturligt sprog",
   "config.composio.api_key": "Composio API-nøgle",
-  "config.composio.api_key_empty": "Composio API-nøgle er påkrævet.",
   "config.composio.api_key_existing": "Composio API-nøgle gemt",
   "config.composio.api_key_placeholder": "Indtast Composio API-nøgle",
   "config.composio.api_key_save_failed": "Kunne ikke gemme Composio API-nøgle",

@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "सेव करें",
-  "config.sql_connections.save_before_test": "पहले कनेक्शन सेव करें, फिर टेस्ट करें।",
   "config.sql_connections.sqlite_path_placeholder": "उदा. /path/to/database.db",
   "config.sql_connections.ssl_default": "डिफ़ॉल्ट",
   "config.sql_connections.ssl_disable": "अक्षम",

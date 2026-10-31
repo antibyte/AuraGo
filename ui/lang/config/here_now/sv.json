@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Välj personligt konto eller arbetsyta som används som standard.",
   "config.here_now.api_key": "API-nyckel",
   "config.here_now.api_key_help": "Sparas endast i AuraGos krypterade Vault och skickas enbart till here.now.",
-  "config.here_now.save_key": "Spara i Vault",
   "config.here_now.test": "Anslutningstest",
   "config.here_now.test_help": "Verifierar den sparade nyckeln och läser in tillgängliga konton.",
   "config.here_now.test_button": "Testa anslutning",
   "config.here_now.key_required": "Ange en API-nyckel.",
   "config.here_now.saving": "Sparar…",
-  "config.here_now.key_saved": "API-nyckeln har sparats i Vault.",
   "config.here_now.testing": "Testar…",
   "config.here_now.test_failed": "Anslutningen misslyckades",
   "config.here_now.test_success": "Anslutningen lyckades"

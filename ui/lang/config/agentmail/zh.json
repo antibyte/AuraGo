@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "允许的发件人",
-  "config.agentmail.api_key_empty": "请先输入 API 密钥。",
   "config.agentmail.api_key_label": "API 密钥 (Vault)",
   "config.agentmail.api_key_placeholder": "输入 AgentMail API 密钥…",
   "config.agentmail.api_key_save_failed": "无法将 API 密钥保存到 Vault。",
-  "config.agentmail.api_key_saved": "AgentMail API 密钥已保存到 Vault。",
   "config.agentmail.auto_create_label": "自动创建收件箱",
   "config.agentmail.base_url_label": "REST API URL",
   "config.agentmail.checking": "正在检查 AgentMail 状态…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "带说明的速查表",
   "config.agentmail.relay_cheatsheet_none": "不附加速查表",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "保存到 Vault",
   "config.agentmail.status_disabled": "AgentMail 集成已禁用",
   "config.agentmail.status_no_api_key": "未配置 API 密钥",
   "config.agentmail.status_no_inbox": "转发需要主收件箱 ID",

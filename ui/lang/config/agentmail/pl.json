@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Dozwoleni nadawcy",
-  "config.agentmail.api_key_empty": "Najpierw wpisz klucz API.",
   "config.agentmail.api_key_label": "Klucz API (Vault)",
   "config.agentmail.api_key_placeholder": "Wpisz klucz API AgentMail…",
   "config.agentmail.api_key_save_failed": "Nie udało się zapisać klucza API w Vault.",
-  "config.agentmail.api_key_saved": "Klucz API AgentMail zapisany w Vault.",
   "config.agentmail.auto_create_label": "Automatycznie utwórz skrzynkę",
   "config.agentmail.base_url_label": "URL API REST",
   "config.agentmail.checking": "Sprawdzanie stanu AgentMail…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Ściągawka z instrukcjami",
   "config.agentmail.relay_cheatsheet_none": "Nie dołączaj ściągawki",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Zapisz w Vault",
   "config.agentmail.status_disabled": "Integracja AgentMail jest wyłączona",
   "config.agentmail.status_no_api_key": "Brak skonfigurowanego klucza API",
   "config.agentmail.status_no_inbox": "Relay wymaga ID głównej skrzynki",

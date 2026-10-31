@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "エージェントはここで選択したリソースだけを使用できます。",
   "config.manus.allowlists_title": "リソース許可リスト",
   "config.manus.api_key": "Manus API キー",
-  "config.manus.api_key_empty": "先に Manus API キーを入力してください。",
   "config.manus.api_key_existing": "Manus API キーは保管庫に保存済みです",
   "config.manus.api_key_placeholder": "Manus API キーを入力",
   "config.manus.api_key_save_failed": "Manus API キーを保存できませんでした",

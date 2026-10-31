@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Destructieve tools toestaan",
   "config.composio.allow_nl": "Natuurlijke taal toestaan",
   "config.composio.api_key": "Composio API-sleutel",
-  "config.composio.api_key_empty": "Composio API-sleutel is verplicht.",
   "config.composio.api_key_existing": "Composio API-sleutel opgeslagen",
   "config.composio.api_key_placeholder": "Voer Composio API-sleutel in",
   "config.composio.api_key_save_failed": "Composio API-sleutel kon niet worden opgeslagen",

@@ -21,13 +21,11 @@
   "config.here_now.account_help": "选择未指定账户时使用的个人账户或工作区。",
   "config.here_now.api_key": "API 密钥",
   "config.here_now.api_key_help": "仅存储在 AuraGo 加密保险库中，并且只发送到 here.now。",
-  "config.here_now.save_key": "保存到保险库",
   "config.here_now.test": "连接测试",
   "config.here_now.test_help": "验证已保存的密钥并加载可访问账户。",
   "config.here_now.test_button": "测试连接",
   "config.here_now.key_required": "请输入 API 密钥。",
   "config.here_now.saving": "正在保存…",
-  "config.here_now.key_saved": "API 密钥已保存到保险库。",
   "config.here_now.testing": "正在测试…",
   "config.here_now.test_failed": "连接失败",
   "config.here_now.test_success": "连接成功"

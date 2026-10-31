@@ -262,7 +262,7 @@
                     current = null;
                     return;
                 }
-                if (node.matches('.section-header, .cfg-page-heading') || (!current && node.matches('.section-desc, .adg-status-banner, .cfg-state-banner, [role="status"]'))) {
+                if (node.matches('.section-header, .cfg-page-heading') || (!current && node.matches('.section-desc, .cfg-state-banner, [role="status"]'))) {
                     current = null;
                     return;
                 }

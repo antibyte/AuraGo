@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Nedostupný",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Uložení selhalo",
-  "config.a2a.save_vault": "Uložit do Vaultu",
   "config.a2a.saved": "Uloženo do Vaultu",
   "config.a2a.server_enabled": "Server povolen",
   "config.a2a.server_title": "Server A2A",

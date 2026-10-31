@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Tilladte afsendere",
-  "config.agentmail.api_key_empty": "Indtast først en API-nøgle.",
   "config.agentmail.api_key_label": "API-nøgle (Vault)",
   "config.agentmail.api_key_placeholder": "Indtast AgentMail API-nøgle…",
   "config.agentmail.api_key_save_failed": "Kunne ikke gemme API-nøglen i Vault.",
-  "config.agentmail.api_key_saved": "AgentMail API-nøgle gemt i Vault.",
   "config.agentmail.auto_create_label": "Opret indbakke automatisk",
   "config.agentmail.base_url_label": "REST API-URL",
   "config.agentmail.checking": "Kontrollerer AgentMail-status…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet med instruktioner",
   "config.agentmail.relay_cheatsheet_none": "Vedhæft ikke et cheatsheet",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Gem i Vault",
   "config.agentmail.status_disabled": "AgentMail-integrationen er deaktiveret",
   "config.agentmail.status_no_api_key": "Ingen API-nøgle konfigureret",
   "config.agentmail.status_no_inbox": "Relay kræver en primær indbakke-ID",

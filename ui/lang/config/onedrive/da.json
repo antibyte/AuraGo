@@ -57,10 +57,7 @@
   "config.skill_manager.tool_bridge_header": "Python-værktøjsbro",
   "config.tailscale.key_empty": "Nøglen er tom",
   "config.tailscale.key_save_failed": "Gemning mislykkedes",
-  "config.tailscale.key_saved": "Nøgle gemt",
-  "config.truenas.apikey_empty": "API-nøglen er tom",
   "config.truenas.apikey_save_failed": "Gemning mislykkedes",
-  "config.truenas.apikey_saved": "API-nøgle gemt",
   "config.truenas.checking": "Tjekker…",
   "config.truenas.test_fail": "Mislykkedes",
   "config.truenas.test_ok": "Forbindelse succesfuld",
@@ -68,7 +65,6 @@
   "config.updates.installing": "Installerer…",
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
-  "config.webdav.secret_empty": "Værdien er tom",
   "config.onedrive.disconnect_confirm_title": "Afbryd OneDrive?",
   "config.onedrive.enabled_help": "Aktiverer OneDrive-filadgang, når Microsoft-godkendelsen er fuldført."
 }

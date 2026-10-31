@@ -21,13 +21,11 @@
   "config.here_now.account_help": "डिफ़ॉल्ट रूप से उपयोग होने वाला व्यक्तिगत खाता या कार्यक्षेत्र चुनें।",
   "config.here_now.api_key": "API कुंजी",
   "config.here_now.api_key_help": "केवल AuraGo के एन्क्रिप्टेड Vault में रखी जाती है और सिर्फ here.now को भेजी जाती है।",
-  "config.here_now.save_key": "Vault में सहेजें",
   "config.here_now.test": "कनेक्शन परीक्षण",
   "config.here_now.test_help": "सहेजी गई कुंजी जाँचता है और उपलब्ध खाते लोड करता है।",
   "config.here_now.test_button": "कनेक्शन जाँचें",
   "config.here_now.key_required": "API कुंजी दर्ज करें।",
   "config.here_now.saving": "सहेजा जा रहा है…",
-  "config.here_now.key_saved": "API कुंजी Vault में सहेजी गई।",
   "config.here_now.testing": "जाँच हो रही है…",
   "config.here_now.test_failed": "कनेक्शन विफल",
   "config.here_now.test_success": "कनेक्शन सफल"

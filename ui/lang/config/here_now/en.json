@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Select the personal account or workspace used when no account is specified.",
   "config.here_now.api_key": "API key",
   "config.here_now.api_key_help": "Stored only in AuraGo's encrypted Vault and sent only to here.now.",
-  "config.here_now.save_key": "Save to Vault",
   "config.here_now.test": "Connection test",
   "config.here_now.test_help": "Verify the saved key and load accessible accounts.",
   "config.here_now.test_button": "Test connection",
   "config.here_now.key_required": "Enter an API key.",
   "config.here_now.saving": "Saving…",
-  "config.here_now.key_saved": "API key saved in the Vault.",
   "config.here_now.testing": "Testing…",
   "config.here_now.test_failed": "Connection failed",
   "config.here_now.test_success": "Connection successful"

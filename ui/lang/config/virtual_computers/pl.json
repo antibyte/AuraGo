@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Komputery wirtualne są wyłączone.",
   "config.virtual_computers.status_error": "Sprawdzenie Komputerów wirtualnych nie powiodło się:",
   "config.virtual_computers.token_empty": "Token nie może być pusty",
-  "config.virtual_computers.token_saved": "Token zapisany",
   "config.virtual_computers.token_save_failed": "Nie udało się zapisać tokenu",
   "help.virtual_computers.enabled": "Włącza interfejs i trasy API Komputerów wirtualnych.",
   "help.virtual_computers.readonly": "Zezwala na status, listowanie, zrzuty ekranu i pobieranie, jednocześnie blokując modyfikacje maszyn.",

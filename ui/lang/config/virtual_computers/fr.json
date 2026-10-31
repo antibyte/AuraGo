@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Les ordinateurs virtuels sont désactivés.",
   "config.virtual_computers.status_error": "Échec de la vérification des ordinateurs virtuels :",
   "config.virtual_computers.token_empty": "Le jeton ne doit pas être vide",
-  "config.virtual_computers.token_saved": "Jeton enregistré",
   "config.virtual_computers.token_save_failed": "Échec de l'enregistrement du jeton",
   "help.virtual_computers.enabled": "Active l'interface et les routes API des ordinateurs virtuels.",
   "help.virtual_computers.readonly": "Autorise le statut, le listage, les captures d'écran et les téléchargements, tout en bloquant les mutations de machines.",

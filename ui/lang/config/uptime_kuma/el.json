@@ -1,9 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "Εισαγάγετε πρώτα ένα κλειδί API.",
   "config.uptime_kuma.api_key_label": "Κλειδί API (Vault)",
   "config.uptime_kuma.api_key_placeholder": "Εισαγάγετε κλειδί API…",
   "config.uptime_kuma.api_key_save_failed": "Αποτυχία αποθήκευσης κλειδιού API στο vault.",
-  "config.uptime_kuma.api_key_saved": "Το κλειδί API αποθηκεύτηκε στο vault.",
   "config.uptime_kuma.base_url_label": "URL του Uptime Kuma",
   "config.uptime_kuma.checking": "Έλεγχος σύνδεσης…",
   "config.uptime_kuma.connected": "Συνδέθηκε στο Uptime Kuma",
@@ -18,7 +16,6 @@
   "config.uptime_kuma.relay_to_agent_label": "Ειδοποίηση πράκτορα σε βλάβη",
   "config.uptime_kuma.request_timeout_label": "Χρονικό όριο αιτήματος (δευτ.)",
   "config.uptime_kuma.save_icon": "💾",
-  "config.uptime_kuma.save_vault": "Αποθήκευση στο Vault",
   "config.uptime_kuma.status_disabled": "Η ενσωμάτωση Uptime Kuma είναι απενεργοποιημένη",
   "config.uptime_kuma.status_error": "❌",
   "config.uptime_kuma.status_no_api_key": "Δεν έχει ρυθμιστεί κλειδί API",

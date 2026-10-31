@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "Uložit",
-  "config.sql_connections.save_before_test": "Nejprve uložte připojení, pak ho otestujte.",
   "config.sql_connections.sqlite_path_placeholder": "např. /cesta/k/databazi.db",
   "config.sql_connections.ssl_default": "Výchozí",
   "config.sql_connections.ssl_disable": "Zakázat",

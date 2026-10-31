@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "虚拟电脑已停用。",
   "config.virtual_computers.status_error": "虚拟电脑检查失败：",
   "config.virtual_computers.token_empty": "令牌不能为空",
-  "config.virtual_computers.token_saved": "令牌已保存",
   "config.virtual_computers.token_save_failed": "保存令牌失败",
   "help.virtual_computers.enabled": "启用 Virtual Computers 的 UI 与 API 路由。",
   "help.virtual_computers.readonly": "允许状态、列举、截图和下载，同时阻止机器变更操作。",

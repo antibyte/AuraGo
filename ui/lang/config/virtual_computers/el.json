@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Οι εικονικοί υπολογιστές είναι απενεργοποιημένοι.",
   "config.virtual_computers.status_error": "Ο έλεγχος των εικονικών υπολογιστών απέτυχε:",
   "config.virtual_computers.token_empty": "Το διακριτικό δεν πρέπει να είναι κενό",
-  "config.virtual_computers.token_saved": "Το διακριτικό αποθηκεύτηκε",
   "config.virtual_computers.token_save_failed": "Αποτυχία αποθήκευσης διακριτικού",
   "help.virtual_computers.enabled": "Ενεργοποιεί το UI και τις διαδρομές API των Εικονικών υπολογιστών.",
   "help.virtual_computers.readonly": "Επιτρέπει κατάσταση, λίστα, στιγμιότυπα οθόνης και λήψεις, ενώ αποκλείει μεταβολές μηχανών.",

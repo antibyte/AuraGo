@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Non disponibile",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Salvataggio fallito",
-  "config.a2a.save_vault": "Salva nel Vault",
   "config.a2a.saved": "Salvato nel Vault",
   "config.a2a.server_enabled": "Server abilitato",
   "config.a2a.server_title": "Server A2A",

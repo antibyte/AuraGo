@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Virtual Computers are disabled.",
   "config.virtual_computers.status_error": "Virtual Computers check failed:",
   "config.virtual_computers.token_empty": "Token must not be empty",
-  "config.virtual_computers.token_saved": "Token saved",
   "config.virtual_computers.token_save_failed": "Failed to save token",
   "help.virtual_computers.enabled": "Enables the Virtual Computers UI and API routes.",
   "help.virtual_computers.readonly": "Allows status, listing, screenshots and downloads while blocking machine mutations.",

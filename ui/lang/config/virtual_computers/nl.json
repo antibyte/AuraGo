@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Virtuele computers zijn uitgeschakeld.",
   "config.virtual_computers.status_error": "Controle van virtuele computers mislukt:",
   "config.virtual_computers.token_empty": "Token mag niet leeg zijn",
-  "config.virtual_computers.token_saved": "Token opgeslagen",
   "config.virtual_computers.token_save_failed": "Token opslaan mislukt",
   "help.virtual_computers.enabled": "Schakelt de Virtual Computers-UI en API-routes in.",
   "help.virtual_computers.readonly": "Staat status, lijsten, schermafbeeldingen en downloads toe, terwijl mutaties van machines worden geblokkeerd.",

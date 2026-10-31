@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Selecione a conta pessoal ou espaço de trabalho predefinido.",
   "config.here_now.api_key": "Chave de API",
   "config.here_now.api_key_help": "Guardada apenas no Cofre cifrado do AuraGo e enviada exclusivamente para here.now.",
-  "config.here_now.save_key": "Guardar no Cofre",
   "config.here_now.test": "Teste de ligação",
   "config.here_now.test_help": "Verifica a chave guardada e carrega as contas acessíveis.",
   "config.here_now.test_button": "Testar ligação",
   "config.here_now.key_required": "Introduza uma chave de API.",
   "config.here_now.saving": "A guardar…",
-  "config.here_now.key_saved": "Chave de API guardada no Cofre.",
   "config.here_now.testing": "A testar…",
   "config.here_now.test_failed": "Falha na ligação",
   "config.here_now.test_success": "Ligação bem-sucedida"

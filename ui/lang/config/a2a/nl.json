@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Niet beschikbaar",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Opslaan mislukt",
-  "config.a2a.save_vault": "Opslaan in Vault",
   "config.a2a.saved": "Opgeslagen in Vault",
   "config.a2a.server_enabled": "Server ingeschakeld",
   "config.a2a.server_title": "A2A-server",

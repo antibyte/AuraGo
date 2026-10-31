@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Pont d'outils Python",
   "config.tailscale.key_empty": "La clé est vide",
   "config.tailscale.key_save_failed": "Échec de l'enregistrement",
-  "config.tailscale.key_saved": "Clé enregistrée",
-  "config.truenas.apikey_empty": "La clé API est vide",
   "config.truenas.apikey_save_failed": "Échec de l'enregistrement",
-  "config.truenas.apikey_saved": "Clé API enregistrée",
   "config.truenas.checking": "Vérification…",
   "config.truenas.test_fail": "Échec",
   "config.truenas.test_ok": "Connexion réussie",
@@ -55,6 +52,5 @@
   "config.web_scraper.summary_desc": "Les pages web extraites sont résumées via le Helper LLM central lorsqu'il est activé. L'agent reçoit le résumé nettoyé au lieu du contenu complet de la page.<br><strong>Avantages :</strong> économise des tokens, réduit les appels d'aide en double et renforce le système contre l'injection de prompts depuis du contenu externe. Si le LLM auxiliaire n'est pas configuré ou si le résumé échoue, vous recevez le contenu isolé de la page.",
   "config.web_scraper.summary_mode": "Mode résumé",
   "config.web_scraper.summary_provider": "LLM auxiliaire",
-  "config.web_scraper.use_main_llm": "— Utiliser le LLM principal —",
-  "config.webdav.secret_empty": "La valeur est vide"
+  "config.web_scraper.use_main_llm": "— Utiliser le LLM principal —"
 }

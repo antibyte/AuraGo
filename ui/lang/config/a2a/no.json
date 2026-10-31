@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Utilgjengelig",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Lagring mislyktes",
-  "config.a2a.save_vault": "Lagre i Vault",
   "config.a2a.saved": "Lagret i Vault",
   "config.a2a.server_enabled": "Server aktivert",
   "config.a2a.server_title": "A2A-server",

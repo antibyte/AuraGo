@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Povolit destruktivní nástroje",
   "config.composio.allow_nl": "Povolit přirozený jazyk",
   "config.composio.api_key": "Composio API klíč",
-  "config.composio.api_key_empty": "Composio API klíč je povinný.",
   "config.composio.api_key_existing": "Composio API klíč uložen",
   "config.composio.api_key_placeholder": "Zadejte Composio API klíč",
   "config.composio.api_key_save_failed": "Composio API klíč se nepodařilo uložit",

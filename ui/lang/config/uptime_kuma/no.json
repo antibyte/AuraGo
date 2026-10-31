@@ -1,9 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "Vennligst oppgi en API-nøkkel først.",
   "config.uptime_kuma.api_key_label": "API-nøkkel (Vault)",
   "config.uptime_kuma.api_key_placeholder": "Oppgi API-nøkkel…",
   "config.uptime_kuma.api_key_save_failed": "Kunne ikke lagre API-nøkkel i vault.",
-  "config.uptime_kuma.api_key_saved": "API-nøkkel lagret i vault.",
   "config.uptime_kuma.base_url_label": "Uptime Kuma-URL",
   "config.uptime_kuma.checking": "Kontrollerer tilkobling…",
   "config.uptime_kuma.connected": "Tilkoblet Uptime Kuma",
@@ -18,7 +16,6 @@
   "config.uptime_kuma.relay_to_agent_label": "Varsle agent ved nedetid",
   "config.uptime_kuma.request_timeout_label": "Forespørselstimeout (sekunder)",
   "config.uptime_kuma.save_icon": "💾",
-  "config.uptime_kuma.save_vault": "Lagre i Vault",
   "config.uptime_kuma.status_disabled": "Uptime Kuma-integrasjonen er deaktivert",
   "config.uptime_kuma.status_error": "❌",
   "config.uptime_kuma.status_no_api_key": "Ingen API-nøkkel konfigurert",

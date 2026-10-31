@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "Agent smí použít jen výslovně vybrané zdroje.",
   "config.manus.allowlists_title": "Seznamy povolených zdrojů",
   "config.manus.api_key": "Klíč API Manus",
-  "config.manus.api_key_empty": "Nejprve zadejte klíč API Manus.",
   "config.manus.api_key_existing": "Klíč API Manus je uložen v trezoru",
   "config.manus.api_key_placeholder": "Zadejte klíč API Manus",
   "config.manus.api_key_save_failed": "Klíč API Manus se nepodařilo uložit",

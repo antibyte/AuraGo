@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "Agenten må kun bruge de ressourcer, der er valgt her.",
   "config.manus.allowlists_title": "Lister over tilladte ressourcer",
   "config.manus.api_key": "Manus API-nøgle",
-  "config.manus.api_key_empty": "Indtast først en Manus API-nøgle.",
   "config.manus.api_key_existing": "Manus API-nøgle gemt i vault",
   "config.manus.api_key_placeholder": "Indtast Manus API-nøgle",
   "config.manus.api_key_save_failed": "Manus API-nøglen kunne ikke gemmes",

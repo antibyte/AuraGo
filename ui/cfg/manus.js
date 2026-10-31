@@ -77,7 +77,7 @@ async function renderManusSection(section) {
     html += manusCatalogGroup('projects', 'allowed_project_ids', 'config.manus.allowed_projects', 'help.manus.allowed_projects', cfg.allowed_project_ids);
     html += manusCatalogGroup('connectors', 'allowed_connector_ids', 'config.manus.allowed_connectors', 'help.manus.allowed_connectors', cfg.allowed_connector_ids);
     html += manusCatalogGroup('skills', 'allowed_skill_ids', 'config.manus.allowed_skills', 'help.manus.allowed_skills', cfg.allowed_skill_ids);
-    html += '<div class="adg-status-banner is-warning manus-default-skills-note">' + t('config.manus.default_skills_note') + '</div></div>';
+    html += '<div class="cfg-note-banner cfg-note-banner-warning manus-default-skills-note">' + t('config.manus.default_skills_note') + '</div></div>';
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();

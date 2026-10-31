@@ -162,7 +162,7 @@ async function renderBrowserAutomationSection(section) {
 
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="baTestConnection()" id="ba-test-btn" data-config-action-draft="true">🔌 ' + t('config.browser_automation.test_button') + '</button>';
-    html += cfgActionResult.html('ba-test-result', 'dc-test-result');
+    html += cfgActionResult.html('ba-test-result');
     html += '</div>';
 
     html += '</div>';

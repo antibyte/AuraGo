@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "仮想コンピューターは無効です。",
   "config.virtual_computers.status_error": "仮想コンピューターの確認に失敗しました:",
   "config.virtual_computers.token_empty": "トークンは空にできません",
-  "config.virtual_computers.token_saved": "トークンを保存しました",
   "config.virtual_computers.token_save_failed": "トークンの保存に失敗しました",
   "help.virtual_computers.enabled": "Virtual Computers の UI と API ルートを有効にします。",
   "help.virtual_computers.readonly": "ステータス、一覧、スクリーンショット、ダウンロードを許可し、マシンの変更操作はブロックします。",

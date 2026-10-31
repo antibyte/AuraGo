@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Python工具桥",
   "config.tailscale.key_empty": "密钥为空",
   "config.tailscale.key_save_failed": "保存失败",
-  "config.tailscale.key_saved": "密钥已保存",
-  "config.truenas.apikey_empty": "API密钥为空",
   "config.truenas.apikey_save_failed": "保存失败",
-  "config.truenas.apikey_saved": "API密钥已保存",
   "config.truenas.checking": "检查中…",
   "config.truenas.test_fail": "失败",
   "config.truenas.test_ok": "连接成功",
@@ -55,6 +52,5 @@
   "config.web_scraper.summary_desc": "当启用时，爬取的网页会通过中央Helper LLM进行摘要处理。代理会收到清洁的摘要而不是完整的页面内容。<br><strong>好处：</strong>节省tokens，减少重复的helper调用，并加强系统抵御外部内容的prompt注入。如果未配置辅助 LLM 或摘要失败，你会得到隔离后的页面内容。",
   "config.web_scraper.summary_mode": "摘要模式",
   "config.web_scraper.summary_provider": "辅助 LLM",
-  "config.web_scraper.use_main_llm": "— 使用主 LLM —",
-  "config.webdav.secret_empty": "值为空"
+  "config.web_scraper.use_main_llm": "— 使用主 LLM —"
 }

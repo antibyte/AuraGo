@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Skriv inn en API nøkkel først.",
   "config.grafana.api_key_label": "API nøkkel (hvelv)",
   "config.grafana.api_key_placeholder": "Skriv inn API nøkkel...",
   "config.grafana.api_key_save_failed": "Kunne ikke lagre API-nøkkelen til hvelvet.",
-  "config.grafana.api_key_saved": "API nøkkel lagret i hvelv.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Sjekker tilkoblingen…",
   "config.grafana.connected": "Koblet til Grafana",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Skrivebeskyttet",
   "config.grafana.request_timeout_label": "Forespørselstidsavbrudd (sekunder)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Lagre i hvelv",
   "config.grafana.status_disabled": "Grafana-integrering er deaktivert",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "Ingen API nøkkel konfigurert",

@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Virtuelle computere er deaktiveret.",
   "config.virtual_computers.status_error": "Kontrol af virtuelle computere mislykkedes:",
   "config.virtual_computers.token_empty": "Token må ikke være tomt",
-  "config.virtual_computers.token_saved": "Token gemt",
   "config.virtual_computers.token_save_failed": "Kunne ikke gemme token",
   "help.virtual_computers.enabled": "Aktiverer UI’en og API-ruterne for virtuelle computere.",
   "help.virtual_computers.readonly": "Tillader status, listevisning, skærmbilleder og downloads, mens mutationer af maskiner blokeres.",

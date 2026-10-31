@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Consenti strumenti distruttivi",
   "config.composio.allow_nl": "Consenti linguaggio naturale",
   "config.composio.api_key": "Chiave API Composio",
-  "config.composio.api_key_empty": "È necessaria una chiave API Composio.",
   "config.composio.api_key_existing": "Chiave API Composio salvata",
   "config.composio.api_key_placeholder": "Inserisci la chiave API Composio",
   "config.composio.api_key_save_failed": "Impossibile salvare la chiave API di Composio",

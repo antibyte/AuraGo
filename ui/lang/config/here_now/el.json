@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Επιλέξτε τον προσωπικό λογαριασμό ή χώρο εργασίας που χρησιμοποιείται από προεπιλογή.",
   "config.here_now.api_key": "Κλειδί API",
   "config.here_now.api_key_help": "Αποθηκεύεται μόνο στο κρυπτογραφημένο Vault του AuraGo και αποστέλλεται μόνο στο here.now.",
-  "config.here_now.save_key": "Αποθήκευση στο Vault",
   "config.here_now.test": "Δοκιμή σύνδεσης",
   "config.here_now.test_help": "Επαληθεύει το αποθηκευμένο κλειδί και φορτώνει τους προσβάσιμους λογαριασμούς.",
   "config.here_now.test_button": "Δοκιμή σύνδεσης",
   "config.here_now.key_required": "Εισαγάγετε ένα κλειδί API.",
   "config.here_now.saving": "Αποθήκευση…",
-  "config.here_now.key_saved": "Το κλειδί API αποθηκεύτηκε στο Vault.",
   "config.here_now.testing": "Δοκιμή…",
   "config.here_now.test_failed": "Η σύνδεση απέτυχε",
   "config.here_now.test_success": "Η σύνδεση ήταν επιτυχής"

@@ -96,7 +96,7 @@ async function renderSpaceAgentSection(section) {
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="spaceAgentRecreate()" id="space-agent-recreate-btn" data-config-action-draft="false">🔄 ' + t('config.space_agent.recreate_button') + '</button>';
     html += '<button class="btn-save dc-test-btn" onclick="spaceAgentStatus()" id="space-agent-status-btn" data-config-action-draft="false">🔌 ' + t('config.space_agent.status_button') + '</button>';
-    html += cfgActionResult.html('space-agent-result', 'dc-test-result');
+    html += cfgActionResult.html('space-agent-result');
     html += '</div>';
 
     html += '</div>';

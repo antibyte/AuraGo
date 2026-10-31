@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "Agent może używać tylko zasobów wybranych tutaj.",
   "config.manus.allowlists_title": "Listy dozwolonych zasobów",
   "config.manus.api_key": "Klucz API Manus",
-  "config.manus.api_key_empty": "Najpierw wprowadź klucz API Manus.",
   "config.manus.api_key_existing": "Klucz API Manus zapisany w sejfie",
   "config.manus.api_key_placeholder": "Wprowadź klucz API Manus",
   "config.manus.api_key_save_failed": "Nie udało się zapisać klucza API Manus",

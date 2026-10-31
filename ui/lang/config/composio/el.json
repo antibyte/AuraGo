@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Να επιτρέπονται εργαλεία με καταστροφικές ενέργειες",
   "config.composio.allow_nl": "Να επιτρέπεται η φυσική γλώσσα",
   "config.composio.api_key": "Κλειδί API Composio",
-  "config.composio.api_key_empty": "Απαιτείται κλειδί API Composio.",
   "config.composio.api_key_existing": "Το κλειδί API Composio έχει αποθηκευτεί",
   "config.composio.api_key_placeholder": "Εισάγαγε το κλειδί API Composio",
   "config.composio.api_key_save_failed": "Δεν ήταν δυνατή η αποθήκευση του κλειδιού API του Composio",

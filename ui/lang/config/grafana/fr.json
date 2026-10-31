@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Veuillez d'abord saisir une clé API.",
   "config.grafana.api_key_label": "Clé API (Coffre-fort)",
   "config.grafana.api_key_placeholder": "Entrez la clé API…",
   "config.grafana.api_key_save_failed": "Échec de l'enregistrement de la clé API dans le coffre-fort.",
-  "config.grafana.api_key_saved": "Clé API enregistrée dans le coffre-fort.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Vérification de la connexion…",
   "config.grafana.connected": "Connecté à Grafana",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Lecture seule",
   "config.grafana.request_timeout_label": "Délai d'expiration de la demande (secondes)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Enregistrer dans le coffre-fort",
   "config.grafana.status_disabled": "L'intégration Grafana est désactivée",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "Aucune clé API configurée",

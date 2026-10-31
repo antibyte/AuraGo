@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "विनाशकारी टूल की अनुमति दें",
   "config.composio.allow_nl": "प्राकृतिक भाषा इनपुट की अनुमति दें",
   "config.composio.api_key": "Composio API कुंजी",
-  "config.composio.api_key_empty": "Composio API कुंजी आवश्यक है।",
   "config.composio.api_key_existing": "Composio API कुंजी संग्रहीत है",
   "config.composio.api_key_placeholder": "Composio API कुंजी दर्ज करें",
   "config.composio.api_key_save_failed": "Composio API कुंजी सहेजी नहीं जा सकी",

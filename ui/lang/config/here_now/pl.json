@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Wybierz osobiste konto lub obszar roboczy używany domyślnie.",
   "config.here_now.api_key": "Klucz API",
   "config.here_now.api_key_help": "Przechowywany wyłącznie w szyfrowanym Sejfie AuraGo i wysyłany tylko do here.now.",
-  "config.here_now.save_key": "Zapisz w Sejfie",
   "config.here_now.test": "Test połączenia",
   "config.here_now.test_help": "Sprawdza zapisany klucz i ładuje dostępne konta.",
   "config.here_now.test_button": "Testuj połączenie",
   "config.here_now.key_required": "Wprowadź klucz API.",
   "config.here_now.saving": "Zapisywanie…",
-  "config.here_now.key_saved": "Klucz API zapisano w Sejfie.",
   "config.here_now.testing": "Testowanie…",
   "config.here_now.test_failed": "Połączenie nie powiodło się",
   "config.here_now.test_success": "Połączenie udane"

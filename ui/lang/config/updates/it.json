@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Ponte degli strumenti Python",
   "config.tailscale.key_empty": "La chiave è vuota",
   "config.tailscale.key_save_failed": "Salvataggio fallito",
-  "config.tailscale.key_saved": "Chiave salvata",
-  "config.truenas.apikey_empty": "La chiave API è vuota",
   "config.truenas.apikey_save_failed": "Salvataggio fallito",
-  "config.truenas.apikey_saved": "Chiave API salvata",
   "config.truenas.checking": "Controllo…",
   "config.truenas.test_fail": "Fallito",
   "config.truenas.test_ok": "Connessione riuscita",
@@ -62,6 +59,5 @@
   "config.updates.version": "Versione",
   "config.updates.warning_banner": "L'aggiornamento sostituisce binari, prompt e file UI. <strong>La tua configurazione e i dati sono preservati.</strong> AuraGo si riavvierà dopo l'aggiornamento.",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
-  "config.webdav.secret_empty": "Il valore è vuoto",
   "config.updates.confirm_install_title": "Installare l’aggiornamento?"
 }

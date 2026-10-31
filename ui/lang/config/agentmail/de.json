@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Erlaubte Absender",
-  "config.agentmail.api_key_empty": "Bitte zuerst einen API-Key eingeben.",
   "config.agentmail.api_key_label": "API-Key (Vault)",
   "config.agentmail.api_key_placeholder": "AgentMail API-Key eingeben…",
   "config.agentmail.api_key_save_failed": "API-Key konnte nicht im Vault gespeichert werden.",
-  "config.agentmail.api_key_saved": "AgentMail API-Key wurde im Vault gespeichert.",
   "config.agentmail.auto_create_label": "Postfach automatisch erstellen",
   "config.agentmail.base_url_label": "REST-API-URL",
   "config.agentmail.checking": "AgentMail-Status wird geprüft…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet mit Anweisungen",
   "config.agentmail.relay_cheatsheet_none": "Kein Cheatsheet anhängen",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Im Vault speichern",
   "config.agentmail.status_disabled": "AgentMail-Integration ist deaktiviert",
   "config.agentmail.status_no_api_key": "Kein API-Key konfiguriert",
   "config.agentmail.status_no_inbox": "Relay benötigt eine primäre Postfach-ID",

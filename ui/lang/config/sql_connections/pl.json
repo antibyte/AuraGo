@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "Zapisz",
-  "config.sql_connections.save_before_test": "Najpierw zapisz połączenie, potem je przetestuj.",
   "config.sql_connections.sqlite_path_placeholder": "np. /ścieżka/do/bazy.db",
   "config.sql_connections.ssl_default": "Domyślne",
   "config.sql_connections.ssl_disable": "Wyłączone",

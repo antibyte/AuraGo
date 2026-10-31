@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Ikke tilgængelig",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Gem mislykkedes",
-  "config.a2a.save_vault": "Gem i Vault",
   "config.a2a.saved": "Gemt i Vault",
   "config.a2a.server_enabled": "Server aktiveret",
   "config.a2a.server_title": "A2A-server",

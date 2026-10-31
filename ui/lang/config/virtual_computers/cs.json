@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Virtuální počítače jsou vypnuté.",
   "config.virtual_computers.status_error": "Kontrola virtuálních počítačů selhala:",
   "config.virtual_computers.token_empty": "Token nesmí být prázdný",
-  "config.virtual_computers.token_saved": "Token uložen",
   "config.virtual_computers.token_save_failed": "Nepodařilo se uložit token",
   "help.virtual_computers.enabled": "Povoluje UI a trasy API virtuálních počítačů.",
   "help.virtual_computers.readonly": "Povoluje stav, výpis, snímky obrazovky a stahování, přičemž blokuje mutace strojů.",

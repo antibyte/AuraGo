@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Εισαγάγετε πρώτα ένα κλειδί API.",
   "config.grafana.api_key_label": "Κλειδί API (Vault)",
   "config.grafana.api_key_placeholder": "Εισαγάγετε το κλειδί API…",
   "config.grafana.api_key_save_failed": "Αποτυχία αποθήκευσης του κλειδιού API στο θησαυροφυλάκιο.",
-  "config.grafana.api_key_saved": "Το κλειδί API αποθηκεύτηκε στο θησαυροφυλάκιο.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Έλεγχος σύνδεσης…",
   "config.grafana.connected": "Συνδεδεμένο στο Grafana",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Μόνο για ανάγνωση",
   "config.grafana.request_timeout_label": "Χρονικό όριο αιτήματος (δευτερόλεπτα)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Αποθήκευση στο Vault",
   "config.grafana.status_disabled": "Η ενσωμάτωση Grafana είναι απενεργοποιημένη",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "Δεν έχει διαμορφωθεί κλειδί API",

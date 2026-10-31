@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Tillåtna avsändare",
-  "config.agentmail.api_key_empty": "Ange en API-nyckel först.",
   "config.agentmail.api_key_label": "API-nyckel (Vault)",
   "config.agentmail.api_key_placeholder": "Ange AgentMail API-nyckel…",
   "config.agentmail.api_key_save_failed": "Kunde inte spara API-nyckeln i Vault.",
-  "config.agentmail.api_key_saved": "AgentMail API-nyckel sparad i Vault.",
   "config.agentmail.auto_create_label": "Skapa inkorg automatiskt",
   "config.agentmail.base_url_label": "REST API-URL",
   "config.agentmail.checking": "Kontrollerar AgentMail-status…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet med instruktioner",
   "config.agentmail.relay_cheatsheet_none": "Bifoga inget cheatsheet",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Spara i Vault",
   "config.agentmail.status_disabled": "AgentMail-integrationen är avstängd",
   "config.agentmail.status_no_api_key": "Ingen API-nyckel konfigurerad",
   "config.agentmail.status_no_inbox": "Relä kräver ett primärt inkorgs-ID",

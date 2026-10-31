@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Remitentes permitidos",
-  "config.agentmail.api_key_empty": "Introduce primero una clave API.",
   "config.agentmail.api_key_label": "Clave API (Vault)",
   "config.agentmail.api_key_placeholder": "Introduce la clave API de AgentMail…",
   "config.agentmail.api_key_save_failed": "No se pudo guardar la clave API en el Vault.",
-  "config.agentmail.api_key_saved": "Clave API de AgentMail guardada en el Vault.",
   "config.agentmail.auto_create_label": "Crear buzón automáticamente",
   "config.agentmail.base_url_label": "URL de API REST",
   "config.agentmail.checking": "Comprobando estado de AgentMail…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet con instrucciones",
   "config.agentmail.relay_cheatsheet_none": "No adjuntar cheatsheet",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Guardar en Vault",
   "config.agentmail.status_disabled": "La integración AgentMail está desactivada",
   "config.agentmail.status_no_api_key": "No hay clave API configurada",
   "config.agentmail.status_no_inbox": "El relay necesita un ID de buzón principal",

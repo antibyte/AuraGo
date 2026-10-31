@@ -71,7 +71,7 @@ async function renderGoogleWorkspaceSection(section) {
             <button class="btn-save adg-test-btn" id="gw-test-btn" data-config-action-draft="true" onclick="gwTestConnection()">🧪 ${t('config.google_workspace.test_btn')}</button>
             ${cfgActionResult.html('gw-test-result')}
         </div>
-        ${cfgActionResult.html('gw-oauth-status', 'gw-status-line')}
+        ${cfgActionResult.html('gw-oauth-status')}
         <div id="gw-manual-section" class="gw-manual-panel">
             <div class="gw-manual-title">⚠️ ${t('config.google_workspace.oauth_manual_title')}</div>
             <div class="gw-manual-hint">${t('config.google_workspace.oauth_manual_hint')}</div>

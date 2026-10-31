@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "允许破坏性工具",
   "config.composio.allow_nl": "允许自然语言输入",
   "config.composio.api_key": "Composio API 密钥",
-  "config.composio.api_key_empty": "需要 Composio API 密钥。",
   "config.composio.api_key_existing": "Composio API 密钥已保存",
   "config.composio.api_key_placeholder": "输入 Composio API 密钥",
   "config.composio.api_key_save_failed": "无法保存 Composio API 密钥",

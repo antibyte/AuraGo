@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Python-værktøjsbro",
   "config.tailscale.key_empty": "Nøglen er tom",
   "config.tailscale.key_save_failed": "Gemning mislykkedes",
-  "config.tailscale.key_saved": "Nøgle gemt",
-  "config.truenas.apikey_empty": "API-nøglen er tom",
   "config.truenas.apikey_save_failed": "Gemning mislykkedes",
-  "config.truenas.apikey_saved": "API-nøgle gemt",
   "config.truenas.checking": "Tjekker…",
   "config.truenas.test_fail": "Mislykkedes",
   "config.truenas.test_ok": "Forbindelse succesfuld",
@@ -55,6 +52,5 @@
   "config.web_scraper.summary_desc": "Scrapede websider opsummeres via det centrale Helper-LLM, når det er aktiveret. Agenten modtager den rensede opsummering i stedet for det fulde sideindhold.<br><strong>Fordele:</strong> sparer tokens, reducerer duplikerede helper-kald og hærder systemet mod prompt-injektion fra eksternt indhold. Hvis hjælpe-LLM'en ikke er konfigureret, eller opsummeringen mislykkes, får du det isolerede sideindhold.",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.web_scraper.summary_provider": "Hjælpe-LLM",
-  "config.web_scraper.use_main_llm": "— Brug hoved-LLM —",
-  "config.webdav.secret_empty": "Værdien er tom"
+  "config.web_scraper.use_main_llm": "— Brug hoved-LLM —"
 }

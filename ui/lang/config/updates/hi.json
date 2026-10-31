@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "पायथन टूल ब्रिज",
   "config.tailscale.key_empty": "कुंजी खाली है",
   "config.tailscale.key_save_failed": "सेव विफल",
-  "config.tailscale.key_saved": "कुंजी सेव हुई",
-  "config.truenas.apikey_empty": "API कुंजी खाली है",
   "config.truenas.apikey_save_failed": "सेव विफल",
-  "config.truenas.apikey_saved": "API कुंजी सेव हुई",
   "config.truenas.checking": "जाँच हो रही है…",
   "config.truenas.test_fail": "विफल",
   "config.truenas.test_ok": "कनेक्शन सफल",
@@ -62,6 +59,5 @@
   "config.updates.version": "संस्करण",
   "config.updates.warning_banner": "अद्यतन बायनेरिज़, प्रॉम्प्ट और यूआई फ़ाइलों को प्रतिस्थापित करता है। <strong>आपका कॉन्फ़िगरेशन और डेटा संरक्षित है।</strong> अपडेट के बाद AuraGo पुनः आरंभ होगा।",
   "config.web_scraper.summary_mode": "सारांश मोड",
-  "config.webdav.secret_empty": "मान खाली है",
   "config.updates.confirm_install_title": "अपडेट इंस्टॉल करें?"
 }

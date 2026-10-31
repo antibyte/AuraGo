@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Primero ingresa una clave API.",
   "config.grafana.api_key_label": "API Clave (Bóveda)",
   "config.grafana.api_key_placeholder": "Ingresa la clave API...",
   "config.grafana.api_key_save_failed": "No se pudo guardar la clave API en la bóveda.",
-  "config.grafana.api_key_saved": "API clave guardada en la bóveda.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Comprobando conexión...",
   "config.grafana.connected": "Conectado a Grafana",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Solo lectura",
   "config.grafana.request_timeout_label": "Solicitar tiempo de espera (segundos)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Guardar en bóveda",
   "config.grafana.status_disabled": "La integración de Grafana está deshabilitada",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "No hay clave API configurada",

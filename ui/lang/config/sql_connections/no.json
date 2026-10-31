@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "Lagre",
-  "config.sql_connections.save_before_test": "Lagre tilkoblingen først, test den deretter.",
   "config.sql_connections.sqlite_path_placeholder": "f.eks. /sti/til/database.db",
   "config.sql_connections.ssl_default": "Standardvalg",
   "config.sql_connections.ssl_disable": "Deaktivert",

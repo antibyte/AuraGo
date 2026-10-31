@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "許可する送信者",
-  "config.agentmail.api_key_empty": "先に API キーを入力してください。",
   "config.agentmail.api_key_label": "API キー (Vault)",
   "config.agentmail.api_key_placeholder": "AgentMail API キーを入力…",
   "config.agentmail.api_key_save_failed": "API キーを Vault に保存できませんでした。",
-  "config.agentmail.api_key_saved": "AgentMail API キーを Vault に保存しました。",
   "config.agentmail.auto_create_label": "受信箱を自動作成",
   "config.agentmail.base_url_label": "REST API URL",
   "config.agentmail.checking": "AgentMail の状態を確認中…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "指示付きチートシート",
   "config.agentmail.relay_cheatsheet_none": "チートシートを添付しない",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Vault に保存",
   "config.agentmail.status_disabled": "AgentMail 連携は無効です",
   "config.agentmail.status_no_api_key": "API キーが設定されていません",
   "config.agentmail.status_no_inbox": "中継には主要受信箱 ID が必要です",

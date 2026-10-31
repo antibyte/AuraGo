@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "代理只能使用此处明确选择的资源。",
   "config.manus.allowlists_title": "资源允许列表",
   "config.manus.api_key": "Manus API 密钥",
-  "config.manus.api_key_empty": "请先输入 Manus API 密钥。",
   "config.manus.api_key_existing": "Manus API 密钥已存入保险库",
   "config.manus.api_key_placeholder": "输入 Manus API 密钥",
   "config.manus.api_key_save_failed": "无法保存 Manus API 密钥",

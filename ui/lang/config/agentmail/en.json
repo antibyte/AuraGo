@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Allowed Senders",
-  "config.agentmail.api_key_empty": "Please enter an API key first.",
   "config.agentmail.api_key_label": "API Key (Vault)",
   "config.agentmail.api_key_placeholder": "Enter AgentMail API key…",
   "config.agentmail.api_key_save_failed": "Failed to save API key to vault.",
-  "config.agentmail.api_key_saved": "AgentMail API key saved to vault.",
   "config.agentmail.auto_create_label": "Auto-create Inbox",
   "config.agentmail.base_url_label": "REST API URL",
   "config.agentmail.checking": "Checking AgentMail status…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet with instructions",
   "config.agentmail.relay_cheatsheet_none": "Do not attach a cheatsheet",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Save to Vault",
   "config.agentmail.status_disabled": "AgentMail integration is disabled",
   "config.agentmail.status_no_api_key": "No API key configured",
   "config.agentmail.status_no_inbox": "Relay needs a primary inbox ID",

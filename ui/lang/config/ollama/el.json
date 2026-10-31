@@ -44,16 +44,12 @@
   "config.skill_manager.tool_bridge_header": "Γέφυρα εργαλείων Python",
   "config.tailscale.key_empty": "Το κλειδί είναι κενό",
   "config.tailscale.key_save_failed": "Η αποθήκευση απέτυχε",
-  "config.tailscale.key_saved": "Κλειδί αποθηκεύτηκε",
-  "config.truenas.apikey_empty": "Το κλειδί API είναι κενό",
   "config.truenas.apikey_save_failed": "Η αποθήκευση απέτυχε",
-  "config.truenas.apikey_saved": "Κλειδί API αποθηκεύτηκε",
   "config.truenas.checking": "Έλεγχος…",
   "config.truenas.test_fail": "Αποτυχία",
   "config.truenas.test_ok": "Σύνδεση επιτυχής",
   "config.updates.checking": "Έλεγχος…",
   "config.updates.installing": "Εγκατάσταση…",
   "config.updates.running": "Εκτελείται…",
-  "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.web_scraper.summary_mode": "Λειτουργία περίληψης"
 }

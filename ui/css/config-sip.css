@@ -2,10 +2,6 @@
     max-width: 1120px;
 }
 
-.pw-page[data-workspace-page="config"] .sip-section .adg-status-banner {
-    margin-bottom: 1.5rem;
-}
-
 .pw-page[data-workspace-page="config"] .sip-wizard-shell {
     padding: 0;
 }

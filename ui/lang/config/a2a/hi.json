@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "अनुपलब्ध",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "सहेजने में विफल",
-  "config.a2a.save_vault": "Vault में सहेजें",
   "config.a2a.saved": "Vault में सहेजा गया",
   "config.a2a.server_enabled": "सर्वर सक्षम",
   "config.a2a.server_title": "A2A सर्वर",

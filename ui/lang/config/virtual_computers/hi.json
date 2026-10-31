@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "वर्चुअल कंप्यूटर बंद हैं।",
   "config.virtual_computers.status_error": "वर्चुअल कंप्यूटर की जाँच विफल:",
   "config.virtual_computers.token_empty": "टोकन खाली नहीं होना चाहिए",
-  "config.virtual_computers.token_saved": "टोकन सहेजा गया",
   "config.virtual_computers.token_save_failed": "टोकन सहेजना विफल रहा",
   "help.virtual_computers.enabled": "Virtual Computers यूआई और API रूट को सक्षम करता है।",
   "help.virtual_computers.readonly": "स्थिति, सूचीकरण, स्क्रीनशॉट और डाउनलोड की अनुमति देता है, जबकि मशीन परिवर्तनों को अवरुद्ध करता है।",

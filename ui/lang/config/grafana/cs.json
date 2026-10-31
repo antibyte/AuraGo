@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Nejprve prosím zadejte klíč API.",
   "config.grafana.api_key_label": "API klíč (trezor)",
   "config.grafana.api_key_placeholder": "Zadejte klíč API…",
   "config.grafana.api_key_save_failed": "Nepodařilo se uložit klíč API do trezoru.",
-  "config.grafana.api_key_saved": "Klíč API uložen do trezoru.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Kontrola připojení…",
   "config.grafana.connected": "Propojeno s Grafanou",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Pouze pro čtení",
   "config.grafana.request_timeout_label": "Časový limit požadavku (v sekundách)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Uložit do Sejfu",
   "config.grafana.status_disabled": "Integrace Grafana je zakázána",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "Není nakonfigurován žádný klíč API",

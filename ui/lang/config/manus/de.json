@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "Der Agent darf nur die hier ausdrücklich ausgewählten Ressourcen verwenden.",
   "config.manus.allowlists_title": "Ressourcen-Positivlisten",
   "config.manus.api_key": "Manus-API-Schlüssel",
-  "config.manus.api_key_empty": "Gib zuerst einen Manus-API-Schlüssel ein.",
   "config.manus.api_key_existing": "Manus-API-Schlüssel im Vault gespeichert",
   "config.manus.api_key_placeholder": "Manus-API-Schlüssel eingeben",
   "config.manus.api_key_save_failed": "Der Manus-API-Schlüssel konnte nicht gespeichert werden",

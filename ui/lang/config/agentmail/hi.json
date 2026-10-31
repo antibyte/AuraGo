@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "अनुमत प्रेषक",
-  "config.agentmail.api_key_empty": "कृपया पहले API कुंजी दर्ज करें।",
   "config.agentmail.api_key_label": "API कुंजी (Vault)",
   "config.agentmail.api_key_placeholder": "AgentMail API कुंजी दर्ज करें…",
   "config.agentmail.api_key_save_failed": "API कुंजी Vault में सहेजी नहीं जा सकी।",
-  "config.agentmail.api_key_saved": "AgentMail API कुंजी Vault में सहेजी गई।",
   "config.agentmail.auto_create_label": "इनबॉक्स स्वतः बनाएं",
   "config.agentmail.base_url_label": "REST API URL",
   "config.agentmail.checking": "AgentMail स्थिति जांची जा रही है…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "निर्देशों वाला चीटशीट",
   "config.agentmail.relay_cheatsheet_none": "कोई चीटशीट न जोड़ें",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Vault में सहेजें",
   "config.agentmail.status_disabled": "AgentMail एकीकरण निष्क्रिय है",
   "config.agentmail.status_no_api_key": "कोई API कुंजी कॉन्फ़िगर नहीं है",
   "config.agentmail.status_no_inbox": "रिले के लिए मुख्य इनबॉक्स ID चाहिए",

@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Povolení odesílatelé",
-  "config.agentmail.api_key_empty": "Nejprve zadejte API klíč.",
   "config.agentmail.api_key_label": "API klíč (Vault)",
   "config.agentmail.api_key_placeholder": "Zadejte API klíč AgentMail…",
   "config.agentmail.api_key_save_failed": "API klíč se nepodařilo uložit do Vaultu.",
-  "config.agentmail.api_key_saved": "API klíč AgentMail uložen do Vaultu.",
   "config.agentmail.auto_create_label": "Automaticky vytvořit schránku",
   "config.agentmail.base_url_label": "URL REST API",
   "config.agentmail.checking": "Kontrola stavu AgentMail…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet s pokyny",
   "config.agentmail.relay_cheatsheet_none": "Nepřipojovat žádný cheatsheet",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Uložit do Vaultu",
   "config.agentmail.status_disabled": "Integrace AgentMail je vypnutá",
   "config.agentmail.status_no_api_key": "Není nakonfigurován API klíč",
   "config.agentmail.status_no_inbox": "Předávání vyžaduje ID primární schránky",

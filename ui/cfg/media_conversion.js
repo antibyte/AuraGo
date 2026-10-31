@@ -83,7 +83,7 @@ async function renderMediaConversionSection(section) {
 
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="mcTestTools()" id="mc-test-btn" data-config-action-draft="true">🔌 ' + t('config.media_conversion.test_button') + '</button>';
-    html += cfgActionResult.html('mc-test-result', 'dc-test-result');
+    html += cfgActionResult.html('mc-test-result');
     html += '</div>';
 
     html += '</div>';

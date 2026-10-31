@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Allow destructive tools",
   "config.composio.allow_nl": "Allow natural language input",
   "config.composio.api_key": "Composio API key",
-  "config.composio.api_key_empty": "Composio API key is required.",
   "config.composio.api_key_existing": "Composio API key stored",
   "config.composio.api_key_placeholder": "Enter Composio API key",
   "config.composio.api_key_save_failed": "Could not save Composio API key",

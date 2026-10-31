@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Destruktive Tools erlauben",
   "config.composio.allow_nl": "Natürliche Sprache erlauben",
   "config.composio.api_key": "Composio-API-Schlüssel",
-  "config.composio.api_key_empty": "Composio-API-Schlüssel ist erforderlich.",
   "config.composio.api_key_existing": "Composio-API-Schlüssel gespeichert",
   "config.composio.api_key_placeholder": "Composio-API-Schlüssel eingeben",
   "config.composio.api_key_save_failed": "Composio-API-Schlüssel konnte nicht gespeichert werden",

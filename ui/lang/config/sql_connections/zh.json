@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "保存",
-  "config.sql_connections.save_before_test": "请先保存连接，然后再测试。",
   "config.sql_connections.sqlite_path_placeholder": "例如 /path/to/database.db",
   "config.sql_connections.ssl_default": "默认",
   "config.sql_connections.ssl_disable": "禁用",

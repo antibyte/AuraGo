@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Permitir ferramentas destrutivas",
   "config.composio.allow_nl": "Permitir linguagem natural",
   "config.composio.api_key": "Chave API do Composio",
-  "config.composio.api_key_empty": "A chave API do Composio é obrigatória.",
   "config.composio.api_key_existing": "Chave API do Composio armazenada",
   "config.composio.api_key_placeholder": "Digite a chave API do Composio",
   "config.composio.api_key_save_failed": "Não foi possível salvar a chave API do Composio",

@@ -968,9 +968,8 @@
 @media (max-width: 700px) {
     .pw-page[data-workspace-page="config"] .action-policy-rule { grid-template-columns: minmax(0, 1fr); }
 }
-.pw-page[data-workspace-page="config"] .pw-action-reason[hidden],
-.pw-page[data-workspace-page="config"] :is(.adg-test-result, .dc-test-result):empty { display: none; }
-.pw-page[data-workspace-page="config"] .cfg-actions-row > :is(.pw-action-reason, .adg-test-result) { order: 1; flex-basis: 100%; margin: 0; }
+.pw-page[data-workspace-page="config"] .pw-action-reason[hidden] { display: none; }
+.pw-page[data-workspace-page="config"] .cfg-actions-row > .pw-action-reason { order: 1; flex-basis: 100%; margin: 0; }
 .pw-page[data-workspace-page="config"] .section-header .config-sidebar-icon-sprite {
     display: inline-grid;
     place-items: center;

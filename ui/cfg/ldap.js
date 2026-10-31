@@ -116,7 +116,7 @@ function renderLDAPSection(section) {
     // ── Test connection button ──
     html += '<div class="field-group">';
     html += '<button class="btn-save ldap-test-btn" onclick="ldapTestConnection()" id="ldap-test-btn" data-config-action-draft="true">🔌 ' + t('config.ldap.test_btn') + '</button>';
-    html += cfgActionResult.html('ldap-test-result', 'ldap-test-result');
+    html += cfgActionResult.html('ldap-test-result');
     html += '</div>';
 
     html += '</div>';

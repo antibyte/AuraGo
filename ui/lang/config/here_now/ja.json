@@ -21,13 +21,11 @@
   "config.here_now.account_help": "既定で使用する個人アカウントまたはワークスペースを選択します。",
   "config.here_now.api_key": "API キー",
   "config.here_now.api_key_help": "AuraGo の暗号化 Vault にのみ保存され、here.now にだけ送信されます。",
-  "config.here_now.save_key": "Vault に保存",
   "config.here_now.test": "接続テスト",
   "config.here_now.test_help": "保存済みキーを確認し、アクセス可能なアカウントを読み込みます。",
   "config.here_now.test_button": "接続をテスト",
   "config.here_now.key_required": "API キーを入力してください。",
   "config.here_now.saving": "保存中…",
-  "config.here_now.key_saved": "API キーを Vault に保存しました。",
   "config.here_now.testing": "テスト中…",
   "config.here_now.test_failed": "接続に失敗しました",
   "config.here_now.test_success": "接続に成功しました"

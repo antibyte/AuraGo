@@ -1,9 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "कृपया पहले एक API कुंजी दर्ज करें।",
   "config.uptime_kuma.api_key_label": "API कुंजी (Vault)",
   "config.uptime_kuma.api_key_placeholder": "API कुंजी दर्ज करें…",
   "config.uptime_kuma.api_key_save_failed": "API कुंजी को Vault में सहेजना विफल रहा।",
-  "config.uptime_kuma.api_key_saved": "API कुंजी Vault में सहेजी गई।",
   "config.uptime_kuma.base_url_label": "Uptime Kuma का URL",
   "config.uptime_kuma.checking": "कनेक्शन की जाँच हो रही है…",
   "config.uptime_kuma.connected": "Uptime Kuma से कनेक्ट किया गया",
@@ -18,7 +16,6 @@
   "config.uptime_kuma.relay_to_agent_label": "डाउन होने पर एजेंट को सूचित करें",
   "config.uptime_kuma.request_timeout_label": "अनुरोध टाइमआउट (सेकंड)",
   "config.uptime_kuma.save_icon": "💾",
-  "config.uptime_kuma.save_vault": "Vault में सहेजें",
   "config.uptime_kuma.status_disabled": "Uptime Kuma एकीकरण अक्षम है",
   "config.uptime_kuma.status_error": "❌",
   "config.uptime_kuma.status_no_api_key": "कोई API कुंजी कॉन्फ़िगर नहीं की गई",

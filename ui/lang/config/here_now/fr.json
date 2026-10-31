@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Sélectionnez le compte personnel ou l'espace utilisé par défaut.",
   "config.here_now.api_key": "Clé API",
   "config.here_now.api_key_help": "Stockée uniquement dans le coffre-fort chiffré d'AuraGo et envoyée seulement à here.now.",
-  "config.here_now.save_key": "Enregistrer dans le coffre-fort",
   "config.here_now.test": "Test de connexion",
   "config.here_now.test_help": "Vérifie la clé enregistrée et charge les comptes accessibles.",
   "config.here_now.test_button": "Tester la connexion",
   "config.here_now.key_required": "Saisissez une clé API.",
   "config.here_now.saving": "Enregistrement…",
-  "config.here_now.key_saved": "Clé API enregistrée dans le coffre-fort.",
   "config.here_now.testing": "Test…",
   "config.here_now.test_failed": "Échec de la connexion",
   "config.here_now.test_success": "Connexion réussie"

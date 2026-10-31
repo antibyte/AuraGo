@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Python-verktøybro",
   "config.tailscale.key_empty": "Nøkkelen er tom",
   "config.tailscale.key_save_failed": "Lagring mislyktes",
-  "config.tailscale.key_saved": "Nøkkel lagret",
-  "config.truenas.apikey_empty": "API-nøkkelen er tom",
   "config.truenas.apikey_save_failed": "Lagring mislyktes",
-  "config.truenas.apikey_saved": "API-nøkkel lagret",
   "config.truenas.checking": "Sjekker…",
   "config.truenas.test_fail": "Mislyktes",
   "config.truenas.test_ok": "Tilkobling vellykket",
@@ -62,6 +59,5 @@
   "config.updates.version": "Versjon",
   "config.updates.warning_banner": "Oppdateringen erstatter binærfiler, ledetekster og brukergrensesnittfiler. <strong>Din konfigurasjon og data er bevart.</strong> AuraGo vil starte på nytt etter oppdateringen.",
   "config.web_scraper.summary_mode": "Sammendragsmodus",
-  "config.webdav.secret_empty": "Verdien er tom",
   "config.updates.confirm_install_title": "Installere oppdatering?"
 }

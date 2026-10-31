@@ -42,22 +42,15 @@
 .pw-page[data-workspace-page="config"] .cfg-section-title { font-size:var(--text-base); font-weight:600; color:var(--accent); margin-top:var(--space-6); margin-bottom:var(--space-2); padding-bottom:0.4rem; border-bottom:1px solid var(--border-subtle); }
 .pw-page[data-workspace-page="config"] .cfg-save-btn-sm { padding:0.45rem var(--space-4); font-size:var(--text-sm); white-space:nowrap; }
 .pw-page[data-workspace-page="config"] .cfg-test-btn-sm { padding:0.45rem var(--space-4); font-size:var(--text-sm); white-space:nowrap; background:var(--bg-secondary); color:var(--accent); border:1px solid var(--accent); border-radius:var(--radius-lg); cursor:pointer; }
-.pw-page[data-workspace-page="config"] .cfg-status-banner { padding:0.7rem var(--space-4); border-radius:var(--radius-lg); margin-bottom:var(--space-4); font-size:var(--text-sm); }
 .pw-page[data-workspace-page="config"] .section-divider { border:none; border-top:1px solid var(--border-subtle); margin:var(--space-6) 0; }
 .pw-page[data-workspace-page="config"] .section-sub-header { font-size:var(--text-base); font-weight:600; color:var(--accent); margin-top:1.2rem; margin-bottom:0.8rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-subtle); }
-.pw-page[data-workspace-page="config"] .cfg-status-success { background:color-mix(in srgb, #22c55e 8%, transparent); border:1px solid color-mix(in srgb, #22c55e 25%, transparent); color:var(--success); }
-.pw-page[data-workspace-page="config"] .cfg-status-error { background:color-mix(in srgb, #ef4444 8%, transparent); border:1px solid color-mix(in srgb, #ef4444 25%, transparent); color:var(--danger); }
-
 /* Vault delete modal */
 .pw-page[data-workspace-page="config"] .vault-modal-icon { font-size:3rem; text-align:center; }
 .pw-page[data-workspace-page="config"] .vault-modal-title { color:var(--danger); text-align:center; }
 .pw-page[data-workspace-page="config"] .vault-modal-desc { color:var(--text-secondary); font-size:var(--text-sm); line-height:1.65; margin-bottom:1.25rem; text-align:center; }
 .pw-page[data-workspace-page="config"] .vault-confirm-input { text-align:center; letter-spacing:0.12em; font-size:var(--text-base); margin-top:var(--space-3); }
-.pw-page[data-workspace-page="config"] .cfg-status-warning { background:color-mix(in srgb, var(--warning) 8%, transparent); border:1px solid color-mix(in srgb, var(--warning) 25%, transparent); color:var(--warning); }
 .pw-page[data-workspace-page="config"] .cfg-password-row { display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap; }
 .pw-page[data-workspace-page="config"] .cfg-password-input { flex:1; min-width:0; }
-.pw-page[data-workspace-page="config"] .cfg-status-text { margin-top:0.4rem; font-size:var(--text-xs); }
-
 /* Homepage */
 .pw-page[data-workspace-page="config"] .hp-grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem 1.2rem; }
 .pw-page[data-workspace-page="config"] .hp-lock-icon { font-size:0.65rem; color:var(--warning); }
@@ -171,9 +164,6 @@
 .pw-page[data-workspace-page="config"] .cfg-section-desc { font-size:var(--text-sm); color:var(--text-secondary); line-height:1.6; margin-bottom:var(--space-4); }
 
 /* Netlify */
-.pw-page[data-workspace-page="config"] .nf-status-ok { border-color:var(--success) !important; background:color-mix(in srgb, #22c55e 8%, transparent) !important; }
-.pw-page[data-workspace-page="config"] .nf-status-warn { border-color:var(--warning) !important; background:color-mix(in srgb, var(--warning) 8%, transparent) !important; }
-.pw-page[data-workspace-page="config"] .nf-status-error { border-color:var(--danger) !important; background:color-mix(in srgb, #ef4444 8%, transparent) !important; }
 .pw-page[data-workspace-page="config"] .nf-grid-2col { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.6rem 1.2rem; }
 .pw-page[data-workspace-page="config"] .nf-grid-2col > .cfg-toggle-row-compact { min-width: 0; }
 .pw-page[data-workspace-page="config"] .nf-grid-2col-wide { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem 1.2rem; }
@@ -225,7 +215,6 @@
 .pw-page[data-workspace-page="config"] .ts-network-muted { font-size:var(--text-xs); color:var(--text-secondary); }
 
 /* A2A */
-.pw-page[data-workspace-page="config"] .a2a-status-banner { margin-bottom:var(--space-4); padding:0.8rem var(--space-4); border-radius:var(--radius-xl); font-size:var(--text-sm); background:var(--card-bg); border:1px solid var(--border-subtle); color:var(--text-secondary); }
 .pw-page[data-workspace-page="config"] .a2a-section-title { font-weight:600; font-size:var(--text-base); color:var(--accent); margin-bottom:var(--space-4); }
 .pw-page[data-workspace-page="config"] .a2a-card { background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:var(--space-4); margin-bottom:0.8rem; }
 .pw-page[data-workspace-page="config"] .a2a-card-title { font-weight:600; font-size:var(--text-sm); color:var(--text-primary); margin-bottom:0.7rem; }
@@ -247,7 +236,6 @@
 .pw-page[data-workspace-page="config"] .a2a-input-lg { width:240px; }
 .pw-page[data-workspace-page="config"] .a2a-input-full-mb { width:100%; margin-bottom:0.4rem; }
 .pw-page[data-workspace-page="config"] .a2a-test-btn { padding:var(--space-2) 1.2rem; font-size:var(--text-sm); }
-.pw-page[data-workspace-page="config"] .a2a-test-result { margin-left:0.8rem; font-size:var(--text-sm); }
 .pw-page[data-workspace-page="config"] .a2a-skill-row { display:flex; gap:var(--space-2); align-items:center; margin-bottom:0.4rem; }
 .pw-page[data-workspace-page="config"] .a2a-agent-card { background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:var(--space-4); margin-bottom:0.6rem; }
 .pw-page[data-workspace-page="config"] .a2a-agent-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem; }
@@ -255,7 +243,6 @@
 .pw-page[data-workspace-page="config"] .a2a-agent-name { font-weight:600; font-size:var(--text-sm); color:var(--text-primary); }
 .pw-page[data-workspace-page="config"] .a2a-btn-group { display:flex; gap:0.4rem; }
 .pw-page[data-workspace-page="config"] .a2a-sm-btn { padding:0.3rem 0.6rem; font-size:var(--text-xs); }
-.pw-page[data-workspace-page="config"] .a2a-save-btn-xs { padding:0.35rem 0.7rem; font-size:var(--text-xs); }
 .pw-page[data-workspace-page="config"] .a2a-cred-row { display:flex; gap:var(--space-2); align-items:center; margin-bottom:0.3rem; }
 .pw-page[data-workspace-page="config"] .a2a-cred-row-last { display:flex; gap:var(--space-2); align-items:center; }
 .pw-page[data-workspace-page="config"] .a2a-field-row-id { display:flex; gap:var(--space-2); margin-bottom:0.4rem; }
@@ -330,10 +317,6 @@
 
 .pw-page[data-workspace-page="config"] .manus-actions-row {
     margin-bottom: var(--space-4);
-}
-
-.pw-page[data-workspace-page="config"] .manus-actions-row .adg-test-result {
-    margin-left: 0;
 }
 
 .pw-page[data-workspace-page="config"] .manus-catalog-error {
@@ -3649,17 +3632,6 @@ transform:none; filter:none;
     flex: 1;
 }
 
-.pw-page[data-workspace-page="config"] .pl-save-btn {
-    padding: 0.45rem 1rem;
-    font-size: 0.82rem;
-    white-space: nowrap;
-}
-
-.pw-page[data-workspace-page="config"] .pl-token-status {
-    margin-top: 0.4rem;
-    font-size: 0.78rem;
-}
-
 /* ── Firewall config section ───────────────────────── */
 .pw-page[data-workspace-page="config"] .fw-section {
     margin-bottom: 2rem;
@@ -3749,21 +3721,6 @@ transform:none; filter:none;
     padding: 0.5rem 1.2rem;
     font-size: 0.85rem;
     margin-right: 0.5rem;
-}
-
-.pw-page[data-workspace-page="config"] .dc-test-result {
-    display: block;
-    margin-top: 8px;
-    overflow-wrap: anywhere;
-    font-size: 0.83rem;
-}
-
-.pw-page[data-workspace-page="config"] .dc-test-result.is-success {
-    color: var(--success, #34c759);
-}
-
-.pw-page[data-workspace-page="config"] .dc-test-result.is-danger {
-    color: var(--danger, #ff3b30);
 }
 
 /* ── Cloudflare tunnel config section ──────────────── */
@@ -4064,32 +4021,6 @@ transform:none; filter:none;
 }
 
 /* ── AdGuard config section ────────────────────────── */
-.pw-page[data-workspace-page="config"] .adg-status-banner {
-    margin-bottom: 1rem;
-    padding: 0.8rem 1rem;
-    border-radius: 10px;
-    font-size: 0.84rem;
-    background: var(--bg-glass);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-subtle);
-    backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="config"] .adg-status-banner.is-success {
-    background: color-mix(in srgb, var(--success) 12%, transparent);
-    color: var(--success, #34c759);
-}
-
-.pw-page[data-workspace-page="config"] .adg-status-banner.is-warning {
-    background: color-mix(in srgb, var(--warning) 12%, transparent);
-    color: var(--warning, #ff9500);
-}
-
-.pw-page[data-workspace-page="config"] .adg-status-banner.is-danger {
-    background: color-mix(in srgb, var(--error) 10%, transparent);
-    color: var(--error, #ff3b30);
-}
-
 .pw-page[data-workspace-page="config"] .adg-password-row {
     display: flex;
     align-items: center;
@@ -4108,18 +4039,6 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] .adg-test-btn {
     padding: 0.5rem 1.2rem;
     font-size: 0.85rem;
-}
-
-.pw-page[data-workspace-page="config"] .adg-test-result {
-    font-size: 0.83rem;
-}
-
-.pw-page[data-workspace-page="config"] .adg-test-result.is-success {
-    color: var(--success, #34c759);
-}
-
-.pw-page[data-workspace-page="config"] .adg-test-result.is-danger {
-    color: var(--error, #ff3b30);
 }
 
 .pw-page[data-workspace-page="config"] .adg-quick-stats {
@@ -4165,11 +4084,6 @@ transform:none; filter:none;
 /* Google Workspace config section */
 .pw-page[data-workspace-page="config"] .gw-vault-badge { font-size: 0.65rem; color: var(--warning); }
 .pw-page[data-workspace-page="config"] .gw-actions-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.pw-page[data-workspace-page="config"] .gw-status-line { margin-top: 0.4rem; font-size: 0.78rem; color: var(--text-secondary); }
-.pw-page[data-workspace-page="config"] .gw-status-line.is-success { color: var(--success); }
-.pw-page[data-workspace-page="config"] .gw-status-line.is-danger { color: var(--danger); }
-.pw-page[data-workspace-page="config"] .gw-status-line.is-warning { color: var(--warning); }
-.pw-page[data-workspace-page="config"] .gw-status-line.is-accent { color: var(--accent); }
 .pw-page[data-workspace-page="config"] .gw-manual-panel {
     display: none;
     margin-top: 0.8rem;
@@ -6430,11 +6344,6 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] .cf-expose-narrow { max-width: 420px; margin-top: 0.4rem; }
 .pw-page[data-workspace-page="config"] .cf-token-group { margin-top: 0.8rem; }
 .pw-page[data-workspace-page="config"] .cf-restart-btn { background: var(--accent); margin-left: 0.5rem; }
-.pw-page[data-workspace-page="config"] .cf-token-status { font-size: 0.78rem; display: block; margin-top: 0.3rem; }
-.pw-page[data-workspace-page="config"] .cf-token-status.is-success { color: var(--success); }
-.pw-page[data-workspace-page="config"] .cf-token-status.is-error { color: var(--danger); }
-.pw-page[data-workspace-page="config"] .cf-token-status.is-pending { color: var(--accent); }
-
 /* ── Co-Agents config section (ca-*) ───────────────── */
 .pw-page[data-workspace-page="config"] .ca-provider-label { display: block; margin-bottom: 0.6rem; }
 .pw-page[data-workspace-page="config"] .ca-provider-caption { font-size: 0.78rem; color: var(--text-secondary); }

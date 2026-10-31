@@ -1,9 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "Bitte zuerst einen API-Schlüssel eingeben.",
   "config.uptime_kuma.api_key_label": "API-Schlüssel (Vault)",
   "config.uptime_kuma.api_key_placeholder": "API-Schlüssel eingeben…",
   "config.uptime_kuma.api_key_save_failed": "API-Schlüssel konnte nicht im Vault gespeichert werden.",
-  "config.uptime_kuma.api_key_saved": "API-Schlüssel wurde im Vault gespeichert.",
   "config.uptime_kuma.base_url_label": "Uptime-Kuma-URL",
   "config.uptime_kuma.checking": "Verbindung wird geprüft…",
   "config.uptime_kuma.connected": "Verbunden mit Uptime Kuma",
@@ -18,7 +16,6 @@
   "config.uptime_kuma.relay_to_agent_label": "Agent bei Ausfall benachrichtigen",
   "config.uptime_kuma.request_timeout_label": "Request-Timeout (Sekunden)",
   "config.uptime_kuma.save_icon": "💾",
-  "config.uptime_kuma.save_vault": "Im Vault speichern",
   "config.uptime_kuma.status_disabled": "Uptime-Kuma-Integration ist deaktiviert",
   "config.uptime_kuma.status_error": "❌",
   "config.uptime_kuma.status_no_api_key": "Kein API-Schlüssel konfiguriert",

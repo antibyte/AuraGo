@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Most narzędziowy Pythona",
   "config.tailscale.key_empty": "Klucz jest pusty",
   "config.tailscale.key_save_failed": "Zapisywanie nie powiodło się",
-  "config.tailscale.key_saved": "Klucz zapisany",
-  "config.truenas.apikey_empty": "Klucz API jest pusty",
   "config.truenas.apikey_save_failed": "Zapisywanie nie powiodło się",
-  "config.truenas.apikey_saved": "Klucz API zapisany",
   "config.truenas.checking": "Sprawdzanie…",
   "config.truenas.test_fail": "Niepowodzenie",
   "config.truenas.test_ok": "Połączenie udane",
@@ -55,6 +52,5 @@
   "config.web_scraper.summary_desc": "Zeskrobane strony internetowe są podsumowywane przez centralnego Asystenta LLM, gdy jest włączony. Agent otrzymuje oczyszczone podsumowanie zamiast pełnej zawartości strony.<br><strong>Korzyści:</strong> oszczędza tokeny, zmniejsza duplikaty wywołań asystenta i wzmacnia system przed wstrzykiwaniem promptów z zewnętrznej zawartości. Jeśli pomocniczy LLM nie jest skonfigurowany lub podsumowanie się nie powiedzie, otrzymasz izolowaną treść strony.",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.web_scraper.summary_provider": "Pomocniczy LLM",
-  "config.web_scraper.use_main_llm": "— Użyj głównego LLM —",
-  "config.webdav.secret_empty": "Wartość jest pusta"
+  "config.web_scraper.use_main_llm": "— Użyj głównego LLM —"
 }

@@ -174,17 +174,23 @@ func TestConfigPhase2TTSAndGoogleWorkspaceAvoidInlineStyles(t *testing.T) {
 	}
 
 	ttsJS := normalizeAssetText(mustReadUIFile(t, "cfg/tts.js"))
-	for _, marker := range []string{"adg-status-banner", "adg-password-row", "field-select", "tts-provider-section"} {
+	for _, marker := range []string{"adg-password-row", "field-select", "tts-provider-section"} {
 		if !hasModuleMarker(ttsJS, marker) {
 			t.Fatalf("tts.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "tts.js", ttsJS, nil, []string{"piper-status-banner", "supertonic-status-banner"})
+	requireDockSecret(t, "tts.js", ttsJS, "tts.elevenlabs.api_key", "tts.minimax.api_key", "tts.mistral.api_key")
 
 	gwJS := normalizeAssetText(mustReadUIFile(t, "cfg/google_workspace.js"))
-	for _, marker := range []string{"gw-status-line", "adg-password-row", "adg-test-btn", "AuraConfigForm.toggle("} {
+	for _, marker := range []string{"adg-password-row", "adg-test-btn", "AuraConfigForm.toggle("} {
 		if !hasModuleMarker(gwJS, marker) {
 			t.Fatalf("google_workspace.js missing marker %q", marker)
 		}
+	}
+	requireFeedbackContract(t, "google_workspace.js", gwJS, []string{"gw-oauth-status"}, nil)
+	if strings.Contains(gwJS, "gw-status-line") {
+		t.Fatal("google_workspace.js must not use the legacy gw-status-line class")
 	}
 }
 
@@ -193,8 +199,6 @@ func TestConfigPhase2cManifestDograhActionRows(t *testing.T) {
 
 	manifestJS := normalizeAssetText(mustReadUIFile(t, "cfg/manifest.js"))
 	for _, marker := range []string{
-		"adg-status-banner",
-		"adg-test-result",
 		"cfg-actions-row",
 		"CFG_OPTION_OTHER_CUSTOM",
 		"cfgFieldOptionLabel",
@@ -204,21 +208,18 @@ func TestConfigPhase2cManifestDograhActionRows(t *testing.T) {
 			t.Fatalf("manifest.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "manifest.js", manifestJS, []string{"manifest-result"}, []string{"manifest-status-panel"})
 
 	dograhJS := normalizeAssetText(mustReadUIFile(t, "cfg/dograh.js"))
 	for _, marker := range []string{
-		"adg-status-banner",
-		"adg-test-result",
 		"cfg-actions-row",
-		"dograhSetBanner",
-		"dograh-test-result",
-		"config.dograh.vault_section_title",
 		"config.dograh.mcp_section_title",
 	} {
 		if !hasModuleMarker(dograhJS, marker) {
 			t.Fatalf("dograh.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "dograh.js", dograhJS, []string{"dograh-test-result", "dograh-mcp-result", "dograh-webhook-result"}, []string{"dograh-status-box"})
 	if strings.Contains(dograhJS, "field-row") {
 		t.Fatal("dograh.js should use field-group layout instead of field-row")
 	}
@@ -229,22 +230,21 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 
 	mqttJS := normalizeAssetText(mustReadUIFile(t, "cfg/mqtt.js"))
 	for _, marker := range []string{
-		"adg-status-banner",
 		"adg-test-btn",
-		"adg-test-result",
 		"cfg-actions-row",
 		"field-select",
 		"field-grid two-cols",
 		"adg-password-row",
-		"mqttSetBanner",
 		"/api/mqtt/test",
 	} {
 		if !hasModuleMarker(mqttJS, marker) {
 			t.Fatalf("mqtt.js missing marker %q", marker)
 		}
 	}
-	if strings.Contains(mqttJS, "cfg-status-banner") {
-		t.Fatal("mqtt.js should use adg-status-banner instead of cfg-status-banner")
+	requireFeedbackContract(t, "mqtt.js", mqttJS, []string{"mqtt-test-result"}, []string{"mqtt-status-banner"})
+	requireDockSecret(t, "mqtt.js", mqttJS, "mqtt.password")
+	if strings.Contains(mqttJS, "mqttSetBanner") {
+		t.Fatal("mqtt.js must use cfgStatusBanner instead of its own banner setter")
 	}
 	if strings.Contains(mqttJS, `class="field-input" data-path="mqtt.qos"`) {
 		t.Fatal("mqtt.js QoS select should use field-select")
@@ -253,7 +253,6 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 	netlifyJS := normalizeAssetText(mustReadUIFile(t, "cfg/netlify.js"))
 	for _, marker := range []string{
 		"adg-test-btn",
-		"adg-test-result",
 		"cfg-actions-row",
 		"nf-test-btn",
 		"/api/netlify/test-connection",
@@ -263,8 +262,10 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 			t.Fatalf("netlify.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "netlify.js", netlifyJS, []string{"nf-test-result"}, []string{"nf-status-banner"})
+	requireDockSecret(t, "netlify.js", netlifyJS, "netlify.token")
 	if strings.Contains(netlifyJS, "nf-test-spinner") || strings.Contains(netlifyJS, "nf-test-msg") {
-		t.Fatal("netlify.js should use unified adg-test-result instead of legacy spinner/msg blocks")
+		t.Fatal("netlify.js should use the cfgActionResult line instead of legacy spinner/msg blocks")
 	}
 	if strings.Contains(netlifyJS, "cfg-input cfg-input-full") {
 		t.Fatal("netlify.js site fields should use field-input inside field-grid")
@@ -307,19 +308,22 @@ func TestConfigPhase3VercelActionRows(t *testing.T) {
 	vercelJS := normalizeAssetText(mustReadUIFile(t, "cfg/vercel.js"))
 	for _, marker := range []string{
 		"adg-test-btn",
-		"adg-test-result",
 		"cfg-actions-row",
 		"vercel-test-btn",
 		"/api/vercel/test-connection",
-		"adg-save-btn",
 		"field-grid two-cols",
 	} {
 		if !hasModuleMarker(vercelJS, marker) {
 			t.Fatalf("vercel.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "vercel.js", vercelJS, []string{"vercel-test-result"}, []string{"vercel-status-banner"})
+	requireDockSecret(t, "vercel.js", vercelJS, "vercel.token")
+	if strings.Contains(vercelJS, "adg-save-btn") {
+		t.Fatal("vercel.js must not render a vault save button")
+	}
 	if strings.Contains(vercelJS, "vercel-test-spinner") || strings.Contains(vercelJS, "vercel-test-msg") {
-		t.Fatal("vercel.js should use unified adg-test-result instead of legacy spinner/msg blocks")
+		t.Fatal("vercel.js should use the cfgActionResult line instead of legacy spinner/msg blocks")
 	}
 	if strings.Contains(vercelJS, "cfg-input cfg-input-full") {
 		t.Fatal("vercel.js project fields should use field-input inside field-grid")
@@ -334,18 +338,14 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 
 	fritzboxJS := normalizeAssetText(mustReadUIFile(t, "cfg/fritzbox.js"))
 	for _, marker := range []string{
-		"adg-status-banner",
 		"fbSetBanner",
 		"adg-password-row",
-		"adg-save-btn",
 		"cfg-actions-row",
 		"adg-test-btn",
-		"adg-test-result",
 		"attachChangeListeners",
 		"status_not_configured",
 		"/api/fritzbox/status?check=1",
 		"/api/fritzbox/test",
-		"JSON.stringify(body)",
 		"fritzbox.web_port",
 		"fritzbox.insecure_skip_verify",
 	} {
@@ -353,8 +353,16 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 			t.Fatalf("fritzbox.js missing marker %q", marker)
 		}
 	}
-	if strings.Contains(fritzboxJS, "cfg-status-banner") {
-		t.Fatal("fritzbox.js should use adg-status-banner instead of cfg-status-banner")
+	requireFeedbackContract(t, "fritzbox.js", fritzboxJS, []string{"fb-test-result"}, []string{"fb-status-banner"})
+	requireDockSecret(t, "fritzbox.js", fritzboxJS, "fritzbox.password")
+	// The test sends the typed values as a draft and reports on its own result line.
+	for _, marker := range []string{"cfgDraftPatch(['fritzbox'])", "target: 'fb-test-result'"} {
+		if !strings.Contains(fritzboxJS, marker) {
+			t.Fatalf("fritzbox.js test must send the draft and target its result line: missing %q", marker)
+		}
+	}
+	if strings.Contains(fritzboxJS, "adg-save-btn") {
+		t.Fatal("fritzbox.js must not render a vault save button")
 	}
 	successStart := strings.Index(fritzboxJS, "if (res.status === 'ok') {")
 	if successStart < 0 {
@@ -373,11 +381,8 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 	githubJS := normalizeAssetText(mustReadUIFile(t, "cfg/github.js"))
 	for _, marker := range []string{
 		"adg-password-row",
-		"adg-save-btn",
 		"adg-test-btn",
-		"adg-test-result",
 		"cfg-actions-row",
-		"github-token-status",
 		"github-fetch-status",
 		"data-repo-full-name",
 		"dataset.repoFullName",
@@ -387,8 +392,10 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 			t.Fatalf("github.js missing marker %q", marker)
 		}
 	}
-	if strings.Contains(githubJS, "cfg-save-btn-sm") || strings.Contains(githubJS, "cfg-status-banner") {
-		t.Fatal("github.js should use unified adg-* and btn-secondary patterns")
+	requireFeedbackContract(t, "github.js", githubJS, []string{"github-test-result", "github-fetch-status"}, nil)
+	requireDockSecret(t, "github.js", githubJS, "github.token")
+	if strings.Contains(githubJS, "cfg-save-btn-sm") || strings.Contains(githubJS, "cfg-status-banner") || strings.Contains(githubJS, "github-token-status") || strings.Contains(githubJS, "adg-save-btn") {
+		t.Fatal("github.js should use unified adg-* and btn-secondary patterns without a vault save button")
 	}
 }
 
@@ -398,32 +405,34 @@ func TestConfigPhase3TailscaleA2AVaultRows(t *testing.T) {
 	tailscaleJS := normalizeAssetText(mustReadUIFile(t, "cfg/tailscale.js"))
 	for _, marker := range []string{
 		"adg-password-row",
-		"adg-save-btn",
-		"adg-test-result",
-		"ts-api-key-status",
-		"ts-auth-key-status",
+		"tsnet-action-result",
 	} {
 		if !hasModuleMarker(tailscaleJS, marker) {
 			t.Fatalf("tailscale.js missing marker %q", marker)
 		}
 	}
-	if strings.Contains(tailscaleJS, "cfg-save-btn-sm") || strings.Contains(tailscaleJS, "ts-key-status") {
-		t.Fatal("tailscale.js vault rows should use adg-password-row and adg-test-result")
+	requireFeedbackContract(t, "tailscale.js", tailscaleJS, []string{"ts-api-test-result", "tsnet-action-result"}, []string{"ts-api-status-banner"})
+	requireDockSecret(t, "tailscale.js", tailscaleJS, "tailscale.api_key", "tailscale.tsnet.auth_key")
+	for _, removed := range []string{"cfg-save-btn-sm", "ts-key-status", "ts-api-key-status", "ts-auth-key-status", "adg-save-btn"} {
+		if strings.Contains(tailscaleJS, removed) {
+			t.Fatalf("tailscale.js still carries the removed vault row marker %q", removed)
+		}
 	}
 
 	a2aJS := normalizeAssetText(mustReadUIFile(t, "cfg/a2a.js"))
 	for _, marker := range []string{
 		"adg-password-row",
-		"adg-save-btn",
-		"adg-test-result",
-		"a2a-bearer-secret-status",
 	} {
 		if !hasModuleMarker(a2aJS, marker) {
 			t.Fatalf("a2a.js missing marker %q", marker)
 		}
 	}
-	if strings.Contains(a2aJS, "cfg-save-btn-sm") || strings.Contains(a2aJS, "a2a-status-text") {
-		t.Fatal("a2a.js auth vault rows should use unified adg-* patterns")
+	requireFeedbackContract(t, "a2a.js", a2aJS, []string{"a2a-test-result"}, []string{"a2a-status-banner"})
+	requireDockSecret(t, "a2a.js", a2aJS, "a2a.auth.api_key", "a2a.auth.bearer_secret")
+	for _, removed := range []string{"cfg-save-btn-sm", "a2a-status-text", "a2a-bearer-secret-status", "adg-save-btn", "a2aSaveVault"} {
+		if strings.Contains(a2aJS, removed) {
+			t.Fatalf("a2a.js still carries the removed vault row marker %q", removed)
+		}
 	}
 }
 
@@ -447,7 +456,6 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 		markers := []string{
 			"cfg-actions-row",
 			"adg-test-btn",
-			"adg-test-result",
 			spec.resultID,
 			"field-select",
 			spec.testAPI,
@@ -462,8 +470,9 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 			}
 		}
 		if strings.Contains(content, "cfg-save-btn-sm") || strings.Contains(content, "ig-test-status") || strings.Contains(content, "ig-flex-row") {
-			t.Fatalf("%s should use unified cfg-actions-row/adg-test-* patterns", spec.file)
+			t.Fatalf("%s should use unified cfg-actions-row/cfgActionResult patterns", spec.file)
 		}
+		requireFeedbackContract(t, spec.file, content, []string{spec.resultID}, nil)
 		if spec.wantGrid && strings.Contains(content, "cfg-input cfg-input-full") {
 			t.Fatalf("%s should use field-input/field-select instead of cfg-input", spec.file)
 		}
@@ -494,19 +503,20 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 
 	composioJS := normalizeAssetText(mustReadUIFile(t, "cfg/composio.js"))
 	for _, marker := range []string{
-		"adg-status-banner",
-		"composioSetBanner",
 		"cfg-actions-row",
 		"adg-test-btn",
-		"adg-test-result",
 		"adg-password-row",
-		"adg-save-btn",
 		"field-grid two-cols",
 		"/api/composio/test",
 	} {
 		if !hasModuleMarker(composioJS, marker) {
 			t.Fatalf("composio.js missing marker %q", marker)
 		}
+	}
+	requireFeedbackContract(t, "composio.js", composioJS, []string{"composio-test-result", "composio-connect-status", "composio-modal-result"}, []string{"composio-status-banner"})
+	requireDockSecret(t, "composio.js", composioJS, "composio.api_key")
+	if strings.Contains(composioJS, "adg-save-btn") {
+		t.Fatal("composio.js must not render a vault save button")
 	}
 	if strings.Contains(composioJS, "cfg-save-btn-sm") || strings.Contains(composioJS, "cmp-status-line") {
 		t.Fatal("composio.js should use unified adg-* patterns")
@@ -519,12 +529,12 @@ func TestConfigPhase3ComposioEmailServer(t *testing.T) {
 		"field-select",
 		"attachChangeListeners",
 		"adg-test-btn",
-		"adg-test-result",
 	} {
 		if !hasModuleMarker(emailJS, marker) {
 			t.Fatalf("email.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "email.js", emailJS, []string{"ea-test-result"}, nil)
 	if strings.Contains(emailJS, "cfg-save-btn-sm") {
 		t.Fatal("email.js should not use cfg-save-btn-sm")
 	}
@@ -568,9 +578,7 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 		"field-grid two-cols",
 		"field-input",
 		"field-select",
-		"adg-save-btn",
 		"adg-test-btn",
-		"adg-test-result",
 		"cfg-actions-row",
 		"/api/homepage/test-connection",
 		"hpTestConnection",
@@ -579,8 +587,10 @@ func TestConfigPhase3SecurityProxyHomepage(t *testing.T) {
 			t.Fatalf("homepage.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "homepage.js", homepageJS, []string{"hp-test-result"}, nil)
+	requireDockSecret(t, "homepage.js", homepageJS, "homepage.deploy_password", "homepage.deploy_key")
 	if strings.Contains(homepageJS, "cfg-input") || strings.Contains(homepageJS, "hp-test-spinner") {
-		t.Fatal("homepage.js should use unified field-* and adg-test-* patterns")
+		t.Fatal("homepage.js should use unified field-* patterns and the cfgActionResult line")
 	}
 	if strings.Contains(homepageJS, "hp-grid-two") || strings.Contains(homepageJS, "hp-toggle-row") {
 		t.Fatal("homepage.js permission toggles should use field-grid two-cols and cfg-toggle-row-compact")
@@ -596,7 +606,6 @@ func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
 		"field-input",
 		"field-select",
 		"cfg-actions-row",
-		"adg-test-result",
 		"/api/remote/enroll",
 		"rcCreateEnrollmentToken",
 	} {
@@ -604,6 +613,7 @@ func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
 			t.Fatalf("remote_control.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "remote_control.js", remoteControlJS, []string{"rc-token-status", "rc-token-copy-state"}, nil)
 	if strings.Contains(remoteControlJS, "cfg-input") {
 		t.Fatal("remote_control.js should use field-input/field-select instead of cfg-input")
 	}
@@ -632,13 +642,10 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 
 	aiGatewayJS := normalizeAssetText(mustReadUIFile(t, "cfg/ai_gateway.js"))
 	for _, marker := range []string{
-		"adg-status-banner",
-		"aiGatewaySetBanner",
 		"field-grid two-cols",
 		"field-input",
 		"cfg-actions-row",
 		"adg-test-btn",
-		"adg-test-result",
 		"/api/ai-gateway/test",
 		"aiGatewayTestConnection",
 		"ai_gateway.log_mode",
@@ -654,6 +661,8 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 			t.Fatalf("ai_gateway.js missing marker %q", marker)
 		}
 	}
+	requireFeedbackContract(t, "ai_gateway.js", aiGatewayJS, []string{"ai-gw-test-result"}, []string{"ai-gw-status-banner"})
+	requireDockSecret(t, "ai_gateway.js", aiGatewayJS, "ai_gateway.token")
 	if strings.Contains(aiGatewayJS, "cfg-input") || strings.Contains(aiGatewayJS, "ai-gw-grid") {
 		t.Fatal("ai_gateway.js should use field-grid and field-input instead of legacy ai-gw patterns")
 	}
@@ -829,12 +838,16 @@ func TestCloudflareTunnelRestartTreatsNonOKAsError(t *testing.T) {
 	t.Parallel()
 
 	content := normalizeAssetText(mustReadUIFile(t, "cfg/cloudflare_tunnel.js"))
+	// The action runs through cfgActionResult; a non-ok body turns into an error line with the server reason.
+	requireFeedbackContract(t, "cloudflare_tunnel.js", content, []string{"cf-action-status"}, []string{"cf-tunnel-status-banner"})
+	requireDockSecret(t, "cloudflare_tunnel.js", content, "cloudflare_tunnel.token")
 	for _, marker := range []string{
-		"data.status !== 'ok'",
-		"data.error || data.message",
+		"interpret: o =>",
+		"state: 'error', reason:",
+		"target: 'cf-action-status'",
 	} {
 		if !hasModuleMarker(content, marker) {
-			t.Fatalf("cloudflare tunnel restart UI missing error marker %q", marker)
+			t.Fatalf("cloudflare tunnel restart UI missing error contract marker %q", marker)
 		}
 	}
 }
@@ -886,6 +899,35 @@ func TestConfigLegacyPatternAudit(t *testing.T) {
 		`class='cfg-input `,
 	}
 
+	// Legacy result/banner classes (ids with the same names are fine): a class attribute, classList
+	// call, class argument of cfgActionResult.html or a selector that names one of them.
+	legacyFeedbackClass := `(?:adg-test-result|adg-status-banner|dc-test-result|em-test-result|a2a-test-result|a2a-status-banner|ldap-test-result|[a-z0-9]+-test-result)`
+	legacyFeedbackClassUse := []*regexp.Regexp{
+		regexp.MustCompile(`class(?:Name)?\s*=\s*["'][^"']*` + legacyFeedbackClass),
+		regexp.MustCompile(`classList\.\w+\([^)]*` + legacyFeedbackClass),
+		regexp.MustCompile(`\.html\([^)]*,\s*['"][^'"]*` + legacyFeedbackClass),
+		regexp.MustCompile(`(?:querySelector(?:All)?|closest|matches)\(\s*['"][^'"]*\.` + legacyFeedbackClass),
+	}
+	nativeDialog := regexp.MustCompile(`(?:^|[^\w.$])(?:window\.)?(?:confirm|alert)\(`)
+
+	// Modules the wave 1 plan left out on purpose (rich status panels, already good, not yet planned).
+	// They may keep their own result/banner classes and native dialogs until their own pass.
+	notMigratedInWave1 := map[string]bool{
+		"meshcore.js":        true, // already good, not in wave 1
+		"ruview.js":          true, // already good, not in wave 1
+		"s3.js":              true, // already good, not in wave 1
+		"speech_lab.js":      true, // progress UI follows later
+		"telephone_agent.js": true, // rich status panel
+		"security_proxy.js":  true, // rich status panel
+		"server.js":          true, // rich status panel
+		"sandbox.js":         true, // rich status panel
+		"daemon_skills.js":   true, // rich status panel
+		"updates.js":         true, // own update flow
+		"secrets.js":         true, // vault manager
+		"skill_manager.js":   true, // own list UI
+		"local_wikipedia.js": true, // rich status panel
+	}
+
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".js") {
 			continue
@@ -895,6 +937,16 @@ func TestConfigLegacyPatternAudit(t *testing.T) {
 		for _, pattern := range forbidden {
 			if strings.Contains(content, pattern) {
 				t.Fatalf("%s still contains forbidden legacy pattern %q", path, pattern)
+			}
+		}
+		if !notMigratedInWave1[entry.Name()] {
+			for _, re := range legacyFeedbackClassUse {
+				if loc := re.FindStringIndex(content); loc != nil {
+					t.Errorf("%s uses a legacy result/banner class (%q); use cfgActionResult/cfgStatusBanner (ids are fine)", path, content[loc[0]:loc[1]])
+				}
+			}
+			if loc := nativeDialog.FindStringIndex(content); loc != nil {
+				t.Errorf("%s uses a native confirm()/alert(); use showConfirm/showAlert (%q)", path, strings.TrimSpace(content[loc[0]:loc[1]]))
 			}
 		}
 		for _, marker := range cfgInputMarkers {
@@ -1154,17 +1206,42 @@ func TestSetupSuccessConfigDeepLinksMarkers(t *testing.T) {
 	}
 }
 
-// hasModuleMarker reports whether a module still carries the old result/status/vault markup
-// marker, or has moved to the shared feedback helpers (cfgActionResult / cfgStatusBanner,
-// secrets in the save dock through form.password with a path). Other markers must match literally.
+// hasModuleMarker reports whether content carries the literal marker. All config modules
+// are on the shared feedback helpers now, so there is no alternative spelling to accept.
 func hasModuleMarker(content, marker string) bool {
-	if strings.Contains(content, marker) {
-		return true
+	return strings.Contains(content, marker)
+}
+
+// requireFeedbackContract checks the shared feedback contract of a migrated module: its result
+// lines come from cfgActionResult (helper call plus the id the module renders) and its banners
+// from cfgStatusBanner.
+func requireFeedbackContract(t *testing.T, file, content string, resultIDs []string, bannerIDs []string) {
+	t.Helper()
+	if len(resultIDs) > 0 && !strings.Contains(content, "cfgActionResult(") {
+		t.Fatalf("%s must run its actions through cfgActionResult(", file)
 	}
-	for _, migratable := range []string{"test-result", "status-banner", "SetBanner", "save-btn", "password-row", "key-status", "token-status", "secret-status", "-status", "vault_section"} {
-		if strings.Contains(marker, migratable) {
-			return strings.Contains(content, "cfgActionResult(") || strings.Contains(content, "cfgStatusBanner") || strings.Contains(content, ".password(")
+	for _, id := range resultIDs {
+		if !strings.Contains(content, "cfgActionResult.html('"+id+"'") {
+			t.Fatalf("%s must render the result line %q with cfgActionResult.html", file, id)
 		}
 	}
-	return false
+	for _, id := range bannerIDs {
+		if !strings.Contains(content, "cfgStatusBanner.html('"+id+"'") {
+			t.Fatalf("%s must render the banner %q with cfgStatusBanner.html", file, id)
+		}
+	}
+}
+
+// requireDockSecret checks that secrets are bound to the save dock through data-path and that the
+// module has no own vault POST any more.
+func requireDockSecret(t *testing.T, file, content string, paths ...string) {
+	t.Helper()
+	for _, path := range paths {
+		if !strings.Contains(content, `data-path="`+path+`"`) && !strings.Contains(content, "'"+path+"'") && !strings.Contains(content, `"`+path+`"`) {
+			t.Fatalf("%s must bind the secret %q to the save dock through data-path", file, path)
+		}
+	}
+	if strings.Contains(content, "/api/vault/secrets") {
+		t.Fatalf("%s still posts secrets to /api/vault/secrets; the save dock writes them", file)
+	}
 }

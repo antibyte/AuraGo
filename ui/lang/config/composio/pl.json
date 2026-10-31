@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Zezwól na destrukcyjne narzędzia",
   "config.composio.allow_nl": "Zezwól na język naturalny",
   "config.composio.api_key": "Klucz API Composio",
-  "config.composio.api_key_empty": "Klucz API Composio jest wymagany.",
   "config.composio.api_key_existing": "Klucz API Composio zapisany",
   "config.composio.api_key_placeholder": "Wprowadź klucz API Composio",
   "config.composio.api_key_save_failed": "Nie udało się zapisać klucza API Composio",

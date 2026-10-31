@@ -1,9 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "先にAPIキーを入力してください。",
   "config.uptime_kuma.api_key_label": "APIキー (Vault)",
   "config.uptime_kuma.api_key_placeholder": "APIキーを入力…",
   "config.uptime_kuma.api_key_save_failed": "APIキーをVaultに保存できませんでした。",
-  "config.uptime_kuma.api_key_saved": "APIキーがVaultに保存されました。",
   "config.uptime_kuma.base_url_label": "Uptime Kuma の URL",
   "config.uptime_kuma.checking": "接続を確認中…",
   "config.uptime_kuma.connected": "Uptime Kumaに接続済み",
@@ -18,7 +16,6 @@
   "config.uptime_kuma.relay_to_agent_label": "障害時にエージェントへ通知",
   "config.uptime_kuma.request_timeout_label": "リクエストタイムアウト (秒)",
   "config.uptime_kuma.save_icon": "💾",
-  "config.uptime_kuma.save_vault": "Vault に保存",
   "config.uptime_kuma.status_disabled": "Uptime Kuma 連携は無効です",
   "config.uptime_kuma.status_error": "❌",
   "config.uptime_kuma.status_no_api_key": "APIキーが設定されていません",

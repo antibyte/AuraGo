@@ -162,9 +162,7 @@
 }
 
 .pw-page .save-status,
-.pw-page .changes-pill,
-.pw-page .adg-test-result,
-.pw-page .cfg-status-text {
+.pw-page .changes-pill {
     font-size: var(--pw-meta-size);
 }
 

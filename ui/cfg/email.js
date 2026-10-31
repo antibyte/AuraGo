@@ -272,7 +272,7 @@ function emailAccountShowModal(title, data, onSave) {
             <input class="field-input" id="ea-watch-interval" type="number" value="${data.watch_interval_seconds || 120}" placeholder="120">
         </div>
 
-        ${cfgActionResult.html('ea-test-result', 'em-test-result')}
+        ${cfgActionResult.html('ea-test-result')}
         <div id="ea-save-error" class="wh-notice mcp-notice-danger is-hidden" role="alert"></div>
         <div class="modal-actions">
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('email-modal-overlay').remove()">

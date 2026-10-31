@@ -1,9 +1,7 @@
 {
-  "config.uptime_kuma.api_key_empty": "请先输入 API 密钥。",
   "config.uptime_kuma.api_key_label": "API 密钥 (Vault)",
   "config.uptime_kuma.api_key_placeholder": "输入 API 密钥…",
   "config.uptime_kuma.api_key_save_failed": "无法将 API 密钥保存到 Vault。",
-  "config.uptime_kuma.api_key_saved": "API 密钥已保存到 Vault。",
   "config.uptime_kuma.base_url_label": "Uptime Kuma 的 URL",
   "config.uptime_kuma.checking": "正在检查连接…",
   "config.uptime_kuma.connected": "已连接到 Uptime Kuma",
@@ -18,7 +16,6 @@
   "config.uptime_kuma.relay_to_agent_label": "故障时通知代理",
   "config.uptime_kuma.request_timeout_label": "请求超时（秒）",
   "config.uptime_kuma.save_icon": "💾",
-  "config.uptime_kuma.save_vault": "保存到 Vault",
   "config.uptime_kuma.status_disabled": "Uptime Kuma 集成已禁用",
   "config.uptime_kuma.status_error": "❌",
   "config.uptime_kuma.status_no_api_key": "未配置 API 密钥",

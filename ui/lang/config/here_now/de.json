@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Wähle das persönliche Konto oder den Workspace, wenn kein Konto angegeben wird.",
   "config.here_now.api_key": "API-Schlüssel",
   "config.here_now.api_key_help": "Wird nur im verschlüsselten AuraGo-Vault gespeichert und ausschließlich an here.now gesendet.",
-  "config.here_now.save_key": "Im Vault speichern",
   "config.here_now.test": "Verbindungstest",
   "config.here_now.test_help": "Prüft den gespeicherten Schlüssel und lädt erreichbare Konten.",
   "config.here_now.test_button": "Verbindung testen",
   "config.here_now.key_required": "Bitte einen API-Schlüssel eingeben.",
   "config.here_now.saving": "Speichere…",
-  "config.here_now.key_saved": "API-Schlüssel im Vault gespeichert.",
   "config.here_now.testing": "Teste…",
   "config.here_now.test_failed": "Verbindung fehlgeschlagen",
   "config.here_now.test_success": "Verbindung erfolgreich"

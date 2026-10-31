@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "De agent mag alleen de hier gekozen bronnen gebruiken.",
   "config.manus.allowlists_title": "Lijsten met toegestane bronnen",
   "config.manus.api_key": "Manus API-sleutel",
-  "config.manus.api_key_empty": "Voer eerst een Manus API-sleutel in.",
   "config.manus.api_key_existing": "Manus API-sleutel opgeslagen in de kluis",
   "config.manus.api_key_placeholder": "Voer de Manus API-sleutel in",
   "config.manus.api_key_save_failed": "De Manus API-sleutel kon niet worden opgeslagen",

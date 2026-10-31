@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "Αποθήκευση",
-  "config.sql_connections.save_before_test": "Αποθηκεύστε πρώτα τη σύνδεση, μετά δοκιμάστε την.",
   "config.sql_connections.sqlite_path_placeholder": "π.χ. /διαδρομή/προς/βάση.db",
   "config.sql_connections.ssl_default": "Προεπιλογή",
   "config.sql_connections.ssl_disable": "Απενεργοποιημένο",

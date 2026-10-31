@@ -44,16 +44,12 @@
   "config.skill_manager.tool_bridge_header": "Python ツール ブリッジ",
   "config.tailscale.key_empty": "キーが空です",
   "config.tailscale.key_save_failed": "保存に失敗しました",
-  "config.tailscale.key_saved": "キー保存済み",
-  "config.truenas.apikey_empty": "APIキーが空です",
   "config.truenas.apikey_save_failed": "保存に失敗しました",
-  "config.truenas.apikey_saved": "APIキー保存済み",
   "config.truenas.checking": "確認中…",
   "config.truenas.test_fail": "失敗",
   "config.truenas.test_ok": "接続成功",
   "config.updates.checking": "確認中…",
   "config.updates.installing": "インストール中…",
   "config.updates.running": "実行中…",
-  "config.web_scraper.summary_mode": "サマリーモード",
-  "config.webdav.secret_empty": "値が空です"
+  "config.web_scraper.summary_mode": "サマリーモード"
 }

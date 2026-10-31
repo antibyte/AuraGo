@@ -21,13 +21,11 @@
   "config.here_now.account_help": "Vyberte osobní účet nebo pracovní prostor používaný ve výchozím nastavení.",
   "config.here_now.api_key": "Klíč API",
   "config.here_now.api_key_help": "Je uložen pouze v šifrovaném Trezoru AuraGo a odesílán jen na here.now.",
-  "config.here_now.save_key": "Uložit do Trezoru",
   "config.here_now.test": "Test připojení",
   "config.here_now.test_help": "Ověří uložený klíč a načte dostupné účty.",
   "config.here_now.test_button": "Otestovat připojení",
   "config.here_now.key_required": "Zadejte klíč API.",
   "config.here_now.saving": "Ukládání…",
-  "config.here_now.key_saved": "Klíč API byl uložen do Trezoru.",
   "config.here_now.testing": "Testování…",
   "config.here_now.test_failed": "Připojení selhalo",
   "config.here_now.test_success": "Připojení bylo úspěšné"

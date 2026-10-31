@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Expéditeurs autorisés",
-  "config.agentmail.api_key_empty": "Veuillez d'abord saisir une clé API.",
   "config.agentmail.api_key_label": "Clé API (Vault)",
   "config.agentmail.api_key_placeholder": "Saisir la clé API AgentMail…",
   "config.agentmail.api_key_save_failed": "Impossible d'enregistrer la clé API dans le Vault.",
-  "config.agentmail.api_key_saved": "Clé API AgentMail enregistrée dans le Vault.",
   "config.agentmail.auto_create_label": "Créer la boîte automatiquement",
   "config.agentmail.base_url_label": "URL API REST",
   "config.agentmail.checking": "Vérification de l'état AgentMail…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet avec instructions",
   "config.agentmail.relay_cheatsheet_none": "Ne pas joindre de cheatsheet",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Enregistrer dans le Vault",
   "config.agentmail.status_disabled": "L'intégration AgentMail est désactivée",
   "config.agentmail.status_no_api_key": "Aucune clé API configurée",
   "config.agentmail.status_no_inbox": "Le relais nécessite une boîte principale",

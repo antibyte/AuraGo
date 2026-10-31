@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Ej tillgänglig",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Misslyckades att spara",
-  "config.a2a.save_vault": "Spara i Vault",
   "config.a2a.saved": "Sparat i Vault",
   "config.a2a.server_enabled": "Server aktiverad",
   "config.a2a.server_title": "A2A-server",

@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
   "config.tailscale.key_empty": "Key is empty",
   "config.tailscale.key_save_failed": "Save failed",
-  "config.tailscale.key_saved": "Key saved",
-  "config.truenas.apikey_empty": "API key is empty",
   "config.truenas.apikey_save_failed": "Save failed",
-  "config.truenas.apikey_saved": "API key saved",
   "config.truenas.checking": "Checking…",
   "config.truenas.test_fail": "Failed",
   "config.truenas.test_ok": "Connection successful",
@@ -62,6 +59,5 @@
   "config.updates.version": "Version",
   "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. <strong>Your configuration and data are preserved.</strong> AuraGo will restart after the update.",
   "config.web_scraper.summary_mode": "Summary Mode",
-  "config.webdav.secret_empty": "Value is empty",
   "config.updates.confirm_install_title": "Install update?"
 }

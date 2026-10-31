@@ -114,7 +114,7 @@
             if (button.hasAttribute('aria-label') || button.title) return;
             button.setAttribute('aria-label', t('config.refresh.toggle_password'));
         });
-        scope.querySelectorAll('.cfg-status-banner, .adg-status-banner, .cfg-state-banner, .cfg-action-result, .pw-status, .cfg-action-status').forEach(status => {
+        scope.querySelectorAll('.cfg-state-banner, .cfg-action-result, .pw-status, .cfg-action-status').forEach(status => {
             if (!status.hasAttribute('role')) status.setAttribute('role', 'status');
             if (!status.hasAttribute('aria-live')) status.setAttribute('aria-live', 'polite');
         });

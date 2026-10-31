@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "破壊的なツールを許可",
   "config.composio.allow_nl": "自然言語入力を許可",
   "config.composio.api_key": "Composio APIキー",
-  "config.composio.api_key_empty": "Composio APIキーが必要です。",
   "config.composio.api_key_existing": "Composio APIキーは保存済みです",
   "config.composio.api_key_placeholder": "Composio APIキーを入力",
   "config.composio.api_key_save_failed": "Composio APIキーを保存できませんでした",

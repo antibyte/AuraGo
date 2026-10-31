@@ -16,31 +16,35 @@ func readWave0File(t *testing.T, path string) string {
 }
 
 // A status banner must never stay on "checking..." when the integration is disabled
-// or not configured: the render function has to set a terminal state itself.
+// or not configured, or when the status check hangs: every module renders its banner through
+// cfgStatusBanner, which has the terminal states off/unconfigured/unknown (with retry) built in.
 func TestConfigStatusBannersLeaveCheckingState(t *testing.T) {
 	t.Parallel()
-	cases := []struct{ file, disabledCall, disabledKey string }{
-		{"cfg/adguard.js", "adgSetBannerState(document.getElementById('adg-status-banner')", "config.adguard.status_disabled"},
-		{"cfg/fritzbox.js", "fbSetBanner('neutral'", "config.fritzbox.status_disabled"},
-		{"cfg/truenas.js", "truenasSetBannerState(document.getElementById('truenas-status-banner')", "config.truenas.status_disabled"},
-		{"cfg/jellyfin.js", "jellyfinSetBannerState(document.getElementById('jellyfin-status-banner')", "config.jellyfin.status_disabled"},
-		{"cfg/mqtt.js", "mqttSetBanner('neutral'", "config.mqtt.status_disabled"},
-		{"cfg/obsidian.js", "obsidianSetBannerState(document.getElementById('obsidian-status-banner')", "config.obsidian.status_disabled"},
+	cases := []struct{ file, bannerID string }{
+		{"cfg/adguard.js", "adg-status-banner"},
+		{"cfg/fritzbox.js", "fb-status-banner"},
+		{"cfg/truenas.js", "truenas-status-banner"},
+		{"cfg/jellyfin.js", "jellyfin-status-banner"},
+		{"cfg/mqtt.js", "mqtt-status-banner"},
+		{"cfg/obsidian.js", "obsidian-status-banner"},
 	}
 	for _, c := range cases {
 		src := readWave0File(t, c.file)
-		// A module on the shared banner (cfgStatusBanner) sets every state through it.
-		if strings.Contains(src, "cfgStatusBanner") {
-			continue
+		if !strings.Contains(src, "cfgStatusBanner.html('"+c.bannerID+"'") && !strings.Contains(src, "id: '"+c.bannerID+"'") {
+			t.Errorf("%s does not render %s through the shared banner", c.file, c.bannerID)
 		}
-		if !strings.Contains(src, c.disabledCall) || !strings.Contains(src, c.disabledKey) {
-			t.Errorf("%s does not set a disabled banner state", c.file)
+		// The initial state of a disabled module is "off", never "checking".
+		if !strings.Contains(src, "'off'") {
+			t.Errorf("%s does not set a disabled (off) banner state", c.file)
 		}
-	}
-	for _, m := range []string{"adguard", "truenas", "jellyfin", "obsidian"} {
-		src := readWave0File(t, "cfg/"+m+".js")
-		if !strings.Contains(src, "config."+m+".status_unknown") && !strings.Contains(src, "cfgStatusBanner") {
-			t.Errorf("cfg/%s.js has no unknown-status fallback", m)
+		// The status call runs through cfgStatusBanner.check (timeout -> unknown with retry).
+		if !strings.Contains(src, "cfgStatusBanner.check(") {
+			t.Errorf("%s status check does not use cfgStatusBanner.check, so it can hang on checking", c.file)
+		}
+		for _, legacy := range []string{"SetBannerState", "setBannerState", "status_unknown'"} {
+			if strings.Contains(src, legacy) {
+				t.Errorf("%s still carries the legacy banner setter %q", c.file, legacy)
+			}
 		}
 	}
 }
@@ -49,10 +53,6 @@ func TestConfigAuthStatusFailureIsNotPasswordNotSet(t *testing.T) {
 	t.Parallel()
 	src := readWave0File(t, "cfg/auth.js")
 	for _, want := range []string{"config.auth.status_load_failed", "auth-status-retry", "aria-disabled=\"true\" data-disabled=\"true\""} {
-		// The shared banner brings its own retry button.
-		if want == "auth-status-retry" && strings.Contains(src, "cfgStatusBanner") {
-			continue
-		}
 		if !strings.Contains(src, want) {
 			t.Errorf("cfg/auth.js missing %q", want)
 		}

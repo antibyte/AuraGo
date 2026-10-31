@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "Ο πράκτορας χρησιμοποιεί μόνο τους πόρους που επιλέγονται εδώ.",
   "config.manus.allowlists_title": "Λίστες επιτρεπόμενων πόρων",
   "config.manus.api_key": "Κλειδί API Manus",
-  "config.manus.api_key_empty": "Εισαγάγετε πρώτα ένα κλειδί API Manus.",
   "config.manus.api_key_existing": "Το κλειδί API Manus είναι αποθηκευμένο στο θησαυροφυλάκιο",
   "config.manus.api_key_placeholder": "Εισαγάγετε κλειδί API Manus",
   "config.manus.api_key_save_failed": "Δεν ήταν δυνατή η αποθήκευση του κλειδιού API Manus",

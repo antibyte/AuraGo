@@ -4,7 +4,6 @@
   "config.composio.allow_destructive": "Tillåt destruktiva verktyg",
   "config.composio.allow_nl": "Tillåt naturligt språk",
   "config.composio.api_key": "Composio API-nyckel",
-  "config.composio.api_key_empty": "Composio API-nyckel krävs.",
   "config.composio.api_key_existing": "Composio API-nyckel lagrad",
   "config.composio.api_key_placeholder": "Ange Composio API-nyckel",
   "config.composio.api_key_save_failed": "Kunde inte spara Composio API-nyckel",

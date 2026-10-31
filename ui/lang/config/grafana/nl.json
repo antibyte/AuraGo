@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Voer eerst een API sleutel in.",
   "config.grafana.api_key_label": "API Sleutel (kluis)",
   "config.grafana.api_key_placeholder": "Voer de API sleutel in…",
   "config.grafana.api_key_save_failed": "De API-sleutel kon niet in de kluis worden opgeslagen.",
-  "config.grafana.api_key_saved": "API sleutel opgeslagen in kluis.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Verbinding controleren…",
   "config.grafana.connected": "Verbonden met Grafana",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Alleen-lezen",
   "config.grafana.request_timeout_label": "Time-out aanvragen (seconden)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Opslaan in kluis",
   "config.grafana.status_disabled": "Grafana-integratie is uitgeschakeld",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "Geen API sleutel geconfigureerd",

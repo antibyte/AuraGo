@@ -42,7 +42,6 @@
   "config.virtual_computers.status_disabled": "Virtuella datorer är inaktiverade.",
   "config.virtual_computers.status_error": "Kontroll av virtuella datorer misslyckades:",
   "config.virtual_computers.token_empty": "Token får inte vara tom",
-  "config.virtual_computers.token_saved": "Token sparad",
   "config.virtual_computers.token_save_failed": "Det gick inte att spara token",
   "help.virtual_computers.enabled": "Aktiverar Virtual Computers-gränssnittet och API-rutterna.",
   "help.virtual_computers.readonly": "Tillåter status, listning, skärmbilder och nedladdningar samtidigt som maskinmutationer blockeras.",

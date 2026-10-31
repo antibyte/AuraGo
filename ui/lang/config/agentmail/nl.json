@@ -1,10 +1,8 @@
 {
   "config.agentmail.allowed_senders_label": "Toegestane afzenders",
-  "config.agentmail.api_key_empty": "Voer eerst een API-sleutel in.",
   "config.agentmail.api_key_label": "API-sleutel (Vault)",
   "config.agentmail.api_key_placeholder": "Voer AgentMail API-sleutel in…",
   "config.agentmail.api_key_save_failed": "De API-sleutel kon niet in de kluis worden opgeslagen.",
-  "config.agentmail.api_key_saved": "AgentMail API-sleutel opgeslagen in de Vault.",
   "config.agentmail.auto_create_label": "Inbox automatisch maken",
   "config.agentmail.base_url_label": "REST API-URL",
   "config.agentmail.checking": "AgentMail-status controleren…",
@@ -26,7 +24,6 @@
   "config.agentmail.relay_cheatsheet_label": "Cheatsheet met instructies",
   "config.agentmail.relay_cheatsheet_none": "Geen cheatsheet toevoegen",
   "config.agentmail.save_icon": "💾",
-  "config.agentmail.save_vault": "Opslaan in Vault",
   "config.agentmail.status_disabled": "AgentMail-integratie is uitgeschakeld",
   "config.agentmail.status_no_api_key": "Geen API-sleutel geconfigureerd",
   "config.agentmail.status_no_inbox": "Relay heeft een primaire inbox-ID nodig",

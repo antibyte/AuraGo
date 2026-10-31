@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Γέφυρα εργαλείων Python",
   "config.tailscale.key_empty": "Το κλειδί είναι κενό",
   "config.tailscale.key_save_failed": "Η αποθήκευση απέτυχε",
-  "config.tailscale.key_saved": "Κλειδί αποθηκεύτηκε",
-  "config.truenas.apikey_empty": "Το κλειδί API είναι κενό",
   "config.truenas.apikey_save_failed": "Η αποθήκευση απέτυχε",
-  "config.truenas.apikey_saved": "Κλειδί API αποθηκεύτηκε",
   "config.truenas.checking": "Έλεγχος…",
   "config.truenas.test_fail": "Αποτυχία",
   "config.truenas.test_ok": "Σύνδεση επιτυχής",
@@ -55,6 +52,5 @@
   "config.web_scraper.summary_desc": "Οι σελίδες που έχουν υποβληθεί σε scraping συνοψίζονται μέσω του κεντρικού Helper LLM όταν είναι ενεργοποιημένο. Ο πράκτορας λαμβάνει την καθαρή σύνοψη αντί για το πλήρες περιεχόμενο της σελίδας.<br><strong>Οφέλη:</strong> εξοικονομεί tokens, μειώνει τις διπλές κλήσεις helper και ενισχύει το σύστημα έναντι της έγχυσης prompt από εξωτερικό περιεχόμενο. Αν το βοηθητικό LLM δεν έχει ρυθμιστεί ή η σύνοψη αποτύχει, λαμβάνετε το απομονωμένο περιεχόμενο της σελίδας.",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.web_scraper.summary_provider": "Βοηθητική LLM",
-  "config.web_scraper.use_main_llm": "— Χρήση κύριου LLM —",
-  "config.webdav.secret_empty": "Η τιμή είναι κενή"
+  "config.web_scraper.use_main_llm": "— Χρήση κύριου LLM —"
 }

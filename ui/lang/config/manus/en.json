@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "The agent can only use resources explicitly selected here.",
   "config.manus.allowlists_title": "Resource allowlists",
   "config.manus.api_key": "Manus API key",
-  "config.manus.api_key_empty": "Enter a Manus API key first.",
   "config.manus.api_key_existing": "Manus API key stored in the vault",
   "config.manus.api_key_placeholder": "Enter Manus API key",
   "config.manus.api_key_save_failed": "Could not save the Manus API key",

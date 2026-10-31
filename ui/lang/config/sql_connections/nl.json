@@ -46,7 +46,6 @@
   "config.sql_connections.port_mysql": "3306",
   "config.sql_connections.port_postgres": "5432",
   "config.sql_connections.save": "Opslaan",
-  "config.sql_connections.save_before_test": "Sla de verbinding eerst op en test dan.",
   "config.sql_connections.sqlite_path_placeholder": "bijv. /pad/naar/database.db",
   "config.sql_connections.ssl_default": "Standaard",
   "config.sql_connections.ssl_disable": "Uitgeschakeld",

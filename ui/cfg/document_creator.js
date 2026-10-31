@@ -86,7 +86,7 @@ async function renderDocumentCreatorSection(section) {
     // Test button
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="dcTestGotenberg()" id="dc-test-btn" data-config-action-draft="true">🔌 ' + t('config.document_creator.test_gotenberg') + '</button>';
-    html += cfgActionResult.html('dc-test-result', 'dc-test-result');
+    html += cfgActionResult.html('dc-test-result');
     html += '<div class="field-help">' + t('config.document_creator.test_saved_settings') + '</div>';
     html += '</div>';
 

@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "不可用",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "保存失败",
-  "config.a2a.save_vault": "保存到Vault",
   "config.a2a.saved": "已保存到Vault",
   "config.a2a.server_enabled": "启用服务器",
   "config.a2a.server_title": "A2A服务器",

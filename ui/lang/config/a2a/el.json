@@ -39,7 +39,6 @@
   "config.a2a.ra_unavailable": "Μη διαθέσιμος",
   "config.a2a.rest_binding": "REST (HTTP)",
   "config.a2a.save_failed": "Αποτυχία αποθήκευσης",
-  "config.a2a.save_vault": "Αποθήκευση στο Vault",
   "config.a2a.saved": "Αποθηκεύτηκε στο Vault",
   "config.a2a.server_enabled": "Διακομιστής ενεργοποιημένος",
   "config.a2a.server_title": "Διακομιστής A2A",

@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "Agenten får bara använda resurser som väljs här.",
   "config.manus.allowlists_title": "Listor över tillåtna resurser",
   "config.manus.api_key": "Manus API-nyckel",
-  "config.manus.api_key_empty": "Ange först en Manus API-nyckel.",
   "config.manus.api_key_existing": "Manus API-nyckel sparad i valvet",
   "config.manus.api_key_placeholder": "Ange Manus API-nyckel",
   "config.manus.api_key_save_failed": "Manus API-nyckeln kunde inte sparas",

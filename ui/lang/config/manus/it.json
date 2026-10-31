@@ -10,7 +10,6 @@
   "config.manus.allowlists_desc": "L’agente può usare solo le risorse selezionate qui.",
   "config.manus.allowlists_title": "Elenchi delle risorse consentite",
   "config.manus.api_key": "Chiave API Manus",
-  "config.manus.api_key_empty": "Inserisci prima una chiave API Manus.",
   "config.manus.api_key_existing": "Chiave API Manus salvata nel vault",
   "config.manus.api_key_placeholder": "Inserisci la chiave API Manus",
   "config.manus.api_key_save_failed": "Impossibile salvare la chiave API Manus",

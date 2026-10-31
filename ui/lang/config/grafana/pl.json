@@ -1,9 +1,7 @@
 {
-  "config.grafana.api_key_empty": "Najpierw wprowadź klucz API.",
   "config.grafana.api_key_label": "API Klucz (sejf)",
   "config.grafana.api_key_placeholder": "Wprowadź klucz API…",
   "config.grafana.api_key_save_failed": "Nie udało się zapisać klucza API w skarbcu.",
-  "config.grafana.api_key_saved": "Klucz API zapisany w skarbcu.",
   "config.grafana.base_url_label": "Grafana URL",
   "config.grafana.checking": "Sprawdzam połączenie…",
   "config.grafana.connected": "Połączono z Grafaną",
@@ -14,7 +12,6 @@
   "config.grafana.readonly_label": "Tylko odczyt",
   "config.grafana.request_timeout_label": "Limit czasu żądania (sekundy)",
   "config.grafana.save_icon": "💾",
-  "config.grafana.save_vault": "Zapisz w skarbcu",
   "config.grafana.status_disabled": "Integracja z Grafaną jest wyłączona",
   "config.grafana.status_error": "❌",
   "config.grafana.status_no_api_key": "Nie skonfigurowano klucza API",

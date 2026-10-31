@@ -38,10 +38,7 @@
   "config.skill_manager.tool_bridge_header": "Python ツール ブリッジ",
   "config.tailscale.key_empty": "キーが空です",
   "config.tailscale.key_save_failed": "保存に失敗しました",
-  "config.tailscale.key_saved": "キー保存済み",
-  "config.truenas.apikey_empty": "APIキーが空です",
   "config.truenas.apikey_save_failed": "保存に失敗しました",
-  "config.truenas.apikey_saved": "APIキー保存済み",
   "config.truenas.checking": "確認中…",
   "config.truenas.test_fail": "失敗",
   "config.truenas.test_ok": "接続成功",
@@ -55,6 +52,5 @@
   "config.web_scraper.summary_desc": "スクレイピングされたWebページは、有効にすると中央Helper LLMを通じて要約されます。エージェントは、完全なページコンテンツではなく、クリーンな要約を受け取ります。<br><strong>利点：</strong>トークンを節約し、重複したヘルパー呼び出しを減らし、外部コンテンツからのプロンプトインジェクションからシステムを強化します。補助LLMが設定されていない場合、または要約に失敗した場合は、隔離されたページ内容を受け取ります。",
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.web_scraper.summary_provider": "補助LLM",
-  "config.web_scraper.use_main_llm": "— メインLLMを使用 —",
-  "config.webdav.secret_empty": "値が空です"
+  "config.web_scraper.use_main_llm": "— メインLLMを使用 —"
 }
