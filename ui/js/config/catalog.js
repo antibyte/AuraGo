@@ -91,6 +91,11 @@
     });
 
     const validationRules = Object.freeze({
+        'kaggle.request_timeout_seconds': { type: 'number', min: 1, max: 300, changedOnly: true },
+        'kaggle.remote_timeout_minutes': { type: 'number', min: 1, max: 720, changedOnly: true },
+        'kaggle.local.max_sessions': { type: 'number', min: 1, max: 8, changedOnly: true },
+        'kaggle.local.idle_minutes': { type: 'number', min: 1, max: 240, changedOnly: true },
+        'kaggle.local.cell_timeout_minutes': { type: 'number', min: 1, max: 720, changedOnly: true },
         'cloudflare_tunnel.loopback_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
         'cloudflare_tunnel.metrics_port': { type: 'number', min: 0, max: 65535, pattern: '^\\d+$' },
         'treg.max_call_cost_micro': { type: 'number', min: 0, max: 1000000000000, required: true },

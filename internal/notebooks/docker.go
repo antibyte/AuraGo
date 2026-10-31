@@ -23,7 +23,7 @@ import (
 	"aurago/internal/kaggle"
 )
 
-const RuntimeImage = "ghcr.io/antibyte/aurago-kaggle-notebook:protocol-1-20261026"
+const RuntimeImage = "ghcr.io/antibyte/aurago-kaggle-notebook@sha256:591a7ef45ba78931aa9468bb55957c2918d7fefb271aeb70d734d12e0ca60eac"
 const containerPrefix = "aurago-kaggle-"
 
 type Docker struct {
@@ -56,7 +56,14 @@ func (d *Docker) EnsureImage(ctx context.Context) error {
 	if resp.StatusCode != 200 {
 		return errors.New("notebook image is not available in the registry")
 	}
-	return dockerutil.DrainJSONMessages(resp.Body)
+	if err = dockerutil.DrainJSONMessages(resp.Body); err != nil {
+		return err
+	}
+	status, err = d.client.DoJSON(ctx, "GET", "/images/"+url.PathEscape(d.image)+"/json", nil, &struct{}{})
+	if err != nil || status != http.StatusOK {
+		return errors.New("downloaded notebook image could not be verified")
+	}
+	return nil
 }
 func (d *Docker) Create(ctx context.Context, id string, c config.KaggleLocalConfig, internet bool) (string, error) {
 	network := "none"

@@ -45,7 +45,7 @@ Writes are restricted to the authenticated owner unless `allowed_owners` explici
 | Local idle timeout | 15 minutes |
 | Local cell deadline | 30 minutes |
 
-The limits are configurable. Transfers stream into temporary regular files, enforce actual byte/disk budgets, then publish atomically. Destination collisions are refused. Paths cannot traverse projects or access symlinks/special files. ZIP archives are kept opaque, never implicitly extracted. Redirected storage requests carry no Kaggle authorization or cookies.
+The limits are configurable. The configuration editor rejects values above 300 seconds per request, 720 minutes per remote run, 8 local sessions, 240 minutes idle and 720 minutes per cell before saving; these maxima match backend normalization. Transfers stream into temporary regular files, enforce actual byte/disk budgets, then publish atomically. Destination collisions are refused. Paths cannot traverse projects or access symlinks/special files. ZIP archives are kept opaque, never implicitly extracted. Redirected storage requests carry no Kaggle authorization or cookies.
 
 ## Local Python versus Kaggle execution
 
@@ -79,9 +79,9 @@ State is held in `data/kaggle.db` and `data/kaggle/projects/`. The database is p
 
 ## Runtime delivery and verification
 
-`internal/notebooks/docker.go` pins `ghcr.io/antibyte/aurago-kaggle-notebook:protocol-1-20261026`. Its Dockerfile uses the 2026-10-26 scipy-notebook multiarch OCI digest `sha256:0698ec1bc3ecf0ff30e571af74816459f1a2947b560236af0d28e13900a3b296`. Each session uses UID/GID 1000:100, a read-only root, dropped capabilities, no-new-privileges, CPU/RAM/PID limits, bounded private tmpfs, no published port and no host or Docker-socket mounts. A fixed `jupyter_client` bridge communicates over Docker exec attach with bounded JSON frames.
+`internal/notebooks/docker.go` pins the published runtime OCI index `ghcr.io/antibyte/aurago-kaggle-notebook@sha256:591a7ef45ba78931aa9468bb55957c2918d7fefb271aeb70d734d12e0ca60eac` (protocol tag `protocol-1-20261026`). Inspection, pulling and container creation use this exact digest; a missing or failed image never falls back to a tag. Its Dockerfile uses the 2026-10-26 scipy-notebook multiarch OCI digest `sha256:0698ec1bc3ecf0ff30e571af74816459f1a2947b560236af0d28e13900a3b296`. Each session uses UID/GID 1000:100, a read-only root, dropped capabilities, no-new-privileges, CPU/RAM/PID limits, bounded private tmpfs, no published port and no host or Docker-socket mounts. A fixed `jupyter_client` bridge communicates over Docker exec attach with bounded JSON frames.
 
-The existing Docker publication workflow builds and smokes amd64/arm64 before publishing/signing the notebook image. Manual dispatch can select `kaggle-notebook`; normal release tags include it. The image must be published before an installation can pull it. Bump the runtime image tag when the bridge protocol/image changes; do not silently replace a published contract. The full Desktop resources remain part of the backend's version-bound asset package.
+The existing Docker publication workflow builds and smokes amd64/arm64 before publishing/signing the notebook image. Manual dispatch can select `kaggle-notebook`; normal release tags include it. The image must be published before an installation can pull it. Bump the runtime image tag when the bridge protocol/image changes, verify the workflow signature and both platform manifests, then update the runtime index digest; do not silently replace a published contract. The full Desktop resources remain part of the backend's version-bound asset package.
 
 Useful checks:
 

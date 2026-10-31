@@ -21,7 +21,9 @@ This package owns notebook revisions, kernel sessions and the fixed Jupyter brid
 
 ## Work Guidance
 
-Keep the image version, pinned multiarch base, bridge protocol, release workflow and operator guide aligned. No Kaggle credential may enter the kernel environment.
+Keep the image version, pinned multiarch base, bridge protocol, release workflow and operator guide aligned. Pin the published, signature-verified runtime OCI index digest in `RuntimeImage`; inspect, pull and create use that same digest with no tag fallback. Re-inspect after pulling before admitting a session. No Kaggle credential may enter the kernel environment.
+
+Return `SessionSnapshot` through HTTP, tools and events; runtime sessions retain their locks and private handles internally. Preserve the snapshot JSON fields.
 
 ## Verification
 
