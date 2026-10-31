@@ -125,14 +125,14 @@ async function renderOmniRouteSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="omniRouteTestConnection()" id="omniroute-test-btn">🔌 ' + omniRouteText('config.omniroute.test_button') + '</button>';
+    html += '<button class="btn-save adg-test-btn" onclick="omniRouteTestConnection()" id="omniroute-test-btn" data-config-action-draft="true">🔌 ' + omniRouteText('config.omniroute.test_button') + '</button>';
     if (managed) {
-        html += '<button class="btn-save btn-secondary" onclick="omniRouteStartSidecar()" id="omniroute-start-btn">▶ ' + omniRouteText('config.omniroute.start_button') + '</button>';
-        html += '<button class="btn-save btn-secondary" onclick="omniRouteStopSidecar()" id="omniroute-stop-btn">⏹ ' + omniRouteText('config.omniroute.stop_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="omniRouteStartSidecar()" id="omniroute-start-btn" data-config-action-draft="false">▶ ' + omniRouteText('config.omniroute.start_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="omniRouteStopSidecar()" id="omniroute-stop-btn" data-config-action-draft="false">⏹ ' + omniRouteText('config.omniroute.stop_button') + '</button>';
     }
-    html += '<span id="omniroute-result" class="adg-test-result"></span>';
+    html += cfgActionResult.html('omniroute-result');
     html += '</div>';
-    html += '<div id="omniroute-status-panel" class="adg-status-banner"></div>';
+    html += cfgStatusBanner.html('omniroute-status-panel', 'checking');
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -195,14 +195,15 @@ function omniRouteToggleEnabled(el) {
     markDirty();
 }
 
+// The values typed in, in the shape of the config patch (secrets left out when masked or empty).
 function omniRoutePayload() {
     omniRouteEnsureData();
     if (typeof buildConfigPatchFromForm === 'function') {
         const patch = buildConfigPatchFromForm();
-        const merged = Object.assign({}, configData.omniroute, patch.omniroute || {});
-        return { omniroute: merged };
+        const merged = Object.assign({}, cfgDraftPatch(['omniroute']).omniroute, patch.omniroute || {});
+        return { draft: { omniroute: merged } };
     }
-    return { omniroute: configData.omniroute };
+    return { draft: cfgDraftPatch(['omniroute']) };
 }
 
 function omniRouteSelectChanged(selectEl) {
@@ -222,35 +223,38 @@ function omniRouteCustomChanged(inputEl) {
 
 function omniRouteStatusState(body) {
     const status = String(body && body.status ? body.status : '').toLowerCase();
-    if (body && body.admin_setup_required) return 'warning';
-    if (status === 'running' || status === 'ok' || status === 'connected') return 'success';
-    if (status === 'error' || status === 'failed') return 'danger';
-    if (status === 'stopped' || status === 'stopping' || status === 'starting' || status === 'setup_required') return 'warning';
-    return '';
+    if (body && (body.admin_setup_required || status === 'setup_required')) return 'degraded';
+    if (status === 'running' || status === 'ok' || status === 'connected') return 'connected';
+    if (status === 'error' || status === 'failed') return 'error';
+    if (status === 'disabled') return 'off';
+    if (status === 'stopped' || status === 'stopping' || status === 'starting') return 'degraded';
+    return 'unknown';
+}
+
+// Draws the status answer into the banner; the sidecar URL is a link, the provider URL and notes the detail.
+function omniRouteRenderStatus(body) {
+    const detail = [omniRouteText('config.omniroute.status_prefix') + ' ' + (body.status || 'unknown')];
+    if (body.provider_base_url) detail.push(body.provider_base_url);
+    if (body.admin_setup_required) detail.push(omniRouteText('config.omniroute.admin_setup_required'));
+    if (body.message) detail.push(body.message);
+    const state = omniRouteStatusState(body);
+    cfgStatusBanner('omniroute-status-panel', state, {
+        detail: detail.join(' · '),
+        links: body.url ? [{ href: body.url, label: body.url }] : [],
+        retry: state === 'error' || state === 'unknown' ? omniRouteRefreshStatus : null
+    });
 }
 
 async function omniRouteRefreshStatus() {
-    const panel = document.getElementById('omniroute-status-panel');
-    if (!panel) return;
+    if (!document.getElementById('omniroute-status-panel')) return;
+    cfgStatusBanner('omniroute-status-panel', 'checking', {});
     try {
         const resp = await fetch('/api/omniroute/status');
         const body = await resp.json();
-        panel.className = 'adg-status-banner' + (omniRouteStatusState(body) ? ' is-' + omniRouteStatusState(body) : '');
-        panel.innerHTML = omniRouteStatusHTML(body);
+        omniRouteRenderStatus(body);
     } catch (e) {
-        panel.className = 'adg-status-banner is-danger';
-        panel.textContent = omniRouteText('config.omniroute.status_error') + ' ' + e.message;
+        cfgStatusBanner('omniroute-status-panel', 'error', { detail: omniRouteText('config.omniroute.status_error') + ' ' + e.message, retry: omniRouteRefreshStatus });
     }
-}
-
-function omniRouteStatusHTML(body) {
-    const parts = [];
-    parts.push('<strong>' + escapeHtml(omniRouteText('config.omniroute.status_prefix')) + '</strong> ' + escapeHtml(body.status || 'unknown'));
-    if (body.url) parts.push('<a href="' + escapeAttr(body.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(body.url) + '</a>');
-    if (body.provider_base_url) parts.push('<code>' + escapeHtml(body.provider_base_url) + '</code>');
-    if (body.admin_setup_required) parts.push('<span>' + escapeHtml(omniRouteText('config.omniroute.admin_setup_required')) + '</span>');
-    if (body.message) parts.push('<span>' + escapeHtml(body.message) + '</span>');
-    return parts.join('<br>');
 }
 
 async function omniRouteTestConnection() {
@@ -266,35 +270,21 @@ async function omniRouteStopSidecar() {
 }
 
 async function omniRouteAction(url, buttonId, loadingText) {
-    const result = document.getElementById('omniroute-result');
     const btn = document.getElementById(buttonId);
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = loadingText;
-    }
-    try {
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: url.endsWith('/test') ? JSON.stringify(omniRoutePayload()) : undefined
-        });
-        const body = await resp.json();
-        if (result) {
-            result.className = resp.ok && body.status !== 'error' ? 'adg-test-result is-success' : 'adg-test-result is-danger';
-            result.textContent = (body.message || body.status || '').toString();
-        }
-        const panel = document.getElementById('omniroute-status-panel');
-        if (panel) {
-            panel.className = 'adg-status-banner' + (omniRouteStatusState(body) ? ' is-' + omniRouteStatusState(body) : '');
-            panel.innerHTML = omniRouteStatusHTML(body);
-        }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = omniRouteText('config.omniroute.status_error') + ' ' + e.message;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    const outcome = await cfgActionResult(btn, () => fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: url.endsWith('/test') ? JSON.stringify(omniRoutePayload()) : undefined
+    }), {
+        target: 'omniroute-result',
+        pending: loadingText,
+        lock: '.cfg-actions-row button',
+        success: o => (o.body && (o.body.message || o.body.status)) || t('config.feedback.done'),
+        warning: o => (o.body && o.body.status) || '',
+        failure: omniRouteText('config.omniroute.status_error'),
+        // Sidecar answers that need attention are warnings, not failures.
+        interpret: o => o.body && (o.body.admin_setup_required || o.body.status === 'setup_required' || o.body.status === 'stopped') && o.state === 'success'
+            ? { state: 'warning' } : null
+    });
+    if (!outcome.skipped && outcome.body && outcome.httpStatus < 400) omniRouteRenderStatus(outcome.body);
 }

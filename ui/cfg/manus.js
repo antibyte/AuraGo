@@ -40,18 +40,17 @@ async function renderManusSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div id="manus-status-banner" class="adg-status-banner">' + t('config.manus.status_loading') + '</div>';
-    html += '<div class="cfg-actions-row manus-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" onclick="manusTestConnection()"' + actionsDisabled + '>' + t('config.manus.test_connection') + '</button>';
-    html += '<button class="btn-save btn-secondary" id="manus-load-catalogs-btn" onclick="manusLoadCatalogs(true)"' + actionsDisabled + '>' + t('config.manus.load_catalogs') + '</button>';
-    html += '<span id="manus-test-result" class="adg-test-result"></span></div>';
+    html += cfgStatusBanner.html('manus-status-banner', 'checking', { detail: t('config.manus.status_loading') });
+    html += '<div class="cfg-actions-row manus-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" data-config-action-draft="true" onclick="manusTestConnection()">' + t('config.manus.test_connection') + '</button>';
+    html += '<button class="btn-save btn-secondary" id="manus-load-catalogs-btn" data-config-action-draft="false" onclick="manusLoadCatalogs(true)"' + actionsDisabled + '>' + t('config.manus.load_catalogs') + '</button>';
+    html += cfgActionResult.html('manus-test-result') + cfgActionResult.html('manus-catalog-result') + '</div>';
 
     html += manusToggle('manus.enabled', cfg.enabled, 'config.manus.enabled', 'help.manus.enabled', false);
     html += '<div class="field-group"><div class="field-label">' + t('config.manus.api_key') + '</div><div class="field-help">' + t('help.manus.api_key') + '</div>';
     html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
     html += '<input class="field-input adg-password-input" type="password" id="manus-api-key" data-path="manus.api_key" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.manus.api_key_existing') : t('config.manus.api_key_placeholder')) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
-    html += '<button type="button" class="btn-save adg-save-btn" onclick="manusSaveAPIKey()">' + t('config.manus.save_api_key') + '</button></div>';
-    html += '<div id="manus-api-key-status" class="adg-test-result"></div></div>';
+    html += '</div></div>';
 
     html += '<div class="field-grid two-cols">';
     html += manusProfileSelect(cfg.default_agent_profile);
@@ -87,7 +86,8 @@ async function renderManusSection(section) {
 
 function manusSetActionAvailability(enabled) {
     manusCatalogState.actionsEnabled = enabled === true;
-    ['manus-test-btn', 'manus-load-catalogs-btn'].forEach(id => {
+    // Only the catalog loader needs the saved, ready service; the connection test runs with the draft.
+    ['manus-load-catalogs-btn'].forEach(id => {
         const button = document.getElementById(id);
         if (button) button.disabled = !manusCatalogState.actionsEnabled;
     });
@@ -137,6 +137,7 @@ function manusCatalogGroup(kind, configKey, labelKey, helpKey, selected) {
 
 async function manusRefreshStatus() {
     const banner = document.getElementById('manus-status-banner');
+    if (banner) cfgStatusBanner(banner, 'checking', { detail: t('config.manus.status_loading') });
     try {
         const resp = await fetch('/api/manus/status');
         const data = await resp.json().catch(() => ({}));
@@ -146,58 +147,54 @@ async function manusRefreshStatus() {
         manusSetActionAvailability(data.status === 'ready');
         const state = data.status || 'error';
         if (banner) {
-            banner.className = 'adg-status-banner' + (state === 'ready' ? ' is-success' : (state === 'disabled' ? '' : ' is-warning'));
-            banner.textContent = t('config.manus.status_' + state);
+            const bannerState = state === 'ready' ? 'connected' : (state === 'disabled' ? 'off' : (state === 'missing_key' ? 'unconfigured' : 'degraded'));
+            cfgStatusBanner(banner, bannerState, { detail: t('config.manus.status_' + state) });
         }
-    } catch (_) {
-        manusSetActionAvailability(false);
-        if (banner) { banner.className = 'adg-status-banner is-danger'; banner.textContent = t('config.manus.status_error'); }
-    }
-}
-
-async function manusSaveAPIKey() {
-    const input = document.getElementById('manus-api-key');
-    const status = document.getElementById('manus-api-key-status');
-    const value = input ? input.value.trim() : '';
-    if (!value) { if (status) { status.className = 'adg-test-result is-danger'; status.textContent = t('config.manus.api_key_empty'); } return; }
-    try {
-        const resp = await fetch('/api/vault/secrets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'manus_api_key', value }) });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || data.message || t('config.manus.api_key_save_failed'));
-        cfgMarkSecretStored(input, 'manus.api_key');
-        manusConfig().configured = true;
-        if (status) { status.className = 'adg-test-result is-success'; status.textContent = t('config.manus.api_key_saved'); }
-        await manusRefreshStatus();
     } catch (error) {
-        if (status) { status.className = 'adg-test-result is-danger'; status.textContent = error.message || t('config.manus.api_key_save_failed'); }
+        manusSetActionAvailability(false);
+        if (banner) cfgStatusBanner(banner, 'error', { detail: (error && error.message) || t('config.manus.status_error'), retry: manusRefreshStatus });
     }
 }
 
+// Tests with the values typed in; the key follows the draft (the stored one when the field is empty).
 async function manusTestConnection() {
     const btn = document.getElementById('manus-test-btn');
-    const result = document.getElementById('manus-test-result');
-    if (btn) btn.disabled = true;
-    if (result) { result.className = 'adg-test-result'; result.textContent = t('config.manus.testing'); }
-    try {
-        const resp = await fetch('/api/manus/test', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || data.message || t('config.manus.test_failed'));
-        const credits = data.credits && (data.credits.total_credits ?? data.credits.available_credits ?? data.credits.credits);
-        const suffix = credits === undefined ? '' : ' · ' + t('config.manus.credits', { count: credits });
-        if (result) { result.className = 'adg-test-result is-success'; result.textContent = t('config.manus.test_ok') + suffix; }
-        await manusLoadCatalogs(false);
-    } catch (error) {
-        if (result) { result.className = 'adg-test-result is-danger'; result.textContent = t('config.manus.test_failed') + ': ' + (error.message || t('config.common.error')); }
-    } finally {
-        if (btn) btn.disabled = !manusCatalogState.actionsEnabled;
-    }
+    return cfgActionResult(btn, async () => {
+        const resp = await fetch('/api/manus/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ draft: cfgDraftPatch(['manus']) })
+        });
+        if (resp.ok && manusCatalogState.actionsEnabled) await manusLoadCatalogs(false);
+        return resp;
+    }, {
+        target: 'manus-test-result',
+        pending: t('config.manus.testing'),
+        success: o => {
+            const credits = o.body && o.body.credits && (o.body.credits.total_credits ?? o.body.credits.available_credits ?? o.body.credits.credits);
+            return t('config.manus.test_ok') + (credits === undefined ? '' : ' · ' + t('config.manus.credits', { count: credits }));
+        },
+        failure: t('config.manus.test_failed') + ':'
+    });
 }
 
 async function manusLoadCatalogs(showErrors) {
     if (manusCatalogState.loading) return;
+    const button = document.getElementById('manus-load-catalogs-btn');
+    if (!showErrors || !button) return manusLoadCatalogsRun(showErrors);
+    return cfgActionResult(button, () => manusLoadCatalogsRun(true), {
+        target: 'manus-catalog-result',
+        pending: t('config.common.loading'),
+        success: t('config.feedback.done'),
+        failure: t('config.manus.catalog_load_failed')
+    });
+}
+
+async function manusLoadCatalogsRun(showErrors) {
     manusCatalogState.loading = true;
     const loadButton = document.getElementById('manus-load-catalogs-btn');
     if (loadButton) loadButton.disabled = true;
+    let failure = null;
     try {
         const catalogs = [
             { kind: 'projects', stateKey: 'projects', url: '/api/manus/projects' },
@@ -225,17 +222,15 @@ async function manusLoadCatalogs(showErrors) {
         const cfg = manusConfig();
         await manusLoadProjectSkills(cfg.allowed_project_ids, showErrors);
         manusRenderCatalogs();
-        if (firstError && showErrors) {
-            showToast(t('config.manus.catalog_load_failed') + ': ' + (firstError.message || t('config.common.error')), 'error');
-        }
+        if (firstError) failure = firstError;
     } catch (error) {
-        if (showErrors) {
-            showToast(t('config.manus.catalog_load_failed') + ': ' + (error.message || t('config.common.error')), 'error');
-        }
+        failure = error;
     } finally {
         manusCatalogState.loading = false;
         if (loadButton) loadButton.disabled = !manusCatalogState.actionsEnabled;
     }
+    // The result line next to the button carries the reason (cfgActionResult in manusLoadCatalogs).
+    return failure ? { status: 'error', message: failure.message || t('config.common.error') } : { status: 'ok' };
 }
 
 async function manusFetchCatalog(url) {

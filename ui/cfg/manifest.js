@@ -148,14 +148,14 @@ async function renderManifestSection(section) {
     html += '</div>';
 
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn">🔌 ' + manifestText('config.manifest.test_button') + '</button>';
+    html += '<button class="btn-save adg-test-btn" onclick="manifestTestConnection()" id="manifest-test-btn" data-config-action-draft="true">🔌 ' + manifestText('config.manifest.test_button') + '</button>';
     if (managed) {
-        html += '<button class="btn-save btn-secondary" onclick="manifestStartSidecars()" id="manifest-start-btn">▶ ' + manifestText('config.manifest.start_button') + '</button>';
-        html += '<button class="btn-save btn-secondary" onclick="manifestStopSidecars()" id="manifest-stop-btn">⏹ ' + manifestText('config.manifest.stop_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="manifestStartSidecars()" id="manifest-start-btn" data-config-action-draft="false">▶ ' + manifestText('config.manifest.start_button') + '</button>';
+        html += '<button class="btn-save btn-secondary" onclick="manifestStopSidecars()" id="manifest-stop-btn" data-config-action-draft="false">⏹ ' + manifestText('config.manifest.stop_button') + '</button>';
     }
-    html += '<span id="manifest-result" class="adg-test-result"></span>';
+    html += cfgActionResult.html('manifest-result');
     html += '</div>';
-    html += '<div id="manifest-status-panel" class="adg-status-banner"></div>';
+    html += cfgStatusBanner.html('manifest-status-panel', 'checking');
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -260,18 +260,19 @@ function manifestToggleEnabled(el) {
     renderManifestSection(null);
 }
 
+// The values typed in, in the shape of the config patch (secrets left out when masked or empty).
 function manifestPayload() {
     manifestEnsureData();
     manifestRoutingCollectHeaders(false);
     if (typeof buildConfigPatchFromForm === 'function') {
         const patch = buildConfigPatchFromForm();
-        const merged = Object.assign({}, configData.manifest, patch.manifest || {});
+        const merged = Object.assign({}, cfgDraftPatch(['manifest']).manifest, patch.manifest || {});
         if (patch.manifest && patch.manifest.routing) {
             merged.routing = Object.assign({}, configData.manifest.routing || {}, patch.manifest.routing);
         }
-        return { manifest: merged };
+        return { draft: { manifest: merged } };
     }
-    return { manifest: configData.manifest };
+    return { draft: cfgDraftPatch(['manifest']) };
 }
 
 function manifestSelectChanged(selectEl) {
@@ -320,35 +321,38 @@ function manifestRoutingRemoveHeader(key) {
 
 function manifestStatusState(body) {
     const status = String(body && body.status ? body.status : '').toLowerCase();
-    if (body && body.admin_setup_required) return 'warning';
-    if (status === 'running' || status === 'ok' || status === 'connected') return 'success';
-    if (status === 'error' || status === 'failed') return 'danger';
-    if (status === 'stopped' || status === 'stopping' || status === 'starting') return 'warning';
-    return '';
+    if (body && (body.admin_setup_required || status === 'setup_required')) return 'degraded';
+    if (status === 'running' || status === 'ok' || status === 'connected') return 'connected';
+    if (status === 'error' || status === 'failed') return 'error';
+    if (status === 'disabled') return 'off';
+    if (status === 'stopped' || status === 'stopping' || status === 'starting') return 'degraded';
+    return 'unknown';
+}
+
+// Draws the status answer into the banner; the sidecar URL is a link, the provider URL and notes the detail.
+function manifestRenderStatus(body) {
+    const detail = [manifestText('config.manifest.status_prefix') + ' ' + (body.status || 'unknown')];
+    if (body.provider_base_url) detail.push(body.provider_base_url);
+    if (body.admin_setup_required) detail.push(manifestText('config.manifest.admin_setup_required'));
+    if (body.message) detail.push(body.message);
+    const state = manifestStatusState(body);
+    cfgStatusBanner('manifest-status-panel', state, {
+        detail: detail.join(' · '),
+        links: body.url ? [{ href: body.url, label: body.url }] : [],
+        retry: state === 'error' || state === 'unknown' ? manifestRefreshStatus : null
+    });
 }
 
 async function manifestRefreshStatus() {
-    const panel = document.getElementById('manifest-status-panel');
-    if (!panel) return;
+    if (!document.getElementById('manifest-status-panel')) return;
+    cfgStatusBanner('manifest-status-panel', 'checking', {});
     try {
         const resp = await fetch('/api/manifest/status');
         const body = await resp.json();
-        panel.className = 'adg-status-banner' + (manifestStatusState(body) ? ' is-' + manifestStatusState(body) : '');
-        panel.innerHTML = manifestStatusHTML(body);
+        manifestRenderStatus(body);
     } catch (e) {
-        panel.className = 'adg-status-banner is-danger';
-        panel.textContent = manifestText('config.manifest.status_error') + ' ' + e.message;
+        cfgStatusBanner('manifest-status-panel', 'error', { detail: manifestText('config.manifest.status_error') + ' ' + e.message, retry: manifestRefreshStatus });
     }
-}
-
-function manifestStatusHTML(body) {
-    const parts = [];
-    parts.push('<strong>' + escapeHtml(manifestText('config.manifest.status_prefix')) + '</strong> ' + escapeHtml(body.status || 'unknown'));
-    if (body.url) parts.push('<a href="' + escapeAttr(body.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(body.url) + '</a>');
-    if (body.provider_base_url) parts.push('<code>' + escapeHtml(body.provider_base_url) + '</code>');
-    if (body.admin_setup_required) parts.push('<span>' + escapeHtml(manifestText('config.manifest.admin_setup_required')) + '</span>');
-    if (body.message) parts.push('<span>' + escapeHtml(body.message) + '</span>');
-    return parts.join('<br>');
 }
 
 async function manifestTestConnection() {
@@ -364,35 +368,21 @@ async function manifestStopSidecars() {
 }
 
 async function manifestAction(url, buttonId, loadingText) {
-    const result = document.getElementById('manifest-result');
     const btn = document.getElementById(buttonId);
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = loadingText;
-    }
-    try {
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: url.endsWith('/test') ? JSON.stringify(manifestPayload()) : undefined
-        });
-        const body = await resp.json();
-        if (result) {
-            result.className = resp.ok && body.status !== 'error' ? 'adg-test-result is-success' : 'adg-test-result is-danger';
-            result.textContent = (body.message || body.status || '').toString();
-        }
-        const panel = document.getElementById('manifest-status-panel');
-        if (panel) {
-            panel.className = 'adg-status-banner' + (manifestStatusState(body) ? ' is-' + manifestStatusState(body) : '');
-            panel.innerHTML = manifestStatusHTML(body);
-        }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = manifestText('config.manifest.status_error') + ' ' + e.message;
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    const outcome = await cfgActionResult(btn, () => fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: url.endsWith('/test') ? JSON.stringify(manifestPayload()) : undefined
+    }), {
+        target: 'manifest-result',
+        pending: loadingText,
+        lock: '.cfg-actions-row button',
+        success: o => (o.body && (o.body.message || o.body.status)) || t('config.feedback.done'),
+        warning: o => (o.body && o.body.status) || '',
+        failure: manifestText('config.manifest.status_error'),
+        // Sidecar answers that need attention are warnings, not failures.
+        interpret: o => o.body && (o.body.admin_setup_required || o.body.status === 'setup_required' || o.body.status === 'stopped') && o.state === 'success'
+            ? { state: 'warning' } : null
+    });
+    if (!outcome.skipped && outcome.body && outcome.httpStatus < 400) manifestRenderStatus(outcome.body);
 }

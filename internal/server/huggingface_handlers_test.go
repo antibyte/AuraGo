@@ -137,3 +137,35 @@ func TestHandleHuggingFaceTestChecksPublicHub(t *testing.T) {
 		t.Fatalf("status code = %d, body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestHandleHuggingFaceTestUsesDraftValues(t *testing.T) {
+	var auth []string
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = append(auth, r.Header.Get("Authorization"))
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"name": "someone"})
+	}))
+	defer hub.Close()
+
+	s := &Server{Cfg: &config.Config{HuggingFace: config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, Token: "saved-token", HubBaseURL: hub.URL, DatasetBaseURL: hub.URL, JobsBaseURL: hub.URL, RequestTimeoutSeconds: 2,
+	}}}
+	post := func(body string) (int, string) {
+		rec := httptest.NewRecorder()
+		handleHuggingFaceTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/huggingface/test", strings.NewReader(body)))
+		return rec.Code, rec.Body.String()
+	}
+
+	if code, body := post(`{"draft":{"huggingface":{"token":"typed-token"}}}`); code != http.StatusOK {
+		t.Fatalf("typed token: %d %s", code, body)
+	}
+	if code, body := post(`{"draft":{"huggingface":{"token":"••••••••","request_timeout_seconds":3}}}`); code != http.StatusOK {
+		t.Fatalf("masked token: %d %s", code, body)
+	}
+	if len(auth) != 2 || auth[0] != "Bearer typed-token" || auth[1] != "Bearer saved-token" {
+		t.Fatalf("authorization headers = %v, want typed then saved", auth)
+	}
+	// The stored token never follows a changed endpoint.
+	if code, _ := post(`{"draft":{"huggingface":{"hub_base_url":"https://example.invalid"}}}`); code != http.StatusBadRequest || len(auth) != 2 {
+		t.Fatalf("changed endpoint must be rejected without a request, code %d, calls %d", code, len(auth))
+	}
+}

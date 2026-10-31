@@ -11,14 +11,14 @@ async function renderCloudflareTunnelSection(section) {
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>
-        <div id="cf-tunnel-status-banner" class="adg-status-banner">${t('config.cloudflare_tunnel.checking')}</div>`;
+        ${cfgStatusBanner.html('cf-tunnel-status-banner', 'checking', { detail: t('config.cloudflare_tunnel.checking') })}`;
     html += `<div class="field-group">
         <div class="field-help">${t('config.cloudflare_tunnel.actions_help')}</div>
         <div class="cfg-password-row">
-            <button class="btn-save" data-cf-action="start" onclick="cloudflareTunnelAction('start')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.start_tunnel')}</button>
-            <button class="btn-save" data-cf-action="stop" onclick="cloudflareTunnelAction('stop')" ${saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.stop_tunnel')}</button>
-            <button class="btn-save" data-cf-action="restart" onclick="cloudflareTunnelAction('restart')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.restart_tunnel')}</button>
-        </div><div id="cf-action-status" role="status" aria-live="polite"></div></div>`;
+            <button class="btn-save" data-cf-action="start" data-config-action-draft="false" onclick="cloudflareTunnelAction('start')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.start_tunnel')}</button>
+            <button class="btn-save" data-cf-action="stop" data-config-action-draft="false" onclick="cloudflareTunnelAction('stop')" ${saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.stop_tunnel')}</button>
+            <button class="btn-save" data-cf-action="restart" data-config-action-draft="false" onclick="cloudflareTunnelAction('restart')" ${!saved.enabled || saved.readonly ? 'disabled' : ''}>${t('config.cloudflare_tunnel.restart_tunnel')}</button>
+        </div>${cfgActionResult.html('cf-action-status')}</div>`;
 
     html += `<div class="wh-notice cft-notice-info">
         <span>🔒</span>
@@ -199,10 +199,8 @@ async function renderCloudflareTunnelSection(section) {
             <div class="field-label">${t('config.cloudflare_tunnel.token_label')}</div>
             <div class="field-help">${t('config.cloudflare_tunnel.token_hint')}</div>
             <div class="cfg-password-row">
-                <input class="field-input cfg-password-input" type="password" id="cloudflare-tunnel-token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.token, t('config.cloudflare_tunnel.token_placeholder')))}">
-                <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>
+                <input class="field-input cfg-password-input" type="password" id="cloudflare-tunnel-token" data-path="cloudflare_tunnel.token" autocomplete="off" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.token, t('config.cloudflare_tunnel.token_placeholder')))}">
             </div>
-            <span id="cloudflare-tunnel-token-status" class="cf-token-status"></span>
         </div>`;
     }
 
@@ -248,48 +246,26 @@ async function renderCloudflareTunnelSection(section) {
     });
 }
 
-function cloudflareTunnelSetBanner(state, text) {
-    const banner = document.getElementById('cf-tunnel-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner';
-    if (state) banner.classList.add('is-' + state);
-    banner.textContent = text;
+// Maps the status answer to a banner state; request errors and timeouts are handled by cfgStatusBanner.check.
+function cloudflareTunnelBannerState(res) {
+    let tunnel = (res && res.tunnel) || {};
+    if (typeof tunnel === 'string') {
+        try { tunnel = JSON.parse(tunnel); } catch (_) { tunnel = {}; }
+    }
+    if (tunnel.state_known === false || tunnel.status === 'error') return { state: 'error', detail: t('config.cloudflare_tunnel.status_error') };
+    if (Array.isArray(tunnel.warnings) && tunnel.warnings.length) return { state: 'degraded', detail: t('config.cloudflare_tunnel.tls_warning') };
+    if (tunnel.running === true) {
+        return res.enabled ? { state: 'connected', detail: t('config.cloudflare_tunnel.status_running') } : { state: 'degraded', detail: t('config.cloudflare_tunnel.status_running') };
+    }
+    if (!res.enabled) return { state: 'off', detail: t('config.cloudflare_tunnel.status_disabled') };
+    return { state: 'degraded', detail: t('config.cloudflare_tunnel.status_stopped') };
 }
 
 function cloudflareTunnelCheckStatus() {
-    const banner = document.getElementById('cf-tunnel-status-banner');
-    if (!banner) return;
-    const request = Symbol();
-    banner.statusRequest = request;
-    cloudflareTunnelSetBanner('neutral', t('config.cloudflare_tunnel.checking'));
-    fetch('/api/cloudflare-tunnel/status')
-        .then(r => r.json())
-        .then(res => {
-            if (!banner.isConnected || banner.statusRequest !== request || document.getElementById('cf-tunnel-status-banner') !== banner) return;
-            let tunnel = res.tunnel || {};
-            if (typeof tunnel === 'string') {
-                try { tunnel = JSON.parse(tunnel); } catch (_) { tunnel = {}; }
-            }
-            const running = tunnel.running === true;
-            if (tunnel.state_known === false || tunnel.status === 'error') {
-                cloudflareTunnelSetBanner('danger', t('config.cloudflare_tunnel.status_error'));
-                return;
-            }
-            if (Array.isArray(tunnel.warnings) && tunnel.warnings.length) {
-                cloudflareTunnelSetBanner('warning', t('config.cloudflare_tunnel.tls_warning'));
-                return;
-            }
-            if (running) {
-                cloudflareTunnelSetBanner(res.enabled ? 'success' : 'danger', t('config.cloudflare_tunnel.status_running'));
-                return;
-            }
-            if (!res.enabled) {
-                cloudflareTunnelSetBanner('neutral', t('config.cloudflare_tunnel.status_disabled'));
-                return;
-            }
-            cloudflareTunnelSetBanner('warning', t('config.cloudflare_tunnel.status_stopped'));
-        })
-        .catch(() => { if (banner.isConnected && banner.statusRequest === request) cloudflareTunnelSetBanner('danger', t('config.cloudflare_tunnel.status_error')); });
+    if (!document.getElementById('cf-tunnel-status-banner')) return null;
+    return cfgStatusBanner.check('cf-tunnel-status-banner', signal => fetch('/api/cloudflare-tunnel/status', { signal }), cloudflareTunnelBannerState, {
+        checkingDetail: t('config.cloudflare_tunnel.checking')
+    });
 }
 
 function cloudflareTunnelToggleLoopback(el) {
@@ -327,63 +303,29 @@ function cloudflareTunnelSetExposeTarget(value) {
     setDirty(true);
 }
 
-function cloudflareTunnelSaveToken() {
-    const token = document.getElementById('cloudflare-tunnel-token')?.value;
-    const status = document.getElementById('cloudflare-tunnel-token-status');
-    if (!token) {
-        if (status) { status.textContent = t('config.cloudflare_tunnel.token_empty'); status.className = 'cf-token-status is-error'; }
-        return;
-    }
-    fetch('/api/vault/secrets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'cloudflared_token', value: token })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.error) {
-            if (status) { status.textContent = data.error; status.className = 'cf-token-status is-error'; }
-        } else {
-            if (status) { status.textContent = t('config.cloudflare_tunnel.token_saved'); status.className = 'cf-token-status is-success'; }
-            cfgMarkSecretStored(document.getElementById('cloudflare-tunnel-token'), 'cloudflare_tunnel.token');
-        }
-    })
-    .catch(err => {
-        if (status) { status.textContent = 'Error: ' + err; status.className = 'cf-token-status is-error'; }
-    });
-}
-
 function cloudflareTunnelRestart() {
     return cloudflareTunnelAction('restart');
 }
 
 async function cloudflareTunnelAction(action) {
     if (!['start', 'stop', 'restart'].includes(action)) return;
-    const status = document.getElementById('cf-action-status');
-    if (!status || status.dataset.pending === 'true') return;
-    status.dataset.pending = 'true';
-    status.textContent = t('config.cloudflare_tunnel.action_pending');
-    status.className = 'cf-token-status is-pending';
-    const buttons = Array.from(document.querySelectorAll('[data-cf-action]'));
-    const disabled = buttons.map(button => button.disabled);
-    buttons.forEach(button => button.disabled = true);
-    try {
-        const response = await fetch('/api/cloudflare-tunnel/' + action, {method: 'POST'});
-        const data = await response.json();
-        if (!status.isConnected) return;
-        if (!response.ok || data.status !== 'ok' || data.error) {
-            status.textContent = data.error || data.message || t('config.cloudflare_tunnel.status_error');
-            status.className = 'cf-token-status is-error';
-        } else {
-            const warnings = data.warnings || data.start?.warnings;
-            status.textContent = warnings?.length ? t('config.cloudflare_tunnel.tls_warning') : t('config.cloudflare_tunnel.action_success');
-            status.className = warnings?.length ? 'cf-token-status is-pending' : 'cf-token-status is-success';
+    const button = document.querySelector('[data-cf-action="' + action + '"]');
+    if (!button) return;
+    const outcome = await cfgActionResult(button, () => fetch('/api/cloudflare-tunnel/' + action, { method: 'POST' }), {
+        target: 'cf-action-status',
+        pending: t('config.cloudflare_tunnel.action_pending'),
+        success: t('config.cloudflare_tunnel.action_success'),
+        failure: t('config.cloudflare_tunnel.status_error'),
+        lock: '[data-cf-action]',
+        interpret: o => {
+            const data = o.body || {};
+            // Only status "ok" counts as started/stopped.
+            if (o.state !== 'error' && data.status !== 'ok') return { state: 'error', reason: data.error || data.message || t('config.cloudflare_tunnel.status_error') };
+            // Started with TLS warnings: the tunnel runs, but the user should look at it.
+            if (o.state === 'success' && (data.warnings || data.start?.warnings)?.length) return { state: 'warning', reason: t('config.cloudflare_tunnel.tls_warning') };
+            return null;
         }
-        cloudflareTunnelCheckStatus();
-    } catch (_) {
-        if (status.isConnected) { status.textContent = t('config.cloudflare_tunnel.status_error'); status.className = 'cf-token-status is-error'; }
-    } finally {
-        delete status.dataset.pending;
-        buttons.forEach((button, index) => { if (button.isConnected) button.disabled = disabled[index]; });
-    }
+    });
+    if (!outcome.skipped) cloudflareTunnelCheckStatus();
+    return outcome;
 }

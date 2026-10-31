@@ -23,12 +23,12 @@ async function renderComposioSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    html += '<div id="composio-status-banner" class="adg-status-banner">' + t('config.composio.status_loading') + '</div>';
+    html += cfgStatusBanner.html('composio-status-banner', 'checking', { detail: t('config.composio.status_loading') });
 
     html += '<div class="cfg-actions-row">';
     html += '<button class="btn-save" onclick="composioOpenModal()">' + t('config.composio.open_picker') + '</button>';
-    html += '<button class="btn-save adg-test-btn" id="composio-test-btn" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
-    html += '<span id="composio-test-result" class="adg-test-result"></span>';
+    html += '<button class="btn-save adg-test-btn" id="composio-test-btn" data-config-action-draft="true" onclick="composioTestConnection()">' + t('config.composio.test_connection') + '</button>';
+    html += cfgActionResult.html('composio-test-result');
     html += '<span class="cmp-selected-pill">' + t('config.composio.selected_count', { count: selectedCount }) + '</span>';
     html += '</div>';
 
@@ -48,9 +48,7 @@ async function renderComposioSection(section) {
     html += '<input class="field-input adg-password-input" type="password" id="composio-api-key" data-path="composio.api_key" value="" placeholder="' + escapeAttr(apiPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button type="button" class="btn-save adg-save-btn" onclick="composioSaveAPIKey()">' + t('config.composio.save_api_key') + '</button>';
     html += '</div>';
-    html += '<div id="composio-api-key-status" class="adg-test-result"></div>';
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';
@@ -161,18 +159,12 @@ function composioPreferredAuthConfig() {
 }
 
 function composioSetBanner(state, text) {
-    const banner = document.getElementById('composio-status-banner');
-    if (!banner) return;
-    banner.className = 'adg-status-banner' + (state ? ' is-' + state : '');
-    banner.textContent = text;
+    cfgStatusBanner('composio-status-banner', state, { detail: text, retry: state === 'error' || state === 'unknown' ? composioRefreshStatus : null });
 }
 
 function composioSetConnectStatus(message, kind) {
-    const el = document.getElementById('composio-connect-status');
-    if (!el) return;
-    el.textContent = message || '';
-    const state = kind === 'ok' || kind === 'success' ? 'is-success' : (kind === 'warn' || kind === 'warning' ? 'is-warning' : (kind === 'error' || kind === 'danger' ? 'is-danger' : ''));
-    el.className = 'adg-test-result' + (state ? ' ' + state : '');
+    const state = kind === 'ok' || kind === 'success' ? 'success' : (kind === 'warn' || kind === 'warning' ? 'warning' : (kind === 'error' || kind === 'danger' ? 'error' : 'pending'));
+    cfgActionResult.show('composio-connect-status', message ? state : '', message);
 }
 
 function composioToolSortScore(item) {
@@ -183,6 +175,7 @@ function composioToolSortScore(item) {
 }
 
 async function composioRefreshStatus() {
+    composioSetBanner('checking', t('config.composio.status_loading'));
     try {
         const resp = await fetch('/api/composio/status');
         if (!resp.ok) {
@@ -190,89 +183,37 @@ async function composioRefreshStatus() {
             let reason = txt;
             try { const j = JSON.parse(txt); reason = j.error || j.message || txt; } catch (_) { /* plain text */ }
             composioState.status = null;
-            composioSetBanner('danger', t('config.composio.status_error') + ': ' + (reason || resp.statusText || ('HTTP ' + resp.status)));
+            composioSetBanner('error', t('config.composio.status_error') + ': ' + (reason || resp.statusText || ('HTTP ' + resp.status)));
             return;
         }
         const data = await resp.json();
         composioState.status = data;
         if (!data) {
-            composioSetBanner('warning', t('config.composio.status_error'));
+            composioSetBanner('unknown', t('config.composio.status_error'));
             return;
         }
-        const state = data.status === 'ready' ? 'success' : (data.status === 'missing_api_key' ? 'warning' : '');
+        const state = data.status === 'ready' ? 'connected' : (data.status === 'missing_api_key' ? 'unconfigured' : (data.status === 'disabled' ? 'off' : 'unknown'));
         composioSetBanner(state, t('config.composio.status_' + data.status));
         const cmp = composioConfig();
         cmp.configured = !!data.configured;
     } catch (_) {
-        composioSetBanner('danger', t('config.composio.status_error'));
+        composioSetBanner('error', t('config.composio.status_error'));
     }
 }
 
-async function composioSaveAPIKey() {
-    const input = document.getElementById('composio-api-key');
-    const statusEl = document.getElementById('composio-api-key-status');
-    const value = input ? input.value.trim() : '';
-    if (!value) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = t('config.composio.api_key_empty');
-        }
-        return;
-    }
-    if (statusEl) {
-        statusEl.className = 'adg-test-result';
-        statusEl.textContent = t('config.composio.saving') || t('config.common.saved');
-    }
-    try {
-        const resp = await fetch('/api/vault/secrets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: 'composio_api_key', value })
-        });
-        if (!resp.ok) {
-            const data = await resp.json().catch(() => ({}));
-            throw new Error(data.error || data.message || t('config.common.error'));
-        }
-        cfgMarkSecretStored(input, 'composio.api_key');
-        composioConfig().configured = true;
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-success';
-            statusEl.textContent = t('config.composio.api_key_saved');
-        }
-        await composioRefreshStatus();
-        setTimeout(() => { if (statusEl) { statusEl.className = 'adg-test-result'; statusEl.textContent = ''; } }, 4000);
-    } catch (e) {
-        if (statusEl) {
-            statusEl.className = 'adg-test-result is-danger';
-            statusEl.textContent = e.message || t('config.composio.api_key_save_failed');
-        }
-    }
-}
-
+// Tests the connection with the values typed in; the server falls back to the stored key.
 async function composioTestConnection() {
     const btn = document.getElementById('composio-test-btn');
-    const result = document.getElementById('composio-test-result');
-    if (btn) btn.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.composio.testing') || t('config.composio.status_loading');
-    }
-    try {
-        const resp = await fetch('/api/composio/test', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || data.status === 'error') throw new Error(data.message || data.error || t('config.common.error'));
-        if (result) {
-            result.className = 'adg-test-result is-success';
-            result.textContent = data.message || t('config.composio.test_ok');
-        }
-    } catch (e) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = t('config.composio.test_failed') + ': ' + (e.message || t('config.common.error'));
-        }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    return cfgActionResult(btn, () => fetch('/api/composio/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['composio']) })
+    }), {
+        target: 'composio-test-result',
+        pending: t('config.composio.testing') || t('config.composio.status_loading'),
+        success: o => (o.body && o.body.message) || t('config.composio.test_ok'),
+        failure: t('config.composio.test_failed') + ':'
+    });
 }
 
 async function composioOpenModal() {
@@ -300,8 +241,8 @@ function composioEnsureModal() {
         '<div class="cmp-modal-controls"><input id="composio-search" class="field-input" placeholder="' + escapeAttr(t('config.composio.search_placeholder')) + '" oninput="composioSearchChanged(this.value)">' +
         '<select id="composio-filter" class="field-input" onchange="composioFilterChanged(this.value)"><option value="all">' + t('config.composio.filter_all') + '</option><option value="selected">' + t('config.composio.filter_selected') + '</option><option value="connected">' + t('config.composio.filter_connected') + '</option></select>' +
         '<button class="btn-save btn-secondary" onclick="composioLoadToolkits(true)">' + t('config.composio.refresh') + '</button>' +
-        '<button class="btn-save" onclick="composioSaveSelection(true)">' + t('config.composio.save_selection') + '</button>' +
-        '<span id="composio-modal-count" class="cmp-selected-pill"></span></div>' +
+        '<button id="composio-save-selection-btn" class="btn-save" onclick="composioSaveSelectionClick(this)">' + t('config.composio.save_selection') + '</button>' +
+        '<span id="composio-modal-count" class="cmp-selected-pill"></span>' + cfgActionResult.html('composio-modal-result') + '</div>' +
         '<div class="cmp-modal-body"><div class="cmp-list-panel"><div id="composio-toolkit-list" class="cmp-toolkit-list"></div><button id="composio-load-more" class="btn-save btn-secondary cmp-load-more" onclick="composioLoadMore()">' + t('config.composio.load_more') + '</button></div>' +
         '<div id="composio-detail" class="cmp-detail-panel"></div></div></div>';
     document.body.appendChild(wrap);
@@ -450,7 +391,7 @@ function composioRenderDetail() {
     html += '<div class="cmp-detail-desc">' + escapeAttr(description || t('config.composio.no_description')) + '</div>';
     html += '<div class="cmp-detail-actions cfg-actions-row"><button id="composio-connect-btn" class="btn-save btn-secondary"' + connectDisabled + ' onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
         '<button class="btn-save btn-secondary" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>' +
-        '<div id="composio-connect-status" class="adg-test-result"></div>';
+        cfgActionResult.html('composio-connect-status');
     html += '<div class="cmp-detail-grid"><div><div class="cmp-mini-title">' + t('config.composio.accounts') + '</div>' + composioAccountsHTML(accounts) + '</div>' +
         '<div><div class="cmp-mini-title">' + t('config.composio.tools_preview') + '</div>' + composioToolsHTML(tools) + '</div></div>';
     detail.innerHTML = html;
@@ -523,6 +464,7 @@ async function composioToggleToolkit(slug) {
 // other setting (and any unsaved draft of it) untouched.
 async function composioSaveSelection(toast, toolkitsOnly) {
     const cfg = composioConfig();
+    composioState.saveError = '';
     try {
         const resp = await fetch('/api/composio/selection', {
             method: 'PUT',
@@ -554,9 +496,20 @@ async function composioSaveSelection(toast, toolkitsOnly) {
         await composioRefreshStatus();
         return true;
     } catch (e) {
-        showToast(t('config.composio.selection_save_failed') + ': ' + (e.message || t('config.common.error')), 'error');
+        composioState.saveError = e.message || t('config.common.error');
+        showToast(t('config.composio.selection_save_failed') + ': ' + composioState.saveError, 'error');
         return false;
     }
+}
+
+// The modal's save button: busy while saving, the server reason stays visible next to it.
+function composioSaveSelectionClick(button) {
+    return cfgActionResult(button, async () => ({ ok: await composioSaveSelection(false) }), {
+        target: 'composio-modal-result',
+        success: t('config.composio.selection_saved'),
+        failure: t('config.composio.selection_save_failed'),
+        reasonText: () => composioState.saveError
+    });
 }
 
 async function composioConnectToolkit(slug) {
@@ -572,14 +525,9 @@ async function composioConnectToolkit(slug) {
     }
     const preferred = composioPreferredAuthConfig();
     const popup = window.open('about:blank', '_blank');
-    composioSetConnectStatus(t('config.common.loading'), 'loading');
-    try {
+    return cfgActionResult(document.getElementById('composio-connect-btn'), async () => {
         const saved = await composioSaveSelection(false, JSON.parse(JSON.stringify(composioConfig().toolkits || [])));
-        if (!saved) {
-            if (popup && !popup.closed) popup.close();
-            composioSetConnectStatus(t('config.composio.selection_save_failed'), 'error');
-            return;
-        }
+        if (!saved) throw new Error(t('config.composio.selection_save_failed') + (composioState.saveError ? ': ' + composioState.saveError : ''));
         const body = { toolkit_slug: normalized };
         if (preferred && preferred.id) body.auth_config_id = preferred.id;
         const resp = await fetch('/api/composio/connect-link', {
@@ -594,14 +542,14 @@ async function composioConnectToolkit(slug) {
         if (!url) throw new Error(t('config.composio.no_connect_url'));
         if (!popup) throw new Error(t('config.composio.connect_failed'));
         popup.location.href = url;
-        composioSetConnectStatus(t('config.composio.connect_opened'), 'ok');
-        showToast(t('config.composio.connect_opened'), 'success');
-    } catch (e) {
-        if (popup && !popup.closed) popup.close();
-        const message = t('config.composio.connect_failed') + ': ' + (e.message || t('config.common.error'));
-        composioSetConnectStatus(message, 'error');
-        showToast(message, 'error');
-    }
+        return { status: 'ok' };
+    }, {
+        target: 'composio-connect-status',
+        pending: t('config.common.loading'),
+        success: t('config.composio.connect_opened'),
+        failure: t('config.composio.connect_failed') + ':',
+        onError: () => { if (popup && !popup.closed) popup.close(); }
+    });
 }
 
 function composioHandleConnectMessage(ev) {

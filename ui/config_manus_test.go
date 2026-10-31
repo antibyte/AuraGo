@@ -33,8 +33,8 @@ func TestConfigManusUsesVaultPoliciesAndCatalogSelectors(t *testing.T) {
 	for _, marker := range []string{
 		"async function renderManusSection",
 		`data-path="manus.api_key"`,
-		"key: 'manus_api_key'",
-		"/api/vault/secrets",
+		`data-config-action-draft="true"`,
+		"cfgDraftPatch(['manus'])",
 		"/api/manus/test",
 		"/api/manus/projects",
 		"/api/manus/connectors",
@@ -49,6 +49,9 @@ func TestConfigManusUsesVaultPoliciesAndCatalogSelectors(t *testing.T) {
 		if !strings.Contains(manusJS, marker) {
 			t.Fatalf("Manus config module missing marker %q", marker)
 		}
+	}
+	if strings.Contains(manusJS, "/api/vault/secrets") || strings.Contains(manusJS, "manusSaveAPIKey") {
+		t.Fatal("Manus api key must be saved through the save dock, not its own vault button")
 	}
 	if strings.Contains(manusJS, "alert(") || strings.Contains(manusJS, "confirm(") {
 		t.Fatal("Manus config module must use AuraGo modals/toasts instead of browser alert/confirm")

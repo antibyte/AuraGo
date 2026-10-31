@@ -52,7 +52,8 @@ func TestConfigManusDisablesRemoteActionsUntilStatusConfirmsEnabled(t *testing.T
 		"function manusSetActionAvailability",
 		"manusSetActionAvailability(data.status === 'ready')",
 		"manusSetActionAvailability(false)",
-		"btn.disabled = !manusCatalogState.actionsEnabled",
+		"button.disabled = !manusCatalogState.actionsEnabled",
+		"loadButton.disabled = !manusCatalogState.actionsEnabled",
 	} {
 		if !strings.Contains(manusJS, marker) {
 			t.Fatalf("Manus disabled-action contract missing %q", marker)

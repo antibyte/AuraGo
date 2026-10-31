@@ -32,20 +32,19 @@ async function renderHuggingFaceSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += '<div id="huggingface-status-banner" class="adg-status-banner">' + t('config.huggingface.status_loading') + '</div>';
+    html += cfgStatusBanner.html('huggingface-status-banner', 'checking', { detail: t('config.huggingface.status_loading') });
     html += '<div class="cfg-actions-row">';
-    html += '<button class="btn-save adg-test-btn" id="huggingface-test-btn" onclick="huggingFaceTestConnection()">' + t('config.huggingface.test_connection') + '</button>';
-    html += '<span id="huggingface-test-result" class="adg-test-result"></span></div>';
+    html += '<button class="btn-save adg-test-btn" id="huggingface-test-btn" data-config-action-draft="true" onclick="huggingFaceTestConnection()">' + t('config.huggingface.test_connection') + '</button>';
+    html += cfgActionResult.html('huggingface-test-result') + '</div>';
 
     html += '<div class="field-group">' + huggingFaceToggle('huggingface.enabled', cfg.enabled, 'config.huggingface.enabled', 'help.huggingface.enabled') + '</div>';
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.huggingface.token') + '</div>';
     html += '<div class="field-help">' + t('help.huggingface.token') + '</div>';
     html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input adg-password-input" type="password" id="huggingface-token" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.huggingface.token_existing') : t('config.huggingface.token_placeholder')) + '" autocomplete="off">';
+    html += '<input class="field-input adg-password-input" type="password" id="huggingface-token" data-path="huggingface.token" value="" placeholder="' + escapeAttr(cfg.configured ? t('config.huggingface.token_existing') : t('config.huggingface.token_placeholder')) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
-    html += '<button type="button" class="btn-save adg-save-btn" onclick="huggingFaceSaveToken()">' + t('config.huggingface.save_token') + '</button></div>';
-    html += '<div id="huggingface-token-status" class="adg-test-result"></div></div>';
+    html += '</div></div>';
 
     html += '<div class="field-grid two-cols">';
     html += huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb, 2048);
@@ -107,6 +106,8 @@ function huggingFaceArray(key, labelKey, helpKey, values) {
 
 async function huggingFaceRefreshStatus() {
     const banner = document.getElementById('huggingface-status-banner');
+    if (!banner) return;
+    cfgStatusBanner(banner, 'checking', { detail: t('config.huggingface.status_loading') });
     try {
         const resp = await fetch('/api/huggingface/status');
         const data = resp.ok ? await resp.json() : null;
@@ -117,47 +118,24 @@ async function huggingFaceRefreshStatus() {
         const cfg = huggingFaceConfig();
         cfg.configured = !!data.configured;
         const key = data.status === 'ready' ? 'status_ready' : (data.status === 'disabled' ? 'status_disabled' : 'status_public_read_only');
-        if (banner) {
-            banner.className = 'adg-status-banner' + (data.status === 'ready' ? ' is-success' : (data.status === 'disabled' ? '' : ' is-warning'));
-            banner.textContent = t('config.huggingface.' + key);
-        }
+        const state = data.status === 'ready' ? 'connected' : (data.status === 'disabled' ? 'off' : 'degraded');
+        cfgStatusBanner(banner, state, { detail: t('config.huggingface.' + key) });
     } catch (error) {
-        if (banner) { banner.className = 'adg-status-banner is-danger'; banner.textContent = '🔴 ' + ((error && error.message) || t('config.huggingface.status_error')); }
+        cfgStatusBanner(banner, 'error', { detail: (error && error.message) || t('config.huggingface.status_error'), retry: huggingFaceRefreshStatus });
     }
 }
 
-async function huggingFaceSaveToken() {
-    const input = document.getElementById('huggingface-token');
-    const status = document.getElementById('huggingface-token-status');
-    const value = input ? input.value.trim() : '';
-    if (!value) { if (status) { status.className = 'adg-test-result is-danger'; status.textContent = t('config.huggingface.token_empty'); } return; }
-    try {
-        const resp = await fetch('/api/vault/secrets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'huggingface_token', value }) });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || data.message || t('config.huggingface.token_save_failed'));
-        cfgMarkSecretStored(input);
-        huggingFaceConfig().configured = true;
-        if (status) { status.className = 'adg-test-result is-success'; status.textContent = t('config.huggingface.token_saved'); }
-        await huggingFaceRefreshStatus();
-    } catch (error) {
-        if (status) { status.className = 'adg-test-result is-danger'; status.textContent = error.message || t('config.huggingface.token_save_failed'); }
-    }
-}
-
+// Tests with the values typed in; the server falls back to the stored token while the endpoints are unchanged.
 async function huggingFaceTestConnection() {
     const btn = document.getElementById('huggingface-test-btn');
-    const result = document.getElementById('huggingface-test-result');
-    if (btn) btn.disabled = true;
-    try {
-        const resp = await fetch('/api/huggingface/test', { method: 'POST' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || data.status === 'error') throw new Error(data.message || t('config.huggingface.test_failed'));
-        showToast(data.message || t('config.huggingface.test_ok'), 'success');
-        if (result) { result.className = 'adg-test-result is-success'; result.textContent = t('config.huggingface.test_ok'); }
-    } catch (error) {
-        showToast(error.message || t('config.huggingface.test_failed'), 'error');
-        if (result) { result.className = 'adg-test-result is-danger'; result.textContent = t('config.huggingface.test_failed'); }
-    } finally {
-        if (btn) btn.disabled = false;
-    }
+    return cfgActionResult(btn, () => fetch('/api/huggingface/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft: cfgDraftPatch(['huggingface']) })
+    }), {
+        target: 'huggingface-test-result',
+        pending: t('config.huggingface.status_loading'),
+        success: t('config.huggingface.test_ok'),
+        failure: t('config.huggingface.test_failed')
+    });
 }

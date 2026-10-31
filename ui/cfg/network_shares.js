@@ -86,7 +86,7 @@ function renderNetworkSharesSection(section) {
     <div class="cfg-section active">
         <div class="section-header">${escapeHtml(section.label)}</div>
         <div class="section-desc">${escapeHtml(section.desc)}</div>
-        <div id="ns-runtime-banner" class="adg-status-banner" role="status" aria-live="polite">${escapeHtml(t('config.network_shares.loading'))}</div>
+        ${cfgStatusBanner.html('ns-runtime-banner', 'checking', { detail: t('config.network_shares.loading') })}
 
         ${nsToggle('network_shares.enabled', data.enabled === true, 'config.network_shares.enabled', 'help.network_shares.enabled')}
         ${nsToggle('network_shares.readonly', data.readonly !== false, 'config.network_shares.readonly', 'help.network_shares.readonly')}
@@ -119,7 +119,7 @@ function renderNetworkSharesSection(section) {
                 <button id="ns-reprobe-btn" type="button" class="btn-save cfgdev-btn-secondary" onclick="nsReprobe()">↻ ${escapeHtml(t('config.network_shares.reprobe'))}</button>
                 <button id="ns-create-btn" type="button" class="btn-save cfgdev-btn-primary" onclick="nsOpenShareModal('')" disabled>＋ ${escapeHtml(t('config.network_shares.create'))}</button>
             </div>
-            <div id="ns-action-result" class="adg-test-result" role="status" aria-live="polite"></div>
+            ${cfgActionResult.html('ns-action-result')}
             <div id="ns-protocol-status"></div>
             <div id="ns-share-table"></div>
         </div>
@@ -130,7 +130,7 @@ function renderNetworkSharesSection(section) {
                     <span id="ns-modal-title" class="cfgdev-modal-title"></span>
                     <button type="button" class="cfgdev-modal-close" onclick="nsCloseShareModal()" aria-label="${escapeAttr(t('config.network_shares.cancel'))}">✕</button>
                 </div>
-                <div id="ns-modal-error" class="cfgdev-modal-error is-hidden" role="alert"></div>
+                <div id="ns-modal-error" class="cfgdev-modal-error cfg-action-result is-hidden" role="alert"></div>
                 <div id="ns-modal-body"></div>
                 <div class="cfgdev-modal-actions">
                     <button type="button" class="btn-save cfgdev-btn-secondary" onclick="nsCloseShareModal()">${escapeHtml(t('config.network_shares.cancel'))}</button>
@@ -146,6 +146,7 @@ function renderNetworkSharesSection(section) {
                     <button type="button" class="cfgdev-modal-close" onclick="nsCloseDeleteModal()" aria-label="${escapeAttr(t('config.network_shares.cancel'))}">✕</button>
                 </div>
                 <div id="ns-delete-message" class="field-help"></div>
+                ${cfgActionResult.html('ns-delete-result')}
                 <div class="cfgdev-modal-actions">
                     <button type="button" class="btn-save cfgdev-btn-secondary" onclick="nsCloseDeleteModal()">${escapeHtml(t('config.network_shares.cancel'))}</button>
                     <button id="ns-delete-confirm" type="button" class="btn-save btn-danger" onclick="nsDeleteShare()">${escapeHtml(t('config.network_shares.delete'))}</button>
@@ -234,7 +235,7 @@ function nsAddListValue(button) {
 
 function nsSavedConfigRequired() {
     if (typeof hasUnsavedConfigChanges === 'function' && hasUnsavedConfigChanges()) {
-        showToast(t('config.network_shares.save_first'), 'warn');
+        cfgActionResult.show('ns-action-result', 'warning', t('config.network_shares.save_first'));
         return false;
     }
     return true;
@@ -257,7 +258,7 @@ async function nsRequest(path, options) {
 }
 
 async function nsLoadStatus() {
-    const banner = document.getElementById('ns-runtime-banner');
+    cfgStatusBanner('ns-runtime-banner', 'checking', { detail: t('config.network_shares.loading') });
     try {
         const data = await nsRequest('/api/network-shares/status');
         nsRuntime = data.status || {};
@@ -271,22 +272,21 @@ async function nsLoadStatus() {
         nsRenderRuntime();
         nsRenderShares();
     } catch (error) {
-        if (banner) {
-            banner.className = 'adg-status-banner is-danger';
-            banner.textContent = error.message || t('config.network_shares.status_failed');
-        }
+        cfgStatusBanner('ns-runtime-banner', 'error', { detail: error.message || t('config.network_shares.status_failed'), retry: nsLoadStatus });
         nsShares = [];
         nsRenderShares();
     }
 }
 
 function nsRenderRuntime() {
-    const banner = document.getElementById('ns-runtime-banner');
-    if (banner) {
-        banner.className = nsRuntime && nsRuntime.usable ? 'adg-status-banner is-success' : 'adg-status-banner is-warning';
-        banner.textContent = nsRuntime && nsRuntime.usable
-            ? t('config.network_shares.status_ready')
-            : nsLocalizedReason((nsRuntime || {}).reason_code);
+    if (document.getElementById('ns-runtime-banner')) {
+        const reasonCode = String((nsRuntime || {}).reason_code || '');
+        const state = nsRuntime && nsRuntime.usable ? 'connected'
+            : (['disabled', 'protocol_disabled'].includes(reasonCode) ? 'off' : (['not_configured', 'registry_shares_disabled'].includes(reasonCode) ? 'unconfigured' : 'degraded'));
+        cfgStatusBanner('ns-runtime-banner', state, {
+            detail: nsRuntime && nsRuntime.usable ? t('config.network_shares.status_ready') : nsLocalizedReason(reasonCode),
+            retry: state === 'degraded' ? nsLoadStatus : null
+        });
     }
     const area = document.getElementById('ns-protocol-status');
     if (!area) return;
@@ -368,7 +368,7 @@ async function nsReprobe() {
     await nsRunAction('ns-reprobe-btn', async () => {
         await nsRequest('/api/network-shares/reprobe', { method: 'POST' });
         await nsLoadStatus();
-        showToast(t('config.network_shares.reprobe_ok'), 'success');
+        return { status: 'ok', message: t('config.network_shares.reprobe_ok') };
     });
 }
 
@@ -408,7 +408,7 @@ function nsOpenShareModal(id) {
         <div id="ns-form-access"></div>`;
     nsRenderAccessFields(share);
     const error = document.getElementById('ns-modal-error');
-    error.textContent = '';
+    cfgActionResult.show(error, '', '');
     setHidden(error, true);
     setHidden(document.getElementById('ns-share-modal'), false);
 }
@@ -488,8 +488,8 @@ function nsCollectShare() {
 async function nsSaveShare() {
     const button = document.getElementById('ns-modal-save');
     const error = document.getElementById('ns-modal-error');
-    button.disabled = true;
-    try {
+    await cfgActionResult(button, async () => {
+        setHidden(error, false);
         const share = nsCollectShare();
         await nsRequest('/api/network-shares/validate', {
             method: 'POST',
@@ -513,15 +513,21 @@ async function nsSaveShare() {
                 body: JSON.stringify(share)
             });
         }
-        nsCloseShareModal();
-        await nsLoadStatus();
-        showToast(t('config.network_shares.saved'), 'success');
-    } catch (requestError) {
-        error.textContent = requestError.message || t('config.network_shares.request_failed');
-        setHidden(error, false);
-    } finally {
-        button.disabled = false;
-    }
+        return { status: 'ok' };
+    }, {
+        target: 'ns-modal-error',
+        pending: t('config.network_shares.working'),
+        success: t('config.network_shares.saved'),
+        reasonText: nsReasonText,
+        onSuccess: async () => {
+            nsCloseShareModal();
+            setHidden(error, true);
+            cfgActionResult.show('ns-modal-error', '', '');
+            await nsLoadStatus();
+            showToast(t('config.network_shares.saved'), 'success');
+        },
+        onError: () => setHidden(error, false)
+    });
 }
 
 function nsCloseShareModal(event) {
@@ -549,40 +555,36 @@ function nsCloseDeleteModal(event) {
 async function nsDeleteShare() {
     const id = nsEditingID;
     const button = document.getElementById('ns-delete-confirm');
-    button.disabled = true;
-    try {
+    await cfgActionResult(button, async () => {
         await nsRequest('/api/network-shares/' + encodeURIComponent(id), { method: 'DELETE' });
-        nsCloseDeleteModal();
-        await nsLoadStatus();
-        showToast(t('config.network_shares.deleted'), 'success');
-    } catch (error) {
-        showToast(error.message || t('config.network_shares.request_failed'), 'error');
-    } finally {
-        button.disabled = false;
-    }
+        return { status: 'ok' };
+    }, {
+        target: 'ns-delete-result',
+        pending: t('config.network_shares.working'),
+        success: t('config.network_shares.deleted'),
+        reasonText: nsReasonText,
+        onSuccess: async () => {
+            nsCloseDeleteModal();
+            cfgActionResult.show('ns-delete-result', '', '');
+            await nsLoadStatus();
+            showToast(t('config.network_shares.deleted'), 'success');
+        }
+    });
 }
 
+// Failures show the localized text for the error code, never the raw backend message.
+function nsReasonText(body, ctx) {
+    if (body && typeof body === 'object' && body.code) return nsLocalizedError(body.code);
+    return '';
+}
+
+// Runs a toolbar action behind its busy button; the reason (a localized error from nsRequest) stays next to it.
 async function nsRunAction(buttonID, action) {
-    const button = document.getElementById(buttonID);
-    const result = document.getElementById('ns-action-result');
-    if (button) button.disabled = true;
-    if (result) {
-        result.className = 'adg-test-result';
-        result.textContent = t('config.network_shares.working');
-    }
-    try {
-        await action();
-        if (result) {
-            result.className = 'adg-test-result is-success';
-            result.textContent = t('config.network_shares.action_ok');
-        }
-    } catch (error) {
-        if (result) {
-            result.className = 'adg-test-result is-danger';
-            result.textContent = error.message || t('config.network_shares.request_failed');
-        }
-        showToast(error.message || t('config.network_shares.request_failed'), 'error');
-    } finally {
-        if (button) button.disabled = false;
-    }
+    return cfgActionResult(document.getElementById(buttonID), action, {
+        target: 'ns-action-result',
+        pending: t('config.network_shares.working'),
+        success: o => (o.body && o.body.message) || t('config.network_shares.action_ok'),
+        reasonText: nsReasonText,
+        lock: '.cfgdev-actions-row button'
+    });
 }

@@ -253,3 +253,40 @@ func TestHandleComposioCallbackReturnsSelfClosingPage(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleComposioTestUsesDraftValues(t *testing.T) {
+	var keys []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		keys = append(keys, r.Header.Get("x-api-key"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"items":[],"next_cursor":""}`))
+	}))
+	defer upstream.Close()
+	s := &Server{Cfg: &config.Config{Composio: config.ComposioConfig{APIKey: "saved-key", BaseURL: upstream.URL, RequestTimeoutSeconds: 2, MaxResultBytes: 4096}}}
+	post := func(body string) map[string]interface{} {
+		rec := httptest.NewRecorder()
+		handleComposioTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/composio/test", strings.NewReader(body)))
+		var got map[string]interface{}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode %q: %v", rec.Body.String(), err)
+		}
+		return got
+	}
+
+	if got := post(`{"draft":{"composio":{"api_key":"typed-key"}}}`); got["status"] != "ok" {
+		t.Fatalf("typed key test = %#v", got)
+	}
+	if got := post(`{"draft":{"composio":{"api_key":"••••••••","request_timeout_seconds":3}}}`); got["status"] != "ok" {
+		t.Fatalf("masked key test = %#v", got)
+	}
+	if len(keys) != 2 || keys[0] != "typed-key" || keys[1] != "saved-key" {
+		t.Fatalf("upstream keys = %v, want typed then saved", keys)
+	}
+	// A new target never receives the stored key.
+	if got := post(`{"draft":{"composio":{"base_url":"https://example.invalid/api"}}}`); got["status"] != "error" || len(keys) != 2 {
+		t.Fatalf("changed target must ask for the credentials again: %#v (upstream calls %d)", got, len(keys))
+	}
+	if s.Cfg.Composio.APIKey != "saved-key" {
+		t.Fatal("a draft test must not change the saved configuration")
+	}
+}

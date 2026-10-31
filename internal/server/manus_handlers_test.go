@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -112,5 +113,34 @@ func TestManusConfigSnapshotCopiesAllowlists(t *testing.T) {
 		server.Cfg.Manus.AllowedConnectorIDs[0] != "connector-1" ||
 		server.Cfg.Manus.AllowedSkillIDs[0] != "skill-1" {
 		t.Fatalf("snapshot aliases live config: %#v", server.Cfg.Manus)
+	}
+}
+
+func TestHandleManusTestUsesDraftKey(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	var keys []string
+	http.DefaultTransport = aiGatewayRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		keys = append(keys, req.Header.Get("x-manus-api-key"))
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"ok":true,"data":{"total_credits":5}}`))}, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+
+	s := &Server{Cfg: &config.Config{Manus: config.ManusConfig{APIKey: "saved-key"}}}
+	post := func(body string) int {
+		rec := httptest.NewRecorder()
+		handleManusTest(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/manus/test", strings.NewReader(body)))
+		return rec.Code
+	}
+	if code := post(`{"draft":{"manus":{"api_key":"typed-key"}}}`); code != http.StatusOK {
+		t.Fatalf("typed key: status %d", code)
+	}
+	if code := post(`{"draft":{"manus":{"api_key":"••••••••","default_locale":"de"}}}`); code != http.StatusOK {
+		t.Fatalf("masked key: status %d", code)
+	}
+	if len(keys) != 2 || keys[0] != "typed-key" || keys[1] != "saved-key" {
+		t.Fatalf("api keys sent = %v, want typed then saved", keys)
+	}
+	if s.Cfg.Manus.APIKey != "saved-key" {
+		t.Fatal("a draft test must not change the saved configuration")
 	}
 }
