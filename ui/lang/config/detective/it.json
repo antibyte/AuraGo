@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Numero massimo di chiamate a strumenti per lavoro (da 1 a 500).",
   "config.detective.help_iterations": "Numero massimo di cicli di ragionamento e lavoro per lavoro (da 1 a 750).",
   "config.detective.help_tokens": "Limite aggiuntiva ai token usati per lavoro. 0 = nessun limite aggiuntivo.",
-  "config.detective.extra_read_invalid": "Queste righe non verranno salvate perché non hanno la forma strumento: operazione, operazione. Riga {lines}."
+  "config.detective.extra_read_invalid_many": "Queste righe non verranno salvate perché non hanno la forma strumento: operazione, operazione. Righe {lines}.",
+  "config.detective.extra_read_invalid_one": "Questa riga non verrà salvata perché non ha la forma strumento: operazione, operazione. Riga {lines}."
 }

@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "每行一个路径；空列表禁止文件访问。",
   "config.remote_control.allowed_paths_label": "允许的路径",
   "config.remote_control.audit_log_label": "启用审计日志",
-  "config.remote_control.auto_approve_label": "自动批准新设备（⚠️ 仅限受信任网络）",
   "config.remote_control.devices_desc": "已注册远程设备的实时状态。",
   "config.remote_control.devices_title": "已连接设备",
   "config.remote_control.disabled_desc": "启用后可通过连接到此 AuraGo 实例的轻量级代理二进制文件管理远程设备。",

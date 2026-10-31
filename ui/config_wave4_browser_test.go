@@ -197,3 +197,46 @@ func TestConfigSharedHelpersBrowser(t *testing.T) {
 			&& d.querySelector('button#demo-test').dataset.configAction === 'demo-test';
 	}`)
 }
+
+// The embeddings reset and security dialogs of main.js and the OpenRouter browser use the shared modal
+// controller; the OpenRouter browser stacks on top of another dialog and Escape closes only the top one.
+func TestConfigWave4SharedDialogsBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	page := newSmokeBrowser(t).MustPage(configRefreshFixtureOrigin(t, "en", true) + "/config#overview")
+	defer page.MustClose()
+	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
+	page.MustEval(`async () => {
+		await selectSection('providers');
+		const original = window.fetch;
+		window.fetch = (url, options) => String(url).includes('/api/openrouter/models')
+			? Promise.resolve(new Response(JSON.stringify({data: [{id: 'fixture/model', name: 'Fixture Model', context_length: 8192, pricing: {prompt: '0', completion: '0'}}]}), {status: 200, headers: {'Content-Type': 'application/json'}}))
+			: original(url, options);
+		window.resetResult = null;
+		showEmbeddingsResetModal().then(value => { window.resetResult = value; });
+	}`)
+	waitForJSBool(t, page, `() => { const m = document.getElementById('embeddings-reset-modal'); return !!m && m.classList.contains('open') && m.getAttribute('role') === 'dialog' && m.classList.contains('modal-overlay'); }`)
+	page.MustEval(`() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))`)
+	waitForJSBool(t, page, `() => !document.getElementById('embeddings-reset-modal') && window.resetResult === false`)
+	page.MustEval(`() => { window.resetResult = null; showEmbeddingsResetModal().then(value => { window.resetResult = value; }); }`)
+	waitForJSBool(t, page, `() => !!document.getElementById('embeddings-reset-continue')`)
+	page.MustEval(`() => document.getElementById('embeddings-reset-continue').click()`)
+	waitForJSBool(t, page, `() => !document.getElementById('embeddings-reset-modal') && window.resetResult === true`)
+
+	page.MustEval(`() => showSecurityModal([{id: 'fixture', title: 'Fixture hint'}])`)
+	waitForJSBool(t, page, `() => { const m = document.getElementById('sec-harden-modal'); return !!m && m.classList.contains('open') && m.textContent.includes('Fixture hint'); }`)
+	page.MustEval(`() => document.getElementById('sec-modal-skip').click()`)
+	waitForJSBool(t, page, `() => !document.getElementById('sec-harden-modal')`)
+
+	page.MustEval(`() => {
+		document.body.insertAdjacentHTML('beforeend', cfgModal({id: 'stack-base', title: 'Base', body: '<button id="stack-base-btn" type="button">Open</button>'}));
+		openModal('stack-base', {initialFocus: '#stack-base-btn'});
+	}`)
+	waitForJSBool(t, page, `() => document.activeElement && document.activeElement.id === 'stack-base-btn'`)
+	page.MustEval(`() => { openOpenRouterBrowser(() => {}); }`)
+	waitForJSBool(t, page, `() => { const m = document.getElementById('or-browser-overlay'); return !!m && m.classList.contains('open') && !!document.querySelector('#or-list .prov-or-row, #or-list [class*="prov-or-row"]') && document.activeElement && document.activeElement.id === 'or-search'; }`)
+	if !page.MustEval(`() => document.getElementById('stack-base').inert === true`).Bool() {
+		t.Fatal("the dialog below the OpenRouter browser stayed interactive")
+	}
+	page.MustEval(`() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))`)
+	waitForJSBool(t, page, `() => !document.getElementById('or-browser-overlay') && document.getElementById('stack-base').classList.contains('open') && document.getElementById('stack-base').inert !== true && document.activeElement && document.activeElement.id === 'stack-base-btn'`)
+}

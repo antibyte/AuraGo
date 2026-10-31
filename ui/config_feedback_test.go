@@ -529,6 +529,7 @@ func TestConfigFeedbackConfirmOnEnableBrowser(t *testing.T) {
 			<div class="toggle on" id="gh" data-path="github.allow_delete" onclick="this.classList.toggle('on')"></div></div>
 		<div class="toggle" id="plain" data-path="demo.harmless" onclick="this.classList.toggle('on')"></div>
 		<label><input type="checkbox" id="modal-destructive" data-cfg-confirm-enable="delete"> Allow deleting</label>
+		<span id="dlg-label">Destructive tools</span><div class="toggle" id="dlg" data-cfg-confirm-enable="destroy" aria-labelledby="dlg-label" onclick="this.classList.toggle('on')"></div>
 		<div class="toggle" id="locked" data-path="docker.allow_host_access" aria-disabled="true" onclick="this.classList.toggle('on')"></div>`)
 	evalFailures(t, page, `async () => {
 		const failures = [];
@@ -581,6 +582,20 @@ func TestConfigFeedbackConfirmOnEnableBrowser(t *testing.T) {
 		box.click();
 		await settle();
 		expect('checkbox off never asks', [box.checked, window.__confirms.length], [false, 5]);
+
+		// dialog switch without data-path: asked centrally, turning off never asks
+		const dlg = document.getElementById('dlg');
+		window.__answer = false;
+		dlg.click();
+		await settle();
+		expect('dialog switch cancel', [dlg.classList.contains('on'), window.__confirms.length], [false, 6]);
+		window.__answer = true;
+		dlg.click();
+		await settle();
+		expect('dialog switch OK', [dlg.classList.contains('on'), window.__confirms.length], [true, 7]);
+		dlg.click();
+		await settle();
+		expect('dialog switch off never asks', [dlg.classList.contains('on'), window.__confirms.length], [false, 7]);
 
 		// no re-entrancy: a pending question swallows a second click
 		let release;

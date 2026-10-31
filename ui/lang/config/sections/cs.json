@@ -198,7 +198,6 @@
   "config.section.optimizations.group.background_tasks": "🔄 Zpracování na pozadí",
   "config.section.optimizations.group.safety_limits": "🛡️ Bezpečnostní limity a obnova",
   "config.section.optimizations.group.token_context": "📊 Token & Kontext",
-  "config.section.optimizations.group.tool_optimization": "🔧 Optimalizace nástrojů",
   "config.section.optimizations.label": "Optimalizace",
   "config.section.paperless_ngx.desc": "Připojuje Paperless-ngx, aby agent mohl vyhledávat dokumenty a spravovat je.",
   "config.section.paperless_ngx.label": "Paperless-ngx",

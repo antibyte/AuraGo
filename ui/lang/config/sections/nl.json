@@ -198,7 +198,6 @@
   "config.section.optimizations.group.background_tasks": "🔄 Achtergrondverwerking",
   "config.section.optimizations.group.safety_limits": "🛡️ Veiligheidslimieten & Herstel",
   "config.section.optimizations.group.token_context": "📊 Token en context",
-  "config.section.optimizations.group.tool_optimization": "🔧 Tooloptimalisatie",
   "config.section.optimizations.label": "Optimalisaties",
   "config.section.paperless_ngx.desc": "Koppelt Paperless-ngx zodat de agent documenten kan zoeken en beheren.",
   "config.section.paperless_ngx.label": "Paperless-ngx-integratie",

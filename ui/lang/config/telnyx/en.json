@@ -40,8 +40,6 @@
   "config.telnyx.status_disabled": "Telnyx integration is disabled",
   "config.telnyx.status_no_credentials": "Telnyx API key missing",
   "config.telnyx.status_ok": "Connected to Telnyx",
-  "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌",
   "help.telnyx.voice_language": "Default language code used for Telnyx voice prompts and call transcription.",
   "config.telnyx.voice_gender_help": "Voice the agent uses to speak on phone calls.",
   "config.telnyx.max_concurrent_calls_help": "How many calls may run at the same time (1-20, default 3). Further calls are rejected.",

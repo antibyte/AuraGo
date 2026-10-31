@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Höchstzahl an Werkzeugaufrufen pro Auftrag (1 bis 500).",
   "config.detective.help_iterations": "Höchstzahl an Denk- und Arbeitsrunden pro Auftrag (1 bis 750).",
   "config.detective.help_tokens": "Zusätzliche Obergrenze für verbrauchte Tokens pro Auftrag. 0 = keine zusätzliche Grenze.",
-  "config.detective.extra_read_invalid": "Diese Zeilen werden nicht gespeichert, weil sie nicht der Form Werkzeug: Operation, Operation entsprechen. Zeile {lines}."
+  "config.detective.extra_read_invalid_many": "Diese Zeilen werden nicht gespeichert, weil sie nicht der Form Werkzeug: Operation, Operation entsprechen. Zeilen {lines}.",
+  "config.detective.extra_read_invalid_one": "Diese Zeile wird nicht gespeichert, weil sie nicht der Form Werkzeug: Operation, Operation entspricht. Zeile {lines}."
 }

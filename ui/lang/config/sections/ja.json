@@ -198,7 +198,6 @@
   "config.section.optimizations.group.background_tasks": "🔄 バックグラウンド処理",
   "config.section.optimizations.group.safety_limits": "🛡️ セーフティリミットと回復",
   "config.section.optimizations.group.token_context": "📊 トークンとコンテキスト",
-  "config.section.optimizations.group.tool_optimization": "🔧 ツール最適化",
   "config.section.optimizations.label": "最適化",
   "config.section.paperless_ngx.desc": "Paperless-ngx に接続し、エージェントがドキュメントを検索・管理できるようにします。",
   "config.section.paperless_ngx.label": "Paperless-ngx",

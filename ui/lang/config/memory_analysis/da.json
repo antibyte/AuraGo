@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Refleksionsdag",
   "config.memory_analysis.reflection_desc": "Genererer en ugentlig opsummering der analyserer hukommelsesmønstre, modsætninger og videnhuller.",
   "config.memory_analysis.reflection_label": "Ugentlig refleksion aktiveret:",
-  "config.memory_analysis.reflection_title": "Ugentlig refleksion",
   "config.memory_analysis.select_provider": "— Hoved-LLM (standard) —",
   "config.memory_analysis.threshold_desc": "Tillidsgrænse (0.0–1.0) over hvilken udtrækkede erindringer gemmes automatisk uden brugerbekræftelse.",
   "config.memory_analysis.threshold_label": "Grænse",

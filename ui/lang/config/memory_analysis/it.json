@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Giorno di riflessione",
   "config.memory_analysis.reflection_desc": "Genera un riepilogo settimanale che analizza schemi di memoria, contraddizioni e lacune.",
   "config.memory_analysis.reflection_label": "Riflessione settimanale abilitata:",
-  "config.memory_analysis.reflection_title": "Riflessione settimanale",
   "config.memory_analysis.select_provider": "— LLM principale (predefinito) —",
   "config.memory_analysis.threshold_desc": "Soglia di confidenza (0.0–1.0) sopra la quale i ricordi estratti vengono memorizzati automaticamente senza conferma dell'utente.",
   "config.memory_analysis.threshold_label": "Soglia",

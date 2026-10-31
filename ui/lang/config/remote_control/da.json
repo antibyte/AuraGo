@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Én pr. linje; en tom liste blokerer filadgang.",
   "config.remote_control.allowed_paths_label": "Tilladte stier",
   "config.remote_control.audit_log_label": "Aktivér revisionslog",
-  "config.remote_control.auto_approve_label": "Godkend automatisk nye enheder (⚠️ kun på betroede netværk)",
   "config.remote_control.devices_desc": "Livestatus for registrerede fjernenheder.",
   "config.remote_control.devices_title": "Tilsluttede enheder",
   "config.remote_control.disabled_desc": "Aktivér for at administrere fjernenheder via lette agent-binære filer, der forbinder til denne AuraGo-instans.",

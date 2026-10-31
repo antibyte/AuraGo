@@ -1344,10 +1344,6 @@ transform:none; filter:none;
     background: var(--accent-dim);
 }
 
-.pw-page[data-workspace-page="config"] .wh-btn-danger:hover {
-    background: color-mix(in srgb, #ef4444 15%, transparent);
-}
-
 .pw-page[data-workspace-page="config"] .wh-token-prefix {
     font-size: var(--text-xs);
     background: var(--input-bg);
@@ -4835,93 +4831,6 @@ transform:none; filter:none;
     margin-top: 0.3rem;
 }
 
-.pw-page[data-workspace-page="config"] .sec-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, #000000 55%, transparent);
-    backdrop-filter: none;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-panel {
-    background: var(--card-bg);
-    border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
-    border-radius: 14px;
-    padding: 1.5rem 1.75rem;
-    max-width: 440px;
-    width: 90%;
-    backdrop-filter: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #f87171;
-    margin-bottom: 0.75rem;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-desc {
-    font-size: 0.83rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-list {
-    font-size: 0.82rem;
-    color: var(--text-primary);
-    margin: 0 0 1rem 1rem;
-    padding: 0;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-item {
-    margin-bottom: 0.35rem;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-actions {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: flex-end;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-btn {
-    padding: 0.45rem 1rem;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    cursor: pointer;
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-btn-skip {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-subtle);
-}
-
-.pw-page[data-workspace-page="config"] .sec-modal-btn-apply {
-    background: var(--pw-accent);
-    color: var(--cfg-on-accent);
-    border: none;
-    font-weight: 600;
-}
-
-.pw-page[data-workspace-page="config"] .emb-modal-panel {
-    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
-}
-
-.pw-page[data-workspace-page="config"] .emb-modal-title {
-    color: var(--accent);
-}
-
-.pw-page[data-workspace-page="config"] .emb-modal-btn-danger {
-    background: var(--pw-surface-elevated);
-    color: var(--pw-danger);
-    border: 1px solid var(--pw-danger);
-    font-weight: 700;
-}
-
 .pw-page[data-workspace-page="config"] .save-status.warning {
     color: var(--warning);
 }
@@ -5026,54 +4935,12 @@ transform:none; filter:none;
     font-size: 0.75rem;
 }
 
-.pw-page[data-workspace-page="config"] .prov-or-overlay {
-    position: fixed;
-    inset: 0;
-    background: color-mix(in srgb, #000000 60%, transparent);
-    z-index: 1100;
-    backdrop-filter: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.pw-page[data-workspace-page="config"] .prov-or-panel {
-    background: var(--card-bg);
-    border-radius: 16px;
-    width: min(760px, 95vw);
-    height: min(85vh, 720px);
+.pw-page[data-workspace-page="config"] .prov-or-body {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border-subtle);
-    overflow: hidden;
-    backdrop-filter: none;
-    box-shadow: none;
-}
-
-.pw-page[data-workspace-page="config"] .prov-or-header {
-    padding: 1rem 1.2rem;
-    border-bottom: 1px solid var(--border-subtle);
-    flex-shrink: 0;
-}
-
-.pw-page[data-workspace-page="config"] .prov-or-header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.7rem;
-}
-
-.pw-page[data-workspace-page="config"] .prov-or-title {
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.pw-page[data-workspace-page="config"] .prov-or-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.2rem;
-    cursor: pointer;
+    gap: 0.7rem;
+    height: min(60vh, 520px);
+    min-height: 0;
 }
 
 .pw-page[data-workspace-page="config"] .prov-or-controls {
@@ -5293,19 +5160,8 @@ transform:none; filter:none;
 .pw-page[data-workspace-page="config"] .prov-btn-md { padding: 0.45rem 1.4rem; font-size: 0.82rem; }
 .pw-page[data-workspace-page="config"] .prov-btn-muted { background: var(--bg-tertiary); color: var(--text-primary); }
 
-.pw-page[data-workspace-page="config"] .prov-pricing-overlay {
-    position: fixed; inset: 0; z-index: 9100; padding: 1rem;
-    display: flex; align-items: center; justify-content: center;
-    background: color-mix(in srgb, #000000 65%, transparent);
-}
-.pw-page[data-workspace-page="config"] .prov-pricing-panel {
-    width: min(580px, 96vw); max-height: 84vh; display: flex; flex-direction: column;
-    background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 14px;
-    backdrop-filter: none;
-    box-shadow: none;
-}
+.pw-page[data-workspace-page="config"] .prov-pricing-body { display: flex; flex-direction: column; max-height: min(60vh, 520px); min-height: 0; }
 .pw-page[data-workspace-page="config"] .prov-pricing-head { padding: 0.9rem 1.1rem 0.6rem; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
-.pw-page[data-workspace-page="config"] .prov-pricing-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.55rem; }
 .pw-page[data-workspace-page="config"] .prov-pricing-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem; }
 .pw-page[data-workspace-page="config"] .prov-pricing-total { font-size: 0.7rem; color: var(--text-tertiary); }
 .pw-page[data-workspace-page="config"] .prov-pricing-selected { font-size: 0.7rem; color: var(--accent); font-weight: 600; }
@@ -5781,10 +5637,7 @@ transform:none; filter:none;
    ══════════════════════════════════════════════════════════════ */
 
 [data-theme="light"] .pw-page[data-workspace-page="config"] .sidebar-backdrop,
-[data-theme="light"] .pw-page[data-workspace-page="config"] #vault-delete-overlay,
-[data-theme="light"] .pw-page[data-workspace-page="config"] .sec-modal-overlay,
-[data-theme="light"] .pw-page[data-workspace-page="config"] .prov-or-overlay,
-[data-theme="light"] .pw-page[data-workspace-page="config"] .prov-pricing-overlay {
+[data-theme="light"] .pw-page[data-workspace-page="config"] #vault-delete-overlay {
     background: color-mix(in srgb, #1e293b 35%, transparent);
 }
 

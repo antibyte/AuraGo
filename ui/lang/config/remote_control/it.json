@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Un percorso per riga; un elenco vuoto blocca l’accesso ai file.",
   "config.remote_control.allowed_paths_label": "Percorsi consentiti",
   "config.remote_control.audit_log_label": "Attiva registro audit",
-  "config.remote_control.auto_approve_label": "Approva automaticamente nuovi dispositivi (⚠️ solo su reti fidate)",
   "config.remote_control.devices_desc": "Stato in tempo reale dei dispositivi remoti registrati.",
   "config.remote_control.devices_title": "Dispositivi connessi",
   "config.remote_control.disabled_desc": "Attiva per gestire dispositivi remoti tramite binari agent leggeri che si connettono a questa istanza AuraGo.",

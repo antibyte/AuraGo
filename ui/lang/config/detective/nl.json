@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Maximaal aantal tool-aanroepen per opdracht (1 tot 500).",
   "config.detective.help_iterations": "Maximaal aantal denk- en werkrondes per opdracht (1 tot 750).",
   "config.detective.help_tokens": "Extra bovengrens voor tokens per opdracht. 0 = geen extra limiet.",
-  "config.detective.extra_read_invalid": "Deze regels worden niet opgeslagen omdat ze niet de vorm hulpmiddel: bewerking, bewerking hebben. Regel {lines}."
+  "config.detective.extra_read_invalid_many": "Deze regels worden niet opgeslagen omdat ze niet de vorm hulpmiddel: bewerking, bewerking hebben. Regels {lines}.",
+  "config.detective.extra_read_invalid_one": "Deze regel wordt niet opgeslagen omdat hij niet de vorm hulpmiddel: bewerking, bewerking heeft. Regel {lines}."
 }

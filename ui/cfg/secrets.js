@@ -34,7 +34,7 @@
                 script.onload = script.onerror = () => resolve();
                 document.head.appendChild(script);
             });
-            return load('/js/config/icons.js').then(() => load('/js/config/components.js'));
+            return load('/js/precision/icons.js').then(() => load('/js/config/icons.js')).then(() => load('/js/config/components.js'));
         }
 
         function secretsIcon(name) {

@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Número máximo de chamadas de ferramenta por tarefa (1 a 500).",
   "config.detective.help_iterations": "Número máximo de rodadas de raciocínio e trabalho por tarefa (1 a 750).",
   "config.detective.help_tokens": "Limite adicional de tokens usados por tarefa. 0 = sem limite adicional.",
-  "config.detective.extra_read_invalid": "Estas linhas não serão guardadas porque não têm o formato ferramenta: operação, operação. Linha {lines}."
+  "config.detective.extra_read_invalid_many": "Estas linhas não serão guardadas porque não têm o formato ferramenta: operação, operação. Linhas {lines}.",
+  "config.detective.extra_read_invalid_one": "Esta linha não será guardada porque não tem o formato ferramenta: operação, operação. Linha {lines}."
 }

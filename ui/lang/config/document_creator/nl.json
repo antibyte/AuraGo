@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "Sla je wijzigingen op voordat je test.",
   "config.document_creator.seconds": "seconden",
   "config.document_creator.status_error": "De Gotenberg-controle is mislukt.",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "Service beperkt beschikbaar",
   "config.document_creator.test_fail": "Verbinding mislukt",
   "config.document_creator.test_gotenberg": "Verbinding testen",

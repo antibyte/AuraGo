@@ -34,7 +34,7 @@ async function renderOllamaSection(section) {
                 form.toggle({ label: t('config.ollama.readonly_label'), help: t('config.ollama.readonly_help'), path: 'ollama.readonly', value: data.readonly === true }),
                 // The URL is fixed while the managed container is on (the container decides where it listens).
                 managedEnabled
-                    ? form.field({ type: 'url', label: t('config.ollama.url_label'), help: t('config.ollama.url_help'), path: 'ollama.url', value: ollamaEffectiveURL(miData), placeholder: 'http://localhost:11434' }).replace('<input ', '<input readonly ')
+                    ? form.field({ type: 'url', label: t('config.ollama.url_label'), help: t('config.ollama.url_help'), path: 'ollama.url', value: ollamaEffectiveURL(miData), placeholder: 'http://localhost:11434', readonly: true })
                     : form.field({ type: 'url', label: t('config.ollama.url_label'), help: t('config.ollama.url_help'), path: 'ollama.url', value: data.url || '', placeholder: 'http://localhost:11434' }),
                 '<div class="field-help">' + t('config.ollama.endpoint_help') + '</div>',
                 '<div class="pw-u-inline-actions"><button id="ollama-test-btn" type="button" class="btn-secondary cfg-test-btn" data-config-action-draft="true">' + cfgIcon('plug') + '<span>' + t('config.ollama.test_connection') + '</span></button>' + cfgActionResult.html('ollama-test-result') + '</div>'
@@ -43,12 +43,11 @@ async function renderOllamaSection(section) {
             titleKey: 'config.ollama.managed_title',
             fields: [
                 // Switching it on/off shows the recreate button and fixes or releases the URL.
-                form.toggle({ label: t('config.ollama.managed_enabled_label'), help: t('config.ollama.managed_enabled_help'), path: 'ollama.managed_instance.enabled', value: managedEnabled })
-                    .replace('onclick="toggleBool(this)"', 'onclick="toggleBool(this);ollamaManagedToggled(this)"'),
+                form.toggle({ label: t('config.ollama.managed_enabled_label'), help: t('config.ollama.managed_enabled_help'), path: 'ollama.managed_instance.enabled', value: managedEnabled, onclick: 'toggleBool(this);ollamaManagedToggled(this)' }),
                 form.number({ label: t('config.ollama.managed_port_label'), help: t('config.ollama.managed_port_help'), path: 'ollama.managed_instance.container_port', value: miData.container_port || 11434, min: 1, max: 65535 }),
                 form.toggle({ label: t('config.ollama.managed_gpu_label'), help: t('config.ollama.managed_gpu_help'), path: 'ollama.managed_instance.use_host_gpu', value: miData.use_host_gpu === true }),
                 form.select({ label: t('config.ollama.managed_gpu_backend_label'), help: t('config.ollama.managed_gpu_backend_help'), path: 'ollama.managed_instance.gpu_backend', value: miData.gpu_backend || 'auto', options: gpuOptions }),
-                form.field({ label: t('config.ollama.managed_models_label'), help: t('config.ollama.managed_models_help'), path: 'ollama.managed_instance.default_models', value: (miData.default_models || []).join(','), placeholder: 'llama3,mistral' }).replace('<input ', '<input data-type="array" '),
+                form.field({ label: t('config.ollama.managed_models_label'), help: t('config.ollama.managed_models_help'), path: 'ollama.managed_instance.default_models', value: (miData.default_models || []).join(','), placeholder: 'llama3,mistral', dataType: 'array' }),
                 form.field({ label: t('config.ollama.managed_memory_label'), help: t('config.ollama.managed_memory_help'), path: 'ollama.managed_instance.memory_limit', value: miData.memory_limit || '', placeholder: '8g' }),
                 form.field({ label: t('config.ollama.managed_volume_label'), help: t('config.ollama.managed_volume_help'), path: 'ollama.managed_instance.volume_path', value: miData.volume_path || '' }),
                 // Recreate button (shown when managed is enabled)

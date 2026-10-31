@@ -158,8 +158,6 @@
   "config.tailscale.status_disabled": "Η ενσωμάτωση API Tailscale είναι απενεργοποιημένη",
   "config.tailscale.status_no_credentials": "Λείπει το API κλειδί Tailscale",
   "config.tailscale.status_ok": "Συνδέθηκε στο API Tailscale",
-  "config.tailscale.status_success": "✅",
-  "config.tailscale.status_error": "❌",
   "config.tailscale.tsnet_enable_https_link": "Ενεργοποίηση HTTPS",
   "config.tailscale.tsnet_enabled_help": "Εκκινεί το AuraGo ως δικό του κόμβο στο tailnet (tsnet). Έτσι το web interface γίνεται ιδιωτικά προσβάσιμο στο tailnet χωρίς την εφαρμογή Tailscale στον διακομιστή.",
   "config.tailscale.tsnet_label_cert": "Πιστοποιητικό",

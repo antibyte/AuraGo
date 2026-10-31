@@ -21,8 +21,7 @@ function renderVideoGenerationSection(section) {
     const key = name => t('config.video_gen.' + name);
 
     // The switch re-renders the section: the provider groups only exist while the feature is on.
-    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'video_generation.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);setNestedValue(configData,'video_generation.enabled',this.classList.contains('on'));renderVideoGenerationSection(null)"`);
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'video_generation.enabled', value: enabled, onclick: "toggleBool(this);setNestedValue(configData,'video_generation.enabled',this.classList.contains('on'));renderVideoGenerationSection(null)" });
     const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
     let after = '';
 
@@ -40,8 +39,7 @@ function renderVideoGenerationSection(section) {
             value: p.id,
             label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + (p.model ? ' - ' + p.model : '')
         })));
-        const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'video_generation.provider', value: curProvider, options: providerOptions, onchange: 'videoGenerationProviderChanged(this)' })
-            .replace('</select>', configPreservedProviderOptionHTML(curProvider, providers) + '</select>');
+        const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'video_generation.provider', value: curProvider, options: providerOptions, onchange: 'videoGenerationProviderChanged(this)', extraOptionsHTML: configPreservedProviderOptionHTML(curProvider, providers) });
         groups.push({ title: key('provider_title'), desc: key('provider_desc'), fields: [
             providerSelect,
             form.field({ label: key('model_label'), help: key('model_hint'), path: 'video_generation.model', value: cfg.model || '', placeholder: 'MiniMax-Hailuo-2.3, veo-3.1-generate-preview...' })

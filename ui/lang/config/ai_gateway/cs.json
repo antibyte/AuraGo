@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway je vypnutý",
   "config.ai_gateway.status_no_credentials": "Chybí ID účtu nebo ID brány",
   "config.ai_gateway.status_ok": "Připojeno k AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Režim protokolování",
   "config.ai_gateway.log_mode_metadata_only": "Pouze metadata",
   "config.ai_gateway.log_mode_off": "Vypnuto",

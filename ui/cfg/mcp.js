@@ -445,20 +445,11 @@ function mcpModalToggleRow(id, labelHTML, helpHTML, on, cls, extra) {
     </div>`;
 }
 
+// Switches with data-cfg-confirm-enable are confirmed centrally (js/config/actions.js) before this runs.
 function mcpModalToggle(el) {
     const turningOn = !el.classList.contains('on');
-    const apply = () => {
-        el.classList.toggle('on', turningOn);
-        el.setAttribute('aria-checked', turningOn ? 'true' : 'false');
-    };
-    const category = el.getAttribute('data-cfg-confirm-enable');
-    if (!turningOn || !category) { apply(); return; }
-    const label = (document.getElementById(el.id + '-label') || {}).textContent || '';
-    showConfirmDialog({
-        title: String(t('config.confirm_enable.title')).replace('{label}', () => label),
-        message: String(t('config.confirm_enable.' + category)).replace('{label}', () => label),
-        danger: true
-    }).then(answer => { if (answer.confirmed) apply(); });
+    el.classList.toggle('on', turningOn);
+    el.setAttribute('aria-checked', turningOn ? 'true' : 'false');
 }
 
 function mcpModalShowError(boxId, message, fieldId) {

@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "反思日",
   "config.memory_analysis.reflection_desc": "生成每周摘要,分析记忆模式、矛盾和知识缺口。",
   "config.memory_analysis.reflection_label": "每周反思已启用:",
-  "config.memory_analysis.reflection_title": "每周反思",
   "config.memory_analysis.select_provider": "— 主 LLM(默认) —",
   "config.memory_analysis.threshold_desc": "置信阈值(0.0–1.0),超过此值时提取的记忆将自动存储,无需用户确认。较低的值会更积极地存储。",
   "config.memory_analysis.threshold_label": "阈值",

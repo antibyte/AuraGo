@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "Speichere Deine Änderungen vor dem Test.",
   "config.document_creator.seconds": "Sekunden",
   "config.document_creator.status_error": "Die Gotenberg-Prüfung ist fehlgeschlagen.",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "Dienst eingeschränkt",
   "config.document_creator.test_fail": "Verbindung fehlgeschlagen",
   "config.document_creator.test_gotenberg": "Verbindung testen",

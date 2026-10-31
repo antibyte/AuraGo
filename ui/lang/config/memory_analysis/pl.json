@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Dzień refleksji",
   "config.memory_analysis.reflection_desc": "Generuje tygodniowe podsumowanie analizujące wzorce pamięci, sprzeczności i luki w wiedzy.",
   "config.memory_analysis.reflection_label": "Refleksja tygodniowa włączona:",
-  "config.memory_analysis.reflection_title": "Refleksja tygodniowa",
   "config.memory_analysis.select_provider": "— Główny LLM (domyślny) —",
   "config.memory_analysis.threshold_desc": "Próg pewności (0.0–1.0), powyżej którego wyodrębnione wspomnienia są przechowywane automatycznie bez potwierdzenia użytkownika.",
   "config.memory_analysis.threshold_label": "Próg",

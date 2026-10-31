@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway is uitgeschakeld",
   "config.ai_gateway.status_no_credentials": "Account-ID of gateway-ID ontbreekt",
   "config.ai_gateway.status_ok": "Verbonden met AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Logmodus",
   "config.ai_gateway.log_mode_metadata_only": "Alleen metadata",
   "config.ai_gateway.log_mode_off": "Uit",

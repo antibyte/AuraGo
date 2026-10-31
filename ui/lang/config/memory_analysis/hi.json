@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "चिंतन दिवस",
   "config.memory_analysis.reflection_desc": "स्मृति पैटर्न, विरोधाभास और ज्ञान अंतराल का विश्लेषण करने वाला साप्ताहिक सारांश उत्पन्न करता है।",
   "config.memory_analysis.reflection_label": "साप्ताहिक चिंतन सक्रिय:",
-  "config.memory_analysis.reflection_title": "साप्ताहिक चिंतन",
   "config.memory_analysis.select_provider": "— मुख्य LLM (डिफ़ॉल्ट) —",
   "config.memory_analysis.threshold_desc": "विश्वास सीमा (0.0–1.0) जिसके ऊपर निकाली गई यादें उपयोगकर्ता पुष्टि के बिना स्वचालित रूप से संग्रहीत होती हैं।",
   "config.memory_analysis.threshold_label": "सीमा",

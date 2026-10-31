@@ -198,7 +198,6 @@
   "config.section.optimizations.group.background_tasks": "🔄 Επεξεργασία παρασκηνίου",
   "config.section.optimizations.group.safety_limits": "🛡️ Όρια ασφαλείας & Ανάκτηση",
   "config.section.optimizations.group.token_context": "📊 Διακριτικά & πλαίσιο",
-  "config.section.optimizations.group.tool_optimization": "🔧 Βελτιστοποίηση εργαλείων",
   "config.section.optimizations.label": "Βελτιστοποιήσεις",
   "config.section.paperless_ngx.desc": "Συνδέει το Paperless-ngx ώστε ο πράκτορας να αναζητά και να διαχειρίζεται έγγραφα.",
   "config.section.paperless_ngx.label": "Paperless-ngx",

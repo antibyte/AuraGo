@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway está desativado",
   "config.ai_gateway.status_no_credentials": "ID da conta ou ID do gateway em falta",
   "config.ai_gateway.status_ok": "Ligado ao AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Modo de registro",
   "config.ai_gateway.log_mode_metadata_only": "Apenas metadados",
   "config.ai_gateway.log_mode_off": "Desativado",

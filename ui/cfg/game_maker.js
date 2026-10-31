@@ -58,8 +58,7 @@ function renderGameMakerSection(section) {
 }
 
 function gmCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {
-    return window.AuraConfigForm.toggle({ label: t(labelKey), help: tOr(helpKey, ''), path, value: enabled })
-        .replace('onclick="toggleBool(this)"', 'onclick="' + (onclick || "gmCfgToggleValue(this, '" + path + "')") + '"');
+    return window.AuraConfigForm.toggle({ label: t(labelKey), help: tOr(helpKey, ''), path, value: enabled, onclick: onclick || "gmCfgToggleValue(this, '" + path + "')" });
 }
 
 function gmCfgToggleEnabled(el) {

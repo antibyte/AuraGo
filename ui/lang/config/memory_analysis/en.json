@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Reflection day",
   "config.memory_analysis.reflection_desc": "Generate a weekly summary analyzing memory patterns, contradictions, and knowledge gaps.",
   "config.memory_analysis.reflection_label": "Weekly reflection enabled:",
-  "config.memory_analysis.reflection_title": "Weekly Reflection",
   "config.memory_analysis.select_provider": "— Main LLM (default) —",
   "config.memory_analysis.threshold_desc": "Confidence threshold (0.0–1.0) above which extracted memories are stored automatically without user confirmation. Lower values store more aggressively.",
   "config.memory_analysis.threshold_label": "Threshold",

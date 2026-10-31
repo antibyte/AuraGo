@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "テストの前に変更を保存してください。",
   "config.document_creator.seconds": "秒",
   "config.document_creator.status_error": "Gotenberg の確認に失敗しました。",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "サービス劣化",
   "config.document_creator.test_fail": "接続失敗",
   "config.document_creator.test_gotenberg": "接続テスト",

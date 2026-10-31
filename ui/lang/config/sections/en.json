@@ -199,7 +199,6 @@
   "config.section.optimizations.group.background_tasks": "🔄 Background Processing",
   "config.section.optimizations.group.safety_limits": "🛡️ Safety Limits & Recovery",
   "config.section.optimizations.group.token_context": "📊 Token & Context",
-  "config.section.optimizations.group.tool_optimization": "🔧 Tool Optimization",
   "config.section.optimizations.label": "Optimizations",
   "config.section.paperless_ngx.desc": "Connects Paperless-ngx so the agent can search and manage documents.",
   "config.section.paperless_ngx.label": "Paperless-ngx",

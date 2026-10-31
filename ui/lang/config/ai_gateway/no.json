@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway er deaktivert",
   "config.ai_gateway.status_no_credentials": "Konto-ID eller gateway-ID mangler",
   "config.ai_gateway.status_ok": "Koblet til AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Loggmodus",
   "config.ai_gateway.log_mode_metadata_only": "Kun metadata",
   "config.ai_gateway.log_mode_off": "Av",

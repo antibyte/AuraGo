@@ -34,7 +34,7 @@ function detectiveShowAllowlistErrors(area) {
     const message = document.getElementById('detective-allowlist-validation');
     if (!message) return;
     const invalid = detectiveAllowlistInvalidLines(area.value);
-    message.textContent = invalid.length ? t('config.detective.extra_read_invalid', { lines: invalid.join(', ') }) : '';
+    message.textContent = invalid.length ? t(invalid.length === 1 ? 'config.detective.extra_read_invalid_one' : 'config.detective.extra_read_invalid_many', { lines: invalid.join(', ') }) : '';
     message.hidden = !invalid.length;
     if (invalid.length) area.setAttribute('aria-invalid', 'true'); else area.removeAttribute('aria-invalid');
 }

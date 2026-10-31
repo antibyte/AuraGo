@@ -388,7 +388,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	page.MustEval(`() => {
 		window.__modalTestRan=false;
 		const modal=document.createElement('div');
-		modal.className='sql-modal-overlay is-hidden';
+		modal.className='modal-overlay is-hidden';
 		modal.innerHTML='<input id="sqlconn-field-name"><input id="sqlconn-field-database"><button id="sqlconn-test-btn">Test</button>';
 		document.body.appendChild(modal);
 		document.getElementById('sqlconn-test-btn').addEventListener('click',()=>window.__modalTestRan=true);
@@ -1021,7 +1021,7 @@ func TestSecretsSharedStylesRemainAvailableInKnowledgeAndConfig(t *testing.T) {
 		}
 	}
 	css := normalizeAssetText(mustReadUIFile(t, "css/secrets-shared.css"))
-	for _, marker := range []string{`.pw-page .secrets-empty`, `#panel-secrets .secrets-empty`, `.secrets-system-badge`} {
+	for _, marker := range []string{`.pw-page .secrets-empty`, `#panel-secrets .secrets-empty`, `.secrets-actions`} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("secrets-shared.css missing scoped marker %q", marker)
 		}

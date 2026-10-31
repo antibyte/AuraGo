@@ -16,8 +16,7 @@ async function renderMediaConversionSection(section) {
     const key = name => t('config.media_conversion.' + name);
 
     // The switch re-renders the section: the tool fields only exist while the feature is on.
-    const enableToggle = form.toggle({ label: key('enabled_label'), help: t('help.media_conversion.enabled'), path: 'tools.media_conversion.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);mcUpdateEnabled(this.classList.contains('on'))"`);
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: t('help.media_conversion.enabled'), path: 'tools.media_conversion.enabled', value: enabled, onclick: "toggleBool(this);mcUpdateEnabled(this.classList.contains('on'))" });
     const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
     let after = '';
 

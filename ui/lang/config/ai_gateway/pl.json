@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway jest wyłączony",
   "config.ai_gateway.status_no_credentials": "Brak ID konta lub ID bramy",
   "config.ai_gateway.status_ok": "Połączono z AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Tryb logowania",
   "config.ai_gateway.log_mode_metadata_only": "Tylko metadane",
   "config.ai_gateway.log_mode_off": "Wyłączone",

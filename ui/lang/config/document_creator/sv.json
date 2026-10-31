@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "Spara dina ändringar före testet.",
   "config.document_creator.seconds": "sekunder",
   "config.document_creator.status_error": "Gotenberg-kontrollen misslyckades.",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "Tjänsten försämrad",
   "config.document_creator.test_fail": "Anslutning misslyckades",
   "config.document_creator.test_gotenberg": "Testa anslutning",

@@ -93,44 +93,41 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
 
             // Remove existing modal if any
             const existing = document.getElementById('or-browser-overlay');
-            if (existing) { existing._providerRequests?.abort(); existing.remove(); }
+            if (existing) { closeModal('or-browser-overlay'); existing.remove(); }
 
-            const overlay = document.createElement('div');
-            overlay.id = 'or-browser-overlay';
-            overlay.className = 'prov-or-overlay';
-            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-            overlay.innerHTML = `
-            <div class="prov-or-panel" onclick="event.stopPropagation()">
-                <!-- Header -->
-                <div class="prov-or-header">
-                    <div class="prov-or-header-row">
-                        <div class="prov-or-title">${cfgIcon('globe')} OpenRouter ${t('config.openrouter.model_browser')}</div>
-                        <button type="button" onclick="document.getElementById('or-browser-overlay').remove()" class="prov-or-close" aria-label="${escapeAttr(t('config.common.close'))}" title="${escapeAttr(t('config.common.close'))}">${cfgIcon('x')}</button>
-                    </div>
+            const body = `
+                <div class="prov-or-body">
                     <div class="prov-or-controls">
-                        <input id="or-search" class="field-input prov-or-search" type="text" placeholder="${t('config.openrouter.search_placeholder')}">
-                        <button id="or-free-btn" class="btn-save prov-or-free-btn" title="${t('config.openrouter.free_tooltip')}">
+                        <input id="or-search" class="field-input prov-or-search" type="text" aria-label="${escapeAttr(t('config.openrouter.search_placeholder'))}" placeholder="${escapeAttr(t('config.openrouter.search_placeholder'))}">
+                        <button type="button" id="or-free-btn" class="btn-save prov-or-free-btn" title="${escapeAttr(t('config.openrouter.free_tooltip'))}">
                             ${t('config.openrouter.free_button')}
                         </button>
                         <div id="or-count" class="prov-or-count"></div>
                     </div>
-                </div>
-                <!-- Content area: list + detail -->
-                <div class="prov-or-content">
-                    <!-- Model list -->
-                    <div id="or-list-wrap" class="prov-or-list-wrap is-hidden">
-                        <div id="or-list" class="prov-or-list"></div>
+                    <!-- Content area: list + detail -->
+                    <div class="prov-or-content">
+                        <!-- Model list -->
+                        <div id="or-list-wrap" class="prov-or-list-wrap is-hidden">
+                            <div id="or-list" class="prov-or-list"></div>
+                        </div>
+                        <!-- Detail panel (hidden by default) -->
+                        <div id="or-detail" class="prov-or-detail is-hidden"></div>
                     </div>
-                    <!-- Detail panel (hidden by default) -->
-                    <div id="or-detail" class="prov-or-detail is-hidden"></div>
-                </div>
-                <!-- Loading / error -->
-                <div id="or-loading" class="prov-or-loading">
-                    ${cfgIcon('loader')} ${t('config.openrouter.loading')}
-                </div>
-            </div>`;
-            document.body.appendChild(overlay);
+                    <!-- Loading / error -->
+                    <div id="or-loading" class="prov-or-loading">
+                        ${cfgIcon('loader')} ${t('config.openrouter.loading')}
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', cfgModal({
+                id: 'or-browser-overlay',
+                title: 'OpenRouter ' + t('config.openrouter.model_browser'),
+                size: 'xl',
+                body
+            }));
+            // Opened on top of the provider dialog: the shared modal controller stacks it, so Escape and
+            // Tab belong to this browser until it closes and focus returns to the opener.
+            openModal('or-browser-overlay', { initialFocus: '#or-search', onClose: () => document.getElementById('or-browser-overlay')?.remove() });
+            const closeBrowser = () => closeModal('or-browser-overlay');
 
             const searchInput = document.getElementById('or-search');
             const freeBtn = document.getElementById('or-free-btn');
@@ -153,7 +150,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     const resp = await fetch('/api/openrouter/models');
                     const json = await resp.json();
                     if (json.available === false) {
-                        cfgListState(loadingDiv, { state: 'error', title: json.reason || t('config.common.error'), retry: () => { overlay.remove(); openOpenRouterBrowser(onSelect); } });
+                        cfgListState(loadingDiv, { state: 'error', title: json.reason || t('config.common.error'), retry: () => { closeBrowser(); openOpenRouterBrowser(onSelect); } });
                         return;
                     }
                     allModels = (json.data || []).map(m => ({
@@ -172,7 +169,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                     _orModelsCacheTime = now;
                 }
             } catch (e) {
-                cfgListState(loadingDiv, { state: 'error', title: t('config.openrouter.connection_error') + (e && e.message ? e.message : String(e)), retry: () => { overlay.remove(); openOpenRouterBrowser(onSelect); } });
+                cfgListState(loadingDiv, { state: 'error', title: t('config.openrouter.connection_error') + (e && e.message ? e.message : String(e)), retry: () => { closeBrowser(); openOpenRouterBrowser(onSelect); } });
                 return;
             }
             setHidden(loadingDiv, true);
@@ -283,7 +280,7 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                         architecture: m.architecture || {},
                         supported_parameters: m.supported_parameters || [],
                     });
-                    overlay.remove();
+                    closeBrowser();
                 };
             }
 
@@ -600,10 +597,18 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 allPricing.filter(m => activeNames.has(m.name.toLowerCase())).map(m => m.name)
             );
 
-            const overlay = document.createElement('div');
-            overlay.id = 'pricing-picker-overlay';
+            const existingPicker = document.getElementById('pricing-picker-overlay');
+            if (existingPicker) { closeModal('pricing-picker-overlay'); existingPicker.remove(); }
+            // Opened on top of the provider dialog: the shared modal controller stacks it.
+            document.body.insertAdjacentHTML('beforeend', cfgModal({
+                id: 'pricing-picker-overlay',
+                title: t('config.providers.pricing_picker_title'),
+                size: 'lg',
+                body: '<div id="pricing-picker-content"></div>'
+            }));
+            const overlay = document.getElementById('pricing-picker-overlay');
             overlay._providerOwner = owner;
-            overlay.className = 'prov-pricing-overlay';
+            const closePicker = () => closeModal('pricing-picker-overlay');
 
             function getVisible() {
                 const q = filterQuery.toLowerCase();
@@ -627,10 +632,9 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const selCount = selected.size;
                 const allVisibleSelected = visible.length > 0 && visible.every(m => selected.has(m.name));
 
-                overlay.innerHTML = `
-                    <div class="prov-pricing-panel">
+                overlay.querySelector('#pricing-picker-content').innerHTML = `
+                    <div class="prov-pricing-body">
                         <div class="prov-pricing-head">
-                            <div class="prov-pricing-title">${cfgIcon('download')} ${escapeHtml(t('config.providers.pricing_picker_title'))}</div>
                             <input id="pricing-picker-search" class="field-input" type="search" autocomplete="off"
                                    placeholder="${escapeHtml(t('config.providers.pricing_picker_search'))}"
                                    value="${escapeAttr(filterQuery)}">
@@ -660,8 +664,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                                 ${escapeHtml(t('config.providers.pricing_picker_select_all'))}
                             </label>
                             <div class="prov-pricing-actions">
-                                <button class="btn-save prov-btn-muted prov-btn-xs" onclick="document.getElementById('pricing-picker-overlay').remove()">${escapeHtml(t('config.providers.cancel'))}</button>
-                                <button class="btn-save prov-btn-xs" id="pp-confirm">${escapeHtml(t('config.providers.pricing_picker_import_btn'))}</button>
+                                <button type="button" class="btn-save prov-btn-muted prov-btn-xs" onclick="closeModal('pricing-picker-overlay')">${escapeHtml(t('config.providers.cancel'))}</button>
+                                <button type="button" class="btn-save prov-btn-xs" id="pp-confirm">${escapeHtml(t('config.providers.pricing_picker_import_btn'))}</button>
                             </div>
                         </div>
                     </div>`;
@@ -690,23 +694,22 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
                 const confirmBtn = overlay.querySelector('#pp-confirm');
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', () => {
-                        if (!owner?.isConnected || owner !== document.getElementById('provider-dialog')) { overlay.remove(); return; }
+                        if (!owner?.isConnected || owner !== document.getElementById('provider-dialog')) { closePicker(); return; }
                         const toImport = allPricing.filter(m => selected.has(m.name));
                         for (const p of toImport) {
                             const ex = _provModalModels.find(e => e.name && e.name.toLowerCase() === p.name.toLowerCase());
                             if (ex) { Object.assign(ex, p); }
                             else _provModalModels.push({ ...p });
                         }
-                        overlay.remove();
+                        closePicker();
                         providerRenderModelsTable();
                         showToast(t('config.providers.pricing_fetched', { count: toImport.length }));
                     });
                 }
             }
 
-            // Append to DOM FIRST, then render (so overlay.querySelector works via getElementById fallback)
-            document.body.appendChild(overlay);
             renderPicker();
+            openModal('pricing-picker-overlay', { initialFocus: '#pricing-picker-search', onClose: () => document.getElementById('pricing-picker-overlay')?.remove() });
         }
 
         async function providerFetchPricing() {
@@ -1881,7 +1884,8 @@ const PROVIDER_LIMIT_REFRESH_DELAY_MS = 750;
             // Everything the dialog owns is released once the shared modal controller has closed it.
             function releaseProviderModal() {
                 requests.abort();
-                document.querySelectorAll('.prov-pricing-overlay').forEach(picker => { if (picker._providerOwner === overlay) picker.remove(); });
+                const picker = document.getElementById('pricing-picker-overlay');
+                if (picker && picker._providerOwner === overlay) { closeModal('pricing-picker-overlay'); picker.remove(); }
                 if (copilotPollInterval) {
                     clearInterval(copilotPollInterval);
                     copilotPollInterval = null;

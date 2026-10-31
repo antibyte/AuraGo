@@ -10,7 +10,7 @@ import (
 func TestOllamaConfigModelsFieldIsAnArray(t *testing.T) {
 	source := string(mustReadUIFile(t, "cfg/ollama.js"))
 	const path = `path: 'ollama.managed_instance.default_models'`
-	const kind = `data-type="array"`
+	const kind = `dataType: 'array'`
 	for _, line := range strings.Split(source, "\n") {
 		if strings.Contains(line, path) && strings.Contains(line, kind) {
 			return

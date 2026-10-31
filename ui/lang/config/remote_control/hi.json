@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "प्रति पंक्ति एक पथ; खाली सूची फ़ाइलों तक पहुँच रोकती है।",
   "config.remote_control.allowed_paths_label": "अनुमत पथ",
   "config.remote_control.audit_log_label": "ऑडिट लॉग सक्षम करें",
-  "config.remote_control.auto_approve_label": "नए उपकरणों को स्वचालित रूप से स्वीकृत करें (⚠️ केवल विश्वसनीय नेटवर्क पर)",
   "config.remote_control.devices_desc": "पंजीकृत दूरस्थ उपकरणों की लाइव स्थिति।",
   "config.remote_control.devices_title": "जुड़े उपकरण",
   "config.remote_control.disabled_desc": "इस AuraGo इंस्टेंस से जुड़ने वाले हल्के एजेंट बाइनरी के माध्यम से दूरस्थ उपकरणों को प्रबंधित करने के लिए सक्षम करें।",

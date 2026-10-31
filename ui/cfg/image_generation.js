@@ -8,8 +8,7 @@ function renderImageGenerationSection(section) {
     const key = name => t('config.image_generation.' + name);
 
     // The switch re-renders the section: the provider groups only exist while the feature is on.
-    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'image_generation.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', 'onclick="toggleBool(this);setNestedValue(configData,\'image_generation.enabled\',this.classList.contains(\'on\'));renderImageGenerationSection(null)"');
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'image_generation.enabled', value: enabled, onclick: "toggleBool(this);setNestedValue(configData,'image_generation.enabled',this.classList.contains('on'));renderImageGenerationSection(null)" });
     const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
     let after = '';
 
@@ -22,8 +21,7 @@ function renderImageGenerationSection(section) {
             value: p.id,
             label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + (p.model ? ' — ' + p.model : '')
         })));
-        const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'image_generation.provider', value: curProvider, options: providerOptions })
-            .replace('</select>', configPreservedProviderOptionHTML(curProvider, providers) + '</select>');
+        const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'image_generation.provider', value: curProvider, options: providerOptions, extraOptionsHTML: configPreservedProviderOptionHTML(curProvider, providers) });
         const choices = values => values.map(v => ({ value: v, label: v }));
         groups.push({ title: key('provider_title'), desc: key('provider_desc'), fields: [
             providerSelect,

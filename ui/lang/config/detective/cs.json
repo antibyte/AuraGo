@@ -20,5 +20,6 @@
   "config.detective.help_seconds": "Nejdelší doba běhu jedné úlohy v sekundách (30 až 7200), poté je zastavena.",
   "config.detective.help_tokens": "Dodatečný strop tokenů na úlohu. 0 = bez dodatečného limitu.",
   "config.detective.help_tools": "Maximální počet volání nástrojů na úlohu (1 až 500).",
-  "config.detective.extra_read_invalid": "Tyto řádky se neuloží, protože nemají tvar nástroj: operace, operace. Řádek {lines}."
+  "config.detective.extra_read_invalid_many": "Tyto řádky se neuloží, protože nemají tvar nástroj: operace, operace. Řádky {lines}.",
+  "config.detective.extra_read_invalid_one": "Tento řádek se neuloží, protože nemá tvar nástroj: operace, operace. Řádek {lines}."
 }

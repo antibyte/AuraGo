@@ -101,7 +101,7 @@ func TestConfigWave0ListsLocalesHaveNewKeys(t *testing.T) {
 	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	keys := map[string][]string{
 		"email":    {"load_failed", "load_failed_disabled", "retry", "saved"},
-		"mcp":      {"load_failed", "load_failed_disabled", "retry"},
+		"mcp":      {"load_failed", "load_failed_disabled"},
 		"secrets":  {"key_column", "system_badge", "key_label", "value_label"},
 		"webhooks": {"load_failed", "retry", "not_running_notice", "not_running_desc"},
 	}

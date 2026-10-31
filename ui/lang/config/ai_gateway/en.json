@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway is disabled",
   "config.ai_gateway.status_no_credentials": "Account ID or gateway ID missing",
   "config.ai_gateway.status_ok": "Connected to AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Logging mode",
   "config.ai_gateway.log_mode_metadata_only": "Metadata only",
   "config.ai_gateway.log_mode_off": "Off",

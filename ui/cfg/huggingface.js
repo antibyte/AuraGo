@@ -94,8 +94,7 @@ function huggingFaceText(key, labelKey, helpKey, value) {
 
 // Comma separated list; data-type="array" makes the save path split it.
 function huggingFaceArray(key, labelKey, helpKey, values) {
-    return window.AuraConfigForm.field({ label: t(labelKey), help: t(helpKey), path: 'huggingface.' + key, value: (values || []).join(', ') })
-        .replace('<input ', '<input data-type="array" ');
+    return window.AuraConfigForm.field({ label: t(labelKey), help: t(helpKey), path: 'huggingface.' + key, value: (values || []).join(', '), dataType: 'array' });
 }
 
 async function huggingFaceRefreshStatus() {

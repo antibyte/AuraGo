@@ -3125,34 +3125,39 @@ function showEmbeddingsResetModal(options = {}) {
         const existing = document.getElementById('embeddings-reset-modal');
         if (existing) existing.remove();
 
-        const modal = document.createElement('div');
-        modal.id = 'embeddings-reset-modal';
-        modal.className = 'sec-modal-overlay';
-        modal.innerHTML = `<div class="sec-modal-panel emb-modal-panel">
-            <div class="sec-modal-title emb-modal-title">🧠 ${t('config.embeddings.reset_title')}</div>
-            <div class="sec-modal-desc">${t(postSave ? 'config.embeddings.reset_desc_postsave' : 'config.embeddings.reset_desc')}</div>
-            <ul class="sec-modal-list">
-                <li class="sec-modal-item">${t('config.embeddings.reset_point_vectors')}</li>
-                <li class="sec-modal-item">${t('config.embeddings.reset_point_rebuild')}</li>
-                <li class="sec-modal-item">${t('config.embeddings.reset_point_memories')}</li>
-            </ul>
-            <div class="sec-modal-actions">
-                <button id="embeddings-reset-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('config.embeddings.reset_cancel')}</button>
-                <button id="embeddings-reset-continue" class="sec-modal-btn emb-modal-btn-danger">${t('config.embeddings.reset_continue')}</button>
-            </div>
-        </div>`;
-
+        let settled = false;
         function close(result) {
-            modal.remove();
+            if (settled) return;
+            settled = true;
             resolve(result);
+            closeModal('embeddings-reset-modal');
         }
 
-        modal.addEventListener('click', e => {
-            if (e.target === modal) close(false);
-        });
+        document.body.insertAdjacentHTML('beforeend', cfgModal({
+            id: 'embeddings-reset-modal',
+            title: t('config.embeddings.reset_title'),
+            size: 'sm',
+            body: `<p>${esc(t(postSave ? 'config.embeddings.reset_desc_postsave' : 'config.embeddings.reset_desc'))}</p>
+                <ul>
+                    <li>${esc(t('config.embeddings.reset_point_vectors'))}</li>
+                    <li>${esc(t('config.embeddings.reset_point_rebuild'))}</li>
+                    <li>${esc(t('config.embeddings.reset_point_memories'))}</li>
+                </ul>`,
+            actions: [
+                `<button type="button" id="embeddings-reset-cancel" class="btn-secondary">${esc(t('config.embeddings.reset_cancel'))}</button>`,
+                `<button type="button" id="embeddings-reset-continue" class="btn-danger">${esc(t('config.embeddings.reset_continue'))}</button>`
+            ]
+        }));
+        const modal = document.getElementById('embeddings-reset-modal');
         modal.querySelector('#embeddings-reset-cancel').addEventListener('click', () => close(false));
         modal.querySelector('#embeddings-reset-continue').addEventListener('click', () => close(true));
-        document.body.appendChild(modal);
+        openModal('embeddings-reset-modal', {
+            initialFocus: '#embeddings-reset-cancel',
+            onClose: () => {
+                if (!settled) { settled = true; resolve(false); }
+                modal.remove();
+            }
+        });
     });
 }
 
@@ -3559,29 +3564,23 @@ function showSecurityModal(critFixable) {
 
     const ids = critFixable.map(h => h.id);
     const itemsHtml = critFixable.map(h =>
-        `<li class="sec-modal-item">⚠ ${esc(h.title)}</li>`
+        `<li>${esc(h.title)}</li>`
     ).join('');
 
-    const modal = document.createElement('div');
-    modal.id = 'sec-harden-modal';
-    modal.className = 'sec-modal-overlay';
-    modal.innerHTML = `<div class="sec-modal-panel">
-        <div class="sec-modal-title">🔒 ${t('config.security.modal.title')}</div>
-        <div class="sec-modal-desc">${t('config.security.modal.desc')}</div>
-        <ul class="sec-modal-list">${itemsHtml}</ul>
-        <div class="sec-modal-actions">
-            <button id="sec-modal-skip" class="sec-modal-btn sec-modal-btn-skip">
-                ${t('config.security.modal.later')}
-            </button>
-            <button id="sec-modal-apply" class="sec-modal-btn sec-modal-btn-apply">
-                🔧 ${t('config.security.modal.apply')}
-            </button>
-        </div>
-    </div>`;
+    document.body.insertAdjacentHTML('beforeend', cfgModal({
+        id: 'sec-harden-modal',
+        title: t('config.security.modal.title'),
+        size: 'sm',
+        body: `<p>${esc(t('config.security.modal.desc'))}</p><ul>${itemsHtml}</ul>`,
+        actions: [
+            `<button type="button" id="sec-modal-skip" class="btn-secondary">${esc(t('config.security.modal.later'))}</button>`,
+            `<button type="button" id="sec-modal-apply" class="btn-save">${esc(t('config.security.modal.apply'))}</button>`
+        ]
+    }));
+    const modal = document.getElementById('sec-harden-modal');
+    openModal('sec-harden-modal', { initialFocus: '#sec-modal-skip', onClose: () => modal.remove() });
 
-    document.body.appendChild(modal);
-
-    modal.querySelector('#sec-modal-skip').addEventListener('click', () => modal.remove());
+    modal.querySelector('#sec-modal-skip').addEventListener('click', () => closeModal('sec-harden-modal'));
     modal.querySelector('#sec-modal-apply').addEventListener('click', async () => {
         const applyBtn = modal.querySelector('#sec-modal-apply');
         applyBtn.disabled = true;
@@ -3592,7 +3591,7 @@ function showSecurityModal(critFixable) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids })
             });
-            modal.remove();
+            closeModal('sec-harden-modal');
             if (resp.ok) {
                 // Refresh UI for the currently visible section
                 if (typeof renderWebConfigSection === 'function') {
@@ -3602,7 +3601,7 @@ function showSecurityModal(critFixable) {
                     }
                 }
             }
-        } catch (_) { modal.remove(); }
+        } catch (_) { closeModal('sec-harden-modal'); }
     });
 }
 

@@ -13,8 +13,7 @@ async function renderDocumentCreatorSection(section) {
     const key = name => t('config.document_creator.' + name);
 
     // The switch re-renders the section: the backend settings only exist while the feature is on.
-    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'tools.document_creator.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);dcUpdateEnabled(this.classList.contains('on'))"`);
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'tools.document_creator.enabled', value: enabled, onclick: "toggleBool(this);dcUpdateEnabled(this.classList.contains('on'))" });
     const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
     let after = '';
 

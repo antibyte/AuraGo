@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "Zapisz zmiany przed wykonaniem testu.",
   "config.document_creator.seconds": "sekund",
   "config.document_creator.status_error": "Sprawdzenie usługi Gotenberg nie powiodło się.",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "Usługa zdegradowana",
   "config.document_creator.test_fail": "Połączenie nieudane",
   "config.document_creator.test_gotenberg": "Testuj połączenie",

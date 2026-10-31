@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "En sökväg per rad; en tom lista blockerar filåtkomst.",
   "config.remote_control.allowed_paths_label": "Tillåtna sökvägar",
   "config.remote_control.audit_log_label": "Aktivera granskningslogg",
-  "config.remote_control.auto_approve_label": "Godkänn nya enheter automatiskt (⚠️ bara på betrodda nätverk)",
   "config.remote_control.devices_desc": "Livestatus för registrerade fjärrenheter.",
   "config.remote_control.devices_title": "Anslutna enheter",
   "config.remote_control.disabled_desc": "Aktivera för att hantera fjärrenheter via enkla agentbinärer som ansluter till denna AuraGo-instans.",

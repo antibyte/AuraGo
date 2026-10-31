@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Den reflexe",
   "config.memory_analysis.reflection_desc": "Generuje týdenní shrnutí analyzující paměťové vzorce, rozpory a mezery ve znalostech.",
   "config.memory_analysis.reflection_label": "Týdenní reflexe aktivována:",
-  "config.memory_analysis.reflection_title": "Týdenní reflexe",
   "config.memory_analysis.select_provider": "— Hlavní LLM (výchozí) —",
   "config.memory_analysis.threshold_desc": "Práh důvěry (0.0–1.0), nad kterým jsou extrahované vzpomínky uloženy automaticky bez potvrzení uživatele. Nižší hodnoty ukládají agresivněji.",
   "config.memory_analysis.threshold_label": "Práh",

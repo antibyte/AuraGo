@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Dia de reflexão",
   "config.memory_analysis.reflection_desc": "Gera um resumo semanal analisando padrões de memória, contradições e lacunas de conhecimento.",
   "config.memory_analysis.reflection_label": "Reflexão semanal ativada:",
-  "config.memory_analysis.reflection_title": "Reflexão semanal",
   "config.memory_analysis.select_provider": "— LLM principal (padrão) —",
   "config.memory_analysis.threshold_desc": "Limite de confiança (0,0–1,0) acima do qual as memórias extraídas são armazenadas automaticamente sem confirmação do usuário. Valores mais baixos são armazenados de forma mais agressiva.",
   "config.memory_analysis.threshold_label": "Limiar",

@@ -68,7 +68,7 @@ func TestSecretsSectionShowsUnknownVaultStatusBrowser(t *testing.T) {
 			return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
 		};
 	}`)
-	for _, helper := range []string{"js/config/icons.js", "js/config/components.js"} {
+	for _, helper := range []string{"js/precision/icons.js", "js/config/icons.js", "js/config/components.js"} {
 		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, helper))); err != nil {
 			t.Fatalf("load config helper %s: %v", helper, err)
 		}

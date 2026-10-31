@@ -42,26 +42,26 @@ const original=window.fetch;window.fetch=(url,options={})=>{
  return original(url,options);
 };
 }`)
-	waitForJSBool(t, page, `()=>!!document.querySelector('#dc-allow-remote-resources')`)
-	if !page.MustEval(`()=>document.querySelector('#dc-allow-remote-resources').checked===false`).Bool() {
+	waitForJSBool(t, page, `()=>!!document.querySelector('[data-path="tools.document_creator.allow_remote_resources"]')`)
+	if !page.MustEval(`()=>!document.querySelector('[data-path="tools.document_creator.allow_remote_resources"]').classList.contains('on')`).Bool() {
 		t.Fatal("remote resources were enabled by default")
 	}
-	page.MustElement("#dc-allow-remote-resources").MustClick()
+	page.MustEval(`()=>document.querySelector('[data-path="tools.document_creator.allow_remote_resources"]').click()`)
 	if !page.MustEval(`()=>AuraConfigState.get('tools.document_creator.allow_remote_resources')===true&&typeof AuraConfigState.buildPatch().tools.document_creator.allow_remote_resources==='boolean'`).Bool() {
-		t.Fatal("checkbox did not produce a boolean draft")
+		t.Fatal("switch did not produce a boolean draft")
 	}
 	page.MustEval(`async()=>await dcTestGotenberg()`)
 	if !page.MustEval(`()=>window.dcTests===1&&window.dcBody.draft.tools.document_creator.allow_remote_resources===true&&window.dcBody.draft.tools.document_creator.gotenberg.url==='http://127.0.0.1:3000'`).Bool() {
 		t.Fatal("the test did not send the unsaved draft")
 	}
 	page.MustEval(`()=>{AuraConfigState.discard();}`)
-	if !page.MustEval(`()=>document.querySelector('#dc-allow-remote-resources').checked===false`).Bool() {
-		t.Fatal("discard did not restore the checkbox")
+	if !page.MustEval(`()=>!document.querySelector('[data-path="tools.document_creator.allow_remote_resources"]').classList.contains('on')`).Bool() {
+		t.Fatal("discard did not restore the switch")
 	}
-	page.MustElement("#dc-allow-remote-resources").MustClick()
+	page.MustEval(`()=>document.querySelector('[data-path="tools.document_creator.allow_remote_resources"]').click()`)
 	page.MustEval(`()=>{const sent=AuraConfigState.snapshot().draft;AuraConfigState.commitSent(sent,sent);resetDirtySnapshot();}`)
-	if !page.MustEval(`()=>AuraConfigState.get('tools.document_creator.allow_remote_resources',{saved:true})===true&&document.querySelector('#dc-allow-remote-resources').checked===true`).Bool() {
-		t.Fatal("saved checkbox was lost")
+	if !page.MustEval(`()=>AuraConfigState.get('tools.document_creator.allow_remote_resources',{saved:true})===true&&document.querySelector('[data-path="tools.document_creator.allow_remote_resources"]').classList.contains('on')`).Bool() {
+		t.Fatal("saved switch was lost")
 	}
 	for _, state := range []struct {
 		value string

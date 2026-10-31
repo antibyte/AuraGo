@@ -9,7 +9,7 @@ function renderMeshCoreSection(section) {
     const helpFor = key => tOr('config.meshcore.' + key + '_help', '');
     const field = (key, options = {}) => form.field({ path: 'meshcore.' + key, label: tr(key), help: helpFor(key), value: data[key] || '', ...options });
     const toggle = key => form.toggle({ path: 'meshcore.' + key, label: tr(key), help: helpFor(key), value: data[key] === true });
-    const list = key => form.textarea({ path: 'meshcore.' + key, label: tr(key), help: tr('keys_help'), value: (data[key] || []).join('\n') }).replace('<textarea ', '<textarea data-type="array-lines" ');
+    const list = key => form.textarea({ path: 'meshcore.' + key, label: tr(key), help: tr('keys_help'), value: (data[key] || []).join('\n'), dataType: 'array-lines' });
     const limits = { max_command_age_seconds: [600, 86400], future_tolerance_seconds: [120, 3600], retention_days: [7, 90], max_messages: [1000, 10000], peer_runs_per_minute: [2, 60], runs_per_minute: [12, 120] };
     document.getElementById('content').innerHTML = form.renderSpec({ label: section.label, desc: section.desc,
         beforeHTML: '<div class="meshcore-intro">' + form.note({ text: tr('security') }) + '<div id="meshcore-status" class="pw-status" role="status" aria-live="polite"></div></div>',

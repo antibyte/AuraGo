@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "One per line; an empty list denies file access.",
   "config.remote_control.allowed_paths_label": "Allowed paths",
   "config.remote_control.audit_log_label": "Enable audit log",
-  "config.remote_control.auto_approve_label": "Auto-approve new devices (⚠️ only on trusted networks)",
   "config.remote_control.devices_desc": "Live status of enrolled remote devices.",
   "config.remote_control.devices_title": "Connected Devices",
   "config.remote_control.disabled_desc": "Enable to manage remote devices via lightweight agent binaries that connect to this AuraGo instance.",

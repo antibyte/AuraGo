@@ -39,8 +39,7 @@ function ccCfgEnsureData() {
 }
 
 function ccCfgToggleRow(labelKey, helpKey, on, path, handler) {
-    return window.AuraConfigForm.toggle({ label: t(labelKey), help: helpKey ? tOr(helpKey, '') : '', path, value: on })
-        .replace('onclick="toggleBool(this)"', 'onclick="' + (handler || "ccCfgToggleValue(this, '" + path + "')") + '"');
+    return window.AuraConfigForm.toggle({ label: t(labelKey), help: helpKey ? tOr(helpKey, '') : '', path, value: on, onclick: handler || "ccCfgToggleValue(this, '" + path + "')" });
 }
 
 function ccCfgNumber(labelKey, helpKey, path, value, min, max, step) {

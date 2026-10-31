@@ -35,7 +35,7 @@ func TestConfigAgentMailAllowedSendersFieldAndTranslations(t *testing.T) {
 	for _, marker := range []string{
 		"agentMailAllowedSendersField(data.allowed_senders)",
 		"path: 'agentmail.allowed_senders'",
-		`data-type="array-lines"`,
+		`dataType: 'array-lines'`,
 		"config.agentmail.allowed_senders_label",
 		"help.agentmail.allowed_senders",
 	} {

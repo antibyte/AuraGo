@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "परीक्षण से पहले अपने बदलाव सहेजो।",
   "config.document_creator.seconds": "सेकंड",
   "config.document_creator.status_error": "Gotenberg की जाँच विफल रही।",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "सेवा क्षीण",
   "config.document_creator.test_fail": "कनेक्शन विफल",
   "config.document_creator.test_gotenberg": "कनेक्शन परीक्षण",

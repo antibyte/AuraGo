@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway अक्षम है",
   "config.ai_gateway.status_no_credentials": "खाता ID या गेटवे ID गायब है",
   "config.ai_gateway.status_ok": "AI Gateway से जुड़ा",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "लॉग मोड",
   "config.ai_gateway.log_mode_metadata_only": "केवल मेटाडेटा",
   "config.ai_gateway.log_mode_off": "बंद",

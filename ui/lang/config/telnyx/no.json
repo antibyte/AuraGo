@@ -40,8 +40,6 @@
   "config.telnyx.status_disabled": "Telnyx-integrasjon er deaktivert",
   "config.telnyx.status_no_credentials": "Telnyx API-nøkkel mangler",
   "config.telnyx.status_ok": "Koblet til Telnyx",
-  "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌",
   "help.telnyx.voice_language": "Standard språkkode som brukes for Telnyx-stemmebeskjeder og anropstranskripsjon.",
   "config.telnyx.voice_gender_help": "Stemmen agenten bruker i telefonsamtaler.",
   "config.telnyx.max_concurrent_calls_help": "Hvor mange samtaler som kan pågå samtidig (1-20, standard 3). Flere samtaler avvises.",

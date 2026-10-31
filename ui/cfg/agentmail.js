@@ -64,8 +64,9 @@ function agentMailAllowedSendersField(senders) {
         path: 'agentmail.allowed_senders',
         value: Array.isArray(senders) ? senders.join('\n') : '',
         rows: 4,
-        placeholder: 'anna@example.com\n@partner.example'
-    }).replace('<textarea ', '<textarea data-type="array-lines" ');
+        placeholder: 'anna@example.com\n@partner.example',
+        dataType: 'array-lines'
+    });
 }
 
 function agentMailCheatsheetSelect(selectedID) {

@@ -15,7 +15,6 @@
   "config.document_creator.save_before_test": "Před testem ulož změny.",
   "config.document_creator.seconds": "sekund",
   "config.document_creator.status_error": "Kontrola služby Gotenberg selhala.",
-  "config.document_creator.status_success": "✅",
   "config.document_creator.test_degraded": "Služba degradována",
   "config.document_creator.test_fail": "Připojení selhalo",
   "config.document_creator.test_gotenberg": "Otestovat připojení",

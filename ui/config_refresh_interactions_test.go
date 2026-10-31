@@ -92,9 +92,7 @@ func TestConfigRefreshSIPStepsBrowser(t *testing.T) {
 	waitForJSBool(t, page, `() => !!document.querySelector('[data-sip-wizard-field="registrar"]')`)
 	page.MustEval(`() => {const el=document.querySelector('[data-sip-wizard-field="registrar"]'); el.value=''; el.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	page.MustElement(`[data-sip-wizard="calling"]`).MustClick()
-	if !page.MustEval(`() => document.activeElement.dataset.sipWizardField==='registrar' && document.activeElement.getAttribute('aria-invalid')==='true'`).Bool() {
-		t.Fatal("SIP validation did not focus the missing field")
-	}
+	waitForJSBool(t, page, `() => document.activeElement.dataset.sipWizardField==='registrar' && document.activeElement.getAttribute('aria-invalid')==='true'`)
 	page.MustEval(`() => {const el=document.querySelector('[data-sip-wizard-field="registrar"]'); el.value='sip.fixture.invalid'; el.dispatchEvent(new Event('input',{bubbles:true}));}`)
 	for _, width := range []int{390, 768, 1024, 1440, 1920} {
 		page.MustSetViewport(width, 900, 1, false)

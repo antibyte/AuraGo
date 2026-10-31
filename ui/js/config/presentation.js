@@ -58,7 +58,7 @@
             }
         });
         // Let the existing workspace controller own trapping and restoring dialog focus.
-        scope.querySelectorAll('[class*="modal-overlay"], .prov-or-overlay, .prov-pricing-overlay').forEach(overlay => {
+        scope.querySelectorAll('[class*="modal-overlay"]').forEach(overlay => {
             if (overlay.hasAttribute('role') || overlay.querySelector('[role="dialog"]')) return;
             const heading = overlay.querySelector('[class*="modal-title"], h1, h2, h3');
             if (!heading) return;

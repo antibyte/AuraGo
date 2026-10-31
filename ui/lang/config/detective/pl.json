@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Maksymalna liczba wywołań narzędzi na zadanie (od 1 do 500).",
   "config.detective.help_iterations": "Maksymalna liczba rund rozumowania i pracy na zadanie (od 1 do 750).",
   "config.detective.help_tokens": "Dodatkowy limit tokenów na zadanie. 0 = bez dodatkowego limitu.",
-  "config.detective.extra_read_invalid": "Te wiersze nie zostaną zapisane, ponieważ nie mają postaci narzędzie: operacja, operacja. Wiersz {lines}."
+  "config.detective.extra_read_invalid_many": "Te wiersze nie zostaną zapisane, ponieważ nie mają postaci narzędzie: operacja, operacja. Wiersze {lines}.",
+  "config.detective.extra_read_invalid_one": "Ten wiersz nie zostanie zapisany, ponieważ nie ma postaci narzędzie: operacja, operacja. Wiersz {lines}."
 }

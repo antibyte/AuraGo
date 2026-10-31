@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Eén pad per regel; een lege lijst blokkeert bestandstoegang.",
   "config.remote_control.allowed_paths_label": "Toegestane paden",
   "config.remote_control.audit_log_label": "Auditlogboek inschakelen",
-  "config.remote_control.auto_approve_label": "Nieuwe apparaten automatisch goedkeuren (⚠️ alleen op vertrouwde netwerken)",
   "config.remote_control.devices_desc": "Live status van geregistreerde externe apparaten.",
   "config.remote_control.devices_title": "Verbonden apparaten",
   "config.remote_control.disabled_desc": "Schakel in om externe apparaten te beheren via lichtgewicht agent-binaries die verbinding maken met deze AuraGo-instantie.",

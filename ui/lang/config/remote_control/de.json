@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Ein Pfad pro Zeile; eine leere Liste sperrt den Dateizugriff.",
   "config.remote_control.allowed_paths_label": "Erlaubte Pfade",
   "config.remote_control.audit_log_label": "Audit-Log aktivieren",
-  "config.remote_control.auto_approve_label": "Neue Geräte automatisch genehmigen (⚠️ nur in vertrauenswürdigen Netzwerken)",
   "config.remote_control.devices_desc": "Live-Status der registrierten Remote-Geräte.",
   "config.remote_control.devices_title": "Verbundene Geräte",
   "config.remote_control.disabled_desc": "Aktivieren, um entfernte Geräte über leichtgewichtige Agent-Binaries zu verwalten, die sich mit dieser AuraGo-Instanz verbinden.",

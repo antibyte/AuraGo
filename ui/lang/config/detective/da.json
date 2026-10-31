@@ -20,5 +20,6 @@
   "config.detective.help_seconds": "Længste køretid for ét job i sekunder (30 til 7200), hvorefter det stoppes.",
   "config.detective.help_tokens": "Yderligere loft for tokens pr. job. 0 = ingen yderligere grænse.",
   "config.detective.help_tools": "Maksimalt antal værktøjskald pr. job (1 til 500).",
-  "config.detective.extra_read_invalid": "Disse linjer bliver ikke gemt, fordi de ikke har formen værktøj: handling, handling. Linje {lines}."
+  "config.detective.extra_read_invalid_many": "Disse linjer bliver ikke gemt, fordi de ikke har formen værktøj: handling, handling. Linjer {lines}.",
+  "config.detective.extra_read_invalid_one": "Denne linje bliver ikke gemt, fordi den ikke har formen værktøj: handling, handling. Linje {lines}."
 }

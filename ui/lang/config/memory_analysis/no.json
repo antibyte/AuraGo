@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Refleksjonsdag",
   "config.memory_analysis.reflection_desc": "Genererer et ukentlig sammendrag som analyserer minnemønstre, motsetninger og kunnskapshull.",
   "config.memory_analysis.reflection_label": "Ukentlig refleksjon aktivert:",
-  "config.memory_analysis.reflection_title": "Ukentlig refleksjon",
   "config.memory_analysis.select_provider": "— Hoved-LLM (standard) —",
   "config.memory_analysis.threshold_desc": "Konfidensterskel (0.0–1.0) over hvilken uthentede minner lagres automatisk uten brukerbekreftelse. Lavere verdier lagrer mer aggressivt.",
   "config.memory_analysis.threshold_label": "Terskel",

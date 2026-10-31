@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Ημέρα αναστοχασμού",
   "config.memory_analysis.reflection_desc": "Δημιουργεί μια εβδομαδιαία σύνοψη που αναλύει μοτίβα μνήμης, αντιφάσεις και κενά γνώσης.",
   "config.memory_analysis.reflection_label": "Εβδομαδιαίος αναστοχασμός ενεργοποιημένος:",
-  "config.memory_analysis.reflection_title": "Εβδομαδιαία αναστοχασμός",
   "config.memory_analysis.select_provider": "— Κύριο LLM (προεπιλογή) —",
   "config.memory_analysis.threshold_desc": "Κατώφλι εμπιστοσύνης (0.0–1.0) πάνω από το οποίο οι εξαγόμενες αναμνήσεις αποθηκεύονται αυτόματα χωρίς επιβεβαίωση χρήστη. Χαμηλότερες τιμές αποθηκεύουν πιο επιθετικά.",
   "config.memory_analysis.threshold_label": "Κατώφλι",

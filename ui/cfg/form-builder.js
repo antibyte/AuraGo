@@ -20,6 +20,13 @@
         return options.helpKey ? t(options.helpKey) : '';
     }
 
+    // Optional hooks shared by the text controls: data-type (save-path conversion), onchange handler, readonly.
+    function controlHooks(options) {
+        return (options.dataType ? ' data-type="' + attr(options.dataType) + '"' : '')
+            + (options.onchange ? ' onchange="' + attr(options.onchange) + '"' : '')
+            + (options.readonly ? ' readonly' : '');
+    }
+
     function fieldShell(options, controlHTML) {
         const help = helpText(options);
         const extraClass = options.groupClass ? ' ' + attr(options.groupClass) : '';
@@ -57,16 +64,17 @@
         // URLs: no autocapitalise/spellcheck; the browser's own form validation stays out of the way (E14 validates inline).
         const urlAttrs = type === 'url' ? ' inputmode="url" autocomplete="off" spellcheck="false"' : '';
         return fieldShell(options,
-            '<input class="' + css.trim() + '" type="' + attr(type) + '"' + id + urlAttrs
+            '<input class="' + css.trim() + '" type="' + attr(type) + '"' + id + urlAttrs + controlHooks(options)
             + ' data-path="' + attr(options.path || '') + '" value="' + attr(value) + '" placeholder="' + attr(placeholder) + '">');
     }
 
     function toggle(options) {
         options = options || {};
         const on = options.value === true;
+        // onclick replaces the default handler (it should call toggleBool(this) itself when it needs the draft update).
         return fieldShell(options,
             '<div class="toggle-wrap">'
-            + '<div class="toggle' + (on ? ' on' : '') + '" data-path="' + attr(options.path || '') + '" onclick="toggleBool(this)"></div>'
+            + '<div class="toggle' + (on ? ' on' : '') + '" data-path="' + attr(options.path || '') + '" onclick="' + attr(options.onclick || 'toggleBool(this)') + '"></div>'
             + '<span class="toggle-label">' + html(on ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>'
             + '</div>');
     }
@@ -77,10 +85,9 @@
         const rendered = (options.options || []).map(option => {
             const value = option.value != null ? String(option.value) : '';
             return '<option value="' + attr(value) + '"' + (value === selected ? ' selected' : '') + '>' + html(option.label) + '</option>';
-        }).join('');
-        const onChange = options.onchange ? ' onchange="' + attr(options.onchange) + '"' : '';
+        }).join('') + (options.extraOptionsHTML || '');
         return fieldShell(options,
-            '<select class="field-select" data-path="' + attr(options.path || '') + '"' + onChange + '>' + rendered + '</select>');
+            '<select class="field-select" data-path="' + attr(options.path || '') + '"' + controlHooks(options) + '>' + rendered + '</select>');
     }
 
     function textarea(options) {
@@ -88,7 +95,7 @@
         const value = options.value != null ? options.value : '';
         const rows = options.rows || 4;
         return fieldShell(options,
-            '<textarea class="field-input" data-path="' + attr(options.path || '') + '" rows="' + attr(rows) + '" placeholder="' + attr(options.placeholder || '') + '">' + html(value) + '</textarea>');
+            '<textarea class="field-input" data-path="' + attr(options.path || '') + '"' + controlHooks(options) + ' rows="' + attr(rows) + '" placeholder="' + attr(options.placeholder || '') + '">' + html(value) + '</textarea>');
     }
 
     function password(options) {
@@ -111,7 +118,7 @@
 
     function number(options) {
         options = Object.assign({}, options, { type: 'number' });
-        let control = '<input class="field-input" type="number" data-path="' + attr(options.path || '') + '" value="' + attr(options.value != null ? options.value : '') + '"';
+        let control = '<input class="field-input" type="number" data-path="' + attr(options.path || '') + '"' + controlHooks(options) + ' value="' + attr(options.value != null ? options.value : '') + '"';
         if (options.min != null) control += ' min="' + attr(options.min) + '"';
         if (options.max != null) control += ' max="' + attr(options.max) + '"';
         if (options.step != null) control += ' step="' + attr(options.step) + '"';
@@ -345,6 +352,7 @@
         // Every declared topic owns its padding in one body, including legacy
         // renderers. Move existing nodes so values, IDs and listeners survive.
         function normalizeBodies() {
+            const focused = document.activeElement;
             root.querySelectorAll('.cfg-topic').forEach(card => {
                 if (card.querySelector(':scope > .pw-panel-body')) return;
                 const body = document.createElement('div');
@@ -355,6 +363,10 @@
                 });
                 card.append(body);
             });
+            // Moving nodes blurs the field a renderer just focused; give focus back.
+            if (focused && focused !== document.body && focused !== document.activeElement && focused.isConnected && root.contains(focused)) {
+                focused.focus({ preventScroll: true });
+            }
         }
     }
 

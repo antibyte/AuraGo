@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Un chemin par ligne ; une liste vide interdit l’accès aux fichiers.",
   "config.remote_control.allowed_paths_label": "Chemins autorisés",
   "config.remote_control.audit_log_label": "Activer le journal d'audit",
-  "config.remote_control.auto_approve_label": "Approuver automatiquement les nouveaux appareils (⚠️ uniquement sur les réseaux de confiance)",
   "config.remote_control.devices_desc": "État en direct des appareils distants enregistrés.",
   "config.remote_control.devices_title": "Appareils connectés",
   "config.remote_control.disabled_desc": "Activez pour gérer les appareils distants via des binaires agents légers qui se connectent à cette instance AuraGo.",

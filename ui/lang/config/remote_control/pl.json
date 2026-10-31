@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Jedna ścieżka w wierszu; pusta lista blokuje dostęp do plików.",
   "config.remote_control.allowed_paths_label": "Dozwolone ścieżki",
   "config.remote_control.audit_log_label": "Włącz dziennik audytu",
-  "config.remote_control.auto_approve_label": "Automatycznie zatwierdzaj nowe urządzenia (⚠️ tylko w zaufanych sieciach)",
   "config.remote_control.devices_desc": "Status na żywo zarejestrowanych urządzeń zdalnych.",
   "config.remote_control.devices_title": "Podłączone urządzenia",
   "config.remote_control.disabled_desc": "Włącz, aby zarządzać zdalnymi urządzeniami za pomocą lekkich plików binarnych agenta łączących się z tą instancją AuraGo.",

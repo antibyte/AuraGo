@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "振り返り曜日",
   "config.memory_analysis.reflection_desc": "メモリパターン、矛盾、知識のギャップを分析する週次サマリーを生成します。",
   "config.memory_analysis.reflection_label": "週次振り返り有効:",
-  "config.memory_analysis.reflection_title": "週次振り返り",
   "config.memory_analysis.select_provider": "— メインLLM（デフォルト） —",
   "config.memory_analysis.threshold_desc": "信頼度しきい値（0.0–1.0）。これを超えると、抽出された記憶はユーザーの確認なしに自動的に保存されます。",
   "config.memory_analysis.threshold_label": "しきい値",

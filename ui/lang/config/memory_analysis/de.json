@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Reflexionstag",
   "config.memory_analysis.reflection_desc": "Erstellt eine wöchentliche Zusammenfassung, die Gedächtnismuster, Widersprüche und Wissenslücken analysiert.",
   "config.memory_analysis.reflection_label": "Wöchentliche Reflexion aktiviert:",
-  "config.memory_analysis.reflection_title": "Wöchentliche Reflexion",
   "config.memory_analysis.select_provider": "— Haupt-LLM (Standard) —",
   "config.memory_analysis.threshold_desc": "Konfidenzschwelle (0.0–1.0), ab der extrahierte Erinnerungen automatisch ohne Nutzerbestätigung gespeichert werden. Niedrigere Werte speichern aggressiver.",
   "config.memory_analysis.threshold_label": "Schwellenwert",

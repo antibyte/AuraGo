@@ -37,8 +37,7 @@ async function renderVideoDownloadSection(section) {
     const toggle = (name, helpKey, on, path) => form.toggle({ label: key(name + '_label'), help: t('help.video_download.' + helpKey), path, value: on });
 
     // The switch re-renders the section: the download settings only exist while the feature is on.
-    const enableToggle = form.toggle({ label: key('enabled_label'), help: t('help.video_download.enabled'), path: 'tools.video_download.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);vdUpdateEnabled(this.classList.contains('on'))"`);
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: t('help.video_download.enabled'), path: 'tools.video_download.enabled', value: enabled, onclick: "toggleBool(this);vdUpdateEnabled(this.classList.contains('on'))" });
     const operation = [enableToggle, toggle('send_enabled', 'send_enabled', send.enabled !== false, 'tools.send_youtube_video.enabled')];
     const groups = [{ titleKey: 'config.refresh.operation', fields: operation }];
     let after = '';

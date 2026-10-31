@@ -40,8 +40,6 @@
   "config.telnyx.status_disabled": "Integracja Telnyx jest wyłączona",
   "config.telnyx.status_no_credentials": "Brak klucza API Telnyx",
   "config.telnyx.status_ok": "Połączono z Telnyx",
-  "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌",
   "help.telnyx.voice_language": "Domyślny kod języka używany dla komunikatów głosowych Telnyx i transkrypcji połączeń.",
   "config.telnyx.voice_gender_help": "Głos, którym agent mówi podczas rozmów telefonicznych.",
   "config.telnyx.max_concurrent_calls_help": "Ile rozmów może trwać jednocześnie (1-20, domyślnie 3). Kolejne są odrzucane.",

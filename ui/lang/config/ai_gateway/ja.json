@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gatewayは無効です",
   "config.ai_gateway.status_no_credentials": "アカウントIDまたはゲートウェイIDがありません",
   "config.ai_gateway.status_ok": "AI Gatewayに接続済み",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "ログモード",
   "config.ai_gateway.log_mode_metadata_only": "メタデータのみ",
   "config.ai_gateway.log_mode_off": "オフ",

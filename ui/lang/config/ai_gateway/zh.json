@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "AI Gateway 已禁用",
   "config.ai_gateway.status_no_credentials": "缺少账户 ID 或网关 ID",
   "config.ai_gateway.status_ok": "已连接到 AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "日志模式",
   "config.ai_gateway.log_mode_metadata_only": "仅元数据",
   "config.ai_gateway.log_mode_off": "关闭",

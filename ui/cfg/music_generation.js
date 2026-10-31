@@ -18,8 +18,7 @@ function renderMusicGenerationSection(section) {
     const key = name => t('config.music_gen.' + name);
 
     // The switch re-renders the section: the provider groups only exist while the feature is on.
-    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'music_generation.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', `onclick="toggleBool(this);setNestedValue(configData,'music_generation.enabled',this.classList.contains('on'));renderMusicGenerationSection(null)"`);
+    const enableToggle = form.toggle({ label: key('enabled_label'), help: key('enabled_help'), path: 'music_generation.enabled', value: enabled, onclick: "toggleBool(this);setNestedValue(configData,'music_generation.enabled',this.classList.contains('on'));renderMusicGenerationSection(null)" });
     const groups = [{ titleKey: 'config.refresh.operation', fields: [enableToggle] }];
     let after = '';
     const curProvider = cfg.provider || '';
@@ -38,8 +37,9 @@ function renderMusicGenerationSection(section) {
         })));
         const providerSelect = form.select({
             label: key('provider_label'), help: key('provider_help'), path: 'music_generation.provider', value: curProvider, options: providerOptions,
-            onchange: "setNestedValue(configData,'music_generation.provider',this.value);renderMusicGenerationSection(null)"
-        }).replace('</select>', configPreservedProviderOptionHTML(curProvider, providers) + '</select>');
+            onchange: "setNestedValue(configData,'music_generation.provider',this.value);renderMusicGenerationSection(null)",
+            extraOptionsHTML: configPreservedProviderOptionHTML(curProvider, providers)
+        });
         const providerFields = [providerSelect];
         if (!local) providerFields.push(form.field({ label: key('model_label'), help: key('model_hint'), path: 'music_generation.model', value: cfg.model || '', placeholder: 'music-2.5+, lyria-3-clip-preview...' }));
         groups.push({ title: key('provider_label'), desc: key('provider_desc'), fields: providerFields });

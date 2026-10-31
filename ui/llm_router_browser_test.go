@@ -135,7 +135,7 @@ func TestLLMRouterConfigBrowser(t *testing.T) {
 		t.Fatal("saved Decisions route missing")
 	}
 	page.MustEval(`()=>document.querySelector('[data-classifier="decisions"]').click()`)
-	waitForJSBool(t, page, `()=>routerCalls.length===4 && document.querySelector('[role="status"]').textContent.includes('Decisions')`)
+	waitForJSBool(t, page, `()=>routerCalls.length===4 && document.querySelector('[role="status"]').textContent.includes(t('common.llm_router.source_decisions'))`)
 	if !page.MustEval(`()=>routerCalls[3].classifier==='decisions' && routerCalls[3].helper===false`).Bool() {
 		t.Fatal("Decisions preview selected another classifier")
 	}

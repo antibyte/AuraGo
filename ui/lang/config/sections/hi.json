@@ -198,7 +198,6 @@
   "config.section.optimizations.group.background_tasks": "🔄 पृष्ठभूमि प्रसंस्करण",
   "config.section.optimizations.group.safety_limits": "🛡️ सुरक्षा सीमाएं और पुनर्प्राप्ति",
   "config.section.optimizations.group.token_context": "📊 टोकन और संदर्भ",
-  "config.section.optimizations.group.tool_optimization": "🔧 टूल अनुकूलन",
   "config.section.optimizations.label": "अनुकूलन",
   "config.section.paperless_ngx.desc": "Paperless-ngx जोड़ता है ताकि एजेंट दस्तावेज़ खोज और प्रबंधित कर सके।",
   "config.section.paperless_ngx.label": "Paperless-ngx",

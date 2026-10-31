@@ -25,6 +25,7 @@ heartbeat
 here_now
 homepage
 indexing
+kaggle
 llm_guardian
 llm_router
 local_llm

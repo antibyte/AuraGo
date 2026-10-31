@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "1行に1つのパス。空のリストではファイルへのアクセスを許可しません。",
   "config.remote_control.allowed_paths_label": "許可されたパス",
   "config.remote_control.audit_log_label": "監査ログを有効にする",
-  "config.remote_control.auto_approve_label": "新しいデバイスを自動承認（⚠️ 信頼できるネットワークのみ）",
   "config.remote_control.devices_desc": "登録済みリモートデバイスのライブステータス。",
   "config.remote_control.devices_title": "接続済みデバイス",
   "config.remote_control.disabled_desc": "このAuraGoインスタンスに接続する軽量エージェントバイナリでリモートデバイスを管理するには有効にしてください。",

@@ -37,7 +37,6 @@
   "config.memory_analysis.reflection_day_label": "Reflektionsdag",
   "config.memory_analysis.reflection_desc": "Genererar en veckosammanfattning som analyserar minnesmönster, motsägelser och kunskapsluckor.",
   "config.memory_analysis.reflection_label": "Veckoreflektion aktiverad:",
-  "config.memory_analysis.reflection_title": "Veckoreflektion",
   "config.memory_analysis.select_provider": "— Huvud-LLM (standard) —",
   "config.memory_analysis.threshold_desc": "Konfidenströskel (0.0–1.0) över vilken extraherade minnen lagras automatiskt utan användarbekräftelse.",
   "config.memory_analysis.threshold_label": "Tröskel",

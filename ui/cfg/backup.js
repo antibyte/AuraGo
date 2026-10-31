@@ -444,11 +444,11 @@ async function backupConfirmPending(btn, id) {
     }), {
         pending: t('config.backup.confirming'),
         success: t('config.backup.confirm_done'),
-        failure: t('config.backup.status_error'),
+        failure: t('config.common.error'),
         reasonText: backupImportReason
     });
     let note = null;
-    if (outcome && outcome.state === 'error') note = { state: 'error', text: t('config.backup.status_error') + ' ' + (outcome.reason || '') };
+    if (outcome && outcome.state === 'error') note = { state: 'error', text: t('config.common.error') + ' ' + (outcome.reason || '') };
     await backupLoadRestoreStatus(note);
     return outcome;
 }

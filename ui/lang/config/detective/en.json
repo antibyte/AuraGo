@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Maximum number of tool calls per job (1 to 500).",
   "config.detective.help_iterations": "Maximum number of reasoning and work rounds per job (1 to 750).",
   "config.detective.help_tokens": "Additional cap on tokens used per job. 0 = no additional limit.",
-  "config.detective.extra_read_invalid": "These lines will not be saved because they are not in the form tool: operation, operation. Line {lines}."
+  "config.detective.extra_read_invalid_many": "These lines will not be saved because they are not in the form tool: operation, operation. Lines {lines}.",
+  "config.detective.extra_read_invalid_one": "This line will not be saved because it is not in the form tool: operation, operation. Line {lines}."
 }

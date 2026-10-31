@@ -10,7 +10,7 @@
         'button[onclick*="Test"]',
         'button[onclick*="testConnection"]'
     ].join(',');
-    const MODAL_SELECTOR = '.modal-overlay, .sec-modal-overlay, .mcp-modal-overlay, .prov-modal-overlay, .sql-modal-overlay';
+    const MODAL_SELECTOR = '.modal-overlay';
 
     function text(key, fallback) {
         if (typeof t === 'function') {
@@ -223,7 +223,7 @@
     }
 
     function guardEnable(event) {
-        const element = event.target.closest && event.target.closest('.toggle[data-path], input[type="checkbox"][data-cfg-confirm-enable]');
+        const element = event.target.closest && event.target.closest('.toggle[data-path], .toggle[data-cfg-confirm-enable], input[type="checkbox"][data-cfg-confirm-enable]');
         if (!element || element.dataset.cfgConfirmed === 'true') return;
         const category = confirmCategory(element);
         if (!category) return;
@@ -238,10 +238,13 @@
         if (element.dataset.cfgConfirming === 'true') return;
         element.dataset.cfgConfirming = 'true';
         const label = confirmLabel(element);
-        Promise.resolve(showConfirm(
-            text('config.confirm_enable.title', 'Enable {label}?').replace('{label}', () => label),
-            text('config.confirm_enable.' + category, '').replace('{label}', () => label)
-        )).then(approved => {
+        const title = text('config.confirm_enable.title', 'Enable {label}?').replace('{label}', () => label);
+        const message = text('config.confirm_enable.' + category, '').replace('{label}', () => label);
+        // Switches inside dialogs (no data-path) only change the dialog; they confirm as a danger dialog.
+        const ask = !element.dataset.path && typeof showConfirmDialog === 'function'
+            ? showConfirmDialog({ title, message, danger: true }).then(answer => answer.confirmed)
+            : showConfirm(title, message);
+        Promise.resolve(ask).then(approved => {
             delete element.dataset.cfgConfirming;
             if (!approved) return;
             element.dataset.cfgConfirmed = 'true';

@@ -13,8 +13,7 @@ async function renderYepAPISection(section) {
     const form = window.AuraConfigForm;
 
     // The enable switch re-renders the section: the other settings only show while it is on.
-    const enableToggle = form.toggle({ label: t('config.yepapi.enabled_label'), help: t('config.yepapi.enabled_help'), path: 'yepapi.enabled', value: enabled })
-        .replace('onclick="toggleBool(this)"', 'onclick="yepapiToggleEnabled(this)"');
+    const enableToggle = form.toggle({ label: t('config.yepapi.enabled_label'), help: t('config.yepapi.enabled_help'), path: 'yepapi.enabled', value: enabled, onclick: 'yepapiToggleEnabled(this)' });
 
     if (!enabled) {
         document.getElementById('content').innerHTML = form.renderSpec({

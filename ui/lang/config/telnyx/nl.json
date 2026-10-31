@@ -40,8 +40,6 @@
   "config.telnyx.status_disabled": "Telnyx-integratie is uitgeschakeld",
   "config.telnyx.status_no_credentials": "Telnyx API-sleutel ontbreekt",
   "config.telnyx.status_ok": "Verbonden met Telnyx",
-  "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌",
   "help.telnyx.voice_language": "Standaardtaalcode voor Telnyx-spraakprompts en oproeptranscriptie.",
   "config.telnyx.voice_gender_help": "Stem waarmee de agent tijdens telefoongesprekken spreekt.",
   "config.telnyx.max_concurrent_calls_help": "Hoeveel gesprekken tegelijk mogen lopen (1-20, standaard 3). Overige gesprekken worden geweigerd.",

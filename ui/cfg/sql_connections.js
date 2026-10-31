@@ -95,22 +95,11 @@ function renderSQLConnectionsSection(section) {
     sqlConnLoad();
 }
 
-// One permission switch of the dialog. Dangerous ones (data-cfg-confirm-enable) ask before they turn on;
-// the dialog is not part of the config draft, so nothing is marked dirty.
+// One permission switch of the dialog. Dangerous ones (data-cfg-confirm-enable) are confirmed centrally
+// (js/config/actions.js) before this runs; the dialog is not part of the config draft, so nothing is marked dirty.
 function sqlConnPermToggle(el) {
-    const turningOn = !el.classList.contains('on');
-    const apply = () => {
-        el.classList.toggle('on', turningOn);
-        syncToggleA11y(el);
-    };
-    const category = el.getAttribute('data-cfg-confirm-enable');
-    if (!turningOn || !category) { apply(); return; }
-    const label = (document.getElementById(el.id + '-label') || {}).textContent || '';
-    showConfirmDialog({
-        title: String(t('config.confirm_enable.title')).replace('{label}', () => label),
-        message: String(t('config.confirm_enable.' + category)).replace('{label}', () => label),
-        danger: true
-    }).then(answer => { if (answer.confirmed) apply(); });
+    el.classList.toggle('on', !el.classList.contains('on'));
+    syncToggleA11y(el);
 }
 
 function sqlConnPermSet(id, on) {

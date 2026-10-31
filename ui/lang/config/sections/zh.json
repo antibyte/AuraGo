@@ -560,7 +560,6 @@
   "config.section.optimizations.group.safety_limits": "安全限制与恢复",
   "config.section.optimizations.group.token_context": "Token 与上下文",
   "config.section.optimizations.group.tool_context": "工具上下文",
-  "config.section.optimizations.group.tool_optimization": "工具优化",
   "config.section.optimizations.group.tool_visibility": "工具可见性",
   "config.section.gog.label": "通过 gog 访问 Google Workspace",
   "config.section.gog.desc": "通过外部命令行工具 gog 访问其他 Google 账户。",

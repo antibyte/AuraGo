@@ -40,8 +40,6 @@
   "config.telnyx.status_disabled": "Η ενσωμάτωση Telnyx είναι απενεργοποιημένη",
   "config.telnyx.status_no_credentials": "Λείπει το API κλειδί Telnyx",
   "config.telnyx.status_ok": "Συνδέθηκε στο Telnyx",
-  "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌",
   "help.telnyx.voice_language": "Προεπιλεγμένος κωδικός γλώσσας που χρησιμοποιείται για φωνητικές προτροπές Telnyx και απομαγνητοφώνηση κλήσεων.",
   "config.telnyx.max_concurrent_calls_help": "Πόσες κλήσεις μπορούν να εκτελούνται ταυτόχρονα (1-20, προεπιλογή 3). Οι επιπλέον κλήσεις απορρίπτονται.",
   "config.telnyx.max_sms_per_minute_help": "Μέγιστος αριθμός εξερχόμενων SMS ανά λεπτό (1-60, προεπιλογή 10). Προστατεύει από ακούσια μαζική αποστολή και υψηλό κόστος.",

@@ -238,7 +238,7 @@ func TestConfigWave4SharedScriptsLoadedInOrder(t *testing.T) {
 	t.Parallel()
 	html := string(mustReadUIFile(t, "config.html"))
 	last := -1
-	for _, script := range []string{"/js/config/feedback.js", "/js/config/icons.js", "/js/config/components.js", "/cfg/form-builder.js"} {
+	for _, script := range []string{"/js/config/feedback.js", "/js/precision/icons.js", "/js/config/icons.js", "/js/config/components.js", "/cfg/form-builder.js"} {
 		at := strings.Index(html, script)
 		if at < 0 || at < last {
 			t.Fatalf("config.html must load %s after the previous shared script", script)

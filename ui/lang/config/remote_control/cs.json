@@ -27,7 +27,6 @@
   "config.remote_control.allowed_paths_hint": "Jeden na řádek; prázdný seznam zakazuje přístup k souborům.",
   "config.remote_control.allowed_paths_label": "Povolené cesty",
   "config.remote_control.audit_log_label": "Povolit protokol auditu",
-  "config.remote_control.auto_approve_label": "Automaticky schvalovat nová zařízení (⚠️ pouze v důvěryhodných sítích)",
   "config.remote_control.devices_desc": "Živý stav registrovaných vzdálených zařízení.",
   "config.remote_control.devices_title": "Připojená zařízení",
   "config.remote_control.disabled_desc": "Povolte pro správu vzdálených zařízení pomocí lehkých agentních binárních souborů připojujících se k této instanci AuraGo.",

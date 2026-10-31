@@ -40,8 +40,6 @@
   "config.telnyx.status_disabled": "L'intégration Telnyx est désactivée",
   "config.telnyx.status_no_credentials": "Clé API Telnyx manquante",
   "config.telnyx.status_ok": "Connecté à Telnyx",
-  "config.telnyx.status_success": "✅",
-  "config.telnyx.status_error": "❌",
   "help.telnyx.voice_language": "Code langue par défaut pour les messages vocaux Telnyx et la transcription d’appels.",
   "config.telnyx.voice_gender_help": "Voix que l'agent utilise pour parler lors des appels téléphoniques.",
   "config.telnyx.max_concurrent_calls_help": "Nombre d'appels pouvant se dérouler en même temps (1-20, 3 par défaut). Les appels suivants sont rejetés.",

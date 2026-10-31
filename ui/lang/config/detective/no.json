@@ -20,5 +20,6 @@
   "config.detective.help_tools": "Maksimalt antall verktøykall per oppdrag (1 til 500).",
   "config.detective.help_iterations": "Maksimalt antall tenke- og arbeidsrunder per oppdrag (1 til 750).",
   "config.detective.help_tokens": "Ekstra øvre grense for tokens per oppdrag. 0 = ingen ekstra grense.",
-  "config.detective.extra_read_invalid": "Disse linjene blir ikke lagret fordi de ikke har formen verktøy: operasjon, operasjon. Linje {lines}."
+  "config.detective.extra_read_invalid_many": "Disse linjene blir ikke lagret fordi de ikke har formen verktøy: operasjon, operasjon. Linjer {lines}.",
+  "config.detective.extra_read_invalid_one": "Denne linjen blir ikke lagret fordi den ikke har formen verktøy: operasjon, operasjon. Linje {lines}."
 }

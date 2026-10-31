@@ -21,8 +21,6 @@
   "config.ai_gateway.status_disabled": "Το AI Gateway είναι απενεργοποιημένο",
   "config.ai_gateway.status_no_credentials": "Λείπει το ID λογαριασμού ή το ID πύλης",
   "config.ai_gateway.status_ok": "Συνδέθηκε στο AI Gateway",
-  "config.ai_gateway.status_success": "✅",
-  "config.ai_gateway.status_error": "❌",
   "config.ai_gateway.log_mode": "Λειτουργία καταγραφής",
   "config.ai_gateway.log_mode_metadata_only": "Μόνο μεταδεδομένα",
   "config.ai_gateway.log_mode_off": "Ανενεργό",
